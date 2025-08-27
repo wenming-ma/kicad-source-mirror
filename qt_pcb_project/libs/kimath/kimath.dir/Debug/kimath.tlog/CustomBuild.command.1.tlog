@@ -1,0 +1,10 @@
+^C:\USERS\WENMING_MA\SOURCE\REPOS\KICAD-SOURCE-MIRROR\QT_PCB_PROJECT\LIBS\KIMATH\CMAKELISTS.TXT
+setlocal
+C:\Users\wenming_ma\My_Working_Area\Software\cmake\bin\cmake.exe -SC:/Users/wenming_ma/source/repos/kicad-source-mirror/qt_pcb_project -BC:/Users/wenming_ma/source/repos/kicad-source-mirror/qt_pcb_project --check-stamp-file C:/Users/wenming_ma/source/repos/kicad-source-mirror/qt_pcb_project/libs/kimath/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
