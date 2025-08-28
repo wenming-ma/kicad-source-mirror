@@ -103,7 +103,7 @@ endif()
 ####################################
 option( KICAD_SPICE_QA
     "Build software Quality assurance unit tests for spice (default ON)"
-    ON )
+    OFF )
 
 option( KICAD_USE_SENTRY
     "Build KiCad with support for sentry app metrics"
@@ -111,7 +111,7 @@ option( KICAD_USE_SENTRY
 
 option( KICAD_SIGNAL_INTEGRITY
     "Build tools for signal integrity analysis ( default ON )"
-    ON )
+    OFF )
 
 option( KICAD_BUILD_I18N
     "Build the translation libraries."
@@ -119,7 +119,7 @@ option( KICAD_BUILD_I18N
 
 option( KICAD_BUILD_QA_TESTS
     "Build software Quality assurance unit tests (default ON)"
-    ON )
+    OFF )
 
 option( KICAD_SCRIPTING_WXPYTHON
     "Build wxPython implementation for wx interface building in Python and py.shell (default ON)."
@@ -235,7 +235,7 @@ cmake_dependent_option( KICAD_WIN32_LTCG
 
 option( KICAD_USE_PCH
     "Enable precompiled header support"
-    ON )
+    OFF )
 
 # Advanced option to make link maps (only available on linux)
 cmake_dependent_option( KICAD_MAKE_LINK_MAPS
