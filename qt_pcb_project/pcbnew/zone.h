@@ -28,7 +28,6 @@
 
 #include <mutex>
 #include <vector>
-#include <map>
 #include <gr_basic.h>
 #include <board_item.h>
 #include <board_connected_item.h>
@@ -142,24 +141,6 @@ public:
      */
     void SetLayerSetAndRemoveUnusedFills( const LSET& aLayerSet );
 
-    ZONE_LAYER_PROPERTIES& LayerProperties( PCB_LAYER_ID aLayer )
-    {
-        return m_layerProperties[aLayer];
-    }
-
-    const ZONE_LAYER_PROPERTIES& LayerProperties( PCB_LAYER_ID aLayer ) const;
-
-    std::map<PCB_LAYER_ID, ZONE_LAYER_PROPERTIES>& LayerProperties() { return m_layerProperties; }
-
-    const std::map<PCB_LAYER_ID, ZONE_LAYER_PROPERTIES>& LayerProperties() const
-    {
-        return m_layerProperties;
-    }
-
-    void SetLayerProperties( const std::map<PCB_LAYER_ID, ZONE_LAYER_PROPERTIES>& aOther );
-
-    const std::optional<VECTOR2I>& HatchingOffset( PCB_LAYER_ID aLayer ) const;
-
     const wxString& GetZoneName() const { return m_zoneName; }
     void SetZoneName( const wxString& aName ) { m_zoneName = aName; }
 
@@ -183,7 +164,19 @@ public:
      * @return the zone's clearance in internal units.
      */
     std::optional<int> GetLocalClearance() const override;
-    void SetLocalClearance( std::optional<int> aClearance ) { m_ZoneClearance = aClearance.value_or( 0 ); };
+
+    /**
+     * Set the local clearance for this zone.
+     *
+     * @param aClearance is the clearance in internal units, or std::nullopt to clear it.
+     */
+    void SetLocalClearance( std::optional<int> aClearance )
+    {
+        if( aClearance )
+            m_ZoneClearance = aClearance.value();
+        else
+            m_ZoneClearance = 0;
+    }
 
     /**
      * Return any local clearances set in the "classic" (ie: pre-rule) system.
@@ -301,10 +294,16 @@ public:
     int GetMinThickness() const { return m_ZoneMinThickness; }
     void SetMinThickness( int aMinThickness )
     {
+        if( m_ZoneMinThickness != aMinThickness
+            || ( m_fillMode == ZONE_FILL_MODE::HATCH_PATTERN
+                 && ( m_hatchThickness < aMinThickness || m_hatchGap < aMinThickness ) ) )
+        {
+            SetNeedRefill( true );
+        }
+
         m_ZoneMinThickness = aMinThickness;
         m_hatchThickness   = std::max( m_hatchThickness, aMinThickness );
         m_hatchGap         = std::max( m_hatchGap, aMinThickness );
-        SetNeedRefill( true );
     }
 
     int GetHatchThickness() const { return m_hatchThickness; }
@@ -328,6 +327,33 @@ public:
     int GetHatchBorderAlgorithm() const { return m_hatchBorderAlgorithm; }
     void SetHatchBorderAlgorithm( int aAlgo ) { m_hatchBorderAlgorithm = aAlgo; }
 
+    int GetSelectedCorner() const
+    {
+        // Transform relative indices to global index
+        int globalIndex = -1;
+
+        if( m_CornerSelection )
+            m_Poly->GetGlobalIndex( *m_CornerSelection, globalIndex );
+
+        return globalIndex;
+    }
+
+    void SetSelectedCorner( int aCorner )
+    {
+        SHAPE_POLY_SET::VERTEX_INDEX selectedCorner;
+
+        // If the global index of the corner is correct, assign it to m_CornerSelection
+        if( m_Poly->GetRelativeIndices( aCorner, &selectedCorner ) )
+        {
+            if( m_CornerSelection == nullptr )
+                m_CornerSelection = new SHAPE_POLY_SET::VERTEX_INDEX;
+
+            *m_CornerSelection = selectedCorner;
+        }
+        else
+            throw( std::out_of_range( "aCorner-th vertex does not exist" ) );
+    }
+
     ///
     int GetLocalFlags() const { return m_localFlgs; }
     void SetLocalFlags( int aFlags ) { m_localFlgs = aFlags; }
@@ -340,7 +366,7 @@ public:
     // @copydoc BOARD_ITEM::GetEffectiveShape
     virtual std::shared_ptr<SHAPE>
     GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
-                       FLASHING aFlash = FLASHING::DEFAULT ) const override;
+            FLASHING aFlash = FLASHING::DEFAULT ) const override;
 
     /**
      * Test if a point is near an outline edge or a corner of this zone.
@@ -448,14 +474,9 @@ public:
                          SHAPE_POLY_SET::VERTEX_INDEX* aCornerHit = nullptr ) const;
 
     /**
-     * @copydoc EDA_ITEM::HitTest(const BOX2I& aRect, bool aContained, int aAccuracy) const
+     * @copydoc BOARD_ITEM::HitTest(const BOX2I& aRect, bool aContained, int aAccuracy) const
      */
     bool HitTest( const BOX2I& aRect, bool aContained = true, int aAccuracy = 0 ) const override;
-
-    /**
-     * @copydoc EDA_ITEM::HitTest(const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
-     */
-    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override;
 
     /**
      * Removes the zone filling.
@@ -565,6 +586,26 @@ public:
             throw( std::out_of_range( "aCornerIndex-th vertex does not exist" ) );
 
         return m_Poly->CVertex( index );
+    }
+
+    void SetCornerPosition( int aCornerIndex, const VECTOR2I& new_pos )
+    {
+        SHAPE_POLY_SET::VERTEX_INDEX relativeIndices;
+
+        // Convert global to relative indices
+        if( m_Poly->GetRelativeIndices( aCornerIndex, &relativeIndices ) )
+        {
+            if( m_Poly->CVertex( relativeIndices ).x != new_pos.x
+                    || m_Poly->CVertex( relativeIndices ).y != new_pos.y )
+            {
+                SetNeedRefill( true );
+                m_Poly->SetVertex( relativeIndices, new_pos );
+            }
+        }
+        else
+        {
+            throw( std::out_of_range( "aCornerIndex-th vertex does not exist" ) );
+        }
     }
 
     /**
@@ -695,34 +736,36 @@ public:
     bool HasKeepoutParametersSet() const
     {
         return m_doNotAllowTracks || m_doNotAllowVias || m_doNotAllowPads || m_doNotAllowFootprints
-               || m_doNotAllowZoneFills;
+               || m_doNotAllowCopperPour;
     }
 
     /**
      * Accessors to parameters used in Rule Area zones:
      */
-    bool GetIsRuleArea() const                        { return m_isRuleArea; }
-    void SetIsRuleArea( bool aEnable )                { m_isRuleArea = aEnable; }
-    bool GetPlacementAreaEnabled() const          { return m_placementAreaEnabled; }
-    void SetPlacementAreaEnabled( bool aEnabled ) { m_placementAreaEnabled = aEnabled; }
-
-    wxString GetPlacementAreaSource() const                { return m_placementAreaSource; }
-    void SetPlacementAreaSource( const wxString& aSource ) { m_placementAreaSource = aSource; }
-    PLACEMENT_SOURCE_T GetPlacementAreaSourceType() const
+    bool GetIsRuleArea() const { return m_isRuleArea; }
+    bool GetRuleAreaPlacementEnabled() const { return m_ruleAreaPlacementEnabled ; }
+    RULE_AREA_PLACEMENT_SOURCE_TYPE GetRuleAreaPlacementSourceType() const
     {
-        return m_placementAreaSourceType;
+        return m_ruleAreaPlacementSourceType;
     }
-    void SetPlacementAreaSourceType( PLACEMENT_SOURCE_T aType )
-    { m_placementAreaSourceType = aType;
-    }
-
-    bool GetDoNotAllowZoneFills() const  { return m_doNotAllowZoneFills; }
+    wxString GetRuleAreaPlacementSource() const { return m_ruleAreaPlacementSource; }
+    bool GetDoNotAllowCopperPour() const { return m_doNotAllowCopperPour; }
     bool GetDoNotAllowVias() const       { return m_doNotAllowVias; }
     bool GetDoNotAllowTracks() const     { return m_doNotAllowTracks; }
     bool GetDoNotAllowPads() const       { return m_doNotAllowPads; }
     bool GetDoNotAllowFootprints() const { return m_doNotAllowFootprints; }
 
-    void SetDoNotAllowZoneFills( bool aEnable )  { m_doNotAllowZoneFills = aEnable; }
+    void SetIsRuleArea( bool aEnable ) { m_isRuleArea = aEnable; }
+    void SetRuleAreaPlacementEnabled( bool aEnabled ) { m_ruleAreaPlacementEnabled = aEnabled; }
+    void SetRuleAreaPlacementSourceType( RULE_AREA_PLACEMENT_SOURCE_TYPE aType )
+    {
+        m_ruleAreaPlacementSourceType = aType;
+    }
+    void SetRuleAreaPlacementSource( const wxString& aSource )
+    {
+        m_ruleAreaPlacementSource = aSource;
+    }
+    void SetDoNotAllowCopperPour( bool aEnable ) { m_doNotAllowCopperPour = aEnable; }
     void SetDoNotAllowVias( bool aEnable )       { m_doNotAllowVias = aEnable; }
     void SetDoNotAllowTracks( bool aEnable )     { m_doNotAllowTracks = aEnable; }
     void SetDoNotAllowPads( bool aEnable )       { m_doNotAllowPads = aEnable; }
@@ -741,8 +784,7 @@ public:
     /**
      * @return the zone hatch pitch in iu.
      */
-    int GetBorderHatchPitch() const        { return m_borderHatchPitch; }
-    void SetBorderHatchPitch( int aPitch ) { m_borderHatchPitch = aPitch; }
+    int GetBorderHatchPitch() const;
 
     /**
      * @return the default hatch pitch in internal units.
@@ -762,6 +804,13 @@ public:
                                 bool aRebuilBorderdHatch );
 
     /**
+     * Set the hatch pitch parameter for the zone.
+     *
+     * @param aPitch is the hatch pitch in iu.
+     */
+    void SetBorderHatchPitch( int aPitch );
+
+    /**
      * Clear the zone's hatch.
      */
     void UnHatchBorder();
@@ -770,7 +819,7 @@ public:
      * Compute the hatch lines depending on the hatch parameters and stores it in the zone's
      * attribute m_borderHatchLines.
      */
-    void HatchBorder();
+    void   HatchBorder();
 
     const std::vector<SEG>& GetHatchLines() const { return m_borderHatchLines; }
 
@@ -814,8 +863,6 @@ protected:
 
     LSET                  m_layerSet;
 
-    std::map<PCB_LAYER_ID, ZONE_LAYER_PROPERTIES> m_layerProperties;
-
     /* Priority: when a zone outline is inside and other zone, if its priority is higher
      * the other zone priority, it will be created inside.
      * if priorities are equal, a DRC error is set
@@ -830,20 +877,20 @@ protected:
     /**
      * Placement rule area data
      */
-    bool                  m_placementAreaEnabled;
-    PLACEMENT_SOURCE_T    m_placementAreaSourceType;
-    wxString              m_placementAreaSource;
+    bool                            m_ruleAreaPlacementEnabled;
+    RULE_AREA_PLACEMENT_SOURCE_TYPE m_ruleAreaPlacementSourceType;
+    wxString                        m_ruleAreaPlacementSource;
 
     /* A zone outline can be a teardrop zone with different rules for priority
      * (always bigger priority than copper zones) and never removed from a
      * copper zone having the same netcode
      */
-    TEARDROP_TYPE         m_teardropType;
+    TEARDROP_TYPE m_teardropType;
 
     /* For keepout zones only:
      * what is not allowed inside the keepout ( pads, tracks and vias )
      */
-    bool                  m_doNotAllowZoneFills;
+    bool                  m_doNotAllowCopperPour;
     bool                  m_doNotAllowVias;
     bool                  m_doNotAllowTracks;
     bool                  m_doNotAllowPads;
@@ -852,18 +899,17 @@ protected:
     ZONE_CONNECTION       m_PadConnection;
     int                   m_ZoneClearance;           // Clearance value in internal units.
     int                   m_ZoneMinThickness;        // Minimum thickness value in filled areas.
-    int                   m_fillVersion;             // See BOARD_DESIGN_SETTINGS for version
-                                                     // differences.
+
     ISLAND_REMOVAL_MODE   m_islandRemovalMode;
 
     /**
      * When island removal mode is set to AREA, islands below this area will be removed.
      * If this value is negative, all islands will be removed.
      */
-    long long int         m_minIslandArea;
+    long long int    m_minIslandArea;
 
     /** True when a zone was filled, false after deleting the filled areas. */
-    bool                  m_isFilled;
+    bool             m_isFilled;
 
     /**
      * False when a zone was refilled, true after changes in zone params.
@@ -875,7 +921,14 @@ protected:
     int              m_thermalReliefGap;        // Width of the gap in thermal reliefs.
     int              m_thermalReliefSpokeWidth; // Width of the copper bridge in thermal reliefs.
 
-    ZONE_FILL_MODE   m_fillMode;                // fill with POLYGONS vs HATCH_PATTERN
+
+    /**
+     * How to fill areas:
+     *
+     * ZONE_FILL_MODE::POLYGONS => use solid polygons
+     * ZONE_FILL_MODE::HATCH_PATTERN => use a grid pattern as shape
+     */
+    ZONE_FILL_MODE   m_fillMode;
     int              m_hatchThickness;          // thickness of lines (if 0 -> solid shape)
     int              m_hatchGap;                // gap between lines (0 -> solid shape
     EDA_ANGLE        m_hatchOrientation;        // orientation of grid lines
@@ -887,6 +940,10 @@ protected:
     double           m_hatchHoleMinArea;        // min size before holes are dropped (ratio)
     int              m_hatchBorderAlgorithm;    // 0 = use min zone thickness
                                                 // 1 = use hatch thickness
+
+    /// The index of the corner being moved or nullptr if no corner is selected.
+    SHAPE_POLY_SET::VERTEX_INDEX* m_CornerSelection;
+
     int              m_localFlgs;               // Variable used in polygon calculations.
 
     /* set of filled polygons used to draw a zone as a filled area.
@@ -916,7 +973,7 @@ protected:
     double                    m_outlinearea;       // The outline zone area
 
     /// Lock used for multi-threaded filling on multi-layer zones
-    std::mutex                m_lock;
+    std::mutex m_lock;
 };
 
 
@@ -924,7 +981,7 @@ protected:
 DECLARE_ENUM_TO_WXANY( ZONE_CONNECTION )
 DECLARE_ENUM_TO_WXANY( ZONE_FILL_MODE )
 DECLARE_ENUM_TO_WXANY( ISLAND_REMOVAL_MODE )
-DECLARE_ENUM_TO_WXANY( PLACEMENT_SOURCE_T )
+DECLARE_ENUM_TO_WXANY( RULE_AREA_PLACEMENT_SOURCE_TYPE )
 #endif
 
 #endif  // ZONE_H

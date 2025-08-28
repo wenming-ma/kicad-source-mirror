@@ -34,7 +34,6 @@
 #include <convert_basic_shapes_to_polygon.h>
 #include <base_units.h>
 #include <layer_range.h>
-#include <length_delay_calculation/length_delay_calculation.h>
 #include <lset.h>
 #include <string_utils.h>
 #include <view/view.h>
@@ -378,6 +377,8 @@ void PCB_VIA::SetWidth( int aWidth )
 
 int PCB_VIA::GetWidth() const
 {
+    // This is present because of the parent class.  It should never be actually called on a via.
+    wxASSERT_MSG( false, "Warning: PCB_VIA::GetWidth called without a layer argument" );
     return m_padStack.Size( PADSTACK::ALL_LAYERS ).x;
 }
 
@@ -742,47 +743,9 @@ const BOX2I PCB_VIA::GetBoundingBox() const
 }
 
 
-const BOX2I PCB_VIA::GetBoundingBox( PCB_LAYER_ID aLayer ) const
-{
-    int radius = GetWidth( aLayer );
-
-    // via is round, this is its radius, rounded up
-    radius = ( radius + 1 ) / 2;
-
-    int ymax = m_Start.y + radius;
-    int xmax = m_Start.x + radius;
-
-    int ymin = m_Start.y - radius;
-    int xmin = m_Start.x - radius;
-
-    // return a rectangle which is [pos,dim) in nature.  therefore the +1
-    return BOX2ISafe( VECTOR2I( xmin, ymin ),
-                      VECTOR2L( (int64_t) xmax - xmin + 1, (int64_t) ymax - ymin + 1 ) );
-}
-
-
 double PCB_TRACK::GetLength() const
 {
     return m_Start.Distance( m_End );
-}
-
-
-double PCB_TRACK::GetDelay() const
-{
-    const BOARD* board = GetBoard();
-
-    if( !board )
-        return 0.0;
-
-    const LENGTH_DELAY_CALCULATION*            calc = board->GetLengthCalculation();
-    std::vector<LENGTH_DELAY_CALCULATION_ITEM> items{ calc->GetLengthCalculationItem( this ) };
-    constexpr PATH_OPTIMISATIONS               opts = { .OptimiseViaLayers = false,
-                                                        .MergeTracks = false,
-                                                        .OptimiseTracesInPads = false,
-                                                        .InferViaInPad = false
-                                                      };
-
-    return (double) calc->CalculateDelay( items, opts );
 }
 
 
@@ -908,7 +871,7 @@ std::shared_ptr<SHAPE_SEGMENT> PCB_VIA::GetEffectiveHoleShape() const
     return std::make_shared<SHAPE_SEGMENT>( SEG( m_Start, m_Start ), Padstack().Drill().size.x );
 }
 
-// clang-format off: the suggestion is slightly less readable
+
 void PCB_VIA::SetFrontTentingMode( TENTING_MODE aMode )
 {
     switch( aMode )
@@ -925,7 +888,7 @@ TENTING_MODE PCB_VIA::GetFrontTentingMode() const
     if( m_padStack.FrontOuterLayers().has_solder_mask.has_value() )
     {
         return *m_padStack.FrontOuterLayers().has_solder_mask ?
-                TENTING_MODE::TENTED : TENTING_MODE::NOT_TENTED;
+            TENTING_MODE::TENTED : TENTING_MODE::NOT_TENTED;
     }
 
     return TENTING_MODE::FROM_RULES;
@@ -948,150 +911,11 @@ TENTING_MODE PCB_VIA::GetBackTentingMode() const
     if( m_padStack.BackOuterLayers().has_solder_mask.has_value() )
     {
         return *m_padStack.BackOuterLayers().has_solder_mask ?
-                TENTING_MODE::TENTED : TENTING_MODE::NOT_TENTED;
+            TENTING_MODE::TENTED : TENTING_MODE::NOT_TENTED;
     }
 
     return TENTING_MODE::FROM_RULES;
 }
-
-
-void PCB_VIA::SetFrontCoveringMode( COVERING_MODE aMode )
-{
-    switch( aMode )
-    {
-    case COVERING_MODE::FROM_RULES: m_padStack.FrontOuterLayers().has_covering.reset();  break;
-    case COVERING_MODE::COVERED:     m_padStack.FrontOuterLayers().has_covering = true;   break;
-    case COVERING_MODE::NOT_COVERED: m_padStack.FrontOuterLayers().has_covering = false;  break;
-    }
-}
-
-
-COVERING_MODE PCB_VIA::GetFrontCoveringMode() const
-{
-    if( m_padStack.FrontOuterLayers().has_covering.has_value() )
-    {
-        return *m_padStack.FrontOuterLayers().has_covering ?
-                COVERING_MODE::COVERED : COVERING_MODE::NOT_COVERED;
-    }
-
-    return COVERING_MODE::FROM_RULES;
-}
-
-
-void PCB_VIA::SetBackCoveringMode( COVERING_MODE aMode )
-{
-    switch( aMode )
-    {
-    case COVERING_MODE::FROM_RULES: m_padStack.BackOuterLayers().has_covering.reset();  break;
-    case COVERING_MODE::COVERED:     m_padStack.BackOuterLayers().has_covering = true;   break;
-    case COVERING_MODE::NOT_COVERED: m_padStack.BackOuterLayers().has_covering = false;  break;
-    }
-}
-
-
-COVERING_MODE PCB_VIA::GetBackCoveringMode() const
-{
-    if( m_padStack.BackOuterLayers().has_covering.has_value() )
-    {
-        return *m_padStack.BackOuterLayers().has_covering ?
-                COVERING_MODE::COVERED : COVERING_MODE::NOT_COVERED;
-    }
-
-    return COVERING_MODE::FROM_RULES;
-}
-
-
-void PCB_VIA::SetFrontPluggingMode( PLUGGING_MODE aMode )
-{
-    switch( aMode )
-    {
-    case PLUGGING_MODE::FROM_RULES: m_padStack.FrontOuterLayers().has_plugging.reset();  break;
-    case PLUGGING_MODE::PLUGGED:     m_padStack.FrontOuterLayers().has_plugging = true;   break;
-    case PLUGGING_MODE::NOT_PLUGGED: m_padStack.FrontOuterLayers().has_plugging = false;  break;
-    }
-}
-
-
-PLUGGING_MODE PCB_VIA::GetFrontPluggingMode() const
-{
-    if( m_padStack.FrontOuterLayers().has_plugging.has_value() )
-    {
-        return *m_padStack.FrontOuterLayers().has_plugging ?
-                PLUGGING_MODE::PLUGGED : PLUGGING_MODE::NOT_PLUGGED;
-    }
-
-    return PLUGGING_MODE::FROM_RULES;
-}
-
-
-void PCB_VIA::SetBackPluggingMode( PLUGGING_MODE aMode )
-{
-    switch( aMode )
-    {
-    case PLUGGING_MODE::FROM_RULES: m_padStack.BackOuterLayers().has_plugging.reset();  break;
-    case PLUGGING_MODE::PLUGGED:     m_padStack.BackOuterLayers().has_plugging = true;   break;
-    case PLUGGING_MODE::NOT_PLUGGED: m_padStack.BackOuterLayers().has_plugging = false;  break;
-    }
-}
-
-
-PLUGGING_MODE PCB_VIA::GetBackPluggingMode() const
-{
-    if( m_padStack.BackOuterLayers().has_plugging.has_value() )
-    {
-        return *m_padStack.BackOuterLayers().has_plugging ?
-                PLUGGING_MODE::PLUGGED : PLUGGING_MODE::NOT_PLUGGED;
-    }
-
-    return PLUGGING_MODE::FROM_RULES;
-}
-
-
-void PCB_VIA::SetCappingMode( CAPPING_MODE aMode )
-{
-    switch( aMode )
-    {
-    case CAPPING_MODE::FROM_RULES: m_padStack.Drill().is_capped.reset();  break;
-    case CAPPING_MODE::CAPPED:     m_padStack.Drill().is_capped = true;   break;
-    case CAPPING_MODE::NOT_CAPPED: m_padStack.Drill().is_capped = false;  break;
-    }
-}
-
-
-CAPPING_MODE PCB_VIA::GetCappingMode() const
-{
-    if( m_padStack.Drill().is_capped.has_value() )
-    {
-        return *m_padStack.Drill().is_capped ?
-                CAPPING_MODE::CAPPED : CAPPING_MODE::NOT_CAPPED;
-    }
-
-    return CAPPING_MODE::FROM_RULES;
-}
-
-
-void PCB_VIA::SetFillingMode( FILLING_MODE aMode )
-{
-    switch( aMode )
-    {
-    case FILLING_MODE::FROM_RULES: m_padStack.Drill().is_filled.reset();  break;
-    case FILLING_MODE::FILLED:     m_padStack.Drill().is_filled = true;   break;
-    case FILLING_MODE::NOT_FILLED: m_padStack.Drill().is_filled = false;  break;
-    }
-}
-
-
-FILLING_MODE PCB_VIA::GetFillingMode() const
-{
-    if( m_padStack.Drill().is_filled.has_value() )
-    {
-        return *m_padStack.Drill().is_filled ?
-                FILLING_MODE::FILLED : FILLING_MODE::NOT_FILLED;
-    }
-
-    return FILLING_MODE::FROM_RULES;
-}
-// clang-format on: the suggestion is slightly less readable
 
 
 bool PCB_VIA::IsTented( PCB_LAYER_ID aLayer ) const
@@ -1128,21 +952,15 @@ int PCB_VIA::GetSolderMaskExpansion() const
 
 int PCB_TRACK::GetSolderMaskExpansion() const
 {
-    int margin = 0;
+    int margin = m_solderMaskMargin.value_or( 0 );
 
-    if( const BOARD* board = GetBoard() )
+    // If no local margin is set, get the board's solder mask expansion value
+    if( !m_solderMaskMargin.has_value() )
     {
-        DRC_CONSTRAINT              constraint;
-        std::shared_ptr<DRC_ENGINE> drcEngine = board->GetDesignSettings().m_DRCEngine;
+        const BOARD* board = GetBoard();
 
-        constraint = drcEngine->EvalRules( SOLDER_MASK_EXPANSION_CONSTRAINT, this, nullptr, m_layer );
-
-        if( constraint.m_Value.HasOpt() )
-            margin = constraint.m_Value.Opt();
-    }
-    else if( m_solderMaskMargin.has_value() )
-    {
-        margin = m_solderMaskMargin.value();
+        if( board )
+            margin = board->GetDesignSettings().m_SolderMaskExpansion;
     }
 
     // Ensure the resulting mask opening has a non-negative size
@@ -1348,8 +1166,9 @@ void PCB_VIA::SetTopLayer( PCB_LAYER_ID aLayer )
     if( aLayer == Padstack().Drill().end )
         return;
 
-    Padstack().Drill().start = aLayer;
+    Padstack().Drill().start = aLayer;    
     SanitizeLayers();
+
 }
 
 
@@ -1411,7 +1230,7 @@ void PCB_VIA::SanitizeLayers()
 }
 
 
-bool PCB_VIA::FlashLayer( const LSET& aLayers ) const
+bool PCB_VIA::FlashLayer( LSET aLayers ) const
 {
     for( PCB_LAYER_ID layer : aLayers )
     {
@@ -1458,9 +1277,6 @@ bool PCB_VIA::FlashLayer( int aLayer ) const
     case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL:
         // Check for removal below
         break;
-
-    case PADSTACK::UNCONNECTED_LAYER_MODE::START_END_ONLY:
-        return layer == Padstack().Drill().start || layer == Padstack().Drill().end;
     }
 
     if( GetZoneLayerOverride( layer ) == ZLO_FORCE_FLASHED )
@@ -1819,63 +1635,28 @@ void PCB_TRACK::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
         aList.emplace_back( _( "Radius" ), aFrame->MessageTextFromValue( radius ) );
     }
 
-    double segmentLength = GetLength();
-    double segmentDelay = GetDelay();
-
-    if( segmentDelay == 0.0 )
-    {
-        aList.emplace_back( _( "Segment Length" ), aFrame->MessageTextFromValue( segmentLength ) );
-    }
-    else
-    {
-        aList.emplace_back( _( "Segment Delay" ),
-                            aFrame->MessageTextFromValue( segmentDelay, true, EDA_DATA_TYPE::TIME ) );
-    }
+    aList.emplace_back( _( "Segment Length" ), aFrame->MessageTextFromValue( GetLength() ) );
 
     // Display full track length (in Pcbnew)
     if( board && GetNetCode() > 0 )
     {
-        int    count = 0;
-        double trackLen = 0.0;
-        double lenPadToDie = 0.0;
-        double trackDelay = 0.0;
-        double delayPadToDie = 0.0;
+        int    count;
+        double trackLen;
+        double lenPadToDie;
 
-        std::tie( count, trackLen, lenPadToDie, trackDelay, delayPadToDie ) = board->GetTrackLength( *this );
+        std::tie( count, trackLen, lenPadToDie ) = board->GetTrackLength( *this );
 
-        if( trackDelay == 0.0 )
+        aList.emplace_back( _( "Routed Length" ), aFrame->MessageTextFromValue( trackLen ) );
+
+        if( lenPadToDie != 0 )
         {
-            aList.emplace_back( _( "Routed Length" ), aFrame->MessageTextFromValue( trackLen ) );
+            msg = aFrame->MessageTextFromValue( lenPadToDie );
+            aList.emplace_back( _( "Pad To Die Length" ), msg );
 
-            if( lenPadToDie != 0 )
-            {
-                msg = aFrame->MessageTextFromValue( lenPadToDie );
-                aList.emplace_back( _( "Pad To Die Length" ), msg );
-
-                msg = aFrame->MessageTextFromValue( trackLen + lenPadToDie );
-                aList.emplace_back( _( "Full Length" ), msg );
-            }
-        }
-        else
-        {
-            aList.emplace_back( _( "Routed Delay" ),
-                                aFrame->MessageTextFromValue( trackDelay, true, EDA_DATA_TYPE::TIME ) );
-
-            if( delayPadToDie != 0.0 )
-            {
-                msg = aFrame->MessageTextFromValue( delayPadToDie, true, EDA_DATA_TYPE::TIME );
-                aList.emplace_back( _( "Pad To Die Delay" ), msg );
-
-                msg = aFrame->MessageTextFromValue( trackDelay + delayPadToDie, true, EDA_DATA_TYPE::TIME );
-                aList.emplace_back( _( "Full Delay" ), msg );
-            }
+            msg = aFrame->MessageTextFromValue( trackLen + lenPadToDie );
+            aList.emplace_back( _( "Full Length" ), msg );
         }
     }
-
-    SHAPE_POLY_SET copper;
-    TransformShapeToPolySet( copper, GetLayer(), 0, ARC_LOW_DEF, ERROR_INSIDE );
-    aList.emplace_back( _( "Copper Area" ),
-                        aFrame->MessageTextFromValue( copper.Area(), true, EDA_DATA_TYPE::AREA ) );
 
     wxString source;
     int clearance = GetOwnClearance( GetLayer(), &source );
@@ -1942,12 +1723,16 @@ void PCB_TRACK::GetMsgPanelInfoBase_Common( EDA_DRAW_FRAME* aFrame,
 
 #if 0   // Enable for debugging
     if( GetBoard() )
-        aList.emplace_back( _( "NetCode" ), fmt::format( "{}", GetNetCode() ) );
+        aList.emplace_back( _( "NetCode" ), wxString::Format( wxT( "%d" ), GetNetCode() ) );
 
-    aList.emplace_back( wxT( "Flags" ), fmt::format( "#08X", m_flags ) );
+    aList.emplace_back( wxT( "Flags" ), wxString::Format( wxT( "0x%08X" ), m_flags ) );
 
-    aList.emplace_back( wxT( "Start pos" ), fmt::format( "{} {}", m_Start.x, m_Start.y ) );
-    aList.emplace_back( wxT( "End pos" ), fmt::format( "{} {}", m_End.x, m_End.y ) );
+    aList.emplace_back( wxT( "Start pos" ), wxString::Format( wxT( "%d %d" ),
+                                                              m_Start.x,
+                                                              m_Start.y ) );
+    aList.emplace_back( wxT( "End pos" ), wxString::Format( wxT( "%d %d" ),
+                                                            m_End.x,
+                                                            m_End.y ) );
 #endif
 
     if( aFrame->GetName() == PCB_EDIT_FRAME_NAME && IsLocked() )
@@ -2085,12 +1870,6 @@ bool PCB_VIA::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) cons
             } );
 
     return hit;
-}
-
-
-bool PCB_TRACK::HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
-{
-    return KIGEOM::ShapeHitTest( aPoly, *GetEffectiveShape(), aContained );
 }
 
 
@@ -2314,43 +2093,17 @@ static struct TRACK_VIA_DESC
 {
     TRACK_VIA_DESC()
     {
-        // clang-format off: the suggestion is less readable
         ENUM_MAP<VIATYPE>::Instance()
-                .Undefined( VIATYPE::NOT_DEFINED )
-                .Map( VIATYPE::THROUGH,      _HKI( "Through" ) )
-                .Map( VIATYPE::BLIND_BURIED, _HKI( "Blind/buried" ) )
-                .Map( VIATYPE::MICROVIA,     _HKI( "Micro" ) );
+            .Undefined( VIATYPE::NOT_DEFINED )
+            .Map( VIATYPE::THROUGH,      _HKI( "Through" ) )
+            .Map( VIATYPE::BLIND_BURIED, _HKI( "Blind/buried" ) )
+            .Map( VIATYPE::MICROVIA,     _HKI( "Micro" ) );
 
         ENUM_MAP<TENTING_MODE>::Instance()
-                .Undefined( TENTING_MODE::FROM_RULES )
-                .Map( TENTING_MODE::FROM_RULES, _HKI( "From design rules" ) )
-                .Map( TENTING_MODE::TENTED,     _HKI( "Tented" ) )
-                .Map( TENTING_MODE::NOT_TENTED, _HKI( "Not tented" ) );
-
-        ENUM_MAP<COVERING_MODE>::Instance()
-                .Undefined( COVERING_MODE::FROM_RULES )
-                .Map( COVERING_MODE::FROM_RULES, _HKI( "From design rules" ) )
-                .Map( COVERING_MODE::COVERED,     _HKI( "Covered" ) )
-                .Map( COVERING_MODE::NOT_COVERED, _HKI( "Not covered" ) );
-
-        ENUM_MAP<PLUGGING_MODE>::Instance()
-                .Undefined( PLUGGING_MODE::FROM_RULES )
-                .Map( PLUGGING_MODE::FROM_RULES, _HKI( "From design rules" ) )
-                .Map( PLUGGING_MODE::PLUGGED,     _HKI( "Plugged" ) )
-                .Map( PLUGGING_MODE::NOT_PLUGGED, _HKI( "Not plugged" ) );
-
-        ENUM_MAP<CAPPING_MODE>::Instance()
-                .Undefined( CAPPING_MODE::FROM_RULES )
-                .Map( CAPPING_MODE::FROM_RULES, _HKI( "From design rules" ) )
-                .Map( CAPPING_MODE::CAPPED,     _HKI( "Capped" ) )
-                .Map( CAPPING_MODE::NOT_CAPPED, _HKI( "Not capped" ) );
-
-        ENUM_MAP<FILLING_MODE>::Instance()
-                .Undefined( FILLING_MODE::FROM_RULES )
-                .Map( FILLING_MODE::FROM_RULES, _HKI( "From design rules" ) )
-                .Map( FILLING_MODE::FILLED,     _HKI( "Filled" ) )
-                .Map( FILLING_MODE::NOT_FILLED, _HKI( "Not filled" ) );
-        // clang-format on: the suggestion is less readable
+            .Undefined( TENTING_MODE::FROM_RULES )
+            .Map( TENTING_MODE::FROM_RULES, _HKI( "From design rules" ) )
+            .Map( TENTING_MODE::TENTED,     _HKI( "Tented" ) )
+            .Map( TENTING_MODE::NOT_TENTED, _HKI( "Not tented" ) );
 
         ENUM_MAP<PCB_LAYER_ID>& layerEnum = ENUM_MAP<PCB_LAYER_ID>::Instance();
 
@@ -2358,7 +2111,7 @@ static struct TRACK_VIA_DESC
         {
             layerEnum.Undefined( UNDEFINED_LAYER );
 
-            for( PCB_LAYER_ID layer : LSET::AllLayersMask() )
+            for( PCB_LAYER_ID layer : LSET::AllLayersMask().Seq() )
                 layerEnum.Map( layer, LSET::Name( layer ) );
         }
 
@@ -2390,8 +2143,8 @@ static struct TRACK_VIA_DESC
         auto isExternalLayerTrack =
             []( INSPECTABLE* aItem )
             {
-                if( PCB_TRACK* track = dynamic_cast<PCB_TRACK*>( aItem ) )
-                    return IsExternalCopperLayer( track->GetLayer() );
+                if( auto track = dynamic_cast<PCB_TRACK*>( aItem ) )
+                    return track->GetLayer() == F_Cu || track->GetLayer() == B_Cu;
 
                 return false;
             };
@@ -2417,7 +2170,6 @@ static struct TRACK_VIA_DESC
 
         propMgr.Mask( TYPE_HASH( PCB_VIA ), TYPE_HASH( BOARD_CONNECTED_ITEM ), _HKI( "Layer" ) );
 
-        // clang-format off: the suggestion is less readable
         propMgr.AddProperty( new PROPERTY<PCB_VIA, int>( _HKI( "Diameter" ),
             &PCB_VIA::SetFrontWidth, &PCB_VIA::GetFrontWidth, PROPERTY_DISPLAY::PT_SIZE ), groupVia );
         propMgr.AddProperty( new PROPERTY<PCB_VIA, int>( _HKI( "Hole" ),
@@ -2432,25 +2184,8 @@ static struct TRACK_VIA_DESC
             &PCB_VIA::SetFrontTentingMode, &PCB_VIA::GetFrontTentingMode ), groupVia );
         propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, TENTING_MODE>( _HKI( "Back tenting" ),
             &PCB_VIA::SetBackTentingMode, &PCB_VIA::GetBackTentingMode ), groupVia );
-        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, COVERING_MODE>( _HKI( "Front covering" ),
-            &PCB_VIA::SetFrontCoveringMode, &PCB_VIA::GetFrontCoveringMode ), groupVia );
-        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, COVERING_MODE>( _HKI( "Back covering" ),
-            &PCB_VIA::SetBackCoveringMode, &PCB_VIA::GetBackCoveringMode ), groupVia );
-        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, PLUGGING_MODE>( _HKI( "Front plugging" ),
-            &PCB_VIA::SetFrontPluggingMode, &PCB_VIA::GetFrontPluggingMode ), groupVia );
-        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, PLUGGING_MODE>( _HKI( "Back plugging" ),
-            &PCB_VIA::SetBackPluggingMode, &PCB_VIA::GetBackPluggingMode ), groupVia );
-        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, CAPPING_MODE>( _HKI( "Capping" ),
-            &PCB_VIA::SetCappingMode, &PCB_VIA::GetCappingMode ), groupVia );
-        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, FILLING_MODE>( _HKI( "Filling" ),
-            &PCB_VIA::SetFillingMode, &PCB_VIA::GetFillingMode ), groupVia );
-        // clang-format on: the suggestion is less readable
     }
 } _TRACK_VIA_DESC;
 
 ENUM_TO_WXANY( VIATYPE );
 ENUM_TO_WXANY( TENTING_MODE );
-ENUM_TO_WXANY( COVERING_MODE );
-ENUM_TO_WXANY( PLUGGING_MODE );
-ENUM_TO_WXANY( CAPPING_MODE );
-ENUM_TO_WXANY( FILLING_MODE );

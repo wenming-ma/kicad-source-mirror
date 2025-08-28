@@ -314,7 +314,6 @@ enum GAL_LAYER_ID: int
     LAYER_DRC_SHAPE1         = GAL_LAYER_ID_START + 42,  ///< Custom shape for DRC marker.
     LAYER_DRC_SHAPE2         = GAL_LAYER_ID_START + 43,  ///< Custom shape for DRC marker.
 
-    LAYER_BOARD_OUTLINE_AREA = GAL_LAYER_ID_START + 44, ///< PCB board outline
     // Add layers below this point that do not have visibility controls, so don't need explicit
     // enum values
 
@@ -602,10 +601,9 @@ enum LAYER_3D_ID : int
         LAYER_3D_VIRTUAL_MODELS,
         LAYER_3D_MODELS_NOT_IN_POS,
         LAYER_3D_MODELS_MARKED_DNP,
-        LAYER_3D_NAVIGATOR,
+        LAYER_3D_AXES,
         LAYER_3D_BOUNDING_BOXES,
         LAYER_3D_OFF_BOARD_SILK,
-        LAYER_3D_PLATED_BARRELS,
 
         LAYER_3D_END
 };

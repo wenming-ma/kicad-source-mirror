@@ -101,8 +101,6 @@
 #define MINIMUM_ERROR_SIZE_MM         0.001   // For arc approximation
 #define MAXIMUM_ERROR_SIZE_MM         0.1     // For arc approximation
 
-#define MAXIMUM_CLEARANCE             pcbIUScale.mmToIU( 500 )  // to prevent int-overflows
-
 // Min/max values used in dialogs to validate settings
 #define MINIMUM_LINE_WIDTH_MM         0.005   // minimal line width entered in a dialog
 #define MAXIMUM_LINE_WIDTH_MM         100.0   // max line width entered in a dialog
@@ -335,14 +333,14 @@ public:
     /**
      * @return the current track width list index.
      */
-    inline int GetTrackWidthIndex() const { return m_trackWidthIndex; }
+    inline unsigned GetTrackWidthIndex() const { return m_trackWidthIndex; }
 
     /**
      * Set the current track width list index to \a aIndex.
      *
      * @param aIndex is the track width list index.
      */
-    void SetTrackWidthIndex( int aIndex );
+    void SetTrackWidthIndex( unsigned aIndex );
 
     /**
      * @return the current track width according to the selected options
@@ -359,20 +357,33 @@ public:
      *
      * @param aWidth is the new track width.
      */
-    inline void SetCustomTrackWidth( int aWidth ) { m_customTrackWidth = aWidth; }
-    inline int GetCustomTrackWidth() const { return m_customTrackWidth; }
+    inline void SetCustomTrackWidth( int aWidth )
+    {
+        m_customTrackWidth = aWidth;
+    }
+
+    /**
+     * @return Current custom width for a track.
+     */
+    inline int GetCustomTrackWidth() const
+    {
+        return m_customTrackWidth;
+    }
 
     /**
      * @return the current via size list index.
      */
-    inline int GetViaSizeIndex() const { return m_viaSizeIndex; }
+    inline unsigned GetViaSizeIndex() const
+    {
+        return m_viaSizeIndex;
+    }
 
     /**
      * Set the current via size list index to \a aIndex.
      *
      * @param aIndex is the via size list index.
      */
-    void SetViaSizeIndex( int aIndex );
+    void SetViaSizeIndex( unsigned aIndex );
 
     /**
      * @return the current via size, according to the selected options
@@ -454,12 +465,12 @@ public:
     /**
      * @return the current diff pair dimension list index.
      */
-    inline int GetDiffPairIndex() const { return m_diffPairIndex; }
+    inline unsigned GetDiffPairIndex() const { return m_diffPairIndex; }
 
     /**
      * @param aIndex is the diff pair dimensions list index to set.
      */
-    void SetDiffPairIndex( int aIndex );
+    void SetDiffPairIndex( unsigned aIndex );
 
     /**
      * Sets custom track width for differential pairs (i.e. not available in netclasses or
@@ -570,7 +581,7 @@ public:
      *
      * @param aMask = The new bit-mask of enabled layers.
      */
-    void SetEnabledLayers( const LSET& aMask );
+    void SetEnabledLayers( LSET aMask );
 
     /**
      * Test whether a given layer \a aLayerId is enabled.
@@ -734,22 +745,9 @@ public:
     int        m_SolderPasteMargin;           // Solder paste margin absolute value
     double     m_SolderPasteMarginRatio;      // Solder mask margin ratio value of pad size
                                               // The final margin is the sum of these 2 values
-    bool m_AllowSoldermaskBridgesInFPs;
-
-    bool m_TentViasFront; // The default tenting option if not overridden on an
-    bool m_TentViasBack;  // individual via
-
-    bool m_CoverViasFront; // The default covering option if not overridden on an
-    bool m_CoverViasBack;  // individual via
-
-    bool m_PlugViasFront; // The default plugging option if not overridden on an
-    bool m_PlugViasBack;  // individual via
-
-    bool m_CapVias; // The default capping option if not overridden on an
-                    // individual via
-
-    bool m_FillVias; // The default filling option if not overridden on ana
-                     // individual via
+    bool       m_AllowSoldermaskBridgesInFPs;
+    bool       m_TentViasFront;               // The default tenting option if not overridden on an
+    bool       m_TentViasBack;                // individual via
 
     std::shared_ptr<NET_SETTINGS> m_NetSettings;
 
@@ -793,14 +791,14 @@ public:
     bool       m_UseHeightForLengthCalcs;
 
 private:
-    VECTOR2I   m_auxOrigin;  ///< origin for plot exports
-    VECTOR2I   m_gridOrigin; ///< origin for grid offsets
+    VECTOR2I m_auxOrigin;  ///< origin for plot exports
+    VECTOR2I m_gridOrigin; ///< origin for grid offsets
 
     // Indices into the trackWidth, viaSizes and diffPairDimensions lists.
     // The 0 index is always the current netclass value(s)
-    int        m_trackWidthIndex;
-    int        m_viaSizeIndex;
-    int        m_diffPairIndex;
+    unsigned   m_trackWidthIndex;
+    unsigned   m_viaSizeIndex;
+    unsigned   m_diffPairIndex;
 
     // Custom values for track/via sizes (specified via dialog instead of netclass or lists)
     bool       m_useCustomTrackVia;

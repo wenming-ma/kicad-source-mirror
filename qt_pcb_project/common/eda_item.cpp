@@ -26,7 +26,6 @@
 
 #include <bitmaps.h>
 #include <eda_item.h>
-#include <eda_group.h>
 #include <trace_helpers.h>
 #include <trigo.h>
 #include <i18n_utility.h>
@@ -41,7 +40,6 @@ EDA_ITEM::EDA_ITEM( EDA_ITEM* parent, KICAD_T idType, bool isSCH_ITEM, bool isBO
         m_structType( idType ),
         m_flags( 0 ),
         m_parent( parent ),
-        m_group( nullptr ),
         m_forceVisible( false ),
         m_isRollover( false )
 { }
@@ -52,7 +50,6 @@ EDA_ITEM::EDA_ITEM( KICAD_T idType, bool isSCH_ITEM, bool isBOARD_ITEM ) :
         m_structType( idType ),
         m_flags( 0 ),
         m_parent( nullptr ),
-        m_group( nullptr ),
         m_forceVisible( false ),
         m_isRollover( false )
 { }
@@ -64,36 +61,10 @@ EDA_ITEM::EDA_ITEM( const EDA_ITEM& base ) :
         m_structType( base.m_structType ),
         m_flags( base.m_flags ),
         m_parent( base.m_parent ),
-        m_group( base.m_group ),
         m_forceVisible( base.m_forceVisible ),
         m_isRollover( false )
 {
     SetForcedTransparency( base.GetForcedTransparency() );
-}
-
-
-EDA_ITEM* EDA_ITEM::findParent( KICAD_T aType ) const
-{
-    EDA_ITEM* parent = GetParent();
-
-    while( parent )
-    {
-        if( parent->Type() == aType )
-            return parent;
-        else
-            parent = parent->GetParent();
-    }
-
-    return nullptr;
-}
-
-
-KIID EDA_ITEM::GetParentGroupId() const
-{
-    if( EDA_GROUP* group = GetParentGroup() )
-        return group->AsEdaItem()->m_Uuid;
-    else
-        return niluuid;
 }
 
 
@@ -333,9 +304,7 @@ EDA_ITEM& EDA_ITEM::operator=( const EDA_ITEM& aItem )
     m_structType   = aItem.m_structType;
     m_flags        = aItem.m_flags;
     m_parent       = aItem.m_parent;
-    m_group        = aItem.m_group;
     m_forceVisible = aItem.m_forceVisible;
-    m_isRollover   = aItem.m_isRollover;
 
     SetForcedTransparency( aItem.GetForcedTransparency() );
 
@@ -461,7 +430,6 @@ static struct EDA_ITEM_DESC
             .Map( SCH_PIN_T,               _HKI( "Pin" ) )
             .Map( SCH_SHEET_PIN_T,         _HKI( "Sheet Pin" ) )
             .Map( SCH_SHEET_T,             _HKI( "Sheet" ) )
-            .Map( SCH_GROUP_T,             _HKI( "Group" ) )
 
             // Synthetic search tokens don't need to be included...
             //.Map( SCH_FIELD_LOCATE_REFERENCE_T, _HKI( "Field Locate Reference" ) )

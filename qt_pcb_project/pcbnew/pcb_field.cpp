@@ -31,21 +31,17 @@
 #include <string_utils.h>
 
 
-PCB_FIELD::PCB_FIELD( FOOTPRINT* aParent, FIELD_T aFieldId, const wxString& aName ) :
+PCB_FIELD::PCB_FIELD( FOOTPRINT* aParent, int aFieldId, const wxString& aName ) :
         PCB_TEXT( aParent, PCB_FIELD_T ),
         m_id( aFieldId ),
-        m_ordinal( 0 ),
         m_name( aName )
 {
-    if( m_id == FIELD_T::USER )
-        m_ordinal = aParent->GetNextFieldOrdinal();
 }
 
 
-PCB_FIELD::PCB_FIELD( const PCB_TEXT& aText, FIELD_T aFieldId, const wxString& aName ) :
+PCB_FIELD::PCB_FIELD( const PCB_TEXT& aText, int aFieldId, const wxString& aName ) :
         PCB_TEXT( aText.GetParent(), PCB_FIELD_T ),
         m_id( aFieldId ),
-        m_ordinal( static_cast<int>( aFieldId ) ),
         m_name( aName )
 {
     // Copy the text properties from the PCB_TEXT
@@ -66,7 +62,7 @@ void PCB_FIELD::Serialize( google::protobuf::Any &aContainer ) const
     anyText.UnpackTo( field.mutable_text() );
 
     field.set_name( GetCanonicalName().ToStdString() );
-    field.mutable_id()->set_id( (int) GetId() );
+    field.mutable_id()->set_id( GetId() );
     field.set_visible( IsVisible() );
 
     aContainer.PackFrom( field );
@@ -81,7 +77,7 @@ bool PCB_FIELD::Deserialize( const google::protobuf::Any &aContainer )
         return false;
 
     if( field.has_id() )
-        setId( (FIELD_T) field.id().id() );
+        setId( field.id().id() );
 
     // Mandatory fields have a blank Name in the KiCad object
     if( !IsMandatory() )
@@ -105,27 +101,51 @@ bool PCB_FIELD::Deserialize( const google::protobuf::Any &aContainer )
 
 wxString PCB_FIELD::GetName( bool aUseDefaultName ) const
 {
-    if( IsMandatory() )
-        return GetCanonicalFieldName( m_id );
-    else if( m_name.IsEmpty() && aUseDefaultName )
-        return GetUserFieldName( m_ordinal, !DO_TRANSLATE );
+    if( m_parent && m_parent->Type() == PCB_FOOTPRINT_T )
+    {
+        if( IsMandatory() )
+            return GetCanonicalFieldName( m_id );
+        else if( m_name.IsEmpty() && aUseDefaultName )
+            return GetUserFieldName( m_id, !DO_TRANSLATE );
+        else
+            return m_name;
+    }
     else
+    {
+        wxFAIL_MSG( "Unhandled field owner type." );
         return m_name;
+    }
 }
 
 
 wxString PCB_FIELD::GetCanonicalName() const
 {
-    return GetName( true );
+    if( m_parent && m_parent->Type() == PCB_FOOTPRINT_T )
+    {
+        if( IsMandatory() )
+            return GetCanonicalFieldName( m_id );
+        else
+            return m_name;
+    }
+    else
+    {
+        if( m_parent )
+        {
+            wxFAIL_MSG( wxString::Format( "Unhandled field owner type (id %d, parent type %d).",
+                                          m_id, m_parent->Type() ) );
+        }
+
+        return m_name;
+    }
 }
 
 
 bool PCB_FIELD::IsMandatory() const
 {
-    return m_id == FIELD_T::REFERENCE
-        || m_id == FIELD_T::VALUE
-        || m_id == FIELD_T::DATASHEET
-        || m_id == FIELD_T::DESCRIPTION;
+    return m_id == REFERENCE_FIELD
+        || m_id == VALUE_FIELD
+        || m_id == DATASHEET_FIELD
+        || m_id == DESCRIPTION_FIELD;
 }
 
 
@@ -160,16 +180,16 @@ wxString PCB_FIELD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFu
 
     switch( m_id )
     {
-    case FIELD_T::REFERENCE:
+    case REFERENCE_FIELD:
         return wxString::Format( _( "Reference field of %s" ), ref );
 
-    case FIELD_T::VALUE:
+    case VALUE_FIELD:
         return wxString::Format( _( "Value field of %s (%s)" ), ref, content );
 
-    case FIELD_T::FOOTPRINT:
+    case FOOTPRINT_FIELD:
         return wxString::Format( _( "Footprint field of %s (%s)" ), ref, content );
 
-    case FIELD_T::DATASHEET:
+    case DATASHEET_FIELD:
         return wxString::Format( _( "Datasheet field of %s (%s)" ), ref, content );
 
     default:
@@ -233,21 +253,7 @@ bool PCB_FIELD::operator==( const BOARD_ITEM& aOther ) const
 
 bool PCB_FIELD::operator==( const PCB_FIELD& aOther ) const
 {
-    if( IsMandatory() != aOther.IsMandatory() )
-        return false;
-
-    if( IsMandatory() )
-    {
-        if( m_id != aOther.m_id )
-            return false;
-    }
-    else
-    {
-        if( m_ordinal != aOther.m_ordinal )
-            return false;
-    }
-
-    return m_name == aOther.m_name && EDA_TEXT::operator==( aOther );
+    return m_id == aOther.m_id && m_name == aOther.m_name && EDA_TEXT::operator==( aOther );
 }
 
 

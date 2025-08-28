@@ -28,6 +28,7 @@
 #include <memory>
 #include <vector>
 
+#include <outline_mode.h>
 #include <eda_search_data.h>
 #include <font/glyph.h>
 #include <font/text_attributes.h>
@@ -123,17 +124,6 @@ public:
      */
     void SetTextThickness( int aWidth );
     int GetTextThickness() const                { return m_attributes.m_StrokeWidth; };
-
-    int GetTextThicknessProperty() const
-    {
-        if( GetAutoThickness() )
-            return GetEffectiveTextPenWidth();
-        else
-            return GetTextThickness();
-    }
-
-    void SetAutoThickness( bool aAuto );
-    bool GetAutoThickness() const               { return GetTextThickness() == 0; };
 
     /**
      * The EffectiveTextPenWidth uses the text thickness if > 1 or aDefaultPenWidth.
@@ -238,7 +228,7 @@ public:
      */
     bool Replace( const EDA_SEARCH_DATA& aSearchData );
 
-    bool IsDefaultFormatting() const;
+    virtual bool IsDefaultFormatting() const;
 
     void SetFont( KIFONT::FONT* aFont );
     KIFONT::FONT* GetFont() const               { return m_attributes.m_Font; }
@@ -248,8 +238,8 @@ public:
 
     wxString GetFontName() const;
 
-    void SetFontProp( const wxString& aFontName );
-    wxString GetFontProp() const;
+    void SetFontIndex( int aIdx );
+    int GetFontIndex() const;
 
     void SetLineSpacing( double aLineSpacing );
     double GetLineSpacing() const               { return m_attributes.m_LineSpacing; }
@@ -285,8 +275,10 @@ public:
      * @param aDC the current Device Context.
      * @param aOffset draw offset (usually (0,0)).
      * @param aColor text color.
+     * @param aDisplay_mode #FILLED or #SKETCH.
      */
-    void Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset, const COLOR4D& aColor );
+    void Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset, const COLOR4D& aColor,
+                OUTLINE_MODE aDisplay_mode = FILLED );
 
     /**
      * build a list of segments (SHAPE_SEGMENT) to describe a text shape.
@@ -435,11 +427,13 @@ protected:
      *
      * @param aOffset draw offset (usually (0,0)).
      * @param aColor text color.
+     * @param aFillMode FILLED or SKETCH
      * @param aText the single line of text to draw.
      * @param aPos the position of this line ).
      */
     void printOneLineOfText( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset,
-                             const COLOR4D& aColor, const wxString& aText, const VECTOR2I& aPos );
+                             const COLOR4D& aColor, OUTLINE_MODE aFillMode, const wxString& aText,
+                             const VECTOR2I& aPos );
 
 protected:
     /**
@@ -447,12 +441,12 @@ protected:
      */
     wxString m_hyperlink;
 
+    std::reference_wrapper<const EDA_IU_SCALE>          m_IuScale;
+
 private:
     wxString         m_text;
     wxString         m_shown_text;           // Cache of unescaped text for efficient access
     bool             m_shown_text_has_text_var_refs;
-
-    std::reference_wrapper<const EDA_IU_SCALE>          m_IuScale;
 
     mutable wxString                                    m_render_cache_text;
     mutable const KIFONT::FONT*                         m_render_cache_font;

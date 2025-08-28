@@ -160,22 +160,6 @@ public:
 
         TRIANGULATED_POLYGON& operator=( const TRIANGULATED_POLYGON& aOther );
 
-        // Move assignment operator.
-        TRIANGULATED_POLYGON& operator=( TRIANGULATED_POLYGON&& aOther ) noexcept
-        {
-            if( this != &aOther )
-            {
-                m_sourceOutline = aOther.m_sourceOutline;
-                m_triangles = std::move( aOther.m_triangles );
-                m_vertices = std::move( aOther.m_vertices );
-
-                for( TRI& tri : m_triangles )
-                    tri.parent = this;
-            }
-
-            return *this;
-        }
-
         void AddTriangle( int a, int b, int c );
 
         void AddVertex( const VECTOR2I& aP )
@@ -256,7 +240,8 @@ public:
          */
         bool IsEndContour() const
         {
-            return m_currentVertex + 1 == m_poly->CPolygon( m_currentPolygon )[m_currentContour].PointCount();
+            return m_currentVertex + 1 ==
+                    m_poly->CPolygon( m_currentPolygon )[m_currentContour].PointCount();
         }
 
         /**
@@ -295,7 +280,8 @@ public:
             if( m_iterateHoles )
             {
                 // If the last vertex of the contour was reached, advance the contour index
-                if( m_currentVertex >= m_poly->CPolygon( m_currentPolygon )[m_currentContour].PointCount() )
+                if( m_currentVertex >=
+                    m_poly->CPolygon( m_currentPolygon )[m_currentContour].PointCount() )
                 {
                     m_currentVertex = 0;
                     m_currentContour++;
@@ -549,24 +535,6 @@ public:
 
     SHAPE_POLY_SET& operator=( const SHAPE_POLY_SET& aOther );
 
-    // Move assignment operator
-    SHAPE_POLY_SET& operator=( SHAPE_POLY_SET&& aOther ) noexcept
-    {
-        if (this != &aOther)
-        {
-            SHAPE::operator=( aOther );
-
-            m_polys = std::move( aOther.m_polys );
-            m_triangulatedPolys = std::move( aOther.m_triangulatedPolys );
-
-            m_hash = aOther.m_hash;
-            m_hashValid = aOther.m_hashValid;
-            m_triangulationValid.store( aOther.m_triangulationValid );
-        }
-
-        return *this;
-    }
-
     /**
      * Build a polygon triangulation, needed to draw a polygon on OpenGL and in some
      * other calculations
@@ -745,7 +713,8 @@ public:
     /// Returns the number of holes in a given outline
     int HoleCount( int aOutline ) const
     {
-        if( aOutline < 0 || aOutline >= (int) m_polys.size() || m_polys[aOutline].size() < 2 )
+        if( ( aOutline < 0 ) || ( aOutline >= (int) m_polys.size() )
+          || ( m_polys[aOutline].size() < 2 ) )
             return 0;
 
         // the first polygon in m_polys[aOutline] is the main contour,
@@ -1464,21 +1433,16 @@ public:
     /**
      * Build a SHAPE_POLY_SET from a bunch of outlines in provided in random order.
      *
-     * @param aPath set of closed outlines forming the polygon.
-     *              Positive orientation = outline, negative = hole
+     * @param aPath set of closed outlines forming the polygon. Positive orientation = outline, negative = hole
      * @param aEvenOdd forces the even-off fill rule (default is non zero)
      */
-    void BuildPolysetFromOrientedPaths( const std::vector<SHAPE_LINE_CHAIN>& aPaths,
-                                        bool aEvenOdd = false );
+    void BuildPolysetFromOrientedPaths( const std::vector<SHAPE_LINE_CHAIN>& aPaths, bool aEvenOdd = false );
 
     void TransformToPolygon( SHAPE_POLY_SET& aBuffer, int aError,
                              ERROR_LOC aErrorLoc ) const override
     {
         aBuffer.Append( *this );
     }
-
-    const std::vector<SEG> GenerateHatchLines( const std::vector<double>& aSlopes, int aSpacing,
-                                               int aLineLength ) const;
 
 protected:
     void cacheTriangulation( bool aPartition, bool aSimplify,

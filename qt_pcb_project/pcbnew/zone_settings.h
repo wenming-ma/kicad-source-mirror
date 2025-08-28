@@ -30,8 +30,6 @@
 #ifndef ZONE_SETTINGS_H_
 #define ZONE_SETTINGS_H_
 
-#include <optional>
-#include <map>
 #include <layer_ids.h>
 #include <lset.h>
 #include <zones.h>
@@ -44,13 +42,6 @@ enum class ZONE_FILL_MODE
 {
     POLYGONS = 0,     // fill zone with polygons
     HATCH_PATTERN = 1 // fill zone using a grid pattern
-};
-
-struct ZONE_LAYER_PROPERTIES
-{
-    std::optional<VECTOR2I> hatching_offset;
-
-    bool operator==( const ZONE_LAYER_PROPERTIES& aOther ) const;
 };
 
 
@@ -71,12 +62,10 @@ enum class ISLAND_REMOVAL_MODE
     AREA
 };
 
-enum class PLACEMENT_SOURCE_T
+enum class RULE_AREA_PLACEMENT_SOURCE_TYPE
 {
     SHEETNAME = 0,
-    COMPONENT_CLASS,
-    GROUP_PLACEMENT,
-    DESIGN_BLOCK
+    COMPONENT_CLASS
 };
 
 /**
@@ -131,8 +120,6 @@ public:
      */
     TEARDROP_TYPE   m_TeardropType;
 
-    std::map<PCB_LAYER_ID, ZONE_LAYER_PROPERTIES> m_LayerProperties;
-
 private:
     int             m_cornerSmoothingType;   // Corner smoothing type
     unsigned int    m_cornerRadius;          // Corner chamfer distance / fillet radius
@@ -142,20 +129,20 @@ private:
      * Keepout zones and keepout flags.
      * Note that DRC rules can set keepouts on zones whether they're a keepout or not.
      */
-    bool            m_isRuleArea;
+    bool m_isRuleArea;
 
     /**
      * Placement rule area data
      */
-    bool                m_placementAreaEnabled;
-    PLACEMENT_SOURCE_T  m_placementAreaSourceType;
-    wxString            m_placementAreaSource;
+    bool                            m_ruleAreaPlacementEnabled;
+    RULE_AREA_PLACEMENT_SOURCE_TYPE m_ruleAreaPlacementSourceType;
+    wxString                        m_ruleAreaPlacementSource;
 
-    bool                m_keepoutDoNotAllowZoneFills;
-    bool                m_keepoutDoNotAllowVias;
-    bool                m_keepoutDoNotAllowTracks;
-    bool                m_keepoutDoNotAllowPads;
-    bool                m_keepoutDoNotAllowFootprints;
+    bool            m_keepoutDoNotAllowCopperPour;
+    bool            m_keepoutDoNotAllowVias;
+    bool            m_keepoutDoNotAllowTracks;
+    bool            m_keepoutDoNotAllowPads;
+    bool            m_keepoutDoNotAllowFootprints;
 
     ISLAND_REMOVAL_MODE m_removeIslands;
     long long int       m_minIslandArea;
@@ -184,8 +171,10 @@ public:
      * A helper routine for the various zone dialogs (copper, non-copper, keepout).
      * @param aList the wxDataViewListCtrl to populate
      * @param aFrame the parent editor frame
+     * @param aFpEditorMode true to show a single "Inner Layers" item for all inner copper layers
      */
-    void SetupLayersList( wxDataViewListCtrl* aList, PCB_BASE_FRAME* aFrame, LSET aLayers );
+    void SetupLayersList( wxDataViewListCtrl* aList, PCB_BASE_FRAME* aFrame, LSET aLayers,
+                          bool aFpEditorMode );
 
     /**
      * Function ExportSetting
@@ -196,19 +185,6 @@ public:
      *   Currently: m_ZonePriority, m_Layers & m_LayersProperties, m_Name and m_Netcode
      */
     void ExportSetting( ZONE& aTarget, bool aFullExport = true ) const;
-
-    /**
-     * Function CopyFrom
-     * copy settings from a different ZONE_SETTINGS object
-     *
-     * @param aOther the other ZONE_SETTINGS
-     * @param aCopyFull if false: some parameters are not copied.
-     * This option is used specifically to copy zone settings from
-     * a zone to the default zone settings.
-     * There, the layer information is not needed, plus layer specific
-     * properties should not be overridden in the zone default settings.
-     */
-    void CopyFrom( const ZONE_SETTINGS& aOther, bool aCopyFull = true );
 
     void SetCornerSmoothingType( int aType) { m_cornerSmoothingType = aType; }
     int GetCornerSmoothingType() const { return m_cornerSmoothingType; }
@@ -225,36 +201,45 @@ public:
     bool HasKeepoutParametersSet() const
     {
         return m_keepoutDoNotAllowTracks || m_keepoutDoNotAllowVias || m_keepoutDoNotAllowPads
-               || m_keepoutDoNotAllowFootprints || m_keepoutDoNotAllowZoneFills;
+               || m_keepoutDoNotAllowFootprints || m_keepoutDoNotAllowCopperPour;
     }
 
     /**
      * Accessors to parameters used in Rule Area zones:
      */
-    bool GetPlacementAreaEnabled() const                  { return m_placementAreaEnabled; }
-    PLACEMENT_SOURCE_T GetPlacementAreaSourceType() const { return m_placementAreaSourceType; }
-    wxString GetPlacementAreaSource() const               { return m_placementAreaSource; }
-    bool GetIsRuleArea() const           { return m_isRuleArea; }
-    bool GetDoNotAllowZoneFills() const  { return m_keepoutDoNotAllowZoneFills; }
-    bool GetDoNotAllowVias() const       { return m_keepoutDoNotAllowVias; }
-    bool GetDoNotAllowTracks() const     { return m_keepoutDoNotAllowTracks; }
-    bool GetDoNotAllowPads() const       { return m_keepoutDoNotAllowPads; }
+    bool GetIsRuleArea() const { return m_isRuleArea; }
+    bool GetRuleAreaPlacementEnabled() const { return m_ruleAreaPlacementEnabled; }
+    RULE_AREA_PLACEMENT_SOURCE_TYPE GetRuleAreaPlacementSourceType() const
+    {
+        return m_ruleAreaPlacementSourceType;
+    }
+    wxString GetRuleAreaPlacementSource() const { return m_ruleAreaPlacementSource; }
+    bool GetDoNotAllowCopperPour() const { return m_keepoutDoNotAllowCopperPour; }
+    bool GetDoNotAllowVias() const { return m_keepoutDoNotAllowVias; }
+    bool GetDoNotAllowTracks() const { return m_keepoutDoNotAllowTracks; }
+    bool GetDoNotAllowPads() const { return m_keepoutDoNotAllowPads; }
     bool GetDoNotAllowFootprints() const { return m_keepoutDoNotAllowFootprints; }
 
-    void SetPlacementAreaEnabled( bool aEnabled )               { m_placementAreaEnabled = aEnabled; }
-    void SetPlacementAreaSourceType( PLACEMENT_SOURCE_T aType ) { m_placementAreaSourceType = aType; }
-    void SetPlacementAreaSource( const wxString& aSource )      { m_placementAreaSource = aSource; }
-    void SetIsRuleArea( bool aEnable )           { m_isRuleArea = aEnable; }
-    void SetDoNotAllowZoneFills( bool aEnable )  { m_keepoutDoNotAllowZoneFills = aEnable; }
-    void SetDoNotAllowVias( bool aEnable )       { m_keepoutDoNotAllowVias = aEnable; }
-    void SetDoNotAllowTracks( bool aEnable )     { m_keepoutDoNotAllowTracks = aEnable; }
-    void SetDoNotAllowPads( bool aEnable )       { m_keepoutDoNotAllowPads = aEnable; }
+    void SetIsRuleArea( bool aEnable ) { m_isRuleArea = aEnable; }
+    void SetRuleAreaPlacementEnabled( bool aEnabled ) { m_ruleAreaPlacementEnabled = aEnabled; }
+    void SetRuleAreaPlacementSourceType( RULE_AREA_PLACEMENT_SOURCE_TYPE aType )
+    {
+        m_ruleAreaPlacementSourceType = aType;
+    }
+    void SetRuleAreaPlacementSource( const wxString& aSource )
+    {
+        m_ruleAreaPlacementSource = aSource;
+    }
+    void SetDoNotAllowCopperPour( bool aEnable ) { m_keepoutDoNotAllowCopperPour = aEnable; }
+    void SetDoNotAllowVias( bool aEnable ) { m_keepoutDoNotAllowVias = aEnable; }
+    void SetDoNotAllowTracks( bool aEnable ) { m_keepoutDoNotAllowTracks = aEnable; }
+    void SetDoNotAllowPads( bool aEnable ) { m_keepoutDoNotAllowPads = aEnable; }
     void SetDoNotAllowFootprints( bool aEnable ) { m_keepoutDoNotAllowFootprints = aEnable; }
 
-    ISLAND_REMOVAL_MODE GetIslandRemovalMode() const         { return m_removeIslands; }
+    ISLAND_REMOVAL_MODE GetIslandRemovalMode() const { return m_removeIslands; }
     void SetIslandRemovalMode( ISLAND_REMOVAL_MODE aRemove ) { m_removeIslands = aRemove; }
 
-    long long int GetMinIslandArea() const       { return m_minIslandArea; }
+    long long int GetMinIslandArea() const { return m_minIslandArea; }
     void SetMinIslandArea( long long int aArea ) { m_minIslandArea = aArea; }
 };
 

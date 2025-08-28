@@ -93,8 +93,8 @@ GR_TEXT_V_ALIGN_T EDA_TEXT::MapVertJustify( int aVertJustify )
 
 
 EDA_TEXT::EDA_TEXT( const EDA_IU_SCALE& aIuScale, const wxString& aText ) :
-        m_text( aText ),
         m_IuScale( aIuScale ),
+        m_text( aText ),
         m_render_cache_font( nullptr ),
         m_visible( true )
 {
@@ -286,13 +286,6 @@ void EDA_TEXT::SetTextThickness( int aWidth )
     m_attributes.m_StrokeWidth = aWidth;
     ClearRenderCache();
     ClearBoundingBoxCache();
-}
-
-
-void EDA_TEXT::SetAutoThickness( bool aAuto )
-{
-    if( GetAutoThickness() != aAuto )
-        SetTextThickness( aAuto ? 0 : GetEffectiveTextPenWidth() );
 }
 
 
@@ -878,7 +871,8 @@ bool EDA_TEXT::TextHitTest( const BOX2I& aRect, bool aContains, int aAccuracy ) 
 }
 
 
-void EDA_TEXT::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset, const COLOR4D& aColor )
+void EDA_TEXT::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset,
+                      const COLOR4D& aColor, OUTLINE_MODE aFillMode )
 {
     if( IsMultilineAllowed() )
     {
@@ -891,11 +885,12 @@ void EDA_TEXT::Print( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset,
         GetLinePositions( aSettings, positions, (int) strings.Count() );
 
         for( unsigned ii = 0; ii < strings.Count(); ii++ )
-            printOneLineOfText( aSettings, aOffset, aColor, strings[ii], positions[ii] );
+            printOneLineOfText( aSettings, aOffset, aColor, aFillMode, strings[ii], positions[ii] );
     }
     else
     {
-        printOneLineOfText( aSettings, aOffset, aColor, GetShownText( true ), GetDrawPos() );
+        printOneLineOfText( aSettings, aOffset, aColor, aFillMode, GetShownText( true ),
+                            GetDrawPos() );
     }
 }
 
@@ -946,10 +941,14 @@ void EDA_TEXT::GetLinePositions( const RENDER_SETTINGS* aSettings, std::vector<V
 
 
 void EDA_TEXT::printOneLineOfText( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset,
-                                   const COLOR4D& aColor, const wxString& aText, const VECTOR2I& aPos )
+                                   const COLOR4D& aColor, OUTLINE_MODE aFillMode,
+                                   const wxString& aText, const VECTOR2I& aPos )
 {
     wxDC* DC = aSettings->GetPrintDC();
     int   penWidth = GetEffectiveTextPenWidth( aSettings->GetDefaultPenWidth() );
+
+    if( aFillMode == SKETCH )
+        penWidth = -penWidth;
 
     VECTOR2I size = GetTextSize();
 
@@ -993,33 +992,46 @@ wxString EDA_TEXT::GetFontName() const
 }
 
 
-wxString EDA_TEXT::GetFontProp() const
+int EDA_TEXT::GetFontIndex() const
 {
-    if( KIFONT::FONT* font = GetFont() )
-        return font->GetName();
+    if( !GetFont() )
+        return -1;
 
-    if( IsEeschemaType( dynamic_cast<const EDA_ITEM*>( this )->Type() ) )
-        return _( "Default Font" );
-    else
-        return KICAD_FONT_NAME;
+    if( GetFont()->GetName() == KICAD_FONT_NAME )
+        return -2;
+
+    std::vector<std::string> fontNames;
+    Fontconfig()->ListFonts( fontNames, std::string( Pgm().GetLanguageTag().utf8_str() ) );
+
+    for( int ii = 0; ii < (int) fontNames.size(); ++ii )
+    {
+        if( fontNames[ii] == GetFont()->GetName() )
+            return ii;
+    }
+
+    return 0;
 }
 
 
-void EDA_TEXT::SetFontProp( const wxString& aFontName )
+void EDA_TEXT::SetFontIndex( int aIdx )
 {
-    if( IsEeschemaType( dynamic_cast<const EDA_ITEM*>( this )->Type() ) )
+    if( aIdx == -1 )
     {
-        if( aFontName == _( "Default Font" ) )
-            SetFont( nullptr );
-        else
-            SetFont( KIFONT::FONT::GetFont( aFontName, IsBold(), IsItalic() ) );
+        SetFont( nullptr );
+    }
+    else if( aIdx == -2 )
+    {
+        SetFont( KIFONT::FONT::GetFont( wxEmptyString, IsBold(), IsItalic() ) );
     }
     else
     {
-        if( aFontName == KICAD_FONT_NAME )
-            SetFont( nullptr );
+        std::vector<std::string> fontNames;
+        Fontconfig()->ListFonts( fontNames, std::string( Pgm().GetLanguageTag().utf8_str() ) );
+
+        if( aIdx >= 0 && aIdx < static_cast<int>( fontNames.size() ) )
+            SetFont( KIFONT::FONT::GetFont( fontNames[ aIdx ], IsBold(), IsItalic() ) );
         else
-            SetFont( KIFONT::FONT::GetFont( aFontName, IsBold(), IsItalic() ) );
+            SetFont( nullptr );
     }
 }
 
@@ -1029,7 +1041,7 @@ bool EDA_TEXT::IsDefaultFormatting() const
     return ( !IsMirrored()
              && GetHorizJustify() == GR_TEXT_H_ALIGN_CENTER
              && GetVertJustify() == GR_TEXT_V_ALIGN_CENTER
-             && GetAutoThickness()
+             && GetTextThickness() == 0
              && !IsItalic()
              && !IsBold()
              && !IsMultilineAllowed()
@@ -1058,7 +1070,7 @@ void EDA_TEXT::Format( OUTPUTFORMATTER* aFormatter, int aControlBits ) const
                            FormatDouble2Str( GetLineSpacing() ).c_str() );
     }
 
-    if( !GetAutoThickness() )
+    if( GetTextThickness() )
     {
         aFormatter->Print( "(thickness %s)",
                 EDA_UNIT_UTILS::FormatInternalUnits( m_IuScale, GetTextThickness() ).c_str() );
@@ -1338,36 +1350,15 @@ static struct EDA_TEXT_DESC
                 &EDA_TEXT::SetText, &EDA_TEXT::GetText ),
                 textProps );
 
-        propMgr.AddProperty( new PROPERTY<EDA_TEXT, wxString>( _HKI( "Font" ),
-                &EDA_TEXT::SetFontProp, &EDA_TEXT::GetFontProp ),
+        // This must be a PROPERTY_ENUM to get a choice list.
+        // SCH_ and PCB_PROPERTIES_PANEL::updateFontList() fill in the enum values.
+        propMgr.AddProperty( new PROPERTY_ENUM<EDA_TEXT, int>( _HKI( "Font" ),
+                &EDA_TEXT::SetFontIndex, &EDA_TEXT::GetFontIndex ),
                 textProps )
-            .SetIsHiddenFromRulesEditor()
-            .SetChoicesFunc( []( INSPECTABLE* aItem )
-                             {
-                                 EDA_ITEM*                eda_item = static_cast<EDA_ITEM*>( aItem );
-                                 wxPGChoices              fonts;
-                                 std::vector<std::string> fontNames;
+            .SetIsHiddenFromRulesEditor();
 
-                                 Fontconfig()->ListFonts( fontNames,
-                                                          std::string( Pgm().GetLanguageTag().utf8_str() ),
-                                                          eda_item->GetEmbeddedFonts() );
-
-                                 if( IsEeschemaType( eda_item->Type() ) )
-                                     fonts.Add( _( "Default Font" ) );
-
-                                 fonts.Add( KICAD_FONT_NAME );
-
-                                 for( const std::string& fontName : fontNames )
-                                     fonts.Add( wxString( fontName ) );
-
-                                 return fonts;
-                             } );
-
-        propMgr.AddProperty( new PROPERTY<EDA_TEXT, bool>( _HKI( "Auto Thickness" ),
-                &EDA_TEXT::SetAutoThickness, &EDA_TEXT::GetAutoThickness ),
-                textProps );
         propMgr.AddProperty( new PROPERTY<EDA_TEXT, int>( _HKI( "Thickness" ),
-                &EDA_TEXT::SetTextThickness, &EDA_TEXT::GetTextThicknessProperty,
+                &EDA_TEXT::SetTextThickness, &EDA_TEXT::GetTextThickness,
                 PROPERTY_DISPLAY::PT_SIZE ),
                 textProps );
         propMgr.AddProperty( new PROPERTY<EDA_TEXT, bool>( _HKI( "Italic" ),

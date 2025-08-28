@@ -184,25 +184,19 @@ void PCB_SHAPE::SetLayer( PCB_LAYER_ID aLayer )
 
 int PCB_SHAPE::GetSolderMaskExpansion() const
 {
-    int margin = 0;
+    int margin = m_solderMaskMargin.value_or( 0 );
 
-    if( const BOARD* board = GetBoard() )
+    // If no local margin is set, get the board's solder mask expansion value
+    if( !m_solderMaskMargin.has_value() )
     {
-        DRC_CONSTRAINT              constraint;
-        std::shared_ptr<DRC_ENGINE> drcEngine = board->GetDesignSettings().m_DRCEngine;
+        const BOARD* board = GetBoard();
 
-        constraint = drcEngine->EvalRules( SOLDER_MASK_EXPANSION_CONSTRAINT, this, nullptr, m_layer );
-
-        if( constraint.m_Value.HasOpt() )
-            margin = constraint.m_Value.Opt();
-    }
-    else if( m_solderMaskMargin.has_value() )
-    {
-        margin = m_solderMaskMargin.value();
+        if( board )
+            margin = board->GetDesignSettings().m_SolderMaskExpansion;
     }
 
     // Ensure the resulting mask opening has a non-negative size
-    if( margin < 0 && !IsSolidFill() )
+    if( margin < 0 && !IsFilled() )
         margin = std::max( margin, -GetWidth() / 2 );
 
     return margin;
@@ -262,7 +256,7 @@ std::vector<VECTOR2I> PCB_SHAPE::GetConnectionPoints() const
     std::vector<VECTOR2I> ret;
 
     // For filled shapes, we may as well use a centroid
-    if( IsSolidFill() )
+    if( IsFilled() )
     {
         ret.emplace_back( GetCenter() );
         return ret;
@@ -273,16 +267,16 @@ std::vector<VECTOR2I> PCB_SHAPE::GetConnectionPoints() const
     case SHAPE_T::CIRCLE:
     {
         const CIRCLE circle( GetCenter(), GetRadius() );
-
         for( const TYPED_POINT2I& pt : KIGEOM::GetCircleKeyPoints( circle, false ) )
+        {
             ret.emplace_back( pt.m_point );
-
+        }
         break;
     }
-
     case SHAPE_T::ARC:
         ret.emplace_back( GetArcMid() );
         KI_FALLTHROUGH;
+
     case SHAPE_T::SEGMENT:
     case SHAPE_T::BEZIER:
         ret.emplace_back( GetStart() );
@@ -302,83 +296,11 @@ std::vector<VECTOR2I> PCB_SHAPE::GetConnectionPoints() const
         break;
 
     case SHAPE_T::UNDEFINED:
-        UNIMPLEMENTED_FOR( SHAPE_T_asString() );
+        // No default - handle all cases, even if just break
         break;
     }
 
     return ret;
-}
-
-
-void PCB_SHAPE::UpdateHatching() const
-{
-    // Force update; we don't bother to propagate damage from all the things that might
-    // knock-out parts of our hatching.
-    m_hatchingDirty = true;
-
-    EDA_SHAPE::UpdateHatching();
-
-    if( !m_hatching.IsEmpty() )
-    {
-        PCB_LAYER_ID   layer = GetLayer();
-        BOX2I          bbox = GetBoundingBox();
-        SHAPE_POLY_SET holes;
-        int            maxError = ARC_LOW_DEF;
-
-        auto knockoutItem =
-                [&]( BOARD_ITEM* item )
-                {
-                    int margin = GetHatchLineSpacing() / 2;
-
-                    if( item->Type() == PCB_TEXTBOX_T )
-                        margin = 0;
-
-                    item->TransformShapeToPolygon( holes, layer, margin, maxError, ERROR_OUTSIDE );
-                };
-
-        for( BOARD_ITEM* item : GetBoard()->Drawings() )
-        {
-            if( item == this )
-                continue;
-
-            if( item->Type() == PCB_FIELD_T
-                    || item->Type() == PCB_TEXT_T
-                    || item->Type() == PCB_TEXTBOX_T
-                    || item->Type() == PCB_SHAPE_T )
-            {
-                if( item->GetLayer() == layer && item->GetBoundingBox().Intersects( bbox ) )
-                    knockoutItem( item );
-            }
-        }
-
-        for( FOOTPRINT* footprint : GetBoard()->Footprints() )
-        {
-            if( footprint == GetParentFootprint() )
-                continue;
-
-            // Knockout footprint courtyard
-            holes.Append( footprint->GetCourtyard( layer ) );
-
-            // Knockout footprint fields
-            footprint->RunOnChildren(
-                    [&]( BOARD_ITEM* item )
-                    {
-                        if( ( item->Type() == PCB_FIELD_T || item->Type() == PCB_SHAPE_T )
-                                && item->GetLayer() == layer
-                                && item->GetBoundingBox().Intersects( bbox ) )
-                        {
-                            knockoutItem( item );
-                        }
-                    },
-                    RECURSE_MODE::RECURSE );
-        }
-
-        if( !holes.IsEmpty() )
-        {
-            m_hatching.BooleanSubtract( holes );
-            m_hatching.Fracture();
-        }
-    }
 }
 
 
@@ -406,19 +328,19 @@ const VECTOR2I PCB_SHAPE::GetFocusPosition() const
     switch( m_shape )
     {
     case SHAPE_T::CIRCLE:
-        if( !IsAnyFill() )
+        if( !IsFilled() )
             return VECTOR2I( GetCenter().x + GetRadius(), GetCenter().y );
         else
             return GetCenter();
 
     case SHAPE_T::RECTANGLE:
-        if( !IsAnyFill() )
+        if( !IsFilled() )
             return GetStart();
         else
             return GetCenter();
 
     case SHAPE_T::POLY:
-        if( !IsAnyFill() )
+        if( !IsFilled() )
         {
             VECTOR2I pos = GetPolyShape().Outline(0).CPoint(0);
             return VECTOR2I( pos.x, pos.y );
@@ -675,7 +597,7 @@ std::vector<int> PCB_SHAPE::ViewGetLayers() const
         }
     }
 
-    if( IsLocked() || ( GetParentFootprint() && GetParentFootprint()->IsLocked() ) )
+    if( IsLocked() )
         layers.push_back( LAYER_LOCKED_ITEM_SHADOW );
 
     return layers;
@@ -780,7 +702,10 @@ std::shared_ptr<SHAPE> PCB_SHAPE::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHI
 
 int PCB_SHAPE::getMaxError() const
 {
-    return GetMaxError();
+    if( const BOARD* board = GetBoard() )
+        return board->GetDesignSettings().m_MaxError;
+
+    return ARC_HIGH_DEF;
 }
 
 
@@ -830,15 +755,7 @@ void PCB_SHAPE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID a
                                          int aClearance, int aError, ERROR_LOC aErrorLoc,
                                          bool ignoreLineWidth ) const
 {
-    EDA_SHAPE::TransformShapeToPolygon( aBuffer, aClearance, aError, aErrorLoc, ignoreLineWidth,
-                                        false );
-}
-
-
-void PCB_SHAPE::TransformShapeToPolySet( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer,
-                                         int aClearance, int aError, ERROR_LOC aErrorLoc ) const
-{
-    EDA_SHAPE::TransformShapeToPolygon( aBuffer, aClearance, aError, aErrorLoc, false, true );
+    EDA_SHAPE::TransformShapeToPolygon( aBuffer, aClearance, aError, aErrorLoc, ignoreLineWidth );
 }
 
 
@@ -945,7 +862,7 @@ static struct PCB_SHAPE_DESC
         {
             layerEnum.Undefined( UNDEFINED_LAYER );
 
-            for( PCB_LAYER_ID layer : LSET::AllLayersMask() )
+            for( PCB_LAYER_ID layer : LSET::AllLayersMask().Seq() )
                 layerEnum.Map( layer, LSET::Name( layer ) );
         }
 
@@ -975,21 +892,6 @@ static struct PCB_SHAPE_DESC
 
         propMgr.Mask( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ), _HKI( "Line Color" ) );
         propMgr.Mask( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ), _HKI( "Fill Color" ) );
-
-        // BEZIER curves are not closed shapes, and fill is not supported in board editor,
-        // only in schematic editor.
-        // So disable Fill option for Bezier curves
-        auto isNotBezier =
-                []( INSPECTABLE* aItem ) -> bool
-                {
-                    if( PCB_SHAPE* shape = dynamic_cast<PCB_SHAPE*>( aItem ) )
-                        return shape->GetShape() != SHAPE_T::BEZIER;
-
-                    return true;
-                };
-
-        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ),
-                                      _HKI( "Fill" ), isNotBezier );
 
         auto isCopper =
                 []( INSPECTABLE* aItem ) -> bool

@@ -330,6 +330,7 @@ public:
      */
     BS_EDGE_CONNECTOR_CONSTRAINTS m_EdgeConnectorConstraints;
 
+    bool m_CastellatedPads;         ///< True if castellated pads exist
     bool m_EdgePlating;             ///< True if the edge board is plated
 
 private:

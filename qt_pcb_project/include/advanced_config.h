@@ -24,12 +24,8 @@
 #pragma once
 
 #include <kicommon.h>
-#include <memory>
-#include <vector>
-#include <config_params.h>
 
 class wxConfigBase;
-class PARAM_CFG;
 
 /**
  * @defgroup advanced_config Advanced Configuration Variables
@@ -62,7 +58,7 @@ class PARAM_CFG;
  * config files, and why you might want to set them, see #AC_KEYS
  *
  */
-#include <wx/string.h>
+
 class KICOMMON_API ADVANCED_CFG
 {
 public:
@@ -73,18 +69,6 @@ public:
      * their config files at ~/.config/kicad/advanced, or the platform equivalent.
      */
     static const ADVANCED_CFG& GetCfg();
-
-    /**
-     * Reload the configuration from the configuration file.
-     */
-    void Reload();
-
-    /**
-     * Save the configuration to the configuration file.
-     */
-    void Save();
-
-    const std::vector<std::unique_ptr<PARAM_CFG>>& GetEntries() const { return m_entries; }
 
     ///@{
     /// \ingroup advanced_config
@@ -323,15 +307,6 @@ public:
     bool m_DebugPDFWriter;
 
     /**
-     * Use legacy wxWidgets-based printing.
-     *
-     * Setting name: "UsePdfPrint"
-     * Valid values: 0 or 1
-     * Default value: 0
-     */
-    bool m_UsePdfPrint;
-
-    /**
      * The diameter of the drill marks on print and plot outputs (in mm) when the "Drill marks"
      * option is set to "Small mark".
      *
@@ -496,13 +471,13 @@ public:
     int m_DisambiguationMenuDelay;
 
     /**
-     * Enable the new PCB Design Blocks feature
+     * Enable the new Design Blocks feature
      *
-     * Setting name: "EnablePcbDesignBlocks"
+     * Setting name: "EnableDesignBlocks"
      * Valid values: true or false
      * Default value: false
      */
-    bool m_EnablePcbDesignBlocks;
+    bool m_EnableDesignBlocks;
 
     /**
      * Enable support for generators.
@@ -539,6 +514,24 @@ public:
      * Default value: 0
      */
     bool m_EnableLibDir;
+
+    /**
+     * Enable Eeschema printing using Cairo.
+     *
+     * Setting name: "EnableEeschemaPrintCairo"
+     * Valid values: 0 or 1
+     * Default value: 1
+     */
+    bool m_EnableEeschemaPrintCairo;
+
+    /**
+     * Enable Eeschema Export to clipboard using Cairo.
+     *
+     * Setting name: "EnableEeschemaExportClipboardCairo"
+     * Valid values: 0 or 1
+     * Default value: 1
+     */
+    bool m_EnableEeschemaExportClipboardCairo;
 
     /**
      * Board object selection visibility limit.
@@ -597,7 +590,7 @@ public:
      * segment when creating a new segment.
      *
      * Setting name: "TriangulateSimplificationLevel"
-     * Valid values: 5 to 1000
+     * Valid values: 0 to 1000
      * Default value: 50
     */
     int m_TriangulateSimplificationLevel;
@@ -608,7 +601,7 @@ public:
      * it is square nm in pcbnew.
      *
      * Setting name: "TriangulateMinimumArea"
-     * Valid values: 25 to 100000
+     * Valid values: 0 to 100000
      * Default value: 1000
      */
     int m_TriangulateMinimumArea;
@@ -765,14 +758,6 @@ public:
     int m_GitIconRefreshInterval;
 
     /**
-     * Enable the UI to configure toolbars.
-     *
-     * Setting name: "ConfigurableToolbars"
-     * Default value: false
-     */
-    bool m_ConfigurableToolbars;
-
-    /**
      * Set the maximum number of characters that can be pasted without warning.  Long
      * text strings can cause the application to freeze for a long time and are probably
      * not what the user intended.
@@ -791,37 +776,10 @@ public:
      */
     int m_PNSProcessClusterTimeout;
 
-    /**
-     * Skip importing component bodies when importing some format files, such as Altium.
-     *
-     * This can be used to drastically speed up the import when testing
-     * import of boards when the bodies are not needed.
-     *
-     * Setting name: "ImportSkipComponentBodies"
-     * Valid values: 0 or 1
-     * Default value: 0
-     */
-    bool m_ImportSkipComponentBodies;
-
-    /**
-     * Screen DPI setting for display calculations.
-     *
-     * This setting controls the assumed screen DPI for various display calculations.
-     * Can be used to adjust sizing for high-DPI displays or unusual screen configurations.
-     *
-     * Setting name: "ScreenDPI"
-     * Valid values: 50 to 500
-     * Default value: 91
-     */
-    int m_ScreenDPI;
-
-    wxString m_traceMasks; ///< Trace masks for wxLogTrace, loaded from the config file.
     ///@}
 
 private:
     ADVANCED_CFG();
-
-    ADVANCED_CFG( ADVANCED_CFG&& other ) = default;
 
     /**
      * Load the config from the normal configuration file.
@@ -832,6 +790,4 @@ private:
      * Load config from the given configuration base.
      */
     void loadSettings( wxConfigBase& aCfg );
-
-    std::vector<std::unique_ptr<PARAM_CFG>> m_entries;
 };

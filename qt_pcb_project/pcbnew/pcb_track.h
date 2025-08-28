@@ -78,34 +78,6 @@ enum class TENTING_MODE
     NOT_TENTED = 2
 };
 
-enum class COVERING_MODE
-{
-    FROM_RULES = 0,
-    COVERED = 1,
-    NOT_COVERED = 2
-};
-
-enum class PLUGGING_MODE
-{
-    FROM_RULES = 0,
-    PLUGGED = 1,
-    NOT_PLUGGED = 2
-};
-
-enum class CAPPING_MODE
-{
-    FROM_RULES = 0,
-    CAPPED = 1,
-    NOT_CAPPED = 2
-};
-
-enum class FILLING_MODE
-{
-    FROM_RULES = 0,
-    FILLED = 1,
-    NOT_FILLED = 2
-};
-
 #define UNDEFINED_DRILL_DIAMETER  -1       //< Undefined via drill diameter.
 
 // Used for tracks and vias for algorithmic safety, not to enforce constraints
@@ -191,16 +163,9 @@ public:
     /**
      * Get the length of the track using the hypotenuse calculation.
      *
-     * @return the length of the track
+     * @return the length of the track.
      */
     virtual double GetLength() const;
-
-    /**
-     * Get the time delay of the track
-     *
-     * @return the delay of the track
-     */
-    virtual double GetDelay() const;
 
     /**
      * Convert the track shape to a closed polygon.
@@ -246,7 +211,6 @@ public:
 
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
-    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override;
 
     bool ApproxCollinear( const PCB_TRACK& aTrack );
 
@@ -449,7 +413,7 @@ public:
     bool HasValidLayerPair( int aCopperLayerCount );
 
     VIATYPE GetViaType() const { return m_viaType; }
-    void    SetViaType( VIATYPE aViaType )
+    void SetViaType( VIATYPE aViaType ) 
     {
         m_viaType = aViaType;
         // If someone updates a VIA to TH, we want to kick out any non-outer layers
@@ -461,7 +425,6 @@ public:
     void SetPadstack( const PADSTACK& aPadstack ) { m_padStack = aPadstack; }
 
     const BOX2I GetBoundingBox() const override;
-    const BOX2I GetBoundingBox( PCB_LAYER_ID aLayer ) const;
 
     void SetWidth( int aWidth ) override;
     int GetWidth() const override;
@@ -488,26 +451,10 @@ public:
     MINOPTMAX<int> GetWidthConstraint( wxString* aSource = nullptr ) const override;
     MINOPTMAX<int> GetDrillConstraint( wxString* aSource = nullptr ) const;
 
-    void         SetFrontTentingMode( TENTING_MODE aMode );
+    void SetFrontTentingMode( TENTING_MODE aMode );
     TENTING_MODE GetFrontTentingMode() const;
-    void         SetBackTentingMode( TENTING_MODE aMode );
+    void SetBackTentingMode( TENTING_MODE aMode );
     TENTING_MODE GetBackTentingMode() const;
-
-    void          SetFrontCoveringMode( COVERING_MODE aMode );
-    COVERING_MODE GetFrontCoveringMode() const;
-    void          SetBackCoveringMode( COVERING_MODE aMode );
-    COVERING_MODE GetBackCoveringMode() const;
-
-    void          SetFrontPluggingMode( PLUGGING_MODE aMode );
-    PLUGGING_MODE GetFrontPluggingMode() const;
-    void          SetBackPluggingMode( PLUGGING_MODE aMode );
-    PLUGGING_MODE GetBackPluggingMode() const;
-
-    void         SetCappingMode( CAPPING_MODE aMode );
-    CAPPING_MODE GetCappingMode() const;
-
-    void         SetFillingMode( FILLING_MODE aMode );
-    FILLING_MODE GetFillingMode() const;
 
     bool IsTented( PCB_LAYER_ID aLayer ) const override;
     int GetSolderMaskExpansion() const;
@@ -630,8 +577,10 @@ public:
             return true;
 
         case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END:
-        case PADSTACK::UNCONNECTED_LAYER_MODE::START_END_ONLY:
-            return aLayer != m_padStack.Drill().start && aLayer != m_padStack.Drill().end;
+        {
+            if( aLayer == m_padStack.Drill().start || aLayer == m_padStack.Drill().end )
+                return false;
+        }
         }
 
         return true;
@@ -652,7 +601,7 @@ public:
      * @return true if connected by pad or track (or optionally zone) on any of the associated
      *         layers.
      */
-    bool FlashLayer( const LSET& aLayers ) const;
+    bool FlashLayer( LSET aLayers ) const;
 
     /**
      * Return the top-most and bottom-most connected layers.

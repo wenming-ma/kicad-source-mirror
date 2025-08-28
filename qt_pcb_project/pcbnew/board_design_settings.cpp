@@ -187,7 +187,7 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
     m_DRCSeverities[ DRCE_FOOTPRINT_FILTERS ] = RPT_SEVERITY_IGNORE;
 
     m_DRCSeverities[ DRCE_OVERLAPPING_SILK ] = RPT_SEVERITY_WARNING;
-    m_DRCSeverities[ DRCE_SILK_MASK_CLEARANCE ] = RPT_SEVERITY_WARNING;
+    m_DRCSeverities[ DRCE_SILK_CLEARANCE ] = RPT_SEVERITY_WARNING;
     m_DRCSeverities[ DRCE_SILK_EDGE_CLEARANCE ] = RPT_SEVERITY_WARNING;
     m_DRCSeverities[ DRCE_TEXT_HEIGHT ] = RPT_SEVERITY_WARNING;
     m_DRCSeverities[ DRCE_TEXT_THICKNESS ] = RPT_SEVERITY_WARNING;
@@ -221,16 +221,6 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
     m_AllowSoldermaskBridgesInFPs = false;
     m_TentViasFront = true;
     m_TentViasBack = true;
-
-    m_CoverViasFront = false;
-    m_CoverViasBack = false;
-
-    m_PlugViasFront = false;
-    m_PlugViasBack = false;
-
-    m_CapVias = false;
-
-    m_FillVias = false;
 
     // Layer thickness for 3D viewer
     m_boardThickness = pcbIUScale.mmToIU( DEFAULT_BOARD_THICKNESS_MM );
@@ -1000,12 +990,6 @@ void BOARD_DESIGN_SETTINGS::initFromOther( const BOARD_DESIGN_SETTINGS& aOther )
     m_AllowSoldermaskBridgesInFPs = aOther.m_AllowSoldermaskBridgesInFPs;
     m_TentViasFront               = aOther.m_TentViasFront;
     m_TentViasBack                = aOther.m_TentViasBack;
-    m_CoverViasFront              = aOther.m_CoverViasFront;
-    m_CoverViasBack               = aOther.m_CoverViasBack;
-    m_PlugViasFront               = aOther.m_PlugViasFront;
-    m_PlugViasBack                = aOther.m_PlugViasBack;
-    m_CapVias                     = aOther.m_CapVias;
-    m_FillVias                    = aOther.m_FillVias;
     m_DefaultFPTextItems          = aOther.m_DefaultFPTextItems;
     m_UserLayerNames              = aOther.m_UserLayerNames;
 
@@ -1099,12 +1083,6 @@ bool BOARD_DESIGN_SETTINGS::operator==( const BOARD_DESIGN_SETTINGS& aOther ) co
     if( m_AllowSoldermaskBridgesInFPs != aOther.m_AllowSoldermaskBridgesInFPs ) return false;
     if( m_TentViasFront               != aOther.m_TentViasFront ) return false;
     if( m_TentViasBack                != aOther.m_TentViasBack ) return false;
-    if( m_CoverViasFront              != aOther.m_CoverViasFront ) return false;
-    if( m_CoverViasBack               != aOther.m_CoverViasBack ) return false;
-    if( m_PlugViasFront               != aOther.m_PlugViasFront ) return false;
-    if( m_PlugViasBack                != aOther.m_PlugViasBack ) return false;
-    if( m_CapVias                     != aOther.m_CapVias ) return false;
-    if( m_FillVias                    != aOther.m_FillVias ) return false;
     if( m_DefaultFPTextItems          != aOther.m_DefaultFPTextItems ) return false;
     if( m_UserLayerNames              != aOther.m_UserLayerNames ) return false;
 
@@ -1331,8 +1309,7 @@ int BOARD_DESIGN_SETTINGS::GetBiggestClearanceValue() const
         biggest = std::max( biggest, constraint.Value().Min() );
     }
 
-    // Clip to avoid integer overflows in subsequent calculations
-    return std::min( biggest, MAXIMUM_CLEARANCE );
+    return biggest;
 }
 
 
@@ -1347,9 +1324,9 @@ int BOARD_DESIGN_SETTINGS::GetSmallestClearanceValue() const
 }
 
 
-void BOARD_DESIGN_SETTINGS::SetViaSizeIndex( int aIndex )
+void BOARD_DESIGN_SETTINGS::SetViaSizeIndex( unsigned aIndex )
 {
-    m_viaSizeIndex = std::min( aIndex, (int) m_ViasDimensionsList.size() );
+    m_viaSizeIndex = std::min( aIndex, (unsigned) m_ViasDimensionsList.size() );
     m_useCustomTrackVia = false;
 }
 
@@ -1380,9 +1357,9 @@ int BOARD_DESIGN_SETTINGS::GetCurrentViaDrill() const
 }
 
 
-void BOARD_DESIGN_SETTINGS::SetTrackWidthIndex( int aIndex )
+void BOARD_DESIGN_SETTINGS::SetTrackWidthIndex( unsigned aIndex )
 {
-    m_trackWidthIndex = std::min( aIndex, (int) m_TrackWidthList.size() );
+    m_trackWidthIndex = std::min( aIndex, (unsigned) m_TrackWidthList.size() );
     m_useCustomTrackVia = false;
 }
 
@@ -1398,10 +1375,13 @@ int BOARD_DESIGN_SETTINGS::GetCurrentTrackWidth() const
 }
 
 
-void BOARD_DESIGN_SETTINGS::SetDiffPairIndex( int aIndex )
+void BOARD_DESIGN_SETTINGS::SetDiffPairIndex( unsigned aIndex )
 {
     if( !m_DiffPairDimensionsList.empty() )
-        m_diffPairIndex = std::min( aIndex, (int) m_DiffPairDimensionsList.size() - 1 );
+    {
+        m_diffPairIndex = std::min( aIndex,
+                static_cast<unsigned>( m_DiffPairDimensionsList.size() ) - 1 );
+    }
 
     m_useCustomDiffPair = false;
 }
@@ -1490,16 +1470,16 @@ void BOARD_DESIGN_SETTINGS::SetUserDefinedLayerCount( int aNewLayerCount )
 }
 
 
-void BOARD_DESIGN_SETTINGS::SetEnabledLayers( const LSET& aMask )
+void BOARD_DESIGN_SETTINGS::SetEnabledLayers( LSET aMask )
 {
-    m_enabledLayers = aMask;
-
     // Ensures mandatory back and front layers are always enabled regardless of board file
     // configuration.
-    m_enabledLayers.set( B_Cu ).set( F_Cu )
-                   .set( B_CrtYd ).set( F_CrtYd )
-                   .set( Edge_Cuts )
-                   .set( Margin );
+    aMask.set( B_Cu ).set( F_Cu )
+         .set( B_CrtYd ).set( F_CrtYd )
+         .set( Edge_Cuts )
+         .set( Margin );
+
+    m_enabledLayers = aMask;
 
     // update layer counts to ensure their consistency with m_EnabledLayers
     LSET copperLayers = aMask;

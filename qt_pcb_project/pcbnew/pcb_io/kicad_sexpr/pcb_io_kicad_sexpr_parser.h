@@ -32,7 +32,6 @@
 
 #include <core/wx_stl_compat.h>
 #include <hashtables.h>
-#include <lib_id.h>
 #include <layer_ids.h>     // PCB_LAYER_ID
 #include <lset.h>
 #include <pcb_lexer.h>
@@ -142,7 +141,6 @@ private:
         wxString          name;
         bool              locked;
         KIID              uuid;
-        LIB_ID            libId;
         std::vector<KIID> memberUuids;
     };
 
@@ -229,7 +227,6 @@ private:
 
     // Parse a footprint, but do not replace PARSE_ERROR with FUTURE_FORMAT_ERROR automatically.
     FOOTPRINT*  parseFOOTPRINT_unchecked( wxArrayString* aInitialComments = nullptr );
-    void        parseFootprintStackup( FOOTPRINT& aFootprint );
 
     PAD*        parsePAD( FOOTPRINT* aParent = nullptr );
 
@@ -306,10 +303,6 @@ private:
 
     void parseMargins( int& aLeft, int& aTop, int& aRight, int& aBottom );
 
-    void parseZoneDefaults( ZONE_SETTINGS& aZoneSettings );
-
-    void parseZoneLayerProperty( std::map<PCB_LAYER_ID, ZONE_LAYER_PROPERTIES>& aProperties );
-
     std::pair<wxString, wxString> parseBoardProperty();
 
     /**
@@ -336,6 +329,8 @@ private:
      * @throw PARSE_ERROR if the text syntax is not valid.
      */
     void parseRenderCache( EDA_TEXT* text );
+
+    void parseTenting( PADSTACK& aPadstack );
 
     FP_3DMODEL* parse3DModel();
 
@@ -375,8 +370,6 @@ private:
 
     bool parseBool();
 
-    std::optional<bool> parseOptBool();
-
     /**
      * Parses a boolean flag inside a list that existed before boolean normalization.
      *
@@ -388,9 +381,6 @@ private:
      * @return the parsed boolean
      */
     bool parseMaybeAbsentBool( bool aDefaultValue );
-
-    std::pair<std::optional<bool>, std::optional<bool>>
-    parseFrontBackOptBool( bool aLegacy = false );
 
     /*
      * @return if m_appendToExisting, returns new KIID(), otherwise returns CurStr() as KIID.

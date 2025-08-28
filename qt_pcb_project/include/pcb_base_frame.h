@@ -29,6 +29,7 @@
 
 #include <eda_units.h>
 #include <eda_draw_frame.h>
+#include <outline_mode.h>
 #include <lib_id.h>
 #include <pcb_display_options.h>
 #include <pcb_draw_panel_gal.h>
@@ -59,14 +60,8 @@ class PCB_VIEWERS_SETTINGS_BASE;
 class PCBNEW_SETTINGS;
 class FOOTPRINT_EDITOR_SETTINGS;
 struct MAGNETIC_SETTINGS;
-class PROGRESS_REPORTER;
-class PCB_LAYER_BOX_SELECTOR;
-
-#ifndef __linux__
 class NL_PCBNEW_PLUGIN;
-#else
-class SPNAV_2D_PLUGIN;
-#endif
+class PROGRESS_REPORTER;
 
 #ifdef wxHAS_INOTIFY
 #define wxFileSystemWatcher wxInotifyFileSystemWatcher
@@ -218,9 +213,8 @@ public:
      */
     virtual BOARD_ITEM_CONTAINER* GetModel() const = 0;
 
-    EDA_ITEM* ResolveItem( const KIID& aId, bool aAllowNullptrReturn = false ) const override;
+    EDA_ITEM* GetItem( const KIID& aId ) const override;
 
-    void FocusOnItem( EDA_ITEM* aItem ) override;
     void FocusOnItem( BOARD_ITEM* aItem, PCB_LAYER_ID aLayer = UNDEFINED_LAYER );
     void FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID aLayer = UNDEFINED_LAYER );
 
@@ -244,6 +238,14 @@ public:
      * @return global configuration options.
      */
     GENERAL_COLLECTORS_GUIDE GetCollectorsGuide();
+
+    /**
+     * Put up a dialog and allows the user to pick a library, for unspecified use.
+     *
+     * @param aNicknameExisting is the current choice to highlight.
+     * @return the library or wxEmptyString on abort.
+     */
+    wxString SelectLibrary( const wxString& aNicknameExisting );
 
     /**
      * Must be called after a change in order to set the "modify" flag and update other data
@@ -334,8 +336,7 @@ public:
      * @param aDlgPosition is the position of dialog (default is centered).
      * @return the selected layer id.
      */
-    PCB_LAYER_ID SelectOneLayer( PCB_LAYER_ID aDefaultLayer,
-                                 const LSET& aNotAllowedLayersMask = LSET(),
+    PCB_LAYER_ID SelectOneLayer( PCB_LAYER_ID aDefaultLayer, LSET aNotAllowedLayersMask = LSET(),
                                  wxPoint aDlgPosition = wxDefaultPosition );
 
     /**
@@ -395,9 +396,6 @@ public:
      */
     void OnFpChangeDebounceTimer( wxTimerEvent& aEvent );
 
-    void GetLibraryItemsForListDialog( wxArrayString& aHeaders,
-                                       std::vector<wxArrayString>& aItemsToDisplay );
-
 protected:
     bool canCloseWindow( wxCloseEvent& aCloseEvent ) override;
 
@@ -435,11 +433,7 @@ protected:
     PCB_ORIGIN_TRANSFORMS   m_originTransforms;
 
 private:
-#ifndef __linux__
     std::unique_ptr<NL_PCBNEW_PLUGIN>    m_spaceMouse;
-#else
-    std::unique_ptr<SPNAV_2D_PLUGIN>    m_spaceMouse;
-#endif
 
     std::unique_ptr<wxFileSystemWatcher> m_watcher;
     wxFileName                           m_watcherFileName;

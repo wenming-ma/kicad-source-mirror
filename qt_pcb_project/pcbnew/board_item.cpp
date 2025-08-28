@@ -38,34 +38,9 @@
 #include <font/font.h>
 
 
-bool BOARD_ITEM::IsGroupableType() const
+BOARD_ITEM::~BOARD_ITEM()
 {
-    switch ( Type() )
-    {
-    case PCB_FOOTPRINT_T:
-    case PCB_PAD_T:
-    case PCB_SHAPE_T:
-    case PCB_REFERENCE_IMAGE_T:
-    case PCB_FIELD_T:
-    case PCB_TEXT_T:
-    case PCB_TEXTBOX_T:
-    case PCB_TABLE_T:
-    case PCB_GROUP_T:
-    case PCB_GENERATOR_T:
-    case PCB_TRACE_T:
-    case PCB_VIA_T:
-    case PCB_ARC_T:
-    case PCB_DIMENSION_T:
-    case PCB_DIM_ALIGNED_T:
-    case PCB_DIM_LEADER_T:
-    case PCB_DIM_CENTER_T:
-    case PCB_DIM_RADIAL_T:
-    case PCB_DIM_ORTHOGONAL_T:
-    case PCB_ZONE_T:
-        return true;
-    default:
-        return false;
-    }
+    wxASSERT( m_group == nullptr );
 }
 
 
@@ -81,7 +56,12 @@ const BOARD* BOARD_ITEM::GetBoard() const
     if( Type() == PCB_T )
         return static_cast<const BOARD*>( this );
 
-    return static_cast<const BOARD*>( findParent( PCB_T ) );
+    BOARD_ITEM* parent = GetParent();
+
+    if( parent )
+        return parent->GetBoard();
+
+    return nullptr;
 }
 
 
@@ -90,28 +70,23 @@ BOARD* BOARD_ITEM::GetBoard()
     if( Type() == PCB_T )
         return static_cast<BOARD*>( this );
 
-    return static_cast<BOARD*>( findParent( PCB_T ) );
-}
+    BOARD_ITEM* parent = GetParent();
 
+    if( parent )
+        return parent->GetBoard();
 
-FOOTPRINT* BOARD_ITEM::GetParentFootprint() const
-{
-    return static_cast<FOOTPRINT*>( findParent( PCB_FOOTPRINT_T ) );
+    return nullptr;
 }
 
 
 bool BOARD_ITEM::IsLocked() const
 {
-    if( EDA_GROUP* group = GetParentGroup() )
-    {
-        if( group->AsEdaItem()->IsLocked() )
-            return true;
-    }
+    if( GetParentGroup() && GetParentGroup()->IsLocked() )
+        return true;
 
-    if( !GetBoard() || GetBoard()->GetBoardUse() == BOARD_USE::FPHOLDER )
-        return false;
+    const BOARD* board = GetBoard();
 
-    return m_isLocked;
+    return board && board->GetBoardUse() != BOARD_USE::FPHOLDER && m_isLocked;
 }
 
 
@@ -132,15 +107,6 @@ void BOARD_ITEM::SetStroke( const STROKE_PARAMS& aStroke )
 const KIFONT::METRICS& BOARD_ITEM::GetFontMetrics() const
 {
     return KIFONT::METRICS::Default();
-}
-
-
-int BOARD_ITEM::GetMaxError() const
-{
-    if( const BOARD* board = GetBoard() )
-        return board->GetDesignSettings().m_MaxError;
-
-    return ARC_HIGH_DEF;
 }
 
 
@@ -207,10 +173,7 @@ bool BOARD_ITEM::IsSideSpecific() const
 wxString BOARD_ITEM::layerMaskDescribe() const
 {
     const BOARD* board = GetBoard();
-    LSET         layers = GetLayerSet();
-
-    if( board )
-        layers &= board->GetEnabledLayers();
+    LSET         layers = GetLayerSet() & board->GetEnabledLayers();
 
     LSET copperLayers = layers & LSET::AllCuMask();
     LSET techLayers = layers & LSET::AllTechMask();
@@ -263,7 +226,6 @@ void BOARD_ITEM::DeleteStructure()
 
 void BOARD_ITEM::swapData( BOARD_ITEM* aImage )
 {
-    UNIMPLEMENTED_FOR( GetClass() );
 }
 
 
@@ -272,29 +234,26 @@ void BOARD_ITEM::SwapItemData( BOARD_ITEM* aImage )
     if( aImage == nullptr )
         return;
 
-    EDA_ITEM* parent = GetParent();
+    EDA_ITEM*  parent = GetParent();
+    PCB_GROUP* group = GetParentGroup();
 
+    SetParentGroup( nullptr );
+    aImage->SetParentGroup( nullptr );
     swapData( aImage );
 
+    // Restore pointers to be sure they are not broken
     SetParent( parent );
+    SetParentGroup( group );
 }
 
 
-BOARD_ITEM* BOARD_ITEM::Duplicate( bool addToParentGroup, BOARD_COMMIT* aCommit ) const
+BOARD_ITEM* BOARD_ITEM::Duplicate() const
 {
     BOARD_ITEM* dupe = static_cast<BOARD_ITEM*>( Clone() );
     const_cast<KIID&>( dupe->m_Uuid ) = KIID();
 
-    if( addToParentGroup )
-    {
-        wxCHECK_MSG( aCommit, dupe, "Must supply a commit to update parent group" );
-
-        if( EDA_GROUP* group = dupe->GetParentGroup() )
-        {
-            aCommit->Modify( group->AsEdaItem(), nullptr, RECURSE_MODE::NO_RECURSE );
-            group->AddItem( dupe );
-        }
-    }
+    if( dupe->GetParentGroup() )
+        dupe->GetParentGroup()->AddItem( dupe );
 
     return dupe;
 }
@@ -340,6 +299,35 @@ std::shared_ptr<SHAPE_SEGMENT> BOARD_ITEM::GetEffectiveHoleShape() const
     UNIMPLEMENTED_FOR( GetClass() );
 
     return slot;
+}
+
+
+FOOTPRINT* BOARD_ITEM::GetParentFootprint() const
+{
+    // EDA_ITEM::IsType is too slow here.
+    auto isContainer = []( BOARD_ITEM_CONTAINER* aTest )
+    {
+        switch( aTest->Type() )
+        {
+        case PCB_GROUP_T:
+        case PCB_GENERATOR_T:
+        case PCB_TABLE_T:
+            return true;
+
+        default:
+            return false;
+        }
+    };
+
+    BOARD_ITEM_CONTAINER* ancestor = GetParent();
+
+    while( ancestor && isContainer( ancestor ) )
+        ancestor = ancestor->GetParent();
+
+    if( ancestor && ancestor->Type() == PCB_FOOTPRINT_T )
+        return static_cast<FOOTPRINT*>( ancestor );
+
+    return nullptr;
 }
 
 
@@ -398,15 +386,6 @@ wxString BOARD_ITEM::GetParentAsString() const
 }
 
 
-const std::vector<wxString>* BOARD_ITEM::GetEmbeddedFonts()
-{
-    if( BOARD* board = GetBoard() )
-        return board->GetFontFiles();
-
-    return nullptr;
-}
-
-
 static struct BOARD_ITEM_DESC
 {
     BOARD_ITEM_DESC()
@@ -417,7 +396,7 @@ static struct BOARD_ITEM_DESC
         {
             layerEnum.Undefined( UNDEFINED_LAYER );
 
-            for( PCB_LAYER_ID layer : LSET::AllLayersMask() )
+            for( PCB_LAYER_ID layer : LSET::AllLayersMask().Seq() )
                 layerEnum.Map( layer, LSET::Name( layer ) );
         }
 

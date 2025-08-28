@@ -35,7 +35,6 @@
 #include <geometry/shape_simple.h>
 #include <geometry/shape_segment.h>
 #include <geometry/shape_rect.h>
-#include <geometry/geometry_utils.h>
 #include <macros.h>
 #include <math/util.h>      // for KiROUND
 #include <eda_item.h>
@@ -51,7 +50,6 @@ EDA_SHAPE::EDA_SHAPE( SHAPE_T aType, int aLineWidth, FILL_T aFill ) :
         m_stroke( aLineWidth, LINE_STYLE::DEFAULT, COLOR4D::UNSPECIFIED ),
         m_fill( aFill ),
         m_fillColor( COLOR4D::UNSPECIFIED ),
-        m_hatchingDirty( true ),
         m_rectangleHeight( 0 ),
         m_rectangleWidth( 0 ),
         m_segmentLength( 0 ),
@@ -70,7 +68,6 @@ EDA_SHAPE::EDA_SHAPE( const SHAPE& aShape ) :
         m_endsSwapped( false ),
         m_stroke( 0, LINE_STYLE::DEFAULT, COLOR4D::UNSPECIFIED ),
         m_fill(),
-        m_hatchingDirty( true ),
         m_rectangleHeight( 0 ),
         m_rectangleWidth( 0 ),
         m_segmentLength( 0 ),
@@ -537,158 +534,6 @@ bool EDA_SHAPE::IsClosed() const
 }
 
 
-void EDA_SHAPE::SetFillMode( FILL_T aFill )
-{
-    m_fill = aFill;
-    m_hatchingDirty = true;
-}
-
-
-void EDA_SHAPE::SetFillModeProp( UI_FILL_MODE aFill )
-{
-    switch( aFill )
-    {
-    case UI_FILL_MODE::NONE:          SetFillMode( FILL_T::NO_FILL );       break;
-    case UI_FILL_MODE::HATCH:         SetFillMode( FILL_T::HATCH );         break;
-    case UI_FILL_MODE::REVERSE_HATCH: SetFillMode( FILL_T::REVERSE_HATCH ); break;
-    case UI_FILL_MODE::CROSS_HATCH:   SetFillMode( FILL_T::CROSS_HATCH );   break;
-    default:                          SetFilled( true );                    break;
-    }
-}
-
-
-UI_FILL_MODE EDA_SHAPE::GetFillModeProp() const
-{
-    switch( m_fill )
-    {
-    case FILL_T::NO_FILL:       return UI_FILL_MODE::NONE;
-    case FILL_T::HATCH:         return UI_FILL_MODE::HATCH;
-    case FILL_T::REVERSE_HATCH: return UI_FILL_MODE::REVERSE_HATCH;
-    case FILL_T::CROSS_HATCH:   return UI_FILL_MODE::CROSS_HATCH;
-    default:                    return UI_FILL_MODE::SOLID;
-    }
-}
-
-
-void EDA_SHAPE::UpdateHatching() const
-{
-    if( !m_hatchingDirty )
-        return;
-
-    m_hatching.RemoveAllContours();
-
-    std::vector<double> slopes;
-    int                 lineWidth = GetHatchLineWidth();
-    int                 spacing = GetHatchLineSpacing();
-    SHAPE_POLY_SET      shapeBuffer;
-
-    if( isMoving() )
-        return;
-    else if( GetFillMode() == FILL_T::CROSS_HATCH )
-        slopes = { 1.0, -1.0 };
-    else if( GetFillMode() == FILL_T::HATCH )
-        slopes = { -1.0 };
-    else if( GetFillMode() == FILL_T::REVERSE_HATCH )
-        slopes = { 1.0 };
-    else
-        return;
-
-    if( spacing == 0 )
-        return;
-
-    switch( m_shape )
-    {
-    case SHAPE_T::ARC:
-    case SHAPE_T::SEGMENT:
-    case SHAPE_T::BEZIER:
-        return;
-
-    case SHAPE_T::RECTANGLE:
-        shapeBuffer.NewOutline();
-
-        for( const VECTOR2I& pt : GetRectCorners() )
-            shapeBuffer.Append( pt );
-
-        break;
-
-    case SHAPE_T::CIRCLE:
-        TransformCircleToPolygon( shapeBuffer, getCenter(), GetRadius(), getMaxError(), ERROR_INSIDE );
-        break;
-
-    case SHAPE_T::POLY:
-        if( !IsClosed() )
-            return;
-
-        shapeBuffer = m_poly.CloneDropTriangulation();
-        break;
-
-    default:
-        UNIMPLEMENTED_FOR( SHAPE_T_asString() );
-        return;
-    }
-
-    if( GetFillMode() == FILL_T::HATCH || GetFillMode() == FILL_T::REVERSE_HATCH )
-    {
-        for( const SEG& seg : shapeBuffer.GenerateHatchLines( slopes, spacing, -1 ) )
-        {
-            // We don't really need the rounded ends at all, so don't spend any extra time on them
-            int maxError = lineWidth;
-
-            TransformOvalToPolygon( m_hatching, seg.A, seg.B, lineWidth, maxError, ERROR_INSIDE );
-        }
-
-        m_hatching.Fracture();
-    }
-    else
-    {
-        // Generate a grid of holes for a cross-hatch.  This is about 3X the speed of the above
-        // algorithm, even when modified for the 45-degree fracture problem.
-
-        int            gridsize = GetHatchLineSpacing();
-        int            hole_size = gridsize - GetHatchLineWidth();
-
-        m_hatching = shapeBuffer.CloneDropTriangulation();
-        m_hatching.Rotate( -ANGLE_45 );
-
-        // Build hole shape
-        SHAPE_LINE_CHAIN hole_base;
-        VECTOR2I corner( 0, 0 );;
-        hole_base.Append( corner );
-        corner.x += hole_size;
-        hole_base.Append( corner );
-        corner.y += hole_size;
-        hole_base.Append( corner );
-        corner.x = 0;
-        hole_base.Append( corner );
-        hole_base.SetClosed( true );
-
-        // Build holes
-        BOX2I bbox = m_hatching.BBox( 0 );
-        SHAPE_POLY_SET holes;
-
-        int x_offset = bbox.GetX() - ( bbox.GetX() ) % gridsize - gridsize;
-        int y_offset = bbox.GetY() - ( bbox.GetY() ) % gridsize - gridsize;
-
-        for( int xx = x_offset; xx <= bbox.GetRight(); xx += gridsize )
-        {
-            for( int yy = y_offset; yy <= bbox.GetBottom(); yy += gridsize )
-            {
-                SHAPE_LINE_CHAIN hole( hole_base );
-                hole.Move( VECTOR2I( xx, yy ) );
-                holes.AddOutline( hole );
-            }
-        }
-
-        m_hatching.BooleanSubtract( holes );
-        m_hatching.Fracture();
-
-        // Must re-rotate after Fracture().  Clipper struggles mightily with fracturing
-        // 45-degree holes.
-        m_hatching.Rotate( ANGLE_45 );
-    }
-}
-
-
 void EDA_SHAPE::move( const VECTOR2I& aMoveVector )
 {
     switch ( m_shape )
@@ -727,8 +572,6 @@ void EDA_SHAPE::move( const VECTOR2I& aMoveVector )
         UNIMPLEMENTED_FOR( SHAPE_T_asString() );
         break;
     }
-
-    m_hatchingDirty = true;
 }
 
 
@@ -748,9 +591,14 @@ void EDA_SHAPE::scale( double aScale )
 
     case SHAPE_T::SEGMENT:
     case SHAPE_T::RECTANGLE:
-    case SHAPE_T::CIRCLE:
         scalePt( m_start );
         scalePt( m_end );
+        break;
+
+    case SHAPE_T::CIRCLE: //  ring or circle
+        scalePt( m_start );
+        m_end.x = m_start.x + KiROUND( GetRadius() * aScale );
+        m_end.y = m_start.y;
         break;
 
     case SHAPE_T::POLY: // polygon
@@ -782,8 +630,6 @@ void EDA_SHAPE::scale( double aScale )
         UNIMPLEMENTED_FOR( SHAPE_T_asString() );
         break;
     }
-
-    m_hatchingDirty = true;
 }
 
 
@@ -845,8 +691,6 @@ void EDA_SHAPE::rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
         UNIMPLEMENTED_FOR( SHAPE_T_asString() );
         break;
     }
-
-    m_hatchingDirty = true;
 }
 
 
@@ -890,8 +734,6 @@ void EDA_SHAPE::flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
         UNIMPLEMENTED_FOR( SHAPE_T_asString() );
         break;
     }
-
-    m_hatchingDirty = true;
 }
 
 
@@ -958,7 +800,6 @@ void EDA_SHAPE::SetCenter( const VECTOR2I& aCenter )
 
     case SHAPE_T::CIRCLE:
         m_start = aCenter;
-        m_hatchingDirty = true;
         break;
 
     default:
@@ -1015,11 +856,20 @@ int EDA_SHAPE::GetRadius() const
         UNIMPLEMENTED_FOR( SHAPE_T_asString() );
     }
 
-    // don't allow degenerate circles/arcs
-    if( radius > (double) INT_MAX / 2.0 )
-        radius = (double) INT_MAX / 2.0;
+    // Calculate maximum safe radius to prevent overflow in coordinate operations
+    // We need to ensure that any coordinate ± radius doesn't exceed INT_MAX
+    int max_coord = std::max( { std::abs( m_start.x ), std::abs( m_start.y ),
+                                std::abs( m_end.x ), std::abs( m_end.y ) } );
 
-    return std::max( 1, KiROUND( radius ) );
+    // Calculate maximum safe radius (with some margin)
+    double max_safe_radius = static_cast<double>( INT_MAX ) - max_coord - 1000;
+
+    if( radius > max_safe_radius )
+        radius = max_safe_radius;
+
+    int final_radius = KiROUND( radius );
+
+    return std::max( 1, final_radius );
 }
 
 
@@ -1271,13 +1121,8 @@ bool EDA_SHAPE::hitTest( const VECTOR2I& aPosition, int aAccuracy ) const
 
         if( IsFilledForHitTesting() )
             return dist <= radius + maxdist;          // Filled circle hit-test
-        else if( abs( radius - dist ) <= maxdist )    // Ring hit-test
-            return true;
-
-        if( IsHatchedFill() && GetHatching().Collide( aPosition, maxdist ) )
-            return true;
-
-        return false;
+        else
+            return abs( radius - dist ) <= maxdist;   // Ring hit-test
     }
 
     case SHAPE_T::ARC:
@@ -1356,22 +1201,14 @@ bool EDA_SHAPE::hitTest( const VECTOR2I& aPosition, int aAccuracy ) const
 
             return poly.Collide( aPosition, maxdist );
         }
-        else
+        else                                            // Open rect hit-test
         {
             std::vector<VECTOR2I> pts = GetRectCorners();
 
-            if( TestSegmentHit( aPosition, pts[0], pts[1], maxdist )
+            return TestSegmentHit( aPosition, pts[0], pts[1], maxdist )
                     || TestSegmentHit( aPosition, pts[1], pts[2], maxdist )
                     || TestSegmentHit( aPosition, pts[2], pts[3], maxdist )
-                    || TestSegmentHit( aPosition, pts[3], pts[0], maxdist ) )
-            {
-                return true;
-            }
-
-            if( IsHatchedFill() && GetHatching().Collide( aPosition, maxdist ) )
-                return true;
-
-            return false;
+                    || TestSegmentHit( aPosition, pts[3], pts[0], maxdist );
         }
 
     case SHAPE_T::POLY:
@@ -1391,13 +1228,7 @@ bool EDA_SHAPE::hitTest( const VECTOR2I& aPosition, int aAccuracy ) const
         }
         else
         {
-            if( m_poly.CollideEdge( aPosition, nullptr, maxdist ) )
-                return true;
-
-            if( IsHatchedFill() && GetHatching().Collide( aPosition, maxdist ) )
-                return true;
-
-            return false;
+            return m_poly.CollideEdge( aPosition, nullptr, maxdist );
         }
 
     default:
@@ -1444,7 +1275,7 @@ bool EDA_SHAPE::hitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
             if( !arect.Intersects( bbox ) )
                 return false;
 
-            if( IsAnyFill() )
+            if( IsFilled() )
             {
                 return ( arect.Intersects( getCenter(), GetStart() )
                       || arect.Intersects( getCenter(), GetEnd() )
@@ -1580,14 +1411,6 @@ bool EDA_SHAPE::hitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
         UNIMPLEMENTED_FOR( SHAPE_T_asString() );
         return false;
     }
-}
-
-
-bool EDA_SHAPE::hitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
-{
-    SHAPE_COMPOUND shape( MakeEffectiveShapes() );
-
-    return KIGEOM::ShapeHitTest( aPoly, shape, aContained );
 }
 
 
@@ -1730,7 +1553,7 @@ void EDA_SHAPE::computeArcBBox( BOX2I& aBBox ) const
     aBBox.SetOrigin( m_start );
     aBBox.Merge( m_end );
 
-    if( IsAnyFill() )
+    if( IsFilled() )
         aBBox.Merge( m_arcCenter );
 
     int       radius = GetRadius();
@@ -1786,7 +1609,6 @@ std::vector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineCh
 {
     std::vector<SHAPE*> effectiveShapes;
     int                 width = GetEffectiveWidth();
-    bool                solidFill = ( IsSolidFill() || IsHatchedFill() || IsProxyItem() ) && !aEdgeOnly;
 
     switch( m_shape )
     {
@@ -1802,26 +1624,27 @@ std::vector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineCh
     {
         std::vector<VECTOR2I> pts = GetRectCorners();
 
-        if( solidFill )
+        if( ( IsFilled() || IsProxyItem() ) && !aEdgeOnly )
             effectiveShapes.emplace_back( new SHAPE_SIMPLE( pts ) );
 
-        if( width > 0 || !solidFill )
+        if( width > 0 || !IsFilled() || aEdgeOnly )
         {
             effectiveShapes.emplace_back( new SHAPE_SEGMENT( pts[0], pts[1], width ) );
             effectiveShapes.emplace_back( new SHAPE_SEGMENT( pts[1], pts[2], width ) );
             effectiveShapes.emplace_back( new SHAPE_SEGMENT( pts[2], pts[3], width ) );
             effectiveShapes.emplace_back( new SHAPE_SEGMENT( pts[3], pts[0], width ) );
         }
-        break;
     }
+        break;
 
     case SHAPE_T::CIRCLE:
     {
-        if( solidFill )
+        if( IsFilled() && !aEdgeOnly )
             effectiveShapes.emplace_back( new SHAPE_CIRCLE( getCenter(), GetRadius() ) );
 
-        if( width > 0 || !solidFill )
-            effectiveShapes.emplace_back( new SHAPE_ARC( getCenter(), GetEnd(), ANGLE_360, width ) );
+        if( width > 0 || !IsFilled() || aEdgeOnly )
+            effectiveShapes.emplace_back( new SHAPE_ARC( getCenter(), GetEnd(), ANGLE_360,
+                                                         width ) );
 
         break;
     }
@@ -1850,10 +1673,10 @@ std::vector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineCh
         {
             const SHAPE_LINE_CHAIN& l = GetPolyShape().COutline( ii );
 
-            if( solidFill )
+            if( IsFilled() && !aEdgeOnly )
                 effectiveShapes.emplace_back( new SHAPE_SIMPLE( l ) );
 
-            if( width > 0 || !IsSolidFill() || aEdgeOnly )
+            if( width > 0 || !IsFilled() || aEdgeOnly )
             {
                 int segCount = l.SegmentCount();
 
@@ -2194,8 +2017,6 @@ void EDA_SHAPE::SwapShape( EDA_SHAPE* aImage )
     SWAPITEM( m_editState );
     SWAPITEM( m_endsSwapped );
     #undef SWAPITEM
-
-    m_hatchingDirty = true;
 }
 
 
@@ -2241,11 +2062,9 @@ int EDA_SHAPE::Compare( const EDA_SHAPE* aOther ) const
 
 
 void EDA_SHAPE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, int aClearance, int aError,
-                                         ERROR_LOC aErrorLoc, bool ignoreLineWidth,
-                                         bool includeFill ) const
+                                         ERROR_LOC aErrorLoc, bool ignoreLineWidth ) const
 {
-    bool solidFill = IsSolidFill() || ( IsHatchedFill() && !includeFill ) || IsProxyItem();
-    int  width = ignoreLineWidth ? 0 : GetWidth();
+    int width = ignoreLineWidth ? 0 : GetWidth();
 
     width += 2 * aClearance;
 
@@ -2255,7 +2074,7 @@ void EDA_SHAPE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, int aClearance
     {
         int r = GetRadius();
 
-        if( solidFill )
+        if( IsFilled() )
             TransformCircleToPolygon( aBuffer, getCenter(), r + width / 2, aError, aErrorLoc );
         else
             TransformRingToPolygon( aBuffer, getCenter(), r, width, aError, aErrorLoc );
@@ -2267,7 +2086,7 @@ void EDA_SHAPE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, int aClearance
     {
         std::vector<VECTOR2I> pts = GetRectCorners();
 
-        if( solidFill )
+        if( IsFilled() || IsProxyItem() )
         {
             aBuffer.NewOutline();
 
@@ -2275,7 +2094,7 @@ void EDA_SHAPE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, int aClearance
                 aBuffer.Append( pt );
         }
 
-        if( width > 0 || !solidFill )
+        if( width > 0 || !IsFilled() )
         {
             // Add in segments
             TransformOvalToPolygon( aBuffer, pts[0], pts[1], width, aError, aErrorLoc );
@@ -2288,7 +2107,8 @@ void EDA_SHAPE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, int aClearance
     }
 
     case SHAPE_T::ARC:
-        TransformArcToPolygon( aBuffer, GetStart(), GetArcMid(), GetEnd(), width, aError, aErrorLoc );
+        TransformArcToPolygon( aBuffer, GetStart(), GetArcMid(), GetEnd(), width, aError,
+                               aErrorLoc );
         break;
 
     case SHAPE_T::SEGMENT:
@@ -2300,7 +2120,7 @@ void EDA_SHAPE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, int aClearance
         if( !IsPolyShapeValid() )
             break;
 
-        if( solidFill )
+        if( IsFilled() )
         {
             for( int ii = 0; ii < m_poly.OutlineCount(); ++ii )
             {
@@ -2358,19 +2178,6 @@ void EDA_SHAPE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, int aClearance
         UNIMPLEMENTED_FOR( SHAPE_T_asString() );
         break;
     }
-
-    if( IsHatchedFill() && includeFill )
-    {
-        for( int ii = 0; ii < GetHatching().OutlineCount(); ++ii )
-            aBuffer.AddOutline( GetHatching().COutline( ii ) );
-    }
-}
-
-
-void EDA_SHAPE::SetWidth( int aWidth )
-{
-    m_stroke.SetWidth( aWidth );
-    m_hatchingDirty = true;
 }
 
 
@@ -2514,7 +2321,6 @@ double EDA_SHAPE::Similarity( const EDA_SHAPE& aOther ) const
 
 IMPLEMENT_ENUM_TO_WXANY( SHAPE_T )
 IMPLEMENT_ENUM_TO_WXANY( LINE_STYLE )
-IMPLEMENT_ENUM_TO_WXANY( UI_FILL_MODE )
 
 
 static struct EDA_SHAPE_DESC
@@ -2538,17 +2344,6 @@ static struct EDA_SHAPE_DESC
                          .Map( LINE_STYLE::DOT, _HKI( "Dotted" ) )
                          .Map( LINE_STYLE::DASHDOT, _HKI( "Dash-Dot" ) )
                          .Map( LINE_STYLE::DASHDOTDOT, _HKI( "Dash-Dot-Dot" ) );
-        }
-
-        ENUM_MAP<UI_FILL_MODE>& hatchModeEnum = ENUM_MAP<UI_FILL_MODE>::Instance();
-
-        if( hatchModeEnum.Choices().GetCount() == 0 )
-        {
-            hatchModeEnum.Map( UI_FILL_MODE::NONE,          _HKI( "None" ) );
-            hatchModeEnum.Map( UI_FILL_MODE::SOLID,         _HKI( "Solid" ) );
-            hatchModeEnum.Map( UI_FILL_MODE::HATCH,         _HKI( "Hatch" ) );
-            hatchModeEnum.Map( UI_FILL_MODE::REVERSE_HATCH, _HKI( "Reverse Hatch" ) );
-            hatchModeEnum.Map( UI_FILL_MODE::CROSS_HATCH,   _HKI( "Cross-hatch" ) );
         }
 
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
@@ -2698,8 +2493,8 @@ static struct EDA_SHAPE_DESC
                     return false;
                 };
 
-        propMgr.AddProperty( new PROPERTY_ENUM<EDA_SHAPE, UI_FILL_MODE>( _HKI( "Fill" ),
-                    &EDA_SHAPE::SetFillModeProp, &EDA_SHAPE::GetFillModeProp ),
+        propMgr.AddProperty( new PROPERTY<EDA_SHAPE, bool>( _HKI( "Filled" ),
+                    &EDA_SHAPE::SetFilled, &EDA_SHAPE::IsFilled ),
                     shapeProps )
                 .SetAvailableFunc( fillAvailable );
 

@@ -39,9 +39,6 @@ PCB_TABLECELL::PCB_TABLECELL( BOARD_ITEM* aParent ) :
         SetMirrored( board->IsBackLayer( aParent->GetLayer() ) );
     else
         SetMirrored( IsBackLayer( aParent->GetLayer() ) );
-
-    SetRectangleHeight( std::numeric_limits<int>::max() / 2 );
-    SetRectangleWidth( std::numeric_limits<int>::max() / 2 );
 }
 
 
@@ -150,12 +147,7 @@ void PCB_TABLECELL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PAN
                         aFrame->MessageTextFromValue( std::abs( GetEnd().y - GetStart().y ) ) );
 
     aList.emplace_back( _( "Font" ), GetFont() ? GetFont()->GetName() : _( "Default" ) );
-
-    if( GetTextThickness() )
-        aList.emplace_back( _( "Text Thickness" ), aFrame->MessageTextFromValue( GetEffectiveTextPenWidth() ) );
-    else
-        aList.emplace_back( _( "Text Thickness" ), _( "Auto" ) );
-
+    aList.emplace_back( _( "Text Thickness" ), aFrame->MessageTextFromValue( GetTextThickness() ) );
     aList.emplace_back( _( "Text Width" ), aFrame->MessageTextFromValue( GetTextWidth() ) );
     aList.emplace_back( _( "Text Height" ), aFrame->MessageTextFromValue( GetTextHeight() ) );
 }

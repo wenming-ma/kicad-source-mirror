@@ -723,6 +723,13 @@ const LSET& LSET::SideSpecificMask()
 }
 
 
+const LSET& LSET::ForbiddenFootprintLayers()
+{
+    static LSET saved = LSET( InternalCuMask() ).set( In1_Cu, false );
+    return saved;
+}
+
+
 LSEQ LSET::UIOrder() const
 {
     LSEQ order = CuStack();
@@ -805,7 +812,6 @@ GAL_SET GAL_SET::DefaultVisible()
         LAYER_ZONES,
         LAYER_FILLED_SHAPES,
         LAYER_LOCKED_ITEM_SHADOW,
-        // LAYER_BOARD_OUTLINE_AREA,    // currently hidden by default
         LAYER_CONFLICTS_SHADOW
     };
 

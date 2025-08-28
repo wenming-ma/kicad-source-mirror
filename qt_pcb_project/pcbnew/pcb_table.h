@@ -28,7 +28,6 @@
 #include <pcb_tablecell.h>
 #include <board_item.h>
 #include <board_item_container.h>
-#include <algorithm>
 
 
 class PCB_TABLE : public BOARD_ITEM_CONTAINER
@@ -101,7 +100,8 @@ public:
     void SetStrokeRows( bool aDoStroke ) { m_strokeRows = aDoStroke; }
     bool StrokeRows() const              { return m_strokeRows; }
 
-    void RunOnChildren( const std::function<void( BOARD_ITEM* )>& aFunction, RECURSE_MODE aMode ) const override;
+    void RunOnChildren( const std::function<void( BOARD_ITEM* )>& aFunction ) const override;
+    void RunOnDescendants( const std::function<void( BOARD_ITEM* )>& aFunction, int aDepth = 0 ) const override;
 
     void SetPosition( const VECTOR2I& aPos ) override;
     VECTOR2I GetPosition() const override;
@@ -180,7 +180,7 @@ public:
 
     void DeleteMarkedCells()
     {
-        std::erase_if( m_cells,
+        alg::delete_if( m_cells,
                 []( PCB_TABLECELL* cell )
                 {
                     return ( cell->GetFlags() & STRUCT_DELETED ) > 0;
@@ -199,8 +199,6 @@ public:
     }
 
     void Normalize() override;
-
-    void Autosize();
 
     void Move( const VECTOR2I& aMoveVector ) override;
 
@@ -237,8 +235,6 @@ public:
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
 
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
-
-    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override;
 
     EDA_ITEM* Clone() const override
     {
