@@ -24,10 +24,8 @@
 #ifndef STRING_UTILS_H
 #define STRING_UTILS_H
 
-#include <algorithm>
 #include <string>
 #include <vector>
-
 #include <wx/string.h>
 #include <wx/filename.h>
 
@@ -84,11 +82,6 @@ KICOMMON_API wxString PrettyPrintForMenu( const wxString& aString );
  * Capitalize the first letter in each word.
  */
 KICOMMON_API wxString TitleCaps( const wxString& aString );
-
-/**
- * Capitalize only the first word.
- */
-KICOMMON_API wxString InitialCaps( const wxString& aString );
 
 /**
  * Copy bytes from @a aSource delimited string segment to @a aDest buffer.
@@ -199,29 +192,7 @@ KICOMMON_API wxString GetISO8601CurrentDateTime();
  *         than \a aString2.
  */
 KICOMMON_API int StrNumCmp( const wxString& aString1, const wxString& aString2,
-                            bool aIgnoreCase = false );
-
-
-enum class CASE_SENSITIVITY
-{
-    SENSITIVE,
-    INSENSITIVE
-};
-
-
-/**
- * Sort a container of wxString objects, in place, using the StrNumCmp() function.
- */
-template <typename T>
-inline void StrNumSort( T& aList, CASE_SENSITIVITY aCaseSensitivity )
-{
-    std::sort( aList.begin(), aList.end(),
-               [aCaseSensitivity]( const wxString& lhs, const wxString& rhs )
-               {
-                   return StrNumCmp( lhs, rhs, aCaseSensitivity == CASE_SENSITIVITY::INSENSITIVE ) < 0;
-               } );
-}
-
+                           bool aIgnoreCase = false );
 
 /**
  * Compare a string against wild card (* and ?) pattern using the usual rules.
@@ -380,27 +351,6 @@ inline void AccumulateDescription( wxString& aDesc, const wxString& aItem )
         aDesc << wxT( ", " );
 
     aDesc << aItem;
-}
-
-
-/**
- * Build a comma-separated list from a collection of wxStrings.
- * (e.g. std::vector, wxArrayString, etc).
- */
-template <typename T>
-inline void AccumulateDescriptions( wxString& aDesc, const T& aItemCollection )
-{
-    for( const auto& item : aItemCollection )
-        AccumulateDescription( aDesc, item );
-}
-
-
-template <typename T>
-inline wxString AccumulateDescriptions( const T& aItemCollection )
-{
-    wxString desc;
-    AccumulateDescriptions( desc, aItemCollection );
-    return desc;
 }
 
 /**

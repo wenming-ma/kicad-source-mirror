@@ -35,17 +35,11 @@
 #include <kicommon.h>
 #include <wx/string.h>
 #include <wx/arrstr.h>
+//#include <wx/richmsgdlg.h>
+//#include <vector>
+//#include <functional>
 
 class wxWindow;
-
-
-#if defined( _WIN32 ) && wxCHECK_VERSION( 3, 3, 0 )
-#define KICAD_MESSAGE_DIALOG_BASE wxGenericMessageDialog
-#define KICAD_RICH_MESSAGE_DIALOG_BASE wxGenericRichMessageDialog
-#else
-#define KICAD_MESSAGE_DIALOG_BASE wxMessageDialog
-#define KICAD_RICH_MESSAGE_DIALOG_BASE wxRichMessageDialog
-#endif
 
 
 /**
@@ -92,8 +86,10 @@ KICOMMON_API bool ConfirmRevertDialog( wxWindow* parent, const wxString& aMessag
 
 /**
  * Display an error or warning message box with \a aMessage.
+ *
+ * @warning Setting \a displaytime does not work.  Do not use it.
  */
-KICOMMON_API void DisplayError( wxWindow* aParent, const wxString& aText );
+KICOMMON_API void DisplayError( wxWindow* aParent, const wxString& aText, int aDisplayTime = 0 );
 
 /**
  * Display an error message with \a aMessage

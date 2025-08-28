@@ -20,20 +20,60 @@
 #ifndef PCBNEW_COMPONENT_CLASS_MANAGER_H
 #define PCBNEW_COMPONENT_CLASS_MANAGER_H
 
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <wx/string.h>
 
-#include <component_classes/component_class.h>
-#include <project/component_class_settings.h>
+#include <board_item.h>
 
+/*
+ * A lightweight representation of a component class. The membership within
+ * m_consituentClasses allows determination of the type of class this is:
+ *
+ * m_constituentClasses.size() == 0: This is a null class (no assigment).
+ *     m_name is empty.
+ * m_constituentClasses.size() == 1: This is an atomic class. The constituent class
+ *     pointer refers to itself. m_name contains the name of the atomic class
+ * m_constituentClasses.size() > 1: This is a composite class. The constituent class
+ *     pointers refer to all atomic members. m_name contains a comma-delimited list of
+ *     all atomic member class names.
+ */
+class COMPONENT_CLASS
+{
+public:
+    COMPONENT_CLASS( const wxString& name ) : m_name( name ) {}
 
-class BOARD;
-class COMPONENT_CLASS_ASSIGNMENT_RULE;
-class DRC_TOOL;
-class FOOTPRINT;
+    /// Fetches the display name of this component class
+    wxString GetName() const;
 
-/**
+    /// Fetches the full name of this component class
+    const wxString& GetFullName() const { return m_name; }
+
+    /// Adds a constituent component class to an effective component class
+    void AddConstituentClass( COMPONENT_CLASS* componentClass );
+
+    /// Determines if this (effective) component class contains a specific sub-class
+    bool ContainsClassName( const wxString& className ) const;
+
+    /// Determines if this (effective) component class is empty (i.e. no classes defined)
+    bool IsEmpty() const;
+
+    /// Fetches a vector of the constituent classes for this (effective) class
+    const std::vector<COMPONENT_CLASS*>& GetConstituentClasses() const
+    {
+        return m_constituentClasses;
+    }
+
+private:
+    /// The full name of the component class
+    wxString m_name;
+
+    /// The COMPONENT_CLASS objects contributing to this complete component class
+    std::vector<COMPONENT_CLASS*> m_constituentClasses;
+};
+
+/*
  * A class to manage Component Classes in a board context
  *
  * This manager owns generated COMPONENT_CLASS objects, and guarantees that pointers to managed
@@ -44,7 +84,7 @@ class FOOTPRINT;
 class COMPONENT_CLASS_MANAGER
 {
 public:
-    explicit COMPONENT_CLASS_MANAGER( BOARD* board );
+    COMPONENT_CLASS_MANAGER();
 
     /// @brief Gets the full effective class name for the given set of constituent classes
     static wxString
@@ -55,10 +95,9 @@ public:
     static wxString GetFullClassNameForConstituents( const std::vector<wxString>& classNames );
 
     /// @brief Gets an effective component class for the given constituent class names
-    /// @param classNames The names of the constituent component classes
+    /// @param classes The names of the constituent component classes
     /// @return Effective COMPONENT_CLASS object
-    COMPONENT_CLASS*
-    GetEffectiveStaticComponentClass( const std::unordered_set<wxString>& classNames );
+    COMPONENT_CLASS* GetEffectiveComponentClass( const std::unordered_set<wxString>& classNames );
 
     /// Returns the unassigned component class
     const COMPONENT_CLASS* GetNoneComponentClass() const { return m_noneClass.get(); }
@@ -71,83 +110,31 @@ public:
     /// Must be called after updating the PCB from the netlist
     void FinishNetlistUpdate();
 
-    /// Fetches a read-only map of the fundamental component classes
-    std::unordered_set<wxString> GetClassNames() const;
+    /// Resets the contents of the manager
+    // All pointers to COMPONENT_CLASS objects will being invalid
+    void Reset();
 
-    /// Synchronises all dynamic component class assignment rules
-    /// @returns false if rules fail to parse, true if successful
-    bool SyncDynamicComponentClassAssignments(
-            const std::vector<COMPONENT_CLASS_ASSIGNMENT_DATA>& aAssignments,
-            bool aGenerateSheetClasses, const std::unordered_set<wxString>& aNewSheetPaths );
-
-    /// Gets the dynamic component classes which match the given footprint
-    const COMPONENT_CLASS* GetDynamicComponentClassesForFootprint( const FOOTPRINT* footprint );
-
-    /// Gets the combined component class with the given static and dynamic constituent component classes
-    const COMPONENT_CLASS* GetCombinedComponentClass( const COMPONENT_CLASS* staticClass,
-                                                      const COMPONENT_CLASS* dynamicClass );
-
-    /// Forces the component class for all footprints to be recalculated. This should be called before running DRC as
-    /// checking for valid component class cache entries is threadsafe, but computing them is not. Blocking during this
-    /// check would be a negative performance impact for DRC computation, so we force recalculation instead.
-    void ForceComponentClassRecalculation() const;
-
-    /// Gets the component class validity ticker
-    /// Used to check validity of cached component classes
-    long long int GetTicker() const { return m_ticker; }
-
-    /// Invalidates any caches component classes and recomputes caches if required. This will force
-    /// recomputation of component classes on next access
-    void InvalidateComponentClasses();
-
-    /// Rebuilds any caches that may be required by custom assignment rules
-    /// @param fp the footprint to rebuild. If null, rebuilds all footprint caches
-    void RebuildRequiredCaches( FOOTPRINT* aFootprint = nullptr ) const;
-
-    /// Determines whether any custom dynamic rules have a custom assignment condition
-    bool HasCustomAssignmentConditions() const { return m_hasCustomAssignmentConditions; }
-
-    static std::shared_ptr<COMPONENT_CLASS_ASSIGNMENT_RULE>
-    CompileAssignmentRule( const COMPONENT_CLASS_ASSIGNMENT_DATA& aAssignment );
+    /// @brief Fetches a read-only map of the fundamental component classes
+    const std::unordered_map<wxString, std::unique_ptr<COMPONENT_CLASS>>& GetClasses() const
+    {
+        return m_classes;
+    }
 
 protected:
-    /// Sorts the given class names in to canonical order
-    static std::vector<wxString> sortClassNames( const std::unordered_set<wxString>& classNames );
+    /// All individual component classes
+    std::unordered_map<wxString, std::unique_ptr<COMPONENT_CLASS>> m_classes;
 
-    /// Returns a constituent component class, re-using an existing instantiation where possible
-    COMPONENT_CLASS* getOrCreateConstituentClass( const wxString&        aClassName,
-                                                  COMPONENT_CLASS::USAGE aContext );
-
-    /// Returns an effective component class for the given set of constituent class names
-    /// Precondition: aClassNames is sorted by sortClassNames
-    COMPONENT_CLASS* getOrCreateEffectiveClass( const std::vector<wxString>& aClassNames,
-                                                COMPONENT_CLASS::USAGE       aContext );
-
-    /// The board these component classes are assigned to / from
-    BOARD* m_board;
-
-    /// The class to represent an unassigned component class
-    std::shared_ptr<COMPONENT_CLASS> m_noneClass;
-
-    /// All individual component classes from static assignments
-    std::unordered_map<wxString, std::unique_ptr<COMPONENT_CLASS>> m_constituentClasses;
-
-    /// Generated effective (composite) static component classes
+    /// Generated effective component classes
     std::unordered_map<wxString, std::unique_ptr<COMPONENT_CLASS>> m_effectiveClasses;
 
-    /// Cache of in-use static component class names
-    /// Used for cleanup following netlist updates
-    std::unordered_set<wxString> m_staticClassNamesCache;
+    /// Cache of all individual component classes (for netlist updating)
+    std::unordered_map<wxString, std::unique_ptr<COMPONENT_CLASS>> m_classesCache;
 
+    /// Cache of all generated effective component classes (for netlist updating)
+    std::unordered_map<wxString, std::unique_ptr<COMPONENT_CLASS>> m_effectiveClassesCache;
 
-    /// Active component class assignment rules
-    std::vector<std::shared_ptr<COMPONENT_CLASS_ASSIGNMENT_RULE>> m_assignmentRules;
-
-    /// Quick lookup of presence of custom dynamic assignment conditions
-    bool m_hasCustomAssignmentConditions;
-
-    /// Monotonically increasing ticker to test cached component class validity
-    long long int m_ticker{ 0 };
+    /// The class to represent an unassigned component class
+    std::unique_ptr<COMPONENT_CLASS> m_noneClass;
 };
 
 #endif

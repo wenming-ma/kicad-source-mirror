@@ -155,7 +155,6 @@ public:
      */
     SHAPE_LINE_CHAIN() :
             SHAPE_LINE_CHAIN_BASE( SH_LINE_CHAIN ),
-            m_accuracy( 0 ),
             m_closed( false ),
             m_width( 0 )
     {}
@@ -165,7 +164,6 @@ public:
             m_points( aShape.m_points ),
             m_shapes( aShape.m_shapes ),
             m_arcs( aShape.m_arcs ),
-            m_accuracy( aShape.m_accuracy ),
             m_closed( aShape.m_closed ),
             m_width( aShape.m_width ),
             m_bbox( aShape.m_bbox )
@@ -249,26 +247,6 @@ public:
                               VECTOR2I& aPt1 ) const;
 
     SHAPE_LINE_CHAIN& operator=( const SHAPE_LINE_CHAIN& ) = default;
-
-    // Move assignment operator
-    SHAPE_LINE_CHAIN& operator=( SHAPE_LINE_CHAIN&& aOther ) noexcept
-    {
-        if (this != &aOther)
-        {
-            SHAPE_LINE_CHAIN_BASE::operator=( aOther );
-
-            m_points = std::move( aOther.m_points );
-            m_shapes = std::move( aOther.m_shapes );
-            m_arcs = std::move( aOther.m_arcs );
-
-            m_accuracy = aOther.m_accuracy;
-            m_closed = aOther.m_closed;
-            m_width = aOther.m_width;
-            m_bbox = aOther.m_bbox;
-        }
-
-        return *this;
-    }
 
     SHAPE* Clone() const override;
 
@@ -431,7 +409,10 @@ public:
         return m_points[aIndex];
     }
 
-    const std::vector<VECTOR2I>& CPoints() const { return m_points; }
+    const std::vector<VECTOR2I>& CPoints() const
+    {
+        return m_points;
+    }
 
     /**
      * Return the last point in the line chain.
@@ -509,7 +490,6 @@ public:
     void ReservePoints( size_t aSize )
     {
         m_points.reserve( aSize );
-        m_shapes.reserve( aSize );
     }
 
     /**
@@ -540,7 +520,7 @@ public:
         if( m_points.size() == 0 )
             m_bbox = BOX2I( aP, VECTOR2I( 0, 0 ) );
 
-        if( m_points.size() == 0 || aAllowDuplication || CLastPoint() != aP )
+        if( m_points.size() == 0 || aAllowDuplication || CPoint( -1 ) != aP )
         {
             m_points.push_back( aP );
             m_shapes.push_back( SHAPES_ARE_PT );
@@ -660,7 +640,6 @@ public:
         VECTOR2I m_origin;
     };
 
-    bool Intersects( const SEG& aSeg) const;
     bool Intersects( const SHAPE_LINE_CHAIN& aChain ) const;
 
     /**

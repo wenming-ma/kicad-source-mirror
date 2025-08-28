@@ -31,9 +31,7 @@
 
 #include <richio.h>
 #include <string>
-#include <optional>
 #include <layer_ids.h>
-#include <zone_settings.h>
 #include <lset.h>
 #include <boost/ptr_container/ptr_map.hpp>
 #include <wx_filename.h>
@@ -174,19 +172,8 @@ class PCB_IO_KICAD_SEXPR;   // forward decl
 //#define SEXPR_BOARD_FILE_VERSION    20241030  // Dimension arrow directions, suppress_zeroes normalization
 //#define SEXPR_BOARD_FILE_VERSION    20241129  // Normalise keep_text_aligned and fill properties
 //#define SEXPR_BOARD_FILE_VERSION    20241228  // Convert teardrop curve points to bool
-//#define SEXPR_BOARD_FILE_VERSION    20241229  // Expand User layers to arbitrary count
-//----------------- Start of 10.0 development -----------------
-//#define SEXPR_BOARD_FILE_VERSION    20250210  // Knockout for textboxes
-//#define SEXPR_BOARD_FILE_VERSION    20250222  // Hatching for PCB shapes
-//#define SEXPR_BOARD_FILE_VERSION    20250228  // ipc-4761 via protection features
-//#define SEXPR_BOARD_FILE_VERSION    20250302  // Zone Hatching Offsets
-//#define SEXPR_BOARD_FILE_VERSION    20250309  // Component class dynamic assignment rules
-//#define SEXPR_BOARD_FILE_VERSION    20250324  // Jumper pads
-//#define SEXPR_BOARD_FILE_VERSION    20250401  // Time domain length tuning
-//#define SEXPR_BOARD_FILE_VERSION    20250513  // Groups can have design block lib_id
-//#define SEXPR_BOARD_FILE_VERSION    20250801  // (island) -> (island yes/no)
-//#define SEXPR_BOARD_FILE_VERSION    20250811  // press-fit pad fabr prop support
-#define SEXPR_BOARD_FILE_VERSION      20250818  // Support for custom layer counts in footprints
+#define SEXPR_BOARD_FILE_VERSION      20241229  // Expand User layers to arbitrary count
+
 
 #define BOARD_FILE_HOST_VERSION       20200825  ///< Earlier files than this include the host tag
 #define LEGACY_ARC_FORMATTING         20210925  ///< These were the last to use old arc formatting
@@ -461,9 +448,6 @@ private:
 
     void format( const ZONE* aZone ) const;
 
-    void format( const ZONE_LAYER_PROPERTIES& aZoneLayerProperties, int aNestLevel,
-                 PCB_LAYER_ID aLayer ) const;
-
     void formatPolyPts( const SHAPE_LINE_CHAIN& outline,
                         const FOOTPRINT* aParentFP = nullptr ) const;
 
@@ -472,6 +456,8 @@ private:
     void formatLayer( PCB_LAYER_ID aLayer, bool aIsKnockout = false ) const;
 
     void formatLayers( LSET aLayerMask, bool aEnumerateLayers ) const;
+
+    void formatTenting( const PADSTACK& aPadstack ) const;
 
     friend class FP_CACHE;
 

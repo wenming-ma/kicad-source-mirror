@@ -52,7 +52,6 @@ class HOTKEY_CYCLE_POPUP;
 class PROPERTIES_PANEL;
 class NET_INSPECTOR_PANEL;
 enum class BITMAP_TYPE;
-class FILEDLG_HOOK_NEW_LIBRARY;
 
 namespace KIGFX
 {
@@ -185,19 +184,17 @@ public:
     virtual COLOR_SETTINGS* GetColorSettings( bool aForceRefresh = false ) const;
 
     /**
-     * @param aTitle dialog title
      * @param doOpen if true runs an Open Library browser, otherwise New Library
      * @param aFilename for New may contain a default name; in both cases return the chosen
      *                  filename.
      * @param wildcard a wildcard to filter the displayed files
      * @param ext the library file extension
      * @param isDirectory indicates the library files are directories
-     * @param aFileDlgHook optional; adds customized controls to dialog
      * @return true for OK; false for Cancel.
      */
-    bool LibraryFileBrowser( const wxString& aTitle, bool doOpen, wxFileName& aFilename,
-                             const wxString& wildcard, const wxString& ext, bool isDirectory,
-                             FILEDLG_HOOK_NEW_LIBRARY* aFileDlgHook = nullptr );
+    bool LibraryFileBrowser( bool doOpen, wxFileName& aFilename, const wxString& wildcard,
+                             const wxString& ext, bool isDirectory = false, bool aIsGlobal = false,
+                             const wxString& aGlobalPath = wxEmptyString );
 
     void CommonSettingsChanged( int aFlags ) override;
 
@@ -213,11 +210,15 @@ public:
 
     void EraseMsgBox();
 
-    // Toolbar-related functions
     virtual void ReCreateHToolbar() { };
     virtual void ReCreateVToolbar() { };
-    virtual void ReCreateLeftToolbar() { };
+    virtual void ReCreateOptToolbar() { };
     virtual void ReCreateAuxiliaryToolbar() { }
+
+    /**
+     * Update the sizes of any controls in the toolbars of the frame.
+     */
+    virtual void UpdateToolbarControlSizes() { }
 
     /*
      * These 4 functions provide a basic way to show/hide grid and /get/set grid color.
@@ -309,15 +310,6 @@ public:
     void FocusOnLocation( const VECTOR2I& aPos );
 
     /**
-     * Focus on a particular canvas item.
-     *
-     * @param aItem is the item to focus on. nullptr clears the focus.
-     */
-    virtual void FocusOnItem( EDA_ITEM* aItem ) {}
-
-    virtual void ClearFocus() { FocusOnItem( nullptr ); }
-
-    /**
      * Construct a "basic" menu for a tool, containing only items that apply to all tools
      * (e.g. zoom and grid).
      */
@@ -367,8 +359,6 @@ public:
      * Display current grid size in the status bar.
      */
     virtual void DisplayGridMsg();
-
-    bool GetOverrideLocks() const;
 
     void LoadSettings( APP_SETTINGS_BASE* aCfg ) override;
     void SaveSettings( APP_SETTINGS_BASE* aCfg ) override;
@@ -436,10 +426,14 @@ public:
     /**
      * Fetch an item by KIID.  Frame-type-specific implementation.
      */
-    virtual EDA_ITEM* ResolveItem( const KIID& aId, bool aAllowNullptrReturn = false ) const
-    {
-        return nullptr;
-    }
+    virtual EDA_ITEM* GetItem( const KIID& aId ) const { return nullptr; }
+
+    /**
+     * Print the page pointed by current screen, set by the calling print function.
+     *
+     * @param aDC wxDC given by the calling print function
+     */
+    virtual void PrintPage( const RENDER_SETTINGS* aSettings );
 
     /**
      * Use to start up the GAL drawing canvas.
@@ -486,6 +480,16 @@ public:
     virtual const BOX2I GetDocumentExtents( bool aIncludeAllVisible = true ) const;
 
     /**
+     * Rebuild all toolbars and update the checked state of check tools.
+     */
+    void RecreateToolbars();
+
+    /**
+     * Update toolbars if desired toolbar icon changed.
+     */
+    void OnToolbarSizeChanged();
+
+    /**
      * Redraw the menus and what not in current language.
      */
     void ShowChangedLanguage() override;
@@ -526,18 +530,9 @@ public:
     static std::vector<const PLUGIN_ACTION*> GetOrderedPluginActions( PLUGIN_ACTION_SCOPE aScope,
         APP_SETTINGS_BASE* aCfg );
 
-    /**
-     * Append actions from API plugins to the given toolbar.
-     *
-     * @param aToolbar is the toolbar to add the plugins to
-     */
-    virtual void AddApiPluginTools( ACTION_TOOLBAR* aToolbar );
-
     DECLARE_EVENT_TABLE()
 
 protected:
-    void configureToolbars() override;
-
     virtual void SetScreen( BASE_SCREEN* aScreen )  { m_currentScreen = aScreen; }
 
     void unitsChangeRefresh() override;
@@ -559,7 +554,7 @@ protected:
      * @param aCfg is the APP_SETTINGS_BASE config storing the canvas type.
      * If nullptr (default) the KifaceSettings() will be used
      */
-    EDA_DRAW_PANEL_GAL::GAL_TYPE loadCanvasTypeSetting();
+    EDA_DRAW_PANEL_GAL::GAL_TYPE loadCanvasTypeSetting( APP_SETTINGS_BASE* aCfg = nullptr );
 
     /**
      * Store the canvas type in the application settings.
@@ -571,6 +566,12 @@ protected:
      */
     virtual void handleActivateEvent( wxActivateEvent& aEvent );
     void onActivate( wxActivateEvent& aEvent );
+
+    /**
+     * Append actions from API plugins to the main toolbar
+     */
+    virtual void addApiPluginTools();
+
 
     wxSocketServer*             m_socketServer;
 
@@ -589,7 +590,11 @@ protected:
 
     wxChoice*            m_gridSelectBox;
     wxChoice*            m_zoomSelectBox;
-    wxCheckBox*          m_overrideLocksCb;
+
+    ACTION_TOOLBAR*      m_mainToolBar;
+    ACTION_TOOLBAR*      m_auxiliaryToolBar;  // Additional tools under main toolbar
+    ACTION_TOOLBAR*      m_drawToolBar;       // Drawing tools (typically on right edge of window)
+    ACTION_TOOLBAR*      m_optionsToolBar;    // Options (typically on left edge of window)
 
     std::unique_ptr<EDA_SEARCH_DATA> m_findReplaceData;
     wxArrayString        m_findStringHistoryList;

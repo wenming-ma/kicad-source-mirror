@@ -90,14 +90,6 @@ public:
         return HitTestMarker( aRect, aContained, aAccuracy );
     }
 
-    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override
-    {
-        if( GetMarkerType() == MARKER_RATSNEST )
-            return false;
-
-        return HitTestMarker( aPoly, aContained );
-    }
-
     EDA_ITEM* Clone() const override
     {
         return new PCB_MARKER( *this );
@@ -106,11 +98,7 @@ public:
     GAL_LAYER_ID GetColorLayer() const;
 
     std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer,
-                                              FLASHING aFlash = FLASHING::DEFAULT ) const override;
-
-    void TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer, int aClearance,
-                                  int aError, ERROR_LOC aErrorLoc, bool ignoreLineWidth ) const override;
-
+            FLASHING aFlash = FLASHING::DEFAULT ) const override;
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 

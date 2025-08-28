@@ -130,11 +130,6 @@ public:
         return hitTest( aRect, aContained, aAccuracy );
     }
 
-    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override
-    {
-        return hitTest( aPoly, aContained );
-    }
-
     void Normalize() override;
 
     /**
@@ -154,8 +149,6 @@ public:
 
     void Scale( double aScale );
 
-    void UpdateHatching() const override;
-
     /**
      * Convert the shape to a closed polygon.  Circles and arcs are approximated by segments.
      *
@@ -169,9 +162,6 @@ public:
     void TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer, int aClearance,
                                   int aError, ERROR_LOC aErrorLoc,
                                   bool ignoreLineWidth = false ) const override;
-
-    void TransformShapeToPolySet( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer, int aClearance,
-                                  int aError, ERROR_LOC aErrorLoc ) const override;
 
     wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
@@ -206,8 +196,6 @@ public:
 protected:
     void swapData( BOARD_ITEM* aImage ) override;
 
-    bool isMoving() const override { return IsMoving(); }
-
     int getMaxError() const override;
 
     struct cmp_drawings
@@ -215,7 +203,6 @@ protected:
         bool operator()( const BOARD_ITEM* aFirst, const BOARD_ITEM* aSecond ) const;
     };
 
-protected:
     bool               m_hasSolderMask;
     std::optional<int> m_solderMaskMargin;
 };

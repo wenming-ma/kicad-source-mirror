@@ -111,7 +111,7 @@ public:
     bool HasDrilledHole() const override
     {
         return HasHole() && GetDrillSizeX() == GetDrillSizeY();
-    }k
+    }
 
     bool IsLocked() const override;
 
@@ -452,9 +452,6 @@ public:
     void SetPadToDieLength( int aLength )       { m_lengthPadToDie = aLength; }
     int GetPadToDieLength() const               { return m_lengthPadToDie; }
 
-    void SetPadToDieDelay( int aDelay ) { m_delayPadToDie = aDelay; }
-    int  GetPadToDieDelay() const { return m_delayPadToDie; }
-
     std::optional<int> GetLocalClearance() const override   { return m_padStack.Clearance(); }
     void SetLocalClearance( std::optional<int> aClearance ) { m_padStack.Clearance() = aClearance; }
 
@@ -774,8 +771,10 @@ public:
             return true;
 
         case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END:
-        case PADSTACK::UNCONNECTED_LAYER_MODE::START_END_ONLY:
-            return aLayer != m_padStack.Drill().start && aLayer != m_padStack.Drill().end;
+        {
+            if( aLayer == m_padStack.Drill().start || aLayer == m_padStack.Drill().end )
+                return false;
+        }
         }
 
         return true;
@@ -817,11 +816,16 @@ public:
      * @return true if connected by pad or track (or optionally zone) on any of the associated
      *         layers
      */
-    bool FlashLayer( const LSET& aLayers ) const;
+    bool FlashLayer( LSET aLayers ) const;
 
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
-    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override;
+
+
+    /**
+     * return true if hit test on the specified layer
+     */
+    bool HitTest( const VECTOR2I& aPosition, int aAccuracy, PCB_LAYER_ID aLayer ) const;
 
     /**
      * Recombines the pad with other graphical shapes in the footprint
@@ -960,8 +964,7 @@ private:
 
     PAD_PROP    m_property;         // Property in fab files (BGA, FIDUCIAL, TESTPOINT, etc.)
 
-    int m_lengthPadToDie; // Length net from pad to die, inside the package
-    int m_delayPadToDie;  // Propagation delay from pad to die
+    int         m_lengthPadToDie;   // Length net from pad to die, inside the package
 
     mutable std::mutex                          m_zoneLayerOverridesMutex;
     std::map<PCB_LAYER_ID, ZONE_LAYER_OVERRIDE> m_zoneLayerOverrides;

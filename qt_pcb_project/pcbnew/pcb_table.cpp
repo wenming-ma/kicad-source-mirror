@@ -28,7 +28,6 @@
 #include <geometry/shape_simple.h>
 #include <geometry/shape_segment.h>
 #include <geometry/shape_compound.h>
-#include <geometry/geometry_utils.h>
 
 
 PCB_TABLE::PCB_TABLE( BOARD_ITEM* aParent, int aLineWidth ) :
@@ -179,54 +178,6 @@ void PCB_TABLE::Normalize()
 }
 
 
-void PCB_TABLE::Autosize()
-{
-    std::vector<std::vector<BOX2I>> extents;
-
-    for( int row = 0; row < GetRowCount(); ++row )
-    {
-        extents.push_back( std::vector<BOX2I>() );
-
-        for( int col = 0; col < GetColCount(); ++col )
-        {
-            SHAPE_POLY_SET textPoly;
-            GetCell( row, col )->TransformTextToPolySet( textPoly, 0, ARC_LOW_DEF, ERROR_INSIDE );
-            extents[row].push_back( textPoly.BBox() );
-        }
-    }
-
-    for( int col = 0; col < GetColCount(); ++col )
-    {
-        int colWidth = 0;
-
-        for( int row = 0; row < GetRowCount(); ++row )
-        {
-            PCB_TABLECELL* cell = GetCell( row, col );
-            int            margins = cell->GetMarginLeft() + cell->GetMarginRight();
-            colWidth = std::max<int>( colWidth, extents[row][col].GetWidth() + ( margins * 1.5 ) );
-        }
-
-        SetColWidth( col, colWidth );
-    }
-
-    for( int row = 0; row < GetRowCount(); ++row )
-    {
-        int rowHeight = 0;
-
-        for( int col = 0; col < GetColCount(); ++col )
-        {
-            PCB_TABLECELL* cell = GetCell( row, col );
-            int            margins = cell->GetMarginLeft() + cell->GetMarginRight();
-            rowHeight = std::max( rowHeight, (int) extents[row][col].GetHeight() + margins );
-        }
-
-        SetRowHeight( row, rowHeight );
-    }
-
-    Normalize();
-}
-
-
 void PCB_TABLE::Move( const VECTOR2I& aMoveVector )
 {
     for( PCB_TABLECELL* cell : m_cells )
@@ -291,14 +242,20 @@ void PCB_TABLE::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 }
 
 
-void PCB_TABLE::RunOnChildren( const std::function<void( BOARD_ITEM* )>& aFunction, RECURSE_MODE aMode ) const
+void PCB_TABLE::RunOnChildren( const std::function<void( BOARD_ITEM* )>& aFunction ) const
+{
+    for( PCB_TABLECELL* cell : m_cells )
+        aFunction( cell );
+}
+
+
+void PCB_TABLE::RunOnDescendants( const std::function<void( BOARD_ITEM* )>& aFunction, int aDepth ) const
 {
     for( PCB_TABLECELL* cell : m_cells )
     {
         aFunction( cell );
 
-        if( aMode == RECURSE_MODE::RECURSE )
-            cell->RunOnChildren( aFunction, aMode );
+        cell->RunOnDescendants( aFunction, aDepth + 1 );
     }
 }
 
@@ -489,12 +446,6 @@ bool PCB_TABLE::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
         return rect.Contains( GetBoundingBox() );
 
     return rect.Intersects( GetBoundingBox() );
-}
-
-
-bool PCB_TABLE::HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
-{
-    return KIGEOM::ShapeHitTest( aPoly, *GetEffectiveShape(), aContained );
 }
 
 

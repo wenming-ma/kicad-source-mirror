@@ -21,7 +21,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#pragma once
+#ifndef DRC_ENGINE_H
+#define DRC_ENGINE_H
 
 #include <memory>
 #include <vector>
@@ -58,7 +59,7 @@ namespace KIGFX
 void drcPrintDebugMessage( int level, const wxString& msg, const char *function, int line );
 
 #define drc_dbg(level, fmt, ...) \
-    drcPrintDebugMessage( level, wxString::Format( fmt, __VA_ARGS__ ), __FUNCTION__, __LINE__ );
+    drcPrintDebugMessage(level, wxString::Format( fmt, __VA_ARGS__ ), __FUNCTION__, __LINE__ );
 
 class DRC_RULE_CONDITION;
 class DRC_ITEM;
@@ -141,7 +142,7 @@ public:
      * Note: if no log reporter is installed rule parse/compile/run-time errors are returned
      * via a thrown PARSE_ERROR exception.
      */
-    void SetLogReporter( REPORTER* aReporter ) { m_logReporter = aReporter; }
+    void SetLogReporter( REPORTER* aReporter ) { m_reporter = aReporter; }
 
     /**
      * Initialize the DRC engine.
@@ -184,9 +185,8 @@ public:
     void SetMaxProgress( int aSize );
     bool ReportProgress( double aProgress );
     bool ReportPhase( const wxString& aMessage );
+    void ReportAux( const wxString& aStr );
     bool IsCancelled() const;
-
-    REPORTER* GetLogReporter() const { return m_logReporter; }
 
     bool QueryWorstConstraint( DRC_CONSTRAINT_T aRuleId, DRC_CONSTRAINT& aConstraint );
     std::set<int> QueryDistinctConstraints( DRC_CONSTRAINT_T aConstraintId );
@@ -194,17 +194,6 @@ public:
     std::vector<DRC_TEST_PROVIDER*> GetTestProviders() const { return m_testProviders; };
 
     DRC_TEST_PROVIDER* GetTestProvider( const wxString& name ) const;
-
-    /**
-     * Evaluate a DRC condition against all board items and return matches.
-     *
-     * @param aExpression Expression to evaluate
-     * @param aConstraint Constraint context for expression evaluation
-     * @param aReporter Reporter for compile or evaluation errors
-     */
-    std::vector<BOARD_ITEM*> GetItemsMatchingCondition( const wxString& aExpression,
-                                                        DRC_CONSTRAINT_T aConstraint = ASSERTION_CONSTRAINT,
-                                                        REPORTER* aReporter = nullptr );
 
     static bool IsNetADiffPair( BOARD* aBoard, NETINFO_ITEM* aNet, int& aNetP, int& aNetN );
 
@@ -269,8 +258,10 @@ protected:
     std::map<DRC_CONSTRAINT_T, std::vector<DRC_ENGINE_CONSTRAINT*>*> m_constraintMap;
 
     DRC_VIOLATION_HANDLER      m_violationHandler;
-    REPORTER*                  m_logReporter;
+    REPORTER*                  m_reporter;
     PROGRESS_REPORTER*         m_progressReporter;
 
     std::shared_ptr<KIGFX::VIEW_OVERLAY> m_debugOverlay;
 };
+
+#endif // DRC_H

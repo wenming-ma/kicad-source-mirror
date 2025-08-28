@@ -59,7 +59,6 @@ NETCLASS::NETCLASS( const wxString& aName, bool aInitWithDefaults ) : m_isDefaul
 
     SetName( aName );
     SetPriority( -1 );
-    SetDelayProfile( wxEmptyString );
 
     // Colors are a special optional case - always set, but UNSPECIFIED used in place of optional
     SetPcbColor( COLOR4D::UNSPECIFIED );
@@ -102,7 +101,6 @@ void NETCLASS::ResetParents()
     SetBusWidthParent( this );
     SetSchematicColorParent( this );
     SetLineStyleParent( this );
-    SetDelayProfileParent( this );
 }
 
 
@@ -280,7 +278,7 @@ bool NETCLASS::ContainsNetclassWithName( const wxString& netclass ) const
     return std::any_of( m_constituents.begin(), m_constituents.end(),
                         [&netclass]( const NETCLASS* nc )
                         {
-                            return nc && nc->GetName().Matches( netclass );
+                            return nc && nc->GetName() == netclass;
                         } );
 }
 

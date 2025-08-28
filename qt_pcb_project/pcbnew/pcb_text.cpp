@@ -38,7 +38,6 @@
 #include <trigo.h>
 #include <string_utils.h>
 #include <geometry/shape_compound.h>
-#include <geometry/geometry_utils.h>
 #include <callback_gal.h>
 #include <convert_basic_shapes_to_polygon.h>
 #include <api/api_enums.h>
@@ -60,15 +59,17 @@ PCB_TEXT::PCB_TEXT( FOOTPRINT* aParent, KICAD_T idtype) :
 {
     SetKeepUpright( true );
 
-    // N.B. Do not automatically set text effects
-    // These are optional in the file format and so need to be defaulted to off.
-
+    // Set text thickness to a default value
+    SetTextThickness( pcbIUScale.mmToIU( DEFAULT_TEXT_WIDTH ) );
     SetLayer( F_SilkS );
 
     if( aParent )
     {
         SetTextPos( aParent->GetPosition() );
 
+        // N.B. Do not automatically set text effects
+        // These are optional in the file format and so need to be defaulted
+        // to off.
         if( IsBackLayer( aParent->GetLayer() ) )
             SetLayer( B_SilkS );
     }
@@ -208,7 +209,7 @@ const BOX2I PCB_TEXT::ViewBBox() const
 
 std::vector<int> PCB_TEXT::ViewGetLayers() const
 {
-    if( IsLocked() || ( GetParentFootprint() && GetParentFootprint()->IsLocked() ) )
+    if( IsLocked() )
         return { GetLayer(), LAYER_LOCKED_ITEM_SHADOW };
 
     return { GetLayer() };
@@ -291,12 +292,7 @@ void PCB_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
     aList.emplace_back( _( "Angle" ), wxString::Format( wxT( "%g" ), GetTextAngle().AsDegrees() ) );
 
     aList.emplace_back( _( "Font" ), GetFont() ? GetFont()->GetName() : _( "Default" ) );
-
-    if( GetTextThickness() )
-        aList.emplace_back( _( "Text Thickness" ), aFrame->MessageTextFromValue( GetEffectiveTextPenWidth() ) );
-    else
-        aList.emplace_back( _( "Text Thickness" ), _( "Auto" ) );
-
+    aList.emplace_back( _( "Thickness" ), aFrame->MessageTextFromValue( GetTextThickness() ) );
     aList.emplace_back( _( "Width" ), aFrame->MessageTextFromValue( GetTextWidth() ) );
     aList.emplace_back( _( "Height" ), aFrame->MessageTextFromValue( GetTextHeight() ) );
 }
@@ -304,7 +300,7 @@ void PCB_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
 
 int PCB_TEXT::getKnockoutMargin() const
 {
-    return GetKnockoutTextMargin( VECTOR2I( GetTextWidth(), GetTextHeight() ), GetEffectiveTextPenWidth() );
+    return GetKnockoutTextMargin( VECTOR2I( GetTextWidth(), GetTextHeight() ), GetTextThickness() );
 }
 
 
@@ -363,7 +359,7 @@ bool PCB_TEXT::TextHitTest( const VECTOR2I& aPoint, int aAccuracy ) const
     int accuracy = aAccuracy;
 
     if( IsKnockout() )
-        accuracy += GetKnockoutTextMargin( GetTextSize(), GetEffectiveTextPenWidth() );
+        accuracy += GetKnockoutTextMargin( GetTextSize(), GetTextThickness() );
 
     return EDA_TEXT::TextHitTest( aPoint, accuracy );
 }
@@ -379,17 +375,6 @@ bool PCB_TEXT::TextHitTest( const BOX2I& aRect, bool aContains, int aAccuracy ) 
         return rect.Contains( GetBoundingBox() );
 
     return rect.Intersects( GetBoundingBox() );
-}
-
-
-bool PCB_TEXT::TextHitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
-{
-    BOX2I rect = GetTextBox( nullptr );
-
-    if( IsKnockout() )
-        rect.Inflate( getKnockoutMargin() );
-
-    return KIGEOM::BoxHitTest( aPoly, rect, GetDrawRotation(), GetDrawPos(), aContained );
 }
 
 
@@ -492,9 +477,9 @@ std::shared_ptr<SHAPE> PCB_TEXT::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHIN
     {
         SHAPE_POLY_SET poly;
 
-        TransformTextToPolySet( poly, 0, GetMaxError(), ERROR_INSIDE );
+        TransformTextToPolySet( poly, 0, GetBoard()->GetDesignSettings().m_MaxError, ERROR_INSIDE );
 
-        return std::make_shared<SHAPE_POLY_SET>( std::move( poly ) );
+        return std::make_shared<SHAPE_POLY_SET>( poly );
     }
 
     return GetEffectiveTextShape();
@@ -698,6 +683,8 @@ static struct PCB_TEXT_DESC
         propMgr.OverrideAvailability( TYPE_HASH( PCB_TEXT ), TYPE_HASH( EDA_TEXT ),
                                       _HKI( "Keep Upright" ), isFootprintText );
 
-        propMgr.Mask( TYPE_HASH( PCB_TEXT ), TYPE_HASH( EDA_TEXT ), _HKI( "Hyperlink" ) );
+        propMgr.OverrideAvailability( TYPE_HASH( PCB_TEXT ), TYPE_HASH( EDA_TEXT ),
+                                      _HKI( "Hyperlink" ),
+                                      []( INSPECTABLE* aItem ) { return false; } );
     }
 } _PCB_TEXT_DESC;

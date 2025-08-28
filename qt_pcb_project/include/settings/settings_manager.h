@@ -26,7 +26,6 @@
 #include <typeinfo>
 #include <core/wx_stl_compat.h> // for wxString hash
 #include <settings/color_settings.h>
-#include <pgm_base.h>
 
 class COLOR_SETTINGS;
 class COMMON_SETTINGS;
@@ -41,8 +40,6 @@ class LOCKFILE;
 
 /// Project settings path will be <projectname> + this
 #define PROJECT_BACKUPS_DIR_SUFFIX wxT( "-backups" )
-
-#define DEFAULT_THEME wxString( wxT( "user" ) )
 
 
 class KICOMMON_API SETTINGS_MANAGER
@@ -92,16 +89,6 @@ public:
     void FlushAndRelease( JSON_SETTINGS* aSettings, bool aSave = true );
 
     /**
-     * Reset all program settings to defaults.
-     */
-    void ResetToDefaults();
-
-    /**
-     * Clear saved file history from all settings files.
-     */
-    void ClearFileHistory();
-
-    /**
      * Return a handle to the a given settings by type.
      *
      * If the settings have already been loaded, returns the existing pointer.
@@ -149,55 +136,10 @@ public:
         }
         else
         {
-            wxFAIL_MSG( "Tried to GetAppSettings before registering" );
+            throw std::runtime_error( "Tried to GetAppSettings before registering" );
         }
 
         m_app_settings_cache[typeHash] = ret;
-
-        return ret;
-    }
-
-    /**
-     * Return a handle to the given toolbar settings
-     *
-     * If the settings have already been loaded, returns the existing pointer.
-     * If the settings have not been loaded, creates a new object owned by the
-     * settings manager and returns a pointer to it.
-     *
-     * @tparam T is a type derived from TOOLBAR_SETTINGS.
-     * @param aFilename is used to find the correct settings under clang (where
-     *                  RTTI doesn't work across compile boundaries).
-     * @return a pointer to a loaded settings object.
-     */
-    template<typename T>
-    T* GetToolbarSettings( const wxString& aFilename )
-    {
-        T* ret = nullptr;
-
-#if defined(__clang__)
-        auto it = std::find_if( m_settings.begin(), m_settings.end(),
-                                [&]( const std::unique_ptr<JSON_SETTINGS>& aSettings )
-                                {
-                                    return aSettings->GetFilename() == aFilename;
-                                } );
-#else
-        auto it = std::find_if( m_settings.begin(), m_settings.end(),
-                                []( const std::unique_ptr<JSON_SETTINGS>& aSettings )
-                                {
-                                    return dynamic_cast<T*>( aSettings.get() );
-                                } );
-#endif
-
-        if( it != m_settings.end() )
-        {
-            // Do NOT use dynamic_cast here.  CLang will think it's the wrong class across
-            // compile boundaries and return nullptr.
-            ret = static_cast<T*>( it->get() );
-        }
-        else
-        {
-            ret = RegisterSettings( new T );
-        }
 
         return ret;
     }
@@ -210,7 +152,7 @@ public:
      * @param aName is the name of the color scheme to load.
      * @return a loaded COLOR_SETTINGS object.
      */
-    COLOR_SETTINGS* GetColorSettings( const wxString& aName );
+    COLOR_SETTINGS* GetColorSettings( const wxString& aName = "user" );
 
     std::vector<COLOR_SETTINGS*> GetColorSettingsList()
     {
@@ -437,12 +379,6 @@ public:
     static wxString GetColorSettingsPath();
 
     /**
-     * Return the path where toolbar configuration files are stored; creating it if missing
-     * (normally ./toolbars/ under the user settings path).
-     */
-    static wxString GetToolbarSettingsPath();
-
-    /**
      * Parse the current KiCad build version and extracts the major and minor revision to use
      * as the name of the settings directory for this KiCad version.
      *
@@ -544,33 +480,10 @@ private:
     /// Loaded project files, mapped according to project full name.
     std::map<wxString, PROJECT_FILE*> m_project_files;
 
+    /// Lock for loaded project (expand to multiple once we support MDI).
+    std::unique_ptr<LOCKFILE> m_project_lock;
+
     static wxString backupDateTimeFormat;
 };
-
-
-template<typename T>
-T* GetAppSettings( const char* aFilename )
-{
-    if( PGM_BASE* pgm = PgmOrNull() )
-        return pgm->GetSettingsManager().GetAppSettings<T>( aFilename );
-
-    return nullptr;
-}
-
-
-template<typename T>
-T* GetToolbarSettings( const wxString& aFilename )
-{
-    if( PGM_BASE* pgm = PgmOrNull() )
-        return pgm->GetSettingsManager().GetToolbarSettings<T>( aFilename );
-
-    return nullptr;
-}
-
-
-inline COLOR_SETTINGS* GetColorSettings( const wxString& aName )
-{
-    return Pgm().GetSettingsManager().GetColorSettings( aName );
-}
 
 #endif

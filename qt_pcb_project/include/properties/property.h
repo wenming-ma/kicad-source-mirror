@@ -64,8 +64,7 @@ enum PROPERTY_DISPLAY
     PT_COORD,      ///< Coordinate expressed in distance units (mm/inch)
     PT_DEGREE,     ///< Angle expressed in degrees
     PT_DECIDEGREE, ///< Angle expressed in decidegrees
-    PT_RATIO,
-    PT_TIME, ///< Time expressed in ps
+    PT_RATIO
 };
 
 ///< Macro to generate unique identifier for a type
@@ -241,7 +240,7 @@ public:
      */
     virtual bool HasChoices() const
     {
-        return m_choicesFunc != nullptr;
+        return false;
     }
 
     /**
@@ -258,20 +257,6 @@ public:
     PROPERTY_BASE& SetAvailableFunc( std::function<bool(INSPECTABLE*)> aFunc )
     {
         m_availFunc = std::move( aFunc );
-        return *this;
-    }
-
-    wxPGChoices GetChoices( INSPECTABLE* aObject ) const
-    {
-        if( m_choicesFunc )
-            return m_choicesFunc( aObject );
-
-        return {};
-    }
-
-    PROPERTY_BASE& SetChoicesFunc( std::function<wxPGChoices(INSPECTABLE*)> aFunc )
-    {
-        m_choicesFunc = std::move( aFunc );
         return *this;
     }
 
@@ -448,8 +433,6 @@ private:
 
     std::function<bool(INSPECTABLE*)> m_writeableFunc;   ///< Eval to determine if prop is read-only
 
-    std::function<wxPGChoices(INSPECTABLE*)> m_choicesFunc;
-
     PROPERTY_VALIDATOR_FN m_validator;
 
     friend class INSPECTABLE;
@@ -528,12 +511,11 @@ protected:
     {
         wxCHECK( m_setter, /*void*/ );
 
-        BASE_TYPE value;
-
-        if( !v.GetAs( &value ) )
+        if( !v.CheckType<T>() )
             throw std::invalid_argument( "Invalid type requested" );
 
         Owner* o = reinterpret_cast<Owner*>( obj );
+        BASE_TYPE value = wxANY_AS(v, BASE_TYPE);
         (*m_setter)( o, value );
     }
 

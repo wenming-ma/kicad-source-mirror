@@ -52,7 +52,6 @@ class SYMBOL_LIB_TABLE;
 class FILENAME_RESOLVER;
 class PROJECT_FILE;
 class PROJECT_LOCAL_SETTINGS;
-class LOCKFILE;
 
 
 /**
@@ -78,9 +77,6 @@ public:
         SEARCH_STACK,
 
         DESIGN_BLOCK_LIB_TABLE,
-
-        SCHEMATIC,
-        BOARD,
 
         COUNT
     };
@@ -218,14 +214,13 @@ public:
     {
         DOC_PATH,
         SCH_LIB_PATH,
-        SCH_LIB_SELECT, // eeschema/selpart.cpp
+        SCH_LIB_SELECT,               // eeschema/selpart.cpp
         SCH_LIBEDIT_CUR_LIB,
-        SCH_LIBEDIT_CUR_SYMBOL, // eeschema/libeditframe.cpp
+        SCH_LIBEDIT_CUR_SYMBOL,       // eeschema/libeditframe.cpp
 
         VIEWER_3D_PATH,
         VIEWER_3D_FILTER_INDEX,
 
-        PCB_LIB_PATH,
         PCB_LIB_NICKNAME,
         PCB_FOOTPRINT,
         PCB_FOOTPRINT_EDITOR_FP_NAME,
@@ -270,13 +265,18 @@ public:
     virtual void   SetElem( PROJECT::ELEM aIndex, _ELEM* aElem );
 
     /**
+     * Delete all the _ELEMs and set their pointers to NULL.
+     */
+    virtual void ElemsClear();
+
+    /**
      * Clear the _ELEMs and RSTRINGs.
      */
-    void Clear() // inline not virtual
+    void Clear()        // inline not virtual
     {
-        elemsClear();
+        ElemsClear();
 
-        for( unsigned i = 0; i < RSTRING_COUNT; ++i )
+        for( unsigned i = 0; i<RSTRING_COUNT;  ++i )
             SetRString( RSTRING_T( i ), wxEmptyString );
     }
 
@@ -299,19 +299,9 @@ public:
      */
     virtual DESIGN_BLOCK_LIB_TABLE* DesignBlockLibs();
 
-    void SetProjectLock( LOCKFILE* aLockFile );
-
-    LOCKFILE* GetProjectLock() const;
-
 private:
     friend class SETTINGS_MANAGER; // so that SM can set project path
     friend class TEST_NETLISTS_FIXTURE; // TODO(JE) make this not required
-
-
-    /**
-     * Delete all the _ELEMs and set their pointers to NULL.
-     */
-    virtual void elemsClear();
 
     /**
      * Set the full directory, basename, and extension of the project.
@@ -353,6 +343,7 @@ private:
 
 private:
     wxFileName      m_project_name;         ///< \<fullpath\>/\<basename\>.pro
+    wxString        m_pro_date_and_time;
 
     bool            m_readOnly;             ///< No project files will be written to disk
     int             m_textVarsTicker;       ///< Update counter on text vars
@@ -371,9 +362,6 @@ private:
 
     /// @see this::Elem() and enum ELEM_T.
     std::array<_ELEM*,static_cast<unsigned int>( PROJECT::ELEM::COUNT )> m_elems;
-
-    /// Lock
-    std::unique_ptr<LOCKFILE> m_project_lock;
 };
 
 

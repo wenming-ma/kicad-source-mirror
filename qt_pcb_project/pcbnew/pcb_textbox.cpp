@@ -33,8 +33,6 @@
 #include <trigo.h>
 #include <string_utils.h>
 #include <geometry/shape_compound.h>
-#include <geometry/shape_rect.h>
-#include <geometry/geometry_utils.h>
 #include <callback_gal.h>
 #include <convert_basic_shapes_to_polygon.h>
 #include <macros.h>
@@ -408,7 +406,7 @@ double PCB_TEXTBOX::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
 
 std::vector<int> PCB_TEXTBOX::ViewGetLayers() const
 {
-    if( IsLocked() || ( GetParentFootprint() && GetParentFootprint()->IsLocked() ) )
+    if( IsLocked() )
         return { GetLayer(), LAYER_LOCKED_ITEM_SHADOW };
 
     return { GetLayer() };
@@ -480,12 +478,7 @@ void PCB_TEXTBOX::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL
     aList.emplace_back( _( "Angle" ), wxString::Format( "%g", GetTextAngle().AsDegrees() ) );
 
     aList.emplace_back( _( "Font" ), GetFont() ? GetFont()->GetName() : _( "Default" ) );
-
-    if( GetTextThickness() )
-        aList.emplace_back( _( "Text Thickness" ), aFrame->MessageTextFromValue( GetEffectiveTextPenWidth() ) );
-    else
-        aList.emplace_back( _( "Text Thickness" ), _( "Auto" ) );
-
+    aList.emplace_back( _( "Text Thickness" ), aFrame->MessageTextFromValue( GetTextThickness() ) );
     aList.emplace_back( _( "Text Width" ), aFrame->MessageTextFromValue( GetTextWidth() ) );
     aList.emplace_back( _( "Text Height" ), aFrame->MessageTextFromValue( GetTextHeight() ) );
 
@@ -585,12 +578,6 @@ bool PCB_TEXTBOX::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) 
 }
 
 
-bool PCB_TEXTBOX::HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
-{
-    return PCB_SHAPE::HitTest( aPoly, aContained );
-}
-
-
 wxString PCB_TEXTBOX::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     return wxString::Format( _( "PCB Text Box '%s' on %s" ),
@@ -636,57 +623,44 @@ void PCB_TEXTBOX::TransformTextToPolySet( SHAPE_POLY_SET& aBuffer, int aClearanc
     KIGFX::GAL_DISPLAY_OPTIONS empty_opts;
     KIFONT::FONT*              font = GetDrawFont( nullptr );
     int                        penWidth = GetEffectiveTextPenWidth();
-    TEXT_ATTRIBUTES            attrs = GetAttributes();
-    wxString                   shownText = GetShownText( true );
 
-    // The polygonal shape of a text can have many basic shapes, so combining these shapes can
-    // be very useful to create a final shape with a lot less vertices to speedup calculations.
+    // Note: this function is mainly used in 3D viewer.
+    // the polygonal shape of a text can have many basic shapes,
+    // so combining these shapes can be very useful to create a final shape
+    // swith a lot less vertices to speedup calculations using this final shape
     // Simplify shapes is not usually always efficient, but in this case it is.
-    SHAPE_POLY_SET textShape;
+    SHAPE_POLY_SET buffer;
 
     CALLBACK_GAL callback_gal( empty_opts,
             // Stroke callback
             [&]( const VECTOR2I& aPt1, const VECTOR2I& aPt2 )
             {
-                TransformOvalToPolygon( textShape, aPt1, aPt2, penWidth, aMaxError, aErrorLoc );
+                TransformOvalToPolygon( buffer, aPt1, aPt2, penWidth, aMaxError, aErrorLoc );
             },
             // Triangulation callback
             [&]( const VECTOR2I& aPt1, const VECTOR2I& aPt2, const VECTOR2I& aPt3 )
             {
-                textShape.NewOutline();
+                buffer.NewOutline();
 
                 for( const VECTOR2I& point : { aPt1, aPt2, aPt3 } )
-                    textShape.Append( point.x, point.y );
+                    buffer.Append( point.x, point.y );
             } );
 
-    if( auto* cache = GetRenderCache( font, shownText ) )
-        callback_gal.DrawGlyphs( *cache );
-    else
-        font->Draw( &callback_gal, shownText, GetDrawPos(), attrs, GetFontMetrics() );
+    font->Draw( &callback_gal, GetShownText( true ), GetDrawPos(), GetAttributes(), GetFontMetrics() );
 
-    textShape.Simplify();
-
-    if( IsKnockout() )
+    if( aClearance > 0 || aErrorLoc == ERROR_OUTSIDE )
     {
-        SHAPE_POLY_SET finalPoly;
+        if( aErrorLoc == ERROR_OUTSIDE )
+            aClearance += aMaxError;
 
-        TransformShapeToPolygon( finalPoly, GetLayer(), aClearance, aMaxError, aErrorLoc );
-        finalPoly.BooleanSubtract( textShape );
-
-        aBuffer.Append( finalPoly );
+        buffer.Inflate( aClearance, CORNER_STRATEGY::ROUND_ALL_CORNERS, aMaxError, true );
     }
     else
     {
-        if( aClearance > 0 || aErrorLoc == ERROR_OUTSIDE )
-        {
-            if( aErrorLoc == ERROR_OUTSIDE )
-                aClearance += aMaxError;
-
-            textShape.Inflate( aClearance, CORNER_STRATEGY::ROUND_ALL_CORNERS, aMaxError, true );
-        }
-
-        aBuffer.Append( textShape );
+        buffer.Simplify();
     }
+
+    aBuffer.Append( buffer );
 }
 
 
@@ -840,10 +814,6 @@ static struct PCB_TEXTBOX_DESC
 
         propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( PCB_SHAPE ), _HKI( "Soldermask" ) );
         propMgr.Mask( TYPE_HASH( PCB_TEXTBOX ), TYPE_HASH( PCB_SHAPE ), _HKI( "Soldermask Margin Override" ) );
-
-        propMgr.AddProperty( new PROPERTY<PCB_TEXTBOX, bool, BOARD_ITEM>( _HKI( "Knockout" ),
-                &BOARD_ITEM::SetIsKnockout, &BOARD_ITEM::IsKnockout ),
-                _HKI( "Text Properties" ) );
 
         const wxString borderProps = _( "Border Properties" );
 

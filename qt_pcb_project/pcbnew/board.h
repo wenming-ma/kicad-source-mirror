@@ -27,7 +27,7 @@
 
 #include <board_item_container.h>
 #include <board_stackup_manager/board_stackup.h>
-#include <component_classes/component_class_manager.h>
+#include <component_class_manager.h>
 #include <embedded_files.h>
 #include <common.h> // Needed for stl hash extensions
 #include <convert_shape_list_to_polygon.h> // for OUTLINE_ERROR_HANDLER
@@ -40,7 +40,6 @@
 #include <title_block.h>
 #include <tools/pcb_selection.h>
 #include <shared_mutex>
-#include <project.h>
 #include <list>
 
 class BOARD_DESIGN_SETTINGS;
@@ -50,7 +49,6 @@ class DRC_RTREE;
 class PCB_BASE_FRAME;
 class PCB_EDIT_FRAME;
 class PICKED_ITEMS_LIST;
-class LENGTH_DELAY_CALCULATION;
 class BOARD;
 class FOOTPRINT;
 class ZONE;
@@ -67,9 +65,6 @@ class CONNECTIVITY_DATA;
 class COMPONENT;
 class PROJECT;
 class PROGRESS_REPORTER;
-class PCB_BOARD_OUTLINE;
-
-
 namespace KIFONT
 {
     class OUTLINE_FONT;
@@ -118,23 +113,6 @@ struct PTR_PTR_LAYER_CACHE_KEY
         return A == other.A && B == other.B && Layer == other.Layer;
     }
 };
-
-struct LAYERS_CHECKED
-{
-    LAYERS_CHECKED() :
-            layers(),
-            has_error( false )
-    {}
-
-    LAYERS_CHECKED( PCB_LAYER_ID aLayer ) :
-            layers( { aLayer } ),
-            has_error( false )
-    {}
-
-    LSET layers;
-    bool has_error;
-};
-
 
 namespace std
 {
@@ -313,7 +291,7 @@ enum class BOARD_USE
 /**
  * Information pertinent to a Pcbnew printed circuit board.
  */
-class BOARD : public BOARD_ITEM_CONTAINER, public EMBEDDED_FILES, public PROJECT::_ELEM
+class BOARD : public BOARD_ITEM_CONTAINER, public EMBEDDED_FILES
 {
 public:
     static inline bool ClassOf( const EDA_ITEM* aItem )
@@ -362,10 +340,6 @@ public:
     const ZONES& Zones() const { return m_zones; }
 
     const GENERATORS& Generators() const { return m_generators; }
-
-    PCB_BOARD_OUTLINE*       BoardOutline() { return m_boardOutline; }
-    const PCB_BOARD_OUTLINE* BoardOutline() const { return m_boardOutline; }
-    void                     UpdateBoardOutline();
 
     const MARKERS& Markers() const { return m_markers; }
 
@@ -421,7 +395,8 @@ public:
 
     void Move( const VECTOR2I& aMoveVector ) override;
 
-    void RunOnChildren( const std::function<void( BOARD_ITEM* )>& aFunction, RECURSE_MODE aMode ) const override;
+    void RunOnDescendants( const std::function<void ( BOARD_ITEM* )>& aFunction,
+                           int aDepth = 0 ) const override;
 
     void SetFileFormatVersionAtLoad( int aVersion ) { m_fileFormatVersionAtLoad = aVersion; }
     int GetFileFormatVersionAtLoad() const { return m_fileFormatVersionAtLoad; }
@@ -502,10 +477,9 @@ public:
     void DetachAllFootprints();
 
     /**
-     * @return null if aID is null. If \a aID cannot be resolved, returns either an object of
-     *         Type() == NOT_USED or null, depending on \a aAllowNullptrReturn.
+     * @return null if aID is null. Returns an object of Type() == NOT_USED if the aID is not found.
      */
-    BOARD_ITEM* ResolveItem( const KIID& aID, bool aAllowNullptrReturn = false ) const;
+    BOARD_ITEM* GetItem( const KIID& aID ) const;
 
     void FillItemMap( std::map<KIID, EDA_ITEM*>& aMap );
 
@@ -735,7 +709,6 @@ public:
      * @return the BOARD_DESIGN_SETTINGS for this BOARD
      */
     BOARD_DESIGN_SETTINGS& GetDesignSettings() const;
-    void                   SetDesignSettings( const BOARD_DESIGN_SETTINGS& aSettings );
 
     BOARD_STACKUP GetStackupOrDefault() const;
 
@@ -968,16 +941,6 @@ public:
     }
 
     /**
-     * @return the number of PTH with Press-Fit fabr attribute
-     */
-    int GetPadWithPressFitAttrCount();
-
-    /**
-     * @return the number of PTH with Castellated fabr attribute
-     */
-    int GetPadWithCastellatedAttrCount();
-
-    /**
      * Calculate the bounding box containing all board items (or board edge segments).
      *
      * @param aBoardEdgesOnly is true if we are interested in board edge segments only.
@@ -1053,19 +1016,9 @@ public:
     void SynchronizeNetsAndNetClasses( bool aResetTrackAndViaSizes );
 
     /**
-     * Copy component class / component class generator information from the project settings
-     */
-    bool SynchronizeComponentClasses( const std::unordered_set<wxString>& aNewSheetPaths ) const;
-
-    /**
      * Copy the current project's text variables into the boards property cache.
      */
     void SynchronizeProperties();
-
-    /**
-     * Ensure that all time domain properties providers are in sync with current settings
-     */
-    void SynchronizeTimeDomainProperties();
 
     /**
      * Return the Similarity.  Because we compare board to board, we just return 1.0 here
@@ -1132,21 +1085,6 @@ public:
     /* Functions used in test, merge and cut outlines */
 
     /**
-     * Add an empty copper area to board areas list.
-     *
-     * @param aNewZonesList is a PICKED_ITEMS_LIST * where to store new areas  pickers (useful
-     *                      in undo commands) can be NULL.
-     * @param aNetcode is the netcode of the copper area (0 = no net).
-     * @param aLayer is the layer of area.
-     * @param aStartPointPosition is position of the first point of the polygon outline of this
-     *        area.
-     * @param aHatch is the hatch option.
-     * @return a reference to the new area.
-     */
-    ZONE* AddArea( PICKED_ITEMS_LIST* aNewZonesList, int aNetcode, PCB_LAYER_ID aLayer,
-                   VECTOR2I aStartPointPosition, ZONE_BORDER_DISPLAY_STYLE aHatch );
-
-    /**
      * Test for intersection of 2 copper areas.
      *
      * @param aZone1 is the area reference.
@@ -1162,7 +1100,7 @@ public:
      * @param aLayerMask A layer or layers to mask the hit test.
      * @return A pointer to a PAD object if found or NULL if not found.
      */
-    PAD* GetPad( const VECTOR2I& aPosition, const LSET& aLayerMask ) const;
+    PAD* GetPad( const VECTOR2I& aPosition, LSET aLayerMask ) const;
     PAD* GetPad( const VECTOR2I& aPosition ) const
     {
         return GetPad( aPosition, LSET().set() );
@@ -1191,7 +1129,7 @@ public:
      * @param aLayerMask A layer or layers to mask the hit test.
      * @return a PAD object pointer to the connected pad.
      */
-    PAD* GetPad( std::vector<PAD*>& aPadList, const VECTOR2I& aPosition, const LSET& aLayerMask ) const;
+    PAD* GetPad( std::vector<PAD*>& aPadList, const VECTOR2I& aPosition, LSET aLayerMask ) const;
 
     /**
      * First empties then fills the vector with all pads and sorts them by increasing x
@@ -1211,9 +1149,9 @@ public:
      * This uses the connectivity data for the board to calculate connections
      *
      * @param aTrack Starting track (can also be a via) to check against for connection.
-     * @return a tuple containing <number, length, package length, delay, package delay>
+     * @return a tuple containing <number, length, package length>
      */
-    std::tuple<int, double, double, double, double> GetTrackLength( const PCB_TRACK& aTrack ) const;
+    std::tuple<int, double, double> GetTrackLength( const PCB_TRACK& aTrack ) const;
 
     /**
      * Collect all the TRACKs and VIAs that are members of a net given by aNetCode.
@@ -1316,6 +1254,20 @@ public:
      */
     wxString GroupsSanityCheckInternal( bool repair );
 
+    struct GroupLegalOpsField
+    {
+        bool create      : 1;
+        bool ungroup     : 1;
+        bool removeItems : 1;
+    };
+
+    /**
+     * Check which selection tool group operations are legal given the selection.
+     *
+     * @return bit field of legal ops.
+     */
+    GroupLegalOpsField GroupLegalOps( const PCB_SELECTION& selection ) const;
+
     bool LegacyTeardrops() const { return m_legacyTeardrops; }
     void SetLegacyTeardrops( bool aFlag ) { m_legacyTeardrops = aFlag; }
 
@@ -1335,21 +1287,9 @@ public:
     void EmbedFonts() override;
 
     /**
-     * Returns the track length calculator
-     */
-    LENGTH_DELAY_CALCULATION* GetLengthCalculation() const { return m_lengthDelayCalc.get(); }
-
-    /**
      * Gets the component class manager
      */
-    COMPONENT_CLASS_MANAGER& GetComponentClassManager() { return *m_componentClassManager; }
-
-    PROJECT::ELEM ProjectElementType() override { return PROJECT::ELEM::BOARD; }
-
-    const std::unordered_map<KIID, BOARD_ITEM*>& GetItemByIdCache() const
-    {
-        return m_itemByIdCache;
-    }
+    COMPONENT_CLASS_MANAGER& GetComponentClassManager() { return m_componentClassManager; }
 
     // --------- Item order comparators ---------
 
@@ -1422,7 +1362,6 @@ private:
     GROUPS              m_groups;
     ZONES               m_zones;
     GENERATORS          m_generators;
-    PCB_BOARD_OUTLINE*  m_boardOutline;
 
     // Cache for fast access to items in the containers above by KIID, including children
     std::unordered_map<KIID, BOARD_ITEM*> m_itemByIdCache;
@@ -1472,8 +1411,7 @@ private:
     // of all the parent's embedded data.
     EMBEDDED_FILES*              m_embeddedFilesDelegate;
 
-    std::unique_ptr<COMPONENT_CLASS_MANAGER>  m_componentClassManager;
-    std::unique_ptr<LENGTH_DELAY_CALCULATION> m_lengthDelayCalc;
+    COMPONENT_CLASS_MANAGER m_componentClassManager;
 };
 
 

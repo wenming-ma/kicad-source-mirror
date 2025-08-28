@@ -57,7 +57,6 @@ int getArcPolygonizationMaxError()
 
 SHAPE_LINE_CHAIN::SHAPE_LINE_CHAIN( const std::vector<int>& aV) :
         SHAPE_LINE_CHAIN_BASE( SH_LINE_CHAIN ),
-        m_accuracy( 0 ),
         m_closed( false ),
         m_width( 0 )
 {
@@ -70,7 +69,6 @@ SHAPE_LINE_CHAIN::SHAPE_LINE_CHAIN( const std::vector<int>& aV) :
 
 SHAPE_LINE_CHAIN::SHAPE_LINE_CHAIN( const std::vector<VECTOR2I>& aV, bool aClosed ) :
         SHAPE_LINE_CHAIN_BASE( SH_LINE_CHAIN ),
-        m_accuracy( 0 ),
         m_closed( false ),
         m_width( 0 )
 {
@@ -82,7 +80,6 @@ SHAPE_LINE_CHAIN::SHAPE_LINE_CHAIN( const std::vector<VECTOR2I>& aV, bool aClose
 
 SHAPE_LINE_CHAIN::SHAPE_LINE_CHAIN( const SHAPE_ARC& aArc, bool aClosed, std::optional<int> aMaxError ) :
         SHAPE_LINE_CHAIN_BASE( SH_LINE_CHAIN ),
-        m_accuracy( 0 ),
         m_closed( false ),
         m_width( aArc.GetWidth() )
 {
@@ -99,9 +96,7 @@ SHAPE_LINE_CHAIN::SHAPE_LINE_CHAIN( const Clipper2Lib::Path64&          aPath,
                                     const std::vector<CLIPPER_Z_VALUE>& aZValueBuffer,
                                     const std::vector<SHAPE_ARC>&       aArcBuffer ) :
         SHAPE_LINE_CHAIN_BASE( SH_LINE_CHAIN ),
-        m_accuracy( 0 ),
-        m_closed( true ),
-        m_width( 0 )
+        m_closed( true ), m_width( 0 )
 {
     std::map<ssize_t, ssize_t> loadedArcs;
     m_points.reserve( aPath.size() );
@@ -1562,7 +1557,7 @@ void SHAPE_LINE_CHAIN::Append( const SHAPE_LINE_CHAIN& aOtherLine )
                 return retval;
             };
 
-    if( PointCount() == 0 || aOtherLine.CPoint( 0 ) != CLastPoint() )
+    if( PointCount() == 0 || aOtherLine.CPoint( 0 ) != CPoint( -1 ) )
     {
         const VECTOR2I p = aOtherLine.CPoint( 0 );
         m_points.push_back( p );
@@ -1742,18 +1737,6 @@ int SHAPE_LINE_CHAIN::Intersect( const SEG& aSeg, INTERSECTIONS& aIp ) const
     sort( aIp.begin(), aIp.end(), comp );
 
     return aIp.size();
-}
-
-
-bool SHAPE_LINE_CHAIN::Intersects( const SEG& aSeg ) const
-{
-    for( int s = 0; s < SegmentCount(); s++ )
-    {
-        if( CSegment( s ).Intersects( aSeg ) )
-            return true;
-    }
-
-    return false;
 }
 
 
@@ -1960,30 +1943,24 @@ bool SHAPE_LINE_CHAIN_BASE::PointOnEdge( const VECTOR2I& aPt, int aAccuracy ) co
 
 int SHAPE_LINE_CHAIN_BASE::EdgeContainingPoint( const VECTOR2I& aPt, int aAccuracy ) const
 {
-    const int     threshold = aAccuracy + 1;
-    const int64_t thresholdSq = int64_t( threshold ) * threshold;
-    const size_t  pointCount = GetPointCount();
-
-    if( !pointCount )
+    if( !GetPointCount() )
     {
-        return -1;
+		return -1;
     }
-    else if( pointCount == 1 )
+	else if( GetPointCount() == 1 )
     {
-        SEG::ecoord distSq = GetPoint( 0 ).SquaredDistance( aPt );
-        return distSq <= thresholdSq ? 0 : -1;
+	    VECTOR2I dist = GetPoint(0) - aPt;
+	    return ( hypot( dist.x, dist.y ) <= aAccuracy + 1 ) ? 0 : -1;
     }
 
-    const size_t segCount = GetSegmentCount();
-
-    for( size_t i = 0; i < segCount; i++ )
+    for( size_t i = 0; i < GetSegmentCount(); i++ )
     {
         const SEG s = GetSegment( i );
 
         if( s.A == aPt || s.B == aPt )
             return i;
 
-        if( s.SquaredDistance( aPt ) <= thresholdSq )
+        if( s.Distance( aPt ) <= aAccuracy + 1 )
             return i;
     }
 
@@ -2015,22 +1992,13 @@ bool SHAPE_LINE_CHAIN::CheckClearance( const VECTOR2I& aP, const int aDist ) con
 
 const std::optional<SHAPE_LINE_CHAIN::INTERSECTION> SHAPE_LINE_CHAIN::SelfIntersecting() const
 {
-    const size_t     segCount = SegmentCount();
-    std::vector<SEG> segments( segCount );
-
-    for( size_t s = 0; s < segCount; s++ )
-        segments[s] = CSegment( s );
-
-    for( size_t s1 = 0; s1 < segCount; s1++ )
+    for( int s1 = 0; s1 < SegmentCount(); s1++ )
     {
-        const SEG& cs1 = segments[s1];
-
-        for( size_t s2 = s1 + 1; s2 < segCount; s2++ )
+        for( int s2 = s1 + 1; s2 < SegmentCount(); s2++ )
         {
-            const SEG&     cs2 = segments[s2];
-            const VECTOR2I s2a = cs2.A, s2b = cs2.B;
+            const VECTOR2I s2a = CSegment( s2 ).A, s2b = CSegment( s2 ).B;
 
-            if( s1 + 1 != s2 && cs1.Contains( s2a ) )
+            if( s1 + 1 != s2 && CSegment( s1 ).Contains( s2a ) )
             {
                 INTERSECTION is;
                 is.index_our = s1;
@@ -2038,11 +2006,11 @@ const std::optional<SHAPE_LINE_CHAIN::INTERSECTION> SHAPE_LINE_CHAIN::SelfInters
                 is.p = s2a;
                 return is;
             }
-            else if( cs1.Contains( s2b ) &&
+            else if( CSegment( s1 ).Contains( s2b ) &&
                      // for closed polylines, the ending point of the
                      // last segment == starting point of the first segment
                      // this is a normal case, not self intersecting case
-                     !( IsClosed() && s1 == 0 && s2 == segCount - 1 ) )
+                     !( IsClosed() && s1 == 0 && s2 == SegmentCount()-1 ) )
             {
                 INTERSECTION is;
                 is.index_our = s1;
@@ -2052,7 +2020,7 @@ const std::optional<SHAPE_LINE_CHAIN::INTERSECTION> SHAPE_LINE_CHAIN::SelfInters
             }
             else
             {
-                OPT_VECTOR2I p = cs1.Intersect( cs2, true );
+                OPT_VECTOR2I p = CSegment( s1 ).Intersect( CSegment( s2 ), true );
 
                 if( p )
                 {
@@ -2485,7 +2453,7 @@ const VECTOR2I SHAPE_LINE_CHAIN::PointAlong( int aPathLength ) const
         total += l;
     }
 
-    return CLastPoint();
+    return CPoint( -1 );
 }
 
 
@@ -2665,8 +2633,8 @@ void SHAPE_LINE_CHAIN::Simplify( int aTolerance )
 
     m_points.clear();
     m_shapes.clear();
-    m_points = std::move( new_points );
-    m_shapes = std::move( new_shapes );
+    m_points = new_points;
+    m_shapes = new_shapes;
 }
 
 
@@ -2824,7 +2792,7 @@ bool SHAPE_LINE_CHAIN::OffsetLine( int aAmount, CORNER_STRATEGY aCornerStrategy,
     wxASSERT( outline.IsClosed() );
 
     const VECTOR2I& start = CPoint( 0 );
-    const VECTOR2I& end = CLastPoint();
+    const VECTOR2I& end = CPoint( -1 );
 
     outline.Split( start, true );
     outline.Split( end, true );

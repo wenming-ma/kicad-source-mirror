@@ -47,7 +47,6 @@ struct EDA_SEARCH_DATA
 
     bool             searchAndReplace;
     bool             searchAllFields;
-    bool             searchMetadata;
 
     bool                  matchCase;
     bool                  markersOnly;
@@ -58,7 +57,6 @@ struct EDA_SEARCH_DATA
             replaceString(),
             searchAndReplace( false ),
             searchAllFields( false ),
-            searchMetadata( false ),
             matchCase( false ),
             markersOnly( false ),
             matchMode( EDA_SEARCH_MATCH_MODE::PLAIN )
@@ -71,8 +69,6 @@ struct EDA_SEARCH_DATA
             replaceString( other.replaceString ),
             regex_string( other.regex_string ),
             searchAndReplace( other.searchAndReplace ),
-            searchAllFields( other.searchAllFields ),
-            searchMetadata( other.searchMetadata ),
             matchCase( other.matchCase ),
             markersOnly( other.markersOnly ),
             matchMode( other.matchMode )

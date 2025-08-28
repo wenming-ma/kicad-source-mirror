@@ -23,12 +23,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#pragma once
+#ifndef BOARD_COMMIT_H
+#define BOARD_COMMIT_H
 
 #include <commit.h>
+#include <math/box2.h>
 
 class BOARD_ITEM;
-class PCB_SHAPE;
 class ZONE;
 class BOARD;
 class PICKED_ITEMS_LIST;
@@ -50,7 +51,7 @@ public:
     BOARD_COMMIT( EDA_DRAW_FRAME* aFrame );
     BOARD_COMMIT( TOOL_BASE* aTool );
     BOARD_COMMIT( TOOL_MANAGER* aMgr );
-    BOARD_COMMIT( TOOL_MANAGER* aMgr, bool aIsBoardEditor, bool aIsFootprintEditor );
+    BOARD_COMMIT( TOOL_MANAGER* aMgr, bool aIsBoardEditor );
 
     virtual ~BOARD_COMMIT() {}
 
@@ -60,8 +61,7 @@ public:
 
     virtual void Revert() override;
     COMMIT&      Stage( EDA_ITEM* aItem, CHANGE_TYPE aChangeType,
-                        BASE_SCREEN* aScreen = nullptr,
-                        RECURSE_MODE aRecurse = RECURSE_MODE::NO_RECURSE ) override;
+                        BASE_SCREEN* aScreen = nullptr ) override;
     COMMIT&      Stage( std::vector<EDA_ITEM*>& container, CHANGE_TYPE aChangeType,
                         BASE_SCREEN* aScreen = nullptr ) override;
     COMMIT&      Stage( const PICKED_ITEMS_LIST& aItems,
@@ -71,7 +71,7 @@ public:
     static EDA_ITEM* MakeImage( EDA_ITEM* aItem );
 
 private:
-    EDA_ITEM* undoLevelItem( EDA_ITEM* aItem ) const override;
+    EDA_ITEM* parentObject( EDA_ITEM* aItem ) const override;
 
     EDA_ITEM* makeImage( EDA_ITEM* aItem ) const override;
 
@@ -83,3 +83,5 @@ private:
     bool           m_isBoardEditor;
     bool           m_isFootprintEditor;
 };
+
+#endif

@@ -57,6 +57,9 @@
 #include <geometry/shape_segment.h>
 #include <geometry/shape_circle.h>
 
+// Do not keep this for release.  Only for testing clipper
+#include <advanced_config.h>
+
 #include <wx/log.h>
 
 // ADVANCED_CFG::GetCfg() cannot be used on msys2/mingw builds (link failure)
@@ -237,11 +240,11 @@ bool SHAPE_POLY_SET::GetGlobalIndex( SHAPE_POLY_SET::VERTEX_INDEX aRelativeIndic
 int SHAPE_POLY_SET::NewOutline()
 {
     SHAPE_LINE_CHAIN empty_path;
-    POLYGON          poly;
+    POLYGON poly;
 
     empty_path.SetClosed( true );
     poly.push_back( empty_path );
-    m_polys.push_back( std::move( poly ) );
+    m_polys.push_back( poly );
     return m_polys.size() - 1;
 }
 
@@ -555,9 +558,9 @@ int SHAPE_POLY_SET::AddOutline( const SHAPE_LINE_CHAIN& aOutline )
     wxCHECK2_MSG( aOutline.IsClosed(), poly.back().SetClosed( true ),
                   "Warning: non-closed outline added to SHAPE_POLY_SET" );
 
-    m_polys.push_back( std::move( poly ) );
+    m_polys.push_back( poly );
 
-    return (int) m_polys.size() - 1;
+    return m_polys.size() - 1;
 }
 
 
@@ -566,7 +569,7 @@ int SHAPE_POLY_SET::AddHole( const SHAPE_LINE_CHAIN& aHole, int aOutline )
     assert( m_polys.size() );
 
     if( aOutline < 0 )
-        aOutline += (int) m_polys.size();
+        aOutline += m_polys.size();
 
     assert( aOutline < (int)m_polys.size() );
 
@@ -576,7 +579,7 @@ int SHAPE_POLY_SET::AddHole( const SHAPE_LINE_CHAIN& aHole, int aOutline )
 
     poly.push_back( aHole );
 
-    return (int) poly.size() - 2;
+    return poly.size() - 2;
 }
 
 
@@ -740,10 +743,10 @@ void SHAPE_POLY_SET::RebuildHolesFromContours()
     for( int topParentId : topLevelParents )
     {
         std::vector<int> path;
-        process( topParentId, -1, std::move( path ) );
+        process( topParentId, -1, path );
     }
 
-    *this = std::move( result );
+    *this = result;
 }
 
 
@@ -1155,7 +1158,7 @@ void SHAPE_POLY_SET::importPolyPath( const std::unique_ptr<Clipper2Lib::PolyPath
                 importPolyPath( grandchild, aZValueBuffer, aArcBuffer );
         }
 
-        m_polys.emplace_back( std::move( paths ) );
+        m_polys.push_back( paths );
     }
 }
 
@@ -1196,7 +1199,7 @@ void SHAPE_POLY_SET::importPaths( Clipper2Lib::Paths64&              aPath,
     }
 
     if( !path.empty() )
-        m_polys.emplace_back( std::move( path ) );
+        m_polys.emplace_back( path );
 }
 
 
@@ -1207,9 +1210,7 @@ struct FractureEdge
     FractureEdge() = default;
 
     FractureEdge( const VECTOR2I& p1, const VECTOR2I& p2, Index next ) :
-            m_p1( p1 ),
-            m_p2( p2 ),
-            m_next( next )
+            m_p1( p1 ), m_p2( p2 ), m_next( next )
     {
     }
 
@@ -1832,7 +1833,7 @@ void SHAPE_POLY_SET::unfractureSingle( SHAPE_POLY_SET::POLYGON& aPoly )
     if( outline > 0 )
         std::swap( result[0], result[outline] );
 
-    aPoly = std::move( result );
+    aPoly = result;
 }
 
 
@@ -1995,7 +1996,7 @@ bool SHAPE_POLY_SET::Parse( std::stringstream& aStream )
                 outline.Append( p );
             }
 
-            paths.push_back( std::move( outline ) );
+            paths.push_back( outline );
         }
 
         m_polys.push_back( std::move( paths ) );
@@ -2186,8 +2187,6 @@ bool SHAPE_POLY_SET::Collide( const SHAPE* aShape, int aClearance, int* aActual,
 void SHAPE_POLY_SET::RemoveAllContours()
 {
     m_polys.clear();
-    m_triangulatedPolys.clear();
-    m_triangulationValid = false;
 }
 
 
@@ -2713,6 +2712,181 @@ SHAPE_POLY_SET SHAPE_POLY_SET::Fillet( int aRadius, int aErrorMax )
 }
 
 
+SHAPE_POLY_SET::POLYGON SHAPE_POLY_SET::chamferFilletPolygon( CORNER_MODE aMode,
+                                                              unsigned int aDistance,
+                                                              int aIndex, int aErrorMax )
+{
+    // Null segments create serious issues in calculations. Remove them:
+    RemoveNullSegments();
+
+    SHAPE_POLY_SET::POLYGON currentPoly = Polygon( aIndex );
+    SHAPE_POLY_SET::POLYGON newPoly;
+
+    // If the chamfering distance is zero, then the polygon remain intact.
+    if( aDistance == 0 )
+    {
+        return currentPoly;
+    }
+
+    // Iterate through all the contours (outline and holes) of the polygon.
+    for( SHAPE_LINE_CHAIN& currContour : currentPoly )
+    {
+        // Generate a new contour in the new polygon
+        SHAPE_LINE_CHAIN newContour;
+
+        // Iterate through the vertices of the contour
+        for( int currVertex = 0; currVertex < currContour.PointCount(); currVertex++ )
+        {
+            // Current vertex
+            int x1 = currContour.CPoint( currVertex ).x;
+            int y1 = currContour.CPoint( currVertex ).y;
+
+            // Indices for previous and next vertices.
+            int prevVertex;
+            int nextVertex;
+
+            // Previous and next vertices indices computation. Necessary to manage the edge cases.
+
+            // Previous vertex is the last one if the current vertex is the first one
+            prevVertex = currVertex == 0 ? currContour.PointCount() - 1 : currVertex - 1;
+
+            // next vertex is the first one if the current vertex is the last one.
+            nextVertex = currVertex == currContour.PointCount() - 1 ? 0 : currVertex + 1;
+
+            // Previous vertex computation
+            double xa = currContour.CPoint( prevVertex ).x - x1;
+            double ya = currContour.CPoint( prevVertex ).y - y1;
+
+            // Next vertex computation
+            double xb = currContour.CPoint( nextVertex ).x - x1;
+            double yb = currContour.CPoint( nextVertex ).y - y1;
+
+            // Avoid segments that will generate nans below
+            if( std::abs( xa + xb ) < std::numeric_limits<double>::epsilon()
+                    && std::abs( ya + yb ) < std::numeric_limits<double>::epsilon() )
+            {
+                continue;
+            }
+
+            // Compute the new distances
+            double  lena    = hypot( xa, ya );
+            double  lenb    = hypot( xb, yb );
+
+            // Make the final computations depending on the mode selected, chamfered or filleted.
+            if( aMode == CORNER_MODE::CHAMFERED )
+            {
+                double distance = aDistance;
+
+                // Chamfer one half of an edge at most
+                if( 0.5 * lena < distance )
+                    distance = 0.5 * lena;
+
+                if( 0.5 * lenb < distance )
+                    distance = 0.5 * lenb;
+
+                int nx1 = KiROUND( distance * xa / lena );
+                int ny1 = KiROUND( distance * ya / lena );
+
+                newContour.Append( x1 + nx1, y1 + ny1 );
+
+                int nx2 = KiROUND( distance * xb / lenb );
+                int ny2 = KiROUND( distance * yb / lenb );
+
+                newContour.Append( x1 + nx2, y1 + ny2 );
+            }
+            else    // CORNER_MODE = FILLETED
+            {
+                double cosine = ( xa * xb + ya * yb ) / ( lena * lenb );
+
+                double  radius  = aDistance;
+                double  denom   = sqrt( 2.0 / ( 1 + cosine ) - 1 );
+
+                // Do nothing in case of parallel edges
+                if( std::isinf( denom ) )
+                    continue;
+
+                // Limit rounding distance to one half of an edge
+                if( 0.5 * lena * denom < radius )
+                    radius = 0.5 * lena * denom;
+
+                if( 0.5 * lenb * denom < radius )
+                    radius = 0.5 * lenb * denom;
+
+                // Calculate fillet arc absolute center point (xc, yx)
+                double  k = radius / sqrt( .5 * ( 1 - cosine ) );
+                double  lenab = sqrt( ( xa / lena + xb / lenb ) * ( xa / lena + xb / lenb ) +
+                        ( ya / lena + yb / lenb ) * ( ya / lena + yb / lenb ) );
+                double  xc  = x1 + k * ( xa / lena + xb / lenb ) / lenab;
+                double  yc  = y1 + k * ( ya / lena + yb / lenb ) / lenab;
+
+                // Calculate arc start and end vectors
+                k = radius / sqrt( 2 / ( 1 + cosine ) - 1 );
+                double  xs  = x1 + k * xa / lena - xc;
+                double  ys  = y1 + k * ya / lena - yc;
+                double  xe  = x1 + k * xb / lenb - xc;
+                double  ye  = y1 + k * yb / lenb - yc;
+
+                // Cosine of arc angle
+                double argument = ( xs * xe + ys * ye ) / ( radius * radius );
+
+                // Make sure the argument is in [-1,1], interval in which the acos function is
+                // defined
+                if( argument < -1 )
+                    argument = -1;
+                else if( argument > 1 )
+                    argument = 1;
+
+                double arcAngle = acos( argument );
+                int    segments = GetArcToSegmentCount( radius, aErrorMax,
+                                                        EDA_ANGLE( arcAngle, RADIANS_T ) );
+
+                double deltaAngle = arcAngle / segments;
+                double startAngle = atan2( -ys, xs );
+
+                // Flip arc for inner corners
+                if( xa * yb - ya * xb <= 0 )
+                    deltaAngle *= -1;
+
+                double  nx  = xc + xs;
+                double  ny  = yc + ys;
+
+                if( std::isnan( nx ) || std::isnan( ny ) )
+                    continue;
+
+                newContour.Append( KiROUND( nx ), KiROUND( ny ) );
+
+                // Store the previous added corner to make a sanity check
+                int prevX   = KiROUND( nx );
+                int prevY   = KiROUND( ny );
+
+                for( int j = 0; j < segments; j++ )
+                {
+                    nx = xc + cos( startAngle + ( j + 1 ) * deltaAngle ) * radius;
+                    ny = yc - sin( startAngle + ( j + 1 ) * deltaAngle ) * radius;
+
+                    if( std::isnan( nx ) || std::isnan( ny ) )
+                        continue;
+
+                    // Sanity check: the rounding can produce repeated corners; do not add them.
+                    if( KiROUND( nx ) != prevX || KiROUND( ny ) != prevY )
+                    {
+                        newContour.Append( KiROUND( nx ), KiROUND( ny ) );
+                        prevX   = KiROUND( nx );
+                        prevY   = KiROUND( ny );
+                    }
+                }
+            }
+        }
+
+        // Close the current contour and add it the new polygon
+        newContour.SetClosed( true );
+        newPoly.push_back( newContour );
+    }
+
+    return newPoly;
+}
+
+
 SHAPE_POLY_SET &SHAPE_POLY_SET::operator=( const SHAPE_POLY_SET& aOther )
 {
     SHAPE::operator=( aOther );
@@ -3121,12 +3295,13 @@ SHAPE_POLY_SET::BuildPolysetFromOrientedPaths( const std::vector<SHAPE_LINE_CHAI
         for( int i = 0; i < path.PointCount(); i++ )
             lc.emplace_back( path.CPoint( i ).x, path.CPoint( i ).y );
 
-        paths.push_back( std::move( lc ) );
+        paths.push_back( lc );
     }
 
     clipper.AddSubject( paths );
     clipper.Execute( Clipper2Lib::ClipType::Union, aEvenOdd ? Clipper2Lib::FillRule::EvenOdd
-                                                            : Clipper2Lib::FillRule::NonZero, tree );
+                                                           : Clipper2Lib::FillRule::NonZero, tree );
+
 
     std::vector<CLIPPER_Z_VALUE> zValues;
     std::vector<SHAPE_ARC> arcBuffer;
@@ -3147,122 +3322,3 @@ bool SHAPE_POLY_SET::PointInside( const VECTOR2I& aPt, int aAccuracy, bool aUseB
     return false;
 }
 
-
-const std::vector<SEG> SHAPE_POLY_SET::GenerateHatchLines( const std::vector<double>& aSlopes,
-                                                           int aSpacing, int aLineLength ) const
-{
-    std::vector<SEG> hatchLines;
-
-    // define range for hatch lines
-    int min_x = CVertex( 0 ).x;
-    int max_x = CVertex( 0 ).x;
-    int min_y = CVertex( 0 ).y;
-    int max_y = CVertex( 0 ).y;
-
-    for( auto iterator = CIterateWithHoles(); iterator; iterator++ )
-    {
-        if( iterator->x < min_x )
-            min_x = iterator->x;
-
-        if( iterator->x > max_x )
-            max_x = iterator->x;
-
-        if( iterator->y < min_y )
-            min_y = iterator->y;
-
-        if( iterator->y > max_y )
-            max_y = iterator->y;
-    }
-
-    auto sortEndsByDescendingX =
-            []( const VECTOR2I& ref, const VECTOR2I& tst )
-            {
-                return tst.x < ref.x;
-            };
-
-    for( double slope : aSlopes )
-    {
-        int64_t max_a, min_a;
-
-        if( slope > 0 )
-        {
-            max_a = KiROUND<double, int64_t>( max_y - slope * min_x );
-            min_a = KiROUND<double, int64_t>( min_y - slope * max_x );
-        }
-        else
-        {
-            max_a = KiROUND<double, int64_t>( max_y - slope * max_x );
-            min_a = KiROUND<double, int64_t>( min_y - slope * min_x );
-        }
-
-        min_a = ( min_a / aSpacing ) * aSpacing;
-
-        // loop through hatch lines
-        std::vector<VECTOR2I> pointbuffer;
-        pointbuffer.reserve( 256 );
-
-        for( int64_t a = min_a; a < max_a; a += aSpacing )
-        {
-            pointbuffer.clear();
-            SEG hatch_line( VECTOR2I( 0, a ), VECTOR2I( 1, a + slope ) );
-
-            // Iterate through all vertices
-            for( auto iterator = CIterateSegmentsWithHoles(); iterator; iterator++ )
-            {
-                const SEG seg = *iterator;
-                VECTOR2I  pt;
-
-                if( seg.IntersectsLine( slope, a, pt ) )
-                {
-                    // If the intersection point is outside the polygon, skip it
-                    if( pt.x < min_x || pt.x > max_x || pt.y < min_y || pt.y > max_y )
-                        continue;
-
-                    // Add the intersection point to the buffer
-                    pointbuffer.emplace_back( KiROUND( pt.x ), KiROUND( pt.y ) );
-                }
-            }
-
-            // sort points in order of descending x (if more than 2) to
-            // ensure the starting point and the ending point of the same segment
-            // are stored one just after the other.
-            if( pointbuffer.size() > 2 )
-                sort( pointbuffer.begin(), pointbuffer.end(), sortEndsByDescendingX );
-
-            // creates lines or short segments inside the complex polygon
-            for( size_t ip = 0; ip + 1 < pointbuffer.size(); ip += 2 )
-            {
-                int dx = pointbuffer[ip + 1].x - pointbuffer[ip].x;
-
-                // Push only one line for diagonal hatch or for small lines < twice the line
-                // length; else push 2 small lines
-                if( aLineLength == -1 || std::abs( dx ) < 2 * aLineLength )
-                {
-                    hatchLines.emplace_back( SEG( pointbuffer[ip], pointbuffer[ ip + 1] ) );
-                }
-                else
-                {
-                    double dy = pointbuffer[ip + 1].y - pointbuffer[ip].y;
-                    slope = dy / dx;
-
-                    if( dx > 0 )
-                        dx = aLineLength;
-                    else
-                        dx = -aLineLength;
-
-                    int x1 = KiROUND( pointbuffer[ip].x + dx );
-                    int x2 = KiROUND( pointbuffer[ip + 1].x - dx );
-                    int y1 = KiROUND( pointbuffer[ip].y + dx * slope );
-                    int y2 = KiROUND( pointbuffer[ip + 1].y - dx * slope );
-
-                    hatchLines.emplace_back( SEG( pointbuffer[ip].x, pointbuffer[ip].y, x1, y1 ) );
-
-                    hatchLines.emplace_back( SEG( pointbuffer[ip+1].x, pointbuffer[ip+1].y, x2,
-                                                  y2 ) );
-                }
-            }
-        }
-    }
-
-    return hatchLines;
-}
