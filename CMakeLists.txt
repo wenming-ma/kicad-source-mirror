@@ -123,7 +123,7 @@ option( KICAD_BUILD_QA_TESTS
 
 option( KICAD_SCRIPTING_WXPYTHON
     "Build wxPython implementation for wx interface building in Python and py.shell (default ON)."
-    ON )
+    OFF )
 mark_as_advanced( KICAD_SCRIPTING_WXPYTHON )
 
 option( KICAD_UPDATE_CHECK
