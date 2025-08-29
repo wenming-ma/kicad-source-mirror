@@ -46,6 +46,9 @@ endif()
 
 project( kicad )
 
+# Auto-detect and configure ccache if available
+include( ${CMAKE_CURRENT_SOURCE_DIR}/AutoCCache.cmake )
+
 # Create a default build type for our QA that doesn't include `NDEBUG`
 set(CMAKE_CXX_FLAGS_QABUILD "-Os -g1 -ggdb1")
 
