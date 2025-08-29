@@ -20,7 +20,11 @@ def iso():
 
 
 def run(cmd, cwd=None):
-    return subprocess.run(cmd, cwd=cwd, text=True, capture_output=True)
+    """运行命令，使用当前环境变量（包括Visual Studio环境）"""
+    import os
+    # 确保继承当前的环境变量，特别是VS环境变量
+    env = os.environ.copy()
+    return subprocess.run(cmd, cwd=cwd, text=True, capture_output=True, env=env)
 
 
 def strip_to_compile(argv, src_to_exclude=None):
@@ -118,12 +122,13 @@ def process_tu(entry):
     # 优先使用arguments字段，如果没有则手动解析command
     if "arguments" in e:
         argv = e["arguments"]
-        # 将完整路径的编译器替换为简单的cl.exe
-        if argv and argv[0].endswith("cl.exe"):
-            argv = ["cl.exe"] + argv[1:]
+        # 保持原始编译器路径，不要简化为cl.exe
+        original_compiler = argv[0]
     else:
-        # 从command字段中提取，但使用cl.exe
-        argv = ["cl.exe"] + e["command"].split()[1:]  # 跳过第一个参数（完整路径的编译器）
+        # 从command字段中提取，保持完整编译器路径
+        argv = e["command"].split()
+        original_compiler = argv[0]
+    
     src = Path(e["file"])
     src_abs = str((cwd / src).resolve())
     
@@ -131,16 +136,54 @@ def process_tu(entry):
         return None
 
     base = Path(src_abs).name
-    objp = str((OBJ / (base + ".obj")).resolve())
     
-    # 编译到 objcache（保持与原 TU 相同宏/包含）
-    # 使用原始编译单元的工作目录
-    cleaned_argv = strip_to_compile(argv, src_abs)
-    cmd = cleaned_argv + ["/c", src_abs, f"/Fo{objp}"]
-    # 使用原始编译单元的工作目录
-    r = run(cmd, cwd)
-    if r.returncode != 0:
-        print(f"[warn] compile failed: {src_abs}\n{r.stderr[:200]}...")
+    # 优先查找已存在的obj文件，避免不必要的重新编译
+    possible_obj_locations = []
+    
+    # 1. 检查compile_commands.json中的output字段
+    if "output" in e and e["output"]:
+        possible_obj_locations.append(cwd / e["output"])
+    
+    # 2. 根据常见的CMake输出模式查找
+    # 例如：common/CMakeFiles/pcbcommon.dir/__/pcbnew/board.cpp.obj
+    src_relative = Path(src_abs).relative_to(ROOT)
+    cmake_patterns = [
+        # 标准CMake模式
+        cwd / src_relative.with_suffix('.cpp.obj'),
+        # pcbcommon库模式  
+        cwd / "common/CMakeFiles/pcbcommon.dir/__" / src_relative.with_suffix('.cpp.obj'),
+        # 其他可能的模式
+        cwd / f"{src_relative.parts[0]}/CMakeFiles/{src_relative.parts[0]}.dir" / src_relative.with_suffix('.cpp.obj'),
+    ]
+    possible_obj_locations.extend(cmake_patterns)
+    
+    # 查找现有obj文件
+    existing_obj = None
+    for possible_obj in possible_obj_locations:
+        if possible_obj.exists() and possible_obj.suffix == ".obj":
+            existing_obj = str(possible_obj.resolve())
+            print(f"[info] using existing obj: {existing_obj}")
+            break
+    
+    if existing_obj:
+        objp = existing_obj
+    else:
+        # 如果没有找到现有obj文件，才进行编译
+        objp = str((OBJ / (base + ".obj")).resolve())
+        
+        # 编译到 objcache（保持与原 TU 相同宏/包含）
+        # 使用原始编译单元的工作目录和完整编译器路径
+        cleaned_argv = strip_to_compile(argv, src_abs)
+        # 确保使用原始编译器路径
+        if cleaned_argv and not cleaned_argv[0].endswith("cl.exe"):
+            cleaned_argv[0] = original_compiler
+        cmd = cleaned_argv + ["/c", src_abs, f"/Fo{objp}"]
+        
+        print(f"[info] compiling {src_abs} -> {objp}")
+        # 使用原始编译单元的工作目录进行编译
+        r = run(cmd, cwd)
+        if r.returncode != 0:
+            print(f"[warn] compile failed: {src_abs}, symbols will be empty")
 
     headers = []
     try:
