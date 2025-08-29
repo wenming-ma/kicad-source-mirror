@@ -87,14 +87,12 @@ class TransitiveClosure:
     
     def get_cpp_dependencies(self, cpp_file: str) -> Set[str]:
         """获取指定cpp文件的头文件依赖"""
+        print(f"  Analyzing: {cpp_file}")
         
         # 在deps.json中查找这个cpp文件
         for tu in self.deps_data.get('translation-units', []):
             for cmd in tu.get('commands', []):
                 input_file = cmd.get('input-file', '')
-                
-                # Debug: 显示包含目标文件名的路径
-                if cpp_file.split('/')[-1] in input_file:
                 
                 # 匹配文件路径 (支持相对路径和绝对路径)
                 if self._path_matches(cpp_file, input_file):
@@ -109,6 +107,7 @@ class TransitiveClosure:
                             normalized = self._normalize_path(dep_file)
                             headers.add(normalized)
                     
+                    print(f"    Found {len(headers)} header dependencies")
                     return headers
         return set()
     
@@ -272,6 +271,7 @@ class TransitiveClosure:
                         if normalized_cpp_impl not in self.processed_cpp:
                             work_queue.add(normalized_cpp_impl)
                             new_cpp_count += 1
+                            print(f"    {normalize_path(header)} -> {normalized_cpp_impl}")
                 
                 if new_cpp_count > 0:
                     print(f"  Discovered {new_cpp_count} new cpp files")
