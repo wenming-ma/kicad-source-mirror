@@ -15,6 +15,10 @@ import argparse
 from pathlib import Path
 from typing import Set, List
 
+def normalize_path(path_str: str) -> str:
+    """标准化路径分隔符为正斜杠"""
+    return path_str.replace('\\', '/')
+
 class TransitiveClosure:
     def __init__(self, deps_json_path: str = "deps.json"):
         self.deps_json_path = Path(deps_json_path)
@@ -80,12 +84,9 @@ class TransitiveClosure:
             self.project_root = common_prefix.replace('\\', '/')
             self.build_root = self.project_root + '/build'
         
-        print(f"Detected project root: {self.project_root}")
-        print(f"Detected build root: {self.build_root}")
     
     def get_cpp_dependencies(self, cpp_file: str) -> Set[str]:
         """获取指定cpp文件的头文件依赖"""
-        print(f"  Analyzing: {cpp_file}")
         
         # 在deps.json中查找这个cpp文件
         for tu in self.deps_data.get('translation-units', []):
@@ -94,12 +95,9 @@ class TransitiveClosure:
                 
                 # Debug: 显示包含目标文件名的路径
                 if cpp_file.split('/')[-1] in input_file:
-                    print(f"    DEBUG: Found similar: {input_file}")
                 
                 # 匹配文件路径 (支持相对路径和绝对路径)
                 if self._path_matches(cpp_file, input_file):
-                    print(f"    Found in deps.json: {input_file}")
-                    
                     headers = set()
                     for dep in cmd.get('file-deps', []):
                         if isinstance(dep, dict):
@@ -111,10 +109,7 @@ class TransitiveClosure:
                             normalized = self._normalize_path(dep_file)
                             headers.add(normalized)
                     
-                    print(f"    Found {len(headers)} header dependencies")
                     return headers
-        
-        print(f"    WARNING: {cpp_file} not found in deps.json")
         return set()
     
     def _path_matches(self, cpp_file: str, input_file: str) -> bool:
@@ -189,8 +184,9 @@ class TransitiveClosure:
         
         base_name = header_path.stem
         source_extensions = ['.cpp', '.cc', '.cxx', '.c']
+        found_cpp = []
         
-        # 搜索候选位置
+        # 策略1: 优先搜索常见位置（快速）
         search_locations = [
             header_path.parent,  # 同目录
             Path('common'),      # common目录
@@ -201,16 +197,39 @@ class TransitiveClosure:
             header_path.parent.parent / 'src' if 'include' in str(header_path) else None,
         ]
         
+        # 特殊处理 include/*/xxx.h -> common/*/xxx.cpp 模式
+        header_str = str(header_path).replace('\\', '/')  # 标准化路径分隔符
+        if header_str.startswith('include/'):
+            # 例如: include/api/serializable.h -> common/api/serializable.cpp
+            relative_path = Path(header_str[8:])  # 去掉 'include/' 前缀
+            if relative_path.parent != Path('.'):  # 如果有子目录
+                common_subdir = Path('common') / relative_path.parent
+                search_locations.append(common_subdir)
+        
         # 移除None值
         search_locations = [loc for loc in search_locations if loc is not None]
         
-        found_cpp = []
+        # 在常见位置搜索
         for location in search_locations:
             for ext in source_extensions:
                 candidate = location / f"{base_name}{ext}"
-                # 检查文件是否实际存在
-                if candidate.exists() or (Path('.') / candidate).exists():
+                if candidate.exists():
                     found_cpp.append(str(candidate))
+        
+        # 策略2: 如果常见位置没找到，使用全局搜索（但限制搜索范围）
+        if not found_cpp:
+            search_dirs = ['common', 'pcbnew', 'eeschema', 'libs', '3d-viewer', 'cvpcb', 
+                          'gerbview', 'kicad', 'pagelayout_editor', 'pcb_calculator', 
+                          'bitmap2component', 'scripting']
+            
+            for search_dir in search_dirs:
+                search_path = Path(search_dir)
+                if search_path.exists():
+                    for ext in source_extensions:
+                        cpp_filename = f"{base_name}{ext}"
+                        matches = list(search_path.glob(f"**/{cpp_filename}"))
+                        for match in matches:
+                            found_cpp.append(str(match))
         
         return found_cpp
     
@@ -236,21 +255,23 @@ class TransitiveClosure:
                 if cpp_file in self.processed_cpp:
                     continue
                 
-                self.processed_cpp.add(cpp_file)
+                self.processed_cpp.add(normalize_path(cpp_file))
                 
                 # 获取头文件依赖
                 headers = self.get_cpp_dependencies(cpp_file)
-                self.all_dependencies.update(headers)
+                # 标准化所有头文件路径
+                normalized_headers = {normalize_path(h) for h in headers}
+                self.all_dependencies.update(normalized_headers)
                 
                 # 为每个头文件寻找cpp实现
                 new_cpp_count = 0
                 for header in headers:
                     cpp_impls = self.find_cpp_for_header(header)
                     for cpp_impl in cpp_impls:
-                        if cpp_impl not in self.processed_cpp:
-                            work_queue.add(cpp_impl)
+                        normalized_cpp_impl = normalize_path(cpp_impl)
+                        if normalized_cpp_impl not in self.processed_cpp:
+                            work_queue.add(normalized_cpp_impl)
                             new_cpp_count += 1
-                            print(f"    {header} -> {cpp_impl}")
                 
                 if new_cpp_count > 0:
                     print(f"  Discovered {new_cpp_count} new cpp files")
@@ -258,7 +279,7 @@ class TransitiveClosure:
             print(f"Next iteration will process {len(work_queue)} files")
             
             # 防止无限循环
-            if iteration > 50:
+            if iteration > 500:
                 print("WARNING: Maximum iterations reached!")
                 break
         
@@ -311,8 +332,9 @@ def main():
         analyzer = TransitiveClosure(args.deps_json)
         analyzer.load_deps_data()
         
-        # 计算传递闭包
-        all_deps = analyzer.compute_transitive_closure(seed_files)
+        # 标准化种子文件路径并计算传递闭包
+        normalized_seed_files = [normalize_path(f) for f in seed_files]
+        all_deps = analyzer.compute_transitive_closure(normalized_seed_files)
         
         # 保存结果
         analyzer.save_results(args.output)
