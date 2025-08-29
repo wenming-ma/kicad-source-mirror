@@ -284,9 +284,8 @@ class TransitiveClosure:
 
 def main():
     parser = argparse.ArgumentParser(description='Compute transitive closure of file dependencies')
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--input-file', '-f', help='Text file with seed files (one per line)')
-    group.add_argument('files', nargs='*', help='Seed files as command line arguments')
+    parser.add_argument('--input-file', '-f', help='Text file with seed files (one per line)')
+    parser.add_argument('files', nargs='*', help='Seed files as command line arguments')
     parser.add_argument('--output', '-o', default='all_dependencies.txt', help='Output file')
     parser.add_argument('--deps-json', default='deps.json', help='Path to deps.json file')
     
@@ -297,8 +296,11 @@ def main():
         print(f"Reading seed files from {args.input_file}")
         with open(args.input_file, 'r', encoding='utf-8') as f:
             seed_files = [line.strip() for line in f if line.strip()]
-    else:
+    elif args.files:
         seed_files = args.files
+    else:
+        print("ERROR: Must provide either --input-file or files as arguments!")
+        return 1
     
     if not seed_files:
         print("ERROR: No seed files provided!")
