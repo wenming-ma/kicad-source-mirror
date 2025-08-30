@@ -40,6 +40,12 @@
       "features": [ "fts5", "fts4", "fts3", "rtree", "session" ]
     },
     "icu",
+    "ngspice",
+    "wxpython",
+    {
+      "name": "libgit2",
+      "features": [ "ssh", "winhttp" ]
+    },
     "nng",
     "protobuf",
     "zstd"
@@ -57,6 +63,10 @@
     {
       "name": "wxwidgets",
       "version": "3.2.8"
+    },
+    {
+      "name": "wxpython",
+      "version": "4.2.2#3"
     },
     {
       "name": "ngspice",

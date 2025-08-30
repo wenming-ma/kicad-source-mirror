@@ -27,7 +27,7 @@ if(CCACHE_PROGRAM)
         if(NOT DEFINED ENV{CCACHE_DIR})
             set(ENV{CCACHE_DIR} "${CMAKE_BINARY_DIR}/.ccache")
         endif()
-        set(ENV{CCACHE_MAXSIZE} "10G")
+        set(ENV{CCACHE_MAXSIZE} "5G")
         set(ENV{CCACHE_SLOPPINESS} "pch_defines,time_macros")
     endif()
     

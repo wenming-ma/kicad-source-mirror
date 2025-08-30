@@ -2,17 +2,39 @@
 import json
 import sys
 import subprocess
+import argparse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD = ROOT / r"build\x64-Debug"  # 如需切换配置，改这里
-CCDB = BUILD / "compile_commands.json"
-SCAN = BUILD / "deps_full.json"
-SEEDS = ROOT / r"scripts\seeds.txt"
-OUT = BUILD / "deps_src.json"
-
 
 def main():
+    parser = argparse.ArgumentParser(description='扫描源文件依赖')
+    parser.add_argument('-b', '--build', 
+                        default='build',
+                        help='构建目录路径 (默认: build)')
+    parser.add_argument('-s', '--seeds',
+                        default=str(ROOT / r"scripts\seeds.txt"),
+                        help='种子文件路径 (默认: scripts/seeds.txt)')
+    args = parser.parse_args()
+    
+    # 设置路径
+    BUILD = ROOT / args.build
+    CCDB = BUILD / "compile_commands.json"
+    SCAN = BUILD / "deps_full.json"
+    SEEDS = Path(args.seeds)
+    OUT = BUILD / "deps_src.json"
+    
+    # 检查编译数据库是否存在
+    if not CCDB.exists():
+        print(f"错误: 编译数据库不存在: {CCDB}")
+        print(f"请先运行CMake生成compile_commands.json:")
+        print(f"  cmake -B {args.build} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON")
+        sys.exit(1)
+    
+    # 检查种子文件是否存在
+    if not SEEDS.exists():
+        print(f"错误: 种子文件不存在: {SEEDS}")
+        sys.exit(1)
     # 1) 调用 clang-scan-deps
     import os
 

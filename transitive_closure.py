@@ -12,12 +12,17 @@
 import json
 import sys
 import argparse
+import os
+import time
 from pathlib import Path
-from typing import Set, List
+from typing import Set, List, Dict, Optional
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
+from multiprocessing import cpu_count
 
 def normalize_path(path_str: str) -> str:
     """标准化路径分隔符为正斜杠"""
     return path_str.replace('\\', '/')
+
 
 class TransitiveClosure:
     def __init__(self, deps_json_path: str = "deps.json"):
@@ -27,6 +32,7 @@ class TransitiveClosure:
         self.all_dependencies = set()
         self.project_root = None
         self.build_root = None
+        self.deps_index = {}  # input_file -> command 的快速查找索引
         
     def load_deps_data(self):
         """加载 deps.json 数据"""
@@ -41,6 +47,9 @@ class TransitiveClosure:
         
         # 动态推断项目根目录
         self._infer_project_paths()
+        
+        # 构建 deps.json 查找索引
+        self._build_deps_index()
     
     def _infer_project_paths(self):
         """从deps.json数据中动态推断项目根目录"""
@@ -83,50 +92,67 @@ class TransitiveClosure:
             # 使用公共前缀作为项目根目录
             self.project_root = common_prefix.replace('\\', '/')
             self.build_root = self.project_root + '/build'
-        
     
-    def get_cpp_dependencies(self, cpp_file: str) -> Set[str]:
-        """获取指定cpp文件的头文件依赖"""
-        print(f"  Analyzing: {cpp_file}")
+    def _build_deps_index(self):
+        """构建 deps.json 的快速查找索引"""
+        print("Building deps.json lookup index...")
+        start_time = time.time()
         
-        # 在deps.json中查找这个cpp文件
+        self.deps_index = {}
+        
         for tu in self.deps_data.get('translation-units', []):
             for cmd in tu.get('commands', []):
                 input_file = cmd.get('input-file', '')
-                
-                # 匹配文件路径 (支持相对路径和绝对路径)
-                if self._path_matches(cpp_file, input_file):
-                    headers = set()
-                    for dep in cmd.get('file-deps', []):
-                        if isinstance(dep, dict):
-                            dep_file = dep.get('file-entry', '')
-                        else:
-                            dep_file = dep
-                        
-                        if dep_file and self._should_include(dep_file):
-                            normalized = self._normalize_path(dep_file)
-                            headers.add(normalized)
-                    
-                    print(f"    Found {len(headers)} header dependencies")
-                    return headers
-        return set()
-    
-    def _path_matches(self, cpp_file: str, input_file: str) -> bool:
-        """检查路径是否匹配"""
-        # 将cpp_file转换为绝对路径
-        if not cpp_file.startswith(('/', '\\')):
-            # 相对路径，添加项目根目录
-            expected_absolute = f"{self.project_root}/{cpp_file}"
-        else:
-            expected_absolute = cpp_file
-            
-        # 标准化两个路径进行比较
-        import os
-        expected_normalized = os.path.normpath(expected_absolute).replace('\\', '/')
-        input_normalized = os.path.normpath(input_file).replace('\\', '/')
+                if input_file:
+                    # 标准化路径作为键
+                    normalized_key = os.path.normpath(input_file).replace('\\', '/')
+                    self.deps_index[normalized_key] = cmd
         
-        # 严格匹配：只有完全匹配才认为是同一个文件  
-        return input_normalized == expected_normalized
+        elapsed = time.time() - start_time
+        print(f"Built deps index with {len(self.deps_index)} entries in {elapsed:.3f}s")
+    
+    def get_cpp_dependencies(self, cpp_file: str) -> Set[str]:
+        """获取指定cpp文件的头文件依赖 - 使用索引优化"""        
+        # 使用索引快速查找
+        cmd = self._find_command_by_file(cpp_file)
+        if not cmd:
+            return set()
+        
+        headers = set()
+        for dep in cmd.get('file-deps', []):
+            if isinstance(dep, dict):
+                dep_file = dep.get('file-entry', '')
+            else:
+                dep_file = dep
+            
+            if dep_file and self._should_include(dep_file):
+                normalized = self._normalize_path(dep_file)
+                headers.add(normalized)
+        
+        return headers
+    
+    def _find_command_by_file(self, cpp_file: str) -> Optional[Dict]:
+        """使用索引快速查找文件对应的命令"""
+        # 标准化输入路径
+        cpp_file = cpp_file.replace('\\', '/')
+        
+        # 构建可能的完整路径
+        if os.path.isabs(cpp_file):
+            # 已经是绝对路径
+            full_path = os.path.normpath(cpp_file).replace('\\', '/')
+        else:
+            # 相对路径，需要加上项目根目录
+            full_path = os.path.normpath(f"{self.project_root}/{cpp_file}").replace('\\', '/')
+        
+        # 在索引中查找
+        if full_path in self.deps_index:
+            return self.deps_index[full_path]
+        
+        # 如果没找到，打印调试信息
+        print(f"  WARNING: Could not find {cpp_file} in deps.json")
+        print(f"    Tried path: {full_path}")
+        
+        return None
     
     def _should_include(self, file_path: str) -> bool:
         """判断是否应该包含这个依赖"""
@@ -175,62 +201,94 @@ class TransitiveClosure:
         return path
     
     def find_cpp_for_header(self, header_path: str) -> List[str]:
-        """为头文件寻找对应的cpp实现"""
-        header_path = Path(header_path)
+        """在 deps.json 索引中查找可能对应的 cpp 文件"""
+        header_path_obj = Path(header_path)
         
-        if header_path.suffix.lower() not in ['.h', '.hpp', '.hxx']:
+        if header_path_obj.suffix.lower() not in ['.h', '.hpp', '.hxx']:
             return []
         
-        base_name = header_path.stem
-        source_extensions = ['.cpp', '.cc', '.cxx', '.c']
+        base_name = header_path_obj.stem
         found_cpp = []
         
-        # 策略1: 优先搜索常见位置（快速）
-        search_locations = [
-            header_path.parent,  # 同目录
-            Path('common'),      # common目录
-            Path('libs/core/src'),
-            Path('libs/kimath/src'), 
-            Path('pcbnew'),
-            Path('eeschema'),
-            header_path.parent.parent / 'src' if 'include' in str(header_path) else None,
+        # 在 deps.json 索引中查找所有可能的 cpp 文件名
+        possible_cpp_names = [
+            f"{base_name}.cpp",
+            f"{base_name}.cc", 
+            f"{base_name}.cxx",
+            f"{base_name}.c"
         ]
         
-        # 特殊处理 include/*/xxx.h -> common/*/xxx.cpp 模式
-        header_str = str(header_path).replace('\\', '/')  # 标准化路径分隔符
-        if header_str.startswith('include/'):
-            # 例如: include/api/serializable.h -> common/api/serializable.cpp
-            relative_path = Path(header_str[8:])  # 去掉 'include/' 前缀
-            if relative_path.parent != Path('.'):  # 如果有子目录
-                common_subdir = Path('common') / relative_path.parent
-                search_locations.append(common_subdir)
+        # 搜索常见的 cpp 文件位置模式
+        header_dir = header_path_obj.parent
+        possible_locations = [
+            header_dir,  # 同目录
+            Path('common'),
+            Path('common') / header_dir.name if 'include' in str(header_path) else None,
+            Path('libs/core/src'),
+            Path('libs/kimath/src'),
+            Path('pcbnew'),
+            Path('eeschema'),
+        ]
         
-        # 移除None值
-        search_locations = [loc for loc in search_locations if loc is not None]
-        
-        # 在常见位置搜索
-        for location in search_locations:
-            for ext in source_extensions:
-                candidate = location / f"{base_name}{ext}"
-                if candidate.exists():
-                    found_cpp.append(str(candidate))
-        
-        # 策略2: 如果常见位置没找到，使用全局搜索（但限制搜索范围）
-        if not found_cpp:
-            search_dirs = ['common', 'pcbnew', 'eeschema', 'libs', '3d-viewer', 'cvpcb', 
-                          'gerbview', 'kicad', 'pagelayout_editor', 'pcb_calculator', 
-                          'bitmap2component', 'scripting']
-            
-            for search_dir in search_dirs:
-                search_path = Path(search_dir)
-                if search_path.exists():
-                    for ext in source_extensions:
-                        cpp_filename = f"{base_name}{ext}"
-                        matches = list(search_path.glob(f"**/{cpp_filename}"))
-                        for match in matches:
-                            found_cpp.append(str(match))
+        # 在 deps.json 索引中查找
+        for location in possible_locations:
+            if location is None:
+                continue
+            for cpp_name in possible_cpp_names:
+                # 构建可能的完整路径
+                possible_path = location / cpp_name
+                normalized_path = str(possible_path).replace('\\', '/')
+                
+                # 尝试在索引中查找（需要考虑项目根目录前缀）
+                full_path = f"{self.project_root}/{normalized_path}".replace('\\', '/')
+                full_path_normalized = os.path.normpath(full_path).replace('\\', '/')
+                
+                if full_path_normalized in self.deps_index:
+                    found_cpp.append(normalized_path)
         
         return found_cpp
+    
+    
+    def _process_batch_parallel(self, batch: Set[str]) -> List:
+        """并行处理一批cpp文件"""
+        # 过滤出未处理的文件
+        to_process = [f for f in batch if f not in self.processed_cpp]
+        
+        if not to_process:
+            return []
+        
+        max_workers = min(len(to_process), cpu_count())
+        results = []
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_file = {
+                executor.submit(self._process_single_cpp, cpp_file): cpp_file 
+                for cpp_file in to_process
+            }
+            
+            for future in as_completed(future_to_file):
+                cpp_file = future_to_file[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    print(f"Error processing {cpp_file}: {e}")
+                    results.append(None)
+        
+        return results
+    
+    def _process_single_cpp(self, cpp_file: str):
+        """处理单个cpp文件 - 工作线程函数"""
+        # 获取头文件依赖
+        headers = self.get_cpp_dependencies(cpp_file)
+        
+        # 为每个头文件寻找cpp实现
+        new_cpp_files = []
+        for header in headers:
+            cpp_impls = self.find_cpp_for_header(header)
+            new_cpp_files.extend(cpp_impls)
+        
+        return cpp_file, headers, new_cpp_files
     
     def compute_transitive_closure(self, seed_files: List[str]) -> Set[str]:
         """计算传递闭包"""
@@ -250,42 +308,38 @@ class TransitiveClosure:
             current_batch = work_queue.copy()
             work_queue.clear()
             
-            for cpp_file in current_batch:
-                if cpp_file in self.processed_cpp:
-                    continue
-                
-                self.processed_cpp.add(normalize_path(cpp_file))
-                
-                # 获取头文件依赖
-                headers = self.get_cpp_dependencies(cpp_file)
-                # 标准化所有头文件路径
-                normalized_headers = {normalize_path(h) for h in headers}
-                self.all_dependencies.update(normalized_headers)
-                
-                # 为每个头文件寻找cpp实现
-                new_cpp_count = 0
-                for header in headers:
-                    cpp_impls = self.find_cpp_for_header(header)
-                    for cpp_impl in cpp_impls:
+            # 并行处理当前批次
+            batch_results = self._process_batch_parallel(current_batch)
+            
+            # 合并结果
+            new_files_count = 0
+            for result in batch_results:
+                if result:
+                    cpp_file, headers, new_cpp_files = result
+                    self.processed_cpp.add(normalize_path(cpp_file))
+                    
+                    # 添加头文件依赖
+                    normalized_headers = {normalize_path(h) for h in headers}
+                    self.all_dependencies.update(normalized_headers)
+                    
+                    # 添加新发现的cpp文件到工作队列
+                    for cpp_impl in new_cpp_files:
                         normalized_cpp_impl = normalize_path(cpp_impl)
                         if normalized_cpp_impl not in self.processed_cpp:
                             work_queue.add(normalized_cpp_impl)
-                            new_cpp_count += 1
-                            print(f"    {normalize_path(header)} -> {normalized_cpp_impl}")
-                
-                if new_cpp_count > 0:
-                    print(f"  Discovered {new_cpp_count} new cpp files")
+                            new_files_count += 1
             
-            print(f"Next iteration will process {len(work_queue)} files")
+            # 显示当前收集到的唯一文件总数
+            total_cpp = len(self.processed_cpp)
+            total_headers = len(self.all_dependencies)
+            print(f"  Collection: {total_cpp} cpp files, {total_headers} headers")
             
             # 防止无限循环
-            if iteration > 500:
+            if iteration > 50:
                 print("WARNING: Maximum iterations reached!")
                 break
         
-        print(f"\\nTransitive closure completed!")
-        print(f"Processed {len(self.processed_cpp)} cpp files")
-        print(f"Found {len(self.all_dependencies)} total dependencies")
+        print(f"\\nFinal collection: {len(self.processed_cpp)} cpp files, {len(self.all_dependencies)} headers")
         
         # 返回所有依赖 (头文件 + cpp文件)
         return self.all_dependencies | self.processed_cpp
@@ -298,10 +352,7 @@ class TransitiveClosure:
             for file_path in sorted(all_files):
                 f.write(f"{file_path}\n")
         
-        print(f"\nResults saved to {output_file}")
-        print(f"Total files: {len(all_files)}")
-        print(f"  - Header files: {len(self.all_dependencies)}")
-        print(f"  - Source files: {len(self.processed_cpp)}")
+        print(f"\nSaved {len(self.processed_cpp)} cpp files to {output_file}")
 
 def main():
     parser = argparse.ArgumentParser(description='Compute transitive closure of file dependencies')
