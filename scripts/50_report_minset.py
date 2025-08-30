@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD = ROOT / r"build\x64-Debug"
+BUILD = ROOT / r"build"
 SRCJ = BUILD / "minset_sources.json"
 HDRJ = BUILD / "minset_headers.json"
 UNRS = BUILD / "unresolved_symbols.json"
