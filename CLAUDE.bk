@@ -1,15 +1,15 @@
 # KiCad PCB依赖分析与最小集合提取指导
 
 ## 🎯 当前任务目标
-**使用现有的transitive_closure.py工具，从BOARD和FOOTPRINT核心数据相关的种子文件开始，通过依赖闭包分析找到最小可编译集合**
+**使用scripts目录中的新方法收集最小编译集合，基于符号依赖闭包分析找到精确的最小可编译集合**
 
-使用已有的依赖分析工具，精确计算出最小依赖集合。
+使用改进的三阶段依赖分析工具，精确计算出最小依赖集合。
 
 ## 📊 策略概述
-- **分析方法**: 使用现有的 transitive_closure.py 脚本
-- **分析工具**: `C:\Users\wenming_ma\source\repos\kicad-source-mirror\transitive_closure.py`
-- **种子文件**: KiCad BOARD和FOOTPRINT相关的核心数据文件
-- **输出结果**: 最小可编译源文件集合 + 最小头文件集合
+- **分析方法**: 使用scripts目录中的三阶段分析流程
+- **分析工具**: `scripts/20_build_tu_index.py` → `scripts/30_resolve_minset.py`
+- **种子文件**: KiCad PCB IO核心文件 (`pcb_io_kicad_sexpr_parser.cpp` 等)
+- **输出结果**: 最小可编译源文件集合 + 符号依赖分析
 
 ## 🛠️ 第三方依赖管理策略
 
@@ -30,82 +30,96 @@
 ### 🎯 依赖分析目标
 **通过精确的依赖分析，一次性找到完整的最小依赖集合，避免试错编译的低效过程**
 
-## 🛠️ 使用transitive_closure.py工具
+## 🛠️ 使用scripts目录中的三阶段分析流程
 
 ### 工具说明
-使用现有的 `transitive_closure.py` 脚本来收集最小编译集合。该脚本位于：
-`C:\Users\wenming_ma\source\repos\kicad-source-mirror\transitive_closure.py`
+使用scripts目录中的改进版三阶段分析流程：
+1. `scripts/20_build_tu_index.py` - 构建翻译单元符号索引
+2. `scripts/30_resolve_minset.py` - 基于符号依赖解析最小集合
 
 ### 工具准备
 - **Python 3.10+**: 确保Python环境可用
-- **现有脚本**: 使用项目中已有的transitive_closure.py
+- **符号提取工具**: dumpbin.exe (MSVC) 或 objdump (GCC)
+- **编译环境**: 确保KiCad已编译完成
 
 ### 种子文件配置
-包含BOARD和FOOTPRINT核心数据相关的.cpp文件：
+种子文件在 `scripts/seeds.txt` 中配置：
 ```
-pcbnew/board.cpp
-pcbnew/footprint.cpp  
-pcbnew/pad.cpp
-pcbnew/zone.cpp
-pcbnew/track.cpp
-pcbnew/board_item.cpp
-pcbnew/pcb_shape.cpp
+pcb_io_kicad_sexpr_parser.cpp
 ```
 
-### 分析流程
-使用 transitive_closure.py 工具：
-1. **依赖分析** - 从种子文件开始分析传递闭包依赖
-2. **最小集合计算** - 计算最小可编译源文件集合
-3. **头文件收集** - 收集对应的头文件集合
-4. **输出结果** - 生成依赖列表和汇总报告
+### 三阶段分析流程
+1. **阶段1 - 符号索引构建**: `scripts/20_build_tu_index.py`
+   - 扫描编译产物(obj文件)
+   - 提取每个翻译单元的已定义和未定义符号
+   - 构建符号到源文件的映射关系
+
+2. **阶段2 - 依赖闭包解析**: `scripts/30_resolve_minset.py`  
+   - 从种子文件开始迭代
+   - 解析内部符号依赖(排除外部库符号)
+   - 计算符号传递闭包直至收敛
+
+3. **阶段3 - 结果输出**:
+   - `build/minset_sources.json` - 最小源文件集合
+   - `build/unresolved_symbols.json` - 未解析符号(主要是外部库符号)
 
 ## 📋 执行检查清单
 
 ### 工具环境验证
 - [ ] Python 3.10+环境就绪
-- [ ] transitive_closure.py脚本存在且可执行
-- [ ] 种子文件路径正确
+- [ ] dumpbin.exe或objdump工具可用
+- [ ] KiCad项目已成功编译，obj文件存在
+- [ ] scripts目录中的分析脚本存在
 
 ### 执行验证  
-- [ ] 种子文件列表准备完成
-- [ ] 脚本执行无错误
+- [ ] 种子文件在seeds.txt中配置完成
+- [ ] 符号索引构建成功
+- [ ] 依赖闭包计算收敛
 - [ ] 输出文件完整生成
-- [ ] 依赖集合在合理范围内
 
 ### 结果质量验证
 - [ ] 最小集合包含所有种子文件
-- [ ] 源文件数量在预期范围(通常几十到几百个)
-- [ ] 头文件闭包包含核心依赖
-- [ ] 外部依赖被正确识别
+- [ ] 源文件数量在合理范围
+- [ ] 未解析符号主要为外部库符号
+- [ ] 外部依赖符号被正确过滤
 
 ## 🚀 执行命令序列
 
-### 直接执行transitive_closure.py
+### 三阶段执行流程
 ```powershell
 # 在KiCad源码根目录执行
-python transitive_closure.py
+
+# 阶段1: 构建符号索引
+python scripts/20_build_tu_index.py
+
+# 阶段2: 解析最小集合
+python scripts/30_resolve_minset.py
+
+# 检查结果
+type build\minset_sources.json
+type build\unresolved_symbols.json
 ```
 
 ## 📊 预期输出规模
-基于BOARD/FOOTPRINT核心数据文件的预估：
-- **最小源文件集合**: 50-200个.cpp文件
-- **最小头文件集合**: 200-800个.h文件  
-- **外部依赖**: thirdparty和vcpkg依赖
-- **处理时间**: 取决于transitive_closure.py的实现
+基于PCB IO核心文件的符号依赖分析预估：
+- **最小源文件集合**: 根据符号闭包计算确定
+- **未解析符号**: 主要为外部库符号(boost, wx, cairo等)
+- **外部依赖**: thirdparty和vcpkg依赖通过符号前缀识别
+- **处理时间**: 取决于编译产物规模和符号复杂度
 
 ## ⚠️ 重要提醒
 
-1. **脚本使用** - 直接使用现有的transitive_closure.py脚本
-2. **路径处理** - 确保Windows路径格式正确
-3. **种子文件** - 确认BOARD/FOOTPRINT相关的核心文件作为起点
-4. **输出验证** - 检查生成的依赖列表完整性
+1. **符号分析** - 基于编译产物的符号依赖，比文本分析更精确
+2. **外部库过滤** - 通过EXTERNAL_HINTS正确识别外部库符号
+3. **种子配置** - seeds.txt中配置PCB IO相关核心文件
+4. **收敛验证** - 确保符号闭包迭代收敛，无循环依赖
 
 ## 🎯 成功标准
 
-当分析完成后，应该获得：
-- **精确的最小依赖集合** - 通过transitive_closure.py计算得出
-- **完整的依赖闭包** - 包含所有必需的源文件和头文件
-- **清晰的外部依赖列表** - thirdparty和vcpkg依赖明确
-- **可执行的复制清单** - 可直接用于文件复制操作
+当三阶段分析完成后，应该获得：
+- **精确的最小依赖集合** - 通过符号依赖闭包计算得出
+- **完整的符号映射** - build/tu_index.json包含详细符号信息
+- **清晰的外部依赖识别** - 未解析符号主要为外部库
+- **可执行的复制清单** - minset_sources.json可直接用于文件复制
 
-此时可以基于分析结果，精确复制所需文件到qt_pcb_project目录，开始Qt化改造工作。
+此时可以基于符号级精确分析结果，复制最小必要文件到qt_pcb_project目录，开始Qt化改造工作。

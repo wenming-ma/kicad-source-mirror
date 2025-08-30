@@ -43,6 +43,24 @@ EXTERNAL_HINTS = [
     "curl_", "SSL_", "socket_", "inet_",
     # 其他常见第三方库
     "cairo_", "pango_", "glib_", "gtk_", "gdk_",
+    # OpenGL相关
+    "glew", "GLEW_", "gl", "GL_", "glm::", "glut",
+    # 国际化库
+    "gettext_", "libintl_",
+    # 文本塑形库
+    "hb_", "harfbuzz_",
+    # CAD内核
+    "OCC", "OpenCASCADE", "Standard_", "Handle_",
+    # Unicode库
+    "icu_", "U_", "UCHAR_",
+    # 电路仿真
+    "ng_", "spice_",
+    # Git库
+    "git_",
+    # 消息库
+    "nng_",
+    # 压缩库扩展
+    "ZSTD_", "zstd",
     # Python
     "Py", "PyObject", "_Py",
     # 编译器内建

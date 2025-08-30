@@ -79,19 +79,79 @@ def strip_to_compile(argv, src_to_exclude=None):
 
 
 def deps_for_src(cmd, cwd, src_abs):
-    dep_cmd = cmd + ["-M", "-MG", "-MF", "-", src_abs]
-    p = run(dep_cmd, cwd)
+    # Check if this is MSVC compiler
+    is_msvc = any('cl.exe' in arg.lower() for arg in cmd)
+    
     deps = set()
-    txt = p.stdout.replace("\\\n", " ")
-    import shlex as _sh
+    
+    if is_msvc:
+        # For MSVC, use /showIncludes instead of -M
+        dep_cmd = cmd + ["/showIncludes", "/c", "/Fonul", src_abs]
+        p = run(dep_cmd, cwd)
+        
+        # Parse MSVC's /showIncludes output
+        # Format is "Note: including file: <path>"
+        for line in p.stdout.splitlines():
+            if "Note: including file:" in line:
+                # Extract the path after "Note: including file:"
+                path_part = line.split("Note: including file:", 1)[1].strip()
+                if path_part:
+                    try:
+                        resolved = str(Path(path_part).resolve())
+                        # Only add header files
+                        if any(resolved.endswith(ext) for ext in ['.h', '.hpp', '.hxx', '.hh', '.H', '.inl', '.inc']):
+                            deps.add(resolved)
+                    except:
+                        pass
+    else:
+        # For GCC/Clang, use -M
+        dep_cmd = cmd + ["-M", "-MG", "-MF", "-", src_abs]
+        p = run(dep_cmd, cwd)
+        txt = p.stdout.replace("\\\n", " ")
+        import shlex as _sh
 
-    for line in txt.splitlines():
-        if ":" not in line:
-            continue
-        rhs = line.split(":", 1)[1]
-        for tok in _sh.split(rhs):
-            if tok.strip():
-                deps.add(str(Path(tok).resolve()))
+        for line in txt.splitlines():
+            if ":" not in line:
+                continue
+            
+            # Skip error messages
+            if any(error in line for error in ["error:", "Error:", "fatal error:", "warning:"]):
+                continue
+                
+            # Find the colon separator (handling Windows drive letters)
+            colon_pos = -1
+            i = 0
+            while i < len(line):
+                if line[i] == ':':
+                    # Check if this is a drive letter (e.g., "C:")
+                    if i == 1 and i < len(line) - 1 and line[0].isalpha() and line[2] in ('\\', '/'):
+                        i += 1
+                        continue
+                    else:
+                        colon_pos = i
+                        break
+                i += 1
+            
+            if colon_pos == -1:
+                continue
+                
+            rhs = line[colon_pos + 1:].strip()
+            
+            # Parse the dependency list
+            try:
+                for tok in _sh.split(rhs):
+                    tok = tok.strip()
+                    if tok:
+                        try:
+                            resolved = str(Path(tok).resolve())
+                            # Only add header files
+                            if any(resolved.endswith(ext) for ext in ['.h', '.hpp', '.hxx', '.hh', '.H', '.inl', '.inc']):
+                                deps.add(resolved)
+                        except:
+                            pass
+            except:
+                pass
+                
     return sorted(deps)
 
 
@@ -130,7 +190,7 @@ def process_tu(entry):
         original_compiler = argv[0]
     
     src = Path(e["file"])
-    src_abs = str((cwd / src).resolve())
+    src_abs = str(src.resolve())
     
     if not src_abs.endswith((".c", ".cc", ".cpp", ".cxx", ".mm", ".m")):
         return None
@@ -210,13 +270,13 @@ def main():
     
     # 只处理C/C++文件
     cpp_entries = [e for e in comp 
-                   if str(Path(e["directory"]) / Path(e["file"])).endswith((".c", ".cc", ".cpp", ".cxx", ".mm", ".m"))]
+                   if e["file"].endswith((".c", ".cc", ".cpp", ".cxx", ".mm", ".m"))]
     
-    print(f"处理 {len(cpp_entries)} 个C/C++编译单元...")
+    print(f"Processing {len(cpp_entries)} C/C++ compilation units...")
     
     # 使用线程池并行处理（I/O密集型任务）
     max_workers = min(multiprocessing.cpu_count() * 2, len(cpp_entries))
-    print(f"使用 {max_workers} 个并发线程...")
+    print(f"Using {max_workers} concurrent threads...")
     
     items = []
     completed_count = 0
@@ -233,9 +293,9 @@ def main():
             
             completed_count += 1
             if completed_count % 50 == 0:
-                print(f"进度: {completed_count}/{len(cpp_entries)} ({completed_count/len(cpp_entries)*100:.1f}%)")
+                print(f"Progress: {completed_count}/{len(cpp_entries)} ({completed_count/len(cpp_entries)*100:.1f}%)")
 
-    print(f"完成处理 {len(items)} 个有效编译单元")
+    print(f"Completed processing {len(items)} valid compilation units")
     
     OUT.write_text(
         json.dumps({"generated_at": iso(), "items": items}, indent=2), encoding="utf-8"
