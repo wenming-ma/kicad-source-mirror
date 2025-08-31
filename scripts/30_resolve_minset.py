@@ -86,7 +86,7 @@ def main():
         if s.strip() and not s.strip().startswith("#")
     }
     S = {s for s in seeds if s in per}
-    print(f"初始种子文件: {len(S)} 个")
+    print(f"Initial seed files: {len(S)} files")
 
     iteration = 0
     changed = True
@@ -106,7 +106,7 @@ def main():
         missing = {m for m in (required - provided) if not is_external(m)}
         initial_missing_count = len(missing)
         
-        print(f"迭代 {iteration}: 集合大小={len(S)}, 提供符号={len(provided)}, 需要符号={len(required)}, 缺失内部符号={initial_missing_count}")
+        print(f"Iteration {iteration}: size={len(S)}, provided={len(provided)}, required={len(required)}, missing={initial_missing_count}")
         
         # 为缺失符号找提供者
         added_this_round = 0
@@ -119,14 +119,14 @@ def main():
                 changed = True
         
         if added_this_round > 0:
-            print(f"  -> 添加了 {added_this_round} 个新源文件")
+            print(f"  -> Added {added_this_round} new source files")
         
         # 防止无限循环
         if iteration > 100:
-            print("警告: 达到最大迭代次数，可能存在循环依赖")
+            print("Warning: Maximum iterations reached, possible circular dependency")
             break
     
-    print(f"符号闭包收敛，最终集合大小: {len(S)} 个源文件")
+    print(f"Symbol closure converged, final set size: {len(S)} source files")
 
     provided = set()
     required = set()
