@@ -1,0 +1,30 @@
+#ifndef QT_PCB_PROJECT_CONFIG_H
+#define QT_PCB_PROJECT_CONFIG_H
+
+// Build configuration
+#cmakedefine KICAD_USE_EGL
+
+// Version information
+#define KICAD_VERSION_MAJOR @KICAD_VERSION_MAJOR@
+#define KICAD_VERSION_MINOR @KICAD_VERSION_MINOR@
+#define KICAD_VERSION_PATCH @KICAD_VERSION_PATCH@
+#define KICAD_VERSION "@KICAD_VERSION@"
+
+// Build type
+#cmakedefine DEBUG
+#cmakedefine NDEBUG
+
+// Platform detection
+#cmakedefine KICAD_WINDOWS
+#cmakedefine KICAD_LINUX
+#cmakedefine KICAD_MACOS
+
+// Python support
+#cmakedefine KICAD_SCRIPTING
+#cmakedefine KICAD_SCRIPTING_PYTHON3
+
+// Library paths
+#define KICAD_LIB_DIR "@CMAKE_INSTALL_LIBDIR@"
+#define KICAD_DATA_DIR "@CMAKE_INSTALL_DATADIR@"
+
+#endif // QT_PCB_PROJECT_CONFIG_H
