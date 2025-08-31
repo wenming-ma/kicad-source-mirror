@@ -55,6 +55,22 @@ The `scripts/claude.md` file contains:
 - Maintain same target names and dependencies as original
 - Use same compiler flags and definitions as KiCad
 
+#### 🚨 Critical Debugging Principle:
+**NEVER modify source code during compilation issues - focus on missing files and paths**
+
+When encountering compilation errors:
+1. **DO NOT modify source code** - KiCad's original files are proven to compile successfully
+2. **Identify missing dependencies**: Check for missing header files, generated files, or build artifacts
+3. **Fix path issues**: Ensure all include directories and build paths are correctly configured
+4. **Copy missing files**: If files are missing, copy them from original KiCad build directory
+5. **Preserve original logic**: Keep all source code identical to KiCad's working version
+
+**Root Cause**: If KiCad compiles successfully, copied subset should too - issues are always:
+- Missing header files or generated files
+- Incorrect include paths or build configuration  
+- Missing build artifacts (config.h, version headers, etc.)
+- Incomplete file copying from original build
+
 ### Execution Steps
 ```powershell
 # Step 1: Execute copying script
@@ -65,3 +81,21 @@ ls qt_pcb_project
 ```
 
 **Implementation details in: `scripts/60_copy_minset.py`**
+
+## 📦 Minimum Set Third-party Dependencies
+
+**Analysis results saved in: `build/minset_thirdparty_deps.json`**
+
+### Required Libraries (13 total)
+- **wxwidgets** - Used by 281 files (core UI framework)
+- **opencascade** - Used by 197 files (3D geometry)
+- **boost** - Used by 142 files (utilities)
+- **glm** - Used by 26 files (math)
+- **protobuf** - Used by 25 files (serialization)
+- **python** - Used by 3 files
+- **curl** - Used by 3 files
+- **harfbuzz, nng, opengl** - Used by 2 files each
+- **libgit2, ngspice, zstd** - Used by 1 file each
+
+### Required vcpkg Packages (25)
+boost-algorithm, boost-bimap, boost-filesystem, boost-functional, boost-iterator, boost-locale, boost-optional, boost-property-tree, boost-ptr-container, boost-random, boost-range, boost-test, boost-uuid, curl, glm, harfbuzz, libgit2, ngspice, nng, opencascade, opengl, protobuf, python3, wxwidgets, zstd
