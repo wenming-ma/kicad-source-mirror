@@ -10,7 +10,7 @@ include_directories( BEFORE ${INC_BEFORE} )
 include_directories( ${INC_AFTER} )
 
 set( BITMAP2COMPONENT_SRCS
-    ${CMAKE_SOURCE_DIR}/common/single_top.cpp
+    # ${CMAKE_SOURCE_DIR}/common/single_top.cpp  # NOT in minset: single_top.cpp
     bitmap2cmp_control.cpp
     bitmap2cmp_main.cpp
     bitmap2cmp_settings.cpp
@@ -21,7 +21,7 @@ set( BITMAP2COMPONENT_SRCS
     bitmap2cmp_panel_base.cpp
     )
 
-set_source_files_properties( ${CMAKE_SOURCE_DIR}/common/single_top.cpp PROPERTIES
+# set_source_files_properties( ${CMAKE_SOURCE_DIR}/common/single_top.cpp PROPERTIES  # NOT in minset: single_top.cpp
     COMPILE_DEFINITIONS     "TOP_FRAME=FRAME_BM2CMP"
     )
 

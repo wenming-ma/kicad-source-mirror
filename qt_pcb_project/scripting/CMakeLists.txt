@@ -1,5 +1,5 @@
 set( KIPYTHON_SRCS
-    kipython_settings.cpp
+    # kipython_settings.cpp  # NOT in minset: kipython_settings.cpp
 )
 
 add_library( scripting STATIC
@@ -29,12 +29,12 @@ target_include_directories( scripting PRIVATE
 
 # Setup the KIFACE
 add_library( scripting_kiface MODULE
-    kicad_scripting_main.cpp
-    kipython_frame.cpp
+    # kicad_scripting_main.cpp  # NOT in minset: kicad_scripting_main.cpp
+    # kipython_frame.cpp  # NOT in minset: kipython_frame.cpp
     ${KIPYTHON_SRCS}
     )
 
-set_source_files_properties( kicad_scripting_main.cpp PROPERTIES
+# set_source_files_properties( kicad_scripting_main.cpp PROPERTIES  # NOT in minset: kicad_scripting_main.cpp
     # The KIFACE is in kicad_scripting_main.cpp, export it:
     COMPILE_DEFINITIONS     "BUILD_KIWAY_DLL;COMPILING_DLL"
     )

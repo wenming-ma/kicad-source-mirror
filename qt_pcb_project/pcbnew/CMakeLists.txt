@@ -31,284 +31,284 @@ include_directories(
     )
 
 set( PCBNEW_DIALOGS
-    dialogs/dialog_filter_selection.cpp
-    dialogs/dialog_filter_selection_base.cpp
-    dialogs/dialog_board_setup.cpp
-    dialogs/dialog_board_statistics.cpp
-    dialogs/dialog_board_statistics_base.cpp
-    dialogs/dialog_board_reannotate.cpp
-    dialogs/dialog_board_reannotate_base.cpp
-    dialogs/dialog_cleanup_graphics.cpp
-    dialogs/dialog_cleanup_graphics_base.cpp
-    dialogs/dialog_cleanup_tracks_and_vias.cpp
-    dialogs/dialog_cleanup_tracks_and_vias_base.cpp
-    dialogs/dialog_copper_zones.cpp
-    dialogs/dialog_copper_zones_base.cpp
-    dialogs/dialog_create_array.cpp
-    dialogs/dialog_create_array_base.cpp
-    dialogs/dialog_dimension_properties.cpp
-    dialogs/dialog_dimension_properties_base.cpp
-    dialogs/dialog_drc.cpp
-    dialogs/dialog_drc_base.cpp
-    dialogs/dialog_drc_job_config.cpp
-    dialogs/dialog_footprint_associations.cpp
-    dialogs/dialog_footprint_associations_base.cpp
-    dialogs/dialog_footprint_checker.cpp
-    dialogs/dialog_footprint_checker_base.cpp
-    dialogs/dialog_footprint_properties.cpp
-    dialogs/dialog_footprint_properties_base.cpp
-    dialogs/dialog_footprint_properties_fp_editor.cpp
-    dialogs/dialog_footprint_properties_fp_editor_base.cpp
-    dialogs/dialog_enum_pads.cpp
-    dialogs/dialog_enum_pads_base.cpp
-    dialogs/dialog_exchange_footprints.cpp
-    dialogs/dialog_exchange_footprints_base.cpp
-    dialogs/dialog_export_2581.cpp
-    dialogs/dialog_export_2581_base.cpp
-    dialogs/dialog_export_idf.cpp
-    dialogs/dialog_export_idf_base.cpp
-    dialogs/dialog_export_step.cpp
-    dialogs/dialog_export_odbpp.cpp
-    dialogs/dialog_export_odbpp_base.cpp
-    dialogs/dialog_export_step_base.cpp
-    dialogs/dialog_export_step_process.cpp
-    dialogs/dialog_export_step_process_base.cpp
-    dialogs/dialog_export_vrml.cpp
-    dialogs/dialog_export_vrml_base.cpp
-    dialogs/dialog_find.cpp
-    dialogs/dialog_find_base.cpp
-    dialogs/dialog_footprint_wizard_list.cpp
-    dialogs/dialog_footprint_wizard_list_base.cpp
-    dialogs/dialog_gen_footprint_position.cpp
-    dialogs/dialog_gen_footprint_position_file_base.cpp
-    dialogs/dialog_gencad_export_options.cpp
-    dialogs/dialog_gendrill.cpp
-    dialogs/dialog_gendrill_base.cpp
-    dialogs/dialog_generators.cpp
-    dialogs/dialog_generators_base.cpp
-    dialogs/dialog_get_footprint_by_name.cpp
-    dialogs/dialog_get_footprint_by_name_base.cpp
-    dialogs/dialog_global_deletion.cpp
-    dialogs/dialog_global_deletion_base.cpp
-    dialogs/dialog_global_edit_tracks_and_vias.cpp
-    dialogs/dialog_global_edit_tracks_and_vias_base.cpp
-    dialogs/dialog_global_edit_teardrops.cpp
-    dialogs/dialog_global_edit_teardrops_base.cpp
-    dialogs/dialog_global_edit_text_and_graphics.cpp
-    dialogs/dialog_global_edit_text_and_graphics_base.cpp
-    dialogs/dialog_global_fp_lib_table_config.cpp
-    dialogs/dialog_group_properties.cpp
-    dialogs/dialog_group_properties_base.cpp
-    dialogs/dialog_push_pad_properties.cpp
-    dialogs/dialog_push_pad_properties_base.cpp
-    dialogs/dialog_shape_properties.cpp
-    dialogs/dialog_shape_properties_base.cpp
-    dialogs/dialog_reference_image_properties.cpp
-    dialogs/dialog_reference_image_properties_base.cpp
-    dialogs/dialog_import_settings.cpp
-    dialogs/dialog_import_settings_base.cpp
-    dialogs/dialog_imported_layers_base.cpp
-    dialogs/dialog_map_layers.cpp
-    dialogs/dialog_rule_area_properties.cpp
-    dialogs/dialog_rule_area_properties_base.cpp
-    dialogs/dialog_layer_selection_base.cpp
-    dialogs/dialog_move_exact.cpp
-    dialogs/dialog_move_exact_base.cpp
-    dialogs/dialog_import_netlist.cpp
-    dialogs/dialog_import_netlist_base.cpp
-    dialogs/dialog_non_copper_zones_properties.cpp
-    dialogs/dialog_non_copper_zones_properties_base.cpp
-    dialogs/dialog_outset_items.cpp
-    dialogs/dialog_outset_items_base.cpp
-    dialogs/dialog_pad_properties.cpp
-    dialogs/dialog_pad_properties_base.cpp
-    dialogs/dialog_plot.cpp
-    dialogs/dialog_plot_base.cpp
-    dialogs/dialog_pns_diff_pair_dimensions.cpp
-    dialogs/dialog_pns_diff_pair_dimensions_base.cpp
-    dialogs/dialog_pns_settings.cpp
-    dialogs/dialog_pns_settings_base.cpp
-    dialogs/dialog_position_relative.cpp
-    dialogs/dialog_position_relative_base.cpp
-    dialogs/dialog_print_pcbnew.cpp
-    dialogs/dialog_render_job_base.cpp
-    dialogs/dialog_render_job.cpp
-    dialogs/dialog_set_offset_base.cpp
-    dialogs/dialog_set_offset.cpp
-    dialogs/dialog_swap_layers.cpp
-    dialogs/dialog_swap_layers_base.cpp
-    dialogs/dialog_table_properties.cpp
-    dialogs/dialog_table_properties_base.cpp
-    dialogs/dialog_tablecell_properties.cpp
-    dialogs/dialog_tablecell_properties_base.cpp
-    dialogs/dialog_target_properties.cpp
-    dialogs/dialog_target_properties_base.cpp
-    dialogs/dialog_text_properties.cpp
-    dialogs/dialog_text_properties_base.cpp
-    dialogs/dialog_textbox_properties.cpp
-    dialogs/dialog_textbox_properties_base.cpp
-    dialogs/dialog_track_via_properties.cpp
-    dialogs/dialog_track_via_properties_base.cpp
-    dialogs/dialog_track_via_size.cpp
-    dialogs/dialog_track_via_size_base.cpp
-    dialogs/dialog_tuning_pattern_properties.cpp
-    dialogs/dialog_tuning_pattern_properties_base.cpp
-    dialogs/dialog_unused_pad_layers.cpp
-    dialogs/dialog_unused_pad_layers_base.cpp
-    dialogs/dialog_update_pcb.cpp
-    dialogs/dialog_update_pcb_base.cpp
-    dialogs/dialog_multichannel_generate_rule_areas_base.cpp
-    dialogs/dialog_multichannel_generate_rule_areas.cpp
-    dialogs/dialog_multichannel_repeat_layout_base.cpp
-    dialogs/dialog_multichannel_repeat_layout.cpp
-    dialogs/panel_pcb_display_options.cpp
-    dialogs/panel_pcb_display_options_base.cpp
-    dialogs/panel_edit_options.cpp
-    dialogs/panel_edit_options_base.cpp
-    dialogs/panel_fp_lib_table.cpp
-    dialogs/panel_fp_lib_table_base.cpp
-    dialogs/panel_fp_editor_color_settings.cpp
-    dialogs/panel_fp_editor_field_defaults.cpp
-    dialogs/panel_fp_editor_field_defaults_base.cpp
-    dialogs/panel_fp_editor_graphics_defaults.cpp
-    dialogs/panel_fp_editor_graphics_defaults_base.cpp
-    dialogs/panel_fp_properties_3d_model.cpp
-    dialogs/panel_fp_properties_3d_model_base.cpp
-    dialogs/panel_pcbnew_action_plugins.cpp
-    dialogs/panel_pcbnew_action_plugins_base.cpp
-    dialogs/panel_pcbnew_color_settings.cpp
-    dialogs/panel_pcbnew_display_origin.cpp
-    dialogs/panel_pcbnew_display_origin_base.cpp
-    dialogs/panel_rule_area_properties_keepout_base.cpp
-    dialogs/panel_rule_area_properties_placement_base.cpp
-    dialogs/panel_setup_constraints.cpp
-    dialogs/panel_setup_constraints_base.cpp
-    dialogs/panel_setup_dimensions.cpp
-    dialogs/panel_setup_dimensions_base.cpp
-    dialogs/panel_setup_formatting.cpp
-    dialogs/panel_setup_formatting_base.cpp
-    dialogs/panel_setup_mask_and_paste.cpp
-    dialogs/panel_setup_mask_and_paste_base.cpp
-    dialogs/panel_setup_layers.cpp
-    dialogs/panel_setup_layers_base.cpp
-    dialogs/panel_setup_rules.cpp
-    dialogs/panel_setup_rules_base.cpp
-    dialogs/panel_setup_teardrops.cpp
-    dialogs/panel_setup_teardrops_base.cpp
-    dialogs/panel_setup_text_and_graphics.cpp
-    dialogs/panel_setup_text_and_graphics_base.cpp
-    dialogs/panel_setup_tracks_and_vias.cpp
-    dialogs/panel_setup_tracks_and_vias_base.cpp
-    dialogs/panel_setup_tuning_patterns.cpp
-    dialogs/panel_setup_tuning_patterns_base.cpp
-    footprint_wizard.cpp
-    footprint_wizard_frame.cpp
-    footprint_wizard_frame_functions.cpp
+    # dialogs/dialog_filter_selection.cpp  # NOT in minset: dialog_filter_selection.cpp
+    # dialogs/dialog_filter_selection_base.cpp  # NOT in minset: dialog_filter_selection_base.cpp
+    # dialogs/dialog_board_setup.cpp  # NOT in minset: dialog_board_setup.cpp
+    # dialogs/dialog_board_statistics.cpp  # NOT in minset: dialog_board_statistics.cpp
+    # dialogs/dialog_board_statistics_base.cpp  # NOT in minset: dialog_board_statistics_base.cpp
+    # dialogs/dialog_board_reannotate.cpp  # NOT in minset: dialog_board_reannotate.cpp
+    # dialogs/dialog_board_reannotate_base.cpp  # NOT in minset: dialog_board_reannotate_base.cpp
+    # dialogs/dialog_cleanup_graphics.cpp  # NOT in minset: dialog_cleanup_graphics.cpp
+    # dialogs/dialog_cleanup_graphics_base.cpp  # NOT in minset: dialog_cleanup_graphics_base.cpp
+    # dialogs/dialog_cleanup_tracks_and_vias.cpp  # NOT in minset: dialog_cleanup_tracks_and_vias.cpp
+    # dialogs/dialog_cleanup_tracks_and_vias_base.cpp  # NOT in minset: dialog_cleanup_tracks_and_vias_base.cpp
+    # dialogs/dialog_copper_zones.cpp  # NOT in minset: dialog_copper_zones.cpp
+    # dialogs/dialog_copper_zones_base.cpp  # NOT in minset: dialog_copper_zones_base.cpp
+    # dialogs/dialog_create_array.cpp  # NOT in minset: dialog_create_array.cpp
+    # dialogs/dialog_create_array_base.cpp  # NOT in minset: dialog_create_array_base.cpp
+    # dialogs/dialog_dimension_properties.cpp  # NOT in minset: dialog_dimension_properties.cpp
+    # dialogs/dialog_dimension_properties_base.cpp  # NOT in minset: dialog_dimension_properties_base.cpp
+    # dialogs/dialog_drc.cpp  # NOT in minset: dialog_drc.cpp
+    # dialogs/dialog_drc_base.cpp  # NOT in minset: dialog_drc_base.cpp
+    # dialogs/dialog_drc_job_config.cpp  # NOT in minset: dialog_drc_job_config.cpp
+    # dialogs/dialog_footprint_associations.cpp  # NOT in minset: dialog_footprint_associations.cpp
+    # dialogs/dialog_footprint_associations_base.cpp  # NOT in minset: dialog_footprint_associations_base.cpp
+    # dialogs/dialog_footprint_checker.cpp  # NOT in minset: dialog_footprint_checker.cpp
+    # dialogs/dialog_footprint_checker_base.cpp  # NOT in minset: dialog_footprint_checker_base.cpp
+    # dialogs/dialog_footprint_properties.cpp  # NOT in minset: dialog_footprint_properties.cpp
+    # dialogs/dialog_footprint_properties_base.cpp  # NOT in minset: dialog_footprint_properties_base.cpp
+    # dialogs/dialog_footprint_properties_fp_editor.cpp  # NOT in minset: dialog_footprint_properties_fp_editor.cpp
+    # dialogs/dialog_footprint_properties_fp_editor_base.cpp  # NOT in minset: dialog_footprint_properties_fp_editor_base.cpp
+    # dialogs/dialog_enum_pads.cpp  # NOT in minset: dialog_enum_pads.cpp
+    # dialogs/dialog_enum_pads_base.cpp  # NOT in minset: dialog_enum_pads_base.cpp
+    # dialogs/dialog_exchange_footprints.cpp  # NOT in minset: dialog_exchange_footprints.cpp
+    # dialogs/dialog_exchange_footprints_base.cpp  # NOT in minset: dialog_exchange_footprints_base.cpp
+    # dialogs/dialog_export_2581.cpp  # NOT in minset: dialog_export_2581.cpp
+    # dialogs/dialog_export_2581_base.cpp  # NOT in minset: dialog_export_2581_base.cpp
+    # dialogs/dialog_export_idf.cpp  # NOT in minset: dialog_export_idf.cpp
+    # dialogs/dialog_export_idf_base.cpp  # NOT in minset: dialog_export_idf_base.cpp
+    # dialogs/dialog_export_step.cpp  # NOT in minset: dialog_export_step.cpp
+    # dialogs/dialog_export_odbpp.cpp  # NOT in minset: dialog_export_odbpp.cpp
+    # dialogs/dialog_export_odbpp_base.cpp  # NOT in minset: dialog_export_odbpp_base.cpp
+    # dialogs/dialog_export_step_base.cpp  # NOT in minset: dialog_export_step_base.cpp
+    # dialogs/dialog_export_step_process.cpp  # NOT in minset: dialog_export_step_process.cpp
+    # dialogs/dialog_export_step_process_base.cpp  # NOT in minset: dialog_export_step_process_base.cpp
+    # dialogs/dialog_export_vrml.cpp  # NOT in minset: dialog_export_vrml.cpp
+    # dialogs/dialog_export_vrml_base.cpp  # NOT in minset: dialog_export_vrml_base.cpp
+    # dialogs/dialog_find.cpp  # NOT in minset: dialog_find.cpp
+    # dialogs/dialog_find_base.cpp  # NOT in minset: dialog_find_base.cpp
+    # dialogs/dialog_footprint_wizard_list.cpp  # NOT in minset: dialog_footprint_wizard_list.cpp
+    # dialogs/dialog_footprint_wizard_list_base.cpp  # NOT in minset: dialog_footprint_wizard_list_base.cpp
+    # dialogs/dialog_gen_footprint_position.cpp  # NOT in minset: dialog_gen_footprint_position.cpp
+    # dialogs/dialog_gen_footprint_position_file_base.cpp  # NOT in minset: dialog_gen_footprint_position_file_base.cpp
+    # dialogs/dialog_gencad_export_options.cpp  # NOT in minset: dialog_gencad_export_options.cpp
+    # dialogs/dialog_gendrill.cpp  # NOT in minset: dialog_gendrill.cpp
+    # dialogs/dialog_gendrill_base.cpp  # NOT in minset: dialog_gendrill_base.cpp
+    # dialogs/dialog_generators.cpp  # NOT in minset: dialog_generators.cpp
+    # dialogs/dialog_generators_base.cpp  # NOT in minset: dialog_generators_base.cpp
+    # dialogs/dialog_get_footprint_by_name.cpp  # NOT in minset: dialog_get_footprint_by_name.cpp
+    # dialogs/dialog_get_footprint_by_name_base.cpp  # NOT in minset: dialog_get_footprint_by_name_base.cpp
+    # dialogs/dialog_global_deletion.cpp  # NOT in minset: dialog_global_deletion.cpp
+    # dialogs/dialog_global_deletion_base.cpp  # NOT in minset: dialog_global_deletion_base.cpp
+    # dialogs/dialog_global_edit_tracks_and_vias.cpp  # NOT in minset: dialog_global_edit_tracks_and_vias.cpp
+    # dialogs/dialog_global_edit_tracks_and_vias_base.cpp  # NOT in minset: dialog_global_edit_tracks_and_vias_base.cpp
+    # dialogs/dialog_global_edit_teardrops.cpp  # NOT in minset: dialog_global_edit_teardrops.cpp
+    # dialogs/dialog_global_edit_teardrops_base.cpp  # NOT in minset: dialog_global_edit_teardrops_base.cpp
+    # dialogs/dialog_global_edit_text_and_graphics.cpp  # NOT in minset: dialog_global_edit_text_and_graphics.cpp
+    # dialogs/dialog_global_edit_text_and_graphics_base.cpp  # NOT in minset: dialog_global_edit_text_and_graphics_base.cpp
+    # dialogs/dialog_global_fp_lib_table_config.cpp  # NOT in minset: dialog_global_fp_lib_table_config.cpp
+    # dialogs/dialog_group_properties.cpp  # NOT in minset: dialog_group_properties.cpp
+    # dialogs/dialog_group_properties_base.cpp  # NOT in minset: dialog_group_properties_base.cpp
+    # dialogs/dialog_push_pad_properties.cpp  # NOT in minset: dialog_push_pad_properties.cpp
+    # dialogs/dialog_push_pad_properties_base.cpp  # NOT in minset: dialog_push_pad_properties_base.cpp
+    # dialogs/dialog_shape_properties.cpp  # NOT in minset: dialog_shape_properties.cpp
+    # dialogs/dialog_shape_properties_base.cpp  # NOT in minset: dialog_shape_properties_base.cpp
+    # dialogs/dialog_reference_image_properties.cpp  # NOT in minset: dialog_reference_image_properties.cpp
+    # dialogs/dialog_reference_image_properties_base.cpp  # NOT in minset: dialog_reference_image_properties_base.cpp
+    # dialogs/dialog_import_settings.cpp  # NOT in minset: dialog_import_settings.cpp
+    # dialogs/dialog_import_settings_base.cpp  # NOT in minset: dialog_import_settings_base.cpp
+    # dialogs/dialog_imported_layers_base.cpp  # NOT in minset: dialog_imported_layers_base.cpp
+    # dialogs/dialog_map_layers.cpp  # NOT in minset: dialog_map_layers.cpp
+    # dialogs/dialog_rule_area_properties.cpp  # NOT in minset: dialog_rule_area_properties.cpp
+    # dialogs/dialog_rule_area_properties_base.cpp  # NOT in minset: dialog_rule_area_properties_base.cpp
+    # dialogs/dialog_layer_selection_base.cpp  # NOT in minset: dialog_layer_selection_base.cpp
+    # dialogs/dialog_move_exact.cpp  # NOT in minset: dialog_move_exact.cpp
+    # dialogs/dialog_move_exact_base.cpp  # NOT in minset: dialog_move_exact_base.cpp
+    # dialogs/dialog_import_netlist.cpp  # NOT in minset: dialog_import_netlist.cpp
+    # dialogs/dialog_import_netlist_base.cpp  # NOT in minset: dialog_import_netlist_base.cpp
+    # dialogs/dialog_non_copper_zones_properties.cpp  # NOT in minset: dialog_non_copper_zones_properties.cpp
+    # dialogs/dialog_non_copper_zones_properties_base.cpp  # NOT in minset: dialog_non_copper_zones_properties_base.cpp
+    # dialogs/dialog_outset_items.cpp  # NOT in minset: dialog_outset_items.cpp
+    # dialogs/dialog_outset_items_base.cpp  # NOT in minset: dialog_outset_items_base.cpp
+    # dialogs/dialog_pad_properties.cpp  # NOT in minset: dialog_pad_properties.cpp
+    # dialogs/dialog_pad_properties_base.cpp  # NOT in minset: dialog_pad_properties_base.cpp
+    # dialogs/dialog_plot.cpp  # NOT in minset: dialog_plot.cpp
+    # dialogs/dialog_plot_base.cpp  # NOT in minset: dialog_plot_base.cpp
+    # dialogs/dialog_pns_diff_pair_dimensions.cpp  # NOT in minset: dialog_pns_diff_pair_dimensions.cpp
+    # dialogs/dialog_pns_diff_pair_dimensions_base.cpp  # NOT in minset: dialog_pns_diff_pair_dimensions_base.cpp
+    # dialogs/dialog_pns_settings.cpp  # NOT in minset: dialog_pns_settings.cpp
+    # dialogs/dialog_pns_settings_base.cpp  # NOT in minset: dialog_pns_settings_base.cpp
+    # dialogs/dialog_position_relative.cpp  # NOT in minset: dialog_position_relative.cpp
+    # dialogs/dialog_position_relative_base.cpp  # NOT in minset: dialog_position_relative_base.cpp
+    # dialogs/dialog_print_pcbnew.cpp  # NOT in minset: dialog_print_pcbnew.cpp
+    # dialogs/dialog_render_job_base.cpp  # NOT in minset: dialog_render_job_base.cpp
+    # dialogs/dialog_render_job.cpp  # NOT in minset: dialog_render_job.cpp
+    # dialogs/dialog_set_offset_base.cpp  # NOT in minset: dialog_set_offset_base.cpp
+    # dialogs/dialog_set_offset.cpp  # NOT in minset: dialog_set_offset.cpp
+    # dialogs/dialog_swap_layers.cpp  # NOT in minset: dialog_swap_layers.cpp
+    # dialogs/dialog_swap_layers_base.cpp  # NOT in minset: dialog_swap_layers_base.cpp
+    # dialogs/dialog_table_properties.cpp  # NOT in minset: dialog_table_properties.cpp
+    # dialogs/dialog_table_properties_base.cpp  # NOT in minset: dialog_table_properties_base.cpp
+    # dialogs/dialog_tablecell_properties.cpp  # NOT in minset: dialog_tablecell_properties.cpp
+    # dialogs/dialog_tablecell_properties_base.cpp  # NOT in minset: dialog_tablecell_properties_base.cpp
+    # dialogs/dialog_target_properties.cpp  # NOT in minset: dialog_target_properties.cpp
+    # dialogs/dialog_target_properties_base.cpp  # NOT in minset: dialog_target_properties_base.cpp
+    # dialogs/dialog_text_properties.cpp  # NOT in minset: dialog_text_properties.cpp
+    # dialogs/dialog_text_properties_base.cpp  # NOT in minset: dialog_text_properties_base.cpp
+    # dialogs/dialog_textbox_properties.cpp  # NOT in minset: dialog_textbox_properties.cpp
+    # dialogs/dialog_textbox_properties_base.cpp  # NOT in minset: dialog_textbox_properties_base.cpp
+    # dialogs/dialog_track_via_properties.cpp  # NOT in minset: dialog_track_via_properties.cpp
+    # dialogs/dialog_track_via_properties_base.cpp  # NOT in minset: dialog_track_via_properties_base.cpp
+    # dialogs/dialog_track_via_size.cpp  # NOT in minset: dialog_track_via_size.cpp
+    # dialogs/dialog_track_via_size_base.cpp  # NOT in minset: dialog_track_via_size_base.cpp
+    # dialogs/dialog_tuning_pattern_properties.cpp  # NOT in minset: dialog_tuning_pattern_properties.cpp
+    # dialogs/dialog_tuning_pattern_properties_base.cpp  # NOT in minset: dialog_tuning_pattern_properties_base.cpp
+    # dialogs/dialog_unused_pad_layers.cpp  # NOT in minset: dialog_unused_pad_layers.cpp
+    # dialogs/dialog_unused_pad_layers_base.cpp  # NOT in minset: dialog_unused_pad_layers_base.cpp
+    # dialogs/dialog_update_pcb.cpp  # NOT in minset: dialog_update_pcb.cpp
+    # dialogs/dialog_update_pcb_base.cpp  # NOT in minset: dialog_update_pcb_base.cpp
+    # dialogs/dialog_multichannel_generate_rule_areas_base.cpp  # NOT in minset: dialog_multichannel_generate_rule_areas_base.cpp
+    # dialogs/dialog_multichannel_generate_rule_areas.cpp  # NOT in minset: dialog_multichannel_generate_rule_areas.cpp
+    # dialogs/dialog_multichannel_repeat_layout_base.cpp  # NOT in minset: dialog_multichannel_repeat_layout_base.cpp
+    # dialogs/dialog_multichannel_repeat_layout.cpp  # NOT in minset: dialog_multichannel_repeat_layout.cpp
+    # dialogs/panel_pcb_display_options.cpp  # NOT in minset: panel_pcb_display_options.cpp
+    # dialogs/panel_pcb_display_options_base.cpp  # NOT in minset: panel_pcb_display_options_base.cpp
+    # dialogs/panel_edit_options.cpp  # NOT in minset: panel_edit_options.cpp
+    # dialogs/panel_edit_options_base.cpp  # NOT in minset: panel_edit_options_base.cpp
+    # dialogs/panel_fp_lib_table.cpp  # NOT in minset: panel_fp_lib_table.cpp
+    # dialogs/panel_fp_lib_table_base.cpp  # NOT in minset: panel_fp_lib_table_base.cpp
+    # dialogs/panel_fp_editor_color_settings.cpp  # NOT in minset: panel_fp_editor_color_settings.cpp
+    # dialogs/panel_fp_editor_field_defaults.cpp  # NOT in minset: panel_fp_editor_field_defaults.cpp
+    # dialogs/panel_fp_editor_field_defaults_base.cpp  # NOT in minset: panel_fp_editor_field_defaults_base.cpp
+    # dialogs/panel_fp_editor_graphics_defaults.cpp  # NOT in minset: panel_fp_editor_graphics_defaults.cpp
+    # dialogs/panel_fp_editor_graphics_defaults_base.cpp  # NOT in minset: panel_fp_editor_graphics_defaults_base.cpp
+    # dialogs/panel_fp_properties_3d_model.cpp  # NOT in minset: panel_fp_properties_3d_model.cpp
+    # dialogs/panel_fp_properties_3d_model_base.cpp  # NOT in minset: panel_fp_properties_3d_model_base.cpp
+    # dialogs/panel_pcbnew_action_plugins.cpp  # NOT in minset: panel_pcbnew_action_plugins.cpp
+    # dialogs/panel_pcbnew_action_plugins_base.cpp  # NOT in minset: panel_pcbnew_action_plugins_base.cpp
+    # dialogs/panel_pcbnew_color_settings.cpp  # NOT in minset: panel_pcbnew_color_settings.cpp
+    # dialogs/panel_pcbnew_display_origin.cpp  # NOT in minset: panel_pcbnew_display_origin.cpp
+    # dialogs/panel_pcbnew_display_origin_base.cpp  # NOT in minset: panel_pcbnew_display_origin_base.cpp
+    # dialogs/panel_rule_area_properties_keepout_base.cpp  # NOT in minset: panel_rule_area_properties_keepout_base.cpp
+    # dialogs/panel_rule_area_properties_placement_base.cpp  # NOT in minset: panel_rule_area_properties_placement_base.cpp
+    # dialogs/panel_setup_constraints.cpp  # NOT in minset: panel_setup_constraints.cpp
+    # dialogs/panel_setup_constraints_base.cpp  # NOT in minset: panel_setup_constraints_base.cpp
+    # dialogs/panel_setup_dimensions.cpp  # NOT in minset: panel_setup_dimensions.cpp
+    # dialogs/panel_setup_dimensions_base.cpp  # NOT in minset: panel_setup_dimensions_base.cpp
+    # dialogs/panel_setup_formatting.cpp  # NOT in minset: panel_setup_formatting.cpp
+    # dialogs/panel_setup_formatting_base.cpp  # NOT in minset: panel_setup_formatting_base.cpp
+    # dialogs/panel_setup_mask_and_paste.cpp  # NOT in minset: panel_setup_mask_and_paste.cpp
+    # dialogs/panel_setup_mask_and_paste_base.cpp  # NOT in minset: panel_setup_mask_and_paste_base.cpp
+    # dialogs/panel_setup_layers.cpp  # NOT in minset: panel_setup_layers.cpp
+    # dialogs/panel_setup_layers_base.cpp  # NOT in minset: panel_setup_layers_base.cpp
+    # dialogs/panel_setup_rules.cpp  # NOT in minset: panel_setup_rules.cpp
+    # dialogs/panel_setup_rules_base.cpp  # NOT in minset: panel_setup_rules_base.cpp
+    # dialogs/panel_setup_teardrops.cpp  # NOT in minset: panel_setup_teardrops.cpp
+    # dialogs/panel_setup_teardrops_base.cpp  # NOT in minset: panel_setup_teardrops_base.cpp
+    # dialogs/panel_setup_text_and_graphics.cpp  # NOT in minset: panel_setup_text_and_graphics.cpp
+    # dialogs/panel_setup_text_and_graphics_base.cpp  # NOT in minset: panel_setup_text_and_graphics_base.cpp
+    # dialogs/panel_setup_tracks_and_vias.cpp  # NOT in minset: panel_setup_tracks_and_vias.cpp
+    # dialogs/panel_setup_tracks_and_vias_base.cpp  # NOT in minset: panel_setup_tracks_and_vias_base.cpp
+    # dialogs/panel_setup_tuning_patterns.cpp  # NOT in minset: panel_setup_tuning_patterns.cpp
+    # dialogs/panel_setup_tuning_patterns_base.cpp  # NOT in minset: panel_setup_tuning_patterns_base.cpp
+    # footprint_wizard.cpp  # NOT in minset: footprint_wizard.cpp
+    # footprint_wizard_frame.cpp  # NOT in minset: footprint_wizard_frame.cpp
+    # footprint_wizard_frame_functions.cpp  # NOT in minset: footprint_wizard_frame_functions.cpp
     )
 
 set( PCBNEW_BRDSTACKUP_MGR
-    board_stackup_manager/dielectric_material.cpp
-    board_stackup_manager/stackup_predefined_prms.cpp
-    board_stackup_manager/panel_board_finish.cpp
-    board_stackup_manager/panel_board_finish_base.cpp
-    board_stackup_manager/panel_board_stackup.cpp
-    board_stackup_manager/panel_board_stackup_base.cpp
-    board_stackup_manager/board_stackup_reporter.cpp
-    board_stackup_manager/dialog_dielectric_list_manager_base.cpp
-    board_stackup_manager/dialog_dielectric_list_manager.cpp
+    # board_stackup_manager/dielectric_material.cpp  # NOT in minset: dielectric_material.cpp
+    # board_stackup_manager/stackup_predefined_prms.cpp  # NOT in minset: stackup_predefined_prms.cpp
+    # board_stackup_manager/panel_board_finish.cpp  # NOT in minset: panel_board_finish.cpp
+    # board_stackup_manager/panel_board_finish_base.cpp  # NOT in minset: panel_board_finish_base.cpp
+    # board_stackup_manager/panel_board_stackup.cpp  # NOT in minset: panel_board_stackup.cpp
+    # board_stackup_manager/panel_board_stackup_base.cpp  # NOT in minset: panel_board_stackup_base.cpp
+    # board_stackup_manager/board_stackup_reporter.cpp  # NOT in minset: board_stackup_reporter.cpp
+    # board_stackup_manager/dialog_dielectric_list_manager_base.cpp  # NOT in minset: dialog_dielectric_list_manager_base.cpp
+    # board_stackup_manager/dialog_dielectric_list_manager.cpp  # NOT in minset: dialog_dielectric_list_manager.cpp
     )
 
 set( PCBNEW_IMPORT_GFX
-    import_gfx/dialog_import_graphics.cpp
-    import_gfx/dialog_import_graphics_base.cpp
-    import_gfx/graphics_importer_pcbnew.cpp
+    # import_gfx/dialog_import_graphics.cpp  # NOT in minset: dialog_import_graphics.cpp
+    # import_gfx/dialog_import_graphics_base.cpp  # NOT in minset: dialog_import_graphics_base.cpp
+    # import_gfx/graphics_importer_pcbnew.cpp  # NOT in minset: graphics_importer_pcbnew.cpp
     )
 
 
 set( PCBNEW_EXPORTERS
-    exporters/export_hyperlynx.cpp
-    exporters/export_d356.cpp
-    exporters/export_footprint_associations.cpp
-    exporters/export_gencad.cpp
-    exporters/export_gencad_writer.cpp
-    exporters/export_idf.cpp
-    exporters/export_svg.cpp
-    exporters/step/exporter_step.cpp
-    exporters/step/step_pcb_model.cpp
+    # exporters/export_hyperlynx.cpp  # NOT in minset: export_hyperlynx.cpp
+    # exporters/export_d356.cpp  # NOT in minset: export_d356.cpp
+    # exporters/export_footprint_associations.cpp  # NOT in minset: export_footprint_associations.cpp
+    # exporters/export_gencad.cpp  # NOT in minset: export_gencad.cpp
+    # exporters/export_gencad_writer.cpp  # NOT in minset: export_gencad_writer.cpp
+    # exporters/export_idf.cpp  # NOT in minset: export_idf.cpp
+    # exporters/export_svg.cpp  # NOT in minset: export_svg.cpp
+    # exporters/step/exporter_step.cpp  # NOT in minset: exporter_step.cpp
+    # exporters/step/step_pcb_model.cpp  # NOT in minset: step_pcb_model.cpp
     exporters/step/KI_XCAFDoc_AssemblyGraph.cxx
-    exporters/exporter_vrml.cpp
-    exporters/place_file_exporter.cpp
-    exporters/gen_drill_report_files.cpp
-    exporters/gendrill_Excellon_writer.cpp
-    exporters/gendrill_file_writer_base.cpp
-    exporters/gendrill_gerber_writer.cpp
-    exporters/gerber_jobfile_writer.cpp
-    exporters/gerber_placefile_writer.cpp
+    # exporters/exporter_vrml.cpp  # NOT in minset: exporter_vrml.cpp
+    # exporters/place_file_exporter.cpp  # NOT in minset: place_file_exporter.cpp
+    # exporters/gen_drill_report_files.cpp  # NOT in minset: gen_drill_report_files.cpp
+    # exporters/gendrill_Excellon_writer.cpp  # NOT in minset: gendrill_Excellon_writer.cpp
+    # exporters/gendrill_file_writer_base.cpp  # NOT in minset: gendrill_file_writer_base.cpp
+    # exporters/gendrill_gerber_writer.cpp  # NOT in minset: gendrill_gerber_writer.cpp
+    # exporters/gerber_jobfile_writer.cpp  # NOT in minset: gerber_jobfile_writer.cpp
+    # exporters/gerber_placefile_writer.cpp  # NOT in minset: gerber_placefile_writer.cpp
     )
 
 set( PCBNEW_MICROWAVE_SRCS
-    microwave/microwave_footprint.cpp
-    microwave/microwave_inductor.cpp
-    microwave/microwave_polygon.cpp
-    microwave/microwave_tool.cpp
+    # microwave/microwave_footprint.cpp  # NOT in minset: microwave_footprint.cpp
+    # microwave/microwave_inductor.cpp  # NOT in minset: microwave_inductor.cpp
+    # microwave/microwave_polygon.cpp  # NOT in minset: microwave_polygon.cpp
+    # microwave/microwave_tool.cpp  # NOT in minset: microwave_tool.cpp
     )
 
 set( PCBNEW_GENERATORS_SRCS
-    generators/pcb_tuning_pattern.cpp
+    # generators/pcb_tuning_pattern.cpp  # NOT in minset: pcb_tuning_pattern.cpp
     )
 
 set( PCBNEW_DRC_SRCS
-    drc/drc_interactive_courtyard_clearance.cpp
-    drc/drc_creepage_utils.cpp
-    drc/drc_report.cpp
+    # drc/drc_interactive_courtyard_clearance.cpp  # NOT in minset: drc_interactive_courtyard_clearance.cpp
+    # drc/drc_creepage_utils.cpp  # NOT in minset: drc_creepage_utils.cpp
+    # drc/drc_report.cpp  # NOT in minset: drc_report.cpp
     drc/drc_test_provider.cpp
-    drc/drc_test_provider_annular_width.cpp
-    drc/drc_test_provider_disallow.cpp
-    drc/drc_test_provider_clearance_base.cpp
-    drc/drc_test_provider_creepage.cpp
-    drc/drc_test_provider_connectivity.cpp
-    drc/drc_test_provider_connection_width.cpp
-    drc/drc_test_provider_copper_clearance.cpp
-    drc/drc_test_provider_physical_clearance.cpp
-    drc/drc_test_provider_courtyard_clearance.cpp
-    drc/drc_test_provider_edge_clearance.cpp
-    drc/drc_test_provider_footprint_checks.cpp
-    drc/drc_test_provider_hole_to_hole.cpp
-    drc/drc_test_provider_hole_size.cpp
-    drc/drc_test_provider_library_parity.cpp
-    drc/drc_test_provider_schematic_parity.cpp
-    drc/drc_test_provider_misc.cpp
-    drc/drc_test_provider_text_dims.cpp
-    drc/drc_test_provider_track_angle.cpp
-    drc/drc_test_provider_track_width.cpp
-    drc/drc_test_provider_track_segment_length.cpp
-    drc/drc_test_provider_zone_connections.cpp
-    drc/drc_test_provider_via_diameter.cpp
-    drc/drc_test_provider_solder_mask.cpp
-    drc/drc_test_provider_silk_clearance.cpp
-    drc/drc_test_provider_matched_length.cpp
-    drc/drc_test_provider_diff_pair_coupling.cpp
-    drc/drc_test_provider_sliver_checker.cpp
-    drc/drc_test_provider_text_mirroring.cpp
+    # drc/drc_test_provider_annular_width.cpp  # NOT in minset: drc_test_provider_annular_width.cpp
+    # drc/drc_test_provider_disallow.cpp  # NOT in minset: drc_test_provider_disallow.cpp
+    # drc/drc_test_provider_clearance_base.cpp  # NOT in minset: drc_test_provider_clearance_base.cpp
+    # drc/drc_test_provider_creepage.cpp  # NOT in minset: drc_test_provider_creepage.cpp
+    # drc/drc_test_provider_connectivity.cpp  # NOT in minset: drc_test_provider_connectivity.cpp
+    # drc/drc_test_provider_connection_width.cpp  # NOT in minset: drc_test_provider_connection_width.cpp
+    # drc/drc_test_provider_copper_clearance.cpp  # NOT in minset: drc_test_provider_copper_clearance.cpp
+    # drc/drc_test_provider_physical_clearance.cpp  # NOT in minset: drc_test_provider_physical_clearance.cpp
+    # drc/drc_test_provider_courtyard_clearance.cpp  # NOT in minset: drc_test_provider_courtyard_clearance.cpp
+    # drc/drc_test_provider_edge_clearance.cpp  # NOT in minset: drc_test_provider_edge_clearance.cpp
+    # drc/drc_test_provider_footprint_checks.cpp  # NOT in minset: drc_test_provider_footprint_checks.cpp
+    # drc/drc_test_provider_hole_to_hole.cpp  # NOT in minset: drc_test_provider_hole_to_hole.cpp
+    # drc/drc_test_provider_hole_size.cpp  # NOT in minset: drc_test_provider_hole_size.cpp
+    # drc/drc_test_provider_library_parity.cpp  # NOT in minset: drc_test_provider_library_parity.cpp
+    # drc/drc_test_provider_schematic_parity.cpp  # NOT in minset: drc_test_provider_schematic_parity.cpp
+    # drc/drc_test_provider_misc.cpp  # NOT in minset: drc_test_provider_misc.cpp
+    # drc/drc_test_provider_text_dims.cpp  # NOT in minset: drc_test_provider_text_dims.cpp
+    # drc/drc_test_provider_track_angle.cpp  # NOT in minset: drc_test_provider_track_angle.cpp
+    # drc/drc_test_provider_track_width.cpp  # NOT in minset: drc_test_provider_track_width.cpp
+    # drc/drc_test_provider_track_segment_length.cpp  # NOT in minset: drc_test_provider_track_segment_length.cpp
+    # drc/drc_test_provider_zone_connections.cpp  # NOT in minset: drc_test_provider_zone_connections.cpp
+    # drc/drc_test_provider_via_diameter.cpp  # NOT in minset: drc_test_provider_via_diameter.cpp
+    # drc/drc_test_provider_solder_mask.cpp  # NOT in minset: drc_test_provider_solder_mask.cpp
+    # drc/drc_test_provider_silk_clearance.cpp  # NOT in minset: drc_test_provider_silk_clearance.cpp
+    # drc/drc_test_provider_matched_length.cpp  # NOT in minset: drc_test_provider_matched_length.cpp
+    # drc/drc_test_provider_diff_pair_coupling.cpp  # NOT in minset: drc_test_provider_diff_pair_coupling.cpp
+    # drc/drc_test_provider_sliver_checker.cpp  # NOT in minset: drc_test_provider_sliver_checker.cpp
+    # drc/drc_test_provider_text_mirroring.cpp  # NOT in minset: drc_test_provider_text_mirroring.cpp
     )
 
 set( PCBNEW_NETLIST_SRCS
-    netlist_reader/board_netlist_updater.cpp
-    netlist_reader/netlist.cpp
+    # netlist_reader/board_netlist_updater.cpp  # NOT in minset: board_netlist_updater.cpp
+    # netlist_reader/netlist.cpp  # NOT in minset: netlist.cpp
     )
 
 set( ZONE_MANAGER_SRCS
-    zone_manager/board_edges_bounding_item.cpp
-    zone_manager/dialog_zone_manager.cpp
-    zone_manager/dialog_zone_manager_base.cpp
-    zone_manager/model_zones_overview_table.cpp
-    zone_manager/pane_zone_viewer.cpp
-    zone_manager/panel_zone_gal.cpp
-    zone_manager/panel_zone_properties.cpp
-    zone_manager/panel_zone_properties_base.cpp
-    zone_manager/zone_manager_preference.cpp
-    zone_manager/zone_painter.cpp
-    zone_manager/zones_container.cpp
+    # zone_manager/board_edges_bounding_item.cpp  # NOT in minset: board_edges_bounding_item.cpp
+    # zone_manager/dialog_zone_manager.cpp  # NOT in minset: dialog_zone_manager.cpp
+    # zone_manager/dialog_zone_manager_base.cpp  # NOT in minset: dialog_zone_manager_base.cpp
+    # zone_manager/model_zones_overview_table.cpp  # NOT in minset: model_zones_overview_table.cpp
+    # zone_manager/pane_zone_viewer.cpp  # NOT in minset: pane_zone_viewer.cpp
+    # zone_manager/panel_zone_gal.cpp  # NOT in minset: panel_zone_gal.cpp
+    # zone_manager/panel_zone_properties.cpp  # NOT in minset: panel_zone_properties.cpp
+    # zone_manager/panel_zone_properties_base.cpp  # NOT in minset: panel_zone_properties_base.cpp
+    # zone_manager/zone_manager_preference.cpp  # NOT in minset: zone_manager_preference.cpp
+    # zone_manager/zone_painter.cpp  # NOT in minset: zone_painter.cpp
+    # zone_manager/zones_container.cpp  # NOT in minset: zones_container.cpp
     )
 
 set( PCBNEW_CLASS_SRCS
@@ -321,117 +321,117 @@ set( PCBNEW_CLASS_SRCS
     ${ZONE_MANAGER_SRCS}
     ${PCBNEW_BRDSTACKUP_MGR}
 
-    autorouter/spread_footprints.cpp
-    autorouter/ar_autoplacer.cpp
-    autorouter/ar_matrix.cpp
-    autorouter/autoplace_tool.cpp
+    # autorouter/spread_footprints.cpp  # NOT in minset: spread_footprints.cpp
+    # autorouter/ar_autoplacer.cpp  # NOT in minset: ar_autoplacer.cpp
+    # autorouter/ar_matrix.cpp  # NOT in minset: ar_matrix.cpp
+    # autorouter/autoplace_tool.cpp  # NOT in minset: autoplace_tool.cpp
 
-    action_plugin.cpp
-    array_pad_number_provider.cpp
-    build_BOM_from_board.cpp
-    cleanup_item.cpp
+    # action_plugin.cpp  # NOT in minset: action_plugin.cpp
+    # array_pad_number_provider.cpp  # NOT in minset: array_pad_number_provider.cpp
+    # build_BOM_from_board.cpp  # NOT in minset: build_BOM_from_board.cpp
+    # cleanup_item.cpp  # NOT in minset: cleanup_item.cpp
     component_class_manager.cpp
     convert_shape_list_to_polygon.cpp
-    cross-probing.cpp
-    edit.cpp
-    edit_track_width.cpp
-    files.cpp
-    footprint_info_impl.cpp
-    footprint_wizard.cpp
-    footprint_editor_utils.cpp
-    footprint_editor_settings.cpp
-    fp_tree_synchronizing_adapter.cpp
-    footprint_chooser_frame.cpp
-    footprint_edit_frame.cpp
-    footprint_libraries_utils.cpp
-    footprint_viewer_frame.cpp
-    fp_tree_model_adapter.cpp
-    generate_footprint_info.cpp
-    graphics_cleaner.cpp
-    grid_layer_box_helpers.cpp
+    # cross-probing.cpp  # NOT in minset: probing.cpp
+    # edit.cpp  # NOT in minset: edit.cpp
+    # edit_track_width.cpp  # NOT in minset: edit_track_width.cpp
+    # files.cpp  # NOT in minset: files.cpp
+    # footprint_info_impl.cpp  # NOT in minset: footprint_info_impl.cpp
+    # footprint_wizard.cpp  # NOT in minset: footprint_wizard.cpp
+    # footprint_editor_utils.cpp  # NOT in minset: footprint_editor_utils.cpp
+    # footprint_editor_settings.cpp  # NOT in minset: footprint_editor_settings.cpp
+    # fp_tree_synchronizing_adapter.cpp  # NOT in minset: fp_tree_synchronizing_adapter.cpp
+    # footprint_chooser_frame.cpp  # NOT in minset: footprint_chooser_frame.cpp
+    # footprint_edit_frame.cpp  # NOT in minset: footprint_edit_frame.cpp
+    # footprint_libraries_utils.cpp  # NOT in minset: footprint_libraries_utils.cpp
+    # footprint_viewer_frame.cpp  # NOT in minset: footprint_viewer_frame.cpp
+    # fp_tree_model_adapter.cpp  # NOT in minset: fp_tree_model_adapter.cpp
+    # generate_footprint_info.cpp  # NOT in minset: generate_footprint_info.cpp
+    # graphics_cleaner.cpp  # NOT in minset: graphics_cleaner.cpp
+    # grid_layer_box_helpers.cpp  # NOT in minset: grid_layer_box_helpers.cpp
     grid_layer_box_helpers.h
-    initpcb.cpp
-    layer_pairs.cpp
-    load_select_footprint.cpp
-    menubar_footprint_editor.cpp
-    menubar_pcb_editor.cpp
-    pcb_base_edit_frame.cpp
-    pcb_layer_box_selector.cpp
-    pcb_edit_frame.cpp
-    pcb_plotter.cpp
-    pcbnew_config.cpp
-    pcbnew_jobs_handler.cpp
-    pcbnew_printout.cpp
-    pcbnew_settings.cpp
-    pcbplot.cpp
-    plot_board_layers.cpp
-    plot_brditems_plotter.cpp
-    specctra_import_export/specctra.cpp
-    specctra_import_export/specctra_export.cpp
-    specctra_import_export/specctra_import.cpp
-        pcb_fields_grid_table.cpp
-    toolbars_footprint_editor.cpp
-    toolbars_footprint_viewer.cpp
-    toolbars_pcb_editor.cpp
-    tracks_cleaner.cpp
-    undo_redo.cpp
-    zone_filler.cpp
-    edit_zone_helpers.cpp
+    # initpcb.cpp  # NOT in minset: initpcb.cpp
+    # layer_pairs.cpp  # NOT in minset: layer_pairs.cpp
+    # load_select_footprint.cpp  # NOT in minset: load_select_footprint.cpp
+    # menubar_footprint_editor.cpp  # NOT in minset: menubar_footprint_editor.cpp
+    # menubar_pcb_editor.cpp  # NOT in minset: menubar_pcb_editor.cpp
+    # pcb_base_edit_frame.cpp  # NOT in minset: pcb_base_edit_frame.cpp
+    # pcb_layer_box_selector.cpp  # NOT in minset: pcb_layer_box_selector.cpp
+    # pcb_edit_frame.cpp  # NOT in minset: pcb_edit_frame.cpp
+    # pcb_plotter.cpp  # NOT in minset: pcb_plotter.cpp
+    # pcbnew_config.cpp  # NOT in minset: pcbnew_config.cpp
+    # pcbnew_jobs_handler.cpp  # NOT in minset: pcbnew_jobs_handler.cpp
+    # pcbnew_printout.cpp  # NOT in minset: pcbnew_printout.cpp
+    # pcbnew_settings.cpp  # NOT in minset: pcbnew_settings.cpp
+    # pcbplot.cpp  # NOT in minset: pcbplot.cpp
+    # plot_board_layers.cpp  # NOT in minset: plot_board_layers.cpp
+    # plot_brditems_plotter.cpp  # NOT in minset: plot_brditems_plotter.cpp
+    # specctra_import_export/specctra.cpp  # NOT in minset: specctra.cpp
+    # specctra_import_export/specctra_export.cpp  # NOT in minset: specctra_export.cpp
+    # specctra_import_export/specctra_import.cpp  # NOT in minset: specctra_import.cpp
+        # pcb_fields_grid_table.cpp  # NOT in minset: pcb_fields_grid_table.cpp
+    # toolbars_footprint_editor.cpp  # NOT in minset: toolbars_footprint_editor.cpp
+    # toolbars_footprint_viewer.cpp  # NOT in minset: toolbars_footprint_viewer.cpp
+    # toolbars_pcb_editor.cpp  # NOT in minset: toolbars_pcb_editor.cpp
+    # tracks_cleaner.cpp  # NOT in minset: tracks_cleaner.cpp
+    # undo_redo.cpp  # NOT in minset: undo_redo.cpp
+    # zone_filler.cpp  # NOT in minset: zone_filler.cpp
+    # edit_zone_helpers.cpp  # NOT in minset: edit_zone_helpers.cpp
 
-    ratsnest/ratsnest.cpp
+    # ratsnest/ratsnest.cpp  # NOT in minset: ratsnest.cpp
 
-    tools/array_tool.cpp
-    tools/board_editor_control.cpp
-    tools/board_inspection_tool.cpp
-    tools/board_reannotate_tool.cpp
-    tools/convert_tool.cpp
-    tools/drawing_tool.cpp
-    tools/drawing_stackup_table_tool.cpp
-    tools/drc_tool.cpp
-    tools/edit_tool.cpp
-    tools/edit_tool_move_fct.cpp
-    tools/pcb_edit_table_tool.cpp
-    tools/global_edit_tool.cpp
-    tools/group_tool.cpp
-    tools/footprint_editor_control.cpp
-    tools/footprint_chooser_selection_tool.cpp
-    tools/item_modification_routine.cpp
-    tools/pad_tool.cpp
-    tools/pcb_control.cpp
-    tools/pcb_picker_tool.cpp
-    tools/pcb_selection.cpp
-    tools/pcb_selection_conditions.cpp
-    tools/pcb_selection_tool.cpp
-    tools/pcb_tool_base.cpp
-    tools/align_distribute_tool.cpp
-    tools/pcb_point_editor.cpp
-    tools/pcb_tool_utils.cpp
-    tools/position_relative_tool.cpp
-    tools/tool_event_utils.cpp
-    tools/zone_create_helper.cpp
-    tools/zone_filler_tool.cpp
-    tools/generator_tool.cpp
-    tools/generator_tool_pns_proxy.cpp
-    tools/multichannel_tool.cpp
+    # tools/array_tool.cpp  # NOT in minset: array_tool.cpp
+    # tools/board_editor_control.cpp  # NOT in minset: board_editor_control.cpp
+    # tools/board_inspection_tool.cpp  # NOT in minset: board_inspection_tool.cpp
+    # tools/board_reannotate_tool.cpp  # NOT in minset: board_reannotate_tool.cpp
+    # tools/convert_tool.cpp  # NOT in minset: convert_tool.cpp
+    # tools/drawing_tool.cpp  # NOT in minset: drawing_tool.cpp
+    # tools/drawing_stackup_table_tool.cpp  # NOT in minset: drawing_stackup_table_tool.cpp
+    # tools/drc_tool.cpp  # NOT in minset: drc_tool.cpp
+    # tools/edit_tool.cpp  # NOT in minset: edit_tool.cpp
+    # tools/edit_tool_move_fct.cpp  # NOT in minset: edit_tool_move_fct.cpp
+    # tools/pcb_edit_table_tool.cpp  # NOT in minset: pcb_edit_table_tool.cpp
+    # tools/global_edit_tool.cpp  # NOT in minset: global_edit_tool.cpp
+    # tools/group_tool.cpp  # NOT in minset: group_tool.cpp
+    # tools/footprint_editor_control.cpp  # NOT in minset: footprint_editor_control.cpp
+    # tools/footprint_chooser_selection_tool.cpp  # NOT in minset: footprint_chooser_selection_tool.cpp
+    # tools/item_modification_routine.cpp  # NOT in minset: item_modification_routine.cpp
+    # tools/pad_tool.cpp  # NOT in minset: pad_tool.cpp
+    # tools/pcb_control.cpp  # NOT in minset: pcb_control.cpp
+    # tools/pcb_picker_tool.cpp  # NOT in minset: pcb_picker_tool.cpp
+    # tools/pcb_selection.cpp  # NOT in minset: pcb_selection.cpp
+    # tools/pcb_selection_conditions.cpp  # NOT in minset: pcb_selection_conditions.cpp
+    # tools/pcb_selection_tool.cpp  # NOT in minset: pcb_selection_tool.cpp
+    # tools/pcb_tool_base.cpp  # NOT in minset: pcb_tool_base.cpp
+    # tools/align_distribute_tool.cpp  # NOT in minset: align_distribute_tool.cpp
+    # tools/pcb_point_editor.cpp  # NOT in minset: pcb_point_editor.cpp
+    # tools/pcb_tool_utils.cpp  # NOT in minset: pcb_tool_utils.cpp
+    # tools/position_relative_tool.cpp  # NOT in minset: position_relative_tool.cpp
+    # tools/tool_event_utils.cpp  # NOT in minset: tool_event_utils.cpp
+    # tools/zone_create_helper.cpp  # NOT in minset: zone_create_helper.cpp
+    # tools/zone_filler_tool.cpp  # NOT in minset: zone_filler_tool.cpp
+    # tools/generator_tool.cpp  # NOT in minset: generator_tool.cpp
+    # tools/generator_tool_pns_proxy.cpp  # NOT in minset: generator_tool_pns_proxy.cpp
+    # tools/multichannel_tool.cpp  # NOT in minset: multichannel_tool.cpp
 
-    footprint_preview_panel.cpp
-    footprint_tree_pane.cpp
+    # footprint_preview_panel.cpp  # NOT in minset: footprint_preview_panel.cpp
+    # footprint_tree_pane.cpp  # NOT in minset: footprint_tree_pane.cpp
 
-    widgets/appearance_controls.cpp
-    widgets/appearance_controls_base.cpp
-    widgets/panel_footprint_chooser.cpp
-    widgets/panel_selection_filter.cpp
-    widgets/panel_selection_filter_base.cpp
-    widgets/pcb_properties_panel.cpp
-    widgets/pcb_search_pane.cpp
-    widgets/search_handlers.cpp
-    widgets/net_inspector_panel.cpp
-    widgets/pcb_net_inspector_panel.cpp
+    # widgets/appearance_controls.cpp  # NOT in minset: appearance_controls.cpp
+    # widgets/appearance_controls_base.cpp  # NOT in minset: appearance_controls_base.cpp
+    # widgets/panel_footprint_chooser.cpp  # NOT in minset: panel_footprint_chooser.cpp
+    # widgets/panel_selection_filter.cpp  # NOT in minset: panel_selection_filter.cpp
+    # widgets/panel_selection_filter_base.cpp  # NOT in minset: panel_selection_filter_base.cpp
+    # widgets/pcb_properties_panel.cpp  # NOT in minset: pcb_properties_panel.cpp
+    # widgets/pcb_search_pane.cpp  # NOT in minset: pcb_search_pane.cpp
+    # widgets/search_handlers.cpp  # NOT in minset: search_handlers.cpp
+    # widgets/net_inspector_panel.cpp  # NOT in minset: net_inspector_panel.cpp
+    # widgets/pcb_net_inspector_panel.cpp  # NOT in minset: pcb_net_inspector_panel.cpp
 
     )
 
 set( PCBNEW_GIT_SRCS
-    git/kigit_pcb_merge.cpp
+    # git/kigit_pcb_merge.cpp  # NOT in minset: kigit_pcb_merge.cpp
     )
 
 set( PCBNEW_SRCS
@@ -446,18 +446,18 @@ set( PCBNEW_COMMON_SRCS
     )
 
 set( PCBNEW_SCRIPTING_PYTHON_HELPERS
-    ${CMAKE_SOURCE_DIR}/common/swig/wx_python_helpers.cpp
-    python/scripting/pcbnew_action_plugins.cpp
-    python/scripting/pcbnew_footprint_wizards.cpp
-    python/scripting/pcbnew_scripting_helpers.cpp
-    python/scripting/pcbnew_scripting.cpp
-    python/scripting/pcbnew_utils_3d.cpp
-    python/scripting/pcb_scripting_tool.cpp
+    # ${CMAKE_SOURCE_DIR}/common/swig/wx_python_helpers.cpp  # NOT in minset: wx_python_helpers.cpp
+    # python/scripting/pcbnew_action_plugins.cpp  # NOT in minset: pcbnew_action_plugins.cpp
+    # python/scripting/pcbnew_footprint_wizards.cpp  # NOT in minset: pcbnew_footprint_wizards.cpp
+    # python/scripting/pcbnew_scripting_helpers.cpp  # NOT in minset: pcbnew_scripting_helpers.cpp
+    # python/scripting/pcbnew_scripting.cpp  # NOT in minset: pcbnew_scripting.cpp
+    # python/scripting/pcbnew_utils_3d.cpp  # NOT in minset: pcbnew_utils_3d.cpp
+    # python/scripting/pcb_scripting_tool.cpp  # NOT in minset: pcb_scripting_tool.cpp
     )
 
 if( KICAD_IPC_API )
     set( PCBNEW_SRCS ${PCBNEW_SRCS}
-        api/api_handler_pcb.cpp
+        # api/api_handler_pcb.cpp  # NOT in minset: api_handler_pcb.cpp
         )
 endif()
 
@@ -649,13 +649,13 @@ foreach(file ${markdownFiles})
     add_dependencies(generate_headers ${filename}_gen)
 
     # Mark the output header as a dependency of the source file
-    get_source_file_property(existing_depends dialogs/panel_setup_rules.cpp OBJECT_DEPENDS)
+    # get_source_file_property(existing_depends dialogs/panel_setup_rules.cpp OBJECT_DEPENDS)  # NOT in minset: panel_setup_rules.cpp
     if(NOT existing_depends OR existing_depends STREQUAL "NOTFOUND")
         set(existing_depends "")
     else()
         set(existing_depends "${existing_depends};")
     endif()
-    set_source_files_properties(dialogs/panel_setup_rules.cpp
+    # set_source_files_properties(dialogs/panel_setup_rules.cpp  # NOT in minset: panel_setup_rules.cpp
         PROPERTIES OBJECT_DEPENDS "${existing_depends}${outputHeader}")
 endforeach()
 
@@ -688,10 +688,10 @@ set( PCBNEW_IO_LIBRARIES pcad2kicadpcb altium2pcbnew cadstar2pcbnew easyeda easy
 
 # a very small program launcher for pcbnew_kiface
 add_executable( pcbnew WIN32 MACOSX_BUNDLE
-    ${CMAKE_SOURCE_DIR}/common/single_top.cpp
+    # ${CMAKE_SOURCE_DIR}/common/single_top.cpp  # NOT in minset: single_top.cpp
     ${PCBNEW_RESOURCES}
     )
-set_source_files_properties( ${CMAKE_SOURCE_DIR}/common/single_top.cpp pcbnew.cpp PROPERTIES
+# set_source_files_properties( ${CMAKE_SOURCE_DIR}/common/single_top.cpp pcbnew.cpp PROPERTIES  # NOT in minset: single_top.cpp, pcbnew.cpp
     COMPILE_DEFINITIONS "TOP_FRAME=FRAME_PCB_EDITOR;PGM_DATA_FILE_EXT=\"kicad_pcb\";BUILD_KIWAY_DLL"
     )
 target_link_libraries( pcbnew
@@ -705,7 +705,7 @@ target_link_options( pcbnew PRIVATE
 
 # the main pcbnew program, in DSO form.
 add_library( pcbnew_kiface_objects OBJECT
-    pcbnew.cpp
+    # pcbnew.cpp  # NOT in minset: pcbnew.cpp
     ${PCBNEW_SRCS}
     ${PCBNEW_COMMON_SRCS}
     ${PCBNEW_SCRIPTING_SRCS}
@@ -716,7 +716,7 @@ make_lexer(
     pcbnew_kiface_objects
     specctra_import_export/specctra.keywords
     specctra_import_export/specctra_lexer.h
-    specctra_import_export/specctra_keywords.cpp
+    # specctra_import_export/specctra_keywords.cpp  # NOT in minset: specctra_keywords.cpp
     DSN
     )
 
@@ -780,7 +780,7 @@ target_link_libraries( pcbnew_kiface
         ${PCBNEW_KIFACE_LIBRARIES}
     )
 
-set_source_files_properties( pcbnew.cpp PROPERTIES
+# set_source_files_properties( pcbnew.cpp PROPERTIES  # NOT in minset: pcbnew.cpp
     # The KIFACE is in pcbnew.cpp, export it:
     COMPILE_DEFINITIONS     "BUILD_KIWAY_DLL;COMPILING_DLL"
     )
