@@ -104,7 +104,7 @@ __pycache__
 CMakeSettings.json
 .vscode/
 compile_commands.json
-/vcpkg_installed
+vcpkg_installed
 
 # Sublime Text
 *.sublime-*
