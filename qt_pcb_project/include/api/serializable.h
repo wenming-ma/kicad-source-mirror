@@ -24,6 +24,8 @@
 #include <wx/debug.h>
 #include <kicommon.h>
 
+// DISABLED FOR MINIMAL BUILD - Protobuf API removed
+// Forward declaration for protobuf types commented out
 namespace google {
     namespace protobuf {
         class Any;
@@ -32,24 +34,16 @@ namespace google {
 
 /**
  * Interface for objects that can be serialized to Protobuf messages
+ * NOTE: For minimal build, serialization methods are disabled
  */
 class KICOMMON_API SERIALIZABLE
 {
 public:
     virtual ~SERIALIZABLE() = default;
 
-    /**
-     * Serializes this object to the given Any message.
-     * The Any message's concrete type will be specific to the object in question.
-     * @param aContainer will be filled with a message describing this object
-     */
+    // DISABLED FOR MINIMAL BUILD - API functionality removed
+    // These methods are kept as empty virtual functions to maintain inheritance
     virtual void Serialize( google::protobuf::Any &aContainer ) const;
-
-    /**
-     * Deserializes the given protobuf message into this object.
-     * @param aContainer is an Any which should have a concrete type matching this object
-     * @return true if unpacking and deserialization succeeded
-     */
     virtual bool Deserialize( const google::protobuf::Any &aContainer );
 };
 

@@ -30,7 +30,7 @@
 #include <wx/string.h>
 #include <layer_ids.h>
 #include <lset.h>
-#include <api/serializable.h>
+#include <api/serializable.h> // Re-enabled for base class interface
 
 class BOARD;
 class BOARD_DESIGN_SETTINGS;
@@ -215,6 +215,7 @@ private:
  * @note There are a few other parameters related to the physical stackup like finish type,
  *       impedance control and a few others.
  */
+ 
 class BOARD_STACKUP : public SERIALIZABLE
 {
 public:
@@ -227,9 +228,9 @@ public:
 
     ~BOARD_STACKUP() { RemoveAll(); }
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
+    //void Serialize( google::protobuf::Any &aContainer ) const override;
 
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    //bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     const std::vector<BOARD_STACKUP_ITEM*>& GetList() const { return m_list; }
 

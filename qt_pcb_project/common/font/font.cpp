@@ -55,9 +55,9 @@ const METRICS& METRICS::Default()
 }
 
 
-FONT* FONT::s_defaultFont = nullptr;
-
-std::map< std::tuple<wxString, bool, bool, bool>, FONT*> FONT::s_fontMap;
+// Static member definitions - commented out due to DLL import issues
+// FONT* FONT::s_defaultFont = nullptr;
+// std::map< std::tuple<wxString, bool, bool, bool>, FONT*> FONT::s_fontMap;
 
 class MARKUP_CACHE
 {

@@ -76,26 +76,26 @@ std::unique_ptr<BOARD_ITEM> CreateItemForType( KICAD_T aType, BOARD_ITEM_CONTAIN
 namespace kiapi::board
 {
 
-void PackLayerSet( google::protobuf::RepeatedField<int>& aOutput, const LSET& aLayerSet )
-{
-    for( const PCB_LAYER_ID& layer : aLayerSet.Seq() )
-        aOutput.Add( ToProtoEnum<PCB_LAYER_ID, types::BoardLayer>( layer ) );
-}
+// void PackLayerSet( google::protobuf::RepeatedField<int>& aOutput, const LSET& aLayerSet )
+// {
+//     for( const PCB_LAYER_ID& layer : aLayerSet.Seq() )
+//         aOutput.Add( ToProtoEnum<PCB_LAYER_ID, types::BoardLayer>( layer ) );
+// }
 
 
-LSET UnpackLayerSet( const google::protobuf::RepeatedField<int>& aProtoLayerSet )
-{
-    LSET set;
-
-    for( int layer : aProtoLayerSet )
-    {
-        wxCHECK2( layer >= F_Cu && layer < PCB_LAYER_ID_COUNT, continue );
-        PCB_LAYER_ID boardLayer =
-                FromProtoEnum<PCB_LAYER_ID>( static_cast<types::BoardLayer>( layer ) );
-        set.set( boardLayer );
-    }
-
-    return set;
-}
+// LSET UnpackLayerSet( const google::protobuf::RepeatedField<int>& aProtoLayerSet )
+// {
+//     LSET set;
+// 
+//     for( int layer : aProtoLayerSet )
+//     {
+//         wxCHECK2( layer >= F_Cu && layer < PCB_LAYER_ID_COUNT, continue );
+//         PCB_LAYER_ID boardLayer =
+//                 FromProtoEnum<PCB_LAYER_ID>( static_cast<types::BoardLayer>( layer ) );
+//         set.set( boardLayer );
+//     }
+// 
+//     return set;
+// }
 
 }   // namespace kiapi::board

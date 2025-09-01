@@ -25,7 +25,7 @@
 #include <optional>
 #include <wx/string.h>
 
-#include <api/serializable.h>
+#include <api/serializable.h> // Re-enabled for base class interface
 #include <geometry/eda_angle.h>
 #include <layer_ids.h>
 #include <lset.h>
@@ -254,8 +254,9 @@ public:
     bool operator==( const PADSTACK& aOther ) const;
     bool operator!=( const PADSTACK& aOther ) const { return !operator==( aOther ); }
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    // DISABLED FOR MINIMAL BUILD - API functionality removed (methods kept for inheritance)
+    // void Serialize( google::protobuf::Any &aContainer ) const override;
+    // bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     /**
        * Compare two padstacks and return 0 if they are equal.

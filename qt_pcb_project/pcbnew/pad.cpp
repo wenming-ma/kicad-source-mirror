@@ -52,10 +52,10 @@
 #include <pcb_painter.h>
 #include <properties/property_validators.h>
 #include <wx/log.h>
-#include <api/api_enums.h>
-#include <api/api_utils.h>
-#include <api/api_pcb_utils.h>
-#include <api/board/board_types.pb.h>
+// #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
+// #include <api/api_utils.h>
+// #include <api/api_pcb_utils.h> // DISABLED FOR MINIMAL BUILD
+// #include <api/board/board_types.pb.h> // DISABLED FOR MINIMAL BUILD
 
 #include <memory>
 #include <macros.h>
@@ -148,59 +148,59 @@ void PAD::CopyFrom( const BOARD_ITEM* aOther )
 }
 
 
-void PAD::Serialize( google::protobuf::Any &aContainer ) const
-{
-    using namespace kiapi::board::types;
-    Pad pad;
-
-    pad.mutable_id()->set_value( m_Uuid.AsStdString() );
-    kiapi::common::PackVector2( *pad.mutable_position(), GetPosition() );
-    pad.set_locked( IsLocked() ? kiapi::common::types::LockedState::LS_LOCKED
-                               : kiapi::common::types::LockedState::LS_UNLOCKED );
-    PackNet( pad.mutable_net() );
-    pad.set_number( GetNumber().ToUTF8() );
-    pad.set_type( ToProtoEnum<PAD_ATTRIB, PadType>( GetAttribute() ) );
-    pad.mutable_pad_to_die_length()->set_value_nm( GetPadToDieLength() );
-
-    google::protobuf::Any padStackMsg;
-    m_padStack.Serialize( padStackMsg );
-    padStackMsg.UnpackTo( pad.mutable_pad_stack() );
-
-    if( GetLocalClearance().has_value() )
-        pad.mutable_copper_clearance_override()->set_value_nm( *GetLocalClearance() );
-
-    aContainer.PackFrom( pad );
-}
-
-
-bool PAD::Deserialize( const google::protobuf::Any &aContainer )
-{
-    kiapi::board::types::Pad pad;
-
-    if( !aContainer.UnpackTo( &pad ) )
-        return false;
-
-    const_cast<KIID&>( m_Uuid ) = KIID( pad.id().value() );
-    SetPosition( kiapi::common::UnpackVector2( pad.position() ) );
-    UnpackNet( pad.net() );
-    SetLocked( pad.locked() == kiapi::common::types::LockedState::LS_LOCKED );
-    SetAttribute( FromProtoEnum<PAD_ATTRIB>( pad.type() ) );
-    SetNumber( wxString::FromUTF8( pad.number() ) );
-    SetPadToDieLength( pad.pad_to_die_length().value_nm() );
-
-    google::protobuf::Any padStackWrapper;
-    padStackWrapper.PackFrom( pad.pad_stack() );
-    m_padStack.Deserialize( padStackWrapper );
-
-    SetLayer( m_padStack.StartLayer() );
-
-    if( pad.has_copper_clearance_override() )
-        SetLocalClearance( pad.copper_clearance_override().value_nm() );
-    else
-        SetLocalClearance( std::nullopt );
-
-    return true;
-}
+//void PAD::Serialize( google::protobuf::Any &aContainer ) const
+//{
+//    using namespace kiapi::board::types;
+//    Pad pad;
+//
+//    pad.mutable_id()->set_value( m_Uuid.AsStdString() );
+//    kiapi::common::PackVector2( *pad.mutable_position(), GetPosition() );
+//    pad.set_locked( IsLocked() ? kiapi::common::types::LockedState::LS_LOCKED
+//                               : kiapi::common::types::LockedState::LS_UNLOCKED );
+//    PackNet( pad.mutable_net() );
+//    pad.set_number( GetNumber().ToUTF8() );
+//    pad.set_type( ToProtoEnum<PAD_ATTRIB, PadType>( GetAttribute() ) );
+//    pad.mutable_pad_to_die_length()->set_value_nm( GetPadToDieLength() );
+//
+//    google::protobuf::Any padStackMsg;
+//    m_padStack.Serialize( padStackMsg );
+//    padStackMsg.UnpackTo( pad.mutable_pad_stack() );
+//
+//    if( GetLocalClearance().has_value() )
+//        pad.mutable_copper_clearance_override()->set_value_nm( *GetLocalClearance() );
+//
+//    aContainer.PackFrom( pad );
+//}
+//
+//
+//bool PAD::Deserialize( const google::protobuf::Any &aContainer )
+//{
+//    kiapi::board::types::Pad pad;
+//
+//    if( !aContainer.UnpackTo( &pad ) )
+//        return false;
+//
+//    const_cast<KIID&>( m_Uuid ) = KIID( pad.id().value() );
+//    SetPosition( kiapi::common::UnpackVector2( pad.position() ) );
+//    UnpackNet( pad.net() );
+//    SetLocked( pad.locked() == kiapi::common::types::LockedState::LS_LOCKED );
+//    SetAttribute( FromProtoEnum<PAD_ATTRIB>( pad.type() ) );
+//    SetNumber( wxString::FromUTF8( pad.number() ) );
+//    SetPadToDieLength( pad.pad_to_die_length().value_nm() );
+//
+//    google::protobuf::Any padStackWrapper;
+//    padStackWrapper.PackFrom( pad.pad_stack() );
+//    m_padStack.Deserialize( padStackWrapper );
+//
+//    SetLayer( m_padStack.StartLayer() );
+//
+//    if( pad.has_copper_clearance_override() )
+//        SetLocalClearance( pad.copper_clearance_override().value_nm() );
+//    else
+//        SetLocalClearance( std::nullopt );
+//
+//    return true;
+//}
 
 
 void PAD::ClearZoneLayerOverrides()

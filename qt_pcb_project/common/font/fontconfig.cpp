@@ -20,6 +20,7 @@
  */
 
 #include <mutex>
+#include <limits>
 #include <font/fontconfig.h>
 #include <wx/log.h>
 #include <trace_helpers.h>
@@ -176,8 +177,7 @@ void FONTCONFIG::getAllFamilyStrings( FONTCONFIG_PAT&                           
             fam = getFcString( aPat, FC_FAMILY, langIdx );
             aFamStringMap.insert_or_assign( famLang, fam );
         }
-    } while( langIdx++ < std::numeric_limits<
-                     int8_t>::max() ); //arbitrary to avoid getting stuck for any reason
+    } while( langIdx++ < 127 ); //arbitrary to avoid getting stuck for any reason (int8_t max)
 }
 
 

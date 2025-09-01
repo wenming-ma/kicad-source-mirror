@@ -20,10 +20,10 @@
 
 #include <convert_basic_shapes_to_polygon.h> // RECT_CHAMFER_POSITIONS
 #include "padstack.h"
-#include <api/api_enums.h>
-#include <api/api_utils.h>
-#include <api/api_pcb_utils.h>
-#include <api/board/board_types.pb.h>
+// #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
+// #include <api/api_utils.h>
+// #include <api/api_pcb_utils.h> // DISABLED FOR MINIMAL BUILD
+// #include <api/board/board_types.pb.h> // DISABLED FOR MINIMAL BUILD
 #include <layer_range.h>
 #include <macros.h>
 #include <magic_enum.hpp>
@@ -158,379 +158,379 @@ bool PADSTACK::operator==( const PADSTACK& aOther ) const
 }
 
 
-bool PADSTACK::unpackCopperLayer( const kiapi::board::types::PadStackLayer& aProto )
-{
-    using namespace kiapi::board::types;
-    PCB_LAYER_ID layer = FromProtoEnum<PCB_LAYER_ID, BoardLayer>( aProto.layer() );
-
-    if( m_mode == MODE::NORMAL && layer != ALL_LAYERS )
-        return false;
-
-    if( m_mode == MODE::FRONT_INNER_BACK && layer != F_Cu && layer != INNER_LAYERS && layer != B_Cu )
-        return false;
-
-    SetSize( kiapi::common::UnpackVector2( aProto.size() ), layer );
-    SetShape( FromProtoEnum<PAD_SHAPE>( aProto.shape() ), layer );
-    Offset( layer ) = kiapi::common::UnpackVector2( aProto.offset() );
-    SetAnchorShape( FromProtoEnum<PAD_SHAPE>( aProto.custom_anchor_shape() ), layer );
-
-    SHAPE_PROPS& props = CopperLayer( layer ).shape;
-    props.chamfered_rect_ratio = aProto.chamfer_ratio();
-    props.round_rect_radius_ratio = aProto.corner_rounding_ratio();
-
-    if( Shape( layer ) == PAD_SHAPE::TRAPEZOID && aProto.has_trapezoid_delta() )
-        TrapezoidDeltaSize( layer ) = kiapi::common::UnpackVector2( aProto.trapezoid_delta() );
-
-    if( aProto.chamfered_corners().top_left() )
-        props.chamfered_rect_positions |= RECT_CHAMFER_TOP_LEFT;
-
-    if( aProto.chamfered_corners().top_right() )
-        props.chamfered_rect_positions |= RECT_CHAMFER_TOP_RIGHT;
-
-    if( aProto.chamfered_corners().bottom_left() )
-        props.chamfered_rect_positions |= RECT_CHAMFER_BOTTOM_LEFT;
-
-    if( aProto.chamfered_corners().bottom_right() )
-        props.chamfered_rect_positions |= RECT_CHAMFER_BOTTOM_RIGHT;
-
-    ClearPrimitives( layer );
-    google::protobuf::Any a;
-
-    for( const BoardGraphicShape& shapeProto : aProto.custom_shapes() )
-    {
-        a.PackFrom( shapeProto );
-        std::unique_ptr<PCB_SHAPE> shape = std::make_unique<PCB_SHAPE>( m_parent );
-
-        if( shape->Deserialize( a ) )
-            AddPrimitive( shape.release(), layer );
-    }
-
-    return true;
-}
-
-
-bool PADSTACK::Deserialize( const google::protobuf::Any& aContainer )
-{
-    using namespace kiapi::board::types;
-    PadStack padstack;
-
-    if( !aContainer.UnpackTo( &padstack ) )
-        return false;
-
-    m_mode = FromProtoEnum<MODE>( padstack.type() );
-    SetLayerSet( kiapi::board::UnpackLayerSet( padstack.layers() ) );
-    m_orientation = EDA_ANGLE( padstack.angle().value_degrees(), DEGREES_T );
-
-    Drill().size = kiapi::common::UnpackVector2( padstack.drill().diameter() );
-    Drill().start = FromProtoEnum<PCB_LAYER_ID>( padstack.drill().start_layer() );
-    Drill().end = FromProtoEnum<PCB_LAYER_ID>( padstack.drill().end_layer() );
-
-    for( const PadStackLayer& layer : padstack.copper_layers() )
-    {
-        if( !unpackCopperLayer( layer ) )
-            return false;
-    }
-
-    CopperLayer( ALL_LAYERS ).thermal_gap = std::nullopt;
-    CopperLayer( ALL_LAYERS ).thermal_spoke_width = std::nullopt;
-
-    if( padstack.has_zone_settings() )
-    {
-        CopperLayer( ALL_LAYERS ).zone_connection =
-                FromProtoEnum<ZONE_CONNECTION>( padstack.zone_settings().zone_connection() );
-
-        if( padstack.zone_settings().has_thermal_spokes() )
-        {
-            const ThermalSpokeSettings& thermals = padstack.zone_settings().thermal_spokes();
-
-            if( thermals.has_gap() )
-                CopperLayer( ALL_LAYERS ).thermal_gap = thermals.gap().value_nm();
-
-            if( thermals.has_width() )
-                CopperLayer( ALL_LAYERS ).thermal_spoke_width = thermals.width().value_nm();
-
-            SetThermalSpokeAngle( EDA_ANGLE( thermals.angle().value_degrees(), DEGREES_T ), F_Cu );
-        }
-    }
-    else
-    {
-        CopperLayer( ALL_LAYERS ).zone_connection = ZONE_CONNECTION::INHERITED;
-        CopperLayer( ALL_LAYERS ).thermal_spoke_angle = DefaultThermalSpokeAngleForShape( F_Cu );
-    }
-
-    SetUnconnectedLayerMode(
-        FromProtoEnum<UNCONNECTED_LAYER_MODE>( padstack.unconnected_layer_removal() ) );
-
-    auto unpackMask =
-            []( const SolderMaskMode& aProto, std::optional<bool>& aDest )
-            {
-                switch( aProto )
-                {
-                case kiapi::board::types::SMM_MASKED:
-                    aDest = true;
-                    break;
-
-                case kiapi::board::types::SMM_UNMASKED:
-                    aDest = false;
-                    break;
-
-                default:
-                case kiapi::board::types::SMM_FROM_DESIGN_RULES:
-                    aDest = std::nullopt;
-                    break;
-                }
-            };
-
-    unpackMask( padstack.front_outer_layers().solder_mask_mode(),
-                FrontOuterLayers().has_solder_mask );
-
-    unpackMask( padstack.back_outer_layers().solder_mask_mode(),
-                BackOuterLayers().has_solder_mask );
-
-    auto unpackPaste =
-            []( const SolderPasteMode& aProto, std::optional<bool>& aDest )
-            {
-                switch( aProto )
-                {
-                case kiapi::board::types::SPM_PASTE:
-                    aDest = true;
-                    break;
-
-                case kiapi::board::types::SPM_NO_PASTE:
-                    aDest = false;
-                    break;
-
-                default:
-                case kiapi::board::types::SPM_FROM_DESIGN_RULES:
-                    aDest = std::nullopt;
-                    break;
-                }
-            };
-
-    unpackPaste( padstack.front_outer_layers().solder_paste_mode(),
-                 FrontOuterLayers().has_solder_paste );
-
-    unpackPaste( padstack.back_outer_layers().solder_paste_mode(),
-                 BackOuterLayers().has_solder_paste );
-
-    if( padstack.front_outer_layers().has_solder_mask_settings()
-        && padstack.front_outer_layers().solder_mask_settings().has_solder_mask_margin() )
-    {
-        FrontOuterLayers().solder_mask_margin =
-            padstack.front_outer_layers().solder_mask_settings().solder_mask_margin().value_nm();
-    }
-    else
-    {
-        FrontOuterLayers().solder_mask_margin = std::nullopt;
-    }
-
-    if( padstack.back_outer_layers().has_solder_mask_settings()
-        && padstack.back_outer_layers().solder_mask_settings().has_solder_mask_margin() )
-    {
-        BackOuterLayers().solder_mask_margin =
-                padstack.back_outer_layers().solder_mask_settings().solder_mask_margin().value_nm();
-    }
-    else
-    {
-        BackOuterLayers().solder_mask_margin = std::nullopt;
-    }
-
-    if( padstack.front_outer_layers().has_solder_paste_settings()
-        && padstack.front_outer_layers().solder_paste_settings().has_solder_paste_margin() )
-    {
-        FrontOuterLayers().solder_paste_margin =
-            padstack.front_outer_layers().solder_paste_settings().solder_paste_margin().value_nm();
-    }
-    else
-    {
-        FrontOuterLayers().solder_paste_margin = std::nullopt;
-    }
-
-    if( padstack.back_outer_layers().has_solder_paste_settings()
-        && padstack.back_outer_layers().solder_paste_settings().has_solder_paste_margin() )
-    {
-        BackOuterLayers().solder_paste_margin =
-            padstack.back_outer_layers().solder_paste_settings().solder_paste_margin().value_nm();
-    }
-    else
-    {
-        BackOuterLayers().solder_paste_margin = std::nullopt;
-    }
-
-    if( padstack.front_outer_layers().has_solder_paste_settings()
-        && padstack.front_outer_layers().solder_paste_settings().has_solder_paste_margin_ratio() )
-    {
-        FrontOuterLayers().solder_paste_margin_ratio =
-            padstack.front_outer_layers().solder_paste_settings().solder_paste_margin_ratio().value();
-    }
-    else
-    {
-        FrontOuterLayers().solder_paste_margin_ratio = std::nullopt;
-    }
-
-    if( padstack.back_outer_layers().has_solder_paste_settings()
-        && padstack.back_outer_layers().solder_paste_settings().has_solder_paste_margin_ratio() )
-    {
-        BackOuterLayers().solder_paste_margin_ratio =
-            padstack.back_outer_layers().solder_paste_settings().solder_paste_margin_ratio().value();
-    }
-    else
-    {
-        BackOuterLayers().solder_paste_margin_ratio = std::nullopt;
-    }
-
-
-    return true;
-}
-
-
-void PADSTACK::packCopperLayer( PCB_LAYER_ID aLayer, kiapi::board::types::PadStack& aProto ) const
-{
-    using namespace kiapi::board::types;
-
-    PadStackLayer* stackLayer = aProto.add_copper_layers();
-
-    stackLayer->set_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( aLayer ) );
-    kiapi::common::PackVector2( *stackLayer->mutable_size(), Size( aLayer ) );
-    kiapi::common::PackVector2( *stackLayer->mutable_offset(), Offset( aLayer ) );
-
-    stackLayer->set_shape( ToProtoEnum<PAD_SHAPE, PadStackShape>( Shape( aLayer ) ) );
-
-    stackLayer->set_custom_anchor_shape(
-            ToProtoEnum<PAD_SHAPE, PadStackShape>( AnchorShape( aLayer ) ) );
-
-    stackLayer->set_chamfer_ratio( CopperLayer( aLayer ).shape.chamfered_rect_ratio );
-    stackLayer->set_corner_rounding_ratio( CopperLayer( aLayer ).shape.round_rect_radius_ratio );
-
-    if( Shape( aLayer ) == PAD_SHAPE::TRAPEZOID )
-    {
-        kiapi::common::PackVector2( *stackLayer->mutable_trapezoid_delta(),
-                                    TrapezoidDeltaSize( aLayer ) );
-    }
-
-    google::protobuf::Any a;
-
-    for( const std::shared_ptr<PCB_SHAPE>& shape : Primitives( aLayer ) )
-    {
-        shape->Serialize( a );
-        BoardGraphicShape* s = stackLayer->add_custom_shapes();
-        a.UnpackTo( s );
-    }
-
-    const int& corners = CopperLayer( aLayer ).shape.chamfered_rect_positions;
-    stackLayer->mutable_chamfered_corners()->set_top_left( corners & RECT_CHAMFER_TOP_LEFT );
-    stackLayer->mutable_chamfered_corners()->set_top_right( corners & RECT_CHAMFER_TOP_RIGHT );
-    stackLayer->mutable_chamfered_corners()->set_bottom_left( corners & RECT_CHAMFER_BOTTOM_LEFT );
-    stackLayer->mutable_chamfered_corners()->set_bottom_right( corners & RECT_CHAMFER_BOTTOM_RIGHT );
-}
-
-
-void PADSTACK::Serialize( google::protobuf::Any& aContainer ) const
-{
-    using namespace kiapi::board::types;
-    PadStack padstack;
-
-    padstack.set_type( ToProtoEnum<MODE, PadStackType>( m_mode ) );
-    kiapi::board::PackLayerSet( *padstack.mutable_layers(), m_layerSet );
-    padstack.mutable_angle()->set_value_degrees( m_orientation.AsDegrees() );
-
-    DrillProperties* drill = padstack.mutable_drill();
-    drill->set_start_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( StartLayer() ) );
-    drill->set_end_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( EndLayer() ) );
-    kiapi::common::PackVector2( *drill->mutable_diameter(), Drill().size );
-
-    ForEachUniqueLayer( [&]( PCB_LAYER_ID aLayer )
-                        {
-                            packCopperLayer( aLayer, padstack );
-                        } );
-
-    ZoneConnectionSettings* zoneSettings = padstack.mutable_zone_settings();
-    ThermalSpokeSettings* thermalSettings = zoneSettings->mutable_thermal_spokes();
-
-    if( CopperLayer( ALL_LAYERS ).zone_connection.has_value() )
-    {
-        zoneSettings->set_zone_connection( ToProtoEnum<ZONE_CONNECTION, ZoneConnectionStyle>(
-            *CopperLayer( ALL_LAYERS ).zone_connection ) );
-    }
-
-    if( std::optional<int> width = CopperLayer( ALL_LAYERS ).thermal_spoke_width )
-        thermalSettings->mutable_width()->set_value_nm( *width );
-
-    if( std::optional<int> gap = CopperLayer( ALL_LAYERS ).thermal_gap )
-        thermalSettings->mutable_gap()->set_value_nm( *gap );
-
-    thermalSettings->mutable_angle()->set_value_degrees( ThermalSpokeAngle( F_Cu ).AsDegrees() );
-
-    padstack.set_unconnected_layer_removal(
-        ToProtoEnum<UNCONNECTED_LAYER_MODE, UnconnectedLayerRemoval>( m_unconnectedLayerMode ) );
-
-    auto packOptional =
-        []<typename ProtoEnum>( const std::optional<bool>& aVal, ProtoEnum aTrueVal,
-                                ProtoEnum aFalseVal, ProtoEnum aNullVal ) -> ProtoEnum
-        {
-            if( aVal.has_value() )
-                return *aVal ? aTrueVal : aFalseVal;
-
-            return aNullVal;
-        };
-
-    PadStackOuterLayer* frontOuter = padstack.mutable_front_outer_layers();
-    PadStackOuterLayer* backOuter = padstack.mutable_back_outer_layers();
-
-    frontOuter->set_solder_mask_mode( packOptional( FrontOuterLayers().has_solder_mask,
-                                                    SMM_MASKED, SMM_UNMASKED,
-                                                    SMM_FROM_DESIGN_RULES ) );
-
-    backOuter->set_solder_mask_mode( packOptional( BackOuterLayers().has_solder_mask,
-                                                   SMM_MASKED, SMM_UNMASKED,
-                                                   SMM_FROM_DESIGN_RULES ) );
-
-    frontOuter->set_solder_paste_mode( packOptional( FrontOuterLayers().has_solder_paste,
-                                                     SPM_PASTE, SPM_NO_PASTE,
-                                                     SPM_FROM_DESIGN_RULES ) );
-
-    backOuter->set_solder_paste_mode( packOptional( BackOuterLayers().has_solder_paste,
-                                                    SPM_PASTE, SPM_NO_PASTE,
-                                                    SPM_FROM_DESIGN_RULES ) );
-
-    if( FrontOuterLayers().solder_mask_margin.has_value() )
-    {
-        frontOuter->mutable_solder_mask_settings()->mutable_solder_mask_margin()->set_value_nm(
-            *FrontOuterLayers().solder_mask_margin );
-    }
-
-    if( BackOuterLayers().solder_mask_margin.has_value() )
-    {
-        backOuter->mutable_solder_mask_settings()->mutable_solder_mask_margin()->set_value_nm(
-            *BackOuterLayers().solder_mask_margin );
-    }
-
-    if( FrontOuterLayers().solder_paste_margin.has_value() )
-    {
-        frontOuter->mutable_solder_paste_settings()->mutable_solder_paste_margin()->set_value_nm(
-            *FrontOuterLayers().solder_paste_margin );
-    }
-
-    if( BackOuterLayers().solder_paste_margin.has_value() )
-    {
-        backOuter->mutable_solder_paste_settings()->mutable_solder_paste_margin()->set_value_nm(
-            *BackOuterLayers().solder_paste_margin );
-    }
-
-    if( FrontOuterLayers().solder_paste_margin_ratio.has_value() )
-    {
-        frontOuter->mutable_solder_paste_settings()->mutable_solder_paste_margin_ratio()->set_value(
-            *FrontOuterLayers().solder_paste_margin_ratio );
-    }
-
-    if( BackOuterLayers().solder_paste_margin_ratio.has_value() )
-    {
-        backOuter->mutable_solder_paste_settings()->mutable_solder_paste_margin_ratio()->set_value(
-            *BackOuterLayers().solder_paste_margin_ratio );
-    }
-
-    aContainer.PackFrom( padstack );
-}
+//bool PADSTACK::unpackCopperLayer( const kiapi::board::types::PadStackLayer& aProto )
+//{
+//    using namespace kiapi::board::types;
+//    PCB_LAYER_ID layer = FromProtoEnum<PCB_LAYER_ID, BoardLayer>( aProto.layer() );
+//
+//    if( m_mode == MODE::NORMAL && layer != ALL_LAYERS )
+//        return false;
+//
+//    if( m_mode == MODE::FRONT_INNER_BACK && layer != F_Cu && layer != INNER_LAYERS && layer != B_Cu )
+//        return false;
+//
+//    SetSize( kiapi::common::UnpackVector2( aProto.size() ), layer );
+//    SetShape( FromProtoEnum<PAD_SHAPE>( aProto.shape() ), layer );
+//    Offset( layer ) = kiapi::common::UnpackVector2( aProto.offset() );
+//    SetAnchorShape( FromProtoEnum<PAD_SHAPE>( aProto.custom_anchor_shape() ), layer );
+//
+//    SHAPE_PROPS& props = CopperLayer( layer ).shape;
+//    props.chamfered_rect_ratio = aProto.chamfer_ratio();
+//    props.round_rect_radius_ratio = aProto.corner_rounding_ratio();
+//
+//    if( Shape( layer ) == PAD_SHAPE::TRAPEZOID && aProto.has_trapezoid_delta() )
+//        TrapezoidDeltaSize( layer ) = kiapi::common::UnpackVector2( aProto.trapezoid_delta() );
+//
+//    if( aProto.chamfered_corners().top_left() )
+//        props.chamfered_rect_positions |= RECT_CHAMFER_TOP_LEFT;
+//
+//    if( aProto.chamfered_corners().top_right() )
+//        props.chamfered_rect_positions |= RECT_CHAMFER_TOP_RIGHT;
+//
+//    if( aProto.chamfered_corners().bottom_left() )
+//        props.chamfered_rect_positions |= RECT_CHAMFER_BOTTOM_LEFT;
+//
+//    if( aProto.chamfered_corners().bottom_right() )
+//        props.chamfered_rect_positions |= RECT_CHAMFER_BOTTOM_RIGHT;
+//
+//    ClearPrimitives( layer );
+//    google::protobuf::Any a;
+//
+//    for( const BoardGraphicShape& shapeProto : aProto.custom_shapes() )
+//    {
+//        a.PackFrom( shapeProto );
+//        std::unique_ptr<PCB_SHAPE> shape = std::make_unique<PCB_SHAPE>( m_parent );
+//
+//        if( shape->Deserialize( a ) )
+//            AddPrimitive( shape.release(), layer );
+//    }
+//
+//    return true;
+//}
+
+
+//bool PADSTACK::Deserialize( const google::protobuf::Any& aContainer )
+//{
+//    using namespace kiapi::board::types;
+//    PadStack padstack;
+//
+//    if( !aContainer.UnpackTo( &padstack ) )
+//        return false;
+//
+//    m_mode = FromProtoEnum<MODE>( padstack.type() );
+//    SetLayerSet( kiapi::board::UnpackLayerSet( padstack.layers() ) );
+//    m_orientation = EDA_ANGLE( padstack.angle().value_degrees(), DEGREES_T );
+//
+//    Drill().size = kiapi::common::UnpackVector2( padstack.drill().diameter() );
+//    Drill().start = FromProtoEnum<PCB_LAYER_ID>( padstack.drill().start_layer() );
+//    Drill().end = FromProtoEnum<PCB_LAYER_ID>( padstack.drill().end_layer() );
+//
+//    for( const PadStackLayer& layer : padstack.copper_layers() )
+//    {
+//        if( !unpackCopperLayer( layer ) )
+//            return false;
+//    }
+//
+//    CopperLayer( ALL_LAYERS ).thermal_gap = std::nullopt;
+//    CopperLayer( ALL_LAYERS ).thermal_spoke_width = std::nullopt;
+//
+//    if( padstack.has_zone_settings() )
+//    {
+//        CopperLayer( ALL_LAYERS ).zone_connection =
+//                FromProtoEnum<ZONE_CONNECTION>( padstack.zone_settings().zone_connection() );
+//
+//        if( padstack.zone_settings().has_thermal_spokes() )
+//        {
+//            const ThermalSpokeSettings& thermals = padstack.zone_settings().thermal_spokes();
+//
+//            if( thermals.has_gap() )
+//                CopperLayer( ALL_LAYERS ).thermal_gap = thermals.gap().value_nm();
+//
+//            if( thermals.has_width() )
+//                CopperLayer( ALL_LAYERS ).thermal_spoke_width = thermals.width().value_nm();
+//
+//            SetThermalSpokeAngle( EDA_ANGLE( thermals.angle().value_degrees(), DEGREES_T ), F_Cu );
+//        }
+//    }
+//    else
+//    {
+//        CopperLayer( ALL_LAYERS ).zone_connection = ZONE_CONNECTION::INHERITED;
+//        CopperLayer( ALL_LAYERS ).thermal_spoke_angle = DefaultThermalSpokeAngleForShape( F_Cu );
+//    }
+//
+//    SetUnconnectedLayerMode(
+//        FromProtoEnum<UNCONNECTED_LAYER_MODE>( padstack.unconnected_layer_removal() ) );
+//
+//    auto unpackMask =
+//            []( const SolderMaskMode& aProto, std::optional<bool>& aDest )
+//            {
+//                switch( aProto )
+//                {
+//                case kiapi::board::types::SMM_MASKED:
+//                    aDest = true;
+//                    break;
+//
+//                case kiapi::board::types::SMM_UNMASKED:
+//                    aDest = false;
+//                    break;
+//
+//                default:
+//                case kiapi::board::types::SMM_FROM_DESIGN_RULES:
+//                    aDest = std::nullopt;
+//                    break;
+//                }
+//            };
+//
+//    unpackMask( padstack.front_outer_layers().solder_mask_mode(),
+//                FrontOuterLayers().has_solder_mask );
+//
+//    unpackMask( padstack.back_outer_layers().solder_mask_mode(),
+//                BackOuterLayers().has_solder_mask );
+//
+//    auto unpackPaste =
+//            []( const SolderPasteMode& aProto, std::optional<bool>& aDest )
+//            {
+//                switch( aProto )
+//                {
+//                case kiapi::board::types::SPM_PASTE:
+//                    aDest = true;
+//                    break;
+//
+//                case kiapi::board::types::SPM_NO_PASTE:
+//                    aDest = false;
+//                    break;
+//
+//                default:
+//                case kiapi::board::types::SPM_FROM_DESIGN_RULES:
+//                    aDest = std::nullopt;
+//                    break;
+//                }
+//            };
+//
+//    unpackPaste( padstack.front_outer_layers().solder_paste_mode(),
+//                 FrontOuterLayers().has_solder_paste );
+//
+//    unpackPaste( padstack.back_outer_layers().solder_paste_mode(),
+//                 BackOuterLayers().has_solder_paste );
+//
+//    if( padstack.front_outer_layers().has_solder_mask_settings()
+//        && padstack.front_outer_layers().solder_mask_settings().has_solder_mask_margin() )
+//    {
+//        FrontOuterLayers().solder_mask_margin =
+//            padstack.front_outer_layers().solder_mask_settings().solder_mask_margin().value_nm();
+//    }
+//    else
+//    {
+//        FrontOuterLayers().solder_mask_margin = std::nullopt;
+//    }
+//
+//    if( padstack.back_outer_layers().has_solder_mask_settings()
+//        && padstack.back_outer_layers().solder_mask_settings().has_solder_mask_margin() )
+//    {
+//        BackOuterLayers().solder_mask_margin =
+//                padstack.back_outer_layers().solder_mask_settings().solder_mask_margin().value_nm();
+//    }
+//    else
+//    {
+//        BackOuterLayers().solder_mask_margin = std::nullopt;
+//    }
+//
+//    if( padstack.front_outer_layers().has_solder_paste_settings()
+//        && padstack.front_outer_layers().solder_paste_settings().has_solder_paste_margin() )
+//    {
+//        FrontOuterLayers().solder_paste_margin =
+//            padstack.front_outer_layers().solder_paste_settings().solder_paste_margin().value_nm();
+//    }
+//    else
+//    {
+//        FrontOuterLayers().solder_paste_margin = std::nullopt;
+//    }
+//
+//    if( padstack.back_outer_layers().has_solder_paste_settings()
+//        && padstack.back_outer_layers().solder_paste_settings().has_solder_paste_margin() )
+//    {
+//        BackOuterLayers().solder_paste_margin =
+//            padstack.back_outer_layers().solder_paste_settings().solder_paste_margin().value_nm();
+//    }
+//    else
+//    {
+//        BackOuterLayers().solder_paste_margin = std::nullopt;
+//    }
+//
+//    if( padstack.front_outer_layers().has_solder_paste_settings()
+//        && padstack.front_outer_layers().solder_paste_settings().has_solder_paste_margin_ratio() )
+//    {
+//        FrontOuterLayers().solder_paste_margin_ratio =
+//            padstack.front_outer_layers().solder_paste_settings().solder_paste_margin_ratio().value();
+//    }
+//    else
+//    {
+//        FrontOuterLayers().solder_paste_margin_ratio = std::nullopt;
+//    }
+//
+//    if( padstack.back_outer_layers().has_solder_paste_settings()
+//        && padstack.back_outer_layers().solder_paste_settings().has_solder_paste_margin_ratio() )
+//    {
+//        BackOuterLayers().solder_paste_margin_ratio =
+//            padstack.back_outer_layers().solder_paste_settings().solder_paste_margin_ratio().value();
+//    }
+//    else
+//    {
+//        BackOuterLayers().solder_paste_margin_ratio = std::nullopt;
+//    }
+//
+//
+//    return true;
+//}
+
+
+//void PADSTACK::packCopperLayer( PCB_LAYER_ID aLayer, kiapi::board::types::PadStack& aProto ) const
+//{
+//    using namespace kiapi::board::types;
+//
+//    PadStackLayer* stackLayer = aProto.add_copper_layers();
+//
+//    stackLayer->set_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( aLayer ) );
+//    kiapi::common::PackVector2( *stackLayer->mutable_size(), Size( aLayer ) );
+//    kiapi::common::PackVector2( *stackLayer->mutable_offset(), Offset( aLayer ) );
+//
+//    stackLayer->set_shape( ToProtoEnum<PAD_SHAPE, PadStackShape>( Shape( aLayer ) ) );
+//
+//    stackLayer->set_custom_anchor_shape(
+//            ToProtoEnum<PAD_SHAPE, PadStackShape>( AnchorShape( aLayer ) ) );
+//
+//    stackLayer->set_chamfer_ratio( CopperLayer( aLayer ).shape.chamfered_rect_ratio );
+//    stackLayer->set_corner_rounding_ratio( CopperLayer( aLayer ).shape.round_rect_radius_ratio );
+//
+//    if( Shape( aLayer ) == PAD_SHAPE::TRAPEZOID )
+//    {
+//        kiapi::common::PackVector2( *stackLayer->mutable_trapezoid_delta(),
+//                                    TrapezoidDeltaSize( aLayer ) );
+//    }
+//
+//    google::protobuf::Any a;
+//
+//    for( const std::shared_ptr<PCB_SHAPE>& shape : Primitives( aLayer ) )
+//    {
+//        shape->Serialize( a );
+//        BoardGraphicShape* s = stackLayer->add_custom_shapes();
+//        a.UnpackTo( s );
+//    }
+//
+//    const int& corners = CopperLayer( aLayer ).shape.chamfered_rect_positions;
+//    stackLayer->mutable_chamfered_corners()->set_top_left( corners & RECT_CHAMFER_TOP_LEFT );
+//    stackLayer->mutable_chamfered_corners()->set_top_right( corners & RECT_CHAMFER_TOP_RIGHT );
+//    stackLayer->mutable_chamfered_corners()->set_bottom_left( corners & RECT_CHAMFER_BOTTOM_LEFT );
+//    stackLayer->mutable_chamfered_corners()->set_bottom_right( corners & RECT_CHAMFER_BOTTOM_RIGHT );
+//}
+
+
+//void PADSTACK::Serialize( google::protobuf::Any& aContainer ) const
+//{
+//    using namespace kiapi::board::types;
+//    PadStack padstack;
+//
+//    padstack.set_type( ToProtoEnum<MODE, PadStackType>( m_mode ) );
+//    kiapi::board::PackLayerSet( *padstack.mutable_layers(), m_layerSet );
+//    padstack.mutable_angle()->set_value_degrees( m_orientation.AsDegrees() );
+//
+//    DrillProperties* drill = padstack.mutable_drill();
+//    drill->set_start_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( StartLayer() ) );
+//    drill->set_end_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( EndLayer() ) );
+//    kiapi::common::PackVector2( *drill->mutable_diameter(), Drill().size );
+//
+//    ForEachUniqueLayer( [&]( PCB_LAYER_ID aLayer )
+//                        {
+//                            packCopperLayer( aLayer, padstack );
+//                        } );
+//
+//    ZoneConnectionSettings* zoneSettings = padstack.mutable_zone_settings();
+//    ThermalSpokeSettings* thermalSettings = zoneSettings->mutable_thermal_spokes();
+//
+//    if( CopperLayer( ALL_LAYERS ).zone_connection.has_value() )
+//    {
+//        zoneSettings->set_zone_connection( ToProtoEnum<ZONE_CONNECTION, ZoneConnectionStyle>(
+//            *CopperLayer( ALL_LAYERS ).zone_connection ) );
+//    }
+//
+//    if( std::optional<int> width = CopperLayer( ALL_LAYERS ).thermal_spoke_width )
+//        thermalSettings->mutable_width()->set_value_nm( *width );
+//
+//    if( std::optional<int> gap = CopperLayer( ALL_LAYERS ).thermal_gap )
+//        thermalSettings->mutable_gap()->set_value_nm( *gap );
+//
+//    thermalSettings->mutable_angle()->set_value_degrees( ThermalSpokeAngle( F_Cu ).AsDegrees() );
+//
+//    padstack.set_unconnected_layer_removal(
+//        ToProtoEnum<UNCONNECTED_LAYER_MODE, UnconnectedLayerRemoval>( m_unconnectedLayerMode ) );
+//
+//    auto packOptional =
+//        []<typename ProtoEnum>( const std::optional<bool>& aVal, ProtoEnum aTrueVal,
+//                                ProtoEnum aFalseVal, ProtoEnum aNullVal ) -> ProtoEnum
+//        {
+//            if( aVal.has_value() )
+//                return *aVal ? aTrueVal : aFalseVal;
+//
+//            return aNullVal;
+//        };
+//
+//    PadStackOuterLayer* frontOuter = padstack.mutable_front_outer_layers();
+//    PadStackOuterLayer* backOuter = padstack.mutable_back_outer_layers();
+//
+//    frontOuter->set_solder_mask_mode( packOptional( FrontOuterLayers().has_solder_mask,
+//                                                    SMM_MASKED, SMM_UNMASKED,
+//                                                    SMM_FROM_DESIGN_RULES ) );
+//
+//    backOuter->set_solder_mask_mode( packOptional( BackOuterLayers().has_solder_mask,
+//                                                   SMM_MASKED, SMM_UNMASKED,
+//                                                   SMM_FROM_DESIGN_RULES ) );
+//
+//    frontOuter->set_solder_paste_mode( packOptional( FrontOuterLayers().has_solder_paste,
+//                                                     SPM_PASTE, SPM_NO_PASTE,
+//                                                     SPM_FROM_DESIGN_RULES ) );
+//
+//    backOuter->set_solder_paste_mode( packOptional( BackOuterLayers().has_solder_paste,
+//                                                    SPM_PASTE, SPM_NO_PASTE,
+//                                                    SPM_FROM_DESIGN_RULES ) );
+//
+//    if( FrontOuterLayers().solder_mask_margin.has_value() )
+//    {
+//        frontOuter->mutable_solder_mask_settings()->mutable_solder_mask_margin()->set_value_nm(
+//            *FrontOuterLayers().solder_mask_margin );
+//    }
+//
+//    if( BackOuterLayers().solder_mask_margin.has_value() )
+//    {
+//        backOuter->mutable_solder_mask_settings()->mutable_solder_mask_margin()->set_value_nm(
+//            *BackOuterLayers().solder_mask_margin );
+//    }
+//
+//    if( FrontOuterLayers().solder_paste_margin.has_value() )
+//    {
+//        frontOuter->mutable_solder_paste_settings()->mutable_solder_paste_margin()->set_value_nm(
+//            *FrontOuterLayers().solder_paste_margin );
+//    }
+//
+//    if( BackOuterLayers().solder_paste_margin.has_value() )
+//    {
+//        backOuter->mutable_solder_paste_settings()->mutable_solder_paste_margin()->set_value_nm(
+//            *BackOuterLayers().solder_paste_margin );
+//    }
+//
+//    if( FrontOuterLayers().solder_paste_margin_ratio.has_value() )
+//    {
+//        frontOuter->mutable_solder_paste_settings()->mutable_solder_paste_margin_ratio()->set_value(
+//            *FrontOuterLayers().solder_paste_margin_ratio );
+//    }
+//
+//    if( BackOuterLayers().solder_paste_margin_ratio.has_value() )
+//    {
+//        backOuter->mutable_solder_paste_settings()->mutable_solder_paste_margin_ratio()->set_value(
+//            *BackOuterLayers().solder_paste_margin_ratio );
+//    }
+//
+//    aContainer.PackFrom( padstack );
+//}
 
 
 int PADSTACK::Compare( const PADSTACK* aPadstackRef, const PADSTACK* aPadstackCmp )

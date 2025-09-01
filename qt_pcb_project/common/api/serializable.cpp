@@ -21,14 +21,17 @@
 #include <api/serializable.h>
 
 
+// DISABLED FOR MINIMAL BUILD - Empty implementations to maintain interface compatibility
 void SERIALIZABLE::Serialize( google::protobuf::Any &aContainer ) const
 {
-    wxASSERT_MSG( false, wxS( "Serialize called on an object that doesn't implement it!" ) );
+    // Empty implementation for minimal build - no protobuf dependency
+    (void)aContainer; // Suppress unused parameter warning
 }
 
 
 bool SERIALIZABLE::Deserialize( const google::protobuf::Any &aContainer )
 {
-    wxASSERT_MSG( false, wxS( "Deserialize called on an object that doesn't implement it!" ) );
-    return false;
+    // Empty implementation for minimal build - no protobuf dependency  
+    (void)aContainer; // Suppress unused parameter warning
+    return false; // Always return false as deserialization is disabled
 }

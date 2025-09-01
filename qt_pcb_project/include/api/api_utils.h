@@ -22,11 +22,11 @@
 #define KICAD_API_UTILS_H
 
 #include <optional>
-#include <google/protobuf/any.pb.h>
+// #include <google/protobuf/any.pb.h>
 
 #include <core/typeinfo.h>
 #include <lib_id.h>
-#include <api/common/types/base_types.pb.h>
+// #include <api/common/types/base_types.pb.h>
 #include <layer_ids.h>
 #include <geometry/shape_line_chain.h>
 #include <math/vector2d.h>
@@ -45,6 +45,7 @@ class KIID_PATH;
  */
 extern const KICOMMON_API wxChar* const traceApi;
 
+/*
 namespace kiapi::common
 {
 
@@ -81,5 +82,6 @@ KICOMMON_API KIGFX::COLOR4D UnpackColor( const types::Color& aInput );
 KICOMMON_API void PackSheetPath( types::SheetPath& aOutput, const KIID_PATH& aInput );
 
 } // namespace kiapi::common
+*/
 
 #endif //KICAD_API_UTILS_H
