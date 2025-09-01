@@ -54,7 +54,7 @@ add_custom_target(
 # as APIEXPORT
 set( KICOMMON_SRCS
     # Fonts
-    newstroke_font.cpp
+    # newstroke_font.cpp  # NOT in minset: newstroke_font.cpp
     font/fontconfig.cpp
     font/version_info.cpp
 
@@ -62,42 +62,42 @@ set( KICOMMON_SRCS
     gal/color4d.cpp
     gal/opengl/gl_context_mgr.cpp
     # Jobs
-    jobs/job.cpp
-    jobs/job_dispatcher.cpp
-    jobs/job_registry.cpp
-    jobs/jobs_output_archive.cpp
-    jobs/jobs_output_folder.cpp
-    jobs/job_export_pcb_drill.cpp
-    jobs/job_export_pcb_dxf.cpp
-    jobs/job_export_pcb_gerber.cpp
-    jobs/job_export_pcb_gerbers.cpp
-    jobs/job_export_pcb_ipc2581.cpp
-    jobs/job_export_pcb_ipcd356.cpp
-    jobs/job_export_pcb_odb.cpp
-    jobs/job_export_pcb_pdf.cpp
-    jobs/job_export_pcb_plot.cpp
-    jobs/job_export_pcb_pos.cpp
-    jobs/job_export_pcb_svg.cpp
-    jobs/job_export_pcb_gencad.cpp
-    jobs/job_export_pcb_3d.cpp
-    jobs/job_export_sch_bom.cpp
-    jobs/job_export_sch_netlist.cpp
-    jobs/job_export_sch_plot.cpp
-    jobs/job_export_sch_pythonbom.cpp
-    jobs/job_special_copyfiles.cpp
-    jobs/job_special_execute.cpp
-    jobs/jobset.cpp
-    jobs/job_fp_export_svg.cpp
-    jobs/job_fp_upgrade.cpp
-    jobs/job_pcb_render.cpp
-    jobs/job_pcb_drc.cpp
-    jobs/job_rc.cpp
-    jobs/job_sch_erc.cpp
-    jobs/job_sym_export_svg.cpp
-    jobs/job_sym_upgrade.cpp
+    # jobs/job.cpp  # NOT in minset: job.cpp
+    # jobs/job_dispatcher.cpp  # NOT in minset: job_dispatcher.cpp
+    # jobs/job_registry.cpp  # NOT in minset: job_registry.cpp
+    # jobs/jobs_output_archive.cpp  # NOT in minset: jobs_output_archive.cpp
+    # jobs/jobs_output_folder.cpp  # NOT in minset: jobs_output_folder.cpp
+    # jobs/job_export_pcb_drill.cpp  # NOT in minset: job_export_pcb_drill.cpp
+    # jobs/job_export_pcb_dxf.cpp  # NOT in minset: job_export_pcb_dxf.cpp
+    # jobs/job_export_pcb_gerber.cpp  # NOT in minset: job_export_pcb_gerber.cpp
+    # jobs/job_export_pcb_gerbers.cpp  # NOT in minset: job_export_pcb_gerbers.cpp
+    # jobs/job_export_pcb_ipc2581.cpp  # NOT in minset: job_export_pcb_ipc2581.cpp
+    # jobs/job_export_pcb_ipcd356.cpp  # NOT in minset: job_export_pcb_ipcd356.cpp
+    # jobs/job_export_pcb_odb.cpp  # NOT in minset: job_export_pcb_odb.cpp
+    # jobs/job_export_pcb_pdf.cpp  # NOT in minset: job_export_pcb_pdf.cpp
+    # jobs/job_export_pcb_plot.cpp  # NOT in minset: job_export_pcb_plot.cpp
+    # jobs/job_export_pcb_pos.cpp  # NOT in minset: job_export_pcb_pos.cpp
+    # jobs/job_export_pcb_svg.cpp  # NOT in minset: job_export_pcb_svg.cpp
+    # jobs/job_export_pcb_gencad.cpp  # NOT in minset: job_export_pcb_gencad.cpp
+    # jobs/job_export_pcb_3d.cpp  # NOT in minset: job_export_pcb_3d.cpp
+    # jobs/job_export_sch_bom.cpp  # NOT in minset: job_export_sch_bom.cpp
+    # jobs/job_export_sch_netlist.cpp  # NOT in minset: job_export_sch_netlist.cpp
+    # jobs/job_export_sch_plot.cpp  # NOT in minset: job_export_sch_plot.cpp
+    # jobs/job_export_sch_pythonbom.cpp  # NOT in minset: job_export_sch_pythonbom.cpp
+    # jobs/job_special_copyfiles.cpp  # NOT in minset: job_special_copyfiles.cpp
+    # jobs/job_special_execute.cpp  # NOT in minset: job_special_execute.cpp
+    # jobs/jobset.cpp  # NOT in minset: jobset.cpp
+    # jobs/job_fp_export_svg.cpp  # NOT in minset: job_fp_export_svg.cpp
+    # jobs/job_fp_upgrade.cpp  # NOT in minset: job_fp_upgrade.cpp
+    # jobs/job_pcb_render.cpp  # NOT in minset: job_pcb_render.cpp
+    # jobs/job_pcb_drc.cpp  # NOT in minset: job_pcb_drc.cpp
+    # jobs/job_rc.cpp  # NOT in minset: job_rc.cpp
+    # jobs/job_sch_erc.cpp  # NOT in minset: job_sch_erc.cpp
+    # jobs/job_sym_export_svg.cpp  # NOT in minset: job_sym_export_svg.cpp
+    # jobs/job_sym_upgrade.cpp  # NOT in minset: job_sym_upgrade.cpp
 
     kicad_curl/kicad_curl.cpp
-    kicad_curl/kicad_curl_easy.cpp
+    # kicad_curl/kicad_curl_easy.cpp  # NOT in minset: kicad_curl_easy.cpp
 
     settings/app_settings.cpp
     settings/aui_settings.cpp
@@ -120,18 +120,18 @@ set( KICOMMON_SRCS
 
     dialogs/dialog_migrate_settings.cpp
     dialogs/dialog_migrate_settings_base.cpp
-    dialogs/dialog_rc_job.cpp
-    dialogs/dialog_rc_job_base.cpp
+    # dialogs/dialog_rc_job.cpp  # NOT in minset: dialog_rc_job.cpp
+    # dialogs/dialog_rc_job_base.cpp  # NOT in minset: dialog_rc_job_base.cpp
 
     widgets/bitmap_button.cpp
     widgets/html_window.cpp
     widgets/kistatusbar.cpp
-    widgets/number_badge.cpp
+    # widgets/number_badge.cpp  # NOT in minset: number_badge.cpp
     widgets/progress_reporter_base.cpp
     widgets/std_bitmap_button.cpp
     widgets/ui_common.cpp
-    widgets/wx_html_report_panel.cpp
-    widgets/wx_html_report_panel_base.cpp
+    # widgets/wx_html_report_panel.cpp  # NOT in minset: wx_html_report_panel.cpp
+    # widgets/wx_html_report_panel_base.cpp  # NOT in minset: wx_html_report_panel_base.cpp
 
     database/database_lib_settings.cpp
 
@@ -142,30 +142,30 @@ set( KICOMMON_SRCS
 
     advanced_config.cpp
     asset_archive.cpp
-    array_axis.cpp
-    array_options.cpp
+    # array_axis.cpp  # NOT in minset: array_axis.cpp
+    # array_options.cpp  # NOT in minset: array_options.cpp
     background_jobs_monitor.cpp
     bitmap.cpp
     bitmap_info.cpp
     bitmap_store.cpp
     build_version.cpp
-    cli_progress_reporter.cpp
+    # cli_progress_reporter.cpp  # NOT in minset: cli_progress_reporter.cpp
     common.cpp
     config_params.cpp
     confirm.cpp
     dialog_shim.cpp
-    dpi_scaling.cpp
-    dpi_scaling_common.cpp
+    # dpi_scaling.cpp  # NOT in minset: dpi_scaling.cpp
+    # dpi_scaling_common.cpp  # NOT in minset: dpi_scaling_common.cpp
     dsnlexer.cpp
     eda_pattern_match.cpp
     eda_units.cpp
     env_vars.cpp
     exceptions.cpp
     gestfich.cpp
-    increment.cpp
+    # increment.cpp  # NOT in minset: increment.cpp
     json_conversions.cpp
     json_schema_validator.cpp
-    kidialog.cpp
+    # kidialog.cpp  # NOT in minset: kidialog.cpp
     kiid.cpp
     kiway.cpp
     kiway_express.cpp
@@ -175,18 +175,18 @@ set( KICOMMON_SRCS
     layer_id.cpp
     lib_id.cpp
     locale_io.cpp
-    lseq.cpp
+    # lseq.cpp  # NOT in minset: lseq.cpp
     lset.cpp
-    markup_parser.cpp
+    # markup_parser.cpp  # NOT in minset: markup_parser.cpp
     netclass.cpp
     notifications_manager.cpp
-    page_info.cpp
+    # page_info.cpp  # NOT in minset: page_info.cpp
     paths.cpp
     project.cpp
     reporter.cpp
     richio.cpp
     search_stack.cpp
-    searchhelpfilefullpath.cpp
+    # searchhelpfilefullpath.cpp  # NOT in minset: searchhelpfilefullpath.cpp
     string_utils.cpp
     systemdirsappend.cpp
     thread_pool.cpp
@@ -194,7 +194,7 @@ set( KICOMMON_SRCS
     title_block.cpp
     trace_helpers.cpp
     wildcards_and_files_ext.cpp
-    wx_filename.cpp
+    # wx_filename.cpp  # NOT in minset: wx_filename.cpp
 
     singleton.cpp
     pgm_base.cpp
@@ -203,7 +203,7 @@ set( KICOMMON_SRCS
 
     io/kicad/kicad_io_utils.cpp    # needed by richio
     io/io_base.cpp
-    io/io_utils.cpp
+    # io/io_utils.cpp  # NOT in minset: io_utils.cpp
 
     api/serializable.cpp
     api/api_utils.cpp
@@ -329,11 +329,11 @@ set( COMMON_ABOUT_DLG_SRCS
     )
 
 set( COMMON_GIT_DLG_SRCS
-    dialogs/git/dialog_git_commit.cpp
-    dialogs/git/dialog_git_switch.cpp
-    dialogs/git/dialog_git_auth.cpp
-    dialogs/git/dialog_git_repository.cpp
-    dialogs/git/dialog_git_repository_base.cpp
+    # dialogs/git/dialog_git_commit.cpp  # NOT in minset: dialog_git_commit.cpp
+    # dialogs/git/dialog_git_switch.cpp  # NOT in minset: dialog_git_switch.cpp
+    # dialogs/git/dialog_git_auth.cpp  # NOT in minset: dialog_git_auth.cpp
+    # dialogs/git/dialog_git_repository.cpp  # NOT in minset: dialog_git_repository.cpp
+    # dialogs/git/dialog_git_repository_base.cpp  # NOT in minset: dialog_git_repository_base.cpp
     dialogs/git/panel_git_repos.cpp
     dialogs/git/panel_git_repos_base.cpp
 
@@ -341,225 +341,225 @@ set( COMMON_GIT_DLG_SRCS
 
 set( COMMON_DLG_SRCS
     ${COMMON_GIT_DLG_SRCS}
-    dialogs/dialog_assign_netclass.cpp
-    dialogs/dialog_assign_netclass_base.cpp
-    dialogs/dialog_book_reporter.cpp
-    dialogs/dialog_book_reporter_base.cpp
+    # dialogs/dialog_assign_netclass.cpp  # NOT in minset: dialog_assign_netclass.cpp
+    # dialogs/dialog_assign_netclass_base.cpp  # NOT in minset: dialog_assign_netclass_base.cpp
+    # dialogs/dialog_book_reporter.cpp  # NOT in minset: dialog_book_reporter.cpp
+    # dialogs/dialog_book_reporter_base.cpp  # NOT in minset: dialog_book_reporter_base.cpp
     dialogs/dialog_color_picker.cpp
     dialogs/dialog_color_picker_base.cpp
     dialogs/dialog_configure_paths.cpp
     dialogs/dialog_configure_paths_base.cpp
-    dialogs/dialog_display_html_text_base.cpp
-    dialogs/dialog_edit_library_tables.cpp
-    dialogs/dialog_embed_files.cpp
-    dialogs/dialog_global_lib_table_config.cpp
-    dialogs/dialog_global_lib_table_config_base.cpp
-    dialogs/dialog_global_design_block_lib_table_config.cpp
-    dialogs/dialog_grid_settings.cpp
-    dialogs/dialog_grid_settings_base.cpp
+    # dialogs/dialog_display_html_text_base.cpp  # NOT in minset: dialog_display_html_text_base.cpp
+    # dialogs/dialog_edit_library_tables.cpp  # NOT in minset: dialog_edit_library_tables.cpp
+    # dialogs/dialog_embed_files.cpp  # NOT in minset: dialog_embed_files.cpp
+    # dialogs/dialog_global_lib_table_config.cpp  # NOT in minset: dialog_global_lib_table_config.cpp
+    # dialogs/dialog_global_lib_table_config_base.cpp  # NOT in minset: dialog_global_lib_table_config_base.cpp
+    # dialogs/dialog_global_design_block_lib_table_config.cpp  # NOT in minset: dialog_global_design_block_lib_table_config.cpp
+    # dialogs/dialog_grid_settings.cpp  # NOT in minset: dialog_grid_settings.cpp
+    # dialogs/dialog_grid_settings_base.cpp  # NOT in minset: dialog_grid_settings_base.cpp
     dialogs/dialog_hotkey_list.cpp
-    dialogs/dialog_HTML_reporter_base.cpp
-    dialogs/dialog_import_choose_project.cpp
-    dialogs/dialog_import_choose_project_base.cpp
-    dialogs/dialog_locked_items_query.cpp
-    dialogs/dialog_locked_items_query_base.cpp
-    dialogs/dialog_multi_unit_entry.cpp
-    dialogs/dialog_page_settings_base.cpp
-    dialogs/dialog_paste_special.cpp
-    dialogs/dialog_paste_special_base.cpp
-    dialogs/dialog_plugin_options.cpp
-    dialogs/dialog_plugin_options_base.cpp
-    dialogs/dialog_text_entry_base.cpp
-    dialogs/dialog_page_settings.cpp
-    dialogs/dialog_print_generic.cpp
-    dialogs/dialog_print_generic_base.cpp
-    dialogs/dialog_text_entry.cpp
-    dialogs/dialog_unit_entry.cpp
-    dialogs/dialog_unit_entry_base.cpp
-    dialogs/eda_list_dialog.cpp
-    dialogs/eda_list_dialog_base.cpp
-    dialogs/eda_reorderable_list_dialog.cpp
-    dialogs/eda_reorderable_list_dialog_base.cpp
-    dialogs/eda_view_switcher.cpp
-    dialogs/eda_view_switcher_base.cpp
-    dialogs/hotkey_cycle_popup.cpp
-    dialogs/html_message_box.cpp
-    dialogs/panel_color_settings_base.cpp
-    dialogs/panel_color_settings.cpp
+    # dialogs/dialog_HTML_reporter_base.cpp  # NOT in minset: dialog_HTML_reporter_base.cpp
+    # dialogs/dialog_import_choose_project.cpp  # NOT in minset: dialog_import_choose_project.cpp
+    # dialogs/dialog_import_choose_project_base.cpp  # NOT in minset: dialog_import_choose_project_base.cpp
+    # dialogs/dialog_locked_items_query.cpp  # NOT in minset: dialog_locked_items_query.cpp
+    # dialogs/dialog_locked_items_query_base.cpp  # NOT in minset: dialog_locked_items_query_base.cpp
+    # dialogs/dialog_multi_unit_entry.cpp  # NOT in minset: dialog_multi_unit_entry.cpp
+    # dialogs/dialog_page_settings_base.cpp  # NOT in minset: dialog_page_settings_base.cpp
+    # dialogs/dialog_paste_special.cpp  # NOT in minset: dialog_paste_special.cpp
+    # dialogs/dialog_paste_special_base.cpp  # NOT in minset: dialog_paste_special_base.cpp
+    # dialogs/dialog_plugin_options.cpp  # NOT in minset: dialog_plugin_options.cpp
+    # dialogs/dialog_plugin_options_base.cpp  # NOT in minset: dialog_plugin_options_base.cpp
+    # dialogs/dialog_text_entry_base.cpp  # NOT in minset: dialog_text_entry_base.cpp
+    # dialogs/dialog_page_settings.cpp  # NOT in minset: dialog_page_settings.cpp
+    # dialogs/dialog_print_generic.cpp  # NOT in minset: dialog_print_generic.cpp
+    # dialogs/dialog_print_generic_base.cpp  # NOT in minset: dialog_print_generic_base.cpp
+    # dialogs/dialog_text_entry.cpp  # NOT in minset: dialog_text_entry.cpp
+    # dialogs/dialog_unit_entry.cpp  # NOT in minset: dialog_unit_entry.cpp
+    # dialogs/dialog_unit_entry_base.cpp  # NOT in minset: dialog_unit_entry_base.cpp
+    # dialogs/eda_list_dialog.cpp  # NOT in minset: eda_list_dialog.cpp
+    # dialogs/eda_list_dialog_base.cpp  # NOT in minset: eda_list_dialog_base.cpp
+    # dialogs/eda_reorderable_list_dialog.cpp  # NOT in minset: eda_reorderable_list_dialog.cpp
+    # dialogs/eda_reorderable_list_dialog_base.cpp  # NOT in minset: eda_reorderable_list_dialog_base.cpp
+    # dialogs/eda_view_switcher.cpp  # NOT in minset: eda_view_switcher.cpp
+    # dialogs/eda_view_switcher_base.cpp  # NOT in minset: eda_view_switcher_base.cpp
+    # dialogs/hotkey_cycle_popup.cpp  # NOT in minset: hotkey_cycle_popup.cpp
+    # dialogs/html_message_box.cpp  # NOT in minset: html_message_box.cpp
+    # dialogs/panel_color_settings_base.cpp  # NOT in minset: panel_color_settings_base.cpp
+    # dialogs/panel_color_settings.cpp  # NOT in minset: panel_color_settings.cpp
     dialogs/panel_common_settings.cpp
     dialogs/panel_common_settings_base.cpp
-    dialogs/panel_design_block_lib_table_base.cpp
-    dialogs/panel_design_block_lib_table.cpp
-    dialogs/panel_embedded_files.cpp
-    dialogs/panel_embedded_files_base.cpp
-    dialogs/panel_gal_display_options.cpp
+    # dialogs/panel_design_block_lib_table_base.cpp  # NOT in minset: panel_design_block_lib_table_base.cpp
+    # dialogs/panel_design_block_lib_table.cpp  # NOT in minset: panel_design_block_lib_table.cpp
+    # dialogs/panel_embedded_files.cpp  # NOT in minset: panel_embedded_files.cpp
+    # dialogs/panel_embedded_files_base.cpp  # NOT in minset: panel_embedded_files_base.cpp
+    # dialogs/panel_gal_display_options.cpp  # NOT in minset: panel_gal_display_options.cpp
     dialogs/panel_hotkeys_editor.cpp
-    dialogs/panel_image_editor.cpp
-    dialogs/panel_image_editor_base.cpp
-    dialogs/panel_grid_settings.cpp
-    dialogs/panel_grid_settings_base.cpp
+    # dialogs/panel_image_editor.cpp  # NOT in minset: panel_image_editor.cpp
+    # dialogs/panel_image_editor_base.cpp  # NOT in minset: panel_image_editor_base.cpp
+    # dialogs/panel_grid_settings.cpp  # NOT in minset: panel_grid_settings.cpp
+    # dialogs/panel_grid_settings_base.cpp  # NOT in minset: panel_grid_settings_base.cpp
     dialogs/panel_mouse_settings.cpp
     dialogs/panel_mouse_settings_base.cpp
     dialogs/panel_packages_and_updates.cpp
     dialogs/panel_packages_and_updates_base.cpp
     dialogs/panel_plugin_settings.cpp
     dialogs/panel_plugin_settings_base.cpp
-    dialogs/panel_setup_netclasses.cpp
-    dialogs/panel_setup_netclasses_base.cpp
-    dialogs/panel_setup_severities.cpp
-    dialogs/panel_text_variables.cpp
-    dialogs/panel_text_variables_base.cpp
+    # dialogs/panel_setup_netclasses.cpp  # NOT in minset: panel_setup_netclasses.cpp
+    # dialogs/panel_setup_netclasses_base.cpp  # NOT in minset: panel_setup_netclasses_base.cpp
+    # dialogs/panel_setup_severities.cpp  # NOT in minset: panel_setup_severities.cpp
+    # dialogs/panel_text_variables.cpp  # NOT in minset: panel_text_variables.cpp
+    # dialogs/panel_text_variables_base.cpp  # NOT in minset: panel_text_variables_base.cpp
     )
 
 if( KICAD_USE_SENTRY )
     list( APPEND COMMON_DLG_SRCS
-    dialogs/panel_data_collection.cpp
-    dialogs/panel_data_collection_base.cpp )
+    # dialogs/panel_data_collection.cpp  # NOT in minset: panel_data_collection.cpp
+    # dialogs/panel_data_collection_base.cpp )  # NOT in minset: panel_data_collection_base.cpp
 endif()
 
 set( COMMON_WIDGET_SRCS
-    widgets/app_progress_dialog.cpp
-    widgets/bitmap_toggle.cpp
+    # widgets/app_progress_dialog.cpp  # NOT in minset: app_progress_dialog.cpp
+    # widgets/bitmap_toggle.cpp  # NOT in minset: bitmap_toggle.cpp
     widgets/button_row_panel.cpp
     widgets/color_swatch.cpp
-    widgets/filter_combobox.cpp
-    widgets/font_choice.cpp
-    widgets/footprint_choice.cpp
-    widgets/footprint_diff_widget.cpp
-    widgets/footprint_preview_widget.cpp
-    widgets/footprint_select_widget.cpp
-    widgets/gal_options_panel.cpp
-    widgets/gal_options_panel_base.cpp
-    widgets/grid_bitmap_toggle.cpp
-    widgets/grid_button.cpp
-    widgets/grid_checkbox.cpp
-    widgets/grid_color_swatch_helpers.cpp
-    widgets/grid_combobox.cpp
-    widgets/grid_icon_text_helpers.cpp
+    # widgets/filter_combobox.cpp  # NOT in minset: filter_combobox.cpp
+    # widgets/font_choice.cpp  # NOT in minset: font_choice.cpp
+    # widgets/footprint_choice.cpp  # NOT in minset: footprint_choice.cpp
+    # widgets/footprint_diff_widget.cpp  # NOT in minset: footprint_diff_widget.cpp
+    # widgets/footprint_preview_widget.cpp  # NOT in minset: footprint_preview_widget.cpp
+    # widgets/footprint_select_widget.cpp  # NOT in minset: footprint_select_widget.cpp
+    # widgets/gal_options_panel.cpp  # NOT in minset: gal_options_panel.cpp
+    # widgets/gal_options_panel_base.cpp  # NOT in minset: gal_options_panel_base.cpp
+    # widgets/grid_bitmap_toggle.cpp  # NOT in minset: grid_bitmap_toggle.cpp
+    # widgets/grid_button.cpp  # NOT in minset: grid_button.cpp
+    # widgets/grid_checkbox.cpp  # NOT in minset: grid_checkbox.cpp
+    # widgets/grid_color_swatch_helpers.cpp  # NOT in minset: grid_color_swatch_helpers.cpp
+    # widgets/grid_combobox.cpp  # NOT in minset: grid_combobox.cpp
+    # widgets/grid_icon_text_helpers.cpp  # NOT in minset: grid_icon_text_helpers.cpp
     widgets/grid_text_button_helpers.cpp
     widgets/grid_text_helpers.cpp
-    widgets/indicator_icon.cpp
+    # widgets/indicator_icon.cpp  # NOT in minset: indicator_icon.cpp
     widgets/wx_infobar.cpp
-    widgets/layer_box_selector.cpp
-    widgets/layer_presentation.cpp
-    widgets/lib_tree.cpp
-    widgets/listbox_tricks.cpp
-    widgets/mathplot.cpp
-    widgets/msgpanel.cpp
+    # widgets/layer_box_selector.cpp  # NOT in minset: layer_box_selector.cpp
+    # widgets/layer_presentation.cpp  # NOT in minset: layer_presentation.cpp
+    # widgets/lib_tree.cpp  # NOT in minset: lib_tree.cpp
+    # widgets/listbox_tricks.cpp  # NOT in minset: listbox_tricks.cpp
+    # widgets/mathplot.cpp  # NOT in minset: mathplot.cpp
+    # widgets/msgpanel.cpp  # NOT in minset: msgpanel.cpp
     widgets/paged_dialog.cpp
-    widgets/properties_panel.cpp
-    widgets/search_pane.cpp
-    widgets/search_pane_base.cpp
-    widgets/search_pane_tab.cpp
-    widgets/split_button.cpp
-    widgets/stepped_slider.cpp
-    widgets/text_ctrl_eval.cpp
-    widgets/unit_binder.cpp
-    widgets/widget_save_restore.cpp
+    # widgets/properties_panel.cpp  # NOT in minset: properties_panel.cpp
+    # widgets/search_pane.cpp  # NOT in minset: search_pane.cpp
+    # widgets/search_pane_base.cpp  # NOT in minset: search_pane_base.cpp
+    # widgets/search_pane_tab.cpp  # NOT in minset: search_pane_tab.cpp
+    # widgets/split_button.cpp  # NOT in minset: split_button.cpp
+    # widgets/stepped_slider.cpp  # NOT in minset: stepped_slider.cpp
+    # widgets/text_ctrl_eval.cpp  # NOT in minset: text_ctrl_eval.cpp
+    # widgets/unit_binder.cpp  # NOT in minset: unit_binder.cpp
+    # widgets/widget_save_restore.cpp  # NOT in minset: widget_save_restore.cpp
     widgets/widget_hotkey_list.cpp
     widgets/wx_aui_art_providers.cpp
-    widgets/wx_aui_utils.cpp
+    # widgets/wx_aui_utils.cpp  # NOT in minset: wx_aui_utils.cpp
     widgets/wx_busy_indicator.cpp
-    widgets/wx_collapsible_pane.cpp
-    widgets/wx_combobox.cpp
-    widgets/wx_dataviewctrl.cpp
-    widgets/wx_ellipsized_static_text.cpp
+    # widgets/wx_collapsible_pane.cpp  # NOT in minset: wx_collapsible_pane.cpp
+    # widgets/wx_combobox.cpp  # NOT in minset: wx_combobox.cpp
+    # widgets/wx_dataviewctrl.cpp  # NOT in minset: wx_dataviewctrl.cpp
+    # widgets/wx_ellipsized_static_text.cpp  # NOT in minset: wx_ellipsized_static_text.cpp
     widgets/wx_grid.cpp
     widgets/wx_grid_autosizer.cpp
-    widgets/wx_html_report_box.cpp
-    widgets/wx_listbox.cpp
+    # widgets/wx_html_report_box.cpp  # NOT in minset: wx_html_report_box.cpp
+    # widgets/wx_listbox.cpp  # NOT in minset: wx_listbox.cpp
     widgets/wx_panel.cpp
-    widgets/wx_progress_reporters.cpp
-    widgets/wx_splitter_window.cpp
+    # widgets/wx_progress_reporters.cpp  # NOT in minset: wx_progress_reporters.cpp
+    # widgets/wx_splitter_window.cpp  # NOT in minset: wx_splitter_window.cpp
     widgets/wx_treebook.cpp
     )
 
 set( COMMON_DRAWING_SHEET_SRCS
-    drawing_sheet/ds_data_item.cpp
-    drawing_sheet/ds_data_model.cpp
-    drawing_sheet/ds_data_model_io.cpp
-    drawing_sheet/drawing_sheet_default_description.cpp
-    drawing_sheet/ds_draw_item.cpp
-    drawing_sheet/ds_proxy_undo_item.cpp
-    drawing_sheet/ds_proxy_view_item.cpp
-    drawing_sheet/drawing_sheet_parser.cpp
+    # drawing_sheet/ds_data_item.cpp  # NOT in minset: ds_data_item.cpp
+    # drawing_sheet/ds_data_model.cpp  # NOT in minset: ds_data_model.cpp
+    # drawing_sheet/ds_data_model_io.cpp  # NOT in minset: ds_data_model_io.cpp
+    # drawing_sheet/drawing_sheet_default_description.cpp  # NOT in minset: drawing_sheet_default_description.cpp
+    # drawing_sheet/ds_draw_item.cpp  # NOT in minset: ds_draw_item.cpp
+    # drawing_sheet/ds_proxy_undo_item.cpp  # NOT in minset: ds_proxy_undo_item.cpp
+    # drawing_sheet/ds_proxy_view_item.cpp  # NOT in minset: ds_proxy_view_item.cpp
+    # drawing_sheet/drawing_sheet_parser.cpp  # NOT in minset: drawing_sheet_parser.cpp
     )
 
 set( COMMON_PREVIEW_ITEMS_SRCS
-    preview_items/anchor_debug.cpp
-    preview_items/arc_assistant.cpp
-    preview_items/arc_geom_manager.cpp
-    preview_items/bezier_assistant.cpp
-    preview_items/bezier_geom_manager.cpp
-    preview_items/centreline_rect_item.cpp
-    preview_items/construction_geom.cpp
-    preview_items/draw_context.cpp
-    preview_items/item_drawing_utils.cpp
-    preview_items/polygon_geom_manager.cpp
-    preview_items/polygon_item.cpp
-    preview_items/preview_utils.cpp
-    preview_items/ruler_item.cpp
-    preview_items/selection_area.cpp
-    preview_items/simple_overlay_item.cpp
-    preview_items/snap_indicator.cpp
-    preview_items/two_point_assistant.cpp
+    # preview_items/anchor_debug.cpp  # NOT in minset: anchor_debug.cpp
+    # preview_items/arc_assistant.cpp  # NOT in minset: arc_assistant.cpp
+    # preview_items/arc_geom_manager.cpp  # NOT in minset: arc_geom_manager.cpp
+    # preview_items/bezier_assistant.cpp  # NOT in minset: bezier_assistant.cpp
+    # preview_items/bezier_geom_manager.cpp  # NOT in minset: bezier_geom_manager.cpp
+    # preview_items/centreline_rect_item.cpp  # NOT in minset: centreline_rect_item.cpp
+    # preview_items/construction_geom.cpp  # NOT in minset: construction_geom.cpp
+    # preview_items/draw_context.cpp  # NOT in minset: draw_context.cpp
+    # preview_items/item_drawing_utils.cpp  # NOT in minset: item_drawing_utils.cpp
+    # preview_items/polygon_geom_manager.cpp  # NOT in minset: polygon_geom_manager.cpp
+    # preview_items/polygon_item.cpp  # NOT in minset: polygon_item.cpp
+    # preview_items/preview_utils.cpp  # NOT in minset: preview_utils.cpp
+    # preview_items/ruler_item.cpp  # NOT in minset: ruler_item.cpp
+    # preview_items/selection_area.cpp  # NOT in minset: selection_area.cpp
+    # preview_items/simple_overlay_item.cpp  # NOT in minset: simple_overlay_item.cpp
+    # preview_items/snap_indicator.cpp  # NOT in minset: snap_indicator.cpp
+    # preview_items/two_point_assistant.cpp  # NOT in minset: two_point_assistant.cpp
     )
 
 set( PLOTTERS_CONTROL_SRCS
-    plotters/plotter.cpp
-    plotters/DXF_plotter.cpp
-    plotters/GERBER_plotter.cpp
-    plotters/HPGL_plotter.cpp
-    plotters/PDF_plotter.cpp
-    plotters/PS_plotter.cpp
-    plotters/SVG_plotter.cpp
-    plotters/common_plot_functions.cpp
+    # plotters/plotter.cpp  # NOT in minset: plotter.cpp
+    # plotters/DXF_plotter.cpp  # NOT in minset: DXF_plotter.cpp
+    # plotters/GERBER_plotter.cpp  # NOT in minset: GERBER_plotter.cpp
+    # plotters/HPGL_plotter.cpp  # NOT in minset: HPGL_plotter.cpp
+    # plotters/PDF_plotter.cpp  # NOT in minset: PDF_plotter.cpp
+    # plotters/PS_plotter.cpp  # NOT in minset: PS_plotter.cpp
+    # plotters/SVG_plotter.cpp  # NOT in minset: SVG_plotter.cpp
+    # plotters/common_plot_functions.cpp  # NOT in minset: common_plot_functions.cpp
     )
 
 set( COMMON_IO_SRCS
 
     # Altium
-    io/altium/altium_binary_parser.cpp
-    io/altium/altium_ascii_parser.cpp
-    io/altium/altium_parser_utils.cpp
-    io/altium/altium_props_utils.cpp
+    # io/altium/altium_binary_parser.cpp  # NOT in minset: altium_binary_parser.cpp
+    # io/altium/altium_ascii_parser.cpp  # NOT in minset: altium_ascii_parser.cpp
+    # io/altium/altium_parser_utils.cpp  # NOT in minset: altium_parser_utils.cpp
+    # io/altium/altium_props_utils.cpp  # NOT in minset: altium_props_utils.cpp
 
     # Cadstar
-    io/cadstar/cadstar_archive_parser.cpp
-    io/cadstar/cadstar_parts_lib_parser.cpp
+    # io/cadstar/cadstar_archive_parser.cpp  # NOT in minset: cadstar_archive_parser.cpp
+    # io/cadstar/cadstar_parts_lib_parser.cpp  # NOT in minset: cadstar_parts_lib_parser.cpp
 
     # Eagle
-    io/eagle/eagle_parser.cpp
+    # io/eagle/eagle_parser.cpp  # NOT in minset: eagle_parser.cpp
 
     # EasyEDA
-    io/easyeda/easyeda_parser_base.cpp
-    io/easyeda/easyeda_parser_structs.cpp
+    # io/easyeda/easyeda_parser_base.cpp  # NOT in minset: easyeda_parser_base.cpp
+    # io/easyeda/easyeda_parser_structs.cpp  # NOT in minset: easyeda_parser_structs.cpp
 
     # EasyEDA pro
-    io/easyedapro/easyedapro_parser.cpp
-    io/easyedapro/easyedapro_import_utils.cpp
+    # io/easyedapro/easyedapro_parser.cpp  # NOT in minset: easyedapro_parser.cpp
+    # io/easyedapro/easyedapro_import_utils.cpp  # NOT in minset: easyedapro_import_utils.cpp
     )
 
 set( COMMON_IMPORT_GFX_SRCS
-    import_gfx/graphics_import_mgr.cpp
-    import_gfx/graphics_importer.cpp
-    import_gfx/graphics_importer_buffer.cpp
-    import_gfx/dxf_import_plugin.cpp
-    import_gfx/svg_import_plugin.cpp
+    # import_gfx/graphics_import_mgr.cpp  # NOT in minset: graphics_import_mgr.cpp
+    # import_gfx/graphics_importer.cpp  # NOT in minset: graphics_importer.cpp
+    # import_gfx/graphics_importer_buffer.cpp  # NOT in minset: graphics_importer_buffer.cpp
+    # import_gfx/dxf_import_plugin.cpp  # NOT in minset: dxf_import_plugin.cpp
+    # import_gfx/svg_import_plugin.cpp  # NOT in minset: svg_import_plugin.cpp
     )
 
 set( COMMON_GIT_SRCS
-    git/git_add_to_index_handler.cpp
-    git/git_clone_handler.cpp
-    git/git_commit_handler.cpp
-    git/git_pull_handler.cpp
-    git/git_push_handler.cpp
-    git/git_remove_from_index_handler.cpp
-    git/git_resolve_conflict_handler.cpp
-    git/git_revert_handler.cpp
-    git/git_sync_handler.cpp
-    git/kicad_git_common.cpp
-    git/kicad_git_errors.cpp
+    # git/git_add_to_index_handler.cpp  # NOT in minset: git_add_to_index_handler.cpp
+    # git/git_clone_handler.cpp  # NOT in minset: git_clone_handler.cpp
+    # git/git_commit_handler.cpp  # NOT in minset: git_commit_handler.cpp
+    # git/git_pull_handler.cpp  # NOT in minset: git_pull_handler.cpp
+    # git/git_push_handler.cpp  # NOT in minset: git_push_handler.cpp
+    # git/git_remove_from_index_handler.cpp  # NOT in minset: git_remove_from_index_handler.cpp
+    # git/git_resolve_conflict_handler.cpp  # NOT in minset: git_resolve_conflict_handler.cpp
+    # git/git_revert_handler.cpp  # NOT in minset: git_revert_handler.cpp
+    # git/git_sync_handler.cpp  # NOT in minset: git_sync_handler.cpp
+    # git/kicad_git_common.cpp  # NOT in minset: kicad_git_common.cpp
+    # git/kicad_git_errors.cpp  # NOT in minset: kicad_git_errors.cpp
     )
 
 set( COMMON_SRCS
@@ -577,83 +577,83 @@ set( COMMON_SRCS
     base_screen.cpp
     bin_mod.cpp
     bitmap_base.cpp
-    board_printout.cpp
-    clipboard.cpp
-    commit.cpp
-    draw_panel_gal.cpp
-    gal_display_options_common.cpp
+    # board_printout.cpp  # NOT in minset: board_printout.cpp
+    # clipboard.cpp  # NOT in minset: clipboard.cpp
+    # commit.cpp  # NOT in minset: commit.cpp
+    # draw_panel_gal.cpp  # NOT in minset: draw_panel_gal.cpp
+    # gal_display_options_common.cpp  # NOT in minset: gal_display_options_common.cpp
     gr_text.cpp
     eda_base_frame.cpp
     eda_dde.cpp
     eda_doc.cpp
-    eda_draw_frame.cpp
+    # eda_draw_frame.cpp  # NOT in minset: eda_draw_frame.cpp
     eda_item.cpp
     eda_shape.cpp
     eda_text.cpp
     embedded_files.cpp
     env_paths.cpp
-    executable_names.cpp
-    filename_resolver.cpp
+    # executable_names.cpp  # NOT in minset: executable_names.cpp
+    # filename_resolver.cpp  # NOT in minset: filename_resolver.cpp
     file_history.cpp
-    filter_reader.cpp
-    footprint_filter.cpp
-    footprint_info.cpp
-    gbr_metadata.cpp
+    # filter_reader.cpp  # NOT in minset: filter_reader.cpp
+    # footprint_filter.cpp  # NOT in minset: footprint_filter.cpp
+    # footprint_info.cpp  # NOT in minset: footprint_info.cpp
+    # gbr_metadata.cpp  # NOT in minset: gbr_metadata.cpp
     gr_basic.cpp
     grid_tricks.cpp
     hotkey_store.cpp
     hotkeys_basic.cpp
     kiface_base.cpp
     kiway_player.cpp
-    lib_table_grid_tricks.cpp
-    lib_tree_model.cpp
-    lib_tree_model_adapter.cpp
+    # lib_table_grid_tricks.cpp  # NOT in minset: lib_table_grid_tricks.cpp
+    # lib_tree_model.cpp  # NOT in minset: lib_tree_model.cpp
+    # lib_tree_model_adapter.cpp  # NOT in minset: lib_tree_model_adapter.cpp
     marker_base.cpp
     origin_transforms.cpp
-    printout.cpp
-    ptree.cpp
+    # printout.cpp  # NOT in minset: printout.cpp
+    # ptree.cpp  # NOT in minset: ptree.cpp
     rc_item.cpp
     refdes_utils.cpp
     reference_image.cpp
     render_settings.cpp
     scintilla_tricks.cpp
-    status_popup.cpp
+    # status_popup.cpp  # NOT in minset: status_popup.cpp
     stroke_params.cpp
     template_fieldnames.cpp
     textentry_tricks.cpp
     undo_redo_container.cpp
     validators.cpp
-    drawing_sheet/ds_painter.cpp
-    xnode.cpp
+    # drawing_sheet/ds_painter.cpp  # NOT in minset: ds_painter.cpp
+    # xnode.cpp  # NOT in minset: xnode.cpp
     view/wx_view_controls.cpp
     )
 
 set( COMMON_SRCS
     ${COMMON_SRCS}
 
-    origin_viewitem.cpp
+    # origin_viewitem.cpp  # NOT in minset: origin_viewitem.cpp
 
     tool/action_manager.cpp
     tool/action_menu.cpp
     tool/action_toolbar.cpp
     tool/actions.cpp
     tool/common_control.cpp
-    tool/construction_manager.cpp
-    tool/common_tools.cpp
+    # tool/construction_manager.cpp  # NOT in minset: construction_manager.cpp
+    # tool/common_tools.cpp  # NOT in minset: common_tools.cpp
     tool/conditional_menu.cpp
-    tool/edit_constraints.cpp
-    tool/edit_points.cpp
-    tool/editor_conditions.cpp
-    tool/embed_tool.cpp
-    tool/grid_helper.cpp
-    tool/grid_menu.cpp
-    tool/library_editor_control.cpp
-    tool/picker_tool.cpp
-    tool/point_editor_behavior.cpp
-    tool/properties_tool.cpp
+    # tool/edit_constraints.cpp  # NOT in minset: edit_constraints.cpp
+    # tool/edit_points.cpp  # NOT in minset: edit_points.cpp
+    # tool/editor_conditions.cpp  # NOT in minset: editor_conditions.cpp
+    # tool/embed_tool.cpp  # NOT in minset: embed_tool.cpp
+    # tool/grid_helper.cpp  # NOT in minset: grid_helper.cpp
+    # tool/grid_menu.cpp  # NOT in minset: grid_menu.cpp
+    # tool/library_editor_control.cpp  # NOT in minset: library_editor_control.cpp
+    # tool/picker_tool.cpp  # NOT in minset: picker_tool.cpp
+    # tool/point_editor_behavior.cpp  # NOT in minset: point_editor_behavior.cpp
+    # tool/properties_tool.cpp  # NOT in minset: properties_tool.cpp
     tool/selection.cpp
-    tool/selection_tool.cpp
-    tool/selection_conditions.cpp
+    # tool/selection_tool.cpp  # NOT in minset: selection_tool.cpp
+    # tool/selection_conditions.cpp  # NOT in minset: selection_conditions.cpp
     tool/tool_action.cpp
     tool/tool_base.cpp
     tool/tool_dispatcher.cpp
@@ -662,23 +662,23 @@ set( COMMON_SRCS
     tool/tool_interactive.cpp
     tool/tool_manager.cpp
     tool/tool_menu.cpp
-    tool/zoom_menu.cpp
-    tool/zoom_tool.cpp
+    # tool/zoom_menu.cpp  # NOT in minset: zoom_menu.cpp
+    # tool/zoom_tool.cpp  # NOT in minset: zoom_tool.cpp
 
-    settings/cvpcb_settings.cpp
+    # settings/cvpcb_settings.cpp  # NOT in minset: cvpcb_settings.cpp
 
-    properties/color4d_variant.cpp
-    properties/eda_angle_variant.cpp
-    properties/pg_cell_renderer.cpp
-    properties/pg_editors.cpp
-    properties/pg_properties.cpp
+    # properties/color4d_variant.cpp  # NOT in minset: color4d_variant.cpp
+    # properties/eda_angle_variant.cpp  # NOT in minset: eda_angle_variant.cpp
+    # properties/pg_cell_renderer.cpp  # NOT in minset: pg_cell_renderer.cpp
+    # properties/pg_editors.cpp  # NOT in minset: pg_editors.cpp
+    # properties/pg_properties.cpp  # NOT in minset: pg_properties.cpp
     properties/property_mgr.cpp
-    properties/std_optional_variants.cpp
+    # properties/std_optional_variants.cpp  # NOT in minset: std_optional_variants.cpp
 
-    database/database_connection.cpp
+    # database/database_connection.cpp  # NOT in minset: database_connection.cpp
 
-    http_lib/http_lib_connection.cpp
-    http_lib/http_lib_settings.cpp
+    # http_lib/http_lib_connection.cpp  # NOT in minset: http_lib_connection.cpp
+    # http_lib/http_lib_settings.cpp  # NOT in minset: http_lib_settings.cpp
 
     api/api_enums.cpp
     )
@@ -686,8 +686,8 @@ set( COMMON_SRCS
 if( KICAD_IPC_API )
     set( COMMON_SRCS
         ${COMMON_SRCS}
-        api/api_handler_common.cpp
-        api/api_handler_editor.cpp
+        # api/api_handler_common.cpp  # NOT in minset: api_handler_common.cpp
+        # api/api_handler_editor.cpp  # NOT in minset: api_handler_editor.cpp
     )
 endif()
 
@@ -696,7 +696,7 @@ add_library( common STATIC
     )
 
 add_dependencies( common version_header )
-add_dependencies( common compoundfilereader )  # used by altium_parser.cpp
+# add_dependencies( common compoundfilereader )  # used by altium_parser.cpp  # NOT in minset: altium_parser.cpp
 
 target_link_libraries( common
     libcontext
@@ -757,12 +757,12 @@ target_include_directories( common SYSTEM PUBLIC
     )
 
 set( PCB_COMMON_SRCS
-    fp_lib_table.cpp
+    # fp_lib_table.cpp  # NOT in minset: fp_lib_table.cpp
     hash_eda.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/pcb_base_frame.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/pcb_base_frame.cpp  # NOT in minset: pcb_base_frame.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcbexpr_evaluator.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcbexpr_functions.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/board_commit.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/board_commit.cpp  # NOT in minset: board_commit.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/board_connected_item.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/board_design_settings.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/teardrop/teardrop_parameters.cpp     #needed by board_design_settings.cpp
@@ -775,7 +775,7 @@ set( PCB_COMMON_SRCS
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_group.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_marker.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/footprint.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/fix_board_shape.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/fix_board_shape.cpp  # NOT in minset: fix_board_shape.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/netinfo_item.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/netinfo_list.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pad.cpp
@@ -788,7 +788,7 @@ set( PCB_COMMON_SRCS
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_tablecell.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_text.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_textbox.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/project_pcb.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/project_pcb.cpp  # NOT in minset: project_pcb.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/board_stackup_manager/board_stackup.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_track.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_generator.cpp
@@ -806,43 +806,43 @@ set( PCB_COMMON_SRCS
     ${CMAKE_SOURCE_DIR}/pcbnew/drc/drc_rule_condition.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/drc/drc_rule_parser.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/drc/drc_test_provider.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/footprint_editor_settings.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/footprint_editor_settings.cpp  # NOT in minset: footprint_editor_settings.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/generators_mgr.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/kicad_clipboard.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/netlist_reader/kicad_netlist_reader.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/netlist_reader/legacy_netlist_reader.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/netlist_reader/netlist_reader.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/pcb_draw_panel_gal.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/kicad_clipboard.cpp  # NOT in minset: kicad_clipboard.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/netlist_reader/kicad_netlist_reader.cpp  # NOT in minset: kicad_netlist_reader.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/netlist_reader/legacy_netlist_reader.cpp  # NOT in minset: legacy_netlist_reader.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/netlist_reader/netlist_reader.cpp  # NOT in minset: netlist_reader.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/pcb_draw_panel_gal.cpp  # NOT in minset: pcb_draw_panel_gal.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/netlist_reader/pcb_netlist.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/pcb_origin_transforms.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/pcb_painter.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/pcb_origin_transforms.cpp  # NOT in minset: pcb_origin_transforms.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/pcb_painter.cpp  # NOT in minset: pcb_painter.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_plot_params.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/pcb_screen.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/pcb_view.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/pcbnew_settings.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/pcb_screen.cpp  # NOT in minset: pcb_screen.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/pcb_view.cpp  # NOT in minset: pcb_view.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/pcbnew_settings.cpp  # NOT in minset: pcbnew_settings.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/ratsnest/ratsnest_data.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/ratsnest/ratsnest_view_item.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/sel_layer.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/teardrop/teardrop.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/ratsnest/ratsnest_view_item.cpp  # NOT in minset: ratsnest_view_item.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/sel_layer.cpp  # NOT in minset: sel_layer.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/teardrop/teardrop.cpp  # NOT in minset: teardrop.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/teardrop/teardrop_parameters.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/teardrop/teardrop_utils.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/teardrop/teardrop_utils.cpp  # NOT in minset: teardrop_utils.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/zone_settings.cpp
 
     # IO files
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_io/pcb_io.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/pcb_io/pcb_io_mgr.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/pcb_io/kicad_legacy/pcb_io_kicad_legacy.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/pcb_io/pcb_io_mgr.cpp  # NOT in minset: pcb_io_mgr.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/pcb_io/kicad_legacy/pcb_io_kicad_legacy.cpp  # NOT in minset: pcb_io_kicad_legacy.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_io/kicad_sexpr/pcb_io_kicad_sexpr.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_io/kicad_sexpr/pcb_io_kicad_sexpr_parser.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/pcb_io/eagle/pcb_io_eagle.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/pcb_io/geda/pcb_io_geda.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/pcb_io/eagle/pcb_io_eagle.cpp  # NOT in minset: pcb_io_eagle.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/pcb_io/geda/pcb_io_geda.cpp  # NOT in minset: pcb_io_geda.cpp
 
-    ${CMAKE_SOURCE_DIR}/pcbnew/tools/pcb_grid_helper.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/tools/pcb_grid_helper.cpp  # NOT in minset: pcb_grid_helper.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/tools/pcb_actions.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/tools/pcb_editor_conditions.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/tools/pcb_viewer_tools.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/tools/pcb_editor_conditions.cpp  # NOT in minset: pcb_editor_conditions.cpp
+    # ${CMAKE_SOURCE_DIR}/pcbnew/tools/pcb_viewer_tools.cpp  # NOT in minset: pcb_viewer_tools.cpp
 
-    widgets/net_selector.cpp
+    # widgets/net_selector.cpp  # NOT in minset: net_selector.cpp
 )
 
 set( PCB_COMMON_SRCS
@@ -879,7 +879,7 @@ add_dependencies( pcbcommon delaunator )
 generate_lemon_grammar(
     kicommon
     libeval
-    libeval/numeric_evaluator.cpp
+    # libeval/numeric_evaluator.cpp  # NOT in minset: numeric_evaluator.cpp
     libeval/grammar.lemon
     )
 
@@ -962,7 +962,7 @@ make_lexer_export(
     kicommon
     template_fieldnames.keywords
     template_fieldnames_lexer.h
-    template_fieldnames_keywords.cpp
+    # template_fieldnames_keywords.cpp  # NOT in minset: template_fieldnames_keywords.cpp
     TFIELD_T
     KICOMMON_API
     kicommon.h

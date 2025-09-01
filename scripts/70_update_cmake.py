@@ -57,21 +57,22 @@ def load_minset_sources(json_path: str) -> Dict[str, List[str]]:
     
     return dir_sources
 
-def comment_out_unused_sources(cmake_file_path: str, needed_sources: List[str], directory: str):
+def comment_out_unused_sources(cmake_file_path: str, needed_sources: List[str], directory: str, all_minset_filenames: Set[str]):
     """Comment out source files in CMakeLists.txt that are not in needed_sources"""
     
     if not os.path.exists(cmake_file_path):
         print(f"Warning: CMakeLists.txt not found at {cmake_file_path}")
         return
     
-    # Convert needed sources to set for fast lookup
-    needed_set = set(needed_sources)
-    
-    # Also create a set with just filenames for fuzzy matching
+    # Create a set with just filenames for matching (ignore path prefixes)
     needed_filenames = {os.path.basename(src) for src in needed_sources}
+    
+    # For cross-directory references, also check against all minset filenames
+    combined_filenames = needed_filenames | all_minset_filenames
     
     print(f"\nProcessing {directory}/CMakeLists.txt")
     print(f"  Needed sources count: {len(needed_sources)}")
+    print(f"  Needed filenames: {sorted(list(needed_filenames))[:10]}...")  # Show first 10 for debug
     
     with open(cmake_file_path, 'r', encoding='utf-8') as f:
         content = f.read()
@@ -89,33 +90,29 @@ def comment_out_unused_sources(cmake_file_path: str, needed_sources: List[str], 
             cpp_files = re.findall(r'\b(\w+\.(?:cpp|cc))\b', line)
             
             should_comment = False
+            missing_files = []
             
             for cpp_file in cpp_files:
-                # Check if this file is needed
-                file_needed = False
-                
-                # Direct match
-                if cpp_file in needed_filenames:
-                    file_needed = True
-                
-                # Check with relative paths
-                for needed_src in needed_sources:
-                    if needed_src.endswith(cpp_file) or os.path.basename(needed_src) == cpp_file:
-                        file_needed = True
-                        break
-                
-                # If any cpp file in this line is not needed, comment the whole line
-                if not file_needed:
-                    should_comment = True
-                    break
+                # Check against combined filenames (includes cross-directory refs)
+                if cpp_file not in combined_filenames:
+                    missing_files.append(cpp_file)
+            
+            # Comment if NO cpp files in this line are in minset
+            found_files = []
+            for cpp_file in cpp_files:
+                if cpp_file in combined_filenames:
+                    found_files.append(cpp_file)
+            
+            # Only comment if NO files are in minset (all files are missing)
+            should_comment = len(found_files) == 0
             
             if should_comment and not line.strip().startswith('#'):
-                # Comment out the line
+                # Comment out the line with explanation
                 indentation = len(line) - len(line.lstrip())
-                commented_line = ' ' * indentation + '# ' + line.lstrip()
+                commented_line = ' ' * indentation + '# ' + line.lstrip() + f'  # NOT in minset: {", ".join(missing_files)}'
                 modified_lines.append(commented_line)
                 modifications_made += 1
-                print(f"    Commented out: {line.strip()}")
+                print(f"    Commented out: {line.strip()} -> Missing: {missing_files}")
             else:
                 modified_lines.append(line)
         else:
@@ -156,6 +153,14 @@ def main():
     print("Loading minset sources...")
     dir_sources = load_minset_sources(str(minset_json))
     
+    # Create a global set of all minset filenames for cross-directory references
+    all_minset_filenames = set()
+    for directory, sources in dir_sources.items():
+        for src in sources:
+            all_minset_filenames.add(os.path.basename(src))
+    
+    print(f"Total unique filenames in minset: {len(all_minset_filenames)}")
+    
     # Print summary
     print("\nSource files by directory:")
     for directory, sources in dir_sources.items():
@@ -176,7 +181,7 @@ def main():
         cmake_path = qt_project_dir / directory / "CMakeLists.txt"
         
         if needed_sources:
-            comment_out_unused_sources(str(cmake_path), needed_sources, directory)
+            comment_out_unused_sources(str(cmake_path), needed_sources, directory, all_minset_filenames)
         else:
             print(f"\nSkipping {directory} - no sources needed")
     
