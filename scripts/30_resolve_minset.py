@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD = ROOT / r"build"
+BUILD = ROOT / r"build/x64-Debug"
 INDEX = BUILD / "tu_index.json"
 SEEDS = ROOT / r"scripts\seeds.txt"
 OUT = BUILD / "minset_sources.json"
@@ -12,59 +12,138 @@ UNRES = BUILD / "unresolved_symbols.json"
 # 扩展的外部库符号前缀，避免把系统/三方库当"缺失"
 EXTERNAL_HINTS = [
     # C++标准库
-    "std::", "stdext::", "__std", "__cxx",
+    "std::",
+    "stdext::",
+    "__std",
+    "__cxx",
     # 内存管理
-    "operator new", "operator delete", "??_U", "??_V", "??2", "??3",
+    "operator new",
+    "operator delete",
+    "??_U",
+    "??_V",
+    "??2",
+    "??3",
     # MSVC运行时
-    "__imp_", "??_", "_CRT_", "__acrt_", "__vcrt_", "__security_",
+    "__imp_",
+    "??_",
+    "_CRT_",
+    "__acrt_",
+    "__vcrt_",
+    "__security_",
     # Windows API
-    "GetProcAddress", "LoadLibrary", "CreateFile", "RegQuery", "Nt", "Rtl",
+    "GetProcAddress",
+    "LoadLibrary",
+    "CreateFile",
+    "RegQuery",
+    "Nt",
+    "Rtl",
     # 线程库
-    "pthread_", "_beginthreadex", "CreateThread", "WaitForSingleObject",
+    "pthread_",
+    "_beginthreadex",
+    "CreateThread",
+    "WaitForSingleObject",
     # 系统库
-    "dlopen", "dlsym", "dlclose", "__libc_", "__glibc_",
+    "dlopen",
+    "dlsym",
+    "dlclose",
+    "__libc_",
+    "__glibc_",
     # Boost库
-    "boost::", "__boost", "_boost_",
+    "boost::",
+    "__boost",
+    "_boost_",
     # Google库
-    "google::", "protobuf::", "__google_",
+    "google::",
+    "protobuf::",
+    "__google_",
     # Qt框架
-    "Qt", "Q", "qt_", "__qt_",
+    "Qt",
+    "Q",
+    "qt_",
+    "__qt_",
     # wxWidgets
-    "wx", "WX", "WXDLLIMPEXP", "__wx_",
+    "wx",
+    "WX",
+    "WXDLLIMPEXP",
+    "__wx_",
     # 加密库
-    "SSL_", "EVP_", "CRYPTO_", "BN_", "RSA_", "AES_", "SHA1_", "SHA256_",
+    "SSL_",
+    "EVP_",
+    "CRYPTO_",
+    "BN_",
+    "RSA_",
+    "AES_",
+    "SHA1_",
+    "SHA256_",
     # 数据库
-    "sqlite3_", "SQLITE_", "mysql_", "postgres_",
+    "sqlite3_",
+    "SQLITE_",
+    "mysql_",
+    "postgres_",
     # 压缩库
-    "zlib", "inflate", "deflate", "compress", "uncompress",
+    "zlib",
+    "inflate",
+    "deflate",
+    "compress",
+    "uncompress",
     # 图像库
-    "png_", "jpeg_", "tiff_", "gif_", "webp_",
-    # 网络库  
-    "curl_", "SSL_", "socket_", "inet_",
+    "png_",
+    "jpeg_",
+    "tiff_",
+    "gif_",
+    "webp_",
+    # 网络库
+    "curl_",
+    "SSL_",
+    "socket_",
+    "inet_",
     # 其他常见第三方库
-    "cairo_", "pango_", "glib_", "gtk_", "gdk_",
+    "cairo_",
+    "pango_",
+    "glib_",
+    "gtk_",
+    "gdk_",
     # OpenGL相关
-    "glew", "GLEW_", "gl", "GL_", "glm::", "glut",
+    "glew",
+    "GLEW_",
+    "gl",
+    "GL_",
+    "glm::",
+    "glut",
     # 国际化库
-    "gettext_", "libintl_",
+    "gettext_",
+    "libintl_",
     # 文本塑形库
-    "hb_", "harfbuzz_",
+    "hb_",
+    "harfbuzz_",
     # CAD内核
-    "OCC", "OpenCASCADE", "Standard_", "Handle_",
+    "OCC",
+    "OpenCASCADE",
+    "Standard_",
+    "Handle_",
     # Unicode库
-    "icu_", "U_", "UCHAR_",
+    "icu_",
+    "U_",
+    "UCHAR_",
     # 电路仿真
-    "ng_", "spice_",
+    "ng_",
+    "spice_",
     # Git库
     "git_",
     # 消息库
     "nng_",
     # 压缩库扩展
-    "ZSTD_", "zstd",
+    "ZSTD_",
+    "zstd",
     # Python
-    "Py", "PyObject", "_Py",
+    "Py",
+    "PyObject",
+    "_Py",
     # 编译器内建
-    "__builtin_", "__clang", "__GNUC__", "_MSC_VER",
+    "__builtin_",
+    "__clang",
+    "__GNUC__",
+    "_MSC_VER",
 ]
 
 
@@ -95,19 +174,21 @@ def main():
         changed = False
         provided = set()
         required = set()
-        
+
         # 收集当前集合的符号信息
         for s in S:
             d, u = per.get(s, (set(), set()))
             provided |= d
             required |= u
-        
+
         # 找出缺失的内部符号
         missing = {m for m in (required - provided) if not is_external(m)}
         initial_missing_count = len(missing)
-        
-        print(f"Iteration {iteration}: size={len(S)}, provided={len(provided)}, required={len(required)}, missing={initial_missing_count}")
-        
+
+        print(
+            f"Iteration {iteration}: size={len(S)}, provided={len(provided)}, required={len(required)}, missing={initial_missing_count}"
+        )
+
         # 为缺失符号找提供者
         added_this_round = 0
         for m in sorted(missing):
@@ -117,15 +198,15 @@ def main():
                 S.add(chosen)
                 added_this_round += 1
                 changed = True
-        
+
         if added_this_round > 0:
             print(f"  -> Added {added_this_round} new source files")
-        
+
         # 防止无限循环
         if iteration > 100:
             print("Warning: Maximum iterations reached, possible circular dependency")
             break
-    
+
     print(f"Symbol closure converged, final set size: {len(S)} source files")
 
     provided = set()
