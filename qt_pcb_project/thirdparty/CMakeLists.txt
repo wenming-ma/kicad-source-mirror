@@ -26,7 +26,7 @@ add_library( delaunator STATIC
 )
 
 target_include_directories( delaunator PUBLIC
-    delaunator/include
+    delaunator
 )
 
 # FMT

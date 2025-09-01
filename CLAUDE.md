@@ -75,3 +75,5 @@ cd qt_pcb_project
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
 ```
+- 执行任何任何之前，都要进行深度思确保执行的行为正确，信息收集全面，符合用户需求，充分理解了代码和指令
+- 修改代码之前，一定要做全面而深刻的思考
