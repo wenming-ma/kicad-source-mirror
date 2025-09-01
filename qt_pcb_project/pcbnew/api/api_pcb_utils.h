@@ -37,9 +37,10 @@ std::unique_ptr<BOARD_ITEM> CreateItemForType( KICAD_T aType, BOARD_ITEM_CONTAIN
 namespace kiapi::board
 {
 
-void PackLayerSet( google::protobuf::RepeatedField<int>& aOutput, const LSET& aLayerSet );
+// Commented out protobuf-related functions for minimal build
+// void PackLayerSet( google::protobuf::RepeatedField<int>& aOutput, const LSET& aLayerSet );
 
-LSET UnpackLayerSet( const google::protobuf::RepeatedField<int>& aInput );
+// LSET UnpackLayerSet( const google::protobuf::RepeatedField<int>& aInput );
 
 }   // namespace kiapi::board
 

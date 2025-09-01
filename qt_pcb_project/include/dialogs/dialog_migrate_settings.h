@@ -21,34 +21,34 @@
 #ifndef _DIALOG_MIGRATE_SETTINGS_H
 #define _DIALOG_MIGRATE_SETTINGS_H
 
-#include "dialog_migrate_settings_base.h"
+// #include "dialog_migrate_settings_base.h"
 
 
 class SETTINGS_MANAGER;
 
 
-class KICOMMON_API DIALOG_MIGRATE_SETTINGS : public DIALOG_MIGRATE_SETTINGS_BASE
+class KICOMMON_API DIALOG_MIGRATE_SETTINGS // : public DIALOG_MIGRATE_SETTINGS_BASE
 {
 public:
     DIALOG_MIGRATE_SETTINGS( SETTINGS_MANAGER* aManager );
 
-    ~DIALOG_MIGRATE_SETTINGS() override;
+    ~DIALOG_MIGRATE_SETTINGS();
 
-    bool TransferDataToWindow() override;
+    // bool TransferDataToWindow() override;
 
-    bool TransferDataFromWindow() override;
+    // bool TransferDataFromWindow() override;
 
 protected:
 
-    void OnPrevVerSelected( wxCommandEvent& event ) override;
+    // void OnPrevVerSelected( wxCommandEvent& event ) override;
 
-    void OnPathChanged( wxCommandEvent& event ) override;
+    // void OnPathChanged( wxCommandEvent& event ) override;
 
-    void OnPathDefocused( wxFocusEvent& event ) override;
+    // void OnPathDefocused( wxFocusEvent& event ) override;
 
-    void OnChoosePath( wxCommandEvent& event ) override;
+    // void OnChoosePath( wxCommandEvent& event ) override;
 
-    void OnDefaultSelected( wxCommandEvent& event ) override;
+    // void OnDefaultSelected( wxCommandEvent& event ) override;
 
 private:
 

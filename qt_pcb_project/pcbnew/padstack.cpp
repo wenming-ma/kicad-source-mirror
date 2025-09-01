@@ -158,55 +158,55 @@ bool PADSTACK::operator==( const PADSTACK& aOther ) const
 }
 
 
-bool PADSTACK::unpackCopperLayer( const kiapi::board::types::PadStackLayer& aProto )
-{
-    using namespace kiapi::board::types;
-    PCB_LAYER_ID layer = FromProtoEnum<PCB_LAYER_ID, BoardLayer>( aProto.layer() );
-
-    if( m_mode == MODE::NORMAL && layer != ALL_LAYERS )
-        return false;
-
-    if( m_mode == MODE::FRONT_INNER_BACK && layer != F_Cu && layer != INNER_LAYERS && layer != B_Cu )
-        return false;
-
-    SetSize( kiapi::common::UnpackVector2( aProto.size() ), layer );
-    SetShape( FromProtoEnum<PAD_SHAPE>( aProto.shape() ), layer );
-    Offset( layer ) = kiapi::common::UnpackVector2( aProto.offset() );
-    SetAnchorShape( FromProtoEnum<PAD_SHAPE>( aProto.custom_anchor_shape() ), layer );
-
-    SHAPE_PROPS& props = CopperLayer( layer ).shape;
-    props.chamfered_rect_ratio = aProto.chamfer_ratio();
-    props.round_rect_radius_ratio = aProto.corner_rounding_ratio();
-
-    if( Shape( layer ) == PAD_SHAPE::TRAPEZOID && aProto.has_trapezoid_delta() )
-        TrapezoidDeltaSize( layer ) = kiapi::common::UnpackVector2( aProto.trapezoid_delta() );
-
-    if( aProto.chamfered_corners().top_left() )
-        props.chamfered_rect_positions |= RECT_CHAMFER_TOP_LEFT;
-
-    if( aProto.chamfered_corners().top_right() )
-        props.chamfered_rect_positions |= RECT_CHAMFER_TOP_RIGHT;
-
-    if( aProto.chamfered_corners().bottom_left() )
-        props.chamfered_rect_positions |= RECT_CHAMFER_BOTTOM_LEFT;
-
-    if( aProto.chamfered_corners().bottom_right() )
-        props.chamfered_rect_positions |= RECT_CHAMFER_BOTTOM_RIGHT;
-
-    ClearPrimitives( layer );
-    google::protobuf::Any a;
-
-    for( const BoardGraphicShape& shapeProto : aProto.custom_shapes() )
-    {
-        a.PackFrom( shapeProto );
-        std::unique_ptr<PCB_SHAPE> shape = std::make_unique<PCB_SHAPE>( m_parent );
-
-        if( shape->Deserialize( a ) )
-            AddPrimitive( shape.release(), layer );
-    }
-
-    return true;
-}
+//bool PADSTACK::unpackCopperLayer( const kiapi::board::types::PadStackLayer& aProto )
+//{
+//    using namespace kiapi::board::types;
+//    PCB_LAYER_ID layer = FromProtoEnum<PCB_LAYER_ID, BoardLayer>( aProto.layer() );
+//
+//    if( m_mode == MODE::NORMAL && layer != ALL_LAYERS )
+//        return false;
+//
+//    if( m_mode == MODE::FRONT_INNER_BACK && layer != F_Cu && layer != INNER_LAYERS && layer != B_Cu )
+//        return false;
+//
+//    SetSize( kiapi::common::UnpackVector2( aProto.size() ), layer );
+//    SetShape( FromProtoEnum<PAD_SHAPE>( aProto.shape() ), layer );
+//    Offset( layer ) = kiapi::common::UnpackVector2( aProto.offset() );
+//    SetAnchorShape( FromProtoEnum<PAD_SHAPE>( aProto.custom_anchor_shape() ), layer );
+//
+//    SHAPE_PROPS& props = CopperLayer( layer ).shape;
+//    props.chamfered_rect_ratio = aProto.chamfer_ratio();
+//    props.round_rect_radius_ratio = aProto.corner_rounding_ratio();
+//
+//    if( Shape( layer ) == PAD_SHAPE::TRAPEZOID && aProto.has_trapezoid_delta() )
+//        TrapezoidDeltaSize( layer ) = kiapi::common::UnpackVector2( aProto.trapezoid_delta() );
+//
+//    if( aProto.chamfered_corners().top_left() )
+//        props.chamfered_rect_positions |= RECT_CHAMFER_TOP_LEFT;
+//
+//    if( aProto.chamfered_corners().top_right() )
+//        props.chamfered_rect_positions |= RECT_CHAMFER_TOP_RIGHT;
+//
+//    if( aProto.chamfered_corners().bottom_left() )
+//        props.chamfered_rect_positions |= RECT_CHAMFER_BOTTOM_LEFT;
+//
+//    if( aProto.chamfered_corners().bottom_right() )
+//        props.chamfered_rect_positions |= RECT_CHAMFER_BOTTOM_RIGHT;
+//
+//    ClearPrimitives( layer );
+//    google::protobuf::Any a;
+//
+//    for( const BoardGraphicShape& shapeProto : aProto.custom_shapes() )
+//    {
+//        a.PackFrom( shapeProto );
+//        std::unique_ptr<PCB_SHAPE> shape = std::make_unique<PCB_SHAPE>( m_parent );
+//
+//        if( shape->Deserialize( a ) )
+//            AddPrimitive( shape.release(), layer );
+//    }
+//
+//    return true;
+//}
 
 
 //bool PADSTACK::Deserialize( const google::protobuf::Any& aContainer )
@@ -384,45 +384,45 @@ bool PADSTACK::unpackCopperLayer( const kiapi::board::types::PadStackLayer& aPro
 //}
 
 
-void PADSTACK::packCopperLayer( PCB_LAYER_ID aLayer, kiapi::board::types::PadStack& aProto ) const
-{
-    using namespace kiapi::board::types;
-
-    PadStackLayer* stackLayer = aProto.add_copper_layers();
-
-    stackLayer->set_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( aLayer ) );
-    kiapi::common::PackVector2( *stackLayer->mutable_size(), Size( aLayer ) );
-    kiapi::common::PackVector2( *stackLayer->mutable_offset(), Offset( aLayer ) );
-
-    stackLayer->set_shape( ToProtoEnum<PAD_SHAPE, PadStackShape>( Shape( aLayer ) ) );
-
-    stackLayer->set_custom_anchor_shape(
-            ToProtoEnum<PAD_SHAPE, PadStackShape>( AnchorShape( aLayer ) ) );
-
-    stackLayer->set_chamfer_ratio( CopperLayer( aLayer ).shape.chamfered_rect_ratio );
-    stackLayer->set_corner_rounding_ratio( CopperLayer( aLayer ).shape.round_rect_radius_ratio );
-
-    if( Shape( aLayer ) == PAD_SHAPE::TRAPEZOID )
-    {
-        kiapi::common::PackVector2( *stackLayer->mutable_trapezoid_delta(),
-                                    TrapezoidDeltaSize( aLayer ) );
-    }
-
-    google::protobuf::Any a;
-
-    for( const std::shared_ptr<PCB_SHAPE>& shape : Primitives( aLayer ) )
-    {
-        shape->Serialize( a );
-        BoardGraphicShape* s = stackLayer->add_custom_shapes();
-        a.UnpackTo( s );
-    }
-
-    const int& corners = CopperLayer( aLayer ).shape.chamfered_rect_positions;
-    stackLayer->mutable_chamfered_corners()->set_top_left( corners & RECT_CHAMFER_TOP_LEFT );
-    stackLayer->mutable_chamfered_corners()->set_top_right( corners & RECT_CHAMFER_TOP_RIGHT );
-    stackLayer->mutable_chamfered_corners()->set_bottom_left( corners & RECT_CHAMFER_BOTTOM_LEFT );
-    stackLayer->mutable_chamfered_corners()->set_bottom_right( corners & RECT_CHAMFER_BOTTOM_RIGHT );
-}
+//void PADSTACK::packCopperLayer( PCB_LAYER_ID aLayer, kiapi::board::types::PadStack& aProto ) const
+//{
+//    using namespace kiapi::board::types;
+//
+//    PadStackLayer* stackLayer = aProto.add_copper_layers();
+//
+//    stackLayer->set_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( aLayer ) );
+//    kiapi::common::PackVector2( *stackLayer->mutable_size(), Size( aLayer ) );
+//    kiapi::common::PackVector2( *stackLayer->mutable_offset(), Offset( aLayer ) );
+//
+//    stackLayer->set_shape( ToProtoEnum<PAD_SHAPE, PadStackShape>( Shape( aLayer ) ) );
+//
+//    stackLayer->set_custom_anchor_shape(
+//            ToProtoEnum<PAD_SHAPE, PadStackShape>( AnchorShape( aLayer ) ) );
+//
+//    stackLayer->set_chamfer_ratio( CopperLayer( aLayer ).shape.chamfered_rect_ratio );
+//    stackLayer->set_corner_rounding_ratio( CopperLayer( aLayer ).shape.round_rect_radius_ratio );
+//
+//    if( Shape( aLayer ) == PAD_SHAPE::TRAPEZOID )
+//    {
+//        kiapi::common::PackVector2( *stackLayer->mutable_trapezoid_delta(),
+//                                    TrapezoidDeltaSize( aLayer ) );
+//    }
+//
+//    google::protobuf::Any a;
+//
+//    for( const std::shared_ptr<PCB_SHAPE>& shape : Primitives( aLayer ) )
+//    {
+//        shape->Serialize( a );
+//        BoardGraphicShape* s = stackLayer->add_custom_shapes();
+//        a.UnpackTo( s );
+//    }
+//
+//    const int& corners = CopperLayer( aLayer ).shape.chamfered_rect_positions;
+//    stackLayer->mutable_chamfered_corners()->set_top_left( corners & RECT_CHAMFER_TOP_LEFT );
+//    stackLayer->mutable_chamfered_corners()->set_top_right( corners & RECT_CHAMFER_TOP_RIGHT );
+//    stackLayer->mutable_chamfered_corners()->set_bottom_left( corners & RECT_CHAMFER_BOTTOM_LEFT );
+//    stackLayer->mutable_chamfered_corners()->set_bottom_right( corners & RECT_CHAMFER_BOTTOM_RIGHT );
+//}
 
 
 //void PADSTACK::Serialize( google::protobuf::Any& aContainer ) const
