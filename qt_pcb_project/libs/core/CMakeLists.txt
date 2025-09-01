@@ -6,10 +6,11 @@ add_library( core STATIC
     wx_stl_compat.cpp
 )
 
-# target_link_libraries( core PUBLIC
-#     ${wxWidgets_LIBRARIES}
-# )
+target_link_libraries( core PUBLIC
+    ${wxWidgets_LIBRARIES}
+)
 
 target_include_directories( core PUBLIC
     include
+    ${wxWidgets_INCLUDE_DIRS}
 )
