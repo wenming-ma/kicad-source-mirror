@@ -127,12 +127,13 @@ add_library( common STATIC
     dialogs/panel_hotkeys_editor.cpp
     dialogs/panel_mouse_settings.cpp
     dialogs/panel_mouse_settings_base.cpp
-    dialogs/panel_packages_and_updates.cpp
-    dialogs/panel_packages_and_updates_base.cpp
-    dialogs/panel_plugin_settings.cpp
-    dialogs/panel_plugin_settings_base.cpp
-    dialogs/git/panel_git_repos.cpp
-    dialogs/git/panel_git_repos_base.cpp
+    # UI components - commented out for minimal build
+    # dialogs/panel_packages_and_updates.cpp
+    # dialogs/panel_packages_and_updates_base.cpp
+    # dialogs/panel_plugin_settings.cpp
+    # dialogs/panel_plugin_settings_base.cpp
+    # dialogs/git/panel_git_repos.cpp
+    # dialogs/git/panel_git_repos_base.cpp
     
     # Font files
     font/font.cpp
@@ -238,14 +239,23 @@ add_library( common STATIC
 target_include_directories( common PUBLIC
     .
     ../include
+    ${wxWidgets_INCLUDE_DIRS}
+)
+
+target_compile_definitions( common PUBLIC
+    ${wxWidgets_DEFINITIONS}
+    WXSTATIC
+    wxUSE_DLL=0
+    KICOMMON_DLL
 )
 
 target_link_libraries( common PUBLIC
     core
     kimath
+    kiplatform
     sexpr
     json_schema_validator
-    # ${wxWidgets_LIBRARIES}
-    # ${Boost_LIBRARIES}
-    # protobuf::libprotobuf
+    ${wxWidgets_LIBRARIES}
+    ${Boost_LIBRARIES}
+    protobuf::libprotobuf
 )

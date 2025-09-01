@@ -32,7 +32,7 @@
 #include <google/protobuf/generated_enum_reflection.h>
 #include <google/protobuf/unknown_field_set.h>
 #include <google/protobuf/field_mask.pb.h>
-#include "common/types/enums.pb.h"
+#include "api/common/types/enums.pb.h"
 // @@protoc_insertion_point(includes)
 #include <google/protobuf/port_def.inc>
 #define PROTOBUF_INTERNAL_EXPORT_common_2ftypes_2fbase_5ftypes_2eproto KIAPI_IMPORTEXPORT

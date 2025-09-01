@@ -33,8 +33,15 @@ cmake --build build
 1. **Start compilation** to identify missing include files
 2. **Copy missing headers** from original KiCad source/build directories
 3. **Adjust include paths** in CMakeLists.txt files as needed
-4. **Do NOT modify source code** - only fix missing files and paths
-5. **Preserve KiCad's proven compilation logic**
+4. **For UI-related missing headers**: Comment out the include and related UI code usage
+5. **Do NOT modify core logic** - only fix missing files and paths or disable UI components
+6. **Preserve KiCad's proven compilation logic**
+
+#### UI Header Handling Policy:
+- **Missing UI headers** (dialogs, frames, UI components): Comment out `#include` statements
+- **Comment out UI usage**: Comment out code that uses the missing UI classes/functions
+- **Focus on core functionality**: Keep PCB processing logic, exclude UI dependencies
+- **Maintain compilation**: Ensure code compiles without UI components
 
 #### Key Principle:
 Since the source files are copied from working KiCad code, all compilation errors are due to:

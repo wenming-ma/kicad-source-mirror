@@ -10,6 +10,14 @@ add_executable( bitmap2component
     bitmap2component.cpp
 )
 
+target_include_directories( bitmap2component PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libs/kimath/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libs/core/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
+)
+
 target_link_libraries( bitmap2component
     common
     potrace

@@ -33,6 +33,7 @@
 #include <iostream>
 #include <sstream>
 #include <type_traits>
+#include <concepts>
 
 #include <math/util.h>
 
