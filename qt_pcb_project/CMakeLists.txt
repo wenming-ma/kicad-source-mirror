@@ -16,16 +16,30 @@ set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 
 include( GNUInstallDirs )
 
+# C++ standard
+set( CMAKE_CXX_STANDARD 20 )
+set( CMAKE_CXX_STANDARD_REQUIRED ON )
+
 # Windows specific settings
 if( WIN32 )
     add_compile_definitions( WIN32_LEAN_AND_MEAN )
 endif()
 
-# For now, test basic configuration
-# TODO: Add package finding later
+# Find required dependencies for minimal PCB set
+find_package( PkgConfig QUIET )
+
+# Use vcpkg installed packages
+set( CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows" )
+find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc )
+find_package( Boost REQUIRED )
+find_package( glm REQUIRED )
+find_package( protobuf REQUIRED )
 
 # Include directories
-include_directories( BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include )
+include_directories( BEFORE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
 
 # Add subdirectories for minimal PCB functionality
 add_subdirectory( thirdparty )

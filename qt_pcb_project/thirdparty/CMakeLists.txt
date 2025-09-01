@@ -4,11 +4,21 @@
 add_library( clipper2 STATIC
     clipper2/Clipper2Lib/src/clipper.engine.cpp
     clipper2/Clipper2Lib/src/clipper.offset.cpp
+    clipper2/Clipper2Lib/src/clipper.rectclip.cpp
 )
 
 target_include_directories( clipper2 PUBLIC
     clipper2/Clipper2Lib/include
 )
+
+target_compile_definitions( clipper2 PUBLIC USINGZ )
+
+if( MSVC )
+    target_compile_options( clipper2 PRIVATE /W4 )
+else()
+    target_compile_options( clipper2 PRIVATE -Wall -Wextra -Wpedantic )
+    target_link_libraries( clipper2 PUBLIC -lm )
+endif()
 
 # Delaunator
 add_library( delaunator STATIC
@@ -28,6 +38,10 @@ target_include_directories( fmt PUBLIC
     fmt/include
 )
 
+if( MSVC )
+    target_compile_options( fmt PRIVATE /utf-8 )
+endif()
+
 # JSON Schema Validator
 add_library( json_schema_validator STATIC
     json_schema_validator/json-patch.cpp
@@ -36,8 +50,8 @@ add_library( json_schema_validator STATIC
 )
 
 target_include_directories( json_schema_validator PUBLIC
-    json_schema_validator/include
-    nlohmann_json/include
+    json_schema_validator
+    nlohmann_json
 )
 
 # Libcontext
@@ -46,7 +60,7 @@ add_library( libcontext STATIC
 )
 
 target_include_directories( libcontext PUBLIC
-    libcontext/include
+    libcontext
 )
 
 # Other Math
@@ -55,7 +69,8 @@ add_library( other_math STATIC
 )
 
 target_include_directories( other_math PUBLIC
-    other_math/include
+    other_math
+    ../libs/kimath/include
 )
 
 # Potrace
