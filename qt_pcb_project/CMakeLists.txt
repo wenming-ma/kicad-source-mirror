@@ -103,11 +103,12 @@ option( KICAD_WIN32_DPI_AWARE "Set DPI awareness to system DPI on Windows" ON )
 set( CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo" CACHE STRING "" FORCE )
 
 # Find packages required by minimum set
-find_package( PkgConfig REQUIRED )
+find_package( PkgConfig QUIET )
 
 # Find required dependencies for minimal PCB set
+set( wxWidgets_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows" )
 find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc )
-find_package( Boost REQUIRED COMPONENTS system filesystem program_options locale thread )
+find_package( Boost REQUIRED COMPONENTS locale )
 find_package( OpenCascade REQUIRED )
 find_package( glm REQUIRED )
 find_package( protobuf REQUIRED )
@@ -122,4 +123,4 @@ add_subdirectory( common )
 add_subdirectory( pcbnew )
 add_subdirectory( scripting )
 add_subdirectory( bitmap2component )
-add_subdirectory( kicad )
+# add_subdirectory( kicad )  # NOT in minset: kicad directory

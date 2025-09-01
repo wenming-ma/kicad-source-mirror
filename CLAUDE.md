@@ -71,6 +71,31 @@ When encountering compilation errors:
 - Missing build artifacts (config.h, version headers, etc.)
 - Incomplete file copying from original build
 
+#### 🔧 **CRITICAL BUILD RULE - CMakeLists.txt Handling**
+**DO NOT copy files not in minimum set - COMMENT OUT references in existing CMakeLists.txt**
+
+**When encountering missing files/directories errors in CMakeLists.txt:**
+1. **DO NOT copy missing directories or files** - If they're not in the minimum set, they shouldn't be copied
+2. **COMMENT OUT missing references**: Comment out `add_subdirectory()`, `add_dependencies()`, `install()`, `make_lexer()`, `generate_lemon_grammar()` calls
+3. **Preserve CMakeLists.txt structure**: Keep all existing CMakeLists.txt files, only comment out problematic lines
+4. **Add NOT in minset comments**: Mark commented lines with `# NOT in minset: <reason>`
+5. **Fix incomplete commenting**: When commenting `set_source_files_properties()`, ensure entire function call including closing `)` is commented
+
+**Examples:**
+```cmake
+# add_subdirectory( missing_dir )  # NOT in minset: missing directory
+# make_lexer( target file.keywords )  # NOT in minset: lexer generation
+# set_source_files_properties( file.cpp PROPERTIES  # NOT in minset: file.cpp
+#     COMPILE_DEFINITIONS "FLAG"
+#     )  # Ensure closing parenthesis is also commented
+```
+
+**This approach ensures:**
+- No files outside minimum set are copied
+- CMakeLists.txt files remain valid
+- Build system focuses only on minimum set files
+- Easy to track what was excluded and why
+
 ### Execution Steps
 ```powershell
 # Step 1: Execute copying script
@@ -99,3 +124,51 @@ ls qt_pcb_project
 
 ### Required vcpkg Packages (25)
 boost-algorithm, boost-bimap, boost-filesystem, boost-functional, boost-iterator, boost-locale, boost-optional, boost-property-tree, boost-ptr-container, boost-random, boost-range, boost-test, boost-uuid, curl, glm, harfbuzz, libgit2, ngspice, nng, opencascade, opengl, protobuf, python3, wxwidgets, zstd
+
+## 🔧 Offline vcpkg Configuration Guidelines
+
+### Using Pre-installed vcpkg Dependencies
+**当使用离线vcpkg包时，所有依赖包已安装到本地目录，无需联网下载**
+
+#### Configuration Steps:
+1. **vcpkg_installed Directory Structure**:
+   ```
+   qt_pcb_project/
+   ├── vcpkg_installed/
+   │   ├── scripts/buildsystems/vcpkg.cmake  (toolchain file)
+   │   ├── x64-windows/                      (installed packages)
+   │   │   ├── bin/
+   │   │   ├── include/
+   │   │   ├── lib/
+   │   │   └── share/                        (CMake config files)
+   │   └── vcpkg/
+   ```
+
+2. **CMake Configuration**:
+   - **Toolchain Path**: Use local vcpkg toolchain file
+   ```cmake
+   "toolchainFile": "${sourceDir}/vcpkg_installed/scripts/buildsystems/vcpkg.cmake"
+   ```
+   
+   - **Package Finding**: Set appropriate root directories
+   ```cmake
+   set( wxWidgets_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows" )
+   ```
+
+3. **Build Command**:
+   ```powershell
+   cd qt_pcb_project
+   cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=vcpkg_installed/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Debug
+   cmake --build build
+   ```
+
+#### Key Points:
+- **No vcpkg.json required**: All packages pre-installed
+- **No internet connection needed**: Everything offline
+- **Use local toolchain**: Point to `vcpkg_installed/scripts/buildsystems/vcpkg.cmake`
+- **Package configs available**: All CMake config files in `x64-windows/share/`
+
+#### Troubleshooting:
+- If CMake can't find packages, check `vcpkg_installed/x64-windows/share/` directory
+- Ensure toolchain file path is correct in CMakePresets.json
+- For missing PkgConfig, use `find_package( PkgConfig QUIET )` instead of REQUIRED

@@ -91,30 +91,42 @@ def deps_for_src(cmd, cwd, src_abs):
         p = run(dep_cmd, cwd)
 
         # Parse MSVC's /showIncludes output
-        # Format is "Note: including file: <path>"
+        # Format is "Note: including file: <path>" or Chinese equivalent
         for line in p.stdout.splitlines():
+            path_part = None
+            
+            # Handle English output: "Note: including file: <path>"
             if "Note: including file:" in line:
-                # Extract the path after "Note: including file:"
                 path_part = line.split("Note: including file:", 1)[1].strip()
-                if path_part:
-                    try:
-                        resolved = str(Path(path_part).resolve())
-                        # Only add header files
-                        if any(
-                            resolved.endswith(ext)
-                            for ext in [
-                                ".h",
-                                ".hpp",
-                                ".hxx",
-                                ".hh",
-                                ".H",
-                                ".inl",
-                                ".inc",
-                            ]
-                        ):
-                            deps.add(resolved)
-                    except:
-                        pass
+            # Handle Chinese output: "注意: 包含文件: <path>" (may show as garbled text)
+            elif ":" in line and "文件:" in line:
+                # Try to extract path after the last ": " that contains a file path
+                parts = line.split(":", 2)
+                if len(parts) >= 3:
+                    potential_path = parts[2].strip()
+                    # Check if it looks like a file path (contains backslash or has file extension)
+                    if ("\\" in potential_path or "/" in potential_path) and "." in potential_path:
+                        path_part = potential_path
+            
+            if path_part:
+                try:
+                    resolved = str(Path(path_part).resolve())
+                    # Only add header files
+                    if any(
+                        resolved.endswith(ext)
+                        for ext in [
+                            ".h",
+                            ".hpp",
+                            ".hxx",
+                            ".hh",
+                            ".H",
+                            ".inl",
+                            ".inc",
+                        ]
+                    ):
+                        deps.add(resolved)
+                except:
+                    pass
     else:
         # For GCC/Clang, use -M
         dep_cmd = cmd + ["-M", "-MG", "-MF", "-", src_abs]

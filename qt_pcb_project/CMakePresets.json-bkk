@@ -6,7 +6,7 @@
       "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build",
-      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "toolchainFile": "${sourceDir}/vcpkg_installed/scripts/buildsystems/vcpkg.cmake",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
