@@ -58,8 +58,8 @@ public:
         return wxT( "PCB_SHAPE" );
     }
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    //void Serialize( google::protobuf::Any &aContainer ) const override;
+    //bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     bool IsConnected() const override;
 

@@ -23,7 +23,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <google/protobuf/any.pb.h>
+// #include <google/protobuf/any.pb.h> // DISABLED FOR MINIMAL BUILD
 
 #include <advanced_config.h>
 #include <pcb_edit_frame.h>
@@ -40,9 +40,9 @@
 #include <geometry/shape_compound.h>
 #include <callback_gal.h>
 #include <convert_basic_shapes_to_polygon.h>
-#include <api/api_enums.h>
+// #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
 // #include <api/api_utils.h>
-#include <api/board/board_types.pb.h>
+// #include <api/board/board_types.pb.h> // DISABLED FOR MINIMAL BUILD
 
 
 PCB_TEXT::PCB_TEXT( BOARD_ITEM* parent, KICAD_T idtype ) :

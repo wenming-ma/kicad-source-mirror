@@ -34,9 +34,9 @@
 #include <google/protobuf/map_field_inl.h>
 #include <google/protobuf/generated_enum_reflection.h>
 #include <google/protobuf/unknown_field_set.h>
-#include "common/types/base_types.pb.h"
-#include "common/types/enums.pb.h"
-#include "board/board_types.pb.h"
+// #include "common/types/base_types.pb.h"
+// #include "common/types/enums.pb.h"
+// #include "board/board_types.pb.h"
 // @@protoc_insertion_point(includes)
 #include <google/protobuf/port_def.inc>
 #define PROTOBUF_INTERNAL_EXPORT_common_2ftypes_2fproject_5fsettings_2eproto KIAPI_IMPORTEXPORT

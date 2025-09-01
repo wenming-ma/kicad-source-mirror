@@ -87,8 +87,8 @@ public:
 
     EDA_TEXT& operator=( const EDA_TEXT& aItem );
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    //void Serialize( google::protobuf::Any &aContainer ) const override;
+    //bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     /**
      * Return the string associated with the text object.

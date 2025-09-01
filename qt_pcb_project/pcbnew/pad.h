@@ -62,8 +62,8 @@ public:
 
     void CopyFrom( const BOARD_ITEM* aOther ) override;
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    //void Serialize( google::protobuf::Any &aContainer ) const override;
+    //bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     /*
      * Default layers used for pads, according to the pad type.

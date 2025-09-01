@@ -58,11 +58,11 @@
 #include <view/view.h>
 #include <zone.h>
 
-#include <google/protobuf/any.pb.h>
-#include <api/board/board_types.pb.h>
-#include <api/api_enums.h>
+// #include <google/protobuf/any.pb.h> // DISABLED FOR MINIMAL BUILD
+// #include <api/board/board_types.pb.h> // DISABLED FOR MINIMAL BUILD
+// #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
 // #include <api/api_utils.h>
-#include <api/api_pcb_utils.h>
+// #include <api/api_pcb_utils.h> // DISABLED FOR MINIMAL BUILD
 #include <wx/log.h>
 
 

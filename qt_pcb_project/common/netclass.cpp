@@ -27,9 +27,9 @@
 #include <netclass.h>
 #include <macros.h>
 #include <base_units.h>
-#include <api/api_enums.h>
+// #include <api/api_enums.h>  // DISABLED FOR MINIMAL BUILD
 // #include <api/api_utils.h>
-#include <api/common/types/project_settings.pb.h>
+// #include <api/common/types/project_settings.pb.h>  // DISABLED FOR MINIMAL BUILD
 
 // This will get mapped to "kicad_default" in the specctra_export.
 const char NETCLASS::Default[] = "Default";

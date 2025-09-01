@@ -39,9 +39,9 @@
 #include <settings/color_settings.h>
 #include <settings/settings_manager.h>
 #include <trigo.h>
-#include <api/api_enums.h>
+// #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
 // #include <api/api_utils.h>
-#include <api/board/board_types.pb.h>
+// #include <api/board/board_types.pb.h> // DISABLED FOR MINIMAL BUILD
 
 
 static const int INWARD_ARROW_LENGTH_TO_HEAD_RATIO = 2;

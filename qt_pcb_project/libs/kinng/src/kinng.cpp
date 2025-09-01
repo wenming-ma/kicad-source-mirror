@@ -21,14 +21,14 @@
 #include <kinng.h>
 #include <nng/nng.h>
 #include <nng/protocol/reqrep0/rep.h>
-#include <wx/log.h>
+// #include <wx/log.h>  // Commented out for minimal build
 
 
 /**
  * Trace nng server debug output
  * @ingroup trace_env_vars
  */
-static const wxChar TraceNng[] = wxT( "KINNG" );
+// static const wxChar TraceNng[] = wxT( "KINNG" );  // Commented out for minimal build
 
 
 KINNG_REQUEST_SERVER::KINNG_REQUEST_SERVER( const std::string& aSocketUrl ) :
@@ -88,14 +88,14 @@ void KINNG_REQUEST_SERVER::listenThread()
     nng_listener listener;
     int          retCode = 0;
 
-    wxLogTrace( TraceNng, wxS( "KINNG_REQUEST_SERVER starting" ) );
+    // wxLogTrace( TraceNng, wxS( "KINNG_REQUEST_SERVER starting" ) );  // Commented out for minimal build
 
     retCode = nng_rep0_open( &socket );
 
     if( retCode != 0 )
     {
-        wxLogTrace( TraceNng,
-                    wxString::Format( wxS( "Got error code %d from nng_rep0_open!" ), retCode ) );
+        // wxLogTrace( TraceNng,
+        //            wxString::Format( wxS( "Got error code %d from nng_rep0_open!" ), retCode ) );  // Commented out for minimal build
         return;
     }
 
@@ -103,9 +103,9 @@ void KINNG_REQUEST_SERVER::listenThread()
 
     if( retCode != 0 )
     {
-        wxLogTrace( TraceNng,
-                    wxString::Format( wxS( "Got error code %d from nng_listener_create!" ),
-                                      retCode ) );
+        // wxLogTrace( TraceNng,
+        //            wxString::Format( wxS( "Got error code %d from nng_listener_create!" ),
+        //                              retCode ) );  // Commented out for minimal build
         return;
     }
 
@@ -113,7 +113,7 @@ void KINNG_REQUEST_SERVER::listenThread()
 
     nng_listener_start( listener, 0 );
 
-    wxLogTrace( TraceNng, wxS( "KINNG_REQUEST_SERVER listener has started" ) );
+    // wxLogTrace( TraceNng, wxS( "KINNG_REQUEST_SERVER listener has started" ) );  // Commented out for minimal build
 
     while( !m_shutdown.load() )
     {
@@ -129,8 +129,8 @@ void KINNG_REQUEST_SERVER::listenThread()
         if( retCode != 0 )
         {
             nng_free( buf, sz );
-            wxLogTrace( TraceNng,
-                        wxString::Format( wxS( "Got error code %d from nngc_recv!" ), retCode ) );
+            // wxLogTrace( TraceNng,
+            //            wxString::Format( wxS( "Got error code %d from nngc_recv!" ), retCode ) );  // Commented out for minimal build
             break;
         }
 
@@ -147,14 +147,14 @@ void KINNG_REQUEST_SERVER::listenThread()
 
         if( retCode != 0 )
         {
-            wxLogTrace( TraceNng,
-                        wxString::Format( wxS( "Got error code %d from nng_send!" ), retCode ) );
+            // wxLogTrace( TraceNng,
+            //            wxString::Format( wxS( "Got error code %d from nng_send!" ), retCode ) );  // Commented out for minimal build
         }
 
         m_pendingReply.clear();
     }
 
-    wxLogTrace( TraceNng, wxS( "KINNG_REQUEST_SERVER shutting down" ) );
+    // wxLogTrace( TraceNng, wxS( "KINNG_REQUEST_SERVER shutting down" ) );  // Commented out for minimal build
 
     nng_close( socket );
 }

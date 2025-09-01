@@ -29,9 +29,9 @@
 #include <io/kicad/kicad_io_utils.h>
 #include "stackup_predefined_prms.h"
 #include <richio.h>
-#include <google/protobuf/any.pb.h>
-#include <api/board/board.pb.h>
-#include <api/api_enums.h>
+// #include <google/protobuf/any.pb.h> // DISABLED FOR MINIMAL BUILD
+// #include <api/board/board.pb.h> // DISABLED FOR MINIMAL BUILD
+// #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
 
 
 bool DIELECTRIC_PRMS::operator==( const DIELECTRIC_PRMS& aOther ) const

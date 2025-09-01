@@ -20,8 +20,8 @@
 
 #include <import_export.h>
 #include <api/api_enums.h>
-#include <api/board/board_types.pb.h>
-#include <api/board/board_commands.pb.h>
+// #include <api/board/board_types.pb.h>
+// #include <api/board/board_commands.pb.h>
 #include <wx/wx.h>
 
 #include <board_stackup_manager/board_stackup.h>
@@ -34,8 +34,10 @@
 
 // Adding something new here?  Add it to test_api_enums.cpp!
 
-using namespace kiapi::board;
+// using namespace kiapi::board;
 
+/*
+// All API enum conversion functions commented out - protobuf functionality disabled
 template<>
 types::PadType ToProtoEnum( PAD_ATTRIB aValue )
 {
@@ -806,3 +808,4 @@ BOARD_STACKUP_ITEM_TYPE FromProtoEnum( BoardStackupLayerType aValue )
 }
 
 // Adding something new here?  Add it to test_api_enums.cpp!
+*/

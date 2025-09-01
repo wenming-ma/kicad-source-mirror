@@ -55,6 +55,13 @@ cmake --build build
 - **Auto-generated files**: Do not modify .pb.h/.pb.cc files directly - only comment out their usage
 - **API message handling**: Comment out code that processes API messages or uses protobuf objects
 
+#### 🚨 CRITICAL: Base Class Interface Handling Policy:
+- **NEVER modify base class interfaces** (like SERIALIZABLE, EDA_ITEM, etc.) - this affects ALL inheritance hierarchy
+- **Keep base class virtual methods intact** - comment out only the implementation in derived classes
+- **For API/Protobuf methods**: Comment out specific implementations in child classes, NOT the base class interface
+- **Maintain inheritance relationships** - do not break : public BaseClass syntax
+- **Example**: If SERIALIZABLE has Serialize/Deserialize methods, keep them in base class, comment out only in PADSTACK::Serialize implementation
+
 #### Key Principle:
 Since the source files are copied from working KiCad code, all compilation errors are due to:
 - Missing header files

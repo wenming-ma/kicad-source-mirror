@@ -37,9 +37,9 @@
 #include <convert_basic_shapes_to_polygon.h>
 #include <macros.h>
 #include <core/ignore.h>
-#include <api/api_enums.h>
+// #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
 // #include <api/api_utils.h>
-#include <api/board/board_types.pb.h>
+// #include <api/board/board_types.pb.h> // DISABLED FOR MINIMAL BUILD
 
 PCB_TEXTBOX::PCB_TEXTBOX( BOARD_ITEM* aParent, KICAD_T aType ) :
     PCB_SHAPE( aParent, aType, SHAPE_T::RECTANGLE ),

@@ -92,12 +92,11 @@ public:
         m_netinfo = aNetInfo;
     }
 
-    /**
-     * Assigns a net to this item from an API message.  If the net does not yet exist, it will be created.
-     * @param aProto is the protobuf message to unpack a net from
-     */
+    // DISABLED FOR MINIMAL BUILD - API functionality removed
+    /*
     void UnpackNet( const kiapi::board::types::Net& aProto );
     void PackNet( kiapi::board::types::Net* aProto ) const;
+    */
 
     /**
      * @return the net code.

@@ -106,7 +106,7 @@ add_library( common STATIC
     # api/api_plugin_manager.cpp
     # api/api_server.cpp
     # api/api_utils.cpp
-    # api/serializable.cpp
+    api/serializable.cpp  # Re-enabled for base class interface compatibility
     
     # Database files
     database/database_lib_settings.cpp
@@ -239,8 +239,8 @@ add_library( common STATIC
 target_include_directories( common PUBLIC
     .
     ../include
-    ../generated/api/cpp
-    ../generated/api/cpp/api
+    # ../generated/api/cpp  # DISABLED FOR MINIMAL BUILD
+    # ../generated/api/cpp/api  # DISABLED FOR MINIMAL BUILD
     ../scripting
     ../thirdparty/magic_enum
     ${wxWidgets_INCLUDE_DIRS}
