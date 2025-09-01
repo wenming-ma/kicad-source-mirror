@@ -21,8 +21,8 @@
 #ifndef MARKUP_PARSER_H
 #define MARKUP_PARSER_H
 
-#include <pegtl.hpp>
-#include <pegtl/contrib/parse_tree.hpp>
+#include <thirdparty/pegtl/pegtl.hpp>
+#include <thirdparty/pegtl/pegtl/contrib/parse_tree.hpp>
 #include <iostream>
 #include <string>
 #include <core/utf8.h>

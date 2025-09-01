@@ -822,6 +822,7 @@ EDA_ITEM* PCB_DIM_ALIGNED::Clone() const
 }
 
 
+/*
 void PCB_DIM_ALIGNED::Serialize( google::protobuf::Any &aContainer ) const
 {
     using namespace kiapi::common;
@@ -837,8 +838,10 @@ void PCB_DIM_ALIGNED::Serialize( google::protobuf::Any &aContainer ) const
 
     aContainer.PackFrom( dimension );
 }
+*/
 
 
+/*
 bool PCB_DIM_ALIGNED::Deserialize( const google::protobuf::Any &aContainer )
 {
     using namespace kiapi::common;
@@ -861,6 +864,7 @@ bool PCB_DIM_ALIGNED::Deserialize( const google::protobuf::Any &aContainer )
 
     return true;
 }
+*/
 
 
 void PCB_DIM_ALIGNED::swapData( BOARD_ITEM* aImage )
@@ -1049,6 +1053,7 @@ EDA_ITEM* PCB_DIM_ORTHOGONAL::Clone() const
 }
 
 
+/*
 void PCB_DIM_ORTHOGONAL::Serialize( google::protobuf::Any &aContainer ) const
 {
     using namespace kiapi::common;
@@ -1067,8 +1072,10 @@ void PCB_DIM_ORTHOGONAL::Serialize( google::protobuf::Any &aContainer ) const
                                                            : types::AxisAlignment::AA_X_AXIS );
     aContainer.PackFrom( dimension );
 }
+*/
 
 
+/*
 bool PCB_DIM_ORTHOGONAL::Deserialize( const google::protobuf::Any &aContainer )
 {
     using namespace kiapi::common;
@@ -1094,6 +1101,7 @@ bool PCB_DIM_ORTHOGONAL::Deserialize( const google::protobuf::Any &aContainer )
 
     return true;
 }
+*/
 
 
 void PCB_DIM_ORTHOGONAL::swapData( BOARD_ITEM* aImage )
@@ -1314,6 +1322,7 @@ PCB_DIM_LEADER::PCB_DIM_LEADER( BOARD_ITEM* aParent ) :
 }
 
 
+/*
 void PCB_DIM_LEADER::Serialize( google::protobuf::Any &aContainer ) const
 {
     using namespace kiapi::common;
@@ -1330,29 +1339,30 @@ void PCB_DIM_LEADER::Serialize( google::protobuf::Any &aContainer ) const
 
     aContainer.PackFrom( dimension );
 }
+*/
 
 
-bool PCB_DIM_LEADER::Deserialize( const google::protobuf::Any &aContainer )
-{
-    using namespace kiapi::common;
-
-    if( !PCB_DIMENSION_BASE::Deserialize( aContainer ) )
-        return false;
-
-    kiapi::board::types::Dimension dimension;
-    aContainer.UnpackTo( &dimension );
-
-    if( !dimension.has_leader() )
-        return false;
-
-    SetStart( UnpackVector2( dimension.leader().start() ) );
-    SetEnd( UnpackVector2( dimension.leader().end() ) );
-    SetTextBorder( FromProtoEnum<DIM_TEXT_BORDER>( dimension.leader().border_style() ) );
-
-    Update();
-
-    return true;
-}
+//bool PCB_DIM_LEADER::Deserialize( const google::protobuf::Any &aContainer )
+//{
+//    using namespace kiapi::common;
+//
+//    if( !PCB_DIMENSION_BASE::Deserialize( aContainer ) )
+//        return false;
+//
+//    kiapi::board::types::Dimension dimension;
+//    aContainer.UnpackTo( &dimension );
+//
+//    if( !dimension.has_leader() )
+//        return false;
+//
+//    SetStart( UnpackVector2( dimension.leader().start() ) );
+//    SetEnd( UnpackVector2( dimension.leader().end() ) );
+//    SetTextBorder( FromProtoEnum<DIM_TEXT_BORDER>( dimension.leader().border_style() ) );
+//
+//    Update();
+//
+//    return true;
+//}
 
 
 EDA_ITEM* PCB_DIM_LEADER::Clone() const
@@ -1503,6 +1513,7 @@ PCB_DIM_RADIAL::PCB_DIM_RADIAL( BOARD_ITEM* aParent ) :
 }
 
 
+/*
 void PCB_DIM_RADIAL::Serialize( google::protobuf::Any &aContainer ) const
 {
     using namespace kiapi::common;
@@ -1517,8 +1528,10 @@ void PCB_DIM_RADIAL::Serialize( google::protobuf::Any &aContainer ) const
 
     aContainer.PackFrom( dimension );
 }
+*/
 
 
+/*
 bool PCB_DIM_RADIAL::Deserialize( const google::protobuf::Any &aContainer )
 {
     using namespace kiapi::common;
@@ -1540,6 +1553,7 @@ bool PCB_DIM_RADIAL::Deserialize( const google::protobuf::Any &aContainer )
 
     return true;
 }
+*/
 
 
 EDA_ITEM* PCB_DIM_RADIAL::Clone() const
@@ -1656,41 +1670,41 @@ PCB_DIM_CENTER::PCB_DIM_CENTER( BOARD_ITEM* aParent ) :
 }
 
 
-void PCB_DIM_CENTER::Serialize( google::protobuf::Any &aContainer ) const
-{
-    using namespace kiapi::common;
-    kiapi::board::types::Dimension dimension;
-
-    PCB_DIMENSION_BASE::Serialize( aContainer );
-    aContainer.UnpackTo( &dimension );
-
-    PackVector2( *dimension.mutable_center()->mutable_center(), m_start );
-    PackVector2( *dimension.mutable_center()->mutable_end(), m_end );
-
-    aContainer.PackFrom( dimension );
-}
-
-
-bool PCB_DIM_CENTER::Deserialize( const google::protobuf::Any &aContainer )
-{
-    using namespace kiapi::common;
-
-    if( !PCB_DIMENSION_BASE::Deserialize( aContainer ) )
-        return false;
-
-    kiapi::board::types::Dimension dimension;
-    aContainer.UnpackTo( &dimension );
-
-    if( !dimension.has_center() )
-        return false;
-
-    SetStart( UnpackVector2( dimension.center().center() ) );
-    SetEnd( UnpackVector2( dimension.center().end() ) );
-
-    Update();
-
-    return true;
-}
+//void PCB_DIM_CENTER::Serialize( google::protobuf::Any &aContainer ) const
+//{
+//    using namespace kiapi::common;
+//    kiapi::board::types::Dimension dimension;
+//
+//    PCB_DIMENSION_BASE::Serialize( aContainer );
+//    aContainer.UnpackTo( &dimension );
+//
+//    PackVector2( *dimension.mutable_center()->mutable_center(), m_start );
+//    PackVector2( *dimension.mutable_center()->mutable_end(), m_end );
+//
+//    aContainer.PackFrom( dimension );
+//}
+//
+//
+//bool PCB_DIM_CENTER::Deserialize( const google::protobuf::Any &aContainer )
+//{
+//    using namespace kiapi::common;
+//
+//    if( !PCB_DIMENSION_BASE::Deserialize( aContainer ) )
+//        return false;
+//
+//    kiapi::board::types::Dimension dimension;
+//    aContainer.UnpackTo( &dimension );
+//
+//    if( !dimension.has_center() )
+//        return false;
+//
+//    SetStart( UnpackVector2( dimension.center().center() ) );
+//    SetEnd( UnpackVector2( dimension.center().end() ) );
+//
+//    Update();
+//
+//    return true;
+//}
 
 
 EDA_ITEM* PCB_DIM_CENTER::Clone() const

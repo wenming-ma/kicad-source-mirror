@@ -580,13 +580,13 @@ bool SETTINGS_MANAGER::MigrateIfNeeded()
     }
 
     // Now we have an empty path, let's figure out what to put in it
-    DIALOG_MIGRATE_SETTINGS dlg( this );
+    // DIALOG_MIGRATE_SETTINGS dlg( this );
 
-    if( dlg.ShowModal() != wxID_OK )
-    {
-        wxLogTrace( traceSettings, wxT( "Migration dialog canceled; exiting" ) );
-        return false;
-    }
+    // if( dlg.ShowModal() != wxID_OK )
+    // {
+    //     wxLogTrace( traceSettings, wxT( "Migration dialog canceled; exiting" ) );
+    //     return false;
+    // }
 
     if( !path.DirExists() )
     {
