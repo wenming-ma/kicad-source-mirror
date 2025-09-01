@@ -20,10 +20,10 @@
 
 #include <convert_basic_shapes_to_polygon.h> // RECT_CHAMFER_POSITIONS
 #include "padstack.h"
-#include <api/api_enums.h>
+// #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
 // #include <api/api_utils.h>
-#include <api/api_pcb_utils.h>
-#include <api/board/board_types.pb.h>
+// #include <api/api_pcb_utils.h> // DISABLED FOR MINIMAL BUILD
+// #include <api/board/board_types.pb.h> // DISABLED FOR MINIMAL BUILD
 #include <layer_range.h>
 #include <macros.h>
 #include <magic_enum.hpp>

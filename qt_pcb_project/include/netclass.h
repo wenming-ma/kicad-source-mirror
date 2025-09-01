@@ -66,8 +66,8 @@ public:
         return wxT( "NETCLASS" );
     }
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    //void Serialize( google::protobuf::Any &aContainer ) const override;
+    //bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     /// @brief Resets all parent fields to point to this netclass
     void ResetParents();

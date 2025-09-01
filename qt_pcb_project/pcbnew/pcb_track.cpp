@@ -48,11 +48,11 @@
 #include <pcb_painter.h>
 #include <trigo.h>
 
-#include <google/protobuf/any.pb.h>
-#include <api/api_enums.h>
+// #include <google/protobuf/any.pb.h> // DISABLED FOR MINIMAL BUILD
+// #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
 // #include <api/api_utils.h>
-#include <api/api_pcb_utils.h>
-#include <api/board/board_types.pb.h>
+// #include <api/api_pcb_utils.h> // DISABLED FOR MINIMAL BUILD
+// #include <api/board/board_types.pb.h> // DISABLED FOR MINIMAL BUILD
 
 using KIGFX::PCB_PAINTER;
 using KIGFX::PCB_RENDER_SETTINGS;
@@ -435,102 +435,102 @@ int PCB_VIA::GetWidth( PCB_LAYER_ID aLayer ) const
 //}
 
 
-void PCB_ARC::Serialize( google::protobuf::Any &aContainer ) const
-{
-    kiapi::board::types::Arc arc;
-
-    arc.mutable_id()->set_value( m_Uuid.AsStdString() );
-    arc.mutable_start()->set_x_nm( GetStart().x );
-    arc.mutable_start()->set_y_nm( GetStart().y );
-    arc.mutable_mid()->set_x_nm( GetMid().x );
-    arc.mutable_mid()->set_y_nm( GetMid().y );
-    arc.mutable_end()->set_x_nm( GetEnd().x );
-    arc.mutable_end()->set_y_nm( GetEnd().y );
-    arc.mutable_width()->set_value_nm( GetWidth() );
-    arc.set_layer( ToProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( GetLayer() ) );
-    arc.set_locked( IsLocked() ? kiapi::common::types::LockedState::LS_LOCKED
-                               : kiapi::common::types::LockedState::LS_UNLOCKED );
-    PackNet( arc.mutable_net() );
-    // TODO m_hasSolderMask and m_solderMaskMargin
-
-    aContainer.PackFrom( arc );
-}
-
-
-bool PCB_ARC::Deserialize( const google::protobuf::Any &aContainer )
-{
-    kiapi::board::types::Arc arc;
-
-    if( !aContainer.UnpackTo( &arc ) )
-        return false;
-
-    const_cast<KIID&>( m_Uuid ) = KIID( arc.id().value() );
-    SetStart( VECTOR2I( arc.start().x_nm(), arc.start().y_nm() ) );
-    SetMid( VECTOR2I( arc.mid().x_nm(), arc.mid().y_nm() ) );
-    SetEnd( VECTOR2I( arc.end().x_nm(), arc.end().y_nm() ) );
-    SetWidth( arc.width().value_nm() );
-    SetLayer( FromProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( arc.layer() ) );
-    UnpackNet( arc.net() );
-    SetLocked( arc.locked() == kiapi::common::types::LockedState::LS_LOCKED );
-    // TODO m_hasSolderMask and m_solderMaskMargin
-
-    return true;
-}
+//void PCB_ARC::Serialize( google::protobuf::Any &aContainer ) const
+//{
+//    kiapi::board::types::Arc arc;
+//
+//    arc.mutable_id()->set_value( m_Uuid.AsStdString() );
+//    arc.mutable_start()->set_x_nm( GetStart().x );
+//    arc.mutable_start()->set_y_nm( GetStart().y );
+//    arc.mutable_mid()->set_x_nm( GetMid().x );
+//    arc.mutable_mid()->set_y_nm( GetMid().y );
+//    arc.mutable_end()->set_x_nm( GetEnd().x );
+//    arc.mutable_end()->set_y_nm( GetEnd().y );
+//    arc.mutable_width()->set_value_nm( GetWidth() );
+//    arc.set_layer( ToProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( GetLayer() ) );
+//    arc.set_locked( IsLocked() ? kiapi::common::types::LockedState::LS_LOCKED
+//                               : kiapi::common::types::LockedState::LS_UNLOCKED );
+//    PackNet( arc.mutable_net() );
+//    // TODO m_hasSolderMask and m_solderMaskMargin
+//
+//    aContainer.PackFrom( arc );
+//}
 
 
-void PCB_VIA::Serialize( google::protobuf::Any &aContainer ) const
-{
-    kiapi::board::types::Via via;
+//bool PCB_ARC::Deserialize( const google::protobuf::Any &aContainer )
+//{
+//    kiapi::board::types::Arc arc;
+//
+//    if( !aContainer.UnpackTo( &arc ) )
+//        return false;
+//
+//    const_cast<KIID&>( m_Uuid ) = KIID( arc.id().value() );
+//    SetStart( VECTOR2I( arc.start().x_nm(), arc.start().y_nm() ) );
+//    SetMid( VECTOR2I( arc.mid().x_nm(), arc.mid().y_nm() ) );
+//    SetEnd( VECTOR2I( arc.end().x_nm(), arc.end().y_nm() ) );
+//    SetWidth( arc.width().value_nm() );
+//    SetLayer( FromProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( arc.layer() ) );
+//    UnpackNet( arc.net() );
+//    SetLocked( arc.locked() == kiapi::common::types::LockedState::LS_LOCKED );
+//    // TODO m_hasSolderMask and m_solderMaskMargin
+//
+//    return true;
+//}
+//
 
-    via.mutable_id()->set_value( m_Uuid.AsStdString() );
-    via.mutable_position()->set_x_nm( GetPosition().x );
-    via.mutable_position()->set_y_nm( GetPosition().y );
-
-    PADSTACK padstack = Padstack();
-
-    google::protobuf::Any padStackWrapper;
-    padstack.Serialize( padStackWrapper );
-    padStackWrapper.UnpackTo( via.mutable_pad_stack() );
-
-    // PADSTACK::m_layerSet is not used by vias
-    via.mutable_pad_stack()->clear_layers();
-    kiapi::board::PackLayerSet( *via.mutable_pad_stack()->mutable_layers(), GetLayerSet() );
-
-    via.set_type( ToProtoEnum<VIATYPE, kiapi::board::types::ViaType>( GetViaType() ) );
-    via.set_locked( IsLocked() ? kiapi::common::types::LockedState::LS_LOCKED
-                               : kiapi::common::types::LockedState::LS_UNLOCKED );
-    PackNet( via.mutable_net() );
-
-    aContainer.PackFrom( via );
-}
-
-
-bool PCB_VIA::Deserialize( const google::protobuf::Any &aContainer )
-{
-    kiapi::board::types::Via via;
-
-    if( !aContainer.UnpackTo( &via ) )
-        return false;
-
-    const_cast<KIID&>( m_Uuid ) = KIID( via.id().value() );
-    SetStart( VECTOR2I( via.position().x_nm(), via.position().y_nm() ) );
-    SetEnd( GetStart() );
-
-    google::protobuf::Any padStackWrapper;
-    padStackWrapper.PackFrom( via.pad_stack() );
-
-    if( !m_padStack.Deserialize( padStackWrapper ) )
-        return false;
-
-    // PADSTACK::m_layerSet is not used by vias
-    m_padStack.LayerSet().reset();
-
-    SetViaType( FromProtoEnum<VIATYPE>( via.type() ) );
-    UnpackNet( via.net() );
-    SetLocked( via.locked() == kiapi::common::types::LockedState::LS_LOCKED );
-
-    return true;
-}
+//void PCB_VIA::Serialize( google::protobuf::Any &aContainer ) const
+//{
+//    kiapi::board::types::Via via;
+//
+//    via.mutable_id()->set_value( m_Uuid.AsStdString() );
+//    via.mutable_position()->set_x_nm( GetPosition().x );
+//    via.mutable_position()->set_y_nm( GetPosition().y );
+//
+//    PADSTACK padstack = Padstack();
+//
+//    google::protobuf::Any padStackWrapper;
+//    padstack.Serialize( padStackWrapper );
+//    padStackWrapper.UnpackTo( via.mutable_pad_stack() );
+//
+//    // PADSTACK::m_layerSet is not used by vias
+//    via.mutable_pad_stack()->clear_layers();
+//    kiapi::board::PackLayerSet( *via.mutable_pad_stack()->mutable_layers(), GetLayerSet() );
+//
+//    via.set_type( ToProtoEnum<VIATYPE, kiapi::board::types::ViaType>( GetViaType() ) );
+//    via.set_locked( IsLocked() ? kiapi::common::types::LockedState::LS_LOCKED
+//                               : kiapi::common::types::LockedState::LS_UNLOCKED );
+//    PackNet( via.mutable_net() );
+//
+//    aContainer.PackFrom( via );
+//}
+//
+//
+//bool PCB_VIA::Deserialize( const google::protobuf::Any &aContainer )
+//{
+//    kiapi::board::types::Via via;
+//
+//    if( !aContainer.UnpackTo( &via ) )
+//        return false;
+//
+//    const_cast<KIID&>( m_Uuid ) = KIID( via.id().value() );
+//    SetStart( VECTOR2I( via.position().x_nm(), via.position().y_nm() ) );
+//    SetEnd( GetStart() );
+//
+//    google::protobuf::Any padStackWrapper;
+//    padStackWrapper.PackFrom( via.pad_stack() );
+//
+//    if( !m_padStack.Deserialize( padStackWrapper ) )
+//        return false;
+//
+//    // PADSTACK::m_layerSet is not used by vias
+//    m_padStack.LayerSet().reset();
+//
+//    SetViaType( FromProtoEnum<VIATYPE>( via.type() ) );
+//    UnpackNet( via.net() );
+//    SetLocked( via.locked() == kiapi::common::types::LockedState::LS_LOCKED );
+//
+//    return true;
+//}
 
 
 bool PCB_TRACK::ApproxCollinear( const PCB_TRACK& aTrack )

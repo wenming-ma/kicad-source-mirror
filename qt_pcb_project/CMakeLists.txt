@@ -58,7 +58,7 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/common
     ${CMAKE_CURRENT_SOURCE_DIR}/generated
     ${CMAKE_CURRENT_SOURCE_DIR}/generated/common
-    ${CMAKE_CURRENT_SOURCE_DIR}/generated/api/cpp
+    # ${CMAKE_CURRENT_SOURCE_DIR}/generated/api/cpp  # DISABLED FOR MINIMAL BUILD
     ${CMAKE_CURRENT_SOURCE_DIR}/pcbnew
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/dynamic_bitset
@@ -69,7 +69,11 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/magic_enum/magic_enum
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/expected/include
     ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/include/opencascade
+    ${wxWidgets_INCLUDE_DIRS}
 )
+
+# Add wxWidgets compile definitions globally
+add_compile_definitions( ${wxWidgets_DEFINITIONS} )
 
 # Add subdirectories for minimal PCB functionality
 add_subdirectory( thirdparty )

@@ -27,7 +27,7 @@
 #include <board_design_settings.h>
 #include <i18n_utility.h>
 #include <pcb_painter.h>
-#include <api/board/board_types.pb.h>
+// #include <api/board/board_types.pb.h> // DISABLED FOR MINIMAL BUILD
 #include <string_utils.h>
 
 

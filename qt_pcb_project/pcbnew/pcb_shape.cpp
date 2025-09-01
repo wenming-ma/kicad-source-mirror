@@ -26,7 +26,7 @@
 
 #include "pcb_shape.h"
 
-#include <google/protobuf/any.pb.h>
+// #include <google/protobuf/any.pb.h> // DISABLED FOR MINIMAL BUILD
 #include <magic_enum.hpp>
 
 #include <bitmaps.h>
@@ -43,8 +43,8 @@
 #include <geometry/point_types.h>
 #include <geometry/shape_utils.h>
 #include <pcb_painter.h>
-#include <api/board/board_types.pb.h>
-#include <api/api_enums.h>
+// #include <api/board/board_types.pb.h> // DISABLED FOR MINIMAL BUILD
+// #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
 // #include <api/api_utils.h>
 
 
