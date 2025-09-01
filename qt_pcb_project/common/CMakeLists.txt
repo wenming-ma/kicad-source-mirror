@@ -3,7 +3,7 @@
 # Generated files from original KiCad build directory
 set( KICAD_BUILD_DIR "C:/Users/wenming_ma/source/repos/kicad-source-mirror/build/x64-Debug" )
 set( COMMON_GENERATED_SRCS
-    ${KICAD_BUILD_DIR}/api/cpp/api/common/envelope.pb.cc
+    # ${KICAD_BUILD_DIR}/api/cpp/api/common/envelope.pb.cc  # DISABLED FOR MINIMAL BUILD
     ${KICAD_BUILD_DIR}/common/drc_rules_keywords.cpp
     ${KICAD_BUILD_DIR}/common/embedded_files_keywords.cpp
     ${KICAD_BUILD_DIR}/common/lib_table_keywords.cpp
@@ -99,34 +99,34 @@ add_library( common STATIC
     validators.cpp
     wildcards_and_files_ext.cpp
     
-    # API files
-    api/api_enums.cpp
-    api/api_handler.cpp
-    api/api_plugin.cpp
-    api/api_plugin_manager.cpp
-    api/api_server.cpp
-    api/api_utils.cpp
-    api/serializable.cpp
+    # API files - DISABLED FOR MINIMAL BUILD
+    # api/api_enums.cpp
+    # api/api_handler.cpp
+    # api/api_plugin.cpp
+    # api/api_plugin_manager.cpp
+    # api/api_server.cpp
+    # api/api_utils.cpp
+    # api/serializable.cpp
     
     # Database files
     database/database_lib_settings.cpp
     
-    # Dialog files
-    dialog_about/AboutDialog_main.cpp
-    dialog_about/dialog_about.cpp
-    dialog_about/dialog_about_base.cpp
-    dialogs/dialog_color_picker.cpp
-    dialogs/dialog_color_picker_base.cpp
-    dialogs/dialog_configure_paths.cpp
-    dialogs/dialog_configure_paths_base.cpp
-    dialogs/dialog_hotkey_list.cpp
-    dialogs/dialog_migrate_settings.cpp
-    dialogs/dialog_migrate_settings_base.cpp
-    dialogs/panel_common_settings.cpp
-    dialogs/panel_common_settings_base.cpp
-    dialogs/panel_hotkeys_editor.cpp
-    dialogs/panel_mouse_settings.cpp
-    dialogs/panel_mouse_settings_base.cpp
+    # Dialog files - DISABLED FOR MINIMAL BUILD
+    # dialog_about/AboutDialog_main.cpp
+    # dialog_about/dialog_about.cpp
+    # dialog_about/dialog_about_base.cpp
+    # dialogs/dialog_color_picker.cpp
+    # dialogs/dialog_color_picker_base.cpp
+    # dialogs/dialog_configure_paths.cpp
+    # dialogs/dialog_configure_paths_base.cpp
+    # dialogs/dialog_hotkey_list.cpp
+    # dialogs/dialog_migrate_settings.cpp
+    # dialogs/dialog_migrate_settings_base.cpp
+    # dialogs/panel_common_settings.cpp
+    # dialogs/panel_common_settings_base.cpp
+    # dialogs/panel_hotkeys_editor.cpp
+    # dialogs/panel_mouse_settings.cpp
+    # dialogs/panel_mouse_settings_base.cpp
     # UI components - commented out for minimal build
     # dialogs/panel_packages_and_updates.cpp
     # dialogs/panel_packages_and_updates_base.cpp
@@ -211,26 +211,26 @@ add_library( common STATIC
     view/wx_view_controls.cpp
     view/zoom_controller.cpp
     
-    # Widget files
-    widgets/bitmap_button.cpp
-    widgets/button_row_panel.cpp
-    widgets/color_swatch.cpp
-    widgets/grid_text_button_helpers.cpp
-    widgets/grid_text_helpers.cpp
-    widgets/html_window.cpp
-    widgets/kistatusbar.cpp
-    widgets/paged_dialog.cpp
-    widgets/progress_reporter_base.cpp
-    widgets/std_bitmap_button.cpp
-    widgets/ui_common.cpp
-    widgets/widget_hotkey_list.cpp
-    widgets/wx_aui_art_providers.cpp
-    widgets/wx_busy_indicator.cpp
-    widgets/wx_grid.cpp
-    widgets/wx_grid_autosizer.cpp
-    widgets/wx_infobar.cpp
-    widgets/wx_panel.cpp
-    widgets/wx_treebook.cpp
+    # Widget files - DISABLED FOR MINIMAL BUILD
+    # widgets/bitmap_button.cpp
+    # widgets/button_row_panel.cpp
+    # widgets/color_swatch.cpp
+    # widgets/grid_text_button_helpers.cpp
+    # widgets/grid_text_helpers.cpp
+    # widgets/html_window.cpp
+    # widgets/kistatusbar.cpp
+    # widgets/paged_dialog.cpp
+    # widgets/progress_reporter_base.cpp
+    # widgets/std_bitmap_button.cpp
+    # widgets/ui_common.cpp
+    # widgets/widget_hotkey_list.cpp
+    # widgets/wx_aui_art_providers.cpp
+    # widgets/wx_busy_indicator.cpp
+    # widgets/wx_grid.cpp
+    # widgets/wx_grid_autosizer.cpp
+    # widgets/wx_infobar.cpp
+    # widgets/wx_panel.cpp
+    # widgets/wx_treebook.cpp
     
     # Generated files
     ${COMMON_GENERATED_SRCS}
@@ -239,6 +239,10 @@ add_library( common STATIC
 target_include_directories( common PUBLIC
     .
     ../include
+    ../generated/api/cpp
+    ../generated/api/cpp/api
+    ../scripting
+    ../thirdparty/magic_enum
     ${wxWidgets_INCLUDE_DIRS}
 )
 
@@ -257,5 +261,5 @@ target_link_libraries( common PUBLIC
     json_schema_validator
     ${wxWidgets_LIBRARIES}
     ${Boost_LIBRARIES}
-    protobuf::libprotobuf
+    # protobuf::libprotobuf
 )

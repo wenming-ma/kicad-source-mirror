@@ -25,7 +25,7 @@
 
 /**
  * @file macros_swig.h
- * @brief This file contains macros just for swig binding
+ * @brief This file contains container type definitions
  */
 
 #ifndef MACROS_SWIG_H
@@ -37,21 +37,11 @@
 #include <set>
 #include <memory>       // std::shared_ptr
 
-
-#ifdef SWIG
-/// Declare a std::vector and also the swig %template in unison
-#define DECL_VEC_FOR_SWIG(TypeName, MemberType) namespace std { %template(TypeName) vector<MemberType>; } typedef std::vector<MemberType> TypeName;
-#define DECL_DEQ_FOR_SWIG(TypeName, MemberType) namespace std { %template(TypeName) deque<MemberType>; } typedef std::deque<MemberType> TypeName;
-#define DECL_MAP_FOR_SWIG(TypeName, KeyType, ValueType) namespace std { %template(TypeName) map<KeyType, ValueType>; } typedef std::map<KeyType, ValueType> TypeName;
-#define DECL_SPTR_FOR_SWIG(TypeName, MemberType) %shared_ptr(MemberType) namespace std { %template(TypeName) shared_ptr<MemberType>; } typedef std::shared_ptr<MemberType> TypeName;
-#define DECL_SET_FOR_SWIG(TypeName, MemberType) namespace std { %template(TypeName) set<MemberType>; } typedef std::set<MemberType> TypeName;
-#else
-/// Declare a std::vector but no swig %template
+/// Standard C++ container type definitions
 #define DECL_VEC_FOR_SWIG(TypeName, MemberType) typedef std::vector<MemberType> TypeName;
 #define DECL_DEQ_FOR_SWIG(TypeName, MemberType) typedef std::deque<MemberType> TypeName;
 #define DECL_MAP_FOR_SWIG(TypeName, KeyType, ValueType) typedef std::map<KeyType, ValueType> TypeName;
 #define DECL_SPTR_FOR_SWIG(TypeName, MemberType) typedef std::shared_ptr<MemberType> TypeName;
 #define DECL_SET_FOR_SWIG(TypeName, MemberType) typedef std::set<MemberType> TypeName;
-#endif
 
 #endif // MACROS_SWIG_H

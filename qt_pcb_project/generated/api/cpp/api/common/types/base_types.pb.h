@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <string>
+#include "kiapi_export.h"
 
 #include <google/protobuf/port_def.inc>
 #if PROTOBUF_VERSION < 3021000

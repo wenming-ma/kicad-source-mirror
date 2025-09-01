@@ -29,7 +29,14 @@ if( WIN32 )
     add_compile_definitions( WXSTATIC )
     add_compile_definitions( wxUSE_DLL=0 )
     add_compile_definitions( __WXMSW__ )
+    # Add UTF-8 support for fmt library and Unicode
+    if( MSVC )
+        add_compile_options( /utf-8 )
+    endif()
 endif()
+
+# Enable KICAD API support - DISABLED FOR MINIMAL BUILD
+# add_compile_definitions( KICAD_IPC_API )
 
 # Find required dependencies for minimal PCB set
 find_package( PkgConfig QUIET )
@@ -40,7 +47,7 @@ set( wxWidgets_USE_STATIC ON )
 find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc )
 find_package( Boost REQUIRED )
 find_package( glm REQUIRED )
-find_package( protobuf REQUIRED )
+# find_package( protobuf REQUIRED )
 find_package( opencascade REQUIRED )
 # find_package( fmt REQUIRED )  # Using local fmt from thirdparty
 
@@ -59,6 +66,8 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/thread-pool
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/rtree
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/fmt/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/magic_enum/magic_enum
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/expected/include
     ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/include/opencascade
 )
 
@@ -67,5 +76,4 @@ add_subdirectory( thirdparty )
 add_subdirectory( libs )
 add_subdirectory( common )
 add_subdirectory( pcbnew )
-add_subdirectory( scripting )
 add_subdirectory( bitmap2component )

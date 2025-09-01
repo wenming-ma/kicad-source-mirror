@@ -28,7 +28,7 @@ if(CCACHE_PROGRAM)
             set(ENV{CCACHE_DIR} "${CMAKE_BINARY_DIR}/.ccache")
         endif()
         set(ENV{CCACHE_MAXSIZE} "5G")
-        set(ENV{CCACHE_SLOPPINESS} "pch_defines,time_macros")
+        set(ENV{CCACHE_SLOPPINESS} "pch_defines,time_macros,include_file_mtime,include_file_ctime")
     endif()
     
     # Show ccache stats

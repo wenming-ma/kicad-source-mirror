@@ -40,7 +40,7 @@
 #include <settings/settings_manager.h>
 #include <trigo.h>
 #include <api/api_enums.h>
-#include <api/api_utils.h>
+// #include <api/api_utils.h>
 #include <api/board/board_types.pb.h>
 
 
@@ -267,85 +267,85 @@ double PCB_DIMENSION_BASE::Similarity( const BOARD_ITEM& aOther ) const
 }
 
 
-void PCB_DIMENSION_BASE::Serialize( google::protobuf::Any &aContainer ) const
-{
-    using namespace kiapi::common;
-    using namespace kiapi::board::types;
-    Dimension dimension;
-
-    dimension.mutable_id()->set_value( m_Uuid.AsStdString() );
-    dimension.set_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( GetLayer() ) );
-    dimension.set_locked( IsLocked() ? types::LockedState::LS_LOCKED
-                                     : types::LockedState::LS_UNLOCKED );
-
-    google::protobuf::Any any;
-    EDA_TEXT::Serialize( any );
-    any.UnpackTo( dimension.mutable_text() );
-
-    types::Text* text = dimension.mutable_text();
-    text->set_text( GetValueText() );
-
-    dimension.set_override_text_enabled( m_overrideTextEnabled );
-    dimension.set_override_text( m_valueString.ToUTF8() );
-    dimension.set_prefix( m_prefix.ToUTF8() );
-    dimension.set_suffix( m_suffix.ToUTF8() );
-
-    dimension.set_unit( ToProtoEnum<DIM_UNITS_MODE, DimensionUnit>( GetUnitsMode() ) );
-    dimension.set_unit_format(
-            ToProtoEnum<DIM_UNITS_FORMAT, DimensionUnitFormat>( m_unitsFormat ) );
-    dimension.set_arrow_direction(
-            ToProtoEnum<DIM_ARROW_DIRECTION, DimensionArrowDirection>( m_arrowDirection ) );
-    dimension.set_precision( ToProtoEnum<DIM_PRECISION, DimensionPrecision>( m_precision ) );
-    dimension.set_suppress_trailing_zeroes( m_suppressZeroes );
-
-    dimension.mutable_line_thickness()->set_value_nm( m_lineThickness );
-    dimension.mutable_arrow_length()->set_value_nm( m_arrowLength );
-    dimension.mutable_extension_offset()->set_value_nm( m_extensionOffset );
-    dimension.set_text_position(
-            ToProtoEnum<DIM_TEXT_POSITION, DimensionTextPosition>( m_textPosition ) );
-    dimension.set_keep_text_aligned( m_keepTextAligned );
-
-    aContainer.PackFrom( dimension );
-}
-
-
-bool PCB_DIMENSION_BASE::Deserialize( const google::protobuf::Any &aContainer )
-{
-    using namespace kiapi::common;
-    kiapi::board::types::Dimension dimension;
-
-    if( !aContainer.UnpackTo( &dimension ) )
-        return false;
-
-    SetLayer( FromProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( dimension.layer() ) );
-    const_cast<KIID&>( m_Uuid ) = KIID( dimension.id().value() );
-    SetLocked( dimension.locked() == types::LockedState::LS_LOCKED );
-
-    google::protobuf::Any any;
-    any.PackFrom( dimension.text() );
-    EDA_TEXT::Deserialize( any );
-
-    SetOverrideTextEnabled( dimension.override_text_enabled() );
-    SetOverrideText( wxString::FromUTF8( dimension.override_text() ) );
-    SetPrefix( wxString::FromUTF8( dimension.prefix() ) );
-    SetSuffix( wxString::FromUTF8( dimension.suffix() ) );
-
-    SetUnitsMode( FromProtoEnum<DIM_UNITS_MODE>( dimension.unit() ) );
-    SetUnitsFormat( FromProtoEnum<DIM_UNITS_FORMAT>( dimension.unit_format() ) );
-    SetArrowDirection( FromProtoEnum<DIM_ARROW_DIRECTION>( dimension.arrow_direction() ) );
-    SetPrecision( FromProtoEnum<DIM_PRECISION>( dimension.precision() ) );
-    SetSuppressZeroes( dimension.suppress_trailing_zeroes() );
-
-    SetLineThickness( dimension.line_thickness().value_nm() );
-    SetArrowLength( dimension.arrow_length().value_nm() );
-    SetExtensionOffset( dimension.extension_offset().value_nm() );
-    SetTextPositionMode( FromProtoEnum<DIM_TEXT_POSITION>( dimension.text_position() ) );
-    SetKeepTextAligned( dimension.keep_text_aligned() );
-
-    Update();
-
-    return true;
-}
+//void PCB_DIMENSION_BASE::Serialize( google::protobuf::Any &aContainer ) const
+//{
+//    using namespace kiapi::common;
+//    using namespace kiapi::board::types;
+//    Dimension dimension;
+//
+//    dimension.mutable_id()->set_value( m_Uuid.AsStdString() );
+//    dimension.set_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( GetLayer() ) );
+//    dimension.set_locked( IsLocked() ? types::LockedState::LS_LOCKED
+//                                     : types::LockedState::LS_UNLOCKED );
+//
+//    google::protobuf::Any any;
+//    EDA_TEXT::Serialize( any );
+//    any.UnpackTo( dimension.mutable_text() );
+//
+//    types::Text* text = dimension.mutable_text();
+//    text->set_text( GetValueText() );
+//
+//    dimension.set_override_text_enabled( m_overrideTextEnabled );
+//    dimension.set_override_text( m_valueString.ToUTF8() );
+//    dimension.set_prefix( m_prefix.ToUTF8() );
+//    dimension.set_suffix( m_suffix.ToUTF8() );
+//
+//    dimension.set_unit( ToProtoEnum<DIM_UNITS_MODE, DimensionUnit>( GetUnitsMode() ) );
+//    dimension.set_unit_format(
+//            ToProtoEnum<DIM_UNITS_FORMAT, DimensionUnitFormat>( m_unitsFormat ) );
+//    dimension.set_arrow_direction(
+//            ToProtoEnum<DIM_ARROW_DIRECTION, DimensionArrowDirection>( m_arrowDirection ) );
+//    dimension.set_precision( ToProtoEnum<DIM_PRECISION, DimensionPrecision>( m_precision ) );
+//    dimension.set_suppress_trailing_zeroes( m_suppressZeroes );
+//
+//    dimension.mutable_line_thickness()->set_value_nm( m_lineThickness );
+//    dimension.mutable_arrow_length()->set_value_nm( m_arrowLength );
+//    dimension.mutable_extension_offset()->set_value_nm( m_extensionOffset );
+//    dimension.set_text_position(
+//            ToProtoEnum<DIM_TEXT_POSITION, DimensionTextPosition>( m_textPosition ) );
+//    dimension.set_keep_text_aligned( m_keepTextAligned );
+//
+//    aContainer.PackFrom( dimension );
+//}
+//
+//
+//bool PCB_DIMENSION_BASE::Deserialize( const google::protobuf::Any &aContainer )
+//{
+//    using namespace kiapi::common;
+//    kiapi::board::types::Dimension dimension;
+//
+//    if( !aContainer.UnpackTo( &dimension ) )
+//        return false;
+//
+//    SetLayer( FromProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( dimension.layer() ) );
+//    const_cast<KIID&>( m_Uuid ) = KIID( dimension.id().value() );
+//    SetLocked( dimension.locked() == types::LockedState::LS_LOCKED );
+//
+//    google::protobuf::Any any;
+//    any.PackFrom( dimension.text() );
+//    EDA_TEXT::Deserialize( any );
+//
+//    SetOverrideTextEnabled( dimension.override_text_enabled() );
+//    SetOverrideText( wxString::FromUTF8( dimension.override_text() ) );
+//    SetPrefix( wxString::FromUTF8( dimension.prefix() ) );
+//    SetSuffix( wxString::FromUTF8( dimension.suffix() ) );
+//
+//    SetUnitsMode( FromProtoEnum<DIM_UNITS_MODE>( dimension.unit() ) );
+//    SetUnitsFormat( FromProtoEnum<DIM_UNITS_FORMAT>( dimension.unit_format() ) );
+//    SetArrowDirection( FromProtoEnum<DIM_ARROW_DIRECTION>( dimension.arrow_direction() ) );
+//    SetPrecision( FromProtoEnum<DIM_PRECISION>( dimension.precision() ) );
+//    SetSuppressZeroes( dimension.suppress_trailing_zeroes() );
+//
+//    SetLineThickness( dimension.line_thickness().value_nm() );
+//    SetArrowLength( dimension.arrow_length().value_nm() );
+//    SetExtensionOffset( dimension.extension_offset().value_nm() );
+//    SetTextPositionMode( FromProtoEnum<DIM_TEXT_POSITION>( dimension.text_position() ) );
+//    SetKeepTextAligned( dimension.keep_text_aligned() );
+//
+//    Update();
+//
+//    return true;
+//}
 
 
 void PCB_DIMENSION_BASE::drawAnArrow( VECTOR2I startPoint, EDA_ANGLE anAngle, int aLength )

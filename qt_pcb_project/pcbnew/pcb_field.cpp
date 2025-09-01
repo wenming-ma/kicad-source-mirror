@@ -53,50 +53,50 @@ PCB_FIELD::PCB_FIELD( const PCB_TEXT& aText, int aFieldId, const wxString& aName
 }
 
 
-void PCB_FIELD::Serialize( google::protobuf::Any &aContainer ) const
-{
-    kiapi::board::types::Field field;
-
-    google::protobuf::Any anyText;
-    PCB_TEXT::Serialize( anyText );
-    anyText.UnpackTo( field.mutable_text() );
-
-    field.set_name( GetCanonicalName().ToStdString() );
-    field.mutable_id()->set_id( GetId() );
-    field.set_visible( IsVisible() );
-
-    aContainer.PackFrom( field );
-}
-
-
-bool PCB_FIELD::Deserialize( const google::protobuf::Any &aContainer )
-{
-    kiapi::board::types::Field field;
-
-    if( !aContainer.UnpackTo( &field ) )
-        return false;
-
-    if( field.has_id() )
-        setId( field.id().id() );
-
-    // Mandatory fields have a blank Name in the KiCad object
-    if( !IsMandatory() )
-        SetName( wxString( field.name().c_str(), wxConvUTF8 ) );
-
-    if( field.has_text() )
-    {
-        google::protobuf::Any anyText;
-        anyText.PackFrom( field.text() );
-        PCB_TEXT::Deserialize( anyText );
-    }
-
-    SetVisible( field.visible() );
-
-    if( field.text().layer() == kiapi::board::types::BoardLayer::BL_UNKNOWN )
-        SetLayer( F_SilkS );
-
-    return true;
-}
+//void PCB_FIELD::Serialize( google::protobuf::Any &aContainer ) const
+//{
+//    kiapi::board::types::Field field;
+//
+//    google::protobuf::Any anyText;
+//    PCB_TEXT::Serialize( anyText );
+//    anyText.UnpackTo( field.mutable_text() );
+//
+//    field.set_name( GetCanonicalName().ToStdString() );
+//    field.mutable_id()->set_id( GetId() );
+//    field.set_visible( IsVisible() );
+//
+//    aContainer.PackFrom( field );
+//}
+//
+//
+//bool PCB_FIELD::Deserialize( const google::protobuf::Any &aContainer )
+//{
+//    kiapi::board::types::Field field;
+//
+//    if( !aContainer.UnpackTo( &field ) )
+//        return false;
+//
+//    if( field.has_id() )
+//        setId( field.id().id() );
+//
+//    // Mandatory fields have a blank Name in the KiCad object
+//    if( !IsMandatory() )
+//        SetName( wxString( field.name().c_str(), wxConvUTF8 ) );
+//
+//    if( field.has_text() )
+//    {
+//        google::protobuf::Any anyText;
+//        anyText.PackFrom( field.text() );
+//        PCB_TEXT::Deserialize( anyText );
+//    }
+//
+//    SetVisible( field.visible() );
+//
+//    if( field.text().layer() == kiapi::board::types::BoardLayer::BL_UNKNOWN )
+//        SetLayer( F_SilkS );
+//
+//    return true;
+//}
 
 
 wxString PCB_FIELD::GetName( bool aUseDefaultName ) const

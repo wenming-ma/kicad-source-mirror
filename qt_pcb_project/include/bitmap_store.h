@@ -27,8 +27,7 @@
 
 #include <bitmaps/bitmap_info.h>
 #include <kicommon.h>
-
-class ASSET_ARCHIVE;
+#include <asset_archive.h>
 class wxImage;
 
 

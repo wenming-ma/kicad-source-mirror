@@ -423,59 +423,59 @@ bool BOARD_STACKUP::operator==( const BOARD_STACKUP& aOther ) const
 }
 
 
-void BOARD_STACKUP::Serialize( google::protobuf::Any& aContainer ) const
-{
-    using namespace kiapi::board;
-    BoardStackup stackup;
-
-    for( const BOARD_STACKUP_ITEM* item : m_list )
-    {
-        BoardStackupLayer* layer = stackup.mutable_layers()->Add();
-
-        layer->mutable_thickness()->set_value_nm( item->GetThickness() );
-        layer->set_layer( ToProtoEnum<PCB_LAYER_ID, types::BoardLayer>( item->GetBrdLayerId() ) );
-        layer->set_type(
-                ToProtoEnum<BOARD_STACKUP_ITEM_TYPE, BoardStackupLayerType>( item->GetType() ) );
-
-        switch( item->GetType() )
-        {
-        case BS_ITEM_TYPE_COPPER:
-        {
-            layer->set_material_name( "copper" );
-            // (no copper params yet...)
-            break;
-        }
-
-        case BS_ITEM_TYPE_DIELECTRIC:
-        {
-            BoardStackupDielectricLayer* dielectric = layer->mutable_dielectric()->New();
-
-            for( int i = 0; i < item->GetSublayersCount(); ++i )
-            {
-                BoardStackupDielectricProperties* props = dielectric->mutable_layer()->Add();
-                props->set_epsilon_r( item->GetEpsilonR( i ) );
-                props->set_loss_tangent( item->GetLossTangent( i ) );
-                props->set_material_name( item->GetMaterial( i ).ToUTF8() );
-                props->mutable_thickness()->set_value_nm( item->GetThickness( i ) );
-            }
-
-            break;
-        }
-
-        default:
-            break;
-        }
-    }
-
-    aContainer.PackFrom( stackup );
-}
-
-
-bool BOARD_STACKUP::Deserialize( const google::protobuf::Any& aContainer )
-{
-    // Read-only for now
-    return false;
-}
+//void BOARD_STACKUP::Serialize( google::protobuf::Any& aContainer ) const
+//{
+//    using namespace kiapi::board;
+//    BoardStackup stackup;
+//
+//    for( const BOARD_STACKUP_ITEM* item : m_list )
+//    {
+//        BoardStackupLayer* layer = stackup.mutable_layers()->Add();
+//
+//        layer->mutable_thickness()->set_value_nm( item->GetThickness() );
+//        layer->set_layer( ToProtoEnum<PCB_LAYER_ID, types::BoardLayer>( item->GetBrdLayerId() ) );
+//        layer->set_type(
+//                ToProtoEnum<BOARD_STACKUP_ITEM_TYPE, BoardStackupLayerType>( item->GetType() ) );
+//
+//        switch( item->GetType() )
+//        {
+//        case BS_ITEM_TYPE_COPPER:
+//        {
+//            layer->set_material_name( "copper" );
+//            // (no copper params yet...)
+//            break;
+//        }
+//
+//        case BS_ITEM_TYPE_DIELECTRIC:
+//        {
+//            BoardStackupDielectricLayer* dielectric = layer->mutable_dielectric()->New();
+//
+//            for( int i = 0; i < item->GetSublayersCount(); ++i )
+//            {
+//                BoardStackupDielectricProperties* props = dielectric->mutable_layer()->Add();
+//                props->set_epsilon_r( item->GetEpsilonR( i ) );
+//                props->set_loss_tangent( item->GetLossTangent( i ) );
+//                props->set_material_name( item->GetMaterial( i ).ToUTF8() );
+//                props->mutable_thickness()->set_value_nm( item->GetThickness( i ) );
+//            }
+//
+//            break;
+//        }
+//
+//        default:
+//            break;
+//        }
+//    }
+//
+//    aContainer.PackFrom( stackup );
+//}
+//
+//
+//bool BOARD_STACKUP::Deserialize( const google::protobuf::Any& aContainer )
+//{
+//    // Read-only for now
+//    return false;
+//}
 
 
 void BOARD_STACKUP::RemoveAll()

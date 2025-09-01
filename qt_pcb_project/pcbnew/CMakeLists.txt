@@ -81,6 +81,7 @@ add_library( pcbnew STATIC
 target_include_directories( pcbnew PUBLIC
     .
     ../include
+    ../thirdparty/magic_enum
 )
 
 target_link_libraries( pcbnew PUBLIC

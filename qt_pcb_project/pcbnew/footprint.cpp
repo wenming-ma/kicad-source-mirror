@@ -61,7 +61,7 @@
 #include <google/protobuf/any.pb.h>
 #include <api/board/board_types.pb.h>
 #include <api/api_enums.h>
-#include <api/api_utils.h>
+// #include <api/api_utils.h>
 #include <api/api_pcb_utils.h>
 #include <wx/log.h>
 
@@ -279,313 +279,313 @@ FOOTPRINT::~FOOTPRINT()
 }
 
 
-void FOOTPRINT::Serialize( google::protobuf::Any &aContainer ) const
-{
-    using namespace kiapi::board;
-    types::FootprintInstance footprint;
-
-    footprint.mutable_id()->set_value( m_Uuid.AsStdString() );
-    footprint.mutable_position()->set_x_nm( GetPosition().x );
-    footprint.mutable_position()->set_y_nm( GetPosition().y );
-    footprint.mutable_orientation()->set_value_degrees( GetOrientationDegrees() );
-    footprint.set_layer( ToProtoEnum<PCB_LAYER_ID, types::BoardLayer>( GetLayer() ) );
-    footprint.set_locked( IsLocked() ? kiapi::common::types::LockedState::LS_LOCKED
-                                     : kiapi::common::types::LockedState::LS_UNLOCKED );
-
-    google::protobuf::Any buf;
-    GetField( REFERENCE_FIELD )->Serialize( buf );
-    buf.UnpackTo( footprint.mutable_reference_field() );
-    GetField( VALUE_FIELD )->Serialize( buf );
-    buf.UnpackTo( footprint.mutable_value_field() );
-    GetField( DATASHEET_FIELD )->Serialize( buf );
-    buf.UnpackTo( footprint.mutable_datasheet_field() );
-    GetField( DESCRIPTION_FIELD )->Serialize( buf );
-    buf.UnpackTo( footprint.mutable_description_field() );
-
-    types::FootprintAttributes* attrs = footprint.mutable_attributes();
-
-    attrs->set_not_in_schematic( IsBoardOnly() );
-    attrs->set_exclude_from_position_files( IsExcludedFromPosFiles() );
-    attrs->set_exclude_from_bill_of_materials( IsExcludedFromBOM() );
-    attrs->set_exempt_from_courtyard_requirement( AllowMissingCourtyard() );
-    attrs->set_do_not_populate( IsDNP() );
-
-    if( m_attributes & FP_THROUGH_HOLE )
-        attrs->set_mounting_style( types::FootprintMountingStyle::FMS_THROUGH_HOLE );
-    else if( m_attributes & FP_SMD )
-        attrs->set_mounting_style( types::FootprintMountingStyle::FMS_SMD );
-    else
-        attrs->set_mounting_style( types::FootprintMountingStyle::FMS_UNSPECIFIED );
-
-    types::Footprint* def = footprint.mutable_definition();
-
-    def->mutable_id()->CopyFrom( kiapi::common::LibIdToProto( GetFPID() ) );
-    // anchor?
-    def->mutable_attributes()->set_description( GetLibDescription().ToStdString() );
-    def->mutable_attributes()->set_keywords( GetKeywords().ToStdString() );
-
-    // TODO: serialize library mandatory fields
-
-    types::FootprintDesignRuleOverrides* overrides = def->mutable_overrides();
-
-    if( GetLocalClearance().has_value() )
-        overrides->mutable_copper_clearance()->set_value_nm( *GetLocalClearance() );
-
-    if( GetLocalSolderMaskMargin().has_value() )
-        overrides->mutable_solder_mask()->mutable_solder_mask_margin()->set_value_nm( *GetLocalSolderMaskMargin() );
-
-    if( GetLocalSolderPasteMargin().has_value() )
-        overrides->mutable_solder_paste()->mutable_solder_paste_margin()->set_value_nm( *GetLocalSolderPasteMargin() );
-
-    if( GetLocalSolderPasteMarginRatio().has_value() )
-        overrides->mutable_solder_paste()->mutable_solder_paste_margin_ratio()->set_value( *GetLocalSolderPasteMarginRatio() );
-
-    overrides->set_zone_connection(
-            ToProtoEnum<ZONE_CONNECTION, types::ZoneConnectionStyle>( GetLocalZoneConnection() ) );
-
-    for( const wxString& group : GetNetTiePadGroups() )
-    {
-        types::NetTieDefinition* netTie = def->add_net_ties();
-        wxStringTokenizer tokenizer( group, " " );
-
-        while( tokenizer.HasMoreTokens() )
-            netTie->add_pad_number( tokenizer.GetNextToken().ToStdString() );
-    }
-
-    for( PCB_LAYER_ID layer : GetPrivateLayers().Seq() )
-        def->add_private_layers( ToProtoEnum<PCB_LAYER_ID, types::BoardLayer>( layer ) );
-
-    for( const PCB_FIELD* item : m_fields )
-    {
-        if( !item || item->IsMandatory() )
-            continue;
-
-        google::protobuf::Any* itemMsg = def->add_items();
-        item->Serialize( *itemMsg );
-    }
-
-    for( const PAD* item : Pads() )
-    {
-        google::protobuf::Any* itemMsg = def->add_items();
-        item->Serialize( *itemMsg );
-    }
-
-    for( const BOARD_ITEM* item : GraphicalItems() )
-    {
-        google::protobuf::Any* itemMsg = def->add_items();
-        item->Serialize( *itemMsg );
-    }
-
-    for( const ZONE* item : Zones() )
-    {
-        google::protobuf::Any* itemMsg = def->add_items();
-        item->Serialize( *itemMsg );
-    }
-
-    for( const FP_3DMODEL& model : Models() )
-    {
-        google::protobuf::Any* itemMsg = def->add_items();
-        types::Footprint3DModel modelMsg;
-        modelMsg.set_filename( model.m_Filename.ToUTF8() );
-        kiapi::common::PackVector3D( *modelMsg.mutable_scale(), model.m_Scale );
-        kiapi::common::PackVector3D( *modelMsg.mutable_rotation(), model.m_Rotation );
-        kiapi::common::PackVector3D( *modelMsg.mutable_offset(), model.m_Offset );
-        modelMsg.set_visible( model.m_Show );
-        modelMsg.set_opacity( model.m_Opacity );
-        itemMsg->PackFrom( modelMsg );
-    }
-
-    // Serialized only (can't modify this from the API to change the symbol mapping)
-    kiapi::common::PackSheetPath( *footprint.mutable_symbol_path(), m_path );
-
-    aContainer.PackFrom( footprint );
-}
-
-
-bool FOOTPRINT::Deserialize( const google::protobuf::Any &aContainer )
-{
-    using namespace kiapi::board;
-    types::FootprintInstance footprint;
-
-    if( !aContainer.UnpackTo( &footprint ) )
-        return false;
-
-    const_cast<KIID&>( m_Uuid ) = KIID( footprint.id().value() );
-    SetPosition( VECTOR2I( footprint.position().x_nm(), footprint.position().y_nm() ) );
-    SetOrientationDegrees( footprint.orientation().value_degrees() );
-    SetLayer( FromProtoEnum<PCB_LAYER_ID, types::BoardLayer>( footprint.layer() ) );
-    SetLocked( footprint.locked() == kiapi::common::types::LockedState::LS_LOCKED );
-
-    google::protobuf::Any buf;
-    types::Field mandatoryField;
-
-    if( footprint.has_reference_field() )
-    {
-        mandatoryField = footprint.reference_field();
-        mandatoryField.mutable_id()->set_id( REFERENCE_FIELD );
-        buf.PackFrom( mandatoryField );
-        GetField( REFERENCE_FIELD )->Deserialize( buf );
-    }
-
-    if( footprint.has_value_field() )
-    {
-        mandatoryField = footprint.value_field();
-        mandatoryField.mutable_id()->set_id( VALUE_FIELD );
-        buf.PackFrom( mandatoryField );
-        GetField( VALUE_FIELD )->Deserialize( buf );
-    }
-
-    if( footprint.has_datasheet_field() )
-    {
-        mandatoryField = footprint.datasheet_field();
-        mandatoryField.mutable_id()->set_id( DATASHEET_FIELD );
-        buf.PackFrom( mandatoryField );
-        GetField( DATASHEET_FIELD )->Deserialize( buf );
-    }
-
-    if( footprint.has_description_field() )
-    {
-        mandatoryField = footprint.description_field();
-        mandatoryField.mutable_id()->set_id( DESCRIPTION_FIELD );
-        buf.PackFrom( mandatoryField );
-        GetField( DESCRIPTION_FIELD )->Deserialize( buf );
-    }
-
-    m_attributes = 0;
-
-    switch( footprint.attributes().mounting_style() )
-    {
-    case types::FootprintMountingStyle::FMS_THROUGH_HOLE:
-        m_attributes |= FP_THROUGH_HOLE;
-        break;
-
-    case types::FootprintMountingStyle::FMS_SMD:
-        m_attributes |= FP_SMD;
-        break;
-
-    default:
-        break;
-    }
-
-    SetBoardOnly( footprint.attributes().not_in_schematic() );
-    SetExcludedFromBOM( footprint.attributes().exclude_from_bill_of_materials() );
-    SetExcludedFromPosFiles( footprint.attributes().exclude_from_position_files() );
-    SetAllowMissingCourtyard( footprint.attributes().exempt_from_courtyard_requirement() );
-    SetDNP( footprint.attributes().do_not_populate() );
-
-    // Definition
-    SetFPID( kiapi::common::LibIdFromProto( footprint.definition().id() ) );
-    // TODO: how should anchor be handled?
-    SetLibDescription( footprint.definition().attributes().description() );
-    SetKeywords( footprint.definition().attributes().keywords() );
-
-    const types::FootprintDesignRuleOverrides& overrides = footprint.overrides();
-
-    if( overrides.has_copper_clearance() )
-        SetLocalClearance( overrides.copper_clearance().value_nm() );
-    else
-        SetLocalClearance( std::nullopt );
-
-    if( overrides.has_solder_mask() && overrides.solder_mask().has_solder_mask_margin() )
-        SetLocalSolderMaskMargin( overrides.solder_mask().solder_mask_margin().value_nm() );
-    else
-        SetLocalSolderMaskMargin( std::nullopt );
-
-    if( overrides.has_solder_paste() )
-    {
-        const types::SolderPasteOverrides& pasteSettings = overrides.solder_paste();
-
-        if( pasteSettings.has_solder_paste_margin() )
-            SetLocalSolderPasteMargin( pasteSettings.solder_paste_margin().value_nm() );
-        else
-            SetLocalSolderPasteMargin( std::nullopt );
-
-        if( pasteSettings.has_solder_paste_margin_ratio() )
-            SetLocalSolderPasteMarginRatio( pasteSettings.solder_paste_margin_ratio().value() );
-        else
-            SetLocalSolderPasteMarginRatio( std::nullopt );
-    }
-
-    SetLocalZoneConnection( FromProtoEnum<ZONE_CONNECTION>( overrides.zone_connection() ) );
-
-    for( const types::NetTieDefinition& netTieMsg : footprint.definition().net_ties() )
-    {
-        wxString group;
-
-        for( const std::string& pad : netTieMsg.pad_number() )
-            group.Append( wxString::Format( wxT( "%s " ), pad ) );
-
-        group.Trim();
-        AddNetTiePadGroup( group );
-    }
-
-    LSET privateLayers;
-
-    for( int layerMsg : footprint.definition().private_layers() )
-    {
-        auto layer = static_cast<types::BoardLayer>( layerMsg );
-        privateLayers.set( FromProtoEnum<PCB_LAYER_ID, types::BoardLayer>( layer ) );
-    }
-
-    SetPrivateLayers( privateLayers );
-
-    // Footprint items
-    for( PCB_FIELD* field : m_fields )
-    {
-        if( field && !field->IsMandatory() )
-            Remove( field );
-    }
-
-    Pads().clear();
-    GraphicalItems().clear();
-    Zones().clear();
-    Groups().clear();
-    Models().clear();
-
-    for( const google::protobuf::Any& itemMsg : footprint.definition().items() )
-    {
-        std::optional<KICAD_T> type = kiapi::common::TypeNameFromAny( itemMsg );
-
-        if( !type )
-        {
-            // Bit of a hack here, but eventually 3D models should be promoted to a first-class
-            // object, at which point they can get their own serialization
-            if( itemMsg.type_url() == "type.googleapis.com/kiapi.board.types.Footprint3DModel" )
-            {
-                types::Footprint3DModel modelMsg;
-
-                if( !itemMsg.UnpackTo( &modelMsg ) )
-                    continue;
-
-                FP_3DMODEL model;
-
-                model.m_Filename = wxString::FromUTF8( modelMsg.filename() );
-                model.m_Show = modelMsg.visible();
-                model.m_Opacity = modelMsg.opacity();
-                model.m_Scale = kiapi::common::UnpackVector3D( modelMsg.scale() );
-                model.m_Rotation = kiapi::common::UnpackVector3D( modelMsg.rotation() );
-                model.m_Offset = kiapi::common::UnpackVector3D( modelMsg.offset() );
-
-                Models().push_back( model );
-            }
-            else
-            {
-                wxLogTrace( traceApi, wxString::Format( wxS( "Attempting to unpack unknown type %s "
-                                                             "from footprint message, skipping" ),
-                                                        itemMsg.type_url() ) );
-            }
-
-            continue;
-        }
-
-        std::unique_ptr<BOARD_ITEM> item = CreateItemForType( *type, this );
-
-        if( item && item->Deserialize( itemMsg ) )
-            Add( item.release(), ADD_MODE::APPEND );
-    }
-
-    return true;
-}
+//void FOOTPRINT::Serialize( google::protobuf::Any &aContainer ) const
+//{
+//    using namespace kiapi::board;
+//    types::FootprintInstance footprint;
+//
+//    footprint.mutable_id()->set_value( m_Uuid.AsStdString() );
+//    footprint.mutable_position()->set_x_nm( GetPosition().x );
+//    footprint.mutable_position()->set_y_nm( GetPosition().y );
+//    footprint.mutable_orientation()->set_value_degrees( GetOrientationDegrees() );
+//    footprint.set_layer( ToProtoEnum<PCB_LAYER_ID, types::BoardLayer>( GetLayer() ) );
+//    footprint.set_locked( IsLocked() ? kiapi::common::types::LockedState::LS_LOCKED
+//                                     : kiapi::common::types::LockedState::LS_UNLOCKED );
+//
+//    google::protobuf::Any buf;
+//    GetField( REFERENCE_FIELD )->Serialize( buf );
+//    buf.UnpackTo( footprint.mutable_reference_field() );
+//    GetField( VALUE_FIELD )->Serialize( buf );
+//    buf.UnpackTo( footprint.mutable_value_field() );
+//    GetField( DATASHEET_FIELD )->Serialize( buf );
+//    buf.UnpackTo( footprint.mutable_datasheet_field() );
+//    GetField( DESCRIPTION_FIELD )->Serialize( buf );
+//    buf.UnpackTo( footprint.mutable_description_field() );
+//
+//    types::FootprintAttributes* attrs = footprint.mutable_attributes();
+//
+//    attrs->set_not_in_schematic( IsBoardOnly() );
+//    attrs->set_exclude_from_position_files( IsExcludedFromPosFiles() );
+//    attrs->set_exclude_from_bill_of_materials( IsExcludedFromBOM() );
+//    attrs->set_exempt_from_courtyard_requirement( AllowMissingCourtyard() );
+//    attrs->set_do_not_populate( IsDNP() );
+//
+//    if( m_attributes & FP_THROUGH_HOLE )
+//        attrs->set_mounting_style( types::FootprintMountingStyle::FMS_THROUGH_HOLE );
+//    else if( m_attributes & FP_SMD )
+//        attrs->set_mounting_style( types::FootprintMountingStyle::FMS_SMD );
+//    else
+//        attrs->set_mounting_style( types::FootprintMountingStyle::FMS_UNSPECIFIED );
+//
+//    types::Footprint* def = footprint.mutable_definition();
+//
+//    def->mutable_id()->CopyFrom( kiapi::common::LibIdToProto( GetFPID() ) );
+//    // anchor?
+//    def->mutable_attributes()->set_description( GetLibDescription().ToStdString() );
+//    def->mutable_attributes()->set_keywords( GetKeywords().ToStdString() );
+//
+//    // TODO: serialize library mandatory fields
+//
+//    types::FootprintDesignRuleOverrides* overrides = def->mutable_overrides();
+//
+//    if( GetLocalClearance().has_value() )
+//        overrides->mutable_copper_clearance()->set_value_nm( *GetLocalClearance() );
+//
+//    if( GetLocalSolderMaskMargin().has_value() )
+//        overrides->mutable_solder_mask()->mutable_solder_mask_margin()->set_value_nm( *GetLocalSolderMaskMargin() );
+//
+//    if( GetLocalSolderPasteMargin().has_value() )
+//        overrides->mutable_solder_paste()->mutable_solder_paste_margin()->set_value_nm( *GetLocalSolderPasteMargin() );
+//
+//    if( GetLocalSolderPasteMarginRatio().has_value() )
+//        overrides->mutable_solder_paste()->mutable_solder_paste_margin_ratio()->set_value( *GetLocalSolderPasteMarginRatio() );
+//
+//    overrides->set_zone_connection(
+//            ToProtoEnum<ZONE_CONNECTION, types::ZoneConnectionStyle>( GetLocalZoneConnection() ) );
+//
+//    for( const wxString& group : GetNetTiePadGroups() )
+//    {
+//        types::NetTieDefinition* netTie = def->add_net_ties();
+//        wxStringTokenizer tokenizer( group, " " );
+//
+//        while( tokenizer.HasMoreTokens() )
+//            netTie->add_pad_number( tokenizer.GetNextToken().ToStdString() );
+//    }
+//
+//    for( PCB_LAYER_ID layer : GetPrivateLayers().Seq() )
+//        def->add_private_layers( ToProtoEnum<PCB_LAYER_ID, types::BoardLayer>( layer ) );
+//
+//    for( const PCB_FIELD* item : m_fields )
+//    {
+//        if( !item || item->IsMandatory() )
+//            continue;
+//
+//        google::protobuf::Any* itemMsg = def->add_items();
+//        item->Serialize( *itemMsg );
+//    }
+//
+//    for( const PAD* item : Pads() )
+//    {
+//        google::protobuf::Any* itemMsg = def->add_items();
+//        item->Serialize( *itemMsg );
+//    }
+//
+//    for( const BOARD_ITEM* item : GraphicalItems() )
+//    {
+//        google::protobuf::Any* itemMsg = def->add_items();
+//        item->Serialize( *itemMsg );
+//    }
+//
+//    for( const ZONE* item : Zones() )
+//    {
+//        google::protobuf::Any* itemMsg = def->add_items();
+//        item->Serialize( *itemMsg );
+//    }
+//
+//    for( const FP_3DMODEL& model : Models() )
+//    {
+//        google::protobuf::Any* itemMsg = def->add_items();
+//        types::Footprint3DModel modelMsg;
+//        modelMsg.set_filename( model.m_Filename.ToUTF8() );
+//        kiapi::common::PackVector3D( *modelMsg.mutable_scale(), model.m_Scale );
+//        kiapi::common::PackVector3D( *modelMsg.mutable_rotation(), model.m_Rotation );
+//        kiapi::common::PackVector3D( *modelMsg.mutable_offset(), model.m_Offset );
+//        modelMsg.set_visible( model.m_Show );
+//        modelMsg.set_opacity( model.m_Opacity );
+//        itemMsg->PackFrom( modelMsg );
+//    }
+//
+//    // Serialized only (can't modify this from the API to change the symbol mapping)
+//    kiapi::common::PackSheetPath( *footprint.mutable_symbol_path(), m_path );
+//
+//    aContainer.PackFrom( footprint );
+//}
+//
+//
+//bool FOOTPRINT::Deserialize( const google::protobuf::Any &aContainer )
+//{
+//    using namespace kiapi::board;
+//    types::FootprintInstance footprint;
+//
+//    if( !aContainer.UnpackTo( &footprint ) )
+//        return false;
+//
+//    const_cast<KIID&>( m_Uuid ) = KIID( footprint.id().value() );
+//    SetPosition( VECTOR2I( footprint.position().x_nm(), footprint.position().y_nm() ) );
+//    SetOrientationDegrees( footprint.orientation().value_degrees() );
+//    SetLayer( FromProtoEnum<PCB_LAYER_ID, types::BoardLayer>( footprint.layer() ) );
+//    SetLocked( footprint.locked() == kiapi::common::types::LockedState::LS_LOCKED );
+//
+//    google::protobuf::Any buf;
+//    types::Field mandatoryField;
+//
+//    if( footprint.has_reference_field() )
+//    {
+//        mandatoryField = footprint.reference_field();
+//        mandatoryField.mutable_id()->set_id( REFERENCE_FIELD );
+//        buf.PackFrom( mandatoryField );
+//        GetField( REFERENCE_FIELD )->Deserialize( buf );
+//    }
+//
+//    if( footprint.has_value_field() )
+//    {
+//        mandatoryField = footprint.value_field();
+//        mandatoryField.mutable_id()->set_id( VALUE_FIELD );
+//        buf.PackFrom( mandatoryField );
+//        GetField( VALUE_FIELD )->Deserialize( buf );
+//    }
+//
+//    if( footprint.has_datasheet_field() )
+//    {
+//        mandatoryField = footprint.datasheet_field();
+//        mandatoryField.mutable_id()->set_id( DATASHEET_FIELD );
+//        buf.PackFrom( mandatoryField );
+//        GetField( DATASHEET_FIELD )->Deserialize( buf );
+//    }
+//
+//    if( footprint.has_description_field() )
+//    {
+//        mandatoryField = footprint.description_field();
+//        mandatoryField.mutable_id()->set_id( DESCRIPTION_FIELD );
+//        buf.PackFrom( mandatoryField );
+//        GetField( DESCRIPTION_FIELD )->Deserialize( buf );
+//    }
+//
+//    m_attributes = 0;
+//
+//    switch( footprint.attributes().mounting_style() )
+//    {
+//    case types::FootprintMountingStyle::FMS_THROUGH_HOLE:
+//        m_attributes |= FP_THROUGH_HOLE;
+//        break;
+//
+//    case types::FootprintMountingStyle::FMS_SMD:
+//        m_attributes |= FP_SMD;
+//        break;
+//
+//    default:
+//        break;
+//    }
+//
+//    SetBoardOnly( footprint.attributes().not_in_schematic() );
+//    SetExcludedFromBOM( footprint.attributes().exclude_from_bill_of_materials() );
+//    SetExcludedFromPosFiles( footprint.attributes().exclude_from_position_files() );
+//    SetAllowMissingCourtyard( footprint.attributes().exempt_from_courtyard_requirement() );
+//    SetDNP( footprint.attributes().do_not_populate() );
+//
+//    // Definition
+//    SetFPID( kiapi::common::LibIdFromProto( footprint.definition().id() ) );
+//    // TODO: how should anchor be handled?
+//    SetLibDescription( footprint.definition().attributes().description() );
+//    SetKeywords( footprint.definition().attributes().keywords() );
+//
+//    const types::FootprintDesignRuleOverrides& overrides = footprint.overrides();
+//
+//    if( overrides.has_copper_clearance() )
+//        SetLocalClearance( overrides.copper_clearance().value_nm() );
+//    else
+//        SetLocalClearance( std::nullopt );
+//
+//    if( overrides.has_solder_mask() && overrides.solder_mask().has_solder_mask_margin() )
+//        SetLocalSolderMaskMargin( overrides.solder_mask().solder_mask_margin().value_nm() );
+//    else
+//        SetLocalSolderMaskMargin( std::nullopt );
+//
+//    if( overrides.has_solder_paste() )
+//    {
+//        const types::SolderPasteOverrides& pasteSettings = overrides.solder_paste();
+//
+//        if( pasteSettings.has_solder_paste_margin() )
+//            SetLocalSolderPasteMargin( pasteSettings.solder_paste_margin().value_nm() );
+//        else
+//            SetLocalSolderPasteMargin( std::nullopt );
+//
+//        if( pasteSettings.has_solder_paste_margin_ratio() )
+//            SetLocalSolderPasteMarginRatio( pasteSettings.solder_paste_margin_ratio().value() );
+//        else
+//            SetLocalSolderPasteMarginRatio( std::nullopt );
+//    }
+//
+//    SetLocalZoneConnection( FromProtoEnum<ZONE_CONNECTION>( overrides.zone_connection() ) );
+//
+//    for( const types::NetTieDefinition& netTieMsg : footprint.definition().net_ties() )
+//    {
+//        wxString group;
+//
+//        for( const std::string& pad : netTieMsg.pad_number() )
+//            group.Append( wxString::Format( wxT( "%s " ), pad ) );
+//
+//        group.Trim();
+//        AddNetTiePadGroup( group );
+//    }
+//
+//    LSET privateLayers;
+//
+//    for( int layerMsg : footprint.definition().private_layers() )
+//    {
+//        auto layer = static_cast<types::BoardLayer>( layerMsg );
+//        privateLayers.set( FromProtoEnum<PCB_LAYER_ID, types::BoardLayer>( layer ) );
+//    }
+//
+//    SetPrivateLayers( privateLayers );
+//
+//    // Footprint items
+//    for( PCB_FIELD* field : m_fields )
+//    {
+//        if( field && !field->IsMandatory() )
+//            Remove( field );
+//    }
+//
+//    Pads().clear();
+//    GraphicalItems().clear();
+//    Zones().clear();
+//    Groups().clear();
+//    Models().clear();
+//
+//    for( const google::protobuf::Any& itemMsg : footprint.definition().items() )
+//    {
+//        std::optional<KICAD_T> type = kiapi::common::TypeNameFromAny( itemMsg );
+//
+//        if( !type )
+//        {
+//            // Bit of a hack here, but eventually 3D models should be promoted to a first-class
+//            // object, at which point they can get their own serialization
+//            if( itemMsg.type_url() == "type.googleapis.com/kiapi.board.types.Footprint3DModel" )
+//            {
+//                types::Footprint3DModel modelMsg;
+//
+//                if( !itemMsg.UnpackTo( &modelMsg ) )
+//                    continue;
+//
+//                FP_3DMODEL model;
+//
+//                model.m_Filename = wxString::FromUTF8( modelMsg.filename() );
+//                model.m_Show = modelMsg.visible();
+//                model.m_Opacity = modelMsg.opacity();
+//                model.m_Scale = kiapi::common::UnpackVector3D( modelMsg.scale() );
+//                model.m_Rotation = kiapi::common::UnpackVector3D( modelMsg.rotation() );
+//                model.m_Offset = kiapi::common::UnpackVector3D( modelMsg.offset() );
+//
+//                Models().push_back( model );
+//            }
+//            else
+//            {
+//                wxLogTrace( traceApi, wxString::Format( wxS( "Attempting to unpack unknown type %s "
+//                                                             "from footprint message, skipping" ),
+//                                                        itemMsg.type_url() ) );
+//            }
+//
+//            continue;
+//        }
+//
+//        std::unique_ptr<BOARD_ITEM> item = CreateItemForType( *type, this );
+//
+//        if( item && item->Deserialize( itemMsg ) )
+//            Add( item.release(), ADD_MODE::APPEND );
+//    }
+//
+//    return true;
+//}
 
 
 PCB_FIELD* FOOTPRINT::GetField( MANDATORY_FIELD_T aFieldType )
