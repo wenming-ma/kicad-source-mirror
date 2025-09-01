@@ -43,6 +43,18 @@ cmake --build build
 - **Focus on core functionality**: Keep PCB processing logic, exclude UI dependencies
 - **Maintain compilation**: Ensure code compiles without UI components
 
+#### API and Python Handling Policy:
+- **API functionality**: All API-related code should be commented out for minimal build
+- **Python scripts**: All Python scripting functionality should be disabled
+- **KICAD_IPC_API**: This macro should remain disabled (commented out) in CMakeLists.txt
+- **GetApiServer() calls**: Comment out all calls to Pgm().GetApiServer() methods
+
+#### Protobuf (.pb.h) Handling Policy:
+- **All .pb.h includes**: Comment out all `#include` statements that reference .pb.h files
+- **Protobuf functionality**: Comment out all code that uses protobuf-generated classes and methods
+- **Auto-generated files**: Do not modify .pb.h/.pb.cc files directly - only comment out their usage
+- **API message handling**: Comment out code that processes API messages or uses protobuf objects
+
 #### Key Principle:
 Since the source files are copied from working KiCad code, all compilation errors are due to:
 - Missing header files

@@ -26,8 +26,8 @@
 #include <import_export.h>
 #include <layer_ids.h>
 #include <lset.h>
-#include <api/common/types/base_types.pb.h>
-#include <api/board/board_types.pb.h>
+// #include <api/common/types/base_types.pb.h>
+// #include <api/board/board_types.pb.h>
 
 class BOARD_ITEM;
 class BOARD_ITEM_CONTAINER;

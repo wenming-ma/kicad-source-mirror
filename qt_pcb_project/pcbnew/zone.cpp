@@ -46,7 +46,7 @@
 
 #include <google/protobuf/any.pb.h>
 #include <api/api_enums.h>
-#include <api/api_utils.h>
+// #include <api/api_utils.h>
 #include <api/api_pcb_utils.h>
 #include <api/board/board_types.pb.h>
 
@@ -216,184 +216,184 @@ EDA_ITEM* ZONE::Clone() const
 }
 
 
-void ZONE::Serialize( google::protobuf::Any& aContainer ) const
-{
-    using namespace kiapi::board;
-    types::Zone zone;
-
-    zone.mutable_id()->set_value( m_Uuid.AsStdString() );
-    PackLayerSet( *zone.mutable_layers(), GetLayerSet() );
-
-    if( m_isRuleArea )
-        zone.set_type( types::ZT_RULE_AREA );
-    else if( m_teardropType != TEARDROP_TYPE::TD_NONE )
-        zone.set_type( types::ZT_TEARDROP );
-    else if( IsOnCopperLayer() )
-        zone.set_type( types::ZT_COPPER );
-    else
-        zone.set_type( types::ZT_GRAPHICAL );
-
-    kiapi::common::PackPolySet( *zone.mutable_outline(), *m_Poly );
-
-    zone.set_name( m_zoneName.ToUTF8() );
-    zone.set_priority( m_priority );
-    zone.set_filled( m_isFilled );
-
-    if( m_isRuleArea )
-    {
-        types::RuleAreaSettings* ra = zone.mutable_rule_area_settings();
-        ra->set_keepout_copper( m_doNotAllowCopperPour );
-        ra->set_keepout_footprints( m_doNotAllowFootprints );
-        ra->set_keepout_pads( m_doNotAllowPads );
-        ra->set_keepout_tracks( m_doNotAllowTracks );
-        ra->set_keepout_vias( m_doNotAllowVias );
-
-        ra->set_placement_enabled( m_ruleAreaPlacementEnabled );
-        ra->set_placement_source( m_ruleAreaPlacementSource.ToUTF8() );
-        ra->set_placement_source_type(
-                ToProtoEnum<RULE_AREA_PLACEMENT_SOURCE_TYPE, types::PlacementRuleSourceType>(
-                        m_ruleAreaPlacementSourceType ) );
-    }
-    else
-    {
-        types::CopperZoneSettings* cu = zone.mutable_copper_settings();
-        cu->mutable_connection()->set_zone_connection(
-                ToProtoEnum<ZONE_CONNECTION, types::ZoneConnectionStyle>( m_PadConnection ) );
-
-        types::ThermalSpokeSettings* thermals = cu->mutable_connection()->mutable_thermal_spokes();
-        thermals->mutable_width()->set_value_nm( m_thermalReliefSpokeWidth );
-        thermals->mutable_gap()->set_value_nm( m_thermalReliefGap );
-        // n.b. zones don't currently have an overall thermal angle override
-
-        cu->mutable_clearance()->set_value_nm( m_ZoneClearance );
-        cu->mutable_min_thickness()->set_value_nm( m_ZoneMinThickness );
-        cu->set_island_mode(
-                ToProtoEnum<ISLAND_REMOVAL_MODE, types::IslandRemovalMode>( m_islandRemovalMode ) );
-        cu->set_min_island_area( m_minIslandArea );
-        cu->set_fill_mode( ToProtoEnum<ZONE_FILL_MODE, types::ZoneFillMode>( m_fillMode ) );
-
-        types::HatchFillSettings* hatch = cu->mutable_hatch_settings();
-        hatch->mutable_thickness()->set_value_nm( m_hatchThickness );
-        hatch->mutable_gap()->set_value_nm( m_hatchGap );
-        hatch->mutable_orientation()->set_value_degrees( m_hatchOrientation.AsDegrees() );
-        hatch->set_hatch_smoothing_ratio( m_hatchSmoothingValue );
-        hatch->set_hatch_hole_min_area_ratio( m_hatchHoleMinArea );
-
-        switch( m_hatchBorderAlgorithm )
-        {
-        default:
-        case 0: hatch->set_border_mode( types::ZHFBM_USE_MIN_ZONE_THICKNESS ); break;
-        case 1: hatch->set_border_mode( types::ZHFBM_USE_HATCH_THICKNESS );    break;
-        }
-
-        PackNet( cu->mutable_net() );
-        cu->mutable_teardrop()->set_type(
-                ToProtoEnum<TEARDROP_TYPE, types::TeardropType>( m_teardropType ) );
-    }
-
-    for( const auto& [layer, shape] : m_FilledPolysList )
-    {
-        types::ZoneFilledPolygons* filledLayer = zone.add_filled_polygons();
-        filledLayer->set_layer( ToProtoEnum<PCB_LAYER_ID, types::BoardLayer>( layer ) );
-        kiapi::common::PackPolySet( *filledLayer->mutable_shapes(), *shape );
-    }
-
-    zone.mutable_border()->set_style(
-            ToProtoEnum<ZONE_BORDER_DISPLAY_STYLE, types::ZoneBorderStyle>( m_borderStyle ) );
-    zone.mutable_border()->mutable_pitch()->set_value_nm( m_borderHatchPitch );
-
-    aContainer.PackFrom( zone );
-}
-
-
-bool ZONE::Deserialize( const google::protobuf::Any& aContainer )
-{
-    using namespace kiapi::board;
-    types::Zone zone;
-
-    if( !aContainer.UnpackTo( &zone ) )
-        return false;
-
-    const_cast<KIID&>( m_Uuid ) = KIID( zone.id().value() );
-    SetLayerSet( UnpackLayerSet( zone.layers() ) );
-    SetAssignedPriority( zone.priority() );
-    SetZoneName( wxString::FromUTF8( zone.name() ) );
-
-    if( zone.type() == types::ZoneType::ZT_RULE_AREA )
-        m_isRuleArea = true;
-
-    if( !m_Poly )
-        SetOutline( new SHAPE_POLY_SET );
-
-    *m_Poly = kiapi::common::UnpackPolySet( zone.outline() );
-
-    if( m_Poly->OutlineCount() == 0 )
-        return false;
-
-    if( m_isRuleArea )
-    {
-        const types::RuleAreaSettings& ra = zone.rule_area_settings();
-        m_doNotAllowCopperPour = ra.keepout_copper();
-        m_doNotAllowFootprints = ra.keepout_footprints();
-        m_doNotAllowPads = ra.keepout_pads();
-        m_doNotAllowTracks = ra.keepout_tracks();
-        m_doNotAllowVias = ra.keepout_vias();
-
-        m_ruleAreaPlacementEnabled = ra.placement_enabled();
-        m_ruleAreaPlacementSource = wxString::FromUTF8( ra.placement_source() );
-        m_ruleAreaPlacementSourceType =
-                FromProtoEnum<RULE_AREA_PLACEMENT_SOURCE_TYPE>( ra.placement_source_type() );
-    }
-    else
-    {
-        const types::CopperZoneSettings& cu = zone.copper_settings();
-        m_PadConnection = FromProtoEnum<ZONE_CONNECTION>( cu.connection().zone_connection() );
-        m_thermalReliefSpokeWidth = cu.connection().thermal_spokes().width().value_nm();
-        m_thermalReliefGap = cu.connection().thermal_spokes().gap().value_nm();
-        m_ZoneClearance = cu.clearance().value_nm();
-        m_ZoneMinThickness = cu.min_thickness().value_nm();
-        m_islandRemovalMode = FromProtoEnum<ISLAND_REMOVAL_MODE>( cu.island_mode() );
-        m_minIslandArea = cu.min_island_area();
-        m_fillMode = FromProtoEnum<ZONE_FILL_MODE>( cu.fill_mode() );
-
-        m_hatchThickness = cu.hatch_settings().thickness().value_nm();
-        m_hatchGap = cu.hatch_settings().gap().value_nm();
-        m_hatchOrientation = EDA_ANGLE( cu.hatch_settings().orientation().value_degrees(), DEGREES_T );
-        m_hatchSmoothingValue = cu.hatch_settings().hatch_smoothing_ratio();
-        m_hatchHoleMinArea = cu.hatch_settings().hatch_hole_min_area_ratio();
-
-        switch( cu.hatch_settings().border_mode() )
-        {
-        default:
-        case types::ZHFBM_USE_MIN_ZONE_THICKNESS: m_hatchBorderAlgorithm = 0; break;
-        case types::ZHFBM_USE_HATCH_THICKNESS:    m_hatchBorderAlgorithm = 1; break;
-        }
-
-        UnpackNet( cu.net() );
-        m_teardropType = FromProtoEnum<TEARDROP_TYPE>( cu.teardrop().type() );
-    }
-
-    m_borderStyle = FromProtoEnum<ZONE_BORDER_DISPLAY_STYLE>( zone.border().style() );
-    m_borderHatchPitch = zone.border().pitch().value_nm();
-
-    if( zone.filled() )
-    {
-        // TODO(JE) check what else has to happen here
-        SetIsFilled( true );
-        SetNeedRefill( false );
-
-        for( const types::ZoneFilledPolygons& fillLayer : zone.filled_polygons() )
-        {
-            PCB_LAYER_ID layer = FromProtoEnum<PCB_LAYER_ID>( fillLayer.layer() );
-            SHAPE_POLY_SET shape = kiapi::common::UnpackPolySet( fillLayer.shapes() );
-            m_FilledPolysList[layer] = std::make_shared<SHAPE_POLY_SET>( shape );
-        }
-    }
-
-    HatchBorder();
-
-    return true;
-}
+//void ZONE::Serialize( google::protobuf::Any& aContainer ) const
+//{
+//    using namespace kiapi::board;
+//    types::Zone zone;
+//
+//    zone.mutable_id()->set_value( m_Uuid.AsStdString() );
+//    PackLayerSet( *zone.mutable_layers(), GetLayerSet() );
+//
+//    if( m_isRuleArea )
+//        zone.set_type( types::ZT_RULE_AREA );
+//    else if( m_teardropType != TEARDROP_TYPE::TD_NONE )
+//        zone.set_type( types::ZT_TEARDROP );
+//    else if( IsOnCopperLayer() )
+//        zone.set_type( types::ZT_COPPER );
+//    else
+//        zone.set_type( types::ZT_GRAPHICAL );
+//
+//    kiapi::common::PackPolySet( *zone.mutable_outline(), *m_Poly );
+//
+//    zone.set_name( m_zoneName.ToUTF8() );
+//    zone.set_priority( m_priority );
+//    zone.set_filled( m_isFilled );
+//
+//    if( m_isRuleArea )
+//    {
+//        types::RuleAreaSettings* ra = zone.mutable_rule_area_settings();
+//        ra->set_keepout_copper( m_doNotAllowCopperPour );
+//        ra->set_keepout_footprints( m_doNotAllowFootprints );
+//        ra->set_keepout_pads( m_doNotAllowPads );
+//        ra->set_keepout_tracks( m_doNotAllowTracks );
+//        ra->set_keepout_vias( m_doNotAllowVias );
+//
+//        ra->set_placement_enabled( m_ruleAreaPlacementEnabled );
+//        ra->set_placement_source( m_ruleAreaPlacementSource.ToUTF8() );
+//        ra->set_placement_source_type(
+//                ToProtoEnum<RULE_AREA_PLACEMENT_SOURCE_TYPE, types::PlacementRuleSourceType>(
+//                        m_ruleAreaPlacementSourceType ) );
+//    }
+//    else
+//    {
+//        types::CopperZoneSettings* cu = zone.mutable_copper_settings();
+//        cu->mutable_connection()->set_zone_connection(
+//                ToProtoEnum<ZONE_CONNECTION, types::ZoneConnectionStyle>( m_PadConnection ) );
+//
+//        types::ThermalSpokeSettings* thermals = cu->mutable_connection()->mutable_thermal_spokes();
+//        thermals->mutable_width()->set_value_nm( m_thermalReliefSpokeWidth );
+//        thermals->mutable_gap()->set_value_nm( m_thermalReliefGap );
+//        // n.b. zones don't currently have an overall thermal angle override
+//
+//        cu->mutable_clearance()->set_value_nm( m_ZoneClearance );
+//        cu->mutable_min_thickness()->set_value_nm( m_ZoneMinThickness );
+//        cu->set_island_mode(
+//                ToProtoEnum<ISLAND_REMOVAL_MODE, types::IslandRemovalMode>( m_islandRemovalMode ) );
+//        cu->set_min_island_area( m_minIslandArea );
+//        cu->set_fill_mode( ToProtoEnum<ZONE_FILL_MODE, types::ZoneFillMode>( m_fillMode ) );
+//
+//        types::HatchFillSettings* hatch = cu->mutable_hatch_settings();
+//        hatch->mutable_thickness()->set_value_nm( m_hatchThickness );
+//        hatch->mutable_gap()->set_value_nm( m_hatchGap );
+//        hatch->mutable_orientation()->set_value_degrees( m_hatchOrientation.AsDegrees() );
+//        hatch->set_hatch_smoothing_ratio( m_hatchSmoothingValue );
+//        hatch->set_hatch_hole_min_area_ratio( m_hatchHoleMinArea );
+//
+//        switch( m_hatchBorderAlgorithm )
+//        {
+//        default:
+//        case 0: hatch->set_border_mode( types::ZHFBM_USE_MIN_ZONE_THICKNESS ); break;
+//        case 1: hatch->set_border_mode( types::ZHFBM_USE_HATCH_THICKNESS );    break;
+//        }
+//
+//        PackNet( cu->mutable_net() );
+//        cu->mutable_teardrop()->set_type(
+//                ToProtoEnum<TEARDROP_TYPE, types::TeardropType>( m_teardropType ) );
+//    }
+//
+//    for( const auto& [layer, shape] : m_FilledPolysList )
+//    {
+//        types::ZoneFilledPolygons* filledLayer = zone.add_filled_polygons();
+//        filledLayer->set_layer( ToProtoEnum<PCB_LAYER_ID, types::BoardLayer>( layer ) );
+//        kiapi::common::PackPolySet( *filledLayer->mutable_shapes(), *shape );
+//    }
+//
+//    zone.mutable_border()->set_style(
+//            ToProtoEnum<ZONE_BORDER_DISPLAY_STYLE, types::ZoneBorderStyle>( m_borderStyle ) );
+//    zone.mutable_border()->mutable_pitch()->set_value_nm( m_borderHatchPitch );
+//
+//    aContainer.PackFrom( zone );
+//}
+//
+//
+//bool ZONE::Deserialize( const google::protobuf::Any& aContainer )
+//{
+//    using namespace kiapi::board;
+//    types::Zone zone;
+//
+//    if( !aContainer.UnpackTo( &zone ) )
+//        return false;
+//
+//    const_cast<KIID&>( m_Uuid ) = KIID( zone.id().value() );
+//    SetLayerSet( UnpackLayerSet( zone.layers() ) );
+//    SetAssignedPriority( zone.priority() );
+//    SetZoneName( wxString::FromUTF8( zone.name() ) );
+//
+//    if( zone.type() == types::ZoneType::ZT_RULE_AREA )
+//        m_isRuleArea = true;
+//
+//    if( !m_Poly )
+//        SetOutline( new SHAPE_POLY_SET );
+//
+//    *m_Poly = kiapi::common::UnpackPolySet( zone.outline() );
+//
+//    if( m_Poly->OutlineCount() == 0 )
+//        return false;
+//
+//    if( m_isRuleArea )
+//    {
+//        const types::RuleAreaSettings& ra = zone.rule_area_settings();
+//        m_doNotAllowCopperPour = ra.keepout_copper();
+//        m_doNotAllowFootprints = ra.keepout_footprints();
+//        m_doNotAllowPads = ra.keepout_pads();
+//        m_doNotAllowTracks = ra.keepout_tracks();
+//        m_doNotAllowVias = ra.keepout_vias();
+//
+//        m_ruleAreaPlacementEnabled = ra.placement_enabled();
+//        m_ruleAreaPlacementSource = wxString::FromUTF8( ra.placement_source() );
+//        m_ruleAreaPlacementSourceType =
+//                FromProtoEnum<RULE_AREA_PLACEMENT_SOURCE_TYPE>( ra.placement_source_type() );
+//    }
+//    else
+//    {
+//        const types::CopperZoneSettings& cu = zone.copper_settings();
+//        m_PadConnection = FromProtoEnum<ZONE_CONNECTION>( cu.connection().zone_connection() );
+//        m_thermalReliefSpokeWidth = cu.connection().thermal_spokes().width().value_nm();
+//        m_thermalReliefGap = cu.connection().thermal_spokes().gap().value_nm();
+//        m_ZoneClearance = cu.clearance().value_nm();
+//        m_ZoneMinThickness = cu.min_thickness().value_nm();
+//        m_islandRemovalMode = FromProtoEnum<ISLAND_REMOVAL_MODE>( cu.island_mode() );
+//        m_minIslandArea = cu.min_island_area();
+//        m_fillMode = FromProtoEnum<ZONE_FILL_MODE>( cu.fill_mode() );
+//
+//        m_hatchThickness = cu.hatch_settings().thickness().value_nm();
+//        m_hatchGap = cu.hatch_settings().gap().value_nm();
+//        m_hatchOrientation = EDA_ANGLE( cu.hatch_settings().orientation().value_degrees(), DEGREES_T );
+//        m_hatchSmoothingValue = cu.hatch_settings().hatch_smoothing_ratio();
+//        m_hatchHoleMinArea = cu.hatch_settings().hatch_hole_min_area_ratio();
+//
+//        switch( cu.hatch_settings().border_mode() )
+//        {
+//        default:
+//        case types::ZHFBM_USE_MIN_ZONE_THICKNESS: m_hatchBorderAlgorithm = 0; break;
+//        case types::ZHFBM_USE_HATCH_THICKNESS:    m_hatchBorderAlgorithm = 1; break;
+//        }
+//
+//        UnpackNet( cu.net() );
+//        m_teardropType = FromProtoEnum<TEARDROP_TYPE>( cu.teardrop().type() );
+//    }
+//
+//    m_borderStyle = FromProtoEnum<ZONE_BORDER_DISPLAY_STYLE>( zone.border().style() );
+//    m_borderHatchPitch = zone.border().pitch().value_nm();
+//
+//    if( zone.filled() )
+//    {
+//        // TODO(JE) check what else has to happen here
+//        SetIsFilled( true );
+//        SetNeedRefill( false );
+//
+//        for( const types::ZoneFilledPolygons& fillLayer : zone.filled_polygons() )
+//        {
+//            PCB_LAYER_ID layer = FromProtoEnum<PCB_LAYER_ID>( fillLayer.layer() );
+//            SHAPE_POLY_SET shape = kiapi::common::UnpackPolySet( fillLayer.shapes() );
+//            m_FilledPolysList[layer] = std::make_shared<SHAPE_POLY_SET>( shape );
+//        }
+//    }
+//
+//    HatchBorder();
+//
+//    return true;
+//}
 
 
 bool ZONE::HigherPriority( const ZONE* aOther ) const

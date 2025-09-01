@@ -19,9 +19,9 @@
 
 #include <api/api_enums.h>
 #include <import_export.h>
-#include <api/common/types/enums.pb.h>
-#include <api/board/board_types.pb.h>
-#include <api/schematic/schematic_types.pb.h>
+// #include <api/common/types/enums.pb.h>
+// #include <api/board/board_types.pb.h>
+// #include <api/schematic/schematic_types.pb.h>
 
 #include <core/typeinfo.h>
 #include <font/text_attributes.h>

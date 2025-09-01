@@ -41,7 +41,7 @@
 #include <callback_gal.h>
 #include <convert_basic_shapes_to_polygon.h>
 #include <api/api_enums.h>
-#include <api/api_utils.h>
+// #include <api/api_utils.h>
 #include <api/board/board_types.pb.h>
 
 
@@ -88,53 +88,53 @@ void PCB_TEXT::CopyFrom( const BOARD_ITEM* aOther )
 }
 
 
-void PCB_TEXT::Serialize( google::protobuf::Any &aContainer ) const
-{
-    using namespace kiapi::common;
-    kiapi::board::types::BoardText boardText;
-
-    boardText.mutable_id()->set_value( m_Uuid.AsStdString() );
-    boardText.set_layer( ToProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( GetLayer() ) );
-    boardText.set_knockout( IsKnockout() );
-    boardText.set_locked( IsLocked() ? types::LockedState::LS_LOCKED
-                                     : types::LockedState::LS_UNLOCKED );
-
-    google::protobuf::Any any;
-    EDA_TEXT::Serialize( any );
-    any.UnpackTo( boardText.mutable_text() );
-
-    // Some of the common Text message fields are not stored in EDA_TEXT
-    types::Text* text = boardText.mutable_text();
-
-    PackVector2( *text->mutable_position(), GetPosition() );
-
-    aContainer.PackFrom( boardText );
-}
-
-
-bool PCB_TEXT::Deserialize( const google::protobuf::Any &aContainer )
-{
-    using namespace kiapi::common;
-    kiapi::board::types::BoardText boardText;
-
-    if( !aContainer.UnpackTo( &boardText ) )
-        return false;
-
-    SetLayer( FromProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( boardText.layer() ) );
-    const_cast<KIID&>( m_Uuid ) = KIID( boardText.id().value() );
-    SetIsKnockout( boardText.knockout() );
-    SetLocked( boardText.locked() == types::LockedState::LS_LOCKED );
-
-    google::protobuf::Any any;
-    any.PackFrom( boardText.text() );
-    EDA_TEXT::Deserialize( any );
-
-    const types::Text& text = boardText.text();
-
-    SetPosition( UnpackVector2( text.position() ) );
-
-    return true;
-}
+//void PCB_TEXT::Serialize( google::protobuf::Any &aContainer ) const
+//{
+//    using namespace kiapi::common;
+//    kiapi::board::types::BoardText boardText;
+//
+//    boardText.mutable_id()->set_value( m_Uuid.AsStdString() );
+//    boardText.set_layer( ToProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( GetLayer() ) );
+//    boardText.set_knockout( IsKnockout() );
+//    boardText.set_locked( IsLocked() ? types::LockedState::LS_LOCKED
+//                                     : types::LockedState::LS_UNLOCKED );
+//
+//    google::protobuf::Any any;
+//    EDA_TEXT::Serialize( any );
+//    any.UnpackTo( boardText.mutable_text() );
+//
+//    // Some of the common Text message fields are not stored in EDA_TEXT
+//    types::Text* text = boardText.mutable_text();
+//
+//    PackVector2( *text->mutable_position(), GetPosition() );
+//
+//    aContainer.PackFrom( boardText );
+//}
+//
+//
+//bool PCB_TEXT::Deserialize( const google::protobuf::Any &aContainer )
+//{
+//    using namespace kiapi::common;
+//    kiapi::board::types::BoardText boardText;
+//
+//    if( !aContainer.UnpackTo( &boardText ) )
+//        return false;
+//
+//    SetLayer( FromProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( boardText.layer() ) );
+//    const_cast<KIID&>( m_Uuid ) = KIID( boardText.id().value() );
+//    SetIsKnockout( boardText.knockout() );
+//    SetLocked( boardText.locked() == types::LockedState::LS_LOCKED );
+//
+//    google::protobuf::Any any;
+//    any.PackFrom( boardText.text() );
+//    EDA_TEXT::Deserialize( any );
+//
+//    const types::Text& text = boardText.text();
+//
+//    SetPosition( UnpackVector2( text.position() ) );
+//
+//    return true;
+//}
 
 
 wxString PCB_TEXT::GetShownText( bool aAllowExtraText, int aDepth ) const

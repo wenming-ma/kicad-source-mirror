@@ -33,24 +33,24 @@
 #include <google/protobuf/message.h>
 
 #include <kicommon.h>
-#include <api/common/envelope.pb.h>
+// #include <api/common/envelope.pb.h>
 #include <core/typeinfo.h>
 
-using kiapi::common::ApiRequest, kiapi::common::ApiResponse;
-using kiapi::common::ApiResponseStatus, kiapi::common::ApiStatusCode;
+// using kiapi::common::ApiRequest, kiapi::common::ApiResponse;
+// using kiapi::common::ApiResponseStatus, kiapi::common::ApiStatusCode;
 
-typedef tl::expected<ApiResponse, ApiResponseStatus> API_RESULT;
+// typedef tl::expected<ApiResponse, ApiResponseStatus> API_RESULT;
 
-template <typename T>
-using HANDLER_RESULT = tl::expected<T, ApiResponseStatus>;
+// template <typename T>
+// using HANDLER_RESULT = tl::expected<T, ApiResponseStatus>;
 
 
-template <typename RequestMessageType>
-struct HANDLER_CONTEXT
-{
-    std::string ClientName;
-    RequestMessageType Request;
-};
+// template <typename RequestMessageType>
+// struct HANDLER_CONTEXT
+// {
+//     std::string ClientName;
+//     RequestMessageType Request;
+// };
 
 
 class KICOMMON_API API_HANDLER
@@ -65,7 +65,7 @@ public:
      * @param aMsg is a request to attempt to handle
      * @return a response to send to the client, or an appropriate error
      */
-    API_RESULT Handle( ApiRequest& aMsg );
+    // API_RESULT Handle( ApiRequest& aMsg );
 
 protected:
 
@@ -73,7 +73,7 @@ protected:
      * A handler for outer messages (envelopes) that will unpack to inner messages and call a
      * specific handler function.  @see registerHandler.
      */
-    typedef std::function<HANDLER_RESULT<ApiResponse>( ApiRequest& )> REQUEST_HANDLER;
+    // typedef std::function<HANDLER_RESULT<ApiResponse>( ApiRequest& )> REQUEST_HANDLER;
 
     /**
      * Registers an API command handler for the given message types.
@@ -89,6 +89,7 @@ protected:
      * @tparam HandlerType is the implied type of the API_HANDLER subclass
      * @param aHandler is the handler function for the given request and response types
      */
+    /*
     template <class RequestType, class ResponseType, class HandlerType>
     void registerHandler( HANDLER_RESULT<ResponseType> ( HandlerType::*aHandler )(
             const HANDLER_CONTEXT<RequestType>& ) )
@@ -124,14 +125,16 @@ protected:
                     }
                 };
     }
+    */
 
     /// Maps type name (without the URL prefix) to a handler method
-    std::map<std::string, REQUEST_HANDLER> m_handlers;
+    // std::map<std::string, REQUEST_HANDLER> m_handlers;
 
     static const wxString m_defaultCommitMessage;
 
 private:
 
+    /*
     template<typename MessageType>
     bool tryUnpack( ApiRequest& aRequest, ApiResponse& aReply, MessageType& aDest )
     {
@@ -146,6 +149,7 @@ private:
 
         return true;
     }
+    */
 };
 
 #endif //KICAD_API_HANDLER_H

@@ -45,7 +45,7 @@
 #include <pcb_painter.h>
 #include <api/board/board_types.pb.h>
 #include <api/api_enums.h>
-#include <api/api_utils.h>
+// #include <api/api_utils.h>
 
 
 PCB_SHAPE::PCB_SHAPE( BOARD_ITEM* aParent, KICAD_T aItemType, SHAPE_T aShapeType ) :
@@ -76,62 +76,62 @@ void PCB_SHAPE::CopyFrom( const BOARD_ITEM* aOther )
 }
 
 
-void PCB_SHAPE::Serialize( google::protobuf::Any &aContainer ) const
-{
-    using namespace kiapi::common;
-    using namespace kiapi::board::types;
-    BoardGraphicShape msg;
-
-    msg.set_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( GetLayer() ) );
-    PackNet( msg.mutable_net() );
-    msg.mutable_id()->set_value( m_Uuid.AsStdString() );
-    msg.set_locked( IsLocked() ? types::LockedState::LS_LOCKED : types::LockedState::LS_UNLOCKED );
-
-    google::protobuf::Any any;
-    EDA_SHAPE::Serialize( any );
-    any.UnpackTo( msg.mutable_shape() );
-
-    // TODO m_hasSolderMask and m_solderMaskMargin
-
-    aContainer.PackFrom( msg );
-}
-
-
-bool PCB_SHAPE::Deserialize( const google::protobuf::Any &aContainer )
-{
-    using namespace kiapi::common;
-    using namespace kiapi::board::types;
-
-    BoardGraphicShape msg;
-
-    if( !aContainer.UnpackTo( &msg ) )
-        return false;
-
-    // Initialize everything to a known state that doesn't get touched by every
-    // codepath below, to make sure the equality operator is consistent
-    m_start = {};
-    m_end = {};
-    m_arcCenter = {};
-    m_arcMidData = {};
-    m_bezierC1 = {};
-    m_bezierC2 = {};
-    m_editState = 0;
-    m_proxyItem = false;
-    m_endsSwapped = false;
-
-    const_cast<KIID&>( m_Uuid ) = KIID( msg.id().value() );
-    SetLocked( msg.locked() == types::LS_LOCKED );
-    SetLayer( FromProtoEnum<PCB_LAYER_ID, BoardLayer>( msg.layer() ) );
-    UnpackNet( msg.net() );
-
-    google::protobuf::Any any;
-    any.PackFrom( msg.shape() );
-    EDA_SHAPE::Deserialize( any );
-
-    // TODO m_hasSolderMask and m_solderMaskMargin
-
-    return true;
-}
+//void PCB_SHAPE::Serialize( google::protobuf::Any &aContainer ) const
+//{
+//    using namespace kiapi::common;
+//    using namespace kiapi::board::types;
+//    BoardGraphicShape msg;
+//
+//    msg.set_layer( ToProtoEnum<PCB_LAYER_ID, BoardLayer>( GetLayer() ) );
+//    PackNet( msg.mutable_net() );
+//    msg.mutable_id()->set_value( m_Uuid.AsStdString() );
+//    msg.set_locked( IsLocked() ? types::LockedState::LS_LOCKED : types::LockedState::LS_UNLOCKED );
+//
+//    google::protobuf::Any any;
+//    EDA_SHAPE::Serialize( any );
+//    any.UnpackTo( msg.mutable_shape() );
+//
+//    // TODO m_hasSolderMask and m_solderMaskMargin
+//
+//    aContainer.PackFrom( msg );
+//}
+//
+//
+//bool PCB_SHAPE::Deserialize( const google::protobuf::Any &aContainer )
+//{
+//    using namespace kiapi::common;
+//    using namespace kiapi::board::types;
+//
+//    BoardGraphicShape msg;
+//
+//    if( !aContainer.UnpackTo( &msg ) )
+//        return false;
+//
+//    // Initialize everything to a known state that doesn't get touched by every
+//    // codepath below, to make sure the equality operator is consistent
+//    m_start = {};
+//    m_end = {};
+//    m_arcCenter = {};
+//    m_arcMidData = {};
+//    m_bezierC1 = {};
+//    m_bezierC2 = {};
+//    m_editState = 0;
+//    m_proxyItem = false;
+//    m_endsSwapped = false;
+//
+//    const_cast<KIID&>( m_Uuid ) = KIID( msg.id().value() );
+//    SetLocked( msg.locked() == types::LS_LOCKED );
+//    SetLayer( FromProtoEnum<PCB_LAYER_ID, BoardLayer>( msg.layer() ) );
+//    UnpackNet( msg.net() );
+//
+//    google::protobuf::Any any;
+//    any.PackFrom( msg.shape() );
+//    EDA_SHAPE::Deserialize( any );
+//
+//    // TODO m_hasSolderMask and m_solderMaskMargin
+//
+//    return true;
+//}
 
 
 bool PCB_SHAPE::IsType( const std::vector<KICAD_T>& aScanTypes ) const
