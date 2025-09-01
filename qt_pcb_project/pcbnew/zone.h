@@ -86,8 +86,8 @@ public:
         return aItem && aItem->Type() == PCB_ZONE_T;
     }
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    //void Serialize( google::protobuf::Any &aContainer ) const override;
+    //bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     /**
      * Not all ZONEs are *really* BOARD_CONNECTED_ITEMs....
@@ -977,11 +977,9 @@ protected:
 };
 
 
-#ifndef SWIG
 DECLARE_ENUM_TO_WXANY( ZONE_CONNECTION )
 DECLARE_ENUM_TO_WXANY( ZONE_FILL_MODE )
 DECLARE_ENUM_TO_WXANY( ISLAND_REMOVAL_MODE )
 DECLARE_ENUM_TO_WXANY( RULE_AREA_PLACEMENT_SOURCE_TYPE )
-#endif
 
 #endif  // ZONE_H

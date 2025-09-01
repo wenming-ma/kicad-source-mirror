@@ -251,8 +251,8 @@ public:
         bool operator()( const PCB_TRACK* aFirst, const PCB_TRACK* aSecond ) const;
     };
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    //void Serialize( google::protobuf::Any &aContainer ) const override;
+    //bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
 #if defined (DEBUG)
     virtual void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -360,8 +360,8 @@ public:
     bool operator==( const PCB_ARC& aOther ) const;
     bool operator==( const BOARD_ITEM& aBoardItem ) const override;
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    //void Serialize( google::protobuf::Any &aContainer ) const override;
+    //bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
 protected:
     virtual void swapData( BOARD_ITEM* aImage ) override;
@@ -668,8 +668,8 @@ public:
     bool operator==( const PCB_VIA& aOther ) const;
     bool operator==( const BOARD_ITEM& aOther ) const override;
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    //void Serialize( google::protobuf::Any &aContainer ) const override;
+    //bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
 protected:
     void swapData( BOARD_ITEM* aImage ) override;

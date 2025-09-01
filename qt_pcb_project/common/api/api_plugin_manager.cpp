@@ -29,7 +29,7 @@
 
 #include <api/api_plugin_manager.h>
 #include <api/api_server.h>
-#include <api/api_utils.h>
+// #include <api/api_utils.h>
 #include <gestfich.h>
 #include <paths.h>
 #include <pgm_base.h>
@@ -263,8 +263,9 @@ void API_PLUGIN_MANAGER::InvokeAction( const wxString& aIdentifier )
         PYTHON_MANAGER manager( *py );
         wxExecuteEnv   env;
         wxGetEnvMap( &env.env );
-        env.env[wxS( "KICAD_API_SOCKET" )] = Pgm().GetApiServer().SocketPath();
-        env.env[wxS( "KICAD_API_TOKEN" )] = Pgm().GetApiServer().Token();
+        // API functionality disabled for minimal build
+        // env.env[wxS( "KICAD_API_SOCKET" )] = Pgm().GetApiServer().SocketPath();
+        // env.env[wxS( "KICAD_API_TOKEN" )] = Pgm().GetApiServer().Token();
         env.cwd = pluginFile.GetPath();
 
 #ifdef _WIN32
@@ -346,8 +347,9 @@ void API_PLUGIN_MANAGER::InvokeAction( const wxString& aIdentifier )
 
         wxExecuteEnv env;
         wxGetEnvMap( &env.env );
-        env.env[wxS( "KICAD_API_SOCKET" )] = Pgm().GetApiServer().SocketPath();
-        env.env[wxS( "KICAD_API_TOKEN" )] = Pgm().GetApiServer().Token();
+        // API functionality disabled for minimal build
+        // env.env[wxS( "KICAD_API_SOCKET" )] = Pgm().GetApiServer().SocketPath();
+        // env.env[wxS( "KICAD_API_TOKEN" )] = Pgm().GetApiServer().Token();
         env.cwd = pluginFile.GetPath();
 
         long p = wxExecute( const_cast<wchar_t**>( args.data() ),

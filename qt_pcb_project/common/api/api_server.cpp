@@ -26,7 +26,7 @@
 
 #include <advanced_config.h>
 #include <api/api_handler.h>
-#include <api/api_utils.h> // traceApi
+// #include <api/api_utils.h> // traceApi
 #include <api/api_server.h>
 #include <kiid.h>
 #include <kinng.h>
@@ -35,13 +35,13 @@
 #include <settings/common_settings.h>
 #include <string_utils.h>
 
-#include <api/common/envelope.pb.h>
+// #include <api/common/envelope.pb.h>
 
 #ifdef __UNIX__
 #include <sys/file.h>
 #endif
 
-using kiapi::common::ApiRequest, kiapi::common::ApiResponse, kiapi::common::ApiStatusCode;
+// using kiapi::common::ApiRequest, kiapi::common::ApiResponse, kiapi::common::ApiStatusCode;
 
 
 wxString KICAD_API_SERVER::s_logFileName = "api.log";

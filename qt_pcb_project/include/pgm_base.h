@@ -51,7 +51,6 @@ class BACKGROUND_JOBS_MONITOR;
 class NOTIFICATIONS_MANAGER;
 class COMMON_SETTINGS;
 class SETTINGS_MANAGER;
-class SCRIPTING;
 
 #ifdef KICAD_IPC_API
 class API_PLUGIN_MANAGER;
@@ -400,8 +399,6 @@ protected:
     std::unique_ptr<SETTINGS_MANAGER> m_settings_manager;
     std::unique_ptr<BACKGROUND_JOBS_MONITOR> m_background_jobs_monitor;
     std::unique_ptr<NOTIFICATIONS_MANAGER> m_notifications_manager;
-
-    std::unique_ptr<SCRIPTING> m_python_scripting;
 
     /// Check if there is another copy of Kicad running at the same time.
     std::unique_ptr<wxSingleInstanceChecker> m_pgm_checker;

@@ -49,7 +49,7 @@ namespace KIFONT
 /**
  * Class OUTLINE_FONT implements outline font drawing.
  */
-class GAL_API OUTLINE_FONT : public FONT
+class OUTLINE_FONT : public FONT
 {
 public:
 

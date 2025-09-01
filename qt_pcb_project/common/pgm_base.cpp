@@ -58,7 +58,7 @@
 #include <paths.h>
 #include <pgm_base.h>
 #include <policy_keys.h>
-#include <python_scripting.h>
+// #include <python_scripting.h> // Python scripting disabled
 #include <settings/common_settings.h>
 #include <settings/settings_manager.h>
 #include <string_utils.h>
@@ -615,10 +615,7 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
 
     GetNotificationsManager().Load();
 
-    // Create the python scripting stuff
-    // Skip it for applications that do not use it
-    if( !aSkipPyInit )
-        m_python_scripting = std::make_unique<SCRIPTING>();
+    // Python scripting disabled for minimal build
 
     // TODO(JE): Remove this if apps are refactored to not assume Prj() always works
     // Need to create a project early for now (it can have an empty path for the moment)
