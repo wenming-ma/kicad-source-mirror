@@ -14,6 +14,9 @@ project( qt_pcb_project )
 # Output compile_commands.json for various LSP and other users
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 
+# Include ccache configuration
+include( ${CMAKE_CURRENT_SOURCE_DIR}/AutoCCache.cmake )
+
 include( GNUInstallDirs )
 
 # C++ standard
@@ -23,6 +26,9 @@ set( CMAKE_CXX_STANDARD_REQUIRED ON )
 # Windows specific settings
 if( WIN32 )
     add_compile_definitions( WIN32_LEAN_AND_MEAN )
+    add_compile_definitions( WXSTATIC )
+    add_compile_definitions( wxUSE_DLL=0 )
+    add_compile_definitions( __WXMSW__ )
 endif()
 
 # Find required dependencies for minimal PCB set
@@ -30,15 +36,30 @@ find_package( PkgConfig QUIET )
 
 # Use vcpkg installed packages
 set( CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows" )
+set( wxWidgets_USE_STATIC ON )
 find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc )
 find_package( Boost REQUIRED )
 find_package( glm REQUIRED )
 find_package( protobuf REQUIRED )
+find_package( opencascade REQUIRED )
+# find_package( fmt REQUIRED )  # Using local fmt from thirdparty
 
 # Include directories
 include_directories( BEFORE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/generated
+    ${CMAKE_CURRENT_SOURCE_DIR}/generated/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/generated/api/cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pcbnew
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/dynamic_bitset
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/picosha2
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/thread-pool
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/rtree
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/fmt/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/include/opencascade
 )
 
 # Add subdirectories for minimal PCB functionality

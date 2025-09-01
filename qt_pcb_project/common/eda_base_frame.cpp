@@ -24,18 +24,18 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include "kicad_manager_frame.h"
+// #include <kicad/kicad_manager_frame.h>  // UI component - commented out for minimal build
 #include <eda_base_frame.h>
 
 #include <advanced_config.h>
 #include <bitmaps.h>
 #include <bitmap_store.h>
 #include <dialog_shim.h>
-#include <dialogs/git/panel_git_repos.h>
+// #include <dialogs/git/panel_git_repos.h>  // UI component - commented out for minimal build
 #include <dialogs/panel_common_settings.h>
 #include <dialogs/panel_mouse_settings.h>
-#include <dialogs/panel_data_collection.h>
-#include <dialogs/panel_plugin_settings.h>
+// #include <dialogs/panel_data_collection.h>  // UI component - commented out for minimal build
+// #include <dialogs/panel_plugin_settings.h>  // UI component - commented out for minimal build
 #include <eda_dde.h>
 #include <file_history.h>
 #include <id.h>
@@ -44,7 +44,7 @@
 #include <panel_hotkeys_editor.h>
 #include <paths.h>
 #include <confirm.h>
-#include <panel_packages_and_updates.h>
+// #include <panel_packages_and_updates.h>  // UI component - commented out for minimal build
 #include <pgm_base.h>
 #include <settings/app_settings.h>
 #include <settings/common_settings.h>
@@ -1067,15 +1067,14 @@ void EDA_BASE_FRAME::ShowPreferences( wxString aStartPage, wxString aStartParent
         KIFACE*                 kiface = nullptr;
         std::vector<int>        expand;
 
-        wxWindow* kicadMgr_window = wxWindow::FindWindowByName( KICAD_MANAGER_FRAME_NAME );
-
-        if( KICAD_MANAGER_FRAME* kicadMgr = static_cast<KICAD_MANAGER_FRAME*>( kicadMgr_window ) )
-        {
-            ACTION_MANAGER* actionMgr = kicadMgr->GetToolManager()->GetActionManager();
-
-            for( const auto& [name, action] : actionMgr->GetActions() )
-                hotkeysPanel->ActionsList().push_back( action );
-        }
+        // UI component - commented out for minimal build
+        // wxWindow* kicadMgr_window = wxWindow::FindWindowByName( KICAD_MANAGER_FRAME_NAME );
+        // if( KICAD_MANAGER_FRAME* kicadMgr = static_cast<KICAD_MANAGER_FRAME*>( kicadMgr_window ) )
+        // {
+        //     ACTION_MANAGER* actionMgr = kicadMgr->GetToolManager()->GetActionManager();
+        //     for( const auto& [name, action] : actionMgr->GetActions() )
+        //         hotkeysPanel->ActionsList().push_back( action );
+        // }
 
         book->AddLazyPage(
                 []( wxWindow* aParent ) -> wxWindow*
@@ -1092,11 +1091,12 @@ void EDA_BASE_FRAME::ShowPreferences( wxString aStartPage, wxString aStartParent
 
         book->AddPage( hotkeysPanel, _( "Hotkeys" ) );
 
-        book->AddLazyPage(
-                []( wxWindow* aParent ) -> wxWindow*
-                {
-                    return new PANEL_GIT_REPOS( aParent );
-                }, _( "Version Control" ) );
+        // UI component - commented out for minimal build
+        // book->AddLazyPage(
+        //         []( wxWindow* aParent ) -> wxWindow*
+        //         {
+        //             return new PANEL_GIT_REPOS( aParent );
+        //         }, _( "Version Control" ) );
 
 #ifdef KICAD_USE_SENTRY
         book->AddLazyPage(
@@ -1234,11 +1234,12 @@ void EDA_BASE_FRAME::ShowPreferences( wxString aStartPage, wxString aStartParent
             book->AddLazySubPage( LAZY_CTOR( PANEL_DS_GRIDS ), _( "Grids" ) );
             book->AddLazySubPage( LAZY_CTOR( PANEL_DS_COLORS ), _( "Colors" ) );
 
-            book->AddLazyPage(
-                    []( wxWindow* aParent ) -> wxWindow*
-                    {
-                        return new PANEL_PACKAGES_AND_UPDATES( aParent );
-                    }, _( "Packages and Updates" ) );
+            // UI component - commented out for minimal build
+            // book->AddLazyPage(
+            //         []( wxWindow* aParent ) -> wxWindow*
+            //         {
+            //             return new PANEL_PACKAGES_AND_UPDATES( aParent );
+            //         }, _( "Packages and Updates" ) );
         }
         catch( ... )
         {
