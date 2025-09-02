@@ -24,7 +24,8 @@
  */
 // kicad_curl_easy.h must be included before wxWidgets because on Windows (msys2), there are
 // collision with wx headers and curl.h defs
-#include <kicad_curl/kicad_curl_easy.h>
+// UI component - commented out for minimal build
+// #include <kicad_curl/kicad_curl_easy.h>
 
 #include <bitmaps.h>
 #include <build_version.h>
@@ -76,6 +77,11 @@ int COMMON_CONTROL::OpenPreferences( const TOOL_EVENT& aEvent )
 
 int COMMON_CONTROL::ConfigurePaths( const TOOL_EVENT& aEvent )
 {
+    // UI component - commented out for minimal build
+    // DIALOG_CONFIGURE_PATHS implementation removed
+    m_frame->SetStatusText( _( "Configure Paths dialog disabled in minimal build" ) );
+    
+    /* Original dialog implementation:
     // If _pcbnew.kiface is running have it put up the dialog so the 3D paths can also
     // be edited
     if( KIFACE* pcbnew = m_frame->Kiway().KiFACE( KIWAY::FACE_PCB, false ) )
@@ -93,10 +99,10 @@ int COMMON_CONTROL::ConfigurePaths( const TOOL_EVENT& aEvent )
     else
     {
         DIALOG_CONFIGURE_PATHS dlg( m_frame );
-
         if( dlg.ShowModal() == wxID_OK )
             m_frame->Kiway().CommonSettingsChanged( ENVVARS_CHANGED );
     }
+    */
 
     return 0;
 }
@@ -327,19 +333,23 @@ int COMMON_CONTROL::Donate( const TOOL_EVENT& aEvent )
 
 int COMMON_CONTROL::ReportBug( const TOOL_EVENT& aEvent )
 {
+    // UI component - commented out for minimal build
+    // KICAD_CURL_EASY implementation removed
+    m_frame->SetStatusText( _( "Bug report functionality disabled in minimal build" ) );
+    
+    /* Original bug report implementation:
     if( WarnUserIfOperatingSystemUnsupported() )
         return 0;
 
     wxString version = GetVersionInfoData( m_frame->GetUntranslatedAboutTitle(), false, true );
-
     wxString message;
     message.Printf( m_bugReportTemplate, version );
 
     KICAD_CURL_EASY kcurl;
     wxString url_string;
     url_string.Printf( m_bugReportUrl, kcurl.Escape( std::string( message.utf8_str() ) ) );
-
     wxLaunchDefaultBrowser( url_string );
+    */
 
     return 0;
 }

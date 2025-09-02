@@ -18,7 +18,8 @@ add_library( common STATIC
     # Core common files
     advanced_config.cpp
     asset_archive.cpp
-    background_jobs_monitor.cpp
+    # UI component - commented out for minimal build
+    # background_jobs_monitor.cpp
     base_screen.cpp
     bin_mod.cpp
     bitmap.cpp
@@ -35,8 +36,10 @@ add_library( common STATIC
     design_block_io.cpp
     design_block_lib_table.cpp
     dialog_shim.cpp
+    dpi_scaling_common.cpp
     dsnlexer.cpp
-    eda_base_frame.cpp
+    # UI component - commented out for minimal build
+    # eda_base_frame.cpp
     eda_dde.cpp
     eda_doc.cpp
     eda_item.cpp
@@ -72,8 +75,10 @@ add_library( common STATIC
     lset.cpp
     marker_base.cpp
     netclass.cpp
-    notifications_manager.cpp
+    # UI component - commented out for minimal build
+    # notifications_manager.cpp
     origin_transforms.cpp
+    page_info.cpp
     paths.cpp
     pgm_base.cpp
     project.cpp
@@ -149,7 +154,8 @@ add_library( common STATIC
     gal/color4d.cpp
     gal/graphics_abstraction_layer.cpp
     gal/painter.cpp
-    gal/opengl/gl_context_mgr.cpp
+    # UI component - commented out for minimal build (OpenGL UI context)
+    # gal/opengl/gl_context_mgr.cpp
     
     # IO files
     io/io_base.cpp
@@ -208,7 +214,8 @@ add_library( common STATIC
     view/view_group.cpp
     view/view_item.cpp
     view/view_overlay.cpp
-    view/wx_view_controls.cpp
+    # UI component - commented out for minimal build
+    # view/wx_view_controls.cpp
     view/zoom_controller.cpp
     
     # Widget files - DISABLED FOR MINIMAL BUILD
@@ -220,7 +227,7 @@ add_library( common STATIC
     # widgets/html_window.cpp
     # widgets/kistatusbar.cpp
     # widgets/paged_dialog.cpp
-    # widgets/progress_reporter_base.cpp
+    widgets/progress_reporter_base.cpp
     # widgets/std_bitmap_button.cpp
     # widgets/ui_common.cpp
     # widgets/widget_hotkey_list.cpp

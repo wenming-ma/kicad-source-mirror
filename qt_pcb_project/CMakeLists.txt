@@ -84,7 +84,7 @@ add_subdirectory( thirdparty )
 add_subdirectory( libs )
 add_subdirectory( common )
 add_subdirectory( pcbnew )
-add_subdirectory( bitmap2component )
+add_subdirectory( test )
 
 # Create simple main executable for minimal build testing
 add_executable( qt_pcb_project
@@ -92,5 +92,8 @@ add_executable( qt_pcb_project
 )
 
 target_link_libraries( qt_pcb_project
+    # Core libraries
     common
+    pcbnew
+
 )

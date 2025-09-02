@@ -564,8 +564,11 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
 #endif
 
     m_settings_manager = std::make_unique<SETTINGS_MANAGER>( aHeadless );
-    m_background_jobs_monitor = std::make_unique<BACKGROUND_JOBS_MONITOR>();
-    m_notifications_manager = std::make_unique<NOTIFICATIONS_MANAGER>();
+    // UI component - commented out for minimal build
+    // m_background_jobs_monitor = std::make_unique<BACKGROUND_JOBS_MONITOR>();
+    // m_notifications_manager = std::make_unique<NOTIFICATIONS_MANAGER>();
+    m_background_jobs_monitor = nullptr;
+    m_notifications_manager = nullptr;
 
 #ifdef KICAD_IPC_API
     m_plugin_manager = std::make_unique<API_PLUGIN_MANAGER>( &App() );
@@ -613,7 +616,8 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
 
     ReadPdfBrowserInfos();      // needs GetCommonSettings()
 
-    GetNotificationsManager().Load();
+    // UI component - commented out for minimal build
+    // GetNotificationsManager().Load();
 
     // Python scripting disabled for minimal build
 

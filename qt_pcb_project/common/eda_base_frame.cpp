@@ -145,7 +145,8 @@ void EDA_BASE_FRAME::commonInit( FRAME_T aFrameType )
     m_frameSize         = defaultSize( aFrameType, this );
     m_displayIndex      = -1;
 
-    m_auimgr.SetArtProvider( new WX_AUI_DOCK_ART() );
+    // UI component - commented out for minimal build
+    // m_auimgr.SetArtProvider( new WX_AUI_DOCK_ART() );
 
     m_settingsManager = &Pgm().GetSettingsManager();
 
@@ -888,13 +889,18 @@ void EDA_BASE_FRAME::PrintMsg( const wxString& text )
 
 void EDA_BASE_FRAME::CreateInfoBar()
 {
+    // UI component - commented out for minimal build
+    // WX_INFOBAR widget implementation removed
+    m_infoBar = nullptr;  // Set to null to avoid crashes
+    
+    /* Original UI implementation:
 #if defined( __WXOSX_MAC__ )
     m_infoBar = new WX_INFOBAR( GetToolCanvas() );
 #else
     m_infoBar = new WX_INFOBAR( this, &m_auimgr );
-
     m_auimgr.AddPane( m_infoBar, EDA_PANE().InfoBar().Name( wxS( "InfoBar" ) ).Top().Layer(1) );
 #endif
+    */
 }
 
 
@@ -917,49 +923,64 @@ void EDA_BASE_FRAME::FinishAUIInitialization()
 void EDA_BASE_FRAME::ShowInfoBarError( const wxString& aErrorMsg, bool aShowCloseButton,
                                        WX_INFOBAR::MESSAGE_TYPE aType )
 {
+    // UI component - commented out for minimal build
+    // InfoBar widget implementation removed, use status bar instead
+    SetStatusText( aErrorMsg );
+    
+    /* Original InfoBar implementation:
     m_infoBar->RemoveAllButtons();
-
     if( aShowCloseButton )
         m_infoBar->AddCloseButton();
-
     GetInfoBar()->ShowMessageFor( aErrorMsg, 8000, wxICON_ERROR, aType );
+    */
 }
 
 
 void EDA_BASE_FRAME::ShowInfoBarError( const wxString& aErrorMsg, bool aShowCloseButton,
                                        std::function<void(void)> aCallback )
 {
+    // UI component - commented out for minimal build
+    // InfoBar widget implementation removed, use status bar instead
+    SetStatusText( aErrorMsg );
+    
+    /* Original InfoBar implementation:
     m_infoBar->RemoveAllButtons();
-
     if( aShowCloseButton )
         m_infoBar->AddCloseButton();
-
     if( aCallback )
         m_infoBar->SetCallback( aCallback );
-
     GetInfoBar()->ShowMessageFor( aErrorMsg, 6000, wxICON_ERROR );
+    */
 }
 
 
 void EDA_BASE_FRAME::ShowInfoBarWarning( const wxString& aWarningMsg, bool aShowCloseButton )
 {
+    // UI component - commented out for minimal build
+    // InfoBar widget implementation removed, use status bar instead
+    SetStatusText( aWarningMsg );
+    
+    /* Original InfoBar implementation:
     m_infoBar->RemoveAllButtons();
-
     if( aShowCloseButton )
         m_infoBar->AddCloseButton();
-
     GetInfoBar()->ShowMessageFor( aWarningMsg, 6000, wxICON_WARNING );
+    */
 }
 
 
 void EDA_BASE_FRAME::ShowInfoBarMsg( const wxString& aMsg, bool aShowCloseButton )
 {
+    // UI component - commented out for minimal build
+    // InfoBar widget implementation removed, use status bar instead
+    SetStatusText( aMsg );
+    
+    /* Original InfoBar implementation:
     m_infoBar->RemoveAllButtons();
-
     if( aShowCloseButton )
         m_infoBar->AddCloseButton();
-
     GetInfoBar()->ShowMessageFor( aMsg, 8000, wxICON_INFORMATION );
+    */
 }
 
 
@@ -1041,8 +1062,13 @@ void EDA_BASE_FRAME::ClearFileHistory( FILE_HISTORY* aFileHistory )
 
 void EDA_BASE_FRAME::OnKicadAbout( wxCommandEvent& event )
 {
-    void ShowAboutDialog( EDA_BASE_FRAME * aParent ); // See AboutDialog_main.cpp
-    ShowAboutDialog( this );
+    // UI component - commented out for minimal build
+    // void ShowAboutDialog( EDA_BASE_FRAME * aParent ); // See AboutDialog_main.cpp
+    // ShowAboutDialog( this );
+    
+    // Minimal implementation - just show a simple message
+    wxMessageBox( _( "KiCad PCB minimal build - About dialog disabled" ), 
+                  _( "About KiCad" ), wxOK | wxICON_INFORMATION, this );
 }
 
 
@@ -1054,6 +1080,18 @@ void EDA_BASE_FRAME::OnPreferences( wxCommandEvent& event )
 
 void EDA_BASE_FRAME::ShowPreferences( wxString aStartPage, wxString aStartParentPage )
 {
+    // UI component - all preferences UI commented out for minimal build
+    // Original implementation involved complex PAGED_DIALOG with multiple panels:
+    // - PANEL_COMMON_SETTINGS, PANEL_MOUSE_SETTINGS, PANEL_HOTKEYS_EDITOR
+    // - Symbol Editor, Schematic Editor, PCB Editor, Gerber Viewer panels
+    // - Drawing Sheet Editor, Assign Footprints, Calculator Tools panels
+    
+    // Minimal implementation - just show a simple message
+    wxMessageBox( _( "KiCad PCB minimal build - Preferences dialog disabled.\n"
+                     "UI components have been removed for minimal compilation." ), 
+                  _( "Preferences" ), wxOK | wxICON_INFORMATION, this );
+
+    /* UI component - commented out for minimal build
     PAGED_DIALOG dlg( this, _( "Preferences" ), true, true, wxEmptyString,
                       wxWindow::FromDIP( wxSize( 980, 560 ), NULL ) );
 
@@ -1273,6 +1311,7 @@ void EDA_BASE_FRAME::ShowPreferences( wxString aStartPage, wxString aStartParent
         Pgm().GetSettingsManager().Save();
         dlg.Kiway().CommonSettingsChanged( HOTKEYS_CHANGED );
     }
+    */ // End of UI component comment block
 
 }
 
