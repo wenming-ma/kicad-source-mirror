@@ -353,21 +353,7 @@ add_compile_definitions( $<$<BOOL:${KICAD_BUILD_ARCH_X64}>:KICAD_BUILD_ARCH_X64>
 add_compile_definitions( $<$<BOOL:${KICAD_BUILD_ARCH_ARM}>:KICAD_BUILD_ARCH_ARM> )
 add_compile_definitions( $<$<BOOL:${KICAD_BUILD_ARCH_ARM64}>:KICAD_BUILD_ARCH_ARM64> )
 
-#================================================
-# Provide access to CCACHE
-#================================================
-if (USE_CCACHE)
-  find_program(CCACHE_FOUND ccache)
-  if(CCACHE_FOUND)
-    # Set ccache on the actual lang
-    list(PREPEND CMAKE_C_COMPILER_LAUNCHER ${CCACHE_FOUND})
-    list(PREPEND CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_FOUND})
-
-    message(STATUS "Used ${CCACHE_FOUND} for compilation.")
-  else(CCACHE_FOUND)
-    message(STATUS "CCache was requested but not found.")
-  endif(CCACHE_FOUND)
-endif(USE_CCACHE)
+# CCCache configuration is handled by AutoCCache.cmake (included at line 50)
 
 
 #================================================
@@ -534,7 +520,7 @@ if( MSVC )
     string( APPEND CMAKE_CXX_FLAGS " /utf-8" )
 
     # cmake 3.25 or higher requried for MSVC, should be fine
-    if( USE_CCACHE AND CCACHE_FOUND )
+    if( CMAKE_C_COMPILER_LAUNCHER OR CMAKE_CXX_COMPILER_LAUNCHER )
         # Equivalent to /Z7, ensures cmake doesn't fight over the default
         # ccache may encounter external PDB file write errors due to paralleism
         # Using the embedded PDB mode is ok for development use of ccache
