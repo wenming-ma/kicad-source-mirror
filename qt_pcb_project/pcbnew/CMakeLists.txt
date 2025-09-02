@@ -90,6 +90,6 @@ target_link_libraries( pcbnew PUBLIC
     kiplatform
     delaunator
     other_math
-    # ${wxWidgets_LIBRARIES}
-    # ${Boost_LIBRARIES}
+    ${wxWidgets_LIBRARIES}
+    ${Boost_LIBRARIES}
 )

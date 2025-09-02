@@ -41,8 +41,8 @@ endif()
 # Find required dependencies for minimal PCB set
 find_package( PkgConfig QUIET )
 
-# Use vcpkg installed packages
-set( CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows" )
+# Use vcpkg installed packages - Point to build directory vcpkg_installed
+set( CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../build/vcpkg_installed/x64-windows" )
 set( wxWidgets_USE_STATIC ON )
 find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc )
 find_package( Boost REQUIRED )
@@ -50,6 +50,10 @@ find_package( glm REQUIRED )
 # find_package( protobuf REQUIRED )
 find_package( opencascade REQUIRED )
 # find_package( fmt REQUIRED )  # Using local fmt from thirdparty
+find_package( Fontconfig REQUIRED )
+find_package( CURL REQUIRED )
+find_package( zstd REQUIRED )
+find_package( Freetype REQUIRED )
 
 # Include directories
 include_directories( BEFORE 
@@ -68,7 +72,7 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/fmt/include
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/magic_enum/magic_enum
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/expected/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/include/opencascade
+    ${CMAKE_PREFIX_PATH}/include/opencascade
     ${wxWidgets_INCLUDE_DIRS}
 )
 
@@ -81,3 +85,12 @@ add_subdirectory( libs )
 add_subdirectory( common )
 add_subdirectory( pcbnew )
 add_subdirectory( bitmap2component )
+
+# Create simple main executable for minimal build testing
+add_executable( qt_pcb_project
+    main.cpp
+)
+
+target_link_libraries( qt_pcb_project
+    common
+)

@@ -1,17 +1,17 @@
 # Common library for minimum PCB set
 
-# Generated files from original KiCad build directory
-set( KICAD_BUILD_DIR "C:/Users/wenming_ma/source/repos/kicad-source-mirror/build/x64-Debug" )
+# Generated files from qt_pcb_project generated directory
+set( KICAD_GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../generated" )
 set( COMMON_GENERATED_SRCS
-    # ${KICAD_BUILD_DIR}/api/cpp/api/common/envelope.pb.cc  # DISABLED FOR MINIMAL BUILD
-    ${KICAD_BUILD_DIR}/common/drc_rules_keywords.cpp
-    ${KICAD_BUILD_DIR}/common/embedded_files_keywords.cpp
-    ${KICAD_BUILD_DIR}/common/lib_table_keywords.cpp
-    ${KICAD_BUILD_DIR}/common/netlist_keywords.cpp
-    ${KICAD_BUILD_DIR}/common/pcb_keywords.cpp
-    ${KICAD_BUILD_DIR}/common/pcb_plot_params_keywords.cpp
-    ${KICAD_BUILD_DIR}/common/stroke_params_keywords.cpp
-    ${KICAD_BUILD_DIR}/common/drawing_sheet/drawing_sheet_keywords.cpp
+    # ${KICAD_GENERATED_DIR}/api/cpp/api/common/envelope.pb.cc  # DISABLED FOR MINIMAL BUILD
+    ${KICAD_GENERATED_DIR}/common/drc_rules_keywords.cpp
+    ${KICAD_GENERATED_DIR}/common/embedded_files_keywords.cpp
+    ${KICAD_GENERATED_DIR}/common/lib_table_keywords.cpp
+    ${KICAD_GENERATED_DIR}/common/netlist_keywords.cpp
+    ${KICAD_GENERATED_DIR}/common/pcb_keywords.cpp
+    ${KICAD_GENERATED_DIR}/common/pcb_plot_params_keywords.cpp
+    ${KICAD_GENERATED_DIR}/common/stroke_params_keywords.cpp
+    ${KICAD_GENERATED_DIR}/common/drawing_sheet/drawing_sheet_keywords.cpp
 )
 
 add_library( common STATIC
@@ -261,5 +261,17 @@ target_link_libraries( common PUBLIC
     json_schema_validator
     ${wxWidgets_LIBRARIES}
     ${Boost_LIBRARIES}
+    # Third-party libraries (local)
+    fmt
+    libcontext
+    clipper2
+    delaunator
+    other_math
+    potrace
+    # Third-party libraries from vcpkg
+    Fontconfig::Fontconfig
+    CURL::libcurl
+    zstd::libzstd
+    Freetype::Freetype
     # protobuf::libprotobuf
 )

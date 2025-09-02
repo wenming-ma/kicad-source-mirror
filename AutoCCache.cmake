@@ -1,5 +1,10 @@
 # AutoCCache.cmake - Automatic ccache detection and setup
 
+# Prevent multiple configurations
+if(DEFINED CCACHE_CONFIGURED)
+    return()
+endif()
+
 find_program(CCACHE_PROGRAM ccache)
 
 if(CCACHE_PROGRAM)
@@ -41,6 +46,10 @@ if(CCACHE_PROGRAM)
     message(STATUS "ccache stats:")
     message(STATUS "${CCACHE_STATS}")
     
+    # Mark as configured to prevent re-execution
+    set(CCACHE_CONFIGURED TRUE CACHE INTERNAL "ccache has been configured")
+    
 else()
     message(STATUS "ccache not found - compilation will proceed without caching")
+    set(CCACHE_CONFIGURED FALSE CACHE INTERNAL "ccache configuration attempted")
 endif()
