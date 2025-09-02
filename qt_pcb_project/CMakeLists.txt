@@ -2,6 +2,9 @@
 
 cmake_minimum_required( VERSION 3.22 FATAL_ERROR )
 
+# Set CMake policies to avoid warnings
+cmake_policy(SET CMP0167 NEW)  # Use find_package for Boost instead of FindBoost
+
 # Default to CMAKE_BUILD_TYPE = Release unless overridden on command line
 if( DEFINED CMAKE_BUILD_TYPE )
     set( CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING "Set to either \"Release\" or \"Debug\"" )
@@ -54,6 +57,7 @@ find_package( Fontconfig REQUIRED )
 find_package( CURL REQUIRED )
 find_package( zstd REQUIRED )
 find_package( Freetype REQUIRED )
+find_package( harfbuzz CONFIG REQUIRED )
 
 # Include directories
 include_directories( BEFORE 

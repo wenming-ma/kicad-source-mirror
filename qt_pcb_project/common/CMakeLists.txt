@@ -36,6 +36,7 @@ add_library( common STATIC
     design_block_io.cpp
     design_block_lib_table.cpp
     dialog_shim.cpp
+    dpi_scaling.cpp
     dpi_scaling_common.cpp
     dsnlexer.cpp
     # UI component - commented out for minimal build
@@ -74,6 +75,7 @@ add_library( common STATIC
     locale_io.cpp
     lset.cpp
     marker_base.cpp
+    markup_parser.cpp
     netclass.cpp
     # UI component - commented out for minimal build
     # notifications_manager.cpp
@@ -103,6 +105,7 @@ add_library( common STATIC
     undo_redo_container.cpp
     validators.cpp
     wildcards_and_files_ext.cpp
+    wx_filename.cpp
     
     # API files - DISABLED FOR MINIMAL BUILD
     # api/api_enums.cpp
@@ -144,6 +147,7 @@ add_library( common STATIC
     font/font.cpp
     font/fontconfig.cpp
     font/glyph.cpp
+    newstroke_font.cpp
     font/outline_decomposer.cpp
     font/outline_font.cpp
     font/stroke_font.cpp
@@ -152,6 +156,7 @@ add_library( common STATIC
     
     # GAL files
     gal/color4d.cpp
+    gal/gal_display_options.cpp
     gal/graphics_abstraction_layer.cpp
     gal/painter.cpp
     # UI component - commented out for minimal build (OpenGL UI context)
@@ -229,7 +234,7 @@ add_library( common STATIC
     # widgets/paged_dialog.cpp
     widgets/progress_reporter_base.cpp
     # widgets/std_bitmap_button.cpp
-    # widgets/ui_common.cpp
+    widgets/ui_common.cpp
     # widgets/widget_hotkey_list.cpp
     # widgets/wx_aui_art_providers.cpp
     # widgets/wx_busy_indicator.cpp
@@ -241,6 +246,7 @@ add_library( common STATIC
     
     # Generated files
     ${COMMON_GENERATED_SRCS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../generated/common/template_fieldnames_keywords.cpp
 )
 
 target_include_directories( common PUBLIC
@@ -258,6 +264,7 @@ target_compile_definitions( common PUBLIC
     WXSTATIC
     wxUSE_DLL=0
     KICOMMON_DLL
+    GAL_DLL  # Define GAL_DLL to export GAL symbols instead of importing them
 )
 
 target_link_libraries( common PUBLIC
@@ -280,5 +287,6 @@ target_link_libraries( common PUBLIC
     CURL::libcurl
     zstd::libzstd
     Freetype::Freetype
+    harfbuzz::harfbuzz
     # protobuf::libprotobuf
 )

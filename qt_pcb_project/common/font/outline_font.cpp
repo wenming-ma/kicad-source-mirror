@@ -41,9 +41,9 @@
 using namespace KIFONT;
 
 
-// Static member definitions - commented out due to DLL import issues
-// FT_Library OUTLINE_FONT::m_freeType = nullptr;
-// std::mutex OUTLINE_FONT::m_freeTypeMutex;
+// Static member definitions
+FT_Library OUTLINE_FONT::m_freeType = nullptr;
+std::mutex OUTLINE_FONT::m_freeTypeMutex;
 
 OUTLINE_FONT::OUTLINE_FONT() :
         m_face(NULL),

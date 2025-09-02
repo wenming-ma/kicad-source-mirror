@@ -291,15 +291,17 @@ void ZONE_SETTINGS::SetupLayersList( wxDataViewListCtrl* aList, PCB_BASE_FRAME* 
         // wxCOL_WIDTH_AUTOSIZE doesn't work on all platforms, so we calculate width here
         textWidth = std::max( textWidth, KIUI::GetTextSize( layerName, aList ).x );
 
-        COLOR4D layerColor = aFrame->GetColorSettings()->GetColor( layerID );
-        auto bitmap = COLOR_SWATCH::MakeBitmap( layerColor, backgroundColor, LAYER_BITMAP_SIZE,
-                                                CHECKERBOARD_SIZE, aList->GetBackgroundColour() );
-        wxIcon icon;
-        icon.CopyFromBitmap( bitmap );
+        // UI component - COLOR_SWATCH::MakeBitmap commented out for minimal build
+        // COLOR4D layerColor = aFrame->GetColorSettings()->GetColor( layerID );
+        // auto bitmap = COLOR_SWATCH::MakeBitmap( layerColor, backgroundColor, LAYER_BITMAP_SIZE,
+        //                                         CHECKERBOARD_SIZE, aList->GetBackgroundColour() );
+        // wxIcon icon;
+        // icon.CopyFromBitmap( bitmap );
 
         wxVector<wxVariant> row;
         row.push_back( wxVariant( m_Layers.test( layerID ) ) );
-        row.push_back( wxVariant( wxDataViewIconText( layerName, icon ) ) );
+        // Simplified: use text without icon for minimal build
+        row.push_back( wxVariant( wxDataViewIconText( layerName ) ) );
         row.push_back( wxVariant( wxString::Format( wxT( "%i" ), layerID ) ) );
         aList->AppendItem( row );
 
