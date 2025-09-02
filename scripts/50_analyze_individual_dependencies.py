@@ -11,9 +11,9 @@ import os
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = ROOT / "scripts"
 TU_INDEX_FILE = SCRIPTS_DIR / "tu_index.json"
-MINSET_SOURCES_FILE = SCRIPTS_DIR / "minset_sources.json"
+MINSET_SOURCES_FILE = SCRIPTS_DIR / "seeds_sources.json"
 RESOLVE_SCRIPT = SCRIPTS_DIR / "30_resolve_minset.py"
-OUTPUT_EXCEL = ROOT / "individual_file_dependencies.xlsx"
+OUTPUT_EXCEL = ROOT / "seeds_file_dependencies.xlsx"
 
 def load_minset_sources():
     """Load minimum set source files"""
@@ -27,10 +27,30 @@ def create_temp_seeds_file(target_file):
     with open(temp_seeds, 'w', encoding='utf-8') as f:
         # Convert absolute path to relative path from KiCad root
         try:
-            rel_path = Path(target_file).relative_to(ROOT)
-            f.write(str(rel_path).replace('\\', '/') + '\n')
-        except ValueError:
-            # If target_file is not under ROOT, use as-is
+            target_path = Path(target_file)
+            # Try to make it relative to ROOT first
+            if target_path.is_absolute():
+                try:
+                    rel_path = target_path.relative_to(ROOT)
+                    f.write(str(rel_path).replace('\\', '/') + '\n')
+                except ValueError:
+                    # If not under ROOT, try common KiCad source paths
+                    # Look for pattern like "kicad-source-mirror" and convert
+                    path_str = str(target_path)
+                    if 'kicad-source-mirror' in path_str:
+                        # Extract part after kicad-source-mirror
+                        idx = path_str.find('kicad-source-mirror')
+                        if idx >= 0:
+                            remaining = path_str[idx + len('kicad-source-mirror'):].lstrip('\\/')
+                            f.write(remaining.replace('\\', '/') + '\n')
+                        else:
+                            f.write(target_file + '\n')
+                    else:
+                        f.write(target_file + '\n')
+            else:
+                f.write(str(target_path).replace('\\', '/') + '\n')
+        except Exception as e:
+            print(f"Warning: Could not process path {target_file}: {e}")
             f.write(target_file + '\n')
     return temp_seeds
 
@@ -145,23 +165,17 @@ def create_excel_report(results, detailed_dependencies):
     print(f"Creating Excel report: {OUTPUT_EXCEL}")
     
     with pd.ExcelWriter(OUTPUT_EXCEL, engine='openpyxl') as writer:
-        # Summary sheet
-        summary_df = pd.DataFrame([{
-            'Source_File': r['Source_File'],
-            'File_Name': r['File_Name'],
-            'Dependency_Count': r['Dependency_Count']
-        } for r in results])
-        
-        summary_df.to_excel(writer, sheet_name='Summary', index=False)
-        
-        # Create detail sheets (limited by Excel sheet name constraints)
+        # Create detail sheets first to get sheet names
+        sheet_names_map = {}
         sheet_counter = 1
+        
         for source_file, dependencies in detailed_dependencies.items():
             if sheet_counter > 50:  # Limit number of sheets
                 break
                 
             file_name = Path(source_file).stem[:20]  # Limit sheet name length
             sheet_name = f"Detail_{sheet_counter}_{file_name}"
+            sheet_names_map[source_file] = sheet_name
             
             # Create detail dataframe
             detail_df = pd.DataFrame({
@@ -179,6 +193,54 @@ def create_excel_report(results, detailed_dependencies):
             deps_df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=3)
             
             sheet_counter += 1
+        
+        # Create summary sheet with links
+        summary_data = []
+        for r in results:
+            summary_data.append({
+                'Source_File': r['Source_File'],
+                'File_Name': r['File_Name'],
+                'Dependency_Count': r['Dependency_Count'],
+                'View_Details': f"=HYPERLINK(\"#'{sheet_names_map.get(r['Source_File'], '')}'!A1\", \"View Details\")" if r['Source_File'] in sheet_names_map else 'N/A'
+            })
+        
+        summary_df = pd.DataFrame(summary_data)
+        summary_df.to_excel(writer, sheet_name='Summary', index=False)
+        
+        # Format the summary sheet
+        from openpyxl.styles import Font, PatternFill
+        from openpyxl.utils.dataframe import dataframe_to_rows
+        
+        workbook = writer.book
+        summary_sheet = workbook['Summary']
+        
+        # Style headers
+        header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
+        header_font = Font(color='FFFFFF', bold=True)
+        
+        for cell in summary_sheet[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+        
+        # Style the hyperlinks in the View_Details column
+        link_font = Font(color='0563C1', underline='single')
+        for row in range(2, len(summary_data) + 2):
+            link_cell = summary_sheet.cell(row=row, column=4)  # View_Details column
+            if link_cell.value and link_cell.value != 'N/A':
+                link_cell.font = link_font
+        
+        # Auto-adjust column widths
+        for column in summary_sheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)  # Cap at 50
+            summary_sheet.column_dimensions[column_letter].width = adjusted_width
     
     print(f"Excel report created successfully: {OUTPUT_EXCEL}")
 

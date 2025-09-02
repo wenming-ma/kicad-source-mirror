@@ -124,8 +124,7 @@ public:
      * @param aLayer is the current drawing layer.
      * @param aView is a pointer to the #VIEW device we are drawing on.
      */
-    virtual void ViewDraw( int aLayer, VIEW* aView ) const
-    {}
+    virtual void ViewDraw( int aLayer, VIEW* aView ) const;
 
     /**
      * Return the all the layers within the VIEW the object is painted on.

@@ -46,3 +46,10 @@ double VIEW_ITEM::lodScaleForThreshold( const VIEW* aView, int aWhatIu, int aThr
 
     return double( aThresholdIu ) / aWhatIu;
 }
+
+
+void VIEW_ITEM::ViewDraw( int aLayer, VIEW* aView ) const
+{
+    // Default empty implementation for VIEW_ITEM base class
+    // Derived classes should override this method for custom drawing
+}
