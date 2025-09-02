@@ -1869,12 +1869,14 @@ const BOX2I PAD::ViewBBox() const
     BOX2I    bbox              = GetBoundingBox();
     int      clearance         = 0;
 
-    // If we're drawing clearance lines then get the biggest possible clearance
-    if( PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( Kiface().KifaceSettings() ) )
-    {
-        if( cfg && cfg->m_Display.m_PadClearance && GetBoard() )
-            clearance = GetBoard()->GetMaxClearanceValue();
-    }
+    // UI settings access commented out for minimal build - no clearance display
+    // if( PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( Kiface().KifaceSettings() ) )
+    // {
+    //     if( cfg && cfg->m_Display.m_PadClearance && GetBoard() )
+    //         clearance = GetBoard()->GetMaxClearanceValue();
+    // }
+    
+    // For minimal build: keep clearance = 0 (no clearance display needed)
 
     // Look for the biggest possible bounding box
     int xMargin = std::max( solderMaskMargin, solderPasteMargin.x ) + clearance;

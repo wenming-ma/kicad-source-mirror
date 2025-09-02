@@ -178,6 +178,8 @@ int main(int argc, char* argv[])
     // Initialize wxWidgets
     wxInitialize();
     
+    BOARD* board = nullptr;
+    
     try {
         // Create a simple PGM instance
         PCB_TEST_PGM pgm;
@@ -190,6 +192,7 @@ int main(int argc, char* argv[])
             if (!wxFileName::FileExists(pcbPath)) {
                 std::cout << "ERROR: Cannot find PCB file!" << std::endl;
                 std::cout << "Tried: test/complex_hierarchy.kicad_pcb and complex_hierarchy.kicad_pcb" << std::endl;
+                wxUninitialize();
                 return 1;
             }
         }
@@ -200,10 +203,11 @@ int main(int argc, char* argv[])
         PCB_IO_KICAD_SEXPR pcbIO;
         
         // Load the board
-        BOARD* board = pcbIO.LoadBoard(pcbPath, nullptr);
+        board = pcbIO.LoadBoard(pcbPath, nullptr);
         
         if (!board) {
             std::cout << "ERROR: Failed to load PCB file!" << std::endl;
+            wxUninitialize();
             return 1;
         }
         
@@ -212,20 +216,47 @@ int main(int argc, char* argv[])
         // Print detailed board information
         PrintBoardStatistics(board);
         
-        // Clean up
-        delete board;
-        
         std::cout << "\n=== Test completed successfully! ===" << std::endl;
     }
     catch (const std::exception& e) {
         std::cout << "Exception caught: " << e.what() << std::endl;
+        if (board) {
+            try {
+                delete board;
+            }
+            catch (...) {
+                std::cout << "Error during cleanup - ignored" << std::endl;
+            }
+        }
+        wxUninitialize();
         return 1;
     }
     catch (...) {
         std::cout << "Unknown exception caught!" << std::endl;
+        if (board) {
+            try {
+                delete board;
+            }
+            catch (...) {
+                std::cout << "Error during cleanup - ignored" << std::endl;
+            }
+        }
+        wxUninitialize();
         return 1;
     }
     
+    // Safe cleanup: Delete board before wxUninitialize()
+    if (board) {
+        try {
+            delete board;
+            board = nullptr;
+        }
+        catch (...) {
+            std::cout << "Warning: Exception during board cleanup - continuing..." << std::endl;
+        }
+    }
+    
+    // Uninitialize wxWidgets after board cleanup
     wxUninitialize();
     return 0;
 }

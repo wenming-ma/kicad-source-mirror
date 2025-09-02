@@ -2956,12 +2956,11 @@ void PCB_IO_KICAD_SEXPR::FootprintSave( const wxString& aLibraryPath, const FOOT
 
     if( footprint->GetLayer() != F_Cu )
     {
-        PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( Kiface().KifaceSettings() );
-
-        if( cfg )
-            footprint->Flip( footprint->GetPosition(), cfg->m_FlipDirection );
-        else
-            footprint->Flip( footprint->GetPosition(), FLIP_DIRECTION::TOP_BOTTOM );
+        // UI settings access commented out for minimal build - use default flip direction
+        // PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( Kiface().KifaceSettings() );
+        
+        // Always use default flip direction for minimal build
+        footprint->Flip( footprint->GetPosition(), FLIP_DIRECTION::TOP_BOTTOM );
     }
 
     // Detach it from the board and its group
