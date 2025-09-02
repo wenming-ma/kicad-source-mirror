@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD = ROOT / r"build/x64-Debug"
+BUILD = ROOT / r"build"
 CCDB = BUILD / "compile_commands.json"
 OBJ = BUILD / "objcache"
 OUT = BUILD / "tu_index.json"

@@ -154,3 +154,4 @@ qt_pcb_project/CMakeLists.txt
 qt_pcb_project/CMakeLists.txt
 qt_pcb_project/CMakePresets.json
 qt_pcb_project/CMakeLists.txt
+scripts/tu_index.json
