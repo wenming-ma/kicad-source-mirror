@@ -124,8 +124,10 @@ ZONE::~ZONE()
     delete m_Poly;
     delete m_CornerSelection;
 
-    if( BOARD* board = GetBoard() )
-        board->IncrementTimeStamp();
+    // Timestamp update commented out for minimal build to prevent access violation
+    // during BOARD destructor when zones are being deleted
+    // if( BOARD* board = GetBoard() )
+    //     board->IncrementTimeStamp();
 }
 
 
