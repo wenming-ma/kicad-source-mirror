@@ -419,8 +419,9 @@ public:
 
     ~PCB_DIM_ALIGNED() = default;
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    // Protobuf API methods - commented out for minimal build
+    // void Serialize( google::protobuf::Any &aContainer ) const override;
+    // bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
@@ -520,8 +521,9 @@ public:
 
     ~PCB_DIM_ORTHOGONAL() = default;
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    // Protobuf API methods - commented out for minimal build
+    // void Serialize( google::protobuf::Any &aContainer ) const override;
+    // bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
@@ -587,8 +589,9 @@ class PCB_DIM_RADIAL : public PCB_DIMENSION_BASE
 public:
     PCB_DIM_RADIAL( BOARD_ITEM* aParent );
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    // Protobuf API methods - commented out for minimal build
+    // void Serialize( google::protobuf::Any &aContainer ) const override;
+    // bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
@@ -645,8 +648,9 @@ class PCB_DIM_LEADER : public PCB_DIMENSION_BASE
 public:
     PCB_DIM_LEADER( BOARD_ITEM* aParent );
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    // Protobuf API methods - commented out for minimal build
+    // void Serialize( google::protobuf::Any &aContainer ) const override;
+    // bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
@@ -695,8 +699,9 @@ class PCB_DIM_CENTER : public PCB_DIMENSION_BASE
 public:
     PCB_DIM_CENTER( BOARD_ITEM* aParent );
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    // Protobuf API methods - commented out for minimal build
+    // void Serialize( google::protobuf::Any &aContainer ) const override;
+    // bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {

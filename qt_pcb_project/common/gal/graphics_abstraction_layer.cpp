@@ -36,6 +36,10 @@
 
 using namespace KIGFX;
 
+// Static member definitions
+const int GAL::MIN_DEPTH = -2*MAX_LAYERS_FOR_VIEW;
+const int GAL::MAX_DEPTH = 2*MAX_LAYERS_FOR_VIEW - 1;
+
 
 GAL::GAL( GAL_DISPLAY_OPTIONS& aDisplayOptions ) :
         m_options( aDisplayOptions ),
