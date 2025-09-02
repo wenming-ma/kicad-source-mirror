@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD = ROOT / r"build/x64-Debug"
+BUILD = ROOT / r"build"
 INDEX = BUILD / "tu_index.json"
 SEEDS = ROOT / r"scripts\seeds.txt"
 OUT = BUILD / "minset_sources.json"
