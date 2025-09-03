@@ -80,6 +80,11 @@ def copy_file_with_structure(src_file: str, kicad_root: Path, qt_project_root: P
         rel_path = get_relative_path(src_file, kicad_root)
         dst_path = qt_project_root / rel_path
     
+    # Skip if file already exists
+    if dst_path.exists():
+        print(f"Skipped (already exists): {rel_path}")
+        return
+    
     # Create directory if it doesn't exist
     dst_path.parent.mkdir(parents=True, exist_ok=True)
     
@@ -109,40 +114,32 @@ def copy_cmake_files(directories: Set[Path], kicad_root: Path, qt_project_root: 
     """Copy CMakeLists.txt files for all directories."""
     for directory in sorted(directories):
         src_cmake = kicad_root / directory / "CMakeLists.txt"
-        if src_cmake.exists():
-            dst_cmake = qt_project_root / directory / "CMakeLists.txt"
+        dst_cmake = qt_project_root / directory / "CMakeLists.txt"
+        
+        if src_cmake.exists() and not dst_cmake.exists():
             dst_cmake.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src_cmake, dst_cmake)
             print(f"Copied CMakeLists.txt: {directory}")
+        elif dst_cmake.exists():
+            print(f"Skipped CMakeLists.txt (already exists): {directory}")
 
 def copy_root_cmake_files(kicad_root: Path, qt_project_root: Path):
-    """Copy root level CMake files."""
-    root_files = [
-        "CMakeLists.txt",
-        "CMakeSettings.json",
-        "KiCadVersion.cmake",
-        "KiCadSentryDefaults.cmake"
-    ]
+    """Copy root level CMake files - DISABLED as requested."""
+    print("Skipping root CMake files as requested (CMakeLists.txt, CMakeSettings.json)")
     
+    # Still copy cmake directory if it doesn't exist
     cmake_dir = kicad_root / "cmake"
-    if cmake_dir.exists():
-        dst_cmake_dir = qt_project_root / "cmake"
-        if not dst_cmake_dir.exists():
-            shutil.copytree(cmake_dir, dst_cmake_dir)
-            print("Copied cmake directory")
-    
-    for file_name in root_files:
-        src_file = kicad_root / file_name
-        if src_file.exists():
-            dst_file = qt_project_root / file_name
-            shutil.copy2(src_file, dst_file)
-            print(f"Copied root file: {file_name}")
+    dst_cmake_dir = qt_project_root / "cmake"
+    if cmake_dir.exists() and not dst_cmake_dir.exists():
+        shutil.copytree(cmake_dir, dst_cmake_dir)
+        print("Copied cmake directory")
+    elif dst_cmake_dir.exists():
+        print("Skipped cmake directory (already exists)")
 
 def main():
     # Setup paths
     script_dir = Path(__file__).parent
     kicad_root = script_dir.parent
-    build_dir = kicad_root / "build"
     qt_project_root = kicad_root / "qt_pcb_project"
     
     print(f"KiCad root: {kicad_root}")
@@ -151,9 +148,9 @@ def main():
     # Create Qt project directory
     qt_project_root.mkdir(exist_ok=True)
     
-    # Load minset files
+    # Load minset files from scripts directory
     print("\nLoading minset files...")
-    headers, sources = load_minset_files(build_dir)
+    headers, sources = load_minset_files(script_dir)
     print(f"Found {len(headers)} headers and {len(sources)} sources")
     
     # Categorize files
