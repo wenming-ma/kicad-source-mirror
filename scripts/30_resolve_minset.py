@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / r"build\x64-Debug"
 INDEX = BUILD / "tu_index.json"
-SEEDS = ROOT / r"scripts\seeds.txt"
+SEEDS = ROOT / r"scripts\seeds-pns.txt"
 OUT = BUILD / "minset_sources.json"
 UNRES = BUILD / "unresolved_symbols.json"
 

@@ -10,10 +10,10 @@ import shutil
 from pathlib import Path
 from typing import Set, Dict, List
 
-def load_minset_files(build_dir: Path) -> tuple[List[str], List[str]]:
+def load_minset_files(scripts_dir: Path) -> tuple[List[str], List[str]]:
     """Load minset header and source files."""
-    headers_file = build_dir / "minset_headers.json"
-    sources_file = build_dir / "minset_sources.json"
+    headers_file = scripts_dir / "minset_headers.json"
+    sources_file = scripts_dir / "minset_sources.json"
     
     with open(headers_file, 'r') as f:
         headers_data = json.load(f)
