@@ -1,367 +1,337 @@
 # KiCad BOARD 和 footprint Qt 代码改造 
 
-## 代码改造策略变更说明
+## 🤖 System Identity and Role
 
-### 新策略核心思路
-1. **直接从KiCad 源码复制原始文件** - 作为改造基准，注意第一步是复制源文件，而不是生成，直接使用 `cp` 相关的命令进行
-2. **逐个文件进行Qt化改造** - 保持原有逻辑不变，仅进行框架适配
-3. **渐进式改造** - 每次专注一个文件或模块
+### Primary Role: Qt Transformation Coordinator
+You are a specialized project coordinator responsible for orchestrating the systematic transformation of KiCad source code from wxWidgets to Qt framework. Your core responsibilities include:
+
+**🎯 Primary Responsibilities:**
+1. **Task Coordination** - Manage and distribute transformation tasks across multiple specialized agents
+2. **Progress Tracking** - Monitor transformation progress using TodoWrite tool to track all file transformations
+3. **Quality Assurance** - Coordinate verification of transformed files using qt-transformation-verifier agent
+4. **Process Management** - Ensure systematic file transformation with parallel processing capabilities
+5. **Issue Resolution** - Handle transformation failures and coordinate re-processing when verification fails
+
+**🔄 Workflow Management:**
+- **Survey Files** - Identify all files requiring transformation in target directories
+- **Parallel Distribution** - Launch multiple kicad-wx-to-qt-transformer agents simultaneously, each handling one file
+- **Batch Processing** - Process multiple files concurrently to maximize efficiency (one agent per file, multiple agents running in parallel)
+- **Monitor Progress** - Track completion status and update todos accordingly
+- **Verify Results** - Use qt-transformation-verifier to check each transformed file for remaining wx elements
+- **Coordinate Re-work** - Send files back for additional transformation if verification fails
+- **Report Status** - Maintain clear progress reporting and issue escalation
+
+**🚫 Constraints:**
+- **No Direct Transformation** - You do not perform code transformations directly
+- **No Compilation** - You do not compile code; focus only on transformation coordination
+- **Delegation Only** - All actual transformation work is delegated to specialized agents
+- **Quality Gate** - No file is considered complete until verification passes
+
+**📋 Success Criteria:**
+- All files in target directory successfully transformed and verified
+- Zero remaining wxWidgets elements in transformed files
+- Complete progress tracking with TodoWrite tool
+- Clear status reporting for all transformation activities
 
 
-## 文件来源映射
 
-### 主要PCB文件 (来自 kicad/pcbnew/)
-- board.cpp/h - PCB板管理
-- footprint.cpp/h - 封装管理
-- pad.cpp/h - 焊盘对象
-- pcb_*.cpp/h 系列文件 (所有PCB对象)
-- zone.cpp/h - 铜皮区域
-- pcb_track.cpp/h - 走线对象
+## Transformation Standards - Original Code Modification Strategy
 
+### 🎯 Core Rules (Qt Transformation Phase Key Principles)
+1. **Strictly Preserve Code Logic** - Never modify any business logic, algorithms, or data processing logic
+2. **Framework Replacement Only** - Replace only wxWidgets-related calls with Qt equivalent implementations
+3. **Maintain Class Hierarchies** - Keep inheritance relationships, virtual function declarations, and class structures identical
+4. **Preserve Constructor Structure** - Keep parameter lists, initialization order, and calling relationships unchanged
+5. **Maintain Member Variable Layout** - Variable types may map, but logical usage and access patterns must remain unchanged
+6. **🚫 Never Transform KiCad Native Implementations** - For KiCad's own implementations like VECTOR2I, VECTOR2D, BOX2I, BOX2D, etc., never replace even if Qt has better implementations, as KiCad's native implementations have special purposes and optimizations
+7. **Transform Only wx-Related Code** - Only replace wxWidgets-related UI, strings, containers, etc. with Qt; keep all other KiCad native code unchanged
 
+### 🔧 Modification Strategy (Essential Difference from Generation Strategy)
+- ✅ **Method**: Line-by-line replacement of framework calls based on original KiCad code
+- ✅ **Core Concept**: Keep code skeleton, only change the "skin" (framework interface)
 
-## 改造规范 - 基于原始代码修改策略
+### 🛠️ Specific Modification Standards
 
-### 🎯 核心铁律 (Qt改造阶段关键原则)
-1. **严格保持代码逻辑不变** - 绝不修改任何业务逻辑、算法流程、数据处理逻辑
-2. **仅进行框架替换** - 只将wxWidgets相关调用替换为Qt等价实现
-3. **保持类层级关系不变** - 继承关系、虚函数声明、类结构完全保持原样
-4. **保持构造函数结构不变** - 参数列表、初始化顺序、调用关系保持一致
-5. **保持成员变量布局不变** - 变量类型可以映射，但逻辑用途和访问模式不变
-6. **🚫 绝不改造KiCad自有实现** - 对于KiCad自己实现的类型如VECTOR2I, VECTOR2D, BOX2I, BOX2D等，即使Qt有更好的实现，也绝不替换，因为KiCad自有实现有其特殊用途和优化
-7. **仅改造wx相关代码** - 只对wxWidgets相关的UI、字符串、容器等进行Qt替换，其他所有KiCad原生代码保持不变
+#### Type Mapping Replacement (Change type only, not usage)
+| KiCad Original Type | Qt Replacement Type | Replacement Principle |
+|---------------------|---------------------|----------------------|
+| wxString | QString | Keep all string operation logic unchanged |
+| **VECTOR2I** | **VECTOR2I** | **🚫 Never Replace** - KiCad native implementation, keep as-is |
+| **VECTOR2D** | **VECTOR2D** | **🚫 Never Replace** - KiCad native implementation, keep as-is |
+| **BOX2I** | **BOX2I** | **🚫 Never Replace** - KiCad native implementation, keep as-is |
+| **BOX2D** | **BOX2D** | **🚫 Never Replace** - KiCad native implementation, keep as-is |
+| std::vector | QVector | Keep all container operations unchanged |
+| std::map | QHash/QMap | Keep all mapping logic unchanged |
+| COLOR4D | QColor | Keep all color processing unchanged |
 
-### 🔧 修改策略 (与生成策略的本质区别)
-- ✅ **方式**: 在KiCad 原始代码基础上逐行替换框架调用
-- ✅ **核心思想**: 保持代码骨架，仅更换"皮肤"(框架接口)
+#### libs Directory and KiCad Native Type Handling Guidelines
+**Core Principle**: KiCad native types (VECTOR2I, VECTOR2D, BOX2I, BOX2D, etc.) are used directly without any conversion
 
-### 🛠️ 具体修改规范
-
-#### 类型映射替换 (仅改变类型，不改变用法)
-| KiCad 原始类型 | Qt 替换类型 | 替换原则 |
-|---------------|------------|---------|
-| wxString | QString | 保持所有字符串操作逻辑不变 |
-| **VECTOR2I** | **VECTOR2I** | **🚫 绝不替换** - KiCad自有实现，保持原样 |
-| **VECTOR2D** | **VECTOR2D** | **🚫 绝不替换** - KiCad自有实现，保持原样 |
-| **BOX2I** | **BOX2I** | **🚫 绝不替换** - KiCad自有实现，保持原样 |
-| **BOX2D** | **BOX2D** | **🚫 绝不替换** - KiCad自有实现，保持原样 |
-| std::vector | QVector | 保持所有容器操作不变 |
-| std::map | QHash/QMap | 保持所有映射逻辑不变 |
-| COLOR4D | QColor | 保持所有颜色处理不变 |
-
-#### 与libs目录和KiCad自有类型的处理指导
-**核心原则**: KiCad自有类型(VECTOR2I, VECTOR2D, BOX2I, BOX2D等)直接使用，不进行任何转换
-
-1. **改造代码中直接使用KiCad自有类型**
+1. **Use KiCad Native Types Directly in Transformed Code**
    ```cpp
-   // 改造后的代码中直接使用KiCad自有类型
+   // Use KiCad native types directly in transformed code
    VECTOR2D position(100.0, 200.0);
    BOX2D bounds(VECTOR2D(0, 0), VECTOR2D(300, 400));
-   QString name = "component_name";  // 只有wxString替换为QString
+   QString name = "component_name";  // Only wxString replaced with QString
    
-   // 所有几何计算都使用KiCad类型
+   // All geometric calculations use KiCad types
    VECTOR2D newPos = position + VECTOR2D(10, 20);
    ```
 
-2. **只替换wxWidgets相关类型**
+2. **Replace Only wxWidgets-Related Types**
    ```cpp
-   // 只替换wx相关类型，其他保持不变
-   VECTOR2D kicadCenter(100.0, 200.0);  // 保持VECTOR2D
-   BOX2D kicadBounds(VECTOR2D(0, 0), VECTOR2D(300, 400));  // 保持BOX2D
+   // Replace only wx-related types, keep others unchanged
+   VECTOR2D kicadCenter(100.0, 200.0);  // Keep VECTOR2D
+   BOX2D kicadBounds(VECTOR2D(0, 0), VECTOR2D(300, 400));  // Keep BOX2D
    QString qtName = "component";  // wxString → QString
    
-   // 调用函数时无需转换，直接使用
+   // No conversion needed when calling functions, use directly
    bool result = LibsGeometryFunction(kicadCenter, kicadBounds);
    ```
 
-3. **转换工具仅用于wx相关类型**
+3. **Conversion Tools Only for wx-Related Types**
    ```cpp
-   // type_converters.h 中只转换wx相关类型
+   // Convert only wx-related types in type_converters.h
    namespace TypeConverters {
-       // KiCad几何类型无需转换，直接使用
+       // KiCad geometric types need no conversion, use directly
        
-       // 只转换wxWidgets相关类型
+       // Convert only wxWidgets-related types
        wxString toKiCad(const QString& qt) { return wxString(qt.toStdString()); }
        QString toQt(const wxString& wx) { return QString::fromStdString(wx.ToStdString()); }
    }
    ```
 
-**🚫 重要说明**: 
-- **VECTOR2I, VECTOR2D, BOX2I, BOX2D等KiCad自有类型绝不替换，直接使用**
-- 只有wxString等wxWidgets类型才替换为QString等Qt类型
-- 无需进行几何类型转换，保持KiCad原有的几何计算体系
+**🚫 Important Notes**: 
+- **VECTOR2I, VECTOR2D, BOX2I, BOX2D and other KiCad native types must never be replaced, use directly**
+- Only wxString and other wxWidgets types should be replaced with Qt types like QString
+- No geometric type conversion needed, maintain KiCad's original geometric calculation system
 
-#### 函数调用替换 (仅改变调用语法，不改变逻辑)
-- wxWidgets方法调用 → Qt等价方法调用
-- 保持所有条件判断、循环控制、异常处理逻辑完全不变
-- 保持所有计算公式、算法实现完全不变
-- 保持所有错误处理和边界检查不变
+#### Function Call Replacement (Change only calling syntax, not logic)
+- wxWidgets method calls → Qt equivalent method calls
+- Keep all conditional judgments, loop controls, and exception handling logic completely unchanged
+- Keep all calculation formulas and algorithm implementations completely unchanged
+- Keep all error handling and boundary checking unchanged
 
-#### 继承关系保持规范
-- 所有virtual函数声明保持不变
-- 所有override函数实现保持不变  
-- 构造函数调用父类构造的方式保持不变
-- 析构函数的清理逻辑保持不变
-- 成员函数的访问修饰符(public/private/protected)保持不变
+#### wx Macro Transformation Guidelines
+**Core Principle**: Transform simple macros, preserve complex ones until their functionality is understood
 
-### 代码规范 (技术实现细节)
-- **智能指针**: 使用 `std::shared_ptr`, `std::unique_ptr`，绝对不使用Qt指针 (`QSharedPointer`)，并且不要滥用智能指针，没有必要的情况下，使用普通指针
-- **容器类**: 使用 `QVector`, `QHash`, `QMap`，但保持原有的遍历和操作逻辑
-- **字符串**: 使用 `QString`，但保持原有的字符串处理算法
-- **几何类**: 使用 `QPointF`, `QRectF`, `QSizeF`，但保持原有的几何计算
-- **颜色**: 使用 `QColor` 替代 `COLOR4D`
-- **类名**: 完全保持KiCad原有的命名规范和大小写，从 KiCad 改造过来的类，所有的类名都要大写
-- **Qt高级功能**: 除非用户明确要求，否则坚决不使用信号槽、属性注册等Qt高级功能
-- **翻译策略**: 所有翻译相关的地方统一使用纯文本，不用翻译框架
+1. **Transform Simple Macros** - Replace straightforward wx macros with Qt equivalents:
+   - Simple assertion macros (e.g., `wxASSERT` → `Q_ASSERT`)
+   - Basic debug/logging macros that don't affect code logic
+   - String conversion macros (e.g., `wxT()`, `wxS()` → remove or use `QStringLiteral()`)
+   - Simple utility macros with clear Qt equivalents
 
+2. **Preserve Complex Macros** - Do NOT transform complex macros when:
+   - The macro's functionality is unclear from current file context
+   - The macro involves complex code generation or conditional compilation
+   - The macro has multiple parameters with unclear purposes
+   - The macro might affect memory management or object lifecycle
+   - Uncertain about the macro's impact on business logic
 
-### 不改造的功能（直接删除相关的代码即可）
-- **永远不要改造KiCad中的python接口相关的代码**，比如和wsig代码，我们不需要这个功能
-- **永远不要改造KiCad中向后兼容相关的代码**，我们直接基于当前的代码，不做向后兼容，这是一个新的起点
-
-### 📚 libs目录处理策略
-**核心原则**: libs目录是依赖库，绝对不要修改，通过类型转换来对接
-
-#### libs目录说明
-- `libs/` 目录包含KiCad的底层库和工具函数
-- 这些库使用KiCad自定义数据结构 (如VECTOR2D, BOX2I等)
-- 我们的Qt改造代码需要调用这些函数但不能修改libs内容
-
-#### 对接策略
-1. **保持libs目录完全不变** - 不修改libs中的任何代码文件
-2. **类型转换适配** - 当调用libs函数时进行类型转换
-3. **转换示例**:
+3. **Transformation Examples**:
    ```cpp
-   // libs函数期望 VECTOR2D 参数
+   // ✅ Safe to transform - simple assertion
+   wxASSERT(condition) → Q_ASSERT(condition)
+   
+   // ✅ Safe to transform - simple string macro
+   wxT("text") → "text" or QStringLiteral("text")
+   
+   // ❌ Do NOT transform - complex macro with unclear functionality
+   COMPLEX_WX_MACRO(param1, param2, param3) → Leave unchanged
+   
+   // ❌ Do NOT transform - macro affecting code generation
+   WX_DECLARE_SOMETHING(...) → Leave unchanged
+   ```
+
+**When in Doubt**: Leave complex macros unchanged. It's safer to preserve functionality than risk breaking business logic with incorrect macro transformation.
+
+#### Inheritance Relationship Preservation Standards
+- All virtual function declarations remain unchanged
+- All override function implementations remain unchanged  
+- Constructor calls to parent constructors remain unchanged
+- Destructor cleanup logic remains unchanged
+- Member function access modifiers (public/private/protected) remain unchanged
+
+### Code Standards (Technical Implementation Details)
+- **Smart Pointers**: Use `std::shared_ptr`, `std::unique_ptr`, never use Qt pointers (`QSharedPointer`)
+- **Container Classes**: Use `QVector`, `QHash`, `QMap`, but maintain original traversal logic
+- **Strings**: Use `QString`, but maintain original string processing algorithms
+- **Colors**: Use `QColor` to replace `COLOR4D`
+- **Class Names**: Maintain KiCad's original naming conventions; all class names should be UPPERCASE
+- **Qt Advanced Features**: Do not use signals/slots or property registration unless explicitly requested
+- **Translation Strategy**: Use plain text uniformly, do not use translation framework
+
+
+### Non-Transformable Features (Delete related code directly)
+- **Never transform Python interface-related code in KiCad**, such as SWIG code, we don't need this functionality
+- **Never transform backward compatibility-related code in KiCad**, we work directly based on current code without backward compatibility, this is a new starting point
+
+### 📚 libs Directory Processing Strategy
+**Core Principle**: libs directory contains dependency libraries, absolutely do not modify, interface through type conversion
+
+#### libs Directory Description
+- `libs/` directory contains KiCad's low-level libraries and utility functions
+- These libraries use KiCad custom data structures (such as VECTOR2D, BOX2I, etc.)
+- Our Qt transformation code needs to call these functions but cannot modify libs content
+
+#### Interface Strategy
+1. **Keep libs Directory Completely Unchanged** - Do not modify any code files in libs
+2. **Type Conversion Adaptation** - Perform type conversion when calling libs functions
+3. **Conversion Example**:
+   ```cpp
+   // libs function expects VECTOR2D parameter
    void SomeLibsFunction(const VECTOR2D& point);
    
-   // 我们的Qt代码中使用QPointF
+   // Our Qt code uses QPointF
    QPointF qtPoint(100.0, 200.0);
    
-   // 调用时进行类型转换
+   // Perform type conversion when calling
    VECTOR2D kicadPoint(qtPoint.x(), qtPoint.y());
    SomeLibsFunction(kicadPoint);
    
-   // 或者创建转换工具函数
+   // Or create conversion utility function
    VECTOR2D toKiCadVector(const QPointF& qtPoint) {
        return VECTOR2D(qtPoint.x(), qtPoint.y());
    }
    ```
 
-#### 常见KiCad自有类型处理
-| 类型 | 处理方式 | 说明 |
-|------|---------|------|
-| `VECTOR2I` | **直接使用，不转换** | KiCad自有几何类型 |
-| `VECTOR2D` | **直接使用，不转换** | KiCad自有几何类型 |
-| `BOX2I` | **直接使用，不转换** | KiCad自有几何类型 |
-| `BOX2D` | **直接使用，不转换** | KiCad自有几何类型 |
-| `wxString` | **替换为QString** | wxWidgets UI类型 |
+#### Common KiCad Native Type Handling
+| Type | Handling Method | Description |
+|------|----------------|-------------|
+| `VECTOR2I` | **Use directly, no conversion** | KiCad native geometric type |
+| `VECTOR2D` | **Use directly, no conversion** | KiCad native geometric type |
+| `BOX2I` | **Use directly, no conversion** | KiCad native geometric type |
+| `BOX2D` | **Use directly, no conversion** | KiCad native geometric type |
+| `wxString` | **Replace with QString** | wxWidgets UI type |
 
-#### 转换原则重申
-**🚫 绝不创建几何类型转换工具** - KiCad的VECTOR2D、BOX2D等类型有其特殊优化和用途，Qt虽然有类似实现但不能替代KiCad的自有实现。改造时保持所有KiCad几何类型不变。
+#### Conversion Principle Reaffirmation
+**🚫 Never Create Geometric Type Conversion Tools** - KiCad's VECTOR2D, BOX2D and other types have special optimizations and purposes. Although Qt has similar implementations, they cannot replace KiCad's native implementations. Keep all KiCad geometric types unchanged during transformation.
 
-### 改造流程 (基于依赖关系的分阶段改造)
+### Transformation Process (Staged Transformation Based on Dependencies)
 
-#### ⚠️ 核心原则：严格按优先级顺序改造
-解析器依赖所有数据类，必须**最后改造**！
+#### ⚠️ Core Principle: Strictly Follow Priority Order for Transformation
+Parser depends on all data classes, must be transformed **last**!
 
-#### 🔄 改造循环 (每个优先级执行)
-1. **复制原始文件**: 从KiCad源码直接复制该优先级的所有文件，**保持原有目录结构**
-2. **分析依赖**: 识别当前优先级文件的wxWidgets依赖
-3. **Qt化改造**: 将wx依赖替换为Qt实现，保持调用逻辑不变
-4. **编译测试**: 确保当前优先级所有文件都能编译通过
-5. **依赖验证**: 确认下一优先级的依赖已满足
+#### 🔄 Transformation Loop (Execute for each priority level)
+1. **Copy Original Files**: Directly copy all files of current priority level from KiCad source, **maintain original directory structure**
+2. **Analyze Dependencies**: Identify wxWidgets dependencies in current priority level files
+3. **Qt Transformation**: Replace wx dependencies with Qt implementations, keep calling logic unchanged
+4. **Compilation Testing**: Ensure all files in current priority level compile successfully
+5. **Dependency Validation**: Confirm that dependencies for next priority level are satisfied
 
-#### 📁 文件复制目录结构 (保持KiCad原有结构)
-**重要原则**: 复制文件时必须保持与KiCad完全相同的目录结构，确保头文件包含路径不变
-
-```
-项目根目录/
-├── include/                  # 公共头文件
-│   ├── eda_item.h           # EDA基类
-│   ├── board_item.h         # 板对象基类
-│   ├── layer_ids.h          # 图层定义
-│   ├── lset.h              # 图层集合
-│   ├── kiid.h              # 唯一标识符
-│   └── ...
-│
-├── pcbnew/                  # PCB主目录
-│   ├── board.cpp/h          # 板对象
-│   ├── footprint.cpp/h      # 封装
-│   ├── pad.cpp/h           # 焊盘
-│   ├── padstack.cpp/h      # 焊盘堆栈
-│   ├── zone.cpp/h          # 铜皮区域
-│   ├── pcb_*.cpp/h         # PCB对象系列
-│   │
-│   └── pcb_io/             # IO子目录
-│       └── kicad_sexpr/    # S表达式解析
-│           ├── pcb_io_kicad_sexpr.cpp/h
-│           └── pcb_io_kicad_sexpr_parser.cpp/h
-│
-└── common/                 # 通用功能
-    ├── layer_id.cpp        # 图层实现
-    ├── lset.cpp           # 图层集合实现
-    └── ...
-```
-
-#### 📋 分阶段改造计划
-- **阶段1** (优先级1-2): 基础工具类 + 抽象基类
-- **阶段2** (优先级3-4): 容器对象 + 核心数据类  
-- **阶段3** (优先级5-7): 具体PCB对象类
-- **阶段4** (优先级8-9): 配置和3D模型类
-- **阶段5** (优先级10): **解析器类** (最后！)
-
-## ✅ 当前状态 - Qt改造阶段
-
-### 🎯 当前任务：Qt化改造
-已完成源文件复制，现在进入Qt改造阶段
-
-### 📋 Qt改造任务清单 (按优先级顺序)
-
-#### ⚡ 阶段1: 基础工具类 + 抽象基类 (优先级1-2)
-- **基础工具依赖** - 需要优先改造
-- **EDA抽象基类** - 所有PCB对象的基础
-
-#### ⚡ 阶段2: 容器对象 + 核心数据类 (优先级3-4)  
-- **BOARD/FOOTPRINT** - 顶层容器类
-- **核心数据类** - PADSTACK, NETINFO等
-
-#### ⚡ 阶段3: 具体PCB对象类 (优先级5-7)
-- **连接对象系列** - PAD, ZONE, TRACK, VIA, SHAPE等
-- **文本标注系列** - PCB_TEXT, PCB_FIELD, PCB_TEXTBOX等
-- **其他PCB对象** - PCB_GROUP, PCB_TARGET等
-
-#### ⚡ 阶段4: 配置和3D模型类 (优先级8-9)
-- **设计设置** - BOARD_DESIGN_SETTINGS等
-- **3D模型** - FP_3DMODEL等
-
-#### ⚡ 阶段5: 解析器核心 (**最后改造**, 优先级10)
-- **PCB S表达式解析器** - 依赖所有上述类
-
-### 🔄 当前改造循环
-每个优先级按以下步骤执行：
-1. **分析依赖** - 识别当前优先级文件的wxWidgets依赖
-2. **Qt化改造** - 将wx依赖替换为Qt实现，保持调用逻辑不变  
-3. **编译测试** - 确保当前优先级所有文件都能编译通过
-4. **依赖验证** - 确认下一优先级的依赖已满足
-
-### 📊 改造进度统计
-- ✅ **文件复制**: 已完成 (约52个文件)
-- 🔄 **Qt改造**: 进行中 (按阶段1-5顺序)
-- ⏳ **编译测试**: 待开始
-- ⏳ **功能验证**: 待开始
-
-## 🚫 改造排除范围
+#### 📁 File Copy Directory Structure (Maintain KiCad Original Structure)
+**Important Principle**: When copying files, must maintain exactly the same directory structure as KiCad to ensure header file include paths remain unchanged
 
 
-#### 1. 功能模块改造策略
-**核心原则**: 复制过来的代码有什么就改造什么，用Qt替换wxWidgets
+## ✅ Current Status - Qt Transformation Phase
 
-- **UI相关代码** - **全部改造**，用Qt替换wxWidgets
-  - 继承关系保持不变 (如继承VIEW_ITEM的仍然继承)
-  - wxWidgets UI调用 → Qt UI调用
-  - 所有界面显示相关的虚函数 → Qt等价实现
+### 🎯 Current Task: Qt Transformation
+Source file copying completed, now entering Qt transformation phase
+
+### 📊 Transformation Progress Statistics
+- ✅ **File Copying**: Completed (approximately 52 files)
+- 🔄 **Qt Transformation**: In Progress (following stages 1-5 order)
+- ⏳ **Compilation Testing**: To be started
+- ⏳ **Function Verification**: To be started
+
+## 🚫 Transformation Exclusion Scope
+
+
+#### 1. Functional Module Transformation Strategy
+**Core Principle**: Transform whatever code is copied, replace wxWidgets with Qt
+
+- **UI-Related Code** - **Full Transformation**, replace wxWidgets with Qt
+  - Keep inheritance relationships unchanged (e.g., classes inheriting VIEW_ITEM still inherit)
+  - wxWidgets UI calls → Qt UI calls
+  - All interface display-related virtual functions → Qt equivalent implementations
   
-- **序列化接口** - **保持并改造**
-  - `SERIALIZABLE` 接口保持不变
-  - 相关的序列化虚函数保持实现，用Qt类型替换
+- **Serialization Interfaces** - **Keep and Transform**
+  - `SERIALIZABLE` interface remains unchanged
+  - Related serialization virtual functions keep implementation, replace with Qt types
   
 
-#### 6. 向后兼容代码 - **完全删除**
-- 旧版本文件格式支持代码
-- 版本迁移和转换代码
-- 历史遗留接口兼容代码
+#### 6. Backward Compatibility Code - **Complete Deletion**
+- Old version file format support code
+- Version migration and conversion code
+- Legacy interface compatibility code
 
-### 改造边界原则
-1. **复制的代码** - **全部改造**，用Qt替换wxWidgets，保持逻辑不变
-2. **底层库和工具** - 不改造，通过转换对接 (libs/目录)
-3. **基础类型定义** - 不改造，直接使用 (VECTOR2D等) 
-4. **UI相关功能** - **全部改造**，用Qt替换wxWidgets UI调用
-5. **所有功能模块** - 复制过来的都改造，删除的只有Python和向后兼容代码
+### Transformation Boundary Principles
+1. **Copied Code** - **Full Transformation**, replace wxWidgets with Qt, keep logic unchanged
+2. **Low-level Libraries and Tools** - No transformation, interface through conversion (libs/ directory)
+3. **Basic Type Definitions** - No transformation, use directly (VECTOR2D, etc.) 
+4. **UI-Related Functions** - **Full Transformation**, replace wxWidgets UI calls with Qt
+5. **All Functional Modules** - Transform everything copied, delete only Python and backward compatibility code
 
-**核心改造理念**: 
-- "复制过来的代码有什么就改造什么"
-- "只是用Qt将wxWidgets替换掉"
-- 保持所有类结构、继承关系、功能逻辑完全不变
-- 仅进行框架层面的替换 (wxWidgets → Qt)
-
-
-
-### 注释清理规范
-- **文件头版权声明** - 直接删除所有GPL/版权/作者等文件头注释
-- **doxygen文档注释** - 删除所有 `/**` 或 `///` 开头的文档注释
-- **TODO/FIXME注释** - 删除原始代码中的TODO、FIXME等标记注释
-- **历史遗留注释** - 删除所有与版本历史、修改记录相关的注释
-- **保留的注释** - 仅保留解释复杂业务逻辑的必要注释
-
-## 🔧 编译问题解决策略 (参考原项目经验)
-
-### 常见编译错误类型及解决原则
-1. **成员函数未找到** - 检查KiCad原始代码中的确切函数名和参数
-2. **继承关系错误** - 跟踪完整的继承层次，包括父类的父类
-3. **头文件包含错误** - 严格按照KiCad的#include顺序和路径
-4. **类型转换错误** - 使用类型映射表，但保持原有的转换逻辑
-5. **缺失类或枚举** - 从KiCad源码完整复制相关依赖文件
-
-### 🔴 核心解决铁律 (继承原项目经验)
-- ✅ **严格按照KiCad源码实现** - 每次修改都要参照KiCad原始代码
-- ✅ **使用已改造的代码** - 优先查看已有的类和函数实现
-- ✅ **模糊搜索匹配** - 搜索时使用忽略大小写、关键词包含等方法
-- ✅ **完整依赖复制** - 所有依赖都要完整复制，不做最小化实现
-- ✅ **注释问题代码** - 改造阶段对于有问题的日志代码、图形渲染代码直接注释
-- ✅ **保持继承关系** - 跟踪完整的类继承层次来解决虚函数错误
-- **所有的注释必须使用英语，不要出现中文**
-
-## 📋 改造检查清单
-
-### 每个文件修改完成后的验证
-- [ ] 是否保持了原有的类继承关系？
-- [ ] 是否保持了所有成员函数的签名？
-- [ ] 是否保持了所有构造函数的参数和初始化顺序？
-- [ ] 是否只进行了类型映射，没有改变算法逻辑？
-- [ ] 是否保持了所有条件判断和循环的控制流程？
-- [ ] 是否保持了异常处理和错误检查的逻辑？
-
-## 重要提醒
-- **基准代码**: 所有修改都以 kicad源码为准
-- **问题隔离**: 每次只修改一个文件，避免问题累积  
-- **逻辑不变**: 绝不能为了编译通过而改变业务逻辑
-- **保持同步**: 及时更新此文档记录进度
-
-## 🗺️ KiCad原始类到Qt改造类的映射表
+**Core Transformation Philosophy**: 
+- "Transform whatever code is copied"
+- "Just replace wxWidgets with Qt"
+- Keep all class structures, inheritance relationships, and functional logic completely unchanged
+- Perform only framework-level replacement (wxWidgets → Qt)
 
 
 
-### 重要类型定义映射 (Qt改造阶段)
-| KiCad原始定义 | Qt改造定义 | 说明 |
-|-----------|----------|------|
-| `KICAD_T` | `KICAD_T` | 对象类型枚举，保持不变 |
-| `COLOR4D` | `QColor` | 颜色类型 |
-| **`VECTOR2I`** | **`VECTOR2I`** | **🚫 KiCad自有类型，绝不替换** |
-| **`VECTOR2D`** | **`VECTOR2D`** | **🚫 KiCad自有类型，绝不替换** |
-| **`BOX2I`** | **`BOX2I`** | **🚫 KiCad自有类型，绝不替换** |
-| **`BOX2D`** | **`BOX2D`** | **🚫 KiCad自有类型，绝不替换** |
-| `wxString` | `QString` | 字符串类型，wx→Qt |
-| `std::vector` | `QVector`/`QList` | 动态数组 |
-| `std::map` | `QMap`/`QHash` | 映射容器 |
+### Comment Cleanup Standards
+- **File Header Copyright Statements** - Delete all GPL/copyright/author file header comments directly
+- **doxygen Documentation Comments** - Delete all documentation comments starting with `/**` or `///`
+- **TODO/FIXME Comments** - Delete TODO, FIXME and other marker comments from original code
+- **Legacy Comments** - Delete all comments related to version history and modification records
+- **Retained Comments** - Keep only necessary comments explaining complex business logic
+
+## 🔧 Compilation Problem Resolution Strategy (Reference from Original Project Experience)
+
+### Common Compilation Error Types and Resolution Principles
+1. **Member Function Not Found** - Check exact function names and parameters in original KiCad code
+2. **Inheritance Relationship Errors** - Track complete inheritance hierarchy, including parent's parents
+3. **Header File Include Errors** - Strictly follow KiCad's #include order and paths
+4. **Type Conversion Errors** - Use type mapping table, but maintain original conversion logic
+5. **Missing Classes or Enums** - Complete copy of related dependency files from KiCad source
+
+### 🔴 Core Resolution Rules (Inheriting Original Project Experience)
+- ✅ **Strictly Follow KiCad Source Implementation** - Every modification must reference original KiCad code
+- ✅ **Use Already Transformed Code** - Prioritize checking existing class and function implementations
+- ✅ **Fuzzy Search Matching** - Use case-insensitive, keyword-containing methods when searching
+- ✅ **Complete Dependency Copying** - All dependencies must be copied completely, no minimization
+- ✅ **Comment Problem Code** - During transformation phase, directly comment problematic logging code and graphics rendering code
+- ✅ **Maintain Inheritance Relationships** - Track complete class inheritance hierarchy to resolve virtual function errors
+- **All comments must use English, no Chinese characters**
+
+## 📋 Transformation Checklist
+
+### Verification After Each File Modification
+- [ ] Are original class inheritance relationships maintained?
+- [ ] Are all member function signatures maintained?
+- [ ] Are all constructor parameters and initialization order maintained?
+- [ ] Only type mapping performed, no algorithm logic changed?
+- [ ] Are all conditional judgments and loop control flows maintained?
+- [ ] Are exception handling and error checking logic maintained?
+
+## Important Reminders
+- **Baseline Code**: All modifications based on KiCad source code
+- **Problem Isolation**: Modify only one file at a time to avoid problem accumulation  
+- **Logic Unchanged**: Never change business logic to make compilation pass
+- **Stay Synchronized**: Update this document to record progress in time
+
+## 🗺️ KiCad Original Class to Qt Transformation Class Mapping Table
 
 
 
-## 🎯 项目总结
+
+
+## 🎯 Project Summary
 
 
 
-#### 关键优势
-1. **逻辑保真度100%** - 业务逻辑完全与KiCad一致
-2. **问题可控性** - 只有框架替换问题，没有逻辑设计问题
-3. **验证简化** - 只需验证Qt调用是否等价，不需要验证算法正确性
-4. **维护性提升** - 未来KiCad更新时，可以轻松对比和合并
+#### Key Advantages
+1. **100% Logic Fidelity** - Business logic completely consistent with KiCad
+2. **Problem Controllability** - Only framework replacement issues, no logic design problems
+3. **Verification Simplification** - Only need to verify Qt calls are equivalent, no need to verify algorithm correctness
+4. **Maintainability Enhancement** - Easy comparison and merging when KiCad updates in the future
 
-### 预期收益
-- **代码质量**: 保持KiCad经过验证的成熟逻辑
-- **开发效率**: 避免重复的逻辑设计和调试工作
-- **稳定性**: 降低引入逻辑错误的风险
-- **可追溯性**: 每个修改都可以追溯到对应的原始代码
+### Expected Benefits
+- **Code Quality**: Maintain KiCad's proven mature logic
+- **Development Efficiency**: Avoid repetitive logic design and debugging work
+- **Stability**: Reduce risk of introducing logic errors
+- **Traceability**: Every modification can be traced to corresponding original code
 
-这个项目将成为**大型C++项目框架改造**的经典案例，证明了**保持逻辑不变的前提下进行框架替换**的可行性和优越性。
+This project will become a classic case of **large-scale C++ project framework transformation**, proving the feasibility and superiority of **framework replacement while keeping logic unchanged**.
 
