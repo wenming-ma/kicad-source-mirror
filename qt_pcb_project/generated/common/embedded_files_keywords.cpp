@@ -6,7 +6,7 @@
  * your DSN lexer.
  */
 
-#include <D:/MyProjects/kicad/kicad/build/common/embedded_files_lexer.h>
+#include "embedded_files_lexer.h"
 
 using namespace EMBEDDED_FILES_T;
 

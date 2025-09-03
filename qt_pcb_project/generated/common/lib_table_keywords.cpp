@@ -6,7 +6,7 @@
  * your DSN lexer.
  */
 
-#include <D:/MyProjects/kicad/kicad/build/common/lib_table_lexer.h>
+#include "common/lib_table_lexer.h"
 
 using namespace LIB_TABLE_T;
 

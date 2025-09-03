@@ -6,7 +6,7 @@
  * your DSN lexer.
  */
 
-#include <D:/MyProjects/kicad/kicad/build/common/template_fieldnames_lexer.h>
+#include "template_fieldnames_lexer.h"
 
 using namespace TFIELD_T;
 

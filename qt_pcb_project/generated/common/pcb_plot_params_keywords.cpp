@@ -6,7 +6,7 @@
  * your DSN lexer.
  */
 
-#include <D:/MyProjects/kicad/kicad/build/common/pcb_plot_params_lexer.h>
+#include "pcb_plot_params_lexer.h"
 
 using namespace PCBPLOTPARAMS_T;
 

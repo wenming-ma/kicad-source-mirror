@@ -6,7 +6,7 @@
  * your DSN lexer.
  */
 
-#include <D:/MyProjects/kicad/kicad/build/common/netlist_lexer.h>
+#include "netlist_lexer.h"
 
 using namespace NL_T;
 
