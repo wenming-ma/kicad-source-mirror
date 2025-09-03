@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD = ROOT / r"build"
+BUILD = ROOT / r"build\x64-Debug"
 INDEX = BUILD / "tu_index.json"
 MINSR = BUILD / "minset_sources.json"
 OUT = BUILD / "minset_headers.json"
