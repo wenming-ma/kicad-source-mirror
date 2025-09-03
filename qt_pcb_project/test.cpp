@@ -1,2 +1,0 @@
-#include <bitset>
-int main(){}

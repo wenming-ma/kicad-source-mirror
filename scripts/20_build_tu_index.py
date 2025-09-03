@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD = ROOT / r"build"
+BUILD = ROOT / r"build\x64-Debug"
 CCDB = BUILD / "compile_commands.json"
 OBJ = BUILD / "objcache"
 OUT = BUILD / "tu_index.json"
@@ -94,7 +94,7 @@ def deps_for_src(cmd, cwd, src_abs):
         # Format is "Note: including file: <path>" or Chinese equivalent
         for line in p.stdout.splitlines():
             path_part = None
-            
+
             # Handle English output: "Note: including file: <path>"
             if "Note: including file:" in line:
                 path_part = line.split("Note: including file:", 1)[1].strip()
@@ -105,9 +105,11 @@ def deps_for_src(cmd, cwd, src_abs):
                 if len(parts) >= 3:
                     potential_path = parts[2].strip()
                     # Check if it looks like a file path (contains backslash or has file extension)
-                    if ("\\" in potential_path or "/" in potential_path) and "." in potential_path:
+                    if (
+                        "\\" in potential_path or "/" in potential_path
+                    ) and "." in potential_path:
                         path_part = potential_path
-            
+
             if path_part:
                 try:
                     resolved = str(Path(path_part).resolve())
@@ -359,5 +361,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
     main()

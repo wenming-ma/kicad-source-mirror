@@ -59,10 +59,7 @@
     {
       "name": "kicad",
       "configurePreset": "x64-debug",
-      "configuration": "Debug",
-      "targets": [
-        "install"
-      ]
+      "configuration": "Debug"
     },
     {
       "name": "x64-debug",
