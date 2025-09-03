@@ -6,7 +6,7 @@
  * your DSN lexer.
  */
 
-#include <D:/MyProjects/kicad/kicad/build/common/drawing_sheet/drawing_sheet_lexer.h>
+#include "drawing_sheet_lexer.h"
 
 using namespace DRAWINGSHEET_T;
 

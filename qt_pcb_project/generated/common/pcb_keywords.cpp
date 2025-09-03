@@ -6,7 +6,7 @@
  * your DSN lexer.
  */
 
-#include <D:/MyProjects/kicad/kicad/build/common/pcb_lexer.h>
+#include "common/pcb_lexer.h"
 
 using namespace PCB_KEYS_T;
 

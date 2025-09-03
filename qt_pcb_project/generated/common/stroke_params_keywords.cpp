@@ -6,7 +6,7 @@
  * your DSN lexer.
  */
 
-#include <D:/MyProjects/kicad/kicad/build/common/stroke_params_lexer.h>
+#include "stroke_params_lexer.h"
 
 using namespace STROKEPARAMS_T;
 

@@ -45,7 +45,7 @@ endif()
 find_package( PkgConfig QUIET )
 
 # Use vcpkg installed packages - Point to build directory vcpkg_installed
-set( CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../build/vcpkg_installed/x64-windows" )
+set( CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows" )
 set( wxWidgets_USE_STATIC ON )
 find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc )
 find_package( Boost REQUIRED )

@@ -6,7 +6,7 @@
  * your DSN lexer.
  */
 
-#include <D:/MyProjects/kicad/kicad/build/common/drc_rules_lexer.h>
+#include "drc_rules_lexer.h"
 
 using namespace DRCRULE_T;
 
