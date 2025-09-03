@@ -119,29 +119,6 @@ add_library( common STATIC
     # Database files
     database/database_lib_settings.cpp
     
-    # Dialog files - DISABLED FOR MINIMAL BUILD
-    # dialog_about/AboutDialog_main.cpp
-    # dialog_about/dialog_about.cpp
-    # dialog_about/dialog_about_base.cpp
-    # dialogs/dialog_color_picker.cpp
-    # dialogs/dialog_color_picker_base.cpp
-    # dialogs/dialog_configure_paths.cpp
-    # dialogs/dialog_configure_paths_base.cpp
-    # dialogs/dialog_hotkey_list.cpp
-    # dialogs/dialog_migrate_settings.cpp
-    # dialogs/dialog_migrate_settings_base.cpp
-    # dialogs/panel_common_settings.cpp
-    # dialogs/panel_common_settings_base.cpp
-    # dialogs/panel_hotkeys_editor.cpp
-    # dialogs/panel_mouse_settings.cpp
-    # dialogs/panel_mouse_settings_base.cpp
-    # UI components - commented out for minimal build
-    # dialogs/panel_packages_and_updates.cpp
-    # dialogs/panel_packages_and_updates_base.cpp
-    # dialogs/panel_plugin_settings.cpp
-    # dialogs/panel_plugin_settings_base.cpp
-    # dialogs/git/panel_git_repos.cpp
-    # dialogs/git/panel_git_repos_base.cpp
     
     # Font files
     font/font.cpp
@@ -223,26 +200,9 @@ add_library( common STATIC
     # view/wx_view_controls.cpp
     view/zoom_controller.cpp
     
-    # Widget files - DISABLED FOR MINIMAL BUILD
-    # widgets/bitmap_button.cpp
-    # widgets/button_row_panel.cpp
-    # widgets/color_swatch.cpp
-    # widgets/grid_text_button_helpers.cpp
-    # widgets/grid_text_helpers.cpp
-    # widgets/html_window.cpp
-    # widgets/kistatusbar.cpp
-    # widgets/paged_dialog.cpp
+    # Widget files
     widgets/progress_reporter_base.cpp
-    # widgets/std_bitmap_button.cpp
     widgets/ui_common.cpp
-    # widgets/widget_hotkey_list.cpp
-    # widgets/wx_aui_art_providers.cpp
-    # widgets/wx_busy_indicator.cpp
-    # widgets/wx_grid.cpp
-    # widgets/wx_grid_autosizer.cpp
-    # widgets/wx_infobar.cpp
-    # widgets/wx_panel.cpp
-    # widgets/wx_treebook.cpp
     
     # Generated files
     ${COMMON_GENERATED_SRCS}
