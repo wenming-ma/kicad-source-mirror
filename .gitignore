@@ -101,7 +101,6 @@ __pycache__
 # Visual Studio
 .vs/
 .editorconfig
-CMakeSettings.json
 .vscode/
 compile_commands.json
 vcpkg_installed
