@@ -76,8 +76,8 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/fmt/include
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/magic_enum/magic_enum
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/expected/include
-    ${CMAKE_PREFIX_PATH}/include/opencascade
     ${wxWidgets_INCLUDE_DIRS}
+    ${CMAKE_PREFIX_PATH}/include/opencascade
 )
 
 # Add wxWidgets compile definitions globally
