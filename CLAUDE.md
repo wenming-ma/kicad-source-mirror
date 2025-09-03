@@ -31,11 +31,19 @@ cmake --build build
 
 #### Strategy:
 1. **Start compilation** to identify missing include files
-2. **Copy missing headers** from original KiCad source/build directories
+2. **Copy missing headers** from original KiCad source/build directories - **ONLY copy what is actually missing, not entire directories**
 3. **Adjust include paths** in CMakeLists.txt files as needed
 4. **For UI-related missing headers**: Comment out the include and related UI code usage
 5. **Do NOT modify core logic** - only fix missing files and paths or disable UI components
 6. **Preserve KiCad's proven compilation logic**
+
+#### 🚨 CRITICAL: Selective File Copying Policy:
+- **ONLY copy files that are actually missing and causing compilation errors**
+- **Do NOT bulk copy entire directories** - this can introduce unnecessary dependencies
+- **Check each compilation error individually** and copy only the specific missing file
+- **Verify file existence before copying** to avoid overwriting existing files
+- **Example**: If error shows "cannot find geometry/shape_index_list.h", copy ONLY that specific file
+- **Principle**: Minimal intervention - copy only what is strictly necessary for compilation
 
 #### UI Header Handling Policy:
 - **Missing UI headers** (dialogs, frames, UI components): Comment out `#include` statements

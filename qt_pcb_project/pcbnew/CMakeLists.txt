@@ -1,5 +1,14 @@
 # PCBnew library for minimum PCB set
 
+add_compile_definitions( PCBNEW )
+
+# Add router subdirectory first
+add_subdirectory(router)
+
+# pnsrouter depends on make_lexer outputs in common (bug #1285878 )
+# Note: In qt_pcb_project, we use 'common' instead of 'pcbcommon'
+add_dependencies( pnsrouter common )
+
 add_library( pcbnew STATIC
     # Core PCB files
     board.cpp
@@ -68,9 +77,6 @@ add_library( pcbnew STATIC
     # Ratsnest
     ratsnest/ratsnest_data.cpp
     
-    # Router
-    router/pns_meander.cpp
-    
     # Teardrop
     teardrop/teardrop_parameters.cpp
     
@@ -90,6 +96,7 @@ target_link_libraries( pcbnew PUBLIC
     kiplatform
     delaunator
     other_math
+    pnsrouter  # Add router library dependency
     ${wxWidgets_LIBRARIES}
     ${Boost_LIBRARIES}
 )
