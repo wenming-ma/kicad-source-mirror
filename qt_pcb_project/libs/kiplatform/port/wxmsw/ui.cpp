@@ -1,121 +1,106 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Ian McInerney <Ian.S.McInerney at ieee.org>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <windows.h>
 
 #include <kiplatform/ui.h>
 
-#include <wx/cursor.h>
-#include <wx/nonownedwnd.h>
-#include <wx/window.h>
-#include <wx/msw/registry.h>
+#include <QWidget>
+#include <QWindow>
+#include <QApplication>
+#include <QPalette>
+#include <QSettings>
+#include <QCursor>
+#include <QPoint>
+#include <QSize>
+#include <QColor>
+#include <QComboBox>
 
 
 bool KIPLATFORM::UI::IsDarkTheme()
 {
     // NOTE: Disabled for now because we can't yet react to dark mode in Windows reasonably:
-    // Windows 10 dark mode does not change the values returned by wxSystemSettings::GetColour()
-    // so our window backgrounds, text colors, etc will stay in "light mode" until either wxWidgets
+    // Windows 10 dark mode does not change the values returned by QApplication::palette()
+    // so our window backgrounds, text colors, etc will stay in "light mode" until either Qt
     // implements something or we apply a custom theme ourselves.
 #ifdef NOTYET
-    const wxString lightModeKey = wxT( "AppsUseLightTheme" );
+    const QString lightModeKey = "AppsUseLightTheme";
 
     // Note: registry used because there is not yet an official API for this yet.
     // This may stop working on future Windows versions
-    wxRegKey themeKey( wxRegKey::HKCU,
-                       wxT( "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize" ) );
+    QSettings themeKey( "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                        QSettings::NativeFormat );
 
-    if( !themeKey.Exists() )
+    if( !themeKey.contains( lightModeKey ) )
         return false;
 
-    if( !themeKey.HasValue( lightModeKey ) )
-        return false;
+    bool ok = false;
+    long val = themeKey.value( lightModeKey, 1 ).toLongLong( &ok );
 
-    long val = 0;
-
-    if( !themeKey.QueryValue( lightModeKey, &val ) )
+    if( !ok )
         return false;
 
     return ( val == 0 );
 #else
-    wxColour bg = wxSystemSettings::GetColour( wxSYS_COLOUR_WINDOW );
+    QColor bg = QApplication::palette().color( QPalette::Window );
 
     // Weighted W3C formula
-    double brightness = ( bg.Red() / 255.0 ) * 0.299 +
-        ( bg.Green() / 255.0 ) * 0.587 +
-        ( bg.Blue() / 255.0 ) * 0.117;
+    double brightness = ( bg.red() / 255.0 ) * 0.299 +
+        ( bg.green() / 255.0 ) * 0.587 +
+        ( bg.blue() / 255.0 ) * 0.117;
 
     return brightness < 0.5;
 #endif
 }
 
 
-wxColour KIPLATFORM::UI::GetDialogBGColour()
+QColor KIPLATFORM::UI::GetDialogBGColour()
 {
-    return wxSystemSettings::GetColour( wxSYS_COLOUR_BTNFACE );
+    return QApplication::palette().color( QPalette::Button );
 }
 
 
-void KIPLATFORM::UI::GetInfoBarColours( wxColour& aFGColour, wxColour& aBGColour )
+void KIPLATFORM::UI::GetInfoBarColours( QColor& aFGColour, QColor& aBGColour )
 {
-    aBGColour = wxSystemSettings::GetColour( wxSYS_COLOUR_INFOBK );
-    aFGColour = wxSystemSettings::GetColour( wxSYS_COLOUR_INFOTEXT );
+    aBGColour = QApplication::palette().color( QPalette::ToolTipBase );
+    aFGColour = QApplication::palette().color( QPalette::ToolTipText );
 }
 
 
-void KIPLATFORM::UI::ForceFocus( wxWindow* aWindow )
+void KIPLATFORM::UI::ForceFocus( QWidget* aWindow )
 {
-    aWindow->SetFocus();
+    aWindow->setFocus();
 }
 
 
-bool KIPLATFORM::UI::IsWindowActive( wxWindow* aWindow )
+bool KIPLATFORM::UI::IsWindowActive( QWidget* aWindow )
 {
     if(! aWindow )
     {
 	    return false;
     }
 
-    return ( aWindow->GetHWND() == GetForegroundWindow() );
+    return ( (HWND)aWindow->winId() == GetForegroundWindow() );
 }
 
 
-void KIPLATFORM::UI::ReparentModal( wxNonOwnedWindow* aWindow )
+void KIPLATFORM::UI::ReparentModal( QWidget* aWindow )
 {
     // Not needed on this platform
 }
 
 
-void KIPLATFORM::UI::FixupCancelButtonCmdKeyCollision( wxWindow *aWindow )
+void KIPLATFORM::UI::FixupCancelButtonCmdKeyCollision( QWidget *aWindow )
 {
     // Not needed on this platform
 }
 
 
-bool KIPLATFORM::UI::IsStockCursorOk( wxStockCursor aCursor )
+bool KIPLATFORM::UI::IsStockCursorOk( Qt::CursorShape aCursor )
 {
     switch( aCursor )
     {
-    case wxCURSOR_BULLSEYE:
-    case wxCURSOR_HAND:
-    case wxCURSOR_ARROW:
+    case Qt::CrossCursor:
+    case Qt::PointingHandCursor:
+    case Qt::ArrowCursor:
         return true;
     default:
         return false;
@@ -123,37 +108,37 @@ bool KIPLATFORM::UI::IsStockCursorOk( wxStockCursor aCursor )
 }
 
 
-void KIPLATFORM::UI::LargeChoiceBoxHack( wxChoice* aChoice )
+void KIPLATFORM::UI::LargeChoiceBoxHack( QComboBox* aChoice )
 {
     // Not implemented
 }
 
 
-void KIPLATFORM::UI::EllipsizeChoiceBox( wxChoice* aChoice )
+void KIPLATFORM::UI::EllipsizeChoiceBox( QComboBox* aChoice )
 {
     // Not implemented
 }
 
 
-double KIPLATFORM::UI::GetPixelScaleFactor( const wxWindow* aWindow )
+double KIPLATFORM::UI::GetPixelScaleFactor( const QWidget* aWindow )
 {
-    return aWindow->GetContentScaleFactor();
+    return aWindow->devicePixelRatioF();
 }
 
 
-double KIPLATFORM::UI::GetContentScaleFactor( const wxWindow* aWindow )
+double KIPLATFORM::UI::GetContentScaleFactor( const QWidget* aWindow )
 {
-    return aWindow->GetDPIScaleFactor();
+    return aWindow->logicalDpiX() / 96.0;
 }
 
 
-wxSize KIPLATFORM::UI::GetUnobscuredSize( const wxWindow* aWindow )
+QSize KIPLATFORM::UI::GetUnobscuredSize( const QWidget* aWindow )
 {
-    return aWindow->GetClientSize();
+    return aWindow->size();
 }
 
 
-void KIPLATFORM::UI::SetOverlayScrolling( const wxWindow* aWindow, bool overlay )
+void KIPLATFORM::UI::SetOverlayScrolling( const QWidget* aWindow, bool overlay )
 {
     // Not implemented
 }
@@ -165,41 +150,42 @@ bool KIPLATFORM::UI::AllowIconsInMenus()
 }
 
 
-wxPoint KIPLATFORM::UI::GetMousePosition()
+QPoint KIPLATFORM::UI::GetMousePosition()
 {
-    return wxGetMousePosition();
+    return QCursor::pos();
 }
 
 
-bool KIPLATFORM::UI::WarpPointer( wxWindow* aWindow, int aX, int aY )
+bool KIPLATFORM::UI::WarpPointer( QWidget* aWindow, int aX, int aY )
 {
-    aWindow->WarpPointer( aX, aY );
+    QPoint global = aWindow->mapToGlobal( QPoint( aX, aY ) );
+    QCursor::setPos( global );
     return true;
 }
 
 
-void KIPLATFORM::UI::ImmControl( wxWindow* aWindow, bool aEnable )
+void KIPLATFORM::UI::ImmControl( QWidget* aWindow, bool aEnable )
 {
     if ( !aEnable )
     {
-        ImmAssociateContext( aWindow->GetHWND(), NULL );
+        ImmAssociateContext( (HWND)aWindow->winId(), NULL );
     }
     else
     {
-        ImmAssociateContextEx( aWindow->GetHWND(), 0, IACE_DEFAULT );
+        ImmAssociateContextEx( (HWND)aWindow->winId(), 0, IACE_DEFAULT );
     }
 }
 
 
-void KIPLATFORM::UI::ImeNotifyCancelComposition( wxWindow* aWindow )
+void KIPLATFORM::UI::ImeNotifyCancelComposition( QWidget* aWindow )
 {
-    const HIMC himc = ImmGetContext( aWindow->GetHWND() );
+    const HIMC himc = ImmGetContext( (HWND)aWindow->winId() );
     ImmNotifyIME( himc, NI_COMPOSITIONSTR, CPS_CANCEL, 0 );
-    ImmReleaseContext( aWindow->GetHWND(), himc );
+    ImmReleaseContext( (HWND)aWindow->winId(), himc );
 }
 
 
-bool KIPLATFORM::UI::InfiniteDragPrepareWindow( wxWindow* aWindow )
+bool KIPLATFORM::UI::InfiniteDragPrepareWindow( QWidget* aWindow )
 {
     return true;
 }
@@ -211,6 +197,6 @@ void KIPLATFORM::UI::InfiniteDragReleaseWindow()
 }
 
 
-void KIPLATFORM::UI::SetFloatLevel( wxWindow* aWindow )
+void KIPLATFORM::UI::SetFloatLevel( QWidget* aWindow )
 {
 }
