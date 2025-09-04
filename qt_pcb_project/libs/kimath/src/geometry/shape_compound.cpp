@@ -10,6 +10,7 @@ const QString SHAPE_COMPOUND::Format( bool aCplusPlus ) const
         result += QString::fromStdString( shape->Format() ) + " ";
 
     return result;
+    return result;
 }
 
 SHAPE_COMPOUND::SHAPE_COMPOUND( const std::vector<SHAPE*>& aShapes ) :

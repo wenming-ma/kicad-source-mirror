@@ -9,7 +9,7 @@
 #include <drc/drc_engine.h>
 #include <lset.h>
 #include <settings/nested_settings.h>
-#include <widgets/ui_common.h>
+#include "widgets/ui_common.h"
 #include <zone_settings.h>
 #include <teardrop/teardrop_parameters.h>
 #include <router/pns_meander.h>

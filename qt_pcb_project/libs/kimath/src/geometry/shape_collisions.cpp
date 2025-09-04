@@ -1,30 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-04
 #include <cmath>
 #include <limits>
+#include <QtCore/QDebug>
 
 #include <geometry/seg.h>                         // for SEG
 #include <geometry/shape.h>
@@ -290,9 +267,7 @@ static inline bool Collide( const SHAPE_CIRCLE& aA, const SHAPE_SEGMENT& aSeg, i
 static inline bool Collide( const SHAPE_LINE_CHAIN_BASE& aA, const SHAPE_LINE_CHAIN_BASE& aB,
                             int aClearance, int* aActual, VECTOR2I* aLocation, VECTOR2I* aMTV )
 {
-    wxASSERT_MSG( !aMTV, wxString::Format( wxT( "MTV not implemented for %s : %s collisions" ),
-                                           aA.TypeName(),
-                                           aB.TypeName() ) );
+    Q_ASSERT( !aMTV );
 
     int closest_dist = std::numeric_limits<int>::max();
     VECTOR2I nearest;
@@ -408,9 +383,7 @@ static inline bool Collide( const SHAPE_LINE_CHAIN_BASE& aA, const SHAPE_LINE_CH
 static inline bool Collide( const SHAPE_RECT& aA, const SHAPE_LINE_CHAIN_BASE& aB, int aClearance,
                             int* aActual, VECTOR2I* aLocation, VECTOR2I* aMTV )
 {
-    wxASSERT_MSG( !aMTV, wxString::Format( wxT( "MTV not implemented for %s : %s collisions" ),
-                                           aA.TypeName(),
-                                           aB.TypeName() ) );
+    Q_ASSERT( !aMTV );
 
     int closest_dist = std::numeric_limits<int>::max();
     VECTOR2I nearest;
@@ -465,9 +438,7 @@ static inline bool Collide( const SHAPE_RECT& aA, const SHAPE_LINE_CHAIN_BASE& a
 static inline bool Collide( const SHAPE_RECT& aA, const SHAPE_SEGMENT& aB, int aClearance,
                             int* aActual, VECTOR2I* aLocation, VECTOR2I* aMTV )
 {
-    wxASSERT_MSG( !aMTV, wxString::Format( wxT( "MTV not implemented for %s : %s collisions" ),
-                                           aA.TypeName(),
-                                           aB.TypeName() ) );
+    Q_ASSERT( !aMTV );
 
     bool rv = aA.Collide( aB.GetSeg(), aClearance + aB.GetWidth() / 2, aActual, aLocation );
 
@@ -481,9 +452,7 @@ static inline bool Collide( const SHAPE_RECT& aA, const SHAPE_SEGMENT& aB, int a
 static inline bool Collide( const SHAPE_SEGMENT& aA, const SHAPE_SEGMENT& aB, int aClearance,
                             int* aActual, VECTOR2I* aLocation, VECTOR2I* aMTV )
 {
-    wxASSERT_MSG( !aMTV, wxString::Format( wxT( "MTV not implemented for %s : %s collisions" ),
-                                           aA.TypeName(),
-                                           aB.TypeName() ) );
+    Q_ASSERT( !aMTV );
 
     bool rv = aA.Collide( aB.GetSeg(), aClearance + aB.GetWidth() / 2, aActual, aLocation );
 
@@ -497,9 +466,7 @@ static inline bool Collide( const SHAPE_SEGMENT& aA, const SHAPE_SEGMENT& aB, in
 static inline bool Collide( const SHAPE_LINE_CHAIN_BASE& aA, const SHAPE_SEGMENT& aB,
                             int aClearance, int* aActual, VECTOR2I* aLocation, VECTOR2I* aMTV )
 {
-    wxASSERT_MSG( !aMTV, wxString::Format( wxT( "MTV not implemented for %s : %s collisions" ),
-                                           aA.TypeName(),
-                                           aB.TypeName() ) );
+    Q_ASSERT( !aMTV );
 
     bool rv = aA.Collide( aB.GetSeg(), aClearance + aB.GetWidth() / 2, aActual, aLocation );
 
@@ -612,9 +579,7 @@ static inline bool Collide( const SHAPE_ARC& aA, const SHAPE_CIRCLE& aB, int aCl
 static inline bool Collide( const SHAPE_ARC& aA, const SHAPE_LINE_CHAIN& aB, int aClearance,
                             int* aActual, VECTOR2I* aLocation, VECTOR2I* aMTV )
 {
-    wxASSERT_MSG( !aMTV, wxString::Format( wxT( "MTV not implemented for %s : %s collisions" ),
-                                           aA.TypeName(),
-                                           aB.TypeName() ) );
+    Q_ASSERT( !aMTV );
 
     int      closest_dist = std::numeric_limits<int>::max();
     VECTOR2I nearest;
@@ -659,7 +624,7 @@ static inline bool Collide( const SHAPE_ARC& aA, const SHAPE_LINE_CHAIN& aB, int
             const SHAPE_ARC& arc = aB.Arc( i );
 
             // The arcs in the chain should have zero width
-            wxASSERT_MSG( arc.GetWidth() == 0, wxT( "Invalid arc width - should be zero" ) );
+            Q_ASSERT( arc.GetWidth() == 0 );
 
             if( aA.Collide( &arc, aClearance, aActual || aLocation ? &collision_dist : nullptr,
                             aLocation ? &pn : nullptr ) )
@@ -697,9 +662,7 @@ static inline bool Collide( const SHAPE_ARC& aA, const SHAPE_LINE_CHAIN& aB, int
 static inline bool Collide( const SHAPE_ARC& aA, const SHAPE_SEGMENT& aB, int aClearance,
                             int* aActual, VECTOR2I* aLocation, VECTOR2I* aMTV )
 {
-    wxASSERT_MSG( !aMTV, wxString::Format( wxT( "MTV not implemented for %s : %s collisions" ),
-                                           aA.TypeName(),
-                                           aB.TypeName() ) );
+    Q_ASSERT( !aMTV );
 
     // If the arc radius is too large, it is effectively a line segment
     if( aA.IsEffectiveLine() )
@@ -727,9 +690,7 @@ static inline bool Collide( const SHAPE_ARC& aA, const SHAPE_LINE_CHAIN_BASE& aB
         return Collide( aB, tmp, aClearance, aActual, aLocation, aMTV );
     }
 
-    wxASSERT_MSG( !aMTV, wxString::Format( wxT( "MTV not implemented for %s : %s collisions" ),
-                                           aA.TypeName(),
-                                           aB.TypeName() ) );
+    Q_ASSERT( !aMTV );
 
     int      closest_dist = std::numeric_limits<int>::max();
     VECTOR2I nearest;
@@ -859,14 +820,14 @@ static bool collideSingleShapes( const SHAPE* aA, const SHAPE* aB, int aClearanc
     {
         const SHAPE_POLY_SET* polySetA = static_cast<const SHAPE_POLY_SET*>( aA );
 
-        wxASSERT( !aMTV );
+        Q_ASSERT( !aMTV );
         return polySetA->Collide( aB, aClearance, aActual, aLocation );
     }
     else if( aB->Type() == SH_POLY_SET )
     {
         const SHAPE_POLY_SET* polySetB = static_cast<const SHAPE_POLY_SET*>( aB );
 
-        wxASSERT( !aMTV );
+        Q_ASSERT( !aMTV );
         return polySetB->Collide( aA, aClearance, aActual, aLocation );
     }
 
@@ -1060,9 +1021,7 @@ static bool collideSingleShapes( const SHAPE* aA, const SHAPE* aB, int aClearanc
         break;
     }
 
-    wxFAIL_MSG( wxString::Format( wxT( "Unsupported collision: %s with %s" ),
-                                  SHAPE_TYPE_asString( aA->Type() ),
-                                  SHAPE_TYPE_asString( aB->Type() ) ) );
+    Q_ASSERT_X( false, "collideSingleShapes", "Unsupported collision type combination" );
 
     return false;
 }

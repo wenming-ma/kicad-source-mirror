@@ -29,6 +29,8 @@
 #include <map>
 #include <string>            // for basic_string
 
+#include <QtCore/QDebug>
+
 #include <clipper2/clipper.h>
 #include <core/kicad_algo.h> // for alg::run_on_pair
 #include <geometry/circle.h>
@@ -134,7 +136,7 @@ SHAPE_LINE_CHAIN::SHAPE_LINE_CHAIN( const Clipper2Lib::Path64&          aPath,
 
     // Clipper shouldn't return duplicate contiguous points. if it did, these would be
     // removed during Append() and we would have different number of shapes to points
-    wxASSERT( m_shapes.size() == m_points.size() );
+    Q_ASSERT( m_shapes.size() == m_points.size() );
 
     // Clipper might mess up the rotation of the indices such that an arc can be split between
     // the end point and wrap around to the start point. Lets fix the indices up now
@@ -178,7 +180,7 @@ Clipper2Lib::Path64 SHAPE_LINE_CHAIN::convertToClipper2( bool aRequiredOrientati
 
 void SHAPE_LINE_CHAIN::fixIndicesRotation()
 {
-    wxCHECK( m_shapes.size() == m_points.size(), /*void*/ );
+    Q_ASSERT( m_shapes.size() == m_points.size() );
 
     if( m_shapes.size() <= 1 )
         return;
@@ -192,7 +194,7 @@ void SHAPE_LINE_CHAIN::fixIndicesRotation()
         std::rotate( m_points.rbegin(), m_points.rbegin() + 1, m_points.rend() );
         std::rotate( m_shapes.rbegin(), m_shapes.rbegin() + 1, m_shapes.rend() );
 
-        // Sanity check - avoid infinite loops  (NB: wxCHECK is not thread-safe)
+        // Sanity check - avoid infinite loops  (NB: Q_ASSERT is not thread-safe)
         if( rotations++ > m_shapes.size() )
             return;
     }
@@ -263,8 +265,7 @@ void SHAPE_LINE_CHAIN::convertArc( ssize_t aArcIndex )
 void SHAPE_LINE_CHAIN::amendArc( size_t aArcIndex, const VECTOR2I& aNewStart,
                                  const VECTOR2I& aNewEnd )
 {
-    wxCHECK_MSG( aArcIndex <  m_arcs.size(), /* void */,
-                 wxT( "Invalid arc index requested." ) );
+    Q_ASSERT_X( aArcIndex <  m_arcs.size(), "GetArc", "Invalid arc index requested." );
 
     SHAPE_ARC& theArc = m_arcs[aArcIndex];
 
@@ -288,8 +289,7 @@ void SHAPE_LINE_CHAIN::splitArc( ssize_t aPtIndex, bool aCoincident )
     if( !IsPtOnArc( aPtIndex ) )
         return; // Nothing to do
 
-    wxCHECK_MSG( aPtIndex < static_cast<ssize_t>( m_shapes.size() ), /* void */,
-                 wxT( "Invalid point index requested." ) );
+    Q_ASSERT_X( aPtIndex < static_cast<ssize_t>( m_shapes.size() ), "IsArcSegment", "Invalid point index requested." );
 
     if( IsSharedPt( aPtIndex ) || IsArcEnd( aPtIndex ) )
     {
@@ -470,7 +470,7 @@ bool SHAPE_LINE_CHAIN::Collide( const VECTOR2I& aP, int aClearance, int* aActual
         const SHAPE_ARC& arc = Arc( i );
 
         // The arcs in the chain should have zero width
-        wxASSERT_MSG( arc.GetWidth() == 0, wxT( "Invalid arc width - should be zero" ) );
+        Q_ASSERT_X( arc.GetWidth() == 0, "Append", "Invalid arc width - should be zero" );
 
         if( arc.Collide( aP, aClearance, aActual, aLocation ) )
             return true;
@@ -864,7 +864,7 @@ bool SHAPE_LINE_CHAIN::Collide( const SEG& aSeg, int aClearance, int* aActual,
         VECTOR2I         pos;
 
         // The arcs in the chain should have zero width
-        wxASSERT_MSG( arc.GetWidth() == 0, wxT( "Invalid arc width - should be zero" ) );
+        Q_ASSERT_X( arc.GetWidth() == 0, "Append", "Invalid arc width - should be zero" );
 
         if( arc.Collide( aSeg, aClearance, aActual || aLocation ? &dist : nullptr,
                          aLocation ? &pos : nullptr ) )
@@ -1001,8 +1001,8 @@ void SHAPE_LINE_CHAIN::Replace( int aStartIndex, int aEndIndex, const SHAPE_LINE
         aStartIndex += PointCount();
 
     // We only process lines in order in this house
-    wxASSERT( aStartIndex <= aEndIndex );
-    wxASSERT( aEndIndex < static_cast<int>( m_points.size() ) );
+    Q_ASSERT( aStartIndex <= aEndIndex );
+    Q_ASSERT( aEndIndex < static_cast<int>( m_points.size() ) );
 
     SHAPE_LINE_CHAIN newLine = aLine;
 
@@ -1064,7 +1064,7 @@ void SHAPE_LINE_CHAIN::Replace( int aStartIndex, int aEndIndex, const SHAPE_LINE
 
 void SHAPE_LINE_CHAIN::Remove( int aStartIndex, int aEndIndex )
 {
-    wxCHECK( m_shapes.size() == m_points.size(), /*void*/ );
+    Q_ASSERT( m_shapes.size() == m_points.size() );
 
     // Unwrap the chain first (correctly handling removing arc at
     // end of chain coincident with start)
@@ -1256,7 +1256,11 @@ int SHAPE_LINE_CHAIN::FindSegment( const VECTOR2I& aP, int aThreshold ) const
 
 int SHAPE_LINE_CHAIN::ShapeCount() const
 {
-    wxCHECK2_MSG( m_points.size() == m_shapes.size(), return 0, "Invalid chain!" );
+    if( m_points.size() != m_shapes.size() )
+    {
+        Q_ASSERT_X( false, "SegmentCount", "Invalid chain!" );
+        return 0;
+    }
 
     if( m_points.size() < 2 )
         return 0;
@@ -1277,8 +1281,11 @@ SEG SHAPE_LINE_CHAIN::Segment( int aIndex ) const
     if( aIndex < 0 )
         aIndex += segCount;
 
-    wxCHECK( aIndex < segCount && aIndex >= 0,
-             m_points.size() > 0 ? SEG( m_points.back(), m_points.back() ) : SEG( 0, 0, 0, 0 ) );
+    if( !(aIndex < segCount && aIndex >= 0) )
+    {
+        Q_ASSERT( aIndex < segCount && aIndex >= 0 );
+        return m_points.size() > 0 ? SEG( m_points.back(), m_points.back() ) : SEG( 0, 0, 0, 0 );
+    }
 
     if( aIndex == (int) ( m_points.size() - 1 ) && m_closed )
         return SEG( m_points[aIndex], m_points[0], aIndex );
@@ -1320,7 +1327,11 @@ int SHAPE_LINE_CHAIN::NextShape( int aPointIndex ) const
 
     // The second element should only get populated when the point is shared between two shapes.
     // If not a shared point, then the index should always go on the first element.
-    wxCHECK2_MSG( m_shapes[aPointIndex].first != SHAPE_IS_PT, return -1, "malformed chain!" );
+    if( m_shapes[aPointIndex].first == SHAPE_IS_PT )
+    {
+        Q_ASSERT_X( false, "ArcIndex", "malformed chain!" );
+        return -1;
+    }
 
     ssize_t currentArcIdx = ArcIndex( aPointIndex );
 
@@ -1414,11 +1425,15 @@ const SHAPE_LINE_CHAIN SHAPE_LINE_CHAIN::Slice( int aStartIndex, int aEndIndex, 
         aStartIndex += PointCount();
 
     // Bad programmer checks
-    wxCHECK( aStartIndex >= 0, SHAPE_LINE_CHAIN() );
-    wxCHECK( aEndIndex >= 0, SHAPE_LINE_CHAIN() );
-    wxCHECK( aStartIndex < PointCount(), SHAPE_LINE_CHAIN() );
-    wxCHECK( aEndIndex < PointCount(), SHAPE_LINE_CHAIN() );
-    wxCHECK( aEndIndex >= aStartIndex, SHAPE_LINE_CHAIN() );
+    if( aStartIndex < 0 || aEndIndex < 0 || aStartIndex >= PointCount() || aEndIndex >= PointCount() || aEndIndex < aStartIndex )
+    {
+        Q_ASSERT( aStartIndex >= 0 );
+        Q_ASSERT( aEndIndex >= 0 );
+        Q_ASSERT( aStartIndex < PointCount() );
+        Q_ASSERT( aEndIndex < PointCount() );
+        Q_ASSERT( aEndIndex >= aStartIndex );
+        return SHAPE_LINE_CHAIN();
+    }
 
     int numPoints = static_cast<int>( m_points.size() );
 
@@ -1512,7 +1527,7 @@ const SHAPE_LINE_CHAIN SHAPE_LINE_CHAIN::Slice( int aStartIndex, int aEndIndex, 
         }
         else
         {
-            wxASSERT_MSG( !IsArcSegment( i ), wxT( "Still on an arc segment, we missed something..." ) );
+            Q_ASSERT_X( !IsArcSegment( i ), "Slice", "Still on an arc segment, we missed something..." );
 
             if( i == aStartIndex )
                 rv.Append( m_points[i] );
@@ -1525,7 +1540,7 @@ const SHAPE_LINE_CHAIN SHAPE_LINE_CHAIN::Slice( int aStartIndex, int aEndIndex, 
 
     }
 
-    wxASSERT( rv.m_points.size() == rv.m_shapes.size() );
+    Q_ASSERT( rv.m_points.size() == rv.m_shapes.size() );
 
     return rv;
 }
@@ -1630,7 +1645,7 @@ void SHAPE_LINE_CHAIN::Insert( size_t aVertex, const VECTOR2I& aP )
         return;
     }
 
-    wxCHECK( aVertex < m_points.size(), /* void */ );
+    Q_ASSERT( aVertex < m_points.size() );
 
     if( aVertex > 0 && IsPtOnArc( aVertex ) )
         splitArc( aVertex );
@@ -1651,7 +1666,7 @@ void SHAPE_LINE_CHAIN::Insert( size_t aVertex, const SHAPE_ARC& aArc )
 
 void SHAPE_LINE_CHAIN::Insert( size_t aVertex, const SHAPE_ARC& aArc, int aMaxError )
 {
-    wxCHECK( aVertex < m_points.size(), /* void */ );
+    Q_ASSERT( aVertex < m_points.size() );
 
     if( aVertex > 0 && IsPtOnArc( aVertex ) )
         splitArc( aVertex );
@@ -2789,7 +2804,7 @@ bool SHAPE_LINE_CHAIN::OffsetLine( int aAmount, CORNER_STRATEGY aCornerStrategy,
 
     SHAPE_LINE_CHAIN outline = poly.COutline( 0 );
 
-    wxASSERT( outline.IsClosed() );
+    Q_ASSERT( outline.IsClosed() );
 
     const VECTOR2I& start = CPoint( 0 );
     const VECTOR2I& end = CPoint( -1 );
@@ -2847,13 +2862,13 @@ bool SHAPE_LINE_CHAIN::OffsetLine( int aAmount, CORNER_STRATEGY aCornerStrategy,
     if( aLeft.CPoint( 0 ) != start )
     {
         aLeft = aLeft.Reverse();
-        wxASSERT( aLeft.CPoint( 0 ) == start );
+        Q_ASSERT( aLeft.CPoint( 0 ) == start );
     }
 
     if( aRight.CPoint( 0 ) != start )
     {
         aRight = aRight.Reverse();
-        wxASSERT( aRight.CPoint( 0 ) == start );
+        Q_ASSERT( aRight.CPoint( 0 ) == start );
     }
 
     SEG base( CPoint( 0 ), CPoint( 1 ) );

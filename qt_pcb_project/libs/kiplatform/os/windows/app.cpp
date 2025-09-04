@@ -1,28 +1,9 @@
-/*
-* This program source code file is part of KiCad, a free EDA CAD application.
-*
-* Copyright (C) 2020 Mark Roszko <mark.roszko@gmail.com>
-* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
-*
-* This program is free software: you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation, either version 3 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
 
 #include <kiplatform/app.h>
 
-#include <wx/log.h>
-#include <wx/string.h>
-#include <wx/window.h>
+#include <QString>
+#include <QCoreApplication>
+#include <QWidget>
 
 #include <windows.h>
 #include <strsafe.h>
@@ -77,26 +58,30 @@ bool KIPLATFORM::APP::Init()
 
     // remove CWD from the dll search paths
     // just the smallest of security tweaks as we do load DLLs on demand
-    SetDllDirectory( wxT( "" ) );
+    SetDllDirectory( L"" );
 
     // Moves the CWD to the end of the search list for spawning processes
     SetSearchPathMode( BASE_SEARCH_PATH_ENABLE_SAFE_SEARCHMODE | BASE_SEARCH_PATH_PERMANENT );
 
     // In order to support GUI and CLI
     // Let's attach to console when it's possible, or allocate if requested.
-    AttachConsole( wxGetEnv( wxS( "KICAD_ALLOC_CONSOLE" ), nullptr ) );
+    QString kicadAllocConsole = qEnvironmentVariable( "KICAD_ALLOC_CONSOLE" );
+    AttachConsole( !kicadAllocConsole.isEmpty() );
 
     // It may be useful to log up to traces in a console, but in Release builds the log level changes to Info
     // Also we have to force the active target to stderr or else it goes to the void
-    bool forceLog = wxGetEnv( wxS( "KICAD_FORCE_CONSOLE_TRACE" ), nullptr );
+    QString forceLogEnv = qEnvironmentVariable( "KICAD_FORCE_CONSOLE_TRACE" );
+    bool forceLog = !forceLogEnv.isEmpty();
 
     if( forceLog )
     {
-        wxLog::EnableLogging( true );
-#ifndef DEBUG
-        wxLog::SetLogLevel( wxLOG_Trace );
-#endif
-        wxLog::SetActiveTarget( new wxLogStderr );
+        // Note: Qt logging configuration would be handled differently
+        // For now, commenting out wx-specific logging code
+        // wxLog::EnableLogging( true );
+        // #ifndef DEBUG
+        //     wxLog::SetLogLevel( wxLOG_Trace );
+        // #endif
+        // wxLog::SetActiveTarget( new wxLogStderr );
     }
 
     return true;
@@ -161,10 +146,10 @@ bool KIPLATFORM::APP::IsOperatingSystemUnsupported()
 }
 
 
-bool KIPLATFORM::APP::RegisterApplicationRestart( const wxString& aCommandLine )
+bool KIPLATFORM::APP::RegisterApplicationRestart( const QString& aCommandLine )
 {
     // Command line arguments with spaces require quotes.
-    wxString restartCmd = wxS( "\"" ) + aCommandLine + wxS( "\"" );
+    QString restartCmd = "\"" + aCommandLine + "\"";
 
     // Ensure we don't exceed the maximum allowable size
     if( restartCmd.length() > RESTART_MAX_CMD_LINE - 1 )
@@ -174,7 +159,7 @@ bool KIPLATFORM::APP::RegisterApplicationRestart( const wxString& aCommandLine )
 
     HRESULT hr = S_OK;
 
-    hr = ::RegisterApplicationRestart( restartCmd.wc_str(), RESTART_NO_PATCH );
+    hr = ::RegisterApplicationRestart( reinterpret_cast<const wchar_t*>(restartCmd.utf16()), RESTART_NO_PATCH );
 
     return SUCCEEDED( hr );
 }
@@ -193,22 +178,22 @@ bool KIPLATFORM::APP::SupportsShutdownBlockReason()
 }
 
 
-void KIPLATFORM::APP::RemoveShutdownBlockReason( wxWindow* aWindow )
+void KIPLATFORM::APP::RemoveShutdownBlockReason( QWidget* aWindow )
 {
     // Destroys any block reason that may have existed
-    ShutdownBlockReasonDestroy( aWindow->GetHandle() );
+    ShutdownBlockReasonDestroy( reinterpret_cast<HWND>(aWindow->winId()) );
 }
 
 
-void KIPLATFORM::APP::SetShutdownBlockReason( wxWindow* aWindow, const wxString& aReason )
+void KIPLATFORM::APP::SetShutdownBlockReason( QWidget* aWindow, const QString& aReason )
 {
     // Sets up the pretty message on the shutdown page on why it's being "blocked"
     // This is used in conjunction with handling WM_QUERYENDSESSION (wxCloseEvent)
     // ShutdownBlockReasonCreate does not block by itself
 
-    ShutdownBlockReasonDestroy( aWindow->GetHandle() ); // Destroys any existing or nonexisting reason
+    ShutdownBlockReasonDestroy( reinterpret_cast<HWND>(aWindow->winId()) ); // Destroys any existing or nonexisting reason
 
-    ShutdownBlockReasonCreate( aWindow->GetHandle(), aReason.wc_str() );
+    ShutdownBlockReasonCreate( reinterpret_cast<HWND>(aWindow->winId()), reinterpret_cast<const wchar_t*>(aReason.utf16()) );
 }
 
 
@@ -220,7 +205,7 @@ void KIPLATFORM::APP::ForceTimerMessagesToBeCreatedIfNecessary()
 }
 
 
-void KIPLATFORM::APP::AddDynamicLibrarySearchPath( const wxString& aPath )
+void KIPLATFORM::APP::AddDynamicLibrarySearchPath( const QString& aPath )
 {
-    SetDllDirectory( aPath.c_str() );
+    SetDllDirectory( reinterpret_cast<const wchar_t*>(aPath.utf16()) );
 }

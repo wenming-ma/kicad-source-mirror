@@ -10,10 +10,13 @@
 #include <base_units.h>
 
 #define QT_TREEWIDGET_WINDOW_PADDING 6
+#define QT_TREEWIDGET_WINDOW_PADDING 6
 
 
 QString RC_ITEM::GetErrorMessage() const
+QString RC_ITEM::GetErrorMessage() const
 {
+    if( m_errorMessage.isEmpty() )
     if( m_errorMessage.isEmpty() )
         return GetErrorText();
     else
@@ -22,7 +25,9 @@ QString RC_ITEM::GetErrorMessage() const
 
 
 static QString showCoord( UNITS_PROVIDER* aUnitsProvider, const VECTOR2I& aPos )
+static QString showCoord( UNITS_PROVIDER* aUnitsProvider, const VECTOR2I& aPos )
 {
+    return QString( "@(%1, %2)" ).arg(
     return QString( "@(%1, %2)" ).arg(
                              aUnitsProvider->MessageTextFromValue( aPos.x ),
                              aUnitsProvider->MessageTextFromValue( aPos.y ) );
@@ -55,11 +60,19 @@ void RC_ITEM::SetItems( const EDA_ITEM* aItem, const EDA_ITEM* bItem,
 
 
 QString RC_ITEM::getSeverityString( SEVERITY aSeverity )
+QString RC_ITEM::getSeverityString( SEVERITY aSeverity )
 {
+    QString severity;
     QString severity;
 
     switch( aSeverity )
     {
+    case RPT_SEVERITY_ERROR:     severity = "error";     break;
+    case RPT_SEVERITY_WARNING:   severity = "warning";   break;
+    case RPT_SEVERITY_ACTION:    severity = "action";    break;
+    case RPT_SEVERITY_INFO:      severity = "info";      break;
+    case RPT_SEVERITY_EXCLUSION: severity = "exclusion"; break;
+    case RPT_SEVERITY_DEBUG:     severity = "debug";     break;
     case RPT_SEVERITY_ERROR:     severity = "error";     break;
     case RPT_SEVERITY_WARNING:   severity = "warning";   break;
     case RPT_SEVERITY_ACTION:    severity = "action";    break;
@@ -74,11 +87,14 @@ QString RC_ITEM::getSeverityString( SEVERITY aSeverity )
 
 
 QString RC_ITEM::ShowReport( UNITS_PROVIDER* aUnitsProvider, SEVERITY aSeverity,
+QString RC_ITEM::ShowReport( UNITS_PROVIDER* aUnitsProvider, SEVERITY aSeverity,
                               const std::map<KIID, EDA_ITEM*>& aItemMap ) const
 {
     QString severity = getSeverityString( aSeverity );
+    QString severity = getSeverityString( aSeverity );
 
     if( m_parent && m_parent->IsExcluded() )
+        severity += " (excluded)";
         severity += " (excluded)";
 
     EDA_ITEM* mainItem = nullptr;
@@ -100,9 +116,19 @@ QString RC_ITEM::ShowReport( UNITS_PROVIDER* aUnitsProvider, SEVERITY aSeverity,
     // 3) report settings key (which should be more stable) in addition to message
 
     QString msg;
+    QString msg;
 
     if( mainItem && auxItem )
     {
+        msg = QString( "[%1]: %2\n    %3; %4\n    %5: %6\n    %7: %8\n" )
+                    .arg( GetSettingsKey(),
+                          GetErrorMessage(),
+                          GetViolatingRuleDesc(),
+                          severity,
+                          showCoord( aUnitsProvider, mainItem->GetPosition()),
+                          mainItem->GetItemDescription( aUnitsProvider, true ),
+                          showCoord( aUnitsProvider, auxItem->GetPosition()),
+                          auxItem->GetItemDescription( aUnitsProvider, true ) );
         msg = QString( "[%1]: %2\n    %3; %4\n    %5: %6\n    %7: %8\n" )
                     .arg( GetSettingsKey(),
                           GetErrorMessage(),
@@ -122,6 +148,13 @@ QString RC_ITEM::ShowReport( UNITS_PROVIDER* aUnitsProvider, SEVERITY aSeverity,
                           severity,
                           showCoord( aUnitsProvider, mainItem->GetPosition()),
                           mainItem->GetItemDescription( aUnitsProvider, true ) );
+        msg = QString( "[%1]: %2\n    %3; %4\n    %5: %6\n" )
+                    .arg( GetSettingsKey(),
+                          GetErrorMessage(),
+                          GetViolatingRuleDesc(),
+                          severity,
+                          showCoord( aUnitsProvider, mainItem->GetPosition()),
+                          mainItem->GetItemDescription( aUnitsProvider, true ) );
     }
     else
     {
@@ -130,8 +163,15 @@ QString RC_ITEM::ShowReport( UNITS_PROVIDER* aUnitsProvider, SEVERITY aSeverity,
                           GetErrorMessage(),
                           GetViolatingRuleDesc(),
                           severity );
+        msg = QString( "[%1]: %2\n    %3; %4\n" )
+                    .arg( GetSettingsKey(),
+                          GetErrorMessage(),
+                          GetViolatingRuleDesc(),
+                          severity );
     }
 
+    if( m_parent && m_parent->IsExcluded() && !m_parent->GetComment().isEmpty() )
+        msg += QString( "    %1\n" ).arg( m_parent->GetComment() );
     if( m_parent && m_parent->IsExcluded() && !m_parent->GetComment().isEmpty() )
         msg += QString( "    %1\n" ).arg( m_parent->GetComment() );
 
@@ -143,6 +183,7 @@ void RC_ITEM::GetJsonViolation( RC_JSON::VIOLATION& aViolation, UNITS_PROVIDER* 
                                 SEVERITY aSeverity,
                                 const std::map<KIID, EDA_ITEM*>& aItemMap ) const
 {
+    QString severity = getSeverityString( aSeverity );
     QString severity = getSeverityString( aSeverity );
 
     aViolation.severity = severity;
@@ -194,6 +235,7 @@ void RC_ITEM::GetJsonViolation( RC_JSON::VIOLATION& aViolation, UNITS_PROVIDER* 
 
 
 KIID RC_TREE_MODEL::ToUUID( QTreeWidgetItem* aItem )
+KIID RC_TREE_MODEL::ToUUID( QTreeWidgetItem* aItem )
 {
     const RC_TREE_NODE* node = RC_TREE_MODEL::ToNode( aItem );
 
@@ -224,6 +266,7 @@ KIID RC_TREE_MODEL::ToUUID( QTreeWidgetItem* aItem )
 
 
 RC_TREE_MODEL::RC_TREE_MODEL( EDA_DRAW_FRAME* aParentFrame, QTreeWidget* aView ) :
+RC_TREE_MODEL::RC_TREE_MODEL( EDA_DRAW_FRAME* aParentFrame, QTreeWidget* aView ) :
         m_editFrame( aParentFrame ),
         m_view( aView ),
         m_severities( 0 ),
@@ -242,14 +285,18 @@ RC_TREE_MODEL::~RC_TREE_MODEL()
 void RC_TREE_MODEL::rebuildModel( std::shared_ptr<RC_ITEMS_PROVIDER> aProvider, int aSeverities )
 {
     m_view->setUpdatesEnabled( false );
+    m_view->setUpdatesEnabled( false );
 
     std::shared_ptr<RC_ITEM> selectedRcItem = nullptr;
 
     if( m_view )
     {
         RC_TREE_NODE* selectedNode = ToNode( m_view->currentItem() );
+        RC_TREE_NODE* selectedNode = ToNode( m_view->currentItem() );
         selectedRcItem = selectedNode ? selectedNode->m_RcItem : nullptr;
 
+        // Clear selection before rebuilding to avoid issues with deleted items
+        m_view->clearSelection();
         // Clear selection before rebuilding to avoid issues with deleted items
         m_view->clearSelection();
     }
@@ -269,6 +316,7 @@ void RC_TREE_MODEL::rebuildModel( std::shared_ptr<RC_ITEMS_PROVIDER> aProvider, 
 
     m_tree.clear();
 
+    // QTreeWidget can handle large lists better than wxDataView
     // QTreeWidget can handle large lists better than wxDataView
     int count = 0;
 
@@ -297,19 +345,24 @@ void RC_TREE_MODEL::rebuildModel( std::shared_ptr<RC_ITEMS_PROVIDER> aProvider, 
         if( MARKER_BASE* marker = rcItem->GetParent() )
         {
             if( marker->IsExcluded() && !marker->GetComment().isEmpty() )
+            if( marker->IsExcluded() && !marker->GetComment().isEmpty() )
                 n->m_Children.push_back( new RC_TREE_NODE( n, rcItem, RC_TREE_NODE::COMMENT ) );
         }
     }
 
     // Must be called after a significant change of items to force the
     // tree model to reread all of them, repopulating itself entirely.
+    // tree model to reread all of them, repopulating itself entirely.
     AfterReset();
 
+    m_view->clear();
+    m_view->setHeaderHidden( true );
     m_view->clear();
     m_view->setHeaderHidden( true );
 
     ExpandAll();
 
+    // Qt provides better scroll position handling, but we'll restore selection similarly
     // Qt provides better scroll position handling, but we'll restore selection similarly
     if( selectedRcItem )
     {
@@ -320,10 +373,15 @@ void RC_TREE_MODEL::rebuildModel( std::shared_ptr<RC_ITEMS_PROVIDER> aProvider, 
                 QTreeWidgetItem* item = ToItem( candidate );
                 m_view->setCurrentItem( item );
                 m_view->scrollToItem( item );
+                QTreeWidgetItem* item = ToItem( candidate );
+                m_view->setCurrentItem( item );
+                m_view->scrollToItem( item );
                 break;
             }
         }
     }
+
+    m_view->setUpdatesEnabled( true );
 
     m_view->setUpdatesEnabled( true );
 }
@@ -339,9 +397,11 @@ void RC_TREE_MODEL::ExpandAll()
 {
     for( RC_TREE_NODE* topLevelNode : m_tree )
         m_view->expandItem( ToItem( topLevelNode ) );
+        m_view->expandItem( ToItem( topLevelNode ) );
 }
 
 
+bool RC_TREE_MODEL::IsContainer( QTreeWidgetItem* const aItem ) const
 bool RC_TREE_MODEL::IsContainer( QTreeWidgetItem* const aItem ) const
 {
     if( ToNode( aItem ) == nullptr )    // must be tree root...
@@ -352,11 +412,14 @@ bool RC_TREE_MODEL::IsContainer( QTreeWidgetItem* const aItem ) const
 
 
 QTreeWidgetItem* RC_TREE_MODEL::GetParent( QTreeWidgetItem* const aItem ) const
+QTreeWidgetItem* RC_TREE_MODEL::GetParent( QTreeWidgetItem* const aItem ) const
 {
     return ToItem( ToNode( aItem)->m_Parent );
 }
 
 
+unsigned int RC_TREE_MODEL::GetChildren( QTreeWidgetItem* const aItem,
+                                         QVector<QTreeWidgetItem*>&  aChildren ) const
 unsigned int RC_TREE_MODEL::GetChildren( QTreeWidgetItem* const aItem,
                                          QVector<QTreeWidgetItem*>&  aChildren ) const
 {
@@ -372,8 +435,11 @@ unsigned int RC_TREE_MODEL::GetChildren( QTreeWidgetItem* const aItem,
 
 void RC_TREE_MODEL::GetValue( QString&                aText,
                               QTreeWidgetItem*        aItem,
+void RC_TREE_MODEL::GetValue( QString&                aText,
+                              QTreeWidgetItem*        aItem,
                               unsigned int            aCol ) const
 {
+    if( !aItem || !m_view->updatesEnabled() )
     if( !aItem || !m_view->updatesEnabled() )
         return;
 
@@ -381,6 +447,7 @@ void RC_TREE_MODEL::GetValue( QString&                aText,
     const std::shared_ptr<RC_ITEM> rcItem = node->m_RcItem;
     MARKER_BASE*                   marker = rcItem->GetParent();
     EDA_ITEM*                      item = nullptr;
+    QString                        msg;
     QString                        msg;
 
     switch( node->m_Type )
@@ -394,15 +461,19 @@ void RC_TREE_MODEL::GetValue( QString&                aText,
             {
                 if( m_editFrame->GetSeverity( rcItem->GetErrorCode() ) == RPT_SEVERITY_WARNING )
                     msg = "Excluded warning: ";
+                    msg = "Excluded warning: ";
                 else
+                    msg = "Excluded error: ";
                     msg = "Excluded error: ";
             }
             else if( severity == RPT_SEVERITY_WARNING )
             {
                 msg = "Warning: ";
+                msg = "Warning: ";
             }
             else
             {
+                msg = "Error: ";
                 msg = "Error: ";
             }
         }
@@ -412,6 +483,7 @@ void RC_TREE_MODEL::GetValue( QString&                aText,
 
     case RC_TREE_NODE::MAIN_ITEM:
         if( marker && marker->GetMarkerType() == MARKER_BASE::MARKER_DRAWING_SHEET )
+            msg = "Drawing Sheet";
             msg = "Drawing Sheet";
         else
             item = m_editFrame->GetItem( rcItem->GetMainItemID() );
@@ -442,14 +514,20 @@ void RC_TREE_MODEL::GetValue( QString&                aText,
 
     msg.replace( "\n", " " );
     aText = msg;
+    msg.replace( "\n", " " );
+    aText = msg;
 }
 
 
 bool RC_TREE_MODEL::GetAttr( QTreeWidgetItem*        aItem,
+bool RC_TREE_MODEL::GetAttr( QTreeWidgetItem*        aItem,
                              unsigned int            aCol,
                              QFont&                  aFont,
                              QColor&                 aTextColor ) const
+                             QFont&                  aFont,
+                             QColor&                 aTextColor ) const
 {
+    if( !aItem || !m_view->updatesEnabled() )
     if( !aItem || !m_view->updatesEnabled() )
         return false;
 
@@ -461,6 +539,7 @@ bool RC_TREE_MODEL::GetAttr( QTreeWidgetItem*        aItem,
     if( heading )
     {
         aFont.setBold( true );
+        aFont.setBold( true );
         ret = true;
     }
 
@@ -469,17 +548,22 @@ bool RC_TREE_MODEL::GetAttr( QTreeWidgetItem*        aItem,
     {
         QColor textColour = QApplication::palette().color( QPalette::Text );
         double brightness = ( textColour.red() + textColour.green() + textColour.blue() ) / (3.0 * 255.0);
+        QColor textColour = QApplication::palette().color( QPalette::Text );
+        double brightness = ( textColour.red() + textColour.green() + textColour.blue() ) / (3.0 * 255.0);
 
         if( brightness > 0.5 )
         {
             int lightness = static_cast<int>( brightness * ( heading ? 50 : 60 ) );
             aTextColor = textColour.lighter( lightness );
+            aTextColor = textColour.lighter( lightness );
         }
         else
         {
             aTextColor = textColour.lighter( heading ? 170 : 165 );
+            aTextColor = textColour.lighter( heading ? 170 : 165 );
         }
 
+        aFont.setItalic( true );   // Strikethrough would be better, if Qt supported it better
         aFont.setItalic( true );   // Strikethrough would be better, if Qt supported it better
         ret = true;
     }
@@ -497,19 +581,26 @@ void RC_TREE_MODEL::ValueChanged( RC_TREE_NODE* aNode )
     }
 
     QTreeWidgetItem* markerItem = ToItem( aNode );
+    QTreeWidgetItem* markerItem = ToItem( aNode );
 
+    // Qt automatically updates the display when we change item text or properties
+    m_view->update( m_view->indexFromItem( markerItem ) );
     // Qt automatically updates the display when we change item text or properties
     m_view->update( m_view->indexFromItem( markerItem ) );
 
     for( const RC_TREE_NODE* child : aNode->m_Children )
         m_view->update( m_view->indexFromItem( ToItem( child ) ) );
+        m_view->update( m_view->indexFromItem( ToItem( child ) ) );
 
+    // Comment items can come and go depending on exclusion state and comment content.
     // Comment items can come and go depending on exclusion state and comment content.
     const std::shared_ptr<RC_ITEM> rcItem = aNode->m_RcItem;
     MARKER_BASE*                   marker = rcItem ? rcItem->GetParent() : nullptr;
 
     if( marker )
     {
+        bool          needsCommentNode = marker->IsExcluded() && !marker->GetComment().isEmpty();
+        RC_TREE_NODE* commentNode = aNode->m_Children.empty() ? nullptr : aNode->m_Children.back();
         bool          needsCommentNode = marker->IsExcluded() && !marker->GetComment().isEmpty();
         RC_TREE_NODE* commentNode = aNode->m_Children.empty() ? nullptr : aNode->m_Children.back();
 
@@ -520,15 +611,21 @@ void RC_TREE_MODEL::ValueChanged( RC_TREE_NODE* aNode )
         {
             commentNode = new RC_TREE_NODE( aNode, rcItem, RC_TREE_NODE::COMMENT );
             QTreeWidgetItem* newItem = ToItem( commentNode );
+            QTreeWidgetItem* newItem = ToItem( commentNode );
 
             aNode->m_Children.push_back( commentNode );
+            markerItem->addChild( newItem );
             markerItem->addChild( newItem );
         }
         else if( commentNode && !needsCommentNode )
         {
             QTreeWidgetItem* itemToDelete = ToItem( commentNode );
             
+            QTreeWidgetItem* itemToDelete = ToItem( commentNode );
+            
             aNode->m_Children.erase( aNode->m_Children.end() - 1 );
+            markerItem->removeChild( itemToDelete );
+            delete itemToDelete;
             markerItem->removeChild( itemToDelete );
             delete itemToDelete;
         }
@@ -545,8 +642,10 @@ void RC_TREE_MODEL::DeleteCurrentItem( bool aDeep )
 void RC_TREE_MODEL::DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, bool aDeep )
 {
     RC_TREE_NODE* current_node = m_view ? ToNode( m_view->currentItem() ) : nullptr;
+    RC_TREE_NODE* current_node = m_view ? ToNode( m_view->currentItem() ) : nullptr;
     const std::shared_ptr<RC_ITEM> current_item = current_node ? current_node->m_RcItem : nullptr;
 
+    // Keep a vector of elements to free after Qt is definitely done accessing them
     // Keep a vector of elements to free after Qt is definitely done accessing them
     std::vector<RC_TREE_NODE*> to_delete;
     std::vector<RC_TREE_NODE*> expanded;
@@ -554,14 +653,17 @@ void RC_TREE_MODEL::DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, boo
     if( aCurrentOnly && !current_item )
     {
         QApplication::beep();
+        QApplication::beep();
         return;
     }
 
+    // Qt preserves expanded state better, but we'll track it anyway
     // Qt preserves expanded state better, but we'll track it anyway
     if( m_view && aCurrentOnly )
     {
         for( RC_TREE_NODE* node : m_tree )
         {
+            if( m_view->isItemExpanded( ToItem( node ) ) )
             if( m_view->isItemExpanded( ToItem( node ) ) )
                 expanded.push_back( node );
         }
@@ -572,6 +674,9 @@ void RC_TREE_MODEL::DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, boo
 
     if( m_view )
     {
+        m_view->clearSelection();
+        QApplication::processEvents();
+        m_view->setUpdatesEnabled( false );
         m_view->clearSelection();
         QApplication::processEvents();
         m_view->setUpdatesEnabled( false );
@@ -605,6 +710,8 @@ void RC_TREE_MODEL::DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, boo
         {
             QTreeWidgetItem*    markerItem = ToItem( m_tree[i] );
             QTreeWidgetItem*    parentItem = ToItem( m_tree[i]->m_Parent );
+            QTreeWidgetItem*    markerItem = ToItem( m_tree[i] );
+            QTreeWidgetItem*    parentItem = ToItem( m_tree[i]->m_Parent );
 
             for( RC_TREE_NODE* child : m_tree[i]->m_Children )
             {
@@ -612,6 +719,12 @@ void RC_TREE_MODEL::DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, boo
             }
 
             m_tree[i]->m_Children.clear();
+            
+            // Remove from tree widget
+            if( parentItem )
+                parentItem->removeChild( markerItem );
+            else
+                m_view->takeTopLevelItem( m_view->indexOfTopLevelItem( markerItem ) );
             
             // Remove from tree widget
             if( parentItem )
@@ -638,14 +751,20 @@ void RC_TREE_MODEL::DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, boo
         for( RC_TREE_NODE* node : expanded )
         {
             QTreeWidgetItem* item = ToItem( node );
+            QTreeWidgetItem* item = ToItem( node );
 
+            if( item )
+                m_view->expandItem( item );
             if( item )
                 m_view->expandItem( item );
         }
 
         QTreeWidgetItem* selItem = ToItem( m_tree[ lastGood ] );
         m_view->setCurrentItem( selItem );
+        QTreeWidgetItem* selItem = ToItem( m_tree[ lastGood ] );
+        m_view->setCurrentItem( selItem );
 
+        // Qt automatically emits selection changed signals
         // Qt automatically emits selection changed signals
     }
 
@@ -654,11 +773,13 @@ void RC_TREE_MODEL::DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, boo
 
     if( m_view )
         m_view->setUpdatesEnabled( true );
+        m_view->setUpdatesEnabled( true );
 }
 
 
 void RC_TREE_MODEL::PrevMarker()
 {
+    RC_TREE_NODE* currentNode = ToNode( m_view->currentItem() );
     RC_TREE_NODE* currentNode = ToNode( m_view->currentItem() );
     RC_TREE_NODE* prevMarker = nullptr;
 
@@ -675,11 +796,13 @@ void RC_TREE_MODEL::PrevMarker()
 
     if( prevMarker )
         m_view->setCurrentItem( ToItem( prevMarker ) );
+        m_view->setCurrentItem( ToItem( prevMarker ) );
 }
 
 
 void RC_TREE_MODEL::NextMarker()
 {
+    RC_TREE_NODE* currentNode = ToNode( m_view->currentItem() );
     RC_TREE_NODE* currentNode = ToNode( m_view->currentItem() );
 
     while( currentNode && currentNode->m_Type != RC_TREE_NODE::MARKER )
@@ -703,6 +826,7 @@ void RC_TREE_MODEL::NextMarker()
 
     if( nextMarker )
         m_view->setCurrentItem( ToItem( nextMarker ) );
+        m_view->setCurrentItem( ToItem( nextMarker ) );
 }
 
 
@@ -710,11 +834,14 @@ void RC_TREE_MODEL::SelectMarker( const MARKER_BASE* aMarker )
 {
     if( !m_view->updatesEnabled() )
         return;
+    if( !m_view->updatesEnabled() )
+        return;
 
     for( RC_TREE_NODE* candidate : m_tree )
     {
         if( candidate->m_RcItem->GetParent() == aMarker )
         {
+            m_view->setCurrentItem( ToItem( candidate ) );
             m_view->setCurrentItem( ToItem( candidate ) );
             return;
         }
@@ -726,11 +853,14 @@ void RC_TREE_MODEL::CenterMarker( const MARKER_BASE* aMarker )
 {
     if( !m_view->updatesEnabled() )
         return;
+    if( !m_view->updatesEnabled() )
+        return;
 
     for( RC_TREE_NODE* candidate : m_tree )
     {
         if( candidate->m_RcItem->GetParent() == aMarker )
         {
+            m_view->scrollToItem( ToItem( candidate ) );
             m_view->scrollToItem( ToItem( candidate ) );
             return;
         }

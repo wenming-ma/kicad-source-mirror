@@ -359,10 +359,10 @@ int BEZIER_POLY::findInflectionPoints( double& aT1, double& aT2 )
 void BEZIER_POLY::cubicParabolicApprox( std::vector<VECTOR2D>& aOutput, double aMaxError )
 {
     std::vector<BEZIER_POLY> stack;
-    stack.push_back( std::vector<VECTOR2D>(4) );
-    stack.push_back( std::vector<VECTOR2D>(4) );
-    stack.push_back( std::vector<VECTOR2D>(4) );
-    stack.push_back( std::vector<VECTOR2D>(4) );
+    stack.push_back( BEZIER_POLY(std::vector<VECTOR2D>(4)) );
+    stack.push_back( BEZIER_POLY(std::vector<VECTOR2D>(4)) );
+    stack.push_back( BEZIER_POLY(std::vector<VECTOR2D>(4)) );
+    stack.push_back( BEZIER_POLY(std::vector<VECTOR2D>(4)) );
 
     BEZIER_POLY* c = this;
     BEZIER_POLY* b1 = &stack[0];
