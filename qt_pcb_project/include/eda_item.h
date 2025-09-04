@@ -213,7 +213,7 @@ public:
 
     virtual const BOX2I ViewBBox() const override;
 
-    virtual std::vector<int> ViewGetLayers() const override;
+    virtual QVector<int> ViewGetLayers() const override;
 
     virtual EMBEDDED_FILES* GetEmbeddedFiles() { return nullptr; }
 

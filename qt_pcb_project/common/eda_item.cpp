@@ -8,6 +8,7 @@
 #include <i18n_utility.h>
 #include <QRegExp>
 #include <QDebug>
+#include <QVector>
 #include <eda_pattern_match.h>
 
 EDA_ITEM::EDA_ITEM( EDA_ITEM* parent, KICAD_T idType, bool isSCH_ITEM, bool isBOARD_ITEM ) :
@@ -298,10 +299,10 @@ const BOX2I EDA_ITEM::ViewBBox() const
 }
 
 
-std::vector<int> EDA_ITEM::ViewGetLayers() const
+QVector<int> EDA_ITEM::ViewGetLayers() const
 {
     // Basic fallback
-    std::vector<int> layers{ 1 };
+    QVector<int> layers{ 1 };
     return layers;
 }
 

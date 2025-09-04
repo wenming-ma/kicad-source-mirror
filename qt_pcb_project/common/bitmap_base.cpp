@@ -290,7 +290,7 @@ void BITMAP_BASE::DrawBitmap( QPainter* aDC, const VECTOR2I& aPos,
         int h = m_bitmap->height();
 
         QImage  image( w, h, QImage::Format_ARGB32 );
-        QColor bgColor = aBackgroundColor.ToQColor();
+        QColor bgColor = aBackgroundColor.ToColor();
 
         image.fill( bgColor );
         

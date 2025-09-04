@@ -114,7 +114,7 @@ QString dumpParamCfg( const PARAM_CFG& aParam )
         s += QString::number(*static_cast<const PARAM_CFG_DOUBLE&>( aParam ).m_Pt_param);
         break;
     case paramcfg_id::PARAM_WXSTRING:
-        s += *static_cast<const PARAM_CFG_WXSTRING&>( aParam ).m_Pt_param;
+        s += *static_cast<const PARAM_CFG_QSTRING&>( aParam ).m_Pt_param;
         break;
     case paramcfg_id::PARAM_FILENAME:
         s += *static_cast<const PARAM_CFG_FILENAME&>( aParam ).m_Pt_param;
@@ -408,13 +408,11 @@ void ADVANCED_CFG::loadSettings( QSettings& aCfg )
 
     configParams.push_back( new PARAM_CFG_INT( true, AC_KEYS::V3DRT_BevelHeight_um,
                                                &m_3DRT_BevelHeight_um, m_3DRT_BevelHeight_um,
-                                               0, std::numeric_limits<int>::max(),
-                                               AC_GROUPS::V3D_RayTracing ) );
+                                               0, std::numeric_limits<int>::max() ) );
 
     configParams.push_back( new PARAM_CFG_DOUBLE( true, AC_KEYS::V3DRT_BevelExtentFactor,
                                                   &m_3DRT_BevelExtentFactor,
-                                                  m_3DRT_BevelExtentFactor, 0.0, 100.0,
-                                                  AC_GROUPS::V3D_RayTracing ) );
+                                                  m_3DRT_BevelExtentFactor, 0.0, 100.0 ) );
 
     configParams.push_back( new PARAM_CFG_BOOL( true, AC_KEYS::Use3DConnexionDriver,
                                                 &m_Use3DConnexionDriver, m_Use3DConnexionDriver ) );
@@ -546,8 +544,8 @@ void ADVANCED_CFG::loadSettings( QSettings& aCfg )
                                                &m_PNSProcessClusterTimeout, 100, 10, 10000 ) );
 
     QString traceMasks;
-    configParams.push_back( new PARAM_CFG_WXSTRING( true, AC_KEYS::TraceMasks, &traceMasks,
-                                                    QString("") ) );
+    configParams.push_back( new PARAM_CFG_QSTRING( true, AC_KEYS::TraceMasks, &traceMasks,
+                                                   QString("") ) );
 
     // Load configuration parameters from QSettings
     for( PARAM_CFG* param : configParams )

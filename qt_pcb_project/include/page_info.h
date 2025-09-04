@@ -9,6 +9,8 @@
 
 // Qt includes for paper size and orientation
 #include <QPrinter>
+#include <QPageSize>
+#include <QPageLayout>
 
 /// Min and max page sizes for clamping, in mils.
 #define MIN_PAGE_SIZE_MILS          1000
@@ -64,10 +66,10 @@ public:
     bool IsPortrait() const { return m_portrait; }
 
     // Return Qt style printing orientation.
-    QPrinter::Orientation  GetQtOrientation() const { return IsPortrait() ? QPrinter::Portrait : QPrinter::Landscape; }
+    QPageLayout::Orientation  GetQtOrientation() const { return IsPortrait() ? QPageLayout::Portrait : QPageLayout::Landscape; }
 
     // Return Qt style paper size associated with page type name.
-    QPrinter::PageSize GetPaperId() const { return m_paper_id; }
+    QPageSize::PageSizeId GetPaperId() const { return m_paper_id; }
 
     void SetWidthMM(  double aWidthInMM ) { SetWidthMils( aWidthInMM * 1000 / 25.4 ); }
     void SetWidthMils(  double aWidthInMils );
@@ -110,7 +112,7 @@ public:
 
 protected:
     // only the class implementation(s) may use this constructor
-    PAGE_INFO( const VECTOR2D& aSizeMils, const QString& aName, QPrinter::PageSize aPaperId );
+    PAGE_INFO( const VECTOR2D& aSizeMils, const QString& aName, QPageSize::PageSizeId aPaperId );
 
 private:
     // standard pre-defined sizes
@@ -140,7 +142,7 @@ private:
 
     bool        m_portrait;         // true if portrait, false if landscape
 
-    QPrinter::PageSize m_paper_id;  // Qt style paper id.
+    QPageSize::PageSizeId m_paper_id;  // Qt style paper id.
 
     static double s_user_height;
     static double s_user_width;
