@@ -98,10 +98,10 @@ long ASSET_ARCHIVE::GetFilePointer( const QString& aFilePath, const unsigned cha
 
     Q_ASSERT( aDest );
 
-    if( !m_fileInfoCache.count( aFilePath ) )
+    if( !m_fileInfoCache.contains( aFilePath ) )
         return -1;
 
-    const FILE_INFO& fi = m_fileInfoCache.at( aFilePath );
+    const FILE_INFO& fi = m_fileInfoCache.value( aFilePath );
 
     *aDest = &m_cache[fi.offset];
 

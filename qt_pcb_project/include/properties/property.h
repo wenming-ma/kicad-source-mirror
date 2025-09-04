@@ -13,6 +13,7 @@
 #include <QPixmap>
 #include <QFont>
 #include <QValidator>
+#include <QMetaType>
 
 #ifdef DEBUG
 #include <QDebug>
@@ -25,6 +26,18 @@
 #include <type_traits>
 #include <algorithm>
 #include "std_optional_variants.h"
+
+// Specialize std::hash for QString to use with std::unordered_map
+namespace std {
+    template<>
+    struct hash<QString>
+    {
+        std::size_t operator()(const QString& s) const noexcept
+        {
+            return qHash(s);
+        }
+    };
+}
 
 class QStandardItem;
 class INSPECTABLE;
@@ -342,7 +355,7 @@ protected:
         QVariant a = getter( aObject );
 
         // We don't currently have a bool type, so change it to a numeric
-        if( a.type() == QVariant::Bool )
+        if( a.userType() == QMetaType::Bool )
             a = a.toBool() ? 1 : 0;
 
         if ( !( std::is_enum<T>::value && a.canConvert<int>() ) && !a.canConvert<T>() )

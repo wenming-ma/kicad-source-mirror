@@ -100,8 +100,8 @@ public:
     {
         std::vector<COLOR_SETTINGS*> ret;
 
-        for( const std::pair<const QString, COLOR_SETTINGS*>& entry : m_color_settings )
-            ret.push_back( entry.second );
+        for( auto it = m_color_settings.begin(); it != m_color_settings.end(); ++it )
+            ret.push_back( it.value() );
 
         std::sort( ret.begin(), ret.end(), []( COLOR_SETTINGS* a, COLOR_SETTINGS* b )
                                            {

@@ -91,7 +91,7 @@ public:
     {
         va_list argptr;
         va_start( argptr, aFmt );
-        traceV( aWhat, aFmt, argptr );
+        traceV( aWhat, QString(aFmt), argptr );
         va_end( argptr );
     }
 
