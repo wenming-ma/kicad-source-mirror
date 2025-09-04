@@ -1,11 +1,6 @@
 
-#include <QVector>
-#include <QHash>
-#include <QCursor>
-#include <QPixmap>
-#include <QBitmap>
-#include <QString>
-#include <QDebug>
+#include <vector>
+#include <map>
 
 #include <gal/cursors.h>
 #include <kiplatform/ui.h>
@@ -72,7 +67,7 @@
 
 
 
-static const QVector<CURSOR_STORE::CURSOR_DEF> standard_cursors = {
+static const std::vector<CURSOR_STORE::CURSOR_DEF> standard_cursors = {
     {
         KICURSOR::VOLTAGE_PROBE,
         nullptr,
@@ -268,7 +263,7 @@ static const QVector<CURSOR_STORE::CURSOR_DEF> standard_cursors = {
 };
 
 
-static const QVector<CURSOR_STORE::CURSOR_DEF> hidpi_cursors = {
+static const std::vector<CURSOR_STORE::CURSOR_DEF> hidpi_cursors = {
     {
         KICURSOR::VOLTAGE_PROBE,
         nullptr,
@@ -506,7 +501,7 @@ QCursor constructCursor( const CURSOR_STORE::CURSOR_DEF& aDef )
 }
 
 
-CURSOR_STORE::CURSOR_STORE( const QVector<CURSOR_DEF>& aDefs )
+CURSOR_STORE::CURSOR_STORE( const std::vector<CURSOR_DEF>& aDefs )
 {
     for( const auto& def : aDefs )
     {

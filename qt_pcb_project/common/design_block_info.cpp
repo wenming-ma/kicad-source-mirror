@@ -10,7 +10,7 @@
 #include <utility>
 #include <QString>
 #include <QStringList>
-#include <QVector>
+#include <vector>
 #include <kiface_base.h>
 #include <locale_io.h>
 
@@ -44,9 +44,9 @@ DESIGN_BLOCK_INFO* DESIGN_BLOCK_LIST::GetDesignBlockInfo( const QString& aDesign
 }
 
 
-QVector<SEARCH_TERM> DESIGN_BLOCK_INFO::GetSearchTerms()
+std::vector<SEARCH_TERM> DESIGN_BLOCK_INFO::GetSearchTerms()
 {
-    QVector<SEARCH_TERM> terms;
+    std::vector<SEARCH_TERM> terms;
 
     terms.emplace_back( SEARCH_TERM( GetLibNickname(), 4 ) );
     terms.emplace_back( SEARCH_TERM( GetName(), 8 ) );

@@ -1,6 +1,7 @@
 
 #include <magic_enum.hpp>
 #include <json_common.h>
+#include <vector>
 #include <QLoggingCategory>
 #include <QRegularExpression>
 #include <QTextStream>
@@ -68,7 +69,7 @@ struct API_PLUGIN_CONFIG
     QString name;
     QString description;
     PLUGIN_RUNTIME runtime;
-    QVector<PLUGIN_ACTION> actions;
+    std::vector<PLUGIN_ACTION> actions;
 
     API_PLUGIN& parent;
 };
@@ -147,7 +148,7 @@ API_PLUGIN_CONFIG::API_PLUGIN_CONFIG( API_PLUGIN& aParent, const QString& aConfi
                 {
                     a->identifier = QString("%1.%2").arg(identifier, a->identifier);
                     qDebug() << QString("Plugin: loaded action %1").arg(a->identifier);
-                    actions.append( *a );
+                    actions.emplace_back( *a );
                 }
             }
         }
@@ -210,7 +211,7 @@ const PLUGIN_RUNTIME& API_PLUGIN::Runtime() const
 }
 
 
-const QVector<PLUGIN_ACTION>& API_PLUGIN::Actions() const
+const std::vector<PLUGIN_ACTION>& API_PLUGIN::Actions() const
 {
     return m_config->actions;
 }
@@ -305,7 +306,7 @@ std::optional<PLUGIN_ACTION> API_PLUGIN::createActionFromJson( const nlohmann::j
             {
                 if( aJson.contains( aKey ) && aJson.at( aKey ).is_array() )
                 {
-                    QVector<QPixmap> bitmaps;
+                    std::vector<QPixmap> bitmaps;
 
                     for( const nlohmann::json& iconJs : aJson.at( aKey ) )
                     {
@@ -337,13 +338,13 @@ std::optional<PLUGIN_ACTION> API_PLUGIN::createActionFromJson( const nlohmann::j
                         bmp.load( absoluteIconPath );
 
                         if( !bmp.isNull() )
-                            bitmaps.append( bmp );
+                            bitmaps.emplace_back( bmp );
                         else
                             qDebug() << "Plugin: icon file not a valid bitmap";
                     }
 
-                    if( !bitmaps.isEmpty() )
-                        aDest = bitmaps.first();
+                    if( !bitmaps.empty() )
+                        aDest = bitmaps.front();
                 }
             };
 

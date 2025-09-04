@@ -21,7 +21,7 @@
 
 #include <notifications_manager.h>
 #include <widgets/kistatusbar.h>
-#include "widgets/ui_common.h"
+#include <widgets/ui_common.h>
 #include <json_common.h>
 #include <kiplatform/ui.h>
 

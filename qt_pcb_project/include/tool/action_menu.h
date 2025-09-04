@@ -10,7 +10,6 @@
 #include <QAction>
 #include <QString>
 #include <QPoint>
-#include <QHash>
 #include <tool/tool_event.h>
 
 class KIFACE_BASE;
@@ -263,7 +262,7 @@ protected:
     TOOL_INTERACTIVE* m_tool;
 
     /// Associates tool actions with menu item IDs. Non-owning.
-    QHash<int, const TOOL_ACTION*> m_toolActions;
+    std::map<int, const TOOL_ACTION*> m_toolActions;
 
     /// List of submenus.
     std::list<ACTION_MENU*> m_submenus;

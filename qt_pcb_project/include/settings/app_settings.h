@@ -6,9 +6,9 @@
 #include <settings/json_settings.h>
 #include <settings/grid_settings.h>
 #include <QString>
-#include <QVector>
-#include <QHash>
 #include <QSettings>
+#include <vector>
+#include <map>
 
 struct KICOMMON_API CROSS_PROBING_SETTINGS
 {
@@ -45,7 +45,7 @@ struct KICOMMON_API WINDOW_SETTINGS
     WINDOW_STATE state;
     QString mru_path;
     QString perspective;
-    QVector<double> zoom_factors;
+    std::vector<double> zoom_factors;
 
     CURSOR_SETTINGS cursor;
     GRID_SETTINGS grid;
@@ -57,9 +57,9 @@ public:
     struct FIND_REPLACE
     {
         QString         find_string;
-        QVector<QString> find_history;
+        std::vector<QString> find_history;
         QString         replace_string;
-        QVector<QString> replace_history;
+        std::vector<QString> replace_history;
 
         bool search_and_replace;
 
@@ -94,9 +94,9 @@ public:
 
     struct LIB_TREE
     {
-        QVector<QString> columns;
-        QHash<QString, int> column_widths;
-        QVector<QString>   open_libs;
+        std::vector<QString> columns;
+        std::map<QString, int> column_widths;
+        std::vector<QString> open_libs;
     };
 
     struct PRINTING
@@ -107,14 +107,14 @@ public:
         bool             use_theme;
         QString         color_theme;
         bool             title_block;
-        QVector<int> layers;
+        std::vector<int> layers;
     };
 
     struct SYSTEM
     {
         bool                  first_run_shown;
         int                   max_undo_items;
-        QVector<QString> file_history;
+        std::vector<QString> file_history;
         int                   units;
         int                   last_metric_units;
         int                   last_imperial_units;
@@ -124,7 +124,7 @@ public:
 
     struct PLUGINS
     {
-        QVector<std::pair<QString, bool>> actions;
+        std::vector<std::pair<QString, bool>> actions;
     };
 
     APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaVersion );
@@ -133,9 +133,9 @@ public:
 
     virtual bool MigrateFromLegacy( QSettings* aCfg ) override;
 
-    const QVector<GRID> DefaultGridSizeList() const;
+    const std::vector<GRID> DefaultGridSizeList() const;
 
-    const QVector<double> DefaultZoomList() const;
+    const std::vector<double> DefaultZoomList() const;
 
 public:
     CROSS_PROBING_SETTINGS m_CrossProbing;

@@ -9,6 +9,7 @@
 #include <lseq.h>
 #include <lset.h>
 #include <stroke_params.h>
+#include <vector>
 #include <geometry/eda_angle.h>
 
 class BOARD;
@@ -213,7 +214,7 @@ public:
 
     QString GetLayerName() const;
 
-    virtual QVector<int> ViewGetLayers() const override;
+    virtual std::vector<int> ViewGetLayers() const override;
 
     virtual void TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer,
                                           int aClearance, int aError, ERROR_LOC aErrorLoc,

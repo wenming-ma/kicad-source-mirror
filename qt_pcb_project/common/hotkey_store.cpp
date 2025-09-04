@@ -6,6 +6,8 @@
 #include <tool/tool_event.h>
 #include <tool/tool_action.h>
 #include <advanced_config.h>
+#include <map>
+#include <vector>
 
 class PSEUDO_ACTION : public TOOL_ACTION
 {
@@ -49,7 +51,7 @@ QString HOTKEY_STORE::GetAppName( TOOL_ACTION* aAction )
 
 QString HOTKEY_STORE::GetSectionName( TOOL_ACTION* aAction )
 {
-    QHash<QString, QString> s_AppNames = {
+    std::map<QString, QString> s_AppNames = {
             { QStringLiteral( "common" ),   _( "Common" ) },
             { QStringLiteral( "kicad" ),    _( "Project Manager" ) },
             { QStringLiteral( "eeschema" ), _( "Schematic Editor" ) },
@@ -61,7 +63,7 @@ QString HOTKEY_STORE::GetSectionName( TOOL_ACTION* aAction )
 
     QString appName = GetAppName( aAction );
 
-    if( s_AppNames.contains( appName ) )
+    if( s_AppNames.count( appName ) )
         return s_AppNames[ appName ];
     else
         return appName;
@@ -73,9 +75,9 @@ HOTKEY_STORE::HOTKEY_STORE()
 }
 
 
-void HOTKEY_STORE::Init( QVector<TOOL_ACTION*> aActionsList, bool aIncludeReadOnlyCmds )
+void HOTKEY_STORE::Init( std::vector<TOOL_ACTION*> aActionsList, bool aIncludeReadOnlyCmds )
 {
-    QHash<std::string, HOTKEY> masterMap;
+    std::map<std::string, HOTKEY> masterMap;
 
     for( TOOL_ACTION* action : aActionsList )
     {
@@ -142,7 +144,7 @@ void HOTKEY_STORE::Init( QVector<TOOL_ACTION*> aActionsList, bool aIncludeReadOn
 }
 
 
-QVector<HOTKEY_SECTION>& HOTKEY_STORE::GetSections()
+std::vector<HOTKEY_SECTION>& HOTKEY_STORE::GetSections()
 {
     return m_hk_sections;
 }

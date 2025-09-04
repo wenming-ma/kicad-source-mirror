@@ -5,15 +5,15 @@
 
 #include <kicommon.h>
 #include <QString>
-#include <QHash>
-#include <QVector>
+#include <map>
+#include <vector>
 #include <optional>
 
 class ENV_VAR_ITEM;
 
 namespace ENV_VAR
 {
-    using ENV_VAR_LIST = QVector<QString>;
+    using ENV_VAR_LIST = std::vector<QString>;
 
     KICOMMON_API bool IsEnvVarImmutable( const QString& aEnvVar );
 
@@ -22,7 +22,7 @@ namespace ENV_VAR
     KICOMMON_API QString GetVersionedEnvVarName( const QString& aBaseName );
 
     KICOMMON_API std::optional<QString>
-                 GetVersionedEnvVarValue( const QHash<QString, ENV_VAR_ITEM>& aMap,
+                 GetVersionedEnvVarValue( const std::map<QString, ENV_VAR_ITEM>& aMap,
                                           const QString&                         aBaseName );
 
     KICOMMON_API QString LookUpEnvVarHelp( const QString& aEnvVar );

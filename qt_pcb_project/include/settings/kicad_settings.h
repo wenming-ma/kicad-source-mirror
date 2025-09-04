@@ -7,7 +7,7 @@
 #include <QString>
 #include <QPoint>
 #include <QSize>
-#include <QVector>
+#include <vector>
 #define PCM_DEFAULT_REPOSITORY_URL "https://repository.kicad.org/repository.json"
 
 
@@ -23,11 +23,11 @@ public:
     int m_LeftWinWidth;
 
 
-    QVector<QString> m_OpenProjects;
+    std::vector<QString> m_OpenProjects;
 
     QString m_lastDesignBlockLibDir;
 
-    QVector<std::pair<QString, QString>> m_PcmRepositories;
+    std::vector<std::pair<QString, QString>> m_PcmRepositories;
     QString                               m_PcmLastDownloadDir;
 
     // This controls background update check for PCM.

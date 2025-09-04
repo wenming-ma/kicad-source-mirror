@@ -4,7 +4,6 @@
 #define PROPERTY_MGR_H
 
 #include <QString>
-#include <QHash>
 
 #include <functional>
 #include <list>

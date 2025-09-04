@@ -6,7 +6,7 @@
 #include <QMenu>
 #include <QAction>
 #include <QPainter>
-#include <QHash>
+#include <unordered_map>
 
 #include <cstdint>
 #include <mutex>
@@ -34,23 +34,26 @@ struct SCALED_BITMAP_ID {
 };
 
 
-inline uint qHash( const SCALED_BITMAP_ID& id, uint seed = 0 )
-{
-    static const bool sz64 = sizeof( uintptr_t ) == 8;
-    static const size_t mask = sz64 ? 0xF000000000000000uLL : 0xF0000000uL;
-    static const size_t offset = sz64 ? 60 : 28;
-
-    // The hash only needs to be fast and simple, not necessarily accurate - a collision
-    // only makes things slower, not broken. BITMAPS is a pointer, so the most
-    // significant several bits are generally going to be the same for all. Just convert
-    // it to an integer and stuff the scale factor into those bits.
-    uint result = ( (uintptr_t)( id.bitmap ) & ~mask ) |
-                  ( ( (uintptr_t)( id.scale ) & 0xF ) << offset );
-    return qHashBits( &result, sizeof(result), seed );
+namespace std {
+    template<>
+    struct hash<SCALED_BITMAP_ID> {
+        std::size_t operator()(const SCALED_BITMAP_ID& id) const noexcept {
+            static const bool sz64 = sizeof( uintptr_t ) == 8;
+            static const size_t mask = sz64 ? 0xF000000000000000uLL : 0xF0000000uL;
+            static const size_t offset = sz64 ? 60 : 28;
+            
+            // The hash only needs to be fast and simple, not necessarily accurate - a collision
+            // only makes things slower, not broken. BITMAPS is a pointer, so the most
+            // significant several bits are generally going to be the same for all. Just convert
+            // it to an integer and stuff the scale factor into those bits.
+            std::size_t result = ( (uintptr_t)( id.bitmap ) & ~mask ) |
+                                ( ( (uintptr_t)( id.scale ) & 0xF ) << offset );
+            return std::hash<std::size_t>{}(result);
+        }
+    };
 }
 
-
-static QHash<SCALED_BITMAP_ID, QPixmap> s_ScaledBitmapCache;
+static std::unordered_map<SCALED_BITMAP_ID, QPixmap> s_ScaledBitmapCache;
 
 static std::mutex s_BitmapCacheMutex;
 
@@ -128,7 +131,7 @@ QPixmap KiScaledBitmap( BITMAPS aBitmap, QWidget* aWidget, int aHeight, bool aQu
     else
     {
         QPixmap bitmap = GetBitmapStore()->GetBitmapScaled( aBitmap, scale, aHeight );
-        s_ScaledBitmapCache.insert( id, bitmap );
+        s_ScaledBitmapCache[id] = bitmap;
         return bitmap;
     }
 }

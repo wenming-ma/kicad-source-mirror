@@ -4,8 +4,8 @@
 #define  HOTKEYS_BASIC_H
 
 #include <QString>
-#include <QHash>
-#include <QVector>
+#include <map>
+#include <vector>
 
 #define EESCHEMA_HOTKEY_NAME QStringLiteral( "Eeschema" )
 #define PCBNEW_HOTKEY_NAME QStringLiteral( "PcbNew" )
@@ -45,14 +45,14 @@ QString AddHotkeyName( const QString& aText, int aHotKey, HOTKEY_ACTION_TYPE aSt
 void DisplayHotkeyList( EDA_BASE_FRAME* aFrame );
 
 void ReadHotKeyConfig( const QString&                              aFileName,
-                       QHash<QString, QPair<int, int>>&            aHotKeys );
+                       std::map<std::string, std::pair<int, int>>& aHotKeys );
 
-void ReadHotKeyConfigIntoActions( const QString& aFileName, QVector<TOOL_ACTION*>& aActions );
+void ReadHotKeyConfigIntoActions( const QString& aFileName, std::vector<TOOL_ACTION*>& aActions );
 
-int WriteHotKeyConfig( const QVector<TOOL_ACTION*>& aActions );
+int WriteHotKeyConfig( const std::vector<TOOL_ACTION*>& aActions );
 
-int ReadLegacyHotkeyConfigFile( const QString& aFilename, QHash<QString, int>& aMap );
+int ReadLegacyHotkeyConfigFile( const QString& aFilename, std::map<std::string, int>& aMap );
 
-int ReadLegacyHotkeyConfig( const QString& aAppname, QHash<QString, int>& aMap );
+int ReadLegacyHotkeyConfig( const QString& aAppname, std::map<std::string, int>& aMap );
 
 #endif // HOTKEYS_BASIC_H

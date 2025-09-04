@@ -2,6 +2,7 @@
 #include <trigo.h>
 #include <convert_basic_shapes_to_polygon.h>
 #include <geometry/geometry_utils.h>
+#include <vector>
 
 #include <callback_gal.h>
 
@@ -14,7 +15,7 @@ void CALLBACK_GAL::DrawGlyph( const KIFONT::GLYPH& aGlyph, int aNth, int aTotal 
     {
         const KIFONT::STROKE_GLYPH& glyph = static_cast<const KIFONT::STROKE_GLYPH&>( aGlyph );
 
-        for( const QVector<VECTOR2D>& pointList : glyph )
+        for( const std::vector<VECTOR2D>& pointList : glyph )
         {
             for( size_t ii = 1; ii < pointList.size(); ii++ )
             {

@@ -2,8 +2,8 @@
 #ifndef _LIB_TABLE_BASE_H_
 #define _LIB_TABLE_BASE_H_
 
-#include <QHash>
-#include <QVector>
+#include <map>
+#include <vector>
 #include <boost/ptr_container/ptr_vector.hpp>
 #include <memory>
 #include <mutex>
@@ -242,7 +242,7 @@ public:
 
     bool HasLibraryWithPath( const QString& aPath ) const;
 
-    QVector<QString> GetLogicalLibs();
+    std::vector<QString> GetLogicalLibs();
 
     QString GetFullURI( const QString& aLibNickname, bool aExpandEnvVars = true ) const;
 
@@ -295,7 +295,7 @@ protected:
     LIB_TABLE_ROWS m_rows;
 
     // this is a non-owning index into the LIB_TABLE_ROWS table
-    QHash<QString, LIB_TABLE_ROWS_ITER> m_rowsMap;
+    std::map<QString, LIB_TABLE_ROWS_ITER> m_rowsMap;
 
     // Mutex to protect access to the rows vector
     mutable std::shared_mutex m_mutex;

@@ -2,7 +2,7 @@
 #define KICAD_ASSET_ARCHIVE_H
 
 #include <kicommon.h>
-#include <QHash>
+#include <unordered_map>
 #include <vector>
 
 #include <QString>
@@ -27,7 +27,7 @@ private:
         size_t length;
     };
 
-    QHash<QString, FILE_INFO> m_fileInfoCache;
+    std::unordered_map<QString, FILE_INFO> m_fileInfoCache;
 
     std::vector<unsigned char> m_cache;
 

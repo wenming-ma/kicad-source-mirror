@@ -2,8 +2,8 @@
 #include <limits>
 #include <QString>
 #include <QStringList>
-#include <QVector>
-#include <QHash>
+#include <vector>
+#include <unordered_map>
 #include <harfbuzz/hb.h>
 #include <harfbuzz/hb-ft.h>
 #include <bezier_curves.h>
@@ -70,7 +70,7 @@ OUTLINE_FONT::EMBEDDING_PERMISSION OUTLINE_FONT::GetEmbeddingPermission() const
 
 
 OUTLINE_FONT* OUTLINE_FONT::LoadFont( const QString& aFontName, bool aBold, bool aItalic,
-                                      const QVector<QString>* aEmbeddedFiles,
+                                      const std::vector<QString>* aEmbeddedFiles,
                                       bool aForDrawingSheet )
 {
     std::unique_ptr<OUTLINE_FONT> font = std::make_unique<OUTLINE_FONT>();
@@ -153,7 +153,7 @@ static bool contourIsHole( const CONTOUR& c )
 }
 
 
-BOX2I OUTLINE_FONT::getBoundingBox( const QVector<std::unique_ptr<GLYPH>>& aGlyphs ) const
+BOX2I OUTLINE_FONT::getBoundingBox( const std::vector<std::unique_ptr<GLYPH>>& aGlyphs ) const
 {
     int minX = INT_MAX;
     int minY = INT_MAX;
@@ -185,14 +185,14 @@ BOX2I OUTLINE_FONT::getBoundingBox( const QVector<std::unique_ptr<GLYPH>>& aGlyp
 }
 
 
-void OUTLINE_FONT::GetLinesAsGlyphs( QVector<std::unique_ptr<GLYPH>>* aGlyphs,
+void OUTLINE_FONT::GetLinesAsGlyphs( std::vector<std::unique_ptr<GLYPH>>* aGlyphs,
                                      const QString& aText, const VECTOR2I& aPosition,
                                      const TEXT_ATTRIBUTES& aAttrs,
                                      const METRICS& aFontMetrics ) const
 {
     QStringList           strings;
-    QVector<VECTOR2I> positions;
-    QVector<VECTOR2I> extents;
+    std::vector<VECTOR2I> positions;
+    std::vector<VECTOR2I> extents;
     TEXT_STYLE_FLAGS      textStyle = 0;
 
     if( aAttrs.m_Italic )
@@ -208,7 +208,7 @@ void OUTLINE_FONT::GetLinesAsGlyphs( QVector<std::unique_ptr<GLYPH>>* aGlyphs,
 }
 
 
-VECTOR2I OUTLINE_FONT::GetTextAsGlyphs( BOX2I* aBBox, QVector<std::unique_ptr<GLYPH>>* aGlyphs,
+VECTOR2I OUTLINE_FONT::GetTextAsGlyphs( BOX2I* aBBox, std::vector<std::unique_ptr<GLYPH>>* aGlyphs,
                                         const QString& aText, const VECTOR2I& aSize,
                                         const VECTOR2I& aPosition, const EDA_ANGLE& aAngle,
                                         bool aMirror, const VECTOR2I& aOrigin,
@@ -260,7 +260,7 @@ VECTOR2I OUTLINE_FONT::GetTextAsGlyphs( BOX2I* aBBox, QVector<std::unique_ptr<GL
 }
 
 
-VECTOR2I OUTLINE_FONT::getTextAsGlyphs( BOX2I* aBBox, QVector<std::unique_ptr<GLYPH>>* aGlyphs,
+VECTOR2I OUTLINE_FONT::getTextAsGlyphs( BOX2I* aBBox, std::vector<std::unique_ptr<GLYPH>>* aGlyphs,
                                         const QString& aText, const VECTOR2I& aSize,
                                         const VECTOR2I& aPosition, const EDA_ANGLE& aAngle,
                                         bool aMirror, const VECTOR2I& aOrigin,
@@ -307,7 +307,7 @@ uint qHash(const GLYPH_CACHE_KEY& k)
 
 
 VECTOR2I OUTLINE_FONT::getTextAsGlyphsUnlocked( BOX2I* aBBox,
-                                                QVector<std::unique_ptr<GLYPH>>* aGlyphs,
+                                                std::vector<std::unique_ptr<GLYPH>>* aGlyphs,
                                                 const QString& aText, const VECTOR2I& aSize,
                                                 const VECTOR2I& aPosition, const EDA_ANGLE& aAngle,
                                                 bool aMirror, const VECTOR2I& aOrigin,
@@ -347,7 +347,7 @@ VECTOR2I OUTLINE_FONT::getTextAsGlyphsUnlocked( BOX2I* aBBox,
 
     // GLYPH_DATA is a collection of all outlines in the glyph; for example the 'o' glyph
     // generally contains 2 contours, one for the glyph outline and one for the hole
-    static QHash<GLYPH_CACHE_KEY, GLYPH_DATA> s_glyphCache;
+    static std::unordered_map<GLYPH_CACHE_KEY, GLYPH_DATA> s_glyphCache;
 
     for( unsigned int i = 0; i < glyphCount; i++ )
     {
@@ -415,11 +415,11 @@ VECTOR2I OUTLINE_FONT::getTextAsGlyphsUnlocked( BOX2I* aBBox,
             }
 
             std::unique_ptr<OUTLINE_GLYPH> glyph = std::make_unique<OUTLINE_GLYPH>();
-            QVector<SHAPE_LINE_CHAIN>  holes;
+            std::vector<SHAPE_LINE_CHAIN>  holes;
 
             for( CONTOUR& c : glyphData.m_Contours )
             {
-                QVector<VECTOR2D> points = c.m_Points;
+                std::vector<VECTOR2D> points = c.m_Points;
                 SHAPE_LINE_CHAIN      shape;
 
                 shape.ReservePoints( points.size() );

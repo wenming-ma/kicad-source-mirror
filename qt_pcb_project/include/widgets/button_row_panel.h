@@ -5,7 +5,7 @@
 
 #include <QWidget>
 #include <QString>
-#include <QVector>
+#include <vector>
 #include <functional>
 
 // Forward defs for private-only classes
@@ -27,7 +27,7 @@ public:
         BTN_CALLBACK    m_callback;
     };
 
-    using BTN_DEF_LIST = QVector<BTN_DEF>;
+    using BTN_DEF_LIST = std::vector<BTN_DEF>;
 
     BUTTON_ROW_PANEL( QWidget* aParent,
         const BTN_DEF_LIST& aLeftBtns,
