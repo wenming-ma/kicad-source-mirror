@@ -20,7 +20,7 @@ BEZIER_POLY::BEZIER_POLY( const VECTOR2I& aStart, const VECTOR2I& aCtrl1,
 }
 
 
-BEZIER_POLY::BEZIER_POLY( const std::vector<VECTOR2I>& aControlPoints )
+BEZIER_POLY::BEZIER_POLY( const QVector<VECTOR2I>& aControlPoints )
 {
     m_ctrlPts.reserve( aControlPoints.size() );
 
@@ -84,10 +84,10 @@ bool BEZIER_POLY::isFlat( double aMaxError ) const
 }
 
 
-void BEZIER_POLY::GetPoly( std::vector<VECTOR2I>& aOutput, int aMaxError )
+void BEZIER_POLY::GetPoly( QVector<VECTOR2I>& aOutput, int aMaxError )
 {
     aOutput.clear();
-    std::vector<VECTOR2D> buffer;
+    QVector<VECTOR2D> buffer;
     GetPoly( buffer, aMaxError );
 
     aOutput.reserve( buffer.size() );
@@ -134,7 +134,7 @@ VECTOR2D BEZIER_POLY::eval( double t )
     }
 }
 
-void BEZIER_POLY::getQuadPoly( std::vector<VECTOR2D>& aOutput, double aMaxError )
+void BEZIER_POLY::getQuadPoly( QVector<VECTOR2D>& aOutput, double aMaxError )
 {
     double ddx = 2 * m_ctrlPts[1].x - m_ctrlPts[0].x - m_ctrlPts[2].x;
     double ddy = 2 * m_ctrlPts[1].y - m_ctrlPts[0].y - m_ctrlPts[2].y;
@@ -250,14 +250,14 @@ void BEZIER_POLY::subdivide( double aT, BEZIER_POLY& aLeft, BEZIER_POLY& aRight 
 }
 
 
-void BEZIER_POLY::recursiveSegmentation( std::vector<VECTOR2D>& aOutput, double aThreshhold )
+void BEZIER_POLY::recursiveSegmentation( QVector<VECTOR2D>& aOutput, double aThreshhold )
 {
     qCDebug(BEZIER_DBG) << "recursiveSegmentation with threshold" << aThreshhold;
-    std::vector<BEZIER_POLY> stack;
+    QVector<BEZIER_POLY> stack;
 
     BEZIER_POLY* bezier = nullptr;
-    BEZIER_POLY left( std::vector<VECTOR2D>(4) );
-    BEZIER_POLY right( std::vector<VECTOR2D>(4) );
+    BEZIER_POLY left( QVector<VECTOR2D>(4) );
+    BEZIER_POLY right( QVector<VECTOR2D>(4) );
 
     stack.push_back( *this );
 
@@ -356,13 +356,13 @@ int BEZIER_POLY::findInflectionPoints( double& aT1, double& aT2 )
 }
 
 
-void BEZIER_POLY::cubicParabolicApprox( std::vector<VECTOR2D>& aOutput, double aMaxError )
+void BEZIER_POLY::cubicParabolicApprox( QVector<VECTOR2D>& aOutput, double aMaxError )
 {
-    std::vector<BEZIER_POLY> stack;
-    stack.push_back( std::vector<VECTOR2D>(4) );
-    stack.push_back( std::vector<VECTOR2D>(4) );
-    stack.push_back( std::vector<VECTOR2D>(4) );
-    stack.push_back( std::vector<VECTOR2D>(4) );
+    QVector<BEZIER_POLY> stack;
+    stack.push_back( QVector<VECTOR2D>(4) );
+    stack.push_back( QVector<VECTOR2D>(4) );
+    stack.push_back( QVector<VECTOR2D>(4) );
+    stack.push_back( QVector<VECTOR2D>(4) );
 
     BEZIER_POLY* c = this;
     BEZIER_POLY* b1 = &stack[0];
@@ -430,7 +430,7 @@ void BEZIER_POLY::cubicParabolicApprox( std::vector<VECTOR2D>& aOutput, double a
 }
 
 
-void BEZIER_POLY::getCubicPoly( std::vector<VECTOR2D>& aOutput, double aMaxError )
+void BEZIER_POLY::getCubicPoly( QVector<VECTOR2D>& aOutput, double aMaxError )
 {
     aOutput.push_back( m_ctrlPts[0] );
 
@@ -450,10 +450,10 @@ void BEZIER_POLY::getCubicPoly( std::vector<VECTOR2D>& aOutput, double aMaxError
     {
         qCDebug(BEZIER_DBG) << "getCubicPoly: 2 inflection points";
         // Case when 2 inflection points then divide at the smallest one first
-        BEZIER_POLY sub1( std::vector<VECTOR2D>( 4 ) );
-        BEZIER_POLY tmp1( std::vector<VECTOR2D>( 4 ) );
-        BEZIER_POLY sub2( std::vector<VECTOR2D>( 4 ) );
-        BEZIER_POLY sub3( std::vector<VECTOR2D>( 4 ) );
+        BEZIER_POLY sub1( QVector<VECTOR2D>( 4 ) );
+        BEZIER_POLY tmp1( QVector<VECTOR2D>( 4 ) );
+        BEZIER_POLY sub2( QVector<VECTOR2D>( 4 ) );
+        BEZIER_POLY sub3( QVector<VECTOR2D>( 4 ) );
 
         subdivide( t1, sub1, tmp1 );
 
@@ -482,8 +482,8 @@ void BEZIER_POLY::getCubicPoly( std::vector<VECTOR2D>& aOutput, double aMaxError
     {
         qCDebug(BEZIER_DBG) << "getCubicPoly: 1 inflection point";
         // Case where there is one inflection point, subdivide once and use PA on both subsegments
-        BEZIER_POLY sub1( std::vector<VECTOR2D>( 4 ) );
-        BEZIER_POLY sub2( std::vector<VECTOR2D>( 4 ) );
+        BEZIER_POLY sub1( QVector<VECTOR2D>( 4 ) );
+        BEZIER_POLY sub2( QVector<VECTOR2D>( 4 ) );
         subdivide( t1, sub1, sub2 );
         sub1.cubicParabolicApprox( aOutput, aMaxError );
         sub2.cubicParabolicApprox( aOutput, aMaxError );
@@ -497,7 +497,7 @@ void BEZIER_POLY::getCubicPoly( std::vector<VECTOR2D>& aOutput, double aMaxError
 }
 
 
-void BEZIER_POLY::GetPoly( std::vector<VECTOR2D>& aOutput, double aMaxError )
+void BEZIER_POLY::GetPoly( QVector<VECTOR2D>& aOutput, double aMaxError )
 {
     if( aMaxError <= 0.0 )
         aMaxError = 10.0;
@@ -520,7 +520,7 @@ void BEZIER_POLY::GetPoly( std::vector<VECTOR2D>& aOutput, double aMaxError )
 
 
 template<typename T>
-void TransformEllipseToBeziers( const ELLIPSE<T>& aEllipse, std::vector<BEZIER<T>>& aBeziers )
+void TransformEllipseToBeziers( const ELLIPSE<T>& aEllipse, QVector<BEZIER<T>>& aBeziers )
 {
     EDA_ANGLE arcAngle = -( aEllipse.EndAngle - aEllipse.StartAngle );
 
@@ -610,6 +610,6 @@ void TransformEllipseToBeziers( const ELLIPSE<T>& aEllipse, std::vector<BEZIER<T
 
 
 template void TransformEllipseToBeziers( const ELLIPSE<double>& aEllipse,
-                                         std::vector<BEZIER<double>>& aBeziers );
+                                         QVector<BEZIER<double>>& aBeziers );
 template void TransformEllipseToBeziers( const ELLIPSE<int>& aEllipse,
-                                         std::vector<BEZIER<int>>& aBeziers );
+                                         QVector<BEZIER<int>>& aBeziers );

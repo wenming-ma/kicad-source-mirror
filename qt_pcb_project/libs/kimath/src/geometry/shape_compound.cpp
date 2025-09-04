@@ -12,7 +12,7 @@ const QString SHAPE_COMPOUND::Format( bool aCplusPlus ) const
     return result;
 }
 
-SHAPE_COMPOUND::SHAPE_COMPOUND( const std::vector<SHAPE*>& aShapes ) :
+SHAPE_COMPOUND::SHAPE_COMPOUND( const QVector<SHAPE*>& aShapes ) :
          SHAPE( SH_COMPOUND ),
          m_dirty( true ),
          m_shapes( aShapes )

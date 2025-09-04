@@ -4,7 +4,7 @@
 #include <geometry/shape_poly_set.h>
 #include <math/vector2d.h>
 #include <trigo.h>
-#include <vector>
+#include <QVector>
 #include <algorithm>
 
 
@@ -21,9 +21,9 @@ static coord2_t cross_product( const VECTOR2I& O, const VECTOR2I& A, const VECTO
 }
 
 
-void BuildConvexHull( std::vector<VECTOR2I>& aResult, const std::vector<VECTOR2I>& aPoly )
+void BuildConvexHull( QVector<VECTOR2I>& aResult, const QVector<VECTOR2I>& aPoly )
 {
-    std::vector<VECTOR2I> poly = aPoly;
+    QVector<VECTOR2I> poly = aPoly;
     int point_count = poly.size();
 
     if( point_count < 2 )
@@ -54,16 +54,16 @@ void BuildConvexHull( std::vector<VECTOR2I>& aResult, const std::vector<VECTOR2I
 }
 
 
-void BuildConvexHull( std::vector<VECTOR2I>& aResult, const SHAPE_POLY_SET& aPolygons )
+void BuildConvexHull( QVector<VECTOR2I>& aResult, const SHAPE_POLY_SET& aPolygons )
 {
     BuildConvexHull( aResult, aPolygons, VECTOR2I( 0, 0 ), ANGLE_0 );
 }
 
 
-void BuildConvexHull( std::vector<VECTOR2I>& aResult, const SHAPE_POLY_SET& aPolygons,
+void BuildConvexHull( QVector<VECTOR2I>& aResult, const SHAPE_POLY_SET& aPolygons,
                       const VECTOR2I& aPosition, const EDA_ANGLE& aRotation )
 {
-    std::vector<VECTOR2I> buf;
+    QVector<VECTOR2I> buf;
 
     for( int cnt = 0; cnt < aPolygons.OutlineCount(); cnt++ )
     {
