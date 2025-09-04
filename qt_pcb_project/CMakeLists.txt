@@ -35,8 +35,30 @@ if( WIN32 )
     # Add UTF-8 support for fmt library and Unicode
     if( MSVC )
         add_compile_options( /utf-8 )
+        # /Zc:__cplusplus: define this macro according to C++ standard version - required for Qt
+        add_compile_options( /Zc:__cplusplus )
+        # /Zc:inline: enforces C++11 requirement that inline functions must have a definition in the same unit
+        add_compile_options( /Zc:inline )
+        # /permissive-: This puts MSVC into compliance mode, required for Qt
+        add_compile_options( /permissive- )
     endif()
 endif()
+
+# Set Qt root directory - Check for Qt 6.9.1 installation
+if( EXISTS "C:/Qt/6.9.1/msvc2022_64" )
+    set( Qt6_ROOT "C:/Qt/6.9.1/msvc2022_64" )
+else()
+    message( STATUS "Qt6 6.9.1 not found at C:/Qt/6.9.1/msvc2022_64, trying vcpkg..." )
+endif()
+
+if( Qt6_ROOT )
+    set( Qt6_DIR "${Qt6_ROOT}/lib/cmake/Qt6" )
+    list( APPEND CMAKE_PREFIX_PATH "${Qt6_ROOT}" )
+    message( STATUS "Found Qt6 at: ${Qt6_ROOT}" )
+endif()
+
+# Use vcpkg installed packages
+list( APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows" )
 
 # Enable KICAD API support - DISABLED FOR MINIMAL BUILD
 # add_compile_definitions( KICAD_IPC_API )
@@ -44,10 +66,16 @@ endif()
 # Find required dependencies for minimal PCB set
 find_package( PkgConfig QUIET )
 
-# Use vcpkg installed packages - Point to build directory vcpkg_installed
-set( CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows" )
+# Find wxWidgets - keeping for compatibility during transformation
 set( wxWidgets_USE_STATIC ON )
 find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc )
+
+# Find Qt6 components - try different approaches
+find_package( Qt6 QUIET COMPONENTS Core Widgets Gui OpenGL PrintSupport Xml Svg )
+if( NOT Qt6_FOUND )
+    message( STATUS "Qt6 not found through standard search, trying CONFIG mode..." )
+    find_package( Qt6 REQUIRED CONFIG COMPONENTS Core Widgets Gui OpenGL PrintSupport Xml Svg )
+endif()
 find_package( Boost REQUIRED )
 find_package( glm REQUIRED )
 # find_package( protobuf REQUIRED )
@@ -77,18 +105,30 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/magic_enum/magic_enum
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/expected/include
     ${wxWidgets_INCLUDE_DIRS}
+    ${Qt6Core_INCLUDE_DIRS}
+    ${Qt6Widgets_INCLUDE_DIRS}
+    ${Qt6Gui_INCLUDE_DIRS}
+    ${Qt6OpenGL_INCLUDE_DIRS}
+    ${Qt6PrintSupport_INCLUDE_DIRS}
+    ${Qt6Xml_INCLUDE_DIRS}
+    ${Qt6Svg_INCLUDE_DIRS}
     ${CMAKE_PREFIX_PATH}/include/opencascade
 )
 
 # Add wxWidgets compile definitions globally
 add_compile_definitions( ${wxWidgets_DEFINITIONS} )
 
-# Add subdirectories for minimal PCB functionality
+# Enable Qt automoc for automatic meta-object compilation
+set( CMAKE_AUTOMOC ON )
+set( CMAKE_AUTORCC ON )
+set( CMAKE_AUTOUIC ON )
+
+# Add subdirectories - only common for now
 add_subdirectory( thirdparty )
 add_subdirectory( libs )
 add_subdirectory( common )
-add_subdirectory( pcbnew )
-add_subdirectory( test )
+# add_subdirectory( pcbnew )  # Disabled until common is fully working
+# add_subdirectory( test )     # Disabled until common is fully working
 
 # Create simple main executable for minimal build testing
 add_executable( qt_pcb_project
@@ -98,6 +138,17 @@ add_executable( qt_pcb_project
 target_link_libraries( qt_pcb_project
     # Core libraries
     common
-    pcbnew
-
+    # pcbnew  # Disabled until common is fully working
+    
+    # wxWidgets libraries (for compatibility)
+    ${wxWidgets_LIBRARIES}
+    
+    # Qt libraries
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Gui
+    Qt6::OpenGL
+    Qt6::PrintSupport
+    Qt6::Xml
+    Qt6::Svg
 )

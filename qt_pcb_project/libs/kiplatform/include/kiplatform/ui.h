@@ -1,31 +1,13 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Ian McInerney <Ian.S.McInerney at ieee.org>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #ifndef KIPLATFORM_UI_H_
 #define KIPLATFORM_UI_H_
 
-#include <wx/cursor.h>
+#include <QtCore/Qt>
+#include <QtGui/QColor>
+#include <QtCore/QSize>
+#include <QtCore/QPoint>
 
-class wxChoice;
-class wxNonOwnedWindow;
-class wxWindow;
+class QComboBox;
+class QWidget;
 
 namespace KIPLATFORM
 {
@@ -38,16 +20,16 @@ namespace KIPLATFORM
          */
         bool IsDarkTheme();
 
-        wxColour GetDialogBGColour();
+        QColor GetDialogBGColour();
 
         /**
          * Pass the current focus to the window. On OSX this will forcefully give the focus to
-         * the desired window, while on MSW and GTK it will simply call the wxWidgets SetFocus()
+         * the desired window, while on MSW and GTK it will simply call the Qt setFocus()
          * function.
          *
          * @param aWindow is the window to pass focus to
          */
-        void ForceFocus( wxWindow* aWindow );
+        void ForceFocus( QWidget* aWindow );
 
         /**
          * Check to see if the given window is the currently active window (e.g. the window
@@ -55,7 +37,7 @@ namespace KIPLATFORM
          *
          * @param aWindow is the window to check
          */
-        bool IsWindowActive( wxWindow* aWindow );
+        bool IsWindowActive( QWidget* aWindow );
 
         /**
          * Move a window's parent to be the top-level window and force the window to be on top.
@@ -69,74 +51,73 @@ namespace KIPLATFORM
          *
          * @param aWindow is the window to reparent
          */
-        void ReparentModal( wxNonOwnedWindow* aWindow );
+        void ReparentModal( QWidget* aWindow );
 
         /*
          * An ugly hack to fix an issue on OSX: cmd+c closes the dialog instead of copying the
-         * text if a button with wxID_CANCEL is used in a wxStdDialogButtonSizer created by
-         * wxFormBuilder: the label is &Cancel, and this accelerator key has priority over the
-         * standard copy accelerator.
+         * text if a button with QDialogButtonBox::Cancel is used: the label is &Cancel, and 
+         * this accelerator key has priority over the standard copy accelerator.
          * Note: problem also exists in other languages; for instance cmd+a closes dialogs in
          * German because the button is &Abbrechen.
          */
-        void FixupCancelButtonCmdKeyCollision( wxWindow* aWindow );
+        void FixupCancelButtonCmdKeyCollision( QWidget* aWindow );
 
         /**
          * Checks if we designated a stock cursor for this OS as "OK" or else we may need to load a custom one
          *
-         * @param aCursor is wxStockCursor we want to see if its acceptable
+         * @param aCursor is Qt::CursorShape we want to see if its acceptable
          */
-        bool IsStockCursorOk( wxStockCursor aCursor );
+        bool IsStockCursorOk( Qt::CursorShape aCursor );
 
         /**
-         * Configure a wxChoice control to support a lot of entries by disabling functionality that makes
+         * Configure a QComboBox control to support a lot of entries by disabling functionality that makes
          * adding new items become very expensive.
          *
          * @param aChoice is the choice box to modify
          */
-        void LargeChoiceBoxHack( wxChoice* aChoice );
+        void LargeChoiceBoxHack( QComboBox* aChoice );
 
         /**
-         * Configure a wxChoice control to ellipsize the shown text in the button with the ellipses
+         * Configure a QComboBox control to ellipsize the shown text in the button with the ellipses
          * placed at the end of the string.
          *
          * @param aChoice is the choice box to ellipsize
          */
-        void EllipsizeChoiceBox( wxChoice* aChoice );
+        void EllipsizeChoiceBox( QComboBox* aChoice );
 
         /**
-         * Tries to determine the pixel scaling factor currently in use for the window.  Under wx3.0, GTK
-         * fails to properly detect the scale factor.
+         * Tries to determine the pixel scaling factor currently in use for the window.  Under some
+         * platforms, proper scale factor detection may fail.
          * @param aWindow pointer to the window to check
-         * @return Pixel scale factor in use, defaulting to the wxWidgets method
+         * @return Pixel scale factor in use, defaulting to the Qt method
          */
-        double GetPixelScaleFactor( const wxWindow* aWindow );
+        double GetPixelScaleFactor( const QWidget* aWindow );
 
         /**
          * Tries to determine the content scaling factor currently in use for the window.
          * The content scaling factor is typically settable by the user and may differ from the
          * pixel scaling factor.
          */
-        double GetContentScaleFactor( const wxWindow* aWindow );
+        double GetContentScaleFactor( const QWidget* aWindow );
 
         /**
          * Return the background and foreground colors for info bars in the current scheme
          */
-        void GetInfoBarColours( wxColour& aFGColour, wxColour& aBGColour );
+        void GetInfoBarColours( QColor& aFGColour, QColor& aBGColour );
 
         /**
-         * Tries to determine the size of the viewport of a scrollable widget (wxDataViewCtrl, wxGrid)
+         * Tries to determine the size of the viewport of a scrollable widget (QTreeView, QTableWidget)
          * that won't be obscured by scrollbars.
          * @param aWindow pointer to the scrollable widget to check
          * @return Viewport size that won't be obscured by scrollbars
          */
-        wxSize GetUnobscuredSize( const wxWindow* aWindow );
+        QSize GetUnobscuredSize( const QWidget* aWindow );
 
         /**
          * Used to set overlay/non-overlay scrolling mode in a window.
          * Implemented only on GTK.
          */
-        void SetOverlayScrolling( const wxWindow* aWindow, bool overlay );
+        void SetOverlayScrolling( const QWidget* aWindow, bool overlay );
 
         /**
          * If the user has disabled icons system-wide, we check that here
@@ -147,7 +128,7 @@ namespace KIPLATFORM
          * Returns the mouse position in screen coordinates.
          * If we've just warped the cursor, returns the new coordinates.
          */
-        wxPoint GetMousePosition();
+        QPoint GetMousePosition();
 
         /**
          * Move the mouse cursor to a specific position relative to the window
@@ -156,27 +137,27 @@ namespace KIPLATFORM
          * @param aY destination y position
          * @return true if the warp was successful
          */
-        bool WarpPointer( wxWindow* aWindow, int aX, int aY );
+        bool WarpPointer( QWidget* aWindow, int aX, int aY );
 
         /**
          * Configures the IME mode of a given control handle
          */
-        void ImmControl( wxWindow* aWindow, bool aEnable );
+        void ImmControl( QWidget* aWindow, bool aEnable );
 
         /**
          * Asks the IME to cancel
          */
-        void ImeNotifyCancelComposition( wxWindow* aWindow );
+        void ImeNotifyCancelComposition( QWidget* aWindow );
 
         /**
-         * On Wayland, restricts the pointer movement to a rectangle slightly bigger than the given `wxWindow`.
+         * On Wayland, restricts the pointer movement to a rectangle slightly bigger than the given QWidget.
          * This way, the cursor doesn't exit the (bigger) application window and we retain control on it.
          * Required to make the infinite mouse-drag work with fast movement.
          * See https://gitlab.com/kicad/code/kicad/-/issues/7207#note_1562089503
          * @param aWindow Window in which to position to mouse cursor
          * @return true if infinite panning is supported
          */
-        bool InfiniteDragPrepareWindow( wxWindow* aWindow );
+        bool InfiniteDragPrepareWindow( QWidget* aWindow );
 
         /**
          * On Wayland, allows the cursor to freely move again after a drag (see `InfiniteDragPrepareWindow`).
@@ -186,7 +167,7 @@ namespace KIPLATFORM
         /**
          * Intended to set the floating window level in macOS on a window
          */
-        void SetFloatLevel( wxWindow* aWindow );
+        void SetFloatLevel( QWidget* aWindow );
     }
 }
 

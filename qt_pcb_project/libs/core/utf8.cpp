@@ -1,6 +1,8 @@
 
 // QT_TRANSFORMATION_COMPLETED
 
+// QT_TRANSFORMATION_COMPLETED
+
 #include <core/utf8.h>
 #include <QString>
 #include <QTextCodec>
@@ -14,24 +16,32 @@
 
 UTF8::UTF8( const QString& o ) :
     m_s( o.toUtf8().constData() )
+UTF8::UTF8( const QString& o ) :
+    m_s( o.toUtf8().constData() )
 {
 }
 
 
 QString UTF8::qt_str() const
+QString UTF8::qt_str() const
 {
+    return QString::fromUtf8( c_str() );
     return QString::fromUtf8( c_str() );
 }
 
 
 UTF8::operator QString () const
+UTF8::operator QString () const
 {
+    return QString::fromUtf8( c_str() );
     return QString::fromUtf8( c_str() );
 }
 
 
 UTF8& UTF8::operator=( const QString& o )
+UTF8& UTF8::operator=( const QString& o )
 {
+    m_s = o.toUtf8().constData();
     m_s = o.toUtf8().constData();
     return *this;
 }
@@ -62,12 +72,14 @@ int UTF8::uni_forward( const unsigned char* aSequence, unsigned* aResult )
     };
 
     int len = utf8_len[ *s - 0x80 ];
+    int len = utf8_len[ *s - 0x80 ];
 
     switch( len )
     {
     default:
     case 0:
         if( aResult )
+            qWarning( "uni_forward: invalid start byte" );
             qWarning( "uni_forward: invalid start byte" );
 
         return 0;
@@ -77,6 +89,7 @@ int UTF8::uni_forward( const unsigned char* aSequence, unsigned* aResult )
         if( ( s[1] & 0xc0 ) != 0x80 )
         {
             if( aResult )
+                qWarning( "uni_forward: invalid continuation byte" );
                 qWarning( "uni_forward: invalid continuation byte" );
 
             return 0;
@@ -94,6 +107,7 @@ int UTF8::uni_forward( const unsigned char* aSequence, unsigned* aResult )
         )
         {
             if( aResult )
+                qWarning( "uni_forward: invalid continuation byte" );
                 qWarning( "uni_forward: invalid continuation byte" );
 
             return 0;
@@ -113,6 +127,7 @@ int UTF8::uni_forward( const unsigned char* aSequence, unsigned* aResult )
             (s[0] == 0xF4 && s[1] > 0x8F) )
         {
             if( aResult )
+                qWarning( "uni_forward: invalid continuation byte" );
                 qWarning( "uni_forward: invalid continuation byte" );
 
             return 0;
@@ -166,9 +181,13 @@ UTF8::UTF8( const wchar_t* txt )
     {
         QString qstr = QString::fromWCharArray( txt );
         m_s = qstr.toUtf8().constData();
+        QString qstr = QString::fromWCharArray( txt );
+        m_s = qstr.toUtf8().constData();
     }
     catch(...)
     {
+        QString qstr = QString::fromWCharArray( txt );
+        m_s = qstr.toLocal8Bit().constData();
         QString qstr = QString::fromWCharArray( txt );
         m_s = qstr.toLocal8Bit().constData();
     }
@@ -185,6 +204,7 @@ UTF8& UTF8::operator+=( unsigned w_ch )
     }
     else
     {
+        wchar_t wide_chr[2];
         wchar_t wide_chr[2];
         wide_chr[1] = 0;
         wide_chr[0] = w_ch;

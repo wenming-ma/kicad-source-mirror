@@ -24,24 +24,30 @@
 #include <dialog_shim.h>
 #include <pgm_base.h>
 #include <QGuiApplication>
+#include <QGuiApplication>
 #include <settings/common_settings.h>
 #include <bitmaps/bitmap_types.h>
 #include <string_utils.h>
 
+const QString KIUI::s_FocusStealableInputName = "KI_NOFOCUS";
 const QString KIUI::s_FocusStealableInputName = "KI_NOFOCUS";
 
 
 int KIUI::GetStdMargin()
 {
     // This is the value used in (most) Qt dialogs
+    // This is the value used in (most) Qt dialogs
     return 5;
 }
 
 
 SEVERITY SeverityFromString( const QString& aSeverity )
+SEVERITY SeverityFromString( const QString& aSeverity )
 {
     if( aSeverity == "warning" )
+    if( aSeverity == "warning" )
         return RPT_SEVERITY_WARNING;
+    else if( aSeverity == "ignore" )
     else if( aSeverity == "ignore" )
         return RPT_SEVERITY_IGNORE;
     else
@@ -50,30 +56,44 @@ SEVERITY SeverityFromString( const QString& aSeverity )
 
 
 QString SeverityToString( const SEVERITY& aSeverity )
+QString SeverityToString( const SEVERITY& aSeverity )
 {
     if( aSeverity == RPT_SEVERITY_IGNORE )
         return "ignore";
+        return "ignore";
     else if( aSeverity == RPT_SEVERITY_WARNING )
         return "warning";
+        return "warning";
     else
+        return "error";
         return "error";
 }
 
 
 QSize KIUI::GetTextSize( const QString& aSingleLine, QWidget* aWindow )
+QSize KIUI::GetTextSize( const QString& aSingleLine, QWidget* aWindow )
 {
+    QFontMetrics fm( aWindow->font() );
+    return fm.size( Qt::TextSingleLine, aSingleLine );
     QFontMetrics fm( aWindow->font() );
     return fm.size( Qt::TextSingleLine, aSingleLine );
 }
 
 
 QFont KIUI::GetMonospacedUIFont()
+QFont KIUI::GetMonospacedUIFont()
 {
+    static int guiFontSize = QApplication::font().pointSize();
     static int guiFontSize = QApplication::font().pointSize();
 
     QFont font = QFontDatabase::systemFont( QFontDatabase::FixedFont );
     font.setPointSize( guiFontSize );
+    QFont font = QFontDatabase::systemFont( QFontDatabase::FixedFont );
+    font.setPointSize( guiFontSize );
 
+#ifdef __APPLE__
+    if( font.family().isEmpty() )
+        font.setFamily( "Menlo" );
 #ifdef __APPLE__
     if( font.family().isEmpty() )
         font.setFamily( "Menlo" );
@@ -84,14 +104,21 @@ QFont KIUI::GetMonospacedUIFont()
 
 
 QFont getGUIFont( QWidget* aWindow, int aRelativeSize )
+QFont getGUIFont( QWidget* aWindow, int aRelativeSize )
 {
     QFont font = aWindow->font();
+    QFont font = aWindow->font();
 
+    font.setPointSize( font.pointSize() + aRelativeSize );
     font.setPointSize( font.pointSize() + aRelativeSize );
 
     if( Pgm().GetCommonSettings()->m_Appearance.apply_icon_scale_to_fonts )
         font.setPointSize( KiROUND( KiIconScale( aWindow ) * font.pointSize() / 4.0 ) );
+        font.setPointSize( KiROUND( KiIconScale( aWindow ) * font.pointSize() / 4.0 ) );
 
+#ifdef __APPLE__
+    if( font.family().isEmpty() )
+        font.setFamily( "San Francisco" );
 #ifdef __APPLE__
     if( font.family().isEmpty() )
         font.setFamily( "San Francisco" );
@@ -102,7 +129,9 @@ QFont getGUIFont( QWidget* aWindow, int aRelativeSize )
 
 
 QFont KIUI::GetStatusFont( QWidget* aWindow )
+QFont KIUI::GetStatusFont( QWidget* aWindow )
 {
+#ifdef __APPLE__
 #ifdef __APPLE__
     int scale = -2;
 #else
@@ -114,7 +143,9 @@ QFont KIUI::GetStatusFont( QWidget* aWindow )
 
 
 QFont KIUI::GetDockedPaneFont( QWidget* aWindow )
+QFont KIUI::GetDockedPaneFont( QWidget* aWindow )
 {
+#ifdef __APPLE__
 #ifdef __APPLE__
     int scale = -1;
 #else
@@ -126,11 +157,13 @@ QFont KIUI::GetDockedPaneFont( QWidget* aWindow )
 
 
 QFont KIUI::GetInfoFont( QWidget* aWindow )
+QFont KIUI::GetInfoFont( QWidget* aWindow )
 {
     return getGUIFont( aWindow, -1 );
 }
 
 
+QFont KIUI::GetControlFont( QWidget* aWindow )
 QFont KIUI::GetControlFont( QWidget* aWindow )
 {
     return getGUIFont( aWindow, 0 );
@@ -138,25 +171,34 @@ QFont KIUI::GetControlFont( QWidget* aWindow )
 
 
 bool KIUI::EnsureTextCtrlWidth( QLineEdit* aCtrl, const QString* aString )
+bool KIUI::EnsureTextCtrlWidth( QLineEdit* aCtrl, const QString* aString )
 {
+    QWidget* window = aCtrl->parentWidget();
     QWidget* window = aCtrl->parentWidget();
 
     if( !window )
         window = aCtrl;
 
     QString ctrlText;
+    QString ctrlText;
 
     if( !aString )
     {
+        ctrlText = aCtrl->text();
         ctrlText = aCtrl->text();
         aString  = &ctrlText;
     }
 
     QSize textz = GetTextSize( *aString, window );
     QSize ctrlz = aCtrl->size();
+    QSize textz = GetTextSize( *aString, window );
+    QSize ctrlz = aCtrl->size();
 
     if( ctrlz.width() < textz.width() + 10 )
+    if( ctrlz.width() < textz.width() + 10 )
     {
+        ctrlz.setWidth( textz.width() + 10 );
+        aCtrl->setMinimumSize( ctrlz );
         ctrlz.setWidth( textz.width() + 10 );
         aCtrl->setMinimumSize( ctrlz );
         return true;
@@ -167,13 +209,20 @@ bool KIUI::EnsureTextCtrlWidth( QLineEdit* aCtrl, const QString* aString )
 
 
 QString KIUI::EllipsizeStatusText( QWidget* aWindow, const QString& aString )
+QString KIUI::EllipsizeStatusText( QWidget* aWindow, const QString& aString )
 {
+    QString msg = UnescapeString( aString );
     QString msg = UnescapeString( aString );
 
     msg.replace( "\n", " " );
     msg.replace( "\r", " " );
     msg.replace( "\t", " " );
+    msg.replace( "\n", " " );
+    msg.replace( "\r", " " );
+    msg.replace( "\t", " " );
 
+    QFontMetrics fm( aWindow->font() );
+    int statusWidth = aWindow->size().width();
     QFontMetrics fm( aWindow->font() );
     int statusWidth = aWindow->size().width();
 
@@ -181,17 +230,25 @@ QString KIUI::EllipsizeStatusText( QWidget* aWindow, const QString& aString )
     int textWidth = std::min( statusWidth, 800 ) * 0.3 + std::max( statusWidth - 800, 0 ) * 0.6;
 
     return fm.elidedText( msg, Qt::ElideRight, textWidth );
+    return fm.elidedText( msg, Qt::ElideRight, textWidth );
 }
 
 
 QString KIUI::EllipsizeMenuText( const QString& aString )
+QString KIUI::EllipsizeMenuText( const QString& aString )
 {
+    QString msg = UnescapeString( aString );
     QString msg = UnescapeString( aString );
 
     msg.replace( "\n", " " );
     msg.replace( "\r", " " );
     msg.replace( "\t", " " );
+    msg.replace( "\n", " " );
+    msg.replace( "\r", " " );
+    msg.replace( "\t", " " );
 
+    if( msg.length() > 36 )
+        msg = msg.left( 34 ) + "...";
     if( msg.length() > 36 )
         msg = msg.left( 34 ) + "...";
 
@@ -200,35 +257,51 @@ QString KIUI::EllipsizeMenuText( const QString& aString )
 
 
 void KIUI::SelectReferenceNumber( QLineEdit* aTextEntry )
+void KIUI::SelectReferenceNumber( QLineEdit* aTextEntry )
 {
+    QString ref = aTextEntry->text();
     QString ref = aTextEntry->text();
 
     if( ref.indexOf( '?' ) != -1 )
+    if( ref.indexOf( '?' ) != -1 )
     {
+        aTextEntry->setSelection( ref.indexOf( '?' ), ref.lastIndexOf( '?' ) + 1 - ref.indexOf( '?' ) );
         aTextEntry->setSelection( ref.indexOf( '?' ), ref.lastIndexOf( '?' ) + 1 - ref.indexOf( '?' ) );
     }
     else if( ref.indexOf( '*' ) != -1 )
+    else if( ref.indexOf( '*' ) != -1 )
     {
+        aTextEntry->setSelection( ref.indexOf( '*' ), ref.lastIndexOf( '*' ) + 1 - ref.indexOf( '*' ) );
         aTextEntry->setSelection( ref.indexOf( '*' ), ref.lastIndexOf( '*' ) + 1 - ref.indexOf( '*' ) );
     }
     else
     {
         QString num = ref;
+        QString num = ref;
 
+        while( !num.isEmpty() && ( !num.back().isDigit() || !num.front().isDigit() ) )
         while( !num.isEmpty() && ( !num.back().isDigit() || !num.front().isDigit() ) )
         {
             // Trim non-digit from end
+            if( !num.back().isDigit() )
+                num.chop(1);
             if( !num.back().isDigit() )
                 num.chop(1);
 
             // Trim non-digit from the start
             if( !num.isEmpty() && !num.front().isDigit() )
                 num = num.mid(1);
+            if( !num.isEmpty() && !num.front().isDigit() )
+                num = num.mid(1);
         }
 
         int startPos = ref.indexOf( num );
         aTextEntry->setSelection( startPos, num.length() );
+        int startPos = ref.indexOf( num );
+        aTextEntry->setSelection( startPos, num.length() );
 
+        if( num.isEmpty() )
+            aTextEntry->setSelection( 0, 0 );
         if( num.isEmpty() )
             aTextEntry->setSelection( 0, 0 );
     }
@@ -236,14 +309,17 @@ void KIUI::SelectReferenceNumber( QLineEdit* aTextEntry )
 
 
 bool KIUI::IsInputControlFocused( QWidget* aFocus )
+bool KIUI::IsInputControlFocused( QWidget* aFocus )
 {
     if( aFocus == nullptr )
+        aFocus = QApplication::focusWidget();
         aFocus = QApplication::focusWidget();
 
     if( !aFocus )
         return false;
 
     // These widgets are never considered focused
+    if( aFocus->objectName() == s_FocusStealableInputName )
     if( aFocus->objectName() == s_FocusStealableInputName )
         return false;
 
@@ -257,13 +333,27 @@ bool KIUI::IsInputControlFocused( QWidget* aFocus )
     QSpinBox*      spinCtrl = qobject_cast<QSpinBox*>( aFocus );
     QDoubleSpinBox* spinDblCtrl = qobject_cast<QDoubleSpinBox*>( aFocus );
     QSlider*       sliderCtl = qobject_cast<QSlider*>( aFocus );
+    QLineEdit*     textEntry = qobject_cast<QLineEdit*>( aFocus );
+    QTextEdit*     styledText = qobject_cast<QTextEdit*>( aFocus );
+    QListWidget*   listBox = qobject_cast<QListWidget*>( aFocus );
+    QLineEdit*     searchCtrl = qobject_cast<QLineEdit*>( aFocus );
+    QCheckBox*     checkboxCtrl = qobject_cast<QCheckBox*>( aFocus );
+    QComboBox*     choiceCtrl = qobject_cast<QComboBox*>( aFocus );
+    QRadioButton*  radioBtn = qobject_cast<QRadioButton*>( aFocus );
+    QSpinBox*      spinCtrl = qobject_cast<QSpinBox*>( aFocus );
+    QDoubleSpinBox* spinDblCtrl = qobject_cast<QDoubleSpinBox*>( aFocus );
+    QSlider*       sliderCtl = qobject_cast<QSlider*>( aFocus );
 
+    // Tree view control focus handling
+    QTreeView* dataViewCtrl = nullptr;
     // Tree view control focus handling
     QTreeView* dataViewCtrl = nullptr;
 
     QWidget* parent = aFocus->parentWidget();
+    QWidget* parent = aFocus->parentWidget();
 
     if( parent )
+        dataViewCtrl = qobject_cast<QTreeView*>( parent );
         dataViewCtrl = qobject_cast<QTreeView*>( parent );
 
     return ( textEntry || styledText || listBox || searchCtrl || checkboxCtrl || choiceCtrl
@@ -272,16 +362,23 @@ bool KIUI::IsInputControlFocused( QWidget* aFocus )
 
 
 bool KIUI::IsInputControlEditable( QWidget* aFocus )
+bool KIUI::IsInputControlEditable( QWidget* aFocus )
 {
+    QLineEdit*     textEntry = qobject_cast<QLineEdit*>( aFocus );
+    QTextEdit*     styledText = qobject_cast<QTextEdit*>( aFocus );
+    QLineEdit*     searchCtrl = qobject_cast<QLineEdit*>( aFocus );
     QLineEdit*     textEntry = qobject_cast<QLineEdit*>( aFocus );
     QTextEdit*     styledText = qobject_cast<QTextEdit*>( aFocus );
     QLineEdit*     searchCtrl = qobject_cast<QLineEdit*>( aFocus );
 
     if( textEntry )
         return !textEntry->isReadOnly();
+        return !textEntry->isReadOnly();
     else if( styledText )
         return !styledText->isReadOnly();
+        return !styledText->isReadOnly();
     else if( searchCtrl )
+        return !searchCtrl->isReadOnly();
         return !searchCtrl->isReadOnly();
 
     // Must return true if we can't determine the state, intentionally true for non inputs as well.
@@ -296,7 +393,14 @@ bool KIUI::IsModalDialogFocused()
 
 
 void KIUI::Disable( QWidget* aWindow )
+void KIUI::Disable( QWidget* aWindow )
 {
+    QScrollBar*      scrollBar = qobject_cast<QScrollBar*>( aWindow );
+    QWidget*         hyperlink = aWindow; // Qt doesn't have direct hyperlink equivalent
+    QTableWidget*    grid = qobject_cast<QTableWidget*>( aWindow );
+    QTextEdit*       scintilla = qobject_cast<QTextEdit*>( aWindow );
+
+    if( scrollBar || (hyperlink && hyperlink->objectName().contains("hyperlink")) )
     QScrollBar*      scrollBar = qobject_cast<QScrollBar*>( aWindow );
     QWidget*         hyperlink = aWindow; // Qt doesn't have direct hyperlink equivalent
     QTableWidget*    grid = qobject_cast<QTableWidget*>( aWindow );
@@ -309,7 +413,14 @@ void KIUI::Disable( QWidget* aWindow )
     else if( grid )
     {
         for( int row = 0; row < grid->rowCount(); ++row )
+        for( int row = 0; row < grid->rowCount(); ++row )
         {
+            for( int col = 0; col < grid->columnCount(); ++col )
+            {
+                QTableWidgetItem* item = grid->item( row, col );
+                if( item )
+                    item->setFlags( item->flags() & ~Qt::ItemIsEditable );
+            }
             for( int col = 0; col < grid->columnCount(); ++col )
             {
                 QTableWidgetItem* item = grid->item( row, col );
@@ -321,13 +432,18 @@ void KIUI::Disable( QWidget* aWindow )
     else if( scintilla )
     {
         scintilla->setReadOnly( true );
+        scintilla->setReadOnly( true );
     }
     else if( aWindow )
+    else if( aWindow )
     {
+        aWindow->setEnabled( false );
         aWindow->setEnabled( false );
     }
     else
     {
+        QList<QWidget*> children = aWindow->findChildren<QWidget*>();
+        for( QWidget* child : children )
         QList<QWidget*> children = aWindow->findChildren<QWidget*>();
         for( QWidget* child : children )
             Disable( child );
@@ -336,12 +452,15 @@ void KIUI::Disable( QWidget* aWindow )
 
 
 void KIUI::AddBitmapToMenuItem( QAction* aAction, const QIcon& aImage )
+void KIUI::AddBitmapToMenuItem( QAction* aAction, const QIcon& aImage )
 {
     // Retrieve the global application show icon option:
     bool useImagesInMenus = Pgm().GetCommonSettings()->m_Appearance.use_icons_in_menus;
 
     if( useImagesInMenus && !aAction->isCheckable() )
+    if( useImagesInMenus && !aAction->isCheckable() )
     {
+        aAction->setIcon( aImage );
         aAction->setIcon( aImage );
     }
 }
@@ -349,18 +468,29 @@ void KIUI::AddBitmapToMenuItem( QAction* aAction, const QIcon& aImage )
 
 QAction* KIUI::AddMenuItem( QMenu* aMenu, int aId, const QString& aText,
                            const QIcon& aImage, bool aCheckable )
+QAction* KIUI::AddMenuItem( QMenu* aMenu, int aId, const QString& aText,
+                           const QIcon& aImage, bool aCheckable )
 {
+    QAction* action = new QAction( aText, aMenu );
+    action->setData( aId );
+    action->setCheckable( aCheckable );
+    AddBitmapToMenuItem( action, aImage );
     QAction* action = new QAction( aText, aMenu );
     action->setData( aId );
     action->setCheckable( aCheckable );
     AddBitmapToMenuItem( action, aImage );
 
     aMenu->addAction( action );
+    aMenu->addAction( action );
 
+    return action;
     return action;
 }
 
 
+QAction* KIUI::AddMenuItem( QMenu* aMenu, int aId, const QString& aText,
+                           const QString& aHelpText, const QIcon& aImage,
+                           bool aCheckable )
 QAction* KIUI::AddMenuItem( QMenu* aMenu, int aId, const QString& aText,
                            const QString& aHelpText, const QIcon& aImage,
                            bool aCheckable )
@@ -370,13 +500,22 @@ QAction* KIUI::AddMenuItem( QMenu* aMenu, int aId, const QString& aText,
     action->setStatusTip( aHelpText );
     action->setCheckable( aCheckable );
     AddBitmapToMenuItem( action, aImage );
+    QAction* action = new QAction( aText, aMenu );
+    action->setData( aId );
+    action->setStatusTip( aHelpText );
+    action->setCheckable( aCheckable );
+    AddBitmapToMenuItem( action, aImage );
 
     aMenu->addAction( action );
+    aMenu->addAction( action );
 
+    return action;
     return action;
 }
 
 
+QAction* KIUI::AddMenuItem( QMenu* aMenu, QMenu* aSubMenu, int aId, const QString& aText,
+                           const QIcon& aImage )
 QAction* KIUI::AddMenuItem( QMenu* aMenu, QMenu* aSubMenu, int aId, const QString& aText,
                            const QIcon& aImage )
 {
@@ -384,13 +523,21 @@ QAction* KIUI::AddMenuItem( QMenu* aMenu, QMenu* aSubMenu, int aId, const QStrin
     action->setText( aText );
     action->setData( aId );
     AddBitmapToMenuItem( action, aImage );
+    QAction* action = aSubMenu->menuAction();
+    action->setText( aText );
+    action->setData( aId );
+    AddBitmapToMenuItem( action, aImage );
 
     aMenu->addMenu( aSubMenu );
+    aMenu->addMenu( aSubMenu );
 
+    return action;
     return action;
 }
 
 
+QAction* KIUI::AddMenuItem( QMenu* aMenu, QMenu* aSubMenu, int aId, const QString& aText,
+                           const QString& aHelpText, const QIcon& aImage )
 QAction* KIUI::AddMenuItem( QMenu* aMenu, QMenu* aSubMenu, int aId, const QString& aText,
                            const QString& aHelpText, const QIcon& aImage )
 {
@@ -399,8 +546,15 @@ QAction* KIUI::AddMenuItem( QMenu* aMenu, QMenu* aSubMenu, int aId, const QStrin
     action->setData( aId );
     action->setStatusTip( aHelpText );
     AddBitmapToMenuItem( action, aImage );
+    QAction* action = aSubMenu->menuAction();
+    action->setText( aText );
+    action->setData( aId );
+    action->setStatusTip( aHelpText );
+    AddBitmapToMenuItem( action, aImage );
 
     aMenu->addMenu( aSubMenu );
+    aMenu->addMenu( aSubMenu );
 
+    return action;
     return action;
 }

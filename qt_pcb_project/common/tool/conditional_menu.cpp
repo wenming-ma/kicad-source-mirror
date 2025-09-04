@@ -4,7 +4,7 @@
 #include <tool/action_menu.h>
 #include <tool/selection.h>
 #include <kiface_base.h>
-#include <widgets/ui_common.h>
+#include "widgets/ui_common.h"
 
 
 CONDITIONAL_MENU::CONDITIONAL_MENU( TOOL_INTERACTIVE* aTool ) :
