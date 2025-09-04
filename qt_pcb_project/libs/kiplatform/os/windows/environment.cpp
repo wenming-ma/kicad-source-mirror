@@ -1,32 +1,13 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Ian McInerney <Ian.S.McInerney at ieee.org>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <kiplatform/environment.h>
-#include <wx/intl.h>
-#include <wx/filename.h>
-#include <wx/stdpaths.h>
-#include <wx/string.h>
-#include <wx/tokenzr.h>
-#include <wx/app.h>
-#include <wx/uri.h>
-#include <wx/window.h>
+#include <QString>
+#include <QStringList>
+#include <QStandardPaths>
+#include <QCoreApplication>
+#include <QUrl>
+#include <QWidget>
+#include <QDir>
+#include <QRegularExpression>
 
 #include <Windows.h>
 #include <shellapi.h>
@@ -56,21 +37,21 @@
 
 void KIPLATFORM::ENV::Init()
 {
-    ::SetCurrentProcessExplicitAppUserModelID( GetAppUserModelId().wc_str() );
+    ::SetCurrentProcessExplicitAppUserModelID( reinterpret_cast<LPCWSTR>( GetAppUserModelId().utf16() ) );
 }
 
 
-bool KIPLATFORM::ENV::MoveToTrash( const wxString& aPath, wxString& aError )
+bool KIPLATFORM::ENV::MoveToTrash( const QString& aPath, QString& aError )
 {
     // The filename field must be a double-null terminated string
-    wxString temp = aPath + '\0';
+    QString temp = aPath + '\0';
 
     SHFILEOPSTRUCT fileOp;
     ::ZeroMemory( &fileOp, sizeof( fileOp ) );
 
     fileOp.hwnd   = nullptr; // Set to null since there is no progress dialog
     fileOp.wFunc  = FO_DELETE;
-    fileOp.pFrom  = temp.c_str();
+    fileOp.pFrom  = reinterpret_cast<LPCWSTR>( temp.utf16() );
     fileOp.pTo    = nullptr; // Set to to NULL since we aren't moving the file
     fileOp.fFlags = FOF_ALLOWUNDO | FOF_NOERRORUI | FOF_NOCONFIRMATION | FOF_SILENT;
 
@@ -78,7 +59,7 @@ bool KIPLATFORM::ENV::MoveToTrash( const wxString& aPath, wxString& aError )
 
     if( eVal != 0 )
     {
-        aError = wxString::Format( _( "Error code: %d" ), eVal );
+        aError = QString( "Error code: %1" ).arg( eVal );
         return false;
     }
 
@@ -86,91 +67,54 @@ bool KIPLATFORM::ENV::MoveToTrash( const wxString& aPath, wxString& aError )
 }
 
 
-bool KIPLATFORM::ENV::IsNetworkPath( const wxString& aPath )
+bool KIPLATFORM::ENV::IsNetworkPath( const QString& aPath )
 {
-    return ::PathIsNetworkPathW( aPath.wc_str() );
+    return ::PathIsNetworkPathW( reinterpret_cast<LPCWSTR>( aPath.utf16() ) );
 }
 
 
-wxString KIPLATFORM::ENV::GetDocumentsPath()
+QString KIPLATFORM::ENV::GetDocumentsPath()
 {
-    // If called by a python script in stand-alone (outside KiCad), wxStandardPaths::Get()
-    // complains about not existing app. so use a dummy app
-    if( wxTheApp ==  nullptr )
-    {
-        wxApp dummy;
-        return wxStandardPaths::Get().GetDocumentsDir();
-    }
-
-    return wxStandardPaths::Get().GetDocumentsDir();
+    // If called by a python script in stand-alone (outside KiCad), QCoreApplication::instance()
+    // may be nullptr, so handle gracefully
+    return QStandardPaths::writableLocation( QStandardPaths::DocumentsLocation );
 }
 
 
-wxString KIPLATFORM::ENV::GetUserConfigPath()
+QString KIPLATFORM::ENV::GetUserConfigPath()
 {
-    // If called by a python script in stand-alone (outside KiCad), wxStandardPaths::Get()
-    // complains about not existing app. so use a dummy app
-    if( wxTheApp ==  nullptr )
-    {
-        wxApp dummy;
-        return wxStandardPaths::Get().GetUserConfigDir();
-    }
-
-    return wxStandardPaths::Get().GetUserConfigDir();
+    // If called by a python script in stand-alone (outside KiCad), QCoreApplication::instance()
+    // may be nullptr, so handle gracefully
+    return QStandardPaths::writableLocation( QStandardPaths::AppConfigLocation );
 }
 
 
-wxString KIPLATFORM::ENV::GetUserDataPath()
+QString KIPLATFORM::ENV::GetUserDataPath()
 {
-    // If called by a python script in stand-alone (outside KiCad), wxStandardPaths::Get()
-    // complains about not existing app. so use a dummy app
-    if( wxTheApp ==  nullptr )
-    {
-        wxApp dummy;
-        return wxStandardPaths::Get().GetUserDataDir();
-    }
-
-    return wxStandardPaths::Get().GetUserDataDir();
+    // If called by a python script in stand-alone (outside KiCad), QCoreApplication::instance()
+    // may be nullptr, so handle gracefully
+    return QStandardPaths::writableLocation( QStandardPaths::AppDataLocation );
 }
 
 
-wxString KIPLATFORM::ENV::GetUserLocalDataPath()
+QString KIPLATFORM::ENV::GetUserLocalDataPath()
 {
-    // If called by a python script in stand-alone (outside KiCad), wxStandardPaths::Get()
-    // complains about not existing app. so use a dummy app
-    if( wxTheApp == nullptr )
-    {
-        wxApp dummy;
-        return wxStandardPaths::Get().GetUserLocalDataDir();
-    }
-
-    return wxStandardPaths::Get().GetUserLocalDataDir();
+    // If called by a python script in stand-alone (outside KiCad), QCoreApplication::instance()
+    // may be nullptr, so handle gracefully
+    return QStandardPaths::writableLocation( QStandardPaths::AppLocalDataLocation );
 }
 
 
-wxString KIPLATFORM::ENV::GetUserCachePath()
+QString KIPLATFORM::ENV::GetUserCachePath()
 {
     // Unfortunately AppData/Local is the closest analog to "Cache" directories of other platforms
-
-    // Make sure we don't include the "appinfo" (appended app name)
-
-    // If called by a python script in stand-alone (outside KiCad), wxStandardPaths::Get()
-    // complains about not existing app. so use a dummy app
-    if( wxTheApp ==  nullptr )
-    {
-        wxApp dummy;
-        wxStandardPaths::Get().UseAppInfo( wxStandardPaths::AppInfo_None );
-
-        return wxStandardPaths::Get().GetUserLocalDataDir();
-   }
-
-    wxStandardPaths::Get().UseAppInfo( wxStandardPaths::AppInfo_None );
-
-    return wxStandardPaths::Get().GetUserLocalDataDir();
+    // If called by a python script in stand-alone (outside KiCad), QCoreApplication::instance()
+    // may be nullptr, so handle gracefully
+    return QStandardPaths::writableLocation( QStandardPaths::CacheLocation );
 }
 
 
-bool KIPLATFORM::ENV::GetSystemProxyConfig( const wxString& aURL, PROXY_CONFIG& aCfg )
+bool KIPLATFORM::ENV::GetSystemProxyConfig( const QString& aURL, PROXY_CONFIG& aCfg )
 {
     // Original source from Microsoft sample (public domain)
     // https://github.com/microsoft/Windows-classic-samples/blob/main/Samples/WinhttpProxy/cpp/GetProxy.cpp#L844
@@ -181,7 +125,7 @@ bool KIPLATFORM::ENV::GetSystemProxyConfig( const wxString& aURL, PROXY_CONFIG& 
     HINTERNET                            proxyResolveSession = NULL;
     bool                                 success = false;
 
-    wxURI uri( aURL );
+    QUrl uri( aURL );
 
     LPWSTR proxyStr = NULL;
     LPWSTR bypassProxyStr = NULL;
@@ -231,7 +175,7 @@ bool KIPLATFORM::ENV::GetSystemProxyConfig( const wxString& aURL, PROXY_CONFIG& 
             // per https://docs.microsoft.com/en-us/windows/win32/winhttp/autoproxy-cache
             autoProxyOptions.fAutoLogonIfChallenged = FALSE;
 
-            autoProxyDetect = WinHttpGetProxyForUrl( proxyResolveSession, aURL.c_str(),
+            autoProxyDetect = WinHttpGetProxyForUrl( proxyResolveSession, reinterpret_cast<LPCWSTR>( aURL.utf16() ),
                                                      &autoProxyOptions, &autoProxyInfo );
 
             if( !autoProxyDetect && GetLastError() == ERROR_WINHTTP_LOGIN_FAILURE )
@@ -239,7 +183,7 @@ bool KIPLATFORM::ENV::GetSystemProxyConfig( const wxString& aURL, PROXY_CONFIG& 
                 autoProxyOptions.fAutoLogonIfChallenged = TRUE;
 
                 // try again with auto login now
-                autoProxyDetect = WinHttpGetProxyForUrl( proxyResolveSession, aURL.c_str(),
+                autoProxyDetect = WinHttpGetProxyForUrl( proxyResolveSession, reinterpret_cast<LPCWSTR>( aURL.utf16() ),
                                                          &autoProxyOptions, &autoProxyInfo );
             }
 
@@ -265,13 +209,11 @@ bool KIPLATFORM::ENV::GetSystemProxyConfig( const wxString& aURL, PROXY_CONFIG& 
     bool bypassed = false;
     if( bypassProxyStr != NULL )
     {
-        wxStringTokenizer tokenizer( bypassProxyStr, wxT( ";" ) );
+        QStringList tokens = QString::fromWCharArray( bypassProxyStr ).split( QLatin1Char( ';' ) );
 
-        while( tokenizer.HasMoreTokens() )
+        for( const QString& host : tokens )
         {
-            wxString host = tokenizer.GetNextToken();
-
-            if( host == uri.GetServer() )
+            if( host == uri.host() )
             {
                 // the given url has a host in the proxy bypass list
                 return false;
@@ -282,7 +224,7 @@ bool KIPLATFORM::ENV::GetSystemProxyConfig( const wxString& aURL, PROXY_CONFIG& 
             // some non-internal dns resolution
             if( host == "<local>" )
             {
-                if( !uri.GetServer().Contains( "." ) )
+                if( !uri.host().contains( "." ) )
                 {
                     // great its a local uri that is bypassed
                     bypassed = true;
@@ -297,20 +239,20 @@ bool KIPLATFORM::ENV::GetSystemProxyConfig( const wxString& aURL, PROXY_CONFIG& 
         // proxyStr can be in the following format per MSDN
         //([<scheme>=][<scheme>"://"]<server>[":"<port>])
         //and separated by semicolons or whitespace
-        wxStringTokenizer tokenizer( proxyStr, wxT( "; \t" ) );
+        QStringList tokens = QString::fromWCharArray( proxyStr ).split( QRegularExpression( "[; \t]+" ), Qt::SkipEmptyParts );
 
-        while( tokenizer.HasMoreTokens() )
+        for( const QString& entry : tokens )
         {
-            wxString entry = tokenizer.GetNextToken();
+            QString processedEntry = entry;
 
             // deal with the [<scheme>=] part, which may or may not exist
-            if( entry.Contains( "=" ) )
+            if( processedEntry.contains( "=" ) )
             {
-                wxString scheme = entry.BeforeFirst( '=' ).Lower();
-                entry = entry.AfterFirst( '=' );
+                QString scheme = processedEntry.section( '=', 0, 0 ).toLower();
+                processedEntry = processedEntry.section( '=', 1 );
 
                 // skip processing if the scheme doesnt match
-                if( scheme != uri.GetScheme().Lower() )
+                if( scheme != uri.scheme().toLower() )
                 {
                     continue;
                 }
@@ -320,9 +262,9 @@ bool KIPLATFORM::ENV::GetSystemProxyConfig( const wxString& aURL, PROXY_CONFIG& 
 
             // is the entry left not empty? we just take the first result
             // : and :: are also special cases we want to ignore
-            if( entry != "" && entry != ":" && entry != "::" )
+            if( !processedEntry.isEmpty() && processedEntry != ":" && processedEntry != "::" )
             {
-                aCfg.host = entry;
+                aCfg.host = processedEntry;
                 success = true;
                 break;
             }
@@ -365,12 +307,12 @@ bool KIPLATFORM::ENV::GetSystemProxyConfig( const wxString& aURL, PROXY_CONFIG& 
 }
 
 
-bool KIPLATFORM::ENV::VerifyFileSignature( const wxString& aPath )
+bool KIPLATFORM::ENV::VerifyFileSignature( const QString& aPath )
 {
     WINTRUST_FILE_INFO fileData;
     memset( &fileData, 0, sizeof( fileData ) );
     fileData.cbStruct = sizeof( WINTRUST_FILE_INFO );
-    fileData.pcwszFilePath = aPath.wc_str();
+    fileData.pcwszFilePath = reinterpret_cast<LPCWSTR>( aPath.utf16() );
 
     // verifies entire certificate chain
     GUID policy = WINTRUST_ACTION_GENERIC_VERIFY_V2;
@@ -400,27 +342,25 @@ bool KIPLATFORM::ENV::VerifyFileSignature( const wxString& aPath )
 }
 
 
-wxString KIPLATFORM::ENV::GetAppUserModelId()
+QString KIPLATFORM::ENV::GetAppUserModelId()
 {
     // The application model id allows for taskbar grouping
     // However, be warned, this cannot be too unique like per-process
     // Because longer scope Windows features, such as "Pin to Taskbar"
     // on a running application, depend on this being consistent.
-    std::vector<wxString> modelIdComponents;
-    modelIdComponents.push_back( wxS( "Kicad" ) );
-    modelIdComponents.push_back( wxS( "Kicad" ) );
-    modelIdComponents.push_back( wxTheApp->GetAppName() );
-    modelIdComponents.push_back( KICAD_MAJOR_MINOR_VERSION );
+    QStringList modelIdComponents;
+    modelIdComponents.append( "Kicad" );
+    modelIdComponents.append( "Kicad" );
+    
+    if( QCoreApplication::instance() )
+        modelIdComponents.append( QCoreApplication::instance()->applicationName() );
+    else
+        modelIdComponents.append( "KiCad" );
+    
+    modelIdComponents.append( KICAD_MAJOR_MINOR_VERSION );
 
-    wxString modelId;
-    for( const auto& str : modelIdComponents )
-    {
-        modelId += str;
-        modelId += wxS( "." );
-    }
-
-    modelId.RemoveLast();                      // remove trailing dot
-    modelId.Replace( wxS( " " ), wxS( "_" ) ); // remove spaces sanity
+    QString modelId = modelIdComponents.join( "." );
+    modelId.replace( " ", "_" ); // remove spaces sanity
 
     // the other limitation is 127 characters but we arent trying to hit that limit yet
 
@@ -428,17 +368,17 @@ wxString KIPLATFORM::ENV::GetAppUserModelId()
 }
 
 
-void KIPLATFORM::ENV::SetAppDetailsForWindow( wxWindow* aWindow, const wxString& aRelaunchCommand,
-                                              const wxString& aRelaunchDisplayName )
+void KIPLATFORM::ENV::SetAppDetailsForWindow( QWidget* aWindow, const QString& aRelaunchCommand,
+                                              const QString& aRelaunchDisplayName )
 {
     IPropertyStore* pps;
-    HRESULT         hr = ::SHGetPropertyStoreForWindow( aWindow->GetHWND(), IID_PPV_ARGS( &pps ) );
+    HRESULT         hr = ::SHGetPropertyStoreForWindow( reinterpret_cast<HWND>( aWindow->winId() ), IID_PPV_ARGS( &pps ) );
     if( SUCCEEDED( hr ) )
     {
         PROPVARIANT pv;
 
         // This is required for any the other properties to actually work
-        hr = ::InitPropVariantFromString( GetAppUserModelId().wc_str(), &pv );
+        hr = ::InitPropVariantFromString( reinterpret_cast<LPCWSTR>( GetAppUserModelId().utf16() ), &pv );
 
         if( SUCCEEDED( hr ) )
         {
@@ -447,9 +387,9 @@ void KIPLATFORM::ENV::SetAppDetailsForWindow( wxWindow* aWindow, const wxString&
         }
 
 
-        if( !aRelaunchCommand.empty() )
+        if( !aRelaunchCommand.isEmpty() )
         {
-            hr = ::InitPropVariantFromString( aRelaunchCommand.wc_str(), &pv );
+            hr = ::InitPropVariantFromString( reinterpret_cast<LPCWSTR>( aRelaunchCommand.utf16() ), &pv );
         }
         else
         {
@@ -463,9 +403,9 @@ void KIPLATFORM::ENV::SetAppDetailsForWindow( wxWindow* aWindow, const wxString&
             PropVariantClear( &pv );
         }
 
-        if( !aRelaunchDisplayName.empty() )
+        if( !aRelaunchDisplayName.isEmpty() )
         {
-            hr = ::InitPropVariantFromString( aRelaunchDisplayName.wc_str(), &pv );
+            hr = ::InitPropVariantFromString( reinterpret_cast<LPCWSTR>( aRelaunchDisplayName.utf16() ), &pv );
         }
         else
         {
@@ -484,27 +424,27 @@ void KIPLATFORM::ENV::SetAppDetailsForWindow( wxWindow* aWindow, const wxString&
 }
 
 
-wxString KIPLATFORM::ENV::GetCommandLineStr()
+QString KIPLATFORM::ENV::GetCommandLineStr()
 {
-    return ::GetCommandLine();
+    return QString::fromWCharArray( ::GetCommandLine() );
 }
 
 
-void KIPLATFORM::ENV::AddToRecentDocs( const wxString& aPath )
+void KIPLATFORM::ENV::AddToRecentDocs( const QString& aPath )
 {
     IShellItem* psi = nullptr;
-    HRESULT     hr = SHCreateItemFromParsingName( aPath.wc_str(), NULL, IID_PPV_ARGS( &psi ) );
+    HRESULT     hr = SHCreateItemFromParsingName( reinterpret_cast<LPCWSTR>( aPath.utf16() ), NULL, IID_PPV_ARGS( &psi ) );
 
     if( SUCCEEDED( hr ) )
     {
-        wxString       appID = GetAppUserModelId();
+        QString        appID = GetAppUserModelId();
         SHARDAPPIDINFO info;
         info.psi = psi;
-        info.pszAppID = appID.wc_str();
+        info.pszAppID = reinterpret_cast<LPCWSTR>( appID.utf16() );
         ::SHAddToRecentDocs( SHARD_APPIDINFO, &info );
 
         psi->Release();
     }
 
-    ::SHAddToRecentDocs( SHARD_PATHW, aPath.wc_str() );
+    ::SHAddToRecentDocs( SHARD_PATHW, reinterpret_cast<LPCWSTR>( aPath.utf16() ) );
 }

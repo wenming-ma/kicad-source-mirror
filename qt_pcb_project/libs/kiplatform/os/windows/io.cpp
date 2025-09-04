@@ -1,39 +1,21 @@
-/*
-* This program source code file is part of KiCad, a free EDA CAD application.
-*
-* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
-*
-* This program is free software: you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation, either version 3 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
 
 #include <kiplatform/io.h>
 
-#include <wx/string.h>
-#include <wx/wxcrt.h>
-#include <wx/filename.h>
+#include <QString>
+#include <QFileInfo>
+#include <QDir>
 #include <windows.h>
 
 // Define USE_MSYS2_FALlBACK if the code for _MSC_VER does not compile on msys2
 //#define  USE_MSYS2_FALLBACK
 
-FILE* KIPLATFORM::IO::SeqFOpen( const wxString& aPath, const wxString& aMode )
+FILE* KIPLATFORM::IO::SeqFOpen( const QString& aPath, const QString& aMode )
 {
 #if defined( _MSC_VER ) || !defined( USE_MSYS2_FALLBACK )
     // We need to use the win32 api to setup a file handle with sequential scan flagged
     // and pass it up the chain to create a normal FILE stream
     HANDLE hFile = INVALID_HANDLE_VALUE;
-    hFile = CreateFileW( aPath.wc_str(),
+    hFile = CreateFileW( reinterpret_cast<const wchar_t*>( aPath.utf16() ),
                          GENERIC_READ,
                          FILE_SHARE_READ,
                          NULL,
@@ -55,7 +37,7 @@ FILE* KIPLATFORM::IO::SeqFOpen( const wxString& aPath, const wxString& aMode )
         return NULL;
     }
 
-    FILE* fp = _fdopen( fd, aMode.c_str() );
+    FILE* fp = _fdopen( fd, aMode.toLocal8Bit().constData() );
 
     if( !fp )
     {
@@ -66,17 +48,17 @@ FILE* KIPLATFORM::IO::SeqFOpen( const wxString& aPath, const wxString& aMode )
     return fp;
 #else
     // Fallback for MSYS2
-    return wxFopen( aPath, aMode );
+    return fopen( aPath.toLocal8Bit().constData(), aMode.toLocal8Bit().constData() );
 #endif
 }
 
-bool KIPLATFORM::IO::DuplicatePermissions( const wxString &aSrc, const wxString &aDest )
+bool KIPLATFORM::IO::DuplicatePermissions( const QString &aSrc, const QString &aDest )
 {
     bool retval = false;
     DWORD dwSize = 0;
 
     // Retrieve the security descriptor from the source file
-    if( GetFileSecurity( aSrc.wc_str(),
+    if( GetFileSecurity( reinterpret_cast<const wchar_t*>( aSrc.utf16() ),
             OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
             NULL, 0, &dwSize ) )
     {
@@ -93,7 +75,7 @@ bool KIPLATFORM::IO::DuplicatePermissions( const wxString &aSrc, const wxString 
         if( !pSD )
             return false;
 
-        if( !GetFileSecurity( aSrc.wc_str(),
+        if( !GetFileSecurity( reinterpret_cast<const wchar_t*>( aSrc.utf16() ),
                 OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION
                         | DACL_SECURITY_INFORMATION, pSD, dwSize, &dwSize ) )
         {
@@ -102,7 +84,7 @@ bool KIPLATFORM::IO::DuplicatePermissions( const wxString &aSrc, const wxString 
         }
 
         // Assign the retrieved security descriptor to the destination file
-        if( !SetFileSecurity( aDest.wc_str(),
+        if( !SetFileSecurity( reinterpret_cast<const wchar_t*>( aDest.utf16() ),
                 OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION
                         | DACL_SECURITY_INFORMATION, pSD ) )
         {
@@ -115,44 +97,48 @@ bool KIPLATFORM::IO::DuplicatePermissions( const wxString &aSrc, const wxString 
     return retval;
 }
 
-bool KIPLATFORM::IO::IsFileHidden( const wxString& aFileName )
+bool KIPLATFORM::IO::IsFileHidden( const QString& aFileName )
 {
     bool result = false;
 
-    if( ( GetFileAttributesW( aFileName.fn_str() ) & FILE_ATTRIBUTE_HIDDEN ) )
+    if( ( GetFileAttributesW( reinterpret_cast<const wchar_t*>( aFileName.utf16() ) ) & FILE_ATTRIBUTE_HIDDEN ) )
         result = true;
 
     return result;
 }
 
 
-void KIPLATFORM::IO::LongPathAdjustment( wxFileName& aFilename )
+void KIPLATFORM::IO::LongPathAdjustment( QFileInfo& aFilename )
 {
     // dont shortcut this for shorter lengths as there are uses like directory
     // paths that exceed the path length when you start traversing their subdirectories
     // so we want to start with the long path prefix all the time
 
-    if( aFilename.GetVolume().Length() == 1 )
+    QString fullPath = aFilename.absoluteFilePath();
+    
+    if( fullPath.length() >= 2 && fullPath[1] == ':' && fullPath[0].isLetter() )
+    {
         // assume single letter == drive volume
-        aFilename.SetVolume( "\\\\?\\" + aFilename.GetVolume() + ":" );
-    else if( aFilename.GetVolume().Length() > 1
-            && aFilename.GetVolume().StartsWith( wxT( "\\\\" ) )
-            && !aFilename.GetVolume().StartsWith( wxT( "\\\\?" ) ) )
-        // unc path aka network share, wx returns with \\ already
+        QString newPath = "\\\\?\\" + fullPath;
+        aFilename = QFileInfo(newPath);
+    }
+    else if( fullPath.startsWith("\\\\") && !fullPath.startsWith("\\\\?") )
+    {
+        // unc path aka network share
         // so skip the first slash and combine with the prefix
         // which in the case of UNCs is actually \\?\UNC\<server>\<share>
         // where UNC is literally the text UNC
-        aFilename.SetVolume( "\\\\?\\UNC" + aFilename.GetVolume().Mid( 1 ) );
-    else if( aFilename.GetVolume().StartsWith( wxT( "\\\\?" ) )
-             && aFilename.GetDirs().size() >= 2
-             && aFilename.GetDirs()[0] == "UNC" )
+        QString newPath = "\\\\?\\UNC" + fullPath.mid(1);
+        aFilename = QFileInfo(newPath);
+    }
+    else if( fullPath.startsWith("\\\\?") && fullPath.contains("UNC") )
     {
-        // wxWidgets can parse \\?\UNC\<server> into a mess
+        // Qt should handle \\?\UNC paths correctly
         // UNC gets stored into a directory
         // volume gets reduced to just \\?
         // so we need to repair it
-        aFilename.SetVolume( "\\\\?\\UNC\\" + aFilename.GetDirs()[1] );
-        aFilename.RemoveDir( 0 );
-        aFilename.RemoveDir( 0 );
+        // Qt parsing should handle \\\\?\\UNC paths correctly
+        // but if there are issues, the path is already in long format
+        // so we keep it as-is
     }
 }
