@@ -1,5 +1,5 @@
 
-#include <QVector>
+#include <vector>
 #include <font/glyph.h>
 #include <trigo.h>
 
@@ -10,7 +10,7 @@ STROKE_GLYPH::STROKE_GLYPH( const STROKE_GLYPH& aGlyph )
 {
     reserve( aGlyph.size() );
 
-    for( const QVector<VECTOR2D>& pointList : aGlyph )
+    for( const std::vector<VECTOR2D>& pointList : aGlyph )
         push_back( pointList );
 
     m_boundingBox = aGlyph.m_boundingBox;
@@ -69,7 +69,7 @@ std::unique_ptr<GLYPH> STROKE_GLYPH::Transform( const VECTOR2D& aGlyphSize, cons
     glyph->m_boundingBox.SetEnd( end );
     glyph->m_boundingBox.Offset( aOffset );
 
-    for( QVector<VECTOR2D>& pointList : *glyph )
+    for( std::vector<VECTOR2D>& pointList : *glyph )
     {
         for( VECTOR2D& point : pointList )
         {
@@ -96,7 +96,7 @@ void STROKE_GLYPH::Move( const VECTOR2I& aOffset )
 {
     m_boundingBox.Offset( aOffset );
 
-    for( QVector<VECTOR2D>& pointList : *this )
+    for( std::vector<VECTOR2D>& pointList : *this )
     {
         for( VECTOR2D& point : pointList )
             point += aOffset;
@@ -143,10 +143,10 @@ void OUTLINE_GLYPH::CacheTriangulation( bool aPartition, bool aSimplify )
 }
 
 
-QVector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>
+std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>
 OUTLINE_GLYPH::GetTriangulationData() const
 {
-    QVector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>> data;
+    std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>> data;
 
     for( const std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>& poly : m_triangulatedPolys )
         data.push_back( std::make_unique<SHAPE_POLY_SET::TRIANGULATED_POLYGON>( *poly ) );
@@ -156,7 +156,7 @@ OUTLINE_GLYPH::GetTriangulationData() const
 
 
 void OUTLINE_GLYPH::CacheTriangulation(
-        QVector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>& aHintData )
+        std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>& aHintData )
 {
     cacheTriangulation( false, false, &aHintData );
 }

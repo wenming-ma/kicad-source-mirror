@@ -4,7 +4,7 @@
 #define LAYER_IDS_H
 
 #include <set>
-#include <QVector>
+#include <vector>
 #include <bitset>
 #include <stdexcept>
 #include <QString>
@@ -318,7 +318,7 @@ public:
         return test( static_cast<std::size_t>( aPos ) - start );
     }
 
-    QVector<GAL_LAYER_ID> Seq() const;
+    std::vector<GAL_LAYER_ID> Seq() const;
 
     static GAL_SET DefaultVisible();
 };

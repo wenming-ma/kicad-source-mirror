@@ -3,7 +3,7 @@
 
 #include <kicommon.h>
 #include <functional>
-#include <QVector>
+#include <vector>
 
 class QString;
 class KISTATUSBAR;
@@ -49,9 +49,9 @@ private:
     void onListWindowClosed( QCloseEvent* aEvent );
 
 private:
-    QVector<NOTIFICATION>        m_notifications;
-    QVector<NOTIFICATIONS_LIST*> m_shownDialogs;
-    QVector<KISTATUSBAR*>        m_statusBars;
+    std::vector<NOTIFICATION>        m_notifications;
+    std::vector<NOTIFICATIONS_LIST*> m_shownDialogs;
+    std::vector<KISTATUSBAR*>        m_statusBars;
     QString                      m_destFileName;
 };
 

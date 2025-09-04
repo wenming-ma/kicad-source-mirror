@@ -4,7 +4,7 @@
 #define _BOM_SETTINGS_H
 
 #include <QString>
-#include <QVector>
+#include <vector>
 #include <settings/json_settings.h>
 #include <settings/parameters.h>
 #include <i18n_utility.h>
@@ -33,7 +33,7 @@ struct KICOMMON_API BOM_PRESET
 {
     QString            name;
     bool               readOnly = false;
-    QVector<BOM_FIELD> fieldsOrdered;
+    std::vector<BOM_FIELD> fieldsOrdered;
     QString            sortField;
     bool               sortAsc = true;
     QString            filterString;
@@ -48,7 +48,7 @@ struct KICOMMON_API BOM_PRESET
     static BOM_PRESET GroupedByValueFootprint();
     static BOM_PRESET Attributes();
 
-    static QVector<BOM_PRESET> BuiltInPresets();
+    static std::vector<BOM_PRESET> BuiltInPresets();
 };
 
 KICOMMON_API bool operator!=( const BOM_PRESET& lhs, const BOM_PRESET& rhs );
@@ -76,7 +76,7 @@ struct KICOMMON_API BOM_FMT_PRESET
     static BOM_FMT_PRESET TSV();
     static BOM_FMT_PRESET Semicolons();
 
-    static QVector<BOM_FMT_PRESET> BuiltInPresets();
+    static std::vector<BOM_FMT_PRESET> BuiltInPresets();
 };
 
 KICOMMON_API bool operator!=( const BOM_FMT_PRESET& lhs, const BOM_FMT_PRESET& rhs );

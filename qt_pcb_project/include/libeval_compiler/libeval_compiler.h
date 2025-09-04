@@ -10,7 +10,7 @@
 #include <kicommon.h>
 #include <base_units.h>
 #include <QString>
-#include <QVector>
+#include <vector>
 
 #if defined(WIN32)
 // This gets leaked by python headers on MSVC only and will cause chaos
@@ -146,9 +146,9 @@ public:
     {
     }
 
-    virtual const QVector<QString>& GetSupportedUnits() const
+    virtual const std::vector<QString>& GetSupportedUnits() const
     {
-        static const QVector<QString> nullUnits;
+        static const std::vector<QString> nullUnits;
 
         return nullUnits;
     }
@@ -568,7 +568,7 @@ protected:
     TREE_NODE*   m_tree;
 
     std::vector<TREE_NODE*>  m_gcItems;
-    QVector<QString*>   m_gcStrings;
+    std::vector<QString*>   m_gcStrings;
 };
 
 

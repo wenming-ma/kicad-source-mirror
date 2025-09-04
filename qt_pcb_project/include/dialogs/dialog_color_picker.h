@@ -2,6 +2,7 @@
 #define DIALOG_COLOR_PICKER_H
 
 
+#include <vector>
 #include <gal/color4d.h>
 #include "../../common/dialogs/dialog_color_picker_base.h"
 
@@ -36,7 +37,7 @@ struct CUSTOM_COLOR_ITEM
 };
 
 
-typedef QVector<CUSTOM_COLOR_ITEM> CUSTOM_COLORS_LIST;
+typedef std::vector<CUSTOM_COLOR_ITEM> CUSTOM_COLORS_LIST;
 
 
 enum CHANGED_COLOR
@@ -76,7 +77,7 @@ private:
     KIGFX::COLOR4D m_defaultColor;      // The default color4d
 
     // the list of color4d ordered by button ID, for predefined colors
-    QVector<KIGFX::COLOR4D> m_Color4DList;
+    std::vector<KIGFX::COLOR4D> m_Color4DList;
     int m_cursorsSize;
 
     QPoint m_cursorBitmapRed;          // the red cursor on the RGB bitmap palette.
@@ -92,7 +93,7 @@ private:
     QPixmap* m_bitmapRGB;              // the basic RGB palette
     QPixmap* m_bitmapHSV;              // the basic HUV palette
 
-    QVector<QLabel*> m_colorSwatches;    // list of defined colors buttons
+    std::vector<QLabel*> m_colorSwatches;    // list of defined colors buttons
 
     void SetEditVals( CHANGED_COLOR aChanged, bool aCheckTransparency );
 	void drawAll();

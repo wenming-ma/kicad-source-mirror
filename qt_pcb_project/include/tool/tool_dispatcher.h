@@ -1,7 +1,7 @@
 #ifndef TOOL_DISPATCHER_H
 #define TOOL_DISPATCHER_H
 
-#include <QVector>
+#include <vector>
 #include <QObject>
 #include <QEvent>
 #include <QKeyEvent>
@@ -76,7 +76,7 @@ private:
 
     // State of mouse buttons
     struct BUTTON_STATE;
-    QVector<BUTTON_STATE*> m_buttons;
+    std::vector<BUTTON_STATE*> m_buttons;
 
     // Instance of tool manager that cooperates with the dispatcher
     TOOL_MANAGER* m_toolMgr;

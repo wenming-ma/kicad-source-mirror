@@ -1,12 +1,9 @@
-// QT_TRANSFORMATION_COMPLETED
-
 #ifndef TOOL_MANAGER_H
 #define TOOL_MANAGER_H
 
-#include <QList>
-#include <QHash>
-#include <QStack>
-#include <QVector>
+#include <list>
+#include <map>
+#include <vector>
 #include <typeinfo>
 #include <type_traits>
 
@@ -42,10 +39,10 @@ public:
     ~TOOL_MANAGER();
 
     // Helper typedefs
-    typedef QHash<TOOL_BASE*, TOOL_STATE*> TOOL_STATE_MAP;
-    typedef QHash<std::string, TOOL_STATE*> NAME_STATE_MAP;
-    typedef QHash<TOOL_ID, TOOL_STATE*> ID_STATE_MAP;
-    typedef QList<TOOL_ID> ID_LIST;
+    typedef std::map<TOOL_BASE*, TOOL_STATE*> TOOL_STATE_MAP;
+    typedef std::map<std::string, TOOL_STATE*> NAME_STATE_MAP;
+    typedef std::map<TOOL_ID, TOOL_STATE*> ID_STATE_MAP;
+    typedef std::list<TOOL_ID> ID_LIST;
 
     static TOOL_ID MakeToolId( const std::string& aToolName );
 
@@ -172,7 +169,7 @@ public:
     template<typename T>
     T* GetTool()
     {
-        QHash<const char*, TOOL_BASE*>::iterator tool = m_toolTypes.find( typeid( T ).name() );
+        std::map<const char*, TOOL_BASE*>::iterator tool = m_toolTypes.find( typeid( T ).name() );
 
         if( tool != m_toolTypes.end() )
             return static_cast<T*>( tool->second );
@@ -180,7 +177,7 @@ public:
         return nullptr;
     }
 
-    QVector<TOOL_BASE*> Tools() { return m_toolOrder; }
+    std::vector<TOOL_BASE*> Tools() { return m_toolOrder; }
 
     void DeactivateTool();
 
@@ -300,7 +297,7 @@ private:
 
 private:
     /// List of tools in the order they were registered.
-    QVector<TOOL_BASE*> m_toolOrder;
+    std::vector<TOOL_BASE*> m_toolOrder;
 
     /// Index of registered tools current states, associated by tools' objects.
     TOOL_STATE_MAP m_toolState;
@@ -312,7 +309,7 @@ private:
     ID_STATE_MAP m_toolIdIndex;
 
     /// Index of the registered tools to easily lookup by their type.
-    QHash<const char*, TOOL_BASE*> m_toolTypes;
+    std::map<const char*, TOOL_BASE*> m_toolTypes;
 
     /// Stack of the active tools.
     ID_LIST m_activeTools;
@@ -321,7 +318,7 @@ private:
     ACTION_MANAGER* m_actionMgr;
 
     /// Original cursor position, if overridden by the context menu handler.
-    QHash<TOOL_ID, std::optional<VECTOR2D>> m_cursorSettings;
+    std::map<TOOL_ID, std::optional<VECTOR2D>> m_cursorSettings;
 
     EDA_ITEM*             m_model;
     KIGFX::VIEW*          m_view;
@@ -330,7 +327,7 @@ private:
     APP_SETTINGS_BASE*    m_settings;
 
     /// Queue that stores events to be processed at the end of the event processing cycle.
-    QList<TOOL_EVENT> m_eventQueue;
+    std::list<TOOL_EVENT> m_eventQueue;
 
     /// Right click context menu position.
     VECTOR2D m_menuCursor;

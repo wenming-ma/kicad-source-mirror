@@ -7,6 +7,8 @@
 #include <widgets/resettable_panel.h>
 #include <widgets/widget_hotkey_list.h>
 
+#include <vector>
+
 #include <QtWidgets/QWidget>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QLineEdit>
@@ -24,7 +26,7 @@ public:
     PANEL_HOTKEYS_EDITOR( EDA_BASE_FRAME* aFrame, QWidget* aWindow, bool aReadOnly );
     ~PANEL_HOTKEYS_EDITOR();
 
-    QVector<TOOL_ACTION*>& ActionsList() { return m_actions; }
+    std::vector<TOOL_ACTION*>& ActionsList() { return m_actions; }
 
     bool TransferDataToWindow() override;
     bool TransferDataFromWindow() override;
@@ -51,7 +53,7 @@ protected:
     EDA_BASE_FRAME*            m_frame;
     bool                       m_readOnly;
 
-    QVector<TOOL_ACTION*>  m_actions;
+    std::vector<TOOL_ACTION*>  m_actions;
     HOTKEY_STORE               m_hotkeyStore;
     WIDGET_HOTKEY_LIST*        m_hotkeyListCtrl;
 };

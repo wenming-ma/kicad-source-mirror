@@ -13,6 +13,7 @@
 #include <launch_ext.h>
 
 #include <filesystem>
+#include <vector>
 
 void QuoteString( QString& string )
 {
@@ -116,7 +117,7 @@ int ExecuteFile( const QString& aEditorName, const QString& aFileName, QProcess*
                  bool aFileForKicad )
 {
     QString        fullEditorName;
-    QVector<QString> params;
+    std::vector<std::string> params;
 
 #ifdef __UNIX__
     QString param;
@@ -128,7 +129,7 @@ int ExecuteFile( const QString& aEditorName, const QString& aFileName, QProcess*
             {
                 if( !param.isEmpty() )
                 {
-                    params.push_back( param );
+                    params.push_back( param.toStdString() );
                     param.clear();
                 }
             };
@@ -183,11 +184,11 @@ int ExecuteFile( const QString& aEditorName, const QString& aFileName, QProcess*
     pushParam();
 
     if( aFileForKicad )
-        fullEditorName = FindKicadFile( params[0] );
+        fullEditorName = FindKicadFile( QString::fromStdString( params[0] ) );
     else
-        fullEditorName = params[0];
+        fullEditorName = QString::fromStdString( params[0] );
 
-    params.removeFirst();
+    params.erase( params.begin() );
 #else
 
     if( aFileForKicad )
@@ -202,8 +203,8 @@ int ExecuteFile( const QString& aEditorName, const QString& aFileName, QProcess*
 
         if( !params.empty() )
         {
-            for( const QString& p : params )
-                arguments << p;
+            for( const std::string& p : params )
+                arguments << QString::fromStdString( p );
         }
 
         if( !aFileName.isEmpty() )
@@ -377,7 +378,7 @@ bool CopyDirectory( const QString& aSourceDir, const QString& aDestDir, QString&
 
 
 bool CopyFilesOrDirectory( const QString& aSourcePath, const QString& aDestDir, QString& aErrors,
-                           int& aFileCopiedCount, const QVector<QString>& aExclusions )
+                           int& aFileCopiedCount, const std::vector<std::string>& aExclusions )
 {
     // Parse source path and determine if it's a directory
     QFileInfo sourceFn( aSourcePath );
@@ -436,7 +437,7 @@ bool CopyFilesOrDirectory( const QString& aSourcePath, const QString& aDestDir, 
 
             for( const auto& exclusion : aExclusions )
             {
-                QRegExp exclusionPattern( exclusion );
+                QRegExp exclusionPattern( QString::fromStdString( exclusion ) );
                 exclusionPattern.setPatternSyntax( QRegExp::Wildcard );
                 if( exclusionPattern.exactMatch( entrySrc ) )
                 {

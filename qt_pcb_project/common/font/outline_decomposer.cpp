@@ -2,7 +2,6 @@
 #include <advanced_config.h>
 #include <font/outline_decomposer.h>
 #include <bezier_curves.h>
-#include <QVector>
 
 using namespace KIFONT;
 
@@ -74,7 +73,7 @@ int OUTLINE_DECOMPOSER::cubicTo( const FT_Vector* aFirstControlPoint,
 {
     OUTLINE_DECOMPOSER* decomposer = static_cast<OUTLINE_DECOMPOSER*>( aCallbackData );
 
-    QVector<VECTOR2D> bezier;
+    std::vector<VECTOR2D> bezier;
     bezier.push_back( decomposer->m_lastEndPoint );
     bezier.push_back( toVector2D( aFirstControlPoint ) );
 
@@ -86,7 +85,7 @@ int OUTLINE_DECOMPOSER::cubicTo( const FT_Vector* aFirstControlPoint,
 
     bezier.push_back( toVector2D( aEndPoint ) );
 
-    QVector<VECTOR2D> result;
+    std::vector<VECTOR2D> result;
     BEZIER_POLY           converter( bezier );
     converter.GetPoly( result, ADVANCED_CFG::GetCfg().m_FontErrorSize );
 
@@ -99,7 +98,7 @@ int OUTLINE_DECOMPOSER::cubicTo( const FT_Vector* aFirstControlPoint,
 }
 
 
-bool OUTLINE_DECOMPOSER::OutlineToSegments( QVector<CONTOUR>* aContours )
+bool OUTLINE_DECOMPOSER::OutlineToSegments( std::vector<CONTOUR>* aContours )
 {
     m_contours = aContours;
 
@@ -124,7 +123,7 @@ bool OUTLINE_DECOMPOSER::OutlineToSegments( QVector<CONTOUR>* aContours )
 }
 
 
-int OUTLINE_DECOMPOSER::winding( const QVector<VECTOR2D>& aContour ) const
+int OUTLINE_DECOMPOSER::winding( const std::vector<VECTOR2D>& aContour ) const
 {
     // -1 == counterclockwise, 1 == clockwise
 

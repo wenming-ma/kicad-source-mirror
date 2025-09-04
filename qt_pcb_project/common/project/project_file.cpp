@@ -5,6 +5,7 @@
 #include <settings/common_settings.h>
 #include <settings/parameters.h>
 #include <wildcards_and_files_ext.h>
+#include <vector>
 #include <QtCore/QSettings>
 #include <QtCore/QDebug>
 
@@ -542,9 +543,9 @@ bool PROJECT_FILE::MigrateFromLegacy( QSettings* aCfg )
                 return true;
             };
 
-    QVector<QString> groups;
+    std::vector<QString> groups;
 
-    groups.append( QString() );
+    groups.push_back( QString() );
 
     auto loadLegacyPairs =
             [&]( const std::string& aGroup ) -> bool
@@ -601,7 +602,7 @@ bool PROJECT_FILE::MigrateFromLegacy( QSettings* aCfg )
             QString group = groups[i].isEmpty() ? childGroup : groups[i] + "/" + childGroup;
 
             if( !group_blacklist.count( group ) )
-                groups.append( group );
+                groups.push_back( group );
         }
 
         if( !groups[i].isEmpty() )

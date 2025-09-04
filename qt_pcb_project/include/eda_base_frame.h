@@ -3,28 +3,9 @@
 #define  EDA_BASE_FRAME_H_
 
 
-#include <QVector>
-#include <QHash>
-#include <QMainWindow>
-#include <QWidget>
-#include <QMenuBar>
-#include <QStatusBar>
-#include <QTimer>
-#include <QDropEvent>
-#include <QString>
-#include <QPoint>
-#include <QSize>
-#include <QKeyEvent>
-#include <QMoveEvent>
-#include <QResizeEvent>
-#include <QCloseEvent>
-#include <QTimerEvent>
-#include <QFileInfo>
-#include <QEvent>
-#include <functional>
-
-#include <QVector>
-#include <QHash>
+#include <vector>
+#include <map>
+#include <unordered_map>
 #include <QMainWindow>
 #include <QWidget>
 #include <QMenuBar>
@@ -57,21 +38,14 @@
 
 // Option for main frames
 #define KICAD_DEFAULT_DRAWFRAME_STYLE (Qt::Window | Qt::WindowMinMaxButtonsHint | Qt::WindowCloseButtonHint)
-#define KICAD_DEFAULT_DRAWFRAME_STYLE (Qt::Window | Qt::WindowMinMaxButtonsHint | Qt::WindowCloseButtonHint)
 
-#define VIEWER3D_FRAMENAME "Viewer3DFrameName"
 #define VIEWER3D_FRAMENAME "Viewer3DFrameName"
 #define QUALIFIED_VIEWER3D_FRAMENAME( parent ) \
                     ( QString( VIEWER3D_FRAMENAME ) + ":" + parent->objectName() )
-                    ( QString( VIEWER3D_FRAMENAME ) + ":" + parent->objectName() )
 
 #define KICAD_MANAGER_FRAME_NAME   "KicadFrame"
-#define KICAD_MANAGER_FRAME_NAME   "KicadFrame"
 
 
-class QComboBox;
-class QEvent;
-class QFileInfo;
 class QComboBox;
 class QEvent;
 class QFileInfo;
@@ -104,11 +78,7 @@ class TOOL_INTERACTIVE;
 
 // This is the handler functor for the update UI events
 typedef std::function< void( QEvent& ) > UIUpdateHandler;
-// This is the handler functor for the update UI events
-typedef std::function< void( QEvent& ) > UIUpdateHandler;
 
-// The base frame for deriving all KiCad main window classes.
-class EDA_BASE_FRAME : public QMainWindow, public TOOLS_HOLDER, public KIWAY_HOLDER,
 // The base frame for deriving all KiCad main window classes.
 class EDA_BASE_FRAME : public QMainWindow, public TOOLS_HOLDER, public KIWAY_HOLDER,
                        public UNITS_PROVIDER
@@ -120,9 +90,6 @@ public:
         REDO_LIST
     };
 
-    EDA_BASE_FRAME( QWidget* aParent, FRAME_T aFrameType, const QString& aTitle,
-                    const QPoint& aPos, const QSize& aSize, Qt::WindowFlags aStyle,
-                    const QString& aFrameName, KIWAY* aKiway, const EDA_IU_SCALE& aIuScale );
     EDA_BASE_FRAME( QWidget* aParent, FRAME_T aFrameType, const QString& aTitle,
                     const QPoint& aPos, const QSize& aSize, Qt::WindowFlags aStyle,
                     const QString& aFrameName, KIWAY* aKiway, const EDA_IU_SCALE& aIuScale );
@@ -143,12 +110,9 @@ public:
     virtual SEVERITY GetSeverity( int aErrorCode ) const { return RPT_SEVERITY_UNDEFINED; }
 
     bool ProcessEvent( QEvent& aEvent );
-    bool ProcessEvent( QEvent& aEvent );
 
     virtual void OnCharHook( QKeyEvent& aKeyEvent );
-    virtual void OnCharHook( QKeyEvent& aKeyEvent );
 
-    void OnMenuEvent( QEvent& event );
     void OnMenuEvent( QEvent& event );
 
     virtual void RegisterUIUpdateHandler( int aID, const ACTION_CONDITIONS& aConditions ) override;
@@ -156,22 +120,16 @@ public:
     virtual void UnregisterUIUpdateHandler( int aID ) override;
 
     static void HandleUpdateUIEvent( QEvent& aEvent, EDA_BASE_FRAME* aFrame,
-    static void HandleUpdateUIEvent( QEvent& aEvent, EDA_BASE_FRAME* aFrame,
                                      ACTION_CONDITIONS aCond );
 
     virtual void OnMove( QMoveEvent& aEvent )
-    virtual void OnMove( QMoveEvent& aEvent )
     {
-        // Qt equivalent of aEvent.Skip() is accepting the event
-        aEvent.accept();
         // Qt equivalent of aEvent.Skip() is accepting the event
         aEvent.accept();
     }
 
     virtual void OnSize( QResizeEvent& aEvent );
-    virtual void OnSize( QResizeEvent& aEvent );
 
-    void OnMaximize( QEvent& aEvent );
     void OnMaximize( QEvent& aEvent );
 
     int GetAutoSaveInterval() const;
@@ -182,45 +140,32 @@ public:
     virtual const SEARCH_STACK& sys_search();
 
     virtual QString help_name();
-    virtual QString help_name();
 
-    void OnKicadAbout( QEvent& event );
-    void OnPreferences( QEvent& event );
     void OnKicadAbout( QEvent& event );
     void OnPreferences( QEvent& event );
 
     void ShowPreferences( QString aStartPage, QString aStartParentPage );
-    void ShowPreferences( QString aStartPage, QString aStartParentPage );
 
-    void PrintMsg( const QString& text );
     void PrintMsg( const QString& text );
 
     void CreateInfoBar();
 
     void FinishLayoutInitialization();
-    void FinishLayoutInitialization();
 
-    QT_INFOBAR* GetInfoBar() { return m_infoBar; }
     QT_INFOBAR* GetInfoBar() { return m_infoBar; }
 
     void ShowInfoBarError( const QString& aErrorMsg, bool aShowCloseButton = false,
                            QT_INFOBAR::MESSAGE_TYPE aType = QT_INFOBAR::MESSAGE_TYPE::GENERIC );
-    void ShowInfoBarError( const QString& aErrorMsg, bool aShowCloseButton = false,
-                           QT_INFOBAR::MESSAGE_TYPE aType = QT_INFOBAR::MESSAGE_TYPE::GENERIC );
 
-    void ShowInfoBarError( const QString& aErrorMsg, bool aShowCloseButton,
     void ShowInfoBarError( const QString& aErrorMsg, bool aShowCloseButton,
                            std::function<void(void)> aCallback );
 
     void ShowInfoBarWarning( const QString& aWarningMsg, bool aShowCloseButton = false );
-    void ShowInfoBarWarning( const QString& aWarningMsg, bool aShowCloseButton = false );
 
-    void ShowInfoBarMsg( const QString& aMsg, bool aShowCloseButton = false );
     void ShowInfoBarMsg( const QString& aMsg, bool aShowCloseButton = false );
 
     virtual APP_SETTINGS_BASE* config() const;
 
-    void LoadWindowState( const QString& aFileName );
     void LoadWindowState( const QString& aFileName );
 
     void LoadWindowSettings( const WINDOW_SETTINGS* aCfg );
@@ -236,28 +181,21 @@ public:
     virtual void LoadWindowState( const WINDOW_STATE& aState );
 
     QString ConfigBaseName() override
-    QString ConfigBaseName() override
     {
-        QString baseCfgName = m_configName.isEmpty() ? objectName() : m_configName;
         QString baseCfgName = m_configName.isEmpty() ? objectName() : m_configName;
         return baseCfgName;
     }
 
     virtual void SaveProjectLocalSettings() {};
 
-    void ImportHotkeyConfigFromFile( QHash<std::string, TOOL_ACTION*> aActionMap,
-                                     const QString& aDefaultShortname );
-    void ImportHotkeyConfigFromFile( QHash<std::string, TOOL_ACTION*> aActionMap,
+    void ImportHotkeyConfigFromFile( std::map<std::string, TOOL_ACTION*> aActionMap,
                                      const QString& aDefaultShortname );
 
-    QString GetFileFromHistory( int cmdId, const QString& type,
-                                FILE_HISTORY* aFileHistory = nullptr );
     QString GetFileFromHistory( int cmdId, const QString& type,
                                 FILE_HISTORY* aFileHistory = nullptr );
 
     void ClearFileHistory( FILE_HISTORY* aFileHistory = nullptr );
 
-    void UpdateFileHistory( const QString& FullFileName, FILE_HISTORY* aFileHistory = nullptr );
     void UpdateFileHistory( const QString& FullFileName, FILE_HISTORY* aFileHistory = nullptr );
 
     FILE_HISTORY& GetFileHistory()
@@ -266,26 +204,19 @@ public:
     }
 
     void SetMruPath( const QString& aPath ) { m_mruPath = aPath; }
-    void SetMruPath( const QString& aPath ) { m_mruPath = aPath; }
 
     QString GetMruPath() const { return m_mruPath; }
-    QString GetMruPath() const { return m_mruPath; }
 
-    virtual QString GetCurrentFileName() const { return QString(); }
     virtual QString GetCurrentFileName() const { return QString(); }
 
     void ReCreateMenuBar();
 
     void AddStandardHelpMenu( QMenuBar* aMenuBar );
-    void AddStandardHelpMenu( QMenuBar* aMenuBar );
 
-    bool IsWritable( const QFileInfo& aFileName, bool aVerbose = true );
     bool IsWritable( const QFileInfo& aFileName, bool aVerbose = true );
 
     virtual void CheckForAutoSaveFile( const QFileInfo& aFileName );
-    virtual void CheckForAutoSaveFile( const QFileInfo& aFileName );
 
-    virtual void DeleteAutoSaveFile( const QFileInfo& aFileName );
     virtual void DeleteAutoSaveFile( const QFileInfo& aFileName );
 
     virtual void UpdateStatusBar() { }
@@ -299,14 +230,11 @@ public:
     virtual void ProjectChanged() {}
 
     const QString& GetAboutTitle() const { return m_aboutTitle; }
-    const QString& GetAboutTitle() const { return m_aboutTitle; }
 
-    const QString& GetUntranslatedAboutTitle() const { return m_aboutTitle; }
     const QString& GetUntranslatedAboutTitle() const { return m_aboutTitle; }
 
     virtual bool IsContentModified() const;
 
-    QSize GetWindowSize();
     QSize GetWindowSize();
 
     virtual void ClearUndoORRedoList( UNDO_REDO_LIST aList, int aItemCount = -1 )
@@ -327,8 +255,6 @@ public:
 
     virtual QString GetUndoActionDescription() const;
     virtual QString GetRedoActionDescription() const;
-    virtual QString GetUndoActionDescription() const;
-    virtual QString GetRedoActionDescription() const;
 
     int GetMaxUndoItems() const { return m_undoRedoCountMax; }
 
@@ -340,27 +266,20 @@ public:
     {
         m_isNonUserClose = true;
         return close();
-        return close();
     }
 
     virtual void HandleSystemColorChange();
 
     virtual bool CanAcceptApiCommands() { return isEnabled(); }
-    virtual bool CanAcceptApiCommands() { return isEnabled(); }
 
 protected:
-    // Default style flags used for Qt toolbars.
-    static constexpr int KICAD_QT_TB_STYLE = Qt::ToolButtonTextUnderIcon;
     // Default style flags used for Qt toolbars.
     static constexpr int KICAD_QT_TB_STYLE = Qt::ToolButtonTextUnderIcon;
 
     virtual void doReCreateMenuBar() {}
 
     void onAutoSaveTimer( QTimerEvent& aEvent );
-    void onAutoSaveTimer( QTimerEvent& aEvent );
 
-    virtual void handleIconizeEvent( QEvent& aEvent ) {}
-    void         onIconize( QEvent& aEvent );
     virtual void handleIconizeEvent( QEvent& aEvent ) {}
     void         onIconize( QEvent& aEvent );
 
@@ -369,10 +288,8 @@ protected:
     virtual bool doAutoSave();
 
     virtual bool canCloseWindow( QCloseEvent& aCloseEvent ) { return true; }
-    virtual bool canCloseWindow( QCloseEvent& aCloseEvent ) { return true; }
     virtual void doCloseWindow() { }
 
-    void onSystemColorChange( QEvent& aEvent );
     void onSystemColorChange( QEvent& aEvent );
 
     virtual void unitsChangeRefresh() { }
@@ -386,28 +303,21 @@ protected:
     virtual void saveProjectSettings() {}
 
     virtual void OnDropFiles( QDropEvent& aEvent );
-    virtual void OnDropFiles( QDropEvent& aEvent );
 
     void AddMenuLanguageList( ACTION_MENU* aMasterMenu, TOOL_INTERACTIVE* aControlTool );
 
     virtual void            DoWithAcceptedFiles();
-    QVector<QFileInfo> m_AcceptedFiles;
-    QVector<QFileInfo> m_AcceptedFiles;
+    std::vector<QFileInfo> m_AcceptedFiles;
 
 private:
-    void windowClosing( QCloseEvent& event );
-
     void windowClosing( QCloseEvent& event );
 
     void commonInit( FRAME_T aFrameType );
 
     QWidget* findQuasiModalDialog();
-    QWidget* findQuasiModalDialog();
 
     virtual bool IsModal() const { return false; }
 
-#ifdef _WIN32
-    bool nativeEvent( const QByteArray& eventType, void* message, long* result ) override;
 #ifdef _WIN32
     bool nativeEvent( const QByteArray& eventType, void* message, long* result ) override;
 #endif
@@ -416,28 +326,19 @@ private:
     FRAME_T         m_ident;                // Id Type (pcb, schematic, library..)
     QPoint          m_framePos;
     QSize           m_frameSize;
-    QPoint          m_framePos;
-    QSize           m_frameSize;
     bool            m_maximizeByDefault;
     int             m_displayIndex;
 
     // These contain the frame size and position for when it is not maximized
     QPoint          m_normalFramePos;
     QSize           m_normalFrameSize;
-    QPoint          m_normalFramePos;
-    QSize           m_normalFrameSize;
 
     QString                 m_aboutTitle;        // Name of program displayed in About.
-    QString                 m_aboutTitle;        // Name of program displayed in About.
 
-    // Custom layout management system (replacing wxAuiManager)
-    QString                 m_perspective;       // Layout perspective.
-    QT_INFOBAR*             m_infoBar;           // Infobar for the frame
     // Custom layout management system (replacing wxAuiManager)
     QString                 m_perspective;       // Layout perspective.
     QT_INFOBAR*             m_infoBar;           // Infobar for the frame
     APPEARANCE_CONTROLS_3D* m_appearancePanel;
-    QString                 m_configName;        // Prefix used to identify some params (frame
     QString                 m_configName;        // Prefix used to identify some params (frame
                                                  // size) and to name some config files (legacy
                                                  // hotkey files)
@@ -448,7 +349,6 @@ private:
     bool                    m_autoSavePending;
     bool                    m_autoSaveRequired;
     QTimer*                 m_autoSaveTimer;
-    QTimer*                 m_autoSaveTimer;
 
     int                     m_undoRedoCountMax;  // undo/Redo command Max depth
 
@@ -456,35 +356,24 @@ private:
     UNDO_REDO_CONTAINER     m_redoList;          // Objects list for the redo command (old data)
 
     QString                 m_mruPath;           // Most recently used path.
-    QString                 m_mruPath;           // Most recently used path.
 
     ORIGIN_TRANSFORMS       m_originTransforms;  // Default display origin transforms object.
 
     // Map containing the UI update handlers registered with Qt for each action.
-    QHash<int, UIUpdateHandler> m_uiUpdateMap;
-    // Map containing the UI update handlers registered with Qt for each action.
-    QHash<int, UIUpdateHandler> m_uiUpdateMap;
+    std::map<int, UIUpdateHandler> m_uiUpdateMap;
 
-    // Set by the close window event handler after frames are asked if they can close.
-    // Allows other functions when called to know our state is cleanup.
     // Set by the close window event handler after frames are asked if they can close.
     // Allows other functions when called to know our state is cleanup.
     bool            m_isClosing;
 
     // Set by NonUserClose() to indicate that the user did not request the current close.
-    // Set by NonUserClose() to indicate that the user did not request the current close.
     bool            m_isNonUserClose;
 
     // Associate file extensions with action to execute.
-    QHash<const QString, TOOL_ACTION*> m_acceptedExts;
-    // Associate file extensions with action to execute.
-    QHash<const QString, TOOL_ACTION*> m_acceptedExts;
+    std::map<const QString, TOOL_ACTION*> m_acceptedExts;
 };
 
 
-// Specialization of pane configuration for KiCad panels.
-// Replaces wxAuiPaneInfo with Qt-based layout management.
-class EDA_PANE
 // Specialization of pane configuration for KiCad panels.
 // Replaces wxAuiPaneInfo with Qt-based layout management.
 class EDA_PANE
@@ -495,20 +384,10 @@ public:
         m_hasGripper = false;
         m_hasCloseButton = false;
         m_hasBorder = false;
-        m_hasGripper = false;
-        m_hasCloseButton = false;
-        m_hasBorder = false;
     }
 
     EDA_PANE& HToolbar()
     {
-        m_isToolbar = true;
-        m_captionVisible = false;
-        m_topDockable = true;
-        m_bottomDockable = true;
-        m_dockFixed = true;
-        m_movable = false;
-        m_resizable = true;
         m_isToolbar = true;
         m_captionVisible = false;
         m_topDockable = true;
@@ -528,20 +407,11 @@ public:
         m_dockFixed = true;
         m_movable = false;
         m_resizable = true;
-        m_isToolbar = true;
-        m_captionVisible = false;
-        m_leftDockable = true;
-        m_rightDockable = true;
-        m_dockFixed = true;
-        m_movable = false;
-        m_resizable = true;
         return *this;
     }
 
     EDA_PANE& Palette()
     {
-        m_captionVisible = true;
-        m_hasBorder = true;
         m_captionVisible = true;
         m_hasBorder = true;
         return *this;
@@ -553,20 +423,11 @@ public:
         m_layer = 0;
         m_hasBorder = true;
         m_resizable = true;
-        m_captionVisible = false;
-        m_layer = 0;
-        m_hasBorder = true;
-        m_resizable = true;
         return *this;
     }
 
     EDA_PANE& Messages()
     {
-        m_captionVisible = false;
-        m_bottomDockable = true;
-        m_dockFixed = true;
-        m_movable = false;
-        m_resizable = true;
         m_captionVisible = false;
         m_bottomDockable = true;
         m_dockFixed = true;
@@ -582,28 +443,8 @@ public:
         m_resizable = true;
         m_hasBorder = false;
         m_dockFixed = true;
-        m_captionVisible = false;
-        m_movable = false;
-        m_resizable = true;
-        m_hasBorder = false;
-        m_dockFixed = true;
         return *this;
     }
-
-private:
-    bool m_hasGripper = true;
-    bool m_hasCloseButton = true;
-    bool m_hasBorder = true;
-    bool m_isToolbar = false;
-    bool m_captionVisible = true;
-    bool m_topDockable = false;
-    bool m_bottomDockable = false;
-    bool m_leftDockable = false;
-    bool m_rightDockable = false;
-    bool m_dockFixed = false;
-    bool m_movable = true;
-    bool m_resizable = false;
-    int m_layer = 1;
 
 private:
     bool m_hasGripper = true;

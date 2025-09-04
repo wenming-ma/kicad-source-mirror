@@ -4,8 +4,8 @@
 #define EDA_TEXT_H_
 
 #include <memory>
-#include <QVector>
-#include <QHash>
+#include <vector>
+#include <map>
 #include <QString>
 
 #include <outline_mode.h>
@@ -174,7 +174,7 @@ public:
     KIFONT::FONT* GetFont() const               { return m_attributes.m_Font; }
 
     void SetUnresolvedFontName( const QString& aFontName ) { m_unresolvedFontName = aFontName; }
-    bool ResolveFont( const QVector<QString>* aEmbeddedFonts );
+    bool ResolveFont( const std::vector<QString>* aEmbeddedFonts );
 
     QString GetFontName() const;
 
@@ -259,7 +259,7 @@ public:
     // to the vertical justification and the rotation of the whole text.
     // aPositions is the list to populate by the VECTOR2I positions.
     // aLineCount is the number of lines (not recalculated here for efficiency reasons.
-    void GetLinePositions( const RENDER_SETTINGS* aSettings, QVector<VECTOR2I>& aPositions,
+    void GetLinePositions( const RENDER_SETTINGS* aSettings, std::vector<VECTOR2I>& aPositions,
                            int aLineCount ) const;
 
     // Return the levenstein distance between two texts.
@@ -283,7 +283,7 @@ public:
     virtual void ClearRenderCache();
     virtual void ClearBoundingBoxCache();
 
-    QVector<std::unique_ptr<KIFONT::GLYPH>>*
+    std::vector<std::unique_ptr<KIFONT::GLYPH>>*
     GetRenderCache( const KIFONT::FONT* aFont, const QString& forResolvedText,
                     const VECTOR2I& aOffset = { 0, 0 } ) const;
 
@@ -350,7 +350,7 @@ private:
     mutable const KIFONT::FONT*                         m_render_cache_font;
     mutable EDA_ANGLE                                   m_render_cache_angle;
     mutable VECTOR2I                                    m_render_cache_offset;
-    mutable QVector<std::unique_ptr<KIFONT::GLYPH>> m_render_cache;
+    mutable std::vector<std::unique_ptr<KIFONT::GLYPH>> m_render_cache;
 
     struct BBOX_CACHE_ENTRY
     {
@@ -358,7 +358,7 @@ private:
         BOX2I    m_bbox;
     };
 
-    mutable QHash<int, BBOX_CACHE_ENTRY> m_bbox_cache;
+    mutable std::map<int, BBOX_CACHE_ENTRY> m_bbox_cache;
 
     TEXT_ATTRIBUTES  m_attributes;
     QString         m_unresolvedFontName;

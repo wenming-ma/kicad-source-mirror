@@ -10,6 +10,7 @@
 #include <json_common.h>
 #include <math/box2.h>
 #include <glm/glm.hpp>
+#include <vector>
 
 
 
@@ -145,7 +146,7 @@ struct KICOMMON_API LAYER_PRESET
 class KICOMMON_API PARAM_LAYER_PRESET : public PARAM_LAMBDA<nlohmann::json>
 {
 public:
-    PARAM_LAYER_PRESET( const std::string& aPath, QVector<LAYER_PRESET>* aPresetList );
+    PARAM_LAYER_PRESET( const std::string& aPath, std::vector<LAYER_PRESET>* aPresetList );
 
     static void MigrateToV9Layers( nlohmann::json& aJson );
 
@@ -156,7 +157,7 @@ private:
 
     void jsonToPresets( const nlohmann::json& aJson );
 
-    QVector<LAYER_PRESET>* m_presets;
+    std::vector<LAYER_PRESET>* m_presets;
 };
 
 
@@ -179,14 +180,14 @@ struct KICOMMON_API VIEWPORT
 class KICOMMON_API PARAM_VIEWPORT : public PARAM_LAMBDA<nlohmann::json>
 {
 public:
-    PARAM_VIEWPORT( const std::string& aPath, QVector<VIEWPORT>* aViewportList );
+    PARAM_VIEWPORT( const std::string& aPath, std::vector<VIEWPORT>* aViewportList );
 
 private:
     nlohmann::json viewportsToJson();
 
     void jsonToViewports( const nlohmann::json& aJson );
 
-    QVector<VIEWPORT>* m_viewports;
+    std::vector<VIEWPORT>* m_viewports;
 };
 
 
@@ -209,14 +210,14 @@ struct KICOMMON_API VIEWPORT3D
 class KICOMMON_API PARAM_VIEWPORT3D : public PARAM_LAMBDA<nlohmann::json>
 {
 public:
-    PARAM_VIEWPORT3D( const std::string& aPath, QVector<VIEWPORT3D>* aViewportList );
+    PARAM_VIEWPORT3D( const std::string& aPath, std::vector<VIEWPORT3D>* aViewportList );
 
 private:
     nlohmann::json viewportsToJson();
 
     void jsonToViewports( const nlohmann::json & aJson );
 
-    QVector<VIEWPORT3D>* m_viewports;
+    std::vector<VIEWPORT3D>* m_viewports;
 };
 
 
@@ -285,14 +286,14 @@ private:
 class KICOMMON_API PARAM_LAYER_PAIRS : public PARAM_LAMBDA<nlohmann::json>
 {
 public:
-    PARAM_LAYER_PAIRS( const std::string& aPath, QVector<LAYER_PAIR_INFO>& m_layerPairInfos );
+    PARAM_LAYER_PAIRS( const std::string& aPath, std::vector<LAYER_PAIR_INFO>& m_layerPairInfos );
 
 private:
     nlohmann::json layerPairsToJson();
 
     void jsonToLayerPairs( const nlohmann::json& aJson );
 
-    QVector<LAYER_PAIR_INFO>& m_layerPairInfos;
+    std::vector<LAYER_PAIR_INFO>& m_layerPairInfos;
 };
 
 
@@ -303,16 +304,16 @@ struct KICOMMON_API PANEL_NET_INSPECTOR_SETTINGS
     bool                  filter_by_netclass;
     bool                  group_by_netclass;
     bool                  group_by_constraint;
-    QVector<QString> custom_group_rules;
+    std::vector<QString> custom_group_rules;
     bool                  show_zero_pad_nets;
     bool                  show_unconnected_nets;
     int                   sorting_column;
     bool                  sort_order_asc;
-    QVector<int>      col_order;
-    QVector<int>      col_widths;
-    QVector<bool>     col_hidden;
+    std::vector<int>      col_order;
+    std::vector<int>      col_widths;
+    std::vector<bool>     col_hidden;
 
-    QVector<QString> expanded_rows;
+    std::vector<QString> expanded_rows;
 
     PANEL_NET_INSPECTOR_SETTINGS()
     {

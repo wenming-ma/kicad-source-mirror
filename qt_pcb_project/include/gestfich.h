@@ -10,6 +10,7 @@
 #include <QFileInfo>
 #include <QIODevice>
 #include <vector>
+#include <string>
 
 
 #define UNIX_STRING_DIR_SEP "/"
@@ -42,7 +43,7 @@ KICOMMON_API bool CopyDirectory( const QString& aSourceDir, const QString& aDest
 
 KICOMMON_API bool CopyFilesOrDirectory( const QString& aSourceDir, const QString& aDestDir,
                                         QString& aErrors, int& fileCopiedCount,
-                                        const std::vector<QString>& aExclusions );
+                                        const std::vector<std::string>& aExclusions );
 
 KICOMMON_API bool AddDirectoryToZip( QIODevice& aZip,
                                      const QString& aSourceDir,

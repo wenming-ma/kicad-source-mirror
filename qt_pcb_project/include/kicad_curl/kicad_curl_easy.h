@@ -15,7 +15,7 @@
 #include <string>
 #include <cstdint>
 #include <shared_mutex>
-#include <QVector>
+#include <vector>
 
 typedef void CURL;
 struct curl_slist;
@@ -37,7 +37,7 @@ public:
 
     bool SetUserAgent( const std::string& aAgent );
 
-    bool SetPostFields( const QVector<std::pair<std::string, std::string>>& aFields );
+    bool SetPostFields( const std::vector<std::pair<std::string, std::string>>& aFields );
 
     bool SetPostFields( const std::string& aField );
 

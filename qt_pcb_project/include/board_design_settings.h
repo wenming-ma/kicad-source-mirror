@@ -2,6 +2,9 @@
 #define BOARD_DESIGN_SETTINGS_H_
 
 #include <memory>
+#include <vector>
+#include <map>
+#include <set>
 
 #include <netclass.h>
 #include <project/net_settings.h>
@@ -9,7 +12,7 @@
 #include <drc/drc_engine.h>
 #include <lset.h>
 #include <settings/nested_settings.h>
-#include "widgets/ui_common.h"
+#include <widgets/ui_common.h>
 #include <zone_settings.h>
 #include <teardrop/teardrop_parameters.h>
 #include <router/pns_meander.h>
@@ -443,9 +446,9 @@ private:
 
 public:
     // Note: the first value in each dimensions list is the current netclass value
-    QVector<int>                     m_TrackWidthList;
-    QVector<VIA_DIMENSION>           m_ViasDimensionsList;
-    QVector<DIFF_PAIR_DIMENSION>     m_DiffPairDimensionsList;
+    std::vector<int>                     m_TrackWidthList;
+    std::vector<VIA_DIMENSION>           m_ViasDimensionsList;
+    std::vector<DIFF_PAIR_DIMENSION>     m_DiffPairDimensionsList;
 
     TEARDROP_PARAMETERS_LIST         m_TeardropParamsList;
 
@@ -477,9 +480,9 @@ public:
     int        m_MinSilkTextThickness;      // Min text thickness for silkscreen layers
 
     std::shared_ptr<DRC_ENGINE>  m_DRCEngine;
-    QHash<int, SEVERITY>         m_DRCSeverities;
-    QSet<QString>                m_DrcExclusions;
-    QHash<QString, QString>      m_DrcExclusionComments;
+    std::map<int, SEVERITY>         m_DRCSeverities;
+    std::set<QString>            m_DrcExclusions;
+    std::map<QString, QString>   m_DrcExclusionComments;
 
     // When smoothing the zone's outline there's the question of external fillets (that is, those
     // applied to concave corners).  While it seems safer to never have copper extend outside the
@@ -505,9 +508,9 @@ public:
 
     std::shared_ptr<NET_SETTINGS> m_NetSettings;
 
-    QVector<TEXT_ITEM_INFO>      m_DefaultFPTextItems;
+    std::vector<TEXT_ITEM_INFO>      m_DefaultFPTextItems;
 
-    QHash<std::string, QString>  m_UserLayerNames;
+    std::map<std::string, QString> m_UserLayerNames;
 
     // Arrays of default values for the various layer classes.
     int        m_LineThickness[ LAYER_CLASS_COUNT ];

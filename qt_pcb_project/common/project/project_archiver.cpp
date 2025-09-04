@@ -5,6 +5,9 @@
 #include <QUrl>
 #include <QFile>
 #include <QDataStream>
+#include <vector>
+#include <string>
+#include <cassert>
 
 #include <core/arraydim.h>
 #include <macros.h>
@@ -36,7 +39,7 @@ public:
         for( const QString& file : files )
         {
             QString fullPath = dir.absoluteFilePath( file );
-            m_files.emplace_back( fullPath );
+            m_files.push_back( fullPath.toStdString() );
         }
         
         QStringList subdirs = dir.entryList( QDir::Dirs | QDir::NoDotAndDotDot );
@@ -46,14 +49,14 @@ public:
         }
     }
 
-    const QVector<QString>& GetFilesToArchive() const
+    const std::vector<std::string>& GetFilesToArchive() const
     {
         return m_files;
     }
 
 private:
     QString         m_prjDir;
-    QVector<QString> m_files;
+    std::vector<std::string> m_files;
 };
 
 
@@ -157,7 +160,7 @@ bool PROJECT_ARCHIVER::Archive( const QString& aSrcDir, const QString& aDestFile
     }
 
     QRegExp gerberFiles( FILEEXT::GerberFileExtensionsRegex );
-    Q_ASSERT( gerberFiles.isValid() );
+    assert( gerberFiles.isValid() );
 
     bool     success = true;
     QString msg;
@@ -194,9 +197,9 @@ bool PROJECT_ARCHIVER::Archive( const QString& aSrcDir, const QString& aDestFile
 
     traverser.TraverseDirectory( aSrcDir );
 
-    for( const QString& fileName : traverser.GetFilesToArchive() )
+    for( const std::string& fileName : traverser.GetFilesToArchive() )
     {
-        QFileInfo fn( fileName );
+        QFileInfo fn( QString::fromStdString( fileName ) );
         QString extLower = fn.suffix().toLower();
         QString fileNameLower = fn.baseName().toLower();
         bool archive = false;
@@ -216,9 +219,9 @@ bool PROJECT_ARCHIVER::Archive( const QString& aSrcDir, const QString& aDestFile
             continue;
 
         QDir srcDir( aSrcDir );
-        QString relativeFn = srcDir.relativeFilePath( fileName );
+        QString relativeFn = srcDir.relativeFilePath( QString::fromStdString( fileName ) );
 
-        QFile infile( fileName );
+        QFile infile( QString::fromStdString( fileName ) );
 
         if( infile.open( QIODevice::ReadOnly ) )
         {
