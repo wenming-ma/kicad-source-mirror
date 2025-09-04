@@ -10,7 +10,7 @@
 #include <settings/common_settings.h>
 #include <math/util.h>      // for KiROUND
 #include <geometry/geometry_utils.h>
-#include <widgets/ui_common.h>
+#include "widgets/ui_common.h"
 #include <class_draw_panel_gal.h>
 #include <eda_draw_frame.h>
 #include <kiway.h>

@@ -152,12 +152,14 @@ You are a specialized project coordinator responsible for orchestrating the syst
 
 ### Code Standards (Technical Implementation Details)
 - **Smart Pointers**: Use `std::shared_ptr`, `std::unique_ptr`, never use Qt pointers (`QSharedPointer`)
-- **Container Classes**: Replace ALL standard library containers with Qt equivalents:
-  - `std::vector` → `QVector`
-  - `std::map` → `QMap` 
-  - `std::unordered_map` → `QHash`
-  - `std::set` → `QSet`
-  - `std::list` → `QList`
+- **Container Classes**: Only replace wxWidgets-specific containers, do NOT replace standard library containers:
+  - `wxVector` → `QVector` (wxWidgets container)
+  - `wxArrayString` → `QStringList` (wxWidgets container)
+  - `std::vector` → Keep unchanged (standard library container, not wxWidgets)
+  - `std::map` → Keep unchanged (standard library container, not wxWidgets)
+  - `std::unordered_map` → Keep unchanged (standard library container, not wxWidgets)
+  - `std::set` → Keep unchanged (standard library container, not wxWidgets)
+  - `std::list` → Keep unchanged (standard library container, not wxWidgets)
 - **Strings**: Use `QString`, but maintain original string processing algorithms
 - **Colors**: Use `QColor` to replace `COLOR4D`
 - **Class Names**: Maintain KiCad's original naming conventions; all class names should be UPPERCASE

@@ -5,6 +5,8 @@
 #include <QFileInfo>
 #include <QDir>
 #include <windows.h>
+#include <io.h>
+#include <fcntl.h>
 
 // Define USE_MSYS2_FALlBACK if the code for _MSC_VER does not compile on msys2
 //#define  USE_MSYS2_FALLBACK
