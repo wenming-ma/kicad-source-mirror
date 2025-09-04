@@ -35,6 +35,12 @@ if( WIN32 )
     # Add UTF-8 support for fmt library and Unicode
     if( MSVC )
         add_compile_options( /utf-8 )
+        # /Zc:__cplusplus: define this macro according to C++ standard version - required for Qt
+        add_compile_options( /Zc:__cplusplus )
+        # /Zc:inline: enforces C++11 requirement that inline functions must have a definition in the same unit
+        add_compile_options( /Zc:inline )
+        # /permissive-: This puts MSVC into compliance mode, required for Qt
+        add_compile_options( /permissive- )
     endif()
 endif()
 

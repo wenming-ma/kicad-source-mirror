@@ -2,6 +2,9 @@
 #define KIPLATFORM_UI_H_
 
 #include <QtCore/Qt>
+#include <QtGui/QColor>
+#include <QtCore/QSize>
+#include <QtCore/QPoint>
 
 class QComboBox;
 class QWidget;

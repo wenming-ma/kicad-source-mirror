@@ -3,7 +3,6 @@
 
 #include <core/utf8.h>
 #include <QString>
-#include <QTextCodec>
 #include <QtDebug>
 #include <vector>
 

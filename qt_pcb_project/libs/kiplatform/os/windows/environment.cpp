@@ -1,7 +1,7 @@
 
 #include <kiplatform/environment.h>
 #include <QString>
-#include <QStringList>
+#include <vector>
 #include <QStandardPaths>
 #include <QCoreApplication>
 #include <QUrl>
@@ -209,7 +209,8 @@ bool KIPLATFORM::ENV::GetSystemProxyConfig( const QString& aURL, PROXY_CONFIG& a
     bool bypassed = false;
     if( bypassProxyStr != NULL )
     {
-        QStringList tokens = QString::fromWCharArray( bypassProxyStr ).split( QLatin1Char( ';' ) );
+        auto tokensList = QString::fromWCharArray( bypassProxyStr ).split( QLatin1Char( ';' ) );
+        std::vector<QString> tokens(tokensList.begin(), tokensList.end());
 
         for( const QString& host : tokens )
         {
@@ -239,7 +240,8 @@ bool KIPLATFORM::ENV::GetSystemProxyConfig( const QString& aURL, PROXY_CONFIG& a
         // proxyStr can be in the following format per MSDN
         //([<scheme>=][<scheme>"://"]<server>[":"<port>])
         //and separated by semicolons or whitespace
-        QStringList tokens = QString::fromWCharArray( proxyStr ).split( QRegularExpression( "[; \t]+" ), Qt::SkipEmptyParts );
+        auto tokensList = QString::fromWCharArray( proxyStr ).split( QRegularExpression( "[; \t]+" ), Qt::SkipEmptyParts );
+        std::vector<QString> tokens(tokensList.begin(), tokensList.end());
 
         for( const QString& entry : tokens )
         {
@@ -348,18 +350,23 @@ QString KIPLATFORM::ENV::GetAppUserModelId()
     // However, be warned, this cannot be too unique like per-process
     // Because longer scope Windows features, such as "Pin to Taskbar"
     // on a running application, depend on this being consistent.
-    QStringList modelIdComponents;
-    modelIdComponents.append( "Kicad" );
-    modelIdComponents.append( "Kicad" );
+    std::vector<QString> modelIdComponents;
+    modelIdComponents.push_back( "Kicad" );
+    modelIdComponents.push_back( "Kicad" );
     
     if( QCoreApplication::instance() )
-        modelIdComponents.append( QCoreApplication::instance()->applicationName() );
+        modelIdComponents.push_back( QCoreApplication::instance()->applicationName() );
     else
-        modelIdComponents.append( "KiCad" );
+        modelIdComponents.push_back( "KiCad" );
     
-    modelIdComponents.append( KICAD_MAJOR_MINOR_VERSION );
+    modelIdComponents.push_back( KICAD_MAJOR_MINOR_VERSION );
 
-    QString modelId = modelIdComponents.join( "." );
+    QString modelId;
+    for( size_t i = 0; i < modelIdComponents.size(); ++i )
+    {
+        if( i > 0 ) modelId += ".";
+        modelId += modelIdComponents[i];
+    }
     modelId.replace( " ", "_" ); // remove spaces sanity
 
     // the other limitation is 127 characters but we arent trying to hit that limit yet

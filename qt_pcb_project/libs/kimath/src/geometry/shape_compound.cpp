@@ -1,18 +1,21 @@
-#include <QString>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <limits>
 
 #include <geometry/shape_compound.h>
 
-const QString SHAPE_COMPOUND::Format( bool aCplusPlus ) const
+const std::string SHAPE_COMPOUND::Format( bool aCplusPlus ) const
 {
-    QString result = "compound( ";
+    std::string result = "compound( ";
 
     for( auto shape : m_shapes )
-        result += QString::fromStdString( shape->Format() ) + " ";
+        result += shape->Format() + " ";
 
     return result;
 }
 
-SHAPE_COMPOUND::SHAPE_COMPOUND( const QVector<SHAPE*>& aShapes ) :
+SHAPE_COMPOUND::SHAPE_COMPOUND( const std::vector<SHAPE*>& aShapes ) :
          SHAPE( SH_COMPOUND ),
          m_dirty( true ),
          m_shapes( aShapes )

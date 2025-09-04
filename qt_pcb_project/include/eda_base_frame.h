@@ -28,7 +28,7 @@
 #include <hotkeys_basic.h>
 #include <kiway_holder.h>
 #include <tool/tools_holder.h>
-#include <widgets/ui_common.h>
+#include "widgets/ui_common.h"
 #include <widgets/qt_infobar.h>
 #include <undo_redo_container.h>
 #include <units_provider.h>

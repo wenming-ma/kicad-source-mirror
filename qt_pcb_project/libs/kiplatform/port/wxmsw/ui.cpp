@@ -1,5 +1,6 @@
 
 #include <windows.h>
+#include <imm.h>
 
 #include <kiplatform/ui.h>
 
@@ -7,12 +8,13 @@
 #include <QWindow>
 #include <QApplication>
 #include <QPalette>
-#include <QSettings>
 #include <QCursor>
 #include <QPoint>
 #include <QSize>
 #include <QColor>
 #include <QComboBox>
+#include <string>
+#include <sstream>
 
 
 bool KIPLATFORM::UI::IsDarkTheme()
@@ -22,23 +24,29 @@ bool KIPLATFORM::UI::IsDarkTheme()
     // so our window backgrounds, text colors, etc will stay in "light mode" until either Qt
     // implements something or we apply a custom theme ourselves.
 #ifdef NOTYET
-    const QString lightModeKey = "AppsUseLightTheme";
+    const std::string lightModeKey = "AppsUseLightTheme";
 
     // Note: registry used because there is not yet an official API for this yet.
     // This may stop working on future Windows versions
-    QSettings themeKey( "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-                        QSettings::NativeFormat );
-
-    if( !themeKey.contains( lightModeKey ) )
+    HKEY hKey;
+    const std::string registryPath = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
+    
+    if( RegOpenKeyExA(HKEY_CURRENT_USER, registryPath.c_str(), 0, KEY_READ, &hKey) != ERROR_SUCCESS )
         return false;
 
-    bool ok = false;
-    long val = themeKey.value( lightModeKey, 1 ).toLongLong( &ok );
-
-    if( !ok )
+    DWORD value = 1;  // Default to light mode
+    DWORD valueSize = sizeof(value);
+    DWORD valueType = REG_DWORD;
+    
+    bool keyExists = (RegQueryValueExA(hKey, lightModeKey.c_str(), nullptr, &valueType, 
+                                       reinterpret_cast<LPBYTE>(&value), &valueSize) == ERROR_SUCCESS);
+    
+    RegCloseKey(hKey);
+    
+    if( !keyExists )
         return false;
 
-    return ( val == 0 );
+    return ( value == 0 );
 #else
     QColor bg = QApplication::palette().color( QPalette::Window );
 
