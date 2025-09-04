@@ -38,9 +38,21 @@ if( WIN32 )
     endif()
 endif()
 
-# Set Qt root directory
-set( Qt6_ROOT "C:/Qt/6.8.1/msvc2022_64" )
-set( Qt6_DIR "${Qt6_ROOT}/lib/cmake/Qt6" )
+# Set Qt root directory - Check for Qt 6.9.1 installation
+if( EXISTS "C:/Qt/6.9.1/msvc2022_64" )
+    set( Qt6_ROOT "C:/Qt/6.9.1/msvc2022_64" )
+else()
+    message( STATUS "Qt6 6.9.1 not found at C:/Qt/6.9.1/msvc2022_64, trying vcpkg..." )
+endif()
+
+if( Qt6_ROOT )
+    set( Qt6_DIR "${Qt6_ROOT}/lib/cmake/Qt6" )
+    list( APPEND CMAKE_PREFIX_PATH "${Qt6_ROOT}" )
+    message( STATUS "Found Qt6 at: ${Qt6_ROOT}" )
+endif()
+
+# Use vcpkg installed packages
+list( APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows" )
 
 # Enable KICAD API support - DISABLED FOR MINIMAL BUILD
 # add_compile_definitions( KICAD_IPC_API )
@@ -48,15 +60,16 @@ set( Qt6_DIR "${Qt6_ROOT}/lib/cmake/Qt6" )
 # Find required dependencies for minimal PCB set
 find_package( PkgConfig QUIET )
 
-# Use vcpkg installed packages - Point to build directory vcpkg_installed
-set( CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows;${Qt6_ROOT}" )
-
-# Find wxWidgets
+# Find wxWidgets - keeping for compatibility during transformation
 set( wxWidgets_USE_STATIC ON )
 find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc )
 
-# Find Qt6 components
-find_package( Qt6 REQUIRED COMPONENTS Core Widgets Gui OpenGL PrintSupport Xml Svg )
+# Find Qt6 components - try different approaches
+find_package( Qt6 QUIET COMPONENTS Core Widgets Gui OpenGL PrintSupport Xml Svg )
+if( NOT Qt6_FOUND )
+    message( STATUS "Qt6 not found through standard search, trying CONFIG mode..." )
+    find_package( Qt6 REQUIRED CONFIG COMPONENTS Core Widgets Gui OpenGL PrintSupport Xml Svg )
+endif()
 find_package( Boost REQUIRED )
 find_package( glm REQUIRED )
 # find_package( protobuf REQUIRED )
