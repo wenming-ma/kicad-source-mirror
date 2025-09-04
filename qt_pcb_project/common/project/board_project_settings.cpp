@@ -35,7 +35,7 @@ PARAM_LAYER_PRESET::PARAM_LAYER_PRESET( const std::string& aPath,
                                       {} ),
         m_presets( aPresetList )
 {
-    wxASSERT( aPresetList );
+    Q_ASSERT( aPresetList );
 }
 
 
@@ -86,7 +86,7 @@ void PARAM_LAYER_PRESET::jsonToPresets( const nlohmann::json& aJson )
     {
         if( preset.contains( "name" ) )
         {
-            LAYER_PRESET p( preset.at( "name" ).get<wxString>() );
+            LAYER_PRESET p( preset.at( "name" ).get<QString>() );
 
             if( preset.contains( "flipBoard" ) && preset.at( "flipBoard" ).is_boolean() )
             {
@@ -148,7 +148,7 @@ void PARAM_LAYER_PRESET::MigrateToV9Layers( nlohmann::json& aJson )
 
     for( const nlohmann::json& layer : aJson.at( "layers" ) )
     {
-        wxCHECK2( layer.is_number_integer(), continue );
+        Q_ASSERT( layer.is_number_integer(), continue );
         newLayers.emplace_back( BoardLayerFromLegacyId( layer.get<int>() ) );
     }
 
@@ -170,7 +170,7 @@ void PARAM_LAYER_PRESET::MigrateToNamedRenderLayers( nlohmann::json& aJson )
 
     for( const nlohmann::json& layer : aJson.at( "renderLayers" ) )
     {
-        wxCHECK2( layer.is_number_integer(), continue );
+        Q_ASSERT( layer.is_number_integer(), continue );
         GAL_LAYER_ID layerId = GAL_LAYER_ID_START + ( layer.get<int>() - V8_GAL_LAYER_ID_START );
 
         if( std::optional<VISIBILITY_LAYER> vl = VisibilityLayerFromRenderLayer( layerId ) )
@@ -188,7 +188,7 @@ PARAM_VIEWPORT::PARAM_VIEWPORT( const std::string& aPath, std::vector<VIEWPORT>*
                                       {} ),
         m_viewports( aViewportList )
 {
-    wxASSERT( aViewportList );
+    Q_ASSERT( aViewportList );
 }
 
 
@@ -224,7 +224,7 @@ void PARAM_VIEWPORT::jsonToViewports( const nlohmann::json& aJson )
     {
         if( viewport.contains( "name" ) )
         {
-            VIEWPORT v( viewport.at( "name" ).get<wxString>() );
+            VIEWPORT v( viewport.at( "name" ).get<QString>() );
 
             if( viewport.contains( "x" ) )
                 v.rect.SetX( viewport.at( "x" ).get<double>() );
@@ -252,7 +252,7 @@ PARAM_VIEWPORT3D::PARAM_VIEWPORT3D( const std::string& aPath,
                                       {} ),
         m_viewports( aViewportList )
 {
-    wxASSERT( aViewportList );
+    Q_ASSERT( aViewportList );
 }
 
 
@@ -300,7 +300,7 @@ void PARAM_VIEWPORT3D::jsonToViewports( const nlohmann::json& aJson )
     {
         if( viewport.contains( "name" ) )
         {
-            VIEWPORT3D v( viewport.at( "name" ).get<wxString>() );
+            VIEWPORT3D v( viewport.at( "name" ).get<QString>() );
 
             if( viewport.contains( "xx" ) )
                 v.matrix[0].x = viewport.at( "xx" ).get<double>();
@@ -410,9 +410,9 @@ void PARAM_LAYER_PAIRS::jsonToLayerPairs( const nlohmann::json& aJson )
             if( pairJson.contains( "enabled" ) )
                 enabled = pairJson.at( "enabled" ).get<bool>();
 
-            std::optional<wxString> name;
+            std::optional<QString> name;
             if( pairJson.contains( "name" ) )
-                name = pairJson.at( "name" ).get<wxString>();
+                name = pairJson.at( "name" ).get<QString>();
 
             m_layerPairInfos.emplace_back( LAYER_PAIR_INFO( pair, enabled, std::move( name ) ) );
         }

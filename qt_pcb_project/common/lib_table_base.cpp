@@ -1,31 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2010-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-
-#include <wx/debug.h>
-#include <wx/filename.h>
+#include <QDebug>
+#include <QFileInfo>
 #include <set>
 #include <common.h>
 #include <kiface_base.h>
@@ -35,60 +9,58 @@
 #include <string_utils.h>
 #include <build_version.h>
 
-#define OPT_SEP     '|'         ///< options separator character
+#define OPT_SEP     '|'
 
 
 using namespace LIB_TABLE_T;
 
 
-std::unique_ptr<LINE_READER> FILE_LIB_TABLE_IO::GetReader( const wxString& aURI ) const
+std::unique_ptr<LINE_READER> FILE_LIB_TABLE_IO::GetReader( const QString& aURI ) const
 {
-    const wxFileName fn( aURI );
+    const QFileInfo fn( aURI );
 
-    if( !fn.IsOk() || !fn.IsFileReadable() )
+    if( !fn.exists() || !fn.isReadable() )
         return nullptr;
 
     return std::make_unique<FILE_LINE_READER>( aURI );
 }
 
 
-bool FILE_LIB_TABLE_IO::CanSaveToUri( const wxString& aURI ) const
+bool FILE_LIB_TABLE_IO::CanSaveToUri( const QString& aURI ) const
 {
-    const wxFileName fn( aURI );
+    const QFileInfo fn( aURI );
 
-    if( !fn.IsOk() )
+    if( !fn.exists() )
         return false;
 
-    return fn.IsFileWritable();
+    return fn.isWritable();
 }
 
 
-bool FILE_LIB_TABLE_IO::UrisAreEquivalent( const wxString& aURI1, const wxString& aURI2 ) const
+bool FILE_LIB_TABLE_IO::UrisAreEquivalent( const QString& aURI1, const QString& aURI2 ) const
 {
-    // Avoid comparing filenames as wxURIs
-    if( aURI1.Find( "://" ) != wxNOT_FOUND )
+    // Avoid comparing filenames as URIs
+    if( aURI1.indexOf( "://" ) != -1 )
     {
         // found as full path
         return aURI1 == aURI2;
     }
     else
     {
-        const wxFileName fn1( aURI1 );
-        const wxFileName fn2( aURI2 );
+        const QFileInfo fn1( aURI1 );
+        const QFileInfo fn2( aURI2 );
 
         // This will also test if the file is a symlink so if we are comparing
-        // a symlink to the same real file, the comparison will be true.  See
-        // wxFileName::SameAs() in the wxWidgets source.
-
+        // a symlink to the same real file, the comparison will be true.
         // found as full path and file name
         return fn1 == fn2;
     }
 }
 
 
-std::unique_ptr<OUTPUTFORMATTER> FILE_LIB_TABLE_IO::GetWriter( const wxString& aURI ) const
+std::unique_ptr<OUTPUTFORMATTER> FILE_LIB_TABLE_IO::GetWriter( const QString& aURI ) const
 {
-    const wxFileName fn( aURI );
+    const QFileInfo fn( aURI );
     return std::make_unique<FILE_OUTPUTFORMATTER>( aURI );
 }
 
@@ -105,13 +77,13 @@ void LIB_TABLE_ROW::setProperties( std::map<std::string, UTF8>* aProperties )
 }
 
 
-void LIB_TABLE_ROW::SetFullURI( const wxString& aFullURI )
+void LIB_TABLE_ROW::SetFullURI( const QString& aFullURI )
 {
     uri_user = aFullURI;
 }
 
 
-const wxString LIB_TABLE_ROW::GetFullURI( bool aSubstituted ) const
+const QString LIB_TABLE_ROW::GetFullURI( bool aSubstituted ) const
 {
     if( aSubstituted )
     {
@@ -126,10 +98,10 @@ void LIB_TABLE_ROW::Format( OUTPUTFORMATTER* out, int nestLevel ) const
 {
     // In KiCad, we save path and file names using the Unix notation (separator = '/')
     // So ensure separator is always '/' is saved URI string
-    wxString uri = GetFullURI();
-    uri.Replace( '\\', '/' );
+    QString uri = GetFullURI();
+    uri.replace( '\\', '/' );
 
-    wxString extraOptions;
+    QString extraOptions;
 
     if( !GetIsEnabled() )
         extraOptions += "(disabled)";
@@ -143,7 +115,7 @@ void LIB_TABLE_ROW::Format( OUTPUTFORMATTER* out, int nestLevel ) const
                 out->Quotew( uri ).c_str(),
                 out->Quotew( GetOptions() ).c_str(),
                 out->Quotew( GetDescr() ).c_str(),
-                extraOptions.ToStdString().c_str() );
+                extraOptions.toStdString().c_str() );
 }
 
 
@@ -158,7 +130,7 @@ bool LIB_TABLE_ROW::operator==( const LIB_TABLE_ROW& r ) const
 }
 
 
-void LIB_TABLE_ROW::SetOptions( const wxString& aOptions )
+void LIB_TABLE_ROW::SetOptions( const QString& aOptions )
 {
     options = aOptions;
 
@@ -183,7 +155,7 @@ LIB_TABLE::LIB_TABLE( LIB_TABLE* aFallBackTable, std::unique_ptr<LIB_TABLE_IO> a
 
 LIB_TABLE::~LIB_TABLE()
 {
-    // *fallBack is not owned here.
+    // fallBack is not owned here.
 }
 
 
@@ -203,7 +175,7 @@ bool LIB_TABLE::IsEmpty( bool aIncludeFallback )
 }
 
 
-const wxString LIB_TABLE::GetDescription( const wxString& aNickname )
+const QString LIB_TABLE::GetDescription( const QString& aNickname )
 {
     // Use "no exception" form of find row and ignore disabled flag.
     const LIB_TABLE_ROW* row = findRow( aNickname );
@@ -211,17 +183,17 @@ const wxString LIB_TABLE::GetDescription( const wxString& aNickname )
     if( row )
         return row->GetDescr();
     else
-        return wxEmptyString;
+        return QString();
 }
 
 
-bool LIB_TABLE::HasLibrary( const wxString& aNickname, bool aCheckEnabled ) const
+bool LIB_TABLE::HasLibrary( const QString& aNickname, bool aCheckEnabled ) const
 {
     return findRow( aNickname, aCheckEnabled ) != nullptr;
 }
 
 
-bool LIB_TABLE::HasLibraryWithPath( const wxString& aPath ) const
+bool LIB_TABLE::HasLibraryWithPath( const QString& aPath ) const
 {
     std::shared_lock<std::shared_mutex> lock( m_mutex );
 
@@ -235,11 +207,11 @@ bool LIB_TABLE::HasLibraryWithPath( const wxString& aPath ) const
 }
 
 
-wxString LIB_TABLE::GetFullURI( const wxString& aNickname, bool aExpandEnvVars ) const
+QString LIB_TABLE::GetFullURI( const QString& aNickname, bool aExpandEnvVars ) const
 {
     const LIB_TABLE_ROW* row = findRow( aNickname, true );
 
-    wxString retv;
+    QString retv;
 
     if( row )
         retv = row->GetFullURI( aExpandEnvVars );
@@ -248,7 +220,7 @@ wxString LIB_TABLE::GetFullURI( const wxString& aNickname, bool aExpandEnvVars )
 }
 
 
-LIB_TABLE_ROW* LIB_TABLE::findRow( const wxString& aNickName, bool aCheckIfEnabled ) const
+LIB_TABLE_ROW* LIB_TABLE::findRow( const QString& aNickName, bool aCheckIfEnabled ) const
 {
     const LIB_TABLE* cur = this;
 
@@ -270,10 +242,10 @@ LIB_TABLE_ROW* LIB_TABLE::findRow( const wxString& aNickName, bool aCheckIfEnabl
 
         // Repeat, this time looking for names that were "fixed" by legacy versions because
         // the old Eeschema file format didn't support spaces in tokens.
-        for( const std::pair<const wxString, LIB_TABLE_ROWS_ITER>& entry : cur->m_rowsMap )
+        for( const std::pair<const QString, LIB_TABLE_ROWS_ITER>& entry : cur->m_rowsMap )
         {
-            wxString legacyLibName = entry.first;
-            legacyLibName.Replace( " ", "_" );
+            QString legacyLibName = entry.first;
+            legacyLibName.replace( " ", "_" );
 
             if( legacyLibName == aNickName )
             {
@@ -291,7 +263,7 @@ LIB_TABLE_ROW* LIB_TABLE::findRow( const wxString& aNickName, bool aCheckIfEnabl
 }
 
 
-const LIB_TABLE_ROW* LIB_TABLE::FindRowByURI( const wxString& aURI )
+const LIB_TABLE_ROW* LIB_TABLE::FindRowByURI( const QString& aURI )
 {
     const LIB_TABLE* cur = this;
 
@@ -301,7 +273,7 @@ const LIB_TABLE_ROW* LIB_TABLE::FindRowByURI( const wxString& aURI )
 
         for( const LIB_TABLE_ROW& row : cur->m_rows)
         {
-            const wxString tmp = row.GetFullURI( true );
+            const QString tmp = row.GetFullURI( true );
 
             if( m_io->UrisAreEquivalent( tmp, aURI ) )
                 return &row;
@@ -314,13 +286,13 @@ const LIB_TABLE_ROW* LIB_TABLE::FindRowByURI( const wxString& aURI )
 }
 
 
-std::vector<wxString> LIB_TABLE::GetLogicalLibs()
+std::vector<QString> LIB_TABLE::GetLogicalLibs()
 {
     // Only return unique logical library names.  Use std::set::insert() to quietly reject any
     // duplicates (usually due to encountering a duplicate nickname in a fallback table).
 
-    std::set<wxString>    unique;
-    std::vector<wxString> ret;
+    std::set<QString>    unique;
+    std::vector<QString> ret;
     const LIB_TABLE*      cur = this;
 
     do
@@ -337,15 +309,15 @@ std::vector<wxString> LIB_TABLE::GetLogicalLibs()
 
     ret.reserve( unique.size() );
 
-    // return a sorted, unique set of nicknames in a std::vector<wxString> to caller
-    for( const wxString& nickname : unique )
+    // return a sorted, unique set of nicknames in a std::vector<QString> to caller
+    for( const QString& nickname : unique )
         ret.push_back( nickname );
 
     // We want to allow case-sensitive duplicates but sort by case-insensitive ordering
     std::sort( ret.begin(), ret.end(),
-            []( const wxString& lhs, const wxString& rhs )
+            []( const QString& lhs, const QString& rhs )
             {
-                return StrNumCmp( lhs, rhs, true /* ignore case */ ) < 0;
+                return StrNumCmp( lhs, rhs, true ) < 0;
             } );
 
     return ret;
@@ -487,19 +459,19 @@ bool LIB_TABLE::migrate()
     for( LIB_TABLE_ROW& row : m_rows )
     {
         bool     row_updated = false;
-        wxString uri = row.GetFullURI( true );
+        QString uri = row.GetFullURI( true );
 
         // If the uri still has a variable in it, that means that the user does not have
         // these vars defined.  We update the old vars to the current versions on load
 
-        static wxString fmtStr = wxS( "${KICAD%d_" );
+        static QString fmtStr = "${KICAD%1_";
         int version = 0;
         std::tie(version, std::ignore, std::ignore) = GetMajorMinorPatchTuple();
 
         for( int ii = 5; ii < version - 1; ++ii )
         {
-            row_updated |= ( uri.Replace( wxString::Format( fmtStr, ii ),
-                                          wxString::Format( fmtStr, version ), false ) > 0 );
+            row_updated |= ( uri.replace( fmtStr.arg( ii ),
+                                          fmtStr.arg( version ) ) > 0 );
         }
 
         if( row_updated )
@@ -513,7 +485,7 @@ bool LIB_TABLE::migrate()
 }
 
 
-void LIB_TABLE::Load( const wxString& aFileName )
+void LIB_TABLE::Load( const QString& aFileName )
 {
     std::lock_guard<std::shared_mutex> lock( m_mutex );
     clear();
@@ -535,12 +507,12 @@ void LIB_TABLE::Load( const wxString& aFileName )
 }
 
 
-void LIB_TABLE::Save( const wxString& aFileName ) const
+void LIB_TABLE::Save( const QString& aFileName ) const
 {
     std::unique_ptr<OUTPUTFORMATTER> sf = m_io->GetWriter( aFileName );
 
     if( !sf )
-        THROW_IO_ERROR( wxString::Format( _( "Failed to get writer for %s" ), aFileName ) );
+        THROW_IO_ERROR( QString( "Failed to get writer for %1" ).arg( aFileName ) );
 
     // Force the lib table version to 7 before saving
     m_version = 7;

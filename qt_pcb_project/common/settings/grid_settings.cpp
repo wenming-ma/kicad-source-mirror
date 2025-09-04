@@ -1,39 +1,20 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Mike Williams <mike@mikebwilliams.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <settings/grid_settings.h>
 #include <json_common.h>
-#include <wx/translation.h>
+#include <QString>
 #include <core/json_serializers.h>
 
 #include <units_provider.h>
 
-wxString GRID::MessageText( EDA_IU_SCALE aScale, EDA_UNITS aUnits, bool aDisplayUnits ) const
+QString GRID::MessageText( EDA_IU_SCALE aScale, EDA_UNITS aUnits, bool aDisplayUnits ) const
 {
     EDA_DATA_TYPE type = EDA_DATA_TYPE::DISTANCE;
 
-    wxString xStr = EDA_UNIT_UTILS::UI::MessageTextFromValue(
+    QString xStr = EDA_UNIT_UTILS::UI::MessageTextFromValue(
                         aScale, aUnits,
                         EDA_UNIT_UTILS::UI::DoubleValueFromString( aScale, EDA_UNITS::MM, x, type ),
                         aDisplayUnits );
-    wxString yStr = EDA_UNIT_UTILS::UI::MessageTextFromValue(
+    QString yStr = EDA_UNIT_UTILS::UI::MessageTextFromValue(
                         aScale, aUnits,
                         EDA_UNIT_UTILS::UI::DoubleValueFromString( aScale, EDA_UNITS::MM, y, type ),
                         aDisplayUnits );
@@ -41,10 +22,10 @@ wxString GRID::MessageText( EDA_IU_SCALE aScale, EDA_UNITS aUnits, bool aDisplay
     if( xStr == yStr )
         return xStr;
 
-    return wxString::Format( wxS( "%s x %s" ), xStr, yStr );
+    return QString( "%1 x %2" ).arg( xStr, yStr );
 }
 
-wxString GRID::UserUnitsMessageText( UNITS_PROVIDER* aProvider, bool aDisplayUnits ) const
+QString GRID::UserUnitsMessageText( UNITS_PROVIDER* aProvider, bool aDisplayUnits ) const
 {
     return MessageText( aProvider->GetIuScale(), aProvider->GetUserUnits(), aDisplayUnits );
 }

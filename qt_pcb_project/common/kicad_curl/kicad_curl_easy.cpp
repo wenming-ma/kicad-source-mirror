@@ -1,28 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Mark Roszko <mark.roszko@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-// kicad_curl_easy.h **must be** included before any wxWidgets header to avoid conflicts
+// kicad_curl_easy.h **must be** included before any Qt header to avoid conflicts
 // at least on Windows/msys2
 #include <curl/curl.h>
 #include <curl/easy.h>
@@ -34,7 +11,9 @@
 #include <exception>
 #include <sstream>
 #include <shared_mutex>
-#include <wx/app.h>
+#include <QApplication>
+#include <QProcessEnvironment>
+#include <QString>
 
 #include <build_version.h>
 #include <ki_exception.h>   // THROW_IO_ERROR
@@ -158,32 +137,33 @@ KICAD_CURL_EASY::KICAD_CURL_EASY() :
     curl_easy_setopt( m_CURL, CURLOPT_SSL_OPTIONS, sslOpts );
 #endif
 
-    if( wxGetEnv( wxT( "KICAD_CURL_VERBOSE" ), nullptr ) )
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    if( env.contains( "KICAD_CURL_VERBOSE" ) )
     {
         // note: curl verbose will end up in stderr
         curl_easy_setopt( m_CURL, CURLOPT_VERBOSE, 1L );
     }
 
-    wxString application( wxS( "KiCad" ) );
-    wxString version( GetBuildVersion() );
-    wxString platform = wxS( "(" ) + wxGetOsDescription() + wxS( ";" ) + GetPlatformGetBitnessName();
+    QString application( "KiCad" );
+    QString version( GetBuildVersion() );
+    QString platform = QString( "(" ) + QString::fromStdString( KIPLATFORM::APP::GetOSDescription() ) + QString( ";" ) + QString::fromStdString( GetPlatformGetBitnessName() );
 
 #if defined( KICAD_BUILD_ARCH_X64 )
-    platform << wxS( ";64-bit" );
+    platform += QString( ";64-bit" );
 #elif defined( KICAD_BUILD_ARCH_X86 )
-    platform << wxS( ";32-bit" );
+    platform += QString( ";32-bit" );
 #elif defined( KICAD_BUILD_ARCH_ARM )
-    platform << wxS( ";ARM 32-bit" );
+    platform += QString( ";ARM 32-bit" );
 #elif defined( KICAD_BUILD_ARCH_ARM64 )
-    platform << wxS( ";ARM 64-bit" );
+    platform += QString( ";ARM 64-bit" );
 #endif
 
-    platform << wxS( ")" );
+    platform += QString( ")" );
 
-    wxString user_agent = wxS( "KiCad/" ) + version + wxS( " " ) + platform + wxS( " " ) + application;
+    QString user_agent = QString( "KiCad/" ) + version + QString( " " ) + platform + QString( " " ) + application;
 
-    user_agent << wxS( "/" ) << GetBuildDate();
-    setOption<const char*>( CURLOPT_USERAGENT, user_agent.ToStdString().c_str() );
+    user_agent += QString( "/" ) + QString::fromStdString( std::string( GetBuildDate() ) );
+    setOption<const char*>( CURLOPT_USERAGENT, user_agent.toStdString().c_str() );
     setOption( CURLOPT_ACCEPT_ENCODING, "gzip,deflate" );
 }
 
@@ -238,7 +218,7 @@ bool KICAD_CURL_EASY::SetUserAgent( const std::string& aAgent )
 }
 
 
-bool KICAD_CURL_EASY::SetPostFields( const std::vector<std::pair<std::string, std::string>>& aFields )
+bool KICAD_CURL_EASY::SetPostFields( const QVector<std::pair<std::string, std::string>>& aFields )
 {
     std::string postfields;
 

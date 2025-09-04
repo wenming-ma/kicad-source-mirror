@@ -1,29 +1,8 @@
-﻿/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-// Date for KiCad build version
-#include <wx/wx.h>
+﻿#include <QString>
+#include <QCoreApplication>
+#include <QSysInfo>
+#include <QLocale>
+#include <QByteArray>
 #include <config.h>
 #include <boost/version.hpp>
 #include <kiplatform/app.h>
@@ -33,8 +12,6 @@
 #include <tuple>
 #include <mutex>
 
-// kicad_curl.h must be included before wx headers, to avoid
-// conflicts for some defines, at least on Windows
 // kicad_curl.h can create conflicts for some defines, at least on Windows
 // so we are using here 2 proxy functions to know Curl version to avoid
 // including kicad_curl.h to know Curl version
@@ -46,34 +23,33 @@ extern std::string GetCurlLibVersion();
 #include <ngspice/sharedspice.h>
 
 // The include file version.h is always created even if the repo version cannot be
-// determined.  In this case KICAD_VERSION_FULL will default to the KICAD_VERSION
+// determined. In this case KICAD_VERSION_FULL will default to the KICAD_VERSION
 // that is set in KiCadVersion.cmake.
 #define INCLUDE_KICAD_VERSION
 #include <kicad_build_version.h>
 #undef INCLUDE_KICAD_VERSION
 
-// Mutex for wxPlatformInfo
+// Mutex for platform info
 static std::recursive_mutex s_platformInfoMutex;
 
 // Remember OpenGL info
-static wxString s_glVendor;
-static wxString s_glRenderer;
-static wxString s_glVersion;
+static QString s_glVendor;
+static QString s_glRenderer;
+static QString s_glVersion;
 
 void SetOpenGLInfo( const char* aVendor, const char* aRenderer, const char* aVersion )
 {
-    s_glVendor = wxString::FromUTF8( aVendor );
-    s_glRenderer = wxString::FromUTF8( aRenderer );
-    s_glVersion = wxString::FromUTF8( aVersion );
+    s_glVendor = QString::fromUtf8( aVendor );
+    s_glRenderer = QString::fromUtf8( aRenderer );
+    s_glVersion = QString::fromUtf8( aVersion );
 }
 
 
-wxString GetPlatformGetBitnessName()
+QString GetPlatformGetBitnessName()
 {
-    // wxPlatformInfo is not thread-safe, so protect it
     std::unique_lock lock(s_platformInfoMutex);
-
-    return wxPlatformInfo().GetBitnessName();
+    
+    return QSysInfo::currentCpuArchitecture();
 }
 
 
@@ -83,51 +59,51 @@ bool IsNightlyVersion()
 }
 
 
-wxString GetBuildVersion()
+QString GetBuildVersion()
 {
-    wxString msg = wxString::Format( wxT( "%s" ), wxT( KICAD_VERSION_FULL ) );
+    QString msg = QString( KICAD_VERSION_FULL );
     return msg;
 }
 
 
-wxString GetBaseVersion()
+QString GetBaseVersion()
 {
-    wxString msg = wxString::Format( wxT( "%s" ), wxT( KICAD_VERSION ) );
+    QString msg = QString( KICAD_VERSION );
     return msg;
 }
 
 
-wxString GetBuildDate()
+QString GetBuildDate()
 {
-    wxString msg = wxString::Format( wxT( "%s %s" ), wxT( __DATE__ ), wxT( __TIME__ ) );
+    QString msg = QString( "%1 %2" ).arg( __DATE__ ).arg( __TIME__ );
     return msg;
 }
 
 
-wxString GetSemanticVersion()
+QString GetSemanticVersion()
 {
-    wxString msg = wxString::Format( wxT( "%s" ), wxT( KICAD_SEMANTIC_VERSION ) );
+    QString msg = QString( KICAD_SEMANTIC_VERSION );
     return msg;
 }
 
 
-wxString GetMajorMinorVersion()
+QString GetMajorMinorVersion()
 {
-    wxString msg = wxString::Format( wxT( "%s" ), wxT( KICAD_MAJOR_MINOR_VERSION ) );
+    QString msg = QString( KICAD_MAJOR_MINOR_VERSION );
     return msg;
 }
 
 
-wxString GetCommitHash()
+QString GetCommitHash()
 {
-    wxString msg = wxString::Format( wxT( "%s" ), wxT( KICAD_COMMIT_HASH ) );
+    QString msg = QString( KICAD_COMMIT_HASH );
     return msg;
 }
 
 
-wxString GetMajorMinorPatchVersion()
+QString GetMajorMinorPatchVersion()
 {
-    wxString msg = wxString::Format( wxT( "%s" ), wxT( KICAD_MAJOR_MINOR_PATCH_VERSION ) );
+    QString msg = QString( KICAD_MAJOR_MINOR_PATCH_VERSION );
     return msg;
 }
 
@@ -140,252 +116,211 @@ const std::tuple<int,int,int>& GetMajorMinorPatchTuple()
 }
 
 
-wxString GetVersionInfoData( const wxString& aTitle, bool aHtml, bool aBrief )
+QString GetVersionInfoData( const QString& aTitle, bool aHtml, bool aBrief )
 {
-    wxString aMsg;
-    // DO NOT translate information in the msg_version string
+    QString aMsg;
+    
+    QString eol = aHtml ? "<br>" : "\n";
+    
+    QString indent4 = aHtml ? "&nbsp;&nbsp;&nbsp;&nbsp;" : "\t";
 
-    wxString eol = aHtml ? "<br>" : "\n";
 
-    // Tabs instead of spaces for the plaintext version for shorter string length
-    wxString indent4 = aHtml ? "&nbsp;&nbsp;&nbsp;&nbsp;" : "\t";
-
-#define ON "ON" << eol
-#define OFF "OFF" << eol
-
-    wxString version;
-    version << ( KIPLATFORM::APP::IsOperatingSystemUnsupported() ? wxString( wxS( "(UNSUPPORTED)" ) )
-                                                                 : GetBuildVersion() )
+    QString version;
+    version += ( KIPLATFORM::APP::IsOperatingSystemUnsupported() ? QString( "(UNSUPPORTED)" )
+                                                                 : GetBuildVersion() );
 #ifdef DEBUG
-            << ", debug"
+    version += ", debug";
 #else
-            << ", release"
+    version += ", release";
 #endif
-            << " build";
+    version += " build";
 
-    aMsg << "Application: " << aTitle;
-    aMsg << " " << wxGetCpuArchitectureName() << " on " << wxGetNativeCpuArchitectureName();
+    aMsg += "Application: " + aTitle;
+    aMsg += " " + QSysInfo::currentCpuArchitecture() + " on " + QSysInfo::currentCpuArchitecture();
 
-    aMsg << eol << eol;
+    aMsg += eol + eol;
 
+    aMsg += "Version: " + version + eol + eol;
+    aMsg += "Libraries:" + eol;
 
-    aMsg << "Version: " << version << eol << eol;
-    aMsg << "Libraries:" << eol;
+    aMsg += indent4 + QString("Qt %1").arg(QT_VERSION_STR) + eol;
 
-    aMsg << indent4 << wxGetLibraryVersionInfo().GetVersionString() << eol;
-
-    aMsg << indent4 << "FreeType " << KIFONT::VERSION_INFO::FreeType() << eol;
-    aMsg << indent4 << "HarfBuzz " << KIFONT::VERSION_INFO::HarfBuzz() << eol;
-    aMsg << indent4 << "FontConfig " << KIFONT::VERSION_INFO::FontConfig() << eol;
+    aMsg += indent4 + "FreeType " + QString::fromStdString(KIFONT::VERSION_INFO::FreeType()) + eol;
+    aMsg += indent4 + "HarfBuzz " + QString::fromStdString(KIFONT::VERSION_INFO::HarfBuzz()) + eol;
+    aMsg += indent4 + "FontConfig " + QString::fromStdString(KIFONT::VERSION_INFO::FontConfig()) + eol;
 
     if( !aBrief )
-        aMsg << indent4 << GetKicadCurlVersion() << eol;
+        aMsg += indent4 + QString::fromStdString(GetKicadCurlVersion()) + eol;
 
-    aMsg << eol;
+    aMsg += eol;
 
-    wxString osDescription;
+    QString osDescription;
 
 #if __LINUX__
-    osDescription = wxGetLinuxDistributionInfo().Description;
+    osDescription = QSysInfo::prettyProductName();
 #endif
 
-    // Linux uses the lsb-release program to get the description of the OS, if lsb-release
-    // isn't installed, then the string will be empty and we fallback to the method used on
-    // the other platforms (to at least get the kernel/uname info).
-    if( osDescription.empty() )
-        osDescription = wxGetOsDescription();
+    if( osDescription.isEmpty() )
+        osDescription = QSysInfo::prettyProductName();
 
     {
-        // wxPlatformInfo is not thread-safe, so protect it
         std::unique_lock lock( s_platformInfoMutex );
 
-        aMsg << "Platform: "
-            << osDescription << ", "
-            << GetPlatformGetBitnessName() << ", "
-            << wxPlatformInfo().GetEndiannessName() << ", "
-            << wxPlatformInfo().GetPortIdName();
+        aMsg += "Platform: " +
+               osDescription + ", " +
+               GetPlatformGetBitnessName() + ", " +
+               QString(QSysInfo::ByteOrder == QSysInfo::BigEndian ? "big-endian" : "little-endian") + ", " +
+               "Qt";
     }
 
-#ifdef __WXGTK__
-    if( wxTheApp && wxTheApp->IsGUI() )
+#ifdef __linux__
+    if( QCoreApplication::instance() )
     {
-        aMsg << ", ";
-
-        switch( wxGetDisplayInfo().type )
+        aMsg += ", ";
+        
+        const char* sessionType = qgetenv("XDG_SESSION_TYPE").constData();
+        if( sessionType && strlen(sessionType) > 0 )
         {
-        case wxDisplayX11:     aMsg << "X11"; break;
-        case wxDisplayWayland: aMsg << "Wayland"; break;
-        case wxDisplayNone:    aMsg << "None"; break;
-        default:               aMsg << "Unknown";
+            if( strcmp(sessionType, "wayland") == 0 )
+                aMsg += "Wayland";
+            else if( strcmp(sessionType, "x11") == 0 )
+                aMsg += "X11";
+            else
+                aMsg += sessionType;
+        }
+        else
+        {
+            aMsg += "Unknown";
         }
     }
 
-    aMsg << ", " << wxGetenv( "XDG_SESSION_DESKTOP" )
-         << ", " << wxGetenv( "XDG_SESSION_TYPE" );
+    aMsg += ", " + QString::fromLocal8Bit(qgetenv("XDG_SESSION_DESKTOP")) +
+           ", " + QString::fromLocal8Bit(qgetenv("XDG_SESSION_TYPE"));
 #endif
 
-    if( !s_glVendor.empty() || !s_glRenderer.empty() || !s_glVersion.empty() )
+    if( !s_glVendor.isEmpty() || !s_glRenderer.isEmpty() || !s_glVersion.isEmpty() )
     {
-        aMsg << eol;
-        aMsg << "OpenGL: " << s_glVendor << ", " << s_glRenderer << ", " << s_glVersion;
+        aMsg += eol;
+        aMsg += "OpenGL: " + s_glVendor + ", " + s_glRenderer + ", " + s_glVersion;
     }
 
-    aMsg << eol << eol;
+    aMsg += eol + eol;
 
     if( !aBrief )
     {
-        aMsg << "Build Info:" << eol;
-        aMsg << indent4 << "Date: " << GetBuildDate() << eol;
+        aMsg += "Build Info:" + eol;
+        aMsg += indent4 + "Date: " + GetBuildDate() + eol;
     }
 
-    aMsg << indent4 << "wxWidgets: " << wxVERSION_NUM_DOT_STRING << " (";
-    aMsg << __WX_BO_UNICODE __WX_BO_STL;
+    aMsg += indent4 + QString("Qt: %1").arg(QT_VERSION_STR) + eol;
 
-// wx changed compatibility macros in 3.3, adding the 3.0 macro and removing the 2.8 macro
-#if wxCHECK_VERSION( 3, 3, 0 )
-    aMsg << __WX_BO_WXWIN_COMPAT_3_0 ")";
-#else
-    aMsg << __WX_BO_WXWIN_COMPAT_2_8 ")";
-#endif
+    aMsg += indent4 + QString("Boost: %1.%2.%3").arg(BOOST_VERSION / 100000)
+                                                      .arg(BOOST_VERSION / 100 % 1000)
+                                                      .arg(BOOST_VERSION % 100) + eol;
 
-    // Get the GTK+ version where possible.
-#ifdef __WXGTK__
-    {
-        // wxPlatformInfo is not thread-safe, so protect it
-        std::unique_lock lock( s_platformInfoMutex );
-        int              major, minor;
-
-        major = wxPlatformInfo().GetToolkitMajorVersion();
-        minor = wxPlatformInfo().GetToolkitMinorVersion();
-        aMsg << " GTK+ " << major << "." << minor;
-    }
-#endif
-
-    aMsg << eol;
-
-    aMsg << indent4 << "Boost: " << ( BOOST_VERSION / 100000 ) << wxT( "." )
-         << ( BOOST_VERSION / 100 % 1000 ) << wxT( "." )
-         << ( BOOST_VERSION % 100 ) << eol;
-
-    aMsg << indent4 << "OCC: " << OCC_VERSION_COMPLETE << eol;
-    aMsg << indent4 << "Curl: " << GetCurlLibVersion() << eol;
+    aMsg += indent4 + "OCC: " + QString(OCC_VERSION_COMPLETE) + eol;
+    aMsg += indent4 + "Curl: " + QString::fromStdString(GetCurlLibVersion()) + eol;
 
 #if defined( NGSPICE_BUILD_VERSION )
-    aMsg << indent4 << "ngspice: " << NGSPICE_BUILD_VERSION << eol;
+    aMsg += indent4 + "ngspice: " + QString(NGSPICE_BUILD_VERSION) + eol;
 #elif defined( NGSPICE_HAVE_CONFIG_H )
     #undef HAVE_STRNCASECMP     /* is redefined in ngspice/config.h */
     #include <ngspice/config.h>
-    aMsg << indent4 << "ngspice: " << PACKAGE_VERSION << eol;
+    aMsg += indent4 + "ngspice: " + QString(PACKAGE_VERSION) + eol;
 #elif defined( NGSPICE_PACKAGE_VERSION )
-    aMsg << indent4 << "ngspice: " << NGSPICE_PACKAGE_VERSION << eol;
+    aMsg += indent4 + "ngspice: " + QString(NGSPICE_PACKAGE_VERSION) + eol;
 #else
-    aMsg << indent4 << "ngspice: " << "unknown" << eol;
+    aMsg += indent4 + "ngspice: " + "unknown" + eol;
 #endif
 
-    aMsg << indent4 << "Compiler: ";
+    aMsg += indent4 + "Compiler: ";
 #if defined(__clang__)
-    aMsg << "Clang " << __clang_major__ << "." << __clang_minor__ << "." << __clang_patchlevel__;
+    aMsg += QString("Clang %1.%2.%3").arg(__clang_major__).arg(__clang_minor__).arg(__clang_patchlevel__);
 #elif defined(__GNUG__)
-    aMsg << "GCC " << __GNUC__ << "." << __GNUC_MINOR__ << "." << __GNUC_PATCHLEVEL__;
+    aMsg += QString("GCC %1.%2.%3").arg(__GNUC__).arg(__GNUC_MINOR__).arg(__GNUC_PATCHLEVEL__);
 #elif defined(_MSC_VER)
-    aMsg << "Visual C++ " << _MSC_VER;
+    aMsg += QString("Visual C++ %1").arg(_MSC_VER);
 #elif defined(__INTEL_COMPILER)
-    aMsg << "Intel C++ " << __INTEL_COMPILER;
+    aMsg += QString("Intel C++ %1").arg(__INTEL_COMPILER);
 #else
-    aMsg << "Other Compiler ";
+    aMsg += "Other Compiler ";
 #endif
 
 #if defined(__GXX_ABI_VERSION)
-    aMsg << " with C++ ABI " << __GXX_ABI_VERSION << eol;
+    aMsg += QString(" with C++ ABI %1").arg(__GXX_ABI_VERSION) + eol;
 #else
-    aMsg << " without C++ ABI" << eol;
+    aMsg += " without C++ ABI" + eol;
 #endif
 
     // Add build settings config (build options):
 #if defined( KICAD_USE_EGL ) || ! defined( NDEBUG )
-    aMsg << eol;
-    aMsg << "Build settings:" << eol;
+    aMsg += eol;
+    aMsg += "Build settings:" + eol;
 #endif
 
 #ifdef KICAD_USE_EGL
-    aMsg << indent4 << "KICAD_USE_EGL=" << ON;
+    aMsg += indent4 + "KICAD_USE_EGL=" + "ON" + eol;
 #endif
 
 #ifdef KICAD_IPC_API
-    aMsg << indent4 << "KICAD_IPC_API=" << ON;
+    aMsg += indent4 + "KICAD_IPC_API=" + "ON" + eol;
 #else
-    aMsg << indent4 << "KICAD_IPC_API=" << OFF;
+    aMsg += indent4 + "KICAD_IPC_API=" + "OFF" + eol;
 #endif
 
 #ifndef NDEBUG
-    aMsg << indent4 << "KICAD_STDLIB_DEBUG=";
+    aMsg += indent4 + "KICAD_STDLIB_DEBUG=";
 #ifdef KICAD_STDLIB_DEBUG
-    aMsg << ON;
+    aMsg += "ON" + eol;
 #else
-    aMsg << OFF;
-    aMsg << indent4 << "KICAD_STDLIB_LIGHT_DEBUG=";
+    aMsg += "OFF" + eol;
+    aMsg += indent4 + "KICAD_STDLIB_LIGHT_DEBUG=";
 #ifdef KICAD_STDLIB_LIGHT_DEBUG
-    aMsg << ON;
+    aMsg += "ON" + eol;
 #else
-    aMsg << OFF;
+    aMsg += "OFF" + eol;
 #endif
 #endif
 
-    aMsg << indent4 << "KICAD_SANITIZE_ADDRESS=";
+    aMsg += indent4 + "KICAD_SANITIZE_ADDRESS=";
 #ifdef KICAD_SANITIZE_ADDRESS
-    aMsg << ON;
+    aMsg += "ON" + eol;
 #else
-    aMsg << OFF;
+    aMsg += "OFF" + eol;
 #endif
 
-    aMsg << indent4 << "KICAD_SANITIZE_THREADS=";
+    aMsg += indent4 + "KICAD_SANITIZE_THREADS=";
 #ifdef KICAD_SANITIZE_THREADS
-    aMsg << ON;
+    aMsg += "ON" + eol;
 #else
-    aMsg << OFF;
+    aMsg += "OFF" + eol;
 #endif
 #endif
 
-    wxLocale* locale = wxGetLocale();
-
-    if( locale )
+    QLocale locale;
+    
     {
-        aMsg << eol;
-        aMsg << "Locale: " << eol;
-        aMsg << indent4 << "Lang: " << locale->GetCanonicalName() << eol;
-        aMsg << indent4 << "Enc: " << locale->GetSystemEncodingName() << eol;
-        aMsg << indent4 << "Num: "
-             << wxString::Format( "%d%s%.1f", 1,
-                                  locale->GetInfo( wxLocaleInfo::wxLOCALE_THOUSANDS_SEP ), 234.5 )
-             << eol;
+        aMsg += eol;
+        aMsg += "Locale: " + eol;
+        aMsg += indent4 + "Lang: " + locale.name() + eol;
+        aMsg += indent4 + "Enc: UTF-8" + eol;
+        aMsg += indent4 + QString("Num: 1%1234.5").arg(locale.groupSeparator()) + eol;
 
-        wxString testStr( wxS( "кΩ丈" ) );
-        wxString expectedUtf8Hex( wxS( "D0BACEA9E4B888" ) );
-        wxString sysHex, utf8Hex;
+        QString testStr( "кΩ丈" );
+        QString expectedUtf8Hex( "D0BACEA9E4B888" );
+        QString utf8Hex;
+        
+        QByteArray utf8Bytes = testStr.toUtf8();
+        for( int i = 0; i < utf8Bytes.length(); i++ )
         {
-            const char* asChar = testStr.c_str().AsChar();
-            size_t      length = strlen( asChar );
-
-            for( size_t i = 0; i < length; i++ )
-                sysHex << wxString::Format( "%02X", (unsigned int) (uint8_t) asChar[i] );
-        }
-        {
-            const char* asChar = testStr.utf8_str().data();
-            size_t      length = strlen( asChar );
-
-            for( size_t i = 0; i < length; i++ )
-                utf8Hex << wxString::Format( "%02X", (unsigned int) (uint8_t) asChar[i] );
+            utf8Hex += QString("%1").arg((unsigned char)utf8Bytes[i], 2, 16, QChar('0')).toUpper();
         }
 
-        aMsg << indent4 << "Encoded " << testStr << ": " << sysHex << " (sys), " << utf8Hex
-             << " (utf8)" << eol;
+        aMsg += indent4 + "Encoded " + testStr + ": " + utf8Hex + " (utf8)" + eol;
 
-        wxASSERT_MSG( utf8Hex == expectedUtf8Hex,
-                      wxString::Format( "utf8_str string %s encoding bad result: %s, expected "
-                                        "%s, system enc %s, lang %s",
-                                        testStr, utf8Hex, expectedUtf8Hex,
-                                        locale->GetSystemEncodingName(),
-                                        locale->GetCanonicalName() ) );
+        Q_ASSERT_X( utf8Hex == expectedUtf8Hex, "GetVersionInfoData", 
+                   QString("utf8 string %1 encoding bad result: %2, expected %3")
+                   .arg(testStr).arg(utf8Hex).arg(expectedUtf8Hex).toLocal8Bit().constData() );
     }
 
     return aMsg;

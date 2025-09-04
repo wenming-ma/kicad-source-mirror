@@ -1,34 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2023 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 #include <eda_draw_frame.h>
 #include <tool/action_manager.h>
 #include <tool/tool_action.h>
 #include <tool/tool_manager.h>
 #include <trace_helpers.h>
-#include <wx/log.h>
+#include <QDebug>
 
 #include <hotkeys_basic.h>
 #include <cctype>
@@ -56,10 +31,12 @@ ACTION_MANAGER::ACTION_MANAGER( TOOL_MANAGER* aToolManager ) :
             groupName = group.value().GetName();
         }
 
-        wxLogTrace( kicadTraceToolStack,
-                    "ACTION_MANAGER::ACTION_MANAGER: Registering action %s with ID %d, UI ID %d, "
-                    "and group %s(%d)",
-                    action->m_name, action->m_id, action->GetUIId(), groupName, groupID );
+        qDebug() << QString("ACTION_MANAGER::ACTION_MANAGER: Registering action %1 with ID %2, UI ID %3, and group %4(%5)")
+                        .arg(QString::fromStdString(action->m_name))
+                        .arg(action->m_id)
+                        .arg(action->GetUIId())
+                        .arg(QString::fromStdString(groupName))
+                        .arg(groupID);
 
         RegisterAction( action );
     }
@@ -75,10 +52,10 @@ void ACTION_MANAGER::RegisterAction( TOOL_ACTION* aAction )
 {
     // TOOL_ACTIONs are supposed to be named [appName.]toolName.actionName (with dots between)
     // action name without specifying at least toolName is not valid
-    wxASSERT( aAction->GetName().find( '.', 0 ) != std::string::npos );
+    Q_ASSERT( aAction->GetName().find( '.', 0 ) != std::string::npos );
 
     // TOOL_ACTIONs must have unique names & ids
-    wxASSERT( m_actionNameIndex.find( aAction->m_name ) == m_actionNameIndex.end() );
+    Q_ASSERT( m_actionNameIndex.find( aAction->m_name ) == m_actionNameIndex.end() );
 
     m_actionNameIndex[aAction->m_name] = aAction;
 
@@ -97,9 +74,9 @@ void ACTION_MANAGER::SetConditions( const TOOL_ACTION& aAction,
 
     m_uiConditions[aAction.GetId()] = aConditions;
 
-    wxLogTrace( kicadTraceToolStack,
-                wxS( "ACTION_MANAGER::SetConditions: Registering conditions for ID %d - %s" ),
-                aAction.GetId(), aAction.GetName() );
+    qDebug() << QString("ACTION_MANAGER::SetConditions: Registering conditions for ID %1 - %2")
+                    .arg(aAction.GetId())
+                    .arg(QString::fromStdString(aAction.GetName()));
 
     // Register a new handler with the new conditions
     if( m_toolMgr )
@@ -146,8 +123,8 @@ bool ACTION_MANAGER::RunHotKey( int aHotKey ) const
     if( key >= 'a' && key <= 'z' )
         key = std::toupper( key );
 
-    wxLogTrace( kicadTraceToolStack, wxS( "ACTION_MANAGER::RunHotKey Key: %s" ),
-                KeyNameFromKeyCode( aHotKey ) );
+    qDebug() << QString("ACTION_MANAGER::RunHotKey Key: %1")
+                    .arg(QString::fromStdString(KeyNameFromKeyCode( aHotKey )));
 
     HOTKEY_LIST::const_iterator it = m_actionHotKeys.find( key | mod );
 
@@ -158,9 +135,8 @@ bool ACTION_MANAGER::RunHotKey( int aHotKey ) const
     // This doesn't apply for letters, as we already handled case normalisation.
     if( it == m_actionHotKeys.end() && !std::isalpha( key ) )
     {
-        wxLogTrace( kicadTraceToolStack,
-                    wxS( "ACTION_MANAGER::RunHotKey No actions found, searching with key: %s" ),
-                    KeyNameFromKeyCode( key | ( mod & ~MD_SHIFT ) ) );
+        qDebug() << QString("ACTION_MANAGER::RunHotKey No actions found, searching with key: %1")
+                        .arg(QString::fromStdString(KeyNameFromKeyCode( key | ( mod & ~MD_SHIFT ) )));
 
         it = m_actionHotKeys.find( key | ( mod & ~MD_SHIFT ) );
     }
@@ -213,11 +189,10 @@ bool ACTION_MANAGER::RunHotKey( int aHotKey ) const
         if( const ACTION_CONDITIONS* aCond = GetCondition( *context ) )
             runAction = aCond->enableCondition( sel );
 
-        wxLogTrace( kicadTraceToolStack,
-                    wxS( "ACTION_MANAGER::RunHotKey %s context action: %s for hotkey %s" ),
-                    runAction ? wxS( "Running" ) : wxS( "Not running" ),
-                    context->GetName(),
-                    KeyNameFromKeyCode( aHotKey ) );
+        qDebug() << QString("ACTION_MANAGER::RunHotKey %1 context action: %2 for hotkey %3")
+                        .arg(runAction ? "Running" : "Not running")
+                        .arg(QString::fromStdString(context->GetName()))
+                        .arg(QString::fromStdString(KeyNameFromKeyCode( aHotKey )));
 
         if( runAction )
             return m_toolMgr->RunAction( *context );
@@ -231,20 +206,18 @@ bool ACTION_MANAGER::RunHotKey( int aHotKey ) const
             if( const ACTION_CONDITIONS* aCond = GetCondition( *act ) )
                 runAction = aCond->enableCondition( sel );
 
-            wxLogTrace( kicadTraceToolStack,
-                        wxS( "ACTION_MANAGER::RunHotKey %s global action: %s for hotkey %s" ),
-                        runAction ? wxS( "Running" ) : wxS( "Not running" ),
-                        act->GetName(),
-                        KeyNameFromKeyCode( aHotKey ) );
+            qDebug() << QString("ACTION_MANAGER::RunHotKey %1 global action: %2 for hotkey %3")
+                            .arg(runAction ? "Running" : "Not running")
+                            .arg(QString::fromStdString(act->GetName()))
+                            .arg(QString::fromStdString(KeyNameFromKeyCode( aHotKey )));
 
             if( runAction && m_toolMgr->RunAction( *act ) )
                 return true;
         }
     }
 
-    wxLogTrace( kicadTraceToolStack,
-                wxS( "ACTION_MANAGER::RunHotKey No action found for key %s" ),
-                KeyNameFromKeyCode( aHotKey ) );
+    qDebug() << QString("ACTION_MANAGER::RunHotKey No action found for key %1")
+                    .arg(QString::fromStdString(KeyNameFromKeyCode( aHotKey )));
 
     return false;
 }
@@ -292,7 +265,7 @@ void ACTION_MANAGER::UpdateHotKeys( bool aFullUpdate )
     if( m_toolMgr->GetToolHolder() && ( aFullUpdate || !mapsInitialized ) )
     {
         ReadLegacyHotkeyConfig( m_toolMgr->GetToolHolder()->ConfigBaseName(), legacyHotKeyMap );
-        ReadHotKeyConfig( wxEmptyString, userHotKeyMap );
+        ReadHotKeyConfig( QString(), userHotKeyMap );
         mapsInitialized = true;
     }
 

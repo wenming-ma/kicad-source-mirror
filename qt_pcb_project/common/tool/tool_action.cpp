@@ -1,28 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2023 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 #include <optional>
 #include <tool/tool_action.h>
 #include <tool/tool_event.h>
@@ -32,13 +7,12 @@
 #include <bitmaps.h>
 #include <hotkeys_basic.h>
 
-#include <core/wx_stl_compat.h>
-#include <wx/string.h>
-#include <wx/translation.h>
+#include <QString>
+#include <QObject>
 
 TOOL_ACTION::TOOL_ACTION( const std::string& aName, TOOL_ACTION_SCOPE aScope,
                           int aDefaultHotKey, const std::string& aLegacyHotKeyName,
-                          const wxString& aLabel, const wxString& aTooltip,
+                          const QString& aLabel, const QString& aTooltip,
                           BITMAPS aIcon, TOOL_ACTION_FLAGS aFlags ) :
         m_name( aName ),
         m_scope( aScope ),
@@ -78,8 +52,8 @@ TOOL_ACTION::TOOL_ACTION( const TOOL_ACTION_ARGS& aArgs ) :
         m_hotKey( aArgs.m_defaultHotKey.value_or( 0 ) ),
         m_hotKeyAlt( 0 ),
         m_legacyName( aArgs.m_legacyName.value_or( "" ) ),
-        m_friendlyName( TowxString( aArgs.m_friendlyName.value_or( "" ) ) ),
-        m_tooltip( TowxString( aArgs.m_tooltip.value_or( "" ) ) ),
+        m_friendlyName( QString::fromStdString( aArgs.m_friendlyName.value_or( "" ) ) ),
+        m_tooltip( QString::fromStdString( aArgs.m_tooltip.value_or( "" ) ) ),
         m_icon( aArgs.m_icon.value_or( BITMAPS::INVALID_BITMAP) ),
         m_id( -1 ),
         m_uiid( std::nullopt ),
@@ -89,7 +63,7 @@ TOOL_ACTION::TOOL_ACTION( const TOOL_ACTION_ARGS& aArgs ) :
     assert( !m_name.empty() );
 
     if( aArgs.m_menuText.has_value() )
-        m_menuLabel = TowxString( aArgs.m_menuText.value() );
+        m_menuLabel = QString::fromStdString( aArgs.m_menuText.value() );
 
     if( aArgs.m_uiid.has_value() )
         m_uiid = aArgs.m_uiid.value();
@@ -98,7 +72,7 @@ TOOL_ACTION::TOOL_ACTION( const TOOL_ACTION_ARGS& aArgs ) :
         m_param = aArgs.m_param;
 
     if( aArgs.m_description.has_value() )
-        m_description = TowxString( aArgs.m_description.value() );
+        m_description = QString::fromStdString( aArgs.m_description.value() );
 
     if( aArgs.m_group.has_value() )
         m_group = aArgs.m_group;
@@ -136,62 +110,62 @@ TOOL_EVENT TOOL_ACTION::MakeEvent() const
 }
 
 
-wxString TOOL_ACTION::GetFriendlyName() const
+QString TOOL_ACTION::GetFriendlyName() const
 {
-    if( m_friendlyName.empty() )
-        return wxEmptyString;
+    if( m_friendlyName.isEmpty() )
+        return QString();
 
-    return wxGetTranslation( m_friendlyName );
+    return QObject::tr( m_friendlyName.toLocal8Bit() );
 }
 
 
-wxString TOOL_ACTION::GetMenuLabel() const
+QString TOOL_ACTION::GetMenuLabel() const
 {
     if( m_menuLabel.has_value() )
-        return wxGetTranslation( m_menuLabel.value() );
+        return QObject::tr( m_menuLabel.value().toLocal8Bit() );
 
     return GetFriendlyName();
 }
 
 
-wxString TOOL_ACTION::GetMenuItem() const
+QString TOOL_ACTION::GetMenuItem() const
 {
-    wxString label = GetMenuLabel();
-    label.Replace( wxS( "&" ), wxS( "&&" ) );
+    QString label = GetMenuLabel();
+    label.replace( QString( "&" ), QString( "&&" ) );
     return AddHotkeyName( label, m_hotKey, IS_HOTKEY );
 }
 
 
-wxString TOOL_ACTION::GetDescription() const
+QString TOOL_ACTION::GetDescription() const
 {
     // If no description provided, use the tooltip without a hotkey
     if( !m_description.has_value() )
         return GetTooltip( false );
 
-    return wxGetTranslation( m_description.value() );
+    return QObject::tr( m_description.value().toLocal8Bit() );
 }
 
 
-wxString TOOL_ACTION::GetTooltip( bool aIncludeHotkey ) const
+QString TOOL_ACTION::GetTooltip( bool aIncludeHotkey ) const
 {
-    wxString tooltip = wxGetTranslation( m_tooltip );
+    QString tooltip = QObject::tr( m_tooltip.toLocal8Bit() );
 
     if( aIncludeHotkey && GetHotKey() )
-        tooltip += wxString::Format( wxT( "  (%s)" ), KeyNameFromKeyCode( GetHotKey() ) );
+        tooltip += QString( "  (%1)" ).arg( KeyNameFromKeyCode( GetHotKey() ) );
 
     return tooltip;
 }
 
 
-wxString TOOL_ACTION::GetButtonTooltip() const
+QString TOOL_ACTION::GetButtonTooltip() const
 {
     // We don't show button text so use the action name as the first line of the tooltip
-    wxString tooltip = GetFriendlyName();
+    QString tooltip = GetFriendlyName();
 
     if( GetHotKey() )
-        tooltip += wxString::Format( wxT( "  (%s)" ), KeyNameFromKeyCode( GetHotKey() ) );
+        tooltip += QString( "  (%1)" ).arg( KeyNameFromKeyCode( GetHotKey() ) );
 
-    if( !GetTooltip( false ).IsEmpty() )
+    if( !GetTooltip( false ).isEmpty() )
         tooltip += '\n' + GetTooltip( false );
 
     return tooltip;

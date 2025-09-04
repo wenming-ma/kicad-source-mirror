@@ -1,28 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Ian McInerney <ian.s.mcinerney@ieee.org>
- * Copyright (C) 2007-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 #include <kiid.h>
 
 #include <boost/random/mersenne_twister.hpp>
@@ -40,7 +15,10 @@
 #include <utility>
 #include <stdlib.h>
 
-#include <wx/log.h>
+#include <QLoggingCategory>
+#include <QDebug>
+#include <QString>
+#include <QStringList>
 
 // boost:mt19937 is not thread-safe
 static std::mutex                                           rng_mutex;
@@ -94,8 +72,8 @@ KIID::KIID()
     }
     catch( const boost::uuids::entropy_error& )
     {
-        wxLogFatalError( "A Boost UUID entropy exception was thrown in %s:%s.",
-                         __FILE__, __FUNCTION__ );
+        qFatal( "A Boost UUID entropy exception was thrown in %s:%s.",
+                __FILE__, __FUNCTION__ );
     }
 #endif
 }
@@ -104,7 +82,7 @@ KIID::KIID()
 KIID::KIID( int null ) :
         m_uuid( nilGenerator() )
 {
-    wxASSERT( null == 0 );
+    Q_ASSERT( null == 0 );
 }
 
 
@@ -154,8 +132,8 @@ KIID::KIID( const std::string& aString ) :
             }
             catch( const boost::uuids::entropy_error& )
             {
-                wxLogFatalError( "A Boost UUID entropy exception was thrown in %s:%s.",
-                                 __FILE__, __FUNCTION__ );
+                qFatal( "A Boost UUID entropy exception was thrown in %s:%s.",
+                        __FILE__, __FUNCTION__ );
             }
 #endif
         }
@@ -169,20 +147,20 @@ KIID::KIID( const char* aString ) :
 }
 
 
-KIID::KIID( const wxString& aString ) :
-        KIID( std::string( aString.ToUTF8() ) )
+KIID::KIID( const QString& aString ) :
+        KIID( std::string( aString.toUtf8().constData() ) )
 {
 }
 
 
-bool KIID::SniffTest( const wxString& aCandidate )
+bool KIID::SniffTest( const QString& aCandidate )
 {
-    static wxString niluuidStr = niluuid.AsString();
+    static QString niluuidStr = niluuid.AsString();
 
-    if( aCandidate.Length() != niluuidStr.Length() )
+    if( aCandidate.length() != niluuidStr.length() )
         return false;
 
-    for( wxChar c : aCandidate )
+    for( QChar c : aCandidate )
     {
         if( c >= '0' && c <= '9' )
             continue;
@@ -243,9 +221,9 @@ void KIID::Clone( const KIID& aUUID )
 }
 
 
-wxString KIID::AsString() const
+QString KIID::AsString() const
 {
-    return boost::uuids::to_string( m_uuid );
+    return QString::fromStdString( boost::uuids::to_string( m_uuid ) );
 }
 
 
@@ -255,9 +233,9 @@ std::string KIID::AsStdString() const
 }
 
 
-wxString KIID::AsLegacyTimestampString() const
+QString KIID::AsLegacyTimestampString() const
 {
-    return wxString::Format( "%8.8lX", (unsigned long) AsLegacyTimestamp() );
+    return QString::asprintf( "%8.8lX", (unsigned long) AsLegacyTimestamp() );
 }
 
 
@@ -298,12 +276,11 @@ void KIID::SeedGenerator( unsigned int aSeed )
 }
 
 
-KIID_PATH::KIID_PATH( const wxString& aString )
+KIID_PATH::KIID_PATH( const QString& aString )
 {
-    for( const wxString& pathStep : wxSplit( aString, '/' ) )
+    for( const QString& pathStep : aString.split( '/', Qt::SkipEmptyParts ) )
     {
-        if( !pathStep.empty() )
-            emplace_back( KIID( pathStep ) );
+        emplace_back( KIID( pathStep ) );
     }
 }
 
@@ -353,9 +330,9 @@ bool KIID_PATH::EndsWith( const KIID_PATH& aPath ) const
 }
 
 
-wxString KIID_PATH::AsString() const
+QString KIID_PATH::AsString() const
 {
-    wxString path;
+    QString path;
 
     for( const KIID& pathStep : *this )
         path += '/' + pathStep.AsString();
@@ -366,7 +343,7 @@ wxString KIID_PATH::AsString() const
 
 void to_json( nlohmann::json& aJson, const KIID& aKIID )
 {
-    aJson = aKIID.AsString().ToUTF8();
+    aJson = aKIID.AsString().toUtf8().constData();
 }
 
 

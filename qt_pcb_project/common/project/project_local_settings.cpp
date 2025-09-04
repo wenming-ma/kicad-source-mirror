@@ -29,7 +29,7 @@
 const int projectLocalSettingsVersion = 5;
 
 
-PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxString& aFilename ) :
+PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const QString& aFilename ) :
         JSON_SETTINGS( aFilename, SETTINGS_LOC::PROJECT, projectLocalSettingsVersion,
                        /* aCreateIfMissing = */ true, /* aCreateIfDefault = */ false,
                        /* aWriteFile = */ true ),
@@ -170,7 +170,7 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
     m_params.emplace_back( new PARAM_ENUM<PCB_LAYER_ID>( "board.active_layer",
                            &m_ActiveLayer, F_Cu, PCBNEW_LAYER_ID_START, F_Fab ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "board.active_layer_preset",
+    m_params.emplace_back( new PARAM<QString>( "board.active_layer_preset",
                            &m_ActiveLayerPreset, "" ) );
 
     m_params.emplace_back( new PARAM_ENUM<HIGH_CONTRAST_MODE>( "board.high_contrast_mode",
@@ -184,9 +184,9 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
     m_params.emplace_back( new PARAM<double>( "board.opacity.images", &m_ImageOpacity, 0.6 ) );
     m_params.emplace_back( new PARAM<double>( "board.opacity.shapes", &m_ShapeOpacity, 1.0 ) );
 
-    m_params.emplace_back( new PARAM_LIST<wxString>( "board.hidden_nets", &m_HiddenNets, {} ) );
+    m_params.emplace_back( new PARAM_LIST<QString>( "board.hidden_nets", &m_HiddenNets, {} ) );
 
-    m_params.emplace_back( new PARAM_SET<wxString>( "board.hidden_netclasses",
+    m_params.emplace_back( new PARAM_SET<QString>( "board.hidden_netclasses",
                                                      &m_HiddenNetclasses, {} ) );
 
     m_params.emplace_back( new PARAM_ENUM<NET_COLOR_MODE>( "board.net_color_mode",
@@ -201,13 +201,13 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
                            ZONE_DISPLAY_MODE::SHOW_FILLED, ZONE_DISPLAY_MODE::SHOW_FILLED,
                            ZONE_DISPLAY_MODE::SHOW_TRIANGULATION ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "git.repo_username", &m_GitRepoUsername, "" ) );
+    m_params.emplace_back( new PARAM<QString>( "git.repo_username", &m_GitRepoUsername, "" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "git.repo_type", &m_GitRepoType, "" ) );
+    m_params.emplace_back( new PARAM<QString>( "git.repo_type", &m_GitRepoType, "" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "git.ssh_key", &m_GitSSHKey, "" ) );
+    m_params.emplace_back( new PARAM<QString>( "git.ssh_key", &m_GitSSHKey, "" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "net_inspector_panel.filter_text",
+    m_params.emplace_back( new PARAM<QString>( "net_inspector_panel.filter_text",
                                                 &m_NetInspectorPanel.filter_text, "" ) );
     m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.filter_by_net_name",
                                             &m_NetInspectorPanel.filter_by_net_name, true ) );
@@ -217,7 +217,7 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
                                             &m_NetInspectorPanel.group_by_netclass, false ) );
     m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.group_by_constraint",
                                             &m_NetInspectorPanel.group_by_constraint, false ) );
-    m_params.emplace_back( new PARAM_LIST<wxString>( "net_inspector_panel.custom_group_rules",
+    m_params.emplace_back( new PARAM_LIST<QString>( "net_inspector_panel.custom_group_rules",
                                                      &m_NetInspectorPanel.custom_group_rules,
                                                      {} ) );
     m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.show_zero_pad_nets",
@@ -234,10 +234,10 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
                                                 &m_NetInspectorPanel.col_widths, {} ) );
     m_params.emplace_back( new PARAM_LIST<bool>( "net_inspector_panel.col_hidden",
                                                  &m_NetInspectorPanel.col_hidden, {} ) );
-    m_params.emplace_back( new PARAM_LIST<wxString>( "net_inspector_panel.expanded_rows",
+    m_params.emplace_back( new PARAM_LIST<QString>( "net_inspector_panel.expanded_rows",
                                                      &m_NetInspectorPanel.expanded_rows, {} ) );
 
-    m_params.emplace_back( new PARAM_LIST<wxString>( "open_jobsets", &m_OpenJobSets, {} ) );
+    m_params.emplace_back( new PARAM_LIST<QString>( "open_jobsets", &m_OpenJobSets, {} ) );
 
     m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "project.files",
             [&]() -> nlohmann::json
@@ -482,7 +482,7 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const wxStrin
 }
 
 
-bool PROJECT_LOCAL_SETTINGS::MigrateFromLegacy( wxConfigBase* aLegacyConfig )
+bool PROJECT_LOCAL_SETTINGS::MigrateFromLegacy( QSettings* aLegacyConfig )
 {
     /**
      * The normal legacy migration code won't be used for this because the only legacy
@@ -493,9 +493,9 @@ bool PROJECT_LOCAL_SETTINGS::MigrateFromLegacy( wxConfigBase* aLegacyConfig )
 }
 
 
-bool PROJECT_LOCAL_SETTINGS::SaveToFile( const wxString& aDirectory, bool aForce )
+bool PROJECT_LOCAL_SETTINGS::SaveToFile( const QString& aDirectory, bool aForce )
 {
-    wxASSERT( m_project );
+    Q_ASSERT( m_project );
 
     Set( "meta.filename",
          m_project->GetProjectName() + "." + FILEEXT::ProjectLocalSettingsFileExtension );
@@ -511,7 +511,7 @@ bool PROJECT_LOCAL_SETTINGS::SaveToFile( const wxString& aDirectory, bool aForce
 }
 
 
-bool PROJECT_LOCAL_SETTINGS::SaveAs( const wxString& aDirectory, const wxString& aFile )
+bool PROJECT_LOCAL_SETTINGS::SaveAs( const QString& aDirectory, const QString& aFile )
 {
     Set( "meta.filename", aFile + "." + FILEEXT::ProjectLocalSettingsFileExtension );
     SetFilename( aFile );
@@ -524,7 +524,7 @@ bool PROJECT_LOCAL_SETTINGS::SaveAs( const wxString& aDirectory, const wxString&
 }
 
 
-const PROJECT_FILE_STATE* PROJECT_LOCAL_SETTINGS::GetFileState( const wxString& aFileName )
+const PROJECT_FILE_STATE* PROJECT_LOCAL_SETTINGS::GetFileState( const QString& aFileName )
 {
     auto it = std::find_if( m_files.begin(), m_files.end(),
                             [&aFileName]( const PROJECT_FILE_STATE &a )
@@ -541,7 +541,7 @@ const PROJECT_FILE_STATE* PROJECT_LOCAL_SETTINGS::GetFileState( const wxString& 
 }
 
 
-void PROJECT_LOCAL_SETTINGS::SaveFileState( const wxString& aFileName,
+void PROJECT_LOCAL_SETTINGS::SaveFileState( const QString& aFileName,
                                             const WINDOW_SETTINGS* aWindowCfg, bool aOpen )
 {
     auto it = std::find_if( m_files.begin(), m_files.end(),

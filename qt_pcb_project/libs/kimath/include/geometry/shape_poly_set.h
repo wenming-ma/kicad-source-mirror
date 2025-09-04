@@ -1,29 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015-2019 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- * @author Alejandro García Montoro <alejandro.garciamontoro@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef __SHAPE_POLY_SET_H
 #define __SHAPE_POLY_SET_H
@@ -50,20 +25,8 @@
 #include <hash_128.h>
 
 
-/**
- * Represent a set of closed polygons. Polygons may be nonconvex, self-intersecting
- * and have holes. Provides boolean operations (using Clipper library as the backend).
- *
- * Let us define the terms used on this class to clarify methods names and comments:
- *      - Polygon: each polygon in the set.
- *      - Outline: first polyline in each polygon; represents its outer contour.
- *      - Hole: second and following polylines in the polygon.
- *      - Contour: each polyline of each polygon in the set, whether or not it is an
- *      outline or a hole.
- *      - Vertex (or corner): each one of the points that define a contour.
- *
- * TODO: add convex partitioning & spatial index
- */
+// Represent a set of closed polygons. Polygons may be nonconvex, self-intersecting
+// and have holes. Provides boolean operations (using Clipper library as the backend).
 class SHAPE_POLY_SET : public SHAPE
 {
 public:
@@ -104,7 +67,7 @@ public:
                     case 0: return parent->m_vertices[a];
                     case 1: return parent->m_vertices[b];
                     case 2: return parent->m_vertices[c];
-                    default: wxCHECK( false, VECTOR2I() );
+                    default: Q_ASSERT( false ); return VECTOR2I();
                 }
             }
 
@@ -115,7 +78,7 @@ public:
                     case 0: return SEG( parent->m_vertices[a], parent->m_vertices[b] );
                     case 1: return SEG( parent->m_vertices[b], parent->m_vertices[c] );
                     case 2: return SEG( parent->m_vertices[c], parent->m_vertices[a] );
-                    default: wxCHECK( false, SEG() );
+                    default: Q_ASSERT( false ); return SEG();
                 }
             }
 
@@ -207,11 +170,9 @@ public:
         std::deque<VECTOR2I> m_vertices;
     };
 
-    /**
-     * Structure to hold the necessary information in order to index a vertex on a
-     * SHAPE_POLY_SET object: the polygon index, the contour index relative to the polygon and
-     * the vertex index relative the contour.
-     */
+    // Structure to hold the necessary information in order to index a vertex on a
+    // SHAPE_POLY_SET object: the polygon index, the contour index relative to the polygon and
+    // the vertex index relative the contour.
     struct VERTEX_INDEX
     {
         int m_polygon;   /*!< m_polygon is the index of the polygon. */
@@ -226,27 +187,21 @@ public:
         }
     };
 
-    /**
-     * Base class for iterating over all vertices in a given SHAPE_POLY_SET.
-     */
+    // Base class for iterating over all vertices in a given SHAPE_POLY_SET.
     template <class T>
     class ITERATOR_TEMPLATE
     {
     public:
 
-        /**
-         * @return true if the current vertex is the last one of the current contour
-         *         (outline or hole); false otherwise.
-         */
+        // Return true if the current vertex is the last one of the current contour
+        // (outline or hole); false otherwise.
         bool IsEndContour() const
         {
             return m_currentVertex + 1 ==
                     m_poly->CPolygon( m_currentPolygon )[m_currentContour].PointCount();
         }
 
-        /**
-         * @return true if the current outline is the last one; false otherwise.
-         */
+        // Return true if the current outline is the last one; false otherwise.
         bool IsLastPolygon() const
         {
             return m_currentPolygon == m_lastPolygon;
@@ -333,9 +288,7 @@ public:
             return &Get();
         }
 
-        /**
-         * @return the indices of the current polygon, contour and vertex.
-         */
+        // Return the indices of the current polygon, contour and vertex.
         VERTEX_INDEX GetIndex()
         {
             VERTEX_INDEX index;
@@ -358,16 +311,12 @@ public:
         bool            m_iterateHoles;
     };
 
-    /**
-     * Base class for iterating over all segments in a given SHAPE_POLY_SET.
-     */
+    // Base class for iterating over all segments in a given SHAPE_POLY_SET.
     template <class T>
     class SEGMENT_ITERATOR_TEMPLATE
     {
     public:
-        /**
-         * @return true if the current outline is the last one.
-         */
+        // Return true if the current outline is the last one.
         bool IsLastPolygon() const
         {
             return m_currentPolygon == m_lastPolygon;
@@ -378,10 +327,8 @@ public:
             return m_currentPolygon <= m_lastPolygon;
         }
 
-        /**
-         * Advance the indices of the current vertex/outline/contour, checking whether the
-         * vertices in the holes have to be iterated through.
-         */
+        // Advance the indices of the current vertex/outline/contour, checking whether the
+        // vertices in the holes have to be iterated through.
         void Advance()
         {
             // Advance vertex index
@@ -444,9 +391,7 @@ public:
             return Get();
         }
 
-        /**
-         * @return the indices of the current polygon, contour and vertex.
-         */
+        // Return the indices of the current polygon, contour and vertex.
         VERTEX_INDEX GetIndex() const
         {
             VERTEX_INDEX index;
@@ -458,11 +403,8 @@ public:
             return index;
         }
 
-        /**
-         * @param aOther is an iterator pointing to another segment.
-         * @return true if both iterators point to the same segment of the same contour of
-         *         the same polygon of the same polygon set; false otherwise.
-         */
+        // Check if both iterators point to the same segment of the same contour of
+        // the same polygon of the same polygon set; false otherwise.
         bool IsAdjacent( SEGMENT_ITERATOR_TEMPLATE<T> aOther ) const
         {
             // Check that both iterators point to the same contour of the same polygon of the
@@ -509,43 +451,22 @@ public:
 
     SHAPE_POLY_SET( const BOX2D& aRect );
 
-    /**
-     * Construct a SHAPE_POLY_SET with the first outline given by aOutline.
-     *
-     * @param aOutline is a closed outline
-     */
+    // Construct a SHAPE_POLY_SET with the first outline given by aOutline.
     SHAPE_POLY_SET( const SHAPE_LINE_CHAIN& aOutline );
 
-    /**
-     * Construct a SHAPE_POLY_SET with the first polygon given by aPolygon.
-     *
-     * @param aPolygon is a polygon
-     */
+    // Construct a SHAPE_POLY_SET with the first polygon given by aPolygon.
     SHAPE_POLY_SET( const POLYGON& aPolygon );
 
-    /**
-     * Copy constructor SHAPE_POLY_SET
-     * Performs a deep copy of \p aOther into \p this.
-     *
-     * @param aOther is the SHAPE_POLY_SET object that will be copied.
-     */
+    // Copy constructor SHAPE_POLY_SET
+    // Performs a deep copy of aOther into this.
     SHAPE_POLY_SET( const SHAPE_POLY_SET& aOther );
 
     ~SHAPE_POLY_SET();
 
     SHAPE_POLY_SET& operator=( const SHAPE_POLY_SET& aOther );
 
-    /**
-     * Build a polygon triangulation, needed to draw a polygon on OpenGL and in some
-     * other calculations
-     * @param aPartition = true to created a trinagulation in a partition on a grid
-     * false to create a more basic triangulation of the polygons
-     * Note
-     * in partition calculations the grid size is hard coded to 1e7.
-     * This is a good value for Pcbnew: 1cm, in internal units.
-     * But not good for Gerbview (1e7 = 10cm), however using a partition is not useful.
-     * @param aSimplify = force the algorithm to simplify the POLY_SET before triangulating
-     */
+    // Build a polygon triangulation, needed to draw a polygon on OpenGL and in some
+    // other calculations
     virtual void CacheTriangulation( bool aPartition = true, bool aSimplify = false )
     {
         cacheTriangulation( aPartition, aSimplify, nullptr );
@@ -560,17 +481,8 @@ public:
 
     virtual void GetIndexableSubshapes( std::vector<const SHAPE*>& aSubshapes ) const override;
 
-    /**
-     * Convert a global vertex index ---i.e., a number that globally identifies a vertex in a
-     * concatenated list of all vertices in all contours--- and get the index of the vertex
-     * relative to the contour relative to the polygon in which it is.
-     *
-     * @param  aGlobalIdx is the global index of the corner whose structured index wants to
-     *                    be found
-     * @param  aRelativeIndices is a pointer to the set of relative indices to store.
-     * @return true if the global index is correct and the information in \a aRelativeIndices
-     *         is valid; false otherwise.
-     */
+    // Convert a global vertex index and get the index of the vertex
+    // relative to the contour relative to the polygon in which it is.
     bool GetRelativeIndices( int aGlobalIdx, VERTEX_INDEX* aRelativeIndices ) const;
 
     /**
@@ -584,39 +496,39 @@ public:
      */
     bool GetGlobalIndex( VERTEX_INDEX aRelativeIndices, int& aGlobalIdx ) const;
 
-    /// @copydoc SHAPE::Clone()
+    // Clone the shape
     SHAPE* Clone() const override;
 
     SHAPE_POLY_SET CloneDropTriangulation() const;
 
-    /// Creates a new empty polygon in the set and returns its index
+    // Creates a new empty polygon in the set and returns its index
     int NewOutline();
 
-    /// Creates a new hole in a given outline
+    // Creates a new hole in a given outline
     int NewHole( int aOutline = -1 );
 
-    /// Adds a new outline to the set and returns its index
+    // Adds a new outline to the set and returns its index
     int AddOutline( const SHAPE_LINE_CHAIN& aOutline );
 
-    /// Adds a new hole to the given outline (default: last) and returns its index
+    // Adds a new hole to the given outline (default: last) and returns its index
     int AddHole( const SHAPE_LINE_CHAIN& aHole, int aOutline = -1 );
 
-    /// Adds a polygon to the set
+    // Adds a polygon to the set
     int AddPolygon( const POLYGON& apolygon );
 
-    /// Return the area of this poly set
+    // Return the area of this poly set
     double Area();
 
-    /// Count the number of arc shapes present
+    // Count the number of arc shapes present
     int ArcCount() const;
 
-    /// Appends all the arcs in this polyset to \a aArcBuffer
+    // Appends all the arcs in this polyset to aArcBuffer
     void GetArcs( std::vector<SHAPE_ARC>& aArcBuffer ) const;
 
-    /// Removes all arc references from all the outlines and holes in the polyset
+    // Removes all arc references from all the outlines and holes in the polyset
     void ClearArcs();
 
-    /// Appends a vertex at the end of the given outline/hole (default: the last outline)
+    // Appends a vertex at the end of the given outline/hole (default: the last outline)
     /**
      * Add a new vertex to the contour indexed by \p aOutline and \p aHole (defaults to the
      * outline of the last polygon).

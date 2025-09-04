@@ -1,24 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <api/api_enums.h>
 #include <import_export.h>
+#include <QtCore/QDebug>
 // #include <api/common/types/enums.pb.h>
 // #include <api/board/board_types.pb.h>
 // #include <api/schematic/schematic_types.pb.h>
@@ -84,8 +67,9 @@ KICAD_T FromProtoEnum( types::KiCadObjectType aValue )
 
     case types::KiCadObjectType::KOT_UNKNOWN:               return TYPE_NOT_INIT;
     default:
-        wxCHECK_MSG( false, TYPE_NOT_INIT,
-                     "Unhandled case in FromProtoEnum<types::KiCadObjectType>" );
+        Q_ASSERT_X( false, Q_FUNC_INFO,
+                    "Unhandled case in FromProtoEnum<types::KiCadObjectType>" );
+        return TYPE_NOT_INIT;
     }
 }
 
@@ -141,8 +125,9 @@ types::KiCadObjectType ToProtoEnum( KICAD_T aValue )
     case WSG_BITMAP_T:           return types::KiCadObjectType::KOT_WSG_BITMAP;
     case WSG_PAGE_T:             return types::KiCadObjectType::KOT_WSG_PAGE;
     default:
-        wxCHECK_MSG( false, types::KiCadObjectType::KOT_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<KICAD_T>");
+        Q_ASSERT_X( false, Q_FUNC_INFO,
+                    "Unhandled case in ToProtoEnum<KICAD_T>" );
+        return types::KiCadObjectType::KOT_UNKNOWN;
     }
 }
 
@@ -253,8 +238,9 @@ PCB_LAYER_ID FromProtoEnum( board::types::BoardLayer aValue )
 
     case board::types::BoardLayer::BL_UNKNOWN:     return UNDEFINED_LAYER;
     default:
-        wxCHECK_MSG( false, UNDEFINED_LAYER,
-                     "Unhandled case in FromProtoEnum<board::types::BoardLayer>" );
+        Q_ASSERT_X( false, Q_FUNC_INFO,
+                    "Unhandled case in FromProtoEnum<board::types::BoardLayer>" );
+        return UNDEFINED_LAYER;
     }
 }
 
@@ -363,8 +349,9 @@ board::types::BoardLayer ToProtoEnum( PCB_LAYER_ID aValue )
     case User_44:           return board::types::BoardLayer::BL_User_44;
     case User_45:           return board::types::BoardLayer::BL_User_45;
     default:
-        wxCHECK_MSG( false, board::types::BoardLayer::BL_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<PCB_LAYER_ID>");
+        Q_ASSERT_X( false, Q_FUNC_INFO,
+                    "Unhandled case in ToProtoEnum<PCB_LAYER_ID>" );
+        return board::types::BoardLayer::BL_UNKNOWN;
     }
 }
 
@@ -376,8 +363,9 @@ SCH_LAYER_ID FromProtoEnum( schematic::types::SchematicLayer aValue )
     {
 
     default:
-        wxCHECK_MSG( false, SCH_LAYER_ID_START,
-                     "Unhandled case in FromProtoEnum<schematic::types::SchematicLayer>" );
+        Q_ASSERT_X( false, Q_FUNC_INFO,
+                    "Unhandled case in FromProtoEnum<schematic::types::SchematicLayer>" );
+        return SCH_LAYER_ID_START;
     }
 }
 
@@ -389,8 +377,9 @@ schematic::types::SchematicLayer ToProtoEnum( SCH_LAYER_ID aValue )
     {
 
     default:
-        wxCHECK_MSG( false, schematic::types::SchematicLayer::SL_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<SCH_LAYER_ID>");
+        Q_ASSERT_X( false, Q_FUNC_INFO,
+                    "Unhandled case in ToProtoEnum<SCH_LAYER_ID>" );
+        return schematic::types::SchematicLayer::SL_UNKNOWN;
     }
 }
 
@@ -407,8 +396,9 @@ GR_TEXT_H_ALIGN_T FromProtoEnum( types::HorizontalAlignment aValue )
 
     case types::HorizontalAlignment::HA_UNKNOWN:       return GR_TEXT_H_ALIGN_CENTER;
     default:
-        wxCHECK_MSG( false, GR_TEXT_H_ALIGN_CENTER,
-                     "Unhandled case in FromProtoEnum<types::HorizontalAlignment>" );
+        Q_ASSERT_X( false, Q_FUNC_INFO,
+                    "Unhandled case in FromProtoEnum<types::HorizontalAlignment>" );
+        return GR_TEXT_H_ALIGN_CENTER;
     }
 }
 
@@ -423,8 +413,9 @@ types::HorizontalAlignment ToProtoEnum( GR_TEXT_H_ALIGN_T aValue )
     case GR_TEXT_H_ALIGN_RIGHT:         return types::HorizontalAlignment::HA_RIGHT;
     case GR_TEXT_H_ALIGN_INDETERMINATE: return types::HorizontalAlignment::HA_INDETERMINATE;
     default:
-        wxCHECK_MSG( false, types::HorizontalAlignment::HA_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<GR_TEXT_H_ALIGN_T>");
+        Q_ASSERT_X( false, Q_FUNC_INFO,
+                    "Unhandled case in ToProtoEnum<GR_TEXT_H_ALIGN_T>" );
+        return types::HorizontalAlignment::HA_UNKNOWN;
     }
 }
 
@@ -441,8 +432,9 @@ GR_TEXT_V_ALIGN_T FromProtoEnum( types::VerticalAlignment aValue )
 
     case types::VerticalAlignment::VA_UNKNOWN:       return GR_TEXT_V_ALIGN_CENTER;
     default:
-        wxCHECK_MSG( false, GR_TEXT_V_ALIGN_CENTER,
-                     "Unhandled case in FromProtoEnum<types::VerticalAlignment>" );
+        Q_ASSERT_X( false, Q_FUNC_INFO,
+                    "Unhandled case in FromProtoEnum<types::VerticalAlignment>" );
+        return GR_TEXT_V_ALIGN_CENTER;
     }
 }
 
@@ -457,8 +449,9 @@ types::VerticalAlignment ToProtoEnum( GR_TEXT_V_ALIGN_T aValue )
     case GR_TEXT_V_ALIGN_BOTTOM:        return types::VerticalAlignment::VA_BOTTOM;
     case GR_TEXT_V_ALIGN_INDETERMINATE: return types::VerticalAlignment::VA_INDETERMINATE;
     default:
-        wxCHECK_MSG( false, types::VerticalAlignment::VA_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<GR_TEXT_V_ALIGN_T>");
+        Q_ASSERT_X( false, Q_FUNC_INFO,
+                    "Unhandled case in ToProtoEnum<GR_TEXT_V_ALIGN_T>" );
+        return types::VerticalAlignment::VA_UNKNOWN;
     }
 }
 
@@ -476,8 +469,9 @@ LINE_STYLE FromProtoEnum( types::StrokeLineStyle aValue )
     case types::StrokeLineStyle::SLS_DASHDOTDOT: return LINE_STYLE::DASHDOTDOT;
     case types::StrokeLineStyle::SLS_UNKNOWN:
     default:
-        wxCHECK_MSG( false, LINE_STYLE::DEFAULT,
-                     "Unhandled case in FromProtoEnum<types::StrokeLineStyle>" );
+        Q_ASSERT_X( false, Q_FUNC_INFO,
+                    "Unhandled case in FromProtoEnum<types::StrokeLineStyle>" );
+        return LINE_STYLE::DEFAULT;
     }
 }
 
@@ -494,7 +488,8 @@ types::StrokeLineStyle ToProtoEnum( LINE_STYLE aValue )
     case LINE_STYLE::DASHDOT:    return types::StrokeLineStyle::SLS_DASHDOT;
     case LINE_STYLE::DASHDOTDOT: return types::StrokeLineStyle::SLS_DASHDOTDOT;
     default:
-        wxCHECK_MSG( false, types::StrokeLineStyle::SLS_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<LINE_STYLE>");
+        Q_ASSERT_X( false, Q_FUNC_INFO,
+                    "Unhandled case in ToProtoEnum<LINE_STYLE>" );
+        return types::StrokeLineStyle::SLS_UNKNOWN;
     }
 }

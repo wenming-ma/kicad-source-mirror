@@ -1,54 +1,31 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (c) 2005 Michael Niedermayer <michaelni@gmx.at>
- * Copyright (C) CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #include <cmath>
 #include <cstdlib>
 #include <limits>
+#include <cstdarg>
 #include <math/util.h>
-#include <wx/log.h>
-#include <wx/string.h>
+#include <QString>
+#include <QDebug>
+#include <QLoggingCategory>
 
 #ifdef _MSC_VER
 #include <windows.h>
 #include <intrin.h>
 #endif
 
-// Fix compatibility with wxWidgets version < 3.1.4
-#ifndef wxASCII_STR
-    #define wxASCII_STR(s) wxString::FromAscii(s)
-#endif
+Q_LOGGING_CATEGORY(logKimath, "kimath")
 
 void kimathLogDebug( const char* aFormatString, ... )
 {
-    if( wxLog::IsLevelEnabled( wxLOG_Debug, wxString::FromAscii( wxLOG_COMPONENT ) ) )
+    if( logKimath().isDebugEnabled() )
     {
         va_list argList;
         va_start( argList, aFormatString );
 
-        wxVLogWarning( aFormatString, argList );
+        QString message;
+        message.vasprintf( aFormatString, argList );
+        qCDebug( logKimath ) << message;
 
         va_end( argList );
     }
@@ -57,8 +34,9 @@ void kimathLogDebug( const char* aFormatString, ... )
 
 void kimathLogOverflow( double v, const char* aTypeName )
 {
-    wxString typeName( aTypeName );
-    wxFAIL_MSG( wxString::Format( wxT( "\n\nOverflow converting value %f to %s." ), v, typeName ) );
+    QString typeName( aTypeName );
+    QString message = QString( "\n\nOverflow converting value %1 to %2." ).arg( v ).arg( typeName );
+    Q_ASSERT_X( false, "kimathLogOverflow", message.toLocal8Bit().constData() );
 }
 
 

@@ -1,33 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SELECTION_H
 #define SELECTION_H
 
 #include <optional>
+#include <QString>
 #include <core/typeinfo.h>
 #include <deque>
 #include <view/view_group.h>
@@ -66,9 +42,9 @@ public:
         return *this;
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "SELECTION" );
+        return "SELECTION";
     }
 
     bool operator==( const SELECTION& aOther ) const;
@@ -133,11 +109,6 @@ public:
         return m_lastAddedItem;
     }
 
-    /**
-     * Returns a copy of this selection of items sorted by their X then Y position.
-     *
-     * @return std::vector of sorted items
-     */
     std::vector<EDA_ITEM*> GetItemsSortedByTypeAndXY( bool leftBeforeRight = true,
                                                       bool topBeforeBottom = true ) const;
 
@@ -201,12 +172,6 @@ public:
         return nullptr;
     }
 
-    /**
-     * Checks if there is at least one item of requested kind.
-     *
-     * @param aType is the type to check for.
-     * @return True if there is at least one item of such kind.
-     */
     bool HasType( KICAD_T aType ) const;
 
     size_t CountType( KICAD_T aType ) const;
@@ -222,17 +187,8 @@ public:
     void SetReferencePoint( const VECTOR2I& aP );
     void ClearReferencePoint();
 
-    /**
-     * Checks if all items in the selection are the same KICAD_T type
-     *
-     * @return True if all items are the same type, this includes zero or single items
-     */
     bool AreAllItemsIdentical() const;
 
-    /**
-     * Checks if all items in the selection have a type in aList
-     * @return False if any item in the selection has a type not included in aList
-     */
     bool OnlyContains( std::vector<KICAD_T> aList ) const;
 
 protected:

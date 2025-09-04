@@ -1,35 +1,20 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2024 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include <fstream>
 
 #include <env_vars.h>
 #include <fmt/format.h>
-#include <wx/dir.h>
-#include <wx/log.h>
-#include <wx/timer.h>
-#include <wx/utils.h>
+#include <QDir>
+#include <QTimer>
+#include <QCoreApplication>
+#include <QLoggingCategory>
+#include <QStandardPaths>
+#include <QDirIterator>
+#include <QFileInfo>
+#include <QProcess>
+#include <QProcessEnvironment>
+#include <QDebug>
 
 #include <api/api_plugin_manager.h>
 #include <api/api_server.h>
-// #include <api/api_utils.h>
 #include <gestfich.h>
 #include <paths.h>
 #include <pgm_base.h>
@@ -38,51 +23,45 @@
 #include <settings/common_settings.h>
 
 
-wxDEFINE_EVENT( EDA_EVT_PLUGIN_MANAGER_JOB_FINISHED, wxCommandEvent );
-wxDEFINE_EVENT( EDA_EVT_PLUGIN_AVAILABILITY_CHANGED, wxCommandEvent );
-
-
-API_PLUGIN_MANAGER::API_PLUGIN_MANAGER( wxEvtHandler* aEvtHandler ) :
-        wxEvtHandler(),
-        m_parent( aEvtHandler ),
+API_PLUGIN_MANAGER::API_PLUGIN_MANAGER( QObject* aParent ) :
+        QObject( aParent ),
+        m_parent( aParent ),
         m_lastPid( 0 ),
         m_raiseTimer( nullptr )
 {
     // Read and store pcm schema
-    wxFileName schemaFile( PATHS::GetStockDataPath( true ), wxS( "api.v1.schema.json" ) );
-    schemaFile.Normalize( FN_NORMALIZE_FLAGS | wxPATH_NORM_ENV_VARS );
-    schemaFile.AppendDir( wxS( "schemas" ) );
+    QString stockDataPath = QString::fromStdString( PATHS::GetStockDataPath( true ) );
+    QString schemaFilePath = QDir( stockDataPath ).filePath( "schemas/api.v1.schema.json" );
 
-    m_schema_validator = std::make_unique<JSON_SCHEMA_VALIDATOR>( schemaFile );
-
-    Bind( EDA_EVT_PLUGIN_MANAGER_JOB_FINISHED, &API_PLUGIN_MANAGER::processNextJob, this );
+    m_schema_validator = std::make_unique<JSON_SCHEMA_VALIDATOR>( schemaFilePath );
 }
 
 
-class PLUGIN_TRAVERSER : public wxDirTraverser
+class PLUGIN_TRAVERSER
 {
 private:
-    std::function<void( const wxFileName& )> m_action;
+    std::function<void( const QString& )> m_action;
 
 public:
-    explicit PLUGIN_TRAVERSER( std::function<void( const wxFileName& )> aAction )
+    explicit PLUGIN_TRAVERSER( std::function<void( const QString& )> aAction )
             : m_action( std::move( aAction ) )
     {
     }
 
-    wxDirTraverseResult OnFile( const wxString& aFilePath ) override
+    void traverse( const QString& dirPath )
     {
-        wxFileName file( aFilePath );
+        QDir dir( dirPath );
+        if( !dir.exists() )
+            return;
 
-        if( file.GetFullName() == wxS( "plugin.json" ) )
-            m_action( file );
-
-        return wxDIR_CONTINUE;
-    }
-
-    wxDirTraverseResult OnDir( const wxString& dirPath ) override
-    {
-        return wxDIR_CONTINUE;
+        QDirIterator it( dirPath, QDirIterator::Subdirectories );
+        while( it.hasNext() )
+        {
+            QString filePath = it.next();
+            QFileInfo fileInfo( filePath );
+            if( fileInfo.fileName() == "plugin.json" )
+                m_action( filePath );
+        }
     }
 };
 
@@ -98,20 +77,17 @@ void API_PLUGIN_MANAGER::ReloadPlugins()
     m_readyPlugins.clear();
 
     PLUGIN_TRAVERSER loader(
-            [&]( const wxFileName& aFile )
+            [&]( const QString& aFilePath )
             {
-                wxLogTrace( traceApi, wxString::Format( "Manager: loading plugin from %s",
-                                                        aFile.GetFullPath() ) );
+                qDebug() << "Manager: loading plugin from" << aFilePath;
 
-                auto plugin = std::make_unique<API_PLUGIN>( aFile, *m_schema_validator );
+                auto plugin = std::make_unique<API_PLUGIN>( aFilePath, *m_schema_validator );
 
                 if( plugin->IsOk() )
                 {
                     if( m_pluginsCache.count( plugin->Identifier() ) )
                     {
-                        wxLogTrace( traceApi,
-                                    wxString::Format( "Manager: identifier %s already present!",
-                                                      plugin->Identifier() ) );
+                        qDebug() << "Manager: identifier" << plugin->Identifier() << "already present!";
                         return;
                     }
                     else
@@ -126,86 +102,81 @@ void API_PLUGIN_MANAGER::ReloadPlugins()
                 }
                 else
                 {
-                    wxLogTrace( traceApi, "Manager: loading failed" );
+                    qDebug() << "Manager: loading failed";
                 }
             } );
 
-    wxDir systemPluginsDir( PATHS::GetStockPluginsPath() );
+    QString systemPluginsPath = QString::fromStdString( PATHS::GetStockPluginsPath() );
+    QDir systemPluginsDir( systemPluginsPath );
 
-    if( systemPluginsDir.IsOpened() )
+    if( systemPluginsDir.exists() )
     {
-        wxLogTrace( traceApi, wxString::Format( "Manager: scanning system path (%s) for plugins...",
-                                                systemPluginsDir.GetName() ) );
-        systemPluginsDir.Traverse( loader );
+        qDebug() << "Manager: scanning system path (" << systemPluginsPath << ") for plugins...";
+        loader.traverse( systemPluginsPath );
     }
 
-    wxString thirdPartyPath;
+    QString thirdPartyPath;
     const ENV_VAR_MAP& env = Pgm().GetLocalEnvVariables();
 
-    if( std::optional<wxString> v = ENV_VAR::GetVersionedEnvVarValue( env, wxT( "3RD_PARTY" ) ) )
+    if( std::optional<QString> v = ENV_VAR::GetVersionedEnvVarValue( env, "3RD_PARTY" ) )
         thirdPartyPath = *v;
     else
-        thirdPartyPath = PATHS::GetDefault3rdPartyPath();
+        thirdPartyPath = QString::fromStdString( PATHS::GetDefault3rdPartyPath() );
 
-    wxDir thirdParty( thirdPartyPath );
+    QDir thirdParty( thirdPartyPath );
 
-    if( thirdParty.IsOpened() )
+    if( thirdParty.exists() )
     {
-        wxLogTrace( traceApi, wxString::Format( "Manager: scanning PCM path (%s) for plugins...",
-                                                thirdParty.GetName() ) );
-        thirdParty.Traverse( loader );
+        qDebug() << "Manager: scanning PCM path (" << thirdPartyPath << ") for plugins...";
+        loader.traverse( thirdPartyPath );
     }
 
-    wxDir userPluginsDir( PATHS::GetUserPluginsPath() );
+    QString userPluginsPath = QString::fromStdString( PATHS::GetUserPluginsPath() );
+    QDir userPluginsDir( userPluginsPath );
 
-    if( userPluginsDir.IsOpened() )
+    if( userPluginsDir.exists() )
     {
-        wxLogTrace( traceApi, wxString::Format( "Manager: scanning user path (%s) for plugins...",
-                                                userPluginsDir.GetName() ) );
-        userPluginsDir.Traverse( loader );
+        qDebug() << "Manager: scanning user path (" << userPluginsPath << ") for plugins...";
+        loader.traverse( userPluginsPath );
     }
 
     processPluginDependencies();
-
-    wxCommandEvent* evt = new wxCommandEvent( EDA_EVT_PLUGIN_AVAILABILITY_CHANGED, wxID_ANY );
-    m_parent->QueueEvent( evt );
 }
 
 
-void API_PLUGIN_MANAGER::RecreatePluginEnvironment( const wxString& aIdentifier )
+void API_PLUGIN_MANAGER::RecreatePluginEnvironment( const QString& aIdentifier )
 {
     if( !m_pluginsCache.contains( aIdentifier ) )
         return;
 
     const API_PLUGIN* plugin = m_pluginsCache.at( aIdentifier );
-    wxCHECK( plugin, /* void */ );
+    if( !plugin )
+        return;
 
-    std::optional<wxString> env = PYTHON_MANAGER::GetPythonEnvironment( plugin->Identifier() );
-    wxCHECK( env.has_value(), /* void */ );
+    std::optional<QString> env = PYTHON_MANAGER::GetPythonEnvironment( plugin->Identifier() );
+    if( !env.has_value() )
+        return;
 
-    wxFileName envConfigPath( *env, wxS( "pyvenv.cfg" ) );
-    envConfigPath.MakeAbsolute();
+    QString envConfigPath = QDir( *env ).filePath( "pyvenv.cfg" );
+    QFileInfo envConfigInfo( envConfigPath );
 
-    if( envConfigPath.DirExists() && envConfigPath.Rmdir( wxPATH_RMDIR_RECURSIVE ) )
+    QDir envDir( envConfigInfo.dir() );
+    if( envDir.exists() && envDir.removeRecursively() )
     {
-        wxLogTrace( traceApi,
-                    wxString::Format( "Manager: Removed existing Python environment at %s for %s",
-                                      envConfigPath.GetPath(), plugin->Identifier() ) );
+        qDebug() << "Manager: Removed existing Python environment at" << envConfigInfo.dir().path() << "for" << plugin->Identifier();
 
         JOB job;
         job.type = JOB_TYPE::CREATE_ENV;
         job.identifier = plugin->Identifier();
         job.plugin_path = plugin->BasePath();
-        job.env_path = envConfigPath.GetPath();
+        job.env_path = envConfigInfo.dir().path();
         m_jobs.emplace_back( job );
-
-        wxCommandEvent* evt = new wxCommandEvent( EDA_EVT_PLUGIN_MANAGER_JOB_FINISHED, wxID_ANY );
-        QueueEvent( evt );
+        processNextJob();
     }
 }
 
 
-std::optional<const PLUGIN_ACTION*> API_PLUGIN_MANAGER::GetAction( const wxString& aIdentifier )
+std::optional<const PLUGIN_ACTION*> API_PLUGIN_MANAGER::GetAction( const QString& aIdentifier )
 {
     if( !m_actionsCache.contains( aIdentifier ) )
         return std::nullopt;
@@ -214,7 +185,7 @@ std::optional<const PLUGIN_ACTION*> API_PLUGIN_MANAGER::GetAction( const wxStrin
 }
 
 
-void API_PLUGIN_MANAGER::InvokeAction( const wxString& aIdentifier )
+void API_PLUGIN_MANAGER::InvokeAction( const QString& aIdentifier )
 {
     if( !m_actionsCache.contains( aIdentifier ) )
         return;
@@ -224,18 +195,17 @@ void API_PLUGIN_MANAGER::InvokeAction( const wxString& aIdentifier )
 
     if( !m_readyPlugins.count( plugin.Identifier() ) )
     {
-        wxLogTrace( traceApi, wxString::Format( "Manager: Plugin %s is not ready",
-                                                plugin.Identifier() ) );
+        qDebug() << "Manager: Plugin" << plugin.Identifier() << "is not ready";
         return;
     }
 
-    wxFileName pluginFile( plugin.BasePath(), action->entrypoint );
-    pluginFile.Normalize( wxPATH_NORM_ABSOLUTE | wxPATH_NORM_SHORTCUT | wxPATH_NORM_DOTS
-                          | wxPATH_NORM_TILDE, plugin.BasePath() );
-    wxString pluginPath = pluginFile.GetFullPath();
+    QDir pluginBaseDir( plugin.BasePath() );
+    QString pluginPath = pluginBaseDir.filePath( action->entrypoint );
+    QFileInfo pluginFile( pluginPath );
+    pluginPath = pluginFile.absoluteFilePath();
 
-    std::vector<const wchar_t*> args;
-    std::optional<wxString> py;
+    QStringList args;
+    std::optional<QString> py;
 
     switch( plugin.Runtime().type )
     {
@@ -245,84 +215,77 @@ void API_PLUGIN_MANAGER::InvokeAction( const wxString& aIdentifier )
 
         if( !py )
         {
-            wxLogTrace( traceApi, wxString::Format( "Manager: Python interpreter for %s not found",
-                                                    plugin.Identifier() ) );
+            qDebug() << "Manager: Python interpreter for" << plugin.Identifier() << "not found";
             return;
         }
 
-        if( !pluginFile.IsFileReadable() )
+        if( !pluginFile.isReadable() )
         {
-            wxLogTrace( traceApi, wxString::Format( "Manager: Python entrypoint %s is not readable",
-                                                    pluginFile.GetFullPath() ) );
+            qDebug() << "Manager: Python entrypoint" << pluginFile.absoluteFilePath() << "is not readable";
             return;
         }
 
-        std::optional<wxString> pythonHome =
+        std::optional<QString> pythonHome =
                 PYTHON_MANAGER::GetPythonEnvironment( plugin.Identifier() );
 
         PYTHON_MANAGER manager( *py );
-        wxExecuteEnv   env;
-        wxGetEnvMap( &env.env );
-        // API functionality disabled for minimal build
-        // env.env[wxS( "KICAD_API_SOCKET" )] = Pgm().GetApiServer().SocketPath();
-        // env.env[wxS( "KICAD_API_TOKEN" )] = Pgm().GetApiServer().Token();
-        env.cwd = pluginFile.GetPath();
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 
 #ifdef _WIN32
-        wxString systemRoot;
-        wxGetEnv( wxS( "SYSTEMROOT" ), &systemRoot );
-        env.env[wxS( "SYSTEMROOT" )] = systemRoot;
+        QString systemRoot = qEnvironmentVariable( "SYSTEMROOT" );
+        env.insert( "SYSTEMROOT", systemRoot );
 
-        if( Pgm().GetCommonSettings()->m_Api.python_interpreter == FindKicadFile( "pythonw.exe" )
-            || wxGetEnv( wxT( "KICAD_RUN_FROM_BUILD_DIR" ), nullptr ) )
+        QString pythonInterpreter = QString::fromStdString( Pgm().GetCommonSettings()->m_Api.python_interpreter );
+        QString kicadPython = QString::fromStdString( FindKicadFile( "pythonw.exe" ) );
+        if( pythonInterpreter == kicadPython || !qEnvironmentVariable( "KICAD_RUN_FROM_BUILD_DIR" ).isEmpty() )
         {
-            wxLogTrace( traceApi, "Configured Python is the KiCad one; erasing path overrides..." );
-            env.env.erase( "PYTHONHOME" );
-            env.env.erase( "PYTHONPATH" );
+            qDebug() << "Configured Python is the KiCad one; erasing path overrides...";
+            env.remove( "PYTHONHOME" );
+            env.remove( "PYTHONPATH" );
         }
 #endif
 
         if( pythonHome )
-            env.env[wxS( "VIRTUAL_ENV" )] = *pythonHome;
+            env.insert( "VIRTUAL_ENV", *pythonHome );
 
-        [[maybe_unused]] long pid = manager.Execute( { pluginFile.GetFullPath() },
-                []( int aRetVal, const wxString& aOutput, const wxString& aError )
+        QStringList executeArgs = { pluginFile.absoluteFilePath() };
+        [[maybe_unused]] qint64 pid = manager.Execute( executeArgs,
+                []( int aRetVal, const QString& aOutput, const QString& aError )
                 {
-                    wxLogTrace( traceApi,
-                                wxString::Format( "Manager: action exited with code %d", aRetVal ) );
+                    qDebug() << "Manager: action exited with code" << aRetVal;
 
-                    if( !aError.IsEmpty() )
-                        wxLogTrace( traceApi, wxString::Format( "Manager: action stderr: %s", aError ) );
+                    if( !aError.isEmpty() )
+                        qDebug() << "Manager: action stderr:" << aError;
                 },
                 &env, true );
 
-#ifdef __WXMAC__
+#ifdef Q_OS_MACOS
         if( pid )
         {
             if( !m_raiseTimer )
             {
-                m_raiseTimer = new wxTimer( this );
+                m_raiseTimer = new QTimer( this );
 
-                Bind( wxEVT_TIMER,
-                        [&]( wxTimerEvent& )
+                connect( m_raiseTimer, &QTimer::timeout, this,
+                        [this]()
                         {
-                            wxString script = wxString::Format(
-                                wxS( "tell application \"System Events\"\n"
-                                  "  set plist to every process whose unix id is %ld\n"
-                                  "  repeat with proc in plist\n"
-                                  "    set the frontmost of proc to true\n"
-                                  "  end repeat\n"
-                                  "end tell" ), m_lastPid );
+                            QString script = QString(
+                                "tell application \"System Events\"\n"
+                                "  set plist to every process whose unix id is %1\n"
+                                "  repeat with proc in plist\n"
+                                "    set the frontmost of proc to true\n"
+                                "  end repeat\n"
+                                "end tell" ).arg( m_lastPid );
 
-                            wxString cmd = wxString::Format( "osascript -e '%s'", script );
-                            wxLogTrace( traceApi, wxString::Format( "Execute: %s", cmd ) );
-                            wxExecute( cmd );
-                        },
-                        m_raiseTimer->GetId() );
+                            QString cmd = QString( "osascript -e '%1'" ).arg( script );
+                            qDebug() << "Execute:" << cmd;
+                            QProcess::startDetached( cmd );
+                        } );
             }
 
             m_lastPid = pid;
-            m_raiseTimer->StartOnce( 250 );
+            m_raiseTimer->setSingleShot( true );
+            m_raiseTimer->start( 250 );
         }
 #endif
 
@@ -331,46 +294,39 @@ void API_PLUGIN_MANAGER::InvokeAction( const wxString& aIdentifier )
 
     case PLUGIN_RUNTIME_TYPE::EXEC:
     {
-        if( !pluginFile.IsFileExecutable() )
+        if( !pluginFile.isExecutable() )
         {
-            wxLogTrace( traceApi, wxString::Format( "Manager: Exec entrypoint %s is not executable",
-                                                    pluginFile.GetFullPath() ) );
+            qDebug() << "Manager: Exec entrypoint" << pluginFile.absoluteFilePath() << "is not executable";
             return;
         }
 
-        args.emplace_back( pluginPath.wc_str() );
+        args.append( pluginPath );
 
-        for( const wxString& arg : action->args )
-            args.emplace_back( arg.wc_str() );
+        for( const QString& arg : action->args )
+            args.append( arg );
 
-        args.emplace_back( nullptr );
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 
-        wxExecuteEnv env;
-        wxGetEnvMap( &env.env );
-        // API functionality disabled for minimal build
-        // env.env[wxS( "KICAD_API_SOCKET" )] = Pgm().GetApiServer().SocketPath();
-        // env.env[wxS( "KICAD_API_TOKEN" )] = Pgm().GetApiServer().Token();
-        env.cwd = pluginFile.GetPath();
-
-        long p = wxExecute( const_cast<wchar_t**>( args.data() ),
-                            wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, nullptr, &env );
-
-        if( !p )
+        QProcess* process = new QProcess( this );
+        process->setProcessEnvironment( env );
+        process->setWorkingDirectory( pluginFile.dir().path() );
+        
+        qint64 pid = 0;
+        if( process->startDetached( args.first(), args.mid(1), pluginFile.dir().path(), &pid ) )
         {
-            wxLogTrace( traceApi, wxString::Format( "Manager: launching action %s failed",
-                                                    action->identifier ) );
+            qDebug() << "Manager: launching action" << action->identifier << "-> pid" << pid;
         }
         else
         {
-            wxLogTrace( traceApi, wxString::Format( "Manager: launching action %s -> pid %ld",
-                                                    action->identifier, p ) );
+            qDebug() << "Manager: launching action" << action->identifier << "failed";
         }
+        
+        process->deleteLater();
         break;
     }
 
     default:
-        wxLogTrace( traceApi, wxString::Format( "Manager: unhandled runtime for action %s",
-                                                action->identifier ) );
+        qDebug() << "Manager: unhandled runtime for action" << action->identifier;
         return;
     }
 }
@@ -402,102 +358,92 @@ void API_PLUGIN_MANAGER::processPluginDependencies()
         if( m_busyPlugins.contains( plugin->Identifier() ) )
             continue;
 
-        wxLogTrace( traceApi, wxString::Format( "Manager: processing dependencies for %s",
-                                                plugin->Identifier() ) );
-        m_environmentCache[plugin->Identifier()] = wxEmptyString;
+        qDebug() << "Manager: processing dependencies for" << plugin->Identifier();
+        m_environmentCache[plugin->Identifier()] = QString();
 
         if( plugin->Runtime().type != PLUGIN_RUNTIME_TYPE::PYTHON )
         {
-            wxLogTrace( traceApi, wxString::Format( "Manager: %s is not a Python plugin, all set",
-                                                    plugin->Identifier() ) );
+            qDebug() << "Manager:" << plugin->Identifier() << "is not a Python plugin, all set";
             m_readyPlugins.insert( plugin->Identifier() );
             continue;
         }
 
-        std::optional<wxString> env = PYTHON_MANAGER::GetPythonEnvironment( plugin->Identifier() );
+        std::optional<QString> env = PYTHON_MANAGER::GetPythonEnvironment( plugin->Identifier() );
 
         if( !env )
         {
-            wxLogTrace( traceApi, wxString::Format( "Manager: could not create env for %s",
-                                                     plugin->Identifier() ) );
+            qDebug() << "Manager: could not create env for" << plugin->Identifier();
             continue;
         }
 
         m_busyPlugins.insert( plugin->Identifier() );
 
-        wxFileName envConfigPath( *env, wxS( "pyvenv.cfg" ) );
-        envConfigPath.MakeAbsolute();
+        QString envConfigPath = QDir( *env ).filePath( "pyvenv.cfg" );
+        QFileInfo envConfigInfo( envConfigPath );
 
-        if( envConfigPath.IsFileReadable() )
+        if( envConfigInfo.isReadable() )
         {
-            wxLogTrace( traceApi, wxString::Format( "Manager: Python env for %s exists at %s",
-                                                    plugin->Identifier(),
-                                                    envConfigPath.GetPath() ) );
+            qDebug() << "Manager: Python env for" << plugin->Identifier() << "exists at" << envConfigInfo.dir().path();
             JOB job;
             job.type = JOB_TYPE::INSTALL_REQUIREMENTS;
             job.identifier = plugin->Identifier();
             job.plugin_path = plugin->BasePath();
-            job.env_path = envConfigPath.GetPath();
+            job.env_path = envConfigInfo.dir().path();
             m_jobs.emplace_back( job );
             addedAnyJobs = true;
             continue;
         }
 
-        wxLogTrace( traceApi, wxString::Format( "Manager: will create Python env for %s at %s",
-                                                plugin->Identifier(), envConfigPath.GetPath() ) );
+        qDebug() << "Manager: will create Python env for" << plugin->Identifier() << "at" << envConfigInfo.dir().path();
         JOB job;
         job.type = JOB_TYPE::CREATE_ENV;
         job.identifier = plugin->Identifier();
         job.plugin_path = plugin->BasePath();
-        job.env_path = envConfigPath.GetPath();
+        job.env_path = envConfigInfo.dir().path();
         m_jobs.emplace_back( job );
         addedAnyJobs = true;
     }
 
     if( addedAnyJobs )
     {
-        wxCommandEvent* evt = new wxCommandEvent( EDA_EVT_PLUGIN_MANAGER_JOB_FINISHED, wxID_ANY );
-        QueueEvent( evt );
+        processNextJob();
     }
 }
 
 
-void API_PLUGIN_MANAGER::processNextJob( wxCommandEvent& aEvent )
+void API_PLUGIN_MANAGER::processNextJob()
 {
     if( m_jobs.empty() )
     {
-        wxLogTrace( traceApi, "Manager: no more jobs to process" );
+        qDebug() << "Manager: no more jobs to process";
         return;
     }
 
-    wxLogTrace( traceApi, wxString::Format( "Manager: begin processing; %zu jobs left in queue",
-                                            m_jobs.size() ) );
+    qDebug() << "Manager: begin processing;" << m_jobs.size() << "jobs left in queue";
 
     JOB& job = m_jobs.front();
 
     if( job.type == JOB_TYPE::CREATE_ENV )
     {
-        wxLogTrace( traceApi, "Manager: Using Python interpreter at %s",
-                    Pgm().GetCommonSettings()->m_Api.python_interpreter );
-        wxLogTrace( traceApi, wxString::Format( "Manager: creating Python env at %s",
-                                                job.env_path ) );
-        PYTHON_MANAGER manager( Pgm().GetCommonSettings()->m_Api.python_interpreter );
-        wxExecuteEnv   env;
+        qDebug() << "Manager: Using Python interpreter at" << QString::fromStdString( Pgm().GetCommonSettings()->m_Api.python_interpreter );
+        qDebug() << "Manager: creating Python env at" << job.env_path;
+        QString pythonInterpreter = QString::fromStdString( Pgm().GetCommonSettings()->m_Api.python_interpreter );
+        PYTHON_MANAGER manager( pythonInterpreter );
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 
 #ifdef _WIN32
-        wxString systemRoot;
-        wxGetEnv( wxS( "SYSTEMROOT" ), &systemRoot );
-        env.env[wxS( "SYSTEMROOT" )] = systemRoot;
+        QString systemRoot = qEnvironmentVariable( "SYSTEMROOT" );
+        env.insert( "SYSTEMROOT", systemRoot );
 
-        if( Pgm().GetCommonSettings()->m_Api.python_interpreter == FindKicadFile( "pythonw.exe" )
-            || wxGetEnv( wxT( "KICAD_RUN_FROM_BUILD_DIR" ), nullptr ) )
+        QString kicadPython = QString::fromStdString( FindKicadFile( "pythonw.exe" ) );
+        if( pythonInterpreter == kicadPython || !qEnvironmentVariable( "KICAD_RUN_FROM_BUILD_DIR" ).isEmpty() )
         {
-            wxLogTrace( traceApi, "Configured Python is the KiCad one; erasing path overrides..." );
-            env.env.erase( "PYTHONHOME" );
-            env.env.erase( "PYTHONPATH" );
+            qDebug() << "Configured Python is the KiCad one; erasing path overrides...";
+            env.remove( "PYTHONHOME" );
+            env.remove( "PYTHONPATH" );
         }
 #endif
-        std::vector<wxString> args = {
+        QStringList args = {
                 "-m",
                 "venv",
                 "--system-site-packages",
@@ -505,17 +451,14 @@ void API_PLUGIN_MANAGER::processNextJob( wxCommandEvent& aEvent )
             };
 
         manager.Execute( args,
-                [this]( int aRetVal, const wxString& aOutput, const wxString& aError )
+                [this]( int aRetVal, const QString& aOutput, const QString& aError )
                 {
-                    wxLogTrace( traceApi,
-                                wxString::Format( "Manager: created venv (python returned %d)", aRetVal ) );
+                    qDebug() << "Manager: created venv (python returned" << aRetVal << ")";
 
-                    if( !aError.IsEmpty() )
-                        wxLogTrace( traceApi, wxString::Format( "Manager: venv err: %s", aError ) );
+                    if( !aError.isEmpty() )
+                        qDebug() << "Manager: venv err:" << aError;
 
-                    wxCommandEvent* evt =
-                            new wxCommandEvent( EDA_EVT_PLUGIN_MANAGER_JOB_FINISHED, wxID_ANY );
-                    QueueEvent( evt );
+                    processNextJob();
                 }, &env );
 
         JOB nextJob( job );
@@ -524,42 +467,38 @@ void API_PLUGIN_MANAGER::processNextJob( wxCommandEvent& aEvent )
     }
     else if( job.type == JOB_TYPE::SETUP_ENV )
     {
-        wxLogTrace( traceApi, wxString::Format( "Manager: setting up environment for %s",
-                                                job.plugin_path ) );
+        qDebug() << "Manager: setting up environment for" << job.plugin_path;
 
-        std::optional<wxString> pythonHome = PYTHON_MANAGER::GetPythonEnvironment( job.identifier );
-        std::optional<wxString> python = PYTHON_MANAGER::GetVirtualPython( job.identifier );
+        std::optional<QString> pythonHome = PYTHON_MANAGER::GetPythonEnvironment( job.identifier );
+        std::optional<QString> python = PYTHON_MANAGER::GetVirtualPython( job.identifier );
 
         if( !python )
         {
-            wxLogTrace( traceApi, wxString::Format( "Manager: error: python not found at %s",
-                                                    job.env_path ) );
+            qDebug() << "Manager: error: python not found at" << job.env_path;
         }
         else
         {
             PYTHON_MANAGER manager( *python );
-            wxExecuteEnv env;
+            QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 
             if( pythonHome )
-                env.env[wxS( "VIRTUAL_ENV" )] = *pythonHome;
+                env.insert( "VIRTUAL_ENV", *pythonHome );
 
 #ifdef _WIN32
-            wxString systemRoot;
-            wxGetEnv( wxS( "SYSTEMROOT" ), &systemRoot );
-            env.env[wxS( "SYSTEMROOT" )] = systemRoot;
+            QString systemRoot = qEnvironmentVariable( "SYSTEMROOT" );
+            env.insert( "SYSTEMROOT", systemRoot );
 
-            if( Pgm().GetCommonSettings()->m_Api.python_interpreter
-                        == FindKicadFile( "pythonw.exe" )
-                || wxGetEnv( wxT( "KICAD_RUN_FROM_BUILD_DIR" ), nullptr ) )
+            QString pythonInterpreterPath = QString::fromStdString( Pgm().GetCommonSettings()->m_Api.python_interpreter );
+            QString kicadPython = QString::fromStdString( FindKicadFile( "pythonw.exe" ) );
+            if( pythonInterpreterPath == kicadPython || !qEnvironmentVariable( "KICAD_RUN_FROM_BUILD_DIR" ).isEmpty() )
             {
-                wxLogTrace( traceApi,
-                            "Configured Python is the KiCad one; erasing path overrides..." );
-                env.env.erase( "PYTHONHOME" );
-                env.env.erase( "PYTHONPATH" );
+                qDebug() << "Configured Python is the KiCad one; erasing path overrides...";
+                env.remove( "PYTHONHOME" );
+                env.remove( "PYTHONPATH" );
             }
 #endif
 
-            std::vector<wxString> args = {
+            QStringList args = {
                     "-m",
                     "pip",
                     "install",
@@ -568,20 +507,16 @@ void API_PLUGIN_MANAGER::processNextJob( wxCommandEvent& aEvent )
                 };
 
             manager.Execute( args,
-                [this]( int aRetVal, const wxString& aOutput, const wxString& aError )
+                [this]( int aRetVal, const QString& aOutput, const QString& aError )
                 {
-                    wxLogTrace( traceApi, wxString::Format( "Manager: upgrade pip returned %d",
-                                                            aRetVal ) );
+                    qDebug() << "Manager: upgrade pip returned" << aRetVal;
 
-                    if( !aError.IsEmpty() )
+                    if( !aError.isEmpty() )
                     {
-                        wxLogTrace( traceApi,
-                                    wxString::Format( "Manager: upgrade pip stderr: %s", aError ) );
+                        qDebug() << "Manager: upgrade pip stderr:" << aError;
                     }
 
-                    wxCommandEvent* evt =
-                            new wxCommandEvent( EDA_EVT_PLUGIN_MANAGER_JOB_FINISHED, wxID_ANY );
-                    QueueEvent( evt );
+                    processNextJob();
                 }, &env );
 
             JOB nextJob( job );
@@ -591,45 +526,40 @@ void API_PLUGIN_MANAGER::processNextJob( wxCommandEvent& aEvent )
     }
     else if( job.type == JOB_TYPE::INSTALL_REQUIREMENTS )
     {
-        wxLogTrace( traceApi, wxString::Format( "Manager: installing dependencies for %s",
-                                                job.plugin_path ) );
+        qDebug() << "Manager: installing dependencies for" << job.plugin_path;
 
-        std::optional<wxString> pythonHome = PYTHON_MANAGER::GetPythonEnvironment( job.identifier );
-        std::optional<wxString> python = PYTHON_MANAGER::GetVirtualPython( job.identifier );
-        wxFileName reqs = wxFileName( job.plugin_path, "requirements.txt" );
+        std::optional<QString> pythonHome = PYTHON_MANAGER::GetPythonEnvironment( job.identifier );
+        std::optional<QString> python = PYTHON_MANAGER::GetVirtualPython( job.identifier );
+        QString reqsPath = QDir( job.plugin_path ).filePath( "requirements.txt" );
+        QFileInfo reqs( reqsPath );
 
         if( !python )
         {
-            wxLogTrace( traceApi, wxString::Format( "Manager: error: python not found at %s",
-                                                    job.env_path ) );
+            qDebug() << "Manager: error: python not found at" << job.env_path;
         }
-        else if( !reqs.IsFileReadable() )
+        else if( !reqs.isReadable() )
         {
-            wxLogTrace( traceApi,
-                        wxString::Format( "Manager: error: requirements.txt not found at %s",
-                                          job.plugin_path ) );
+            qDebug() << "Manager: error: requirements.txt not found at" << job.plugin_path;
         }
         else
         {
-            wxLogTrace( traceApi, "Manager: Python exe '%s'", *python );
+            qDebug() << "Manager: Python exe" << *python;
 
             PYTHON_MANAGER manager( *python );
-            wxExecuteEnv env;
+            QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 
 #ifdef _WIN32
-            wxString systemRoot;
-            wxGetEnv( wxS( "SYSTEMROOT" ), &systemRoot );
-            env.env[wxS( "SYSTEMROOT" )] = systemRoot;
+            QString systemRoot = qEnvironmentVariable( "SYSTEMROOT" );
+            env.insert( "SYSTEMROOT", systemRoot );
 
-            // If we are using the KiCad-shipped Python interpreter we have to do hacks
-            env.env.erase( "PYTHONHOME" );
-            env.env.erase( "PYTHONPATH" );
+            env.remove( "PYTHONHOME" );
+            env.remove( "PYTHONPATH" );
 #endif
 
             if( pythonHome )
-                env.env[wxS( "VIRTUAL_ENV" )] = *pythonHome;
+                env.insert( "VIRTUAL_ENV", *pythonHome );
 
-            std::vector<wxString> args = {
+            QStringList args = {
                     "-m",
                     "pip",
                     "install",
@@ -641,38 +571,29 @@ void API_PLUGIN_MANAGER::processNextJob( wxCommandEvent& aEvent )
                     "--exists-action",
                     "i",
                     "-r",
-                    reqs.GetFullPath()
+                    reqs.absoluteFilePath()
                 };
 
             manager.Execute( args,
-                [this, job]( int aRetVal, const wxString& aOutput, const wxString& aError )
+                [this, job]( int aRetVal, const QString& aOutput, const QString& aError )
                 {
-                    if( !aError.IsEmpty() )
-                        wxLogTrace( traceApi, wxString::Format( "Manager: pip stderr: %s", aError ) );
+                    if( !aError.isEmpty() )
+                        qDebug() << "Manager: pip stderr:" << aError;
 
                     if( aRetVal == 0 )
                     {
-                        wxLogTrace( traceApi, wxString::Format( "Manager: marking %s as ready",
-                                                                job.identifier ) );
+                        qDebug() << "Manager: marking" << job.identifier << "as ready";
                         m_readyPlugins.insert( job.identifier );
                         m_busyPlugins.erase( job.identifier );
-                        wxCommandEvent* availabilityEvt =
-                                new wxCommandEvent( EDA_EVT_PLUGIN_AVAILABILITY_CHANGED, wxID_ANY );
-                        wxTheApp->QueueEvent( availabilityEvt );
                     }
 
-                    wxCommandEvent* evt = new wxCommandEvent( EDA_EVT_PLUGIN_MANAGER_JOB_FINISHED,
-                                                              wxID_ANY );
-
-                    QueueEvent( evt );
+                    processNextJob();
                 }, &env );
         }
 
-        wxCommandEvent* evt = new wxCommandEvent( EDA_EVT_PLUGIN_MANAGER_JOB_FINISHED, wxID_ANY );
-        QueueEvent( evt );
+        processNextJob();
     }
 
     m_jobs.pop_front();
-    wxLogTrace( traceApi, wxString::Format( "Manager: finished job; %zu left in queue",
-                                            m_jobs.size() ) );
+    qDebug() << "Manager: finished job;" << m_jobs.size() << "left in queue";
 }

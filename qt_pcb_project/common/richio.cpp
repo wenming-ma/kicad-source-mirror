@@ -1,28 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2007-2011 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-
 #include <cstdarg>
 #include <config.h> // HAVE_FGETC_NOLOCK
 
@@ -33,8 +8,10 @@
 #include <advanced_config.h>
 #include <io/kicad/kicad_io_utils.h>
 
-#include <wx/translation.h>
-#include <wx/ffile.h>
+#include <QFile>
+#include <QFileInfo>
+#include <QTextStream>
+#include <QIODevice>
 
 
 // Fall back to getc() when getc_unlocked() is not available on the target platform.
@@ -93,44 +70,49 @@ std::string StrPrintf( const char* format, ... )
 }
 
 
-wxString SafeReadFile( const wxString& aFilePath, const wxString& aReadType )
+QString SafeReadFile( const QString& aFilePath, const QString& aReadType )
 {
     // Check the path exists as a file first
     // the IsOpened check would be logical, but on linux you can fopen (in read mode) a directory
     // And then everything else in here will barf
-    if( !wxFileExists( aFilePath ) )
-        THROW_IO_ERROR( wxString::Format( _( "File '%s' does not exist." ), aFilePath ) );
+    QFileInfo fileInfo( aFilePath );
+    if( !fileInfo.exists() || !fileInfo.isFile() )
+        THROW_IO_ERROR( QString( "File '%1' does not exist." ).arg( aFilePath ) );
 
-    wxString contents;
-    wxFFile  ff( aFilePath );
+    QString contents;
+    QFile file( aFilePath );
 
-    if( !ff.IsOpened() )
-        THROW_IO_ERROR( wxString::Format( _( "Cannot open file '%s'." ), aFilePath ) );
+    if( !file.open( QIODevice::ReadOnly | QIODevice::Text ) )
+        THROW_IO_ERROR( QString( "Cannot open file '%1'." ).arg( aFilePath ) );
 
     // Try to determine encoding
     char bytes[2]{ 0 };
-    ff.Read( bytes, 2 );
+    file.read( bytes, 2 );
     bool utf16le = bytes[1] == 0;
 
-    ff.Seek( 0 );
+    file.seek( 0 );
 
+    QTextStream stream( &file );
     if( utf16le )
-        ff.ReadAll( &contents, wxMBConvUTF16LE() );
+        stream.setCodec( "UTF-16LE" );
     else
-        ff.ReadAll( &contents, wxMBConvUTF8() );
+        stream.setCodec( "UTF-8" );
 
-    if( contents.empty() )
+    contents = stream.readAll();
+
+    if( contents.isEmpty() )
     {
-        ff.Seek( 0 );
-        ff.ReadAll( &contents, wxConvAuto( wxFONTENCODING_CP1252 ) );
+        file.seek( 0 );
+        stream.setCodec( "windows-1252" );
+        contents = stream.readAll();
     }
 
-    if( contents.empty() )
-        THROW_IO_ERROR( wxString::Format( _( "Unable to read file '%s'." ), aFilePath ) );
+    if( contents.isEmpty() )
+        THROW_IO_ERROR( QString( "Unable to read file '%1'." ).arg( aFilePath ) );
 
     // I'm not sure what the source of this style of line-endings is, but it can be
     // found in some Fairchild Semiconductor SPICE files.
-    contents.Replace( wxS( "\r\r\n" ), wxS( "\n" ) );
+    contents.replace( "\r\r\n", "\n" );
 
     return contents;
 }
@@ -183,7 +165,7 @@ void LINE_READER::expandCapacity( unsigned aNewsize )
         // to ensure capacity line length. Use capacity+5 to cover and corner case
         char* bigger = new char[m_capacity+5];
 
-        wxASSERT( m_capacity >= m_length+1 );
+        Q_ASSERT( m_capacity >= m_length+1 );
 
         memcpy( bigger, m_line, m_length );
         bigger[m_length] = 0;
@@ -194,16 +176,15 @@ void LINE_READER::expandCapacity( unsigned aNewsize )
 }
 
 
-FILE_LINE_READER::FILE_LINE_READER( const wxString& aFileName, unsigned aStartingLineNumber,
+FILE_LINE_READER::FILE_LINE_READER( const QString& aFileName, unsigned aStartingLineNumber,
                                     unsigned aMaxLineLength ):
     LINE_READER( aMaxLineLength ), m_iOwn( true )
 {
-    m_fp = KIPLATFORM::IO::SeqFOpen( aFileName, wxT( "rt" ) );
+    m_fp = KIPLATFORM::IO::SeqFOpen( aFileName, "rt" );
 
     if( !m_fp )
     {
-        wxString msg = wxString::Format( _( "Unable to open %s for reading." ),
-                                         aFileName.GetData() );
+        QString msg = QString( "Unable to open %1 for reading." ).arg( aFileName );
         THROW_IO_ERROR( msg );
     }
 
@@ -212,7 +193,7 @@ FILE_LINE_READER::FILE_LINE_READER( const wxString& aFileName, unsigned aStartin
 }
 
 
-FILE_LINE_READER::FILE_LINE_READER( FILE* aFile, const wxString& aFileName,
+FILE_LINE_READER::FILE_LINE_READER( FILE* aFile, const QString& aFileName,
                     bool doOwn,
                     unsigned aStartingLineNumber,
                     unsigned aMaxLineLength ) :
@@ -280,7 +261,7 @@ char* FILE_LINE_READER::ReadLine()
 }
 
 
-STRING_LINE_READER::STRING_LINE_READER( const std::string& aString, const wxString& aSource ):
+STRING_LINE_READER::STRING_LINE_READER( const std::string& aString, const QString& aSource ):
     LINE_READER( LINE_READER_LINE_DEFAULT_MAX ),
     m_lines( aString ), m_ndx( 0 )
 {
@@ -321,7 +302,7 @@ char* STRING_LINE_READER::ReadLine()
         if( new_length+1 > m_capacity )   // +1 for terminating nul
             expandCapacity( new_length+1 );
 
-        wxASSERT( m_ndx + new_length <= m_lines.length() );
+        Q_ASSERT( m_ndx + new_length <= m_lines.length() );
 
         memcpy( m_line, &m_lines[m_ndx], new_length );
         m_ndx += new_length;
@@ -335,8 +316,8 @@ char* STRING_LINE_READER::ReadLine()
 }
 
 
-INPUTSTREAM_LINE_READER::INPUTSTREAM_LINE_READER( wxInputStream* aStream,
-                                                  const wxString& aSource ) :
+INPUTSTREAM_LINE_READER::INPUTSTREAM_LINE_READER( QIODevice* aStream,
+                                                  const QString& aSource ) :
     LINE_READER( LINE_READER_LINE_DEFAULT_MAX ),
     m_stream( aStream )
 {
@@ -356,10 +337,11 @@ char* INPUTSTREAM_LINE_READER::ReadLine()
         if( m_length + 1 > m_capacity )
             expandCapacity( m_capacity * 2 );
 
-        // this read may fail, docs say to test LastRead() before trusting cc.
-        char cc = m_stream->GetC();
+        // this read may fail, docs say to test bytesAvailable() before trusting cc.
+        char cc;
+        qint64 bytesRead = m_stream->read( &cc, 1 );
 
-        if( !m_stream->LastRead() )
+        if( bytesRead != 1 )
             break;
 
         m_line[ m_length++ ] = cc;
@@ -545,14 +527,14 @@ std::string OUTPUTFORMATTER::Quotes( const std::string& aWrapee ) const
 }
 
 
-std::string OUTPUTFORMATTER::Quotew( const wxString& aWrapee ) const
+std::string OUTPUTFORMATTER::Quotew( const QString& aWrapee ) const
 {
-    // wxStrings are always encoded as UTF-8 as we convert to a byte sequence.
+    // QStrings are always encoded as UTF-8 as we convert to a byte sequence.
     // The non-virtual function calls the virtual workhorse function, and if
     // a different quoting or escaping strategy is desired from the standard,
     // a derived class can overload Quotes() above, but
     // should never be a reason to overload this Quotew() here.
-    return Quotes( (const char*) aWrapee.utf8_str() );
+    return Quotes( aWrapee.toUtf8().constData() );
 }
 
 
@@ -580,12 +562,13 @@ void STRING_FORMATTER::StripUseless()
 }
 
 
-FILE_OUTPUTFORMATTER::FILE_OUTPUTFORMATTER( const wxString& aFileName, const wxChar* aMode,
+FILE_OUTPUTFORMATTER::FILE_OUTPUTFORMATTER( const QString& aFileName, const char* aMode,
                                             char aQuoteChar ):
     OUTPUTFORMATTER( OUTPUTFMTBUFZ, aQuoteChar ),
     m_filename( aFileName )
 {
-    m_fp = wxFopen( aFileName, aMode );
+    QByteArray fileNameBytes = aFileName.toLocal8Bit();
+    m_fp = fopen( fileNameBytes.constData(), aMode );
 
     if( !m_fp )
         THROW_IO_ERROR( strerror( errno ) );
@@ -606,12 +589,13 @@ void FILE_OUTPUTFORMATTER::write( const char* aOutBuf, int aCount )
 }
 
 
-PRETTIFIED_FILE_OUTPUTFORMATTER::PRETTIFIED_FILE_OUTPUTFORMATTER( const wxString& aFileName,
-                                                                  const wxChar* aMode,
+PRETTIFIED_FILE_OUTPUTFORMATTER::PRETTIFIED_FILE_OUTPUTFORMATTER( const QString& aFileName,
+                                                                  const char* aMode,
                                                                   char aQuoteChar ) :
         OUTPUTFORMATTER( OUTPUTFMTBUFZ, aQuoteChar )
 {
-    m_fp = wxFopen( aFileName, aMode );
+    QByteArray fileNameBytes = aFileName.toLocal8Bit();
+    m_fp = fopen( fileNameBytes.constData(), aMode );
 
     if( !m_fp )
         THROW_IO_ERROR( strerror( errno ) );

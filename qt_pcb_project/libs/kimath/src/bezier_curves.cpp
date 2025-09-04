@@ -1,89 +1,12 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-/**********************************************************************************************/
-/* routines to handle bezier curves                                                           */
-/* Based on "Fast, Precise Flattening of Cubic Bezier segments offset Curves" by Hain, et. al.*/
-/**********************************************************************************************/
-
-// Portions of this code are based draw2d
-// Copyright (c) 2010, Laurent Le Goff
-// All rights reserved.
-
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
-
-// 	* Redistributions of source code must retain the above copyright notice,
-// 		this list of conditions and the following disclaimer.
-// 	* Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following
-//  		disclaimer in the documentation and/or other materials provided with the distribution.
-
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-// IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
-// OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
-// OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
-// EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-// Portions of this code are base on BezierKit
-// Copyright (c) 2017 Holmes Futrell
-
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
-// Portions of this code are based on the spline-research project
-// Copyright 2018 Raph Levien
-
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
 
 #include <bezier_curves.h>
 #include <geometry/ellipse.h>
 #include <trigo.h>
 #include <math/vector2d.h>  // for VECTOR2D, operator*, VECTOR2
-#include <wx/debug.h>       // for wxASSERT
-#include <wx/log.h>         // for wxLogTrace
+#include <QDebug>
+#include <QLoggingCategory>
 
-#define BEZIER_DBG "bezier"
+Q_LOGGING_CATEGORY(BEZIER_DBG, "bezier")
 
 BEZIER_POLY::BEZIER_POLY( const VECTOR2I& aStart, const VECTOR2I& aCtrl1,
                           const VECTOR2I& aCtrl2, const VECTOR2I& aEnd )
@@ -155,7 +78,7 @@ bool BEZIER_POLY::isFlat( double aMaxError ) const
         return d1 * f2 <= tol && d2 * f2 <= tol;
     }
 
-    wxASSERT( false );
+    Q_ASSERT( false );
     return false;
 
 }
@@ -206,7 +129,7 @@ VECTOR2D BEZIER_POLY::eval( double t )
     }
     else
     {
-        wxASSERT( false );
+        Q_ASSERT( false );
         return VECTOR2D( 0, 0 );
     }
 }
@@ -266,7 +189,7 @@ int BEZIER_POLY::numberOfInflectionPoints()
     if( b1 ^ b2 )
         return 0;
 
-    wxLogTrace( BEZIER_DBG, "numberOfInflectionPoints: rare case" );
+    qCDebug(BEZIER_DBG) << "numberOfInflectionPoints: rare case";
     // These are rare cases where there are potentially 2 or 0 inflection points.
     return -1;
 }
@@ -322,14 +245,14 @@ void BEZIER_POLY::subdivide( double aT, BEZIER_POLY& aLeft, BEZIER_POLY& aRight 
     }
     else
     {
-        wxASSERT( false );
+        Q_ASSERT( false );
     }
 }
 
 
 void BEZIER_POLY::recursiveSegmentation( std::vector<VECTOR2D>& aOutput, double aThreshhold )
 {
-    wxLogTrace( BEZIER_DBG, "recursiveSegmentation with threshold %f", aThreshhold );
+    qCDebug(BEZIER_DBG) << "recursiveSegmentation with threshold" << aThreshhold;
     std::vector<BEZIER_POLY> stack;
 
     BEZIER_POLY* bezier = nullptr;
@@ -344,7 +267,7 @@ void BEZIER_POLY::recursiveSegmentation( std::vector<VECTOR2D>& aOutput, double 
 
         if( bezier->m_ctrlPts[3] == bezier->m_ctrlPts[0] )
         {
-            wxLogTrace( BEZIER_DBG, "recursiveSegmentation dropping zero length segment" );
+            qCDebug(BEZIER_DBG) << "recursiveSegmentation dropping zero length segment";
             stack.pop_back();
         }
         else if( bezier->isFlat( aThreshhold ) )
@@ -360,7 +283,7 @@ void BEZIER_POLY::recursiveSegmentation( std::vector<VECTOR2D>& aOutput, double 
         }
     }
 
-    wxLogTrace( BEZIER_DBG, "recursiveSegmentation generated %zu points", aOutput.size() );
+    qCDebug(BEZIER_DBG) << "recursiveSegmentation generated" << aOutput.size() << "points";
 }
 
 
@@ -402,33 +325,33 @@ int BEZIER_POLY::findInflectionPoints( double& aT1, double& aT2 )
 
             if( t2 - t1 > 0.00001 )
             {
-                wxLogTrace( BEZIER_DBG, "BEZIER_POLY Found 2 inflection points at t1 = %f, t2 = %f", t1, t2 );
+                qCDebug(BEZIER_DBG) << "BEZIER_POLY Found 2 inflection points at t1 =" << t1 << ", t2 =" << t2;
                 return 2;
             }
             else
             {
-                wxLogTrace( BEZIER_DBG, "BEZIER_POLY Found 1 inflection point at t = %f", t1 );
+                qCDebug(BEZIER_DBG) << "BEZIER_POLY Found 1 inflection point at t =" << t1;
                 return 1;
             }
         }
         else if( t1 > 0.0 && t1 < 1.0 )
         {
             aT1 = t1;
-            wxLogTrace( BEZIER_DBG, "BEZIER_POLY Found 1 inflection point at t = %f", t1 );
+            qCDebug(BEZIER_DBG) << "BEZIER_POLY Found 1 inflection point at t =" << t1;
             return 1;
         }
         else if( t2 > 0.0 && t2 < 1.0 )
         {
             aT1 = t2;
-            wxLogTrace( BEZIER_DBG, "BEZIER_POLY Found 1 inflection point at t = %f", t2 );
+            qCDebug(BEZIER_DBG) << "BEZIER_POLY Found 1 inflection point at t =" << t2;
             return 1;
         }
 
-        wxLogTrace( BEZIER_DBG, "BEZIER_POLY Found no inflection points" );
+        qCDebug(BEZIER_DBG) << "BEZIER_POLY Found no inflection points";
         return 0;
     }
 
-    wxLogTrace( BEZIER_DBG, "BEZIER_POLY Found no inflection points" );
+    qCDebug(BEZIER_DBG) << "BEZIER_POLY Found no inflection points";
     return 0;
 }
 
@@ -449,13 +372,13 @@ void BEZIER_POLY::cubicParabolicApprox( std::vector<VECTOR2D>& aOutput, double a
     {
         if( c->isNaN() )
         {
-            wxLogDebug( "cubicParabolicApprox: NaN detected" );
+            qDebug() << "cubicParabolicApprox: NaN detected";
             break;
         }
 
         if( c->isFlat( aMaxError ) )
         {
-            wxLogTrace( BEZIER_DBG, "cubicParabolicApprox: General Flatness detected, adding %f %f", c->m_ctrlPts[3].x, c->m_ctrlPts[3].y );
+            qCDebug(BEZIER_DBG) << "cubicParabolicApprox: General Flatness detected, adding" << c->m_ctrlPts[3].x << c->m_ctrlPts[3].y;
             // If the subsegment deviation satisfies the flatness criterion, store the last point and stop
             aOutput.push_back( c->m_ctrlPts[3] );
             break;
@@ -465,11 +388,11 @@ void BEZIER_POLY::cubicParabolicApprox( std::vector<VECTOR2D>& aOutput, double a
         double d = c->thirdControlPointDeviation();
         double t = 2 * std::sqrt( aMaxError / ( 3.0 * d ) ); // Forumla 2 in Hain et al.
 
-        wxLogTrace( BEZIER_DBG, "cubicParabolicApprox: split point t = %f", t );
+        qCDebug(BEZIER_DBG) << "cubicParabolicApprox: split point t =" << t;
 
         if( t > 1.0 )
         {
-            wxLogTrace( BEZIER_DBG, "cubicParabolicApprox: Invalid t value detected" );
+            qCDebug(BEZIER_DBG) << "cubicParabolicApprox: Invalid t value detected";
             // Case where the t value calculated is invalid, so use recursive subdivision
             c->recursiveSegmentation( aOutput, aMaxError );
             break;
@@ -481,7 +404,7 @@ void BEZIER_POLY::cubicParabolicApprox( std::vector<VECTOR2D>& aOutput, double a
         // First subsegment should have its deviation equal to flatness
         if( b1->isFlat( aMaxError ) )
         {
-            wxLogTrace( BEZIER_DBG, "cubicParabolicApprox: Flatness detected, adding %f %f", b1->m_ctrlPts[3].x, b1->m_ctrlPts[3].y );
+            qCDebug(BEZIER_DBG) << "cubicParabolicApprox: Flatness detected, adding" << b1->m_ctrlPts[3].x << b1->m_ctrlPts[3].y;
             aOutput.push_back( b1->m_ctrlPts[3] );
         }
         else
@@ -513,7 +436,7 @@ void BEZIER_POLY::getCubicPoly( std::vector<VECTOR2D>& aOutput, double aMaxError
 
     if( numberOfInflectionPoints() == 0 )
     {
-        wxLogTrace( BEZIER_DBG, "getCubicPoly Short circuit to PA" );
+        qCDebug(BEZIER_DBG) << "getCubicPoly Short circuit to PA";
         // If no inflection points then apply PA on the full Bezier segment.
         cubicParabolicApprox( aOutput, aMaxError );
         return;
@@ -525,7 +448,7 @@ void BEZIER_POLY::getCubicPoly( std::vector<VECTOR2D>& aOutput, double aMaxError
 
     if( numOfIfP == 2 )
     {
-        wxLogTrace( BEZIER_DBG, "getCubicPoly: 2 inflection points" );
+        qCDebug(BEZIER_DBG) << "getCubicPoly: 2 inflection points";
         // Case when 2 inflection points then divide at the smallest one first
         BEZIER_POLY sub1( std::vector<VECTOR2D>( 4 ) );
         BEZIER_POLY tmp1( std::vector<VECTOR2D>( 4 ) );
@@ -542,7 +465,7 @@ void BEZIER_POLY::getCubicPoly( std::vector<VECTOR2D>& aOutput, double aMaxError
             tmp1.subdivide( t1, sub2, sub3 );
         else
         {
-            wxLogTrace( BEZIER_DBG, "getCubicPoly: 2nd inflection point not found" );
+            qCDebug(BEZIER_DBG) << "getCubicPoly: 2nd inflection point not found";
             return;
         }
 
@@ -557,7 +480,7 @@ void BEZIER_POLY::getCubicPoly( std::vector<VECTOR2D>& aOutput, double aMaxError
     }
     else if( numOfIfP == 1 )
     {
-        wxLogTrace( BEZIER_DBG, "getCubicPoly: 1 inflection point" );
+        qCDebug(BEZIER_DBG) << "getCubicPoly: 1 inflection point";
         // Case where there is one inflection point, subdivide once and use PA on both subsegments
         BEZIER_POLY sub1( std::vector<VECTOR2D>( 4 ) );
         BEZIER_POLY sub2( std::vector<VECTOR2D>( 4 ) );
@@ -567,7 +490,7 @@ void BEZIER_POLY::getCubicPoly( std::vector<VECTOR2D>& aOutput, double aMaxError
     }
     else
     {
-        wxLogTrace( BEZIER_DBG, "getCubicPoly: Unknown inflection points" );
+        qCDebug(BEZIER_DBG) << "getCubicPoly: Unknown inflection points";
         // Case where there is no inflection, use PA directly
         cubicParabolicApprox( aOutput, aMaxError );
     }
@@ -589,10 +512,10 @@ void BEZIER_POLY::GetPoly( std::vector<VECTOR2D>& aOutput, double aMaxError )
     }
     else
     {
-        wxASSERT( false );
+        Q_ASSERT( false );
     }
 
-    wxLogTrace( BEZIER_DBG, "GetPoly generated %zu points", aOutput.size() );
+    qCDebug(BEZIER_DBG) << "GetPoly generated" << aOutput.size() << "points";
 }
 
 

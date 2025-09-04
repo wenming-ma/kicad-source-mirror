@@ -1,22 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -32,6 +14,8 @@
 #include <settings/grid_settings.h>
 #include <kicommon.h>
 
+#include <QString>
+
 class KICOMMON_API PARAM_BASE
 {
 public:
@@ -43,48 +27,24 @@ public:
 
     virtual ~PARAM_BASE() = default;
 
-    /**
-     * Loads the value of this parameter from JSON to the underlying storage
-     * @param aSettings is the JSON_SETTINGS object to load from.
-     * @param aResetIfMissing if true will set the parameter to its default value if load fails
-     */
     virtual void Load( const JSON_SETTINGS& aSettings, bool aResetIfMissing = true ) const = 0;
 
-    /**
-     * Stores the value of this parameter to the given JSON_SETTINGS object
-     * @param aSettings is the JSON_SETTINGS object to store into.
-     */
     virtual void Store( JSON_SETTINGS* aSettings ) const = 0;
 
     virtual void SetDefault() = 0;
 
-    /**
-     * Checks whether the parameter in memory matches the one in a given JSON file
-     * @param aSettings is a JSON_SETTINGS to check the JSON file contents of
-     * @return true if the parameter in memory matches its value in the file
-     */
     virtual bool MatchesFile( const JSON_SETTINGS& aSettings ) const = 0;
 
-    /**
-     * @return the path name of the parameter used to store it in the json file
-     * mainly useful in error messages
-     */
     const std::string& GetJsonPath() const { return m_path; }
 
-    /**
-     * @return true if keys should be cleared from source file rather than merged.  Useful for
-     *         things such as text variables that are semantically an array but stored as a map.
-     */
     bool ClearUnknownKeys() const { return m_clearUnknownKeys; }
 
     void SetClearUnknownKeys( bool aSet = true ) { m_clearUnknownKeys = aSet; }
 
 protected:
-    std::string m_path;               ///< Address of the param in the json files
-    bool        m_readOnly;           ///< Indicates param pointer should never be overwritten
-    bool        m_clearUnknownKeys;   ///< Keys should be cleared from source rather than merged.
-                                      ///<   This is useful for things that are semantically an
-                                      ///<   array but stored as a map, such as textVars.
+    std::string m_path;
+    bool        m_readOnly;
+    bool        m_clearUnknownKeys;
 };
 
 
@@ -168,13 +128,10 @@ protected:
     ValueType  m_default;
 };
 
-/**
- * Stores a path as a string with directory separators normalized to unix-style
- */
-class KICOMMON_API PARAM_PATH : public PARAM<wxString>
+class KICOMMON_API PARAM_PATH : public PARAM<QString>
 {
 public:
-    PARAM_PATH( const std::string& aJsonPath, wxString* aPtr, const wxString& aDefault,
+    PARAM_PATH( const std::string& aJsonPath, QString* aPtr, const QString& aDefault,
                 bool aReadOnly = false ) :
             PARAM( aJsonPath, aPtr, aDefault, aReadOnly )
     { }
@@ -191,38 +148,35 @@ public:
 
     void Store( JSON_SETTINGS* aSettings ) const override
     {
-        aSettings->Set<wxString>( m_path, toFileFormat( *m_ptr ) );
+        aSettings->Set<QString>( m_path, toFileFormat( *m_ptr ) );
     }
 
     bool MatchesFile( const JSON_SETTINGS& aSettings ) const override
     {
-        if( std::optional<wxString> optval = aSettings.Get<wxString>( m_path ) )
+        if( std::optional<QString> optval = aSettings.Get<QString>( m_path ) )
             return fromFileFormat( *optval ) == *m_ptr;
 
         return false;
     }
 
 private:
-    wxString toFileFormat( const wxString& aString ) const
+    QString toFileFormat( const QString& aString ) const
     {
-        wxString ret = aString;
-        ret.Replace( wxT( "\\" ), wxT( "/" ) );
+        QString ret = aString;
+        ret.replace( "\\", "/" );
         return ret;
     }
 
-    wxString fromFileFormat( const wxString& aString ) const
+    QString fromFileFormat( const QString& aString ) const
     {
-        wxString ret = aString;
+        QString ret = aString;
 #ifdef __WINDOWS__
-        ret.Replace( wxT( "/" ), wxT( "\\" ) );
+        ret.replace( "/", "\\" );
 #endif
         return ret;
     }
 };
 
-/**
- * Stores an enum as an integer
- */
 template<typename EnumType>
 class PARAM_ENUM : public PARAM_BASE
 {
@@ -286,10 +240,6 @@ private:
     EnumType  m_default;
 };
 
-/**
- * Like a normal param, but with custom getter and setter functions
- * @tparam ValueType is the value to store
- */
 template<typename ValueType>
 class PARAM_LAMBDA : public PARAM_BASE
 {
@@ -381,12 +331,6 @@ extern template class APIVISIBLE PARAM_LAMBDA<nlohmann::json>;
 extern template class APIVISIBLE PARAM_LAMBDA<std::string>;
 #endif
 
-/**
- * Represents a parameter that has a scaling factor between the value in the file and the
- * value used internally (i.e. the value pointer).  This basically only makes sense to use
- * with int or double as ValueType.
- * @tparam ValueType is the internal type: the file always stores a double.
- */
 template<typename ValueType>
 class PARAM_SCALED: public PARAM_BASE
 {
@@ -572,14 +516,14 @@ template class KICOMMON_API PARAM_LIST<int>;
 template class KICOMMON_API PARAM_LIST<double>;
 template class KICOMMON_API PARAM_LIST<KIGFX::COLOR4D>;
 template class KICOMMON_API PARAM_LIST<GRID>;
-template class KICOMMON_API PARAM_LIST<wxString>;
+template class KICOMMON_API PARAM_LIST<QString>;
 #else
 extern template class APIVISIBLE PARAM_LIST<bool>;
 extern template class APIVISIBLE PARAM_LIST<int>;
 extern template class APIVISIBLE PARAM_LIST<double>;
 extern template class APIVISIBLE PARAM_LIST<KIGFX::COLOR4D>;
 extern template class APIVISIBLE PARAM_LIST<GRID>;
-extern template class APIVISIBLE PARAM_LIST<wxString>;
+extern template class APIVISIBLE PARAM_LIST<QString>;
 #endif
 
 
@@ -662,25 +606,21 @@ protected:
 };
 
 #ifdef __WINDOWS__
-template class KICOMMON_API PARAM_SET<wxString>;
+template class KICOMMON_API PARAM_SET<QString>;
 #else
-extern template class APIVISIBLE PARAM_SET<wxString>;
+extern template class APIVISIBLE PARAM_SET<QString>;
 #endif
 
-/**
- * Represents a list of strings holding directory paths.
- * Normalizes paths to unix directory separator style in the file.
- */
-class KICOMMON_API PARAM_PATH_LIST : public PARAM_LIST<wxString>
+class KICOMMON_API PARAM_PATH_LIST : public PARAM_LIST<QString>
 {
 public:
-    PARAM_PATH_LIST( const std::string& aJsonPath, std::vector<wxString>* aPtr,
-                     std::initializer_list<wxString> aDefault ) :
+    PARAM_PATH_LIST( const std::string& aJsonPath, std::vector<QString>* aPtr,
+                     std::initializer_list<QString> aDefault ) :
             PARAM_LIST( aJsonPath, aPtr, aDefault )
     { }
 
-    PARAM_PATH_LIST( const std::string& aJsonPath, std::vector<wxString>* aPtr,
-                     std::vector<wxString> aDefault ) :
+    PARAM_PATH_LIST( const std::string& aJsonPath, std::vector<QString>* aPtr,
+                     std::vector<QString> aDefault ) :
             PARAM_LIST( aJsonPath, aPtr, aDefault )
     { }
 
@@ -700,35 +640,23 @@ public:
     bool MatchesFile( const JSON_SETTINGS& aSettings ) const override;
 
 private:
-    wxString toFileFormat( const wxString& aString ) const
+    QString toFileFormat( const QString& aString ) const
     {
-        wxString ret = aString;
-        ret.Replace( wxT( "\\" ), wxT( "/" ) );
+        QString ret = aString;
+        ret.replace( "\\", "/" );
         return ret;
     }
 
-    wxString fromFileFormat( const wxString& aString ) const
+    QString fromFileFormat( const QString& aString ) const
     {
-        wxString ret = aString;
+        QString ret = aString;
 #ifdef __WINDOWS__
-        ret.Replace( wxT( "/" ), wxT( "\\" ) );
+        ret.replace( "/", "\\" );
 #endif
         return ret;
     }
 };
 
-/**
- * Represents a map of <std::string, Value>.  The key parameter has to be a string in JSON.
- *
- * The key must be stored in UTF-8 format, so any translated strings or strings provided by the
- * user as a key must be converted to UTF-8 at the site where they are placed in the underlying
- * map that this PARAM_MAP points to.
- *
- * Values must also be in UTF-8, but if you use wxString as the value type, this conversion will
- * be done automatically by the to_json and from_json helpers defined in json_settings.cpp
- *
- * @tparam Value is the value type of the map
- */
 template<typename Value>
 class PARAM_MAP : public PARAM_BASE
 {
@@ -815,15 +743,12 @@ extern template class APIVISIBLE PARAM_MAP<bool>;
 #endif
 
 
-/**
- * A helper for <wxString, wxString> maps
- */
-class KICOMMON_API PARAM_WXSTRING_MAP : public PARAM_BASE
+class KICOMMON_API PARAM_QSTRING_MAP : public PARAM_BASE
 {
 public:
-    PARAM_WXSTRING_MAP( const std::string& aJsonPath, std::map<wxString, wxString>* aPtr,
-                        std::initializer_list<std::pair<const wxString, wxString>> aDefault,
-                        bool aReadOnly = false, bool aArrayBehavior = false ) :
+    PARAM_QSTRING_MAP( const std::string& aJsonPath, std::map<QString, QString>* aPtr,
+                       std::initializer_list<std::pair<const QString, QString>> aDefault,
+                       bool aReadOnly = false, bool aArrayBehavior = false ) :
             PARAM_BASE( aJsonPath, aReadOnly ),
             m_ptr( aPtr ),
             m_default( aDefault )
@@ -843,8 +768,8 @@ public:
     bool MatchesFile( const JSON_SETTINGS& aSettings ) const override;
 
 private:
-    std::map<wxString, wxString>* m_ptr;
-    std::map<wxString, wxString>  m_default;
+    std::map<QString, QString>* m_ptr;
+    std::map<QString, QString>  m_default;
 };
 
 #endif

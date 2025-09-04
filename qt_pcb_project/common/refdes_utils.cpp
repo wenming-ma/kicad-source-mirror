@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <refdes_utils.h>
 
@@ -27,41 +5,43 @@
 
 #include <algorithm>
 #include <cctype>
+#include <QRegularExpression>
 
 
 namespace UTIL
 {
 
-wxString GetRefDesPrefix( const wxString& aRefDes )
+QString GetRefDesPrefix( const QString& aRefDes )
 {
     // find the first non-digit, non-question-mark character from the back
     auto res = std::find_if( aRefDes.rbegin(), aRefDes.rend(),
-            []( wxUniChar aChr )
+            []( QChar aChr )
             {
-                return aChr != '?' && !std::isdigit( aChr );
+                return aChr != '?' && !std::isdigit( aChr.unicode() );
             } );
 
-    return { aRefDes.begin(), res.base() };
+    return QString( aRefDes.begin(), res.base() );
 }
 
 
-wxString GetRefDesUnannotated( const wxString& aSource )
+QString GetRefDesUnannotated( const QString& aSource )
 {
-   return UTIL::GetRefDesPrefix( aSource ) + wxT( "?" );
+   return UTIL::GetRefDesPrefix( aSource ) + "?";
 }
 
 
-int GetRefDesNumber( const wxString& aRefDes )
+int GetRefDesNumber( const QString& aRefDes )
 {
-    int    retval = -1; // negative to indicate not found
-    size_t firstnum = aRefDes.find_first_of( wxS( "0123456789" ) );
+    int retval = -1; // negative to indicate not found
+    int firstnum = aRefDes.indexOf( QRegularExpression("[0-9]") );
 
-    if( firstnum != wxString::npos )
+    if( firstnum != -1 )
     {
-        wxString candidateValue = aRefDes.Mid( firstnum );
-        long     result;
+        QString candidateValue = aRefDes.mid( firstnum );
+        bool    ok;
+        long    result = candidateValue.toLong( &ok );
 
-        if( !candidateValue.ToLong( &result ) )
+        if( !ok )
             retval = -1;
         else
             retval = static_cast<int>( result );

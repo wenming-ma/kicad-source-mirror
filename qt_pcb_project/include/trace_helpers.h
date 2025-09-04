@@ -1,270 +1,78 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-/**
- * @file  trace_helpers.h
- * @brief wxLogTrace helper definitions.
- */
 
 #ifndef _TRACE_HELPERS_H_
 #define _TRACE_HELPERS_H_
 
 #include <kicommon.h>
-#include <wx/arrstr.h>
-#include <wx/event.h>
-#include <wx/string.h>
+#include <QString>
+#include <QStringList>
+#include <QKeyEvent>
+#include <QLoggingCategory>
 
 #include <stdarg.h>
 #include <map>
 
-/**
- * @defgroup trace_env_vars Trace Environment Variables
- *
- * wxWidgets provides trace control of debug messages using the WXTRACE environment variable.
- * This section defines the strings passed to WXTRACE to for debug output control of various
- * sections of the KiCad code.  See the wxWidgets <a href="http://docs.wxwidgets.org/3.0/
- * group__group__funcmacro__log.html#ga947e317db477914c12b13c4534867ec9"> wxLogTrace </a>
- * documentation for more information.
- */
+// Trace environment variables for debug output control
 
-///@{
-/// \ingroup trace_env_vars
+extern KICOMMON_API const QChar* const traceFindItem;
 
-/**
- * Flag to enable find debug tracing.
- *
- * Use "KICAD_FIND_ITEM" to enable.
- */
-extern KICOMMON_API const wxChar* const traceFindItem;
+extern KICOMMON_API const QChar* const traceFindReplace;
 
-/**
- * Flag to enable find and replace debug tracing.
- *
- * Use "KICAD_FIND_REPLACE" to enable.
- */
-extern KICOMMON_API const wxChar* const traceFindReplace;
+extern KICOMMON_API const QChar* const kicadTraceCoords;
 
-/**
- * Flag to enable draw panel coordinate debug tracing.
- *
- * Use "KICAD_COORDS" to enable.
- */
-extern KICOMMON_API const wxChar* const kicadTraceCoords;
+extern KICOMMON_API const QChar* const kicadTraceKeyEvent;
 
-/**
- * Flag to enable wxKeyEvent debug tracing.
- *
- * Use "KICAD_KEY_EVENTS" to enable.
- */
-extern KICOMMON_API const wxChar* const kicadTraceKeyEvent;
+extern KICOMMON_API const QChar* const kicadTraceToolStack;
 
-/**
- * Flag to enable tracing of the tool handling stack.
- *
- * Use "KICAD_TOOL_STACK" to enable.
- */
-extern KICOMMON_API const wxChar* const kicadTraceToolStack;
+extern KICOMMON_API const QChar* const kicadTraceCoroutineStack;
 
-/**
- * Flag to enable tracing of the coroutine call stack.
- *
- * Use "KICAD_COROUTINE_STACK" to enable.
- */
-extern KICOMMON_API const wxChar* const kicadTraceCoroutineStack;
+extern KICOMMON_API const QChar* const traceAutoSave;
 
-/**
- * Flag to enable auto save feature debug tracing.
- *
- * Use "KICAD_AUTOSAVE" to enable.
- */
-extern KICOMMON_API const wxChar* const traceAutoSave;
+extern KICOMMON_API const QChar* const traceSchLibMem;
 
-/**
- * Flag to enable schematic library memory deletion debug output.
- *
- * Use "KICAD_SCH_LIB_MEM" to enable.
- */
-extern KICOMMON_API const wxChar* const traceSchLibMem;
+extern KICOMMON_API const QChar* const traceSchPlugin;
 
-/**
- * Flag to enable legacy schematic plugin debug output.
- *
- * Use "KICAD_SCH_PLUGIN" to enable.
- */
-extern KICOMMON_API const wxChar* const traceSchPlugin;
+extern KICOMMON_API const QChar* const traceSchLegacyPlugin;
 
-/**
- * Flag to enable legacy schematic plugin debug output.
- *
- * Use "KICAD_SCH_LEGACY_PLUGIN" to enable.
- */
-extern KICOMMON_API const wxChar* const traceSchLegacyPlugin;
+extern KICOMMON_API const QChar* const traceKicadPcbPlugin;
 
-/**
- * Flag to enable GEDA PCB plugin debug output.
- *
- * Use "KICAD_PCB_PLUGIN" to enable.
- */
-extern KICOMMON_API const wxChar* const traceKicadPcbPlugin;
+extern KICOMMON_API const QChar* const traceGedaPcbPlugin;
 
-/**
- * Flag to enable GEDA PCB plugin debug output.
- *
- * Use "KICAD_GEDA_PLUGIN" to enable.
- */
-extern KICOMMON_API const wxChar* const traceGedaPcbPlugin;
+extern KICOMMON_API const QChar* const tracePrinting;
 
-/**
- * Flag to enable print controller debug output.
- *
- * Use "KICAD_PRINT" to enable.
- */
-extern KICOMMON_API const wxChar* const tracePrinting;
+extern KICOMMON_API const QChar* const tracePathsAndFiles;
 
-/**
- * Flag to enable path and file name debug output.
- *
- * Use "KICAD_PATHS_AND_FILES" to enable.
- */
-extern KICOMMON_API const wxChar* const tracePathsAndFiles;
+extern KICOMMON_API const QChar* const traceLocale;
 
-/**
- * Flag to enable locale debug output.
- *
- * Use "KICAD_LOCALE" to enable.
- */
-extern KICOMMON_API const wxChar* const traceLocale;
+extern KICOMMON_API const QChar* const traceFonts;
 
-/**
- * Flag to enable locale debug output.
- *
- * Use "KICAD_FONTS" to enable.
- */
-extern KICOMMON_API const wxChar* const traceFonts;
+extern KICOMMON_API const QChar* const traceScreen;
 
-/**
- * Flag to enable debug output of #BASE_SCREEN and it's derivatives.
- *
- * Use "KICAD_SCREEN" to enable.
- */
-extern KICOMMON_API const wxChar* const traceScreen;
+extern KICOMMON_API const QChar* const traceDisplayLocation;
 
-/**
- * Flag to enable debug output of display positioning logic.
- *
- * Use "KICAD_DISPLAY_LOCATION" to enable.
- */
-extern KICOMMON_API const wxChar* const traceDisplayLocation;
+extern KICOMMON_API const QChar* const traceZoomScroll;
 
-/**
- * Flag to enable debug output of zoom-scrolling calculations in
- * #KIGFX::ZOOM_CONTROLLER and derivatives.
- *
- * Use "KICAD_ZOOM_SCROLL" to enable.
- */
-extern KICOMMON_API const wxChar* const traceZoomScroll;
+extern KICOMMON_API const QChar* const traceSymbolResolver;
 
-/**
- * Flag to enable debug output of symbol library resolver results
- *
- * Use "KICAD_SYM_RESOLVE" to enable.
- */
-extern KICOMMON_API const wxChar* const traceSymbolResolver;
+extern KICOMMON_API const QChar* const traceSchSheetPaths;
 
-/**
- * Flag to enable debug output of schematic symbol sheet path manipulation code.
- *
- * Use "KICAD_SCH_SHEET_PATHS" to enable.
- */
-extern KICOMMON_API const wxChar* const traceSchSheetPaths;
+extern KICOMMON_API const QChar* const traceEnvVars;
 
-/**
- * Flag to enable debug output of environment variable operations.
- *
- * Use "KICAD_ENV_VARS" to enable.
- */
-extern KICOMMON_API const wxChar* const traceEnvVars;
+extern KICOMMON_API const QChar* const traceGalProfile;
 
-/**
- * Flag to enable debug output of GAL performance profiling.
- *
- * Use "KICAD_GAL_PROFILE" to enable.
- */
-extern KICOMMON_API const wxChar* const traceGalProfile;
+extern KICOMMON_API const QChar* const traceKiCad2Step;
 
-/**
- * Flag to enable KiCad2Step debug tracing.
- *
- * Use "KICAD2STEP" to enable.
- */
-extern KICOMMON_API const wxChar* const traceKiCad2Step;
+extern KICOMMON_API const QChar* const traceUiProfile;
 
-/**
- * Flag to enable user interface profile tracing.
- *
- * Use "KICAD_UI_PROFILE" to enable.
- */
-extern KICOMMON_API const wxChar* const traceUiProfile;
+extern KICOMMON_API const QChar* const traceGit;
 
-/**
- * Flag to enable Git debugging output.
- *
- * Use "KICAD_GIT" to enable.
- */
-extern KICOMMON_API const wxChar* const traceGit;
+extern KICOMMON_API const QChar* const traceEagleIo;
 
-/*
- * Flag to enable Eagle I/O debug tracing.
- *
- * Use "KICAD_EAGLE_IO" to enable.
- */
-extern KICOMMON_API const wxChar* const traceEagleIo;
+extern KICOMMON_API const QChar* const traceDesignBlocks;
 
-/*
- * Flag to enable Design Block O debug tracing.
- *
- * Use "KICAD_EAGLE_IO" to enable.
- */
-extern KICOMMON_API const wxChar* const traceDesignBlocks;
 
-///@}
+extern KICOMMON_API QString dump( const QKeyEvent& aEvent );
 
-/**
- * Debug helper for printing wxKeyEvent information.
- *
- * @param aEvent is the wxKeyEvent to generate the print string from.
- * @return the wxKeyEvent information.
- */
-extern KICOMMON_API wxString dump( const wxKeyEvent& aEvent );
-
-/**
- * Debug helper for printing wxArrayString contents.
- *
- * @param aArray is the string array to output.
- * @return the wxArrayString contents in a formatted string for debugging output.
- */
-extern KICOMMON_API wxString dump( const wxArrayString& aArray );
+extern KICOMMON_API QString dump( const QStringList& aArray );
 
 class KICOMMON_API TRACE_MANAGER
 {
@@ -277,10 +85,9 @@ public:
 
     static TRACE_MANAGER& Instance();
 
-    WX_DEFINE_VARARG_FUNC_VOID( Trace, 2, (const wxString, const wxFormatString&), DoTrace,
-                                DoTraceUtf8 )
+    void Trace( const QString& aWhat, const QString& aFmt, ... );
 
-    void DoTrace( const wxString aWhat, const wxChar* aFmt, ... )
+    void DoTrace( const QString aWhat, const QChar* aFmt, ... )
     {
         va_list argptr;
         va_start( argptr, aFmt );
@@ -288,23 +95,14 @@ public:
         va_end( argptr );
     }
 
-#if wxUSE_UNICODE_UTF8
-    void DoTraceUtf8( const wxString aWhat, const wxChar* aFmt, ... )
-    {
-        va_list argptr;
-        va_start( argptr, aFmt );
-        traceV( aWhat, aFmt, argptr );
-        va_end( argptr );
-    }
-#endif
 
-    bool IsTraceEnabled( const wxString& aWhat );
+    bool IsTraceEnabled( const QString& aWhat );
 
 private:
-    void traceV( const wxString& aWhat, const wxString& aFmt, va_list vargs );
+    void traceV( const QString& aWhat, const QString& aFmt, va_list vargs );
     void init();
 
-    std::map<wxString, bool> m_enabledTraces;
+    std::map<QString, bool> m_enabledTraces;
     bool                     m_globalTraceEnabled;
     bool                     m_printAllTraces;
 };

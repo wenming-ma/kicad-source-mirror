@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015-2019 CERN
- * Copyright The KiCad Developers, see CHANGELOG.txt for contributors.
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <bitmaps.h>
 #include <tool/conditional_menu.h>
@@ -48,7 +24,7 @@ ACTION_MENU* CONDITIONAL_MENU::create() const
 void CONDITIONAL_MENU::AddItem( const TOOL_ACTION& aAction, const SELECTION_CONDITION& aCondition,
                                 int aOrder )
 {
-    wxASSERT( aAction.GetId() > 0 ); // Check if action was previously registered in ACTION_MANAGER
+    Q_ASSERT( aAction.GetId() > 0 ); // Check if action was previously registered in ACTION_MANAGER
     addEntry( ENTRY( &aAction, aCondition, aOrder, false ) );
 }
 
@@ -56,32 +32,40 @@ void CONDITIONAL_MENU::AddItem( const TOOL_ACTION& aAction, const SELECTION_COND
 void CONDITIONAL_MENU::AddCheckItem( const TOOL_ACTION& aAction,
                                      const SELECTION_CONDITION& aCondition, int aOrder )
 {
-    wxASSERT( aAction.GetId() > 0 ); // Check if action was previously registered in ACTION_MANAGER
+    Q_ASSERT( aAction.GetId() > 0 ); // Check if action was previously registered in ACTION_MANAGER
     addEntry( ENTRY( &aAction, aCondition, aOrder, true ) );
 }
 
 
-void CONDITIONAL_MENU::AddItem( int aId, const wxString& aText, const wxString& aTooltip,
+void CONDITIONAL_MENU::AddItem( int aId, const QString& aText, const QString& aTooltip,
                                 BITMAPS aIcon, const SELECTION_CONDITION& aCondition,
                                 int aOrder )
 {
-    wxMenuItem item( nullptr, aId, aText, aTooltip, wxITEM_NORMAL );
+    QAction item( nullptr );
+    item.setObjectName( QString::number( aId ) );
+    item.setText( aText );
+    item.setToolTip( aTooltip );
+    item.setCheckable( false );
 
     if( !!aIcon )
-        KIUI::AddBitmapToMenuItem( &item, KiBitmap( aIcon ) );
+        KIUI::AddBitmapToAction( &item, KiBitmap( aIcon ) );
 
     addEntry( ENTRY( item, aIcon, aCondition, aOrder, false ) );
 }
 
 
-void CONDITIONAL_MENU::AddCheckItem( int aId, const wxString& aText, const wxString& aTooltip,
+void CONDITIONAL_MENU::AddCheckItem( int aId, const QString& aText, const QString& aTooltip,
                                      BITMAPS aIcon, const SELECTION_CONDITION& aCondition,
                                      int aOrder )
 {
-    wxMenuItem item( nullptr, aId, aText, aTooltip, wxITEM_CHECK );
+    QAction item( nullptr );
+    item.setObjectName( QString::number( aId ) );
+    item.setText( aText );
+    item.setToolTip( aTooltip );
+    item.setCheckable( true );
 
     if( !!aIcon )
-        KIUI::AddBitmapToMenuItem( &item, KiBitmap( aIcon ) );
+        KIUI::AddBitmapToAction( &item, KiBitmap( aIcon ) );
 
     addEntry( ENTRY( item, aIcon, aCondition, aOrder, true ) );
 }
@@ -136,7 +120,7 @@ void CONDITIONAL_MENU::Evaluate( const SELECTION& aSelection )
     {
         const SELECTION_CONDITION& cond = entry.Condition();
         bool                       result;
-        wxMenuItem*                menuItem = nullptr;
+        QAction*                   menuItem = nullptr;
 
         try
         {
@@ -163,18 +147,18 @@ void CONDITIONAL_MENU::Evaluate( const SELECTION& aSelection )
             menu_count++;
             break;
 
-        case ENTRY::WXITEM:
-            menuItem = new wxMenuItem( this,
-                                       entry.wxItem()->GetId(),
-                                       wxGetTranslation( entry.wxItem()->GetItemLabel() ),
-                                       wxGetTranslation( entry.wxItem()->GetHelp() ),
-                                       entry.wxItem()->GetKind() );
+        case ENTRY::QTITEM:
+            menuItem = new QAction( this );
+            menuItem->setObjectName( entry.qtItem()->objectName() );
+            menuItem->setText( QCoreApplication::translate( "menu", entry.qtItem()->text().toUtf8().constData() ) );
+            menuItem->setToolTip( QCoreApplication::translate( "menu", entry.qtItem()->toolTip().toUtf8().constData() ) );
+            menuItem->setCheckable( entry.qtItem()->isCheckable() );
 
             if( !!entry.GetIcon() )
-                KIUI::AddBitmapToMenuItem( menuItem, KiBitmap( entry.GetIcon() ) );
+                KIUI::AddBitmapToAction( menuItem, KiBitmap( entry.GetIcon() ) );
 
-            // the wxMenuItem must be append only after the bitmap is set:
-            Append( menuItem );
+            // the QAction must be added only after the bitmap is set:
+            addAction( menuItem );
 
             menu_count++;
             break;
@@ -187,7 +171,7 @@ void CONDITIONAL_MENU::Evaluate( const SELECTION& aSelection )
             break;
 
         default:
-            wxASSERT( false );
+            Q_ASSERT( false );
             break;
         }
     }
@@ -236,13 +220,13 @@ CONDITIONAL_MENU::ENTRY::ENTRY( const ENTRY& aEntry )
         m_data.menu = aEntry.m_data.menu;
         break;
 
-    case WXITEM:
-        // We own the wxItem, so we need to make a new one for the new object
-        m_data.wxItem = new wxMenuItem( nullptr,
-                                        aEntry.m_data.wxItem->GetId(),
-                                        aEntry.m_data.wxItem->GetItemLabel(),
-                                        aEntry.m_data.wxItem->GetHelp(),
-                                        aEntry.m_data.wxItem->GetKind() );
+    case QTITEM:
+        // We own the qtItem, so we need to make a new one for the new object
+        m_data.qtItem = new QAction( nullptr );
+        m_data.qtItem->setObjectName( aEntry.m_data.qtItem->objectName() );
+        m_data.qtItem->setText( aEntry.m_data.qtItem->text() );
+        m_data.qtItem->setToolTip( aEntry.m_data.qtItem->toolTip() );
+        m_data.qtItem->setCheckable( aEntry.m_data.qtItem->isCheckable() );
         break;
 
     case SEPARATOR:
@@ -257,7 +241,7 @@ CONDITIONAL_MENU::ENTRY::ENTRY( const ENTRY& aEntry )
 
 CONDITIONAL_MENU::ENTRY::~ENTRY()
 {
-    if( WXITEM == m_type )
-        delete m_data.wxItem;
+    if( QTITEM == m_type )
+        delete m_data.qtItem;
 }
 

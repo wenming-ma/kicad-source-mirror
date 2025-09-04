@@ -1,29 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 
 #include <layer_ids.h>
@@ -41,9 +15,9 @@
 
 #include <core/profile.h>
 
-#ifdef KICAD_GAL_PROFILE
-#include <wx/log.h>
-#endif
+#include <QtCore/QDebug>
+#include <QtCore/QString>
+
 
 namespace KIGFX {
 
@@ -74,12 +48,6 @@ public:
 private:
     friend class VIEW;
 
-    /**
-     * Return number of the group id for the given layer, or -1 in case it was not cached before.
-     *
-     * @param aLayer is the layer number for which group id is queried.
-     * @return group id or -1 in case there is no group id (ie. item is not cached).
-     */
     int getGroup( int aLayer ) const
     {
         for( int i = 0; i < m_groupsSize; ++i )
@@ -91,12 +59,6 @@ private:
         return -1;
     }
 
-    /**
-     * Set a group id for the item and the layer combination.
-     *
-     * @param aLayer is the layer number.
-     * @param aGroup is the group id.
-     */
     void setGroup( int aLayer, int aGroup )
     {
         // Look if there is already an entry for the layer
@@ -123,9 +85,6 @@ private:
     }
 
 
-    /**
-     * Remove all of the stored group ids. Forces recaching of the item.
-     */
     void deleteGroups()
     {
         delete[] m_groups;
@@ -133,23 +92,11 @@ private:
         m_groupsSize = 0;
     }
 
-    /**
-     * Return information if the item uses at least one group id (ie. if it is cached at all).
-     *
-     * @returns true in case it is cached at least for one layer.
-     */
     inline bool storesGroups() const
     {
         return m_groupsSize > 0;
     }
 
-    /**
-     * Reorder the stored groups (to facilitate reordering of layers).
-     *
-     * @see VIEW::ReorderLayerData
-     *
-     * @param aReorderMap is the mapping of old to new layer ids
-     */
     void reorderGroups( std::unordered_map<int, int> aReorderMap )
     {
         for( int i = 0; i < m_groupsSize; ++i )
@@ -164,61 +111,44 @@ private:
         }
     }
 
-    /**
-     * Save layers used by the item.
-     *
-     * @param aLayers is an array containing layer numbers to be saved.
-     * @param aCount is the size of the array.
-     */
     void saveLayers( const std::vector<int>& aLayers )
     {
         m_layers.clear();
 
         for( int layer : aLayers )
         {
-            wxCHECK2_MSG( layer >= 0 && layer < VIEW::VIEW_MAX_LAYERS, continue,
-                          wxString::Format( wxT( "Invalid layer number: %d" ), layer ) );
+            Q_ASSERT_X( layer >= 0 && layer < VIEW::VIEW_MAX_LAYERS, "VIEW_ITEM_DATA::saveLayers", QString("Invalid layer number: %1").arg(layer).toLocal8Bit().constData() );
             m_layers.push_back( layer );
         }
     }
 
-    /**
-     * Return current update flag for an item.
-     */
     int requiredUpdate() const
     {
         return m_requiredUpdate;
     }
 
-    /**
-     * Mark an item as already updated, so it is not going to be redrawn.
-     */
     void clearUpdateFlags()
     {
         m_requiredUpdate = NONE;
     }
 
-    /**
-     * Return if the item should be drawn or not.
-     */
     bool isRenderable() const
     {
         return m_flags == VISIBLE;
     }
 
-    VIEW*                m_view;             ///< Current dynamic view the item is assigned to.
-    int                  m_flags;            ///< Visibility flags
-    int                  m_requiredUpdate;   ///< Flag required for updating
-    int                  m_drawPriority;     ///< Order to draw this item in a layer, lowest first
-    int                  m_cachedIndex;      ///< Cached index in m_allItems.
+    VIEW*                m_view;
+    int                  m_flags;
+    int                  m_requiredUpdate;
+    int                  m_drawPriority;
+    int                  m_cachedIndex;
 
-    std::pair<int, int>* m_groups;           ///< layer_number:group_id pairs for each layer the
-                                             ///< item occupies.
+    std::pair<int, int>* m_groups;
     int                  m_groupsSize;
 
-    std::vector<int>     m_layers;           /// Stores layer numbers used by the item.
+    std::vector<int>     m_layers;
 
-    BOX2I                m_bbox;             /// Cached inserted Bbox for faster removals.
+    BOX2I                m_bbox;
 };
 
 
@@ -302,9 +232,9 @@ void VIEW::Add( VIEW_ITEM* aItem, int aDrawPriority )
     if( !aItem->m_viewPrivData )
         aItem->m_viewPrivData = new VIEW_ITEM_DATA;
 
-    wxASSERT_MSG( aItem->m_viewPrivData->m_view == nullptr
+    Q_ASSERT_X( aItem->m_viewPrivData->m_view == nullptr
                     || aItem->m_viewPrivData->m_view == this,
-                  wxS( "Already in a different view!" ) );
+                  "VIEW::Add", "Already in a different view!" );
 
     aItem->m_viewPrivData->m_view = this;
     aItem->m_viewPrivData->m_drawPriority = aDrawPriority;
@@ -344,7 +274,7 @@ void VIEW::Remove( VIEW_ITEM* aItem )
 
     if( aItem && aItem->m_viewPrivData )
     {
-        wxCHECK_MSG( aItem->m_viewPrivData->m_view == this, /*void*/, aItem->GetClass() );
+        Q_ASSERT_X( aItem->m_viewPrivData->m_view == this, "VIEW::Remove", QString("Item class: %1").arg(aItem->GetClass()).toLocal8Bit().constData() );
 
         std::vector<VIEW_ITEM*>::iterator item = m_allItems->end();
         int                               cachedIndex = aItem->m_viewPrivData->m_cachedIndex;
@@ -406,8 +336,8 @@ void VIEW::Remove( VIEW_ITEM* aItem )
 
 void VIEW::SetRequired( int aLayerId, int aRequiredId, bool aRequired )
 {
-    wxCHECK( (unsigned) aLayerId < m_layers.size(), /*void*/ );
-    wxCHECK( (unsigned) aRequiredId < m_layers.size(), /*void*/ );
+    Q_ASSERT( (unsigned) aLayerId < m_layers.size() );
+    Q_ASSERT( (unsigned) aRequiredId < m_layers.size() );
 
     if( aRequired )
         m_layers[aLayerId].requiredLayers.insert( aRequiredId );
@@ -503,7 +433,7 @@ double VIEW::ToScreen( double aSize ) const
 
 void VIEW::CopySettings( const VIEW* aOtherView )
 {
-    wxASSERT_MSG( false, wxT( "This is not implemented" ) );
+    Q_ASSERT_X( false, "VIEW::CopySettings", "This is not implemented" );
 }
 
 
@@ -542,7 +472,7 @@ void VIEW::SetViewport( const BOX2D& aViewport )
 {
     VECTOR2D ssize = ToWorld( m_gal->GetScreenPixelSize(), false );
 
-    wxCHECK( fabs(ssize.x) > 0 && fabs(ssize.y) > 0, /*void*/ );
+    Q_ASSERT( fabs(ssize.x) > 0 && fabs(ssize.y) > 0 );
 
     VECTOR2D centre = aViewport.Centre();
     VECTOR2D vsize  = aViewport.GetSize();
@@ -555,7 +485,7 @@ void VIEW::SetViewport( const BOX2D& aViewport )
 
 void VIEW::SetMirror( bool aMirrorX, bool aMirrorY )
 {
-    wxASSERT_MSG( !aMirrorY, _( "Mirroring for Y axis is not supported yet" ) );
+    Q_ASSERT_X( !aMirrorY, "VIEW::SetMirror", "Mirroring for Y axis is not supported yet" );
 
     m_mirrorX = aMirrorX;
     m_mirrorY = aMirrorY;
@@ -948,7 +878,7 @@ struct VIEW::DRAW_ITEM_VISITOR
 
     bool operator()( VIEW_ITEM* aItem )
     {
-        wxCHECK( aItem->viewPrivData(), false );
+        Q_ASSERT( aItem->viewPrivData() );
 
         if( aItem->m_forcedTransparency > 0 && !drawForcedTransparent )
         {
@@ -1193,7 +1123,7 @@ void VIEW::Redraw()
 
 #ifdef KICAD_GAL_PROFILE
     totalRealTime.Stop();
-    wxLogTrace( traceGalProfile, wxS( "VIEW::Redraw(): %.1f ms" ), totalRealTime.msecs() );
+    qDebug() << QString("VIEW::Redraw(): %1 ms").arg(totalRealTime.msecs(), 0, 'f', 1);
 #endif /* KICAD_GAL_PROFILE */
 }
 
@@ -1291,7 +1221,7 @@ void VIEW::sortOrderedLayers()
 void VIEW::updateItemColor( VIEW_ITEM* aItem, int aLayer )
 {
     VIEW_ITEM_DATA* viewData = aItem->viewPrivData();
-    wxCHECK( IsCached( aLayer ), /*void*/ ); // This will check if the layer exists
+    Q_ASSERT( IsCached( aLayer ) ); // This will check if the layer exists
 
     if( !viewData )
         return;
@@ -1347,7 +1277,7 @@ void VIEW::updateBbox( VIEW_ITEM* aItem )
 {
     std::vector<int> layers = aItem->ViewGetLayers();
 
-    wxASSERT( aItem->m_viewPrivData ); //must have a viewPrivData
+    Q_ASSERT( aItem->m_viewPrivData ); //must have a viewPrivData
 
     const BOX2I  new_bbox = aItem->ViewBBox();
     const BOX2I* old_bbox = &aItem->m_viewPrivData->m_bbox;
@@ -1527,7 +1457,7 @@ void VIEW::UpdateItems()
             {
                 auto it = m_layers.find( layer );
 
-                wxCHECK2_MSG( it != m_layers.end(), continue, wxS( "Invalid layer" ) );
+                Q_ASSERT_X( it != m_layers.end(), "VIEW::UpdateItems", "Invalid layer" );
 
                 VIEW_LAYER& l = it->second;
                 l.items->Insert( item, bbox );
@@ -1552,8 +1482,7 @@ void VIEW::UpdateItems()
         }
     }
 
-    KI_TRACE( traceGalProfile, wxS( "View update: total items %u, geom %u anyUpdated %u\n" ),
-              cntTotal, cntGeomUpdate, (unsigned) anyUpdated );
+    qDebug() << QString("View update: total items %1, geom %2 anyUpdated %3").arg(cntTotal).arg(cntGeomUpdate).arg((unsigned)anyUpdated);
 }
 
 

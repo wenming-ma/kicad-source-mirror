@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <hotkey_store.h>
 #include <eda_base_frame.h>
@@ -32,7 +10,7 @@
 class PSEUDO_ACTION : public TOOL_ACTION
 {
 public:
-    PSEUDO_ACTION( const wxString& aLabel, int aHotKey, int aHotKeyAlt = 0 )
+    PSEUDO_ACTION( const QString& aLabel, int aHotKey, int aHotKeyAlt = 0 )
     {
         m_friendlyName = aLabel;
         m_hotKey = aHotKey;
@@ -62,28 +40,28 @@ static PSEUDO_ACTION* g_standardPlatformCommands[] = {
 };
 
 
-wxString HOTKEY_STORE::GetAppName( TOOL_ACTION* aAction )
+QString HOTKEY_STORE::GetAppName( TOOL_ACTION* aAction )
 {
-    wxString name( aAction->GetName() );
-    return name.BeforeFirst( '.' );
+    QString name( aAction->GetName() );
+    return name.left( name.indexOf( '.' ) );
 }
 
 
-wxString HOTKEY_STORE::GetSectionName( TOOL_ACTION* aAction )
+QString HOTKEY_STORE::GetSectionName( TOOL_ACTION* aAction )
 {
-    std::map<wxString, wxString> s_AppNames = {
-            { wxT( "common" ),   _( "Common" ) },
-            { wxT( "kicad" ),    _( "Project Manager" ) },
-            { wxT( "eeschema" ), _( "Schematic Editor" ) },
-            { wxT( "pcbnew" ),   _( "PCB Editor" ) },
-            { wxT( "plEditor" ), _( "Drawing Sheet Editor" ), },
-            { wxT( "3DViewer" ), _( "3D Viewer" ) },
-            { wxT( "gerbview" ), _( "Gerber Viewer" ) }
+    QHash<QString, QString> s_AppNames = {
+            { QStringLiteral( "common" ),   _( "Common" ) },
+            { QStringLiteral( "kicad" ),    _( "Project Manager" ) },
+            { QStringLiteral( "eeschema" ), _( "Schematic Editor" ) },
+            { QStringLiteral( "pcbnew" ),   _( "PCB Editor" ) },
+            { QStringLiteral( "plEditor" ), _( "Drawing Sheet Editor" ), },
+            { QStringLiteral( "3DViewer" ), _( "3D Viewer" ) },
+            { QStringLiteral( "gerbview" ), _( "Gerber Viewer" ) }
     };
 
-    wxString appName = GetAppName( aAction );
+    QString appName = GetAppName( aAction );
 
-    if( s_AppNames.count( appName ) )
+    if( s_AppNames.contains( appName ) )
         return s_AppNames[ appName ];
     else
         return appName;
@@ -95,9 +73,9 @@ HOTKEY_STORE::HOTKEY_STORE()
 }
 
 
-void HOTKEY_STORE::Init( std::vector<TOOL_ACTION*> aActionsList, bool aIncludeReadOnlyCmds )
+void HOTKEY_STORE::Init( QVector<TOOL_ACTION*> aActionsList, bool aIncludeReadOnlyCmds )
 {
-    std::map<std::string, HOTKEY> masterMap;
+    QHash<std::string, HOTKEY> masterMap;
 
     for( TOOL_ACTION* action : aActionsList )
     {
@@ -124,7 +102,7 @@ void HOTKEY_STORE::Init( std::vector<TOOL_ACTION*> aActionsList, bool aIncludeRe
         }
     }
 
-    wxString        currentApp;
+    QString        currentApp;
     HOTKEY_SECTION* currentSection = nullptr;
 
     // If a previous list was built, ensure this previous list is cleared:
@@ -133,7 +111,7 @@ void HOTKEY_STORE::Init( std::vector<TOOL_ACTION*> aActionsList, bool aIncludeRe
     for( const std::pair<const std::string, HOTKEY>& entry : masterMap )
     {
         TOOL_ACTION* entryAction = entry.second.m_Actions[ 0 ];
-        wxString     entryApp = GetAppName( entryAction );
+        QString     entryApp = GetAppName( entryAction );
 
         if( !currentSection || entryApp != currentApp )
         {
@@ -164,7 +142,7 @@ void HOTKEY_STORE::Init( std::vector<TOOL_ACTION*> aActionsList, bool aIncludeRe
 }
 
 
-std::vector<HOTKEY_SECTION>& HOTKEY_STORE::GetSections()
+QVector<HOTKEY_SECTION>& HOTKEY_STORE::GetSections()
 {
     return m_hk_sections;
 }
@@ -211,13 +189,13 @@ void HOTKEY_STORE::ResetAllHotkeysToOriginal()
 
 bool HOTKEY_STORE::CheckKeyConflicts( TOOL_ACTION* aAction, long aKey, HOTKEY** aConflict )
 {
-    wxString sectionName = GetSectionName( aAction );
+    QString sectionName = GetSectionName( aAction );
 
     // Create a fake "TOOL_ACTION" so we can get the section name for "Common" through the API.
-    // Simply declaring a wxString with the value "Common" works, but the goal is to futureproof
+    // Simply declaring a QString with the value "Common" works, but the goal is to futureproof
     // the code here as much as possible.
     TOOL_ACTION commonAction( TOOL_ACTION_ARGS().Name( "common.Control.Fake" ).Scope( AS_GLOBAL ) );
-    wxString    commonName = GetSectionName( &commonAction );
+    QString    commonName = GetSectionName( &commonAction );
 
     for( HOTKEY_SECTION& section : m_hk_sections )
     {

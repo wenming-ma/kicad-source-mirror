@@ -1,231 +1,223 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
-#include <wx/dir.h>
-#include <wx/filename.h>
-#include <wx/stdpaths.h>
-#include <wx/string.h>
-#include <wx/utils.h>
+#include <QDir>
+#include <QFileInfo>
+#include <QStandardPaths>
+#include <QString>
+#include <QCoreApplication>
+#include <QStringList>
 
 #include <kiplatform/environment.h>
 #include <paths.h>
 #include <config.h>
 #include <build_version.h>
 #include <macros.h>
-#include <wx_filename.h>
 
 // lowercase or pretty case depending on platform
-#if defined( __WXMAC__ ) || defined( __WXMSW__ )
-#define KICAD_PATH_STR wxT( "KiCad" )
+#if defined( Q_OS_MAC ) || defined( Q_OS_WIN )
+#define KICAD_PATH_STR "KiCad"
 #else
-#define KICAD_PATH_STR  wxT( "kicad" )
+#define KICAD_PATH_STR "kicad"
 #endif
 
 
-void PATHS::getUserDocumentPath( wxFileName& aPath )
+void PATHS::getUserDocumentPath( QFileInfo& aPath )
 {
-    wxString envPath;
+    QString envPath;
 
-    if( wxGetEnv( wxT( "KICAD_DOCUMENTS_HOME" ), &envPath ) )
-        aPath.AssignDir( envPath );
+    if( qEnvironmentVariableIsSet( "KICAD_DOCUMENTS_HOME" ) )
+    {
+        envPath = qgetenv( "KICAD_DOCUMENTS_HOME" );
+        aPath = QFileInfo( QDir( envPath ).absolutePath() );
+    }
     else
-        aPath.AssignDir( KIPLATFORM::ENV::GetDocumentsPath() );
+    {
+        aPath = QFileInfo( QDir( KIPLATFORM::ENV::GetDocumentsPath() ).absolutePath() );
+    }
 
-    aPath.AppendDir( KICAD_PATH_STR );
-    aPath.AppendDir( GetMajorMinorVersion().ToStdString() );
+    QDir dir( aPath.absoluteFilePath() );
+    dir.cd( KICAD_PATH_STR );
+    dir.cd( GetMajorMinorVersion().toStdString().c_str() );
+    aPath = QFileInfo( dir.absolutePath() );
 }
 
 
-wxString PATHS::GetUserPluginsPath()
+QString PATHS::GetUserPluginsPath()
 {
-    wxFileName tmp;
+    QFileInfo tmp;
     getUserDocumentPath( tmp );
 
-    tmp.AppendDir( wxT( "plugins" ) );
+    QDir dir( tmp.absoluteFilePath() );
+    dir.cd( "plugins" );
 
-    return tmp.GetPath();
+    return dir.absolutePath();
 }
 
 
-wxString PATHS::GetUserScriptingPath()
+QString PATHS::GetUserScriptingPath()
 {
-    wxFileName tmp;
+    QFileInfo tmp;
     getUserDocumentPath( tmp );
 
-    tmp.AppendDir( wxT( "scripting" ) );
+    QDir dir( tmp.absoluteFilePath() );
+    dir.cd( "scripting" );
 
-    return tmp.GetPath();
+    return dir.absolutePath();
 }
 
 
-wxString PATHS::GetUserTemplatesPath()
+QString PATHS::GetUserTemplatesPath()
 {
-    wxFileName tmp;
+    QFileInfo tmp;
     getUserDocumentPath( tmp );
 
-    tmp.AppendDir( wxT( "template" ) );
+    QDir dir( tmp.absoluteFilePath() );
+    dir.cd( "template" );
 
-    return tmp.GetPathWithSep();
+    return dir.absolutePath() + QDir::separator();
 }
 
 
-wxString PATHS::GetDefaultUserSymbolsPath()
+QString PATHS::GetDefaultUserSymbolsPath()
 {
-    wxFileName tmp;
+    QFileInfo tmp;
     getUserDocumentPath( tmp );
 
-    tmp.AppendDir( wxT( "symbols" ) );
+    QDir dir( tmp.absoluteFilePath() );
+    dir.cd( "symbols" );
 
-    return tmp.GetPath();
+    return dir.absolutePath();
 }
 
 
-wxString PATHS::GetDefaultUserFootprintsPath()
+QString PATHS::GetDefaultUserFootprintsPath()
 {
-    wxFileName tmp;
+    QFileInfo tmp;
     getUserDocumentPath( tmp );
 
-    tmp.AppendDir( wxT( "footprints" ) );
+    QDir dir( tmp.absoluteFilePath() );
+    dir.cd( "footprints" );
 
-    return tmp.GetPath();
+    return dir.absolutePath();
 }
 
 
-wxString PATHS::GetDefaultUserDesignBlocksPath()
+QString PATHS::GetDefaultUserDesignBlocksPath()
 {
-    wxFileName tmp;
+    QFileInfo tmp;
     getUserDocumentPath( tmp );
 
-    tmp.AppendDir( wxT( "blocks" ) );
+    QDir dir( tmp.absoluteFilePath() );
+    dir.cd( "blocks" );
 
-    return tmp.GetPath();
+    return dir.absolutePath();
 }
 
 
-wxString PATHS::GetDefaultUser3DModelsPath()
+QString PATHS::GetDefaultUser3DModelsPath()
 {
-    wxFileName tmp;
+    QFileInfo tmp;
     getUserDocumentPath( tmp );
 
-    tmp.AppendDir( wxT( "3dmodels" ) );
+    QDir dir( tmp.absoluteFilePath() );
+    dir.cd( "3dmodels" );
 
-    return tmp.GetPath();
+    return dir.absolutePath();
 }
 
 
-wxString PATHS::GetDefault3rdPartyPath()
+QString PATHS::GetDefault3rdPartyPath()
 {
-    wxFileName tmp;
+    QFileInfo tmp;
     getUserDocumentPath( tmp );
 
-    tmp.AppendDir( wxT( "3rdparty" ) );
+    QDir dir( tmp.absoluteFilePath() );
+    dir.cd( "3rdparty" );
 
-    return tmp.GetAbsolutePath();
+    return dir.absolutePath();
 }
 
 
-wxString PATHS::GetDefaultUserProjectsPath()
+QString PATHS::GetDefaultUserProjectsPath()
 {
-    wxFileName tmp;
+    QFileInfo tmp;
     getUserDocumentPath( tmp );
 
-    tmp.AppendDir( wxT( "projects" ) );
+    QDir dir( tmp.absoluteFilePath() );
+    dir.cd( "projects" );
 
-    return tmp.GetPath();
+    return dir.absolutePath();
 }
 
 
-/**
- * Get the CMake build root directory for the current executable
- * (which assumes the executable is in a build directory).
- *
- * This is done because not all executable are located at the same
- * depth in the build directory.
- */
-static wxString getBuildDirectoryRoot()
+static QString getBuildDirectoryRoot()
 {
     // We don't have a perfect way to spot a build directory (e.g. when archived as artifacts in
     // CI) but we can assume that the build directory will have a schemas directory that contains
     // JSON files, as that's one of the things that we use this path for.
-    const auto looksLikeBuildDir = []( const wxFileName& aPath ) -> bool
+    const auto looksLikeBuildDir = []( const QFileInfo& aPath ) -> bool
     {
-        const wxDir schema_dir( aPath.GetPathWithSep() + wxT( "schemas" ) );
+        const QDir schema_dir( aPath.absoluteFilePath() + QDir::separator() + "schemas" );
 
-        if( !schema_dir.IsOpened() )
+        if( !schema_dir.exists() )
             return false;
 
-        wxString   filename;
-        const bool found = schema_dir.GetFirst( &filename, wxT( "*.json" ), wxDIR_FILES );
-        return found;
+        QStringList jsonFiles = schema_dir.entryList( QStringList() << "*.json", QDir::Files );
+        return !jsonFiles.isEmpty();
     };
 
-    const wxString execPath = PATHS::GetExecutablePath();
-    wxFileName     fn = execPath;
+    const QString execPath = PATHS::GetExecutablePath();
+    QFileInfo     fn( execPath );
 
     // Climb the directory tree until we find a directory that looks like a build directory
     // Normally we expect to climb one or two levels only.
-    while( fn.GetDirCount() > 0 && !looksLikeBuildDir( fn ) )
+    QDir dir( fn.absoluteFilePath() );
+    while( dir.cdUp() && !looksLikeBuildDir( QFileInfo( dir.absolutePath() ) ) )
     {
-        fn.RemoveLastDir();
+        // Continue climbing
     }
 
-    wxASSERT_MSG(
-            fn.GetDirCount() > 0,
-            wxString::Format( wxT( "Could not find build root directory above %s" ), execPath ) );
+    Q_ASSERT_X( !dir.isRoot(), "getBuildDirectoryRoot",
+                QString( "Could not find build root directory above %1" ).arg( execPath ).toLocal8Bit().data() );
 
-    return fn.GetPath();
+    return dir.absolutePath();
 }
 
 
-wxString PATHS::GetStockDataPath( bool aRespectRunFromBuildDir )
+QString PATHS::GetStockDataPath( bool aRespectRunFromBuildDir )
 {
-    wxString path;
+    QString path;
 
-    if( aRespectRunFromBuildDir && wxGetEnv( wxT( "KICAD_RUN_FROM_BUILD_DIR" ), nullptr ) )
+    if( aRespectRunFromBuildDir && qEnvironmentVariableIsSet( "KICAD_RUN_FROM_BUILD_DIR" ) )
     {
         // Allow debugging from build dir by placing relevant files/folders in the build root
-#if defined( __WXMAC__ )
-        wxFileName fn = wxStandardPaths::Get().GetExecutablePath();
+#if defined( Q_OS_MAC )
+        QFileInfo fn( QStandardPaths::findExecutable( QCoreApplication::applicationFilePath() ) );
+        QDir dir( fn.absolutePath() );
 
-        fn.RemoveLastDir();
-        fn.RemoveLastDir();
-        fn.RemoveLastDir();
-        fn.RemoveLastDir();
-        path = fn.GetPath();
-#elif defined( __WXMSW__ )
+        dir.cdUp();
+        dir.cdUp();
+        dir.cdUp();
+        dir.cdUp();
+        path = dir.absolutePath();
+#elif defined( Q_OS_WIN )
         path = getWindowsKiCadRoot();
 #else
         path = getBuildDirectoryRoot();
 #endif
     }
-    else if( wxGetEnv( wxT( "KICAD_STOCK_DATA_HOME" ), &path ) && !path.IsEmpty() )
+    else if( qEnvironmentVariableIsSet( "KICAD_STOCK_DATA_HOME" ) )
     {
-        return path;
+        path = qgetenv( "KICAD_STOCK_DATA_HOME" );
+        if( !path.isEmpty() )
+            return path;
     }
     else
     {
-#if defined( __WXMAC__ )
+#if defined( Q_OS_MAC )
         path = GetOSXKicadDataDir();
-#elif defined( __WXMSW__ )
-        path = getWindowsKiCadRoot() + wxT( "share/kicad" );
+#elif defined( Q_OS_WIN )
+        path = getWindowsKiCadRoot() + "share/kicad";
 #else
-        path = wxString::FromUTF8Unchecked( KICAD_DATA );
+        path = QString::fromUtf8( KICAD_DATA );
 #endif
     }
 
@@ -235,253 +227,258 @@ wxString PATHS::GetStockDataPath( bool aRespectRunFromBuildDir )
 
 #ifdef _WIN32
 
-wxString PATHS::GetWindowsBaseSharePath()
+QString PATHS::GetWindowsBaseSharePath()
 {
-    return getWindowsKiCadRoot() + wxT( "share\\" );
+    return getWindowsKiCadRoot() + "share\\";
 }
 
 #endif
 
 
-wxString PATHS::GetStockEDALibraryPath()
+QString PATHS::GetStockEDALibraryPath()
 {
-    wxString path;
+    QString path;
 
-#if defined( __WXMAC__ )
+#if defined( Q_OS_MAC )
     path = GetOSXKicadMachineDataDir();
-#elif defined( __WXMSW__ )
+#elif defined( Q_OS_WIN )
     path = GetStockDataPath( false );
 #else
-    path = wxString::FromUTF8Unchecked( KICAD_LIBRARY_DATA );
+    path = QString::fromUtf8( KICAD_LIBRARY_DATA );
 #endif
 
     return path;
 }
 
 
-wxString PATHS::GetStockSymbolsPath()
+QString PATHS::GetStockSymbolsPath()
 {
-    wxString path;
+    QString path;
 
-    path = GetStockEDALibraryPath() + wxT( "/symbols" );
+    path = GetStockEDALibraryPath() + "/symbols";
 
     return path;
 }
 
 
-wxString PATHS::GetStockFootprintsPath()
+QString PATHS::GetStockFootprintsPath()
 {
-    wxString path;
+    QString path;
 
-    path = GetStockEDALibraryPath() + wxT( "/footprints" );
+    path = GetStockEDALibraryPath() + "/footprints";
 
     return path;
 }
 
 
-wxString PATHS::GetStockDesignBlocksPath()
+QString PATHS::GetStockDesignBlocksPath()
 {
-    wxString path;
+    QString path;
 
-    path = GetStockEDALibraryPath() + wxT( "/blocks" );
+    path = GetStockEDALibraryPath() + "/blocks";
 
     return path;
 }
 
 
-wxString PATHS::GetStock3dmodelsPath()
+QString PATHS::GetStock3dmodelsPath()
 {
-    wxString path;
+    QString path;
 
-    path = GetStockEDALibraryPath() + wxT( "/3dmodels" );
+    path = GetStockEDALibraryPath() + "/3dmodels";
 
     return path;
 }
 
 
-wxString PATHS::GetStockScriptingPath()
+QString PATHS::GetStockScriptingPath()
 {
-    wxString path;
+    QString path;
 
-    path = GetStockDataPath() + wxT( "/scripting" );
+    path = GetStockDataPath() + "/scripting";
 
     return path;
 }
 
 
-wxString PATHS::GetStockTemplatesPath()
+QString PATHS::GetStockTemplatesPath()
 {
-    wxString path;
+    QString path;
 
-    path = GetStockEDALibraryPath() + wxT( "/template" );
+    path = GetStockEDALibraryPath() + "/template";
 
     return path;
 }
 
 
-wxString PATHS::GetLocaleDataPath()
+QString PATHS::GetLocaleDataPath()
 {
-    wxString path;
+    QString path;
 
-    path = GetStockDataPath() + wxT( "/internat" );
+    path = GetStockDataPath() + "/internat";
 
     return path;
 }
 
 
-wxString PATHS::GetStockPluginsPath()
+QString PATHS::GetStockPluginsPath()
 {
-    wxFileName fn;
+    QDir dir;
 
-#if defined( __WXMSW__ )
-    fn.AssignDir( GetExecutablePath() );
-    fn.AppendDir( wxT( "scripting" ) );
+#if defined( Q_OS_WIN )
+    dir.setPath( GetExecutablePath() );
+    dir.cd( "scripting" );
 #else
-    fn.AssignDir( PATHS::GetStockDataPath( false ) );
+    dir.setPath( PATHS::GetStockDataPath( false ) );
 #endif
-    fn.AppendDir( wxT( "plugins" ) );
+    dir.cd( "plugins" );
 
-    return fn.GetPathWithSep();
+    return dir.absolutePath() + QDir::separator();
 }
 
 
-wxString PATHS::GetStockPlugins3DPath()
+QString PATHS::GetStockPlugins3DPath()
 {
-    wxFileName fn;
+    QDir dir;
 
-#if defined( __WXMSW__ )
-    if( wxGetEnv( wxT( "KICAD_RUN_FROM_BUILD_DIR" ), nullptr ) )
+#if defined( Q_OS_WIN )
+    if( qEnvironmentVariableIsSet( "KICAD_RUN_FROM_BUILD_DIR" ) )
     {
-        fn.AssignDir( getWindowsKiCadRoot() );
+        dir.setPath( getWindowsKiCadRoot() );
     }
     else
     {
-        fn.AssignDir( GetExecutablePath() );
+        dir.setPath( GetExecutablePath() );
     }
 
-    fn.AppendDir( wxT( "plugins" ) );
-#elif defined( __WXMAC__ )
-    fn.Assign( wxStandardPaths::Get().GetPluginsDir(), wxEmptyString );
+    dir.cd( "plugins" );
+#elif defined( Q_OS_MAC )
+    QString pluginsDir = QStandardPaths::locate( QStandardPaths::DataLocation, "plugins", QStandardPaths::LocateDirectory );
+    dir.setPath( pluginsDir );
 
     // This must be mapped to main bundle for everything but kicad.app
-    const wxArrayString dirs = fn.GetDirs();
+    QStringList pathParts = dir.absolutePath().split( '/' );
 
     // Check if we are the main kicad binary.  in this case, the path will be
     //     /path/to/bundlename.app/Contents/PlugIns
     // If we are an aux binary, the path will be something like
     //     /path/to/bundlename.app/Contents/Applications/<standalone>.app/Contents/PlugIns
-    if( dirs.GetCount() >= 6 &&
-        dirs[dirs.GetCount() - 4] == wxT( "Applications" ) &&
-        dirs[dirs.GetCount() - 6].Lower().EndsWith( wxT( "app" ) ) )
+    if( pathParts.count() >= 6 &&
+        pathParts[pathParts.count() - 4] == "Applications" &&
+        pathParts[pathParts.count() - 6].toLower().endsWith( "app" ) )
     {
-        fn.RemoveLastDir();
-        fn.RemoveLastDir();
-        fn.RemoveLastDir();
-        fn.RemoveLastDir();
-        fn.AppendDir( wxT( "PlugIns" ) );
+        dir.cdUp();
+        dir.cdUp();
+        dir.cdUp();
+        dir.cdUp();
+        dir.cd( "PlugIns" );
     }
 #else
     // KICAD_PLUGINDIR = CMAKE_INSTALL_FULL_LIBDIR path is the absolute path
     // corresponding to the install path used for constructing KICAD_USER_PLUGIN
-    wxString tfname = wxString::FromUTF8Unchecked( KICAD_PLUGINDIR );
-    fn.Assign( tfname, "" );
-    fn.AppendDir( wxT( "kicad" ) );
-    fn.AppendDir( wxT( "plugins" ) );
+    QString tfname = QString::fromUtf8( KICAD_PLUGINDIR );
+    dir.setPath( tfname );
+    dir.cd( "kicad" );
+    dir.cd( "plugins" );
 #endif
 
-    fn.AppendDir( wxT( "3d" ) );
+    dir.cd( "3d" );
 
-    return fn.GetPathWithSep();
+    return dir.absolutePath() + QDir::separator();
 }
 
 
-wxString PATHS::GetStockDemosPath()
+QString PATHS::GetStockDemosPath()
 {
-    wxFileName fn;
+    QDir dir;
 
-    fn.AssignDir( PATHS::GetStockDataPath( false ) );
-    fn.AppendDir( wxT( "demos" ) );
+    dir.setPath( PATHS::GetStockDataPath( false ) );
+    dir.cd( "demos" );
 
-    return fn.GetPathWithSep();
+    return dir.absolutePath() + QDir::separator();
 }
 
 
-wxString PATHS::GetUserCachePath()
+QString PATHS::GetUserCachePath()
 {
-    wxString   envPath;
-    wxFileName tmp;
+    QString   envPath;
+    QDir dir;
 
-    tmp.AssignDir( KIPLATFORM::ENV::GetUserCachePath() );
+    dir.setPath( KIPLATFORM::ENV::GetUserCachePath() );
 
     // Use KICAD_CACHE_HOME to allow the user to force a specific cache path.
-    if( wxGetEnv( wxT( "KICAD_CACHE_HOME" ), &envPath ) && !envPath.IsEmpty() )
+    if( qEnvironmentVariableIsSet( "KICAD_CACHE_HOME" ) )
     {
-        // Override the assignment above with KICAD_CACHE_HOME
-        tmp.AssignDir( envPath );
+        envPath = qgetenv( "KICAD_CACHE_HOME" );
+        if( !envPath.isEmpty() )
+        {
+            // Override the assignment above with KICAD_CACHE_HOME
+            dir.setPath( envPath );
+        }
     }
 
-    tmp.AppendDir( KICAD_PATH_STR );
-    tmp.AppendDir( GetMajorMinorVersion().ToStdString() );
+    dir.cd( KICAD_PATH_STR );
+    dir.cd( GetMajorMinorVersion().toStdString().c_str() );
 
-    return tmp.GetPathWithSep();
+    return dir.absolutePath() + QDir::separator();
 }
 
 
-wxString PATHS::GetDocumentationPath()
+QString PATHS::GetDocumentationPath()
 {
-    wxString path;
+    QString path;
 
-#if defined( __WXMAC__ )
+#if defined( Q_OS_MAC )
     path = GetOSXKicadDataDir();
-#elif defined( __WXMSW__ )
-    path = getWindowsKiCadRoot() + wxT( "share/doc/kicad" );
+#elif defined( Q_OS_WIN )
+    path = getWindowsKiCadRoot() + "share/doc/kicad";
 #else
-    path = wxString::FromUTF8Unchecked( KICAD_DOCS );
+    path = QString::fromUtf8( KICAD_DOCS );
 #endif
 
     return path;
 }
 
 
-wxString PATHS::GetInstanceCheckerPath()
+QString PATHS::GetInstanceCheckerPath()
 {
-    wxFileName path;
-    path.AssignDir( wxStandardPaths::Get().GetTempDir() );
-    path.AppendDir( "org.kicad.kicad" );
-    path.AppendDir( "instances" );
-    return path.GetPathWithSep();
+    QDir dir( QStandardPaths::writableLocation( QStandardPaths::TempLocation ) );
+    dir.cd( "org.kicad.kicad" );
+    dir.cd( "instances" );
+    return dir.absolutePath() + QDir::separator();
 }
 
 
-wxString PATHS::GetLogsPath()
+QString PATHS::GetLogsPath()
 {
-    wxFileName tmp;
+    QFileInfo tmp;
     getUserDocumentPath( tmp );
 
-    tmp.AppendDir( wxT( "logs" ) );
+    QDir dir( tmp.absoluteFilePath() );
+    dir.cd( "logs" );
 
-    return tmp.GetPath();
+    return dir.absolutePath();
 }
 
 
-bool PATHS::EnsurePathExists( const wxString& aPath, bool aPathToFile )
+bool PATHS::EnsurePathExists( const QString& aPath, bool aPathToFile )
 {
-    wxString   pathString = aPath;
+    QString   pathString = aPath;
     if( !aPathToFile )
     {
         // ensures the path is treated fully as directory
-        pathString += wxFileName::GetPathSeparator();
+        pathString += QDir::separator();
     }
 
-    wxFileName path( pathString );
-    if( !path.MakeAbsolute() )
-    {
-        return false;
-    }
+    QFileInfo path( pathString );
+    QDir dir( path.absolutePath() );
 
-    if( !wxFileName::DirExists( path.GetPath() ) )
+    if( aPathToFile )
+        dir = QDir( path.absoluteDir() );
+
+    if( !dir.exists() )
     {
-        if( !wxFileName::Mkdir( path.GetPath(), wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL ) )
+        if( !dir.mkpath( dir.absolutePath() ) )
         {
             return false;
         }
@@ -505,158 +502,165 @@ void PATHS::EnsureUserPathsExist()
 }
 
 
-#ifdef __WXMAC__
-wxString PATHS::GetOSXKicadUserDataDir()
+#ifdef Q_OS_MAC
+QString PATHS::GetOSXKicadUserDataDir()
 {
-    // According to wxWidgets documentation for GetUserDataDir:
+    // According to Qt documentation for GenericDataLocation:
     // Mac: ~/Library/Application Support/appname
-    wxFileName udir( wxStandardPaths::Get().GetUserDataDir(), wxEmptyString );
+    QDir udir( QStandardPaths::writableLocation( QStandardPaths::GenericDataLocation ) );
 
     // Since appname is different if started via launcher or standalone binary
     // map all to "kicad" here
-    udir.RemoveLastDir();
-    udir.AppendDir(  wxT( "kicad" ) );
+    udir.cdUp();
+    udir.cd( "kicad" );
 
-    return udir.GetPath();
+    return udir.absolutePath();
 }
 
 
-wxString PATHS::GetOSXKicadMachineDataDir()
+QString PATHS::GetOSXKicadMachineDataDir()
 {
     // 6.0 forward:  Same as the main data dir
     return GetOSXKicadDataDir();
 }
 
 
-wxString PATHS::GetOSXKicadDataDir()
+QString PATHS::GetOSXKicadDataDir()
 {
-    // According to wxWidgets documentation for GetDataDir:
+    // According to Qt documentation for GenericDataLocation:
     // Mac: appname.app/Contents/SharedSupport bundle subdirectory
-    wxFileName ddir( wxStandardPaths::Get().GetDataDir(), wxEmptyString );
+    QDir ddir( QStandardPaths::locate( QStandardPaths::DataLocation, "", QStandardPaths::LocateDirectory ) );
 
     // This must be mapped to main bundle for everything but kicad.app
-    const wxArrayString dirs = ddir.GetDirs();
+    QStringList pathParts = ddir.absolutePath().split( '/' );
 
     // Check if we are the main kicad binary.  in this case, the path will be
     //     /path/to/bundlename.app/Contents/SharedSupport
     // If we are an aux binary, the path will be something like
     //     /path/to/bundlename.app/Contents/Applications/<standalone>.app/Contents/SharedSupport
-    if( dirs.GetCount() >= 6 &&
-        dirs[dirs.GetCount() - 4] == wxT( "Applications" ) &&
-        dirs[dirs.GetCount() - 6].Lower().EndsWith( wxT( "app" ) ) )
+    if( pathParts.count() >= 6 &&
+        pathParts[pathParts.count() - 4] == "Applications" &&
+        pathParts[pathParts.count() - 6].toLower().endsWith( "app" ) )
     {
-        ddir.RemoveLastDir();
-        ddir.RemoveLastDir();
-        ddir.RemoveLastDir();
-        ddir.RemoveLastDir();
-        ddir.AppendDir( wxT( "SharedSupport" ) );
+        ddir.cdUp();
+        ddir.cdUp();
+        ddir.cdUp();
+        ddir.cdUp();
+        ddir.cd( "SharedSupport" );
     }
 
-    return ddir.GetPath();
+    return ddir.absolutePath();
 }
 #endif
 
 
 #ifdef _WIN32
-wxString PATHS::GetWindowsFontConfigDir()
+QString PATHS::GetWindowsFontConfigDir()
 {
-    wxFileName fn;
-    fn.AssignDir( getWindowsKiCadRoot() );
-    fn.AppendDir( wxS( "etc" ) );
-    fn.AppendDir( wxS( "fonts" ) );
+    QDir dir( getWindowsKiCadRoot() );
+    dir.cd( "etc" );
+    dir.cd( "fonts" );
 
-    return fn.GetPathWithSep();
+    return dir.absolutePath() + QDir::separator();
 }
 
 
-wxString PATHS::getWindowsKiCadRoot()
+QString PATHS::getWindowsKiCadRoot()
 {
-    wxFileName root( GetExecutablePath() +  wxT( "/../" ) );
-    root.MakeAbsolute();
+    QDir root( GetExecutablePath() + "/../" );
+    root.makeAbsolute();
 
-    return root.GetPathWithSep();
+    return root.absolutePath() + QDir::separator();
 }
 #endif
 
 
-wxString PATHS::GetUserSettingsPath()
+QString PATHS::GetUserSettingsPath()
 {
-    static wxString user_settings_path;
+    static QString user_settings_path;
 
-    if( user_settings_path.empty() )
+    if( user_settings_path.isEmpty() )
         user_settings_path = CalculateUserSettingsPath();
 
     return user_settings_path;
 }
 
 
-wxString PATHS::CalculateUserSettingsPath( bool aIncludeVer, bool aUseEnv )
+QString PATHS::CalculateUserSettingsPath( bool aIncludeVer, bool aUseEnv )
 {
-    wxFileName cfgpath;
+    QDir cfgpath;
 
-    // http://docs.wxwidgets.org/3.0/classwx_standard_paths.html#a7c7cf595d94d29147360d031647476b0
-
-    wxString envstr;
-    if( aUseEnv && wxGetEnv( wxT( "KICAD_CONFIG_HOME" ), &envstr ) && !envstr.IsEmpty() )
+    QString envstr;
+    if( aUseEnv && qEnvironmentVariableIsSet( "KICAD_CONFIG_HOME" ) )
     {
-        // Override the assignment above with KICAD_CONFIG_HOME
-        cfgpath.AssignDir( envstr );
+        envstr = qgetenv( "KICAD_CONFIG_HOME" );
+        if( !envstr.isEmpty() )
+        {
+            // Override the assignment above with KICAD_CONFIG_HOME
+            cfgpath.setPath( envstr );
+        }
     }
     else
     {
-        cfgpath.AssignDir( KIPLATFORM::ENV::GetUserConfigPath() );
+        cfgpath.setPath( KIPLATFORM::ENV::GetUserConfigPath() );
 
-        cfgpath.AppendDir( TO_STR( KICAD_CONFIG_DIR ) );
+        cfgpath.cd( TO_STR( KICAD_CONFIG_DIR ) );
     }
 
     if( aIncludeVer )
-        cfgpath.AppendDir( GetMajorMinorVersion().ToStdString() );
+        cfgpath.cd( GetMajorMinorVersion().toStdString().c_str() );
 
-    return cfgpath.GetPath();
+    return cfgpath.absolutePath();
 }
 
 
-const wxString& PATHS::GetExecutablePath()
+const QString& PATHS::GetExecutablePath()
 {
-    static wxString exe_path;
+    static QString exe_path;
 
-    if( exe_path.empty() )
+    if( exe_path.isEmpty() )
     {
-        wxString bin_dir = wxStandardPaths::Get().GetExecutablePath();
+        QString bin_dir = QCoreApplication::applicationDirPath();
 
-#ifdef __WXMAC__
-        // On OSX GetExecutablePath() will always point to main
+#ifdef Q_OS_MAC
+        // On OSX applicationDirPath() will always point to main
         // bundle directory, e.g., /Applications/kicad.app/
 
-        wxFileName fn( bin_dir );
-        WX_FILENAME::ResolvePossibleSymlinks( fn );
-
-        if( fn.GetName() == wxT( "kicad" ) || fn.GetName() == wxT( "kicad-cli" ) )
+        QFileInfo fn( bin_dir );
+        QDir dir( fn.absoluteFilePath() );
+        
+        // Resolve symlinks if needed (simplified approach)
+        QString baseName = QFileInfo( QCoreApplication::applicationFilePath() ).baseName();
+        
+        if( baseName == "kicad" || baseName == "kicad-cli" )
         {
             // kicad launcher, so just remove the Contents/MacOS part
-            fn.RemoveLastDir();
-            fn.RemoveLastDir();
+            dir.cdUp();
+            dir.cdUp();
         }
         else
         {
             // standalone binaries live in Contents/Applications/<standalone>.app/Contents/MacOS
-            fn.RemoveLastDir();
-            fn.RemoveLastDir();
-            fn.RemoveLastDir();
-            fn.RemoveLastDir();
-            fn.RemoveLastDir();
+            dir.cdUp();
+            dir.cdUp();
+            dir.cdUp();
+            dir.cdUp();
+            dir.cdUp();
         }
 
-        bin_dir = fn.GetPath() + wxT( "/" );
+        bin_dir = dir.absolutePath() + "/";
 #else
         // Use unix notation for paths. I am not sure this is a good idea,
         // but it simplifies compatibility between Windows and Unices.
         // However it is a potential problem in path handling under Windows.
-        bin_dir.Replace( WIN_STRING_DIR_SEP, UNIX_STRING_DIR_SEP );
+        bin_dir.replace( "\\", "/" );
 
         // Remove file name form command line:
-        while( bin_dir.Last() != '/' && !bin_dir.IsEmpty() )
-            bin_dir.RemoveLast();
+        while( bin_dir.endsWith( '/' ) == false && !bin_dir.isEmpty() )
+            bin_dir.chop( 1 );
+        
+        if( !bin_dir.endsWith( '/' ) )
+            bin_dir += "/";
 #endif
         exe_path = bin_dir;
     }

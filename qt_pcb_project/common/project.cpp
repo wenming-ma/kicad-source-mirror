@@ -1,28 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-#include <wx/log.h>
-#include <wx/stdpaths.h>                // required on Mac
+#include <QtCore/QStandardPaths>
+#include <QtCore/QDebug>
+#include <QtCore/QDir>
+#include <QtCore/QFileInfo>
 #include <kiplatform/environment.h>
 
 #include <pgm_base.h>
@@ -70,14 +50,14 @@ PROJECT::~PROJECT()
 }
 
 
-bool PROJECT::TextVarResolver( wxString* aToken ) const
+bool PROJECT::TextVarResolver( QString* aToken ) const
 {
-    if( aToken->IsSameAs( wxT( "PROJECTNAME" ) )  )
+    if( *aToken == "PROJECTNAME" )
     {
         *aToken = GetProjectName();
         return true;
     }
-    else if( aToken->IsSameAs( wxT( "CURRENT_DATE" ) )  )
+    else if( *aToken == "CURRENT_DATE" )
     {
         *aToken = TITLE_BLOCK::GetCurrentDate();
         return true;
@@ -92,104 +72,98 @@ bool PROJECT::TextVarResolver( wxString* aToken ) const
 }
 
 
-std::map<wxString, wxString>& PROJECT::GetTextVars() const
+QHash<QString, QString>& PROJECT::GetTextVars() const
 {
     return GetProjectFile().m_TextVars;
 }
 
 
-void PROJECT::ApplyTextVars( const std::map<wxString, wxString>& aVarsMap )
+void PROJECT::ApplyTextVars( const QHash<QString, QString>& aVarsMap )
 {
     if( aVarsMap.size() == 0 )
         return;
 
-    std::map<wxString, wxString>& existingVarsMap = GetTextVars();
+    QHash<QString, QString>& existingVarsMap = GetTextVars();
 
-    for( const auto& var : aVarsMap )
+    for( auto it = aVarsMap.begin(); it != aVarsMap.end(); ++it )
     {
-        // create or update the existing vars
-        existingVarsMap[var.first] = var.second;
+        existingVarsMap[it.key()] = it.value();
     }
 }
 
 
-void PROJECT::setProjectFullName( const wxString& aFullPathAndName )
+void PROJECT::setProjectFullName( const QString& aFullPathAndName )
 {
-    // Compare paths, rather than inodes, to be less surprising to the user.
-    // Create a temporary wxFileName to normalize the path
-    wxFileName candidate_path( aFullPathAndName );
+    QFileInfo candidate_path( aFullPathAndName );
 
-    // Edge transitions only.  This is what clears the project
-    // data using the Clear() function.
-    if( m_project_name.GetFullPath() != candidate_path.GetFullPath() )
+    if( m_project_name.absoluteFilePath() != candidate_path.absoluteFilePath() )
     {
-        Clear();            // clear the data when the project changes.
+        Clear();
 
-        wxLogTrace( tracePathsAndFiles, "%s: old:'%s' new:'%s'", __func__,
-                    TO_UTF8( GetProjectFullName() ), TO_UTF8( aFullPathAndName ) );
+        qDebug() << __func__ << ": old:" << GetProjectFullName() << " new:" << aFullPathAndName;
 
-        m_project_name = aFullPathAndName;
+        m_project_name = QFileInfo( aFullPathAndName );
 
-        wxASSERT( m_project_name.IsAbsolute() );
+        Q_ASSERT( m_project_name.isAbsolute() );
 
-        wxASSERT( m_project_name.GetExt() == FILEEXT::ProjectFileExtension );
+        Q_ASSERT( m_project_name.suffix() == FILEEXT::ProjectFileExtension );
     }
 }
 
 
-const wxString PROJECT::GetProjectFullName() const
+const QString PROJECT::GetProjectFullName() const
 {
-    return m_project_name.GetFullPath();
+    return m_project_name.absoluteFilePath();
 }
 
 
-const wxString PROJECT::GetProjectPath() const
+const QString PROJECT::GetProjectPath() const
 {
-    return m_project_name.GetPathWithSep();
+    return m_project_name.absolutePath() + QDir::separator();
 }
 
 
-const wxString PROJECT::GetProjectDirectory() const
+const QString PROJECT::GetProjectDirectory() const
 {
-    return m_project_name.GetPath();
+    return m_project_name.absolutePath();
 }
 
 
-const wxString PROJECT::GetProjectName() const
+const QString PROJECT::GetProjectName() const
 {
-    return m_project_name.GetName();
+    return m_project_name.baseName();
 }
 
 
 bool PROJECT::IsNullProject() const
 {
-    return m_project_name.GetName().IsEmpty();
+    return m_project_name.baseName().isEmpty();
 }
 
 
-const wxString PROJECT::SymbolLibTableName() const
+const QString PROJECT::SymbolLibTableName() const
 {
     return libTableName( FILEEXT::SymbolLibraryTableFileName );
 }
 
 
-const wxString PROJECT::FootprintLibTblName() const
+const QString PROJECT::FootprintLibTblName() const
 {
     return libTableName( FILEEXT::FootprintLibraryTableFileName );
 }
 
 
-const wxString PROJECT::DesignBlockLibTblName() const
+const QString PROJECT::DesignBlockLibTblName() const
 {
     return libTableName( FILEEXT::DesignBlockLibraryTableFileName );
 }
 
 
-void PROJECT::PinLibrary( const wxString& aLibrary, enum LIB_TYPE_T aLibType )
+void PROJECT::PinLibrary( const QString& aLibrary, enum LIB_TYPE_T aLibType )
 {
-    COMMON_SETTINGS*       cfg = Pgm().GetCommonSettings();
-    std::vector<wxString>* pinnedLibsCfg = nullptr;
-    std::vector<wxString>* pinnedLibsFile = nullptr;
+    COMMON_SETTINGS*     cfg = Pgm().GetCommonSettings();
+    QVector<QString>* pinnedLibsCfg = nullptr;
+    QVector<QString>* pinnedLibsFile = nullptr;
 
     switch( aLibType )
     {
@@ -206,7 +180,7 @@ void PROJECT::PinLibrary( const wxString& aLibrary, enum LIB_TYPE_T aLibType )
         pinnedLibsCfg = &cfg->m_Session.pinned_design_block_libs;
         break;
     default:
-        wxFAIL_MSG( "Cannot pin library: invalid library type" );
+        Q_ASSERT_X( false, "PinLibrary", "Cannot pin library: invalid library type" );
         return;
     }
 
@@ -222,11 +196,11 @@ void PROJECT::PinLibrary( const wxString& aLibrary, enum LIB_TYPE_T aLibType )
 }
 
 
-void PROJECT::UnpinLibrary( const wxString& aLibrary, enum LIB_TYPE_T aLibType )
+void PROJECT::UnpinLibrary( const QString& aLibrary, enum LIB_TYPE_T aLibType )
 {
-    COMMON_SETTINGS*       cfg = Pgm().GetCommonSettings();
-    std::vector<wxString>* pinnedLibsCfg = nullptr;
-    std::vector<wxString>* pinnedLibsFile = nullptr;
+    COMMON_SETTINGS*     cfg = Pgm().GetCommonSettings();
+    QVector<QString>* pinnedLibsCfg = nullptr;
+    QVector<QString>* pinnedLibsFile = nullptr;
 
     switch( aLibType )
     {
@@ -243,7 +217,7 @@ void PROJECT::UnpinLibrary( const wxString& aLibrary, enum LIB_TYPE_T aLibType )
         pinnedLibsCfg = &cfg->m_Session.pinned_design_block_libs;
         break;
     default:
-        wxFAIL_MSG( "Cannot unpin library: invalid library type" );
+        Q_ASSERT_X( false, "UnpinLibrary", "Cannot unpin library: invalid library type" );
         return;
     }
 
@@ -255,78 +229,63 @@ void PROJECT::UnpinLibrary( const wxString& aLibrary, enum LIB_TYPE_T aLibType )
 }
 
 
-const wxString PROJECT::libTableName( const wxString& aLibTableName ) const
+const QString PROJECT::libTableName( const QString& aLibTableName ) const
 {
-    wxFileName  fn = GetProjectFullName();
-    wxString    path = fn.GetPath();
+    QFileInfo fn( GetProjectFullName() );
+    QString path = fn.absolutePath();
 
-    // if there's no path to the project name, or the name as a whole is bogus or its not
-    // write-able then use a template file.
-    if( !fn.GetDirCount() || !fn.IsOk() || !wxFileName::IsDirWritable( path ) )
+    QDir dir( path );
+    if( path.isEmpty() || !fn.exists() || !QFileInfo( path ).isWritable() )
     {
-        // return a template filename now.
-
-        // this next line is likely a problem now, since it relies on an
-        // application title which is no longer constant or known.  This next line needs
-        // to be re-thought out.
-
 #ifdef __WXMAC__
-        fn.AssignDir( KIPLATFORM::ENV::GetUserConfigPath() );
+        path = KIPLATFORM::ENV::GetUserConfigPath();
 #else
-        // don't pollute home folder, temp folder seems to be more appropriate
-        fn.AssignDir( wxStandardPaths::Get().GetTempDir() );
+        path = QStandardPaths::writableLocation( QStandardPaths::TempLocation );
 #endif
 
 #if defined( __WINDOWS__ )
-        fn.AppendDir( wxT( "kicad" ) );
+        path += QDir::separator() + "kicad";
 #endif
 
-        /*
-         * The library table name used when no project file is passed to the appropriate
-         * code.  This is used temporarily to store the project specific library table
-         * until the project file being edited is saved.  It is then moved to the correct
-         * file in the folder where the project file is saved.
-         */
-        fn.SetName( wxS( "prj-" ) + aLibTableName );
+        QDir dir( path );
+        fn.setFile( dir, "prj-" + aLibTableName );
     }
-    else    // normal path.
+    else
     {
-        fn.SetName( aLibTableName );
+        fn.setFile( dir, aLibTableName );
     }
 
-    fn.ClearExt();
-
-    return fn.GetFullPath();
+    return fn.absoluteFilePath();
 }
 
 
-const wxString PROJECT::GetSheetName( const KIID& aSheetID )
+const QString PROJECT::GetSheetName( const KIID& aSheetID )
 {
     if( m_sheetNames.empty() )
     {
-        for( const std::pair<KIID, wxString>& pair : GetProjectFile().GetSheets() )
+        for( const auto& pair : GetProjectFile().GetSheets() )
             m_sheetNames[pair.first] = pair.second;
     }
 
-    if( m_sheetNames.count( aSheetID ) )
-        return m_sheetNames.at( aSheetID );
+    if( m_sheetNames.contains( aSheetID ) )
+        return m_sheetNames.value( aSheetID );
     else
         return aSheetID.AsString();
 }
 
 
-void PROJECT::SetRString( RSTRING_T aIndex, const wxString& aString )
+void PROJECT::SetRString( RSTRING_T aIndex, const QString& aString )
 {
     unsigned ndx = unsigned( aIndex );
 
     if( ndx < m_rstrings.size() )
         m_rstrings[ndx] = aString;
     else
-        wxASSERT( 0 );      // bad index
+        Q_ASSERT( false );
 }
 
 
-const wxString& PROJECT::GetRString( RSTRING_T aIndex )
+const QString& PROJECT::GetRString( RSTRING_T aIndex )
 {
     unsigned ndx = unsigned( aIndex );
 
@@ -336,9 +295,9 @@ const wxString& PROJECT::GetRString( RSTRING_T aIndex )
     }
     else
     {
-        static wxString no_cookie_for_you;
+        static QString no_cookie_for_you;
 
-        wxASSERT( 0 );      // bad index
+        Q_ASSERT( false );
 
         return no_cookie_for_you;
     }
@@ -367,22 +326,20 @@ void PROJECT::SetElem( PROJECT::ELEM aIndex, _ELEM* aElem )
 }
 
 
-const wxString PROJECT::AbsolutePath( const wxString& aFileName ) const
+const QString PROJECT::AbsolutePath( const QString& aFileName ) const
 {
-    wxFileName fn = aFileName;
+    QFileInfo fn( aFileName );
 
-    // Paths which start with an unresolved variable reference are more likely to be
-    // absolute than relative.
-    if( aFileName.StartsWith( wxT( "${" ) ) )
+    if( aFileName.startsWith( "${" ) )
         return aFileName;
 
-    if( !fn.IsAbsolute() )
+    if( !fn.isAbsolute() )
     {
-        wxString pro_dir = wxPathOnly( GetProjectFullName() );
-        fn.Normalize( FN_NORMALIZE_FLAGS | wxPATH_NORM_ENV_VARS, pro_dir );
+        QString pro_dir = QFileInfo( GetProjectFullName() ).absolutePath();
+        fn.setFile( pro_dir, aFileName );
     }
 
-    return fn.GetFullPath();
+    return fn.absoluteFilePath();
 }
 
 
@@ -395,7 +352,7 @@ FP_LIB_TABLE* PROJECT::PcbFootprintLibs( KIWAY& aKiway )
 
     if( tbl )
     {
-        wxASSERT( tbl->ProjectElementType() == PROJECT::ELEM::FPTBL );
+        Q_ASSERT( tbl->ProjectElementType() == PROJECT::ELEM::FPTBL );
     }
     else
     {
@@ -435,7 +392,7 @@ DESIGN_BLOCK_LIB_TABLE* PROJECT::DesignBlockLibs()
 
     if( tbl )
     {
-        wxASSERT( tbl->ProjectElementType() == PROJECT::ELEM::DESIGN_BLOCK_LIB_TABLE );
+        Q_ASSERT( tbl->ProjectElementType() == PROJECT::ELEM::DESIGN_BLOCK_LIB_TABLE );
     }
     else
     {

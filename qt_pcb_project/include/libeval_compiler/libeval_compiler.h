@@ -1,22 +1,3 @@
-/*
-    This file is part of libeval, a simple math expression evaluator
-
-    Copyright (C) 2007 Michael Geselbracht, mgeselbracht3@gmail.com
-    Copyright The KiCad Developers, see AUTHORS.txt for contributors.
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
 
 #pragma once
 
@@ -28,7 +9,8 @@
 
 #include <kicommon.h>
 #include <base_units.h>
-#include <wx/intl.h>
+#include <QString>
+#include <QVector>
 
 #if defined(WIN32)
 // This gets leaked by python headers on MSVC only and will cause chaos
@@ -74,7 +56,7 @@ struct KICOMMON_API  ERROR_STATUS
     bool pendingError = false;
 
     COMPILATION_STAGE stage;
-    wxString          message;
+    QString          message;
     int               srcPos;
 };
 
@@ -111,7 +93,7 @@ typedef std::function<void( CONTEXT*, void* )> FUNC_CALL_REF;
 
 struct KICOMMON_API  T_TOKEN_VALUE
 {
-    wxString* str;
+    QString* str;
     double    num;
     int       idx;
 };
@@ -144,7 +126,7 @@ public:
     int        srcPos;
 
     void SetUop( int aOp, double aValue );
-    void SetUop( int aOp, const wxString& aValue, bool aStringIsWildcard );
+    void SetUop( int aOp, const QString& aValue, bool aStringIsWildcard );
     void SetUop( int aOp, std::unique_ptr<VAR_REF> aRef = nullptr );
     void SetUop( int aOp, FUNC_CALL_REF aFunc, std::unique_ptr<VAR_REF> aRef = nullptr );
 };
@@ -164,19 +146,19 @@ public:
     {
     }
 
-    virtual const std::vector<wxString>& GetSupportedUnits() const
+    virtual const QVector<QString>& GetSupportedUnits() const
     {
-        static const std::vector<wxString> nullUnits;
+        static const QVector<QString> nullUnits;
 
         return nullUnits;
     }
 
-    virtual wxString GetSupportedUnitsMessage() const
+    virtual QString GetSupportedUnitsMessage() const
     {
-        return wxEmptyString;
+        return QString();
     }
 
-    virtual double Convert( const wxString& aString, int unitType ) const
+    virtual double Convert( const QString& aString, int unitType ) const
     {
         return 0.0;
     }
@@ -194,7 +176,7 @@ public:
             m_isDeferredStr( false )
     {}
 
-    VALUE( const wxString& aStr, bool aIsWildcard = false ) :
+    VALUE( const QString& aStr, bool aIsWildcard = false ) :
             m_type( VT_STRING ),
             m_valueDbl( 0 ),
             m_valueStr( aStr ),
@@ -231,7 +213,7 @@ public:
         return m_valueDbl;
     }
 
-    virtual const wxString& AsString() const
+    virtual const QString& AsString() const
     {
         if( m_isDeferredStr )
         {
@@ -262,14 +244,14 @@ public:
         m_isDeferredDbl = true;
     }
 
-    void SetDeferredEval( std::function<wxString()> aLambda )
+    void SetDeferredEval( std::function<QString()> aLambda )
     {
         m_type = VT_STRING;
         m_lambdaStr = aLambda;
         m_isDeferredStr = true;
     }
 
-    void Set( const wxString& aValue )
+    void Set( const QString& aValue )
     {
         m_type = VT_STRING;
         m_valueStr = aValue;
@@ -289,14 +271,14 @@ public:
 private:
     VAR_TYPE_T                m_type;
     mutable double            m_valueDbl;               // mutable to support deferred evaluation
-    mutable wxString          m_valueStr;               // mutable to support deferred evaluation
+    mutable QString          m_valueStr;               // mutable to support deferred evaluation
     bool                      m_stringIsWildcard;
 
     mutable bool              m_isDeferredDbl;
     std::function<double()>   m_lambdaDbl;
 
     mutable bool              m_isDeferredStr;
-    std::function<wxString()> m_lambdaStr;
+    std::function<QString()> m_lambdaStr;
 };
 
 class KICOMMON_API VAR_REF
@@ -354,7 +336,7 @@ public:
     {
         if( m_stackPtr == 0 )
         {
-            ReportError( _( "Malformed expression" ) );
+            ReportError( "Malformed expression" );
             return AllocValue();
         }
 
@@ -366,21 +348,21 @@ public:
         return m_stackPtr;
     };
 
-    void SetErrorCallback( std::function<void( const wxString& aMessage, int aOffset )> aCallback )
+    void SetErrorCallback( std::function<void( const QString& aMessage, int aOffset )> aCallback )
     {
         m_errorCallback = std::move( aCallback );
     }
 
     bool HasErrorCallback() { return m_errorCallback != nullptr; }
 
-    void ReportError( const wxString& aErrorMsg );
+    void ReportError( const QString& aErrorMsg );
 
 private:
     std::vector<VALUE*> m_ownedValues;
     VALUE*              m_stack[100];       // std::stack not performant enough
     int                 m_stackPtr;
 
-    std::function<void( const wxString& aMessage, int aOffset )> m_errorCallback;
+    std::function<void( const QString& aMessage, int aOffset )> m_errorCallback;
 };
 
 
@@ -403,14 +385,14 @@ public:
     }
 
     VALUE* Run( CONTEXT* ctx );
-    wxString Dump() const;
+    QString Dump() const;
 
-    virtual std::unique_ptr<VAR_REF> CreateVarRef( const wxString& var, const wxString& field )
+    virtual std::unique_ptr<VAR_REF> CreateVarRef( const QString& var, const QString& field )
     {
         return nullptr;
     }
 
-    virtual FUNC_CALL_REF CreateFuncCall( const wxString& name )
+    virtual FUNC_CALL_REF CreateFuncCall( const QString& name )
     {
         return nullptr;
     }
@@ -446,7 +428,7 @@ public:
 
     void Exec( CONTEXT* ctx );
 
-    wxString Format() const;
+    QString Format() const;
 
 private:
     int                      m_op;
@@ -459,7 +441,7 @@ private:
 class KICOMMON_API TOKENIZER
 {
 public:
-    void Restart( const wxString& aStr )
+    void Restart( const QString& aStr )
     {
         m_str = aStr;
         m_pos = 0;
@@ -494,15 +476,15 @@ public:
         return m_pos;
     }
 
-    wxString GetString();
+    QString GetString();
 
-    wxString GetChars( const std::function<bool( wxUniChar )>& cond ) const;
+    QString GetChars( const std::function<bool( QChar )>& cond ) const;
 
-    bool MatchAhead( const wxString& match,
-                     const std::function<bool( wxUniChar )>& stopCond ) const;
+    bool MatchAhead( const QString& match,
+                     const std::function<bool( QChar )>& stopCond ) const;
 
 private:
-    wxString m_str;
+    QString m_str;
     size_t   m_pos = 0;
 };
 
@@ -533,9 +515,9 @@ public:
     void setRoot( LIBEVAL::TREE_NODE *root );
     void freeTree( LIBEVAL::TREE_NODE *tree );
 
-    bool Compile( const wxString& aString, UCODE* aCode, CONTEXT* aPreflightContext );
+    bool Compile( const QString& aString, UCODE* aCode, CONTEXT* aPreflightContext );
 
-    void SetErrorCallback( std::function<void( const wxString& aMessage, int aOffset )> aCallback )
+    void SetErrorCallback( std::function<void( const QString& aMessage, int aOffset )> aCallback )
     {
         m_errorCallback = std::move( aCallback );
     }
@@ -544,7 +526,7 @@ public:
     const ERROR_STATUS& GetError() const { return m_errorStatus; }
 
     void GcItem( TREE_NODE* aItem ) { m_gcItems.push_back( aItem ); }
-    void GcItem( wxString* aItem ) { m_gcStrings.push_back( aItem ); }
+    void GcItem( QString* aItem ) { m_gcStrings.push_back( aItem ); }
 
 protected:
     enum LEXER_STATE
@@ -557,10 +539,10 @@ protected:
 
     bool generateUCode( UCODE* aCode, CONTEXT* aPreflightContext );
 
-    void reportError( COMPILATION_STAGE stage, const wxString& aErrorMsg, int aPos = -1 );
+    void reportError( COMPILATION_STAGE stage, const QString& aErrorMsg, int aPos = -1 );
 
     /* Begin processing of a new input string */
-    void newString( const wxString& aString );
+    void newString( const QString& aString );
 
     /* Tokenizer: Next token/value taken from input string. */
     T_TOKEN getToken();
@@ -581,12 +563,12 @@ protected:
     bool         m_parseFinished;
     ERROR_STATUS m_errorStatus;
 
-    std::function<void( const wxString& aMessage, int aOffset )> m_errorCallback;
+    std::function<void( const QString& aMessage, int aOffset )> m_errorCallback;
 
     TREE_NODE*   m_tree;
 
     std::vector<TREE_NODE*>  m_gcItems;
-    std::vector<wxString*>   m_gcStrings;
+    QVector<QString*>   m_gcStrings;
 };
 
 

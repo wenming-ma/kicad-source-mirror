@@ -1,23 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-#include <wx/aui/framemanager.h>    // ensure class wxAuiPaneInfo is defined for other includes
 
 #include "settings/kicad_settings.h"
 #include <json_common.h>
@@ -43,25 +23,25 @@ KICAD_SETTINGS::KICAD_SETTINGS() :
     m_params.emplace_back( new PARAM<int>( "appearance.left_frame_width", &m_LeftWinWidth, 200 ) );
 
     m_params.emplace_back(
-            new PARAM_LIST<wxString>( "system.open_projects", &m_OpenProjects, {} ) );
+            new PARAM_LIST<QString>( "system.open_projects", &m_OpenProjects, {} ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "system.last_design_block_lib_dir",
+    m_params.emplace_back( new PARAM<QString>( "system.last_design_block_lib_dir",
                                                 &m_lastDesignBlockLibDir, "" ) );
 
     m_params.emplace_back(
-            new PARAM<wxString>( "system.last_update_check_time", &m_lastUpdateCheckTime, "" ) );
+            new PARAM<QString>( "system.last_update_check_time", &m_lastUpdateCheckTime, "" ) );
 
     m_params.emplace_back(
-            new PARAM<wxString>( "system.last_received_update", &m_lastReceivedUpdate, "" ) );
+            new PARAM<QString>( "system.last_received_update", &m_lastReceivedUpdate, "" ) );
 
     m_params.emplace_back( new PARAM<bool>( "system.check_for_kicad_updates", &m_KiCadUpdateCheck,
                                             true ) );
 
-    m_params.emplace_back( new PARAM<wxPoint>( "template.window.pos", &m_TemplateWindowPos,
-                                               wxDefaultPosition ) );
+    m_params.emplace_back( new PARAM<QPoint>( "template.window.pos", &m_TemplateWindowPos,
+                                               QPoint() ) );
 
-    m_params.emplace_back( new PARAM<wxSize>( "template.window.size", &m_TemplateWindowSize,
-                                              wxDefaultSize ) );
+    m_params.emplace_back( new PARAM<QSize>( "template.window.size", &m_TemplateWindowSize,
+                                              QSize() ) );
 
     m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>(
             "pcm.repositories",
@@ -90,14 +70,14 @@ KICAD_SETTINGS::KICAD_SETTINGS() :
                         continue;
 
                     m_PcmRepositories.emplace_back(
-                            std::make_pair( wxString( entry["name"].get<std::string>() ),
-                                            wxString( entry["url"].get<std::string>() ) ) );
+                            std::make_pair( QString::fromStdString( entry["name"].get<std::string>() ),
+                                            QString::fromStdString( entry["url"].get<std::string>() ) ) );
                 }
             },
             PCM_DEFAULT_REPOSITORIES ) );
 
     m_params.emplace_back(
-            new PARAM<wxString>( "pcm.last_download_dir", &m_PcmLastDownloadDir, "" ) );
+            new PARAM<QString>( "pcm.last_download_dir", &m_PcmLastDownloadDir, "" ) );
 
     m_params.emplace_back( new PARAM<bool>( "pcm.check_for_updates", &m_PcmUpdateCheck, true ) );
 
@@ -105,12 +85,12 @@ KICAD_SETTINGS::KICAD_SETTINGS() :
 
     m_params.emplace_back( new PARAM<bool>( "pcm.lib_auto_remove", &m_PcmLibAutoRemove, true ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "pcm.lib_prefix", &m_PcmLibPrefix,
-                                                wxS( "PCM_" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "pcm.lib_prefix", &m_PcmLibPrefix,
+                                                "PCM_" ) );
 }
 
 
-bool KICAD_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
+bool KICAD_SETTINGS::MigrateFromLegacy( QSettings* aCfg )
 {
     bool ret = APP_SETTINGS_BASE::MigrateFromLegacy( aCfg );
 

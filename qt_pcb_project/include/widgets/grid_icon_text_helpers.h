@@ -1,167 +1,137 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef GRID_ICON_TEXT_HELPERS_H
 #define GRID_ICON_TEXT_HELPERS_H
 
-#include <wx/bitmap.h>
-#include <wx/bmpcbox.h>
-#include <wx/generic/gridctrl.h>
-#include <wx/generic/grideditors.h>
+#include <QPixmap>
+#include <QIcon>
+#include <QComboBox>
+#include <QTableWidget>
+#include <QStyledItemDelegate>
+#include <QLineEdit>
+#include <QVector>
+#include <QStringList>
+#include <QPainter>
+#include <QRect>
+#include <QSize>
 #include <vector>
 
-class wxGrid;
+class QTableWidget;
 enum class BITMAPS : unsigned int;
 
 
-//---- Grid helpers: custom wxGridCellRenderer that renders icon and a label ------------
+//---- Grid helpers: custom QStyledItemDelegate that renders icon and a label ------------
 
-class GRID_CELL_ICON_TEXT_RENDERER : public wxGridCellStringRenderer
+class GRID_CELL_ICON_TEXT_RENDERER : public QStyledItemDelegate
 {
+    Q_OBJECT
+
 public:
-    /**
-     * Construct a renderer that maps a list of icons from the bitmap system to a list of strings
-     * @param icons is a list of possible icons to render
-     * @param names is a list of names to render - must be the same length as icons
-     */
-    GRID_CELL_ICON_TEXT_RENDERER( const std::vector<BITMAPS>& icons, const wxArrayString& names );
+    GRID_CELL_ICON_TEXT_RENDERER( const std::vector<BITMAPS>& icons, const QStringList& names );
 
-    /**
-     * Construct a renderer that renders a single icon next to the cell's value text
-     * @param aIcon is the icon to render next to the cell's value
-     */
-    GRID_CELL_ICON_TEXT_RENDERER( const wxBitmapBundle& aIcon,
-                                  wxSize aPreferredIconSize = wxDefaultSize );
+    GRID_CELL_ICON_TEXT_RENDERER( const QIcon& aIcon,
+                                  QSize aPreferredIconSize = QSize() );
 
-    void Draw( wxGrid& aGrid, wxGridCellAttr& aAttr, wxDC& aDC,
-               const wxRect& aRect, int aRow, int aCol, bool isSelected ) override;
-    wxSize GetBestSize( wxGrid & grid, wxGridCellAttr & attr, wxDC & dc, int row,
-                        int col ) override;
+    void paint( QPainter* painter, const QStyleOptionViewItem& option,
+                const QModelIndex& index ) const override;
+    QSize sizeHint( const QStyleOptionViewItem& option, const QModelIndex& index ) const override;
 
 private:
     std::vector<BITMAPS> m_icons;
-    wxArrayString        m_names;
+    QStringList          m_names;
 
     // For single-icon mode
-    wxBitmapBundle m_icon;
-    wxSize m_iconSize;
+    QIcon m_icon;
+    QSize m_iconSize;
 };
 
-//---- Grid helpers: custom wxGridCellRenderer that renders just an icon ----------------
+//---- Grid helpers: custom QStyledItemDelegate that renders just an icon ----------------
 //
 // Note: use with read only cells
 
-class GRID_CELL_ICON_RENDERER : public wxGridCellRenderer
+class GRID_CELL_ICON_RENDERER : public QStyledItemDelegate
 {
-public:
-    GRID_CELL_ICON_RENDERER( const wxBitmap& icon );
+    Q_OBJECT
 
-    void Draw( wxGrid& aGrid, wxGridCellAttr& aAttr, wxDC& aDC,
-               const wxRect& aRect, int aRow, int aCol, bool isSelected ) override;
-    wxSize GetBestSize( wxGrid & grid, wxGridCellAttr & attr, wxDC & dc, int row,
-                        int col ) override;
-    wxGridCellRenderer* Clone() const override;
+public:
+    GRID_CELL_ICON_RENDERER( const QPixmap& icon );
+
+    void paint( QPainter* painter, const QStyleOptionViewItem& option,
+                const QModelIndex& index ) const override;
+    QSize sizeHint( const QStyleOptionViewItem& option, const QModelIndex& index ) const override;
 
 private:
-    const wxBitmap& m_icon;
+    const QPixmap& m_icon;
 };
 
-//---- Grid helpers: custom wxGridCellRenderer that renders just an icon from wxArtprovider -
+//---- Grid helpers: custom QStyledItemDelegate that renders just an icon from Qt style -
 //
 // Note: use with read only cells
 
-class GRID_CELL_STATUS_ICON_RENDERER : public wxGridCellRenderer
+class GRID_CELL_STATUS_ICON_RENDERER : public QStyledItemDelegate
 {
+    Q_OBJECT
+
 public:
     GRID_CELL_STATUS_ICON_RENDERER( int aStatus );
 
-    void Draw( wxGrid& aGrid, wxGridCellAttr& aAttr, wxDC& aDC,
-               const wxRect& aRect, int aRow, int aCol, bool isSelected ) override;
-    wxSize GetBestSize( wxGrid & grid, wxGridCellAttr & attr, wxDC & dc, int row,
-                        int col ) override;
-    wxGridCellRenderer* Clone() const override;
+    void paint( QPainter* painter, const QStyleOptionViewItem& option,
+                const QModelIndex& index ) const override;
+    QSize sizeHint( const QStyleOptionViewItem& option, const QModelIndex& index ) const override;
 
 private:
     int      m_status;
-    wxBitmap m_bitmap;
+    QPixmap  m_bitmap;
 };
 
 
 
-//---- Grid helpers: custom wxGridCellEditor ------------------------------------------
+//---- Grid helpers: custom QStyledItemDelegate editor ------------------------------------------
 //
-// Note: this implementation is an adaptation of wxGridCellChoiceEditor
+// Note: this implementation is an adaptation of combo box editor
 
-class GRID_CELL_ICON_TEXT_POPUP : public wxGridCellEditor
+class GRID_CELL_ICON_TEXT_POPUP : public QStyledItemDelegate
 {
+    Q_OBJECT
+
 public:
-    GRID_CELL_ICON_TEXT_POPUP( const std::vector<BITMAPS>& icons, const wxArrayString& names );
+    GRID_CELL_ICON_TEXT_POPUP( const std::vector<BITMAPS>& icons, const QStringList& names );
 
-    wxGridCellEditor* Clone() const override;
-    void Create( wxWindow* aParent, wxWindowID aId, wxEvtHandler* aEventHandler ) override;
+    QWidget* createEditor( QWidget* parent, const QStyleOptionViewItem& option,
+                          const QModelIndex& index ) const override;
+    void setEditorData( QWidget* editor, const QModelIndex& index ) const override;
+    void setModelData( QWidget* editor, QAbstractItemModel* model,
+                       const QModelIndex& index ) const override;
+    void updateEditorGeometry( QWidget* editor, const QStyleOptionViewItem& option,
+                              const QModelIndex& index ) const override;
 
-    wxString GetValue() const override;
+private slots:
+    void commitAndCloseEditor();
 
-    void SetSize( const wxRect& aRect ) override;
-
-    void BeginEdit( int aRow, int aCol, wxGrid* aGrid ) override;
-    bool EndEdit( int , int , const wxGrid* , const wxString& , wxString *aNewVal ) override;
-    void ApplyEdit( int aRow, int aCol, wxGrid* aGrid ) override;
-    void Reset() override;
-
-protected:
-    wxBitmapComboBox* Combo() const { return static_cast<wxBitmapComboBox*>( m_control ); }
-
+private:
     std::vector<BITMAPS> m_icons;
-    wxArrayString        m_names;
-    wxString             m_value;
-
-    wxDECLARE_NO_COPY_CLASS( GRID_CELL_ICON_TEXT_POPUP );
+    QStringList          m_names;
 };
 
 
-//---- Grid helpers: custom wxGridCellTextEditor ------------------------------------------
+//---- Grid helpers: custom QStyledItemDelegate editor ------------------------------------------
 //
-// Note: This is used to mark WX_GRID cell as nullable
-class GRID_CELL_MARK_AS_NULLABLE : public wxGridCellTextEditor
+// Note: This is used to mark table cell as nullable
+class GRID_CELL_MARK_AS_NULLABLE : public QStyledItemDelegate
 {
+    Q_OBJECT
+
 public:
     GRID_CELL_MARK_AS_NULLABLE() : m_isNullable( true ) {}
     GRID_CELL_MARK_AS_NULLABLE( bool aIsNullable ) : m_isNullable( aIsNullable ) {}
 
-    wxGridCellEditor* Clone() const override
-    {
-        return new GRID_CELL_MARK_AS_NULLABLE( m_isNullable );
-    }
-
-    void Reset() override {}
+    QWidget* createEditor( QWidget* parent, const QStyleOptionViewItem& option,
+                          const QModelIndex& index ) const override;
 
     bool IsNullable() { return m_isNullable; }
 
-protected:
+private:
     bool m_isNullable;
-
-    wxDECLARE_NO_COPY_CLASS( GRID_CELL_MARK_AS_NULLABLE );
 };
 
 

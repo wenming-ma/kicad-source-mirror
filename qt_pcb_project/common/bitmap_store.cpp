@@ -1,27 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
-#include <wx/bitmap.h>
-#include <wx/filename.h>
-#include <wx/log.h>
-#include <wx/mstream.h>
-#include <wx/stdpaths.h>
+#include <QtGui/QBitmap>
+#include <QtCore/QFileInfo>
+#include <QtCore/QLoggingCategory>
+#include <QtCore/QBuffer>
+#include <QtCore/QStandardPaths>
+#include <QtGui/QImage>
 
 #include <advanced_config.h>
 #include <asset_archive.h>
@@ -35,7 +17,7 @@
 #include <settings/common_settings.h>
 
 
-/// A question-mark icon shown when we can't find a given bitmap in the archive
+// A question-mark icon shown when we can't find a given bitmap in the archive
 static const unsigned char s_imageNotFound[] = {
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
     0x00, 0x00, 0x00, 0x18, 0x00, 0x00, 0x00, 0x18, 0x08, 0x04, 0x00, 0x00, 0x00, 0x4a, 0x7e, 0xf5,
@@ -71,8 +53,7 @@ static const unsigned char s_imageNotFound[] = {
 };
 
 
-/// Icon used for EDA_ITEMs that don't have a custom icon configured
-/// @todo Replace this with an external file?
+// Icon used for EDA_ITEMs that don't have a custom icon configured
 static const unsigned char s_dummyItem[] = {
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
     0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x10, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0xf3, 0xff,
@@ -87,9 +68,9 @@ static const unsigned char s_dummyItem[] = {
 };
 
 
-static const wxString traceBitmaps = wxT( "KICAD_BITMAPS" );
+static const QString traceBitmaps = QString( "KICAD_BITMAPS" );
 
-static const wxString IMAGE_ARCHIVE = wxT( "images.tar.gz" );
+static const QString IMAGE_ARCHIVE = QString( "images.tar.gz" );
 
 
 size_t std::hash<std::pair<BITMAPS, int>>::operator()( const std::pair<BITMAPS, int>& aPair ) const
@@ -103,11 +84,11 @@ size_t std::hash<std::pair<BITMAPS, int>>::operator()( const std::pair<BITMAPS, 
 
 BITMAP_STORE::BITMAP_STORE()
 {
-    wxFileName path( PATHS::GetStockDataPath() + wxT( "/resources" ), IMAGE_ARCHIVE );
+    QFileInfo path( PATHS::GetStockDataPath() + QString( "/resources" ) + "/" + IMAGE_ARCHIVE );
 
-    wxLogTrace( traceBitmaps, "Loading bitmaps from " + path.GetFullPath() );
+    qDebug() << "Loading bitmaps from" << path.absoluteFilePath();
 
-    m_archive = std::make_unique<ASSET_ARCHIVE>( path.GetFullPath() );
+    m_archive = std::make_unique<ASSET_ARCHIVE>( path.absoluteFilePath() );
 
     buildBitmapInfoCache();
 
@@ -115,16 +96,15 @@ BITMAP_STORE::BITMAP_STORE()
 }
 
 
-wxBitmap BITMAP_STORE::GetBitmap( BITMAPS aBitmapId, int aHeight )
+QPixmap BITMAP_STORE::GetBitmap( BITMAPS aBitmapId, int aHeight )
 {
-    return wxBitmap( getImage( aBitmapId, aHeight ) );
+    return QPixmap::fromImage( getImage( aBitmapId, aHeight ) );
 }
 
 
-wxBitmapBundle BITMAP_STORE::GetBitmapBundle( BITMAPS aBitmapId, int aMinHeight )
+QPixmap BITMAP_STORE::GetBitmapBundle( BITMAPS aBitmapId, int aMinHeight )
 {
-    wxVector<wxBitmap> bmps;
-
+    // For Qt transformation, return the best-matching bitmap instead of bundle
     for( const BITMAP_INFO& info : m_bitmapInfoCache[aBitmapId] )
     {
         if( info.theme != m_theme )
@@ -133,47 +113,60 @@ wxBitmapBundle BITMAP_STORE::GetBitmapBundle( BITMAPS aBitmapId, int aMinHeight 
         if( aMinHeight > 0 && info.height < aMinHeight )
             continue;
 
-        bmps.push_back( wxBitmap( getImage( info.id, info.height ) ) );
+        return QPixmap::fromImage( getImage( info.id, info.height ) );
     }
 
-    return wxBitmapBundle::FromBitmaps( bmps );
+    // If no match found, return the first available bitmap
+    if( !m_bitmapInfoCache[aBitmapId].empty() )
+        return QPixmap::fromImage( getImage( aBitmapId, -1 ) );
+
+    return QPixmap();
 }
 
 
-wxBitmapBundle BITMAP_STORE::GetDisabledBitmapBundle( BITMAPS aBitmapId )
+QPixmap BITMAP_STORE::GetDisabledBitmapBundle( BITMAPS aBitmapId )
 {
-    wxVector<wxBitmap> bmps;
-
     for( const BITMAP_INFO& info : m_bitmapInfoCache[aBitmapId] )
     {
         if( info.theme != m_theme )
             continue;
 
-        wxBitmap bmp( getImage( info.id, info.height )
-                              .ConvertToDisabled( KIPLATFORM::UI::IsDarkTheme() ? 70 : 255 ) );
-        bmps.push_back( bmp );
+        QImage disabledImage = getImage( info.id, info.height );
+        // Apply disabled effect similar to ConvertToDisabled
+        for( int y = 0; y < disabledImage.height(); ++y )
+        {
+            for( int x = 0; x < disabledImage.width(); ++x )
+            {
+                QRgb pixel = disabledImage.pixel( x, y );
+                int gray = qGray( pixel );
+                int alpha = qAlpha( pixel );
+                int newGray = KIPLATFORM::UI::IsDarkTheme() ? (gray * 70 / 255) : gray;
+                disabledImage.setPixel( x, y, qRgba( newGray, newGray, newGray, alpha ) );
+            }
+        }
+        return QPixmap::fromImage( disabledImage );
     }
 
-    return wxBitmapBundle::FromBitmaps( bmps );
+    return QPixmap();
 }
 
 
-wxBitmap BITMAP_STORE::GetBitmapScaled( BITMAPS aBitmapId, int aScaleFactor, int aHeight )
+QPixmap BITMAP_STORE::GetBitmapScaled( BITMAPS aBitmapId, int aScaleFactor, int aHeight )
 {
-    wxImage image = getImage( aBitmapId, aHeight );
+    QImage image = getImage( aBitmapId, aHeight );
 
     // Bilinear seems to genuinely look better for these line-drawing icons
     // than bicubic, despite claims in the wx documentation that bicubic is
     // "highest quality". I don't recommend changing this. Bicubic looks
     // blurry and makes me want an eye exam.
-    image.Rescale( aScaleFactor * image.GetWidth() / 4, aScaleFactor * image.GetHeight() / 4,
-                   wxIMAGE_QUALITY_BILINEAR );
+    image = image.scaled( aScaleFactor * image.width() / 4, aScaleFactor * image.height() / 4,
+                          Qt::IgnoreAspectRatio, Qt::SmoothTransformation );
 
-    return wxBitmap( image );
+    return QPixmap::fromImage( image );
 }
 
 
-wxImage BITMAP_STORE::getImage( BITMAPS aBitmapId, int aHeight )
+QImage BITMAP_STORE::getImage( BITMAPS aBitmapId, int aHeight )
 {
     const unsigned char* data = nullptr;
     long                 count;
@@ -189,17 +182,18 @@ wxImage BITMAP_STORE::getImage( BITMAPS aBitmapId, int aHeight )
 
         if( count < 0 )
         {
-            wxLogTrace( traceBitmaps,
-                        "Bitmap for %d, %d, %s has an info tag with file %s,"
-                        "but that file could not be found in the archive!",
-                        aBitmapId, aHeight, m_theme );
+            qDebug() << QString("Bitmap for %1, %2, %3 has an info tag with file %4, but that file could not be found in the archive!")
+                        .arg( static_cast<int>( aBitmapId ) ).arg( aHeight ).arg( m_theme ).arg( bitmapName( aBitmapId, aHeight ) );
             data = s_imageNotFound;
             count = sizeof( s_imageNotFound );
         }
     }
 
-    wxMemoryInputStream is( data, count );
-    wxImage             image( is, wxBITMAP_TYPE_PNG );
+    QByteArray imageData( reinterpret_cast<const char*>( data ), count );
+    QBuffer buffer( &imageData );
+    buffer.open( QIODevice::ReadOnly );
+    QImage image;
+    image.load( &buffer, "PNG" );
 
     return image;
 }
@@ -208,30 +202,30 @@ wxImage BITMAP_STORE::getImage( BITMAPS aBitmapId, int aHeight )
 void BITMAP_STORE::ThemeChanged()
 {
     COMMON_SETTINGS* settings = Pgm().GetCommonSettings();
-    wxString         oldTheme = m_theme;
+    QString         oldTheme = m_theme;
 
     if( settings )
     {
         switch( settings->m_Appearance.icon_theme )
         {
-        case ICON_THEME::LIGHT: m_theme = wxT( "light" ); break;
-        case ICON_THEME::DARK: m_theme = wxT( "dark" ); break;
+        case ICON_THEME::LIGHT: m_theme = QString( "light" ); break;
+        case ICON_THEME::DARK: m_theme = QString( "dark" ); break;
         case ICON_THEME::AUTO:
-            m_theme = KIPLATFORM::UI::IsDarkTheme() ? wxT( "dark" ) : wxT( "light" );
+            m_theme = KIPLATFORM::UI::IsDarkTheme() ? QString( "dark" ) : QString( "light" );
             break;
         }
     }
     else
     {
-        m_theme = KIPLATFORM::UI::IsDarkTheme() ? wxT( "dark" ) : wxT( "light" );
+        m_theme = KIPLATFORM::UI::IsDarkTheme() ? QString( "dark" ) : QString( "light" );
     }
 
-    if( !oldTheme.IsSameAs( m_theme ) )
+    if( oldTheme != m_theme )
         m_bitmapNameCache.clear();
 }
 
 
-const wxString& BITMAP_STORE::bitmapName( BITMAPS aBitmapId, int aHeight )
+const QString& BITMAP_STORE::bitmapName( BITMAPS aBitmapId, int aHeight )
 {
     std::pair<BITMAPS, int> key = std::make_pair( aBitmapId, aHeight );
 
@@ -242,15 +236,15 @@ const wxString& BITMAP_STORE::bitmapName( BITMAPS aBitmapId, int aHeight )
 }
 
 
-wxString BITMAP_STORE::computeBitmapName( BITMAPS aBitmapId, int aHeight )
+QString BITMAP_STORE::computeBitmapName( BITMAPS aBitmapId, int aHeight )
 {
     if( !m_bitmapInfoCache.count( aBitmapId ) )
     {
-        wxLogTrace( traceBitmaps, "No bitmap info available for %d", aBitmapId );
-        return wxEmptyString;
+        qDebug() << QString("No bitmap info available for %1").arg( static_cast<int>( aBitmapId ) );
+        return QString();
     }
 
-    wxString fn;
+    QString fn;
 
     for( const BITMAP_INFO& info : m_bitmapInfoCache.at( aBitmapId ) )
     {
@@ -264,10 +258,10 @@ wxString BITMAP_STORE::computeBitmapName( BITMAPS aBitmapId, int aHeight )
         }
     }
 
-    if( fn.IsEmpty() )
+    if( fn.isEmpty() )
     {
-        wxLogTrace( traceBitmaps, "No bitmap found matching ID %d, height %d, theme %s", aBitmapId,
-                    aHeight, m_theme );
+        qDebug() << QString("No bitmap found matching ID %1, height %2, theme %3")
+                    .arg( static_cast<int>( aBitmapId ) ).arg( aHeight ).arg( m_theme );
         return m_bitmapInfoCache.at( aBitmapId ).begin()->filename;
     }
 

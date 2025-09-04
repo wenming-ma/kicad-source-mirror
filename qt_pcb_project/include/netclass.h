@@ -1,32 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2009 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2009 Jean-Pierre Charras, jean-pierre.charras@inpg.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef CLASS_NETCLASS_H
 #define CLASS_NETCLASS_H
 
 #include <optional>
+#include <QString>
 
 #include <gal/color4d.h>
 #include <kicommon.h>
@@ -36,23 +13,15 @@
 
 using KIGFX::COLOR4D;
 
-DECL_SET_FOR_SWIG( STRINGSET, wxString )
+DECL_SET_FOR_SWIG( STRINGSET, QString )
 
-/**
- * A collection of nets and the parameters used to route or test these nets.
- */
+// A collection of nets and the parameters used to route or test these nets
 class KICOMMON_API NETCLASS : public SERIALIZABLE
 {
 public:
-    static const char Default[];        ///< the name of the default NETCLASS
+    static const char Default[];
 
-    /**
-     * Create a NETCLASS instance with \a aName.
-     * The units on the optional parameters are Internal Units (1 nm)
-     * @param aName is the name of this new netclass.
-     * @param aInitWithDefaults if true, initalise the netclass with default values
-     */
-    NETCLASS( const wxString& aName, bool aInitWithDefaults = true );
+    NETCLASS( const QString& aName, bool aInitWithDefaults = true );
 
     ~NETCLASS(){};
 
@@ -61,38 +30,24 @@ public:
 
     bool operator==( const NETCLASS& other ) const;
 
-    wxString GetClass() const
+    QString GetClass() const
     {
-        return wxT( "NETCLASS" );
+        return QStringLiteral( "NETCLASS" );
     }
 
     //void Serialize( google::protobuf::Any &aContainer ) const override;
     //bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
-    /// @brief Resets all parent fields to point to this netclass
     void ResetParents();
-
-    /// @brief Resets all parameters (except Name and Description)
     void ResetParameters();
 
-    /// @brief Gets the netclasses which make up this netclass
-    // For a root netcless, this is the netclass this pointer, for aggregate netclasses is contains
-    // all constituent netclasses, in order of priority.
     const std::vector<NETCLASS*>& GetConstituentNetclasses() const;
-
-    /// @brief Sets the netclasses which make up this netclass
     void SetConstituentNetclasses( std::vector<NETCLASS*>&& constituents );
 
-    /// @brief Determines if the given netclass name is a constituent of this (maybe aggregate)
-    /// netclass
-    bool ContainsNetclassWithName( const wxString& netclass ) const;
-
-    /// @ brief Determines if this is marked as the default netclass
+    bool ContainsNetclassWithName( const QString& netclass ) const;
     bool IsDefault() const { return m_isDefault; }
 
-    /// @brief Set the name of this netclass. Only relevant for root netclasses (i.e. those which
-    /// are not an aggregate)
-    void SetName( const wxString& aName )
+    void SetName( const QString& aName )
     {
         m_Name = aName;
 
@@ -100,18 +55,11 @@ public:
             m_isDefault = true;
     }
 
-    /// @brief Gets the name of this (maybe aggregate) netclass in a format for internal usage or
-    /// for export to external tools / netlists. WARNING: Do not use this to display a netclass
-    /// name to a user. Use GetHumanReadableName instead.
-    const wxString GetName() const;
+    const QString GetName() const;
+    const QString GetHumanReadableName() const;
 
-    /// @brief Gets the consolidated name of this netclass (which may be an aggregate). This is
-    /// intended for display to users (e.g. in infobars or messages). WARNING: Do not use this
-    /// to compare equivalence, or to export to other tools)
-    const wxString GetHumanReadableName() const;
-
-    const wxString& GetDescription() const  { return m_Description; }
-    void  SetDescription( const wxString& aDesc ) { m_Description = aDesc; }
+    const QString& GetDescription() const  { return m_Description; }
+    void  SetDescription( const QString& aDesc ) { m_Description = aDesc; }
 
     bool    HasClearance() const { return (bool) m_Clearance; }
     int     GetClearance() const { return m_Clearance.value_or(-1); }
@@ -242,22 +190,22 @@ public:
     int     GetPriority() const             { return m_Priority; }
 
 protected:
-    bool m_isDefault; ///< Mark if this instance is the default netclass
+    bool m_isDefault;
 
-    std::vector<NETCLASS*> m_constituents; ///< NETCLASSes contributing to an aggregate
+    std::vector<NETCLASS*> m_constituents;
 
-    wxString m_Name;                        ///< Name of the net class
-    int      m_Priority;                    ///< The priority for multiple netclass resolution
-    wxString m_Description;                 ///< what this NETCLASS is for.
+    QString m_Name;
+    int     m_Priority;
+    QString m_Description;
 
-    std::optional<int> m_Clearance;         ///< clearance when routing
+    std::optional<int> m_Clearance;
 
-    std::optional<int> m_TrackWidth;        ///< track width used to route nets
-    std::optional<int> m_ViaDia;            ///< via diameter
-    std::optional<int> m_ViaDrill;          ///< via drill hole diameter
+    std::optional<int> m_TrackWidth;
+    std::optional<int> m_ViaDia;
+    std::optional<int> m_ViaDrill;
 
-    std::optional<int> m_uViaDia;           ///< microvia diameter
-    std::optional<int> m_uViaDrill;         ///< microvia drill hole diameter
+    std::optional<int> m_uViaDia;
+    std::optional<int> m_uViaDrill;
 
     std::optional<int> m_diffPairWidth;
     std::optional<int> m_diffPairGap;
@@ -268,7 +216,7 @@ protected:
     COLOR4D            m_schematicColor;
     std::optional<int> m_lineStyle;
 
-    COLOR4D            m_pcbColor;          ///< Optional PCB color override for this netclass
+    COLOR4D            m_pcbColor;
 
     // The NETCLASS providing each parameter
     NETCLASS* m_clearanceParent;

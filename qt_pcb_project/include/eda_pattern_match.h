@@ -1,42 +1,16 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @file eda_pattern_match.h
- * @brief Abstract pattern-matching tool and implementations.
- */
 
 #ifndef EDA_PATTERN_MATCH_H
 #define EDA_PATTERN_MATCH_H
 
 #include <kicommon.h>
-#include <vector>
-#include <map>
+#include <QVector>
+#include <QHash>
 #include <memory>
-#include <wx/string.h>
-#include <wx/regex.h>
+#include <QString>
+#include <QRegularExpression>
 
-static const int EDA_PATTERN_NOT_FOUND = wxNOT_FOUND;
+static const int EDA_PATTERN_NOT_FOUND = -1;
 
 /**
  * A structure for storing weighted search terms.
@@ -46,15 +20,15 @@ static const int EDA_PATTERN_NOT_FOUND = wxNOT_FOUND;
  */
 struct KICOMMON_API SEARCH_TERM
 {
-    SEARCH_TERM( const wxString& aText, int aScore ) :
+    SEARCH_TERM( const QString& aText, int aScore ) :
             Text( aText ),
             Score( aScore ),
             Normalized( false )
     {}
 
-    wxString Text;
-    int      Score;
-    bool     Normalized;
+    QString Text;
+    int     Score;
+    bool    Normalized;
 };
 
 
@@ -87,12 +61,12 @@ public:
      *
      * @return false if the pattern not be processed.
      */
-    virtual bool SetPattern( const wxString& aPattern ) = 0;
+    virtual bool SetPattern( const QString& aPattern ) = 0;
 
     /**
      * Return the pattern passed to SetPattern().
      */
-    virtual wxString const& GetPattern() const = 0;
+    virtual QString const& GetPattern() const = 0;
 
     /**
      * Return the location and possibly length of a match if a given candidate
@@ -100,7 +74,7 @@ public:
      *
      * Otherwise, return an invalid #FIND_RESULT.
      */
-    virtual FIND_RESULT Find( const wxString& aCandidate ) const = 0;
+    virtual FIND_RESULT Find( const QString& aCandidate ) const = 0;
 };
 
 
@@ -111,12 +85,12 @@ class KICOMMON_API EDA_PATTERN_MATCH_SUBSTR : public EDA_PATTERN_MATCH
 {
 public:
 
-    virtual bool SetPattern( const wxString& aPattern ) override;
-    virtual wxString const& GetPattern() const override;
-    virtual FIND_RESULT     Find( const wxString& aCandidate ) const override;
+    virtual bool SetPattern( const QString& aPattern ) override;
+    virtual QString const& GetPattern() const override;
+    virtual FIND_RESULT     Find( const QString& aCandidate ) const override;
 
 protected:
-    wxString m_pattern;
+    QString m_pattern;
 };
 
 
@@ -127,20 +101,20 @@ class KICOMMON_API EDA_PATTERN_MATCH_REGEX : public EDA_PATTERN_MATCH
 {
 public:
 
-    virtual bool SetPattern( const wxString& aPattern ) override;
-    virtual wxString const& GetPattern() const override;
-    virtual FIND_RESULT     Find( const wxString& aCandidate ) const override;
+    virtual bool SetPattern( const QString& aPattern ) override;
+    virtual QString const& GetPattern() const override;
+    virtual FIND_RESULT     Find( const QString& aCandidate ) const override;
 
 protected:
-    wxString m_pattern;
-    wxRegEx m_regex;
+    QString m_pattern;
+    QRegularExpression m_regex;
 };
 
 
 class KICOMMON_API EDA_PATTERN_MATCH_REGEX_ANCHORED : public EDA_PATTERN_MATCH_REGEX
 {
 public:
-    virtual bool SetPattern( const wxString& aPattern ) override;
+    virtual bool SetPattern( const QString& aPattern ) override;
 };
 
 
@@ -148,19 +122,19 @@ class KICOMMON_API EDA_PATTERN_MATCH_WILDCARD : public EDA_PATTERN_MATCH_REGEX
 {
 public:
 
-    virtual bool SetPattern( const wxString& aPattern ) override;
-    virtual wxString const& GetPattern() const override;
-    virtual FIND_RESULT     Find( const wxString& aCandidate ) const override;
+    virtual bool SetPattern( const QString& aPattern ) override;
+    virtual QString const& GetPattern() const override;
+    virtual FIND_RESULT     Find( const QString& aCandidate ) const override;
 
 protected:
-    wxString m_wildcard_pattern;
+    QString m_wildcard_pattern;
 };
 
 
 class KICOMMON_API EDA_PATTERN_MATCH_WILDCARD_ANCHORED : public EDA_PATTERN_MATCH_WILDCARD
 {
 public:
-    virtual bool SetPattern( const wxString& aPattern ) override;
+    virtual bool SetPattern( const QString& aPattern ) override;
 };
 
 
@@ -180,21 +154,21 @@ public:
 class KICOMMON_API EDA_PATTERN_MATCH_RELATIONAL : public EDA_PATTERN_MATCH
 {
 public:
-    virtual bool SetPattern( const wxString& aPattern ) override;
-    virtual wxString const& GetPattern() const override;
-    virtual FIND_RESULT     Find( const wxString& aCandidate ) const override;
-    int FindOne( const wxString& aCandidate ) const;
+    virtual bool SetPattern( const QString& aPattern ) override;
+    virtual QString const& GetPattern() const override;
+    virtual FIND_RESULT     Find( const QString& aCandidate ) const override;
+    int FindOne( const QString& aCandidate ) const;
 
 protected:
 
     enum RELATION { LT, LE, EQ, GE, GT, ANY };
 
-    wxString m_pattern;
-    wxString m_key;
+    QString m_pattern;
+    QString m_key;
     RELATION m_relation;
     double   m_value;
 
-    static const std::map<wxString, double> m_units;
+    static const QHash<QString, double> m_units;
 };
 
 
@@ -211,7 +185,7 @@ enum COMBINED_MATCHER_CONTEXT
 class KICOMMON_API EDA_COMBINED_MATCHER
 {
 public:
-    EDA_COMBINED_MATCHER( const wxString& aPattern, COMBINED_MATCHER_CONTEXT aContext );
+    EDA_COMBINED_MATCHER( const QString& aPattern, COMBINED_MATCHER_CONTEXT aContext );
 
     /**
      * Deleted copy or else we have to implement copy constructors for all EDA_PATTERN_MATCH classes
@@ -234,22 +208,21 @@ public:
      *
      * @return true if any matchers found the term
      */
-    bool Find( const wxString& aTerm, int& aMatchersTriggered, int& aPosition );
+    bool Find( const QString& aTerm, int& aMatchersTriggered, int& aPosition );
 
-    bool Find( const wxString& aTerm );
+    bool Find( const QString& aTerm );
 
-    bool StartsWith( const wxString& aTerm );
+    bool StartsWith( const QString& aTerm );
 
-    const wxString& GetPattern() const;
+    const QString& GetPattern() const;
 
-    int ScoreTerms( std::vector<SEARCH_TERM>& aWeightedTerms );
+    int ScoreTerms( QVector<SEARCH_TERM>& aWeightedTerms );
 
 private:
-    /// Add matcher if it can compile the pattern.
-    void AddMatcher( const wxString& aPattern, std::unique_ptr<EDA_PATTERN_MATCH> aMatcher );
+    void AddMatcher( const QString& aPattern, std::unique_ptr<EDA_PATTERN_MATCH> aMatcher );
 
-    std::vector<std::unique_ptr<EDA_PATTERN_MATCH>> m_matchers;
-    wxString m_pattern;
+    QVector<std::unique_ptr<EDA_PATTERN_MATCH>> m_matchers;
+    QString m_pattern;
 };
 
 #endif  // EDA_PATTERN_MATCH_H

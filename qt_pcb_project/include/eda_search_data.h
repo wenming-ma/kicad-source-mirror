@@ -1,32 +1,10 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef EDA_ITEM_SEARCH_H
 #define EDA_ITEM_SEARCH_H
 
-#include <wx/log.h>
-#include <wx/regex.h>
-#include <wx/string.h>
+#include <QString>
+#include <QRegularExpression>
 
 enum class EDA_SEARCH_MATCH_MODE
 {
@@ -39,11 +17,11 @@ enum class EDA_SEARCH_MATCH_MODE
 
 struct EDA_SEARCH_DATA
 {
-    wxString         findString;
-    wxString         replaceString;
+    QString         findString;
+    QString         replaceString;
 
-    mutable wxRegEx  regex;
-    mutable wxString regex_string;
+    mutable QRegularExpression  regex;
+    mutable QString regex_string;
 
     bool             searchAndReplace;
     bool             searchAllFields;
@@ -63,7 +41,6 @@ struct EDA_SEARCH_DATA
     {
     }
 
-    // Need an explicit copy constructor because wxRegEx is not copyable
     EDA_SEARCH_DATA( const EDA_SEARCH_DATA& other ) :
             findString( other.findString ),
             replaceString( other.replaceString ),
@@ -75,8 +52,11 @@ struct EDA_SEARCH_DATA
     {
         if( matchMode == EDA_SEARCH_MATCH_MODE::REGEX )
         {
-            wxLogNull noLogs;
-            regex.Compile( findString, matchCase ? wxRE_DEFAULT : wxRE_ICASE );
+            QRegularExpression::PatternOptions options = QRegularExpression::NoPatternOption;
+            if( !matchCase )
+                options |= QRegularExpression::CaseInsensitiveOption;
+            regex.setPattern( findString );
+            regex.setPatternOptions( options );
         }
     }
 

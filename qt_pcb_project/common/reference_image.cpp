@@ -1,29 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 #include "reference_image.h"
 
-#include <wx/debug.h>
+#include <QtDebug>
 
 #include <bitmap_base.h>
 #include <geometry/geometry_utils.h>
@@ -60,7 +37,7 @@ void REFERENCE_IMAGE::updatePixelSizeInIU()
 
 REFERENCE_IMAGE& REFERENCE_IMAGE::operator=( const REFERENCE_IMAGE& aOther )
 {
-    wxASSERT( m_iuScale.IU_PER_MILS == aOther.m_iuScale.IU_PER_MILS );
+    Q_ASSERT( m_iuScale.IU_PER_MILS == aOther.m_iuScale.IU_PER_MILS );
 
     if( &aOther != this )
     {
@@ -264,7 +241,7 @@ void REFERENCE_IMAGE::Rotate( const VECTOR2I& aCenter, const EDA_ANGLE& aAngle )
 }
 
 
-bool REFERENCE_IMAGE::ReadImageFile( const wxString& aFullFilename )
+bool REFERENCE_IMAGE::ReadImageFile( const QString& aFullFilename )
 {
     if( m_bitmapBase->ReadImageFile( aFullFilename ) )
     {
@@ -276,7 +253,7 @@ bool REFERENCE_IMAGE::ReadImageFile( const wxString& aFullFilename )
 }
 
 
-bool REFERENCE_IMAGE::ReadImageFile( wxMemoryBuffer& aBuffer )
+bool REFERENCE_IMAGE::ReadImageFile( QByteArray& aBuffer )
 {
     if( m_bitmapBase->ReadImageFile( aBuffer ) )
     {
@@ -288,7 +265,7 @@ bool REFERENCE_IMAGE::ReadImageFile( wxMemoryBuffer& aBuffer )
 }
 
 
-bool REFERENCE_IMAGE::SetImage( const wxImage& aImage )
+bool REFERENCE_IMAGE::SetImage( const QImage& aImage )
 {
     if( m_bitmapBase->SetImage( aImage ) )
     {

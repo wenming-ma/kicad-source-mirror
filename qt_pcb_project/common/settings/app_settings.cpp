@@ -1,22 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <class_draw_panel_gal.h>
 #include <common.h>
@@ -59,16 +40,16 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
     m_params.emplace_back( new PARAM<bool>( "find_replace.search_and_replace",
                                             &m_FindReplace.search_and_replace, false ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "find_replace.find_string",
-            &m_FindReplace.find_string, wxS( "" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "find_replace.find_string",
+            &m_FindReplace.find_string, "" );
 
-    m_params.emplace_back( new PARAM_LIST<wxString>( "find_replace.find_history",
+    m_params.emplace_back( new PARAM_LIST<QString>( "find_replace.find_history",
             &m_FindReplace.find_history, {} ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "find_replace.replace_string",
-            &m_FindReplace.replace_string, "" ) );
+    m_params.emplace_back( new PARAM<QString>( "find_replace.replace_string",
+            &m_FindReplace.replace_string, "" );
 
-    m_params.emplace_back( new PARAM_LIST<wxString>( "find_replace.replace_history",
+    m_params.emplace_back( new PARAM_LIST<QString>( "find_replace.replace_history",
             &m_FindReplace.replace_history, {} ) );
 
     m_params.emplace_back( new PARAM<int>( "graphics.canvas_type",
@@ -83,14 +64,14 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
     m_params.emplace_back( new PARAM<int>( "color_picker.default_tab",
             &m_ColorPicker.default_tab, 0 ) );
 
-    m_params.emplace_back( new PARAM_LIST<wxString>( "lib_tree.columns", &m_LibTree.columns, {} ) );
+    m_params.emplace_back( new PARAM_LIST<QString>( "lib_tree.columns", &m_LibTree.columns, {} ) );
 
     m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "lib_tree.column_widths",
             [&]() -> nlohmann::json
             {
                 nlohmann::json ret = {};
 
-                for( const std::pair<const wxString, int>& pair : m_LibTree.column_widths )
+                for( const std::pair<const QString, int>& pair : m_LibTree.column_widths )
                     ret[std::string( pair.first.ToUTF8() )] = pair.second;
 
                 return ret;
@@ -113,7 +94,7 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
             {} ) );
 
     m_params.emplace_back(
-            new PARAM_LIST<wxString>( "lib_tree.open_libs", &m_LibTree.open_libs, {} ) );
+            new PARAM_LIST<QString>( "lib_tree.open_libs", &m_LibTree.open_libs, {} ) );
 
     m_params.emplace_back( new PARAM<bool>( "printing.background",
             &m_Printing.background, false ) );
@@ -127,8 +108,8 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
     m_params.emplace_back( new PARAM<bool>( "printing.use_theme",
             &m_Printing.use_theme, false ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "printing.color_theme",
-            &m_Printing.color_theme, wxS( "" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "printing.color_theme",
+            &m_Printing.color_theme, "" );
 
     m_params.emplace_back( new PARAM<bool>( "printing.title_block",
             &m_Printing.title_block, false ) );
@@ -149,11 +130,11 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
     m_params.emplace_back( new PARAM<int>( "system.max_undo_items",
             &m_System.max_undo_items, 0 ) );
 
-    m_params.emplace_back( new PARAM_LIST<wxString>( "system.file_history",
+    m_params.emplace_back( new PARAM_LIST<QString>( "system.file_history",
             &m_System.file_history, {} ) );
 
-    if( m_filename == wxS( "pl_editor" )
-        || ( m_filename == wxS( "eeschema" ) || m_filename == wxS( "symbol_editor" ) ) )
+    if( m_filename == "pl_editor"
+        || ( m_filename == "eeschema" || m_filename == ""symbol_editor" ) )
     {
         m_params.emplace_back( new PARAM<int>( "system.units",
                 &m_System.units, static_cast<int>( EDA_UNITS::MILS ) ) );
@@ -200,16 +181,16 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
                     for( const auto& pair : entry.items() )
                     {
                         m_Plugins.actions.emplace_back( std::make_pair(
-                                wxString( pair.key().c_str(), wxConvUTF8 ), pair.value() ) );
+                                QString( pair.key().c_str()), pair.value() ) );
                     }
                 }
             },
             nlohmann::json::array() ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "appearance.color_theme",
+    m_params.emplace_back( new PARAM<QString>( "appearance.color_theme",
             &m_ColorTheme, COLOR_SETTINGS::COLOR_BUILTIN_DEFAULT ) );
 
-    addParamsForWindow( &m_Window, "window" );
+    addParamsForWindow( &m_Window, "window";
 
     m_params.emplace_back( new PARAM<bool>( "cross_probing.on_selection",
             &m_CrossProbing.on_selection, true ) );
@@ -231,28 +212,28 @@ bool APP_SETTINGS_BASE::MigrateFromLegacy( wxConfigBase* aCfg )
 
     const std::string f = getLegacyFrameName();
 
-    ret &= fromLegacyString(   aCfg, "LastFindString",      "find_replace.find_string" );
-    ret &= fromLegacyString(   aCfg, "LastReplaceString",   "find_replace.replace_string" );
+    ret &= fromLegacyString(   aCfg, "LastFindString",      "find_replace.find_string";
+    ret &= fromLegacyString(   aCfg, "LastReplaceString",   "find_replace.replace_string";
 
     migrateFindReplace( aCfg );
 
-    ret &= fromLegacy<int>(    aCfg, "canvas_type",         "graphics.canvas_type" );
+    ret &= fromLegacy<int>(    aCfg, "canvas_type",         "graphics.canvas_type";
 
     ret &= fromLegacy<int>(    aCfg, "P22LIB_TREE_MODEL_ADAPTERSelectorColumnWidth",
-                                                            "lib_tree.column_width" );
+                                                            "lib_tree.column_width";
 
-    ret &= fromLegacy<bool>(   aCfg, "PrintMonochrome",     "printing.monochrome" );
-    ret &= fromLegacy<double>( aCfg, "PrintScale",          "printing.scale" );
-    ret &= fromLegacy<bool>(   aCfg, "PrintPageFrame",      "printing.title_block" );
+    ret &= fromLegacy<bool>(   aCfg, "PrintMonochrome",     "printing.monochrome";
+    ret &= fromLegacy<double>( aCfg, "PrintScale",          "printing.scale";
+    ret &= fromLegacy<bool>(   aCfg, "PrintPageFrame",      "printing.title_block";
 
     {
         nlohmann::json js = nlohmann::json::array();
-        wxString       key;
+        QString       key;
         bool           val = false;
 
         for( unsigned i = 0; i < PCB_LAYER_ID_COUNT; ++i )
         {
-            key.Printf( wxT( "PlotLayer_%d" ), i );
+            key.Printf( "PlotLayer_%d", i );
 
             if( aCfg->Read( key, &val ) && val )
                 js.push_back( i );
@@ -261,19 +242,19 @@ bool APP_SETTINGS_BASE::MigrateFromLegacy( wxConfigBase* aCfg )
         Set( "printing.layers", js );
     }
 
-    ret &= fromLegacy<bool>(   aCfg, f + "FirstRunShown",       "system.first_run_shown" );
-    ret &= fromLegacy<int>(    aCfg, f + "DevelMaxUndoItems",   "system.max_undo_items" );
-    ret &= fromLegacy<int>(    aCfg, f + "Units",               "system.units" );
+    ret &= fromLegacy<bool>(   aCfg, f + "FirstRunShown",       "system.first_run_shown";
+    ret &= fromLegacy<int>(    aCfg, f + "DevelMaxUndoItems",   "system.max_undo_items";
+    ret &= fromLegacy<int>(    aCfg, f + "Units",               "system.units";
 
     {
         int            max_history_size = Pgm().GetCommonSettings()->m_System.file_history_size;
-        wxString       file, key;
+        QString       file, key;
         nlohmann::json js = nlohmann::json::array();
 
         for( int i = 1; i <= max_history_size; i++ )
         {
             key.Printf( "file%d", i );
-            file = aCfg->Read( key, wxEmptyString );
+            file = aCfg->Read( key, QString() );
 
             if( !file.IsEmpty() )
                 js.push_back( file.ToStdString() );
@@ -282,7 +263,7 @@ bool APP_SETTINGS_BASE::MigrateFromLegacy( wxConfigBase* aCfg )
         Set( "system.file_history", js );
     }
 
-    ret &= migrateWindowConfig( aCfg, f, "window" );
+    ret &= migrateWindowConfig( aCfg, f, "window";
 
     return ret;
 }
@@ -293,7 +274,7 @@ void APP_SETTINGS_BASE::migrateFindReplace( wxConfigBase* aCfg )
     const int find_replace_history_size = 10;
     nlohmann::json find_history         = nlohmann::json::array();
     nlohmann::json replace_history      = nlohmann::json::array();
-    wxString tmp, find_key, replace_key;
+    QString tmp, find_key, replace_key;
 
     for( int i = 0; i < find_replace_history_size; ++i )
     {
@@ -321,30 +302,30 @@ bool APP_SETTINGS_BASE::migrateWindowConfig( wxConfigBase* aCfg, const std::stri
     const std::string cursorPath = aJsonPath + ".cursor";
     const std::string gridPath = aJsonPath + ".grid";
 
-    ret &= fromLegacy<bool>( aCfg, aFrame + "Maximized",            aJsonPath + ".maximized" );
-    ret &= fromLegacyString( aCfg, aFrame + "MostRecentlyUsedPath", aJsonPath + ".mru_path" );
-    ret &= fromLegacy<int>(  aCfg, aFrame + "Size_x",               aJsonPath + ".size_x" );
-    ret &= fromLegacy<int>(  aCfg, aFrame + "Size_y",               aJsonPath + ".size_y" );
-    ret &= fromLegacyString( aCfg, aFrame + "Perspective",          aJsonPath + ".perspective" );
-    ret &= fromLegacy<int>(  aCfg, aFrame + "Pos_x",                aJsonPath + ".pos_x" );
-    ret &= fromLegacy<int>(  aCfg, aFrame + "Pos_y",                aJsonPath + ".pos_y" );
+    ret &= fromLegacy<bool>( aCfg, aFrame + "Maximized",            aJsonPath + ".maximized";
+    ret &= fromLegacyString( aCfg, aFrame + "MostRecentlyUsedPath", aJsonPath + ".mru_path";
+    ret &= fromLegacy<int>(  aCfg, aFrame + "Size_x",               aJsonPath + ".size_x";
+    ret &= fromLegacy<int>(  aCfg, aFrame + "Size_y",               aJsonPath + ".size_y";
+    ret &= fromLegacyString( aCfg, aFrame + "Perspective",          aJsonPath + ".perspective";
+    ret &= fromLegacy<int>(  aCfg, aFrame + "Pos_x",                aJsonPath + ".pos_x";
+    ret &= fromLegacy<int>(  aCfg, aFrame + "Pos_y",                aJsonPath + ".pos_y";
 
     ret &= fromLegacy<bool>( aCfg, frameGDO + "ForceDisplayCursor",
-                             cursorPath + ".always_show_cursor" );
+                             cursorPath + ".always_show_cursor";
     ret &= fromLegacy<bool>( aCfg, frameGDO + "CursorFullscreen",
-                             cursorPath + ".fullscreen_cursor" );
+                             cursorPath + ".fullscreen_cursor";
 
-    ret &= fromLegacy<int>(  aCfg, aFrame + "_LastGridSize",        gridPath + ".last_size" );
+    ret &= fromLegacy<int>(  aCfg, aFrame + "_LastGridSize",        gridPath + ".last_size";
 
-    ret &= fromLegacy<int>(  aCfg, aFrame + "FastGrid1",            gridPath + ".fast_grid_1" );
-    ret &= fromLegacy<int>(  aCfg, aFrame + "FastGrid2",            gridPath + ".fast_grid_2" );
+    ret &= fromLegacy<int>(  aCfg, aFrame + "FastGrid1",            gridPath + ".fast_grid_1";
+    ret &= fromLegacy<int>(  aCfg, aFrame + "FastGrid2",            gridPath + ".fast_grid_2";
 
-    ret &= fromLegacy<bool>(   aCfg, frameGDO + "GridAxesEnabled",  gridPath + ".axes_enabled" );
-    ret &= fromLegacy<double>( aCfg, frameGDO + "GridLineWidth",    gridPath + ".line_width" );
-    ret &= fromLegacy<double>( aCfg, frameGDO + "GridMaxDensity",   gridPath + ".min_spacing" );
-    ret &= fromLegacy<bool>(   aCfg, frameGDO + "ShowGrid",         gridPath + ".show" );
-    ret &= fromLegacy<int>(    aCfg, frameGDO + "GridStyle",        gridPath + ".style" );
-    ret &= fromLegacyColor(    aCfg, frameGDO + "GridColor",        gridPath + ".color" );
+    ret &= fromLegacy<bool>(   aCfg, frameGDO + "GridAxesEnabled",  gridPath + ".axes_enabled";
+    ret &= fromLegacy<double>( aCfg, frameGDO + "GridLineWidth",    gridPath + ".line_width";
+    ret &= fromLegacy<double>( aCfg, frameGDO + "GridMaxDensity",   gridPath + ".min_spacing";
+    ret &= fromLegacy<bool>(   aCfg, frameGDO + "ShowGrid",         gridPath + ".show";
+    ret &= fromLegacy<int>(    aCfg, frameGDO + "GridStyle",        gridPath + ".style";
+    ret &= fromLegacyColor(    aCfg, frameGDO + "GridColor",        gridPath + ".color";
 
     return ret;
 }
@@ -356,15 +337,15 @@ void APP_SETTINGS_BASE::addParamsForWindow( WINDOW_SETTINGS* aWindow, const std:
     m_params.emplace_back( new PARAM<bool>( aJsonPath + ".maximized",
             &aWindow->state.maximized, false ) );
 
-    m_params.emplace_back( new PARAM<wxString>( aJsonPath + ".mru_path",
-            &aWindow->mru_path, wxS( "" ) ) );
+    m_params.emplace_back( new PARAM<QString>( aJsonPath + ".mru_path",
+            &aWindow->mru_path, "" );
 
     m_params.emplace_back( new PARAM<int>( aJsonPath + ".size_x", &aWindow->state.size_x, aDefaultWidth ) );
 
     m_params.emplace_back( new PARAM<int>( aJsonPath + ".size_y", &aWindow->state.size_y, aDefaultHeight ) );
 
-    m_params.emplace_back( new PARAM<wxString>( aJsonPath + ".perspective",
-            &aWindow->perspective, wxS( "" ) ) );
+    m_params.emplace_back( new PARAM<QString>( aJsonPath + ".perspective",
+            &aWindow->perspective, "" );
 
     m_params.emplace_back( new PARAM<int>( aJsonPath + ".pos_x", &aWindow->state.pos_x, 0 ) );
 
@@ -381,11 +362,11 @@ void APP_SETTINGS_BASE::addParamsForWindow( WINDOW_SETTINGS* aWindow, const std:
 
     int defaultGridIdx;
 
-    if( ( m_filename == wxS( "eeschema" ) || m_filename == wxS( "symbol_editor" ) ) )
+    if( ( m_filename == "eeschema" || m_filename == ""symbol_editor" ) )
     {
         defaultGridIdx = 1;
     }
-    else if( m_filename == wxS( "pl_editor" ) )
+    else if( m_filename == "pl_editor" )
     {
         defaultGridIdx = 4;
     }
@@ -407,13 +388,13 @@ void APP_SETTINGS_BASE::addParamsForWindow( WINDOW_SETTINGS* aWindow, const std:
             &aWindow->grid.fast_grid_2, defaultGridIdx + 1 ) );
 
     // legacy values, leave blank by default so we don't convert them
-    m_params.emplace_back( new PARAM<wxString>( aJsonPath + ".grid.user_grid_x",
-            &aWindow->grid.user_grid_x, wxEmptyString ) );
-    m_params.emplace_back( new PARAM<wxString>( aJsonPath + ".grid.user_grid_y",
-            &aWindow->grid.user_grid_y, wxEmptyString ) );
+    m_params.emplace_back( new PARAM<QString>( aJsonPath + ".grid.user_grid_x",
+            &aWindow->grid.user_grid_x, QString() ) );
+    m_params.emplace_back( new PARAM<QString>( aJsonPath + ".grid.user_grid_y",
+            &aWindow->grid.user_grid_y, QString() ) );
 
     // for grid overrides, give just the schematic and symbol editors sane values
-    if( m_filename == wxS( "eeschema" ) || m_filename == wxS( "symbol_editor" ) )
+    if( m_filename == "eeschema" || m_filename == ""symbol_editor" )
     {
         m_params.emplace_back( new PARAM<bool>( aJsonPath + ".grid.overrides_enabled",
                                                 &aWindow->grid.overrides_enabled, true ) );
@@ -491,15 +472,15 @@ void APP_SETTINGS_BASE::addParamsForWindow( WINDOW_SETTINGS* aWindow, const std:
 
 const std::vector<double> APP_SETTINGS_BASE::DefaultZoomList() const
 {
-    if( m_filename == wxS( "eeschema" ) || m_filename == wxS( "symbol_editor" ) )
+    if( m_filename == "eeschema" || m_filename == ""symbol_editor" )
     {
         return { ZOOM_LIST_EESCHEMA };
     }
-    else if( m_filename == wxS( "pl_editor" ) )
+    else if( m_filename == "pl_editor" )
     {
         return { ZOOM_LIST_PL_EDITOR };
     }
-    else if( m_filename == wxS( "gerbview" ) )
+    else if( m_filename == "gerbview" )
     {
         return { ZOOM_LIST_GERBVIEW };
     }
@@ -515,73 +496,73 @@ const std::vector<double> APP_SETTINGS_BASE::DefaultZoomList() const
 
 const std::vector<GRID> APP_SETTINGS_BASE::DefaultGridSizeList() const
 {
-    if( m_filename == wxS( "eeschema" ) || m_filename == wxS( "symbol_editor" ) )
+    if( m_filename == "eeschema" || m_filename == ""symbol_editor" )
     {
-        return { GRID{ wxEmptyString, wxS( "100 mil" ), wxS( "100 mil" ) },
-                 GRID{ wxEmptyString, wxS( "50 mil" ), wxS( "50 mil" ) },
-                 GRID{ wxEmptyString, wxS( "25 mil" ), wxS( "25 mil" ) },
-                 GRID{ wxEmptyString, wxS( "10 mil" ), wxS( "10 mil" ) } };
+        return { GRID{ QString(), "100 mil", ""100 mil" },
+                 GRID{ QString(), "50 mil", ""50 mil" },
+                 GRID{ QString(), "25 mil", ""25 mil" },
+                 GRID{ QString(), "10 mil", ""10 mil" } };
     }
-    else if( m_filename == wxS( "pl_editor" ) )
+    else if( m_filename == "pl_editor" )
     {
-        return { GRID{ wxEmptyString, wxS( "5.00 mm" ), wxS( "5.00 mm" ) },
-                 GRID{ wxEmptyString, wxS( "2.50 mm" ), wxS( "2.50 mm" ) },
-                 GRID{ wxEmptyString, wxS( "2.00 mm" ), wxS( "2.00 mm" ) },
-                 GRID{ wxEmptyString, wxS( "1.00 mm" ), wxS( "1.00 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.50 mm" ), wxS( "0.50 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.25 mm" ), wxS( "0.25 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.20 mm" ), wxS( "0.20 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.10 mm" ), wxS( "0.10 mm" ) } };
+        return { GRID{ QString(), "5.00 mm", ""5.00 mm" },
+                 GRID{ QString(), "2.50 mm", ""2.50 mm" },
+                 GRID{ QString(), "2.00 mm", ""2.00 mm" },
+                 GRID{ QString(), "1.00 mm", ""1.00 mm" },
+                 GRID{ QString(), "0.50 mm", ""0.50 mm" },
+                 GRID{ QString(), "0.25 mm", ""0.25 mm" },
+                 GRID{ QString(), "0.20 mm", ""0.20 mm" },
+                 GRID{ QString(), "0.10 mm", ""0.10 mm" } };
     }
-    else if( m_filename == wxS( "gerbview" ) )
+    else if( m_filename == "gerbview" )
     {
-        return { GRID{ wxEmptyString, wxS( "100 mil" ), wxS( "100 mil" ) },
-                 GRID{ wxEmptyString, wxS( "50 mil" ), wxS( "50 mil" ) },
-                 GRID{ wxEmptyString, wxS( "25 mil" ), wxS( "25 mil" ) },
-                 GRID{ wxEmptyString, wxS( "20 mil" ), wxS( "20 mil" ) },
-                 GRID{ wxEmptyString, wxS( "10 mil" ), wxS( "10 mil" ) },
-                 GRID{ wxEmptyString, wxS( "5 mil" ), wxS( "5 mil" ) },
-                 GRID{ wxEmptyString, wxS( "2.5 mil" ), wxS( "2.5 mil" ) },
-                 GRID{ wxEmptyString, wxS( "2 mil" ), wxS( "2 mil" ) },
-                 GRID{ wxEmptyString, wxS( "1 mil" ), wxS( "1 mil" ) },
-                 GRID{ wxEmptyString, wxS( "0.5 mil" ), wxS( "0.5 mil" ) },
-                 GRID{ wxEmptyString, wxS( "0.2 mil" ), wxS( "0.2 mil" ) },
-                 GRID{ wxEmptyString, wxS( "0.1 mil" ), wxS( "0.1 mil" ) },
-                 GRID{ wxEmptyString, wxS( "5.0 mm" ), wxS( "5.0 mm" ) },
-                 GRID{ wxEmptyString, wxS( "1.5 mm" ), wxS( "2.5 mm" ) },
-                 GRID{ wxEmptyString, wxS( "1.0 mm" ), wxS( "1.0 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.5 mm" ), wxS( "0.5 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.25 mm" ), wxS( "0.25 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.2 mm" ), wxS( "0.2 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.1 mm" ), wxS( "0.1 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.05 mm" ), wxS( "0.0 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.025 mm" ), wxS( "0.0 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.01 mm" ), wxS( "0.0 mm" ) } };
+        return { GRID{ QString(), "100 mil", ""100 mil" },
+                 GRID{ QString(), "50 mil", ""50 mil" },
+                 GRID{ QString(), "25 mil", ""25 mil" },
+                 GRID{ QString(), "20 mil", ""20 mil" },
+                 GRID{ QString(), "10 mil", ""10 mil" },
+                 GRID{ QString(), "5 mil", ""5 mil" },
+                 GRID{ QString(), "2.5 mil", ""2.5 mil" },
+                 GRID{ QString(), "2 mil", ""2 mil" },
+                 GRID{ QString(), "1 mil", ""1 mil" },
+                 GRID{ QString(), "0.5 mil", ""0.5 mil" },
+                 GRID{ QString(), "0.2 mil", ""0.2 mil" },
+                 GRID{ QString(), "0.1 mil", ""0.1 mil" },
+                 GRID{ QString(), "5.0 mm", ""5.0 mm" },
+                 GRID{ QString(), "1.5 mm", ""2.5 mm" },
+                 GRID{ QString(), "1.0 mm", ""1.0 mm" },
+                 GRID{ QString(), "0.5 mm", ""0.5 mm" },
+                 GRID{ QString(), "0.25 mm", ""0.25 mm" },
+                 GRID{ QString(), "0.2 mm", ""0.2 mm" },
+                 GRID{ QString(), "0.1 mm", ""0.1 mm" },
+                 GRID{ QString(), "0.05 mm", ""0.0 mm" },
+                 GRID{ QString(), "0.025 mm", ""0.0 mm" },
+                 GRID{ QString(), "0.01 mm", ""0.0 mm" } };
     }
     else
     {
-        return { GRID{ wxEmptyString, wxS( "1000 mil" ), wxS( "1000 mil" ) },
-                 GRID{ wxEmptyString, wxS( "500 mil" ), wxS( "500 mil" ) },
-                 GRID{ wxEmptyString, wxS( "250 mil" ), wxS( "250 mil" ) },
-                 GRID{ wxEmptyString, wxS( "200 mil" ), wxS( "200 mil" ) },
-                 GRID{ wxEmptyString, wxS( "100 mil" ), wxS( "100 mil" ) },
-                 GRID{ wxEmptyString, wxS( "50 mil" ), wxS( "50 mil" ) },
-                 GRID{ wxEmptyString, wxS( "25 mil" ), wxS( "25 mil" ) },
-                 GRID{ wxEmptyString, wxS( "20 mil" ), wxS( "20 mil" ) },
-                 GRID{ wxEmptyString, wxS( "10 mil" ), wxS( "10 mil" ) },
-                 GRID{ wxEmptyString, wxS( "5 mil" ), wxS( "5 mil" ) },
-                 GRID{ wxEmptyString, wxS( "2 mil" ), wxS( "2 mil" ) },
-                 GRID{ wxEmptyString, wxS( "1 mil" ), wxS( "1 mil" ) },
-                 GRID{ wxEmptyString, wxS( "5.0 mm" ), wxS( "5.0 mm" ) },
-                 GRID{ wxEmptyString, wxS( "2.5 mm" ), wxS( "2.5 mm" ) },
-                 GRID{ wxEmptyString, wxS( "1.0 mm" ), wxS( "1.0 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.5 mm" ), wxS( "0.5 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.25 mm" ), wxS( "0.25 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.2 mm" ), wxS( "0.2 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.1 mm" ), wxS( "0.1 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.05 mm" ), wxS( "0.05 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.025 mm" ), wxS( "0.025 mm" ) },
-                 GRID{ wxEmptyString, wxS( "0.01 mm" ), wxS( "0.01 mm" ) } };
+        return { GRID{ QString(), "1000 mil", ""1000 mil" },
+                 GRID{ QString(), "500 mil", ""500 mil" },
+                 GRID{ QString(), "250 mil", ""250 mil" },
+                 GRID{ QString(), "200 mil", ""200 mil" },
+                 GRID{ QString(), "100 mil", ""100 mil" },
+                 GRID{ QString(), "50 mil", ""50 mil" },
+                 GRID{ QString(), "25 mil", ""25 mil" },
+                 GRID{ QString(), "20 mil", ""20 mil" },
+                 GRID{ QString(), "10 mil", ""10 mil" },
+                 GRID{ QString(), "5 mil", ""5 mil" },
+                 GRID{ QString(), "2 mil", ""2 mil" },
+                 GRID{ QString(), "1 mil", ""1 mil" },
+                 GRID{ QString(), "5.0 mm", ""5.0 mm" },
+                 GRID{ QString(), "2.5 mm", ""2.5 mm" },
+                 GRID{ QString(), "1.0 mm", ""1.0 mm" },
+                 GRID{ QString(), "0.5 mm", ""0.5 mm" },
+                 GRID{ QString(), "0.25 mm", ""0.25 mm" },
+                 GRID{ QString(), "0.2 mm", ""0.2 mm" },
+                 GRID{ QString(), "0.1 mm", ""0.1 mm" },
+                 GRID{ QString(), "0.05 mm", ""0.05 mm" },
+                 GRID{ QString(), "0.025 mm", ""0.025 mm" },
+                 GRID{ QString(), "0.01 mm", ""0.01 mm" } };
     }
 }
 
@@ -590,10 +571,10 @@ bool APP_SETTINGS_BASE::migrateLibTreeWidth()
 {
     // We used to store only the width of the first column, because there were only
     // two possible columns.
-    if( std::optional<int> optWidth = Get<int>( "lib_tree.column_width" ) )
+    if( std::optional<int> optWidth = Get<int>( "lib_tree.column_width" )
     {
         Set<nlohmann::json>( "lib_tree.column_widths", { { "Item", *optWidth } } );
-        At( "lib_tree" ).erase( "column_width" );
+        At( "lib_tree".erase( "column_width";
     }
 
     return true;

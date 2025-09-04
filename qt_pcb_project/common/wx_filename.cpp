@@ -1,79 +1,72 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 #include <wx_filename.h>
 #include <string_utils.h>
+#include <QDir>
+#include <limits.h>
 
+#ifndef __WINDOWS__
+#include <unistd.h>
+#include <climits>
+#endif
 
-WX_FILENAME::WX_FILENAME( const wxString& aPath, const wxString& aFilename )
-        : m_fn( aPath, aFilename ), m_path( aPath ), m_fullName( aFilename )
+WX_FILENAME::WX_FILENAME( const QString& aPath, const QString& aFilename )
+        : m_fn( aPath + "/" + aFilename ), m_path( aPath ), m_fullName( aFilename )
 {
 }
 
 
-void WX_FILENAME::SetFullName( const wxString& aFileNameAndExtension )
+void WX_FILENAME::SetFullName( const QString& aFileNameAndExtension )
 {
     m_fullName = aFileNameAndExtension;
 }
 
 
-void WX_FILENAME::SetPath( const wxString& aPath )
+void WX_FILENAME::SetPath( const QString& aPath )
 {
-    m_fn.SetPath( aPath );
+    m_fn.setFile( aPath + "/" + m_fullName );
     m_path = aPath;
 }
 
 
-wxString WX_FILENAME::GetName() const
+QString WX_FILENAME::GetName() const
 {
-    size_t dot = m_fullName.find_last_of( wxT( '.' ) );
-    return m_fullName.substr( 0, dot );
+    int dot = m_fullName.lastIndexOf( '.' );
+    if( dot != -1 )
+        return m_fullName.left( dot );
+    return m_fullName;
 }
 
 
-wxString WX_FILENAME::GetFullName() const
+QString WX_FILENAME::GetFullName() const
 {
     return m_fullName;
 }
 
 
-wxString WX_FILENAME::GetPath() const
+QString WX_FILENAME::GetPath() const
 {
     return m_path;
 }
 
 
-wxString WX_FILENAME::GetFullPath() const
+QString WX_FILENAME::GetFullPath() const
 {
-    return m_path + wxT( '/' ) + m_fullName;
+    return m_path + "/" + m_fullName;
 }
 
 
 void WX_FILENAME::resolve()
 {
-    size_t dot = m_fullName.find_last_of( wxT( '.' ) );
-    m_fn.SetName( m_fullName.substr( 0, dot ) );
-    m_fn.SetExt( m_fullName.substr( dot + 1 ) );
+    int dot = m_fullName.lastIndexOf( '.' );
+    if( dot != -1 )
+    {
+        QString baseName = m_fullName.left( dot );
+        QString extension = m_fullName.mid( dot + 1 );
+        m_fn.setFile( m_path + "/" + baseName + "." + extension );
+    }
+    else
+    {
+        m_fn.setFile( m_path + "/" + m_fullName );
+    }
 }
 
 
@@ -81,23 +74,23 @@ long long WX_FILENAME::GetTimestamp()
 {
     resolve();
 
-    if( m_fn.FileExists() )
-        return m_fn.GetModificationTime().GetValue().GetValue();
+    if( m_fn.exists() && m_fn.isFile() )
+        return m_fn.lastModified().toMSecsSinceEpoch();
 
     return 0;
 }
 
 
-void WX_FILENAME::ResolvePossibleSymlinks( wxFileName& aFilename )
+void WX_FILENAME::ResolvePossibleSymlinks( QFileInfo& aFilename )
 {
 #ifndef __WINDOWS__
-    if( aFilename.Exists( wxFILE_EXISTS_SYMLINK ) )
+    if( aFilename.isSymLink() )
     {
         char buffer[PATH_MAX];
-        char* realPath = realpath( TO_UTF8( aFilename.GetFullPath() ), buffer );
+        char* realPath = realpath( aFilename.absoluteFilePath().toLocal8Bit().constData(), buffer );
 
         if( realPath )
-            aFilename.Assign( wxString::FromUTF8( realPath ) );
+            aFilename.setFile( QString::fromLocal8Bit( realPath ) );
     }
 #endif
 }

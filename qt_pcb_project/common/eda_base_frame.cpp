@@ -1,41 +1,11 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2013 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2023 CERN (www.cern.ch)
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-// #include <kicad/kicad_manager_frame.h>  // UI component - commented out for minimal build
 #include <eda_base_frame.h>
 
 #include <advanced_config.h>
 #include <bitmaps.h>
 #include <bitmap_store.h>
 #include <dialog_shim.h>
-// #include <dialogs/git/panel_git_repos.h>  // UI component - commented out for minimal build
 #include <dialogs/panel_common_settings.h>
 #include <dialogs/panel_mouse_settings.h>
-// #include <dialogs/panel_data_collection.h>  // UI component - commented out for minimal build
-// #include <dialogs/panel_plugin_settings.h>  // UI component - commented out for minimal build
 #include <eda_dde.h>
 #include <file_history.h>
 #include <id.h>
@@ -44,7 +14,6 @@
 #include <panel_hotkeys_editor.h>
 #include <paths.h>
 #include <confirm.h>
-// #include <panel_packages_and_updates.h>  // UI component - commented out for minimal build
 #include <pgm_base.h>
 #include <settings/app_settings.h>
 #include <settings/common_settings.h>
@@ -64,12 +33,28 @@
 #include <widgets/wx_aui_art_providers.h>
 #include <widgets/wx_grid.h>
 #include <widgets/wx_treebook.h>
-#include <wx/app.h>
-#include <wx/config.h>
-#include <wx/display.h>
-#include <wx/stdpaths.h>
-#include <wx/string.h>
-#include <wx/msgdlg.h>
+#include <QApplication>
+#include <QSettings>
+#include <QScreen>
+#include <QStandardPaths>
+#include <QString>
+#include <QMessageBox>
+#include <QTimer>
+#include <QMainWindow>
+#include <QWidget>
+#include <QKeyEvent>
+#include <QResizeEvent>
+#include <QCloseEvent>
+#include <QFileInfo>
+#include <QDir>
+#include <QFile>
+#include <QShortcut>
+#include <QMenuBar>
+#include <QDropEvent>
+#include <QMimeData>
+#include <QUrl>
+#include <QLineEdit>
+#include <QDebug>
 #include <kiplatform/app.h>
 #include <kiplatform/io.h>
 #include <kiplatform/ui.h>
@@ -83,48 +68,33 @@
 
 
 // Minimum window size
-static const wxSize minSizeLookup( FRAME_T aFrameType, wxWindow* aWindow )
+static const QSize minSizeLookup( FRAME_T aFrameType, QWidget* aWidget )
 {
     switch( aFrameType )
     {
     case KICAD_MAIN_FRAME_T:
-        return wxWindow::FromDIP( wxSize( 406, 354 ), aWindow );
+        return QSize( 406, 354 );
 
     default:
-        return wxWindow::FromDIP( wxSize( 500, 400 ), aWindow );
+        return QSize( 500, 400 );
     }
 }
 
 
-static const wxSize defaultSize( FRAME_T aFrameType, wxWindow* aWindow )
+static const QSize defaultSize( FRAME_T aFrameType, QWidget* aWidget )
 {
     switch( aFrameType )
     {
     case KICAD_MAIN_FRAME_T:
-        return wxWindow::FromDIP( wxSize( 850, 540 ), aWindow );
+        return QSize( 850, 540 );
 
     default:
-        return wxWindow::FromDIP( wxSize( 1280, 720 ), aWindow );
+        return QSize( 1280, 720 );
     }
 }
 
 
-BEGIN_EVENT_TABLE( EDA_BASE_FRAME, wxFrame )
-    // These event table entries are needed to handle events from the mac application menu
-    EVT_MENU( wxID_ABOUT, EDA_BASE_FRAME::OnKicadAbout )
-    EVT_MENU( wxID_PREFERENCES, EDA_BASE_FRAME::OnPreferences )
-
-    EVT_CHAR_HOOK( EDA_BASE_FRAME::OnCharHook )
-    EVT_MENU_OPEN( EDA_BASE_FRAME::OnMenuEvent )
-    EVT_MENU_CLOSE( EDA_BASE_FRAME::OnMenuEvent )
-    EVT_MENU_HIGHLIGHT_ALL( EDA_BASE_FRAME::OnMenuEvent )
-    EVT_MOVE( EDA_BASE_FRAME::OnMove )
-    EVT_SIZE( EDA_BASE_FRAME::OnSize )
-    EVT_MAXIMIZE( EDA_BASE_FRAME::OnMaximize )
-
-    EVT_SYS_COLOUR_CHANGED( EDA_BASE_FRAME::onSystemColorChange )
-    EVT_ICONIZE( EDA_BASE_FRAME::onIconize )
-END_EVENT_TABLE()
+// Qt event handling replaces wxWidgets event table
 
 
 void EDA_BASE_FRAME::commonInit( FRAME_T aFrameType )
@@ -139,40 +109,35 @@ void EDA_BASE_FRAME::commonInit( FRAME_T aFrameType )
     m_undoRedoCountMax  = DEFAULT_MAX_UNDO_ITEMS;
     m_isClosing         = false;
     m_isNonUserClose    = false;
-    m_autoSaveTimer     = new wxTimer( this, ID_AUTO_SAVE_TIMER );
+    m_autoSaveTimer     = new QTimer( this );
+    m_autoSaveTimer->setSingleShot( true );
     m_autoSaveRequired  = false;
     m_mruPath           = PATHS::GetDefaultUserProjectsPath();
     m_frameSize         = defaultSize( aFrameType, this );
     m_displayIndex      = -1;
 
-    // UI component - commented out for minimal build
-    // m_auimgr.SetArtProvider( new WX_AUI_DOCK_ART() );
-
     m_settingsManager = &Pgm().GetSettingsManager();
 
     // Set a reasonable minimal size for the frame
-    wxSize minSize = minSizeLookup( aFrameType, this );
-    SetSizeHints( minSize.x, minSize.y, -1, -1, -1, -1 );
+    QSize minSize = minSizeLookup( aFrameType, this );
+    setMinimumSize( minSize );
 
     // Store dimensions of the user area of the main window.
-    GetClientSize( &m_frameSize.x, &m_frameSize.y );
+    QSize clientSize = size();
+    m_frameSize.x = clientSize.width();
+    m_frameSize.y = clientSize.height();
 
-    Connect( ID_AUTO_SAVE_TIMER, wxEVT_TIMER,
-             wxTimerEventHandler( EDA_BASE_FRAME::onAutoSaveTimer ) );
-
-    // hook wxEVT_CLOSE_WINDOW so we can call SaveSettings().  This function seems
-    // to be called before any other hook for wxCloseEvent, which is necessary.
-    Connect( wxEVT_CLOSE_WINDOW, wxCloseEventHandler( EDA_BASE_FRAME::windowClosing ) );
+    connect( m_autoSaveTimer, &QTimer::timeout, this, &EDA_BASE_FRAME::onAutoSaveTimer );
 
     initExitKey();
 }
 
 
-EDA_BASE_FRAME::EDA_BASE_FRAME( wxWindow* aParent, FRAME_T aFrameType, const wxString& aTitle,
-                                const wxPoint& aPos, const wxSize& aSize, long aStyle,
-                                const wxString& aFrameName, KIWAY* aKiway,
+EDA_BASE_FRAME::EDA_BASE_FRAME( QWidget* aParent, FRAME_T aFrameType, const QString& aTitle,
+                                const QPoint& aPos, const QSize& aSize, Qt::WindowFlags aFlags,
+                                const QString& aFrameName, KIWAY* aKiway,
                                 const EDA_IU_SCALE& aIuScale ) :
-        wxFrame( aParent, wxID_ANY, aTitle, aPos, aSize, aStyle, aFrameName ),
+        QMainWindow( aParent ),
         TOOLS_HOLDER(),
         KIWAY_HOLDER( aKiway, KIWAY_HOLDER::FRAME ),
         UNITS_PROVIDER( aIuScale, EDA_UNITS::MM )
@@ -181,16 +146,20 @@ EDA_BASE_FRAME::EDA_BASE_FRAME( wxWindow* aParent, FRAME_T aFrameType, const wxS
 }
 
 
-wxWindow* findQuasiModalDialog( wxWindow* aParent )
+QWidget* findQuasiModalDialog( QWidget* aParent )
 {
-    for( wxWindow* child : aParent->GetChildren() )
+    for( QObject* obj : aParent->children() )
     {
+        QWidget* child = qobject_cast<QWidget*>( obj );
+        if( !child )
+            continue;
+
         if( DIALOG_SHIM* dlg = dynamic_cast<DIALOG_SHIM*>( child ) )
         {
             if( dlg->IsQuasiModal() )
                 return dlg;
 
-            if( wxWindow* nestedDlg = findQuasiModalDialog( child ) )
+            if( QWidget* nestedDlg = findQuasiModalDialog( child ) )
                 return nestedDlg;
         }
     }
@@ -199,16 +168,14 @@ wxWindow* findQuasiModalDialog( wxWindow* aParent )
 }
 
 
-wxWindow* EDA_BASE_FRAME::findQuasiModalDialog()
+QWidget* EDA_BASE_FRAME::findQuasiModalDialog()
 {
-    if( wxWindow* dlg = ::findQuasiModalDialog( this ) )
+    if( QWidget* dlg = ::findQuasiModalDialog( this ) )
         return dlg;
 
-    // FIXME: CvPcb is currently implemented on top of KIWAY_PLAYER rather than DIALOG_SHIM,
-    // so we have to look for it separately.
     if( m_ident == FRAME_SCH )
     {
-        wxWindow* cvpcb = wxWindow::FindWindowByName( wxS( "CvpcbFrame" ) );
+        QWidget* cvpcb = QApplication::activeWindow()->findChild<QWidget*>( "CvpcbFrame" );
 
         if( cvpcb )
             return cvpcb;
@@ -218,31 +185,26 @@ wxWindow* EDA_BASE_FRAME::findQuasiModalDialog()
 }
 
 
-void EDA_BASE_FRAME::windowClosing( wxCloseEvent& event )
+void EDA_BASE_FRAME::windowClosing( QCloseEvent& event )
 {
     // Don't allow closing when a quasi-modal is open.
-    wxWindow* quasiModal = findQuasiModalDialog();
+    QWidget* quasiModal = findQuasiModalDialog();
 
     if( quasiModal )
     {
         // Raise and notify; don't give the user a warning regarding "quasi-modal dialogs"
         // when they have no idea what those are.
-        quasiModal->Raise();
-        wxBell();
+        quasiModal->raise();
+        QApplication::beep();
 
-        if( event.CanVeto() )
-            event.Veto();
+        event.ignore();
 
         return;
     }
 
 
-    if( event.GetId() == wxEVT_QUERY_END_SESSION
-        || event.GetId() == wxEVT_END_SESSION )
-    {
-        // End session means the OS is going to terminate us
-        m_isNonUserClose = true;
-    }
+    // Qt handles session management differently
+    // End session detection would be handled through QGuiApplication::commitDataRequest
 
     if( canCloseWindow( event ) )
     {
@@ -254,28 +216,25 @@ void EDA_BASE_FRAME::windowClosing( wxCloseEvent& event )
         APP_SETTINGS_BASE* cfg = config();
 
         if( cfg )
-            SaveSettings( cfg );    // virtual, wxFrame specific
+            SaveSettings( cfg );    // virtual, QMainWindow specific
 
         doCloseWindow();
 
-        // Destroy (safe delete frame) this frame only in non modal mode.
-        // In modal mode, the caller will call Destroy().
-        if( !IsModal() )
-            Destroy();
+        // Qt handles widget destruction automatically
+        // In modal mode, the caller manages the dialog lifecycle
+        if( !isModal() )
+            deleteLater();
     }
     else
     {
-        if( event.CanVeto() )
-            event.Veto();
+        event.ignore();
     }
 }
 
 
 EDA_BASE_FRAME::~EDA_BASE_FRAME()
 {
-    Disconnect( ID_AUTO_SAVE_TIMER, wxEVT_TIMER,
-                wxTimerEventHandler( EDA_BASE_FRAME::onAutoSaveTimer ) );
-    Disconnect( wxEVT_CLOSE_WINDOW, wxCloseEventHandler( EDA_BASE_FRAME::windowClosing ) );
+    // Qt automatically handles signal disconnections when objects are destroyed
 
     delete m_autoSaveTimer;
     delete m_fileHistory;
@@ -288,42 +247,39 @@ EDA_BASE_FRAME::~EDA_BASE_FRAME()
 }
 
 
-bool EDA_BASE_FRAME::ProcessEvent( wxEvent& aEvent )
+bool EDA_BASE_FRAME::ProcessEvent( QEvent& aEvent )
 {
-#ifdef  __WXMAC__
-    // Apple in its infinite wisdom will raise a disabled window before even passing
-    // us the event, so we have no way to stop it.  Instead, we have to catch an
-    // improperly ordered disabled window and quasi-modal dialog here and reorder
-    // them.
-    if( !IsEnabled() && IsActive() )
+#ifdef Q_OS_MACOS
+    // macOS specific handling for disabled windows and quasi-modal dialogs
+    if( !isEnabled() && isActiveWindow() )
     {
-        wxWindow* dlg = findQuasiModalDialog();
+        QWidget* dlg = findQuasiModalDialog();
 
         if( dlg )
-            dlg->Raise();
+            dlg->raise();
     }
 #endif
 
-    if( !wxFrame::ProcessEvent( aEvent ) )
+    if( !QMainWindow::event( &aEvent ) )
         return false;
 
     if( Pgm().m_Quitting )
         return true;
 
-    if( !m_isClosing && m_supportsAutoSave && IsShownOnScreen() && IsActive()
+    if( !m_isClosing && m_supportsAutoSave && isVisible() && isActiveWindow()
             && m_autoSavePending != isAutoSaveRequired()
             && GetAutoSaveInterval() > 0 )
     {
         if( !m_autoSavePending )
         {
-            wxLogTrace( traceAutoSave, wxT( "Starting auto save timer." ) );
-            m_autoSaveTimer->Start( GetAutoSaveInterval() * 1000, wxTIMER_ONE_SHOT );
+            qDebug() << "Starting auto save timer.";
+            m_autoSaveTimer->start( GetAutoSaveInterval() * 1000 );
             m_autoSavePending = true;
         }
-        else if( m_autoSaveTimer->IsRunning() )
+        else if( m_autoSaveTimer->isActive() )
         {
-            wxLogTrace( traceAutoSave, wxT( "Stopping auto save timer." ) );
-            m_autoSaveTimer->Stop();
+            qDebug() << "Stopping auto save timer.";
+            m_autoSaveTimer->stop();
             m_autoSavePending = false;
         }
     }
@@ -338,42 +294,35 @@ int EDA_BASE_FRAME::GetAutoSaveInterval() const
 }
 
 
-void EDA_BASE_FRAME::onAutoSaveTimer( wxTimerEvent& aEvent )
+void EDA_BASE_FRAME::onAutoSaveTimer()
 {
-    // Don't stomp on someone else's timer event.
-    if( aEvent.GetId() != ID_AUTO_SAVE_TIMER )
-    {
-        aEvent.Skip();
-        return;
-    }
+    // Qt timer signals are automatically routed correctly
 
     if( !doAutoSave() )
-        m_autoSaveTimer->Start( GetAutoSaveInterval() * 1000, wxTIMER_ONE_SHOT );
+        m_autoSaveTimer->start( GetAutoSaveInterval() * 1000 );
 }
 
 
 bool EDA_BASE_FRAME::doAutoSave()
 {
-    wxCHECK_MSG( false, true, wxT( "Auto save timer function not overridden.  Bad programmer!" ) );
+    Q_ASSERT_X( false, "EDA_BASE_FRAME::doAutoSave", "Auto save timer function not overridden. Bad programmer!" );
+    return true;
 }
 
 
-void EDA_BASE_FRAME::OnCharHook( wxKeyEvent& aKeyEvent )
+void EDA_BASE_FRAME::OnCharHook( QKeyEvent& aKeyEvent )
 {
-    wxLogTrace( kicadTraceKeyEvent, wxS( "EDA_BASE_FRAME::OnCharHook %s" ), dump( aKeyEvent ) );
+    qDebug() << "EDA_BASE_FRAME::OnCharHook key=" << aKeyEvent.key();
 
     // Key events can be filtered here.
     // Currently no filtering is made.
-    aKeyEvent.Skip();
 }
 
 
-void EDA_BASE_FRAME::OnMenuEvent( wxMenuEvent& aEvent )
+void EDA_BASE_FRAME::OnMenuEvent( QEvent& aEvent )
 {
-    if( !m_toolDispatcher )
-        aEvent.Skip();
-    else
-        m_toolDispatcher->DispatchWxEvent( aEvent );
+    if( m_toolDispatcher )
+        m_toolDispatcher->DispatchQtEvent( aEvent );
 }
 
 
@@ -386,7 +335,7 @@ void EDA_BASE_FRAME::RegisterUIUpdateHandler( int aID, const ACTION_CONDITIONS& 
 
     m_uiUpdateMap[aID] = evtFunc;
 
-    Bind( wxEVT_UPDATE_UI, evtFunc, aID );
+    // Qt uses actions and signals instead of UI update events
 }
 
 
@@ -397,11 +346,11 @@ void EDA_BASE_FRAME::UnregisterUIUpdateHandler( int aID )
     if( it == m_uiUpdateMap.end() )
         return;
 
-    Unbind( wxEVT_UPDATE_UI, it->second, aID );
+    // Qt automatically handles action cleanup
 }
 
 
-void EDA_BASE_FRAME::HandleUpdateUIEvent( wxUpdateUIEvent& aEvent, EDA_BASE_FRAME* aFrame,
+void EDA_BASE_FRAME::HandleUpdateUIEvent( QEvent& aEvent, EDA_BASE_FRAME* aFrame,
                                           ACTION_CONDITIONS aCond )
 {
     bool       checkRes  = false;
@@ -421,49 +370,44 @@ void EDA_BASE_FRAME::HandleUpdateUIEvent( wxUpdateUIEvent& aEvent, EDA_BASE_FRAM
     catch( std::exception& )
     {
         // Something broke with the conditions, just skip the event.
-        aEvent.Skip();
         return;
     }
 
     if( showRes && aEvent.GetId() == ACTIONS::undo.GetUIId() )
     {
-        wxString msg = _( "Undo" );
+        QString msg = _( "Undo" );
 
         if( enableRes )
-            msg += wxS( " " ) + aFrame->GetUndoActionDescription();
+            msg += " " + aFrame->GetUndoActionDescription();
 
-        aEvent.SetText( msg );
+        // Qt action text update would be handled through QAction
     }
     else if( showRes && aEvent.GetId() == ACTIONS::redo.GetUIId() )
     {
-        wxString msg = _( "Redo" );
+        QString msg = _( "Redo" );
 
         if( enableRes )
-            msg += wxS( " " ) + aFrame->GetRedoActionDescription();
+            msg += " " + aFrame->GetRedoActionDescription();
 
-        aEvent.SetText( msg );
+        // Qt action text update would be handled through QAction
     }
 
     if( isCut || isCopy || isPaste )
     {
-        wxWindow*    focus = wxWindow::FindFocus();
-        wxTextEntry* textEntry = dynamic_cast<wxTextEntry*>( focus );
+        QWidget*    focus = QApplication::focusWidget();
+        QLineEdit* textEntry = qobject_cast<QLineEdit*>( focus );
 
-        if( textEntry && isCut && textEntry->CanCut() )
+        if( textEntry && isCut && !textEntry->isReadOnly() && textEntry->hasSelectedText() )
             enableRes = true;
-        else if( textEntry && isCopy && textEntry->CanCopy() )
+        else if( textEntry && isCopy && textEntry->hasSelectedText() )
             enableRes = true;
-        else if( textEntry && isPaste && textEntry->CanPaste() )
+        else if( textEntry && isPaste && !textEntry->isReadOnly() )
             enableRes = true;
         else if( dynamic_cast<WX_GRID*>( focus ) )
             enableRes = false;  // Must disable menu in order to get command as CharHook event
     }
 
-    aEvent.Enable( enableRes );
-    aEvent.Show( showRes );
-
-    if( aEvent.IsCheckable() )
-        aEvent.Check( checkRes );
+    // Qt action state updates would be handled through QAction properties
 }
 
 
@@ -489,14 +433,7 @@ void EDA_BASE_FRAME::setupUIConditions()
 
 void EDA_BASE_FRAME::ReCreateMenuBar()
 {
-    /**
-     * As of wxWidgets 3.2, recreating the menubar from within an event handler of that menubar
-     * will result in memory corruption on macOS.  In order to minimize the chance of programmer
-     * error causing regressions here, we always wrap calls to ReCreateMenuBar in a CallAfter to
-     * ensure that they do not occur within the same event handling call stack.
-     */
-
-    CallAfter( [this]()
+    QTimer::singleShot( 0, this, [this]()
                {
                    if( !m_isClosing )
                        doReCreateMenuBar();
@@ -504,7 +441,7 @@ void EDA_BASE_FRAME::ReCreateMenuBar()
 }
 
 
-void EDA_BASE_FRAME::AddStandardHelpMenu( wxMenuBar* aMenuBar )
+void EDA_BASE_FRAME::AddStandardHelpMenu( QMenuBar* aMenuBar )
 {
     COMMON_CONTROL* commonControl = m_toolManager->GetTool<COMMON_CONTROL>();
     ACTION_MENU*    helpMenu = new ACTION_MENU( false, commonControl );
@@ -519,7 +456,8 @@ void EDA_BASE_FRAME::AddStandardHelpMenu( wxMenuBar* aMenuBar )
     helpMenu->AppendSeparator();
     helpMenu->Add( ACTIONS::about );
 
-    aMenuBar->Append( helpMenu, _( "&Help" ) );
+    aMenuBar->addMenu( helpMenu );
+    helpMenu->setTitle( _( "&Help" ) );
 }
 
 
@@ -527,10 +465,10 @@ void EDA_BASE_FRAME::ShowChangedLanguage()
 {
     TOOLS_HOLDER::ShowChangedLanguage();
 
-    if( GetMenuBar() )
+    if( menuBar() )
     {
         ReCreateMenuBar();
-        GetMenuBar()->Refresh();
+        menuBar()->update();
     }
 }
 
@@ -559,11 +497,11 @@ void EDA_BASE_FRAME::CommonSettingsChanged( int aFlags )
     GetBitmapStore()->ThemeChanged();
     ThemeChanged();
 
-    if( GetMenuBar() )
+    if( menuBar() )
     {
         // For icons in menus, icon scaling & hotkeys
         ReCreateMenuBar();
-        GetMenuBar()->Refresh();
+        menuBar()->update();
     }
 }
 
@@ -573,7 +511,7 @@ void EDA_BASE_FRAME::ThemeChanged()
     ClearScaledBitmapCache();
 
     // Update all the toolbars to have new icons
-    wxAuiPaneInfoArray panes = m_auimgr.GetAllPanes();
+    // Qt docking system would be used instead of wxAUI
 
     for( size_t i = 0; i < panes.GetCount(); ++i )
     {
@@ -583,25 +521,24 @@ void EDA_BASE_FRAME::ThemeChanged()
 }
 
 
-void EDA_BASE_FRAME::OnSize( wxSizeEvent& aEvent )
+void EDA_BASE_FRAME::OnSize( QResizeEvent& aEvent )
 {
-#ifdef __WXMAC__
-    int currentDisplay = wxDisplay::GetFromWindow( this );
+#ifdef Q_OS_MACOS
+    int currentDisplay = QApplication::desktop()->screenNumber( this );
 
     if( m_displayIndex >= 0 && currentDisplay >= 0 && currentDisplay != m_displayIndex )
     {
-        wxLogTrace( traceDisplayLocation, wxS( "OnSize: current display changed %d to %d" ),
-                    m_displayIndex, currentDisplay );
+        qDebug() << "OnSize: current display changed" << m_displayIndex << "to" << currentDisplay;
         m_displayIndex = currentDisplay;
         ensureWindowIsOnScreen();
     }
 #endif
 
-    aEvent.Skip();
+    QMainWindow::resizeEvent( aEvent );
 }
 
 
-void EDA_BASE_FRAME::LoadWindowState( const wxString& aFileName )
+void EDA_BASE_FRAME::LoadWindowState( const QString& aFileName )
 {
     if( !Pgm().GetCommonSettings()->m_Session.remember_open_files )
         return;
@@ -624,76 +561,72 @@ void EDA_BASE_FRAME::LoadWindowState( const WINDOW_STATE& aState )
     m_frameSize.x = aState.size_x;
     m_frameSize.y = aState.size_y;
 
-    wxLogTrace( traceDisplayLocation, wxS( "Config position (%d, %d) with size (%d, %d)" ),
-                m_framePos.x, m_framePos.y, m_frameSize.x, m_frameSize.y );
+    qDebug() << "Config position (" << m_framePos.x() << "," << m_framePos.y() << ") with size (" << m_frameSize.x << "," << m_frameSize.y << ")";
 
     // Ensure minimum size is set if the stored config was zero-initialized
-    wxSize minSize = minSizeLookup( m_ident, this );
+    QSize minSize = minSizeLookup( m_ident, this );
 
-    if( m_frameSize.x < minSize.x || m_frameSize.y < minSize.y )
+    if( m_frameSize.x < minSize.width() || m_frameSize.y < minSize.height() )
     {
         m_frameSize = defaultSize( m_ident, this );
         wasDefault  = true;
 
-        wxLogTrace( traceDisplayLocation, wxS( "Using minimum size (%d, %d)" ),
-                    m_frameSize.x, m_frameSize.y );
+        qDebug() << "Using minimum size (" << m_frameSize.x << "," << m_frameSize.y << ")";
     }
 
-    wxLogTrace( traceDisplayLocation, wxS( "Number of displays: %d" ), wxDisplay::GetCount() );
+    qDebug() << "Number of displays:" << QApplication::desktop()->screenCount();
 
-    if( aState.display >= wxDisplay::GetCount() )
+    if( aState.display >= QApplication::desktop()->screenCount() )
     {
-        wxLogTrace( traceDisplayLocation, wxS( "Previous display not found" ) );
+        qDebug() << "Previous display not found";
 
-        // If it isn't attached, use the first display
-        // Warning wxDisplay has 2 ctor variants. the parameter needs a type:
+        // Get primary screen geometry
         const unsigned int index = 0;
-        wxDisplay display( index );
-        wxRect    clientSize = display.GetGeometry();
+        QScreen* screen = QApplication::screens().at( index );
+        QRect    clientSize = screen->geometry();
 
-        m_framePos = wxDefaultPosition;
+        m_framePos = QPoint( -1, -1 ); // Qt equivalent of default position
 
         // Ensure the window fits on the display, since the other one could have been larger
-        if( m_frameSize.x > clientSize.width )
-            m_frameSize.x = clientSize.width;
+        if( m_frameSize.x > clientSize.width() )
+            m_frameSize.x = clientSize.width();
 
-        if( m_frameSize.y > clientSize.height )
-            m_frameSize.y = clientSize.height;
+        if( m_frameSize.y > clientSize.height() )
+            m_frameSize.y = clientSize.height();
     }
     else
     {
-        wxPoint upperRight( m_framePos.x + m_frameSize.x, m_framePos.y );
-        wxPoint upperLeft( m_framePos.x, m_framePos.y );
+        QPoint upperRight( m_framePos.x() + m_frameSize.x, m_framePos.y() );
+        QPoint upperLeft( m_framePos.x(), m_framePos.y() );
 
-        wxDisplay display( aState.display );
-        wxRect clientSize = display.GetClientArea();
+        QScreen* screen = QApplication::screens().at( aState.display );
+        QRect clientSize = screen->availableGeometry();
 
-        int yLimTop   = clientSize.y;
-        int yLimBottom = clientSize.y + clientSize.height;
-        int xLimLeft  = clientSize.x;
-        int xLimRight = clientSize.x + clientSize.width;
+        int yLimTop   = clientSize.y();
+        int yLimBottom = clientSize.y() + clientSize.height();
+        int xLimLeft  = clientSize.x();
+        int xLimRight = clientSize.x() + clientSize.width();
 
-        if( upperLeft.x  > xLimRight ||  // Upper left corner too close to right edge of screen
-            upperRight.x < xLimLeft  ||  // Upper right corner too close to left edge of screen
-            upperLeft.y < yLimTop ||   // Upper corner too close to the bottom of the screen
-            upperLeft.y > yLimBottom )
+        if( upperLeft.x()  > xLimRight ||  // Upper left corner too close to right edge of screen
+            upperRight.x() < xLimLeft  ||  // Upper right corner too close to left edge of screen
+            upperLeft.y() < yLimTop ||   // Upper corner too close to the bottom of the screen
+            upperLeft.y() > yLimBottom )
         {
-            m_framePos = wxDefaultPosition;
-            wxLogTrace( traceDisplayLocation, wxS( "Resetting to default position" ) );
+            m_framePos = QPoint( -1, -1 ); // Qt equivalent of default position
+            qDebug() << "Resetting to default position";
         }
     }
 
-    wxLogTrace( traceDisplayLocation, wxS( "Final window position (%d, %d) with size (%d, %d)" ),
-                m_framePos.x, m_framePos.y, m_frameSize.x, m_frameSize.y );
+    qDebug() << "Final window position (" << m_framePos.x() << "," << m_framePos.y() << ") with size (" << m_frameSize.x << "," << m_frameSize.y << ")";
 
-    SetSize( m_framePos.x, m_framePos.y, m_frameSize.x, m_frameSize.y );
+    setGeometry( m_framePos.x(), m_framePos.y(), m_frameSize.x, m_frameSize.y );
 
     // Center the window if we reset to default
-    if( m_framePos.x == -1 )
+    if( m_framePos.x() == -1 )
     {
-        wxLogTrace( traceDisplayLocation, wxS( "Centering window" ) );
-        Center();
-        m_framePos = GetPosition();
+        qDebug() << "Centering window";
+        move( QApplication::desktop()->screen()->rect().center() - rect().center() );
+        m_framePos = pos();
     }
 
     // Record the frame sizes in an un-maximized state
@@ -703,64 +636,54 @@ void EDA_BASE_FRAME::LoadWindowState( const WINDOW_STATE& aState )
     // Maximize if we were maximized before
     if( aState.maximized || ( wasDefault && m_maximizeByDefault ) )
     {
-        wxLogTrace( traceDisplayLocation, wxS( "Maximizing window" ) );
-        Maximize();
+        qDebug() << "Maximizing window";
+        showMaximized();
     }
 
-    m_displayIndex = wxDisplay::GetFromWindow( this );
+    m_displayIndex = QApplication::desktop()->screenNumber( this );
 }
 
 
 void EDA_BASE_FRAME::ensureWindowIsOnScreen()
 {
-    wxDisplay display( wxDisplay::GetFromWindow( this ) );
-    wxRect    clientSize = display.GetClientArea();
-    wxPoint   pos        = GetPosition();
-    wxSize    size       = GetWindowSize();
+    QScreen* screen = QApplication::screenAt( pos() );
+    if( !screen )
+        screen = QApplication::primaryScreen();
+    QRect    clientSize = screen->availableGeometry();
+    QPoint   pos        = this->pos();
+    QSize    size       = GetWindowSize();
 
-    wxLogTrace( traceDisplayLocation,
-                wxS( "ensureWindowIsOnScreen: clientArea (%d, %d) w %d h %d" ),
-                clientSize.x, clientSize.y,
-                clientSize.width, clientSize.height );
+    qDebug() << "ensureWindowIsOnScreen: clientArea (" << clientSize.x() << "," << clientSize.y() << ") w" << clientSize.width() << "h" << clientSize.height();
 
-    if( pos.y < clientSize.y )
+    if( pos.y() < clientSize.y() )
     {
-        wxLogTrace( traceDisplayLocation,
-                    wxS( "ensureWindowIsOnScreen: y pos %d below minimum, setting to %d" ), pos.y,
-                    clientSize.y );
-        pos.y = clientSize.y;
+        qDebug() << "ensureWindowIsOnScreen: y pos" << pos.y() << "below minimum, setting to" << clientSize.y();
+        pos.setY( clientSize.y() );
     }
 
-    if( pos.x < clientSize.x )
+    if( pos.x() < clientSize.x() )
     {
-        wxLogTrace( traceDisplayLocation,
-                    wxS( "ensureWindowIsOnScreen: x pos %d is off the client rect, setting to %d" ),
-                    pos.x, clientSize.x );
-        pos.x = clientSize.x;
+        qDebug() << "ensureWindowIsOnScreen: x pos" << pos.x() << "is off the client rect, setting to" << clientSize.x();
+        pos.setX( clientSize.x() );
     }
 
-    if( pos.x + size.x - clientSize.x > clientSize.width )
+    if( pos.x() + size.width() - clientSize.x() > clientSize.width() )
     {
-        int newWidth = clientSize.width - ( pos.x - clientSize.x );
-        wxLogTrace( traceDisplayLocation,
-                    wxS( "ensureWindowIsOnScreen: effective width %d above available %d, setting "
-                         "to %d" ), pos.x + size.x, clientSize.width, newWidth );
-        size.x = newWidth;
+        int newWidth = clientSize.width() - ( pos.x() - clientSize.x() );
+        qDebug() << "ensureWindowIsOnScreen: effective width" << (pos.x() + size.width()) << "above available" << clientSize.width() << ", setting to" << newWidth;
+        size.setWidth( newWidth );
     }
 
-    if( pos.y + size.y - clientSize.y > clientSize.height )
+    if( pos.y() + size.height() - clientSize.y() > clientSize.height() )
     {
-        int newHeight = clientSize.height - ( pos.y - clientSize.y );
-        wxLogTrace( traceDisplayLocation,
-                    wxS( "ensureWindowIsOnScreen: effective height %d above available %d, setting "
-                         "to %d" ), pos.y + size.y, clientSize.height, newHeight );
-        size.y = newHeight;
+        int newHeight = clientSize.height() - ( pos.y() - clientSize.y() );
+        qDebug() << "ensureWindowIsOnScreen: effective height" << (pos.y() + size.height()) << "above available" << clientSize.height() << ", setting to" << newHeight;
+        size.setHeight( newHeight );
     }
 
-    wxLogTrace( traceDisplayLocation, wxS( "Updating window position (%d, %d) with size (%d, %d)" ),
-                pos.x, pos.y, size.x, size.y );
+    qDebug() << "Updating window position (" << pos.x() << "," << pos.y() << ") with size (" << size.width() << "," << size.height() << ")";
 
-    SetSize( pos.x, pos.y, size.x, size.y );
+    setGeometry( pos.x(), pos.y(), size.width(), size.height() );
 }
 
 
@@ -777,11 +700,11 @@ void EDA_BASE_FRAME::LoadWindowSettings( const WINDOW_SETTINGS* aCfg )
 
 void EDA_BASE_FRAME::SaveWindowSettings( WINDOW_SETTINGS* aCfg )
 {
-    if( IsIconized() )
+    if( isMinimized() )
         return;
 
     // If the window is maximized, we use the saved window size from before it was maximized
-    if( IsMaximized() )
+    if( isMaximized() )
     {
         m_framePos  = m_normalFramePos;
         m_frameSize = m_normalFrameSize;
@@ -789,25 +712,22 @@ void EDA_BASE_FRAME::SaveWindowSettings( WINDOW_SETTINGS* aCfg )
     else
     {
         m_frameSize = GetWindowSize();
-        m_framePos  = GetPosition();
+        m_framePos  = pos();
     }
 
-    aCfg->state.pos_x     = m_framePos.x;
-    aCfg->state.pos_y     = m_framePos.y;
+    aCfg->state.pos_x     = m_framePos.x();
+    aCfg->state.pos_y     = m_framePos.y();
     aCfg->state.size_x    = m_frameSize.x;
     aCfg->state.size_y    = m_frameSize.y;
-    aCfg->state.maximized = IsMaximized();
-    aCfg->state.display   = wxDisplay::GetFromWindow( this );
+    aCfg->state.maximized = isMaximized();
+    aCfg->state.display   = QApplication::desktop()->screenNumber( this );
 
-    wxLogTrace( traceDisplayLocation, wxS( "Saving window maximized: %s" ),
-                IsMaximized() ? wxS( "true" ) : wxS( "false" ) );
-    wxLogTrace( traceDisplayLocation, wxS( "Saving config position (%d, %d) with size (%d, %d)" ),
-                m_framePos.x, m_framePos.y, m_frameSize.x, m_frameSize.y );
+    qDebug() << "Saving window maximized:" << (isMaximized() ? "true" : "false");
+    qDebug() << "Saving config position (" << m_framePos.x() << "," << m_framePos.y() << ") with size (" << m_frameSize.x << "," << m_frameSize.y << ")";
 
-    // Once this is fully implemented, wxAuiManager will be used to maintain
-    // the persistence of the main frame and all it's managed windows and
-    // all of the legacy frame persistence position code can be removed.
-    aCfg->perspective = m_auimgr.SavePerspective().ToStdString();
+    // Qt docking system would replace wxAuiManager
+    // Save perspective for Qt dock widgets
+    aCfg->perspective = saveState().toStdString();
 
     aCfg->mru_path = m_mruPath;
 }
@@ -829,26 +749,26 @@ void EDA_BASE_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
 
 void EDA_BASE_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
 {
-    wxCHECK( config(), /* void */ );
+    Q_ASSERT( config() );
 
     SaveWindowSettings( GetWindowSettings( aCfg ) );
 
     bool fileOpen = m_isClosing && m_isNonUserClose;
 
-    wxString currentlyOpenedFile = GetCurrentFileName();
+    QString currentlyOpenedFile = GetCurrentFileName();
 
-    if( Pgm().GetCommonSettings()->m_Session.remember_open_files && !currentlyOpenedFile.IsEmpty() )
+    if( Pgm().GetCommonSettings()->m_Session.remember_open_files && !currentlyOpenedFile.isEmpty() )
     {
-        wxFileName rfn( currentlyOpenedFile );
-        rfn.MakeRelativeTo( Prj().GetProjectPath() );
-        Prj().GetLocalSettings().SaveFileState( rfn.GetFullPath(), &aCfg->m_Window, fileOpen );
+        QFileInfo rfn( currentlyOpenedFile );
+        QString relativePath = QDir( Prj().GetProjectPath() ).relativeFilePath( rfn.absoluteFilePath() );
+        Prj().GetLocalSettings().SaveFileState( relativePath, &aCfg->m_Window, fileOpen );
     }
 
     // Save the recently used files list
     if( m_fileHistory )
     {
         // Save the currently opened file in the file history
-        if( !currentlyOpenedFile.IsEmpty() )
+        if( !currentlyOpenedFile.isEmpty() )
             UpdateFileHistory( currentlyOpenedFile );
 
         m_fileHistory->Save( *aCfg );
@@ -875,15 +795,15 @@ const SEARCH_STACK& EDA_BASE_FRAME::sys_search()
 }
 
 
-wxString EDA_BASE_FRAME::help_name()
+QString EDA_BASE_FRAME::help_name()
 {
     return Kiface().GetHelpFileName();
 }
 
 
-void EDA_BASE_FRAME::PrintMsg( const wxString& text )
+void EDA_BASE_FRAME::PrintMsg( const QString& text )
 {
-    SetStatusText( text );
+    statusBar()->showMessage( text );
 }
 
 
@@ -892,21 +812,12 @@ void EDA_BASE_FRAME::CreateInfoBar()
     // UI component - commented out for minimal build
     // WX_INFOBAR widget implementation removed
     m_infoBar = nullptr;  // Set to null to avoid crashes
-    
-    /* Original UI implementation:
-#if defined( __WXOSX_MAC__ )
-    m_infoBar = new WX_INFOBAR( GetToolCanvas() );
-#else
-    m_infoBar = new WX_INFOBAR( this, &m_auimgr );
-    m_auimgr.AddPane( m_infoBar, EDA_PANE().InfoBar().Name( wxS( "InfoBar" ) ).Top().Layer(1) );
-#endif
-    */
 }
 
 
 void EDA_BASE_FRAME::FinishAUIInitialization()
 {
-#if defined( __WXOSX_MAC__ )
+#if defined( Q_OS_MACOS )
     m_auimgr.Update();
 #else
     // Call Update() to fix all pane default sizes, especially the "InfoBar" pane before
@@ -914,131 +825,101 @@ void EDA_BASE_FRAME::FinishAUIInitialization()
     m_auimgr.Update();
 
     // We don't want the infobar displayed right away
-    m_auimgr.GetPane( wxS( "InfoBar" ) ).Hide();
+    m_auimgr.GetPane( "InfoBar" ).Hide();
     m_auimgr.Update();
 #endif
 }
 
 
-void EDA_BASE_FRAME::ShowInfoBarError( const wxString& aErrorMsg, bool aShowCloseButton,
+void EDA_BASE_FRAME::ShowInfoBarError( const QString& aErrorMsg, bool aShowCloseButton,
                                        WX_INFOBAR::MESSAGE_TYPE aType )
 {
     // UI component - commented out for minimal build
     // InfoBar widget implementation removed, use status bar instead
-    SetStatusText( aErrorMsg );
-    
-    /* Original InfoBar implementation:
-    m_infoBar->RemoveAllButtons();
-    if( aShowCloseButton )
-        m_infoBar->AddCloseButton();
-    GetInfoBar()->ShowMessageFor( aErrorMsg, 8000, wxICON_ERROR, aType );
-    */
+    statusBar()->showMessage( aErrorMsg );
 }
 
 
-void EDA_BASE_FRAME::ShowInfoBarError( const wxString& aErrorMsg, bool aShowCloseButton,
+void EDA_BASE_FRAME::ShowInfoBarError( const QString& aErrorMsg, bool aShowCloseButton,
                                        std::function<void(void)> aCallback )
 {
     // UI component - commented out for minimal build
     // InfoBar widget implementation removed, use status bar instead
-    SetStatusText( aErrorMsg );
-    
-    /* Original InfoBar implementation:
-    m_infoBar->RemoveAllButtons();
-    if( aShowCloseButton )
-        m_infoBar->AddCloseButton();
-    if( aCallback )
-        m_infoBar->SetCallback( aCallback );
-    GetInfoBar()->ShowMessageFor( aErrorMsg, 6000, wxICON_ERROR );
-    */
+    statusBar()->showMessage( aErrorMsg );
 }
 
 
-void EDA_BASE_FRAME::ShowInfoBarWarning( const wxString& aWarningMsg, bool aShowCloseButton )
+void EDA_BASE_FRAME::ShowInfoBarWarning( const QString& aWarningMsg, bool aShowCloseButton )
 {
     // UI component - commented out for minimal build
     // InfoBar widget implementation removed, use status bar instead
-    SetStatusText( aWarningMsg );
-    
-    /* Original InfoBar implementation:
-    m_infoBar->RemoveAllButtons();
-    if( aShowCloseButton )
-        m_infoBar->AddCloseButton();
-    GetInfoBar()->ShowMessageFor( aWarningMsg, 6000, wxICON_WARNING );
-    */
+    statusBar()->showMessage( aWarningMsg );
 }
 
 
-void EDA_BASE_FRAME::ShowInfoBarMsg( const wxString& aMsg, bool aShowCloseButton )
+void EDA_BASE_FRAME::ShowInfoBarMsg( const QString& aMsg, bool aShowCloseButton )
 {
     // UI component - commented out for minimal build
     // InfoBar widget implementation removed, use status bar instead
-    SetStatusText( aMsg );
-    
-    /* Original InfoBar implementation:
-    m_infoBar->RemoveAllButtons();
-    if( aShowCloseButton )
-        m_infoBar->AddCloseButton();
-    GetInfoBar()->ShowMessageFor( aMsg, 8000, wxICON_INFORMATION );
-    */
+    statusBar()->showMessage( aMsg );
 }
 
 
-void EDA_BASE_FRAME::UpdateFileHistory( const wxString& FullFileName, FILE_HISTORY* aFileHistory )
+void EDA_BASE_FRAME::UpdateFileHistory( const QString& FullFileName, FILE_HISTORY* aFileHistory )
 {
     if( !aFileHistory )
         aFileHistory = m_fileHistory;
 
-    wxASSERT( aFileHistory );
+    Q_ASSERT( aFileHistory );
 
     aFileHistory->AddFileToHistory( FullFileName );
 
     // Update the menubar to update the file history menu
-    if( !m_isClosing && GetMenuBar() )
+    if( !m_isClosing && menuBar() )
     {
         ReCreateMenuBar();
-        GetMenuBar()->Refresh();
+        menuBar()->update();
     }
 }
 
 
-wxString EDA_BASE_FRAME::GetFileFromHistory( int cmdId, const wxString& type,
+QString EDA_BASE_FRAME::GetFileFromHistory( int cmdId, const QString& type,
                                              FILE_HISTORY* aFileHistory )
 {
     if( !aFileHistory )
         aFileHistory = m_fileHistory;
 
-    wxASSERT( aFileHistory );
+    Q_ASSERT( aFileHistory );
 
     int baseId = aFileHistory->GetBaseId();
 
-    wxASSERT( cmdId >= baseId && cmdId < baseId + (int) aFileHistory->GetCount() );
+    Q_ASSERT( cmdId >= baseId && cmdId < baseId + (int) aFileHistory->GetCount() );
 
     unsigned i = cmdId - baseId;
 
     if( i < aFileHistory->GetCount() )
     {
-        wxString fn = aFileHistory->GetHistoryFile( i );
+        QString fn = aFileHistory->GetHistoryFile( i );
 
-        if( wxFileName::FileExists( fn ) )
+        if( QFileInfo::exists( fn ) )
         {
             return fn;
         }
         else
         {
-            DisplayErrorMessage( this, wxString::Format( _( "File '%s' was not found." ), fn ) );
+            DisplayErrorMessage( this, QString( _( "File '%1' was not found." ) ).arg( fn ) );
             aFileHistory->RemoveFileFromHistory( i );
         }
     }
 
     // Update the menubar to update the file history menu
-    if( GetMenuBar() )
+    if( menuBar() )
     {
         ReCreateMenuBar();
-        GetMenuBar()->Refresh();
+        menuBar()->update();
     }
 
-    return wxEmptyString;
+    return QString();
 }
 
 
@@ -1047,290 +928,62 @@ void EDA_BASE_FRAME::ClearFileHistory( FILE_HISTORY* aFileHistory )
     if( !aFileHistory )
         aFileHistory = m_fileHistory;
 
-    wxASSERT( aFileHistory );
+    Q_ASSERT( aFileHistory );
 
     aFileHistory->ClearFileHistory();
 
     // Update the menubar to update the file history menu
-    if( GetMenuBar() )
+    if( menuBar() )
     {
         ReCreateMenuBar();
-        GetMenuBar()->Refresh();
+        menuBar()->update();
     }
 }
 
 
-void EDA_BASE_FRAME::OnKicadAbout( wxCommandEvent& event )
+void EDA_BASE_FRAME::OnKicadAbout()
 {
-    // UI component - commented out for minimal build
-    // void ShowAboutDialog( EDA_BASE_FRAME * aParent ); // See AboutDialog_main.cpp
-    // ShowAboutDialog( this );
-    
     // Minimal implementation - just show a simple message
-    wxMessageBox( _( "KiCad PCB minimal build - About dialog disabled" ), 
-                  _( "About KiCad" ), wxOK | wxICON_INFORMATION, this );
+    QMessageBox::information( this, _( "About KiCad" ),
+                              _( "KiCad PCB minimal build - About dialog disabled" ) );
 }
 
 
-void EDA_BASE_FRAME::OnPreferences( wxCommandEvent& event )
+void EDA_BASE_FRAME::OnPreferences()
 {
-    ShowPreferences( wxEmptyString, wxEmptyString );
+    ShowPreferences( QString(), QString() );
 }
 
 
-void EDA_BASE_FRAME::ShowPreferences( wxString aStartPage, wxString aStartParentPage )
+void EDA_BASE_FRAME::ShowPreferences( QString aStartPage, QString aStartParentPage )
 {
-    // UI component - all preferences UI commented out for minimal build
-    // Original implementation involved complex PAGED_DIALOG with multiple panels:
-    // - PANEL_COMMON_SETTINGS, PANEL_MOUSE_SETTINGS, PANEL_HOTKEYS_EDITOR
-    // - Symbol Editor, Schematic Editor, PCB Editor, Gerber Viewer panels
-    // - Drawing Sheet Editor, Assign Footprints, Calculator Tools panels
-    
     // Minimal implementation - just show a simple message
-    wxMessageBox( _( "KiCad PCB minimal build - Preferences dialog disabled.\n"
-                     "UI components have been removed for minimal compilation." ), 
-                  _( "Preferences" ), wxOK | wxICON_INFORMATION, this );
-
-    /* UI component - commented out for minimal build
-    PAGED_DIALOG dlg( this, _( "Preferences" ), true, true, wxEmptyString,
-                      wxWindow::FromDIP( wxSize( 980, 560 ), NULL ) );
-
-    dlg.SetEvtHandlerEnabled( false );
-
-    {
-        WX_BUSY_INDICATOR busy_cursor;
-
-        WX_TREEBOOK*            book = dlg.GetTreebook();
-        PANEL_HOTKEYS_EDITOR*   hotkeysPanel = new PANEL_HOTKEYS_EDITOR( this, book, false );
-        KIFACE*                 kiface = nullptr;
-        std::vector<int>        expand;
-
-        // UI component - commented out for minimal build
-        // wxWindow* kicadMgr_window = wxWindow::FindWindowByName( KICAD_MANAGER_FRAME_NAME );
-        // if( KICAD_MANAGER_FRAME* kicadMgr = static_cast<KICAD_MANAGER_FRAME*>( kicadMgr_window ) )
-        // {
-        //     ACTION_MANAGER* actionMgr = kicadMgr->GetToolManager()->GetActionManager();
-        //     for( const auto& [name, action] : actionMgr->GetActions() )
-        //         hotkeysPanel->ActionsList().push_back( action );
-        // }
-
-        book->AddLazyPage(
-                []( wxWindow* aParent ) -> wxWindow*
-                {
-                    return new PANEL_COMMON_SETTINGS( aParent );
-                },
-                _( "Common" ) );
-
-        book->AddLazyPage(
-                []( wxWindow* aParent ) -> wxWindow*
-                {
-                    return new PANEL_MOUSE_SETTINGS( aParent );
-                }, _( "Mouse and Touchpad" ) );
-
-        book->AddPage( hotkeysPanel, _( "Hotkeys" ) );
-
-        // UI component - commented out for minimal build
-        // book->AddLazyPage(
-        //         []( wxWindow* aParent ) -> wxWindow*
-        //         {
-        //             return new PANEL_GIT_REPOS( aParent );
-        //         }, _( "Version Control" ) );
-
-#ifdef KICAD_USE_SENTRY
-        book->AddLazyPage(
-                []( wxWindow* aParent ) -> wxWindow*
-                {
-                    return new PANEL_DATA_COLLECTION( aParent );
-                }, _( "Data Collection" ) );
-#endif
-
-#define LAZY_CTOR( key )                                                \
-        [this, kiface]( wxWindow* aParent )                             \
-        {                                                               \
-            return kiface->CreateKiWindow( aParent, key, &Kiway() );    \
-        }
-
-        // If a dll is not loaded, the loader will show an error message.
-
-        try
-        {
-            kiface = Kiway().KiFACE( KIWAY::FACE_SCH );
-
-            if( !kiface )
-                return;
-
-            kiface->GetActions( hotkeysPanel->ActionsList() );
-
-            if( GetFrameType() == FRAME_SCH_SYMBOL_EDITOR )
-                expand.push_back( (int) book->GetPageCount() );
-
-            book->AddPage( new wxPanel( book ), _( "Symbol Editor" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_SYM_DISP_OPTIONS ), _( "Display Options" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_SYM_EDIT_GRIDS ), _( "Grids" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_SYM_EDIT_OPTIONS ), _( "Editing Options" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_SYM_COLORS ), _( "Colors" ) );
-
-            if( GetFrameType() == FRAME_SCH )
-                expand.push_back( (int) book->GetPageCount() );
-
-            book->AddPage( new wxPanel( book ), _( "Schematic Editor" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_SCH_DISP_OPTIONS ), _( "Display Options" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_SCH_GRIDS ), _( "Grids" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_SCH_EDIT_OPTIONS ), _( "Editing Options" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_SCH_ANNO_OPTIONS ), _( "Annotation Options" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_SCH_COLORS ), _( "Colors" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_SCH_FIELD_NAME_TEMPLATES ),
-                                  _( "Field Name Templates" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_SCH_SIMULATOR ), _( "Simulator" ) );
-        }
-        catch( ... )
-        {
-        }
-
-        try
-        {
-            kiface = Kiway().KiFACE( KIWAY::FACE_PCB );
-
-            if( !kiface )
-                return;
-
-            kiface->GetActions( hotkeysPanel->ActionsList() );
-
-            if( GetFrameType() == FRAME_FOOTPRINT_EDITOR )
-                expand.push_back( (int) book->GetPageCount() );
-
-            book->AddPage( new wxPanel( book ), _( "Footprint Editor" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_FP_DISPLAY_OPTIONS ), _( "Display Options" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_FP_GRIDS ), _( "Grids" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_FP_ORIGINS_AXES ), _( "Origins & Axes" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_FP_EDIT_OPTIONS ), _( "Editing Options" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_FP_COLORS ), _( "Colors" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_FP_DEFAULT_FIELDS ), _( "Footprint Defaults" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_FP_DEFAULT_GRAPHICS_VALUES ),
-                                  _( "Graphics Defaults" ) );
-
-            if( GetFrameType() ==  FRAME_PCB_EDITOR )
-                expand.push_back( (int) book->GetPageCount() );
-
-            book->AddPage( new wxPanel( book ), _( "PCB Editor" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_PCB_DISPLAY_OPTS ), _( "Display Options" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_PCB_GRIDS ), _( "Grids" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_PCB_ORIGINS_AXES ), _( "Origins & Axes" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_PCB_EDIT_OPTIONS ), _( "Editing Options" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_PCB_COLORS ), _( "Colors" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_PCB_ACTION_PLUGINS ), _( "Plugins" ) );
-
-            if( GetFrameType() == FRAME_PCB_DISPLAY3D )
-                expand.push_back( (int) book->GetPageCount() );
-
-            book->AddPage( new wxPanel( book ), _( "3D Viewer" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_3DV_DISPLAY_OPTIONS ), _( "General" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_3DV_OPENGL ), _( "Realtime Renderer" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_3DV_RAYTRACING ), _( "Raytracing Renderer" ) );
-        }
-        catch( ... )
-        {
-        }
-
-        try
-        {
-            kiface = Kiway().KiFACE( KIWAY::FACE_GERBVIEW );
-
-            if( !kiface )
-                return;
-
-            kiface->GetActions( hotkeysPanel->ActionsList() );
-
-            if( GetFrameType() == FRAME_GERBER )
-                expand.push_back( (int) book->GetPageCount() );
-
-            book->AddPage( new wxPanel( book ), _( "Gerber Viewer" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_GBR_DISPLAY_OPTIONS ), _( "Display Options" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_GBR_COLORS ), _( "Colors" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_GBR_GRIDS ), _( "Grids" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_GBR_EXCELLON_OPTIONS ),
-                                  _( "Excellon Options" ) );
-        }
-        catch( ... )
-        {
-        }
-
-        try
-        {
-            kiface = Kiway().KiFACE( KIWAY::FACE_PL_EDITOR );
-
-            if( !kiface )
-                return;
-
-            kiface->GetActions( hotkeysPanel->ActionsList() );
-
-            if( GetFrameType() == FRAME_PL_EDITOR )
-                expand.push_back( (int) book->GetPageCount() );
-
-            book->AddPage( new wxPanel( book ), _( "Drawing Sheet Editor" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_DS_DISPLAY_OPTIONS ), _( "Display Options" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_DS_GRIDS ), _( "Grids" ) );
-            book->AddLazySubPage( LAZY_CTOR( PANEL_DS_COLORS ), _( "Colors" ) );
-
-            // UI component - commented out for minimal build
-            // book->AddLazyPage(
-            //         []( wxWindow* aParent ) -> wxWindow*
-            //         {
-            //             return new PANEL_PACKAGES_AND_UPDATES( aParent );
-            //         }, _( "Packages and Updates" ) );
-        }
-        catch( ... )
-        {
-        }
-
-#ifdef KICAD_IPC_API
-        book->AddPage( new PANEL_PLUGIN_SETTINGS( book ), _( "Plugins" ) );
-#endif
-
-        // Update all of the action hotkeys. The process of loading the actions through
-        // the KiFACE will only get us the default hotkeys
-        ReadHotKeyConfigIntoActions( wxEmptyString, hotkeysPanel->ActionsList() );
-
-        for( size_t i = 0; i < book->GetPageCount(); ++i )
-            book->GetPage( i )->Layout();
-
-        for( int page : expand )
-            book->ExpandNode( page );
-
-        if( !aStartPage.IsEmpty() )
-            dlg.SetInitialPage( aStartPage, aStartParentPage );
-
-        dlg.SetEvtHandlerEnabled( true );
-#undef LAZY_CTOR
-    }
-
-    if( dlg.ShowModal() == wxID_OK )
-    {
-        // Update our grids that are cached in the tool
-        m_toolManager->ResetTools( TOOL_BASE::REDRAW );
-        Pgm().GetSettingsManager().Save();
-        dlg.Kiway().CommonSettingsChanged( HOTKEYS_CHANGED );
-    }
-    */ // End of UI component comment block
-
+    QMessageBox::information( this, _( "Preferences" ),
+                              _( "KiCad PCB minimal build - Preferences dialog disabled.\n"
+                                 "UI components have been removed for minimal compilation." ) );
 }
 
 
-void EDA_BASE_FRAME::OnDropFiles( wxDropFilesEvent& aEvent )
+void EDA_BASE_FRAME::OnDropFiles( QDropEvent& aEvent )
 {
-    wxString* files = aEvent.GetFiles();
+    const QMimeData* mimeData = aEvent.mimeData();
+    if( !mimeData->hasUrls() )
+        return;
 
-    for( int nb = 0; nb < aEvent.GetNumberOfFiles(); nb++ )
+    for( const QUrl& url : mimeData->urls() )
     {
-        const wxFileName fn = wxFileName( files[nb] );
-        wxString         ext = fn.GetExt();
+        if( !url.isLocalFile() )
+            continue;
+            
+        const QFileInfo fn( url.toLocalFile() );
+        QString         ext = fn.suffix();
 
         // Alias all gerber files as GerberFileExtension
         if( FILEEXT::IsGerberFileExtension( ext ) )
             ext = FILEEXT::GerberFileExtension;
 
-        if( m_acceptedExts.find( ext.ToStdString() ) != m_acceptedExts.end() )
-            m_AcceptedFiles.emplace_back( fn );
+        if( m_acceptedExts.find( ext.toStdString() ) != m_acceptedExts.end() )
+            m_AcceptedFiles.emplace_back( fn.absoluteFilePath() );
     }
 
     DoWithAcceptedFiles();
@@ -1340,46 +993,44 @@ void EDA_BASE_FRAME::OnDropFiles( wxDropFilesEvent& aEvent )
 
 void EDA_BASE_FRAME::DoWithAcceptedFiles()
 {
-    for( const wxFileName& file : m_AcceptedFiles )
+    for( const QString& file : m_AcceptedFiles )
     {
-        wxString fn = file.GetFullPath();
-        m_toolManager->RunAction<wxString*>( *m_acceptedExts.at( file.GetExt() ), &fn );
+        QFileInfo fi( file );
+        QString fn = file;
+        m_toolManager->RunAction<QString*>( *m_acceptedExts.at( fi.suffix().toStdString() ), &fn );
     }
 }
 
 
-bool EDA_BASE_FRAME::IsWritable( const wxFileName& aFileName, bool aVerbose )
+bool EDA_BASE_FRAME::IsWritable( const QFileInfo& aFileName, bool aVerbose )
 {
-    wxString msg;
-    wxFileName fn = aFileName;
+    QString msg;
+    QFileInfo fn = aFileName;
 
-    // Check for absence of a file path with a file name.  Unfortunately KiCad
-    // uses paths relative to the current project path without the ./ part which
-    // confuses wxFileName. Making the file name path absolute may be less than
-    // elegant but it solves the problem.
-    if( fn.GetPath().IsEmpty() && fn.HasName() )
-        fn.MakeAbsolute();
+    // Check for absence of a file path with a file name.
+    // Make the file name absolute if it's relative
+    if( fn.isRelative() && !fn.fileName().isEmpty() )
+        fn = QFileInfo( QDir::current().absoluteFilePath( fn.filePath() ) );
 
-    wxCHECK_MSG( fn.IsOk(), false,
-                 wxT( "File name object is invalid.  Bad programmer!" ) );
-    wxCHECK_MSG( !fn.GetPath().IsEmpty(), false,
-                 wxT( "File name object path <" ) + fn.GetFullPath() +
-                 wxT( "> is not set.  Bad programmer!" ) );
+    Q_ASSERT_X( fn.exists() || !fn.dir().path().isEmpty(), "EDA_BASE_FRAME::IsWritable",
+                "File name object is invalid. Bad programmer!" );
+    Q_ASSERT_X( !fn.dir().path().isEmpty(), "EDA_BASE_FRAME::IsWritable",
+                qPrintable( QString( "File name object path <%1> is not set. Bad programmer!" ).arg( fn.absoluteFilePath() ) ) );
 
-    if( fn.IsDir() && !fn.IsDirWritable() )
+    if( fn.isDir() && !QFileInfo( fn.absoluteFilePath() ).isWritable() )
     {
-        msg.Printf( _( "Insufficient permissions to folder '%s'." ), fn.GetPath() );
+        msg = QString( _( "Insufficient permissions to folder '%1'." ) ).arg( fn.absolutePath() );
     }
-    else if( !fn.FileExists() && !fn.IsDirWritable() )
+    else if( !fn.exists() && !QFileInfo( fn.absolutePath() ).isWritable() )
     {
-        msg.Printf( _( "Insufficient permissions to save file '%s'." ), fn.GetFullPath() );
+        msg = QString( _( "Insufficient permissions to save file '%1'." ) ).arg( fn.absoluteFilePath() );
     }
-    else if( fn.FileExists() && !fn.IsFileWritable() )
+    else if( fn.exists() && !fn.isWritable() )
     {
-        msg.Printf( _( "Insufficient permissions to save file '%s'." ), fn.GetFullPath() );
+        msg = QString( _( "Insufficient permissions to save file '%1'." ) ).arg( fn.absoluteFilePath() );
     }
 
-    if( !msg.IsEmpty() )
+    if( !msg.isEmpty() )
     {
         if( aVerbose )
             DisplayErrorMessage( this, msg );
@@ -1391,47 +1042,48 @@ bool EDA_BASE_FRAME::IsWritable( const wxFileName& aFileName, bool aVerbose )
 }
 
 
-void EDA_BASE_FRAME::CheckForAutoSaveFile( const wxFileName& aFileName )
+void EDA_BASE_FRAME::CheckForAutoSaveFile( const QFileInfo& aFileName )
 {
     if( !Pgm().IsGUI() )
         return;
 
-    wxCHECK_RET( aFileName.IsOk(), wxT( "Invalid file name!" ) );
+    Q_ASSERT_X( !aFileName.fileName().isEmpty(), "EDA_BASE_FRAME::CheckForAutoSaveFile", "Invalid file name!" );
 
-    wxFileName autoSaveFileName = aFileName;
+    QFileInfo autoSaveFileName = aFileName;
 
     // Check for auto save file.
-    autoSaveFileName.SetName( FILEEXT::AutoSaveFilePrefix + aFileName.GetName() );
+    QString autoSavePath = aFileName.absolutePath() + "/" + 
+                           FILEEXT::AutoSaveFilePrefix + aFileName.baseName() + "." + aFileName.completeSuffix();
+    autoSaveFileName = QFileInfo( autoSavePath );
 
-    wxLogTrace( traceAutoSave,
-                wxT( "Checking for auto save file " ) + autoSaveFileName.GetFullPath() );
+    qDebug() << "Checking for auto save file" << autoSaveFileName.absoluteFilePath();
 
-    if( !autoSaveFileName.FileExists() )
+    if( !autoSaveFileName.exists() )
         return;
 
-    wxString msg = wxString::Format( _( "Well this is potentially embarrassing!\n"
-                                        "It appears that the last time you were editing\n"
-                                        "%s\n"
-                                        "KiCad exited before saving.\n"
-                                        "\n"
-                                        "Do you wish to open the auto-saved file instead?" ),
-                                        aFileName.GetFullName() );
+    QString msg = QString( _( "Well this is potentially embarrassing!\n"
+                              "It appears that the last time you were editing\n"
+                              "%1\n"
+                              "KiCad exited before saving.\n"
+                              "\n"
+                              "Do you wish to open the auto-saved file instead?" ) )
+                  .arg( aFileName.fileName() );
 
-    int response = wxMessageBox( msg, Pgm().App().GetAppDisplayName(), wxYES_NO | wxICON_QUESTION,
-                                 this );
+    int response = QMessageBox::question( this, Pgm().App().GetAppDisplayName(), msg,
+                                          QMessageBox::Yes | QMessageBox::No );
 
     // Make a backup of the current file, delete the file, and rename the auto save file to
     // the file name.
-    if( response == wxYES )
+    if( response == QMessageBox::Yes )
     {
         // Preserve the permissions of the current file
-        KIPLATFORM::IO::DuplicatePermissions( aFileName.GetFullPath(),
-                                              autoSaveFileName.GetFullPath() );
+        KIPLATFORM::IO::DuplicatePermissions( aFileName.absoluteFilePath(),
+                                              autoSaveFileName.absoluteFilePath() );
 
-        if( !wxRenameFile( autoSaveFileName.GetFullPath(), aFileName.GetFullPath() ) )
+        if( !QFile::rename( autoSaveFileName.absoluteFilePath(), aFileName.absoluteFilePath() ) )
         {
-            wxMessageBox( _( "The auto save file could not be renamed to the board file name." ),
-                          Pgm().App().GetAppDisplayName(), wxOK | wxICON_EXCLAMATION, this );
+            QMessageBox::warning( this, Pgm().App().GetAppDisplayName(),
+                                   _( "The auto save file could not be renamed to the board file name." ) );
         }
     }
     else
@@ -1441,20 +1093,21 @@ void EDA_BASE_FRAME::CheckForAutoSaveFile( const wxFileName& aFileName )
 }
 
 
-void EDA_BASE_FRAME::DeleteAutoSaveFile( const wxFileName& aFileName )
+void EDA_BASE_FRAME::DeleteAutoSaveFile( const QFileInfo& aFileName )
 {
     if( !Pgm().IsGUI() )
         return;
 
-    wxCHECK_RET( aFileName.IsOk(), wxT( "Invalid file name!" ) );
+    Q_ASSERT_X( !aFileName.fileName().isEmpty(), "EDA_BASE_FRAME::DeleteAutoSaveFile", "Invalid file name!" );
 
-    wxFileName autoSaveFn = aFileName;
-    autoSaveFn.SetName( FILEEXT::AutoSaveFilePrefix + aFileName.GetName() );
+    QString autoSavePath = aFileName.absolutePath() + "/" + 
+                           FILEEXT::AutoSaveFilePrefix + aFileName.baseName() + "." + aFileName.completeSuffix();
+    QFileInfo autoSaveFn( autoSavePath );
 
-    if( autoSaveFn.FileExists() )
+    if( autoSaveFn.exists() )
     {
-        wxLogTrace( traceAutoSave, wxT( "Removing auto save file " ) + autoSaveFn.GetFullPath() );
-        wxRemoveFile( autoSaveFn.GetFullPath() );
+        qDebug() << "Removing auto save file" << autoSaveFn.absoluteFilePath();
+        QFile::remove( autoSaveFn.absoluteFilePath() );
     }
 }
 
@@ -1468,10 +1121,8 @@ bool EDA_BASE_FRAME::IsContentModified() const
 
 void EDA_BASE_FRAME::initExitKey()
 {
-    wxAcceleratorEntry entries[1];
-    entries[0].Set( wxACCEL_CTRL, int( 'Q' ), wxID_EXIT );
-    wxAcceleratorTable accel( 1, entries );
-    SetAcceleratorTable( accel );
+    QShortcut* exitShortcut = new QShortcut( QKeySequence::Quit, this );
+    connect( exitShortcut, &QShortcut::activated, this, &QWidget::close );
 }
 
 
@@ -1524,21 +1175,21 @@ PICKED_ITEMS_LIST* EDA_BASE_FRAME::PopCommandFromRedoList( )
 }
 
 
-wxString EDA_BASE_FRAME::GetUndoActionDescription() const
+QString EDA_BASE_FRAME::GetUndoActionDescription() const
 {
     if( GetUndoCommandCount() > 0 )
         return m_undoList.m_CommandsList.back()->GetDescription();
 
-    return wxEmptyString;
+    return QString();
 }
 
 
-wxString EDA_BASE_FRAME::GetRedoActionDescription() const
+QString EDA_BASE_FRAME::GetRedoActionDescription() const
 {
     if( GetRedoCommandCount() > 0 )
         return m_redoList.m_CommandsList.back()->GetDescription();
 
-    return wxEmptyString;
+    return QString();
 }
 
 
@@ -1553,58 +1204,32 @@ void EDA_BASE_FRAME::ChangeUserUnits( EDA_UNITS aUnits )
     SetUserUnits( aUnits );
     unitsChangeRefresh();
 
-    wxCommandEvent e( EDA_EVT_UNITS_CHANGED );
-    e.SetInt( static_cast<int>( aUnits ) );
-    e.SetClientData( this );
-    ProcessEventLocally( e );
+    // Qt signal/slot mechanism would be used instead of wxCommandEvent
+    // Signal emission would be implemented once Q_OBJECT is added to header
 }
 
 
-void EDA_BASE_FRAME::OnMaximize( wxMaximizeEvent& aEvent )
+void EDA_BASE_FRAME::OnMaximize( QEvent& aEvent )
 {
     // When we maximize the window, we want to save the old information
     // so that we can add it to the settings on next window load.
-    // Contrary to the documentation, this event seems to be generated
-    // when the window is also being unmaximized on OSX, so we only
-    // capture the size information when we maximize the window when on OSX.
-#ifdef __WXOSX__
-    if( !IsMaximized() )
+#ifdef Q_OS_MACOS
+    if( !isMaximized() )
 #endif
     {
         m_normalFrameSize = GetWindowSize();
-        m_normalFramePos  = GetPosition();
-        wxLogTrace( traceDisplayLocation,
-                    "Maximizing window - Saving position (%d, %d) with size (%d, %d)",
-                    m_normalFramePos.x, m_normalFramePos.y,
-                    m_normalFrameSize.x, m_normalFrameSize.y );
+        m_normalFramePos  = pos();
+        qDebug() << "Maximizing window - Saving position (" << m_normalFramePos.x() << "," << m_normalFramePos.y() << ") with size (" << m_normalFrameSize.x << "," << m_normalFrameSize.y << ")";
     }
 
-    // Skip event to actually maximize the window
-    aEvent.Skip();
+    // Qt handles the maximize event automatically
 }
 
 
-wxSize EDA_BASE_FRAME::GetWindowSize()
+QSize EDA_BASE_FRAME::GetWindowSize()
 {
-#ifdef __WXGTK__
-    wxSize winSize = GetSize();
-
-    // GTK includes the window decorations in the normal GetSize call,
-    // so we have to use a GTK-specific sizing call that returns the
-    // non-decorated window size.
-    if( m_ident == KICAD_MAIN_FRAME_T )
-    {
-        int width  = 0;
-        int height = 0;
-        GTKDoGetSize( &width, &height );
-
-        winSize.Set( width, height );
-    }
-#else
-    wxSize winSize = GetSize();
-#endif
-
-    return winSize;
+    // Qt automatically handles window decorations across platforms
+    return size();
 }
 
 
@@ -1615,48 +1240,36 @@ void EDA_BASE_FRAME::HandleSystemColorChange()
     ThemeChanged();
 
     // This isn't handled by ThemeChanged()
-    if( GetMenuBar() )
+    if( menuBar() )
     {
         // For icons in menus, icon scaling & hotkeys
         ReCreateMenuBar();
-        GetMenuBar()->Refresh();
+        menuBar()->update();
     }
 }
 
 
-void EDA_BASE_FRAME::onSystemColorChange( wxSysColourChangedEvent& aEvent )
+void EDA_BASE_FRAME::onSystemColorChange()
 {
     // Call the handler to update the colors used in the frame
     HandleSystemColorChange();
 
-    // Skip the change event to ensure the rest of the window controls get it
-    aEvent.Skip();
+    // Qt automatically propagates color changes to child widgets
 }
 
 
-void EDA_BASE_FRAME::onIconize( wxIconizeEvent& aEvent )
+void EDA_BASE_FRAME::onIconize( QEvent& aEvent )
 {
     // Call the handler
     handleIconizeEvent( aEvent );
 
-    // Skip the event.
-    aEvent.Skip();
+    // Qt handles iconize events automatically
 }
 
 
-#ifdef __WXMSW__
-WXLRESULT EDA_BASE_FRAME::MSWWindowProc( WXUINT message, WXWPARAM wParam, WXLPARAM lParam )
-{
-    // This will help avoid the menu keeping focus when the alt key is released
-    // You can still trigger accelerators as long as you hold down alt
-    if( message == WM_SYSCOMMAND )
-    {
-        if( wParam == SC_KEYMENU && ( lParam >> 16 ) <= 0 )
-            return 0;
-    }
-
-    return wxFrame::MSWWindowProc( message, wParam, lParam );
-}
+#ifdef Q_OS_WIN
+// Qt handles Windows-specific message processing internally
+// Custom message handling would be done through nativeEvent() if needed
 #endif
 
 
@@ -1666,23 +1279,22 @@ void EDA_BASE_FRAME::AddMenuLanguageList( ACTION_MENU* aMasterMenu, TOOL_INTERAC
     langsMenu->SetTitle( _( "Set Language" ) );
     langsMenu->SetIcon( BITMAPS::language );
 
-    wxString tooltip;
+    QString tooltip;
 
     for( unsigned ii = 0; LanguagesList[ii].m_KI_Lang_Identifier != 0; ii++ )
     {
-        wxString label;
+        QString label;
 
         if( LanguagesList[ii].m_DoNotTranslate )
             label = LanguagesList[ii].m_Lang_Label;
         else
-            label = wxGetTranslation( LanguagesList[ii].m_Lang_Label );
+            label = QCoreApplication::translate( "LanguagesList", LanguagesList[ii].m_Lang_Label );
 
-        wxMenuItem* item =
-                new wxMenuItem( langsMenu,
-                                LanguagesList[ii].m_KI_Lang_Identifier, // wxMenuItem wxID
-                                label, tooltip, wxITEM_CHECK );
+        QAction* item = new QAction( label, langsMenu );
+        item->setCheckable( true );
+        item->setData( LanguagesList[ii].m_KI_Lang_Identifier );
 
-        langsMenu->Append( item );
+        langsMenu->addAction( item );
     }
 
     // This must be done after the items are added

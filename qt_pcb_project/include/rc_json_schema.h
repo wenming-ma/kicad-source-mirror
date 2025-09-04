@@ -1,36 +1,12 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef RC_JSON_SCHEMA_H
 #define RC_JSON_SCHEMA_H
 
 #include <json_common.h>
-#include <wx/string.h>
-#include <vector>
+#include <QString>
+#include <QVector>
 #include <json_conversions.h>
-
-/**
- * Contains the json serialization structs for DRC and ERC reports
- * If you are trying to change the output schema
- * Please update the schemas located in /resources/schemas/ as both documentation
- * and use by end user implementations
- */
 namespace RC_JSON
 {
 struct COORDINATE
@@ -42,8 +18,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE( COORDINATE, x, y )
 
 struct AFFECTED_ITEM
 {
-    wxString uuid;
-    wxString description;
+    QString uuid;
+    QString description;
     COORDINATE pos;
 };
 
@@ -51,10 +27,10 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE( AFFECTED_ITEM, uuid, description, pos )
 
 struct VIOLATION
 {
-    wxString                   type;
-    wxString                   description;
-    wxString                   severity;
-    std::vector<AFFECTED_ITEM> items;
+    QString                   type;
+    QString                   description;
+    QString                   severity;
+    QVector<AFFECTED_ITEM> items;
     bool                       excluded;
 };
 
@@ -79,21 +55,21 @@ inline void from_json( const nlohmann::json& aJson, VIOLATION& aViolation )
 
 struct REPORT_BASE
 {
-    wxString $schema;
-    wxString source;
-    wxString date;
-    wxString kicad_version;
-    wxString type;
-    wxString coordinate_units;
+    QString $schema;
+    QString source;
+    QString date;
+    QString kicad_version;
+    QString type;
+    QString coordinate_units;
 };
 
 struct DRC_REPORT : REPORT_BASE
 {
-    DRC_REPORT() { type = wxS( "drc" ); }
+    DRC_REPORT() { type = QStringLiteral( "drc" ); }
 
-    std::vector<VIOLATION>                 violations;
-    std::vector<VIOLATION>                 unconnected_items;
-    std::vector<VIOLATION>                 schematic_parity;
+    QVector<VIOLATION>                 violations;
+    QVector<VIOLATION>                 unconnected_items;
+    QVector<VIOLATION>                 schematic_parity;
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE( DRC_REPORT, $schema, source, date, kicad_version, violations,
@@ -101,18 +77,18 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE( DRC_REPORT, $schema, source, date, kicad_ver
 
 struct ERC_SHEET
 {
-    wxString               uuid_path;
-    wxString               path;
-    std::vector<VIOLATION> violations;
+    QString               uuid_path;
+    QString               path;
+    QVector<VIOLATION> violations;
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE( ERC_SHEET, uuid_path, path, violations )
 
 struct ERC_REPORT : REPORT_BASE
 {
-    ERC_REPORT() { type = wxS( "erc" ); }
+    ERC_REPORT() { type = QStringLiteral( "erc" ); }
 
-    std::vector<ERC_SHEET> sheets;
+    QVector<ERC_SHEET> sheets;
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE( ERC_REPORT, $schema, source, date, kicad_version, sheets,

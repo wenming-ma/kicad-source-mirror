@@ -1,33 +1,17 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2024 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <magic_enum.hpp>
 #include <json_common.h>
-#include <wx/log.h>
-#include <wx/regex.h>
-#include <wx/stdstream.h>
-#include <wx/wfstream.h>
+#include <QLoggingCategory>
+#include <QRegularExpression>
+#include <QTextStream>
+#include <QFile>
+#include <QFileInfo>
+#include <QDir>
+#include <QPixmap>
+#include <QIODevice>
 
 #include <api/api_plugin.h>
 #include <api/api_plugin_manager.h>
-// #include <api/api_utils.h>
 #include <json_conversions.h>
 #include <json_schema_validator.h>
 
@@ -43,9 +27,10 @@ public:
                 const std::string& message ) override
     {
         m_hasError = true;
-        wxLogTrace( traceApi,
-                    wxString::Format( wxS( "JSON error: at %s, value:\n%s\n%s" ),
-                                      ptr.to_string(), instance.dump(), message ) );
+        qDebug() << QString("JSON error: at %1, value:\n%2\n%3")
+                        .arg(QString::fromStdString(ptr.to_string()))
+                        .arg(QString::fromStdString(instance.dump()))
+                        .arg(QString::fromStdString(message));
     }
 
 private:
@@ -55,7 +40,6 @@ private:
 
 bool PLUGIN_RUNTIME::FromJson( const nlohmann::json& aJson )
 {
-    // TODO move to tl::expected and give user feedback about parse errors
 
     try
     {
@@ -76,45 +60,46 @@ bool PLUGIN_RUNTIME::FromJson( const nlohmann::json& aJson )
 
 struct API_PLUGIN_CONFIG
 {
-    API_PLUGIN_CONFIG( API_PLUGIN& aParent, const wxFileName& aConfigFile,
+    API_PLUGIN_CONFIG( API_PLUGIN& aParent, const QString& aConfigFile,
                        const JSON_SCHEMA_VALIDATOR& aValidator );
 
     bool valid;
-    wxString identifier;
-    wxString name;
-    wxString description;
+    QString identifier;
+    QString name;
+    QString description;
     PLUGIN_RUNTIME runtime;
-    std::vector<PLUGIN_ACTION> actions;
+    QVector<PLUGIN_ACTION> actions;
 
     API_PLUGIN& parent;
 };
 
 
-API_PLUGIN_CONFIG::API_PLUGIN_CONFIG( API_PLUGIN& aParent, const wxFileName& aConfigFile,
+API_PLUGIN_CONFIG::API_PLUGIN_CONFIG( API_PLUGIN& aParent, const QString& aConfigFile,
                                       const JSON_SCHEMA_VALIDATOR& aValidator ) :
         parent( aParent )
 {
     valid = false;
 
-    if( !aConfigFile.IsFileReadable() )
+    QFile file(aConfigFile);
+    if( !file.exists() || !file.open(QIODevice::ReadOnly | QIODevice::Text) )
         return;
 
-    wxLogTrace( traceApi, "Plugin: parsing config file" );
+    qDebug() << "Plugin: parsing config file";
 
-    wxFFileInputStream fp( aConfigFile.GetFullPath(), wxT( "rt" ) );
-    wxStdInputStream fstream( fp );
+    QTextStream stream(&file);
 
     nlohmann::json js;
 
     try
     {
-        js = nlohmann::json::parse( fstream, nullptr,
+        QString jsonText = stream.readAll();
+        js = nlohmann::json::parse( jsonText.toStdString(), nullptr,
                                     /* allow_exceptions = */ true,
                                     /* ignore_comments  = */ true );
     }
     catch( ... )
     {
-        wxLogTrace( traceApi, "Plugin: exception during parse" );
+        qDebug() << "Plugin: exception during parse";
         return;
     }
 
@@ -122,35 +107,33 @@ API_PLUGIN_CONFIG::API_PLUGIN_CONFIG( API_PLUGIN& aParent, const wxFileName& aCo
     aValidator.Validate( js, handler, nlohmann::json_uri( "#/definitions/Plugin" ) );
 
     if( !handler.HasError() )
-        wxLogTrace( traceApi, "Plugin: schema validation successful" );
+        qDebug() << "Plugin: schema validation successful";
 
-    // All of these are required; any exceptions here leave us with valid == false
     try
     {
-        identifier = js.at( "identifier" ).get<wxString>();
-        name = js.at( "name" ).get<wxString>();
-        description = js.at( "description" ).get<wxString>();
+        identifier = QString::fromStdString(js.at( "identifier" ).get<std::string>());
+        name = QString::fromStdString(js.at( "name" ).get<std::string>());
+        description = QString::fromStdString(js.at( "description" ).get<std::string>());
 
         if( !runtime.FromJson( js.at( "runtime" ) ) )
         {
-            wxLogTrace( traceApi, "Plugin: error parsing runtime section" );
+            qDebug() << "Plugin: error parsing runtime section";
             return;
         }
     }
     catch( ... )
     {
-        wxLogTrace( traceApi, "Plugin: exception while parsing required keys" );
+        qDebug() << "Plugin: exception while parsing required keys";
         return;
     }
 
     if( !API_PLUGIN::IsValidIdentifier( identifier ) )
     {
-        wxLogTrace( traceApi, wxString::Format( "Plugin: identifier %s does not meet requirements",
-                                                identifier ) );
+        qDebug() << QString("Plugin: identifier %1 does not meet requirements").arg(identifier);
         return;
     }
 
-    wxLogTrace( traceApi, wxString::Format( "Plugin: %s (%s)", identifier, name ) );
+    qDebug() << QString("Plugin: %1 (%2)").arg(identifier, name);
 
     try
     {
@@ -162,24 +145,23 @@ API_PLUGIN_CONFIG::API_PLUGIN_CONFIG( API_PLUGIN& aParent, const wxFileName& aCo
             {
                 if( std::optional<PLUGIN_ACTION> a = parent.createActionFromJson( actionJs ) )
                 {
-                    a->identifier = wxString::Format( "%s.%s", identifier, a->identifier );
-                    wxLogTrace( traceApi, wxString::Format( "Plugin: loaded action %s",
-                                                            a->identifier ) );
-                    actions.emplace_back( *a );
+                    a->identifier = QString("%1.%2").arg(identifier, a->identifier);
+                    qDebug() << QString("Plugin: loaded action %1").arg(a->identifier);
+                    actions.append( *a );
                 }
             }
         }
     }
     catch( ... )
     {
-        wxLogTrace( traceApi, "Plugin: exception while parsing actions" );
+        qDebug() << "Plugin: exception while parsing actions";
     }
 
     valid = true;
 }
 
 
-API_PLUGIN::API_PLUGIN( const wxFileName& aConfigFile, const JSON_SCHEMA_VALIDATOR& aValidator ) :
+API_PLUGIN::API_PLUGIN( const QString& aConfigFile, const JSON_SCHEMA_VALIDATOR& aValidator ) :
         m_configFile( aConfigFile ),
         m_config( std::make_unique<API_PLUGIN_CONFIG>( *this, aConfigFile, aValidator ) )
 {
@@ -197,27 +179,26 @@ bool API_PLUGIN::IsOk() const
 }
 
 
-bool API_PLUGIN::IsValidIdentifier( const wxString& aIdentifier )
+bool API_PLUGIN::IsValidIdentifier( const QString& aIdentifier )
 {
-    // At minimum, we need a reverse-DNS style identifier with two dots and a 2+ character TLD
-    wxRegEx identifierRegex( wxS( "[\\w\\d]{2,}\\.[\\w\\d]+\\.[\\w\\d]+" ) );
-    return identifierRegex.Matches( aIdentifier );
+    QRegularExpression identifierRegex( "[\\w\\d]{2,}\\.[\\w\\d]+\\.[\\w\\d]+" );
+    return identifierRegex.match( aIdentifier ).hasMatch();
 }
 
 
-const wxString& API_PLUGIN::Identifier() const
+const QString& API_PLUGIN::Identifier() const
 {
     return m_config->identifier;
 }
 
 
-const wxString& API_PLUGIN::Name() const
+const QString& API_PLUGIN::Name() const
 {
     return m_config->name;
 }
 
 
-const wxString& API_PLUGIN::Description() const
+const QString& API_PLUGIN::Description() const
 {
     return m_config->description;
 }
@@ -229,19 +210,20 @@ const PLUGIN_RUNTIME& API_PLUGIN::Runtime() const
 }
 
 
-const std::vector<PLUGIN_ACTION>& API_PLUGIN::Actions() const
+const QVector<PLUGIN_ACTION>& API_PLUGIN::Actions() const
 {
     return m_config->actions;
 }
 
 
-wxString API_PLUGIN::BasePath() const
+QString API_PLUGIN::BasePath() const
 {
-    return m_configFile.GetPath();
+    QFileInfo fileInfo(m_configFile);
+    return fileInfo.absolutePath();
 }
 
 
-wxString API_PLUGIN::ActionSettingsKey( const PLUGIN_ACTION& aAction ) const
+QString API_PLUGIN::ActionSettingsKey( const PLUGIN_ACTION& aAction ) const
 {
     return Identifier() + "." + aAction.identifier;
 }
@@ -250,39 +232,38 @@ wxString API_PLUGIN::ActionSettingsKey( const PLUGIN_ACTION& aAction ) const
 
 std::optional<PLUGIN_ACTION> API_PLUGIN::createActionFromJson( const nlohmann::json& aJson )
 {
-    // TODO move to tl::expected and give user feedback about parse errors
     PLUGIN_ACTION action( *this );
 
     try
     {
-        action.identifier = aJson.at( "identifier" ).get<wxString>();
-        wxLogTrace( traceApi, wxString::Format( "Plugin: load action %s", action.identifier ) );
-        action.name = aJson.at( "name" ).get<wxString>();
-        action.description = aJson.at( "description" ).get<wxString>();
-        action.entrypoint = aJson.at( "entrypoint" ).get<wxString>();
+        action.identifier = QString::fromStdString(aJson.at( "identifier" ).get<std::string>());
+        qDebug() << QString("Plugin: load action %1").arg(action.identifier);
+        action.name = QString::fromStdString(aJson.at( "name" ).get<std::string>());
+        action.description = QString::fromStdString(aJson.at( "description" ).get<std::string>());
+        action.entrypoint = QString::fromStdString(aJson.at( "entrypoint" ).get<std::string>());
         action.show_button = aJson.contains( "show-button" ) && aJson.at( "show-button" ).get<bool>();
     }
     catch( ... )
     {
-        wxLogTrace( traceApi, "Plugin: exception while parsing action required keys" );
+        qDebug() << "Plugin: exception while parsing action required keys";
         return std::nullopt;
     }
 
-    wxFileName f( action.entrypoint );
+    QFileInfo f( action.entrypoint );
 
-    if( !f.IsRelative() )
+    if( f.isAbsolute() )
     {
-        wxLogTrace( traceApi, wxString::Format( "Plugin: action contains abs path %s; skipping",
-                                                action.entrypoint ) );
+        qDebug() << QString("Plugin: action contains abs path %1; skipping").arg(action.entrypoint);
         return std::nullopt;
     }
 
-    f.Normalize( wxPATH_NORM_ABSOLUTE, m_configFile.GetPath() );
+    QFileInfo configFileInfo(m_configFile);
+    QString absolutePath = QDir(configFileInfo.absolutePath()).absoluteFilePath(action.entrypoint);
+    QFileInfo absoluteFileInfo(absolutePath);
 
-    if( !f.IsFileReadable() )
+    if( !absoluteFileInfo.exists() || !absoluteFileInfo.isReadable() )
     {
-        wxLogTrace( traceApi, wxString::Format( "WARNING: action entrypoint %s is not readable",
-                                                f.GetFullPath() ) );
+        qDebug() << QString("WARNING: action entrypoint %1 is not readable").arg(absolutePath);
     }
 
     if( aJson.contains( "args" ) && aJson.at( "args" ).is_array() )
@@ -291,11 +272,11 @@ std::optional<PLUGIN_ACTION> API_PLUGIN::createActionFromJson( const nlohmann::j
         {
             try
             {
-                action.args.emplace_back( argJs.get<wxString>() );
+                action.args.append( QString::fromStdString(argJs.get<std::string>()) );
             }
             catch( ... )
             {
-                wxLogTrace( traceApi, "Plugin: exception while parsing action args" );
+                qDebug() << "Plugin: exception while parsing action args";
                 continue;
             }
         }
@@ -313,56 +294,56 @@ std::optional<PLUGIN_ACTION> API_PLUGIN::createActionFromJson( const nlohmann::j
             }
             catch( ... )
             {
-                wxLogTrace( traceApi, "Plugin: exception while parsing action scopes" );
+                qDebug() << "Plugin: exception while parsing action scopes";
                 continue;
             }
         }
     }
 
     auto handleBitmap =
-            [&]( const std::string& aKey, wxBitmapBundle& aDest )
+            [&]( const std::string& aKey, QPixmap& aDest )
             {
                 if( aJson.contains( aKey ) && aJson.at( aKey ).is_array() )
                 {
-                    wxVector<wxBitmap> bitmaps;
+                    QVector<QPixmap> bitmaps;
 
                     for( const nlohmann::json& iconJs : aJson.at( aKey ) )
                     {
-                        wxFileName iconFile;
+                        QString iconFile;
 
                         try
                         {
-                            iconFile = iconJs.get<wxString>();
+                            iconFile = QString::fromStdString(iconJs.get<std::string>());
                         }
                         catch( ... )
                         {
                             continue;
                         }
 
-                        iconFile.Normalize( wxPATH_NORM_ABSOLUTE, m_configFile.GetPath() );
+                        QFileInfo configFileInfo(m_configFile);
+                        QString absoluteIconPath = QDir(configFileInfo.absolutePath()).absoluteFilePath(iconFile);
 
-                        wxLogTrace( traceApi,
-                                    wxString::Format( "Plugin: action %s: loading icon %s",
-                                                      action.identifier, iconFile.GetFullPath() ) );
+                        qDebug() << QString("Plugin: action %1: loading icon %2")
+                                        .arg(action.identifier, absoluteIconPath);
 
-
-                        if( !iconFile.IsFileReadable() )
+                        QFileInfo iconFileInfo(absoluteIconPath);
+                        if( !iconFileInfo.exists() || !iconFileInfo.isReadable() )
                         {
-                            wxLogTrace( traceApi, "Plugin: icon file could not be read" );
+                            qDebug() << "Plugin: icon file could not be read";
                             continue;
                         }
 
-                        wxBitmap bmp;
-                        // TODO: If necessary; support types other than PNG
-                        bmp.LoadFile( iconFile.GetFullPath(), wxBITMAP_TYPE_PNG );
+                        QPixmap bmp;
+                        bmp.load( absoluteIconPath );
 
-                        if( bmp.IsOk() )
-                            bitmaps.push_back( bmp );
+                        if( !bmp.isNull() )
+                            bitmaps.append( bmp );
                         else
-                            wxLogTrace( traceApi, "Plugin: icon file not a valid bitmap" );
+                            qDebug() << "Plugin: icon file not a valid bitmap";
                     }
 
-                    aDest = wxBitmapBundle::FromBitmaps( bitmaps );
+                    if( !bitmaps.isEmpty() )
+                        aDest = bitmaps.first();
                 }
             };
 

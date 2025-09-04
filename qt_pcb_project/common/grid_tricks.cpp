@@ -1,47 +1,23 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 #include <grid_tricks.h>
-#include <wx/defs.h>
-#include <wx/event.h>
-#include <wx/tokenzr.h>
-#include <wx/clipbrd.h>
-#include <wx/log.h>
-#include <wx/stc/stc.h>
+#include <QtCore/QString>
+#include <QtCore/QStringList>
+#include <QtGui/QClipboard>
+#include <QtCore/QDebug>
+#include <QtWidgets/QApplication>
+#include <QtCore/QTextStream>
+#include <QtWidgets/QMenu>
+#include <QtWidgets/QAction>
 #include <widgets/grid_text_helpers.h>
 
-
-// It works for table data on clipboard for an Excel spreadsheet,
-// why not us too for now.
-#define COL_SEP     wxT( '\t' )
-#define ROW_SEP     wxT( '\n' )
-#define ROW_SEP_R   wxT( '\r' )
+#define COL_SEP     QLatin1Char( '\t' )
+#define ROW_SEP     QLatin1Char( '\n' )
+#define ROW_SEP_R   QLatin1Char( '\r' )
 
 
-GRID_TRICKS::GRID_TRICKS( WX_GRID* aGrid ) :
+GRID_TRICKS::GRID_TRICKS( QT_GRID* aGrid ) :
+    QObject( aGrid ),
     m_grid( aGrid ),
-    m_addHandler( []( wxCommandEvent& ) {} ),
+    m_addHandler( []( QAction* ) {} ),
     m_enableSingleClickEdit( true ),
     m_multiCellEditEnabled( true )
 {
@@ -49,7 +25,8 @@ GRID_TRICKS::GRID_TRICKS( WX_GRID* aGrid ) :
 }
 
 
-GRID_TRICKS::GRID_TRICKS( WX_GRID* aGrid, std::function<void( wxCommandEvent& )> aAddHandler ) :
+GRID_TRICKS::GRID_TRICKS( QT_GRID* aGrid, std::function<void( QAction* )> aAddHandler ) :
+    QObject( aGrid ),
     m_grid( aGrid ),
     m_addHandler( aAddHandler ),
     m_enableSingleClickEdit( true ),
@@ -66,50 +43,31 @@ void GRID_TRICKS::init()
     m_sel_row_count = 0;
     m_sel_col_count = 0;
 
-    m_grid->Connect( wxEVT_GRID_CELL_LEFT_CLICK,
-                     wxGridEventHandler( GRID_TRICKS::onGridCellLeftClick ), nullptr, this );
-    m_grid->Connect( wxEVT_GRID_CELL_LEFT_DCLICK,
-                     wxGridEventHandler( GRID_TRICKS::onGridCellLeftDClick ), nullptr, this );
-    m_grid->Connect( wxEVT_GRID_CELL_RIGHT_CLICK,
-                     wxGridEventHandler( GRID_TRICKS::onGridCellRightClick ), nullptr, this );
-    m_grid->Connect( wxEVT_GRID_LABEL_RIGHT_CLICK,
-                     wxGridEventHandler( GRID_TRICKS::onGridLabelRightClick ), nullptr, this );
-    m_grid->Connect( wxEVT_GRID_LABEL_LEFT_CLICK,
-                     wxGridEventHandler( GRID_TRICKS::onGridLabelLeftClick ), nullptr, this );
-    m_grid->Connect( GRIDTRICKS_FIRST_ID, GRIDTRICKS_LAST_ID, wxEVT_COMMAND_MENU_SELECTED,
-                     wxCommandEventHandler( GRID_TRICKS::onPopupSelection ), nullptr, this );
-    m_grid->Connect( wxEVT_CHAR_HOOK,
-                     wxCharEventHandler( GRID_TRICKS::onCharHook ), nullptr, this );
-    m_grid->Connect( wxEVT_KEY_DOWN,
-                     wxKeyEventHandler( GRID_TRICKS::onKeyDown ), nullptr, this );
-    m_grid->Connect( wxEVT_UPDATE_UI,
-                     wxUpdateUIEventHandler( GRID_TRICKS::onUpdateUI ), nullptr, this );
+    connect( m_grid, &QT_GRID::cellClicked, this, &GRID_TRICKS::onGridCellLeftClick );
+    connect( m_grid, &QT_GRID::cellDoubleClicked, this, &GRID_TRICKS::onGridCellLeftDClick );
+    connect( m_grid, &QT_GRID::cellRightClicked, this, &GRID_TRICKS::onGridCellRightClick );
+    connect( m_grid, &QT_GRID::labelLeftClicked, this, &GRID_TRICKS::onGridLabelLeftClick );
+    connect( m_grid, &QT_GRID::labelRightClicked, this, &GRID_TRICKS::onGridLabelRightClick );
+    connect( m_grid, &QT_GRID::keyPressed, this, &GRID_TRICKS::onKeyDown );
+    connect( m_grid, &QT_GRID::charHook, this, &GRID_TRICKS::onCharHook );
+    connect( m_grid, &QT_GRID::updateUI, this, &GRID_TRICKS::onUpdateUI );
+    connect( m_grid, &QT_GRID::mouseMotion, this, &GRID_TRICKS::onGridMotion );
 
-    // The handlers that control the tooltips must be on the actual grid window, not the grid
-    m_grid->GetGridWindow()->Connect( wxEVT_MOTION,
-                                      wxMouseEventHandler( GRID_TRICKS::onGridMotion ), nullptr,
-                                      this );
+    m_grid->setMouseTracking( true );
 }
 
 
 bool GRID_TRICKS::isTextEntry( int aRow, int aCol )
 {
-    wxGridCellEditor* editor = m_grid->GetCellEditor( aRow, aCol );
-    bool              retval = ( dynamic_cast<wxTextEntry*>( editor )
-                              || dynamic_cast<GRID_CELL_STC_EDITOR*>( editor ) );
-
-    editor->DecRef();
+    QWidget* editor = m_grid->GetCellEditor( aRow, aCol );
+    bool retval = m_grid->IsTextEntry( aRow, aCol );
     return retval;
 }
 
 
 bool GRID_TRICKS::isCheckbox( int aRow, int aCol )
 {
-    wxGridCellRenderer* renderer = m_grid->GetCellRenderer( aRow, aCol );
-    bool                retval = ( dynamic_cast<wxGridCellBoolRenderer*>( renderer ) );
-
-    renderer->DecRef();
-    return retval;
+    return m_grid->IsCheckbox( aRow, aCol );
 }
 
 
@@ -129,28 +87,22 @@ bool GRID_TRICKS::toggleCell( int aRow, int aCol, bool aPreserveSelection )
             m_grid->SetGridCursor( aRow, aCol );
         }
 
-        wxGridTableBase* model = m_grid->GetTable();
-
-        if( model->CanGetValueAs( aRow, aCol, wxGRID_VALUE_BOOL )
-                && model->CanSetValueAs( aRow, aCol, wxGRID_VALUE_BOOL ) )
+        if( m_grid->CanGetValueAs( aRow, aCol, "bool" ) && m_grid->CanSetValueAs( aRow, aCol, "bool" ) )
         {
-            model->SetValueAsBool( aRow, aCol, !model->GetValueAsBool( aRow, aCol ) );
+            m_grid->SetValueAsBool( aRow, aCol, !m_grid->GetValueAsBool( aRow, aCol ) );
         }
-        else    // fall back to string processing
+        else
         {
-            if( model->GetValue( aRow, aCol ) == wxT( "1" ) )
-                model->SetValue( aRow, aCol, wxT( "0" ) );
+            if( m_grid->GetCellValue( aRow, aCol ) == "1" )
+                m_grid->SetCellValue( aRow, aCol, "0" );
             else
-                model->SetValue( aRow, aCol, wxT( "1" ) );
+                m_grid->SetCellValue( aRow, aCol, "1" );
         }
 
-        // Mac needs this for the keyboard events; Linux appears to always need it.
         m_grid->ForceRefresh();
 
-        // Let any clients know
-        wxGridEvent event( m_grid->GetId(), wxEVT_GRID_CELL_CHANGED, m_grid, aRow, aCol );
-        event.SetString( model->GetValue( aRow, aCol ) );
-        m_grid->GetEventHandler()->ProcessEvent( event );
+        QString newValue = m_grid->GetCellValue( aRow, aCol );
+        m_grid->EmitCellChanged( aRow, aCol, newValue );
 
         return true;
     }
@@ -173,23 +125,13 @@ bool GRID_TRICKS::showEditor( int aRow, int aCol )
         m_sel_row_count = 1;
         m_sel_col_count = 1;
 
-        if( m_grid->GetSelectionMode() == wxGrid::wxGridSelectRows )
+        if( m_grid->GetSelectionMode() == QT_GRID::SelectRows )
         {
-            wxArrayInt rows = m_grid->GetSelectedRows();
-
-            if( rows.size() != 1 || rows.Item( 0 ) != aRow )
+            QVector<int> rows = m_grid->GetSelectedRows();
+            if( rows.size() != 1 || rows[0] != aRow )
                 m_grid->SelectRow( aRow );
         }
 
-        // For several reasons we can't enable the control here.  There's the whole
-        // SetInSetFocus() issue/hack in wxWidgets, and there's also wxGrid's MouseUp
-        // handler which doesn't notice it's processing a MouseUp until after it has
-        // disabled the editor yet again.  So we re-use wxWidgets' slow-click hack,
-        // which is processed later in the MouseUp handler.
-        //
-        // It should be pointed out that the fact that it's wxWidgets' hack doesn't
-        // make it any less of a hack.  Be extra careful with any modifications here.
-        // See, in particular, https://bugs.launchpad.net/kicad/+bug/1817965.
         m_grid->ShowEditorOnMouseUp();
 
         return true;
@@ -199,13 +141,9 @@ bool GRID_TRICKS::showEditor( int aRow, int aCol )
 }
 
 
-void GRID_TRICKS::onGridCellLeftClick( wxGridEvent& aEvent )
+void GRID_TRICKS::onGridCellLeftClick( int row, int col )
 {
-    int row = aEvent.GetRow();
-    int col = aEvent.GetCol();
-
-    // Don't make users click twice to toggle a checkbox or edit a text cell
-    if( !aEvent.GetModifiers() )
+    if( !m_grid->HasModifiers() )
     {
         bool toggled = false;
 
@@ -214,23 +152,17 @@ void GRID_TRICKS::onGridCellLeftClick( wxGridEvent& aEvent )
         else if( m_enableSingleClickEdit && showEditor( row, col ) )
             return;
 
-        // Apply checkbox changes to multi-selection.
-        // Non-checkbox changes handled elsewhere
         if( toggled )
         {
             getSelectedArea();
 
-            // We only want to apply this to whole rows.  If the grid allows selecting individual
-            // cells, and the selection contains dijoint cells, skip this logic.
-            if( !m_grid->GetSelectedCells().IsEmpty() || m_sel_row_count < 2 )
+            if( !m_grid->GetSelectedCells().isEmpty() || m_sel_row_count < 2 )
             {
-                // We preserved the selection in toggleCell above; so clear it now that we know
-                // we aren't doing a multi-select edit
                 m_grid->ClearSelection();
                 return;
             }
 
-            wxString newVal = m_grid->GetCellValue( row, col );
+            QString newVal = m_grid->GetCellValue( row, col );
 
             for( int otherRow = m_sel_row_start; otherRow < m_sel_row_start + m_sel_row_count; ++otherRow )
             {
@@ -243,77 +175,69 @@ void GRID_TRICKS::onGridCellLeftClick( wxGridEvent& aEvent )
             return;
         }
     }
-
-    aEvent.Skip();
 }
 
 
-void GRID_TRICKS::onGridCellLeftDClick( wxGridEvent& aEvent )
+void GRID_TRICKS::onGridCellLeftDClick( int row, int col )
 {
-    if( !handleDoubleClick( aEvent ) )
-        onGridCellLeftClick( aEvent );
+    if( !handleDoubleClick( row, col ) )
+        onGridCellLeftClick( row, col );
 }
 
 
-void GRID_TRICKS::onGridMotion( wxMouseEvent& aEvent )
+void GRID_TRICKS::onGridMotion( QMouseEvent* aEvent )
 {
-    // Always skip the event
-    aEvent.Skip();
+    QPoint pt = aEvent->pos();
+    QPoint pos = m_grid->CalcScrolledPosition( pt );
 
-    wxPoint pt  = aEvent.GetPosition();
-    wxPoint pos = m_grid->CalcScrolledPosition( wxPoint( pt.x, pt.y ) );
+    int col = m_grid->XToCol( pos.x() );
+    int row = m_grid->YToRow( pos.y() );
 
-    int col = m_grid->XToCol( pos.x );
-    int row = m_grid->YToRow( pos.y );
-
-    // Empty tooltip if the cell doesn't exist or the column doesn't have tooltips
-    if( ( col == wxNOT_FOUND ) || ( row == wxNOT_FOUND ) || !m_tooltipEnabled[col] )
+    if( ( col == -1 ) || ( row == -1 ) || !m_tooltipEnabled[col] )
     {
-        m_grid->GetGridWindow()->SetToolTip( wxS( "" ) );
+        m_grid->setToolTip( QString() );
         return;
     }
 
-    // Set the tooltip to the string contained in the cell
-    m_grid->GetGridWindow()->SetToolTip( m_grid->GetCellValue( row, col ) );
+    m_grid->setToolTip( m_grid->GetCellValue( row, col ) );
 }
 
 
-bool GRID_TRICKS::handleDoubleClick( wxGridEvent& aEvent )
+bool GRID_TRICKS::handleDoubleClick( int row, int col )
 {
-    // Double-click processing must be handled by specific sub-classes
+    Q_UNUSED( row )
+    Q_UNUSED( col )
     return false;
 }
 
 
 void GRID_TRICKS::getSelectedArea()
 {
-    wxGridCellCoordsArray topLeft  = m_grid->GetSelectionBlockTopLeft();
-    wxGridCellCoordsArray botRight = m_grid->GetSelectionBlockBottomRight();
+    QVector<QVector<int>> blocks = m_grid->GetSelectionBlockTopLeft();
+    QVector<QVector<int>> botRight = m_grid->GetSelectionBlockBottomRight();
+    QVector<int> cols = m_grid->GetSelectedCols();
+    QVector<int> rows = m_grid->GetSelectedRows();
 
-    wxArrayInt  cols = m_grid->GetSelectedCols();
-    wxArrayInt  rows = m_grid->GetSelectedRows();
-
-    if( topLeft.Count() && botRight.Count() )
+    if( !blocks.isEmpty() && !botRight.isEmpty() )
     {
-        m_sel_row_start = topLeft[0].GetRow();
-        m_sel_col_start = topLeft[0].GetCol();
-
-        m_sel_row_count = botRight[0].GetRow() - m_sel_row_start + 1;
-        m_sel_col_count = botRight[0].GetCol() - m_sel_col_start + 1;
+        m_sel_row_start = blocks[0][0];
+        m_sel_col_start = blocks[0][1];
+        m_sel_row_count = botRight[0][0] - m_sel_row_start + 1;
+        m_sel_col_count = botRight[0][1] - m_sel_col_start + 1;
     }
-    else if( cols.Count() )
+    else if( !cols.isEmpty() )
     {
         m_sel_col_start = cols[0];
-        m_sel_col_count = cols.Count();
+        m_sel_col_count = cols.size();
         m_sel_row_start = 0;
         m_sel_row_count = m_grid->GetNumberRows();
     }
-    else if( rows.Count() )
+    else if( !rows.isEmpty() )
     {
         m_sel_col_start = 0;
         m_sel_col_count = m_grid->GetNumberCols();
         m_sel_row_start = rows[0];
-        m_sel_row_count = rows.Count();
+        m_sel_row_count = rows.size();
     }
     else
     {
@@ -325,114 +249,115 @@ void GRID_TRICKS::getSelectedArea()
 }
 
 
-void GRID_TRICKS::onGridCellRightClick( wxGridEvent& aEvent  )
+void GRID_TRICKS::onGridCellRightClick( int row, int col )
 {
-    wxMenu menu;
-
-    showPopupMenu( menu, aEvent );
+    QMenu menu;
+    showPopupMenu( menu, row, col );
 }
 
 
-void GRID_TRICKS::onGridLabelLeftClick( wxGridEvent& aEvent )
+void GRID_TRICKS::onGridLabelLeftClick( int section )
 {
+    Q_UNUSED( section )
     m_grid->CommitPendingChanges();
-
-    aEvent.Skip();
 }
 
 
-void GRID_TRICKS::onGridLabelRightClick( wxGridEvent&  )
+void GRID_TRICKS::onGridLabelRightClick( int section )
 {
-    wxMenu menu;
+    Q_UNUSED( section )
+    QMenu menu;
 
     for( int i = 0; i < m_grid->GetNumberCols(); ++i )
     {
         int id = GRIDTRICKS_FIRST_SHOWHIDE + i;
-        menu.AppendCheckItem( id, m_grid->GetColLabelValue( i ) );
-        menu.Check( id, m_grid->IsColShown( i ) );
+        QAction* action = menu.addAction( m_grid->GetColLabelValue( i ) );
+        action->setCheckable( true );
+        action->setChecked( m_grid->IsColShown( i ) );
+        action->setData( id );
+        connect( action, &QAction::triggered, this, [this, action]() {
+            onPopupSelection( action );
+        });
     }
 
-    m_grid->PopupMenu( &menu );
+    menu.exec( QCursor::pos() );
 }
 
 
-void GRID_TRICKS::showPopupMenu( wxMenu& menu, wxGridEvent& aEvent )
+void GRID_TRICKS::showPopupMenu( QMenu& menu, int row, int col )
 {
-    menu.Append( GRIDTRICKS_ID_CUT, _( "Cut" ) + "\tCtrl+X",
-                 _( "Clear selected cells placing original contents on clipboard" ) );
-    menu.Append( GRIDTRICKS_ID_COPY, _( "Copy" ) + "\tCtrl+C",
-                 _( "Copy selected cells to clipboard" ) );
-
+    Q_UNUSED( row )
+    Q_UNUSED( col )
+    
+    QAction* cutAction = menu.addAction( tr("Cut") + "\tCtrl+X" );
+    cutAction->setData( GRIDTRICKS_ID_CUT );
+    QAction* copyAction = menu.addAction( tr("Copy") + "\tCtrl+C" );
+    copyAction->setData( GRIDTRICKS_ID_COPY );
+    
+    QAction* pasteAction = nullptr;
+    QAction* deleteAction = nullptr;
+    
     if( m_multiCellEditEnabled )
     {
-        menu.Append( GRIDTRICKS_ID_PASTE, _( "Paste" ) + "\tCtrl+V",
-                     _( "Paste clipboard cells to matrix at current cell" ) );
-        menu.Append( GRIDTRICKS_ID_DELETE, _( "Delete" ) + "\tDel",
-                     _( "Clear contents of selected cells" ) );
+        pasteAction = menu.addAction( tr("Paste") + "\tCtrl+V" );
+        pasteAction->setData( GRIDTRICKS_ID_PASTE );
+        deleteAction = menu.addAction( tr("Delete") + "\tDel" );
+        deleteAction->setData( GRIDTRICKS_ID_DELETE );
     }
 
-    menu.Append( GRIDTRICKS_ID_SELECT, _( "Select All" ) + "\tCtrl+A",
-                 _( "Select all cells" ) );
+    QAction* selectAllAction = menu.addAction( tr("Select All") + "\tCtrl+A" );
+    selectAllAction->setData( GRIDTRICKS_ID_SELECT );
 
-    menu.Enable( GRIDTRICKS_ID_CUT,  false );
-    menu.Enable( GRIDTRICKS_ID_DELETE, false );
-    menu.Enable( GRIDTRICKS_ID_PASTE, false );
+    cutAction->setEnabled( false );
+    if( deleteAction ) deleteAction->setEnabled( false );
+    if( pasteAction ) pasteAction->setEnabled( false );
 
     getSelectedArea();
 
-    auto anyCellsWritable =
-            [&]()
+    auto anyCellsWritable = [&]()
+    {
+        for( int row = m_sel_row_start; row < m_sel_row_start + m_sel_row_count; ++row )
+        {
+            for( int col = m_sel_col_start; col < m_sel_col_start + m_sel_col_count; ++col )
             {
-                for( int row = m_sel_row_start; row < m_sel_row_start + m_sel_row_count; ++row )
-                {
-                    for( int col = m_sel_col_start; col < m_sel_col_start + m_sel_col_count; ++col )
-                    {
-                        if( !isReadOnly( row, col ) && isTextEntry( row, col ) )
-                            return true;
-                    }
-                }
-
-                return false;
-            };
+                if( !isReadOnly( row, col ) && isTextEntry( row, col ) )
+                    return true;
+            }
+        }
+        return false;
+    };
 
     if( anyCellsWritable() )
     {
-        menu.Enable( GRIDTRICKS_ID_CUT,  true );
-        menu.Enable( GRIDTRICKS_ID_DELETE, true );
+        cutAction->setEnabled( true );
+        if( deleteAction ) deleteAction->setEnabled( true );
     }
 
-    // Paste can overflow the selection, so don't depend on the particular cell being writeable.
-
-    wxLogNull doNotLog; // disable logging of failed clipboard actions
-
-    if( wxTheClipboard->Open() )
+    QClipboard* clipboard = QApplication::clipboard();
+    if( clipboard->mimeData()->hasText() && m_grid->IsEditable() && pasteAction )
     {
-        if( wxTheClipboard->IsSupported( wxDF_TEXT )
-            || wxTheClipboard->IsSupported( wxDF_UNICODETEXT ) )
-        {
-            if( m_grid->IsEditable() )
-                menu.Enable( GRIDTRICKS_ID_PASTE, true );
-        }
-
-        wxTheClipboard->Close();
+        pasteAction->setEnabled( true );
     }
 
-    m_grid->PopupMenu( &menu );
+    connect( cutAction, &QAction::triggered, this, [this, cutAction]() { onPopupSelection( cutAction ); });
+    connect( copyAction, &QAction::triggered, this, [this, copyAction]() { onPopupSelection( copyAction ); });
+    if( pasteAction ) connect( pasteAction, &QAction::triggered, this, [this, pasteAction]() { onPopupSelection( pasteAction ); });
+    if( deleteAction ) connect( deleteAction, &QAction::triggered, this, [this, deleteAction]() { onPopupSelection( deleteAction ); });
+    connect( selectAllAction, &QAction::triggered, this, [this, selectAllAction]() { onPopupSelection( selectAllAction ); });
+
+    menu.exec( QCursor::pos() );
 }
 
 
-void GRID_TRICKS::onPopupSelection( wxCommandEvent& event )
+void GRID_TRICKS::onPopupSelection( QAction* action )
 {
-    doPopupSelection( event );
+    doPopupSelection( action );
 }
 
 
-void GRID_TRICKS::doPopupSelection( wxCommandEvent& event )
+void GRID_TRICKS::doPopupSelection( QAction* action )
 {
-    int     menu_id = event.GetId();
-
-    // assume getSelectedArea() was called by rightClickPopupMenu() and there's
-    // no way to have gotten here without that having been called.
+    int menu_id = action->data().toInt();
 
     switch( menu_id )
     {
@@ -470,12 +395,12 @@ void GRID_TRICKS::doPopupSelection( wxCommandEvent& event )
 }
 
 
-void GRID_TRICKS::onCharHook( wxKeyEvent& ev )
+void GRID_TRICKS::onCharHook( QKeyEvent* ev )
 {
     bool handled = false;
 
-    if( ( ev.GetKeyCode() == WXK_RETURN || ev.GetKeyCode() == WXK_NUMPAD_ENTER )
-        && ev.GetModifiers() == wxMOD_NONE
+    if( ( ev->key() == Qt::Key_Return || ev->key() == Qt::Key_Enter )
+        && ev->modifiers() == Qt::NoModifier
         && m_grid->GetGridCursorRow() == m_grid->GetNumberRows() - 1 )
     {
         if( m_grid->IsCellEditControlShown() )
@@ -485,45 +410,39 @@ void GRID_TRICKS::onCharHook( wxKeyEvent& ev )
         }
         else
         {
-            wxCommandEvent dummy;
+            QAction* dummy = nullptr;
             m_addHandler( dummy );
             handled = true;
         }
     }
-    else if( ev.GetModifiers() == wxMOD_CONTROL && ev.GetKeyCode() == 'V' )
+    else if( ev->modifiers() == Qt::ControlModifier && ev->key() == Qt::Key_V )
     {
-        if( m_grid->IsCellEditControlShown() && wxTheClipboard->Open() )
+        if( m_grid->IsCellEditControlShown() )
         {
-            if( wxTheClipboard->IsSupported( wxDF_TEXT )
-                || wxTheClipboard->IsSupported( wxDF_UNICODETEXT ) )
+            QClipboard* clipboard = QApplication::clipboard();
+            if( clipboard->mimeData()->hasText() )
             {
-                wxTextDataObject data;
-                wxTheClipboard->GetData( data );
-
-                if( data.GetText().Contains( COL_SEP ) || data.GetText().Contains( ROW_SEP ) )
+                QString text = clipboard->text();
+                if( text.contains( COL_SEP ) || text.contains( ROW_SEP ) )
                 {
-                    wxString stripped( data.GetText() );
-                    stripped.Replace( ROW_SEP, " " );
-                    stripped.Replace( ROW_SEP_R, " " );
-                    stripped.Replace( COL_SEP, " " );
-
-                    // Write to the CellEditControl if we can
-                    wxTextEntry* te = dynamic_cast<wxTextEntry*>( ev.GetEventObject() );
-
-                    if( te && te->IsEditable() )
-                        te->WriteText( stripped );
+                    QString stripped( text );
+                    stripped.replace( ROW_SEP, " " );
+                    stripped.replace( ROW_SEP_R, " " );
+                    stripped.replace( COL_SEP, " " );
+                    
+                    QWidget* editor = m_grid->GetCurrentEditor();
+                    if( editor && m_grid->IsEditorEditable( editor ) )
+                        m_grid->WriteTextToEditor( editor, stripped );
                     else
                         paste_text( stripped );
-
+                    
                     handled = true;
                 }
             }
-
-            wxTheClipboard->Close();
             m_grid->ForceRefresh();
         }
     }
-    else if( ev.GetKeyCode() == WXK_ESCAPE )
+    else if( ev->key() == Qt::Key_Escape )
     {
         if( m_grid->IsCellEditControlShown() )
         {
@@ -533,203 +452,144 @@ void GRID_TRICKS::onCharHook( wxKeyEvent& ev )
     }
 
     if( !handled )
-        ev.Skip( true );
+        ev->accept();
 }
 
 
-void GRID_TRICKS::onKeyDown( wxKeyEvent& ev )
+void GRID_TRICKS::onKeyDown( QKeyEvent* ev )
 {
-    if( ev.GetModifiers() == wxMOD_CONTROL && ev.GetKeyCode() == 'A' )
+    if( ev->modifiers() == Qt::ControlModifier && ev->key() == Qt::Key_A )
     {
         m_grid->SelectAll();
         return;
     }
-    else if( ev.GetModifiers() == wxMOD_CONTROL && ev.GetKeyCode() == 'C' )
+    else if( ev->modifiers() == Qt::ControlModifier && ev->key() == Qt::Key_C )
     {
         getSelectedArea();
         cutcopy( true, false );
         return;
     }
-    else if( ev.GetModifiers() == wxMOD_CONTROL && ev.GetKeyCode() == 'V' )
+    else if( ev->modifiers() == Qt::ControlModifier && ev->key() == Qt::Key_V )
     {
         getSelectedArea();
         paste_clipboard();
         return;
     }
-    else if( ev.GetModifiers() == wxMOD_CONTROL && ev.GetKeyCode() == 'X' )
+    else if( ev->modifiers() == Qt::ControlModifier && ev->key() == Qt::Key_X )
     {
         getSelectedArea();
         cutcopy( true, true );
         return;
     }
-    else if( !ev.GetModifiers() && ev.GetKeyCode() == WXK_DELETE )
+    else if( ev->modifiers() == Qt::NoModifier && ev->key() == Qt::Key_Delete )
     {
         getSelectedArea();
         cutcopy( false, true );
         return;
     }
 
-    // space-bar toggling of checkboxes
-    if( m_grid->IsEditable() && ev.GetKeyCode() == ' ' )
+    if( m_grid->IsEditable() && ev->key() == Qt::Key_Space )
     {
         bool retVal = false;
 
-        // If only rows can be selected, only toggle the first cell in a row
-        if( m_grid->GetSelectionMode() == wxGrid::wxGridSelectRows )
+        if( m_grid->GetSelectionMode() == QT_GRID::SelectRows )
         {
-            wxArrayInt rowSel = m_grid->GetSelectedRows();
-
-            for( unsigned int rowInd = 0; rowInd < rowSel.GetCount(); rowInd++ )
+            QVector<int> rowSel = m_grid->GetSelectedRows();
+            for( int rowInd = 0; rowInd < rowSel.size(); rowInd++ )
                 retVal |= toggleCell( rowSel[rowInd], 0, true );
         }
-
-        // If only columns can be selected, only toggle the first cell in a column
-        else if( m_grid->GetSelectionMode() == wxGrid::wxGridSelectColumns )
+        else if( m_grid->GetSelectionMode() == QT_GRID::SelectColumns )
         {
-            wxArrayInt colSel = m_grid->GetSelectedCols();
-
-            for( unsigned int colInd = 0; colInd < colSel.GetCount(); colInd++ )
+            QVector<int> colSel = m_grid->GetSelectedCols();
+            for( int colInd = 0; colInd < colSel.size(); colInd++ )
                 retVal |= toggleCell( 0, colSel[colInd], true );
         }
-
-        // If the user can select the individual cells, toggle each cell selected
-        else if( m_grid->GetSelectionMode() == wxGrid::wxGridSelectCells )
+        else if( m_grid->GetSelectionMode() == QT_GRID::SelectCells )
         {
-            wxArrayInt            rowSel   = m_grid->GetSelectedRows();
-            wxArrayInt            colSel   = m_grid->GetSelectedCols();
-            wxGridCellCoordsArray cellSel  = m_grid->GetSelectedCells();
-            wxGridCellCoordsArray topLeft  = m_grid->GetSelectionBlockTopLeft();
-            wxGridCellCoordsArray botRight = m_grid->GetSelectionBlockBottomRight();
+            QVector<int> rowSel = m_grid->GetSelectedRows();
+            QVector<int> colSel = m_grid->GetSelectedCols();
+            QVector<QVector<int>> cellSel = m_grid->GetSelectedCells();
+            QVector<QVector<int>> topLeft = m_grid->GetSelectionBlockTopLeft();
+            QVector<QVector<int>> botRight = m_grid->GetSelectionBlockBottomRight();
 
-            // Iterate over every individually selected cell and try to toggle it
-            for( unsigned int cellInd = 0; cellInd < cellSel.GetCount(); cellInd++ )
+            for( int cellInd = 0; cellInd < cellSel.size(); cellInd++ )
             {
-                retVal |= toggleCell( cellSel[cellInd].GetRow(), cellSel[cellInd].GetCol(), true );
+                retVal |= toggleCell( cellSel[cellInd][0], cellSel[cellInd][1], true );
             }
 
-            // Iterate over every column and try to toggle each cell in it
-            for( unsigned int colInd = 0; colInd < colSel.GetCount(); colInd++ )
+            for( int colInd = 0; colInd < colSel.size(); colInd++ )
             {
                 for( int row = 0; row < m_grid->GetNumberRows(); row++ )
                     retVal |= toggleCell( row, colSel[colInd], true );
             }
 
-            // Iterate over every row and try to toggle each cell in it
-            for( unsigned int rowInd = 0; rowInd < rowSel.GetCount(); rowInd++ )
+            for( int rowInd = 0; rowInd < rowSel.size(); rowInd++ )
             {
                 for( int col = 0; col < m_grid->GetNumberCols(); col++ )
                     retVal |= toggleCell( rowSel[rowInd], col, true );
             }
 
-            // Iterate over the selection blocks
-            for( unsigned int blockInd = 0; blockInd < topLeft.GetCount(); blockInd++ )
+            for( int blockInd = 0; blockInd < topLeft.size(); blockInd++ )
             {
-                wxGridCellCoords start = topLeft[blockInd];
-                wxGridCellCoords end   = botRight[blockInd];
+                QVector<int> start = topLeft[blockInd];
+                QVector<int> end = botRight[blockInd];
 
-                for( int row = start.GetRow(); row <= end.GetRow(); row++ )
+                for( int row = start[0]; row <= end[0]; row++ )
                 {
-                    for( int col = start.GetCol(); col <= end.GetCol(); col++ )
+                    for( int col = start[1]; col <= end[1]; col++ )
                         retVal |= toggleCell( row, col, true );
                 }
             }
         }
 
-        // Return if there were any cells toggled
         if( retVal )
             return;
     }
 
-    // ctrl-tab for exit grid
-#ifdef __APPLE__
-    bool ctrl = ev.RawControlDown();
+#ifdef Q_OS_MAC
+    bool ctrl = ev->modifiers() & Qt::MetaModifier;
 #else
-    bool ctrl = ev.ControlDown();
+    bool ctrl = ev->modifiers() & Qt::ControlModifier;
 #endif
 
-    if( ctrl && ev.GetKeyCode() == WXK_TAB )
+    if( ctrl && ev->key() == Qt::Key_Tab )
     {
-        wxWindow* test = m_grid->GetNextSibling();
-
-        if( !test )
-            test = m_grid->GetParent()->GetNextSibling();
-
-        while( test && !test->IsTopLevel() )
+        QWidget* nextWidget = m_grid->nextInFocusChain();
+        while( nextWidget && !nextWidget->isWindow() )
         {
-            test->SetFocus();
-
-            if( test->HasFocus() )
+            nextWidget->setFocus();
+            if( nextWidget->hasFocus() )
                 break;
-
-            if( !test->GetChildren().empty() )
-            {
-                test = test->GetChildren().front();
-            }
-            else if( test->GetNextSibling() )
-            {
-                test = test->GetNextSibling();
-            }
-            else
-            {
-                while( test )
-                {
-                    test = test->GetParent();
-
-                    if( test && test->IsTopLevel() )
-                    {
-                        break;
-                    }
-                    else if( test && test->GetNextSibling() )
-                    {
-                        test = test->GetNextSibling();
-                        break;
-                    }
-                }
-            }
+            nextWidget = nextWidget->nextInFocusChain();
         }
-
         return;
     }
 
-    ev.Skip( true );
+    ev->accept();
 }
 
 
 void GRID_TRICKS::paste_clipboard()
 {
-    wxLogNull doNotLog; // disable logging of failed clipboard actions
-
-    if( m_grid->IsEditable() && wxTheClipboard->Open() )
+    QClipboard* clipboard = QApplication::clipboard();
+    if( m_grid->IsEditable() && clipboard->mimeData()->hasText() )
     {
-        if( wxTheClipboard->IsSupported( wxDF_TEXT )
-            || wxTheClipboard->IsSupported( wxDF_UNICODETEXT ) )
-        {
-            wxTextDataObject    data;
-
-            wxTheClipboard->GetData( data );
-
-            wxString text = data.GetText();
-
-#ifdef __WXMAC__
-            // Some editors use windows linefeeds (\r\n), which wx re-writes to \n\n
-            text.Replace( "\n\n", "\n" );
+        QString text = clipboard->text();
+        
+#ifdef Q_OS_MAC
+        text.replace( "\n\n", "\n" );
 #endif
-
-            paste_text( text );
-        }
-
-        wxTheClipboard->Close();
-        m_grid->ForceRefresh();
+        
+        paste_text( text );
     }
+    m_grid->ForceRefresh();
 }
 
 
-void GRID_TRICKS::paste_text( const wxString& cb_text )
+void GRID_TRICKS::paste_text( const QString& cb_text )
 {
     if( !m_multiCellEditEnabled )
         return;
-
-    wxGridTableBase*   tbl = m_grid->GetTable();
 
     const int cur_row = m_grid->GetGridCursorRow();
     const int cur_col = m_grid->GetGridCursorCol();
@@ -741,11 +601,11 @@ void GRID_TRICKS::paste_text( const wxString& cb_text )
 
     if( cur_row < 0 || cur_col < 0 )
     {
-        wxBell();
+        QApplication::beep();
         return;
     }
 
-    if( m_grid->GetSelectionMode() == wxGrid::wxGridSelectRows )
+    if( m_grid->GetSelectionMode() == QT_GRID::SelectRows )
     {
         if( m_sel_row_count > 1 )
             is_selection = true;
@@ -755,10 +615,8 @@ void GRID_TRICKS::paste_text( const wxString& cb_text )
         is_selection = true;
     }
 
-    wxStringTokenizer rows( cb_text, ROW_SEP, wxTOKEN_RET_EMPTY );
+    QStringList rows = cb_text.split( ROW_SEP, Qt::KeepEmptyParts );
 
-    // If selection of cells is present
-    // then a clipboard pastes to selected cells only.
     if( is_selection )
     {
         start_row = m_sel_row_start;
@@ -766,77 +624,66 @@ void GRID_TRICKS::paste_text( const wxString& cb_text )
         start_col = m_sel_col_start;
         end_col = m_sel_col_start + m_sel_col_count;
     }
-    // Otherwise, paste whole clipboard
-    // starting from cell with cursor.
     else
     {
         start_row = cur_row;
-        end_row = cur_row + rows.CountTokens();
+        end_row = cur_row + rows.size();
 
-        if( end_row > tbl->GetNumberRows() )
+        if( end_row > m_grid->GetNumberRows() )
         {
             if( m_addHandler )
             {
-                for( int ii = end_row - tbl->GetNumberRows(); ii > 0; --ii )
+                for( int ii = end_row - m_grid->GetNumberRows(); ii > 0; --ii )
                 {
-                    wxCommandEvent dummy;
+                    QAction* dummy = nullptr;
                     m_addHandler( dummy );
                 }
             }
-
-            end_row = tbl->GetNumberRows();
+            end_row = m_grid->GetNumberRows();
         }
 
         start_col = cur_col;
-        end_col = start_col; // end_col actual value calculates later
+        end_col = start_col;
     }
 
-    for( int row = start_row;  row < end_row;  ++row )
+    int rowIndex = 0;
+    for( int row = start_row; row < end_row; ++row )
     {
-        // If number of selected rows is larger than the count of rows on the clipboard, paste
-        // again and again until the end of the selection is reached.
-        if( !rows.HasMoreTokens() )
-            rows.SetString( cb_text, ROW_SEP, wxTOKEN_RET_EMPTY );
+        if( rowIndex >= rows.size() )
+            rowIndex = 0;
 
-        wxString rowTxt = rows.GetNextToken();
+        QString rowTxt = rows[rowIndex];
+        rowIndex++;
 
-        wxStringTokenizer cols( rowTxt, COL_SEP, wxTOKEN_RET_EMPTY );
+        QStringList cols = rowTxt.split( COL_SEP, Qt::KeepEmptyParts );
 
         if( !is_selection )
-            end_col = cur_col + cols.CountTokens();
+            end_col = cur_col + cols.size();
 
-        for( int col = start_col;  col < end_col && col < tbl->GetNumberCols();  ++col )
+        int colIndex = 0;
+        for( int col = start_col; col < end_col && col < m_grid->GetNumberCols(); ++col )
         {
-            // Skip hidden columns
             if( !m_grid->IsColShown( col ) )
             {
                 end_col++;
                 continue;
             }
 
-            // If number of selected cols is larger than the count of cols on the clipboard,
-            // paste again and again until the end of the selection is reached.
-            if( !cols.HasMoreTokens() )
-                cols.SetString( rowTxt, COL_SEP, wxTOKEN_RET_EMPTY );
+            if( colIndex >= cols.size() )
+                colIndex = 0;
 
-            wxString cellTxt = cols.GetNextToken();
+            QString cellTxt = cols[colIndex];
+            colIndex++;
 
-            // Allow paste to anything that can take a string, including things like color
-            // swatches and checkboxes
-            if( tbl->CanSetValueAs( row, col, wxGRID_VALUE_STRING ) && !isReadOnly( row, col ) )
+            if( m_grid->CanSetValueAs( row, col, "string" ) && !isReadOnly( row, col ) )
             {
-                tbl->SetValue( row, col, cellTxt );
-
-                wxGridEvent evt( m_grid->GetId(), wxEVT_GRID_CELL_CHANGED, m_grid, row, col );
-                m_grid->GetEventHandler()->ProcessEvent( evt );
+                m_grid->SetCellValue( row, col, cellTxt );
+                m_grid->EmitCellChanged( row, col, cellTxt );
             }
-            // Allow paste to any cell that can accept a boolean value
-            else if( tbl->CanSetValueAs( row, col, wxGRID_VALUE_BOOL ) )
+            else if( m_grid->CanSetValueAs( row, col, "bool" ) )
             {
-                tbl->SetValueAsBool( row, col, cellTxt == wxT( "1" ) );
-
-                wxGridEvent evt( m_grid->GetId(), wxEVT_GRID_CELL_CHANGED, m_grid, row, col );
-                m_grid->GetEventHandler()->ProcessEvent( evt );
+                m_grid->SetValueAsBool( row, col, cellTxt == "1" );
+                m_grid->EmitCellChanged( row, col, cellTxt );
             }
         }
     }
@@ -845,45 +692,42 @@ void GRID_TRICKS::paste_text( const wxString& cb_text )
 
 void GRID_TRICKS::cutcopy( bool doCopy, bool doDelete )
 {
-    wxLogNull doNotLog; // disable logging of failed clipboard actions
-
-    if( doCopy && !wxTheClipboard->Open() )
-        return;
-
-    wxGridTableBase*    tbl = m_grid->GetTable();
-    wxString            txt;
-
-    // fill txt with a format that is compatible with most spreadsheets
-    for( int row = m_sel_row_start;  row < m_sel_row_start + m_sel_row_count;  ++row )
+    if( doCopy )
     {
-        if( !txt.IsEmpty() )
+        QClipboard* clipboard = QApplication::clipboard();
+        if( !clipboard )
+            return;
+    }
+
+    QString txt;
+
+    for( int row = m_sel_row_start; row < m_sel_row_start + m_sel_row_count; ++row )
+    {
+        if( !txt.isEmpty() )
             txt += ROW_SEP;
 
-        for( int col = m_sel_col_start;  col < m_sel_col_start + m_sel_col_count; ++col )
+        for( int col = m_sel_col_start; col < m_sel_col_start + m_sel_col_count; ++col )
         {
             if( !m_grid->IsColShown( col ) )
                 continue;
 
-            txt += tbl->GetValue( row, col );
+            txt += m_grid->GetCellValue( row, col );
 
-            if( col < m_sel_col_start + m_sel_col_count - 1 )   // that was not last column
+            if( col < m_sel_col_start + m_sel_col_count - 1 )
                 txt += COL_SEP;
 
             if( doDelete )
             {
-                // Do NOT allow clear of things that can take strings but aren't textEntries
-                // (ie: color swatches, textboxes, etc.).
                 if( isTextEntry( row, col ) && !isReadOnly( row, col ) )
-                    tbl->SetValue( row, col, wxEmptyString );
+                    m_grid->SetCellValue( row, col, QString() );
             }
         }
     }
 
     if( doCopy )
     {
-        wxTheClipboard->SetData( new wxTextDataObject( txt ) );
-        wxTheClipboard->Flush(); // Allow data to be available after closing KiCad
-        wxTheClipboard->Close();
+        QClipboard* clipboard = QApplication::clipboard();
+        clipboard->setText( txt );
     }
 
     if( doDelete )
@@ -891,16 +735,15 @@ void GRID_TRICKS::cutcopy( bool doCopy, bool doDelete )
 }
 
 
-void GRID_TRICKS::onUpdateUI( wxUpdateUIEvent& event )
+void GRID_TRICKS::onUpdateUI()
 {
-    // Respect ROW selectionMode when moving cursor
-
-    if( m_grid->GetSelectionMode() == wxGrid::wxGridSelectRows )
+    if( m_grid->GetSelectionMode() == QT_GRID::SelectRows )
     {
         int cursorRow = m_grid->GetGridCursorRow();
         bool cursorInSelectedRow = false;
 
-        for( int row : m_grid->GetSelectedRows() )
+        QVector<int> selectedRows = m_grid->GetSelectedRows();
+        for( int row : selectedRows )
         {
             if( row == cursorRow )
             {
