@@ -1,24 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
-#include <wx/log.h>
+#include <QDebug>
 
 #include <settings/json_settings_internals.h>
 #include <settings/nested_settings.h>
@@ -41,7 +22,7 @@ NESTED_SETTINGS::~NESTED_SETTINGS()
 }
 
 
-bool NESTED_SETTINGS::LoadFromFile( const wxString& aDirectory )
+bool NESTED_SETTINGS::LoadFromFile( const QString& aDirectory )
 {
     m_internals->clear();
     bool success = false;
@@ -56,15 +37,14 @@ bool NESTED_SETTINGS::LoadFromFile( const wxString& aDirectory )
             {
                 m_internals->update( m_parent->m_internals->at( ptr ) );
 
-                wxLogTrace( traceSettings, wxT( "Loaded NESTED_SETTINGS %s" ), GetFilename() );
+                qDebug() << "Loaded NESTED_SETTINGS" << GetFilename();
 
                 success = true;
             }
             catch( ... )
             {
-                wxLogTrace( traceSettings, wxT( "NESTED_SETTINGS %s: Could not load from "
-                                                "%s at %s" ),
-                            m_filename, m_parent->GetFilename(), m_path );
+                qDebug() << "NESTED_SETTINGS" << m_filename << ": Could not load from"
+                         << m_parent->GetFilename() << "at" << m_path;
             }
         }
     }
@@ -79,15 +59,13 @@ bool NESTED_SETTINGS::LoadFromFile( const wxString& aDirectory )
         }
         catch( ... )
         {
-            wxLogTrace( traceSettings, wxT( "%s: nested settings version could not be read!" ),
-                        m_filename );
+            qDebug() << m_filename << ": nested settings version could not be read!";
             success = false;
         }
 
         if( filever >= 0 && filever < m_schemaVersion )
         {
-            wxLogTrace( traceSettings, wxT( "%s: attempting migration from version %d to %d" ),
-                        m_filename, filever, m_schemaVersion );
+            qDebug() << m_filename << ": attempting migration from version" << filever << "to" << m_schemaVersion;
 
             bool migrated = false;
 
@@ -102,20 +80,18 @@ bool NESTED_SETTINGS::LoadFromFile( const wxString& aDirectory )
 
             if( !migrated )
             {
-                wxLogTrace( traceSettings, wxT( "%s: migration failed!" ), GetFullFilename() );
+                qDebug() << GetFullFilename() << ": migration failed!";
                 success = false;
             }
         }
         else if( filever > m_schemaVersion )
         {
-            wxLogTrace( traceSettings,
-                        wxT( "%s: warning: nested settings version %d is newer than latest (%d)" ),
-                        m_filename, filever, m_schemaVersion );
+            qDebug() << m_filename << ": warning: nested settings version" << filever
+                     << "is newer than latest (" << m_schemaVersion << ")";
         }
         else if( filever >= 0 )
         {
-            wxLogTrace( traceSettings, wxT( "%s: schema version %d is current" ),
-                        m_filename, filever );
+            qDebug() << m_filename << ": schema version" << filever << "is current";
         }
     }
 
@@ -125,7 +101,7 @@ bool NESTED_SETTINGS::LoadFromFile( const wxString& aDirectory )
 }
 
 
-bool NESTED_SETTINGS::SaveToFile( const wxString& aDirectory, bool aForce )
+bool NESTED_SETTINGS::SaveToFile( const QString& aDirectory, bool aForce )
 {
     if( !m_parent )
         return false;
@@ -147,19 +123,15 @@ bool NESTED_SETTINGS::SaveToFile( const wxString& aDirectory, bool aForce )
         {
             ( *m_parent->m_internals )[m_path].update( *m_internals );
 
-            wxLogTrace( traceSettings, wxS( "Stored NESTED_SETTINGS %s with schema %d" ),
-                        GetFilename(),
-                        m_schemaVersion );
+            qDebug() << "Stored NESTED_SETTINGS" << GetFilename() << "with schema" << m_schemaVersion;
         }
 
         return modified;
     }
     catch( ... )
     {
-        wxLogTrace( traceSettings, wxS( "NESTED_SETTINGS %s: Could not store to %s at %s" ),
-                    m_filename,
-                    m_parent->GetFilename(),
-                    m_path );
+        qDebug() << "NESTED_SETTINGS" << m_filename << ": Could not store to"
+                 << m_parent->GetFilename() << "at" << m_path;
 
         return false;
     }

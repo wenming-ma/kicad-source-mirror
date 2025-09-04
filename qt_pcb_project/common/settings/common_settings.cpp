@@ -1,22 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <set>
 #include <fstream>
@@ -31,13 +12,12 @@
 #include <settings/parameters.h>
 #include <systemdirsappend.h>
 #include <trace_helpers.h>
-#include <wx/config.h>
-#include <wx/log.h>
-#include <wx/regex.h>
+#include <QDebug>
+#include <QRegularExpression>
 
 
 ///! The following environment variables will never be migrated from a previous version
-const wxRegEx versionedEnvVarRegex( wxS( "KICAD[0-9]+_[A-Z0-9_]+(_DIR)?" ) );
+const QRegularExpression versionedEnvVarRegex( "KICAD[0-9]+_[A-Z0-9_]+(_DIR)?" );
 
 ///! Update the schema version whenever a migration is required
 const int commonSchemaVersion = 3;
@@ -125,7 +105,7 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
             {
                 nlohmann::json ret = {};
 
-                for( const std::pair<wxString, ENV_VAR_ITEM> entry : m_Env.vars )
+                for( const std::pair<QString, ENV_VAR_ITEM> entry : m_Env.vars )
                 {
                     const ENV_VAR_ITEM& var = entry.second;
 
@@ -134,13 +114,11 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
                     // Default values are never persisted
                     if( var.IsDefault() )
                     {
-                        wxLogTrace( traceEnvVars,
-                                    wxS( "COMMON_SETTINGS: Env var %s skipping save (default)" ),
-                                    var.GetKey() );
+                        qDebug() << "COMMON_SETTINGS: Env var" << var.GetKey() << "skipping save (default)";
                         continue;
                     }
 
-                    wxString value = var.GetValue();
+                    QString value = var.GetValue();
 
                     value.Trim( true ).Trim( false ); // Trim from both sides
 
@@ -150,27 +128,20 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
                     {
                         if( var.GetDefinedInSettings() )
                         {
-                            wxLogTrace( traceEnvVars,
-                                        wxS( "COMMON_SETTINGS: Env var %s was overridden "
-                                             "externally, saving previously-loaded value %s" ),
-                                        var.GetKey(), var.GetSettingsValue() );
+                            qDebug() << "COMMON_SETTINGS: Env var" << var.GetKey() << "was overridden"
+                                     << "externally, saving previously-loaded value" << var.GetSettingsValue();
                             value = var.GetSettingsValue();
                         }
                         else
                         {
-                            wxLogTrace( traceEnvVars,
-                                        wxS( "COMMON_SETTINGS: Env var %s skipping save "
-                                             "(external)" ),
-                                        var.GetKey() );
+                            qDebug() << "COMMON_SETTINGS: Env var" << var.GetKey() << "skipping save (external)";
                             continue;
                         }
                     }
 
-                    wxLogTrace( traceEnvVars,
-                                wxS( "COMMON_SETTINGS: Saving env var %s = %s" ),
-                                var.GetKey(), value);
+                    qDebug() << "COMMON_SETTINGS: Saving env var" << var.GetKey() << "=" << value;
 
-                    std::string key( var.GetKey().Trim( true ).Trim( false ).ToUTF8() );
+                    std::string key( var.GetKey().trimmed().toUtf8().constData() );
                     ret[ std::move( key ) ] = value;
                 }
 
@@ -183,33 +154,28 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
 
                 for( const auto& entry : aJson.items() )
                 {
-                    wxString key = wxString( entry.key().c_str(), wxConvUTF8 ).Trim( true ).Trim( false );
-                    wxString val = entry.value().get<wxString>().Trim( true ).Trim( false );
+                    QString key = QString::fromUtf8( entry.key().c_str() ).trimmed();
+                    QString val = entry.value().get<QString>().trimmed();
 
                     if( m_Env.vars.count( key ) )
                     {
                         if( m_Env.vars[key].GetDefinedExternally() )
                         {
-                            wxLogTrace( traceEnvVars,
-                                        wxS( "COMMON_SETTINGS: %s is defined externally" ),
-                                        key );
+                            qDebug() << "COMMON_SETTINGS:" << key << "is defined externally";
                             m_Env.vars[key].SetDefinedInSettings();
                             m_Env.vars[key].SetSettingsValue( val );
                             continue;
                         }
                         else
                         {
-                            wxLogTrace( traceEnvVars,
-                                        wxS( "COMMON_SETTINGS: Updating %s: %s -> %s"),
-                                        key, m_Env.vars[key].GetValue(), val );
+                            qDebug() << "COMMON_SETTINGS: Updating" << key << ":" 
+                                     << m_Env.vars[key].GetValue() << "->" << val;
                             m_Env.vars[key].SetValue( val );
                         }
                     }
                     else
                     {
-                        wxLogTrace( traceEnvVars,
-                                    wxS( "COMMON_SETTINGS: Loaded new var: %s = %s" ),
-                                    key, val );
+                        qDebug() << "COMMON_SETTINGS: Loaded new var:" << key << "=" << val;
                         m_Env.vars[key] = ENV_VAR_ITEM( key, val );
                     }
 
@@ -246,7 +212,7 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "input.zoom_acceleration",
             &m_Input.zoom_acceleration, false ) );
 
-#ifdef __WXMAC__
+#ifdef Q_OS_MACOS
     int default_zoom_speed = 5;
 #else
     int default_zoom_speed = 1;
@@ -294,36 +260,36 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     m_params.emplace_back( new PARAM<int>( "system.autosave_interval",
             &m_System.autosave_interval, 600 ) );
 
-#ifdef __WXMAC__
-    m_params.emplace_back( new PARAM<wxString>( "system.text_editor",
-            &m_System.text_editor, wxS( "/usr/bin/open -e" ) ) );
+#ifdef __APPLE__
+    m_params.emplace_back( new PARAM<QString>( "system.text_editor",
+            &m_System.text_editor, "/usr/bin/open -e" ) );
 #else
-    m_params.emplace_back( new PARAM<wxString>( "system.text_editor",
-            &m_System.text_editor, wxS( "" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "system.text_editor",
+            &m_System.text_editor, "" ) );
 #endif
 
-#if defined( __WINDOWS__ )
-    m_params.emplace_back( new PARAM<wxString>( "system.file_explorer",
-            &m_System.file_explorer, wxS( "explorer.exe /n,/select,%F" ) ) );
+#if defined( Q_OS_WIN )
+    m_params.emplace_back( new PARAM<QString>( "system.file_explorer",
+            &m_System.file_explorer, "explorer.exe /n,/select,%F" ) );
 #else
-    m_params.emplace_back( new PARAM<wxString>( "system.file_explorer",
-            &m_System.file_explorer, wxS( "" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "system.file_explorer",
+            &m_System.file_explorer, "" ) );
 #endif
 
     m_params.emplace_back( new PARAM<int>( "system.file_history_size",
             &m_System.file_history_size, 9 ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "system.language",
-            &m_System.language, wxS( "Default" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "system.language",
+            &m_System.language, "Default" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "system.pdf_viewer_name",
-            &m_System.pdf_viewer_name, wxS( "" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "system.pdf_viewer_name",
+            &m_System.pdf_viewer_name, "" ) );
 
     m_params.emplace_back( new PARAM<bool>( "system.use_system_pdf_viewer",
             &m_System.use_system_pdf_viewer, true ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "system.working_dir",
-            &m_System.working_dir, wxS( "" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "system.working_dir",
+            &m_System.working_dir, "" ) );
 
     m_params.emplace_back( new PARAM<int>( "system.clear_3d_cache_interval",
             &m_System.clear_3d_cache_interval, 30 ) );
@@ -346,22 +312,22 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "session.remember_open_files",
             &m_Session.remember_open_files, false ) );
 
-    m_params.emplace_back( new PARAM_LIST<wxString>( "session.pinned_symbol_libs",
+    m_params.emplace_back( new PARAM_LIST<QString>( "session.pinned_symbol_libs",
             &m_Session.pinned_symbol_libs, {} ) );
 
-    m_params.emplace_back( new PARAM_LIST<wxString>( "session.pinned_fp_libs",
+    m_params.emplace_back( new PARAM_LIST<QString>( "session.pinned_fp_libs",
             &m_Session.pinned_fp_libs, {} ) );
 
-    m_params.emplace_back( new PARAM_LIST<wxString>( "session.pinned_design_block_libs",
+    m_params.emplace_back( new PARAM_LIST<QString>( "session.pinned_design_block_libs",
             &m_Session.pinned_design_block_libs, {} ) );
 
     m_params.emplace_back( new PARAM<int>( "netclass_panel.sash_pos",
             &m_NetclassPanel.sash_pos, 160 ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "netclass_panel.eeschema_shown_columns",
+    m_params.emplace_back( new PARAM<QString>( "netclass_panel.eeschema_shown_columns",
             &m_NetclassPanel.eeschema_visible_columns, "0 10 11 12 13" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "netclass_panel.pcbnew_shown_columns",
+    m_params.emplace_back( new PARAM<QString>( "netclass_panel.pcbnew_shown_columns",
             &m_NetclassPanel.pcbnew_visible_columns, "0 1 2 3 4 5 6 7 8 9" ) );
 
     m_params.emplace_back( new PARAM<int>( "package_manager.sash_pos",
@@ -399,11 +365,11 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
                 {
                     GIT_REPOSITORY repo;
 
-                    repo.name = repoJson["name"].get<wxString>();
-                    repo.path = repoJson["path"].get<wxString>();
-                    repo.authType = repoJson["authType"].get<wxString>();
-                    repo.username = repoJson["username"].get<wxString>();
-                    repo.ssh_path = repoJson["ssh_path"].get<wxString>();
+                    repo.name = repoJson["name"].get<QString>();
+                    repo.path = repoJson["path"].get<QString>();
+                    repo.authType = repoJson["authType"].get<QString>();
+                    repo.username = repoJson["username"].get<QString>();
+                    repo.ssh_path = repoJson["ssh_path"].get<QString>();
                     repo.active = repoJson["active"].get<bool>();
                     repo.checkValid = true;
 
@@ -412,11 +378,11 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
             },
             {} ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "git.authorName",
-            &m_Git.authorName, wxS( "" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "git.authorName",
+            &m_Git.authorName, "" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "git.authorEmail",
-            &m_Git.authorEmail, wxS( "" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "git.authorEmail",
+            &m_Git.authorEmail, "" ) );
 
     m_params.emplace_back( new PARAM<bool>( "git.useDefaultAuthor",
             &m_Git.useDefaultAuthor, true ) );
@@ -427,8 +393,8 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     m_params.emplace_back( new PARAM<int>( "git.updatInterval",
             &m_Git.updatInterval, 5 ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "api.interpreter_path",
-            &m_Api.python_interpreter, wxS( "" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "api.interpreter_path",
+            &m_Api.python_interpreter, "" ) );
 
     m_params.emplace_back( new PARAM<bool>( "api.enable_server",
             &m_Api.enable_server, false ) );
@@ -458,8 +424,7 @@ bool COMMON_SETTINGS::migrateSchema0to1()
     }
     catch( ... )
     {
-        wxLogTrace( traceSettings,
-                    wxT( "COMMON_SETTINGS::Migrate 0->1: mousewheel_pan not found" ) );
+        qDebug() << "COMMON_SETTINGS::Migrate 0->1: mousewheel_pan not found";
     }
 
     if( mwp )
@@ -501,8 +466,7 @@ bool COMMON_SETTINGS::migrateSchema1to2()
     }
     catch( ... )
     {
-        wxLogTrace( traceSettings,
-                    wxT( "COMMON_SETTINGS::Migrate 1->2: prefer_select_to_drag not found" ) );
+        qDebug() << "COMMON_SETTINGS::Migrate 1->2: prefer_select_to_drag not found";
     }
 
     if( prefer_selection )
@@ -528,28 +492,28 @@ bool COMMON_SETTINGS::migrateSchema2to3()
     readLegacy3DResolverCfg( cfgpath.GetFullPath(), legacyPaths );
 
     // env variables have a limited allowed character set for names
-    wxRegEx nonValidCharsRegex( wxS( "[^A-Z0-9_]+" ), wxRE_ADVANCED );
+    QRegularExpression nonValidCharsRegex( "[^A-Z0-9_]+" );
 
     for( const LEGACY_3D_SEARCH_PATH& path : legacyPaths )
     {
-        wxString key = path.m_Alias;
-        const wxString& val = path.m_Pathvar;
+        QString key = path.m_Alias;
+        const QString& val = path.m_Pathvar;
 
         // The 3d alias config didn't use the same naming restrictions as real env variables
         // We need to sanitize them
 
         // upper case only
-        key.MakeUpper();
+        key = key.toUpper();
 
         // logically swap - with _
-        key.Replace( wxS( "-" ), wxS( "_" ) );
+        key.replace( "-", "_" );
 
         // remove any other chars
-        nonValidCharsRegex.Replace( &key, wxEmptyString );
+        key.remove( nonValidCharsRegex );
 
         if( !m_Env.vars.count( key ) )
         {
-            wxLogTrace( traceEnvVars, wxS( "COMMON_SETTINGS: Loaded new var: %s = %s" ), key, val );
+            qDebug() << "COMMON_SETTINGS: Loaded new var:" << key << "=" << val;
             m_Env.vars[key] = ENV_VAR_ITEM( key, val );
         }
     }
@@ -575,7 +539,7 @@ bool COMMON_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
     auto load_env_vars =
             [&]()
             {
-                wxString key, value;
+                QString key, value;
                 long index = 0;
                 nlohmann::json::json_pointer ptr =
                         m_internals->PointerFromString( "environment.vars" );
@@ -585,22 +549,20 @@ bool COMMON_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
 
                 while( aCfg->GetNextEntry( key, index ) )
                 {
-                    if( versionedEnvVarRegex.Matches( key ) )
+                    if( versionedEnvVarRegex.match( key ).hasMatch() )
                     {
-                        wxLogTrace( traceSettings,
-                                    wxT( "Migrate Env: %s is blacklisted; skipping." ), key );
+                        qDebug() << "Migrate Env:" << key << "is blacklisted; skipping.";
                         continue;
                     }
 
-                    value = aCfg->Read( key, wxEmptyString );
+                    value = aCfg->Read( key, QString() );
 
-                    if( !value.IsEmpty() )
+                    if( !value.isEmpty() )
                     {
-                        ptr.push_back( key.ToStdString() );
+                        ptr.push_back( key.toStdString() );
 
-                        wxLogTrace( traceSettings, wxT( "Migrate Env: %s=%s" ),
-                                    ptr.to_string(), value );
-                        ( *m_internals )[ptr] = value.ToUTF8();
+                        qDebug() << "Migrate Env:" << QString::fromStdString( ptr.to_string() ) << "=" << value;
+                        ( *m_internals )[ptr] = value.toUtf8().constData();
 
                         ptr.pop_back();
                     }
@@ -649,25 +611,22 @@ bool COMMON_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
 void COMMON_SETTINGS::InitializeEnvironment()
 {
     auto addVar =
-        [&]( const wxString& aKey, const wxString& aDefault )
+        [&]( const QString& aKey, const QString& aDefault )
         {
             m_Env.vars[aKey] = ENV_VAR_ITEM( aKey, aDefault, aDefault );
 
-            wxString envValue;
+            QString envValue;
 
-            if( wxGetEnv( aKey, &envValue ) == true && !envValue.IsEmpty() )
+            envValue = QString::fromLocal8Bit( qgetenv( aKey.toLocal8Bit() ) );
+            if( !envValue.isEmpty() )
             {
                 m_Env.vars[aKey].SetValue( envValue );
                 m_Env.vars[aKey].SetDefinedExternally();
-                wxLogTrace( traceEnvVars,
-                            wxS( "InitializeEnvironment: Entry %s defined externally as %s" ), aKey,
-                            envValue );
+                qDebug() << "InitializeEnvironment: Entry" << aKey << "defined externally as" << envValue;
             }
             else
             {
-                wxLogTrace( traceEnvVars, wxS( "InitializeEnvironment: Setting entry %s to "
-                                               "default %s" ),
-                            aKey, aDefault );
+                qDebug() << "InitializeEnvironment: Setting entry" << aKey << "to default" << aDefault;
             }
         };
 
@@ -699,8 +658,8 @@ void COMMON_SETTINGS::InitializeEnvironment()
 }
 
 
-bool COMMON_SETTINGS::readLegacy3DResolverCfg( const wxString&                   path,
-                                               std::vector<LEGACY_3D_SEARCH_PATH>& aSearchPaths )
+bool COMMON_SETTINGS::readLegacy3DResolverCfg( const QString&                   path,
+                                               QVector<LEGACY_3D_SEARCH_PATH>& aSearchPaths )
 {
     wxFileName cfgpath( path );
 

@@ -1,49 +1,29 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <layer_ids.h>
 #include <settings/color_settings.h>
 #include <settings/json_settings_internals.h>
 #include <settings/parameters.h>
 #include <settings/settings_manager.h>
-#include <wx/log.h>
-#include <wx/translation.h>
+#include <QDebug>
 
 #include "builtin_color_themes.h"
 
 
 ///! Update the schema version whenever a migration is required
 const int colorsSchemaVersion = 5;
-const wxString COLOR_SETTINGS::COLOR_BUILTIN_DEFAULT = "_builtin_default";
-const wxString COLOR_SETTINGS::COLOR_BUILTIN_CLASSIC = "_builtin_classic";
+const QString COLOR_SETTINGS::COLOR_BUILTIN_DEFAULT = "_builtin_default";
+const QString COLOR_SETTINGS::COLOR_BUILTIN_CLASSIC = "_builtin_classic";
 
 
-COLOR_SETTINGS::COLOR_SETTINGS( const wxString& aFilename, bool aAbsolutePath ) :
+COLOR_SETTINGS::COLOR_SETTINGS( const QString& aFilename, bool aAbsolutePath ) :
         JSON_SETTINGS( aFilename, SETTINGS_LOC::COLORS, colorsSchemaVersion ),
         m_overrideSchItemColors( false )
 {
     if( aAbsolutePath )
         SetLocation( SETTINGS_LOC::NONE );
 
-    m_params.emplace_back( new PARAM<wxString>( "meta.name", &m_displayName,
-                                                wxS( "KiCad Default" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "meta.name", &m_displayName,
+                                                "KiCad Default" ) );
 
     m_params.emplace_back( new PARAM<bool>( "schematic.override_item_colors",
                                             &m_overrideSchItemColors, false ) );
@@ -361,19 +341,17 @@ bool COLOR_SETTINGS::migrateSchema0to1()
 
     if( !m_manager )
     {
-        wxLogTrace( traceSettings, wxT( "Error: COLOR_SETTINGS migration cannot run unmanaged!" ) );
+        qDebug() << "Error: COLOR_SETTINGS migration cannot run unmanaged!";
         return false;
     }
 
     if( !Contains( "fpedit" ) )
     {
-        wxLogTrace( traceSettings,
-                    wxT( "migrateSchema0to1: %s doesn't have fpedit settings; skipping." ),
-                    m_filename );
+        qDebug() << "migrateSchema0to1:" << m_filename << "doesn't have fpedit settings; skipping.";
         return true;
     }
 
-    wxString filename = GetFilename().BeforeLast( '.' ) + wxT( "_footprints" );
+    QString filename = GetFilename().section( '.', 0, -2 ) + "_footprints";
 
     COLOR_SETTINGS* fpsettings = m_manager->AddNewColorSettings( filename );
     fpsettings->SetLocation( GetLocation() );
@@ -386,7 +364,7 @@ bool COLOR_SETTINGS::migrateSchema0to1()
 
     fpsettings->Internals()->erase( "fpedit" );
     fpsettings->Load();
-    fpsettings->SetName( fpsettings->GetName() + wxS( " " ) + _( "(Footprints)" ) );
+    fpsettings->SetName( fpsettings->GetName() + " (Footprints)" );
     m_manager->Save( fpsettings );
 
     // Now we can get rid of our own copy
@@ -440,12 +418,12 @@ void COLOR_SETTINGS::SetColor( int aLayer, const COLOR4D& aColor )
 std::vector<COLOR_SETTINGS*> COLOR_SETTINGS::CreateBuiltinColorSettings()
 {
     COLOR_SETTINGS* defaultTheme = new COLOR_SETTINGS( COLOR_BUILTIN_DEFAULT );
-    defaultTheme->SetName( _( "KiCad Default" ) );
+    defaultTheme->SetName( "KiCad Default" );
     defaultTheme->m_writeFile = false;
     defaultTheme->Load();   // We can just get the colors out of the param defaults for this one
 
     COLOR_SETTINGS* classicTheme = new COLOR_SETTINGS( COLOR_BUILTIN_CLASSIC );
-    classicTheme->SetName( _( "KiCad Classic" ) );
+    classicTheme->SetName( "KiCad Classic" );
     classicTheme->m_writeFile = false;
 
     for( PARAM_BASE* param : classicTheme->m_params )

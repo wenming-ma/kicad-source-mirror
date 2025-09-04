@@ -1,24 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Jon Evans <jon@craftyjon.com>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include <project.h>
 #include <project/net_settings.h>
 #include <settings/json_settings_internals.h>
@@ -26,15 +5,14 @@
 #include <settings/common_settings.h>
 #include <settings/parameters.h>
 #include <wildcards_and_files_ext.h>
-#include <wx/config.h>
-#include <wx/log.h>
+#include <QtCore/QSettings>
+#include <QtCore/QDebug>
 
 
-///! Update the schema version whenever a migration is required
 const int projectFileSchemaVersion = 3;
 
 
-PROJECT_FILE::PROJECT_FILE( const wxString& aFullPath ) :
+PROJECT_FILE::PROJECT_FILE( const QString& aFullPath ) :
         JSON_SETTINGS( aFullPath, SETTINGS_LOC::PROJECT, projectFileSchemaVersion ),
         m_ErcSettings( nullptr ),
         m_SchematicSettings( nullptr ),
@@ -44,20 +22,19 @@ PROJECT_FILE::PROJECT_FILE( const wxString& aFullPath ) :
         m_project( nullptr ),
         m_wasMigrated( false )
 {
-    // Keep old files around
     m_deleteLegacyAfterMigration = false;
 
     m_params.emplace_back( new PARAM_LIST<FILE_INFO_PAIR>( "sheets", &m_sheets, {} ) );
 
     m_params.emplace_back( new PARAM_LIST<FILE_INFO_PAIR>( "boards", &m_boards, {} ) );
 
-    m_params.emplace_back( new PARAM_WXSTRING_MAP( "text_variables",
-            &m_TextVars, {}, false, true /* array behavior, even though stored as a map */ ) );
+    m_params.emplace_back( new PARAM_QSTRING_MAP( "text_variables",
+            &m_TextVars, {}, false, true ) );
 
-    m_params.emplace_back( new PARAM_LIST<wxString>( "libraries.pinned_symbol_libs",
+    m_params.emplace_back( new PARAM_LIST<QString>( "libraries.pinned_symbol_libs",
             &m_PinnedSymbolLibs, {} ) );
 
-    m_params.emplace_back( new PARAM_LIST<wxString>( "libraries.pinned_footprint_libs",
+    m_params.emplace_back( new PARAM_LIST<QString>( "libraries.pinned_footprint_libs",
             &m_PinnedFootprintLibs, {} ) );
 
     m_params.emplace_back( new PARAM_PATH_LIST( "cvpcb.equivalence_files",
@@ -93,7 +70,7 @@ PROJECT_FILE::PROJECT_FILE( const wxString& aFullPath ) :
     m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.plot",
             &m_PcbLastPath[LAST_PATH_PLOT], "" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "schematic.legacy_lib_dir",
+    m_params.emplace_back( new PARAM<QString>( "schematic.legacy_lib_dir",
             &m_LegacyLibDir, "" ) );
 
     m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "schematic.legacy_lib_list",
@@ -101,8 +78,8 @@ PROJECT_FILE::PROJECT_FILE( const wxString& aFullPath ) :
             {
                 nlohmann::json ret = nlohmann::json::array();
 
-                for( const wxString& libName : m_LegacyLibNames )
-                    ret.push_back( libName );
+                for( const QString& libName : m_LegacyLibNames )
+                    ret.push_back( libName.toStdString() );
 
                 return ret;
             },
@@ -114,7 +91,7 @@ PROJECT_FILE::PROJECT_FILE( const wxString& aFullPath ) :
                 m_LegacyLibNames.clear();
 
                 for( const nlohmann::json& entry : aJson )
-                    m_LegacyLibNames.push_back( entry.get<wxString>() );
+                    m_LegacyLibNames.push_back( QString::fromStdString( entry.get<std::string>() ) );
             }, {} ) );
 
     m_NetSettings = std::make_shared<NET_SETTINGS>( this, "net_settings" );
@@ -127,20 +104,20 @@ PROJECT_FILE::PROJECT_FILE( const wxString& aFullPath ) :
 
     m_params.emplace_back( new PARAM_LAYER_PAIRS( "board.layer_pairs", m_LayerPairInfos ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "board.ipc2581.internal_id",
-            &m_IP2581Bom.id, wxEmptyString ) );
+    m_params.emplace_back( new PARAM<QString>( "board.ipc2581.internal_id",
+            &m_IP2581Bom.id, QString() ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "board.ipc2581.mpn",
-            &m_IP2581Bom.MPN, wxEmptyString ) );
+    m_params.emplace_back( new PARAM<QString>( "board.ipc2581.mpn",
+            &m_IP2581Bom.MPN, QString() ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "board.ipc2581.mfg",
-            &m_IP2581Bom.mfg, wxEmptyString ) );
+    m_params.emplace_back( new PARAM<QString>( "board.ipc2581.mfg",
+            &m_IP2581Bom.mfg, QString() ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "board.ipc2581.distpn",
-            &m_IP2581Bom.distPN, wxEmptyString ) );
+    m_params.emplace_back( new PARAM<QString>( "board.ipc2581.distpn",
+            &m_IP2581Bom.distPN, QString() ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "board.ipc2581.dist",
-            &m_IP2581Bom.dist, wxEmptyString ) );
+    m_params.emplace_back( new PARAM<QString>( "board.ipc2581.dist",
+            &m_IP2581Bom.dist, QString() ) );
 
     registerMigration( 1, 2, std::bind( &PROJECT_FILE::migrateSchema1To2, this ) );
     registerMigration( 2, 3, std::bind( &PROJECT_FILE::migrateSchema2To3, this ) );
@@ -183,121 +160,127 @@ bool PROJECT_FILE::migrateSchema2To3()
 }
 
 
-bool PROJECT_FILE::MigrateFromLegacy( wxConfigBase* aCfg )
+bool PROJECT_FILE::MigrateFromLegacy( QSettings* aCfg )
 {
     bool     ret = true;
-    wxString str;
-    long     index = 0;
+    QString  str;
+    int      index = 0;
 
-    std::set<wxString> group_blacklist;
-
-    // Legacy files don't store board info; they assume board matches project name
-    // We will leave m_boards empty here so it can be populated with other code
-
-    // First handle migration of data that will be stored locally in this object
+    std::set<QString> group_blacklist;
 
     auto loadPinnedLibs =
             [&]( const std::string& aDest )
             {
                 int      libIndex = 1;
-                wxString libKey   = wxT( "PinnedItems" );
-                libKey << libIndex;
+                QString  libKey   = QString( "PinnedItems" );
+                libKey += QString::number( libIndex );
 
                 nlohmann::json libs = nlohmann::json::array();
 
-                while( aCfg->Read( libKey, &str ) )
+                while( aCfg->contains( libKey ) )
                 {
-                    libs.push_back( str );
+                    str = aCfg->value( libKey ).toString();
+                    libs.push_back( str.toStdString() );
 
-                    aCfg->DeleteEntry( libKey, true );
+                    aCfg->remove( libKey );
 
-                    libKey = wxT( "PinnedItems" );
-                    libKey << ++libIndex;
+                    libKey = QString( "PinnedItems" );
+                    libKey += QString::number( ++libIndex );
                 }
 
                 Set( aDest, libs );
             };
 
-    aCfg->SetPath( wxT( "/LibeditFrame" ) );
+    aCfg->beginGroup( "LibeditFrame" );
     loadPinnedLibs( "libraries.pinned_symbol_libs" );
+    aCfg->endGroup();
 
-    aCfg->SetPath( wxT( "/ModEditFrame" ) );
+    aCfg->beginGroup( "ModEditFrame" );
     loadPinnedLibs( "libraries.pinned_footprint_libs" );
+    aCfg->endGroup();
 
-    aCfg->SetPath( wxT( "/cvpcb/equfiles" ) );
+    aCfg->beginGroup( "cvpcb/equfiles" );
 
     {
         int      eqIdx = 1;
-        wxString eqKey = wxT( "EquName" );
-        eqKey << eqIdx;
+        QString  eqKey = QString( "EquName" );
+        eqKey += QString::number( eqIdx );
 
         nlohmann::json eqs = nlohmann::json::array();
 
-        while( aCfg->Read( eqKey, &str ) )
+        while( aCfg->contains( eqKey ) )
         {
-            eqs.push_back( str );
+            str = aCfg->value( eqKey ).toString();
+            eqs.push_back( str.toStdString() );
 
-            eqKey = wxT( "EquName" );
-            eqKey << ++eqIdx;
+            eqKey = QString( "EquName" );
+            eqKey += QString::number( ++eqIdx );
         }
 
         Set( "cvpcb.equivalence_files", eqs );
     }
 
-    // All CvPcb params that we want to keep have been migrated above
-    group_blacklist.insert( wxT( "/cvpcb" ) );
+    aCfg->endGroup();
 
-    aCfg->SetPath( wxT( "/eeschema" ) );
+    group_blacklist.insert( "cvpcb" );
+
+    aCfg->beginGroup( "eeschema" );
     fromLegacyString( aCfg, "LibDir", "schematic.legacy_lib_dir" );
+    aCfg->endGroup();
 
-    aCfg->SetPath( wxT( "/eeschema/libraries" ) );
+    aCfg->beginGroup( "eeschema/libraries" );
 
     {
         int      libIdx = 1;
-        wxString libKey = wxT( "LibName" );
-        libKey << libIdx;
+        QString  libKey = QString( "LibName" );
+        libKey += QString::number( libIdx );
 
         nlohmann::json libs = nlohmann::json::array();
 
-        while( aCfg->Read( libKey, &str ) )
+        while( aCfg->contains( libKey ) )
         {
-            libs.push_back( str );
+            str = aCfg->value( libKey ).toString();
+            libs.push_back( str.toStdString() );
 
-            libKey = wxT( "LibName" );
-            libKey << ++libIdx;
+            libKey = QString( "LibName" );
+            libKey += QString::number( ++libIdx );
         }
 
         Set( "schematic.legacy_lib_list", libs );
     }
 
-    group_blacklist.insert( wxT( "/eeschema" ) );
+    aCfg->endGroup();
 
-    aCfg->SetPath( wxT( "/text_variables" ) );
+    group_blacklist.insert( "eeschema" );
+
+    aCfg->beginGroup( "text_variables" );
 
     {
         int      txtIdx = 1;
-        wxString txtKey;
-        txtKey << txtIdx;
+        QString  txtKey;
+        txtKey = QString::number( txtIdx );
 
         nlohmann::json vars = nlohmann::json();
 
-        while( aCfg->Read( txtKey, &str ) )
+        while( aCfg->contains( txtKey ) )
         {
-            wxArrayString tokens = wxSplit( str, ':' );
+            str = aCfg->value( txtKey ).toString();
+            QStringList tokens = str.split( ':' );
 
             if( tokens.size() == 2 )
-                vars[ tokens[0].ToStdString() ] = tokens[1];
+                vars[ tokens[0].toStdString() ] = tokens[1].toStdString();
 
-            txtKey.clear();
-            txtKey << ++txtIdx;
+            txtKey = QString::number( ++txtIdx );
         }
 
         Set( "text_variables", vars );
     }
 
-    group_blacklist.insert( wxT( "/text_variables" ) );
+    aCfg->endGroup();
 
-    aCfg->SetPath( wxT( "/schematic_editor" ) );
+    group_blacklist.insert( "text_variables" );
+
+    aCfg->beginGroup( "schematic_editor" );
 
     fromLegacyString( aCfg, "PageLayoutDescrFile",     "schematic.page_layout_descr_file" );
     fromLegacyString( aCfg, "PlotDirectoryName",       "schematic.plot_directory" );
@@ -313,7 +296,6 @@ bool PROJECT_FILE::MigrateFromLegacy( wxConfigBase* aCfg )
 
     if( !fromLegacy<int>( aCfg, "PinSymbolSize",       "schematic.drawing.pin_symbol_size" ) )
     {
-        // Use the default symbol size algorithm of Eeschema V5 (based on pin name/number size)
         Set( "schematic.drawing.pin_symbol_size", 0 );
     }
 
@@ -323,15 +305,15 @@ bool PROJECT_FILE::MigrateFromLegacy( wxConfigBase* aCfg )
 
     if( !fromLegacy<double>( aCfg, "TextOffsetRatio",  "schematic.drawing.text_offset_ratio" ) )
     {
-        // Use the spacing of Eeschema V5
         Set( "schematic.drawing.text_offset_ratio", 0.08 );
         Set( "schematic.drawing.label_size_ratio", 0.25 );
     }
 
-    // All schematic_editor keys we keep are migrated above
-    group_blacklist.insert( wxT( "/schematic_editor" ) );
+    aCfg->endGroup();
 
-    aCfg->SetPath( wxT( "/pcbnew" ) );
+    group_blacklist.insert( "schematic_editor" );
+
+    aCfg->beginGroup( "pcbnew" );
 
     fromLegacyString( aCfg, "PageLayoutDescrFile",       "pcbnew.page_layout_descr_file" );
     fromLegacyString( aCfg, "LastNetListRead",           "pcbnew.last_paths.netlist" );
@@ -345,17 +327,18 @@ bool PROJECT_FILE::MigrateFromLegacy( wxConfigBase* aCfg )
 
     {
         int      idx = 1;
-        wxString key = wxT( "DRCExclusion" );
-        key << idx;
+        QString  key = QString( "DRCExclusion" );
+        key += QString::number( idx );
 
         nlohmann::json exclusions = nlohmann::json::array();
 
-        while( aCfg->Read( key, &str ) )
+        while( aCfg->contains( key ) )
         {
-            exclusions.push_back( str );
+            str = aCfg->value( key ).toString();
+            exclusions.push_back( str.toStdString() );
 
-            key = wxT( "DRCExclusion" );
-            key << ++idx;
+            key = QString( "DRCExclusion" );
+            key += QString::number( ++idx );
         }
 
         Set( bp + "drc_exclusions", exclusions );
@@ -443,19 +426,20 @@ bool PROJECT_FILE::MigrateFromLegacy( wxConfigBase* aCfg )
 
     {
         int      idx     = 1;
-        wxString keyBase = "TrackWidth";
-        wxString key     = keyBase;
+        QString  keyBase = "TrackWidth";
+        QString  key     = keyBase;
         double   val;
 
         nlohmann::json widths = nlohmann::json::array();
 
-        key << idx;
+        key += QString::number( idx );
 
-        while( aCfg->Read( key, &val ) )
+        while( aCfg->contains( key ) )
         {
+            val = aCfg->value( key ).toDouble();
             widths.push_back( val );
             key = keyBase;
-            key << ++idx;
+            key += QString::number( ++idx );
         }
 
         Set( bp + "track_widths", widths );
@@ -463,25 +447,28 @@ bool PROJECT_FILE::MigrateFromLegacy( wxConfigBase* aCfg )
 
     {
         int      idx     = 1;
-        wxString keyBase = "ViaDiameter";
-        wxString key     = keyBase;
+        QString  keyBase = "ViaDiameter";
+        QString  key     = keyBase;
         double   diameter;
         double   drill   = 1.0;
 
         nlohmann::json vias = nlohmann::json::array();
 
-        key << idx;
+        key += QString::number( idx );
 
-        while( aCfg->Read( key, &diameter ) )
+        while( aCfg->contains( key ) )
         {
+            diameter = aCfg->value( key ).toDouble();
             key = "ViaDrill";
-            aCfg->Read( key << idx, &drill );
+            key += QString::number( idx );
+            if( aCfg->contains( key ) )
+                drill = aCfg->value( key ).toDouble();
 
             nlohmann::json via = { { "diameter", diameter }, { "drill", drill } };
             vias.push_back( via );
 
             key = keyBase;
-            key << ++idx;
+            key += QString::number( ++idx );
         }
 
         Set( bp + "via_dimensions", vias );
@@ -489,99 +476,92 @@ bool PROJECT_FILE::MigrateFromLegacy( wxConfigBase* aCfg )
 
     {
         int      idx     = 1;
-        wxString keyBase = "dPairWidth";
-        wxString key     = keyBase;
+        QString  keyBase = "dPairWidth";
+        QString  key     = keyBase;
         double   width;
         double   gap     = 1.0;
         double   via_gap = 1.0;
 
         nlohmann::json pairs = nlohmann::json::array();
 
-        key << idx;
+        key += QString::number( idx );
 
-        while( aCfg->Read( key, &width ) )
+        while( aCfg->contains( key ) )
         {
+            width = aCfg->value( key ).toDouble();
             key = "dPairGap";
-            aCfg->Read( key << idx, &gap );
+            key += QString::number( idx );
+            if( aCfg->contains( key ) )
+                gap = aCfg->value( key ).toDouble();
 
             key = "dPairViaGap";
-            aCfg->Read( key << idx, &via_gap );
+            key += QString::number( idx );
+            if( aCfg->contains( key ) )
+                via_gap = aCfg->value( key ).toDouble();
 
             nlohmann::json pair = { { "width", width }, { "gap", gap }, { "via_gap", via_gap } };
             pairs.push_back( pair );
 
             key = keyBase;
-            key << ++idx;
+            key += QString::number( ++idx );
         }
 
         Set( bp + "diff_pair_dimensions",  pairs );
     }
 
-    group_blacklist.insert( wxT( "/pcbnew" ) );
+    aCfg->endGroup();
 
-    // General group is unused these days, we can throw it away
-    group_blacklist.insert( wxT( "/general" ) );
+    group_blacklist.insert( "pcbnew" );
 
-    // Next load sheet names and put all other legacy data in the legacy dict
-    aCfg->SetPath( wxT( "/" ) );
+    group_blacklist.insert( "general" );
 
     auto loadSheetNames =
             [&]() -> bool
             {
                 int            sheet = 1;
-                wxString       entry;
+                QString        entry;
                 nlohmann::json arr   = nlohmann::json::array();
 
-                wxLogTrace( traceSettings, wxT( "Migrating sheet names" ) );
+                aCfg->beginGroup( "sheetnames" );
 
-                aCfg->SetPath( wxT( "/sheetnames" ) );
-
-                while( aCfg->Read( wxString::Format( "%d", sheet++ ), &entry ) )
+                while( aCfg->contains( QString::number( sheet ) ) )
                 {
-                    wxArrayString tokens = wxSplit( entry, ':' );
+                    entry = aCfg->value( QString::number( sheet++ ) ).toString();
+                    QStringList tokens = entry.split( ':' );
 
                     if( tokens.size() == 2 )
                     {
-                        wxLogTrace( traceSettings, wxT( "%d: %s = %s" ), sheet, tokens[0],
-                                    tokens[1] );
-                        arr.push_back( nlohmann::json::array( { tokens[0], tokens[1] } ) );
+                        arr.push_back( nlohmann::json::array( { tokens[0].toStdString(), tokens[1].toStdString() } ) );
                     }
                 }
 
                 Set( "sheets", arr );
 
-                aCfg->SetPath( "/" );
+                aCfg->endGroup();
 
-                // TODO: any reason we want to fail on this?
                 return true;
             };
 
-    std::vector<wxString> groups;
+    QVector<QString> groups;
 
-    groups.emplace_back( wxEmptyString );
+    groups.append( QString() );
 
     auto loadLegacyPairs =
             [&]( const std::string& aGroup ) -> bool
             {
-                wxLogTrace( traceSettings, wxT( "Migrating group %s" ), aGroup );
-                bool     success = true;
-                wxString keyStr;
-                wxString val;
+                bool success = true;
+                QString keyStr;
+                QString val;
 
-                index = 0;
+                QStringList keys = aCfg->childKeys();
 
-                while( aCfg->GetNextEntry( keyStr, index ) )
+                for( const QString& key : keys )
                 {
-                    if( !aCfg->Read( keyStr, &val ) )
-                        continue;
-
-                    std::string key( keyStr.ToUTF8() );
-
-                    wxLogTrace( traceSettings, wxT( "    %s = %s" ), key, val );
+                    val = aCfg->value( key ).toString();
 
                     try
                     {
-                        Set( "legacy." + aGroup + "." + key, val );
+                        Set( "legacy." + aGroup + "." + key.toStdString(), val.toStdString() );
                     }
                     catch( ... )
                     {
@@ -592,72 +572,76 @@ bool PROJECT_FILE::MigrateFromLegacy( wxConfigBase* aCfg )
                 return success;
             };
 
-    for( size_t i = 0; i < groups.size(); i++ )
+    for( int i = 0; i < groups.size(); i++ )
     {
-        aCfg->SetPath( groups[i] );
+        if( !groups[i].isEmpty() )
+            aCfg->beginGroup( groups[i] );
 
-        if( groups[i] == wxT( "/sheetnames" ) )
+        if( groups[i] == "sheetnames" )
         {
             ret |= loadSheetNames();
+            if( !groups[i].isEmpty() )
+                aCfg->endGroup();
             continue;
         }
 
-        aCfg->DeleteEntry( wxT( "last_client" ), true );
-        aCfg->DeleteEntry( wxT( "update" ), true );
-        aCfg->DeleteEntry( wxT( "version" ), true );
+        if( aCfg->contains( "last_client" ) )
+            aCfg->remove( "last_client" );
+        if( aCfg->contains( "update" ) )
+            aCfg->remove( "update" );
+        if( aCfg->contains( "version" ) )
+            aCfg->remove( "version" );
 
-        ret &= loadLegacyPairs( groups[i].ToStdString() );
+        ret &= loadLegacyPairs( groups[i].toStdString() );
 
-        index = 0;
+        QStringList childGroups = aCfg->childGroups();
 
-        while( aCfg->GetNextGroup( str, index ) )
+        for( const QString& childGroup : childGroups )
         {
-            wxString group = groups[i] + "/" + str;
+            QString group = groups[i].isEmpty() ? childGroup : groups[i] + "/" + childGroup;
 
             if( !group_blacklist.count( group ) )
-                groups.emplace_back( group );
+                groups.append( group );
         }
 
-        aCfg->SetPath( "/" );
+        if( !groups[i].isEmpty() )
+            aCfg->endGroup();
     }
 
     return ret;
 }
 
 
-bool PROJECT_FILE::SaveToFile( const wxString& aDirectory, bool aForce )
+bool PROJECT_FILE::SaveToFile( const QString& aDirectory, bool aForce )
 {
-    wxASSERT( m_project );
+    Q_ASSERT( m_project );
 
     Set( "meta.filename", m_project->GetProjectName() + "." + FILEEXT::ProjectFileExtension );
 
-    // Even if parameters were not modified, we should resave after migration
     bool force = aForce || m_wasMigrated;
 
-    // If we're actually going ahead and doing the save, the flag that keeps code from doing the
-    // save should be cleared at this.
     m_wasMigrated = false;
 
     return JSON_SETTINGS::SaveToFile( aDirectory, force );
 }
 
 
-bool PROJECT_FILE::SaveAs( const wxString& aDirectory, const wxString& aFile )
+bool PROJECT_FILE::SaveAs( const QString& aDirectory, const QString& aFile )
 {
-    wxFileName oldFilename( GetFilename() );
-    wxString   oldProjectName = oldFilename.GetName();
-    wxString   oldProjectPath = oldFilename.GetPath();
+    QString oldFilename = GetFilename();
+    QString oldProjectName = QFileInfo( oldFilename ).baseName();
+    QString oldProjectPath = QFileInfo( oldFilename ).path();
 
     Set( "meta.filename", aFile + "." + FILEEXT::ProjectFileExtension );
     SetFilename( aFile );
 
     auto updatePath =
-            [&]( wxString& aPath )
+            [&]( QString& aPath )
             {
-                if( aPath.StartsWith( oldProjectName + wxS( "." ) ) )
-                    aPath.Replace( oldProjectName, aFile, false );
-                else if( aPath.StartsWith( oldProjectPath + wxS( "/" ) ) )
-                    aPath.Replace( oldProjectPath, aDirectory, false );
+                if( aPath.startsWith( oldProjectName + "." ) )
+                    aPath.replace( oldProjectName, aFile );
+                else if( aPath.startsWith( oldProjectPath + "/" ) )
+                    aPath.replace( oldProjectPath, aDirectory );
             };
 
     updatePath( m_BoardDrawingSheetFile );
@@ -668,7 +652,7 @@ bool PROJECT_FILE::SaveAs( const wxString& aDirectory, const wxString& aFile )
     auto updatePathByPtr =
             [&]( const std::string& aPtr )
             {
-                if( std::optional<wxString> path = Get<wxString>( aPtr ) )
+                if( std::optional<QString> path = Get<QString>( aPtr ) )
                 {
                     updatePath( path.value() );
                     Set( aPtr, path.value() );
@@ -680,24 +664,20 @@ bool PROJECT_FILE::SaveAs( const wxString& aDirectory, const wxString& aFile )
     updatePathByPtr( "schematic.ngspice.workbook_filename" );
     updatePathByPtr( "pcbnew.page_layout_descr_file" );
 
-    // If we're actually going ahead and doing the save, the flag that keeps code from doing the save
-    // should be cleared at this point
     m_wasMigrated = false;
 
-    // While performing Save As, we have already checked that we can write to the directory
-    // so don't carry the previous flag
     SetReadOnly( false );
     return JSON_SETTINGS::SaveToFile( aDirectory, true );
 }
 
 
-wxString PROJECT_FILE::getFileExt() const
+QString PROJECT_FILE::getFileExt() const
 {
     return FILEEXT::ProjectFileExtension;
 }
 
 
-wxString PROJECT_FILE::getLegacyFileExt() const
+QString PROJECT_FILE::getLegacyFileExt() const
 {
     return FILEEXT::LegacyProjectFileExtension;
 }
@@ -705,13 +685,14 @@ wxString PROJECT_FILE::getLegacyFileExt() const
 
 void to_json( nlohmann::json& aJson, const FILE_INFO_PAIR& aPair )
 {
-    aJson = nlohmann::json::array( { aPair.first.AsString().ToUTF8(), aPair.second.ToUTF8() } );
+    aJson = nlohmann::json::array( { aPair.first.AsString().toStdString(), aPair.second.toStdString() } );
 }
 
 
 void from_json( const nlohmann::json& aJson, FILE_INFO_PAIR& aPair )
 {
-    wxCHECK( aJson.is_array() && aJson.size() == 2, /* void */ );
-    aPair.first  = KIID( wxString( aJson[0].get<std::string>().c_str(), wxConvUTF8 ) );
-    aPair.second = wxString( aJson[1].get<std::string>().c_str(), wxConvUTF8 );
+    if( !aJson.is_array() || aJson.size() != 2 )
+        return;
+    aPair.first  = KIID( QString::fromStdString( aJson[0].get<std::string>() ) );
+    aPair.second = QString::fromStdString( aJson[1].get<std::string>() );
 }

@@ -1,289 +1,245 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2007 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <confirm.h>
 
 #include <functional>
-#include <wx/app.h>
-#include <wx/stockitem.h>
-#include <wx/richmsgdlg.h>
-#include <wx/msgdlg.h>
-#include <wx/choicdlg.h>
-#include <wx/crt.h>
+#include <QApplication>
+#include <QMessageBox>
+#include <QInputDialog>
+#include <QTextStream>
+#include <QDebug>
 
 
-/**
- * Flag to enable confirmation dialog debugging output.
- *
- * @ingroup trace_env_vars
- */
-static const wxChar traceConfirm[] = wxT( "KICAD_CONFIRM" );
+static const QString traceConfirm = QStringLiteral( "KICAD_CONFIRM" );
 
 
-bool AskOverrideLock( wxWindow* aParent, const wxString& aMessage )
+bool AskOverrideLock( QWidget* aParent, const QString& aMessage )
 {
-#ifdef __APPLE__
-    // wxMessageDialog gets the button spacing wrong on Mac so we have to use wxRichMessageDialog.
-    // Note that its warning icon is more like wxMessageDialog's error icon, so we use it instead
-    // of wxICON_ERROR.
-    wxRichMessageDialog dlg( aParent, aMessage, _( "File Open Warning" ),
-                             wxYES_NO | wxICON_WARNING | wxCENTER );
-    dlg.SetExtendedMessage( _( "Interleaved saves may produce very unexpected results." )
-                                + wxS( "\n" ) );
-    dlg.SetYesNoLabels( _( "&Cancel" ), _( "&Open Anyway" ) );
-#else
-    wxMessageDialog dlg( aParent, aMessage, _( "File Open Warning" ),
-                         wxYES_NO | wxICON_ERROR | wxCENTER );
-    dlg.SetExtendedMessage( _( "Interleaved saves may produce very unexpected results." ) );
-    dlg.SetYesNoLabels( _( "&Cancel" ), _( "&Open Anyway" ) );
-#endif
-
-    return dlg.ShowModal() == wxID_NO;
+    QMessageBox msgBox( aParent );
+    msgBox.setWindowTitle( _( "File Open Warning" ) );
+    msgBox.setText( aMessage );
+    msgBox.setDetailedText( _( "Interleaved saves may produce very unexpected results." ) );
+    msgBox.setIcon( QMessageBox::Warning );
+    
+    QPushButton* cancelBtn = msgBox.addButton( _( "&Cancel" ), QMessageBox::YesRole );
+    QPushButton* openBtn = msgBox.addButton( _( "&Open Anyway" ), QMessageBox::NoRole );
+    
+    msgBox.setDefaultButton( cancelBtn );
+    msgBox.exec();
+    
+    return msgBox.clickedButton() == openBtn;
 }
 
 
-int UnsavedChangesDialog( wxWindow* parent, const wxString& aMessage, bool* aApplyToAll )
+int UnsavedChangesDialog( QWidget* parent, const QString& aMessage, bool* aApplyToAll )
 {
     static bool s_apply_to_all = false;
 
-    wxRichMessageDialog dlg( parent, aMessage, _( "Save Changes?" ),
-                             wxYES_NO | wxCANCEL | wxYES_DEFAULT | wxICON_WARNING | wxCENTER );
-    dlg.SetExtendedMessage( _( "If you don't save, all your changes will be permanently lost." )
-                                + wxS( "\n" ) );
-    dlg.SetYesNoLabels( _( "&Save" ), _( "&Discard Changes" ) );
-
-    if( aApplyToAll )
-        dlg.ShowCheckBox( _( "&Apply to all" ), s_apply_to_all );
-
-    int ret = dlg.ShowModal();
-
+    QMessageBox msgBox( parent );
+    msgBox.setWindowTitle( _( "Save Changes?" ) );
+    msgBox.setText( aMessage );
+    msgBox.setDetailedText( _( "If you don't save, all your changes will be permanently lost." ) );
+    msgBox.setIcon( QMessageBox::Warning );
+    
+    QPushButton* saveBtn = msgBox.addButton( _( "&Save" ), QMessageBox::YesRole );
+    QPushButton* discardBtn = msgBox.addButton( _( "&Discard Changes" ), QMessageBox::NoRole );
+    QPushButton* cancelBtn = msgBox.addButton( _( "&Cancel" ), QMessageBox::RejectRole );
+    
+    msgBox.setDefaultButton( saveBtn );
+    
+    // Checkbox for "Apply to all" functionality not implemented
+    // Qt doesn't have built-in checkbox support in QMessageBox
+    
+    int ret = msgBox.exec();
+    
     if( aApplyToAll )
     {
-        *aApplyToAll = dlg.IsCheckBoxChecked();
-        s_apply_to_all = dlg.IsCheckBoxChecked();
+        // Checkbox state handling not implemented
+        *aApplyToAll = s_apply_to_all;
     }
 
-    // Returns wxID_YES, wxID_NO, or wxID_CANCEL
-    return ret;
+    // Map Qt button roles to wx IDs
+    if( msgBox.clickedButton() == saveBtn )
+        return QMessageBox::Yes;
+    else if( msgBox.clickedButton() == discardBtn )
+        return QMessageBox::No;
+    else
+        return QMessageBox::Cancel;
 }
 
 
-int UnsavedChangesDialog( wxWindow* parent, const wxString& aMessage )
+int UnsavedChangesDialog( QWidget* parent, const QString& aMessage )
 {
-#ifdef __APPLE__
-    // wxMessageDialog gets the button order (and spacing) wrong on Mac so we have to use
-    // wxRichMessageDialog.
     return UnsavedChangesDialog( parent, aMessage, nullptr );
-#else
-    #ifdef _WIN32
-    // wxMessageDialog on windows invokes TaskDialogIndirect which is a native function for a dialog
-    // As a result it skips wxWidgets for modal management...and we don't parent frames properly
-    // among other things for Windows to do the right thing by default
-    // Disable all the windows manually to avoid being able to hit this dialog from the tool frame
-    // and kicad frame at the same time.
-    wxWindowDisabler disable( true );
-    #endif
-
-    wxMessageDialog dlg( parent, aMessage, _( "Save Changes?" ),
-                         wxYES_NO | wxCANCEL | wxYES_DEFAULT | wxICON_WARNING | wxCENTER );
-    dlg.SetExtendedMessage( _( "If you don't save, all your changes will be permanently lost." ) );
-    dlg.SetYesNoLabels( _( "&Save" ), _( "&Discard Changes" ) );
-
-    // Returns wxID_YES, wxID_NO, or wxID_CANCEL
-    return dlg.ShowModal();
-#endif
 }
 
 
-bool ConfirmRevertDialog( wxWindow* parent, const wxString& aMessage )
+bool ConfirmRevertDialog( QWidget* parent, const QString& aMessage )
 {
-    wxMessageDialog dlg( parent, aMessage, wxEmptyString,
-                         wxOK | wxCANCEL | wxOK_DEFAULT | wxICON_WARNING | wxCENTER );
-    dlg.SetExtendedMessage( _( "Your current changes will be permanently lost." ) );
-    dlg.SetOKCancelLabels( _( "&Revert" ), _( "&Cancel" ) );
-
-    return dlg.ShowModal() == wxID_OK;
+    QMessageBox msgBox( parent );
+    msgBox.setText( aMessage );
+    msgBox.setDetailedText( _( "Your current changes will be permanently lost." ) );
+    msgBox.setIcon( QMessageBox::Warning );
+    
+    QPushButton* revertBtn = msgBox.addButton( _( "&Revert" ), QMessageBox::AcceptRole );
+    QPushButton* cancelBtn = msgBox.addButton( _( "&Cancel" ), QMessageBox::RejectRole );
+    
+    msgBox.setDefaultButton( revertBtn );
+    msgBox.exec();
+    
+    return msgBox.clickedButton() == revertBtn;
 }
 
 
-bool HandleUnsavedChanges( wxWindow* aParent, const wxString& aMessage,
+bool HandleUnsavedChanges( QWidget* aParent, const QString& aMessage,
                            const std::function<bool()>& aSaveFunction )
 {
     switch( UnsavedChangesDialog( aParent, aMessage ) )
     {
-    case wxID_YES:    return aSaveFunction();
-    case wxID_NO:     return true;
+    case QMessageBox::Yes:    return aSaveFunction();
+    case QMessageBox::No:     return true;
     default:
-    case wxID_CANCEL: return false;
+    case QMessageBox::Cancel: return false;
     }
 }
 
 
-int OKOrCancelDialog( wxWindow* aParent, const wxString& aWarning, const wxString& aMessage,
-                      const wxString& aDetailedMessage, const wxString& aOKLabel,
-                      const wxString& aCancelLabel, bool* aApplyToAll )
+int OKOrCancelDialog( QWidget* aParent, const QString& aWarning, const QString& aMessage,
+                      const QString& aDetailedMessage, const QString& aOKLabel,
+                      const QString& aCancelLabel, bool* aApplyToAll )
 {
-    wxRichMessageDialog dlg( aParent, aMessage, aWarning,
-                             wxOK | wxCANCEL | wxOK_DEFAULT | wxICON_WARNING | wxCENTER );
+    QMessageBox msgBox( aParent );
+    msgBox.setWindowTitle( aWarning );
+    msgBox.setText( aMessage );
+    msgBox.setIcon( QMessageBox::Warning );
 
-    dlg.SetOKCancelLabels( ( aOKLabel.IsEmpty() ) ? _( "&OK" ) : aOKLabel,
-                           ( aCancelLabel.IsEmpty() ) ? _( "&Cancel" ) : aCancelLabel );
+    if( !aDetailedMessage.isEmpty() )
+        msgBox.setDetailedText( aDetailedMessage );
 
-    if( !aDetailedMessage.IsEmpty() )
-        dlg.SetExtendedMessage( aDetailedMessage );
+    QPushButton* okBtn = msgBox.addButton( aOKLabel.isEmpty() ? _( "&OK" ) : aOKLabel, QMessageBox::AcceptRole );
+    QPushButton* cancelBtn = msgBox.addButton( aCancelLabel.isEmpty() ? _( "&Cancel" ) : aCancelLabel, QMessageBox::RejectRole );
+    
+    msgBox.setDefaultButton( okBtn );
+    
+    // Checkbox for "Apply to all" functionality not implemented
+    // Qt doesn't have built-in checkbox support in QMessageBox
+    
+    int ret = msgBox.exec();
 
     if( aApplyToAll )
-        dlg.ShowCheckBox( _( "&Apply to all" ), true );
+        *aApplyToAll = true; // Checkbox state handling not implemented
 
-    int ret = dlg.ShowModal();
-
-    if( aApplyToAll )
-        *aApplyToAll = dlg.IsCheckBoxChecked();
-
-    // Returns wxID_OK or wxID_CANCEL
-    return ret;
+    return msgBox.clickedButton() == okBtn ? QMessageBox::Ok : QMessageBox::Cancel;
 }
 
 
 // DisplayError should be deprecated, use DisplayErrorMessage instead
-void DisplayError( wxWindow* aParent, const wxString& aText, int aDisplayTime )
+void DisplayError( QWidget* aParent, const QString& aText, int aDisplayTime )
 {
-    if( !wxTheApp || !wxTheApp->IsMainLoopRunning() )
+    QApplication* app = qApp;
+    if( !app )
     {
-        wxLogError( "%s", aText );
+        qDebug() << aText;
         return;
     }
 
-    if( !wxTheApp->IsGUI() )
+    if( app->type() == QApplication::Tty )
     {
-        wxFprintf( stderr, aText );
+        QTextStream( stderr ) << aText << Qt::endl;
         return;
     }
 
-    wxMessageDialog* dlg;
-    int              icon = aDisplayTime > 0 ? wxICON_INFORMATION : wxICON_ERROR;
-
-    dlg = new wxMessageDialog( aParent, aText, _( "Warning" ),
-                               wxOK | wxCENTRE | wxRESIZE_BORDER | icon | wxSTAY_ON_TOP );
-
-    dlg->ShowModal();
-    dlg->Destroy();
+    QMessageBox::Icon icon = aDisplayTime > 0 ? QMessageBox::Information : QMessageBox::Critical;
+    QMessageBox msgBox( aParent );
+    msgBox.setWindowTitle( _( "Warning" ) );
+    msgBox.setText( aText );
+    msgBox.setIcon( icon );
+    msgBox.setStandardButtons( QMessageBox::Ok );
+    msgBox.exec();
 }
 
 
-void DisplayErrorMessage( wxWindow* aParent, const wxString& aText, const wxString& aExtraInfo )
+void DisplayErrorMessage( QWidget* aParent, const QString& aText, const QString& aExtraInfo )
 {
-    if( !wxTheApp || !wxTheApp->IsMainLoopRunning() )
+    QApplication* app = qApp;
+    if( !app )
     {
-        wxLogError( "%s %s", aText, aExtraInfo );
+        qDebug() << aText << aExtraInfo;
         return;
     }
 
-    if( !wxTheApp->IsGUI() )
+    if( app->type() == QApplication::Tty )
     {
-        wxFprintf( stderr, aText );
+        QTextStream( stderr ) << aText << Qt::endl;
         return;
     }
 
-    wxMessageDialog* dlg;
+    QMessageBox msgBox( aParent );
+    msgBox.setWindowTitle( _( "Error" ) );
+    msgBox.setText( aText );
+    msgBox.setIcon( QMessageBox::Critical );
+    msgBox.setStandardButtons( QMessageBox::Ok );
 
-    dlg = new wxMessageDialog( aParent, aText, _( "Error" ),
-                               wxOK | wxCENTRE | wxRESIZE_BORDER | wxICON_ERROR | wxSTAY_ON_TOP );
+    if( !aExtraInfo.isEmpty() )
+        msgBox.setDetailedText( aExtraInfo );
 
-    if( !aExtraInfo.IsEmpty() )
-        dlg->SetExtendedMessage( aExtraInfo );
-
-    dlg->ShowModal();
-    dlg->Destroy();
+    msgBox.exec();
 }
 
 
-void DisplayInfoMessage( wxWindow* aParent, const wxString& aMessage, const wxString& aExtraInfo )
+void DisplayInfoMessage( QWidget* aParent, const QString& aMessage, const QString& aExtraInfo )
 {
-    if( !wxTheApp || !wxTheApp->GetTopWindow() )
+    QApplication* app = qApp;
+    if( !app || !app->activeWindow() )
     {
-        wxLogTrace( traceConfirm, wxS( "%s %s" ), aMessage, aExtraInfo );
+        qDebug() << traceConfirm << aMessage << aExtraInfo;
         return;
     }
 
-    if( !wxTheApp->IsGUI() )
+    if( app->type() == QApplication::Tty )
     {
-        wxFprintf( stdout, "%s %s", aMessage, aExtraInfo );
+        QTextStream( stdout ) << aMessage << " " << aExtraInfo << Qt::endl;
         return;
     }
 
-    wxMessageDialog* dlg;
-    int              icon = wxICON_INFORMATION;
+    QMessageBox msgBox( aParent );
+    msgBox.setWindowTitle( _( "Information" ) );
+    msgBox.setText( aMessage );
+    msgBox.setIcon( QMessageBox::Information );
+    msgBox.setStandardButtons( QMessageBox::Ok );
 
-    dlg = new wxMessageDialog( aParent, aMessage, _( "Information" ),
-                               wxOK | wxCENTRE | wxRESIZE_BORDER | icon | wxSTAY_ON_TOP );
+    if( !aExtraInfo.isEmpty() )
+        msgBox.setDetailedText( aExtraInfo );
 
-    if( !aExtraInfo.IsEmpty() )
-        dlg->SetExtendedMessage( aExtraInfo );
-
-    dlg->ShowModal();
-    dlg->Destroy();
+    msgBox.exec();
 }
 
 
-bool IsOK( wxWindow* aParent, const wxString& aMessage )
+bool IsOK( QWidget* aParent, const QString& aMessage )
 {
-    // wxMessageDialog no longer responds correctly to the <ESC> key (on at least OSX and MSW)
-    // so we're now using wxRichMessageDialog.
-    //
-    // Note also that we have to repurpose an OK/Cancel version of it because otherwise wxWidgets
-    // uses "destructive" spacing for the "No" button.
-
-#ifdef __APPLE__
-    // Why is wxICON_QUESTION a light-bulb on Mac?  That has more of a hint or info connotation.
-    int icon = wxICON_WARNING;
-#else
-    int icon = wxICON_QUESTION;
-#endif
-
-#if !defined( __WXGTK__ )
-    wxRichMessageDialog dlg( aParent, aMessage, _( "Confirmation" ),
-                             wxOK | wxCANCEL | wxOK_DEFAULT | wxCENTRE | icon | wxSTAY_ON_TOP );
-#else
-    wxMessageDialog dlg( aParent, aMessage, _( "Confirmation" ),
-                         wxOK | wxCANCEL | wxOK_DEFAULT | wxCENTRE | icon | wxSTAY_ON_TOP );
-#endif
-
-    dlg.SetOKCancelLabels( _( "&Yes" ), _( "&No" ) );
-
-    return dlg.ShowModal() == wxID_OK;
+    QMessageBox msgBox( aParent );
+    msgBox.setWindowTitle( _( "Confirmation" ) );
+    msgBox.setText( aMessage );
+    msgBox.setIcon( QMessageBox::Question );
+    
+    QPushButton* yesBtn = msgBox.addButton( _( "&Yes" ), QMessageBox::AcceptRole );
+    QPushButton* noBtn = msgBox.addButton( _( "&No" ), QMessageBox::RejectRole );
+    
+    msgBox.setDefaultButton( yesBtn );
+    msgBox.exec();
+    
+    return msgBox.clickedButton() == yesBtn;
 }
 
 
-int SelectSingleOption( wxWindow* aParent, const wxString& aTitle,
-                        const wxString& aMessage, const wxArrayString& aOptions )
+int SelectSingleOption( QWidget* aParent, const QString& aTitle,
+                        const QString& aMessage, const QStringList& aOptions )
 {
-    wxSingleChoiceDialog dlg( aParent, aMessage, aTitle, aOptions );
-
-    if( dlg.ShowModal() != wxID_OK )
+    bool ok;
+    QString item = QInputDialog::getItem( aParent, aTitle, aMessage, aOptions, 0, false, &ok );
+    
+    if( !ok )
         return -1;
-
-    return dlg.GetSelection();
+        
+    return aOptions.indexOf( item );
 }
 

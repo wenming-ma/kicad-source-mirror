@@ -1,40 +1,18 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <richio.h>
 #include <common.h>
 #include <title_block.h>
 #include <core/kicad_algo.h>
+#include <QDateTime>
 
 
 void TITLE_BLOCK::Format( OUTPUTFORMATTER* aFormatter ) const
 {
     // Don't write the title block information if there is nothing to write.
     bool isempty = true;
-    for( unsigned idx = 0; idx < m_tbTexts.GetCount(); idx++ )
+    for( unsigned idx = 0; idx < m_tbTexts.size(); idx++ )
     {
-        if( ! m_tbTexts[idx].IsEmpty() )
+        if( ! m_tbTexts[idx].isEmpty() )
         {
             isempty = false;
             break;
@@ -45,25 +23,25 @@ void TITLE_BLOCK::Format( OUTPUTFORMATTER* aFormatter ) const
     {
         aFormatter->Print( "(title_block" );
 
-        if( !GetTitle().IsEmpty() )
-            aFormatter->Print( "(title %s)", aFormatter->Quotew( GetTitle() ).c_str() );
+        if( !GetTitle().isEmpty() )
+            aFormatter->Print( "(title %s)", aFormatter->Quotew( GetTitle() ).toStdString().c_str() );
 
-        if( !GetDate().IsEmpty() )
-            aFormatter->Print( "(date %s)", aFormatter->Quotew( GetDate() ).c_str() );
+        if( !GetDate().isEmpty() )
+            aFormatter->Print( "(date %s)", aFormatter->Quotew( GetDate() ).toStdString().c_str() );
 
-        if( !GetRevision().IsEmpty() )
-            aFormatter->Print( "(rev %s)", aFormatter->Quotew( GetRevision() ).c_str() );
+        if( !GetRevision().isEmpty() )
+            aFormatter->Print( "(rev %s)", aFormatter->Quotew( GetRevision() ).toStdString().c_str() );
 
-        if( !GetCompany().IsEmpty() )
-            aFormatter->Print( "(company %s)", aFormatter->Quotew( GetCompany() ).c_str() );
+        if( !GetCompany().isEmpty() )
+            aFormatter->Print( "(company %s)", aFormatter->Quotew( GetCompany() ).toStdString().c_str() );
 
         for( int ii = 0; ii < 9; ii++ )
         {
-            if( !GetComment(ii).IsEmpty() )
+            if( !GetComment(ii).isEmpty() )
             {
                 aFormatter->Print( "(comment %d %s)",
                                    ii+1,
-                                   aFormatter->Quotew( GetComment(ii) ).c_str() );
+                                   aFormatter->Quotew( GetComment(ii) ).toStdString().c_str() );
             }
         }
 
@@ -72,73 +50,67 @@ void TITLE_BLOCK::Format( OUTPUTFORMATTER* aFormatter ) const
 }
 
 
-void TITLE_BLOCK::GetContextualTextVars( wxArrayString* aVars )
+void TITLE_BLOCK::GetContextualTextVars( QStringList* aVars )
 {
-    if( !alg::contains( *aVars, wxT( "ISSUE_DATE" ) ) )
+    if( !alg::contains( *aVars, QString( "ISSUE_DATE" ) ) )
     {
-        aVars->push_back( wxT( "ISSUE_DATE" ) );
-        aVars->push_back( wxT( "CURRENT_DATE" ) );
-        aVars->push_back( wxT( "REVISION" ) );
-        aVars->push_back( wxT( "TITLE" ) );
-        aVars->push_back( wxT( "COMPANY" ) );
-        aVars->push_back( wxT( "COMMENT1" ) );
-        aVars->push_back( wxT( "COMMENT2" ) );
-        aVars->push_back( wxT( "COMMENT3" ) );
-        aVars->push_back( wxT( "COMMENT4" ) );
-        aVars->push_back( wxT( "COMMENT5" ) );
-        aVars->push_back( wxT( "COMMENT6" ) );
-        aVars->push_back( wxT( "COMMENT7" ) );
-        aVars->push_back( wxT( "COMMENT8" ) );
-        aVars->push_back( wxT( "COMMENT9" ) );
+        aVars->push_back( QString( "ISSUE_DATE" ) );
+        aVars->push_back( QString( "CURRENT_DATE" ) );
+        aVars->push_back( QString( "REVISION" ) );
+        aVars->push_back( QString( "TITLE" ) );
+        aVars->push_back( QString( "COMPANY" ) );
+        aVars->push_back( QString( "COMMENT1" ) );
+        aVars->push_back( QString( "COMMENT2" ) );
+        aVars->push_back( QString( "COMMENT3" ) );
+        aVars->push_back( QString( "COMMENT4" ) );
+        aVars->push_back( QString( "COMMENT5" ) );
+        aVars->push_back( QString( "COMMENT6" ) );
+        aVars->push_back( QString( "COMMENT7" ) );
+        aVars->push_back( QString( "COMMENT8" ) );
+        aVars->push_back( QString( "COMMENT9" ) );
     }
 }
 
 
-wxString TITLE_BLOCK::GetCurrentDate()
+QString TITLE_BLOCK::GetCurrentDate()
 {
-    // We can choose different formats. Should probably be kept in sync with ISSUE_DATE
-    // formatting in DIALOG_PAGES_SETTINGS.
-    //
-    //  return wxDateTime::Now().Format( wxLocale::GetInfo( wxLOCALE_SHORT_DATE_FMT ) );
-    //  return wxDateTime::Now().Format( wxLocale::GetInfo( wxLOCALE_LONG_DATE_FMT ) );
-    //  return wxDateTime::Now().Format( wxT("%Y-%b-%d") );
-    return wxDateTime::Now().FormatISODate();
+    return QDateTime::currentDateTime().toString( Qt::ISODate );
 };
 
 
-bool TITLE_BLOCK::TextVarResolver( wxString* aToken, const PROJECT* aProject, int aFlags ) const
+bool TITLE_BLOCK::TextVarResolver( QString* aToken, const PROJECT* aProject, int aFlags ) const
 {
     bool tokenUpdated = false;
-    wxString originalToken = *aToken;
+    QString originalToken = *aToken;
 
-    if( aToken->IsSameAs( wxT( "ISSUE_DATE" ) ) )
+    if( aToken->compare( QString( "ISSUE_DATE" ), Qt::CaseInsensitive ) == 0 )
     {
         *aToken = GetDate();
         tokenUpdated = true;
     }
-    else if( aToken->IsSameAs( wxT( "CURRENT_DATE" ) ) )
+    else if( aToken->compare( QString( "CURRENT_DATE" ), Qt::CaseInsensitive ) == 0 )
     {
         *aToken = GetCurrentDate();
         tokenUpdated = true;
     }
-    else if( aToken->IsSameAs( wxT( "REVISION" ) ) )
+    else if( aToken->compare( QString( "REVISION" ), Qt::CaseInsensitive ) == 0 )
     {
         *aToken = GetRevision();
         tokenUpdated = true;
     }
-    else if( aToken->IsSameAs( wxT( "TITLE" ) ) )
+    else if( aToken->compare( QString( "TITLE" ), Qt::CaseInsensitive ) == 0 )
     {
         *aToken = GetTitle();
         tokenUpdated = true;
     }
-    else if( aToken->IsSameAs( wxT( "COMPANY" ) ) )
+    else if( aToken->compare( QString( "COMPANY" ), Qt::CaseInsensitive ) == 0 )
     {
         *aToken = GetCompany();
         tokenUpdated = true;
     }
-    else if( aToken->Left( aToken->Len() - 1 ).IsSameAs( wxT( "COMMENT" ) ) )
+    else if( aToken->left( aToken->length() - 1 ).compare( QString( "COMMENT" ), Qt::CaseInsensitive ) == 0 )
     {
-        wxChar c = aToken->Last();
+        QChar c = aToken->at( aToken->length() - 1 );
 
         switch( c )
         {
@@ -158,13 +130,13 @@ bool TITLE_BLOCK::TextVarResolver( wxString* aToken, const PROJECT* aProject, in
 
     if( tokenUpdated )
     {
-        if( aToken->IsSameAs( wxT( "CURRENT_DATE" ) ) )
+        if( aToken->compare( QString( "CURRENT_DATE" ), Qt::CaseInsensitive ) == 0 )
             *aToken = GetCurrentDate();
         else if( aProject )
             *aToken = ExpandTextVars( *aToken, aProject, aFlags );
 
         // This is the default fallback, so don't claim we resolved it
-        if( *aToken == wxT( "${" ) + originalToken + wxT( "}" ) )
+        if( *aToken == QString( "${" ) + originalToken + QString( "}" ) )
             return false;
 
        return true;

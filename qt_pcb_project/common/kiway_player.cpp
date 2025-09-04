@@ -1,37 +1,13 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2014 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-
 #include <kiway_player.h>
 #include <kiway_express.h>
 #include <kiway.h>
 #include <id.h>
 #include <macros.h>
 #include <typeinfo>
-#include <wx/utils.h>
-#include <wx/evtloop.h>
-#include <wx/socket.h>
+#include <QWidget>
+#include <QEventLoop>
+#include <QTcpServer>
+#include <QTcpSocket>
 #include <core/raii.h>
 
 
@@ -41,9 +17,9 @@ BEGIN_EVENT_TABLE( KIWAY_PLAYER, EDA_BASE_FRAME )
 END_EVENT_TABLE()
 
 
-KIWAY_PLAYER::KIWAY_PLAYER( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrameType,
-                            const wxString& aTitle, const wxPoint& aPos, const wxSize& aSize,
-                            long aStyle, const wxString& aFrameName,
+KIWAY_PLAYER::KIWAY_PLAYER( KIWAY* aKiway, QWidget* aParent, FRAME_T aFrameType,
+                            const QString& aTitle, const QPoint& aPos, const QSize& aSize,
+                            long aStyle, const QString& aFrameName,
                             const EDA_IU_SCALE& aIuScale ) :
         EDA_BASE_FRAME( aParent, aFrameType, aTitle, aPos, aSize, aStyle, aFrameName, aKiway,
                         aIuScale ),
@@ -64,20 +40,20 @@ KIWAY_PLAYER::~KIWAY_PLAYER() throw()
     if( m_socketServer )
     {
         // ensure any event handling stops
-        m_socketServer->Notify( false );
+        m_socketServer->pauseAccepting();
 
         delete m_socketServer;
         m_socketServer = nullptr;
     }
 
     // remove active sockets as well
-    for( wxSocketBase* socket : m_sockets )
+    for( QTcpSocket* socket : m_sockets )
     {
         if( !socket )
             continue;
 
         // ensure any event handling stops
-        socket->Notify( false );
+        socket->disconnectFromHost();
 
         delete socket;
     }
@@ -92,42 +68,34 @@ void KIWAY_PLAYER::KiwayMailIn( KIWAY_EXPRESS& aEvent )
 }
 
 
-bool KIWAY_PLAYER::ShowModal( wxString* aResult, wxWindow* aResultantFocusWindow )
+bool KIWAY_PLAYER::ShowModal( QString* aResult, QWidget* aResultantFocusWindow )
 {
-    wxASSERT_MSG( IsModal(), wxT( "ShowModal() shouldn't be called on non-modal frame" ) );
-
-    /*
-        This function has a nice interface but a necessarily unsightly implementation.
-        Now the implementation is encapsulated, localizing future changes.
-
-        It works in tandem with DismissModal().  But only ShowModal() is in the
-        vtable and therefore cross-module capable.
-    */
+    Q_ASSERT_X( IsModal(), "ShowModal", "ShowModal() shouldn't be called on non-modal frame" );
 
     NULLER raii_nuller( (void*&) m_modal_loop );
 
     m_modal_resultant_parent = aResultantFocusWindow;
 
-    Show( true );
-    Raise();    // Needed on some Window managers to always display the frame
+    show();
+    raise();    // Needed on some Window managers to always display the frame
 
-    SetFocus();
+    setFocus();
 
     {
-        // Using wxWindowDisabler() has two issues: it will disable top-level windows that are
+        // Using QWidget disabling has two issues: it will disable top-level windows that are
         // our *children* (such as sub-frames), and it will disable all context menus we try to
         // put up.  Fortunatly we already had to cross this Rubicon for QuasiModal dialogs, so
         // we re-use that strategy.
-        wxWindow* parent = GetParent();
+        QWidget* parent = parentWidget();
 
-        while( parent && !parent->IsTopLevel() )
-            parent = parent->GetParent();
+        while( parent && !parent->isWindow() )
+            parent = parent->parentWidget();
 
         WINDOW_DISABLER raii_parent_disabler( parent );
 
-        wxGUIEventLoop event_loop;
+        QEventLoop event_loop;
         m_modal_loop = &event_loop;
-        event_loop.Run();
+        event_loop.exec();
     }
 
     if( aResult )
@@ -135,12 +103,12 @@ bool KIWAY_PLAYER::ShowModal( wxString* aResult, wxWindow* aResultantFocusWindow
 
     if( aResultantFocusWindow )
     {
-        aResultantFocusWindow->Raise();
+        aResultantFocusWindow->raise();
 
-        // have the final say, after wxWindowDisabler reenables my parent and
+        // have the final say, after WINDOW_DISABLER reenables my parent and
         // the events settle down, set the focus
-        wxSafeYield();
-        aResultantFocusWindow->SetFocus();
+        QApplication::processEvents();
+        aResultantFocusWindow->setFocus();
     }
 
     return m_modal_ret_val;
@@ -161,18 +129,18 @@ bool KIWAY_PLAYER::IsDismissed()
 }
 
 
-void KIWAY_PLAYER::DismissModal( bool aRetVal, const wxString& aResult )
+void KIWAY_PLAYER::DismissModal( bool aRetVal, const QString& aResult )
 {
     m_modal_ret_val = aRetVal;
     m_modal_string  = aResult;
 
     if( m_modal_loop )
     {
-        m_modal_loop->Exit();
+        m_modal_loop->exit();
         m_modal_loop = nullptr;      // this marks it as dismissed.
     }
 
-    Show( false );
+    hide();
 }
 
 
@@ -183,7 +151,7 @@ void KIWAY_PLAYER::kiway_express( KIWAY_EXPRESS& aEvent )
 }
 
 
-void KIWAY_PLAYER::language_change( wxCommandEvent& event )
+void KIWAY_PLAYER::language_change( QCommandEvent& event )
 {
     int id = event.GetId();
 
@@ -193,5 +161,3 @@ void KIWAY_PLAYER::language_change( wxCommandEvent& event )
 
 
 
-//  LocalWords:  ShowModal DismissModal vtable wxWindowDisabler aui
-//  LocalWords:  miniframe reenables KIWAY PLAYERs

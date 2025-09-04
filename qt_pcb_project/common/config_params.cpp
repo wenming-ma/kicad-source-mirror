@@ -1,46 +1,22 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 
 #include <config_params.h>       // for PARAM_CFG_INT_WITH_SCALE, PARAM_CFG_...
 #include <locale_io.h>
 #include <math/util.h>             // for KiROUND
-#include <wx/config.h>           // for wxConfigBase
-#include <wx/debug.h>            // for wxASSERT
+#include <QSettings>
+#include <QtGlobal>
 
-void wxConfigLoadParams( wxConfigBase* aCfg, const std::vector<PARAM_CFG*>& aList,
-                         const wxString& aGroup )
+void qtConfigLoadParams( QSettings* aCfg, const std::vector<PARAM_CFG*>& aList,
+                         const QString& aGroup )
 {
-    wxASSERT( aCfg );
+    Q_ASSERT( aCfg );
 
     for( PARAM_CFG* param : aList )
     {
-        if( !!param->m_Group )
-            aCfg->SetPath( param->m_Group );
+        if( !param->m_Group.isEmpty() )
+            aCfg->beginGroup( param->m_Group );
         else
-            aCfg->SetPath( aGroup );
+            aCfg->beginGroup( aGroup );
 
         if( param->m_Setup )
             continue;
@@ -50,9 +26,9 @@ void wxConfigLoadParams( wxConfigBase* aCfg, const std::vector<PARAM_CFG*>& aLis
 }
 
 
-void wxConfigLoadSetups( wxConfigBase* aCfg, const std::vector<PARAM_CFG*>& aList )
+void qtConfigLoadSetups( QSettings* aCfg, const std::vector<PARAM_CFG*>& aList )
 {
-    wxASSERT( aCfg );
+    Q_ASSERT( aCfg );
 
     for( PARAM_CFG* param : aList )
     {
@@ -64,25 +40,25 @@ void wxConfigLoadSetups( wxConfigBase* aCfg, const std::vector<PARAM_CFG*>& aLis
 }
 
 
-void wxConfigSaveParams( wxConfigBase* aCfg, const std::vector<PARAM_CFG*>& aList,
-                         const wxString& aGroup )
+void qtConfigSaveParams( QSettings* aCfg, const std::vector<PARAM_CFG*>& aList,
+                         const QString& aGroup )
 {
-    wxASSERT( aCfg );
+    Q_ASSERT( aCfg );
 
     for( PARAM_CFG* param : aList )
     {
-        if( !!param->m_Group )
-            aCfg->SetPath( param->m_Group );
+        if( !param->m_Group.isEmpty() )
+            aCfg->beginGroup( param->m_Group );
         else
-            aCfg->SetPath( aGroup );
+            aCfg->beginGroup( aGroup );
 
         if( param->m_Setup )
             continue;
 
         if( param->m_Type == PARAM_COMMAND_ERASE )       // Erase all data
         {
-            if( !!param->m_Ident )
-                aCfg->DeleteGroup( param->m_Ident );
+            if( !param->m_Ident.isEmpty() )
+                aCfg->remove( param->m_Ident );
         }
         else
         {
@@ -92,9 +68,9 @@ void wxConfigSaveParams( wxConfigBase* aCfg, const std::vector<PARAM_CFG*>& aLis
 }
 
 
-void wxConfigSaveSetups( wxConfigBase* aCfg, const std::vector<PARAM_CFG*>& aList )
+void qtConfigSaveSetups( QSettings* aCfg, const std::vector<PARAM_CFG*>& aList )
 {
-    wxASSERT( aCfg );
+    Q_ASSERT( aCfg );
 
     for( PARAM_CFG* param : aList )
     {
@@ -103,8 +79,8 @@ void wxConfigSaveSetups( wxConfigBase* aCfg, const std::vector<PARAM_CFG*>& aLis
 
         if( param->m_Type == PARAM_COMMAND_ERASE )       // Erase all data
         {
-            if( !!param->m_Ident )
-                aCfg->DeleteGroup( param->m_Ident );
+            if( !param->m_Ident.isEmpty() )
+                aCfg->remove( param->m_Ident );
         }
         else
         {
@@ -114,20 +90,20 @@ void wxConfigSaveSetups( wxConfigBase* aCfg, const std::vector<PARAM_CFG*>& aLis
 }
 
 
-void ConfigBaseWriteDouble( wxConfigBase* aConfig, const wxString& aKey, double aValue )
+void ConfigBaseWriteDouble( QSettings* aConfig, const QString& aKey, double aValue )
 {
-    // Use a single strategy, regardless of wx version.
+    // Use a single strategy, regardless of Qt version.
     // Want C locale float string.
 
     LOCALE_IO   toggle;
-    wxString    tnumber = wxString::Format( wxT( "%.16g" ), aValue );
+    QString     tnumber = QString::number( aValue, 'g', 16 );
 
-    aConfig->Write( aKey, tnumber );
+    aConfig->setValue( aKey, tnumber );
 }
 
 
-PARAM_CFG::PARAM_CFG( const wxString& ident, const paramcfg_id type,
-                      const wxChar* group, const wxString& legacy )
+PARAM_CFG::PARAM_CFG( const QString& ident, const paramcfg_id type,
+                      const QString& group, const QString& legacy )
 {
     m_Ident = ident;
     m_Type  = type;
@@ -138,8 +114,8 @@ PARAM_CFG::PARAM_CFG( const wxString& ident, const paramcfg_id type,
 }
 
 
-PARAM_CFG_INT::PARAM_CFG_INT( const wxString& ident, int* ptparam, int default_val,
-                              int min, int max, const wxChar* group, const wxString& legacy ) :
+PARAM_CFG_INT::PARAM_CFG_INT( const QString& ident, int* ptparam, int default_val,
+                              int min, int max, const QString& group, const QString& legacy ) :
         PARAM_CFG( ident, PARAM_INT, group, legacy )
 {
     m_Pt_param = ptparam;
@@ -149,8 +125,8 @@ PARAM_CFG_INT::PARAM_CFG_INT( const wxString& ident, int* ptparam, int default_v
 }
 
 
-PARAM_CFG_INT::PARAM_CFG_INT( bool setup, const wxString& ident, int* ptparam, int default_val,
-                              int min, int max, const wxChar* group, const wxString& legacy ) :
+PARAM_CFG_INT::PARAM_CFG_INT( bool setup, const QString& ident, int* ptparam, int default_val,
+                              int min, int max, const QString& group, const QString& legacy ) :
         PARAM_CFG( ident, PARAM_INT, group, legacy )
 {
     m_Pt_param = ptparam;
@@ -161,15 +137,17 @@ PARAM_CFG_INT::PARAM_CFG_INT( bool setup, const wxString& ident, int* ptparam, i
 }
 
 
-void PARAM_CFG_INT::ReadParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_INT::ReadParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
     int itmp = m_Default;
 
-    if( !aConfig->Read( m_Ident, &itmp ) && m_Ident_legacy != wxEmptyString )
-        aConfig->Read( m_Ident_legacy, &itmp );
+    if( !aConfig->contains( m_Ident ) && !m_Ident_legacy.isEmpty() )
+        itmp = aConfig->value( m_Ident_legacy, itmp ).toInt();
+    else
+        itmp = aConfig->value( m_Ident, itmp ).toInt();
 
     if( (itmp < m_Min) || (itmp > m_Max) )
         itmp = m_Default;
@@ -178,19 +156,19 @@ void PARAM_CFG_INT::ReadParam( wxConfigBase* aConfig ) const
 }
 
 
-void PARAM_CFG_INT::SaveParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_INT::SaveParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
-    aConfig->Write( m_Ident, *m_Pt_param );
+    aConfig->setValue( m_Ident, *m_Pt_param );
 }
 
 
-PARAM_CFG_INT_WITH_SCALE::PARAM_CFG_INT_WITH_SCALE( const wxString& ident, int* ptparam,
+PARAM_CFG_INT_WITH_SCALE::PARAM_CFG_INT_WITH_SCALE( const QString& ident, int* ptparam,
                                                     int default_val, int min, int max,
-                                                    const wxChar* group, double aBiu2cfgunit,
-                                                    const wxString& legacy_ident ) :
+                                                    const QString& group, double aBiu2cfgunit,
+                                                    const QString& legacy_ident ) :
     PARAM_CFG_INT( ident, ptparam, default_val, min, max, group, legacy_ident )
 {
     m_Type = PARAM_INT_WITH_SCALE;
@@ -198,10 +176,10 @@ PARAM_CFG_INT_WITH_SCALE::PARAM_CFG_INT_WITH_SCALE( const wxString& ident, int* 
 }
 
 
-PARAM_CFG_INT_WITH_SCALE::PARAM_CFG_INT_WITH_SCALE( bool setup, const wxString& ident, int* ptparam,
+PARAM_CFG_INT_WITH_SCALE::PARAM_CFG_INT_WITH_SCALE( bool setup, const QString& ident, int* ptparam,
                                                     int default_val, int min, int max,
-                                                    const wxChar* group, double aBiu2cfgunit,
-                                                    const wxString& legacy_ident ) :
+                                                    const QString& group, double aBiu2cfgunit,
+                                                    const QString& legacy_ident ) :
     PARAM_CFG_INT( setup, ident, ptparam, default_val, min, max, group, legacy_ident )
 {
     m_Type = PARAM_INT_WITH_SCALE;
@@ -209,14 +187,16 @@ PARAM_CFG_INT_WITH_SCALE::PARAM_CFG_INT_WITH_SCALE( bool setup, const wxString& 
 }
 
 
-void PARAM_CFG_INT_WITH_SCALE::ReadParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_INT_WITH_SCALE::ReadParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
     double dtmp = (double) m_Default * m_BIU_to_cfgunit;
-    if( !aConfig->Read( m_Ident, &dtmp ) && m_Ident_legacy != wxEmptyString )
-        aConfig->Read( m_Ident_legacy, &dtmp );
+    if( !aConfig->contains( m_Ident ) && !m_Ident_legacy.isEmpty() )
+        dtmp = aConfig->value( m_Ident_legacy, dtmp ).toDouble();
+    else
+        dtmp = aConfig->value( m_Ident, dtmp ).toDouble();
 
     int itmp = KiROUND( dtmp / m_BIU_to_cfgunit );
 
@@ -227,7 +207,7 @@ void PARAM_CFG_INT_WITH_SCALE::ReadParam( wxConfigBase* aConfig ) const
 }
 
 
-void PARAM_CFG_INT_WITH_SCALE::SaveParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_INT_WITH_SCALE::SaveParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
@@ -235,14 +215,14 @@ void PARAM_CFG_INT_WITH_SCALE::SaveParam( wxConfigBase* aConfig ) const
     // We cannot use aConfig->Write for a double, because
     // this function uses a format with very few digits in mantissa,
     // and truncate issues are frequent.
-    // We uses our function.
+    // We use our function.
     ConfigBaseWriteDouble( aConfig, m_Ident, *m_Pt_param * m_BIU_to_cfgunit );
 }
 
 
-PARAM_CFG_DOUBLE::PARAM_CFG_DOUBLE( const wxString& ident, double* ptparam,
+PARAM_CFG_DOUBLE::PARAM_CFG_DOUBLE( const QString& ident, double* ptparam,
                                     double default_val, double min, double max,
-                                    const wxChar* group ) :
+                                    const QString& group ) :
         PARAM_CFG( ident, PARAM_DOUBLE, group )
 {
     m_Pt_param = ptparam;
@@ -253,12 +233,12 @@ PARAM_CFG_DOUBLE::PARAM_CFG_DOUBLE( const wxString& ident, double* ptparam,
 
 
 PARAM_CFG_DOUBLE::PARAM_CFG_DOUBLE( bool          Insetup,
-                                    const wxString& ident,
+                                    const QString& ident,
                                     double*       ptparam,
                                     double        default_val,
                                     double        min,
                                     double        max,
-                                    const wxChar* group ) :
+                                    const QString& group ) :
         PARAM_CFG( ident, PARAM_DOUBLE, group )
 {
     m_Pt_param = ptparam;
@@ -269,13 +249,13 @@ PARAM_CFG_DOUBLE::PARAM_CFG_DOUBLE( bool          Insetup,
 }
 
 
-void PARAM_CFG_DOUBLE::ReadParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_DOUBLE::ReadParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
     double dtmp = m_Default;
-    aConfig->Read( m_Ident, &dtmp );
+    dtmp = aConfig->value( m_Ident, dtmp ).toDouble();
 
     if( (dtmp < m_Min) || (dtmp > m_Max) )
         dtmp = m_Default;
@@ -284,7 +264,7 @@ void PARAM_CFG_DOUBLE::ReadParam( wxConfigBase* aConfig ) const
 }
 
 
-void PARAM_CFG_DOUBLE::SaveParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_DOUBLE::SaveParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
@@ -292,13 +272,13 @@ void PARAM_CFG_DOUBLE::SaveParam( wxConfigBase* aConfig ) const
     // We cannot use aConfig->Write for a double, because
     // this function uses a format with very few digits in mantissa,
     // and truncate issues are frequent.
-    // We uses our function.
+    // We use our function.
     ConfigBaseWriteDouble( aConfig, m_Ident, *m_Pt_param );
 }
 
 
-PARAM_CFG_BOOL::PARAM_CFG_BOOL( const wxString& ident, bool* ptparam, int default_val,
-                                const wxChar* group, const wxString& legacy ) :
+PARAM_CFG_BOOL::PARAM_CFG_BOOL( const QString& ident, bool* ptparam, int default_val,
+                                const QString& group, const QString& legacy ) :
         PARAM_CFG( ident, PARAM_BOOL, group, legacy )
 {
     m_Pt_param = ptparam;
@@ -306,8 +286,8 @@ PARAM_CFG_BOOL::PARAM_CFG_BOOL( const wxString& ident, bool* ptparam, int defaul
 }
 
 
-PARAM_CFG_BOOL::PARAM_CFG_BOOL( bool Insetup, const wxString& ident, bool* ptparam,
-                                int default_val, const wxChar* group, const wxString& legacy ) :
+PARAM_CFG_BOOL::PARAM_CFG_BOOL( bool Insetup, const QString& ident, bool* ptparam,
+                                int default_val, const QString& group, const QString& legacy ) :
         PARAM_CFG( ident, PARAM_BOOL, group, legacy )
 {
     m_Pt_param = ptparam;
@@ -316,40 +296,42 @@ PARAM_CFG_BOOL::PARAM_CFG_BOOL( bool Insetup, const wxString& ident, bool* ptpar
 }
 
 
-void PARAM_CFG_BOOL::ReadParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_BOOL::ReadParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
     int itmp = (int) m_Default;
 
-    if( !aConfig->Read( m_Ident, &itmp ) && m_Ident_legacy != wxEmptyString )
-        aConfig->Read( m_Ident_legacy, &itmp );
+    if( !aConfig->contains( m_Ident ) && !m_Ident_legacy.isEmpty() )
+        itmp = aConfig->value( m_Ident_legacy, itmp ).toInt();
+    else
+        itmp = aConfig->value( m_Ident, itmp ).toInt();
 
     *m_Pt_param = itmp ? true : false;
 }
 
 
-void PARAM_CFG_BOOL::SaveParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_BOOL::SaveParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
-    aConfig->Write( m_Ident, *m_Pt_param );
+    aConfig->setValue( m_Ident, *m_Pt_param );
 }
 
 
-PARAM_CFG_WXSTRING::PARAM_CFG_WXSTRING( const wxString& ident, wxString* ptparam,
-                                        const wxChar* group ) :
-        PARAM_CFG( ident, PARAM_WXSTRING, group )
+PARAM_CFG_QSTRING::PARAM_CFG_QSTRING( const QString& ident, QString* ptparam,
+                                        const QString& group ) :
+        PARAM_CFG( ident, PARAM_QSTRING, group )
 {
     m_Pt_param = ptparam;
 }
 
 
-PARAM_CFG_WXSTRING::PARAM_CFG_WXSTRING( bool Insetup, const wxString& ident, wxString* ptparam,
-                                        const wxString& default_val, const wxChar* group ) :
-        PARAM_CFG( ident, PARAM_WXSTRING, group )
+PARAM_CFG_QSTRING::PARAM_CFG_QSTRING( bool Insetup, const QString& ident, QString* ptparam,
+                                        const QString& default_val, const QString& group ) :
+        PARAM_CFG( ident, PARAM_QSTRING, group )
 {
     m_Pt_param = ptparam;
     m_Setup    = Insetup;
@@ -357,55 +339,55 @@ PARAM_CFG_WXSTRING::PARAM_CFG_WXSTRING( bool Insetup, const wxString& ident, wxS
 }
 
 
-void PARAM_CFG_WXSTRING::ReadParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_QSTRING::ReadParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
-    *m_Pt_param = aConfig->Read( m_Ident, m_default );
+    *m_Pt_param = aConfig->value( m_Ident, m_default ).toString();
 }
 
 
-void PARAM_CFG_WXSTRING::SaveParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_QSTRING::SaveParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
-    aConfig->Write( m_Ident, *m_Pt_param );
+    aConfig->setValue( m_Ident, *m_Pt_param );
 }
 
 
-PARAM_CFG_WXSTRING_SET::PARAM_CFG_WXSTRING_SET( const wxString& ident, std::set<wxString>* ptparam,
-                                                const wxChar* group ) :
-        PARAM_CFG( ident, PARAM_WXSTRING_SET, group )
+PARAM_CFG_QSTRING_SET::PARAM_CFG_QSTRING_SET( const QString& ident, std::set<QString>* ptparam,
+                                                const QString& group ) :
+        PARAM_CFG( ident, PARAM_QSTRING_SET, group )
 {
     m_Pt_param = ptparam;
 }
 
 
-PARAM_CFG_WXSTRING_SET::PARAM_CFG_WXSTRING_SET( bool Insetup, const wxString& ident,
-                                                std::set<wxString>* ptparam, const wxChar* group ) :
-        PARAM_CFG( ident, PARAM_WXSTRING, group )
+PARAM_CFG_QSTRING_SET::PARAM_CFG_QSTRING_SET( bool Insetup, const QString& ident,
+                                                std::set<QString>* ptparam, const QString& group ) :
+        PARAM_CFG( ident, PARAM_QSTRING_SET, group )
 {
     m_Pt_param = ptparam;
     m_Setup    = Insetup;
 }
 
 
-void PARAM_CFG_WXSTRING_SET::ReadParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_QSTRING_SET::ReadParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
     for( int i = 1; true; ++i )
     {
-        wxString key, data;
+        QString key, data;
 
         key = m_Ident;
-        key << i;
-        data = aConfig->Read( key, wxT( "" ) );
+        key += QString::number( i );
+        data = aConfig->value( key, "" ).toString();
 
-        if( data.IsEmpty() )
+        if( data.isEmpty() )
             break;
 
         m_Pt_param->insert( data );
@@ -413,123 +395,123 @@ void PARAM_CFG_WXSTRING_SET::ReadParam( wxConfigBase* aConfig ) const
 }
 
 
-void PARAM_CFG_WXSTRING_SET::SaveParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_QSTRING_SET::SaveParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
     int i = 1;
 
-    for( const wxString& str : *m_Pt_param )
+    for( const QString& str : *m_Pt_param )
     {
-        wxString key;
+        QString key;
 
         key = m_Ident;
-        key << i++;
+        key += QString::number( i++ );
 
-        aConfig->Write( key, str );
+        aConfig->setValue( key, str );
     }
 }
 
 
-PARAM_CFG_FILENAME::PARAM_CFG_FILENAME( const wxString& ident,
-                                        wxString*     ptparam,
-                                        const wxChar* group ) :
+PARAM_CFG_FILENAME::PARAM_CFG_FILENAME( const QString& ident,
+                                        QString*     ptparam,
+                                        const QString& group ) :
         PARAM_CFG( ident, PARAM_FILENAME, group )
 {
     m_Pt_param = ptparam;
 }
 
 
-void PARAM_CFG_FILENAME::ReadParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_FILENAME::ReadParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
-    wxString prm = aConfig->Read( m_Ident );
+    QString prm = aConfig->value( m_Ident ).toString();
     // file names are stored using Unix notation
     // under Window we must use \ instead of /
     // mainly if there is a server name in path (something like \\server\kicad)
 #ifdef __WINDOWS__
-    prm.Replace( wxT( "/" ), wxT( "\\" ) );
+    prm.replace( "/", "\\" );
 #endif
     *m_Pt_param = prm;
 }
 
 
-void PARAM_CFG_FILENAME::SaveParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_FILENAME::SaveParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
-    wxString prm = *m_Pt_param;
+    QString prm = *m_Pt_param;
 
     // filenames are stored using Unix notation
-    prm.Replace( wxT( "\\" ), wxT( "/" ) );
-    aConfig->Write( m_Ident, prm );
+    prm.replace( "\\", "/" );
+    aConfig->setValue( m_Ident, prm );
 }
 
 
-PARAM_CFG_LIBNAME_LIST::PARAM_CFG_LIBNAME_LIST( const wxChar*  ident,
-                                                wxArrayString* ptparam,
-                                                const wxChar*  group ) :
+PARAM_CFG_LIBNAME_LIST::PARAM_CFG_LIBNAME_LIST( const QString&  ident,
+                                                QStringList* ptparam,
+                                                const QString&  group ) :
         PARAM_CFG( ident, PARAM_LIBNAME_LIST, group )
 {
     m_Pt_param = ptparam;
 }
 
 
-void PARAM_CFG_LIBNAME_LIST::ReadParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_LIBNAME_LIST::ReadParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
     int            indexlib = 1; // We start indexlib to 1 because first
                                  // lib name is LibName1
-    wxString       libname, id_lib;
-    wxArrayString* libname_list = m_Pt_param;
+    QString        libname, id_lib;
+    QStringList* libname_list = m_Pt_param;
 
     while( 1 )
     {
         id_lib = m_Ident;
-        id_lib << indexlib;
+        id_lib += QString::number( indexlib );
         indexlib++;
-        libname = aConfig->Read( id_lib, wxT( "" ) );
+        libname = aConfig->value( id_lib, "" ).toString();
 
-        if( libname.IsEmpty() )
+        if( libname.isEmpty() )
             break;
 
         // file names are stored using Unix notation
         // under Window we must use \ instead of /
         // mainly if there is a server name in path (something like \\server\kicad)
 #ifdef __WINDOWS__
-        libname.Replace( wxT( "/" ), wxT( "\\" ) );
+        libname.replace( "/", "\\" );
 #endif
-        libname_list->Add( libname );
+        libname_list->append( libname );
     }
 }
 
 
-void PARAM_CFG_LIBNAME_LIST::SaveParam( wxConfigBase* aConfig ) const
+void PARAM_CFG_LIBNAME_LIST::SaveParam( QSettings* aConfig ) const
 {
     if( !m_Pt_param || !aConfig )
         return;
 
-    wxArrayString* libname_list = m_Pt_param;
+    QStringList* libname_list = m_Pt_param;
 
-    wxString       configkey;
-    wxString       libname;
+    QString       configkey;
+    QString       libname;
 
-    for( unsigned indexlib = 0;  indexlib < libname_list->GetCount();  indexlib++ )
+    for( int indexlib = 0;  indexlib < libname_list->size();  indexlib++ )
     {
         configkey = m_Ident;
 
         // We use indexlib+1 because first lib name is LibName1
-        configkey << ( indexlib + 1 );
-        libname = libname_list->Item( indexlib );
+        configkey += QString::number( indexlib + 1 );
+        libname = libname_list->at( indexlib );
 
         // filenames are stored using Unix notation
-        libname.Replace( wxT( "\\" ), wxT( "/" ) );
-        aConfig->Write( configkey, libname );
+        libname.replace( "\\", "/" );
+        aConfig->setValue( configkey, libname );
     }
 }

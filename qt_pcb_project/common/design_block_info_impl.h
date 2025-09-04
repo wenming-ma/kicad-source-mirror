@@ -1,22 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #ifndef DESIGN_BLOCK_INFO_IMPL_H
 #define DESIGN_BLOCK_INFO_IMPL_H
 
@@ -25,6 +6,7 @@
 #include <memory>
 #include <thread>
 #include <vector>
+#include <QString>
 
 #include <kicommon.h>
 #include <design_block_info.h>
@@ -35,8 +17,8 @@ class LOCALE_IO;
 class KICOMMON_API DESIGN_BLOCK_INFO_IMPL : public DESIGN_BLOCK_INFO
 {
 public:
-    DESIGN_BLOCK_INFO_IMPL( DESIGN_BLOCK_LIST* aOwner, const wxString& aNickname,
-                            const wxString& aDesignBlockName, const LOCALE_IO* aLocale )
+    DESIGN_BLOCK_INFO_IMPL( DESIGN_BLOCK_LIST* aOwner, const QString& aNickname,
+                            const QString& aDesignBlockName, const LOCALE_IO* aLocale )
     {
         m_nickname = aNickname;
         m_dbname = aDesignBlockName;
@@ -47,9 +29,8 @@ public:
         load( aLocale );
     }
 
-    // A constructor for cached items
-    DESIGN_BLOCK_INFO_IMPL( const wxString& aNickname, const wxString& aDesignBlockName,
-                            const wxString& aDescription, const wxString& aKeywords, int aOrderNum )
+    DESIGN_BLOCK_INFO_IMPL( const QString& aNickname, const QString& aDesignBlockName,
+                            const QString& aDescription, const QString& aKeywords, int aOrderNum )
     {
         m_nickname = aNickname;
         m_dbname = aDesignBlockName;
@@ -62,8 +43,7 @@ public:
     }
 
 
-    // A dummy constructor for use as a target in a binary search
-    DESIGN_BLOCK_INFO_IMPL( const wxString& aNickname, const wxString& aDesignBlockName )
+    DESIGN_BLOCK_INFO_IMPL( const QString& aNickname, const QString& aDesignBlockName )
     {
         m_nickname = aNickname;
         m_dbname = aDesignBlockName;
@@ -83,22 +63,17 @@ public:
     DESIGN_BLOCK_LIST_IMPL();
     virtual ~DESIGN_BLOCK_LIST_IMPL(){};
 
-    bool ReadDesignBlockFiles( DESIGN_BLOCK_LIB_TABLE* aTable, const wxString* aNickname = nullptr,
+    bool ReadDesignBlockFiles( DESIGN_BLOCK_LIB_TABLE* aTable, const QString* aNickname = nullptr,
                                PROGRESS_REPORTER* aProgressReporter = nullptr ) override;
 
 protected:
     void loadDesignBlocks();
 
 private:
-    /**
-     * Call aFunc, pushing any IO_ERRORs and std::exceptions it throws onto m_errors.
-     *
-     * @return true if no error occurred.
-     */
     bool CatchErrors( const std::function<void()>& aFunc );
 
 private:
-    SYNC_QUEUE<wxString> m_queue;
+    SYNC_QUEUE<QString> m_queue;
     long long            m_list_timestamp;
     PROGRESS_REPORTER*   m_progress_reporter;
     std::atomic_bool     m_cancelled;

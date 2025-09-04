@@ -1,37 +1,15 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef MAP_HELPERS_H_
 #define MAP_HELPERS_H_
 
 #include <optional>
 #include <map>
-#include <wx/string.h>
+#include <QString>
 
 
 template <typename V>
-inline std::optional<V> get_opt( const std::map<wxString, V>& aMap, const wxString& aKey )
+inline std::optional<V> get_opt( const std::map<QString, V>& aMap, const QString& aKey )
 {
     auto it = aMap.find( aKey );
 
@@ -43,9 +21,9 @@ inline std::optional<V> get_opt( const std::map<wxString, V>& aMap, const wxStri
 
 
 template <typename V>
-inline std::optional<V> get_opt( const std::map<wxString, V>& aMap, const char* aKey )
+inline std::optional<V> get_opt( const std::map<QString, V>& aMap, const char* aKey )
 {
-    return get_opt( aMap, wxString::FromUTF8( aKey ) );
+    return get_opt( aMap, QString::fromUtf8( aKey ) );
 }
 
 
@@ -61,14 +39,14 @@ inline std::optional<V> get_opt( const std::map<K, V>& aMap, const K& aKey )
 }
 
 
-inline wxString get_def( const std::map<wxString, wxString>& aMap, const char* aKey,
+inline QString get_def( const std::map<QString, QString>& aMap, const char* aKey,
                          const char* aDefval = "" )
 {
-    typename std::map<wxString, wxString>::const_iterator it =
-            aMap.find( wxString::FromUTF8( aKey ) );
+    typename std::map<QString, QString>::const_iterator it =
+            aMap.find( QString::fromUtf8( aKey ) );
     if( it == aMap.end() )
     {
-        return wxString::FromUTF8( aDefval );
+        return QString::fromUtf8( aDefval );
     }
     else
     {
@@ -77,11 +55,11 @@ inline wxString get_def( const std::map<wxString, wxString>& aMap, const char* a
 }
 
 
-inline wxString get_def( const std::map<wxString, wxString>& aMap, const char* aKey,
-                         const wxString& aDefval = wxString() )
+inline QString get_def( const std::map<QString, QString>& aMap, const char* aKey,
+                         const QString& aDefval = QString() )
 {
-    typename std::map<wxString, wxString>::const_iterator it =
-            aMap.find( wxString::FromUTF8( aKey ) );
+    typename std::map<QString, QString>::const_iterator it =
+            aMap.find( QString::fromUtf8( aKey ) );
     if( it == aMap.end() )
     {
         return aDefval;
@@ -93,10 +71,10 @@ inline wxString get_def( const std::map<wxString, wxString>& aMap, const char* a
 }
 
 
-inline wxString get_def( const std::map<wxString, wxString>& aMap, const wxString& aKey,
-                         const wxString& aDefval = wxString() )
+inline QString get_def( const std::map<QString, QString>& aMap, const QString& aKey,
+                         const QString& aDefval = QString() )
 {
-    typename std::map<wxString, wxString>::const_iterator it = aMap.find( aKey );
+    typename std::map<QString, QString>::const_iterator it = aMap.find( aKey );
     if( it == aMap.end() )
     {
         return aDefval;

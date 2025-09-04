@@ -1,29 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef __CONTEXT_MENU_H
 #define __CONTEXT_MENU_H
@@ -32,8 +6,11 @@
 #include <list>
 #include <functional>
 
-#include <wx/menu.h>
-#include <wx/textentry.h>
+#include <QMenu>
+#include <QAction>
+#include <QString>
+#include <QPoint>
+#include <QHash>
 #include <tool/tool_event.h>
 
 class KIFACE_BASE;
@@ -45,7 +22,7 @@ enum class BITMAPS : unsigned int;
 /**
  * Define the structure of a menu based on ACTIONs.
  */
-class ACTION_MENU : public wxMenu
+class ACTION_MENU : public QMenu
 {
 public:
     /// Default constructor
@@ -62,10 +39,10 @@ public:
      *
      * @param aTitle is the new title.
      */
-    void SetTitle( const wxString& aTitle ) override;
+    void SetTitle( const QString& aTitle );
 
     // Yes, it hides a non-virtual method in the parent class.
-    wxString GetTitle() const { return m_title; }
+    QString GetTitle() const { return m_title; }
 
     /**
      * Decide whether a title for a pop up menu should be displayed.
@@ -80,12 +57,12 @@ public:
     void SetIcon( BITMAPS aIcon );
 
     /**
-     * Add a wxWidgets-style entry to the menu.
+     * Add a Qt-style entry to the menu.
      *
-     * After highlighting/selecting the entry, a wxWidgets event is generated.
+     * After highlighting/selecting the entry, a Qt event is generated.
      */
-    wxMenuItem* Add( const wxString& aLabel, int aId, BITMAPS aIcon );
-    wxMenuItem* Add( const wxString& aLabel, const wxString& aToolTip, int aId,
+    QAction* Add( const QString& aLabel, int aId, BITMAPS aIcon );
+    QAction* Add( const QString& aLabel, const QString& aToolTip, int aId,
                      BITMAPS aIcon,  bool aIsCheckmarkEntry = false );
 
     /**
@@ -98,47 +75,47 @@ public:
      * @param aOverrideLabel is the label to show in the menu (overriding the action's menu text)
      *        when non-empty
      */
-    wxMenuItem* Add( const TOOL_ACTION& aAction, bool aIsCheckmarkEntry = false,
-                     const wxString& aOverrideLabel = wxEmptyString );
+    QAction* Add( const TOOL_ACTION& aAction, bool aIsCheckmarkEntry = false,
+                     const QString& aOverrideLabel = QString() );
 
     /**
      * Add an action menu as a submenu.
      *
-     * The difference between this function and wxMenu::AppendSubMenu() is the capability to
+     * The difference between this function and QMenu::addMenu() is the capability to
      * handle icons.
      *
      * @param aMenu is the submenu to be added. This should be a new instance (use Clone()) if
      *        required as the menu is destructed after use.
      */
-    wxMenuItem* Add( ACTION_MENU* aMenu );
+    QAction* Add( ACTION_MENU* aMenu );
 
     /**
      * Add a standard close item to the menu with the accelerator key CTRL-W.
      *
-     * Emits the wxID_CLOSE event.
+     * Emits the close event.
      *
      * @param aAppname is the application name to append to the tooltip.
      */
-    void AddClose( const wxString& aAppname = "" );
+    void AddClose( const QString& aAppname = "" );
 
     /**
      * Add either a standard Quit or Close item to the menu.
      *
-     * If \a aKiface is NULL or in single-instance then quit (wxID_EXIT) is used, otherwise
-     * close (wxID_CLOSE) is used.
+     * If \a aKiface is NULL or in single-instance then quit action is used, otherwise
+     * close action is used.
      *
      * @param aAppname is the application name to append to the tooltip.
      */
-    void AddQuitOrClose( KIFACE_BASE* aKiface, wxString aAppname = "" );
+    void AddQuitOrClose( KIFACE_BASE* aKiface, QString aAppname = "" );
 
     /**
      * Add a standard Quit item to the menu.
      *
-     * Emits the wxID_EXIT event.
+     * Emits the quit event.
      *
      * @param aAppname is the application name to append to the tooltip.
      */
-    void AddQuit( const wxString& aAppname = "" );
+    void AddQuit( const QString& aAppname = "" );
 
     /**
      * Remove all the entries from the menu (as well as its title).
@@ -192,8 +169,10 @@ public:
      */
     ACTION_MENU* Clone() const;
 
-    void OnMenuEvent( wxMenuEvent& aEvent );
-    void OnIdle( wxIdleEvent& event );
+    void OnMenuEvent( QAction* aAction );
+    void OnIdle();
+    void OnAboutToShow();
+    void OnAboutToHide();
 
     virtual bool PassHelpTextToHandler() { return false; }
 
@@ -220,10 +199,10 @@ protected:
     /**
      * Event handler stub.
      *
-     * It should be used if you want to generate a #TOOL_EVENT from a wxMenuEvent.  It will be
+     * It should be used if you want to generate a #TOOL_EVENT from a QAction.  It will be
      * called when a menu entry is clicked.
      */
-    virtual OPT_TOOL_EVENT eventHandler( const wxMenuEvent& )
+    virtual OPT_TOOL_EVENT eventHandler( QAction* aAction )
     {
         return OPT_TOOL_EVENT();
     }
@@ -237,9 +216,9 @@ protected:
 
 protected:
     /**
-     * Append a copy of wxMenuItem.
+     * Append a copy of QAction.
      */
-    wxMenuItem* appendCopy( const wxMenuItem* aSource );
+    QAction* appendCopy( const QAction* aSource );
 
     /// Initialize handlers for events.
     void setupEvents();
@@ -249,7 +228,7 @@ protected:
 
     /// Traverse the submenus tree looking for a submenu capable of handling a particular menu
     /// event. In case it is handled, it is returned the aToolEvent parameter.
-    void runEventHandlers( const wxMenuEvent& aMenuEvent, OPT_TOOL_EVENT& aToolEvent );
+    void runEventHandlers( QAction* aAction, OPT_TOOL_EVENT& aToolEvent );
 
     /// Run a function on the menu and all its submenus.
     void runOnSubmenus( std::function<void(ACTION_MENU*)> aFunction );
@@ -257,8 +236,14 @@ protected:
     /// Check if any of submenus contains a TOOL_ACTION with a specific ID.
     OPT_TOOL_EVENT findToolAction( int aId );
 
+    /// Helper function to find action by ID
+    QAction* findActionById( int aId ) const;
+
+    /// Helper function to find menu containing action
+    ACTION_MENU* findMenuContaining( QAction* aAction ) const;
+
     bool    m_isForcedPosition;
-    wxPoint m_forcedPosition;
+    QPoint m_forcedPosition;
 
     bool m_dirty;               // Menu requires update before display
 
@@ -266,7 +251,7 @@ protected:
     bool m_isContextMenu;
 
     /// Menu title.
-    wxString m_title;
+    QString m_title;
 
     /// Optional icon.
     BITMAPS m_icon;
@@ -278,7 +263,7 @@ protected:
     TOOL_INTERACTIVE* m_tool;
 
     /// Associates tool actions with menu item IDs. Non-owning.
-    std::map<int, const TOOL_ACTION*> m_toolActions;
+    QHash<int, const TOOL_ACTION*> m_toolActions;
 
     /// List of submenus.
     std::list<ACTION_MENU*> m_submenus;

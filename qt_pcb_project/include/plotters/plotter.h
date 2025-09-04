@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef PLOT_COMMON_H_
 #define PLOT_COMMON_H_
@@ -35,6 +12,9 @@
 #include <stroke_params.h>
 #include <render_settings.h>
 #include <font/font.h>
+#include <QString>
+#include <QStringList>
+#include <QImage>
 
 
 class COLOR_SETTINGS;
@@ -119,7 +99,7 @@ public:
      */
     virtual PLOT_FORMAT GetPlotterType() const = 0;
 
-    virtual bool StartPlot( const wxString& aPageNumber ) = 0;
+    virtual bool StartPlot( const QString& aPageNumber ) = 0;
     virtual bool EndPlot() = 0;
 
     virtual void SetNegative( bool aNegative ) { m_negativeMode = aNegative; }
@@ -154,19 +134,19 @@ public:
 
     virtual void SetDash( int aLineWidth, LINE_STYLE aLineStyle ) = 0;
 
-    virtual void SetCreator( const wxString& aCreator ) { m_creator = aCreator; }
-    virtual void SetTitle( const wxString& aTitle ) { m_title = aTitle; }
-    virtual void SetAuthor( const wxString& aAuthor ) { m_author = aAuthor; }
-    virtual void SetSubject( const wxString& aSubject ) { m_subject = aSubject; }
+    virtual void SetCreator( const QString& aCreator ) { m_creator = aCreator; }
+    virtual void SetTitle( const QString& aTitle ) { m_title = aTitle; }
+    virtual void SetAuthor( const QString& aAuthor ) { m_author = aAuthor; }
+    virtual void SetSubject( const QString& aSubject ) { m_subject = aSubject; }
 
     /**
      * Add a line to the list of free lines to print at the beginning of the file.
      *
      * @param aExtraString is the string to print
      */
-    void AddLineToHeader( const wxString& aExtraString )
+    void AddLineToHeader( const QString& aExtraString )
     {
-        m_headerExtraLines.Add( aExtraString );
+        m_headerExtraLines.append( aExtraString );
     }
 
     /**
@@ -174,7 +154,7 @@ public:
      */
     void ClearHeaderLinesList()
     {
-        m_headerExtraLines.Clear();
+        m_headerExtraLines.clear();
     }
 
     /**
@@ -199,7 +179,7 @@ public:
      * Virtual because some plotters use ascii files, some others binary files (PDF)
      * The base class open the file in text mode
      */
-    virtual bool OpenFile( const wxString& aFullFilename );
+    virtual bool OpenFile( const QString& aFullFilename );
 
     /**
      * The IUs per decimil are an essential scaling factor when
@@ -299,7 +279,7 @@ public:
      * @param aScaleFactor is the scale factor to apply to the bitmap size
      *                      (this is not the plot scale factor).
      */
-    virtual void PlotImage( const wxImage& aImage, const VECTOR2I& aPos, double aScaleFactor );
+    virtual void PlotImage( const QImage& aImage, const VECTOR2I& aPos, double aScaleFactor );
 
     // Higher level primitives -- can be drawn as line, sketch or 'filled'
     virtual void ThickSegment( const VECTOR2I& start, const VECTOR2I& end, int width,
@@ -430,7 +410,7 @@ public:
      */
     virtual void Text( const VECTOR2I&        aPos,
                        const COLOR4D&         aColor,
-                       const wxString&        aText,
+                       const QString&         aText,
                        const EDA_ANGLE&       aOrient,
                        const VECTOR2I&        aSize,
                        enum GR_TEXT_H_ALIGN_T aH_justify,
@@ -445,7 +425,7 @@ public:
 
     virtual void PlotText( const VECTOR2I&        aPos,
                            const COLOR4D&         aColor,
-                           const wxString&        aText,
+                           const QString&         aText,
                            const TEXT_ATTRIBUTES& aAttributes,
                            KIFONT::FONT*          aFont = nullptr,
                            const KIFONT::METRICS& aFontMetrics = KIFONT::METRICS::Default(),
@@ -456,7 +436,7 @@ public:
      * @param aBox is the rectangular click target
      * @param aDestinationURL is the target URL
      */
-    virtual void HyperlinkBox( const BOX2I& aBox, const wxString& aDestinationURL )
+    virtual void HyperlinkBox( const BOX2I& aBox, const QString& aDestinationURL )
     {
         // NOP for most plotters.
     }
@@ -467,7 +447,7 @@ public:
      * @param aBox is the rectangular click target
      * @param aDestURLs is the target URL
      */
-    virtual void HyperlinkMenu( const BOX2I& aBox, const std::vector<wxString>& aDestURLs )
+    virtual void HyperlinkMenu( const BOX2I& aBox, const std::vector<QString>& aDestURLs )
     {
         // NOP for most plotters.
     }
@@ -478,8 +458,8 @@ public:
      * @param aBox is the rectangular click target
      * @param aSymbolReference is the symbol schematic ref
      */
-    virtual void Bookmark( const BOX2I& aBox, const wxString& aName,
-                           const wxString& aGroupName = wxEmptyString )
+    virtual void Bookmark( const BOX2I& aBox, const QString& aName,
+                           const QString& aGroupName = QString() )
     {
         // NOP for most plotters.
     }
@@ -674,15 +654,15 @@ protected:      // variables used in most of plotters:
     char             m_penState;            // current pen state: 'U', 'D' or 'Z' (see PenTo)
     VECTOR2I         m_penLastpos;          // last pen position; -1,-1 when pen is at rest
 
-    wxString         m_creator;
-    wxString         m_filename;
-    wxString         m_title;
-    wxString         m_author;
-    wxString         m_subject;
+    QString         m_creator;
+    QString         m_filename;
+    QString         m_title;
+    QString         m_author;
+    QString         m_subject;
     PAGE_INFO        m_pageInfo;
     VECTOR2I         m_paperSize;           // Paper size in IU - not in mils
 
-    wxArrayString    m_headerExtraLines;    // a set of string to print in header file
+    QStringList     m_headerExtraLines;    // a set of string to print in header file
 
     RENDER_SETTINGS* m_renderSettings;
 
@@ -693,15 +673,15 @@ protected:      // variables used in most of plotters:
 class TITLE_BLOCK;
 
 void PlotDrawingSheet( PLOTTER* plotter, const PROJECT* aProject, const TITLE_BLOCK& aTitleBlock,
-                       const PAGE_INFO& aPageInfo, const std::map<wxString, wxString>*aProperties,
-                       const wxString& aSheetNumber, int aSheetCount, const wxString& aSheetName,
-                       const wxString& aSheetPath, const wxString& aFilename,
+                       const PAGE_INFO& aPageInfo, const std::map<QString, QString>*aProperties,
+                       const QString& aSheetNumber, int aSheetCount, const QString& aSheetName,
+                       const QString& aSheetPath, const QString& aFilename,
                        COLOR4D aColor = COLOR4D::UNSPECIFIED, bool aIsFirstPage = true );
 
 /**
  * Return the default plot extension for a format.
  */
-wxString GetDefaultPlotExtension( PLOT_FORMAT aFormat );
+QString GetDefaultPlotExtension( PLOT_FORMAT aFormat );
 
 
 #endif  // PLOT_COMMON_H_

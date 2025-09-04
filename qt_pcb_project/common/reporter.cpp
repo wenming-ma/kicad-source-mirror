@@ -1,47 +1,14 @@
-/**
- * @file reporter.cpp
- */
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 #include <mutex>
 #include <macros.h>
 #include <reporter.h>
 #include <string_utils.h>
 #include <widgets/wx_infobar.h>
-#include <wx/crt.h>
-#include <wx/log.h>
-#include <wx/textctrl.h>
-#include <wx/statusbr.h>
+#include <QtCore/QDebug>
+#include <QtCore/QLoggingCategory>
+#include <QtWidgets/QTextEdit>
+#include <QtWidgets/QStatusBar>
 
-
-/**
- * Flag to enable reporter debugging output.
- *
- * @ingroup trace_env_vars
- */
-static const wxChar traceReporter[] = wxT( "KICAD_REPORTER" );
+static const QString traceReporter = "KICAD_REPORTER";
 
 static std::mutex g_logReporterMutex;
 
@@ -53,28 +20,30 @@ REPORTER& REPORTER::Report( const char* aText, SEVERITY aSeverity )
 }
 
 
-REPORTER& WX_TEXT_CTRL_REPORTER::Report( const wxString& aText, SEVERITY aSeverity )
+REPORTER& WX_TEXT_CTRL_REPORTER::Report( const QString& aText, SEVERITY aSeverity )
 {
     REPORTER::Report( aText, aSeverity );
 
-    wxCHECK_MSG( m_textCtrl != nullptr, *this,
-                 wxT( "No wxTextCtrl object defined in WX_TEXT_CTRL_REPORTER." ) );
+    if( m_textCtrl == nullptr )
+    {
+        return *this;
+    }
 
-    m_textCtrl->AppendText( aText + wxS( "\n" ) );
+    m_textCtrl->append( aText + "\n" );
     return *this;
 }
 
 
-REPORTER& WX_STRING_REPORTER::Report( const wxString& aText, SEVERITY aSeverity )
+REPORTER& WX_STRING_REPORTER::Report( const QString& aText, SEVERITY aSeverity )
 {
     REPORTER::Report( aText, aSeverity );
 
-    m_string << aText << wxS( "\n" );
+    m_string += aText + "\n";
     return *this;
 }
 
 
-const wxString& WX_STRING_REPORTER::GetMessages() const
+const QString& WX_STRING_REPORTER::GetMessages() const
 {
     return m_string;
 }
@@ -87,7 +56,7 @@ void WX_STRING_REPORTER::Clear()
 }
 
 
-REPORTER& NULL_REPORTER::Report( const wxString& aText, SEVERITY aSeverity )
+REPORTER& NULL_REPORTER::Report( const QString& aText, SEVERITY aSeverity )
 {
     return REPORTER::Report( aText, aSeverity );
 }
@@ -104,7 +73,7 @@ REPORTER& NULL_REPORTER::GetInstance()
 }
 
 
-REPORTER& CLI_REPORTER::Report( const wxString& aMsg, SEVERITY aSeverity )
+REPORTER& CLI_REPORTER::Report( const QString& aMsg, SEVERITY aSeverity )
 {
     REPORTER::Report( aMsg, aSeverity );
 
@@ -113,13 +82,11 @@ REPORTER& CLI_REPORTER::Report( const wxString& aMsg, SEVERITY aSeverity )
     if( aSeverity == RPT_SEVERITY_ERROR )
         target = stderr;
 
-    if( aMsg.EndsWith( wxS( "\n" ) ) )
-        wxFprintf( target, aMsg );
+    if( aMsg.endsWith( "\n" ) )
+        fprintf( target, "%s", aMsg.toUtf8().constData() );
     else
-        wxFprintf( target, aMsg + wxS( "\n" ) );
+        fprintf( target, "%s\n", aMsg.toUtf8().constData() );
 
-    // Needed  after wxPrintf (or printf) to be sure the message is immediately printed
-    // (i.e. not stored in some i/o buffer)
     fflush( target );
 
     return *this;
@@ -134,7 +101,7 @@ REPORTER& CLI_REPORTER::GetInstance()
 }
 
 
-REPORTER& STDOUT_REPORTER::Report( const wxString& aMsg, SEVERITY aSeverity )
+REPORTER& STDOUT_REPORTER::Report( const QString& aMsg, SEVERITY aSeverity )
 {
     REPORTER::Report( aMsg, aSeverity );
 
@@ -150,7 +117,7 @@ REPORTER& STDOUT_REPORTER::Report( const wxString& aMsg, SEVERITY aSeverity )
     case RPT_SEVERITY_IGNORE:    break;
     }
 
-    std::cout << aMsg << std::endl;
+    std::cout << aMsg.toUtf8().constData() << std::endl;
 
     return *this;
 }
@@ -167,20 +134,20 @@ REPORTER& STDOUT_REPORTER::GetInstance()
 }
 
 
-REPORTER& WXLOG_REPORTER::Report( const wxString& aMsg, SEVERITY aSeverity )
+REPORTER& WXLOG_REPORTER::Report( const QString& aMsg, SEVERITY aSeverity )
 {
     REPORTER::Report( aMsg, aSeverity );
 
     switch( aSeverity )
     {
-    case RPT_SEVERITY_ERROR:     wxLogError( aMsg );                  break;
-    case RPT_SEVERITY_WARNING:   wxLogWarning( aMsg );                break;
-    case RPT_SEVERITY_UNDEFINED: wxLogMessage( aMsg );                break;
-    case RPT_SEVERITY_INFO:      wxLogInfo( aMsg );                   break;
-    case RPT_SEVERITY_ACTION:    wxLogInfo( aMsg );                   break;
-    case RPT_SEVERITY_DEBUG:     wxLogTrace( traceReporter, aMsg );   break;
-    case RPT_SEVERITY_EXCLUSION:                                      break;
-    case RPT_SEVERITY_IGNORE:                                         break;
+    case RPT_SEVERITY_ERROR:     qCritical() << aMsg;                  break;
+    case RPT_SEVERITY_WARNING:   qWarning() << aMsg;                   break;
+    case RPT_SEVERITY_UNDEFINED: qInfo() << aMsg;                      break;
+    case RPT_SEVERITY_INFO:      qInfo() << aMsg;                      break;
+    case RPT_SEVERITY_ACTION:    qInfo() << aMsg;                      break;
+    case RPT_SEVERITY_DEBUG:     qDebug().noquote() << traceReporter << aMsg; break;
+    case RPT_SEVERITY_EXCLUSION:                                       break;
+    case RPT_SEVERITY_IGNORE:                                          break;
     }
 
     return *this;
@@ -199,7 +166,7 @@ REPORTER& WXLOG_REPORTER::GetInstance()
 }
 
 
-REPORTER& REDIRECT_REPORTER::Report( const wxString& aText, SEVERITY aSeverity )
+REPORTER& REDIRECT_REPORTER::Report( const QString& aText, SEVERITY aSeverity )
 {
     REPORTER::Report( aText, aSeverity );
 
@@ -210,12 +177,12 @@ REPORTER& REDIRECT_REPORTER::Report( const wxString& aText, SEVERITY aSeverity )
 }
 
 
-REPORTER& STATUSBAR_REPORTER::Report( const wxString& aText, SEVERITY aSeverity )
+REPORTER& STATUSBAR_REPORTER::Report( const QString& aText, SEVERITY aSeverity )
 {
     REPORTER::Report( aText, aSeverity );
 
     if( m_statusBar )
-        m_statusBar->SetStatusText( aText, m_position );
+        m_statusBar->showMessage( aText );
 
     return *this;
 }

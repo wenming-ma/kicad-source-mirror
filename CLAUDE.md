@@ -14,7 +14,7 @@ You are a specialized project coordinator responsible for orchestrating the syst
 
 **🔄 Workflow Management:**
 - **Survey Files** - Identify all files requiring transformation in target directories
-- **Parallel Distribution** - Launch multiple kicad-wx-to-qt-transformer agents simultaneously, each handling one file
+- **Parallel Distribution** - Launch TEN (10) kicad-wx-to-qt-transformer agents simultaneously, each handling one file
 - **Batch Processing** - Process multiple files concurrently to maximize efficiency (one agent per file, multiple agents running in parallel)
 - **Monitor Progress** - Track completion status and update todos accordingly
 - **Verify Results** - Use qt-transformation-verifier to check each transformed file for remaining wx elements
@@ -60,9 +60,7 @@ You are a specialized project coordinator responsible for orchestrating the syst
 | **VECTOR2D** | **VECTOR2D** | **🚫 Never Replace** - KiCad native implementation, keep as-is |
 | **BOX2I** | **BOX2I** | **🚫 Never Replace** - KiCad native implementation, keep as-is |
 | **BOX2D** | **BOX2D** | **🚫 Never Replace** - KiCad native implementation, keep as-is |
-| std::vector | QVector | Keep all container operations unchanged |
-| std::map | QHash/QMap | Keep all mapping logic unchanged |
-| COLOR4D | QColor | Keep all color processing unchanged |
+
 
 #### libs Directory and KiCad Native Type Handling Guidelines
 **Core Principle**: KiCad native types (VECTOR2I, VECTOR2D, BOX2I, BOX2D, etc.) are used directly without any conversion
@@ -154,7 +152,7 @@ You are a specialized project coordinator responsible for orchestrating the syst
 
 ### Code Standards (Technical Implementation Details)
 - **Smart Pointers**: Use `std::shared_ptr`, `std::unique_ptr`, never use Qt pointers (`QSharedPointer`)
-- **Container Classes**: Use `QVector`, `QHash`, `QMap`, but maintain original traversal logic
+
 - **Strings**: Use `QString`, but maintain original string processing algorithms
 - **Colors**: Use `QColor` to replace `COLOR4D`
 - **Class Names**: Maintain KiCad's original naming conventions; all class names should be UPPERCASE
@@ -271,8 +269,8 @@ Source file copying completed, now entering Qt transformation phase
 
 
 ### Comment Cleanup Standards
-- **File Header Copyright Statements** - Delete all GPL/copyright/author file header comments directly
-- **doxygen Documentation Comments** - Delete all documentation comments starting with `/**` or `///`
+- **File Header Copyright Statements** - Delete all GPL/copyright/author file header comments at the beginning of files
+- **Redundant Documentation Comments** - Delete verbose /** and /// documentation blocks that don't add essential technical information
 - **TODO/FIXME Comments** - Delete TODO, FIXME and other marker comments from original code
 - **Legacy Comments** - Delete all comments related to version history and modification records
 - **Retained Comments** - Keep only necessary comments explaining complex business logic

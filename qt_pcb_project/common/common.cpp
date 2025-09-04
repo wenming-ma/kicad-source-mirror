@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2014-2020 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <eda_base_frame.h>
 #include <kiplatform/app.h>
@@ -31,13 +7,13 @@
 #include <reporter.h>
 #include <macros.h>
 #include <mutex>
-#include <wx/config.h>
-#include <wx/log.h>
-#include <wx/msgdlg.h>
-#include <wx/stdpaths.h>
-#include <wx/url.h>
-#include <wx/utils.h>
-#include <wx/regex.h>
+#include <QSettings>
+#include <QMessageBox>
+#include <QStandardPaths>
+#include <QUrl>
+#include <QRegularExpression>
+#include <QDir>
+#include <QDateTime>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -56,10 +32,10 @@ enum Bracket
 };
 
 
-wxString ExpandTextVars( const wxString& aSource, const PROJECT* aProject, int aFlags )
+QString ExpandTextVars( const QString& aSource, const PROJECT* aProject, int aFlags )
 {
-    std::function<bool( wxString* )> projectResolver =
-            [&]( wxString* token ) -> bool
+    std::function<bool( QString* )> projectResolver =
+            [&]( QString* token ) -> bool
             {
                 return aProject->TextVarResolver( token );
             };
@@ -68,19 +44,19 @@ wxString ExpandTextVars( const wxString& aSource, const PROJECT* aProject, int a
 }
 
 
-wxString ExpandTextVars( const wxString& aSource,
-                         const std::function<bool( wxString* )>* aResolver, int aFlags )
+QString ExpandTextVars( const QString& aSource,
+                         const std::function<bool( QString* )>* aResolver, int aFlags )
 {
-    wxString newbuf;
+    QString newbuf;
     size_t   sourceLen = aSource.length();
 
-    newbuf.Alloc( sourceLen );  // best guess (improves performance)
+    newbuf.reserve( sourceLen );  // best guess (improves performance)
 
     for( size_t i = 0; i < sourceLen; ++i )
     {
         if( aSource[i] == '$' && i + 1 < sourceLen && aSource[i+1] == '{' )
         {
-            wxString token;
+            QString token;
 
             for( i = i + 2; i < sourceLen; ++i )
             {
@@ -90,13 +66,13 @@ wxString ExpandTextVars( const wxString& aSource,
                     token.append( aSource[i] );
             }
 
-            if( token.IsEmpty() )
+            if( token.isEmpty() )
                 continue;
 
-            if( ( aFlags & FOR_ERC_DRC ) == 0 && (   token.StartsWith( wxS( "ERC_WARNING" ) )
-                                                  || token.StartsWith( wxS( "ERC_ERROR" ) )
-                                                  || token.StartsWith( wxS( "DRC_WARNING" ) )
-                                                  || token.StartsWith( wxS( "DRC_ERROR" ) ) ) )
+            if( ( aFlags & FOR_ERC_DRC ) == 0 && (   token.startsWith( "ERC_WARNING" )
+                                                  || token.startsWith( "ERC_ERROR" )
+                                                  || token.startsWith( "DRC_WARNING" )
+                                                  || token.startsWith( "DRC_ERROR" ) ) )
             {
                 // Only show user-defined warnings/errors during ERC/DRC
             }
@@ -120,10 +96,10 @@ wxString ExpandTextVars( const wxString& aSource,
 }
 
 
-wxString GetGeneratedFieldDisplayName( const wxString& aSource )
+QString GetGeneratedFieldDisplayName( const QString& aSource )
 {
-    std::function<bool( wxString* )> tokenExtractor =
-            [&]( wxString* token ) -> bool
+    std::function<bool( QString* )> tokenExtractor =
+            [&]( QString* token ) -> bool
             {
                 *token = *token;    // token value is the token name
                 return true;
@@ -133,18 +109,16 @@ wxString GetGeneratedFieldDisplayName( const wxString& aSource )
 }
 
 
-bool IsGeneratedField( const wxString& aSource )
+bool IsGeneratedField( const QString& aSource )
 {
-    static wxRegEx expr( wxS( "^\\$\\{\\w*\\}$" ) );
-    return expr.Matches( aSource );
+    static QRegularExpression expr( "^\\$\\{\\w*\\}$" );
+    return expr.match( aSource ).hasMatch();
 }
 
 
-//
-// Stolen from wxExpandEnvVars and then heavily optimized
-//
-wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject,
-                            std::set<wxString>* aSet = nullptr )
+// Environment variable expansion function
+QString KIExpandEnvVars( const QString& str, const PROJECT* aProject,
+                            std::set<QString>* aSet = nullptr )
 {
     // If the same string is inserted twice, we have a loop
     if( aSet )
@@ -155,17 +129,17 @@ wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject,
 
     size_t strlen = str.length();
 
-    wxString strResult;
-    strResult.Alloc( strlen );  // best guess (improves performance)
+    QString strResult;
+    strResult.reserve( strlen );  // best guess (improves performance)
 
     auto getVersionedEnvVar =
-            []( const wxString& aMatch, wxString& aResult ) -> bool
+            []( const QString& aMatch, QString& aResult ) -> bool
             {
-                for ( const wxString& var : ENV_VAR::GetPredefinedEnvVars() )
+                for ( const QString& var : ENV_VAR::GetPredefinedEnvVars() )
                 {
-                    if( var.Matches( aMatch ) )
+                    if( var.contains( aMatch ) )
                     {
-                        const auto value = ENV_VAR::GetEnvVar<wxString>( var );
+                        const auto value = ENV_VAR::GetEnvVar<QString>( var );
 
                         if( !value )
                             continue;
@@ -180,18 +154,18 @@ wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject,
 
     for( size_t n = 0; n < strlen; n++ )
     {
-        wxUniChar str_n = str[n];
+        QChar str_n = str[n];
 
-        switch( str_n.GetValue() )
+        switch( str_n.unicode() )
         {
 #ifdef __WINDOWS__
-        case wxT( '%' ):
+        case '%':
 #endif // __WINDOWS__
-        case wxT( '$' ):
+        case '$':
         {
             Bracket bracket;
 #ifdef __WINDOWS__
-            if( str_n == wxT( '%' ) )
+            if( str_n == '%' )
             {
                 bracket = Bracket_Windows;
             }
@@ -203,14 +177,14 @@ wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject,
             }
             else
             {
-                switch( str[n + 1].GetValue() )
+                switch( str[n + 1].unicode() )
                 {
-                case wxT( '(' ):
+                case '(':
                     bracket = Bracket_Normal;
                     str_n = str[++n];                   // skip the bracket
                     break;
 
-                case wxT( '{' ):
+                case '{':
                     bracket = Bracket_Curly;
                     str_n = str[++n];                   // skip the bracket
                     break;
@@ -225,9 +199,9 @@ wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject,
             if( m >= strlen )
                 break;
 
-            wxUniChar str_m = str[m];
+            QChar str_m = str[m];
 
-            while( wxIsalnum( str_m ) || str_m == wxT( '_' ) || str_m == wxT( ':' ) )
+            while( str_m.isLetterOrNumber() || str_m == '_' || str_m == ':' )
             {
                 if( ++m == strlen )
                 {
@@ -238,19 +212,17 @@ wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject,
                 str_m = str[m];
             }
 
-            wxString strVarName( str.c_str() + n + 1, m - n - 1 );
+            QString strVarName = str.mid( n + 1, m - n - 1 );
 
-            // NB: use wxGetEnv instead of wxGetenv as otherwise variables
-            //     set through wxSetEnv may not be read correctly!
             bool expanded = false;
-            wxString tmp = strVarName;
+            QString tmp = strVarName;
 
             if( aProject && aProject->TextVarResolver( &tmp ) )
             {
                 strResult += tmp;
                 expanded = true;
             }
-            else if( wxGetEnv( strVarName, &tmp ) )
+            else if( !(tmp = qgetenv( strVarName.toLatin1() )).isEmpty() )
             {
                 strResult += tmp;
                 expanded = true;
@@ -259,23 +231,23 @@ wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject,
             // If the user has the older location defined, that will be matched
             // first above.  But if they do not, this will ensure that their board still
             // displays correctly
-            else if( strVarName.Contains( "KISYS3DMOD")
-                   || strVarName.Matches( "KICAD*_3DMODEL_DIR" ) )
+            else if( strVarName.contains( "KISYS3DMOD")
+                   || strVarName.contains( "KICAD*_3DMODEL_DIR" ) )
             {
                 if( getVersionedEnvVar( "KICAD*_3DMODEL_DIR", strResult ) )
                     expanded = true;
             }
-            else if( strVarName.Matches( "KICAD*_SYMBOL_DIR" ) )
+            else if( strVarName.contains( "KICAD*_SYMBOL_DIR" ) )
             {
                 if( getVersionedEnvVar( "KICAD*_SYMBOL_DIR", strResult ) )
                     expanded = true;
             }
-            else if( strVarName.Matches( "KICAD*_FOOTPRINT_DIR" ) )
+            else if( strVarName.contains( "KICAD*_FOOTPRINT_DIR" ) )
             {
                 if( getVersionedEnvVar( "KICAD*_FOOTPRINT_DIR", strResult ) )
                     expanded = true;
             }
-            else if( strVarName.Matches( "KICAD*_3RD_PARTY" ) )
+            else if( strVarName.contains( "KICAD*_3RD_PARTY" ) )
             {
                 if( getVersionedEnvVar( "KICAD*_3RD_PARTY", strResult ) )
                     expanded = true;
@@ -295,7 +267,7 @@ wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject,
             // check the closing bracket
             if( bracket != Bracket_None )
             {
-                if( m == strlen || str_m != (wxChar)bracket )
+                if( m == strlen || str_m != (QChar)bracket )
                 {
                     // under MSW it's common to have '%' characters in the registry
                     // and it's annoying to have warnings about them each time, so
@@ -304,16 +276,15 @@ wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject,
                     // under Unix, OTOH, this warning could be useful for the user to
                     // understand why isn't the variable expanded as intended
 #ifndef __WINDOWS__
-                    wxLogWarning( _( "Environment variables expansion failed: missing '%c' "
-                                     "at position %u in '%s'." ),
-                                  (char)bracket, (unsigned int) (m + 1), str.c_str() );
+                    qWarning( "Environment variables expansion failed: missing '%c' at position %u in '%s'.",
+                                  (char)bracket, (unsigned int) (m + 1), str.toLatin1().data() );
 #endif // __WINDOWS__
                 }
                 else
                 {
                     // skip closing bracket unless the variables wasn't expanded
                     if( !expanded )
-                        strResult << (wxChar)bracket;
+                        strResult += (QChar)bracket;
 
                     m++;
                 }
@@ -324,9 +295,9 @@ wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject,
         }
             break;
 
-        case wxT( '\\' ):
+        case '\\':
             // backslash can be used to suppress special meaning of % and $
-            if( n < strlen - 1 && (str[n + 1] == wxT( '%' ) || str[n + 1] == wxT( '$' ) ) )
+            if( n < strlen - 1 && (str[n + 1] == '%' || str[n + 1] == '$' ) )
             {
                 str_n = str[++n];
                 strResult += str_n;
@@ -341,54 +312,52 @@ wxString KIwxExpandEnvVars( const wxString& str, const PROJECT* aProject,
         }
     }
 
-    std::set<wxString> loop_check;
-    auto first_pos = strResult.find_first_of( wxS( "{(%" ) );
-    auto last_pos = strResult.find_last_of( wxS( "})%" ) );
+    std::set<QString> loop_check;
+    auto first_pos = strResult.indexOf( QRegularExpression( "[{(%]" ) );
+    auto last_pos = strResult.lastIndexOf( QRegularExpression( "[})%]" ) );
 
-    if( first_pos != strResult.npos && last_pos != strResult.npos && first_pos != last_pos )
-        strResult = KIwxExpandEnvVars( strResult, aProject, aSet ? aSet : &loop_check );
+    if( first_pos != -1 && last_pos != -1 && first_pos != last_pos )
+        strResult = KIExpandEnvVars( strResult, aProject, aSet ? aSet : &loop_check );
 
     return strResult;
 }
 
 
-const wxString ExpandEnvVarSubstitutions( const wxString& aString, const PROJECT* aProject )
+const QString ExpandEnvVarSubstitutions( const QString& aString, const PROJECT* aProject )
 {
-    // wxGetenv( wchar_t* ) is not re-entrant on linux.
-    // Put a lock on multithreaded use of wxGetenv( wchar_t* ), called from wxEpandEnvVars(),
+    // qgetenv is thread-safe, but maintain lock for consistency
     static std::mutex getenv_mutex;
 
     std::lock_guard<std::mutex> lock( getenv_mutex );
 
     // We reserve the right to do this another way, by providing our own member function.
-    return KIwxExpandEnvVars( aString, aProject );
+    return KIExpandEnvVars( aString, aProject );
 }
 
 
-const wxString ResolveUriByEnvVars( const wxString& aUri, const PROJECT* aProject )
+const QString ResolveUriByEnvVars( const QString& aUri, const PROJECT* aProject )
 {
-    wxString uri = ExpandTextVars( aUri, aProject );
+    QString uri = ExpandTextVars( aUri, aProject );
 
     return ExpandEnvVarSubstitutions( uri, aProject );
 }
 
 
-bool EnsureFileDirectoryExists( wxFileName*     aTargetFullFileName,
-                                const wxString& aBaseFilename,
+bool EnsureFileDirectoryExists( QFileInfo*      aTargetFullFileName,
+                                const QString&  aBaseFilename,
                                 REPORTER*       aReporter )
 {
-    wxString msg;
-    wxString baseFilePath = wxFileName( aBaseFilename ).GetPath();
+    QString msg;
+    QString baseFilePath = QFileInfo( aBaseFilename ).absolutePath();
 
-    // make aTargetFullFileName path, which is relative to aBaseFilename path (if it is not
-    // already an absolute path) absolute:
-    if( !aTargetFullFileName->MakeAbsolute( baseFilePath ) )
+    // make aTargetFullFileName path absolute if it's not already
+    if( !aTargetFullFileName->isAbsolute() )
     {
         if( aReporter )
         {
-            msg.Printf( _( "Cannot make path '%s' absolute with respect to '%s'." ),
-                        aTargetFullFileName->GetPath(),
-                        baseFilePath );
+            msg = QString( "Cannot make path '%1' absolute with respect to '%2'." )
+                        .arg( aTargetFullFileName->absolutePath() )
+                        .arg( baseFilePath );
             aReporter->Report( msg, RPT_SEVERITY_ERROR );
         }
 
@@ -396,16 +365,16 @@ bool EnsureFileDirectoryExists( wxFileName*     aTargetFullFileName,
     }
 
     // Ensure the path of aTargetFullFileName exists, and create it if needed:
-    wxString outputPath( aTargetFullFileName->GetPath() );
+    QString outputPath( aTargetFullFileName->absolutePath() );
 
-    if( !wxFileName::DirExists( outputPath ) )
+    if( !QDir( outputPath ).exists() )
     {
         // Make every directory provided when the provided path doesn't exist
-        if( wxFileName::Mkdir( outputPath, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL ) )
+        if( QDir().mkpath( outputPath ) )
         {
             if( aReporter )
             {
-                msg.Printf( _( "Output directory '%s' created." ), outputPath );
+                msg = QString( "Output directory '%1' created." ).arg( outputPath );
                 aReporter->Report( msg, RPT_SEVERITY_INFO );
                 return true;
             }
@@ -414,7 +383,7 @@ bool EnsureFileDirectoryExists( wxFileName*     aTargetFullFileName,
         {
             if( aReporter )
             {
-                msg.Printf( _( "Cannot create output directory '%s'." ), outputPath );
+                msg = QString( "Cannot create output directory '%1'." ).arg( outputPath );
                 aReporter->Report( msg, RPT_SEVERITY_ERROR );
             }
 
@@ -426,44 +395,31 @@ bool EnsureFileDirectoryExists( wxFileName*     aTargetFullFileName,
 }
 
 
-wxString EnsureFileExtension( const wxString& aFilename, const wxString& aExtension )
+QString EnsureFileExtension( const QString& aFilename, const QString& aExtension )
 {
-    wxString newFilename( aFilename );
+    QString newFilename( aFilename );
 
     // It's annoying to throw up nag dialogs when the extension isn't right.  Just fix it,
     // but be careful not to destroy existing after-dot-text that isn't actually a bad
     // extension, such as "Schematic_1.1".
-    if( newFilename.Lower().AfterLast( '.' ) != aExtension )
+    QString currentExt = newFilename.section( '.', -1 ).toLower();
+    if( currentExt != aExtension )
     {
-        if( !newFilename.EndsWith( '.' ) )
-            newFilename.Append( '.' );
+        if( !newFilename.endsWith( '.' ) )
+            newFilename.append( '.' );
 
-        newFilename.Append( aExtension );
+        newFilename.append( aExtension );
     }
 
     return newFilename;
 }
 
 
-/**
- * Performance enhancements to file and directory operations.
- *
- * Note: while it's annoying to have to make copies of wxWidgets stuff and then
- * add platform-specific performance optimizations, the following routines offer
- * SIGNIFICANT performance benefits.
- */
-
-/**
- * A copy of wxMatchWild(), which wxWidgets attributes to Douglas A. Lewis
- * <dalewis@cs.Buffalo.EDU> and ircII's reg.c.
- *
- * This version is modified to skip any encoding conversions (for performance).
- */
 bool matchWild( const char* pat, const char* text, bool dot_special )
 {
     if( !*text )
     {
-        /* Match if both are empty. */
+        // Match if both are empty.
         return !*pat;
     }
 
@@ -477,8 +433,7 @@ bool matchWild( const char* pat, const char* text, bool dot_special )
 
     if( dot_special && (*n == '.') )
     {
-        /* Never match so that hidden Unix files
-         * are never found. */
+        // Never match so that hidden Unix files are never found.
         return false;
     }
 
@@ -504,18 +459,16 @@ bool matchWild( const char* pat, const char* text, bool dot_special )
             {
                 m++;
 
-                /* Quoting "nothing" is a bad thing */
+                // Quoting "nothing" is a bad thing
                 if( !*m )
                     return false;
             }
 
             if( !*m )
             {
-                /*
-                * If we are out of both strings or we just
-                * saw a wildcard, then we can say we have a
-                * match
-                */
+                // If we are out of both strings or we just
+                // saw a wildcard, then we can say we have a
+                // match
                 if( !*n )
                     return true;
 
@@ -526,13 +479,11 @@ bool matchWild( const char* pat, const char* text, bool dot_special )
                 goto not_matched;
             }
 
-            /*
-            * We could check for *n == NULL at this point, but
-            * since it's more common to have a character there,
-            * check to see if they match first (m and n) and
-            * then if they don't match, THEN we can check for
-            * the NULL of n
-            */
+            // We could check for *n == NULL at this point, but
+            // since it's more common to have a character there,
+            // check to see if they match first (m and n) and
+            // then if they don't match, THEN we can check for
+            // the NULL of n
             just = 0;
 
             if( *m == *n )
@@ -545,12 +496,10 @@ bool matchWild( const char* pat, const char* text, bool dot_special )
             {
                 not_matched:
 
-                /*
-                 * If there are no more characters in the
-                 * string, but we still need to find another
-                 * character (*m != NULL), then it will be
-                 * impossible to match it
-                 */
+                // If there are no more characters in the
+                // string, but we still need to find another
+                // character (*m != NULL), then it will be
+                // impossible to match it
                 if( !*n )
                     return false;
 
@@ -568,54 +517,40 @@ bool matchWild( const char* pat, const char* text, bool dot_special )
 }
 
 
-/**
- * A copy of ConvertFileTimeToWx() because wxWidgets left it as a static function
- * private to src/common/filename.cpp.
- */
-#if wxUSE_DATETIME && defined( __WIN32__ ) && !defined( __WXMICROWIN__ )
+#if defined( __WIN32__ )
 
-// Convert between wxDateTime and FILETIME which is a 64-bit value representing
+// Convert between QDateTime and FILETIME which is a 64-bit value representing
 // the number of 100-nanosecond intervals since January 1, 1601 UTC.
 //
-// This is the offset between FILETIME epoch and the Unix/wxDateTime Epoch.
-static wxInt64 EPOCH_OFFSET_IN_MSEC = wxLL( 11644473600000 );
+// This is the offset between FILETIME epoch and the Unix/Qt Epoch.
+static qint64 EPOCH_OFFSET_IN_MSEC = 11644473600000LL;
 
 
-static void ConvertFileTimeToWx( wxDateTime* dt, const FILETIME& ft )
+static void ConvertFileTimeToQt( QDateTime* dt, const FILETIME& ft )
 {
-    wxLongLong t( ft.dwHighDateTime, ft.dwLowDateTime );
+    qint64 t = ((qint64)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
     t /= 10000; // Convert hundreds of nanoseconds to milliseconds.
     t -= EPOCH_OFFSET_IN_MSEC;
 
-    *dt = wxDateTime( t );
+    *dt = QDateTime::fromMSecsSinceEpoch( t );
 }
 
-#endif // wxUSE_DATETIME && __WIN32__
+#endif // __WIN32__
 
 
-/**
- * This routine offers SIGNIFICANT performance benefits over using wxWidgets to gather
- * timestamps from matching files in a directory.
- *
- * @param aDirPath is the directory to search.
- * @param aFilespec is a (wildcarded) file spec to match against.
- * @return a hash of the last-mod-dates of all matching files in the directory.
- */
-long long TimestampDir( const wxString& aDirPath, const wxString& aFilespec )
+long long TimestampDir( const QString& aDirPath, const QString& aFilespec )
 {
     long long timestamp = 0;
 
 #if defined( __WIN32__ )
     // Win32 version.
-    // Save time by not searching for each path twice: once in wxDir.GetNext() and once in
-    // wxFileName.GetModificationTime().  Also cuts out wxWidgets' string-matching and case
-    // conversion by staying on the MSW side of things.
-    std::wstring filespec( aDirPath.t_str() );
-    filespec += '\\';
-    filespec += aFilespec.t_str();
+    // Save time by not searching for each path twice
+    std::wstring filespec( aDirPath.toStdWString() );
+    filespec += L'\\';
+    filespec += aFilespec.toStdWString();
 
     WIN32_FIND_DATA findData;
-    wxDateTime      lastModDate;
+    QDateTime       lastModDate;
 
     HANDLE fileHandle = ::FindFirstFile( filespec.data(), &findData );
 
@@ -623,8 +558,8 @@ long long TimestampDir( const wxString& aDirPath, const wxString& aFilespec )
     {
         do
         {
-            ConvertFileTimeToWx( &lastModDate, findData.ftLastWriteTime );
-            timestamp += lastModDate.GetValue().GetValue();
+            ConvertFileTimeToQt( &lastModDate, findData.ftLastWriteTime );
+            timestamp += lastModDate.toMSecsSinceEpoch();
 
             // Get the file size (partial) as well to check for sneaky changes.
             timestamp += findData.nFileSizeLow;
@@ -636,8 +571,8 @@ long long TimestampDir( const wxString& aDirPath, const wxString& aFilespec )
 #else
     // POSIX version.
     // Save time by not converting between encodings -- do everything on the file-system side.
-    std::string filespec( aFilespec.fn_str() );
-    std::string dir_path( aDirPath.fn_str() );
+    std::string filespec( aFilespec.toStdString() );
+    std::string dir_path( aDirPath.toStdString() );
 
     DIR* dir = opendir( dir_path.c_str() );
 
@@ -651,10 +586,10 @@ long long TimestampDir( const wxString& aDirPath, const wxString& aFilespec )
             std::string entry_path = dir_path + '/' + dir_entry->d_name;
             struct stat entry_stat;
 
-            if( wxCRT_Lstat( entry_path.c_str(), &entry_stat ) == 0 )
+            if( lstat( entry_path.c_str(), &entry_stat ) == 0 )
             {
                 // Timestamp the source file, not the symlink
-                if( S_ISLNK( entry_stat.st_mode ) )    // wxFILE_EXISTS_SYMLINK
+                if( S_ISLNK( entry_stat.st_mode ) )    // Symbolic link
                 {
                     char buffer[ PATH_MAX + 1 ];
                     ssize_t pathLen = readlink( entry_path.c_str(), buffer, PATH_MAX );
@@ -665,7 +600,7 @@ long long TimestampDir( const wxString& aDirPath, const wxString& aFilespec )
                         buffer[ pathLen ] = '\0';
                         entry_path = dir_path + buffer;
 
-                        if( wxCRT_Lstat( entry_path.c_str(), &linked_stat ) == 0 )
+                        if( lstat( entry_path.c_str(), &linked_stat ) == 0 )
                         {
                             entry_stat = linked_stat;
                         }
@@ -677,7 +612,7 @@ long long TimestampDir( const wxString& aDirPath, const wxString& aFilespec )
                     }
                 }
 
-                if( S_ISREG( entry_stat.st_mode ) )    // wxFileExists()
+                if( S_ISREG( entry_stat.st_mode ) )    // Regular file
                 {
                     timestamp += entry_stat.st_mtime * 1000;
 
@@ -705,14 +640,9 @@ bool WarnUserIfOperatingSystemUnsupported()
     if( !KIPLATFORM::APP::IsOperatingSystemUnsupported() )
         return false;
 
-    wxMessageDialog dialog( nullptr, _( "This operating system is not supported "
-                                        "by KiCad and its dependencies." ),
-                            _( "Unsupported Operating System" ),
-                            wxOK | wxICON_EXCLAMATION );
-
-    dialog.SetExtendedMessage( _( "Any issues with KiCad on this system cannot "
-                                  "be reported to the official bugtracker." ) );
-    dialog.ShowModal();
+    QMessageBox::warning( nullptr, "Unsupported Operating System",
+                         "This operating system is not supported by KiCad and its dependencies.\n\n"
+                         "Any issues with KiCad on this system cannot be reported to the official bugtracker." );
 
     return true;
 }

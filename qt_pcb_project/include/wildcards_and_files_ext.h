@@ -1,33 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2007-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-/**
- * @file wildcards_and_files_ext.h
- * Definition of file extensions used in Kicad.
- */
 
 #ifndef INCLUDE_WILDCARDS_AND_FILES_EXT_H_
 #define INCLUDE_WILDCARDS_AND_FILES_EXT_H_
@@ -35,66 +5,34 @@
 #include <kicommon.h>
 #include <string>
 #include <vector>
-#include <wx/string.h>
+#include <QString>
 
-/**
- * Compare the given extension against the reference extensions to see if it matches any
- * of the reference extensions.
- *
- * This function uses the C++ regular expression functionality to perform the comparison,
- * so the reference extensions can be regular expressions of their own right. This means
- * that partial searches can be made, for example ^g.* can be used to see if the first
- * character of the extension is g. The reference extensions are concatenated together
- * as alternatives when doing the evaluation (e.g. (dxf|svg|^g.*) ).
- *
- * @param aExtension is the extension to test
- * @param aReference is a vector containing the extensions to test against
- * @param aCaseSensitive says if the comparison should be case sensitive or not
- *
- * @return if the extension matches any reference extensions
- */
+// Compare extension against reference extensions to see if it matches any
+// Uses C++ regular expression functionality for comparison
+// Reference extensions can be regular expressions themselves
+// For example ^g.* can be used to see if first character is g
+// Reference extensions are concatenated as alternatives (e.g. (dxf|svg|^g.*))
+// Returns if the extension matches any reference extensions
 KICOMMON_API bool compareFileExtensions( const std::string&              aExtension,
                                          const std::vector<std::string>& aReference, bool aCaseSensitive = false );
 
-/**
- * Build the wildcard extension file dialog wildcard filter to add to the base message dialog.
- *
- * For instance, to open .txt files in a file dialog:
- * the base message is for instance "Text files"
- * the ext list is " (*.txt)|*.txt"
- * and the returned string to add to the base message is " (*.txt)|*.txt"
- * the message to display in the dialog is  "Text files (*.txt)|*.txt"
- *
- * This function produces a case-insensitive filter (so .txt, .TXT and .tXT
- * are all match if you pass "txt" into the function).
- *
- * @param aExts is the list of exts to add to the filter. Do not include the
- * leading dot. Empty means "allow all files".
- *
- * @return the appropriate file dialog wildcard filter list.
- */
+// Build wildcard extension file dialog filter to add to base message dialog
+// For opening .txt files: base message "Text files", ext list " (*.txt)|*.txt"
+// Returned string is " (*.txt)|*.txt", final dialog message is "Text files (*.txt)|*.txt"
+// Produces case-insensitive filter (.txt, .TXT and .tXT all match)
+// Empty aExts means "allow all files"
 
-KICOMMON_API wxString AddFileExtListToFilter( const std::vector<std::string>& aExts );
+KICOMMON_API QString AddFileExtListToFilter( const std::vector<std::string>& aExts );
 
-/**
- * Format wildcard extension to support case sensitive file dialogs.
- *
- * The file extension wildcards of the GTK+ file dialog are case sensitive so using all lower
- * case characters means that only file extensions that are all lower case will show up in the
- * file dialog.  The GTK+ file dialog does support regular expressions so the file extension
- * is converted to a regular expression ( sch -> [sS][cC][hH] ) when wxWidgets is built against
- * GTK+.  Please make sure you call this function when adding new file wildcards.
- *
- * @note When calling wxFileDialog with a default file defined, make sure you include the
- *       file extension along with the file name.  Otherwise, on GTK+ builds, the file
- *       dialog will append the wildcard regular expression as the file extension which is
- *       surely not what you want.
- *
- * @param aWildcard is the extension part of the wild card.
- *
- * @return the build appropriate file dialog wildcard filter.
- */
-KICOMMON_API wxString formatWildcardExt( const wxString& aWildcard );
+// Format wildcard extension to support case sensitive file dialogs
+// GTK+ file dialog wildcards are case sensitive, so all lower case means
+// only lower case extensions show up in dialog
+// GTK+ supports regular expressions, so extension is converted to regex
+// (sch -> [sS][cC][hH]) when Qt is built against GTK+
+// When calling QFileDialog with default file, include file extension
+// with file name to avoid appending regex as extension
+
+KICOMMON_API QString formatWildcardExt( const QString& aWildcard );
 
 
 class KICOMMON_API FILEEXT
@@ -102,17 +40,8 @@ class KICOMMON_API FILEEXT
 public:
     FILEEXT() = delete;
 
-    /**
-     * \defgroup file_extensions File Extension Definitions
-     *
-     * @note Please do not changes these.  If a different file extension is needed, create a new
-     *       definition in here.  If you create a extension definition in another file, make sure
-     *       to add it to the Doxygen group "file_extensions" using the "addtogroup" tag. Also
-     *       note, just because they are defined as const doesn't guarantee that they cannot be
-     *       changed.
-     *
-     * @{
-     */
+    // File Extension Definitions
+    // Do not change these - create new definitions if different extension needed
     static const std::string BackupFileSuffix;
     static const std::string LockFilePrefix;
     static const std::string LockFileExtension;
@@ -203,7 +132,7 @@ public:
 
     static const std::string KiCadJobSetFileExtension;
 
-    static const wxString GerberFileExtensionsRegex;
+    static const QString GerberFileExtensionsRegex;
 
     static const std::string FootprintLibraryTableFileName;
     static const std::string SymbolLibraryTableFileName;
@@ -211,84 +140,69 @@ public:
 
     static const std::string KiCadUriPrefix;
 
-    /**
-     * @}
-     */
+    // File Wildcard Definitions
+    // Do not change these - create new definitions if different wildcard needed
+    // Handle GTK+ file dialog case sensitivity issue correctly
 
-    /**
-     * \defgroup file_wildcards File Wildcard Definitions
-     *
-     * @note Please do not changes these.  If a different file wildcard is needed, create a new
-     *       definition in here.  If you create a wildcard definition in another file, make sure
-     *       to add it to the Doxygen group "file_extensions" using the "addtogroup" tag and
-     *       correct handle the GTK+ file dialog case sensitivity issue.
-     * @{
-     */
+    static bool IsGerberFileExtension( const QString& ext );
+    static QString AllFilesWildcard();
 
-
-    static bool IsGerberFileExtension( const wxString& ext );
-    static wxString AllFilesWildcard();
-
-    static wxString FootprintAssignmentFileWildcard();
-    static wxString DrawingSheetFileWildcard();
-    static wxString KiCadSymbolLibFileWildcard();
-    static wxString ProjectFileWildcard();
-    static wxString LegacyProjectFileWildcard();
-    static wxString AllProjectFilesWildcard();
-    static wxString AllSchematicFilesWildcard();
-    static wxString KiCadSchematicFileWildcard();
-    static wxString LegacySchematicFileWildcard();
-    static wxString BoardFileWildcard();
-    static wxString OrCadPcb2NetlistFileWildcard();
-    static wxString NetlistFileWildcard();
-    static wxString AllegroNetlistFileWildcard();
-    static wxString PADSNetlistFileWildcard();
-    static wxString HtmlFileWildcard();
-    static wxString CsvFileWildcard();
-    static wxString PcbFileWildcard();
-    static wxString CadstarArchiveFilesWildcard();
-    static wxString AltiumProjectFilesWildcard();
-    static wxString EagleFilesWildcard();
-    static wxString EasyEdaArchiveWildcard();
-    static wxString EasyEdaProFileWildcard();
-    static wxString PdfFileWildcard();
-    static wxString PSFileWildcard();
-    static wxString MacrosFileWildcard();
-    static wxString DrillFileWildcard();
-    static wxString SVGFileWildcard();
-    static wxString JsonFileWildcard();
-    static wxString ReportFileWildcard();
-    static wxString FootprintPlaceFileWildcard();
-    static wxString Shapes3DFileWildcard();
-    static wxString IDF3DFileWildcard();
-    static wxString DocModulesFileName();
-    static wxString KiCadFootprintLibFileWildcard();
-    static wxString KiCadFootprintLibPathWildcard();
-    static wxString KiCadDesignBlockLibPathWildcard();
-    static wxString KiCadDesignBlockPathWildcard();
-    static wxString TextFileWildcard();
-    static wxString ModLegacyExportFileWildcard();
-    static wxString ErcFileWildcard();
-    static wxString SpiceLibraryFileWildcard();
-    static wxString SpiceNetlistFileWildcard();
-    static wxString CadstarNetlistFileWildcard();
-    static wxString EquFileWildcard();
-    static wxString ZipFileWildcard();
-    static wxString GencadFileWildcard();
-    static wxString DxfFileWildcard();
-    static wxString GerberJobFileWildcard();
-    static wxString SpecctraDsnFileWildcard();
-    static wxString SpecctraSessionFileWildcard();
-    static wxString IpcD356FileWildcard();
-    static wxString WorkbookFileWildcard();
-    static wxString PngFileWildcard();
-    static wxString JpegFileWildcard();
-    static wxString HotkeyFileWildcard();
-    static wxString JobsetFileWildcard();
-
-    /**
-     * @}
-     */
+    static QString FootprintAssignmentFileWildcard();
+    static QString DrawingSheetFileWildcard();
+    static QString KiCadSymbolLibFileWildcard();
+    static QString ProjectFileWildcard();
+    static QString LegacyProjectFileWildcard();
+    static QString AllProjectFilesWildcard();
+    static QString AllSchematicFilesWildcard();
+    static QString KiCadSchematicFileWildcard();
+    static QString LegacySchematicFileWildcard();
+    static QString BoardFileWildcard();
+    static QString OrCadPcb2NetlistFileWildcard();
+    static QString NetlistFileWildcard();
+    static QString AllegroNetlistFileWildcard();
+    static QString PADSNetlistFileWildcard();
+    static QString HtmlFileWildcard();
+    static QString CsvFileWildcard();
+    static QString PcbFileWildcard();
+    static QString CadstarArchiveFilesWildcard();
+    static QString AltiumProjectFilesWildcard();
+    static QString EagleFilesWildcard();
+    static QString EasyEdaArchiveWildcard();
+    static QString EasyEdaProFileWildcard();
+    static QString PdfFileWildcard();
+    static QString PSFileWildcard();
+    static QString MacrosFileWildcard();
+    static QString DrillFileWildcard();
+    static QString SVGFileWildcard();
+    static QString JsonFileWildcard();
+    static QString ReportFileWildcard();
+    static QString FootprintPlaceFileWildcard();
+    static QString Shapes3DFileWildcard();
+    static QString IDF3DFileWildcard();
+    static QString DocModulesFileName();
+    static QString KiCadFootprintLibFileWildcard();
+    static QString KiCadFootprintLibPathWildcard();
+    static QString KiCadDesignBlockLibPathWildcard();
+    static QString KiCadDesignBlockPathWildcard();
+    static QString TextFileWildcard();
+    static QString ModLegacyExportFileWildcard();
+    static QString ErcFileWildcard();
+    static QString SpiceLibraryFileWildcard();
+    static QString SpiceNetlistFileWildcard();
+    static QString CadstarNetlistFileWildcard();
+    static QString EquFileWildcard();
+    static QString ZipFileWildcard();
+    static QString GencadFileWildcard();
+    static QString DxfFileWildcard();
+    static QString GerberJobFileWildcard();
+    static QString SpecctraDsnFileWildcard();
+    static QString SpecctraSessionFileWildcard();
+    static QString IpcD356FileWildcard();
+    static QString WorkbookFileWildcard();
+    static QString PngFileWildcard();
+    static QString JpegFileWildcard();
+    static QString HotkeyFileWildcard();
+    static QString JobsetFileWildcard();
 };
 
 

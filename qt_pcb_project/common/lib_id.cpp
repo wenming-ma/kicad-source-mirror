@@ -1,31 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 #include <cstring>
 #include <memory>
-#include <wx/translation.h>
+#include <QString>
 
 #include <ki_exception.h>
 #include <macros.h>     // TO_UTF8()
@@ -89,7 +64,7 @@ int LIB_ID::Parse( const UTF8& aId, bool aFix )
 }
 
 
-LIB_ID::LIB_ID( const wxString& aLibraryName, const wxString& aItemName ) :
+LIB_ID::LIB_ID( const QString& aLibraryName, const QString& aItemName ) :
         m_libraryName( aLibraryName ),
         m_itemName( aItemName )
 {
@@ -142,8 +117,8 @@ UTF8 LIB_ID::Format( const UTF8& aLibraryName, const UTF8& aLibItemName )
 
         if( offset != -1 )
         {
-            THROW_PARSE_ERROR( _( "Illegal character found in library nickname" ),
-                               wxString::FromUTF8( aLibraryName.c_str() ), aLibraryName.c_str(),
+            THROW_PARSE_ERROR( "Illegal character found in library nickname",
+                               QString::fromUtf8( aLibraryName.c_str() ), aLibraryName.c_str(),
                                0, offset );
         }
 
@@ -214,9 +189,6 @@ bool LIB_ID::isLegalChar( unsigned aUniChar )
         return false;
 
     // This list of characters is also duplicated in validators.cpp and footprint.cpp
-    // TODO: Unify forbidden character lists - Warning, invalid filename characters are not the same
-    // as invalid LIB_ID characters.  We will need to separate the FP filenames from FP names
-    // before this can be unified
     switch( aUniChar )
     {
     case ':':
@@ -274,10 +246,10 @@ bool LIB_ID::isLegalLibraryNameChar( unsigned aUniChar )
 }
 
 
-const wxString LIB_ID::GetFullLibraryName() const
+const QString LIB_ID::GetFullLibraryName() const
 {
-    wxString suffix = m_subLibraryName.wx_str().IsEmpty()
-                              ? wxString( wxS( "" ) )
-                              : wxString::Format( wxT( " - %s" ), m_subLibraryName.wx_str() );
-    return wxString::Format( wxT( "%s%s" ), m_libraryName.wx_str(), suffix );
+    QString suffix = m_subLibraryName.empty()
+                              ? QString( "" )
+                              : QString( " - %1" ).arg( QString::fromStdString( m_subLibraryName.ToStdString() ) );
+    return QString( "%1%2" ).arg( QString::fromStdString( m_libraryName.ToStdString() ) ).arg( suffix );
 }

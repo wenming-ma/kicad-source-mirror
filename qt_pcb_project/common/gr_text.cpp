@@ -1,28 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <gr_basic.h>
 #include <plotters/plotter.h>
@@ -45,15 +20,15 @@ int GetPenSizeForDemiBold( int aTextSize )
 }
 
 
-int GetPenSizeForBold( const wxSize& aTextSize )
+int GetPenSizeForBold( const QSize& aTextSize )
 {
-    return GetPenSizeForBold( std::min( aTextSize.x, aTextSize.y ) );
+    return GetPenSizeForBold( std::min( aTextSize.width(), aTextSize.height() ) );
 }
 
 
-int GetPenSizeForDemiBold( const wxSize& aTextSize )
+int GetPenSizeForDemiBold( const QSize& aTextSize )
 {
-    return GetPenSizeForDemiBold( std::min( aTextSize.x, aTextSize.y ) );
+    return GetPenSizeForDemiBold( std::min( aTextSize.width(), aTextSize.height() ) );
 }
 
 
@@ -63,9 +38,9 @@ int GetPenSizeForNormal( int aTextSize )
 }
 
 
-int GetPenSizeForNormal( const wxSize& aTextSize )
+int GetPenSizeForNormal( const QSize& aTextSize )
 {
-    return GetPenSizeForNormal( std::min( aTextSize.x, aTextSize.y ) );
+    return GetPenSizeForNormal( std::min( aTextSize.width(), aTextSize.height() ) );
 }
 
 
@@ -95,7 +70,7 @@ int ClampTextPenSize( int aPenSize, const VECTOR2I& aSize, bool aStrict )
 }
 
 
-int GRTextWidth( const wxString& aText, KIFONT::FONT* aFont, const VECTOR2I& aSize,
+int GRTextWidth( const QString& aText, KIFONT::FONT* aFont, const VECTOR2I& aSize,
                  int aThickness, bool aBold, bool aItalic, const KIFONT::METRICS& aFontMetrics )
 {
     if( !aFont )
@@ -106,7 +81,7 @@ int GRTextWidth( const wxString& aText, KIFONT::FONT* aFont, const VECTOR2I& aSi
 }
 
 
-void GRPrintText( wxDC* aDC, const VECTOR2I& aPos, const COLOR4D& aColor, const wxString& aText,
+void GRPrintText( QPaintDevice* aDC, const VECTOR2I& aPos, const QColor& aColor, const QString& aText,
                   const EDA_ANGLE& aOrient, const VECTOR2I& aSize,
                   enum GR_TEXT_H_ALIGN_T aH_justify, enum GR_TEXT_V_ALIGN_T aV_justify,
                   int aWidth, bool aItalic, bool aBold, KIFONT::FONT* aFont,

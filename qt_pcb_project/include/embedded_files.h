@@ -1,29 +1,12 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #pragma once
 
 #include <map>
 #include <set>
 
-#include <wx/string.h>
-#include <wx/filename.h>
+#include <QString>
+#include <QFileInfo>
+#include <QHash>
 
 #include <mmh3_hash.h>
 #include <picosha2.h>
@@ -76,12 +59,12 @@ public:
             return is_valid;
         }
 
-        wxString GetLink() const
+        QString GetLink() const
         {
-            return wxString::Format( "%s://%s", FILEEXT::KiCadUriPrefix, name );
+            return QString("%1://%2").arg(FILEEXT::KiCadUriPrefix, name);
         }
 
-        wxString          name;
+        QString           name;
         FILE_TYPE         type;
         bool              is_valid;
         std::string       compressedEncodedData;
@@ -122,52 +105,24 @@ public:
         return m_fileAddedCallback;
     }
 
-    /**
-     * Load a file from disk and adds it to the collection.
-     *
-     * @param aName is the name of the file to load.
-     * @param aOverwrite is true if the file should be overwritten if it already exists.
-    */
-    EMBEDDED_FILE* AddFile( const wxFileName& aName, bool aOverwrite );
+    EMBEDDED_FILE* AddFile( const QFileInfo& aName, bool aOverwrite );
 
-    /**
-     * Append a file to the collection.
-     */
     void AddFile( EMBEDDED_FILE* aFile );
 
-    /**
-     * Remove a file from the collection and frees the memory.
-     *
-     * @param aName is the name of the file to remove.
-     */
-    void RemoveFile( const wxString& name, bool aErase = true );
+    void RemoveFile( const QString& name, bool aErase = true );
 
-    /**
-     * Output formatter for the embedded files.
-     *
-     * @param aOut is the output formatter.
-     * @param aWriteData is true if the actual data should be written.  This is false when writing
-     *                   an element that is already embedded in a file that itself has embedded
-     *                   files (boards, schematics, etc.).
-     */
     void WriteEmbeddedFiles( OUTPUTFORMATTER& aOut, bool aWriteData ) const;
 
-    /**
-     * Return the link for an embedded file.
-     *
-     * @param aFile is the file to get the link for.
-     * @return the link for the file to be used in a hyperlink.
-     */
-    wxString GetEmbeddedFileLink( const EMBEDDED_FILE& aFile ) const
+    QString GetEmbeddedFileLink( const EMBEDDED_FILE& aFile ) const
     {
         return aFile.GetLink();
     }
 
-    bool HasFile( const wxString& name ) const
+    bool HasFile( const QString& name ) const
     {
-        wxFileName fileName( name );
+        QFileInfo fileName( name );
 
-        return m_files.find( fileName.GetFullName() ) != m_files.end();
+        return m_files.find( fileName.fileName() ) != m_files.end();
     }
 
     bool IsEmpty() const
@@ -175,69 +130,35 @@ public:
         return m_files.empty();
     }
 
-    /**
-     * Provide access to nested embedded files, such as symbols in schematics and footprints in
-     * boards.
-     */
     virtual void RunOnNestedEmbeddedFiles( const std::function<void( EMBEDDED_FILES* )>& aFunction )
     {
     }
 
-    /**
-     * Helper function to get a list of fonts for fontconfig to add to the library.
-     *
-     * This is necessary because EMBEDDED_FILES lives in common at the moment and
-     * fontconfig is in libkicommon.  This will create the cache files in the KiCad
-     * cache directory (if they do not already exist) and return the temp files names
-     */
-    const std::vector<wxString>* UpdateFontFiles();
+    const std::vector<QString>* UpdateFontFiles();
 
-    /**
-     * If we just need the cached version of the font files, we can use this function which
-     * is const and will not update the font files.
-     */
-    const std::vector<wxString>* GetFontFiles() const;
+    const std::vector<QString>* GetFontFiles() const;
 
-    /**
-     * Remove all embedded fonts from the collection.
-     */
     void ClearEmbeddedFonts();
 
-    /**
-     * Take data from the #decompressedData buffer and compresses it using ZSTD
-     * into the #compressedEncodedData buffer.
-     *
-     * The data is then Base64 encoded.  This call is used when adding a new file to the
-     * collection from disk.
-     */
     static RETURN_CODE  CompressAndEncode( EMBEDDED_FILE& aFile );
 
-    /**
-     * Takes data from the #compressedEncodedData buffer and Base64 decodes it.
-     *
-     * The data is then decompressed using ZSTD and stored in the #decompressedData buffer.
-     * This call is used when loading the embedded files using the parsers.
-     */
     static RETURN_CODE  DecompressAndDecode( EMBEDDED_FILE& aFile );
 
-    /**
-     * Returns the embedded file with the given name or nullptr if it does not exist.
-     */
-    EMBEDDED_FILE* GetEmbeddedFile( const wxString& aName ) const
+    EMBEDDED_FILE* GetEmbeddedFile( const QString& aName ) const
     {
         auto it = m_files.find( aName );
 
         return it == m_files.end() ? nullptr : it->second;
     }
 
-    const std::map<wxString, EMBEDDED_FILE*>& EmbeddedFileMap() const
+    const std::map<QString, EMBEDDED_FILE*>& EmbeddedFileMap() const
     {
         return m_files;
     }
 
-    wxFileName GetTemporaryFileName( const wxString& aName ) const;
+    QFileInfo GetTemporaryFileName( const QString& aName ) const;
 
-    wxFileName GetTemporaryFileName( EMBEDDED_FILE* aFile ) const;
+    QFileInfo GetTemporaryFileName( EMBEDDED_FILE* aFile ) const;
 
     void ClearEmbeddedFiles( bool aDeleteFiles = true )
     {
@@ -276,8 +197,8 @@ public:
     EMBEDDED_FILES& operator=( const EMBEDDED_FILES& other );
 
 private:
-    std::map<wxString, EMBEDDED_FILE*> m_files;
-    std::vector<wxString>              m_fontFiles;
+    std::map<QString, EMBEDDED_FILE*> m_files;
+    std::vector<QString>              m_fontFiles;
     FILE_ADDED_CALLBACK                m_fileAddedCallback;
 
 protected:

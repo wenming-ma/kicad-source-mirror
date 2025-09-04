@@ -1,34 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-/**
- * @file marker_base.cpp
- * @brief Implementation of MARKER_BASE class.
- * Markers are used to show something (usually a drc/erc problem).
- * Markers in Pcbnew and Eeschema are derived from this base class.
- */
-
 
 #include "base_screen.h"
 #include "marker_base.h"
@@ -146,7 +115,7 @@ BOX2I MARKER_BASE::GetBoundingBoxMarker() const
 
 void MARKER_BASE::PrintMarker( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset )
 {
-    wxDC* DC = aSettings->GetPrintDC();
+    QPainter* painter = aSettings->GetPrintPainter();
 
     // Build the marker shape polygon in internal units:
     std::vector<VECTOR2I> shape;
@@ -155,5 +124,5 @@ void MARKER_BASE::PrintMarker( const RENDER_SETTINGS* aSettings, const VECTOR2I&
     for( const VECTOR2I& corner : MarkerShapeCorners )
         shape.emplace_back( corner * MarkerScale() + m_Pos + aOffset );
 
-    GRClosedPoly( DC, CORNERS_COUNT, &shape[0], true, getColor() );
+    GRClosedPoly( painter, CORNERS_COUNT, &shape[0], true, getColor() );
 }

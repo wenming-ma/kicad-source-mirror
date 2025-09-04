@@ -1,28 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef __COROUTINE_H
 #define __COROUTINE_H
@@ -48,7 +23,7 @@
 #include <advanced_config.h>
 
 #include <trace_helpers.h>
-#include <wx/log.h>
+#include <QDebug>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -57,27 +32,6 @@
 #include <sys/mman.h>   // mmap, mprotect, munmap
 #endif
 
-/**
- *  Implement a coroutine.
- *
- * Wikipedia has a good explanation:
- *
- *  "Coroutines are computer program components that generalize subroutines to
- *  allow multiple entry points for suspending and resuming execution at certain locations.
- *  Coroutines are well-suited for implementing more familiar program components such as cooperative
- *  tasks, exceptions, event loop, iterators, infinite lists and pipes."
- *
- *  In other words, a coroutine can be considered a lightweight thread - which can be
- *  preempted only when it deliberately yields the control to the caller. This way,
- *  we avoid concurrency problems such as locking / race conditions.
- *
- *  Uses libcontext library to do the actual context switching.
- *
- *  This particular version takes a DELEGATE as an entry point, so it can invoke
- *  methods within a given object as separate coroutines.
- *
- *  See coroutine_example.cpp for sample code.
- */
 
 template <typename ReturnType, typename ArgType>
 class COROUTINE
@@ -184,18 +138,12 @@ public:
     {
     }
 
-    /**
-     * Create a coroutine from a member method of an object.
-     */
     template <class T>
     COROUTINE( T* object, ReturnType(T::*ptr)( ArgType ) ) :
         COROUTINE( std::bind( ptr, object, std::placeholders::_1 ) )
     {
     }
 
-    /**
-     * Create a coroutine from a delegate object.
-     */
     COROUTINE( std::function<ReturnType( ArgType )> aEntry ) :
         m_func( std::move( aEntry ) ),
         m_running( false ),
@@ -228,49 +176,23 @@ public:
     }
 
 public:
-    /**
-     * Stop execution of the coroutine and returns control to the caller.
-     *
-     * After a yield, Call() or Resume() methods invoked by the caller will
-     * immediately return true, indicating that we are not done yet, just asleep.
-     */
     void KiYield()
     {
         jumpOut();
     }
 
-    /**
-     * KiYield with a value.
-     *
-     * Passe a value of given type to the caller.  Useful for implementing generator objects.
-     */
     void KiYield( ReturnType& aRetVal )
     {
         m_retVal = aRetVal;
         jumpOut();
     }
 
-    /**
-     * Run a functor inside the application main stack context.
-     *
-     * Call this function for example if the operation will spawn a webkit browser instance which
-     * will walk the stack to the upper border of the address space on mac osx systems because
-     * its javascript needs garbage collection (for example if you paste text into an edit box).
-     */
     void RunMainStack( std::function<void()> func )
     {
         assert( m_callContext );
         m_callContext->RunMainStack( this, std::move( func ) );
     }
 
-   /**
-    * Start execution of a coroutine, passing args as its arguments.
-    *
-    * Call this method from the application main stack only.
-    *
-    * @return true if the coroutine has yielded and false if it has finished its
-    *         execution (returned).
-    */
     bool Call( ArgType aArg )
     {
         CALL_CONTEXT ctx;
@@ -282,26 +204,18 @@ public:
         m_caller.own_tsan_fiber = false;
 #endif
 
-        wxLogTrace( kicadTraceCoroutineStack,  "COROUTINE::Call (from root)" );
+        qDebug() << "COROUTINE::Call (from root)";
 
         ctx.Continue( doCall( &args, aArg ) );
 
         return Running();
     }
 
-   /**
-    * Start execution of a coroutine, passing args as its arguments.
-    *
-    * Call this method for a nested coroutine invocation.
-    *
-    * @return true if the coroutine has yielded and false if it has finished its
-    *         execution (returned).
-    */
     bool Call( const COROUTINE& aCor, ArgType aArg )
     {
         INVOCATION_ARGS args{ INVOCATION_ARGS::FROM_ROUTINE, this, aCor.m_callContext };
 
-        wxLogTrace( kicadTraceCoroutineStack, wxT( "COROUTINE::Call (from routine)" ) );
+        qDebug() << "COROUTINE::Call (from routine)";
 
         doCall( &args, aArg );
 
@@ -309,14 +223,6 @@ public:
         return Running();
     }
 
-    /**
-     * Resume execution of a previously yielded coroutine.
-     *
-     * Call this method only from the main application stack.
-     *
-     * @return true if the coroutine has yielded again and false if it has finished its
-     *         execution (returned).
-     */
     bool Resume()
     {
         CALL_CONTEXT ctx;
@@ -328,26 +234,18 @@ public:
         m_caller.own_tsan_fiber = false;
 #endif
 
-        wxLogTrace( kicadTraceCoroutineStack, wxT( "COROUTINE::Resume (from root)" ) );
+        qDebug() << "COROUTINE::Resume (from root)";
 
         ctx.Continue( doResume( &args ) );
 
         return Running();
     }
 
-    /**
-     * Resume execution of a previously yielded coroutine.
-     *
-     * Call this method for a nested coroutine invocation.
-     *
-     * @return true if the coroutine has yielded again and false if it has finished its
-     *         execution (returned).
-     */
     bool Resume( const COROUTINE& aCor )
     {
         INVOCATION_ARGS args{ INVOCATION_ARGS::FROM_ROUTINE, this, aCor.m_callContext };
 
-        wxLogTrace( kicadTraceCoroutineStack, wxT( "COROUTINE::Resume (from routine)" ) );
+        qDebug() << "COROUTINE::Resume (from routine)";
 
         doResume( &args );
 
@@ -355,17 +253,11 @@ public:
         return Running();
     }
 
-    /**
-     * Return the yielded value (the argument KiYield() was called with).
-     */
     const ReturnType& ReturnValue() const
     {
         return m_retVal;
     }
 
-    /**
-     * @return true if the coroutine is active.
-     */
     bool Running() const
     {
         return m_running;
@@ -382,7 +274,7 @@ private:
         std::size_t stackSize = m_stacksize;
         void* sp = nullptr;
 
-        wxLogTrace( kicadTraceCoroutineStack, wxT( "COROUTINE::doCall" ) );
+        qDebug() << "COROUTINE::doCall";
 
 #ifndef LIBCONTEXT_HAS_OWN_STACK
         assert( !m_stack );
@@ -426,7 +318,6 @@ private:
     }
 
 #ifndef LIBCONTEXT_HAS_OWN_STACK
-    /// A functor that frees the stack.
     struct STACK_DELETER
     {
 #ifdef _WIN32
@@ -440,7 +331,6 @@ private:
 #endif
     };
 
-    /// The size of the mappable memory page size.
     static inline size_t SystemPageSize()
     {
         static std::optional<size_t> systemPageSize;
@@ -460,7 +350,6 @@ private:
         return systemPageSize.value();
     }
 
-    /// Map a page-aligned memory region into our address space.
     static inline void* MapMemory( size_t aAllocSize )
     {
 #ifdef _WIN32
@@ -477,7 +366,6 @@ private:
         return mem;
     }
 
-    /// Change protection of memory page(s) to act as stack guards.
     static inline void GuardMemory( void* aAddress, size_t aGuardSize )
     {
 #ifdef _WIN32
@@ -488,7 +376,7 @@ private:
         bool res = ( 0 == ::mprotect( aAddress, aGuardSize, PROT_NONE ) );
 #endif
         if( !res )
-            wxLogTrace( kicadTraceCoroutineStack, wxT( "COROUTINE::GuardMemory has failed" ) );
+            qDebug() << "COROUTINE::GuardMemory has failed";
     }
 #endif // LIBCONTEXT_HAS_OWN_STACK
 
@@ -524,7 +412,7 @@ private:
         __tsan_switch_to_fiber( m_callee.tsan_fiber, 0 );
 #endif
 
-        wxLogTrace( kicadTraceCoroutineStack, wxT( "COROUTINE::jumpIn" ) );
+        qDebug() << "COROUTINE::jumpIn";
 
         args = reinterpret_cast<INVOCATION_ARGS*>(
             libcontext::jump_fcontext( &( m_caller.ctx ), m_callee.ctx,
@@ -544,7 +432,7 @@ private:
         __tsan_switch_to_fiber( m_caller.tsan_fiber, 0 );
 #endif
 
-        wxLogTrace( kicadTraceCoroutineStack, wxT( "COROUTINE::jumpOut" ) );
+        qDebug() << "COROUTINE::jumpOut";
 
         ret = reinterpret_cast<INVOCATION_ARGS*>(
             libcontext::jump_fcontext( &( m_callee.ctx ), m_caller.ctx,
@@ -560,7 +448,6 @@ private:
     }
 
 #ifndef LIBCONTEXT_HAS_OWN_STACK
-    /// Coroutine stack.
     std::unique_ptr<char[], struct STACK_DELETER> m_stack;
 #endif
 
@@ -570,16 +457,12 @@ private:
 
     bool m_running;
 
-    /// Pointer to coroutine entry arguments stripped of references to avoid compiler errors.
     typename std::remove_reference<ArgType>::type* m_args;
 
-    /// Saved caller context.
     CONTEXT_T m_caller;
 
-    /// Main stack information.
     CALL_CONTEXT* m_callContext;
 
-    /// Saved coroutine context.
     CONTEXT_T m_callee;
 
     ReturnType m_retVal;

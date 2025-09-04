@@ -1,32 +1,16 @@
-/*
- * Copyright (C) 2016 Mark Roszko <mark.roszko@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #include "sexpr/sexpr_parser.h"
 #include "sexpr/sexpr_exception.h"
 #include <cctype>
-#include <cstdlib>     /* strtod */
+#include <cstdlib>
 #include <iterator>
 #include <stdexcept>
 
 #include <fstream>
 #include <streambuf>
-#include <wx/file.h>
-#include <wx/ffile.h>
+#include <QFile>
+#include <QTextStream>
 
 #include <string_utils.h>
 
@@ -62,18 +46,28 @@ namespace SEXPR
 
         // the filename is not always a UTF7 string, so do not use ifstream
         // that do not work with unicode chars.
-        wxString fname( From_UTF8( aFileName.c_str() ) );
-        wxFFile file( fname, "rb" );
-        size_t length = file.Length();
+        QString fname = From_UTF8( aFileName.c_str() );
+        QFile file( fname );
+        
+        if( !file.open( QIODevice::ReadOnly ) )
+        {
+            throw PARSE_EXCEPTION( "Error occurred attempting to read in file or empty file" );
+        }
+
+        qint64 length = file.size();
 
         if( length <= 0 )
         {
             throw PARSE_EXCEPTION( "Error occurred attempting to read in file or empty file" );
         }
 
-
         str.resize( length );
-        file.Read( &str[0], str.length() );
+        qint64 bytesRead = file.read( &str[0], str.length() );
+        
+        if( bytesRead != length )
+        {
+            throw PARSE_EXCEPTION( "Error occurred attempting to read file contents" );
+        }
 
         return str;
     }

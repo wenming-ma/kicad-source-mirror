@@ -1,21 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include "stroke_params.h"
 #include "stroke_params_parser.h"
@@ -32,6 +14,7 @@
 #include <macros.h>
 #include <trigo.h>
 #include <widgets/msgpanel.h>
+#include <QDebug>
 
 using namespace STROKEPARAMS_T;
 
@@ -172,7 +155,7 @@ void STROKE_PARAMS::Stroke( const SHAPE* aShape, LINE_STYLE aLineStyle, int aWid
                 startAngle = startAngle.Normalize() - ANGLE_360;
         }
 
-        wxASSERT( startAngle < arcEndAngle );
+        Q_ASSERT( startAngle < arcEndAngle );
 
         EDA_ANGLE angleIncrement = EDA_ANGLE( 0.5, DEGREES_T );
 
@@ -234,18 +217,18 @@ void STROKE_PARAMS::Stroke( const SHAPE* aShape, LINE_STYLE aLineStyle, int aWid
 }
 
 
-wxString STROKE_PARAMS::GetLineStyleToken( LINE_STYLE aStyle )
+QString STROKE_PARAMS::GetLineStyleToken( LINE_STYLE aStyle )
 {
-    wxString token;
+    QString token;
 
     switch( aStyle )
     {
-    case LINE_STYLE::DASH:       token = wxT( "dash" );         break;
-    case LINE_STYLE::DOT:        token = wxT( "dot" );          break;
-    case LINE_STYLE::DASHDOT:    token = wxT( "dash_dot" );     break;
-    case LINE_STYLE::DASHDOTDOT: token = wxT( "dash_dot_dot" ); break;
-    case LINE_STYLE::SOLID:      token = wxT( "solid" );        break;
-    case LINE_STYLE::DEFAULT:    token = wxT( "default" );      break;
+    case LINE_STYLE::DASH:       token = "dash";         break;
+    case LINE_STYLE::DOT:        token = "dot";          break;
+    case LINE_STYLE::DASHDOT:    token = "dash_dot";     break;
+    case LINE_STYLE::DASHDOTDOT: token = "dash_dot_dot"; break;
+    case LINE_STYLE::SOLID:      token = "solid";        break;
+    case LINE_STYLE::DEFAULT:    token = "default";      break;
     }
 
     return token;
@@ -258,7 +241,7 @@ void STROKE_PARAMS::GetMsgPanelInfo( UNITS_PROVIDER* aUnitsProvider,
 {
     if( aIncludeStyle )
     {
-        wxString msg = _( "Default" );
+        QString msg = _( "Default" );
 
         for( const auto& [ lineStyle, lineStyleDesc ] : lineTypeNames )
         {
@@ -279,7 +262,7 @@ void STROKE_PARAMS::GetMsgPanelInfo( UNITS_PROVIDER* aUnitsProvider,
 
 void STROKE_PARAMS::Format( OUTPUTFORMATTER* aFormatter, const EDA_IU_SCALE& aIuScale ) const
 {
-    wxASSERT( aFormatter != nullptr );
+    Q_ASSERT( aFormatter != nullptr );
 
     if( GetColor() == KIGFX::COLOR4D::UNSPECIFIED )
     {

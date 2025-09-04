@@ -1,27 +1,11 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-#include <vector>
+#include <QVector>
+#include <QHash>
+#include <QCursor>
+#include <QPixmap>
+#include <QBitmap>
+#include <QString>
+#include <QDebug>
 
 #include <gal/cursors.h>
 #include <kiplatform/ui.h>
@@ -86,11 +70,9 @@
 #include <cursors/cursor-select-m-black64.xpm>
 #endif
 
-#include <wx/bitmap.h>
-#include <wx/debug.h>
 
 
-static const std::vector<CURSOR_STORE::CURSOR_DEF> standard_cursors = {
+static const QVector<CURSOR_STORE::CURSOR_DEF> standard_cursors = {
     {
         KICURSOR::VOLTAGE_PROBE,
         nullptr,
@@ -286,7 +268,7 @@ static const std::vector<CURSOR_STORE::CURSOR_DEF> standard_cursors = {
 };
 
 
-static const std::vector<CURSOR_STORE::CURSOR_DEF> hidpi_cursors = {
+static const QVector<CURSOR_STORE::CURSOR_DEF> hidpi_cursors = {
     {
         KICURSOR::VOLTAGE_PROBE,
         nullptr,
@@ -481,71 +463,50 @@ static const std::vector<CURSOR_STORE::CURSOR_DEF> hidpi_cursors = {
     },
 };
 
-/**
- * Construct a cursor for the given definition.
- *
- * How to do this depends on the platform, see
- * http://docs.wxwidgets.org/trunk/classwx_cursor.html
- *
- * @param  aDef the cursor definition
- * @return      a newly constructed cursor if the platform is supported,
- *              else wxNullCursor
- */
-wxCursor constructCursor( const CURSOR_STORE::CURSOR_DEF& aDef )
+QCursor constructCursor( const CURSOR_STORE::CURSOR_DEF& aDef )
 {
     if( aDef.m_xpm != nullptr )
     {
-        wxImage xpmImage = wxImage( aDef.m_xpm );
-
-        xpmImage.SetOption( wxIMAGE_OPTION_CUR_HOTSPOT_X, aDef.m_hotspot.x );
-        xpmImage.SetOption( wxIMAGE_OPTION_CUR_HOTSPOT_Y, aDef.m_hotspot.y );
-
-        return wxCursor( xpmImage );
+        QPixmap pixmap( aDef.m_xpm );
+        return QCursor( pixmap, aDef.m_hotspot.x, aDef.m_hotspot.y );
     }
     else if( aDef.m_image_data != nullptr && aDef.m_mask_data != nullptr )
     {
-#if defined( __WXMSW__ ) || defined( __WXMAC__ )
+#if defined( Q_OS_WIN ) || defined( Q_OS_MAC )
 
-        wxBitmap img_bitmap(
-                reinterpret_cast<const char*>( aDef.m_image_data ), aDef.m_size.x, aDef.m_size.y );
-        wxBitmap msk_bitmap(
-                reinterpret_cast<const char*>( aDef.m_mask_data ), aDef.m_size.x, aDef.m_size.y );
-        img_bitmap.SetMask( new wxMask( msk_bitmap ) );
+        QBitmap img_bitmap = QBitmap::fromData( 
+            QSize( aDef.m_size.x, aDef.m_size.y ),
+            reinterpret_cast<const uchar*>( aDef.m_image_data ) );
+        QBitmap msk_bitmap = QBitmap::fromData(
+            QSize( aDef.m_size.x, aDef.m_size.y ),
+            reinterpret_cast<const uchar*>( aDef.m_mask_data ) );
+        img_bitmap.setMask( msk_bitmap );
 
-        wxImage image( img_bitmap.ConvertToImage() );
+        return QCursor( img_bitmap, aDef.m_hotspot.x, aDef.m_hotspot.y );
 
-#if defined( __WXMSW__ )
-        image.SetMaskColour( 255, 255, 255 );
-#endif
+#elif defined( Q_OS_LINUX )
 
-        image.SetOption( wxIMAGE_OPTION_CUR_HOTSPOT_X, aDef.m_hotspot.x );
-        image.SetOption( wxIMAGE_OPTION_CUR_HOTSPOT_Y, aDef.m_hotspot.y );
+        QBitmap bitmap = QBitmap::fromData(
+            QSize( aDef.m_size.x, aDef.m_size.y ),
+            reinterpret_cast<const uchar*>( aDef.m_image_data ) );
+        QBitmap mask = QBitmap::fromData(
+            QSize( aDef.m_size.x, aDef.m_size.y ),
+            reinterpret_cast<const uchar*>( aDef.m_mask_data ) );
 
-        return wxCursor{ image };
-
-#elif defined( __WXGTK__ ) || defined( __WXMOTIF__ )
-
-        return wxCursor{
-            reinterpret_cast<const char*>( aDef.m_image_data ),
-            aDef.m_size.x,
-            aDef.m_size.y,
-            aDef.m_hotspot.x,
-            aDef.m_hotspot.y,
-            reinterpret_cast<const char*>( aDef.m_mask_data ),
-        };
+        return QCursor( bitmap, mask, aDef.m_hotspot.x, aDef.m_hotspot.y );
 
 #else
-        wxASSERT_MSG( false, wxS( "Unknown platform for cursor construction." ) );
-        return wxNullCursor;
+        Q_ASSERT_X( false, "constructCursor", "Unknown platform for cursor construction." );
+        return QCursor();
 #endif
     }
 
-    wxASSERT_MSG( false, wxS( "Unknown to find cursor" ) );
-    return wxNullCursor;
+    Q_ASSERT_X( false, "constructCursor", "Unable to find cursor" );
+    return QCursor();
 }
 
 
-CURSOR_STORE::CURSOR_STORE( const std::vector<CURSOR_DEF>& aDefs )
+CURSOR_STORE::CURSOR_STORE( const QVector<CURSOR_DEF>& aDefs )
 {
     for( const auto& def : aDefs )
     {
@@ -554,26 +515,28 @@ CURSOR_STORE::CURSOR_STORE( const std::vector<CURSOR_DEF>& aDefs )
 }
 
 
-const wxCursor& CURSOR_STORE::Get( KICURSOR aIdKey ) const
+const QCursor& CURSOR_STORE::Get( KICURSOR aIdKey ) const
 {
     const auto find_iter = m_store.find( aIdKey );
 
     if( find_iter != m_store.end() )
         return find_iter->second;
 
-    wxASSERT_MSG( false, wxString::Format( "Could not find cursor with ID %d",
-                                           static_cast<int>( aIdKey ) ) );
-    return wxNullCursor;
+    Q_ASSERT_X( false, "CURSOR_STORE::Get", 
+                QString( "Could not find cursor with ID %1" )
+                .arg( static_cast<int>( aIdKey ) ).toLocal8Bit().data() );
+    static QCursor nullCursor;
+    return nullCursor;
 }
 
 
-const wxCursor CURSOR_STORE::GetCursor( KICURSOR aCursorType )
+const QCursor CURSOR_STORE::GetCursor( KICURSOR aCursorType )
 {
-    wxStockCursor stock = GetStockCursor( aCursorType );
+    Qt::CursorShape stock = GetStockCursor( aCursorType );
 
-    if( stock != wxCURSOR_MAX )
+    if( stock != Qt::LastCursor )
     {
-        return wxCursor( stock );
+        return QCursor( stock );
     }
 
     static CURSOR_STORE store( standard_cursors );
@@ -581,13 +544,13 @@ const wxCursor CURSOR_STORE::GetCursor( KICURSOR aCursorType )
 }
 
 
-const wxCursor CURSOR_STORE::GetHiDPICursor( KICURSOR aCursorType )
+const QCursor CURSOR_STORE::GetHiDPICursor( KICURSOR aCursorType )
 {
-    wxStockCursor stock = GetStockCursor( aCursorType );
+    Qt::CursorShape stock = GetStockCursor( aCursorType );
 
-    if( stock != wxCURSOR_MAX )
+    if( stock != Qt::LastCursor )
     {
-        return wxCursor( stock );
+        return QCursor( stock );
     }
 
     static CURSOR_STORE store( hidpi_cursors );
@@ -595,31 +558,31 @@ const wxCursor CURSOR_STORE::GetHiDPICursor( KICURSOR aCursorType )
 }
 
 
-wxStockCursor CURSOR_STORE::GetStockCursor( KICURSOR aCursorType )
+Qt::CursorShape CURSOR_STORE::GetStockCursor( KICURSOR aCursorType )
 {
-    wxStockCursor stockCursor;
+    Qt::CursorShape stockCursor;
     switch( aCursorType )
     {
     case KICURSOR::MOVING:
-        stockCursor = wxCURSOR_SIZING;
+        stockCursor = Qt::SizeAllCursor;
         break;
     case KICURSOR::BULLSEYE:
-        stockCursor = wxCURSOR_BULLSEYE;
+        stockCursor = Qt::CrossCursor;
         break;
     case KICURSOR::HAND:
-        stockCursor = wxCURSOR_HAND;
+        stockCursor = Qt::PointingHandCursor;
         break;
     case KICURSOR::ARROW:
-        stockCursor = wxCURSOR_ARROW;
+        stockCursor = Qt::ArrowCursor;
         break;
     default:
-        stockCursor = wxCURSOR_MAX;
+        stockCursor = Qt::LastCursor;
         break;
     }
 
     if( !KIPLATFORM::UI::IsStockCursorOk( stockCursor ) )
     {
-        stockCursor = wxCURSOR_MAX;
+        stockCursor = Qt::LastCursor;
     }
 
     return stockCursor;

@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019-2023 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <bitmaps.h>
 #include <common.h>
@@ -30,7 +7,7 @@
 #include <tool/tool_action.h>
 #include <tool/tool_event.h>
 
-// Actions, being statically-defined, require specialized I18N handling.  We continue to
+// Actions, being statically-defined, require specialized I18N handling. We continue to
 // use the _() macro so that string harvesting by the I18N framework doesn't have to be
 // specialized, but we don't translate on initialization and instead do it in the getters.
 
@@ -164,7 +141,7 @@ TOOL_ACTION ACTIONS::cancelInteractive( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::finishInteractive( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.finish" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_END )
+        .DefaultHotkey( Qt::Key_End )
         .FriendlyName( _( "Finish" ) )
         .Tooltip( _( "Finish current tool" ) )
         .Icon( BITMAPS::checked_ok )
@@ -193,7 +170,7 @@ TOOL_ACTION ACTIONS::undo( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::redo( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.redo" )
         .Scope( AS_GLOBAL )
-#if defined( __WXMAC__ )
+#if defined( Q_OS_MAC )
         .DefaultHotkey( MD_CTRL + MD_SHIFT + 'Z' )
 #else
         .DefaultHotkey( MD_CTRL + 'Y' )
@@ -202,8 +179,8 @@ TOOL_ACTION ACTIONS::redo( TOOL_ACTION_ARGS()
         .FriendlyName( _( "Redo" ) )
         .Icon( BITMAPS::redo ) );
 
-// The following actions need to have a hard-coded UI ID using a wx-specific ID
-// to fix things like search controls in standard file dialogs. If wxWidgets
+// The following actions need to have a hard-coded UI ID using Qt standard actions
+// to fix things like search controls in standard file dialogs. If Qt
 // doesn't find these specific IDs somewhere in the menus then it won't enable
 // cut/copy/paste.
 TOOL_ACTION ACTIONS::cut( TOOL_ACTION_ARGS()
@@ -215,7 +192,7 @@ TOOL_ACTION ACTIONS::cut( TOOL_ACTION_ARGS()
         .Tooltip( _( "Cut selected item(s) to clipboard" ) )
         .Icon( BITMAPS::cut )
         .Flags( AF_NONE )
-        .UIId( wxID_CUT ) );
+        .UIId( QKeySequence::Cut ) );
 
 TOOL_ACTION ACTIONS::copy( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.copy" )
@@ -226,7 +203,7 @@ TOOL_ACTION ACTIONS::copy( TOOL_ACTION_ARGS()
         .Tooltip( _( "Copy selected item(s) to clipboard" ) )
         .Icon( BITMAPS::copy )
         .Flags( AF_NONE )
-        .UIId( wxID_COPY ) );
+        .UIId( QKeySequence::Copy ) );
 
 TOOL_ACTION ACTIONS::copyAsText( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.copyAsText" )
@@ -246,7 +223,7 @@ TOOL_ACTION ACTIONS::paste( TOOL_ACTION_ARGS()
         .Tooltip( _( "Paste item(s) from clipboard" ) )
         .Icon( BITMAPS::paste )
         .Flags( AF_NONE )
-        .UIId( wxID_PASTE ) );
+        .UIId( QKeySequence::Paste ) );
 
 TOOL_ACTION ACTIONS::selectAll( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.selectAll" )
@@ -282,10 +259,10 @@ TOOL_ACTION ACTIONS::duplicate( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::doDelete( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.delete" )
         .Scope( AS_GLOBAL )
-#if defined( __WXMAC__ )
-        .DefaultHotkey( WXK_BACK )
+#if defined( Q_OS_MAC )
+        .DefaultHotkey( Qt::Key_Backspace )
 #else
-        .DefaultHotkey( WXK_DELETE )
+        .DefaultHotkey( Qt::Key_Delete )
 #endif
         .LegacyHotkeyName( "Delete Item" )
         .FriendlyName( _( "Delete" ) )
@@ -326,13 +303,13 @@ TOOL_ACTION ACTIONS::expandAll( TOOL_ACTION_ARGS()
         .Name( "common.Control.expandAll" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Expand All" ) )
-        .Icon( BITMAPS::up ) );     // JEY TODO: need icon
+        .Icon( BITMAPS::up ) );
 
 TOOL_ACTION ACTIONS::collapseAll( TOOL_ACTION_ARGS()
         .Name( "common.Control.collapseAll" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Collapse All" ) )
-        .Icon( BITMAPS::down ) );   // JEY TODO: need icon
+        .Icon( BITMAPS::down ) );
 
 // This is the generic increment action, and will need the parameter
 // to be filled in by the event producer.
@@ -438,14 +415,14 @@ TOOL_ACTION ACTIONS::mergeCells( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Merge Cells" ) )
         .Tooltip( _( "Turn selected table cells into a single cell" ) )
-        .Icon( BITMAPS::table ) );   // JEY TODO: need icon
+        .Icon( BITMAPS::table ) );
 
 TOOL_ACTION ACTIONS::unmergeCells( TOOL_ACTION_ARGS()
         .Name( "common.TableEditor.unmergeCell" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Unmerge Cells" ) )
         .Tooltip( _( "Turn merged table cells back into separate cells." ) )
-        .Icon( BITMAPS::table ) );   // JEY TODO: need icon
+        .Icon( BITMAPS::table ) );
 
 TOOL_ACTION ACTIONS::editTable( TOOL_ACTION_ARGS()
         .Name( "pcbnew.TableEditor.editTable" )
@@ -493,7 +470,7 @@ TOOL_ACTION ACTIONS::findAndReplace( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::findNext( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.findNext" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_F3 )
+        .DefaultHotkey( Qt::Key_F3 )
         .LegacyHotkeyName( "Find Next" )
         .FriendlyName( _( "Find Next" ) )
         .Icon( BITMAPS::find ) );
@@ -501,7 +478,7 @@ TOOL_ACTION ACTIONS::findNext( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::findPrevious( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.findPrevious" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_SHIFT + static_cast<int>( WXK_F3 ) )
+        .DefaultHotkey( Qt::SHIFT + Qt::Key_F3 )
         .LegacyHotkeyName( "Find Previous" )
         .FriendlyName( _( "Find Previous" ) )
         .Icon( BITMAPS::find ) );
@@ -509,7 +486,7 @@ TOOL_ACTION ACTIONS::findPrevious( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::findNextMarker( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.findNextMarker" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_CTRL + MD_SHIFT + static_cast<int>( WXK_F3 ) )
+        .DefaultHotkey( Qt::CTRL + Qt::SHIFT + Qt::Key_F3 )
         .LegacyHotkeyName( "Find Next Marker" )
         .FriendlyName( _( "Find Next Marker" ) )
         .Icon( BITMAPS::find ) );
@@ -555,10 +532,10 @@ TOOL_ACTION ACTIONS::excludeMarker( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::zoomRedraw( TOOL_ACTION_ARGS()
         .Name( "common.Control.zoomRedraw" )
         .Scope( AS_GLOBAL )
-#if defined( __WXMAC__ )
+#if defined( Q_OS_MAC )
         .DefaultHotkey( MD_CTRL + 'R' )
 #else
-        .DefaultHotkey( WXK_F5 )
+        .DefaultHotkey( Qt::Key_F5 )
 #endif
         .LegacyHotkeyName( "Zoom Redraw" )
         .FriendlyName( _( "Refresh" ) )
@@ -567,10 +544,10 @@ TOOL_ACTION ACTIONS::zoomRedraw( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::zoomFitScreen( TOOL_ACTION_ARGS()
         .Name( "common.Control.zoomFitScreen" )
         .Scope( AS_GLOBAL )
-#if defined( __WXMAC__ )
+#if defined( Q_OS_MAC )
         .DefaultHotkey( MD_CTRL + '0' )
 #else
-        .DefaultHotkey( WXK_HOME )
+        .DefaultHotkey( Qt::Key_Home )
 #endif
         .LegacyHotkeyName( "Zoom Auto" )
         .FriendlyName( _( "Zoom to Fit" ) )
@@ -579,7 +556,7 @@ TOOL_ACTION ACTIONS::zoomFitScreen( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::zoomFitObjects( TOOL_ACTION_ARGS()
         .Name( "common.Control.zoomFitObjects" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_CTRL + static_cast<int>( WXK_HOME ) )
+        .DefaultHotkey( Qt::CTRL + Qt::Key_Home )
         .FriendlyName( _( "Zoom to Objects" ) )
         .Icon( BITMAPS::zoom_fit_to_objects ) );
 
@@ -591,10 +568,10 @@ TOOL_ACTION ACTIONS::zoomFitSelection( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::zoomIn( TOOL_ACTION_ARGS()
         .Name( "common.Control.zoomIn" )
         .Scope( AS_GLOBAL )
-#if defined( __WXMAC__ )
+#if defined( Q_OS_MAC )
         .DefaultHotkey( MD_CTRL + '+' )
 #else
-        .DefaultHotkey( WXK_F1 )
+        .DefaultHotkey( Qt::Key_F1 )
 #endif
         .LegacyHotkeyName( "Zoom In" )
         .FriendlyName( _( "Zoom In at Cursor" ) )
@@ -603,10 +580,10 @@ TOOL_ACTION ACTIONS::zoomIn( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::zoomOut( TOOL_ACTION_ARGS()
         .Name( "common.Control.zoomOut" )
         .Scope( AS_GLOBAL )
-#if defined( __WXMAC__ )
+#if defined( Q_OS_MAC )
         .DefaultHotkey( MD_CTRL + '-' )
 #else
-        .DefaultHotkey( WXK_F2 )
+        .DefaultHotkey( Qt::Key_F2 )
 #endif
         .LegacyHotkeyName( "Zoom Out" )
         .FriendlyName( _( "Zoom Out at Cursor" ) )
@@ -655,7 +632,7 @@ TOOL_ACTION ACTIONS::zoomOutVertically( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::zoomCenter( TOOL_ACTION_ARGS()
         .Name( "common.Control.zoomCenter" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_F4 )
+        .DefaultHotkey( Qt::Key_F4 )
         .LegacyHotkeyName( "Zoom Center" )
         .FriendlyName( _( "Center on Cursor" ) )
         .Icon( BITMAPS::zoom_center_on_screen ) );
@@ -663,7 +640,7 @@ TOOL_ACTION ACTIONS::zoomCenter( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::zoomTool( TOOL_ACTION_ARGS()
         .Name( "common.Control.zoomTool" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_CTRL + static_cast<int>( WXK_F5 ) )
+        .DefaultHotkey( Qt::CTRL + Qt::Key_F5 )
         .LegacyHotkeyName( "Zoom to Selection" )
         .FriendlyName( _( "Zoom to Selection" ) )
         .Icon( BITMAPS::zoom_area )
@@ -701,7 +678,7 @@ TOOL_ACTION ACTIONS::centerSelection( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::cursorUp( TOOL_ACTION_ARGS()
         .Name( "common.Control.cursorUp" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_UP )
+        .DefaultHotkey( Qt::Key_Up )
         .FriendlyName( _( "Cursor Up" ) )
         .Flags( AF_NONE )
         .Parameter( CURSOR_UP ) );
@@ -709,7 +686,7 @@ TOOL_ACTION ACTIONS::cursorUp( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::cursorDown( TOOL_ACTION_ARGS()
         .Name( "common.Control.cursorDown" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_DOWN )
+        .DefaultHotkey( Qt::Key_Down )
         .FriendlyName( _( "Cursor Down" ) )
         .Flags( AF_NONE )
         .Parameter( CURSOR_DOWN ) );
@@ -717,7 +694,7 @@ TOOL_ACTION ACTIONS::cursorDown( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::cursorLeft( TOOL_ACTION_ARGS()
         .Name( "common.Control.cursorLeft" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_LEFT )
+        .DefaultHotkey( Qt::Key_Left )
         .FriendlyName( _( "Cursor Left" ) )
         .Flags( AF_NONE )
         .Parameter( CURSOR_LEFT ) );
@@ -725,7 +702,7 @@ TOOL_ACTION ACTIONS::cursorLeft( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::cursorRight( TOOL_ACTION_ARGS()
         .Name( "common.Control.cursorRight" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_RIGHT )
+        .DefaultHotkey( Qt::Key_Right )
         .FriendlyName( _( "Cursor Right" ) )
         .Flags( AF_NONE )
         .Parameter( CURSOR_RIGHT ) );
@@ -734,7 +711,7 @@ TOOL_ACTION ACTIONS::cursorRight( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::cursorUpFast( TOOL_ACTION_ARGS()
         .Name( "common.Control.cursorUpFast" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_CTRL + static_cast<int>( WXK_UP ) )
+        .DefaultHotkey( Qt::CTRL + Qt::Key_Up )
         .FriendlyName( _( "Cursor Up Fast" ) )
         .Flags( AF_NONE )
         .Parameter( CURSOR_UP_FAST ) );
@@ -742,7 +719,7 @@ TOOL_ACTION ACTIONS::cursorUpFast( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::cursorDownFast( TOOL_ACTION_ARGS()
         .Name( "common.Control.cursorDownFast" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_CTRL + static_cast<int>( WXK_DOWN ) )
+        .DefaultHotkey( Qt::CTRL + Qt::Key_Down )
         .FriendlyName( _( "Cursor Down Fast" ) )
         .Flags( AF_NONE )
         .Parameter( CURSOR_DOWN_FAST ) );
@@ -750,7 +727,7 @@ TOOL_ACTION ACTIONS::cursorDownFast( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::cursorLeftFast( TOOL_ACTION_ARGS()
         .Name( "common.Control.cursorLeftFast" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_CTRL + static_cast<int>( WXK_LEFT ) )
+        .DefaultHotkey( Qt::CTRL + Qt::Key_Left )
         .FriendlyName( _( "Cursor Left Fast" ) )
         .Flags( AF_NONE )
         .Parameter( CURSOR_LEFT_FAST ) );
@@ -758,7 +735,7 @@ TOOL_ACTION ACTIONS::cursorLeftFast( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::cursorRightFast( TOOL_ACTION_ARGS()
         .Name( "common.Control.cursorRightFast" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_CTRL + static_cast<int>( WXK_RIGHT ) )
+        .DefaultHotkey( Qt::CTRL + Qt::Key_Right )
         .FriendlyName( _( "Cursor Right Fast" ) )
         .Flags( AF_NONE )
         .Parameter( CURSOR_RIGHT_FAST ) );
@@ -766,7 +743,7 @@ TOOL_ACTION ACTIONS::cursorRightFast( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::cursorClick( TOOL_ACTION_ARGS()
         .Name( "common.Control.cursorClick" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_RETURN )
+        .DefaultHotkey( Qt::Key_Return )
         .LegacyHotkeyName( "Mouse Left Click" )
         .FriendlyName( _( "Click" ) )
         .Tooltip( _( "Performs left mouse button click" ) )
@@ -776,7 +753,7 @@ TOOL_ACTION ACTIONS::cursorClick( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::cursorDblClick( TOOL_ACTION_ARGS()
         .Name( "common.Control.cursorDblClick" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_END )
+        .DefaultHotkey( Qt::Key_End )
         .LegacyHotkeyName( "Mouse Left Double Click" )
         .FriendlyName( _( "Double-click" ) )
         .Tooltip( _( "Performs left mouse button double-click" ) )
@@ -820,7 +797,7 @@ TOOL_ACTION ACTIONS::libraryTreeSearch( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::panUp( TOOL_ACTION_ARGS()
         .Name( "common.Control.panUp" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_SHIFT + static_cast<int>( WXK_UP ) )
+        .DefaultHotkey( Qt::SHIFT + Qt::Key_Up )
         .FriendlyName( _( "Pan Up" ) )
         .Flags( AF_NONE )
         .Parameter( CURSOR_UP ) );
@@ -828,7 +805,7 @@ TOOL_ACTION ACTIONS::panUp( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::panDown( TOOL_ACTION_ARGS()
         .Name( "common.Control.panDown" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_SHIFT + static_cast<int>( WXK_DOWN ) )
+        .DefaultHotkey( Qt::SHIFT + Qt::Key_Down )
         .FriendlyName( _( "Pan Down" ) )
         .Flags( AF_NONE )
         .Parameter( CURSOR_DOWN ) );
@@ -836,7 +813,7 @@ TOOL_ACTION ACTIONS::panDown( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::panLeft( TOOL_ACTION_ARGS()
         .Name( "common.Control.panLeft" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_SHIFT + static_cast<int>( WXK_LEFT ) )
+        .DefaultHotkey( Qt::SHIFT + Qt::Key_Left )
         .FriendlyName( _( "Pan Left" ) )
         .Flags( AF_NONE )
         .Parameter( CURSOR_LEFT ) );
@@ -844,7 +821,7 @@ TOOL_ACTION ACTIONS::panLeft( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::panRight( TOOL_ACTION_ARGS()
         .Name( "common.Control.panRight" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_SHIFT + static_cast<int>( WXK_RIGHT ) )
+        .DefaultHotkey( Qt::SHIFT + Qt::Key_Right )
         .FriendlyName( _( "Pan Right" ) )
         .Flags( AF_NONE )
         .Parameter( CURSOR_RIGHT ) );
@@ -1128,7 +1105,7 @@ TOOL_ACTION ACTIONS::showDatasheet( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::updatePcbFromSchematic( TOOL_ACTION_ARGS()
         .Name( "common.Control.updatePcbFromSchematic" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_F8 )
+        .DefaultHotkey( Qt::Key_F8 )
         .LegacyHotkeyName( "Update PCB from Schematic" )
         .FriendlyName( _( "Update PCB from Schematic..." ) )
         .Tooltip( _( "Update PCB with changes made to schematic" ) )
@@ -1148,7 +1125,7 @@ TOOL_ACTION ACTIONS::openPreferences( TOOL_ACTION_ARGS()
         .FriendlyName( _( "Preferences..." ) )
         .Tooltip( _( "Show preferences for all open tools" ) )
         .Icon( BITMAPS::preference )
-        .UIId( wxID_PREFERENCES ) );
+        .UIId( QKeySequence::Preferences ) );
 
 TOOL_ACTION ACTIONS::configurePaths( TOOL_ACTION_ARGS()
         .Name( "common.SuiteControl.configurePaths" )
@@ -1196,13 +1173,13 @@ TOOL_ACTION ACTIONS::about( TOOL_ACTION_ARGS()
         .Name( "common.SuiteControl.about" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "About KiCad" ) )
-        .UIId( wxID_ABOUT )
+        .UIId( QKeySequence::HelpContents )
         .Icon( BITMAPS::about ) );
 
 TOOL_ACTION ACTIONS::listHotKeys( TOOL_ACTION_ARGS()
         .Name( "common.SuiteControl.listHotKeys" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_CTRL + static_cast<int>( WXK_F1 ) )
+        .DefaultHotkey( Qt::CTRL + Qt::Key_F1 )
         .LegacyHotkeyName( "List Hotkeys" )
         .FriendlyName( _( "List Hotkeys..." ) )
         .Tooltip( _( "Displays current hotkeys table and corresponding commands" ) )

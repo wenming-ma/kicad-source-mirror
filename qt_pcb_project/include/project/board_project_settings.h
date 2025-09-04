@@ -1,22 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef KICAD_BOARD_PROJECT_SETTINGS_H
 #define KICAD_BOARD_PROJECT_SETTINGS_H
@@ -30,16 +11,8 @@
 #include <math/box2.h>
 #include <glm/glm.hpp>
 
-/**
- * This file contains data structures that are saved in the project file or project local settings
- * file that are specific to PcbNew.  This is done so that these structures are available in common.
- */
 
 
-/**
- * Selection filtering that applies all the time (not the "filter selection" dialog that modifies
- * the current selection)
- */
 struct KICOMMON_API PCB_SELECTION_FILTER_OPTIONS
 {
     bool lockedItems;   ///< Allow selecting locked items
@@ -69,18 +42,12 @@ struct KICOMMON_API PCB_SELECTION_FILTER_OPTIONS
         otherItems  = true;
     }
 
-    /**
-     * @return true if any of the item types are enabled (excluding "locked items" which is special)
-     */
     bool Any()
     {
         return ( footprints || text || tracks || vias || pads || graphics || zones
                  || keepouts || dimensions || otherItems );
     }
 
-    /**
-     * @return true if all the item types are enabled (excluding "locked items" which is special)
-     */
     bool All()
     {
         return ( footprints && text && tracks && vias && pads && graphics && zones
@@ -88,9 +55,6 @@ struct KICOMMON_API PCB_SELECTION_FILTER_OPTIONS
     }
 };
 
-/**
- * Determine how inactive layers should be displayed.
- */
 enum class HIGH_CONTRAST_MODE
 {
     NORMAL = 0,     ///< Inactive layers are shown normally (no high-contrast mode)
@@ -98,7 +62,6 @@ enum class HIGH_CONTRAST_MODE
     HIDDEN          ///< Inactive layers are hidden
 };
 
-///< Determine how zones should be displayed.
 enum class ZONE_DISPLAY_MODE
 {
     SHOW_FILLED,
@@ -110,7 +73,6 @@ enum class ZONE_DISPLAY_MODE
     SHOW_TRIANGULATION
 };
 
-///< Determine how net color overrides should be applied.
 enum class NET_COLOR_MODE
 {
     OFF,        ///< Net (and netclass) colors are not shown
@@ -118,29 +80,24 @@ enum class NET_COLOR_MODE
     ALL         ///< Net/netclass colors are shown on all net copper
 };
 
-///< Determine how ratsnest lines are drawn.
 enum class RATSNEST_MODE
 {
     ALL,        ///< Ratsnest lines are drawn to items on all layers (default)
     VISIBLE     ///< Ratsnest lines are drawn to items on visible layers only
 };
 
-///< BOM Data choices for IPC2581 export
 struct KICOMMON_API IP2581_BOM
 {
-    wxString mfg;       ///< Manufacturer name column
-    wxString MPN;     ///< Manufacturer part number column
-    wxString dist;      ///< Distributor name column
-    wxString distPN;    ///< Distributor part number column
-    wxString id;        ///< Internal ID column
+    QString mfg;       ///< Manufacturer name column
+    QString MPN;     ///< Manufacturer part number column
+    QString dist;      ///< Distributor name column
+    QString distPN;    ///< Distributor part number column
+    QString id;        ///< Internal ID column
 };
 
-/**
- * A saved set of layers that are visible.
- */
 struct KICOMMON_API LAYER_PRESET
 {
-    LAYER_PRESET( const wxString& aName = wxS( "" ) ) :
+    LAYER_PRESET( const QString& aName = QString() ) :
             name( aName ),
             layers( LSET::AllLayersMask() ),
             renderLayers( GAL_SET::DefaultVisible() ),
@@ -150,7 +107,7 @@ struct KICOMMON_API LAYER_PRESET
         readOnly     = false;
     }
 
-    LAYER_PRESET( const wxString& aName, const LSET& aVisibleLayers, bool aFlipBoard ) :
+    LAYER_PRESET( const QString& aName, const LSET& aVisibleLayers, bool aFlipBoard ) :
             name( aName ),
             layers( aVisibleLayers ),
             renderLayers( GAL_SET::DefaultVisible() ),
@@ -160,7 +117,7 @@ struct KICOMMON_API LAYER_PRESET
         readOnly     = false;
     }
 
-    LAYER_PRESET( const wxString& aName, const LSET& aVisibleLayers, const GAL_SET& aVisibleObjects,
+    LAYER_PRESET( const QString& aName, const LSET& aVisibleLayers, const GAL_SET& aVisibleObjects,
                   PCB_LAYER_ID aActiveLayer, bool aFlipBoard ) :
             name( aName ),
             layers( aVisibleLayers ),
@@ -176,7 +133,7 @@ struct KICOMMON_API LAYER_PRESET
         return aOther.layers == layers && aOther.renderLayers == renderLayers;
     }
 
-    wxString     name;          ///< A name for this layer set
+    QString     name;          ///< A name for this layer set
     LSET         layers;        ///< Board layers that are visible
     GAL_SET      renderLayers;  ///< Render layers (e.g. object types) that are visible
     bool         flipBoard;     ///< True if the flip board is enabled
@@ -188,7 +145,7 @@ struct KICOMMON_API LAYER_PRESET
 class KICOMMON_API PARAM_LAYER_PRESET : public PARAM_LAMBDA<nlohmann::json>
 {
 public:
-    PARAM_LAYER_PRESET( const std::string& aPath, std::vector<LAYER_PRESET>* aPresetList );
+    PARAM_LAYER_PRESET( const std::string& aPath, QVector<LAYER_PRESET>* aPresetList );
 
     static void MigrateToV9Layers( nlohmann::json& aJson );
 
@@ -199,22 +156,22 @@ private:
 
     void jsonToPresets( const nlohmann::json& aJson );
 
-    std::vector<LAYER_PRESET>* m_presets;
+    QVector<LAYER_PRESET>* m_presets;
 };
 
 
 struct KICOMMON_API VIEWPORT
 {
-    VIEWPORT( const wxString& aName = wxEmptyString ) :
+    VIEWPORT( const QString& aName = QString() ) :
             name( aName )
     { }
 
-    VIEWPORT( const wxString& aName, const BOX2D& aRect ) :
+    VIEWPORT( const QString& aName, const BOX2D& aRect ) :
             name( aName ),
             rect( aRect )
     { }
 
-    wxString name;
+    QString name;
     BOX2D    rect;
 };
 
@@ -222,29 +179,29 @@ struct KICOMMON_API VIEWPORT
 class KICOMMON_API PARAM_VIEWPORT : public PARAM_LAMBDA<nlohmann::json>
 {
 public:
-    PARAM_VIEWPORT( const std::string& aPath, std::vector<VIEWPORT>* aViewportList );
+    PARAM_VIEWPORT( const std::string& aPath, QVector<VIEWPORT>* aViewportList );
 
 private:
     nlohmann::json viewportsToJson();
 
     void jsonToViewports( const nlohmann::json& aJson );
 
-    std::vector<VIEWPORT>* m_viewports;
+    QVector<VIEWPORT>* m_viewports;
 };
 
 
 struct KICOMMON_API VIEWPORT3D
 {
-    VIEWPORT3D( const wxString& aName = wxEmptyString ) :
+    VIEWPORT3D( const QString& aName = QString() ) :
             name( aName )
     { }
 
-    VIEWPORT3D( const wxString& aName, glm::mat4 aViewMatrix ) :
+    VIEWPORT3D( const QString& aName, glm::mat4 aViewMatrix ) :
             name( aName ),
             matrix( std::move( aViewMatrix ) )
     { }
 
-    wxString  name;
+    QString  name;
     glm::mat4 matrix;
 };
 
@@ -252,14 +209,14 @@ struct KICOMMON_API VIEWPORT3D
 class KICOMMON_API PARAM_VIEWPORT3D : public PARAM_LAMBDA<nlohmann::json>
 {
 public:
-    PARAM_VIEWPORT3D( const std::string& aPath, std::vector<VIEWPORT3D>* aViewportList );
+    PARAM_VIEWPORT3D( const std::string& aPath, QVector<VIEWPORT3D>* aViewportList );
 
 private:
     nlohmann::json viewportsToJson();
 
     void jsonToViewports( const nlohmann::json & aJson );
 
-    std::vector<VIEWPORT3D>* m_viewports;
+    QVector<VIEWPORT3D>* m_viewports;
 };
 
 
@@ -303,16 +260,16 @@ private:
 class KICOMMON_API LAYER_PAIR_INFO
 {
 public:
-    LAYER_PAIR_INFO( LAYER_PAIR aPair, bool aEnabled, std::optional<wxString> aName ) :
+    LAYER_PAIR_INFO( LAYER_PAIR aPair, bool aEnabled, std::optional<QString> aName ) :
             m_pair( std::move( aPair ) ), m_enabled( aEnabled), m_name( std::move( aName ) )
     {
     }
 
     const LAYER_PAIR& GetLayerPair() const { return m_pair; }
 
-    const std::optional<wxString>& GetName() const { return m_name; }
+    const std::optional<QString>& GetName() const { return m_name; }
 
-    void SetName( const wxString& aNewName ) { m_name = aNewName; }
+    void SetName( const QString& aNewName ) { m_name = aNewName; }
     void UnsetName() { m_name = std::nullopt; }
 
     bool IsEnabled() const { return m_enabled; }
@@ -321,44 +278,41 @@ public:
 private:
     LAYER_PAIR              m_pair;
     bool                    m_enabled = true;
-    std::optional<wxString> m_name;
+    std::optional<QString> m_name;
 };
 
 
 class KICOMMON_API PARAM_LAYER_PAIRS : public PARAM_LAMBDA<nlohmann::json>
 {
 public:
-    PARAM_LAYER_PAIRS( const std::string& aPath, std::vector<LAYER_PAIR_INFO>& m_layerPairInfos );
+    PARAM_LAYER_PAIRS( const std::string& aPath, QVector<LAYER_PAIR_INFO>& m_layerPairInfos );
 
 private:
     nlohmann::json layerPairsToJson();
 
     void jsonToLayerPairs( const nlohmann::json& aJson );
 
-    std::vector<LAYER_PAIR_INFO>& m_layerPairInfos;
+    QVector<LAYER_PAIR_INFO>& m_layerPairInfos;
 };
 
 
-/**
- * Persisted state for the net inspector panel
- */
 struct KICOMMON_API PANEL_NET_INSPECTOR_SETTINGS
 {
-    wxString              filter_text;
+    QString              filter_text;
     bool                  filter_by_net_name;
     bool                  filter_by_netclass;
     bool                  group_by_netclass;
     bool                  group_by_constraint;
-    std::vector<wxString> custom_group_rules;
+    QVector<QString> custom_group_rules;
     bool                  show_zero_pad_nets;
     bool                  show_unconnected_nets;
     int                   sorting_column;
     bool                  sort_order_asc;
-    std::vector<int>      col_order;
-    std::vector<int>      col_widths;
-    std::vector<bool>     col_hidden;
+    QVector<int>      col_order;
+    QVector<int>      col_widths;
+    QVector<bool>     col_hidden;
 
-    std::vector<wxString> expanded_rows;
+    QVector<QString> expanded_rows;
 
     PANEL_NET_INSPECTOR_SETTINGS()
     {

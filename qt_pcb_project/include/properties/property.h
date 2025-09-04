@@ -1,44 +1,21 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef PROPERTY_H
 #define PROPERTY_H
 
-#include <core/wx_stl_compat.h>
 #include <origin_transforms.h>
 #include <properties/color4d_variant.h>
 #include <properties/eda_angle_variant.h>
 #include <properties/property_validator.h>
 
-#include <wx/any.h>
-#include <wx/string.h>
-#include <wx/bitmap.h>
-#include <wx/font.h>        // required for propgrid
-#include <wx/validate.h>    // required for propgrid
-#include <wx/propgrid/property.h>
+#include <QVariant>
+#include <QString>
+#include <QPixmap>
+#include <QFont>
+#include <QValidator>
 
 #ifdef DEBUG
-#include <wx/wxcrt.h>
+#include <QDebug>
 #endif
 
 #include <functional>
@@ -46,31 +23,31 @@
 #include <memory>
 #include <typeindex>
 #include <type_traits>
+#include <algorithm>
 #include "std_optional_variants.h"
 
-class wxPGProperty;
+class QStandardItem;
 class INSPECTABLE;
 class PROPERTY_BASE;
 
 template<typename T>
 class ENUM_MAP;
 
-///< Common property types
+// Common property types
 enum PROPERTY_DISPLAY
 {
-    PT_DEFAULT,    ///< Default property for a given type
-    PT_SIZE,       ///< Size expressed in distance units (mm/inch)
-    PT_AREA,       ///< Area expressed in distance units-squared (mm/inch)
-    PT_COORD,      ///< Coordinate expressed in distance units (mm/inch)
-    PT_DEGREE,     ///< Angle expressed in degrees
-    PT_DECIDEGREE, ///< Angle expressed in decidegrees
+    PT_DEFAULT,    // Default property for a given type
+    PT_SIZE,       // Size expressed in distance units (mm/inch)
+    PT_AREA,       // Area expressed in distance units-squared (mm/inch)
+    PT_COORD,      // Coordinate expressed in distance units (mm/inch)
+    PT_DEGREE,     // Angle expressed in degrees
+    PT_DECIDEGREE, // Angle expressed in decidegrees
     PT_RATIO
 };
 
-///< Macro to generate unique identifier for a type
+// Macro to generate unique identifier for a type
 #define TYPE_HASH( x ) typeid( x ).hash_code()
 #define TYPE_NAME( x ) typeid( x ).name()
-//#define TYPE_HASH( x ) typeid( std::decay<x>::type ).hash_code()
 
 template<typename Owner, typename T>
 class GETTER_BASE
@@ -88,7 +65,7 @@ public:
     GETTER( FuncType aFunc )
         : m_func( aFunc )
     {
-        wxCHECK( m_func, /*void*/ );
+        Q_ASSERT( m_func );
     }
 
     T operator()( const Owner* aOwner ) const override
@@ -116,7 +93,7 @@ public:
     SETTER( FuncType aFunc )
         : m_func( aFunc )
     {
-        wxCHECK( m_func, /*void*/ );
+        Q_ASSERT( m_func );
     }
 
     void operator()( Owner* aOwner, T aValue ) override
@@ -195,7 +172,7 @@ private:
     ///< Used to generate unique IDs.  Must come up front so it's initialized before ctor.
 
 public:
-    PROPERTY_BASE( const wxString& aName, PROPERTY_DISPLAY aDisplay = PT_DEFAULT,
+    PROPERTY_BASE( const QString& aName, PROPERTY_DISPLAY aDisplay = PT_DEFAULT,
                    ORIGIN_TRANSFORMS::COORD_TYPES_T aCoordType = ORIGIN_TRANSFORMS::NOT_A_COORD ) :
             m_name( aName ),
             m_display( aDisplay ),
@@ -214,46 +191,28 @@ public:
     {
     }
 
-    const wxString& Name() const { return m_name; }
+    const QString& Name() const { return m_name; }
 
-    /**
-     * Return a limited set of possible values (e.g. enum). Check with HasChoices() if a particular
-     * PROPERTY provides such set.
-     */
-    virtual const wxPGChoices& Choices() const
+    virtual const QStringList& Choices() const
     {
-        static wxPGChoices empty;
+        static QStringList empty;
         return empty;
     }
 
-    /**
-     * Set the possible values for for the property.
-     */
-    virtual void SetChoices( const wxPGChoices& aChoices )
+    virtual void SetChoices( const QStringList& aChoices )
     {
-        wxFAIL; // only possible for PROPERTY_ENUM
+        Q_ASSERT(false); // only possible for PROPERTY_ENUM
     }
-
-    /**
-     * Return true if this PROPERTY has a limited set of possible values.
-     * @see PROPERTY_BASE::Choices()
-     */
     virtual bool HasChoices() const
     {
         return false;
     }
 
-    /**
-     * Return true if aObject offers this PROPERTY.
-     */
     bool Available( INSPECTABLE* aObject ) const
     {
         return m_availFunc( aObject );
     }
 
-    /**
-     * Set a callback function to determine whether an object provides this property.
-     */
     PROPERTY_BASE& SetAvailableFunc( std::function<bool(INSPECTABLE*)> aFunc )
     {
         m_availFunc = std::move( aFunc );
@@ -271,19 +230,10 @@ public:
         return *this;
     }
 
-    /**
-     * Return type-id of the Owner class.
-     */
     virtual size_t OwnerHash() const = 0;
 
-    /**
-     * Return type-id of the Base class.
-     */
     virtual size_t BaseHash() const = 0;
 
-    /**
-     * Return type-id of the property type.
-     */
     virtual size_t TypeHash() const = 0;
 
     PROPERTY_DISPLAY Display() const { return m_display; }
@@ -324,8 +274,8 @@ public:
         return *this;
     }
 
-    wxString Group() const { return m_group; }
-    PROPERTY_BASE& SetGroup( const wxString& aGroup ) { m_group = aGroup; return *this; }
+    QString Group() const { return m_group; }
+    PROPERTY_BASE& SetGroup( const QString& aGroup ) { m_group = aGroup; return *this; }
 
     PROPERTY_BASE& SetValidator( PROPERTY_VALIDATOR_FN&& aValidator )
     {
@@ -333,12 +283,12 @@ public:
         return *this;
     }
 
-    VALIDATOR_RESULT Validate( const wxAny&& aValue, EDA_ITEM* aItem )
+    VALIDATOR_RESULT Validate( const QVariant&& aValue, EDA_ITEM* aItem )
     {
         return m_validator( std::move( aValue ), aItem );
     }
 
-    static VALIDATOR_RESULT NullValidator( const wxAny&& aValue, EDA_ITEM* aItem )
+    static VALIDATOR_RESULT NullValidator( const QVariant&& aValue, EDA_ITEM* aItem )
     {
         return std::nullopt;
     }
@@ -347,39 +297,39 @@ protected:
     template<typename T>
     void set( void* aObject, T aValue )
     {
-        wxAny a = aValue;
+        QVariant a = QVariant::fromValue(aValue);
 
-        // wxVariant will be type "long" even if the property is supposed to be
+        // QVariant will be type "long" even if the property is supposed to be
         // unsigned.  Let's trust that we're coming from the property grid where
         // we used a UInt editor.
-        if( std::is_same<T, wxVariant>::value )
+        if( std::is_same<T, QVariant>::value )
         {
-            wxVariant var = static_cast<wxVariant>( aValue );
-            wxAny pv = getter( aObject );
+            QVariant var = static_cast<QVariant>( aValue );
+            QVariant pv = getter( aObject );
 
-            if( pv.CheckType<unsigned>() )
+            if( pv.canConvert<unsigned>() )
             {
-                a = static_cast<unsigned>( var.GetLong() );
+                a = static_cast<unsigned>( var.toInt() );
             }
-            else if( pv.CheckType<std::optional<int>>() )
+            else if( pv.canConvert<std::optional<int>>() )
             {
-                auto* data = static_cast<STD_OPTIONAL_INT_VARIANT_DATA*>( var.GetData() );
-                a = data->Value();
+                auto* data = static_cast<STD_OPTIONAL_INT_VARIANT_DATA*>( var.data() );
+                a = QVariant::fromValue(data->Value());
             }
-            else if( pv.CheckType<std::optional<double>>() )
+            else if( pv.canConvert<std::optional<double>>() )
             {
-                auto* data = static_cast<STD_OPTIONAL_DOUBLE_VARIANT_DATA*>( var.GetData() );
-                a = data->Value();
+                auto* data = static_cast<STD_OPTIONAL_DOUBLE_VARIANT_DATA*>( var.data() );
+                a = QVariant::fromValue(data->Value());
             }
-            else if( pv.CheckType<EDA_ANGLE>() )
+            else if( pv.canConvert<EDA_ANGLE>() )
             {
-                EDA_ANGLE_VARIANT_DATA* ad = static_cast<EDA_ANGLE_VARIANT_DATA*>( var.GetData() );
-                a = ad->Angle();
+                EDA_ANGLE_VARIANT_DATA* ad = static_cast<EDA_ANGLE_VARIANT_DATA*>( var.data() );
+                a = QVariant::fromValue(ad->Angle());
             }
-            else if( pv.CheckType<KIGFX::COLOR4D>() )
+            else if( pv.canConvert<KIGFX::COLOR4D>() )
             {
-                COLOR4D_VARIANT_DATA* cd = static_cast<COLOR4D_VARIANT_DATA*>( var.GetData() );
-                a = cd->Color();
+                COLOR4D_VARIANT_DATA* cd = static_cast<COLOR4D_VARIANT_DATA*>( var.data() );
+                a = QVariant::fromValue(cd->Color());
             }
         }
 
@@ -389,49 +339,38 @@ protected:
     template<typename T>
     T get( const void* aObject ) const
     {
-        wxAny a = getter( aObject );
+        QVariant a = getter( aObject );
 
         // We don't currently have a bool type, so change it to a numeric
-        if( a.CheckType<bool>() )
-            a = a.RawAs<bool>() ? 1 : 0;
+        if( a.type() == QVariant::Bool )
+            a = a.toBool() ? 1 : 0;
 
-        if ( !( std::is_enum<T>::value && a.CheckType<int>() ) && !a.CheckType<T>() )
+        if ( !( std::is_enum<T>::value && a.canConvert<int>() ) && !a.canConvert<T>() )
             throw std::invalid_argument( "Invalid requested type" );
 
-        return wxANY_AS( a, T );
+        return a.value<T>();
     }
 
 private:
-    virtual void setter( void* aObject, wxAny& aValue ) = 0;
-    virtual wxAny getter( const void* aObject ) const = 0;
+    virtual void setter( void* aObject, QVariant& aValue ) = 0;
+    virtual QVariant getter( const void* aObject ) const = 0;
 
 private:
-    /**
-     * Permanent identifier for this property.  Property names are an API contract; changing them
-     * after release will impact the Custom DRC Rules system as well as the automatic API binding
-     * system.  Never rename properties; instead deprecate them and hide them from the GUI.
-     */
-    const wxString m_name;
+    const QString m_name;
 
-    /// The display style controls how properties are edited in the properties manager GUI
     PROPERTY_DISPLAY m_display;
 
-    /// The coordinate type controls how distances are mapped to the user coordinate system
     ORIGIN_TRANSFORMS::COORD_TYPES_T m_coordType;
 
-    bool m_hideFromPropertiesManager;   // Do not show in Properties Manager
-    bool m_hideFromLibraryEditors;      // Do not show in Properties Manager of symbol or
-                                        //   footprint editors
-    bool m_hideFromDesignEditors;       // Do not show in Properties Manager of schematic or
-                                        //   board editors
-    bool m_hideFromRulesEditor;         // Do not show in Custom Rules editor autocomplete
+    bool m_hideFromPropertiesManager;
+    bool m_hideFromLibraryEditors;
+    bool m_hideFromDesignEditors;
+    bool m_hideFromRulesEditor;
 
-    /// Optional group identifier
-    wxString m_group;
+    QString m_group;
 
-    std::function<bool(INSPECTABLE*)> m_availFunc;   ///< Eval to determine if prop is available
-
-    std::function<bool(INSPECTABLE*)> m_writeableFunc;   ///< Eval to determine if prop is read-only
+    std::function<bool(INSPECTABLE*)> m_availFunc;
+    std::function<bool(INSPECTABLE*)> m_writeableFunc;
 
     PROPERTY_VALIDATOR_FN m_validator;
 
@@ -446,7 +385,7 @@ public:
     using BASE_TYPE = typename std::decay<T>::type;
 
     template<typename SetType, typename GetType>
-    PROPERTY( const wxString& aName,
+    PROPERTY( const QString& aName,
               void ( Base::*aSetter )( SetType ),
               GetType( Base::*aGetter )(),
               PROPERTY_DISPLAY aDisplay = PT_DEFAULT,
@@ -459,7 +398,7 @@ public:
     }
 
     template<typename SetType, typename GetType>
-    PROPERTY( const wxString& aName,
+    PROPERTY( const QString& aName,
               void ( Base::*aSetter )( SetType ),
               GetType( Base::*aGetter )() const,
               PROPERTY_DISPLAY aDisplay = PT_DEFAULT,
@@ -492,7 +431,7 @@ public:
     }
 
 protected:
-    PROPERTY( const wxString& aName,
+    PROPERTY( const QString& aName,
               SETTER_BASE<Owner, T>* s,
               GETTER_BASE<Owner, T>* g,
               PROPERTY_DISPLAY aDisplay, ORIGIN_TRANSFORMS::COORD_TYPES_T aCoordType ) :
@@ -507,38 +446,29 @@ protected:
 
     virtual ~PROPERTY() {}
 
-    virtual void setter( void* obj, wxAny& v ) override
+    virtual void setter( void* obj, QVariant& v ) override
     {
-        wxCHECK( m_setter, /*void*/ );
+        Q_ASSERT( m_setter );
 
-        if( !v.CheckType<T>() )
+        if( !v.canConvert<T>() )
             throw std::invalid_argument( "Invalid type requested" );
 
         Owner* o = reinterpret_cast<Owner*>( obj );
-        BASE_TYPE value = wxANY_AS(v, BASE_TYPE);
+        BASE_TYPE value = v.value<BASE_TYPE>();
         (*m_setter)( o, value );
     }
 
-    virtual wxAny getter( const void* obj ) const override
+    virtual QVariant getter( const void* obj ) const override
     {
         const Owner* o = reinterpret_cast<const Owner*>( obj );
-        wxAny res = (*m_getter)( o );
+        QVariant res = QVariant::fromValue((*m_getter)( o ));
         return res;
     }
 
-    ///< Set method
     std::unique_ptr<SETTER_BASE<Owner, T>> m_setter;
-
-    ///< Get method
     std::unique_ptr<GETTER_BASE<Owner, T>> m_getter;
-
-    ///< Owner class type-id
     const size_t m_ownerHash;
-
-    ///< Base class type-id
     const size_t m_baseHash;
-
-    ///< Property value type-id
     const size_t m_typeHash;
 };
 
@@ -548,7 +478,7 @@ class PROPERTY_ENUM : public PROPERTY<Owner, T, Base>
 {
 public:
     template<typename SetType, typename GetType>
-    PROPERTY_ENUM( const wxString& aName,
+    PROPERTY_ENUM( const QString& aName,
                    void ( Base::*aSetter )( SetType ),
                    GetType( Base::*aGetter )(),
                    PROPERTY_DISPLAY aDisplay = PT_DEFAULT ) :
@@ -560,12 +490,12 @@ public:
         if ( std::is_enum<T>::value )
         {
             m_choices = ENUM_MAP<T>::Instance().Choices();
-            wxASSERT_MSG( m_choices.GetCount() > 0, wxT( "No enum choices defined" ) );
+            Q_ASSERT_X( m_choices.size() > 0, "PROPERTY_ENUM", "No enum choices defined" );
         }
     }
 
     template<typename SetType, typename GetType>
-    PROPERTY_ENUM( const wxString& aName,
+    PROPERTY_ENUM( const QString& aName,
                    void ( Base::*aSetter )( SetType ),
                    GetType( Base::*aGetter )() const,
                    PROPERTY_DISPLAY aDisplay = PT_DEFAULT,
@@ -578,23 +508,23 @@ public:
         if ( std::is_enum<T>::value )
         {
             m_choices = ENUM_MAP<T>::Instance().Choices();
-            wxASSERT_MSG( m_choices.GetCount() > 0, wxT( "No enum choices defined" ) );
+            Q_ASSERT_X( m_choices.size() > 0, "PROPERTY_ENUM", "No enum choices defined" );
         }
     }
 
-    void setter( void* obj, wxAny& v ) override
+    void setter( void* obj, QVariant& v ) override
     {
-        wxCHECK( ( PROPERTY<Owner, T, Base>::m_setter ), /*void*/ );
+        Q_ASSERT( PROPERTY<Owner, T, Base>::m_setter );
         Owner* o = reinterpret_cast<Owner*>( obj );
 
-        if( v.CheckType<T>() )
+        if( v.canConvert<T>() )
         {
-            T value = wxANY_AS(v, T);
+            T value = v.value<T>();
             (*PROPERTY<Owner, T, Base>::m_setter)( o, value );
         }
-        else if (v.CheckType<int>() )
+        else if (v.canConvert<int>() )
         {
-            int value = wxANY_AS(v, int);
+            int value = v.toInt();
             (*PROPERTY<Owner, T, Base>::m_setter)( o, static_cast<T>( value ) );
         }
         else
@@ -603,30 +533,30 @@ public:
         }
     }
 
-    wxAny getter( const void* obj ) const override
+    QVariant getter( const void* obj ) const override
     {
         const Owner* o = reinterpret_cast<const Owner*>( obj );
-        wxAny res = static_cast<T>( (*PROPERTY<Owner, T, Base>::m_getter)( o ) );
+        QVariant res = QVariant::fromValue(static_cast<T>( (*PROPERTY<Owner, T, Base>::m_getter)( o ) ));
         return res;
     }
 
-    const wxPGChoices& Choices() const override
+    const QStringList& Choices() const override
     {
-        return m_choices.GetCount() > 0 ? m_choices : ENUM_MAP<T>::Instance().Choices();
+        return m_choices.size() > 0 ? m_choices : ENUM_MAP<T>::Instance().Choices();
     }
 
-    void SetChoices( const wxPGChoices& aChoices ) override
+    void SetChoices( const QStringList& aChoices ) override
     {
         m_choices = aChoices;
     }
 
     bool HasChoices() const override
     {
-        return Choices().GetCount() > 0;
+        return Choices().size() > 0;
     }
 
 protected:
-    wxPGChoices m_choices;
+    QStringList m_choices;
 };
 
 
@@ -683,9 +613,9 @@ public:
         return inst;
     }
 
-    ENUM_MAP& Map( T aValue, const wxString& aName )
+    ENUM_MAP& Map( T aValue, const QString& aName )
     {
-        m_choices.Add( aName, static_cast<int>( aValue ) );
+        m_choices.append( aName );
         m_reverseMap[ aName ] = aValue;
         return *this;
     }
@@ -696,29 +626,28 @@ public:
         return *this;
     }
 
-    const wxString& ToString( T value ) const
+    const QString& ToString( T value ) const
     {
-        static const wxString s_undef = "UNDEFINED";
+        static const QString s_undef = "UNDEFINED";
 
-        int idx = m_choices.Index( static_cast<int>( value ) );
+        auto it = std::find_if(m_reverseMap.begin(), m_reverseMap.end(),
+                               [value](const auto& pair) { return pair.second == value; });
 
-        if( idx >= 0 && idx < (int) m_choices.GetCount() )
-            return m_choices.GetLabel( static_cast<int>( idx ) );
+        if( it != m_reverseMap.end() )
+            return it->first;
         else
             return s_undef;
     }
 
     bool IsValueDefined( T value ) const
     {
-        int idx = m_choices.Index( static_cast<int>( value ) );
+        auto it = std::find_if(m_reverseMap.begin(), m_reverseMap.end(),
+                               [value](const auto& pair) { return pair.second == value; });
 
-        if( idx >= 0 && idx < (int) m_choices.GetCount() )
-            return true;
-
-        return false;
+        return it != m_reverseMap.end();
     }
 
-    T ToEnum( const wxString value )
+    T ToEnum( const QString value )
     {
         if( m_reverseMap.count( value ) )
             return m_reverseMap[ value ];
@@ -726,15 +655,15 @@ public:
             return m_undefined;
     }
 
-    wxPGChoices& Choices()
+    QStringList& Choices()
     {
         return m_choices;
     }
 
 private:
-    wxPGChoices                     m_choices;
-    std::unordered_map<wxString, T> m_reverseMap;
-    T                               m_undefined;      // Returned if the string is not recognized
+    QStringList                     m_choices;
+    std::unordered_map<QString, T>  m_reverseMap;
+    T                               m_undefined;
 
     ENUM_MAP()
     {
@@ -742,54 +671,15 @@ private:
 };
 
 
-// Helper macros to handle enum types
-#define DECLARE_ENUM_TO_WXANY( type )                                                       \
-    template <>                                                                             \
-    class wxAnyValueTypeImpl<type> : public wxAnyValueTypeImplBase<type>                    \
-    {                                                                                       \
-        WX_DECLARE_ANY_VALUE_TYPE( wxAnyValueTypeImpl<type> )                               \
-    public:                                                                                 \
-        wxAnyValueTypeImpl() : wxAnyValueTypeImplBase<type>() {}                            \
-        virtual ~wxAnyValueTypeImpl() {}                                                    \
-        virtual bool ConvertValue( const wxAnyValueBuffer& src, wxAnyValueType* dstType,    \
-                                   wxAnyValueBuffer& dst ) const override                   \
-        {                                                                                   \
-            type            value = GetValue( src );                                        \
-            ENUM_MAP<type>& conv = ENUM_MAP<type>::Instance();                              \
-            if( ! conv.IsValueDefined( value ) )                                            \
-            {                                                                               \
-                return false;                                                               \
-            }                                                                               \
-            if( dstType->CheckType<wxString>() )                                            \
-            {                                                                               \
-                wxAnyValueTypeImpl<wxString>::SetValue( conv.ToString( value ), dst );      \
-                return true;                                                                \
-            }                                                                               \
-            if( dstType->CheckType<int>() )                                                 \
-            {                                                                               \
-                wxAnyValueTypeImpl<int>::SetValue( static_cast<int>( value ), dst );        \
-                return true;                                                                \
-            }                                                                               \
-            else                                                                            \
-            {                                                                               \
-                return false;                                                               \
-            }                                                                               \
-        }                                                                                   \
-    };
+// Helper macros to handle enum types - Qt requires Q_DECLARE_METATYPE for custom types
+#define DECLARE_ENUM_TO_QVARIANT( type )                                                   \
+    Q_DECLARE_METATYPE( type )
 
-#define IMPLEMENT_ENUM_TO_WXANY( type ) WX_IMPLEMENT_ANY_VALUE_TYPE( wxAnyValueTypeImpl<type> )
+#define IMPLEMENT_ENUM_TO_QVARIANT( type ) // No implementation needed for Qt
 
-#define ENUM_TO_WXANY( type )                                                               \
-    DECLARE_ENUM_TO_WXANY( type )                                                           \
-    IMPLEMENT_ENUM_TO_WXANY( type )
+#define ENUM_TO_QVARIANT( type )                                                           \
+    DECLARE_ENUM_TO_QVARIANT( type )
 
-///< Macro to define read-only fields (no setter method available)
+// Macro to define read-only fields (no setter method available)
 #define NO_SETTER( owner, type ) ( ( void ( owner::* )( type ) ) nullptr )
-
-/*
-#define DECLARE_PROPERTY(owner,type,name,getter,setter) \
-namespace anonymous {\
-static PROPERTY<owner,type> prop##_owner##_name_( "##name#", setter, getter );\
-};
-*/
 #endif /* PROPERTY_H */

@@ -1,85 +1,81 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-#include <wx/event.h>
-#include <wx/gdicmn.h>
+#include <QKeyEvent>
+#include <QLineEdit>
+#include <QApplication>
+#include <QClipboard>
 #include <textentry_tricks.h>
-#include <dialog_shim.h>
 
 
-void TEXTENTRY_TRICKS::OnCharHook( wxTextEntry* aTextEntry, wxKeyEvent& aEvent )
+void TEXTENTRY_TRICKS::OnCharHook( QLineEdit* aTextEntry, QKeyEvent& aEvent )
 {
-    if( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == 'X' )
+    if( isCtrl( 'X', aEvent ) )
     {
-        aTextEntry->Cut();
+        aTextEntry->cut();
     }
-    else if( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == 'C' )
+    else if( isCtrl( 'C', aEvent ) )
     {
-        aTextEntry->Copy();
+        aTextEntry->copy();
     }
-    else if( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == 'V' )
+    else if( isCtrl( 'V', aEvent ) )
     {
-        aTextEntry->Paste();
+        aTextEntry->paste();
     }
-    else if( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == 'A' )
+    else if( isCtrl( 'A', aEvent ) )
     {
-        aTextEntry->SelectAll();
+        aTextEntry->selectAll();
     }
-    else if( aEvent.GetKeyCode() == WXK_BACK )
+    else if( aEvent.key() == Qt::Key_Backspace )
     {
-        long start, end;
-        aTextEntry->GetSelection( &start, &end );
+        int start = aTextEntry->selectionStart();
+        int length = aTextEntry->selectedText().length();
 
-        if( end > start )
+        if( length > 0 )
         {
-            aTextEntry->Remove( start, end );
-            aTextEntry->SetInsertionPoint( start );
+            QString text = aTextEntry->text();
+            text.remove( start, length );
+            aTextEntry->setText( text );
+            aTextEntry->setCursorPosition( start );
         }
-        else if ( start == end && start > 0 )
+        else if( start > 0 )
         {
-            aTextEntry->Remove( start-1, start );
-            aTextEntry->SetInsertionPoint( start-1 );
+            QString text = aTextEntry->text();
+            text.remove( start - 1, 1 );
+            aTextEntry->setText( text );
+            aTextEntry->setCursorPosition( start - 1 );
         }
     }
-    else if( aEvent.GetKeyCode() == WXK_DELETE )
+    else if( aEvent.key() == Qt::Key_Delete )
     {
-        long start, end;
-        aTextEntry->GetSelection( &start, &end );
+        int start = aTextEntry->selectionStart();
+        int length = aTextEntry->selectedText().length();
 
-        if( end > start )
+        if( length > 0 )
         {
-            aTextEntry->Remove( start, end );
-            aTextEntry->SetInsertionPoint( start );
+            QString text = aTextEntry->text();
+            text.remove( start, length );
+            aTextEntry->setText( text );
+            aTextEntry->setCursorPosition( start );
         }
-        else if( start == end && start < aTextEntry->GetLastPosition() )
+        else if( start < aTextEntry->text().length() )
         {
-            aTextEntry->Remove( start, start+1 );
+            QString text = aTextEntry->text();
+            text.remove( start, 1 );
+            aTextEntry->setText( text );
         }
     }
     else
     {
-        aEvent.Skip();
+        aEvent.accept();
     }
 }
 
 
+bool TEXTENTRY_TRICKS::isCtrl( int aChar, const QKeyEvent& e )
+{
+    return e.modifiers() & Qt::ControlModifier && e.key() == aChar;
+}
+
+
+bool TEXTENTRY_TRICKS::isShiftCtrl( int aChar, const QKeyEvent& e )
+{
+    return ( e.modifiers() & Qt::ControlModifier ) && ( e.modifiers() & Qt::ShiftModifier ) && e.key() == aChar;
+}

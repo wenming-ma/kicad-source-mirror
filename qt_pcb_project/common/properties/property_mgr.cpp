@@ -1,51 +1,29 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include <inspectable.h>
 #include <properties/property_mgr.h>
 #include <properties/property.h>
 
 #include <algorithm>
 #include <utility>
-#include <wx/wx.h>
+#include <QString>
 
-static wxString EMPTY_STRING( wxEmptyString );
+static QString EMPTY_STRING;
 
 
-void PROPERTY_MANAGER::RegisterType( TYPE_ID aType, const wxString& aName )
+void PROPERTY_MANAGER::RegisterType( TYPE_ID aType, const QString& aName )
 {
-    wxASSERT( m_classNames.count( aType ) == 0 );
+    Q_ASSERT( m_classNames.count( aType ) == 0 );
     m_classNames.emplace( aType, aName );
 }
 
 
-const wxString& PROPERTY_MANAGER::ResolveType( TYPE_ID aType ) const
+const QString& PROPERTY_MANAGER::ResolveType( TYPE_ID aType ) const
 {
     auto it = m_classNames.find( aType );
     return it != m_classNames.end() ? it->second : EMPTY_STRING;
 }
 
 
-PROPERTY_BASE* PROPERTY_MANAGER::GetProperty( TYPE_ID aType, const wxString& aProperty ) const
+PROPERTY_BASE* PROPERTY_MANAGER::GetProperty( TYPE_ID aType, const QString& aProperty ) const
 {
     if( m_dirty )
         const_cast<PROPERTY_MANAGER*>( this )->Rebuild();
@@ -59,7 +37,7 @@ PROPERTY_BASE* PROPERTY_MANAGER::GetProperty( TYPE_ID aType, const wxString& aPr
 
     for( PROPERTY_BASE* property : classDesc.m_allProperties )
     {
-        if( !aProperty.CmpNoCase( property->Name() ) )
+        if( aProperty.compare( property->Name(), Qt::CaseInsensitive ) == 0 )
             return property;
     }
 
@@ -97,12 +75,12 @@ const PROPERTY_DISPLAY_ORDER& PROPERTY_MANAGER::GetDisplayOrder( TYPE_ID aType )
 }
 
 
-const std::vector<wxString>& PROPERTY_MANAGER::GetGroupDisplayOrder( TYPE_ID aType ) const
+const QVector<QString>& PROPERTY_MANAGER::GetGroupDisplayOrder( TYPE_ID aType ) const
 {
     if( m_dirty )
         const_cast<PROPERTY_MANAGER*>( this )->Rebuild();
 
-    static const std::vector<wxString> empty;
+    static const QVector<QString> empty;
     auto it = m_classes.find( aType );
 
     if( it == m_classes.end() )
@@ -132,9 +110,9 @@ const void* PROPERTY_MANAGER::TypeCast( const void* aSource, TYPE_ID aBase, TYPE
 }
 
 
-PROPERTY_BASE& PROPERTY_MANAGER::AddProperty( PROPERTY_BASE* aProperty, const wxString& aGroup )
+PROPERTY_BASE& PROPERTY_MANAGER::AddProperty( PROPERTY_BASE* aProperty, const QString& aGroup )
 {
-    const wxString& name = aProperty->Name();
+    const QString& name = aProperty->Name();
     TYPE_ID hash = aProperty->OwnerHash();
     CLASS_DESC& classDesc = getClass( hash );
     classDesc.m_ownProperties.emplace( name, aProperty );
@@ -153,8 +131,8 @@ PROPERTY_BASE& PROPERTY_MANAGER::AddProperty( PROPERTY_BASE* aProperty, const wx
 }
 
 
-PROPERTY_BASE& PROPERTY_MANAGER::ReplaceProperty( size_t aBase, const wxString& aName,
-                                                  PROPERTY_BASE* aNew, const wxString& aGroup )
+PROPERTY_BASE& PROPERTY_MANAGER::ReplaceProperty( size_t aBase, const QString& aName,
+                                                  PROPERTY_BASE* aNew, const QString& aGroup )
 {
     CLASS_DESC& classDesc = getClass( aNew->OwnerHash() );
     classDesc.m_replaced.insert( std::make_pair( aBase, aName ) );
@@ -167,28 +145,28 @@ void PROPERTY_MANAGER::AddTypeCast( TYPE_CAST_BASE* aCast )
     TYPE_ID derivedHash = aCast->DerivedHash();
     CLASS_DESC& classDesc = getClass( aCast->BaseHash() );
     auto& typeCasts = classDesc.m_typeCasts;
-    wxASSERT_MSG( typeCasts.count( derivedHash ) == 0, "Such converter already exists" );
+    Q_ASSERT_X( typeCasts.count( derivedHash ) == 0, "AddTypeCast", "Such converter already exists" );
     typeCasts.emplace( derivedHash, aCast );
 }
 
 
 void PROPERTY_MANAGER::InheritsAfter( TYPE_ID aDerived, TYPE_ID aBase )
 {
-    wxASSERT_MSG( aDerived != aBase, "Class cannot inherit from itself" );
+    Q_ASSERT_X( aDerived != aBase, "InheritsAfter", "Class cannot inherit from itself" );
 
     CLASS_DESC& derived = getClass( aDerived );
     CLASS_DESC& base = getClass( aBase );
     derived.m_bases.push_back( base );
     m_dirty = true;
 
-    wxASSERT_MSG( derived.m_bases.size() == 1 || derived.m_typeCasts.count( aBase ) == 1,
-                  "You need to add a TYPE_CAST for classes inheriting from multiple bases" );
+    Q_ASSERT_X( derived.m_bases.size() == 1 || derived.m_typeCasts.count( aBase ) == 1,
+                "InheritsAfter", "You need to add a TYPE_CAST for classes inheriting from multiple bases" );
 }
 
 
-void PROPERTY_MANAGER::Mask( TYPE_ID aDerived, TYPE_ID aBase, const wxString& aName )
+void PROPERTY_MANAGER::Mask( TYPE_ID aDerived, TYPE_ID aBase, const QString& aName )
 {
-    wxASSERT_MSG( aDerived != aBase, "Class cannot mask from itself" );
+    Q_ASSERT_X( aDerived != aBase, "Mask", "Class cannot mask from itself" );
 
     CLASS_DESC& derived = getClass( aDerived );
     derived.m_maskedBaseProperties.insert( std::make_pair( aBase, aName ) );
@@ -197,10 +175,10 @@ void PROPERTY_MANAGER::Mask( TYPE_ID aDerived, TYPE_ID aBase, const wxString& aN
 
 
 void PROPERTY_MANAGER::OverrideAvailability( TYPE_ID aDerived, TYPE_ID aBase,
-                                             const wxString& aName,
+                                             const QString& aName,
                                              std::function<bool( INSPECTABLE* )> aFunc )
 {
-    wxASSERT_MSG( aDerived != aBase, "Class cannot override from itself" );
+    Q_ASSERT_X( aDerived != aBase, "OverrideAvailability", "Class cannot override from itself" );
 
     CLASS_DESC& derived = getClass( aDerived );
     derived.m_availabilityOverrides[std::make_pair( aBase, aName )] = std::move( aFunc );
@@ -209,10 +187,10 @@ void PROPERTY_MANAGER::OverrideAvailability( TYPE_ID aDerived, TYPE_ID aBase,
 
 
 void PROPERTY_MANAGER::OverrideWriteability( TYPE_ID aDerived, TYPE_ID aBase,
-                                             const wxString& aName,
+                                             const QString& aName,
                                              std::function<bool( INSPECTABLE* )> aFunc )
 {
-    wxASSERT_MSG( aDerived != aBase, "Class cannot override from itself" );
+    Q_ASSERT_X( aDerived != aBase, "OverrideWriteability", "Class cannot override from itself" );
 
     CLASS_DESC& derived = getClass( aDerived );
     derived.m_writeabilityOverrides[std::make_pair( aBase, aName )] = std::move( aFunc );
@@ -262,7 +240,8 @@ bool PROPERTY_MANAGER::IsOfType( TYPE_ID aDerived, TYPE_ID aBase ) const
         return true;
 
     auto derived = m_classes.find( aDerived );
-    wxCHECK( derived != m_classes.end(), false );   // missing class description
+    if( derived == m_classes.end() )
+        return false;
 
     // traverse the hierarchy seeking for the base class
     for( auto& base : derived->second.m_bases )
@@ -305,17 +284,17 @@ void PROPERTY_MANAGER::CLASS_DESC::rebuild()
     // We need to keep properties sorted to be able to use std::set_* functions
     sort( m_allProperties.begin(), m_allProperties.end() );
 
-    std::vector<wxString> displayOrder;
-    std::set<wxString> groups;
+    QVector<QString> displayOrder;
+    std::set<QString> groups;
 
     auto collectGroups =
-            [&]( std::set<wxString>& aSet, std::vector<wxString>& aResult )
+            [&]( std::set<QString>& aSet, QVector<QString>& aResult )
     {
         auto collectGroupsRecursive =
-                []( auto& aSelf, std::set<wxString>& aSetR, std::vector<wxString>& aResultR,
+                []( auto& aSelf, std::set<QString>& aSetR, QVector<QString>& aResultR,
                     const CLASS_DESC& aClassR ) -> void
         {
-            for( const wxString& group : aClassR.m_groupDisplayOrder )
+            for( const QString& group : aClassR.m_groupDisplayOrder )
             {
                 if( !aSetR.count( group ) )
                 {
@@ -331,8 +310,6 @@ void PROPERTY_MANAGER::CLASS_DESC::rebuild()
         collectGroupsRecursive( collectGroupsRecursive, aSet, aResult, *this );
     };
 
-    // TODO(JE): This currently relies on rebuild() happening after all properties are added
-    // separate out own groups vs. all groups to fix
     collectGroups( groups, displayOrder );
     m_groupDisplayOrder = displayOrder;
 }
@@ -343,16 +320,12 @@ void PROPERTY_MANAGER::CLASS_DESC::collectPropsRecur( PROPERTY_LIST& aResult,
                                                       PROPERTY_DISPLAY_ORDER& aDisplayOrder,
                                                       PROPERTY_SET& aMasked ) const
 {
-    for( const std::pair<size_t, wxString>& replacedEntry : m_replaced )
+    for( const std::pair<size_t, QString>& replacedEntry : m_replaced )
         aReplaced.emplace( replacedEntry );
 
-    for( const std::pair<size_t, wxString>& maskedEntry : m_maskedBaseProperties )
+    for( const std::pair<size_t, QString>& maskedEntry : m_maskedBaseProperties )
         aMasked.emplace( maskedEntry );
 
-    /*
-     * We want to insert our own properties in forward order, but earlier than anything already in
-     * the list (which will have been added by a subclass of us)
-     */
     int displayOrderStart = 0;
 
     if( !aDisplayOrder.empty() )
@@ -395,17 +368,6 @@ std::vector<TYPE_ID> PROPERTY_MANAGER::GetMatchingClasses( PROPERTY_BASE* aPrope
 {
     std::vector<TYPE_ID> ids;
 
-/*
-    for( auto& cls : m_classes )
-    {
-        CLASS_INFO info;
-
-        for( auto prop : cls.second.m_allProperties )
-            info.properties.push_back(prop);
-
-
-    }
- */
 
     return ids;
 }
@@ -457,8 +419,8 @@ void PROPERTY_MANAGER::PropertyChanged( INSPECTABLE* aObject, PROPERTY_BASE* aPr
 
 PROPERTY_COMMIT_HANDLER::PROPERTY_COMMIT_HANDLER( COMMIT* aCommit )
 {
-    wxCHECK2_MSG( PROPERTY_MANAGER::Instance().m_managedCommit == nullptr,
-                  return, "Can't have more than one managed commit at a time!" );
+    if( PROPERTY_MANAGER::Instance().m_managedCommit != nullptr )
+        return;
 
     PROPERTY_MANAGER::Instance().m_managedCommit = aCommit;
 }
@@ -466,8 +428,8 @@ PROPERTY_COMMIT_HANDLER::PROPERTY_COMMIT_HANDLER( COMMIT* aCommit )
 
 PROPERTY_COMMIT_HANDLER::~PROPERTY_COMMIT_HANDLER()
 {
-    wxASSERT_MSG( PROPERTY_MANAGER::Instance().m_managedCommit != nullptr,
-                  "Something went wrong: m_managedCommit already null!" );
+    Q_ASSERT_X( PROPERTY_MANAGER::Instance().m_managedCommit != nullptr,
+                "~PROPERTY_COMMIT_HANDLER", "Something went wrong: m_managedCommit already null!" );
 
     PROPERTY_MANAGER::Instance().m_managedCommit = nullptr;
 }

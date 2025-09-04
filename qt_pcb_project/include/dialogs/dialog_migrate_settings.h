@@ -1,54 +1,26 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef _DIALOG_MIGRATE_SETTINGS_H
 #define _DIALOG_MIGRATE_SETTINGS_H
 
-// #include "dialog_migrate_settings_base.h"
-
+#include <QDialog>
 
 class SETTINGS_MANAGER;
 
-
-class KICOMMON_API DIALOG_MIGRATE_SETTINGS // : public DIALOG_MIGRATE_SETTINGS_BASE
+class KICOMMON_API DIALOG_MIGRATE_SETTINGS : public QDialog
 {
+    Q_OBJECT
+
 public:
     DIALOG_MIGRATE_SETTINGS( SETTINGS_MANAGER* aManager );
 
     ~DIALOG_MIGRATE_SETTINGS();
 
-    // bool TransferDataToWindow() override;
-
-    // bool TransferDataFromWindow() override;
-
-protected:
-
-    // void OnPrevVerSelected( wxCommandEvent& event ) override;
-
-    // void OnPathChanged( wxCommandEvent& event ) override;
-
-    // void OnPathDefocused( wxFocusEvent& event ) override;
-
-    // void OnChoosePath( wxCommandEvent& event ) override;
-
-    // void OnDefaultSelected( wxCommandEvent& event ) override;
+protected slots:
+    void OnPrevVerSelected();
+    void OnPathChanged();
+    void OnPathDefocused();
+    void OnChoosePath();
+    void OnDefaultSelected();
 
 private:
 

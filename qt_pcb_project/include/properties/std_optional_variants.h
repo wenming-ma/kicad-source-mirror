@@ -1,47 +1,30 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef STD_OPTIONAL_VARIANT_H
 #define STD_OPTIONAL_VARIANT_H
 
 #include <optional>
-#include <wx/variant.h>
+#include <QVariant>
 
-/*
- * Wrappers to allow use of std::optional<int> and std::optional<double> with the wxVariant
- * system.
- */
+// Wrappers to allow use of std::optional<int> and std::optional<double> with the QVariant system.
 
-class STD_OPTIONAL_INT_VARIANT_DATA : public wxVariantData
+class STD_OPTIONAL_INT_VARIANT_DATA
 {
 public:
     STD_OPTIONAL_INT_VARIANT_DATA();
 
     STD_OPTIONAL_INT_VARIANT_DATA( std::optional<int> aValue );
 
-    bool Eq( wxVariantData& aOther ) const override;
+    bool Eq( const STD_OPTIONAL_INT_VARIANT_DATA& aOther ) const;
 
-    wxString GetType() const override { return wxT( "std::optional<int>" ); }
+    QString GetType() const { return QStringLiteral( "std::optional<int>" ); }
 
-    bool GetAsAny( wxAny* aAny ) const override
+    bool GetAsVariant( QVariant* aVariant ) const
     {
-        *aAny = m_value;
+        if( m_value.has_value() )
+            *aVariant = QVariant( m_value.value() );
+        else
+            *aVariant = QVariant();
         return true;
     }
 
@@ -50,9 +33,12 @@ public:
         return m_value;
     }
 
-    static wxVariantData* VariantDataFactory( const wxAny& aAny )
+    static STD_OPTIONAL_INT_VARIANT_DATA* VariantDataFactory( const QVariant& aVariant )
     {
-        return new STD_OPTIONAL_INT_VARIANT_DATA( aAny.As<std::optional<int>>() );
+        if( aVariant.isValid() && aVariant.canConvert<int>() )
+            return new STD_OPTIONAL_INT_VARIANT_DATA( std::optional<int>( aVariant.toInt() ) );
+        else
+            return new STD_OPTIONAL_INT_VARIANT_DATA( std::nullopt );
     }
 
 protected:
@@ -60,20 +46,23 @@ protected:
 };
 
 
-class STD_OPTIONAL_DOUBLE_VARIANT_DATA : public wxVariantData
+class STD_OPTIONAL_DOUBLE_VARIANT_DATA
 {
 public:
     STD_OPTIONAL_DOUBLE_VARIANT_DATA();
 
     STD_OPTIONAL_DOUBLE_VARIANT_DATA( std::optional<double> aValue );
 
-    bool Eq( wxVariantData& aOther ) const override;
+    bool Eq( const STD_OPTIONAL_DOUBLE_VARIANT_DATA& aOther ) const;
 
-    wxString GetType() const override { return wxT( "std::optional<double>" ); }
+    QString GetType() const { return QStringLiteral( "std::optional<double>" ); }
 
-    bool GetAsAny( wxAny* aAny ) const override
+    bool GetAsVariant( QVariant* aVariant ) const
     {
-        *aAny = m_value;
+        if( m_value.has_value() )
+            *aVariant = QVariant( m_value.value() );
+        else
+            *aVariant = QVariant();
         return true;
     }
 
@@ -82,9 +71,12 @@ public:
         return m_value;
     }
 
-    static wxVariantData* VariantDataFactory( const wxAny& aAny )
+    static STD_OPTIONAL_DOUBLE_VARIANT_DATA* VariantDataFactory( const QVariant& aVariant )
     {
-        return new STD_OPTIONAL_DOUBLE_VARIANT_DATA( aAny.As<std::optional<double>>() );
+        if( aVariant.isValid() && aVariant.canConvert<double>() )
+            return new STD_OPTIONAL_DOUBLE_VARIANT_DATA( std::optional<double>( aVariant.toDouble() ) );
+        else
+            return new STD_OPTIONAL_DOUBLE_VARIANT_DATA( std::nullopt );
     }
 
 protected:

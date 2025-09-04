@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2009 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2009 Jean-Pierre Charras, jean-pierre.charras@inpg.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <algorithm>
 #include <netclass.h>
@@ -53,7 +29,7 @@ const int DEFAULT_BUS_WIDTH        = schIUScale.MilsToIU( 12 );
 const int DEFAULT_LINE_STYLE       = 0; // solid
 
 
-NETCLASS::NETCLASS( const wxString& aName, bool aInitWithDefaults ) : m_isDefault( false )
+NETCLASS::NETCLASS( const QString& aName, bool aInitWithDefaults ) : m_isDefault( false )
 {
     m_constituents.push_back( this );
 
@@ -273,7 +249,7 @@ void NETCLASS::SetConstituentNetclasses( std::vector<NETCLASS*>&& constituents )
 }
 
 
-bool NETCLASS::ContainsNetclassWithName( const wxString& netclass ) const
+bool NETCLASS::ContainsNetclassWithName( const QString& netclass ) const
 {
     return std::any_of( m_constituents.begin(), m_constituents.end(),
                         [&netclass]( const NETCLASS* nc )
@@ -283,48 +259,48 @@ bool NETCLASS::ContainsNetclassWithName( const wxString& netclass ) const
 }
 
 
-const wxString NETCLASS::GetHumanReadableName() const
+const QString NETCLASS::GetHumanReadableName() const
 {
     if( m_constituents.size() == 1 )
         return m_Name;
 
-    wxASSERT( m_constituents.size() >= 2 );
+    Q_ASSERT( m_constituents.size() >= 2 );
 
-    wxString name;
+    QString name;
 
     if( m_constituents.size() == 2 )
     {
-        name.Printf( _( "%s and %s" ),
-                     m_constituents[0]->GetName(),
-                     m_constituents[1]->GetName() );
+        name = QString( "%1 and %2" )
+                     .arg( m_constituents[0]->GetName() )
+                     .arg( m_constituents[1]->GetName() );
     }
     else if( m_constituents.size() == 3 )
     {
-        name.Printf( _( "%s, %s and %s" ),
-                     m_constituents[0]->GetName(),
-                     m_constituents[1]->GetName(),
-                     m_constituents[2]->GetName() );
+        name = QString( "%1, %2 and %3" )
+                     .arg( m_constituents[0]->GetName() )
+                     .arg( m_constituents[1]->GetName() )
+                     .arg( m_constituents[2]->GetName() );
     }
     else if( m_constituents.size() > 3 )
     {
-        name.Printf( _( "%s, %s and %d more" ),
-                     m_constituents[0]->GetName(),
-                     m_constituents[1]->GetName(),
-                     static_cast<int>( m_constituents.size() - 2 ) );
+        name = QString( "%1, %2 and %3 more" )
+                     .arg( m_constituents[0]->GetName() )
+                     .arg( m_constituents[1]->GetName() )
+                     .arg( static_cast<int>( m_constituents.size() - 2 ) );
     }
 
     return name;
 }
 
 
-const wxString NETCLASS::GetName() const
+const QString NETCLASS::GetName() const
 {
     if( m_constituents.size() == 1 )
         return m_Name;
 
-    wxASSERT( m_constituents.size() >= 2 );
+    Q_ASSERT( m_constituents.size() >= 2 );
 
-    wxString name = m_constituents[0]->m_Name;
+    QString name = m_constituents[0]->m_Name;
 
     for( std::size_t i = 1; i < m_constituents.size(); ++i )
     {

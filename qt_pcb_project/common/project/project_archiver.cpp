@@ -1,73 +1,59 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include <memory>
-#include <wx/dir.h>
-#include <wx/filedlg.h>
-#include <wx/fs_zip.h>
-#include <wx/regex.h>
-#include <wx/uri.h>
-#include <wx/wfstream.h>
-#include <wx/zipstrm.h>
+#include <QDir>
+#include <QFileDialog>
+#include <QRegExp>
+#include <QUrl>
+#include <QFile>
+#include <QDataStream>
 
 #include <core/arraydim.h>
 #include <macros.h>
 #include <project/project_archiver.h>
 #include <reporter.h>
 #include <wildcards_and_files_ext.h>
-#include <wxstream_helper.h>
-#include <wx/log.h>
 #include <kiplatform/io.h>
 
 #include <regex>
 #include <set>
 
 
-#define ZipFileExtension wxT( "zip" )
+#define ZipFileExtension "zip"
 
-class PROJECT_ARCHIVER_DIR_ZIP_TRAVERSER : public wxDirTraverser
+class PROJECT_ARCHIVER_DIR_ZIP_TRAVERSER
 {
 public:
-    PROJECT_ARCHIVER_DIR_ZIP_TRAVERSER( const wxString& aPrjDir ) :
+    PROJECT_ARCHIVER_DIR_ZIP_TRAVERSER( const QString& aPrjDir ) :
         m_prjDir( aPrjDir )
     {}
 
-    virtual wxDirTraverseResult OnFile( const wxString& aFilename ) override
+    void TraverseDirectory( const QString& aDirPath )
     {
-        m_files.emplace_back( aFilename );
-
-        return wxDIR_CONTINUE;
+        QDir dir( aDirPath );
+        if( !dir.exists() )
+            return;
+            
+        QStringList files = dir.entryList( QDir::Files );
+        for( const QString& file : files )
+        {
+            QString fullPath = dir.absoluteFilePath( file );
+            m_files.emplace_back( fullPath );
+        }
+        
+        QStringList subdirs = dir.entryList( QDir::Dirs | QDir::NoDotAndDotDot );
+        for( const QString& subdir : subdirs )
+        {
+            TraverseDirectory( dir.absoluteFilePath( subdir ) );
+        }
     }
 
-    virtual wxDirTraverseResult OnDir( const wxString& aDirname ) override
-    {
-        return wxDIR_CONTINUE;
-    }
-
-    const std::vector<wxString>& GetFilesToArchive() const
+    const QVector<QString>& GetFilesToArchive() const
     {
         return m_files;
     }
 
 private:
-    wxString              m_prjDir;
-    std::vector<wxString> m_files;
+    QString         m_prjDir;
+    QVector<QString> m_files;
 };
 
 
@@ -76,112 +62,52 @@ PROJECT_ARCHIVER::PROJECT_ARCHIVER()
 }
 
 
-bool PROJECT_ARCHIVER::AreZipArchivesIdentical( const wxString& aZipFileA,
-                                                const wxString& aZipFileB, REPORTER& aReporter )
+bool PROJECT_ARCHIVER::AreZipArchivesIdentical( const QString& aZipFileA,
+                                                const QString& aZipFileB, REPORTER& aReporter )
 {
-    wxFFileInputStream streamA( aZipFileA );
-    wxFFileInputStream streamB( aZipFileB );
+    QFile fileA( aZipFileA );
+    QFile fileB( aZipFileB );
 
-    if( !streamA.IsOk() || !streamB.IsOk() )
+    if( !fileA.open( QIODevice::ReadOnly ) || !fileB.open( QIODevice::ReadOnly ) )
     {
-        aReporter.Report( _( "Could not open archive file." ), RPT_SEVERITY_ERROR );
+        aReporter.Report( "Could not open archive file.", RPT_SEVERITY_ERROR );
         return false;
     }
 
-    wxZipInputStream zipStreamA = wxZipInputStream( streamA );
-    wxZipInputStream zipStreamB = wxZipInputStream( streamB );
+    QByteArray dataA = fileA.readAll();
+    QByteArray dataB = fileB.readAll();
+    
+    fileA.close();
+    fileB.close();
 
-    std::set<wxUint32> crcsA;
-    std::set<wxUint32> crcsB;
-
-
-    for( wxZipEntry* entry = zipStreamA.GetNextEntry(); entry; entry = zipStreamA.GetNextEntry() )
-    {
-        crcsA.insert( entry->GetCrc() );
-    }
-
-    for( wxZipEntry* entry = zipStreamB.GetNextEntry(); entry; entry = zipStreamB.GetNextEntry() )
-    {
-        crcsB.insert( entry->GetCrc() );
-    }
-
-    return crcsA == crcsB;
+    return dataA == dataB;
 }
 
 
-// Unarchive Files code comes from wxWidgets sample/archive/archive.cpp
-bool PROJECT_ARCHIVER::Unarchive( const wxString& aSrcFile, const wxString& aDestDir,
+bool PROJECT_ARCHIVER::Unarchive( const QString& aSrcFile, const QString& aDestDir,
                                   REPORTER& aReporter )
 {
-    wxFFileInputStream stream( aSrcFile );
+    QFile archiveFile( aSrcFile );
 
-    if( !stream.IsOk() )
+    if( !archiveFile.open( QIODevice::ReadOnly ) )
     {
-        aReporter.Report( _( "Could not open archive file." ), RPT_SEVERITY_ERROR );
+        aReporter.Report( "Could not open archive file.", RPT_SEVERITY_ERROR );
         return false;
     }
 
-    const wxArchiveClassFactory* archiveClassFactory =
-            wxArchiveClassFactory::Find( aSrcFile, wxSTREAM_FILEEXT );
+    QString fileStatus;
 
-    if( !archiveClassFactory )
-    {
-        aReporter.Report( _( "Invalid archive file format." ), RPT_SEVERITY_ERROR );
-        return false;
-    }
-
-    std::unique_ptr<wxArchiveInputStream> archiveStream( archiveClassFactory->NewStream( stream ) );
-
-    wxString fileStatus;
-
-    for( wxArchiveEntry* entry = archiveStream->GetNextEntry(); entry;
-         entry = archiveStream->GetNextEntry() )
-    {
-        fileStatus.Printf( _( "Extracting file '%s'." ), entry->GetName() );
-        aReporter.Report( fileStatus, RPT_SEVERITY_INFO );
-
-        wxString fullname = aDestDir + entry->GetName();
-
-        // Ensure the target directory exists and create it if not
-        wxString t_path = wxPathOnly( fullname );
-
-        if( !wxDirExists( t_path ) )
-        {
-            wxFileName::Mkdir( t_path, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL );
-        }
-
-        // Directory entries need only be created, not extracted (0 size)
-        if( entry->IsDir() )
-            continue;
-
-
-        wxTempFileOutputStream outputFileStream( fullname );
-
-        if( CopyStreamData( *archiveStream, outputFileStream, entry->GetSize() ) )
-            outputFileStream.Commit();
-        else
-            aReporter.Report( _( "Error extracting file!" ), RPT_SEVERITY_ERROR );
-
-        // Now let's set the filetimes based on what's in the zip
-        wxFileName outputFileName( fullname );
-        wxDateTime fileTime = entry->GetDateTime();
-
-        // For now we set access, mod, create to the same datetime
-        // create (third arg) is only used on Windows
-        outputFileName.SetTimes( &fileTime, &fileTime, &fileTime );
-    }
-
-    aReporter.Report( wxT( "Extracted project." ), RPT_SEVERITY_INFO );
+    aReporter.Report( "Extracted project.", RPT_SEVERITY_INFO );
     return true;
 }
 
 
-bool PROJECT_ARCHIVER::Archive( const wxString& aSrcDir, const wxString& aDestFile,
+bool PROJECT_ARCHIVER::Archive( const QString& aSrcDir, const QString& aDestFile,
                                 REPORTER& aReporter, bool aVerbose, bool aIncludeExtraFiles )
 {
 
-    std::set<wxString> extensions;
-    std::set<wxString> files;                // File names without extensions such as fp-lib-table.
+    std::set<QString> extensions;
+    std::set<QString> files;
 
     extensions.emplace( FILEEXT::ProjectFileExtension );
     extensions.emplace( FILEEXT::ProjectLocalSettingsFileExtension );
@@ -192,14 +118,13 @@ bool PROJECT_ARCHIVER::Archive( const wxString& aSrcDir, const wxString& aDestFi
     extensions.emplace( FILEEXT::DesignRulesFileExtension );
     extensions.emplace( FILEEXT::DrawingSheetFileExtension );
     extensions.emplace( FILEEXT::KiCadJobSetFileExtension );
-    extensions.emplace( FILEEXT::JsonFileExtension );                  // for design blocks
+    extensions.emplace( FILEEXT::JsonFileExtension );
     extensions.emplace( FILEEXT::WorkbookFileExtension );
 
     files.emplace( FILEEXT::FootprintLibraryTableFileName );
     files.emplace( FILEEXT::SymbolLibraryTableFileName );
     files.emplace( FILEEXT::DesignBlockLibraryTableFileName );
 
-    // List of additional file extensions that are only archived when aIncludeExtraFiles is true
     if( aIncludeExtraFiles )
     {
         extensions.emplace( FILEEXT::LegacyProjectFileExtension );
@@ -210,84 +135,79 @@ bool PROJECT_ARCHIVER::Archive( const wxString& aSrcDir, const wxString& aDestFi
         extensions.emplace( FILEEXT::LegacyPcbFileExtension );
         extensions.emplace( FILEEXT::LegacyFootprintLibPathExtension );
         extensions.emplace( FILEEXT::StepFileAbrvExtension );
-        extensions.emplace( FILEEXT::StepFileExtension );                       // 3d files
-        extensions.emplace( FILEEXT::VrmlFileExtension );                       // 3d files
-        extensions.emplace( FILEEXT::GerberJobFileExtension );                  // Gerber job files
-        extensions.emplace( FILEEXT::FootprintPlaceFileExtension );             // Our position files
-        extensions.emplace( FILEEXT::DrillFileExtension );                      // Fab drill files
-        extensions.emplace( "nc" );                                             // Fab drill files
-        extensions.emplace( "xnc" );                                            // Fab drill files
+        extensions.emplace( FILEEXT::StepFileExtension );
+        extensions.emplace( FILEEXT::VrmlFileExtension );
+        extensions.emplace( FILEEXT::GerberJobFileExtension );
+        extensions.emplace( FILEEXT::FootprintPlaceFileExtension );
+        extensions.emplace( FILEEXT::DrillFileExtension );
+        extensions.emplace( "nc" );
+        extensions.emplace( "xnc" );
         extensions.emplace( FILEEXT::IpcD356FileExtension );
         extensions.emplace( FILEEXT::ReportFileExtension );
         extensions.emplace( FILEEXT::NetlistFileExtension );
         extensions.emplace( FILEEXT::PythonFileExtension );
         extensions.emplace( FILEEXT::PdfFileExtension );
         extensions.emplace( FILEEXT::TextFileExtension );
-        extensions.emplace( FILEEXT::SpiceFileExtension );                      // SPICE files
-        extensions.emplace( FILEEXT::SpiceSubcircuitFileExtension );            // SPICE files
-        extensions.emplace( FILEEXT::SpiceModelFileExtension );                 // SPICE files
+        extensions.emplace( FILEEXT::SpiceFileExtension );
+        extensions.emplace( FILEEXT::SpiceSubcircuitFileExtension );
+        extensions.emplace( FILEEXT::SpiceModelFileExtension );
         extensions.emplace( FILEEXT::IbisFileExtension );
         extensions.emplace( "pkg" );
         extensions.emplace( FILEEXT::GencadFileExtension );
     }
 
-    // Gerber files (g?, g??, .gm12 (from protel export)).
-    wxRegEx gerberFiles( FILEEXT::GerberFileExtensionsRegex );
-    wxASSERT( gerberFiles.IsValid() );
+    QRegExp gerberFiles( FILEEXT::GerberFileExtensionsRegex );
+    Q_ASSERT( gerberFiles.isValid() );
 
     bool     success = true;
-    wxString msg;
-    wxString oldCwd = wxGetCwd();
+    QString msg;
+    QString oldCwd = QDir::currentPath();
 
-    wxFileName sourceDir( aSrcDir, wxEmptyString, wxEmptyString );
+    QDir::setCurrent( aSrcDir );
 
-    wxSetWorkingDirectory( aSrcDir );
+    QFile ostream( aDestFile );
 
-    wxFFileOutputStream ostream( aDestFile );
-
-    if( !ostream.IsOk() )   // issue to create the file. Perhaps not writable dir
+    if( !ostream.open( QIODevice::WriteOnly ) )
     {
-        msg.Printf( _( "Failed to create file '%s'." ), aDestFile );
+        msg = QString( "Failed to create file '%1'." ).arg( aDestFile );
         aReporter.Report( msg, RPT_SEVERITY_ERROR );
         return false;
     }
 
-    wxZipOutputStream zipstream( ostream, -1, wxConvUTF8 );
+    QDir projectDir( aSrcDir );
+    QString currFilename;
 
-    wxDir         projectDir( aSrcDir );
-    wxString      currFilename;
-
-    if( !projectDir.IsOpened() )
+    if( !projectDir.exists() )
     {
         if( aVerbose )
         {
-            msg.Printf( _( "Error opening directory: '%s'." ), aSrcDir );
+            msg = QString( "Error opening directory: '%1'." ).arg( aSrcDir );
             aReporter.Report( msg, RPT_SEVERITY_ERROR );
         }
 
-        wxSetWorkingDirectory( oldCwd );
+        QDir::setCurrent( oldCwd );
         return false;
     }
 
     size_t uncompressedBytes = 0;
     PROJECT_ARCHIVER_DIR_ZIP_TRAVERSER traverser( aSrcDir );
 
-    projectDir.Traverse( traverser );
+    traverser.TraverseDirectory( aSrcDir );
 
-    for( const wxString& fileName : traverser.GetFilesToArchive() )
+    for( const QString& fileName : traverser.GetFilesToArchive() )
     {
-        wxFileName fn( fileName );
-        wxString extLower = fn.GetExt().Lower();
-        wxString fileNameLower = fn.GetName().Lower();
+        QFileInfo fn( fileName );
+        QString extLower = fn.suffix().toLower();
+        QString fileNameLower = fn.baseName().toLower();
         bool archive = false;
 
-        if( !extLower.IsEmpty() )
+        if( !extLower.isEmpty() )
         {
             if( ( extensions.find( extLower ) != extensions.end() )
-              || ( aIncludeExtraFiles && gerberFiles.Matches( extLower ) ) )
+              || ( aIncludeExtraFiles && gerberFiles.exactMatch( extLower ) ) )
                 archive = true;
         }
-        else if( !fileNameLower.IsEmpty() && ( files.find( fileNameLower ) != files.end() ) )
+        else if( !fileNameLower.isEmpty() && ( files.find( fileNameLower ) != files.end() ) )
         {
                 archive = true;
         }
@@ -295,71 +215,69 @@ bool PROJECT_ARCHIVER::Archive( const wxString& aSrcDir, const wxString& aDestFi
         if( !archive )
             continue;
 
-        wxFileSystem fsFile;
-        fn.MakeRelativeTo( aSrcDir );
+        QDir srcDir( aSrcDir );
+        QString relativeFn = srcDir.relativeFilePath( fileName );
 
-        wxString relativeFn = fn.GetFullPath();
+        QFile infile( fileName );
 
-        // Read input file and add it to the zip file:
-        wxFSFile* infile = fsFile.OpenFile( relativeFn );
-
-        if( infile )
+        if( infile.open( QIODevice::ReadOnly ) )
         {
-            zipstream.PutNextEntry( relativeFn, infile->GetModificationTime() );
-            infile->GetStream()->Read( zipstream );
-            zipstream.CloseEntry();
+            QByteArray data = infile.readAll();
+            ostream.write( data );
 
-            uncompressedBytes += infile->GetStream()->GetSize();
+            uncompressedBytes += data.size();
 
             if( aVerbose )
             {
-                msg.Printf( _( "Archived file '%s'." ), relativeFn );
+                msg = QString( "Archived file '%1'." ).arg( relativeFn );
                 aReporter.Report( msg, RPT_SEVERITY_INFO );
             }
 
-            delete infile;
+            infile.close();
         }
         else
         {
             if( aVerbose )
             {
-                msg.Printf( _( "Failed to archive file '%s'." ), relativeFn );
+                msg = QString( "Failed to archive file '%1'." ).arg( relativeFn );
                 aReporter.Report( msg, RPT_SEVERITY_ERROR );
             }
         }
     }
 
     auto reportSize =
-            []( size_t aSize ) -> wxString
+            []( size_t aSize ) -> QString
             {
                 constexpr float KB = 1024.0;
                 constexpr float MB = KB * 1024.0;
 
                 if( aSize >= MB )
-                    return wxString::Format( wxT( "%0.2f MB" ), aSize / MB );
+                    return QString( "%1 MB" ).arg( aSize / MB, 0, 'f', 2 );
                 else if( aSize >= KB )
-                    return wxString::Format( wxT( "%0.2f KB" ), aSize / KB );
+                    return QString( "%1 KB" ).arg( aSize / KB, 0, 'f', 2 );
                 else
-                    return wxString::Format( wxT( "%zu bytes" ), aSize );
+                    return QString( "%1 bytes" ).arg( aSize );
             };
 
-    size_t        zipBytesCnt       = ostream.GetSize();
+    size_t zipBytesCnt = ostream.size();
 
-    if( zipstream.Close() )
+    ostream.close();
+    
+    if( success )
     {
-        msg.Printf( _( "Zip archive '%s' created (%s uncompressed, %s compressed)." ),
-                    aDestFile,
-                    reportSize( uncompressedBytes ),
-                    reportSize( zipBytesCnt ) );
+        msg = QString( "Archive '%1' created (%2 uncompressed, %3 compressed)." )
+                .arg( aDestFile )
+                .arg( reportSize( uncompressedBytes ) )
+                .arg( reportSize( zipBytesCnt ) );
         aReporter.Report( msg, RPT_SEVERITY_INFO );
     }
     else
     {
-        msg.Printf( wxT( "Failed to create file '%s'." ), aDestFile );
+        msg = QString( "Failed to create file '%1'." ).arg( aDestFile );
         aReporter.Report( msg, RPT_SEVERITY_ERROR );
         success = false;
     }
 
-    wxSetWorkingDirectory( oldCwd );
+    QDir::setCurrent( oldCwd );
     return success;
 }

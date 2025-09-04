@@ -1,36 +1,10 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2018 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-#ifndef  PANELGAL_WXSTRUCT_H
-#define  PANELGAL_WXSTRUCT_H
+#ifndef  PANELGAL_QTSTRUCT_H
+#define  PANELGAL_QTSTRUCT_H
 
-#include <wx/window.h>
-#include <wx/timer.h>
-#include <wx/grid.h> // needed for MSVC to see wxScrolledCanvas indirectly exported
+#include <QWidget>
+#include <QTimer>
+#include <QScrollArea>
 #include <math/box2.h>
 #include <math/vector2d.h>
 #include <widgets/msgpanel.h>
@@ -57,7 +31,7 @@ struct VC_SETTINGS;
 }
 
 
-class EDA_DRAW_PANEL_GAL : public wxScrolledCanvas
+class EDA_DRAW_PANEL_GAL : public QScrollArea
 {
 public:
     enum GAL_TYPE {
@@ -68,7 +42,7 @@ public:
         GAL_TYPE_LAST           ///< Sentinel, do not use as a parameter
     };
 
-#ifdef __WXMAC__
+#ifdef Q_OS_MAC
     // Cairo doesn't work on OSX so we really have no fallback available.
     static constexpr GAL_TYPE GAL_FALLBACK = GAL_TYPE_OPENGL;
 #else
@@ -83,8 +57,8 @@ public:
      *
      * @param aParentWindow is the window immediately containing this panel
      */
-    EDA_DRAW_PANEL_GAL( wxWindow* aParentWindow, wxWindowID aWindowId,
-                        const wxPoint& aPosition, const wxSize& aSize,
+    EDA_DRAW_PANEL_GAL( QWidget* aParentWindow, int aWindowId,
+                        const QPoint& aPosition, const QSize& aSize,
                         KIGFX::GAL_DISPLAY_OPTIONS& aOptions,
                         GAL_TYPE aGalType = GAL_TYPE_OPENGL );
     ~EDA_DRAW_PANEL_GAL();
@@ -93,10 +67,10 @@ public:
 
     bool StatusPopupHasFocus()
     {
-        return m_statusPopup && m_statusPopup->HasFocus();
+        return m_statusPopup && m_statusPopup->hasFocus();
     }
 
-    void SetStatusPopup( wxWindow* aPopup )
+    void SetStatusPopup( QWidget* aPopup )
     {
         m_statusPopup = aPopup;
     }
@@ -137,8 +111,8 @@ public:
         return (KIGFX::VIEW_CONTROLS*)( m_viewControls );
     }
 
-    /// @copydoc wxWindow::Refresh()
-    virtual void Refresh( bool aEraseBackground = true, const wxRect* aRect = nullptr ) override;
+    /// @copydoc QWidget::update()
+    virtual void Refresh( bool aEraseBackground = true, const QRect* aRect = nullptr ) override;
 
     /**
      * Force a redraw.
@@ -183,7 +157,7 @@ public:
 
     virtual void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
     {
-        wxASSERT( false );
+        Q_ASSERT( false );
     }
 
     /**
@@ -191,7 +165,7 @@ public:
      */
     EDA_DRAW_FRAME* GetParentEDAFrame() const { return m_edaFrame; }
 
-    bool IsDialogPreview() const { return m_parent != (wxWindow*) m_edaFrame; }
+    bool IsDialogPreview() const { return m_parent != (QWidget*) m_edaFrame; }
 
     /**
      * Called when the window is shown for the first time.
@@ -222,14 +196,14 @@ public:
     /**
      * Used to forward events to the canvas from popups, etc.
      */
-    void OnEvent( wxEvent& aEvent );
+    void OnEvent( QEvent& aEvent );
 
     /**
      * Repaint the canvas, and fix scrollbar cursors
      *
      * Usually called by a OnPaint event.
      *
-     * Because it does not use a wxPaintDC, it can be called outside a wxPaintEvent.
+     * Because it does not use a QPainter, it can be called outside a QPaintEvent.
      *
      * @return true if the repaint attempt was successful.
      */
@@ -262,20 +236,19 @@ public:
     std::unique_ptr<PROF_COUNTER> m_PaintEventCounter;
 
 protected:
-    virtual void onPaint( wxPaintEvent& WXUNUSED( aEvent ) );
-    void onSize( wxSizeEvent& aEvent );
-    void onEnter( wxMouseEvent& aEvent );
-    void onLostFocus( wxFocusEvent& aEvent );
-    void onIdle( wxIdleEvent& aEvent );
-    void onRefreshTimer( wxTimerEvent& aEvent );
-    void onShowEvent( wxShowEvent& aEvent );
+    virtual void paintEvent( QPaintEvent* aEvent ) override;
+    void resizeEvent( QResizeEvent* aEvent ) override;
+    void enterEvent( QMouseEvent* aEvent );
+    void focusOutEvent( QFocusEvent* aEvent ) override;
+    void timerEvent( QTimerEvent* aEvent ) override;
+    void showEvent( QShowEvent* aEvent ) override;
 
-    wxWindow*                m_parent;           ///< Pointer to the parent window
+    QWidget*                 m_parent;           ///< Pointer to the parent window
     EDA_DRAW_FRAME*          m_edaFrame;         ///< Parent EDA_DRAW_FRAME (if available)
 
-    wxLongLong               m_lastRepaintStart; ///< Timestamp of the last repaint start
-    wxLongLong               m_lastRepaintEnd;   ///< Timestamp of the last repaint end
-    wxTimer                  m_refreshTimer;     ///< Timer to prevent too-frequent refreshing
+    qint64                   m_lastRepaintStart; ///< Timestamp of the last repaint start
+    qint64                   m_lastRepaintEnd;   ///< Timestamp of the last repaint end
+    QTimer                   m_refreshTimer;     ///< Timer to prevent too-frequent refreshing
 
     std::mutex               m_refreshMutex;     ///< Blocks multiple calls to the draw
 
@@ -315,7 +288,7 @@ protected:
     /// and on various mouse/key events)
     bool                     m_stealsFocus;
 
-    wxWindow*                m_statusPopup;
+    QWidget*                 m_statusPopup;
 
     /// Optional overlay for drawing transient debug objects
     std::shared_ptr<KIGFX::VIEW_OVERLAY> m_debugOverlay;

@@ -1,28 +1,10 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2021 Ola Rinta-Koski
- * Copyright (C) 2023 CERN (www.cern.ch)
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <mutex>
 #include <limits>
 #include <font/fontconfig.h>
-#include <wx/log.h>
+#include <QString>
+#include <QStringList>
+#include <QTextCodec>
 #include <trace_helpers.h>
 #include <string_utils.h>
 #include <macros.h>
@@ -52,9 +34,9 @@ struct fontconfig::FONTCONFIG_PAT
 };
 
 
-wxString FONTCONFIG::Version()
+QString FONTCONFIG::Version()
 {
-    return wxString::Format( "%d.%d.%d", FC_MAJOR, FC_MINOR, FC_REVISION );
+    return QString("%1.%2.%3").arg(FC_MAJOR).arg(FC_MINOR).arg(FC_REVISION);
 }
 
 
@@ -70,14 +52,6 @@ void fontconfig::FONTCONFIG::SetReporter( REPORTER* aReporter )
 }
 
 
-/**
- * This is simply a wrapper to call FcInit() with SEH for Windows.
- *
- * SEH on Windows can only be used in functions without objects that might be unwound
- * (basically objects with destructors).
- * For example, new FONTCONFIG() in Fontconfig() is creating a object with a destructor
- * that *might* need to be unwound. MSVC catches this and throws a compile error.
- */
 static void bootstrapFc()
 {
 #if defined( _MSC_VER )
@@ -93,10 +67,6 @@ static void bootstrapFc()
     {
         g_fcInitSuccess = false;
 
-        // We have documented cases that fontconfig while trying to cache fonts
-        // ends up using freetype to try and get font info
-        // freetype itself reads fonts through memory mapping instead of normal file APIs
-        // there are crashes reading fonts sometimes as a result that return STATUS_IN_PAGE_ERROR
     }
 #endif
 }
@@ -114,31 +84,24 @@ FONTCONFIG* Fontconfig()
 }
 
 
-bool FONTCONFIG::isLanguageMatch( const wxString& aSearchLang, const wxString& aSupportedLang )
+bool FONTCONFIG::isLanguageMatch( const QString& aSearchLang, const QString& aSupportedLang )
 {
-    if( aSearchLang.Lower() == aSupportedLang.Lower() )
+    if( aSearchLang.toLower() == aSupportedLang.toLower() )
         return true;
 
-    if( aSupportedLang.empty() )
+    if( aSupportedLang.isEmpty() )
         return false;
 
-    if( aSearchLang.empty() )
+    if( aSearchLang.isEmpty() )
         return false;
 
-    wxArrayString supportedLangBits;
-    wxStringSplit( aSupportedLang.Lower(), supportedLangBits, wxS( '-' ) );
+    QStringList supportedLangBits = aSupportedLang.toLower().split('-');
+    QStringList searhcLangBits = aSearchLang.toLower().split('-');
 
-    wxArrayString searhcLangBits;
-    wxStringSplit( aSearchLang.Lower(), searhcLangBits, wxS( '-' ) );
-
-    // if either side of the comparison have only one section, then its a broad match but fine
-    // i.e. the haystack is declaring broad support or the search language is broad
     if( searhcLangBits.size() == 1 || supportedLangBits.size() == 1 )
     {
         return searhcLangBits[0] == supportedLangBits[0];
     }
-
-    // the full two part comparison should have passed the initial shortcut
 
     return false;
 }
@@ -181,7 +144,7 @@ void FONTCONFIG::getAllFamilyStrings( FONTCONFIG_PAT&                           
 }
 
 
-std::string FONTCONFIG::getFamilyStringByLang( FONTCONFIG_PAT& aPat, const wxString& aDesiredLang )
+std::string FONTCONFIG::getFamilyStringByLang( FONTCONFIG_PAT& aPat, const QString& aDesiredLang )
 {
     std::unordered_map<std::string, std::string> famStrings;
     getAllFamilyStrings( aPat, famStrings );
@@ -197,29 +160,24 @@ std::string FONTCONFIG::getFamilyStringByLang( FONTCONFIG_PAT& aPat, const wxStr
         }
     }
 
-    // fall back to the first and maybe only available name
-    // most fonts by review don't even bother declaring more than one font family name
-    // and they don't even bother declare the language tag either, they just leave it blank
     return famStrings.begin()->second;
 }
 
 
-FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString& aFontName, wxString& aFontFile,
+FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const QString& aFontName, QString& aFontFile,
                                             int& aFaceIndex, bool aBold, bool aItalic,
-                                            const std::vector<wxString>* aEmbeddedFiles )
+                                            const std::vector<QString>* aEmbeddedFiles )
 {
     FF_RESULT retval = FF_RESULT::FF_ERROR;
 
     if( !g_fcInitSuccess )
         return retval;
 
-    // If the original font name contains any of these, then it is bold, regardless
-    // of whether we are looking for bold or not
-    if( aFontName.Lower().Contains( wxS( "bold" ) )       // also catches ultrabold
-        || aFontName.Lower().Contains( wxS( "heavy" ) )
-        || aFontName.Lower().Contains( wxS( "black" ) )   // also catches extrablack
-        || aFontName.Lower().Contains( wxS( "thick" ) )
-        || aFontName.Lower().Contains( wxS( "dark" ) ) )
+    if( aFontName.toLower().contains( "bold" )
+        || aFontName.toLower().contains( "heavy" )
+        || aFontName.toLower().contains( "black" )
+        || aFontName.toLower().contains( "thick" )
+        || aFontName.toLower().contains( "dark" ) )
     {
         aBold = true;
     }
@@ -230,13 +188,13 @@ FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString& aFontName, wxString&
     {
         for( const auto& file : *aEmbeddedFiles )
         {
-            FcConfigAppFontAddFile( config, (const FcChar8*) file.c_str().AsChar() );
+            FcConfigAppFontAddFile( config, (const FcChar8*) file.toUtf8().constData() );
         }
     }
 
-    wxString qualifiedFontName = aFontName;
+    QString qualifiedFontName = aFontName;
 
-    wxScopedCharBuffer const fcBuffer = qualifiedFontName.ToUTF8();
+    QByteArray fcBuffer = qualifiedFontName.toUtf8();
 
     FcPattern* pat = FcPatternCreate();
 
@@ -246,7 +204,7 @@ FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString& aFontName, wxString&
     if( aItalic )
         FcPatternAddString( pat, FC_STYLE, (const FcChar8*) "Italic" );
 
-    FcPatternAddString( pat, FC_FAMILY, (FcChar8*) fcBuffer.data() );
+    FcPatternAddString( pat, FC_FAMILY, (FcChar8*) fcBuffer.constData() );
 
     FcConfigSubstitute( config, pat, FcMatchPattern );
     FcDefaultSubstitute( pat );
@@ -254,7 +212,7 @@ FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString& aFontName, wxString&
     FcResult   r = FcResultNoMatch;
     FcPattern* font = FcFontMatch( config, pat, &r );
 
-    wxString fontName;
+    QString fontName;
 
     if( font )
     {
@@ -262,10 +220,10 @@ FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString& aFontName, wxString&
 
         if( FcPatternGetString( font, FC_FILE, 0, &file ) == FcResultMatch )
         {
-            aFontFile = wxString::FromUTF8( (char*) file );
+            aFontFile = QString::fromUtf8( (char*) file );
             aFaceIndex = 0;
 
-            wxString styleStr;
+            QString styleStr;
             FcChar8* family = nullptr;
             FcChar8* style = nullptr;
 
@@ -280,59 +238,59 @@ FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString& aFontName, wxString&
             {
                 FcPatternGetInteger( font, FC_INDEX, 0, &aFaceIndex );
 
-                fontName = wxString::FromUTF8( (char*) family );
+                fontName = QString::fromUtf8( (char*) family );
 
                 if( FcPatternGetString( font, FC_STYLE, 0, &style ) == FcResultMatch )
                 {
-                    styleStr = wxString::FromUTF8( (char*) style );
+                    styleStr = QString::fromUtf8( (char*) style );
 
-                    if( !styleStr.IsEmpty() )
+                    if( !styleStr.isEmpty() )
                     {
-                        styleStr.Replace( ' ', ':' );
+                        styleStr.replace( ' ', ':' );
                         fontName += ':' + styleStr;
                     }
                 }
 
                 bool has_bold = false;
                 bool has_ital = false;
-                wxString lower_style = styleStr.Lower();
+                QString lower_style = styleStr.toLower();
 
-                if( lower_style.Contains( wxS( "thin" ) )
-                         || lower_style.Contains( wxS( "light" ) )   // catches ultra & extra light
-                         || lower_style.Contains( wxS( "regular" ) )
-                         || lower_style.Contains( wxS( "roman" ) )
-                         || lower_style.Contains( wxS( "book" ) ) )
+                if( lower_style.contains( "thin" )
+                         || lower_style.contains( "light" )
+                         || lower_style.contains( "regular" )
+                         || lower_style.contains( "roman" )
+                         || lower_style.contains( "book" ) )
                 {
                     has_bold = false;
                 }
-                else if( lower_style.Contains( wxS( "medium" ) )
-                         || lower_style.Contains( wxS( "semibold" ) )
-                         || lower_style.Contains( wxS( "demibold" ) ) )
+                else if( lower_style.contains( "medium" )
+                         || lower_style.contains( "semibold" )
+                         || lower_style.contains( "demibold" ) )
                 {
                     has_bold = aBold;
                 }
-                else if( lower_style.Contains( wxS( "bold" ) )       // also catches ultrabold
-                         || lower_style.Contains( wxS( "heavy" ) )
-                         || lower_style.Contains( wxS( "black" ) )   // also catches extrablack
-                         || lower_style.Contains( wxS( "thick" ) )
-                         || lower_style.Contains( wxS( "dark" ) ) )
+                else if( lower_style.contains( "bold" )
+                         || lower_style.contains( "heavy" )
+                         || lower_style.contains( "black" )
+                         || lower_style.contains( "thick" )
+                         || lower_style.contains( "dark" ) )
                 {
                     has_bold = true;
                 }
 
-                if( lower_style.Contains( wxS( "italic" ) )
-                        || lower_style.Contains( wxS( "oblique" ) )
-                        || lower_style.Contains( wxS( "slant" ) ) )
+                if( lower_style.contains( "italic" )
+                        || lower_style.contains( "oblique" )
+                        || lower_style.contains( "slant" ) )
                 {
                     has_ital = true;
                 }
 
                 for( auto const& [key, val] : famStrings )
                 {
-                    wxString searchFont;
-                    searchFont = wxString::FromUTF8( (char*) val.data() );
+                    QString searchFont;
+                    searchFont = QString::fromUtf8( (char*) val.data() );
 
-                    if( searchFont.Lower().StartsWith( aFontName.Lower() ) )
+                    if( searchFont.toLower().startsWith( aFontName.toLower() ) )
                     {
                         if( ( aBold && !has_bold ) && ( aItalic && !has_ital ) )
                             retval = FF_RESULT::FF_MISSING_BOLD_ITAL;
@@ -357,20 +315,17 @@ FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString& aFontName, wxString&
     if( retval == FF_RESULT::FF_ERROR )
     {
         if( s_reporter )
-            s_reporter->Report( wxString::Format( _( "Error loading font '%s'." ),
-                                                  qualifiedFontName ) );
+            s_reporter->Report( QString( "Error loading font '%1'." ).arg( qualifiedFontName ) );
     }
     else if( retval == FF_RESULT::FF_SUBSTITUTE )
     {
-        fontName.Replace( ':', ' ' );
+        fontName.replace( ':', ' ' );
 
-        // If we missed a case but the matching found the original font name, then we are
-        // not substituting
-        if( fontName.CmpNoCase( qualifiedFontName ) == 0 )
+        if( fontName.compare( qualifiedFontName, Qt::CaseInsensitive ) == 0 )
             retval = FF_RESULT::FF_OK;
         else if( s_reporter )
-            s_reporter->Report( wxString::Format( _( "Font '%s' not found; substituting '%s'." ),
-                                                  qualifiedFontName, fontName ) );
+            s_reporter->Report( QString( "Font '%1' not found; substituting '%2'." )
+                                .arg( qualifiedFontName ).arg( fontName ) );
     }
 
     FcPatternDestroy( pat );
@@ -379,12 +334,11 @@ FONTCONFIG::FF_RESULT FONTCONFIG::FindFont( const wxString& aFontName, wxString&
 
 
 void FONTCONFIG::ListFonts( std::vector<std::string>& aFonts, const std::string& aDesiredLang,
-                            const std::vector<wxString>* aEmbeddedFiles, bool aForce )
+                            const std::vector<QString>* aEmbeddedFiles, bool aForce )
 {
     if( !g_fcInitSuccess )
         return;
 
-    // be sure to cache bust if the language changed
     if( m_fontInfoCache.empty() || m_fontCacheLastLang != aDesiredLang || aForce )
     {
         FcConfig* config = FcConfigGetCurrent();
@@ -393,7 +347,7 @@ void FONTCONFIG::ListFonts( std::vector<std::string>& aFonts, const std::string&
         {
             for( const auto& file : *aEmbeddedFiles )
             {
-                FcConfigAppFontAddFile( config, (const FcChar8*) file.c_str().AsChar() );
+                FcConfigAppFontAddFile( config, (const FcChar8*) file.toUtf8().constData() );
             }
         }
 
@@ -423,14 +377,7 @@ void FONTCONFIG::ListFonts( std::vector<std::string>& aFonts, const std::string&
                         getFamilyStringByLang( patHolder, From_UTF8( aDesiredLang.c_str() ) );
 
 #ifdef __WXMAC__
-                // On Mac (at least) some of the font names are in their own language.  If
-                // the OS doesn't support this language then we get a bunch of garbage names
-                // in the font menu.
-                //
-                // GTK, on the other hand, doesn't appear to support wxLocale::IsAvailable(),
-                // so we can't run these checks.
-
-                static std::map<wxString, bool> availableLanguages;
+                static std::map<QString, bool> availableLanguages;
 
                 FcStrSet*  langStrSet = FcLangSetGetLangs( langSet );
                 FcStrList* langStrList = FcStrListCreate( langStrSet );
@@ -439,31 +386,21 @@ void FONTCONFIG::ListFonts( std::vector<std::string>& aFonts, const std::string&
 
                 if( !langStr )
                 {
-                    // Symbol fonts (Wingdings, etc.) have no language
                     langSupported = true;
                 }
                 else while( langStr )
                 {
-                    wxString langWxStr( reinterpret_cast<char *>( langStr ) );
+                    QString langQStr( reinterpret_cast<char *>( langStr ) );
 
-                    if( availableLanguages.find( langWxStr ) == availableLanguages.end() )
+                    if( availableLanguages.find( langQStr ) == availableLanguages.end() )
                     {
-                        const wxLanguageInfo* langInfo = wxLocale::FindLanguageInfo( langWxStr );
-                        bool  available = langInfo && wxLocale::IsAvailable( langInfo->Language );
-
-                        availableLanguages[ langWxStr ] = available;
+                        availableLanguages[ langQStr ] = true;
                     }
 
-                    if( availableLanguages[ langWxStr ] )
+                    if( availableLanguages[ langQStr ] )
                     {
                         langSupported = true;
                         break;
-                    }
-                    else
-                    {
-                        wxLogTrace( traceFonts,
-                                    wxS( "Font '%s' language '%s' not supported by OS." ),
-                                    theFamily, langWxStr );
                     }
 
                     langStr = FcStrListNext( langStrList );
