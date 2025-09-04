@@ -1,167 +1,142 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include <layer_ids.h>
 #include <magic_enum.hpp>
-#include <wx/translation.h>
+#include <QString>
+#include <QObject>
 
-/**
- * Returns the default display name for a given layer.  These are not the same as the canonical
- * name in LSET::Name(), which is used in board files and cannot be translated or changed.
- * WARNING: do not translate board physical layers names (F.Cu to User.9): because canonical names
- * are used in files (boards and fab files), using translated names in UI create mistakes for users.
- * Board physical layers names must be seen as proper nouns.
- */
-wxString LayerName( int aLayer )
+QString LayerName( int aLayer )
 {
     switch( aLayer )
     {
     // PCB_LAYER_ID
-    case UNDEFINED_LAYER:   return _( "undefined" );
+    case UNDEFINED_LAYER:   return QObject::tr( "undefined" );
 
     // Copper
-    case PCB_LAYER_ID::F_Cu:              return wxT( "F.Cu" );
-    case PCB_LAYER_ID::B_Cu:              return wxT( "B.Cu" );
+    case PCB_LAYER_ID::F_Cu:              return "F.Cu";
+    case PCB_LAYER_ID::B_Cu:              return "B.Cu";
 
     // Technicals
-    case PCB_LAYER_ID::B_Adhes:           return wxT( "B.Adhesive" );
-    case PCB_LAYER_ID::F_Adhes:           return wxT( "F.Adhesive" );
-    case PCB_LAYER_ID::B_Paste:           return wxT( "B.Paste" );
-    case PCB_LAYER_ID::F_Paste:           return wxT( "F.Paste" );
-    case PCB_LAYER_ID::B_SilkS:           return wxT( "B.Silkscreen" );
-    case PCB_LAYER_ID::F_SilkS:           return wxT( "F.Silkscreen" );
-    case PCB_LAYER_ID::B_Mask:            return wxT( "B.Mask" );
-    case PCB_LAYER_ID::F_Mask:            return wxT( "F.Mask" );
+    case PCB_LAYER_ID::B_Adhes:           return "B.Adhesive";
+    case PCB_LAYER_ID::F_Adhes:           return "F.Adhesive";
+    case PCB_LAYER_ID::B_Paste:           return "B.Paste";
+    case PCB_LAYER_ID::F_Paste:           return "F.Paste";
+    case PCB_LAYER_ID::B_SilkS:           return "B.Silkscreen";
+    case PCB_LAYER_ID::F_SilkS:           return "F.Silkscreen";
+    case PCB_LAYER_ID::B_Mask:            return "B.Mask";
+    case PCB_LAYER_ID::F_Mask:            return "F.Mask";
 
     // Users
-    case PCB_LAYER_ID::Dwgs_User:         return wxT( "User.Drawings" );
-    case PCB_LAYER_ID::Cmts_User:         return wxT( "User.Comments" );
-    case PCB_LAYER_ID::Eco1_User:         return wxT( "User.Eco1" );
-    case PCB_LAYER_ID::Eco2_User:         return wxT( "User.Eco2" );
-    case PCB_LAYER_ID::Edge_Cuts:         return wxT( "Edge.Cuts" );
-    case PCB_LAYER_ID::Margin:            return wxT( "Margin" );
+    case PCB_LAYER_ID::Dwgs_User:         return "User.Drawings";
+    case PCB_LAYER_ID::Cmts_User:         return "User.Comments";
+    case PCB_LAYER_ID::Eco1_User:         return "User.Eco1";
+    case PCB_LAYER_ID::Eco2_User:         return "User.Eco2";
+    case PCB_LAYER_ID::Edge_Cuts:         return "Edge.Cuts";
+    case PCB_LAYER_ID::Margin:            return "Margin";
 
     // Footprint
-    case PCB_LAYER_ID::F_CrtYd:           return wxT( "F.Courtyard" );
-    case PCB_LAYER_ID::B_CrtYd:           return wxT( "B.Courtyard" );
-    case PCB_LAYER_ID::F_Fab:             return wxT( "F.Fab" );
-    case PCB_LAYER_ID::B_Fab:             return wxT( "B.Fab" );
+    case PCB_LAYER_ID::F_CrtYd:           return "F.Courtyard";
+    case PCB_LAYER_ID::B_CrtYd:           return "B.Courtyard";
+    case PCB_LAYER_ID::F_Fab:             return "F.Fab";
+    case PCB_LAYER_ID::B_Fab:             return "B.Fab";
 
     // Rescue
-    case PCB_LAYER_ID::Rescue:            return _( "Rescue" );
+    case PCB_LAYER_ID::Rescue:            return QObject::tr( "Rescue" );
 
     // SCH_LAYER_ID
 
-    case LAYER_WIRE:                    return _( "Wires" );
-    case LAYER_BUS:                     return _( "Buses" );
-    case LAYER_BUS_JUNCTION:            return _( "Bus junctions" );
-    case LAYER_JUNCTION:                return _( "Junctions" );
-    case LAYER_LOCLABEL:                return _( "Labels" );
-    case LAYER_GLOBLABEL:               return _( "Global labels" );
-    case LAYER_HIERLABEL:               return _( "Hierarchical labels" );
-    case LAYER_PINNUM:                  return _( "Pin numbers" );
-    case LAYER_PINNAM:                  return _( "Pin names" );
-    case LAYER_REFERENCEPART:           return _( "Symbol references" );
-    case LAYER_VALUEPART:               return _( "Symbol values" );
-    case LAYER_FIELDS:                  return _( "Symbol fields" );
-    case LAYER_INTERSHEET_REFS:         return _( "Sheet references" );
-    case LAYER_NETCLASS_REFS:           return _( "Net class references" );
-    case LAYER_RULE_AREAS:              return _( "Rule areas" );
-    case LAYER_DEVICE:                  return _( "Symbol body outlines" );
-    case LAYER_DEVICE_BACKGROUND:       return _( "Symbol body fills" );
-    case LAYER_SHAPES_BACKGROUND:       return _( "Shape fills" );
-    case LAYER_NOTES:                   return _( "Schematic text && graphics" );
-    case LAYER_PRIVATE_NOTES:           return _( "Symbol private text && graphics" );
-    case LAYER_NOTES_BACKGROUND:        return _( "Schematic text && graphics backgrounds" );
-    case LAYER_PIN:                     return _( "Pins" );
-    case LAYER_SHEET:                   return _( "Sheet borders" );
-    case LAYER_SHEET_BACKGROUND:        return _( "Sheet backgrounds" );
-    case LAYER_SHEETNAME:               return _( "Sheet names" );
-    case LAYER_SHEETFIELDS:             return _( "Sheet fields" );
-    case LAYER_SHEETFILENAME:           return _( "Sheet file names" );
-    case LAYER_SHEETLABEL:              return _( "Sheet pins" );
-    case LAYER_NOCONNECT:               return _( "No-connect symbols" );
-    case LAYER_DNP_MARKER:              return _( "DNP markers" );
-    case LAYER_EXCLUDED_FROM_SIM:       return _( "Excluded-from-simulation markers" );
-    case LAYER_ERC_WARN:                return _( "ERC warnings" );
-    case LAYER_ERC_ERR:                 return _( "ERC errors" );
-    case LAYER_ERC_EXCLUSION:           return _( "ERC exclusions" );
-    case LAYER_SCHEMATIC_ANCHOR:        return _( "Anchors" );
-    case LAYER_SCHEMATIC_AUX_ITEMS:     return _( "Helper items" );
-    case LAYER_SCHEMATIC_GRID:          return _( "Grid" );
-    case LAYER_SCHEMATIC_GRID_AXES:     return _( "Axes" );
-    case LAYER_SCHEMATIC_BACKGROUND:    return _( "Background" );
-    case LAYER_SCHEMATIC_CURSOR:        return _( "Cursor" );
-    case LAYER_HOVERED:                 return _( "Hovered items" );
-    case LAYER_BRIGHTENED:              return _( "Highlighted items" );
-    case LAYER_HIDDEN:                  return _( "Hidden items" );
-    case LAYER_SELECTION_SHADOWS:       return _( "Selection highlight" );
-    case LAYER_NET_COLOR_HIGHLIGHT:     return _( "Net color highlight" );
-    case LAYER_SCHEMATIC_DRAWINGSHEET:  return _( "Drawing sheet" );
-    case LAYER_SCHEMATIC_PAGE_LIMITS:   return _( "Page limits" );
-    case LAYER_OP_VOLTAGES:             return _( "Operating point voltages" );
-    case LAYER_OP_CURRENTS:             return _( "Operating point currents" );
+    case LAYER_WIRE:                    return QObject::tr( "Wires" );
+    case LAYER_BUS:                     return QObject::tr( "Buses" );
+    case LAYER_BUS_JUNCTION:            return QObject::tr( "Bus junctions" );
+    case LAYER_JUNCTION:                return QObject::tr( "Junctions" );
+    case LAYER_LOCLABEL:                return QObject::tr( "Labels" );
+    case LAYER_GLOBLABEL:               return QObject::tr( "Global labels" );
+    case LAYER_HIERLABEL:               return QObject::tr( "Hierarchical labels" );
+    case LAYER_PINNUM:                  return QObject::tr( "Pin numbers" );
+    case LAYER_PINNAM:                  return QObject::tr( "Pin names" );
+    case LAYER_REFERENCEPART:           return QObject::tr( "Symbol references" );
+    case LAYER_VALUEPART:               return QObject::tr( "Symbol values" );
+    case LAYER_FIELDS:                  return QObject::tr( "Symbol fields" );
+    case LAYER_INTERSHEET_REFS:         return QObject::tr( "Sheet references" );
+    case LAYER_NETCLASS_REFS:           return QObject::tr( "Net class references" );
+    case LAYER_RULE_AREAS:              return QObject::tr( "Rule areas" );
+    case LAYER_DEVICE:                  return QObject::tr( "Symbol body outlines" );
+    case LAYER_DEVICE_BACKGROUND:       return QObject::tr( "Symbol body fills" );
+    case LAYER_SHAPES_BACKGROUND:       return QObject::tr( "Shape fills" );
+    case LAYER_NOTES:                   return QObject::tr( "Schematic text && graphics" );
+    case LAYER_PRIVATE_NOTES:           return QObject::tr( "Symbol private text && graphics" );
+    case LAYER_NOTES_BACKGROUND:        return QObject::tr( "Schematic text && graphics backgrounds" );
+    case LAYER_PIN:                     return QObject::tr( "Pins" );
+    case LAYER_SHEET:                   return QObject::tr( "Sheet borders" );
+    case LAYER_SHEET_BACKGROUND:        return QObject::tr( "Sheet backgrounds" );
+    case LAYER_SHEETNAME:               return QObject::tr( "Sheet names" );
+    case LAYER_SHEETFIELDS:             return QObject::tr( "Sheet fields" );
+    case LAYER_SHEETFILENAME:           return QObject::tr( "Sheet file names" );
+    case LAYER_SHEETLABEL:              return QObject::tr( "Sheet pins" );
+    case LAYER_NOCONNECT:               return QObject::tr( "No-connect symbols" );
+    case LAYER_DNP_MARKER:              return QObject::tr( "DNP markers" );
+    case LAYER_EXCLUDED_FROM_SIM:       return QObject::tr( "Excluded-from-simulation markers" );
+    case LAYER_ERC_WARN:                return QObject::tr( "ERC warnings" );
+    case LAYER_ERC_ERR:                 return QObject::tr( "ERC errors" );
+    case LAYER_ERC_EXCLUSION:           return QObject::tr( "ERC exclusions" );
+    case LAYER_SCHEMATIC_ANCHOR:        return QObject::tr( "Anchors" );
+    case LAYER_SCHEMATIC_AUX_ITEMS:     return QObject::tr( "Helper items" );
+    case LAYER_SCHEMATIC_GRID:          return QObject::tr( "Grid" );
+    case LAYER_SCHEMATIC_GRID_AXES:     return QObject::tr( "Axes" );
+    case LAYER_SCHEMATIC_BACKGROUND:    return QObject::tr( "Background" );
+    case LAYER_SCHEMATIC_CURSOR:        return QObject::tr( "Cursor" );
+    case LAYER_HOVERED:                 return QObject::tr( "Hovered items" );
+    case LAYER_BRIGHTENED:              return QObject::tr( "Highlighted items" );
+    case LAYER_HIDDEN:                  return QObject::tr( "Hidden items" );
+    case LAYER_SELECTION_SHADOWS:       return QObject::tr( "Selection highlight" );
+    case LAYER_NET_COLOR_HIGHLIGHT:     return QObject::tr( "Net color highlight" );
+    case LAYER_SCHEMATIC_DRAWINGSHEET:  return QObject::tr( "Drawing sheet" );
+    case LAYER_SCHEMATIC_PAGE_LIMITS:   return QObject::tr( "Page limits" );
+    case LAYER_OP_VOLTAGES:             return QObject::tr( "Operating point voltages" );
+    case LAYER_OP_CURRENTS:             return QObject::tr( "Operating point currents" );
 
     // GAL_LAYER_ID
 
-    case LAYER_FOOTPRINTS_FR:           return _( "Footprints front" );
-    case LAYER_FOOTPRINTS_BK:           return _( "Footprints back" );
-    case LAYER_FP_VALUES:               return _( "Values" );
-    case LAYER_FP_REFERENCES:           return _( "Reference designators" );
-    case LAYER_FP_TEXT:                 return _( "Footprint text" );
-    case LAYER_TRACKS:                  return _( "Tracks" );
-    case LAYER_VIA_THROUGH:             return _( "Through vias" );
-    case LAYER_VIA_BBLIND:              return _( "Blind/Buried vias" );
-    case LAYER_VIA_MICROVIA:            return _( "Micro-vias" );
-    case LAYER_VIA_HOLES:               return _( "Via holes" );
-    case LAYER_VIA_HOLEWALLS:           return _( "Via hole walls" );
-    case LAYER_PAD_PLATEDHOLES:         return _( "Plated holes" );
-    case LAYER_PAD_HOLEWALLS:           return _( "Plated hole walls" );
-    case LAYER_NON_PLATEDHOLES:         return _( "Non-plated holes" );
-    case LAYER_RATSNEST:                return _( "Ratsnest" );
-    case LAYER_DRC_WARNING:             return _( "DRC warnings" );
-    case LAYER_DRC_ERROR:               return _( "DRC errors" );
-    case LAYER_DRC_SHAPE1:              return _( "DRC shape 1" );
-    case LAYER_DRC_SHAPE2:              return _( "DRC shape 2" );
-    case LAYER_DRC_EXCLUSION:           return _( "DRC exclusions" );
-    case LAYER_MARKER_SHADOWS:          return _( "DRC marker shadows" );
-    case LAYER_ANCHOR:                  return _( "Anchors" );
-    case LAYER_DRAWINGSHEET:            return _( "Drawing sheet" );
-    case LAYER_PAGE_LIMITS:             return _( "Page limits" );
-    case LAYER_CURSOR:                  return _( "Cursor" );
-    case LAYER_AUX_ITEMS:               return _( "Helper items" );
-    case LAYER_GRID:                    return _( "Grid" );
-    case LAYER_GRID_AXES:               return _( "Grid axes" );
-    case LAYER_PCB_BACKGROUND:          return _( "Background" );
-    case LAYER_SELECT_OVERLAY:          return _( "Selection highlight" );
-    case LAYER_LOCKED_ITEM_SHADOW:      return _( "Locked item shadow" );
-    case LAYER_CONFLICTS_SHADOW:        return _( "Courtyard collision shadow" );
-    case NETNAMES_LAYER_ID_START:       return _( "Track net names" );
-    case LAYER_PAD_NETNAMES:            return _( "Pad net names" );
-    case LAYER_VIA_NETNAMES:            return _( "Via net names" );
+    case LAYER_FOOTPRINTS_FR:           return QObject::tr( "Footprints front" );
+    case LAYER_FOOTPRINTS_BK:           return QObject::tr( "Footprints back" );
+    case LAYER_FP_VALUES:               return QObject::tr( "Values" );
+    case LAYER_FP_REFERENCES:           return QObject::tr( "Reference designators" );
+    case LAYER_FP_TEXT:                 return QObject::tr( "Footprint text" );
+    case LAYER_TRACKS:                  return QObject::tr( "Tracks" );
+    case LAYER_VIA_THROUGH:             return QObject::tr( "Through vias" );
+    case LAYER_VIA_BBLIND:              return QObject::tr( "Blind/Buried vias" );
+    case LAYER_VIA_MICROVIA:            return QObject::tr( "Micro-vias" );
+    case LAYER_VIA_HOLES:               return QObject::tr( "Via holes" );
+    case LAYER_VIA_HOLEWALLS:           return QObject::tr( "Via hole walls" );
+    case LAYER_PAD_PLATEDHOLES:         return QObject::tr( "Plated holes" );
+    case LAYER_PAD_HOLEWALLS:           return QObject::tr( "Plated hole walls" );
+    case LAYER_NON_PLATEDHOLES:         return QObject::tr( "Non-plated holes" );
+    case LAYER_RATSNEST:                return QObject::tr( "Ratsnest" );
+    case LAYER_DRC_WARNING:             return QObject::tr( "DRC warnings" );
+    case LAYER_DRC_ERROR:               return QObject::tr( "DRC errors" );
+    case LAYER_DRC_SHAPE1:              return QObject::tr( "DRC shape 1" );
+    case LAYER_DRC_SHAPE2:              return QObject::tr( "DRC shape 2" );
+    case LAYER_DRC_EXCLUSION:           return QObject::tr( "DRC exclusions" );
+    case LAYER_MARKER_SHADOWS:          return QObject::tr( "DRC marker shadows" );
+    case LAYER_ANCHOR:                  return QObject::tr( "Anchors" );
+    case LAYER_DRAWINGSHEET:            return QObject::tr( "Drawing sheet" );
+    case LAYER_PAGE_LIMITS:             return QObject::tr( "Page limits" );
+    case LAYER_CURSOR:                  return QObject::tr( "Cursor" );
+    case LAYER_AUX_ITEMS:               return QObject::tr( "Helper items" );
+    case LAYER_GRID:                    return QObject::tr( "Grid" );
+    case LAYER_GRID_AXES:               return QObject::tr( "Grid axes" );
+    case LAYER_PCB_BACKGROUND:          return QObject::tr( "Background" );
+    case LAYER_SELECT_OVERLAY:          return QObject::tr( "Selection highlight" );
+    case LAYER_LOCKED_ITEM_SHADOW:      return QObject::tr( "Locked item shadow" );
+    case LAYER_CONFLICTS_SHADOW:        return QObject::tr( "Courtyard collision shadow" );
+    case NETNAMES_LAYER_ID_START:       return QObject::tr( "Track net names" );
+    case LAYER_PAD_NETNAMES:            return QObject::tr( "Pad net names" );
+    case LAYER_VIA_NETNAMES:            return QObject::tr( "Via net names" );
 
     default:
         // Catch the general board layers that have numerically increasing names
         if( aLayer > 0 && aLayer < PCB_LAYER_ID_COUNT && aLayer & 1 )
-            return wxString::Format( wxT( "User.%d" ), ( aLayer - PCB_LAYER_ID::User_1 ) / 2 + 1 );
+            return QString( "User.%1" ).arg( ( aLayer - PCB_LAYER_ID::User_1 ) / 2 + 1 );
 
-        return wxString::Format( wxT( "In%d.Cu" ), ( aLayer - PCB_LAYER_ID::In1_Cu ) / 2 + 1 );
+        return QString( "In%1.Cu" ).arg( ( aLayer - PCB_LAYER_ID::In1_Cu ) / 2 + 1 );
     }
 }
 

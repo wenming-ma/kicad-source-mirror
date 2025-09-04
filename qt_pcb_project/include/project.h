@@ -1,46 +1,20 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Copyright (C) 2022 CERN
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 #ifndef PROJECT_H_
 #define PROJECT_H_
 
-/**
- * @file project.h
- */
 #include <array>
-#include <map>
-#include <vector>
+#include <QHash>
+#include <QVector>
 #include <kiid.h>
-#include <wx_filename.h>
-#include <wx/string.h>
+#include <QString>
+#include <QFileInfo>
 #include <core/typeinfo.h>
 
 /// A variable name whose value holds the current project directory.
 /// Currently an environment variable, eventually a project variable.
-#define PROJECT_VAR_NAME            wxT( "KIPRJMOD" )
+#define PROJECT_VAR_NAME            QStringLiteral( "KIPRJMOD" )
 
 /// default name for nameless projects
-#define NAMELESS_PROJECT _( "untitled" )
+#define NAMELESS_PROJECT QStringLiteral( "untitled" )
 
 class DESIGN_BLOCK_LIB_TABLE;
 class FP_LIB_TABLE;
@@ -54,18 +28,9 @@ class PROJECT_FILE;
 class PROJECT_LOCAL_SETTINGS;
 
 
-/**
- * Container for project specific data.
- *
- * Because it is in the neutral program top, which is not linked to by subsidiary DSOs,
- * any functions in this interface must be virtual.
- */
 class KICOMMON_API PROJECT
 {
 public:
-    /**
-     * The set of #_ELEMs that a #PROJECT can hold.
-     */
     enum class ELEM
     {
         FPTBL,
@@ -81,14 +46,6 @@ public:
         COUNT
     };
 
-    /**
-     * A #PROJECT can hold stuff it knows nothing about, in the form of _ELEM derivatives.
-     *
-     * Derive #PROJECT elements from this, it has a virtual destructor, and Elem*() functions
-     * can work with it.  Implementation is opaque in class #PROJECT.  If find you have to
-     * include derived class headers in this file, you are doing incompatible with the goal
-     * of this class.  Keep knowledge of derived classes opaque to class PROJECT please.
-    */
     class KICOMMON_API _ELEM
     {
     public:
@@ -102,14 +59,14 @@ public:
 
     //-----<Cross Module API>----------------------------------------------------
 
-    virtual bool TextVarResolver( wxString* aToken ) const;
+    virtual bool TextVarResolver( QString* aToken ) const;
 
-    virtual std::map<wxString, wxString>& GetTextVars() const;
+    virtual QHash<QString, QString>& GetTextVars() const;
 
     /**
      * Applies the given var map, it will create or update existing vars
      */
-    virtual void ApplyTextVars( const std::map<wxString, wxString>& aVarsMap );
+    virtual void ApplyTextVars( const QHash<QString, QString>& aVarsMap );
 
     int  GetTextVarsTicker() const { return m_textVarsTicker; }
     void IncrementTextVarsTicker() { m_textVarsTicker++; }
@@ -123,7 +80,7 @@ public:
      * This is the same as the name of the project file (.pro prior to version 6 and .kicad_prj
      * from version 6 onwards) and will always be an absolute path.
      */
-    virtual const wxString GetProjectFullName() const;
+    virtual const QString GetProjectFullName() const;
 
     /**
      * Return the full path of the project.
@@ -131,7 +88,7 @@ public:
      * This is the path of the project file and will always be an absolute path, ending with
      * a path separator.
      */
-    virtual const wxString GetProjectPath() const;
+    virtual const QString GetProjectPath() const;
 
     /**
      * Return the full path of the project DIRECTORY
@@ -139,14 +96,14 @@ public:
      * This is the path of the project file and will always be an absolute path, ending with
      * a path separator.
      */
-    virtual const wxString GetProjectDirectory() const;
+    virtual const QString GetProjectDirectory() const;
 
     /**
      * Return the short name of the project.
      *
      * This is the file name without extension or path.
      */
-    virtual const wxString GetProjectName() const;
+    virtual const QString GetProjectName() const;
 
     /**
      * Check if this project is a null project (i.e. the default project object created when
@@ -166,24 +123,24 @@ public:
     /**
      * Return the name of the sheet identified by the given UUID.
      */
-    virtual const wxString GetSheetName( const KIID& aSheetID );
+    virtual const QString GetSheetName( const KIID& aSheetID );
 
     /**
      * Returns the path and filename of this project's footprint library table.
      *
      * This project specific footprint library table not the global one.
      */
-    virtual const wxString FootprintLibTblName() const;
+    virtual const QString FootprintLibTblName() const;
 
     /**
      * Return the path and file name of this projects symbol library table.
      */
-    virtual const wxString SymbolLibTableName() const;
+    virtual const QString SymbolLibTableName() const;
 
     /**
      * Return the path and file name of this projects design block library table.
      */
-    virtual const wxString DesignBlockLibTblName() const;
+    virtual const QString DesignBlockLibTblName() const;
 
     enum LIB_TYPE_T
     {
@@ -194,22 +151,22 @@ public:
         LIB_TYPE_COUNT
     };
 
-    void PinLibrary( const wxString& aLibrary, enum LIB_TYPE_T aLibType );
-    void UnpinLibrary( const wxString& aLibrary, enum LIB_TYPE_T aLibType );
+    void PinLibrary( const QString& aLibrary, enum LIB_TYPE_T aLibType );
+    void UnpinLibrary( const QString& aLibrary, enum LIB_TYPE_T aLibType );
 
     virtual PROJECT_FILE& GetProjectFile() const
     {
-        wxASSERT( m_projectFile );
+        Q_ASSERT( m_projectFile );
         return *m_projectFile;
     }
 
     virtual PROJECT_LOCAL_SETTINGS& GetLocalSettings() const
     {
-        wxASSERT( m_localSettings );
+        Q_ASSERT( m_localSettings );
         return *m_localSettings;
     }
 
-    /// Retain a number of project specific wxStrings, enumerated here:
+    /// Retain a number of project specific QStrings, enumerated here:
     enum RSTRING_T
     {
         DOC_PATH,
@@ -238,7 +195,7 @@ public:
      * Retained strings are not written to disk, and are therefore good only for the current
      * session.
      */
-    virtual const wxString& GetRString( RSTRING_T aStringId );
+    virtual const QString& GetRString( RSTRING_T aStringId );
 
     /**
      * Store a "retained string", which is any session and project specific string
@@ -247,7 +204,7 @@ public:
      * Retained strings are not written to disk, and are therefore good only for the current
      * session.
      */
-    virtual void SetRString( RSTRING_T aStringId, const wxString& aString );
+    virtual void SetRString( RSTRING_T aStringId, const QString& aString );
 
     /**
      * Get and set the elements for this project.
@@ -277,7 +234,7 @@ public:
         ElemsClear();
 
         for( unsigned i = 0; i<RSTRING_COUNT;  ++i )
-            SetRString( RSTRING_T( i ), wxEmptyString );
+            SetRString( RSTRING_T( i ), QString() );
     }
 
     /**
@@ -286,7 +243,7 @@ public:
      *
      * This intends to overcome the now missing chdir() into the project directory.
      */
-    virtual const wxString AbsolutePath( const wxString& aFileName ) const;
+    virtual const QString AbsolutePath( const QString& aFileName ) const;
 
     /**
      * Return the table of footprint libraries. Requires an active Kiway as this is fetched
@@ -310,7 +267,7 @@ private:
      * the name of the project.  The project name and the project file names are exactly
      * the same, providing the project filename is absolute.
      */
-    virtual void setProjectFullName( const wxString& aFullPathAndName );
+    virtual void setProjectFullName( const QString& aFullPathAndName );
 
     /**
      * Set the backing store file for this project.
@@ -339,11 +296,11 @@ private:
     /**
      * Return the full path and file name of the project specific library table \a aLibTableName..
      */
-    const wxString libTableName( const wxString& aLibTableName ) const;
+    const QString libTableName( const QString& aLibTableName ) const;
 
 private:
-    wxFileName      m_project_name;         ///< \<fullpath\>/\<basename\>.pro
-    wxString        m_pro_date_and_time;
+    QFileInfo       m_project_name;         ///< \<fullpath\>/\<basename\>.pro
+    QString        m_pro_date_and_time;
 
     bool            m_readOnly;             ///< No project files will be written to disk
     int             m_textVarsTicker;       ///< Update counter on text vars
@@ -355,10 +312,10 @@ private:
     /// Backing store for project local settings -- owned by SETTINGS_MANAGER
     PROJECT_LOCAL_SETTINGS*  m_localSettings;
 
-    std::map<KIID, wxString> m_sheetNames;
+    QHash<KIID, QString> m_sheetNames;
 
     /// @see this::SetRString(), GetRString(), and enum RSTRING_T.
-    std::array<wxString,RSTRING_COUNT> m_rstrings;
+    std::array<QString,RSTRING_COUNT> m_rstrings;
 
     /// @see this::Elem() and enum ELEM_T.
     std::array<_ELEM*,static_cast<unsigned int>( PROJECT::ELEM::COUNT )> m_elems;

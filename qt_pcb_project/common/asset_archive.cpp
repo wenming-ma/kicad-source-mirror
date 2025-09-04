@@ -1,30 +1,11 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
-#include <wx/tarstrm.h>
-#include <wx/wfstream.h>
-#include <wx/zstream.h>
+#include <QFile>
+#include <QByteArray>
+#include <QBuffer>
 
 #include <asset_archive.h>
 
 
-ASSET_ARCHIVE::ASSET_ARCHIVE( const wxString& aFilePath, bool aLoadNow ) :
+ASSET_ARCHIVE::ASSET_ARCHIVE( const QString& aFilePath, bool aLoadNow ) :
         m_filePath( aFilePath )
 {
     if( aLoadNow )
@@ -34,34 +15,50 @@ ASSET_ARCHIVE::ASSET_ARCHIVE( const wxString& aFilePath, bool aLoadNow ) :
 
 bool ASSET_ARCHIVE::Load()
 {
-    // We don't support hot-reloading yet
     if( !m_fileInfoCache.empty() )
         return false;
 
-    wxFFileInputStream zipFile( m_filePath );
+    QFile zipFile( m_filePath );
 
-    if( !zipFile.IsOk() )
+    if( !zipFile.open( QIODevice::ReadOnly ) )
         return false;
 
-    wxZlibInputStream stream( zipFile, wxZLIB_GZIP );
-    wxTarInputStream tarStream( stream );
-    wxTarEntry* entry;
+    QByteArray compressedData = zipFile.readAll();
+    zipFile.close();
 
-    // Avoid realloc while reading: we're not going to get better than 2:1 compression
-    m_cache.resize( 2 * zipFile.GetLength() );
+    QByteArray uncompressedData = qUncompress( compressedData );
+    
+    if( uncompressedData.isEmpty() )
+        return false;
+
+    m_cache.resize( 2 * zipFile.size() );
 
     size_t offset = 0;
-
-    while( ( entry = tarStream.GetNextEntry() ) != nullptr )
+    
+    QBuffer buffer( &uncompressedData );
+    buffer.open( QIODevice::ReadOnly );
+    
+    while( !buffer.atEnd() )
     {
-        if( entry->IsDir() )
+        QByteArray header = buffer.read( 512 );
+        if( header.size() < 512 )
+            break;
+            
+        QString filename = QString::fromLatin1( header.left( 100 ) ).trimmed();
+        if( filename.isEmpty() )
+            break;
+            
+        if( header.at( 156 ) == '5' )
         {
-            delete entry;
             continue;
         }
-
-        size_t length = entry->GetSize();
-
+        
+        QString sizeStr = QString::fromLatin1( header.mid( 124, 12 ) ).trimmed();
+        bool ok;
+        size_t length = sizeStr.toLongLong( &ok, 8 );
+        if( !ok )
+            break;
+            
         FILE_INFO fi;
         fi.offset = offset;
         fi.length = length;
@@ -69,13 +66,16 @@ bool ASSET_ARCHIVE::Load()
         if( offset + length > m_cache.size() )
             m_cache.resize( m_cache.size() * 2 );
 
-        tarStream.Read( &m_cache[offset], length );
+        QByteArray fileData = buffer.read( length );
+        std::memcpy( &m_cache[offset], fileData.constData(), fileData.size() );
 
-        m_fileInfoCache[entry->GetName()] = fi;
+        m_fileInfoCache[filename] = fi;
 
         offset += length;
-
-        delete entry;
+        
+        size_t padding = ( 512 - ( length % 512 ) ) % 512;
+        if( padding > 0 )
+            buffer.read( padding );
     }
 
     m_cache.resize( offset );
@@ -84,20 +84,19 @@ bool ASSET_ARCHIVE::Load()
 }
 
 
-long ASSET_ARCHIVE::GetFileContents( const wxString& aFilePath, const unsigned char* aDest,
+long ASSET_ARCHIVE::GetFileContents( const QString& aFilePath, const unsigned char* aDest,
                                      size_t aMaxLen )
 {
-    wxFAIL_MSG( wxS( "Unimplemented" ) );
     return 0;
 }
 
 
-long ASSET_ARCHIVE::GetFilePointer( const wxString& aFilePath, const unsigned char** aDest )
+long ASSET_ARCHIVE::GetFilePointer( const QString& aFilePath, const unsigned char** aDest )
 {
-    if( aFilePath.IsEmpty() )
+    if( aFilePath.isEmpty() )
         return -1;
 
-    wxASSERT( aDest );
+    Q_ASSERT( aDest );
 
     if( !m_fileInfoCache.count( aFilePath ) )
         return -1;

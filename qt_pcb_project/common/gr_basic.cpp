@@ -1,157 +1,123 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include <gr_basic.h>
 #include <trigo.h>
 #include <eda_item.h>
-#include <wx/graphics.h>
-#include <math/vector2wx.h>
+#include <QtGui/QPainter>
+#include <QtGui/QPen>
+#include <QtGui/QBrush>
+#include <QtCore/QPoint>
+#include <QtCore/QRect>
 
 #include <algorithm>
+#include <cmath>
 
 static const bool FILLED = true;
 static const bool NOT_FILLED = false;
 
-// For draw mode = XOR GR_XOR or GR_NXOR by background color
 GR_DRAWMODE g_XorMode = GR_NXOR;
 
-
-/* These functions are used by corresponding functions
- * ( GRSCircle is called by GRCircle for instance) after mapping coordinates
- * from user units to screen units(pixels coordinates)
- */
-static void GRSRect( wxDC* aDC, int x1, int y1, int x2, int y2, int aWidth, const COLOR4D& aColor );
-
-/**/
+static void GRSRect( QPainter* aPainter, int x1, int y1, int x2, int y2, int aWidth, const QColor& aColor );
 
 static int     GRLastMoveToX, GRLastMoveToY;
-static bool    s_ForceBlackPen;   /* if true: draws in black instead of
-                                        * color for printing. */
-static COLOR4D s_DC_lastbrushcolor( 0, 0, 0, 0 );
+static bool    s_ForceBlackPen;
+static QColor  s_DC_lastbrushcolor( 0, 0, 0, 0 );
 static bool    s_DC_lastbrushfill  = false;
-static wxDC*   s_DC_lastDC = nullptr;
+static QPainter* s_Painter_lastPainter = nullptr;
 
 
-static void vector2IwxDrawPolygon( wxDC* aDC, const VECTOR2I* Points, int n )
+static void vector2IQtDrawPolygon( QPainter* aPainter, const VECTOR2I* Points, int n )
 {
-    wxPoint* points = new wxPoint[n];
+    QPoint* points = new QPoint[n];
 
     for( int i = 0; i < n; i++ )
-        points[i] = wxPoint( Points[i].x, Points[i].y );
+        points[i] = QPoint( Points[i].x, Points[i].y );
 
-    aDC->DrawPolygon( n, points );
+    aPainter->drawPolygon( points, n );
     delete[] points;
 }
 
 
-static void winDrawLine( wxDC* DC, int x1, int y1, int x2, int y2, int width )
+static void qtDrawLine( QPainter* painter, int x1, int y1, int x2, int y2, int width )
 {
     GRLastMoveToX = x2;
     GRLastMoveToY = y2;
-    DC->DrawLine( x1, y1, x2, y2 );
+    painter->drawLine( x1, y1, x2, y2 );
 }
 
 
-void GRResetPenAndBrush( wxDC* DC )
+void GRResetPenAndBrush( QPainter* painter )
 {
-    GRSetBrush( DC, BLACK );  // Force no fill
-    s_DC_lastbrushcolor = COLOR4D::UNSPECIFIED;
-    s_DC_lastDC    = nullptr;
+    GRSetBrush( painter, QColor(Qt::black) );
+    s_DC_lastbrushcolor = QColor( 0, 0, 0, 0 );
+    s_Painter_lastPainter = nullptr;
 }
 
 
-void GRSetColorPen( wxDC* DC, const COLOR4D& Color, int width, wxPenStyle style )
+void GRSetColorPen( QPainter* painter, const QColor& color, int width, Qt::PenStyle style )
 {
-    COLOR4D color = Color;
+    QColor penColor = color;
 
-    wxDash dots[2] = { 1, 3 };
+    QVector<qreal> dots;
+    dots << 1 << 3;
 
-    // Under OSX and while printing when wxPen is set to 0, renderer follows the request drawing
-    // nothing & in the bitmap world the minimum is enough to light a pixel, in vectorial one not
-    if( width <= 1 && DC->GetBrush().GetStyle() != wxBRUSHSTYLE_SOLID )
-        width = DC->DeviceToLogicalXRel( 1 );
+    if( width <= 1 && painter->brush().style() != Qt::SolidPattern )
+        width = 1;
 
     if( s_ForceBlackPen )
-        color = COLOR4D::BLACK;
+        penColor = Qt::black;
 
-    // wxWidgets will enforce a minimum pen width when printing, so we have to make the pen
-    // transparent when we don't want the object stroked.
     if( width == 0 )
     {
-        color = COLOR4D::UNSPECIFIED;
-        style = wxPENSTYLE_TRANSPARENT;
+        penColor = Qt::transparent;
+        style = Qt::NoPen;
     }
 
-    const wxPen& curr_pen = DC->GetPen();
+    const QPen& curr_pen = painter->pen();
 
-    if( !curr_pen.IsOk() || curr_pen.GetColour() != color.ToColour()
-       || curr_pen.GetWidth() != width || curr_pen.GetStyle() != style )
+    if( curr_pen.color() != penColor || curr_pen.width() != width || curr_pen.style() != style )
     {
-        wxPen pen;
-        pen.SetColour( color.ToColour() );
+        QPen pen;
+        pen.setColor( penColor );
 
-        if( style == wxPENSTYLE_DOT )
+        if( style == Qt::DotLine )
         {
-            style = wxPENSTYLE_USER_DASH;
-            pen.SetDashes( 2, dots );
+            style = Qt::CustomDashLine;
+            pen.setDashPattern( dots );
         }
 
-        pen.SetWidth( width );
-        pen.SetStyle( style );
-        DC->SetPen( pen );
+        pen.setWidth( width );
+        pen.setStyle( style );
+        painter->setPen( pen );
     }
     else
     {
-        // Should be not needed, but on Linux, in printing process
-        // the curr pen settings needs to be sometimes re-initialized
-        // Clearly, this is due to a bug, related to SetBrush(),
-        // but we have to live with it, at least on wxWidgets 3.0
-        DC->SetPen( curr_pen );
+        painter->setPen( curr_pen );
     }
 }
 
 
-void GRSetBrush( wxDC* DC, const COLOR4D& Color, bool fill )
+void GRSetBrush( QPainter* painter, const QColor& color, bool fill )
 {
-    COLOR4D color = Color;
+    QColor brushColor = color;
 
     if( s_ForceBlackPen )
-        color = COLOR4D::BLACK;
+        brushColor = Qt::black;
 
-    if( s_DC_lastbrushcolor != color || s_DC_lastbrushfill  != fill || s_DC_lastDC != DC )
+    if( s_DC_lastbrushcolor != brushColor || s_DC_lastbrushfill != fill || s_Painter_lastPainter != painter )
     {
-        wxBrush brush;
+        QBrush brush;
 
-        brush.SetColour( color.ToColour() );
+        brush.setColor( brushColor );
 
         if( fill )
-            brush.SetStyle( wxBRUSHSTYLE_SOLID );
+            brush.setStyle( Qt::SolidPattern );
         else
-            brush.SetStyle( wxBRUSHSTYLE_TRANSPARENT );
+            brush.setStyle( Qt::NoBrush );
 
-        DC->SetBrush( brush );
+        painter->setBrush( brush );
 
-        s_DC_lastbrushcolor = color;
-        s_DC_lastbrushfill  = fill;
-        s_DC_lastDC = DC;
+        s_DC_lastbrushcolor = brushColor;
+        s_DC_lastbrushfill = fill;
+        s_Painter_lastPainter = painter;
     }
 }
 
@@ -168,20 +134,20 @@ bool GetGRForceBlackPenState( void )
 }
 
 
-void GRLine( wxDC* DC, int x1, int y1, int x2, int y2, int width, const COLOR4D& Color,
-             wxPenStyle aStyle)
+void GRLine( QPainter* painter, int x1, int y1, int x2, int y2, int width, const QColor& color,
+             Qt::PenStyle aStyle)
 {
-    GRSetColorPen( DC, Color, width, aStyle );
-    winDrawLine( DC, x1, y1, x2, y2, width );
+    GRSetColorPen( painter, color, width, aStyle );
+    qtDrawLine( painter, x1, y1, x2, y2, width );
     GRLastMoveToX = x2;
     GRLastMoveToY = y2;
 }
 
 
-void GRLine( wxDC* aDC, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
-             const COLOR4D& aColor, wxPenStyle aStyle )
+void GRLine( QPainter* aPainter, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
+             const QColor& aColor, Qt::PenStyle aStyle )
 {
-    GRLine( aDC, aStart.x, aStart.y, aEnd.x, aEnd.y, aWidth, aColor, aStyle );
+    GRLine( aPainter, aStart.x, aStart.y, aEnd.x, aEnd.y, aWidth, aColor, aStyle );
 }
 
 
@@ -192,26 +158,26 @@ void GRMoveTo( int x, int y )
 }
 
 
-void GRLineTo( wxDC* DC, int x, int y, int width, const COLOR4D& Color )
+void GRLineTo( QPainter* painter, int x, int y, int width, const QColor& color )
 {
-    GRLine( DC, GRLastMoveToX, GRLastMoveToY, x, y, width, Color );
+    GRLine( painter, GRLastMoveToX, GRLastMoveToY, x, y, width, color );
 }
 
 
-void GRCSegm( wxDC* DC, const VECTOR2I& A, const VECTOR2I& B, int width, const COLOR4D& Color )
+void GRCSegm( QPainter* painter, const VECTOR2I& A, const VECTOR2I& B, int width, const QColor& color )
 {
     GRLastMoveToX = B.x;
     GRLastMoveToY = B.y;
 
-    if( width <= 2 )   /*  single line or 2 pixels */
+    if( width <= 2 )
     {
-        GRSetColorPen( DC, Color, width );
-        DC->DrawLine( A.x, A.y, B.x, B.y );
+        GRSetColorPen( painter, color, width );
+        painter->drawLine( A.x, A.y, B.x, B.y );
         return;
     }
 
-    GRSetBrush( DC, Color, NOT_FILLED );
-    GRSetColorPen( DC, Color, 0 );
+    GRSetBrush( painter, color, NOT_FILLED );
+    GRSetColorPen( painter, color, 0 );
 
     int radius = ( width + 1 ) >> 1;
     int dx = B.x - A.x;
@@ -225,12 +191,9 @@ void GRCSegm( wxDC* DC, const VECTOR2I& A, const VECTOR2I& B, int width, const C
     VECTOR2I org( A.x, A.y );
     int len = (int) hypot( dx, dy );
 
-    // We know if the DC is mirrored, to draw arcs
-    int slx = DC->DeviceToLogicalX( 1 ) - DC->DeviceToLogicalX( 0 );
-    int sly = DC->DeviceToLogicalY( 1 ) - DC->DeviceToLogicalY( 0 );
-    bool mirrored = ( slx > 0 && sly < 0 ) || ( slx < 0 && sly > 0 );
+    QTransform transform = painter->transform();
+    bool mirrored = (transform.m11() > 0 && transform.m22() < 0) || (transform.m11() < 0 && transform.m22() > 0);
 
-    // first edge
     start.x = 0;
     start.y = radius;
     end.x = len;
@@ -241,174 +204,185 @@ void GRCSegm( wxDC* DC, const VECTOR2I& A, const VECTOR2I& B, int width, const C
     start += org;
     end += org;
 
-    DC->DrawLine( ToWxPoint( start ), ToWxPoint( end ) );
+    painter->drawLine( QPoint( start.x, start.y ), QPoint( end.x, end.y ) );
 
-    // first rounded end
     end.x = 0;
     end.y = -radius;
     RotatePoint( end, angle );
     end += org;
 
+    QRect rect( org.x - radius, org.y - radius, 2 * radius, 2 * radius );
+    int startAngle = (int)( atan2( start.y - org.y, start.x - org.x ) * 180 / M_PI * 16 );
+    int endAngle = (int)( atan2( end.y - org.y, end.x - org.x ) * 180 / M_PI * 16 );
+    int spanAngle = endAngle - startAngle;
+    if( spanAngle < 0 ) spanAngle += 360 * 16;
+    
     if( !mirrored )
-        DC->DrawArc( ToWxPoint(end ), ToWxPoint(start ), ToWxPoint(org ) );
+        painter->drawArc( rect, startAngle, spanAngle );
     else
-        DC->DrawArc( ToWxPoint(start ), ToWxPoint(end ), ToWxPoint(org ) );
+        painter->drawArc( rect, endAngle, -spanAngle );
 
-    // second edge
     start.x = len;
     start.y = -radius;
     RotatePoint( start, angle );
     start += org;
 
-    DC->DrawLine( ToWxPoint( start ), ToWxPoint( end ) );
+    painter->drawLine( QPoint( start.x, start.y ), QPoint( end.x, end.y ) );
 
-    // second rounded end
     end.x = len;
     end.y = radius;
     RotatePoint( end, angle);
     end += org;
 
+    rect = QRect( B.x - radius, B.y - radius, 2 * radius, 2 * radius );
+    startAngle = (int)( atan2( end.y - B.y, end.x - B.x ) * 180 / M_PI * 16 );
+    endAngle = (int)( atan2( start.y - B.y, start.x - B.x ) * 180 / M_PI * 16 );
+    spanAngle = endAngle - startAngle;
+    if( spanAngle < 0 ) spanAngle += 360 * 16;
+    
     if( !mirrored )
-        DC->DrawArc( end.x, end.y, start.x, start.y, B.x, B.y );
+        painter->drawArc( rect, startAngle, spanAngle );
     else
-        DC->DrawArc( start.x, start.y, end.x, end.y, B.x, B.y );
+        painter->drawArc( rect, endAngle, -spanAngle );
 }
 
 
-void GRFilledSegment( wxDC* aDC, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
-                      const COLOR4D& aColor )
+void GRFilledSegment( QPainter* aPainter, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
+                      const QColor& aColor )
 {
-    GRSetColorPen( aDC, aColor, aWidth );
-    winDrawLine( aDC, aStart.x, aStart.y, aEnd.x, aEnd.y, aWidth );
+    GRSetColorPen( aPainter, aColor, aWidth );
+    qtDrawLine( aPainter, aStart.x, aStart.y, aEnd.x, aEnd.y, aWidth );
 }
 
 
-/**
- * Draw a new polyline and fill it if Fill, in screen space.
- */
-static void GRSPoly( wxDC* DC, int n, const VECTOR2I* Points, bool Fill, int width,
-                     const COLOR4D& Color, const COLOR4D& BgColor )
+static void GRSPoly( QPainter* painter, int n, const VECTOR2I* Points, bool Fill, int width,
+                     const QColor& Color, const QColor& BgColor )
 {
     if( Fill && ( n > 2 ) )
     {
-        GRSetBrush( DC, BgColor, FILLED );
-        GRSetColorPen( DC, Color, width );
+        GRSetBrush( painter, BgColor, FILLED );
+        GRSetColorPen( painter, Color, width );
 
-        vector2IwxDrawPolygon( DC, Points, n );
+        vector2IQtDrawPolygon( painter, Points, n );
     }
     else
     {
         GRMoveTo( Points[0].x, Points[0].y );
 
         for( int i = 1; i < n; ++i )
-            GRLineTo( DC, Points[i].x, Points[i].y, width, Color );
+            GRLineTo( painter, Points[i].x, Points[i].y, width, Color );
     }
 }
 
 
-/**
- * Draw a new closed polyline and fill it if Fill, in screen space.
- */
-static void GRSClosedPoly( wxDC* aDC, int aPointCount, const VECTOR2I* aPoints, bool aFill,
-                           int aWidth, const COLOR4D& aColor, const COLOR4D& aBgColor )
+static void GRSClosedPoly( QPainter* aPainter, int aPointCount, const VECTOR2I* aPoints, bool aFill,
+                           int aWidth, const QColor& aColor, const QColor& aBgColor )
 {
     if( aFill && ( aPointCount > 2 ) )
     {
         GRLastMoveToX = aPoints[aPointCount - 1].x;
         GRLastMoveToY = aPoints[aPointCount - 1].y;
-        GRSetBrush( aDC, aBgColor, FILLED );
-        GRSetColorPen( aDC, aColor, aWidth );
-        vector2IwxDrawPolygon( aDC, aPoints, aPointCount );
+        GRSetBrush( aPainter, aBgColor, FILLED );
+        GRSetColorPen( aPainter, aColor, aWidth );
+        vector2IQtDrawPolygon( aPainter, aPoints, aPointCount );
     }
     else
     {
         GRMoveTo( aPoints[0].x, aPoints[0].y );
 
         for( int i = 1; i < aPointCount; ++i )
-            GRLineTo( aDC, aPoints[i].x, aPoints[i].y, aWidth, aColor );
+            GRLineTo( aPainter, aPoints[i].x, aPoints[i].y, aWidth, aColor );
 
         int lastpt = aPointCount - 1;
 
-        // Close the polygon
         if( aPoints[lastpt] != aPoints[0] )
-            GRLineTo( aDC, aPoints[0].x, aPoints[0].y, aWidth, aColor );
+            GRLineTo( aPainter, aPoints[0].x, aPoints[0].y, aWidth, aColor );
     }
 }
 
 
-/**
- * Draw a new polyline and fill it if Fill, in drawing space.
- */
-void GRPoly( wxDC* DC, int n, const VECTOR2I* Points, bool Fill, int width, const COLOR4D& Color,
-             const COLOR4D& BgColor )
+void GRPoly( QPainter* painter, int n, const VECTOR2I* Points, bool Fill, int width, const QColor& Color,
+             const QColor& BgColor )
 {
-    GRSPoly( DC, n, Points, Fill, width, Color, BgColor );
+    GRSPoly( painter, n, Points, Fill, width, Color, BgColor );
 }
 
 
-/**
- * Draw a closed polyline and fill it if Fill, in object space.
- */
-void GRClosedPoly( wxDC* DC, int n, const VECTOR2I* Points, bool Fill, const COLOR4D& Color )
+void GRClosedPoly( QPainter* painter, int n, const VECTOR2I* Points, bool Fill, const QColor& Color )
 {
-    GRSClosedPoly( DC, n, Points, Fill, 0, Color, Color );
+    GRSClosedPoly( painter, n, Points, Fill, 0, Color, Color );
 }
 
 
-void GRCircle( wxDC* aDC, const VECTOR2I& aPos, int aRadius, int aWidth, const COLOR4D& aColor )
+void GRCircle( QPainter* aPainter, const VECTOR2I& aPos, int aRadius, int aWidth, const QColor& aColor )
 {
-    GRSetBrush( aDC, aColor, NOT_FILLED );
-    GRSetColorPen( aDC, aColor, aWidth );
+    GRSetBrush( aPainter, aColor, NOT_FILLED );
+    GRSetColorPen( aPainter, aColor, aWidth );
 
-    // Draw two arcs here to make a circle.  Unfortunately, the printerDC doesn't handle
-    // transparent brushes when used with circles.  It does work for for arcs, however
-    aDC->DrawArc(aPos.x + aRadius, aPos.y, aPos.x - aRadius, aPos.y, aPos.x, aPos.y );
-    aDC->DrawArc(aPos.x - aRadius, aPos.y, aPos.x + aRadius, aPos.y, aPos.x, aPos.y );
+    QRect rect( aPos.x - aRadius, aPos.y - aRadius, 2 * aRadius, 2 * aRadius );
+    aPainter->drawArc( rect, 0, 180 * 16 );
+    aPainter->drawArc( rect, 180 * 16, 180 * 16 );
 }
 
 
-void GRFilledCircle( wxDC* aDC, const VECTOR2I& aPos, int aRadius, int aWidth,
-                     const COLOR4D& aStrokeColor, const COLOR4D& aFillColor )
+void GRFilledCircle( QPainter* aPainter, const VECTOR2I& aPos, int aRadius, int aWidth,
+                     const QColor& aStrokeColor, const QColor& aFillColor )
 {
-    GRSetBrush( aDC, aFillColor, FILLED );
-    GRSetColorPen( aDC, aStrokeColor, aWidth );
-    aDC->DrawEllipse( aPos.x - aRadius, aPos.y - aRadius, 2 * aRadius, 2 * aRadius );
+    GRSetBrush( aPainter, aFillColor, FILLED );
+    GRSetColorPen( aPainter, aStrokeColor, aWidth );
+    aPainter->drawEllipse( aPos.x - aRadius, aPos.y - aRadius, 2 * aRadius, 2 * aRadius );
 }
 
 
-void GRArc( wxDC* aDC, const VECTOR2I& aStart, const VECTOR2I& aEnd, const VECTOR2I& aCenter,
-            int aWidth, const COLOR4D& aColor )
+void GRArc( QPainter* aPainter, const VECTOR2I& aStart, const VECTOR2I& aEnd, const VECTOR2I& aCenter,
+            int aWidth, const QColor& aColor )
 {
-    GRSetBrush( aDC, aColor );
-    GRSetColorPen( aDC, aColor, aWidth );
-    aDC->DrawArc( aStart.x, aStart.y, aEnd.x, aEnd.y, aCenter.x, aCenter.y );
+    GRSetBrush( aPainter, aColor );
+    GRSetColorPen( aPainter, aColor, aWidth );
+    
+    int radius = (int)hypot( aStart.x - aCenter.x, aStart.y - aCenter.y );
+    QRect rect( aCenter.x - radius, aCenter.y - radius, 2 * radius, 2 * radius );
+    int startAngle = (int)( atan2( aStart.y - aCenter.y, aStart.x - aCenter.x ) * 180 / M_PI * 16 );
+    int endAngle = (int)( atan2( aEnd.y - aCenter.y, aEnd.x - aCenter.x ) * 180 / M_PI * 16 );
+    int spanAngle = endAngle - startAngle;
+    if( spanAngle < 0 ) spanAngle += 360 * 16;
+    
+    aPainter->drawArc( rect, startAngle, spanAngle );
 }
 
 
-void GRFilledArc( wxDC* DC, const VECTOR2I& aStart, const VECTOR2I& aEnd, const VECTOR2I& aCenter,
-                  int width, const COLOR4D& Color, const COLOR4D& BgColor )
+void GRFilledArc( QPainter* painter, const VECTOR2I& aStart, const VECTOR2I& aEnd, const VECTOR2I& aCenter,
+                  int width, const QColor& Color, const QColor& BgColor )
 {
-    GRSetBrush( DC, BgColor, FILLED );
-    GRSetColorPen( DC, Color, width );
-    DC->DrawArc( aStart.x, aStart.y, aEnd.x, aEnd.y, aCenter.x, aCenter.y );
+    GRSetBrush( painter, BgColor, FILLED );
+    GRSetColorPen( painter, Color, width );
+    
+    int radius = (int)hypot( aStart.x - aCenter.x, aStart.y - aCenter.y );
+    QRect rect( aCenter.x - radius, aCenter.y - radius, 2 * radius, 2 * radius );
+    int startAngle = (int)( atan2( aStart.y - aCenter.y, aStart.x - aCenter.x ) * 180 / M_PI * 16 );
+    int endAngle = (int)( atan2( aEnd.y - aCenter.y, aEnd.x - aCenter.x ) * 180 / M_PI * 16 );
+    int spanAngle = endAngle - startAngle;
+    if( spanAngle < 0 ) spanAngle += 360 * 16;
+    
+    painter->drawPie( rect, startAngle, spanAngle );
 }
 
 
-void GRRect( wxDC* DC, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
-             const COLOR4D& aColor )
+void GRRect( QPainter* painter, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
+             const QColor& aColor )
 {
-    GRSRect( DC, aStart.x, aStart.y, aEnd.x, aEnd.y, aWidth, aColor );
+    GRSRect( painter, aStart.x, aStart.y, aEnd.x, aEnd.y, aWidth, aColor );
 }
 
 
-void GRFilledRect( wxDC* DC, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
-                   const COLOR4D& aColor, const COLOR4D& aBgColor )
+void GRFilledRect( QPainter* painter, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
+                   const QColor& aColor, const QColor& aBgColor )
 {
-    GRSFilledRect( DC, aStart.x, aStart.y, aEnd.x, aEnd.y, aWidth, aColor, aBgColor );
+    GRSFilledRect( painter, aStart.x, aStart.y, aEnd.x, aEnd.y, aWidth, aColor, aBgColor );
 }
 
 
-void GRSRect( wxDC* aDC, int x1, int y1, int x2, int y2, int aWidth, const COLOR4D& aColor )
+void GRSRect( QPainter* aPainter, int x1, int y1, int x2, int y2, int aWidth, const QColor& aColor )
 {
     VECTOR2I points[5];
     points[0] = VECTOR2I( x1, y1 );
@@ -416,12 +390,12 @@ void GRSRect( wxDC* aDC, int x1, int y1, int x2, int y2, int aWidth, const COLOR
     points[2] = VECTOR2I( x2, y2 );
     points[3] = VECTOR2I( x2, y1 );
     points[4] = points[0];
-    GRSClosedPoly( aDC, 5, points, NOT_FILLED, aWidth, aColor, aColor );
+    GRSClosedPoly( aPainter, 5, points, NOT_FILLED, aWidth, aColor, aColor );
 }
 
 
-void GRSFilledRect( wxDC* aDC, int x1, int y1, int x2, int y2, int aWidth, const COLOR4D& aColor,
-                    const COLOR4D& aBgColor )
+void GRSFilledRect( QPainter* aPainter, int x1, int y1, int x2, int y2, int aWidth, const QColor& aColor,
+                    const QColor& aBgColor )
 {
     VECTOR2I points[5];
     points[0] = VECTOR2I( x1, y1 );
@@ -430,8 +404,8 @@ void GRSFilledRect( wxDC* aDC, int x1, int y1, int x2, int y2, int aWidth, const
     points[3] = VECTOR2I( x2, y1 );
     points[4] = points[0];
 
-    GRSetBrush( aDC, aBgColor, FILLED );
-    GRSetColorPen( aDC, aBgColor, aWidth );
+    GRSetBrush( aPainter, aBgColor, FILLED );
+    GRSetColorPen( aPainter, aBgColor, aWidth );
 
-    vector2IwxDrawPolygon( aDC, points, 5 );
+    vector2IQtDrawPolygon( aPainter, points, 5 );
 }

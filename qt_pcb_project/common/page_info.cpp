@@ -1,93 +1,65 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <page_info.h>
 #include <macros.h>
 #include <eda_units.h>
-#include <richio.h>         // for OUTPUTFORMATTER and IO_ERROR
+#include <richio.h>
+#include <QPrinter>
 
 
-// late arriving wxPAPER_A0, wxPAPER_A1
-#if wxABI_VERSION >= 20999
- #define PAPER_A0   wxPAPER_A0
- #define PAPER_A1   wxPAPER_A1
-#else
- #define PAPER_A0   wxPAPER_A2
- #define PAPER_A1   wxPAPER_A2
-#endif
+// Qt paper size definitions
+#define PAPER_A0   QPrinter::A0
+#define PAPER_A1   QPrinter::A1
 
 
-// Standard paper sizes nicknames.
-const wxChar PAGE_INFO::A5[] = wxT( "A5" );
-const wxChar PAGE_INFO::A4[] = wxT( "A4" );
-const wxChar PAGE_INFO::A3[] = wxT( "A3" );
-const wxChar PAGE_INFO::A2[] = wxT( "A2" );
-const wxChar PAGE_INFO::A1[] = wxT( "A1" );
-const wxChar PAGE_INFO::A0[] = wxT( "A0" );
-const wxChar PAGE_INFO::A[]  = wxT( "A" );
-const wxChar PAGE_INFO::B[]  = wxT( "B" );
-const wxChar PAGE_INFO::C[]  = wxT( "C" );
-const wxChar PAGE_INFO::D[]  = wxT( "D" );
-const wxChar PAGE_INFO::E[]  = wxT( "E" );
+const char PAGE_INFO::A5[] = "A5";
+const char PAGE_INFO::A4[] = "A4";
+const char PAGE_INFO::A3[] = "A3";
+const char PAGE_INFO::A2[] = "A2";
+const char PAGE_INFO::A1[] = "A1";
+const char PAGE_INFO::A0[] = "A0";
+const char PAGE_INFO::A[]  = "A";
+const char PAGE_INFO::B[]  = "B";
+const char PAGE_INFO::C[]  = "C";
+const char PAGE_INFO::D[]  = "D";
+const char PAGE_INFO::E[]  = "E";
 
-const wxChar PAGE_INFO::GERBER[]   = wxT( "GERBER" );
-const wxChar PAGE_INFO::USLetter[] = wxT( "USLetter" );
-const wxChar PAGE_INFO::USLegal[]  = wxT( "USLegal" );
-const wxChar PAGE_INFO::USLedger[] = wxT( "USLedger" );
-const wxChar PAGE_INFO::Custom[]   = wxT( "User" );
+const char PAGE_INFO::GERBER[]   = "GERBER";
+const char PAGE_INFO::USLetter[] = "USLetter";
+const char PAGE_INFO::USLegal[]  = "USLegal";
+const char PAGE_INFO::USLedger[] = "USLedger";
+const char PAGE_INFO::Custom[]   = "User";
 
 
 // Standard page sizes in mils, all constants
 // see:  https://lists.launchpad.net/kicad-developers/msg07389.html
 // also see: wx/defs.h
 
-// local readability macro for millimeter wxSize
+// local readability macro for millimeter size
 #define MMsize( x, y ) VECTOR2D( EDA_UNIT_UTILS::Mm2mils( x ), EDA_UNIT_UTILS::Mm2mils( y ) )
 
 // All MUST be defined as landscape.
-const PAGE_INFO  PAGE_INFO::pageA5(     MMsize( 210,   148 ),   wxT( "A5" ),    wxPAPER_A5 );
-const PAGE_INFO  PAGE_INFO::pageA4(     MMsize( 297,   210 ),   wxT( "A4" ),    wxPAPER_A4 );
-const PAGE_INFO  PAGE_INFO::pageA3(     MMsize( 420,   297 ),   wxT( "A3" ),    wxPAPER_A3 );
-const PAGE_INFO  PAGE_INFO::pageA2(     MMsize( 594,   420 ),   wxT( "A2" ),    wxPAPER_A2 );
-const PAGE_INFO  PAGE_INFO::pageA1(     MMsize( 841,   594 ),   wxT( "A1" ),    PAPER_A1 );
-const PAGE_INFO  PAGE_INFO::pageA0(     MMsize( 1189,  841 ),   wxT( "A0" ),    PAPER_A0 );
+const PAGE_INFO  PAGE_INFO::pageA5(     MMsize( 210,   148 ),   "A5",    QPrinter::A5 );
+const PAGE_INFO  PAGE_INFO::pageA4(     MMsize( 297,   210 ),   "A4",    QPrinter::A4 );
+const PAGE_INFO  PAGE_INFO::pageA3(     MMsize( 420,   297 ),   "A3",    QPrinter::A3 );
+const PAGE_INFO  PAGE_INFO::pageA2(     MMsize( 594,   420 ),   "A2",    QPrinter::A2 );
+const PAGE_INFO  PAGE_INFO::pageA1(     MMsize( 841,   594 ),   "A1",    PAPER_A1 );
+const PAGE_INFO  PAGE_INFO::pageA0(     MMsize( 1189,  841 ),   "A0",    PAPER_A0 );
 
-const PAGE_INFO  PAGE_INFO::pageA( VECTOR2D( 11000, 8500 ), wxT( "A" ), wxPAPER_LETTER );
-const PAGE_INFO  PAGE_INFO::pageB( VECTOR2D( 17000, 11000 ), wxT( "B" ), wxPAPER_TABLOID );
-const PAGE_INFO  PAGE_INFO::pageC( VECTOR2D( 22000, 17000 ), wxT( "C" ), wxPAPER_CSHEET );
-const PAGE_INFO  PAGE_INFO::pageD( VECTOR2D( 34000, 22000 ), wxT( "D" ), wxPAPER_DSHEET );
-const PAGE_INFO  PAGE_INFO::pageE( VECTOR2D( 44000, 34000 ), wxT( "E" ), wxPAPER_ESHEET );
+const PAGE_INFO  PAGE_INFO::pageA( VECTOR2D( 11000, 8500 ), "A", QPrinter::Letter );
+const PAGE_INFO  PAGE_INFO::pageB( VECTOR2D( 17000, 11000 ), "B", QPrinter::Tabloid );
+const PAGE_INFO  PAGE_INFO::pageC( VECTOR2D( 22000, 17000 ), "C", QPrinter::Custom );
+const PAGE_INFO  PAGE_INFO::pageD( VECTOR2D( 34000, 22000 ), "D", QPrinter::Custom );
+const PAGE_INFO  PAGE_INFO::pageE( VECTOR2D( 44000, 34000 ), "E", QPrinter::Custom );
 
-const PAGE_INFO PAGE_INFO::pageGERBER( VECTOR2D( 32000, 32000 ), wxT( "GERBER" ), wxPAPER_NONE );
-const PAGE_INFO PAGE_INFO::pageUser( VECTOR2D( 17000, 11000 ), Custom, wxPAPER_NONE );
+const PAGE_INFO PAGE_INFO::pageGERBER( VECTOR2D( 32000, 32000 ), "GERBER", QPrinter::Custom );
+const PAGE_INFO PAGE_INFO::pageUser( VECTOR2D( 17000, 11000 ), Custom, QPrinter::Custom );
 
 // US paper sizes
-const PAGE_INFO  PAGE_INFO::pageUSLetter( VECTOR2D( 11000, 8500  ),  wxT( "USLetter" ),
-                                          wxPAPER_LETTER );
-const PAGE_INFO PAGE_INFO::pageUSLegal( VECTOR2D( 14000, 8500 ), wxT( "USLegal" ), wxPAPER_LEGAL );
-const PAGE_INFO  PAGE_INFO::pageUSLedger( VECTOR2D( 17000, 11000 ), wxT( "USLedger" ),
-                                          wxPAPER_TABLOID );
+const PAGE_INFO  PAGE_INFO::pageUSLetter( VECTOR2D( 11000, 8500  ),  "USLetter",
+                                          QPrinter::Letter );
+const PAGE_INFO PAGE_INFO::pageUSLegal( VECTOR2D( 14000, 8500 ), "USLegal", QPrinter::Legal );
+const PAGE_INFO  PAGE_INFO::pageUSLedger( VECTOR2D( 17000, 11000 ), "USLedger",
+                                          QPrinter::Tabloid );
 
 // Custom paper size for next instantiation of type "User"
 double PAGE_INFO::s_user_width  = 17000;
@@ -101,7 +73,7 @@ inline void PAGE_INFO::updatePortrait()
 }
 
 
-PAGE_INFO::PAGE_INFO( const VECTOR2D& aSizeMils, const wxString& aType, wxPaperSize aPaperId ) :
+PAGE_INFO::PAGE_INFO( const VECTOR2D& aSizeMils, const QString& aType, QPrinter::PageSize aPaperId ) :
     m_type( aType ), m_size( aSizeMils ), m_paper_id( aPaperId )
 {
     updatePortrait();
@@ -112,13 +84,13 @@ PAGE_INFO::PAGE_INFO( const VECTOR2D& aSizeMils, const wxString& aType, wxPaperS
 }
 
 
-PAGE_INFO::PAGE_INFO( const wxString& aType, bool aIsPortrait )
+PAGE_INFO::PAGE_INFO( const QString& aType, bool aIsPortrait )
 {
     SetType( aType, aIsPortrait );
 }
 
 
-bool PAGE_INFO::SetType( const wxString& aType, bool aIsPortrait )
+bool PAGE_INFO::SetType( const QString& aType, bool aIsPortrait )
 {
     bool rc = true;
 
@@ -251,7 +223,7 @@ void PAGE_INFO::SetWidthMils( double aWidthInMils )
         m_size.x = clampWidth( aWidthInMils );
 
         m_type = Custom;
-        m_paper_id = wxPAPER_NONE;
+        m_paper_id = QPrinter::Custom;
 
         updatePortrait();
     }
@@ -265,7 +237,7 @@ void PAGE_INFO::SetHeightMils( double aHeightInMils )
         m_size.y = clampHeight( aHeightInMils );
 
         m_type = Custom;
-        m_paper_id = wxPAPER_NONE;
+        m_paper_id = QPrinter::Custom;
 
         updatePortrait();
     }

@@ -1,23 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
-
 #include <design_block_info_impl.h>
 
 #include <design_block.h>
@@ -31,15 +11,15 @@
 
 #include <kiplatform/io.h>
 
-#include <wx/txtstrm.h>
-#include <wx/wfstream.h>
+#include <QtCore/QTextStream>
+#include <QtCore/QFile>
 
 
 void DESIGN_BLOCK_INFO_IMPL::load( const LOCALE_IO* locale )
 {
     DESIGN_BLOCK_LIB_TABLE* dbtable = m_owner->GetTable();
 
-    wxASSERT( dbtable );
+    Q_ASSERT( dbtable );
 
     std::unique_ptr<const DESIGN_BLOCK> design_block( dbtable->GetEnumeratedDesignBlock( m_nickname, m_dbname,
                                                                                          locale ) );
@@ -67,8 +47,7 @@ bool DESIGN_BLOCK_LIST_IMPL::CatchErrors( const std::function<void()>& aFunc )
     }
     catch( const std::exception& se )
     {
-        // This is a round about way to do this, but who knows what THROW_IO_ERROR()
-        // may be tricked out to do someday, keep it in the game.
+        // Round about way to handle THROW_IO_ERROR() for future compatibility
         try
         {
             THROW_IO_ERROR( se.what() );
@@ -86,7 +65,7 @@ bool DESIGN_BLOCK_LIST_IMPL::CatchErrors( const std::function<void()>& aFunc )
 
 
 bool DESIGN_BLOCK_LIST_IMPL::ReadDesignBlockFiles( DESIGN_BLOCK_LIB_TABLE* aTable,
-                                                   const wxString*         aNickname,
+                                                   const QString*          aNickname,
                                                    PROGRESS_REPORTER*      aProgressReporter )
 {
     long long int generatedTimestamp = 0;
@@ -122,14 +101,14 @@ bool DESIGN_BLOCK_LIST_IMPL::ReadDesignBlockFiles( DESIGN_BLOCK_LIB_TABLE* aTabl
     }
     else
     {
-        for( const wxString& nickname : aTable->GetLogicalLibs() )
+        for( const QString& nickname : aTable->GetLogicalLibs() )
             m_queue.push( nickname );
     }
 
     if( m_progress_reporter )
     {
         m_progress_reporter->SetMaxProgress( (int) m_queue.size() );
-        m_progress_reporter->Report( _( "Loading design_blocks..." ) );
+        m_progress_reporter->Report( "Loading design_blocks..." );
     }
 
     loadDesignBlocks();
@@ -154,8 +133,6 @@ void DESIGN_BLOCK_LIST_IMPL::loadDesignBlocks()
     // GLOBAL. It is only thread safe to construct the LOCALE_IO before the threads are created,
     // destroy it after they finish, and block the main (GUI) thread while they work. Any deviation
     // from this will cause nasal demons.
-    //
-    // TODO: blast LOCALE_IO into the sun
 
     SYNC_QUEUE<std::unique_ptr<DESIGN_BLOCK_INFO>> queue_parsed;
 
@@ -166,12 +143,12 @@ void DESIGN_BLOCK_LIST_IMPL::loadDesignBlocks()
     auto db_thread =
             [ this, &queue_parsed, &toggle_locale ]() -> size_t
             {
-                wxString nickname;
+                QString nickname;
 
                 if( m_cancelled || !m_queue.pop( nickname ) )
                     return 0;
 
-                wxArrayString dbnames;
+                QStringList dbnames;
 
                 CatchErrors(
                         [&]()
@@ -179,7 +156,7 @@ void DESIGN_BLOCK_LIST_IMPL::loadDesignBlocks()
                             m_lib_table->DesignBlockEnumerate( dbnames, nickname, false, &toggle_locale );
                         } );
 
-                for( wxString dbname : dbnames )
+                for( QString dbname : dbnames )
                 {
                     CatchErrors(
                             [&]()

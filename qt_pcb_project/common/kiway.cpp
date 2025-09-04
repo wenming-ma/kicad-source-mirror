@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2014 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <cstring>
 
@@ -39,10 +16,16 @@
 #include <tool/action_manager.h>
 #include <logging.h>
 
-#include <wx/dynlib.h>
-#include <wx/stdpaths.h>
-#include <wx/debug.h>
-#include <wx/utils.h>
+#include <QLibrary>
+#include <QStandardPaths>
+#include <QDebug>
+#include <QCoreApplication>
+#include <QApplication>
+#include <QMainWindow>
+#include <QWidget>
+#include <QFileInfo>
+#include <QDir>
+#include <QStringList>
 #include <confirm.h>
 
 #ifdef KICAD_USE_SENTRY
@@ -54,19 +37,19 @@ int     KIWAY::m_kiface_version[KIWAY_FACE_COUNT];
 
 
 
-KIWAY::KIWAY( int aCtlBits, wxFrame* aTop ):
-     m_ctl( aCtlBits ), m_top( nullptr ), m_blockingDialog( wxID_NONE )
+KIWAY::KIWAY( int aCtlBits, QMainWindow* aTop ):
+     m_ctl( aCtlBits ), m_top( nullptr ), m_blockingDialog( -1 )
 {
     SetTop( aTop );     // hook player_destroy_handler() into aTop.
 
-    // Set the array of all known frame window IDs to empty = wxID_NONE,
+    // Set the array of all known frame window IDs to empty = -1,
     // once they are be created, they are added with FRAME_T as index to this array.
     // Note: A non empty entry does not mean the frame still exists.
     //   It means only the frame was created at least once. It can be destroyed after.
     //   These entries are not cleared automatically on window closing. The purpose is just
-    //   to allow a call to wxWindow::FindWindowById() using a FRAME_T frame type
+    //   to allow a call to QWidget::find() using a FRAME_T frame type
     for( int n = 0; n < KIWAY_PLAYER_COUNT; n++ )
-        m_playerFrameId[n] = wxID_NONE;
+        m_playerFrameId[n] = -1;
 }
 
 
@@ -85,7 +68,7 @@ void KIWAY::player_destroy_handler( wxWindowDestroyEvent& event )
 #endif
 
 
-void KIWAY::SetTop( wxFrame* aTop )
+void KIWAY::SetTop( QMainWindow* aTop )
 {
 #if 0
     if( m_top )
@@ -107,7 +90,7 @@ void KIWAY::SetTop( wxFrame* aTop )
 }
 
 
-const wxString KIWAY::dso_search_path( FACE_T aFaceId )
+const QString KIWAY::dso_search_path( FACE_T aFaceId )
 {
     const char*   name;
 
@@ -123,51 +106,61 @@ const wxString KIWAY::dso_search_path( FACE_T aFaceId )
     case FACE_PYTHON:           name = KIFACE_PREFIX "kipython";            break;
 
     default:
-        wxASSERT_MSG( 0, wxT( "caller has a bug, passed a bad aFaceId" ) );
-        return wxEmptyString;
+        Q_ASSERT_X( false, "KIWAY::dso_search_path", "caller has a bug, passed a bad aFaceId" );
+        return QString();
     }
 
 #ifndef __WXMAC__
-    wxString path;
+    QString path;
 
     if( m_ctl & (KFCTL_STANDALONE | KFCTL_CPP_PROJECT_SUITE) )
     {
         // The 2 *.cpp program launchers: single_top.cpp and kicad.cpp expect
         // the *.kiface's to reside in same directory as their binaries do.
-        path = wxStandardPaths::Get().GetExecutablePath();
+        path = QCoreApplication::applicationFilePath();
     }
 
-    wxFileName fn = path;
+    QFileInfo fn( path );
 #else
     // we have the dso's in main OSX bundle kicad.app/Contents/PlugIns
-    wxFileName fn = Pgm().GetExecutablePath();
-    fn.AppendDir( wxT( "Contents" ) );
-    fn.AppendDir( wxT( "PlugIns" ) );
+    QFileInfo fn( Pgm().GetExecutablePath() );
+    QString dirPath = fn.absolutePath();
+    dirPath += "/Contents";
+    dirPath += "/PlugIns";
+    fn = QFileInfo( dirPath );
 #endif
 
-    fn.SetName( name );
+    QString baseName = QString::fromUtf8( name );
+    QString finalPath = fn.absolutePath() + "/" + baseName;
 
     // To speed up development, it's sometimes nice to run kicad from inside
     // the build path.  In that case, each program will be in a subdirectory.
     // To find the DSOs, we need to go up one directory and then enter a subdirectory.
-    if( wxGetEnv( wxT( "KICAD_RUN_FROM_BUILD_DIR" ), nullptr ) )
+    if( !qEnvironmentVariable( "KICAD_RUN_FROM_BUILD_DIR" ).isEmpty() )
     {
 #ifdef __WXMAC__
         // On Mac, all of the kifaces are placed in the kicad.app bundle, even though the individual
         // standalone binaries are placed in separate bundles before the make install step runs.
         // So, we have to jump up to the kicad directory, then the PlugIns section of the kicad
         // bundle.
-        fn = wxStandardPaths::Get().GetExecutablePath();
-
-        fn.RemoveLastDir();
-        fn.RemoveLastDir();
-        fn.RemoveLastDir();
-        fn.RemoveLastDir();
-        fn.AppendDir( wxT( "kicad" ) );
-        fn.AppendDir( wxT( "kicad.app" ) );
-        fn.AppendDir( wxT( "Contents" ) );
-        fn.AppendDir( wxT( "PlugIns" ) );
-        fn.SetName( name );
+        QFileInfo execInfo( QCoreApplication::applicationFilePath() );
+        QString macPath = execInfo.absolutePath();
+        
+        // Remove 4 directories and rebuild path
+        QStringList pathParts = macPath.split( '/', Qt::SkipEmptyParts );
+        if( pathParts.size() >= 4 )
+        {
+            pathParts.removeLast();
+            pathParts.removeLast();
+            pathParts.removeLast();
+            pathParts.removeLast();
+        }
+        macPath = "/" + pathParts.join( "/" );
+        macPath += "/kicad";
+        macPath += "/kicad.app";
+        macPath += "/Contents";
+        macPath += "/PlugIns";
+        finalPath = macPath + "/" + baseName;
 #else
         const char*   dirName;
 
@@ -179,16 +172,19 @@ const wxString KIWAY::dso_search_path( FACE_T aFaceId )
             default:             dirName = name + 1;              break;
         }
 
-        fn.RemoveLastDir();
-        fn.AppendDir( dirName );
+        QDir parentDir( fn.absolutePath() );
+        parentDir.cdUp();
+        parentDir.cd( QString::fromUtf8( dirName ) );
+        finalPath = parentDir.absolutePath() + "/" + baseName;
 #endif
     }
 
     // Here a "suffix" == an extension with a preceding '.',
     // so skip the preceding '.' to get an extension
-    fn.SetExt( &KIFACE_SUFFIX[1] );
+    QString extension = QString::fromUtf8( &KIFACE_SUFFIX[1] );
+    finalPath += "." + extension;
 
-    return fn.GetFullPath();
+    return finalPath;
 }
 
 
@@ -204,10 +200,7 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
     // not pass a bad aFaceId.
     if( (unsigned) aFaceId >= arrayDim( m_kiface ) )
     {
-        // @todo : throw an exception here for python's benefit, at least that
-        // way it gets some explanatory text.
-
-        wxASSERT_MSG( 0, wxT( "caller has a bug, passed a bad aFaceId" ) );
+        Q_ASSERT_X( false, "KIWAY::KiFACE", "caller has a bug, passed a bad aFaceId" );
         return nullptr;
     }
 
@@ -218,22 +211,23 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
     // DSO with KIFACE has not been loaded yet, does caller want to load it?
     if( doLoad )
     {
-        wxString dname = dso_search_path( aFaceId );
+        QString dname = dso_search_path( aFaceId );
 
         // Insert DLL search path for kicad_3dsg from build dir
-        if( wxGetEnv( wxT( "KICAD_RUN_FROM_BUILD_DIR" ), nullptr ) )
+        if( !qEnvironmentVariable( "KICAD_RUN_FROM_BUILD_DIR" ).isEmpty() )
         {
-            wxFileName myPath = wxStandardPaths::Get().GetExecutablePath();
+            QFileInfo myPath( QCoreApplication::applicationFilePath() );
 
-            if( !myPath.GetPath().EndsWith( wxT( "pcbnew" ) ) )
+            if( !myPath.absolutePath().endsWith( "pcbnew" ) )
             {
-                myPath.RemoveLastDir();
-                myPath.AppendDir( wxT( "pcbnew" ) );
-                KIPLATFORM::APP::AddDynamicLibrarySearchPath( myPath.GetPath() );
+                QDir dir( myPath.absolutePath() );
+                dir.cdUp();
+                dir.cd( "pcbnew" );
+                KIPLATFORM::APP::AddDynamicLibrarySearchPath( dir.absolutePath() );
             }
         }
 
-        wxString msg;
+        QString msg;
 
 #ifdef KICAD_WIN32_VERIFY_CODESIGN
         bool codeSignOk = KIPLATFORM::ENV::VerifyFileSignature( dname );
@@ -244,11 +238,11 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
         }
 #endif
 
-        wxDynamicLibrary dso;
+        QLibrary dso;
 
         void*   addr = nullptr;
 
-        // For some reason wxDynamicLibrary::Load() crashes in some languages
+        // For some reason QLibrary::load() crashes in some languages
         // (chinese for instance) when loading the dynamic library.
         // The crash happens for Eeschema.
         // So switch to "C" locale during loading (LC_COLLATE is enough).
@@ -256,15 +250,16 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
         std::string user_locale = setlocale( lc_new_type, nullptr );
         setlocale( lc_new_type, "C" );
 
-        bool success = dso.Load( dname, wxDL_VERBATIM | wxDL_NOW | wxDL_GLOBAL );
+        dso.setFileName( dname );
+        bool success = dso.load();
 
         setlocale( lc_new_type, user_locale.c_str() );
 
 #ifdef KICAD_USE_SENTRY
         if( Pgm().IsSentryOptedIn() )
         {
-            msg = wxString::Format( "Loading kiface %d", aFaceId );
-            sentry_value_t crumb = sentry_value_new_breadcrumb( "navigation", msg.utf8_str() );
+            msg = QString::asprintf( "Loading kiface %d", aFaceId );
+            sentry_value_t crumb = sentry_value_new_breadcrumb( "navigation", msg.toUtf8().data() );
             sentry_value_set_by_key( crumb, "category", sentry_value_new_string( "kiway.kiface" ) );
             sentry_value_set_by_key( crumb, "level", sentry_value_new_string( "info" ) );
             sentry_add_breadcrumb( crumb );
@@ -273,22 +268,20 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
 
         if( !success )
         {
-            // Failure: error reporting UI was done via wxLogSysError().
+            // Failure: error reporting UI was done via qDebug().
             // No further reporting required here.  Apparently this is not true on all
-            // platforms and/or wxWidgets builds and KiCad will crash.  Throwing the exception
-            // here and catching it in the KiCad launcher resolves the crash issue.  See bug
-            // report https://bugs.launchpad.net/kicad/+bug/1577786.
+            // platforms and/or Qt builds and KiCad will crash.  Throwing the exception
+            // here and catching it in the KiCad launcher resolves the crash issue.
 
-            msg.Printf( _( "Failed to load kiface library '%s'." ), dname );
+            msg = QString( _( "Failed to load kiface library '%1'." ) ).arg( dname );
             THROW_IO_ERROR( msg );
         }
-        else if( ( addr = dso.GetSymbol( wxT( KIFACE_INSTANCE_NAME_AND_VERSION ) ) ) == nullptr )
+        else if( ( addr = dso.resolve( KIFACE_INSTANCE_NAME_AND_VERSION ) ) == nullptr )
         {
-            // Failure: error reporting UI was done via wxLogSysError().
+            // Failure: error reporting UI was done via qDebug().
             // No further reporting required here.  Assume the same thing applies here as
-            // above with the Load() call.  This has not been tested.
-            msg.Printf( _( "Could not read instance name and version from kiface library '%s'." ),
-                        dname );
+            // above with the load() call.  This has not been tested.
+            msg = QString( _( "Could not read instance name and version from kiface library '%1'." ) ).arg( dname );
             THROW_IO_ERROR( msg );
         }
         else
@@ -298,10 +291,9 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
             KIFACE* kiface = ki_getter( &m_kiface_version[aFaceId], KIFACE_VERSION, &Pgm() );
 
             // KIFACE_GETTER_FUNC function comment (API) says the non-NULL is unconditional.
-            wxASSERT_MSG( kiface,
-                          wxT( "attempted DSO has a bug, failed to return a KIFACE*" ) );
+            Q_ASSERT_X( kiface, "KIWAY::KiFACE", "attempted DSO has a bug, failed to return a KIFACE*" );
 
-            wxDllType dsoHandle = dso.Detach();
+            void* dsoHandle = dso.handle();
 
             bool startSuccess = false;
 
@@ -330,7 +322,7 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
                 // Usually means canceled initial global library setup
                 // But it could have been an exception/failure
                 // Let the module go out of scope to unload
-                dso.Attach( dsoHandle );
+                dso.unload();
 
                 return nullptr;
             }
@@ -387,32 +379,37 @@ KIWAY::FACE_T KIWAY::KifaceType( FRAME_T aFrameType )
 
 KIWAY_PLAYER* KIWAY::GetPlayerFrame( FRAME_T aFrameType )
 {
-    wxWindowID storedId = m_playerFrameId[aFrameType];
+    int storedId = m_playerFrameId[aFrameType];
 
-    if( storedId == wxID_NONE )
+    if( storedId == -1 )
         return nullptr;
 
-    wxWindow* frame = wxWindow::FindWindowById( storedId );
+    QWidget* frame = nullptr;
+    for( QWidget* widget : QApplication::allWidgets() )
+    {
+        if( widget->winId() == storedId )
+        {
+            frame = widget;
+            break;
+        }
+    }
 
-    // Since wxWindow::FindWindow*() is not cheap (especially if the window does not exist),
+    // Since QWidget searching is not cheap (especially if the window does not exist),
     // clear invalid entries to save CPU on repeated calls that do not lead to frame creation
     if( !frame )
-        m_playerFrameId[aFrameType].compare_exchange_strong( storedId, wxID_NONE );
+        m_playerFrameId[aFrameType].compare_exchange_strong( storedId, -1 );
 
     return static_cast<KIWAY_PLAYER*>( frame );
 }
 
 
-KIWAY_PLAYER* KIWAY::Player( FRAME_T aFrameType, bool doCreate, wxTopLevelWindow* aParent )
+KIWAY_PLAYER* KIWAY::Player( FRAME_T aFrameType, bool doCreate, QWidget* aParent )
 {
     // Since this will be called from python, cannot assume that code will
     // not pass a bad aFrameType.
     if( (unsigned) aFrameType >= KIWAY_PLAYER_COUNT )
     {
-        // @todo : throw an exception here for python's benefit, at least that
-        // way it gets some explanatory text.
-
-        wxASSERT_MSG( 0, wxT( "caller has a bug, passed a bad aFrameType" ) );
+        Q_ASSERT_X( false, "KIWAY::Player", "caller has a bug, passed a bad aFrameType" );
         return nullptr;
     }
 
@@ -429,8 +426,8 @@ KIWAY_PLAYER* KIWAY::Player( FRAME_T aFrameType, bool doCreate, wxTopLevelWindow
 #ifdef KICAD_USE_SENTRY
             if( Pgm().IsSentryOptedIn() )
             {
-                wxString       msg = wxString::Format( "Creating window type %d", aFrameType );
-                sentry_value_t crumb = sentry_value_new_breadcrumb( "navigation", msg.utf8_str() );
+                QString msg = QString::asprintf( "Creating window type %d", aFrameType );
+                sentry_value_t crumb = sentry_value_new_breadcrumb( "navigation", msg.toUtf8().data() );
                 sentry_value_set_by_key( crumb, "category",
                                          sentry_value_new_string( "kiway.player" ) );
                 sentry_value_set_by_key( crumb, "level", sentry_value_new_string( "info" ) );
@@ -453,14 +450,14 @@ KIWAY_PLAYER* KIWAY::Player( FRAME_T aFrameType, bool doCreate, wxTopLevelWindow
                                                         // were passed to KIFACE::OnKifaceStart()
                                             );
             if( frame )
-                m_playerFrameId[aFrameType].store( frame->GetId() );
+                m_playerFrameId[aFrameType].store( frame->winId() );
 
             return frame;
         }
         catch( ... )
         {
             Pgm().HandleException( std::current_exception() );
-            wxLogError( _( "Error loading editor." ) );
+            qCritical() << _( "Error loading editor." );
         }
     }
 
@@ -474,10 +471,7 @@ bool KIWAY::PlayerClose( FRAME_T aFrameType, bool doForce )
     // not pass a bad aFrameType.
     if( (unsigned) aFrameType >= KIWAY_PLAYER_COUNT )
     {
-        // @todo : throw an exception here for python's benefit, at least that
-        // way it gets some explanatory text.
-
-        wxASSERT_MSG( 0, wxT( "caller has a bug, passed a bad aFrameType" ) );
+        Q_ASSERT_X( false, "KIWAY::PlayerClose", "caller has a bug, passed a bad aFrameType" );
         return false;
     }
 
@@ -489,8 +483,8 @@ bool KIWAY::PlayerClose( FRAME_T aFrameType, bool doForce )
 #ifdef KICAD_USE_SENTRY
     if( Pgm().IsSentryOptedIn() )
     {
-        wxString       msg = wxString::Format( "Closing window type %d", aFrameType );
-        sentry_value_t crumb = sentry_value_new_breadcrumb( "navigation", msg.utf8_str() );
+        QString msg = QString::asprintf( "Closing window type %d", aFrameType );
+        sentry_value_t crumb = sentry_value_new_breadcrumb( "navigation", msg.toUtf8().data() );
         sentry_value_set_by_key( crumb, "category",
                                  sentry_value_new_string( "kiway.playerclose" ) );
         sentry_value_set_by_key( crumb, "level", sentry_value_new_string( "info" ) );
@@ -500,7 +494,7 @@ bool KIWAY::PlayerClose( FRAME_T aFrameType, bool doForce )
 
     if( frame->NonUserClose( doForce ) )
     {
-        m_playerFrameId[aFrameType] = wxID_NONE;
+        m_playerFrameId[aFrameType] = -1;
         return true;
     }
 
@@ -521,12 +515,12 @@ bool KIWAY::PlayersClose( bool doForce )
 
 void KIWAY::PlayerDidClose( FRAME_T aFrameType )
 {
-    m_playerFrameId[aFrameType] = wxID_NONE;
+    m_playerFrameId[aFrameType] = -1;
 }
 
 
 void KIWAY::ExpressMail( FRAME_T aDestination, MAIL_T aCommand, std::string& aPayload,
-                         wxWindow* aSource )
+                         QWidget* aSource )
 {
     KIWAY_EXPRESS   mail( aDestination, aCommand, aPayload, aSource );
 
@@ -543,36 +537,35 @@ void KIWAY::GetActions( std::vector<TOOL_ACTION*>& aActions ) const
 
 void KIWAY::SetLanguage( int aLanguage )
 {
-    wxString errMsg;
-    bool     ret = false;
+    QString errMsg;
+    bool    ret = false;
 
     {
-        // Only allow the traces to be logged by wx. We use our own system to log when the
-        // OS doesn't support the language, so we want to hide the wx error.
-        WX_LOG_TRACE_ONLY logtraceOnly;
+        // Only allow the traces to be logged by Qt. We use our own system to log when the
+        // OS doesn't support the language, so we want to hide the Qt error.
         Pgm().SetLanguageIdentifier( aLanguage );
         ret = Pgm().SetLanguage( errMsg );
     }
 
     if( !ret )
     {
-        wxString lang;
+        QString lang;
 
         for( unsigned ii = 0;  LanguagesList[ii].m_KI_Lang_Identifier != 0; ii++ )
         {
             if( aLanguage == LanguagesList[ii].m_KI_Lang_Identifier )
             {
                 if( LanguagesList[ii].m_DoNotTranslate )
-                    lang = LanguagesList[ii].m_Lang_Label;
+                    lang = QString::fromUtf8( LanguagesList[ii].m_Lang_Label );
                 else
-                    lang = wxGetTranslation( LanguagesList[ii].m_Lang_Label );
+                    lang = QString::fromUtf8( LanguagesList[ii].m_Lang_Label );
 
                 break;
             }
         }
 
         DisplayErrorMessage( nullptr,
-                             wxString::Format( _( "Unable to switch language to %s" ), lang ),
+                             QString( _( "Unable to switch language to %1" ) ).arg( lang ),
                              errMsg );
         return;
     }
@@ -595,8 +588,8 @@ void KIWAY::SetLanguage( int aLanguage )
         if ( top )
         {
             top->ShowChangedLanguage();
-            wxCommandEvent e( EDA_LANG_CHANGED );
-            top->GetEventHandler()->ProcessEvent( e );
+            QEvent e( QEvent::Type( EDA_LANG_CHANGED ) );
+            QCoreApplication::sendEvent( top, &e );
         }
     }
 #endif
@@ -608,8 +601,8 @@ void KIWAY::SetLanguage( int aLanguage )
         if( frame )
         {
             frame->ShowChangedLanguage();
-            wxCommandEvent e( EDA_LANG_CHANGED );
-            frame->GetEventHandler()->ProcessEvent( e );
+            QEvent e( QEvent::Type( EDA_LANG_CHANGED ) );
+            QCoreApplication::sendEvent( frame, &e );
         }
     }
 }
@@ -668,22 +661,30 @@ void KIWAY::ProjectChanged()
 }
 
 
-wxWindow* KIWAY::GetBlockingDialog()
+QWidget* KIWAY::GetBlockingDialog()
 {
-    return wxWindow::FindWindowById( m_blockingDialog );
+    if( m_blockingDialog == -1 )
+        return nullptr;
+        
+    for( QWidget* widget : QApplication::allWidgets() )
+    {
+        if( widget->winId() == m_blockingDialog )
+            return widget;
+    }
+    return nullptr;
 }
 
 
-void KIWAY::SetBlockingDialog( wxWindow* aWin )
+void KIWAY::SetBlockingDialog( QWidget* aWin )
 {
     if( !aWin )
-        m_blockingDialog = wxID_NONE;
+        m_blockingDialog = -1;
     else
-        m_blockingDialog = aWin->GetId();
+        m_blockingDialog = aWin->winId();
 }
 
 
-bool KIWAY::ProcessEvent( wxEvent& aEvent )
+bool KIWAY::ProcessEvent( QEvent& aEvent )
 {
     KIWAY_EXPRESS* mail = dynamic_cast<KIWAY_EXPRESS*>( &aEvent );
 
@@ -697,7 +698,7 @@ bool KIWAY::ProcessEvent( wxEvent& aEvent )
         if( alive )
         {
 #if 1
-            return alive->ProcessEvent( aEvent );
+            return QCoreApplication::sendEvent( alive, &aEvent );
 #else
             alive->KiwayMailIn( *mail );
             return true;
@@ -717,7 +718,7 @@ int KIWAY::ProcessJob( KIWAY::FACE_T aFace, JOB* job, REPORTER* aReporter, PROGR
 }
 
 
-bool KIWAY::ProcessJobConfigDialog( KIWAY::FACE_T aFace, JOB* aJob, wxWindow* aWindow )
+bool KIWAY::ProcessJobConfigDialog( KIWAY::FACE_T aFace, JOB* aJob, QWidget* aWindow )
 {
     KIFACE* kiface = KiFACE( aFace );
 

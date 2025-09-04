@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wandadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #pragma once
 
@@ -50,18 +27,6 @@ class METRICS;
 }
 
 
-/**
- * Conditionally flashed vias and pads that interact with zones of different priority can be
- * very squirrelly.
- *
- * In particular, when filling a higher-priority zone that does -not- connect to a via/pad, we
- * don't know whether or not a lower-priority zone will subsequently connect -- so we can't
- * determine clearance because we don't know what the final flashing state will be.
- *
- * We therefore force the flashing state if the highest-priority zone with the same net -can-
- * connect (whether or not it does in the end), and otherwise force the zone-connection state
- * to no-connection (even though a lower priority zone -might- have otherwise connected to it.
- */
 enum ZONE_LAYER_OVERRIDE
 {
     ZLO_NONE,
@@ -70,11 +35,6 @@ enum ZONE_LAYER_OVERRIDE
 };
 
 
-/**
- * A base class for any item which can be embedded within the #BOARD container class, and
- * therefore instances of derived classes should only be found in Pcbnew or other programs
- * that use class #BOARD and its contents.
- */
 class BOARD_ITEM : public EDA_ITEM
 {
 public:
@@ -105,11 +65,6 @@ public:
         return p.y;
     }
 
-    /**
-     * This defaults to the center of the bounding box if not overridden.
-     *
-     * @return center point of the item
-     */
     virtual VECTOR2I GetCenter() const
     {
         return GetBoundingBox().GetCenter();
@@ -127,28 +82,14 @@ public:
         SetPosition( p );
     }
 
-    /**
-     * Returns information if the object is derived from BOARD_CONNECTED_ITEM.
-     *
-     * @return True if the object is of BOARD_CONNECTED_ITEM type, false otherwise.
-     */
     virtual bool IsConnected() const
     {
         return false;
     }
 
-    /**
-     * Return a measure of how likely the other object is to represent the same
-     * object.  The scale runs from 0.0 (definitely different objects) to 1.0 (same)
-     *
-     * This is a pure virtual function.  Derived classes must implement this.
-     */
     virtual double Similarity( const BOARD_ITEM& aItem ) const = 0;
     virtual bool operator==( const BOARD_ITEM& aItem ) const = 0;
 
-    /**
-     * @return true if the object is on any copper layer, false otherwise.
-     */
     virtual bool IsOnCopperLayer() const
     {
         return IsCopperLayer( GetLayer() );
@@ -164,55 +105,20 @@ public:
         return false;
     }
 
-    /**
-     * Checks if the given object is tented (its copper shape is covered by solder mask) on a given
-     * side of the board.
-     * @param aLayer is the layer to check tenting mode for: F_Cu and F_Mask are treated identically
-     *               as are B_Cu and B_Mask
-     * @return true if the object is tented on the given side
-     */
     virtual bool IsTented( PCB_LAYER_ID aLayer ) const
     {
         return false;
     }
 
-    /**
-     * A value of wxPoint(0,0) which can be passed to the Draw() functions.
-     */
     static VECTOR2I ZeroOffset;
 
-    /**
-     * Some pad shapes can be complex (rounded/chamfered rectangle), even without considering
-     * custom shapes.  This routine returns a COMPOUND shape (set of simple shapes which make
-     * up the pad for use with routing, collision determination, etc).
-     *
-     * @note This list can contain a SHAPE_SIMPLE (a simple single-outline non-intersecting
-     * polygon), but should never contain a SHAPE_POLY_SET (a complex polygon consisting of
-     * multiple outlines and/or holes).
-     *
-     * @param aLayer in case of items spanning multiple layers, only the shapes belonging to aLayer
-     *               will be returned. Pass UNDEFINED_LAYER to return shapes for all layers.
-     * @param aFlash optional parameter allowing a caller to force the pad to be flashed (or not
-     *               flashed) on the current layer (default is to honour the pad's setting and
-     *               the current connections for the given layer).
-     */
     virtual std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
                                                       FLASHING aFlash = FLASHING::DEFAULT ) const;
 
     virtual std::shared_ptr<SHAPE_SEGMENT> GetEffectiveHoleShape() const;
 
-    /**
-     * Invoke a function on all children.
-     *
-     * @note This function should not add or remove items to the parent.
-     */
     virtual void RunOnChildren( const std::function<void ( BOARD_ITEM* )>& aFunction ) const { }
 
-    /**
-     * Invoke a function on all descendants.
-     *
-     * @note This function should not add or remove items.
-     */
     virtual void RunOnDescendants( const std::function<void ( BOARD_ITEM* )>& aFunction,
                                    int aDepth = 0 ) const { }
 
@@ -223,11 +129,6 @@ public:
     VECTOR2I GetFPRelativePosition() const;
     void SetFPRelativePosition( const VECTOR2I& aPos );
 
-    /**
-     * Check if this item has line stoke properties.
-     *
-     * @see #STROKE_PARAMS
-     */
     virtual bool HasLineStroke() const { return false; }
 
     virtual STROKE_PARAMS GetStroke() const;
@@ -235,29 +136,14 @@ public:
 
     const KIFONT::METRICS& GetFontMetrics() const;
 
-    /**
-     * Return the primary layer this item is on.
-     */
     virtual PCB_LAYER_ID GetLayer() const { return m_layer; }
 
-    /**
-     * Return the total number of layers for the board that this item resides on.
-     */
     virtual int BoardLayerCount() const;
 
-    /**
-     * Return the total number of copper layers for the board that this item resides on.
-     */
     virtual int BoardCopperLayerCount() const;
 
-    /**
-     * Return the LSET for the board that this item resides on.
-     */
     virtual LSET BoardLayerSet() const;
 
-    /**
-     * Return a std::bitset of all layers on which the item physically resides.
-     */
     virtual LSET GetLayerSet() const
     {
         if( m_layer == UNDEFINED_LAYER )
@@ -274,49 +160,22 @@ public:
             return;
         }
 
-        wxFAIL_MSG( wxT( "Attempted to SetLayerSet() on a single-layer object." ) );
+        Q_ASSERT_X( false, "SetLayerSet", "Attempted to SetLayerSet() on a single-layer object." );
 
         // Derived classes which support multiple layers must implement this
     }
 
     bool IsSideSpecific() const;
 
-    /**
-     * Set the layer this item is on.
-     *
-     * @param aLayer The layer number.
-     */
     virtual void SetLayer( PCB_LAYER_ID aLayer )
     {
         m_layer = aLayer;
     }
 
-    /**
-     * Create a copy of this #BOARD_ITEM.
-     */
     virtual BOARD_ITEM* Duplicate() const;
 
-    /**
-     * Swap data between \a aItem and \a aImage.
-     *
-     * \a aItem and \a aImage should have the same type.
-     *
-     * Used in undo and redo commands to swap values between an item and its copy.
-     * Only values like layer, size .. which are modified by editing are swapped.
-     *
-     * @param aImage the item image which contains data to swap.
-     */
     void SwapItemData( BOARD_ITEM* aImage );
 
-    /**
-     * Test to see if this object is on the given layer.
-     *
-     * Virtual so objects like #PAD, which reside on multiple layers can do their own form
-     * of testing.
-     *
-     * @param aLayer The layer to test for.
-     * @return true if on given layer, else false.
-     */
     virtual bool IsOnLayer( PCB_LAYER_ID aLayer  ) const
     {
         return m_layer == aLayer;
@@ -330,87 +189,32 @@ public:
 
     virtual void StyleFromSettings( const BOARD_DESIGN_SETTINGS& settings ) { }
 
-    /**
-     * Delete this object after removing from its parent if it has one.
-     */
     void DeleteStructure();
 
-    /**
-     * Move this object.
-     *
-     * @param aMoveVector the move vector for this object.
-     */
     virtual void Move( const VECTOR2I& aMoveVector )
     {
-        wxFAIL_MSG( wxT( "virtual BOARD_ITEM::Move called for " ) + GetClass() );
+        Q_ASSERT_X( false, "Move", ("virtual BOARD_ITEM::Move called for " + GetClass()).toLocal8Bit().constData() );
     }
 
-    /**
-     * Rotate this object.
-     *
-     * @param aRotCentre the rotation center point.
-     */
     virtual void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle );
 
-    /**
-     * Flip this object, i.e. change the board side for this object.
-     *
-     * @param aCentre the rotation point.
-     * @param aFlipDirection the flip direction
-     */
     virtual void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection );
 
-    /**
-     * Mirror this object relative to a given horizontal axis the layer is not changed.
-     *
-     * @param aCentre the mirror point.
-     * @param aMirrorAroundXAxis mirror across X axis instead of Y (the default).
-     */
     virtual void Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection );
 
-    /**
-     * Perform any normalization required after a user rotate and/or flip.
-     */
     virtual void Normalize() {}
 
-    /**
-     * Perform any normalization required to compare 2 graphics, especially
-     * if the can be rotated and/or flipped.
-     * Similar to Normalize(), but more changes can be made
-     */
     virtual void NormalizeForCompare() { Normalize(); }
 
-    /**
-     * Return the #BOARD in which this #BOARD_ITEM resides, or NULL if none.
-     */
     virtual const BOARD* GetBoard() const;
     virtual BOARD* GetBoard();
 
-    /**
-     * For "parent" property.
-     * @return the parent footprint's ref or the parent item's UUID.
-     */
-    wxString GetParentAsString() const;
+    QString GetParentAsString() const;
 
-    /**
-     * Return the name of the PCB layer on which the item resides.
-     *
-     * @return the layer name associated with this item.
-     */
-    wxString GetLayerName() const;
+    QString GetLayerName() const;
 
-    virtual std::vector<int> ViewGetLayers() const override;
+    virtual QVector<int> ViewGetLayers() const override;
 
-    /**
-     * Convert the item shape to a closed polygon. Circles and arcs are approximated by segments.
-     *
-     * @param aBuffer a buffer to store the polygon.
-     * @param aClearance the clearance around the pad.
-     * @param aError the maximum deviation from true circle.
-     * @param aErrorLoc should the approximation error be placed outside or inside the polygon?
-     * @param ignoreLineWidth used for edge cut items where the line width is only
-     *                        for visualization.
-     */
     virtual void TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer,
                                           int aClearance, int aError, ERROR_LOC aErrorLoc,
                                           bool ignoreLineWidth = false ) const;
@@ -427,10 +231,7 @@ public:
     };
 
 protected:
-    /**
-     * Return a string (to be shown to the user) describing a layer mask.
-     */
-    virtual wxString layerMaskDescribe() const;
+    virtual QString layerMaskDescribe() const;
 
     virtual void swapData( BOARD_ITEM* aImage );
 
@@ -443,16 +244,8 @@ protected:
     PCB_GROUP*      m_group;
 };
 
-#ifndef SWIG
-DECLARE_ENUM_TO_WXANY( PCB_LAYER_ID );
-#endif
 
 
-/**
- * A singleton item of this class is returned for a weak reference that no longer exists.
- *
- * Its sole purpose is to flag the item as having been deleted.
- */
 class DELETED_BOARD_ITEM : public BOARD_ITEM
 {
 public:
@@ -460,14 +253,14 @@ public:
         BOARD_ITEM( nullptr, NOT_USED )
     {}
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
     {
-        return _( "(Deleted Item)" );
+        return QStringLiteral( "(Deleted Item)" );
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "DELETED_BOARD_ITEM" );
+        return QStringLiteral( "DELETED_BOARD_ITEM" );
     }
 
     // pure virtuals:

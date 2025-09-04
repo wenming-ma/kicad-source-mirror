@@ -1,32 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2009 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright (C) 2011-2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @file msgpanel.h
- * @brief Message panel definition file.
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #pragma once
 
@@ -35,8 +8,12 @@
 
 #include <gal/color4d.h>
 
-#include <wx/window.h>
-#include <wx/panel.h>
+#include <QWidget>
+#include <QSize>
+#include <QPoint>
+#include <QPaintEvent>
+#include <QPainter>
+#include <QString>
 
 using KIGFX::COLOR4D;
 
@@ -47,13 +24,10 @@ class EDA_MSG_PANEL;
 class KIID;
 
 
-/**
- * #EDA_MSG_PANEL items for displaying messages.
- */
 class MSG_PANEL_ITEM
 {
 public:
-    MSG_PANEL_ITEM( const wxString& aUpperText, const wxString& aLowerText,
+    MSG_PANEL_ITEM( const QString& aUpperText, const QString& aLowerText,
                     int aPadding = MSG_PANEL_DEFAULT_PAD ) :
             m_UpperText( aUpperText ),
             m_LowerText( aLowerText ),
@@ -73,11 +47,11 @@ public:
         m_LowerY = 0;
     }
 
-    void SetUpperText( const wxString& aUpperText ) { m_UpperText = aUpperText; }
-    const wxString& GetUpperText() const { return m_UpperText; }
+    void SetUpperText( const QString& aUpperText ) { m_UpperText = aUpperText; }
+    const QString& GetUpperText() const { return m_UpperText; }
 
-    void SetLowerText( const wxString& aLowerText )  { m_LowerText = aLowerText; }
-    const wxString& GetLowerText() const { return m_LowerText; }
+    void SetLowerText( const QString& aLowerText )  { m_LowerText = aLowerText; }
+    const QString& GetLowerText() const { return m_LowerText; }
 
     void SetPadding( int aPadding )  { m_Padding = aPadding; }
     int GetPadding() const { return m_Padding; }
@@ -88,86 +62,50 @@ private:
     int         m_X;
     int         m_UpperY;
     int         m_LowerY;
-    wxString    m_UpperText;
-    wxString    m_LowerText;
+    QString     m_UpperText;
+    QString     m_LowerText;
     int         m_Padding;
 };
 
 
-/**
- * A panel to display various information messages.
- */
-class EDA_MSG_PANEL : public wxPanel
+class EDA_MSG_PANEL : public QWidget
 {
+    Q_OBJECT
+
 public:
-    EDA_MSG_PANEL( wxWindow* aParent, int aId,
-                   const wxPoint& aPosition, const wxSize& aSize,
-                   long style=wxTAB_TRAVERSAL, const wxString& name=wxPanelNameStr );
+    EDA_MSG_PANEL( QWidget* aParent = nullptr );
     ~EDA_MSG_PANEL();
 
-    void OnPaint( wxPaintEvent& aEvent );
-    void OnDPIChanged( wxDPIChangedEvent& aEvent );
+    void OnPaint( QPaintEvent* aEvent );
     void EraseMsgBox();
 
-    wxSize DoGetBestSize() const override;
-    wxSize DoGetBestClientSize() const override;
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
 
-    /**
-     * Set a message at \a aXPosition to \a aUpperText and \a aLowerText in the message panel.
-     *
-     * @param aXPosition The horizontal position to display the message or less than zero
-     *                   to set the message using the last message position.
-     * @param aUpperText The text to be displayed in top line.
-     * @param aLowerText The text to be displayed in bottom line.
-     */
-    void SetMessage( int aXPosition, const wxString& aUpperText, const wxString& aLowerText );
+    void SetMessage( int aXPosition, const QString& aUpperText, const QString& aLowerText );
 
-   /**
-    * Append a message to the message panel.
-    *
-    * This method automatically adjusts for the width of the text string.
-    * Making consecutive calls to AppendMessage will append each message
-    * to the right of the last message.  This message is not compatible
-    * with Affiche_1_Parametre.
-    *
-    * @param aUpperText The message upper text.
-    * @param aLowerText The message lower text.
-    * @param aPadding Number of spaces to pad between messages (default = 4).
-    */
-    void AppendMessage( const wxString& aUpperText, const wxString& aLowerText, int aPadding = 6 );
+    void AppendMessage( const QString& aUpperText, const QString& aLowerText, int aPadding = 6 );
 
-   /**
-    * Append \a aMessageItem to the message panel.
-    *
-    * @param aMessageItem is a reference to an #MSG_PANEL_ITEM containing the message to
-    *                     append to the panel.
-    */
     void AppendMessage( const MSG_PANEL_ITEM& aMessageItem )
     {
         AppendMessage( aMessageItem.GetUpperText(), aMessageItem.GetLowerText(),
                        aMessageItem.GetPadding() );
     }
 
-    DECLARE_EVENT_TABLE()
-
 protected:
+    void paintEvent( QPaintEvent* event ) override;
+
     void updateFontSize();
 
-    void showItem( wxDC& dc, const MSG_PANEL_ITEM& aItem );
+    void showItem( QPainter& painter, const MSG_PANEL_ITEM& aItem );
 
-    void erase( wxDC* DC );
+    void erase( QPainter* painter );
 
 protected:
     std::vector<MSG_PANEL_ITEM> m_Items;
-    int                         m_last_x;      ///< the last used x coordinate
-    wxSize                      m_fontSize;
+    int                         m_last_x;      // the last used x coordinate
+    QSize                       m_fontSize;
 };
 
 
-/**
- * Get a formatted UUID string for display in the message panel,
- * according to the current advanced configuration setting.
- *
- * This will be std::nullopt if the configuration setting disables UUID display.
- */
-std::optional<wxString> GetMsgPanelDisplayUuid( const KIID& aKiid );
+std::optional<QString> GetMsgPanelDisplayUuid( const KIID& aKiid );

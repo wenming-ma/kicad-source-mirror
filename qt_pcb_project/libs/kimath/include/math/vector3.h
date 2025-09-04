@@ -1,21 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef VECTOR3_H_
 #define VECTOR3_H_
@@ -23,7 +6,7 @@
 #include <iostream>
 #include <stdint.h>
 #include <limits>
-#include <wx/debug.h>
+#include <QtCore/QDebug>
 
 /**
  * Traits class for VECTOR2.
@@ -161,7 +144,7 @@ VECTOR3<T> VECTOR3<T>::Normalize()
 {
     T norm = EuclideanNorm();
 
-    wxCHECK_MSG( norm > T( 0 ), *this, wxT( "Invalid element length 0" ) );
+    Q_ASSERT_X( norm > T( 0 ), "VECTOR3::Normalize", "Invalid element length 0" );
 
     x /= norm;
     y /= norm;

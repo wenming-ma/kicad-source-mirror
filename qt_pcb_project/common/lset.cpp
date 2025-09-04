@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2014 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 #include <algorithm>
 #include <bitset>                             // for bitset, __bitset<>::ref...
 #include <cassert>
@@ -35,8 +11,8 @@
 #include <layer_range.h>
 #include <lseq.h>
 #include <macros.h>                           // for arrayDim
-#include <wx/debug.h>                         // for wxASSERT, wxASSERT_MSG
-#include <wx/string.h>
+#include <QtCore/QDebug>                      // for Q_ASSERT, Q_ASSERT_MSG
+#include <QString>
 
 #include <lset.h>
 
@@ -89,7 +65,8 @@ int LSET::LayerCount( PCB_LAYER_ID aStart, PCB_LAYER_ID aEnd, int aCopperLayerCo
     int end = aEnd;
 
     // Both layers need to be copper
-    wxCHECK( IsCopperLayer( aStart ) && IsCopperLayer( aEnd ), aCopperLayerCount );
+    if( !IsCopperLayer( aStart ) || !IsCopperLayer( aEnd ) )
+        return aCopperLayerCount;
 
     if( aStart == B_Cu )
         std::swap( start, end );
@@ -114,9 +91,9 @@ int LSET::LayerCount( PCB_LAYER_ID aStart, PCB_LAYER_ID aEnd, int aCopperLayerCo
 }
 
 
-int LSET::NameToLayer( wxString& aName )
+int LSET::NameToLayer( QString& aName )
 {
-    std::map<wxString, PCB_LAYER_ID> layerMap = {
+    std::map<QString, PCB_LAYER_ID> layerMap = {
         { "F.Cu", F_Cu },
         { "B.Cu", B_Cu },
         { "F.Adhes", F_Adhes },
@@ -144,21 +121,23 @@ int LSET::NameToLayer( wxString& aName )
     if( auto it = layerMap.find( aName ); it != layerMap.end() )
         return static_cast<int>( it->second );
 
-    if( aName.StartsWith( "User." ) )
+    if( aName.startsWith( "User." ) )
     {
-        long offset;
+        bool ok;
+        int offset = aName.mid( 5 ).toInt( &ok );
 
-        if( aName.Mid( 5 ).ToLong( &offset ) && offset > 0 )
+        if( ok && offset > 0 )
             return static_cast<int>( User_1 ) + ( offset - 1 ) * 2;
     }
 
-    if( aName.StartsWith( "In" ) )
+    if( aName.startsWith( "In" ) )
     {
-        long offset;
-        wxString str_num = aName.Mid( 2 );
-        str_num.RemoveLast( 3 ); // Removes .Cu
+        bool ok;
+        QString str_num = aName.mid( 2 );
+        str_num.chop( 3 ); // Removes .Cu
+        int offset = str_num.toInt( &ok );
 
-        if( str_num.ToLong( &offset ) && offset > 0 )
+        if( ok && offset > 0 )
             return static_cast<int>( In1_Cu ) + ( offset - 1 ) * 2;
     }
 
@@ -185,57 +164,57 @@ bool LSET::IsBetween( PCB_LAYER_ID aStart, PCB_LAYER_ID aEnd, PCB_LAYER_ID aLaye
 }
 
 
-wxString LSET::Name( PCB_LAYER_ID aLayerId )
+QString LSET::Name( PCB_LAYER_ID aLayerId )
 {
-    wxString txt;
+    QString txt;
 
     // using a switch to explicitly show the mapping more clearly
     switch( aLayerId )
     {
-    case F_Cu:              txt = wxT( "F.Cu" );            break;
-    case B_Cu:              txt = wxT( "B.Cu" );            break;
+    case F_Cu:              txt = "F.Cu";            break;
+    case B_Cu:              txt = "B.Cu";            break;
 
     // Technicals
-    case B_Adhes:           txt = wxT( "B.Adhes" );         break;
-    case F_Adhes:           txt = wxT( "F.Adhes" );         break;
-    case B_Paste:           txt = wxT( "B.Paste" );         break;
-    case F_Paste:           txt = wxT( "F.Paste" );         break;
-    case B_SilkS:           txt = wxT( "B.SilkS" );         break;
-    case F_SilkS:           txt = wxT( "F.SilkS" );         break;
-    case B_Mask:            txt = wxT( "B.Mask" );          break;
-    case F_Mask:            txt = wxT( "F.Mask" );          break;
+    case B_Adhes:           txt = "B.Adhes";         break;
+    case F_Adhes:           txt = "F.Adhes";         break;
+    case B_Paste:           txt = "B.Paste";         break;
+    case F_Paste:           txt = "F.Paste";         break;
+    case B_SilkS:           txt = "B.SilkS";         break;
+    case F_SilkS:           txt = "F.SilkS";         break;
+    case B_Mask:            txt = "B.Mask";          break;
+    case F_Mask:            txt = "F.Mask";          break;
 
     // Users
-    case Dwgs_User:         txt = wxT( "Dwgs.User" );       break;
-    case Cmts_User:         txt = wxT( "Cmts.User" );       break;
-    case Eco1_User:         txt = wxT( "Eco1.User" );       break;
-    case Eco2_User:         txt = wxT( "Eco2.User" );       break;
-    case Edge_Cuts:         txt = wxT( "Edge.Cuts" );       break;
-    case Margin:            txt = wxT( "Margin" );          break;
+    case Dwgs_User:         txt = "Dwgs.User";       break;
+    case Cmts_User:         txt = "Cmts.User";       break;
+    case Eco1_User:         txt = "Eco1.User";       break;
+    case Eco2_User:         txt = "Eco2.User";       break;
+    case Edge_Cuts:         txt = "Edge.Cuts";       break;
+    case Margin:            txt = "Margin";          break;
 
     // Footprint
-    case F_CrtYd:           txt = wxT( "F.CrtYd" );         break;
-    case B_CrtYd:           txt = wxT( "B.CrtYd" );         break;
-    case F_Fab:             txt = wxT( "F.Fab" );           break;
-    case B_Fab:             txt = wxT( "B.Fab" );           break;
+    case F_CrtYd:           txt = "F.CrtYd";         break;
+    case B_CrtYd:           txt = "B.CrtYd";         break;
+    case F_Fab:             txt = "F.Fab";           break;
+    case B_Fab:             txt = "B.Fab";           break;
 
     // Rescue
-    case Rescue:            txt = wxT( "Rescue" );          break;
+    case Rescue:            txt = "Rescue";          break;
 
     default:
         if( aLayerId < 0 )
         {
-            txt = wxT( "UNDEFINED" );
+            txt = "UNDEFINED";
         }
         else if( static_cast<int>( aLayerId ) & 1 )
         {
             int offset = ( aLayerId - Rescue ) / 2;
-            txt = wxString::Format( wxT( "User.%d" ), offset );
+            txt = QString( "User.%1" ).arg( offset );
         }
         else
         {
             int offset = ( aLayerId - B_Cu ) / 2;
-            txt = wxString::Format( wxT( "In%d.Cu" ), offset );
+            txt = QString( "In%1.Cu" ).arg( offset );
         }
     }
 
@@ -537,7 +516,7 @@ PCB_LAYER_ID LSET::ExtractLayer() const
             return PCB_LAYER_ID( i );
     }
 
-    wxASSERT( 0 );  // set_count was verified as 1 above, what did you break?
+    Q_ASSERT( 0 );  // set_count was verified as 1 above, what did you break?
 
     return UNDEFINED_LAYER;
 }
@@ -747,7 +726,7 @@ PCB_LAYER_ID ToLAYER_ID( int aLayer )
     if( aLayer == std::numeric_limits<int>::max() )
         return B_Cu;
 
-    wxASSERT( aLayer < GAL_LAYER_ID_END );
+    Q_ASSERT( aLayer < GAL_LAYER_ID_END );
     return PCB_LAYER_ID( aLayer );
 }
 

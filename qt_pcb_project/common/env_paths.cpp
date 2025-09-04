@@ -1,55 +1,34 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Copyright (C) 2017 CERN
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <env_paths.h>
 #include <project.h>
-#include <wx/filename.h>
+#include <QDir>
+#include <QFileInfo>
+#include <QString>
+#include <QStringList>
 
-static bool normalizeAbsolutePaths( const wxFileName& aPathA, const wxFileName& aPathB,
-                                    wxString* aResultPath )
+static bool normalizeAbsolutePaths( const QFileInfo& aPathA, const QFileInfo& aPathB,
+                                    QString* aResultPath )
 {
-    wxCHECK_MSG( aPathA.IsAbsolute(), false,
-                 aPathA.GetPath() + wxS( " is not an absolute path." ) );
-    wxCHECK_MSG( aPathB.IsAbsolute(), false,
-                 aPathB.GetPath() + wxS( " is not an absolute path." ) );
-
-    if( aPathA.GetPath() == aPathB.GetPath() )
-        return true;
-
-    // Not sure all of volume checks are necessary since wxFileName::GetVolume() returns
-    // an empty string if the path has no volume.
-    if( ( aPathA.GetDirCount() > aPathB.GetDirCount() )
-      || ( aPathA.HasVolume() && !aPathB.HasVolume() )
-      || ( !aPathA.HasVolume() && aPathB.HasVolume() )
-      || ( ( aPathA.HasVolume() && aPathB.HasVolume() )
-         && ( aPathA.GetVolume().CmpNoCase( aPathB.GetVolume() ) != 0 ) ) )
+    if( !aPathA.isAbsolute() )
+        return false;
+    if( !aPathB.isAbsolute() )
         return false;
 
-    wxArrayString aDirs = aPathA.GetDirs();
-    wxArrayString bDirs = aPathB.GetDirs();
+    if( aPathA.absolutePath() == aPathB.absolutePath() )
+        return true;
+
+    QStringList aPathParts = aPathA.absolutePath().split( '/', Qt::SkipEmptyParts );
+    QStringList bPathParts = aPathB.absolutePath().split( '/', Qt::SkipEmptyParts );
+    
+    if( aPathParts.size() > bPathParts.size() )
+        return false;
+
+    QStringList aDirs = aPathParts;
+    QStringList bDirs = bPathParts;
 
     size_t i = 0;
 
-    while( i < aDirs.GetCount() )
+    while( i < aDirs.size() )
     {
         if( aDirs[i] != bDirs[i] )
             return false;
@@ -59,9 +38,9 @@ static bool normalizeAbsolutePaths( const wxFileName& aPathA, const wxFileName& 
 
     if( aResultPath )
     {
-        while( i < bDirs.GetCount() )
+        while( i < bDirs.size() )
         {
-            *aResultPath += bDirs[i] + wxT( "/" );
+            *aResultPath += bDirs[i] + "/";
             i++;
         }
     }
@@ -70,33 +49,33 @@ static bool normalizeAbsolutePaths( const wxFileName& aPathA, const wxFileName& 
 }
 
 
-wxString NormalizePath( const wxFileName& aFilePath, const ENV_VAR_MAP* aEnvVars,
-                        const wxString& aProjectPath )
+QString NormalizePath( const QFileInfo& aFilePath, const ENV_VAR_MAP* aEnvVars,
+                        const QString& aProjectPath )
 {
-    wxFileName envPath;
-    wxString   varName;
-    wxString   remainingPath;
-    wxString   normalizedFullPath;
-    int        pathDepth = 0;
+    QFileInfo envPath;
+    QString   varName;
+    QString   remainingPath;
+    QString   normalizedFullPath;
+    int       pathDepth = 0;
 
     if( aEnvVars )
     {
-        for( const std::pair<const wxString, ENV_VAR_ITEM>& entry : *aEnvVars )
+        for( const std::pair<const QString, ENV_VAR_ITEM>& entry : *aEnvVars )
         {
             // Don't bother normalizing paths that don't exist or the user cannot read.
-            if( !wxFileName::DirExists( entry.second.GetValue() )
-                    || !wxFileName::IsDirReadable( entry.second.GetValue() ) )
+            QDir dir( entry.second.GetValue() );
+            if( !dir.exists() || !dir.isReadable() )
             {
                 continue;
             }
 
-            envPath.SetPath( entry.second.GetValue() );
+            envPath.setFile( entry.second.GetValue() );
 
-            wxString tmp;
+            QString tmp;
 
             if( normalizeAbsolutePaths( envPath, aFilePath, &tmp ) )
             {
-                int newDepth = envPath.GetDirs().GetCount();
+                int newDepth = envPath.absolutePath().split( '/', Qt::SkipEmptyParts ).size();
 
                 // Only use the variable if it removes more directories than the previous ones
                 if( newDepth > pathDepth )
@@ -106,101 +85,99 @@ wxString NormalizePath( const wxFileName& aFilePath, const ENV_VAR_MAP* aEnvVars
                     remainingPath = tmp;
                 }
 
-                // @fixme Shouldn't we break here if an environment variable path is found or try
-                //        at least try to pick the best match?
             }
         }
     }
 
-    if( varName.IsEmpty() && !aProjectPath.IsEmpty()
-        && wxFileName( aProjectPath ).IsAbsolute() && wxFileName( aFilePath ).IsAbsolute() )
+    if( varName.isEmpty() && !aProjectPath.isEmpty()
+        && QFileInfo( aProjectPath ).isAbsolute() && aFilePath.isAbsolute() )
     {
-        envPath.SetPath( aProjectPath );
+        envPath.setFile( aProjectPath );
 
         if( normalizeAbsolutePaths( envPath, aFilePath, &remainingPath ) )
             varName = PROJECT_VAR_NAME;
     }
 
-    if( varName.IsEmpty() )
+    if( varName.isEmpty() )
     {
-        normalizedFullPath = aFilePath.GetFullPath();
+        normalizedFullPath = aFilePath.absoluteFilePath();
     }
     else
     {
-        normalizedFullPath = wxString::Format( "${%s}/", varName );
+        normalizedFullPath = QString( "${%1}/" ).arg( varName );
 
-        if( !remainingPath.IsEmpty() )
+        if( !remainingPath.isEmpty() )
             normalizedFullPath += remainingPath;
 
-        normalizedFullPath += aFilePath.GetFullName();
+        normalizedFullPath += aFilePath.fileName();
     }
 
     return normalizedFullPath;
 }
 
 
-wxString NormalizePath( const wxFileName& aFilePath, const ENV_VAR_MAP* aEnvVars,
+QString NormalizePath( const QFileInfo& aFilePath, const ENV_VAR_MAP* aEnvVars,
                         const PROJECT* aProject )
 {
     if( aProject )
         return NormalizePath( aFilePath, aEnvVars, aProject->GetProjectPath() );
     else
-        return NormalizePath( aFilePath, aEnvVars, "" );
+        return NormalizePath( aFilePath, aEnvVars, QString() );
 }
 
 
 // Create file path by appending path and file name. This approach allows the filename
-// to contain a relative path, whereas wxFileName::SetPath() would replace the
+// to contain a relative path, whereas QFileInfo::setFile() would replace the
 // relative path
-static wxString createFilePath( const wxString& aPath, const wxString& aFileName )
+static QString createFilePath( const QString& aPath, const QString& aFileName )
 {
-    wxString path( aPath );
+    QString path( aPath );
 
-    if( !path.EndsWith( wxFileName::GetPathSeparator() ) )
-        path.Append( wxFileName::GetPathSeparator() );
+    if( !path.endsWith( QDir::separator() ) )
+        path.append( QDir::separator() );
 
     return path + aFileName;
 }
 
 
-wxString ResolveFile( const wxString& aFileName, const ENV_VAR_MAP* aEnvVars,
+QString ResolveFile( const QString& aFileName, const ENV_VAR_MAP* aEnvVars,
                       const PROJECT* aProject )
 {
-    wxFileName full( aFileName );
+    QFileInfo full( aFileName );
 
-    if( full.IsAbsolute() )
-        return full.GetFullPath();
+    if( full.isAbsolute() )
+        return full.absoluteFilePath();
 
     if( aProject )
     {
-        wxFileName fn( createFilePath( aProject->GetProjectPath(), aFileName ) );
+        QFileInfo fn( createFilePath( aProject->GetProjectPath(), aFileName ) );
 
-        if( fn.Exists() )
-            return fn.GetFullPath();
+        if( fn.exists() )
+            return fn.absoluteFilePath();
     }
 
     if( aEnvVars )
     {
-        for( const std::pair<const wxString, ENV_VAR_ITEM>& entry : *aEnvVars )
+        for( const std::pair<const QString, ENV_VAR_ITEM>& entry : *aEnvVars )
         {
-            wxFileName fn( createFilePath( entry.second.GetValue(), aFileName ) );
+            QFileInfo fn( createFilePath( entry.second.GetValue(), aFileName ) );
 
-            if( fn.Exists() )
-                return fn.GetFullPath();
+            if( fn.exists() )
+                return fn.absoluteFilePath();
         }
     }
 
-    return wxEmptyString;
+    return QString();
 }
 
 
-bool PathIsInsideProject( const wxString& aFileName, const PROJECT* aProject, wxFileName* aSubPath )
+bool PathIsInsideProject( const QString& aFileName, const PROJECT* aProject, QFileInfo* aSubPath )
 {
-    wxFileName fn( aFileName );
-    wxFileName prj( aProject->GetProjectPath() );
+    QFileInfo fn( aFileName );
+    QFileInfo prj( aProject->GetProjectPath() );
 
-    wxArrayString pdirs = prj.GetDirs();
-    wxArrayString fdirs = fn.GetDirs();
+    QStringList pdirs = prj.absolutePath().split( '/', Qt::SkipEmptyParts );
+    QStringList fdirs = fn.absolutePath().split( '/', Qt::SkipEmptyParts );
 
     if( fdirs.size() < pdirs.size() )
         return false;
@@ -214,10 +191,14 @@ bool PathIsInsideProject( const wxString& aFileName, const PROJECT* aProject, wx
     // Now we know that fn is inside prj
     if( aSubPath )
     {
-        aSubPath->Clear();
-
+        QString subPath;
         for( size_t i = pdirs.size(); i < fdirs.size(); i++ )
-            aSubPath->AppendDir( fdirs[i] );
+        {
+            if( !subPath.isEmpty() )
+                subPath += QDir::separator();
+            subPath += fdirs[i];
+        }
+        aSubPath->setFile( subPath );
     }
 
     return true;

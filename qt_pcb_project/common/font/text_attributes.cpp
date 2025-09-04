@@ -1,24 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <font/text_attributes.h>
 #include <font/outline_font.h>
+#include <QString>
 
 
 TEXT_ATTRIBUTES::TEXT_ATTRIBUTES( KIFONT::FONT* aFont ) :
@@ -42,17 +25,17 @@ TEXT_ATTRIBUTES::TEXT_ATTRIBUTES( KIFONT::FONT* aFont ) :
 
 int TEXT_ATTRIBUTES::Compare( const TEXT_ATTRIBUTES& aRhs ) const
 {
-    wxString fontName;
+    QString fontName;
 
     if( m_Font )
         fontName = m_Font->GetName();
 
-    wxString rhsFontName;
+    QString rhsFontName;
 
     if( aRhs.m_Font )
         rhsFontName = aRhs.m_Font->GetName();
 
-    int retv = fontName.Cmp( rhsFontName );
+    int retv = fontName.compare( rhsFontName );
 
     if( retv )
         return retv;

@@ -1,28 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include "io/kicad/kicad_io_utils.h"
 
-// For some reason wxWidgets is built with wxUSE_BASE64 unset so expose the wxWidgets
-// base64 code.
-#define wxUSE_BASE64 1
-#include <wx/base64.h>
+#include <QByteArray>
+#include <QString>
 
 #include <fmt/format.h>
 
@@ -32,9 +11,9 @@
 
 namespace KICAD_FORMAT {
 
-void FormatBool( OUTPUTFORMATTER* aOut, const wxString& aKey, bool aValue )
+void FormatBool( OUTPUTFORMATTER* aOut, const QString& aKey, bool aValue )
 {
-    aOut->Print( "(%ls %s)", aKey.wc_str(), aValue ? "yes" : "no" );
+    aOut->Print( "(%s %s)", aKey.toUtf8().constData(), aValue ? "yes" : "no" );
 }
 
 
@@ -44,48 +23,26 @@ void FormatUuid( OUTPUTFORMATTER* aOut, const KIID& aUuid )
 }
 
 
-void FormatStreamData( OUTPUTFORMATTER& aOut, const wxStreamBuffer& aStream )
+void FormatStreamData( OUTPUTFORMATTER& aOut, const QByteArray& aStream )
 {
     aOut.Print( "(data" );
 
-    const wxString out = wxBase64Encode( aStream.GetBufferStart(), aStream.GetBufferSize() );
+    const QString out = QString::fromLatin1( aStream.toBase64() );
 
-    // Apparently the MIME standard character width for base64 encoding is 76 (unconfirmed)
-    // so use it in a vein attempt to be standard like.
     static constexpr unsigned MIME_BASE64_LENGTH = 76;
 
     size_t first = 0;
 
-    while( first < out.Length() )
+    while( first < static_cast<size_t>( out.length() ) )
     {
-        aOut.Print( "\n\"%s\"", TO_UTF8( out( first, MIME_BASE64_LENGTH ) ) );
+        aOut.Print( "\n\"%s\"", TO_UTF8( out.mid( first, MIME_BASE64_LENGTH ) ) );
         first += MIME_BASE64_LENGTH;
     }
 
-    aOut.Print( ")" ); // Closes data token.
+    aOut.Print( ")" );
 }
 
 
-/*
- * Formatting rules:
- * - All extra (non-indentation) whitespace is trimmed
- * - Indentation is one tab
- * - Starting a new list (open paren) starts a new line with one deeper indentation
- * - Lists with no inner lists go on a single line
- * - End of multi-line lists (close paren) goes on a single line at same indentation as its start
- *
- * For example:
- * (first
- *  (second
- *   (third list)
- *   (another list)
- *  )
- *  (fifth)
- *  (sixth thing with lots of tokens
- *   (and a sub list)
- *  )
- * )
- */
 void Prettify( std::string& aSource, bool aCompactSave )
 {
     // Configuration
@@ -93,13 +50,7 @@ void Prettify( std::string& aSource, bool aCompactSave )
     const char indentChar = '\t';
     const int  indentSize = 1;
 
-    // In order to visually compress PCB files, it is helpful to special-case long lists of (xy ...)
-    // lists, which we allow to exist on a single line until we reach column 99.
     const int  xySpecialCaseColumnLimit = 99;
-
-    // If whitespace occurs inside a list after this threshold, it will be converted into a newline
-    // and the indentation will be increased.  This is mainly used for image and group objects,
-    // which contain potentially long sets of string tokens within a single list.
     const int  consecutiveTokenWrapThreshold = 72;
 
     std::string formatted;
@@ -117,7 +68,7 @@ void Prettify( std::string& aSource, bool aCompactSave )
     bool inShortForm = false;
     int  shortFormDepth = 0;
     int  column = 0;
-    int  backslashCount = 0;    // Count of successive backslash read since any other char
+    int  backslashCount = 0;
 
     auto isWhitespace = []( const char aChar )
             {
@@ -174,16 +125,14 @@ void Prettify( std::string& aSource, bool aCompactSave )
 
         if( isWhitespace( *cursor ) && !inQuote )
         {
-            if( !hasInsertedSpace           // Only permit one space between chars
-                && listDepth > 0            // Do not permit spaces in outer list
-                && lastNonWhitespace != '(' // Remove extra space after start of list
-                && next != ')'              // Remove extra space before end of list
-                && next != '(' )            // Remove extra space before newline
+            if( !hasInsertedSpace
+                && listDepth > 0
+                && lastNonWhitespace != '('
+                && next != ')'
+                && next != '(' )
             {
                 if( inXY || column < consecutiveTokenWrapThreshold )
                 {
-                    // Note that we only insert spaces here, no matter what kind of whitespace is
-                    // in the input.  Newlines will be inserted as needed by the logic below.
                     formatted.push_back( ' ' );
                     column++;
                 }
@@ -218,7 +167,6 @@ void Prettify( std::string& aSource, bool aCompactSave )
                 }
                 else if( inXY && currentIsXY && column < xySpecialCaseColumnLimit )
                 {
-                    // List-of-points special case
                     formatted += " (";
                     column += 2;
                 }
@@ -275,9 +223,6 @@ void Prettify( std::string& aSource, bool aCompactSave )
             }
             else
             {
-                // The output formatter escapes double-quotes (like \")
-                // But a corner case is a sequence like \\"
-                // therefore a '\' is attached to a '"' if a odd number of '\' is detected
                 if( *cursor == '\\' )
                     backslashCount++;
                 else if( *cursor == quoteChar && ( backslashCount & 1 ) == 0 )
@@ -296,7 +241,6 @@ void Prettify( std::string& aSource, bool aCompactSave )
         ++cursor;
     }
 
-    // newline required at end of line / file for POSIX compliance. Keeps git diffs clean.
     formatted += '\n';
 
     aSource = std::move( formatted );

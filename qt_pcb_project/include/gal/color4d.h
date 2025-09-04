@@ -1,36 +1,11 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * Color class
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef COLOR4D_H_
 #define COLOR4D_H_
 
 #include <kicommon.h>
-#include <wx/debug.h>
-#include <wx/colour.h>
-#include <wx/string.h>
+#include <QtCore/QString>
+#include <QtGui/QColor>
+#include <QtCore/QDebug>
 #include <hash.h>
 #include <nlohmann/json_fwd.hpp>
 
@@ -124,10 +99,10 @@ public:
         b( aBlue ),
         a( aAlpha )
     {
-        wxASSERT( r >= 0.0 && r <= 1.0 );
-        wxASSERT( g >= 0.0 && g <= 1.0 );
-        wxASSERT( b >= 0.0 && b <= 1.0 );
-        wxASSERT( a >= 0.0 && a <= 1.0 );
+        Q_ASSERT( r >= 0.0 && r <= 1.0 );
+        Q_ASSERT( g >= 0.0 && g <= 1.0 );
+        Q_ASSERT( b >= 0.0 && b <= 1.0 );
+        Q_ASSERT( a >= 0.0 && a <= 1.0 );
     }
 
     /**
@@ -149,32 +124,32 @@ public:
      * Defines a color from a CSS or HTML-type string
      * @param aColorStr input string
      */
-    COLOR4D( const wxString& aColorStr );
+    COLOR4D( const QString& aColorStr );
 
     /**
-     * @param aColor is the color type used by wxWidgets.
+     * @param aColor is the QColor type used by Qt.
      */
-    COLOR4D( const wxColour& aColor );
+    COLOR4D( const QColor& aColor );
 
     /**
-     * Set color values by parsing a string using wxColour::Set().
+     * Set color values by parsing a string using QColor::setNamedColor().
      *
-     * @param aColorString is a color string that wxColour can understand.
+     * @param aColorString is a color string that QColor can understand.
      * @return true if color was set successfully.
      */
-    bool SetFromWxString( const wxString& aColorString );
+    bool SetFromQString( const QString& aColorString );
 
-    wxString ToCSSString() const;
+    QString ToCSSString() const;
 
-    bool SetFromHexString( const wxString& aColorString );
-    wxString ToHexString() const;
+    bool SetFromHexString( const QString& aColorString );
+    QString ToHexString() const;
 
-    wxColour ToColour() const;
+    QColor ToColor() const;
 
     /**
      * Mix this COLOR4D with an input COLOR4D using the OR-mixing of legacy canvas.
      *
-     * Can be removed once legacy canvas is removed.  Depends on wxColour for simplicity,
+     * Can be removed once legacy canvas is removed.  Uses QColor for simplicity,
      * but could be re-written to avoid this dependency if desired.
      *
      * @param aColor The color to mix with this one
@@ -208,7 +183,7 @@ public:
      */
     COLOR4D& Brighten( double aFactor )
     {
-        wxASSERT( aFactor >= 0.0 && aFactor <= 1.0 );
+        Q_ASSERT( aFactor >= 0.0 && aFactor <= 1.0 );
 
         r = r * ( 1.0 - aFactor ) + aFactor;
         g = g * ( 1.0 - aFactor ) + aFactor;
@@ -225,7 +200,7 @@ public:
      */
     COLOR4D& Darken( double aFactor )
     {
-        wxASSERT( aFactor >= 0.0 && aFactor <= 1.0 );
+        Q_ASSERT( aFactor >= 0.0 && aFactor <= 1.0 );
 
         r = r * ( 1.0 - aFactor );
         g = g * ( 1.0 - aFactor );
@@ -267,7 +242,7 @@ public:
      */
     COLOR4D Brightened( double aFactor ) const
     {
-        wxASSERT( aFactor >= 0.0 && aFactor <= 1.0 );
+        Q_ASSERT( aFactor >= 0.0 && aFactor <= 1.0 );
 
         return COLOR4D( r * ( 1.0 - aFactor ) + aFactor, g * ( 1.0 - aFactor ) + aFactor,
                         b * ( 1.0 - aFactor ) + aFactor, a );
@@ -281,7 +256,7 @@ public:
      */
     COLOR4D Darkened( double aFactor ) const
     {
-        wxASSERT( aFactor >= 0.0 && aFactor <= 1.0 );
+        Q_ASSERT( aFactor >= 0.0 && aFactor <= 1.0 );
 
         return COLOR4D( r * ( 1.0 - aFactor ), g * ( 1.0 - aFactor ), b * ( 1.0 - aFactor ), a );
     }
@@ -294,7 +269,7 @@ public:
      */
     COLOR4D Mix( const COLOR4D& aColor, double aFactor ) const
     {
-        wxASSERT( aFactor >= 0.0 && aFactor <= 1.0 );
+        Q_ASSERT( aFactor >= 0.0 && aFactor <= 1.0 );
 
         return COLOR4D( aColor.r * ( 1.0 - aFactor ) + r * aFactor,
                         aColor.g * ( 1.0 - aFactor ) + g * aFactor,
@@ -310,7 +285,7 @@ public:
      */
      COLOR4D WithAlpha( double aAlpha ) const
      {
-         wxASSERT( aAlpha >= 0.0 && aAlpha <= 1.0 );
+         Q_ASSERT( aAlpha >= 0.0 && aAlpha <= 1.0 );
 
          return COLOR4D( r, g, b, aAlpha );
      }

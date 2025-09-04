@@ -1,26 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 CERN
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-3.0.html
- * or you may search the http://www.gnu.org website for the version 3 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef INCLUDE_CORE_KICAD_ALGO_H_
 #define INCLUDE_CORE_KICAD_ALGO_H_
@@ -29,7 +7,7 @@
 #include <functional> // std::function
 #include <utility>    // std::pair
 #include <vector>
-#include <wx/debug.h> // wxCHECK_MSG
+#include <QtCore/QDebug> // Q_ASSERT
 
 namespace alg
 {
@@ -128,7 +106,8 @@ bool pair_contains( const std::pair<_Type, _Type> __pair, _Value __value )
 template <class T>
 bool within_wrapped_range( T __val, T __minval, T __maxval, T __wrap )
 {
-    wxCHECK_MSG( __wrap > 0, false, wxT( "Wrap must be positive!" ) );
+    Q_ASSERT_X( __wrap > 0, "within_wrapped_range", "Wrap must be positive!" );
+    if( __wrap <= 0 ) return false;
 
     while( __maxval >= __wrap )
         __maxval -= __wrap;

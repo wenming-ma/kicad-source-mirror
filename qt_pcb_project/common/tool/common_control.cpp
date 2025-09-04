@@ -1,35 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2014-2016 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-// kicad_curl_easy.h must be included before wxWidgets because on Windows (msys2), there are
-// collision with wx headers and curl.h defs
-// UI component - commented out for minimal build
-// #include <kicad_curl/kicad_curl_easy.h>
+#include <kicad_curl/kicad_curl_easy.h>
 
 #include <bitmaps.h>
 #include <build_version.h>
-#include <common.h>     // for SearchHelpFileFullPath
+#include <common.h>
 #include <pgm_base.h>
 #include <tool/actions.h>
 #include <tool/tool_manager.h>
@@ -42,48 +15,36 @@
 #include <kiface_base.h>
 #include <dialogs/dialog_configure_paths.h>
 #include <eda_doc.h>
-#include <wx/msgdlg.h>
+#include <QMessageBox>
+#include <QDesktopServices>
+#include <QUrl>
 
-#define URL_GET_INVOLVED wxS( "https://go.kicad.org/contribute/" )
-#define URL_DONATE wxS( "https://go.kicad.org/app-donate" )
-#define URL_DOCUMENTATION wxS( "https://go.kicad.org/docs/" )
+#define URL_GET_INVOLVED QString( "https://go.kicad.org/contribute/" )
+#define URL_DONATE QString( "https://go.kicad.org/app-donate" )
+#define URL_DOCUMENTATION QString( "https://go.kicad.org/docs/" )
 
+QString COMMON_CONTROL::m_bugReportUrl =
+        QString( "https://gitlab.com/kicad/code/kicad/-/issues/new?issuable_template=bare&issue"
+                 "[description]=%1" );
 
-/// URL to launch a new issue with pre-populated description
-wxString COMMON_CONTROL::m_bugReportUrl =
-        wxS( "https://gitlab.com/kicad/code/kicad/-/issues/new?issuable_template=bare&issue"
-             "[description]=%s" );
-
-
-/// Issue template to use for reporting bugs (this should not be translated)
-wxString COMMON_CONTROL::m_bugReportTemplate = wxS(
+QString COMMON_CONTROL::m_bugReportTemplate = QString(
         "```\n"
-        "%s\n"
+        "%1\n"
         "```" );
-
 
 void COMMON_CONTROL::Reset( RESET_REASON aReason )
 {
     m_frame = getEditFrame<EDA_BASE_FRAME>();
 }
 
-
 int COMMON_CONTROL::OpenPreferences( const TOOL_EVENT& aEvent )
 {
-    m_frame->ShowPreferences( wxEmptyString, wxEmptyString );
+    m_frame->ShowPreferences( QString(), QString() );
     return 0;
 }
 
-
 int COMMON_CONTROL::ConfigurePaths( const TOOL_EVENT& aEvent )
 {
-    // UI component - commented out for minimal build
-    // DIALOG_CONFIGURE_PATHS implementation removed
-    m_frame->SetStatusText( _( "Configure Paths dialog disabled in minimal build" ) );
-    
-    /* Original dialog implementation:
-    // If _pcbnew.kiface is running have it put up the dialog so the 3D paths can also
-    // be edited
     if( KIFACE* pcbnew = m_frame->Kiway().KiFACE( KIWAY::FACE_PCB, false ) )
     {
         try
@@ -99,20 +60,18 @@ int COMMON_CONTROL::ConfigurePaths( const TOOL_EVENT& aEvent )
     else
     {
         DIALOG_CONFIGURE_PATHS dlg( m_frame );
-        if( dlg.ShowModal() == wxID_OK )
+        if( dlg.exec() == QDialog::Accepted )
             m_frame->Kiway().CommonSettingsChanged( ENVVARS_CHANGED );
     }
-    */
 
     return 0;
 }
-
 
 int COMMON_CONTROL::ShowLibraryTable( const TOOL_EVENT& aEvent )
 {
     if( aEvent.IsAction( &ACTIONS::showSymbolLibTable ) )
     {
-        try     // Sch frame was not available, try to start it
+        try
         {
             if( KIFACE* kiface = m_frame->Kiway().KiFACE( KIWAY::FACE_SCH ) )
                 kiface->CreateKiWindow( m_frame, DIALOG_SCH_LIBRARY_TABLE, &m_frame->Kiway() );
@@ -126,7 +85,7 @@ int COMMON_CONTROL::ShowLibraryTable( const TOOL_EVENT& aEvent )
     }
     else if( aEvent.IsAction( &ACTIONS::showFootprintLibTable ) )
     {
-        try     // Pcb frame was not available, try to start it
+        try
         {
             if( KIFACE* kiface = m_frame->Kiway().KiFACE( KIWAY::FACE_PCB ) )
                 kiface->CreateKiWindow( m_frame, DIALOG_PCB_LIBRARY_TABLE, &m_frame->Kiway() );
@@ -140,7 +99,7 @@ int COMMON_CONTROL::ShowLibraryTable( const TOOL_EVENT& aEvent )
     }
     else if( aEvent.IsAction( &ACTIONS::showDesignBlockLibTable ) )
     {
-        try     // Kicad frame was not available, try to start it
+        try
         {
             if( KIFACE* kiface = m_frame->Kiway().KiFACE( KIWAY::FACE_SCH ) )
                 kiface->CreateKiWindow( m_frame, DIALOG_DESIGN_BLOCK_LIBRARY_TABLE,
@@ -157,47 +116,39 @@ int COMMON_CONTROL::ShowLibraryTable( const TOOL_EVENT& aEvent )
     return 0;
 }
 
-
 void showFrame( EDA_BASE_FRAME* aFrame )
 {
-    // Needed on Windows, other platforms do not use it, but it creates no issue
-    if( aFrame->IsIconized() )
-        aFrame->Iconize( false );
+    if( aFrame->isMinimized() )
+        aFrame->showNormal();
 
-    aFrame->Raise();
+    aFrame->raise();
+    aFrame->activateWindow();
 
-    // Raising the window does not set the focus on Linux.  This should work on
-    // any platform.
-    if( wxWindow::FindFocus() != aFrame )
-        aFrame->SetFocus();
-
-    // If the player is currently blocked, focus the user attention on the correct window
-    if( wxWindow* blocking_win = aFrame->Kiway().GetBlockingDialog() )
+    if( QWidget* blocking_win = aFrame->Kiway().GetBlockingDialog() )
     {
-        blocking_win->Raise();
-        blocking_win->SetFocus();
+        blocking_win->raise();
+        blocking_win->activateWindow();
     }
 }
-
 
 int COMMON_CONTROL::ShowPlayer( const TOOL_EVENT& aEvent )
 {
     FRAME_T       playerType = aEvent.Parameter<FRAME_T>();
     KIWAY_PLAYER* editor = m_frame->Kiway().Player( playerType, true );
 
-    // editor can be null if Player() fails:
-    wxCHECK_MSG( editor != nullptr, 0, wxT( "Cannot open/create the editor frame" ) );
+    if( editor == nullptr )
+    {
+        // Cannot open/create the editor frame
+        return 0;
+    }
 
     showFrame( editor );
 
     return 0;
 }
 
-
 int COMMON_CONTROL::ShowProjectManager( const TOOL_EVENT& aEvent )
 {
-    // Note: dynamic_cast doesn't work over the Kiway() on MacOS.  We have to use static_cast
-    // here.
     EDA_BASE_FRAME* top = static_cast<EDA_BASE_FRAME*>( m_frame->Kiway().GetTop() );
 
     if( top && top->GetFrameType() == KICAD_MAIN_FRAME_T )
@@ -206,78 +157,76 @@ int COMMON_CONTROL::ShowProjectManager( const TOOL_EVENT& aEvent )
     }
     else
     {
-        wxMessageDialog( m_frame, _( "Can not switch to project manager in stand-alone mode." ) );
+        QMessageBox::information( m_frame, QString(),
+                                  _( "Can not switch to project manager in stand-alone mode." ) );
     }
 
     return 0;
 }
 
-
 int COMMON_CONTROL::ShowHelp( const TOOL_EVENT& aEvent )
 {
-    wxString helpFile;
-    wxString msg;
+    QString helpFile;
+    QString msg;
 
-    // the URL of help files is "https://go.kicad.org/docs/<version>/<language>/<name>/"
-    const wxString baseUrl = URL_DOCUMENTATION + GetMajorMinorVersion() + wxT( "/" )
-                             + Pgm().GetLocale()->GetName().BeforeLast( '_' ) + wxT( "/" );
+    const QString baseUrl = URL_DOCUMENTATION + GetMajorMinorVersion() + QString( "/" )
+                           + Pgm().GetLocale()->GetName().section( '_', 0, 0 ) + QString( "/" );
 
-    /* We have to get document for beginners,
-     * or the full specific doc
-     * if event id is wxID_INDEX, we want the document for beginners.
-     * else the specific doc file (its name is in Kiface().GetHelpFileName())
-     * The document for beginners is the same for all KiCad utilities
-     */
     if( aEvent.IsAction( &ACTIONS::gettingStarted ) )
     {
-        // List of possible names for Getting Started in KiCad
-        const wxChar* names[2] = {
-                wxT( "getting_started_in_kicad" ),
-                wxT( "Getting_Started_in_KiCad" )
+        const QString names[2] = {
+                QString( "getting_started_in_kicad" ),
+                QString( "Getting_Started_in_KiCad" )
         };
 
-        // Search for "getting_started_in_kicad.html" or "getting_started_in_kicad.pdf"
-        // or "Getting_Started_in_KiCad.html" or "Getting_Started_in_KiCad.pdf"
-        for( auto& name : names )
+        for( const QString& name : names )
         {
             helpFile = SearchHelpFileFullPath( name );
 
-            if( !helpFile.IsEmpty() )
+            if( !helpFile.isEmpty() )
                 break;
         }
 
-        if( !helpFile )
+        if( helpFile.isEmpty() )
         {
-            msg = wxString::Format( _( "Help file '%s' or\n'%s' could not be found.\n"
-                                       "Do you want to access the KiCad online help?" ),
-                                    names[0], names[1] );
-            wxMessageDialog dlg( nullptr, msg, _( "File Not Found" ),
-                                 wxYES_NO | wxNO_DEFAULT | wxCANCEL );
+            msg = QString( _( "Help file '%1' or\n'%2' could not be found.\n"
+                             "Do you want to access the KiCad online help?" ) )
+                    .arg( names[0] ).arg( names[1] );
+            
+            QMessageBox msgBox( m_frame );
+            msgBox.setText( msg );
+            msgBox.setWindowTitle( _( "File Not Found" ) );
+            msgBox.setStandardButtons( QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel );
+            msgBox.setDefaultButton( QMessageBox::No );
 
-            if( dlg.ShowModal() != wxID_YES )
+            if( msgBox.exec() != QMessageBox::Yes )
                 return -1;
 
-            helpFile = baseUrl + names[0] + wxS( "/" );
+            helpFile = baseUrl + names[0] + QString( "/" );
         }
     }
     else
     {
-        wxString base_name = m_frame->help_name();
+        QString base_name = m_frame->help_name();
 
         helpFile = SearchHelpFileFullPath( base_name );
 
-        if( !helpFile )
+        if( helpFile.isEmpty() )
         {
-            msg = wxString::Format( _( "Help file '%s' could not be found.\n"
-                                       "Do you want to access the KiCad online help?" ),
-                                    base_name );
-            wxMessageDialog dlg( nullptr, msg, _( "File Not Found" ),
-                                 wxYES_NO | wxNO_DEFAULT | wxCANCEL );
+            msg = QString( _( "Help file '%1' could not be found.\n"
+                             "Do you want to access the KiCad online help?" ) )
+                    .arg( base_name );
+            
+            QMessageBox msgBox( m_frame );
+            msgBox.setText( msg );
+            msgBox.setWindowTitle( _( "File Not Found" ) );
+            msgBox.setStandardButtons( QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel );
+            msgBox.setDefaultButton( QMessageBox::No );
 
-            if( dlg.ShowModal() != wxID_YES )
+            if( msgBox.exec() != QMessageBox::Yes )
                 return -1;
 
-            helpFile = baseUrl + base_name + wxS( "/" );
+            helpFile = baseUrl + base_name + QString( "/" );
         }
     }
 
@@ -285,14 +234,12 @@ int COMMON_CONTROL::ShowHelp( const TOOL_EVENT& aEvent )
     return 0;
 }
 
-
 int COMMON_CONTROL::About( const TOOL_EVENT& aEvent )
 {
-    void ShowAboutDialog( EDA_BASE_FRAME * aParent ); // See AboutDialog_main.cpp
+    void ShowAboutDialog( EDA_BASE_FRAME * aParent );
     ShowAboutDialog( m_frame );
     return 0;
 }
-
 
 int COMMON_CONTROL::ListHotKeys( const TOOL_EVENT& aEvent )
 {
@@ -300,60 +247,46 @@ int COMMON_CONTROL::ListHotKeys( const TOOL_EVENT& aEvent )
     return 0;
 }
 
-
 int COMMON_CONTROL::GetInvolved( const TOOL_EVENT& aEvent )
 {
-    if( !wxLaunchDefaultBrowser( URL_GET_INVOLVED ) )
+    if( !QDesktopServices::openUrl( QUrl( URL_GET_INVOLVED ) ) )
     {
-        wxString msg;
-        msg.Printf( _( "Could not launch the default browser.\n"
-                       "For information on how to help the KiCad project, visit %s" ),
-                    URL_GET_INVOLVED );
-        wxMessageBox( msg, _( "Get involved with KiCad" ), wxOK, m_frame );
+        QString msg = QString( _( "Could not launch the default browser.\n"
+                                 "For information on how to help the KiCad project, visit %1" ) )
+                        .arg( URL_GET_INVOLVED );
+        QMessageBox::information( m_frame, _( "Get involved with KiCad" ), msg );
     }
 
     return 0;
 }
-
 
 int COMMON_CONTROL::Donate( const TOOL_EVENT& aEvent )
 {
-    if( !wxLaunchDefaultBrowser( URL_DONATE ) )
+    if( !QDesktopServices::openUrl( QUrl( URL_DONATE ) ) )
     {
-        wxString msg;
-        msg.Printf( _( "Could not launch the default browser.\n"
-                       "To donate to the KiCad project, visit %s" ),
-                    URL_DONATE );
-        wxMessageBox( msg, _( "Donate to KiCad" ), wxOK, m_frame );
+        QString msg = QString( _( "Could not launch the default browser.\n"
+                                 "To donate to the KiCad project, visit %1" ) )
+                        .arg( URL_DONATE );
+        QMessageBox::information( m_frame, _( "Donate to KiCad" ), msg );
     }
 
     return 0;
 }
 
-
 int COMMON_CONTROL::ReportBug( const TOOL_EVENT& aEvent )
 {
-    // UI component - commented out for minimal build
-    // KICAD_CURL_EASY implementation removed
-    m_frame->SetStatusText( _( "Bug report functionality disabled in minimal build" ) );
-    
-    /* Original bug report implementation:
     if( WarnUserIfOperatingSystemUnsupported() )
         return 0;
 
-    wxString version = GetVersionInfoData( m_frame->GetUntranslatedAboutTitle(), false, true );
-    wxString message;
-    message.Printf( m_bugReportTemplate, version );
+    QString version = GetVersionInfoData( m_frame->GetUntranslatedAboutTitle(), false, true );
+    QString message = m_bugReportTemplate.arg( version );
 
     KICAD_CURL_EASY kcurl;
-    wxString url_string;
-    url_string.Printf( m_bugReportUrl, kcurl.Escape( std::string( message.utf8_str() ) ) );
-    wxLaunchDefaultBrowser( url_string );
-    */
+    QString url_string = m_bugReportUrl.arg( QString::fromStdString( kcurl.Escape( std::string( message.toUtf8() ) ) ) );
+    QDesktopServices::openUrl( QUrl( url_string ) );
 
     return 0;
 }
-
 
 void COMMON_CONTROL::setTransitions()
 {
@@ -376,5 +309,3 @@ void COMMON_CONTROL::setTransitions()
     Go( &COMMON_CONTROL::ReportBug,          ACTIONS::reportBug.MakeEvent() );
     Go( &COMMON_CONTROL::About,              ACTIONS::about.MakeEvent() );
 }
-
-

@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "template_fieldnames.h"
 
@@ -39,14 +16,14 @@ using namespace TFIELD_T;
 #define DESCRIPTION_CANONICAL "Description"
 #define USER_FIELD_CANONICAL "Field%d"
 
-static wxString s_CanonicalReference( REFERENCE_CANONICAL );
-static wxString s_CanonicalValue( VALUE_CANONICAL );
-static wxString s_CanonicalFootprint( FOOTPRINT_CANONICAL );
-static wxString s_CanonicalDatasheet( DATASHEET_CANONICAL );
-static wxString s_CanonicalDescription( DESCRIPTION_CANONICAL );
+static QString s_CanonicalReference( REFERENCE_CANONICAL );
+static QString s_CanonicalValue( VALUE_CANONICAL );
+static QString s_CanonicalFootprint( FOOTPRINT_CANONICAL );
+static QString s_CanonicalDatasheet( DATASHEET_CANONICAL );
+static QString s_CanonicalDescription( DESCRIPTION_CANONICAL );
 
 
-wxString GetDefaultFieldName( int aFieldNdx, bool aTranslateForHI )
+QString GetDefaultFieldName( int aFieldNdx, bool aTranslateForHI )
 {
     if( !aTranslateForHI )
     {
@@ -75,12 +52,12 @@ wxString GetDefaultFieldName( int aFieldNdx, bool aTranslateForHI )
 }
 
 
-wxString GetUserFieldName( int aFieldNdx, bool aTranslateForHI )
+QString GetUserFieldName( int aFieldNdx, bool aTranslateForHI )
 {
     if( !aTranslateForHI )
-        return wxString::Format( wxS( USER_FIELD_CANONICAL ), aFieldNdx );
+        return QString( USER_FIELD_CANONICAL ).arg( aFieldNdx );
     else
-        return wxString::Format( _( USER_FIELD_CANONICAL ), aFieldNdx );
+        return QString( _( USER_FIELD_CANONICAL ) ).arg( aFieldNdx );
 }
 
 
@@ -153,7 +130,7 @@ void TEMPLATES::Format( OUTPUTFORMATTER* out, bool aGlobal ) const
 
     for( const TEMPLATE_FIELDNAME& temp : source )
     {
-        if( !temp.m_Name.IsEmpty() )
+        if( !temp.m_Name.isEmpty() )
             temp.Format( out );
     }
 
@@ -188,7 +165,7 @@ void TEMPLATES::parse( TEMPLATE_FIELDNAMES_LEXER* in, bool aGlobal )
                 field.Parse( in );
 
                 // add the field
-                if( !field.m_Name.IsEmpty() )
+                if( !field.m_Name.isEmpty() )
                     AddTemplateFieldName( field, aGlobal );
             }
             break;
@@ -201,10 +178,6 @@ void TEMPLATES::parse( TEMPLATE_FIELDNAMES_LEXER* in, bool aGlobal )
 }
 
 
-/**
- * Flatten project and global templates into a single list.  (Project templates take
- * precedence.)
- */
 void TEMPLATES::resolveTemplates()
 {
     m_resolved = m_project;
@@ -262,7 +235,7 @@ void TEMPLATES::AddTemplateFieldName( const TEMPLATE_FIELDNAME& aFieldName, bool
 }
 
 
-void TEMPLATES::AddTemplateFieldNames( const wxString& aSerializedFieldNames )
+void TEMPLATES::AddTemplateFieldNames( const QString& aSerializedFieldNames )
 {
     TEMPLATE_FIELDNAMES_LEXER field_lexer( TO_UTF8( aSerializedFieldNames ) );
 
@@ -311,7 +284,7 @@ const TEMPLATE_FIELDNAMES& TEMPLATES::GetTemplateFieldNames( bool aGlobal )
 }
 
 
-const TEMPLATE_FIELDNAME* TEMPLATES::GetFieldName( const wxString& aName )
+const TEMPLATE_FIELDNAME* TEMPLATES::GetFieldName( const QString& aName )
 {
     if( m_resolvedDirty )
         resolveTemplates();

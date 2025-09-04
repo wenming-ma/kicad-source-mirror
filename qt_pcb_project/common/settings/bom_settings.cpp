@@ -1,27 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Mike Williams <mike@mikebwilliams.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <settings/bom_settings.h>
 #include <json_common.h>
 #include <core/json_serializers.h>
-#include <wx/translation.h>
+#include <QString>
 
 
 // Implementations for BOM_FMT_PRESET
@@ -123,7 +104,7 @@ bool BOM_PRESET::operator==( const BOM_PRESET& rhs ) const
 BOM_PRESET BOM_PRESET::DefaultEditing()
 {
     BOM_PRESET p{
-        _HKI( "Default Editing" ), true, {}, _( "Reference" ), true, "", true, false, true
+        "Default Editing", true, {}, "Reference", true, "", true, false, true
     };
 
     p.fieldsOrdered = std::vector<BOM_FIELD>{
@@ -144,7 +125,7 @@ BOM_PRESET BOM_PRESET::DefaultEditing()
 BOM_PRESET BOM_PRESET::GroupedByValue()
 {
     BOM_PRESET p{
-        _HKI( "Grouped By Value" ), true, {}, _( "Reference" ), true, "", true, false, false
+        "Grouped By Value", true, {}, "Reference", true, "", true, false, false
     };
 
     p.fieldsOrdered = std::vector<BOM_FIELD>{
@@ -163,7 +144,7 @@ BOM_PRESET BOM_PRESET::GroupedByValue()
 BOM_PRESET BOM_PRESET::GroupedByValueFootprint()
 {
     BOM_PRESET p{
-        _HKI( "Grouped By Value and Footprint" ), true, {}, _( "Reference" ), true, "",
+        "Grouped By Value and Footprint", true, {}, "Reference", true, "",
         true, false, false
     };
 
@@ -183,7 +164,7 @@ BOM_PRESET BOM_PRESET::GroupedByValueFootprint()
 BOM_PRESET BOM_PRESET::Attributes()
 {
     BOM_PRESET p{
-        _HKI( "Attributes" ), true, {}, _( "Reference" ), true, "", true, false, true
+        "Attributes", true, {}, "Reference", true, "", true, false, true
     };
 
     p.fieldsOrdered = std::vector<BOM_FIELD>{
@@ -257,20 +238,20 @@ void from_json( const nlohmann::json& j, BOM_FMT_PRESET& f )
 
 BOM_FMT_PRESET BOM_FMT_PRESET::CSV()
 {
-    return { _HKI( "CSV" ), true, wxS( "," ), wxT( "\"" ), wxT( "," ), wxT( "" ), false, false };
+    return { "CSV", true, ",", "\"", ",", "", false, false };
 }
 
 
 BOM_FMT_PRESET BOM_FMT_PRESET::TSV()
 {
-    return { _HKI( "TSV" ), true, wxS( "\t" ), wxT( "" ), wxT( "," ), wxT( "" ), false, false };
+    return { "TSV", true, "\t", "", ",", "", false, false };
 }
 
 
 BOM_FMT_PRESET BOM_FMT_PRESET::Semicolons()
 {
     return {
-        _HKI( "Semicolons" ), true, wxS( ";" ), wxT( "'" ), wxT( "," ), wxT( "" ), false, false
+        "Semicolons", true, ";", "'", ",", "", false, false
     };
 }
 

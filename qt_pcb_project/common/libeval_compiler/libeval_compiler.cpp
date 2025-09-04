@@ -1,23 +1,3 @@
-/*
- * This file is part of libeval, a simple math expression evaluator
- *
- * Copyright (C) 2017 Michael Geselbracht, mgeselbracht3@gmail.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 #include <memory>
 #include <set>
 #include <vector>
@@ -25,7 +5,7 @@
 
 #include <eda_units.h>
 #include <string_utils.h>
-#include <wx/log.h>
+#include <QDebug>
 
 #ifdef DEBUG
 #include <cstdarg>
@@ -33,10 +13,6 @@
 
 #include <libeval_compiler/libeval_compiler.h>
 
-/* The (generated) lemon parser is written in C.
- * In order to keep its symbol from the global namespace include the parser code with
- * a C++ namespace.
- */
 namespace LIBEVAL
 {
 
@@ -55,7 +31,7 @@ namespace LIBEVAL
 
 
 #define libeval_dbg(level, fmt, ...) \
-    wxLogTrace( "libeval_compiler", fmt, __VA_ARGS__ );
+    qDebug() << QString::asprintf(fmt, __VA_ARGS__);
 
 
 TREE_NODE* newNode( LIBEVAL::COMPILER* compiler, int op, const T_TOKEN_VALUE& value )
@@ -63,7 +39,7 @@ TREE_NODE* newNode( LIBEVAL::COMPILER* compiler, int op, const T_TOKEN_VALUE& va
     TREE_NODE* t2    = new TREE_NODE();
 
     t2->valid        = true;
-    t2->value.str    = value.str ? new wxString( *value.str ) : nullptr;
+    t2->value.str    = value.str ? new QString( *value.str ) : nullptr;
     t2->value.num    = value.num;
     t2->value.idx    = value.idx;
     t2->op           = op;
@@ -84,12 +60,12 @@ TREE_NODE* newNode( LIBEVAL::COMPILER* compiler, int op, const T_TOKEN_VALUE& va
 }
 
 
-static const wxString formatOpName( int op )
+static const QString formatOpName( int op )
 {
     static const struct
     {
         int      op;
-        wxString mnemonic;
+        QString mnemonic;
     }
     simpleOps[] =
     {
@@ -136,7 +112,7 @@ bool VALUE::EqualTo( CONTEXT* aCtx, const VALUE* b ) const
         if( b->m_stringIsWildcard )
             return WildCompareString( b->AsString(), AsString(), false );
         else
-            return AsString().IsSameAs( b->AsString(), false );
+            return AsString().compare( b->AsString(), Qt::CaseInsensitive ) == 0;
     }
 
     return false;
@@ -152,35 +128,35 @@ bool VALUE::NotEqualTo( CONTEXT* aCtx, const VALUE* b ) const
 }
 
 
-wxString UOP::Format() const
+QString UOP::Format() const
 {
-    wxString str;
+    QString str;
 
     switch( m_op )
     {
     case TR_UOP_PUSH_VAR:
-        str = wxString::Format( "PUSH VAR [%p]", m_ref.get() );
+        str = QString::asprintf( "PUSH VAR [%p]", m_ref.get() );
         break;
 
     case TR_UOP_PUSH_VALUE:
         if( !m_value )
-            str = wxString::Format( "PUSH nullptr" );
+            str = QString::asprintf( "PUSH nullptr" );
         else if( m_value->GetType() == VT_NUMERIC )
-            str = wxString::Format( "PUSH NUM [%.10f]", m_value->AsDouble() );
+            str = QString::asprintf( "PUSH NUM [%.10f]", m_value->AsDouble() );
         else
-            str = wxString::Format( "PUSH STR [%ls]", m_value->AsString() );
+            str = QString::asprintf( "PUSH STR [%s]", m_value->AsString().toUtf8().data() );
         break;
 
     case TR_OP_METHOD_CALL:
-        str = wxString::Format( "MCALL" );
+        str = QString::asprintf( "MCALL" );
         break;
 
     case TR_OP_FUNC_CALL:
-        str = wxString::Format( "FCALL" );
+        str = QString::asprintf( "FCALL" );
         break;
 
     default:
-        str = wxString::Format( "%s %d", formatOpName( m_op ).c_str(), m_op );
+        str = QString::asprintf( "%s %d", formatOpName( m_op ).toUtf8().data(), m_op );
         break;
     }
 
@@ -195,9 +171,9 @@ UCODE::~UCODE()
 }
 
 
-wxString UCODE::Dump() const
+QString UCODE::Dump() const
 {
-    wxString rv;
+    QString rv;
 
     for( UOP* op : m_ucode )
     {
@@ -209,16 +185,16 @@ wxString UCODE::Dump() const
 };
 
 
-wxString TOKENIZER::GetString()
+QString TOKENIZER::GetString()
 {
-    wxString rv;
+    QString rv;
 
     while( m_pos < m_str.length() && m_str[ m_pos ] != '\'' )
     {
         if( m_str[ m_pos ] == '\\' && m_pos + 1 < m_str.length() && m_str[ m_pos + 1 ] == '\'' )
             m_pos++;
 
-        rv.append( 1, m_str[ m_pos++ ] );
+        rv.append( m_str[ m_pos++ ] );
     }
 
     m_pos++;
@@ -227,14 +203,14 @@ wxString TOKENIZER::GetString()
 }
 
 
-wxString TOKENIZER::GetChars( const std::function<bool( wxUniChar )>& cond ) const
+QString TOKENIZER::GetChars( const std::function<bool( QChar )>& cond ) const
 {
-    wxString rv;
+    QString rv;
     size_t      p = m_pos;
 
     while( p < m_str.length() && cond( m_str[p] ) )
     {
-        rv.append( 1, m_str[p] );
+        rv.append( m_str[p] );
         p++;
     }
 
@@ -242,15 +218,15 @@ wxString TOKENIZER::GetChars( const std::function<bool( wxUniChar )>& cond ) con
 }
 
 
-bool TOKENIZER::MatchAhead( const wxString& match,
-                            const std::function<bool( wxUniChar )>& stopCond ) const
+bool TOKENIZER::MatchAhead( const QString& match,
+                            const std::function<bool( QChar )>& stopCond ) const
 {
-    int remaining = (int) m_str.Length() - m_pos;
+    int remaining = (int) m_str.length() - m_pos;
 
     if( remaining < (int) match.length() )
         return false;
 
-    if( m_str.substr( m_pos, match.length() ) == match )
+    if( m_str.mid( m_pos, match.length() ) == match )
         return ( remaining == (int) match.length() || stopCond( m_str[m_pos + match.length()] ) );
 
     return false;
@@ -280,7 +256,6 @@ COMPILER::~COMPILER()
         m_tree = nullptr;
     }
 
-    // Allow explicit call to destructor
     m_parser = nullptr;
 
     Clear();
@@ -289,7 +264,6 @@ COMPILER::~COMPILER()
 
 void COMPILER::Clear()
 {
-    //free( current.token );
     m_tokenizer.Clear();
 
     if( m_tree )
@@ -303,7 +277,7 @@ void COMPILER::Clear()
     for( TREE_NODE* tok : m_gcItems )
         delete tok;
 
-    for( wxString* tok: m_gcStrings )
+    for( QString* tok: m_gcStrings )
         delete tok;
 
     m_gcItems.clear();
@@ -323,10 +297,8 @@ void COMPILER::parseOk()
 }
 
 
-bool COMPILER::Compile( const wxString& aString, UCODE* aCode, CONTEXT* aPreflightContext )
+bool COMPILER::Compile( const QString& aString, UCODE* aCode, CONTEXT* aPreflightContext )
 {
-    // Feed parser token after token until end of input.
-
     newString( aString );
 
     if( m_tree )
@@ -339,9 +311,9 @@ bool COMPILER::Compile( const wxString& aString, UCODE* aCode, CONTEXT* aPreflig
     m_parseFinished = false;
     T_TOKEN tok( defaultToken );
 
-    libeval_dbg(0, "str: '%s' empty: %d\n", aString.c_str(), !!aString.empty() );
+    libeval_dbg(0, "str: '%s' empty: %d\n", aString.toUtf8().data(), !!aString.isEmpty() );
 
-    if( aString.empty() )
+    if( aString.isEmpty() )
     {
         m_parseFinished = true;
         return generateUCode( aCode, aPreflightContext );
@@ -364,7 +336,6 @@ bool COMPILER::Compile( const wxString& aString, UCODE* aCode, CONTEXT* aPreflig
 
         if( m_parseFinished || tok.token == G_ENDS )
         {
-            // Reset parser by passing zero as token ID, value is ignored.
             Parse( m_parser, 0, tok, this );
             break;
         }
@@ -374,7 +345,7 @@ bool COMPILER::Compile( const wxString& aString, UCODE* aCode, CONTEXT* aPreflig
 }
 
 
-void COMPILER::newString( const wxString& aString )
+void COMPILER::newString( const QString& aString )
 {
     Clear();
 
@@ -412,7 +383,7 @@ T_TOKEN COMPILER::getToken()
 bool COMPILER::lexString( T_TOKEN& aToken )
 {
     aToken.token = G_STRING;
-    aToken.value.str = new wxString( m_tokenizer.GetString() );
+    aToken.value.str = new QString( m_tokenizer.GetString() );
 
     m_lexerState = LS_DEFAULT;
     return true;
@@ -423,15 +394,15 @@ int COMPILER::resolveUnits()
 {
     int unitId = 0;
 
-    for( const wxString& unitName : m_unitResolver->GetSupportedUnits() )
+    for( const QString& unitName : m_unitResolver->GetSupportedUnits() )
     {
         if( m_tokenizer.MatchAhead( unitName,
-                                    []( int c ) -> bool
+                                    []( QChar c ) -> bool
                                     {
-                                        return !isalnum( c );
+                                        return !c.isLetterOrNumber();
                                     } ) )
         {
-            libeval_dbg(10, "Match unit '%s'\n", unitName.c_str() );
+            libeval_dbg(10, "Match unit '%s'\n", unitName.toUtf8().data() );
             m_tokenizer.NextChar( unitName.length() );
             return unitId;
         }
@@ -446,9 +417,9 @@ int COMPILER::resolveUnits()
 bool COMPILER::lexDefault( T_TOKEN& aToken )
 {
     T_TOKEN  retval;
-    wxString current;
+    QString current;
     int      convertFrom;
-    wxString msg;
+    QString msg;
 
     retval.value.str = nullptr;
     retval.value.num = 0.0;
@@ -462,33 +433,31 @@ bool COMPILER::lexDefault( T_TOKEN& aToken )
     }
 
     auto isDecimalSeparator =
-            [&]( wxUniChar ch ) -> bool
+            [&]( QChar ch ) -> bool
             {
                 return ( ch == m_localeDecimalSeparator || ch == '.' || ch == ',' );
             };
 
-    // Lambda: get value as string, store into clToken.token and update current index.
     auto extractNumber =
             [&]()
             {
                 bool      haveSeparator = false;
-                wxUniChar ch = m_tokenizer.GetChar();
+                QChar ch = m_tokenizer.GetChar();
 
                 do
                 {
                     if( isDecimalSeparator( ch ) && haveSeparator )
                         break;
 
-                    current.append( 1, ch );
+                    current.append( ch );
 
                     if( isDecimalSeparator( ch ) )
                         haveSeparator = true;
 
                     m_tokenizer.NextChar();
                     ch = m_tokenizer.GetChar();
-                } while( isdigit( ch ) || isDecimalSeparator( ch ) );
+                } while( ch.isDigit() || isDecimalSeparator( ch ) );
 
-                // Ensure that the systems decimal separator is used
                 for( int i = current.length(); i; i-- )
                 {
                     if( isDecimalSeparator( current[i - 1] ) )
@@ -496,9 +465,8 @@ bool COMPILER::lexDefault( T_TOKEN& aToken )
                 }
             };
 
-    int ch;
+    QChar ch;
 
-    // Start processing of first/next token: Remove whitespace
     for( ;; )
     {
         ch = m_tokenizer.GetChar();
@@ -509,77 +477,69 @@ bool COMPILER::lexDefault( T_TOKEN& aToken )
             break;
     }
 
-    libeval_dbg(10, "LEX ch '%c' pos %lu\n", ch, (unsigned long)m_tokenizer.GetPos() );
+    libeval_dbg(10, "LEX ch '%c' pos %lu\n", ch.toLatin1(), (unsigned long)m_tokenizer.GetPos() );
 
     if( ch == 0 )
     {
         /* End of input */
     }
-    else if( isdigit( ch ) )
+    else if( ch.isDigit() )
     {
-        // VALUE
         extractNumber();
         retval.token = G_VALUE;
-        retval.value.str = new wxString( current );
+        retval.value.str = new QString( current );
     }
     else if( ( convertFrom = resolveUnits() ) >= 0 )
     {
-        // UNIT
-        // Units are appended to a VALUE.
-        // Determine factor to default unit if unit for value is given.
-        // Example: Default is mm, unit is inch: factor is 25.4
-        // The factor is assigned to the terminal UNIT. The actual
-        // conversion is done within a parser action.
         retval.token            = G_UNIT;
         retval.value.idx        = convertFrom;
     }
-    else if( ch == '\'' ) // string literal
+    else if( ch == '\'' )
     {
         m_lexerState = LS_STRING;
         m_tokenizer.NextChar();
         return false;
     }
-    else if( isalpha( ch ) || ch == '_' )
+    else if( ch.isLetter() || ch == '_' )
     {
-        current = m_tokenizer.GetChars( []( int c ) -> bool { return isalnum( c ) || c == '_'; } );
+        current = m_tokenizer.GetChars( []( QChar c ) -> bool { return c.isLetterOrNumber() || c == '_'; } );
         retval.token = G_IDENTIFIER;
-        retval.value.str = new wxString( current );
+        retval.value.str = new QString( current );
         m_tokenizer.NextChar( current.length() );
     }
-    else if( m_tokenizer.MatchAhead( "==", []( int c ) -> bool { return c != '='; } ) )
+    else if( m_tokenizer.MatchAhead( "==", []( QChar c ) -> bool { return c != '='; } ) )
     {
         retval.token = G_EQUAL;
         m_tokenizer.NextChar( 2 );
     }
-    else if( m_tokenizer.MatchAhead( "!=", []( int c ) -> bool { return c != '='; } ) )
+    else if( m_tokenizer.MatchAhead( "!=", []( QChar c ) -> bool { return c != '='; } ) )
     {
         retval.token = G_NOT_EQUAL;
         m_tokenizer.NextChar( 2 );
     }
-    else if( m_tokenizer.MatchAhead( "<=", []( int c ) -> bool { return c != '='; } ) )
+    else if( m_tokenizer.MatchAhead( "<=", []( QChar c ) -> bool { return c != '='; } ) )
     {
         retval.token = G_LESS_EQUAL_THAN;
         m_tokenizer.NextChar( 2 );
     }
-    else if( m_tokenizer.MatchAhead( ">=", []( int c ) -> bool { return c != '='; } ) )
+    else if( m_tokenizer.MatchAhead( ">=", []( QChar c ) -> bool { return c != '='; } ) )
     {
         retval.token = G_GREATER_EQUAL_THAN;
         m_tokenizer.NextChar( 2 );
     }
-    else if( m_tokenizer.MatchAhead( "&&", []( int c ) -> bool { return c != '&'; } ) )
+    else if( m_tokenizer.MatchAhead( "&&", []( QChar c ) -> bool { return c != '&'; } ) )
     {
         retval.token = G_BOOL_AND;
         m_tokenizer.NextChar( 2 );
     }
-    else if( m_tokenizer.MatchAhead( "||", []( int c ) -> bool { return c != '|'; } ) )
+    else if( m_tokenizer.MatchAhead( "||", []( QChar c ) -> bool { return c != '|'; } ) )
     {
         retval.token = G_BOOL_OR;
         m_tokenizer.NextChar( 2 );
     }
     else
     {
-        // Single char tokens
-        switch( ch )
+        switch( ch.toLatin1() )
         {
         case '+': retval.token = G_PLUS;         break;
         case '!': retval.token = G_BOOL_NOT;     break;
@@ -595,7 +555,7 @@ bool COMPILER::lexDefault( T_TOKEN& aToken )
         case ',': retval.token = G_COMMA;        break;
 
         default:
-            reportError( CST_PARSE, wxString::Format( _( "Unrecognized character '%c'" ), (char) ch ) );
+            reportError( CST_PARSE, QString::asprintf( "Unrecognized character '%c'", (char) ch.toLatin1() ) );
             break;
         }
 
@@ -607,20 +567,20 @@ bool COMPILER::lexDefault( T_TOKEN& aToken )
 }
 
 
-const wxString formatNode( TREE_NODE* node )
+const QString formatNode( TREE_NODE* node )
 {
-    return node->value.str ? *(node->value.str) : wxString( wxEmptyString );
+    return node->value.str ? *(node->value.str) : QString();
 }
 
 
-void dumpNode( wxString& buf, TREE_NODE* tok, int depth = 0 )
+void dumpNode( QString& buf, TREE_NODE* tok, int depth = 0 )
 {
-    wxString str;
+    QString str;
 
     if( !tok )
         return;
 
-    str.Printf( "\n[%p L0:%-20p L1:%-20p] ", tok, tok->leaf[0], tok->leaf[1] );
+    str = QString::asprintf( "\n[%p L0:%-20p L1:%-20p] ", tok, tok->leaf[0], tok->leaf[1] );
     buf += str;
 
     for( int i = 0; i < 2 * depth; i++ )
@@ -679,21 +639,21 @@ void dumpNode( wxString& buf, TREE_NODE* tok, int depth = 0 )
         break;
 
     case TR_UNIT:
-        str.Printf( "UNIT: %d ", tok->value.idx );
+        str = QString::asprintf( "UNIT: %d ", tok->value.idx );
         buf += str;
         break;
     }
 }
 
 
-void CONTEXT::ReportError( const wxString& aErrorMsg )
+void CONTEXT::ReportError( const QString& aErrorMsg )
 {
     if( m_errorCallback )
         m_errorCallback( aErrorMsg, -1 );
 }
 
 
-void COMPILER::reportError( COMPILATION_STAGE stage, const wxString& aErrorMsg, int aPos )
+void COMPILER::reportError( COMPILATION_STAGE stage, const QString& aErrorMsg, int aPos )
 {
     if( aPos == -1 )
         aPos = m_sourcePos;
@@ -736,7 +696,7 @@ void TREE_NODE::SetUop( int aOp, double aValue )
 }
 
 
-void TREE_NODE::SetUop( int aOp, const wxString& aValue, bool aStringIsWildcard )
+void TREE_NODE::SetUop( int aOp, const QString& aValue, bool aStringIsWildcard )
 {
     delete uop;
 
@@ -765,8 +725,6 @@ static void prepareTree( LIBEVAL::TREE_NODE *node )
 {
     node->isVisited = false;
 
-    // fixme: for reasons I don't understand the lemon parser isn't initializing the
-    // leaf node pointers of function name nodes.  -JY
     if( node->op == TR_OP_FUNC_CALL && node->leaf[0] )
     {
         node->leaf[0]->leaf[0] = nullptr;
@@ -810,7 +768,7 @@ static std::vector<TREE_NODE*> squashParamList( TREE_NODE* root )
     std::reverse( args.begin(), args.end() );
 
     for( size_t i = 0; i < args.size(); i++ )
-        libeval_dbg( 10, "squash arg%d: %s\n", int( i ), formatNode( args[i] ) );
+        libeval_dbg( 10, "squash arg%d: %s\n", int( i ), formatNode( args[i] ).toUtf8().data() );
 
     return args;
 }
@@ -819,15 +777,14 @@ static std::vector<TREE_NODE*> squashParamList( TREE_NODE* root )
 bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
 {
     std::vector<TREE_NODE*> stack;
-    wxString                msg;
+    QString                msg;
     int                     numericValueCount = 0;
-    wxString                missingUnitsMsg;
+    QString                missingUnitsMsg;
     int                     missingUnitsSrcPos = 0;
 
     if( !m_tree )
     {
         std::unique_ptr<VALUE> val = std::make_unique<VALUE>( 1.0 );
-        // Empty expression returns true
         aCode->AddOp( new UOP( TR_UOP_PUSH_VALUE, std::move(val) ) );
         return true;
     }
@@ -836,10 +793,10 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
 
     stack.push_back( m_tree );
 
-    wxString dump;
+    QString dump;
 
     dumpNode( dump, m_tree, 0 );
-    libeval_dbg( 3, "Tree dump:\n%s\n\n", (const char*) dump.c_str() );
+    libeval_dbg( 3, "Tree dump:\n%s\n\n", dump.toUtf8().data() );
 
     while( !stack.empty() )
     {
@@ -847,22 +804,17 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
 
         libeval_dbg( 4, "process node %p [op %d] [stack %lu]\n", node, node->op, (unsigned long)stack.size() );
 
-        // process terminal nodes first
         switch( node->op )
         {
         case TR_OP_FUNC_CALL:
-            // Function call's uop was generated inside TR_STRUCT_REF
             if( !node->uop )
-                reportError( CST_CODEGEN,  _( "Unknown parent of function parameters" ), node->srcPos );
+                reportError( CST_CODEGEN,  "Unknown parent of function parameters", node->srcPos );
 
             node->isTerminal = true;
             break;
 
         case TR_STRUCT_REF:
         {
-            // leaf[0]: object
-            // leaf[1]: field (TR_IDENTIFIER) or TR_OP_FUNC_CALL
-
             if( node->leaf[0]->op != TR_IDENTIFIER )
             {
                 int pos = node->leaf[0]->srcPos;
@@ -870,7 +822,7 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
                 if( node->leaf[0]->value.str )
                     pos -= static_cast<int>( formatNode( node->leaf[0] ).length() );
 
-                reportError( CST_CODEGEN,  _( "Unknown parent of property" ), pos );
+                reportError( CST_CODEGEN,  "Unknown parent of property", pos );
 
                 node->leaf[0]->isVisited = true;
                 node->leaf[1]->isVisited = true;
@@ -884,21 +836,18 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
             {
                 case TR_IDENTIFIER:
                 {
-                    // leaf[0]: object
-                    // leaf[1]: field
-
-                    wxString itemName = formatNode( node->leaf[0] );
-                    wxString propName = formatNode( node->leaf[1] );
+                    QString itemName = formatNode( node->leaf[0] );
+                    QString propName = formatNode( node->leaf[1] );
                     std::unique_ptr<VAR_REF> vref = aCode->CreateVarRef( itemName, propName );
 
                     if( !vref )
                     {
-                        msg.Printf( _( "Unrecognized item '%s'" ), itemName );
+                        msg = QString::asprintf( "Unrecognized item '%s'", itemName.toUtf8().data() );
                         reportError( CST_CODEGEN, msg, node->leaf[0]->srcPos - (int) itemName.length() );
                     }
                     else if( vref->GetType() == VT_PARSE_ERROR )
                     {
-                        msg.Printf( _( "Unrecognized property '%s'" ), propName );
+                        msg = QString::asprintf( "Unrecognized property '%s'", propName.toUtf8().data() );
                         reportError( CST_CODEGEN, msg, node->leaf[1]->srcPos - (int) propName.length() );
                     }
 
@@ -911,36 +860,29 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
                 }
                 case TR_OP_FUNC_CALL:
                 {
-                    // leaf[0]: object
-                    // leaf[1]: TR_OP_FUNC_CALL
-                    //    leaf[0]: function name
-                    //    leaf[1]: parameter
-
-                    wxString                 itemName = formatNode( node->leaf[0] );
+                    QString                 itemName = formatNode( node->leaf[0] );
                     std::unique_ptr<VAR_REF> vref = aCode->CreateVarRef( itemName, "" );
 
                     if( !vref )
                     {
-                        msg.Printf( _( "Unrecognized item '%s'" ), itemName );
+                        msg = QString::asprintf( "Unrecognized item '%s'", itemName.toUtf8().data() );
                         reportError( CST_CODEGEN, msg, node->leaf[0]->srcPos - (int) itemName.length() );
                     }
 
-                    wxString functionName = formatNode( node->leaf[1]->leaf[0] );
+                    QString functionName = formatNode( node->leaf[1]->leaf[0] );
                     auto  func = aCode->CreateFuncCall( functionName );
                     std::vector<TREE_NODE*> params = squashParamList( node->leaf[1]->leaf[1] );
 
-                    libeval_dbg( 10, "emit func call: %s\n", functionName );
+                    libeval_dbg( 10, "emit func call: %s\n", functionName.toUtf8().data() );
 
                     if( !func )
                     {
-                        msg.Printf( _( "Unrecognized function '%s'" ), functionName );
+                        msg = QString::asprintf( "Unrecognized function '%s'", functionName.toUtf8().data() );
                         reportError( CST_CODEGEN, msg, node->leaf[0]->srcPos + 1 );
                     }
 
                     if( func )
                     {
-                        // Preflight the function call
-
                         for( TREE_NODE* pnode : params )
                         {
                             VALUE*   param = aPreflightContext->AllocValue();
@@ -949,7 +891,7 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
                         }
 
                         aPreflightContext->SetErrorCallback(
-                                [&]( const wxString& aMessage, int aOffset )
+                                [&]( const QString& aMessage, int aOffset )
                                 {
                                     size_t loc = node->leaf[1]->leaf[1]->srcPos;
                                     reportError( CST_CODEGEN, aMessage, (int) loc - 1 );
@@ -958,7 +900,7 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
                         try
                         {
                             func( aPreflightContext, vref.get() );
-                            aPreflightContext->Pop();           // return value
+                            aPreflightContext->Pop();
                         }
                         catch( ... )
                         {
@@ -970,9 +912,6 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
                     node->leaf[1]->leaf[0]->isVisited = true;
                     node->leaf[1]->leaf[1]->isVisited = true;
 
-                    // Our non-terminal-node stacking algorithm can't handle doubly-nested
-                    // structures so we need to pop a level by replacing the TR_STRUCT_REF with
-                    // a TR_OP_FUNC_CALL and its function parameter
                     stack.pop_back();
                     stack.push_back( node->leaf[1] );
 
@@ -985,20 +924,17 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
                 }
 
                 default:
-                    // leaf[0]: object
-                    // leaf[1]: malformed syntax
-
-                    wxString itemName = formatNode( node->leaf[0] );
-                    wxString propName = formatNode( node->leaf[1] );
+                    QString itemName = formatNode( node->leaf[0] );
+                    QString propName = formatNode( node->leaf[1] );
                     std::unique_ptr<VAR_REF> vref = aCode->CreateVarRef( itemName, propName );
 
                     if( !vref )
                     {
-                        msg.Printf( _( "Unrecognized item '%s'" ), itemName );
+                        msg = QString::asprintf( "Unrecognized item '%s'", itemName.toUtf8().data() );
                         reportError( CST_CODEGEN, msg, node->leaf[0]->srcPos - (int) itemName.length() );
                     }
 
-                    msg.Printf( _( "Unrecognized property '%s'" ), propName );
+                    msg = QString::asprintf( "Unrecognized property '%s'", propName.toUtf8().data() );
                     reportError( CST_CODEGEN, msg, node->leaf[0]->srcPos + 1 );
 
                     node->leaf[0]->isVisited = true;
@@ -1025,7 +961,7 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
             {
                 if( m_unitResolver->GetSupportedUnits().empty() )
                 {
-                    msg.Printf( _( "Unexpected units for '%s'" ), formatNode( node ) );
+                    msg = QString::asprintf( "Unexpected units for '%s'", formatNode( node ).toUtf8().data() );
                     reportError( CST_CODEGEN, msg, node->srcPos );
                 }
 
@@ -1035,11 +971,11 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
             }
             else
             {
-                if( !m_unitResolver->GetSupportedUnitsMessage().empty() )
+                if( !m_unitResolver->GetSupportedUnitsMessage().isEmpty() )
                 {
-                    missingUnitsMsg.Printf( _( "Missing units for '%s'| (%s)" ),
-                                            formatNode( node ),
-                                            m_unitResolver->GetSupportedUnitsMessage() );
+                    missingUnitsMsg = QString::asprintf( "Missing units for '%s'| (%s)",
+                                            formatNode( node ).toUtf8().data(),
+                                            m_unitResolver->GetSupportedUnitsMessage().toUtf8().data() );
                     missingUnitsSrcPos = node->srcPos;
                 }
 
@@ -1054,8 +990,8 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
 
         case TR_STRING:
         {
-            wxString str = formatNode( node );
-            bool isWildcard = str.Contains("?") || str.Contains("*");
+            QString str = formatNode( node );
+            bool isWildcard = str.contains("?") || str.contains("*");
             node->SetUop( TR_UOP_PUSH_VALUE, str, isWildcard );
             node->isTerminal = true;
             break;
@@ -1067,7 +1003,7 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
 
             if( !vref )
             {
-                msg.Printf( _( "Unrecognized item '%s'" ), formatNode( node ) );
+                msg = QString::asprintf( "Unrecognized item '%s'", formatNode( node ).toUtf8().data() );
                 reportError( CST_CODEGEN, msg, node->srcPos - (int) formatNode( node ).length() );
             }
 
@@ -1111,18 +1047,10 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
         stack.pop_back();
     }
 
-    // Report the common error condition of a single numeric value with no units (which will result in
-    // nanometers, and rarely leads to anything useful).
-    // Reporting missing units with multiple numeric values is far more complicated as we have to
-    // separate comparison operators from multiplicative operators from additive operators.  Consider:
-    //   2 * 1.5mm
-    //   2mm + 105um
-    //   2mm > 20um
-    //   (2mm + 1.5mm) * 3
-    if( !missingUnitsMsg.IsEmpty() && numericValueCount == 1 )
+    if( !missingUnitsMsg.isEmpty() && numericValueCount == 1 )
         reportError( CST_CODEGEN, missingUnitsMsg, missingUnitsSrcPos );
 
-    libeval_dbg(2,"dump: \n%s\n", aCode->Dump().c_str() );
+    libeval_dbg(2,"dump: \n%s\n", aCode->Dump().toUtf8().data() );
 
     return true;
 }
@@ -1169,15 +1097,15 @@ void UOP::Exec( CONTEXT* ctx )
         {
             if( arg1 && arg1->GetType() == VT_STRING && arg2 && arg2->GetType() == VT_NUMERIC )
             {
-                ctx->ReportError( wxString::Format( _( "Type mismatch between '%s' and %lf" ),
-                                                    arg1->AsString(),
+                ctx->ReportError( QString::asprintf( "Type mismatch between '%s' and %lf",
+                                                    arg1->AsString().toUtf8().data(),
                                                     arg2->AsDouble() ) );
             }
             else if( arg1 && arg1->GetType() == VT_NUMERIC && arg2 && arg2->GetType() == VT_STRING )
             {
-                ctx->ReportError( wxString::Format( _( "Type mismatch between %lf and '%s'" ),
+                ctx->ReportError( QString::asprintf( "Type mismatch between %lf and '%s'",
                                                     arg1->AsDouble(),
-                                                    arg2->AsString() ) );
+                                                    arg2->AsString().toUtf8().data() ) );
             }
         }
 
@@ -1283,7 +1211,6 @@ VALUE* UCODE::Run( CONTEXT* ctx )
     }
     catch(...)
     {
-        // rules which fail outright should not be fired
         std::unique_ptr<VALUE> temp_false = std::make_unique<VALUE>( 0 );
         return ctx->StoreValue( temp_false.get() );
     }
@@ -1294,13 +1221,8 @@ VALUE* UCODE::Run( CONTEXT* ctx )
     }
     else
     {
-        // If stack is corrupted after execution it suggests a problem with the compiler, not
-        // the rule....
+        Q_ASSERT( ctx->SP() == 1 );
 
-        // do not use "assert"; it crashes outright on OSX
-        wxASSERT( ctx->SP() == 1 );
-
-        // non-well-formed rules should not be fired on a release build
         std::unique_ptr<VALUE> temp_false = std::make_unique<VALUE>( 0 );
         return ctx->StoreValue( temp_false.get() );
     }

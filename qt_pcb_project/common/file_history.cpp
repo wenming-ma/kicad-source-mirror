@@ -1,44 +1,23 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 Ian McInerney <Ian.S.McInerney@ieee.org>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <file_history.h>
 #include <id.h>
 #include <settings/app_settings.h>
 #include <tool/action_menu.h>
 #include <tool/selection_conditions.h>
-#include <wx/menu.h>
+#include <QMenu>
+#include <QString>
+#include <QList>
 
 #include <functional>
 using namespace std::placeholders;
 
 
-FILE_HISTORY::FILE_HISTORY( size_t aMaxFiles, int aBaseFileId, int aClearId, wxString aClearText )
-        : wxFileHistory( std::min( aMaxFiles, (size_t) MAX_FILE_HISTORY_SIZE ) ),
+FILE_HISTORY::FILE_HISTORY( size_t aMaxFiles, int aBaseFileId, int aClearId, QString aClearText )
+        : m_maxFiles( std::min( aMaxFiles, (size_t) MAX_FILE_HISTORY_SIZE ) ),
+          m_baseFileId( aBaseFileId ),
           m_clearId( aClearId ),
           m_clearText( aClearText )
 {
-    SetBaseId( aBaseFileId );
 }
 
 
@@ -55,7 +34,7 @@ void FILE_HISTORY::Load( const APP_SETTINGS_BASE& aSettings )
 }
 
 
-void FILE_HISTORY::Load( const std::vector<wxString>& aList )
+void FILE_HISTORY::Load( const std::vector<QString>& aList )
 {
     ClearFileHistory();
 
@@ -68,12 +47,12 @@ void FILE_HISTORY::Save( APP_SETTINGS_BASE& aSettings )
 {
     aSettings.m_System.file_history.clear();
 
-    for( const wxString& filename : m_fileHistory )
+    for( const QString& filename : m_fileHistory )
         aSettings.m_System.file_history.emplace_back( filename );
 }
 
 
-void FILE_HISTORY::Save( std::vector<wxString>* aList )
+void FILE_HISTORY::Save( std::vector<QString>* aList )
 {
     aList->clear();
 
@@ -93,94 +72,147 @@ void FILE_HISTORY::SetMaxFiles( size_t aMaxFiles )
 }
 
 
-void FILE_HISTORY::AddFileToHistory( const wxString &aFile )
+void FILE_HISTORY::AddFileToHistory( const QString &aFile )
 {
     // Iterate over each menu removing our custom items
-    for( wxList::compatibility_iterator node = m_fileMenus.GetFirst();
-            node; node = node->GetNext() )
+    for( QMenu* menu : m_fileMenus )
     {
-        wxMenu* menu = static_cast<wxMenu*>( node->GetData() );
         doRemoveClearitem( menu );
     }
 
-    // Let wx add the items in the file history
-    wxFileHistory::AddFileToHistory( aFile );
+    // Remove the file from history if it already exists
+    m_fileHistory.removeAll( aFile );
+    
+    // Add the file to the beginning of the list
+    m_fileHistory.prepend( aFile );
+    
+    // Remove excess files if we exceed the maximum
+    while( m_fileHistory.size() > (int)m_maxFiles )
+        m_fileHistory.removeLast();
 
     // Add our custom items back
-    for( wxList::compatibility_iterator node = m_fileMenus.GetFirst();
-            node; node = node->GetNext() )
+    for( QMenu* menu : m_fileMenus )
     {
-        wxMenu* menu = static_cast<wxMenu*>( node->GetData() );
         doAddClearItem( menu );
     }
 }
 
 
-void FILE_HISTORY::AddFilesToMenu( wxMenu* aMenu )
+void FILE_HISTORY::AddFilesToMenu( QMenu* aMenu )
 {
     doRemoveClearitem( aMenu );
-    wxFileHistory::AddFilesToMenu( aMenu );
+    
+    // Add file history items
+    for( int i = 0; i < m_fileHistory.size(); ++i )
+    {
+        QString menuText = QString( "&%1 %2" ).arg( i + 1 ).arg( m_fileHistory[i] );
+        QAction* action = aMenu->addAction( menuText );
+        action->setData( m_baseFileId + i );
+    }
+    
     doAddClearItem( aMenu );
 }
 
 
-void FILE_HISTORY::doRemoveClearitem( wxMenu* aMenu )
+void FILE_HISTORY::doRemoveClearitem( QMenu* aMenu )
 {
-    size_t      itemPos;
-    wxMenuItem* clearItem = aMenu->FindChildItem( m_clearId, &itemPos );
-
-    // Remove the separator if there is one
-    if( clearItem && itemPos > 1 )
+    QList<QAction*> actions = aMenu->actions();
+    
+    // Remove clear item and empty placeholder
+    for( QAction* action : actions )
     {
-        wxMenuItem* sepItem = aMenu->FindItemByPosition( itemPos - 1 );
-
-        if( sepItem )
-            aMenu->Destroy( sepItem );
+        if( action->data().toInt() == m_clearId || 
+            action->data().toInt() == ID_FILE_LIST_EMPTY )
+        {
+            aMenu->removeAction( action );
+        }
+        // Remove separators before clear item
+        else if( action->isSeparator() && 
+                 !actions.isEmpty() && 
+                 actions.indexOf(action) > 0 )
+        {
+            int nextIdx = actions.indexOf(action) + 1;
+            if( nextIdx < actions.size() )
+            {
+                QAction* nextAction = actions[nextIdx];
+                if( nextAction->data().toInt() == m_clearId )
+                {
+                    aMenu->removeAction( action );
+                }
+            }
+        }
     }
-
-    // Remove the clear and placeholder menu items
-    if( clearItem )
-        aMenu->Destroy( m_clearId );
-
-    if( aMenu->FindChildItem( ID_FILE_LIST_EMPTY ) )
-        aMenu->Destroy( ID_FILE_LIST_EMPTY );
 }
 
 
-void FILE_HISTORY::doAddClearItem( wxMenu* aMenu )
+void FILE_HISTORY::doAddClearItem( QMenu* aMenu )
 {
     if( GetCount() == 0 )
     {
         // If the history is empty, we create an item to say there are no files
-        wxMenuItem* item = new wxMenuItem( nullptr, ID_FILE_LIST_EMPTY, _( "No Files" ) );
-
-        aMenu->Append( item );
-        aMenu->Enable( item->GetId(), false );
+        QAction* action = aMenu->addAction( "No Files" );
+        action->setData( ID_FILE_LIST_EMPTY );
+        action->setEnabled( false );
     }
 
-    wxMenuItem* clearItem = new wxMenuItem( nullptr, m_clearId, m_clearText );
-
-    aMenu->AppendSeparator();
-    aMenu->Append( clearItem );
+    aMenu->addSeparator();
+    QAction* clearAction = aMenu->addAction( m_clearText );
+    clearAction->setData( m_clearId );
 }
 
 
-void FILE_HISTORY::UpdateClearText( wxMenu* aMenu, wxString aClearText )
+void FILE_HISTORY::UpdateClearText( QMenu* aMenu, QString aClearText )
 {
-    size_t      itemPos;
-    wxMenuItem* clearItem = aMenu->FindChildItem( m_clearId, &itemPos );
-
-    if( clearItem && itemPos > 1 )      // clearItem is the last menu, after a separator
+    QList<QAction*> actions = aMenu->actions();
+    
+    for( QAction* action : actions )
     {
-        clearItem->SetItemLabel( aClearText );
+        if( action->data().toInt() == m_clearId )
+        {
+            action->setText( aClearText );
+            break;
+        }
     }
 }
 
 
 void FILE_HISTORY::ClearFileHistory()
 {
-    while( GetCount() > 0 )
-        RemoveFileFromHistory( 0 );
+    m_fileHistory.clear();
+}
+
+
+size_t FILE_HISTORY::GetCount() const
+{
+    return m_fileHistory.size();
+}
+
+
+QString FILE_HISTORY::GetHistoryFile( size_t index ) const
+{
+    if( index < m_fileHistory.size() )
+        return m_fileHistory[index];
+    return QString();
+}
+
+
+void FILE_HISTORY::RemoveFileFromHistory( size_t index )
+{
+    if( index < m_fileHistory.size() )
+        m_fileHistory.removeAt( index );
+}
+
+
+void FILE_HISTORY::AddFileMenu( QMenu* aMenu )
+{
+    if( !m_fileMenus.contains( aMenu ) )
+        m_fileMenus.append( aMenu );
+}
+
+
+void FILE_HISTORY::RemoveFileMenu( QMenu* aMenu )
+{
+    m_fileMenus.removeAll( aMenu );
 }
 
 

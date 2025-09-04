@@ -1,53 +1,21 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef STRING_UTILS_H
 #define STRING_UTILS_H
 
 #include <string>
 #include <vector>
-#include <wx/string.h>
-#include <wx/filename.h>
+#include <QString>
+#include <QStringList>
 
 #include <kicommon.h>
 
-void ConvertMarkdown2Html( const wxString& aMarkdownInput, wxString& aHtmlOutput );
+void ConvertMarkdown2Html( const QString& aMarkdownInput, QString& aHtmlOutput );
 
-/**
- * Convert the old `~...~` overbar notation to the new `~{...}` one.
- */
-KICOMMON_API wxString ConvertToNewOverbarNotation( const wxString& aOldStr );
+KICOMMON_API QString ConvertToNewOverbarNotation( const QString& aOldStr );
 
-/**
- * Convert curly quotes and em/en dashes to straight quotes and dashes.
- *
- * @return true if any characters required conversion.
- */
-KICOMMON_API bool ConvertSmartQuotesAndDashes( wxString* aString );
+KICOMMON_API bool ConvertSmartQuotesAndDashes( QString* aString );
 
-/**
- * Escape/Unescape routines to safely encode reserved-characters in various contexts.
- */
 enum ESCAPE_CONTEXT
 {
     CTX_NETNAME,
@@ -59,233 +27,86 @@ enum ESCAPE_CONTEXT
     CTX_LINE,
     CTX_CSV,
     CTX_FILENAME,
-    CTX_NO_SPACE        // to replace spaces in names that do not accept spaces
+    CTX_NO_SPACE
 };
 
-/**
- * The Escape/Unescape routines use HTML-entity-reference-style encoding to handle
- * characters which are:
- *   (a) not legal in filenames
- *   (b) used as control characters in LIB_IDs
- *   (c) used to delineate hierarchical paths
- */
-KICOMMON_API wxString EscapeString( const wxString& aSource, ESCAPE_CONTEXT aContext );
+KICOMMON_API QString EscapeString( const QString& aSource, ESCAPE_CONTEXT aContext );
 
-KICOMMON_API wxString UnescapeString( const wxString& aSource );
+KICOMMON_API QString UnescapeString( const QString& aSource );
 
-/**
- * Remove markup (such as overbar or subscript) that we can't render to menu items.
- */
-KICOMMON_API wxString PrettyPrintForMenu( const wxString& aString );
+KICOMMON_API QString PrettyPrintForMenu( const QString& aString );
 
-/**
- * Capitalize the first letter in each word.
- */
-KICOMMON_API wxString TitleCaps( const wxString& aString );
+KICOMMON_API QString TitleCaps( const QString& aString );
 
-/**
- * Copy bytes from @a aSource delimited string segment to @a aDest buffer.
- *
- * The extracted string will be null terminated even if truncation is necessary
- * because aDestSize was not large enough.
- *
- * @param aDest is the destination byte buffer.
- * @param aSource is the source bytes as a C string.
- * @param aDestSize is the size of the destination byte buffer.
- * @return the number of bytes read from source, which may be more than the number copied,
- *         due to escaping of double quotes and the escape byte itself.
- * @deprecated should use the one which fetches a wxString, below.
- */
 KICOMMON_API int ReadDelimitedText( char* aDest, const char* aSource, int aDestSize );
 
-/**
- * Copy bytes from @a aSource delimited string segment to @a aDest wxString.
- *
- * @param aDest is the destination wxString.
- * @param aSource is the source C string holding utf8 encoded bytes.
- * @return the number of bytes read from source, which may be more than the number copied,
- *         due to escaping of double quotes and the escape byte itself.
- */
-KICOMMON_API int ReadDelimitedText( wxString* aDest, const char* aSource );
+KICOMMON_API int ReadDelimitedText( QString* aDest, const char* aSource );
 
-/**
- * Return an 8 bit UTF8 string given aString in Unicode form.
- *
- * Any double quoted or back slashes are prefixed with a '\\' byte and the form
- * of this UTF8 byte string is compatible with function ReadDelimitedText().
- *
- * @param aString is the input string to convert.
- * @return the escaped input text, without the wrapping double quotes.
- */
-KICOMMON_API std::string EscapedUTF8( const wxString& aString );
+KICOMMON_API std::string EscapedUTF8( const QString& aString );
 
-/**
- * Return a new wxString escaped for embedding in HTML.
- */
-KICOMMON_API wxString EscapeHTML( const wxString& aString );
+KICOMMON_API QString EscapeHTML( const QString& aString );
 
-/**
- * Return a new wxString unescaped from HTML format.
- */
-KICOMMON_API wxString UnescapeHTML( const wxString& aString );
+KICOMMON_API QString UnescapeHTML( const QString& aString );
 
-/**
- * Removes HTML tags from a string.
- *
- * Do not use for filtering potentially malicious inputs and rendering as HTML
- * without escaping.
- */
-KICOMMON_API wxString RemoveHTMLTags( const wxString& aInput );
+KICOMMON_API QString RemoveHTMLTags( const QString& aInput );
 
-/**
- * Wraps links in HTML <a href=""></a> tags.
- */
-KICOMMON_API wxString LinkifyHTML( wxString aStr );
+KICOMMON_API QString LinkifyHTML( QString aStr );
 
-/**
- * Performs a URL sniff-test on a string.
- */
-KICOMMON_API bool IsURL( wxString aStr );
+KICOMMON_API bool IsURL( QString aStr );
 
-/**
- * Read one line line from \a aFile.
- *
- * @return a pointer the first useful line read by eliminating blank lines and comments.
- */
 KICOMMON_API char* GetLine( FILE* aFile, char* Line, int* LineNum = nullptr, int SizeLine = 255 );
 
-/**
- * Return true if the string is empty or contains only whitespace.
- */
-KICOMMON_API bool NoPrintableChars( const wxString& aString );
+KICOMMON_API bool NoPrintableChars( const QString& aString );
 
-/**
- * Return the number of printable (ie: non-formatting) chars.  Used to approximate rendered
- * text size when speed is more important than accuracy.
- */
-KICOMMON_API int PrintableCharCount( const wxString& aString );
+KICOMMON_API int PrintableCharCount( const QString& aString );
 
-/**
- * Remove leading and training spaces, tabs and end of line chars in \a text
- *
- * @return a pointer on the first n char in text
- */
 KICOMMON_API char* StrPurge( char* text );
 
-/**
- * @return a string giving the current date and time.
- */
-KICOMMON_API wxString GetISO8601CurrentDateTime();
+KICOMMON_API QString GetISO8601CurrentDateTime();
 
-/**
- * Compare two strings with alphanumerical content.
- *
- * This function is equivalent to strncmp() or strncasecmp() if \a aIgnoreCase is true
- * except that strings containing numbers are compared by their integer value not
- * by their ASCII code.  In other words U10 would be greater than U2.
- *
- * @param aString1 A wxString reference to the reference string.
- * @param aString2 A wxString reference to the comparison string.
- * @param aIgnoreCase Use true to make the comparison case insensitive.
- * @return An integer value of -1 if \a aString1 is less than \a aString2, 0 if
- *         \a aString1 is equal to \a aString2, or 1 if \a aString1 is greater
- *         than \a aString2.
- */
-KICOMMON_API int StrNumCmp( const wxString& aString1, const wxString& aString2,
+KICOMMON_API int StrNumCmp( const QString& aString1, const QString& aString2,
                            bool aIgnoreCase = false );
 
-/**
- * Compare a string against wild card (* and ?) pattern using the usual rules.
- *
- * @return true if pattern matched otherwise false.
- */
-KICOMMON_API bool WildCompareString( const wxString& pattern,
-                        const wxString& string_to_tst,
+KICOMMON_API bool WildCompareString( const QString& pattern,
+                        const QString& string_to_tst,
                         bool            case_sensitive = true );
 
-/**
- * Compare strings like the strcmp function but handle numbers and modifiers within the
- * string text correctly for sorting.  eg. 1mF > 55uF
- *
- * @return -1 if first string is less than the second, 0 if the strings are equal, or
- *          1 if the first string is greater than the second.
- */
-KICOMMON_API int ValueStringCompare( const wxString& strFWord, const wxString& strSWord );
+KICOMMON_API int ValueStringCompare( const QString& strFWord, const QString& strSWord );
 
-/**
- * Break a string into three parts: he alphabetic preamble, the numeric part, and any
- * alphabetic ending.
- *
- * For example C10A is split to C 10 A
- */
-KICOMMON_API int SplitString( const wxString& strToSplit,
-                 wxString* strBeginning,
-                 wxString* strDigits,
-                 wxString* strEnd );
+KICOMMON_API int SplitString( const QString& strToSplit,
+                 QString* strBeginning,
+                 QString* strDigits,
+                 QString* strEnd );
 
-/**
- * Gets the trailing int, if any, from a string.
- *
- * @param aStr the string to check.
- * @return the trailing int or 0 if none found.
- */
-KICOMMON_API int GetTrailingInt( const wxString& aStr );
+KICOMMON_API int GetTrailingInt( const QString& aStr );
 
-/**
- * @return a wxString object containing the illegal file name characters for all platforms.
- */
-KICOMMON_API wxString GetIllegalFileNameWxChars();
+KICOMMON_API QString GetIllegalFileNameQtChars();
 
-/**
- * Checks if a full filename is valid, i.e. does not contains illegal chars
- * path separators are allowed
- * @return true if OK.
- */
-KICOMMON_API bool IsFullFileNameValid( const wxString& aFullFilename );
+KICOMMON_API bool IsFullFileNameValid( const QString& aFullFilename );
 
-/**
- * Checks \a aName for illegal file name characters.
- *
- * The Windows (DOS) file system forbidden characters already include the forbidden file
- * name characters for both Posix and OSX systems.  The characters \/?*|"\<\> are illegal
- * and are replaced with %xx where xx the hexadecimal equivalent of the replaced character.
- * This replacement may not be as elegant as using an underscore ('_') or hyphen ('-') but
- * it guarantees that there will be no naming conflicts when fixing footprint library names.
- * however, if aReplaceChar is given, it will replace the illegal chars
- *
- * @param aName is a point to a std::string object containing the footprint name to verify.
- * @param aReplaceChar (if not 0) is the replacement char.
- * @return true if any characters have been replaced in \a aName.
- */
 KICOMMON_API bool ReplaceIllegalFileNameChars( std::string* aName, int aReplaceChar = 0 );
-KICOMMON_API bool  ReplaceIllegalFileNameChars( wxString& aName, int aReplaceChar = 0 );
+KICOMMON_API bool  ReplaceIllegalFileNameChars( QString& aName, int aReplaceChar = 0 );
 
 
-/**
- * A helper for sorting strings from the rear.
- *
- * Useful for things like 3D model names where they tend to be largely repetitious at the front.
- */
-struct rsort_wxString
+struct rsort_QString
 {
-    bool operator() ( const wxString& strA, const wxString& strB ) const
+    bool operator() ( const QString& strA, const QString& strB ) const
     {
-        wxString::const_reverse_iterator sA = strA.rbegin();
-        wxString::const_reverse_iterator eA = strA.rend();
+        QString::const_reverse_iterator sA = strA.crbegin();
+        QString::const_reverse_iterator eA = strA.crend();
 
-        wxString::const_reverse_iterator sB = strB.rbegin();
-        wxString::const_reverse_iterator eB = strB.rend();
+        QString::const_reverse_iterator sB = strB.crbegin();
+        QString::const_reverse_iterator eB = strB.crend();
 
-        if( strA.empty() )
+        if( strA.isEmpty() )
         {
-            if( strB.empty() )
+            if( strB.isEmpty() )
                 return false;
 
-            // note: this rule implies that a null string is first in the sort order
             return true;
         }
 
-        if( strB.empty() )
+        if( strB.isEmpty() )
             return false;
 
         while( sA != eA && sB != eB )
@@ -310,15 +131,6 @@ struct rsort_wxString
     }
 };
 
-/**
- * Split the input string into a vector of output strings
- *
- * @note Multiple delimiters are considered to be separate records with empty strings
- *
- * @param aStr Input string with 0 or more delimiters.
- * @param aDelim The string of delimiter.  Multiple characters here denote alternate delimiters.
- * @return a vector of strings
- */
 static inline std::vector<std::string> split( const std::string& aStr, const std::string& aDelim )
 {
     size_t pos = 0;
@@ -344,87 +156,28 @@ static inline std::vector<std::string> split( const std::string& aStr, const std
     return tokens;
 }
 
-/// Utility to build comma separated lists in messages
-inline void AccumulateDescription( wxString& aDesc, const wxString& aItem )
+inline void AccumulateDescription( QString& aDesc, const QString& aItem )
 {
-    if( !aDesc.IsEmpty() )
-        aDesc << wxT( ", " );
+    if( !aDesc.isEmpty() )
+        aDesc += ", ";
 
-    aDesc << aItem;
+    aDesc += aItem;
 }
 
-/**
- * Split \a aString to a string list separated at \a aSplitter.
- *
- * @param aText is the text to split.
- * @param aStrings will contain the split lines.
- * @param aSplitter is the 'split' character.
- */
-KICOMMON_API void wxStringSplit( const wxString& aText, wxArrayString& aStrings, wxChar aSplitter );
+KICOMMON_API void qtStringSplit( const QString& aText, QStringList& aStrings, QChar aSplitter );
 
-/**
- * Remove trailing zeros from a string containing a converted float number.
- *
- * The trailing zeros are removed if the mantissa has more than \a aTrailingZeroAllowed
- * digits and some trailing zeros.
- */
-KICOMMON_API void StripTrailingZeros( wxString& aStringValue, unsigned aTrailingZeroAllowed = 1 );
+KICOMMON_API void StripTrailingZeros( QString& aStringValue, unsigned aTrailingZeroAllowed = 1 );
 
-/**
- * Print a float number without using scientific notation and no trailing 0
- * We want to avoid scientific notation in S-expr files (not easy to read)
- * for floating numbers.
- *
- * We cannot always just use the %g or the %f format to print a fp number
- * this helper function uses the %f format when needed, or %g when %f is
- * not well working and then removes trailing 0
- */
 KICOMMON_API std::string UIDouble2Str( double aValue );
 
-/**
- * Print a float number without using scientific notation and no trailing 0
- * This function is intended in uses to write to file, it ignores locale
- *
- * We cannot always just use the %g or the %f format to print a fp number
- * this helper function uses the %f format when needed, or %g when %f is
- * not well working and then removes trailing 0
- */
 KICOMMON_API std::string FormatDouble2Str( double aValue );
 
-/**
- * Convert a wxString to a UTF8 encoded C string for all wxWidgets build modes.
- *
- * wxstring is a wxString, not a wxT() or _().  The scope of the return value
- * is very limited and volatile, but can be used with printf() style functions well.
- *
- * @note Trying to convert it to a function is tricky because of the type of the
- *       parameter!
- */
-#define TO_UTF8( wxstring ) ( (const char*) ( wxstring ).utf8_str() )
+#define TO_UTF8( qtstring ) ( (const char*) ( qtstring ).toUtf8().constData() )
 
-/**
- * Convert an expected UTF8 encoded std::string to a wxString.
- * If fails, try to convert using current locale
- * If still fails, return the initial string (can be already a converted string)
- */
-KICOMMON_API wxString From_UTF8( const std::string& aString );
-KICOMMON_API wxString  From_UTF8( const char* cstring );
+KICOMMON_API QString From_UTF8( const std::string& aString );
+KICOMMON_API QString  From_UTF8( const char* cstring );
 
-/**
- * Normalize file path \a aFileUri to URI convention.
- *
- * Unfortunately none of the wxWidgets objects results in acceptable file URIs which breaks
- * PDF plotting URI links.  This is an attempt to normalize Windows local file paths to a
- * URI that PDF readers that can run JavaScript can handle.
- *
- * @note This does not expand environment or user variables.  Variable expansion should be
- *       performed before calling.  If \a aFileUri does not begin with 'file://', \a aFileUri
- *       returned unchanged.
- *
- * @param aFileUri is the string to be normalized.
- * @return the normalized string.
- */
-KICOMMON_API wxString NormalizeFileUri( const wxString& aFileUri );
+KICOMMON_API QString NormalizeFileUri( const QString& aFileUri );
 
 
 #endif  // STRING_UTILS_H

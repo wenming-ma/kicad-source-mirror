@@ -1,26 +1,3 @@
-/*
-* This program source code file is part of KiCad, a free EDA CAD application.
-*
-* Copyright (C) 2022 Jon Evans <jon@craftyjon.com>
-* Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, you may find one here:
-* http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
-* or you may search the http://www.gnu.org website for the version 2 license,
-* or you may write to the Free Software Foundation, Inc.,
-* 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
-*/
 
 #include <core/kicad_algo.h>
 #include <json_common.h>
@@ -38,7 +15,7 @@ DATABASE_FIELD_MAPPING::DATABASE_FIELD_MAPPING( std::string aColumn, std::string
                                                 bool aShowName, bool aInheritProperties ) :
         column( aColumn ),
         name( aName ),
-        name_wx( aName.c_str(), wxConvUTF8 ),
+        name_wx( QString::fromStdString( aName ) ),
         visible_on_add( aVisibleOnAdd ),
         visible_in_chooser( aVisibleInChooser ),
         show_name( aShowName ),
@@ -66,7 +43,7 @@ DATABASE_LIB_SETTINGS::DATABASE_LIB_SETTINGS( const std::string& aFilename ) :
             "libraries",
             [&]() -> nlohmann::json
             {
-                // TODO: implement this; libraries are read-only from KiCad at the moment
+                // Libraries are read-only from KiCad at the moment
                 return {};
             },
             [&]( const nlohmann::json aObj )
@@ -145,11 +122,7 @@ DATABASE_LIB_SETTINGS::DATABASE_LIB_SETTINGS( const std::string& aFilename ) :
     registerMigration( 0, 1,
                        [&]() -> bool
                        {
-                           /*
-                            * Schema 0 -> 1
-                            * Move internal symbol properties from fields with special names to
-                            * a separate place in the schema.
-                            */
+                           // Schema 0 -> 1: Move internal symbol properties from fields to separate schema location
                             if( !Contains( "libraries" ) || !At( "libraries" ).is_array() )
                                 return true;
 
@@ -178,7 +151,7 @@ DATABASE_LIB_SETTINGS::DATABASE_LIB_SETTINGS( const std::string& aFilename ) :
 }
 
 
-wxString DATABASE_LIB_SETTINGS::getFileExt() const
+QString DATABASE_LIB_SETTINGS::getFileExt() const
 {
     return FILEEXT::DatabaseLibraryFileExtension;
 }

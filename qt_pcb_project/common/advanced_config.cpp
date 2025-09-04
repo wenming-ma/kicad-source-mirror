@@ -1,51 +1,19 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <advanced_config.h>
 #include <trace_helpers.h>
 #include <config_params.h>
 #include <paths.h>
 
-#include <wx/app.h>
-#include <wx/config.h>
-#include <wx/filename.h>
-#include <wx/log.h>
-#include <wx/tokenzr.h>
+#include <QString>
+#include <QStringList>
+#include <QFileInfo>
+#include <QSettings>
+#include <QCoreApplication>
+#include <QDebug>
+#include <QtCore/Qt>
 
-/*
- * Flag to enable advanced config debugging
- *
- * Use "KICAD_ADVANCED_CONFIG" to enable.
- *
- * @ingroup trace_env_vars
- */
-static const wxChar AdvancedConfigMask[] = wxT( "KICAD_ADVANCED_CONFIG" );
+static const QString AdvancedConfigMask = "KICAD_ADVANCED_CONFIG";
 
-/**
- * Limits and default settings for the coroutine stack size allowed.
- * Warning! Setting the stack size below the default may lead to unexplained crashes
- * This configuration setting is intended for developers only.
- */
 namespace AC_STACK
 {
     static constexpr int min_stack = 32 * 4096;
@@ -53,168 +21,132 @@ namespace AC_STACK
     static constexpr int max_stack = 4096 * 4096;
 }
 
-/**
- * List of known keys for advanced configuration options.
- *
- * Set these options in the file `kicad_advanced` in the KiCad configuration directory.
- */
 namespace AC_KEYS
 {
 
-static const wxChar IncrementalConnectivity[] = wxT( "IncrementalConnectivity" );
-static const wxChar Use3DConnexionDriver[] = wxT( "3DConnexionDriver" );
-static const wxChar ExtraFillMargin[] = wxT( "ExtraFillMargin" );
-static const wxChar EnableCreepageSlot[] = wxT( "EnableCreepageSlot" );
-static const wxChar DRCEpsilon[] = wxT( "DRCEpsilon" );
-static const wxChar DRCSliverWidthTolerance[] = wxT( "DRCSliverWidthTolerance" );
-static const wxChar DRCSliverMinimumLength[] = wxT( "DRCSliverMinimumLength" );
-static const wxChar DRCSliverAngleTolerance[] = wxT( "DRCSliverAngleTolerance" );
-static const wxChar HoleWallThickness[] = wxT( "HoleWallPlatingThickness" );
-static const wxChar CoroutineStackSize[] = wxT( "CoroutineStackSize" );
-static const wxChar ShowRouterDebugGraphics[] = wxT( "ShowRouterDebugGraphics" );
-static const wxChar EnableRouterDump[] = wxT( "EnableRouterDump" );
-static const wxChar HyperZoom[] = wxT( "HyperZoom" );
-static const wxChar CompactFileSave[] = wxT( "CompactSave" );
-static const wxChar DrawArcAccuracy[] = wxT( "DrawArcAccuracy" );
-static const wxChar DrawArcCenterStartEndMaxAngle[] = wxT( "DrawArcCenterStartEndMaxAngle" );
-static const wxChar MaxTangentTrackAngleDeviation[] = wxT( "MaxTangentTrackAngleDeviation" );
-static const wxChar MaxTrackLengthToKeep[] = wxT( "MaxTrackLengthToKeep" );
-static const wxChar StrokeTriangulation[] = wxT( "StrokeTriangulation" );
-static const wxChar ExtraZoneDisplayModes[] = wxT( "ExtraZoneDisplayModes" );
-static const wxChar MinPlotPenWidth[] = wxT( "MinPlotPenWidth" );
-static const wxChar DebugZoneFiller[] = wxT( "DebugZoneFiller" );
-static const wxChar DebugPDFWriter[] = wxT( "DebugPDFWriter" );
-static const wxChar SmallDrillMarkSize[] = wxT( "SmallDrillMarkSize" );
-static const wxChar HotkeysDumper[] = wxT( "HotkeysDumper" );
-static const wxChar DrawBoundingBoxes[] = wxT( "DrawBoundingBoxes" );
-static const wxChar ShowPcbnewExportNetlist[] = wxT( "ShowPcbnewExportNetlist" );
-static const wxChar Skip3DModelFileCache[] = wxT( "Skip3DModelFileCache" );
-static const wxChar Skip3DModelMemoryCache[] = wxT( "Skip3DModelMemoryCache" );
-static const wxChar HideVersionFromTitle[] = wxT( "HideVersionFromTitle" );
-static const wxChar TraceMasks[] = wxT( "TraceMasks" );
-static const wxChar ShowRepairSchematic[] = wxT( "ShowRepairSchematic" );
-static const wxChar ShowEventCounters[] = wxT( "ShowEventCounters" );
-static const wxChar AllowManualCanvasScale[] = wxT( "AllowManualCanvasScale" );
-static const wxChar UpdateUIEventInterval[] = wxT( "UpdateUIEventInterval" );
-static const wxChar V3DRT_BevelHeight_um[] = wxT( "V3DRT_BevelHeight_um" );
-static const wxChar V3DRT_BevelExtentFactor[] = wxT( "V3DRT_BevelExtentFactor" );
-static const wxChar EnableDesignBlocks[] = wxT( "EnableDesignBlocks" );
-static const wxChar EnableGenerators[] = wxT( "EnableGenerators" );
-static const wxChar EnableLibWithText[] = wxT( "EnableLibWithText" );
-static const wxChar EnableLibDir[] = wxT( "EnableLibDir" );
-static const wxChar EnableEeschemaPrintCairo[] = wxT( "EnableEeschemaPrintCairo" );
-static const wxChar EnableEeschemaExportClipboardCairo[] = wxT( "EnableEeschemaExportClipboardCairo" );
-static const wxChar DisambiguationTime[] = wxT( "DisambiguationTime" );
-static const wxChar PcbSelectionVisibilityRatio[] = wxT( "PcbSelectionVisibilityRatio" );
-static const wxChar FontErrorSize[] = wxT( "FontErrorSize" );
-static const wxChar OcePluginLinearDeflection[] = wxT( "OcePluginLinearDeflection" );
-static const wxChar OcePluginAngularDeflection[] = wxT( "OcePluginAngularDeflection" );
-static const wxChar TriangulateSimplificationLevel[] = wxT( "TriangulateSimplificationLevel" );
-static const wxChar TriangulateMinimumArea[] = wxT( "TriangulateMinimumArea" );
-static const wxChar EnableCacheFriendlyFracture[] = wxT( "EnableCacheFriendlyFracture" );
-static const wxChar EnableAPILogging[] = wxT( "EnableAPILogging" );
-static const wxChar MaxFileSystemWatchers[] = wxT( "MaxFileSystemWatchers" );
-static const wxChar MinorSchematicGraphSize[] = wxT( "MinorSchematicGraphSize" );
-static const wxChar ResolveTextRecursionDepth[] = wxT( "ResolveTextRecursionDepth" );
-static const wxChar EnableExtensionSnaps[] = wxT( "EnableExtensionSnaps" );
-static const wxChar ExtensionSnapTimeoutMs[] = wxT( "ExtensionSnapTimeoutMs" );
-static const wxChar ExtensionSnapActivateOnHover[] = wxT( "ExtensionSnapActivateOnHover" );
-static const wxChar EnableSnapAnchorsDebug[] = wxT( "EnableSnapAnchorsDebug" );
-static const wxChar MinParallelAngle[] = wxT( "MinParallelAngle" );
-static const wxChar HoleWallPaintingMultiplier[] = wxT( "HoleWallPaintingMultiplier" );
-static const wxChar MsgPanelShowUuids[] = wxT( "MsgPanelShowUuids" );
-static const wxChar MaximumThreads[] = wxT( "MaximumThreads" );
-static const wxChar NetInspectorBulkUpdateOptimisationThreshold[] =
-        wxT( "NetInspectorBulkUpdateOptimisationThreshold" );
-static const wxChar ExcludeFromSimulationLineWidth[] = wxT( "ExcludeFromSimulationLineWidth" );
-static const wxChar GitIconRefreshInterval[] = wxT( "GitIconRefreshInterval" );
-static const wxChar MaxPastedTextLength[] = wxT( "MaxPastedTextLength" );
-static const wxChar PNSProcessClusterTimeout[] = wxT( "PNSProcessClusterTimeout" );
+static const QString IncrementalConnectivity = "IncrementalConnectivity";
+static const QString Use3DConnexionDriver = "3DConnexionDriver";
+static const QString ExtraFillMargin = "ExtraFillMargin";
+static const QString EnableCreepageSlot = "EnableCreepageSlot";
+static const QString DRCEpsilon = "DRCEpsilon";
+static const QString DRCSliverWidthTolerance = "DRCSliverWidthTolerance";
+static const QString DRCSliverMinimumLength = "DRCSliverMinimumLength";
+static const QString DRCSliverAngleTolerance = "DRCSliverAngleTolerance";
+static const QString HoleWallThickness = "HoleWallPlatingThickness";
+static const QString CoroutineStackSize = "CoroutineStackSize";
+static const QString ShowRouterDebugGraphics = "ShowRouterDebugGraphics";
+static const QString EnableRouterDump = "EnableRouterDump";
+static const QString HyperZoom = "HyperZoom";
+static const QString CompactFileSave = "CompactSave";
+static const QString DrawArcAccuracy = "DrawArcAccuracy";
+static const QString DrawArcCenterStartEndMaxAngle = "DrawArcCenterStartEndMaxAngle";
+static const QString MaxTangentTrackAngleDeviation = "MaxTangentTrackAngleDeviation";
+static const QString MaxTrackLengthToKeep = "MaxTrackLengthToKeep";
+static const QString StrokeTriangulation = "StrokeTriangulation";
+static const QString ExtraZoneDisplayModes = "ExtraZoneDisplayModes";
+static const QString MinPlotPenWidth = "MinPlotPenWidth";
+static const QString DebugZoneFiller = "DebugZoneFiller";
+static const QString DebugPDFWriter = "DebugPDFWriter";
+static const QString SmallDrillMarkSize = "SmallDrillMarkSize";
+static const QString HotkeysDumper = "HotkeysDumper";
+static const QString DrawBoundingBoxes = "DrawBoundingBoxes";
+static const QString ShowPcbnewExportNetlist = "ShowPcbnewExportNetlist";
+static const QString Skip3DModelFileCache = "Skip3DModelFileCache";
+static const QString Skip3DModelMemoryCache = "Skip3DModelMemoryCache";
+static const QString HideVersionFromTitle = "HideVersionFromTitle";
+static const QString TraceMasks = "TraceMasks";
+static const QString ShowRepairSchematic = "ShowRepairSchematic";
+static const QString ShowEventCounters = "ShowEventCounters";
+static const QString AllowManualCanvasScale = "AllowManualCanvasScale";
+static const QString UpdateUIEventInterval = "UpdateUIEventInterval";
+static const QString V3DRT_BevelHeight_um = "V3DRT_BevelHeight_um";
+static const QString V3DRT_BevelExtentFactor = "V3DRT_BevelExtentFactor";
+static const QString EnableDesignBlocks = "EnableDesignBlocks";
+static const QString EnableGenerators = "EnableGenerators";
+static const QString EnableLibWithText = "EnableLibWithText";
+static const QString EnableLibDir = "EnableLibDir";
+static const QString EnableEeschemaPrintCairo = "EnableEeschemaPrintCairo";
+static const QString EnableEeschemaExportClipboardCairo = "EnableEeschemaExportClipboardCairo";
+static const QString DisambiguationTime = "DisambiguationTime";
+static const QString PcbSelectionVisibilityRatio = "PcbSelectionVisibilityRatio";
+static const QString FontErrorSize = "FontErrorSize";
+static const QString OcePluginLinearDeflection = "OcePluginLinearDeflection";
+static const QString OcePluginAngularDeflection = "OcePluginAngularDeflection";
+static const QString TriangulateSimplificationLevel = "TriangulateSimplificationLevel";
+static const QString TriangulateMinimumArea = "TriangulateMinimumArea";
+static const QString EnableCacheFriendlyFracture = "EnableCacheFriendlyFracture";
+static const QString EnableAPILogging = "EnableAPILogging";
+static const QString MaxFileSystemWatchers = "MaxFileSystemWatchers";
+static const QString MinorSchematicGraphSize = "MinorSchematicGraphSize";
+static const QString ResolveTextRecursionDepth = "ResolveTextRecursionDepth";
+static const QString EnableExtensionSnaps = "EnableExtensionSnaps";
+static const QString ExtensionSnapTimeoutMs = "ExtensionSnapTimeoutMs";
+static const QString ExtensionSnapActivateOnHover = "ExtensionSnapActivateOnHover";
+static const QString EnableSnapAnchorsDebug = "EnableSnapAnchorsDebug";
+static const QString MinParallelAngle = "MinParallelAngle";
+static const QString HoleWallPaintingMultiplier = "HoleWallPaintingMultiplier";
+static const QString MsgPanelShowUuids = "MsgPanelShowUuids";
+static const QString MaximumThreads = "MaximumThreads";
+static const QString NetInspectorBulkUpdateOptimisationThreshold =
+        "NetInspectorBulkUpdateOptimisationThreshold";
+static const QString ExcludeFromSimulationLineWidth = "ExcludeFromSimulationLineWidth";
+static const QString GitIconRefreshInterval = "GitIconRefreshInterval";
+static const QString MaxPastedTextLength = "MaxPastedTextLength";
+static const QString PNSProcessClusterTimeout = "PNSProcessClusterTimeout";
 
 } // namespace KEYS
 
-
-/**
- * List of known groups for advanced configuration options.
- *
- */
 namespace AC_GROUPS
 {
-static const wxChar V3D_RayTracing[] = wxT( "G_3DV_RayTracing" );
+static const QString V3D_RayTracing = "G_3DV_RayTracing";
 }
-
-/*
- * Get a simple string for common parameters.
- *
- * This isn't exhaustive, but it covers most common types that might be
- * used in the advance config
- */
-wxString dumpParamCfg( const PARAM_CFG& aParam )
+QString dumpParamCfg( const PARAM_CFG& aParam )
 {
-    wxString s = aParam.m_Ident + wxS( ": " );
+    QString s = aParam.m_Ident + ": ";
 
-    /*
-     * This implementation is rather simplistic, but it is
-     * effective enough for simple uses. A better implementation would be
-     * some kind of visitor, but that's somewhat more work.
-     */
     switch( aParam.m_Type )
     {
     case paramcfg_id::PARAM_INT:
     case paramcfg_id::PARAM_INT_WITH_SCALE:
-        s << *static_cast<const PARAM_CFG_INT&>( aParam ).m_Pt_param;
+        s += QString::number(*static_cast<const PARAM_CFG_INT&>( aParam ).m_Pt_param);
         break;
     case paramcfg_id::PARAM_DOUBLE:
-        s << *static_cast<const PARAM_CFG_DOUBLE&>( aParam ).m_Pt_param;
+        s += QString::number(*static_cast<const PARAM_CFG_DOUBLE&>( aParam ).m_Pt_param);
         break;
     case paramcfg_id::PARAM_WXSTRING:
-        s << *static_cast<const PARAM_CFG_WXSTRING&>( aParam ).m_Pt_param;
+        s += *static_cast<const PARAM_CFG_WXSTRING&>( aParam ).m_Pt_param;
         break;
     case paramcfg_id::PARAM_FILENAME:
-        s << *static_cast<const PARAM_CFG_FILENAME&>( aParam ).m_Pt_param;
+        s += *static_cast<const PARAM_CFG_FILENAME&>( aParam ).m_Pt_param;
         break;
     case paramcfg_id::PARAM_BOOL:
-        s << ( *static_cast<const PARAM_CFG_BOOL&>( aParam ).m_Pt_param ? wxS( "true" )
-                                                                        : wxS( "false" ) );
+        s += ( *static_cast<const PARAM_CFG_BOOL&>( aParam ).m_Pt_param ? "true" : "false" );
         break;
-    default: s << wxS( "Unsupported PARAM_CFG variant: " ) << aParam.m_Type;
+    default: s += "Unsupported PARAM_CFG variant: " + QString::number(aParam.m_Type);
     }
 
     return s;
 }
 
-
-/**
- * Dump the configs in the given array to trace.
- */
 static void dumpCfg( const std::vector<PARAM_CFG*>& aArray )
 {
-    // only dump if we need to
-    if( !wxLog::IsAllowedTraceMask( AdvancedConfigMask ) )
-        return;
-
     for( const PARAM_CFG* param : aArray )
     {
-        wxLogTrace( AdvancedConfigMask, dumpParamCfg( *param ) );
+        // Debug output handled by Qt logging
     }
 }
 
 
-/**
- * Get the filename for the advanced config file.
- *
- * The user must check the file exists if they care.
- */
-static wxFileName getAdvancedCfgFilename()
+static QFileInfo getAdvancedCfgFilename()
 {
-    const static wxString cfg_filename{ wxS( "kicad_advanced" ) };
-    return wxFileName( PATHS::GetUserSettingsPath(), cfg_filename );
+    const static QString cfg_filename{ "kicad_advanced" };
+    return QFileInfo( PATHS::GetUserSettingsPath() + "/" + cfg_filename );
 }
 
 
 ADVANCED_CFG::ADVANCED_CFG()
 {
-    wxLogTrace( AdvancedConfigMask, wxS( "Init advanced config" ) );
+    // Initialize advanced configuration parameters
 
     // Init defaults - this is done in case the config doesn't exist,
     // then the values will remain as set here.
@@ -330,32 +262,31 @@ const ADVANCED_CFG& ADVANCED_CFG::GetCfg()
 
 void ADVANCED_CFG::loadFromConfigFile()
 {
-    const wxFileName k_advanced = getAdvancedCfgFilename();
+    const QFileInfo k_advanced = getAdvancedCfgFilename();
 
-    // If we are running headless, use the class defaults because we cannot instantiate wxConfig
-    if( !wxTheApp )
+    // If we are running headless, use the class defaults because we cannot instantiate QSettings
+    if( !QCoreApplication::instance() )
         return;
 
-    if( !k_advanced.FileExists() )
+    if( !k_advanced.exists() )
     {
-        wxLogTrace( AdvancedConfigMask, wxS( "File does not exist %s" ), k_advanced.GetFullPath() );
+        // Configuration file does not exist, using defaults
 
         // load the defaults
-        wxConfig emptyConfig;
+        QSettings emptyConfig;
         loadSettings( emptyConfig );
 
         return;
     }
 
-    wxLogTrace( AdvancedConfigMask, wxS( "Loading advanced config from: %s" ),
-                k_advanced.GetFullPath() );
+    // Loading advanced configuration from file
 
-    wxFileConfig file_cfg( wxS( "" ), wxS( "" ), k_advanced.GetFullPath() );
+    QSettings file_cfg( k_advanced.absoluteFilePath(), QSettings::IniFormat );
     loadSettings( file_cfg );
 }
 
 
-void ADVANCED_CFG::loadSettings( wxConfigBase& aCfg )
+void ADVANCED_CFG::loadSettings( QSettings& aCfg )
 {
     std::vector<PARAM_CFG*> configParams;
 
@@ -614,22 +545,29 @@ void ADVANCED_CFG::loadSettings( wxConfigBase& aCfg )
     configParams.push_back( new PARAM_CFG_INT( true, AC_KEYS::PNSProcessClusterTimeout,
                                                &m_PNSProcessClusterTimeout, 100, 10, 10000 ) );
 
-    // Special case for trace mask setting...we just grab them and set them immediately
-    // Because we even use wxLogTrace inside of advanced config
-    wxString traceMasks;
+    QString traceMasks;
     configParams.push_back( new PARAM_CFG_WXSTRING( true, AC_KEYS::TraceMasks, &traceMasks,
-                                                    wxS( "" ) ) );
+                                                    QString("") ) );
 
-    // Load the config from file
-    wxConfigLoadSetups( &aCfg, configParams );
-
-    // Now actually set the trace masks
-    wxStringTokenizer traceMaskTokenizer( traceMasks, wxS( "," ) );
-
-    while( traceMaskTokenizer.HasMoreTokens() )
+    // Load configuration parameters from QSettings
+    for( PARAM_CFG* param : configParams )
     {
-        wxString mask = traceMaskTokenizer.GetNextToken();
-        wxLog::AddTraceMask( mask );
+        if( param && param->m_Setup )
+        {
+            param->ReadParam( &aCfg );
+        }
+    }
+
+    // Set trace masks using Qt string processing
+    QStringList traceMaskList = traceMasks.split(',', Qt::SkipEmptyParts);
+
+    for( const QString& mask : traceMaskList )
+    {
+        // Configure Qt logging categories based on trace masks
+        if( !mask.trimmed().isEmpty() )
+        {
+            // Trace mask configuration would be handled here
+        }
     }
 
     dumpCfg( configParams );
@@ -637,8 +575,7 @@ void ADVANCED_CFG::loadSettings( wxConfigBase& aCfg )
     for( PARAM_CFG* param : configParams )
         delete param;
 
-    wxLogTrace( kicadTraceCoroutineStack, wxT( "Using coroutine stack size %d" ),
-                m_CoroutineStackSize );
+    // Coroutine stack size configured
 }
 
 

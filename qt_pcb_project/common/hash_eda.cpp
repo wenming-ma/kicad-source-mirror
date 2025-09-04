@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <hash_eda.h>
 #include <hash.h>
@@ -36,7 +12,6 @@
 #include <macros.h>
 #include <functional>
 
-#include <wx/log.h>
 
 using namespace std;
 
@@ -186,7 +161,7 @@ size_t hash_fp_item( const EDA_ITEM* aItem, int aFlags )
         const PCB_TEXT* text = static_cast<const PCB_TEXT*>( aItem );
 
         ret = hash_board_item( text, aFlags );
-        hash_combine( ret, text->GetText().ToStdString() );
+        hash_combine( ret, text->GetText().toStdString() );
         hash_combine( ret, text->IsItalic() );
         hash_combine( ret, text->IsBold() );
         hash_combine( ret, text->IsMirrored() );
@@ -222,7 +197,7 @@ size_t hash_fp_item( const EDA_ITEM* aItem, int aFlags )
 
         if( aFlags & HASH_POS )
         {
-            std::vector<VECTOR2I> points;
+            QVector<VECTOR2I> points;
 
             points.push_back( shape->GetStart() );
             points.push_back( shape->GetEnd() );
@@ -286,7 +261,7 @@ size_t hash_fp_item( const EDA_ITEM* aItem, int aFlags )
         const PCB_TEXTBOX* textbox = static_cast<const PCB_TEXTBOX*>( aItem );
 
         ret = hash_board_item( textbox, aFlags );
-        hash_combine( ret, textbox->GetText().ToStdString() );
+        hash_combine( ret, textbox->GetText().toStdString() );
         hash_combine( ret, textbox->IsItalic() );
         hash_combine( ret, textbox->IsBold() );
         hash_combine( ret, textbox->IsMirrored() );

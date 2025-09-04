@@ -1,95 +1,74 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <search_stack.h>
 #include <string_utils.h>
 #include <trace_helpers.h>
-#include <wx/tokenzr.h>
-#include <wx/log.h>
+#include <QStringList>
+#include <QDebug>
+#include <QDir>
+#include <QFileInfo>
 
 
 #if defined(_WIN32)
- #define PATH_SEPS          wxT( ";\r\n" )
+ #define PATH_SEPS          ";\r\n"
 #else
- #define PATH_SEPS          wxT( ":;\r\n" )       // unix == linux | mac
+ #define PATH_SEPS          ":;\r\n"       // unix == linux | mac
 #endif
 
 
-int SEARCH_STACK::Split( wxArrayString* aResult, const wxString& aPathString )
+int SEARCH_STACK::Split( QStringList* aResult, const QString& aPathString )
 {
-    wxStringTokenizer   tokenizer( aPathString, PATH_SEPS, wxTOKEN_STRTOK );
+    QStringList tokens = aPathString.split(QRegExp(QString("[") + PATH_SEPS + QString("]")), Qt::SkipEmptyParts);
 
-    while( tokenizer.HasMoreTokens() )
+    for( const QString& path : tokens )
     {
-        wxString path = tokenizer.GetNextToken();
-
-        aResult->Add( path );
+        aResult->append( path );
     }
 
-    return aResult->GetCount();
+    return aResult->count();
 }
 
 
 // Convert aRelativePath to an absolute path based on aBaseDir
-static wxString base_dir( const wxString& aRelativePath, const wxString& aBaseDir )
+static QString base_dir( const QString& aRelativePath, const QString& aBaseDir )
 {
-    wxFileName fn = aRelativePath;
+    QFileInfo fn( aRelativePath );
 
-    if( !fn.IsAbsolute() && !!aBaseDir )
+    if( !fn.isAbsolute() && !aBaseDir.isEmpty() )
     {
-        wxASSERT_MSG( wxFileName( aBaseDir ).IsAbsolute(),
-                      wxT( "Must pass absolute path in aBaseDir" ) );
-        fn.MakeRelativeTo( aBaseDir );
+        Q_ASSERT_X( QFileInfo( aBaseDir ).isAbsolute(), "base_dir", "Must pass absolute path in aBaseDir" );
+        QDir baseDir( aBaseDir );
+        return baseDir.relativeFilePath( aRelativePath );
     }
 
-    return fn.GetFullPath();
+    return fn.absoluteFilePath();
 }
 
 
-wxString SEARCH_STACK::FilenameWithRelativePathInSearchList(
-        const wxString& aFullFilename, const wxString& aBaseDir )
+QString SEARCH_STACK::FilenameWithRelativePathInSearchList(
+        const QString& aFullFilename, const QString& aBaseDir )
 {
-    wxFileName fn = aFullFilename;
-    wxString   filename = aFullFilename;
+    QFileInfo fn( aFullFilename );
+    QString   filename = aFullFilename;
 
-    unsigned   pathlen  = fn.GetPath().Len();   // path len, used to find the better (shortest)
+    unsigned   pathlen  = fn.path().length();   // path len, used to find the better (shortest)
                                                 // subpath within defaults paths
 
     for( unsigned kk = 0; kk < GetCount(); kk++ )
     {
-        fn = aFullFilename;
-
-        // Search for the shortest subpath within 'this':
-        if( fn.MakeRelativeTo( base_dir( (*this)[kk], aBaseDir ) ) )
+        QString baseDirPath = base_dir( (*this)[kk], aBaseDir );
+        QDir baseDir( baseDirPath );
+        QString relativePath = baseDir.relativeFilePath( aFullFilename );
+        
+        if( !relativePath.isEmpty() && relativePath != aFullFilename )
         {
-            if( fn.GetPathWithSep().StartsWith( wxT("..") ) )  // Path outside KiCad libs paths
+            if( relativePath.startsWith( ".." ) )  // Path outside KiCad libs paths
                 continue;
 
-            if( pathlen > fn.GetPath().Len() )    // A better (shortest) subpath is found
+            QFileInfo relFn( relativePath );
+            if( pathlen > relFn.path().length() )    // A better (shortest) subpath is found
             {
-                filename = fn.GetPathWithSep() + fn.GetFullName();
-                pathlen  = fn.GetPath().Len();
+                filename = relativePath;
+                pathlen  = relFn.path().length();
             }
         }
     }
@@ -98,43 +77,45 @@ wxString SEARCH_STACK::FilenameWithRelativePathInSearchList(
 }
 
 
-void SEARCH_STACK::RemovePaths( const wxString& aPaths )
+void SEARCH_STACK::RemovePaths( const QString& aPaths )
 {
-    bool            isCS = wxFileName::IsCaseSensitive();
-    wxArrayString   paths;
+    bool            isCS = true;  // Qt file operations are case sensitive by default on Unix
+    QStringList     paths;
 
     Split( &paths, aPaths );
 
-    for( unsigned i=0; i<paths.GetCount();  ++i )
+    for( int i = 0; i < paths.count(); ++i )
     {
-        wxString path = paths[i];
+        QString path = paths[i];
 
-        if( Index( path, isCS ) != wxNOT_FOUND )
+        int index = indexOf( path );
+        if( index != -1 )
         {
-            Remove( path );
+            removeAt( index );
         }
     }
 }
 
 
-void SEARCH_STACK::AddPaths( const wxString& aPaths, int aIndex )
+void SEARCH_STACK::AddPaths( const QString& aPaths, int aIndex )
 {
-    bool            isCS = wxFileName::IsCaseSensitive();
-    wxArrayString   paths;
+    bool            isCS = true;  // Qt file operations are case sensitive by default on Unix
+    QStringList     paths;
 
     Split( &paths, aPaths );
 
     // appending all of them, on large or negative aIndex
     if( unsigned( aIndex ) >= GetCount() )
     {
-        for( unsigned i=0; i<paths.GetCount();  ++i )
+        for( int i = 0; i < paths.count(); ++i )
         {
-            wxString path = paths[i];
+            QString path = paths[i];
 
-            if( wxFileName::IsDirReadable( path )
-                && Index( path, isCS ) == wxNOT_FOUND )
+            QDir dir( path );
+            if( dir.exists() && dir.isReadable()
+                && indexOf( path ) == -1 )
             {
-                Add( path );
+                append( path );
             }
         }
     }
@@ -142,14 +123,15 @@ void SEARCH_STACK::AddPaths( const wxString& aPaths, int aIndex )
     // inserting all of them:
     else
     {
-        for( unsigned i=0; i<paths.GetCount();  ++i )
+        for( int i = 0; i < paths.count(); ++i )
         {
-            wxString path = paths[i];
+            QString path = paths[i];
 
-            if( wxFileName::IsDirReadable( path )
-                && Index( path, isCS ) == wxNOT_FOUND )
+            QDir dir( path );
+            if( dir.exists() && dir.isReadable()
+                && indexOf( path ) == -1 )
             {
-                Insert( path, aIndex );
+                insert( aIndex, path );
                 aIndex++;
             }
         }
@@ -159,9 +141,9 @@ void SEARCH_STACK::AddPaths( const wxString& aPaths, int aIndex )
 
 #if 1       // this function is too convoluted for words.
 
-const wxString SEARCH_STACK::LastVisitedPath( const wxString& aSubPathToSearch )
+const QString SEARCH_STACK::LastVisitedPath( const QString& aSubPathToSearch )
 {
-    wxString path;
+    QString path;
 
     // Initialize default path to the main default lib path
     // this is the second path in list (the first is the project path).
@@ -171,7 +153,7 @@ const wxString SEARCH_STACK::LastVisitedPath( const wxString& aSubPathToSearch )
     {
         unsigned ipath = 0;
 
-        if( (*this)[0] == wxGetCwd() )
+        if( (*this)[0] == QDir::currentPath() )
             ipath = 1;
 
         // First choice of path:
@@ -179,11 +161,11 @@ const wxString SEARCH_STACK::LastVisitedPath( const wxString& aSubPathToSearch )
             path = (*this)[ipath];
 
         // Search a sub path matching this SEARCH_PATH
-        if( !IsEmpty() )
+        if( !isEmpty() )
         {
             for( ; ipath < pcount; ipath++ )
             {
-                if( (*this)[ipath].Contains( aSubPathToSearch ) )
+                if( (*this)[ipath].contains( aSubPathToSearch ) )
                 {
                     path = (*this)[ipath];
                     break;
@@ -192,8 +174,8 @@ const wxString SEARCH_STACK::LastVisitedPath( const wxString& aSubPathToSearch )
         }
     }
 
-    if( path.IsEmpty() )
-        path = wxGetCwd();
+    if( path.isEmpty() )
+        path = QDir::currentPath();
 
     return path;
 }
@@ -201,13 +183,13 @@ const wxString SEARCH_STACK::LastVisitedPath( const wxString& aSubPathToSearch )
 
 
 #if defined( DEBUG )
-void SEARCH_STACK::Show( const wxString& aPrefix ) const
+void SEARCH_STACK::Show( const QString& aPrefix ) const
 {
-    wxLogTrace( tracePathsAndFiles, "%s SEARCH_STACK:", aPrefix );
+    qDebug() << QString("%1 SEARCH_STACK:").arg(aPrefix);
 
     for( unsigned i = 0; i < GetCount(); ++i )
     {
-        wxLogTrace( tracePathsAndFiles, "  [%2u]:%s", i, TO_UTF8( ( *this )[i] ) );
+        qDebug() << QString("  [%1]:%2").arg(i, 2).arg((*this)[i]);
     }
 }
 #endif

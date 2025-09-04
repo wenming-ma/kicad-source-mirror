@@ -1,60 +1,62 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED
 
-#ifndef VECTOR2WX_H_
-#define VECTOR2WX_H_
+#ifndef VECTOR2QT_H_
+#define VECTOR2QT_H_
 
-#include <wx/gdicmn.h>
+#include <QPoint>
+#include <QPointF>
+#include <QSize>
+#include <QSizeF>
 #include "vector2d.h"
 
-inline VECTOR2I ToVECTOR2I(const wxSize& aSize)
+inline VECTOR2I ToVECTOR2I(const QSize& aSize)
 {
-    return { aSize.x, aSize.y };
+    return { aSize.width(), aSize.height() };
 }
 
-inline VECTOR2I ToVECTOR2I( const wxPoint & aSize )
+inline VECTOR2I ToVECTOR2I( const QPoint & aPoint )
 {
-    return { aSize.x, aSize.y };
+    return { aPoint.x(), aPoint.y() };
 }
 
-inline VECTOR2D ToVECTOR2D( const wxPoint& aPoint )
+inline VECTOR2D ToVECTOR2D( const QPoint& aPoint )
 {
-    return VECTOR2D( aPoint.x, aPoint.y );
+    return VECTOR2D( aPoint.x(), aPoint.y() );
 }
 
-inline VECTOR2D ToVECTOR2D( const wxSize& aPoint )
+inline VECTOR2D ToVECTOR2D( const QPointF& aPoint )
 {
-    return VECTOR2D( aPoint.x, aPoint.y );
+    return VECTOR2D( aPoint.x(), aPoint.y() );
 }
 
-inline wxPoint ToWxPoint( const VECTOR2I& aSize )
+inline VECTOR2D ToVECTOR2D( const QSize& aSize )
 {
-    return wxPoint( aSize.x, aSize.y );
+    return VECTOR2D( aSize.width(), aSize.height() );
 }
 
-inline wxSize ToWxSize( const VECTOR2I& aSize )
+inline VECTOR2D ToVECTOR2D( const QSizeF& aSize )
 {
-    return wxSize( aSize.x, aSize.y );
+    return VECTOR2D( aSize.width(), aSize.height() );
+}
+
+inline QPoint ToQPoint( const VECTOR2I& aVector )
+{
+    return QPoint( aVector.x, aVector.y );
+}
+
+inline QPointF ToQPointF( const VECTOR2D& aVector )
+{
+    return QPointF( aVector.x, aVector.y );
+}
+
+inline QSize ToQSize( const VECTOR2I& aVector )
+{
+    return QSize( aVector.x, aVector.y );
+}
+
+inline QSizeF ToQSizeF( const VECTOR2D& aVector )
+{
+    return QSizeF( aVector.x, aVector.y );
 }
 
 #endif

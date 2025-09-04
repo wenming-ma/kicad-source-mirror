@@ -1,65 +1,42 @@
-///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6a-dirty)
-// http://www.wxformbuilder.org/
-//
-// PLEASE DO *NOT* EDIT THIS FILE!
-///////////////////////////////////////////////////////////////////////////
-
 #pragma once
 
-#include <wx/artprov.h>
-#include <wx/xrc/xmlres.h>
-#include <wx/intl.h>
 #include "widgets/resettable_panel.h"
-#include <wx/string.h>
-#include <wx/checkbox.h>
-#include <wx/gdicmn.h>
-#include <wx/font.h>
-#include <wx/colour.h>
-#include <wx/settings.h>
-#include <wx/stattext.h>
-#include <wx/statline.h>
-#include <wx/spinctrl.h>
-#include <wx/gbsizer.h>
-#include <wx/sizer.h>
-#include <wx/textctrl.h>
-#include <wx/panel.h>
+#include <QtWidgets/QWidget>
+#include <QtWidgets/QCheckBox>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QFrame>
+#include <QtWidgets/QSpinBox>
+#include <QtWidgets/QLineEdit>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QGridLayout>
+#include <QtCore/QString>
 
-///////////////////////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////////////////////////
-/// Class PANEL_GIT_REPOS_BASE
-///////////////////////////////////////////////////////////////////////////////
 class PANEL_GIT_REPOS_BASE : public RESETTABLE_PANEL
 {
-	private:
+private:
 
-	protected:
-		wxCheckBox* m_enableGit;
-		wxBoxSizer* m_gitSizer;
-		wxStaticText* m_staticText6;
-		wxStaticLine* m_staticline2;
-		wxStaticText* m_updateLabel;
-		wxSpinCtrl* m_updateInterval;
-		wxStaticText* m_staticText7;
-		wxStaticText* m_staticText12;
-		wxStaticLine* m_staticline31;
-		wxCheckBox* m_cbDefault;
-		wxStaticText* m_authorLabel;
-		wxTextCtrl* m_author;
-		wxStaticText* m_authorEmailLabel;
-		wxTextCtrl* m_authorEmail;
+protected:
+    QCheckBox* m_enableGit;
+    QVBoxLayout* m_gitSizer;
+    QLabel* m_staticText6;
+    QFrame* m_staticline2;
+    QLabel* m_updateLabel;
+    QSpinBox* m_updateInterval;
+    QLabel* m_staticText7;
+    QLabel* m_staticText12;
+    QFrame* m_staticline31;
+    QCheckBox* m_cbDefault;
+    QLabel* m_authorLabel;
+    QLineEdit* m_author;
+    QLabel* m_authorEmailLabel;
+    QLineEdit* m_authorEmail;
 
-		// Virtual event handlers, override them in your derived class
-		virtual void onEnableGitClick( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onDefaultClick( wxCommandEvent& event ) { event.Skip(); }
+    // Virtual event handlers, override them in your derived class
+    virtual void onEnableGitClick() {}
+    virtual void onDefaultClick() {}
 
-
-	public:
-
-		PANEL_GIT_REPOS_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
-
-		~PANEL_GIT_REPOS_BASE();
-
+public:
+    PANEL_GIT_REPOS_BASE(QWidget* parent = nullptr);
+    ~PANEL_GIT_REPOS_BASE();
 };
-

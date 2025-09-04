@@ -125,7 +125,7 @@ NET_SETTINGS::NET_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
     auto readNetClass =
             []( const nlohmann::json& entry )
             {
-                wxString name = entry["name"];
+                QString name = entry["name"];
 
                 std::shared_ptr<NETCLASS> nc = std::make_shared<NETCLASS>( name, false );
 
@@ -237,7 +237,7 @@ NET_SETTINGS::NET_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
 
                 for( const auto& pair : aJson.items() )
                 {
-                    wxString key( pair.key().c_str(), wxConvUTF8 );
+                    QString key( pair.key().c_str() );
                     m_netColorAssignments[std::move( key )] = pair.value().get<KIGFX::COLOR4D>();
                 }
             },
@@ -273,10 +273,10 @@ NET_SETTINGS::NET_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
 
                 for( const auto& pair : aJson.items() )
                 {
-                    wxString key( pair.key().c_str(), wxConvUTF8 );
+                    QString key( pair.key().c_str() );
 
                     for( const auto& netclassName : pair.value() )
-                        m_netClassLabelAssignments[key].insert( netclassName.get<wxString>() );
+                        m_netClassLabelAssignments[key].insert( netclassName.get<QString>() );
                 }
             },
             {} ) );
@@ -313,8 +313,8 @@ NET_SETTINGS::NET_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
                     if( entry.contains( "pattern" ) && entry["pattern"].is_string()
                             && entry.contains( "netclass" ) && entry["netclass"].is_string() )
                     {
-                        wxString pattern = entry["pattern"].get<wxString>();
-                        wxString netclass = entry["netclass"].get<wxString>();
+                        QString pattern = entry["pattern"].get<QString>();
+                        QString netclass = entry["netclass"].get<QString>();
 
                         m_netClassPatternAssignments.push_back(
                                 { std::make_unique<EDA_COMBINED_MATCHER>( pattern, CTX_NETCLASS ),
@@ -378,7 +378,7 @@ bool NET_SETTINGS::migrateSchema0to1()
                 nlohmann::json migrated = nlohmann::json::array();
 
                 for( auto& net : netClass.value()["nets"].items() )
-                    migrated.push_back( ConvertToNewOverbarNotation( net.value().get<wxString>() ) );
+                    migrated.push_back( ConvertToNewOverbarNotation( net.value().get<QString>() ) );
 
                 netClass.value()["nets"] = migrated;
             }
@@ -407,12 +407,12 @@ bool NET_SETTINGS::migrateSchema2to3()
                     && netClass.value().contains( "nets" )
                     && netClass.value()["nets"].is_array() )
             {
-                wxString netClassName = netClass.value()["name"].get<wxString>();
+                QString netClassName = netClass.value()["name"].get<QString>();
 
                 for( auto& net : netClass.value()["nets"].items() )
                 {
                     nlohmann::json pattern_json = {
-                        { "pattern",  net.value().get<wxString>() },
+                        { "pattern",  net.value().get<QString>() },
                         { "netclass", netClassName }
                     };
 
@@ -437,7 +437,7 @@ bool NET_SETTINGS::migrateSchema3to4()
 
         for( auto& netClass : m_internals->At( "classes" ).items() )
         {
-            if( netClass.value()["name"].get<wxString>() == NETCLASS::Default )
+            if( netClass.value()["name"].get<QString>() == NETCLASS::Default )
                 netClass.value()["priority"] = std::numeric_limits<int>::max();
             else
                 netClass.value()["priority"] = priority++;
@@ -454,7 +454,7 @@ bool NET_SETTINGS::migrateSchema3to4()
         {
             nlohmann::json netclassesJson = nlohmann::json::array();
 
-            if( pair.value().get<wxString>() != wxEmptyString )
+            if( pair.value().get<QString>() != QString() )
                 netclassesJson.push_back( pair.value() );
 
             migrated[pair.key()] = netclassesJson;
@@ -479,32 +479,32 @@ std::shared_ptr<NETCLASS> NET_SETTINGS::GetDefaultNetclass()
 }
 
 
-bool NET_SETTINGS::HasNetclass( const wxString& netclassName ) const
+bool NET_SETTINGS::HasNetclass( const QString& netclassName ) const
 {
     return m_netClasses.find( netclassName ) != m_netClasses.end();
 }
 
 
-void NET_SETTINGS::SetNetclass( const wxString& netclassName, std::shared_ptr<NETCLASS>& netclass )
+void NET_SETTINGS::SetNetclass( const QString& netclassName, std::shared_ptr<NETCLASS>& netclass )
 {
     m_netClasses[netclassName] = netclass;
 }
 
 
-void NET_SETTINGS::SetNetclasses( const std::map<wxString, std::shared_ptr<NETCLASS>>& netclasses )
+void NET_SETTINGS::SetNetclasses( const std::map<QString, std::shared_ptr<NETCLASS>>& netclasses )
 {
     m_netClasses = netclasses;
     ClearAllCaches();
 }
 
 
-const std::map<wxString, std::shared_ptr<NETCLASS>>& NET_SETTINGS::GetNetclasses() const
+const std::map<QString, std::shared_ptr<NETCLASS>>& NET_SETTINGS::GetNetclasses() const
 {
     return m_netClasses;
 }
 
 
-const std::map<wxString, std::shared_ptr<NETCLASS>>& NET_SETTINGS::GetCompositeNetclasses() const
+const std::map<QString, std::shared_ptr<NETCLASS>>& NET_SETTINGS::GetCompositeNetclasses() const
 {
     return m_compositeNetClasses;
 }
@@ -518,7 +518,7 @@ void NET_SETTINGS::ClearNetclasses()
 }
 
 
-const std::map<wxString, std::set<wxString>>& NET_SETTINGS::GetNetclassLabelAssignments() const
+const std::map<QString, std::set<QString>>& NET_SETTINGS::GetNetclassLabelAssignments() const
 {
     return m_netClassLabelAssignments;
 }
@@ -530,33 +530,33 @@ void NET_SETTINGS::ClearNetclassLabelAssignments()
 }
 
 
-void NET_SETTINGS::ClearNetclassLabelAssignment( const wxString& netName )
+void NET_SETTINGS::ClearNetclassLabelAssignment( const QString& netName )
 {
     m_netClassLabelAssignments.erase( netName );
 }
 
 
-void NET_SETTINGS::SetNetclassLabelAssignment( const wxString&           netName,
-                                               const std::set<wxString>& netclasses )
+void NET_SETTINGS::SetNetclassLabelAssignment( const QString&           netName,
+                                               const std::set<QString>& netclasses )
 {
     m_netClassLabelAssignments[netName] = netclasses;
 }
 
 
-void NET_SETTINGS::AppendNetclassLabelAssignment( const wxString&           netName,
-                                                  const std::set<wxString>& netclasses )
+void NET_SETTINGS::AppendNetclassLabelAssignment( const QString&           netName,
+                                                  const std::set<QString>& netclasses )
 {
     m_netClassLabelAssignments[netName].insert( netclasses.begin(), netclasses.end() );
 }
 
 
-bool NET_SETTINGS::HasNetclassLabelAssignment( const wxString& netName ) const
+bool NET_SETTINGS::HasNetclassLabelAssignment( const QString& netName ) const
 {
     return m_netClassLabelAssignments.find( netName ) != m_netClassLabelAssignments.end();
 }
 
 
-void NET_SETTINGS::SetNetclassPatternAssignment( const wxString& pattern, const wxString& netclass )
+void NET_SETTINGS::SetNetclassPatternAssignment( const QString& pattern, const QString& netclass )
 {
     // Avoid exact duplicates - these shouldn't cause problems, due to later de-duplication
     // but they are unnecessary.
@@ -575,14 +575,14 @@ void NET_SETTINGS::SetNetclassPatternAssignment( const wxString& pattern, const 
 
 
 void NET_SETTINGS::SetNetclassPatternAssignments(
-        std::vector<std::pair<std::unique_ptr<EDA_COMBINED_MATCHER>, wxString>>&& netclassPatterns )
+        std::vector<std::pair<std::unique_ptr<EDA_COMBINED_MATCHER>, QString>>&& netclassPatterns )
 {
     m_netClassPatternAssignments = std::move( netclassPatterns );
     ClearAllCaches();
 }
 
 
-std::vector<std::pair<std::unique_ptr<EDA_COMBINED_MATCHER>, wxString>>&
+std::vector<std::pair<std::unique_ptr<EDA_COMBINED_MATCHER>, QString>>&
 NET_SETTINGS::GetNetclassPatternAssignments()
 {
     return m_netClassPatternAssignments;
@@ -595,11 +595,11 @@ void NET_SETTINGS::ClearNetclassPatternAssignments()
 }
 
 
-void NET_SETTINGS::ClearCacheForNet( const wxString& netName )
+void NET_SETTINGS::ClearCacheForNet( const QString& netName )
 {
     if( m_effectiveNetclassCache.count( netName ) )
     {
-        wxString compositeNetclassName = m_effectiveNetclassCache[netName]->GetName();
+        QString compositeNetclassName = m_effectiveNetclassCache[netName]->GetName();
         m_compositeNetClasses.erase( compositeNetclassName );
         m_effectiveNetclassCache.erase( netName );
     }
@@ -613,13 +613,13 @@ void NET_SETTINGS::ClearAllCaches()
 }
 
 
-void NET_SETTINGS::SetNetColorAssignment( const wxString& netName, const KIGFX::COLOR4D& color )
+void NET_SETTINGS::SetNetColorAssignment( const QString& netName, const KIGFX::COLOR4D& color )
 {
     m_netColorAssignments[netName] = color;
 }
 
 
-const std::map<wxString, KIGFX::COLOR4D>& NET_SETTINGS::GetNetColorAssignments() const
+const std::map<QString, KIGFX::COLOR4D>& NET_SETTINGS::GetNetColorAssignments() const
 {
     return m_netColorAssignments;
 }
@@ -631,22 +631,22 @@ void NET_SETTINGS::ClearNetColorAssignments()
 }
 
 
-bool NET_SETTINGS::HasEffectiveNetClass( const wxString& aNetName ) const
+bool NET_SETTINGS::HasEffectiveNetClass( const QString& aNetName ) const
 {
     return m_effectiveNetclassCache.count( aNetName ) > 0;
 }
 
 
-std::shared_ptr<NETCLASS> NET_SETTINGS::GetCachedEffectiveNetClass( const wxString& aNetName ) const
+std::shared_ptr<NETCLASS> NET_SETTINGS::GetCachedEffectiveNetClass( const QString& aNetName ) const
 {
     return m_effectiveNetclassCache.at( aNetName );
 }
 
 
-std::shared_ptr<NETCLASS> NET_SETTINGS::GetEffectiveNetClass( const wxString& aNetName )
+std::shared_ptr<NETCLASS> NET_SETTINGS::GetEffectiveNetClass( const QString& aNetName )
 {
     // Lambda to fetch an explicit netclass. Returns a nullptr if not found
-    auto getExplicitNetclass = [this]( const wxString& netclass ) -> std::shared_ptr<NETCLASS>
+    auto getExplicitNetclass = [this]( const QString& netclass ) -> std::shared_ptr<NETCLASS>
     {
         if( netclass == NETCLASS::Default )
             return m_defaultNetClass;
@@ -662,7 +662,7 @@ std::shared_ptr<NETCLASS> NET_SETTINGS::GetEffectiveNetClass( const wxString& aN
     // Lambda to fetch or create an implicit netclass (defined with a label, but not configured)
     // These are needed as while they do not provide any netclass parameters, they do now appear in
     // DRC matching strings as an assigned netclass.
-    auto getOrAddImplicitNetcless = [this]( const wxString& netclass ) -> std::shared_ptr<NETCLASS>
+    auto getOrAddImplicitNetcless = [this]( const QString& netclass ) -> std::shared_ptr<NETCLASS>
     {
         auto ii = m_impicitNetClasses.find( netclass );
 
@@ -680,7 +680,7 @@ std::shared_ptr<NETCLASS> NET_SETTINGS::GetEffectiveNetClass( const wxString& aN
     };
 
     // <no net> is forced to be part of the default netclass.
-    if( aNetName.IsEmpty() )
+    if( aNetName.isEmpty() )
         return m_defaultNetClass;
 
     // First check if we have a cached resolved netclass
@@ -697,7 +697,7 @@ std::shared_ptr<NETCLASS> NET_SETTINGS::GetEffectiveNetClass( const wxString& aN
 
     if( it != m_netClassLabelAssignments.end() && it->second.size() > 0 )
     {
-        for( const wxString& netclassName : it->second )
+        for( const QString& netclassName : it->second )
         {
             std::shared_ptr<NETCLASS> netclass = getExplicitNetclass( netclassName );
 
@@ -746,8 +746,8 @@ std::shared_ptr<NETCLASS> NET_SETTINGS::GetEffectiveNetClass( const wxString& aN
     for( const std::shared_ptr<NETCLASS>& nc : resolvedNetclasses )
         netclassPtrs.push_back( nc.get() );
 
-    wxString name;
-    name.Printf( "Effective for net: %s", aNetName );
+    QString name;
+    name = QString("Effective for net: %1").arg( aNetName );
     std::shared_ptr<NETCLASS> effectiveNetclass = std::make_shared<NETCLASS>( name, false );
     makeEffectiveNetclass( effectiveNetclass, netclassPtrs );
 
@@ -776,7 +776,7 @@ void NET_SETTINGS::RecomputeEffectiveNetclasses()
         // Note this needs to be a copy in case we now need to add the default netclass
         std::vector<NETCLASS*> constituents = nc->GetConstituentNetclasses();
 
-        wxASSERT( constituents.size() > 0 );
+        Q_ASSERT( constituents.size() > 0 );
 
         // If the last netclass is Default, remove it (it will be re-added if still needed)
         if( ( *constituents.rbegin() )->GetName() == NETCLASS::Default )
@@ -998,7 +998,7 @@ bool NET_SETTINGS::addMissingDefaults( NETCLASS* nc ) const
 }
 
 
-std::shared_ptr<NETCLASS> NET_SETTINGS::GetNetClassByName( const wxString& aNetClassName ) const
+std::shared_ptr<NETCLASS> NET_SETTINGS::GetNetClassByName( const QString& aNetClassName ) const
 {
     auto ii = m_netClasses.find( aNetClassName );
 
@@ -1009,26 +1009,26 @@ std::shared_ptr<NETCLASS> NET_SETTINGS::GetNetClassByName( const wxString& aNetC
 }
 
 
-static bool isSuperSubOverbar( wxChar c )
+static bool isSuperSubOverbar( QChar c )
 {
     return c == '_' || c == '^' || c == '~';
 }
 
 
-bool NET_SETTINGS::ParseBusVector( const wxString& aBus, wxString* aName,
-                                   std::vector<wxString>* aMemberList )
+bool NET_SETTINGS::ParseBusVector( const QString& aBus, QString* aName,
+                                   std::vector<QString>* aMemberList )
 {
-    auto isDigit = []( wxChar c )
+    auto isDigit = []( QChar c )
                    {
-                       static   wxString digits( wxT( "0123456789" ) );
-                       return digits.Contains( c );
+                       static   QString digits( "0123456789" );
+                       return digits.contains( c );
                    };
 
     size_t   busLen = aBus.length();
     size_t   i = 0;
-    wxString prefix;
-    wxString suffix;
-    wxString tmp;
+    QString prefix;
+    QString suffix;
+    QString tmp;
     long     begin = 0;
     long     end = 0;
     int      braceNesting = 0;
@@ -1084,7 +1084,7 @@ bool NET_SETTINGS::ParseBusVector( const wxString& aBus, wxString* aName,
 
     // Parse end number
     //
-    tmp = wxEmptyString;
+    tmp = QString();
 
     if( i >= busLen )
         return false;
@@ -1134,7 +1134,7 @@ bool NET_SETTINGS::ParseBusVector( const wxString& aBus, wxString* aName,
     {
         for( long idx = begin; idx <= end; ++idx )
         {
-            wxString str = prefix;
+            QString str = prefix;
             str << idx;
             str << suffix;
 
@@ -1146,13 +1146,13 @@ bool NET_SETTINGS::ParseBusVector( const wxString& aBus, wxString* aName,
 }
 
 
-bool NET_SETTINGS::ParseBusGroup( const wxString& aGroup, wxString* aName,
-                                  std::vector<wxString>* aMemberList )
+bool NET_SETTINGS::ParseBusGroup( const QString& aGroup, QString* aName,
+                                  std::vector<QString>* aMemberList )
 {
     size_t   groupLen = aGroup.length();
     size_t   i = 0;
-    wxString prefix;
-    wxString tmp;
+    QString prefix;
+    QString tmp;
     int      braceNesting = 0;
 
     prefix.reserve( groupLen );
@@ -1209,7 +1209,7 @@ bool NET_SETTINGS::ParseBusGroup( const wxString& aGroup, wxString* aName,
             }
             else
             {
-                if( aMemberList && !tmp.IsEmpty() )
+                if( aMemberList && !tmp.isEmpty() )
                     aMemberList->push_back( EscapeString( tmp, CTX_NETNAME ) );
 
                 return true;
@@ -1219,10 +1219,10 @@ bool NET_SETTINGS::ParseBusGroup( const wxString& aGroup, wxString* aName,
         // Commas aren't strictly legal, but we can be pretty sure what the author had in mind.
         if( aGroup[i] == ' ' || aGroup[i] == ',' )
         {
-            if( aMemberList && !tmp.IsEmpty() )
+            if( aMemberList && !tmp.isEmpty() )
                 aMemberList->push_back( EscapeString( tmp, CTX_NETNAME ) );
 
-            tmp.Clear();
+            tmp.clear();
             continue;
         }
 

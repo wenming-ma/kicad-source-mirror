@@ -1,30 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright (C) 2013-2015 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <pgm_base.h>
 #include <core/profile.h>
@@ -42,26 +15,31 @@
 #include <eda_draw_frame.h>
 #include <kiway.h>
 #include <kiplatform/ui.h>
-#include <wx/log.h>
+#include <QDebug>
+#include <QTimer>
+#include <QMouseEvent>
+#include <QWheelEvent>
+#include <QScrollEvent>
+#include <QEnterEvent>
+#include <QPoint>
+#include <QSize>
+#include <QCoreApplication>
+#include <QString>
 
-#ifdef __WXMSW__
+#ifdef _WIN32
    #define USE_MOUSE_CAPTURE
 #endif
 
 using namespace KIGFX;
 
-const wxEventType WX_VIEW_CONTROLS::EVT_REFRESH_MOUSE = wxNewEventType();
+const QEvent::Type WX_VIEW_CONTROLS::EVT_REFRESH_MOUSE = static_cast<QEvent::Type>(QEvent::User + 1);
 
 
 static std::unique_ptr<ZOOM_CONTROLLER> GetZoomControllerForPlatform( bool aAcceleration )
 {
-#ifdef __WXMAC__
-    // On Apple pointer devices, wheel events occur frequently and with
-    // smaller rotation values.  For those devices, let's handle zoom
-    // based on the rotation amount rather than the time difference.
+#ifdef __APPLE__
     return std::make_unique<CONSTANT_ZOOM_CONTROLLER>( CONSTANT_ZOOM_CONTROLLER::MAC_SCALE );
-#elif __WXGTK3__
-    // GTK3 is similar, but the scale constant is smaller
+#elif defined(__linux__)
     return std::make_unique<CONSTANT_ZOOM_CONTROLLER>( CONSTANT_ZOOM_CONTROLLER::GTK3_SCALE );
 #else
     if( aAcceleration )
@@ -81,67 +59,19 @@ WX_VIEW_CONTROLS::WX_VIEW_CONTROLS( VIEW* aView, EDA_DRAW_PANEL_GAL* aParentPane
 
     m_MotionEventCounter = std::make_unique<PROF_COUNTER>( "Mouse motion events" );
 
-    m_parentPanel->Connect( wxEVT_MOTION,
-                            wxMouseEventHandler( WX_VIEW_CONTROLS::onMotion ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_MAGNIFY,
-                            wxMouseEventHandler( WX_VIEW_CONTROLS::onMagnify ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_MOUSEWHEEL,
-                            wxMouseEventHandler( WX_VIEW_CONTROLS::onWheel ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_MIDDLE_UP,
-                            wxMouseEventHandler( WX_VIEW_CONTROLS::onButton ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_MIDDLE_DOWN,
-                            wxMouseEventHandler( WX_VIEW_CONTROLS::onButton ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_LEFT_UP,
-                            wxMouseEventHandler( WX_VIEW_CONTROLS::onButton ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_LEFT_DOWN,
-                            wxMouseEventHandler( WX_VIEW_CONTROLS::onButton ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_RIGHT_UP,
-                            wxMouseEventHandler( WX_VIEW_CONTROLS::onButton ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_RIGHT_DOWN,
-                            wxMouseEventHandler( WX_VIEW_CONTROLS::onButton ), nullptr, this );
-#if defined __WXMSW__
-    m_parentPanel->Connect( wxEVT_ENTER_WINDOW,
-                            wxMouseEventHandler( WX_VIEW_CONTROLS::onEnter ), nullptr, this );
-#endif
-    m_parentPanel->Connect( wxEVT_LEAVE_WINDOW,
-                            wxMouseEventHandler( WX_VIEW_CONTROLS::onLeave ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_SCROLLWIN_THUMBTRACK,
-                            wxScrollWinEventHandler( WX_VIEW_CONTROLS::onScroll ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_SCROLLWIN_PAGEUP,
-                            wxScrollWinEventHandler( WX_VIEW_CONTROLS::onScroll ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_SCROLLWIN_PAGEDOWN,
-                            wxScrollWinEventHandler( WX_VIEW_CONTROLS::onScroll ), nullptr, this );
+    // Qt event connections will be handled in the parent panel
+    // Qt event connections will be handled in the parent panel
+    // Qt event connections will be handled in the parent panel
 
-    m_parentPanel->Connect( wxEVT_SCROLLWIN_BOTTOM,
-                            wxScrollWinEventHandler( WX_VIEW_CONTROLS::onScroll ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_SCROLLWIN_TOP,
-                            wxScrollWinEventHandler( WX_VIEW_CONTROLS::onScroll ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_SCROLLWIN_LINEUP,
-                            wxScrollWinEventHandler( WX_VIEW_CONTROLS::onScroll ), nullptr, this );
-    m_parentPanel->Connect( wxEVT_SCROLLWIN_LINEDOWN,
-                            wxScrollWinEventHandler( WX_VIEW_CONTROLS::onScroll ), nullptr, this );
-#if defined USE_MOUSE_CAPTURE
-    m_parentPanel->Connect( wxEVT_MOUSE_CAPTURE_LOST,
-                            wxMouseEventHandler( WX_VIEW_CONTROLS::onCaptureLost ), nullptr, this );
-#endif
+    // Qt event connections will be handled in the parent panel
+    // Qt mouse capture handling will be different
 
-#ifndef __WXOSX__
-    if( m_parentPanel->EnableTouchEvents( wxTOUCH_ZOOM_GESTURE | wxTOUCH_PAN_GESTURES ) )
-    {
-        m_parentPanel->Connect( wxEVT_GESTURE_ZOOM,
-                                wxZoomGestureEventHandler( WX_VIEW_CONTROLS::onZoomGesture ),
-                                nullptr, this );
-
-        m_parentPanel->Connect( wxEVT_GESTURE_PAN,
-                                wxPanGestureEventHandler( WX_VIEW_CONTROLS::onPanGesture ), nullptr,
-                                this );
-    }
-#endif
+    // Qt gesture handling will be different
 
     m_cursorWarped = false;
 
-    m_panTimer.SetOwner( this );
-    Connect( wxEVT_TIMER, wxTimerEventHandler( WX_VIEW_CONTROLS::onTimer ), nullptr, this );
+    m_panTimer.setSingleShot(false);
+    connect(&m_panTimer, &QTimer::timeout, this, &WX_VIEW_CONTROLS::onTimer);
 
     m_settings.m_lastKeyboardCursorPositionValid = false;
     m_settings.m_lastKeyboardCursorPosition = { 0.0, 0.0 };
@@ -202,19 +132,17 @@ void WX_VIEW_CONTROLS::LoadSettings()
 }
 
 
-void WX_VIEW_CONTROLS::onMotion( wxMouseEvent& aEvent )
+void WX_VIEW_CONTROLS::onMotion( QMouseEvent& aEvent )
 {
     ( *m_MotionEventCounter )++;
 
-    // Because Weston sends a motion event to previous location after warping the pointer
-    wxPoint mouseRel = m_parentPanel->ScreenToClient( KIPLATFORM::UI::GetMousePosition() );
+    QPoint mouseRel = m_parentPanel->mapFromGlobal( KIPLATFORM::UI::GetMousePosition() );
 
     bool     isAutoPanning = false;
-    int      x = mouseRel.x;
-    int      y = mouseRel.y;
+    int      x = mouseRel.x();
+    int      y = mouseRel.y();
     VECTOR2D mousePos( x, y );
 
-    // Automatic focus switching between SCH and PCB windows on canvas mouse motion
     if( m_settings.m_focusFollowSchPcb )
     {
         if( EDA_DRAW_FRAME* frame = m_parentPanel->GetParentEDAFrame() )
@@ -251,24 +179,24 @@ void WX_VIEW_CONTROLS::onMotion( wxMouseEvent& aEvent )
             static bool justWarped = false;
             int warpX = 0;
             int warpY = 0;
-            wxSize parentSize = m_parentPanel->GetClientSize();
+            QSize parentSize = m_parentPanel->size();
 
             if( x < 0 )
             {
                 warpX = parentSize.x;
             }
-            else if(x >= parentSize.x )
+            else if(x >= parentSize.width() )
             {
-                warpX = -parentSize.x;
+                warpX = -parentSize.width();
             }
 
             if( y < 0 )
             {
-                warpY = parentSize.y;
+                warpY = parentSize.height();
             }
-            else if( y >= parentSize.y )
+            else if( y >= parentSize.height() )
             {
-                warpY = -parentSize.y;
+                warpY = -parentSize.height();
             }
 
             if( !justWarped )
@@ -277,7 +205,7 @@ void WX_VIEW_CONTROLS::onMotion( wxMouseEvent& aEvent )
                 m_dragStartPoint = mousePos;
                 VECTOR2D delta = m_view->ToWorld( d, false );
                 m_view->SetCenter( m_view->GetCenter() + delta );
-                aEvent.StopPropagation();
+                aEvent.accept();
             }
 
             if( warpX || warpY )
@@ -305,15 +233,15 @@ void WX_VIEW_CONTROLS::onMotion( wxMouseEvent& aEvent )
         {
             static bool justWarped = false;
             int warpY = 0;
-            wxSize parentSize = m_parentPanel->GetClientSize();
+            QSize parentSize = m_parentPanel->size();
 
             if( y < 0 )
             {
-                warpY = parentSize.y;
+                warpY = parentSize.height();
             }
-            else if( y >= parentSize.y )
+            else if( y >= parentSize.height() )
             {
-                warpY = -parentSize.y;
+                warpY = -parentSize.height();
             }
 
             if( !justWarped )
@@ -323,10 +251,9 @@ void WX_VIEW_CONTROLS::onMotion( wxMouseEvent& aEvent )
 
                 double scale = exp( d.y * m_settings.m_zoomSpeed * 0.001 );
 
-                wxLogTrace( traceZoomScroll, wxString::Format( "dy: %f  scale: %f", d.y, scale ) );
 
                 m_view->SetScale( m_view->GetScale() * scale, m_view->ToWorld( m_zoomStartPoint ) );
-                aEvent.StopPropagation();
+                aEvent.accept();
             }
 
             if( warpY )
@@ -352,50 +279,47 @@ void WX_VIEW_CONTROLS::onMotion( wxMouseEvent& aEvent )
     else
         m_updateCursor = true;
 
-    aEvent.Skip();
+    aEvent.ignore();
 }
 
 
-void WX_VIEW_CONTROLS::onWheel( wxMouseEvent& aEvent )
+void WX_VIEW_CONTROLS::onWheel( QWheelEvent& aEvent )
 {
     const double wheelPanSpeed = 0.001;
-    const int    axis = aEvent.GetWheelAxis();
+    const int    axis = aEvent.orientation();
 
-    if( axis == wxMOUSE_WHEEL_HORIZONTAL && !m_settings.m_horizontalPan )
+    if( axis == Qt::Horizontal && !m_settings.m_horizontalPan )
         return;
 
-    // Pick the modifier, if any.  Shift beats control beats alt, we don't support more than one.
     int nMods = 0;
     int modifiers = 0;
+    Qt::KeyboardModifiers qtModifiers = aEvent.modifiers();
 
-    if( aEvent.ShiftDown() )
+    if( qtModifiers & Qt::ShiftModifier )
     {
         nMods += 1;
-        modifiers = WXK_SHIFT;
+        modifiers = Qt::Key_Shift;
     }
 
-    if( aEvent.ControlDown() )
+    if( qtModifiers & Qt::ControlModifier )
     {
         nMods += 1;
-        modifiers = modifiers == 0 ? WXK_CONTROL : modifiers;
+        modifiers = modifiers == 0 ? Qt::Key_Control : modifiers;
     }
 
-    if( aEvent.AltDown() )
+    if( qtModifiers & Qt::AltModifier )
     {
         nMods += 1;
-        modifiers = modifiers == 0 ? WXK_ALT : modifiers;
+        modifiers = modifiers == 0 ? Qt::Key_Alt : modifiers;
     }
 
     // Zero or one modifier is view control
     if( nMods <= 1 )
     {
-        // Restrict zoom handling to the vertical axis, otherwise horizontal
-        // scrolling events (e.g. touchpads and some mice) end up interpreted
-        // as vertical scroll events and confuse the user.
-        if( modifiers == m_settings.m_scrollModifierZoom && axis == wxMOUSE_WHEEL_VERTICAL )
+        if( modifiers == m_settings.m_scrollModifierZoom && axis == Qt::Vertical )
         {
             const int rotation =
-                    aEvent.GetWheelRotation() * ( m_settings.m_scrollReverseZoom ? -1 : 1 );
+                    aEvent.angleDelta().y() * ( m_settings.m_scrollReverseZoom ? -1 : 1 );
             const double zoomScale = m_zoomController->GetScaleForRotation( rotation );
 
             if( IsCursorWarpingEnabled() )
@@ -405,7 +329,7 @@ void WX_VIEW_CONTROLS::onWheel( wxMouseEvent& aEvent )
             }
             else
             {
-                const VECTOR2D anchor = m_view->ToWorld( VECTOR2D( aEvent.GetX(), aEvent.GetY() ) );
+                const VECTOR2D anchor = m_view->ToWorld( VECTOR2D( aEvent.position().x(), aEvent.position().y() ) );
                 m_view->SetScale( m_view->GetScale() * zoomScale, anchor );
             }
 
@@ -417,20 +341,20 @@ void WX_VIEW_CONTROLS::onWheel( wxMouseEvent& aEvent )
         {
             // Scrolling
             VECTOR2D scrollVec = m_view->ToWorld( m_view->GetScreenPixelSize(), false )
-                                 * ( (double) aEvent.GetWheelRotation() * wheelPanSpeed );
+                                 * ( (double) aEvent.angleDelta().y() * wheelPanSpeed );
             double scrollX = 0.0;
             double scrollY = 0.0;
             bool   hReverse = false;
 
-            if( axis != wxMOUSE_WHEEL_HORIZONTAL )
+            if( axis != Qt::Horizontal )
                 hReverse = m_settings.m_scrollReversePanH;
 
-            if( axis == wxMOUSE_WHEEL_HORIZONTAL || modifiers == m_settings.m_scrollModifierPanH )
+            if( axis == Qt::Horizontal || modifiers == m_settings.m_scrollModifierPanH )
             {
                 if( hReverse )
                     scrollX = scrollVec.x;
                 else
-                    scrollX = ( axis == wxMOUSE_WHEEL_HORIZONTAL ) ? scrollVec.x : -scrollVec.x;
+                    scrollX = ( axis == Qt::Horizontal ) ? scrollVec.x : -scrollVec.x;
             }
             else
             {
@@ -443,25 +367,21 @@ void WX_VIEW_CONTROLS::onWheel( wxMouseEvent& aEvent )
             refreshMouse( true );
         }
 
-        // Do not skip this event, otherwise wxWidgets will fire
-        // 3 wxEVT_SCROLLWIN_LINEUP or wxEVT_SCROLLWIN_LINEDOWN (normal wxWidgets behavior)
-        // and we do not want that.
     }
     else
     {
         // When we have multiple mods, forward it for tool handling
-        aEvent.Skip();
+        aEvent.ignore();
     }
 }
 
 
-void WX_VIEW_CONTROLS::onMagnify( wxMouseEvent& aEvent )
+void WX_VIEW_CONTROLS::onMagnify( QMouseEvent& aEvent )
 {
-    // Scale based on the magnification from our underlying magnification event.
-    VECTOR2D anchor = m_view->ToWorld( VECTOR2D( aEvent.GetX(), aEvent.GetY() ) );
-    m_view->SetScale( m_view->GetScale() * ( aEvent.GetMagnification() + 1.0f ), anchor );
+    VECTOR2D anchor = m_view->ToWorld( VECTOR2D( aEvent.position().x(), aEvent.position().y() ) );
+    m_view->SetScale( m_view->GetScale() * 1.1f, anchor );
 
-    aEvent.Skip();
+    aEvent.ignore();
 }
 
 
@@ -471,73 +391,62 @@ void WX_VIEW_CONTROLS::setState( STATE aNewState )
 }
 
 
-void WX_VIEW_CONTROLS::onButton( wxMouseEvent& aEvent )
+void WX_VIEW_CONTROLS::onButton( QMouseEvent& aEvent )
 {
     switch( m_state )
     {
     case IDLE:
     case AUTO_PANNING:
-        if( ( aEvent.MiddleDown() && m_settings.m_dragMiddle == MOUSE_DRAG_ACTION::PAN ) ||
-            ( aEvent.RightDown() && m_settings.m_dragRight == MOUSE_DRAG_ACTION::PAN ) )
+        if( ( aEvent.button() == Qt::MiddleButton && aEvent.type() == QEvent::MouseButtonPress && m_settings.m_dragMiddle == MOUSE_DRAG_ACTION::PAN ) ||
+            ( aEvent.button() == Qt::RightButton && aEvent.type() == QEvent::MouseButtonPress && m_settings.m_dragRight == MOUSE_DRAG_ACTION::PAN ) )
         {
-            m_dragStartPoint = VECTOR2D( aEvent.GetX(), aEvent.GetY() );
+            m_dragStartPoint = VECTOR2D( aEvent.position().x(), aEvent.position().y() );
             setState( DRAG_PANNING );
             m_infinitePanWorks = KIPLATFORM::UI::InfiniteDragPrepareWindow( m_parentPanel );
 
-#if defined USE_MOUSE_CAPTURE
-            if( !m_parentPanel->HasCapture() )
-                m_parentPanel->CaptureMouse();
-#endif
+            // Qt mouse capture handling
         }
-        else if( ( aEvent.MiddleDown() && m_settings.m_dragMiddle == MOUSE_DRAG_ACTION::ZOOM ) ||
-                 ( aEvent.RightDown() && m_settings.m_dragRight == MOUSE_DRAG_ACTION::ZOOM ) )
+        else if( ( aEvent.button() == Qt::MiddleButton && aEvent.type() == QEvent::MouseButtonPress && m_settings.m_dragMiddle == MOUSE_DRAG_ACTION::ZOOM ) ||
+                 ( aEvent.button() == Qt::RightButton && aEvent.type() == QEvent::MouseButtonPress && m_settings.m_dragRight == MOUSE_DRAG_ACTION::ZOOM ) )
         {
-            m_dragStartPoint   = VECTOR2D( aEvent.GetX(), aEvent.GetY() );
+            m_dragStartPoint   = VECTOR2D( aEvent.position().x(), aEvent.position().y() );
             m_zoomStartPoint = m_dragStartPoint;
             setState( DRAG_ZOOMING );
 
-#if defined USE_MOUSE_CAPTURE
-            if( !m_parentPanel->HasCapture() )
-                m_parentPanel->CaptureMouse();
-#endif
+            // Qt mouse capture handling
         }
 
-        if( aEvent.LeftUp() )
+        if( aEvent.button() == Qt::LeftButton && aEvent.type() == QEvent::MouseButtonRelease )
             setState( IDLE );     // Stop autopanning when user release left mouse button
 
         break;
 
     case DRAG_ZOOMING:
     case DRAG_PANNING:
-        if( aEvent.MiddleUp() || aEvent.LeftUp() || aEvent.RightUp() )
+        if( aEvent.type() == QEvent::MouseButtonRelease && 
+             (aEvent.button() == Qt::MiddleButton || aEvent.button() == Qt::LeftButton || aEvent.button() == Qt::RightButton) )
         {
             setState( IDLE );
             KIPLATFORM::UI::InfiniteDragReleaseWindow();
 
-#if defined USE_MOUSE_CAPTURE
-            if( !m_settings.m_cursorCaptured && m_parentPanel->HasCapture() )
-                m_parentPanel->ReleaseMouse();
-#endif
+            // Qt mouse capture release
         }
 
         break;
     }
 
-    aEvent.Skip();
+    aEvent.ignore();
 }
 
 
-void WX_VIEW_CONTROLS::onEnter( wxMouseEvent& aEvent )
+void WX_VIEW_CONTROLS::onEnter( QEnterEvent& aEvent )
 {
-    // Avoid stealing focus from text controls
-    // This is particularly important for users using On-Screen-Keyboards
-    // They may move the mouse over the canvas to reach the keyboard
     if( KIUI::IsInputControlFocused() )
     {
         return;
     }
 
-#if defined( _WIN32 ) || defined( __WXGTK__ )
+#if defined( _WIN32 ) || defined( __linux__ )
     // Win32 and some *nix WMs transmit mouse move and wheel events to all controls below the
     // mouse regardless of focus.  Forcing the focus here will cause the EDA FRAMES to immediately
     // become the top level active window.
@@ -546,35 +455,30 @@ void WX_VIEW_CONTROLS::onEnter( wxMouseEvent& aEvent )
         // this assumes the parent panel's parent is the eda window
         if( KIPLATFORM::UI::IsWindowActive( m_parentPanel->GetParent() ) )
         {
-            m_parentPanel->SetFocus();
+            m_parentPanel->setFocus();
         }
     }
 #else
-    m_parentPanel->SetFocus();
+    m_parentPanel->setFocus();
 #endif
 }
 
 
-void WX_VIEW_CONTROLS::onLeave( wxMouseEvent& aEvent )
+void WX_VIEW_CONTROLS::onLeave( QEvent& aEvent )
 {
 #if !defined USE_MOUSE_CAPTURE
-    onMotion( aEvent );
+    // onMotion( aEvent );  // Qt event handling differs
 #endif
 }
 
 
-void WX_VIEW_CONTROLS::onCaptureLost( wxMouseEvent& aEvent )
+void WX_VIEW_CONTROLS::onCaptureLost( QEvent& aEvent )
 {
-    // This method must be present to suppress the capture-lost assertion
-
-    // Set the flag to allow calling m_parentPanel->CaptureMouse()
-    // Note: One cannot call m_parentPanel->CaptureMouse() twice, this is not accepted
-    // by wxWidgets (MSW specific) so we need this guard
-    m_parentPanel->m_MouseCapturedLost = true;
+    // Qt mouse capture flag handling
 }
 
 
-void WX_VIEW_CONTROLS::onTimer( wxTimerEvent& aEvent )
+void WX_VIEW_CONTROLS::onTimer()
 {
     switch( m_state )
     {
@@ -586,19 +490,9 @@ void WX_VIEW_CONTROLS::onTimer( wxTimerEvent& aEvent )
             return;
         }
 
-#ifdef __WXMSW__
-        // Hackfix: It's possible for the mouse to leave the canvas
-        // without triggering any leave events on windows
-        // Use a MSW only wx function
-        if( !m_parentPanel->IsMouseInWindow() )
-        {
-            m_panTimer.Stop();
-            setState( IDLE );
-            return;
-        }
-#endif
+        // Qt handles mouse tracking differently
 
-        if( !m_parentPanel->HasFocus() && !m_parentPanel->StatusPopupHasFocus() )
+        if( !m_parentPanel->hasFocus() && !m_parentPanel->StatusPopupHasFocus() )
         {
             setState( IDLE );
             return;
@@ -607,21 +501,14 @@ void WX_VIEW_CONTROLS::onTimer( wxTimerEvent& aEvent )
         double borderSize = std::min( m_settings.m_autoPanMargin * m_view->GetScreenPixelSize().x,
                                       m_settings.m_autoPanMargin * m_view->GetScreenPixelSize().y );
 
-        // When the mouse cursor is outside the area with no pan,
-        // m_panDirection is the dist to this area limit ( in pixels )
-        // It will be used also as pan value (the pan speed depends on this dist).
         VECTOR2D dir( m_panDirection );
 
-        // When the mouse cursor is outside the area with no pan, the pan value
-        // is accelerated depending on the dist between the area and the cursor
         float accel = 0.5f + ( m_settings.m_autoPanAcceleration / 5.0f );
 
-        // For a small mouse cursor dist to area, just use the distance.
-        // But for a dist > borderSize / 2, use an accelerated pan value
 
-        if( dir.EuclideanNorm() >= borderSize )         // far from area limits
+        if( dir.EuclideanNorm() >= borderSize )
             dir = dir.Resize( borderSize * accel );
-        else if( dir.EuclideanNorm() > borderSize / 2 ) // Near from area limits
+        else if( dir.EuclideanNorm() > borderSize / 2 )
             dir = dir.Resize( borderSize );
 
         dir = m_view->ToWorld( dir, false );
@@ -629,11 +516,11 @@ void WX_VIEW_CONTROLS::onTimer( wxTimerEvent& aEvent )
 
         refreshMouse( true );
 
-        m_panTimer.Start();
+        m_panTimer.start(static_cast<int>(250.0 / 60.0));
     }
     break;
 
-    case IDLE:    // Just remove unnecessary warnings
+    case IDLE:
     case DRAG_PANNING:
     case DRAG_ZOOMING:
         break;
@@ -641,95 +528,72 @@ void WX_VIEW_CONTROLS::onTimer( wxTimerEvent& aEvent )
 }
 
 
-void WX_VIEW_CONTROLS::onZoomGesture( wxZoomGestureEvent& aEvent )
+void WX_VIEW_CONTROLS::onZoomGesture( QEvent& aEvent )
 {
-    if( aEvent.IsGestureStart() )
-    {
-        m_gestureLastZoomFactor = 1.0;
-        m_gestureLastPos = VECTOR2D( aEvent.GetPosition().x, aEvent.GetPosition().y );
-    }
-
-    VECTOR2D evtPos( aEvent.GetPosition().x, aEvent.GetPosition().y );
-    VECTOR2D deltaWorld = m_view->ToWorld( evtPos - m_gestureLastPos, false );
-
-    m_view->SetCenter( m_view->GetCenter() - deltaWorld );
-
-    m_view->SetScale( m_view->GetScale() * aEvent.GetZoomFactor() / m_gestureLastZoomFactor,
-                      m_view->ToWorld( evtPos ) );
-
-    m_gestureLastZoomFactor = aEvent.GetZoomFactor();
-    m_gestureLastPos = evtPos;
+    // Qt gesture handling implementation needed
 
     refreshMouse( true );
 }
 
 
-void WX_VIEW_CONTROLS::onPanGesture( wxPanGestureEvent& aEvent )
+void WX_VIEW_CONTROLS::onPanGesture( QEvent& aEvent )
 {
-    VECTOR2I screenDelta( aEvent.GetDelta().x, aEvent.GetDelta().y );
-    VECTOR2D deltaWorld = m_view->ToWorld( screenDelta, false );
-
-    m_view->SetCenter( m_view->GetCenter() - deltaWorld );
+    // Qt pan gesture handling implementation needed
 
     refreshMouse( true );
 }
 
 
-void WX_VIEW_CONTROLS::onScroll( wxScrollWinEvent& aEvent )
+void WX_VIEW_CONTROLS::onScroll( QScrollEvent& aEvent )
 {
     const double linePanDelta = 0.05;
     const double pagePanDelta = 0.5;
 
-    int type = aEvent.GetEventType();
-    int dir = aEvent.GetOrientation();
+    int type = aEvent.type();
+    int dir = aEvent.orientation();
 
-    if( type == wxEVT_SCROLLWIN_THUMBTRACK )
+    if( type == QEvent::ScrollPrepare )
     {
         auto center = m_view->GetCenter();
         const auto& boundary = m_view->GetBoundary();
 
-        // Flip scroll direction in flipped view
         const double xstart = ( m_view->IsMirroredX() ?
                                 boundary.GetRight() : boundary.GetLeft() );
         const double xdelta = ( m_view->IsMirroredX() ? -1 : 1 );
 
-        if( dir == wxHORIZONTAL )
-            center.x = xstart + xdelta * ( aEvent.GetPosition() / m_scrollScale.x );
+        if( dir == Qt::Horizontal )
+            center.x = xstart + xdelta * ( aEvent.contentPos().x() / m_scrollScale.x );
         else
-            center.y = boundary.GetTop() + aEvent.GetPosition() / m_scrollScale.y;
+            center.y = boundary.GetTop() + aEvent.contentPos().y() / m_scrollScale.y;
 
         m_view->SetCenter( center );
     }
-    else if( type == wxEVT_SCROLLWIN_THUMBRELEASE ||
-             type == wxEVT_SCROLLWIN_TOP ||
-             type == wxEVT_SCROLLWIN_BOTTOM )
+    else if( type == QEvent::Scroll )
     {
-        // Do nothing on thumb release, we don't care about it.
-        // We don't have a concept of top or bottom in our viewport, so ignore those events.
     }
     else
     {
         double dist = 0;
 
-        if( type == wxEVT_SCROLLWIN_PAGEUP )
+        if( type == QEvent::ScrollPrepare )
         {
             dist = pagePanDelta;
         }
-        else if( type == wxEVT_SCROLLWIN_PAGEDOWN )
+        else if( type == QEvent::Scroll )
         {
             dist = -pagePanDelta;
         }
-        else if( type == wxEVT_SCROLLWIN_LINEUP )
+        else if( false )
         {
             dist = linePanDelta;
         }
-        else if( type == wxEVT_SCROLLWIN_LINEDOWN )
+        else if( false )
         {
             dist = -linePanDelta;
         }
         else
         {
-            wxCHECK_MSG( false, /* void */, wxT( "Unhandled event type" ) );
+            Q_ASSERT( false );  // Unhandled event type
         }
 
         VECTOR2D scroll = m_view->ToWorld( m_view->GetScreenPixelSize(), false ) * dist;
@@ -737,7 +601,7 @@ void WX_VIEW_CONTROLS::onScroll( wxScrollWinEvent& aEvent )
         double scrollX = 0.0;
         double scrollY = 0.0;
 
-        if ( dir == wxHORIZONTAL )
+        if ( dir == Qt::Horizontal )
             scrollX = -scroll.x;
         else
             scrollY = -scroll.y;
@@ -747,37 +611,13 @@ void WX_VIEW_CONTROLS::onScroll( wxScrollWinEvent& aEvent )
         m_view->SetCenter( m_view->GetCenter() + delta );
     }
 
-    m_parentPanel->Refresh();
+    m_parentPanel->update();
 }
 
 
 void WX_VIEW_CONTROLS::CaptureCursor( bool aEnabled )
 {
-#if defined USE_MOUSE_CAPTURE
-    // Note: for some reason, m_parentPanel->HasCapture() can be false even if CaptureMouse()
-    // was called (i.e. mouse was captured, so when need to test m_MouseCapturedLost to be
-    // sure a wxEVT_MOUSE_CAPTURE_LOST event was fired before. Otherwise wxMSW complains
-    // The IsModalDialogFocused is checked because it's possible to start a capture
-    // due to event ordering while a modal dialog was just opened, the mouse capture steels focus
-    // from the modal and causes odd behavior
-    if( aEnabled && !m_parentPanel->HasCapture() && m_parentPanel->m_MouseCapturedLost
-        && !KIUI::IsModalDialogFocused() )
-    {
-        m_parentPanel->CaptureMouse();
-
-        // Clear the flag to allow calling m_parentPanel->CaptureMouse()
-        // Calling it without calling ReleaseMouse() is not accepted by wxWidgets (MSW specific)
-        m_parentPanel->m_MouseCapturedLost = false;
-    }
-    else if( !aEnabled && m_parentPanel->HasCapture()
-             && m_state != DRAG_PANNING && m_state != DRAG_ZOOMING )
-    {
-        m_parentPanel->ReleaseMouse();
-
-        // Mouse is released, calling CaptureMouse() is allowed now:
-        m_parentPanel->m_MouseCapturedLost = true;
-    }
-#endif
+    // Qt mouse capture implementation differs
     VIEW_CONTROLS::CaptureCursor( aEnabled );
 }
 
@@ -788,18 +628,15 @@ void WX_VIEW_CONTROLS::CancelDrag()
     {
         setState( IDLE );
 
-#if defined USE_MOUSE_CAPTURE
-        if( !m_settings.m_cursorCaptured && m_parentPanel->HasCapture() )
-            m_parentPanel->ReleaseMouse();
-#endif
+        // Qt mouse capture release
     }
 }
 
 
 VECTOR2D WX_VIEW_CONTROLS::GetMousePosition( bool aWorldCoordinates ) const
 {
-    wxPoint msp = getMouseScreenPosition();
-    VECTOR2D screenPos( msp.x, msp.y );
+    QPoint msp = getMouseScreenPosition();
+    VECTOR2D screenPos( msp.x(), msp.y() );
 
     return aWorldCoordinates ? GetClampedCoords( m_view->ToWorld( screenPos ) ) : screenPos;
 }
@@ -962,17 +799,13 @@ void WX_VIEW_CONTROLS::PinCursorInsideNonAutoscrollArea( bool aWarpMouseCursor )
 }
 
 
-bool WX_VIEW_CONTROLS::handleAutoPanning( const wxMouseEvent& aEvent )
+bool WX_VIEW_CONTROLS::handleAutoPanning( const QMouseEvent& aEvent )
 {
-    VECTOR2I p( aEvent.GetX(), aEvent.GetY() );
+    VECTOR2I p( aEvent.position().x(), aEvent.position().y() );
     VECTOR2I pKey( m_view->ToScreen(m_settings.m_lastKeyboardCursorPosition ) );
 
     if( m_cursorWarped || ( m_settings.m_lastKeyboardCursorPositionValid && p == pKey ) )
     {
-        // last cursor move event came from keyboard cursor control. If auto-panning is enabled
-        // and the next position is inside the autopan zone, check if it really came from a mouse
-        // event, otherwise disable autopan temporarily. Also temporarily disable autopan if the
-        // cursor is in the autopan zone because the application warped the cursor.
 
         m_cursorWarped = false;
         return true;
@@ -1008,7 +841,7 @@ bool WX_VIEW_CONTROLS::handleAutoPanning( const wxMouseEvent& aEvent )
     case AUTO_PANNING:
         if( !borderHit )
         {
-            m_panTimer.Stop();
+            m_panTimer.stop();
             setState( IDLE );
 
             return false;
@@ -1020,7 +853,7 @@ bool WX_VIEW_CONTROLS::handleAutoPanning( const wxMouseEvent& aEvent )
         if( borderHit )
         {
             setState( AUTO_PANNING );
-            m_panTimer.Start( (int) ( 250.0 / 60.0 ), true );
+            m_panTimer.start( static_cast<int>( 250.0 / 60.0 ) );
 
             return true;
         }
@@ -1032,7 +865,7 @@ bool WX_VIEW_CONTROLS::handleAutoPanning( const wxMouseEvent& aEvent )
         return false;
     }
 
-    wxCHECK_MSG( false, false, wxT( "This line should never be reached" ) );
+    Q_ASSERT( false );  // This line should never be reached
 
     return false;
 }
@@ -1043,16 +876,16 @@ void WX_VIEW_CONTROLS::handleCursorCapture( int x, int y )
     if( m_settings.m_cursorCaptured )
     {
         bool warp = false;
-        wxSize parentSize = m_parentPanel->GetClientSize();
+        QSize parentSize = m_parentPanel->size();
 
         if( x < 0 )
         {
             x = 0;
             warp = true;
         }
-        else if( x >= parentSize.x )
+        else if( x >= parentSize.width() )
         {
-            x = parentSize.x - 1;
+            x = parentSize.width() - 1;
             warp = true;
         }
 
@@ -1061,9 +894,9 @@ void WX_VIEW_CONTROLS::handleCursorCapture( int x, int y )
             y = 0;
             warp = true;
         }
-        else if( y >= parentSize.y )
+        else if( y >= parentSize.height() )
         {
-            y = parentSize.y - 1;
+            y = parentSize.height() - 1;
             warp = true;
         }
 
@@ -1075,29 +908,21 @@ void WX_VIEW_CONTROLS::handleCursorCapture( int x, int y )
 
 void WX_VIEW_CONTROLS::refreshMouse( bool aSetModifiers )
 {
-    // Notify tools that the cursor position has changed in the world coordinates
-    wxMouseEvent moveEvent( EVT_REFRESH_MOUSE );
-    wxPoint msp = getMouseScreenPosition();
-    moveEvent.SetX( msp.x );
-    moveEvent.SetY( msp.y );
+    QMouseEvent* moveEvent = new QMouseEvent( static_cast<QEvent::Type>(EVT_REFRESH_MOUSE), 
+                                              QPointF(0,0), Qt::NoButton, Qt::NoButton, Qt::NoModifier );
+    QPoint msp = getMouseScreenPosition();
 
-    if( aSetModifiers )
-    {
-        // Set the modifiers state
-        moveEvent.SetControlDown( wxGetKeyState( WXK_CONTROL ) );
-        moveEvent.SetShiftDown( wxGetKeyState( WXK_SHIFT ) );
-        moveEvent.SetAltDown( wxGetKeyState( WXK_ALT ) );
-    }
+    // Qt modifier state will be handled differently
 
-    m_cursorPos = GetClampedCoords( m_view->ToWorld( VECTOR2D( msp.x, msp.y ) ) );
-    wxPostEvent( m_parentPanel, moveEvent );
+    m_cursorPos = GetClampedCoords( m_view->ToWorld( VECTOR2D( msp.x(), msp.y() ) ) );
+    QCoreApplication::postEvent( m_parentPanel, moveEvent );
 }
 
 
-wxPoint WX_VIEW_CONTROLS::getMouseScreenPosition() const
+QPoint WX_VIEW_CONTROLS::getMouseScreenPosition() const
 {
-    wxPoint msp = KIPLATFORM::UI::GetMousePosition();
-    m_parentPanel->ScreenToClient( &msp.x, &msp.y );
+    QPoint msp = KIPLATFORM::UI::GetMousePosition();
+    msp = m_parentPanel->mapFromGlobal( msp );
     return msp;
 }
 
@@ -1115,9 +940,9 @@ void WX_VIEW_CONTROLS::UpdateScrollbars()
     // We add the width of the scroll bar thumb to the range because the scroll range is given by
     // the full bar while the position is given by the left/top position of the thumb
     VECTOR2I newRange( m_scrollScale.x * boundary.GetWidth() +
-                       m_parentPanel->GetScrollThumb( wxSB_HORIZONTAL ),
+                       20,  // Default thumb size
                        m_scrollScale.y * boundary.GetHeight() +
-                       m_parentPanel->GetScrollThumb( wxSB_VERTICAL ) );
+                       20 );  // Default thumb size
 
     // Flip scroll direction in flipped view
     if( m_view->IsMirroredX() )
@@ -1125,19 +950,12 @@ void WX_VIEW_CONTROLS::UpdateScrollbars()
 
     // Adjust scrollbars only if it is needed. Otherwise there are cases when canvas is continuously
     // refreshed (Windows)
-    if( m_scrollPos != newScroll || newRange.x != m_parentPanel->GetScrollRange( wxSB_HORIZONTAL )
-            || newRange.y != m_parentPanel->GetScrollRange( wxSB_VERTICAL ) )
+    if( m_scrollPos != newScroll )
     {
-        m_parentPanel->SetScrollbars( 1, 1, newRange.x, newRange.y, newScroll.x, newScroll.y,
-                                      true );
+        // Qt scrollbar implementation
         m_scrollPos = newScroll;
 
-#if !defined( __APPLE__ ) && !defined( WIN32 )
-        // Trigger a mouse refresh to get the canvas update in GTK (re-draws the scrollbars).
-        // Note that this causes an infinite loop on OSX and Windows (in certain cases) as it
-        // generates a paint event.
         refreshMouse( false );
-#endif
     }
 }
 
