@@ -1,28 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2023 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef __TOOL_EVENT_H
 #define __TOOL_EVENT_H
@@ -38,7 +13,8 @@
 #include <atomic>
 
 #include <tool/tool_action.h>
-#include <wx/debug.h>
+#include <QDebug>
+#include <QString>
 
 class COMMIT;
 class TOOL_ACTION;
@@ -46,9 +22,6 @@ class TOOL_MANAGER;
 class TOOL_BASE;
 class TOOLS_HOLDER;
 
-/**
- * Internal (GUI-independent) event definitions.
- */
 enum TOOL_EVENT_CATEGORY
 {
     TC_NONE     = 0x00,
@@ -85,42 +58,28 @@ enum TOOL_ACTIONS
 
     TA_CHANGE_LAYER         = 0x1000,
 
-    /// Tool cancel event. Issued automagically when the user hits escape or selects End Tool from
-    /// the context menu.
     TA_CANCEL_TOOL          = 0x2000,
 
-    /// Context menu update. Issued whenever context menu is open and the user hovers the mouse
-    /// over one of choices. Used in dynamic highlighting in disambiguation menu.
     TA_CHOICE_MENU_UPDATE   = 0x4000,
 
-    /// Context menu choice. Sent if the user picked something from the context menu or
-    /// closed it without selecting anything.
     TA_CHOICE_MENU_CHOICE   = 0x8000,
 
-    /// Context menu is closed, no matter whether anything has been chosen or not.
     TA_CHOICE_MENU_CLOSED   = 0x10000,
 
     TA_CHOICE_MENU = TA_CHOICE_MENU_UPDATE | TA_CHOICE_MENU_CHOICE | TA_CHOICE_MENU_CLOSED,
 
-    /// This event is sent *before* undo/redo command is performed.
     TA_UNDO_REDO_PRE        = 0x20000,
 
-    /// This event is sent *after* undo/redo command is performed.
     TA_UNDO_REDO_POST       = 0x40000,
 
-    /// Tool action (allows one to control tools).
     TA_ACTION               = 0x80000,
 
-    /// Tool activation event.
     TA_ACTIVATE             = 0x100000,
 
-    /// Tool re-activation event for tools already on the stack.
     TA_REACTIVATE           = 0x200000,
 
-    /// Model has changed (partial update).
     TA_MODEL_CHANGE         = 0x400000,
 
-    /// Tool priming event (a special mouse click).
     TA_PRIME                = 0x800001,
 
     TA_ANY = 0xffffffff
@@ -146,12 +105,11 @@ enum TOOL_MODIFIERS
     MD_MODIFIER_MASK = MD_SHIFT | MD_CTRL | MD_ALT,
 };
 
-/// Defines when a context menu is opened.
 enum CONTEXT_MENU_TRIGGER
 {
-    CMENU_BUTTON = 0,   ///< On the right button.
-    CMENU_NOW,          ///< Right now (after TOOL_INTERACTIVE::SetContextMenu).
-    CMENU_OFF           ///< Never.
+    CMENU_BUTTON = 0,
+    CMENU_NOW,
+    CMENU_OFF
 };
 
 enum SYNCRONOUS_TOOL_STATE
@@ -161,17 +119,9 @@ enum SYNCRONOUS_TOOL_STATE
     STS_CANCELLED
 };
 
-/**
- * Generic, UI-independent tool event.
- */
 class TOOL_EVENT
 {
 public:
-    /**
-     * Return information about event in form of a human-readable string.
-     *
-     * @return Event information.
-     */
     const std::string Format() const;
 
     TOOL_EVENT( TOOL_EVENT_CATEGORY aCategory = TC_NONE, TOOL_ACTIONS aAction = TA_NONE,
@@ -240,33 +190,22 @@ public:
         init();
     }
 
-    /// Return the category (eg. mouse/keyboard/action) of an event.
     TOOL_EVENT_CATEGORY Category() const { return m_category; }
 
-    /// Returns more specific information about the type of an event.
     TOOL_ACTIONS Action() const { return m_actions; }
 
-    /// These give a tool a method of informing the TOOL_MANAGER that a particular event should
-    /// be passed on to subsequent tools on the stack.  Defaults to true for TC_MESSAGES; false
-    /// for everything else.
     bool PassEvent() const { return m_passEvent; }
     void SetPassEvent( bool aPass = true ) { m_passEvent = aPass; }
 
-    /// Returns if it this event has a valid position (true for mouse events and context-menu
-    /// or hotkey-based command events).
     bool HasPosition() const { return m_hasPosition; }
     void SetHasPosition( bool aHasPosition ) { m_hasPosition = aHasPosition; }
 
-    /// Returns if the action associated with this event should be treated as immediate regardless
-    /// of the current immediate action settings.
     bool ForceImmediate() const { return m_forceImmediate; }
     void SetForceImmediate( bool aForceImmediate = true ) { m_forceImmediate = aForceImmediate; }
 
     TOOL_BASE* FirstResponder() const { return m_firstResponder; }
     void SetFirstResponder( TOOL_BASE* aTool ) { m_firstResponder = aTool; }
 
-    /// Control whether the tool is first being pushed to the stack or being reactivated after
-    /// a pause.
     bool IsReactivate() const { return m_reactivate; }
     void SetReactivate( bool aReactivate = true ) { m_reactivate = aReactivate; }
 
@@ -279,29 +218,24 @@ public:
     void SetCommit( COMMIT* aCommit ) { m_commit = aCommit; }
     COMMIT* Commit() const { return m_commit; }
 
-    /// Return information about difference between current mouse cursor position and the place
-    /// where dragging has started.
     const VECTOR2D Delta() const
     {
         return returnCheckedPosition( m_mouseDelta );
     }
 
-    /// Return mouse cursor position in world coordinates.
     const VECTOR2D Position() const
     {
         return returnCheckedPosition( m_mousePos );
     }
 
-    /// Return the point where dragging has started.
     const VECTOR2D DragOrigin() const
     {
         return returnCheckedPosition( m_mouseDragOrigin );
     }
 
-    /// Return information about mouse buttons state.
     int Buttons() const
     {
-        assert( m_category == TC_MOUSE );    // this should be used only with mouse events
+        assert( m_category == TC_MOUSE );
         return m_mouseButtons;
     }
 
@@ -359,7 +293,6 @@ public:
         return m_actions == TA_PRIME;
     }
 
-    /// Return information about key modifiers state (Ctrl, Alt, etc.).
     int Modifier( int aMask = MD_MODIFIER_MASK ) const
     {
         return m_modifiers & aMask;
@@ -380,12 +313,6 @@ public:
         return m_actions == TA_KEY_PRESSED;
     }
 
-    /**
-     * Test whether two events match in terms of category & action or command.
-     *
-     * @param aEvent is the event to test against.
-     * @return True if two events match, false otherwise.
-     */
     bool Matches( const TOOL_EVENT& aEvent ) const
     {
         if( !( m_category & aEvent.m_category ) )
@@ -400,74 +327,35 @@ public:
                 return *m_commandId == *aEvent.m_commandId;
         }
 
-        // BUGFIX: TA_ANY should match EVERYTHING, even TA_NONE (for TC_MESSAGE)
         if( m_actions == TA_ANY && aEvent.m_actions == TA_NONE && aEvent.m_category == TC_MESSAGE )
             return true;
-
-        // BUGFIX: This check must happen after the TC_COMMAND check because otherwise events of
-        // the form { TC_COMMAND, TA_NONE } will be incorrectly skipped
         if( !( m_actions & aEvent.m_actions ) )
             return false;
 
         return true;
     }
 
-    /**
-     * Test if the event contains an action issued upon activation of the given #TOOL_ACTION.
-     *
-     * @param aAction is the TOOL_ACTION to be checked against.
-     * @return True if it matches the given TOOL_ACTION.
-     */
     bool IsAction( const TOOL_ACTION* aAction ) const;
 
-    /**
-     * Indicate the event should restart/end an ongoing interactive tool's event loop (eg esc
-     * key, click cancel, start different tool).
-     */
     bool IsCancelInteractive() const;
 
-    /**
-     * Indicate an selection-changed notification event.
-     */
     bool IsSelectionEvent() const;
 
-    /**
-     * Indicate if the event is from one of the point editors.
-     *
-     * Usually used to allow the point editor to activate itself without de-activating the
-     * current drawing tool.
-     */
     bool IsPointEditor() const;
 
-    /**
-     * Indicate if the event is from one of the move tools.
-     *
-     * Usually used to allow move to be done without de-activating the current drawing tool.
-     */
     bool IsMoveTool() const;
 
-    /**
-     * Indicate if the event is asking for an editor tool.
-     *
-     * Used to allow deleting an element without de-activating the current tool.
-     */
     bool IsEditorTool() const;
 
-    /**
-     * Indicate if the event is from the simulator.
-     */
     bool IsSimulator() const;
-
-    /**
-     * Return a parameter assigned to the event. Its meaning depends on the target tool.
-     */
     template<typename T, std::enable_if_t<!std::is_pointer<T>::value>* = nullptr >
     T Parameter() const
     {
         T param;
 
-        wxCHECK_MSG( m_param.has_value(), T(), "Attempted to get a parameter from an event with "
+        Q_ASSERT_X( m_param.has_value(), "Parameter", "Attempted to get a parameter from an event with "
                                                "no parameter." );
+        if( !m_param.has_value() ) return T();
 
         try
         {
@@ -475,25 +363,24 @@ public:
         }
         catch( const ki::bad_any_cast& )
         {
-            wxCHECK_MSG( false, T(), wxString::Format( "Requested parameter type %s from event "
-                                                       "with parameter type %s.",
-                                                       typeid(T).name(),
-                                                       m_param.type().name() ) );
+            Q_ASSERT_X( false, "Parameter", QString( "Requested parameter type %1 from event "
+                                                       "with parameter type %2." )
+                                                       .arg( typeid(T).name() )
+                                                       .arg( m_param.type().name() ).toLocal8Bit().constData() );
+            return T();
         }
 
         return param;
     }
 
-    /**
-     * Return pointer parameter assigned to the event. Its meaning depends on the target tool.
-     */
     template<typename T, std::enable_if_t<std::is_pointer<T>::value>* = nullptr>
     T Parameter() const
     {
         T param = nullptr;
 
-        wxCHECK_MSG( m_param.has_value(), param, "Attempted to get a parameter from an event with "
+        Q_ASSERT_X( m_param.has_value(), "Parameter", "Attempted to get a parameter from an event with "
                                                  "no parameter." );
+        if( !m_param.has_value() ) return param;
 
         try
         {
@@ -501,21 +388,16 @@ public:
         }
         catch( const ki::bad_any_cast& )
         {
-            wxCHECK_MSG( false, param, wxString::Format( "Requested parameter type %s from event "
-                                                         "with parameter type %s.",
-                                                         typeid(T).name(),
-                                                         m_param.type().name() ) );
+            Q_ASSERT_X( false, "Parameter", QString( "Requested parameter type %1 from event "
+                                                         "with parameter type %2." )
+                                                         .arg( typeid(T).name() )
+                                                         .arg( m_param.type().name() ).toLocal8Bit().constData() );
+            return param;
         }
 
         return param;
     }
 
-    /**
-     * Set a non-standard parameter assigned to the event. Its meaning depends on the
-     * target tool.
-     *
-     * @param aParam is the new parameter.
-     */
     template<typename T>
     void SetParameter(T aParam)
     {
@@ -571,16 +453,6 @@ private:
         m_modifiers = aMods;
     }
 
-    /**
-     * Ensure that the event is a type that has a position before returning a
-     * position, otherwise return a null-constructed position.
-     *
-     * Used to defend the position accessors from runtime access when the event
-     * does not have a valid position.
-     *
-     * @param aPos the position to return if the event is valid
-     * @return the checked position
-     */
     VECTOR2D returnCheckedPosition( const VECTOR2D& aPos ) const;
 
     TOOL_EVENT_CATEGORY m_category;
@@ -591,39 +463,28 @@ private:
     bool m_forceImmediate;
 
 
-    /// Optional group that the parent action for the event belongs to.
     std::optional<TOOL_ACTION_GROUP> m_actionGroup;
 
-    /// True when the tool is being re-activated from the stack.
     bool m_reactivate;
 
-    /// Difference between mouse cursor position and the point where dragging event has started.
     VECTOR2D m_mouseDelta;
 
-    /// Current mouse cursor position.
     VECTOR2D m_mousePos;
 
-    /// Point where dragging has started.
     VECTOR2D m_mouseDragOrigin;
 
-    /// State of mouse buttons.
     int m_mouseButtons;
 
-    /// Stores code of pressed/released key.
     int m_keyCode;
 
-    /// State of key modifiers (Ctrl/Alt/etc.).
     int m_modifiers;
 
     std::atomic<SYNCRONOUS_TOOL_STATE>* m_synchronousState;
 
-    /// Commit the tool handling the event should add to
     COMMIT* m_commit;
 
-    /// Generic parameter used for passing non-standard data.
     ki::any m_param;
 
-    /// The first tool to receive the event.
     TOOL_BASE* m_firstResponder;
 
     std::optional<int> m_commandId;
@@ -632,10 +493,6 @@ private:
 
 typedef std::optional<TOOL_EVENT> OPT_TOOL_EVENT;
 
-/**
- * A list of TOOL_EVENTs, with overloaded || operators allowing for concatenating TOOL_EVENTs
- * with little code.
- */
 class TOOL_EVENT_LIST
 {
 public:
@@ -643,17 +500,14 @@ public:
     typedef std::deque<TOOL_EVENT>::iterator iterator;
     typedef std::deque<TOOL_EVENT>::const_iterator const_iterator;
 
-    /// Default constructor. Creates an empty list.
     TOOL_EVENT_LIST()
     {}
 
-    /// Constructor for a list containing only one TOOL_EVENT.
     TOOL_EVENT_LIST( const TOOL_EVENT& aSingleEvent )
     {
         m_events.push_back( aSingleEvent );
     }
 
-    /// Copy an existing TOOL_EVENT_LIST
     TOOL_EVENT_LIST( const TOOL_EVENT_LIST& aEventList )
     {
         m_events.clear();
@@ -662,18 +516,8 @@ public:
             m_events.push_back( event );
     }
 
-    /**
-     * Return information about event in form of a human-readable string.
-     *
-     * @return Event information.
-     */
     const std::string Format() const;
 
-    /**
-     * Return a string containing the names of all the events in this list.
-     *
-     * @return Event names.
-     */
     const std::string Names() const;
 
     OPT_TOOL_EVENT Matches( const TOOL_EVENT& aEvent ) const
@@ -687,11 +531,6 @@ public:
         return OPT_TOOL_EVENT();
     }
 
-    /**
-     * Add a tool event to the list.
-     *
-     * @param aEvent is the tool event to be added.
-     */
     void Add( const TOOL_EVENT& aEvent )
     {
         m_events.push_back( aEvent );

@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <pgm_base.h>
 #include <common.h>
@@ -29,184 +6,144 @@
 #include <gestfich.h>
 #include <settings/common_settings.h>
 
-#include <wx/filedlg.h>
-#include <wx/filename.h>
-#include <wx/log.h>
-#include <wx/mimetype.h>
-#include <wx/uri.h>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QDir>
+#include <QMimeDatabase>
+#include <QUrl>
+#include <QDesktopServices>
+#include <QDebug>
+#include <QProcess>
 
 
-//  Mime type extensions (PDF files are not considered here)
-static wxMimeTypesManager*  mimeDatabase;
-static const wxFileTypeInfo EDAfallbacks[] =
-{
-    wxFileTypeInfo( wxT( "text/html" ),
-                    wxT( "wxhtml %s" ),
-                    wxT( "wxhtml %s" ),
-                    wxT( "html document (from KiCad)" ),
-                    wxT( "htm" ),
-                    wxT( "html" ),wxNullPtr ),
-
-    wxFileTypeInfo( wxT( "application/sch" ),
-                    wxT( "eeschema %s" ),
-                    wxT( "eeschema -p %s" ),
-                    wxT( "sch document (from KiCad)" ),
-                    wxT( "sch" ),
-                    wxT( "SCH" ), wxNullPtr ),
-
-    // must terminate the table with this!
-    wxFileTypeInfo()
-};
+// Mime type extensions (PDF files are not considered here)
+static QMimeDatabase mimeDatabase;
 
 
-bool GetAssociatedDocument( wxWindow* aParent, const wxString& aDocName, PROJECT* aProject,
+bool GetAssociatedDocument( QWidget* aParent, const QString& aDocName, PROJECT* aProject,
                             SEARCH_STACK* aPaths, std::vector<EMBEDDED_FILES*> aFilesStack )
 {
-    wxString      docname;
-    wxString      fullfilename;
-    wxString      msg;
-    wxString      command;
-    bool          success = false;
+    QString      docname;
+    QString      fullfilename;
+    QString      msg;
+    QString      command;
+    bool         success = false;
 
     // Replace before resolving as we might have a URL in a variable
     docname = ResolveUriByEnvVars( aDocName, aProject );
 
-    // We don't want the wx error message about not being able to open the URI
+    // Check if this is a URI and handle appropriately
     {
-        wxURI     uri( docname );
-        wxLogNull logNo; // Disable log messages
+        QUrl uri( docname );
 
-        if( uri.HasScheme() )
+        if( uri.hasFragment() || uri.hasQuery() || !uri.scheme().isEmpty() )
         {
-            wxString scheme = uri.GetScheme().Lower();
+            QString scheme = uri.scheme().toLower();
 
             if( scheme != FILEEXT::KiCadUriPrefix )
             {
-                if( wxLaunchDefaultBrowser( docname ) )
+                if( QDesktopServices::openUrl( QUrl( docname ) ) )
                     return true;
             }
             else
             {
                 if( aFilesStack.empty() )
                 {
-                    wxLogTrace( wxT( "KICAD_EMBED" ),
-                                wxT( "No EMBEDDED_FILES object provided for kicad_embed URI" ) );
+                    qDebug() << "No EMBEDDED_FILES object provided for kicad_embed URI";
                     return false;
                 }
 
-                if( !docname.starts_with( FILEEXT::KiCadUriPrefix + "://" ) )
+                if( !docname.startsWith( QString( FILEEXT::KiCadUriPrefix ) + "://" ) )
                 {
-                    wxLogTrace( wxT( "KICAD_EMBED" ),
-                                wxT( "Invalid kicad_embed URI '%s'" ), docname );
+                    qDebug() << "Invalid kicad_embed URI" << docname;
                     return false;
                 }
 
-                docname = docname.Mid( wxString( FILEEXT::KiCadUriPrefix + "://" ).length() );
+                docname = docname.mid( QString( FILEEXT::KiCadUriPrefix + "://" ).length() );
 
-                wxFileName temp_file = aFilesStack[0]->GetTemporaryFileName( docname );
-                int        ii = 1;
+                QFileInfo temp_file = aFilesStack[0]->GetTemporaryFileName( docname );
+                int       ii = 1;
 
-                while( !temp_file.IsOk() && ii < (int) aFilesStack.size() )
+                while( !temp_file.exists() && ii < (int) aFilesStack.size() )
                     temp_file = aFilesStack[ii++]->GetTemporaryFileName( docname );
 
-                if( !temp_file.IsOk() )
+                if( !temp_file.exists() )
                 {
-                    wxLogTrace( wxT( "KICAD_EMBED" ),
-                                wxT( "Failed to get temp file '%s' for kicad_embed URI" ), docname );
+                    qDebug() << "Failed to get temp file" << docname << "for kicad_embed URI";
                     return false;
                 }
 
-                wxLogTrace( wxT( "KICAD_EMBED" ),
-                            wxT( "Opening embedded file '%s' as '%s'" ),
-                            docname,
-                            temp_file.GetFullPath() );
-                docname = temp_file.GetFullPath();
+                qDebug() << "Opening embedded file" << docname << "as" << temp_file.absoluteFilePath();
+                docname = temp_file.absoluteFilePath();
             }
         }
     }
 
 #ifdef __WINDOWS__
-    docname.Replace( UNIX_STRING_DIR_SEP, WIN_STRING_DIR_SEP );
+    docname.replace( UNIX_STRING_DIR_SEP, WIN_STRING_DIR_SEP );
 #else
-    docname.Replace( WIN_STRING_DIR_SEP, UNIX_STRING_DIR_SEP );
+    docname.replace( WIN_STRING_DIR_SEP, UNIX_STRING_DIR_SEP );
 #endif
 
-    /* Compute the full file name */
-    if( wxIsAbsolutePath( docname ) || aPaths == nullptr )
+    // Compute the full file name
+    if( QDir::isAbsolutePath( docname ) || aPaths == nullptr )
         fullfilename = docname;
-    /* If the file exists, this is a trivial case: return the filename "as this".  the name can
-     * be an absolute path, or a relative path like ./filename or ../<filename>.
-     */
-    else if( wxFileName::FileExists( docname ) )
+    // If the file exists, this is a trivial case: return the filename "as this".  the name can
+    // be an absolute path, or a relative path like ./filename or ../<filename>.
+    else if( QFileInfo::exists( docname ) )
         fullfilename = docname;
     else
         fullfilename = aPaths->FindValidPath( docname );
 
-    wxString extension;
+    QString extension;
 
 #ifdef __WINDOWS__
-    extension = wxT( ".*" );
+    extension = ".*";
 #endif
 
-    if( wxIsWild( fullfilename ) )
+    if( fullfilename.contains( '*' ) || fullfilename.contains( '?' ) )
     {
-        fullfilename = wxFileSelector( _( "Documentation File" ), wxPathOnly( fullfilename ),
-                                       fullfilename, extension, wxFileSelectorDefaultWildcardStr,
-                                       wxFD_OPEN, aParent );
+        QFileInfo fileInfo( fullfilename );
+        fullfilename = QFileDialog::getOpenFileName( aParent, 
+                                                   _("Documentation File"),
+                                                   fileInfo.path(),
+                                                   "All Files (*.*)" );
 
-        if( fullfilename.IsEmpty() )
+        if( fullfilename.isEmpty() )
             return false;
     }
 
-    if( !wxFileExists( fullfilename ) )
+    if( !QFileInfo::exists( fullfilename ) )
     {
-        msg.Printf( _( "Documentation file '%s' not found." ), docname );
+        msg = QString( _("Documentation file '%1' not found.") ).arg( docname );
         DisplayErrorMessage( aParent, msg );
         return false;
     }
 
-    wxFileName currentFileName( fullfilename );
+    QFileInfo currentFileName( fullfilename );
 
-    // Use wxWidgets to resolve any "." and ".." in the path
-    fullfilename = currentFileName.GetAbsolutePath();
+    // Use Qt to resolve any "." and ".." in the path
+    fullfilename = currentFileName.absoluteFilePath();
 
-    wxString file_ext = currentFileName.GetExt();
+    QString file_ext = currentFileName.suffix();
 
-    if( file_ext.Lower() == wxT( "pdf" ) )
+    if( file_ext.toLower() == "pdf" )
     {
         success = OpenPDF( fullfilename );
         return success;
     }
 
-    /* Try to launch some browser (useful under linux) */
-    wxFileType* filetype;
-
-    wxString    type;
-    filetype = wxTheMimeTypesManager->GetFileTypeFromExtension( file_ext );
-
-    if( !filetype )       // 2nd attempt.
+    // Try to launch appropriate application
+    QMimeType mimeType = mimeDatabase.mimeTypeForFile( fullfilename );
+    
+    if( mimeType.isValid() )
     {
-        mimeDatabase = new wxMimeTypesManager;
-        mimeDatabase->AddFallbacks( EDAfallbacks );
-        filetype = mimeDatabase->GetFileTypeFromExtension( file_ext );
-        delete mimeDatabase;
-        mimeDatabase = nullptr;
-    }
-
-    if( filetype )
-    {
-        wxFileType::MessageParameters params( fullfilename, type );
-
-        success = filetype->GetOpenCommand( &command, params );
-        delete filetype;
-
-        if( success )
-            success = wxExecute( command );
+        success = QDesktopServices::openUrl( QUrl::fromLocalFile( fullfilename ) );
     }
 
     if( !success )
     {
-        msg.Printf( _( "Unknown MIME type for documentation file '%s'" ), fullfilename );
+        msg = QString( _("Unknown MIME type for documentation file '%1'") ).arg( fullfilename );
         DisplayErrorMessage( aParent, msg );
     }
 

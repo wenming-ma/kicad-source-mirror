@@ -1,41 +1,15 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2011 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-
-#include <wx/image.h>
-#include <wx/bitmap.h>
-#include <wx/gdicmn.h>
-#include <wx/mstream.h>
-#include <wx/menu.h>
-#include <wx/menuitem.h>
-#include <wx/aui/auibar.h>
-#include <wx/dcclient.h>
-#include <wx/dcmemory.h>
+#include <QPixmap>
+#include <QBitmap>
+#include <QImage>
+#include <QBuffer>
+#include <QWidget>
+#include <QMenu>
+#include <QAction>
+#include <QPainter>
+#include <QHash>
 
 #include <cstdint>
 #include <mutex>
-#include <unordered_map>
 
 #include <asset_archive.h>
 #include <bitmaps.h>
@@ -60,31 +34,23 @@ struct SCALED_BITMAP_ID {
 };
 
 
-namespace std {
-    template<> struct hash<SCALED_BITMAP_ID>
-    {
-        typedef SCALED_BITMAP_ID argument_type;
-        typedef std::size_t result_type;
+inline uint qHash( const SCALED_BITMAP_ID& id, uint seed = 0 )
+{
+    static const bool sz64 = sizeof( uintptr_t ) == 8;
+    static const size_t mask = sz64 ? 0xF000000000000000uLL : 0xF0000000uL;
+    static const size_t offset = sz64 ? 60 : 28;
 
-        result_type operator()( argument_type const& id ) const noexcept
-        {
-            static const bool sz64 = sizeof( uintptr_t ) == 8;
-            static const size_t mask = sz64 ? 0xF000000000000000uLL : 0xF0000000uL;
-            static const size_t offset = sz64 ? 60 : 28;
-
-            // The hash only needs to be fast and simple, not necessarily accurate - a collision
-            // only makes things slower, not broken. BITMAPS is a pointer, so the most
-            // significant several bits are generally going to be the same for all. Just convert
-            // it to an integer and stuff the scale factor into those bits.
-            return
-                ( (uintptr_t)( id.bitmap ) & ~mask ) |
-                ( ( (uintptr_t)( id.scale ) & 0xF ) << offset );
-        }
-    };
+    // The hash only needs to be fast and simple, not necessarily accurate - a collision
+    // only makes things slower, not broken. BITMAPS is a pointer, so the most
+    // significant several bits are generally going to be the same for all. Just convert
+    // it to an integer and stuff the scale factor into those bits.
+    uint result = ( (uintptr_t)( id.bitmap ) & ~mask ) |
+                  ( ( (uintptr_t)( id.scale ) & 0xF ) << offset );
+    return qHashBits( &result, sizeof(result), seed );
 }
 
 
-static std::unordered_map<SCALED_BITMAP_ID, wxBitmap> s_ScaledBitmapCache;
+static QHash<SCALED_BITMAP_ID, QPixmap> s_ScaledBitmapCache;
 
 static std::mutex s_BitmapCacheMutex;
 
@@ -93,7 +59,7 @@ BITMAP_STORE* GetBitmapStore()
 {
     if( !s_BitmapStore )
     {
-        wxFileName path( PATHS::GetStockDataPath() + wxT( "/resources" ), wxT( "images.zip" ) );
+        QString stockPath = PATHS::GetStockDataPath() + QString( "/resources" );
         s_BitmapStore = std::make_unique<BITMAP_STORE>();
     }
 
@@ -101,36 +67,34 @@ BITMAP_STORE* GetBitmapStore()
 }
 
 
-wxBitmap KiBitmap( BITMAPS aBitmap, int aHeightTag )
+QPixmap KiBitmap( BITMAPS aBitmap, int aHeightTag )
 {
     return GetBitmapStore()->GetBitmap( aBitmap, aHeightTag );
 }
 
 
-wxBitmapBundle KiBitmapBundle( BITMAPS aBitmap, int aMinHeight )
+QIcon KiBitmapBundle( BITMAPS aBitmap, int aMinHeight )
 {
     return GetBitmapStore()->GetBitmapBundle( aBitmap, aMinHeight );
 }
 
 
-wxBitmapBundle KiDisabledBitmapBundle( BITMAPS aBitmap )
+QIcon KiDisabledBitmapBundle( BITMAPS aBitmap )
 {
     return GetBitmapStore()->GetDisabledBitmapBundle( aBitmap );
 }
 
 
-int KiIconScale( wxWindow* aWindow )
+int KiIconScale( QWidget* aWidget )
 {
     // For historical reasons, "4" here means unity (no scaling)
 
-#if defined( __WXMSW__)
-    // Basically don't try and scale within KiCad and let wx do its thing
-    // with wx introducing bitmap bundles, it will auto scale automatically with dpi
-    // the issue is, none of the scaling factors have any tie to system scaling
-    // this means wx is actually going to scale again causing even more distorted icons
+#if defined( Q_OS_WIN )
+    // Basically don't try and scale within KiCad and let Qt do its thing
+    // Qt will auto scale automatically with dpi scaling
     return 4;
 #else
-    const int vert_size = aWindow->ConvertDialogToPixels( wxSize( 0, 8 ) ).y;
+    const int vert_size = aWidget ? (aWidget->logicalDpiY() * 8) / 96 : 8;
 
     // Autoscale won't exceed unity until the system has quite high resolution,
     // because we don't want the icons to look obviously scaled on a system
@@ -144,10 +108,10 @@ int KiIconScale( wxWindow* aWindow )
 }
 
 
-wxBitmap KiScaledBitmap( BITMAPS aBitmap, wxWindow* aWindow, int aHeight, bool aQuantized )
+QPixmap KiScaledBitmap( BITMAPS aBitmap, QWidget* aWidget, int aHeight, bool aQuantized )
 {
     // Bitmap conversions are cached because they can be slow.
-    int scale = KiIconScale( aWindow );
+    int scale = KiIconScale( aWidget );
 
     if( aQuantized )
         scale = KiROUND( (double) scale / 4.0 ) * 4;
@@ -163,8 +127,9 @@ wxBitmap KiScaledBitmap( BITMAPS aBitmap, wxWindow* aWindow, int aHeight, bool a
     }
     else
     {
-        wxBitmap bitmap = GetBitmapStore()->GetBitmapScaled( aBitmap, scale, aHeight );
-        return s_ScaledBitmapCache.emplace( id, bitmap ).first->second;
+        QPixmap bitmap = GetBitmapStore()->GetBitmapScaled( aBitmap, scale, aHeight );
+        s_ScaledBitmapCache.insert( id, bitmap );
+        return bitmap;
     }
 }
 
@@ -176,28 +141,28 @@ void ClearScaledBitmapCache()
 }
 
 
-wxBitmap KiScaledBitmap( const wxBitmap& aBitmap, wxWindow* aWindow )
+QPixmap KiScaledBitmap( const QPixmap& aBitmap, QWidget* aWidget )
 {
-    const int scale = KiIconScale( aWindow );
+    const int scale = KiIconScale( aWidget );
 
     if( scale == 4 )
     {
-        return wxBitmap( aBitmap );
+        return QPixmap( aBitmap );
     }
     else
     {
-        wxImage image = aBitmap.ConvertToImage();
-        image.Rescale( scale * image.GetWidth() / 4, scale * image.GetHeight() / 4,
-                       wxIMAGE_QUALITY_BILINEAR );
+        QImage image = aBitmap.toImage();
+        image = image.scaled( scale * image.width() / 4, scale * image.height() / 4,
+                             Qt::IgnoreAspectRatio, Qt::SmoothTransformation );
 
-        return wxBitmap( image );
+        return QPixmap::fromImage( image );
     }
 }
 
 
-wxBitmap* KiBitmapNew( BITMAPS aBitmap )
+QPixmap* KiBitmapNew( BITMAPS aBitmap )
 {
-    wxBitmap* bitmap = new wxBitmap( GetBitmapStore()->GetBitmap( aBitmap ) );
+    QPixmap* bitmap = new QPixmap( GetBitmapStore()->GetBitmap( aBitmap ) );
 
     return bitmap;
 }

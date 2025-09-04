@@ -1,56 +1,46 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
-
+// QT_TRANSFORMATION_COMPLETED
 #ifndef PAGED_DIALOG_H
 #define PAGED_DIALOG_H
 
 #include <dialog_shim.h>
-#include <widgets/wx_treebook.h>
+#include <widgets/qt_treebook.h>
+#include <QWidget>
+#include <QString>
+#include <QSize>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QKeyEvent>
+#include <vector>
 
 
-class WX_INFOBAR;
-class WX_TREEBOOK;
+class QT_INFOBAR;
+class QT_TREEBOOK;
 
 class PAGED_DIALOG : public DIALOG_SHIM
 {
+    Q_OBJECT
+
 public:
-    PAGED_DIALOG( wxWindow* aParent, const wxString& aTitle, bool aShowReset, bool aShowOpenFolder,
-                  const wxString& aAuxiliaryAction = wxEmptyString,
-                  const wxSize&   aInitialSize = wxDefaultSize );
+    PAGED_DIALOG( QWidget* aParent, const QString& aTitle, bool aShowReset, bool aShowOpenFolder,
+                  const QString& aAuxiliaryAction = QString(),
+                  const QSize&   aInitialSize = QSize() );
     ~PAGED_DIALOG() override;
 
-    WX_TREEBOOK* GetTreebook() { return m_treebook; }
+    QT_TREEBOOK* GetTreebook() { return m_treebook; }
 
-    void SetInitialPage( const wxString& aPage, const wxString& aParentPage = wxEmptyString );
+    void SetInitialPage( const QString& aPage, const QString& aParentPage = QString() );
 
     void SetModified() { m_modified = true; }
 
-    void SetError( const wxString& aMessage, const wxString& aPageName, int aCtrlId, int aRow = -1,
+    void SetError( const QString& aMessage, const QString& aPageName, int aCtrlId, int aRow = -1,
                    int aCol = -1 );
 
-    void SetError( const wxString& aMessage, wxWindow* aPage, wxWindow* aCtrl, int aRow = -1,
+    void SetError( const QString& aMessage, QWidget* aPage, QWidget* aCtrl, int aRow = -1,
                    int aCol = -1 );
 
     void UpdateResetButton( int aPage );
 
-    static PAGED_DIALOG* GetDialog( wxWindow* aWindow );
+    static PAGED_DIALOG* GetDialog( QWidget* aWindow );
 
 protected:
     void finishInitialization();
@@ -58,23 +48,23 @@ protected:
     bool TransferDataToWindow() override;
     bool TransferDataFromWindow() override;
 
-    virtual void onAuxiliaryAction( wxCommandEvent& aEvent ) { aEvent.Skip(); }
-    virtual void onResetButton( wxCommandEvent& aEvent );
-    virtual void onOpenPreferencesButton( wxCommandEvent& aEvent );
-    virtual void onPageChanged( wxBookCtrlEvent& aEvent );
-    virtual void onPageChanging( wxBookCtrlEvent& aEvent );
-    virtual void onCharHook( wxKeyEvent& aEvent );
+    virtual void onAuxiliaryAction();
+    virtual void onResetButton();
+    virtual void onOpenPreferencesButton();
+    virtual void onPageChanged( int aEvent );
+    virtual void onPageChanging( int aEvent );
+    virtual void onCharHook( QKeyEvent* aEvent );
 
-    WX_TREEBOOK* m_treebook;
-    wxButton*    m_auxiliaryButton;
-    wxButton*    m_resetButton;
-    wxButton*    m_openPrefsDirButton;
-    WX_INFOBAR*  m_infoBar;
+    QT_TREEBOOK* m_treebook;
+    QPushButton* m_auxiliaryButton;
+    QPushButton* m_resetButton;
+    QPushButton* m_openPrefsDirButton;
+    QT_INFOBAR*  m_infoBar;
 
 private:
-    wxString    m_title;
+    QString     m_title;
 
-    wxBoxSizer* m_buttonsSizer;
+    QVBoxLayout* m_buttonsSizer;
 
     std::vector<bool> m_macHack;
 };

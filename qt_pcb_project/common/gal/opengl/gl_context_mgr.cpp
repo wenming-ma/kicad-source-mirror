@@ -1,38 +1,21 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 #include <gal/opengl/gl_context_mgr.h>
-#include <wx/debug.h>
+#include <QDebug>
+#include <QOpenGLContext>
+#include <QOpenGLWidget>
 
 
-wxGLContext* GL_CONTEXT_MANAGER::CreateCtx( wxGLCanvas* aCanvas, const wxGLContext* aOther )
+QOpenGLContext* GL_CONTEXT_MANAGER::CreateCtx( QOpenGLWidget* aCanvas, const QOpenGLContext* aOther )
 {
-    wxGLContext* context = new wxGLContext( aCanvas, aOther );
-    wxCHECK( context, nullptr );
+    QOpenGLContext* context = new QOpenGLContext();
+    if( !context )
+        return nullptr;
 
-    if( !context->IsOK() )
+    if( aOther )
+        context->setShareContext( const_cast<QOpenGLContext*>( aOther ) );
+    
+    context->setFormat( aCanvas->format() );
+    
+    if( !context->create() )
     {
         delete context;
         return nullptr;
@@ -44,7 +27,7 @@ wxGLContext* GL_CONTEXT_MANAGER::CreateCtx( wxGLCanvas* aCanvas, const wxGLConte
 }
 
 
-void GL_CONTEXT_MANAGER::DestroyCtx( wxGLContext* aContext )
+void GL_CONTEXT_MANAGER::DestroyCtx( QOpenGLContext* aContext )
 {
     if( m_glContexts.count( aContext ) )
     {
@@ -54,7 +37,7 @@ void GL_CONTEXT_MANAGER::DestroyCtx( wxGLContext* aContext )
     else
     {
         // Do not delete unknown GL contexts
-        wxFAIL;
+        Q_ASSERT( false );
     }
 
     if( m_glCtx == aContext )
@@ -75,34 +58,28 @@ void GL_CONTEXT_MANAGER::DeleteAll()
 }
 
 
-void GL_CONTEXT_MANAGER::LockCtx( wxGLContext* aContext, wxGLCanvas* aCanvas )
+void GL_CONTEXT_MANAGER::LockCtx( QOpenGLContext* aContext, QOpenGLWidget* aCanvas )
 {
-    wxCHECK( aContext && m_glContexts.count( aContext ) > 0, /* void */ );
+    if( !aContext || m_glContexts.count( aContext ) == 0 )
+        return;
 
     m_glCtxMutex.lock();
-    wxGLCanvas* canvas = aCanvas ? aCanvas : m_glContexts.at( aContext );
+    QOpenGLWidget* canvas = aCanvas ? aCanvas : m_glContexts.at( aContext );
 
-    // Prevent assertion failure in wxGLContext::SetCurrent during GAL teardown
-#ifdef __WXGTK__
-
-#ifdef KICAD_USE_EGL
-    if( canvas->GTKGetDrawingWindow() )
-#else
-    if( canvas->GetXWindow() )
-#endif // KICAD_USE_EGL
-
-#endif // __WXGTK__
+    // Make context current on the surface
+    if( canvas )
     {
-        canvas->SetCurrent( *aContext );
+        aContext->makeCurrent( canvas );
     }
 
     m_glCtx = aContext;
 }
 
 
-void GL_CONTEXT_MANAGER::UnlockCtx( wxGLContext* aContext )
+void GL_CONTEXT_MANAGER::UnlockCtx( QOpenGLContext* aContext )
 {
-    wxCHECK( aContext && m_glContexts.count( aContext ) > 0, /* void */ );
+    if( !aContext || m_glContexts.count( aContext ) == 0 )
+        return;
 
     if( m_glCtx == aContext )
     {
@@ -111,8 +88,10 @@ void GL_CONTEXT_MANAGER::UnlockCtx( wxGLContext* aContext )
     }
     else
     {
-        wxFAIL_MSG( wxString::Format( wxS( "Trying to unlock GL context mutex from "
-                    "a wrong context: aContext %p m_glCtx %p" ), aContext, m_glCtx ) );
+        QString errorMsg = QString( "Trying to unlock GL context mutex from "
+                          "a wrong context: aContext %1 m_glCtx %2" )
+                          .arg( reinterpret_cast<quintptr>( aContext ) )
+                          .arg( reinterpret_cast<quintptr>( m_glCtx ) );
+        Q_ASSERT_X( false, "GL_CONTEXT_MANAGER::UnlockCtx", errorMsg.toLocal8Bit().data() );
     }
 }
-

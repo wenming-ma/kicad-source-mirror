@@ -1,30 +1,6 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * Graphics Abstraction Layer (GAL) - base class
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-#include <wx/log.h>
+#include <QString>
+#include <QDebug>
 
 #include <gal/graphics_abstraction_layer.h>
 #include <gal/definitions.h>
@@ -64,8 +40,7 @@ GAL::GAL( GAL_DISPLAY_OPTIONS& aDisplayOptions ) :
     // Other editors/viewer must call SetWorldUnitLength with their internal units
     SetWorldUnitLength( 1e-9 /* 1 nm */ / 0.0254 /* 1 inch in meters */ );
 
-    // wxDC::GetPPI() reports 96 DPI, but somehow this value
-    // is the closest match to the legacy renderer
+    // DPI value that provides the closest match to the legacy renderer
     SetScreenDPI( 91 );
     SetDepthRange( VECTOR2D( GAL::MIN_DEPTH, GAL::MAX_DEPTH ) );
     SetLayerDepth( 0.0 );
@@ -272,11 +247,11 @@ COLOR4D GAL::getCursorColor() const
 }
 
 
-void GAL::BitmapText( const wxString& aText, const VECTOR2I& aPosition, const EDA_ANGLE& aAngle )
+void GAL::BitmapText( const QString& aText, const VECTOR2I& aPosition, const EDA_ANGLE& aAngle )
 {
     KIFONT::FONT* font = KIFONT::FONT::GetFont();
 
-    if( aText.IsEmpty() )
+    if( aText.isEmpty() )
         return;
 
     TEXT_ATTRIBUTES attrs = m_attributes;

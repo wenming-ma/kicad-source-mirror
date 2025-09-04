@@ -1,38 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-/**
- * @file wildcards_and_files_ext.cpp
- * Definition of file extensions used in Kicad.
- */
 #include <regex>
 #include <wildcards_and_files_ext.h>
-#include <wx/filedlg.h>
-#include <wx/regex.h>
-#include <wx/translation.h>
-#include <regex>
+#include <QFileDialog>
+#include <QRegularExpression>
+#include <QCoreApplication>
 
 bool compareFileExtensions( const std::string& aExtension,
                             const std::vector<std::string>& aReference, bool aCaseSensitive )
@@ -60,15 +30,15 @@ bool compareFileExtensions( const std::string& aExtension,
 }
 
 
-wxString formatWildcardExt( const wxString& aWildcard )
+QString formatWildcardExt( const QString& aWildcard )
 {
-    wxString wc;
-#if defined( __WXGTK__ )
+    QString wc;
+#if defined( __unix__ )
 
     for( const auto& ch : aWildcard )
     {
-        if( wxIsalpha( ch ) )
-            wc += wxString::Format( "[%c%c]", wxTolower( ch ), wxToupper( ch ) );
+        if( ch.isLetter() )
+            wc += QString( "[%1%2]" ).arg( ch.toLower() ).arg( ch.toUpper() );
         else
             wc += ch;
     }
@@ -82,29 +52,32 @@ wxString formatWildcardExt( const wxString& aWildcard )
 }
 
 
-wxString AddFileExtListToFilter( const std::vector<std::string>& aExts )
+QString AddFileExtListToFilter( const std::vector<std::string>& aExts )
 {
     if( aExts.size() == 0 )
     {
         // The "all files" wildcard is different on different systems
-        wxString filter;
-        filter << wxS( " (" ) << wxFileSelectorDefaultWildcardStr << wxS( ")|" )
-               << wxFileSelectorDefaultWildcardStr;
+        QString filter;
+        filter += " (";
+        filter += "*";
+        filter += ")|";
+        filter += "*";
         return filter;
     }
 
-    wxString files_filter = wxS( " (" );
+    QString files_filter = " (";
 
     // Add extensions to the info message:
     for( const std::string& ext : aExts )
     {
         if( files_filter.length() > 2 )
-            files_filter << wxS( "; " );
+            files_filter += "; ";
 
-        files_filter << "*." << ext;
+        files_filter += "*.";
+        files_filter += QString::fromStdString( ext );
     }
 
-    files_filter << wxS( ")|*." );
+    files_filter += ")|*.";
 
     // Add extensions to the filter list, using a formatted string (GTK specific):
     bool first = true;
@@ -112,11 +85,11 @@ wxString AddFileExtListToFilter( const std::vector<std::string>& aExts )
     for( const std::string& ext : aExts )
     {
         if( !first )
-            files_filter << wxS( ";*." );
+            files_filter += ";*.";
 
         first = false;
 
-        files_filter << formatWildcardExt( ext );
+        files_filter += formatWildcardExt( QString::fromStdString( ext ) );
     }
 
     return files_filter;
@@ -212,7 +185,7 @@ const std::string FILEEXT::StlFileExtension( "stl" );
 
 const std::string FILEEXT::GencadFileExtension( "cad" );
 
-const wxString
+const QString
         FILEEXT::GerberFileExtensionsRegex( "(gbr|gko|pho|(g[tb][alops])|(gm?\\d\\d*)|(gp[tb]))" );
 
 const std::string FILEEXT::FootprintLibraryTableFileName( "fp-lib-table" );
@@ -222,354 +195,352 @@ const std::string FILEEXT::DesignBlockLibraryTableFileName( "design-block-lib-ta
 const std::string FILEEXT::KiCadUriPrefix( "kicad-embed" );
 
 
-bool FILEEXT::IsGerberFileExtension( const wxString& ext )
+bool FILEEXT::IsGerberFileExtension( const QString& ext )
 {
-    static wxRegEx gerberRE( GerberFileExtensionsRegex, wxRE_ICASE );
+    static QRegularExpression gerberRE( GerberFileExtensionsRegex, QRegularExpression::CaseInsensitiveOption );
 
-    return gerberRE.Matches( ext );
+    return gerberRE.match( ext ).hasMatch();
 }
 
 
-wxString FILEEXT::AllFilesWildcard()
+QString FILEEXT::AllFilesWildcard()
 {
-    return _( "All files" ) + AddFileExtListToFilter( {} );
+    return QCoreApplication::translate("FILEEXT", "All files") + AddFileExtListToFilter( {} );
 }
 
 
-wxString FILEEXT::KiCadSymbolLibFileWildcard()
+QString FILEEXT::KiCadSymbolLibFileWildcard()
 {
-    return _( "KiCad symbol library files" )
+    return QCoreApplication::translate("FILEEXT", "KiCad symbol library files")
             + AddFileExtListToFilter( { KiCadSymbolLibFileExtension } );
 }
 
 
-wxString FILEEXT::ProjectFileWildcard()
+QString FILEEXT::ProjectFileWildcard()
 {
-    return _( "KiCad project files" ) + AddFileExtListToFilter( { ProjectFileExtension } );
+    return QCoreApplication::translate("FILEEXT", "KiCad project files") + AddFileExtListToFilter( { ProjectFileExtension } );
 }
 
 
-wxString FILEEXT::LegacyProjectFileWildcard()
+QString FILEEXT::LegacyProjectFileWildcard()
 {
-    return _( "KiCad legacy project files" )
+    return QCoreApplication::translate("FILEEXT", "KiCad legacy project files")
             + AddFileExtListToFilter( { LegacyProjectFileExtension } );
 }
 
 
-wxString FILEEXT::AllProjectFilesWildcard()
+QString FILEEXT::AllProjectFilesWildcard()
 {
-    return _( "All KiCad project files" )
+    return QCoreApplication::translate("FILEEXT", "All KiCad project files")
             + AddFileExtListToFilter( { ProjectFileExtension, LegacyProjectFileExtension } );
 }
 
 
-wxString FILEEXT::AllSchematicFilesWildcard()
+QString FILEEXT::AllSchematicFilesWildcard()
 {
-    return _( "All KiCad schematic files" )
+    return QCoreApplication::translate("FILEEXT", "All KiCad schematic files")
             + AddFileExtListToFilter( { KiCadSchematicFileExtension, LegacySchematicFileExtension } );
 }
 
 
-wxString FILEEXT::LegacySchematicFileWildcard()
+QString FILEEXT::LegacySchematicFileWildcard()
 {
-    return _( "KiCad legacy schematic files" )
+    return QCoreApplication::translate("FILEEXT", "KiCad legacy schematic files")
             + AddFileExtListToFilter( { LegacySchematicFileExtension } );
 }
 
 
-wxString FILEEXT::KiCadSchematicFileWildcard()
+QString FILEEXT::KiCadSchematicFileWildcard()
 {
-    return _( "KiCad s-expression schematic files" )
+    return QCoreApplication::translate("FILEEXT", "KiCad s-expression schematic files")
             + AddFileExtListToFilter( { KiCadSchematicFileExtension } );
 }
 
 
-wxString FILEEXT::AltiumProjectFilesWildcard()
+QString FILEEXT::AltiumProjectFilesWildcard()
 {
-    return _( "Altium Project files" ) + AddFileExtListToFilter( { "PrjPcb" } );
+    return QCoreApplication::translate("FILEEXT", "Altium Project files") + AddFileExtListToFilter( { "PrjPcb" } );
 }
 
 
-wxString FILEEXT::CadstarArchiveFilesWildcard()
+QString FILEEXT::CadstarArchiveFilesWildcard()
 {
-    return _( "CADSTAR Archive files" ) + AddFileExtListToFilter( { "csa", "cpa" } );
+    return QCoreApplication::translate("FILEEXT", "CADSTAR Archive files") + AddFileExtListToFilter( { "csa", "cpa" } );
 }
 
 
-wxString FILEEXT::EagleFilesWildcard()
+QString FILEEXT::EagleFilesWildcard()
 {
-    return _( "Eagle XML files" ) + AddFileExtListToFilter( { "sch", "brd" } );
+    return QCoreApplication::translate("FILEEXT", "Eagle XML files") + AddFileExtListToFilter( { "sch", "brd" } );
 }
 
 
-wxString FILEEXT::OrCadPcb2NetlistFileWildcard()
+QString FILEEXT::OrCadPcb2NetlistFileWildcard()
 {
-    return _( "OrcadPCB2 netlist files" )
+    return QCoreApplication::translate("FILEEXT", "OrcadPCB2 netlist files")
             + AddFileExtListToFilter( { OrCadPcb2NetlistFileExtension } );
 }
 
 
-wxString FILEEXT::NetlistFileWildcard()
+QString FILEEXT::NetlistFileWildcard()
 {
-    return _( "KiCad netlist files" ) + AddFileExtListToFilter( { "net" } );
+    return QCoreApplication::translate("FILEEXT", "KiCad netlist files") + AddFileExtListToFilter( { "net" } );
 }
 
 
-wxString FILEEXT::AllegroNetlistFileWildcard()
+QString FILEEXT::AllegroNetlistFileWildcard()
 {
-    return _( "Allegro netlist files" )
+    return QCoreApplication::translate("FILEEXT", "Allegro netlist files")
             + AddFileExtListToFilter( { AllegroNetlistFileExtension } );
 }
 
 
-wxString FILEEXT::PADSNetlistFileWildcard()
+QString FILEEXT::PADSNetlistFileWildcard()
 {
-    return _( "PADS netlist files" ) + AddFileExtListToFilter( { PADSNetlistFileExtension } );
+    return QCoreApplication::translate("FILEEXT", "PADS netlist files") + AddFileExtListToFilter( { PADSNetlistFileExtension } );
 }
 
 
-wxString FILEEXT::EasyEdaArchiveWildcard()
+QString FILEEXT::EasyEdaArchiveWildcard()
 {
-    return _( "EasyEDA (JLCEDA) Std backup archive" ) + AddFileExtListToFilter( { "zip" } );
+    return QCoreApplication::translate("FILEEXT", "EasyEDA (JLCEDA) Std backup archive") + AddFileExtListToFilter( { "zip" } );
 }
 
 
-wxString FILEEXT::EasyEdaProFileWildcard()
+QString FILEEXT::EasyEdaProFileWildcard()
 {
-    return _( "EasyEDA (JLCEDA) Pro files" ) + AddFileExtListToFilter( { "epro", "zip" } );
+    return QCoreApplication::translate("FILEEXT", "EasyEDA (JLCEDA) Pro files") + AddFileExtListToFilter( { "epro", "zip" } );
 }
 
 
-wxString FILEEXT::PcbFileWildcard()
+QString FILEEXT::PcbFileWildcard()
 {
-    return _( "KiCad printed circuit board files" )
+    return QCoreApplication::translate("FILEEXT", "KiCad printed circuit board files")
            + AddFileExtListToFilter( { KiCadPcbFileExtension } );
 }
 
 
-wxString FILEEXT::KiCadFootprintLibFileWildcard()
+QString FILEEXT::KiCadFootprintLibFileWildcard()
 {
-    return _( "KiCad footprint files" ) + AddFileExtListToFilter( { KiCadFootprintFileExtension } );
+    return QCoreApplication::translate("FILEEXT", "KiCad footprint files") + AddFileExtListToFilter( { KiCadFootprintFileExtension } );
 }
 
 
-wxString FILEEXT::KiCadFootprintLibPathWildcard()
+QString FILEEXT::KiCadFootprintLibPathWildcard()
 {
-    return _( "KiCad footprint library paths" )
+    return QCoreApplication::translate("FILEEXT", "KiCad footprint library paths")
             + AddFileExtListToFilter( { KiCadFootprintLibPathExtension } );
 }
 
 
-wxString FILEEXT::KiCadDesignBlockPathWildcard()
+QString FILEEXT::KiCadDesignBlockPathWildcard()
 {
-    return _( "KiCad design block path" )
+    return QCoreApplication::translate("FILEEXT", "KiCad design block path")
            + AddFileExtListToFilter( { KiCadDesignBlockPathExtension } );
 }
 
 
-wxString FILEEXT::KiCadDesignBlockLibPathWildcard()
+QString FILEEXT::KiCadDesignBlockLibPathWildcard()
 {
-    return _( "KiCad design block library paths" )
+    return QCoreApplication::translate("FILEEXT", "KiCad design block library paths")
            + AddFileExtListToFilter( { KiCadDesignBlockLibPathExtension } );
 }
 
 
-wxString FILEEXT::DrawingSheetFileWildcard()
+QString FILEEXT::DrawingSheetFileWildcard()
 {
-    return _( "Drawing sheet files" )
+    return QCoreApplication::translate("FILEEXT", "Drawing sheet files")
             + AddFileExtListToFilter( { DrawingSheetFileExtension } );
 }
 
 
-// Wildcard for cvpcb symbol to footprint link file
-wxString FILEEXT::FootprintAssignmentFileWildcard()
+QString FILEEXT::FootprintAssignmentFileWildcard()
 {
-    return _( "KiCad symbol footprint link files" )
+    return QCoreApplication::translate("FILEEXT", "KiCad symbol footprint link files")
             + AddFileExtListToFilter( { FootprintAssignmentFileExtension } );
 }
 
 
-// Wildcard for reports and fabrication documents
-wxString FILEEXT::DrillFileWildcard()
+QString FILEEXT::DrillFileWildcard()
 {
-    return _( "Drill files" )
+    return QCoreApplication::translate("FILEEXT", "Drill files")
             + AddFileExtListToFilter( { DrillFileExtension, "nc", "xnc", "txt" } );
 }
 
 
-wxString FILEEXT::SVGFileWildcard()
+QString FILEEXT::SVGFileWildcard()
 {
-    return _( "SVG files" ) + AddFileExtListToFilter( { SVGFileExtension } );
+    return QCoreApplication::translate("FILEEXT", "SVG files") + AddFileExtListToFilter( { SVGFileExtension } );
 }
 
 
-wxString FILEEXT::HtmlFileWildcard()
+QString FILEEXT::HtmlFileWildcard()
 {
-    return _( "HTML files" ) + AddFileExtListToFilter( { "htm", "html" } );
+    return QCoreApplication::translate("FILEEXT", "HTML files") + AddFileExtListToFilter( { "htm", "html" } );
 }
 
 
-wxString FILEEXT::CsvFileWildcard()
+QString FILEEXT::CsvFileWildcard()
 {
-    return _( "CSV Files" ) + AddFileExtListToFilter( { CsvFileExtension } );
+    return QCoreApplication::translate("FILEEXT", "CSV Files") + AddFileExtListToFilter( { CsvFileExtension } );
 }
 
 
-wxString FILEEXT::PdfFileWildcard()
+QString FILEEXT::PdfFileWildcard()
 {
-    return _( "Portable document format files" ) + AddFileExtListToFilter( { "pdf" } );
+    return QCoreApplication::translate("FILEEXT", "Portable document format files") + AddFileExtListToFilter( { "pdf" } );
 }
 
 
-wxString FILEEXT::PSFileWildcard()
+QString FILEEXT::PSFileWildcard()
 {
-    return _( "PostScript files" ) + AddFileExtListToFilter( { "ps" } );
+    return QCoreApplication::translate("FILEEXT", "PostScript files") + AddFileExtListToFilter( { "ps" } );
 }
 
 
-wxString FILEEXT::JsonFileWildcard()
+QString FILEEXT::JsonFileWildcard()
 {
-    return _( "Json files" ) + AddFileExtListToFilter( { JsonFileExtension } );
+    return QCoreApplication::translate("FILEEXT", "Json files") + AddFileExtListToFilter( { JsonFileExtension } );
 }
 
 
-wxString FILEEXT::ReportFileWildcard()
+QString FILEEXT::ReportFileWildcard()
 {
-    return _( "Report files" ) + AddFileExtListToFilter( { ReportFileExtension } );
+    return QCoreApplication::translate("FILEEXT", "Report files") + AddFileExtListToFilter( { ReportFileExtension } );
 }
 
 
-wxString FILEEXT::FootprintPlaceFileWildcard()
+QString FILEEXT::FootprintPlaceFileWildcard()
 {
-    return _( "Component placement files" ) + AddFileExtListToFilter( { "pos" } );
+    return QCoreApplication::translate("FILEEXT", "Component placement files") + AddFileExtListToFilter( { "pos" } );
 }
 
 
-wxString FILEEXT::Shapes3DFileWildcard()
+QString FILEEXT::Shapes3DFileWildcard()
 {
-    return _( "VRML and X3D files" ) + AddFileExtListToFilter( { "wrl", "x3d" } );
+    return QCoreApplication::translate("FILEEXT", "VRML and X3D files") + AddFileExtListToFilter( { "wrl", "x3d" } );
 }
 
 
-wxString FILEEXT::IDF3DFileWildcard()
+QString FILEEXT::IDF3DFileWildcard()
 {
-    return _( "IDFv3 footprint files" ) + AddFileExtListToFilter( { "idf" } );
+    return QCoreApplication::translate("FILEEXT", "IDFv3 footprint files") + AddFileExtListToFilter( { "idf" } );
 }
 
 
-wxString FILEEXT::TextFileWildcard()
+QString FILEEXT::TextFileWildcard()
 {
-    return _( "Text files" ) + AddFileExtListToFilter( { "txt" } );
+    return QCoreApplication::translate("FILEEXT", "Text files") + AddFileExtListToFilter( { "txt" } );
 }
 
 
-wxString FILEEXT::ModLegacyExportFileWildcard()
+QString FILEEXT::ModLegacyExportFileWildcard()
 {
-    return _( "Legacy footprint export files" ) + AddFileExtListToFilter( { "emp" } );
+    return QCoreApplication::translate("FILEEXT", "Legacy footprint export files") + AddFileExtListToFilter( { "emp" } );
 }
 
 
-wxString FILEEXT::ErcFileWildcard()
+QString FILEEXT::ErcFileWildcard()
 {
-    return _( "Electrical rule check file" ) + AddFileExtListToFilter( { "erc" } );
+    return QCoreApplication::translate("FILEEXT", "Electrical rule check file") + AddFileExtListToFilter( { "erc" } );
 }
 
 
-wxString FILEEXT::SpiceLibraryFileWildcard()
+QString FILEEXT::SpiceLibraryFileWildcard()
 {
-    return _( "SPICE library file" ) + AddFileExtListToFilter( { "lib", "mod" } );
+    return QCoreApplication::translate("FILEEXT", "SPICE library file") + AddFileExtListToFilter( { "lib", "mod" } );
 }
 
 
-wxString FILEEXT::SpiceNetlistFileWildcard()
+QString FILEEXT::SpiceNetlistFileWildcard()
 {
-    return _( "SPICE netlist file" ) + AddFileExtListToFilter( { "cir" } );
+    return QCoreApplication::translate("FILEEXT", "SPICE netlist file") + AddFileExtListToFilter( { "cir" } );
 }
 
 
-wxString FILEEXT::CadstarNetlistFileWildcard()
+QString FILEEXT::CadstarNetlistFileWildcard()
 {
-    return _( "CadStar netlist file" ) + AddFileExtListToFilter( { "frp" } );
+    return QCoreApplication::translate("FILEEXT", "CadStar netlist file") + AddFileExtListToFilter( { "frp" } );
 }
 
 
-wxString FILEEXT::EquFileWildcard()
+QString FILEEXT::EquFileWildcard()
 {
-    return _( "Symbol footprint association files" ) + AddFileExtListToFilter( { "equ" } );
+    return QCoreApplication::translate("FILEEXT", "Symbol footprint association files") + AddFileExtListToFilter( { "equ" } );
 }
 
 
-wxString FILEEXT::ZipFileWildcard()
+QString FILEEXT::ZipFileWildcard()
 {
-    return _( "Zip file" ) + AddFileExtListToFilter( { "zip" } );
+    return QCoreApplication::translate("FILEEXT", "Zip file") + AddFileExtListToFilter( { "zip" } );
 }
 
 
-wxString FILEEXT::GencadFileWildcard()
+QString FILEEXT::GencadFileWildcard()
 {
-    return _( "GenCAD 1.4 board files" ) + AddFileExtListToFilter( { GencadFileExtension } );
+    return QCoreApplication::translate("FILEEXT", "GenCAD 1.4 board files") + AddFileExtListToFilter( { GencadFileExtension } );
 }
 
 
-wxString FILEEXT::DxfFileWildcard()
+QString FILEEXT::DxfFileWildcard()
 {
-    return _( "DXF Files" ) + AddFileExtListToFilter( { "dxf" } );
+    return QCoreApplication::translate("FILEEXT", "DXF Files") + AddFileExtListToFilter( { "dxf" } );
 }
 
 
-wxString FILEEXT::GerberJobFileWildcard()
+QString FILEEXT::GerberJobFileWildcard()
 {
-    return _( "Gerber job file" ) + AddFileExtListToFilter( { GerberJobFileExtension } );
+    return QCoreApplication::translate("FILEEXT", "Gerber job file") + AddFileExtListToFilter( { GerberJobFileExtension } );
 }
 
 
-wxString FILEEXT::SpecctraDsnFileWildcard()
+QString FILEEXT::SpecctraDsnFileWildcard()
 {
-    return _( "Specctra DSN file" )
+    return QCoreApplication::translate("FILEEXT", "Specctra DSN file")
             + AddFileExtListToFilter( { SpecctraDsnFileExtension } );
 }
 
 
-wxString FILEEXT::SpecctraSessionFileWildcard()
+QString FILEEXT::SpecctraSessionFileWildcard()
 {
-    return _( "Specctra Session file" )
+    return QCoreApplication::translate("FILEEXT", "Specctra Session file")
             + AddFileExtListToFilter( { SpecctraSessionFileExtension } );
 }
 
 
-wxString FILEEXT::IpcD356FileWildcard()
+QString FILEEXT::IpcD356FileWildcard()
 {
-    return _( "IPC-D-356 Test Files" )
+    return QCoreApplication::translate("FILEEXT", "IPC-D-356 Test Files")
             + AddFileExtListToFilter( { IpcD356FileExtension } );
 }
 
 
-wxString FILEEXT::WorkbookFileWildcard()
+QString FILEEXT::WorkbookFileWildcard()
 {
-    return _( "Workbook file" )
+    return QCoreApplication::translate("FILEEXT", "Workbook file")
             + AddFileExtListToFilter( { WorkbookFileExtension } );
 }
 
 
-wxString FILEEXT::PngFileWildcard()
+QString FILEEXT::PngFileWildcard()
 {
-    return _( "PNG file" ) + AddFileExtListToFilter( { "png" } );
+    return QCoreApplication::translate("FILEEXT", "PNG file") + AddFileExtListToFilter( { "png" } );
 }
 
 
-wxString FILEEXT::JpegFileWildcard()
+QString FILEEXT::JpegFileWildcard()
 {
-    return _( "Jpeg file" ) + AddFileExtListToFilter( { "jpg", "jpeg" } );
+    return QCoreApplication::translate("FILEEXT", "Jpeg file") + AddFileExtListToFilter( { "jpg", "jpeg" } );
 }
 
 
-wxString FILEEXT::HotkeyFileWildcard()
+QString FILEEXT::HotkeyFileWildcard()
 {
-    return _( "Hotkey file" ) + AddFileExtListToFilter( { HotkeyFileExtension } );
+    return QCoreApplication::translate("FILEEXT", "Hotkey file") + AddFileExtListToFilter( { HotkeyFileExtension } );
 }
 
 
-wxString FILEEXT::JobsetFileWildcard()
+QString FILEEXT::JobsetFileWildcard()
 {
-    return _( "KiCad jobset files" ) + AddFileExtListToFilter( { KiCadJobSetFileExtension } );
+    return QCoreApplication::translate("FILEEXT", "KiCad jobset files") + AddFileExtListToFilter( { KiCadJobSetFileExtension } );
 }

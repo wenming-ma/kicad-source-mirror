@@ -1,30 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <algorithm>
+#include <QVector>
 #include <eda_item.h>
 #include <tool/selection.h>
 
@@ -91,7 +67,7 @@ bool SELECTION::Contains( EDA_ITEM* aItem ) const
 
 VECTOR2I SELECTION::GetCenter() const
 {
-    static const std::vector<KICAD_T> textTypes = { SCH_TEXT_T, SCH_LABEL_LOCATE_ANY_T };
+    static const QVector<KICAD_T> textTypes = { SCH_TEXT_T, SCH_LABEL_LOCATE_ANY_T };
     bool                              hasOnlyText = true;
 
     // If the selection contains only texts calculate the center as the mean of all positions
@@ -187,9 +163,9 @@ void SELECTION::ClearReferencePoint()
 }
 
 
-const std::vector<KIGFX::VIEW_ITEM*> SELECTION::updateDrawList() const
+const QVector<KIGFX::VIEW_ITEM*> SELECTION::updateDrawList() const
 {
-    std::vector<VIEW_ITEM*> items;
+    QVector<VIEW_ITEM*> items;
 
     for( EDA_ITEM* item : m_items )
         items.push_back( item );
@@ -208,7 +184,7 @@ bool SELECTION::AreAllItemsIdentical() const
 }
 
 
-bool SELECTION::OnlyContains( std::vector<KICAD_T> aList ) const
+bool SELECTION::OnlyContains( QVector<KICAD_T> aList ) const
 {
     return std::all_of( m_items.begin(), m_items.end(),
             [&]( const EDA_ITEM* r )
@@ -218,10 +194,10 @@ bool SELECTION::OnlyContains( std::vector<KICAD_T> aList ) const
 }
 
 
-std::vector<EDA_ITEM*> SELECTION::GetItemsSortedByTypeAndXY( bool leftBeforeRight,
+QVector<EDA_ITEM*> SELECTION::GetItemsSortedByTypeAndXY( bool leftBeforeRight,
                                                              bool topBeforeBottom ) const
 {
-    std::vector<EDA_ITEM*> sorted_items = std::vector<EDA_ITEM*>( m_items.begin(), m_items.end() );
+    QVector<EDA_ITEM*> sorted_items = QVector<EDA_ITEM*>( m_items.begin(), m_items.end() );
 
     std::sort( sorted_items.begin(), sorted_items.end(),
                [&]( EDA_ITEM* a, EDA_ITEM* b )
@@ -260,13 +236,13 @@ std::vector<EDA_ITEM*> SELECTION::GetItemsSortedByTypeAndXY( bool leftBeforeRigh
 }
 
 
-std::vector<EDA_ITEM*> SELECTION::GetItemsSortedBySelectionOrder() const
+QVector<EDA_ITEM*> SELECTION::GetItemsSortedBySelectionOrder() const
 {
     using pairedIterators = std::pair<decltype( m_items.begin() ),
                                       decltype( m_itemsOrders.begin() )>;
 
     // Create a vector of all {selection item, selection order} iterator pairs
-    std::vector<pairedIterators> pairs;
+    QVector<pairedIterators> pairs;
     auto                         item = m_items.begin();
     auto                         order = m_itemsOrders.begin();
 
@@ -281,7 +257,7 @@ std::vector<EDA_ITEM*> SELECTION::GetItemsSortedBySelectionOrder() const
                } );
 
     // Make a vector of just the sortedItems
-    std::vector<EDA_ITEM*> sortedItems;
+    QVector<EDA_ITEM*> sortedItems;
 
     for( pairedIterators sortedItem : pairs )
         sortedItems.emplace_back( *sortedItem.first );

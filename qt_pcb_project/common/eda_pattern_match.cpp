@@ -1,31 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015-2017 Chris Pavlina <pavlina.chris@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <eda_pattern_match.h>
 #include <limits>
-#include <wx/log.h>
-#include <wx/tokenzr.h>
+#include <QRegularExpression>
+#include <QStringList>
 #include <algorithm>
 
 // Helper to make the code cleaner when we want this operation
@@ -33,64 +10,45 @@
     std::min( x, static_cast<size_t>( std::numeric_limits<int>::max() ) )
 
 
-bool EDA_PATTERN_MATCH_SUBSTR::SetPattern( const wxString& aPattern )
+bool EDA_PATTERN_MATCH_SUBSTR::SetPattern( const QString& aPattern )
 {
     m_pattern = aPattern;
     return true;
 }
 
 
-wxString const& EDA_PATTERN_MATCH_SUBSTR::GetPattern() const
+QString const& EDA_PATTERN_MATCH_SUBSTR::GetPattern() const
 {
     return m_pattern;
 }
 
 
-EDA_PATTERN_MATCH::FIND_RESULT EDA_PATTERN_MATCH_SUBSTR::Find( const wxString& aCandidate ) const
+EDA_PATTERN_MATCH::FIND_RESULT EDA_PATTERN_MATCH_SUBSTR::Find( const QString& aCandidate ) const
 {
-    int loc = aCandidate.Find( m_pattern );
+    int loc = aCandidate.indexOf( m_pattern );
 
-    if( loc == wxNOT_FOUND )
+    if( loc == -1 )
         return {};
     else
         return { loc, static_cast<int>( m_pattern.size() ) };
 }
 
 
-/**
- * Context class to set wx loglevel for a block, and always restore it at the end.
- */
-class WX_LOGLEVEL_CONTEXT
+
+
+bool EDA_PATTERN_MATCH_REGEX::SetPattern( const QString& aPattern )
 {
-    wxLogLevel m_old_level;
-
-public:
-    WX_LOGLEVEL_CONTEXT( wxLogLevel level )
-    {
-        m_old_level = wxLog::GetLogLevel();
-        wxLog::SetLogLevel( level );
-    }
-
-    ~WX_LOGLEVEL_CONTEXT()
-    {
-        wxLog::SetLogLevel( m_old_level );
-    }
-};
-
-
-bool EDA_PATTERN_MATCH_REGEX::SetPattern( const wxString& aPattern )
-{
-    if( aPattern.StartsWith( "^" ) && aPattern.EndsWith( "$" ) )
+    if( aPattern.startsWith( "^" ) && aPattern.endsWith( "$" ) )
     {
         m_pattern = aPattern;
     }
-    else if( aPattern.StartsWith( "/" ) )
+    else if( aPattern.startsWith( "/" ) )
     {
         // Requiring a '/' on the end means they get no feedback while they type
-        m_pattern = aPattern.Mid( 1 );
+        m_pattern = aPattern.mid( 1 );
 
-        if( m_pattern.EndsWith( "/" ) )
-            m_pattern = m_pattern.Left( m_pattern.length() - 1 );
+        if( m_pattern.endsWith( "/" ) )
+            m_pattern = m_pattern.left( m_pattern.length() - 1 );
     }
     else
     {
@@ -98,42 +56,40 @@ bool EDA_PATTERN_MATCH_REGEX::SetPattern( const wxString& aPattern )
         return false;
     }
 
-    // Evil and undocumented: wxRegEx::Compile calls wxLogError on error, even
-    // though it promises to just return false. Silence the error.
-    WX_LOGLEVEL_CONTEXT ctx( wxLOG_FatalError );
-
-    return m_regex.Compile( m_pattern, wxRE_ADVANCED );
+    m_regex.setPattern( m_pattern );
+    return m_regex.isValid();
 }
 
 
-bool EDA_PATTERN_MATCH_REGEX_ANCHORED::SetPattern( const wxString& aPattern )
+bool EDA_PATTERN_MATCH_REGEX_ANCHORED::SetPattern( const QString& aPattern )
 {
-    wxString pattern( aPattern );
+    QString pattern( aPattern );
 
-    if( !pattern.StartsWith( wxT( "^" ) ) )
-        pattern = wxT( "^" ) + pattern;
+    if( !pattern.startsWith( "^" ) )
+        pattern = "^" + pattern;
 
-    if( !pattern.EndsWith( wxT( "$" ) ) )
-        pattern +=  wxT( "$" );
+    if( !pattern.endsWith( "$" ) )
+        pattern +=  "$";
 
     return EDA_PATTERN_MATCH_REGEX::SetPattern( pattern );
 }
 
 
-wxString const& EDA_PATTERN_MATCH_REGEX::GetPattern() const
+QString const& EDA_PATTERN_MATCH_REGEX::GetPattern() const
 {
     return m_pattern;
 }
 
 
-EDA_PATTERN_MATCH::FIND_RESULT EDA_PATTERN_MATCH_REGEX::Find( const wxString& aCandidate ) const
+EDA_PATTERN_MATCH::FIND_RESULT EDA_PATTERN_MATCH_REGEX::Find( const QString& aCandidate ) const
 {
-    if( m_regex.IsValid() )
+    if( m_regex.isValid() )
     {
-        if( m_regex.Matches( aCandidate ) )
+        QRegularExpressionMatch match = m_regex.match( aCandidate );
+        if( match.hasMatch() )
         {
-            size_t start, len;
-            m_regex.GetMatch( &start, &len, 0 );
+            int start = match.capturedStart( 0 );
+            int len = match.capturedLength( 0 );
 
             return { static_cast<int>( CLAMPED_VAL_INT_MAX( start ) ),
                      static_cast<int>( CLAMPED_VAL_INT_MAX( len ) ) };
@@ -145,9 +101,9 @@ EDA_PATTERN_MATCH::FIND_RESULT EDA_PATTERN_MATCH_REGEX::Find( const wxString& aC
     }
     else
     {
-        int loc = aCandidate.Find( m_pattern );
+        int loc = aCandidate.indexOf( m_pattern );
 
-        if( loc == wxNOT_FOUND )
+        if( loc == -1 )
             return {};
         else
             return { loc, static_cast<int>( m_pattern.size() ) };
@@ -155,29 +111,29 @@ EDA_PATTERN_MATCH::FIND_RESULT EDA_PATTERN_MATCH_REGEX::Find( const wxString& aC
 }
 
 
-bool EDA_PATTERN_MATCH_WILDCARD::SetPattern( const wxString& aPattern )
+bool EDA_PATTERN_MATCH_WILDCARD::SetPattern( const QString& aPattern )
 {
     m_wildcard_pattern = aPattern;
 
     // Compile the wildcard string to a regular expression
-    wxString regex;
-    regex.Alloc( 2 * aPattern.Length() );   // no need to keep resizing, we know the size roughly
+    QString regex;
+    regex.reserve( 2 * aPattern.length() );   // no need to keep resizing, we know the size roughly
 
-    const wxString to_replace = wxT( ".*+?^${}()|[]/\\" );
+    const QString to_replace = ".*+?^${}()|[]/\\";
 
-    for( wxString::const_iterator it = aPattern.begin(); it < aPattern.end(); ++it )
+    for( auto it = aPattern.begin(); it < aPattern.end(); ++it )
     {
-        wxUniChar c = *it;
+        QChar c = *it;
 
         if( c == '?' )
         {
-            regex += wxT( "." );
+            regex += ".";
         }
         else if( c == '*' )
         {
-            regex += wxT( ".*" );
+            regex += ".*";
         }
-        else if( to_replace.Find( c ) != wxNOT_FOUND )
+        else if( to_replace.indexOf( c ) != -1 )
         {
             regex += "\\";
             regex += c;
@@ -188,49 +144,49 @@ bool EDA_PATTERN_MATCH_WILDCARD::SetPattern( const wxString& aPattern )
         }
     }
 
-    return EDA_PATTERN_MATCH_REGEX::SetPattern( wxS( "/" ) + regex + wxS( "/" ) );
+    return EDA_PATTERN_MATCH_REGEX::SetPattern( "/" + regex + "/" );
 }
 
 
-wxString const& EDA_PATTERN_MATCH_WILDCARD::GetPattern() const
+QString const& EDA_PATTERN_MATCH_WILDCARD::GetPattern() const
 {
     return m_wildcard_pattern;
 }
 
 
-EDA_PATTERN_MATCH::FIND_RESULT EDA_PATTERN_MATCH_WILDCARD::Find( const wxString& aCandidate ) const
+EDA_PATTERN_MATCH::FIND_RESULT EDA_PATTERN_MATCH_WILDCARD::Find( const QString& aCandidate ) const
 {
     return EDA_PATTERN_MATCH_REGEX::Find( aCandidate );
 }
 
 
-bool EDA_PATTERN_MATCH_WILDCARD_ANCHORED::SetPattern( const wxString& aPattern )
+bool EDA_PATTERN_MATCH_WILDCARD_ANCHORED::SetPattern( const QString& aPattern )
 {
     m_wildcard_pattern = aPattern;
 
     // Compile the wildcard string to a regular expression
-    wxString regex;
-    regex.Alloc( 2 * aPattern.Length() );   // no need to keep resizing, we know the size roughly
+    QString regex;
+    regex.reserve( 2 * aPattern.length() );   // no need to keep resizing, we know the size roughly
 
-    const wxString to_replace = wxT( ".*+?^${}()|[]/\\" );
+    const QString to_replace = ".*+?^${}()|[]/\\";
 
-    regex +=  wxT( "^" );
+    regex +=  "^";
 
-    for( wxString::const_iterator it = aPattern.begin(); it < aPattern.end(); ++it )
+    for( auto it = aPattern.begin(); it < aPattern.end(); ++it )
     {
-        wxUniChar c = *it;
+        QChar c = *it;
 
         if( c == '?' )
         {
-            regex += wxT( "." );
+            regex += ".";
         }
         else if( c == '*' )
         {
-            regex += wxT( ".*" );
+            regex += ".*";
         }
-        else if( to_replace.Find( c ) != wxNOT_FOUND )
+        else if( to_replace.indexOf( c ) != -1 )
         {
-            regex += wxS( "\\" );
+            regex += "\\";
             regex += c;
         }
         else
@@ -239,38 +195,39 @@ bool EDA_PATTERN_MATCH_WILDCARD_ANCHORED::SetPattern( const wxString& aPattern )
         }
     }
 
-    regex += wxT( "$" );
+    regex += "$";
 
     return EDA_PATTERN_MATCH_REGEX::SetPattern( regex );
 }
 
 
-bool EDA_PATTERN_MATCH_RELATIONAL::SetPattern( const wxString& aPattern )
+bool EDA_PATTERN_MATCH_RELATIONAL::SetPattern( const QString& aPattern )
 {
-    wxRegEx regex_search( R"(^(\w+)(<|<=|=|>=|>)([-+]?[\d.]*)(\w*)$)", wxRE_ADVANCED );
+    QRegularExpression regex_search( R"(^(\w+)(<|<=|=|>=|>)([-+]?[\d.]*)(\w*)$)" );
 
-    bool matches = regex_search.IsValid() && regex_search.Matches( aPattern );
+    QRegularExpressionMatch match = regex_search.match( aPattern );
+    bool matches = match.hasMatch();
 
-    if( !matches || regex_search.GetMatchCount() < 5 )
+    if( !matches || match.lastCapturedIndex() < 4 )
         return false;
 
     m_pattern = aPattern;
-    wxString key = regex_search.GetMatch( aPattern, 1 );
-    wxString rel = regex_search.GetMatch( aPattern, 2 );
-    wxString val = regex_search.GetMatch( aPattern, 3 );
-    wxString unit = regex_search.GetMatch( aPattern, 4 );
+    QString key = match.captured( 1 );
+    QString rel = match.captured( 2 );
+    QString val = match.captured( 3 );
+    QString unit = match.captured( 4 );
 
-    m_key = key.Lower();
+    m_key = key.toLower();
 
-    if( rel == wxS( "<" ) )
+    if( rel == "<" )
         m_relation = LT;
-    else if( rel == wxS( "<=" ) )
+    else if( rel == "<=" )
         m_relation = LE;
-    else if( rel == wxS( "=" ) )
+    else if( rel == "=" )
         m_relation = EQ;
-    else if( rel == wxS( ">=" ) )
+    else if( rel == ">=" )
         m_relation = GE;
-    else if( rel == wxS( ">" ) )
+    else if( rel == ">" )
         m_relation = GT;
     else
         return false;
@@ -281,12 +238,15 @@ bool EDA_PATTERN_MATCH_RELATIONAL::SetPattern( const wxString& aPattern )
         // types the relational operator character, which helps prevent confusion.
         m_relation = ANY;
     }
-    else if( !val.ToCDouble( &m_value ) )
+    else
     {
-        return false;
+        bool ok;
+        m_value = val.toDouble( &ok );
+        if( !ok )
+            return false;
     }
 
-    auto unit_it = m_units.find( unit.Lower() );
+    auto unit_it = m_units.find( unit.toLower() );
 
     if( unit_it != m_units.end() )
         m_value *= unit_it->second;
@@ -299,20 +259,19 @@ bool EDA_PATTERN_MATCH_RELATIONAL::SetPattern( const wxString& aPattern )
 }
 
 
-wxString const& EDA_PATTERN_MATCH_RELATIONAL::GetPattern() const
+QString const& EDA_PATTERN_MATCH_RELATIONAL::GetPattern() const
 {
     return m_pattern;
 }
 
 
-EDA_PATTERN_MATCH::FIND_RESULT EDA_PATTERN_MATCH_RELATIONAL::Find( const wxString& aCandidate ) const
+EDA_PATTERN_MATCH::FIND_RESULT EDA_PATTERN_MATCH_RELATIONAL::Find( const QString& aCandidate ) const
 {
-    wxStringTokenizer tokenizer( aCandidate );
+    QStringList tokens = aCandidate.split( QRegularExpression( "\\s+" ), Qt::SkipEmptyParts );
     size_t lastpos = 0;
 
-    while( tokenizer.HasMoreTokens() )
+    for( const QString& token : tokens )
     {
-        const wxString token = tokenizer.GetNextToken();
         int found_delta = FindOne( token );
 
         if( found_delta != EDA_PATTERN_NOT_FOUND )
@@ -321,39 +280,40 @@ EDA_PATTERN_MATCH::FIND_RESULT EDA_PATTERN_MATCH_RELATIONAL::Find( const wxStrin
             return { static_cast<int>( CLAMPED_VAL_INT_MAX( found ) ), 0 };
         }
 
-        lastpos = tokenizer.GetPosition();
+        lastpos += token.length() + 1; // +1 for whitespace
     }
 
     return {};
 }
 
 
-int EDA_PATTERN_MATCH_RELATIONAL::FindOne( const wxString& aCandidate ) const
+int EDA_PATTERN_MATCH_RELATIONAL::FindOne( const QString& aCandidate ) const
 {
-    wxRegEx regex_description( R"((\w+)[=:]([-+]?[\d.]+)(\w*))", wxRE_ADVANCED );
+    QRegularExpression regex_description( R"((\w+)[=:]([-+]?[\d.]+)(\w*))" );
 
-    bool matches = regex_description.IsValid() && regex_description.Matches( aCandidate );
+    QRegularExpressionMatch match = regex_description.match( aCandidate );
+    bool matches = match.hasMatch();
 
     if( !matches )
         return EDA_PATTERN_NOT_FOUND;
 
-    size_t start, len;
-    regex_description.GetMatch( &start, &len, 0 );
-    wxString key = regex_description.GetMatch( aCandidate, 1 );
-    wxString val = regex_description.GetMatch( aCandidate, 2 );
-    wxString unit = regex_description.GetMatch( aCandidate, 3 );
+    int start = match.capturedStart( 0 );
+    QString key = match.captured( 1 );
+    QString val = match.captured( 2 );
+    QString unit = match.captured( 3 );
 
     int istart = static_cast<int>( CLAMPED_VAL_INT_MAX( start ) );
 
-    if( key.Lower() != m_key )
+    if( key.toLower() != m_key )
         return EDA_PATTERN_NOT_FOUND;
 
-    double val_parsed;
+    bool ok;
+    double val_parsed = val.toDouble( &ok );
 
-    if( !val.ToCDouble( &val_parsed ) )
+    if( !ok )
         return EDA_PATTERN_NOT_FOUND;
 
-    auto unit_it = m_units.find( unit.Lower() );
+    auto unit_it = m_units.find( unit.toLower() );
 
     if( unit_it != m_units.end() )
         val_parsed *= unit_it->second;
@@ -371,23 +331,23 @@ int EDA_PATTERN_MATCH_RELATIONAL::FindOne( const wxString& aCandidate ) const
 }
 
 
-const std::map<wxString, double> EDA_PATTERN_MATCH_RELATIONAL::m_units = {
-    { wxS( "p" ),  1e-12 },
-    { wxS( "n" ),  1e-9 },
-    { wxS( "u" ),  1e-6 },
-    { wxS( "m" ),  1e-3 },
-    { wxS( "" ),   1. },
-    { wxS( "k" ),  1e3 },
-    { wxS( "meg" ), 1e6 },
-    { wxS( "g" ),  1e9 },
-    { wxS( "t" ),  1e12 },
-    { wxS( "ki" ), 1024. },
-    { wxS( "mi" ), 1048576. },
-    { wxS( "gi" ), 1073741824. },
-    { wxS( "ti" ), 1099511627776. } };
+const QHash<QString, double> EDA_PATTERN_MATCH_RELATIONAL::m_units = {
+    { "p",  1e-12 },
+    { "n",  1e-9 },
+    { "u",  1e-6 },
+    { "m",  1e-3 },
+    { "",   1. },
+    { "k",  1e3 },
+    { "meg", 1e6 },
+    { "g",  1e9 },
+    { "t",  1e12 },
+    { "ki", 1024. },
+    { "mi", 1048576. },
+    { "gi", 1073741824. },
+    { "ti", 1099511627776. } };
 
 
-EDA_COMBINED_MATCHER::EDA_COMBINED_MATCHER( const wxString& aPattern,
+EDA_COMBINED_MATCHER::EDA_COMBINED_MATCHER( const QString& aPattern,
                                             COMBINED_MATCHER_CONTEXT aContext ) :
         m_pattern( aPattern )
 {
@@ -430,7 +390,7 @@ EDA_COMBINED_MATCHER::EDA_COMBINED_MATCHER( const wxString& aPattern,
 }
 
 
-bool EDA_COMBINED_MATCHER::Find( const wxString& aTerm, int& aMatchersTriggered, int& aPosition )
+bool EDA_COMBINED_MATCHER::Find( const QString& aTerm, int& aMatchersTriggered, int& aPosition )
 {
     aPosition = EDA_PATTERN_NOT_FOUND;
     aMatchersTriggered = 0;
@@ -452,7 +412,7 @@ bool EDA_COMBINED_MATCHER::Find( const wxString& aTerm, int& aMatchersTriggered,
 }
 
 
-bool EDA_COMBINED_MATCHER::Find( const wxString& aTerm )
+bool EDA_COMBINED_MATCHER::Find( const QString& aTerm )
 {
     for( const std::unique_ptr<EDA_PATTERN_MATCH>& matcher : m_matchers )
     {
@@ -464,7 +424,7 @@ bool EDA_COMBINED_MATCHER::Find( const wxString& aTerm )
 }
 
 
-bool EDA_COMBINED_MATCHER::StartsWith( const wxString& aTerm )
+bool EDA_COMBINED_MATCHER::StartsWith( const QString& aTerm )
 {
     for( const std::unique_ptr<EDA_PATTERN_MATCH>& matcher : m_matchers )
     {
@@ -476,7 +436,7 @@ bool EDA_COMBINED_MATCHER::StartsWith( const wxString& aTerm )
 }
 
 
-int EDA_COMBINED_MATCHER::ScoreTerms( std::vector<SEARCH_TERM>& aWeightedTerms )
+int EDA_COMBINED_MATCHER::ScoreTerms( QVector<SEARCH_TERM>& aWeightedTerms )
 {
     int score = 0;
 
@@ -484,12 +444,12 @@ int EDA_COMBINED_MATCHER::ScoreTerms( std::vector<SEARCH_TERM>& aWeightedTerms )
     {
         if( !term.Normalized )
         {
-            term.Text = term.Text.MakeLower().Trim( false ).Trim( true );
+            term.Text = term.Text.toLower().trimmed();
 
             // Don't cause KiCad to hang if someone accidentally pastes the PCB or schematic
             // into the search box.
-            if( term.Text.Length() > 1000 )
-                term.Text = term.Text.Left( 1000 );
+            if( term.Text.length() > 1000 )
+                term.Text = term.Text.left( 1000 );
 
             term.Normalized = true;
         }
@@ -514,13 +474,13 @@ int EDA_COMBINED_MATCHER::ScoreTerms( std::vector<SEARCH_TERM>& aWeightedTerms )
 }
 
 
-wxString const& EDA_COMBINED_MATCHER::GetPattern() const
+QString const& EDA_COMBINED_MATCHER::GetPattern() const
 {
     return m_pattern;
 }
 
 
-void EDA_COMBINED_MATCHER::AddMatcher( const wxString &aPattern,
+void EDA_COMBINED_MATCHER::AddMatcher( const QString &aPattern,
                                        std::unique_ptr<EDA_PATTERN_MATCH> aMatcher )
 {
     if ( aMatcher->SetPattern( aPattern ) )

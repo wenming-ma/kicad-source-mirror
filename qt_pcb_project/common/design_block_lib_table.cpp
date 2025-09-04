@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-
 #include <kiface_base.h>
 #include <env_vars.h>
 #include <lib_id.h>
@@ -37,20 +13,19 @@
 #include <design_block_lib_table.h>
 #include <design_block.h>
 
-#include <wx/dir.h>
-#include <wx/hash.h>
+#include <QDir>
+#include <QDirIterator>
+#include <QFile>
+#include <QFileInfo>
+#include <QHash>
+#include <QStringList>
+#include <QVector>
 #include <locale_io.h>
 
-#define OPT_SEP '|' ///< options separator character
+#define OPT_SEP '|'
 
-/// The global design block library table.  This is not dynamically allocated because
-/// in a multiple project environment we must keep its address constant (since it is
-/// the fallback table for multiple projects).
 DESIGN_BLOCK_LIB_TABLE GDesignBlockTable;
 
-/// The global footprint info table.  This is performance-intensive to build so we
-/// keep a hash-stamped global version.  Any deviation from the request vs. stored
-/// hash will result in it being rebuilt.
 DESIGN_BLOCK_LIST_IMPL GDesignBlockList;
 
 
@@ -63,7 +38,7 @@ bool DESIGN_BLOCK_LIB_TABLE_ROW::operator==( const DESIGN_BLOCK_LIB_TABLE_ROW& a
 }
 
 
-void DESIGN_BLOCK_LIB_TABLE_ROW::SetType( const wxString& aType )
+void DESIGN_BLOCK_LIB_TABLE_ROW::SetType( const QString& aType )
 {
     type = DESIGN_BLOCK_IO_MGR::EnumFromStr( aType );
 
@@ -85,7 +60,7 @@ DESIGN_BLOCK_LIB_TABLE::DESIGN_BLOCK_LIB_TABLE( DESIGN_BLOCK_LIB_TABLE* aFallBac
 void DESIGN_BLOCK_LIB_TABLE::Parse( LIB_TABLE_LEXER* in )
 {
     T        tok;
-    wxString errMsg; // to collect error messages
+    QString errMsg; // to collect error messages
 
     // This table may be nested within a larger s-expression, or not.
     // Allow for parser of that optional containing s-epression to have looked ahead.
@@ -222,7 +197,7 @@ void DESIGN_BLOCK_LIB_TABLE::Parse( LIB_TABLE_LEXER* in )
         // All nickNames within this table fragment must be unique, so we do not use doReplace
         // in doInsertRow().  (However a fallBack table can have a conflicting nickName and ours
         // will supercede that one since in FindLib() we search this table before any fall back.)
-        wxString nickname = row->GetNickName(); // store it to be able to used it
+        QString nickname = row->GetNickName(); // store it to be able to used it
                                                 // after row deletion if an error occurs
         bool           doReplace = false;
         LIB_TABLE_ROW* tmp = row.release();
@@ -231,18 +206,18 @@ void DESIGN_BLOCK_LIB_TABLE::Parse( LIB_TABLE_LEXER* in )
         {
             delete tmp; // The table did not take ownership of the row.
 
-            wxString msg = wxString::Format( _( "Duplicate library nickname '%s' found in "
-                                                "design block library table file line %d." ),
-                                             nickname, lineNum );
+            QString msg = QString( _( "Duplicate library nickname '%1' found in "
+                                                "design block library table file line %2." ) )
+                                             .arg( nickname ).arg( lineNum );
 
-            if( !errMsg.IsEmpty() )
-                errMsg << '\n';
+            if( !errMsg.isEmpty() )
+                errMsg += '\n';
 
-            errMsg << msg;
+            errMsg += msg;
         }
     }
 
-    if( !errMsg.IsEmpty() )
+    if( !errMsg.isEmpty() )
         THROW_IO_ERROR( errMsg );
 }
 
@@ -279,7 +254,7 @@ void DESIGN_BLOCK_LIB_TABLE::Format( OUTPUTFORMATTER* aOutput, int aIndentLevel 
 }
 
 
-long long DESIGN_BLOCK_LIB_TABLE::GenerateTimestamp( const wxString* aNickname )
+long long DESIGN_BLOCK_LIB_TABLE::GenerateTimestamp( const QString* aNickname )
 {
     long long hash = 0;
 
@@ -287,13 +262,13 @@ long long DESIGN_BLOCK_LIB_TABLE::GenerateTimestamp( const wxString* aNickname )
     {
         const DESIGN_BLOCK_LIB_TABLE_ROW* row = FindRow( *aNickname, true );
 
-        wxCHECK( row && row->plugin, hash );
+        Q_ASSERT( row && row->plugin );
 
         return row->plugin->GetLibraryTimestamp( row->GetFullURI( true ) )
-               + wxHashTable::MakeKey( *aNickname );
+               + qHash( *aNickname );
     }
 
-    for( const wxString& nickname : GetLogicalLibs() )
+    for( const QString& nickname : GetLogicalLibs() )
     {
         const DESIGN_BLOCK_LIB_TABLE_ROW* row = nullptr;
 
@@ -306,21 +281,21 @@ long long DESIGN_BLOCK_LIB_TABLE::GenerateTimestamp( const wxString* aNickname )
             // Do nothing if not found: just skip.
         }
 
-        wxCHECK2( row && row->plugin, continue );
+        if( !row || !row->plugin ) continue;
 
         hash += row->plugin->GetLibraryTimestamp( row->GetFullURI( true ) )
-                + wxHashTable::MakeKey( nickname );
+                + qHash( nickname );
     }
 
     return hash;
 }
 
 
-void DESIGN_BLOCK_LIB_TABLE::DesignBlockEnumerate( wxArrayString&  aDesignBlockNames, const wxString& aNickname,
+void DESIGN_BLOCK_LIB_TABLE::DesignBlockEnumerate( QStringList&  aDesignBlockNames, const QString& aNickname,
                                                    bool aBestEfforts, const LOCALE_IO* aLocale )
 {
     const DESIGN_BLOCK_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
 
     if( !aLocale )
     {
@@ -337,7 +312,7 @@ void DESIGN_BLOCK_LIB_TABLE::DesignBlockEnumerate( wxArrayString&  aDesignBlockN
 }
 
 
-const DESIGN_BLOCK_LIB_TABLE_ROW* DESIGN_BLOCK_LIB_TABLE::FindRow( const wxString& aNickname,
+const DESIGN_BLOCK_LIB_TABLE_ROW* DESIGN_BLOCK_LIB_TABLE::FindRow( const QString& aNickname,
                                                                    bool            aCheckIfEnabled )
 {
     DESIGN_BLOCK_LIB_TABLE_ROW* row =
@@ -345,9 +320,8 @@ const DESIGN_BLOCK_LIB_TABLE_ROW* DESIGN_BLOCK_LIB_TABLE::FindRow( const wxStrin
 
     if( !row )
     {
-        THROW_IO_ERROR( wxString::Format( _( "design-block-lib-table files contain no library "
-                                             "named '%s'." ),
-                                          aNickname ) );
+        THROW_IO_ERROR( QString( _( "design-block-lib-table files contain no library "
+                                             "named '%1'." ) ).arg( aNickname ) );
     }
 
     if( !row->plugin )
@@ -357,8 +331,8 @@ const DESIGN_BLOCK_LIB_TABLE_ROW* DESIGN_BLOCK_LIB_TABLE::FindRow( const wxStrin
 }
 
 
-static void setLibNickname( DESIGN_BLOCK* aModule, const wxString& aNickname,
-                            const wxString& aDesignBlockName )
+static void setLibNickname( DESIGN_BLOCK* aModule, const QString& aNickname,
+                            const QString& aDesignBlockName )
 {
     // The library cannot know its own name, because it might have been renamed or moved.
     // Therefore design blocks cannot know their own library nickname when residing in
@@ -372,10 +346,10 @@ static void setLibNickname( DESIGN_BLOCK* aModule, const wxString& aNickname,
 
         // Catch any misbehaving plugin, which should be setting internal design block name
         // properly:
-        wxASSERT( aDesignBlockName == dbid.GetLibItemName().wx_str() );
+        Q_ASSERT( aDesignBlockName == dbid.GetLibItemName() );
 
         // and clearing nickname
-        wxASSERT( !dbid.GetLibNickname().size() );
+        Q_ASSERT( !dbid.GetLibNickname().size() );
 
         dbid.SetLibNickname( aNickname );
     }
@@ -383,12 +357,12 @@ static void setLibNickname( DESIGN_BLOCK* aModule, const wxString& aNickname,
 
 
 const DESIGN_BLOCK*
-DESIGN_BLOCK_LIB_TABLE::GetEnumeratedDesignBlock( const wxString& aNickname,
-                                                  const wxString& aDesignBlockName,
+DESIGN_BLOCK_LIB_TABLE::GetEnumeratedDesignBlock( const QString& aNickname,
+                                                  const QString& aDesignBlockName,
                                                   const LOCALE_IO* aLocale )
 {
     const DESIGN_BLOCK_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
 
     if( !aLocale )
     {
@@ -405,8 +379,8 @@ DESIGN_BLOCK_LIB_TABLE::GetEnumeratedDesignBlock( const wxString& aNickname,
 }
 
 
-bool DESIGN_BLOCK_LIB_TABLE::DesignBlockExists( const wxString& aNickname,
-                                                const wxString& aDesignBlockName )
+bool DESIGN_BLOCK_LIB_TABLE::DesignBlockExists( const QString& aNickname,
+                                                const QString& aDesignBlockName )
 {
     // NOT THREAD-SAFE!  LOCALE_IO is global!
 
@@ -415,7 +389,7 @@ bool DESIGN_BLOCK_LIB_TABLE::DesignBlockExists( const wxString& aNickname,
     try
     {
         const DESIGN_BLOCK_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-        wxASSERT( row->plugin );
+        Q_ASSERT( row->plugin );
 
         return row->plugin->DesignBlockExists( row->GetFullURI( true ), aDesignBlockName,
                                                row->GetProperties() );
@@ -427,8 +401,8 @@ bool DESIGN_BLOCK_LIB_TABLE::DesignBlockExists( const wxString& aNickname,
 }
 
 
-DESIGN_BLOCK* DESIGN_BLOCK_LIB_TABLE::DesignBlockLoad( const wxString& aNickname,
-                                                       const wxString& aDesignBlockName,
+DESIGN_BLOCK* DESIGN_BLOCK_LIB_TABLE::DesignBlockLoad( const QString& aNickname,
+                                                       const QString& aDesignBlockName,
                                                        bool            aKeepUUID )
 {
     // NOT THREAD-SAFE!  LOCALE_IO is global!
@@ -436,7 +410,7 @@ DESIGN_BLOCK* DESIGN_BLOCK_LIB_TABLE::DesignBlockLoad( const wxString& aNickname
     LOCALE_IO toggle_locale;
 
     const DESIGN_BLOCK_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
 
     DESIGN_BLOCK* ret = row->plugin->DesignBlockLoad( row->GetFullURI( true ), aDesignBlockName,
                                                       aKeepUUID, row->GetProperties() );
@@ -448,7 +422,7 @@ DESIGN_BLOCK* DESIGN_BLOCK_LIB_TABLE::DesignBlockLoad( const wxString& aNickname
 
 
 DESIGN_BLOCK_LIB_TABLE::SAVE_T
-DESIGN_BLOCK_LIB_TABLE::DesignBlockSave( const wxString&     aNickname,
+DESIGN_BLOCK_LIB_TABLE::DesignBlockSave( const QString&     aNickname,
                                          const DESIGN_BLOCK* aDesignBlock, bool aOverwrite )
 {
     // NOT THREAD-SAFE!  LOCALE_IO is global!
@@ -456,14 +430,14 @@ DESIGN_BLOCK_LIB_TABLE::DesignBlockSave( const wxString&     aNickname,
     LOCALE_IO toggle_locale;
 
     const DESIGN_BLOCK_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
 
     if( !aOverwrite )
     {
         // Try loading the design block to see if it already exists, caller wants overwrite
         // protection, which is atypical, not the default.
 
-        wxString DesignBlockname = aDesignBlock->GetLibId().GetLibItemName();
+        QString DesignBlockname = aDesignBlock->GetLibId().GetLibItemName();
 
         std::unique_ptr<DESIGN_BLOCK> design_block( row->plugin->DesignBlockLoad(
                 row->GetFullURI( true ), DesignBlockname, row->GetProperties() ) );
@@ -478,37 +452,37 @@ DESIGN_BLOCK_LIB_TABLE::DesignBlockSave( const wxString&     aNickname,
 }
 
 
-void DESIGN_BLOCK_LIB_TABLE::DesignBlockDelete( const wxString& aNickname,
-                                                const wxString& aDesignBlockName )
+void DESIGN_BLOCK_LIB_TABLE::DesignBlockDelete( const QString& aNickname,
+                                                const QString& aDesignBlockName )
 
 {
     const DESIGN_BLOCK_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
     return row->plugin->DesignBlockDelete( row->GetFullURI( true ), aDesignBlockName,
                                            row->GetProperties() );
 }
 
 
-bool DESIGN_BLOCK_LIB_TABLE::IsDesignBlockLibWritable( const wxString& aNickname )
+bool DESIGN_BLOCK_LIB_TABLE::IsDesignBlockLibWritable( const QString& aNickname )
 {
     const DESIGN_BLOCK_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
     return row->plugin->IsLibraryWritable( row->GetFullURI( true ) );
 }
 
 
-void DESIGN_BLOCK_LIB_TABLE::DesignBlockLibDelete( const wxString& aNickname )
+void DESIGN_BLOCK_LIB_TABLE::DesignBlockLibDelete( const QString& aNickname )
 {
     const DESIGN_BLOCK_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
     row->plugin->DeleteLibrary( row->GetFullURI( true ), row->GetProperties() );
 }
 
 
-void DESIGN_BLOCK_LIB_TABLE::DesignBlockLibCreate( const wxString& aNickname )
+void DESIGN_BLOCK_LIB_TABLE::DesignBlockLibCreate( const QString& aNickname )
 {
     const DESIGN_BLOCK_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
     row->plugin->CreateLibrary( row->GetFullURI( true ), row->GetProperties() );
 }
 
@@ -517,8 +491,8 @@ DESIGN_BLOCK*
 DESIGN_BLOCK_LIB_TABLE::DesignBlockLoadWithOptionalNickname( const LIB_ID& aDesignBlockId,
                                                              bool          aKeepUUID )
 {
-    wxString nickname = aDesignBlockId.GetLibNickname();
-    wxString DesignBlockname = aDesignBlockId.GetLibItemName();
+    QString nickname = aDesignBlockId.GetLibNickname();
+    QString DesignBlockname = aDesignBlockId.GetLibItemName();
 
     if( nickname.size() )
     {
@@ -529,7 +503,7 @@ DESIGN_BLOCK_LIB_TABLE::DesignBlockLoadWithOptionalNickname( const LIB_ID& aDesi
     else
     {
         // Search each library going through libraries alphabetically.
-        for( const wxString& library : GetLogicalLibs() )
+        for( const QString& library : GetLogicalLibs() )
         {
             // DesignBlockLoad() returns NULL on not found, does not throw exception
             // unless there's an IO_ERROR.
@@ -544,53 +518,48 @@ DESIGN_BLOCK_LIB_TABLE::DesignBlockLoadWithOptionalNickname( const LIB_ID& aDesi
 }
 
 
-const wxString DESIGN_BLOCK_LIB_TABLE::GlobalPathEnvVariableName()
+const QString DESIGN_BLOCK_LIB_TABLE::GlobalPathEnvVariableName()
 {
-    return ENV_VAR::GetVersionedEnvVarName( wxS( "DESIGN_BLOCK_DIR" ) );
+    return ENV_VAR::GetVersionedEnvVarName( "DESIGN_BLOCK_DIR" );
 }
 
 
-class PCM_DESIGN_BLOCK_LIB_TRAVERSER final : public wxDirTraverser
+class PCM_DESIGN_BLOCK_LIB_TRAVERSER final
 {
 public:
-    explicit PCM_DESIGN_BLOCK_LIB_TRAVERSER( const wxString& aPath, DESIGN_BLOCK_LIB_TABLE& aTable,
-                                             const wxString& aPrefix ) :
+    explicit PCM_DESIGN_BLOCK_LIB_TRAVERSER( const QString& aPath, DESIGN_BLOCK_LIB_TABLE& aTable,
+                                             const QString& aPrefix ) :
             m_lib_table( aTable ),
             m_path_prefix( aPath ),
             m_lib_prefix( aPrefix )
     {
-        wxFileName f( aPath, wxS( "" ) );
-        m_prefix_dir_count = f.GetDirCount();
+        QFileInfo f( aPath );
+        m_prefix_dir_count = f.absolutePath().split( '/' ).size();
     }
 
-    wxDirTraverseResult OnFile( const wxString& aFilePath ) override { return wxDIR_CONTINUE; }
-
-    wxDirTraverseResult OnDir( const wxString& dirPath ) override
+    void traverseDirectory( const QString& dirPath )
     {
-        wxFileName dir = wxFileName::DirName( dirPath );
+        QFileInfo dir( dirPath );
 
         // consider a directory to be a lib if it's name ends with the design block lib dir
         // extension it is under $KICADn_3RD_PARTY/design_blocks/<pkgid>/ i.e. has nested
         // level of at least +3.
-        if( dirPath.EndsWith( wxString::Format( wxS( ".%s" ), FILEEXT::KiCadDesignBlockLibPathExtension ) )
-            && dir.GetDirCount() >= m_prefix_dir_count + 3 )
+        if( dirPath.endsWith( QString( ".%1" ).arg( FILEEXT::KiCadDesignBlockLibPathExtension ) )
+            && dir.absolutePath().split( '/' ).size() >= m_prefix_dir_count + 3 )
         {
-            wxString versionedPath;
-            versionedPath.Printf( wxS( "${%s}" ), ENV_VAR::GetVersionedEnvVarName( wxS( "3RD_PARTY" ) ) );
+            QString versionedPath = QString( "${%1}" ).arg( ENV_VAR::GetVersionedEnvVarName( "3RD_PARTY" ) );
 
-            wxArrayString parts = dir.GetDirs();
-            parts.RemoveAt( 0, m_prefix_dir_count );
-            parts.Insert( versionedPath, 0 );
+            QStringList parts = dir.absolutePath().split( '/' );
+            for( int i = 0; i < m_prefix_dir_count; ++i )
+                parts.removeFirst();
+            parts.prepend( versionedPath );
 
-            wxString libPath = wxJoin( parts, '/' );
+            QString libPath = parts.join( '/' );
 
             if( !m_lib_table.HasLibraryWithPath( libPath ) )
             {
-                wxString name = parts.Last().substr( 0, parts.Last().length() - 7 );
-                wxString nickname;
-                nickname.Printf( wxS( "%s%s" ),
-                                 m_lib_prefix,
-                                 name );
+                QString name = parts.last().left( parts.last().length() - 7 );
+                QString nickname = QString( "%1%2" ).arg( m_lib_prefix ).arg( name );
 
                 if( m_lib_table.HasLibrary( nickname ) )
                 {
@@ -598,26 +567,21 @@ public:
 
                     do
                     {
-                        nickname.Printf( wxS( "%s%s_%d" ),
-                                         m_lib_prefix,
-                                         name,
-                                         increment++ );
+                        nickname = QString( "%1%2_%3" ).arg( m_lib_prefix ).arg( name ).arg( increment++ );
                     } while( m_lib_table.HasLibrary( nickname ) );
                 }
 
-                m_lib_table.InsertRow( new DESIGN_BLOCK_LIB_TABLE_ROW( nickname, libPath, wxT( "KiCad" ),
-                                                                       wxEmptyString,
+                m_lib_table.InsertRow( new DESIGN_BLOCK_LIB_TABLE_ROW( nickname, libPath, "KiCad",
+                                                                       QString(),
                                                                        _( "Added by Plugin and Content Manager" ) ) );
             }
         }
-
-        return wxDIR_CONTINUE;
     }
 
 private:
     DESIGN_BLOCK_LIB_TABLE& m_lib_table;
-    wxString                m_path_prefix;
-    wxString                m_lib_prefix;
+    QString                 m_path_prefix;
+    QString                 m_lib_prefix;
     size_t                  m_prefix_dir_count;
 };
 
@@ -625,16 +589,17 @@ private:
 bool DESIGN_BLOCK_LIB_TABLE::LoadGlobalTable( DESIGN_BLOCK_LIB_TABLE& aTable )
 {
     bool       tableExists = true;
-    wxFileName fn = GetGlobalTableFileName();
+    QFileInfo fn( GetGlobalTableFileName() );
 
-    if( !fn.FileExists() )
+    if( !fn.exists() )
     {
         tableExists = false;
 
-        if( !fn.DirExists() && !fn.Mkdir( 0x777, wxPATH_MKDIR_FULL ) )
+        QDir dir;
+        if( !dir.exists( fn.path() ) && !dir.mkpath( fn.path() ) )
         {
-            THROW_IO_ERROR( wxString::Format( _( "Cannot create global library table path '%s'." ),
-                                              fn.GetPath() ) );
+            THROW_IO_ERROR( QString( _( "Cannot create global library table path '%1'." ) )
+                                              .arg( fn.path() ) );
         }
 
         // Attempt to copy the default global file table from the KiCad
@@ -644,65 +609,68 @@ bool DESIGN_BLOCK_LIB_TABLE::LoadGlobalTable( DESIGN_BLOCK_LIB_TABLE& aTable )
         SystemDirsAppend( &ss );
 
         const ENV_VAR_MAP&      envVars = Pgm().GetLocalEnvVariables();
-        std::optional<wxString> v = ENV_VAR::GetVersionedEnvVarValue( envVars, wxT( "TEMPLATE_DIR" ) );
+        std::optional<QString> v = ENV_VAR::GetVersionedEnvVarValue( envVars, "TEMPLATE_DIR" );
 
-        if( v && !v->IsEmpty() )
+        if( v && !v->isEmpty() )
             ss.AddPaths( *v, 0 );
 
-        wxString fileName = ss.FindValidPath( FILEEXT::DesignBlockLibraryTableFileName );
+        QString fileName = ss.FindValidPath( FILEEXT::DesignBlockLibraryTableFileName );
 
         // The fallback is to create an empty global design block table for the user to populate.
-        if( fileName.IsEmpty() || !::wxCopyFile( fileName, fn.GetFullPath(), false ) )
+        if( fileName.isEmpty() || !QFile::copy( fileName, fn.absoluteFilePath() ) )
         {
             DESIGN_BLOCK_LIB_TABLE emptyTable;
 
-            emptyTable.Save( fn.GetFullPath() );
+            emptyTable.Save( fn.absoluteFilePath() );
         }
     }
 
     aTable.clear();
-    aTable.Load( fn.GetFullPath() );
+    aTable.Load( fn.absoluteFilePath() );
 
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
     KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
 
     const ENV_VAR_MAP& env = Pgm().GetLocalEnvVariables();
-    wxString           packagesPath;
+    QString           packagesPath;
 
-    if( std::optional<wxString> v = ENV_VAR::GetVersionedEnvVarValue( env, wxT( "3RD_PARTY" ) ) )
+    if( std::optional<QString> v = ENV_VAR::GetVersionedEnvVarValue( env, "3RD_PARTY" ) )
         packagesPath = *v;
 
     if( settings->m_PcmLibAutoAdd )
     {
         // Scan for libraries in PCM packages directory
 
-        wxFileName d( packagesPath, wxS( "" ) );
-        d.AppendDir( wxS( "design_blocks" ) );
+        QDir d( packagesPath );
+        d.cd( "design_blocks" );
 
-        if( d.DirExists() )
+        if( d.exists() )
         {
             PCM_DESIGN_BLOCK_LIB_TRAVERSER traverser( packagesPath, aTable, settings->m_PcmLibPrefix );
-            wxDir                          dir( d.GetPath() );
-
-            dir.Traverse( traverser );
+            
+            QDirIterator it( d.absolutePath(), QDir::Dirs | QDir::NoDotAndDotDot, QDirIterator::Subdirectories );
+            while( it.hasNext() )
+            {
+                traverser.traverseDirectory( it.next() );
+            }
         }
     }
 
     if( settings->m_PcmLibAutoRemove )
     {
         // Remove PCM libraries that no longer exist
-        std::vector<wxString> to_remove;
+        QVector<QString> to_remove;
 
         for( size_t i = 0; i < aTable.GetCount(); i++ )
         {
             LIB_TABLE_ROW& row = aTable.At( i );
-            wxString       path = row.GetFullURI( true );
+            QString       path = row.GetFullURI( true );
 
-            if( path.StartsWith( packagesPath ) && !wxDir::Exists( path ) )
+            if( path.startsWith( packagesPath ) && !QDir( path ).exists() )
                 to_remove.push_back( row.GetNickName() );
         }
 
-        for( const wxString& nickName : to_remove )
+        for( const QString& nickName : to_remove )
             aTable.RemoveRow( aTable.FindRow( nickName ) );
     }
 
@@ -722,12 +690,8 @@ DESIGN_BLOCK_LIST_IMPL& DESIGN_BLOCK_LIB_TABLE::GetGlobalList()
 }
 
 
-wxString DESIGN_BLOCK_LIB_TABLE::GetGlobalTableFileName()
+QString DESIGN_BLOCK_LIB_TABLE::GetGlobalTableFileName()
 {
-    wxFileName fn;
-
-    fn.SetPath( PATHS::GetUserSettingsPath() );
-    fn.SetName( FILEEXT::DesignBlockLibraryTableFileName );
-
-    return fn.GetFullPath();
+    QDir dir( PATHS::GetUserSettingsPath() );
+    return dir.filePath( FILEEXT::DesignBlockLibraryTableFileName );
 }

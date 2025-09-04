@@ -1,76 +1,62 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 #include <unordered_map>
 
-#include <wx/gauge.h>
-#include <wx/frame.h>
-#include <wx/panel.h>
-#include <wx/settings.h>
-#include <wx/scrolwin.h>
-#include <wx/sizer.h>
-#include <wx/stattext.h>
-#include <wx/string.h>
+#include <QWidget>
+#include <QFrame>
+#include <QProgressBar>
+#include <QLabel>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QScrollArea>
+#include <QApplication>
+#include <QFont>
+#include <QPalette>
+#include <QTimer>
+#include <QString>
+#include <QFocusEvent>
+#include <QCloseEvent>
+#include <QPoint>
+#include <QSize>
 
 #include <background_jobs_monitor.h>
 #include <widgets/kistatusbar.h>
 
 
-class BACKGROUND_JOB_PANEL : public wxPanel
+class BACKGROUND_JOB_PANEL : public QFrame
 {
 public:
-    BACKGROUND_JOB_PANEL( wxWindow* aParent, std::shared_ptr<BACKGROUND_JOB> aJob ) :
-            wxPanel( aParent, wxID_ANY, wxDefaultPosition, wxSize( -1, 75 ),
-                     wxBORDER_SIMPLE ),
+    BACKGROUND_JOB_PANEL( QWidget* aParent, std::shared_ptr<BACKGROUND_JOB> aJob ) :
+            QFrame( aParent ),
             m_job( aJob )
     {
-        SetSizeHints( wxDefaultSize, wxDefaultSize );
+        setFixedHeight( 75 );
+        setFrameStyle( QFrame::Box );
 
-        wxBoxSizer* mainSizer;
-        mainSizer = new wxBoxSizer( wxVERTICAL );
+        QVBoxLayout* mainLayout = new QVBoxLayout( this );
+        mainLayout->setContentsMargins( 1, 1, 1, 1 );
+        mainLayout->setSpacing( 1 );
 
-        SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_3DLIGHT ) );
+        QPalette palette = this->palette();
+        palette.setColor( QPalette::Window, QApplication::palette().color( QPalette::Light ) );
+        setAutoFillBackground( true );
+        setPalette( palette );
 
-        m_stName = new wxStaticText( this, wxID_ANY, aJob->m_name );
-        m_stName->Wrap( -1 );
-        m_stName->SetFont( wxFont( wxNORMAL_FONT->GetPointSize(), wxFONTFAMILY_DEFAULT,
-                                   wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false,
-                                   wxEmptyString ) );
-        mainSizer->Add( m_stName, 0, wxALL | wxEXPAND, 1 );
+        m_stName = new QLabel( aJob->m_name, this );
+        m_stName->setWordWrap( true );
+        QFont font = m_stName->font();
+        font.setBold( true );
+        m_stName->setFont( font );
+        mainLayout->addWidget( m_stName );
 
-        m_stStatus = new wxStaticText( this, wxID_ANY, aJob->m_status, wxDefaultPosition,
-                                       wxDefaultSize, 0 );
-        m_stStatus->Wrap( -1 );
-        mainSizer->Add( m_stStatus, 0, wxALL | wxEXPAND, 1 );
+        m_stStatus = new QLabel( aJob->m_status, this );
+        m_stStatus->setWordWrap( true );
+        mainLayout->addWidget( m_stStatus );
 
-        m_progress = new wxGauge( this, wxID_ANY, aJob->m_maxProgress, wxDefaultPosition,
-                                  wxDefaultSize, wxGA_HORIZONTAL );
-        m_progress->SetValue( 0 );
-        mainSizer->Add( m_progress, 0, wxALL | wxEXPAND, 1 );
+        m_progress = new QProgressBar( this );
+        m_progress->setMaximum( aJob->m_maxProgress );
+        m_progress->setValue( 0 );
+        mainLayout->addWidget( m_progress );
 
-        SetSizer( mainSizer );
-        Layout();
+        setLayout( mainLayout );
 
         UpdateFromJob();
     }
@@ -78,66 +64,63 @@ public:
 
     void UpdateFromJob()
     {
-        m_stStatus->SetLabelText( m_job->m_status );
-        m_progress->SetValue( m_job->m_currentProgress );
-        m_progress->SetRange( m_job->m_maxProgress );
+        m_stStatus->setText( m_job->m_status );
+        m_progress->setValue( m_job->m_currentProgress );
+        m_progress->setMaximum( m_job->m_maxProgress );
     }
 
 private:
-    wxGauge* m_progress;
-    wxStaticText* m_stName;
-    wxStaticText* m_stStatus;
+    QProgressBar* m_progress;
+    QLabel* m_stName;
+    QLabel* m_stStatus;
     std::shared_ptr<BACKGROUND_JOB> m_job;
 };
 
 
-class BACKGROUND_JOB_LIST : public wxFrame
+class BACKGROUND_JOB_LIST : public QWidget
 {
 public:
-    BACKGROUND_JOB_LIST( wxWindow* parent, const wxPoint& pos ) :
-            wxFrame( parent, wxID_ANY, _( "Background Jobs" ), pos, wxSize( 300, 150 ),
-                     wxFRAME_NO_TASKBAR | wxBORDER_SIMPLE )
+    BACKGROUND_JOB_LIST( QWidget* parent, const QPoint& pos ) :
+            QWidget( parent, Qt::Tool | Qt::FramelessWindowHint )
     {
-        SetSizeHints( wxDefaultSize, wxDefaultSize );
+        resize( 300, 150 );
+        move( pos );
+        setWindowTitle( "Background Jobs" );
 
-	    wxBoxSizer* bSizer1;
-        bSizer1 = new wxBoxSizer( wxVERTICAL );
+        QVBoxLayout* mainLayout = new QVBoxLayout( this );
+        mainLayout->setContentsMargins( 0, 0, 0, 0 );
 
-        m_scrolledWindow = new wxScrolledWindow( this, wxID_ANY, wxDefaultPosition,
-                                                 wxSize( -1, -1 ), wxVSCROLL );
-        m_scrolledWindow->SetScrollRate( 5, 5 );
-        m_contentSizer = new wxBoxSizer( wxVERTICAL );
+        m_scrollArea = new QScrollArea( this );
+        m_scrollArea->setWidgetResizable( true );
+        m_scrollArea->setVerticalScrollBarPolicy( Qt::ScrollBarAsNeeded );
+        m_scrollArea->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
+        
+        m_contentWidget = new QWidget();
+        m_contentLayout = new QVBoxLayout( m_contentWidget );
+        m_contentLayout->setContentsMargins( 0, 0, 0, 0 );
+        m_contentLayout->setSpacing( 2 );
+        
+        m_scrollArea->setWidget( m_contentWidget );
+        mainLayout->addWidget( m_scrollArea );
 
-        m_scrolledWindow->SetSizer( m_contentSizer );
-        m_scrolledWindow->Layout();
-        m_contentSizer->Fit( m_scrolledWindow );
-        bSizer1->Add( m_scrolledWindow, 1, wxEXPAND | wxALL, 0 );
-
-        Bind( wxEVT_KILL_FOCUS, &BACKGROUND_JOB_LIST::onFocusLoss, this );
-
-	    SetSizer( bSizer1 );
-        Layout();
-
-        SetFocus();
+        setLayout( mainLayout );
+        setFocus();
     }
 
-    void onFocusLoss( wxFocusEvent& aEvent )
+protected:
+    void focusOutEvent( QFocusEvent* aEvent ) override
     {
-        Close( true );
-        aEvent.Skip();
+        close();
+        QWidget::focusOutEvent( aEvent );
     }
 
-
+public:
     void Add( std::shared_ptr<BACKGROUND_JOB> aJob )
     {
-        BACKGROUND_JOB_PANEL* panel = new BACKGROUND_JOB_PANEL( m_scrolledWindow, aJob );
-        m_contentSizer->Add( panel, 0, wxEXPAND | wxALL, 2 );
-        m_scrolledWindow->Layout();
-        m_contentSizer->Fit( m_scrolledWindow );
-
-        // call this at this window otherwise the child panels don't resize width properly
-        Layout();
-
+        BACKGROUND_JOB_PANEL* panel = new BACKGROUND_JOB_PANEL( m_contentWidget, aJob );
+        m_contentLayout->addWidget( panel );
+        m_contentWidget->adjustSize();
+        
         m_jobPanels[aJob] = panel;
     }
 
@@ -148,8 +131,8 @@ public:
         if( it != m_jobPanels.end() )
         {
             BACKGROUND_JOB_PANEL* panel = m_jobPanels[aJob];
-            m_contentSizer->Detach( panel );
-            panel->Destroy();
+            m_contentLayout->removeWidget( panel );
+            panel->deleteLater();
 
             m_jobPanels.erase( it );
         }
@@ -166,8 +149,9 @@ public:
     }
 
 private:
-    wxScrolledWindow* m_scrolledWindow;
-    wxBoxSizer*       m_contentSizer;
+    QScrollArea* m_scrollArea;
+    QWidget*     m_contentWidget;
+    QVBoxLayout* m_contentLayout;
     std::unordered_map<std::shared_ptr<BACKGROUND_JOB>, BACKGROUND_JOB_PANEL*> m_jobPanels;
 };
 
@@ -187,7 +171,7 @@ bool BACKGROUND_JOB_REPORTER::updateUI()
 }
 
 
-void BACKGROUND_JOB_REPORTER::Report( const wxString& aMessage )
+void BACKGROUND_JOB_REPORTER::Report( const QString& aMessage )
 {
     m_job->m_status = aMessage;
     m_monitor->jobUpdated( m_job );
@@ -216,7 +200,7 @@ BACKGROUND_JOBS_MONITOR::BACKGROUND_JOBS_MONITOR()
 }
 
 
-std::shared_ptr<BACKGROUND_JOB> BACKGROUND_JOBS_MONITOR::Create( const wxString& aName )
+std::shared_ptr<BACKGROUND_JOB> BACKGROUND_JOBS_MONITOR::Create( const QString& aName )
 {
     std::shared_ptr<BACKGROUND_JOB> job = std::make_shared<BACKGROUND_JOB>();
 
@@ -228,11 +212,9 @@ std::shared_ptr<BACKGROUND_JOB> BACKGROUND_JOBS_MONITOR::Create( const wxString&
 
     if( m_shownDialogs.size() > 0 )
     {
-        // update dialogs
         for( BACKGROUND_JOB_LIST* list : m_shownDialogs )
         {
-            list->CallAfter(
-                    [=]()
+            QTimer::singleShot( 0, [list, job]()
                     {
                         list->Add( job );
                     } );
@@ -247,12 +229,9 @@ void BACKGROUND_JOBS_MONITOR::Remove( std::shared_ptr<BACKGROUND_JOB> aJob )
 {
     if( m_shownDialogs.size() > 0 )
     {
-        // update dialogs
-
         for( BACKGROUND_JOB_LIST* list : m_shownDialogs )
         {
-            list->CallAfter(
-                    [=]()
+            QTimer::singleShot( 0, [list, aJob]()
                     {
                         list->Remove( aJob );
                     } );
@@ -274,32 +253,17 @@ void BACKGROUND_JOBS_MONITOR::Remove( std::shared_ptr<BACKGROUND_JOB> aJob )
     {
         for( KISTATUSBAR* statusBar : m_statusBars )
         {
-            statusBar->CallAfter(
-                    [=]()
+            QTimer::singleShot( 0, [statusBar]()
                     {
                         statusBar->HideBackgroundProgressBar();
-                        statusBar->SetBackgroundStatusText( wxT( "" ) );
+                        statusBar->SetBackgroundStatusText( QString( "" ) );
                     } );
         }
     }
 }
 
 
-void BACKGROUND_JOBS_MONITOR::onListWindowClosed( wxCloseEvent& aEvent )
-{
-    BACKGROUND_JOB_LIST* evtWindow = dynamic_cast<BACKGROUND_JOB_LIST*>( aEvent.GetEventObject() );
-
-    m_shownDialogs.erase( std::remove_if( m_shownDialogs.begin(), m_shownDialogs.end(),
-                                          [&]( BACKGROUND_JOB_LIST* dialog )
-                                          {
-                                              return dialog == evtWindow;
-                                          } ) );
-
-    aEvent.Skip();
-}
-
-
-void BACKGROUND_JOBS_MONITOR::ShowList( wxWindow* aParent, wxPoint aPos )
+void BACKGROUND_JOBS_MONITOR::ShowList( QWidget* aParent, QPoint aPos )
 {
     BACKGROUND_JOB_LIST* list = new BACKGROUND_JOB_LIST( aParent, aPos );
 
@@ -314,13 +278,19 @@ void BACKGROUND_JOBS_MONITOR::ShowList( wxWindow* aParent, wxPoint aPos )
 
     m_shownDialogs.push_back( list );
 
-    list->Bind( wxEVT_CLOSE_WINDOW, &BACKGROUND_JOBS_MONITOR::onListWindowClosed, this );
+    connect( list, &QWidget::destroyed, this, [this, list]()
+            {
+                m_shownDialogs.erase( std::remove_if( m_shownDialogs.begin(), m_shownDialogs.end(),
+                                              [&]( BACKGROUND_JOB_LIST* dialog )
+                                              {
+                                                  return dialog == list;
+                                              } ), m_shownDialogs.end() );
+            } );
 
-    // correct the position
-    wxSize windowSize = list->GetSize();
-    list->SetPosition( aPos - windowSize );
+    QSize windowSize = list->size();
+    list->move( aPos - QPoint( windowSize.width(), windowSize.height() ) );
 
-    list->Show();
+    list->show();
 }
 
 
@@ -328,18 +298,13 @@ void BACKGROUND_JOBS_MONITOR::jobUpdated( std::shared_ptr<BACKGROUND_JOB> aJob )
 {
     std::shared_lock<std::shared_mutex> lock( m_mutex, std::try_to_lock );
 
-    // this method is called from the reporters from potentially other threads
-    // we have to guard ui calls with CallAfter
     if( m_jobs.size() > 0 )
     {
-        //for now, we go and update the status bar if its the first job in the vector
         if( m_jobs.front() == aJob )
         {
-            // update all status bar entries
             for( KISTATUSBAR* statusBar : m_statusBars )
             {
-                statusBar->CallAfter(
-                        [=]()
+                QTimer::singleShot( 0, [statusBar, aJob]()
                         {
                             statusBar->ShowBackgroundProgressBar();
                             statusBar->SetBackgroundProgress( aJob->m_currentProgress );
@@ -353,8 +318,7 @@ void BACKGROUND_JOBS_MONITOR::jobUpdated( std::shared_ptr<BACKGROUND_JOB> aJob )
 
     for( BACKGROUND_JOB_LIST* list : m_shownDialogs )
     {
-        list->CallAfter(
-                [=]()
+        QTimer::singleShot( 0, [list, aJob]()
                 {
                     list->UpdateJob( aJob );
                 } );

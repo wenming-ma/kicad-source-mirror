@@ -1,30 +1,12 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef RC_ITEM_H
 #define RC_ITEM_H
 
-#include <wx/dataview.h>
+#include <QAbstractItemModel>
+#include <QAbstractItemView>
+#include <QModelIndex>
+#include <QVariant>
 #include <units_provider.h>
 #include <kiid.h>
 #include <reporter.h>
@@ -41,13 +23,6 @@ namespace RC_JSON
 struct VIOLATION;
 }
 
-/**
- * Provide an abstract interface of a RC_ITEM* list manager.
- *
- * The details of the actual list architecture are hidden from the caller.  Any class that
- * implements this interface can then be used by a RC_TREE_MODEL class without it knowing
- * the actual architecture of the list.
- */
 class RC_ITEMS_PROVIDER
 {
 public:
@@ -55,26 +30,14 @@ public:
 
     virtual int GetCount( int aSeverity = -1 ) const = 0;
 
-    /**
-     * Retrieve a RC_ITEM by index.
-     */
     virtual std::shared_ptr<RC_ITEM> GetItem( int aIndex ) const = 0;
 
-    /**
-     * Remove (and optionally deletes) the indexed item from the list.
-     * @param aDeep If true, the source item should be deleted as well as its entry in the list.
-     */
     virtual void DeleteItem( int aIndex, bool aDeep ) = 0;
 
     virtual ~RC_ITEMS_PROVIDER() { }
 };
 
 
-/**
- * A holder for a rule check item, DRC in Pcbnew or ERC in Eeschema.
- *
- * RC_ITEMs can have zero, one, or two related EDA_ITEMs.
- */
 class RC_ITEM
 {
 public:
@@ -98,7 +61,7 @@ public:
 
     virtual ~RC_ITEM() { }
 
-    void SetErrorMessage( const wxString& aMessage ) { m_errorMessage = aMessage; }
+    void SetErrorMessage( const QString& aMessage ) { m_errorMessage = aMessage; }
 
     void SetItems( const KIIDS& aIds ) { m_ids = aIds; }
 
@@ -129,24 +92,9 @@ public:
     MARKER_BASE* GetParent() const { return m_parent; }
 
 
-    /**
-     * Translate this object into a text string suitable for saving to disk in a report.
-     *
-     * @return wxString - the simple multi-line report text.
-     */
-    virtual wxString ShowReport( UNITS_PROVIDER* aUnitsProvider, SEVERITY aSeverity,
+    virtual QString ShowReport( UNITS_PROVIDER* aUnitsProvider, SEVERITY aSeverity,
                                  const std::map<KIID, EDA_ITEM*>& aItemMap ) const;
 
-    /**
-     * Translate this object into an RC_JSON::VIOLATION object
-     *
-     * @param aViolation is the violation to be populated by info from this item
-     * @param aUnitsProvider is the units provider that will be used to output coordinates
-     * @param aSeverity is the severity of this item
-     * @param aItemMap is a map allowing the lookup of items from KIIDs
-     *
-     * @return None
-     */
     virtual void GetJsonViolation( RC_JSON::VIOLATION& aViolation, UNITS_PROVIDER* aUnitsProvider,
                                    SEVERITY aSeverity,
                                    const std::map<KIID, EDA_ITEM*>& aItemMap ) const;
@@ -154,39 +102,31 @@ public:
     int GetErrorCode() const { return m_errorCode; }
     void SetErrorCode( int aCode ) { m_errorCode = aCode; }
 
-    /**
-     * @return the error message describing the specific details of a RC_ITEM.  For instance,
-     * "Clearance violation (netclass '100ohm' clearance 0.4000mm; actual 0.3200mm)"
-     */
-    virtual wxString GetErrorMessage() const;
+    virtual QString GetErrorMessage() const;
 
-    /**
-     * @return the error text for the class of error of this RC_ITEM represents.  For instance,
-     * "Clearance violation".
-     */
-    wxString GetErrorText() const
+    QString GetErrorText() const
     {
-        return wxGetTranslation( m_errorTitle );
+        return m_errorTitle;
     }
 
-    wxString GetSettingsKey() const
+    QString GetSettingsKey() const
     {
         return m_settingsKey;
     }
 
-    virtual wxString GetViolatingRuleDesc() const
+    virtual QString GetViolatingRuleDesc() const
     {
-        return wxEmptyString;
+        return QString();
     }
 
 protected:
-    static wxString getSeverityString( SEVERITY aSeverity );
+    static QString getSeverityString( SEVERITY aSeverity );
 
-    int           m_errorCode;         ///< The error code's numeric value
-    wxString      m_errorMessage;      ///< A message describing the details of this specific error
-    wxString      m_errorTitle;        ///< The string describing the type of error
-    wxString      m_settingsKey;       ///< The key used to describe this type of error in settings
-    MARKER_BASE*  m_parent;            ///< The marker this item belongs to, if any
+    int           m_errorCode;
+    QString       m_errorMessage;
+    QString       m_errorTitle;
+    QString       m_settingsKey;
+    MARKER_BASE*  m_parent;
 
     KIIDS         m_ids;
 
@@ -219,8 +159,6 @@ public:
             delete child;
     }
 
-    // We own at least one list of raw pointers.  Don't let the compiler fill in copy c'tors that
-    // will only land us in trouble.
     RC_TREE_NODE( const RC_TREE_NODE& ) = delete;
     RC_TREE_NODE& operator=( const RC_TREE_NODE& ) = delete;
 
@@ -232,29 +170,28 @@ public:
 };
 
 
-class RC_TREE_MODEL : public wxDataViewModel, public wxEvtHandler
+class RC_TREE_MODEL : public QAbstractItemModel
 {
+    Q_OBJECT
 public:
-    static wxDataViewItem ToItem( RC_TREE_NODE const* aNode )
+    static QModelIndex ToIndex( RC_TREE_NODE const* aNode, const RC_TREE_MODEL* aModel )
     {
-        return wxDataViewItem( const_cast<void*>( static_cast<void const*>( aNode ) ) );
+        return aModel->createIndex( 0, 0, const_cast<void*>( static_cast<void const*>( aNode ) ) );
     }
 
-    static RC_TREE_NODE* ToNode( wxDataViewItem aItem )
+    static RC_TREE_NODE* ToNode( const QModelIndex& aIndex )
     {
-        return static_cast<RC_TREE_NODE*>( aItem.GetID() );
+        return static_cast<RC_TREE_NODE*>( aIndex.internalPointer() );
     }
 
-    const wxDataViewCtrl* GetView() const { return m_view; }
+    const QAbstractItemView* GetView() const { return m_view; }
 
-    static KIID ToUUID( wxDataViewItem aItem );
+    static KIID ToUUID( const QModelIndex& aIndex );
 
-    RC_TREE_MODEL( EDA_DRAW_FRAME* aParentFrame, wxDataViewCtrl* aView );
+    RC_TREE_MODEL( EDA_DRAW_FRAME* aParentFrame, QAbstractItemView* aView );
 
     ~RC_TREE_MODEL();
 
-    // We own at least one list of raw pointers.  Don't let the compiler fill in copy c'tors that
-    // will only land us in trouble.
     RC_TREE_MODEL( const RC_TREE_MODEL& ) = delete;
     RC_TREE_MODEL& operator=( const RC_TREE_MODEL& ) = delete;
 
@@ -267,69 +204,38 @@ public:
     void SelectMarker( const MARKER_BASE* aMarker );
     void CenterMarker( const MARKER_BASE* aMarker );
 
-    bool IsContainer( wxDataViewItem const& aItem ) const override;
+    bool hasChildren( const QModelIndex& aParent ) const override;
 
-    wxDataViewItem GetParent( wxDataViewItem const& aItem ) const override;
+    QModelIndex parent( const QModelIndex& aChild ) const override;
 
-    unsigned int GetChildren( wxDataViewItem const& aItem,
-                              wxDataViewItemArray&  aChildren ) const override;
+    int rowCount( const QModelIndex& aParent = QModelIndex() ) const override;
+    int columnCount( const QModelIndex& aParent = QModelIndex() ) const override;
 
-    // Simple, single-text-column model
-    unsigned int GetColumnCount() const override { return 1; }
-    wxString GetColumnType( unsigned int aCol ) const override { return "string"; }
-    bool HasContainerColumns( wxDataViewItem const& aItem ) const override { return true; }
 
-    bool HasValue( const wxDataViewItem& item, unsigned col ) const override
+
+    QVariant data( const QModelIndex& aIndex, int aRole = Qt::DisplayRole ) const override;
+
+    bool setData( const QModelIndex& aIndex, const QVariant& aValue, int aRole = Qt::EditRole ) override
     {
-        if( m_tree.empty() )
-            return false;
-        else
-            return wxDataViewModel::HasValue( item, col );
-    }
-
-    /**
-     * Called by the wxDataView to fetch an item's value.
-     */
-    void GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
-                   unsigned int aCol ) const override;
-
-    /**
-     * Called by the wxDataView to edit an item's content.
-     */
-    bool SetValue( wxVariant const& aVariant, wxDataViewItem const& aItem,
-                   unsigned int aCol ) override
-    {
-        // Editing not supported
         return false;
     }
 
-    /**
-     * Called by the wxDataView to fetch an item's formatting.  Return true if the
-     * item has non-default attributes.
-     */
-    bool GetAttr( wxDataViewItem const& aItem, unsigned int aCol,
-                  wxDataViewItemAttr& aAttr ) const override;
 
     void ValueChanged( RC_TREE_NODE* aNode );
 
     void DeleteCurrentItem( bool aDeep );
 
-    /**
-     * Delete the current item or all items.
-     *
-     * If all, \a aIncludeExclusions determines whether or not exclusions are also deleted.
-     */
     void DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, bool aDeep );
 
 protected:
     void     rebuildModel( std::shared_ptr<RC_ITEMS_PROVIDER> aProvider, int aSeverities );
 
     EDA_DRAW_FRAME*                    m_editFrame;
-    wxDataViewCtrl*                    m_view;
+    QAbstractItemView*                 m_view;
     int                                m_severities;
     std::shared_ptr<RC_ITEMS_PROVIDER> m_rcItemsProvider;
 
-    std::vector<RC_TREE_NODE*>         m_tree;              // I own this
+    std::vector<RC_TREE_NODE*>         m_tree;
 };
 
 #endif      // RC_ITEM_H

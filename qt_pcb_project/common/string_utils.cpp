@@ -1,30 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-/**
- * @file string_utils.cpp
- * @brief Some useful functions to handle strings.
- */
 
 #include <clocale>
 #include <cmath>
@@ -34,65 +7,60 @@
 #include <macros.h>
 #include <richio.h>                        // StrPrintf
 #include <string_utils.h>
-#include <wx_filename.h>
 #include <fmt/chrono.h>
-#include <wx/log.h>
-#include <wx/regex.h>
+#include <QRegularExpression>
+#include <QString>
+#include <QStringList>
+#include <QChar>
+#include <QRegExp>
 #include "locale_io.h"
 
 
-/**
- * Illegal file name characters used to ensure file names will be valid on all supported
- * platforms.  This is the list of illegal file name characters for Windows which includes
- * the illegal file name characters for Linux and OSX.
- */
 static const char illegalFileNameChars[] = "\\/:\"<>|*?";
 
-
-// Checks if a full filename is valid, i.e. does not contains illegal chars
-bool IsFullFileNameValid( const wxString& aFullFilename )
+bool IsFullFileNameValid( const QString& aFullFilename )
 {
 
     // Test for forbidden chars in aFullFilename.
     // '\'and '/' are allowed here because aFullFilename can be a full path, and
     // ':' is allowed on Windows as second char in string.
     // So remove allowed separators from string to test
-    wxString filtered_fullpath = aFullFilename;
+    QString filtered_fullpath = aFullFilename;
 
 #ifdef __WINDOWS__
-    // On MSW, the list returned by wxFileName::GetForbiddenChars() contains separators
+    // On MSW, path separators need special handling
     // '\'and '/'
-    filtered_fullpath.Replace( "/", "_" );
-    filtered_fullpath.Replace( "\\", "_" );
+    filtered_fullpath.replace( "/", "_" );
+    filtered_fullpath.replace( "\\", "_" );
 
     // A disk identifier is allowed, and therefore remove its separator
-    if( filtered_fullpath.Length() > 1 && filtered_fullpath[1] == ':' )
+    if( filtered_fullpath.length() > 1 && filtered_fullpath[1] == ':' )
         filtered_fullpath[1] = ' ';
 #endif
 
-    if( wxString::npos != filtered_fullpath.find_first_of( wxFileName::GetForbiddenChars() ) )
+    if( -1 != filtered_fullpath.indexOf( QRegExp( "[\\/:*?\"<>|]" ) ) )
         return false;
 
     return true;
 }
 
 
-wxString ConvertToNewOverbarNotation( const wxString& aOldStr )
+QString ConvertToNewOverbarNotation( const QString& aOldStr )
 {
-    wxString newStr;
+    QString newStr;
     bool inOverbar = false;
 
     // Don't get tripped up by the legacy empty-string token.
-    if( aOldStr == wxT( "~" ) )
+    if( aOldStr == "~" )
         return aOldStr;
 
     newStr.reserve( aOldStr.length() );
 
-    for( wxString::const_iterator chIt = aOldStr.begin(); chIt != aOldStr.end(); ++chIt )
+    for( QString::const_iterator chIt = aOldStr.begin(); chIt != aOldStr.end(); ++chIt )
     {
         if( *chIt == '~' )
         {
-            wxString::const_iterator lookahead = chIt + 1;
+            QString::const_iterator lookahead = chIt + 1;
 
             if( lookahead != aOldStr.end() && *lookahead == '~' )
             {
@@ -100,12 +68,12 @@ wxString ConvertToNewOverbarNotation( const wxString& aOldStr )
                 {
                     // This way the subsequent opening curly brace will not start an
                     // overbar.
-                    newStr << wxT( "~~{}" );
+                    newStr += "~~{}";
                     continue;
                 }
 
                 // Two subsequent tildes mean a tilde.
-                newStr << wxT( "~" );
+                newStr += "~";
                 ++chIt;
                 continue;
             }
@@ -119,12 +87,12 @@ wxString ConvertToNewOverbarNotation( const wxString& aOldStr )
             {
                 if( inOverbar )
                 {
-                    newStr << wxT( "}" );
+                    newStr += "}";
                     inOverbar = false;
                 }
                 else
                 {
-                    newStr << wxT( "~{" );
+                    newStr += "~{";
                     inOverbar = true;
                 }
 
@@ -134,26 +102,26 @@ wxString ConvertToNewOverbarNotation( const wxString& aOldStr )
         else if( ( *chIt == ' ' || *chIt == '}' || *chIt == ')' ) && inOverbar )
         {
             // Spaces were used to terminate overbar as well
-            newStr << wxT( "}" );
+            newStr += "}";
             inOverbar = false;
         }
 
-        newStr << *chIt;
+        newStr += *chIt;
     }
 
     // Explicitly end the overbar even if there was no terminating '~' in the aOldStr.
     if( inOverbar )
-        newStr << wxT( "}" );
+        newStr += "}";
 
     return newStr;
 }
 
 
-bool ConvertSmartQuotesAndDashes( wxString* aString )
+bool ConvertSmartQuotesAndDashes( QString* aString )
 {
     bool retVal = false;
 
-    for( wxString::iterator ii = aString->begin(); ii != aString->end(); ++ii )
+    for( QString::iterator ii = aString->begin(); ii != aString->end(); ++ii )
     {
         if( *ii == L'\u00B4' || *ii == L'\u2018' || *ii == L'\u2019' )
         {
@@ -176,21 +144,21 @@ bool ConvertSmartQuotesAndDashes( wxString* aString )
 }
 
 
-wxString EscapeString( const wxString& aSource, ESCAPE_CONTEXT aContext )
+QString EscapeString( const QString& aSource, ESCAPE_CONTEXT aContext )
 {
-    wxString          converted;
+    QString          converted;
     std::vector<bool> braceStack;    // true == formatting construct
 
     converted.reserve( aSource.length() );
 
-    for( wxUniChar c: aSource )
+    for( QChar c: aSource )
     {
         if( aContext == CTX_NETNAME )
         {
             if( c == '/' )
-                converted += wxT( "{slash}" );
+                converted += "{slash}";
             else if( c == '\n' || c == '\r' )
-                converted += wxEmptyString;    // drop
+                converted += QString();    // drop
             else
                 converted += c;
         }
@@ -198,37 +166,37 @@ wxString EscapeString( const wxString& aSource, ESCAPE_CONTEXT aContext )
         {
             // We no longer escape '/' in LIB_IDs, but we used to
             if( c == '/' && aContext == CTX_LEGACY_LIBID )
-                converted += wxT( "{slash}" );
+                converted += "{slash}";
             else if( c == '\\' )
-                converted += wxT( "{backslash}" );
+                converted += "{backslash}";
             else if( c == '<' )
-                converted += wxT( "{lt}" );
+                converted += "{lt}";
             else if( c == '>' )
-                converted += wxT( "{gt}" );
+                converted += "{gt}";
             else if( c == ':' )
-                converted += wxT( "{colon}" );
+                converted += "{colon}";
             else if( c == '\"' )
-                converted += wxT( "{dblquote}" );
+                converted += "{dblquote}";
             else if( c == '\n' || c == '\r' )
-                converted += wxEmptyString;    // drop
+                converted += QString();    // drop
             else
                 converted += c;
         }
         else if( aContext == CTX_IPC )
         {
             if( c == '/' )
-                converted += wxT( "{slash}" );
+                converted += "{slash}";
             else if( c == ',' )
-                converted += wxT( "{comma}" );
+                converted += "{comma}";
             else if( c == '\"' )
-                converted += wxT( "{dblquote}" );
+                converted += "{dblquote}";
             else
                 converted += c;
         }
         else if( aContext == CTX_QUOTED_STR )
         {
             if( c == '\"' )
-                converted += wxT( "{dblquote}" );
+                converted += "{dblquote}";
             else
                 converted += c;
         }
@@ -249,46 +217,46 @@ wxString EscapeString( const wxString& aSource, ESCAPE_CONTEXT aContext )
         else if( aContext == CTX_LINE )
         {
             if( c == '\n' || c == '\r' )
-                converted += wxT( "{return}" );
+                converted += "{return}";
             else
                 converted += c;
         }
         else if( aContext == CTX_FILENAME )
         {
             if( c == '/' )
-                converted += wxT( "{slash}" );
+                converted += "{slash}";
             else if( c == '\\' )
-                converted += wxT( "{backslash}" );
+                converted += "{backslash}";
             else if( c == '\"' )
-                converted += wxT( "{dblquote}" );
+                converted += "{dblquote}";
             else if( c == '<' )
-                converted += wxT( "{lt}" );
+                converted += "{lt}";
             else if( c == '>' )
-                converted += wxT( "{gt}" );
+                converted += "{gt}";
             else if( c == '|' )
-                converted += wxT( "{bar}" );
+                converted += "{bar}";
             else if( c == ':' )
-                converted += wxT( "{colon}" );
+                converted += "{colon}";
             else if( c == '\t' )
-                converted += wxT( "{tab}" );
+                converted += "{tab}";
             else if( c == '\n' || c == '\r' )
-                converted += wxT( "{return}" );
+                converted += "{return}";
             else
                 converted += c;
         }
         else if( aContext == CTX_NO_SPACE )
         {
             if( c == ' ' )
-                converted += wxT( "{space}" );
+                converted += "{space}";
             else
                 converted += c;
         }
         else if( aContext == CTX_CSV )
         {
             if( c == ',' )
-                converted += wxT( "{comma}" );
+                converted += "{comma}";
             else if( c == '\n' || c == '\r' )
-                converted += wxT( "{return}" );
+                converted += "{return}";
             else
                 converted += c;
         }
@@ -302,7 +270,7 @@ wxString EscapeString( const wxString& aSource, ESCAPE_CONTEXT aContext )
 }
 
 
-wxString UnescapeString( const wxString& aSource )
+QString UnescapeString( const QString& aSource )
 {
     size_t sourceLen = aSource.length();
 
@@ -312,11 +280,11 @@ wxString UnescapeString( const wxString& aSource )
         return aSource;
     }
 
-    wxString newbuf;
+    QString newbuf;
     newbuf.reserve( sourceLen );
 
-    wxUniChar prev = 0;
-    wxUniChar ch = 0;
+    QChar prev = 0;
+    QChar ch = 0;
 
     for( size_t i = 0; i < sourceLen; ++i )
     {
@@ -325,7 +293,7 @@ wxString UnescapeString( const wxString& aSource )
 
         if( ch == '{' )
         {
-            wxString token;
+            QString token;
             int      depth = 1;
             bool     terminated = false;
 
@@ -345,40 +313,40 @@ wxString UnescapeString( const wxString& aSource )
                 }
                 else
                 {
-                    token << ch;
+                    token += ch;
                 }
             }
 
             if( !terminated )
             {
-                newbuf << wxT( "{" ) << UnescapeString( token );
+                newbuf += "{" + UnescapeString( token );
             }
             else if( prev == '$' || prev == '~' || prev == '^' || prev == '_' )
             {
-                newbuf << wxT( "{" ) << UnescapeString( token ) << wxT( "}" );
+                newbuf += "{" + UnescapeString( token ) + "}";
             }
-            else if( token == wxT( "dblquote" ) )  newbuf << wxT( "\"" );
-            else if( token == wxT( "quote" ) )     newbuf << wxT( "'" );
-            else if( token == wxT( "lt" ) )        newbuf << wxT( "<" );
-            else if( token == wxT( "gt" ) )        newbuf << wxT( ">" );
-            else if( token == wxT( "backslash" ) ) newbuf << wxT( "\\" );
-            else if( token == wxT( "slash" ) )     newbuf << wxT( "/" );
-            else if( token == wxT( "bar" ) )       newbuf << wxT( "|" );
-            else if( token == wxT( "comma" ) )     newbuf << wxT( "," );
-            else if( token == wxT( "colon" ) )     newbuf << wxT( ":" );
-            else if( token == wxT( "space" ) )     newbuf << wxT( " " );
-            else if( token == wxT( "dollar" ) )    newbuf << wxT( "$" );
-            else if( token == wxT( "tab" ) )       newbuf << wxT( "\t" );
-            else if( token == wxT( "return" ) )    newbuf << wxT( "\n" );
-            else if( token == wxT( "brace" ) )     newbuf << wxT( "{" );
+            else if( token == "dblquote" )  newbuf += "\"";
+            else if( token == "quote" )     newbuf += "'";
+            else if( token == "lt" )        newbuf += "<";
+            else if( token == "gt" )        newbuf += ">";
+            else if( token == "backslash" ) newbuf += "\\";
+            else if( token == "slash" )     newbuf += "/";
+            else if( token == "bar" )       newbuf += "|";
+            else if( token == "comma" )     newbuf += ",";
+            else if( token == "colon" )     newbuf += ":";
+            else if( token == "space" )     newbuf += " ";
+            else if( token == "dollar" )    newbuf += "$";
+            else if( token == "tab" )       newbuf += "\t";
+            else if( token == "return" )    newbuf += "\n";
+            else if( token == "brace" )     newbuf += "{";
             else
             {
-                newbuf << wxT( "{" ) << UnescapeString( token ) << wxT( "}" );
+                newbuf += "{" + UnescapeString( token ) + "}";
             }
         }
         else
         {
-            newbuf << ch;
+            newbuf += ch;
         }
     }
 
@@ -386,28 +354,29 @@ wxString UnescapeString( const wxString& aSource )
 }
 
 
-wxString TitleCaps( const wxString& aString )
+QString TitleCaps( const QString& aString )
 {
-    wxArrayString words;
-    wxString      result;
-
-    wxStringSplit( aString, words, ' ' );
+    QStringList words = aString.split( ' ' );
+    QString     result;
 
     result.reserve( aString.length() );
 
-    for( const wxString& word : words )
+    for( const QString& word : words )
     {
-        if( !result.IsEmpty() )
-            result += wxT( " " );
+        if( !result.isEmpty() )
+            result += " ";
 
-        result += word.Capitalize();
+        QString capitalizedWord = word;
+        if( !capitalizedWord.isEmpty() )
+            capitalizedWord[0] = capitalizedWord[0].toUpper();
+        result += capitalizedWord;
     }
 
     return result;
 }
 
 
-int ReadDelimitedText( wxString* aDest, const char* aSource )
+int ReadDelimitedText( QString* aDest, const char* aSource )
 {
     std::string utf8;               // utf8 but without escapes and quotes.
     bool        inside = false;
@@ -500,15 +469,15 @@ int ReadDelimitedText( char* aDest, const char* aSource, int aDestSize )
 }
 
 
-std::string EscapedUTF8( const wxString& aString )
+std::string EscapedUTF8( const QString& aString )
 {
-    wxString str = aString;
+    QString str = aString;
 
     // No new-lines allowed in quoted strings
-    str.Replace( wxT( "\r\n" ), wxT( "\r" ) );
-    str.Replace( wxT( "\n" ), wxT( "\r" ) );
+    str.replace( "\r\n", "\r" );
+    str.replace( "\n", "\r" );
 
-    std::string utf8 = TO_UTF8( aString );
+    std::string utf8 = aString.toUtf8().constData();
 
     std::string ret;
 
@@ -541,24 +510,24 @@ std::string EscapedUTF8( const wxString& aString )
 }
 
 
-wxString EscapeHTML( const wxString& aString )
+QString EscapeHTML( const QString& aString )
 {
-    wxString converted;
+    QString converted;
 
     converted.reserve( aString.length() );
 
-    for( wxUniChar c : aString )
+    for( QChar c : aString )
     {
         if( c == '\"' )
-            converted += wxT( "&quot;" );
+            converted += "&quot;";
         else if( c == '\'' )
-            converted += wxT( "&apos;" );
+            converted += "&apos;";
         else if( c == '&' )
-            converted += wxT( "&amp;" );
+            converted += "&amp;";
         else if( c == '<' )
-            converted += wxT( "&lt;" );
+            converted += "&lt;";
         else if( c == '>' )
-            converted += wxT( "&gt;" );
+            converted += "&gt;";
         else
             converted += c;
     }
@@ -567,112 +536,108 @@ wxString EscapeHTML( const wxString& aString )
 }
 
 
-wxString UnescapeHTML( const wxString& aString )
+QString UnescapeHTML( const QString& aString )
 {
     // clang-format off
-    static const std::map<wxString, wxString> c_replacements = {
-        { wxS( "quot" ), wxS( "\"" ) },
-        { wxS( "apos" ), wxS( "'" ) },
-        { wxS( "amp" ), wxS( "&" ) },
-        { wxS( "lt" ), wxS( "<" ) },
-        { wxS( "gt" ), wxS( ">" ) }
+    static const std::map<QString, QString> c_replacements = {
+        { "quot", "\"" },
+        { "apos", "'" },
+        { "amp", "&" },
+        { "lt", "<" },
+        { "gt", ">" }
     };
     // clang-format on
 
     // Construct regex
-    wxString regexStr = "&(#(\\d*)|#x([a-zA-Z0-9]{4})";
+    QString regexStr = "&(#(\\d*)|#x([a-zA-Z0-9]{4})";
 
     for( auto& [key, value] : c_replacements )
-        regexStr << '|' << key;
+        regexStr += '|' + key;
 
-    regexStr << ");";
+    regexStr += ");";
 
-    wxRegEx regex( regexStr );
+    QRegularExpression regex( regexStr );
 
     // Process matches
-    size_t start = 0;
-    size_t len = 0;
+    QString result;
+    QString str = aString;
+    int offset = 0;
 
-    wxString result;
-    wxString str = aString;
-
-    while( regex.Matches( str ) )
+    QRegularExpressionMatchIterator it = regex.globalMatch( str );
+    while( it.hasNext() )
     {
-        std::vector<wxString> matches;
-        regex.GetMatch( &start, &len );
+        QRegularExpressionMatch match = it.next();
+        
+        result += str.mid( offset, match.capturedStart() - offset );
 
-        result << str.Left( start );
+        QString code = match.captured( 1 );
+        QString codeDec = match.captured( 2 );
+        QString codeHex = match.captured( 3 );
 
-        wxString code = regex.GetMatch( str, 1 );
-        wxString codeDec = regex.GetMatch( str, 2 );
-        wxString codeHex = regex.GetMatch( str, 3 );
-
-        if( !codeDec.IsEmpty() || !codeHex.IsEmpty() )
+        if( !codeDec.isEmpty() || !codeHex.isEmpty() )
         {
             unsigned long codeVal = 0;
 
-            if( !codeDec.IsEmpty() )
-                codeDec.ToCULong( &codeVal );
-            else if( !codeHex.IsEmpty() )
-                codeHex.ToCULong( &codeVal, 16 );
+            if( !codeDec.isEmpty() )
+                codeVal = codeDec.toULong();
+            else if( !codeHex.isEmpty() )
+                codeVal = codeHex.toULong( nullptr, 16 );
 
             if( codeVal != 0 )
-                result << wxUniChar( codeVal );
+                result += QChar( codeVal );
         }
         else if( auto val = get_opt( c_replacements, code ) )
         {
-            result << *val;
+            result += *val;
         }
 
-        str = str.Mid( start + len );
+        offset = match.capturedEnd();
     }
 
-    result << str;
+    result += str.mid( offset );
 
     return result;
 }
 
 
-wxString RemoveHTMLTags( const wxString& aInput )
+QString RemoveHTMLTags( const QString& aInput )
 {
-    wxString str = aInput;
-    wxRegEx( wxS( "<[^>]*>" ) ).ReplaceAll( &str, wxEmptyString );
+    QString str = aInput;
+    str.replace( QRegularExpression( "<[^>]*>" ), QString() );
 
     return str;
 }
 
 
-wxString LinkifyHTML( wxString aStr )
+QString LinkifyHTML( QString aStr )
 {
-    static wxRegEx regex( wxS( "\\b(https?|ftp|file)://([-\\w+&@#/%?=~|!:,.;]*[^.,:;<>\\(\\)\\s\u00b6])" ),
-                          wxRE_ICASE );
+    static QRegularExpression regex( "\\b(https?|ftp|file)://([-\\w+&@#/%?=~|!:,.;]*[^.,:;<>\\(\\)\\s\u00b6])",
+                                    QRegularExpression::CaseInsensitiveOption );
 
-    regex.ReplaceAll( &aStr, "<a href=\"\\0\">\\0</a>" );
+    aStr.replace( regex, "<a href=\"\\0\">\\0</a>" );
 
     return aStr;
 }
 
 
-bool IsURL( wxString aStr )
+bool IsURL( QString aStr )
 {
-    static wxRegEx regex( wxS( "(https?|ftp|file)://([-\\w+&@#/%?=~|!:,.;]*[^.,:;<>\\s\u00b6])" ),
-                          wxRE_ICASE );
+    static QRegularExpression regex( "(https?|ftp|file)://([-\\w+&@#/%?=~|!:,.;]*[^.,:;<>\\s\u00b6])",
+                                    QRegularExpression::CaseInsensitiveOption );
 
-    regex.ReplaceAll( &aStr, "<a href=\"\\0\">\\0</a>" );
-
-    return regex.Matches( aStr );
+    return regex.match( aStr ).hasMatch();
 }
 
 
-bool NoPrintableChars( const wxString& aString )
+bool NoPrintableChars( const QString& aString )
 {
-    wxString tmp = aString;
+    QString tmp = aString;
 
-    return tmp.Trim( true ).Trim( false ).IsEmpty();
+    return tmp.trimmed().isEmpty();
 }
 
 
-int PrintableCharCount( const wxString& aString )
+int PrintableCharCount( const QString& aString )
 {
     int char_count = 0;
     int overbarDepth = -1;
@@ -787,21 +752,21 @@ char* GetLine( FILE* File, char* Line, int* LineNum, int SizeLine )
 }
 
 
-wxString GetISO8601CurrentDateTime()
+QString GetISO8601CurrentDateTime()
 {
     // on msys2 variant mingw64, in fmt::format the %z format
     // (offset from UTC in the ISO 8601 format, e.g. -0430) does not work,
     // and is in fact %Z (locale-dependent time zone name or abbreviation) and breaks our date.
     // However, on msys2 variant ucrt64, it works (this is not the same code in fmt::format)
 #if defined(__MINGW32__) && !defined(_UCRT)
-    return fmt::format( "{:%FT%T}", fmt::localtime( std::time( nullptr ) ) );
+    return QString::fromStdString( fmt::format( "{:%FT%T}", fmt::localtime( std::time( nullptr ) ) ) );
 #else
-    return fmt::format( "{:%FT%T%z}", fmt::localtime( std::time( nullptr ) ) );
+    return QString::fromStdString( fmt::format( "{:%FT%T%z}", fmt::localtime( std::time( nullptr ) ) ) );
 #endif
 }
 
 
-int StrNumCmp( const wxString& aString1, const wxString& aString2, bool aIgnoreCase )
+int StrNumCmp( const QString& aString1, const QString& aString2, bool aIgnoreCase )
 {
     int nb1 = 0, nb2 = 0;
 
@@ -810,10 +775,10 @@ int StrNumCmp( const wxString& aString1, const wxString& aString2, bool aIgnoreC
 
     while( str1 != aString1.end() && str2 != aString2.end() )
     {
-        wxUniChar c1 = *str1;
-        wxUniChar c2 = *str2;
+        QChar c1 = *str1;
+        QChar c2 = *str2;
 
-        if( wxIsdigit( c1 ) && wxIsdigit( c2 ) ) // Both characters are digits, do numeric compare.
+        if( c1.isDigit() && c2.isDigit() ) // Both characters are digits, do numeric compare.
         {
             nb1 = 0;
             nb2 = 0;
@@ -821,16 +786,16 @@ int StrNumCmp( const wxString& aString1, const wxString& aString2, bool aIgnoreC
             do
             {
                 c1 = *str1;
-                nb1 = nb1 * 10 + (int) c1 - '0';
+                nb1 = nb1 * 10 + (int) c1.unicode() - '0';
                 ++str1;
-            } while( str1 != aString1.end() && wxIsdigit( *str1 ) );
+            } while( str1 != aString1.end() && (*str1).isDigit() );
 
             do
             {
                 c2 = *str2;
-                nb2 = nb2 * 10 + (int) c2 - '0';
+                nb2 = nb2 * 10 + (int) c2.unicode() - '0';
                 ++str2;
-            } while( str2 != aString2.end() && wxIsdigit( *str2 ) );
+            } while( str2 != aString2.end() && (*str2).isDigit() );
 
             if( nb1 < nb2 )
                 return -1;
@@ -838,8 +803,8 @@ int StrNumCmp( const wxString& aString1, const wxString& aString2, bool aIgnoreC
             if( nb1 > nb2 )
                 return 1;
 
-            c1 = ( str1 != aString1.end() ) ? *str1 : wxUniChar( 0 );
-            c2 = ( str2 != aString2.end() ) ? *str2 : wxUniChar( 0 );
+            c1 = ( str1 != aString1.end() ) ? *str1 : QChar( 0 );
+            c2 = ( str2 != aString2.end() ) ? *str2 : QChar( 0 );
         }
 
         // Any numerical comparisons to here are identical.
@@ -847,8 +812,8 @@ int StrNumCmp( const wxString& aString1, const wxString& aString2, bool aIgnoreC
         {
             if( c1 != c2 )
             {
-                wxUniChar uc1 = wxToupper( c1 );
-                wxUniChar uc2 = wxToupper( c2 );
+                QChar uc1 = c1.toUpper();
+                QChar uc2 = c2.toUpper();
 
                 if( uc1 != uc2 )
                     return uc1 < uc2 ? -1 : 1;
@@ -883,28 +848,26 @@ int StrNumCmp( const wxString& aString1, const wxString& aString2, bool aIgnoreC
 }
 
 
-bool WildCompareString( const wxString& pattern, const wxString& string_to_tst,
+bool WildCompareString( const QString& pattern, const QString& string_to_tst,
                         bool case_sensitive )
 {
-    const wxChar* cp = nullptr;
-    const wxChar* mp = nullptr;
-    const wxChar* wild = nullptr;
-    const wxChar* str = nullptr;
-    wxString      _pattern, _string_to_tst;
+    const QChar* cp = nullptr;
+    const QChar* mp = nullptr;
+    const QChar* wild = nullptr;
+    const QChar* str = nullptr;
+    QString      _pattern, _string_to_tst;
 
     if( case_sensitive )
     {
-        wild = pattern.GetData();
-        str = string_to_tst.GetData();
+        wild = pattern.constData();
+        str = string_to_tst.constData();
     }
     else
     {
-        _pattern = pattern;
-        _pattern.MakeUpper();
-        _string_to_tst = string_to_tst;
-        _string_to_tst.MakeUpper();
-        wild = _pattern.GetData();
-        str = _string_to_tst.GetData();
+        _pattern = pattern.toUpper();
+        _string_to_tst = string_to_tst.toUpper();
+        wild = _pattern.constData();
+        str = _string_to_tst.constData();
     }
 
     while( ( *str ) && ( *wild != '*' ) )
@@ -947,35 +910,34 @@ bool WildCompareString( const wxString& pattern, const wxString& string_to_tst,
 }
 
 
-bool ApplyModifier( double& value, const wxString& aString )
+bool ApplyModifier( double& value, const QString& aString )
 {
-    /// Although the two 'μ's look the same, they are U+03BC and U+00B5
-    static const wxString modifiers( wxT( "pnuµμmkKM" ) );
+    static const QString modifiers( "pnuµμmkKM" );
 
     if( !aString.length() )
         return false;
 
-    wxChar   modifier;
-    wxString units;
+    QChar   modifier;
+    QString units;
 
-    if( modifiers.Find( aString[ 0 ] ) >= 0 )
+    if( modifiers.indexOf( aString[ 0 ] ) >= 0 )
     {
         modifier = aString[ 0 ];
-        units = aString.Mid( 1 ).Trim();
+        units = aString.mid( 1 ).trimmed();
     }
     else
     {
         modifier = ' ';
-        units = aString.Mid( 0 ).Trim();
+        units = aString.mid( 0 ).trimmed();
     }
 
     if( units.length()
-            && !units.IsSameAs( wxT( "F" ), false )
-            && !units.IsSameAs( wxT( "hz" ), false )
-            && !units.IsSameAs( wxT( "W" ), false )
-            && !units.IsSameAs( wxT( "V" ), false )
-            && !units.IsSameAs( wxT( "A" ), false )
-            && !units.IsSameAs( wxT( "H" ), false ) )
+            && units.compare( "F", Qt::CaseInsensitive ) != 0
+            && units.compare( "hz", Qt::CaseInsensitive ) != 0
+            && units.compare( "W", Qt::CaseInsensitive ) != 0
+            && units.compare( "V", Qt::CaseInsensitive ) != 0
+            && units.compare( "A", Qt::CaseInsensitive ) != 0
+            && units.compare( "H", Qt::CaseInsensitive ) != 0 )
     {
         return false;
     }
@@ -984,7 +946,7 @@ bool ApplyModifier( double& value, const wxString& aString )
         value *= 1.0e-12;
     if( modifier == 'n' )
         value *= 1.0e-9;
-    else if( modifier == 'u' || modifier == wxS( "µ" )[0] || modifier == wxS( "μ" )[0] )
+    else if( modifier == 'u' || modifier == QString( "µ" )[0] || modifier == QString( "μ" )[0] )
         value *= 1.0e-6;
     else if( modifier == 'm' )
         value *= 1.0e-3;
@@ -999,7 +961,7 @@ bool ApplyModifier( double& value, const wxString& aString )
 }
 
 
-bool convertSeparators( wxString* value )
+bool convertSeparators( QString* value )
 {
     // Note: fetching the decimal separator from the current locale isn't a silver bullet because
     // it assumes the current computer's locale is the same as the locale the schematic was
@@ -1012,18 +974,18 @@ bool convertSeparators( wxString* value )
     //
     // Only when presented with an ambiguous value do we fall back on the current locale.
 
-    value->Replace( wxS( " " ), wxEmptyString );
+    value->replace( " ", QString() );
 
-    wxChar ambiguousSeparator = '?';
-    wxChar thousandsSeparator = '?';
+    QChar ambiguousSeparator = '?';
+    QChar thousandsSeparator = '?';
     bool   thousandsSeparatorFound = false;
-    wxChar decimalSeparator = '?';
+    QChar decimalSeparator = '?';
     bool   decimalSeparatorFound = false;
     int    digits = 0;
 
     for( int ii = (int) value->length() - 1; ii >= 0; --ii )
     {
-        wxChar c = value->GetChar( ii );
+        QChar c = value->at( ii );
 
         if( c >= '0' && c <= '9' )
         {
@@ -1081,7 +1043,7 @@ bool convertSeparators( wxString* value )
                 //
                 // In all other cases we don't really know what it is yet.
 
-                if( ( ii == 1 && value->GetChar( 0 ) == '0' ) || digits != 3 )
+                if( ( ii == 1 && value->at( 0 ) == '0' ) || digits != 3 )
                 {
                     decimalSeparator = c;
                     decimalSeparatorFound = true;
@@ -1111,29 +1073,29 @@ bool convertSeparators( wxString* value )
     }
 
     // Convert to C-locale
-    value->Replace( thousandsSeparator, wxEmptyString );
-    value->Replace( decimalSeparator, '.' );
+    value->replace( thousandsSeparator, QString() );
+    value->replace( decimalSeparator, '.' );
 
     return true;
 }
 
 
-int ValueStringCompare( const wxString& strFWord, const wxString& strSWord )
+int ValueStringCompare( const QString& strFWord, const QString& strSWord )
 {
     // Compare unescaped text
-    wxString fWord = UnescapeString( strFWord );
-    wxString sWord = UnescapeString( strSWord );
+    QString fWord = UnescapeString( strFWord );
+    QString sWord = UnescapeString( strSWord );
 
     // The different sections of the two strings
-    wxString strFWordBeg, strFWordMid, strFWordEnd;
-    wxString strSWordBeg, strSWordMid, strSWordEnd;
+    QString strFWordBeg, strFWordMid, strFWordEnd;
+    QString strSWordBeg, strSWordMid, strSWordEnd;
 
     // Split the two strings into separate parts
     SplitString( fWord, &strFWordBeg, &strFWordMid, &strFWordEnd );
     SplitString( sWord, &strSWordBeg, &strSWordMid, &strSWordEnd );
 
     // Compare the Beginning section of the strings
-    int isEqual = strFWordBeg.CmpNoCase( strSWordBeg );
+    int isEqual = strFWordBeg.compare( strSWordBeg, Qt::CaseInsensitive );
 
     if( isEqual > 0 )
     {
@@ -1153,8 +1115,8 @@ int ValueStringCompare( const wxString& strFWord, const wxString& strSWord )
         convertSeparators( &strFWordMid );
         convertSeparators( &strSWordMid );
 
-        strFWordMid.ToCDouble( &lFirstNumber );
-        strSWordMid.ToCDouble( &lSecondNumber );
+        lFirstNumber = strFWordMid.toDouble();
+        lSecondNumber = strSWordMid.toDouble();
 
         endingIsModifier |= ApplyModifier( lFirstNumber, strFWordEnd );
         endingIsModifier |= ApplyModifier( lSecondNumber, strSWordEnd );
@@ -1165,7 +1127,7 @@ int ValueStringCompare( const wxString& strFWord, const wxString& strSWord )
             return -1;
         // If the first two sections are equal and the endings are modifiers then compare them
         else if( !endingIsModifier )
-            return strFWordEnd.CmpNoCase( strSWordEnd );
+            return strFWordEnd.compare( strSWordEnd, Qt::CaseInsensitive );
         // Ran out of things to compare; they must match
         else
             return 0;
@@ -1173,17 +1135,17 @@ int ValueStringCompare( const wxString& strFWord, const wxString& strSWord )
 }
 
 
-int SplitString( const wxString& strToSplit,
-                 wxString* strBeginning,
-                 wxString* strDigits,
-                 wxString* strEnd )
+int SplitString( const QString& strToSplit,
+                 QString* strBeginning,
+                 QString* strDigits,
+                 QString* strEnd )
 {
-    static const wxString separators( wxT( ".," ) );
+    static const QString separators( ".," );
 
     // Clear all the return strings
-    strBeginning->Empty();
-    strDigits->Empty();
-    strEnd->Empty();
+    strBeginning->clear();
+    strDigits->clear();
+    strEnd->clear();
 
     // There no need to do anything if the string is empty
     if( strToSplit.length() == 0 )
@@ -1194,7 +1156,7 @@ int SplitString( const wxString& strToSplit,
 
     for( ii = (strToSplit.length() - 1); ii >= 0; ii-- )
     {
-        if( wxIsdigit( strToSplit[ii] ) )
+        if( strToSplit[ii].isDigit() )
             break;
     }
 
@@ -1206,27 +1168,25 @@ int SplitString( const wxString& strToSplit,
     else
     {
         // Since there is at least one digit this is the trailing string
-        *strEnd = strToSplit.substr( ii + 1 );
+        *strEnd = strToSplit.mid( ii + 1 );
 
         // Go to the end of the digits
         int position = ii + 1;
 
         for( ; ii >= 0; ii-- )
         {
-            if( !wxIsdigit( strToSplit[ii] ) && separators.Find( strToSplit[ii] ) < 0 )
+            if( !strToSplit[ii].isDigit() && separators.indexOf( strToSplit[ii] ) < 0 )
                 break;
         }
 
         // If all that was left was digits, then just set the digits string
         if( ii < 0 )
-            *strDigits = strToSplit.substr( 0, position );
+            *strDigits = strToSplit.mid( 0, position );
 
-        /* We were only looking for the last set of digits everything else is
-         * part of the preamble */
         else
         {
-            *strDigits    = strToSplit.substr( ii + 1, position - ii - 1 );
-            *strBeginning = strToSplit.substr( 0, ii + 1 );
+            *strDigits    = strToSplit.mid( ii + 1, position - ii - 1 );
+            *strBeginning = strToSplit.mid( 0, ii + 1 );
         }
     }
 
@@ -1234,17 +1194,17 @@ int SplitString( const wxString& strToSplit,
 }
 
 
-int GetTrailingInt( const wxString& aStr )
+int GetTrailingInt( const QString& aStr )
 {
     int number = 0;
     int base = 1;
 
     // Trim and extract the trailing numeric part
-    int index = aStr.Len() - 1;
+    int index = aStr.length() - 1;
 
     while( index >= 0 )
     {
-        const char chr = aStr.GetChar( index );
+        const char chr = aStr.at( index ).toLatin1();
 
         if( chr < '0' || chr > '9' )
             break;
@@ -1258,9 +1218,9 @@ int GetTrailingInt( const wxString& aStr )
 }
 
 
-wxString GetIllegalFileNameWxChars()
+QString GetIllegalFileNameWxChars()
 {
-    return From_UTF8( illegalFileNameChars );
+    return QString::fromUtf8( illegalFileNameChars );
 }
 
 
@@ -1294,21 +1254,21 @@ bool ReplaceIllegalFileNameChars( std::string* aName, int aReplaceChar )
 }
 
 
-bool ReplaceIllegalFileNameChars( wxString& aName, int aReplaceChar )
+bool ReplaceIllegalFileNameChars( QString& aName, int aReplaceChar )
 {
     bool changed = false;
-    wxString result;
-    result.reserve( aName.Length() );
-    wxString illWChars = GetIllegalFileNameWxChars();
+    QString result;
+    result.reserve( aName.length() );
+    QString illWChars = GetIllegalFileNameWxChars();
 
-    for( wxString::iterator it = aName.begin();  it != aName.end();  ++it )
+    for( QString::iterator it = aName.begin();  it != aName.end();  ++it )
     {
-        if( illWChars.Find( *it ) != wxNOT_FOUND )
+        if( illWChars.indexOf( *it ) != -1 )
         {
             if( aReplaceChar )
                 result += aReplaceChar;
             else
-                result += wxString::Format( "%%%02x", *it );
+                result += QString::asprintf( "%%%02x", it->unicode() );
 
             changed = true;
         }
@@ -1325,43 +1285,43 @@ bool ReplaceIllegalFileNameChars( wxString& aName, int aReplaceChar )
 }
 
 
-void wxStringSplit( const wxString& aText, wxArrayString& aStrings, wxChar aSplitter )
+void QStringSplit( const QString& aText, QStringList& aStrings, QChar aSplitter )
 {
-    wxString tmp;
+    QString tmp;
 
-    for( unsigned ii = 0; ii < aText.Length(); ii++ )
+    for( int ii = 0; ii < aText.length(); ii++ )
     {
         if( aText[ii] == aSplitter )
         {
-            aStrings.Add( tmp );
-            tmp.Clear();
+            aStrings.append( tmp );
+            tmp.clear();
         }
         else
         {
-            tmp << aText[ii];
+            tmp += aText[ii];
         }
     }
 
-    if( !tmp.IsEmpty() )
-        aStrings.Add( tmp );
+    if( !tmp.isEmpty() )
+        aStrings.append( tmp );
 }
 
 
-void StripTrailingZeros( wxString& aStringValue, unsigned aTrailingZeroAllowed )
+void StripTrailingZeros( QString& aStringValue, unsigned aTrailingZeroAllowed )
 {
     struct lconv* lc      = localeconv();
     char          sep     = lc->decimal_point[0];
-    unsigned      sep_pos = aStringValue.Find( sep );
+    int           sep_pos = aStringValue.indexOf( sep );
 
     if( sep_pos > 0 )
     {
         // We want to keep at least aTrailingZeroAllowed digits after the separator
         unsigned min_len = sep_pos + aTrailingZeroAllowed + 1;
 
-        while( aStringValue.Len() > min_len )
+        while( aStringValue.length() > (int)min_len )
         {
-            if( aStringValue.Last() == '0' )
-                aStringValue.RemoveLast();
+            if( aStringValue[aStringValue.length()-1] == '0' )
+                aStringValue.chop( 1 );
             else
                 break;
         }
@@ -1429,54 +1389,57 @@ std::string UIDouble2Str( double aValue )
 }
 
 
-wxString From_UTF8( const char* cstring )
+QString From_UTF8( const char* cstring )
 {
-    // Convert an expected UTF8 encoded C string to a wxString
-    wxString line = wxString::FromUTF8( cstring );
+    // Convert an expected UTF8 encoded C string to a QString
+    QString line = QString::fromUtf8( cstring );
 
-    if( line.IsEmpty() )  // happens when cstring is not a valid UTF8 sequence
+    if( line.isEmpty() )  // happens when cstring is not a valid UTF8 sequence
     {
-        line = wxConvCurrent->cMB2WC( cstring );    // try to use locale conversion
+        line = QString::fromLocal8Bit( cstring );    // try to use locale conversion
 
-        if( line.IsEmpty() )
-            line = wxString::From8BitData( cstring );    // try to use native string
+        if( line.isEmpty() )
+            line = QString::fromLatin1( cstring );    // try to use latin1 string
     }
 
     return line;
 }
 
 
-wxString From_UTF8( const std::string& aString )
+QString From_UTF8( const std::string& aString )
 {
-    // Convert an expected UTF8 encoded std::string to a wxString
-    wxString line = wxString::FromUTF8( aString );
+    // Convert an expected UTF8 encoded std::string to a QString
+    QString line = QString::fromUtf8( aString.c_str() );
 
-    if( line.IsEmpty() )  // happens when aString is not a valid UTF8 sequence
+    if( line.isEmpty() )  // happens when aString is not a valid UTF8 sequence
     {
-        line = wxConvCurrent->cMB2WC( aString.c_str() );    // try to use locale conversion
+        line = QString::fromLocal8Bit( aString.c_str() );    // try to use locale conversion
 
-        if( line.IsEmpty() )
-            line = wxString::From8BitData( aString.c_str() );    // try to use native string
+        if( line.isEmpty() )
+            line = QString::fromLatin1( aString.c_str() );    // try to use latin1 string
     }
 
    return line;
 }
 
 
-wxString NormalizeFileUri( const wxString& aFileUri )
+QString NormalizeFileUri( const QString& aFileUri )
 {
-    wxString uriPathAndFileName;
+    QString uriPathAndFileName;
 
-    wxCHECK( aFileUri.StartsWith( wxS( "file://" ), &uriPathAndFileName ), aFileUri );
+    if( !aFileUri.startsWith( "file://" ) )
+        return aFileUri;
+    
+    uriPathAndFileName = aFileUri.mid( 7 ); // Remove "file://"
 
-    wxString tmp = uriPathAndFileName;
-    wxString retv = wxS( "file://" );
+    QString tmp = uriPathAndFileName;
+    QString retv = "file://";
 
-    tmp.Replace( wxS( "\\" ), wxS( "/" ) );
-    tmp.Replace( wxS( ":" ), wxS( "" ) );
+    tmp.replace( "\\", "/" );
+    tmp.replace( ":", "" );
 
-    if( !tmp.IsEmpty() && tmp[0] != '/' )
-        tmp = wxS( "/" ) + tmp;
+    if( !tmp.isEmpty() && tmp[0] != '/' )
+        tmp = "/" + tmp;
 
     retv += tmp;
 

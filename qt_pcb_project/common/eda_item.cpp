@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <algorithm>
 
@@ -29,10 +6,8 @@
 #include <trace_helpers.h>
 #include <trigo.h>
 #include <i18n_utility.h>
-#include <wx/log.h>
-
-#include <wx/fdrepdlg.h>
-#include <wx/regex.h>
+#include <QRegExp>
+#include <QDebug>
 #include <eda_pattern_match.h>
 
 EDA_ITEM::EDA_ITEM( EDA_ITEM* parent, KICAD_T idType, bool isSCH_ITEM, bool isBOARD_ITEM ) :
@@ -88,8 +63,9 @@ const BOX2I EDA_ITEM::GetBoundingBox() const
 
 EDA_ITEM* EDA_ITEM::Clone() const
 {
-    wxCHECK_MSG( false, nullptr, wxT( "Clone not implemented in derived class " ) + GetClass() +
-                 wxT( ".  Bad programmer!" ) );
+    Q_ASSERT_X( false, "EDA_ITEM::Clone", ("Clone not implemented in derived class " + GetClass() +
+                 ".  Bad programmer!").toLocal8Bit().data() );
+    return nullptr;
 }
 
 
@@ -112,25 +88,25 @@ INSPECT_RESULT EDA_ITEM::Visit( INSPECTOR inspector, void* testData,
 }
 
 
-wxString EDA_ITEM::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString EDA_ITEM::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    wxFAIL_MSG( wxT( "GetItemDescription() was not overridden for schematic item type " ) +
-                GetClass() );
+    Q_ASSERT_X( false, "EDA_ITEM::GetItemDescription", ("GetItemDescription() was not overridden for schematic item type " +
+                GetClass()).toLocal8Bit().data() );
 
-    return wxString( wxT( "Undefined item description for " ) + GetClass() );
+    return QString( "Undefined item description for " ) + GetClass();
 }
 
 
-bool isWordChar( const wxUniChar& c )
+bool isWordChar( const QChar& c )
 {
-    return wxIsalnum( c ) || c == '_';
+    return c.isLetterOrNumber() || c == '_';
 }
 
 
-bool EDA_ITEM::Matches( const wxString& aText, const EDA_SEARCH_DATA& aSearchData ) const
+bool EDA_ITEM::Matches( const QString& aText, const EDA_SEARCH_DATA& aSearchData ) const
 {
-    wxString text = aText;
-    wxString searchText = aSearchData.findString;
+    QString text = aText;
+    QString searchText = aSearchData.findString;
 
     // Don't match if searching for replaceable item and the item doesn't support text replace.
     if( aSearchData.searchAndReplace && !IsReplaceable() )
@@ -138,14 +114,14 @@ bool EDA_ITEM::Matches( const wxString& aText, const EDA_SEARCH_DATA& aSearchDat
 
     if( !aSearchData.matchCase )
     {
-        text.MakeUpper();
-        searchText.MakeUpper();
+        text = text.toUpper();
+        searchText = searchText.toUpper();
     }
 
     auto isWordChar =
-            []( const wxUniChar& c )
+            []( const QChar& c )
             {
-                return wxIsalnum( c ) || c == '_';
+                return c.isLetterOrNumber() || c == '_';
             };
 
     if( aSearchData.matchMode == EDA_SEARCH_MATCH_MODE::PERMISSIVE )
@@ -160,16 +136,16 @@ bool EDA_ITEM::Matches( const wxString& aText, const EDA_SEARCH_DATA& aSearchDat
 
         while( ii < (int) text.length() )
         {
-            int next = text.find( searchText, ii );
+            int next = text.indexOf( searchText, ii );
 
-            if( next == wxNOT_FOUND )
+            if( next == -1 )
                 return false;
 
             ii = next;
             next += searchText.length();
 
-            bool startOK = ( ii == 0 || !isWordChar( text.GetChar( ii - 1 ) ) );
-            bool endOK = ( next == (int) text.length() || !isWordChar( text.GetChar( next ) ) );
+            bool startOK = ( ii == 0 || !isWordChar( text.at( ii - 1 ) ) );
+            bool endOK = ( next == (int) text.length() || !isWordChar( text.at( next ) ) );
 
             if( startOK && endOK )
                 return true;
@@ -181,77 +157,80 @@ bool EDA_ITEM::Matches( const wxString& aText, const EDA_SEARCH_DATA& aSearchDat
     }
     else if( aSearchData.matchMode == EDA_SEARCH_MATCH_MODE::WILDCARD )
     {
-        return text.Matches( searchText );
+        return QRegExp( searchText, Qt::CaseSensitive, QRegExp::Wildcard ).exactMatch( text );
     }
     else if( aSearchData.matchMode == EDA_SEARCH_MATCH_MODE::REGEX )
     {
-        if( aSearchData.regex_string != searchText || !aSearchData.regex.IsValid() )
+        if( aSearchData.regex_string != searchText || !aSearchData.regex.isValid() )
         {
-            int flag = aSearchData.matchCase ? 0 : wxRE_ICASE;
-            wxLogNull noLogs;
-
-            if( !aSearchData.regex.Compile( searchText, flag ) )
+            Qt::CaseSensitivity caseSensitive = aSearchData.matchCase ? Qt::CaseSensitive : Qt::CaseInsensitive;
+            aSearchData.regex.setPattern( searchText );
+            aSearchData.regex.setCaseSensitivity( caseSensitive );
+            
+            if( !aSearchData.regex.isValid() )
                 return false;
 
             aSearchData.regex_string = searchText;
         }
 
-        return aSearchData.regex.Matches( text );
+        return aSearchData.regex.indexIn( text ) != -1;
     }
     else
     {
-        return text.Find( searchText ) != wxNOT_FOUND;
+        return text.indexOf( searchText ) != -1;
     }
 }
 
 
-bool EDA_ITEM::Replace( const EDA_SEARCH_DATA& aSearchData, wxString& aText )
+bool EDA_ITEM::Replace( const EDA_SEARCH_DATA& aSearchData, QString& aText )
 {
-    wxString text = aText;
-    wxString searchText = aSearchData.findString;
-    wxString result;
+    QString text = aText;
+    QString searchText = aSearchData.findString;
+    QString result;
     bool     replaced = false;
 
     if( aSearchData.matchMode == EDA_SEARCH_MATCH_MODE::REGEX )
     {
-        if( aSearchData.regex_string != searchText || !aSearchData.regex.IsValid() )
+        if( aSearchData.regex_string != searchText || !aSearchData.regex.isValid() )
         {
-            int flag = aSearchData.matchCase ? 0 : wxRE_ICASE;
-            wxLogNull noLogs;
-
-            if( !aSearchData.regex.Compile( searchText, flag ) )
+            Qt::CaseSensitivity caseSensitive = aSearchData.matchCase ? Qt::CaseSensitive : Qt::CaseInsensitive;
+            aSearchData.regex.setPattern( searchText );
+            aSearchData.regex.setCaseSensitivity( caseSensitive );
+            
+            if( !aSearchData.regex.isValid() )
                 return false;
 
             aSearchData.regex_string = searchText;
         }
 
-        if( !aSearchData.regex.Replace( &text, aSearchData.replaceString ) )
+        QString newText = text.replace( aSearchData.regex, aSearchData.replaceString );
+        if( newText == text )
             return false;
-
-        aText = text;
+            
+        aText = newText;
         return true;
     }
 
     if( !aSearchData.matchCase )
     {
-        text = text.Upper();
-        searchText = searchText.Upper();
+        text = text.toUpper();
+        searchText = searchText.toUpper();
     }
 
     int ii = 0;
 
     while( ii < (int) text.length() )
     {
-        int next = text.find( searchText, ii );
+        int next = text.indexOf( searchText, ii );
 
-        if( next == wxNOT_FOUND )
+        if( next == -1 )
         {
-            result += aText.Mid( ii, wxString::npos );
+            result += aText.mid( ii );
             break;
         }
 
         if( next > ii )
-            result += aText.Mid( ii, next - ii );
+            result += aText.mid( ii, next - ii );
 
         ii = next;
         next += searchText.length();
@@ -261,8 +240,8 @@ bool EDA_ITEM::Replace( const EDA_SEARCH_DATA& aSearchData, wxString& aText )
 
         if( aSearchData.matchMode == EDA_SEARCH_MATCH_MODE::WHOLEWORD )
         {
-            startOK = ( ii == 0 || !isWordChar( text.GetChar( ii - 1 ) ) );
-            endOK = ( next == (int) text.length() || !isWordChar( text.GetChar( next ) ) );
+            startOK = ( ii == 0 || !isWordChar( text.at( ii - 1 ) ) );
+            endOK = ( next == (int) text.length() || !isWordChar( text.at( next ) ) );
         }
         else
         {
@@ -278,7 +257,7 @@ bool EDA_ITEM::Replace( const EDA_SEARCH_DATA& aSearchData, wxString& aText )
         }
         else
         {
-            result += aText.GetChar( ii );
+            result += aText.at( ii );
             ii++;
         }
     }
@@ -290,8 +269,8 @@ bool EDA_ITEM::Replace( const EDA_SEARCH_DATA& aSearchData, wxString& aText )
 
 bool EDA_ITEM::operator<( const EDA_ITEM& aItem ) const
 {
-    wxFAIL_MSG( wxString::Format( wxT( "Less than operator not defined for item type %s." ),
-                                  GetClass() ) );
+    Q_ASSERT_X( false, "EDA_ITEM::operator<", QString( "Less than operator not defined for item type %1." )
+                                  .arg( GetClass() ).toLocal8Bit().data() );
 
     return false;
 }
@@ -337,12 +316,11 @@ BITMAPS EDA_ITEM::GetMenuImage() const
 
 void EDA_ITEM::ShowDummy( std::ostream& os ) const
 {
-    // XML output:
-    wxString s = GetClass();
+    QString s = GetClass();
 
-    os << '<' << s.Lower().mb_str() << ">"
+    os << '<' << s.toLower().toLocal8Bit().data() << ">"
        << " Need ::Show() override for this class "
-       << "</" << s.Lower().mb_str() << ">\n";
+       << "</" << s.toLower().toLocal8Bit().data() << ">\n";
 }
 
 
@@ -359,16 +337,16 @@ std::ostream& EDA_ITEM::NestedSpace( int nestLevel, std::ostream& os )
 #endif
 
 
-wxString EDA_ITEM::GetTypeDesc() const
+QString EDA_ITEM::GetTypeDesc() const
 {
     //@see EDA_ITEM_DESC for definition of ENUM_MAP<KICAD_T>
-    wxString typeDescr = ENUM_MAP<KICAD_T>::Instance().ToString( Type() );
+    QString typeDescr = ENUM_MAP<KICAD_T>::Instance().ToString( Type() );
 
-    return wxGetTranslation( typeDescr );
+    return QObject::tr( typeDescr.toLocal8Bit().data() );
 }
 
 
-wxString EDA_ITEM::GetFriendlyName() const
+QString EDA_ITEM::GetFriendlyName() const
 {
     return GetTypeDesc();
 }
@@ -380,7 +358,7 @@ static struct EDA_ITEM_DESC
     {
         ENUM_MAP<KICAD_T>::Instance()
             .Undefined( TYPE_NOT_INIT )
-            .Map( NOT_USED,                wxT( "<not used>" ) )
+            .Map( NOT_USED,                QString( "<not used>" ) )
             .Map( SCREEN_T,                _HKI( "Screen" ) )
 
             .Map( PCB_FOOTPRINT_T,         _HKI( "Footprint" ) )
@@ -447,7 +425,7 @@ static struct EDA_ITEM_DESC
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
         REGISTER_TYPE( EDA_ITEM );
 
-        propMgr.AddProperty( new PROPERTY_ENUM<EDA_ITEM, KICAD_T>( wxS( "Type" ),
+        propMgr.AddProperty( new PROPERTY_ENUM<EDA_ITEM, KICAD_T>( QString( "Type" ),
                              NO_SETTER( EDA_ITEM, KICAD_T ), &EDA_ITEM::Type ) )
                 .SetIsHiddenFromPropertiesManager();
     }

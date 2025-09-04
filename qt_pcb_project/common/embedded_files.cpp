@@ -1,31 +1,13 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
- * Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include "embedded_files.h"
 #include "embedded_files_parser.h"
 
-#include <wx/base64.h>
-#include <wx/debug.h>
-#include <wx/filename.h>
-#include <wx/log.h>
-#include <wx/mstream.h>
-#include <wx/wfstream.h>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QDebug>
+#include <QBuffer>
+#include <QLoggingCategory>
 
 #include <map>
 #include <memory>
@@ -39,29 +21,28 @@
 
 
 
-EMBEDDED_FILES::EMBEDDED_FILE* EMBEDDED_FILES::AddFile( const wxFileName& aName, bool aOverwrite )
+EMBEDDED_FILES::EMBEDDED_FILE* EMBEDDED_FILES::AddFile( const QFileInfo& aName, bool aOverwrite )
 {
-    if( HasFile( aName.GetFullName() ) )
+    if( HasFile( aName.fileName() ) )
     {
         if( !aOverwrite )
-            return m_files[aName.GetFullName()];
+            return m_files[aName.fileName()];
 
-        m_files.erase( aName.GetFullName() );
+        m_files.erase( aName.fileName() );
     }
 
-    wxFFileInputStream file( aName.GetFullPath() );
-    wxMemoryBuffer     buffer;
+    QFile file( aName.absoluteFilePath() );
 
-    if( !file.IsOk() )
+    if( !file.open(QIODevice::ReadOnly) )
         return nullptr;
 
-    wxFileOffset length = file.GetLength();
+    qint64 length = file.size();
 
     std::unique_ptr<EMBEDDED_FILE> efile = std::make_unique<EMBEDDED_FILE>();
-    efile->name = aName.GetFullName();
+    efile->name = aName.fileName();
     efile->decompressedData.resize( length );
 
-    wxString ext = aName.GetExt().Upper();
+    QString ext = aName.suffix().toUpper();
 
     // Handle some common file extensions
     if( ext == "STP" || ext == "STPZ" || ext == "STEP" || ext == "WRL" || ext == "WRZ" )
@@ -84,17 +65,8 @@ EMBEDDED_FILES::EMBEDDED_FILE* EMBEDDED_FILES::AddFile( const wxFileName& aName,
     if( !efile->decompressedData.data() )
         return nullptr;
 
-    char* data = efile->decompressedData.data();
-    wxFileOffset total_read = 0;
-
-    while( !file.Eof() && total_read < length )
-    {
-        file.Read( data, length - total_read );
-
-        size_t read = file.LastRead();
-        data += read;
-        total_read += read;
-    }
+    QByteArray fileData = file.readAll();
+    std::copy(fileData.begin(), fileData.end(), efile->decompressedData.begin());
 
     if( CompressAndEncode( *efile ) != RETURN_CODE::OK )
         return nullptr;
@@ -102,12 +74,12 @@ EMBEDDED_FILES::EMBEDDED_FILE* EMBEDDED_FILES::AddFile( const wxFileName& aName,
     efile->is_valid = true;
 
     EMBEDDED_FILE* result = efile.release();
-    m_files[aName.GetFullName()] = result;
+    m_files[aName.fileName()] = result;
 
     if( m_fileAddedCallback )
         m_fileAddedCallback( result );
 
-    return m_files[aName.GetFullName()];
+    return m_files[aName.fileName()];
 }
 
 
@@ -121,7 +93,7 @@ void EMBEDDED_FILES::AddFile( EMBEDDED_FILE* aFile )
 
 
 // Remove a file from the collection
-void EMBEDDED_FILES::RemoveFile( const wxString& name, bool aErase )
+void EMBEDDED_FILES::RemoveFile( const QString& name, bool aErase )
 {
     auto it = m_files.find( name );
 
@@ -165,7 +137,7 @@ void EMBEDDED_FILES::WriteEmbeddedFiles( OUTPUTFORMATTER& aOut, bool aWriteData 
         // Skip empty files
         if( file.compressedEncodedData.empty() )
         {
-            wxLogDebug( wxT( "Error: Embedded file '%s' is empty" ), file.name );
+            qDebug() << "Error: Embedded file '" << file.name << "' is empty";
             continue;
         }
 
@@ -230,10 +202,11 @@ EMBEDDED_FILES::RETURN_CODE EMBEDDED_FILES::CompressAndEncode( EMBEDDED_FILE& aF
         return RETURN_CODE::OUT_OF_MEMORY;
     }
 
-    const size_t dstLen = wxBase64EncodedSize( compressedSize );
-    aFile.compressedEncodedData.resize( dstLen );
-    size_t retval = wxBase64Encode( aFile.compressedEncodedData.data(), dstLen,
-                                          compressedData.data(), compressedSize );
+    QByteArray compressedArray(compressedData.data(), compressedSize);
+    QByteArray encodedData = compressedArray.toBase64();
+    aFile.compressedEncodedData.assign(encodedData.begin(), encodedData.end());
+    size_t retval = encodedData.size();
+    const size_t dstLen = encodedData.size();
 
     if( retval != dstLen )
     {
@@ -253,23 +226,20 @@ EMBEDDED_FILES::RETURN_CODE EMBEDDED_FILES::CompressAndEncode( EMBEDDED_FILE& aF
 EMBEDDED_FILES::RETURN_CODE EMBEDDED_FILES::DecompressAndDecode( EMBEDDED_FILE& aFile )
 {
     std::vector<char> compressedData;
-    size_t            compressedSize = wxBase64DecodedSize( aFile.compressedEncodedData.size() );
+    QByteArray encodedArray(aFile.compressedEncodedData.data(), aFile.compressedEncodedData.size());
+    QByteArray decodedArray = QByteArray::fromBase64(encodedArray);
+    size_t compressedSize = decodedArray.size();
 
     if( compressedSize == 0 )
     {
-        wxLogTrace( wxT( "KICAD_EMBED" ),
-                    wxT( "%s:%s:%d\n * Base64DecodedSize failed for file '%s' with size %zu" ),
-                    __FILE__, __FUNCTION__, __LINE__, aFile.name,
-                    aFile.compressedEncodedData.size() );
+        qDebug() << "Base64DecodedSize failed for file '" << aFile.name << "' with size " << aFile.compressedEncodedData.size();
         return RETURN_CODE::OUT_OF_MEMORY;
     }
 
-    compressedData.resize( compressedSize );
+    compressedData.resize( decodedArray.size() );
+    std::copy(decodedArray.begin(), decodedArray.end(), compressedData.begin());
     void* compressed = compressedData.data();
-
-    // The return value from wxBase64Decode is the actual size of the decoded data avoiding
-    // the modulo 4 padding of the base64 encoding
-    compressedSize = wxBase64Decode( compressed, compressedSize, aFile.compressedEncodedData );
+    compressedSize = decodedArray.size();
 
     unsigned long long estDecompressedSize = ZSTD_getFrameContentSize( compressed, compressedSize );
 
@@ -290,9 +260,7 @@ EMBEDDED_FILES::RETURN_CODE EMBEDDED_FILES::DecompressAndDecode( EMBEDDED_FILE& 
 
     if( ZSTD_isError( decompressedSize ) )
     {
-        wxLogTrace( wxT( "KICAD_EMBED" ),
-                    wxT( "%s:%s:%d\n * ZSTD_decompress failed with error '%s'" ),
-                    __FILE__, __FUNCTION__, __LINE__, ZSTD_getErrorName( decompressedSize ) );
+        qDebug() << "ZSTD_decompress failed with error '" << ZSTD_getErrorName( decompressedSize ) << "'";
         aFile.decompressedData.clear();
         return RETURN_CODE::OUT_OF_MEMORY;
     }
@@ -312,9 +280,7 @@ EMBEDDED_FILES::RETURN_CODE EMBEDDED_FILES::DecompressAndDecode( EMBEDDED_FILE& 
 
     if( test_hash != aFile.data_hash )
     {
-        wxLogTrace( wxT( "KICAD_EMBED" ),
-                    wxT( "%s:%s:%d\n * Checksum error in embedded file '%s'" ),
-                    __FILE__, __FUNCTION__, __LINE__, aFile.name );
+        qDebug() << "Checksum error in embedded file '" << aFile.name << "'";
         aFile.decompressedData.clear();
         return RETURN_CODE::CHECKSUM_ERROR;
     }
@@ -425,8 +391,7 @@ void EMBEDDED_FILES_PARSER::ParseEmbedded( EMBEDDED_FILES* aFiles )
 
                 if( file )
                 {
-                    wxLogTrace( wxT( "KICAD_EMBED" ),
-                                wxT( "Duplicate 'name' tag in embedded file %s" ), file->name );
+                    qDebug() << "Duplicate 'name' tag in embedded file" << file->name;
                 }
 
                 NeedSYMBOLorNUMBER();
@@ -486,65 +451,68 @@ void EMBEDDED_FILES_PARSER::ParseEmbedded( EMBEDDED_FILES* aFiles )
 }
 
 
-wxFileName EMBEDDED_FILES::GetTemporaryFileName( const wxString& aName ) const
+QFileInfo EMBEDDED_FILES::GetTemporaryFileName( const QString& aName ) const
 {
-    wxFileName cacheFile;
+    QFileInfo cacheFile;
 
     auto it = m_files.find( aName );
 
     if( it == m_files.end() )
         return cacheFile;
 
-    cacheFile.AssignDir( PATHS::GetUserCachePath() );
-    cacheFile.AppendDir( wxT( "embed" ) );
-
-    if( !PATHS::EnsurePathExists( cacheFile.GetFullPath() ) )
+    QString cachePath = PATHS::GetUserCachePath() + "/embed";
+    QDir cacheDir(cachePath);
+    
+    if( !PATHS::EnsurePathExists( cachePath ) )
     {
-        wxLogTrace( wxT( "KICAD_EMBED" ),
-                    wxT( "%s:%s:%d\n * failed to create embed cache directory '%s'" ),
-                    __FILE__, __FUNCTION__, __LINE__, cacheFile.GetPath() );
-
-        cacheFile.SetPath( wxFileName::GetTempDir() );
+        qDebug() << "failed to create embed cache directory '" << cachePath << "'";
+        cachePath = QDir::tempPath();
     }
 
-    wxFileName inputName( aName );
+    QFileInfo inputName( aName );
 
-    // Store the cache file name using the data hash to allow for shared data between
-    // multiple projects using the same files as well as deconflicting files with the same name
-    cacheFile.SetName( "kicad_embedded_" + it->second->data_hash );
-    cacheFile.SetExt( inputName.GetExt() );
+    QString fileName = "kicad_embedded_" + QString::fromStdString(it->second->data_hash) + "." + inputName.suffix();
+    cacheFile = QFileInfo(cachePath + "/" + fileName);
 
-    if( cacheFile.FileExists() && cacheFile.IsFileReadable() )
+    if( cacheFile.exists() && cacheFile.isReadable() )
         return cacheFile;
 
-    wxFFileOutputStream out( cacheFile.GetFullPath() );
+    QFile out( cacheFile.absoluteFilePath() );
 
-    if( !out.IsOk() )
+    if( !out.open(QIODevice::WriteOnly) )
     {
-        cacheFile.Clear();
-        return cacheFile;
+        return QFileInfo();
     }
 
-    out.Write( it->second->decompressedData.data(), it->second->decompressedData.size() );
+    out.write( reinterpret_cast<const char*>(it->second->decompressedData.data()), it->second->decompressedData.size() );
 
     return cacheFile;
 }
 
 
-const std::vector<wxString>* EMBEDDED_FILES::GetFontFiles() const
+QFileInfo EMBEDDED_FILES::GetTemporaryFileName( EMBEDDED_FILE* aFile ) const
+{
+    if( !aFile )
+        return QFileInfo();
+    
+    return GetTemporaryFileName( aFile->name );
+}
+
+
+const std::vector<QString>* EMBEDDED_FILES::GetFontFiles() const
 {
     return &m_fontFiles;
 }
 
 
-const std::vector<wxString>* EMBEDDED_FILES::UpdateFontFiles()
+const std::vector<QString>* EMBEDDED_FILES::UpdateFontFiles()
 {
     m_fontFiles.clear();
 
     for( const auto& [name, entry] : m_files )
     {
         if( entry->type == EMBEDDED_FILE::FILE_TYPE::FONT )
-            m_fontFiles.push_back( GetTemporaryFileName( name ).GetFullPath() );
+            m_fontFiles.push_back( GetTemporaryFileName( name ).absoluteFilePath() );
     }
 
     return &m_fontFiles;

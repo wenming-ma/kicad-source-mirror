@@ -1,28 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Copyright (C) 2013 CERN
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef __BOX2_H
 #define __BOX2_H
@@ -36,9 +12,6 @@
 #include <core/kicad_algo.h>
 #include <trigo.h>
 
-/**
- * A 2D bounding box built on top of an origin point and size vector.
- */
 template <class Vec>
 class BOX2
 {
@@ -100,11 +73,6 @@ public:
                     KiCheckedCast<ecoord_type, coord_type>( ecoord_type( m_Pos.y ) + m_Size.y / 2 ) );
     }
 
-    /**
-     * Compute the bounding box from a given list of points.
-     *
-     * @param aPointList is the list points of the object.
-     */
     template <class Container>
     void Compute( const Container& aPointList )
     {
@@ -130,19 +98,11 @@ public:
         SetSize( vmax - vmin );
     }
 
-    /**
-     * Move the rectangle by the \a aMoveVector.
-     *
-     * @param aMoveVector is a point that is the value to move this rectangle.
-     */
     constexpr void Move( const Vec& aMoveVector )
     {
         m_Pos += aMoveVector;
     }
 
-    /**
-     * Ensure that the height and width are positive.
-     */
     constexpr BOX2<Vec>& Normalize()
     {
         if( m_Size.y < 0 )
@@ -160,11 +120,6 @@ public:
         return *this;
     }
 
-    /**
-     * @param aPoint is the point to test.
-     *
-     * @return true if \a aPoint is inside the boundary box. A point on a edge is seen as inside.
-     */
     constexpr bool Contains( const Vec& aPoint ) const
     {
         Vec rel_pos = aPoint - m_Pos;
@@ -186,18 +141,8 @@ public:
                ( rel_pos.x <= size.x);
     }
 
-    /**
-     * @param x is the x coordinate of the point to test.
-     * @param y is the x coordinate of the point to test.
-     * @return true if point is inside the boundary box. A point on a edge is seen as inside.
-     */
     constexpr bool Contains( coord_type x, coord_type y ) const { return Contains( Vec( x, y ) ); }
 
-    /**
-     * @param aRect is the the area to test.
-     *
-     * @return true if \a aRect is contained. A common edge is seen as contained.
-     */
     constexpr bool Contains( const BOX2<Vec>& aRect ) const
     {
         return Contains( aRect.GetOrigin() ) && Contains( aRect.GetEnd() );
@@ -229,9 +174,6 @@ public:
     constexpr coord_type GetTop() const { return GetY(); }
     constexpr const Vec GetCenter() const { return Centre(); }
 
-    /**
-     * @return the width or height, whichever is greater.
-     */
     constexpr int GetSizeMax() const { return ( m_Size.x > m_Size.y ) ? m_Size.x : m_Size.y; }
 
     constexpr void SetOrigin( const Vec& pos )
@@ -304,13 +246,9 @@ public:
         SetSize( SizeVec( pos ) - m_Pos );
     }
 
-    /**
-     * @return true if the argument rectangle intersects this rectangle.
-     *         (i.e. if the 2 rectangles have at least a common point)
-     */
     constexpr bool Intersects( const BOX2<Vec>& aRect ) const
     {
-        // this logic taken from wxWidgets' geometry.cpp file:
+        // Rectangle intersection logic:
         bool        rc;
 
         BOX2<Vec>   me( *this );
@@ -341,9 +279,6 @@ public:
         return rc;
     }
 
-    /**
-     * @return true if this rectangle intersects \a aRect.
-     */
     constexpr BOX2<Vec> Intersect( const BOX2<Vec>& aRect )
     {
         BOX2<Vec> me( *this );
@@ -369,9 +304,6 @@ public:
             return BOX2<Vec>( Vec( 0, 0 ), SizeVec( 0, 0 ) );
     }
 
-    /**
-     * @return true if this rectangle intersects a line from \a aPoint1 to \a aPoint2
-     */
     bool Intersects( const Vec& aPoint1, const Vec& aPoint2 ) const
     {
         Vec point2, point4;
@@ -397,10 +329,6 @@ public:
         return false;
     }
 
-    /**
-     * @return true if this rectangle intersects a rotated rect given by \a aRect and
-     *         \a aRotaiton.
-     */
     bool Intersects( const BOX2<Vec>& aRect, const EDA_ANGLE& aRotation ) const
     {
         if( !m_init )
@@ -498,9 +426,6 @@ public:
         return false;
     }
 
-    /**
-     * @return true if this rectangle intersects the circle defined by \a aCenter and \a aRadius.
-     */
     bool IntersectsCircle( const Vec& aCenter, const int aRadius ) const
     {
         if( !m_init )
@@ -516,10 +441,6 @@ public:
         return ( dx * dx + dy * dy ) <= ( r * r );
     }
 
-    /**
-     * @return true if this rectangle intersects the edge of a circle defined by \a aCenter
-     *         and \a aRadius.
-     */
     bool IntersectsCircleEdge( const Vec& aCenter, const int aRadius, const int aWidth ) const
     {
         if( !m_init )
@@ -551,10 +472,6 @@ public:
         return ss.str();
     }
 
-    /**
-     * Inflates the rectangle horizontally by \a dx and vertically by \a dy. If \a dx
-     * and/or \a dy is negative the rectangle is deflated.
-     */
     constexpr BOX2<Vec>& Inflate( coord_type dx, coord_type dy )
     {
         if( m_Size.x >= 0 )
@@ -622,19 +539,12 @@ public:
         return *this;
     }
 
-    /**
-     * Inflate the rectangle horizontally and vertically by \a aDelta. If \a aDelta
-     * is negative the rectangle is deflated.
-     */
     constexpr BOX2<Vec>& Inflate( coord_type aDelta )
     {
         Inflate( aDelta, aDelta );
         return *this;
     }
 
-    /**
-     * Get a new rectangle that is this one, inflated by \a aDx and \a aDy.
-     */
     constexpr BOX2<Vec> GetInflated( coord_type aDx, coord_type aDy ) const
     {
         BOX2<Vec> ret( *this );
@@ -642,19 +552,11 @@ public:
         return ret;
     }
 
-    /**
-     * Get a new rectangle that is this one, inflated by \a aDelta.
-     */
     constexpr BOX2<Vec> GetInflated( coord_type aDelta ) const
     {
         return GetInflated( aDelta, aDelta );
     }
 
-    /**
-     * Modify the position and size of the rectangle in order to contain \a aRect.
-     *
-     * @param aRect is the rectangle to merge with this rectangle.
-     */
     constexpr BOX2<Vec>& Merge( const BOX2<Vec>& aRect )
     {
         if( !m_init )
@@ -684,11 +586,6 @@ public:
         return *this;
     }
 
-    /**
-     * Modify the position and size of the rectangle in order to contain the given point.
-     *
-     * @param aPoint is the point to merge with the rectangle.
-     */
     constexpr BOX2<Vec>& Merge( const Vec& aPoint )
     {
         if( !m_init )
@@ -712,11 +609,6 @@ public:
         return *this;
     }
 
-    /**
-     * Useful to calculate bounding box of rotated items, when rotation is not cardinal.
-     *
-     * @return the bounding box of this, after rotation.
-     */
     const BOX2<Vec> GetBoundingBoxRotated( const VECTOR2I& aRotCenter,
                                            const EDA_ANGLE& aAngle ) const
     {
@@ -753,31 +645,16 @@ public:
         return bbox;
     }
 
-    /**
-     * Return the area of the rectangle.
-     *
-     * @return The area of the rectangle.
-     */
     constexpr ecoord_type GetArea() const
     {
         return (ecoord_type) GetWidth() * (ecoord_type) GetHeight();
     }
 
-    /**
-     * Return the length of the diagonal of the rectangle.
-     *
-     * @return The length of the rectangle diagonal.
-     */
     ecoord_type Diagonal() const
     {
         return m_Size.EuclideanNorm();
     }
 
-    /**
-     * Return the square of the length of the diagonal of the rectangle.
-     *
-     * When all you need is a comparison, this is faster than Diagonal().
-     */
     constexpr ecoord_type SquaredDiagonal() const
     {
         return m_Size.SquaredEuclideanNorm();
@@ -799,12 +676,6 @@ public:
         return sqrt( SquaredDistance( aP ) );
     }
 
-    /**
-     * Return the square of the minimum distance between self and box \a aBox
-     *
-     * @param aBox is the other box.
-     * @return The distance squared from \a aBox.
-     */
     constexpr ecoord_type SquaredDistance( const BOX2<Vec>& aBox ) const
     {
         ecoord_type s = 0;
@@ -834,20 +705,11 @@ public:
         return s;
     }
 
-    /**
-     * Return the minimum distance between self and \a aBox.
-     *
-     * @param aBox is the other box to get the distance from.
-     * @return The distance from \a aBox.
-     */
     ecoord_type Distance( const BOX2<Vec>& aBox ) const
     {
         return sqrt( SquaredDistance( aBox ) );
     }
 
-    /**
-     * Return the point in this rect that is closest to the provided point
-     */
     constexpr Vec NearestPoint( const Vec& aPoint ) const
     {
         BOX2<Vec> me( *this );
@@ -861,9 +723,6 @@ public:
         return Vec( nx, ny );
     }
 
-    /**
-     * Return the point in this rect that is farthest from the provided point
-     */
     constexpr Vec FarthestPointTo( const Vec& aPoint ) const
     {
         BOX2<Vec> me( *this );
@@ -941,10 +800,6 @@ inline constexpr BOX2I BOX2ISafe( const BOX2D& aInput )
 }
 
 
-/**
- * Check if a BOX2 is safe for use with BOX2D
- * (probably BOX2D or BOX2L)
- */
 template <typename Vec>
 inline constexpr bool IsBOX2Safe( const BOX2<Vec>& aInput )
 {

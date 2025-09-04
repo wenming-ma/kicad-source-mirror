@@ -1,29 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-#include <wx/stdpaths.h>
+#include <QStandardPaths>
+#include <QFileInfo>
+#include <QDir>
+#include <QProcessEnvironment>
 
 #include <systemdirsappend.h>
 #include <common.h>
@@ -33,7 +11,7 @@
 #include <config.h>     // to define DEFAULT_INSTALL_PATH
 #include <paths.h>
 
-// put your best guesses in here, send the computer on a wild goose chase, its
+// Put your best guesses in here, send the computer on a wild goose chase, its
 // got nothing else to do.
 
 void SystemDirsAppend( SEARCH_STACK* aSearchStack )
@@ -42,7 +20,7 @@ void SystemDirsAppend( SEARCH_STACK* aSearchStack )
     // our appends will be the only thing in the stack.  This function has no
     // knowledge of caller's intentions.
 
-    // wxPathList::AddEnvList() is broken, use SEARCH_STACK::AddPaths().
+    // QProcessEnvironment is used for cross-platform environment access.
     // SEARCH_STACK::AddPaths() will verify readability and existence of
     // each directory before adding.
     SEARCH_STACK maybe;
@@ -51,9 +29,10 @@ void SystemDirsAppend( SEARCH_STACK* aSearchStack )
     // if the user is savvy enough to set an environment variable they know
     // what they are doing.  It should take precedence over anything else.
     // Otherwise don't set it.
-    maybe.AddPaths( wxGetenv( wxT( "KICAD" ) ) );
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    maybe.AddPaths( env.value( "KICAD" ) );
 
-#ifdef __WXMAC__
+#ifdef __APPLE__
     // Add the directory for the user-dependent, program specific data files.
     maybe.AddPaths( PATHS::GetOSXKicadUserDataDir() );
 
@@ -66,9 +45,9 @@ void SystemDirsAppend( SEARCH_STACK* aSearchStack )
     // This is from CMAKE_INSTALL_PREFIX.
     // Useful when KiCad is installed by `make install`.
     // Use as second ranked place.
-    maybe.AddPaths( wxT( DEFAULT_INSTALL_PATH ) );
+    maybe.AddPaths( QString( DEFAULT_INSTALL_PATH ) );
 
-#ifdef __WXGTK__
+#ifdef __linux__
     // On Linux, the stock EDA library data install path can be redefined via
     // KICAD_LIBRARY_DATA, otherwise KICAD_DATA will be used.
     // Useful when multiple versions of KiCad are installed in parallel.
@@ -76,41 +55,41 @@ void SystemDirsAppend( SEARCH_STACK* aSearchStack )
 #endif
 
     // Add the directory for the user-dependent, program specific data files.
-    // According to wxWidgets documentation:
+    // According to Qt documentation:
     // Unix: ~/.appname
     // Windows: C:\Documents and Settings\username\Application Data\appname
     maybe.AddPaths( KIPLATFORM::ENV::GetDocumentsPath() );
 
     {
         // Should be full path to this program executable.
-        wxString   bin_dir = Pgm().GetExecutablePath();
+        QString   bin_dir = Pgm().GetExecutablePath();
 
 #if defined(_WIN32)
-        // bin_dir uses unix path separator.  So to parse with wxFileName
+        // bin_dir uses unix path separator.  So to parse with QFileInfo
         // use windows separator, especially important for server inclusion:
         // like: \\myserver\local_path .
-        bin_dir.Replace( wxFileName::GetPathSeparator( wxPATH_UNIX ),
-                         wxFileName::GetPathSeparator( wxPATH_WIN ) );
+        bin_dir.replace( '/', QDir::separator() );
 #endif
 
-        wxFileName bin_fn( bin_dir, wxEmptyString );
+        QFileInfo bin_fn( bin_dir );
 
         // Dir of the global (not user-specific), application specific, data files.
-        // From wx docs:
+        // From Qt docs:
         // Unix: prefix/share/appname
         // Windows: the directory where the executable file is located
         // Mac: appname.app/Contents/SharedSupport bundle subdirectory
-        wxString data_dir = wxStandardPaths::Get().GetDataDir();
+        QString data_dir = QStandardPaths::writableLocation( QStandardPaths::AppDataLocation );
 
-        if( bin_fn.GetPath() != data_dir )
+        if( bin_fn.absolutePath() != data_dir )
         {
             // add data_dir if it is different from the bin_dir
             maybe.AddPaths( data_dir );
         }
 
         // Up one level relative to binary path with "share" appended below.
-        bin_fn.RemoveLastDir();
-        maybe.AddPaths( bin_fn.GetPath() );
+        QDir parent_dir( bin_fn.absolutePath() );
+        parent_dir.cdUp();
+        maybe.AddPaths( parent_dir.absolutePath() );
     }
 
     /* The normal OS program file install paths allow for a binary to be
@@ -120,9 +99,9 @@ void SystemDirsAppend( SEARCH_STACK* aSearchStack )
      * figure out a way to implement this without #ifdef, please do.
      */
 #if defined(_WIN32)
-    maybe.AddPaths( wxGetenv( wxT( "PROGRAMFILES" ) ) );
+    maybe.AddPaths( env.value( "PROGRAMFILES" ) );
 #else
-    maybe.AddPaths( wxGetenv( wxT( "PATH" ) ) );
+    maybe.AddPaths( env.value( "PATH" ) );
 #endif
 #endif
 
@@ -136,35 +115,35 @@ void SystemDirsAppend( SEARCH_STACK* aSearchStack )
     // actually appended.
     for( unsigned i = 0; i < maybe.GetCount();  ++i )
     {
-        wxFileName fn( maybe[i], wxEmptyString );
+        QDir fn( maybe[i] );
 
-#ifndef __WXMAC__
-        if( fn.GetPath().AfterLast( fn.GetPathSeparator() ) == wxT( "bin" ) )
+#ifndef __APPLE__
+        if( fn.dirName() == QString( "bin" ) )
         {
-            fn.RemoveLastDir();
+            fn.cdUp();
 
-            if( !fn.GetDirCount() )
+            if( fn.isRoot() )
                 continue;               // at least on linux
         }
 #endif
 
-        aSearchStack->AddPaths( fn.GetPath() );
+        aSearchStack->AddPaths( fn.absolutePath() );
 
-#ifndef __WXMAC__
-        fn.AppendDir( wxT( "kicad" ) );
-        aSearchStack->AddPaths( fn.GetPath() );     // add maybe[i]/kicad
+#ifndef __APPLE__
+        fn.cd( QString( "kicad" ) );
+        aSearchStack->AddPaths( fn.absolutePath() );     // add maybe[i]/kicad
 
-        fn.AppendDir( wxT( "share" ) );
-        aSearchStack->AddPaths( fn.GetPath() );     // add maybe[i]/kicad/share
+        fn.cd( QString( "share" ) );
+        aSearchStack->AddPaths( fn.absolutePath() );     // add maybe[i]/kicad/share
 
-        fn.RemoveLastDir();                         // ../  clear share
-        fn.RemoveLastDir();                         // ../  clear kicad
+        fn.cdUp();                                       // ../  clear share
+        fn.cdUp();                                       // ../  clear kicad
 
-        fn.AppendDir( wxT( "share" ) );
-        aSearchStack->AddPaths( fn.GetPath() );     // add maybe[i]/share
+        fn.cd( QString( "share" ) );
+        aSearchStack->AddPaths( fn.absolutePath() );     // add maybe[i]/share
 
-        fn.AppendDir( wxT( "kicad" ) );
-        aSearchStack->AddPaths( fn.GetPath() );     // add maybe[i]/share/kicad
+        fn.cd( QString( "kicad" ) );
+        aSearchStack->AddPaths( fn.absolutePath() );     // add maybe[i]/share/kicad
 #endif
     }
 
@@ -184,7 +163,7 @@ void GlobalPathsAppend( SEARCH_STACK* aDst, KIWAY::FACE_T aId )
 
     for( unsigned i = 0; i < bases.GetCount(); ++i )
     {
-        wxFileName fn( bases[i], wxEmptyString );
+        QDir fn( bases[i] );
 
         // Add schematic library file path to search path list.
         // we must add <kicad path>/library and <kicad path>/library/doc
@@ -192,48 +171,48 @@ void GlobalPathsAppend( SEARCH_STACK* aDst, KIWAY::FACE_T aId )
         {
             // Add schematic doc file path (library/doc) to search path list.
 
-            fn.AppendDir( wxT( "library" ) );
-            aDst->AddPaths( fn.GetPath() );
+            fn.cd( QString( "library" ) );
+            aDst->AddPaths( fn.absolutePath() );
 
-            fn.AppendDir( wxT( "doc" ) );
-            aDst->AddPaths( fn.GetPath() );
+            fn.cd( QString( "doc" ) );
+            aDst->AddPaths( fn.absolutePath() );
 
-            fn.RemoveLastDir();
-            fn.RemoveLastDir(); // "../../"  up twice, removing library/doc/
+            fn.cdUp();
+            fn.cdUp(); // "../../"  up twice, removing library/doc/
 
-            fn.AppendDir( wxT( "symbols" ) );
-            aDst->AddPaths( fn.GetPath() );
+            fn.cd( QString( "symbols" ) );
+            aDst->AddPaths( fn.absolutePath() );
 
-            fn.AppendDir( wxT( "doc" ) );
-            aDst->AddPaths( fn.GetPath() );
+            fn.cd( QString( "doc" ) );
+            aDst->AddPaths( fn.absolutePath() );
 
-            fn.RemoveLastDir();
-            fn.RemoveLastDir(); // "../../"  up twice, removing symbols/doc/
+            fn.cdUp();
+            fn.cdUp(); // "../../"  up twice, removing symbols/doc/
         }
 
         // Add PCB library file path to search path list.
         if( aId == KIWAY::FACE_PCB || aId == KIWAY::FACE_CVPCB )
         {
-            fn.AppendDir( wxT( "modules" ) );
-            aDst->AddPaths( fn.GetPath() );
-            fn.RemoveLastDir();
+            fn.cd( QString( "modules" ) );
+            aDst->AddPaths( fn.absolutePath() );
+            fn.cdUp();
 
-            fn.AppendDir( wxT( "footprints" ) );
-            aDst->AddPaths( fn.GetPath() );
-            fn.RemoveLastDir();
+            fn.cd( QString( "footprints" ) );
+            aDst->AddPaths( fn.absolutePath() );
+            fn.cdUp();
 
             // Add 3D module library file path to search path list.
-            fn.AppendDir( wxT( "3dmodels" ) );
-            aDst->AddPaths( fn.GetPath() );
-            fn.RemoveLastDir();
+            fn.cd( QString( "3dmodels" ) );
+            aDst->AddPaths( fn.absolutePath() );
+            fn.cdUp();
         }
 
         // Add KiCad template file path to search path list.
-        fn.AppendDir( wxT( "template" ) );
-        aDst->AddPaths( fn.GetPath() );
+        fn.cd( QString( "template" ) );
+        aDst->AddPaths( fn.absolutePath() );
     }
 
-#ifndef __WXMAC__
-    aDst->AddPaths( wxT( "/usr/local/share" ) );
+#ifndef __APPLE__
+    aDst->AddPaths( QString( "/usr/local/share" ) );
 #endif
 }

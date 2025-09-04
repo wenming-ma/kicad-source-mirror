@@ -1,37 +1,15 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2024 Mike Williams <mike@mikebwilliams.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <common.h>
 #include <i18n_utility.h>
-#include <wx/dir.h>
-#include <wx/ffile.h>
-#include <wx/filename.h>
-#include <wx/log.h>
-#include <wx/translation.h>
-#include <wx/string.h>
-#include <wx/arrstr.h>
-#include <wx/datetime.h>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QDebug>
+#include <QString>
+#include <QStringList>
+#include <QDateTime>
+#include <QIODevice>
+#include <QThread>
 #include <wildcards_and_files_ext.h>
 #include <kiway_player.h>
 #include <design_block_io.h>
@@ -40,18 +18,18 @@
 #include <trace_helpers.h>
 #include <fstream>
 
-const wxString DESIGN_BLOCK_IO_MGR::ShowType( DESIGN_BLOCK_FILE_T aFileType )
+const QString DESIGN_BLOCK_IO_MGR::ShowType( DESIGN_BLOCK_FILE_T aFileType )
 {
     switch( aFileType )
     {
     case KICAD_SEXP: return _( "KiCad" );
-    default: return wxString::Format( _( "UNKNOWN (%d)" ), aFileType );
+    default: return QString( _( "UNKNOWN (%1)" ) ).arg( aFileType );
     }
 }
 
 
 DESIGN_BLOCK_IO_MGR::DESIGN_BLOCK_FILE_T
-DESIGN_BLOCK_IO_MGR::EnumFromStr( const wxString& aFileType )
+DESIGN_BLOCK_IO_MGR::EnumFromStr( const QString& aFileType )
 {
     if( aFileType == _( "KiCad" ) )
         return DESIGN_BLOCK_FILE_T( KICAD_SEXP );
@@ -71,7 +49,7 @@ DESIGN_BLOCK_IO* DESIGN_BLOCK_IO_MGR::FindPlugin( DESIGN_BLOCK_FILE_T aFileType 
 
 
 DESIGN_BLOCK_IO_MGR::DESIGN_BLOCK_FILE_T
-DESIGN_BLOCK_IO_MGR::GuessPluginTypeFromLibPath( const wxString& aLibPath, int aCtl )
+DESIGN_BLOCK_IO_MGR::GuessPluginTypeFromLibPath( const QString& aLibPath, int aCtl )
 {
     if( IO_RELEASER<DESIGN_BLOCK_IO>( FindPlugin( KICAD_SEXP ) )->CanReadLibrary( aLibPath )
             && aCtl != KICTL_NONKICAD_ONLY )
@@ -84,8 +62,8 @@ DESIGN_BLOCK_IO_MGR::GuessPluginTypeFromLibPath( const wxString& aLibPath, int a
 
 
 bool DESIGN_BLOCK_IO_MGR::ConvertLibrary( std::map<std::string, UTF8>* aOldFileProps,
-                                          const wxString&              aOldFilePath,
-                                          const wxString&              aNewFilePath )
+                                          const QString&              aOldFilePath,
+                                          const QString&              aNewFilePath )
 {
     DESIGN_BLOCK_IO_MGR::DESIGN_BLOCK_FILE_T oldFileType =
             DESIGN_BLOCK_IO_MGR::GuessPluginTypeFromLibPath( aOldFilePath );
@@ -97,18 +75,17 @@ bool DESIGN_BLOCK_IO_MGR::ConvertLibrary( std::map<std::string, UTF8>* aOldFileP
     IO_RELEASER<DESIGN_BLOCK_IO> oldFilePI( DESIGN_BLOCK_IO_MGR::FindPlugin( oldFileType ) );
     IO_RELEASER<DESIGN_BLOCK_IO> kicadPI(
             DESIGN_BLOCK_IO_MGR::FindPlugin( DESIGN_BLOCK_IO_MGR::KICAD_SEXP ) );
-    wxArrayString dbNames;
-    wxFileName    newFileName( aNewFilePath );
+    QStringList dbNames;
+    QFileInfo    newFileName( aNewFilePath );
 
-    if( newFileName.HasExt() )
+    if( !newFileName.suffix().isEmpty() )
     {
-        wxString extraDir = newFileName.GetFullName();
-        newFileName.ClearExt();
-        newFileName.SetName( "" );
-        newFileName.AppendDir( extraDir );
+        QString extraDir = newFileName.fileName();
+        newFileName = QFileInfo( newFileName.absolutePath() );
+        newFileName = QFileInfo( newFileName.absoluteFilePath() + "/" + extraDir );
     }
 
-    if( !newFileName.DirExists() && !wxFileName::Mkdir( aNewFilePath, wxS_DIR_DEFAULT ) )
+    if( !QDir( newFileName.absolutePath() ).exists() && !QDir().mkpath( aNewFilePath ) )
         return false;
 
     try
@@ -116,7 +93,7 @@ bool DESIGN_BLOCK_IO_MGR::ConvertLibrary( std::map<std::string, UTF8>* aOldFileP
         bool bestEfforts = false; // throw on first error
         oldFilePI->DesignBlockEnumerate( dbNames, aOldFilePath, bestEfforts, aOldFileProps );
 
-        for( const wxString& dbName : dbNames )
+        for( const QString& dbName : dbNames )
         {
             std::unique_ptr<const DESIGN_BLOCK> db(
                     oldFilePI->GetEnumeratedDesignBlock( aOldFilePath, dbName, aOldFileProps ) );
@@ -139,170 +116,158 @@ const DESIGN_BLOCK_IO::IO_FILE_DESC DESIGN_BLOCK_IO::GetLibraryDesc() const
 }
 
 
-long long DESIGN_BLOCK_IO::GetLibraryTimestamp( const wxString& aLibraryPath ) const
+long long DESIGN_BLOCK_IO::GetLibraryTimestamp( const QString& aLibraryPath ) const
 {
-    wxDir libDir( aLibraryPath );
+    QDir libDir( aLibraryPath );
 
-    if( !libDir.IsOpened() )
+    if( !libDir.exists() )
         return 0;
 
     long long ts = 0;
 
-    wxString filename;
-    bool     hasMoreFiles = libDir.GetFirst( &filename, wxEmptyString, wxDIR_DIRS );
+    QStringList entries = libDir.entryList( QDir::Dirs | QDir::NoDotAndDotDot );
+    
+    for( const QString& filename : entries )
 
-    while( hasMoreFiles )
     {
-        wxFileName blockDir( aLibraryPath, filename );
+        QFileInfo blockDir( aLibraryPath + "/" + filename );
 
         // Check if the directory ends with ".kicad_block", if so hash all the files in it.
-        if( blockDir.GetFullName().EndsWith( FILEEXT::KiCadDesignBlockPathExtension ) )
-            ts += TimestampDir( blockDir.GetFullPath(), wxT( "*" ) );
-
-        hasMoreFiles = libDir.GetNext( &filename );
+        if( blockDir.fileName().endsWith( FILEEXT::KiCadDesignBlockPathExtension ) )
+            ts += TimestampDir( blockDir.absoluteFilePath(), "*" );
     }
 
     return ts;
 }
 
 
-void DESIGN_BLOCK_IO::CreateLibrary( const wxString&                    aLibraryPath,
+void DESIGN_BLOCK_IO::CreateLibrary( const QString&                    aLibraryPath,
                                      const std::map<std::string, UTF8>* aProperties )
 {
-    if( wxDir::Exists( aLibraryPath ) )
+    if( QDir( aLibraryPath ).exists() )
     {
-        THROW_IO_ERROR( wxString::Format( _( "Cannot overwrite library path '%s'." ),
-                                          aLibraryPath.GetData() ) );
+        THROW_IO_ERROR( QString( _( "Cannot overwrite library path '%1'." ) ).arg( aLibraryPath ) );
     }
 
-    wxFileName dir;
-    dir.SetPath( aLibraryPath );
-
-    if( !dir.Mkdir() )
+    QDir dir;
+    
+    if( !dir.mkpath( aLibraryPath ) )
     {
         THROW_IO_ERROR(
-                wxString::Format( _( "Library path '%s' could not be created.\n\n"
-                                     "Make sure you have write permissions and try again." ),
-                                  dir.GetPath() ) );
+                QString( _( "Library path '%1' could not be created.\n\n"
+                                     "Make sure you have write permissions and try again." ) ).arg( aLibraryPath ) );
     }
 }
 
 
-bool DESIGN_BLOCK_IO::DeleteLibrary( const wxString&                    aLibraryPath,
+bool DESIGN_BLOCK_IO::DeleteLibrary( const QString&                    aLibraryPath,
                                      const std::map<std::string, UTF8>* aProperties )
 {
-    wxFileName fn;
-    fn.SetPath( aLibraryPath );
+    QFileInfo fn( aLibraryPath );
 
     // Return if there is no library path to delete.
-    if( !fn.DirExists() )
+    if( !fn.exists() || !fn.isDir() )
         return false;
 
-    if( !fn.IsDirWritable() )
+    if( !fn.isWritable() )
     {
-        THROW_IO_ERROR( wxString::Format( _( "Insufficient permissions to delete folder '%s'." ),
-                                          aLibraryPath.GetData() ) );
+        THROW_IO_ERROR( QString( _( "Insufficient permissions to delete folder '%1'." ) ).arg( aLibraryPath ) );
     }
 
-    wxDir dir( aLibraryPath );
+    QDir dir( aLibraryPath );
 
     // Design block folders should only contain sub-folders for each design block
-    if( dir.HasFiles() )
+    if( !dir.entryList( QDir::Files ).isEmpty() )
     {
-        THROW_IO_ERROR( wxString::Format( _( "Library folder '%s' has unexpected files." ),
-                                          aLibraryPath.GetData() ) );
+        THROW_IO_ERROR( QString( _( "Library folder '%1' has unexpected files." ) ).arg( aLibraryPath ) );
     }
 
     // Must delete all sub-directories before deleting the library directory
-    if( dir.HasSubDirs() )
+    QStringList subdirs = dir.entryList( QDir::Dirs | QDir::NoDotAndDotDot );
+    if( !subdirs.isEmpty() )
     {
-        wxArrayString dirs;
+        QStringList dirs;
 
         // Get all sub-directories in the library path
-        dir.GetAllFiles( aLibraryPath, &dirs, wxEmptyString, wxDIR_DIRS );
+        for( const QString& subdir : subdirs )
+            dirs.append( dir.absoluteFilePath( subdir ) );
 
-        for( size_t i = 0; i < dirs.GetCount(); i++ )
+        for( int i = 0; i < dirs.size(); i++ )
         {
-            wxFileName tmp = dirs[i];
+            QFileInfo tmp( dirs[i] );
 
-            if( tmp.GetExt() != FILEEXT::KiCadDesignBlockLibPathExtension )
+            if( tmp.suffix() != FILEEXT::KiCadDesignBlockLibPathExtension )
             {
-                THROW_IO_ERROR( wxString::Format( _( "Unexpected folder '%s' found in library "
-                                                     "path '%s'." ),
-                                                  dirs[i].GetData(), aLibraryPath.GetData() ) );
+                THROW_IO_ERROR( QString( _( "Unexpected folder '%1' found in library "
+                                                     "path '%2'." ) ).arg( dirs[i] ).arg( aLibraryPath ) );
             }
         }
 
-        for( size_t i = 0; i < dirs.GetCount(); i++ )
-            wxRemoveFile( dirs[i] );
+        for( int i = 0; i < dirs.size(); i++ )
+            QDir().rmpath( dirs[i] );
     }
 
-    wxLogTrace( traceDesignBlocks, wxT( "Removing design block library '%s'." ),
-                aLibraryPath.GetData() );
+    qDebug() << "Removing design block library '" << aLibraryPath << "'.";
 
-    // Some of the more elaborate wxRemoveFile() crap puts up its own wxLog dialog
-    // we don't want that.  we want bare metal portability with no UI here.
-    if( !wxFileName::Rmdir( aLibraryPath, wxPATH_RMDIR_RECURSIVE ) )
+    // Remove directory recursively
+    if( !QDir( aLibraryPath ).removeRecursively() )
     {
-        THROW_IO_ERROR( wxString::Format( _( "Design block library '%s' cannot be deleted." ),
-                                          aLibraryPath.GetData() ) );
+        THROW_IO_ERROR( QString( _( "Design block library '%1' cannot be deleted." ) ).arg( aLibraryPath ) );
     }
 
     // For some reason removing a directory in Windows is not immediately updated.  This delay
     // prevents an error when attempting to immediately recreate the same directory when over
     // writing an existing library.
-#ifdef __WINDOWS__
-    wxMilliSleep( 250L );
+#ifdef _WIN32
+    QThread::msleep( 250 );
 #endif
 
     return true;
 }
 
 
-void DESIGN_BLOCK_IO::DesignBlockEnumerate( wxArrayString&  aDesignBlockNames,
-                                            const wxString& aLibraryPath, bool aBestEfforts,
+void DESIGN_BLOCK_IO::DesignBlockEnumerate( QStringList&  aDesignBlockNames,
+                                            const QString& aLibraryPath, bool aBestEfforts,
                                             const std::map<std::string, UTF8>* aProperties )
 {
     // From the starting directory, look for all directories ending in the .kicad_block extension
-    wxDir dir( aLibraryPath );
+    QDir dir( aLibraryPath );
 
-    if( !dir.IsOpened() )
+    if( !dir.exists() )
         return;
 
-    wxString dirname;
-    wxString fileSpec = wxT( "*." ) + wxString( FILEEXT::KiCadDesignBlockPathExtension );
-    bool     cont = dir.GetFirst( &dirname, fileSpec, wxDIR_DIRS );
+    QString fileSpec = "*." + QString( FILEEXT::KiCadDesignBlockPathExtension );
+    QStringList entries = dir.entryList( QStringList() << fileSpec, QDir::Dirs );
 
-    while( cont )
+    for( const QString& dirname : entries )
     {
-        aDesignBlockNames.Add( dirname.Before( wxT( '.' ) ) );
-        cont = dir.GetNext( &dirname );
+        aDesignBlockNames.append( dirname.left( dirname.lastIndexOf( '.' ) ) );
     }
 }
 
 
-DESIGN_BLOCK* DESIGN_BLOCK_IO::DesignBlockLoad( const wxString& aLibraryPath,
-                                                const wxString& aDesignBlockName, bool aKeepUUID,
+DESIGN_BLOCK* DESIGN_BLOCK_IO::DesignBlockLoad( const QString& aLibraryPath,
+                                                const QString& aDesignBlockName, bool aKeepUUID,
                                                 const std::map<std::string, UTF8>* aProperties )
 {
-    wxString dbPath = aLibraryPath + wxFileName::GetPathSeparator() + aDesignBlockName + wxT( "." )
-                      + FILEEXT::KiCadDesignBlockPathExtension + wxFileName::GetPathSeparator();
-    wxString dbSchPath = dbPath + aDesignBlockName + wxT( "." )
+    QString dbPath = aLibraryPath + "/" + aDesignBlockName + "."
+                      + FILEEXT::KiCadDesignBlockPathExtension + "/";
+    QString dbSchPath = dbPath + aDesignBlockName + "."
                          + FILEEXT::KiCadSchematicFileExtension;
-    wxString dbMetadataPath = dbPath + aDesignBlockName + wxT( "." ) + FILEEXT::JsonFileExtension;
+    QString dbMetadataPath = dbPath + aDesignBlockName + "." + FILEEXT::JsonFileExtension;
 
-    if( !wxFileExists( dbSchPath ) )
+    if( !QFile::exists( dbSchPath ) )
         return nullptr;
 
     DESIGN_BLOCK* newDB = new DESIGN_BLOCK();
 
     // Library name needs to be empty for when we fill it in with the correct library nickname
     // one layer above
-    newDB->SetLibId( LIB_ID( wxEmptyString, aDesignBlockName ) );
+    newDB->SetLibId( LIB_ID( QString(), aDesignBlockName ) );
     newDB->SetSchematicFile( dbSchPath );
 
     // Parse the JSON file if it exists
-    if( wxFileExists( dbMetadataPath ) )
+    if( QFile::exists( dbMetadataPath ) )
     {
         try
         {
@@ -317,15 +282,15 @@ DESIGN_BLOCK* DESIGN_BLOCK_IO::DesignBlockLoad( const wxString& aLibraryPath,
             if( dbMetadata.contains( "keywords" ) )
                 newDB->SetKeywords( dbMetadata["keywords"] );
 
-            nlohmann::ordered_map<wxString, wxString> fields;
+            nlohmann::ordered_map<QString, QString> fields;
 
             // Read the "fields" object from the JSON
             if( dbMetadata.contains( "fields" ) )
             {
                 for( auto& item : dbMetadata["fields"].items() )
                 {
-                    wxString name = wxString::FromUTF8( item.key() );
-                    wxString value = wxString::FromUTF8( item.value().get<std::string>() );
+                    QString name = QString::fromUtf8( item.key().c_str() );
+                    QString value = QString::fromUtf8( item.value().get<std::string>().c_str() );
 
                     fields[name] = value;
                 }
@@ -335,8 +300,8 @@ DESIGN_BLOCK* DESIGN_BLOCK_IO::DesignBlockLoad( const wxString& aLibraryPath,
         }
         catch( ... )
         {
-            THROW_IO_ERROR( wxString::Format(
-                    _( "Design block metadata file '%s' could not be read." ), dbMetadataPath ) );
+            THROW_IO_ERROR( QString(
+                    _( "Design block metadata file '%1' could not be read." ) ).arg( dbMetadataPath ) );
         }
     }
 
@@ -345,7 +310,7 @@ DESIGN_BLOCK* DESIGN_BLOCK_IO::DesignBlockLoad( const wxString& aLibraryPath,
 }
 
 
-void DESIGN_BLOCK_IO::DesignBlockSave( const wxString&                    aLibraryPath,
+void DESIGN_BLOCK_IO::DesignBlockSave( const QString&                    aLibraryPath,
                                        const DESIGN_BLOCK*                aDesignBlock,
                                        const std::map<std::string, UTF8>* aProperties )
 {
@@ -355,49 +320,49 @@ void DESIGN_BLOCK_IO::DesignBlockSave( const wxString&                    aLibra
         THROW_IO_ERROR( _( "Design block does not have a valid library ID." ) );
     }
 
-    wxFileName schematicFile( aDesignBlock->GetSchematicFile() );
+    QFileInfo schematicFile( aDesignBlock->GetSchematicFile() );
 
-    if( !schematicFile.FileExists() )
+    if( !schematicFile.exists() )
     {
-        THROW_IO_ERROR( wxString::Format( _( "Schematic source file '%s' does not exist." ),
-                                          schematicFile.GetFullPath() ) );
+        THROW_IO_ERROR( QString( _( "Schematic source file '%1' does not exist." ) ).arg(
+                                          schematicFile.absoluteFilePath() ) );
     }
 
     // Create the design block folder
-    wxFileName dbFolder( aLibraryPath + wxFileName::GetPathSeparator()
-                         + aDesignBlock->GetLibId().GetLibItemName() + wxT( "." )
+    QFileInfo dbFolder( aLibraryPath + "/"
+                         + aDesignBlock->GetLibId().GetLibItemName() + "."
                          + FILEEXT::KiCadDesignBlockPathExtension
-                         + wxFileName::GetPathSeparator() );
+                         + "/" );
 
-    if( !dbFolder.DirExists() )
+    if( !QDir( dbFolder.absoluteFilePath() ).exists() )
     {
-        if( !dbFolder.Mkdir() )
+        if( !QDir().mkpath( dbFolder.absoluteFilePath() ) )
         {
-            THROW_IO_ERROR( wxString::Format( _( "Design block folder '%s' could not be created." ),
-                                              dbFolder.GetFullPath().GetData() ) );
+            THROW_IO_ERROR( QString( _( "Design block folder '%1' could not be created." ) ).arg(
+                                              dbFolder.absoluteFilePath() ) );
         }
     }
 
     // The new schematic file name is based on the design block name, not the source sheet name
-    wxString dbSchematicFile = dbFolder.GetFullPath() + aDesignBlock->GetLibId().GetLibItemName()
-                               + wxT( "." ) + FILEEXT::KiCadSchematicFileExtension;
+    QString dbSchematicFile = dbFolder.absoluteFilePath() + "/" + aDesignBlock->GetLibId().GetLibItemName()
+                               + "." + FILEEXT::KiCadSchematicFileExtension;
 
     // If the source and destination files are the same, then we don't need to copy the file
     // as we are just updating the metadata
-    if( schematicFile.GetFullPath() != dbSchematicFile )
+    if( schematicFile.absoluteFilePath() != dbSchematicFile )
     {
         // Copy the source sheet file to the design block folder, under the design block name
-        if( !wxCopyFile( schematicFile.GetFullPath(), dbSchematicFile ) )
+        if( !QFile::copy( schematicFile.absoluteFilePath(), dbSchematicFile ) )
         {
-            THROW_IO_ERROR( wxString::Format(
-                    _( "Schematic file '%s' could not be saved as design block at '%s'." ),
-                    schematicFile.GetFullPath(), dbSchematicFile ) );
+            THROW_IO_ERROR( QString(
+                    _( "Schematic file '%1' could not be saved as design block at '%2'." ) ).arg(
+                    schematicFile.absoluteFilePath() ).arg( dbSchematicFile ) );
         }
     }
 
 
-    wxString dbMetadataFile = dbFolder.GetFullPath() + aDesignBlock->GetLibId().GetLibItemName()
-                              + wxT( "." ) + FILEEXT::JsonFileExtension;
+    QString dbMetadataFile = dbFolder.absoluteFilePath() + "/" + aDesignBlock->GetLibId().GetLibItemName()
+                              + "." + FILEEXT::JsonFileExtension;
 
     // Write the metadata file
     nlohmann::ordered_json dbMetadata;
@@ -409,12 +374,12 @@ void DESIGN_BLOCK_IO::DesignBlockSave( const wxString&                    aLibra
 
     try
     {
-        wxFFile mdFile( dbMetadataFile, wxT( "wb" ) );
+        QFile mdFile( dbMetadataFile );
 
-        if( mdFile.IsOpened() )
-            success = mdFile.Write( dbMetadata.dump( 0 ) );
+        if( mdFile.open( QIODevice::WriteOnly ) )
+            success = ( mdFile.write( dbMetadata.dump( 0 ).c_str() ) != -1 );
 
-        // wxFFile dtor will close the file
+        // QFile dtor will close the file
     }
     catch( ... )
     {
@@ -423,35 +388,35 @@ void DESIGN_BLOCK_IO::DesignBlockSave( const wxString&                    aLibra
 
     if( !success )
     {
-        THROW_IO_ERROR( wxString::Format(
-                _( "Design block metadata file '%s' could not be saved." ), dbMetadataFile ) );
+        THROW_IO_ERROR( QString(
+                _( "Design block metadata file '%1' could not be saved." ) ).arg( dbMetadataFile ) );
     }
 }
 
 
-void DESIGN_BLOCK_IO::DesignBlockDelete( const wxString& aLibPath, const wxString& aDesignBlockName,
+void DESIGN_BLOCK_IO::DesignBlockDelete( const QString& aLibPath, const QString& aDesignBlockName,
                                          const std::map<std::string, UTF8>* aProperties )
 {
-    wxFileName dbDir = wxFileName( aLibPath + wxFileName::GetPathSeparator() + aDesignBlockName
-                                   + wxT( "." ) + FILEEXT::KiCadDesignBlockPathExtension );
+    QFileInfo dbDir( aLibPath + "/" + aDesignBlockName
+                                   + "." + FILEEXT::KiCadDesignBlockPathExtension );
 
-    if( !dbDir.DirExists() )
+    if( !dbDir.exists() || !dbDir.isDir() )
     {
         THROW_IO_ERROR(
-                wxString::Format( _( "Design block '%s' does not exist." ), dbDir.GetFullName() ) );
+                QString( _( "Design block '%1' does not exist." ) ).arg( dbDir.fileName() ) );
     }
 
     // Delete the whole design block folder
-    if( !wxFileName::Rmdir( dbDir.GetFullPath(), wxPATH_RMDIR_RECURSIVE ) )
+    if( !QDir( dbDir.absoluteFilePath() ).removeRecursively() )
     {
-        THROW_IO_ERROR( wxString::Format( _( "Design block folder '%s' could not be deleted." ),
-                                          dbDir.GetFullPath().GetData() ) );
+        THROW_IO_ERROR( QString( _( "Design block folder '%1' could not be deleted." ) ).arg(
+                                          dbDir.absoluteFilePath() ) );
     }
 }
 
 
-bool DESIGN_BLOCK_IO::IsLibraryWritable( const wxString& aLibraryPath )
+bool DESIGN_BLOCK_IO::IsLibraryWritable( const QString& aLibraryPath )
 {
-    wxFileName path( aLibraryPath );
-    return path.IsOk() && path.IsDirWritable();
+    QFileInfo path( aLibraryPath );
+    return path.exists() && path.isWritable();
 }

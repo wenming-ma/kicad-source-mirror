@@ -1,23 +1,3 @@
-/*
- * This file is part of KiCad, a free EDA CAD application.
- * Derived from libeval, a simple math expression evaluator.
- *
- * Copyright (C) 2017 Michael Geselbracht, mgeselbracht3@gmail.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
 
 /*
 An evaluator object is used to replace an input string that represents
@@ -70,8 +50,9 @@ Supported units are millimeters (mm), Mil (mil) and inch (")
 #define NUMERIC_EVALUATOR_H_
 
 #include <cstddef>
-#include <map>
+#include <QHash>
 #include <string>
+#include <QString>
 
 #include <eda_units.h>
 
@@ -118,25 +99,25 @@ public:
     inline bool IsValid() const { return !m_parseError; }
 
     /* Result of string processing. Undefined if !isValid() */
-    inline wxString Result() const { return wxString::FromUTF8( m_token.token ); }
+    inline QString Result() const { return QString::fromUtf8( m_token.token ); }
 
     /* Evaluate input string.
      * Result can be retrieved by result().
      * Returns true if input string could be evaluated, otherwise false.
      */
-    bool Process( const wxString& aString );
+    bool Process( const QString& aString );
 
     /* Retrieve the original text before evaluation. */
-    wxString OriginalText() const;
+    QString OriginalText() const;
 
     /* Add/set variable with value */
-    void SetVar( const wxString& aString, double aValue );
+    void SetVar( const QString& aString, double aValue );
 
     /* Get value of variable. Returns 0.0 if not defined. */
-    double GetVar( const wxString& aString );
+    double GetVar( const QString& aString );
 
     /* Remove single variable */
-    void RemoveVar( const wxString& aString ) { m_varMap.erase( aString ); }
+    void RemoveVar( const QString& aString ) { m_varMap.remove( aString ); }
 
     /* Remove all variables */
     void ClearVar() { m_varMap.clear(); }
@@ -150,7 +131,7 @@ protected:
     };
 
     /* Begin processing of a new input string */
-    void newString( const wxString& aString );
+    void newString( const QString& aString );
 
     /* Tokenizer: Next token/value taken from input string. */
     Token getToken();
@@ -187,9 +168,9 @@ private:
 
     Unit m_defaultUnits;      // Default unit for values
 
-    wxString m_originalText;
+    QString m_originalText;
 
-    std::map<wxString, double> m_varMap;
+    QHash<QString, double> m_varMap;
 };
 
 

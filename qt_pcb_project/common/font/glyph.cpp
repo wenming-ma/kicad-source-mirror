@@ -1,24 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2021 Ola Rinta-Koski <gitlab@rinta-koski.net>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
-#include <vector>
+#include <QVector>
 #include <font/glyph.h>
 #include <trigo.h>
 
@@ -29,7 +10,7 @@ STROKE_GLYPH::STROKE_GLYPH( const STROKE_GLYPH& aGlyph )
 {
     reserve( aGlyph.size() );
 
-    for( const std::vector<VECTOR2D>& pointList : aGlyph )
+    for( const QVector<VECTOR2D>& pointList : aGlyph )
         push_back( pointList );
 
     m_boundingBox = aGlyph.m_boundingBox;
@@ -88,7 +69,7 @@ std::unique_ptr<GLYPH> STROKE_GLYPH::Transform( const VECTOR2D& aGlyphSize, cons
     glyph->m_boundingBox.SetEnd( end );
     glyph->m_boundingBox.Offset( aOffset );
 
-    for( std::vector<VECTOR2D>& pointList : *glyph )
+    for( QVector<VECTOR2D>& pointList : *glyph )
     {
         for( VECTOR2D& point : pointList )
         {
@@ -115,7 +96,7 @@ void STROKE_GLYPH::Move( const VECTOR2I& aOffset )
 {
     m_boundingBox.Offset( aOffset );
 
-    for( std::vector<VECTOR2D>& pointList : *this )
+    for( QVector<VECTOR2D>& pointList : *this )
     {
         for( VECTOR2D& point : pointList )
             point += aOffset;
@@ -162,10 +143,10 @@ void OUTLINE_GLYPH::CacheTriangulation( bool aPartition, bool aSimplify )
 }
 
 
-std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>
+QVector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>
 OUTLINE_GLYPH::GetTriangulationData() const
 {
-    std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>> data;
+    QVector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>> data;
 
     for( const std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>& poly : m_triangulatedPolys )
         data.push_back( std::make_unique<SHAPE_POLY_SET::TRIANGULATED_POLYGON>( *poly ) );
@@ -175,7 +156,7 @@ OUTLINE_GLYPH::GetTriangulationData() const
 
 
 void OUTLINE_GLYPH::CacheTriangulation(
-        std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>& aHintData )
+        QVector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>& aHintData )
 {
     cacheTriangulation( false, false, &aHintData );
 }

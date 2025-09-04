@@ -1,28 +1,9 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2021 Ola Rinta-Koski <gitlab@rinta-koski.net>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <limits>
+#include <QString>
+#include <QStringList>
+#include <QVector>
+#include <QHash>
 #include <harfbuzz/hb.h>
 #include <harfbuzz/hb-ft.h>
 #include <bezier_curves.h>
@@ -88,14 +69,14 @@ OUTLINE_FONT::EMBEDDING_PERMISSION OUTLINE_FONT::GetEmbeddingPermission() const
 }
 
 
-OUTLINE_FONT* OUTLINE_FONT::LoadFont( const wxString& aFontName, bool aBold, bool aItalic,
-                                      const std::vector<wxString>* aEmbeddedFiles,
+OUTLINE_FONT* OUTLINE_FONT::LoadFont( const QString& aFontName, bool aBold, bool aItalic,
+                                      const QVector<QString>* aEmbeddedFiles,
                                       bool aForDrawingSheet )
 {
     std::unique_ptr<OUTLINE_FONT> font = std::make_unique<OUTLINE_FONT>();
 
-    wxString fontFile;
-    int      faceIndex;
+    QString fontFile;
+    int     faceIndex;
     using fc = fontconfig::FONTCONFIG;
 
 
@@ -122,11 +103,11 @@ OUTLINE_FONT* OUTLINE_FONT::LoadFont( const wxString& aFontName, bool aBold, boo
 }
 
 
-FT_Error OUTLINE_FONT::loadFace( const wxString& aFontFileName, int aFaceIndex )
+FT_Error OUTLINE_FONT::loadFace( const QString& aFontFileName, int aFaceIndex )
 {
     std::lock_guard<std::mutex> guard( m_freeTypeMutex );
 
-    FT_Error e = FT_New_Face( m_freeType, aFontFileName.mb_str( wxConvUTF8 ), aFaceIndex, &m_face );
+    FT_Error e = FT_New_Face( m_freeType, aFontFileName.toUtf8().constData(), aFaceIndex, &m_face );
 
     if( !e )
     {
@@ -172,7 +153,7 @@ static bool contourIsHole( const CONTOUR& c )
 }
 
 
-BOX2I OUTLINE_FONT::getBoundingBox( const std::vector<std::unique_ptr<GLYPH>>& aGlyphs ) const
+BOX2I OUTLINE_FONT::getBoundingBox( const QVector<std::unique_ptr<GLYPH>>& aGlyphs ) const
 {
     int minX = INT_MAX;
     int minY = INT_MAX;
@@ -204,14 +185,14 @@ BOX2I OUTLINE_FONT::getBoundingBox( const std::vector<std::unique_ptr<GLYPH>>& a
 }
 
 
-void OUTLINE_FONT::GetLinesAsGlyphs( std::vector<std::unique_ptr<GLYPH>>* aGlyphs,
-                                     const wxString& aText, const VECTOR2I& aPosition,
+void OUTLINE_FONT::GetLinesAsGlyphs( QVector<std::unique_ptr<GLYPH>>* aGlyphs,
+                                     const QString& aText, const VECTOR2I& aPosition,
                                      const TEXT_ATTRIBUTES& aAttrs,
                                      const METRICS& aFontMetrics ) const
 {
-    wxArrayString         strings;
-    std::vector<VECTOR2I> positions;
-    std::vector<VECTOR2I> extents;
+    QStringList           strings;
+    QVector<VECTOR2I> positions;
+    QVector<VECTOR2I> extents;
     TEXT_STYLE_FLAGS      textStyle = 0;
 
     if( aAttrs.m_Italic )
@@ -219,16 +200,16 @@ void OUTLINE_FONT::GetLinesAsGlyphs( std::vector<std::unique_ptr<GLYPH>>* aGlyph
 
     getLinePositions( aText, aPosition, strings, positions, extents, aAttrs, aFontMetrics );
 
-    for( size_t i = 0; i < strings.GetCount(); i++ )
+    for( int i = 0; i < strings.size(); i++ )
     {
-        (void) drawMarkup( nullptr, aGlyphs, strings.Item( i ), positions[i], aAttrs.m_Size,
+        (void) drawMarkup( nullptr, aGlyphs, strings.at( i ), positions[i], aAttrs.m_Size,
                            aAttrs.m_Angle, aAttrs.m_Mirrored, aPosition, textStyle, aFontMetrics );
     }
 }
 
 
-VECTOR2I OUTLINE_FONT::GetTextAsGlyphs( BOX2I* aBBox, std::vector<std::unique_ptr<GLYPH>>* aGlyphs,
-                                        const wxString& aText, const VECTOR2I& aSize,
+VECTOR2I OUTLINE_FONT::GetTextAsGlyphs( BOX2I* aBBox, QVector<std::unique_ptr<GLYPH>>* aGlyphs,
+                                        const QString& aText, const VECTOR2I& aSize,
                                         const VECTOR2I& aPosition, const EDA_ANGLE& aAngle,
                                         bool aMirror, const VECTOR2I& aOrigin,
                                         TEXT_STYLE_FLAGS aTextStyle ) const
@@ -238,7 +219,7 @@ VECTOR2I OUTLINE_FONT::GetTextAsGlyphs( BOX2I* aBBox, std::vector<std::unique_pt
     constexpr double TAB_WIDTH = 4 * 0.6;
 
     VECTOR2I position = aPosition;
-    wxString textRun;
+    QString textRun;
 
     if( aBBox )
     {
@@ -246,16 +227,16 @@ VECTOR2I OUTLINE_FONT::GetTextAsGlyphs( BOX2I* aBBox, std::vector<std::unique_pt
         aBBox->SetEnd( aPosition );
     }
 
-    for( wxUniChar c : aText )
+    for( QChar c : aText )
     {
         // Handle tabs as locked to the nearest 4th column (in space-widths).
         if( c == '\t' )
         {
-            if( !textRun.IsEmpty() )
+            if( !textRun.isEmpty() )
             {
                 position = getTextAsGlyphs( aBBox, aGlyphs, textRun, aSize, position, aAngle,
                                             aMirror, aOrigin, aTextStyle );
-                textRun.clear();
+                textRun = QString();
             }
 
             int tabWidth = KiROUND( aSize.x * TAB_WIDTH );
@@ -269,7 +250,7 @@ VECTOR2I OUTLINE_FONT::GetTextAsGlyphs( BOX2I* aBBox, std::vector<std::unique_pt
         }
     }
 
-    if( !textRun.IsEmpty() )
+    if( !textRun.isEmpty() )
     {
         position = getTextAsGlyphs( aBBox, aGlyphs, textRun, aSize, position, aAngle, aMirror,
                                     aOrigin, aTextStyle );
@@ -279,8 +260,8 @@ VECTOR2I OUTLINE_FONT::GetTextAsGlyphs( BOX2I* aBBox, std::vector<std::unique_pt
 }
 
 
-VECTOR2I OUTLINE_FONT::getTextAsGlyphs( BOX2I* aBBox, std::vector<std::unique_ptr<GLYPH>>* aGlyphs,
-                                        const wxString& aText, const VECTOR2I& aSize,
+VECTOR2I OUTLINE_FONT::getTextAsGlyphs( BOX2I* aBBox, QVector<std::unique_ptr<GLYPH>>* aGlyphs,
+                                        const QString& aText, const VECTOR2I& aSize,
                                         const VECTOR2I& aPosition, const EDA_ANGLE& aAngle,
                                         bool aMirror, const VECTOR2I& aOrigin,
                                         TEXT_STYLE_FLAGS aTextStyle ) const
@@ -318,23 +299,16 @@ struct GLYPH_CACHE_KEY {
 };
 
 
-namespace std
+uint qHash(const GLYPH_CACHE_KEY& k)
 {
-    template <>
-    struct hash<GLYPH_CACHE_KEY>
-    {
-        std::size_t operator()( const GLYPH_CACHE_KEY& k ) const
-        {
-            return hash_val( k.face, k.codepoint, k.scale.x, k.scale.y, k.forDrawingSheet,
-                             k.fakeItalic, k.fakeBold, k.mirror, k.supersub, k.angle.AsDegrees() );
-        }
-    };
+    return hash_val( k.face, k.codepoint, k.scale.x, k.scale.y, k.forDrawingSheet,
+                     k.fakeItalic, k.fakeBold, k.mirror, k.supersub, k.angle.AsDegrees() );
 }
 
 
 VECTOR2I OUTLINE_FONT::getTextAsGlyphsUnlocked( BOX2I* aBBox,
-                                                std::vector<std::unique_ptr<GLYPH>>* aGlyphs,
-                                                const wxString& aText, const VECTOR2I& aSize,
+                                                QVector<std::unique_ptr<GLYPH>>* aGlyphs,
+                                                const QString& aText, const VECTOR2I& aSize,
                                                 const VECTOR2I& aPosition, const EDA_ANGLE& aAngle,
                                                 bool aMirror, const VECTOR2I& aOrigin,
                                                 TEXT_STYLE_FLAGS aTextStyle ) const
@@ -373,7 +347,7 @@ VECTOR2I OUTLINE_FONT::getTextAsGlyphsUnlocked( BOX2I* aBBox,
 
     // GLYPH_DATA is a collection of all outlines in the glyph; for example the 'o' glyph
     // generally contains 2 contours, one for the glyph outline and one for the hole
-    static std::unordered_map<GLYPH_CACHE_KEY, GLYPH_DATA> s_glyphCache;
+    static QHash<GLYPH_CACHE_KEY, GLYPH_DATA> s_glyphCache;
 
     for( unsigned int i = 0; i < glyphCount; i++ )
     {
@@ -441,11 +415,11 @@ VECTOR2I OUTLINE_FONT::getTextAsGlyphsUnlocked( BOX2I* aBBox,
             }
 
             std::unique_ptr<OUTLINE_GLYPH> glyph = std::make_unique<OUTLINE_GLYPH>();
-            std::vector<SHAPE_LINE_CHAIN>  holes;
+            QVector<SHAPE_LINE_CHAIN>  holes;
 
             for( CONTOUR& c : glyphData.m_Contours )
             {
-                std::vector<VECTOR2D> points = c.m_Points;
+                QVector<VECTOR2D> points = c.m_Points;
                 SHAPE_LINE_CHAIN      shape;
 
                 shape.ReservePoints( points.size() );
@@ -539,10 +513,7 @@ VECTOR2I OUTLINE_FONT::getTextAsGlyphsUnlocked( BOX2I* aBBox,
 
 #undef OUTLINEFONT_RENDER_AS_PIXELS
 #ifdef OUTLINEFONT_RENDER_AS_PIXELS
-/*
- * WIP: Eeschema (and PDF output?) should use pixel rendering instead of linear segmentation
- */
-void OUTLINE_FONT::RenderToOpenGLCanvas( KIGFX::OPENGL_GAL& aGal, const wxString& aString,
+void OUTLINE_FONT::RenderToOpenGLCanvas( KIGFX::OPENGL_GAL& aGal, const QString& aString,
                                          const VECTOR2D& aGlyphSize, const VECTOR2I& aPosition,
                                          const EDA_ANGLE& aOrientation, bool aIsMirrored ) const
 {
@@ -582,7 +553,7 @@ void OUTLINE_FONT::RenderToOpenGLCanvas( KIGFX::OPENGL_GAL& aGal, const wxString
         e = FT_Get_Glyph( m_face->glyph, &glyph );
         // TODO handle FT_Get_Glyph error
 
-        wxPoint pt( aPosition );
+        QPoint pt( aPosition.x, aPosition.y );
         pt.x += ( cursor_x >> 6 ) * x_scaleFactor;
         pt.y += ( cursor_y >> 6 ) * y_scaleFactor;
 

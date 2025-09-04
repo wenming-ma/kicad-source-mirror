@@ -1,47 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/gpl-3.0.html
- * or you may search the http://www.gnu.org website for the version 3 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- *
- * Based on Uniform Plane Subdivision algorithm from Lamot, Marko, and Borut Žalik.
- * "A fast polygon triangulation algorithm based on uniform plane subdivision."
- * Computers & graphics 27, no. 2 (2003): 239-253.
- *
- * Code derived from:
- * K-3D which is Copyright (c) 2005-2006, Romain Behar, GPL-2, license above
- * earcut which is Copyright (c) 2016, Mapbox, ISC
- *
- * ISC License:
- * Permission to use, copy, modify, and/or distribute this software for any purpose
- * with or without fee is hereby granted, provided that the above copyright notice
- * and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
- * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
- * FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
- * OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
- * THIS SOFTWARE.
- *
- */
+// QT_TRANSFORMATION_COMPLETED
+// Polygon triangulation algorithms for Qt-based KiCad implementation
 
 #ifndef __POLYGON_TRIANGULATION_H
 #define __POLYGON_TRIANGULATION_H
@@ -57,7 +15,8 @@
 #include <math/box2.h>
 #include <math/vector2d.h>
 
-#include <wx/log.h>
+#include <QLoggingCategory>
+#include <QString>
 
 // ADVANCED_CFG::GetCfg() cannot be used on msys2/mingw builds (link failure)
 // So we use the ADVANCED_CFG default values
@@ -69,7 +28,7 @@
     #define TRIANGULATEMINIMUMAREA ADVANCED_CFG::GetCfg().m_TriangulateMinimumArea
 #endif
 
-#define TRIANGULATE_TRACE "triangulate"
+Q_DECLARE_LOGGING_CATEGORY(TRIANGULATE_TRACE)
 
 class POLYGON_TRIANGULATION : public VERTEX_SET
 {
@@ -99,7 +58,7 @@ public:
         if( !firstVertex || firstVertex->prev == firstVertex->next )
             return true;
 
-        wxLogTrace( TRIANGULATE_TRACE, "Created list with %f area", firstVertex->area() );
+        qCDebug(TRIANGULATE_TRACE) << "Created list with" << firstVertex->area() << "area";
 
         m_vertices_original_size = m_vertices.size();
         firstVertex->updateList();
@@ -119,7 +78,7 @@ public:
 
             if( !retval )
             {
-                wxLogTrace( TRIANGULATE_TRACE, "Tesselation failed, logging remaining vertices" );
+                qCDebug(TRIANGULATE_TRACE) << "Tesselation failed, logging remaining vertices";
                 logRemaining();
             }
 
@@ -136,7 +95,6 @@ private:
     void logRemaining()
     {
         std::set<VERTEX*> seen;
-        wxLog::EnableLogging();
         for( VERTEX& p : m_vertices )
         {
             if( !p.next || p.next == &p || seen.find( &p ) != seen.end() )
@@ -156,12 +114,12 @@ private:
 
         int count = 1;
         VERTEX* p = aStart->next;
-        wxString msg = wxString::Format( "Vertices: %d,%d,", static_cast<int>( aStart->x ),
-                                         static_cast<int>( aStart->y ) );
+        QString msg = QString("Vertices: %1,%2,").arg(static_cast<int>(aStart->x))
+                                                 .arg(static_cast<int>(aStart->y));
 
         do
         {
-            msg += wxString::Format( "%d,%d,", static_cast<int>( p->x ), static_cast<int>( p->y ) );
+            msg += QString("%1,%2,").arg(static_cast<int>(p->x)).arg(static_cast<int>(p->y));
 
             if( aSeen )
                 aSeen->insert( p );
@@ -173,8 +131,8 @@ private:
         if( count < 3 )   // Don't log anything that only has 2 or fewer points
             return;
 
-        msg.RemoveLast();
-        wxLogTrace( TRIANGULATE_TRACE, msg );
+        msg.chop(1);
+        qCDebug(TRIANGULATE_TRACE) << msg;
     }
 
     /**
@@ -220,7 +178,7 @@ private:
             }
         } while( p != aStart && next && p );
 
-        wxLogTrace( TRIANGULATE_TRACE, "Removed %d points in simplifyList", count );
+        qCDebug(TRIANGULATE_TRACE) << "Removed" << count << "points in simplifyList";
 
         if( count )
             return retval;
@@ -244,7 +202,7 @@ private:
         if( ( retval = simplifyList( aStart ) ) )
             aStart = retval;
 
-        wxASSERT( aStart->next && aStart->prev );
+        Q_ASSERT( aStart->next && aStart->prev );
 
         VERTEX* p = aStart->next;
 
@@ -298,7 +256,7 @@ private:
             ++count;
         }
 
-        wxLogTrace( TRIANGULATE_TRACE, "Removed %zu NULL triangles", count );
+        qCDebug(TRIANGULATE_TRACE) << "Removed" << count << "NULL triangles";
 
         return retval;
     }
@@ -318,7 +276,7 @@ private:
      */
     bool earcutList( VERTEX* aPoint, int pass = 0 )
     {
-        wxLogTrace( TRIANGULATE_TRACE, "earcutList starting at %p for pass %d", aPoint, pass );
+        qCDebug(TRIANGULATE_TRACE) << "earcutList starting at" << aPoint << "for pass" << pass;
 
         if( !aPoint )
             return true;
@@ -342,8 +300,7 @@ private:
                 }
                 else
                 {
-                    wxLogTrace( TRIANGULATE_TRACE, "Ignoring tiny ear with area %f",
-                                area( prev, aPoint, next ) );
+                    qCDebug(TRIANGULATE_TRACE) << "Ignoring tiny ear with area" << area( prev, aPoint, next );
                 }
 
                 aPoint->remove();
@@ -361,9 +318,7 @@ private:
                     locallyInside( prev, nextNext ) &&
                     locallyInside( nextNext, prev ) )
             {
-                wxLogTrace( TRIANGULATE_TRACE,
-                            "Local intersection detected.  Merging minor triangle with area %f",
-                            area( prev, aPoint, nextNext ) );
+                qCDebug(TRIANGULATE_TRACE) << "Local intersection detected.  Merging minor triangle with area" << area( prev, aPoint, nextNext );
                 m_result.AddTriangle( prev->i, aPoint->i, nextNext->i );
 
                 // remove two nodes involved
@@ -409,13 +364,13 @@ private:
                 // again, this time adding one point to each long edge (and thereby changing the locations)
                 if( internal_pass < 4 )
                 {
-                    wxLogTrace( TRIANGULATE_TRACE, "Subdividing polygon" );
+                    qCDebug(TRIANGULATE_TRACE) << "Subdividing polygon";
                     subdividePolygon( aPoint, internal_pass );
                     continue;
                 }
 
                 // If we don't have any NULL triangles left, cut the polygon in two and try again
-                wxLogTrace( TRIANGULATE_TRACE, "Splitting polygon" );
+                qCDebug(TRIANGULATE_TRACE) << "Splitting polygon";
 
                 if( !splitPolygon( aPoint ) )
                     return false;
@@ -487,11 +442,11 @@ private:
         } while (p != aStart);
 
         avg /= longest.size();
-        wxLogTrace( TRIANGULATE_TRACE, "Average length: %f", avg );
+        qCDebug(TRIANGULATE_TRACE) << "Average length:" << avg;
 
         for( auto it = longest.begin(); it != longest.end() && it->second > avg; ++it )
         {
-            wxLogTrace( TRIANGULATE_TRACE, "Subdividing edge with length %f", it->second );
+            qCDebug(TRIANGULATE_TRACE) << "Subdividing edge with length" << it->second;
             VERTEX* a = it->first;
             VERTEX* b = a->next;
             VERTEX* last = a;
@@ -559,12 +514,12 @@ private:
 
             if( overlapPoints[0]->area( overlapPoints[1] ) < 0 || overlapPoints[1]->area( overlapPoints[0] ) < 0 )
             {
-                wxLogTrace( TRIANGULATE_TRACE, "Split generated a hole, skipping" );
+                qCDebug(TRIANGULATE_TRACE) << "Split generated a hole, skipping";
                 origPoly = origPoly->next;
                 continue;
             }
 
-            wxLogTrace( TRIANGULATE_TRACE, "Splitting at overlap point %f, %f", overlapPoints[0]->x, overlapPoints[0]->y );
+            qCDebug(TRIANGULATE_TRACE) << "Splitting at overlap point" << overlapPoints[0]->x << "," << overlapPoints[0]->y;
             std::swap( overlapPoints[0]->next, overlapPoints[1]->next );
             overlapPoints[0]->next->prev = overlapPoints[0];
             overlapPoints[1]->next->prev = overlapPoints[1];
@@ -575,7 +530,7 @@ private:
             logVertices( overlapPoints[1], nullptr );
             bool retval = earcutList( overlapPoints[0] ) && earcutList( overlapPoints[1] );
 
-            wxLogTrace( TRIANGULATE_TRACE, "%s at first overlap split", retval ? "Success" : "Failed" );
+            qCDebug(TRIANGULATE_TRACE) << (retval ? "Success" : "Failed") << "at first overlap split";
             return retval;
 
 
@@ -601,7 +556,7 @@ private:
 
                     bool retval = earcutList( origPoly ) && earcutList( newPoly );
 
-                    wxLogTrace( TRIANGULATE_TRACE, "%s at split", retval ? "Success" : "Failed" );
+                    qCDebug(TRIANGULATE_TRACE) << (retval ? "Success" : "Failed") << "at split";
                     return retval;
                 }
 
@@ -611,7 +566,7 @@ private:
             origPoly = origPoly->next;
         } while( origPoly != start );
 
-        wxLogTrace( TRIANGULATE_TRACE, "Could not find a valid split point" );
+        qCDebug(TRIANGULATE_TRACE) << "Could not find a valid split point";
         return false;
     }
 

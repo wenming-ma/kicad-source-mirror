@@ -1,30 +1,11 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include <magic_enum.hpp>
-// #include <api/api_utils.h>
+#include <api/api_utils.h>
 #include <geometry/shape_poly_set.h>
 #include <kiid.h>
-#include <wx/log.h>
+#include <QString>
+#include <QDebug>
 
-const wxChar* const traceApi = wxT( "KICAD_API" );
+const char* const traceApi = "KICAD_API";
 
 
 namespace kiapi::common
@@ -53,8 +34,7 @@ KICOMMON_API std::optional<KICAD_T> TypeNameFromAny( const google::protobuf::Any
     if( it != s_types.end() )
         return it->second;
 
-    wxLogTrace( traceApi, wxString::Format( wxS( "Any message type %s is not known" ),
-                                            aMessage.type_url() ) );
+    qDebug() << traceApi << QString( "Any message type %1 is not known" ).arg( QString::fromStdString( aMessage.type_url() ) );
 
     return std::nullopt;
 }
@@ -160,7 +140,7 @@ KICOMMON_API SHAPE_LINE_CHAIN UnpackPolyLine( const types::PolyLine& aInput )
             slc.Append( SHAPE_ARC( VECTOR2I( node.arc().start().x_nm(), node.arc().start().y_nm() ),
                                    VECTOR2I( node.arc().mid().x_nm(), node.arc().mid().y_nm() ),
                                    VECTOR2I( node.arc().end().x_nm(), node.arc().end().y_nm() ),
-                                   0 /* don't care about width here */ ) );
+                                   0 ) );
         }
     }
 

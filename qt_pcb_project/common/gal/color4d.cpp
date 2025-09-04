@@ -1,39 +1,16 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <map>
 #include <json_common.h>
 #include <gal/color4d.h>
 #include <i18n_utility.h>
-#include <wx/crt.h>
+#include <QtGui/QColor>
+#include <QString>
 #include <math/util.h>
 #include <core/kicad_algo.h>
 
 using namespace KIGFX;
 
-#define TS( string ) wxString( _HKI( string ) ).ToStdString()
+#define TS( string ) QString( _HKI( string ) ).toStdString()
 
 // We can't have this as a plain static variable, because it is referenced during the initialization
 // of other static variables, so we must initialize it explicitly on first use.
@@ -62,7 +39,7 @@ const StructColors* colorRefs()
         { 132,  0,   132, MAGENTA,       TS( "Magenta 2" ), LIGHTMAGENTA      },
         { 0,    132, 132, BROWN,         TS( "Brown 2" ),   YELLOW            },
         { 0,    102, 204, ORANGE,        TS( "Orange 2" ),  LIGHTORANGE       },
-        { 194,  0,   0,   LIGHTBLUE,     TS( "Blue 3" ),    PUREBLUE,         },
+        { 194,  0,   0,   LIGHTBLUE,     TS( "Blue 3" ),    PUREBLUE         },
         { 0,    194, 0,   LIGHTGREEN,    TS( "Green 3" ),   PUREGREEN         },
         { 194,  194, 0,   LIGHTCYAN,     TS( "Cyan 3" ),    PURECYAN          },
         { 0,    0,   194, LIGHTRED,      TS( "Red 3" ),     PURERED           },
@@ -110,32 +87,33 @@ COLOR4D::COLOR4D( EDA_COLOR_T aColor )
 }
 
 
-COLOR4D::COLOR4D( const wxString& aColorStr )
+COLOR4D::COLOR4D( const QString& aColorStr )
 {
     if( !SetFromHexString( aColorStr ) )
-        SetFromWxString( aColorStr );
+        SetFromQString( aColorStr );
 }
 
 
-COLOR4D::COLOR4D( const wxColour& aColor )
+COLOR4D::COLOR4D( const QColor& aColor )
 {
-    r = aColor.Red() / 255.0;
-    g = aColor.Green() / 255.0;
-    b = aColor.Blue() / 255.0;
-    a = aColor.Alpha() / 255.0;
+    r = aColor.red() / 255.0;
+    g = aColor.green() / 255.0;
+    b = aColor.blue() / 255.0;
+    a = aColor.alpha() / 255.0;
 }
 
 
-bool COLOR4D::SetFromWxString( const wxString& aColorString )
+bool COLOR4D::SetFromQString( const QString& aColorString )
 {
-    wxColour c;
+    QColor c;
 
-    if( c.Set( aColorString ) )
+    c.setNamedColor( aColorString );
+    if( c.isValid() )
     {
-        r = c.Red() / 255.0;
-        g = c.Green() / 255.0;
-        b = c.Blue() / 255.0;
-        a = c.Alpha() / 255.0;
+        r = c.red() / 255.0;
+        g = c.green() / 255.0;
+        b = c.blue() / 255.0;
+        a = c.alpha() / 255.0;
 
         return true;
     }
@@ -144,48 +122,45 @@ bool COLOR4D::SetFromWxString( const wxString& aColorString )
 }
 
 
-wxString COLOR4D::ToCSSString() const
+QString COLOR4D::ToCSSString() const
 {
-    wxColour c = ToColour();
-    wxString str;
+    QColor c = ToColor();
+    QString str;
 
-    const int  red = c.Red();
-    const int  green = c.Green();
-    const int  blue = c.Blue();
-    const int  alpha = c.Alpha();
+    const int  red = c.red();
+    const int  green = c.green();
+    const int  blue = c.blue();
+    const int  alpha = c.alpha();
 
-    if ( alpha == wxALPHA_OPAQUE )
+    if ( alpha == 255 )
     {
-        str.Printf( wxT( "rgb(%d, %d, %d)" ), red, green, blue );
+        str = QString( "rgb(%1, %2, %3)" ).arg( red ).arg( green ).arg( blue );
     }
-    else // use rgba() form
+    else
     {
-        wxString alpha_str = wxString::FromCDouble( alpha / 255.0, 3 );
+        QString alpha_str = QString::number( alpha / 255.0, 'f', 3 );
 
-        // The wxC2S_CSS_SYNTAX is particularly sensitive to ','s (as it uses them for value
-        // delimiters), and wxWidgets is known to be buggy in this respect when dealing with
-        // Serbian and Russian locales (at least), so we enforce an extra level of safety.
-        alpha_str.Replace( wxT( "," ), wxT( "." ) );
+        alpha_str.replace( ",", "." );
 
-        str.Printf( wxT( "rgba(%d, %d, %d, %s)" ), red, green, blue, alpha_str );
+        str = QString( "rgba(%1, %2, %3, %4)" ).arg( red ).arg( green ).arg( blue ).arg( alpha_str );
     }
 
     return str;
 }
 
 
-bool COLOR4D::SetFromHexString( const wxString& aColorString )
+bool COLOR4D::SetFromHexString( const QString& aColorString )
 {
-    wxString str = aColorString;
-    str.Trim( true );
-    str.Trim( false );
+    QString str = aColorString;
+    str = str.trimmed();
 
-    if( str.length() < 7 || !str.StartsWith( '#' ) )
+    if( str.length() < 7 || !str.startsWith( '#' ) )
         return false;
 
-    unsigned long tmp;
+    bool ok;
+    unsigned long tmp = str.mid( 1 ).toULong( &ok, 16 );
 
-    if( wxSscanf( str.wx_str() + 1, wxT( "%lx" ), &tmp ) != 1 )
+    if( !ok )
         return false;
 
     if( str.length() >= 9 )
@@ -207,23 +182,21 @@ bool COLOR4D::SetFromHexString( const wxString& aColorString )
 }
 
 
-wxString COLOR4D::ToHexString() const
+QString COLOR4D::ToHexString() const
 {
-    return wxString::Format( wxT("#%02X%02X%02X%02X" ),
-                             KiROUND( r * 255.0 ),
-                             KiROUND( g * 255.0 ),
-                             KiROUND( b * 255.0 ),
-                             KiROUND( a * 255.0 ) );
+    return QString( "#%1%2%3%4" )
+                .arg( KiROUND( r * 255.0 ), 2, 16, QChar('0') )
+                .arg( KiROUND( g * 255.0 ), 2, 16, QChar('0') )
+                .arg( KiROUND( b * 255.0 ), 2, 16, QChar('0') )
+                .arg( KiROUND( a * 255.0 ), 2, 16, QChar('0') ).toUpper();
 }
 
 
-wxColour COLOR4D::ToColour() const
+QColor COLOR4D::ToColor() const
 {
-    using CHAN_T = wxColourBase::ChannelType;
-
-    const wxColour colour(
-            static_cast<CHAN_T>( r * 255 + 0.5 ), static_cast<CHAN_T>( g * 255 + 0.5 ),
-            static_cast<CHAN_T>( b * 255 + 0.5 ), static_cast<CHAN_T>( a * 255 + 0.5 ) );
+    const QColor colour(
+            static_cast<int>( r * 255 + 0.5 ), static_cast<int>( g * 255 + 0.5 ),
+            static_cast<int>( b * 255 + 0.5 ), static_cast<int>( a * 255 + 0.5 ) );
     return colour;
 }
 
@@ -281,13 +254,13 @@ std::ostream &operator<<( std::ostream &aStream, COLOR4D const &aColor )
 
 void to_json( nlohmann::json& aJson, const COLOR4D& aColor )
 {
-    aJson = nlohmann::json( aColor.ToCSSString().ToStdString() );
+    aJson = nlohmann::json( aColor.ToCSSString().toStdString() );
 }
 
 
 void from_json( const nlohmann::json& aJson, COLOR4D& aColor )
 {
-    aColor.SetFromWxString( aJson.get<std::string>() );
+    aColor.SetFromQString( QString::fromStdString( aJson.get<std::string>() ) );
 }
 
 }

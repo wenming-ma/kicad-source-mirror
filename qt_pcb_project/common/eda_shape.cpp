@@ -1,29 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2023 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <eda_shape.h>
 
@@ -222,10 +196,9 @@ EDA_SHAPE::EDA_SHAPE( const SHAPE& aShape ) :
 //    }
 //
 //    default:
-//        wxASSERT_MSG( false, "Unhandled shape in PCB_SHAPE::Serialize" );
+//        Q_ASSERT_X( false, "PCB_SHAPE::Serialize", "Unhandled shape" );
 //    }
 //
-//    // TODO m_hasSolderMask and m_solderMaskMargin
 //
 //    aContainer.PackFrom( shape );
 //}
@@ -310,7 +283,7 @@ EDA_SHAPE::EDA_SHAPE( const SHAPE& aShape ) :
 //}
 
 
-wxString EDA_SHAPE::ShowShape() const
+QString EDA_SHAPE::ShowShape() const
 {
     if( IsProxyItem() )
     {
@@ -318,7 +291,7 @@ wxString EDA_SHAPE::ShowShape() const
         {
         case SHAPE_T::SEGMENT:   return _( "Thermal Spoke" );
         case SHAPE_T::RECTANGLE: return _( "Number Box" );
-        default:                 return wxT( "??" );
+        default:                 return QStringLiteral( "??" );
         }
     }
     else
@@ -331,26 +304,26 @@ wxString EDA_SHAPE::ShowShape() const
         case SHAPE_T::CIRCLE:    return _( "Circle" );
         case SHAPE_T::BEZIER:    return _( "Bezier Curve" );
         case SHAPE_T::POLY:      return _( "Polygon" );
-        default:                 return wxT( "??" );
+        default:                 return QStringLiteral( "??" );
         }
     }
 }
 
 
-wxString EDA_SHAPE::SHAPE_T_asString() const
+QString EDA_SHAPE::SHAPE_T_asString() const
 {
     switch( m_shape )
     {
-    case SHAPE_T::SEGMENT:   return wxS( "S_SEGMENT" );
-    case SHAPE_T::RECTANGLE: return wxS( "S_RECT" );
-    case SHAPE_T::ARC:       return wxS( "S_ARC" );
-    case SHAPE_T::CIRCLE:    return wxS( "S_CIRCLE" );
-    case SHAPE_T::POLY:      return wxS( "S_POLYGON" );
-    case SHAPE_T::BEZIER:    return wxS( "S_CURVE" );
-    case SHAPE_T::UNDEFINED: return wxS( "UNDEFINED" );
+    case SHAPE_T::SEGMENT:   return QStringLiteral( "S_SEGMENT" );
+    case SHAPE_T::RECTANGLE: return QStringLiteral( "S_RECT" );
+    case SHAPE_T::ARC:       return QStringLiteral( "S_ARC" );
+    case SHAPE_T::CIRCLE:    return QStringLiteral( "S_CIRCLE" );
+    case SHAPE_T::POLY:      return QStringLiteral( "S_POLYGON" );
+    case SHAPE_T::BEZIER:    return QStringLiteral( "S_CURVE" );
+    case SHAPE_T::UNDEFINED: return QStringLiteral( "UNDEFINED" );
     }
 
-    return wxEmptyString;  // Just to quiet GCC.
+    return QString();  // Just to quiet GCC.
 }
 
 
@@ -603,7 +576,7 @@ void EDA_SHAPE::scale( double aScale )
 
     case SHAPE_T::POLY: // polygon
     {
-        std::vector<VECTOR2I> pts;
+        QVector<VECTOR2I> pts;
 
         for( int ii = 0; ii < m_poly.OutlineCount(); ++ ii )
         {
@@ -751,12 +724,12 @@ void EDA_SHAPE::RebuildBezierToSegmentsPointsList( int aMaxError )
 }
 
 
-const std::vector<VECTOR2I> EDA_SHAPE::buildBezierToSegmentsPointsList( int aMaxError ) const
+const QVector<VECTOR2I> EDA_SHAPE::buildBezierToSegmentsPointsList( int aMaxError ) const
 {
-    std::vector<VECTOR2I> bezierPoints;
+    QVector<VECTOR2I> bezierPoints;
 
     // Rebuild the m_BezierPoints vertex list that approximate the Bezier curve
-    std::vector<VECTOR2I> ctrlPoints = { m_start, m_bezierC1, m_bezierC2, m_end };
+    QVector<VECTOR2I> ctrlPoints = { m_start, m_bezierC1, m_bezierC2, m_end };
     BEZIER_POLY converter( ctrlPoints );
     converter.GetPoly( bezierPoints, aMaxError );
 
@@ -965,7 +938,7 @@ void EDA_SHAPE::SetArcAngleAndEnd( const EDA_ANGLE& aAngle, bool aCheckNegativeA
 }
 
 
-wxString EDA_SHAPE::getFriendlyName() const
+QString EDA_SHAPE::getFriendlyName() const
 {
     if( IsProxyItem() )
     {
@@ -992,11 +965,11 @@ wxString EDA_SHAPE::getFriendlyName() const
 }
 
 
-void EDA_SHAPE::ShapeGetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
+void EDA_SHAPE::ShapeGetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, QVector<MSG_PANEL_ITEM>& aList )
 {
-    wxString msg;
+    QString msg;
 
-    wxString shape = _( "Shape" );
+    QString shape = _( "Shape" );
     aList.emplace_back( shape, getFriendlyName() );
 
     switch( m_shape )
@@ -1019,7 +992,7 @@ void EDA_SHAPE::ShapeGetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PA
         break;
 
     case SHAPE_T::POLY:
-        msg.Printf( wxS( "%d" ), GetPolyShape().Outline(0).PointCount() );
+        msg = QString::number( GetPolyShape().Outline(0).PointCount() );
         aList.emplace_back( _( "Points" ), msg );
         break;
 
@@ -1169,8 +1142,8 @@ bool EDA_SHAPE::hitTest( const VECTOR2I& aPosition, int aAccuracy ) const
 
     case SHAPE_T::BEZIER:
     {
-        const std::vector<VECTOR2I>* pts = &m_bezierPoints;
-        std::vector<VECTOR2I> updatedBezierPoints;
+        const QVector<VECTOR2I>* pts = &m_bezierPoints;
+        QVector<VECTOR2I> updatedBezierPoints;
 
         if( m_bezierPoints.empty() )
         {
@@ -1203,7 +1176,7 @@ bool EDA_SHAPE::hitTest( const VECTOR2I& aPosition, int aAccuracy ) const
         }
         else                                            // Open rect hit-test
         {
-            std::vector<VECTOR2I> pts = GetRectCorners();
+            QVector<VECTOR2I> pts = GetRectCorners();
 
             return TestSegmentHit( aPosition, pts[0], pts[1], maxdist )
                     || TestSegmentHit( aPosition, pts[1], pts[2], maxdist )
@@ -1294,7 +1267,7 @@ bool EDA_SHAPE::hitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
         }
         else
         {
-            std::vector<VECTOR2I> pts = GetRectCorners();
+            QVector<VECTOR2I> pts = GetRectCorners();
 
             // Account for the width of the lines
             arect.Inflate( GetWidth() / 2 );
@@ -1380,8 +1353,8 @@ bool EDA_SHAPE::hitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
 
             // Account for the width of the line
             arect.Inflate( GetWidth() / 2 );
-            const std::vector<VECTOR2I>* pts = &m_bezierPoints;
-            std::vector<VECTOR2I> updatedBezierPoints;
+            const QVector<VECTOR2I>* pts = &m_bezierPoints;
+            QVector<VECTOR2I> updatedBezierPoints;
 
             if( m_bezierPoints.empty() )
             {
@@ -1414,9 +1387,9 @@ bool EDA_SHAPE::hitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
 }
 
 
-std::vector<VECTOR2I> EDA_SHAPE::GetRectCorners() const
+QVector<VECTOR2I> EDA_SHAPE::GetRectCorners() const
 {
-    std::vector<VECTOR2I> pts;
+    QVector<VECTOR2I> pts;
     VECTOR2I              topLeft = GetStart();
     VECTOR2I              botRight = GetEnd();
 
@@ -1429,9 +1402,9 @@ std::vector<VECTOR2I> EDA_SHAPE::GetRectCorners() const
 }
 
 
-std::vector<VECTOR2I> EDA_SHAPE::GetCornersInSequence( EDA_ANGLE angle ) const
+QVector<VECTOR2I> EDA_SHAPE::GetCornersInSequence( EDA_ANGLE angle ) const
 {
-    std::vector<VECTOR2I> pts;
+    QVector<VECTOR2I> pts;
 
     angle.Normalize();
 
@@ -1480,7 +1453,7 @@ std::vector<VECTOR2I> EDA_SHAPE::GetCornersInSequence( EDA_ANGLE angle ) const
         //
         // To address this, a portion of the getCorners implementation for SHAPE_T::POLY elements
         // has been replicated here to restore the correct behavior.
-        std::vector<VECTOR2I> corners;
+        QVector<VECTOR2I> corners;
 
         for( int ii = 0; ii < GetPolyShape().OutlineCount(); ++ii )
         {
@@ -1595,7 +1568,7 @@ void EDA_SHAPE::computeArcBBox( BOX2I& aBBox ) const
 }
 
 
-void EDA_SHAPE::SetPolyPoints( const std::vector<VECTOR2I>& aPoints )
+void EDA_SHAPE::SetPolyPoints( const QVector<VECTOR2I>& aPoints )
 {
     m_poly.RemoveAllContours();
     m_poly.NewOutline();
@@ -1605,9 +1578,9 @@ void EDA_SHAPE::SetPolyPoints( const std::vector<VECTOR2I>& aPoints )
 }
 
 
-std::vector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineChainOnly ) const
+QVector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineChainOnly ) const
 {
-    std::vector<SHAPE*> effectiveShapes;
+    QVector<SHAPE*> effectiveShapes;
     int                 width = GetEffectiveWidth();
 
     switch( m_shape )
@@ -1622,7 +1595,7 @@ std::vector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineCh
 
     case SHAPE_T::RECTANGLE:
     {
-        std::vector<VECTOR2I> pts = GetRectCorners();
+        QVector<VECTOR2I> pts = GetRectCorners();
 
         if( ( IsFilled() || IsProxyItem() ) && !aEdgeOnly )
             effectiveShapes.emplace_back( new SHAPE_SIMPLE( pts ) );
@@ -1651,7 +1624,7 @@ std::vector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineCh
 
     case SHAPE_T::BEZIER:
     {
-        std::vector<VECTOR2I> bezierPoints = buildBezierToSegmentsPointsList( getMaxError() );
+        QVector<VECTOR2I> bezierPoints = buildBezierToSegmentsPointsList( getMaxError() );
         VECTOR2I              start_pt = bezierPoints[0];
 
         for( unsigned int jj = 1; jj < bezierPoints.size(); jj++ )
@@ -1699,7 +1672,7 @@ std::vector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineCh
 }
 
 
-void EDA_SHAPE::DupPolyPointsList( std::vector<VECTOR2I>& aBuffer ) const
+void EDA_SHAPE::DupPolyPointsList( QVector<VECTOR2I>& aBuffer ) const
 {
     for( int ii = 0; ii < m_poly.OutlineCount(); ++ii )
     {
@@ -2084,7 +2057,7 @@ void EDA_SHAPE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, int aClearance
 
     case SHAPE_T::RECTANGLE:
     {
-        std::vector<VECTOR2I> pts = GetRectCorners();
+        QVector<VECTOR2I> pts = GetRectCorners();
 
         if( IsFilled() || IsProxyItem() )
         {
@@ -2163,9 +2136,9 @@ void EDA_SHAPE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, int aClearance
 
     case SHAPE_T::BEZIER:
     {
-        std::vector<VECTOR2I> ctrlPts = { GetStart(), GetBezierC1(), GetBezierC2(), GetEnd() };
+        QVector<VECTOR2I> ctrlPts = { GetStart(), GetBezierC1(), GetBezierC2(), GetEnd() };
         BEZIER_POLY converter( ctrlPts );
-        std::vector<VECTOR2I> poly;
+        QVector<VECTOR2I> poly;
         converter.GetPoly( poly, aError );
 
         for( unsigned ii = 1; ii < poly.size(); ii++ )
@@ -2287,8 +2260,8 @@ double EDA_SHAPE::Similarity( const EDA_SHAPE& aOther ) const
     {
         int m = m_poly.TotalVertices();
         int n = aOther.m_poly.TotalVertices();
-        std::vector<VECTOR2I> poly;
-        std::vector<VECTOR2I> otherPoly;
+        QVector<VECTOR2I> poly;
+        QVector<VECTOR2I> otherPoly;
         VECTOR2I              lastPt( 0, 0 );
 
         // We look for the longest common subset of the two polygons, but we need to
@@ -2319,8 +2292,7 @@ double EDA_SHAPE::Similarity( const EDA_SHAPE& aOther ) const
 }
 
 
-IMPLEMENT_ENUM_TO_WXANY( SHAPE_T )
-IMPLEMENT_ENUM_TO_WXANY( LINE_STYLE )
+// Qt enum implementation - these macros replaced by Qt's meta-object system
 
 
 static struct EDA_SHAPE_DESC
@@ -2379,7 +2351,7 @@ static struct EDA_SHAPE_DESC
                     return false;
                 };
 
-        const wxString shapeProps = _HKI( "Shape Properties" );
+        const QString shapeProps = _HKI( "Shape Properties" );
 
         auto shape = new PROPERTY_ENUM<EDA_SHAPE, SHAPE_T>( _HKI( "Shape" ),
                      NO_SETTER( EDA_SHAPE, SHAPE_T ), &EDA_SHAPE::GetShape );

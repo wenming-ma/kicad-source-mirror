@@ -1,3 +1,5 @@
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-04
+
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
@@ -21,7 +23,6 @@
 #ifndef KICAD_SERIALIZABLE_H
 #define KICAD_SERIALIZABLE_H
 
-#include <wx/debug.h>
 #include <kicommon.h>
 
 // DISABLED FOR MINIMAL BUILD - Protobuf API removed

@@ -1,60 +1,14 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2009-2016 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED
 
-/**
- * @file id.h
- *
- * @brief Common command IDs shared by more than one of the KiCad applications.
- *
- * Only place command IDs used in base window class event tables or shared
- * across multiple applications such as the zoom, grid, and language IDs.
- * Application specific IDs should be defined in the appropriate header
- * file to prevent the entire project from being rebuilt.
- *
- * However, we must avoid duplicate IDs in menus and toolbar items, when wxUpdateUIEvent
- * are associated to menuitems and/or toolbar items
- * The reason is the fact wxWidgets try to send a wxUpdateUIEvent event to a given window and,
- * if a wxUpdateUIEvent event function is not defined for a menuitem, wxWidgets
- * propagates this event ID to parents of the given window.
- * Therefore duplicate IDs could create strange behavior in menus and subtle bugs, depending
- * on the code inside the wxUpdateUIEvent event functions called in parent frames.
- * I did not seen this propagation to child frames, only to parent frames
- *
- * Issues exist only if 2 menus have the same ID, and only one menu is associated to
- * a wxUpdateUIEvent event, and this one is defined in a parent Window.
- * The probability it happens is low, but not null.
- *
- * Therefore we reserve room in ID list for each sub application.
- * Please, change these values if needed
- */
+// Common command IDs shared by more than one of the KiCad applications.
+// Only place command IDs used in base window class event tables or shared
+// across multiple applications such as the zoom, grid, and language IDs.
 
 
 #ifndef ID_H_
 #define ID_H_
 
-#include <wx/defs.h>
+#include <QtCore/QObject>
 
 // Define room for IDs, for each sub application
 #define ROOM_FOR_KICADMANAGER 50
@@ -62,21 +16,21 @@
 #define ROOM_FOR_PANEL_PREV_MODEL 50
 
 
-/// IDs range for menuitems file history:
-/// The default range file history size is 9 (compatible with default wxWidget range).
+// IDs range for menuitems file history:
+// The default range file history size is 9 (compatible with default Qt range).
 #define DEFAULT_FILE_HISTORY_SIZE 9
 #define MAX_FILE_HISTORY_SIZE 99
 
 enum main_id
 {
-    ID_LOAD_FILE = wxID_HIGHEST,
+    ID_LOAD_FILE = 10000,  // Qt custom ID range start
     ID_NEW_BOARD,
     ID_SAVE_BOARD,
     ID_SAVE_BOARD_AS,
     ID_AUTO_SAVE_TIMER,
 
     // ID for menuitems used in our file history management,
-    // when we do not use wxFILE_ID (restricted to 9 items)
+    // when we do not use Qt file ID (restricted to 9 items)
     ID_FILE,
     ID_FILE1,
     ID_FILEMAX = ID_FILE + MAX_FILE_HISTORY_SIZE,
@@ -164,10 +118,10 @@ enum main_id
     //
     // We reserve here Ids for each sub-application, to avoid duplicate IDs
     // between them.
-    // mainly we experienced issues related to wxUpdateUIEvent calls when 2 (or more) wxFrames
+    // mainly we experienced issues related to Qt update events when 2 (or more) QFrames
     // share the same ID in menus, mainly in menubars/toolbars
-    // The reason is the fact wxWidgets propagates the wxUpdateUIEvent to all parent windows
-    // to find wxUpdateUIEvent event functions matching the menuitem IDs found when activate a
+    // The reason is the fact Qt propagates the update events to all parent windows
+    // to find update event functions matching the menuitem IDs found when activate a
     // menu in the first frame.
 
     // Reserve ROOM_FOR_KICADMANAGER IDs, for Kicad manager

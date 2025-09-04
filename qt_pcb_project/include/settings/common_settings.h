@@ -1,28 +1,12 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef _COMMON_SETTINGS_H
 #define _COMMON_SETTINGS_H
 
 #include <settings/environment.h>
 #include <settings/json_settings.h>
+#include <QString>
+#include <QVector>
 
 
 enum class MOUSE_DRAG_ACTION
@@ -62,13 +46,11 @@ public:
 
     struct AUTO_BACKUP
     {
-        bool   enabled;            ///< Automatically back up the project when files are saved
-        bool   backup_on_autosave; ///< Trigger a backup on autosave
-        int    limit_total_files;  ///< Maximum number of backup archives to retain
-        int    limit_daily_files;  ///< Maximum files to keep per day, 0 for unlimited
-        int    min_interval;       ///< Minimum time, in seconds, between subsequent backups
-
-        /// Maximum total size of backups (bytes), 0 for unlimited
+        bool   enabled;
+        bool   backup_on_autosave;
+        int    limit_total_files;
+        int    limit_daily_files;
+        int    min_interval;
         unsigned long long limit_total_size;
     };
 
@@ -113,21 +95,21 @@ public:
     struct SESSION
     {
         bool remember_open_files;
-        std::vector<wxString> pinned_symbol_libs;
-        std::vector<wxString> pinned_fp_libs;
-        std::vector<wxString> pinned_design_block_libs;
+        QVector<QString> pinned_symbol_libs;
+        QVector<QString> pinned_fp_libs;
+        QVector<QString> pinned_design_block_libs;
     };
 
     struct SYSTEM
     {
         int autosave_interval;
-        wxString text_editor;
-        wxString file_explorer;
+        QString text_editor;
+        QString file_explorer;
         int file_history_size;
-        wxString language;
-        wxString pdf_viewer_name;
+        QString language;
+        QString pdf_viewer_name;
         bool use_system_pdf_viewer;
-        wxString working_dir;
+        QString working_dir;
         int clear_3d_cache_interval;
     };
 
@@ -143,8 +125,8 @@ public:
     struct NETCLASS_PANEL
     {
         int sash_pos;
-        wxString eeschema_visible_columns;
-        wxString pcbnew_visible_columns;
+        QString eeschema_visible_columns;
+        QString pcbnew_visible_columns;
     };
 
     struct PACKAGE_MANAGER
@@ -154,28 +136,28 @@ public:
 
     struct GIT_REPOSITORY
     {
-        wxString name;
-        wxString path;
-        wxString authType;
-        wxString username;
-        wxString ssh_path;
+        QString name;
+        QString path;
+        QString authType;
+        QString username;
+        QString ssh_path;
         bool     active;
         bool     checkValid;
     };
 
     struct GIT
     {
-        std::vector<GIT_REPOSITORY> repositories;
-        bool                        enableGit;
-        int                         updatInterval;
-        bool                        useDefaultAuthor;
-        wxString                    authorName;
-        wxString                    authorEmail;
+        QVector<GIT_REPOSITORY> repositories;
+        bool                    enableGit;
+        int                     updatInterval;
+        bool                    useDefaultAuthor;
+        QString                 authorName;
+        QString                 authorEmail;
     };
 
     struct API
     {
-        wxString python_interpreter;
+        QString python_interpreter;
         bool enable_server;
     };
 
@@ -183,11 +165,8 @@ public:
 
     virtual ~COMMON_SETTINGS() {}
 
-    virtual bool MigrateFromLegacy( wxConfigBase* aLegacyConfig ) override;
+    virtual bool MigrateFromLegacy( void* aLegacyConfig ) override;
 
-    /**
-     * Creates the built-in environment variables and sets their default values
-     */
     void InitializeEnvironment();
 
 private:
@@ -197,16 +176,16 @@ private:
 
     struct LEGACY_3D_SEARCH_PATH
     {
-        wxString m_Alias;       // alias to the base path
-        wxString m_Pathvar;     // base path as stored in the config file
-        wxString m_Pathexp;     // expanded base path
-        wxString m_Description; // description of the aliased path
+        QString m_Alias;       // alias to the base path
+        QString m_Pathvar;     // base path as stored in the config file
+        QString m_Pathexp;     // expanded base path
+        QString m_Description; // description of the aliased path
     };
 
     static bool getLegacy3DHollerith( const std::string& aString, size_t& aIndex,
-                                      wxString& aResult );
-    bool readLegacy3DResolverCfg( const wxString& aPath,
-                                  std::vector<LEGACY_3D_SEARCH_PATH>& aSearchPaths );
+                                      QString& aResult );
+    bool readLegacy3DResolverCfg( const QString& aPath,
+                                  QVector<LEGACY_3D_SEARCH_PATH>& aSearchPaths );
 
 public:
     APPEARANCE m_Appearance;

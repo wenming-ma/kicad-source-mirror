@@ -1,28 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2023 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 #include <cstring>
 #include <string>
 
@@ -31,8 +6,7 @@
 #include <tool/tool_manager.h>
 #include <tool/actions.h>
 
-
-#include <wx/debug.h>
+#include <QtCore/QtDebug>
 
 struct FlagString
 {
@@ -73,7 +47,9 @@ void TOOL_EVENT::init()
 
 VECTOR2D TOOL_EVENT::returnCheckedPosition( const VECTOR2D& aPos ) const
 {
-    wxCHECK_MSG( HasPosition(), VECTOR2D(), "Attempted to get position from non-position event" );
+    Q_ASSERT_X( HasPosition(), "TOOL_EVENT::returnCheckedPosition", "Attempted to get position from non-position event" );
+    if( !HasPosition() )
+        return VECTOR2D();
 
     return aPos;
 }

@@ -1,43 +1,23 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
+// QT_TRANSFORMATION_COMPLETED
 
 #include <string_utils.h>
 #include <scintilla_tricks.h>
 #include <widgets/wx_grid.h>
 #include <widgets/ui_common.h>
-#include <wx/stc/stc.h>
 #include <gal/color4d.h>
 #include <dialog_shim.h>
-#include <wx/clipbrd.h>
-#include <wx/log.h>
-#include <wx/settings.h>
+#include <QClipboard>
+#include <QApplication>
+#include <QStyleHints>
+#include <QKeyEvent>
+#include <QWidget>
+#include <QTimer>
 #include <confirm.h>
 
-SCINTILLA_TRICKS::SCINTILLA_TRICKS( wxStyledTextCtrl* aScintilla, const wxString& aBraces,
+SCINTILLA_TRICKS::SCINTILLA_TRICKS( QsciScintilla* aScintilla, const QString& aBraces,
                                     bool aSingleLine,
-                                    std::function<void( wxKeyEvent& )> onAcceptFn,
-                                    std::function<void( wxStyledTextEvent& )> onCharAddedFn ) :
+                                    std::function<void( QKeyEvent& )> onAcceptFn,
+                                    std::function<void( QKeyEvent& )> onCharAddedFn ) :
         m_te( aScintilla ),
         m_braces( aBraces ),
         m_lastCaretPos( -1 ),
@@ -49,83 +29,77 @@ SCINTILLA_TRICKS::SCINTILLA_TRICKS( wxStyledTextCtrl* aScintilla, const wxString
         m_onCharAddedFn( std::move( onCharAddedFn ) )
 {
     // Always use LF as eol char, regardless the platform
-    m_te->SetEOLMode( wxSTC_EOL_LF );
+    m_te->setEolMode( QsciScintilla::EolUnix );
 
     // A hack which causes Scintilla to auto-size the text editor canvas
     // See: https://github.com/jacobslusser/ScintillaNET/issues/216
-    m_te->SetScrollWidth( 1 );
-    m_te->SetScrollWidthTracking( true );
+    m_te->setScrollWidth( 1 );
+    m_te->setScrollWidthTracking( true );
 
     if( m_singleLine )
     {
-        m_te->SetUseVerticalScrollBar( false );
-        m_te->SetUseHorizontalScrollBar( false );
+        m_te->setVerticalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
+        m_te->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
     }
 
     setupStyles();
 
     // Set up autocomplete
-    m_te->AutoCompSetIgnoreCase( true );
-    m_te->AutoCompSetMaxHeight( 20 );
+    m_te->setAutoCompletionCaseSensitivity( false );
+    m_te->setAutoCompletionThreshold( 1 );
 
-    if( aBraces.Length() >= 2 )
-        m_te->AutoCompSetFillUps( m_braces[1] );
+    if( aBraces.length() >= 2 )
+        m_te->setAutoCompletionFillups( QString( m_braces[1] ) );
 
     // Hook up events
-    m_te->Bind( wxEVT_STC_UPDATEUI, &SCINTILLA_TRICKS::onScintillaUpdateUI, this );
-    m_te->Bind( wxEVT_STC_MODIFIED, &SCINTILLA_TRICKS::onModified, this );
+    connect( m_te, &QsciScintilla::cursorPositionChanged, this, &SCINTILLA_TRICKS::onScintillaUpdateUI );
+    connect( m_te, &QsciScintilla::textChanged, this, &SCINTILLA_TRICKS::onModified );
 
     // Handle autocomplete
-    m_te->Bind( wxEVT_STC_CHARADDED, &SCINTILLA_TRICKS::onChar, this );
-    m_te->Bind( wxEVT_STC_AUTOCOMP_CHAR_DELETED, &SCINTILLA_TRICKS::onChar, this );
+    connect( m_te, &QsciScintilla::textChanged, this, &SCINTILLA_TRICKS::onChar );
 
-    // Dispatch command-keys in Scintilla control.
-    m_te->Bind( wxEVT_CHAR_HOOK, &SCINTILLA_TRICKS::onCharHook, this );
-
-    m_te->Bind( wxEVT_SYS_COLOUR_CHANGED,
-                wxSysColourChangedEventHandler( SCINTILLA_TRICKS::onThemeChanged ), this );
+    // Install event filter for key events
+    m_te->installEventFilter( this );
 }
 
 
-void SCINTILLA_TRICKS::onThemeChanged( wxSysColourChangedEvent &aEvent )
+void SCINTILLA_TRICKS::onThemeChanged()
 {
     setupStyles();
-
-    aEvent.Skip();
 }
 
 
 void SCINTILLA_TRICKS::setupStyles()
 {
-    wxTextCtrl     dummy( m_te->GetParent(), wxID_ANY );
-    KIGFX::COLOR4D foreground    = dummy.GetForegroundColour();
-    KIGFX::COLOR4D background    = dummy.GetBackgroundColour();
-    KIGFX::COLOR4D highlight     = wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHT );
-    KIGFX::COLOR4D highlightText = wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHTTEXT );
+    QPalette palette = m_te->palette();
+    KIGFX::COLOR4D foreground( palette.color( QPalette::Text ) );
+    KIGFX::COLOR4D background( palette.color( QPalette::Base ) );
+    KIGFX::COLOR4D highlight( palette.color( QPalette::Highlight ) );
+    KIGFX::COLOR4D highlightText( palette.color( QPalette::HighlightedText ) );
 
-    m_te->StyleSetForeground( wxSTC_STYLE_DEFAULT, foreground.ToColour() );
-    m_te->StyleSetBackground( wxSTC_STYLE_DEFAULT, background.ToColour() );
-    m_te->StyleClearAll();
+    m_te->setColor( foreground.ToColour(), QsciScintilla::STYLE_DEFAULT );
+    m_te->setPaper( background.ToColour(), QsciScintilla::STYLE_DEFAULT );
+    m_te->clearStyles();
 
     // Scintilla doesn't handle alpha channel, which at least OSX uses in some highlight colours,
     // such as "graphite".
     highlight = highlight.Mix( background, highlight.a ).WithAlpha( 1.0 );
     highlightText = highlightText.Mix( background, highlightText.a ).WithAlpha( 1.0 );
 
-    m_te->SetSelForeground( true, highlightText.ToColour() );
-    m_te->SetSelBackground( true, highlight.ToColour() );
-    m_te->SetCaretForeground( foreground.ToColour() );
+    m_te->setSelectionForegroundColor( highlightText.ToColour() );
+    m_te->setSelectionBackgroundColor( highlight.ToColour() );
+    m_te->setCaretForegroundColor( foreground.ToColour() );
 
     if( !m_singleLine )
     {
         // Set a monospace font with a tab width of 4.  This is the closest we can get to having
         // Scintilla mimic the stroke font's tab positioning.
-        wxFont fixedFont = KIUI::GetMonospacedUIFont();
+        QFont fixedFont = KIUI::GetMonospacedUIFont();
 
-        for( size_t i = 0; i < wxSTC_STYLE_MAX; ++i )
-            m_te->StyleSetFont( i, fixedFont );
+        for( int i = 0; i < QsciScintilla::STYLE_MAX; ++i )
+            m_te->setFont( fixedFont, i );
 
-        m_te->SetTabWidth( 4 );
+        m_te->setTabWidth( 4 );
     }
 
     // Set up the brace highlighting.  Scintilla doesn't handle alpha, so we construct our own
@@ -133,25 +107,23 @@ void SCINTILLA_TRICKS::setupStyles()
     KIGFX::COLOR4D braceText = foreground;
     KIGFX::COLOR4D braceHighlight = braceText.Mix( background, 0.2 );
 
-    m_te->StyleSetForeground( wxSTC_STYLE_BRACELIGHT, highlightText.ToColour() );
-    m_te->StyleSetBackground( wxSTC_STYLE_BRACELIGHT, braceHighlight.ToColour() );
-    m_te->StyleSetForeground( wxSTC_STYLE_BRACEBAD, *wxRED );
+    m_te->setColor( highlightText.ToColour(), QsciScintilla::STYLE_BRACELIGHT );
+    m_te->setPaper( braceHighlight.ToColour(), QsciScintilla::STYLE_BRACELIGHT );
+    m_te->setColor( QColor( Qt::red ), QsciScintilla::STYLE_BRACEBAD );
 }
 
 
-bool isCtrlSlash( wxKeyEvent& aEvent )
+bool isCtrlSlash( QKeyEvent* aEvent )
 {
-    if( !aEvent.ControlDown() || aEvent.MetaDown() )
+    if( !( aEvent->modifiers() & Qt::ControlModifier ) || ( aEvent->modifiers() & Qt::MetaModifier ) )
         return false;
 
-    if( aEvent.GetUnicodeKey() == '/' )
+    if( aEvent->text() == "/" )
         return true;
 
-    // OK, now the wxWidgets hacks start.
-    // (We should abandon these if https://trac.wxwidgets.org/ticket/18911 gets resolved.)
-
+    // OK, now the keyboard layout hacks start.
     // Many Latin America and European keyboards have have the / over the 7.  We know that
-    // wxWidgets messes this up and returns Shift+7 through GetUnicodeKey().  However, other
+    // some systems mess this up and return Shift+7 through the key event.  However, other
     // keyboards (such as France and Belgium) have 7 in the shifted position, so a Shift+7
     // *could* be legitimate.
 
@@ -162,7 +134,7 @@ bool isCtrlSlash( wxKeyEvent& aEvent )
     // The other main shifted location of / is over : (France and Belgium), so we'll sacrifice
     // Ctrl+Shift+: too.
 
-    if( aEvent.ShiftDown() && ( aEvent.GetUnicodeKey() == '7' || aEvent.GetUnicodeKey() == ':' ) )
+    if( ( aEvent->modifiers() & Qt::ShiftModifier ) && ( aEvent->text() == "7" || aEvent->text() == ":" ) )
         return true;
 
     // A few keyboards have / in an Alt position.  Since we're expressly not checking Alt for
@@ -173,129 +145,136 @@ bool isCtrlSlash( wxKeyEvent& aEvent )
 }
 
 
-void SCINTILLA_TRICKS::onChar( wxStyledTextEvent& aEvent )
+void SCINTILLA_TRICKS::onChar( QKeyEvent& aEvent )
 {
     m_onCharAddedFn( aEvent );
 }
 
 
-void SCINTILLA_TRICKS::onModified( wxStyledTextEvent& aEvent )
+void SCINTILLA_TRICKS::onModified()
 {
     if( m_singleLine )
     {
-        wxString curr_text = m_te->GetText();
+        QString curr_text = m_te->text();
 
-        if( curr_text.Contains( wxS( "\n" ) ) || curr_text.Contains( wxS( "\r" ) ) )
+        if( curr_text.contains( "\n" ) || curr_text.contains( "\r" ) )
         {
-            // Scintilla won't allow us to call SetText() from within this event processor,
+            // Scintilla won't allow us to call setText() from within this event processor,
             // so we have to delay the processing.
-            CallAfter( [this]()
+            QTimer::singleShot( 0, [this]()
                        {
-                           wxString text = m_te->GetText();
-                           int currpos = m_te->GetCurrentPos();
+                           QString text = m_te->text();
+                           int line, index;
+                           m_te->getCursorPosition( &line, &index );
 
-                           text.Replace( wxS( "\n" ), wxS( "" ) );
-                           text.Replace( wxS( "\r" ), wxS( "" ) );
-                           m_te->SetText( text );
-                           m_te->GotoPos( currpos-1 );
+                           text.replace( "\n", "" );
+                           text.replace( "\r", "" );
+                           m_te->setText( text );
+                           m_te->setCursorPosition( line, index > 0 ? index - 1 : 0 );
                        } );
         }
     }
 
-    if( m_singleLine || m_te->GetCurrentLine() == 0 )
+    int line, index;
+    m_te->getCursorPosition( &line, &index );
+    if( m_singleLine || line == 0 )
     {
         // If the font is larger than the height of a single-line text box we can get issues
         // with the text disappearing every other character due to dodgy scrolling behaviour.
-        CallAfter( [this]()
+        QTimer::singleShot( 0, [this]()
                    {
-                       m_te->ScrollToStart();
+                       m_te->ensureCursorVisible();
+                       m_te->ensureLineVisible( 0 );
                    } );
     }
 }
 
 
-void SCINTILLA_TRICKS::onCharHook( wxKeyEvent& aEvent )
+void SCINTILLA_TRICKS::onCharHook( QKeyEvent& aEvent )
 {
-    wxString c = aEvent.GetUnicodeKey();
+    QString c = aEvent.text();
 
-    if( m_te->AutoCompActive() )
+    if( m_te->isListActive() )
     {
-        if( aEvent.GetKeyCode() == WXK_ESCAPE )
+        if( aEvent.key() == Qt::Key_Escape )
         {
-            m_te->AutoCompCancel();
+            m_te->cancelList();
             m_suppressAutocomplete = true; // Don't run autocomplete again on the next char...
         }
-        else if( aEvent.GetKeyCode() == WXK_RETURN || aEvent.GetKeyCode() == WXK_NUMPAD_ENTER )
+        else if( aEvent.key() == Qt::Key_Return || aEvent.key() == Qt::Key_Enter )
         {
-            int start = m_te->AutoCompPosStart();
+            int line, index;
+            m_te->getCursorPosition( &line, &index );
+            int start = m_te->positionFromLineIndex( line, 0 );
 
-            m_te->AutoCompComplete();
+            // QScintilla handles autocomplete internally
 
-            int finish = m_te->GetCurrentPos();
+            int finish;
+            m_te->getCursorPosition( &line, &index );
+            finish = m_te->positionFromLineIndex( line, index );
 
             if( finish > start )
             {
                 // Select the last substitution token (if any) in the autocompleted text
+                QString text = m_te->text( line );
+                int selStart = text.indexOf( "<", index );
+                int selEnd = text.indexOf( ">", selStart + 1 );
 
-                int selStart = m_te->FindText( finish, start, "<" );
-                int selEnd = m_te->FindText( finish, start, ">" );
-
-                if( selStart > start && selEnd <= finish && selEnd > selStart )
-                    m_te->SetSelection( selStart, selEnd + 1 );
+                if( selStart >= 0 && selEnd > selStart )
+                {
+                    int startPos = m_te->positionFromLineIndex( line, selStart );
+                    int endPos = m_te->positionFromLineIndex( line, selEnd + 1 );
+                    m_te->setSelection( startPos, endPos );
+                }
             }
         }
         else
         {
-            aEvent.Skip();
+            // Let QScintilla handle the event
         }
 
         return;
     }
 
-#ifdef __WXMAC__
-    if( aEvent.GetModifiers() == wxMOD_RAW_CONTROL && aEvent.GetKeyCode() == WXK_SPACE )
+#ifdef __APPLE__
+    if( aEvent.modifiers() == Qt::MetaModifier && aEvent.key() == Qt::Key_Space )
 #else
-    if( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == WXK_SPACE )
+    if( aEvent.modifiers() == Qt::ControlModifier && aEvent.key() == Qt::Key_Space )
 #endif
     {
         m_suppressAutocomplete = false;
 
-        wxStyledTextEvent event;
-        event.SetKey( ' ' );
-        event.SetModifiers( wxMOD_CONTROL );
+        QKeyEvent event( QEvent::KeyPress, Qt::Key_Space, Qt::ControlModifier, " " );
         m_onCharAddedFn( event );
 
         return;
     }
 
-    if( !isalpha( aEvent.GetKeyCode() ) )
+    if( !aEvent.text().isEmpty() && !aEvent.text().at(0).isLetter() )
         m_suppressAutocomplete = false;
 
-    if( ( aEvent.GetKeyCode() == WXK_RETURN || aEvent.GetKeyCode() == WXK_NUMPAD_ENTER )
-        && ( m_singleLine || aEvent.ShiftDown() ) )
+    if( ( aEvent.key() == Qt::Key_Return || aEvent.key() == Qt::Key_Enter )
+        && ( m_singleLine || ( aEvent.modifiers() & Qt::ShiftModifier ) ) )
     {
         m_onAcceptFn( aEvent );
     }
     else if( ConvertSmartQuotesAndDashes( &c ) )
     {
-        m_te->AddText( c );
+        m_te->insert( c );
     }
-    else if( aEvent.GetKeyCode() == WXK_TAB )
+    else if( aEvent.key() == Qt::Key_Tab )
     {
-        wxWindow* ancestor = m_te->GetParent();
+        QWidget* ancestor = m_te->parentWidget();
 
         while( ancestor && !dynamic_cast<WX_GRID*>( ancestor ) )
-            ancestor = ancestor->GetParent();
+            ancestor = ancestor->parentWidget();
 
-        if( aEvent.ControlDown() )
+        if( aEvent.modifiers() & Qt::ControlModifier )
         {
-            int flags = 0;
+            bool forward = !( aEvent.modifiers() & Qt::ShiftModifier );
 
-            if( !aEvent.ShiftDown() )
-                flags |= wxNavigationKeyEvent::IsForward;
-
-            if( DIALOG_SHIM* dlg = dynamic_cast<DIALOG_SHIM*>( wxGetTopLevelParent( m_te ) ) )
-                dlg->NavigateIn( flags );
+            if( DIALOG_SHIM* dlg = dynamic_cast<DIALOG_SHIM*>( m_te->window() ) )
+                dlg->NavigateIn( forward ? 1 : 0 );
         }
         else if( dynamic_cast<WX_GRID*>( ancestor ) )
         {
@@ -303,7 +282,7 @@ void SCINTILLA_TRICKS::onCharHook( wxKeyEvent& aEvent )
             int      row = grid->GetGridCursorRow();
             int      col = grid->GetGridCursorCol();
 
-            if( aEvent.ShiftDown() )
+            if( aEvent.modifiers() & Qt::ShiftModifier )
             {
                 if( col > 0 )
                 {
@@ -340,178 +319,193 @@ void SCINTILLA_TRICKS::onCharHook( wxKeyEvent& aEvent )
         }
         else
         {
-            m_te->Tab();
+            m_te->indent();
         }
     }
-    else if( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == 'Z' )
+    else if( aEvent.modifiers() == Qt::ControlModifier && aEvent.key() == Qt::Key_Z )
     {
-        m_te->Undo();
+        m_te->undo();
     }
-    else if( ( aEvent.GetModifiers() == wxMOD_SHIFT+wxMOD_CONTROL && aEvent.GetKeyCode() == 'Z' )
-            || ( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == 'Y' ) )
+    else if( ( aEvent.modifiers() == ( Qt::ShiftModifier | Qt::ControlModifier ) && aEvent.key() == Qt::Key_Z )
+            || ( aEvent.modifiers() == Qt::ControlModifier && aEvent.key() == Qt::Key_Y ) )
     {
-        m_te->Redo();
+        m_te->redo();
     }
-    else if( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == 'A' )
+    else if( aEvent.modifiers() == Qt::ControlModifier && aEvent.key() == Qt::Key_A )
     {
-        m_te->SelectAll();
+        m_te->selectAll();
     }
-    else if( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == 'X' )
+    else if( aEvent.modifiers() == Qt::ControlModifier && aEvent.key() == Qt::Key_X )
     {
-        m_te->Cut();
+        m_te->cut();
 
-        if( wxTheClipboard->Open() )
+        QClipboard* clipboard = QApplication::clipboard();
+        // Allow data to be available after closing KiCad by ensuring clipboard is flushed
+    }
+    else if( aEvent.modifiers() == Qt::ControlModifier && aEvent.key() == Qt::Key_C )
+    {
+        m_te->copy();
+
+        QClipboard* clipboard = QApplication::clipboard();
+        // Allow data to be available after closing KiCad by ensuring clipboard is flushed
+    }
+    else if( aEvent.modifiers() == Qt::ControlModifier && aEvent.key() == Qt::Key_V )
+    {
+        if( m_te->hasSelectedText() )
+            m_te->removeSelectedText();
+
+        QClipboard* clipboard = QApplication::clipboard();
+
+        if( clipboard->mimeData()->hasText() )
         {
-            wxTheClipboard->Flush(); // Allow data to be available after closing KiCad
-            wxTheClipboard->Close();
-        }
-    }
-    else if( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == 'C' )
-    {
-        m_te->Copy();
+            QString str = clipboard->text();
 
-        if( wxTheClipboard->Open() )
-        {
-            wxTheClipboard->Flush(); // Allow data to be available after closing KiCad
-            wxTheClipboard->Close();
-        }
-    }
-    else if( aEvent.GetModifiers() == wxMOD_CONTROL && aEvent.GetKeyCode() == 'V' )
-    {
-        if( m_te->GetSelectionEnd() > m_te->GetSelectionStart() )
-            m_te->DeleteBack();
+            ConvertSmartQuotesAndDashes( &str );
 
-        wxLogNull doNotLog; // disable logging of failed clipboard actions
-
-        if( wxTheClipboard->Open() )
-        {
-            if( wxTheClipboard->IsSupported( wxDF_TEXT ) ||
-                wxTheClipboard->IsSupported( wxDF_UNICODETEXT ) )
+            if( m_singleLine )
             {
-                wxTextDataObject data;
-                wxString         str;
-
-                wxTheClipboard->GetData( data );
-                str = data.GetText();
-
-                ConvertSmartQuotesAndDashes( &str );
-
-                if( m_singleLine )
-                {
-                    str.Replace( wxS( "\n" ), wxEmptyString );
-                    str.Replace( wxS( "\r" ), wxEmptyString );
-                }
-
-                m_te->BeginUndoAction();
-                m_te->AddText( str );
-                m_te->EndUndoAction();
+                str.replace( "\n", QString() );
+                str.replace( "\r", QString() );
             }
 
-            wxTheClipboard->Close();
+            m_te->beginUndoAction();
+            m_te->insert( str );
+            m_te->endUndoAction();
         }
     }
-    else if( aEvent.GetKeyCode() == WXK_BACK )
+    else if( aEvent.key() == Qt::Key_Backspace )
     {
-        if( aEvent.GetModifiers() == wxMOD_CONTROL )
-#ifdef __WXMAC__
-            m_te->HomeExtend();
-        else if( aEvent.GetModifiers() == wxMOD_ALT )
+        if( aEvent.modifiers() == Qt::ControlModifier )
+#ifdef __APPLE__
+            m_te->setSelection( m_te->positionFromLineIndex( m_te->getCursorPosition(), 0 ), m_te->SendScintilla( QsciScintilla::SCI_GETCURRENTPOS ) );
+        else if( aEvent.modifiers() == Qt::AltModifier )
 #endif
-            m_te->WordLeftExtend();
-
-        m_te->DeleteBack();
-    }
-    else if( aEvent.GetKeyCode() == WXK_DELETE )
-    {
-        if( m_te->GetSelectionEnd() == m_te->GetSelectionStart() )
         {
-#ifndef __WXMAC__
-            if( aEvent.GetModifiers() == wxMOD_CONTROL )
-                m_te->WordRightExtend();
+            int line, index;
+            m_te->getCursorPosition( &line, &index );
+            int wordStart = m_te->SendScintilla( QsciScintilla::SCI_WORDSTARTPOSITION, m_te->positionFromLineIndex( line, index ), true );
+            m_te->setSelection( wordStart, m_te->positionFromLineIndex( line, index ) );
+        }
+
+        m_te->removeSelectedText();
+    }
+    else if( aEvent.key() == Qt::Key_Delete )
+    {
+        if( !m_te->hasSelectedText() )
+        {
+#ifndef __APPLE__
+            if( aEvent.modifiers() == Qt::ControlModifier )
+            {
+                int line, index;
+                m_te->getCursorPosition( &line, &index );
+                int wordEnd = m_te->SendScintilla( QsciScintilla::SCI_WORDENDPOSITION, m_te->positionFromLineIndex( line, index ), true );
+                m_te->setSelection( m_te->positionFromLineIndex( line, index ), wordEnd );
+            }
             else
 #endif
-                m_te->CharRightExtend();
+            {
+                int line, index;
+                m_te->getCursorPosition( &line, &index );
+                int pos = m_te->positionFromLineIndex( line, index );
+                m_te->setSelection( pos, pos + 1 );
+            }
         }
 
-        if( m_te->GetSelectionEnd() > m_te->GetSelectionStart() )
-            m_te->DeleteBack();
+        if( m_te->hasSelectedText() )
+            m_te->removeSelectedText();
     }
-    else if( isCtrlSlash( aEvent ) )
+    else if( isCtrlSlash( &aEvent ) )
     {
-        int  startLine = m_te->LineFromPosition( m_te->GetSelectionStart() );
-        int  endLine = m_te->LineFromPosition( m_te->GetSelectionEnd() );
+        int startLine, startIndex, endLine, endIndex;
+        m_te->getSelection( &startLine, &startIndex, &endLine, &endIndex );
         bool comment = firstNonWhitespace( startLine ) != '#';
         int  whitespaceCount;
 
-        m_te->BeginUndoAction();
+        m_te->beginUndoAction();
 
         for( int ii = startLine; ii <= endLine; ++ii )
         {
             if( comment )
-                m_te->InsertText( m_te->PositionFromLine( ii ), wxT( "#" ) );
+            {
+                int lineStart = m_te->positionFromLineIndex( ii, 0 );
+                m_te->SendScintilla( QsciScintilla::SCI_INSERTTEXT, lineStart, "#" );
+            }
             else if( firstNonWhitespace( ii, &whitespaceCount ) == '#' )
-                m_te->DeleteRange( m_te->PositionFromLine( ii ) + whitespaceCount, 1 );
+            {
+                int lineStart = m_te->positionFromLineIndex( ii, 0 );
+                m_te->SendScintilla( QsciScintilla::SCI_DELETERANGE, lineStart + whitespaceCount, 1 );
+            }
         }
 
-        m_te->SetSelection( m_te->PositionFromLine( startLine ),
-                            m_te->PositionFromLine( endLine ) + m_te->GetLineLength( endLine ) );
+        int startPos = m_te->positionFromLineIndex( startLine, 0 );
+        int endPos = m_te->positionFromLineIndex( endLine, m_te->text( endLine ).length() );
+        m_te->setSelection( startPos, endPos );
 
-        m_te->EndUndoAction();
+        m_te->endUndoAction();
     }
-#ifdef __WXMAC__
-    else if( aEvent.GetModifiers() == wxMOD_RAW_CONTROL && aEvent.GetKeyCode() == 'A' )
+#ifdef __APPLE__
+    else if( aEvent.modifiers() == Qt::MetaModifier && aEvent.key() == Qt::Key_A )
     {
-        m_te->HomeWrap();
+        int line, index;
+        m_te->getCursorPosition( &line, &index );
+        m_te->setCursorPosition( line, 0 );
     }
-    else if( aEvent.GetModifiers() == wxMOD_RAW_CONTROL && aEvent.GetKeyCode() == 'E' )
+    else if( aEvent.modifiers() == Qt::MetaModifier && aEvent.key() == Qt::Key_E )
     {
-        m_te->LineEndWrap();
+        int line, index;
+        m_te->getCursorPosition( &line, &index );
+        m_te->setCursorPosition( line, m_te->text( line ).length() );
     }
-    else if( ( aEvent.GetModifiers() & wxMOD_RAW_CONTROL ) && aEvent.GetKeyCode() == 'B' )
+    else if( ( aEvent.modifiers() & Qt::MetaModifier ) && aEvent.key() == Qt::Key_B )
     {
-        if( aEvent.GetModifiers() & wxMOD_ALT )
-            m_te->WordLeft();
+        if( aEvent.modifiers() & Qt::AltModifier )
+            m_te->SendScintilla( QsciScintilla::SCI_WORDLEFT );
         else
-            m_te->CharLeft();
+            m_te->SendScintilla( QsciScintilla::SCI_CHARLEFT );
     }
-    else if( ( aEvent.GetModifiers() & wxMOD_RAW_CONTROL ) && aEvent.GetKeyCode() == 'F' )
+    else if( ( aEvent.modifiers() & Qt::MetaModifier ) && aEvent.key() == Qt::Key_F )
     {
-        if( aEvent.GetModifiers() & wxMOD_ALT )
-            m_te->WordRight();
+        if( aEvent.modifiers() & Qt::AltModifier )
+            m_te->SendScintilla( QsciScintilla::SCI_WORDRIGHT );
         else
-            m_te->CharRight();
+            m_te->SendScintilla( QsciScintilla::SCI_CHARRIGHT );
     }
-    else if( aEvent.GetModifiers() == wxMOD_RAW_CONTROL && aEvent.GetKeyCode() == 'D' )
+    else if( aEvent.modifiers() == Qt::MetaModifier && aEvent.key() == Qt::Key_D )
     {
-        if( m_te->GetSelectionEnd() == m_te->GetSelectionStart() )
-            m_te->CharRightExtend();
+        if( !m_te->hasSelectedText() )
+        {
+            int line, index;
+            m_te->getCursorPosition( &line, &index );
+            int pos = m_te->positionFromLineIndex( line, index );
+            m_te->setSelection( pos, pos + 1 );
+        }
 
-        if( m_te->GetSelectionEnd() > m_te->GetSelectionStart() )
-            m_te->DeleteBack();
+        if( m_te->hasSelectedText() )
+            m_te->removeSelectedText();
     }
 #endif
-    else if( aEvent.GetKeyCode() == WXK_SPECIAL20 )
+    else if( aEvent.key() == Qt::Key_F21 )
     {
-        // Proxy for a wxSysColourChangedEvent
+        // Proxy for a system color changed event
         setupStyles();
     }
     else
     {
-        aEvent.Skip();
+        // Let QScintilla handle the event
     }
 }
 
 
 int SCINTILLA_TRICKS::firstNonWhitespace( int aLine, int* aWhitespaceCharCount )
 {
-    int lineStart = m_te->PositionFromLine( aLine );
+    QString lineText = m_te->text( aLine );
 
     if( aWhitespaceCharCount )
         *aWhitespaceCharCount = 0;
 
-    for( int ii = 0; ii < m_te->GetLineLength( aLine ); ++ii )
+    for( int ii = 0; ii < lineText.length(); ++ii )
     {
-        int c = m_te->GetCharAt( lineStart + ii );
+        QChar c = lineText.at( ii );
 
         if( c == ' ' || c == '\t' )
         {
@@ -522,7 +516,7 @@ int SCINTILLA_TRICKS::firstNonWhitespace( int aLine, int* aWhitespaceCharCount )
         }
         else
         {
-            return c;
+            return c.unicode();
         }
     }
 
@@ -530,17 +524,22 @@ int SCINTILLA_TRICKS::firstNonWhitespace( int aLine, int* aWhitespaceCharCount )
 }
 
 
-void SCINTILLA_TRICKS::onScintillaUpdateUI( wxStyledTextEvent& aEvent )
+void SCINTILLA_TRICKS::onScintillaUpdateUI()
 {
-    auto isBrace = [this]( int c ) -> bool
+    auto isBrace = [this]( QChar c ) -> bool
                    {
-                       return m_braces.Find( (wxChar) c ) >= 0;
+                       return m_braces.indexOf( c ) >= 0;
                    };
 
     // Has the caret changed position?
-    int caretPos = m_te->GetCurrentPos();
-    int selStart = m_te->GetSelectionStart();
-    int selEnd = m_te->GetSelectionEnd();
+    int line, index;
+    m_te->getCursorPosition( &line, &index );
+    int caretPos = m_te->positionFromLineIndex( line, index );
+    
+    int selStartLine, selStartIndex, selEndLine, selEndIndex;
+    m_te->getSelection( &selStartLine, &selStartIndex, &selEndLine, &selEndIndex );
+    int selStart = m_te->positionFromLineIndex( selStartLine, selStartIndex );
+    int selEnd = m_te->positionFromLineIndex( selEndLine, selEndIndex );
 
     if( m_lastCaretPos != caretPos || m_lastSelStart != selStart || m_lastSelEnd != selEnd )
     {
@@ -551,86 +550,91 @@ void SCINTILLA_TRICKS::onScintillaUpdateUI( wxStyledTextEvent& aEvent )
         int bracePos2 = -1;
 
         // Is there a brace to the left or right?
-        if( caretPos > 0 && isBrace( m_te->GetCharAt( caretPos-1 ) ) )
-            bracePos1 = ( caretPos - 1 );
-        else if( isBrace( m_te->GetCharAt( caretPos ) ) )
+        QString text = m_te->text();
+        if( caretPos > 0 && caretPos - 1 < text.length() && isBrace( text.at( caretPos - 1 ) ) )
+            bracePos1 = caretPos - 1;
+        else if( caretPos < text.length() && isBrace( text.at( caretPos ) ) )
             bracePos1 = caretPos;
 
         if( bracePos1 >= 0 )
         {
             // Find the matching brace
-            bracePos2 = m_te->BraceMatch( bracePos1 );
+            bracePos2 = m_te->SendScintilla( QsciScintilla::SCI_BRACEMATCH, bracePos1, 0 );
 
             if( bracePos2 == -1 )
             {
-                m_te->BraceBadLight( bracePos1 );
-                m_te->SetHighlightGuide( 0 );
+                m_te->SendScintilla( QsciScintilla::SCI_BRACEBADLIGHT, bracePos1 );
+                m_te->SendScintilla( QsciScintilla::SCI_SETHIGHLIGHTGUIDE, 0 );
             }
             else
             {
-                m_te->BraceHighlight( bracePos1, bracePos2 );
-                m_te->SetHighlightGuide( m_te->GetColumn( bracePos1 ) );
+                m_te->SendScintilla( QsciScintilla::SCI_BRACEHIGHLIGHT, bracePos1, bracePos2 );
+                int column = m_te->SendScintilla( QsciScintilla::SCI_GETCOLUMN, bracePos1 );
+                m_te->SendScintilla( QsciScintilla::SCI_SETHIGHLIGHTGUIDE, column );
             }
         }
         else
         {
             // Turn off brace matching
-            m_te->BraceHighlight( -1, -1 );
-            m_te->SetHighlightGuide( 0 );
+            m_te->SendScintilla( QsciScintilla::SCI_BRACEHIGHLIGHT, -1, -1 );
+            m_te->SendScintilla( QsciScintilla::SCI_SETHIGHLIGHTGUIDE, 0 );
         }
     }
 }
 
 
 void SCINTILLA_TRICKS::DoTextVarAutocomplete(
-        const std::function<void( const wxString& xRef, wxArrayString* tokens )>& getTokensFn )
+        const std::function<void( const QString& xRef, QStringList* tokens )>& getTokensFn )
 {
-    wxArrayString autocompleteTokens;
-    int           text_pos = m_te->GetCurrentPos();
-    int           start = m_te->WordStartPosition( text_pos, true );
-    wxString      partial;
+    QStringList autocompleteTokens;
+    int line, index;
+    m_te->getCursorPosition( &line, &index );
+    int text_pos = m_te->positionFromLineIndex( line, index );
+    int start = m_te->SendScintilla( QsciScintilla::SCI_WORDSTARTPOSITION, text_pos, true );
+    QString partial;
 
+    QString fullText = m_te->text();
     auto textVarRef =
-            [&]( int pos )
+            [&]( int pos ) -> bool
             {
-                return pos >= 2 && m_te->GetCharAt( pos-2 ) == '$'
-                                && m_te->GetCharAt( pos-1 ) == '{';
+                return pos >= 2 && pos - 2 < fullText.length() && pos - 1 < fullText.length()
+                       && fullText.at( pos - 2 ) == '$'
+                       && fullText.at( pos - 1 ) == '{';
             };
 
     // Check for cross-reference
-    if( start > 1 && m_te->GetCharAt( start-1 ) == ':' )
+    if( start > 1 && start - 1 < fullText.length() && fullText.at( start - 1 ) == ':' )
     {
-        int refStart = m_te->WordStartPosition( start-1, true );
+        int refStart = m_te->SendScintilla( QsciScintilla::SCI_WORDSTARTPOSITION, start - 1, true );
 
         if( textVarRef( refStart ) )
         {
-            partial = m_te->GetRange( start, text_pos );
-            getTokensFn( m_te->GetRange( refStart, start-1 ), &autocompleteTokens );
+            partial = fullText.mid( start, text_pos - start );
+            getTokensFn( fullText.mid( refStart, start - 1 - refStart ), &autocompleteTokens );
         }
     }
     else if( textVarRef( start ) )
     {
-        partial = m_te->GetTextRange( start, text_pos );
-        getTokensFn( wxEmptyString, &autocompleteTokens );
+        partial = fullText.mid( start, text_pos - start );
+        getTokensFn( QString(), &autocompleteTokens );
     }
 
     DoAutocomplete( partial, autocompleteTokens );
-    m_te->SetFocus();
+    m_te->setFocus();
 }
 
 
-void SCINTILLA_TRICKS::DoAutocomplete( const wxString& aPartial, const wxArrayString& aTokens )
+void SCINTILLA_TRICKS::DoAutocomplete( const QString& aPartial, const QStringList& aTokens )
 {
     if( m_suppressAutocomplete )
         return;
 
-    wxArrayString matchedTokens;
+    QStringList matchedTokens;
 
-    wxString filter = wxT( "*" ) + aPartial.Lower() + wxT( "*" );
-
-    for( const wxString& token : aTokens )
+    for( const QString& token : aTokens )
     {
-        if( token.Lower().Matches( filter ) )
+        // Using simple contains check for string matching
+        if( token.toLower().contains( aPartial.toLower() ) )
             matchedTokens.push_back( token );
     }
 
@@ -638,19 +642,31 @@ void SCINTILLA_TRICKS::DoAutocomplete( const wxString& aPartial, const wxArraySt
     {
         // NB: tokens MUST be in alphabetical order because the Scintilla engine is going
         // to do a binary search on them
-        matchedTokens.Sort( []( const wxString& first, const wxString& second ) -> int
-                            {
-                                return first.CmpNoCase( second );
-                            });
+        std::sort( matchedTokens.begin(), matchedTokens.end(),
+                   []( const QString& first, const QString& second ) -> bool
+                   {
+                       return first.compare( second, Qt::CaseInsensitive ) < 0;
+                   });
 
-        m_te->AutoCompSetSeparator( '\t' );
-        m_te->AutoCompShow( aPartial.size(), wxJoin( matchedTokens, '\t' ) );
+        m_te->SendScintilla( QsciScintilla::SCI_AUTOCSETSEPARATOR, '\t' );
+        m_te->SendScintilla( QsciScintilla::SCI_AUTOCSHOW, aPartial.size(), matchedTokens.join( '\t' ).toLatin1().data() );
     }
 }
 
 
 void SCINTILLA_TRICKS::CancelAutocomplete()
 {
-    m_te->AutoCompCancel();
+    m_te->SendScintilla( QsciScintilla::SCI_AUTOCCANCEL );
 }
 
+
+bool SCINTILLA_TRICKS::eventFilter( QObject* obj, QEvent* event )
+{
+    if( obj == m_te && event->type() == QEvent::KeyPress )
+    {
+        QKeyEvent* keyEvent = static_cast<QKeyEvent*>( event );
+        onCharHook( *keyEvent );
+        return false; // Let QScintilla also handle the event
+    }
+    return QObject::eventFilter( obj, event );
+}

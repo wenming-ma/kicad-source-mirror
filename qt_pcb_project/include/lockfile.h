@@ -1,39 +1,14 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-/**
- * File locking utilities
- * @file lockfile.h
- */
 
 #ifndef INCLUDE__LOCK_FILE_H_
 #define INCLUDE__LOCK_FILE_H_
 
-#include <wx/wx.h>
-#include <wx/file.h>
-#include <wx/filefn.h>
-#include <wx/log.h>
-#include <wx/filename.h>
+#include <QFile>
+#include <QDir>
+#include <QFileInfo>
+#include <QStandardPaths>
+#include <QDebug>
+#include <QString>
+#include <QTextStream>
 #include <json_common.h>
 #include <wildcards_and_files_ext.h>
 
@@ -42,41 +17,45 @@
 class LOCKFILE
 {
 public:
-    LOCKFILE( const wxString &filename, bool aRemoveOnRelease = true ) :
+    LOCKFILE( const QString &filename, bool aRemoveOnRelease = true ) :
             m_originalFile( filename ), m_fileCreated( false ), m_status( false ),
             m_removeOnRelease( aRemoveOnRelease ), m_errorMsg( "" )
     {
-        if( filename.IsEmpty() )
+        if( filename.isEmpty() )
             return;
 
-        wxLogTrace( LCK, "Trying to lock %s", filename );
-        wxFileName fn( filename );
-        fn.SetName( FILEEXT::LockFilePrefix + fn.GetName() );
-        fn.SetExt( fn.GetExt() + '.' + FILEEXT::LockFileExtension );
+        qDebug() << "Trying to lock" << filename;
+        QFileInfo fn( filename );
+        QString lockName = FILEEXT::LockFilePrefix + fn.baseName();
+        QString lockExt = fn.suffix() + '.' + FILEEXT::LockFileExtension;
+        QString lockPath = fn.path() + "/" + lockName + "." + lockExt;
 
-        if( !fn.IsDirWritable() )
+        QFileInfo dirInfo( fn.path() );
+        if( !dirInfo.isWritable() )
         {
-            wxLogTrace( LCK, "File is not writable: %s", filename );
+            qDebug() << "File is not writable:" << filename;
             m_status = true;
             m_removeOnRelease = false;
             return;
         }
 
-        m_lockFilename = fn.GetFullPath();
+        m_lockFilename = lockPath;
 
-        wxFile file;
+        QFile file;
         try
         {
             bool lock_success = false;
             bool rw_success = false;
 
             {
-                wxLogNull suppressExpectedErrorMessages;
-
-                lock_success = file.Open( m_lockFilename, wxFile::write_excl );
+                file.setFileName( m_lockFilename );
+                lock_success = file.open( QIODevice::WriteOnly | QIODevice::NewOnly );
 
                 if( !lock_success )
-                    rw_success = file.Open( m_lockFilename, wxFile::read );
+                {
+                    file.setFileName( m_lockFilename );
+                    rw_success = file.open( QIODevice::ReadOnly );
+                }
             }
 
             if( lock_success )
@@ -84,27 +63,31 @@ public:
                 // Lock file doesn't exist, create one
                 m_fileCreated = true;
                 m_status = true;
-                m_username = wxGetUserId();
-                m_hostname = wxGetHostName();
+                m_username = QString::fromLocal8Bit( qgetenv("USER") );
+                if( m_username.isEmpty() )
+                    m_username = QString::fromLocal8Bit( qgetenv("USERNAME") );
+                m_hostname = QString::fromLocal8Bit( qgetenv("COMPUTERNAME") );
+                if( m_hostname.isEmpty() )
+                    m_hostname = QString::fromLocal8Bit( qgetenv("HOSTNAME") );
                 nlohmann::json j;
-                j["username"] = std::string( m_username.mb_str() );
-                j["hostname"] = std::string( m_hostname.mb_str() );
+                j["username"] = m_username.toStdString();
+                j["hostname"] = m_hostname.toStdString();
                 std::string lock_info = j.dump();
-                file.Write( lock_info );
-                file.Close();
-                wxLogTrace( LCK, "Locked %s", filename );
+                file.write( lock_info.c_str() );
+                file.close();
+                qDebug() << "Locked" << filename;
             }
             else if( rw_success )
             {
                 // Lock file already exists, read the details
-                wxString lock_info;
-                file.ReadAll( &lock_info );
-                nlohmann::json j = nlohmann::json::parse( std::string( lock_info.mb_str() ) );
-                m_username = wxString( j["username"].get<std::string>() );
-                m_hostname = wxString( j["hostname"].get<std::string>() );
-                file.Close();
-                m_errorMsg = _( "Lock file already exists" );
-                wxLogTrace( LCK, "Existing Lock for %s", filename );
+                QByteArray lockData = file.readAll();
+                QString lock_info = QString::fromUtf8( lockData );
+                nlohmann::json j = nlohmann::json::parse( lock_info.toStdString() );
+                m_username = QString::fromStdString( j["username"].get<std::string>() );
+                m_hostname = QString::fromStdString( j["hostname"].get<std::string>() );
+                file.close();
+                m_errorMsg = "Lock file already exists";
+                qDebug() << "Existing Lock for" << filename;
             }
             else
             {
@@ -113,16 +96,16 @@ public:
         }
         catch( std::exception& e )
         {
-            wxLogError( "Got an error trying to lock %s: %s", filename, e.what() );
+            qDebug() << "Got an error trying to lock" << filename << ":" << e.what();
 
             // Delete lock file if it was created above but we threw an exception somehow
             if( m_fileCreated )
             {
-                wxRemoveFile( m_lockFilename );
-                m_fileCreated = false; // Reset the flag since file has been deleted manually
+                QFile::remove( m_lockFilename );
+                m_fileCreated = false;
             }
 
-            m_errorMsg = _( "Failed to access lock file" );
+            m_errorMsg = "Failed to access lock file";
             m_status = false;
         }
     }
@@ -132,62 +115,58 @@ public:
         UnlockFile();
     }
 
-    /**
-     * Unlock and remove the file from the filesystem as long as we still own it.
-     */
     void UnlockFile()
     {
-        wxLogTrace( LCK, "Unlocking %s", m_lockFilename );
+        qDebug() << "Unlocking" << m_lockFilename;
 
         // Delete lock file only if the file was created in the constructor and if the file
         // contains the correct user and host names.
         if( m_fileCreated && checkUserAndHost() )
         {
             if( m_removeOnRelease )
-                wxRemoveFile( m_lockFilename );
+                QFile::remove( m_lockFilename );
 
-            m_fileCreated = false; // Reset the flag since file has been deleted manually
+            m_fileCreated = false;
             m_status = false;
-            m_errorMsg = wxEmptyString;
+            m_errorMsg = QString();
         }
     }
 
-    /**
-     * Force the lock, overwriting the data that existed already.
-     *
-     * @return True if we successfully overrode the lock
-     */
     bool OverrideLock( bool aRemoveOnRelease = true )
     {
-        wxLogTrace( LCK, "Overriding lock on %s", m_lockFilename );
+        qDebug() << "Overriding lock on" << m_lockFilename;
 
         if( !m_fileCreated )
         {
             try
             {
-                wxFile file;
+                QFile file;
                 bool success = false;
 
                 {
-                    wxLogNull suppressExpectedErrorMessages;
-                    success = file.Open( m_lockFilename, wxFile::write );
+                    file.setFileName( m_lockFilename );
+                    success = file.open( QIODevice::WriteOnly );
                 }
 
                 if( success )
                 {
-                    m_username = wxGetUserId();
-                    m_hostname = wxGetHostName();
+                    m_username = QString::fromLocal8Bit( qgetenv("USER") );
+                    if( m_username.isEmpty() )
+                        m_username = QString::fromLocal8Bit( qgetenv("USERNAME") );
+                    m_hostname = QString::fromLocal8Bit( qgetenv("COMPUTERNAME") );
+                    if( m_hostname.isEmpty() )
+                        m_hostname = QString::fromLocal8Bit( qgetenv("HOSTNAME") );
                     nlohmann::json j;
-                    j["username"] = std::string( m_username.mb_str() );
-                    j["hostname"] = std::string( m_hostname.mb_str() );
+                    j["username"] = m_username.toStdString();
+                    j["hostname"] = m_hostname.toStdString();
                     std::string lock_info = j.dump();
-                    file.Write( lock_info );
-                    file.Close();
+                    file.write( lock_info.c_str() );
+                    file.close();
                     m_fileCreated = true;
                     m_status = true;
                     m_removeOnRelease = aRemoveOnRelease;
-                    m_errorMsg = wxEmptyString;
-                    wxLogTrace( LCK, "Successfully overrode lock on %s", m_lockFilename );
+                    m_errorMsg = QString();
+                    qDebug() << "Successfully overrode lock on" << m_lockFilename;
                     return true;
                 }
 
@@ -195,15 +174,14 @@ public:
             }
             catch( std::exception& e )
             {
-                wxLogError( "Got exception trying to override lock on %s: %s",
-                            m_lockFilename, e.what() );
+                qDebug() << "Got exception trying to override lock on" << m_lockFilename << ":" << e.what();
 
                 return false;
             }
         }
         else
         {
-            wxLogTrace( LCK, "Upgraded lock on %s to delete on release", m_lockFilename );
+            qDebug() << "Upgraded lock on" << m_lockFilename << "to delete on release";
             m_removeOnRelease = aRemoveOnRelease;
         }
 
@@ -212,25 +190,20 @@ public:
 
     bool IsLockedByMe()
     {
-        return m_username == wxGetUserId() && m_hostname == wxGetHostName();
+        QString currentUser = QString::fromLocal8Bit( qgetenv("USER") );
+        if( currentUser.isEmpty() )
+            currentUser = QString::fromLocal8Bit( qgetenv("USERNAME") );
+        QString currentHost = QString::fromLocal8Bit( qgetenv("COMPUTERNAME") );
+        if( currentHost.isEmpty() )
+            currentHost = QString::fromLocal8Bit( qgetenv("HOSTNAME") );
+        return m_username == currentUser && m_hostname == currentHost;
     }
 
-    /**
-     * @return Current username.  If we own the lock, this is us.  Otherwise, this is the user
-     *         that does own it.
-     */
-    wxString GetUsername(){ return m_username; }
+    QString GetUsername(){ return m_username; }
 
-    /**
-     * @return Current hostname.  If we own the lock this is our computer.  Otherwise, this is
-     *         the computer that does.
-     */
-    wxString GetHostname(){ return m_hostname; }
+    QString GetHostname(){ return m_hostname; }
 
-    /**
-     * @return Last error message generated.
-     */
-    wxString GetErrorMsg(){ return m_errorMsg; }
+    QString GetErrorMsg(){ return m_errorMsg; }
 
     bool Locked() const
     {
@@ -248,51 +221,50 @@ public:
     }
 
 private:
-    wxString m_originalFile;
-    wxString m_lockFilename;
-    wxString m_username;
-    wxString m_hostname;
+    QString m_originalFile;
+    QString m_lockFilename;
+    QString m_username;
+    QString m_hostname;
     bool m_fileCreated;
     bool m_status;
     bool m_removeOnRelease;
-    wxString m_errorMsg;
+    QString m_errorMsg;
 
     bool checkUserAndHost()
     {
-        wxFileName fileName( m_lockFilename );
+        QFileInfo fileName( m_lockFilename );
 
-        if( !fileName.FileExists() )
+        if( !fileName.exists() )
         {
-            wxLogTrace( LCK, "File does not exist: %s", m_lockFilename );
+            qDebug() << "File does not exist:" << m_lockFilename;
             return false;
         }
 
-        wxFile file;
+        QFile file;
 
         try
         {
-            if( file.Open( m_lockFilename, wxFile::read ) )
+            file.setFileName( m_lockFilename );
+            if( file.open( QIODevice::ReadOnly ) )
             {
-                wxString lock_info;
-                file.ReadAll( &lock_info );
-                nlohmann::json j = nlohmann::json::parse( std::string( lock_info.mb_str() ) );
+                QByteArray lockData = file.readAll();
+                QString lock_info = QString::fromUtf8( lockData );
+                nlohmann::json j = nlohmann::json::parse( lock_info.toStdString() );
 
-                if( m_username == wxString( j["username"].get<std::string>() )
-                        && m_hostname == wxString( j["hostname"].get<std::string>() ) )
+                if( m_username == QString::fromStdString( j["username"].get<std::string>() )
+                        && m_hostname == QString::fromStdString( j["hostname"].get<std::string>() ) )
                 {
-                    wxLogTrace( LCK, "User and host match for lock %s", m_lockFilename );
+                    qDebug() << "User and host match for lock" << m_lockFilename;
                     return true;
                 }
             }
         }
         catch( std::exception &e )
         {
-            wxLogError( "Got exception trying to check user/host for lock on %s: %s",
-                        m_lockFilename,
-                        e.what() );
+            qDebug() << "Got exception trying to check user/host for lock on" << m_lockFilename << ":" << e.what();
         }
 
-        wxLogTrace( LCK, "User and host DID NOT match for lock %s", m_lockFilename );
+        qDebug() << "User and host DID NOT match for lock" << m_lockFilename;
         return false;
     }
 };

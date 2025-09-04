@@ -1,116 +1,62 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2020 Ian McInerney <ian.s.mcinerney at ieee dot org>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef BITMAP_BUTTON_H_
 #define BITMAP_BUTTON_H_
 
 #include <kicommon.h>
-#include <wx/bmpbndl.h>
-#include <wx/panel.h>
-#include <wx/colour.h>
+#include <QWidget>
+#include <QPixmap>
+#include <QColor>
+#include <QFont>
+#include <QSize>
+#include <QPoint>
+#include <QString>
+#include <QMouseEvent>
+#include <QPaintEvent>
+#include <QEvent>
+#include <QFocusEvent>
+#include <QObject>
 
 
-/**
- * A bitmap button widget that behaves like an AUI toolbar item's button when it is drawn.
- * Specifically:
- *     * It has no border
- *     * It has a rectangle highlight when the mouse is hovering/pressed
- *     * It has the ability to be checked/toggled
- */
-class KICOMMON_API BITMAP_BUTTON : public wxPanel
+class KICOMMON_API BITMAP_BUTTON : public QWidget
 {
+    Q_OBJECT
 public:
-    BITMAP_BUTTON( wxWindow* aParent, wxWindowID aId, const wxPoint& aPos = wxDefaultPosition,
-                   const wxSize& aSize = wxDefaultSize,
-                   int aStyles = wxBORDER_NONE | wxTAB_TRAVERSAL );
+    BITMAP_BUTTON( QWidget* aParent, int aId, const QPoint& aPos = QPoint(),
+                   const QSize& aSize = QSize(),
+                   int aStyles = 0 );
 
-    // For use with wxFormBuilder on a sub-classed wxBitmapButton
-    BITMAP_BUTTON( wxWindow* aParent, wxWindowID aId, const wxBitmap& aDummyBitmap,
-                   const wxPoint& aPos = wxDefaultPosition, const wxSize& aSize = wxDefaultSize,
-                   int aStyles = wxBORDER_NONE | wxTAB_TRAVERSAL );
+    BITMAP_BUTTON( QWidget* aParent, int aId, const QPixmap& aDummyBitmap,
+                   const QPoint& aPos = QPoint(), const QSize& aSize = QSize(),
+                   int aStyles = 0 );
 
     ~BITMAP_BUTTON();
 
-    /**
-     * Set the amount of padding present on each side of the bitmap.
-     *
-     * @param aPadding is the amount in px of padding for each side.
-     */
     void SetPadding( int aPadding );
 
-    /**
-     * Set the bitmap shown when the button is enabled.
-     *
-     * @param aBmp is the enabled bitmap.
-     */
-    void SetBitmap( const wxBitmapBundle& aBmp );
+    void SetBitmap( const QPixmap& aBmp );
 
-    /**
-     * Set the bitmap shown when the button is disabled.
-     *
-     * @param aBmp is the disabled bitmap.
-     */
-    void SetDisabledBitmap( const wxBitmapBundle& aBmp );
+    void SetDisabledBitmap( const QPixmap& aBmp );
 
-    /**
-     * Enable the button.
-     */
-    bool Enable( bool aEnable = true ) override;
+    void setEnabled( bool aEnable = true );
 
-    /**
-     * Setup the control as a two-state button (checked or unchecked).
-     */
     void SetIsCheckButton();
 
     void SetIsRadioButton();
 
-    /**
-     * Check the control. This is the equivalent to toggling a toolbar button.
-     */
     void Check( bool aCheck = true );
 
     bool IsChecked() const;
 
-    /**
-     * Render button as a toolbar separator.
-     *
-     * Also disables the button.  Bitmap, if set, is ignored.
-     */
     void SetIsSeparator();
 
-    /**
-     * Accept mouse-up as click even if mouse-down happened outside of the control
-     *
-     * @param aAcceptDragIn is true to allow drag in, false to ignore lone mouse-up events
-     */
     void AcceptDragInAsClick( bool aAcceptDragIn = true );
 
     void SetShowBadge( bool aShowBadge ) { m_showBadge = aShowBadge; }
 
-    void SetBadgeText( const wxString& aText ) { m_badgeText = aText; }
+    void SetBadgeText( const QString& aText ) { m_badgeText = aText; }
 
-    void SetBadgeColors( const wxColor& aBadgeColor, const wxColor& aBadgeTextColor )
+    void SetBadgeColors( const QColor& aBadgeColor, const QColor& aBadgeTextColor )
     {
         m_badgeColor = aBadgeColor;
         m_badgeTextColor = aBadgeTextColor;
@@ -124,19 +70,22 @@ public:
     void SetIsToolbarButton( bool aIsToolbar = true ) { m_isToolbarButton = aIsToolbar; }
     bool IsToolbarButton() const { return m_isToolbarButton; }
 
+signals:
+    void clicked();
+    void toggled( bool checked );
+
 protected:
     void setupEvents();
 
-    void OnMouseLeave( wxEvent& aEvent );
-    void OnMouseEnter( wxEvent& aEvent );
-    void OnKillFocus( wxEvent& aEvent );
-    void OnSetFocus( wxEvent& aEvent );
-    void OnLeftButtonUp( wxMouseEvent& aEvent );
-    void OnLeftButtonDown( wxMouseEvent& aEvent );
-    void OnPaint( wxPaintEvent& aEvent );
-    void OnDPIChanged( wxDPIChangedEvent& aEvent );
+    void leaveEvent( QEvent* aEvent ) override;
+    void enterEvent( QEvent* aEvent ) override;
+    void focusOutEvent( QFocusEvent* aEvent ) override;
+    void focusInEvent( QFocusEvent* aEvent ) override;
+    void mouseReleaseEvent( QMouseEvent* aEvent ) override;
+    void mousePressEvent( QMouseEvent* aEvent ) override;
+    void paintEvent( QPaintEvent* aEvent ) override;
 
-    virtual wxSize DoGetBestSize() const override;
+    virtual QSize sizeHint() const override;
 
     void setFlag( int aFlag )
     {
@@ -156,24 +105,21 @@ protected:
     void invalidateBestSize();
 
 private:
-    wxBitmapBundle m_normalBitmap;
-    wxBitmapBundle m_disabledBitmap;
+    QPixmap   m_normalBitmap;
+    QPixmap   m_disabledBitmap;
 
     bool      m_isRadioButton;
     bool      m_showBadge;
-    wxString  m_badgeText;
-    wxColor   m_badgeColor;
-    wxColor   m_badgeTextColor;
-    wxFont    m_badgeFont;
+    QString   m_badgeText;
+    QColor    m_badgeColor;
+    QColor    m_badgeTextColor;
+    QFont     m_badgeFont;
     int       m_buttonState;
     int       m_padding;
-    wxSize    m_unadjustedMinSize;
+    QSize     m_unadjustedMinSize;
     bool      m_isToolbarButton;
 
-    /// Accept mouse-up as click even if mouse-down happened outside of the control.
     bool      m_acceptDraggedInClicks;
-
-    /// Draw bitmap centered in the control.
     bool      m_centerBitmap;
 };
 

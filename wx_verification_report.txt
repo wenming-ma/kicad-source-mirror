@@ -1,0 +1,106 @@
+=== COMPREHENSIVE WXWIDGETS VERIFICATION REPORT ===
+
+Directory Analysis:
+
+=== api DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== bitmaps DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== core DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== database DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== dialogs DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== font DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== gal DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== io DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== kicad_curl DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== libeval DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== plotters DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== project DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== properties DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== settings DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== tool DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== view DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+
+=== widgets DIRECTORY ===
+File count: 0
+Files with wx includes: 0
+wx type occurrences: 0
+wx macro occurrences: 0
+

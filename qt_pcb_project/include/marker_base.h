@@ -1,32 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2009-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 
 #ifndef MARKER_BASE_H
 #define MARKER_BASE_H
 
 #include <memory>
+#include <QString>
 
 #include <rc_item.h>
 #include <gr_basic.h>
@@ -96,13 +73,13 @@ public:
     enum MARKER_T GetMarkerType() const { return m_markerType; }
 
     bool IsExcluded() const { return m_excluded; }
-    void SetExcluded( bool aExcluded, const wxString& aComment = wxEmptyString )
+    void SetExcluded( bool aExcluded, const QString& aComment = QString() )
     {
         m_excluded = aExcluded;
         m_comment = aComment;
     }
 
-    wxString GetComment() const { return m_comment; }
+    QString GetComment() const { return m_comment; }
 
     virtual SEVERITY GetSeverity() const { return RPT_SEVERITY_UNDEFINED; }
 
@@ -142,7 +119,7 @@ public:
 protected:
     MARKER_T            m_markerType;          ///< The type of marker.
     bool                m_excluded;            ///< User has excluded this specific error.
-    wxString            m_comment;             ///< User supplied comment.
+    QString             m_comment;             ///< User supplied comment.
     std::shared_ptr<RC_ITEM> m_rcItem;
 
     int                 m_scalingFactor;       ///< Scaling factor to convert corners coordinates

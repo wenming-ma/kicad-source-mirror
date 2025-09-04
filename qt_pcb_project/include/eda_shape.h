@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #pragma once
 
@@ -88,9 +65,9 @@ public:
     //void Serialize( google::protobuf::Any &aContainer ) const override;
     //bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
-    wxString ShowShape() const;
+    QString ShowShape() const;
 
-    wxString SHAPE_T_asString() const;
+    QString SHAPE_T_asString() const;
 
     virtual bool IsProxyItem() const { return m_proxyItem; }
     virtual void SetIsProxyItem( bool aIsProxy = true ) { m_proxyItem = aIsProxy; }
@@ -131,9 +108,6 @@ public:
     void SetShape( SHAPE_T aShape )            { m_shape = aShape; }
     SHAPE_T GetShape() const                   { return m_shape; }
 
-    /**
-     * Return the starting point of the graphic.
-     */
     const VECTOR2I& GetStart() const { return m_start; }
     int             GetStartY() const { return m_start.y; }
     int             GetStartX() const { return m_start.x; }
@@ -168,9 +142,6 @@ public:
         m_start.x = x;
     }
 
-    /**
-     * Return the ending point of the graphic.
-     */
     const VECTOR2I& GetEnd() const { return m_end; }
     int             GetEndY() const { return m_end.y; }
     int             GetEndX() const { return m_end.x; }
@@ -215,24 +186,12 @@ public:
     VECTOR2I getCenter() const;
     void     SetCenter( const VECTOR2I& aCenter );
 
-    /**
-     * Set the end point from the angle center and start.
-     *
-     * aAngle is:
-     * - clockwise in right-down coordinate system
-     * - counter-clockwise in right-up (libedit) coordinate system.
-     */
     void SetArcAngleAndEnd( const EDA_ANGLE& aAngle, bool aCheckNegativeAngle = false );
 
     EDA_ANGLE GetArcAngle() const;
 
     EDA_ANGLE GetSegmentAngle() const;
 
-    /**
-     * Have the start and end points been swapped since they were set?
-     *
-     * @return true if they have.
-     */
     bool EndsSwapped() const { return m_endsSwapped; }
 
     // Some attributes are read only, since they are derived from m_Start, m_End, and m_Angle.
@@ -242,59 +201,25 @@ public:
     std::vector<VECTOR2I> GetRectCorners() const;
     std::vector<VECTOR2I> GetCornersInSequence( EDA_ANGLE angle ) const;
 
-    /**
-     * Calc arc start and end angles such that aStartAngle < aEndAngle.  Each may be between
-     * -360.0 and 360.0.
-     */
     void CalcArcAngles( EDA_ANGLE& aStartAngle, EDA_ANGLE& aEndAngle ) const;
 
     int GetRadius() const;
 
-    /**
-     * Set the three controlling points for an arc.
-     *
-     * NB: these are NOT what's currently stored, so we have to do some calculations behind
-     * the scenes.  However, they are what SHOULD be stored.
-     */
     void SetArcGeometry( const VECTOR2I& aStart, const VECTOR2I& aMid, const VECTOR2I& aEnd );
 
-    /**
-     * Set the data used for mid point caching.
-     *
-     * If the controlling points remain constant, then we keep the midpoint the same as it was
-     * when read in.  This minimizes VCS churn.
-     *
-     * @param aStart Cached start point.
-     * @param aMid Cached mid point.
-     * @param aEnd Cached end point.
-     * @param aCenter Calculated center point using the preceeding three.
-     */
     void SetCachedArcData( const VECTOR2I& aStart, const VECTOR2I& aMid, const VECTOR2I& aEnd,
                            const VECTOR2I& aCenter );
 
     const std::vector<VECTOR2I>& GetBezierPoints() const { return m_bezierPoints; }
 
-    /**
-     * Duplicate the list of corners in a std::vector<VECTOR2I>.
-     *
-     * It must be used only to convert the SHAPE_POLY_SET internal corner buffer
-     * to a list of VECTOR2Is, and nothing else, because it duplicates the buffer,
-     * that is inefficient to know for instance the corner count.
-     */
     void DupPolyPointsList( std::vector<VECTOR2I>& aBuffer ) const;
 
-    /**
-     * @return the number of corners of the polygonal shape.
-     */
     int GetPointCount() const;
 
     // Accessors to the polygonal shape
     SHAPE_POLY_SET& GetPolyShape() { return m_poly; }
     const SHAPE_POLY_SET& GetPolyShape() const { return m_poly; }
 
-    /**
-     * @return true if the polygonal shape is valid (has more than 2 points).
-     */
     bool IsPolyShapeValid() const;
 
     void SetPolyShape( const SHAPE_POLY_SET& aShape )
@@ -313,24 +238,8 @@ public:
 
     void SetPolyPoints( const std::vector<VECTOR2I>& aPoints );
 
-    /**
-     * Rebuild the m_bezierPoints vertex list that approximate the Bezier curve by a list of
-     * segments.
-     *
-     * Has meaning only for #BEZIER shape.
-     *
-     * @param aMinSegLen is the max deviation between the polyline and the curve.
-     */
     void RebuildBezierToSegmentsPointsList( int aMaxError );
 
-    /**
-     * Make a set of SHAPE objects representing the #EDA_SHAPE.
-     *
-     * Caller owns the objects.
-     *
-     * @param aEdgeOnly indicates only edges should be generated (even if 0 width), and no fill
-     *                  shapes.
-     */
     virtual std::vector<SHAPE*> MakeEffectiveShapes( bool aEdgeOnly = false ) const
     {
         return makeEffectiveShapes( aEdgeOnly );
@@ -350,26 +259,11 @@ public:
 
     bool IsClockwiseArc() const;
 
-    /**
-     * @return the length of the segment using the hypotenuse calculation.
-     */
     double GetLength() const;
 
     int GetRectangleHeight() const;
     int GetRectangleWidth() const;
 
-    /**
-     * Convert the shape to a closed polygon.
-     *
-     * Circles and arcs are approximated by segments.
-     *
-     * @param aBuffer is a buffer to store the polygon.
-     * @param aClearance is the clearance around the pad.
-     * @param aError is the maximum deviation from a true arc.
-     * @param aErrorLoc whether any approximation error should be placed inside or outside
-     * @param ignoreLineWidth is used for edge cut items where the line width is only for
-     *                        visualization
-     */
     void TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, int aClearance, int aError,
                                   ERROR_LOC aErrorLoc, bool ignoreLineWidth = false ) const;
 
@@ -380,7 +274,7 @@ public:
     bool operator==( const EDA_SHAPE& aOther ) const;
 
 protected:
-    wxString getFriendlyName() const;
+    QString getFriendlyName() const;
 
     void     setPosition( const VECTOR2I& aPos );
     VECTOR2I getPosition() const;
@@ -410,25 +304,9 @@ protected:
     bool continueEdit( const VECTOR2I& aPosition );
     void calcEdit( const VECTOR2I& aPosition );
 
-    /**
-     * Finish editing the shape.
-     *
-     * @param aClosed Should polygon shapes be closed (yes for pcbnew/fpeditor, no for libedit).
-     */
     void endEdit( bool aClosed = true );
     void setEditState( int aState ) { m_editState = aState; }
 
-    /**
-     * Make a set of #SHAPE objects representing the #EDA_SHAPE.
-     *
-     * Caller owns the objects.
-     *
-     * @param aEdgeOnly indicates only edges should be generated (even if 0 width), and no fill
-     *                  shapes.
-     * @param aLineChainOnly indicates #SHAPE_POLY_SET is being abused slightly to represent a
-     *                       lineChain rather than a closed polygon.
-     */
-    // fixme: move to shape_compound
     std::vector<SHAPE*> makeEffectiveShapes( bool aEdgeOnly, bool aLineChainOnly = false ) const;
 
     virtual int getMaxError() const { return 100; }
@@ -463,7 +341,3 @@ protected:
                                                //   number box, thermal spoke template, etc.)
 };
 
-#ifndef SWIG
-DECLARE_ENUM_TO_WXANY( SHAPE_T );
-DECLARE_ENUM_TO_WXANY( LINE_STYLE );
-#endif

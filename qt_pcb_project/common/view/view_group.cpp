@@ -1,35 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- *
- */
 
-/**
- * @file view_group.cpp
- * @brief VIEW_GROUP extends VIEW_ITEM by possibility of grouping items into a single object.
- * VIEW_GROUP does not take over ownership of the held items. The main purpose of this class is
- * to group items and draw them on a single layer (in particular the overlay).
- */
 
 #include <set>
 #include <core/kicad_algo.h>
@@ -55,9 +24,9 @@ VIEW_GROUP::~VIEW_GROUP()
 }
 
 
-wxString VIEW_GROUP::GetClass() const
+QString VIEW_GROUP::GetClass() const
 {
-    return wxT( "VIEW_GROUP" );
+    return "VIEW_GROUP";
 }
 
 
@@ -131,7 +100,8 @@ void VIEW_GROUP::ViewDraw( int aLayer, VIEW* aView ) const
 
         for( auto layer : layers )
         {
-            wxCHECK2_MSG( layer <= LAYER_ID_COUNT, continue, wxT( "Invalid item layer" ) );
+            Q_ASSERT( layer <= LAYER_ID_COUNT );  // Invalid item layer
+            if( layer > LAYER_ID_COUNT ) continue;
             layer_item_map[ layer ].push_back( item );
         }
     }

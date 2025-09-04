@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2023 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <dialog_shim.h>
 #include <core/ignore.h>
@@ -31,26 +7,39 @@
 #include <tool/tool_manager.h>
 #include <kiplatform/ui.h>
 
-#include <wx/display.h>
-#include <wx/evtloop.h>
-#include <wx/app.h>
-#include <wx/event.h>
-#include <wx/grid.h>
-#include <wx/bmpbuttn.h>
-#include <wx/textctrl.h>
-#include <wx/stc/stc.h>
+#include <QApplication>
+#include <QWidget>
+#include <QDialog>
+#include <QTextEdit>
+#include <QLineEdit>
+#include <QEventLoop>
+#include <QKeyEvent>
+#include <QCloseEvent>
+#include <QPaintEvent>
+#include <QResizeEvent>
+#include <QMoveEvent>
+#include <QFocusEvent>
+#include <QRect>
+#include <QPoint>
+#include <QSize>
+#include <QHash>
+#include <QLayout>
+#include <QPushButton>
+#include <QSizePolicy>
+#include <QTextCursor>
+#include <QDesktopWidget>
+#include <QDialogButtonBox>
+#include <QAbstractButton>
+#include <QList>
+#include <QtGlobal>
 
 #include <algorithm>
 
-BEGIN_EVENT_TABLE( DIALOG_SHIM, wxDialog )
-    EVT_CHAR_HOOK( DIALOG_SHIM::OnCharHook )
-END_EVENT_TABLE()
 
-
-DIALOG_SHIM::DIALOG_SHIM( wxWindow* aParent, wxWindowID id, const wxString& title,
-                          const wxPoint& pos, const wxSize& size, long style,
-                          const wxString& name ) :
-        wxDialog( aParent, id, title, pos, size, style, name ),
+DIALOG_SHIM::DIALOG_SHIM( QWidget* aParent, int id, const QString& title,
+                          const QPoint& pos, const QSize& size, long style,
+                          const QString& name ) :
+        QDialog( aParent ),
         KIWAY_HOLDER( nullptr, KIWAY_HOLDER::DIALOG ),
         m_units( EDA_UNITS::MM ),
         m_useCalculatedSize( false ),
@@ -66,6 +55,11 @@ DIALOG_SHIM::DIALOG_SHIM( wxWindow* aParent, wxWindowID id, const wxString& titl
 {
     KIWAY_HOLDER* kiwayHolder = nullptr;
     m_initialSize = size;
+    setWindowTitle( title );
+    if( pos != QPoint() )
+        move( pos );
+    if( size != QSize() )
+        resize( size );
 
     if( aParent )
     {
@@ -101,10 +95,6 @@ DIALOG_SHIM::DIALOG_SHIM( wxWindow* aParent, wxWindowID id, const wxString& titl
     if( HasKiway() )
         Kiway().SetBlockingDialog( this );
 
-    Bind( wxEVT_CLOSE_WINDOW, &DIALOG_SHIM::OnCloseWindow, this );
-    Bind( wxEVT_BUTTON, &DIALOG_SHIM::OnButton, this );
-    Bind( wxEVT_SIZE, &DIALOG_SHIM::OnSize, this );
-    Bind( wxEVT_MOVE, &DIALOG_SHIM::OnMove, this );
 
 #ifdef __WINDOWS__
     // On Windows, the app top windows can be brought to the foreground (at least temporarily)
@@ -114,7 +104,6 @@ DIALOG_SHIM::DIALOG_SHIM( wxWindow* aParent, wxWindowID id, const wxString& titl
         Pgm().App().SetTopWindow( (EDA_BASE_FRAME*) kiwayHolder );
 #endif
 
-    Bind( wxEVT_PAINT, &DIALOG_SHIM::OnPaint, this );
 }
 
 
@@ -122,41 +111,34 @@ DIALOG_SHIM::~DIALOG_SHIM()
 {
     m_isClosing = true;
 
-    Unbind( wxEVT_CLOSE_WINDOW, &DIALOG_SHIM::OnCloseWindow, this );
-    Unbind( wxEVT_BUTTON, &DIALOG_SHIM::OnButton, this );
-    Unbind( wxEVT_PAINT, &DIALOG_SHIM::OnPaint, this );
-    Unbind( wxEVT_SIZE, &DIALOG_SHIM::OnSize, this );
-    Unbind( wxEVT_MOVE, &DIALOG_SHIM::OnMove, this );
 
-    std::function<void( wxWindowList& )> disconnectFocusHandlers =
-            [&]( wxWindowList& children )
+    std::function<void( const QList<QWidget*>& )> disconnectFocusHandlers =
+            [&]( const QList<QWidget*>& children )
             {
-                for( wxWindow* child : children )
+                for( QWidget* child : children )
                 {
-                    if( wxTextCtrl* textCtrl = dynamic_cast<wxTextCtrl*>( child ) )
+                    if( QLineEdit* textCtrl = qobject_cast<QLineEdit*>( child ) )
                     {
-                        textCtrl->Disconnect( wxEVT_SET_FOCUS,
-                                              wxFocusEventHandler( DIALOG_SHIM::onChildSetFocus ),
-                                              nullptr, this );
+                        disconnect( textCtrl, &QWidget::focusInEvent,
+                                    this, &DIALOG_SHIM::onChildSetFocus );
                     }
-                    else if( wxStyledTextCtrl* scintilla = dynamic_cast<wxStyledTextCtrl*>( child ) )
+                    else if( QTextEdit* textEdit = qobject_cast<QTextEdit*>( child ) )
                     {
-                        scintilla->Disconnect( wxEVT_SET_FOCUS,
-                                               wxFocusEventHandler( DIALOG_SHIM::onChildSetFocus ),
-                                               nullptr, this );
+                        disconnect( textEdit, &QWidget::focusInEvent,
+                                    this, &DIALOG_SHIM::onChildSetFocus );
                     }
                     else
                     {
-                        disconnectFocusHandlers( child->GetChildren() );
+                        disconnectFocusHandlers( child->findChildren<QWidget*>() );
                     }
                 }
             };
 
-    disconnectFocusHandlers( GetChildren() );
+    disconnectFocusHandlers( findChildren<QWidget*>() );
 
     // if the dialog is quasi-modal, this will end its event loop
     if( IsQuasiModal() )
-        EndQuasiModal( wxID_CANCEL );
+        EndQuasiModal( QDialog::Rejected );
 
     if( HasKiway() )
         Kiway().SetBlockingDialog( nullptr );
@@ -172,28 +154,27 @@ void DIALOG_SHIM::finishDialogSettings()
 
     // SetSizeHints fixes the minimal size of sizers in the dialog
     // (SetSizeHints calls Fit(), so no need to call it)
-    GetSizer()->SetSizeHints( this );
+    if( layout() )
+        layout()->setSizeConstraint( QLayout::SetMinimumSize );
 }
 
 
 void DIALOG_SHIM::setSizeInDU( int x, int y )
 {
-    wxSize sz( x, y );
-    SetSize( ConvertDialogToPixels( sz ) );
+    QSize sz( x, y );
+    resize( sz );
 }
 
 
 int DIALOG_SHIM::horizPixelsFromDU( int x ) const
 {
-    wxSize sz( x, 0 );
-    return ConvertDialogToPixels( sz ).x;
+    return x;
 }
 
 
 int DIALOG_SHIM::vertPixelsFromDU( int y ) const
 {
-    wxSize sz( 0, y );
-    return ConvertDialogToPixels( sz ).y;
+    return y;
 }
 
 
@@ -201,33 +182,33 @@ int DIALOG_SHIM::vertPixelsFromDU( int y ) const
 #include <hashtables.h>
 #include <typeinfo>
 
-static std::unordered_map<std::string, wxRect> class_map;
+static QHash<QString, QRect> class_map;
 
 
-void DIALOG_SHIM::SetPosition( const wxPoint& aNewPosition )
+void DIALOG_SHIM::SetPosition( const QPoint& aNewPosition )
 {
-    wxDialog::SetPosition( aNewPosition );
+    move( aNewPosition );
 
     // Now update the stored position:
-    const char* hash_key;
+    QString hash_key;
 
     if( m_hash_key.size() )
     {
         // a special case like EDA_LIST_DIALOG, which has multiple uses.
-        hash_key = m_hash_key.c_str();
+        hash_key = m_hash_key;
     }
     else
     {
-        hash_key = typeid(*this).name();
+        hash_key = QString::fromUtf8( typeid(*this).name() );
     }
 
-    std::unordered_map<std::string, wxRect>::iterator it = class_map.find( hash_key );
+    auto it = class_map.find( hash_key );
 
     if( it == class_map.end() )
         return;
 
-    wxRect rect = it->second;
-    rect.SetPosition( aNewPosition );
+    QRect rect = it.value();
+    rect.moveTopLeft( aNewPosition );
 
     class_map[ hash_key ] = rect;
 }
@@ -236,64 +217,66 @@ void DIALOG_SHIM::SetPosition( const wxPoint& aNewPosition )
 bool DIALOG_SHIM::Show( bool show )
 {
     bool        ret;
-    const char* hash_key;
+    QString hash_key;
 
     if( m_hash_key.size() )
     {
         // a special case like EDA_LIST_DIALOG, which has multiple uses.
-        hash_key = m_hash_key.c_str();
+        hash_key = m_hash_key;
     }
     else
     {
-        hash_key = typeid(*this).name();
+        hash_key = QString::fromUtf8( typeid(*this).name() );
     }
 
     // Show or hide the window.  If hiding, save current position and size.
     // If showing, use previous position and size.
     if( show )
     {
-#ifndef __WINDOWS__
-        wxDialog::Raise();  // Needed on OS X and some other window managers (i.e. Unity)
+#ifndef Q_OS_WIN
+        raise();
 #endif
-        ret = wxDialog::Show( show );
+        ret = setVisible( show );
 
-        // classname is key, returns a zeroed-out default wxRect if none existed before.
-        wxRect savedDialogRect = class_map[ hash_key ];
+        // classname is key, returns a zeroed-out default QRect if none existed before.
+        QRect savedDialogRect = class_map[ hash_key ];
 
-        if( savedDialogRect.GetSize().x != 0 && savedDialogRect.GetSize().y != 0 )
+        if( savedDialogRect.size().width() != 0 && savedDialogRect.size().height() != 0 )
         {
             if( m_useCalculatedSize )
             {
-                SetSize( savedDialogRect.GetPosition().x, savedDialogRect.GetPosition().y,
-                         wxDialog::GetSize().x, wxDialog::GetSize().y, 0 );
+                setGeometry( savedDialogRect.topLeft().x(), savedDialogRect.topLeft().y(),
+                           size().width(), size().height() );
             }
             else
             {
-                SetSize( savedDialogRect.GetPosition().x, savedDialogRect.GetPosition().y,
-                         std::max( wxDialog::GetSize().x, savedDialogRect.GetSize().x ),
-                         std::max( wxDialog::GetSize().y, savedDialogRect.GetSize().y ),
-                         0 );
+                setGeometry( savedDialogRect.topLeft().x(), savedDialogRect.topLeft().y(),
+                           std::max( size().width(), savedDialogRect.size().width() ),
+                           std::max( size().height(), savedDialogRect.size().height() ) );
             }
-#ifdef __WXMAC__
-            if( m_parent != nullptr )
+#ifdef Q_OS_MAC
+            if( parentWidget() != nullptr )
             {
-                if( wxDisplay::GetFromPoint( m_parent->GetPosition() )
-                    != wxDisplay::GetFromPoint( savedDialogRect.GetPosition() ) )
-                    Centre();
+                QRect parentRect = parentWidget()->geometry();
+                if( QApplication::desktop()->screenNumber( parentRect.center() )
+                    != QApplication::desktop()->screenNumber( savedDialogRect.center() ) )
+                {
+                    move( QApplication::desktop()->availableGeometry().center() - rect().center() );
+                }
             }
 #endif
         }
-        else if( m_initialSize != wxDefaultSize )
+        else if( m_initialSize != QSize() )
         {
-            SetSize( m_initialSize );
-            Centre();
+            resize( m_initialSize );
+            move( QApplication::desktop()->availableGeometry().center() - rect().center() );
         }
 
         // Be sure that the dialog appears in a visible area
         // (the dialog position might have been stored at the time when it was
         // shown on another display)
-        if( wxDisplay::GetFromWindow( this ) == wxNOT_FOUND )
-            Centre();
+        if( QApplication::desktop()->screenNumber( this ) == -1 )
+            move( QApplication::desktop()->availableGeometry().center() - rect().center() );
 
         m_userPositioned = false;
         m_userResized = false;
@@ -303,25 +286,25 @@ bool DIALOG_SHIM::Show( bool show )
         // Save the dialog's position & size before hiding, using classname as key.
         // Be careful of rounding errors: only re-save if the user modified the value or
         // it has not yet been saved.
-        wxRect rect = class_map[ hash_key ];
+        QRect rect = class_map[ hash_key ];
 
-        if( m_userPositioned || rect.GetPosition() == wxPoint() )
-            rect.SetPosition( wxDialog::GetPosition() );
+        if( m_userPositioned || rect.topLeft() == QPoint() )
+            rect.moveTopLeft( pos() );
 
-        if( m_userResized || rect.GetSize() == wxSize() )
-            rect.SetSize( wxDialog::GetSize() );
+        if( m_userResized || rect.size() == QSize() )
+            rect.setSize( size() );
 
         class_map[ hash_key ] = rect;
 
-#ifdef __WXMAC__
+#ifdef Q_OS_MAC
         if ( m_eventLoop )
-            m_eventLoop->Exit( GetReturnCode() );   // Needed for APP-MODAL dlgs on OSX
+            m_eventLoop->exit( result() );
 #endif
 
-        ret = wxDialog::Show( show );
+        ret = setVisible( show );
 
-        if( m_parent )
-            m_parent->SetFocus();
+        if( parentWidget() )
+            parentWidget()->setFocus();
     }
 
     return ret;
@@ -330,131 +313,125 @@ bool DIALOG_SHIM::Show( bool show )
 
 void DIALOG_SHIM::resetSize()
 {
-    const char* hash_key;
+    QString hash_key;
 
     if( m_hash_key.size() )
     {
         // a special case like EDA_LIST_DIALOG, which has multiple uses.
-        hash_key = m_hash_key.c_str();
+        hash_key = m_hash_key;
     }
     else
     {
-        hash_key = typeid(*this).name();
+        hash_key = QString::fromUtf8( typeid(*this).name() );
     }
 
-    std::unordered_map<std::string, wxRect>::iterator it = class_map.find( hash_key );
+    auto it = class_map.find( hash_key );
 
     if( it == class_map.end() )
         return;
 
-    wxRect rect = it->second;
-    rect.SetSize( wxSize( 0, 0 ) );
+    QRect rect = it.value();
+    rect.setSize( QSize( 0, 0 ) );
     class_map[ hash_key ] = rect;
 }
 
 
-void DIALOG_SHIM::OnSize( wxSizeEvent& aEvent )
+void DIALOG_SHIM::resizeEvent( QResizeEvent* aEvent )
 {
     m_userResized = true;
-    aEvent.Skip();
+    aEvent->accept();
 }
 
 
-void DIALOG_SHIM::OnMove( wxMoveEvent& aEvent )
+void DIALOG_SHIM::moveEvent( QMoveEvent* aEvent )
 {
     m_userPositioned = true;
-    aEvent.Skip();
+    aEvent->accept();
 }
 
 
 bool DIALOG_SHIM::Enable( bool enable )
 {
     // so we can do logging of this state change:
-    return wxDialog::Enable( enable );
+    setEnabled( enable );
+    return isEnabled();
 }
 
 
-// Recursive descent doing a SelectAll() in wxTextCtrls.
+// Recursive descent doing a SelectAll() in text controls.
 // MacOS User Interface Guidelines state that when tabbing to a text control all its
-// text should be selected.  Since wxWidgets fails to implement this, we do it here.
-void DIALOG_SHIM::SelectAllInTextCtrls( wxWindowList& children )
+// text should be selected.
+void DIALOG_SHIM::SelectAllInTextCtrls( const QList<QWidget*>& children )
 {
-    for( wxWindow* child : children )
+    for( QWidget* child : children )
     {
-        if( wxTextCtrl* textCtrl = dynamic_cast<wxTextCtrl*>( child ) )
+        if( QLineEdit* textCtrl = qobject_cast<QLineEdit*>( child ) )
         {
-            m_beforeEditValues[ textCtrl ] = textCtrl->GetValue();
-            textCtrl->Connect( wxEVT_SET_FOCUS, wxFocusEventHandler( DIALOG_SHIM::onChildSetFocus ),
-                               nullptr, this );
+            m_beforeEditValues[ textCtrl ] = textCtrl->text();
+            connect( textCtrl, &QWidget::focusInEvent,
+                     this, &DIALOG_SHIM::onChildSetFocus );
 
             // We don't currently run this on GTK because some window managers don't hide the
             // selection in non-active controls, and other window managers do the selection
             // automatically anyway.
-#if defined( __WXMAC__ ) || defined( __WXMSW__ )
-            if( !textCtrl->GetStringSelection().IsEmpty() )
+#if defined( Q_OS_MAC ) || defined( Q_OS_WIN )
+            if( !textCtrl->selectedText().isEmpty() )
             {
                 // Respect an existing selection
             }
-            else if( textCtrl->IsEditable() )
+            else if( !textCtrl->isReadOnly() )
             {
-                textCtrl->SelectAll();
+                textCtrl->selectAll();
             }
 #else
             ignore_unused( textCtrl );
 #endif
         }
-        else if( wxStyledTextCtrl* scintilla = dynamic_cast<wxStyledTextCtrl*>( child ) )
+        else if( QTextEdit* textEdit = qobject_cast<QTextEdit*>( child ) )
         {
-            m_beforeEditValues[ scintilla ] = scintilla->GetText();
-            scintilla->Connect( wxEVT_SET_FOCUS,
-                                wxFocusEventHandler( DIALOG_SHIM::onChildSetFocus ),
-                                nullptr, this );
+            m_beforeEditValues[ textEdit ] = textEdit->toPlainText();
+            connect( textEdit, &QWidget::focusInEvent,
+                     this, &DIALOG_SHIM::onChildSetFocus );
 
-            if( !scintilla->GetSelectedText().IsEmpty() )
+            if( !textEdit->textCursor().selectedText().isEmpty() )
             {
                 // Respect an existing selection
             }
-            else if( scintilla->GetMarginWidth( 0 ) > 0 )
+            else if( !textEdit->isReadOnly() )
             {
-                // Don't select-all in Custom Rules, etc.
-            }
-            else if( scintilla->IsEditable() )
-            {
-                scintilla->SelectAll();
+                textEdit->selectAll();
             }
         }
-#ifdef __WXMAC__
-        // Temp hack for square (looking) buttons on OSX.  Will likely be made redundant
-        // by the image store....
-        else if( dynamic_cast<wxBitmapButton*>( child ) != nullptr )
+#ifdef Q_OS_MAC
+        else if( QPushButton* button = qobject_cast<QPushButton*>( child ) )
         {
-            wxSize minSize( 29, 27 );
-            wxRect rect = child->GetRect();
+            QSize minSize( 29, 27 );
+            QRect rect = child->geometry();
 
-            child->ConvertDialogToPixels( minSize );
+            rect = rect.adjusted( -std::max( 0, minSize.width() - rect.width() ) / 2,
+                                  -std::max( 0, minSize.height() - rect.height() ) / 2,
+                                  std::max( 0, minSize.width() - rect.width() ) / 2,
+                                  std::max( 0, minSize.height() - rect.height() ) / 2 );
 
-            rect.Inflate( std::max( 0, minSize.x - rect.GetWidth() ),
-                          std::max( 0, minSize.y - rect.GetHeight() ) );
-
-            child->SetMinSize( rect.GetSize() );
-            child->SetSize( rect );
+            child->setMinimumSize( rect.size() );
+            child->setGeometry( rect );
         }
 #endif
         else
         {
-            SelectAllInTextCtrls( child->GetChildren() );
+            SelectAllInTextCtrls( child->findChildren<QWidget*>() );
         }
     }
 }
 
 
-void DIALOG_SHIM::OnPaint( wxPaintEvent &event )
+void DIALOG_SHIM::paintEvent( QPaintEvent* event )
 {
     if( m_firstPaintEvent )
     {
         KIPLATFORM::UI::FixupCancelButtonCmdKeyCollision( this );
 
-        SelectAllInTextCtrls( GetChildren() );
+        SelectAllInTextCtrls( findChildren<QWidget*>() );
 
         if( m_initialFocusTarget )
             KIPLATFORM::UI::ForceFocus( m_initialFocusTarget );
@@ -464,21 +441,21 @@ void DIALOG_SHIM::OnPaint( wxPaintEvent &event )
         m_firstPaintEvent = false;
     }
 
-    event.Skip();
+    event->accept();
 }
 
 
 void DIALOG_SHIM::OnModify()
 {
-    if( !GetTitle().StartsWith( wxS( "*" ) ) )
-        SetTitle( wxS( "*" ) + GetTitle() );
+    if( !windowTitle().startsWith( "*" ) )
+        setWindowTitle( "*" + windowTitle() );
 }
 
 
 void DIALOG_SHIM::ClearModify()
 {
-    if( GetTitle().StartsWith( wxS( "*" ) ) )
-        SetTitle( GetTitle().AfterFirst( '*' ) );
+    if( windowTitle().startsWith( "*" ) )
+        setWindowTitle( windowTitle().mid( 1 ) );
 }
 
 int DIALOG_SHIM::ShowModal()
@@ -489,33 +466,21 @@ int DIALOG_SHIM::ShowModal()
     // window when it is raised.
     KIPLATFORM::UI::ReparentModal( this );
 
-    // Call the base class ShowModal() method
-    return wxDialog::ShowModal();
+    // Call the base class exec() method
+    return exec();
 }
 
 /*
     QuasiModal Mode Explained:
 
-    The gtk calls in wxDialog::ShowModal() cause event routing problems if that
-    modal dialog then tries to use KIWAY_PLAYER::ShowModal().  The latter shows up
-    and mostly works but does not respond to the window decoration close button.
-    There is no way to get around this without reversing the gtk calls temporarily.
-
-    There are also issues with the Scintilla text editor putting up autocomplete
-    popups, which appear behind the dialog window if QuasiModal is not used.
-
     QuasiModal mode is our own almost modal mode which disables only the parent
     of the DIALOG_SHIM, leaving other frames operable and while staying captured in the
-    nested event loop.  This avoids the gtk calls and leaves event routing pure
-    and sufficient to operate the KIWAY_PLAYER::ShowModal() properly.  When using
-    ShowQuasiModal() you have to use EndQuasiModal() in your dialogs and not
-    EndModal().  There is also IsQuasiModal() but its value can only be true
-    when the nested event loop is active.  Do not mix the modal and quasi-modal
-    functions.  Use one set or the other.
+    nested event loop. When using ShowQuasiModal() you have to use EndQuasiModal() 
+    in your dialogs and not EndModal(). There is also IsQuasiModal() but its value 
+    can only be true when the nested event loop is active. Do not mix the modal 
+    and quasi-modal functions. Use one set or the other.
 
-    You might find this behavior preferable over a pure modal mode, and it was said
-    that only the Mac has this natively, but now other platforms have something
-    similar.  You CAN use it anywhere for any dialog.  But you MUST use it when
+    You CAN use it anywhere for any dialog. But you MUST use it when
     you want to use KIWAY_PLAYER::ShowModal() from a dialog event.
 */
 
@@ -526,15 +491,14 @@ int DIALOG_SHIM::ShowQuasiModal()
     // release the mouse if it's currently captured as the window having it
     // will be disabled when this dialog is shown -- but will still keep the
     // capture making it impossible to do anything in the modal dialog itself
-    wxWindow* win = wxWindow::GetCapture();
+    QWidget* win = QApplication::mouseGrabber();
     if( win )
-        win->ReleaseMouse();
+        win->releaseMouse();
 
     // Get the optimal parent
-    wxWindow* parent = GetParentForModalDialog( GetParent(), GetWindowStyle() );
+    QWidget* parent = parentWidget();
 
-    wxASSERT_MSG( !m_qmodal_parent_disabler, wxT( "Caller using ShowQuasiModal() twice on same "
-                                                  "window?" ) );
+    Q_ASSERT_X( !m_qmodal_parent_disabler, "ShowQuasiModal", "Caller using ShowQuasiModal() twice on same window?" );
 
     // quasi-modal: disable only my "optimal" parent
     m_qmodal_parent_disabler = new WINDOW_DISABLER( parent );
@@ -545,22 +509,22 @@ int DIALOG_SHIM::ShowQuasiModal()
     // window when it is raised.
     KIPLATFORM::UI::ReparentModal( this );
 
-    Show( true );
+    setVisible( true );
 
     m_qmodal_showing = true;
 
-    wxGUIEventLoop event_loop;
+    QEventLoop event_loop;
 
     m_qmodal_loop = &event_loop;
 
-    event_loop.Run();
+    event_loop.exec();
 
     m_qmodal_showing = false;
 
     if( parent )
-        parent->SetFocus();
+        parent->setFocus();
 
-    return GetReturnCode();
+    return result();
 }
 
 
@@ -582,15 +546,14 @@ void DIALOG_SHIM::EndQuasiModal( int retCode )
 {
     // Hook up validator and transfer data from controls handling so quasi-modal dialogs
     // handle validation in the same way as other dialogs.
-    if( ( retCode == wxID_OK ) && ( !Validate() || !TransferDataFromWindow() ) )
+    if( ( retCode == QDialog::Accepted ) && ( !Validate() || !TransferDataFromWindow() ) )
         return;
 
-    SetReturnCode( retCode );
+    setResult( retCode );
 
     if( !IsQuasiModal() )
     {
-        wxFAIL_MSG( wxT( "Either DIALOG_SHIM::EndQuasiModal was called twice, or ShowQuasiModal"
-                         "wasn't called" ) );
+        Q_ASSERT_X( false, "EndQuasiModal", "Either DIALOG_SHIM::EndQuasiModal was called twice, or ShowQuasiModal wasn't called" );
         return;
     }
 
@@ -598,43 +561,41 @@ void DIALOG_SHIM::EndQuasiModal( int retCode )
 
     if( m_qmodal_loop )
     {
-        if( m_qmodal_loop->IsRunning() )
-            m_qmodal_loop->Exit( 0 );
+        if( m_qmodal_loop->isRunning() )
+            m_qmodal_loop->exit( 0 );
         else
-            m_qmodal_loop->ScheduleExit( 0 );
+            m_qmodal_loop->exit( 0 );
     }
 
     delete m_qmodal_parent_disabler;
     m_qmodal_parent_disabler = nullptr;
 
-    Show( false );
+    setVisible( false );
 }
 
 
-void DIALOG_SHIM::OnCloseWindow( wxCloseEvent& aEvent )
+void DIALOG_SHIM::closeEvent( QCloseEvent* aEvent )
 {
     if( IsQuasiModal() )
     {
-        EndQuasiModal( wxID_CANCEL );
+        EndQuasiModal( QDialog::Rejected );
         return;
     }
 
-    // This is mandatory to allow wxDialogBase::OnCloseWindow() to be called.
-    aEvent.Skip();
+    // This is mandatory to allow QDialog::closeEvent() to be called.
+    aEvent->accept();
 }
 
 
-void DIALOG_SHIM::OnButton( wxCommandEvent& aEvent )
+void DIALOG_SHIM::OnButton( int id )
 {
-    const int id = aEvent.GetId();
-
     if( IsQuasiModal() )
     {
-        if( id == GetAffirmativeId() )
+        if( id == QDialog::Accepted )
         {
             EndQuasiModal( id );
         }
-        else if( id == wxID_APPLY )
+        else if( id == 1 )
         {
             // Dialogs that provide Apply buttons should make sure data is valid before
             // allowing a transfer, as there is no other way to indicate failure
@@ -645,42 +606,41 @@ void DIALOG_SHIM::OnButton( wxCommandEvent& aEvent )
                 ignore_unused( TransferDataFromWindow() );
             }
         }
-        else if( id == wxID_CANCEL )
+        else if( id == QDialog::Rejected )
         {
-            EndQuasiModal( wxID_CANCEL );
+            EndQuasiModal( QDialog::Rejected );
         }
         else // not a standard button
         {
-            aEvent.Skip();
+            return;
         }
 
         return;
     }
 
-    // This is mandatory to allow wxDialogBase::OnButton() to be called.
-    aEvent.Skip();
 }
 
 
-void DIALOG_SHIM::onChildSetFocus( wxFocusEvent& aEvent )
+void DIALOG_SHIM::onChildSetFocus( QFocusEvent* aEvent )
 {
     // When setting focus to a text control reset the before-edit value.
 
     if( !m_isClosing )
     {
-        if( wxTextCtrl* textCtrl = dynamic_cast<wxTextCtrl*>( aEvent.GetEventObject() ) )
-            m_beforeEditValues[ textCtrl ] = textCtrl->GetValue();
-        else if( wxStyledTextCtrl* scintilla = dynamic_cast<wxStyledTextCtrl*>( aEvent.GetEventObject() ) )
-            m_beforeEditValues[ scintilla ] = scintilla->GetText();
+        QWidget* widget = qobject_cast<QWidget*>( sender() );
+        if( QLineEdit* textCtrl = qobject_cast<QLineEdit*>( widget ) )
+            m_beforeEditValues[ textCtrl ] = textCtrl->text();
+        else if( QTextEdit* textEdit = qobject_cast<QTextEdit*>( widget ) )
+            m_beforeEditValues[ textEdit ] = textEdit->toPlainText();
     }
 
-    aEvent.Skip();
+    aEvent->accept();
 }
 
 
-void DIALOG_SHIM::OnCharHook( wxKeyEvent& aEvt )
+void DIALOG_SHIM::keyPressEvent( QKeyEvent* aEvt )
 {
-    if( aEvt.GetKeyCode() == 'U' && aEvt.GetModifiers() == wxMOD_CONTROL )
+    if( aEvt->key() == Qt::Key_U && aEvt->modifiers() == Qt::ControlModifier )
     {
         if( m_parentFrame )
         {
@@ -689,58 +649,47 @@ void DIALOG_SHIM::OnCharHook( wxKeyEvent& aEvt )
         }
     }
     // shift-return (Mac default) or Ctrl-Return (GTK) for new line input
-    else if( ( aEvt.GetKeyCode() == WXK_RETURN || aEvt.GetKeyCode() == WXK_NUMPAD_ENTER ) && aEvt.ShiftDown() )
+    else if( ( aEvt->key() == Qt::Key_Return || aEvt->key() == Qt::Key_Enter ) && aEvt->modifiers() & Qt::ShiftModifier )
     {
-        wxObject* eventSource = aEvt.GetEventObject();
+        QWidget* eventSource = qobject_cast<QWidget*>( focusWidget() );
 
-        if( wxTextCtrl* textCtrl = dynamic_cast<wxTextCtrl*>( eventSource ) )
+        if( QLineEdit* textCtrl = qobject_cast<QLineEdit*>( eventSource ) )
         {
-            // If the text control is not multi-line, we want to close the dialog
-            if( !textCtrl->IsMultiLine() )
-            {
-                wxPostEvent( this, wxCommandEvent( wxEVT_COMMAND_BUTTON_CLICKED, wxID_OK ) );
-                return;
-            }
-
-#if defined( __WXMAC__ ) || defined( __WXMSW__ )
-            wxString eol = "\r\n";
+#if defined( Q_OS_MAC ) || defined( Q_OS_WIN )
+            QString eol = "\r\n";
 #else
-            wxString eol = "\n";
+            QString eol = "\n";
 #endif
 
-            long pos = textCtrl->GetInsertionPoint();
-            textCtrl->WriteText( eol );
-            textCtrl->SetInsertionPoint( pos + eol.length() );
+            int pos = textCtrl->cursorPosition();
+            textCtrl->insert( eol );
+            textCtrl->setCursorPosition( pos + eol.length() );
             return;
         }
-        else if( wxStyledTextCtrl* scintilla = dynamic_cast<wxStyledTextCtrl*>( eventSource ) )
+        else if( QTextEdit* textEdit = qobject_cast<QTextEdit*>( eventSource ) )
         {
-            wxString eol = "\n";
-            switch( scintilla->GetEOLMode() )
-            {
-            case wxSTC_EOL_CRLF: eol = "\r\n"; break;
-            case wxSTC_EOL_CR: eol = "\r"; break;
-            case wxSTC_EOL_LF: eol = "\n"; break;
-            }
+            QString eol = "\n";
 
-            long pos = scintilla->GetCurrentPos();
-            scintilla->InsertText( pos, eol );
-            scintilla->GotoPos( pos + eol.length() );
+            QTextCursor cursor = textEdit->textCursor();
+            int pos = cursor.position();
+            cursor.insertText( eol );
+            cursor.setPosition( pos + eol.length() );
+            textEdit->setTextCursor( cursor );
             return;
         }
         return;
     }
     // command-return (Mac default) or Ctrl-Return (GTK) for OK
-    else if( ( aEvt.GetKeyCode() == WXK_RETURN || aEvt.GetKeyCode() == WXK_NUMPAD_ENTER ) && aEvt.ControlDown() )
+    else if( ( aEvt->key() == Qt::Key_Return || aEvt->key() == Qt::Key_Enter ) && aEvt->modifiers() & Qt::ControlModifier )
     {
-        wxPostEvent( this, wxCommandEvent( wxEVT_COMMAND_BUTTON_CLICKED, wxID_OK ) );
+        OnButton( QDialog::Accepted );
         return;
     }
-    else if( aEvt.GetKeyCode() == WXK_TAB && !aEvt.ControlDown() )
+    else if( aEvt->key() == Qt::Key_Tab && !(aEvt->modifiers() & Qt::ControlModifier) )
     {
-        wxWindow* currentWindow = wxWindow::FindFocus();
+        QWidget* currentWindow = focusWidget();
         int       currentIdx = -1;
-        int       delta = aEvt.ShiftDown() ? -1 : 1;
+        int       delta = aEvt->modifiers() & Qt::ShiftModifier ? -1 : 1;
 
         auto advance =
                 [&]( int& idx )
@@ -763,108 +712,99 @@ void DIALOG_SHIM::OnCharHook( wxKeyEvent& aEvt )
         {
             advance( currentIdx );
 
-            //todo: We don't currently have non-textentry dialog boxes but this will break if
-            // we add them.
 #ifdef __APPLE__
-            while( dynamic_cast<wxTextEntry*>( m_tabOrder[ currentIdx ] ) == nullptr )
+            while( qobject_cast<QLineEdit*>( m_tabOrder[ currentIdx ] ) == nullptr &&
+                   qobject_cast<QTextEdit*>( m_tabOrder[ currentIdx ] ) == nullptr )
                 advance( currentIdx );
 #endif
 
-            m_tabOrder[ currentIdx ]->SetFocus();
+            m_tabOrder[ currentIdx ]->setFocus();
             return;
         }
     }
-    else if( aEvt.GetKeyCode() == WXK_ESCAPE )
+    else if( aEvt->key() == Qt::Key_Escape )
     {
-        wxObject* eventSource = aEvt.GetEventObject();
+        QWidget* eventSource = qobject_cast<QWidget*>( focusWidget() );
 
-        if( wxTextCtrl* textCtrl = dynamic_cast<wxTextCtrl*>( eventSource ) )
+        if( QLineEdit* textCtrl = qobject_cast<QLineEdit*>( eventSource ) )
         {
             // First escape after an edit cancels edit
-            if( textCtrl->GetValue() != m_beforeEditValues[ textCtrl ] )
+            if( textCtrl->text() != m_beforeEditValues[ textCtrl ] )
             {
-                textCtrl->SetValue( m_beforeEditValues[ textCtrl ] );
-                textCtrl->SelectAll();
+                textCtrl->setText( m_beforeEditValues[ textCtrl ] );
+                textCtrl->selectAll();
                 return;
             }
         }
-        else if( wxStyledTextCtrl* scintilla = dynamic_cast<wxStyledTextCtrl*>( eventSource ) )
+        else if( QTextEdit* textEdit = qobject_cast<QTextEdit*>( eventSource ) )
         {
             // First escape after an edit cancels edit
-            if( scintilla->GetText() != m_beforeEditValues[ scintilla ] )
+            if( textEdit->toPlainText() != m_beforeEditValues[ textEdit ] )
             {
-                scintilla->SetText( m_beforeEditValues[ scintilla ] );
-                scintilla->SelectAll();
+                textEdit->setPlainText( m_beforeEditValues[ textEdit ] );
+                textEdit->selectAll();
                 return;
             }
         }
     }
 
-    aEvt.Skip();
+    QDialog::keyPressEvent( aEvt );
 }
 
 
-static void recursiveDescent( wxSizer* aSizer, std::map<int, wxString>& aLabels )
+static void recursiveDescent( QLayout* aLayout, QHash<int, QString>& aLabels )
 {
-    wxStdDialogButtonSizer* sdbSizer = dynamic_cast<wxStdDialogButtonSizer*>( aSizer );
+    QDialogButtonBox* buttonBox = qobject_cast<QDialogButtonBox*>( aLayout->parentWidget() );
 
     auto setupButton =
-            [&]( wxButton* aButton )
+            [&]( QPushButton* aButton, int buttonId )
             {
-                if( aLabels.count( aButton->GetId() ) > 0 )
+                if( aLabels.contains( buttonId ) )
                 {
-                    aButton->SetLabel( aLabels[ aButton->GetId() ] );
+                    aButton->setText( aLabels[ buttonId ] );
                 }
                 else
                 {
-                    // wxWidgets has an uneven track record when the language is changed on
-                    // the fly so we set them even when they don't appear in the label map
-                    switch( aButton->GetId() )
+                    switch( buttonId )
                     {
-                    case wxID_OK:           aButton->SetLabel( _( "&OK" ) );     break;
-                    case wxID_CANCEL:       aButton->SetLabel( _( "&Cancel" ) ); break;
-                    case wxID_YES:          aButton->SetLabel( _( "&Yes" ) );    break;
-                    case wxID_NO:           aButton->SetLabel( _( "&No" ) );     break;
-                    case wxID_APPLY:        aButton->SetLabel( _( "&Apply" ) );  break;
-                    case wxID_SAVE:         aButton->SetLabel( _( "&Save" ) );   break;
-                    case wxID_HELP:         aButton->SetLabel( _( "&Help" ) );   break;
-                    case wxID_CONTEXT_HELP: aButton->SetLabel( _( "&Help" ) );   break;
+                    case 0:  aButton->setText( _( "&OK" ) );     break;
+                    case 1:  aButton->setText( _( "&Cancel" ) ); break;
+                    case 2:  aButton->setText( _( "&Yes" ) );    break;
+                    case 3:  aButton->setText( _( "&No" ) );     break;
+                    case 4:  aButton->setText( _( "&Apply" ) );  break;
+                    case 5:  aButton->setText( _( "&Save" ) );   break;
+                    case 6:  aButton->setText( _( "&Help" ) );   break;
+                    case 7:  aButton->setText( _( "&Help" ) );   break;
                     }
                 }
             };
 
-    if( sdbSizer )
+    if( buttonBox )
     {
-        if( sdbSizer->GetAffirmativeButton() )
-            setupButton( sdbSizer->GetAffirmativeButton() );
-
-        if( sdbSizer->GetApplyButton() )
-            setupButton( sdbSizer->GetApplyButton() );
-
-        if( sdbSizer->GetNegativeButton() )
-            setupButton( sdbSizer->GetNegativeButton() );
-
-        if( sdbSizer->GetCancelButton() )
-            setupButton( sdbSizer->GetCancelButton() );
-
-        if( sdbSizer->GetHelpButton() )
-            setupButton( sdbSizer->GetHelpButton() );
-
-        sdbSizer->Layout();
-
-        if( sdbSizer->GetAffirmativeButton() )
-            sdbSizer->GetAffirmativeButton()->SetDefault();
+        QList<QAbstractButton*> buttons = buttonBox->buttons();
+        for( QAbstractButton* button : buttons )
+        {
+            QDialogButtonBox::StandardButton role = buttonBox->standardButton( button );
+            if( QPushButton* pushButton = qobject_cast<QPushButton*>( button ) )
+            {
+                setupButton( pushButton, static_cast<int>( role ) );
+                if( role == QDialogButtonBox::Ok )
+                    pushButton->setDefault( true );
+            }
+        }
     }
 
-    for( wxSizerItem* item : aSizer->GetChildren() )
+    for( int i = 0; i < aLayout->count(); ++i )
     {
-        if( item->GetSizer() )
-            recursiveDescent( item->GetSizer(), aLabels );
+        QLayoutItem* item = aLayout->itemAt( i );
+        if( item && item->layout() )
+            recursiveDescent( item->layout(), aLabels );
     }
 }
 
 
-void DIALOG_SHIM::SetupStandardButtons( std::map<int, wxString> aLabels )
+void DIALOG_SHIM::SetupStandardButtons( QHash<int, QString> aLabels )
 {
-    recursiveDescent( GetSizer(), aLabels );
+    if( layout() )
+        recursiveDescent( layout(), aLabels );
 }

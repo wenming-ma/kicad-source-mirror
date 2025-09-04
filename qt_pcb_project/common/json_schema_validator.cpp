@@ -1,33 +1,15 @@
-/*
-* This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <fstream>
-#include <wx/filename.h>
-#include <wx/log.h>
+#include <QFileInfo>
+#include <QDebug>
 
 #include <json_schema_validator.h>
 #include <locale_io.h>
 
 
-JSON_SCHEMA_VALIDATOR::JSON_SCHEMA_VALIDATOR( const wxFileName& aSchemaFile )
+JSON_SCHEMA_VALIDATOR::JSON_SCHEMA_VALIDATOR( const QFileInfo& aSchemaFile )
 {
-    std::ifstream schema_stream( aSchemaFile.GetFullPath().fn_str() );
+    std::ifstream schema_stream( aSchemaFile.absoluteFilePath().toStdString() );
     nlohmann::json schema;
 
     try
@@ -43,14 +25,13 @@ JSON_SCHEMA_VALIDATOR::JSON_SCHEMA_VALIDATOR( const wxFileName& aSchemaFile )
     }
     catch( std::exception& e )
     {
-        if( !aSchemaFile.FileExists() )
+        if( !aSchemaFile.exists() )
         {
-            wxLogError( wxString::Format( _( "schema file '%s' not found" ),
-                                          aSchemaFile.GetFullPath() ) );
+            qDebug() << QString( "schema file '%1' not found" ).arg( aSchemaFile.absoluteFilePath() );
         }
         else
         {
-            wxLogError( wxString::Format( _( "Error loading schema: %s" ), e.what() ) );
+            qDebug() << QString( "Error loading schema: %1" ).arg( e.what() );
         }
     }
 }

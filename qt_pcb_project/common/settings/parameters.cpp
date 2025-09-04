@@ -1,24 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2021 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
-#include <wx/string.h>
+#include <QString>
 
 #include <json_common.h>
 
@@ -42,10 +23,10 @@ bool PARAM_PATH_LIST::MatchesFile( const JSON_SETTINGS& aSettings ) const
     {
         if( js->is_array() )
         {
-            std::vector<wxString> val;
+            QVector<QString> val;
 
             for( const auto& el : js->items() )
-                val.emplace_back( fromFileFormat( el.value().get<wxString>() ) );
+                val.emplace_back( fromFileFormat( el.value().get<QString>() ) );
 
             return val == *m_ptr;
         }
@@ -67,7 +48,7 @@ void PARAM_WXSTRING_MAP::Load( const JSON_SETTINGS& aSettings, bool aResetIfMiss
             m_ptr->clear();
 
             for( const auto& el : js->items() )
-                ( *m_ptr )[wxString( el.key().c_str(), wxConvUTF8 )] = el.value().get<wxString>();
+                ( *m_ptr )[QString::fromUtf8( el.key().c_str() )] = el.value().get<QString>();
         }
     }
     else if( aResetIfMissing )
@@ -100,12 +81,12 @@ bool PARAM_WXSTRING_MAP::MatchesFile( const JSON_SETTINGS& aSettings ) const
             if( m_ptr->size() != js->size() )
                 return false;
 
-            std::map<wxString, wxString> val;
+            QHash<QString, QString> val;
 
             for( const auto& el : js->items() )
             {
-                wxString key( el.key().c_str(), wxConvUTF8 );
-                val[key] = el.value().get<wxString>();
+                QString key = QString::fromUtf8( el.key().c_str() );
+                val[key] = el.value().get<QString>();
             }
 
             return val == *m_ptr;
@@ -125,12 +106,12 @@ template class KICOMMON_API PARAM_LAMBDA<std::string>;
 template class KICOMMON_API PARAM_LIST<bool>;
 template class KICOMMON_API PARAM_LIST<int>;
 template class KICOMMON_API PARAM_LIST<double>;
-template class KICOMMON_API PARAM_LIST<wxString>;
+template class KICOMMON_API PARAM_LIST<QString>;
 template class KICOMMON_API PARAM_LIST<KIGFX::COLOR4D>;
 //template KICOMMON_API class PARAM_LIST<FILE_INFO_PAIR>;
 template class KICOMMON_API PARAM_LIST<GRID>;
 
-template class KICOMMON_API PARAM_SET<wxString>;
+template class KICOMMON_API PARAM_SET<QString>;
 
 template class KICOMMON_API PARAM_MAP<int>;
 template class KICOMMON_API PARAM_MAP<double>;

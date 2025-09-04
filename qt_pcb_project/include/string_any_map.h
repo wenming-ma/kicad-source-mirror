@@ -1,22 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #ifndef STRING_ANY_MAP_H_
 #define STRING_ANY_MAP_H_
@@ -25,14 +7,10 @@
 #include <map>
 #include <optional>
 
-#include <wx/any.h>
+#include <QVariant>
 
 
-/**
- * A name/value tuple with unique names and wxAny values.  The names
- * may be iterated alphabetically.
- */
-class STRING_ANY_MAP : public std::map<std::string, wxAny>
+class STRING_ANY_MAP : public std::map<std::string, QVariant>
 {
     double m_iuScale;
 
@@ -46,7 +24,8 @@ public:
         if( !contains( aKey ) )
             return false;
 
-        return at( aKey ).GetAs( &aVar );
+        aVar = at( aKey ).value<T>();
+        return at( aKey ).canConvert<T>();
     }
 
     template <typename T>
@@ -55,14 +34,15 @@ public:
         if( !contains( aKey ) )
             return false;
 
-        const wxAny& value = at( aKey );
+        const QVariant& value = at( aKey );
 
-        if( value.CheckType<double>() || value.CheckType<int>() || value.CheckType<long>()
-            || value.CheckType<long long>() )
+        if( value.canConvert<double>() || value.canConvert<int>() || value.canConvert<long>()
+            || value.canConvert<long long>() )
         {
-            double number;
+            bool ok = false;
+            double number = value.toDouble( &ok );
 
-            if( !value.GetAs( &number ) )
+            if( !ok )
                 return false;
 
             number *= m_iuScale;
@@ -70,8 +50,10 @@ public:
         }
         else
         {
-            if( !value.GetAs( &aVar ) )
+            if( !value.canConvert<T>() )
                 return false;
+            
+            aVar = value.value<T>();
         }
 
         return true;
@@ -101,8 +83,10 @@ public:
         {
             T val;
 
-            if( !at( aKey ).GetAs( &val ) )
+            if( !at( aKey ).canConvert<T>() )
                 return std::nullopt;
+
+            val = at( aKey ).value<T>();
 
             return val;
         }

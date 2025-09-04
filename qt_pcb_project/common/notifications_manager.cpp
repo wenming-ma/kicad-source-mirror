@@ -1,37 +1,21 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Mark Roszko <mark.roszko@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-#include <wx/filename.h>
-#include <wx/frame.h>
-#include <wx/hyperlink.h>
-#include <wx/panel.h>
-#include <wx/scrolwin.h>
-#include <wx/sizer.h>
-#include <wx/settings.h>
-#include <wx/stattext.h>
-#include <wx/string.h>
-#include <wx/time.h>
+#include <QtWidgets/QWidget>
+#include <QtWidgets/QFrame>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QScrollArea>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QHBoxLayout>
+#include <QtCore/QDir>
+#include <QtCore/QString>
+#include <QtCore/QDateTime>
+#include <QtGui/QDesktopServices>
+#include <QtCore/QUrl>
+#include <QtCore/QTimer>
+#include <QtCore/QPoint>
+#include <QtCore/QSize>
+#include <QtGui/QFocusEvent>
+#include <QtGui/QCloseEvent>
+#include <QtCore/QStandardPaths>
 
 #include <paths.h>
 
@@ -41,7 +25,6 @@
 #include <json_common.h>
 #include <kiplatform/ui.h>
 
-#include <core/wx_stl_compat.h>
 #include <core/json_serializers.h>
 #include <core/kicad_algo.h>
 
@@ -57,81 +40,80 @@ static long long g_last_closed_timer = 0;
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE( NOTIFICATION, title, description, href, key, date )
 
-class NOTIFICATION_PANEL : public wxPanel
+class NOTIFICATION_PANEL : public QWidget
 {
 public:
-    NOTIFICATION_PANEL( wxWindow* aParent, NOTIFICATIONS_MANAGER* aManager, NOTIFICATION* aNoti ) :
-            wxPanel( aParent, wxID_ANY, wxDefaultPosition, wxSize( -1, 75 ), wxBORDER_SIMPLE ),
+    NOTIFICATION_PANEL( QWidget* aParent, NOTIFICATIONS_MANAGER* aManager, NOTIFICATION* aNoti ) :
+            QWidget( aParent ),
             m_hlDetails( nullptr ),
             m_notification( aNoti ),
             m_manager( aManager )
     {
-        SetSizeHints( wxDefaultSize, wxDefaultSize );
+        setFixedHeight( 75 );
+        setStyleSheet( "border: 1px solid gray;" );
 
-        wxBoxSizer* mainSizer;
-        mainSizer = new wxBoxSizer( wxVERTICAL );
+        QVBoxLayout* mainSizer = new QVBoxLayout( this );
 
-        wxColour fg, bg;
+        QColor fg, bg;
         KIPLATFORM::UI::GetInfoBarColours( fg, bg );
-        SetBackgroundColour( bg );
-        SetForegroundColour( fg );
+        setStyleSheet( QString( "background-color: %1; color: %2;" ).arg( bg.name(), fg.name() ) );
 
-        m_stTitle = new wxStaticText( this, wxID_ANY, aNoti->title );
-        m_stTitle->Wrap( -1 );
-        m_stTitle->SetFont( KIUI::GetControlFont( this ).Bold() );
-        mainSizer->Add( m_stTitle, 0, wxALL | wxEXPAND, 1 );
+        m_stTitle = new QLabel( aNoti->title, this );
+        m_stTitle->setWordWrap( true );
+        QFont boldFont = KIUI::GetControlFont( this );
+        boldFont.setBold( true );
+        m_stTitle->setFont( boldFont );
+        mainSizer->addWidget( m_stTitle );
 
-        m_stDescription = new wxStaticText( this, wxID_ANY, aNoti->description );
-        m_stDescription->Wrap( -1 );
-        mainSizer->Add( m_stDescription, 0, wxALL | wxEXPAND, 1 );
+        m_stDescription = new QLabel( aNoti->description, this );
+        m_stDescription->setWordWrap( true );
+        mainSizer->addWidget( m_stDescription );
 
-        wxBoxSizer* tailSizer;
-        tailSizer = new wxBoxSizer( wxHORIZONTAL );
+        QHBoxLayout* tailSizer = new QHBoxLayout();
 
-        if( !aNoti->href.IsEmpty() )
+        if( !aNoti->href.isEmpty() )
         {
-            m_hlDetails = new wxHyperlinkCtrl( this, wxID_ANY, _( "View Details" ), aNoti->href );
-            tailSizer->Add( m_hlDetails, 0, wxALL, 2 );
+            m_hlDetails = new QLabel( this );
+            m_hlDetails->setText( QString( "<a href='%1'>View Details</a>" ).arg( aNoti->href ) );
+            m_hlDetails->setOpenExternalLinks( false );
+            connect( m_hlDetails, &QLabel::linkActivated, this, &NOTIFICATION_PANEL::onDetails );
+            tailSizer->addWidget( m_hlDetails );
         }
 
-        m_hlDismiss = new wxHyperlinkCtrl( this, wxID_ANY, _( "Dismiss" ), aNoti->href );
-        tailSizer->Add( m_hlDismiss, 0, wxALL, 2 );
+        m_hlDismiss = new QLabel( this );
+        m_hlDismiss->setText( "<a href='dismiss'>Dismiss</a>" );
+        m_hlDismiss->setOpenExternalLinks( false );
+        connect( m_hlDismiss, &QLabel::linkActivated, this, &NOTIFICATION_PANEL::onDismiss );
+        tailSizer->addWidget( m_hlDismiss );
 
-        mainSizer->Add( tailSizer, 1, wxEXPAND, 5 );
-
-        if( m_hlDetails != nullptr )
-            m_hlDetails->Bind( wxEVT_HYPERLINK, &NOTIFICATION_PANEL::onDetails, this );
-
-        m_hlDismiss->Bind( wxEVT_HYPERLINK, &NOTIFICATION_PANEL::onDismiss, this );
-
-        SetSizer( mainSizer );
-        Layout();
+        mainSizer->addLayout( tailSizer );
+        mainSizer->addStretch();
+        setLayout( mainSizer );
     }
 
 private:
-    void onDetails( wxHyperlinkEvent& aEvent )
+    void onDetails( const QString& url )
     {
-        wxString url = aEvent.GetURL();
+        QString processedUrl = url;
 
-        if( url.StartsWith( wxS( "kicad://" ) ) )
+        if( processedUrl.startsWith( "kicad://" ) )
         {
-            url.Replace( wxS( "kicad://" ), wxS( "" ) );
+            processedUrl.replace( "kicad://", "" );
 
-            if( url == wxS( "pcm" ) )
+            if( processedUrl == "pcm" )
             {
-                // TODO
+                
             }
         }
         else
         {
-            wxLaunchDefaultBrowser( aEvent.GetURL(), wxBROWSER_NEW_WINDOW );
+            QDesktopServices::openUrl( QUrl( url ) );
         }
     }
 
-    void onDismiss( wxHyperlinkEvent& aEvent )
+    void onDismiss( const QString& )
     {
-        CallAfter(
-                [this]()
+        QTimer::singleShot( 0, this, [this]()
                 {
                     // This will cause this panel to get deleted
                     m_manager->Remove( m_notification->key );
@@ -139,87 +121,79 @@ private:
     }
 
 private:
-    wxStaticText*          m_stTitle;
-    wxStaticText*          m_stDescription;
-    wxHyperlinkCtrl*       m_hlDetails;
-    wxHyperlinkCtrl*       m_hlDismiss;
+    QLabel*                m_stTitle;
+    QLabel*                m_stDescription;
+    QLabel*                m_hlDetails;
+    QLabel*                m_hlDismiss;
     NOTIFICATION*          m_notification;
     NOTIFICATIONS_MANAGER* m_manager;
 };
 
 
-class NOTIFICATIONS_LIST : public wxFrame
+class NOTIFICATIONS_LIST : public QFrame
 {
 public:
-    NOTIFICATIONS_LIST( NOTIFICATIONS_MANAGER* aManager, wxWindow* parent, const wxPoint& pos ) :
-            wxFrame( parent, wxID_ANY, _( "Notifications" ), pos, wxSize( 300, 150 ),
-                     wxFRAME_NO_TASKBAR | wxBORDER_SIMPLE ),
+    NOTIFICATIONS_LIST( NOTIFICATIONS_MANAGER* aManager, QWidget* parent, const QPoint& pos ) :
+            QFrame( parent, Qt::Popup | Qt::FramelessWindowHint ),
             m_manager( aManager )
     {
-        SetSizeHints( wxDefaultSize, wxDefaultSize );
+        setWindowTitle( "Notifications" );
+        resize( 300, 150 );
+        move( pos );
 
-        wxBoxSizer* bSizer1;
-        bSizer1 = new wxBoxSizer( wxVERTICAL );
+        QVBoxLayout* bSizer1 = new QVBoxLayout( this );
+        bSizer1->setContentsMargins( 0, 0, 0, 0 );
 
-        m_scrolledWindow = new wxScrolledWindow( this, wxID_ANY, wxDefaultPosition,
-                                                 wxSize( -1, -1 ), wxVSCROLL | wxBORDER_SIMPLE );
-        wxColour fg, bg;
+        m_scrolledWindow = new QScrollArea( this );
+        m_scrolledWindow->setVerticalScrollBarPolicy( Qt::ScrollBarAsNeeded );
+        m_scrolledWindow->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
+        m_scrolledWindow->setWidgetResizable( true );
+        m_scrolledWindow->setFrameStyle( QFrame::StyledPanel );
+        
+        QColor fg, bg;
         KIPLATFORM::UI::GetInfoBarColours( fg, bg );
-        m_scrolledWindow->SetBackgroundColour( bg );
-        m_scrolledWindow->SetForegroundColour( fg );
+        m_scrolledWindow->setStyleSheet( QString( "background-color: %1; color: %2;" ).arg( bg.name(), fg.name() ) );
 
-        m_scrolledWindow->SetScrollRate( 5, 5 );
-        m_contentSizer = new wxBoxSizer( wxVERTICAL );
+        QWidget* scrollWidget = new QWidget();
+        m_contentSizer = new QVBoxLayout( scrollWidget );
+        scrollWidget->setLayout( m_contentSizer );
+        m_scrolledWindow->setWidget( scrollWidget );
 
-        m_scrolledWindow->SetSizer( m_contentSizer );
-        m_scrolledWindow->Layout();
-        m_contentSizer->Fit( m_scrolledWindow );
-        bSizer1->Add( m_scrolledWindow, 1, wxEXPAND | wxALL, 0 );
+        bSizer1->addWidget( m_scrolledWindow );
 
-        m_noNotificationsText = new wxStaticText( m_scrolledWindow, wxID_ANY,
-                                                  _( "There are no notifications available" ),
-                                                  wxDefaultPosition, wxDefaultSize,
-                                                  wxALIGN_CENTER_HORIZONTAL );
-        m_noNotificationsText->Wrap( -1 );
-        m_contentSizer->Add( m_noNotificationsText, 1, wxALL | wxEXPAND, 5 );
+        m_noNotificationsText = new QLabel( "There are no notifications available", scrollWidget );
+        m_noNotificationsText->setAlignment( Qt::AlignCenter );
+        m_noNotificationsText->setWordWrap( true );
+        m_contentSizer->addWidget( m_noNotificationsText );
 
-        Bind( wxEVT_KILL_FOCUS, &NOTIFICATIONS_LIST::onFocusLoss, this );
-        m_scrolledWindow->Bind( wxEVT_KILL_FOCUS, &NOTIFICATIONS_LIST::onFocusLoss, this );
-
-        SetSizer( bSizer1 );
-        Layout();
-
-        SetFocus();
+        setLayout( bSizer1 );
+        setFocus();
     }
 
 
-    void onFocusLoss( wxFocusEvent& aEvent )
+protected:
+    void focusOutEvent( QFocusEvent* aEvent ) override
     {
-        if( IsDescendant( aEvent.GetWindow() ) )
+        if( !isAncestorOf( aEvent->widget() ) )
         {
-            // Child (such as the hyperlink texts) got focus
+            close();
+            g_last_closed_timer = QDateTime::currentMSecsSinceEpoch();
         }
-        else
-        {
-            Close( true );
-            g_last_closed_timer = wxGetLocalTimeMillis().GetValue();
-        }
-
-        aEvent.Skip();
+        QFrame::focusOutEvent( aEvent );
     }
+
+public:
 
 
     void Add( NOTIFICATION* aNoti )
     {
-        m_noNotificationsText->Hide();
+        m_noNotificationsText->hide();
 
-        NOTIFICATION_PANEL* panel = new NOTIFICATION_PANEL( m_scrolledWindow, m_manager, aNoti );
-        m_contentSizer->Add( panel, 0, wxEXPAND | wxALL, 2 );
-        m_scrolledWindow->Layout();
-        m_contentSizer->Fit( m_scrolledWindow );
+        NOTIFICATION_PANEL* panel = new NOTIFICATION_PANEL( m_scrolledWindow->widget(), m_manager, aNoti );
+        m_contentSizer->addWidget( panel );
+        m_scrolledWindow->widget()->updateGeometry();
 
-        // call this at this window otherwise the child panels don't resize width properly
-        Layout();
+        updateGeometry();
 
         m_panelMap[aNoti] = panel;
     }
@@ -232,39 +206,35 @@ public:
         if( it != m_panelMap.end() )
         {
             NOTIFICATION_PANEL* panel = m_panelMap[aNoti];
-            m_contentSizer->Detach( panel );
-            panel->Destroy();
+            m_contentSizer->removeWidget( panel );
+            panel->deleteLater();
 
             m_panelMap.erase( it );
 
-            // ensure the window contents get shifted as needed
-            m_scrolledWindow->Layout();
-            Layout();
+            m_scrolledWindow->widget()->updateGeometry();
+            updateGeometry();
         }
 
         if( m_panelMap.size() == 0 )
         {
-            m_noNotificationsText->Show();
+            m_noNotificationsText->show();
         }
     }
 
 private:
-    wxScrolledWindow*                                      m_scrolledWindow;
+    QScrollArea*                                           m_scrolledWindow;
 
-    /// Inner content of the scrolled window, add panels here.
-    wxBoxSizer*                                            m_contentSizer;
+    QVBoxLayout*                                           m_contentSizer;
     std::unordered_map<NOTIFICATION*, NOTIFICATION_PANEL*> m_panelMap;
     NOTIFICATIONS_MANAGER*                                 m_manager;
 
-    /// Text to be displayed when no notifications are present, this gets a Show/Hide call as
-    /// needed.
-    wxStaticText*                                          m_noNotificationsText;
+    QLabel*                                                m_noNotificationsText;
 };
 
 
 NOTIFICATIONS_MANAGER::NOTIFICATIONS_MANAGER()
 {
-    m_destFileName = wxFileName( PATHS::GetUserCachePath(), wxT( "notifications.json" ) );
+    m_destFileName = QDir( PATHS::GetUserCachePath() ).filePath( "notifications.json" );
 }
 
 
@@ -272,7 +242,7 @@ void NOTIFICATIONS_MANAGER::Load()
 {
     nlohmann::json saved_json;
 
-    std::ifstream saved_json_stream( m_destFileName.GetFullPath().fn_str() );
+    std::ifstream saved_json_stream( m_destFileName.toStdString() );
 
     try
     {
@@ -285,17 +255,17 @@ void NOTIFICATIONS_MANAGER::Load()
         // failed to load the json, which is fine, default to no notifications
     }
 
-    if( wxGetEnv( wxT( "KICAD_TEST_NOTI" ), nullptr ) )
+    if( !qEnvironmentVariable( "KICAD_TEST_NOTI" ).isEmpty() )
     {
-        CreateOrUpdate( wxS( "test" ), wxS( "Test Notification" ), wxS( "Test please ignore" ),
-                        wxS( "https://kicad.org" ) );
+        CreateOrUpdate( "test", "Test Notification", "Test please ignore",
+                        "https://kicad.org" );
     }
 }
 
 
 void NOTIFICATIONS_MANAGER::Save()
 {
-    std::ofstream jsonFileStream( m_destFileName.GetFullPath().fn_str() );
+    std::ofstream jsonFileStream( m_destFileName.toStdString() );
 
     nlohmann::json saveJson = nlohmann::json( m_notifications );
     jsonFileStream << std::setw( 4 ) << saveJson << std::endl;
@@ -304,12 +274,12 @@ void NOTIFICATIONS_MANAGER::Save()
 }
 
 
-void NOTIFICATIONS_MANAGER::CreateOrUpdate( const wxString& aKey,
-                                            const wxString& aTitle,
-                                            const wxString& aDescription,
-                                            const wxString& aHref )
+void NOTIFICATIONS_MANAGER::CreateOrUpdate( const QString& aKey,
+                                            const QString& aTitle,
+                                            const QString& aDescription,
+                                            const QString& aHref )
 {
-    wxCHECK_RET( !aKey.IsEmpty(), wxS( "Notification key must not be empty" ) );
+    Q_ASSERT( !aKey.isEmpty() );
 
     auto it = std::find_if( m_notifications.begin(), m_notifications.end(),
                             [&]( const NOTIFICATION& noti )
@@ -328,7 +298,7 @@ void NOTIFICATIONS_MANAGER::CreateOrUpdate( const wxString& aKey,
     else
     {
         m_notifications.emplace_back( NOTIFICATION{ aTitle, aDescription, aHref,
-                                                    aKey, wxEmptyString } );
+                                                    aKey, QString() } );
     }
 
     if( m_shownDialogs.size() > 0 )
@@ -345,7 +315,7 @@ void NOTIFICATIONS_MANAGER::CreateOrUpdate( const wxString& aKey,
 }
 
 
-void NOTIFICATIONS_MANAGER::Remove( const wxString& aKey )
+void NOTIFICATIONS_MANAGER::Remove( const QString& aKey )
 {
     auto it = std::find_if( m_notifications.begin(), m_notifications.end(),
                             [&]( const NOTIFICATION& noti )
@@ -373,25 +343,22 @@ void NOTIFICATIONS_MANAGER::Remove( const wxString& aKey )
 }
 
 
-void NOTIFICATIONS_MANAGER::onListWindowClosed( wxCloseEvent& aEvent )
+void NOTIFICATIONS_MANAGER::onListWindowClosed( QCloseEvent* aEvent )
 {
-    NOTIFICATIONS_LIST* evtWindow = dynamic_cast<NOTIFICATIONS_LIST*>( aEvent.GetEventObject() );
+    NOTIFICATIONS_LIST* evtWindow = qobject_cast<NOTIFICATIONS_LIST*>( sender() );
 
     alg::delete_if( m_shownDialogs, [&]( NOTIFICATIONS_LIST* dialog )
                                     {
                                         return dialog == evtWindow;
                                     } );
 
-    aEvent.Skip();
+    aEvent->accept();
 }
 
 
-void NOTIFICATIONS_MANAGER::ShowList( wxWindow* aParent, wxPoint aPos )
+void NOTIFICATIONS_MANAGER::ShowList( QWidget* aParent, QPoint aPos )
 {
-    // Debounce clicking on the icon with a list already showing.  The button will get focus
-    // first, which will cause a focus-loss on the list (thereby closing it), and then we'd open
-    // it again without this guard.
-    if( wxGetLocalTimeMillis().GetValue() - g_last_closed_timer < 300 )
+    if( QDateTime::currentMSecsSinceEpoch() - g_last_closed_timer < 300 )
     {
         g_last_closed_timer = 0;
         return;
@@ -404,13 +371,12 @@ void NOTIFICATIONS_MANAGER::ShowList( wxWindow* aParent, wxPoint aPos )
 
     m_shownDialogs.push_back( list );
 
-    list->Bind( wxEVT_CLOSE_WINDOW, &NOTIFICATIONS_MANAGER::onListWindowClosed, this );
+    connect( list, &QWidget::destroyed, this, &NOTIFICATIONS_MANAGER::onListWindowClosed );
 
-    // correct the position
-    wxSize windowSize = list->GetSize();
-    list->SetPosition( aPos - windowSize );
+    QSize windowSize = list->size();
+    list->move( aPos - QPoint( windowSize.width(), windowSize.height() ) );
 
-    list->Show();
+    list->show();
     KIPLATFORM::UI::ForceFocus( list );
 }
 
