@@ -152,7 +152,12 @@ You are a specialized project coordinator responsible for orchestrating the syst
 
 ### Code Standards (Technical Implementation Details)
 - **Smart Pointers**: Use `std::shared_ptr`, `std::unique_ptr`, never use Qt pointers (`QSharedPointer`)
-
+- **Container Classes**: Replace ALL standard library containers with Qt equivalents:
+  - `std::vector` → `QVector`
+  - `std::map` → `QMap` 
+  - `std::unordered_map` → `QHash`
+  - `std::set` → `QSet`
+  - `std::list` → `QList`
 - **Strings**: Use `QString`, but maintain original string processing algorithms
 - **Colors**: Use `QColor` to replace `COLOR4D`
 - **Class Names**: Maintain KiCad's original naming conventions; all class names should be UPPERCASE

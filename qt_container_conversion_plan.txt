@@ -1,0 +1,65 @@
+Qt Container to STL Container Conversion Plan
+
+STATUS: Need to convert 103 files (60 in include/, 43 in common/)
+
+CONVERSION MAPPINGS:
+===================
+
+Container Types:
+- QVector<T> -> std::vector<T>
+- QHash<K,V> -> std::unordered_map<K,V>
+- QMap<K,V> -> std::map<K,V>  
+- QList<T> -> std::list<T>
+- QSet<T> -> std::set<T>
+
+Include Headers:
+- #include <QVector> -> #include <vector>
+- #include <QHash> -> #include <unordered_map>
+- #include <QMap> -> #include <map>
+- #include <QList> -> #include <list>
+- #include <QSet> -> #include <set>
+
+Method Conversions:
+- .constBegin() -> .begin()
+- .constEnd() -> .end()
+- .isEmpty() -> .empty()
+- .contains(key) -> .find(key) != .end()
+
+COMPLETED FILES:
+===============
+- qt_pcb_project/libs/kimath/src/bezier_curves.cpp
+- qt_pcb_project/libs/kimath/src/geometry/shape_compound.cpp  
+- qt_pcb_project/libs/kimath/include/geometry/convex_hull.h
+- qt_pcb_project/libs/kimath/src/geometry/convex_hull.cpp
+- qt_pcb_project/include/collector.h
+
+REMAINING FILES:
+===============
+Include directory (59 remaining):
+- asset_archive.h
+- board_design_settings.h  
+- dialog_shim.h
+- eda_base_frame.h
+- eda_pattern_match.h
+- eda_text.h
+- font/glyph.h
+- font/fontconfig.h
+- hotkey_store.h
+- tool/action_toolbar.h
+- settings/* (multiple files)
+- and 49 others...
+
+Common directory (43 files):
+- All implementation files corresponding to headers
+- Additional utility files
+
+PRIORITY ORDER:
+==============
+1. Core data structures (collector.h - DONE)
+2. Settings system files
+3. Font system files  
+4. Tool system files
+5. Dialog/UI files
+6. Implementation files
+
+The conversion maintains identical functionality while using C++ standard library containers instead of Qt containers.
