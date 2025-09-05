@@ -39,9 +39,7 @@
 #include <QObject>
 
 #include <algorithm>
-
-// Internationalization macro
-#define _(s) QCoreApplication::translate("", (s))
+#include <i18n_utility.h>
 
 
 DIALOG_SHIM::DIALOG_SHIM( QWidget* aParent, int id, const QString& title,

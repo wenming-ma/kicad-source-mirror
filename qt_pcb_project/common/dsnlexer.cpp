@@ -9,8 +9,7 @@
 #include <QString>
 #include <QStringList>
 #include <QCoreApplication>
-
-#define _(s) QCoreApplication::translate("", (s))
+#include <i18n_utility.h>
 
 #define FMT_CLIPBOARD       _( "clipboard" )
 

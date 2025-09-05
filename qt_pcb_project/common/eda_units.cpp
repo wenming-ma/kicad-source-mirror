@@ -7,9 +7,7 @@
 #include <QString>
 #include <QLocale>
 #include <QObject>
-
-// Define translation macro for Qt compatibility
-#define _( x ) QObject::tr( x )
+#include <i18n_utility.h>
 static void removeTrailingZeros( QString& aText )
 {
     int len = aText.length();

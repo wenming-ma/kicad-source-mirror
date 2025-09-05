@@ -17,9 +17,6 @@
 #include <QDebug>
 #include <QProcess>
 #include <QObject>
-
-// Define translation macro for Qt compatibility
-#define _( x ) QObject::tr( x )
 // Mime type extensions (PDF files are not considered here)
 static QMimeDatabase mimeDatabase;
 

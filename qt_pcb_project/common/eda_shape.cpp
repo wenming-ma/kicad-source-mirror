@@ -16,11 +16,9 @@
 #include <plotters/plotter.h>
 #include <api/api_enums.h>
 #include <QObject>
+#include <i18n_utility.h>
 // #include <api/api_utils.h>
 // #include <api/common/types/base_types.pb.h>
-
-// Define translation macro for Qt compatibility
-#define _(x) QObject::tr(x)
 
 
 EDA_SHAPE::EDA_SHAPE( SHAPE_T aType, int aLineWidth, FILL_T aFill ) :
