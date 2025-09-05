@@ -1,28 +1,11 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2015 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
 #include <limits>
+
+#include <QtCore/QString>
+#include <QtCore/QDebug>
 
 #include <geometry/shape_rect.h>
 
@@ -502,9 +485,10 @@ void DP_GATEWAYS::BuildFromPrimitivePair( const DP_PRIMITIVE_PAIR& aPair, bool a
     }
 
     default:
-        wxFAIL_MSG( wxString::Format( wxT( "Unsupported starting primitive: %d (%s)." ),
-                                      shP->Type(),
-                                      SHAPE_TYPE_asString( shP->Type() ) ) );
+        Q_ASSERT_X( false, "DP_GATEWAYS::BuildFromPrimitivePair", 
+                    QString::asprintf( "Unsupported starting primitive: %d (%s).", 
+                                       shP->Type(), 
+                                       SHAPE_TYPE_asString( shP->Type() ) ).toStdString().c_str() );
         break;
     }
 

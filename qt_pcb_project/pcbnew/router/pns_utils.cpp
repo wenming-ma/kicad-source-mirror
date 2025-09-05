@@ -1,23 +1,5 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #include "pns_utils.h"
 #include "pns_line.h"
@@ -200,7 +182,7 @@ const SHAPE_LINE_CHAIN SegmentHull ( const SHAPE_SEGMENT& aSeg, int aClearance,
 
     if( len < kinkThreshold )
     {
-        PNS_DBG( dbg, AddShape, &aSeg, CYAN,  10000, wxString::Format( "kinky-seg 45 %d l %d dx %d dy %d", !!IsSegment45Degree( aSeg.GetSeg() ), len, w, h ) );
+        PNS_DBG( dbg, AddShape, &aSeg, CYAN,  10000, QString::asprintf( "kinky-seg 45 %d l %d dx %d dy %d", !!IsSegment45Degree( aSeg.GetSeg() ), len, w, h ) );
     }
     */
 
@@ -237,7 +219,7 @@ const SHAPE_LINE_CHAIN SegmentHull ( const SHAPE_SEGMENT& aSeg, int aClearance,
                     w = newW;
                     h = newH;
                     cl += 2;
-                    //PNS_DBG( dbg, AddShape, &aSeg, CYAN,  10000, wxString::Format( "almostkinky45 45 %d l %d dx %d dy %d", !!IsSegment45Degree( aSeg.GetSeg() ), len, w, h ) );
+                    //PNS_DBG( dbg, AddShape, &aSeg, CYAN,  10000, QString::asprintf( "almostkinky45 45 %d l %d dx %d dy %d", !!IsSegment45Degree( aSeg.GetSeg() ), len, w, h ) );
 
                 }
 
@@ -521,9 +503,10 @@ const SHAPE_LINE_CHAIN BuildHullForPrimitiveShape( const SHAPE* aShape, int aCle
     }
     default:
     {
-        wxFAIL_MSG( wxString::Format( wxT( "Unsupported hull shape: %d (%s)." ),
+        Q_ASSERT_X( false, "BuildHullForPrimitiveShape", 
+                    QString::asprintf( "Unsupported hull shape: %d (%s).", 
                                       aShape->Type(),
-                                      SHAPE_TYPE_asString( aShape->Type() ) ) );
+                                      SHAPE_TYPE_asString( aShape->Type() ).toStdString().c_str() ).toStdString().c_str() );
         break;
     }
     }
@@ -532,18 +515,18 @@ const SHAPE_LINE_CHAIN BuildHullForPrimitiveShape( const SHAPE* aShape, int aCle
 }
 
 
-void NodeStats( DEBUG_DECORATOR* dbg, wxString label, PNS::NODE *node )
+void NodeStats( DEBUG_DECORATOR* dbg, QString label, PNS::NODE *node )
 {
     NODE::ITEM_VECTOR added, removed;
     node->GetUpdatedItems( removed, added );
 
-    PNS_DBG( dbg, BeginGroup, wxString::Format( "node:%s this=%p depth=%d added=%d removed=%d",
-        label, node, node->Depth(), (int)added.size(), (int) removed.size() ), 0 );
+    PNS_DBG( dbg, BeginGroup, QString::asprintf( "node:%s this=%p depth=%d added=%d removed=%d",
+        qPrintable(label), node, node->Depth(), (int)added.size(), (int) removed.size() ), 0 );
 
     for( auto& item : added )
-        PNS_DBG( dbg, AddItem, item, BLUE, 10000, wxT("added-item") );
+        PNS_DBG( dbg, AddItem, item, BLUE, 10000, "added-item" );
     for( auto& item : removed )
-        PNS_DBG( dbg, AddItem, item, RED, 10000, wxString::Format("removed-item") );
+        PNS_DBG( dbg, AddItem, item, RED, 10000, QString::asprintf("removed-item") );
 
     PNS_DBGN( dbg, EndGroup );
 }

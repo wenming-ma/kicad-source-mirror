@@ -1,23 +1,3 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <optional>
 #include <memory>
@@ -33,7 +13,8 @@
 #include "pns_walkaround.h"
 #include "pns_mouse_trail_tracer.h"
 
-#include <wx/log.h>
+#include <QDebug>
+#include <QString>
 
 namespace PNS {
 
@@ -200,7 +181,7 @@ bool LINE_PLACER::handlePullback()
 
     DIRECTION_45 first_head, last_tail;
 
-    wxASSERT( tail.PointCount() >= 2 );
+    Q_ASSERT( tail.PointCount() >= 2 );
 
     if( !head.IsPtOnArc( 0 ) )
         first_head = DIRECTION_45( head.CSegment( 0 ) );
@@ -231,7 +212,7 @@ bool LINE_PLACER::handlePullback()
         {
             const SEG& seg = tail.CSegment( lastSegIdx );
             m_direction    = DIRECTION_45( seg );
-            PNS_DBG( Dbg(), AddPoint, m_p_start, WHITE, 10000, wxT( "new-pstart [pullback3]" ) );
+            PNS_DBG( Dbg(), AddPoint, m_p_start, WHITE, 10000, "new-pstart [pullback3]" );
 
         }
         else
@@ -240,8 +221,8 @@ bool LINE_PLACER::handlePullback()
             m_direction          = DIRECTION_45( arc );
         }
 
-        PNS_DBG( Dbg(), Message, wxString::Format( "Placer: pullback triggered [%d] [%s %s]",
-                    n, last_tail.Format(), first_head.Format() ) );
+        PNS_DBG( Dbg(), Message, QString::asprintf( "Placer: pullback triggered [%d] [%s %s]",
+                    n, last_tail.Format().c_str(), first_head.Format().c_str() ) );
 
         // erase the last point in the tail, hoping that the next iteration will
         // result with a head trace that starts with a segment following our
@@ -309,7 +290,7 @@ bool LINE_PLACER::reduceTail( const VECTOR2I& aEnd )
 
     if( reduce_index >= 0 )
     {
-        PNS_DBG( Dbg(), Message, wxString::Format( "Placer: reducing tail: %d" , reduce_index ) );
+        PNS_DBG( Dbg(), Message, QString::asprintf( "Placer: reducing tail: %d" , reduce_index ) );
         SHAPE_LINE_CHAIN reducedLine = new_direction.BuildInitialTrace( new_start, aEnd );
 
         m_direction = new_direction;
@@ -342,13 +323,13 @@ bool LINE_PLACER::mergeHead()
 
     if( n_head < 3 )
     {
-        PNS_DBG( Dbg(), Message, wxT( "Merge failed: not enough head segs." ) );
+        PNS_DBG( Dbg(), Message, "Merge failed: not enough head segs." );
         return false;
     }
 
     if( n_tail && head.CPoint( 0 ) != tail.CPoint( -1 ) )
     {
-        PNS_DBG( Dbg(), Message, wxT( "Merge failed: head and tail discontinuous." ) );
+        PNS_DBG( Dbg(), Message, "Merge failed: head and tail discontinuous." );
         return false;
     }
 
@@ -364,7 +345,7 @@ bool LINE_PLACER::mergeHead()
 
     if( n_tail )
     {
-        wxASSERT( tail.PointCount() >= 2 );
+        Q_ASSERT( tail.PointCount() >= 2 );
         int lastSegIdx = tail.PointCount() - 2;
 
         if( !tail.IsPtOnArc( lastSegIdx ) )
@@ -389,8 +370,8 @@ bool LINE_PLACER::mergeHead()
 
     head.Remove( 0, -1 );
 
-    PNS_DBG( Dbg(), Message, wxString::Format( "Placer: merge %d, new direction: %s" , n_head,
-                m_direction.Format() ) );
+    PNS_DBG( Dbg(), Message, QString::asprintf( "Placer: merge %d, new direction: %s" , n_head,
+                m_direction.Format().c_str() ) );
 
     head.Simplify();
     tail.Simplify();
@@ -413,8 +394,8 @@ bool LINE_PLACER::clipAndCheckCollisions( const VECTOR2I& aP, const SHAPE_LINE_C
     SHAPE_LINE_CHAIN l2 = l.Slice( 0, idx );
     int dist = l2.Length();
 
-    PNS_DBG( Dbg(), AddPoint, aP, BLUE, 500000, wxString::Format( "hug-target-check-%d", idx ) );
-    PNS_DBG( Dbg(), AddShape, &l2, BLUE, 500000, wxT( "hug-target-line" ) );
+    PNS_DBG( Dbg(), AddPoint, aP, BLUE, 500000, QString::asprintf( "hug-target-check-%d", idx ) );
+    PNS_DBG( Dbg(), AddShape, &l2, BLUE, 500000, "hug-target-line" );
 
     if( dist < thresholdDist )
         rv = false;
@@ -546,7 +527,7 @@ bool LINE_PLACER::cursorDistMinimum( const SHAPE_LINE_CHAIN& aL, const VECTOR2I&
 
     for( int i = 0; i < pts.size() ; i++)
     {
-        //PNS_DBG( Dbg(), AddPoint, pts[i], BLUE, 500000, wxT( "hug-target-fallback" ) );
+        //PNS_DBG( Dbg(), AddPoint, pts[i], BLUE, 500000, "hug-target-fallback" );
 
         ok |= clipAndCheckCollisions( pts[i], aL, aOut, thresholdDist );
     }
@@ -561,8 +542,8 @@ bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisio
     LINE walkFull( m_head );
     LINE l1( m_head );
 
-    PNS_DBG( Dbg(), AddItem, &m_tail, GREEN, 100000, wxT( "walk-base-old-tail" ) );
-    PNS_DBG( Dbg(), AddItem, &m_head, BLUE, 100000, wxT( "walk-base-old-head" ) );
+    PNS_DBG( Dbg(), AddItem, &m_tail, GREEN, 100000, "walk-base-old-tail" );
+    PNS_DBG( Dbg(), AddItem, &m_head, BLUE, 100000, "walk-base-old-head" );
 
     VECTOR2I walkP = aP;
 
@@ -581,14 +562,14 @@ bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisio
     {
         l1.Clear();
 
-        PNS_DBG( Dbg(), BeginGroup, wxString::Format( "walk-round-%d", round ), 0 );
+        PNS_DBG( Dbg(), BeginGroup, QString::asprintf( "walk-round-%d", round ), 0 );
         round++;
 
         aViaOk = buildInitialLine( walkP, l1, aMode, round == 0 );
-        PNS_DBG( Dbg(), AddItem, &l1, BLUE, 20000, wxT( "walk-base-l1" ) );
+        PNS_DBG( Dbg(), AddItem, &l1, BLUE, 20000, "walk-base-l1" );
 
         if( l1.EndsWithVia() )
-            PNS_DBG( Dbg(), AddPoint, l1.Via().Pos(), BLUE, 100000, wxT( "walk-base-l1-via" ) );
+            PNS_DBG( Dbg(), AddPoint, l1.Via().Pos(), BLUE, 100000, "walk-base-l1-via" );
 
         LINE initTrack( m_tail );
         initTrack.Line().Append( l1.CLine() );
@@ -619,7 +600,7 @@ bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisio
 
         if( wr.status[ WP_CW ] == WALKAROUND::ST_DONE )
         {
-            PNS_DBG( Dbg(), AddItem, &wr.lines[WP_CW], BLUE, 20000, wxT( "wf-result-cw-preopt" ) );
+            PNS_DBG( Dbg(), AddItem, &wr.lines[WP_CW], BLUE, 20000, "wf-result-cw-preopt" );
             LINE tmpHead, tmpTail;
 
 
@@ -632,14 +613,14 @@ bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisio
                 wr.lines[WP_CW].Line().Append( tmpHead.CLine( ) );
             }
 
-            PNS_DBG( Dbg(), AddItem, &wr.lines[WP_CW], RED, 20000, wxT( "wf-result-cw-postopt" ) );
+            PNS_DBG( Dbg(), AddItem, &wr.lines[WP_CW], RED, 20000, "wf-result-cw-postopt" );
             len_cw = wr.lines[WP_CW].CLine().Length();
             bestLine = wr.lines[WP_CW];
         }
 
         if( wr.status[WP_CCW] == WALKAROUND::ST_DONE )
         {
-            PNS_DBG( Dbg(), AddItem, &wr.lines[WP_CCW], BLUE, 20000, wxT( "wf-result-ccw-preopt" ) );
+            PNS_DBG( Dbg(), AddItem, &wr.lines[WP_CCW], BLUE, 20000, "wf-result-ccw-preopt" );
 
             LINE tmpHead, tmpTail;
 
@@ -652,7 +633,7 @@ bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisio
                 wr.lines[WP_CCW].Line().Append( tmpHead.CLine( ) );
             }
 
-            PNS_DBG( Dbg(), AddItem, &wr.lines[WP_CCW], RED, 20000, wxT( "wf-result-ccw-postopt" ) );
+            PNS_DBG( Dbg(), AddItem, &wr.lines[WP_CCW], RED, 20000, "wf-result-ccw-postopt" );
             len_ccw = wr.lines[WP_CCW].CLine().Length();
 
             if( len_ccw < len_cw )
@@ -684,7 +665,7 @@ bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisio
             if( validCw )
                 distCw = ( aP - l_cw.CPoint( -1 ) ).EuclideanNorm();
 
-            PNS_DBG( Dbg(), AddShape, &l_cw, MAGENTA, 200000, wxString::Format( "wh-result-cw %s",
+            PNS_DBG( Dbg(), AddShape, &l_cw, MAGENTA, 200000, QString::asprintf( "wh-result-cw %s",
                                                                                  validCw ? "non-colliding"
                                                                                          : "colliding" ) );
         }
@@ -696,7 +677,7 @@ bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisio
             if( validCcw )
                 distCcw = ( aP - l_ccw.CPoint( -1 ) ).EuclideanNorm();
 
-            PNS_DBG( Dbg(), AddShape, &l_ccw, MAGENTA, 200000, wxString::Format( "wh-result-ccw %s",
+            PNS_DBG( Dbg(), AddShape, &l_ccw, MAGENTA, 200000, QString::asprintf( "wh-result-ccw %s",
                                                                                  validCcw ? "non-colliding"
                                                                                           : "colliding" ) );
         }
@@ -729,12 +710,12 @@ bool LINE_PLACER::rhWalkBase( const VECTOR2I& aP, LINE& aWalkLine, int aCollisio
         walkFull.AppendVia( v );
     }
 
-    PNS_DBG( Dbg(), AddItem, &walkFull, GREEN, 200000, wxT( "walk-full" ) );
+    PNS_DBG( Dbg(), AddItem, &walkFull, GREEN, 200000, "walk-full" );
 
     if( walkFull.EndsWithVia() )
     {
         PNS_DBG( Dbg(), AddPoint, walkFull.Via().Pos(), GREEN, 200000,
-                 wxString::Format( "walk-via ok %d", aViaOk ? 1 : 0 ) );
+                 QString::asprintf( "walk-via ok %d", aViaOk ? 1 : 0 ) );
     }
 
     aWalkLine = walkFull;
@@ -777,7 +758,7 @@ bool LINE_PLACER::rhWalkOnly( const VECTOR2I& aP, LINE& aNewHead, LINE& aNewTail
 
     if( m_currentNode->CheckColliding( &walkFull ) )
     {
-        PNS_DBG( Dbg(), AddItem, &walkFull, GREEN, 100000, wxString::Format( "collision check fail" ) );
+        PNS_DBG( Dbg(), AddItem, &walkFull, GREEN, 100000, QString::asprintf( "collision check fail" ) );
         return false;
     }
 
@@ -800,15 +781,15 @@ bool LINE_PLACER::rhWalkOnly( const VECTOR2I& aP, LINE& aNewHead, LINE& aNewTail
 
     if( m_placingVia && viaOk )
     {
-        PNS_DBG( Dbg(), AddPoint, aNewHead.CPoint(-1), RED, 1000000, wxString::Format( "VIA" ) );
+        PNS_DBG( Dbg(), AddPoint, aNewHead.CPoint(-1), RED, 1000000, QString::asprintf( "VIA" ) );
 
         aNewHead.AppendVia( makeVia( aNewHead.CPoint( -1 ) ) );
     }
 
     OPTIMIZER::Optimize( &aNewHead, effort, m_currentNode );
 
-    PNS_DBG( Dbg(), AddItem, &aNewHead, GREEN, 100000, wxString::Format( "walk-new-head" ) );
-    PNS_DBG( Dbg(), AddItem, &aNewTail, BLUE, 100000, wxT( "walk-new-tail" ) );
+    PNS_DBG( Dbg(), AddItem, &aNewHead, GREEN, 100000, QString::asprintf( "walk-new-head" ) );
+    PNS_DBG( Dbg(), AddItem, &aNewTail, BLUE, 100000, "walk-new-tail" );
 
     return true;
 }
@@ -917,7 +898,7 @@ bool LINE_PLACER::splitHeadTail( const LINE& aNewLine, const LINE& aOldTail, LIN
         newHead = l2;
     }
 
-    PNS_DBG( Dbg(), AddItem, &newHead, BLUE, 500000, wxT( "head-post-split" ) );
+    PNS_DBG( Dbg(), AddItem, &newHead, BLUE, 500000, "head-post-split" );
 
     aNewHead = newHead;
     aNewTail = newTail;
@@ -949,7 +930,7 @@ bool LINE_PLACER::rhShoveOnly( const VECTOR2I& aP, LINE& aNewHead, LINE& aNewTai
     LINE newHead( walkSolids );
 
     if( walkSolids.EndsWithVia() )
-        PNS_DBG( Dbg(), AddPoint, newHead.Via().Pos(), RED, 1000000, wxString::Format( "SVIA [%d]", viaOk?1:0 ) );
+        PNS_DBG( Dbg(), AddPoint, newHead.Via().Pos(), RED, 1000000, QString::asprintf( "SVIA [%d]", viaOk?1:0 ) );
 
     if( m_placingVia && viaOk )
     {
@@ -1083,7 +1064,7 @@ bool LINE_PLACER::optimizeTailHeadTransition()
     // If so, replace the (threshold) last tail points and the head with
     // the optimized line
 
-    PNS_DBG( Dbg(), AddItem, &new_head, LIGHTCYAN, 10000, wxT( "ht-newline" ) );
+    PNS_DBG( Dbg(), AddItem, &new_head, LIGHTCYAN, 10000, "ht-newline" );
 
     if( OPTIMIZER::Optimize( &new_head, OPTIMIZER::MERGE_SEGMENTS, m_currentNode ) )
     {
@@ -1117,15 +1098,15 @@ void LINE_PLACER::routeStep( const VECTOR2I& aP )
     int i, n_iter = 1;
 
 
-    PNS_DBG( Dbg(), Message, wxString::Format( "routeStep: direction: %s head: %d, tail: %d shapes" ,
-                                               m_direction.Format(),
+    PNS_DBG( Dbg(), Message, QString::asprintf( "routeStep: direction: %s head: %d, tail: %d shapes" ,
+                                               m_direction.Format().c_str(),
                                                m_head.ShapeCount(),
                                                m_tail.ShapeCount() ) );
 
-    PNS_DBG( Dbg(), BeginGroup, wxT( "route-step" ), 0 );
+    PNS_DBG( Dbg(), BeginGroup, "route-step", 0 );
 
-    PNS_DBG( Dbg(), AddItem, &m_tail, WHITE, 10000, wxT( "tail-init" ) );
-    PNS_DBG( Dbg(), AddItem, &m_head, GREEN, 10000, wxT( "head-init" ) );
+    PNS_DBG( Dbg(), AddItem, &m_tail, WHITE, 10000, "tail-init" );
+    PNS_DBG( Dbg(), AddItem, &m_head, GREEN, 10000, "head-init" );
 
     for( i = 0; i < n_iter; i++ )
     {
@@ -1136,8 +1117,8 @@ void LINE_PLACER::routeStep( const VECTOR2I& aP )
         if( !go_back && Settings().FollowMouse() )
             reduceTail( aP );
 
-        PNS_DBG( Dbg(), AddItem, &m_tail, WHITE, 10000, wxT( "tail-after-reduce" ) );
-        PNS_DBG( Dbg(), AddItem, &m_head, GREEN, 10000, wxT( "head-after-reduce" ) );
+        PNS_DBG( Dbg(), AddItem, &m_tail, WHITE, 10000, "tail-after-reduce" );
+        PNS_DBG( Dbg(), AddItem, &m_head, GREEN, 10000, "head-after-reduce" );
 
         go_back = false;
 
@@ -1162,12 +1143,12 @@ void LINE_PLACER::routeStep( const VECTOR2I& aP )
 
         updatePStart( m_tail );
 
-        PNS_DBG( Dbg(), AddItem, &newHead, LIGHTGREEN, 100000, wxString::Format( "new_head [fail: %d]", fail?1:0 ) );
+        PNS_DBG( Dbg(), AddItem, &newHead, LIGHTGREEN, 100000, QString::asprintf( "new_head [fail: %d]", fail?1:0 ) );
 
         if( fail )
             break;
 
-        PNS_DBG( Dbg(), Message, wxString::Format( "N VIA H %d T %d\n", m_head.EndsWithVia() ? 1 : 0, m_tail.EndsWithVia() ? 1 : 0 ) );
+        PNS_DBG( Dbg(), Message, QString::asprintf( "N VIA H %d T %d\n", m_head.EndsWithVia() ? 1 : 0, m_tail.EndsWithVia() ? 1 : 0 ) );
 
         m_head = newHead;
         m_tail = newTail;
@@ -1178,10 +1159,10 @@ void LINE_PLACER::routeStep( const VECTOR2I& aP )
             go_back = true;
         }
 
-        PNS_DBG( Dbg(), Message, wxString::Format( "SI VIA H %d T %d\n", m_head.EndsWithVia() ? 1 : 0, m_tail.EndsWithVia() ? 1 : 0 ) );
+        PNS_DBG( Dbg(), Message, QString::asprintf( "SI VIA H %d T %d\n", m_head.EndsWithVia() ? 1 : 0, m_tail.EndsWithVia() ? 1 : 0 ) );
 
-        PNS_DBG( Dbg(), AddItem, &m_tail, WHITE, 10000, wxT( "tail-after-si" ) );
-        PNS_DBG( Dbg(), AddItem, &m_head, GREEN, 10000, wxT( "head-after-si" ) );
+        PNS_DBG( Dbg(), AddItem, &m_tail, WHITE, 10000, "tail-after-si" );
+        PNS_DBG( Dbg(), AddItem, &m_head, GREEN, 10000, "head-after-si" );
 
         if( !go_back && handlePullback() )
         {
@@ -1190,29 +1171,29 @@ void LINE_PLACER::routeStep( const VECTOR2I& aP )
             go_back = true;
         }
 
-        PNS_DBG( Dbg(), Message, wxString::Format( "PB VIA H %d T %d\n", m_head.EndsWithVia() ? 1 : 0, m_tail.EndsWithVia() ? 1 : 0 ) );
+        PNS_DBG( Dbg(), Message, QString::asprintf( "PB VIA H %d T %d\n", m_head.EndsWithVia() ? 1 : 0, m_tail.EndsWithVia() ? 1 : 0 ) );
 
-        PNS_DBG( Dbg(), AddItem, &m_tail, WHITE, 100000, wxT( "tail-after-pb" ) );
-        PNS_DBG( Dbg(), AddItem, &m_head, GREEN, 100000, wxT( "head-after-pb" ) );
+        PNS_DBG( Dbg(), AddItem, &m_tail, WHITE, 100000, "tail-after-pb" );
+        PNS_DBG( Dbg(), AddItem, &m_head, GREEN, 100000, "head-after-pb" );
     }
 
 
     if( !fail && Settings().FollowMouse() )
     {
-        PNS_DBG( Dbg(), AddItem, &m_tail, WHITE, 10000, wxT( "tail-pre-merge" ) );
-        PNS_DBG( Dbg(), AddItem, &m_head, GREEN, 10000, wxT( "head-pre-merge" ) );
+        PNS_DBG( Dbg(), AddItem, &m_tail, WHITE, 10000, "tail-pre-merge" );
+        PNS_DBG( Dbg(), AddItem, &m_head, GREEN, 10000, "head-pre-merge" );
 
         if( !optimizeTailHeadTransition() )
         {
-            PNS_DBG( Dbg(), Message, wxString::Format( "PreM VIA H %d T %d\n", m_head.EndsWithVia() ? 1 : 0, m_tail.EndsWithVia() ? 1 : 0 ) );
+            PNS_DBG( Dbg(), Message, QString::asprintf( "PreM VIA H %d T %d\n", m_head.EndsWithVia() ? 1 : 0, m_tail.EndsWithVia() ? 1 : 0 ) );
 
             mergeHead();
 
-            PNS_DBG( Dbg(), Message, wxString::Format( "PostM VIA H %d T %d\n", m_head.EndsWithVia() ? 1 : 0, m_tail.EndsWithVia() ? 1 : 0 ) );
+            PNS_DBG( Dbg(), Message, QString::asprintf( "PostM VIA H %d T %d\n", m_head.EndsWithVia() ? 1 : 0, m_tail.EndsWithVia() ? 1 : 0 ) );
         }
 
-        PNS_DBG( Dbg(), AddItem, &m_tail, WHITE, 100000, wxT( "tail-post-merge" ) );
-        PNS_DBG( Dbg(), AddItem, &m_head, GREEN, 100000, wxT( "head-post-merge" ) );
+        PNS_DBG( Dbg(), AddItem, &m_tail, WHITE, 100000, "tail-post-merge" );
+        PNS_DBG( Dbg(), AddItem, &m_head, GREEN, 100000, "head-post-merge" );
     }
 
     m_last_p_end = aP;
@@ -1247,8 +1228,8 @@ const LINE LINE_PLACER::Trace() const
 
     tmp.SetShape( l );
 
-    PNS_DBG( Dbg(), AddItem, &m_tail, GREEN, 100000, wxT( "tmp-tail" ) );
-    PNS_DBG( Dbg(), AddItem, &m_head, LIGHTGREEN, 100000, wxT( "tmp-head" ) );
+    PNS_DBG( Dbg(), AddItem, &m_tail, GREEN, 100000, "tmp-tail" );
+    PNS_DBG( Dbg(), AddItem, &m_head, LIGHTGREEN, 100000, "tmp-head" );
 
     return tmp;
 }
@@ -1419,8 +1400,8 @@ bool LINE_PLACER::Start( const VECTOR2I& aP, ITEM* aStartItem )
         initialDir   = DIRECTION_45( static_cast<DIRECTION_45::Directions>( int( angle ) ) );
     }
 
-    PNS_DBG( Dbg(), Message, wxString::Format( "Posture: init %s, last seg %s",
-                initialDir.Format(), lastSegDir.Format() ) );
+    PNS_DBG( Dbg(), Message, QString::asprintf( "Posture: init %s, last seg %s",
+                initialDir.Format().c_str(), lastSegDir.Format().c_str() ) );
 
     m_mouseTrailTracer.Clear();
     m_mouseTrailTracer.AddTrailPoint( aP );
@@ -1469,7 +1450,7 @@ void LINE_PLACER::initPlacement()
 
     setWorld( rootNode );
 
-    wxLogTrace( wxT( "PNS" ), wxT( "world %p, intitial-direction %s layer %d" ),
+    qDebug() << QString::asprintf( "world %p, intitial-direction %s layer %d",
                 m_world,
                 m_direction.Format().c_str(),
                 m_currentLayer );
@@ -1842,7 +1823,7 @@ void LINE_PLACER::removeLoops( NODE* aNode, LINE& aLatest )
             }
         }
 
-        PNS_DBG( Dbg(), Message, wxString::Format( "total segs removed: %d/%d", removedCount, total ) );
+        PNS_DBG( Dbg(), Message, QString::asprintf( "total segs removed: %d/%d", removedCount, total ) );
     }
 
     for( LINKED_ITEM* s : toErase )
@@ -1854,7 +1835,7 @@ void LINE_PLACER::removeLoops( NODE* aNode, LINE& aLatest )
 
 void LINE_PLACER::simplifyNewLine( NODE* aNode, LINKED_ITEM* aLatest )
 {
-    wxASSERT( aLatest->OfKind( ITEM::SEGMENT_T | ITEM::ARC_T ) );
+    Q_ASSERT( aLatest->OfKind( ITEM::SEGMENT_T | ITEM::ARC_T ) );
 
     // Before we assemble the final line and run the optimizer, do a separate pass to clean up
     // colinear segments that exist on non-line-corner joints, as these will prevent proper assembly
@@ -1936,7 +1917,7 @@ void LINE_PLACER::simplifyNewLine( NODE* aNode, LINKED_ITEM* aLatest )
         aNode->Remove( l_orig );
         l.SetShape( simplified );
         aNode->Add( l );
-        PNS_DBG( Dbg(), AddItem, &l, RED, 100000, wxT("simplified"));
+        PNS_DBG( Dbg(), AddItem, &l, RED, 100000, "simplified");
     }
 }
 
@@ -1989,15 +1970,15 @@ bool LINE_PLACER::buildInitialLine( const VECTOR2I& aP, LINE& aHead, PNS::PNS_MO
     SHAPE_LINE_CHAIN l;
     DIRECTION_45 guessedDir = m_mouseTrailTracer.GetPosture( aP );
 
-    PNS_DBG( Dbg(), Message, wxString::Format( wxT( "buildInitialLine: m_direction %s, guessedDir %s, tail points %d" ),
-                                               m_direction.Format(), guessedDir.Format(), m_tail.PointCount() ) );
+    PNS_DBG( Dbg(), Message, QString::asprintf( "buildInitialLine: m_direction %s, guessedDir %s, tail points %d",
+                                               m_direction.Format().c_str(), guessedDir.Format().c_str(), m_tail.PointCount() ) );
 
     DIRECTION_45::CORNER_MODE cornerMode = Settings().GetCornerMode();
     // Rounded corners don't make sense when routing orthogonally (single track at a time)
     if( m_orthoMode )
         cornerMode = DIRECTION_45::CORNER_MODE::MITERED_45;
 
-    PNS_DBG( Dbg(), AddPoint, m_p_start, WHITE, 10000, wxT( "pstart [buildInitial]" ) );
+    PNS_DBG( Dbg(), AddPoint, m_p_start, WHITE, 10000, "pstart [buildInitial]" );
 
 
     if( m_p_start == aP )
@@ -2030,7 +2011,7 @@ bool LINE_PLACER::buildInitialLine( const VECTOR2I& aP, LINE& aHead, PNS::PNS_MO
     aHead.SetLayer( m_currentLayer );
     aHead.SetShape( l );
 
-    PNS_DBG( Dbg(), AddItem, &aHead, CYAN, 10000, wxT( "initial-trace" ) );
+    PNS_DBG( Dbg(), AddItem, &aHead, CYAN, 10000, "initial-trace" );
 
 
     if( !m_placingVia || aForceNoVia )

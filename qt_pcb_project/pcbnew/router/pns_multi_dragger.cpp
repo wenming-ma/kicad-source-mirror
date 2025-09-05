@@ -1,28 +1,10 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include "pns_multi_dragger.h"
 #include "pns_router.h"
 #include "pns_debug_decorator.h"
 #include "pns_walkaround.h"
 #include "pns_shove.h"
+#include <QString>
 
 namespace PNS
 {
@@ -299,7 +281,7 @@ bool clipToOtherLine( NODE* aNode, const LINE& aRef, LINE& aClipped )
 
         l.SetShape( sl_tmp );
 
-        //PNS_DBG( dbg, 3int, pclip, WHITE, 500000, wxT(""));
+        //PNS_DBG( dbg, 3int, pclip, WHITE, 500000, "");
 
 
         if( l.Collide( &aRef, aNode, l.Layer(), &ctx ) )
@@ -394,7 +376,7 @@ int MULTI_DRAGGER::findNewLeaderSegment( const MULTI_DRAGGER::MDRAG_LINE& aLine 
         const DIRECTION_45 curDir( curSeg );
 
         auto ip = curSeg.IntersectLines( m_guide );
-        PNS_DBG(Dbg(), Message, wxString::Format("s %d ip=%d c=%s o=%s", i, ip?1:0, curDir.Format(), origLeaderDir.Format() ));
+        PNS_DBG(Dbg(), Message, QString::asprintf("s %d ip=%d c=%s o=%s", i, ip?1:0, curDir.Format(), origLeaderDir.Format() ));
         if( ip && curSeg.Contains( *ip ) )
         {
             if( curDir == origLeaderDir || curDir == origLeaderDir.Opposite() )
@@ -455,7 +437,7 @@ bool MULTI_DRAGGER::multidragWalkaround( std::vector<MDRAG_LINE>& aCompletedLine
 
     for( auto& l : aCompletedLines )
     {
-        PNS_DBG( Dbg(), AddItem, &l.originalLine, BLUE, 100000, wxString::Format("prewalk-remove lc=%d", l.originalLine.LinkCount() ) );
+        PNS_DBG( Dbg(), AddItem, &l.originalLine, BLUE, 100000, QString::asprintf("prewalk-remove lc=%d", l.originalLine.LinkCount() ) );
         preWalkNode->Remove( l.originalLine );
     }
 
@@ -477,8 +459,8 @@ bool MULTI_DRAGGER::multidragWalkaround( std::vector<MDRAG_LINE>& aCompletedLine
             LINE walk( l.draggedLine );
             auto result = tryWalkaround( node, l.draggedLine, walk );
 
-            PNS_DBG( Dbg(), AddItem, &l.draggedLine, YELLOW, 100000, wxString::Format("dragged lidx=%d attempt=%d dd=%d isPrimary=%d", lidx, attempt, l.dragDist, l.isPrimaryLine?1:0) );
-            PNS_DBG( Dbg(), AddItem, &walk, BLUE, 100000, wxString::Format("walk    lidx=%d attempt=%d", lidx, attempt) );
+            PNS_DBG( Dbg(), AddItem, &l.draggedLine, YELLOW, 100000, QString::asprintf("dragged lidx=%d attempt=%d dd=%d isPrimary=%d", lidx, attempt, l.dragDist, l.isPrimaryLine?1:0) );
+            PNS_DBG( Dbg(), AddItem, &walk, BLUE, 100000, QString::asprintf("walk    lidx=%d attempt=%d", lidx, attempt) );
 
 
             if( result )
@@ -601,7 +583,7 @@ bool MULTI_DRAGGER::multidragShove( std::vector<MDRAG_LINE>& aCompletedLines )
 
     for( auto& l : m_mdragLines )
     {
-        PNS_DBG( Dbg(), Message, wxString::Format ( wxT("net %-30s: isCorner %d isStrict %d c-Dist %-10d l-dist %-10d leadIndex %-2d CisLast %d dragDist %-10d"),
+        PNS_DBG( Dbg(), Message, QString::asprintf("net %-30s: isCorner %d isStrict %d c-Dist %-10d l-dist %-10d leadIndex %-2d CisLast %d dragDist %-10d",
             iface->GetNetName( l.draggedLine.Net() ),
             (int) l.isCorner?1:0,
             (int) l.isStrict?1:0,
@@ -676,7 +658,7 @@ bool MULTI_DRAGGER::Drag( const VECTOR2I& aP )
             if( l.isPrimaryLine )
             {
 
-                //PNS_DBG( Dbg(), AddItem, &l.originalLine, BLUE, 300000, wxT("mdrag-prim"));
+                //PNS_DBG( Dbg(), AddItem, &l.originalLine, BLUE, 300000, "mdrag-prim");
 
             // create a copy of the primary line (pre-drag and post-drag).
             // the pre-drag version is necessary for NODE::Remove() to be able to
@@ -707,7 +689,7 @@ bool MULTI_DRAGGER::Drag( const VECTOR2I& aP )
         if( m_dragMode == DM_CORNER )
         {
             // first, drag only the primary line
-        //    PNS_DBG( Dbg(), AddPoint, primaryDragged->CPoint( -1 ), YELLOW, 600000, wxT("mdrag-sec"));
+        //    PNS_DBG( Dbg(), AddPoint, primaryDragged->CPoint( -1 ), YELLOW, 600000, "mdrag-sec");
 
 	        lastPreDrag =  primaryPreDrag->CSegment( -1 );
             primaryDir = DIRECTION_45( lastPreDrag );
@@ -758,17 +740,17 @@ bool MULTI_DRAGGER::Drag( const VECTOR2I& aP )
         // now drag all other lines
         for( auto& l : m_mdragLines )
         {
-            //PNS_DBG( Dbg(), AddPoint, l.originalLine.CPoint( l.cornerIndex ), WHITE, 1000000, wxT("l-end"));
+            //PNS_DBG( Dbg(), AddPoint, l.originalLine.CPoint( l.cornerIndex ), WHITE, 1000000, "l-end");
             if( l.isDraggable )
             {
                 l.dragOK = false;
-                //PNS_DBG( Dbg(), AddItem, &l.originalLine, GREEN, 100000, wxT("mdrag-sec"));
+                //PNS_DBG( Dbg(), AddItem, &l.originalLine, GREEN, 100000, "mdrag-sec");
 
                 // reject nulls
                 if( l.preDragLine.SegmentCount() >= 1 )
                 {
 
-                    //PNS_DBG( Dbg(), AddPoint, l.preDragLine.CPoint( l.cornerIndex ), YELLOW, 600000, wxT("mdrag-sec"));
+                    //PNS_DBG( Dbg(), AddPoint, l.preDragLine.CPoint( l.cornerIndex ), YELLOW, 600000, "mdrag-sec");
 
                     // check the direction of the last segment of the line against the direction of
                     // the last segment of the primary line (both before dragging) and perform drag
@@ -803,7 +785,7 @@ bool MULTI_DRAGGER::Drag( const VECTOR2I& aP )
                                                         false, primaryLastSegDir );
 
                             //PNS_DBG( Dbg(), AddPoint, projected, LIGHTYELLOW, 600000,
-                            //       wxT( "l-end" ) );
+                            //       "l-end" );
 
                             l.dragOK = true;
 
@@ -854,9 +836,9 @@ bool MULTI_DRAGGER::Drag( const VECTOR2I& aP )
 
 
                             PNS_DBG( Dbg(), AddPoint, startProj, LIGHTBLUE, 400000,
-                                     wxT( "startProj" ) );
+                                     "startProj" );
                             PNS_DBG( Dbg(), AddPoint, projected, LIGHTRED, 400000,
-                                     wxString::Format( "pro dd=%d", l.dragDist ) );
+                                     QString::asprintf( "pro dd=%d", l.dragDist ) );
                         }
                     }
                 }

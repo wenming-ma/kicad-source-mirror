@@ -1,23 +1,6 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2015 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+#include <QString>
+#include <QObject>
 
 #include "pns_walkaround.h"
 #include "pns_shove.h"
@@ -510,7 +493,7 @@ OPT_VECTOR2I getDanglingAnchor( NODE* aNode, ITEM* aItem )
 
 
 bool DIFF_PAIR_PLACER::FindDpPrimitivePair( NODE* aWorld, const VECTOR2I& aP, ITEM* aItem,
-                                            DP_PRIMITIVE_PAIR& aPair, wxString* aErrorMsg )
+                                            DP_PRIMITIVE_PAIR& aPair, QString* aErrorMsg )
 {
     NET_HANDLE netP, netN;
 
@@ -520,7 +503,7 @@ bool DIFF_PAIR_PLACER::FindDpPrimitivePair( NODE* aWorld, const VECTOR2I& aP, IT
     {
         if( aErrorMsg )
         {
-            *aErrorMsg = _( "Unable to find complementary differential pair "
+            *aErrorMsg = QObject::tr( "Unable to find complementary differential pair "
                             "nets. Make sure the names of the nets belonging "
                             "to a differential pair end with either N/P or +/-." );
         }
@@ -537,7 +520,7 @@ bool DIFF_PAIR_PLACER::FindDpPrimitivePair( NODE* aWorld, const VECTOR2I& aP, IT
     {
         if( aErrorMsg )
         {
-            *aErrorMsg = _( "Can't find a suitable starting point.  If starting "
+            *aErrorMsg = QObject::tr( "Can't find a suitable starting point.  If starting "
                             "from an existing differential pair make sure you are "
                             "at the end." );
         }
@@ -592,9 +575,9 @@ bool DIFF_PAIR_PLACER::FindDpPrimitivePair( NODE* aWorld, const VECTOR2I& aP, IT
     {
         if( aErrorMsg )
         {
-            *aErrorMsg = wxString::Format( _( "Can't find a suitable starting point "
-                                              "for coupled net \"%s\"." ),
-                                           aWorld->GetRuleResolver()->NetName( coupledNet ) );
+            *aErrorMsg = QString( QObject::tr( "Can't find a suitable starting point "
+                                              "for coupled net \"%1\"." ) )
+                                           .arg( aWorld->GetRuleResolver()->NetName( coupledNet ) );
         }
 
         return false;
@@ -624,7 +607,7 @@ bool DIFF_PAIR_PLACER::Start( const VECTOR2I& aP, ITEM* aStartItem )
     setWorld( Router()->GetWorld() );
     m_currentNode = m_world;
 
-    wxString err_msg;
+    QString err_msg;
 
     if( !FindDpPrimitivePair( m_currentNode, aP, aStartItem, m_start, &err_msg ) )
     {

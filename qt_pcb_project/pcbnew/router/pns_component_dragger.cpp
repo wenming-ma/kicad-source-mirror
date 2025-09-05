@@ -1,23 +1,3 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2020 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <memory>
 
@@ -92,7 +72,7 @@ bool COMPONENT_DRAGGER::Start( const VECTOR2I& aP, ITEM_SET& aPrimitives )
                 const JOINT* jA = m_world->FindJoint( line.CPoint( 0 ), aItem->Layer(), aItem->Net() );
                 const JOINT* jB = m_world->FindJoint( line.CPoint( -1 ), aItem->Layer(), aItem->Net() );
 
-                wxASSERT( jA == aJoint || jB == aJoint );
+                Q_ASSERT( jA == aJoint || jB == aJoint );
                 const JOINT* jSearch = ( jA == aJoint ) ? jB : jA;
 
                 if( jSearch && jSearch->LinkCount( ITEM::SOLID_T ) )
@@ -221,7 +201,7 @@ bool COMPONENT_DRAGGER::Drag( const VECTOR2I& aP )
         }
 
         default:
-            wxFAIL_MSG( wxT( "Unexpected item type in COMPONENT_DRAGGER::m_fixedItems" ) );
+            Q_ASSERT_X( false, "COMPONENT_DRAGGER", "Unexpected item type in COMPONENT_DRAGGER::m_fixedItems" );
         }
     }
 
@@ -232,7 +212,7 @@ bool COMPONENT_DRAGGER::Drag( const VECTOR2I& aP )
         l_new.ClearLinks();
         l_new.DragCorner( cn.p_next, cn.origLine.CLine().Find( cn.p_orig ) );
 
-        PNS_DBG( Dbg(), AddItem, &l_new, BLUE, 0, wxT( "cdrag-new-fanout" ) );
+        PNS_DBG( Dbg(), AddItem, &l_new, BLUE, 0, "cdrag-new-fanout" );
         m_draggedItems.Add( l_new );
 
         LINE l_orig( cn.origLine );

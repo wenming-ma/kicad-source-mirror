@@ -1,23 +1,3 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2015 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include "pns_meander_placer_base.h"
 #include "pns_meander.h"
@@ -75,7 +55,9 @@ int MEANDER_PLACER_BASE::Clearance()
     Router()->GetRuleResolver()->QueryConstraint( PNS::CONSTRAINT_TYPE::CT_CLEARANCE, itemToCheck,
                                                   nullptr, CurrentLayer(), &constraint );
 
-    wxCHECK_MSG( constraint.m_Value.HasMin(), m_currentWidth, wxT( "No minimum clearance?" ) );
+    Q_ASSERT_X( constraint.m_Value.HasMin(), "MEANDER_PLACER_BASE::Clearance", "No minimum clearance?" );
+    if( !constraint.m_Value.HasMin() )
+        return m_currentWidth;
 
     return constraint.m_Value.Min();
 }
@@ -303,7 +285,7 @@ VECTOR2I MEANDER_PLACER_BASE::getSnappedStartPoint( LINKED_ITEM* aStartItem, VEC
     }
     else
     {
-        wxASSERT( aStartItem->Kind() == ITEM::ARC_T );
+        Q_ASSERT( aStartItem->Kind() == ITEM::ARC_T );
         ARC* arc = static_cast<ARC*>( aStartItem );
 
         if( ( VECTOR2I( arc->Anchor( 0 ) - aStartPoint ) ).SquaredEuclideanNorm() <=

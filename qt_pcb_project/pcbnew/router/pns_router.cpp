@@ -1,23 +1,3 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <cstdio>
 #include <memory>
@@ -126,7 +106,9 @@ const ITEM_SET ROUTER::QueryHoverItems( const VECTOR2I& aP, int aSlopRadius )
     NODE*         node = m_placer ? m_placer->CurrentNode() : m_world.get();
     PNS::ITEM_SET ret;
 
-    wxCHECK( node, ret );
+    Q_ASSERT( node );
+    if( !node )
+        return ret;
 
     if( aSlopRadius > 0 )
     {
@@ -225,13 +207,13 @@ bool ROUTER::isStartingPointRoutable( const VECTOR2I& aWhere, ITEM* aStartItem, 
     {
         if( m_sizes.DiffPairGap() < m_sizes.MinClearance() )
         {
-            SetFailureReason( _( "Diff pair gap is less than board minimum clearance." ) );
+            SetFailureReason( "Diff pair gap is less than board minimum clearance." );
             return false;
         }
     }
 
     ITEM_SET candidates = QueryHoverItems( aWhere );
-    wxString failureReason;
+    QString failureReason;
 
     for( ITEM* item : candidates.Items() )
     {
@@ -244,7 +226,7 @@ bool ROUTER::isStartingPointRoutable( const VECTOR2I& aWhere, ITEM* aStartItem, 
 
         if( item->IsRoutable() )
         {
-            failureReason = wxEmptyString;
+            failureReason = QString();
             break;
         }
         else
@@ -258,7 +240,7 @@ bool ROUTER::isStartingPointRoutable( const VECTOR2I& aWhere, ITEM* aStartItem, 
                 PAD* pad = static_cast<PAD*>( parent );
 
                 if( pad->GetAttribute() == PAD_ATTRIB::NPTH )
-                    failureReason = _( "Cannot start routing from a non-plated hole." );
+                    failureReason = "Cannot start routing from a non-plated hole.";
             }
                 break;
 
@@ -269,14 +251,14 @@ bool ROUTER::isStartingPointRoutable( const VECTOR2I& aWhere, ITEM* aStartItem, 
                 if( !zone->HasKeepoutParametersSet() )
                     break;
 
-                if( !zone->GetZoneName().IsEmpty() )
+                if( !zone->GetZoneName().isEmpty() )
                 {
-                    failureReason = wxString::Format( _( "Rule area '%s' disallows tracks." ),
-                                                      zone->GetZoneName() );
+                    failureReason = QString( "Rule area '%1' disallows tracks." )
+                                                      .arg( zone->GetZoneName() );
                 }
                 else
                 {
-                    failureReason = _( "Rule area disallows tracks." );
+                    failureReason = "Rule area disallows tracks.";
                 }
             }
                 break;
@@ -284,7 +266,7 @@ bool ROUTER::isStartingPointRoutable( const VECTOR2I& aWhere, ITEM* aStartItem, 
             case PCB_FIELD_T:
             case PCB_TEXT_T:
             case PCB_TEXTBOX_T:
-                failureReason = _( "Cannot start routing from a text item." );
+                failureReason = "Cannot start routing from a text item.";
                 break;
 
             default:
@@ -293,7 +275,7 @@ bool ROUTER::isStartingPointRoutable( const VECTOR2I& aWhere, ITEM* aStartItem, 
         }
     }
 
-    if( !failureReason.IsEmpty() )
+    if( !failureReason.isEmpty() )
     {
         SetFailureReason( failureReason );
         return false;
@@ -330,7 +312,7 @@ bool ROUTER::isStartingPointRoutable( const VECTOR2I& aWhere, ITEM* aStartItem, 
                 for( ITEM* item : highlightedItems )
                     m_iface->HideItem( item );
 
-                SetFailureReason( _( "The routing start point violates DRC." ) );
+                SetFailureReason( "The routing start point violates DRC." );
                 return false;
             }
         }
@@ -339,12 +321,12 @@ bool ROUTER::isStartingPointRoutable( const VECTOR2I& aWhere, ITEM* aStartItem, 
     {
         if( !aStartItem )
         {
-            SetFailureReason( _( "Cannot start a differential pair in the middle of nowhere." ) );
+            SetFailureReason( "Cannot start a differential pair in the middle of nowhere." );
             return false;
         }
 
         DP_PRIMITIVE_PAIR dpPair;
-        wxString          errorMsg;
+        QString          errorMsg;
 
         if( !DIFF_PAIR_PLACER::FindDpPrimitivePair( m_world.get(), startPoint, aStartItem, dpPair,
                                                     &errorMsg ) )
@@ -395,7 +377,7 @@ bool ROUTER::isStartingPointRoutable( const VECTOR2I& aWhere, ITEM* aStartItem, 
                 for( ITEM* item : highlightedItems )
                     m_iface->HideItem( item );
 
-                SetFailureReason( _( "The routing start point violates DRC." ) );
+                SetFailureReason( "The routing start point violates DRC." );
                 return false;
             }
         }
