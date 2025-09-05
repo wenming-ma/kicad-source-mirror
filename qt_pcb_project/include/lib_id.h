@@ -20,19 +20,19 @@ public:
     int Parse( const UTF8& aId, bool aFix = false );
 
     const UTF8& GetLibNickname() const { return m_libraryName; }
-    const QString GetUniStringLibNickname() const { return QString::fromStdString(m_libraryName.ToStdString()); }
+    const QString GetUniStringLibNickname() const { return QString::fromStdString(m_libraryName); }
 
     int SetLibNickname( const UTF8& aLibNickname );
 
     const UTF8& GetLibItemName() const { return m_itemName; }
 
-    const QString GetUniStringLibItemName() const { return QString::fromStdString(m_itemName.ToStdString()); }
+    const QString GetUniStringLibItemName() const { return QString::fromStdString(m_itemName); }
 
     int SetLibItemName( const UTF8& aLibItemName );
 
     UTF8 GetSubLibraryName() const { return m_subLibraryName; }
     void SetSubLibraryName( const UTF8& aName ) { m_subLibraryName = aName; }
-    const QString GetUniStringSubLibraryName() const { return QString::fromStdString(m_subLibraryName.ToStdString()); }
+    const QString GetUniStringSubLibraryName() const { return QString::fromStdString(m_subLibraryName); }
 
     const QString GetFullLibraryName() const;
 
@@ -40,7 +40,7 @@ public:
 
     QString GetUniStringLibId() const
     {
-        return QString::fromStdString(Format().ToStdString());
+        return QString::fromStdString(Format());
     }
 
     static UTF8 Format( const UTF8& aLibraryName, const UTF8& aLibItemName );

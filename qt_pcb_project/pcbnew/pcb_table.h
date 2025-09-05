@@ -47,9 +47,9 @@ public:
         return aItem && PCB_TABLE_T == aItem->Type();
     }
 
-    virtual wxString GetClass() const override
+    virtual QString GetClass() const override
     {
-        return wxT( "PCB_TABLE" );
+        return QStringLiteral( "PCB_TABLE" );
     }
 
     void SetStrokeExternal( bool aDoStroke ) { m_strokeExternal = aDoStroke; }
@@ -228,7 +228,7 @@ public:
         return false;
     }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 

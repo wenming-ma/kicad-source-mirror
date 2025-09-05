@@ -204,7 +204,7 @@ public:
     virtual void OnSelectZoom( QCommandEvent& event );
 
     // Recalculate the size of toolbars and display panel when the frame size changes.
-    virtual void OnSize( QSizeEvent& event ) override;
+    virtual void OnSize( QSizeEvent& event );
 
     void OnMove( QMoveEvent& aEvent ) override;
 

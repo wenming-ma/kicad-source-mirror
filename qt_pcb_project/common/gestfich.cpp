@@ -3,7 +3,7 @@
 #include <QProcess>
 #include <QStandardPaths>
 #include <QFileSystemModel>
-#include <QRegExp>
+#include <QRegularExpression>
 
 #include <pgm_base.h>
 #include <confirm.h>
@@ -15,6 +15,8 @@
 #include <filesystem>
 #include <vector>
 
+// Define translation macro for Qt compatibility
+#define _( x ) QObject::tr( x )
 void QuoteString( QString& string )
 {
     if( !string.startsWith( "\"" ) )
@@ -113,7 +115,7 @@ QString FindKicadFile( const QString& shortname )
 }
 
 
-int ExecuteFile( const QString& aEditorName, const QString& aFileName, QProcess* aCallback,
+int ExecuteFile( const QString& aEditorName, const QString& aFileName, QProcess** aCallback,
                  bool aFileForKicad )
 {
     QString        fullEditorName;
@@ -212,7 +214,7 @@ int ExecuteFile( const QString& aEditorName, const QString& aFileName, QProcess*
 
         QProcess* process = new QProcess();
         if( aCallback )
-            *aCallback = *process;
+            *aCallback = process;
         
         process->startDetached( fullEditorName, arguments );
         return 0;
@@ -427,19 +429,16 @@ bool CopyFilesOrDirectory( const QString& aSourcePath, const QString& aDestDir, 
 
             // Apply exclusion filters
             bool exclude = false;
-            QRegExp lockPattern1( "~*.lck" );
-            QRegExp lockPattern2( "*.lck" );
-            lockPattern1.setPatternSyntax( QRegExp::Wildcard );
-            lockPattern2.setPatternSyntax( QRegExp::Wildcard );
+            QRegularExpression lockPattern1( QRegularExpression::wildcardToRegularExpression( "~*.lck" ) );
+            QRegularExpression lockPattern2( QRegularExpression::wildcardToRegularExpression( "*.lck" ) );
             
-            if( lockPattern1.exactMatch( filename ) || lockPattern2.exactMatch( filename ) )
+            if( lockPattern1.match( filename ).hasMatch() || lockPattern2.match( filename ).hasMatch() )
                 exclude = true;
 
             for( const auto& exclusion : aExclusions )
             {
-                QRegExp exclusionPattern( QString::fromStdString( exclusion ) );
-                exclusionPattern.setPatternSyntax( QRegExp::Wildcard );
-                if( exclusionPattern.exactMatch( entrySrc ) )
+                QRegularExpression exclusionPattern( QRegularExpression::wildcardToRegularExpression( QString::fromStdString( exclusion ) ) );
+                if( exclusionPattern.match( entrySrc ).hasMatch() )
                 {
                     exclude = true;
                     break;

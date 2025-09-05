@@ -63,7 +63,7 @@ public:
                         GAL_TYPE aGalType = GAL_TYPE_OPENGL );
     ~EDA_DRAW_PANEL_GAL();
 
-    void SetFocus() override;
+    void setFocus() { QScrollArea::setFocus(); }
 
     bool StatusPopupHasFocus()
     {
@@ -112,7 +112,7 @@ public:
     }
 
     /// @copydoc QWidget::update()
-    virtual void Refresh( bool aEraseBackground = true, const QRect* aRect = nullptr ) override;
+    virtual void Refresh( bool aEraseBackground = true, const QRect* aRect = nullptr );
 
     /**
      * Force a redraw.

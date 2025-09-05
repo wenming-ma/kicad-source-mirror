@@ -8,6 +8,9 @@
 #include <QPoint>
 #include <QSize>
 #include <vector>
+
+class QSettings;
+
 #define PCM_DEFAULT_REPOSITORY_URL "https://repository.kicad.org/repository.json"
 
 
@@ -18,7 +21,7 @@ public:
 
     virtual ~KICAD_SETTINGS() {}
 
-    virtual bool MigrateFromLegacy( void* aLegacyConfig ) override;
+    virtual bool MigrateFromLegacy( QSettings* aLegacyConfig ) override;
 
     int m_LeftWinWidth;
 

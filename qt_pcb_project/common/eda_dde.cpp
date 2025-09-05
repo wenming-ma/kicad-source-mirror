@@ -8,8 +8,8 @@
 #include <id.h>
 
 #include <QString>
-#include <QTcpServer>
-#include <QTcpSocket>
+#include <QtNetwork/QTcpServer>
+#include <QtNetwork/QTcpSocket>
 #include <QHostAddress>
 
 static const QString HOSTNAME( "localhost" );

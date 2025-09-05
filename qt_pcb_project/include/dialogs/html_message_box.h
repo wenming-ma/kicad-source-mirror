@@ -4,7 +4,8 @@
 
 #include <dialogs/dialog_display_html_text_base.h>
 #include <QApplication>
-#include <QDesktopWidget>
+#include <QGuiApplication>
+#include <QScreen>
 #include <QRect>
 
 
@@ -32,7 +33,7 @@ public:
         else
         {
             // Center on screen if no parent
-            QRect screenGeometry = QApplication::desktop()->availableGeometry();
+            QRect screenGeometry = QGuiApplication::primaryScreen()->availableGeometry();
             QRect dialogGeometry = frameGeometry();
             int x = (screenGeometry.width() - dialogGeometry.width()) / 2;
             int y = (screenGeometry.height() - dialogGeometry.height()) / 2;

@@ -10,6 +10,7 @@
 #include <QDateTime>
 #include <QIODevice>
 #include <QThread>
+#include <QCoreApplication>
 #include <wildcards_and_files_ext.h>
 #include <kiway_player.h>
 #include <design_block_io.h>
@@ -18,12 +19,14 @@
 #include <trace_helpers.h>
 #include <fstream>
 
+#define _(s) QCoreApplication::translate("", (s))
+
 const QString DESIGN_BLOCK_IO_MGR::ShowType( DESIGN_BLOCK_FILE_T aFileType )
 {
     switch( aFileType )
     {
-    case KICAD_SEXP: return _( "KiCad" );
-    default: return QString( _( "UNKNOWN (%1)" ) ).arg( aFileType );
+    case KICAD_SEXP: return _("KiCad");
+    default: return QString(_("UNKNOWN (%1)")).arg(aFileType);
     }
 }
 
@@ -31,7 +34,7 @@ const QString DESIGN_BLOCK_IO_MGR::ShowType( DESIGN_BLOCK_FILE_T aFileType )
 DESIGN_BLOCK_IO_MGR::DESIGN_BLOCK_FILE_T
 DESIGN_BLOCK_IO_MGR::EnumFromStr( const QString& aFileType )
 {
-    if( aFileType == _( "KiCad" ) )
+    if( aFileType == _("KiCad") )
         return DESIGN_BLOCK_FILE_T( KICAD_SEXP );
 
     return DESIGN_BLOCK_FILE_T( DESIGN_BLOCK_FILE_UNKNOWN );
@@ -133,7 +136,7 @@ long long DESIGN_BLOCK_IO::GetLibraryTimestamp( const QString& aLibraryPath ) co
         QFileInfo blockDir( aLibraryPath + "/" + filename );
 
         // Check if the directory ends with ".kicad_block", if so hash all the files in it.
-        if( blockDir.fileName().endsWith( FILEEXT::KiCadDesignBlockPathExtension ) )
+        if( blockDir.fileName().endsWith( QString::fromUtf8(FILEEXT::KiCadDesignBlockPathExtension) ) )
             ts += TimestampDir( blockDir.absoluteFilePath(), "*" );
     }
 
@@ -146,7 +149,7 @@ void DESIGN_BLOCK_IO::CreateLibrary( const QString&                    aLibraryP
 {
     if( QDir( aLibraryPath ).exists() )
     {
-        THROW_IO_ERROR( QString( _( "Cannot overwrite library path '%1'." ) ).arg( aLibraryPath ) );
+        THROW_IO_ERROR( QString(_("Cannot overwrite library path '%1'.")).arg( aLibraryPath ) );
     }
 
     QDir dir;
@@ -154,8 +157,8 @@ void DESIGN_BLOCK_IO::CreateLibrary( const QString&                    aLibraryP
     if( !dir.mkpath( aLibraryPath ) )
     {
         THROW_IO_ERROR(
-                QString( _( "Library path '%1' could not be created.\n\n"
-                                     "Make sure you have write permissions and try again." ) ).arg( aLibraryPath ) );
+                QString(_("Library path '%1' could not be created.\n\n"
+                                     "Make sure you have write permissions and try again.")).arg( aLibraryPath ) );
     }
 }
 
@@ -171,7 +174,7 @@ bool DESIGN_BLOCK_IO::DeleteLibrary( const QString&                    aLibraryP
 
     if( !fn.isWritable() )
     {
-        THROW_IO_ERROR( QString( _( "Insufficient permissions to delete folder '%1'." ) ).arg( aLibraryPath ) );
+        THROW_IO_ERROR( QString(_("Insufficient permissions to delete folder '%1'.")).arg( aLibraryPath ) );
     }
 
     QDir dir( aLibraryPath );
@@ -179,7 +182,7 @@ bool DESIGN_BLOCK_IO::DeleteLibrary( const QString&                    aLibraryP
     // Design block folders should only contain sub-folders for each design block
     if( !dir.entryList( QDir::Files ).isEmpty() )
     {
-        THROW_IO_ERROR( QString( _( "Library folder '%1' has unexpected files." ) ).arg( aLibraryPath ) );
+        THROW_IO_ERROR( QString(_("Library folder '%1' has unexpected files.")).arg( aLibraryPath ) );
     }
 
     // Must delete all sub-directories before deleting the library directory
@@ -196,10 +199,10 @@ bool DESIGN_BLOCK_IO::DeleteLibrary( const QString&                    aLibraryP
         {
             QFileInfo tmp( dirs[i] );
 
-            if( tmp.suffix() != FILEEXT::KiCadDesignBlockLibPathExtension )
+            if( tmp.suffix() != QString::fromUtf8(FILEEXT::KiCadDesignBlockLibPathExtension) )
             {
-                THROW_IO_ERROR( QString( _( "Unexpected folder '%1' found in library "
-                                                     "path '%2'." ) ).arg( dirs[i] ).arg( aLibraryPath ) );
+                THROW_IO_ERROR( QString(_("Unexpected folder '%1' found in library "
+                                                     "path '%2'.")).arg( dirs[i] ).arg( aLibraryPath ) );
             }
         }
 
@@ -212,7 +215,7 @@ bool DESIGN_BLOCK_IO::DeleteLibrary( const QString&                    aLibraryP
     // Remove directory recursively
     if( !QDir( aLibraryPath ).removeRecursively() )
     {
-        THROW_IO_ERROR( QString( _( "Design block library '%1' cannot be deleted." ) ).arg( aLibraryPath ) );
+        THROW_IO_ERROR( QString(_("Design block library '%1' cannot be deleted.")).arg( aLibraryPath ) );
     }
 
     // For some reason removing a directory in Windows is not immediately updated.  This delay
@@ -236,7 +239,7 @@ void DESIGN_BLOCK_IO::DesignBlockEnumerate( QStringList&  aDesignBlockNames,
     if( !dir.exists() )
         return;
 
-    QString fileSpec = "*." + QString( FILEEXT::KiCadDesignBlockPathExtension );
+    QString fileSpec = "*." + QString::fromStdString( FILEEXT::KiCadDesignBlockPathExtension );
     QStringList entries = dir.entryList( QStringList() << fileSpec, QDir::Dirs );
 
     for( const QString& dirname : entries )
@@ -251,10 +254,10 @@ DESIGN_BLOCK* DESIGN_BLOCK_IO::DesignBlockLoad( const QString& aLibraryPath,
                                                 const std::map<std::string, UTF8>* aProperties )
 {
     QString dbPath = aLibraryPath + "/" + aDesignBlockName + "."
-                      + FILEEXT::KiCadDesignBlockPathExtension + "/";
+                      + QString::fromStdString(FILEEXT::KiCadDesignBlockPathExtension) + "/";
     QString dbSchPath = dbPath + aDesignBlockName + "."
-                         + FILEEXT::KiCadSchematicFileExtension;
-    QString dbMetadataPath = dbPath + aDesignBlockName + "." + FILEEXT::JsonFileExtension;
+                         + QString::fromStdString(FILEEXT::KiCadSchematicFileExtension);
+    QString dbMetadataPath = dbPath + aDesignBlockName + "." + QString::fromStdString(FILEEXT::JsonFileExtension);
 
     if( !QFile::exists( dbSchPath ) )
         return nullptr;
@@ -272,15 +275,15 @@ DESIGN_BLOCK* DESIGN_BLOCK_IO::DesignBlockLoad( const QString& aLibraryPath,
         try
         {
             nlohmann::ordered_json dbMetadata;
-            std::ifstream          dbMetadataFile( dbMetadataPath.fn_str() );
+            std::ifstream          dbMetadataFile( dbMetadataPath.toStdString() );
 
             dbMetadataFile >> dbMetadata;
 
             if( dbMetadata.contains( "description" ) )
-                newDB->SetLibDescription( dbMetadata["description"] );
+                newDB->SetLibDescription( QString::fromStdString(dbMetadata["description"]) );
 
             if( dbMetadata.contains( "keywords" ) )
-                newDB->SetKeywords( dbMetadata["keywords"] );
+                newDB->SetKeywords( QString::fromStdString(dbMetadata["keywords"]) );
 
             nlohmann::ordered_map<QString, QString> fields;
 
@@ -301,7 +304,7 @@ DESIGN_BLOCK* DESIGN_BLOCK_IO::DesignBlockLoad( const QString& aLibraryPath,
         catch( ... )
         {
             THROW_IO_ERROR( QString(
-                    _( "Design block metadata file '%1' could not be read." ) ).arg( dbMetadataPath ) );
+                    _("Design block metadata file '%1' could not be read.")).arg( dbMetadataPath ) );
         }
     }
 
@@ -317,35 +320,35 @@ void DESIGN_BLOCK_IO::DesignBlockSave( const QString&                    aLibrar
     // Make sure we have a valid LIB_ID or we can't save the design block
     if( !aDesignBlock->GetLibId().IsValid() )
     {
-        THROW_IO_ERROR( _( "Design block does not have a valid library ID." ) );
+        THROW_IO_ERROR( _("Design block does not have a valid library ID.") );
     }
 
     QFileInfo schematicFile( aDesignBlock->GetSchematicFile() );
 
     if( !schematicFile.exists() )
     {
-        THROW_IO_ERROR( QString( _( "Schematic source file '%1' does not exist." ) ).arg(
+        THROW_IO_ERROR( QString(_("Schematic source file '%1' does not exist.")).arg(
                                           schematicFile.absoluteFilePath() ) );
     }
 
     // Create the design block folder
     QFileInfo dbFolder( aLibraryPath + "/"
                          + aDesignBlock->GetLibId().GetLibItemName() + "."
-                         + FILEEXT::KiCadDesignBlockPathExtension
+                         + QString::fromStdString(FILEEXT::KiCadDesignBlockPathExtension)
                          + "/" );
 
     if( !QDir( dbFolder.absoluteFilePath() ).exists() )
     {
         if( !QDir().mkpath( dbFolder.absoluteFilePath() ) )
         {
-            THROW_IO_ERROR( QString( _( "Design block folder '%1' could not be created." ) ).arg(
+            THROW_IO_ERROR( QString(_("Design block folder '%1' could not be created.")).arg(
                                               dbFolder.absoluteFilePath() ) );
         }
     }
 
     // The new schematic file name is based on the design block name, not the source sheet name
     QString dbSchematicFile = dbFolder.absoluteFilePath() + "/" + aDesignBlock->GetLibId().GetLibItemName()
-                               + "." + FILEEXT::KiCadSchematicFileExtension;
+                               + "." + QString::fromStdString(FILEEXT::KiCadSchematicFileExtension);
 
     // If the source and destination files are the same, then we don't need to copy the file
     // as we are just updating the metadata
@@ -355,20 +358,27 @@ void DESIGN_BLOCK_IO::DesignBlockSave( const QString&                    aLibrar
         if( !QFile::copy( schematicFile.absoluteFilePath(), dbSchematicFile ) )
         {
             THROW_IO_ERROR( QString(
-                    _( "Schematic file '%1' could not be saved as design block at '%2'." ) ).arg(
+                    _("Schematic file '%1' could not be saved as design block at '%2'.")).arg(
                     schematicFile.absoluteFilePath() ).arg( dbSchematicFile ) );
         }
     }
 
 
     QString dbMetadataFile = dbFolder.absoluteFilePath() + "/" + aDesignBlock->GetLibId().GetLibItemName()
-                              + "." + FILEEXT::JsonFileExtension;
+                              + "." + QString::fromStdString(FILEEXT::JsonFileExtension);
 
     // Write the metadata file
     nlohmann::ordered_json dbMetadata;
-    dbMetadata["description"] = aDesignBlock->GetLibDescription();
-    dbMetadata["keywords"] = aDesignBlock->GetKeywords();
-    dbMetadata["fields"] = aDesignBlock->GetFields();
+    dbMetadata["description"] = aDesignBlock->GetLibDescription().toStdString();
+    dbMetadata["keywords"] = aDesignBlock->GetKeywords().toStdString();
+    // Convert QString keys and values to std::string for JSON compatibility
+    nlohmann::ordered_json fieldsJson;
+    const auto& fields = aDesignBlock->GetFields();
+    for( auto it = fields.begin(); it != fields.end(); ++it )
+    {
+        fieldsJson[it->first.toStdString()] = it->second.toStdString();
+    }
+    dbMetadata["fields"] = fieldsJson;
 
     bool success = false;
 
@@ -389,7 +399,7 @@ void DESIGN_BLOCK_IO::DesignBlockSave( const QString&                    aLibrar
     if( !success )
     {
         THROW_IO_ERROR( QString(
-                _( "Design block metadata file '%1' could not be saved." ) ).arg( dbMetadataFile ) );
+                _("Design block metadata file '%1' could not be saved.")).arg( dbMetadataFile ) );
     }
 }
 
@@ -398,18 +408,18 @@ void DESIGN_BLOCK_IO::DesignBlockDelete( const QString& aLibPath, const QString&
                                          const std::map<std::string, UTF8>* aProperties )
 {
     QFileInfo dbDir( aLibPath + "/" + aDesignBlockName
-                                   + "." + FILEEXT::KiCadDesignBlockPathExtension );
+                                   + "." + QString::fromStdString(FILEEXT::KiCadDesignBlockPathExtension) );
 
     if( !dbDir.exists() || !dbDir.isDir() )
     {
         THROW_IO_ERROR(
-                QString( _( "Design block '%1' does not exist." ) ).arg( dbDir.fileName() ) );
+                QString(_("Design block '%1' does not exist.")).arg( dbDir.fileName() ) );
     }
 
     // Delete the whole design block folder
     if( !QDir( dbDir.absoluteFilePath() ).removeRecursively() )
     {
-        THROW_IO_ERROR( QString( _( "Design block folder '%1' could not be deleted." ) ).arg(
+        THROW_IO_ERROR( QString(_("Design block folder '%1' could not be deleted.")).arg(
                                           dbDir.absoluteFilePath() ) );
     }
 }

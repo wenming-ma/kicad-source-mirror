@@ -6,6 +6,7 @@
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QScrollArea>
 #include <QtCore/QString>
+#include <vector>
 
 #include "aboutinfo.h"
 #include "dialog_about_base.h"
@@ -53,7 +54,7 @@ private:
     QLabel*  createStaticBitmap( QScrollArea* aParent, const QPixmap& icon );
 
 private:
-    QVector<QPixmap> m_images;
+    std::vector<QPixmap> m_images;
     QString         m_titleName;
     QString         m_untranslatedTitleName;
 

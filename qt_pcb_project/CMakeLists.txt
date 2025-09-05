@@ -42,6 +42,12 @@ if( WIN32 )
         # /permissive-: This puts MSVC into compliance mode, required for Qt
         add_compile_options( /permissive- )
     endif()
+    # Disable verbose include output (showIncludes)
+    string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+    string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL}")
+    set(CMAKE_CXX_DEPENDS_USE_COMPILER FALSE)
 endif()
 
 # Set Qt root directory - Check for Qt 6.9.1 installation
@@ -71,10 +77,10 @@ set( wxWidgets_USE_STATIC ON )
 find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc )
 
 # Find Qt6 components - try different approaches
-find_package( Qt6 QUIET COMPONENTS Core Widgets Gui OpenGL PrintSupport Xml Svg )
+find_package( Qt6 QUIET COMPONENTS Core Widgets Gui OpenGL PrintSupport Xml Svg Network )
 if( NOT Qt6_FOUND )
     message( STATUS "Qt6 not found through standard search, trying CONFIG mode..." )
-    find_package( Qt6 REQUIRED CONFIG COMPONENTS Core Widgets Gui OpenGL PrintSupport Xml Svg )
+    find_package( Qt6 REQUIRED CONFIG COMPONENTS Core Widgets Gui OpenGL PrintSupport Xml Svg Network )
 endif()
 find_package( Boost REQUIRED )
 find_package( glm REQUIRED )
@@ -112,6 +118,7 @@ include_directories( BEFORE
     ${Qt6PrintSupport_INCLUDE_DIRS}
     ${Qt6Xml_INCLUDE_DIRS}
     ${Qt6Svg_INCLUDE_DIRS}
+    ${Qt6Network_INCLUDE_DIRS}
     ${CMAKE_PREFIX_PATH}/include/opencascade
 )
 
@@ -151,4 +158,5 @@ target_link_libraries( qt_pcb_project
     Qt6::PrintSupport
     Qt6::Xml
     Qt6::Svg
+    Qt6::Network
 )

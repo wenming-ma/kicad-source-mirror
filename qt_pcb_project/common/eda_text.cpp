@@ -921,7 +921,7 @@ void EDA_TEXT::printOneLineOfText( const RENDER_SETTINGS* aSettings, const VECTO
                                    const COLOR4D& aColor, OUTLINE_MODE aFillMode,
                                    const QString& aText, const VECTOR2I& aPos )
 {
-    QPaintDevice* DC = aSettings->GetPrintDC();
+    QPainter* DC = aSettings->GetPrintPainter();
     int   penWidth = GetEffectiveTextPenWidth( aSettings->GetDefaultPenWidth() );
 
     if( aFillMode == SKETCH )
@@ -978,11 +978,11 @@ int EDA_TEXT::GetFontIndex() const
         return -2;
 
     std::vector<std::string> fontNames;
-    Fontconfig()->ListFonts( fontNames, std::string( Pgm().GetLanguageTag().utf8_str() ) );
+    Fontconfig()->ListFonts( fontNames, Pgm().GetLanguageTag().toStdString() );
 
     for( int ii = 0; ii < (int) fontNames.size(); ++ii )
     {
-        if( fontNames[ii] == GetFont()->GetName() )
+        if( fontNames[ii] == GetFont()->GetName().toStdString() )
             return ii;
     }
 
@@ -1003,10 +1003,10 @@ void EDA_TEXT::SetFontIndex( int aIdx )
     else
     {
         std::vector<std::string> fontNames;
-        Fontconfig()->ListFonts( fontNames, std::string( Pgm().GetLanguageTag().utf8_str() ) );
+        Fontconfig()->ListFonts( fontNames, Pgm().GetLanguageTag().toStdString() );
 
         if( aIdx >= 0 && aIdx < static_cast<int>( fontNames.size() ) )
-            SetFont( KIFONT::FONT::GetFont( fontNames[ aIdx ], IsBold(), IsItalic() ) );
+            SetFont( KIFONT::FONT::GetFont( QString::fromStdString( fontNames[ aIdx ] ), IsBold(), IsItalic() ) );
         else
             SetFont( nullptr );
     }
@@ -1399,5 +1399,5 @@ static struct EDA_TEXT_DESC
     }
 } _EDA_TEXT_DESC;
 
-ENUM_TO_QTANY( GR_TEXT_H_ALIGN_T )
-ENUM_TO_QTANY( GR_TEXT_V_ALIGN_T )
+ENUM_TO_QVARIANT( GR_TEXT_H_ALIGN_T )
+ENUM_TO_QVARIANT( GR_TEXT_V_ALIGN_T )

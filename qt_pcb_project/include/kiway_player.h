@@ -4,8 +4,8 @@
 
 #include <QMainWindow>
 #include <QTimer>
-#include <QTcpServer>
-#include <QTcpSocket>
+#include <QtNetwork/QTcpServer>
+#include <QtNetwork/QTcpSocket>
 
 #include <vector>
 #include <kiway_holder.h>
@@ -62,7 +62,7 @@ public:
 
     virtual void KiwayMailIn( KIWAY_EXPRESS& aEvent );
 
-    bool Destroy() override;
+    bool Destroy();
 
     bool IsModal() const override       { return m_modal; }
     void SetModal( bool aIsModal )      { m_modal = aIsModal; }

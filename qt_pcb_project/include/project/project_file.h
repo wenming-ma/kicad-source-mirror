@@ -17,7 +17,7 @@ class LAYER_PAIR_SETTINGS;
 class SCHEMATIC_SETTINGS;
 class TEMPLATES;
 
-typedef std::pair<KIID, QString> FILE_INFO_PAIR;
+typedef std::pair<KIID, std::string> FILE_INFO_PAIR;
 
 enum LAST_PATH_TYPE : unsigned int
 {
@@ -79,15 +79,15 @@ protected:
 
 public:
     // The list of pinned symbol libraries
-    std::vector<QString> m_PinnedSymbolLibs;
+    std::vector<std::string> m_PinnedSymbolLibs;
 
     // The list of pinned footprint libraries
-    std::vector<QString> m_PinnedFootprintLibs;
+    std::vector<std::string> m_PinnedFootprintLibs;
 
     // The list of pinned design block libraries
-    std::vector<QString> m_PinnedDesignBlockLibs;
+    std::vector<std::string> m_PinnedDesignBlockLibs;
 
-    std::map<QString, QString> m_TextVars;
+    std::map<std::string, std::string> m_TextVars;
 
     // Schematic ERC settings: lifecycle managed by SCHEMATIC
     ERC_SETTINGS* m_ErcSettings;
@@ -96,18 +96,18 @@ public:
     SCHEMATIC_SETTINGS* m_SchematicSettings;
 
     // Legacy parameters LibDir and LibName, for importing old projects
-    QString m_LegacyLibDir;
+    std::string m_LegacyLibDir;
 
-    QStringList m_LegacyLibNames;
+    std::vector<std::string> m_LegacyLibNames;
 
     // List of equivalence (equ) files used in the project
-    std::vector<QString> m_EquivalenceFiles;
+    std::vector<std::string> m_EquivalenceFiles;
 
     // Drawing sheet file
-    QString m_BoardDrawingSheetFile;
+    std::string m_BoardDrawingSheetFile;
 
     // MRU path storage
-    QString m_PcbLastPath[LAST_PATH_SIZE];
+    std::string m_PcbLastPath[LAST_PATH_SIZE];
 
     // Board design settings for this project's board. Owned by the BOARD; may be null if a board isn't loaded: be careful
     BOARD_DESIGN_SETTINGS* m_BoardSettings;

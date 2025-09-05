@@ -3,7 +3,8 @@
 #define FP_LIB_TABLE_H_
 
 #include <QString>
-#include <QStringList>
+#include <vector>
+#include <string>
 #include <lib_table_base.h>
 #include <pcb_io/pcb_io_mgr.h>
 
@@ -32,7 +33,7 @@ public:
 
     bool operator!=( const FP_LIB_TABLE_ROW& aRow ) const   { return !( *this == aRow ); }
 
-    const QString GetType() const override         { return PCB_IO_MGR::ShowType( type ); }
+    const QString GetType() const override         { return QString::fromStdString( PCB_IO_MGR::ShowType( type ).ToStdString() ); }
 
     void SetType( const QString& aType ) override;
 
@@ -83,7 +84,7 @@ public:
 
     const FP_LIB_TABLE_ROW* FindRow( const QString& aNickName, bool aCheckIfEnabled = false );
 
-    void FootprintEnumerate( QStringList& aFootprintNames, const QString& aNickname,
+    void FootprintEnumerate( std::vector<std::string>& aFootprintNames, const QString& aNickname,
                              bool aBestEfforts, const LOCALE_IO* aLocale = nullptr );
 
     long long GenerateTimestamp( const QString* aNickname );

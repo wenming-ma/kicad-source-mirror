@@ -12,12 +12,16 @@
 #include <map>
 #include <memory>
 #include <sstream>
+#include <cstdint>
 
 #include <zstd.h>
 
 #include <kiid.h>
 #include <mmh3_hash.h>
 #include <paths.h>
+
+// Define MIME_BASE64_LENGTH constant
+static const qsizetype MIME_BASE64_LENGTH = 76;
 
 
 
@@ -127,7 +131,6 @@ void EMBEDDED_FILES::ClearEmbeddedFonts()
 // Write the collection of files to a disk file in the specified format
 void EMBEDDED_FILES::WriteEmbeddedFiles( OUTPUTFORMATTER& aOut, bool aWriteData ) const
 {
-    ssize_t MIME_BASE64_LENGTH = 76;
     aOut.Print( "(embedded_files " );
 
     for( const auto& [name, entry] : m_files )
@@ -165,8 +168,8 @@ void EMBEDDED_FILES::WriteEmbeddedFiles( OUTPUTFORMATTER& aOut, bool aWriteData 
 
             while( first < file.compressedEncodedData.length() )
             {
-                ssize_t remaining = file.compressedEncodedData.length() - first;
-                int     length = std::min( remaining, MIME_BASE64_LENGTH );
+                qsizetype remaining = static_cast<qsizetype>(file.compressedEncodedData.length()) - static_cast<qsizetype>(first);
+                int       length = static_cast<int>(std::min( remaining, MIME_BASE64_LENGTH ));
 
                 std::string_view view( file.compressedEncodedData.data() + first, length );
 
@@ -178,7 +181,7 @@ void EMBEDDED_FILES::WriteEmbeddedFiles( OUTPUTFORMATTER& aOut, bool aWriteData 
             aOut.Print( ")" ); // Close data
         }
 
-        aOut.Print( "(checksum %s)", aOut.Quotew( file.data_hash ).c_str() );
+        aOut.Print( "(checksum %s)", aOut.Quotew( QString::fromStdString(file.data_hash) ).c_str() );
         aOut.Print( ")" ); // Close file
     }
 
@@ -397,7 +400,7 @@ void EMBEDDED_FILES_PARSER::ParseEmbedded( EMBEDDED_FILES* aFiles )
                 NeedSYMBOLorNUMBER();
 
                 file = std::make_unique<EMBEDDED_FILES::EMBEDDED_FILE>();
-                file->name = CurStr();
+                file->name = QString::fromStdString(CurStr());
                 NeedRIGHT();
 
                 break;

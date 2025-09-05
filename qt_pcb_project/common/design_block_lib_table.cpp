@@ -19,10 +19,14 @@
 #include <QFileInfo>
 #include <QHash>
 #include <QStringList>
+#include <QCoreApplication>
 #include <vector>
 #include <locale_io.h>
 
 #define OPT_SEP '|'
+
+// Translation function for localization
+#define _(s) QCoreApplication::translate("", (s))
 
 DESIGN_BLOCK_LIB_TABLE GDesignBlockTable;
 
@@ -612,12 +616,12 @@ bool DESIGN_BLOCK_LIB_TABLE::LoadGlobalTable( DESIGN_BLOCK_LIB_TABLE& aTable )
         std::optional<QString> v = ENV_VAR::GetVersionedEnvVarValue( envVars, "TEMPLATE_DIR" );
 
         if( v && !v->isEmpty() )
-            ss.AddPaths( *v, 0 );
+            ss.AddPaths( v->toStdString(), 0 );
 
-        QString fileName = ss.FindValidPath( FILEEXT::DesignBlockLibraryTableFileName );
+        std::string fileName = ss.FindValidPath( FILEEXT::DesignBlockLibraryTableFileName );
 
         // The fallback is to create an empty global design block table for the user to populate.
-        if( fileName.isEmpty() || !QFile::copy( fileName, fn.absoluteFilePath() ) )
+        if( fileName.empty() || !QFile::copy( QString::fromStdString( fileName ), fn.absoluteFilePath() ) )
         {
             DESIGN_BLOCK_LIB_TABLE emptyTable;
 
@@ -659,7 +663,7 @@ bool DESIGN_BLOCK_LIB_TABLE::LoadGlobalTable( DESIGN_BLOCK_LIB_TABLE& aTable )
     if( settings->m_PcmLibAutoRemove )
     {
         // Remove PCM libraries that no longer exist
-        std::vector<QString> to_remove;
+        std::vector<std::string> to_remove;
 
         for( size_t i = 0; i < aTable.GetCount(); i++ )
         {
@@ -667,11 +671,11 @@ bool DESIGN_BLOCK_LIB_TABLE::LoadGlobalTable( DESIGN_BLOCK_LIB_TABLE& aTable )
             QString       path = row.GetFullURI( true );
 
             if( path.startsWith( packagesPath ) && !QDir( path ).exists() )
-                to_remove.push_back( row.GetNickName() );
+                to_remove.push_back( row.GetNickName().toStdString() );
         }
 
-        for( const QString& nickName : to_remove )
-            aTable.RemoveRow( aTable.FindRow( nickName ) );
+        for( const std::string& nickName : to_remove )
+            aTable.RemoveRow( aTable.FindRow( QString::fromStdString( nickName ) ) );
     }
 
     return tableExists;
@@ -693,5 +697,5 @@ DESIGN_BLOCK_LIST_IMPL& DESIGN_BLOCK_LIB_TABLE::GetGlobalList()
 QString DESIGN_BLOCK_LIB_TABLE::GetGlobalTableFileName()
 {
     QDir dir( PATHS::GetUserSettingsPath() );
-    return dir.filePath( FILEEXT::DesignBlockLibraryTableFileName );
+    return dir.filePath( QString::fromStdString( FILEEXT::DesignBlockLibraryTableFileName ) );
 }

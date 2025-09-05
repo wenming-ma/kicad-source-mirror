@@ -2,7 +2,7 @@
 #ifndef ABOUTAPPINFO_H
 #define ABOUTAPPINFO_H
 
-#include <QtCore/QVector>
+#include <vector>
 #include <QtCore/QString>
 #include <QtGui/QPixmap>
 #include <QtGui/QIcon>
@@ -11,7 +11,7 @@
 
 class CONTRIBUTOR;
 
-using CONTRIBUTORS = QVector<CONTRIBUTOR*>;
+using CONTRIBUTORS = std::vector<CONTRIBUTOR*>;
 
 
 class ABOUT_APP_INFO

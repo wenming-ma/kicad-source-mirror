@@ -5,6 +5,8 @@
 #include <embedded_files.h>
 #include <gestfich.h>
 #include <settings/common_settings.h>
+#include <i18n_utility.h>
+#include <wildcards_and_files_ext.h>
 
 #include <QFileDialog>
 #include <QFileInfo>
@@ -14,8 +16,10 @@
 #include <QDesktopServices>
 #include <QDebug>
 #include <QProcess>
+#include <QObject>
 
-
+// Define translation macro for Qt compatibility
+#define _( x ) QObject::tr( x )
 // Mime type extensions (PDF files are not considered here)
 static QMimeDatabase mimeDatabase;
 
@@ -40,7 +44,7 @@ bool GetAssociatedDocument( QWidget* aParent, const QString& aDocName, PROJECT* 
         {
             QString scheme = uri.scheme().toLower();
 
-            if( scheme != FILEEXT::KiCadUriPrefix )
+            if( scheme != QString::fromStdString( FILEEXT::KiCadUriPrefix ) )
             {
                 if( QDesktopServices::openUrl( QUrl( docname ) ) )
                     return true;
@@ -53,13 +57,13 @@ bool GetAssociatedDocument( QWidget* aParent, const QString& aDocName, PROJECT* 
                     return false;
                 }
 
-                if( !docname.startsWith( QString( FILEEXT::KiCadUriPrefix ) + "://" ) )
+                if( !docname.startsWith( QString::fromStdString( FILEEXT::KiCadUriPrefix + "://" ) ) )
                 {
                     qDebug() << "Invalid kicad_embed URI" << docname;
                     return false;
                 }
 
-                docname = docname.mid( QString( FILEEXT::KiCadUriPrefix + "://" ).length() );
+                docname = docname.mid( QString::fromStdString( FILEEXT::KiCadUriPrefix + "://" ).length() );
 
                 QFileInfo temp_file = aFilesStack[0]->GetTemporaryFileName( docname );
                 int       ii = 1;
@@ -93,7 +97,7 @@ bool GetAssociatedDocument( QWidget* aParent, const QString& aDocName, PROJECT* 
     else if( QFileInfo::exists( docname ) )
         fullfilename = docname;
     else
-        fullfilename = aPaths->FindValidPath( docname );
+        fullfilename = QString::fromStdString( aPaths->FindValidPath( docname.toStdString() ) );
 
     QString extension;
 

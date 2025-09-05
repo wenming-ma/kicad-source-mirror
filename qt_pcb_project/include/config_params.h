@@ -8,7 +8,8 @@
 
 #include <QSettings>
 #include <QString>
-#include <QStringList>
+#include <vector>
+#include <string>
 #include <boost/ptr_container/ptr_vector.hpp>
 
 
@@ -189,10 +190,10 @@ public:
 class KICOMMON_API PARAM_CFG_LIBNAME_LIST : public PARAM_CFG
 {
 public:
-    QStringList* m_Pt_param;
+    std::vector<std::string>* m_Pt_param;
 
 public:
-    PARAM_CFG_LIBNAME_LIST( const QChar* ident, QStringList* ptparam,
+    PARAM_CFG_LIBNAME_LIST( const QChar* ident, std::vector<std::string>* ptparam,
                             const QChar* group = nullptr );
 
     virtual void ReadParam( QSettings* aConfig ) const override;

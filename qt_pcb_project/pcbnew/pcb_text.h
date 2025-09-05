@@ -77,7 +77,7 @@ public:
      */
     void KeepUpright();
 
-    wxString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override;
+    QString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override;
 
     bool Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const override;
 
@@ -117,9 +117,9 @@ public:
         return TextHitTest( aRect, aContained, aAccuracy );
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "PCB_TEXT" );
+        return QStringLiteral( "PCB_TEXT" );
     }
 
     /**
@@ -147,7 +147,7 @@ public:
 
     virtual wxString GetTextTypeDescription() const;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 

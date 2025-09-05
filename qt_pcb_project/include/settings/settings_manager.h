@@ -102,7 +102,7 @@ public:
         std::vector<COLOR_SETTINGS*> ret;
 
         for( auto it = m_color_settings.begin(); it != m_color_settings.end(); ++it )
-            ret.push_back( it.value() );
+            ret.push_back( it->second );
 
         std::sort( ret.begin(), ret.end(), []( COLOR_SETTINGS* a, COLOR_SETTINGS* b )
                                            {

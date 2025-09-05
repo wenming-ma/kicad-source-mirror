@@ -9,8 +9,8 @@
 #include <QTableWidget>
 #include <QStyledItemDelegate>
 #include <QLineEdit>
-#include <QVector>
-#include <QStringList>
+#include <string>
+#include <vector>
 #include <QPainter>
 #include <QRect>
 #include <QSize>
@@ -27,7 +27,7 @@ class GRID_CELL_ICON_TEXT_RENDERER : public QStyledItemDelegate
     Q_OBJECT
 
 public:
-    GRID_CELL_ICON_TEXT_RENDERER( const std::vector<BITMAPS>& icons, const QStringList& names );
+    GRID_CELL_ICON_TEXT_RENDERER( const std::vector<BITMAPS>& icons, const std::vector<std::string>& names );
 
     GRID_CELL_ICON_TEXT_RENDERER( const QIcon& aIcon,
                                   QSize aPreferredIconSize = QSize() );
@@ -38,7 +38,7 @@ public:
 
 private:
     std::vector<BITMAPS> m_icons;
-    QStringList          m_names;
+    std::vector<std::string> m_names;
 
     // For single-icon mode
     QIcon m_icon;
@@ -95,7 +95,7 @@ class GRID_CELL_ICON_TEXT_POPUP : public QStyledItemDelegate
     Q_OBJECT
 
 public:
-    GRID_CELL_ICON_TEXT_POPUP( const std::vector<BITMAPS>& icons, const QStringList& names );
+    GRID_CELL_ICON_TEXT_POPUP( const std::vector<BITMAPS>& icons, const std::vector<std::string>& names );
 
     QWidget* createEditor( QWidget* parent, const QStyleOptionViewItem& option,
                           const QModelIndex& index ) const override;
@@ -110,7 +110,7 @@ private slots:
 
 private:
     std::vector<BITMAPS> m_icons;
-    QStringList          m_names;
+    std::vector<std::string> m_names;
 };
 
 

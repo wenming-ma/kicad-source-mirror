@@ -4,6 +4,7 @@
 
 #include <eda_shape.h>
 #include <vector>
+#include <string>
 #include <math/box2.h>
 #include <gr_text.h>
 #include <page_info.h>
@@ -146,7 +147,7 @@ public:
      */
     void AddLineToHeader( const QString& aExtraString )
     {
-        m_headerExtraLines.append( aExtraString );
+        m_headerExtraLines.push_back( aExtraString.toStdString() );
     }
 
     /**
@@ -662,7 +663,7 @@ protected:      // variables used in most of plotters:
     PAGE_INFO        m_pageInfo;
     VECTOR2I         m_paperSize;           // Paper size in IU - not in mils
 
-    QStringList     m_headerExtraLines;    // a set of string to print in header file
+    std::vector<std::string> m_headerExtraLines;    // a set of string to print in header file
 
     RENDER_SETTINGS* m_renderSettings;
 

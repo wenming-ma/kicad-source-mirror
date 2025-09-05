@@ -9,7 +9,7 @@
 
 // Helper to make the code cleaner when we want this operation
 #define CLAMPED_VAL_INT_MAX( x )                                                      \
-    std::min( x, static_cast<size_t>( std::numeric_limits<int>::max() ) )
+    std::min( static_cast<size_t>( x ), static_cast<size_t>( std::numeric_limits<int>::max() ) )
 
 
 bool EDA_PATTERN_MATCH_SUBSTR::SetPattern( const QString& aPattern )

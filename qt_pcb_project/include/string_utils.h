@@ -6,7 +6,8 @@
 #include <string>
 #include <vector>
 #include <QString>
-#include <QStringList>
+#include <vector>
+#include <algorithm>
 
 #include <kicommon.h>
 
@@ -164,7 +165,7 @@ inline void AccumulateDescription( QString& aDesc, const QString& aItem )
     aDesc += aItem;
 }
 
-KICOMMON_API void qtStringSplit( const QString& aText, QStringList& aStrings, QChar aSplitter );
+KICOMMON_API void qtStringSplit( const QString& aText, std::vector<std::string>& aStrings, QChar aSplitter );
 
 KICOMMON_API void StripTrailingZeros( QString& aStringValue, unsigned aTrailingZeroAllowed = 1 );
 

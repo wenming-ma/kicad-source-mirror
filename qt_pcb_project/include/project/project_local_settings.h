@@ -15,7 +15,7 @@ class PROJECT;
 
 struct KICOMMON_API PROJECT_FILE_STATE
 {
-    QString fileName;
+    std::string fileName;
     bool open;
     struct WINDOW_STATE window;
 };
@@ -61,7 +61,7 @@ public:
     /// File based state
     std::vector<PROJECT_FILE_STATE> m_files;
 
-    std::vector<QString>           m_OpenJobSets;
+    std::vector<std::string>       m_OpenJobSets;
 
 
     /// The board layers that are turned on for viewing (@see PCB_LAYER_ID)
@@ -74,7 +74,7 @@ public:
     PCB_LAYER_ID m_ActiveLayer;
 
     /// The name of a LAYER_PRESET that is currently activated (or blank if none)
-    QString m_ActiveLayerPreset;
+    std::string m_ActiveLayerPreset;
 
     /// The current contrast mode
     HIGH_CONTRAST_MODE m_ContrastModeDisplay;
@@ -98,17 +98,17 @@ public:
     double m_ShapeOpacity;     ///< Opacity override for graphic shapes
     double m_ImageOpacity;     ///< Opacity override for user images
 
-    std::vector<QString> m_HiddenNets;
-    std::set<QString> m_HiddenNetclasses;
+    std::vector<std::string> m_HiddenNets;
+    std::set<std::string> m_HiddenNetclasses;
 
     /// State of the selection filter widgets
     PCB_SELECTION_FILTER_OPTIONS m_PcbSelectionFilter;
     SCH_SELECTION_FILTER_OPTIONS m_SchSelectionFilter;
 
     // Upstream git repo info
-    QString m_GitRepoUsername;
-    QString m_GitRepoType;
-    QString m_GitSSHKey;
+    std::string m_GitRepoUsername;
+    std::string m_GitRepoType;
+    std::string m_GitSSHKey;
 
 private:
     /// A link to the owning project

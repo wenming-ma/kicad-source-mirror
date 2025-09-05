@@ -6,9 +6,11 @@
 #include <QtGui/QBrush>
 #include <QtCore/QPoint>
 #include <QtCore/QRect>
+#include <QtCore/QList>
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 static const bool FILLED = true;
 static const bool NOT_FILLED = false;
@@ -56,8 +58,9 @@ void GRSetColorPen( QPainter* painter, const QColor& color, int width, Qt::PenSt
 {
     QColor penColor = color;
 
-    QVector<qreal> dots;
-    dots << 1 << 3;
+    QList<qreal> dots;
+    dots.append(1);
+    dots.append(3);
 
     if( width <= 1 && painter->brush().style() != Qt::SolidPattern )
         width = 1;

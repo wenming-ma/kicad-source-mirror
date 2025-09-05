@@ -4,7 +4,7 @@
 #define EDA_DDE_H_
 
 #include <string>
-#include <QTcpSocket>
+#include <QtNetwork/QTcpSocket>
 
 
 // TCP/IP ports used by Pcbnew and Eeschema respectively.

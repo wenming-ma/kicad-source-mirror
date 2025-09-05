@@ -47,7 +47,7 @@ public:
 
         QString FileFilter() const;
 
-        operator bool() const { return !m_Description.empty(); }
+        operator bool() const { return !m_Description.isEmpty(); }
     };
 
     virtual ~IO_BASE() = default;

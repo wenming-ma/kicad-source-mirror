@@ -10,8 +10,8 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <vector>
 #include <QString>
-#include <QVector>
 
 
 class DESIGN_BLOCK_LIB_TABLE;
@@ -49,7 +49,7 @@ public:
         return m_keywords;
     }
 
-    QVector<SEARCH_TERM> GetSearchTerms() override;
+    std::vector<SEARCH_TERM> GetSearchTerms() override;
 
     int GetOrderNum()
     {
@@ -89,7 +89,7 @@ public:
 
     unsigned GetCount() const { return m_list.size(); }
 
-    const QVector<std::unique_ptr<DESIGN_BLOCK_INFO>>& GetList() const { return m_list; }
+    const std::vector<std::unique_ptr<DESIGN_BLOCK_INFO>>& GetList() const { return m_list; }
 
     void Clear() { m_list.clear(); }
 
@@ -117,7 +117,7 @@ public:
 
 protected:
     DESIGN_BLOCK_LIB_TABLE*                        m_lib_table = nullptr;
-    QVector<std::unique_ptr<DESIGN_BLOCK_INFO>>    m_list;
+    std::vector<std::unique_ptr<DESIGN_BLOCK_INFO>>    m_list;
     SYNC_QUEUE<std::unique_ptr<IO_ERROR>>          m_errors;
 };
 

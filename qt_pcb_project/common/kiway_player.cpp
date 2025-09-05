@@ -6,8 +6,8 @@
 #include <typeinfo>
 #include <QWidget>
 #include <QEventLoop>
-#include <QTcpServer>
-#include <QTcpSocket>
+#include <QtNetwork/QTcpServer>
+#include <QtNetwork/QTcpSocket>
 #include <core/raii.h>
 
 
