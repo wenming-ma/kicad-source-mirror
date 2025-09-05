@@ -447,7 +447,7 @@ void wordbreakMarkup( std::vector<std::pair<QString, int>>* aWords,
 
     if( !aNode->is_root() )
     {
-        QChar escapeChar = 0;
+        QChar escapeChar = QChar(0);
 
         if( aNode->isSubscript() )
         {

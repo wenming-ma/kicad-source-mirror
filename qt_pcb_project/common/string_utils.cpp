@@ -283,8 +283,8 @@ QString UnescapeString( const QString& aSource )
     QString newbuf;
     newbuf.reserve( sourceLen );
 
-    QChar prev = 0;
-    QChar ch = 0;
+    QChar prev = QChar(0);
+    QChar ch = QChar(0);
 
     for( size_t i = 0; i < sourceLen; ++i )
     {

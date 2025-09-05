@@ -1,6 +1,7 @@
 
 
 #include <set>
+#include <QVector>
 #include <core/kicad_algo.h>
 #include <view/view_group.h>
 #include <view/view.h>
@@ -96,7 +97,7 @@ void VIEW_GROUP::ViewDraw( int aLayer, VIEW* aView ) const
         if( aView->IsHiddenOnOverlay( item ) )
             continue;
 
-        std::vector<int> layers = item->ViewGetLayers();
+        QVector<int> layers = item->ViewGetLayers();
 
         for( auto layer : layers )
         {
@@ -177,7 +178,7 @@ void VIEW_GROUP::ViewDraw( int aLayer, VIEW* aView ) const
 }
 
 
-std::vector<int> VIEW_GROUP::ViewGetLayers() const
+QVector<int> VIEW_GROUP::ViewGetLayers() const
 {
     // Everything is displayed on a single layer
     return { m_layer };

@@ -123,7 +123,7 @@ QPixmap KiScaledBitmap( BITMAPS aBitmap, QWidget* aWidget, int aHeight, bool aQu
 
     if( it != s_ScaledBitmapCache.end() )
     {
-        return it->second;
+        return it.value();
     }
     else
     {

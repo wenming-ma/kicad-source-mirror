@@ -28,7 +28,7 @@ public:
     virtual VIEW_ITEM* GetItem( unsigned int aIdx ) const;
     virtual const BOX2I ViewBBox() const override;
     virtual void ViewDraw( int aLayer, VIEW* aView ) const override;
-    std::vector<int> ViewGetLayers() const override;
+    QVector<int> ViewGetLayers() const override;
 
     inline virtual void SetLayer( int aLayer )
     {

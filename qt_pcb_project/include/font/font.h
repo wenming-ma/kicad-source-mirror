@@ -183,7 +183,7 @@ private:
 
 inline std::ostream& operator<<(std::ostream& os, const KIFONT::FONT& aFont)
 {
-    os << "[Font \"" << aFont.GetName() << "\"" << ( aFont.IsStroke() ? " stroke" : "" )
+    os << "[Font \"" << aFont.GetName().toStdString() << "\"" << ( aFont.IsStroke() ? " stroke" : "" )
        << ( aFont.IsOutline() ? " outline" : "" ) << ( aFont.IsBold() ? " bold" : "" )
        << ( aFont.IsItalic() ? " italic" : "" ) << "]";
     return os;

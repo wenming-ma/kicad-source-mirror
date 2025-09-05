@@ -7,6 +7,10 @@
 #include <QInputDialog>
 #include <QTextStream>
 #include <QDebug>
+#include <QObject>
+
+// Define translation macro for Qt compatibility
+#define _(x) QObject::tr(x)
 
 
 static const QString traceConfirm = QStringLiteral( "KICAD_CONFIRM" );
@@ -26,7 +30,7 @@ bool AskOverrideLock( QWidget* aParent, const QString& aMessage )
     msgBox.setDefaultButton( cancelBtn );
     msgBox.exec();
     
-    return msgBox.clickedButton() == openBtn;
+    return msgBox.clickedButton() == static_cast<QAbstractButton*>(openBtn);
 }
 
 

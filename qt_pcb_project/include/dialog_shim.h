@@ -37,7 +37,7 @@ public:
         m_initialFocusTarget = aWindow;
     }
 
-    int ShowModal() override;
+    int ShowModal();
 
     int ShowQuasiModal();      // disable only the parent window, otherwise modal.
 
@@ -48,7 +48,7 @@ public:
     void PrepareForModalSubDialog();
     void CleanupAfterModalSubDialog();
 
-    bool show() override;
+    void show();
 
     bool setEnabled( bool enable );
 

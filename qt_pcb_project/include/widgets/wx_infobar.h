@@ -53,8 +53,6 @@ public:
 
     void AddButton( QPushButton* aButton );
 
-    void AddButton( QPushButton* aHypertextButton );
-
     void AddButton( int aId, const QString& aLabel = QString() );
 
     void RemoveAllButtons();

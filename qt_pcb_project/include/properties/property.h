@@ -14,10 +14,7 @@
 #include <QFont>
 #include <QValidator>
 #include <QMetaType>
-
-#ifdef DEBUG
 #include <QDebug>
-#endif
 
 #include <functional>
 #include <unordered_map>
@@ -27,17 +24,7 @@
 #include <algorithm>
 #include "std_optional_variants.h"
 
-// Specialize std::hash for QString to use with std::unordered_map
-namespace std {
-    template<>
-    struct hash<QString>
-    {
-        std::size_t operator()(const QString& s) const noexcept
-        {
-            return qHash(s);
-        }
-    };
-}
+// std::hash<QString> is already defined in Qt 6.9.1
 
 class QStandardItem;
 class INSPECTABLE;
@@ -124,7 +111,7 @@ private:
 #endif
 
 template<typename Owner, typename T, typename Base = Owner>
-class METHOD
+class PROPERTY_METHOD
 {
 public:
     static GETTER_BASE<Owner, T>* Wrap( T (Base::*aFunc)() )
@@ -172,7 +159,9 @@ public:
         return aFunc ? new SETTER<Owner, T, void (Base::*)( const T& )>( aFunc ) : nullptr;
     }
 
-    METHOD() = delete;
+    PROPERTY_METHOD() = delete;
+    PROPERTY_METHOD(const PROPERTY_METHOD&) = delete;
+    PROPERTY_METHOD& operator=(const PROPERTY_METHOD&) = delete;
 };
 
 #if defined( _MSC_VER )
@@ -404,8 +393,8 @@ public:
               PROPERTY_DISPLAY aDisplay = PT_DEFAULT,
               ORIGIN_TRANSFORMS::COORD_TYPES_T aCoordType = ORIGIN_TRANSFORMS::NOT_A_COORD ) :
         PROPERTY( aName,
-                  METHOD<Owner, T, Base>::Wrap( aSetter ),
-                  METHOD<Owner, T, Base>::Wrap( aGetter ),
+                  PROPERTY_METHOD<Owner, T, Base>::Wrap( aSetter ),
+                  PROPERTY_METHOD<Owner, T, Base>::Wrap( aGetter ),
                   aDisplay, aCoordType )
     {
     }
@@ -417,8 +406,8 @@ public:
               PROPERTY_DISPLAY aDisplay = PT_DEFAULT,
               ORIGIN_TRANSFORMS::COORD_TYPES_T aCoordType = ORIGIN_TRANSFORMS::NOT_A_COORD ) :
         PROPERTY( aName,
-                  METHOD<Owner, T, Base>::Wrap( aSetter ),
-                  METHOD<Owner, T, Base>::Wrap( aGetter ),
+                  PROPERTY_METHOD<Owner, T, Base>::Wrap( aSetter ),
+                  PROPERTY_METHOD<Owner, T, Base>::Wrap( aGetter ),
                   aDisplay, aCoordType )
     {
     }
@@ -496,8 +485,8 @@ public:
                    GetType( Base::*aGetter )(),
                    PROPERTY_DISPLAY aDisplay = PT_DEFAULT ) :
           PROPERTY<Owner, T, Base>( aName,
-                                    METHOD<Owner, T, Base>::Wrap( aSetter ),
-                                    METHOD<Owner, T, Base>::Wrap( aGetter ),
+                                    PROPERTY_METHOD<Owner, T, Base>::Wrap( aSetter ),
+                                    PROPERTY_METHOD<Owner, T, Base>::Wrap( aGetter ),
                                     aDisplay )
     {
         if ( std::is_enum<T>::value )
@@ -514,8 +503,8 @@ public:
                    PROPERTY_DISPLAY aDisplay = PT_DEFAULT,
                    ORIGIN_TRANSFORMS::COORD_TYPES_T aCoordType = ORIGIN_TRANSFORMS::NOT_A_COORD ) :
             PROPERTY<Owner, T, Base>( aName,
-                                      METHOD<Owner, T, Base>::Wrap( aSetter ),
-                                      METHOD<Owner, T, Base>::Wrap( aGetter ),
+                                      PROPERTY_METHOD<Owner, T, Base>::Wrap( aSetter ),
+                                      PROPERTY_METHOD<Owner, T, Base>::Wrap( aGetter ),
                                       aDisplay, aCoordType )
     {
         if ( std::is_enum<T>::value )
@@ -527,18 +516,19 @@ public:
 
     void setter( void* obj, QVariant& v ) override
     {
-        Q_ASSERT( PROPERTY<Owner, T, Base>::m_setter );
+        auto& setter_ptr = PROPERTY<Owner, T, Base>::m_setter;
+        Q_ASSERT( setter_ptr );
         Owner* o = reinterpret_cast<Owner*>( obj );
 
         if( v.canConvert<T>() )
         {
             T value = v.value<T>();
-            (*PROPERTY<Owner, T, Base>::m_setter)( o, value );
+            (*setter_ptr)( o, value );
         }
         else if (v.canConvert<int>() )
         {
             int value = v.toInt();
-            (*PROPERTY<Owner, T, Base>::m_setter)( o, static_cast<T>( value ) );
+            (*setter_ptr)( o, static_cast<T>( value ) );
         }
         else
         {

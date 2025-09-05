@@ -165,7 +165,7 @@ public:
 
     virtual ~COMMON_SETTINGS() {}
 
-    virtual bool MigrateFromLegacy( void* aLegacyConfig ) override;
+    // MigrateFromLegacy removed in Qt version - wxConfigBase not available
 
     void InitializeEnvironment();
 

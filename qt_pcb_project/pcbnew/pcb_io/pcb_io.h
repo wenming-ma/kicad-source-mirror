@@ -31,7 +31,7 @@
 #include <cstdint>
 #include <config.h>
 #include <vector>
-#include <wx/arrstr.h>
+#include <QStringList>
 #include <i18n_utility.h>
 
 class BOARD;
@@ -75,7 +75,7 @@ public:
      */
     virtual const IO_BASE::IO_FILE_DESC GetBoardFileDesc() const
     {
-        return IO_BASE::IO_FILE_DESC( wxEmptyString, {} );
+        return IO_BASE::IO_FILE_DESC( QString(), {} );
     }
 
 
@@ -83,20 +83,20 @@ public:
      * Checks if this PCB_IO can read the specified board file.
      * If not overriden, extension check is used.
      */
-    virtual bool CanReadBoard( const wxString& aFileName ) const;
+    virtual bool CanReadBoard( const QString& aFileName ) const;
 
     /**
      * Checks if this PCB_IO can read a footprint from specified file or directory.
      * If not overriden, extension check is used.
      */
-    virtual bool CanReadFootprint( const wxString& aFileName ) const;
+    virtual bool CanReadFootprint( const QString& aFileName ) const;
 
     /**
      * Registers a KIDIALOG callback for collecting info from the user.
      */
-    virtual void SetQueryUserCallback( std::function<bool( wxString aTitle, int aIcon,
-                                                           wxString aMessage,
-                                                           wxString aAction )> aCallback )
+    virtual void SetQueryUserCallback( std::function<bool( QString aTitle, int aIcon,
+                                                           QString aMessage,
+                                                           QString aAction )> aCallback )
     { }
 
     /**
@@ -125,7 +125,7 @@ public:
      *                 wrong, using line number and character offsets of the input file if
      *                 possible.
      */
-    virtual BOARD* LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
+    virtual BOARD* LoadBoard( const QString& aFileName, BOARD* aAppendToMe,
                               const std::map<std::string, UTF8>* aProperties = nullptr,
                               PROJECT* aProject = nullptr );
 
@@ -157,7 +157,7 @@ public:
      *
      * @throw IO_ERROR if there is a problem saving or exporting.
      */
-    virtual void SaveBoard( const wxString& aFileName, BOARD* aBoard,
+    virtual void SaveBoard( const QString& aFileName, BOARD* aBoard,
                             const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
@@ -174,7 +174,7 @@ public:
      *
      * @throw IO_ERROR if the library cannot be found, or footprint cannot be loaded.
      */
-    virtual void FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aLibraryPath,
+    virtual void FootprintEnumerate( QStringList& aFootprintNames, const QString& aLibraryPath,
                                      bool aBestEfforts,
                                      const std::map<std::string, UTF8>* aProperties = nullptr );
 
@@ -184,7 +184,7 @@ public:
      *
      * Timestamps should not be considered ordered, they either match or they don't.
      */
-    virtual long long GetLibraryTimestamp( const wxString& aLibraryPath ) const = 0;
+    virtual long long GetLibraryTimestamp( const QString& aLibraryPath ) const = 0;
 
     /**
      * Load a single footprint from @a aFootprintPath and put its name in @a aFootprintNameOut.
@@ -203,7 +203,7 @@ public:
      *
      * @throw   IO_ERROR if the footprint cannot be found or read.
      */
-    virtual FOOTPRINT* ImportFootprint( const wxString& aFootprintPath, wxString& aFootprintNameOut,
+    virtual FOOTPRINT* ImportFootprint( const QString& aFootprintPath, QString& aFootprintNameOut,
                                         const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
@@ -227,8 +227,8 @@ public:
      * @throw   IO_ERROR if the library cannot be found or read.  No exception is thrown in
      *                   the case where \a aFootprintName cannot be found.
      */
-    virtual FOOTPRINT* FootprintLoad( const wxString& aLibraryPath,
-                                      const wxString& aFootprintName,
+    virtual FOOTPRINT* FootprintLoad( const QString& aLibraryPath,
+                                      const QString& aFootprintName,
                                       bool  aKeepUUID = false,
                                       const std::map<std::string, UTF8>* aProperties = nullptr );
 
@@ -236,14 +236,14 @@ public:
      * A version of FootprintLoad() for use after FootprintEnumerate() for more efficient
      * cache management.
      */
-    virtual const FOOTPRINT* GetEnumeratedFootprint( const wxString& aLibraryPath,
-                                                     const wxString& aFootprintName,
+    virtual const FOOTPRINT* GetEnumeratedFootprint( const QString& aLibraryPath,
+                                                     const QString& aFootprintName,
                                                      const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Check for the existence of a footprint.
      */
-    virtual bool FootprintExists( const wxString& aLibraryPath, const wxString& aFootprintName,
+    virtual bool FootprintExists( const QString& aLibraryPath, const QString& aFootprintName,
                                   const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
@@ -262,7 +262,7 @@ public:
      *
      * @throw IO_ERROR if there is a problem saving.
      */
-    virtual void FootprintSave( const wxString& aLibraryPath, const FOOTPRINT* aFootprint,
+    virtual void FootprintSave( const QString& aLibraryPath, const FOOTPRINT* aFootprint,
                                 const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
@@ -279,7 +279,7 @@ public:
      *
      * @throw IO_ERROR if there is a problem finding the footprint or the library, or deleting it.
      */
-    virtual void FootprintDelete( const wxString& aLibraryPath, const wxString& aFootprintName,
+    virtual void FootprintDelete( const QString& aLibraryPath, const QString& aFootprintName,
                                   const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
@@ -315,7 +315,7 @@ public:
     {};
 
 protected:
-    PCB_IO( const wxString& aName ) : IO_BASE( aName ),
+    PCB_IO( const QString& aName ) : IO_BASE( aName ),
         m_board( nullptr ),
         m_props( nullptr )
     {}
