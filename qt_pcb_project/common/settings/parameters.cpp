@@ -1,4 +1,6 @@
 
+#include <map>
+#include <vector>
 #include <QString>
 
 #include <json_common.h>
@@ -23,7 +25,7 @@ bool PARAM_PATH_LIST::MatchesFile( const JSON_SETTINGS& aSettings ) const
     {
         if( js->is_array() )
         {
-            QVector<QString> val;
+            std::vector<QString> val;
 
             for( const auto& el : js->items() )
                 val.emplace_back( fromFileFormat( el.value().get<QString>() ) );
@@ -81,7 +83,7 @@ bool PARAM_WXSTRING_MAP::MatchesFile( const JSON_SETTINGS& aSettings ) const
             if( m_ptr->size() != js->size() )
                 return false;
 
-            QHash<QString, QString> val;
+            std::map<QString, QString> val;
 
             for( const auto& el : js->items() )
             {

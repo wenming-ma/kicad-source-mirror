@@ -19,7 +19,7 @@
 #include <QFileInfo>
 #include <QHash>
 #include <QStringList>
-#include <QVector>
+#include <vector>
 #include <locale_io.h>
 
 #define OPT_SEP '|'
@@ -659,7 +659,7 @@ bool DESIGN_BLOCK_LIB_TABLE::LoadGlobalTable( DESIGN_BLOCK_LIB_TABLE& aTable )
     if( settings->m_PcmLibAutoRemove )
     {
         // Remove PCM libraries that no longer exist
-        QVector<QString> to_remove;
+        std::vector<QString> to_remove;
 
         for( size_t i = 0; i < aTable.GetCount(); i++ )
         {

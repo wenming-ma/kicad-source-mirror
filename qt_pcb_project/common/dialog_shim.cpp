@@ -6,6 +6,8 @@
 #include <pgm_base.h>
 #include <tool/tool_manager.h>
 #include <kiplatform/ui.h>
+#include <map>
+#include <unordered_map>
 
 #include <QApplication>
 #include <QWidget>
@@ -182,7 +184,7 @@ int DIALOG_SHIM::vertPixelsFromDU( int y ) const
 #include <hashtables.h>
 #include <typeinfo>
 
-static QHash<QString, QRect> class_map;
+static std::unordered_map<std::string, QRect> class_map;
 
 
 void DIALOG_SHIM::SetPosition( const QPoint& aNewPosition )
@@ -190,7 +192,7 @@ void DIALOG_SHIM::SetPosition( const QPoint& aNewPosition )
     move( aNewPosition );
 
     // Now update the stored position:
-    QString hash_key;
+    std::string hash_key;
 
     if( m_hash_key.size() )
     {
@@ -199,7 +201,7 @@ void DIALOG_SHIM::SetPosition( const QPoint& aNewPosition )
     }
     else
     {
-        hash_key = QString::fromUtf8( typeid(*this).name() );
+        hash_key = typeid(*this).name();
     }
 
     auto it = class_map.find( hash_key );
@@ -217,7 +219,7 @@ void DIALOG_SHIM::SetPosition( const QPoint& aNewPosition )
 bool DIALOG_SHIM::Show( bool show )
 {
     bool        ret;
-    QString hash_key;
+    std::string hash_key;
 
     if( m_hash_key.size() )
     {
@@ -226,7 +228,7 @@ bool DIALOG_SHIM::Show( bool show )
     }
     else
     {
-        hash_key = QString::fromUtf8( typeid(*this).name() );
+        hash_key = typeid(*this).name();
     }
 
     // Show or hide the window.  If hiding, save current position and size.
@@ -313,7 +315,7 @@ bool DIALOG_SHIM::Show( bool show )
 
 void DIALOG_SHIM::resetSize()
 {
-    QString hash_key;
+    std::string hash_key;
 
     if( m_hash_key.size() )
     {
@@ -322,7 +324,7 @@ void DIALOG_SHIM::resetSize()
     }
     else
     {
-        hash_key = QString::fromUtf8( typeid(*this).name() );
+        hash_key = typeid(*this).name();
     }
 
     auto it = class_map.find( hash_key );
@@ -752,14 +754,14 @@ void DIALOG_SHIM::keyPressEvent( QKeyEvent* aEvt )
 }
 
 
-static void recursiveDescent( QLayout* aLayout, QHash<int, QString>& aLabels )
+static void recursiveDescent( QLayout* aLayout, std::map<int, QString>& aLabels )
 {
     QDialogButtonBox* buttonBox = qobject_cast<QDialogButtonBox*>( aLayout->parentWidget() );
 
     auto setupButton =
             [&]( QPushButton* aButton, int buttonId )
             {
-                if( aLabels.contains( buttonId ) )
+                if( aLabels.find( buttonId ) != aLabels.end() )
                 {
                     aButton->setText( aLabels[ buttonId ] );
                 }
@@ -803,7 +805,7 @@ static void recursiveDescent( QLayout* aLayout, QHash<int, QString>& aLabels )
 }
 
 
-void DIALOG_SHIM::SetupStandardButtons( QHash<int, QString> aLabels )
+void DIALOG_SHIM::SetupStandardButtons( std::map<int, QString> aLabels )
 {
     if( layout() )
         recursiveDescent( layout(), aLabels );

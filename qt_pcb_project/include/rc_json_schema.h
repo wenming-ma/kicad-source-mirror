@@ -5,7 +5,7 @@
 
 #include <json_common.h>
 #include <QString>
-#include <QVector>
+#include <vector>
 #include <json_conversions.h>
 namespace RC_JSON
 {
@@ -30,7 +30,7 @@ struct VIOLATION
     QString                   type;
     QString                   description;
     QString                   severity;
-    QVector<AFFECTED_ITEM> items;
+    std::vector<AFFECTED_ITEM> items;
     bool                       excluded;
 };
 
@@ -67,9 +67,9 @@ struct DRC_REPORT : REPORT_BASE
 {
     DRC_REPORT() { type = QStringLiteral( "drc" ); }
 
-    QVector<VIOLATION>                 violations;
-    QVector<VIOLATION>                 unconnected_items;
-    QVector<VIOLATION>                 schematic_parity;
+    std::vector<VIOLATION>                 violations;
+    std::vector<VIOLATION>                 unconnected_items;
+    std::vector<VIOLATION>                 schematic_parity;
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE( DRC_REPORT, $schema, source, date, kicad_version, violations,
@@ -79,7 +79,7 @@ struct ERC_SHEET
 {
     QString               uuid_path;
     QString               path;
-    QVector<VIOLATION> violations;
+    std::vector<VIOLATION> violations;
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE( ERC_SHEET, uuid_path, path, violations )
@@ -88,7 +88,7 @@ struct ERC_REPORT : REPORT_BASE
 {
     ERC_REPORT() { type = QStringLiteral( "erc" ); }
 
-    QVector<ERC_SHEET> sheets;
+    std::vector<ERC_SHEET> sheets;
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE( ERC_REPORT, $schema, source, date, kicad_version, sheets,

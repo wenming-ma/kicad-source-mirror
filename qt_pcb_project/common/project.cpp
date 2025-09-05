@@ -1,4 +1,6 @@
 
+#include <map>
+#include <vector>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QDebug>
 #include <QtCore/QDir>
@@ -72,22 +74,22 @@ bool PROJECT::TextVarResolver( QString* aToken ) const
 }
 
 
-QHash<QString, QString>& PROJECT::GetTextVars() const
+std::map<QString, QString>& PROJECT::GetTextVars() const
 {
     return GetProjectFile().m_TextVars;
 }
 
 
-void PROJECT::ApplyTextVars( const QHash<QString, QString>& aVarsMap )
+void PROJECT::ApplyTextVars( const std::map<QString, QString>& aVarsMap )
 {
     if( aVarsMap.size() == 0 )
         return;
 
-    QHash<QString, QString>& existingVarsMap = GetTextVars();
+    std::map<QString, QString>& existingVarsMap = GetTextVars();
 
     for( auto it = aVarsMap.begin(); it != aVarsMap.end(); ++it )
     {
-        existingVarsMap[it.key()] = it.value();
+        existingVarsMap[it->first] = it->second;
     }
 }
 
@@ -162,8 +164,8 @@ const QString PROJECT::DesignBlockLibTblName() const
 void PROJECT::PinLibrary( const QString& aLibrary, enum LIB_TYPE_T aLibType )
 {
     COMMON_SETTINGS*     cfg = Pgm().GetCommonSettings();
-    QVector<QString>* pinnedLibsCfg = nullptr;
-    QVector<QString>* pinnedLibsFile = nullptr;
+    std::vector<QString>* pinnedLibsCfg = nullptr;
+    std::vector<QString>* pinnedLibsFile = nullptr;
 
     switch( aLibType )
     {
@@ -199,8 +201,8 @@ void PROJECT::PinLibrary( const QString& aLibrary, enum LIB_TYPE_T aLibType )
 void PROJECT::UnpinLibrary( const QString& aLibrary, enum LIB_TYPE_T aLibType )
 {
     COMMON_SETTINGS*     cfg = Pgm().GetCommonSettings();
-    QVector<QString>* pinnedLibsCfg = nullptr;
-    QVector<QString>* pinnedLibsFile = nullptr;
+    std::vector<QString>* pinnedLibsCfg = nullptr;
+    std::vector<QString>* pinnedLibsFile = nullptr;
 
     switch( aLibType )
     {

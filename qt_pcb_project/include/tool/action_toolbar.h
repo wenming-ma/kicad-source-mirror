@@ -2,9 +2,9 @@
 #ifndef ACTION_TOOLBAR_H
 #define ACTION_TOOLBAR_H
 
-#include <QHash>
+#include <map>
 #include <memory>
-#include <QVector>
+#include <vector>
 #include <QBitmap>
 #include <QToolBar>
 #include <QDockWidget>
@@ -39,7 +39,7 @@ public:
     // Make the toolbar a friend so it can easily access everything inside here
     friend class ACTION_TOOLBAR;
 
-    ACTION_GROUP( const std::string& aName, const QVector<const TOOL_ACTION*>& aActions );
+    ACTION_GROUP( const std::string& aName, const std::vector<const TOOL_ACTION*>& aActions );
 
     /**
      * Set the default action to use when first creating the toolbar palette icon.
@@ -66,7 +66,7 @@ public:
      */
     int GetUIId() const;
 
-    const QVector<const TOOL_ACTION*>& GetActions() const { return m_actions; }
+    const std::vector<const TOOL_ACTION*>& GetActions() const { return m_actions; }
 
 protected:
     ///< The action ID for this action group
@@ -78,7 +78,7 @@ protected:
     ///< The default action to display on the toolbar item
     const TOOL_ACTION* m_defaultAction;
 
-    QVector<const TOOL_ACTION*> m_actions;
+    std::vector<const TOOL_ACTION*> m_actions;
 };
 
 
@@ -134,7 +134,7 @@ protected:
     QBoxLayout*    m_mainSizer;
     QBoxLayout*    m_buttonSizer;
 
-    QHash<int, BITMAP_BUTTON*> m_buttons;
+    std::map<int, BITMAP_BUTTON*> m_buttons;
 };
 
 
@@ -261,12 +261,12 @@ protected:
     TOOL_MANAGER*           m_toolManager;
     ACTION_TOOLBAR_PALETTE* m_palette;
 
-    QHash<int, bool>                m_toolKinds;
-    QHash<int, bool>                m_toolCancellable;
-    QHash<int, const TOOL_ACTION*>  m_toolActions;
-    QHash<int, ACTION_GROUP*>       m_actionGroups;
+    std::map<int, bool>                m_toolKinds;
+    std::map<int, bool>                m_toolCancellable;
+    std::map<int, const TOOL_ACTION*>  m_toolActions;
+    std::map<int, ACTION_GROUP*>       m_actionGroups;
 
-    QHash<int, std::unique_ptr<ACTION_MENU>> m_toolMenus;
+    std::map<int, std::unique_ptr<ACTION_MENU>> m_toolMenus;
 };
 
 #endif

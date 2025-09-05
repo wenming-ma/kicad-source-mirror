@@ -4,7 +4,7 @@
 #define RICHIO_H_
 
 
-#include <QVector>
+#include <vector>
 #include <QString>
 #include <QTextStream>
 #include <core/utf8.h>
@@ -181,7 +181,7 @@ public:
     virtual bool Finish() { return true; }
 
 private:
-    QVector<char>   m_buffer;
+    std::vector<char>   m_buffer;
     char            quoteChar[2];
 
     int sprint( const char* fmt, ... );

@@ -8,6 +8,8 @@
 #include <settings/json_settings.h>
 #include <wildcards_and_files_ext.h>
 #include <settings/app_settings.h>
+#include <vector>
+#include <set>
 
 class PROJECT;
 
@@ -57,9 +59,9 @@ public:
 
 
     /// File based state
-    QVector<PROJECT_FILE_STATE> m_files;
+    std::vector<PROJECT_FILE_STATE> m_files;
 
-    QVector<QString>           m_OpenJobSets;
+    std::vector<QString>           m_OpenJobSets;
 
 
     /// The board layers that are turned on for viewing (@see PCB_LAYER_ID)
@@ -96,8 +98,8 @@ public:
     double m_ShapeOpacity;     ///< Opacity override for graphic shapes
     double m_ImageOpacity;     ///< Opacity override for user images
 
-    QVector<QString> m_HiddenNets;
-    QSet<QString> m_HiddenNetclasses;
+    std::vector<QString> m_HiddenNets;
+    std::set<QString> m_HiddenNetclasses;
 
     /// State of the selection filter widgets
     PCB_SELECTION_FILTER_OPTIONS m_PcbSelectionFilter;

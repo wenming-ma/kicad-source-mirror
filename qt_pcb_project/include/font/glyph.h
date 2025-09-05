@@ -2,7 +2,7 @@
 #ifndef GLYPH_H
 #define GLYPH_H
 
-#include <QVector>
+#include <vector>
 #include <gal/gal.h>
 #include <memory>
 #include <math/box2.h>
@@ -56,14 +56,14 @@ public:
 
     void CacheTriangulation( bool aPartition = true, bool aSimplify = false ) override;
 
-    QVector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>> GetTriangulationData() const;
+    std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>> GetTriangulationData() const;
 
     void CacheTriangulation(
-            QVector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>& aHintData );
+            std::vector<std::unique_ptr<SHAPE_POLY_SET::TRIANGULATED_POLYGON>>& aHintData );
 };
 
 
-class GAL_API STROKE_GLYPH : public GLYPH, public QVector<QVector<VECTOR2D>>
+class GAL_API STROKE_GLYPH : public GLYPH, public std::vector<std::vector<VECTOR2D>>
 {
 public:
     STROKE_GLYPH()

@@ -3,8 +3,8 @@
 #define STROKE_FONT_H
 
 #include <gal/gal.h>
-#include <QHash>
-#include <QVector>
+#include <map>
+#include <deque>
 #include <algorithm>
 #include <core/utf8.h>
 #include <math/box2.h>

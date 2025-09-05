@@ -1,17 +1,15 @@
-#include <string>
-#include <vector>
-#include <algorithm>
-#include <limits>
+#include <QString>
 
 #include <geometry/shape_compound.h>
 
-const std::string SHAPE_COMPOUND::Format( bool aCplusPlus ) const
+const QString SHAPE_COMPOUND::Format( bool aCplusPlus ) const
 {
-    std::string result = "compound( ";
+    QString result = "compound( ";
 
     for( auto shape : m_shapes )
-        result += shape->Format() + " ";
+        result += QString::fromStdString( shape->Format() ) + " ";
 
+    return result;
     return result;
 }
 

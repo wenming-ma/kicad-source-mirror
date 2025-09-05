@@ -2,10 +2,10 @@
 #ifndef KICAD_NET_SETTINGS_H
 #define KICAD_NET_SETTINGS_H
 
-#include <QVector>
-#include <QSet>
+#include <vector>
+#include <set>
 #include <memory>
-#include <QHash>
+#include <map>
 
 #include <netclass.h>
 #include <settings/nested_settings.h>
@@ -38,22 +38,22 @@ public:
 
     Sets all netclass
     /// Calling this method will reset the effective netclass calculation caches
-    void SetNetclasses( const QHash<QString, std::shared_ptr<NETCLASS>>& netclasses );
+    void SetNetclasses( const std::map<QString, std::shared_ptr<NETCLASS>>& netclasses );
 
     Gets all netclasses
-    const QHash<QString, std::shared_ptr<NETCLASS>>& GetNetclasses() const;
+    const std::map<QString, std::shared_ptr<NETCLASS>>& GetNetclasses() const;
 
     Gets all composite (multiple assignment / missing defaults) netclasses
     // Note the full connectivity or board net synchronisation must be run before calling
     // this, otherwise resolved netclasses may be missing
-    const QHash<QString, std::shared_ptr<NETCLASS>>& GetCompositeNetclasses() const;
+    const std::map<QString, std::shared_ptr<NETCLASS>>& GetCompositeNetclasses() const;
 
     Clears all netclasses
     /// Calling this method will reset the effective netclass calculation caches
     void ClearNetclasses();
 
     Gets all current net name to netclasses assignments
-    const QHash<QString, QSet<QString>>& GetNetclassLabelAssignments() const;
+    const std::map<QString, std::set<QString>>& GetNetclassLabelAssignments() const;
 
     Clears all net name to netclasses assignments
     /// Calling user is responsible for resetting the effective netclass calculation caches
@@ -66,12 +66,12 @@ public:
     Sets a net name to netclasses assignment
     /// Calling user is responsible for resetting the effective netclass calculation caches
     void SetNetclassLabelAssignment( const QString&           netName,
-                                     const QSet<QString>& netclasses );
+                                     const std::set<QString>& netclasses );
 
     Apppends to a net name to netclasses assignment
     /// Calling user is responsible for resetting the effective netclass calculation caches
     void AppendNetclassLabelAssignment( const QString&           netName,
-                                        const QSet<QString>& netclasses );
+                                        const std::set<QString>& netclasses );
 
     Determines if a given net name has netclasses assigned
     bool HasNetclassLabelAssignment( const QString& netName ) const;
@@ -83,11 +83,11 @@ public:
     Sets all netclass pattern assignments
     /// Calling user is responsible for resetting the effective netclass calculation caches
     void SetNetclassPatternAssignments(
-            QVector<std::pair<std::unique_ptr<EDA_COMBINED_MATCHER>, QString>>&&
+            std::vector<std::pair<std::unique_ptr<EDA_COMBINED_MATCHER>, QString>>&&
                     netclassPatterns );
 
     Gets the netclass pattern assignments
-    QVector<std::pair<std::unique_ptr<EDA_COMBINED_MATCHER>, QString>>&
+    std::vector<std::pair<std::unique_ptr<EDA_COMBINED_MATCHER>, QString>>&
     GetNetclassPatternAssignments();
 
     Clears all netclass pattern assignments
@@ -104,7 +104,7 @@ public:
     void SetNetColorAssignment( const QString& netName, const KIGFX::COLOR4D& color );
 
     Gets all net name to color assignments
-    const QHash<QString, KIGFX::COLOR4D>& GetNetColorAssignments() const;
+    const std::map<QString, KIGFX::COLOR4D>& GetNetColorAssignments() const;
 
     Clears all net name to color assignments
     /// Calling user is responsible for resetting the effective netclass calculation caches
@@ -145,7 +145,7 @@ public:
      * @return true if aBus was successfully parsed
      */
     static bool ParseBusVector( const QString& aBus, QString* aName,
-                                QVector<QString>* aMemberList );
+                                std::vector<QString>* aMemberList );
 
     /**
      * Parse a bus group label into the name and a list of components.
@@ -156,7 +156,7 @@ public:
      * @return true if aGroup was successfully parsed
      */
     static bool ParseBusGroup( const QString& aGroup, QString* name,
-                               QVector<QString>* aMemberList );
+                               std::vector<QString>* aMemberList );
 
 private:
     bool migrateSchema0to1();
@@ -174,7 +174,7 @@ private:
      * name alphabetically
      */
     void makeEffectiveNetclass( std::shared_ptr<NETCLASS>& effectiveNetclass,
-                                QVector<NETCLASS*>&    netclasses ) const;
+                                std::vector<NETCLASS*>&    netclasses ) const;
 
     Adds any missing fields to the given netclass from the default netclass
     /// @returns true if any fields were added from the default netclass
@@ -184,18 +184,18 @@ private:
     std::shared_ptr<NETCLASS> m_defaultNetClass;
 
     Map of netclass names to netclass definitions
-    QHash<QString, std::shared_ptr<NETCLASS>> m_netClasses;
+    std::map<QString, std::shared_ptr<NETCLASS>> m_netClasses;
 
     Map of net names to resolved netclasses
-    QHash<QString, QSet<QString>> m_netClassLabelAssignments;
+    std::map<QString, std::set<QString>> m_netClassLabelAssignments;
 
     List of net class pattern assignments
-    QVector<std::pair<std::unique_ptr<EDA_COMBINED_MATCHER>, QString>>
+    std::vector<std::pair<std::unique_ptr<EDA_COMBINED_MATCHER>, QString>>
             m_netClassPatternAssignments;
 
     Map of netclass names to netclass definitions for
     // composite (multiple netclass assignment / missing defaults) netclasses
-    QHash<QString, std::shared_ptr<NETCLASS>> m_compositeNetClasses;
+    std::map<QString, std::shared_ptr<NETCLASS>> m_compositeNetClasses;
 
     Map of netclass names to netclass definitions for implicit netclasses
     ///
@@ -203,10 +203,10 @@ private:
     /// netclass definition in the netclass setup panel. They contribute as a constituent
     /// netclass to enable DRC rules and name resolution, but do not contribute parameters
     // to the effective netclasses which contain them.
-    QHash<QString, std::shared_ptr<NETCLASS>> m_impicitNetClasses;
+    std::map<QString, std::shared_ptr<NETCLASS>> m_impicitNetClasses;
 
     Cache of nets to pattern-matched netclasses
-    QHash<QString, std::shared_ptr<NETCLASS>> m_effectiveNetclassCache;
+    std::map<QString, std::shared_ptr<NETCLASS>> m_effectiveNetclassCache;
 
     /**
      * A map of fully-qualified net names to colors used in the board context.
@@ -214,7 +214,7 @@ private:
      * Only nets that the user has assigned custom colors to will be in this list.
      * Nets that no longer exist will be deleted during a netlist read in Pcbnew.
      */
-    QHash<QString, KIGFX::COLOR4D> m_netColorAssignments;
+    std::map<QString, KIGFX::COLOR4D> m_netColorAssignments;
 
     // TODO: Add diff pairs, bus information, etc.
 };

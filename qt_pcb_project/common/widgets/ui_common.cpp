@@ -18,7 +18,7 @@
 #include <QFontDatabase>
 #include <QPainter>
 #include <QStyleOption>
-#include "widgets/ui_common.h"
+#include <widgets/ui_common.h>
 
 #include <algorithm>
 #include <dialog_shim.h>

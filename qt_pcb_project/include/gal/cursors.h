@@ -3,8 +3,8 @@
 #define CURSOR_STORE__H
 
 #include <QCursor>
-#include <QHash>
-#include <QVector>
+#include <map>
+#include <vector>
 #include <QSize>
 #include <QPoint>
 
@@ -90,7 +90,7 @@ public:
         QPoint m_hotspot;
     };
 
-    CURSOR_STORE( const QVector<CURSOR_DEF>& aDefs );
+    CURSOR_STORE( const std::vector<CURSOR_DEF>& aDefs );
 
     const QCursor& Get( KICURSOR aIdKey ) const;
 
@@ -101,7 +101,7 @@ public:
     static Qt::CursorShape GetStockCursor( KICURSOR aCursorType );
 
 private:
-    QHash<KICURSOR, QCursor> m_store;
+    std::map<KICURSOR, QCursor> m_store;
 };
 
 #endif // CURSOR_STORE__H

@@ -3,11 +3,13 @@
 #include <env_vars.h>
 #include <settings/environment.h>
 
+#include <map>
+
 #include <QRegularExpression>
 #include <QCoreApplication>
 #include <QProcessEnvironment>
 
-using STRING_MAP = QHash<QString, QString>;
+using STRING_MAP = std::map<QString, QString>;
 
 static const ENV_VAR::ENV_VAR_LIST predefinedEnvVars = {
     QStringLiteral( "KIPRJMOD" ),

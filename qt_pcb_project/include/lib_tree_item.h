@@ -2,7 +2,7 @@
 #ifndef LIB_TREE_ITEM_H
 #define LIB_TREE_ITEM_H
 
-#include <QMap>
+#include <map>
 #include <lib_id.h>
 #include <import_export.h>
 #include <eda_pattern_match.h>
@@ -21,7 +21,7 @@ public:
     virtual QString GetLibNickname() const = 0;
     virtual QString GetDesc() = 0;
 
-    virtual void GetChooserFields( QMap<QString , QString>& aColumnMap ) {}
+    virtual void GetChooserFields( std::map<QString , QString>& aColumnMap ) {}
 
     virtual std::vector<SEARCH_TERM> GetSearchTerms() { return std::vector<SEARCH_TERM>(); }
 

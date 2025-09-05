@@ -11,6 +11,7 @@
 #include <exception>
 #include <sstream>
 #include <shared_mutex>
+#include <vector>
 #include <QApplication>
 #include <QProcessEnvironment>
 #include <QString>
@@ -218,7 +219,7 @@ bool KICAD_CURL_EASY::SetUserAgent( const std::string& aAgent )
 }
 
 
-bool KICAD_CURL_EASY::SetPostFields( const QVector<std::pair<std::string, std::string>>& aFields )
+bool KICAD_CURL_EASY::SetPostFields( const std::vector<std::pair<std::string, std::string>>& aFields )
 {
     std::string postfields;
 

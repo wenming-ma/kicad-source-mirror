@@ -6,9 +6,9 @@
 
 #include <kicommon.h>
 #include <QString>
-#include <QVector>
-#include <QHash>
-#include <QMap>
+#include <vector>
+#include <map>
+#include <unordered_map>
 #include <font/fontinfo.h>
 
 class REPORTER;
@@ -35,22 +35,22 @@ public:
     };
 
     FF_RESULT FindFont( const QString& aFontName, QString& aFontFile, int& aFaceIndex, bool aBold,
-                        bool aItalic, const QVector<QString>* aEmbeddedFiles = nullptr );
+                        bool aItalic, const std::vector<QString>* aEmbeddedFiles = nullptr );
 
-    void ListFonts( QVector<std::string>& aFonts, const std::string& aDesiredLang,
-                    const QVector<QString>* aEmbeddedFiles = nullptr, bool aForce = false );
+    void ListFonts( std::vector<std::string>& aFonts, const std::string& aDesiredLang,
+                    const std::vector<QString>* aEmbeddedFiles = nullptr, bool aForce = false );
 
     static void SetReporter( REPORTER* aReporter );
 
 private:
-    QMap<std::string, FONTINFO> m_fontInfoCache;
+    std::map<std::string, FONTINFO> m_fontInfoCache;
     QString                     m_fontCacheLastLang;
     static REPORTER*            s_reporter;
 
     bool isLanguageMatch( const QString& aSearchLang, const QString& aSupportedLang );
 
     void getAllFamilyStrings( FONTCONFIG_PAT& aPat,
-                              QHash<std::string, std::string>& aFamStringMap );
+                              std::unordered_map<std::string, std::string>& aFamStringMap );
 
     std::string getFamilyStringByLang( FONTCONFIG_PAT& APat, const QString& aDesiredLang );
 

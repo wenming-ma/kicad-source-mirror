@@ -5,7 +5,7 @@
 
 #include <eda_units.h>
 #include <QString>
-#include <QVector>
+#include <vector>
 #include <nlohmann/json_fwd.hpp>
 
 class UNITS_PROVIDER;
@@ -35,7 +35,7 @@ KICOMMON_API void  from_json( const nlohmann::json& j, GRID& g );
 struct GRID_SETTINGS
 {
     bool         axes_enabled;
-    QVector<GRID> grids;
+    std::vector<GRID> grids;
     QString      user_grid_x;
     QString      user_grid_y;
     int               last_size_idx;

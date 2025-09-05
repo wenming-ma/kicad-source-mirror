@@ -8,7 +8,7 @@
 #include <nlohmann/json_fwd.hpp>
 #include <QPixmap>
 #include <QString>
-#include <QVector>
+#include <vector>
 
 #include <kicommon.h>
 
@@ -50,7 +50,7 @@ struct PLUGIN_RUNTIME
 
     PLUGIN_RUNTIME_TYPE type;
     QString min_version;
-    QVector<PLUGIN_DEPENDENCY> dependencies;
+    std::vector<PLUGIN_DEPENDENCY> dependencies;
 };
 
 
@@ -66,7 +66,7 @@ struct PLUGIN_ACTION
     bool show_button = false;
     QString entrypoint;
     std::set<PLUGIN_ACTION_SCOPE> scopes;
-    QVector<QString> args;
+    std::vector<QString> args;
     QPixmap icon_light;
     QPixmap icon_dark;
 
@@ -90,7 +90,7 @@ public:
     const PLUGIN_RUNTIME& Runtime() const;
     QString BasePath() const;
 
-    const QVector<PLUGIN_ACTION>& Actions() const;
+    const std::vector<PLUGIN_ACTION>& Actions() const;
 
     QString ActionSettingsKey( const PLUGIN_ACTION& aAction ) const;
 
