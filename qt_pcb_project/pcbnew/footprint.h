@@ -1,31 +1,10 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef FOOTPRINT_H
 #define FOOTPRINT_H
 
 #include <deque>
+#include <QString>
+#include <QStringList>
 
 #include <template_fieldnames.h>
 
@@ -104,7 +83,7 @@ public:
     VECTOR3D m_Rotation;    ///< 3D model rotation (degrees)
     VECTOR3D m_Offset;      ///< 3D model offset (mm)
     double   m_Opacity;
-    wxString m_Filename;    ///< The 3D shape filename in 3D library
+    QString m_Filename;    ///< The 3D shape filename in 3D library
     bool     m_Show;        ///< Include model in rendering
 
     bool operator==( const FP_3DMODEL& aOther ) const
@@ -254,26 +233,26 @@ public:
         m_fpid = aFPID;
     }
 
-    wxString GetFPIDAsString() const { return m_fpid.Format(); }
-    void SetFPIDAsString( const wxString& aFPID ) { m_fpid.Parse( aFPID ); }
+    QString GetFPIDAsString() const { return m_fpid.Format(); }
+    void SetFPIDAsString( const QString& aFPID ) { m_fpid.Parse( aFPID ); }
 
-    wxString GetLibDescription() const { return m_libDescription; }
-    void     SetLibDescription( const wxString& aDesc ) { m_libDescription = aDesc; }
+    QString GetLibDescription() const { return m_libDescription; }
+    void     SetLibDescription( const QString& aDesc ) { m_libDescription = aDesc; }
 
-    wxString GetKeywords() const { return m_keywords; }
-    void SetKeywords( const wxString& aKeywords ) { m_keywords = aKeywords; }
+    QString GetKeywords() const { return m_keywords; }
+    void SetKeywords( const QString& aKeywords ) { m_keywords = aKeywords; }
 
     const KIID_PATH& GetPath() const { return m_path; }
     void SetPath( const KIID_PATH& aPath ) { m_path = aPath; }
 
-    wxString GetSheetname() const { return m_sheetname; }
-    void SetSheetname( const wxString& aSheetname ) { m_sheetname = aSheetname; }
+    QString GetSheetname() const { return m_sheetname; }
+    void SetSheetname( const QString& aSheetname ) { m_sheetname = aSheetname; }
 
-    wxString GetSheetfile() const { return m_sheetfile; }
-    void SetSheetfile( const wxString& aSheetfile ) { m_sheetfile = aSheetfile; }
+    QString GetSheetfile() const { return m_sheetfile; }
+    void SetSheetfile( const QString& aSheetfile ) { m_sheetfile = aSheetfile; }
 
-    wxString GetFilters() const { return m_filters; }
-    void SetFilters( const wxString& aFilters ) { m_filters = aFilters; }
+    QString GetFilters() const { return m_filters; }
+    void SetFilters( const QString& aFilters ) { m_filters = aFilters; }
 
     std::optional<int> GetLocalClearance() const                 { return m_clearance; }
     void SetLocalClearance( std::optional<int> aClearance )      { m_clearance = aClearance; }
@@ -299,7 +278,7 @@ public:
 
     bool IsNetTie() const
     {
-        for( const wxString& group : m_netTiePadGroups )
+        for( const QString& group : m_netTiePadGroups )
         {
             if( !group.IsEmpty() )
                 return true;
@@ -308,10 +287,10 @@ public:
         return false;
     }
 
-    std::optional<int> GetLocalClearance( wxString* aSource ) const
+    std::optional<int> GetLocalClearance( QString* aSource ) const
     {
         if( m_clearance.has_value() && aSource )
-            *aSource = wxString::Format( _( "footprint %s" ), GetReference() );
+            *aSource = QString( "footprint %1" ).arg( GetReference() );
 
         return m_clearance;
     }
@@ -322,15 +301,15 @@ public:
      * @param aSource [out] optionally reports the source as a user-readable string.
      * @return the clearance in internal units.
      */
-    std::optional<int> GetClearanceOverrides( wxString* aSource ) const
+    std::optional<int> GetClearanceOverrides( QString* aSource ) const
     {
         return GetLocalClearance( aSource );
     }
 
-    ZONE_CONNECTION GetZoneConnectionOverrides( wxString* aSource ) const
+    ZONE_CONNECTION GetZoneConnectionOverrides( QString* aSource ) const
     {
         if( m_zoneConnection != ZONE_CONNECTION::INHERITED && aSource )
-            *aSource = wxString::Format( _( "footprint %s" ), GetReference() );
+            *aSource = QString( "footprint %1" ).arg( GetReference() );
 
         return m_zoneConnection;
     }
@@ -339,14 +318,14 @@ public:
      * @return a list of pad groups, each of which is allowed to short nets within their group.
      *         A pad group is a comma-separated list of pad numbers.
      */
-    const std::vector<wxString>& GetNetTiePadGroups() const { return m_netTiePadGroups; }
+    const std::vector<QString>& GetNetTiePadGroups() const { return m_netTiePadGroups; }
 
     void ClearNetTiePadGroups()
     {
         m_netTiePadGroups.clear();
     }
 
-    void AddNetTiePadGroup( const wxString& aGroup )
+    void AddNetTiePadGroup( const QString& aGroup )
     {
         m_netTiePadGroups.emplace_back( aGroup );
     }
@@ -355,7 +334,7 @@ public:
      * @return a map from pad numbers to net-tie group indices.  If a pad is not a member of
      *         a net-tie group its index will be -1.
      */
-    std::map<wxString, int> MapPadNumbersToNetTieGroups() const;
+    std::map<QString, int> MapPadNumbersToNetTieGroups() const;
 
     /**
      * @return a list of pads that appear in \a aPad's net-tie pad group.
@@ -464,7 +443,7 @@ public:
      *
      * @param aErrorHandler callback to handle the error messages generated
      */
-    void CheckFootprintAttributes( const std::function<void( const wxString& )>& aErrorHandler );
+    void CheckFootprintAttributes( const std::function<void( const QString& )>& aErrorHandler );
 
     /**
      * Run non-board-specific DRC checks on footprint's pads.  These are the checks supported by
@@ -473,7 +452,7 @@ public:
      * @param aErrorHandler callback to handle the error messages generated
      */
     void CheckPads( UNITS_PROVIDER* aUnitsProvider,
-                    const std::function<void( const PAD*, int, const wxString& )>& aErrorHandler );
+                    const std::function<void( const PAD*, int, const QString& )>& aErrorHandler );
 
     /**
      * Check for overlapping, different-numbered, non-net-tie pads.
@@ -500,7 +479,7 @@ public:
      *
      * @param aErrorHandler callback to handle the error messages generated
      */
-    void CheckNetTiePadGroups( const std::function<void( const wxString& )>& aErrorHandler );
+    void CheckNetTiePadGroups( const std::function<void( const QString& )>& aErrorHandler );
 
     void CheckClippedSilk( const std::function<void( BOARD_ITEM* aItemA,
                                                      BOARD_ITEM* aItemB,
@@ -579,14 +558,14 @@ public:
     /**
      * Return the list of system text vars for this footprint.
      */
-    void GetContextualTextVars( wxArrayString* aVars ) const;
+    void GetContextualTextVars( QStringList* aVars ) const;
 
     /**
      * Resolve any references to system tokens supported by the component.
      *
      * @param aDepth a counter to limit recursion and circular references.
      */
-    bool ResolveTextVar( wxString* token, int aDepth = 0 ) const;
+    bool ResolveTextVar( QString* token, int aDepth = 0 ) const;
 
     /// @copydoc EDA_ITEM::GetMsgPanelInfo
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
@@ -621,16 +600,16 @@ public:
     /**
      * @return reference designator text.
      */
-    const wxString& GetReference() const { return Reference().GetText(); }
+    const QString& GetReference() const { return Reference().GetText(); }
 
     /**
-     * @param aReference A reference to a wxString object containing the reference designator
+     * @param aReference A reference to a QString object containing the reference designator
      *                   text.
      */
-    void SetReference( const wxString& aReference ) { Reference().SetText( aReference ); }
+    void SetReference( const QString& aReference ) { Reference().SetText( aReference ); }
 
     // Property system doesn't like const references
-    wxString GetReferenceAsString() const
+    QString GetReferenceAsString() const
     {
         return GetReference();
     }
@@ -643,15 +622,15 @@ public:
     /**
      * @return the value text.
      */
-    const wxString& GetValue() const { return Value().GetText(); }
+    const QString& GetValue() const { return Value().GetText(); }
 
     /**
-     * @param aValue A reference to a wxString object containing the value text.
+     * @param aValue A reference to a QString object containing the value text.
      */
-    void SetValue( const wxString& aValue ) { Value().SetText( aValue ); }
+    void SetValue( const QString& aValue ) { Value().SetText( aValue ); }
 
     // Property system doesn't like const references
-    wxString GetValueAsString() const
+    QString GetValueAsString() const
     {
         return GetValue();
     }
@@ -693,16 +672,16 @@ public:
      *
      * @return is the field with \a aFieldName or NULL if the field does not exist.
      */
-    PCB_FIELD* GetFieldByName( const wxString& aFieldName );
+    PCB_FIELD* GetFieldByName( const QString& aFieldName );
 
-    bool HasFieldByName( const wxString& aFieldName ) const;
+    bool HasFieldByName( const QString& aFieldName ) const;
 
     /**
      * Search for a field named \a aFieldName and returns text associated with this field.
      *
      * @param aFieldName is the name of the field
      */
-    wxString GetFieldText( const wxString& aFieldName ) const;
+    QString GetFieldText( const QString& aFieldName ) const;
 
     /**
      * Populate a std::vector with PCB_TEXTs.
@@ -738,7 +717,7 @@ public:
      * @param aFieldName is the user fieldName to remove.  Attempts to remove a mandatory
      *                   field or a non-existant field are silently ignored.
      */
-    void RemoveField( const wxString& aFieldName );
+    void RemoveField( const QString& aFieldName );
 
     /**
      * Return the next ID for a field for this footprint
@@ -812,7 +791,7 @@ public:
      * @param aSearchAfterMe = not nullptr to find a pad living after aAfterMe
      * @return the first matching numbered #PAD is returned or NULL if not found.
      */
-    PAD* FindPadByNumber( const wxString& aPadNumber, PAD* aSearchAfterMe = nullptr ) const;
+    PAD* FindPadByNumber( const QString& aPadNumber, PAD* aSearchAfterMe = nullptr ) const;
 
     /**
      * Get a pad at \a aPosition on \a aLayerMask in the footprint.
@@ -823,7 +802,7 @@ public:
      */
     PAD* GetPad( const VECTOR2I& aPosition, LSET aLayerMask = LSET::AllLayersMask() );
 
-    std::vector<const PAD*> GetPads( const wxString& aPadNumber,
+    std::vector<const PAD*> GetPads( const QString& aPadNumber,
                                      const PAD* aIgnore = nullptr ) const;
 
     /**
@@ -850,7 +829,7 @@ public:
     /**
      * Return the names of the unique, non-blank pads.
      */
-    std::set<wxString>
+    std::set<QString>
     GetUniquePadNumbers( INCLUDE_NPTH_T aIncludeNPTH = INCLUDE_NPTH_T(INCLUDE_NPTH) ) const;
 
     /**
@@ -860,7 +839,7 @@ public:
      *                          else return the highest value + 1
      * @return the next available pad number
      */
-    wxString GetNextPadNumber( const wxString& aLastPadName ) const;
+    QString GetNextPadNumber( const QString& aLastPadName ) const;
 
     /**
      * Position Reference and Value fields at the top and bottom of footprint's bounding box.
@@ -871,7 +850,7 @@ public:
      * Get the type of footprint
      * @return "SMD"/"Through hole"/"Other" based on attributes
      */
-    wxString GetTypeName() const;
+    QString GetTypeName() const;
 
     double GetArea( int aPadding = 0 ) const;
 
@@ -897,12 +876,12 @@ public:
     INSPECT_RESULT Visit( INSPECTOR inspector, void* testData,
                           const std::vector<KICAD_T>& aScanTypes ) override;
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "FOOTPRINT" );
+        return QStringLiteral( "FOOTPRINT" );
     }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -928,7 +907,7 @@ public:
      * @param aName is the name in library to validate.
      * @return true if the given name is valid
      */
-    static bool IsLibNameValid( const wxString& aName );
+    static bool IsLibNameValid( const QString& aName );
 
     /**
      * Test for validity of the name in a library of the footprint ( no spaces, dir
@@ -939,7 +918,7 @@ public:
      *
      * @return the list of invalid chars in the library name.
      */
-    static const wxChar* StringLibNameInvalidChars( bool aUserReadable );
+    static const QChar* StringLibNameInvalidChars( bool aUserReadable );
 
     /**
      * Return true if a board footprint differs from the library version.
@@ -958,10 +937,10 @@ public:
      * @note A block of single line comments constitutes a multiline block of single line
      *       comments.  That is, the block is made of consecutive single line comments.
      *
-     * @param aInitialComments is a heap allocated wxArrayString or NULL, which the caller
+     * @param aInitialComments is a heap allocated QStringList or NULL, which the caller
      *                         gives up ownership of over to this FOOTPRINT.
      */
-    void SetInitialComments( wxArrayString* aInitialComments )
+    void SetInitialComments( QStringList* aInitialComments )
     {
         delete m_initial_comments;
         m_initial_comments = aInitialComments;
@@ -978,7 +957,7 @@ public:
     static double GetCoverageArea( const BOARD_ITEM* aItem, const GENERAL_COLLECTOR& aCollector );
 
     /// Return the initial comments block or NULL if none, without transfer of ownership.
-    const wxArrayString* GetInitialComments() const { return m_initial_comments; }
+    const QStringList* GetInitialComments() const { return m_initial_comments; }
 
     /**
      * Used in DRC to test the courtyard area (a complex polygon).
@@ -1034,13 +1013,13 @@ public:
      * This is used during paste operations as we can't resolve the component classes immediately
      * until we have the true board context once the pasted items have been placed
      */
-    void SetTransientComponentClassNames( const std::unordered_set<wxString>& classNames )
+    void SetTransientComponentClassNames( const std::unordered_set<QString>& classNames )
     {
         m_transientComponentClassNames = classNames;
     }
 
     /// Gets the transient component class names
-    const std::unordered_set<wxString>& GetTransientComponentClassNames()
+    const std::unordered_set<QString>& GetTransientComponentClassNames()
     {
         return m_transientComponentClassNames;
     }
@@ -1050,13 +1029,13 @@ public:
 
     /// Resolves a set of component class names to this footprint's actual component class
     void ResolveComponentClassNames( BOARD*                              aBoard,
-                                     const std::unordered_set<wxString>& aComponentClassNames );
+                                     const std::unordered_set<QString>& aComponentClassNames );
 
     /// Returns the component class for this footprint
     const COMPONENT_CLASS* GetComponentClass() const { return m_componentClass; }
 
     /// Used for display in the properties panel
-    wxString GetComponentClassAsString() const;
+    QString GetComponentClassAsString() const;
 
 
     bool operator==( const BOARD_ITEM& aOther ) const override;
@@ -1125,7 +1104,7 @@ private:
 
     // A list of pad groups, each of which is allowed to short nets within their group.
     // A pad group is a comma-separated list of pad numbers.
-    std::vector<wxString> m_netTiePadGroups;
+    std::vector<QString> m_netTiePadGroups;
 
     // A list of 1:N footprint item to allowed net numbers
     std::map<const BOARD_ITEM*, std::set<int>> m_netTieCache;
@@ -1138,19 +1117,19 @@ private:
     std::optional<double> m_solderPasteMarginRatio; // Solder mask margin ratio of pad size
                                                     // The final margin is the sum of these 2 values
 
-    wxString        m_libDescription;    // File name and path for documentation file.
-    wxString        m_keywords;          // Search keywords to find footprint in library.
+    QString        m_libDescription;    // File name and path for documentation file.
+    QString        m_keywords;          // Search keywords to find footprint in library.
     KIID_PATH       m_path;              // Path to associated symbol ([sheetUUID, .., symbolUUID]).
-    wxString        m_sheetname;         // Name of the sheet containing the symbol for this footprint
-    wxString        m_sheetfile;         // File of the sheet containing the symbol for this footprint
-    wxString        m_filters;           // Footprint filters from symbol
+    QString        m_sheetname;         // Name of the sheet containing the symbol for this footprint
+    QString        m_sheetfile;         // File of the sheet containing the symbol for this footprint
+    QString        m_filters;           // Footprint filters from symbol
     timestamp_t     m_lastEditTime;
     int             m_arflag;            // Use to trace ratsnest and auto routing.
     KIID            m_link;              // Temporary logical link used during editing
     LSET            m_privateLayers;     // Layers visible only in the footprint editor
 
     std::vector<FP_3DMODEL>       m_3D_Drawings;       // 3D models.
-    wxArrayString*                m_initial_comments;  // s-expression comments in the footprint,
+    QStringList*                m_initial_comments;  // s-expression comments in the footprint,
                                                        // lazily allocated only if needed for speed
 
     SHAPE_POLY_SET   m_courtyard_cache_front; // Note that a footprint can have both front and back
@@ -1160,7 +1139,7 @@ private:
     mutable std::mutex m_courtyard_cache_mutex;
 
     const COMPONENT_CLASS* m_componentClass;
-    std::unordered_set<wxString> m_transientComponentClassNames;
+    std::unordered_set<QString> m_transientComponentClassNames;
 };
 
 #endif     // FOOTPRINT_H

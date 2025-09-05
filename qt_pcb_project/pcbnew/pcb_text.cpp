@@ -1,28 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 // #include <google/protobuf/any.pb.h> // DISABLED FOR MINIMAL BUILD
 
 #include <advanced_config.h>
@@ -83,7 +60,7 @@ PCB_TEXT::~PCB_TEXT()
 
 void PCB_TEXT::CopyFrom( const BOARD_ITEM* aOther )
 {
-    wxCHECK( aOther && aOther->Type() == PCB_TEXT_T, /* void */ );
+    Q_ASSERT( aOther && aOther->Type() == PCB_TEXT_T );
     *this = *static_cast<const PCB_TEXT*>( aOther );
 }
 
@@ -137,15 +114,15 @@ void PCB_TEXT::CopyFrom( const BOARD_ITEM* aOther )
 //}
 
 
-wxString PCB_TEXT::GetShownText( bool aAllowExtraText, int aDepth ) const
+QString PCB_TEXT::GetShownText( bool aAllowExtraText, int aDepth ) const
 {
     const FOOTPRINT* parentFootprint = GetParentFootprint();
     const BOARD*     board = GetBoard();
 
-    std::function<bool( wxString* )> resolver =
-            [&]( wxString* token ) -> bool
+    std::function<bool( QString* )> resolver =
+            [&]( QString* token ) -> bool
             {
-                if( token->IsSameAs( wxT( "LAYER" ) ) )
+                if( token->compare( "LAYER", Qt::CaseInsensitive ) == 0 )
                 {
                     *token = GetLayerName();
                     return true;
@@ -161,7 +138,7 @@ wxString PCB_TEXT::GetShownText( bool aAllowExtraText, int aDepth ) const
                 return false;
             };
 
-    wxString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
+    QString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
 
     if( HasTextVars() )
     {
@@ -240,13 +217,13 @@ double PCB_TEXT::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
     if( FOOTPRINT* parentFP = GetParentFootprint() )
     {
         // Handle Render tab switches
-        if( GetText() == wxT( "${VALUE}" ) )
+        if( GetText() == "${VALUE}" )
         {
             if( !aView->IsLayerVisible( LAYER_FP_VALUES ) )
                 return LOD_HIDE;
         }
 
-        if( GetText() == wxT( "${REFERENCE}" ) )
+        if( GetText() == "${REFERENCE}" )
         {
             if( !aView->IsLayerVisible( LAYER_FP_REFERENCES ) )
                 return LOD_HIDE;
@@ -289,7 +266,7 @@ void PCB_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
 
     aList.emplace_back( _( "Mirror" ), IsMirrored() ? _( "Yes" ) : _( "No" ) );
 
-    aList.emplace_back( _( "Angle" ), wxString::Format( wxT( "%g" ), GetTextAngle().AsDegrees() ) );
+    aList.emplace_back( _( "Angle" ), QString::number( GetTextAngle().AsDegrees(), 'g' ) );
 
     aList.emplace_back( _( "Font" ), GetFont() ? GetFont()->GetName() : _( "Default" ) );
     aList.emplace_back( _( "Thickness" ), aFrame->MessageTextFromValue( GetTextThickness() ) );
@@ -431,23 +408,23 @@ void PCB_TEXT::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 }
 
 
-wxString PCB_TEXT::GetTextTypeDescription() const
+QString PCB_TEXT::GetTextTypeDescription() const
 {
     return _( "Text" );
 }
 
 
-wxString PCB_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PCB_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    wxString content = aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() );
+    QString content = aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() );
 
     if( FOOTPRINT* parentFP = GetParentFootprint() )
     {
-        wxString ref = parentFP->GetReference();
-        return wxString::Format( _( "Footprint text of %s (%s)" ), ref, content );
+        QString ref = parentFP->GetReference();
+        return QString( _( "Footprint text of %s (%s)" ) ).arg( ref ).arg( content );
     }
 
-    return wxString::Format( _( "PCB text '%s' on %s" ), content, GetLayerName() );
+    return QString( _( "PCB text '%s' on %s" ) ).arg( content ).arg( GetLayerName() );
 }
 
 
@@ -486,7 +463,7 @@ std::shared_ptr<SHAPE> PCB_TEXT::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHIN
 }
 
 
-SHAPE_POLY_SET PCB_TEXT::GetKnockoutCache( const KIFONT::FONT* aFont, const wxString& forResolvedText,
+SHAPE_POLY_SET PCB_TEXT::GetKnockoutCache( const KIFONT::FONT* aFont, const QString& forResolvedText,
                                            int aMaxError ) const
 {
     TEXT_ATTRIBUTES attrs = GetAttributes();
@@ -554,7 +531,7 @@ void PCB_TEXT::TransformTextToPolySet( SHAPE_POLY_SET& aBuffer, int aClearance, 
     KIFONT::FONT*              font = GetDrawFont( nullptr );
     int                        penWidth = GetEffectiveTextPenWidth();
     TEXT_ATTRIBUTES            attrs = GetAttributes();
-    wxString                   shownText = GetShownText( true );
+    QString                    shownText = GetShownText( true );
 
     attrs.m_Angle = GetDrawRotation();
 

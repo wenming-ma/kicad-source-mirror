@@ -1,31 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @file pcb_io_kicad_sexpr_parser.cpp
- * @brief Pcbnew s-expression file format parser implementation.
- */
 
 #include <cerrno>
 #include <charconv>
@@ -67,17 +40,17 @@
 #include <math/util.h>                           // KiROUND, Clamp
 #include <string_utils.h>
 #include <stroke_params_parser.h>
-#include <wx/log.h>
 #include <progress_reporter.h>
 #include <board_stackup_manager/stackup_predefined_prms.h>
 #include <pgm_base.h>
 
-// For some reason wxWidgets is built with wxUSE_BASE64 unset so expose the wxWidgets
-// base64 code. Needed for PCB_REFERENCE_IMAGE
-#define wxUSE_BASE64 1
-#include <wx/base64.h>
-#include <wx/log.h>
-#include <wx/mstream.h>
+#include <QByteArray>
+#include <QBuffer>
+#include <QDebug>
+#include <QDate>
+#include <QColor>
+#include <QMessageBox>
+#include <QVariant>
 
 // We currently represent board units as integers.  Any values that are
 // larger or smaller than those board units represent undefined behavior for
@@ -269,7 +242,7 @@ bool PCB_IO_KICAD_SEXPR_PARSER::parseMaybeAbsentBool( bool aDefaultValue )
 }
 
 
-wxString PCB_IO_KICAD_SEXPR_PARSER::GetRequiredVersion()
+QString PCB_IO_KICAD_SEXPR_PARSER::GetRequiredVersion()
 {
     int year, month, day;
 
@@ -281,15 +254,15 @@ wxString PCB_IO_KICAD_SEXPR_PARSER::GetRequiredVersion()
     // User input shouldn't give wx asserts, so check manually and throw a proper
     // error instead
     if( day <= 0 || month <= 0 || month > 12 ||
-            day > wxDateTime::GetNumberOfDays( (wxDateTime::Month)( month - 1 ), year ) )
+            day > QDate(year, month, 1).daysInMonth() )
     {
-        wxString err;
-        err.Printf( _( "Cannot interpret date code %d" ), m_requiredVersion );
+        QString err;
+        err = QString::asprintf( _( "Cannot interpret date code %d" ), m_requiredVersion );
         THROW_PARSE_ERROR( err, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
     }
 
-    wxDateTime date( day, (wxDateTime::Month)( month - 1 ), year, 0, 0, 0, 0 );
-    return date.FormatDate();
+    QDate date( year, month, day );
+    return date.toString(Qt::ISODate);
 }
 
 
@@ -419,10 +392,10 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseMargins( int& aLeft, int& aTop, int& aRight
 }
 
 
-std::pair<wxString, wxString> PCB_IO_KICAD_SEXPR_PARSER::parseBoardProperty()
+std::pair<QString, QString> PCB_IO_KICAD_SEXPR_PARSER::parseBoardProperty()
 {
-    wxString pName;
-    wxString pValue;
+    QString pName;
+    QString pValue;
 
     NeedSYMBOL();
     pName = FromUTF8();
@@ -504,8 +477,11 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseTEARDROP_PARAMETERS( TEARDROP_PARAMETERS* t
 
 void PCB_IO_KICAD_SEXPR_PARSER::parseEDA_TEXT( EDA_TEXT* aText )
 {
-    wxCHECK_RET( CurTok() == T_effects,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as EDA_TEXT." ) );
+    if( !( CurTok() == T_effects ) )
+    {
+        Q_ASSERT_X( false, "parseEDA_TEXT", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as EDA_TEXT." ) ).toLocal8Bit().constData() );
+        return;
+    }
 
     // These are not written out if center/center and/or no mirror,
     // so we have to make sure we start that way.
@@ -655,7 +631,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseRenderCache( EDA_TEXT* text )
     T token;
 
     NeedSYMBOLorNUMBER();
-    wxString  cacheText = From_UTF8( CurText() );
+    QString  cacheText = From_UTF8( CurText() );
     EDA_ANGLE cacheAngle( parseDouble( "render cache angle" ), DEGREES_T );
 
     text->SetupRenderCache( cacheText, text->GetFont(), cacheAngle, { 0, 0 } );
@@ -702,8 +678,11 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseRenderCache( EDA_TEXT* text )
 
 FP_3DMODEL* PCB_IO_KICAD_SEXPR_PARSER::parse3DModel()
 {
-    wxCHECK_MSG( CurTok() == T_model, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as FP_3DMODEL." ) );
+    if( !( CurTok() == T_model ) )
+    {
+        Q_ASSERT_X( false, "parse3DModel", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as FP_3DMODEL." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     T token;
 
@@ -842,7 +821,7 @@ BOARD_ITEM* PCB_IO_KICAD_SEXPR_PARSER::Parse()
     // FOOTPRINTS can be prefixed with an initial block of single line comments and these are
     // kept for Format() so they round trip in s-expression form.  BOARDs might  eventually do
     // the same, but currently do not.
-    std::unique_ptr<wxArrayString> initial_comments( ReadCommentLines() );
+    std::unique_ptr<QStringList> initial_comments( ReadCommentLines() );
 
     token = CurTok();
 
@@ -870,12 +849,12 @@ BOARD_ITEM* PCB_IO_KICAD_SEXPR_PARSER::Parse()
         break;
 
     default:
-        wxString err;
-        err.Printf( _( "Unknown token '%s'" ), FromUTF8() );
+        QString err;
+        err = QString::asprintf( _( "Unknown token '%s'" ), FromUTF8() );
         THROW_PARSE_ERROR( err, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
     }
 
-    const std::vector<wxString>* embeddedFonts = item->GetEmbeddedFiles()->UpdateFontFiles();
+    const std::vector<QString>* embeddedFonts = item->GetEmbeddedFiles()->UpdateFontFiles();
 
     item->RunOnDescendants(
             [&]( BOARD_ITEM* aChild )
@@ -909,7 +888,7 @@ BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD()
 BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD_unchecked()
 {
     T token;
-    std::map<wxString, wxString> properties;
+    std::map<QString, QString> properties;
 
     parseHeader();
 
@@ -1116,7 +1095,7 @@ BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD_unchecked()
             }
             catch( const PARSE_ERROR& e )
             {
-                wxLogError( e.What() );
+                qDebug( e.What() );
             }
 
             SyncLineReaderWith( embeddedFilesParser );
@@ -1124,8 +1103,8 @@ BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD_unchecked()
         }
 
         default:
-            wxString err;
-            err.Printf( _( "Unknown token '%s'" ), FromUTF8() );
+            QString err;
+            err = QString::asprintf( _( "Unknown token '%s'" ), FromUTF8() );
             THROW_PARSE_ERROR( err, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
         }
     }
@@ -1138,12 +1117,12 @@ BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD_unchecked()
     if( m_undefinedLayers.size() > 0 )
     {
         PCB_LAYER_ID destLayer = Cmts_User;
-        wxString msg, undefinedLayerNames, destLayerName;
+        QString msg, undefinedLayerNames, destLayerName;
 
-        for( const wxString& layerName : m_undefinedLayers )
+        for( const QString& layerName : m_undefinedLayers )
         {
-            if( !undefinedLayerNames.IsEmpty() )
-                undefinedLayerNames += wxT( ", " );
+            if( !undefinedLayerNames.isEmpty() )
+                undefinedLayerNames += QStringLiteral( ", " );
 
             undefinedLayerNames += layerName;
         }
@@ -1152,16 +1131,16 @@ BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD_unchecked()
 
         if( Pgm().IsGUI() && m_queryUserCallback )
         {
-            msg.Printf( _( "Items found on undefined layers (%s).\n"
+            msg = QString::asprintf( _( "Items found on undefined layers (%s).\n"
                            "Do you wish to rescue them to the %s layer?\n"
                            "\n"
                            "Zones will need to be refilled." ),
                         undefinedLayerNames, destLayerName );
 
-            if( !m_queryUserCallback( _( "Undefined Layers Warning" ), wxICON_WARNING, msg,
+            if( !m_queryUserCallback( _( "Undefined Layers Warning" ), QMessageBox::Warning, msg,
                                       _( "Rescue" ) ) )
             {
-                THROW_IO_ERROR( wxT( "CANCEL" ) );
+                THROW_IO_ERROR( QStringLiteral( "CANCEL" ) );
             }
 
             // Make sure the destination layer is enabled, even if not in the file
@@ -1231,7 +1210,7 @@ BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD_unchecked()
         }
         else
         {
-            THROW_IO_ERROR( wxT( "One or more undefined undefinedLayerNames was found; "
+            THROW_IO_ERROR( QStringLiteral( "One or more undefined undefinedLayerNames was found; "
                                  "open the board in the PCB Editor to resolve." ) );
         }
     }
@@ -1305,7 +1284,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::resolveGroups( BOARD_ITEM* aParent )
 
             if( !gen )
             {
-                THROW_IO_ERROR( wxString::Format(
+                THROW_IO_ERROR( QString::Format(
                         _( "Cannot create generated object of type '%s'" ), genInfo->genType ) );
             }
 
@@ -1329,7 +1308,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::resolveGroups( BOARD_ITEM* aParent )
             static_cast<BOARD*>( groupInfo->parent )->Add( group, ADD_MODE::INSERT, true );
     }
 
-    wxString error;
+    QString error;
 
     for( const GROUP_INFO* groupInfo : groupTypeObjects )
     {
@@ -1367,8 +1346,11 @@ void PCB_IO_KICAD_SEXPR_PARSER::resolveGroups( BOARD_ITEM* aParent )
 
 void PCB_IO_KICAD_SEXPR_PARSER::parseHeader()
 {
-    wxCHECK_RET( CurTok() == T_kicad_pcb,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a header." ) );
+    if( !( CurTok() == T_kicad_pcb ) )
+    {
+        Q_ASSERT_X( false, "parseHeader", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as a header." ) ).toLocal8Bit().constData() );
+        return;
+    }
 
     NeedLEFT();
 
@@ -1376,7 +1358,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseHeader()
 
     if( tok == T_version )
     {
-        m_requiredVersion = parseInt( FromUTF8().mb_str( wxConvUTF8 ) );
+        m_requiredVersion = parseInt( FromUTF8().toUtf8().constData() );
         NeedRIGHT();
     }
     else
@@ -1396,9 +1378,11 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseHeader()
 
 void PCB_IO_KICAD_SEXPR_PARSER::parseGeneralSection()
 {
-     wxCHECK_RET( CurTok() == T_general,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) +
-                 wxT( " as a general section." ) );
+    if( !( CurTok() == T_general ) )
+    {
+        Q_ASSERT_X( false, "parseGeneralSection", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as a general section." ) ).toLocal8Bit().constData() );
+        return;
+    }
 
     T token;
 
@@ -1433,20 +1417,23 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseGeneralSection()
 
 void PCB_IO_KICAD_SEXPR_PARSER::parsePAGE_INFO()
 {
-    wxCHECK_RET( ( CurTok() == T_page && m_requiredVersion <= 20200119 ) || CurTok() == T_paper,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a PAGE_INFO." ) );
+    if( !( ( CurTok() == T_page && m_requiredVersion <= 20200119 ) || CurTok() == T_paper ) )
+    {
+        Q_ASSERT_X( false, "parsePAGE_INFO", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as a PAGE_INFO." ) ).toLocal8Bit().constData() );
+        return;
+    }
 
     T token;
     PAGE_INFO pageInfo;
 
     NeedSYMBOL();
 
-    wxString pageType = FromUTF8();
+    QString pageType = FromUTF8();
 
     if( !pageInfo.SetType( pageType ) )
     {
-        wxString err;
-        err.Printf( _( "Page type '%s' is not valid." ), FromUTF8() );
+        QString err;
+        err = QString::asprintf( _( "Page type '%s' is not valid." ), FromUTF8() );
         THROW_PARSE_ERROR( err, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
     }
 
@@ -1489,8 +1476,11 @@ void PCB_IO_KICAD_SEXPR_PARSER::parsePAGE_INFO()
 
 void PCB_IO_KICAD_SEXPR_PARSER::parseTITLE_BLOCK()
 {
-    wxCHECK_RET( CurTok() == T_title_block,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as TITLE_BLOCK." ) );
+    if( !( CurTok() == T_title_block ) )
+    {
+        Q_ASSERT_X( false, "parseTITLE_BLOCK", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as TITLE_BLOCK." ) ).toLocal8Bit().constData() );
+        return;
+    }
 
     T token;
     TITLE_BLOCK titleBlock;
@@ -1576,8 +1566,8 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseTITLE_BLOCK()
                 break;
 
             default:
-                wxString err;
-                err.Printf( wxT( "%d is not a valid title block comment number" ), commentNumber );
+                QString err;
+                err = QString::asprintf( QStringLiteral( "%d is not a valid title block comment number" ), commentNumber );
                 THROW_PARSE_ERROR( err, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
             }
 
@@ -1655,7 +1645,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseLayer( LAYER* aLayer )
 void PCB_IO_KICAD_SEXPR_PARSER::parseBoardStackup()
 {
     T token;
-    wxString name;
+    QString name;
     int dielectric_idx = 1;     // the index of dielectric layers
     BOARD_STACKUP& stackup = m_board->GetDesignSettings().GetStackupDescriptor();
 
@@ -1823,7 +1813,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseBoardStackup()
                         name = FromUTF8();
 
                         // Older versions didn't store opacity with custom colors
-                        if( name.StartsWith( wxT( "#" ) ) && m_requiredVersion < 20210824 )
+                        if( name.startsWith( QStringLiteral( "#" ) ) && m_requiredVersion < 20210824 )
                         {
                             KIGFX::COLOR4D color( name );
 
@@ -1832,14 +1822,14 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseBoardStackup()
                             else
                                 color = color.WithAlpha( 1.0 );
 
-                            wxColour wx_color = color.ToColour();
+                            QColor qt_color = QColor::fromRgbF(color.r, color.g, color.b, color.a);
 
-                            // Open-code wxColour::GetAsString() because 3.0 doesn't handle rgba
-                            name.Printf( wxT("#%02X%02X%02X%02X" ),
-                                         wx_color.Red(),
-                                         wx_color.Green(),
-                                         wx_color.Blue(),
-                                         wx_color.Alpha() );
+                            // Format color as RGBA string
+                            name = QString::asprintf( QStringLiteral("#%02X%02X%02X%02X" ),
+                                         qt_color.red(),
+                                         qt_color.green(),
+                                         qt_color.blue(),
+                                         qt_color.alpha() );
                         }
 
                         item->SetColor( name, sublayer_idx );
@@ -1925,8 +1915,11 @@ void PCB_IO_KICAD_SEXPR_PARSER::createOldLayerMapping( std::unordered_map< std::
 
 void PCB_IO_KICAD_SEXPR_PARSER::parseLayers()
 {
-    wxCHECK_RET( CurTok() == T_layers,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as layers." ) );
+    if( !( CurTok() == T_layers ) )
+    {
+        Q_ASSERT_X( false, "parseLayers", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as layers." ) ).toLocal8Bit().constData() );
+        return;
+    }
 
     T       token;
     LSET    visibleLayers;
@@ -2007,8 +2000,8 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseLayers()
 
             if( it == m_layerIndices.end() )
             {
-                wxString error;
-                error.Printf( _( "Layer '%s' in file '%s' at line %d is not in fixed layer hash." ),
+                QString error;
+                error = QString::asprintf( _( "Layer '%s' in file '%s' at line %d is not in fixed layer hash." ),
                               layer.m_name,
                               CurSource(),
                               CurLineNumber(),
@@ -2045,7 +2038,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseLayers()
     // We need at least 2 copper layers and there must be an even number of them.
     if( copperLayerCount < 2 || (copperLayerCount % 2) != 0 )
     {
-        wxString err = wxString::Format( _( "%d is not a valid layer count" ), copperLayerCount );
+        QString err = QString::Format( _( "%d is not a valid layer count" ), copperLayerCount );
 
         THROW_PARSE_ERROR( err, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
     }
@@ -2092,8 +2085,11 @@ PCB_LAYER_ID PCB_IO_KICAD_SEXPR_PARSER::lookUpLayer( const LAYER_ID_MAP& aMap )
 
 PCB_LAYER_ID PCB_IO_KICAD_SEXPR_PARSER::parseBoardItemLayer()
 {
-    wxCHECK_MSG( CurTok() == T_layer, UNDEFINED_LAYER,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as layer." ) );
+    if( !( CurTok() == T_layer ) )
+    {
+        Q_ASSERT_X( false, "parseBoardLayer", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as layer." ) ).toLocal8Bit().constData() );
+        return UNDEFINED_LAYER;
+    }
 
     NextTok();
 
@@ -2107,8 +2103,11 @@ PCB_LAYER_ID PCB_IO_KICAD_SEXPR_PARSER::parseBoardItemLayer()
 
 LSET PCB_IO_KICAD_SEXPR_PARSER::parseBoardItemLayersAsMask()
 {
-    wxCHECK_MSG( CurTok() == T_layers, LSET(),
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as item layers." ) );
+    if( !( CurTok() == T_layers ) )
+    {
+        Q_ASSERT_X( false, "parseBoardItemLayerSet", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as item layers." ) ).toLocal8Bit().constData() );
+        return LSET();
+    }
 
     LSET layerMask;
 
@@ -2149,8 +2148,11 @@ LSET PCB_IO_KICAD_SEXPR_PARSER::parseLayersForCuItemWithSoldermask()
 
 void PCB_IO_KICAD_SEXPR_PARSER::parseSetup()
 {
-    wxCHECK_RET( CurTok() == T_setup,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as setup." ) );
+    if( !( CurTok() == T_setup ) )
+    {
+        Q_ASSERT_X( false, "parseSetup", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as setup." ) ).toLocal8Bit().constData() );
+        return;
+    }
 
     BOARD_DESIGN_SETTINGS&     bds = m_board->GetDesignSettings();
     const std::shared_ptr<NETCLASS>& defaultNetClass = bds.m_NetSettings->GetDefaultNetclass();
@@ -2660,13 +2662,16 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseDefaultTextDims( BOARD_DESIGN_SETTINGS& aSe
 
 void PCB_IO_KICAD_SEXPR_PARSER::parseNETINFO_ITEM()
 {
-    wxCHECK_RET( CurTok() == T_net,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as net." ) );
+    if( !( CurTok() == T_net ) )
+    {
+        Q_ASSERT_X( false, "parseNETINFO_ITEM", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as net." ) ).toLocal8Bit().constData() );
+        return;
+    }
 
     int netCode = parseInt( "net number" );
 
     NeedSYMBOLorNUMBER();
-    wxString name = FromUTF8();
+    QString name = FromUTF8();
 
     // Convert overbar syntax from `~...~` to `~{...}`.  These were left out of the first merge
     // so the version is a bit later.
@@ -2691,12 +2696,15 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseNETINFO_ITEM()
 
 void PCB_IO_KICAD_SEXPR_PARSER::parseNETCLASS()
 {
-    wxCHECK_RET( CurTok() == T_net_class,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as net class." ) );
+    if( !( CurTok() == T_net_class ) )
+    {
+        Q_ASSERT_X( false, "parseNETCLASS", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as net class." ) ).toLocal8Bit().constData() );
+        return;
+    }
 
     T token;
 
-    std::shared_ptr<NETCLASS> nc = std::make_shared<NETCLASS>( wxEmptyString );
+    std::shared_ptr<NETCLASS> nc = std::make_shared<NETCLASS>( QString() );
 
     // Read netclass name (can be a name or just a number like track width)
     NeedSYMBOLorNUMBER();
@@ -2749,7 +2757,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseNETCLASS()
         {
             NeedSYMBOLorNUMBER();
 
-            wxString netName = FromUTF8();
+            QString netName = FromUTF8();
 
             // Convert overbar syntax from `~...~` to `~{...}`.  These were left out of the
             // first merge so the version is a bit later.
@@ -2776,9 +2784,9 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseNETCLASS()
     {
         // Must have been a name conflict, this is a bad board file.
         // User may have done a hand edit to the file.
-        wxString error;
-        error.Printf( _( "Duplicate NETCLASS name '%s' in file '%s' at line %d, offset %d." ),
-                      nc->GetName().GetData(), CurSource().GetData(), CurLineNumber(),
+        QString error;
+        error = QString::asprintf( _( "Duplicate NETCLASS name '%s' in file '%s' at line %d, offset %d." ),
+                      nc->GetName().toStdString().c_str(), CurSource().toStdString().c_str(), CurLineNumber(),
                       CurOffset() );
         THROW_IO_ERROR( error );
     }
@@ -2795,12 +2803,15 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseNETCLASS()
 
 PCB_SHAPE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_SHAPE( BOARD_ITEM* aParent )
 {
-    wxCHECK_MSG( CurTok() == T_fp_arc || CurTok() == T_fp_circle || CurTok() == T_fp_curve ||
-                 CurTok() == T_fp_rect || CurTok() == T_fp_line || CurTok() == T_fp_poly ||
-                 CurTok() == T_gr_arc || CurTok() == T_gr_circle || CurTok() == T_gr_curve ||
-                 CurTok() == T_gr_rect || CurTok() == T_gr_bbox || CurTok() == T_gr_line ||
-                 CurTok() == T_gr_poly || CurTok() == T_gr_vector, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as PCB_SHAPE." ) );
+    if( !( CurTok() == T_fp_arc || CurTok() == T_fp_circle || CurTok() == T_fp_curve ||
+           CurTok() == T_fp_rect || CurTok() == T_fp_line || CurTok() == T_fp_poly ||
+           CurTok() == T_gr_arc || CurTok() == T_gr_circle || CurTok() == T_gr_curve ||
+           CurTok() == T_gr_rect || CurTok() == T_gr_bbox || CurTok() == T_gr_line ||
+           CurTok() == T_gr_poly || CurTok() == T_gr_vector ) )
+    {
+        Q_ASSERT_X( false, "parsePCB_SHAPE", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as PCB_SHAPE." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     T                          token;
     VECTOR2I                   pt;
@@ -3176,7 +3187,7 @@ PCB_SHAPE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_SHAPE( BOARD_ITEM* aParent )
         case T_net:
             if( !shape->SetNetCode( getNetCode( parseInt( "net number" ) ), /* aNoAssert */ true ) )
             {
-                wxLogError( _( "Invalid net ID in\nfile: '%s'\nline: %d\noffset: %d." ),
+                qDebug( _( "Invalid net ID in\nfile: '%s'\nline: %d\noffset: %d." ),
                             CurSource(), CurLineNumber(), CurOffset() );
             }
 
@@ -3226,8 +3237,11 @@ PCB_SHAPE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_SHAPE( BOARD_ITEM* aParent )
 
 PCB_REFERENCE_IMAGE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_REFERENCE_IMAGE( BOARD_ITEM* aParent )
 {
-    wxCHECK_MSG( CurTok() == T_image, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a reference image." ) );
+    if( !( CurTok() == T_image ) )
+    {
+        Q_ASSERT_X( false, "parsePCB_REFERENCE_IMAGE", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as a reference image." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     T token;
     std::unique_ptr<PCB_REFERENCE_IMAGE> bitmap = std::make_unique<PCB_REFERENCE_IMAGE>( aParent );
@@ -3271,10 +3285,10 @@ PCB_REFERENCE_IMAGE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_REFERENCE_IMAGE( BOARD_
         {
             token = NextTok();
 
-            wxString data;
+            QString data;
 
             // Reserve 512K because most image files are going to be larger than the default
-            // 1K that wxString reserves.
+            // 1K that QString reserves.
             data.reserve( 1 << 19 );
 
             while( token != T_RIGHT )
@@ -3286,7 +3300,7 @@ PCB_REFERENCE_IMAGE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_REFERENCE_IMAGE( BOARD_
                 token = NextTok();
             }
 
-            wxMemoryBuffer buffer = wxBase64Decode( data );
+            QByteArray buffer = QByteArray::fromBase64( data.toUtf8() );
 
             REFERENCE_IMAGE& refImage = bitmap->GetReferenceImage();
             if( !refImage.ReadImageFile( buffer ) )
@@ -3324,8 +3338,11 @@ PCB_REFERENCE_IMAGE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_REFERENCE_IMAGE( BOARD_
 
 PCB_TEXT* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TEXT( BOARD_ITEM* aParent, PCB_TEXT* aBaseText )
 {
-    wxCHECK_MSG( CurTok() == T_gr_text || CurTok() == T_fp_text, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as PCB_TEXT." ) );
+    if( !( CurTok() == T_gr_text || CurTok() == T_fp_text ) )
+    {
+        Q_ASSERT_X( false, "parsePCB_TEXT", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as PCB_TEXT." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     FOOTPRINT*                parentFP = dynamic_cast<FOOTPRINT*>( aParent );
     std::unique_ptr<PCB_TEXT> text;
@@ -3354,7 +3371,7 @@ PCB_TEXT* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TEXT( BOARD_ITEM* aParent, PCB_TEX
             break;
 
         default:
-            THROW_IO_ERROR( wxString::Format( _( "Cannot handle footprint text type %s" ),
+            THROW_IO_ERROR( QString::Format( _( "Cannot handle footprint text type %s" ),
                                               FromUTF8() ) );
         }
 
@@ -3375,9 +3392,9 @@ PCB_TEXT* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TEXT( BOARD_ITEM* aParent, PCB_TEX
     if( !IsSymbol( token ) && (int) token != DSN_NUMBER )
         Expecting( "text value" );
 
-    wxString value = FromUTF8();
-    value.Replace( wxT( "%V" ), wxT( "${VALUE}" ) );
-    value.Replace( wxT( "%R" ), wxT( "${REFERENCE}" ) );
+    QString value = FromUTF8();
+    value.Replace( QStringLiteral( "%V" ), QStringLiteral( "${VALUE}" ) );
+    value.Replace( QStringLiteral( "%R" ), QStringLiteral( "${REFERENCE}" ) );
     text->SetText( value );
 
     NeedLEFT();
@@ -3543,8 +3560,11 @@ void PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TEXT_effects( PCB_TEXT* aText, PCB_TEXT
 
 PCB_TEXTBOX* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TEXTBOX( BOARD_ITEM* aParent )
 {
-    wxCHECK_MSG( CurTok() == T_gr_text_box || CurTok() == T_fp_text_box, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as PCB_TEXTBOX." ) );
+    if( !( CurTok() == T_gr_text_box || CurTok() == T_fp_text_box ) )
+    {
+        Q_ASSERT_X( false, "parsePCB_TEXTBOX", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as PCB_TEXTBOX." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     std::unique_ptr<PCB_TEXTBOX> textbox = std::make_unique<PCB_TEXTBOX>( aParent );
 
@@ -3556,8 +3576,11 @@ PCB_TEXTBOX* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TEXTBOX( BOARD_ITEM* aParent )
 
 PCB_TABLECELL* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TABLECELL( BOARD_ITEM* aParent )
 {
-    wxCHECK_MSG( CurTok() == T_table_cell, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a table cell." ) );
+    if( !( CurTok() == T_table_cell ) )
+    {
+        Q_ASSERT_X( false, "parsePCB_TABLECELL", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as a table cell." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     std::unique_ptr<PCB_TABLECELL> cell = std::make_unique<PCB_TABLECELL>( aParent );
 
@@ -3733,8 +3756,11 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseTextBoxContent( PCB_TEXTBOX* aTextBox )
 
 PCB_TABLE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TABLE( BOARD_ITEM* aParent )
 {
-    wxCHECK_MSG( CurTok() == T_table, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a table." ) );
+    if( !( CurTok() == T_table ) )
+    {
+        Q_ASSERT_X( false, "parsePCB_TABLE", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as a table." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     T             token;
     STROKE_PARAMS borderStroke( -1, LINE_STYLE::SOLID );
@@ -3897,8 +3923,11 @@ PCB_TABLE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TABLE( BOARD_ITEM* aParent )
 
 PCB_DIMENSION_BASE* PCB_IO_KICAD_SEXPR_PARSER::parseDIMENSION( BOARD_ITEM* aParent )
 {
-    wxCHECK_MSG( CurTok() == T_dimension, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as DIMENSION." ) );
+    if( !( CurTok() == T_dimension ) )
+    {
+        Q_ASSERT_X( false, "parsePCB_DIM_ALIGNED", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as DIMENSION." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     T token;
     bool locked = false;
@@ -3942,7 +3971,7 @@ PCB_DIMENSION_BASE* PCB_IO_KICAD_SEXPR_PARSER::parseDIMENSION( BOARD_ITEM* aPare
         case T_leader:     dim = std::make_unique<PCB_DIM_LEADER>( aParent );     break;
         case T_center:     dim = std::make_unique<PCB_DIM_CENTER>( aParent );     break;
         case T_radial:     dim = std::make_unique<PCB_DIM_RADIAL>( aParent );     break;
-        default:           wxFAIL_MSG( wxT( "Cannot parse unknown dimension type " )
+        default:           qCritical( QStringLiteral( "Cannot parse unknown dimension type " )
                                        + GetTokenString( CurTok() ) );
         }
 
@@ -4182,7 +4211,11 @@ PCB_DIMENSION_BASE* PCB_IO_KICAD_SEXPR_PARSER::parseDIMENSION( BOARD_ITEM* aPare
                 case T_extension_height:
                 {
                     PCB_DIM_ALIGNED* aligned = dynamic_cast<PCB_DIM_ALIGNED*>( dim.get() );
-                    wxCHECK_MSG( aligned, nullptr, wxT( "Invalid extension_height token" ) );
+                    if( !aligned )
+                    {
+                        Q_ASSERT_X( false, "parseDIMENSION", "Invalid extension_height token" );
+                        return nullptr;
+                    }
                     aligned->SetExtensionHeight( parseBoardUnits( "extension height value" ) );
                     NeedRIGHT();
                     break;
@@ -4199,8 +4232,11 @@ PCB_DIMENSION_BASE* PCB_IO_KICAD_SEXPR_PARSER::parseDIMENSION( BOARD_ITEM* aPare
 
                 case T_text_frame:
                 {
-                    wxCHECK_MSG( dim->Type() == PCB_DIM_LEADER_T, nullptr,
-                                 wxT( "Invalid text_frame token" ) );
+                    if( !( dim->Type() == PCB_DIM_LEADER_T ) )
+                    {
+                        Q_ASSERT_X( false, "parseDIMENSION", "Invalid text_frame token" );
+                        return nullptr;
+                    }
 
                     PCB_DIM_LEADER* leader = static_cast<PCB_DIM_LEADER*>( dim.get() );
 
@@ -4363,7 +4399,7 @@ PCB_DIMENSION_BASE* PCB_IO_KICAD_SEXPR_PARSER::parseDIMENSION( BOARD_ITEM* aPare
 }
 
 
-FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT( wxArrayString* aInitialComments )
+FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT( QStringList* aInitialComments )
 {
     try
     {
@@ -4379,12 +4415,15 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT( wxArrayString* aInitialCom
 }
 
 
-FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( wxArrayString* aInitialComments )
+FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( QStringList* aInitialComments )
 {
-    wxCHECK_MSG( CurTok() == T_module || CurTok() == T_footprint, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as FOOTPRINT." ) );
+    if( !( CurTok() == T_module || CurTok() == T_footprint ) )
+    {
+        Q_ASSERT_X( false, "parseFOOTPRINT", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as FOOTPRINT." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
-    wxString name;
+    QString name;
     VECTOR2I pt;
     T        token;
     LIB_ID   fpid;
@@ -4406,9 +4445,9 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( wxArrayString* a
 
     name = FromUTF8();
 
-    if( !name.IsEmpty() && fpid.Parse( name, true ) >= 0 )
+    if( !name.isEmpty() && fpid.Parse( name, true ) >= 0 )
     {
-        THROW_IO_ERROR( wxString::Format( _( "Invalid footprint ID in\nfile: %s\nline: %d\n"
+        THROW_IO_ERROR( QString::Format( _( "Invalid footprint ID in\nfile: %s\nline: %d\n"
                                              "offset: %d." ),
                                           CurSource(), CurLineNumber(), CurOffset() ) );
     }
@@ -4435,7 +4474,7 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( wxArrayString* a
             // Theoretically a footprint nested in a PCB could declare its own version, though
             // as of writing this comment we don't do that. Just in case, take the greater
             // version.
-            int this_version = parseInt( FromUTF8().mb_str( wxConvUTF8 ) );
+            int this_version = parseInt( FromUTF8().toUtf8().constData() );
             NeedRIGHT();
             m_requiredVersion = std::max( m_requiredVersion, this_version );
             m_tooRecent       = ( m_requiredVersion > SEXPR_BOARD_FILE_VERSION );
@@ -4527,12 +4566,12 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( wxArrayString* a
 
         case T_property:
         {
-            wxString value;
+            QString value;
 
             NeedSYMBOL();
-            wxString pName = FromUTF8();
+            QString pName = FromUTF8();
             NeedSYMBOL();
-            wxString pValue = FromUTF8();
+            QString pValue = FromUTF8();
 
             // Prior to PCB fields, we used to use properties for special values instead of
             // using (keyword_example "value")
@@ -4898,7 +4937,7 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( wxArrayString* a
             }
             catch( const PARSE_ERROR& e )
             {
-                wxLogError( e.What() );
+                qDebug( e.What() );
             }
 
             SyncLineReaderWith( embeddedFilesParser );
@@ -4907,7 +4946,7 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( wxArrayString* a
 
         case T_component_classes:
         {
-            std::unordered_set<wxString> componentClassNames;
+            std::unordered_set<QString> componentClassNames;
 
             while( ( token = NextTok() ) != T_RIGHT )
             {
@@ -4950,19 +4989,19 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( wxArrayString* a
 
     if( m_requiredVersion <= LEGACY_NET_TIES )
     {
-        if( footprint->GetKeywords().StartsWith( wxT( "net tie" ) ) )
+        if( footprint->GetKeywords().startsWith( QStringLiteral( "net tie" ) ) )
         {
-            wxString padGroup;
+            QString padGroup;
 
             for( PAD* pad : footprint->Pads() )
             {
-                if( !padGroup.IsEmpty() )
-                    padGroup += wxS( ", " );
+                if( !padGroup.isEmpty() )
+                    padGroup += QStringLiteral( ", " );
 
                 padGroup += pad->GetNumber();
             }
 
-            if( !padGroup.IsEmpty() )
+            if( !padGroup.isEmpty() )
                 footprint->AddNetTiePadGroup( padGroup );
         }
     }
@@ -4977,8 +5016,11 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( wxArrayString* a
 
 PAD* PCB_IO_KICAD_SEXPR_PARSER::parsePAD( FOOTPRINT* aParent )
 {
-    wxCHECK_MSG( CurTok() == T_pad, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as PAD." ) );
+    if( !( CurTok() == T_pad ) )
+    {
+        Q_ASSERT_X( false, "parsePAD", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as PAD." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     VECTOR2I sz;
     VECTOR2I pt;
@@ -5189,7 +5231,7 @@ PAD* PCB_IO_KICAD_SEXPR_PARSER::parsePAD( FOOTPRINT* aParent )
 
             if( ! pad->SetNetCode( getNetCode( parseInt( "net number" ) ), /* aNoAssert */ true ) )
             {
-                wxLogError( _( "Invalid net ID in\nfile: %s\nline: %d offset: %d" ),
+                qDebug( _( "Invalid net ID in\nfile: %s\nline: %d offset: %d" ),
                             CurSource(), CurLineNumber(), CurOffset() );
             }
 
@@ -5198,7 +5240,7 @@ PAD* PCB_IO_KICAD_SEXPR_PARSER::parsePAD( FOOTPRINT* aParent )
             // Test validity of the netname in file for netcodes expected having a net name
             if( m_board && pad->GetNetCode() > 0 )
             {
-                wxString netName( FromUTF8() );
+                QString netName( FromUTF8() );
 
                 // Convert overbar syntax from `~...~` to `~{...}`.  These were left out of the
                 // first merge so the version is a bit later.
@@ -5208,7 +5250,7 @@ PAD* PCB_IO_KICAD_SEXPR_PARSER::parsePAD( FOOTPRINT* aParent )
                 if( netName != m_board->FindNet( pad->GetNetCode() )->GetNetname() )
                 {
                     pad->SetNetCode( NETINFO_LIST::ORPHANED, /* aNoAssert */ true );
-                    wxLogError( _( "Net name doesn't match ID in\nfile: %s\nline: %d offset: %d" ),
+                    qDebug( _( "Net name doesn't match ID in\nfile: %s\nline: %d offset: %d" ),
                                 CurSource(), CurLineNumber(), CurOffset() );
                 }
             }
@@ -5530,7 +5572,7 @@ PAD* PCB_IO_KICAD_SEXPR_PARSER::parsePAD( FOOTPRINT* aParent )
     {
         // At some point it was possible to assign a number to aperture pads so we need to clean
         // those out here.
-        pad->SetNumber( wxEmptyString );
+        pad->SetNumber( QString() );
     }
 
     // Zero-sized pads are likely algorithmically unsafe.
@@ -5539,8 +5581,8 @@ PAD* PCB_IO_KICAD_SEXPR_PARSER::parsePAD( FOOTPRINT* aParent )
         pad->SetSize( PADSTACK::ALL_LAYERS,
                       VECTOR2I( pcbIUScale.mmToIU( 0.001 ), pcbIUScale.mmToIU( 0.001 ) ) );
 
-        wxLogWarning( _( "Invalid zero-sized pad pinned to %s in\nfile: %s\nline: %d\noffset: %d" ),
-                      wxT( "1µm" ), CurSource(), CurLineNumber(), CurOffset() );
+        qWarning( _( "Invalid zero-sized pad pinned to %s in\nfile: %s\nline: %d\noffset: %d" ),
+                      QStringLiteral( "1µm" ), CurSource(), CurLineNumber(), CurOffset() );
     }
 
     return pad.release();
@@ -5662,7 +5704,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parsePadstack( PAD* aPad )
             {
                 if( padstack.Mode() != PADSTACK::MODE::FRONT_INNER_BACK )
                 {
-                    THROW_IO_ERROR( wxString::Format( _( "Invalid padstack layer in\nfile: %s\n"
+                    THROW_IO_ERROR( QString::Format( _( "Invalid padstack layer in\nfile: %s\n"
                                                          "line: %d\noffset: %d." ),
                                                       CurSource(), CurLineNumber(), CurOffset() ) );
                 }
@@ -5676,9 +5718,9 @@ void PCB_IO_KICAD_SEXPR_PARSER::parsePadstack( PAD* aPad )
 
             if( !IsCopperLayer( curLayer ) )
             {
-                wxString error;
-                error.Printf( _( "Invalid padstack layer '%s' in file '%s' at line %d, offset %d." ),
-                              curText, CurSource().GetData(), CurLineNumber(), CurOffset() );
+                QString error;
+                error = QString::asprintf( _( "Invalid padstack layer '%s' in file '%s' at line %d, offset %d." ),
+                              curText, CurSource().toStdString().c_str(), CurLineNumber(), CurOffset() );
                 THROW_IO_ERROR( error );
             }
 
@@ -5985,8 +6027,11 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseGROUP_members( GROUP_INFO& aGroupInfo )
 
 void PCB_IO_KICAD_SEXPR_PARSER::parseGROUP( BOARD_ITEM* aParent )
 {
-    wxCHECK_RET( CurTok() == T_group,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as PCB_GROUP." ) );
+    if( !( CurTok() == T_group ) )
+    {
+        Q_ASSERT_X( false, "parseGROUP", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as PCB_GROUP." ) ).toLocal8Bit().constData() );
+        return;
+    }
 
     T token;
 
@@ -6041,8 +6086,11 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseGROUP( BOARD_ITEM* aParent )
 
 void PCB_IO_KICAD_SEXPR_PARSER::parseGENERATOR( BOARD_ITEM* aParent )
 {
-    wxCHECK_RET( CurTok() == T_generated, wxT( "Cannot parse " ) + GetTokenString( CurTok() )
-                                                  + wxT( " as PCB_GENERATOR." ) );
+    if( !( CurTok() == T_generated ) )
+    {
+        Q_ASSERT_X( false, "parseGENERATOR", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as PCB_GENERATOR." ) ).toLocal8Bit().constData() );
+        return;
+    }
 
     T token;
 
@@ -6100,33 +6148,33 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseGENERATOR( BOARD_ITEM* aParent )
 
         default:
         {
-            wxString pName = FromUTF8();
+            QString pName = FromUTF8();
             T        tok1 = NextTok();
 
             switch( tok1 )
             {
             case T_yes:
             {
-                genInfo.properties.emplace( pName, wxAny( true ) );
+                genInfo.properties.emplace( pName, QVariant( true ) );
                 NeedRIGHT();
                 break;
             }
             case T_no:
             {
-                genInfo.properties.emplace( pName, wxAny( false ) );
+                genInfo.properties.emplace( pName, QVariant( false ) );
                 NeedRIGHT();
                 break;
             }
             case T_NUMBER:
             {
                 double pValue = parseDouble();
-                genInfo.properties.emplace( pName, wxAny( pValue ) );
+                genInfo.properties.emplace( pName, QVariant( pValue ) );
                 NeedRIGHT();
                 break;
             }
             case T_STRING: // Quoted string
             {
-                wxString pValue = FromUTF8();
+                QString pValue = FromUTF8();
                 genInfo.properties.emplace( pName, pValue );
                 NeedRIGHT();
                 break;
@@ -6145,7 +6193,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseGENERATOR( BOARD_ITEM* aParent )
                     pt.x = parseBoardUnits( "X coordinate" );
                     pt.y = parseBoardUnits( "Y coordinate" );
 
-                    genInfo.properties.emplace( pName, wxAny( pt ) );
+                    genInfo.properties.emplace( pName, QVariant( pt ) );
                     NeedRIGHT();
                     NeedRIGHT();
 
@@ -6160,7 +6208,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseGENERATOR( BOARD_ITEM* aParent )
 
                     NeedRIGHT();
 
-                    genInfo.properties.emplace( pName, wxAny( chain ) );
+                    genInfo.properties.emplace( pName, QVariant( chain ) );
                     break;
                 }
                 default: Expecting( "xy or pts" );
@@ -6177,15 +6225,18 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseGENERATOR( BOARD_ITEM* aParent )
     }
 
     // Previous versions had bugs which could save ghost tuning patterns.  Ignore them.
-    if( genInfo.genType == wxT( "tuning_pattern" ) && genInfo.memberUuids.empty() )
+    if( genInfo.genType == QStringLiteral( "tuning_pattern" ) && genInfo.memberUuids.empty() )
         m_generatorInfos.pop_back();
 }
 
 
 PCB_ARC* PCB_IO_KICAD_SEXPR_PARSER::parseARC()
 {
-    wxCHECK_MSG( CurTok() == T_arc, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as ARC." ) );
+    if( !( CurTok() == T_arc ) )
+    {
+        Q_ASSERT_X( false, "parsePCB_ARC", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as ARC." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     VECTOR2I pt;
     T        token;
@@ -6251,7 +6302,7 @@ PCB_ARC* PCB_IO_KICAD_SEXPR_PARSER::parseARC()
         case T_net:
             if( !arc->SetNetCode( getNetCode( parseInt( "net number" ) ), /* aNoAssert */ true ) )
             {
-                wxLogError( _( "Invalid net ID in\nfile: %s\nline: %d\noffset: %d." ),
+                qDebug( _( "Invalid net ID in\nfile: %s\nline: %d\noffset: %d." ),
                             CurSource(), CurLineNumber(), CurOffset() );
             }
             NeedRIGHT();
@@ -6292,8 +6343,11 @@ PCB_ARC* PCB_IO_KICAD_SEXPR_PARSER::parseARC()
 
 PCB_TRACK* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TRACK()
 {
-    wxCHECK_MSG( CurTok() == T_segment, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as PCB_TRACK." ) );
+    if( !( CurTok() == T_segment ) )
+    {
+        Q_ASSERT_X( false, "parsePCB_TRACK", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as PCB_TRACK." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     VECTOR2I pt;
     T        token;
@@ -6352,7 +6406,7 @@ PCB_TRACK* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TRACK()
         case T_net:
             if( !track->SetNetCode( getNetCode( parseInt( "net number" ) ), /* aNoAssert */ true ) )
             {
-                wxLogError( _( "Invalid net ID in\nfile: '%s'\nline: %d\noffset: %d." ),
+                qDebug( _( "Invalid net ID in\nfile: '%s'\nline: %d\noffset: %d." ),
                             CurSource(), CurLineNumber(), CurOffset() );
             }
             NeedRIGHT();
@@ -6393,8 +6447,11 @@ PCB_TRACK* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TRACK()
 
 PCB_VIA* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_VIA()
 {
-    wxCHECK_MSG( CurTok() == T_via, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as PCB_VIA." ) );
+    if( !( CurTok() == T_via ) )
+    {
+        Q_ASSERT_X( false, "parsePCB_VIA", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as PCB_VIA." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     VECTOR2I pt;
     T        token;
@@ -6463,7 +6520,7 @@ PCB_VIA* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_VIA()
         case T_net:
             if( !via->SetNetCode( getNetCode( parseInt( "net number" ) ), /* aNoAssert */ true ) )
             {
-                wxLogError( _( "Invalid net ID in\nfile: %s\nline: %d\noffset: %d" ),
+                qDebug( _( "Invalid net ID in\nfile: %s\nline: %d\noffset: %d" ),
                             CurSource(), CurLineNumber(), CurOffset() );
             }
 
@@ -6612,7 +6669,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseViastack( PCB_VIA* aVia )
             {
                 if( padstack.Mode() != PADSTACK::MODE::FRONT_INNER_BACK )
                 {
-                    THROW_IO_ERROR( wxString::Format( _( "Invalid padstack layer in\nfile: %s\n"
+                    THROW_IO_ERROR( QString::Format( _( "Invalid padstack layer in\nfile: %s\n"
                                                          "line: %d\noffset: %d." ),
                                                       CurSource(), CurLineNumber(), CurOffset() ) );
                 }
@@ -6626,9 +6683,9 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseViastack( PCB_VIA* aVia )
 
             if( !IsCopperLayer( curLayer ) )
             {
-                wxString error;
-                error.Printf( _( "Invalid padstack layer '%s' in file '%s' at line %d, offset %d." ),
-                              curText, CurSource().GetData(), CurLineNumber(), CurOffset() );
+                QString error;
+                error = QString::asprintf( _( "Invalid padstack layer '%s' in file '%s' at line %d, offset %d." ),
+                              curText, CurSource().toStdString().c_str(), CurLineNumber(), CurOffset() );
                 THROW_IO_ERROR( error );
             }
 
@@ -6669,15 +6726,18 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseViastack( PCB_VIA* aVia )
 
 ZONE* PCB_IO_KICAD_SEXPR_PARSER::parseZONE( BOARD_ITEM_CONTAINER* aParent )
 {
-    wxCHECK_MSG( CurTok() == T_zone, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as ZONE." ) );
+    if( !( CurTok() == T_zone ) )
+    {
+        Q_ASSERT_X( false, "parseZONE", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as ZONE." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     ZONE_BORDER_DISPLAY_STYLE hatchStyle = ZONE_BORDER_DISPLAY_STYLE::NO_HATCH;
 
     int      hatchPitch = ZONE::GetDefaultHatchPitch();
     T        token;
     int      tmp;
-    wxString netnameFromfile;    // the zone net name find in file
+    QString netnameFromfile;    // the zone net name find in file
 
     // bigger scope since each filled_polygon is concatenated in here
     std::map<PCB_LAYER_ID, SHAPE_POLY_SET> pts;
@@ -6718,7 +6778,7 @@ ZONE* PCB_IO_KICAD_SEXPR_PARSER::parseZONE( BOARD_ITEM_CONTAINER* aParent )
 
             if( !zone->SetNetCode( tmp, /* aNoAssert */ true ) )
             {
-                wxLogError( _( "Invalid net ID in\nfile: %s;\nline: %d\noffset: %d." ),
+                qDebug( _( "Invalid net ID in\nfile: %s;\nline: %d\noffset: %d." ),
                             CurSource(), CurLineNumber(), CurOffset() );
             }
 
@@ -7169,7 +7229,7 @@ ZONE* PCB_IO_KICAD_SEXPR_PARSER::parseZONE( BOARD_ITEM_CONTAINER* aParent )
 
                 NeedRIGHT();
 
-                addedFilledPolygons |= !poly.IsEmpty();
+                addedFilledPolygons |= !poly.isEmpty();
             }
 
             break;
@@ -7281,7 +7341,7 @@ ZONE* PCB_IO_KICAD_SEXPR_PARSER::parseZONE( BOARD_ITEM_CONTAINER* aParent )
         {
             if( m_showLegacy5ZoneWarning )
             {
-                wxLogWarning(
+                qWarning(
                         _( "Legacy zone fill strategy is not supported anymore.\nZone fills will "
                            "be converted on best-effort basis." ) );
 
@@ -7312,7 +7372,7 @@ ZONE* PCB_IO_KICAD_SEXPR_PARSER::parseZONE( BOARD_ITEM_CONTAINER* aParent )
 
         if( m_showLegacySegmentZoneWarning )
         {
-            wxLogWarning( _( "The legacy segment zone fill mode is no longer supported.\n"
+            qWarning( _( "The legacy segment zone fill mode is no longer supported.\n"
                              "Zone fills will be converted on a best-effort basis." ) );
 
             m_showLegacySegmentZoneWarning = false;
@@ -7390,8 +7450,11 @@ ZONE* PCB_IO_KICAD_SEXPR_PARSER::parseZONE( BOARD_ITEM_CONTAINER* aParent )
 
 PCB_TARGET* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TARGET()
 {
-    wxCHECK_MSG( CurTok() == T_target, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as PCB_TARGET." ) );
+    if( !( CurTok() == T_target ) )
+    {
+        Q_ASSERT_X( false, "parsePCB_TARGET", ( QStringLiteral( "Cannot parse " ) + GetTokenString( CurTok() ) + QStringLiteral( " as PCB_TARGET." ) ).toLocal8Bit().constData() );
+        return nullptr;
+    }
 
     VECTOR2I pt;
     T        token;

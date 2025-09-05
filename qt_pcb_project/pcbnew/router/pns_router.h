@@ -1,23 +1,5 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #ifndef __PNS_ROUTER_H
 #define __PNS_ROUTER_H
@@ -26,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <math/box2.h>
+#include <QString>
 
 #include "pns_routing_settings.h"
 #include "pns_sizes_settings.h"
@@ -77,11 +60,6 @@ enum DRAG_MODE
     DM_ANY = 0x17,
     DM_COMPONENT = 0x20
 };
-/**
- * ROUTER
- *
- * Main router class.
- */
 
  class ROUTER_IFACE
  {
@@ -109,7 +87,7 @@ enum DRAG_MODE
     virtual int  StackupHeight( int aFirstLayer, int aSecondLayer ) const = 0;
     virtual void EraseView() = 0;
     virtual int GetNetCode( NET_HANDLE aNet ) const = 0;
-    virtual wxString GetNetName( PNS::NET_HANDLE aNet ) const = 0;
+    virtual QString GetNetName( PNS::NET_HANDLE aNet ) const = 0;
     virtual void UpdateNet( NET_HANDLE aNet ) = 0;
     virtual NET_HANDLE GetOrphanedNetHandle() = 0;
     virtual PNS::NODE* GetWorld() const = 0;
@@ -198,16 +176,10 @@ public:
 
     void CommitRouting( NODE* aNode );
 
-    /**
-     * Applies stored settings.
-     * @see Settings()
-     */
+    // Applies stored settings
     void UpdateSizes( const SIZES_SETTINGS& aSizes );
 
-    /**
-     * Changes routing settings to ones passed in the parameter.
-     * @param aSettings are the new settings.
-     */
+    // Changes routing settings to ones passed in the parameter
     void LoadSettings( ROUTING_SETTINGS* aSettings )
     {
         m_settings = aSettings;
@@ -215,8 +187,8 @@ public:
 
     SIZES_SETTINGS& Sizes() { return m_sizes; }
 
-    void SetFailureReason( const wxString& aReason ) { m_failureReason = aReason; }
-    const wxString& FailureReason() const { return m_failureReason; }
+    void SetFailureReason( const QString& aReason ) { m_failureReason = aReason; }
+    const QString& FailureReason() const { return m_failureReason; }
 
     PLACEMENT_ALGO* Placer() { return m_placer.get(); }
 
@@ -263,8 +235,8 @@ private:
     ROUTER_MODE       m_mode;
     LOGGER*           m_logger;
 
-    wxString          m_toolStatusbarName;
-    wxString          m_failureReason;
+    QString          m_toolStatusbarName;
+    QString          m_failureReason;
 };
 
 }

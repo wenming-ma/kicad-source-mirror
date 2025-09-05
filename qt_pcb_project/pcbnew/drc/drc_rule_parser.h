@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef DRC_RULE_PARSER_H
 #define DRC_RULE_PARSER_H
@@ -29,6 +7,7 @@
 #include <layer_ids.h>
 #include <drc/drc_rule.h>
 #include <drc_rules_lexer.h>
+#include <QString>
 
 
 class BOARD_ITEM;
@@ -40,8 +19,8 @@ class BOARD_ITEM;
 class DRC_RULES_PARSER : public DRC_RULES_LEXER
 {
 public:
-    DRC_RULES_PARSER( const wxString& aSource, const wxString& aSourceDescr );
-    DRC_RULES_PARSER( FILE* aFile, const wxString& aFilename );
+    DRC_RULES_PARSER( const QString& aSource, const QString& aSourceDescr );
+    DRC_RULES_PARSER( FILE* aFile, const QString& aFilename );
 
     void Parse( std::vector<std::shared_ptr<DRC_RULE>>& aRules, REPORTER* aReporter );
 
@@ -49,13 +28,13 @@ private:
     std::shared_ptr<DRC_RULE> parseDRC_RULE();
 
     void parseConstraint( DRC_RULE* aRule );
-    void parseValueWithUnits( const wxString& aExpr, int& aResult, bool aUnitless = false );
-    LSET parseLayer( wxString* aSource );
+    void parseValueWithUnits( const QString& aExpr, int& aResult, bool aUnitless = false );
+    LSET parseLayer( QString* aSource );
     SEVERITY parseSeverity();
     void parseUnknown();
 
-    void reportError( const wxString& aMessage );
-    void reportDeprecation( const wxString& oldToken, const wxString newToken );
+    void reportError( const QString& aMessage );
+    void reportDeprecation( const QString& oldToken, const QString newToken );
 
 private:
     int       m_requiredVersion;

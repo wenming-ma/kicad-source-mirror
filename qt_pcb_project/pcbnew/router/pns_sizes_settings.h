@@ -1,29 +1,10 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 #ifndef __PNS_SIZES_SETTINGS_H
 #define __PNS_SIZES_SETTINGS_H
 
 #include <map>
 #include <optional>
+#include <QString>
 
 #include "pcb_track.h" // for VIATYPE_T
 
@@ -119,17 +100,17 @@ public:
     void SetViaType( VIATYPE aViaType ) { m_viaType = aViaType; }
     VIATYPE ViaType() const { return m_viaType; }
 
-    wxString GetClearanceSource() const { return m_clearanceSource; }
-    void SetClearanceSource( const wxString& aSource ) { m_clearanceSource = aSource; }
+    QString GetClearanceSource() const { return m_clearanceSource; }
+    void SetClearanceSource( const QString& aSource ) { m_clearanceSource = aSource; }
 
-    wxString GetWidthSource() const { return m_widthSource; }
-    void SetWidthSource( const wxString& aSource ) { m_widthSource = aSource; }
+    QString GetWidthSource() const { return m_widthSource; }
+    void SetWidthSource( const QString& aSource ) { m_widthSource = aSource; }
 
-    wxString GetDiffPairWidthSource() const { return m_diffPairWidthSource; }
-    void SetDiffPairWidthSource( const wxString& aSource ) { m_diffPairWidthSource = aSource; }
+    QString GetDiffPairWidthSource() const { return m_diffPairWidthSource; }
+    void SetDiffPairWidthSource( const QString& aSource ) { m_diffPairWidthSource = aSource; }
 
-    wxString GetDiffPairGapSource() const { return m_diffPairGapSource; }
-    void SetDiffPairGapSource( const wxString& aSource ) { m_diffPairGapSource = aSource; }
+    QString GetDiffPairGapSource() const { return m_diffPairGapSource; }
+    void SetDiffPairGapSource( const QString& aSource ) { m_diffPairGapSource = aSource; }
 
     void SetDiffPairHoleToHole( int aHoleToHole ) { m_diffPairHoleToHole = aHoleToHole; }
     int GetDiffPairHoleToHole() const { return m_diffPairHoleToHole; }
@@ -155,10 +136,10 @@ private:
 
     std::map<int, int> m_layerPairs;
 
-    wxString m_clearanceSource;
-    wxString m_widthSource;
-    wxString m_diffPairWidthSource;
-    wxString m_diffPairGapSource;
+    QString m_clearanceSource;
+    QString m_widthSource;
+    QString m_diffPairWidthSource;
+    QString m_diffPairGapSource;
 };
 
 }

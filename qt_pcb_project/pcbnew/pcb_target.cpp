@@ -1,29 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2012 Wayne Stambaugh <stambaughw@verizon.net>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+#include <QtCore/QString>
+#include <QtCore/QObject>
 #include <bitmaps.h>
 #include <board.h>
 #include <board_design_settings.h>
@@ -119,10 +96,10 @@ std::shared_ptr<SHAPE> PCB_TARGET::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASH
 }
 
 
-wxString PCB_TARGET::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PCB_TARGET::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     // Targets are on *every* layer by definition
-    return _( "Target" );
+    return QObject::tr( "Target" );
 }
 
 
@@ -148,13 +125,13 @@ void PCB_TARGET::swapData( BOARD_ITEM* aImage )
 
 void PCB_TARGET::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    aList.emplace_back( _( "PCB Target" ), wxEmptyString );
+    aList.emplace_back( QObject::tr( "PCB Target" ), QString() );
 
-    aList.emplace_back( _( "Layer" ), GetLayerName() );
+    aList.emplace_back( QObject::tr( "Layer" ), GetLayerName() );
 
-    aList.emplace_back( _( "Size" ), aFrame->MessageTextFromValue( GetSize() ) );
-    aList.emplace_back( _( "Width" ), aFrame->MessageTextFromValue( GetWidth() ) );
-    aList.emplace_back( _( "Shape" ), GetShape() == 0 ? wxT( "+" ) : wxT( "X" ) );
+    aList.emplace_back( QObject::tr( "Size" ), aFrame->MessageTextFromValue( GetSize() ) );
+    aList.emplace_back( QObject::tr( "Width" ), aFrame->MessageTextFromValue( GetWidth() ) );
+    aList.emplace_back( QObject::tr( "Shape" ), GetShape() == 0 ? QStringLiteral( "+" ) : QStringLiteral( "X" ) );
 }
 
 

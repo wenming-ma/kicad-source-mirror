@@ -1,25 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2024 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <convert_basic_shapes_to_polygon.h> // RECT_CHAMFER_POSITIONS
 #include "padstack.h"
+#include <QtCore/QDebug>
 // #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
 // #include <api/api_utils.h>
 // #include <api/api_pcb_utils.h> // DISABLED FOR MINIMAL BUILD
@@ -698,10 +680,10 @@ double PADSTACK::Similarity( const PADSTACK& aOther ) const
 }
 
 
-wxString PADSTACK::Name() const
+QString PADSTACK::Name() const
 {
     // TODO
-    return wxEmptyString;
+    return QString();
 }
 
 
@@ -740,8 +722,11 @@ void PADSTACK::FlipLayers( int aCopperLayerCount )
             {
                 auto conjugate =
                         magic_enum::enum_cast<PCB_LAYER_ID>( lastInner - ( layer - In1_Cu ) );
-                wxCHECK2_MSG( conjugate.has_value() && m_copperProps.contains( conjugate.value() ),
-                              continue, "Invalid inner layer conjugate!" );
+                if( !( conjugate.has_value() && m_copperProps.contains( conjugate.value() ) ) )
+                {
+                    Q_ASSERT_X( false, "PADSTACK::FlipLayers", "Invalid inner layer conjugate!" );
+                    continue;
+                }
                 std::swap( m_copperProps[layer], m_copperProps[conjugate.value()] );
             }
         }
@@ -983,9 +968,8 @@ PCB_LAYER_ID PADSTACK::EffectiveLayerFor( PCB_LAYER_ID aLayer ) const
         if( IsBackLayer( boardCuLayer ) )
             return B_Cu;
 
-        wxASSERT_MSG( IsCopperLayer( boardCuLayer ),
-                      wxString::Format( wxT( "Unhandled layer %d in PADSTACK::EffectiveLayerFor" ),
-                                        aLayer ) );
+        Q_ASSERT_X( IsCopperLayer( boardCuLayer ), "PADSTACK::EffectiveLayerFor",
+                   QString( "Unhandled layer %d in PADSTACK::EffectiveLayerFor" ).arg( aLayer ).toLocal8Bit().data() );
 
         if( Mode() == MODE::FRONT_INNER_BACK )
            return INNER_LAYERS;
@@ -1001,7 +985,7 @@ PCB_LAYER_ID PADSTACK::EffectiveLayerFor( PCB_LAYER_ID aLayer ) const
             // Lots of people get around our "single-inner-layer" in footprint editor, so only
             // assert if in the PCB editor.
             if( !board->IsFootprintHolder() )
-                wxFAIL_MSG( "Asked for inner padstack layer not present on the board" );
+                Q_ASSERT_X( false, "PADSTACK::EffectiveLayerFor", "Asked for inner padstack layer not present on the board" );
 
             return ALL_LAYERS;
         }
@@ -1025,8 +1009,8 @@ LSET PADSTACK::RelevantShapeLayers( const PADSTACK& aOther ) const
     if( m_parent && aOther.m_parent
         && ( m_mode == MODE::CUSTOM || aOther.m_mode == MODE::CUSTOM ) )
     {
-        wxASSERT_MSG( m_parent->BoardCopperLayerCount() == aOther.m_parent->BoardCopperLayerCount(),
-                      wxT( "Expected both padstacks to have the same board copper layer count" ) );
+        Q_ASSERT_X( m_parent->BoardCopperLayerCount() == aOther.m_parent->BoardCopperLayerCount(),
+                   "PADSTACK::RelevantShapeLayers", "Expected both padstacks to have the same board copper layer count" );
     }
 #endif
 
@@ -1051,9 +1035,13 @@ const PADSTACK::COPPER_LAYER_PROPS& PADSTACK::CopperLayer( PCB_LAYER_ID aLayer )
 
     auto it = m_copperProps.find( layer );
 
-    wxCHECK_MSG( it != m_copperProps.end(), m_copperProps.at( ALL_LAYERS ),
-        "Attempt to retrieve layer " + std::string( magic_enum::enum_name( layer ) ) + " from a "
-        "padstack that does not contain it" );
+    if( it == m_copperProps.end() )
+    {
+        Q_ASSERT_X( false, "PADSTACK::CopperLayer", 
+                   QString( "Attempt to retrieve layer %1 from a padstack that does not contain it" )
+                   .arg( QString::fromStdString( std::string( magic_enum::enum_name( layer ) ) ) ).toLocal8Bit().data() );
+        return m_copperProps.at( ALL_LAYERS );
+    }
 
     return it->second;
 }
@@ -1358,7 +1346,8 @@ std::optional<bool> PADSTACK::IsTented( PCB_LAYER_ID aSide ) const
     if( IsBackLayer( aSide ) )
         return m_backMaskProps.has_solder_mask;
 
-    wxCHECK_MSG( false, std::nullopt, "IsTented expects a front or back layer" );
+    Q_ASSERT_X( false, "PADSTACK::IsTented", "IsTented expects a front or back layer" );
+    return std::nullopt;
 }
 
 

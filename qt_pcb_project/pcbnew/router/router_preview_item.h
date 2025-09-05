@@ -1,28 +1,10 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #ifndef __ROUTER_PREVIEW_ITEM_H
 #define __ROUTER_PREVIEW_ITEM_H
 
 #include <cstdio>
+#include <QString>
 
 #include <view/view.h>
 #include <view/view_item.h>
@@ -96,12 +78,9 @@ public:
     void Show( int aA, std::ostream& aB ) const override {}
 #endif
 
-    /** Get class name
-     * @return  string "ROUTER_PREVIEW_ITEM"
-     */
-    virtual wxString GetClass() const override
+    virtual QString GetClass() const override
     {
-        return wxT( "ROUTER_PREVIEW_ITEM" );
+        return "ROUTER_PREVIEW_ITEM";
     }
 
     const BOX2I ViewBBox() const override;

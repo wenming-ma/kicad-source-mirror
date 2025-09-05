@@ -1,0 +1,131 @@
+#Successfully Transformed Files:
+qt_pcb_project/pcbnew/api/api_pcb_enums.cpp
+qt_pcb_project/pcbnew/api/api_pcb_utils.cpp
+qt_pcb_project/pcbnew/board.cpp
+qt_pcb_project/pcbnew/board.h
+qt_pcb_project/pcbnew/board_connected_item.cpp
+qt_pcb_project/pcbnew/board_connected_item.h
+qt_pcb_project/pcbnew/board_stackup_manager/board_stackup.h
+qt_pcb_project/pcbnew/footprint.cpp
+qt_pcb_project/pcbnew/footprint.h
+qt_pcb_project/pcbnew/pad.cpp
+qt_pcb_project/pcbnew/pad.h
+qt_pcb_project/pcbnew/padstack.cpp
+qt_pcb_project/pcbnew/padstack.h
+qt_pcb_project/pcbnew/pcb_dimension.h
+qt_pcb_project/pcbnew/pcb_field.h
+qt_pcb_project/pcbnew/pcb_io/pcb_io.h
+qt_pcb_project/pcbnew/pcb_marker.cpp
+qt_pcb_project/pcbnew/pcb_marker.h
+qt_pcb_project/pcbnew/pcb_shape.cpp
+qt_pcb_project/pcbnew/pcb_table.h
+qt_pcb_project/pcbnew/pcb_text.cpp
+qt_pcb_project/pcbnew/pcb_text.h
+qt_pcb_project/pcbnew/pcb_textbox.cpp
+qt_pcb_project/pcbnew/pcb_track.cpp
+qt_pcb_project/pcbnew/pcb_track.h
+qt_pcb_project/pcbnew/router/pns_debug_decorator.h
+qt_pcb_project/pcbnew/router/pns_diff_pair_placer.h
+qt_pcb_project/pcbnew/router/pns_index.h
+qt_pcb_project/pcbnew/router/pns_joint.h
+qt_pcb_project/pcbnew/router/pns_kicad_iface.h
+qt_pcb_project/pcbnew/router/pns_line.h
+qt_pcb_project/pcbnew/router/pns_link_holder.h
+qt_pcb_project/pcbnew/router/pns_logger.h
+qt_pcb_project/pcbnew/router/pns_node.h
+qt_pcb_project/pcbnew/router/pns_router.h
+qt_pcb_project/pcbnew/router/pns_shove.h
+qt_pcb_project/pcbnew/router/pns_sizes_settings.h
+qt_pcb_project/pcbnew/router/pns_utils.h
+qt_pcb_project/pcbnew/router/pns_via.h
+qt_pcb_project/pcbnew/router/router_preview_item.h
+qt_pcb_project/pcbnew/router/router_status_view_item.h
+qt_pcb_project/pcbnew/zone.cpp
+qt_pcb_project/pcbnew/zone.h
+qt_pcb_project/pcbnew/zone_settings.cpp
+qt_pcb_project/pcbnew/zone_settings.h
+qt_pcb_project/pcbnew/board_item.cpp 
+qt_pcb_project/pcbnew/board_stackup_manager/board_stackup.cpp 
+qt_pcb_project/pcbnew/pcb_dimension.cpp 
+qt_pcb_project/pcbnew/pcb_field.cpp 
+qt_pcb_project/pcbnew/pcb_io/kicad_sexpr/pcb_io_kicad_sexpr.cpp 
+qt_pcb_project/pcbnew/tools/pcb_actions.cpp 
+qt_pcb_project/pcbnew/tools/pcb_picker_tool.h 
+qt_pcb_project/pcbnew/tools/pcb_selection_tool.h 
+qt_pcb_project/pcbnew/tools/pcb_tool_base.h 
+qt_pcb_project/pcbnew/zones.h 
+qt_pcb_project/pcbnew/router/pns_meander.cpp (retransformed)
+qt_pcb_project/pcbnew/ratsnest/ratsnest_data.cpp
+qt_pcb_project/pcbnew/pcbnew_settings.h
+qt_pcb_project/pcbnew/pcbexpr_functions.cpp
+qt_pcb_project/pcbnew/pcbexpr_evaluator.h
+qt_pcb_project/pcbnew/pcbexpr_evaluator.cpp
+qt_pcb_project/pcbnew/pcb_target.h
+qt_pcb_project/pcbnew/pcb_target.cpp
+qt_pcb_project/pcbnew/pcb_tablecell.h
+qt_pcb_project/pcbnew/pcb_tablecell.cpp
+qt_pcb_project/pcbnew/pcbexpr_evaluator.h 
+qt_pcb_project/pcbnew/pcb_table.cpp (batch transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_reference_image.h (batch transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_reference_image.cpp (batch transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_plot_params_parser.h (batch transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_plot_params.h (batch transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_plot_params.cpp (batch transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_painter.h (batch transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_io/pcb_io_mgr.h (batch transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_io/pcb_io.cpp (batch transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_io/kicad_sexpr/pcb_io_kicad_sexpr_parser.h (batch 2 transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_io/kicad_sexpr/pcb_io_kicad_sexpr_parser.cpp (batch 2 transformed + wx macros fixed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_io/kicad_sexpr/pcb_io_kicad_sexpr.h (batch 2 transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_group.h (batch 2 transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_group.cpp (batch 2 transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_generator.h (batch 2 transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_generator.cpp (batch 2 transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_edit_frame.h (batch 2 transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_draw_panel_gal.h (batch 2 transformed 2025-09-05)
+qt_pcb_project/pcbnew/pcb_base_edit_frame.h (batch 2 transformed 2025-09-05)
+
+qt_pcb_project/pcbnew/netlist_reader/pcb_netlist.h (batch 3 transformed 2025-09-05)
+qt_pcb_project/pcbnew/netlist_reader/pcb_netlist.cpp (batch 3 transformed 2025-09-05)
+qt_pcb_project/pcbnew/netinfo_list.cpp (batch 3 transformed 2025-09-05)
+qt_pcb_project/pcbnew/netinfo_item.cpp (batch 3 transformed 2025-09-05)
+qt_pcb_project/pcbnew/netinfo.h (batch 3 transformed + SWIG declarations fixed 2025-09-05)
+qt_pcb_project/pcbnew/microwave/microwave_tool.h (batch 3 transformed 2025-09-05)
+qt_pcb_project/pcbnew/generators_mgr.h (batch 3 transformed 2025-09-05)
+qt_pcb_project/pcbnew/generators_mgr.cpp (batch 3 transformed 2025-09-05)
+qt_pcb_project/pcbnew/drc/drc_test_provider.h (batch 3 transformed 2025-09-05)
+qt_pcb_project/pcbnew/drc/drc_test_provider.cpp (batch 3 transformed 2025-09-05)
+
+qt_pcb_project/pcbnew/drc/drc_rule_parser.h (batch 4 transformed 2025-09-05)
+qt_pcb_project/pcbnew/drc/drc_rule_parser.cpp (batch 4 transformed + wxPG fixes 2025-09-05)
+qt_pcb_project/pcbnew/drc/drc_rule_condition.h (batch 4 transformed 2025-09-05)
+qt_pcb_project/pcbnew/drc/drc_rule_condition.cpp (batch 4 transformed 2025-09-05)
+qt_pcb_project/pcbnew/drc/drc_rule.h (batch 4 transformed 2025-09-05)
+qt_pcb_project/pcbnew/drc/drc_rule.cpp (batch 4 transformed 2025-09-05)
+qt_pcb_project/pcbnew/drc/drc_rtree.h (batch 4 transformed 2025-09-05)
+qt_pcb_project/pcbnew/drc/drc_item.h (batch 4 transformed 2025-09-05)
+qt_pcb_project/pcbnew/drc/drc_item.cpp (batch 4 transformed 2025-09-05)
+qt_pcb_project/pcbnew/drc/drc_engine.h (batch 4 transformed 2025-09-05)
+qt_pcb_project/pcbnew/drc/drc_engine.cpp (batch 4 transformed 2025-09-05)
+
+qt_pcb_project/pcbnew/convert_shape_list_to_polygon.h (batch 5 transformed 2025-09-05)
+qt_pcb_project/pcbnew/convert_shape_list_to_polygon.cpp (batch 5 transformed 2025-09-05)
+qt_pcb_project/pcbnew/connectivity/from_to_cache.h (batch 5 transformed 2025-09-05)
+qt_pcb_project/pcbnew/connectivity/from_to_cache.cpp (batch 5 transformed 2025-09-05)
+qt_pcb_project/pcbnew/connectivity/connectivity_items.h (batch 5 transformed 2025-09-05)
+qt_pcb_project/pcbnew/connectivity/connectivity_items.cpp (batch 5 transformed 2025-09-05)
+qt_pcb_project/pcbnew/connectivity/connectivity_data.h (batch 5 transformed 2025-09-05)
+qt_pcb_project/pcbnew/connectivity/connectivity_data.cpp (batch 5 transformed 2025-09-05)
+qt_pcb_project/pcbnew/connectivity/connectivity_algo.cpp (batch 5 transformed 2025-09-05)
+qt_pcb_project/pcbnew/component_class_manager.h (batch 5 transformed 2025-09-05)
+
+qt_pcb_project/pcbnew/pcb_dimension.cpp (batch 6 transformed 2025-09-05)
+qt_pcb_project/pcbnew/router/pns_link_holder.h (batch 6 transformed 2025-09-05)
+qt_pcb_project/pcbnew/component_class_manager.cpp (batch 6 transformed 2025-09-05)
+qt_pcb_project/pcbnew/collectors.h (batch 6 transformed 2025-09-05)
+qt_pcb_project/pcbnew/collectors.cpp (batch 6 transformed 2025-09-05)
+qt_pcb_project/pcbnew/board_stackup_manager/stackup_predefined_prms.h (batch 6 transformed 2025-09-05)
+qt_pcb_project/pcbnew/board_design_settings.cpp (batch 6 transformed 2025-09-05)
+qt_pcb_project/pcbnew/board_commit.h (batch 6 transformed 2025-09-05)
+qt_pcb_project/pcbnew/router/pns_walkaround.cpp (batch 6 transformed 2025-09-05)
+qt_pcb_project/pcbnew/router/pns_via.cpp (batch 6 transformed 2025-09-05)

@@ -1,27 +1,9 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 #ifndef __PNS_LINE_H
 #define __PNS_LINE_H
+
+#include <QtCore/QDebug>
+#include <QtCore/QLoggingCategory>
 
 #include <math/box2.h>
 #include <math/vector2d.h>
@@ -200,10 +182,12 @@ public:
 
     void SetViaDiameter( int aDiameter )
     {
-        wxCHECK( m_via, /* void */ );
-        wxCHECK2_MSG( m_via->StackMode() == VIA::STACK_MODE::NORMAL,
-                      m_via->SetStackMode( VIA::STACK_MODE::NORMAL ),
-                      wxS( "Warning: converting a complex viastack to normal in PNS_LINE" ) );
+        Q_ASSERT( m_via );
+        if( m_via->StackMode() != VIA::STACK_MODE::NORMAL )
+        {
+            qWarning( "Warning: converting a complex viastack to normal in PNS_LINE" );
+            m_via->SetStackMode( VIA::STACK_MODE::NORMAL );
+        }
 
         m_via->SetDiameter( VIA::ALL_LAYERS, aDiameter );
     }

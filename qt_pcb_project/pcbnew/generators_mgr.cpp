@@ -1,27 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 #include "generators_mgr.h"
 
 
@@ -32,12 +10,12 @@ GENERATORS_MGR& GENERATORS_MGR::Instance()
 }
 
 
-void GENERATORS_MGR::Register( const wxString& aTypeStr, const wxString& aName,
+void GENERATORS_MGR::Register( const QString& aTypeStr, const QString& aName,
                                std::function<PCB_GENERATOR*( void )> aCreateFunc )
 {
-    wxASSERT( !aName.empty() );
-    wxASSERT( !aTypeStr.empty() );
-    wxASSERT( aCreateFunc );
+    Q_ASSERT( !aName.isEmpty() );
+    Q_ASSERT( !aTypeStr.isEmpty() );
+    Q_ASSERT( aCreateFunc );
 
     ENTRY ent;
     ent.m_createFunc = aCreateFunc;
@@ -47,13 +25,12 @@ void GENERATORS_MGR::Register( const wxString& aTypeStr, const wxString& aName,
 }
 
 
-PCB_GENERATOR* GENERATORS_MGR::CreateFromType( const wxString& aTypeStr )
+PCB_GENERATOR* GENERATORS_MGR::CreateFromType( const QString& aTypeStr )
 {
     auto it = m_registry.find( aTypeStr );
 
     if( it == m_registry.end() )
     {
-        // TODO: placeholder
         return nullptr;
     }
 

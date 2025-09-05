@@ -1,26 +1,7 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2021 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Christian Gagneraud <chgans@gna.org>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #ifndef __PNS_DEBUG_DECORATOR_H
 #define __PNS_DEBUG_DECORATOR_H
+
+#include <QString>
 
 #include <math/vector2d.h>
 #include <math/box2.h>
@@ -63,33 +44,33 @@ public:
 
     virtual void SetIteration( int iter ) {};
 
-    virtual void Message( const wxString& msg,
+    virtual void Message( const QString& msg,
                           const SRC_LOCATION_INFO& aSrcLoc = SRC_LOCATION_INFO() ){};
 
-    virtual void NewStage( const wxString& name, int iter,
+    virtual void NewStage( const QString& name, int iter,
                            const SRC_LOCATION_INFO& aSrcLoc = SRC_LOCATION_INFO() ){};
 
-    virtual void BeginGroup( const wxString& name, int aLevel = 0,
+    virtual void BeginGroup( const QString& name, int aLevel = 0,
                              const SRC_LOCATION_INFO& aSrcLoc = SRC_LOCATION_INFO() ){};
 
     virtual void EndGroup( const SRC_LOCATION_INFO& aSrcLoc = SRC_LOCATION_INFO() ){};
 
     virtual void AddPoint( const VECTOR2I& aP, const KIGFX::COLOR4D& aColor, int aSize,
-                           const wxString& aName = wxT( "" ),
+                           const QString& aName = QString(),
                            const SRC_LOCATION_INFO& aSrcLoc = SRC_LOCATION_INFO() ){};
 
     virtual void AddItem( const ITEM* aItem, const KIGFX::COLOR4D& aColor,
                          int aOverrideWidth = 0,
-                         const wxString& aName = wxT( "" ),
+                         const QString& aName = QString(),
                          const SRC_LOCATION_INFO& aSrcLoc = SRC_LOCATION_INFO() ) {};
 
     virtual void AddShape( const SHAPE* aShape, const KIGFX::COLOR4D& aColor,
                          int aOverrideWidth = 0,
-                         const wxString& aName = wxT( "" ),
+                         const QString& aName = QString(),
                          const SRC_LOCATION_INFO& aSrcLoc = SRC_LOCATION_INFO() ) {};
 
     virtual void AddShape( const BOX2I& aBox, const KIGFX::COLOR4D& aColor, int aOverrideWidth = 0,
-                           const wxString&          aName = wxT( "" ),
+                           const QString&           aName = QString(),
                            const SRC_LOCATION_INFO& aSrcLoc = SRC_LOCATION_INFO() )
     {
         SHAPE_RECT r( aBox );
@@ -98,7 +79,7 @@ public:
 
     void AddShape( const SEG& aSeg, const KIGFX::COLOR4D& aColor,
                          int aOverrideWidth = 0,
-                         const wxString& aName = wxT( "" ),
+                         const QString& aName = QString(),
                          const SRC_LOCATION_INFO& aSrcLoc = SRC_LOCATION_INFO() )
     {
         SHAPE_LINE_CHAIN lc;

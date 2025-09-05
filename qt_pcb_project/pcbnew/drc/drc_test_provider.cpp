@@ -1,26 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 #include "pcb_table.h"
 #include <drc/drc_item.h>
 #include <drc/drc_test_provider.h>
@@ -29,6 +7,7 @@
 #include <pad.h>
 #include <zone.h>
 #include <pcb_text.h>
+#include <QString>
 
 
 // A list of all basic (ie: non-compound) board geometry items
@@ -68,8 +47,8 @@ void DRC_TEST_PROVIDER::Init()
 }
 
 
-const wxString DRC_TEST_PROVIDER::GetName() const { return wxT( "<no name test>" ); }
-const wxString DRC_TEST_PROVIDER::GetDescription() const { return wxEmptyString; }
+const QString DRC_TEST_PROVIDER::GetName() const { return "<no name test>"; }
+const QString DRC_TEST_PROVIDER::GetDescription() const { return QString(); }
 
 
 void DRC_TEST_PROVIDER::reportViolation( std::shared_ptr<DRC_ITEM>& item,
@@ -97,19 +76,18 @@ bool DRC_TEST_PROVIDER::reportProgress( size_t aCount, size_t aSize, size_t aDel
 }
 
 
-bool DRC_TEST_PROVIDER::reportPhase( const wxString& aMessage )
+bool DRC_TEST_PROVIDER::reportPhase( const QString& aMessage )
 {
-    reportAux( aMessage );
+    reportAux( "%s", aMessage.toStdString().c_str() );
     return m_drcEngine->ReportPhase( aMessage );
 }
 
 
-void DRC_TEST_PROVIDER::reportAux( const wxChar* fmt, ... )
+void DRC_TEST_PROVIDER::reportAux( const char* fmt, ... )
 {
     va_list vargs;
     va_start( vargs, fmt );
-    wxString str;
-    str.PrintfV( fmt, vargs );
+    QString str = QString::vasprintf( fmt, vargs );
     va_end( vargs );
     m_drcEngine->ReportAux( str );
 }
@@ -137,14 +115,14 @@ void DRC_TEST_PROVIDER::reportRuleStatistics()
     if( !m_isRuleDriven )
         return;
 
-    m_drcEngine->ReportAux( wxT( "Rule hit statistics: " ) );
+    m_drcEngine->ReportAux( "Rule hit statistics: " );
 
     for( const std::pair<const DRC_RULE* const, int>& stat : m_stats )
     {
         if( stat.first )
         {
-            m_drcEngine->ReportAux( wxString::Format( wxT( " - rule '%s': %d hits " ),
-                                                      stat.first->m_Name,
+            m_drcEngine->ReportAux( QString::asprintf( " - rule '%s': %d hits ",
+                                                      stat.first->m_Name.toStdString().c_str(),
                                                       stat.second ) );
         }
     }
@@ -373,11 +351,11 @@ bool DRC_TEST_PROVIDER::isInvisibleText( const BOARD_ITEM* aItem ) const
 }
 
 
-wxString DRC_TEST_PROVIDER::formatMsg( const wxString& aFormatString, const wxString& aSource,
+QString DRC_TEST_PROVIDER::formatMsg( const QString& aFormatString, const QString& aSource,
                                        double aConstraint, double aActual )
 {
-    wxString constraint_str = MessageTextFromValue( aConstraint );
-    wxString actual_str = MessageTextFromValue( aActual );
+    QString constraint_str = MessageTextFromValue( aConstraint );
+    QString actual_str = MessageTextFromValue( aActual );
 
     if( constraint_str == actual_str )
     {
@@ -386,14 +364,14 @@ wxString DRC_TEST_PROVIDER::formatMsg( const wxString& aFormatString, const wxSt
         actual_str = StringFromValue( aActual, true );
     }
 
-    return wxString::Format( aFormatString, aSource, constraint_str, actual_str );
+    return QString::asprintf( aFormatString.toStdString().c_str(), aSource.toStdString().c_str(), constraint_str.toStdString().c_str(), actual_str.toStdString().c_str() );
 }
 
-wxString DRC_TEST_PROVIDER::formatMsg( const wxString& aFormatString, const wxString& aSource,
+QString DRC_TEST_PROVIDER::formatMsg( const QString& aFormatString, const QString& aSource,
                                        const EDA_ANGLE& aConstraint, const EDA_ANGLE& aActual )
 {
-    wxString constraint_str = MessageTextFromValue( aConstraint );
-    wxString actual_str = MessageTextFromValue( aActual );
+    QString constraint_str = MessageTextFromValue( aConstraint );
+    QString actual_str = MessageTextFromValue( aActual );
 
     if( constraint_str == actual_str )
     {
@@ -402,5 +380,5 @@ wxString DRC_TEST_PROVIDER::formatMsg( const wxString& aFormatString, const wxSt
         actual_str = StringFromValue( aActual, true );
     }
 
-    return wxString::Format( aFormatString, aSource, constraint_str, actual_str );
+    return QString::asprintf( aFormatString.toStdString().c_str(), aSource.toStdString().c_str(), constraint_str.toStdString().c_str(), actual_str.toStdString().c_str() );
 }

@@ -1,28 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2015 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2015 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 #include <magic_enum.hpp>
 
 #include <unordered_set>
@@ -63,7 +39,10 @@
 // #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
 // #include <api/api_utils.h>
 // #include <api/api_pcb_utils.h> // DISABLED FOR MINIMAL BUILD
-#include <wx/log.h>
+#include <QLoggingCategory>
+#include <QString>
+#include <QStringList>
+#include <QRegExp>
 
 
 FOOTPRINT::FOOTPRINT( BOARD* parent ) :
@@ -226,7 +205,7 @@ FOOTPRINT::FOOTPRINT( const FOOTPRINT& aFootprint ) :
     m_arflag        = 0;
 
     m_initial_comments = aFootprint.m_initial_comments ?
-                         new wxArrayString( *aFootprint.m_initial_comments ) : nullptr;
+                         new QStringList( *aFootprint.m_initial_comments ) : nullptr;
 }
 
 
@@ -343,13 +322,13 @@ FOOTPRINT::~FOOTPRINT()
 //    overrides->set_zone_connection(
 //            ToProtoEnum<ZONE_CONNECTION, types::ZoneConnectionStyle>( GetLocalZoneConnection() ) );
 //
-//    for( const wxString& group : GetNetTiePadGroups() )
+//    for( const QString& group : GetNetTiePadGroups() )
 //    {
 //        types::NetTieDefinition* netTie = def->add_net_ties();
-//        wxStringTokenizer tokenizer( group, " " );
+//        QStringList tokens = group.split(" ", Qt::SkipEmptyParts);
 //
-//        while( tokenizer.HasMoreTokens() )
-//            netTie->add_pad_number( tokenizer.GetNextToken().ToStdString() );
+//        for( const QString& token : tokens )
+//            netTie->add_pad_number( token.toStdString() );
 //    }
 //
 //    for( PCB_LAYER_ID layer : GetPrivateLayers().Seq() )
@@ -510,12 +489,12 @@ FOOTPRINT::~FOOTPRINT()
 //
 //    for( const types::NetTieDefinition& netTieMsg : footprint.definition().net_ties() )
 //    {
-//        wxString group;
+//        QString group;
 //
 //        for( const std::string& pad : netTieMsg.pad_number() )
-//            group.Append( wxString::Format( wxT( "%s " ), pad ) );
+//            group.append( QString("%1 ").arg(QString::fromStdString(pad)) );
 //
-//        group.Trim();
+//        group = group.trimmed();
 //        AddNetTiePadGroup( group );
 //    }
 //
@@ -559,7 +538,7 @@ FOOTPRINT::~FOOTPRINT()
 //
 //                FP_3DMODEL model;
 //
-//                model.m_Filename = wxString::FromUTF8( modelMsg.filename() );
+//                model.m_Filename = QString::fromUtf8( modelMsg.filename().c_str() );
 //                model.m_Show = modelMsg.visible();
 //                model.m_Opacity = modelMsg.opacity();
 //                model.m_Scale = kiapi::common::UnpackVector3D( modelMsg.scale() );
@@ -570,9 +549,8 @@ FOOTPRINT::~FOOTPRINT()
 //            }
 //            else
 //            {
-//                wxLogTrace( traceApi, wxString::Format( wxS( "Attempting to unpack unknown type %s "
-//                                                             "from footprint message, skipping" ),
-//                                                        itemMsg.type_url() ) );
+//                qDebug() << QString("Attempting to unpack unknown type %1 from footprint message, skipping")
+//                             .arg(QString::fromStdString(itemMsg.type_url()));
 //            }
 //
 //            continue;
@@ -591,7 +569,7 @@ FOOTPRINT::~FOOTPRINT()
 PCB_FIELD* FOOTPRINT::GetField( MANDATORY_FIELD_T aFieldType )
 {
     PCB_FIELD* field = m_fields[aFieldType];
-    wxASSERT_MSG( field, wxT( "Requesting a null field (likely FOOTPRINT)" ) );
+    Q_ASSERT_X( field, "FOOTPRINT", "Requesting a null field (likely FOOTPRINT)" );
 
     return m_fields[aFieldType];
 }
@@ -600,7 +578,7 @@ PCB_FIELD* FOOTPRINT::GetField( MANDATORY_FIELD_T aFieldType )
 const PCB_FIELD* FOOTPRINT::GetField( MANDATORY_FIELD_T aFieldType ) const
 {
     const PCB_FIELD* field = m_fields[aFieldType];
-    wxASSERT_MSG( field, wxT( "Requesting a null field (likely FOOTPRINT)" ) );
+    Q_ASSERT_X( field, "FOOTPRINT", "Requesting a null field (likely FOOTPRINT)" );
 
     return m_fields[aFieldType];
 }
@@ -617,7 +595,7 @@ PCB_FIELD* FOOTPRINT::GetFieldById( int aFieldId )
     return nullptr;
 }
 
-bool FOOTPRINT::HasFieldByName( const wxString& aFieldName ) const
+bool FOOTPRINT::HasFieldByName( const QString& aFieldName ) const
 {
     for( PCB_FIELD* field : m_fields )
     {
@@ -628,7 +606,7 @@ bool FOOTPRINT::HasFieldByName( const wxString& aFieldName ) const
     return false;
 }
 
-PCB_FIELD* FOOTPRINT::GetFieldByName( const wxString& aFieldName )
+PCB_FIELD* FOOTPRINT::GetFieldByName( const QString& aFieldName )
 {
     if( aFieldName.empty() )
         return nullptr;
@@ -643,7 +621,7 @@ PCB_FIELD* FOOTPRINT::GetFieldByName( const wxString& aFieldName )
 }
 
 
-wxString FOOTPRINT::GetFieldText( const wxString& aFieldName ) const
+QString FOOTPRINT::GetFieldText( const QString& aFieldName ) const
 {
     for( const PCB_FIELD* field : m_fields )
     {
@@ -651,7 +629,7 @@ wxString FOOTPRINT::GetFieldText( const wxString& aFieldName ) const
             return field->GetText();
     }
 
-    return wxEmptyString;
+    return QString();
 }
 
 
@@ -695,7 +673,7 @@ PCB_FIELD* FOOTPRINT::AddField( const PCB_FIELD& aField )
 }
 
 
-void FOOTPRINT::RemoveField( const wxString& aFieldName )
+void FOOTPRINT::RemoveField( const QString& aFieldName )
 {
     for( unsigned i = 0; i < m_fields.size(); ++i )
     {
@@ -998,7 +976,7 @@ FOOTPRINT& FOOTPRINT::operator=( const FOOTPRINT& aOther )
     m_privateLayers = aOther.m_privateLayers;
 
     m_initial_comments = aOther.m_initial_comments ?
-                            new wxArrayString( *aOther.m_initial_comments ) : nullptr;
+                            new QStringList( *aOther.m_initial_comments ) : nullptr;
 
     EMBEDDED_FILES::operator=( aOther );
 
@@ -1008,7 +986,7 @@ FOOTPRINT& FOOTPRINT::operator=( const FOOTPRINT& aOther )
 
 void FOOTPRINT::CopyFrom( const BOARD_ITEM* aOther )
 {
-    wxCHECK( aOther && aOther->Type() == PCB_FOOTPRINT_T, /* void */ );
+    Q_ASSERT( aOther && aOther->Type() == PCB_FOOTPRINT_T );
     *this = *static_cast<const FOOTPRINT*>( aOther );
 
     for( PAD* pad : m_pads )
@@ -1033,67 +1011,67 @@ bool FOOTPRINT::IsConflicting() const
 }
 
 
-void FOOTPRINT::GetContextualTextVars( wxArrayString* aVars ) const
+void FOOTPRINT::GetContextualTextVars( QStringList* aVars ) const
 {
-    aVars->push_back( wxT( "REFERENCE" ) );
-    aVars->push_back( wxT( "VALUE" ) );
-    aVars->push_back( wxT( "LAYER" ) );
-    aVars->push_back( wxT( "FOOTPRINT_LIBRARY" ) );
-    aVars->push_back( wxT( "FOOTPRINT_NAME" ) );
-    aVars->push_back( wxT( "SHORT_NET_NAME(<pad_number>)" ) );
-    aVars->push_back( wxT( "NET_NAME(<pad_number>)" ) );
-    aVars->push_back( wxT( "NET_CLASS(<pad_number>)" ) );
-    aVars->push_back( wxT( "PIN_NAME(<pad_number>)" ) );
+    aVars->push_back( "REFERENCE" );
+    aVars->push_back( "VALUE" );
+    aVars->push_back( "LAYER" );
+    aVars->push_back( "FOOTPRINT_LIBRARY" );
+    aVars->push_back( "FOOTPRINT_NAME" );
+    aVars->push_back( "SHORT_NET_NAME(<pad_number>)" );
+    aVars->push_back( "NET_NAME(<pad_number>)" );
+    aVars->push_back( "NET_CLASS(<pad_number>)" );
+    aVars->push_back( "PIN_NAME(<pad_number>)" );
 }
 
 
-bool FOOTPRINT::ResolveTextVar( wxString* token, int aDepth ) const
+bool FOOTPRINT::ResolveTextVar( QString* token, int aDepth ) const
 {
     if( GetBoard() && GetBoard()->GetBoardUse() == BOARD_USE::FPHOLDER )
         return false;
 
-    if( token->IsSameAs( wxT( "REFERENCE" ) ) )
+    if( *token == "REFERENCE" )
     {
         *token = Reference().GetShownText( false, aDepth + 1 );
         return true;
     }
-    else if( token->IsSameAs( wxT( "VALUE" ) ) )
+    else if( *token == "VALUE" )
     {
         *token = Value().GetShownText( false, aDepth + 1 );
         return true;
     }
-    else if( token->IsSameAs( wxT( "LAYER" ) ) )
+    else if( *token == "LAYER" )
     {
         *token = GetLayerName();
         return true;
     }
-    else if( token->IsSameAs( wxT( "FOOTPRINT_LIBRARY" ) ) )
+    else if( *token == "FOOTPRINT_LIBRARY" )
     {
         *token = m_fpid.GetUniStringLibNickname();
         return true;
     }
-    else if( token->IsSameAs( wxT( "FOOTPRINT_NAME" ) ) )
+    else if( *token == "FOOTPRINT_NAME" )
     {
         *token = m_fpid.GetUniStringLibItemName();
         return true;
     }
-    else if( token->StartsWith( wxT( "SHORT_NET_NAME(" ) )
-                 || token->StartsWith( wxT( "NET_NAME(" ) )
-                 || token->StartsWith( wxT( "NET_CLASS(" ) )
-                 || token->StartsWith( wxT( "PIN_NAME(" ) ) )
+    else if( token->startsWith( "SHORT_NET_NAME(" )
+                 || token->startsWith( "NET_NAME(" )
+                 || token->startsWith( "NET_CLASS(" )
+                 || token->startsWith( "PIN_NAME(" ) )
     {
-        wxString padNumber = token->AfterFirst( '(' );
+        QString padNumber = token->mid( token->indexOf( '(' ) + 1 );
         padNumber = padNumber.BeforeLast( ')' );
 
         for( PAD* pad : Pads() )
         {
             if( pad->GetNumber() == padNumber )
             {
-                if( token->StartsWith( wxT( "SHORT_NET_NAME" ) ) )
+                if( token->startsWith( "SHORT_NET_NAME" ) )
                     *token = pad->GetShortNetname();
-                else if( token->StartsWith( wxT( "NET_NAME" ) ) )
+                else if( token->startsWith( "NET_NAME" ) )
                     *token = pad->GetNetname();
-                else if( token->StartsWith( wxT( "NET_CLASS" ) ) )
+                else if( token->startsWith( "NET_CLASS" ) )
                     *token = pad->GetNetClassName();
                 else
                     *token = pad->GetPinFunction();
@@ -1134,7 +1112,7 @@ void FOOTPRINT::Add( BOARD_ITEM* aBoardItem, ADD_MODE aMode, bool aSkipConnectiv
 
         if( field->IsMandatory() )
         {
-            wxASSERT( m_fields.size() >= MANDATORY_FIELD_COUNT
+            Q_ASSERT( m_fields.size() >= MANDATORY_FIELD_COUNT
                         && m_fields[ field->GetId() ] == nullptr );
 
             m_fields[ field->GetId() ] = field;
@@ -1189,19 +1167,17 @@ void FOOTPRINT::Add( BOARD_ITEM* aBoardItem, ADD_MODE aMode, bool aSkipConnectiv
         break;
 
     case PCB_MARKER_T:
-        wxFAIL_MSG( wxT( "FOOTPRINT::Add(): Markers go at the board level, even in the footprint editor" ) );
+        Q_ASSERT_X( false, "FOOTPRINT::Add", "Markers go at the board level, even in the footprint editor" );
         return;
 
     case PCB_FOOTPRINT_T:
-        wxFAIL_MSG( wxT( "FOOTPRINT::Add(): Nested footprints not supported" ) );
+        Q_ASSERT_X( false, "FOOTPRINT::Add", "Nested footprints not supported" );
         return;
 
     default:
     {
-        wxString msg;
-        msg.Printf( wxT( "FOOTPRINT::Add() needs work: BOARD_ITEM type (%d) not handled" ),
-                    aBoardItem->Type() );
-        wxFAIL_MSG( msg );
+        QString msg = QString( "FOOTPRINT::Add() needs work: BOARD_ITEM type (%1) not handled" ).arg( aBoardItem->Type() );
+        Q_ASSERT_X( false, "FOOTPRINT::Add", msg.toLocal8Bit().constData() );
 
         return;
     }
@@ -1298,10 +1274,8 @@ void FOOTPRINT::Remove( BOARD_ITEM* aBoardItem, REMOVE_MODE aMode )
 
     default:
     {
-        wxString msg;
-        msg.Printf( wxT( "FOOTPRINT::Remove() needs work: BOARD_ITEM type (%d) not handled" ),
-                    aBoardItem->Type() );
-        wxFAIL_MSG( msg );
+        QString msg = QString( "FOOTPRINT::Remove() needs work: BOARD_ITEM type (%1) not handled" ).arg( aBoardItem->Type() );
+        Q_ASSERT_X( false, "FOOTPRINT::Remove", msg.toLocal8Bit().constData() );
     }
     }
 
@@ -1377,7 +1351,7 @@ int FOOTPRINT::GetLikelyAttribute() const
 }
 
 
-wxString FOOTPRINT::GetTypeName() const
+QString FOOTPRINT::GetTypeName() const
 {
     if( ( m_attributes & FP_SMD ) == FP_SMD )
         return _( "SMD" );
@@ -1711,7 +1685,7 @@ SHAPE_POLY_SET FOOTPRINT::GetBoundingHull() const
 
 void FOOTPRINT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString msg, msg2;
+    QString msg, msg2;
 
     // Don't use GetShownText(); we want to see the variable references here
     aList.emplace_back( UnescapeString( Reference().GetText() ),
@@ -1723,14 +1697,14 @@ void FOOTPRINT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
     {
         size_t     padCount = GetPadCount( DO_NOT_INCLUDE_NPTH );
 
-        aList.emplace_back( _( "Library" ), GetFPID().GetLibNickname().wx_str() );
+        aList.emplace_back( _( "Library" ), GetFPID().GetLibNickname() );
 
-        aList.emplace_back( _( "Footprint Name" ), GetFPID().GetLibItemName().wx_str() );
+        aList.emplace_back( _( "Footprint Name" ), GetFPID().GetLibItemName() );
 
-        aList.emplace_back( _( "Pads" ), wxString::Format( wxT( "%zu" ), padCount ) );
+        aList.emplace_back( _( "Pads" ), QString::number( padCount ) );
 
-        aList.emplace_back( wxString::Format( _( "Doc: %s" ), GetLibDescription() ),
-                            wxString::Format( _( "Keywords: %s" ), GetKeywords() ) );
+        aList.emplace_back( QString( _( "Doc: %s" ) ).arg( GetLibDescription() ),
+                            QString( _( "Keywords: %s" ) ).arg( GetKeywords() ) );
 
         return;
     }
@@ -1744,16 +1718,16 @@ void FOOTPRINT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
     default:   /* unsided: user-layers only, etc. */                           break;
     }
 
-    auto addToken = []( wxString* aStr, const wxString& aAttr )
+    auto addToken = []( QString* aStr, const QString& aAttr )
                     {
-                        if( !aStr->IsEmpty() )
-                            *aStr += wxT( ", " );
+                        if( !aStr->isEmpty() )
+                            *aStr += ", ";
 
                         *aStr += aAttr;
                     };
 
-    wxString status;
-    wxString attrs;
+    QString status;
+    QString attrs;
 
     if( IsLocked() )
         addToken( &status, _( "Locked" ) );
@@ -1773,9 +1747,9 @@ void FOOTPRINT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
     if( m_attributes & FP_DNP )
         addToken( &attrs, _( "DNP" ) );
 
-    aList.emplace_back( _( "Status: " ) + status, _( "Attributes:" ) + wxS( " " ) + attrs );
+    aList.emplace_back( _( "Status: " ) + status, _( "Attributes:" ) + " " + attrs );
 
-    aList.emplace_back( _( "Rotation" ), wxString::Format( wxT( "%.4g" ),
+    aList.emplace_back( _( "Rotation" ), QString::number(
                                                            GetOrientation().AsDegrees() ) );
 
     if( m_componentClass )
@@ -1988,7 +1962,7 @@ bool FOOTPRINT::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
 }
 
 
-PAD* FOOTPRINT::FindPadByNumber( const wxString& aPadNumber, PAD* aSearchAfterMe ) const
+PAD* FOOTPRINT::FindPadByNumber( const QString& aPadNumber, PAD* aSearchAfterMe ) const
 {
     bool can_select = aSearchAfterMe ? false : true;
 
@@ -2024,7 +1998,7 @@ PAD* FOOTPRINT::GetPad( const VECTOR2I& aPosition, LSET aLayerMask )
 }
 
 
-std::vector<const PAD*> FOOTPRINT::GetPads( const wxString& aPadNumber, const PAD* aIgnore ) const
+std::vector<const PAD*> FOOTPRINT::GetPads( const QString& aPadNumber, const PAD* aIgnore ) const
 {
     std::vector<const PAD*> retv;
 
@@ -2059,9 +2033,9 @@ unsigned FOOTPRINT::GetPadCount( INCLUDE_NPTH_T aIncludeNPTH ) const
 }
 
 
-std::set<wxString> FOOTPRINT::GetUniquePadNumbers( INCLUDE_NPTH_T aIncludeNPTH ) const
+std::set<QString> FOOTPRINT::GetUniquePadNumbers( INCLUDE_NPTH_T aIncludeNPTH ) const
 {
-    std::set<wxString> usedNumbers;
+    std::set<QString> usedNumbers;
 
     // Create a set of used pad numbers
     for( PAD* pad : m_pads )
@@ -2194,14 +2168,14 @@ INSPECT_RESULT FOOTPRINT::Visit( INSPECTOR inspector, void* testData,
 }
 
 
-wxString FOOTPRINT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString FOOTPRINT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    wxString reference = GetReference();
+    QString reference = GetReference();
 
-    if( reference.IsEmpty() )
+    if( reference.isEmpty() )
         reference = _( "<no reference designator>" );
 
-    return wxString::Format( _( "Footprint %s" ), reference );
+    return QString( _( "Footprint %s" ) ).arg( reference );
 }
 
 
@@ -2241,7 +2215,7 @@ void FOOTPRINT::RunOnChildren( const std::function<void ( BOARD_ITEM* )>& aFunct
     }
     catch( std::bad_function_call& )
     {
-        wxFAIL_MSG( wxT( "Error running FOOTPRINT::RunOnChildren" ) );
+        Q_ASSERT_X( false, "FOOTPRINT::RunOnChildren", "Error running FOOTPRINT::RunOnChildren" );
     }
 }
 
@@ -2278,7 +2252,7 @@ void FOOTPRINT::RunOnDescendants( const std::function<void( BOARD_ITEM* )>& aFun
     }
     catch( std::bad_function_call& )
     {
-        wxFAIL_MSG( wxT( "Error running FOOTPRINT::RunOnDescendants" ) );
+        Q_ASSERT_X( false, "FOOTPRINT::RunOnDescendants", "Error running FOOTPRINT::RunOnDescendants" );
     }
 }
 
@@ -2293,7 +2267,7 @@ std::vector<int> FOOTPRINT::ViewGetLayers() const
     switch( m_layer )
     {
     default:
-        wxASSERT_MSG( false, wxT( "Illegal layer" ) );   // do you really have footprints placed
+        Q_ASSERT_X( false, "FOOTPRINT", "Illegal layer" );   // do you really have footprints placed
                                                          // on other layers?
         KI_FALLTHROUGH;
 
@@ -2395,26 +2369,26 @@ const BOX2I FOOTPRINT::ViewBBox() const
 }
 
 
-bool FOOTPRINT::IsLibNameValid( const wxString & aName )
+bool FOOTPRINT::IsLibNameValid( const QString & aName )
 {
-    const wxChar * invalids = StringLibNameInvalidChars( false );
+    const QChar * invalids = StringLibNameInvalidChars( false );
 
-    if( aName.find_first_of( invalids ) != std::string::npos )
+    if( aName.indexOf( QRegExp( QString( "[" ) + QString( invalids ) + "]" ) ) != -1 )
         return false;
 
     return true;
 }
 
 
-const wxChar* FOOTPRINT::StringLibNameInvalidChars( bool aUserReadable )
+const QChar* FOOTPRINT::StringLibNameInvalidChars( bool aUserReadable )
 {
     // This list of characters is also duplicated in validators.cpp and
     // lib_id.cpp
     // TODO: Unify forbidden character lists - Warning, invalid filename characters are not the same
     // as invalid LIB_ID characters.  We will need to separate the FP filenames from FP names before this
     // can be unified
-    static const wxChar invalidChars[] = wxT("%$<>\t\n\r\"\\/:");
-    static const wxChar invalidCharsReadable[] = wxT("% $ < > 'tab' 'return' 'line feed' \\ \" / :");
+    static const QChar invalidChars[] = "%$<>\t\n\r\"\\/:");
+    static const QChar invalidCharsReadable[] = "% $ < > 'tab' 'return' 'line feed' \\ \" / :";
 
     if( aUserReadable )
         return invalidCharsReadable;
@@ -2461,7 +2435,7 @@ void FOOTPRINT::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
 
 void FOOTPRINT::SetLayerAndFlip( PCB_LAYER_ID aLayer )
 {
-    wxASSERT( aLayer == F_Cu || aLayer == B_Cu );
+    Q_ASSERT( aLayer == F_Cu || aLayer == B_Cu );
 
     if( aLayer != GetLayer() )
         Flip( GetPosition(), FLIP_DIRECTION::LEFT_RIGHT );
@@ -2702,11 +2676,11 @@ BOARD_ITEM* FOOTPRINT::DuplicateItem( const BOARD_ITEM* aItem, bool aAddToFootpr
         {
             switch( static_cast<const PCB_FIELD*>( aItem )->GetId() )
             {
-            case REFERENCE_FIELD: new_text->SetText( wxT( "${REFERENCE}" ) ); break;
+            case REFERENCE_FIELD: new_text->SetText( "${REFERENCE}" ); break;
 
-            case VALUE_FIELD: new_text->SetText( wxT( "${VALUE}" ) ); break;
+            case VALUE_FIELD: new_text->SetText( "${VALUE}" ); break;
 
-            case DATASHEET_FIELD: new_text->SetText( wxT( "${DATASHEET}" ) ); break;
+            case DATASHEET_FIELD: new_text->SetText( "${DATASHEET}" ); break;
             }
         }
 
@@ -2793,7 +2767,7 @@ BOARD_ITEM* FOOTPRINT::DuplicateItem( const BOARD_ITEM* aItem, bool aAddToFootpr
 
     default:
         // Un-handled item for duplication
-        wxFAIL_MSG( wxT( "Duplication not supported for items of class " ) + aItem->GetClass() );
+        Q_ASSERT_X( false, "FOOTPRINT", ( "Duplication not supported for items of class " + aItem->GetClass() ).toLocal8Bit().constData() );
         break;
     }
 
@@ -2801,9 +2775,9 @@ BOARD_ITEM* FOOTPRINT::DuplicateItem( const BOARD_ITEM* aItem, bool aAddToFootpr
 }
 
 
-wxString FOOTPRINT::GetNextPadNumber( const wxString& aLastPadNumber ) const
+QString FOOTPRINT::GetNextPadNumber( const QString& aLastPadNumber ) const
 {
-    std::set<wxString> usedNumbers;
+    std::set<QString> usedNumbers;
 
     // Create a set of used pad numbers
     for( PAD* pad : m_pads )
@@ -2811,13 +2785,13 @@ wxString FOOTPRINT::GetNextPadNumber( const wxString& aLastPadNumber ) const
 
     // Pad numbers aren't technically reference designators, but the formatting is close enough
     // for these to give us what we need.
-    wxString prefix = UTIL::GetRefDesPrefix( aLastPadNumber );
+    QString prefix = UTIL::GetRefDesPrefix( aLastPadNumber );
     int      num = GetTrailingInt( aLastPadNumber );
 
-    while( usedNumbers.count( wxString::Format( wxT( "%s%d" ), prefix, num ) ) )
+    while( usedNumbers.count( QString( "%1%2" ).arg( prefix ).arg( num ) ) )
         num++;
 
-    return wxString::Format( wxT( "%s%d" ), prefix, num );
+    return QString( "%1%2" ).arg( prefix ).arg( num );
 }
 
 
@@ -2851,9 +2825,9 @@ void FOOTPRINT::AutoPositionFields()
 
 void FOOTPRINT::IncrementReference( int aDelta )
 {
-    const wxString& refdes = GetReference();
+    const QString& refdes = GetReference();
 
-    SetReference( wxString::Format( wxT( "%s%i" ),
+    SetReference( QString( "%1%2" ).arg(
                                     UTIL::GetRefDesPrefix( refdes ),
                                     GetTrailingInt( refdes ) + aDelta ) );
 }
@@ -3202,7 +3176,7 @@ void FOOTPRINT::BuildCourtyardCaches( OUTLINE_ERROR_HANDLER* aErrorHandler )
 void FOOTPRINT::BuildNetTieCache()
 {
     m_netTieCache.clear();
-    std::map<wxString, int> map = MapPadNumbersToNetTieGroups();
+    std::map<QString, int> map = MapPadNumbersToNetTieGroups();
     std::map<PCB_LAYER_ID, std::vector<PCB_SHAPE*>> layer_shapes;
 
     std::for_each( m_drawings.begin(), m_drawings.end(),
@@ -3266,29 +3240,29 @@ void FOOTPRINT::BuildNetTieCache()
 }
 
 
-std::map<wxString, int> FOOTPRINT::MapPadNumbersToNetTieGroups() const
+std::map<QString, int> FOOTPRINT::MapPadNumbersToNetTieGroups() const
 {
-    std::map<wxString, int> padNumberToGroupIdxMap;
+    std::map<QString, int> padNumberToGroupIdxMap;
 
     for( const PAD* pad : m_pads )
         padNumberToGroupIdxMap[ pad->GetNumber() ] = -1;
 
     auto processPad =
-            [&]( wxString aPad, int aGroup )
+            [&]( QString aPad, int aGroup )
             {
-                aPad.Trim( true ).Trim( false );
+                aPad = aPad.trimmed();
 
-                if( !aPad.IsEmpty() )
+                if( !aPad.isEmpty() )
                     padNumberToGroupIdxMap[ aPad ] = aGroup;
             };
 
     for( int ii = 0; ii < (int) m_netTiePadGroups.size(); ++ii )
     {
-        wxString group( m_netTiePadGroups[ ii ] );
+        QString group( m_netTiePadGroups[ ii ] );
         bool esc = false;
-        wxString pad;
+        QString pad;
 
-        for( wxUniCharRef ch : group )
+        for( QChar ch : group )
         {
             if( esc )
             {
@@ -3326,7 +3300,7 @@ std::vector<PAD*> FOOTPRINT::GetNetTiePads( PAD* aPad ) const
     // First build a map from pad numbers to allowed-shorting-group indexes.  This ends up being
     // something like O(3n), but it still beats O(n^2) for large numbers of pads.
 
-    std::map<wxString, int> padToNetTieGroupMap = MapPadNumbersToNetTieGroups();
+    std::map<QString, int> padToNetTieGroupMap = MapPadNumbersToNetTieGroups();
     int                     groupIdx = padToNetTieGroupMap[ aPad->GetNumber() ];
     std::vector<PAD*>       otherPads;
 
@@ -3343,14 +3317,14 @@ std::vector<PAD*> FOOTPRINT::GetNetTiePads( PAD* aPad ) const
 }
 
 
-void FOOTPRINT::CheckFootprintAttributes( const std::function<void( const wxString& )>& aErrorHandler )
+void FOOTPRINT::CheckFootprintAttributes( const std::function<void( const QString& )>& aErrorHandler )
 {
     int likelyAttr = ( GetLikelyAttribute() & ( FP_SMD | FP_THROUGH_HOLE ) );
     int setAttr = ( GetAttributes() & ( FP_SMD | FP_THROUGH_HOLE ) );
 
     if( setAttr && likelyAttr && setAttr != likelyAttr )
     {
-        wxString msg;
+        QString msg;
 
         switch( likelyAttr )
         {
@@ -3370,7 +3344,7 @@ void FOOTPRINT::CheckFootprintAttributes( const std::function<void( const wxStri
 
 void FOOTPRINT::CheckPads( UNITS_PROVIDER* aUnitsProvider,
                            const std::function<void( const PAD*, int,
-                                                     const wxString& )>& aErrorHandler )
+                                                     const QString& )>& aErrorHandler )
 {
     if( aErrorHandler == nullptr )
         return;
@@ -3378,7 +3352,7 @@ void FOOTPRINT::CheckPads( UNITS_PROVIDER* aUnitsProvider,
     for( PAD* pad: Pads() )
     {
         pad->CheckPad( aUnitsProvider, false,
-                [&]( int errorCode, const wxString& msg )
+                [&]( int errorCode, const QString& msg )
                 {
                     aErrorHandler( pad, errorCode, msg );
                 } );
@@ -3463,7 +3437,7 @@ void FOOTPRINT::CheckNetTies( const std::function<void( const BOARD_ITEM* aItem,
     // First build a map from pad numbers to allowed-shorting-group indexes.  This ends up being
     // something like O(3n), but it still beats O(n^2) for large numbers of pads.
 
-    std::map<wxString, int> padNumberToGroupIdxMap = MapPadNumbersToNetTieGroups();
+    std::map<QString, int> padNumberToGroupIdxMap = MapPadNumbersToNetTieGroups();
 
     // Now collect all the footprint items which are on copper layers
 
@@ -3568,10 +3542,10 @@ void FOOTPRINT::CheckNetTies( const std::function<void( const BOARD_ITEM* aItem,
 }
 
 
-void FOOTPRINT::CheckNetTiePadGroups( const std::function<void( const wxString& )>& aErrorHandler )
+void FOOTPRINT::CheckNetTiePadGroups( const std::function<void( const QString& )>& aErrorHandler )
 {
-    std::set<wxString> padNumbers;
-    wxString           msg;
+    std::set<QString> padNumbers;
+    QString           msg;
 
     for( const auto& [ padNumber, _ ] : MapPadNumbersToNetTieGroups() )
     {
@@ -3631,7 +3605,7 @@ void FOOTPRINT::CheckClippedSilk( const std::function<void( BOARD_ITEM* aItemA,
 
 void FOOTPRINT::swapData( BOARD_ITEM* aImage )
 {
-    wxASSERT( aImage->Type() == PCB_FOOTPRINT_T );
+    Q_ASSERT( aImage->Type() == PCB_FOOTPRINT_T );
 
     FOOTPRINT* image = static_cast<FOOTPRINT*>( aImage );
 
@@ -4115,19 +4089,19 @@ void FOOTPRINT::EmbedFonts()
 }
 
 
-wxString FOOTPRINT::GetComponentClassAsString() const
+QString FOOTPRINT::GetComponentClassAsString() const
 {
     if( m_componentClass )
     {
         return m_componentClass->GetFullName();
     }
 
-    return wxEmptyString;
+    return QString();
 }
 
 
 void FOOTPRINT::ResolveComponentClassNames(
-        BOARD* aBoard, const std::unordered_set<wxString>& aComponentClassNames )
+        BOARD* aBoard, const std::unordered_set<QString>& aComponentClassNames )
 {
     const COMPONENT_CLASS* componentClass =
             aBoard->GetComponentClassManager().GetEffectiveComponentClass( aComponentClassNames );
@@ -4161,9 +4135,9 @@ static struct FOOTPRINT_DESC
                 layerEnum.Map( layer, LSET::Name( layer ) );
         }
 
-        wxPGChoices fpLayers;       // footprints might be placed only on F.Cu & B.Cu
-        fpLayers.Add( LSET::Name( F_Cu ), F_Cu );
-        fpLayers.Add( LSET::Name( B_Cu ), B_Cu );
+        QStringList fpLayers;       // footprints might be placed only on F.Cu & B.Cu
+        fpLayers.append( LSET::Name( F_Cu ) );
+        fpLayers.append( LSET::Name( B_Cu ) );
 
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
         REGISTER_TYPE( FOOTPRINT );
@@ -4181,32 +4155,32 @@ static struct FOOTPRINT_DESC
                     &FOOTPRINT::SetOrientationDegrees, &FOOTPRINT::GetOrientationDegrees,
                     PROPERTY_DISPLAY::PT_DEGREE ) );
 
-        const wxString groupFields = _HKI( "Fields" );
+        const QString groupFields = _HKI( "Fields" );
 
-        propMgr.AddProperty( new PROPERTY<FOOTPRINT, wxString>( _HKI( "Reference" ),
+        propMgr.AddProperty( new PROPERTY<FOOTPRINT, QString>( _HKI( "Reference" ),
                     &FOOTPRINT::SetReference, &FOOTPRINT::GetReferenceAsString ),
                     groupFields );
-        propMgr.AddProperty( new PROPERTY<FOOTPRINT, wxString>( _HKI( "Value" ),
+        propMgr.AddProperty( new PROPERTY<FOOTPRINT, QString>( _HKI( "Value" ),
                     &FOOTPRINT::SetValue, &FOOTPRINT::GetValueAsString ),
                     groupFields );
 
-        propMgr.AddProperty( new PROPERTY<FOOTPRINT, wxString>( _HKI( "Library Link" ),
-                    NO_SETTER( FOOTPRINT, wxString ), &FOOTPRINT::GetFPIDAsString ),
+        propMgr.AddProperty( new PROPERTY<FOOTPRINT, QString>( _HKI( "Library Link" ),
+                    NO_SETTER( FOOTPRINT, QString ), &FOOTPRINT::GetFPIDAsString ),
                     groupFields );
-        propMgr.AddProperty( new PROPERTY<FOOTPRINT, wxString>( _HKI( "Library Description" ),
-                    NO_SETTER( FOOTPRINT, wxString ), &FOOTPRINT::GetLibDescription ),
+        propMgr.AddProperty( new PROPERTY<FOOTPRINT, QString>( _HKI( "Library Description" ),
+                    NO_SETTER( FOOTPRINT, QString ), &FOOTPRINT::GetLibDescription ),
                     groupFields );
-        propMgr.AddProperty( new PROPERTY<FOOTPRINT, wxString>( _HKI( "Keywords" ),
-                    NO_SETTER( FOOTPRINT, wxString ), &FOOTPRINT::GetKeywords ),
+        propMgr.AddProperty( new PROPERTY<FOOTPRINT, QString>( _HKI( "Keywords" ),
+                    NO_SETTER( FOOTPRINT, QString ), &FOOTPRINT::GetKeywords ),
                     groupFields );
 
         // Note: Also used by DRC engine
-        propMgr.AddProperty( new PROPERTY<FOOTPRINT, wxString>(
-                                     _HKI( "Component Class" ), NO_SETTER( FOOTPRINT, wxString ),
+        propMgr.AddProperty( new PROPERTY<FOOTPRINT, QString>(
+                                     _HKI( "Component Class" ), NO_SETTER( FOOTPRINT, QString ),
                                      &FOOTPRINT::GetComponentClassAsString ), groupFields )
                 .SetIsHiddenFromLibraryEditors();
 
-        const wxString groupAttributes = _HKI( "Attributes" );
+        const QString groupAttributes = _HKI( "Attributes" );
 
         propMgr.AddProperty( new PROPERTY<FOOTPRINT, bool>( _HKI( "Not in Schematic" ),
                     &FOOTPRINT::SetBoardOnly, &FOOTPRINT::IsBoardOnly ), groupAttributes );
@@ -4220,7 +4194,7 @@ static struct FOOTPRINT_DESC
                     &FOOTPRINT::SetDNP, &FOOTPRINT::IsDNP ),
                     groupAttributes );
 
-        const wxString groupOverrides = _HKI( "Overrides" );
+        const QString groupOverrides = _HKI( "Overrides" );
 
         propMgr.AddProperty( new PROPERTY<FOOTPRINT, bool>(
                     _HKI( "Exempt From Courtyard Requirement" ),

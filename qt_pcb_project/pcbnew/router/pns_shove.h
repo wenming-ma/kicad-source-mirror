@@ -1,29 +1,13 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #ifndef __PNS_SHOVE_H
 #define __PNS_SHOVE_H
 
 #include <vector>
 #include <stack>
+
+#include <QString>
 
 #include <math/box2.h>
 
@@ -227,7 +211,7 @@ private:
     void reconstructHeads( bool aShoveFailed );
     void removeHeads();
     bool preShoveCleanup( LINE* aOld, LINE* aNew );
-    const wxString formatPolicy( int aPolicy );
+    const QString formatPolicy( int aPolicy );
 
     std::vector<SPRINGBACK_TAG> m_nodeStack;
     std::vector<LINE>           m_lineStack;

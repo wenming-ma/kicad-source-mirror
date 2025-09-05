@@ -1,30 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2007 Dick Hollenbeck, dick@softplc.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-
-#include "wx/html/m_templ.h"
-#include "wx/html/styleparams.h"
+#include <QString>
+#include <QStringLiteral>
 #include "core/kicad_algo.h"
 #include <algorithm>
 #include <drc/drc_item.h>
@@ -51,252 +26,252 @@ DRC_ITEM DRC_ITEM::heading_deprecated( 0, "", "" );
 
 DRC_ITEM DRC_ITEM::unconnectedItems( DRCE_UNCONNECTED_ITEMS,
         _HKI( "Missing connection between items" ),
-        wxT( "unconnected_items" ) );
+        QStringLiteral( "unconnected_items" ) );
 
 DRC_ITEM DRC_ITEM::shortingItems( DRCE_SHORTING_ITEMS,
         _HKI( "Items shorting two nets" ),
-        wxT( "shorting_items" ) );
+        QStringLiteral( "shorting_items" ) );
 
 DRC_ITEM DRC_ITEM::itemsNotAllowed( DRCE_ALLOWED_ITEMS,
         _HKI( "Items not allowed" ),
-        wxT( "items_not_allowed" ) );
+        QStringLiteral( "items_not_allowed" ) );
 
 DRC_ITEM DRC_ITEM::textOnEdgeCuts( DRCE_TEXT_ON_EDGECUTS,
         _HKI( "Text (or dimension) on Edge.Cuts layer" ),
-        wxT( "text_on_edge_cuts" ) );
+        QStringLiteral( "text_on_edge_cuts" ) );
 
 DRC_ITEM DRC_ITEM::clearance( DRCE_CLEARANCE,
         _HKI( "Clearance violation" ),
-        wxT( "clearance" ) );
+        QStringLiteral( "clearance" ) );
 
 DRC_ITEM DRC_ITEM::creepage( DRCE_CREEPAGE,
         _HKI( "Creepage violation" ),
-        wxT( "creepage" ) );
+        QStringLiteral( "creepage" ) );
 
 DRC_ITEM DRC_ITEM::tracksCrossing( DRCE_TRACKS_CROSSING,
         _HKI( "Tracks crossing" ),
-        wxT( "tracks_crossing" ) );
+        QStringLiteral( "tracks_crossing" ) );
 
 DRC_ITEM DRC_ITEM::edgeClearance( DRCE_EDGE_CLEARANCE,
         _HKI( "Board edge clearance violation" ),
-        wxT( "copper_edge_clearance" ) );
+        QStringLiteral( "copper_edge_clearance" ) );
 
 DRC_ITEM DRC_ITEM::zonesIntersect( DRCE_ZONES_INTERSECT,
         _HKI( "Copper zones intersect" ),
-        wxT( "zones_intersect" ) );
+        QStringLiteral( "zones_intersect" ) );
 
 DRC_ITEM DRC_ITEM::isolatedCopper( DRCE_ISOLATED_COPPER,
         _HKI( "Isolated copper fill" ),
-        wxT( "isolated_copper" ) );
+        QStringLiteral( "isolated_copper" ) );
 
 DRC_ITEM DRC_ITEM::starvedThermal( DRCE_STARVED_THERMAL,
         _HKI( "Thermal relief connection to zone incomplete" ),
-        wxT( "starved_thermal" ) );
+        QStringLiteral( "starved_thermal" ) );
 
 DRC_ITEM DRC_ITEM::viaDangling( DRCE_DANGLING_VIA,
         _HKI( "Via is not connected or connected on only one layer" ),
-        wxT( "via_dangling" ) );
+        QStringLiteral( "via_dangling" ) );
 
 DRC_ITEM DRC_ITEM::trackDangling( DRCE_DANGLING_TRACK,
         _HKI( "Track has unconnected end" ),
-        wxT( "track_dangling" ) );
+        QStringLiteral( "track_dangling" ) );
 
 DRC_ITEM DRC_ITEM::holeClearance( DRCE_HOLE_CLEARANCE,
         _HKI( "Hole clearance violation" ),
-        wxT( "hole_clearance" ) );
+        QStringLiteral( "hole_clearance" ) );
 
 DRC_ITEM DRC_ITEM::holeNearHole( DRCE_DRILLED_HOLES_TOO_CLOSE,
         _HKI( "Drilled hole too close to other hole" ),
-        wxT( "hole_to_hole" ) );
+        QStringLiteral( "hole_to_hole" ) );
 
 DRC_ITEM DRC_ITEM::holesCoLocated( DRCE_DRILLED_HOLES_COLOCATED,
         _HKI( "Drilled holes co-located" ),
-        wxT( "holes_co_located" ) );
+        QStringLiteral( "holes_co_located" ) );
 
 DRC_ITEM DRC_ITEM::connectionWidth( DRCE_CONNECTION_WIDTH,
         _HKI( "Copper connection too narrow" ),
-        wxT( "connection_width" ) );
+        QStringLiteral( "connection_width" ) );
 
 DRC_ITEM DRC_ITEM::trackWidth( DRCE_TRACK_WIDTH,
         _HKI( "Track width" ),
-        wxT( "track_width" ) );
+        QStringLiteral( "track_width" ) );
 
 DRC_ITEM DRC_ITEM::trackAngle( DRCE_TRACK_ANGLE,
         _HKI( "Track angle" ),
-        wxT( "track_angle" ) );
+        QStringLiteral( "track_angle" ) );
 
 DRC_ITEM DRC_ITEM::trackSegmentLength( DRCE_TRACK_SEGMENT_LENGTH,
         _HKI( "Track segment length" ),
-        wxT( "track_segment_length" ) );
+        QStringLiteral( "track_segment_length" ) );
 
 DRC_ITEM DRC_ITEM::annularWidth( DRCE_ANNULAR_WIDTH,
         _HKI( "Annular width" ),
-        wxT( "annular_width" ) );
+        QStringLiteral( "annular_width" ) );
 
 DRC_ITEM DRC_ITEM::drillTooSmall( DRCE_DRILL_OUT_OF_RANGE,
         _HKI( "Hole size out of range" ),
-        wxT( "drill_out_of_range" ) );
+        QStringLiteral( "drill_out_of_range" ) );
 
 DRC_ITEM DRC_ITEM::viaDiameter( DRCE_VIA_DIAMETER,
         _HKI( "Via diameter" ),
-        wxT( "via_diameter" ) );
+        QStringLiteral( "via_diameter" ) );
 
 DRC_ITEM DRC_ITEM::padstack( DRCE_PADSTACK,
         _HKI( "Padstack is questionable" ),
-        wxT( "padstack" ) );
+        QStringLiteral( "padstack" ) );
 
 DRC_ITEM DRC_ITEM::padstackInvalid( DRCE_PADSTACK_INVALID,
         _HKI( "Padstack is not valid" ),
-        wxT( "padstack_invalid" ) );
+        QStringLiteral( "padstack_invalid" ) );
 
 DRC_ITEM DRC_ITEM::microviaDrillTooSmall( DRCE_MICROVIA_DRILL_OUT_OF_RANGE,
         _HKI( "Micro via hole size out of range" ),
-        wxT( "microvia_drill_out_of_range" ) );
+        QStringLiteral( "microvia_drill_out_of_range" ) );
 
 DRC_ITEM DRC_ITEM::courtyardsOverlap( DRCE_OVERLAPPING_FOOTPRINTS,
         _HKI( "Courtyards overlap" ),
-        wxT( "courtyards_overlap" ) );
+        QStringLiteral( "courtyards_overlap" ) );
 
 DRC_ITEM DRC_ITEM::missingCourtyard( DRCE_MISSING_COURTYARD,
         _HKI( "Footprint has no courtyard defined" ),
-        wxT( "missing_courtyard" ) );
+        QStringLiteral( "missing_courtyard" ) );
 
 DRC_ITEM DRC_ITEM::malformedCourtyard( DRCE_MALFORMED_COURTYARD,
         _HKI( "Footprint has malformed courtyard" ),
-        wxT( "malformed_courtyard" ) );
+        QStringLiteral( "malformed_courtyard" ) );
 
 DRC_ITEM DRC_ITEM::pthInsideCourtyard( DRCE_PTH_IN_COURTYARD,
         _HKI( "PTH inside courtyard" ),
-        wxT( "pth_inside_courtyard" ) );
+        QStringLiteral( "pth_inside_courtyard" ) );
 
 DRC_ITEM DRC_ITEM::npthInsideCourtyard( DRCE_NPTH_IN_COURTYARD,
         _HKI( "NPTH inside courtyard" ),
-        wxT( "npth_inside_courtyard" ) );
+        QStringLiteral( "npth_inside_courtyard" ) );
 
 DRC_ITEM DRC_ITEM::itemOnDisabledLayer( DRCE_DISABLED_LAYER_ITEM,
         _HKI( "Item on a disabled copper layer" ),
-        wxT( "item_on_disabled_layer" ) );
+        QStringLiteral( "item_on_disabled_layer" ) );
 
 DRC_ITEM DRC_ITEM::invalidOutline( DRCE_INVALID_OUTLINE,
         _HKI( "Board has malformed outline" ),
-        wxT( "invalid_outline" ) );
+        QStringLiteral( "invalid_outline" ) );
 
 DRC_ITEM DRC_ITEM::duplicateFootprints( DRCE_DUPLICATE_FOOTPRINT,
         _HKI( "Duplicate footprints" ),
-        wxT( "duplicate_footprints" ) );
+        QStringLiteral( "duplicate_footprints" ) );
 
 DRC_ITEM DRC_ITEM::missingFootprint( DRCE_MISSING_FOOTPRINT,
         _HKI( "Missing footprint" ),
-        wxT( "missing_footprint" ) );
+        QStringLiteral( "missing_footprint" ) );
 
 DRC_ITEM DRC_ITEM::extraFootprint( DRCE_EXTRA_FOOTPRINT,
         _HKI( "Extra footprint" ),
-        wxT( "extra_footprint" ) );
+        QStringLiteral( "extra_footprint" ) );
 
 DRC_ITEM DRC_ITEM::netConflict( DRCE_NET_CONFLICT,
         _HKI( "Pad net doesn't match schematic" ),
-        wxT( "net_conflict" ) );
+        QStringLiteral( "net_conflict" ) );
 
 DRC_ITEM DRC_ITEM::schematicParity( DRCE_SCHEMATIC_PARITY,
         _HKI( "Footprint attributes don't match symbol" ),
-        wxT( "footprint_symbol_mismatch" ) );
+        QStringLiteral( "footprint_symbol_mismatch" ) );
 
 DRC_ITEM DRC_ITEM::footprintFilters( DRCE_FOOTPRINT_FILTERS,
         _HKI( "Footprint doesn't match symbol's footprint filters" ),
-        wxT( "footprint_filters_mismatch" ) );
+        QStringLiteral( "footprint_filters_mismatch" ) );
 
 DRC_ITEM DRC_ITEM::libFootprintIssues( DRCE_LIB_FOOTPRINT_ISSUES,
         _HKI( "Footprint not found in libraries" ),
-        wxT( "lib_footprint_issues" ) );
+        QStringLiteral( "lib_footprint_issues" ) );
 
 DRC_ITEM DRC_ITEM::libFootprintMismatch( DRCE_LIB_FOOTPRINT_MISMATCH,
         _HKI( "Footprint doesn't match copy in library" ),
-        wxT( "lib_footprint_mismatch" ) );
+        QStringLiteral( "lib_footprint_mismatch" ) );
 
 DRC_ITEM DRC_ITEM::unresolvedVariable( DRCE_UNRESOLVED_VARIABLE,
         _HKI( "Unresolved text variable" ),
-        wxT( "unresolved_variable" ) );
+        QStringLiteral( "unresolved_variable" ) );
 
 DRC_ITEM DRC_ITEM::assertionFailure( DRCE_ASSERTION_FAILURE,
         _HKI( "Assertion failure" ),
-        wxT( "assertion_failure" ) );
+        QStringLiteral( "assertion_failure" ) );
 
 DRC_ITEM DRC_ITEM::genericWarning( DRCE_GENERIC_WARNING,
         _HKI( "Warning" ),
-        wxT( "generic_warning" ) );
+        QStringLiteral( "generic_warning" ) );
 
 DRC_ITEM DRC_ITEM::genericError( DRCE_GENERIC_ERROR,
         _HKI( "Error" ),
-        wxT( "generic_error" ) );
+        QStringLiteral( "generic_error" ) );
 
 DRC_ITEM DRC_ITEM::copperSliver( DRCE_COPPER_SLIVER,
         _HKI( "Copper sliver" ),
-        wxT( "copper_sliver" ) );
+        QStringLiteral( "copper_sliver" ) );
 
 DRC_ITEM DRC_ITEM::solderMaskBridge( DRCE_SOLDERMASK_BRIDGE,
         _HKI( "Solder mask aperture bridges items with different nets" ),
-        wxT( "solder_mask_bridge" ) );
+        QStringLiteral( "solder_mask_bridge" ) );
 
 DRC_ITEM DRC_ITEM::silkClearance( DRCE_SILK_CLEARANCE,
         _HKI( "Silkscreen clipped by solder mask" ),
-        wxT( "silk_over_copper" ) );
+        QStringLiteral( "silk_over_copper" ) );
 
 DRC_ITEM DRC_ITEM::silkEdgeClearance( DRCE_SILK_EDGE_CLEARANCE,
         _HKI( "Silkscreen clipped by board edge" ),
-        wxT( "silk_edge_clearance" ) );
+        QStringLiteral( "silk_edge_clearance" ) );
 
 DRC_ITEM DRC_ITEM::silkOverlaps( DRCE_OVERLAPPING_SILK,
         _HKI( "Silkscreen overlap" ),
-        wxT( "silk_overlap" ) );
+        QStringLiteral( "silk_overlap" ) );
 
 DRC_ITEM DRC_ITEM::textHeightOutOfRange( DRCE_TEXT_HEIGHT,
         _HKI( "Text height out of range" ),
-        wxT( "text_height" ) );
+        QStringLiteral( "text_height" ) );
 
 DRC_ITEM DRC_ITEM::textThicknessOutOfRange( DRCE_TEXT_THICKNESS,
         _HKI( "Text thickness out of range" ),
-        wxT( "text_thickness" ) );
+        QStringLiteral( "text_thickness" ) );
 
 DRC_ITEM DRC_ITEM::lengthOutOfRange( DRCE_LENGTH_OUT_OF_RANGE,
         _HKI( "Track length out of range" ),
-        wxT( "length_out_of_range" ) );
+        QStringLiteral( "length_out_of_range" ) );
 
 DRC_ITEM DRC_ITEM::skewOutOfRange( DRCE_SKEW_OUT_OF_RANGE,
         _HKI( "Skew between tracks out of range" ),
-        wxT( "skew_out_of_range" ) );
+        QStringLiteral( "skew_out_of_range" ) );
 
 // Note: this used to only check against a max value, hence the settings key too_many_vias
 DRC_ITEM DRC_ITEM::viaCountOutOfRange( DRCE_VIA_COUNT_OUT_OF_RANGE,
         _HKI( "Too many or too few vias on a connection" ),
-        wxT( "too_many_vias" ) );
+        QStringLiteral( "too_many_vias" ) );
 
 DRC_ITEM DRC_ITEM::diffPairGapOutOfRange( DRCE_DIFF_PAIR_GAP_OUT_OF_RANGE,
         _HKI( "Differential pair gap out of range" ),
-        wxT( "diff_pair_gap_out_of_range" ) );
+        QStringLiteral( "diff_pair_gap_out_of_range" ) );
 
 DRC_ITEM DRC_ITEM::diffPairUncoupledLengthTooLong( DRCE_DIFF_PAIR_UNCOUPLED_LENGTH_TOO_LONG,
         _HKI( "Differential uncoupled length too long" ),
-        wxT( "diff_pair_uncoupled_length_too_long" ) );
+        QStringLiteral( "diff_pair_uncoupled_length_too_long" ) );
 
 DRC_ITEM DRC_ITEM::footprint( DRCE_FOOTPRINT,
         _HKI( "Footprint is not valid" ),
-        wxT( "footprint" ) );
+        QStringLiteral( "footprint" ) );
 
 DRC_ITEM DRC_ITEM::footprintTypeMismatch( DRCE_FOOTPRINT_TYPE_MISMATCH,
         _HKI( "Footprint component type doesn't match footprint pads" ),
-        wxT( "footprint_type_mismatch" ) );
+        QStringLiteral( "footprint_type_mismatch" ) );
 
 DRC_ITEM DRC_ITEM::footprintTHPadhasNoHole( DRCE_PAD_TH_WITH_NO_HOLE,
         _HKI( "Through hole pad has no hole" ),
-        wxT( "through_hole_pad_without_hole" ) );
+        QStringLiteral( "through_hole_pad_without_hole" ) );
 
 DRC_ITEM DRC_ITEM::mirroredTextOnFrontLayer( DRCE_MIRRORED_TEXT_ON_FRONT_LAYER,
         _HKI( "Mirrored text on front layer" ),
-        wxT( "mirrored_text_on_front_layer" ) );
+        QStringLiteral( "mirrored_text_on_front_layer" ) );
 
 DRC_ITEM DRC_ITEM::nonMirroredTextOnBackLayer( DRCE_NONMIRRORED_TEXT_ON_BACK_LAYER,
         _HKI( "Non-Mirrored text on back layer" ),
-        wxT( "nonmirrored_text_on_back_layer" ) );
+        QStringLiteral( "nonmirrored_text_on_back_layer" ) );
 
 std::vector<std::reference_wrapper<RC_ITEM>> DRC_ITEM::allItemTypes(
         {
@@ -445,13 +420,13 @@ std::shared_ptr<DRC_ITEM> DRC_ITEM::Create( int aErrorCode )
     case DRCE_MIRRORED_TEXT_ON_FRONT_LAYER:        return std::make_shared<DRC_ITEM>( mirroredTextOnFrontLayer );
     case DRCE_NONMIRRORED_TEXT_ON_BACK_LAYER:      return std::make_shared<DRC_ITEM>( nonMirroredTextOnBackLayer );
     default:
-        wxFAIL_MSG( wxT( "Unknown DRC error code" ) );
+        Q_ASSERT_X( false, "DRC_ITEM::Create", "Unknown DRC error code" );
         return nullptr;
     }
 }
 
 
-std::shared_ptr<DRC_ITEM> DRC_ITEM::Create( const wxString& aErrorKey )
+std::shared_ptr<DRC_ITEM> DRC_ITEM::Create( const QString& aErrorKey )
 {
     for( const RC_ITEM& item : allItemTypes )
     {
@@ -488,10 +463,10 @@ KIID DRC_ITEM::GetAuxItem3ID() const
 }
 
 
-wxString DRC_ITEM::GetViolatingRuleDesc() const
+QString DRC_ITEM::GetViolatingRuleDesc() const
 {
     if( m_violatingRule )
-        return wxString::Format( _( "Rule: %s" ), m_violatingRule->m_Name );
+        return QString::asprintf( _( "Rule: %s" ), m_violatingRule->m_Name );
     else
         return _( "Local override" );
 }

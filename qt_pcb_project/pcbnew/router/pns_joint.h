@@ -1,29 +1,8 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #ifndef __PNS_JOINT_H
 #define __PNS_JOINT_H
 
 #include <vector>
+#include <QtCore/QDebug>
 
 #include <math/vector2d.h>
 
@@ -33,12 +12,9 @@
 
 namespace PNS {
 
-/**
- * A 2D point on a given set of layers and belonging to a certain net, that links
- * together a number of board items.
- *
- * A hash table of joints is used by the router to follow connectivity between the items.
- */
+// A 2D point on a given set of layers and belonging to a certain net, that links
+// together a number of board items. A hash table of joints is used by the router
+// to follow connectivity between the items.
 class JOINT : public ITEM
 {
 public:
@@ -93,11 +69,7 @@ public:
         return nullptr;
     }
 
-    /**
-     * Checks if a joint connects two segments of the same net, layer, and width.
-     * @param aAllowLockedSegs will consider joints between locked and unlocked segments as trivial
-     * @return true if the joint is a trivial line corner
-     */
+    // Checks if a joint connects two segments of the same net, layer, and width.
     bool IsLineCorner( bool aAllowLockedSegs = false ) const
     {
         if( m_linkedItems.Size() == 2 && m_linkedItems.Count( SEGMENT_T | ARC_T ) == 2 )
@@ -206,7 +178,8 @@ public:
             }
         }
 
-        wxCHECK( seg1 && seg2, false );
+        Q_ASSERT( seg1 && seg2 );
+        if( !seg1 || !seg2 ) return false;
 
         return seg1->Width() != seg2->Width();
     }

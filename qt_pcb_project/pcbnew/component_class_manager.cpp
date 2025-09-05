@@ -1,23 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <utility>
+#include <QString>
 
 #include <component_class_manager.h>
 
@@ -28,7 +11,7 @@ void COMPONENT_CLASS::AddConstituentClass( COMPONENT_CLASS* componentClass )
 }
 
 
-bool COMPONENT_CLASS::ContainsClassName( const wxString& className ) const
+bool COMPONENT_CLASS::ContainsClassName( const QString& className ) const
 {
     if( m_constituentClasses.size() == 0 )
         return false;
@@ -44,32 +27,32 @@ bool COMPONENT_CLASS::ContainsClassName( const wxString& className ) const
 }
 
 
-wxString COMPONENT_CLASS::GetName() const
+QString COMPONENT_CLASS::GetName() const
 {
     if( m_constituentClasses.size() == 0 )
-        return wxT( "<None>" );
+        return QStringLiteral( "<None>" );
 
     if( m_constituentClasses.size() == 1 )
         return m_name;
 
-    wxASSERT( m_constituentClasses.size() >= 2 );
+    Q_ASSERT( m_constituentClasses.size() >= 2 );
 
-    wxString name;
+    QString name;
 
     if( m_constituentClasses.size() == 2 )
     {
-        name.Printf( _( "%s and %s" ), m_constituentClasses[0]->GetName(),
-                     m_constituentClasses[1]->GetName() );
+        name = QString::asprintf( _( "%s and %s" ), m_constituentClasses[0]->GetName().toStdString().c_str(),
+                     m_constituentClasses[1]->GetName().toStdString().c_str() );
     }
     else if( m_constituentClasses.size() == 3 )
     {
-        name.Printf( _( "%s, %s and %s" ), m_constituentClasses[0]->GetName(),
-                     m_constituentClasses[1]->GetName(), m_constituentClasses[2]->GetName() );
+        name = QString::asprintf( _( "%s, %s and %s" ), m_constituentClasses[0]->GetName().toStdString().c_str(),
+                     m_constituentClasses[1]->GetName().toStdString().c_str(), m_constituentClasses[2]->GetName().toStdString().c_str() );
     }
     else if( m_constituentClasses.size() > 3 )
     {
-        name.Printf( _( "%s, %s and %d more" ), m_constituentClasses[0]->GetName(),
-                     m_constituentClasses[1]->GetName(),
+        name = QString::asprintf( _( "%s, %s and %d more" ), m_constituentClasses[0]->GetName().toStdString().c_str(),
+                     m_constituentClasses[1]->GetName().toStdString().c_str(),
                      static_cast<int>( m_constituentClasses.size() - 2 ) );
     }
 
@@ -85,12 +68,12 @@ bool COMPONENT_CLASS::IsEmpty() const
 
 COMPONENT_CLASS_MANAGER::COMPONENT_CLASS_MANAGER()
 {
-    m_noneClass = std::make_unique<COMPONENT_CLASS>( wxEmptyString );
+    m_noneClass = std::make_unique<COMPONENT_CLASS>( QString() );
 }
 
 
 COMPONENT_CLASS* COMPONENT_CLASS_MANAGER::GetEffectiveComponentClass(
-        const std::unordered_set<wxString>& classNames )
+        const std::unordered_set<QString>& classNames )
 {
     if( classNames.size() == 0 )
         return m_noneClass.get();
@@ -98,7 +81,7 @@ COMPONENT_CLASS* COMPONENT_CLASS_MANAGER::GetEffectiveComponentClass(
     // Lambda to handle finding constituent component classes. This first checks the cache,
     // and if found moves the class to the primary classes map. If not found, it either returns
     // an existing class in the primary list or creates a new class.
-    auto getOrCreateClass = [this]( const wxString& className )
+    auto getOrCreateClass = [this]( const QString& className )
     {
         if( m_classesCache.count( className ) )
         {
@@ -121,15 +104,15 @@ COMPONENT_CLASS* COMPONENT_CLASS_MANAGER::GetEffectiveComponentClass(
         return getOrCreateClass( *classNames.begin() );
 
     // Handle composite component classes
-    std::vector<wxString> sortedClassNames( classNames.begin(), classNames.end() );
+    std::vector<QString> sortedClassNames( classNames.begin(), classNames.end() );
 
     std::sort( sortedClassNames.begin(), sortedClassNames.end(),
-               []( const wxString& str1, const wxString& str2 )
+               []( const QString& str1, const QString& str2 )
                {
-                   return str1.Cmp( str2 ) < 0;
+                   return str1.compare( str2 ) < 0;
                } );
 
-    wxString fullName = GetFullClassNameForConstituents( sortedClassNames );
+    QString fullName = GetFullClassNameForConstituents( sortedClassNames );
 
     if( m_effectiveClassesCache.count( fullName ) )
     {
@@ -153,7 +136,7 @@ COMPONENT_CLASS* COMPONENT_CLASS_MANAGER::GetEffectiveComponentClass(
         // The effective class was not previously constructed
         std::unique_ptr<COMPONENT_CLASS> effClass = std::make_unique<COMPONENT_CLASS>( fullName );
 
-        for( const wxString& className : sortedClassNames )
+        for( const QString& className : sortedClassNames )
             effClass->AddConstituentClass( getOrCreateClass( className ) );
 
         m_effectiveClasses[fullName] = std::move( effClass );
@@ -177,28 +160,28 @@ void COMPONENT_CLASS_MANAGER::FinishNetlistUpdate()
 }
 
 
-wxString COMPONENT_CLASS_MANAGER::GetFullClassNameForConstituents(
-        const std::unordered_set<wxString>& classNames )
+QString COMPONENT_CLASS_MANAGER::GetFullClassNameForConstituents(
+        const std::unordered_set<QString>& classNames )
 {
-    std::vector<wxString> sortedClassNames( classNames.begin(), classNames.end() );
+    std::vector<QString> sortedClassNames( classNames.begin(), classNames.end() );
 
     std::sort( sortedClassNames.begin(), sortedClassNames.end(),
-               []( const wxString& str1, const wxString& str2 )
+               []( const QString& str1, const QString& str2 )
                {
-                   return str1.Cmp( str2 ) < 0;
+                   return str1.compare( str2 ) < 0;
                } );
 
     return GetFullClassNameForConstituents( sortedClassNames );
 }
 
 
-wxString
-COMPONENT_CLASS_MANAGER::GetFullClassNameForConstituents( const std::vector<wxString>& classNames )
+QString
+COMPONENT_CLASS_MANAGER::GetFullClassNameForConstituents( const std::vector<QString>& classNames )
 {
     if( classNames.size() == 0 )
-        return wxEmptyString;
+        return QString();
 
-    wxString fullName = classNames[0];
+    QString fullName = classNames[0];
 
     for( std::size_t i = 1; i < classNames.size(); ++i )
     {

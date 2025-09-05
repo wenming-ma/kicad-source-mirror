@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef ZONE_H
 #define ZONE_H
@@ -129,7 +106,7 @@ public:
     bool SameNet( const ZONE* aOther ) const;
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
-    wxString GetFriendlyName() const override;
+    QString GetFriendlyName() const override;
 
     void SetLayerSet( const LSET& aLayerSet ) override;
     virtual LSET GetLayerSet() const override { return m_layerSet; }
@@ -141,8 +118,8 @@ public:
      */
     void SetLayerSetAndRemoveUnusedFills( const LSET& aLayerSet );
 
-    const wxString& GetZoneName() const { return m_zoneName; }
-    void SetZoneName( const wxString& aName ) { m_zoneName = aName; }
+    const QString& GetZoneName() const { return m_zoneName; }
+    void SetZoneName( const QString& aName ) { m_zoneName = aName; }
 
     bool Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const override
     {
@@ -184,7 +161,7 @@ public:
      * @param aSource [out] optionally reports the source as a user-readable string.
      * @return the clearance in internal units.
      */
-    std::optional<int> GetLocalClearance( wxString* aSource ) const override
+    std::optional<int> GetLocalClearance( QString* aSource ) const override
     {
         if( m_isRuleArea )
             return std::optional<int>();
@@ -225,7 +202,7 @@ public:
     }
 
     int GetThermalReliefGap() const { return m_thermalReliefGap; }
-    int GetThermalReliefGap( PAD* aPad, wxString* aSource = nullptr ) const;
+    int GetThermalReliefGap( PAD* aPad, QString* aSource = nullptr ) const;
 
     void SetThermalReliefSpokeWidth( int aThermalReliefSpokeWidth )
     {
@@ -529,9 +506,9 @@ public:
     /**
      * @return the class name.
      */
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "ZONE" );
+        return QStringLiteral( "ZONE" );
     }
 
     /**
@@ -640,13 +617,13 @@ public:
      */
     const std::shared_ptr<SHAPE_POLY_SET>& GetFilledPolysList( PCB_LAYER_ID aLayer ) const
     {
-        wxASSERT( m_FilledPolysList.count( aLayer ) );
+        Q_ASSERT( m_FilledPolysList.count( aLayer ) );
         return m_FilledPolysList.at( aLayer );
     }
 
     SHAPE_POLY_SET* GetFill( PCB_LAYER_ID aLayer )
     {
-        wxASSERT( m_FilledPolysList.count( aLayer ) );
+        Q_ASSERT( m_FilledPolysList.count( aLayer ) );
         return m_FilledPolysList.at( aLayer ).get();
     }
 
@@ -708,7 +685,7 @@ public:
 
     void AddPolygon( const SHAPE_LINE_CHAIN& aPolygon );
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -748,7 +725,7 @@ public:
     {
         return m_ruleAreaPlacementSourceType;
     }
-    wxString GetRuleAreaPlacementSource() const { return m_ruleAreaPlacementSource; }
+    QString GetRuleAreaPlacementSource() const { return m_ruleAreaPlacementSource; }
     bool GetDoNotAllowCopperPour() const { return m_doNotAllowCopperPour; }
     bool GetDoNotAllowVias() const       { return m_doNotAllowVias; }
     bool GetDoNotAllowTracks() const     { return m_doNotAllowTracks; }
@@ -761,7 +738,7 @@ public:
     {
         m_ruleAreaPlacementSourceType = aType;
     }
-    void SetRuleAreaPlacementSource( const wxString& aSource )
+    void SetRuleAreaPlacementSource( const QString& aSource )
     {
         m_ruleAreaPlacementSource = aSource;
     }
@@ -859,7 +836,7 @@ protected:
     unsigned int          m_cornerRadius;
 
     /// An optional unique name for this zone, used for identifying it in DRC checking
-    wxString              m_zoneName;
+    QString              m_zoneName;
 
     LSET                  m_layerSet;
 
@@ -879,7 +856,7 @@ protected:
      */
     bool                            m_ruleAreaPlacementEnabled;
     RULE_AREA_PLACEMENT_SOURCE_TYPE m_ruleAreaPlacementSourceType;
-    wxString                        m_ruleAreaPlacementSource;
+    QString                        m_ruleAreaPlacementSource;
 
     /* A zone outline can be a teardrop zone with different rules for priority
      * (always bigger priority than copper zones) and never removed from a

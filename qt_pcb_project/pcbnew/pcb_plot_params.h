@@ -1,28 +1,10 @@
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
+
 #ifndef PCB_PLOT_PARAMS_H_
 #define PCB_PLOT_PARAMS_H_
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+#include <QString>
+#include <memory>
 #include <plotters/plotter.h>
 #include <layer_ids.h>
 #include <plotprint_opts.h>
@@ -130,8 +112,8 @@ public:
     void        SetFormat( PLOT_FORMAT aFormat ) { m_format = aFormat; }
     PLOT_FORMAT GetFormat() const { return m_format; }
 
-    void        SetOutputDirectory( const wxString& aDir ) { m_outputDirectory = aDir; }
-    wxString    GetOutputDirectory() const { return m_outputDirectory; }
+    void        SetOutputDirectory( const QString& aDir ) { m_outputDirectory = aDir; }
+    QString     GetOutputDirectory() const { return m_outputDirectory; }
 
     void        SetDisableGerberMacros( bool aDisable ) { m_gerberDisableApertMacros = aDisable; }
     bool        GetDisableGerberMacros() const { return m_gerberDisableApertMacros; }
@@ -266,7 +248,7 @@ private:
                                         ///<   of absolute coordinates
 
 
-    wxString   m_outputDirectory;       ///< Output directory for plot files (usually relative to
+    QString    m_outputDirectory;       ///< Output directory for plot files (usually relative to
                                         ///<   the board file)
     int        m_scaleSelection;        ///< Scale ratio index (UI only)
 

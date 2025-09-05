@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2023 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "pcb_actions.h"
 #include "tool/tool_action.h"
@@ -36,6 +12,9 @@
 #include <tools/pcb_selection_tool.h>
 #include <router/pns_router.h>
 #include <router/pns_routing_settings.h>
+
+#include <QString>
+#include <QtCore/Qt>
 
 // Actions, being statically-defined, require specialized I18N handling.  We continue to
 // use the _() macro so that string harvesting by the I18N framework doesn't have to be
@@ -277,7 +256,7 @@ TOOL_ACTION PCB_ACTIONS::drawLeader( TOOL_ACTION_ARGS()
 TOOL_ACTION PCB_ACTIONS::drawZone( TOOL_ACTION_ARGS()
         .Name( "pcbnew.InteractiveDrawing.zone" )
         .Scope( AS_GLOBAL )
-#ifdef __WXOSX_MAC__
+#ifdef Q_OS_MACOS
         .DefaultHotkey( MD_ALT + 'Z' )
 #else
         .DefaultHotkey( MD_CTRL + MD_SHIFT + 'Z' )
@@ -400,7 +379,7 @@ TOOL_ACTION PCB_ACTIONS::magneticSnapToggle( TOOL_ACTION_ARGS()
 TOOL_ACTION PCB_ACTIONS::deleteLastPoint( TOOL_ACTION_ARGS()
         .Name( "pcbnew.InteractiveDrawing.deleteLastPoint" )
         .Scope( AS_CONTEXT )
-        .DefaultHotkey( WXK_BACK )
+        .DefaultHotkey( Qt::Key_Backspace )
         .FriendlyName( _( "Delete Last Point" ) )
         .Tooltip( _( "Delete the last point added to the current item" ) )
         .Icon( BITMAPS::undo ) );
@@ -581,7 +560,7 @@ TOOL_ACTION PCB_ACTIONS::packAndMoveFootprints( TOOL_ACTION_ARGS()
 TOOL_ACTION PCB_ACTIONS::skip( TOOL_ACTION_ARGS()
         .Name( "pcbnew.InteractiveEdit.skip" )
         .Scope( AS_CONTEXT )
-        .DefaultHotkey( WXK_TAB )
+        .DefaultHotkey( Qt::Key_Tab )
         .FriendlyName( _( "Skip" ) )
         .Tooltip( _( "Skip to next item" ) )
         .Icon( BITMAPS::right ) );
@@ -661,7 +640,7 @@ TOOL_ACTION PCB_ACTIONS::intersectPolygons( TOOL_ACTION_ARGS()
 TOOL_ACTION PCB_ACTIONS::deleteFull( TOOL_ACTION_ARGS()
         .Name( "pcbnew.InteractiveEdit.deleteFull" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_SHIFT + static_cast<int>( WXK_DELETE ) )
+        .DefaultHotkey( Qt::SHIFT + static_cast<int>( Qt::Key_Delete ) )
         .LegacyHotkeyName( "Delete Full Track" )
         .FriendlyName( _( "Delete Full Track" ) )
         .Tooltip( _( "Deletes selected item(s) and copper connections" ) )
@@ -978,7 +957,7 @@ TOOL_ACTION PCB_ACTIONS::defaultPadProperties( TOOL_ACTION_ARGS()
 TOOL_ACTION PCB_ACTIONS::pluginsShowFolder( TOOL_ACTION_ARGS()
         .Name( "pcbnew.ScriptingTool.pluginsShowFolder" )
         .Scope( AS_GLOBAL )
-#ifdef __WXMAC__
+#ifdef Q_OS_MACOS
         .FriendlyName( _( "Reveal Plugin Folder in Finder" ) )
         .Tooltip( _( "Reveals the plugins folder in a Finder window" ) )
 #else
@@ -1512,7 +1491,7 @@ TOOL_ACTION PCB_ACTIONS::layerTop( TOOL_ACTION_ARGS()
         .Name( "pcbnew.Control.layerTop" )
         .Scope( AS_GLOBAL )
         .Group( PCB_ACTIONS::layerDirectSwitchActions() )
-        .DefaultHotkey( WXK_PAGEUP )
+        .DefaultHotkey( Qt::Key_PageUp )
         .LegacyHotkeyName( "Switch to Component (F.Cu) layer" )
         .FriendlyName( _( "Switch to Component (F.Cu) layer" ) )
         .Flags( AF_NOTIFY )
@@ -1768,7 +1747,7 @@ TOOL_ACTION PCB_ACTIONS::layerBottom( TOOL_ACTION_ARGS()
         .Name( "pcbnew.Control.layerBottom" )
         .Scope( AS_GLOBAL )
         .Group( PCB_ACTIONS::layerDirectSwitchActions() )
-        .DefaultHotkey( WXK_PAGEDOWN )
+        .DefaultHotkey( Qt::Key_PageDown )
         .LegacyHotkeyName( "Switch to Copper (B.Cu) layer" )
         .FriendlyName( _( "Switch to Copper (B.Cu) Layer" ) )
         .Flags( AF_NOTIFY )
@@ -1970,10 +1949,10 @@ TOOL_ACTION PCB_ACTIONS::distributeVerticallyCenters( TOOL_ACTION_ARGS()
 TOOL_ACTION PCB_ACTIONS::pointEditorAddCorner( TOOL_ACTION_ARGS()
         .Name( "pcbnew.PointEditor.addCorner" )
         .Scope( AS_GLOBAL )
-#ifdef __WXMAC__
-        .DefaultHotkey( WXK_F1 )
+#ifdef Q_OS_MACOS
+        .DefaultHotkey( Qt::Key_F1 )
 #else
-        .DefaultHotkey( WXK_INSERT )
+        .DefaultHotkey( Qt::Key_Insert )
 #endif
         .FriendlyName( _( "Create Corner" ) )
         .Tooltip( _( "Create a corner" ) )
@@ -2363,7 +2342,7 @@ TOOL_ACTION PCB_ACTIONS::routerInlineDrag( TOOL_ACTION_ARGS()
 TOOL_ACTION PCB_ACTIONS::routerUndoLastSegment( TOOL_ACTION_ARGS()
         .Name( "pcbnew.InteractiveRouter.UndoLastSegment" )
         .Scope( AS_CONTEXT )
-        .DefaultHotkey( WXK_BACK )
+        .DefaultHotkey( Qt::Key_Backspace )
         .FriendlyName( _( "Undo Last Segment" ) )
         .Tooltip( _( "Walks the current track back one segment." ) ) );
 
@@ -2444,7 +2423,7 @@ TOOL_ACTION PCB_ACTIONS::regenerateAllTuning( TOOL_ACTION_ARGS()
         .FriendlyName( _( "Update All Tuning Patterns" ) )
         .Tooltip( _( "Attempt to re-tune existing tuning patterns within their bounds" ) )
         .Icon( BITMAPS::router_len_tuner )
-        .Parameter( wxString( wxS( "tuning_pattern" ) ) ) );
+        .Parameter( QString( "tuning_pattern" ) ) );
 
 TOOL_ACTION PCB_ACTIONS::regenerateAll( TOOL_ACTION_ARGS()
         .Name( "pcbnew.Generator.regenerateAll" )
@@ -2452,7 +2431,7 @@ TOOL_ACTION PCB_ACTIONS::regenerateAll( TOOL_ACTION_ARGS()
         .FriendlyName( _( "Rebuild All Generators" ) )
         .Tooltip( _( "Rebuilds geometry of all generators" ) )
         .Icon( BITMAPS::refresh )
-        .Parameter( wxString( wxS( "*" ) ) ) );
+        .Parameter( QString( "*" ) ) );
 
 TOOL_ACTION PCB_ACTIONS::regenerateSelected( TOOL_ACTION_ARGS()
         .Name( "pcbnew.Generator.regenerateSelected" )

@@ -1,28 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2024 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <import_export.h>
 #include <api/api_enums.h>
-// #include <api/board/board_types.pb.h>
-// #include <api/board/board_commands.pb.h>
-#include <wx/wx.h>
+#include <QtCore/QtCore>
 
 #include <board_stackup_manager/board_stackup.h>
 #include <padstack.h>
@@ -31,10 +10,6 @@
 #include <zones.h>
 #include <zone_settings.h>
 #include <project/board_project_settings.h>
-
-// Adding something new here?  Add it to test_api_enums.cpp!
-
-// using namespace kiapi::board;
 
 /*
 // All API enum conversion functions commented out - protobuf functionality disabled
@@ -49,8 +24,8 @@ types::PadType ToProtoEnum( PAD_ATTRIB aValue )
     case PAD_ATTRIB::NPTH:  return types::PadType::PT_NPTH;
 
     default:
-        wxCHECK_MSG( false, types::PadType::PT_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<PAD_ATTRIB>");
+        Q_ASSERT(false);
+        return types::PadType::PT_UNKNOWN;
     }
 }
 
@@ -67,8 +42,8 @@ PAD_ATTRIB FromProtoEnum( types::PadType aValue )
     case types::PadType::PT_NPTH:           return PAD_ATTRIB::NPTH;
 
     default:
-        wxCHECK_MSG( false,  PAD_ATTRIB::PTH,
-                     "Unhandled case in FromProtoEnum<types::PadType>" );
+        Q_ASSERT(false);
+        return PAD_ATTRIB::PTH;
     }
 }
 
@@ -81,8 +56,8 @@ types::DrillShape ToProtoEnum( PAD_DRILL_SHAPE aValue )
     case PAD_DRILL_SHAPE::OBLONG:    return types::DrillShape::DS_OBLONG;
     case PAD_DRILL_SHAPE::UNDEFINED: return types::DrillShape::DS_UNDEFINED;
     default:
-        wxCHECK_MSG( false, types::DrillShape::DS_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<PAD_DRILL_SHAPE>");
+        Q_ASSERT_X( false, "ToProtoEnum<PAD_DRILL_SHAPE>", "Unhandled case in ToProtoEnum<PAD_DRILL_SHAPE>");
+        return types::DrillShape::DS_UNKNOWN;
     }
 }
 
@@ -96,8 +71,8 @@ PAD_DRILL_SHAPE FromProtoEnum( types::DrillShape aValue )
     case types::DrillShape::DS_UNKNOWN:
     case types::DrillShape::DS_UNDEFINED:   return PAD_DRILL_SHAPE::UNDEFINED;
     default:
-        wxCHECK_MSG( false, PAD_DRILL_SHAPE::UNDEFINED,
-                     "Unhandled case in FromProtoEnum<types::DrillShape>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::DrillShape>", "Unhandled case in FromProtoEnum<types::DrillShape>" );
+        return PAD_DRILL_SHAPE::UNDEFINED;
     }
 }
 
@@ -115,8 +90,8 @@ types::PadStackShape ToProtoEnum( PAD_SHAPE aValue )
     case PAD_SHAPE::CUSTOM:         return types::PadStackShape::PSS_CUSTOM;
 
     default:
-        wxCHECK_MSG( false, types::PadStackShape::PSS_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<PAD_SHAPE>");
+        Q_ASSERT_X( false, "ToProtoEnum<PAD_SHAPE>", "Unhandled case in ToProtoEnum<PAD_SHAPE>");
+        return types::PadStackShape::PSS_UNKNOWN;
     }
 }
 
@@ -136,8 +111,8 @@ PAD_SHAPE FromProtoEnum( types::PadStackShape aValue )
     case types::PadStackShape::PSS_CUSTOM:         return PAD_SHAPE::CUSTOM;
 
     default:
-        wxCHECK_MSG( false, PAD_SHAPE::CIRCLE,
-                     "Unhandled case in FromProtoEnum<types::PadStackShape>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::PadStackShape>", "Unhandled case in FromProtoEnum<types::PadStackShape>" );
+        return PAD_SHAPE::CIRCLE;
     }
 }
 
@@ -152,8 +127,8 @@ types::PadStackType ToProtoEnum( PADSTACK::MODE aValue )
     case PADSTACK::MODE::CUSTOM:           return types::PadStackType::PST_CUSTOM;
 
     default:
-        wxCHECK_MSG( false, types::PadStackType::PST_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<PADSTACK::MODE>");
+        Q_ASSERT_X( false, "ToProtoEnum<PADSTACK::MODE>", "Unhandled case in ToProtoEnum<PADSTACK::MODE>");
+        return types::PadStackType::PST_UNKNOWN;
     }
 }
 
@@ -169,8 +144,8 @@ PADSTACK::MODE FromProtoEnum( types::PadStackType aValue )
     case types::PadStackType::PST_CUSTOM:           return PADSTACK::MODE::CUSTOM;
 
     default:
-        wxCHECK_MSG( false, PADSTACK::MODE::NORMAL,
-                     "Unhandled case in FromProtoEnum<types::PadStackType>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::PadStackType>", "Unhandled case in FromProtoEnum<types::PadStackType>" );
+        return PADSTACK::MODE::NORMAL;
     }
 }
 
@@ -185,8 +160,8 @@ types::ViaType ToProtoEnum( VIATYPE aValue )
     case VIATYPE::MICROVIA:     return types::ViaType::VT_MICRO;
 
     default:
-        wxCHECK_MSG( false, types::ViaType::VT_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<VIATYPE>");
+        Q_ASSERT_X( false, "ToProtoEnum<VIATYPE>", "Unhandled case in ToProtoEnum<VIATYPE>");
+        return types::ViaType::VT_UNKNOWN;
     }
 }
 
@@ -202,8 +177,8 @@ VIATYPE FromProtoEnum( types::ViaType aValue )
     case types::ViaType::VT_MICRO:        return VIATYPE::MICROVIA;
 
     default:
-        wxCHECK_MSG( false, VIATYPE::THROUGH,
-                     "Unhandled case in FromProtoEnum<types::ViaType>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::ViaType>", "Unhandled case in FromProtoEnum<types::ViaType>" );
+        return VIATYPE::THROUGH;
     }
 }
 
@@ -220,8 +195,8 @@ types::ZoneConnectionStyle ToProtoEnum( ZONE_CONNECTION aValue )
     case ZONE_CONNECTION::THT_THERMAL:  return types::ZoneConnectionStyle::ZCS_PTH_THERMAL;
 
     default:
-        wxCHECK_MSG( false, types::ZoneConnectionStyle::ZCS_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<ZONE_CONNECTION>");
+        Q_ASSERT_X( false, "ToProtoEnum<ZONE_CONNECTION>", "Unhandled case in ToProtoEnum<ZONE_CONNECTION>");
+        return types::ZoneConnectionStyle::ZCS_UNKNOWN;
     }
 }
 
@@ -239,8 +214,8 @@ ZONE_CONNECTION FromProtoEnum( types::ZoneConnectionStyle aValue )
     case types::ZoneConnectionStyle::ZCS_PTH_THERMAL:  return ZONE_CONNECTION::THT_THERMAL;
 
     default:
-        wxCHECK_MSG( false, ZONE_CONNECTION::INHERITED,
-                     "Unhandled case in FromProtoEnum<types::ZoneConnectionStyle>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::ZoneConnectionStyle>", "Unhandled case in FromProtoEnum<types::ZoneConnectionStyle>" );
+        return ZONE_CONNECTION::INHERITED;
     }
 }
 
@@ -260,8 +235,8 @@ types::UnconnectedLayerRemoval ToProtoEnum( PADSTACK::UNCONNECTED_LAYER_MODE aVa
         return types::UnconnectedLayerRemoval::ULR_REMOVE_EXCEPT_START_AND_END;
 
     default:
-        wxCHECK_MSG( false, types::UnconnectedLayerRemoval::ULR_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<PADSTACK::UNCONNECTED_LAYER_MODE>");
+        Q_ASSERT_X( false, "ToProtoEnum<PADSTACK::UNCONNECTED_LAYER_MODE>", "Unhandled case in ToProtoEnum<PADSTACK::UNCONNECTED_LAYER_MODE>");
+        return types::UnconnectedLayerRemoval::ULR_UNKNOWN;
     }
 }
 
@@ -282,8 +257,8 @@ PADSTACK::UNCONNECTED_LAYER_MODE FromProtoEnum( types::UnconnectedLayerRemoval a
         return PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END;
 
     default:
-        wxCHECK_MSG( false, PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL,
-                     "Unhandled case in FromProtoEnum<types::UnconnectedLayerRemoval>");
+        Q_ASSERT_X( false, "FromProtoEnum<types::UnconnectedLayerRemoval>", "Unhandled case in FromProtoEnum<types::UnconnectedLayerRemoval>");
+        return PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL;
     }
 }
 
@@ -298,8 +273,8 @@ types::IslandRemovalMode ToProtoEnum( ISLAND_REMOVAL_MODE aValue )
     case ISLAND_REMOVAL_MODE::AREA:     return types::IslandRemovalMode::IRM_AREA;
 
     default:
-        wxCHECK_MSG( false, types::IslandRemovalMode::IRM_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<ISLAND_REMOVAL_MODE>");
+        Q_ASSERT_X( false, "ToProtoEnum<ISLAND_REMOVAL_MODE>", "Unhandled case in ToProtoEnum<ISLAND_REMOVAL_MODE>");
+        return types::IslandRemovalMode::IRM_UNKNOWN;
     }
 }
 
@@ -315,8 +290,8 @@ ISLAND_REMOVAL_MODE FromProtoEnum( types::IslandRemovalMode aValue )
     case types::IslandRemovalMode::IRM_AREA:    return ISLAND_REMOVAL_MODE::AREA;
 
     default:
-        wxCHECK_MSG( false, ISLAND_REMOVAL_MODE::ALWAYS,
-                     "Unhandled case in FromProtoEnum<types::IslandRemovalMode>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::IslandRemovalMode>", "Unhandled case in FromProtoEnum<types::IslandRemovalMode>" );
+        return ISLAND_REMOVAL_MODE::ALWAYS;
     }
 }
 
@@ -330,8 +305,8 @@ types::ZoneFillMode ToProtoEnum( ZONE_FILL_MODE aValue )
     case ZONE_FILL_MODE::HATCH_PATTERN: return types::ZoneFillMode::ZFM_HATCHED;
 
     default:
-        wxCHECK_MSG( false, types::ZoneFillMode::ZFM_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<ZONE_FILL_MODE>");
+        Q_ASSERT_X( false, "ToProtoEnum<ZONE_FILL_MODE>", "Unhandled case in ToProtoEnum<ZONE_FILL_MODE>");
+        return types::ZoneFillMode::ZFM_UNKNOWN;
     }
 }
 
@@ -346,8 +321,8 @@ ZONE_FILL_MODE FromProtoEnum( types::ZoneFillMode aValue )
     case types::ZoneFillMode::ZFM_HATCHED:  return ZONE_FILL_MODE::HATCH_PATTERN;
 
     default:
-        wxCHECK_MSG( false, ZONE_FILL_MODE::POLYGONS,
-                     "Unhandled case in FromProtoEnum<types::ZoneFillMode>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::ZoneFillMode>", "Unhandled case in FromProtoEnum<types::ZoneFillMode>" );
+        return ZONE_FILL_MODE::POLYGONS;
     }
 }
 
@@ -363,8 +338,8 @@ types::ZoneBorderStyle ToProtoEnum( ZONE_BORDER_DISPLAY_STYLE aValue )
     case ZONE_BORDER_DISPLAY_STYLE::INVISIBLE_BORDER: return types::ZoneBorderStyle::ZBS_INVISIBLE;
 
     default:
-        wxCHECK_MSG( false, types::ZoneBorderStyle::ZBS_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<ZONE_BORDER_DISPLAY_STYLE>");
+        Q_ASSERT_X( false, "ToProtoEnum<ZONE_BORDER_DISPLAY_STYLE>", "Unhandled case in ToProtoEnum<ZONE_BORDER_DISPLAY_STYLE>");
+        return types::ZoneBorderStyle::ZBS_UNKNOWN;
     }
 }
 
@@ -381,8 +356,8 @@ ZONE_BORDER_DISPLAY_STYLE FromProtoEnum( types::ZoneBorderStyle aValue )
     case types::ZoneBorderStyle::ZBS_INVISIBLE:     return ZONE_BORDER_DISPLAY_STYLE::INVISIBLE_BORDER;
 
     default:
-        wxCHECK_MSG( false, ZONE_BORDER_DISPLAY_STYLE::DIAGONAL_EDGE,
-                     "Unhandled case in FromProtoEnum<types::ZoneHatchBorderMode>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::ZoneHatchBorderMode>", "Unhandled case in FromProtoEnum<types::ZoneHatchBorderMode>" );
+        return ZONE_BORDER_DISPLAY_STYLE::DIAGONAL_EDGE;
     }
 }
 
@@ -399,8 +374,8 @@ types::PlacementRuleSourceType ToProtoEnum( RULE_AREA_PLACEMENT_SOURCE_TYPE aVal
         return types::PlacementRuleSourceType::PRST_COMPONENT_CLASS;
 
     default:
-        wxCHECK_MSG( false, types::PlacementRuleSourceType::PRST_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<RULE_AREA_PLACEMENT_SOURCE_TYPE>");
+        Q_ASSERT_X( false, "ToProtoEnum<RULE_AREA_PLACEMENT_SOURCE_TYPE>", "Unhandled case in ToProtoEnum<RULE_AREA_PLACEMENT_SOURCE_TYPE>");
+        return types::PlacementRuleSourceType::PRST_UNKNOWN;
     }
 }
 
@@ -418,8 +393,8 @@ RULE_AREA_PLACEMENT_SOURCE_TYPE FromProtoEnum( types::PlacementRuleSourceType aV
         return RULE_AREA_PLACEMENT_SOURCE_TYPE::COMPONENT_CLASS;
 
     default:
-        wxCHECK_MSG( false, RULE_AREA_PLACEMENT_SOURCE_TYPE::SHEETNAME,
-                     "Unhandled case in FromProtoEnum<types::PlacementRuleSourceType>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::PlacementRuleSourceType>", "Unhandled case in FromProtoEnum<types::PlacementRuleSourceType>" );
+        return RULE_AREA_PLACEMENT_SOURCE_TYPE::SHEETNAME;
     }
 }
 
@@ -435,8 +410,8 @@ types::TeardropType ToProtoEnum( TEARDROP_TYPE aValue )
     case TEARDROP_TYPE::TD_TRACKEND:    return types::TeardropType::TDT_TRACK_END;
 
     default:
-        wxCHECK_MSG( false, types::TeardropType::TDT_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<TEARDROP_TYPE>");
+        Q_ASSERT_X( false, "ToProtoEnum<TEARDROP_TYPE>", "Unhandled case in ToProtoEnum<TEARDROP_TYPE>");
+        return types::TeardropType::TDT_UNKNOWN;
     }
 }
 
@@ -453,8 +428,8 @@ TEARDROP_TYPE FromProtoEnum( types::TeardropType aValue )
     case types::TeardropType::TDT_TRACK_END:    return TEARDROP_TYPE::TD_TRACKEND;
 
     default:
-        wxCHECK_MSG( false, TEARDROP_TYPE::TD_NONE,
-                     "Unhandled case in FromProtoEnum<types::ZoneHatchBorderMode>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::ZoneHatchBorderMode>", "Unhandled case in FromProtoEnum<types::ZoneHatchBorderMode>" );
+        return TEARDROP_TYPE::TD_NONE;
     }
 }
 
@@ -470,8 +445,8 @@ types::DimensionTextBorderStyle ToProtoEnum( DIM_TEXT_BORDER aValue )
     case DIM_TEXT_BORDER::ROUNDRECT:    return types::DimensionTextBorderStyle::DTBS_ROUNDRECT;
 
     default:
-        wxCHECK_MSG( false, types::DimensionTextBorderStyle::DTBS_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<DIM_TEXT_BORDER>");
+        Q_ASSERT_X( false, "ToProtoEnum<DIM_TEXT_BORDER>", "Unhandled case in ToProtoEnum<DIM_TEXT_BORDER>");
+        return types::DimensionTextBorderStyle::DTBS_UNKNOWN;
     }
 }
 
@@ -488,8 +463,8 @@ DIM_TEXT_BORDER FromProtoEnum( types::DimensionTextBorderStyle aValue )
     case types::DimensionTextBorderStyle::DTBS_ROUNDRECT:   return DIM_TEXT_BORDER::ROUNDRECT;
 
     default:
-        wxCHECK_MSG( false,  DIM_TEXT_BORDER::NONE,
-                     "Unhandled case in FromProtoEnum<types::DimensionTextBorderStyle>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::DimensionTextBorderStyle>", "Unhandled case in FromProtoEnum<types::DimensionTextBorderStyle>" );
+        return DIM_TEXT_BORDER::NONE;
     }
 }
 
@@ -504,8 +479,8 @@ types::DimensionUnitFormat ToProtoEnum( DIM_UNITS_FORMAT aValue )
     case DIM_UNITS_FORMAT::PAREN_SUFFIX:    return types::DimensionUnitFormat::DUF_PAREN_SUFFIX;
 
     default:
-        wxCHECK_MSG( false, types::DimensionUnitFormat::DUF_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<DIM_UNITS_FORMAT>");
+        Q_ASSERT_X( false, "ToProtoEnum<DIM_UNITS_FORMAT>", "Unhandled case in ToProtoEnum<DIM_UNITS_FORMAT>");
+        return types::DimensionUnitFormat::DUF_UNKNOWN;
     }
 }
 
@@ -521,8 +496,8 @@ DIM_UNITS_FORMAT FromProtoEnum( types::DimensionUnitFormat aValue )
     case types::DimensionUnitFormat::DUF_PAREN_SUFFIX:  return DIM_UNITS_FORMAT::PAREN_SUFFIX;
 
     default:
-        wxCHECK_MSG( false,  DIM_UNITS_FORMAT::NO_SUFFIX,
-                     "Unhandled case in FromProtoEnum<types::DimensionUnitFormat>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::DimensionUnitFormat>", "Unhandled case in FromProtoEnum<types::DimensionUnitFormat>" );
+        return DIM_UNITS_FORMAT::NO_SUFFIX;
     }
 }
 
@@ -536,8 +511,8 @@ types::DimensionArrowDirection ToProtoEnum( DIM_ARROW_DIRECTION aValue )
     case DIM_ARROW_DIRECTION::OUTWARD:  return types::DimensionArrowDirection::DAD_OUTWARD;
 
     default:
-        wxCHECK_MSG( false, types::DimensionArrowDirection::DAD_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<DIM_ARROW_DIRECTION>");
+        Q_ASSERT_X( false, "ToProtoEnum<DIM_ARROW_DIRECTION>", "Unhandled case in ToProtoEnum<DIM_ARROW_DIRECTION>");
+        return types::DimensionArrowDirection::DAD_UNKNOWN;
     }
 }
 
@@ -552,8 +527,8 @@ DIM_ARROW_DIRECTION FromProtoEnum( types::DimensionArrowDirection aValue )
     case types::DimensionArrowDirection::DAD_OUTWARD:   return DIM_ARROW_DIRECTION::OUTWARD;
 
     default:
-        wxCHECK_MSG( false,  DIM_ARROW_DIRECTION::OUTWARD,
-                     "Unhandled case in FromProtoEnum<types::DimensionArrowDirection>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::DimensionArrowDirection>", "Unhandled case in FromProtoEnum<types::DimensionArrowDirection>" );
+        return DIM_ARROW_DIRECTION::OUTWARD;
     }
 }
 
@@ -575,8 +550,8 @@ types::DimensionPrecision ToProtoEnum( DIM_PRECISION aValue )
     case DIM_PRECISION::V_VVVVV:    return types::DimensionPrecision::DP_SCALED_IN_5;
 
     default:
-        wxCHECK_MSG( false, types::DimensionPrecision::DP_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<DIM_PRECISION>");
+        Q_ASSERT_X( false, "ToProtoEnum<DIM_PRECISION>", "Unhandled case in ToProtoEnum<DIM_PRECISION>");
+        return types::DimensionPrecision::DP_UNKNOWN;
     }
 }
 
@@ -599,8 +574,8 @@ DIM_PRECISION FromProtoEnum( types::DimensionPrecision aValue )
     case types::DimensionPrecision::DP_SCALED_IN_5: return DIM_PRECISION::V_VVVVV;
 
     default:
-        wxCHECK_MSG( false,  DIM_PRECISION::V_VV,
-                     "Unhandled case in FromProtoEnum<types::DimensionPrecision>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::DimensionPrecision>", "Unhandled case in FromProtoEnum<types::DimensionPrecision>" );
+        return DIM_PRECISION::V_VV;
     }
 }
 
@@ -615,8 +590,8 @@ types::DimensionTextPosition ToProtoEnum( DIM_TEXT_POSITION aValue )
     case DIM_TEXT_POSITION::MANUAL:     return types::DimensionTextPosition::DTP_MANUAL;
 
     default:
-        wxCHECK_MSG( false, types::DimensionTextPosition::DTP_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<DIM_TEXT_POSITION>");
+        Q_ASSERT_X( false, "ToProtoEnum<DIM_TEXT_POSITION>", "Unhandled case in ToProtoEnum<DIM_TEXT_POSITION>");
+        return types::DimensionTextPosition::DTP_UNKNOWN;
     }
 }
 
@@ -632,8 +607,8 @@ DIM_TEXT_POSITION FromProtoEnum( types::DimensionTextPosition aValue )
     case types::DimensionTextPosition::DTP_MANUAL:  return DIM_TEXT_POSITION::MANUAL;
 
     default:
-        wxCHECK_MSG( false,  DIM_TEXT_POSITION::OUTSIDE,
-                     "Unhandled case in FromProtoEnum<types::DimensionTextPosition>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::DimensionTextPosition>", "Unhandled case in FromProtoEnum<types::DimensionTextPosition>" );
+        return DIM_TEXT_POSITION::OUTSIDE;
     }
 }
 
@@ -649,8 +624,8 @@ types::DimensionUnit ToProtoEnum( DIM_UNITS_MODE aValue )
     case DIM_UNITS_MODE::AUTOMATIC: return types::DimensionUnit::DU_AUTOMATIC;
 
     default:
-        wxCHECK_MSG( false, types::DimensionUnit::DU_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<DIM_UNITS_MODE>");
+        Q_ASSERT_X( false, "ToProtoEnum<DIM_UNITS_MODE>", "Unhandled case in ToProtoEnum<DIM_UNITS_MODE>");
+        return types::DimensionUnit::DU_UNKNOWN;
     }
 }
 
@@ -667,8 +642,8 @@ DIM_UNITS_MODE FromProtoEnum( types::DimensionUnit aValue )
     case types::DimensionUnit::DU_AUTOMATIC:    return DIM_UNITS_MODE::AUTOMATIC;
 
     default:
-        wxCHECK_MSG( false,  DIM_UNITS_MODE::AUTOMATIC,
-                     "Unhandled case in FromProtoEnum<types::DimensionUnit>" );
+        Q_ASSERT_X( false, "FromProtoEnum<types::DimensionUnit>", "Unhandled case in FromProtoEnum<types::DimensionUnit>" );
+        return DIM_UNITS_MODE::AUTOMATIC;
     }
 }
 
@@ -683,8 +658,8 @@ commands::InactiveLayerDisplayMode ToProtoEnum( HIGH_CONTRAST_MODE aValue )
     case HIGH_CONTRAST_MODE::HIDDEN:    return commands::InactiveLayerDisplayMode::ILDM_HIDDEN;
 
     default:
-        wxCHECK_MSG( false, commands::InactiveLayerDisplayMode::ILDM_NORMAL,
-                     "Unhandled case in ToProtoEnum<HIGH_CONTRAST_MODE>");
+        Q_ASSERT_X( false, "ToProtoEnum<HIGH_CONTRAST_MODE>", "Unhandled case in ToProtoEnum<HIGH_CONTRAST_MODE>");
+        return commands::InactiveLayerDisplayMode::ILDM_NORMAL;
     }
 }
 
@@ -700,8 +675,8 @@ HIGH_CONTRAST_MODE FromProtoEnum( commands::InactiveLayerDisplayMode aValue )
     case commands::InactiveLayerDisplayMode::ILDM_NORMAL:   return HIGH_CONTRAST_MODE::NORMAL;
 
     default:
-        wxCHECK_MSG( false, HIGH_CONTRAST_MODE::NORMAL,
-                     "Unhandled case in FromProtoEnum<commands::InactiveLayerDisplayMode>" );
+        Q_ASSERT_X( false, "FromProtoEnum<commands::InactiveLayerDisplayMode>", "Unhandled case in FromProtoEnum<commands::InactiveLayerDisplayMode>" );
+        return HIGH_CONTRAST_MODE::NORMAL;
     }
 }
 
@@ -716,8 +691,8 @@ commands::NetColorDisplayMode ToProtoEnum( NET_COLOR_MODE aValue )
     case NET_COLOR_MODE::OFF:       return commands::NetColorDisplayMode::NCDM_OFF;
 
     default:
-        wxCHECK_MSG( false, commands::NetColorDisplayMode::NCDM_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<NET_COLOR_MODE>");
+        Q_ASSERT_X( false, "ToProtoEnum<NET_COLOR_MODE>", "Unhandled case in ToProtoEnum<NET_COLOR_MODE>");
+        return commands::NetColorDisplayMode::NCDM_UNKNOWN;
     }
 }
 
@@ -733,8 +708,8 @@ NET_COLOR_MODE FromProtoEnum( commands::NetColorDisplayMode aValue )
     case commands::NetColorDisplayMode::NCDM_RATSNEST:  return NET_COLOR_MODE::RATSNEST;
 
     default:
-        wxCHECK_MSG( false, NET_COLOR_MODE::RATSNEST,
-                     "Unhandled case in FromProtoEnum<commands::NetColorDisplayMode>" );
+        Q_ASSERT_X( false, "FromProtoEnum<commands::NetColorDisplayMode>", "Unhandled case in FromProtoEnum<commands::NetColorDisplayMode>" );
+        return NET_COLOR_MODE::RATSNEST;
     }
 }
 
@@ -748,8 +723,8 @@ commands::RatsnestDisplayMode ToProtoEnum( RATSNEST_MODE aValue )
     case RATSNEST_MODE::VISIBLE:    return commands::RatsnestDisplayMode::RDM_VISIBLE_LAYERS;
 
     default:
-        wxCHECK_MSG( false, commands::RatsnestDisplayMode::RDM_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<RATSNEST_MODE>");
+        Q_ASSERT_X( false, "ToProtoEnum<RATSNEST_MODE>", "Unhandled case in ToProtoEnum<RATSNEST_MODE>");
+        return commands::RatsnestDisplayMode::RDM_UNKNOWN;
     }
 }
 
@@ -764,8 +739,8 @@ RATSNEST_MODE FromProtoEnum( commands::RatsnestDisplayMode aValue )
     case commands::RatsnestDisplayMode::RDM_ALL_LAYERS:     return RATSNEST_MODE::ALL;
 
     default:
-        wxCHECK_MSG( false, RATSNEST_MODE::ALL,
-                     "Unhandled case in FromProtoEnum<commands::RatsnestDisplayMode>" );
+        Q_ASSERT_X( false, "FromProtoEnum<commands::RatsnestDisplayMode>", "Unhandled case in FromProtoEnum<commands::RatsnestDisplayMode>" );
+        return RATSNEST_MODE::ALL;
     }
 }
 
@@ -783,8 +758,8 @@ BoardStackupLayerType ToProtoEnum( BOARD_STACKUP_ITEM_TYPE aValue )
     case BS_ITEM_TYPE_SILKSCREEN:   return BoardStackupLayerType::BSLT_SILKSCREEN;
 
     default:
-        wxCHECK_MSG( false, BoardStackupLayerType::BSLT_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<BOARD_STACKUP_ITEM_TYPE>");
+        Q_ASSERT_X( false, "ToProtoEnum<BOARD_STACKUP_ITEM_TYPE>", "Unhandled case in ToProtoEnum<BOARD_STACKUP_ITEM_TYPE>");
+        return BoardStackupLayerType::BSLT_UNKNOWN;
     }
 }
 
@@ -802,8 +777,8 @@ BOARD_STACKUP_ITEM_TYPE FromProtoEnum( BoardStackupLayerType aValue )
     case BoardStackupLayerType::BSLT_SILKSCREEN:   return BS_ITEM_TYPE_SILKSCREEN;
 
     default:
-        wxCHECK_MSG( false, BS_ITEM_TYPE_UNDEFINED,
-                     "Unhandled case in FromProtoEnum<BoardStackupLayerType>" );
+        Q_ASSERT_X( false, "FromProtoEnum<BoardStackupLayerType>", "Unhandled case in FromProtoEnum<BoardStackupLayerType>" );
+        return BS_ITEM_TYPE_UNDEFINED;
     }
 }
 

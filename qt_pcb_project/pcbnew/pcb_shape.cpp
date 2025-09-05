@@ -1,30 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "pcb_shape.h"
+
+#include <QtCore/QDebug>
+#include <QtCore/QString>
 
 // #include <google/protobuf/any.pb.h> // DISABLED FOR MINIMAL BUILD
 #include <magic_enum.hpp>
@@ -71,7 +49,7 @@ PCB_SHAPE::~PCB_SHAPE()
 
 void PCB_SHAPE::CopyFrom( const BOARD_ITEM* aOther )
 {
-    wxCHECK( aOther && aOther->Type() == PCB_SHAPE_T, /* void */ );
+    Q_ASSERT( aOther && aOther->Type() == PCB_SHAPE_T );
     *this = *static_cast<const PCB_SHAPE*>( aOther );
 }
 
@@ -623,7 +601,7 @@ void PCB_SHAPE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
 }
 
 
-wxString PCB_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PCB_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     FOOTPRINT* parentFP = GetParentFootprint();
 
@@ -635,7 +613,7 @@ wxString PCB_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFu
     {
         if( parentFP )
         {
-            return wxString::Format( _( "%s %s of %s on %s" ),
+            return QString::asprintf( _( "%s %s of %s on %s" ),
                                      GetFriendlyName(),
                                      GetNetnameMsg(),
                                      parentFP->GetReference(),
@@ -643,7 +621,7 @@ wxString PCB_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFu
         }
         else
         {
-            return wxString::Format( _( "%s %s on %s" ),
+            return QString::asprintf( _( "%s %s on %s" ),
                                      GetFriendlyName(),
                                      GetNetnameMsg(),
                                      GetLayerName() );
@@ -653,14 +631,14 @@ wxString PCB_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFu
     {
         if( parentFP )
         {
-            return wxString::Format( _( "%s of %s on %s" ),
+            return QString::asprintf( _( "%s of %s on %s" ),
                                      GetFriendlyName(),
                                      parentFP->GetReference(),
                                      GetLayerName() );
         }
         else
         {
-            return wxString::Format( _( "%s on %s" ),
+            return QString::asprintf( _( "%s on %s" ),
                                      GetFriendlyName(),
                                      GetLayerName() );
         }
@@ -712,7 +690,7 @@ int PCB_SHAPE::getMaxError() const
 void PCB_SHAPE::swapData( BOARD_ITEM* aImage )
 {
     PCB_SHAPE* image = dynamic_cast<PCB_SHAPE*>( aImage );
-    wxCHECK( image, /* void */ );
+    Q_ASSERT( image );
 
     SwapShape( image );
 
@@ -947,7 +925,7 @@ static struct PCB_SHAPE_DESC
                     return false;
                 };
 
-        const wxString groupPadPrimitives = _HKI( "Pad Primitives" );
+        const QString groupPadPrimitives = _HKI( "Pad Primitives" );
 
         propMgr.AddProperty( new PROPERTY<PCB_SHAPE, bool>( _HKI( "Number Box" ),
                                                             &PCB_SHAPE::SetIsProxyItem,
@@ -963,7 +941,7 @@ static struct PCB_SHAPE_DESC
                 .SetAvailableFunc( showSpokeTemplateProperty )
                 .SetIsHiddenFromRulesEditor();
 
-        const wxString groupTechLayers = _HKI( "Technical Layers" );
+        const QString groupTechLayers = _HKI( "Technical Layers" );
 
         auto isExternalCuLayer =
                 []( INSPECTABLE* aItem )

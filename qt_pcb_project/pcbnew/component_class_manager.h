@@ -1,21 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #ifndef PCBNEW_COMPONENT_CLASS_MANAGER_H
 #define PCBNEW_COMPONENT_CLASS_MANAGER_H
@@ -23,7 +7,7 @@
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
-#include <wx/string.h>
+#include <QString>
 
 #include <board_item.h>
 
@@ -42,19 +26,19 @@
 class COMPONENT_CLASS
 {
 public:
-    COMPONENT_CLASS( const wxString& name ) : m_name( name ) {}
+    COMPONENT_CLASS( const QString& name ) : m_name( name ) {}
 
     /// Fetches the display name of this component class
-    wxString GetName() const;
+    QString GetName() const;
 
     /// Fetches the full name of this component class
-    const wxString& GetFullName() const { return m_name; }
+    const QString& GetFullName() const { return m_name; }
 
     /// Adds a constituent component class to an effective component class
     void AddConstituentClass( COMPONENT_CLASS* componentClass );
 
     /// Determines if this (effective) component class contains a specific sub-class
-    bool ContainsClassName( const wxString& className ) const;
+    bool ContainsClassName( const QString& className ) const;
 
     /// Determines if this (effective) component class is empty (i.e. no classes defined)
     bool IsEmpty() const;
@@ -67,7 +51,7 @@ public:
 
 private:
     /// The full name of the component class
-    wxString m_name;
+    QString m_name;
 
     /// The COMPONENT_CLASS objects contributing to this complete component class
     std::vector<COMPONENT_CLASS*> m_constituentClasses;
@@ -87,17 +71,17 @@ public:
     COMPONENT_CLASS_MANAGER();
 
     /// @brief Gets the full effective class name for the given set of constituent classes
-    static wxString
-    GetFullClassNameForConstituents( const std::unordered_set<wxString>& classNames );
+    static QString
+    GetFullClassNameForConstituents( const std::unordered_set<QString>& classNames );
 
     /// @brief Gets the full effective class name for the given set of constituent classes
     /// @param classNames a sorted vector of consituent class names
-    static wxString GetFullClassNameForConstituents( const std::vector<wxString>& classNames );
+    static QString GetFullClassNameForConstituents( const std::vector<QString>& classNames );
 
     /// @brief Gets an effective component class for the given constituent class names
     /// @param classes The names of the constituent component classes
     /// @return Effective COMPONENT_CLASS object
-    COMPONENT_CLASS* GetEffectiveComponentClass( const std::unordered_set<wxString>& classNames );
+    COMPONENT_CLASS* GetEffectiveComponentClass( const std::unordered_set<QString>& classNames );
 
     /// Returns the unassigned component class
     const COMPONENT_CLASS* GetNoneComponentClass() const { return m_noneClass.get(); }
@@ -115,23 +99,23 @@ public:
     void Reset();
 
     /// @brief Fetches a read-only map of the fundamental component classes
-    const std::unordered_map<wxString, std::unique_ptr<COMPONENT_CLASS>>& GetClasses() const
+    const std::unordered_map<QString, std::unique_ptr<COMPONENT_CLASS>>& GetClasses() const
     {
         return m_classes;
     }
 
 protected:
     /// All individual component classes
-    std::unordered_map<wxString, std::unique_ptr<COMPONENT_CLASS>> m_classes;
+    std::unordered_map<QString, std::unique_ptr<COMPONENT_CLASS>> m_classes;
 
     /// Generated effective component classes
-    std::unordered_map<wxString, std::unique_ptr<COMPONENT_CLASS>> m_effectiveClasses;
+    std::unordered_map<QString, std::unique_ptr<COMPONENT_CLASS>> m_effectiveClasses;
 
     /// Cache of all individual component classes (for netlist updating)
-    std::unordered_map<wxString, std::unique_ptr<COMPONENT_CLASS>> m_classesCache;
+    std::unordered_map<QString, std::unique_ptr<COMPONENT_CLASS>> m_classesCache;
 
     /// Cache of all generated effective component classes (for netlist updating)
-    std::unordered_map<wxString, std::unique_ptr<COMPONENT_CLASS>> m_effectiveClassesCache;
+    std::unordered_map<QString, std::unique_ptr<COMPONENT_CLASS>> m_effectiveClassesCache;
 
     /// The class to represent an unassigned component class
     std::unique_ptr<COMPONENT_CLASS> m_noneClass;

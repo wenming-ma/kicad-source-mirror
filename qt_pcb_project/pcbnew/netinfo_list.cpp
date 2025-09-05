@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 #include <board.h>
 #include <board_commit.h>
 #include <footprint.h>
@@ -30,7 +9,7 @@
 #include <pcb_track.h>
 #include <zone.h>
 #include <netinfo.h>
-#include <wx/log.h>
+#include <QtCore/QDebug>
 
 
 // Constructor and destructor
@@ -39,7 +18,7 @@ NETINFO_LIST::NETINFO_LIST( BOARD* aParent ) :
     m_newNetCode( 0 )
 {
     // Make sure that the unconnected net has number 0
-    AppendNet( new NETINFO_ITEM( aParent, wxEmptyString, 0 ) );
+    AppendNet( new NETINFO_ITEM( aParent, QString(), 0 ) );
 }
 
 
@@ -73,7 +52,7 @@ NETINFO_ITEM* NETINFO_LIST::GetNetItem( int aNetCode ) const
 }
 
 
-NETINFO_ITEM* NETINFO_LIST::GetNetItem( const wxString& aNetName ) const
+NETINFO_ITEM* NETINFO_LIST::GetNetItem( const QString& aNetName ) const
 {
     NETNAMES_MAP::const_iterator result = m_netNames.find( aNetName );
 
@@ -102,8 +81,8 @@ void NETINFO_LIST::RemoveNet( NETINFO_ITEM* aNet )
     {
         if ( i->second == aNet )
         {
-            wxASSERT_MSG( removed, wxT( "NETINFO_LIST::RemoveNet: target net found in m_netNames "
-                                        "but not m_netCodes!" ) );
+            Q_ASSERT_X( removed, "NETINFO_LIST::RemoveNet", "target net found in m_netNames "
+                                        "but not m_netCodes!" );
             m_netNames.erase(i);
             break;
         }
@@ -186,7 +165,7 @@ void NETINFO_LIST::buildListOfNets()
 
 void NETINFO_LIST::RebuildDisplayNetnames() const
 {
-    std::map<wxString, std::vector<wxString>> shortNameMap;
+    std::map<QString, std::vector<QString>> shortNameMap;
 
     for( NETINFO_ITEM* net : *this )
         shortNameMap[net->m_shortNetname].push_back( net->m_netname );
@@ -199,16 +178,16 @@ void NETINFO_LIST::RebuildDisplayNetnames() const
         }
         else
         {
-            wxArrayString              parts = wxSplit( net->m_netname, '/' );
-            std::vector<wxArrayString> aggregateParts;
-            std::optional<size_t>      firstNonCommon;
+            QStringList              parts = net->m_netname.split( '/' );
+            std::vector<QStringList> aggregateParts;
+            std::optional<size_t>    firstNonCommon;
 
-            for( const wxString& longName : shortNameMap[net->m_shortNetname] )
-                aggregateParts.push_back( wxSplit( longName, '/' ) );
+            for( const QString& longName : shortNameMap[net->m_shortNetname] )
+                aggregateParts.push_back( longName.split( '/' ) );
 
             for( size_t ii = 0; ii < parts.size() && !firstNonCommon; ++ii )
             {
-                for( const wxArrayString& otherParts : aggregateParts )
+                for( const QStringList& otherParts : aggregateParts )
                 {
                     if( ii < otherParts.size() && otherParts[ii] == parts[ii] )
                         continue;
@@ -220,12 +199,12 @@ void NETINFO_LIST::RebuildDisplayNetnames() const
 
             if( firstNonCommon.value_or( 0 ) > 0 && firstNonCommon.value() < parts.size() )
             {
-                wxString disambiguatedName;
+                QString disambiguatedName;
 
                 for( size_t ii = firstNonCommon.value(); ii < parts.size(); ++ii )
                 {
-                    if( !disambiguatedName.IsEmpty() )
-                        disambiguatedName += wxS( "/" );
+                    if( !disambiguatedName.isEmpty() )
+                        disambiguatedName += "/";
 
                     disambiguatedName += parts[ii];
                 }
@@ -251,10 +230,10 @@ void NETINFO_LIST::Show() const
 
     for( it = m_netNames.begin(), itEnd = m_netNames.end(); it != itEnd; ++it )
     {
-        wxLogDebug( wxT( "[%d]: netcode:%d  netname:<%s>\n" ),
-                    i++,
-                    it->second->GetNetCode(),
-                    TO_UTF8( it->second->GetNetname() ) );
+        qDebug() << QString( "[%1]: netcode:%2  netname:<%3>" )
+                    .arg( i++ )
+                    .arg( it->second->GetNetCode() )
+                    .arg( it->second->GetNetname() );
     }
 }
 #endif

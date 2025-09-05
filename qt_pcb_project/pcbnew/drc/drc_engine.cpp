@@ -1,30 +1,11 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2004-2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2014 Dick Hollenbeck, dick@softplc.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <atomic>
-#include <wx/log.h>
+#include <QDebug>
+#include <QLoggingCategory>
+#include <QCoreApplication>
+#include <QFile>
+#include <QTextStream>
+#include <QStandardPaths>
 #include <reporter.h>
 #include <progress_reporter.h>
 #include <string_utils.h>
@@ -45,7 +26,7 @@
 #include <zone.h>
 
 
-// wxListBox's performance degrades horrifically with very large datasets.  It's not clear
+// QListWidget's performance degrades horrifically with very large datasets.  It's not clear
 // they're useful to the user anyway.
 #define ERROR_LIMIT 199
 #define EXTENDED_ERROR_LIMIT 499
@@ -58,19 +39,19 @@
  *
  * @ingroup trace_env_vars
  */
-static const wxChar* traceDrcProfile = wxT( "KICAD_DRC_PROFILE" );
+Q_LOGGING_CATEGORY(traceDrcProfile, "KICAD_DRC_PROFILE")
 
 
-void drcPrintDebugMessage( int level, const wxString& msg, const char *function, int line )
+void drcPrintDebugMessage( int level, const QString& msg, const char *function, int line )
 {
-    wxString valueStr;
+    QString valueStr = qEnvironmentVariable("DRC_DEBUG");
 
-    if( wxGetEnv( wxT( "DRC_DEBUG" ), &valueStr ) )
+    if( !valueStr.isEmpty() )
     {
-        int setLevel = wxAtoi( valueStr );
+        int setLevel = valueStr.toInt();
 
         if( level <= setLevel )
-            printf( "%-30s:%d | %s\n", function, line, (const char *) msg.c_str() );
+            printf( "%-30s:%d | %s\n", function, line, qPrintable(msg) );
     }
 }
 
@@ -137,7 +118,7 @@ static bool isKeepoutZone( const BOARD_ITEM* aItem, bool aCheckFlags )
 }
 
 
-std::shared_ptr<DRC_RULE> DRC_ENGINE::createImplicitRule( const wxString& name )
+std::shared_ptr<DRC_RULE> DRC_ENGINE::createImplicitRule( const QString& name )
 {
     std::shared_ptr<DRC_RULE> rule = std::make_shared<DRC_RULE>();
 
@@ -152,7 +133,7 @@ std::shared_ptr<DRC_RULE> DRC_ENGINE::createImplicitRule( const wxString& name )
 
 void DRC_ENGINE::loadImplicitRules()
 {
-    ReportAux( wxString::Format( wxT( "Building implicit rules (per-item/class overrides, etc...)" ) ) );
+    ReportAux( QString("Building implicit rules (per-item/class overrides, etc...)") );
 
     BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
 
@@ -226,7 +207,7 @@ void DRC_ENGINE::loadImplicitRules()
 
     std::shared_ptr<DRC_RULE> uViaRule = createImplicitRule( _( "board setup micro-via constraints" ) );
 
-    uViaRule->m_Condition = new DRC_RULE_CONDITION( wxT( "A.Via_Type == 'Micro'" ) );
+    uViaRule->m_Condition = new DRC_RULE_CONDITION( "A.Via_Type == 'Micro'" );
 
     DRC_CONSTRAINT uViaDrillConstraint( HOLE_SIZE_CONSTRAINT );
     uViaDrillConstraint.Value().SetMin( bds.m_MicroViasMinDrill );
@@ -244,19 +225,19 @@ void DRC_ENGINE::loadImplicitRules()
     auto makeNetclassRules =
             [&]( const std::shared_ptr<NETCLASS>& nc, bool isDefault )
             {
-                wxString ncName = nc->GetName();
-                wxString expr;
+                QString ncName = nc->GetName();
+                QString expr;
 
-                ncName.Replace( "'", "\\'" );
+                ncName.replace( "'", "\\'" );
 
                 if( nc->HasClearance() )
                 {
                     std::shared_ptr<DRC_RULE> netclassRule = std::make_shared<DRC_RULE>();
-                    netclassRule->m_Name = wxString::Format( _( "netclass '%s'" ),
+                    netclassRule->m_Name = QString(_("netclass '%1'")).arg(
                                                              nc->GetClearanceParent()->GetHumanReadableName() );
                     netclassRule->m_Implicit = true;
 
-                    expr = wxString::Format( wxT( "A.hasExactNetclass('%s')" ), ncName );
+                    expr = QString("A.hasExactNetclass('%1')").arg( ncName );
                     netclassRule->m_Condition = new DRC_RULE_CONDITION( expr );
                     netclassClearanceRules.push_back( netclassRule );
 
@@ -268,11 +249,10 @@ void DRC_ENGINE::loadImplicitRules()
                 if( nc->HasTrackWidth() )
                 {
                     std::shared_ptr<DRC_RULE> netclassRule = std::make_shared<DRC_RULE>();
-                    netclassRule->m_Name = wxString::Format( _( "netclass '%s'" ),
-                                                             nc->GetTrackWidthParent()->GetHumanReadableName() );
+                    netclassRule->m_Name = QString(_("netclass '%1'")).arg(nc->GetTrackWidthParent()->GetHumanReadableName() );
                     netclassRule->m_Implicit = true;
 
-                    expr = wxString::Format( wxT( "A.NetClass == '%s'" ), ncName );
+                    expr = QString("A.NetClass == '%1'").arg(ncName );
                     netclassRule->m_Condition = new DRC_RULE_CONDITION( expr );
                     netclassClearanceRules.push_back( netclassRule );
 
@@ -285,11 +265,10 @@ void DRC_ENGINE::loadImplicitRules()
                 if( nc->HasDiffPairWidth() )
                 {
                     std::shared_ptr<DRC_RULE> netclassRule = std::make_shared<DRC_RULE>();
-                    netclassRule->m_Name = wxString::Format( _( "netclass '%s' (diff pair)" ),
-                                                             nc->GetDiffPairWidthParent()->GetHumanReadableName() );
+                    netclassRule->m_Name = QString(_("netclass '%1' (diff pair)")).arg(nc->GetDiffPairWidthParent()->GetHumanReadableName() );
                     netclassRule->m_Implicit = true;
 
-                    expr = wxString::Format( wxT( "A.NetClass == '%s' && A.inDiffPair('*')" ), ncName );
+                    expr = QString("A.NetClass == '%1' && A.inDiffPair('*')").arg(ncName );
                     netclassRule->m_Condition = new DRC_RULE_CONDITION( expr );
                     netclassItemSpecificRules.push_back( netclassRule );
 
@@ -302,11 +281,10 @@ void DRC_ENGINE::loadImplicitRules()
                 if( nc->HasDiffPairGap() )
                 {
                     std::shared_ptr<DRC_RULE> netclassRule = std::make_shared<DRC_RULE>();
-                    netclassRule->m_Name = wxString::Format( _( "netclass '%s' (diff pair)" ),
-                                                             nc->GetDiffPairGapParent()->GetHumanReadableName() );
+                    netclassRule->m_Name = QString(_("netclass '%1' (diff pair)")).arg(nc->GetDiffPairGapParent()->GetHumanReadableName() );
                     netclassRule->m_Implicit = true;
 
-                    expr = wxString::Format( wxT( "A.NetClass == '%s'" ), ncName );
+                    expr = QString("A.NetClass == '%1'").arg(ncName );
                     netclassRule->m_Condition = new DRC_RULE_CONDITION( expr );
                     netclassItemSpecificRules.push_back( netclassRule );
 
@@ -319,12 +297,10 @@ void DRC_ENGINE::loadImplicitRules()
                     if( nc->GetDiffPairGap() < nc->GetClearance() )
                     {
                         netclassRule = std::make_shared<DRC_RULE>();
-                        netclassRule->m_Name = wxString::Format( _( "netclass '%s' (diff pair)" ),
-                                                                 nc->GetDiffPairGapParent()->GetHumanReadableName() );
+                        netclassRule->m_Name = QString(_("netclass '%1' (diff pair)")).arg(nc->GetDiffPairGapParent()->GetHumanReadableName() );
                         netclassRule->m_Implicit = true;
 
-                        expr = wxString::Format( wxT( "A.NetClass == '%s' && AB.isCoupledDiffPair()" ),
-                                                 ncName );
+                        expr = QString("A.NetClass == '%1' && AB.isCoupledDiffPair()").arg(ncName );
                         netclassRule->m_Condition = new DRC_RULE_CONDITION( expr );
                         netclassItemSpecificRules.push_back( netclassRule );
 
@@ -337,11 +313,10 @@ void DRC_ENGINE::loadImplicitRules()
                 if( nc->HasViaDiameter() )
                 {
                     std::shared_ptr<DRC_RULE> netclassRule = std::make_shared<DRC_RULE>();
-                    netclassRule->m_Name = wxString::Format( _( "netclass '%s'" ),
-                                                             nc->GetViaDiameterParent()->GetHumanReadableName() );
+                    netclassRule->m_Name = QString(_("netclass '%1'")).arg(nc->GetViaDiameterParent()->GetHumanReadableName() );
                     netclassRule->m_Implicit = true;
 
-                    expr = wxString::Format( wxT( "A.NetClass == '%s' && A.Via_Type != 'Micro'" ), ncName );
+                    expr = QString("A.NetClass == '%1' && A.Via_Type != 'Micro'").arg(ncName );
                     netclassRule->m_Condition = new DRC_RULE_CONDITION( expr );
                     netclassItemSpecificRules.push_back( netclassRule );
 
@@ -354,11 +329,10 @@ void DRC_ENGINE::loadImplicitRules()
                 if( nc->HasViaDrill() )
                 {
                     std::shared_ptr<DRC_RULE> netclassRule = std::make_shared<DRC_RULE>();
-                    netclassRule->m_Name = wxString::Format( _( "netclass '%s'" ),
-                                                             nc->GetViaDrillParent()->GetHumanReadableName() );
+                    netclassRule->m_Name = QString(_("netclass '%1'")).arg(nc->GetViaDrillParent()->GetHumanReadableName() );
                     netclassRule->m_Implicit = true;
 
-                    expr = wxString::Format( wxT( "A.NetClass == '%s' && A.Via_Type != 'Micro'" ), ncName );
+                    expr = QString("A.NetClass == '%1' && A.Via_Type != 'Micro'").arg(ncName );
                     netclassRule->m_Condition = new DRC_RULE_CONDITION( expr );
                     netclassItemSpecificRules.push_back( netclassRule );
 
@@ -371,11 +345,10 @@ void DRC_ENGINE::loadImplicitRules()
                 if( nc->HasuViaDiameter() )
                 {
                     std::shared_ptr<DRC_RULE> netclassRule = std::make_shared<DRC_RULE>();
-                    netclassRule->m_Name = wxString::Format( _( "netclass '%s' (uvia)" ),
-                                                             nc->GetuViaDiameterParent()->GetHumanReadableName() );
+                    netclassRule->m_Name = QString(_("netclass '%1' (uvia)")).arg(nc->GetuViaDiameterParent()->GetHumanReadableName() );
                     netclassRule->m_Implicit = true;
 
-                    expr = wxString::Format( wxT( "A.NetClass == '%s' && A.Via_Type == 'Micro'" ), ncName );
+                    expr = QString("A.NetClass == '%1' && A.Via_Type == 'Micro'").arg(ncName );
                     netclassRule->m_Condition = new DRC_RULE_CONDITION( expr );
                     netclassItemSpecificRules.push_back( netclassRule );
 
@@ -388,11 +361,10 @@ void DRC_ENGINE::loadImplicitRules()
                 if( nc->HasuViaDrill() )
                 {
                     std::shared_ptr<DRC_RULE> netclassRule = std::make_shared<DRC_RULE>();
-                    netclassRule->m_Name = wxString::Format( _( "netclass '%s' (uvia)" ),
-                                                             nc->GetuViaDrillParent()->GetHumanReadableName() );
+                    netclassRule->m_Name = QString(_("netclass '%1' (uvia)")).arg(nc->GetuViaDrillParent()->GetHumanReadableName() );
                     netclassRule->m_Implicit = true;
 
-                    expr = wxString::Format( wxT( "A.NetClass == '%s' && A.Via_Type == 'Micro'" ), ncName );
+                    expr = QString("A.NetClass == '%1' && A.Via_Type == 'Micro'").arg(ncName );
                     netclassRule->m_Condition = new DRC_RULE_CONDITION( expr );
                     netclassItemSpecificRules.push_back( netclassRule );
 
@@ -451,17 +423,16 @@ void DRC_ENGINE::loadImplicitRules()
 
     for( ZONE* zone : keepoutZones )
     {
-        wxString name = zone->GetZoneName();
+        QString name = zone->GetZoneName();
 
-        if( name.IsEmpty() )
+        if( name.isEmpty() )
             rule = createImplicitRule( _( "keepout area" ) );
         else
-            rule = createImplicitRule( wxString::Format( _( "keepout area '%s'" ), name ) );
+            rule = createImplicitRule( QString(_("keepout area '%1'")).arg(name ) );
 
         rule->m_ImplicitItemId = zone->m_Uuid;
 
-        rule->m_Condition = new DRC_RULE_CONDITION( wxString::Format( wxT( "A.intersectsArea('%s')" ),
-                                                                      zone->m_Uuid.AsString() ) );
+        rule->m_Condition = new DRC_RULE_CONDITION( QString("A.intersectsArea('%1')").arg(zone->m_Uuid.AsString() ) );
 
         rule->m_LayerCondition = zone->GetLayerSet();
 
@@ -487,22 +458,24 @@ void DRC_ENGINE::loadImplicitRules()
         rule->AddConstraint( disallowConstraint );
     }
 
-    ReportAux( wxString::Format( wxT( "Building %d implicit netclass rules" ),
+    ReportAux( QString("Building %1 implicit netclass rules").arg(
                                  (int) netclassClearanceRules.size() ) );
 }
 
 
-void DRC_ENGINE::loadRules( const wxFileName& aPath )
+void DRC_ENGINE::loadRules( const QString& aPath )
 {
-    if( aPath.FileExists() )
+    QFile file(aPath);
+    if( file.exists() )
     {
         std::vector<std::shared_ptr<DRC_RULE>> rules;
 
-        FILE* fp = wxFopen( aPath.GetFullPath(), wxT( "rt" ) );
+        QByteArray pathBytes = aPath.toLocal8Bit();
+        FILE* fp = fopen( pathBytes.constData(), "rt" );
 
         if( fp )
         {
-            DRC_RULES_PARSER parser( fp, aPath.GetFullPath() );
+            DRC_RULES_PARSER parser( fp, aPath );
             parser.Parse( rules, m_reporter );
         }
 
@@ -517,13 +490,13 @@ void DRC_ENGINE::loadRules( const wxFileName& aPath )
 
 void DRC_ENGINE::compileRules()
 {
-    ReportAux( wxString::Format( wxT( "Compiling Rules (%d rules): " ), (int) m_rules.size() ) );
+    ReportAux( QString("Compiling Rules (%1 rules): ").arg((int) m_rules.size()) );
 
     for( std::shared_ptr<DRC_RULE>& rule : m_rules )
     {
         DRC_RULE_CONDITION* condition = nullptr;
 
-        if( rule->m_Condition && !rule->m_Condition->GetExpression().IsEmpty() )
+        if( rule->m_Condition && !rule->m_Condition->GetExpression().isEmpty() )
         {
             condition = rule->m_Condition;
             condition->Compile( nullptr );
@@ -546,13 +519,13 @@ void DRC_ENGINE::compileRules()
 }
 
 
-void DRC_ENGINE::InitEngine( const wxFileName& aRulePath )
+void DRC_ENGINE::InitEngine( const QString& aRulePath )
 {
     m_testProviders = DRC_TEST_PROVIDER_REGISTRY::Instance().GetTestProviders();
 
     for( DRC_TEST_PROVIDER* provider : m_testProviders )
     {
-        ReportAux( wxString::Format( wxT( "Create DRC provider: '%s'" ), provider->GetName() ) );
+        ReportAux( QString("Create DRC provider: '%1'").arg(provider->GetName() ) );
         provider->SetDRCEngine( this );
     }
 
@@ -586,7 +559,7 @@ void DRC_ENGINE::InitEngine( const wxFileName& aRulePath )
         }
         catch( PARSE_ERROR& )
         {
-            wxFAIL_MSG( wxT( "Compiling implicit rules failed." ) );
+            Q_ASSERT_X(false, "DRC_ENGINE::InitEngine", "Compiling implicit rules failed.");
         }
 
         throw original_parse_error;
@@ -633,18 +606,18 @@ void DRC_ENGINE::RunTests( EDA_UNITS aUnits, bool aReportAllTrackErrors, bool aT
 
     for( DRC_TEST_PROVIDER* provider : m_testProviders )
     {
-        ReportAux( wxString::Format( wxT( "Run DRC provider: '%s'" ), provider->GetName() ) );
+        ReportAux( QString("Run DRC provider: '%1'").arg(provider->GetName() ) );
 
         if( !provider->RunTests( aUnits ) )
             break;
     }
 
     timer.Stop();
-    wxLogTrace( traceDrcProfile, "DRC took %0.3f ms", timer.msecs() );
+    qCDebug(traceDrcProfile) << "DRC took %0.3f ms" << timer.msecs( );
 
     // DRC tests are multi-threaded; anything that causes us to attempt to re-generate the
     // caches while DRC is running is problematic.
-    wxASSERT( timestamp == m_board->GetTimeStamp() );
+    Q_ASSERT( timestamp == m_board->GetTimeStamp() );
 }
 
 
@@ -656,8 +629,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalZoneConnection( const BOARD_ITEM* a, const BOARD_
     DRC_CONSTRAINT constraint = EvalRules( ZONE_CONNECTION_CONSTRAINT, a, b, aLayer, aReporter );
 
     REPORT( "" )
-    REPORT( wxString::Format( _( "Resolved zone connection type: %s." ),
-                              EscapeHTML( PrintZoneConnection( constraint.m_ZoneConnection ) ) ) )
+    REPORT( QString(_("Resolved zone connection type: %1.")).arg(EscapeHTML( PrintZoneConnection( constraint.m_ZoneConnection ) ) ) )
 
     if( constraint.m_ZoneConnection == ZONE_CONNECTION::THT_THERMAL )
     {
@@ -674,8 +646,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalZoneConnection( const BOARD_ITEM* a, const BOARD_
         }
         else
         {
-            REPORT( wxString::Format( _( "Pad is not a through hole pad; connection will be: %s." ),
-                                      EscapeHTML( PrintZoneConnection( ZONE_CONNECTION::FULL ) ) ) )
+            REPORT( QString(_("Pad is not a through hole pad; connection will be: %1.")).arg(EscapeHTML( PrintZoneConnection( ZONE_CONNECTION::FULL ) ) ) )
             constraint.m_ZoneConnection = ZONE_CONNECTION::FULL;
         }
     }
@@ -784,8 +755,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
             if( it != netcodes.end() )
             {
                 REPORT( "" )
-                REPORT( wxString::Format( _( "Net tie on %s; clearance: 0." ),
-                                          EscapeHTML( footprints[ii]->GetItemDescription( this, true ) ) ) )
+                REPORT( QString(_("Net tie on %1; clearance: 0.")).arg(EscapeHTML( footprints[ii]->GetItemDescription( this, true ) ) ) )
 
                 constraint.SetName( _( "net tie" ) );
                 constraint.m_Value.SetMin( 0 );
@@ -809,13 +779,12 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
 
         if( overrideA.has_value() || overrideB.has_value() )
         {
-            wxString msg;
+            QString msg;
 
             if( overrideA.has_value() )
             {
                 REPORT( "" )
-                REPORT( wxString::Format( _( "Local override on %s; clearance: %s." ),
-                                          EscapeHTML( a->GetItemDescription( this, true ) ),
+                REPORT( QString(_("Local override on %1; clearance: %2.")).arg(EscapeHTML( a->GetItemDescription( this, true ) )).arg(
                                           MessageTextFromValue( overrideA.value() ) ) )
 
                 override_val = ac->GetClearanceOverrides( &msg ).value();
@@ -824,8 +793,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
             if( overrideB.has_value() )
             {
                 REPORT( "" )
-                REPORT( wxString::Format( _( "Local override on %s; clearance: %s." ),
-                                          EscapeHTML( b->GetItemDescription( this, true ) ),
+                REPORT( QString(_("Local override on %1; clearance: %2.")).arg(EscapeHTML( b->GetItemDescription( this, true ) )).arg(
                                           EscapeHTML( MessageTextFromValue( overrideB.value() ) ) ) )
 
                 if( overrideB > override_val )
@@ -842,8 +810,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                         msg = _( "board minimum" );
 
                         REPORT( "" )
-                        REPORT( wxString::Format( _( "Board minimum clearance: %s." ),
-                                                  MessageTextFromValue( override_val ) ) )
+                        REPORT( QString(_("Board minimum clearance: %1.")).arg(MessageTextFromValue( override_val ) ) )
                     }
                 }
                 else
@@ -854,8 +821,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                         msg = _( "board minimum hole" );
 
                         REPORT( "" )
-                        REPORT( wxString::Format( _( "Board minimum hole clearance: %s." ),
-                                                  MessageTextFromValue( override_val ) ) )
+                        REPORT( QString(_("Board minimum hole clearance: %1.")).arg(MessageTextFromValue( override_val ) ) )
                     }
                 }
 
@@ -869,12 +835,11 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
     {
         if( pad && pad->GetLocalZoneConnection() != ZONE_CONNECTION::INHERITED )
         {
-            wxString msg;
+            QString msg;
             ZONE_CONNECTION override = pad->GetZoneConnectionOverrides( &msg );
 
             REPORT( "" )
-            REPORT( wxString::Format( _( "Local override on %s; zone connection: %s." ),
-                                      EscapeHTML( pad->GetItemDescription( this, true ) ),
+            REPORT( QString(_("Local override on %1; zone connection: %2.")).arg(EscapeHTML( pad->GetItemDescription( this, true ) )).arg(
                                       EscapeHTML( PrintZoneConnection( override ) ) ) )
 
             constraint.SetName( msg );
@@ -886,12 +851,11 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
     {
         if( pad && pad->GetLocalThermalGapOverride( nullptr ) > 0 )
         {
-            wxString msg;
+            QString msg;
             int gap_override = pad->GetLocalThermalGapOverride( &msg );
 
             REPORT( "" )
-            REPORT( wxString::Format( _( "Local override on %s; thermal relief gap: %s." ),
-                                      EscapeHTML( pad->GetItemDescription( this, true ) ),
+            REPORT( QString(_("Local override on %1; thermal relief gap: %2.")).arg(EscapeHTML( pad->GetItemDescription( this, true ) )).arg(
                                       EscapeHTML( MessageTextFromValue( gap_override ) ) ) )
 
             constraint.SetName( msg );
@@ -903,12 +867,11 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
     {
         if( pad && pad->GetLocalSpokeWidthOverride( nullptr ) > 0 )
         {
-            wxString msg;
+            QString msg;
             int spoke_override = pad->GetLocalSpokeWidthOverride( &msg );
 
             REPORT( "" )
-            REPORT( wxString::Format( _( "Local override on %s; thermal spoke width: %s." ),
-                                      EscapeHTML( pad->GetItemDescription( this, true ) ),
+            REPORT( QString(_("Local override on %1; thermal spoke width: %2.")).arg(EscapeHTML( pad->GetItemDescription( this, true ) )).arg(
                                       EscapeHTML( MessageTextFromValue( spoke_override ) ) ) )
 
             if( zone && zone->GetMinThickness() > spoke_override )
@@ -916,8 +879,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                 spoke_override = zone->GetMinThickness();
 
                 REPORT( "" )
-                REPORT( wxString::Format( _( "%s min thickness: %s." ),
-                                          EscapeHTML( zone->GetItemDescription( this, true ) ),
+                REPORT( QString(_("%1 min thickness: %2.")).arg(EscapeHTML( zone->GetItemDescription( this, true ) )).arg(
                                           EscapeHTML( MessageTextFromValue( spoke_override ) ) ) )
             }
 
@@ -930,7 +892,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
     auto testAssertion =
             [&]( const DRC_ENGINE_CONSTRAINT* c )
             {
-                REPORT( wxString::Format( _( "Checking assertion \"%s\"." ),
+                REPORT( QString(_("Checking assertion \"%1\".")).arg(
                                           EscapeHTML( c->constraint.m_Test->GetExpression() ) ) )
 
                 if( c->constraint.m_Test->EvaluateFor( a, b, c->constraint.m_Type, aLayer,
@@ -960,49 +922,41 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                 case EDGE_CLEARANCE_CONSTRAINT:
                 case PHYSICAL_CLEARANCE_CONSTRAINT:
                 case PHYSICAL_HOLE_CLEARANCE_CONSTRAINT:
-                    REPORT( wxString::Format( _( "Checking %s clearance: %s." ),
-                                              EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 clearance: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               MessageTextFromValue( c->constraint.m_Value.Min() ) ) )
                     break;
                 case CREEPAGE_CONSTRAINT:
-                    REPORT( wxString::Format( _( "Checking %s creepage: %s." ),
-                                              EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 creepage: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               MessageTextFromValue( c->constraint.m_Value.Min() ) ) )
                     break;
                 case MAX_UNCOUPLED_CONSTRAINT:
-                    REPORT( wxString::Format( _( "Checking %s max uncoupled length: %s." ),
-                                              EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 max uncoupled length: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               MessageTextFromValue( c->constraint.m_Value.Max() ) ) )
                     break;
 
                 case SKEW_CONSTRAINT:
-                    REPORT( wxString::Format( _( "Checking %s max skew: %s." ),
-                                              EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 max skew: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               MessageTextFromValue( c->constraint.m_Value.Max() ) ) )
                     break;
 
                 case THERMAL_RELIEF_GAP_CONSTRAINT:
-                    REPORT( wxString::Format( _( "Checking %s gap: %s." ),
-                                              EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 gap: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               MessageTextFromValue( c->constraint.m_Value.Min() ) ) )
                     break;
 
                 case THERMAL_SPOKE_WIDTH_CONSTRAINT:
-                    REPORT( wxString::Format( _( "Checking %s thermal spoke width: %s." ),
-                                              EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 thermal spoke width: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               MessageTextFromValue( c->constraint.m_Value.Opt() ) ) )
                     break;
 
                 case MIN_RESOLVED_SPOKES_CONSTRAINT:
-                    REPORT( wxString::Format( _( "Checking %s min spoke count: %s." ),
-                                              EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 min spoke count: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               EDA_UNIT_UTILS::UI::MessageTextFromValue( unityScale, EDA_UNITS::UNSCALED,
                                                                                         c->constraint.m_Value.Min() ) ) )
                     break;
 
                 case ZONE_CONNECTION_CONSTRAINT:
-                    REPORT( wxString::Format( _( "Checking %s zone connection: %s." ),
-                                              EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 zone connection: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               EscapeHTML( PrintZoneConnection( c->constraint.m_ZoneConnection ) ) ) )
                     break;
 
@@ -1019,9 +973,9 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                 {
                     if( aReporter )
                     {
-                        wxString min = wxT( "<i>" ) + _( "undefined" ) + wxT( "</i>" );
-                        wxString opt = wxT( "<i>" ) + _( "undefined" ) + wxT( "</i>" );
-                        wxString max = wxT( "<i>" ) + _( "undefined" ) + wxT( "</i>" );
+                        QString min = "<i>" + _( "undefined" ) + "</i>";
+                        QString opt = "<i>" + _( "undefined" ) + "</i>";
+                        QString max = "<i>" + _( "undefined" ) + "</i>";
 
                         if( implicit )
                         {
@@ -1033,36 +987,31 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                             case TRACK_WIDTH_CONSTRAINT:
                                 if( c->constraint.m_Value.HasOpt() )
                                 {
-                                    REPORT( wxString::Format( _( "Checking %s track width: opt %s." ),
-                                                              EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 track width: opt %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               opt ) )
                                 }
                                 else if( c->constraint.m_Value.HasMin() )
                                 {
-                                    REPORT( wxString::Format( _( "Checking %s track width: min %s." ),
-                                                              EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 track width: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               min ) )
                                 }
 
                                 break;
 
                             case ANNULAR_WIDTH_CONSTRAINT:
-                                REPORT( wxString::Format( _( "Checking %s annular width: min %s." ),
-                                                          EscapeHTML( c->constraint.GetName() ),
+                                REPORT( QString(_("Checking %1 annular width: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                           opt ) )
                                 break;
 
                             case VIA_DIAMETER_CONSTRAINT:
                                 if( c->constraint.m_Value.HasOpt() )
                                 {
-                                    REPORT( wxString::Format( _( "Checking %s via diameter: opt %s." ),
-                                                              EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 via diameter: opt %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               opt ) )
                                 }
                                 else if( c->constraint.m_Value.HasMin() )
                                 {
-                                    REPORT( wxString::Format( _( "Checking %s via diameter: min %s." ),
-                                                              EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 via diameter: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               min ) )
                                 }
                                 break;
@@ -1070,14 +1019,12 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                             case HOLE_SIZE_CONSTRAINT:
                                 if( c->constraint.m_Value.HasOpt() )
                                 {
-                                    REPORT( wxString::Format( _( "Checking %s hole size: opt %s." ),
-                                                              EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 hole size: opt %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               opt ) )
                                 }
                                 else if( c->constraint.m_Value.HasMin() )
                                 {
-                                    REPORT( wxString::Format( _( "Checking %s hole size: min %s." ),
-                                                              EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 hole size: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               min ) )
                                 }
 
@@ -1086,36 +1033,31 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                             case TEXT_HEIGHT_CONSTRAINT:
                             case TEXT_THICKNESS_CONSTRAINT:
                             case CONNECTION_WIDTH_CONSTRAINT:
-                                REPORT( wxString::Format( _( "Checking %s: min %s." ),
-                                                          EscapeHTML( c->constraint.GetName() ),
+                                REPORT( QString(_("Checking %1: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                           min ) )
                                 break;
 
                             case DIFF_PAIR_GAP_CONSTRAINT:
                                 if( c->constraint.m_Value.HasOpt() )
                                 {
-                                    REPORT( wxString::Format( _( "Checking %s diff pair gap: opt %s." ),
-                                                              EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 diff pair gap: opt %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               opt ) )
                                 }
                                 else if( c->constraint.m_Value.HasMin() )
                                 {
-                                    REPORT( wxString::Format( _( "Checking %s clearance: min %s." ),
-                                                              EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 clearance: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               min ) )
                                 }
 
                                 break;
 
                             case HOLE_TO_HOLE_CONSTRAINT:
-                                REPORT( wxString::Format( _( "Checking %s hole to hole: min %s." ),
-                                                          EscapeHTML( c->constraint.GetName() ),
+                                REPORT( QString(_("Checking %1 hole to hole: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                           min ) )
                                 break;
 
                             default:
-                                REPORT( wxString::Format( _( "Checking %s." ),
-                                                          EscapeHTML( c->constraint.GetName() ) ) )
+                                REPORT( QString(_("Checking %1.")).arg(EscapeHTML( c->constraint.GetName() ) ) )
                             }
                         }
                         else
@@ -1129,8 +1071,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                             if( c->constraint.m_Value.HasMax() )
                                 max = MessageTextFromValue( c->constraint.m_Value.Max() );
 
-                            REPORT( wxString::Format( _( "Checking %s: min %s; opt %s; max %s." ),
-                                                      EscapeHTML( c->constraint.GetName() ),
+                            REPORT( QString(_("Checking %1: min %1; opt %1; max %1.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                       min,
                                                       opt,
                                                       max ) )
@@ -1140,8 +1081,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                 }
 
                 default:
-                    REPORT( wxString::Format( _( "Checking %s." ),
-                                              EscapeHTML( c->constraint.GetName() ) ) )
+                    REPORT( QString(_("Checking %1.")).arg(EscapeHTML( c->constraint.GetName() ) ) )
                 }
 
                 if( c->constraint.m_Type == CLEARANCE_CONSTRAINT )
@@ -1154,13 +1094,11 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                         }
                         else if( a_is_non_copper )
                         {
-                            REPORT( wxString::Format( _( "%s contains no copper.  Rule ignored." ),
-                                                      EscapeHTML( a->GetItemDescription( this, true ) ) ) )
+                            REPORT( QString(_("%1 contains no copper.  Rule ignored.")).arg(EscapeHTML( a->GetItemDescription( this, true ) ) ) )
                         }
                         else if( b_is_non_copper )
                         {
-                            REPORT( wxString::Format( _( "%s contains no copper.  Rule ignored." ),
-                                                      EscapeHTML( b->GetItemDescription( this, true ) ) ) )
+                            REPORT( QString(_("%1 contains no copper.  Rule ignored.")).arg(EscapeHTML( b->GetItemDescription( this, true ) ) ) )
                         }
 
                         return;
@@ -1244,8 +1182,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                         }
                         else if( c->parentRule )
                         {
-                            REPORT( wxString::Format( _( "Rule layer '%s' not matched; rule ignored." ),
-                                                      EscapeHTML( c->parentRule->m_LayerSource ) ) )
+                            REPORT( QString(_("Rule layer '%1' not matched; rule ignored.")).arg(EscapeHTML( c->parentRule->m_LayerSource ) ) )
                         }
                         else
                         {
@@ -1265,8 +1202,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                     }
                     else if( c->parentRule )
                     {
-                        REPORT( wxString::Format( _( "Rule layer '%s' not matched; rule ignored." ),
-                                                  EscapeHTML( c->parentRule->m_LayerSource ) ) )
+                        REPORT( QString(_("Rule layer '%1' not matched; rule ignored.")).arg(EscapeHTML( c->parentRule->m_LayerSource ) ) )
                     }
                     else
                     {
@@ -1277,10 +1213,9 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                         && ( !a->HasDrilledHole() && !b->HasDrilledHole() ) )
                 {
                     // Report non-drilled-holes as an implicit condition
-                    REPORT( wxString::Format( _( "%s is not a drilled hole; rule ignored." ),
-                                              a->GetItemDescription( this, true ) ) )
+                    REPORT( QString(_("%1 is not a drilled hole; rule ignored.")).arg(a->GetItemDescription( this, true ) ) )
                 }
-                else if( !c->condition || c->condition->GetExpression().IsEmpty() )
+                else if( !c->condition || c->condition->GetExpression().isEmpty() )
                 {
                     if( aReporter )
                     {
@@ -1309,7 +1244,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                     }
                     else
                     {
-                        REPORT( wxString::Format( _( "Checking rule condition \"%s\"." ),
+                        REPORT( QString(_("Checking rule condition \"%1\".")).arg(
                                                   EscapeHTML( c->condition->GetExpression() ) ) )
                     }
 
@@ -1362,8 +1297,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                                    || aConstraintType == THERMAL_SPOKE_WIDTH_CONSTRAINT ) )
     {
         REPORT( "" )
-        REPORT( wxString::Format( _( "Inheriting from parent: %s." ),
-                                  EscapeHTML( parentFootprint->GetItemDescription( this, true ) ) ) )
+        REPORT( QString(_("Inheriting from parent: %1.")).arg(EscapeHTML( parentFootprint->GetItemDescription( this, true ) ) ) )
 
         if( a == pad )
             a = parentFootprint;
@@ -1401,13 +1335,12 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                 needBlankLine = false;
             }
 
-            REPORT( wxString::Format( _( "Local clearance on %s: %s." ),
-                                      EscapeHTML( a->GetItemDescription( this, true ) ),
+            REPORT( QString(_("Local clearance on %1: %2.")).arg(EscapeHTML( a->GetItemDescription( this, true ) )).arg(
                                       MessageTextFromValue( localA ) ) )
 
             if( localA > clearance )
             {
-                wxString msg;
+                QString msg;
                 clearance = ac->GetLocalClearance( &msg ).value();
                 constraint.SetParentRule( nullptr );
                 constraint.SetName( msg );
@@ -1425,13 +1358,12 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                 needBlankLine = false;
             }
 
-            REPORT( wxString::Format( _( "Local clearance on %s: %s." ),
-                                      EscapeHTML( b->GetItemDescription( this, true ) ),
+            REPORT( QString(_("Local clearance on %1: %2.")).arg(EscapeHTML( b->GetItemDescription( this, true ) )).arg(
                                       MessageTextFromValue( localB ) ) )
 
             if( localB > clearance )
             {
-                wxString msg;
+                QString msg;
                 clearance = bc->GetLocalClearance( &msg ).value();
                 constraint.SetParentRule( nullptr );
                 constraint.SetName( msg );
@@ -1447,8 +1379,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                 needBlankLine = false;
             }
 
-            REPORT( wxString::Format( _( "Board minimum clearance: %s." ),
-                                      MessageTextFromValue( m_designSettings->m_MinClearance ) ) )
+            REPORT( QString(_("Board minimum clearance: %1.")).arg(MessageTextFromValue( m_designSettings->m_MinClearance ) ) )
 
             if( clearance < m_designSettings->m_MinClearance )
             {
@@ -1463,8 +1394,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
     else if( aConstraintType == DIFF_PAIR_GAP_CONSTRAINT )
     {
         REPORT( "" )
-        REPORT( wxString::Format( _( "Board minimum clearance: %s." ),
-                                  MessageTextFromValue( m_designSettings->m_MinClearance ) ) )
+        REPORT( QString(_("Board minimum clearance: %1.")).arg(MessageTextFromValue( m_designSettings->m_MinClearance ) ) )
 
         if( constraint.m_Value.Min() < m_designSettings->m_MinClearance )
         {
@@ -1484,8 +1414,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
             if( local != ZONE_CONNECTION::INHERITED )
             {
                 REPORT( "" )
-                REPORT( wxString::Format( _( "%s zone connection: %s." ),
-                                          EscapeHTML( parentFootprint->GetItemDescription( this, true ) ),
+                REPORT( QString(_("%1 zone connection: %2.")).arg(EscapeHTML( parentFootprint->GetItemDescription( this, true ) )).arg(
                                           EscapeHTML( PrintZoneConnection( local ) ) ) )
 
                 constraint.SetParentRule( nullptr );
@@ -1500,8 +1429,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
             ZONE_CONNECTION local = zone->GetPadConnection();
 
             REPORT( "" )
-            REPORT( wxString::Format( _( "%s pad connection: %s." ),
-                                      EscapeHTML( zone->GetItemDescription( this, true ) ),
+            REPORT( QString(_("%1 pad connection: %2.")).arg(EscapeHTML( zone->GetItemDescription( this, true ) )).arg(
                                       EscapeHTML( PrintZoneConnection( local ) ) ) )
 
             constraint.SetParentRule( nullptr );
@@ -1517,8 +1445,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
             int local = zone->GetThermalReliefGap();
 
             REPORT( "" )
-            REPORT( wxString::Format( _( "%s thermal relief gap: %s." ),
-                                      EscapeHTML( zone->GetItemDescription( this, true ) ),
+            REPORT( QString(_("%1 thermal relief gap: %2.")).arg(EscapeHTML( zone->GetItemDescription( this, true ) )).arg(
                                       EscapeHTML( MessageTextFromValue( local ) ) ) )
 
             constraint.SetParentRule( nullptr );
@@ -1534,8 +1461,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
             int local = zone->GetThermalReliefSpokeWidth();
 
             REPORT( "" )
-            REPORT( wxString::Format( _( "%s thermal spoke width: %s." ),
-                                      EscapeHTML( zone->GetItemDescription( this, true ) ),
+            REPORT( QString(_("%1 thermal spoke width: %2.")).arg(EscapeHTML( zone->GetItemDescription( this, true ) )).arg(
                                       EscapeHTML( MessageTextFromValue( local ) ) ) )
 
             constraint.SetParentRule( nullptr );
@@ -1567,7 +1493,7 @@ void DRC_ENGINE::ProcessAssertions( const BOARD_ITEM* a,
     auto testAssertion =
             [&]( const DRC_ENGINE_CONSTRAINT* c )
             {
-                REPORT( wxString::Format( _( "Checking rule assertion \"%s\"." ),
+                REPORT( QString(_("Checking rule assertion \"%1\".")).arg(
                                           EscapeHTML( c->constraint.m_Test->GetExpression() ) ) )
 
                 if( c->constraint.m_Test->EvaluateFor( a, nullptr, c->constraint.m_Type,
@@ -1586,22 +1512,21 @@ void DRC_ENGINE::ProcessAssertions( const BOARD_ITEM* a,
             [&]( const DRC_ENGINE_CONSTRAINT* c )
             {
                 REPORT( "" )
-                REPORT( wxString::Format( _( "Checking %s." ), c->constraint.GetName() ) )
+                REPORT( QString(_("Checking %1.")).arg(c->constraint.GetName() ) )
 
                 if( !( a->GetLayerSet() & c->layerTest ).any() )
                 {
-                    REPORT( wxString::Format( _( "Rule layer '%s' not matched; rule ignored." ),
-                                              EscapeHTML( c->parentRule->m_LayerSource ) ) )
+                    REPORT( QString(_("Rule layer '%1' not matched; rule ignored.")).arg(EscapeHTML( c->parentRule->m_LayerSource ) ) )
                 }
 
-                if( !c->condition || c->condition->GetExpression().IsEmpty() )
+                if( !c->condition || c->condition->GetExpression().isEmpty() )
                 {
                     REPORT( _( "Unconditional rule applied." ) )
                     testAssertion( c );
                 }
                 else
                 {
-                    REPORT( wxString::Format( _( "Checking rule condition \"%s\"." ),
+                    REPORT( QString(_("Checking rule condition \"%1\".")).arg(
                                               EscapeHTML( c->condition->GetExpression() ) ) )
 
                     if( c->condition->EvaluateFor( a, nullptr, c->constraint.m_Type,
@@ -1652,28 +1577,27 @@ void DRC_ENGINE::ReportViolation( const std::shared_ptr<DRC_ITEM>& aItem, const 
 
     if( m_reporter )
     {
-        wxString msg = wxString::Format( wxT( "Test '%s': %s (code %d)" ),
-                                         aItem->GetViolatingTest()->GetName(),
-                                         aItem->GetErrorMessage(),
+        QString msg = QString("Test '%1': %2 (code %3)").arg(aItem->GetViolatingTest()->GetName()).arg(
+                                         aItem->GetErrorMessage()).arg(
                                          aItem->GetErrorCode() );
 
         DRC_RULE* rule = aItem->GetViolatingRule();
 
         if( rule )
-            msg += wxString::Format( wxT( ", violating rule: '%s'" ), rule->m_Name );
+            msg += QString(", violating rule: '%1'").arg(rule->m_Name );
 
         m_reporter->Report( msg );
 
-        wxString violatingItemsStr = wxT( "Violating items: " );
+        QString violatingItemsStr = "Violating items: ";
 
-        m_reporter->Report( wxString::Format( wxT( "  |- violating position (%d, %d)" ),
-                                              aPos.x,
+        m_reporter->Report( QString("  |- violating position (%1, %2)").arg(
+                                              aPos.x).arg(
                                               aPos.y ) );
     }
 }
 
 
-void DRC_ENGINE::ReportAux ( const wxString& aStr )
+void DRC_ENGINE::ReportAux ( const QString& aStr )
 {
     if( !m_reporter )
         return;
@@ -1715,14 +1639,14 @@ bool DRC_ENGINE::ReportProgress( double aProgress )
 }
 
 
-bool DRC_ENGINE::ReportPhase( const wxString& aMessage )
+bool DRC_ENGINE::ReportPhase( const QString& aMessage )
 {
     if( !m_progressReporter )
         return true;
 
     m_progressReporter->AdvancePhase( aMessage );
     bool retval = m_progressReporter->KeepRefreshing( false );
-    wxSafeYield( nullptr, true ); // Force an update for the message
+    QCoreApplication::processEvents(); // Force an update for the message
     return retval;
 }
 
@@ -1780,8 +1704,8 @@ std::set<int> DRC_ENGINE::QueryDistinctConstraints( DRC_CONSTRAINT_T aConstraint
 
 
 // fixme: move two functions below to pcbcommon?
-int DRC_ENGINE::MatchDpSuffix( const wxString& aNetName, wxString& aComplementNet,
-                               wxString& aBaseDpName )
+int DRC_ENGINE::MatchDpSuffix( const QString& aNetName, QString& aComplementNet,
+                               QString& aBaseDpName )
 {
     int rv = 0;
     int count = 0;
@@ -1796,22 +1720,22 @@ int DRC_ENGINE::MatchDpSuffix( const wxString& aNetName, wxString& aComplementNe
         }
         else if( ch == '+' )
         {
-            aComplementNet = wxT( "-" );
+            aComplementNet = "-";
             rv = 1;
         }
         else if( ch == '-' )
         {
-            aComplementNet = wxT( "+" );
+            aComplementNet = "+";
             rv = -1;
         }
         else if( ch == 'N' )
         {
-            aComplementNet = wxT( "P" );
+            aComplementNet = "P";
             rv = -1;
         }
         else if ( ch == 'P' )
         {
-            aComplementNet = wxT( "N" );
+            aComplementNet = "N";
             rv = 1;
         }
         else
@@ -1822,8 +1746,8 @@ int DRC_ENGINE::MatchDpSuffix( const wxString& aNetName, wxString& aComplementNe
 
     if( rv != 0 && count >= 1 )
     {
-        aBaseDpName = aNetName.Left( aNetName.Length() - count );
-        aComplementNet = wxString( aBaseDpName ) << aComplementNet << aNetName.Right( count - 1 );
+        aBaseDpName = aNetName.left( aNetName.length() - count );
+        aComplementNet = aBaseDpName + aComplementNet + aNetName.right( count - 1 );
     }
 
     return rv;
@@ -1832,8 +1756,8 @@ int DRC_ENGINE::MatchDpSuffix( const wxString& aNetName, wxString& aComplementNe
 
 bool DRC_ENGINE::IsNetADiffPair( BOARD* aBoard, NETINFO_ITEM* aNet, int& aNetP, int& aNetN )
 {
-    wxString refName = aNet->GetNetname();
-    wxString dummy, coupledNetName;
+    QString refName = aNet->GetNetname();
+    QString dummy, coupledNetName;
 
     if( int polarity = MatchDpSuffix( refName, coupledNetName, dummy ) )
     {
@@ -1872,7 +1796,7 @@ bool DRC_ENGINE::IsNetTieExclusion( int aTrackNetCode, PCB_LAYER_ID aTrackLayer,
     if( parentFootprint && parentFootprint->IsNetTie() )
     {
         int                     epsilon = GetDesignSettings()->GetDRCEpsilon();
-        std::map<wxString, int> padToNetTieGroupMap = parentFootprint->MapPadNumbersToNetTieGroups();
+        std::map<QString, int> padToNetTieGroupMap = parentFootprint->MapPadNumbersToNetTieGroups();
 
         for( PAD* pad : parentFootprint->Pads() )
         {
@@ -1888,7 +1812,7 @@ bool DRC_ENGINE::IsNetTieExclusion( int aTrackNetCode, PCB_LAYER_ID aTrackLayer,
 }
 
 
-DRC_TEST_PROVIDER* DRC_ENGINE::GetTestProvider( const wxString& name ) const
+DRC_TEST_PROVIDER* DRC_ENGINE::GetTestProvider( const QString& name ) const
 {
     for( DRC_TEST_PROVIDER* prov : m_testProviders )
     {

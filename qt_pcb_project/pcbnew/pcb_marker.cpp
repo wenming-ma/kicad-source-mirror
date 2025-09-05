@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "connectivity/connectivity_data.h"
 #include <bitmaps.h>
@@ -38,6 +14,8 @@
 #include <pgm_base.h>
 #include <drc/drc_item.h>
 #include <trigo.h>
+#include <QString>
+#include <QStringList>
 
 
 /// Factor to convert the maker unit shape to internal units:
@@ -95,18 +73,18 @@ PCB_MARKER::~PCB_MARKER()
 }
 
 
-wxString PCB_MARKER::SerializeToString() const
+QString PCB_MARKER::SerializeToString() const
 {
     if( m_rcItem->GetErrorCode() == DRCE_COPPER_SLIVER
             || m_rcItem->GetErrorCode() == DRCE_GENERIC_WARNING
             || m_rcItem->GetErrorCode() == DRCE_GENERIC_ERROR )
     {
-        return wxString::Format( wxT( "%s|%d|%d|%s|%s" ),
-                                 m_rcItem->GetSettingsKey(),
-                                 m_Pos.x,
-                                 m_Pos.y,
-                                 m_rcItem->GetMainItemID().AsString(),
-                                 LayerName( m_layer ) );
+        return QString( "%1|%2|%3|%4|%5" )
+                        .arg( m_rcItem->GetSettingsKey() )
+                        .arg( m_Pos.x )
+                        .arg( m_Pos.y )
+                        .arg( m_rcItem->GetMainItemID().AsString() )
+                        .arg( LayerName( m_layer ) );
     }
     else if( m_rcItem->GetErrorCode() == DRCE_UNCONNECTED_ITEMS )
     {
@@ -114,48 +92,52 @@ wxString PCB_MARKER::SerializeToString() const
         if( m_layer == UNDEFINED_LAYER )
             layer = F_Cu;
 
-        return wxString::Format( wxT( "%s|%d|%d|%s|%d|%s|%s" ), m_rcItem->GetSettingsKey(), m_Pos.x,
-                                 m_Pos.y, LayerName( layer ), GetMarkerType(),
-                                 m_rcItem->GetMainItemID().AsString(),
-                                 m_rcItem->GetAuxItemID().AsString() );
+        return QString( "%1|%2|%3|%4|%5|%6|%7" )
+                        .arg( m_rcItem->GetSettingsKey() )
+                        .arg( m_Pos.x )
+                        .arg( m_Pos.y )
+                        .arg( LayerName( layer ) )
+                        .arg( GetMarkerType() )
+                        .arg( m_rcItem->GetMainItemID().AsString() )
+                        .arg( m_rcItem->GetAuxItemID().AsString() );
     }
     else if( m_rcItem->GetErrorCode() == DRCE_STARVED_THERMAL )
     {
-        return wxString::Format( wxT( "%s|%d|%d|%s|%s|%s" ),
-                                 m_rcItem->GetSettingsKey(),
-                                 m_Pos.x,
-                                 m_Pos.y,
-                                 m_rcItem->GetMainItemID().AsString(),
-                                 m_rcItem->GetAuxItemID().AsString(),
-                                 LayerName( m_layer ) );
+        return QString( "%1|%2|%3|%4|%5|%6" )
+                        .arg( m_rcItem->GetSettingsKey() )
+                        .arg( m_Pos.x )
+                        .arg( m_Pos.y )
+                        .arg( m_rcItem->GetMainItemID().AsString() )
+                        .arg( m_rcItem->GetAuxItemID().AsString() )
+                        .arg( LayerName( m_layer ) );
     }
     else if( m_rcItem->GetErrorCode() == DRCE_UNRESOLVED_VARIABLE
             && m_rcItem->GetParent()->GetMarkerType() == MARKER_DRAWING_SHEET )
     {
-        return wxString::Format( wxT( "%s|%d|%d|%s|%s" ),
-                                 m_rcItem->GetSettingsKey(),
-                                 m_Pos.x,
-                                 m_Pos.y,
-                                 // Drawing sheet KIIDs aren't preserved between runs
-                                 wxEmptyString,
-                                 wxEmptyString );
+        return QString( "%1|%2|%3|%4|%5" )
+                        .arg( m_rcItem->GetSettingsKey() )
+                        .arg( m_Pos.x )
+                        .arg( m_Pos.y )
+                        // Drawing sheet KIIDs aren't preserved between runs
+                        .arg( QString() )
+                        .arg( QString() );
     }
     else
     {
-        return wxString::Format( wxT( "%s|%d|%d|%s|%s" ),
-                                 m_rcItem->GetSettingsKey(),
-                                 m_Pos.x,
-                                 m_Pos.y,
-                                 m_rcItem->GetMainItemID().AsString(),
-                                 m_rcItem->GetAuxItemID().AsString() );
+        return QString( "%1|%2|%3|%4|%5" )
+                        .arg( m_rcItem->GetSettingsKey() )
+                        .arg( m_Pos.x )
+                        .arg( m_Pos.y )
+                        .arg( m_rcItem->GetMainItemID().AsString() )
+                        .arg( m_rcItem->GetAuxItemID().AsString() );
     }
 }
 
 
-PCB_MARKER* PCB_MARKER::DeserializeFromString( const wxString& data )
+PCB_MARKER* PCB_MARKER::DeserializeFromString( const QString& data )
 {
     auto getMarkerLayer =
-            []( const wxString& layerName ) -> int
+            []( const QString& layerName ) -> int
             {
                 for( int layer = 0; layer < PCB_LAYER_ID_COUNT; ++layer )
                 {
@@ -166,10 +148,10 @@ PCB_MARKER* PCB_MARKER::DeserializeFromString( const wxString& data )
                 return F_Cu;
             };
 
-    wxArrayString props = wxSplit( data, '|' );
+    QStringList props = data.split( '|' );
     int           markerLayer = F_Cu;
-    VECTOR2I      markerPos( (int) strtol( props[1].c_str(), nullptr, 10 ),
-                             (int) strtol( props[2].c_str(), nullptr, 10 ) );
+    VECTOR2I      markerPos( (int) strtol( props[1].toStdString().c_str(), nullptr, 10 ),
+                             (int) strtol( props[2].toStdString().c_str(), nullptr, 10 ) );
 
     std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( props[0] );
 
@@ -204,7 +186,7 @@ PCB_MARKER* PCB_MARKER::DeserializeFromString( const wxString& data )
             markerLayer = getMarkerLayer( props[5] );
     }
     else if( drcItem->GetErrorCode() == DRCE_UNRESOLVED_VARIABLE
-            && props[3].IsEmpty() && props[4].IsEmpty() )
+            && props[3].isEmpty() && props[4].isEmpty() )
     {
         // Note: caller must load our item pointer with the drawing sheet proxy item
         markerLayer = LAYER_DRAWINGSHEET;
@@ -238,12 +220,12 @@ void PCB_MARKER::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
 
     if( GetMarkerType() == MARKER_DRAWING_SHEET )
     {
-        aList.emplace_back( _( "Drawing Sheet" ), wxEmptyString );
+        aList.emplace_back( _( "Drawing Sheet" ), QString() );
     }
     else
     {
-        wxString  mainText;
-        wxString  auxText;
+        QString  mainText;
+        QString  auxText;
         EDA_ITEM* mainItem = nullptr;
         EDA_ITEM* auxItem = nullptr;
 
@@ -287,9 +269,9 @@ std::shared_ptr<SHAPE> PCB_MARKER::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASH
 }
 
 
-wxString PCB_MARKER::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PCB_MARKER::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Marker (%s)" ),
+    return QString( _( "Marker (%1)" ) ).arg(
                              aFull ? m_rcItem->GetErrorMessage() : m_rcItem->GetErrorText() );
 }
 

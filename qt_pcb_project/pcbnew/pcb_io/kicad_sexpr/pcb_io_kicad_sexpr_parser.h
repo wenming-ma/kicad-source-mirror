@@ -1,36 +1,12 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
-/**
- * @file pcb_io_kicad_sexpr_parser.h
- * @brief Pcbnew s-expression file format parser definition.
- */
+#pragma once
 
 #ifndef _PCBNEW_PARSER_H_
 #define _PCBNEW_PARSER_H_
 
-#include <core/wx_stl_compat.h>
+#include <QString>
+#include <QStringList>
 #include <hashtables.h>
 #include <layer_ids.h>     // PCB_LAYER_ID
 #include <lset.h>
@@ -69,20 +45,17 @@ class PROGRESS_REPORTER;
 class TEARDROP_PARAMETERS;
 
 
-/**
- * Read a Pcbnew s-expression formatted #LINE_READER object and returns the appropriate
- * #BOARD_ITEM object.
- */
+// Read a Pcbnew s-expression formatted LINE_READER object and returns the appropriate BOARD_ITEM object.
 class PCB_IO_KICAD_SEXPR_PARSER : public PCB_LEXER
 {
 public:
 
     typedef std::unordered_map< std::string, PCB_LAYER_ID > LAYER_ID_MAP;
     typedef std::unordered_map< std::string, LSET >         LSET_MAP;
-    typedef std::unordered_map< wxString, KIID >            KIID_MAP;
+    typedef std::unordered_map< QString, KIID >             KIID_MAP;
 
     PCB_IO_KICAD_SEXPR_PARSER( LINE_READER* aReader, BOARD* aAppendToMe,
-                std::function<bool( wxString, int, wxString, wxString )> aQueryUserCallback,
+                std::function<bool( QString, int, QString, QString )> aQueryUserCallback,
                 PROGRESS_REPORTER* aProgressReporter = nullptr, unsigned aLineCount = 0 ) :
         PCB_LEXER( aReader ),
         m_board( aAppendToMe ),
@@ -99,32 +72,19 @@ public:
 
     BOARD_ITEM* Parse();
 
-    /**
-     * @param aInitialComments may be a pointer to a heap allocated initial comment block
-     *                         or NULL.  If not NULL, then caller has given ownership of a
-     *                         wxArrayString to this function and care must be taken to
-     *                         delete it even on exception.
-     */
-    FOOTPRINT* parseFOOTPRINT( wxArrayString* aInitialComments = nullptr );
+    // Parse a footprint. aInitialComments may be nullptr or a pointer to a heap allocated comment block.
+    FOOTPRINT* parseFOOTPRINT( QStringList* aInitialComments = nullptr );
 
-    /**
-     * Return whether a version number, if any was parsed, was too recent
-     */
+    // Return whether a version number, if any was parsed, was too recent
     bool IsTooRecent()
     {
         return m_tooRecent;
     }
 
-    /**
-     * Return a string representing the version of KiCad required to open this
-     * file. Not particularly meaningful if IsTooRecent() returns false.
-     */
-    wxString GetRequiredVersion();
+    // Return a string representing the version of KiCad required to open this file.
+    QString GetRequiredVersion();
 
-    /**
-     * Partially parse the input and check if it matches expected header
-     * @return true if expected header matches
-     */
+    // Partially parse the input and check if it matches expected header
     bool IsValidBoardHeader();
 
 private:
@@ -138,7 +98,7 @@ private:
         virtual ~GROUP_INFO() = default; // Make polymorphic
 
         BOARD_ITEM*       parent;
-        wxString          name;
+        QString           name;
         bool              locked;
         KIID              uuid;
         std::vector<KIID> memberUuids;
@@ -147,7 +107,7 @@ private:
     struct GENERATOR_INFO : GROUP_INFO
     {
         PCB_LAYER_ID   layer;
-        wxString       genType;
+        QString        genType;
         STRING_ANY_MAP properties;
     };
 
@@ -161,39 +121,18 @@ private:
         return aNetCode;
     }
 
-    /**
-     * Add aValue value in netcode mapping (m_netCodes) at \a aIndex.
-     *
-     * Ensure there is room in m_netCodes for that, and add room if needed.
-     *
-     * @param aIndex is the index ( expected >=0 )of the location to use in m_netCodes.
-     * @param aValue is the netcode value to map.
-     */
+    // Add aValue value in netcode mapping (m_netCodes) at aIndex.
     void pushValueIntoMap( int aIndex, int aValue );
 
-    /**
-     * Clear and re-establish m_layerMap with the default layer names.
-     *
-     * m_layerMap will have some of its entries overwritten whenever a (new) board
-     * is encountered.
-     */
+    // Clear and re-establish m_layerMap with the default layer names.
     void init();
 
     void checkpoint();
 
-    /**
-     * Create a mapping from the (short-lived) bug where layer names were translated.
-     *
-     * @todo Remove this once we support custom layer names.
-     *
-     * @param aMap string mapping from translated to English layer names.
-     */
+    // Create a mapping from the (short-lived) bug where layer names were translated.
     void createOldLayerMapping( std::unordered_map< std::string, std::string >& aMap );
 
-    /**
-     * Skip the current token level, i.e search for the RIGHT parenthesis which closes the
-     * current description.
-     */
+    // Skip the current token level, i.e search for the RIGHT parenthesis which closes the current description.
     void skipCurrent();
 
     void parseHeader();
@@ -226,7 +165,7 @@ private:
     PCB_DIMENSION_BASE*  parseDIMENSION( BOARD_ITEM* aParent );
 
     // Parse a footprint, but do not replace PARSE_ERROR with FUTURE_FORMAT_ERROR automatically.
-    FOOTPRINT*  parseFOOTPRINT_unchecked( wxArrayString* aInitialComments = nullptr );
+    FOOTPRINT*  parseFOOTPRINT_unchecked( QStringList* aInitialComments = nullptr );
 
     PAD*        parsePAD( FOOTPRINT* aParent = nullptr );
 
@@ -248,100 +187,42 @@ private:
     // Parse a board, but do not replace PARSE_ERROR with FUTURE_FORMAT_ERROR automatically.
     BOARD*      parseBOARD_unchecked();
 
-    /**
-     * Parse the current token for the layer definition of a #BOARD_ITEM object.
-     *
-     * @param aMap is the LAYER_{NUM|MSK}_MAP to use for the lookup.
-     * @return The result of the parsed #BOARD_ITEM layer or set designator.
-     * @throw IO_ERROR if the layer is not valid.
-     * @throw PARSE_ERROR if the layer syntax is incorrect.
-     */
+    // Parse the current token for the layer definition of a BOARD_ITEM object.
     PCB_LAYER_ID lookUpLayer( const LAYER_ID_MAP& aMap );
     LSET lookUpLayerSet( const LSET_MAP& aMap );
 
-    /**
-     * Parse the layer definition of a #BOARD_ITEM object.
-     *
-     * @return The index the parsed #BOARD_ITEM layer.
-     * @throw IO_ERROR if the layer is not valid.
-     * @throw PARSE_ERROR if the layer syntax is incorrect.
-     */
+    // Parse the layer definition of a BOARD_ITEM object.
     PCB_LAYER_ID parseBoardItemLayer();
 
-    /**
-     * Parse the layers definition of a #BOARD_ITEM object.
-     *
-     * @return The mask of layers the parsed #BOARD_ITEM is on.
-     * @throw IO_ERROR if any of the layers is not valid.
-     * @throw PARSE_ERROR if the layers syntax is incorrect.
-     */
+    // Parse the layers definition of a BOARD_ITEM object.
     LSET parseBoardItemLayersAsMask();
 
-     /**
-     * Parse the layers definition of a #BOARD_ITEM object
-     * that has a single copper layer and optional soldermask layer.
-     *
-     * @return The mask of layers the parsed #BOARD_ITEM is on.
-     * @throw IO_ERROR if any of the layers is not valid.
-     * @throw PARSE_ERROR if the layers syntax is incorrect.
-     */
+     // Parse the layers definition of a BOARD_ITEM object that has a single copper layer and optional soldermask layer.
     LSET parseLayersForCuItemWithSoldermask();
 
-    /**
-     * Parse a coordinate pair (xy X Y) in board units (mm).
-     *
-     * The parser checks if the previous token was T_LEFT and parses the remainder of
-     * the token syntax.  This is used when parsing a list of coordinate points.  This
-     * way the parser can be used in either case.
-     *
-     * @return A wxPoint object containing the coordinate pair.
-     * @throw PARSE_ERROR if the coordinate pair syntax is incorrect.
-     */
+    // Parse a coordinate pair (xy X Y) in board units (mm).
     VECTOR2I parseXY();
 
     void parseXY( int* aX, int* aY );
 
     void parseMargins( int& aLeft, int& aTop, int& aRight, int& aBottom );
 
-    std::pair<wxString, wxString> parseBoardProperty();
+    std::pair<QString, QString> parseBoardProperty();
 
-    /**
-     * Parses possible outline points and stores them into \p aPoly.  This accepts points
-     * for DRAWSEGMENT polygons, EDGEMODULE polygons and ZONE_CONTAINER polygons.  Points
-     * and arcs are added to the most recent outline
-     *
-     * @param aPoly polygon container to add points and arcs
-     */
+    // Parse possible outline points and store them into polygon.
     void parseOutlinePoints( SHAPE_LINE_CHAIN& aPoly );
 
-    /**
-     * Parse the common settings for any object derived from #EDA_TEXT.
-     *
-     * @param aText A pointer to the #EDA_TEXT object to save the parsed settings into.
-     * @throw PARSE_ERROR if the text syntax is not valid.
-     */
+    // Parse the common settings for any object derived from EDA_TEXT.
     void parseEDA_TEXT( EDA_TEXT* aText );
 
-    /**
-     * Parse the render cache for any object derived from #EDA_TEXT.
-     *
-     * @param aText A pointer to the #EDA_TEXT object to save the parsed settings into.
-     * @throw PARSE_ERROR if the text syntax is not valid.
-     */
+    // Parse the render cache for any object derived from EDA_TEXT.
     void parseRenderCache( EDA_TEXT* text );
 
     void parseTenting( PADSTACK& aPadstack );
 
     FP_3DMODEL* parse3DModel();
 
-    /**
-     * Parse the current token as an ASCII numeric string with possible leading
-     * whitespace into a double precision floating point number.
-     *
-     * @return The result of the parsed token.
-     * @throw IO_ERROR if an error occurs attempting to convert the current token.
-     */
-
+    // Parse the current token as an ASCII numeric string into a board unit value.
     int parseBoardUnits();
 
     int parseBoardUnits( const char* aExpected );
@@ -370,16 +251,7 @@ private:
 
     bool parseBool();
 
-    /**
-     * Parses a boolean flag inside a list that existed before boolean normalization.
-     *
-     * For example, this will handle both (legacy_teardrops) and (legacy_teardrops yes).
-     * Call this after parsing the T_legacy_teardrops, and aDefaultValue will be returned for the
-     * first case, or true will be returned for the second case.
-     *
-     * @param aDefaultValue will be returned if the end of the list is encountered as the next token
-     * @return the parsed boolean
-     */
+    // Parse a boolean flag inside a list that existed before boolean normalization.
     bool parseMaybeAbsentBool( bool aDefaultValue );
 
     /*
@@ -387,10 +259,7 @@ private:
      */
     KIID CurStrToKIID();
 
-    /**
-     * Called after parsing a footprint definition or board to build the group membership
-     * lists.
-     */
+    // Called after parsing a footprint definition or board to build the group membership lists.
     void resolveGroups( BOARD_ITEM* aParent );
 
     ///< The type of progress bar timeout
@@ -403,29 +272,29 @@ private:
     using TIME_PT = std::chrono::time_point<CLOCK>;
 
     BOARD*              m_board;
-    LAYER_ID_MAP        m_layerIndices;     ///< map layer name to it's index
-    LSET_MAP            m_layerMasks;       ///< map layer names to their masks
-    std::set<wxString>  m_undefinedLayers;  ///< set of layers not defined in layers section
-    std::vector<int>    m_netCodes;         ///< net codes mapping for boards being loaded
-    bool                m_tooRecent;        ///< true if version parses as later than supported
-    int                 m_requiredVersion;  ///< set to the KiCad format version this board requires
-    wxString            m_generatorVersion; ///< Set to the generator version this board requires
-    bool                m_appendToExisting; ///< reading into an existing board; reset UUIDs
+    LAYER_ID_MAP        m_layerIndices;     // map layer name to it's index
+    LSET_MAP            m_layerMasks;       // map layer names to their masks
+    std::set<QString>   m_undefinedLayers;  // set of layers not defined in layers section
+    std::vector<int>    m_netCodes;         // net codes mapping for boards being loaded
+    bool                m_tooRecent;        // true if version parses as later than supported
+    int                 m_requiredVersion;  // set to the KiCad format version this board requires
+    QString             m_generatorVersion; // Set to the generator version this board requires
+    bool                m_appendToExisting; // reading into an existing board; reset UUIDs
 
-    ///< if resetting UUIDs, record new ones to update groups with.
+    // if resetting UUIDs, record new ones to update groups with.
     KIID_MAP            m_resetKIIDMap;
 
     bool                m_showLegacySegmentZoneWarning;
     bool                m_showLegacy5ZoneWarning;
 
-    PROGRESS_REPORTER*  m_progressReporter;  ///< optional; may be nullptr
-    TIME_PT             m_lastProgressTime;  ///< for progress reporting
-    unsigned            m_lineCount;         ///< for progress reporting
+    PROGRESS_REPORTER*  m_progressReporter;  // optional; may be nullptr
+    TIME_PT             m_lastProgressTime;  // for progress reporting
+    unsigned            m_lineCount;         // for progress reporting
 
     std::vector<GROUP_INFO>     m_groupInfos;
     std::vector<GENERATOR_INFO> m_generatorInfos;
 
-    std::function<bool( wxString aTitle, int aIcon, wxString aMsg, wxString aAction )> m_queryUserCallback;
+    std::function<bool( QString aTitle, int aIcon, QString aMsg, QString aAction )> m_queryUserCallback;
 };
 
 

@@ -1,38 +1,9 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2013-2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-/**
- * @file ratsnest_data.cpp
- * @brief Class that computes missing connections on a PCB.
- */
 
 #ifdef PROFILE
 #include <core/profile.h>
 #endif
+
+#include <QtCore/QDebug>
 
 #include <ratsnest/ratsnest_data.h>
 #include <functional>
@@ -123,7 +94,9 @@ void RN_NET::kruskalMST( const std::vector<CN_EDGE> &aEdges )
         const std::shared_ptr<const CN_ANCHOR>& source = tmp.GetSourceNode();
         const std::shared_ptr<const CN_ANCHOR>& target = tmp.GetTargetNode();
 
-        wxCHECK2( source && !source->Dirty() && target && !target->Dirty(), continue );
+        Q_ASSERT( source && !source->Dirty() && target && !target->Dirty() );
+        if( !( source && !source->Dirty() && target && !target->Dirty() ) )
+            continue;
 
         if( dset.unite( source->GetTag(), target->GetTag() ) )
         {
@@ -503,7 +476,9 @@ void RN_NET::OptimizeRNEdges()
         const std::shared_ptr<const CN_ANCHOR>& source = edge.GetSourceNode();
         const std::shared_ptr<const CN_ANCHOR>& target = edge.GetTargetNode();
 
-        wxCHECK2( source && !source->Dirty() && target && !target->Dirty(), continue );
+        Q_ASSERT( source && !source->Dirty() && target && !target->Dirty() );
+        if( !( source && !source->Dirty() && target && !target->Dirty() ) )
+            continue;
 
         if( source->ConnectedItemsCount() == 0 )
         {

@@ -1,30 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Copyright (C) 2020 CERN
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-3.0.html
- * or you may search the http://www.gnu.org website for the version 3 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef DRC_RTREE_H_
 #define DRC_RTREE_H_
 
+#include <QtCore/QtGlobal>
 #include <board_item.h>
 #include <pad.h>
 #include <pcb_field.h>
@@ -113,7 +91,7 @@ public:
     void Insert( BOARD_ITEM* aItem, PCB_LAYER_ID aRefLayer, PCB_LAYER_ID aTargetLayer,
                  int aWorstClearance )
     {
-        wxCHECK( aTargetLayer != UNDEFINED_LAYER, /* void */ );
+        Q_ASSERT( aTargetLayer != UNDEFINED_LAYER );
 
         if( aItem->Type() == PCB_FIELD_T && !static_cast<PCB_FIELD*>( aItem )->IsVisible() )
             return;
@@ -121,7 +99,7 @@ public:
         std::vector<const SHAPE*> subshapes;
         std::shared_ptr<SHAPE> shape = aItem->GetEffectiveShape( aRefLayer );
 
-        wxCHECK2_MSG( shape, return, wxT( "Item does not have a valid shape for this layer" ) );
+        Q_ASSERT_X( shape, "Insert", "Item does not have a valid shape for this layer" );
 
         if( shape->HasIndexableSubshapes() )
             shape->GetIndexableSubshapes( subshapes );
@@ -260,7 +238,7 @@ public:
                     if( filtered )
                         return true;
 
-                    wxCHECK( aItem->shape, false );
+                    Q_ASSERT( aItem->shape );
 
                     if( refShape->Collide( aItem->shape, aClearance ) )
                     {

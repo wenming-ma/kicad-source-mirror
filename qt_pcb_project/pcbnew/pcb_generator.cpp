@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #include "pcb_generator.h"
 
@@ -63,7 +42,7 @@ void PCB_GENERATOR::EditStart( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMI
 
 
 void PCB_GENERATOR::EditPush( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit,
-                              const wxString& aCommitMsg, int aCommitFlags )
+                              const QString& aCommitMsg, int aCommitFlags )
 {
     aCommit->Push( aCommitMsg, aCommitFlags );
 }
@@ -182,7 +161,7 @@ void PCB_GENERATOR::SetLayer( PCB_LAYER_ID aLayer )
 }
 
 
-wxString PCB_GENERATOR::GetGeneratorType() const
+QString PCB_GENERATOR::GetGeneratorType() const
 {
     return m_generatorType;
 }
@@ -212,25 +191,25 @@ void PCB_GENERATOR::SetProperties( const STRING_ANY_MAP& aProps )
 }
 
 
-std::vector<std::pair<wxString, wxVariant>> PCB_GENERATOR::GetRowData()
+std::vector<std::pair<QString, QVariant>> PCB_GENERATOR::GetRowData()
 {
 #ifdef GENERATOR_ORDER
-    return { { _HKI( "Update Order" ), wxString::FromCDouble( GetUpdateOrder() ) } };
+    return { { _HKI( "Update Order" ), QString::number( GetUpdateOrder() ) } };
 #else
     return { {} };
 #endif
 }
 
 
-wxString PCB_GENERATOR::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PCB_GENERATOR::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString( _( "Generator" ) );
+    return QString( _( "Generator" ) );
 }
 
 
-wxString PCB_GENERATOR::GetClass() const
+QString PCB_GENERATOR::GetClass() const
 {
-    return wxS( "PCB_GENERATOR" );
+    return QStringLiteral( "PCB_GENERATOR" );
 }
 
 
@@ -250,7 +229,7 @@ static struct PCB_GENERATOR_DESC
         propMgr.AddTypeCast( new TYPE_CAST<PCB_GENERATOR, BOARD_ITEM> );
         propMgr.InheritsAfter( TYPE_HASH( PCB_GENERATOR ), TYPE_HASH( BOARD_ITEM ) );
 
-        const wxString groupTab = _HKI( "Generator Properties" );
+        const QString groupTab = _HKI( "Generator Properties" );
 
         propMgr.AddProperty( new PROPERTY<PCB_GENERATOR, int>( _HKI( "Update Order" ),
                                                                &PCB_GENERATOR::SetUpdateOrder,

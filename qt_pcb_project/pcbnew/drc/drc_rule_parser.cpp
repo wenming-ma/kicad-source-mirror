@@ -1,27 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-
+#include <QString>
+#include <QRegExp>
 #include <board.h>
 #include <zones.h>
 #include <drc/drc_rule_parser.h>
@@ -33,8 +11,8 @@
 using namespace DRCRULE_T;
 
 
-DRC_RULES_PARSER::DRC_RULES_PARSER( const wxString& aSource, const wxString& aSourceDescr ) :
-        DRC_RULES_LEXER( aSource.ToStdString(), aSourceDescr ),
+DRC_RULES_PARSER::DRC_RULES_PARSER( const QString& aSource, const QString& aSourceDescr ) :
+        DRC_RULES_LEXER( aSource.toStdString(), aSourceDescr ),
         m_requiredVersion( 0 ),
         m_tooRecent( false ),
         m_reporter( nullptr )
@@ -42,7 +20,7 @@ DRC_RULES_PARSER::DRC_RULES_PARSER( const wxString& aSource, const wxString& aSo
 }
 
 
-DRC_RULES_PARSER::DRC_RULES_PARSER( FILE* aFile, const wxString& aFilename ) :
+DRC_RULES_PARSER::DRC_RULES_PARSER( FILE* aFile, const QString& aFilename ) :
         DRC_RULES_LEXER( aFile, aFilename ),
         m_requiredVersion( 0 ),
         m_tooRecent( false ),
@@ -51,35 +29,38 @@ DRC_RULES_PARSER::DRC_RULES_PARSER( FILE* aFile, const wxString& aFilename ) :
 }
 
 
-void DRC_RULES_PARSER::reportError( const wxString& aMessage )
+void DRC_RULES_PARSER::reportError( const QString& aMessage )
 {
-    wxString rest;
-    wxString first = aMessage.BeforeFirst( '|', &rest );
+    QString rest;
+    QString first = aMessage.section( '|', 0, 0 );
+    int pipePos = aMessage.indexOf( '|' );
+    if( pipePos != -1 )
+        rest = aMessage.mid( pipePos );
 
     if( m_reporter )
     {
-        wxString msg = wxString::Format( _( "ERROR: <a href='%d:%d'>%s</a>%s" ), CurLineNumber(),
-                                         CurOffset(), first, rest );
+        QString msg = QString::asprintf( _( "ERROR: <a href='%d:%d'>%s</a>%s" ).toStdString().c_str(), CurLineNumber(),
+                                         CurOffset(), first.toStdString().c_str(), rest.toStdString().c_str() );
 
         m_reporter->Report( msg, RPT_SEVERITY_ERROR );
     }
     else
     {
-        wxString msg = wxString::Format( _( "ERROR: %s%s" ), first, rest );
+        QString msg = QString::asprintf( _( "ERROR: %s%s" ).toStdString().c_str(), first.toStdString().c_str(), rest.toStdString().c_str() );
 
         THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
     }
 }
 
 
-void DRC_RULES_PARSER::reportDeprecation( const wxString& oldToken, const wxString newToken )
+void DRC_RULES_PARSER::reportDeprecation( const QString& oldToken, const QString newToken )
 {
     if( m_reporter )
     {
-        wxString msg = wxString::Format( _( "The '%s' keyword has been deprecated.  "
-                                            "Please use '%s' instead." ),
-                                         oldToken,
-                                         newToken);
+        QString msg = QString::asprintf( _( "The '%s' keyword has been deprecated.  "
+                                            "Please use '%s' instead." ).toStdString().c_str(),
+                                         oldToken.toStdString().c_str(),
+                                         newToken.toStdString().c_str());
 
         m_reporter->Report( msg, RPT_SEVERITY_WARNING );
     }
@@ -107,7 +88,7 @@ void DRC_RULES_PARSER::parseUnknown()
 void DRC_RULES_PARSER::Parse( std::vector<std::shared_ptr<DRC_RULE>>& aRules, REPORTER* aReporter )
 {
     bool     haveVersion = false;
-    wxString msg;
+    QString msg;
 
     m_reporter = aReporter;
 
@@ -144,15 +125,15 @@ void DRC_RULES_PARSER::Parse( std::vector<std::shared_ptr<DRC_RULE>>& aRules, RE
             }
             else
             {
-                msg.Printf( _( "Unrecognized item '%s'.| Expected version number." ),
-                            FromUTF8() );
+                msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected version number." ).toStdString().c_str(),
+                            FromUTF8().toStdString().c_str() );
                 reportError( msg );
             }
 
             if( (int) token != DSN_RIGHT )
             {
-                msg.Printf( _( "Unrecognized item '%s'." ),
-                            FromUTF8() );
+                msg = QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(),
+                            FromUTF8().toStdString().c_str() );
                 reportError( msg );
                 parseUnknown();
             }
@@ -168,8 +149,8 @@ void DRC_RULES_PARSER::Parse( std::vector<std::shared_ptr<DRC_RULE>>& aRules, RE
             break;
 
         default:
-            msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ), FromUTF8(),
-                        wxT( "rule or version" ) );
+            msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(), FromUTF8().toStdString().c_str(),
+                        "rule or version" );
             reportError( msg );
             parseUnknown();
         }
@@ -187,7 +168,7 @@ std::shared_ptr<DRC_RULE> DRC_RULES_PARSER::parseDRC_RULE()
     std::shared_ptr<DRC_RULE> rule = std::make_shared<DRC_RULE>();
 
     T        token = NextTok();
-    wxString msg;
+    QString msg;
 
     if( !IsSymbol( token ) )
         reportError( _( "Missing rule name." ) );
@@ -223,14 +204,14 @@ std::shared_ptr<DRC_RULE> DRC_RULES_PARSER::parseDRC_RULE()
             }
             else
             {
-                msg.Printf( _( "Unrecognized item '%s'.| Expected quoted expression." ),
-                            FromUTF8() );
+                msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected quoted expression." ).toStdString().c_str(),
+                            FromUTF8().toStdString().c_str() );
                 reportError( msg );
             }
 
             if( (int) NextTok() != DSN_RIGHT )
             {
-                reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
+                reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
                 parseUnknown();
             }
 
@@ -252,8 +233,8 @@ std::shared_ptr<DRC_RULE> DRC_RULES_PARSER::parseDRC_RULE()
             return rule;
 
         default:
-            msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ), FromUTF8(),
-                        wxT( "constraint, condition, or disallow" ) );
+            msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(), FromUTF8().toStdString().c_str(),
+                        "constraint, condition, or disallow" );
             reportError( msg );
             parseUnknown();
         }
@@ -270,34 +251,34 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 {
     DRC_CONSTRAINT c;
     int            value;
-    wxString       msg;
+    QString       msg;
 
     T token = NextTok();
 
     if( token == T_mechanical_clearance )
     {
-        reportDeprecation( wxT( "mechanical_clearance" ), wxT( "physical_clearance" ) );
+        reportDeprecation( "mechanical_clearance", "physical_clearance" );
         token = T_physical_clearance;
     }
     else if( token == T_mechanical_hole_clearance )
     {
-        reportDeprecation( wxT( "mechanical_hole_clearance" ), wxT( "physical_hole_clearance" ) );
+        reportDeprecation( "mechanical_hole_clearance", "physical_hole_clearance" );
         token = T_physical_hole_clearance;
     }
     else if( token == T_hole )
     {
-        reportDeprecation( wxT( "hole" ), wxT( "hole_size" ) );
+        reportDeprecation( "hole", "hole_size" );
         token = T_hole_size;
     }
     else if( (int) token == DSN_RIGHT || token == T_EOF )
     {
-        msg.Printf( _( "Missing constraint type.|  Expected %s." ),
-                    wxT( "assertion, clearance, hole_clearance, edge_clearance, "
+        msg = QString::asprintf( _( "Missing constraint type.|  Expected %s." ).toStdString().c_str(),
+                    "assertion, clearance, hole_clearance, edge_clearance, "
                          "physical_clearance, physical_hole_clearance, courtyard_clearance, "
                          "silk_clearance, hole_size, hole_to_hole, track_width, annular_width, "
                          "via_diameter, disallow, zone_connection, thermal_relief_gap, "
                          "thermal_spoke_width, min_resolved_spokes, length, skew, via_count, "
-                         "diff_pair_gap or diff_pair_uncoupled" ) );
+                         "diff_pair_gap or diff_pair_uncoupled" );
         reportError( msg );
         return;
     }
@@ -334,19 +315,19 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
     case T_physical_clearance:        c.m_Type = PHYSICAL_CLEARANCE_CONSTRAINT;        break;
     case T_physical_hole_clearance:   c.m_Type = PHYSICAL_HOLE_CLEARANCE_CONSTRAINT;   break;
     default:
-        msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ), FromUTF8(),
-                    wxT( "assertion, clearance, hole_clearance, edge_clearance, "
+        msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(), FromUTF8().toStdString().c_str(),
+                    "assertion, clearance, hole_clearance, edge_clearance, "
                          "physical_clearance, physical_hole_clearance, courtyard_clearance, "
                          "silk_clearance, hole_size, hole_to_hole, track_width, track_angle, track_segment_length, annular_width, "
                          "disallow, zone_connection, thermal_relief_gap, thermal_spoke_width, "
                          "min_resolved_spokes, length, skew, via_count, via_diameter, "
-                         "diff_pair_gap or diff_pair_uncoupled" ) );
+                         "diff_pair_gap or diff_pair_uncoupled" );
         reportError( msg );
     }
 
     if( aRule->FindConstraint( c.m_Type ) )
     {
-        msg.Printf( _( "Rule already has a '%s' constraint." ), FromUTF8() );
+        msg = QString::asprintf( _( "Rule already has a '%s' constraint." ).toStdString().c_str(), FromUTF8().toStdString().c_str() );
         reportError( msg );
     }
 
@@ -379,9 +360,9 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
                 return;
 
             default:
-                msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ), FromUTF8(),
-                            wxT( "track, via, micro_via, buried_via, pad, zone, text, graphic, "
-                                 "hole, or footprint." ) );
+                msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(), FromUTF8().toStdString().c_str(),
+                            "track, via, micro_via, buried_via, pad, zone, text, graphic, "
+                                 "hole, or footprint." );
                 reportError( msg );
                 break;
             }
@@ -411,7 +392,7 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
             return;
 
         default:
-            msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ), FromUTF8(),
+            msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(), FromUTF8().toStdString().c_str(),
                         "solid, thermal_reliefs or none." );
             reportError( msg );
             break;
@@ -463,13 +444,13 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
         }
         else
         {
-            msg.Printf( _( "Unrecognized item '%s'.| Expected quoted expression." ), FromUTF8() );
+            msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected quoted expression." ).toStdString().c_str(), FromUTF8().toStdString().c_str() );
             reportError( msg );
         }
 
         if( (int) NextTok() != DSN_RIGHT )
         {
-            reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
+            reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
             parseUnknown();
         }
 
@@ -497,7 +478,7 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 
             if( (int) NextTok() != DSN_RIGHT )
             {
-                reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
+                reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
                 parseUnknown();
             }
 
@@ -517,7 +498,7 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 
             if( (int) NextTok() != DSN_RIGHT )
             {
-                reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
+                reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
                 parseUnknown();
             }
 
@@ -538,7 +519,7 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 
             if( (int) NextTok() != DSN_RIGHT )
             {
-                reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
+                reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
                 parseUnknown();
             }
 
@@ -558,7 +539,7 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 
             if( (int) NextTok() != DSN_RIGHT )
             {
-                reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
+                reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
                 parseUnknown();
             }
 
@@ -569,9 +550,9 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
             return;
 
         default:
-            msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ),
-                        FromUTF8(),
-                        wxT( "min, max, or opt" ) );
+            msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(),
+                        FromUTF8().toStdString().c_str(),
+                        "min, max, or opt" );
             reportError( msg );
             parseUnknown();
         }
@@ -584,24 +565,27 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 }
 
 
-void DRC_RULES_PARSER::parseValueWithUnits( const wxString& aExpr, int& aResult, bool aUnitless )
+void DRC_RULES_PARSER::parseValueWithUnits( const QString& aExpr, int& aResult, bool aUnitless )
 {
     auto errorHandler =
-            [&]( const wxString& aMessage, int aOffset )
+            [&]( const QString& aMessage, int aOffset )
             {
-                wxString rest;
-                wxString first = aMessage.BeforeFirst( '|', &rest );
+                QString rest;
+                QString first = aMessage.section( '|', 0, 0 );
+                int pipePos = aMessage.indexOf( '|' );
+                if( pipePos != -1 )
+                    rest = aMessage.mid( pipePos );
 
                 if( m_reporter )
                 {
-                    wxString msg = wxString::Format( _( "ERROR: <a href='%d:%d'>%s</a>%s" ),
-                                                     CurLineNumber(), CurOffset() + aOffset, first, rest );
+                    QString msg = QString::asprintf( _( "ERROR: <a href='%d:%d'>%s</a>%s" ).toStdString().c_str(),
+                                                     CurLineNumber(), CurOffset() + aOffset, first.toStdString().c_str(), rest.toStdString().c_str() );
 
                     m_reporter->Report( msg, RPT_SEVERITY_ERROR );
                 }
                 else
                 {
-                    wxString msg = wxString::Format( _( "ERROR: %s%s" ), first, rest );
+                    QString msg = QString::asprintf( _( "ERROR: %s%s" ).toStdString().c_str(), first.toStdString().c_str(), rest.toStdString().c_str() );
 
                     THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(),
                                        CurOffset() + aOffset );
@@ -617,7 +601,7 @@ void DRC_RULES_PARSER::parseValueWithUnits( const wxString& aExpr, int& aResult,
 }
 
 
-LSET DRC_RULES_PARSER::parseLayer( wxString* aSource )
+LSET DRC_RULES_PARSER::parseLayer( QString* aSource )
 {
     LSET retVal;
     int  token = NextTok();
@@ -639,30 +623,30 @@ LSET DRC_RULES_PARSER::parseLayer( wxString* aSource )
     }
     else
     {
-        wxString     layerName = FromUTF8();
-        wxPGChoices& layerMap = ENUM_MAP<PCB_LAYER_ID>::Instance().Choices();
+        QString     layerName = FromUTF8();
+        QStringList& layerMap = ENUM_MAP<PCB_LAYER_ID>::Instance().Choices();
 
-        for( unsigned ii = 0; ii < layerMap.GetCount(); ++ii )
+        for( unsigned ii = 0; ii < layerMap.count(); ++ii )
         {
-            wxPGChoiceEntry& entry = layerMap[ii];
+            const QString& entry = layerMap[ii];
 
-            if( entry.GetText().Matches( layerName ) )
+            if( QRegExp( layerName, Qt::CaseInsensitive, QRegExp::Wildcard ).exactMatch( entry ) )
             {
                 *aSource = layerName;
-                retVal.set( ToLAYER_ID( entry.GetValue() ) );
+                retVal.set( ToLAYER_ID( ENUM_MAP<PCB_LAYER_ID>::Instance().ToEnum( entry ) ) );
             }
         }
 
         if( !retVal.any() )
         {
-            reportError( wxString::Format( _( "Unrecognized layer '%s'." ), layerName ) );
+            reportError( QString::asprintf( _( "Unrecognized layer '%s'." ).toStdString().c_str(), layerName.toStdString().c_str() ) );
             retVal.set( Rescue );
         }
     }
 
     if( (int) NextTok() != DSN_RIGHT )
     {
-        reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
+        reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
         parseUnknown();
     }
 
@@ -673,7 +657,7 @@ LSET DRC_RULES_PARSER::parseLayer( wxString* aSource )
 SEVERITY DRC_RULES_PARSER::parseSeverity()
 {
     SEVERITY retVal = RPT_SEVERITY_UNDEFINED;
-    wxString msg;
+    QString msg;
 
     T token = NextTok();
 
@@ -691,9 +675,9 @@ SEVERITY DRC_RULES_PARSER::parseSeverity()
     case T_exclusion: retVal = RPT_SEVERITY_EXCLUSION; break;
 
     default:
-        msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ),
-                    FromUTF8(),
-                    wxT( "ignore, warning, error, or exclusion" ) );
+        msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(),
+                    FromUTF8().toStdString().c_str(),
+                    "ignore, warning, error, or exclusion" );
         reportError( msg );
         parseUnknown();
     }

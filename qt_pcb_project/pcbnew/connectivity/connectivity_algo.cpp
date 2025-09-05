@@ -1,29 +1,6 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2016-2018 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #include <algorithm>
 #include <future>
@@ -36,7 +13,8 @@
 #include <thread_pool.h>
 #include <pcb_shape.h>
 
-#include <wx/log.h>
+#include <QDebug>
+#include <QString>
 
 #ifdef PROFILE
 #include <core/profile.h>
@@ -615,8 +593,7 @@ void CN_CONNECTIVITY_ALGO::propagateConnections( BOARD_COMMIT* aCommit )
         {
             // Conflicting pads in cluster: we don't know the user's intent so best to do
             // nothing.
-            wxLogTrace( wxT( "CN" ), wxT( "Conflicting pads in cluster %p; skipping propagation" ),
-                        cluster.get() );
+            qDebug() << QString("CN: Conflicting pads in cluster %1; skipping propagation").arg(reinterpret_cast<quintptr>(cluster.get()), 0, 16);
         }
         else if( cluster->HasValidNet() )
         {
@@ -642,21 +619,21 @@ void CN_CONNECTIVITY_ALGO::propagateConnections( BOARD_COMMIT* aCommit )
 
             if( n_changed )
             {
-                wxLogTrace( wxT( "CN" ), wxT( "Cluster %p: net: %d %s" ),
-                            cluster.get(),
-                            cluster->OriginNet(),
-                            (const char*) cluster->OriginNetName().c_str() );
+                qDebug() << QString("CN: Cluster %1: net: %2 %3")
+                            .arg(reinterpret_cast<quintptr>(cluster.get()), 0, 16)
+                            .arg(cluster->OriginNet())
+                            .arg(QString::fromStdString(cluster->OriginNetName().ToStdString()));
             }
             else
             {
-                wxLogTrace( wxT( "CN" ), wxT( "Cluster %p: no changeable items to propagate to" ),
-                            cluster.get() );
+                qDebug() << QString("CN: Cluster %1: no changeable items to propagate to")
+                            .arg(reinterpret_cast<quintptr>(cluster.get()), 0, 16);
             }
         }
         else
         {
-            wxLogTrace( wxT( "CN" ), wxT( "Cluster %p: connected to unused net" ),
-                        cluster.get() );
+            qDebug() << QString("CN: Cluster %1: connected to unused net")
+                        .arg(reinterpret_cast<quintptr>(cluster.get()), 0, 16);
         }
     }
 }

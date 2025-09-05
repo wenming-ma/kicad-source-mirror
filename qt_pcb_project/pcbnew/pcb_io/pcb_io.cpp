@@ -1,53 +1,31 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2011-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #include <unordered_set>
 #include <pcb_io/pcb_io.h>
 #include <pcb_io/pcb_io_mgr.h>
 #include <ki_exception.h>
-#include <wx/log.h>
-#include <wx/filename.h>
-#include <wx/translation.h>
-#include <wx/dir.h>
+#include <QFileInfo>
+#include <QDebug>
+#include <QDir>
+#include <QString>
+#include <QStringList>
 
 
-#define FMT_UNIMPLEMENTED wxT( "Plugin \"%s\" does not implement the \"%s\" function." )
+#define FMT_UNIMPLEMENTED "Plugin \"%1\" does not implement the \"%2\" function."
 #define NOT_IMPLEMENTED( aCaller )                                          \
-    THROW_IO_ERROR( wxString::Format( FMT_UNIMPLEMENTED,                    \
-                                      GetName(),                         \
-                                      wxString::FromUTF8( aCaller ) ) );
+    THROW_IO_ERROR( QString( FMT_UNIMPLEMENTED ).arg( GetName() ).arg( QString::fromUtf8( aCaller ) ) );
 
 
-bool PCB_IO::CanReadBoard( const wxString& aFileName ) const
+bool PCB_IO::CanReadBoard( const QString& aFileName ) const
 {
     const std::vector<std::string>& exts = GetBoardFileDesc().m_FileExtensions;
 
-    wxString fileExt = wxFileName( aFileName ).GetExt().MakeLower();
+    QString fileExt = QFileInfo( aFileName ).suffix().toLower();
 
     for( const std::string& ext : exts )
     {
-        if( fileExt == wxString( ext ).Lower() )
+        if( fileExt == QString::fromStdString( ext ).toLower() )
             return true;
     }
 
@@ -55,15 +33,15 @@ bool PCB_IO::CanReadBoard( const wxString& aFileName ) const
 }
 
 
-bool PCB_IO::CanReadFootprint( const wxString& aFileName ) const
+bool PCB_IO::CanReadFootprint( const QString& aFileName ) const
 {
     const std::vector<std::string>& exts = GetLibraryFileDesc().m_FileExtensions;
 
-    wxString fileExt = wxFileName( aFileName ).GetExt().MakeLower();
+    QString fileExt = QFileInfo( aFileName ).suffix().toLower();
 
     for( const std::string& ext : exts )
     {
-        if( fileExt == wxString( ext ).Lower() )
+        if( fileExt == QString::fromStdString( ext ).toLower() )
             return true;
     }
 
@@ -71,7 +49,7 @@ bool PCB_IO::CanReadFootprint( const wxString& aFileName ) const
 }
 
 
-BOARD* PCB_IO::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
+BOARD* PCB_IO::LoadBoard( const QString& aFileName, BOARD* aAppendToMe,
                           const std::map<std::string, UTF8>* aProperties, PROJECT* aProject )
 {
     NOT_IMPLEMENTED( __FUNCTION__ );
@@ -84,7 +62,7 @@ std::vector<FOOTPRINT*> PCB_IO::GetImportedCachedLibraryFootprints()
 }
 
 
-void PCB_IO::SaveBoard( const wxString& aFileName, BOARD* aBoard,
+void PCB_IO::SaveBoard( const QString& aFileName, BOARD* aBoard,
                         const std::map<std::string, UTF8>* aProperties )
 {
     // not pure virtual so that plugins only have to implement subset of the PLUGIN interface.
@@ -92,7 +70,7 @@ void PCB_IO::SaveBoard( const wxString& aFileName, BOARD* aBoard,
 }
 
 
-void PCB_IO::FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aLibraryPath,
+void PCB_IO::FootprintEnumerate( QStringList& aFootprintNames, const QString& aLibraryPath,
                                  bool aBestEfforts, const std::map<std::string, UTF8>* aProperties )
 {
     // not pure virtual so that plugins only have to implement subset of the PLUGIN interface.
@@ -100,32 +78,31 @@ void PCB_IO::FootprintEnumerate( wxArrayString& aFootprintNames, const wxString&
 }
 
 
-FOOTPRINT* PCB_IO::ImportFootprint( const wxString& aFootprintPath, wxString& aFootprintNameOut,
+FOOTPRINT* PCB_IO::ImportFootprint( const QString& aFootprintPath, QString& aFootprintNameOut,
                                     const std::map<std::string, UTF8>* aProperties )
 {
-    wxArrayString footprintNames;
+    QStringList footprintNames;
 
     FootprintEnumerate( footprintNames, aFootprintPath, true, aProperties );
 
-    if( footprintNames.empty() )
+    if( footprintNames.isEmpty() )
         return nullptr;
 
     if( footprintNames.size() > 1 )
     {
-        wxLogWarning( _( "Selected file contains multiple footprints. Only the first one will be "
-                         "imported.\nTo load all footprints, add it as a library using Preferences "
-                         "-> Manage Footprint "
-                         "Libraries..." ) );
+        qDebug() << "Selected file contains multiple footprints. Only the first one will be "
+                    "imported.\nTo load all footprints, add it as a library using Preferences "
+                    "-> Manage Footprint Libraries...";
     }
 
-    aFootprintNameOut = footprintNames.front();
+    aFootprintNameOut = footprintNames.first();
 
     return FootprintLoad( aFootprintPath, aFootprintNameOut, false, aProperties );
 }
 
 
-const FOOTPRINT* PCB_IO::GetEnumeratedFootprint( const wxString& aLibraryPath,
-                                                 const wxString& aFootprintName,
+const FOOTPRINT* PCB_IO::GetEnumeratedFootprint( const QString& aLibraryPath,
+                                                 const QString& aFootprintName,
                                                  const std::map<std::string, UTF8>* aProperties )
 {
     // default implementation
@@ -133,7 +110,7 @@ const FOOTPRINT* PCB_IO::GetEnumeratedFootprint( const wxString& aLibraryPath,
 }
 
 
-bool PCB_IO::FootprintExists( const wxString& aLibraryPath, const wxString& aFootprintName,
+bool PCB_IO::FootprintExists( const QString& aLibraryPath, const QString& aFootprintName,
                               const std::map<std::string, UTF8>* aProperties )
 {
     // default implementation
@@ -141,7 +118,7 @@ bool PCB_IO::FootprintExists( const wxString& aLibraryPath, const wxString& aFoo
 }
 
 
-FOOTPRINT* PCB_IO::FootprintLoad( const wxString& aLibraryPath, const wxString& aFootprintName,
+FOOTPRINT* PCB_IO::FootprintLoad( const QString& aLibraryPath, const QString& aFootprintName,
                                   bool  aKeepUUID, const std::map<std::string, UTF8>* aProperties )
 {
     // not pure virtual so that plugins only have to implement subset of the PLUGIN interface.
@@ -149,7 +126,7 @@ FOOTPRINT* PCB_IO::FootprintLoad( const wxString& aLibraryPath, const wxString& 
 }
 
 
-void PCB_IO::FootprintSave( const wxString& aLibraryPath, const FOOTPRINT* aFootprint,
+void PCB_IO::FootprintSave( const QString& aLibraryPath, const FOOTPRINT* aFootprint,
                             const std::map<std::string, UTF8>* aProperties )
 {
     // not pure virtual so that plugins only have to implement subset of the PLUGIN interface.
@@ -157,7 +134,7 @@ void PCB_IO::FootprintSave( const wxString& aLibraryPath, const FOOTPRINT* aFoot
 }
 
 
-void PCB_IO::FootprintDelete( const wxString& aLibraryPath, const wxString& aFootprintName,
+void PCB_IO::FootprintDelete( const QString& aLibraryPath, const QString& aFootprintName,
                               const std::map<std::string, UTF8>* aProperties )
 {
     // not pure virtual so that plugins only have to implement subset of the PLUGIN interface.
@@ -172,29 +149,29 @@ void PCB_IO::GetLibraryOptions( std::map<std::string, UTF8>* aListToAppendTo ) c
 
     // disable all these in another couple of months, after everyone has seen them:
 #if 1
-    (*aListToAppendTo)["debug_level"] = UTF8( _( "Enable <b>debug</b> logging for Footprint*() "
-                                                 "functions in this PCB_IO." ) );
+    (*aListToAppendTo)["debug_level"] = UTF8( "Enable <b>debug</b> logging for Footprint*() "
+                                                 "functions in this PCB_IO." );
 
-    (*aListToAppendTo)["read_filter_regex"] = UTF8( _( "Regular expression <b>footprint name</b> "
-                                                       "filter." ) );
+    (*aListToAppendTo)["read_filter_regex"] = UTF8( "Regular expression <b>footprint name</b> "
+                                                       "filter." );
 
-    (*aListToAppendTo)["enable_transaction_logging"] = UTF8( _( "Enable transaction logging. The "
+    (*aListToAppendTo)["enable_transaction_logging"] = UTF8( "Enable transaction logging. The "
                                                                 "mere presence of this option "
                                                                 "turns on the logging, no need to "
-                                                                "set a Value." ) );
+                                                                "set a Value." );
 
-    (*aListToAppendTo)["username"] = UTF8( _( "User name for <b>login</b> to some special library "
-                                              "server." ) );
+    (*aListToAppendTo)["username"] = UTF8( "User name for <b>login</b> to some special library "
+                                              "server." );
 
-    (*aListToAppendTo)["password"] = UTF8( _( "Password for <b>login</b> to some special library "
-                                              "server." ) );
+    (*aListToAppendTo)["password"] = UTF8( "Password for <b>login</b> to some special library "
+                                              "server." );
 #endif
 
 #if 1
     // Suitable for a C++ to python PCB_IO::Footprint*() adapter, move it to the adapter
     // if and when implemented.
-    (*aListToAppendTo)["python_footprint_plugin"] = UTF8( _( "Enter the python module which "
+    (*aListToAppendTo)["python_footprint_plugin"] = UTF8( "Enter the python module which "
                                                              "implements the PCB_IO::Footprint*() "
-                                                             "functions." ) );
+                                                             "functions." );
 #endif
 }

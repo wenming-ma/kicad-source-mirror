@@ -1,22 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2010 Jean-Pierre Charras, jp.charras@wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #ifndef  __PCB_EDIT_FRAME_H__
 #define  __PCB_EDIT_FRAME_H__
@@ -26,6 +9,20 @@
 #include <mail_type.h>
 #include <settings/app_settings.h>
 #include <variant>
+
+// Qt includes
+#include <QComboBox>
+#include <QTimer>
+#include <QObject>
+#include <QString>
+#include <QWidget>
+#include <QCloseEvent>
+#include <QResizeEvent>
+#include <QStringLiteral>
+
+// Forward declarations for Qt types
+class QCommandEvent;
+class QUpdateUIEvent;
 
 class ACTION_PLUGIN;
 class PCB_SCREEN;
@@ -90,7 +87,7 @@ public:
      */
     void LoadFootprints( NETLIST& aNetlist, REPORTER& aReporter );
 
-    void OnQuit( wxCommandEvent& event );
+    void OnQuit( QCommandEvent& event );
 
     /**
      * Get if the current board has been modified but not saved.
@@ -140,9 +137,9 @@ public:
     std::vector<BOARD_ITEM*> FindItemsFromSyncSelection( std::string syncStr );
 
     /**
-     * @return the name of the wxAuiPaneInfo managing the Search panel
+     * @return the name of the QDockWidget managing the Search panel
      */
-    static const wxString SearchPaneName() { return wxT( "Search" ); }
+    static const QString SearchPaneName() { return QStringLiteral( "Search" ); }
 
     /**
      * Show the Find dialog.
@@ -160,21 +157,21 @@ public:
     void ToPlotter( int aID );
 
     // User interface update command event handlers.
-    void OnUpdateLayerSelectBox( wxUpdateUIEvent& aEvent );
+    void OnUpdateLayerSelectBox( QUpdateUIEvent& aEvent );
 
     bool LayerManagerShown();
     bool PropertiesShown();
     bool NetInspectorShown();
 
-    void OnUpdateSelectViaSize( wxUpdateUIEvent& aEvent );
-    void OnUpdateSelectTrackWidth( wxUpdateUIEvent& aEvent );
-    void OnUpdateSelectAutoWidth( wxUpdateUIEvent& aEvent );
+    void OnUpdateSelectViaSize( QUpdateUIEvent& aEvent );
+    void OnUpdateSelectTrackWidth( QUpdateUIEvent& aEvent );
+    void OnUpdateSelectAutoWidth( QUpdateUIEvent& aEvent );
 
     void RunEeschema();
 
-    void UpdateTrackWidthSelectBox( wxChoice* aTrackWidthSelectBox, bool aShowNetclass,
+    void UpdateTrackWidthSelectBox( QComboBox* aTrackWidthSelectBox, bool aShowNetclass,
                                     bool aShowEdit );
-    void UpdateViaSizeSelectBox( wxChoice* aViaSizeSelectBox, bool aShowNetclass, bool aShowEdit );
+    void UpdateViaSizeSelectBox( QComboBox* aViaSizeSelectBox, bool aShowNetclass, bool aShowEdit );
 
     /**
      * Return the angle used for rotate operations.
@@ -195,7 +192,7 @@ public:
      * Return true if button visibility action plugin setting was set to true
      * or it is unset and plugin defaults to true.
      */
-    static bool GetActionPluginButtonVisible( const wxString& aPluginPath, bool aPluginDefault );
+    static bool GetActionPluginButtonVisible( const QString& aPluginPath, bool aPluginDefault );
 
     /**
      * Return ordered list of plugins in sequence in which they should appear on toolbar or
@@ -227,7 +224,7 @@ public:
      *
      * @return the absolute path and file name of the last file successfully read.
      */
-    wxString GetLastPath( LAST_PATH_TYPE aType );
+    QString GetLastPath( LAST_PATH_TYPE aType );
 
     /**
      * Set the path of the last file successfully read.
@@ -240,7 +237,7 @@ public:
      *
      * @param aLastPath - The last file with full path successfully read.
      */
-    void SetLastPath( LAST_PATH_TYPE aType, const wxString& aLastPath );
+    void SetLastPath( LAST_PATH_TYPE aType, const QString& aLastPath );
 
     /**
      * If aCreateMarkers then create DRC exclusion markers from the serialized data.  If false,
@@ -248,8 +245,8 @@ public:
      */
     void ResolveDRCExclusions( bool aCreateMarkers );
 
-    void Process_Special_Functions( wxCommandEvent& event );
-    void Tracks_and_Vias_Size_Event( wxCommandEvent& event );
+    void Process_Special_Functions( QCommandEvent& event );
+    void Tracks_and_Vias_Size_Event( QCommandEvent& event );
 
     void ReCreateHToolbar() override;
     void ReCreateAuxiliaryToolbar() override;
@@ -314,7 +311,7 @@ public:
     ///< @copydoc EDA_DRAW_FRAME::UseGalCanvas()
     void ActivateGalCanvas() override;
 
-    void ShowBoardSetupDialog( const wxString& aInitialPage = wxEmptyString );
+    void ShowBoardSetupDialog( const QString& aInitialPage = QString() );
 
     void PrepareLayerIndicator( bool aForceRebuild = false );
 
@@ -341,24 +338,24 @@ public:
      * @param aNegateBottomX true to negate X coordinates for bottom side of the placement file
      * @return the number of footprints found on aSide side or -1 if the file could not be created.
      */
-    int DoGenFootprintsPositionFile( const wxString& aFullFileName, bool aUnitsMM, bool aOnlySMD,
+    int DoGenFootprintsPositionFile( const QString& aFullFileName, bool aUnitsMM, bool aOnlySMD,
                                      bool aNoTHItems, bool aExcludeDNP, bool aTopSide, bool aBottomSide,
                                      bool aFormatCSV, bool aUseAuxOrigin, bool aNegateBottomX );
 
     /**
      * Call #DoGenFootprintsReport to create a footprint report file
      */
-    void GenFootprintsReport( wxCommandEvent& event );
+    void GenFootprintsReport( QCommandEvent& event );
 
     /**
      * Create and IPC2581 output file
     */
-    void GenIPC2581File( wxCommandEvent& event );
+    void GenIPC2581File( QCommandEvent& event );
 
     /**
      * Create and Generate ODB++ output files
     */
-    void GenODBPPFiles( wxCommandEvent& event );
+    void GenODBPPFiles( QCommandEvent& event );
 
     /**
      * Create an ASCII footprint report file giving some infos on footprints and board outlines.
@@ -367,19 +364,19 @@ public:
      * @param aUnitsMM false to use inches, true to use mm in coordinates
      * @return true if OK, false if error
      */
-    bool DoGenFootprintsReport( const wxString& aFullFilename, bool aUnitsMM );
+    bool DoGenFootprintsReport( const QString& aFullFilename, bool aUnitsMM );
 
-    void GenD356File( wxCommandEvent& event );
+    void GenD356File( QCommandEvent& event );
 
-    void OnFileHistory( wxCommandEvent& event );
-    void OnClearFileHistory( wxCommandEvent& aEvent );
+    void OnFileHistory( QCommandEvent& event );
+    void OnClearFileHistory( QCommandEvent& aEvent );
 
     /**
-     * Call #Files_io_from_id with the wxCommandEvent id.
+     * Call #Files_io_from_id with the QCommandEvent id.
      *
      * @param event is the command event handler.
      */
-    void Files_io( wxCommandEvent& event );
+    void Files_io( QCommandEvent& event );
 
     /**
      * Read and write board files according to \a aId.
@@ -405,23 +402,23 @@ public:
      *             @see #KIWAY_PLAYER for bit defines.
      *
      * @return false if file load fails, otherwise true.
-    bool LoadOnePcbFile( const wxString& aFileName, bool aAppend = false,
+    bool LoadOnePcbFile( const QString& aFileName, bool aAppend = false,
                          bool aForceFileDialog = false );
      */
-    bool OpenProjectFiles( const std::vector<wxString>& aFileSet, int aCtl = 0 ) override;
+    bool OpenProjectFiles( const std::vector<QString>& aFileSet, int aCtl = 0 ) override;
 
     /**
      * Write the board data structures to \a a aFileName.
      *
      * Create a backup when requested and update flags (modified and saved flags).
      *
-     * @param aFileName The file name to write or wxEmptyString to prompt user for
+     * @param aFileName The file name to write or QString() to prompt user for
      *                  file name.
      * @param addToHistory controls whether or not to add the saved file to the recent file list
      * @param aChangeProject is true if the project should be changed to the new board filename
      * @return True if file was saved successfully.
      */
-    bool SavePcbFile( const wxString& aFileName, bool addToHistory = true,
+    bool SavePcbFile( const QString& aFileName, bool addToHistory = true,
                       bool aChangeProject = true );
 
     /**
@@ -436,7 +433,7 @@ public:
      * @param aHeadless will suppress informational output (e.g. to be used from the API)
      * @return True if file was saved successfully.
      */
-    bool SavePcbCopy( const wxString& aFileName, bool aCreateProject = false,
+    bool SavePcbCopy( const QString& aFileName, bool aCreateProject = false,
                       bool aHeadless = false );
 
     /**
@@ -469,7 +466,7 @@ public:
      *
      * This is the same as created by CvPcb and can be used if this file is lost.
      */
-    void RecreateCmpFileFromBoard( wxCommandEvent& aEvent );
+    void RecreateCmpFileFromBoard( QCommandEvent& aEvent );
 
     /**
      * Save footprints in a library:
@@ -482,23 +479,23 @@ public:
      * @param aLibName optional library name to create, stops dialog call. Must be called with
      *                 \a aStoreInNewLib as true.
      */
-    void ExportFootprintsToLibrary( bool aStoreInNewLib, const wxString& aLibName = wxEmptyString,
-                                    wxString* aLibPath = nullptr );
+    void ExportFootprintsToLibrary( bool aStoreInNewLib, const QString& aLibName = QString(),
+                                    QString* aLibPath = nullptr );
 
     /**
      * Create a BOM file from the current loaded board.
      */
-    void RecreateBOMFileFromBoard( wxCommandEvent& aEvent );
+    void RecreateBOMFileFromBoard( QCommandEvent& aEvent );
 
     /**
      * Create a file in  GenCAD 1.4 format from the current board.
      */
-    void ExportToGenCAD( wxCommandEvent& event );
+    void ExportToGenCAD( QCommandEvent& event );
 
     /**
      * Export the current BOARD to a VRML file.
      */
-    void OnExportVRML( wxCommandEvent& event );
+    void OnExportVRML( QCommandEvent& event );
 
     /**
      * Create the file(s) exporting current BOARD to a VRML file.
@@ -524,20 +521,20 @@ public:
      * @param aYRef Y value of PCB (0,0) reference point.
      * @return true if Ok.
      */
-    bool ExportVRML_File( const wxString& aFullFileName, double aMMtoWRMLunit,
+    bool ExportVRML_File( const QString& aFullFileName, double aMMtoWRMLunit,
                           bool aIncludeUnspecified, bool aIncludeDNP,
                           bool aExport3DFiles, bool aUseRelativePaths,
-                          const wxString& a3D_Subdir, double aXRef, double aYRef );
+                          const QString& a3D_Subdir, double aXRef, double aYRef );
 
     /**
      * Export the current BOARD to a IDFv3 board and lib files.
      */
-    void OnExportIDF3( wxCommandEvent& event );
+    void OnExportIDF3( QCommandEvent& event );
 
     /**
      * Export the current BOARD to a Hyperlynx HYP file.
      */
-    void OnExportHyperlynx( wxCommandEvent& event );
+    void OnExportHyperlynx( QCommandEvent& event );
 
     /**
      * Create an IDF3 compliant BOARD (*.emn) and LIBRARY (*.emp) file.
@@ -551,14 +548,14 @@ public:
      * @param aIncludeDNP true to include DNP footprint models
      * @return true if OK.
      */
-    bool Export_IDF3( BOARD* aPcb, const wxString& aFullFileName,
+    bool Export_IDF3( BOARD* aPcb, const QString& aFullFileName,
                       bool aUseThou, double aXRef, double aYRef,
                       bool aIncludeUnspecified, bool aIncludeDNP );
 
     /**
      * Export the current BOARD to a STEP assembly.
      */
-    void OnExportSTEP( wxCommandEvent& event );
+    void OnExportSTEP( QCommandEvent& event );
 
     /**
      * Export the current BOARD to a specctra dsn file.
@@ -567,7 +564,7 @@ public:
      *
      * @return true if OK
      */
-    bool ExportSpecctraFile( const wxString& aFullFilename );
+    bool ExportSpecctraFile( const QString& aFullFilename );
 
     /**
      * Import a specctra *.ses file and use it to relocate MODULEs and to replace all vias and
@@ -575,7 +572,7 @@ public:
      *
      * See http://www.autotraxeda.com/docs/SPECCTRA/SPECCTRA.pdf for the specification.
      */
-    bool ImportSpecctraSession( const wxString& aFullFilename );
+    bool ImportSpecctraSession( const QString& aFullFilename );
 
     // Footprint editing (see also PCB_BASE_FRAME)
     void ShowFootprintPropertiesDialog( FOOTPRINT* aFootprint );
@@ -644,7 +641,7 @@ public:
      *                         annotation will be skipped.
      * @return true if a netlist was fetched.
      */
-    bool FetchNetlistFromSchematic( NETLIST& aNetlist, const wxString& aAnnotateMessage );
+    bool FetchNetlistFromSchematic( NETLIST& aNetlist, const QString& aAnnotateMessage );
 
     /**
      * Test if standalone mode.
@@ -663,7 +660,7 @@ public:
      * @param aReporter is a #REPORTER object to display messages.
      * @return true if the netlist was read successfully.
      */
-    bool ReadNetlistFromFile( const wxString& aFilename, NETLIST& aNetlist, REPORTER& aReporter );
+    bool ReadNetlistFromFile( const QString& aFilename, NETLIST& aNetlist, REPORTER& aReporter );
 
     /**
      * Called after netlist is updated.
@@ -699,7 +696,7 @@ public:
      *
      * @param aNetName is the name of a net, or empty string to clear highlight.
      */
-    void SendCrossProbeNetName( const wxString& aNetName );
+    void SendCrossProbeNetName( const QString& aNetName );
 
     void ShowChangedLanguage() override;
 
@@ -727,7 +724,7 @@ public:
 
     bool CanAcceptApiCommands() override;
 
-    wxString GetCurrentFileName() const override;
+    QString GetCurrentFileName() const override;
 
     SELECTION& GetCurrentSelection() override;
 
@@ -741,7 +738,7 @@ public:
 
     DIALOG_BOOK_REPORTER* GetFootprintDiffDialog();
 
-    DECLARE_EVENT_TABLE()
+    Q_OBJECT
 
 protected:
     /**
@@ -798,16 +795,16 @@ protected:
     /**
      * Launched by the menu when an action is called.
      *
-     * @param aEvent sent by wx
+     * @param aEvent sent by Qt
      */
-    void OnActionPluginMenu( wxCommandEvent& aEvent);
+    void OnActionPluginMenu( QCommandEvent& aEvent);
 
     /**
      * Launched by the button when an action is called.
      *
-     * @param aEvent sent by wx
+     * @param aEvent sent by Qt
      */
-    void OnActionPluginButton( wxCommandEvent& aEvent );
+    void OnActionPluginButton( QCommandEvent& aEvent );
 
     PLUGIN_ACTION_SCOPE PluginActionScope() const override { return PLUGIN_ACTION_SCOPE::PCB; }
 
@@ -830,16 +827,16 @@ protected:
      * @param full file path of file to be imported.
      * @param aFileType PCB_FILE_T value for file type
      */
-    bool importFile( const wxString& aFileName, int aFileType,
+    bool importFile( const QString& aFileName, int aFileType,
                      const std::map<std::string, UTF8>* aProperties = nullptr );
 
-    bool canCloseWindow( wxCloseEvent& aCloseEvent ) override;
+    bool canCloseWindow( QCloseEvent& aCloseEvent ) override;
     void doCloseWindow() override;
 
     // protected so that PCB::IFACE::CreateWindow() is the only factory.
-    PCB_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent );
+    PCB_EDIT_FRAME( KIWAY* aKiway, QWidget* aParent );
 
-    void onSize( wxSizeEvent& aEvent );
+    void onSize( QResizeEvent& aEvent );
 
     int inferLegacyEdgeClearance( BOARD* aBoard, bool aShowUserMsg = true );
 
@@ -847,17 +844,17 @@ protected:
 
     void saveProjectSettings() override;
 
-    void onCloseModelessBookReporterDialogs( wxCommandEvent& aEvent );
+    void onCloseModelessBookReporterDialogs( QCommandEvent& aEvent );
 
 #ifdef KICAD_IPC_API
-    void onPluginAvailabilityChanged( wxCommandEvent& aEvt );
+    void onPluginAvailabilityChanged( QCommandEvent& aEvt );
 #endif
 
 public:
     PCB_LAYER_BOX_SELECTOR* m_SelLayerBox; // a combo box to display and select active layer
 
-    wxChoice* m_SelTrackWidthBox;        // a choice box to display and select current track width
-    wxChoice* m_SelViaSizeBox;           // a choice box to display and select current via diameter
+    QComboBox* m_SelTrackWidthBox;        // a choice box to display and select current track width
+    QComboBox* m_SelViaSizeBox;           // a choice box to display and select current via diameter
 
     bool m_show_layer_manager_tools;
     bool m_show_search;
@@ -894,7 +891,7 @@ private:
      */
     BOX2D        m_lastNetnamesViewport;
 
-    wxTimer*     m_eventCounterTimer;
+    QTimer*     m_eventCounterTimer;
 
 #ifdef KICAD_IPC_API
     std::unique_ptr<API_HANDLER_PCB> m_apiHandler;

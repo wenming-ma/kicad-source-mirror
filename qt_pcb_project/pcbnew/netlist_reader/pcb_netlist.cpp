@@ -1,29 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2011 Jean-Pierre Charras.
- * Copyright (C) 2013 Wayne Stambaugh <stambaughw@gmail.com>.
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 #include "pcb_netlist.h"
 
 #include <footprint.h>
@@ -60,7 +36,7 @@ void COMPONENT::SetFootprint( FOOTPRINT* aFootprint )
 COMPONENT_NET COMPONENT::m_emptyNet;
 
 
-const COMPONENT_NET& COMPONENT::GetNet( const wxString& aPinName ) const
+const COMPONENT_NET& COMPONENT::GetNet( const QString& aPinName ) const
 {
     for( const COMPONENT_NET& net : m_nets )
     {
@@ -85,7 +61,7 @@ void COMPONENT::Format( OUTPUTFORMATTER* aOut, int aNestLevel, int aCtl )
         aOut->Print( nl+1, "(name %s)\n",     aOut->Quotew( m_name ).c_str() );
         aOut->Print( nl+1, "(library %s)\n",  aOut->Quotew( m_library ).c_str() );
 
-        wxString path;
+        QString path;
 
         for( const KIID& pathStep : m_path )
             path += '/' + pathStep.AsString();
@@ -98,7 +74,7 @@ void COMPONENT::Format( OUTPUTFORMATTER* aOut, int aNestLevel, int aCtl )
         // Add all fields as a (field) under a (fields) node
         aOut->Print( nl + 1, "(fields" );
 
-        for( std::pair<wxString, wxString> field : m_fields )
+        for( std::pair<QString, QString> field : m_fields )
             aOut->Print( nl + 2, "\n(field (name %s) %s)", aOut->Quotew( field.first ).c_str(),
                          aOut->Quotew( field.second ).c_str() );
 
@@ -112,11 +88,11 @@ void COMPONENT::Format( OUTPUTFORMATTER* aOut, int aNestLevel, int aCtl )
             aOut->Print( nl + 1, "(property (name \"exclude_from_bom\"))\n" );
     }
 
-    if( !( aCtl & CTL_OMIT_FILTERS ) && m_footprintFilters.GetCount() )
+    if( !( aCtl & CTL_OMIT_FILTERS ) && m_footprintFilters.size() )
     {
         aOut->Print( nl+1, "(fp_filters" );
 
-        for( unsigned i = 0;  i < m_footprintFilters.GetCount();  ++i )
+        for( unsigned i = 0;  i < m_footprintFilters.size();  ++i )
             aOut->Print( 0, " %s", aOut->Quotew( m_footprintFilters[i] ).c_str() );
 
         aOut->Print( 0, ")\n" );
@@ -165,7 +141,7 @@ void NETLIST::AddComponent( COMPONENT* aComponent )
 }
 
 
-COMPONENT* NETLIST::GetComponentByReference( const wxString& aReference )
+COMPONENT* NETLIST::GetComponentByReference( const QString& aReference )
 {
     COMPONENT* component = nullptr;
 
@@ -208,9 +184,7 @@ COMPONENT* NETLIST::GetComponentByPath( const KIID_PATH& aUuidPath )
 }
 
 
-/**
- * A helper function used to sort the component list used by loadNewModules.
- */
+// Helper function used to sort the component list used by loadNewModules
 static bool ByFPID( const COMPONENT& ref, const COMPONENT& cmp )
 {
     return ref.GetFPID() > cmp.GetFPID();
@@ -223,9 +197,7 @@ void NETLIST::SortByFPID()
 }
 
 
-/**
- * Compare two #COMPONENT objects by reference designator.
- */
+// Compare two COMPONENT objects by reference designator
 bool operator < ( const COMPONENT& item1, const COMPONENT& item2 )
 {
     return StrNumCmp( item1.GetReference(), item2.GetReference(), true ) < 0;

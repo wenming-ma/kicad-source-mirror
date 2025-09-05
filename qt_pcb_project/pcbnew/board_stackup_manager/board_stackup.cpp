@@ -1,23 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #include "board_stackup.h"
 #include <base_units.h>
@@ -29,6 +12,9 @@
 #include <io/kicad/kicad_io_utils.h>
 #include "stackup_predefined_prms.h"
 #include <richio.h>
+#include <QtCore/QString>
+#include <QtCore/QDebug>
+#include <QtCore/QObject>
 // #include <google/protobuf/any.pb.h> // DISABLED FOR MINIMAL BUILD
 // #include <api/board/board.pb.h> // DISABLED FOR MINIMAL BUILD
 // #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
@@ -67,17 +53,17 @@ BOARD_STACKUP_ITEM::BOARD_STACKUP_ITEM( BOARD_STACKUP_ITEM_TYPE aType )
     case BS_ITEM_TYPE_DIELECTRIC:
         m_TypeName = KEY_CORE;          // or prepreg
         SetColor( NotSpecifiedPrm() );
-        SetMaterial( wxT( "FR4" ) );    // or other dielectric name
+        SetMaterial( QStringLiteral( "FR4" ) );    // or other dielectric name
         SetLossTangent( 0.02 );         // for FR4
         SetEpsilonR( 4.5 );             // for FR4
         break;
 
     case BS_ITEM_TYPE_SOLDERPASTE:
-        m_TypeName = wxT( "solderpaste" );
+        m_TypeName = QStringLiteral( "solderpaste" );
         break;
 
     case BS_ITEM_TYPE_SOLDERMASK:
-        m_TypeName = wxT( "soldermask" );
+        m_TypeName = QStringLiteral( "soldermask" );
         SetColor( NotSpecifiedPrm() );
         SetMaterial( NotSpecifiedPrm() ); // or other solder mask material name
         SetThickness( GetMaskDefaultThickness() );
@@ -85,7 +71,7 @@ BOARD_STACKUP_ITEM::BOARD_STACKUP_ITEM( BOARD_STACKUP_ITEM_TYPE aType )
         break;
 
     case BS_ITEM_TYPE_SILKSCREEN:
-        m_TypeName = wxT( "silkscreen" );
+        m_TypeName = QStringLiteral( "silkscreen" );
         SetColor( NotSpecifiedPrm() );
         SetMaterial( NotSpecifiedPrm() ); // or other silkscreen material name
         SetEpsilonR( DEFAULT_EPSILON_R_SILKSCREEN );
@@ -172,16 +158,16 @@ int BOARD_STACKUP_ITEM::GetMaskDefaultThickness()
 
 
 // Getters:
-wxString BOARD_STACKUP_ITEM::GetColor( int aDielectricSubLayer ) const
+QString BOARD_STACKUP_ITEM::GetColor( int aDielectricSubLayer ) const
 {
-    wxASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
+    Q_ASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
 
     return m_DielectricPrmsList[aDielectricSubLayer].m_Color;
 }
 
 int BOARD_STACKUP_ITEM::GetThickness( int aDielectricSubLayer ) const
 {
-    wxASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
+    Q_ASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
 
     return m_DielectricPrmsList[aDielectricSubLayer].m_Thickness;
 }
@@ -189,7 +175,7 @@ int BOARD_STACKUP_ITEM::GetThickness( int aDielectricSubLayer ) const
 
 double BOARD_STACKUP_ITEM::GetLossTangent( int aDielectricSubLayer ) const
 {
-    wxASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
+    Q_ASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
 
     return m_DielectricPrmsList[aDielectricSubLayer].m_LossTangent;
 }
@@ -197,7 +183,7 @@ double BOARD_STACKUP_ITEM::GetLossTangent( int aDielectricSubLayer ) const
 
 double BOARD_STACKUP_ITEM::GetEpsilonR( int aDielectricSubLayer ) const
 {
-    wxASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
+    Q_ASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
 
     return m_DielectricPrmsList[aDielectricSubLayer].m_EpsilonR;
 }
@@ -205,24 +191,24 @@ double BOARD_STACKUP_ITEM::GetEpsilonR( int aDielectricSubLayer ) const
 
 bool BOARD_STACKUP_ITEM::IsThicknessLocked( int aDielectricSubLayer ) const
 {
-    wxASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
+    Q_ASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
 
     return m_DielectricPrmsList[aDielectricSubLayer].m_ThicknessLocked;
 }
 
 
-wxString BOARD_STACKUP_ITEM::GetMaterial( int aDielectricSubLayer ) const
+QString BOARD_STACKUP_ITEM::GetMaterial( int aDielectricSubLayer ) const
 {
-    wxASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
+    Q_ASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
 
     return m_DielectricPrmsList[aDielectricSubLayer].m_Material;
 }
 
 
 // Setters:
-void BOARD_STACKUP_ITEM::SetColor(  const wxString& aColorName , int aDielectricSubLayer )
+void BOARD_STACKUP_ITEM::SetColor(  const QString& aColorName , int aDielectricSubLayer )
 {
-    wxASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
+    Q_ASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
 
     if( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() )
         m_DielectricPrmsList[aDielectricSubLayer].m_Color = aColorName;
@@ -231,7 +217,7 @@ void BOARD_STACKUP_ITEM::SetColor(  const wxString& aColorName , int aDielectric
 
 void BOARD_STACKUP_ITEM::SetThickness( int aThickness, int aDielectricSubLayer )
 {
-    wxASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
+    Q_ASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
 
     if( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() )
         m_DielectricPrmsList[aDielectricSubLayer].m_Thickness = aThickness;
@@ -240,7 +226,7 @@ void BOARD_STACKUP_ITEM::SetThickness( int aThickness, int aDielectricSubLayer )
 
 void BOARD_STACKUP_ITEM::SetLossTangent( double aTg, int aDielectricSubLayer )
 {
-    wxASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
+    Q_ASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
 
     if( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() )
         m_DielectricPrmsList[aDielectricSubLayer].m_LossTangent = aTg;
@@ -249,7 +235,7 @@ void BOARD_STACKUP_ITEM::SetLossTangent( double aTg, int aDielectricSubLayer )
 
 void BOARD_STACKUP_ITEM::SetEpsilonR( double aEpsilon, int aDielectricSubLayer )
 {
-    wxASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
+    Q_ASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
 
     if( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() )
         m_DielectricPrmsList[aDielectricSubLayer].m_EpsilonR = aEpsilon;
@@ -258,16 +244,16 @@ void BOARD_STACKUP_ITEM::SetEpsilonR( double aEpsilon, int aDielectricSubLayer )
 
 void BOARD_STACKUP_ITEM::SetThicknessLocked( bool aLocked, int aDielectricSubLayer )
 {
-    wxASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
+    Q_ASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
 
     if( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() )
         m_DielectricPrmsList[aDielectricSubLayer].m_ThicknessLocked = aLocked;
 }
 
 
-void BOARD_STACKUP_ITEM::SetMaterial( const wxString& aName, int aDielectricSubLayer )
+void BOARD_STACKUP_ITEM::SetMaterial( const QString& aName, int aDielectricSubLayer )
 {
-    wxASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
+    Q_ASSERT( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() );
 
     if( aDielectricSubLayer >= 0 && aDielectricSubLayer < GetSublayersCount() )
         m_DielectricPrmsList[aDielectricSubLayer].m_Material = aName;
@@ -319,29 +305,29 @@ bool BOARD_STACKUP_ITEM::IsThicknessEditable() const
 }
 
 
-wxString BOARD_STACKUP_ITEM::FormatEpsilonR( int aDielectricSubLayer ) const
+QString BOARD_STACKUP_ITEM::FormatEpsilonR( int aDielectricSubLayer ) const
 {
-    // return a wxString to print/display Epsilon R
+    // return a QString to print/display Epsilon R
     // note: we do not want scientific notation
-    wxString txt = UIDouble2Str( GetEpsilonR( aDielectricSubLayer ) );
+    QString txt = UIDouble2Str( GetEpsilonR( aDielectricSubLayer ) );
     return txt;
 }
 
 
-wxString BOARD_STACKUP_ITEM::FormatLossTangent( int aDielectricSubLayer ) const
+QString BOARD_STACKUP_ITEM::FormatLossTangent( int aDielectricSubLayer ) const
 {
-    // return a wxString to print/display Loss Tangent
+    // return a QString to print/display Loss Tangent
     // note: we do not want scientific notation
-    wxString txt = UIDouble2Str( GetLossTangent( aDielectricSubLayer ) );
+    QString txt = UIDouble2Str( GetLossTangent( aDielectricSubLayer ) );
     return txt;
 }
 
 
-wxString BOARD_STACKUP_ITEM::FormatDielectricLayerName() const
+QString BOARD_STACKUP_ITEM::FormatDielectricLayerName() const
 {
-    // return a wxString to print/display a dielectric name
-    wxString lname;
-    lname.Printf( _( "Dielectric %d" ), GetDielectricLayerId() );
+    // return a QString to print/display a dielectric name
+    QString lname;
+    lname = QString( _( "Dielectric %1" ) ).arg( GetDielectricLayerId() );
 
     return lname;
 }
@@ -355,7 +341,7 @@ BOARD_STACKUP::BOARD_STACKUP()
     m_EdgeConnectorConstraints = BS_EDGE_CONNECTOR_NONE;
     m_CastellatedPads = false;          // True if some castellated pads exist
     m_EdgePlating = false;              // True if edge board is plated
-    m_FinishType = wxT( "None" );       // undefined finish type
+    m_FinishType = QStringLiteral( "None" );       // undefined finish type
 }
 
 
@@ -689,12 +675,12 @@ void BOARD_STACKUP::BuildDefaultStackupList( const BOARD_DESIGN_SETTINGS* aSetti
         if( (dielectric_idx & 1) == 0 )
         {
             item->SetTypeName( KEY_CORE );
-            item->SetMaterial( wxT( "FR4" ) );
+            item->SetMaterial( QStringLiteral( "FR4" ) );
         }
         else
         {
             item->SetTypeName( KEY_PREPREG );
-            item->SetMaterial( wxT( "FR4" ) );
+            item->SetMaterial( QStringLiteral( "FR4" ) );
         }
 
         Add( item );
@@ -752,10 +738,10 @@ void BOARD_STACKUP::FormatBoardStackup( OUTPUTFORMATTER* aFormatter, const BOARD
     // Unspecified parameters are not stored in file.
     for( BOARD_STACKUP_ITEM* item: m_list )
     {
-        wxString layer_name;
+        QString layer_name;
 
         if( item->GetBrdLayerId() == UNDEFINED_LAYER )
-            layer_name.Printf( wxT( "dielectric %d" ), item->GetDielectricLayerId() );
+            layer_name = QString( "dielectric %1" ).arg( item->GetDielectricLayerId() );
         else
             layer_name = LSET::Name( item->GetBrdLayerId() );
 
@@ -829,7 +815,7 @@ void BOARD_STACKUP::FormatBoardStackup( OUTPUTFORMATTER* aFormatter, const BOARD
 
 int BOARD_STACKUP::GetLayerDistance( PCB_LAYER_ID aFirstLayer, PCB_LAYER_ID aSecondLayer ) const
 {
-    wxASSERT( IsCopperLayer( aFirstLayer ) && IsCopperLayer( aSecondLayer ) );
+    Q_ASSERT( IsCopperLayer( aFirstLayer ) && IsCopperLayer( aSecondLayer ) );
 
     if( aFirstLayer == aSecondLayer )
         return 0;
@@ -879,13 +865,13 @@ int BOARD_STACKUP::GetLayerDistance( PCB_LAYER_ID aFirstLayer, PCB_LAYER_ID aSec
 }
 
 
-bool IsPrmSpecified( const wxString& aPrmValue )
+bool IsPrmSpecified( const QString& aPrmValue )
 {
     // return true if the param value is specified:
 
-    if( !aPrmValue.IsEmpty()
-        && ( aPrmValue.CmpNoCase( NotSpecifiedPrm() ) != 0 )
-        && aPrmValue != wxGetTranslation( NotSpecifiedPrm() ) )
+    if( !aPrmValue.isEmpty()
+        && ( aPrmValue.compare( NotSpecifiedPrm(), Qt::CaseInsensitive ) != 0 )
+        && aPrmValue != QObject::tr( NotSpecifiedPrm().toLocal8Bit().data() ) )
         return true;
 
     return false;

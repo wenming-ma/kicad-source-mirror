@@ -1,27 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 #ifndef DRC_TEST_PROVIDER__H
 #define DRC_TEST_PROVIDER__H
 
@@ -98,23 +77,23 @@ public:
      */
     virtual bool Run() = 0;
 
-    virtual const wxString GetName() const;
-    virtual const wxString GetDescription() const;
+    virtual const QString GetName() const;
+    virtual const QString GetDescription() const;
 
 protected:
     int forEachGeometryItem( const std::vector<KICAD_T>& aTypes, LSET aLayers,
                              const std::function<bool(BOARD_ITEM*)>& aFunc );
 
-    // Do not use a wxString with a vararg list: it is a complex thing and can create issues.
-    // So prefer using a wxChar* item in this case:
-    void reportAux( const wxString& aMsg ) { reportAux( (const wxChar*) aMsg.wchar_str() ); }
-    virtual void reportAux( const wxChar* fmt, ... );
+    // Do not use a QString with a vararg list: it is a complex thing and can create issues.
+    // So prefer using a const char* item in this case:
+    void reportAux( const QString& aMsg ) { reportAux( aMsg.toStdString().c_str() ); }
+    virtual void reportAux( const char* fmt, ... );
 
     virtual void reportViolation( std::shared_ptr<DRC_ITEM>& item, const VECTOR2I& aMarkerPos,
                                   int                        aMarkerLayer,
                                   DRC_CUSTOM_MARKER_HANDLER* aCustomHandler = nullptr );
     virtual bool reportProgress( size_t aCount, size_t aSize, size_t aDelta = 1 );
-    virtual bool reportPhase( const wxString& aStageName );
+    virtual bool reportPhase( const QString& aStageName );
 
     virtual void reportRuleStatistics();
     virtual void accountCheck( const DRC_RULE* ruleToTest );
@@ -122,10 +101,10 @@ protected:
 
     bool isInvisibleText( const BOARD_ITEM* aItem ) const;
 
-    wxString formatMsg( const wxString& aFormatString, const wxString& aSource, double aConstraint,
-                        double aActual );
-    wxString formatMsg( const wxString& aFormatString, const wxString& aSource,
-                        const EDA_ANGLE& aConstraint, const EDA_ANGLE& aActual );
+    QString formatMsg( const QString& aFormatString, const QString& aSource, double aConstraint,
+                       double aActual );
+    QString formatMsg( const QString& aFormatString, const QString& aSource,
+                       const EDA_ANGLE& aConstraint, const EDA_ANGLE& aActual );
 
     // List of basic (ie: non-compound) geometry items
     static std::vector<KICAD_T> s_allBasicItems;

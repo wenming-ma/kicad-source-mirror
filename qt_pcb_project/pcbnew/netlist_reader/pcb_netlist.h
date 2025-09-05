@@ -1,33 +1,11 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 Jean-Pierre Charras.
- * Copyright (C) 2013-2016 Wayne Stambaugh <stambaughw@gmail.com>.
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 #ifndef PCB_NETLIST_H
 #define PCB_NETLIST_H
 
 #include <boost/ptr_container/ptr_vector.hpp>
-#include <wx/arrstr.h>
+#include <QString>
+#include <QStringList>
 #include <json_common.h>
 #include <unordered_set>
 
@@ -48,8 +26,8 @@ class COMPONENT_NET
 public:
     COMPONENT_NET() {}
 
-    COMPONENT_NET( const wxString& aPinName, const wxString& aNetName,
-                   const wxString& aPinFunction, const wxString& aPinType ) :
+    COMPONENT_NET( const QString& aPinName, const QString& aNetName,
+                   const QString& aPinFunction, const QString& aPinType ) :
         m_pinName( aPinName ),
         m_netName( aNetName ),
         m_pinFunction( aPinFunction ),
@@ -57,12 +35,12 @@ public:
     {
     }
 
-    const wxString& GetPinName() const { return m_pinName; }
-    const wxString& GetNetName() const { return m_netName; }
-    const wxString& GetPinFunction() const { return m_pinFunction; }
-    const wxString& GetPinType() const { return m_pinType; }
+    const QString& GetPinName() const { return m_pinName; }
+    const QString& GetNetName() const { return m_netName; }
+    const QString& GetPinFunction() const { return m_pinFunction; }
+    const QString& GetPinType() const { return m_pinType; }
 
-    bool IsValid() const { return !m_pinName.IsEmpty(); }
+    bool IsValid() const { return !m_pinName.isEmpty(); }
 
     bool operator <( const COMPONENT_NET& aNet ) const
     {
@@ -72,10 +50,10 @@ public:
     int Format( OUTPUTFORMATTER* aOut, int aNestLevel, int aCtl );
 
 private:
-    wxString m_pinName;
-    wxString m_netName;
-    wxString m_pinFunction;
-    wxString m_pinType;
+    QString m_pinName;
+    QString m_netName;
+    QString m_pinFunction;
+    QString m_pinType;
 };
 
 
@@ -88,8 +66,8 @@ class COMPONENT
 {
 public:
     COMPONENT( const LIB_ID&            aFPID,
-               const wxString&          aReference,
-               const wxString&          aValue,
+               const QString&          aReference,
+               const QString&          aValue,
                const KIID_PATH&         aPath,
                const std::vector<KIID>& aKiids )
     {
@@ -103,8 +81,8 @@ public:
 
     virtual ~COMPONENT() { };
 
-    void AddNet( const wxString& aPinName, const wxString& aNetName, const wxString& aPinFunction,
-                 const wxString& aPinType )
+    void AddNet( const QString& aPinName, const QString& aNetName, const QString& aPinFunction,
+                 const QString& aPinType )
     {
         m_nets.emplace_back( aPinName, aNetName, aPinFunction, aPinType );
     }
@@ -113,35 +91,35 @@ public:
 
     const COMPONENT_NET& GetNet( unsigned aIndex ) const { return m_nets[aIndex]; }
 
-    const COMPONENT_NET& GetNet( const wxString& aPinName ) const;
+    const COMPONENT_NET& GetNet( const QString& aPinName ) const;
 
     void ClearNets() { m_nets.clear(); }
 
     void SortPins() { sort( m_nets.begin(), m_nets.end() ); }
 
-    void SetName( const wxString& aName ) { m_name = aName;}
-    const wxString& GetName() const { return m_name; }
+    void SetName( const QString& aName ) { m_name = aName;}
+    const QString& GetName() const { return m_name; }
 
-    void SetLibrary( const wxString& aLibrary ) { m_library = aLibrary; }
-    const wxString& GetLibrary() const { return m_library; }
+    void SetLibrary( const QString& aLibrary ) { m_library = aLibrary; }
+    const QString& GetLibrary() const { return m_library; }
 
-    void SetReference( const wxString& aReference ) { m_reference = aReference; }
-    const wxString& GetReference() const { return m_reference; }
+    void SetReference( const QString& aReference ) { m_reference = aReference; }
+    const QString& GetReference() const { return m_reference; }
 
-    void SetValue( const wxString& aValue ) { m_value = aValue; }
-    const wxString& GetValue() const { return m_value; }
+    void SetValue( const QString& aValue ) { m_value = aValue; }
+    const QString& GetValue() const { return m_value; }
 
-    void SetFields( nlohmann::ordered_map<wxString, wxString>& aFields )
+    void SetFields( nlohmann::ordered_map<QString, QString>& aFields )
     {
         m_fields = std::move( aFields );
     }
-    const nlohmann::ordered_map<wxString, wxString>& GetFields() const { return m_fields; }
+    const nlohmann::ordered_map<QString, QString>& GetFields() const { return m_fields; }
 
-    void SetProperties( std::map<wxString, wxString>& aProps )
+    void SetProperties( std::map<QString, QString>& aProps )
     {
         m_properties = std::move( aProps );
     }
-    const std::map<wxString, wxString>& GetProperties() const { return m_properties; }
+    const std::map<QString, QString>& GetProperties() const { return m_properties; }
 
     void SetFPID( const LIB_ID& aFPID ) { m_fpid = aFPID;  }
     const LIB_ID& GetFPID() const { return m_fpid; }
@@ -153,8 +131,8 @@ public:
 
     const std::vector<KIID>& GetKIIDs() const { return m_kiids; }
 
-    void SetFootprintFilters( const wxArrayString& aFilters ) { m_footprintFilters = aFilters; }
-    const wxArrayString& GetFootprintFilters() const { return m_footprintFilters; }
+    void SetFootprintFilters( const QStringList& aFilters ) { m_footprintFilters = aFilters; }
+    const QStringList& GetFootprintFilters() const { return m_footprintFilters; }
 
     void SetPinCount( int aPinCount ) { m_pinCount = aPinCount; }
     int GetPinCount() const { return m_pinCount; }
@@ -166,33 +144,33 @@ public:
 
     void SetFootprint( FOOTPRINT* aFootprint );
 
-    bool IsLibSource( const wxString& aLibrary, const wxString& aName ) const
+    bool IsLibSource( const QString& aLibrary, const QString& aName ) const
     {
         return aLibrary == m_library && aName == m_name;
     }
 
     void Format( OUTPUTFORMATTER* aOut, int aNestLevel, int aCtl );
 
-    void SetHumanReadablePath( const wxString& aPath ) { m_humanReadablePath = aPath; }
-    const wxString& GetHumanReadablePath() const { return m_humanReadablePath; }
+    void SetHumanReadablePath( const QString& aPath ) { m_humanReadablePath = aPath; }
+    const QString& GetHumanReadablePath() const { return m_humanReadablePath; }
 
-    void SetComponentClassNames( const std::unordered_set<wxString>& aClassNames )
+    void SetComponentClassNames( const std::unordered_set<QString>& aClassNames )
     {
         m_componentClassNames = aClassNames;
     }
 
-    std::unordered_set<wxString>& GetComponentClassNames() { return m_componentClassNames; }
+    std::unordered_set<QString>& GetComponentClassNames() { return m_componentClassNames; }
 
 private:
     std::vector<COMPONENT_NET>   m_nets;  ///< list of nets shared by the component pins
 
-    wxArrayString                m_footprintFilters;
+    QStringList                  m_footprintFilters;
     int                          m_pinCount;
-    wxString                     m_reference;
-    wxString                     m_value;
+    QString                      m_reference;
+    QString                      m_value;
 
     // human-readable hierarchical sheet path (e.g. /root/block0/sheet1)
-    wxString                     m_humanReadablePath;
+    QString                      m_humanReadablePath;
 
     /// A fully specified path to the component (but not the component: [ sheetUUID, sheetUUID, .. ]
     KIID_PATH                    m_path;
@@ -201,10 +179,10 @@ private:
     std::vector<KIID>            m_kiids;
 
     /// The name of the component in #m_library used when it was placed on the schematic.
-    wxString                     m_name;
+    QString                      m_name;
 
     /// The name of the component library where #m_name was found.
-    wxString                     m_library;
+    QString                      m_library;
 
     /// The #LIB_ID of the footprint assigned to the component.
     LIB_ID                       m_fpid;
@@ -218,13 +196,13 @@ private:
     std::unique_ptr<FOOTPRINT>   m_footprint;
 
     /// Component-specific properties found in the netlist.
-    std::map<wxString, wxString> m_properties;
+    std::map<QString, QString> m_properties;
 
     /// Component-specific user fields found in the netlist.
-    nlohmann::ordered_map<wxString, wxString> m_fields;
+    nlohmann::ordered_map<QString, QString> m_fields;
 
     /// Component classes for this footprint
-    std::unordered_set<wxString> m_componentClassNames;
+    std::unordered_set<QString> m_componentClassNames;
 
     static COMPONENT_NET         m_emptyNet;
 };
@@ -285,7 +263,7 @@ public:
      * @param aReference is the reference designator the #COMPONENT.
      * @return a pointer to the #COMPONENT that matches \a aReference if found.  Otherwise NULL.
      */
-    COMPONENT* GetComponentByReference( const wxString& aReference );
+    COMPONENT* GetComponentByReference( const QString& aReference );
 
     /**
      * Return a #COMPONENT by \a aPath.

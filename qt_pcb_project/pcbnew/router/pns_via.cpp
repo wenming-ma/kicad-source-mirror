@@ -1,23 +1,3 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include "pns_via.h"
 #include "pns_node.h"
@@ -27,6 +7,9 @@
 
 #include <geometry/shape_rect.h>
 #include <math/box2.h>
+
+#include <QString>
+#include <QtGlobal>
 
 namespace PNS {
 
@@ -79,8 +62,8 @@ void VIA::SetStackMode( STACK_MODE aStackMode )
 {
     m_stackMode = aStackMode;
 
-    wxASSERT_MSG( m_stackMode != STACK_MODE::FRONT_INNER_BACK || m_layers.Start() == 0,
-                  wxT( "Cannot use FRONT_INNER_BACK with blind/buried vias!" ) );
+    Q_ASSERT_X( m_stackMode != STACK_MODE::FRONT_INNER_BACK || m_layers.Start() == 0,
+                "VIA::SetStackMode", "Cannot use FRONT_INNER_BACK with blind/buried vias!" );
 
     // In theory, it might be good to do some housekeeping on m_diameters and m_shapes here,
     // but it's not yet clear if the stack mode needs to be changed after initial creation.
@@ -130,7 +113,7 @@ bool VIA::PushoutForce( NODE* aNode, const VECTOR2I& aDirection, VECTOR2I& aForc
     VECTOR2I totalForce;
 
     auto dbg = ROUTER::GetInstance()->GetInterface()->GetDebugDecorator();
-    PNS_DBG( dbg, AddPoint, Pos(), YELLOW, 100000, wxString::Format( "via-force-init-pos, iter %d", aMaxIterations ) );
+    PNS_DBG( dbg, AddPoint, Pos(), YELLOW, 100000, QString::asprintf( "via-force-init-pos, iter %d", aMaxIterations ) );
 
     while( iter < aMaxIterations )
     {
@@ -155,7 +138,7 @@ bool VIA::PushoutForce( NODE* aNode, const VECTOR2I& aDirection, VECTOR2I& aForc
                 // is zero... Assume force propagation has failed in such case.
                 return false;
             }
-            PNS_DBG( dbg, Message, wxString::Format( "no-coll %d", iter ) );
+            PNS_DBG( dbg, Message, QString::asprintf( "no-coll %d", iter ) );
             break;
         }
 
@@ -216,8 +199,8 @@ bool VIA::PushoutForce( NODE* aNode, const VECTOR2I& aDirection, VECTOR2I& aForc
 
 const SHAPE_LINE_CHAIN VIA::Hull( int aClearance, int aWalkaroundThickness, int aLayer ) const
 {
-    wxASSERT_MSG( aLayer >= 0 || m_stackMode == STACK_MODE::NORMAL,
-                  wxT( "Warning: VIA::Hull called with invalid layer but viastack is complex" ) );
+    Q_ASSERT_X( aLayer >= 0 || m_stackMode == STACK_MODE::NORMAL,
+                "VIA::Hull", "Warning: VIA::Hull called with invalid layer but viastack is complex" );
 
     int cl = ( aClearance + aWalkaroundThickness / 2 );
     int width = Diameter( aLayer );

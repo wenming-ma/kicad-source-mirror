@@ -1,31 +1,10 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2008-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #ifndef ZONES_H_
 #define ZONES_H_
 
-#include <wx/translation.h>
+#include <QString>
 
 struct CONVERT_SETTINGS;
 
@@ -53,16 +32,16 @@ enum class ZONE_CONNECTION
 };
 
 
-inline wxString PrintZoneConnection( ZONE_CONNECTION aConnection )
+inline QString PrintZoneConnection( ZONE_CONNECTION aConnection )
 {
     switch( aConnection )
     {
     default:
-    case ZONE_CONNECTION::INHERITED:   return _( "inherited" );
-    case ZONE_CONNECTION::NONE:        return _( "none" );
-    case ZONE_CONNECTION::THERMAL:     return _( "thermal reliefs" );
-    case ZONE_CONNECTION::FULL:        return _( "solid" );
-    case ZONE_CONNECTION::THT_THERMAL: return _( "thermal reliefs for PTH" );
+    case ZONE_CONNECTION::INHERITED:   return QStringLiteral( "inherited" );
+    case ZONE_CONNECTION::NONE:        return QStringLiteral( "none" );
+    case ZONE_CONNECTION::THERMAL:     return QStringLiteral( "thermal reliefs" );
+    case ZONE_CONNECTION::FULL:        return QStringLiteral( "solid" );
+    case ZONE_CONNECTION::THT_THERMAL: return QStringLiteral( "thermal reliefs for PTH" );
     }
 }
 

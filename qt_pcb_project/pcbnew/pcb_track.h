@@ -1,36 +1,11 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @brief A single base class (PCB_TRACK) represents both tracks and vias, with subclasses
- * for curved tracks (PCB_ARC) and vias (PCB_VIA).  All told there are three KICAD_Ts:
- * PCB_TRACK_T, PCB_ARC_T, and PCB_VIA_T.
- *
- * For vias there is a further VIATYPE which indicates THROUGH, BLIND_BURIED, or MICROVIA,
- * which are supported by the synthetic KICAD_Ts PCB_LOCATE_STDVIA_T, PCB_LOCATE_BBVIA_T, and
- * PCB_LOCATE_UVIA_T.
- */
+// A single base class (PCB_TRACK) represents both tracks and vias, with subclasses
+// for curved tracks (PCB_ARC) and vias (PCB_VIA).  All told there are three KICAD_Ts:
+// PCB_TRACK_T, PCB_ARC_T, and PCB_VIA_T.
+// 
+// For vias there is a further VIATYPE which indicates THROUGH, BLIND_BURIED, or MICROVIA,
+// which are supported by the synthetic KICAD_Ts PCB_LOCATE_STDVIA_T, PCB_LOCATE_BBVIA_T, and
+// PCB_LOCATE_UVIA_T.
 
 #ifndef CLASS_TRACK_H
 #define CLASS_TRACK_H
@@ -160,24 +135,11 @@ public:
 
     const BOX2I GetBoundingBox() const override;
 
-    /**
-     * Get the length of the track using the hypotenuse calculation.
-     *
-     * @return the length of the track.
-     */
+    // Get the length of the track using the hypotenuse calculation
     virtual double GetLength() const;
 
-    /**
-     * Convert the track shape to a closed polygon.
-     *
-     * Circles (vias) and arcs (ends of tracks) are approximated by segments.
-     *
-     * @param aBuffer is a buffer to store the polygon
-     * @param aClearance is the clearance around the pad
-     * @param aError is the maximum deviation from true circle
-     * @param ignoreLineWidth is used for edge cut items where the line width is only for
-     *                        visualization
-     */
+    // Convert the track shape to a closed polygon
+    // Circles (vias) and arcs (ends of tracks) are approximated by segments
     void TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer, int aClearance,
                                   int aError, ERROR_LOC aErrorLoc,
                                   bool ignoreLineWidth = false ) const override;
@@ -186,18 +148,11 @@ public:
     std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
                                               FLASHING aFlash = FLASHING::DEFAULT ) const override;
 
-    /**
-     * Return STARTPOINT if point if near (dist = min_dist) start point, ENDPOINT if
-     * point if near (dist = min_dist) end point,STARTPOINT|ENDPOINT if point if near
-     * (dist = min_dist) both ends, or 0 if none of the above.
-     *
-     * If min_dist < 0: min_dist = track_width/2
-     */
+    // Return STARTPOINT if point is near start/end points, or 0 if none
+    // If min_dist < 0: min_dist = track_width/2
     EDA_ITEM_FLAGS IsPointOnEnds( const VECTOR2I& point, int min_dist = 0 ) const;
 
-    /**
-     * Return true if segment length is zero.
-     */
+    // Return true if segment length is zero
     bool IsNull() const
     {
         return ( Type() == PCB_VIA_T ) || ( m_Start == m_End );
@@ -233,9 +188,7 @@ public:
 
     const BOX2I ViewBBox() const override;
 
-    /**
-     * @return true because a track or a via is always on a copper layer.
-     */
+    // Return true because a track or a via is always on a copper layer
     bool IsOnCopperLayer() const override
     {
         return true;
@@ -335,11 +288,7 @@ public:
     std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
                                               FLASHING aFlash = FLASHING::DEFAULT ) const override;
 
-    /**
-     * Return the length of the arc track.
-     *
-     * @return double - the length of the track
-     */
+    // Return the length of the arc track
     virtual double GetLength() const override
     {
         return GetRadius() * std::abs( GetAngle().AsRadians() );
@@ -347,12 +296,8 @@ public:
 
     EDA_ITEM* Clone() const override;
 
-    /**
-     * @return true if the arc is too small to allow a safe calculation
-     * of center position and arc angles i.e if distance between m_Mid and each arc end
-     * is only a few internal units.
-     * @param aThreshold is the minimal dist in internal units. Default id 5 IU
-     */
+    // Return true if the arc is too small to allow safe calculation of center position and angles
+    // aThreshold is the minimal distance in internal units (default 5 IU)
     bool IsDegenerated( int aThreshold = 5 ) const;
 
     double Similarity( const BOARD_ITEM& aOther ) const override;
@@ -407,9 +352,7 @@ public:
         return false;
     }
 
-    /**
-     * @return true if top and bottom layers are valid, depending on the copper layer count
-     */
+    // Return true if top and bottom layers are valid, depending on the copper layer count
     bool HasValidLayerPair( int aCopperLayerCount );
 
     VIATYPE GetViaType() const { return m_viaType; }
@@ -466,39 +409,28 @@ public:
 
     virtual LSET GetLayerSet() const override;
 
-    /**
-     * Note SetLayerSet() initialize the first and last copper layers connected by the via.
-     * So currently SetLayerSet ignore non copper layers
-     */
+    // SetLayerSet() initializes first and last copper layers connected by the via
+    // Currently SetLayerSet ignores non copper layers
     virtual void SetLayerSet( const LSET& aLayers ) override;
 
-    /**
-     * For a via m_layer contains the top layer, the other layer is in m_bottomLayer/
-     *
-     * @param aTopLayer is the first layer connected by the via.
-     * @param aBottomLayer is last layer connected by the via.
-     */
+    // For a via m_layer contains the top layer, the other layer is in m_bottomLayer
+    // aTopLayer is the first layer connected by the via
+    // aBottomLayer is the last layer connected by the via
     void SetLayerPair( PCB_LAYER_ID aTopLayer, PCB_LAYER_ID aBottomLayer );
 
     void SetBottomLayer( PCB_LAYER_ID aLayer );
     void SetTopLayer( PCB_LAYER_ID aLayer );
 
-    /**
-     * Return the 2 layers used by the via (the via actually uses all layers between these
-     * 2 layers)
-     *
-     *  @param[out] top_layer is storage for the first layer of the via (can be null).
-     *  @param[out] bottom_layer is storage for the last layer of the via(can be null).
-     */
+    // Return the 2 layers used by the via (the via actually uses all layers between these 2 layers)
+    // top_layer is storage for the first layer of the via (can be null)
+    // bottom_layer is storage for the last layer of the via (can be null)
     void LayerPair( PCB_LAYER_ID* top_layer, PCB_LAYER_ID* bottom_layer ) const;
 
     PCB_LAYER_ID TopLayer() const;
     PCB_LAYER_ID BottomLayer() const;
 
-    /**
-     * Check so that the layers are correct depending on the type of via, and
-     * so that the top actually is on top.
-     */
+    // Check so that the layers are correct depending on the type of via, and
+    // so that the top actually is on top
     void SanitizeLayers();
 
     VECTOR2I GetPosition() const override               { return m_Start; }
@@ -530,13 +462,10 @@ public:
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
 #endif
 
-    int GetMinAnnulus( PCB_LAYER_ID aLayer, wxString* aSource ) const;
+    int GetMinAnnulus( PCB_LAYER_ID aLayer, QString* aSource ) const;
 
-    /**
-     * @deprecated - use Padstack().SetUnconnectedLayerMode()
-     * Sets the unconnected removal property.  If true, the copper is removed on zone fill
-     * or when specifically requested when the via is not connected on a layer.
-     */
+    // @deprecated - use Padstack().SetUnconnectedLayerMode()
+    // Sets the unconnected removal property
     void SetRemoveUnconnected( bool aSet )
     {
         m_padStack.SetUnconnectedLayerMode( aSet
@@ -549,10 +478,8 @@ public:
         return m_padStack.UnconnectedLayerMode() != PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL;
     }
 
-    /**
-     * @deprecated - use Padstack().SetUnconnectedLayerMode()
-     * Sets whether we keep the start and end annular rings even if they are not connected
-     */
+    // @deprecated - use Padstack().SetUnconnectedLayerMode()
+    // Sets whether we keep the start and end annular rings even if they are not connected
     void SetKeepStartEnd( bool aSet )
     {
         m_padStack.SetUnconnectedLayerMode( aSet
@@ -586,70 +513,39 @@ public:
         return true;
     }
 
-    /**
-     * Check to see whether the via should have a pad on the specific layer.
-     *
-     * @param aLayer Layer to check for connectivity
-     * @return true if connected by pad or track (or optionally zone)
-     */
+    // Check to see whether the via should have a pad on the specific layer
+    // Return true if connected by pad or track (or optionally zone)
     bool FlashLayer( int aLayer ) const;
 
-    /**
-     * Check to see if the via is present on any of the layers in the set.
-     *
-     * @param aLayers is the set of layers to check the via against.
-     * @return true if connected by pad or track (or optionally zone) on any of the associated
-     *         layers.
-     */
+    // Check to see if the via is present on any of the layers in the set
+    // Return true if connected by pad or track (or optionally zone) on any of the associated layers
     bool FlashLayer( LSET aLayers ) const;
 
-    /**
-     * Return the top-most and bottom-most connected layers.
-     * @param aTopmost
-     * @param aBottommost
-     */
+    // Return the top-most and bottom-most connected layers
     void GetOutermostConnectedLayers( PCB_LAYER_ID* aTopmost,
                              PCB_LAYER_ID* aBottommost ) const;
 
-    /**
-     * Set the drill value for vias.
-     *
-     * @param aDrill is the new drill diameter
-     */
+    // Set the drill value for vias
     void SetDrill( int aDrill )
     {
         m_padStack.Drill().size = { aDrill, aDrill };
     }
 
-    /**
-     * Return the local drill setting for this PCB_VIA.
-     *
-     * @note Use GetDrillValue() to get the calculated value.
-     */
+    // Return the local drill setting for this PCB_VIA
+    // Use GetDrillValue() to get the calculated value
     int GetDrill() const                    { return m_padStack.Drill().size.x; }
 
-    /**
-     * Calculate the drill value for vias (m_drill if > 0, or default drill value for the board).
-     *
-     * @return the calculated drill value.
-     */
+    // Calculate the drill value for vias (m_drill if > 0, or default drill value for the board)
     int GetDrillValue() const;
 
-    /**
-     * Set the drill value for vias to the default value #UNDEFINED_DRILL_DIAMETER.
-     */
+    // Set the drill value for vias to the default value UNDEFINED_DRILL_DIAMETER
     void SetDrillDefault()
     {
         m_padStack.Drill().size = { UNDEFINED_DRILL_DIAMETER, UNDEFINED_DRILL_DIAMETER };
     }
 
-    /**
-     * Check if the via is a free via (as opposed to one created on a track by the router).
-     *
-     * Free vias don't have their nets automatically updated by the connectivity algorithm.
-     *
-     * @return true if the via is a free via
-     */
+    // Check if the via is a free via (as opposed to one created on a track by the router)
+    // Free vias don't have their nets automatically updated by the connectivity algorithm
     bool GetIsFree() const              { return m_isFree; }
     void SetIsFree( bool aFree = true ) { m_isFree = aFree; }
 

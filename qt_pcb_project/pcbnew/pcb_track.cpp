@@ -1,30 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "pcb_track.h"
+
+#include <QString>
+#include <QtDebug>
 
 #include <pcb_base_frame.h>
 #include <core/mirror.h>
@@ -73,7 +51,7 @@ EDA_ITEM* PCB_TRACK::Clone() const
 
 void PCB_TRACK::CopyFrom( const BOARD_ITEM* aOther )
 {
-    wxCHECK( aOther && aOther->Type() == PCB_TRACE_T, /* void */ );
+    Q_ASSERT( aOther && aOther->Type() == PCB_TRACE_T );
     *this = *static_cast<const PCB_TRACK*>( aOther );
 }
 
@@ -95,7 +73,7 @@ EDA_ITEM* PCB_ARC::Clone() const
 
 void PCB_ARC::CopyFrom( const BOARD_ITEM* aOther )
 {
-    wxCHECK( aOther && aOther->Type() == PCB_ARC_T, /* void */ );
+    Q_ASSERT( aOther && aOther->Type() == PCB_ARC_T );
     *this = *static_cast<const PCB_ARC*>( aOther );
 }
 
@@ -152,7 +130,7 @@ PCB_VIA& PCB_VIA::operator=( const PCB_VIA &aOther )
 
 void PCB_VIA::CopyFrom( const BOARD_ITEM* aOther )
 {
-    wxCHECK( aOther && aOther->Type() == PCB_VIA_T, /* void */ );
+    Q_ASSERT( aOther && aOther->Type() == PCB_VIA_T );
     *this = *static_cast<const PCB_VIA*>( aOther );
 }
 
@@ -163,18 +141,18 @@ EDA_ITEM* PCB_VIA::Clone() const
 }
 
 
-wxString PCB_VIA::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PCB_VIA::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    wxString formatStr;
+    QString formatStr;
 
     switch( GetViaType() )
     {
-    case VIATYPE::BLIND_BURIED: formatStr = _( "Blind/Buried Via %s on %s" ); break;
-    case VIATYPE::MICROVIA:     formatStr = _( "Micro Via %s on %s" );        break;
-    default:                    formatStr = _( "Via %s on %s" );              break;
+    case VIATYPE::BLIND_BURIED: formatStr = "Blind/Buried Via %1 on %2"; break;
+    case VIATYPE::MICROVIA:     formatStr = "Micro Via %1 on %2";        break;
+    default:                    formatStr = "Via %1 on %2";              break;
     }
 
-    return wxString::Format( formatStr, GetNetnameMsg(), layerMaskDescribe() );
+    return formatStr.arg( GetNetnameMsg() ).arg( layerMaskDescribe() );
 }
 
 
@@ -378,7 +356,7 @@ void PCB_VIA::SetWidth( int aWidth )
 int PCB_VIA::GetWidth() const
 {
     // This is present because of the parent class.  It should never be actually called on a via.
-    wxASSERT_MSG( false, "Warning: PCB_VIA::GetWidth called without a layer argument" );
+    Q_ASSERT_X( false, "PCB_VIA::GetWidth", "Warning: PCB_VIA::GetWidth called without a layer argument" );
     return m_padStack.Size( PADSTACK::ALL_LAYERS ).x;
 }
 
@@ -541,7 +519,7 @@ bool PCB_TRACK::ApproxCollinear( const PCB_TRACK& aTrack )
 }
 
 
-MINOPTMAX<int> PCB_TRACK::GetWidthConstraint( wxString* aSource ) const
+MINOPTMAX<int> PCB_TRACK::GetWidthConstraint( QString* aSource ) const
 {
     DRC_CONSTRAINT constraint;
 
@@ -559,7 +537,7 @@ MINOPTMAX<int> PCB_TRACK::GetWidthConstraint( wxString* aSource ) const
 }
 
 
-MINOPTMAX<int> PCB_VIA::GetWidthConstraint( wxString* aSource ) const
+MINOPTMAX<int> PCB_VIA::GetWidthConstraint( QString* aSource ) const
 {
     DRC_CONSTRAINT constraint;
 
@@ -577,7 +555,7 @@ MINOPTMAX<int> PCB_VIA::GetWidthConstraint( wxString* aSource ) const
 }
 
 
-MINOPTMAX<int> PCB_VIA::GetDrillConstraint( wxString* aSource ) const
+MINOPTMAX<int> PCB_VIA::GetDrillConstraint( QString* aSource ) const
 {
     DRC_CONSTRAINT constraint;
 
@@ -595,12 +573,12 @@ MINOPTMAX<int> PCB_VIA::GetDrillConstraint( wxString* aSource ) const
 }
 
 
-int PCB_VIA::GetMinAnnulus( PCB_LAYER_ID aLayer, wxString* aSource ) const
+int PCB_VIA::GetMinAnnulus( PCB_LAYER_ID aLayer, QString* aSource ) const
 {
     if( !FlashLayer( aLayer ) )
     {
         if( aSource )
-            *aSource = _( "removed annular ring" );
+            *aSource = "removed annular ring";
 
         return 0;
     }
@@ -920,8 +898,9 @@ TENTING_MODE PCB_VIA::GetBackTentingMode() const
 
 bool PCB_VIA::IsTented( PCB_LAYER_ID aLayer ) const
 {
-    wxCHECK_MSG( IsFrontLayer( aLayer ) || IsBackLayer( aLayer ), true,
-                 "Invalid layer passed to IsTented" );
+    Q_ASSERT_X( IsFrontLayer( aLayer ) || IsBackLayer( aLayer ), "PCB_VIA::IsTented", "Invalid layer passed to IsTented" );
+    if( !( IsFrontLayer( aLayer ) || IsBackLayer( aLayer ) ) )
+        return true;
 
     bool front = IsFrontLayer( aLayer );
 
@@ -1604,38 +1583,38 @@ double PCB_VIA::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
 }
 
 
-wxString PCB_TRACK::GetFriendlyName() const
+QString PCB_TRACK::GetFriendlyName() const
 {
     switch( Type() )
     {
-    case PCB_ARC_T:     return _( "Track (arc)" );
-    case PCB_VIA_T:     return _( "Via" );
+    case PCB_ARC_T:     return "Track (arc)";
+    case PCB_VIA_T:     return "Via";
     case PCB_TRACE_T:
-    default:            return _( "Track" );
+    default:            return "Track";
     }
 }
 
 
 void PCB_TRACK::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString  msg;
+    QString  msg;
     BOARD*    board = GetBoard();
 
-    aList.emplace_back( _( "Type" ), GetFriendlyName() );
+    aList.emplace_back( "Type", GetFriendlyName() );
 
     GetMsgPanelInfoBase_Common( aFrame, aList );
 
-    aList.emplace_back( _( "Layer" ), layerMaskDescribe() );
+    aList.emplace_back( "Layer", layerMaskDescribe() );
 
-    aList.emplace_back( _( "Width" ), aFrame->MessageTextFromValue( m_width ) );
+    aList.emplace_back( "Width", aFrame->MessageTextFromValue( m_width ) );
 
     if( Type() == PCB_ARC_T )
     {
         double radius = static_cast<PCB_ARC*>( this )->GetRadius();
-        aList.emplace_back( _( "Radius" ), aFrame->MessageTextFromValue( radius ) );
+        aList.emplace_back( "Radius", aFrame->MessageTextFromValue( radius ) );
     }
 
-    aList.emplace_back( _( "Segment Length" ), aFrame->MessageTextFromValue( GetLength() ) );
+    aList.emplace_back( "Segment Length", aFrame->MessageTextFromValue( GetLength() ) );
 
     // Display full track length (in Pcbnew)
     if( board && GetNetCode() > 0 )
@@ -1646,101 +1625,97 @@ void PCB_TRACK::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
 
         std::tie( count, trackLen, lenPadToDie ) = board->GetTrackLength( *this );
 
-        aList.emplace_back( _( "Routed Length" ), aFrame->MessageTextFromValue( trackLen ) );
+        aList.emplace_back( "Routed Length", aFrame->MessageTextFromValue( trackLen ) );
 
         if( lenPadToDie != 0 )
         {
             msg = aFrame->MessageTextFromValue( lenPadToDie );
-            aList.emplace_back( _( "Pad To Die Length" ), msg );
+            aList.emplace_back( "Pad To Die Length", msg );
 
             msg = aFrame->MessageTextFromValue( trackLen + lenPadToDie );
-            aList.emplace_back( _( "Full Length" ), msg );
+            aList.emplace_back( "Full Length", msg );
         }
     }
 
-    wxString source;
+    QString source;
     int clearance = GetOwnClearance( GetLayer(), &source );
 
-    aList.emplace_back( wxString::Format( _( "Min Clearance: %s" ),
-                                          aFrame->MessageTextFromValue( clearance ) ),
-                        wxString::Format( _( "(from %s)" ), source ) );
+    aList.emplace_back( QString( "Min Clearance: %1" )
+                            .arg( aFrame->MessageTextFromValue( clearance ) ),
+                        QString( "(from %1)" ).arg( source ) );
 
     MINOPTMAX<int> constraintValue = GetWidthConstraint( &source );
     msg = aFrame->MessageTextFromMinOptMax( constraintValue );
 
     if( !msg.IsEmpty() )
     {
-        aList.emplace_back( wxString::Format( _( "Width Constraints: %s" ), msg ),
-                            wxString::Format( _( "(from %s)" ), source ) );
+        aList.emplace_back( QString( "Width Constraints: %1" ).arg( msg ),
+                            QString( "(from %1)" ).arg( source ) );
     }
 }
 
 
 void PCB_VIA::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString  msg;
+    QString  msg;
 
     switch( GetViaType() )
     {
-    case VIATYPE::MICROVIA:     msg = _( "Micro Via" );        break;
-    case VIATYPE::BLIND_BURIED: msg = _( "Blind/Buried Via" ); break;
-    case VIATYPE::THROUGH:      msg = _( "Through Via" );      break;
-    default:                    msg = _( "Via" );              break;
+    case VIATYPE::MICROVIA:     msg = "Micro Via";        break;
+    case VIATYPE::BLIND_BURIED: msg = "Blind/Buried Via"; break;
+    case VIATYPE::THROUGH:      msg = "Through Via";      break;
+    default:                    msg = "Via";              break;
     }
 
-    aList.emplace_back( _( "Type" ), msg );
+    aList.emplace_back( "Type", msg );
 
     GetMsgPanelInfoBase_Common( aFrame, aList );
 
-    aList.emplace_back( _( "Layer" ), layerMaskDescribe() );
+    aList.emplace_back( "Layer", layerMaskDescribe() );
     // TODO(JE) padstacks
-    aList.emplace_back( _( "Diameter" ),
+    aList.emplace_back( "Diameter",
                         aFrame->MessageTextFromValue( GetWidth( PADSTACK::ALL_LAYERS ) ) );
-    aList.emplace_back( _( "Hole" ), aFrame->MessageTextFromValue( GetDrillValue() ) );
+    aList.emplace_back( "Hole", aFrame->MessageTextFromValue( GetDrillValue() ) );
 
-    wxString  source;
+    QString  source;
     int clearance = GetOwnClearance( GetLayer(), &source );
 
-    aList.emplace_back( wxString::Format( _( "Min Clearance: %s" ),
-                                          aFrame->MessageTextFromValue( clearance ) ),
-                        wxString::Format( _( "(from %s)" ), source ) );
+    aList.emplace_back( QString( "Min Clearance: %1" )
+                            .arg( aFrame->MessageTextFromValue( clearance ) ),
+                        QString( "(from %1)" ).arg( source ) );
 
     int minAnnulus = GetMinAnnulus( GetLayer(), &source );
 
-    aList.emplace_back( wxString::Format( _( "Min Annular Width: %s" ),
-                                          aFrame->MessageTextFromValue( minAnnulus ) ),
-                        wxString::Format( _( "(from %s)" ), source ) );
+    aList.emplace_back( QString( "Min Annular Width: %1" )
+                            .arg( aFrame->MessageTextFromValue( minAnnulus ) ),
+                        QString( "(from %1)" ).arg( source ) );
 }
 
 
 void PCB_TRACK::GetMsgPanelInfoBase_Common( EDA_DRAW_FRAME* aFrame,
                                             std::vector<MSG_PANEL_ITEM>& aList ) const
 {
-    aList.emplace_back( _( "Net" ), UnescapeString( GetNetname() ) );
+    aList.emplace_back( "Net", UnescapeString( GetNetname() ) );
 
-    aList.emplace_back( _( "Resolved Netclass" ),
+    aList.emplace_back( "Resolved Netclass",
                         UnescapeString( GetEffectiveNetClass()->GetHumanReadableName() ) );
 
 #if 0   // Enable for debugging
     if( GetBoard() )
-        aList.emplace_back( _( "NetCode" ), wxString::Format( wxT( "%d" ), GetNetCode() ) );
+        aList.emplace_back( "NetCode", QString::number( GetNetCode() ) );
 
-    aList.emplace_back( wxT( "Flags" ), wxString::Format( wxT( "0x%08X" ), m_flags ) );
+    aList.emplace_back( "Flags", QString( "0x%1" ).arg( m_flags, 8, 16, QChar( '0' ) ).toUpper() );
 
-    aList.emplace_back( wxT( "Start pos" ), wxString::Format( wxT( "%d %d" ),
-                                                              m_Start.x,
-                                                              m_Start.y ) );
-    aList.emplace_back( wxT( "End pos" ), wxString::Format( wxT( "%d %d" ),
-                                                            m_End.x,
-                                                            m_End.y ) );
+    aList.emplace_back( "Start pos", QString( "%1 %2" ).arg( m_Start.x ).arg( m_Start.y ) );
+    aList.emplace_back( "End pos", QString( "%1 %2" ).arg( m_End.x ).arg( m_End.y ) );
 #endif
 
     if( aFrame->GetName() == PCB_EDIT_FRAME_NAME && IsLocked() )
-        aList.emplace_back( _( "Status" ), _( "Locked" ) );
+        aList.emplace_back( "Status", "Locked" );
 }
 
 
-wxString PCB_VIA::layerMaskDescribe() const
+QString PCB_VIA::layerMaskDescribe() const
 {
     const BOARD* board = GetBoard();
     PCB_LAYER_ID top_layer;
@@ -1748,7 +1723,7 @@ wxString PCB_VIA::layerMaskDescribe() const
 
     LayerPair( &top_layer, &bottom_layer );
 
-    return board->GetLayerName( top_layer ) + wxT( " - " ) + board->GetLayerName( bottom_layer );
+    return board->GetLayerName( top_layer ) + " - " + board->GetLayerName( bottom_layer );
 }
 
 
@@ -1873,13 +1848,18 @@ bool PCB_VIA::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) cons
 }
 
 
-wxString PCB_TRACK::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PCB_TRACK::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( Type() == PCB_ARC_T ? _("Track (arc) %s on %s, length %s" )
-                                                 : _("Track %s on %s, length %s" ),
-                             GetNetnameMsg(),
-                             GetLayerName(),
-                             aUnitsProvider->MessageTextFromValue( GetLength() ) );
+    if( Type() == PCB_ARC_T )
+        return QString( "Track (arc) %1 on %2, length %3" )
+            .arg( GetNetnameMsg() )
+            .arg( GetLayerName() )
+            .arg( aUnitsProvider->MessageTextFromValue( GetLength() ) );
+    else
+        return QString( "Track %1 on %2, length %3" )
+            .arg( GetNetnameMsg() )
+            .arg( GetLayerName() )
+            .arg( aUnitsProvider->MessageTextFromValue( GetLength() ) );
 }
 
 
@@ -2049,7 +2029,7 @@ void PCB_TRACK::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID a
                                          int aClearance, int aError, ERROR_LOC aErrorLoc,
                                          bool ignoreLineWidth ) const
 {
-    wxASSERT_MSG( !ignoreLineWidth, wxT( "IgnoreLineWidth has no meaning for tracks." ) );
+    Q_ASSERT_X( !ignoreLineWidth, "PCB_TRACK::TransformShapeToPolygon", "IgnoreLineWidth has no meaning for tracks." );
 
 
     switch( Type() )
@@ -2095,15 +2075,15 @@ static struct TRACK_VIA_DESC
     {
         ENUM_MAP<VIATYPE>::Instance()
             .Undefined( VIATYPE::NOT_DEFINED )
-            .Map( VIATYPE::THROUGH,      _HKI( "Through" ) )
-            .Map( VIATYPE::BLIND_BURIED, _HKI( "Blind/buried" ) )
-            .Map( VIATYPE::MICROVIA,     _HKI( "Micro" ) );
+            .Map( VIATYPE::THROUGH,      "Through" )
+            .Map( VIATYPE::BLIND_BURIED, "Blind/buried" )
+            .Map( VIATYPE::MICROVIA,     "Micro" );
 
         ENUM_MAP<TENTING_MODE>::Instance()
             .Undefined( TENTING_MODE::FROM_RULES )
-            .Map( TENTING_MODE::FROM_RULES, _HKI( "From design rules" ) )
-            .Map( TENTING_MODE::TENTED,     _HKI( "Tented" ) )
-            .Map( TENTING_MODE::NOT_TENTED, _HKI( "Not tented" ) );
+            .Map( TENTING_MODE::FROM_RULES, "From design rules" )
+            .Map( TENTING_MODE::TENTED,     "Tented" )
+            .Map( TENTING_MODE::NOT_TENTED, "Not tented" );
 
         ENUM_MAP<PCB_LAYER_ID>& layerEnum = ENUM_MAP<PCB_LAYER_ID>::Instance();
 
@@ -2121,24 +2101,24 @@ static struct TRACK_VIA_DESC
         REGISTER_TYPE( PCB_TRACK );
         propMgr.InheritsAfter( TYPE_HASH( PCB_TRACK ), TYPE_HASH( BOARD_CONNECTED_ITEM ) );
 
-        propMgr.AddProperty( new PROPERTY<PCB_TRACK, int>( _HKI( "Width" ),
+        propMgr.AddProperty( new PROPERTY<PCB_TRACK, int>( "Width",
             &PCB_TRACK::SetWidth, &PCB_TRACK::GetWidth, PROPERTY_DISPLAY::PT_SIZE ) );
-        propMgr.ReplaceProperty( TYPE_HASH( BOARD_ITEM ), _HKI( "Position X" ),
-            new PROPERTY<PCB_TRACK, int>( _HKI( "Start X" ),
+        propMgr.ReplaceProperty( TYPE_HASH( BOARD_ITEM ), "Position X",
+            new PROPERTY<PCB_TRACK, int>( "Start X",
             &PCB_TRACK::SetStartX, &PCB_TRACK::GetStartX, PROPERTY_DISPLAY::PT_COORD,
             ORIGIN_TRANSFORMS::ABS_X_COORD) );
-        propMgr.ReplaceProperty( TYPE_HASH( BOARD_ITEM ), _HKI( "Position Y" ),
-            new PROPERTY<PCB_TRACK, int>( _HKI( "Start Y" ),
+        propMgr.ReplaceProperty( TYPE_HASH( BOARD_ITEM ), "Position Y",
+            new PROPERTY<PCB_TRACK, int>( "Start Y",
             &PCB_TRACK::SetStartY, &PCB_TRACK::GetStartY, PROPERTY_DISPLAY::PT_COORD,
             ORIGIN_TRANSFORMS::ABS_Y_COORD ) );
-        propMgr.AddProperty( new PROPERTY<PCB_TRACK, int>( _HKI( "End X" ),
+        propMgr.AddProperty( new PROPERTY<PCB_TRACK, int>( "End X",
             &PCB_TRACK::SetEndX, &PCB_TRACK::GetEndX, PROPERTY_DISPLAY::PT_COORD,
             ORIGIN_TRANSFORMS::ABS_X_COORD) );
-        propMgr.AddProperty( new PROPERTY<PCB_TRACK, int>( _HKI( "End Y" ),
+        propMgr.AddProperty( new PROPERTY<PCB_TRACK, int>( "End Y",
             &PCB_TRACK::SetEndY, &PCB_TRACK::GetEndY, PROPERTY_DISPLAY::PT_COORD,
             ORIGIN_TRANSFORMS::ABS_Y_COORD) );
 
-        const wxString groupTechLayers = _HKI( "Technical Layers" );
+        const QString groupTechLayers = "Technical Layers";
 
         auto isExternalLayerTrack =
             []( INSPECTABLE* aItem )
@@ -2149,10 +2129,10 @@ static struct TRACK_VIA_DESC
                 return false;
             };
 
-        propMgr.AddProperty( new PROPERTY<PCB_TRACK, bool>( _HKI( "Soldermask" ),
+        propMgr.AddProperty( new PROPERTY<PCB_TRACK, bool>( "Soldermask",
             &PCB_TRACK::SetHasSolderMask, &PCB_TRACK::HasSolderMask ), groupTechLayers )
             .SetAvailableFunc( isExternalLayerTrack );
-        propMgr.AddProperty( new PROPERTY<PCB_TRACK, std::optional<int>>( _HKI( "Soldermask Margin Override" ),
+        propMgr.AddProperty( new PROPERTY<PCB_TRACK, std::optional<int>>( "Soldermask Margin Override",
             &PCB_TRACK::SetLocalSolderMaskMargin, &PCB_TRACK::GetLocalSolderMaskMargin,
             PROPERTY_DISPLAY::PT_SIZE ), groupTechLayers )
             .SetAvailableFunc( isExternalLayerTrack );
@@ -2166,23 +2146,23 @@ static struct TRACK_VIA_DESC
         propMgr.InheritsAfter( TYPE_HASH( PCB_VIA ), TYPE_HASH( BOARD_CONNECTED_ITEM ) );
 
         // TODO test drill, use getdrillvalue?
-        const wxString groupVia = _HKI( "Via Properties" );
+        const QString groupVia = "Via Properties";
 
-        propMgr.Mask( TYPE_HASH( PCB_VIA ), TYPE_HASH( BOARD_CONNECTED_ITEM ), _HKI( "Layer" ) );
+        propMgr.Mask( TYPE_HASH( PCB_VIA ), TYPE_HASH( BOARD_CONNECTED_ITEM ), "Layer" );
 
-        propMgr.AddProperty( new PROPERTY<PCB_VIA, int>( _HKI( "Diameter" ),
+        propMgr.AddProperty( new PROPERTY<PCB_VIA, int>( "Diameter",
             &PCB_VIA::SetFrontWidth, &PCB_VIA::GetFrontWidth, PROPERTY_DISPLAY::PT_SIZE ), groupVia );
-        propMgr.AddProperty( new PROPERTY<PCB_VIA, int>( _HKI( "Hole" ),
+        propMgr.AddProperty( new PROPERTY<PCB_VIA, int>( "Hole",
             &PCB_VIA::SetDrill, &PCB_VIA::GetDrillValue, PROPERTY_DISPLAY::PT_SIZE ), groupVia );
-        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, PCB_LAYER_ID>( _HKI( "Layer Top" ),
+        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, PCB_LAYER_ID>( "Layer Top",
             &PCB_VIA::SetTopLayer, &PCB_VIA::GetLayer ), groupVia );
-        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, PCB_LAYER_ID>( _HKI( "Layer Bottom" ),
+        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, PCB_LAYER_ID>( "Layer Bottom",
             &PCB_VIA::SetBottomLayer, &PCB_VIA::BottomLayer ), groupVia );
-        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, VIATYPE>( _HKI( "Via Type" ),
+        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, VIATYPE>( "Via Type",
             &PCB_VIA::SetViaType, &PCB_VIA::GetViaType ), groupVia );
-        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, TENTING_MODE>( _HKI( "Front tenting" ),
+        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, TENTING_MODE>( "Front tenting",
             &PCB_VIA::SetFrontTentingMode, &PCB_VIA::GetFrontTentingMode ), groupVia );
-        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, TENTING_MODE>( _HKI( "Back tenting" ),
+        propMgr.AddProperty( new PROPERTY_ENUM<PCB_VIA, TENTING_MODE>( "Back tenting",
             &PCB_VIA::SetBackTentingMode, &PCB_VIA::GetBackTentingMode ), groupVia );
     }
 } _TRACK_VIA_DESC;

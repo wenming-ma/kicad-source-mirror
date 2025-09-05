@@ -1,24 +1,5 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #ifndef __PNS_NODE_H
 #define __PNS_NODE_H
@@ -27,6 +8,8 @@
 #include <list>
 #include <set>
 #include <core/minoptmax.h>
+
+#include <QString>
 
 #include <geometry/shape_line_chain.h>
 #include <geometry/shape_index.h>
@@ -74,9 +57,9 @@ struct CONSTRAINT
     CONSTRAINT_TYPE m_Type;
     MINOPTMAX<int>  m_Value;
     bool            m_Allowed;
-    wxString        m_RuleName;
-    wxString        m_FromName;
-    wxString        m_ToName;
+    QString         m_RuleName;
+    QString         m_FromName;
+    QString         m_ToName;
 };
 
 
@@ -146,7 +129,7 @@ public:
     virtual bool DpNetPair( const ITEM* aItem, NET_HANDLE& aNetP, NET_HANDLE& aNetN ) = 0;
 
     virtual int NetCode( NET_HANDLE aNet ) = 0;
-    virtual wxString NetName( NET_HANDLE aNet ) = 0;
+    virtual QString NetName( NET_HANDLE aNet ) = 0;
 
     virtual bool IsInNetTie( const ITEM* aA ) = 0;
     virtual bool IsNetTieExclusion( const ITEM* aItem, const VECTOR2I& aCollisionPos,

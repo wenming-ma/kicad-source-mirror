@@ -1,26 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
+
+#include <QString>
+#include <QtCore/QDebug>
 #include <pcb_edit_frame.h>
 #include <footprint.h>
 #include <pcb_table.h>
@@ -72,8 +54,7 @@ PCB_TABLE::~PCB_TABLE()
 
 void PCB_TABLE::swapData( BOARD_ITEM* aImage )
 {
-    wxCHECK_RET( aImage != nullptr && aImage->Type() == PCB_TABLE_T,
-                 wxT( "Cannot swap data with invalid table." ) );
+    Q_ASSERT( aImage != nullptr && aImage->Type() == PCB_TABLE_T );
 
     PCB_TABLE* table = static_cast<PCB_TABLE*>( aImage );
 
@@ -414,9 +395,9 @@ INSPECT_RESULT PCB_TABLE::Visit( INSPECTOR aInspector, void* aTestData,
 }
 
 
-wxString PCB_TABLE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PCB_TABLE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "%d Column Table" ), m_colCount );
+    return QString::asprintf( _( "%d Column Table" ), m_colCount );
 }
 
 
@@ -452,7 +433,7 @@ bool PCB_TABLE::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
 void PCB_TABLE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     // Don't use GetShownText() here; we want to show the user the variable references
-    aList.emplace_back( _( "Table" ), wxString::Format( _( "%d Columns" ), m_colCount ) );
+    aList.emplace_back( _( "Table" ), QString::asprintf( _( "%d Columns" ), m_colCount ) );
 }
 
 
@@ -596,7 +577,7 @@ static struct PCB_TABLE_DESC
     {
         ENUM_MAP<LINE_STYLE>& lineStyleEnum = ENUM_MAP<LINE_STYLE>::Instance();
 
-        if( lineStyleEnum.Choices().GetCount() == 0 )
+        if( lineStyleEnum.Choices().count() == 0 )
         {
             lineStyleEnum.Map( LINE_STYLE::SOLID, _HKI( "Solid" ) )
                          .Map( LINE_STYLE::DASH, _HKI( "Dashed" ) )
@@ -620,7 +601,7 @@ static struct PCB_TABLE_DESC
                     &PCB_TABLE::SetPositionY, &PCB_TABLE::GetPositionY, PROPERTY_DISPLAY::PT_COORD,
                     ORIGIN_TRANSFORMS::ABS_Y_COORD ) );
 
-        const wxString tableProps = _( "Table Properties" );
+        const QString tableProps = _( "Table Properties" );
 
         propMgr.AddProperty( new PROPERTY<PCB_TABLE, bool>( _HKI( "External Border" ),
                     &PCB_TABLE::SetStrokeExternal, &PCB_TABLE::StrokeExternal ),

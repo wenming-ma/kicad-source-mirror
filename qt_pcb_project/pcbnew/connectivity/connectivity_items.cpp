@@ -1,36 +1,13 @@
 
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2016-2018 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #include <core/kicad_algo.h>
 #include <macros.h>
 #include <connectivity/connectivity_items.h>
 #include <trigo.h>
 
-#include <wx/log.h>
+#include <QDebug>
 
 int CN_ITEM::AnchorCount() const
 {
@@ -84,12 +61,12 @@ const VECTOR2I CN_ITEM::GetAnchor( int n ) const
 
 void CN_ITEM::Dump()
 {
-    wxLogDebug( "    valid: %d, connected: \n", !!Valid() );
+    qDebug( "    valid: %d, connected: \n", !!Valid() );
 
     for( CN_ITEM* i : m_connected )
     {
         PCB_TRACK* t = static_cast<PCB_TRACK*>( i->Parent() );
-        wxLogDebug( wxT( "    - %p %d\n" ), t, t->Type() );
+        qDebug( "    - %p %d\n", t, t->Type() );
     }
 }
 
@@ -409,7 +386,7 @@ CN_CLUSTER::~CN_CLUSTER()
 }
 
 
-wxString CN_CLUSTER::OriginNetName() const
+QString CN_CLUSTER::OriginNetName() const
 {
     if( !m_originPad || !m_originPad->Valid() )
         return "<none>";
@@ -438,16 +415,8 @@ void CN_CLUSTER::Dump()
 {
     for( CN_ITEM* item : m_items )
     {
-        wxLogTrace( wxT( "CN" ), wxT( " - item : %p bitem : %p type : %d inet %s\n" ),
-                    item,
-                    item->Parent(),
-                    item->Parent()->Type(),
-                    (const char*) item->Parent()->GetNetname().c_str() );
-        wxLogTrace( wxT( "CN" ), wxT( "- item : %p bitem : %p type : %d inet %s\n" ),
-                    item,
-                    item->Parent(),
-                    item->Parent()->Type(),
-                    (const char*) item->Parent()->GetNetname().c_str() );
+        qDebug() << "CN" << " - item :" << item << "bitem :" << item->Parent() << "type :" << item->Parent()->Type() << "inet" << item->Parent()->GetNetname();
+        qDebug() << "CN" << "- item :" << item << "bitem :" << item->Parent() << "type :" << item->Parent()->Type() << "inet" << item->Parent()->GetNetname();
         item->Dump();
     }
 }

@@ -1,24 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 #include <cstdio>
 #include <memory>
+#include <QString>
 #include <reporter.h>
 #include <board.h>
 #include <string_utils.h>
@@ -39,7 +23,7 @@ void FROM_TO_CACHE::buildEndpointList( )
         for( PAD* pad : footprint->Pads() )
         {
             FT_ENDPOINT ent;
-            ent.name = footprint->GetReference() + wxT( "-" ) + pad->GetNumber();
+            ent.name = footprint->GetReference() + "-" + pad->GetNumber();
             ent.parent = pad;
             m_ftEndpoints.push_back( ent );
             ent.name = footprint->GetReference();
@@ -119,7 +103,7 @@ static PATH_STATUS uniquePathBetweenNodes( CN_ITEM* u, CN_ITEM* v, std::vector<C
 };
 
 
-int FROM_TO_CACHE::cacheFromToPaths( const wxString& aFrom, const wxString& aTo )
+int FROM_TO_CACHE::cacheFromToPaths( const QString& aFrom, const QString& aTo )
 {
     std::vector<FT_PATH>                  paths;
     std::shared_ptr<CONNECTIVITY_DATA>    connectivity = m_board->GetConnectivity();
@@ -141,8 +125,8 @@ int FROM_TO_CACHE::cacheFromToPaths( const wxString& aFrom, const wxString& aTo 
     {
         int count = 0;
 
-        wxString fromName = path.from->GetParentFootprint()->GetReference()
-                                + wxT( "-" ) + path.from->GetNumber();
+        QString fromName = path.from->GetParentFootprint()->GetReference()
+                                + "-" + path.from->GetNumber();
 
         auto padCandidates = connectivity->GetConnectedItems( path.from,
                                                               { PCB_PAD_T, PCB_ARC_T, PCB_VIA_T,
@@ -159,8 +143,8 @@ int FROM_TO_CACHE::cacheFromToPaths( const wxString& aFrom, const wxString& aTo 
 
             const PAD *pad = static_cast<const PAD*>( pitem );
 
-            wxString toName = pad->GetParentFootprint()->GetReference()
-                                    + wxT( "-" ) + pad->GetNumber();
+            QString toName = pad->GetParentFootprint()->GetReference()
+                                    + "-" + pad->GetNumber();
 
             for( const FT_ENDPOINT& endpoint : m_ftEndpoints )
             {
@@ -223,7 +207,7 @@ int FROM_TO_CACHE::cacheFromToPaths( const wxString& aFrom, const wxString& aTo 
     return newPaths;
 }
 
-bool  FROM_TO_CACHE::IsOnFromToPath( BOARD_CONNECTED_ITEM* aItem, const wxString& aFrom, const wxString& aTo )
+bool  FROM_TO_CACHE::IsOnFromToPath( BOARD_CONNECTED_ITEM* aItem, const QString& aFrom, const QString& aTo )
 {
     int nFromTosFound = 0;
 

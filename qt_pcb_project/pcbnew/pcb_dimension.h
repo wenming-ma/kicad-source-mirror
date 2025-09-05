@@ -1,30 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef PCB_DIMENSION_H
 #define PCB_DIMENSION_H
 
+#include <QString>
 
 #include <board_item.h>
 #include <pcb_text.h>
@@ -140,10 +118,10 @@ public:
     bool GetOverrideTextEnabled() const { return m_overrideTextEnabled; }
     void SetOverrideTextEnabled( bool aOverride ) { m_overrideTextEnabled = aOverride; }
 
-    wxString GetOverrideText() const { return m_valueString; }
-    void SetOverrideText( const wxString& aValue ) { m_valueString = aValue; }
+    QString GetOverrideText() const { return m_valueString; }
+    void SetOverrideText( const QString& aValue ) { m_valueString = aValue; }
 
-    void ChangeOverrideText( const wxString& aValue )
+    void ChangeOverrideText( const QString& aValue )
     {
         SetOverrideTextEnabled( true );
         SetOverrideText( aValue );
@@ -158,7 +136,7 @@ public:
     /**
      * @return the dimension value, rendered with precision / zero suppression but no units, etc
      */
-    wxString GetValueText() const;
+    QString GetValueText() const;
 
     /**
      * Update the dimension's cached text and geometry.
@@ -179,19 +157,19 @@ public:
         Update();
     }
 
-    wxString GetPrefix() const { return m_prefix; }
-    void SetPrefix( const wxString& aPrefix );
+    QString GetPrefix() const { return m_prefix; }
+    void SetPrefix( const QString& aPrefix );
 
-    void ChangePrefix( const wxString& aPrefix )
+    void ChangePrefix( const QString& aPrefix )
     {
         SetPrefix( aPrefix );
         Update();
     }
 
-    wxString GetSuffix() const { return m_suffix; }
-    void SetSuffix( const wxString& aSuffix );
+    QString GetSuffix() const { return m_suffix; }
+    void SetSuffix( const QString& aSuffix );
 
-    void ChangeSuffix( const wxString& aSuffix )
+    void ChangeSuffix( const QString& aSuffix )
     {
         SetSuffix( aSuffix );
         Update();
@@ -301,7 +279,7 @@ public:
     std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer,
             FLASHING aFlash = FLASHING::DEFAULT ) const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     const BOX2I ViewBBox() const override;
 
@@ -350,9 +328,9 @@ protected:
 
     // Value format
     bool                    m_overrideTextEnabled;   ///< Manually specify the displayed measurement value
-    wxString                m_valueString;     ///< Displayed value when m_overrideValue = true
-    wxString                m_prefix;          ///< String prepended to the value
-    wxString                m_suffix;          ///< String appended to the value
+    QString                 m_valueString;     ///< Displayed value when m_overrideValue = true
+    QString                 m_prefix;          ///< String prepended to the value
+    QString                 m_suffix;          ///< String appended to the value
     EDA_UNITS               m_units;           ///< 0 = inches, 1 = mm
     bool                    m_autoUnits;       ///< If true, follow the currently selected UI units
     DIM_UNITS_FORMAT        m_unitsFormat;     ///< How to render the units suffix
@@ -480,9 +458,9 @@ public:
         return atan2( (double)delta.y, (double)delta.x );
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "PCB_DIM_ALIGNED" );
+        return QStringLiteral( "PCB_DIM_ALIGNED" );
     }
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
@@ -544,9 +522,9 @@ public:
     void SetOrientation( DIR aOrientation ) { m_orientation = aOrientation; }
     DIR GetOrientation() const { return m_orientation; }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "PCB_DIM_ORTHOGONAL" );
+        return QStringLiteral( "PCB_DIM_ORTHOGONAL" );
     }
     void     Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
 
@@ -614,9 +592,9 @@ public:
 
     BITMAPS GetMenuImage() const override;
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "PCB_DIM_RADIAL" );
+        return QStringLiteral( "PCB_DIM_RADIAL" );
     }
 
 protected:
@@ -661,9 +639,9 @@ public:
 
     BITMAPS GetMenuImage() const override;
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "PCB_DIM_LEADER" );
+        return QStringLiteral( "PCB_DIM_LEADER" );
     }
 
     void SetTextBorder( DIM_TEXT_BORDER aBorder ) { m_textBorder = aBorder; }
@@ -712,9 +690,9 @@ public:
 
     BITMAPS GetMenuImage() const override;
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "PCB_DIM_CENTER" );
+        return QStringLiteral( "PCB_DIM_CENTER" );
     }
 
     const BOX2I GetBoundingBox() const override;

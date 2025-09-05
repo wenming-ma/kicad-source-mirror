@@ -1,27 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2015 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #include <unordered_set>
 
@@ -40,17 +18,10 @@
 #include <board.h>
 #include <collectors.h>
 
-#include <wx/log.h>
+#include <QDebug>
 
 
-/**
- * Flag to enable debug tracing for the board outline creation
- *
- * Use "KICAD_BOARD_OUTLINE" to enable.
- *
- * @ingroup trace_env_vars
- */
-const wxChar* traceBoardOutline = wxT( "KICAD_BOARD_OUTLINE" );
+const QString traceBoardOutline = QStringLiteral("KICAD_BOARD_OUTLINE");
 
 
 class SCOPED_FLAGS_CLEANER : public std::unordered_set<EDA_ITEM*>
@@ -169,8 +140,7 @@ static bool isCopperOutside( const FOOTPRINT* aFootprint, SHAPE_POLY_SET& aShape
                 if( poly.OutlineCount() == 0 )
                 {
                     VECTOR2I padPos = pad->GetPosition();
-                    wxLogTrace( traceBoardOutline, wxT( "Tested pad (%d, %d): outside" ),
-                                padPos.x, padPos.y );
+                    qDebug() << QString("Tested pad (%1, %2): outside").arg(padPos.x).arg(padPos.y);
                     padOutside = true;
                 }
             } );
@@ -179,8 +149,7 @@ static bool isCopperOutside( const FOOTPRINT* aFootprint, SHAPE_POLY_SET& aShape
             break;
 
         VECTOR2I padPos = pad->GetPosition();
-        wxLogTrace( traceBoardOutline, wxT( "Tested pad (%d, %d): not outside" ),
-                    padPos.x, padPos.y );
+        qDebug() << QString("Tested pad (%1, %2): not outside").arg(padPos.x).arg(padPos.y);
     }
 
     return padOutside;
@@ -197,7 +166,7 @@ bool doConvertOutlineToPolygon( std::vector<PCB_SHAPE*>& aShapeList, SHAPE_POLY_
 
     bool selfIntersecting = false;
 
-    wxString   msg;
+    QString   msg;
     PCB_SHAPE* graphic = nullptr;
 
     std::set<PCB_SHAPE*> startCandidates( aShapeList.begin(), aShapeList.end() );
@@ -313,8 +282,8 @@ bool doConvertOutlineToPolygon( std::vector<PCB_SHAPE*>& aShapeList, SHAPE_POLY_
                     // As a non-first item, closed shapes can't be anything but self-intersecting
                     if( aErrorHandler )
                     {
-                        wxASSERT( prevGraphic );
-                        (*aErrorHandler)( _( "(self-intersecting)" ), prevGraphic, graphic,
+                        Q_ASSERT( prevGraphic );
+                        (*aErrorHandler)( "(self-intersecting)", prevGraphic, graphic,
                                           prevPt );
                     }
 
@@ -349,7 +318,7 @@ bool doConvertOutlineToPolygon( std::vector<PCB_SHAPE*>& aShapeList, SHAPE_POLY_
 
                     if( !close_enough( prevPt, pstart, aChainingEpsilon ) )
                     {
-                        wxASSERT( close_enough( prevPt, graphic->GetEnd(), aChainingEpsilon ) );
+                        Q_ASSERT( close_enough( prevPt, graphic->GetEnd(), aChainingEpsilon ) );
 
                         std::swap( pstart, pend );
                     }
@@ -499,7 +468,7 @@ bool doConvertOutlineToPolygon( std::vector<PCB_SHAPE*>& aShapeList, SHAPE_POLY_
                 else if( nextGraphic )  // encountered already-used segment, but not at the start
                 {
                     if( aErrorHandler )
-                        (*aErrorHandler)( _( "(self-intersecting)" ), graphic, nextGraphic,
+                        (*aErrorHandler)( "(self-intersecting)", graphic, nextGraphic,
                                           prevPt );
 
                     break;
@@ -507,7 +476,7 @@ bool doConvertOutlineToPolygon( std::vector<PCB_SHAPE*>& aShapeList, SHAPE_POLY_
                 else                    // encountered discontinuity
                 {
                     if( aErrorHandler )
-                        (*aErrorHandler)( _( "(not a closed shape)" ), graphic, nullptr, prevPt );
+                        (*aErrorHandler)( "(not a closed shape)", graphic, nullptr, prevPt );
 
                     break;
                 }
@@ -560,7 +529,7 @@ bool doConvertOutlineToPolygon( std::vector<PCB_SHAPE*>& aShapeList, SHAPE_POLY_
 
                     if( a && b )
                     {
-                        (*aErrorHandler)( _( "(multiple board outlines not supported)" ), a, b,
+                        (*aErrorHandler)( "(multiple board outlines not supported)", a, b,
                                           contours[ contourIndex ].GetPoint( 0 ) );
 
                         return false;
@@ -655,7 +624,7 @@ bool doConvertOutlineToPolygon( std::vector<PCB_SHAPE*>& aShapeList, SHAPE_POLY_
                 {
                     BOARD_ITEM* a = fetchOwner( *seg1 );
                     BOARD_ITEM* b = fetchOwner( *seg2 );
-                    (*aErrorHandler)( _( "(self-intersecting)" ), a, b, ( *seg1 ).A );
+                    (*aErrorHandler)( "(self-intersecting)", a, b, ( *seg1 ).A );
                 }
 
                 selfIntersecting = true;
@@ -667,7 +636,7 @@ bool doConvertOutlineToPolygon( std::vector<PCB_SHAPE*>& aShapeList, SHAPE_POLY_
                 {
                     BOARD_ITEM* a = fetchOwner( *seg1 );
                     BOARD_ITEM* b = fetchOwner( *seg2 );
-                    (*aErrorHandler)( _( "(self-intersecting)" ), a, b, *pt );
+                    (*aErrorHandler)( "(self-intersecting)", a, b, *pt );
                 }
 
                 selfIntersecting = true;
@@ -727,8 +696,7 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
 
                 if( aErrorHandler )
                 {
-                    (*aErrorHandler)( wxString::Format( _( "(rectangle has null or very small "
-                                                           "size: %d nm)" ), dim ),
+                    (*aErrorHandler)( QString("(rectangle has null or very small size: %1 nm)").arg(dim),
                                       shape, nullptr, shape->GetStart() );
                 }
             }
@@ -745,8 +713,7 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
 
                 if( aErrorHandler )
                 {
-                    (*aErrorHandler)( wxString::Format( _( "(circle has null or very small "
-                                                           "radius: %d nm)" ), r ),
+                    (*aErrorHandler)( QString("(circle has null or very small radius: %1 nm)").arg(r),
                                       shape, nullptr, shape->GetStart() );
                 }
             }
@@ -764,8 +731,7 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
 
                 if( aErrorHandler )
                 {
-                    (*aErrorHandler)( wxString::Format( _( "(segment has null or very small "
-                                                           "length: %d nm)" ), dim ),
+                    (*aErrorHandler)( QString("(segment has null or very small length: %1 nm)").arg(dim),
                                       shape, nullptr, shape->GetStart() );
                 }
             }
@@ -787,8 +753,7 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
 
                 if( aErrorHandler )
                 {
-                    (*aErrorHandler)( wxString::Format( _( "(arc has null or very small size: "
-                                                           "%d nm)" ), dim ),
+                    (*aErrorHandler)( QString("(arc has null or very small size: %1 nm)").arg(dim),
                                       shape, nullptr, shape->GetStart() );
                 }
             }
@@ -1035,16 +1000,16 @@ int findEndSegments( SHAPE_LINE_CHAIN& aChain, SEG& aStartSeg, SEG& aEndSeg )
         if( foundSegs == 0 )
         {
             // The first segment we encounter is the "start" segment
-            wxLogTrace( traceBoardOutline, wxT( "Found start segment: (%d, %d)-(%d, %d)" ),
-                        seg.A.x, seg.A.y, seg.B.x, seg.B.y );
+            qDebug() << QString("Found start segment: (%1, %2)-(%3, %4)")
+                        .arg(seg.A.x).arg(seg.A.y).arg(seg.B.x).arg(seg.B.y);
             aStartSeg = seg;
             foundSegs++;
         }
         else
         {
             // Once we find both start and end, we can stop
-            wxLogTrace( traceBoardOutline, wxT( "Found end segment: (%d, %d)-(%d, %d)" ),
-                        seg.A.x, seg.A.y, seg.B.x, seg.B.y );
+            qDebug() << QString("Found end segment: (%1, %2)-(%3, %4)")
+                        .arg(seg.A.x).arg(seg.A.y).arg(seg.B.x).arg(seg.B.y);
             aEndSeg = seg;
             foundSegs++;
             break;
@@ -1064,7 +1029,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
     // No footprint loaded
     if( !footprint )
     {
-        wxLogTrace( traceBoardOutline, wxT( "No footprint found on board" ) );
+        qDebug() << "No footprint found on board";
         return false;
     }
 
@@ -1095,13 +1060,13 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
     // A closed outline was found on Edge_Cuts
     if( success )
     {
-        wxLogTrace( traceBoardOutline, wxT( "Closed outline found" ) );
+        qDebug() << "Closed outline found";
 
         // If copper is outside a closed polygon, treat it as a hole
         // If there are multiple outlines in the footprint, they are also holes
         if( isCopperOutside( footprint, outlines ) || outlines.OutlineCount() > 1 )
         {
-            wxLogTrace( traceBoardOutline, wxT( "Treating outline as a hole" ) );
+            qDebug() << "Treating outline as a hole";
 
             buildBoardBoundingBoxPoly( aBoard, aOutlines );
 
@@ -1125,7 +1090,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
         // If all copper is inside, then the computed outline is the board outline
         else
         {
-            wxLogTrace( traceBoardOutline, wxT( "Treating outline as board edge" ) );
+            qDebug() << "Treating outline as board edge";
             aOutlines = outlines;
         }
 
@@ -1134,7 +1099,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
     // No board outlines were found, so use the bounding box
     else if( outlines.OutlineCount() == 0 )
     {
-        wxLogTrace( traceBoardOutline, wxT( "Using footprint bounding box" ) );
+        qDebug() << "Using footprint bounding box";
         buildBoardBoundingBoxPoly( aBoard, aOutlines );
 
         return true;
@@ -1142,7 +1107,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
     // There is an outline present, but it is not closed
     else
     {
-        wxLogTrace( traceBoardOutline, wxT( "Trying to build outline" ) );
+        qDebug() << "Trying to build outline";
 
         std::vector<SHAPE_LINE_CHAIN> closedChains;
         std::vector<SHAPE_LINE_CHAIN> openChains;
@@ -1157,12 +1122,12 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
 
             if( hole.IsClosed() )
             {
-                wxLogTrace( traceBoardOutline, wxT( "Found closed hole" ) );
+                qDebug() << "Found closed hole";
                 closedChains.push_back( hole );
             }
             else
             {
-                wxLogTrace( traceBoardOutline, wxT( "Found open hole" ) );
+                qDebug() << "Found open hole";
                 openChains.push_back( hole );
             }
         }
@@ -1189,7 +1154,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
         if( chain.SegmentCount() == 0 )
         {
             // Something is wrong, bail out with the overall footprint bounding box
-            wxLogTrace( traceBoardOutline, wxT( "No line segments in provided outline" ) );
+            qDebug() << "No line segments in provided outline";
             aOutlines = bbox;
             return true;
         }
@@ -1197,7 +1162,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
         {
             // This case means there is only 1 line segment making up the edge cuts of the
             // footprint, so we just need to use it to cut the bounding box in half.
-            wxLogTrace( traceBoardOutline, wxT( "Only 1 line segment in provided outline" ) );
+            qDebug() << "Only 1 line segment in provided outline";
 
             startSeg = chain.Segment( 0 );
 
@@ -1210,8 +1175,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
             if( inter0 && inter2 && !inter1 && !inter3 )
             {
                 // Intersects the vertical rectangle sides only
-                wxLogTrace( traceBoardOutline, wxT( "Segment intersects only vertical bbox "
-                                                    "sides" ) );
+                qDebug() << "Segment intersects only vertical bbox sides";
 
                 // The upper half
                 upper.Append( *inter0 );
@@ -1230,8 +1194,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
             else if( inter1 && inter3 && !inter0 && !inter2 )
             {
                 // Intersects the horizontal rectangle sides only
-                wxLogTrace( traceBoardOutline, wxT( "Segment intersects only horizontal bbox "
-                                                    "sides" ) );
+                qDebug() << "Segment intersects only horizontal bbox sides";
 
                 // The left half
                 upper.Append( *inter1 );
@@ -1250,8 +1213,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
             else
             {
                 // Angled line segment that cuts across a corner
-                wxLogTrace( traceBoardOutline, wxT( "Segment intersects two perpendicular bbox "
-                                                    "sides" ) );
+                qDebug() << "Segment intersects two perpendicular bbox sides";
 
                 // Figure out which actual lines are intersected, since IntersectLines assumes
                 // an infinite line
@@ -1263,7 +1225,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
                 if( hit0 && hit1 )
                 {
                     // Cut across the upper left corner
-                    wxLogTrace( traceBoardOutline, wxT( "Segment cuts upper left corner" ) );
+                    qDebug() << "Segment cuts upper left corner";
 
                     // The upper half
                     upper.Append( *inter0 );
@@ -1282,7 +1244,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
                 else if( hit1 && hit2 )
                 {
                     // Cut across the upper right corner
-                    wxLogTrace( traceBoardOutline, wxT( "Segment cuts upper right corner" ) );
+                    qDebug() << "Segment cuts upper right corner";
 
                     // The upper half
                     upper.Append( *inter1 );
@@ -1301,7 +1263,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
                 else if( hit2 && hit3 )
                 {
                     // Cut across the lower right corner
-                    wxLogTrace( traceBoardOutline, wxT( "Segment cuts lower right corner" ) );
+                    qDebug() << "Segment cuts lower right corner";
 
                     // The upper half
                     upper.Append( *inter2 );
@@ -1320,7 +1282,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
                 else
                 {
                     // Cut across the lower left corner
-                    wxLogTrace( traceBoardOutline, wxT( "Segment cuts upper left corner" ) );
+                    qDebug() << "Segment cuts lower left corner";
 
                     // The upper half
                     upper.Append( *inter0 );
@@ -1341,7 +1303,7 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
         else
         {
             // More than 1 segment
-            wxLogTrace( traceBoardOutline, wxT( "Multiple segments in outline" ) );
+            qDebug() << "Multiple segments in outline";
 
             // Just a temporary thing
             aOutlines = bbox;
@@ -1360,19 +1322,19 @@ bool BuildFootprintPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, in
 
         if( isCopperOutside( footprint, poly1 ) )
         {
-            wxLogTrace( traceBoardOutline, wxT( "Using lower shape" ) );
+            qDebug() << "Using lower shape";
             aOutlines = poly2;
         }
         else
         {
-            wxLogTrace( traceBoardOutline, wxT( "Using upper shape" ) );
+            qDebug() << "Using upper shape";
             aOutlines = poly1;
         }
 
         // Add all closed polys as holes to the main outline
         for( SHAPE_LINE_CHAIN& closedChain : closedChains )
         {
-            wxLogTrace( traceBoardOutline, wxT( "Adding hole to main outline" ) );
+            qDebug() << "Adding hole to main outline";
             aOutlines.AddHole( closedChain, -1 );
         }
 

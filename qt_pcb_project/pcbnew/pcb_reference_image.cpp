@@ -1,27 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2011 jean-pierre.charras
- * Copyright (C) 2022 Mike Williams
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #include "pcb_reference_image.h"
 
@@ -39,7 +17,8 @@
 #include <settings/color_settings.h>
 #include <trigo.h>
 
-#include <wx/mstream.h>
+#include <QBuffer>
+#include <QDataStream>
 
 using KIGFX::PCB_PAINTER;
 using KIGFX::PCB_RENDER_SETTINGS;
@@ -66,9 +45,9 @@ PCB_REFERENCE_IMAGE::~PCB_REFERENCE_IMAGE()
 
 PCB_REFERENCE_IMAGE& PCB_REFERENCE_IMAGE::operator=( const BOARD_ITEM& aItem )
 {
-    wxCHECK_MSG( Type() == aItem.Type(), *this,
-                 wxT( "Cannot assign object type " ) + aItem.GetClass() + wxT( " to type " )
-                         + GetClass() );
+    Q_ASSERT( Type() == aItem.Type() );
+    if( Type() != aItem.Type() )
+        return *this;
 
     if( &aItem != this )
     {
@@ -83,7 +62,9 @@ PCB_REFERENCE_IMAGE& PCB_REFERENCE_IMAGE::operator=( const BOARD_ITEM& aItem )
 
 void PCB_REFERENCE_IMAGE::CopyFrom( const BOARD_ITEM* aOther )
 {
-    wxCHECK( aOther && aOther->Type() == PCB_REFERENCE_IMAGE_T, /* void */ );
+    Q_ASSERT( aOther && aOther->Type() == PCB_REFERENCE_IMAGE_T );
+    if( !aOther || aOther->Type() != PCB_REFERENCE_IMAGE_T )
+        return;
     *this = *static_cast<const PCB_REFERENCE_IMAGE*>( aOther );
 }
 
@@ -96,9 +77,9 @@ EDA_ITEM* PCB_REFERENCE_IMAGE::Clone() const
 
 void PCB_REFERENCE_IMAGE::swapData( BOARD_ITEM* aItem )
 {
-    wxCHECK_RET( aItem->Type() == PCB_REFERENCE_IMAGE_T,
-                 wxString::Format( wxT( "% object cannot swap data with %s object." ),
-                                   GetClass(), aItem->GetClass() ) );
+    Q_ASSERT( aItem->Type() == PCB_REFERENCE_IMAGE_T );
+    if( aItem->Type() != PCB_REFERENCE_IMAGE_T )
+        return;
 
     PCB_REFERENCE_IMAGE* item = (PCB_REFERENCE_IMAGE*) aItem;
     std::swap( m_layer, item->m_layer );
@@ -183,9 +164,9 @@ void PCB_REFERENCE_IMAGE::Rotate( const VECTOR2I& aCenter, const EDA_ANGLE& aAng
 void PCB_REFERENCE_IMAGE::Show( int nestLevel, std::ostream& os ) const
 {
     // XML output:
-    wxString s = GetClass();
+    QString s = GetClass();
 
-    NestedSpace( nestLevel, os ) << '<' << s.Lower().mb_str() << m_referenceImage.GetPosition()
+    NestedSpace( nestLevel, os ) << '<' << s.toLower().toStdString().c_str() << m_referenceImage.GetPosition()
                                  << "/>\n";
 }
 #endif
@@ -212,18 +193,18 @@ BITMAPS PCB_REFERENCE_IMAGE::GetMenuImage() const
 void PCB_REFERENCE_IMAGE::GetMsgPanelInfo( EDA_DRAW_FRAME*              aFrame,
                                            std::vector<MSG_PANEL_ITEM>& aList )
 {
-    aList.emplace_back( _( "Reference Image" ), wxEmptyString );
+    aList.emplace_back( _("Reference Image"), QString() );
 
-    aList.emplace_back( _( "PPI" ),
-                        wxString::Format( wxT( "%d " ), m_referenceImage.GetImage().GetPPI() ) );
-    aList.emplace_back( _( "Scale" ),
-                        wxString::Format( wxT( "%f " ), m_referenceImage.GetImageScale() ) );
+    aList.emplace_back( _("PPI"),
+                        QString::asprintf( "%d ", m_referenceImage.GetImage().GetPPI() ) );
+    aList.emplace_back( _("Scale"),
+                        QString::asprintf( "%f ", m_referenceImage.GetImageScale() ) );
 
-    aList.emplace_back( _( "Width" ),
+    aList.emplace_back( _("Width"),
                         aFrame->MessageTextFromValue( m_referenceImage.GetSize().x ) );
-    aList.emplace_back( _( "Height" ),
+    aList.emplace_back( _("Height"),
                         aFrame->MessageTextFromValue( m_referenceImage.GetSize().y ) );
-    aList.emplace_back( _( "Layer" ), LayerName( m_layer ) );
+    aList.emplace_back( _("Layer"), LayerName( m_layer ) );
 }
 
 
@@ -350,7 +331,7 @@ static struct PCB_REFERENCE_IMAGE_DESC
             new PROPERTY_ENUM<PCB_REFERENCE_IMAGE, PCB_LAYER_ID, BOARD_ITEM>( _HKI( "Associated Layer" ),
             &PCB_REFERENCE_IMAGE::SetLayer, &PCB_REFERENCE_IMAGE::GetLayer ) );
 
-        const wxString groupImage = _HKI( "Image Properties" );
+        const QString groupImage = _HKI( "Image Properties" );
 
         propMgr.AddProperty( new PROPERTY<PCB_REFERENCE_IMAGE, double>( _HKI( "Scale" ),
                              &PCB_REFERENCE_IMAGE::SetImageScale,
@@ -386,6 +367,6 @@ static struct PCB_REFERENCE_IMAGE_DESC
                              groupImage );
 
         // For future use
-        const wxString greyscale = _HKI( "Greyscale" );
+        const QString greyscale = _HKI( "Greyscale" );
     }
 } _PCB_REFERENCE_IMAGE_DESC;

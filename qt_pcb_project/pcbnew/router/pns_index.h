@@ -1,23 +1,3 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef __PNS_INDEX_H
 #define __PNS_INDEX_H
@@ -36,13 +16,7 @@
 namespace PNS {
 
 
-/**
- * INDEX
- *
- * Custom spatial index, holding our board items and allowing for very fast searches. Items
- * are assigned to separate R-Tree subindices depending on their type and spanned layers, reducing
- * overlap and improving search time.
- **/
+// Custom spatial index for board items with fast spatial searches
 class INDEX
 {
 public:
@@ -52,67 +26,25 @@ public:
 
     INDEX(){};
 
-    /**
-     * Adds item to the spatial index.
-     */
     void Add( ITEM* aItem );
 
-    /**
-     * Removes an item from the spatial index.
-     */
     void Remove( ITEM* aItem );
 
-    /**
-     * Replaces one item with another.
-     */
     void Replace( ITEM* aOldItem, ITEM* aNewItem );
 
-    /**
-     * Searches items in the index that are in proximity of aItem.
-     * For each item, function object aVisitor is called. Only items on
-     * overlapping layers are considered.
-     *
-     * @param aItem item to search against
-     * @param aMinDistance proximity distance (wrs to the item's shape)
-     * @param aVisitor function object called on each found item. Return
-              false from the visitor to stop searching.
-     * @return number of items found.
-     */
     template<class Visitor>
     int Query( const ITEM* aItem, int aMinDistance, Visitor& aVisitor ) const;
 
-    /**
-     * Searches items in the index that are in proximity of aShape.
-     * For each item, function object aVisitor is called. Treats all
-     * layers as colliding.
-     *
-     * @param aShape shape to search against
-     * @param aMinDistance proximity distance (wrs to the item's shape)
-     * @param aVisitor function object called on each found item. Return
-              false from the visitor to stop searching.
-     * @return number of items found.
-     */
     template<class Visitor>
     int Query( const SHAPE* aShape, int aMinDistance, Visitor& aVisitor ) const;
 
-    /**
-     * Returns list of all items in a given net.
-     */
     NET_ITEMS_LIST* GetItemsForNet( NET_HANDLE aNet );
 
-    /**
-     * Function Contains()
-     *
-     * Returns true if item aItem exists in the index.
-     */
     bool Contains( ITEM* aItem ) const
     {
         return m_allItems.find( aItem ) != m_allItems.end();
     }
 
-    /**
-     * Returns number of items stored in the index.
-     */
     int Size() const { return m_allItems.size(); }
 
     ITEM_SET::iterator begin() { return m_allItems.begin(); }
@@ -144,7 +76,8 @@ int INDEX::Query( const ITEM* aItem, int aMinDistance, Visitor& aVisitor ) const
 {
     int total = 0;
 
-    wxCHECK( aItem->Kind() != ITEM::INVALID_T, 0 );
+    Q_ASSERT( aItem->Kind() != ITEM::INVALID_T );
+    if( aItem->Kind() == ITEM::INVALID_T ) return 0;
 
     const PNS_LAYER_RANGE& layers = aItem->Layers();
 

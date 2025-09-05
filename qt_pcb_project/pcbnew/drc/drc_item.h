@@ -1,30 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2007 Dick Hollenbeck, dick@softplc.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef DRC_ITEM_H
 #define DRC_ITEM_H
 
+#include <QString>
 #include <rc_item.h>
 #include <marker_base.h>
 
@@ -116,19 +94,9 @@ enum PCB_DRC_CODE {
 class DRC_ITEM : public RC_ITEM
 {
 public:
-    /**
-     * Constructs a DRC_ITEM for the given error code
-     * @see DRCE_T
-     */
     static std::shared_ptr<DRC_ITEM> Create( int aErrorCode );
 
-    /**
-     * Constructs a DRC item from a given error settings key
-     * @param aErrorKey is a settings key for an error code (the untranslated string that is used
-     * to represent a given error code in settings files and for storing ignored DRC items)
-     * @return the created item
-     */
-    static std::shared_ptr<DRC_ITEM> Create( const wxString& aErrorKey );
+    static std::shared_ptr<DRC_ITEM> Create( const QString& aErrorKey );
 
     static std::vector<std::reference_wrapper<RC_ITEM>> GetItemsWithSeverities()
     {
@@ -151,7 +119,7 @@ public:
     void SetViolatingRule ( DRC_RULE *aRule ) { m_violatingRule = aRule; }
     DRC_RULE* GetViolatingRule() const { return m_violatingRule; }
 
-    wxString GetViolatingRuleDesc() const override;
+    QString GetViolatingRuleDesc() const override;
 
     void SetViolatingTest( DRC_TEST_PROVIDER *aProvider ) { m_violatingTest = aProvider; }
     DRC_TEST_PROVIDER* GetViolatingTest() const { return m_violatingTest; }
@@ -160,7 +128,7 @@ public:
     KIID GetAuxItem3ID() const override;
 
 private:
-    DRC_ITEM( int aErrorCode = 0, const wxString& aTitle = "", const wxString& aSettingsKey = "" )
+    DRC_ITEM( int aErrorCode = 0, const QString& aTitle = "", const QString& aSettingsKey = "" )
     {
         m_errorCode   = aErrorCode;
         m_errorTitle  = aTitle;

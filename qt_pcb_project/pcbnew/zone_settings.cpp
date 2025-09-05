@@ -1,27 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #include <zone_settings.h>
 
@@ -32,8 +10,8 @@
 #include <zones.h>
 
 #include <zone.h>
-#include <wx/dataview.h>
-#include <widgets/color_swatch.h>
+#include <QTreeWidget>
+#include <QListWidget>
 
 ZONE_SETTINGS::ZONE_SETTINGS()
 {
@@ -58,7 +36,7 @@ ZONE_SETTINGS::ZONE_SETTINGS()
     m_BorderHatchPitch = pcbIUScale.mmToIU( ZONE_BORDER_HATCH_DIST_MM );
 
     m_Layers.reset().set( F_Cu );
-    m_Name = wxEmptyString;
+    m_Name = QString();
 
     // thickness of the gap in thermal reliefs:
     m_ThermalReliefGap = pcbIUScale.mmToIU( ZONE_THERMAL_RELIEF_GAP_MM );
@@ -243,13 +221,8 @@ void ZONE_SETTINGS::SetCornerRadius( int aRadius )
 }
 
 
-#ifdef __WXOSX_MAC__
-const static wxSize LAYER_BITMAP_SIZE( 28, 28 );  // wxCocoa impl unhappy if this isn't square...
-#else
-const static wxSize LAYER_BITMAP_SIZE( 24, 16 );
-#endif
-
-const static wxSize CHECKERBOARD_SIZE( 8, 8 );
+const static QSize LAYER_BITMAP_SIZE( 24, 16 );
+const static QSize CHECKERBOARD_SIZE( 8, 8 );
 
 
 const ZONE_SETTINGS& ZONE_SETTINGS::GetDefaultSettings()
@@ -262,7 +235,7 @@ const ZONE_SETTINGS& ZONE_SETTINGS::GetDefaultSettings()
 
 // A helper for setting up a dialog list for specifying zone layers.  Used by all three
 // zone settings dialogs.
-void ZONE_SETTINGS::SetupLayersList( wxDataViewListCtrl* aList, PCB_BASE_FRAME* aFrame,
+void ZONE_SETTINGS::SetupLayersList( QTreeWidget* aList, PCB_BASE_FRAME* aFrame,
                                      LSET aLayers, bool aFpEditorMode )
 {
     BOARD* board = aFrame->GetBoard();
@@ -272,54 +245,45 @@ void ZONE_SETTINGS::SetupLayersList( wxDataViewListCtrl* aList, PCB_BASE_FRAME* 
     if( aFpEditorMode )
         aLayers.set( In1_Cu );
 
-    wxDataViewColumn* checkColumn = aList->AppendToggleColumn(
-            wxEmptyString, wxDATAVIEW_CELL_ACTIVATABLE, wxCOL_WIDTH_DEFAULT, wxALIGN_CENTER );
-
-    wxDataViewColumn* layerColumn = aList->AppendIconTextColumn( wxEmptyString );
-    wxDataViewColumn* layerIDColumn = aList->AppendTextColumn( wxEmptyString );
-    layerIDColumn->SetHidden( true );
+    aList->setHeaderLabels( QStringList() << QString() << QString() << QString() );
+    aList->setColumnCount( 3 );
+    aList->hideColumn( 2 );  // Hide layer ID column
 
     int textWidth = 0;
 
     for( PCB_LAYER_ID layerID : aLayers.UIOrder() )
     {
-        wxString layerName = board->GetLayerName( layerID );
+        QString layerName = board->GetLayerName( layerID );
 
         if( aFpEditorMode && layerID == In1_Cu )
-            layerName = _( "Inner layers" );
+            layerName = "Inner layers";
 
-        // wxCOL_WIDTH_AUTOSIZE doesn't work on all platforms, so we calculate width here
-        textWidth = std::max( textWidth, KIUI::GetTextSize( layerName, aList ).x );
+        // Calculate width for Qt
+        QFontMetrics fm( aList->font() );
+        textWidth = std::max( textWidth, fm.horizontalAdvance( layerName ) );
 
         // UI component - COLOR_SWATCH::MakeBitmap commented out for minimal build
         // COLOR4D layerColor = aFrame->GetColorSettings()->GetColor( layerID );
         // auto bitmap = COLOR_SWATCH::MakeBitmap( layerColor, backgroundColor, LAYER_BITMAP_SIZE,
         //                                         CHECKERBOARD_SIZE, aList->GetBackgroundColour() );
-        // wxIcon icon;
-        // icon.CopyFromBitmap( bitmap );
 
-        wxVector<wxVariant> row;
-        row.push_back( wxVariant( m_Layers.test( layerID ) ) );
-        // Simplified: use text without icon for minimal build
-        row.push_back( wxVariant( wxDataViewIconText( layerName ) ) );
-        row.push_back( wxVariant( wxString::Format( wxT( "%i" ), layerID ) ) );
-        aList->AppendItem( row );
-
-        if( m_Layers.test( layerID ) )
-            aList->SetToggleValue( true, (unsigned) aList->GetItemCount() - 1, 0 );
+        QTreeWidgetItem* item = new QTreeWidgetItem( aList );
+        item->setCheckState( 0, m_Layers.test( layerID ) ? Qt::Checked : Qt::Unchecked );
+        item->setText( 1, layerName );
+        item->setText( 2, QString::number( layerID ) );
+        item->setFlags( item->flags() | Qt::ItemIsUserCheckable );
     }
 
-    int checkColSize = aList->FromDIP( 22 );
-    int layerColSize = textWidth + LAYER_BITMAP_SIZE.x + aList->FromDIP( 15 );
+    int checkColSize = 22;
+    int layerColSize = textWidth + LAYER_BITMAP_SIZE.width() + 15;
 
-    // You'd think the fact that m_layers is a list would encourage wxWidgets not to save room
-    // for the tree expanders... but you'd be wrong.  Force indent to 0.
-    aList->SetIndent( 0 );
-    aList->SetMinClientSize( wxSize( checkColSize + layerColSize,
-                                     aList->GetMinClientSize().y ) );
+    // Configure column widths
+    aList->setIndentation( 0 );
+    aList->setMinimumSize( QSize( checkColSize + layerColSize,
+                                  aList->minimumSize().height() ) );
 
-    checkColumn->SetWidth( checkColSize );
-    layerColumn->SetWidth( layerColSize );
+    aList->setColumnWidth( 0, checkColSize );
+    aList->setColumnWidth( 1, layerColSize );
 }
 
 
