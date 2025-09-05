@@ -1,4 +1,6 @@
 
+// QT_TRANSFORMATION_COMPLETED
+
 #include <page_info.h>
 #include <macros.h>
 #include <eda_units.h>
@@ -33,7 +35,6 @@ const char PAGE_INFO::Custom[]   = "User";
 
 // Standard page sizes in mils, all constants
 // see:  https://lists.launchpad.net/kicad-developers/msg07389.html
-// also see: wx/defs.h
 
 // local readability macro for millimeter size
 #define MMsize( x, y ) VECTOR2D( EDA_UNIT_UTILS::Mm2mils( x ), EDA_UNIT_UTILS::Mm2mils( y ) )

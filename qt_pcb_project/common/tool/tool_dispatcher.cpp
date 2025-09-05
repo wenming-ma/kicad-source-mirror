@@ -286,7 +286,7 @@ std::optional<TOOL_EVENT> TOOL_DISPATCHER::GetToolEvent( QKeyEvent* aKeyEvent, b
     int             key = aKeyEvent->key();
     int             unicode_key = aKeyEvent->text().isEmpty() ? 0 : aKeyEvent->text().at(0).unicode();
 
-    // This wxEVT_CHAR_HOOK event can be ignored: not useful in KiCad
+    // This key hook event can be ignored: not useful in KiCad
     if( isKeyModifierOnly( key ) )
     {
         aKeyEvent->ignore();
@@ -295,7 +295,7 @@ std::optional<TOOL_EVENT> TOOL_DISPATCHER::GetToolEvent( QKeyEvent* aKeyEvent, b
 
     // Qt logging equivalent removed for simplicity
 
-    // if the key event must be skipped, skip it here if the event is a wxEVT_CHAR_HOOK
+    // if the key event must be skipped, skip it here if the event is a key hook
     // and do nothing.
     *keyIsSpecial = isKeySpecialCode( key );
 
@@ -306,12 +306,11 @@ std::optional<TOOL_EVENT> TOOL_DISPATCHER::GetToolEvent( QKeyEvent* aKeyEvent, b
 
     if( mods & MD_CTRL )
     {
-        // wxWidgets maps key codes related to Ctrl+letter handled by CHAR_EVT
-        // (http://docs.wxwidgets.org/trunk/classwx_key_event.html):
+        // Key codes related to Ctrl+letter handled by char events:
         // char events for ASCII letters in this case carry codes corresponding to the ASCII
         // value of Ctrl-Latter, i.e. 1 for Ctrl-A, 2 for Ctrl-B and so on until 26 for Ctrl-Z.
         // They are remapped here to be more easy to handle in code
-        // Note also on OSX wxWidgets has a different behavior and the mapping is made
+        // Note also on OSX Qt has a different behavior and the mapping is made
         // only for ctrl+'A' to ctlr+'Z' (unicode code return 'A' to 'Z').
         // Others OS return WXK_CONTROL_A to WXK_CONTROL_Z, and Ctrl+'M' returns the same code as
         // the return key, so the remapping does not use the unicode key value.
@@ -398,7 +397,7 @@ void TOOL_DISPATCHER::DispatchQtEvent( QEvent& aEvent )
     }
 
     // Mouse handling
-    // Note: wxEVT_LEFT_DOWN event must always be skipped.
+    // Note: Left mouse button down event must always be skipped.
     if( type == QEvent::MouseMove || type == QEvent::Wheel ||
         type == QEvent::Gesture ||
         isMouseClick( type ) ||
@@ -456,9 +455,9 @@ void TOOL_DISPATCHER::DispatchQtEvent( QEvent& aEvent )
 
         // Qt logging removed for simplicity
 
-        // Do not process wxEVT_CHAR_HOOK for a shift-modified key, as ACTION_MANAGER::RunHotKey
+        // Do not process key hook for a shift-modified key, as ACTION_MANAGER::RunHotKey
         // will run the un-shifted key and that's not what we want.  Wait to get the translated
-        // key from wxEVT_CHAR.
+        // key from char event.
         // See https://gitlab.com/kicad/code/kicad/-/issues/1809
         if( type == QEvent::KeyPress && ke->modifiers() == Qt::ShiftModifier )
         {
@@ -536,23 +535,23 @@ void TOOL_DISPATCHER::DispatchQtEvent( QEvent& aEvent )
     }
 
     // pass the event to the GUI, it might still be interested in it
-    // Note wxEVT_CHAR_HOOK event is already skipped for special keys not used by KiCad
-    // and wxEVT_LEFT_DOWN must be always Skipped.
+    // Note key hook event is already skipped for special keys not used by KiCad
+    // and left mouse button down must be always skipped.
     //
     // On OS X, key events are always meant to be caught.  An uncaught key event is assumed
     // to be a user input error by OS X (as they are pressing keys in a context where nothing
     // is there to catch the event).  This annoyingly makes OS X beep and/or flash the screen
     // in Pcbnew and the footprint editor any time a hotkey is used.  The correct procedure is
-    // to NOT pass wxEVT_CHAR events to the GUI under OS X.
+    // to NOT pass char events to the GUI under OS X.
     //
-    // On Windows, avoid to call wxEvent::Skip for special keys because some keys
+    // On Windows, avoid to skip special keys because some keys
     // (PAGE_UP, PAGE_DOWN) have predefined actions (like move thumbtrack cursor), and we do
     // not want these actions executed (most are handled by KiCad)
 
     if( !evt || type == QEvent::MouseButtonPress )
         aEvent.ignore();
 
-    // Not handled wxEVT_CHAR must be Skipped (sent to GUI).
+    // Not handled char events must be skipped (sent to GUI).
     // Otherwise accelerators and shortcuts in main menu or toolbars are not seen.
     // Escape key presses are never skipped by the handler since they correspond to tool cancel
     // events, and if they aren't skipped then they are propagated to other frames (which we

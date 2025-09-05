@@ -162,20 +162,15 @@ bool JSON_SETTINGS::LoadFromFile( const QString& aDirectory )
                 }
 
                 // Silence popups if legacy file is read-only
-                // Note: Qt doesn't have equivalent to wxLogNull, skip for now
+                // Note: Qt doesn't require wxLogNull equivalent, Qt handles silencing differently
 
-                // Note: Qt doesn't have equivalent to wxConfigBase, 
-                // this would need custom implementation for legacy config reading
-                // For now, comment out to preserve structure
-                /*
+                // Qt uses QSettings for configuration management
                 auto cfg = std::make_unique<QSettings>( aPath.filePath(),
                                                        QSettings::IniFormat );
-                */
 
                 // If migrate fails or is not implemented, fall back to built-in defaults that
                 // were already loaded above
-                // Note: MigrateFromLegacy needs nullptr for now since cfg is commented out
-                if( !MigrateFromLegacy( nullptr ) )
+                if( !MigrateFromLegacy( cfg.get() ) )
                 {
                     success = false;
                     qDebug() << GetFullFilename() << ": migrated; not all settings were found in legacy file";
@@ -188,7 +183,7 @@ bool JSON_SETTINGS::LoadFromFile( const QString& aDirectory )
 
                 if( backed_up )
                 {
-                    // cfg.reset(); // Not needed since we commented out cfg
+                    cfg.reset();
 
                     if( !QFile::copy( tempPath, aPath.filePath() ) )
                     {

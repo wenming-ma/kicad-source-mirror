@@ -17,7 +17,6 @@
 #include <tool/tool_interactive.h>
 #include <tool/tool_manager.h>
 #include <widgets/bitmap_button.h>
-#include <widgets/wx_aui_art_providers.h>
 #include <QtWidgets/QWidget>
 #include <QtWidgets/QToolBar>
 #include <QtWidgets/QBoxLayout>

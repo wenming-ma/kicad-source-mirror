@@ -30,7 +30,7 @@
 #ifndef SWIG
 #if defined(__linux__) || defined(__FreeBSD__)
  #define LIB_ENV_VAR    QStringLiteral( "LD_LIBRARY_PATH" )
-#elif defined(__WXMAC__)
+#elif defined(Q_OS_MAC)
  #define LIB_ENV_VAR    QStringLiteral( "DYLD_LIBRARY_PATH" )
 #elif defined(_WIN32)
  #define LIB_ENV_VAR    QStringLiteral( "PATH" )

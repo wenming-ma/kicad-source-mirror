@@ -2,7 +2,7 @@
 
 #include <string_utils.h>
 #include <scintilla_tricks.h>
-#include <widgets/wx_grid.h>
+#include <widgets/qt_grid.h>
 #include <widgets/ui_common.h>
 #include <gal/color4d.h>
 #include <dialog_shim.h>
@@ -266,7 +266,7 @@ void SCINTILLA_TRICKS::onCharHook( QKeyEvent& aEvent )
     {
         QWidget* ancestor = m_te->parentWidget();
 
-        while( ancestor && !dynamic_cast<WX_GRID*>( ancestor ) )
+        while( ancestor && !dynamic_cast<QT_GRID*>( ancestor ) )
             ancestor = ancestor->parentWidget();
 
         if( aEvent.modifiers() & Qt::ControlModifier )
@@ -276,9 +276,9 @@ void SCINTILLA_TRICKS::onCharHook( QKeyEvent& aEvent )
             if( DIALOG_SHIM* dlg = dynamic_cast<DIALOG_SHIM*>( m_te->window() ) )
                 dlg->NavigateIn( forward ? 1 : 0 );
         }
-        else if( dynamic_cast<WX_GRID*>( ancestor ) )
+        else if( dynamic_cast<QT_GRID*>( ancestor ) )
         {
-            WX_GRID* grid = static_cast<WX_GRID*>( ancestor );
+            QT_GRID* grid = static_cast<QT_GRID*>( ancestor );
             int      row = grid->GetGridCursorRow();
             int      col = grid->GetGridCursorCol();
 

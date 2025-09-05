@@ -2,7 +2,6 @@
 #include <macros.h>
 #include <reporter.h>
 #include <string_utils.h>
-#include <widgets/wx_infobar.h>
 #include <QtCore/QDebug>
 #include <QtCore/QLoggingCategory>
 #include <QtWidgets/QTextEdit>

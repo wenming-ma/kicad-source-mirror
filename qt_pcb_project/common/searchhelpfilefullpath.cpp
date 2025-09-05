@@ -7,6 +7,9 @@
 #include <vector>
 #include <string>
 #include <QLoggingCategory>
+#include <QLocale>
+#include <QDir>
+#include <QFileInfo>
 
 
 QString SearchHelpFileFullPath( const QString& aBaseName )
@@ -32,15 +35,18 @@ QString SearchHelpFileFullPath( const QString& aBaseName )
     // located in a folder named "help". If no translation matching the current locale settings is
     // available, the English version will be returned instead.
 
-    wxLocale*                currentLocale = Pgm().GetLocale();
+    QLocale*                currentLocale = Pgm().GetLocale();
     std::vector<std::string> localeNameDirs;
 
     // canonical form of the current locale (e.g., "fr_FR")
-    localeNameDirs.push_back( currentLocale->GetCanonicalName().toStdString() );
+    localeNameDirs.push_back( currentLocale->name().toStdString() );
 
     // short form of the current locale (e.g., "fr")
-    // wxLocale::GetName() does not always return the short form
-    localeNameDirs.push_back( currentLocale->GetName().BeforeLast( '_' ).toStdString() );
+    // QLocale::name() returns the full name, extract the language part
+    QString fullName = currentLocale->name();
+    int underscorePos = fullName.indexOf('_');
+    QString shortName = (underscorePos != -1) ? fullName.left(underscorePos) : fullName;
+    localeNameDirs.push_back( shortName.toStdString() );
 
     // plain English (in case a localised version of the help file cannot be found)
     localeNameDirs.push_back( "en" );
@@ -51,20 +57,28 @@ QString SearchHelpFileFullPath( const QString& aBaseName )
 
         for( QString& base : basePaths )
         {
-            wxFileName path( base, wxEmptyString );
+            QDir path( base );
 
             // add <base>/help/<locale>/
-            path.AppendDir( "help" );
-            path.AppendDir( QString::fromStdString( locale ) );
-            docPaths.AddPaths( path.GetPath() );
+            QDir helpPath = path;
+            helpPath.cd( "help" );
+            helpPath.cd( QString::fromStdString( locale ) );
+            docPaths.AddPaths( helpPath.absolutePath() );
 
             // add <base>/doc/help/<locale>/
-            path.InsertDir( path.GetDirCount() - 2, "doc" );
-            docPaths.AddPaths( path.GetPath() );
+            QDir docHelpPath = path;
+            docHelpPath.cd( "doc" );
+            docHelpPath.cd( "help" );
+            docHelpPath.cd( QString::fromStdString( locale ) );
+            docPaths.AddPaths( docHelpPath.absolutePath() );
 
             // add <base>/doc/kicad/help/<locale>/
-            path.InsertDir( path.GetDirCount() - 2, "kicad" );
-            docPaths.AddPaths( path.GetPath() );
+            QDir docKicadPath = path;
+            docKicadPath.cd( "doc" );
+            docKicadPath.cd( "kicad" );
+            docKicadPath.cd( "help" );
+            docKicadPath.cd( QString::fromStdString( locale ) );
+            docPaths.AddPaths( docKicadPath.absolutePath() );
         }
 
 #if defined( DEBUG )
@@ -72,8 +86,7 @@ QString SearchHelpFileFullPath( const QString& aBaseName )
 #endif
 
         // search HTML first, as it is the preferred format for help files
-        wxLogTrace( tracePathsAndFiles, "Checking SEARCH_STACK for file %s.html",
-                    aBaseName );
+        qCDebug( tracePathsAndFiles ) << "Checking SEARCH_STACK for file" << aBaseName << ".html";
         helpFile = docPaths.FindValidPath( aBaseName + ".html" );
 
         if( !helpFile.isEmpty() )
@@ -84,7 +97,7 @@ QString SearchHelpFileFullPath( const QString& aBaseName )
         }
 
         // search PDF only when no corresponding HTML file was found
-        wxLogTrace( tracePathsAndFiles, "Checking SEARCH_STACK for file %s.pdf", aBaseName );
+        qCDebug( tracePathsAndFiles ) << "Checking SEARCH_STACK for file" << aBaseName << ".pdf";
         helpFile = docPaths.FindValidPath( aBaseName + ".pdf" );
 
         if( !helpFile.isEmpty() )

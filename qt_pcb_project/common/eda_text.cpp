@@ -205,8 +205,8 @@ EDA_TEXT& EDA_TEXT::operator=( const EDA_TEXT& aText )
 //    if( !aContainer.UnpackTo( &text ) )
 //        return false;
 //
-//    SetText( QString( text.text().c_str(), wxConvUTF8 ) );
-//    SetHyperlink( QString( text.hyperlink().c_str(), wxConvUTF8 ) );
+//    SetText( QString::fromStdString( text.text() ) );
+//    SetHyperlink( QString::fromStdString( text.hyperlink() ) );
 //    SetTextPos( UnpackVector2( text.position() ) );
 //
 //    if( text.has_attributes() )
@@ -224,7 +224,7 @@ EDA_TEXT& EDA_TEXT::operator=( const EDA_TEXT& aText )
 //        if( !text.attributes().font_name().empty() )
 //        {
 //            attrs.m_Font = KIFONT::FONT::GetFont(
-//                    QString( text.attributes().font_name().c_str(), wxConvUTF8 ), attrs.m_Bold,
+//                    QString::fromStdString( text.attributes().font_name() ), attrs.m_Bold,
 //                    attrs.m_Italic );
 //        }
 //

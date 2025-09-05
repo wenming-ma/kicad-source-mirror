@@ -1,4 +1,6 @@
 
+// QT_TRANSFORMATION_COMPLETED
+
 #include <core/kicad_algo.h>
 #include <optional>
 #include <map>
