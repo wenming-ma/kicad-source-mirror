@@ -318,7 +318,7 @@ private:
     virtual bool IsModal() const { return false; }
 
 #ifdef _WIN32
-    bool nativeEvent( const QByteArray& eventType, void* message, long* result ) override;
+    bool nativeEvent( const QByteArray& eventType, void* message, qintptr* result ) override;
 #endif
 
  protected:

@@ -145,9 +145,9 @@ QString GetVersionInfoData( const QString& aTitle, bool aHtml, bool aBrief )
 
     aMsg += indent4 + QString("Qt %1").arg(QT_VERSION_STR) + eol;
 
-    aMsg += indent4 + "FreeType " + QString::fromStdString(KIFONT::VERSION_INFO::FreeType()) + eol;
-    aMsg += indent4 + "HarfBuzz " + QString::fromStdString(KIFONT::VERSION_INFO::HarfBuzz()) + eol;
-    aMsg += indent4 + "FontConfig " + QString::fromStdString(KIFONT::VERSION_INFO::FontConfig()) + eol;
+    aMsg += indent4 + "FreeType " + KIFONT::VERSION_INFO::FreeType() + eol;
+    aMsg += indent4 + "HarfBuzz " + KIFONT::VERSION_INFO::HarfBuzz() + eol;
+    aMsg += indent4 + "FontConfig " + KIFONT::VERSION_INFO::FontConfig() + eol;
 
     if( !aBrief )
         aMsg += indent4 + QString::fromStdString(GetKicadCurlVersion()) + eol;

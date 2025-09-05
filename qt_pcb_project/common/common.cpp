@@ -14,6 +14,8 @@
 #include <QRegularExpression>
 #include <QDir>
 #include <QDateTime>
+#include <QDirIterator>
+#include <QFileInfo>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -205,7 +207,7 @@ QString KIExpandEnvVars( const QString& str, const PROJECT* aProject,
             {
                 if( ++m == strlen )
                 {
-                    str_m = 0;
+                    str_m = QChar(0);
                     break;
                 }
 
@@ -259,15 +261,22 @@ QString KIExpandEnvVars( const QString& str, const PROJECT* aProject,
                 if ( bracket != Bracket_Windows )
 #endif
                 if ( bracket != Bracket_None )
-                    strResult << str[n - 1];
+                    strResult += str[n - 1];
 
-                strResult << str_n << strVarName;
+                strResult += str_n;
+                strResult += strVarName;
             }
 
             // check the closing bracket
             if( bracket != Bracket_None )
             {
-                if( m == strlen || str_m != (QChar)bracket )
+                QChar expectedBracket = (bracket == Bracket_Normal) ? QChar(')') :
+                                       (bracket == Bracket_Curly) ? QChar('}') :
+#ifdef __WINDOWS__
+                                       (bracket == Bracket_Windows) ? QChar('%') :
+#endif
+                                       QChar();
+                if( m == strlen || str_m != expectedBracket )
                 {
                     // under MSW it's common to have '%' characters in the registry
                     // and it's annoying to have warnings about them each time, so
@@ -276,15 +285,29 @@ QString KIExpandEnvVars( const QString& str, const PROJECT* aProject,
                     // under Unix, OTOH, this warning could be useful for the user to
                     // understand why isn't the variable expanded as intended
 #ifndef __WINDOWS__
+                    char bracketChar = (bracket == Bracket_Normal) ? ')' :
+                                      (bracket == Bracket_Curly) ? '}' :
+#ifdef __WINDOWS__
+                                      (bracket == Bracket_Windows) ? '%' :
+#endif
+                                      '?';
                     qWarning( "Environment variables expansion failed: missing '%c' at position %u in '%s'.",
-                                  (char)bracket, (unsigned int) (m + 1), str.toLatin1().data() );
+                                  bracketChar, (unsigned int) (m + 1), str.toLatin1().data() );
 #endif // __WINDOWS__
                 }
                 else
                 {
                     // skip closing bracket unless the variables wasn't expanded
                     if( !expanded )
-                        strResult += (QChar)bracket;
+                    {
+                        QChar bracketChar = (bracket == Bracket_Normal) ? QChar(')') :
+                                           (bracket == Bracket_Curly) ? QChar('}') :
+#ifdef __WINDOWS__
+                                           (bracket == Bracket_Windows) ? QChar('%') :
+#endif
+                                           QChar();
+                        strResult += bracketChar;
+                    }
 
                     m++;
                 }
@@ -569,65 +592,47 @@ long long TimestampDir( const QString& aDirPath, const QString& aFilespec )
 
     FindClose( fileHandle );
 #else
-    // POSIX version.
-    // Save time by not converting between encodings -- do everything on the file-system side.
-    std::string filespec( aFilespec.toStdString() );
-    std::string dir_path( aDirPath.toStdString() );
-
-    DIR* dir = opendir( dir_path.c_str() );
-
-    if( dir )
+    // Cross-platform Qt version using QDirIterator.
+    QDir directory( aDirPath );
+    
+    if( directory.exists() )
     {
-        for( dirent* dir_entry = readdir( dir ); dir_entry; dir_entry = readdir( dir ) )
+        QDirIterator dirIterator( aDirPath, QStringList() << aFilespec, QDir::Files | QDir::NoDotAndDotDot );
+        
+        while( dirIterator.hasNext() )
         {
-            if( !matchWild( filespec.c_str(), dir_entry->d_name, true ) )
-                continue;
-
-            std::string entry_path = dir_path + '/' + dir_entry->d_name;
-            struct stat entry_stat;
-
-            if( lstat( entry_path.c_str(), &entry_stat ) == 0 )
+            QString filePath = dirIterator.next();
+            QFileInfo fileInfo( filePath );
+            
+            // Handle symbolic links by resolving to the target file
+            if( fileInfo.isSymLink() )
             {
-                // Timestamp the source file, not the symlink
-                if( S_ISLNK( entry_stat.st_mode ) )    // Symbolic link
+                QString targetPath = fileInfo.symLinkTarget();
+                if( !targetPath.isEmpty() )
                 {
-                    char buffer[ PATH_MAX + 1 ];
-                    ssize_t pathLen = readlink( entry_path.c_str(), buffer, PATH_MAX );
-
-                    if( pathLen > 0 )
+                    QFileInfo targetInfo( targetPath );
+                    if( targetInfo.exists() && targetInfo.isFile() )
                     {
-                        struct stat linked_stat;
-                        buffer[ pathLen ] = '\0';
-                        entry_path = dir_path + buffer;
-
-                        if( lstat( entry_path.c_str(), &linked_stat ) == 0 )
-                        {
-                            entry_stat = linked_stat;
-                        }
-                        else
-                        {
-                            // if we couldn't lstat the linked file we'll have to just use
-                            // the symbolic link info
-                        }
+                        fileInfo = targetInfo;
                     }
+                    // If we can't resolve the symlink, use the original fileInfo
                 }
-
-                if( S_ISREG( entry_stat.st_mode ) )    // Regular file
-                {
-                    timestamp += entry_stat.st_mtime * 1000;
-
-                    // Get the file size as well to check for sneaky changes.
-                    timestamp += entry_stat.st_size;
-                }
+            }
+            
+            // Only process regular files (Qt handles this automatically with QDir::Files)
+            if( fileInfo.isFile() )
+            {
+                timestamp += fileInfo.lastModified().toMSecsSinceEpoch();
+                
+                // Get the file size as well to check for sneaky changes.
+                timestamp += fileInfo.size();
             }
             else
             {
-                // if we couldn't lstat the file itself all we can do is use the name
-                timestamp += (signed) std::hash<std::string>{}( std::string( dir_entry->d_name ) );
+                // if we couldn't get file info, use the name hash as fallback
+                timestamp += (signed) std::hash<std::string>{}( fileInfo.fileName().toStdString() );
             }
         }
-
-        closedir( dir );
     }
 #endif
 

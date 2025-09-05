@@ -2,34 +2,34 @@
 
 #include <QStringList>
 
-const QChar* const traceFindReplace = "KICAD_FIND_REPLACE";
-const QChar* const kicadTraceCoords = "KICAD_COORDS";
-const QChar* const kicadTraceKeyEvent = "KICAD_KEY_EVENTS";
-const QChar* const kicadTraceToolStack = "KICAD_TOOL_STACK";
-const QChar* const kicadTraceCoroutineStack = "KICAD_COROUTINE_STACK";
-const QChar* const traceSchLibMem = "KICAD_SCH_LIB_MEM";
-const QChar* const traceFindItem = "KICAD_FIND_ITEM";
-const QChar* const traceSchLegacyPlugin = "KICAD_SCH_LEGACY_PLUGIN";
-const QChar* const traceSchPlugin = "KICAD_SCH_PLUGIN";
-const QChar* const traceGedaPcbPlugin = "KICAD_GEDA_PLUGIN";
-const QChar* const traceKicadPcbPlugin = "KICAD_PCB_PLUGIN";
-const QChar* const tracePrinting = "KICAD_PRINT";
-const QChar* const traceAutoSave = "KICAD_AUTOSAVE";
-const QChar* const tracePathsAndFiles = "KICAD_PATHS_AND_FILES";
-const QChar* const traceLocale = "KICAD_LOCALE";
-const QChar* const traceFonts = "KICAD_FONTS";
-const QChar* const traceScreen = "KICAD_SCREEN";
-const QChar* const traceZoomScroll = "KICAD_ZOOM_SCROLL";
-const QChar* const traceSymbolResolver = "KICAD_SYM_RESOLVE";
-const QChar* const traceDisplayLocation = "KICAD_DISPLAY_LOCATION";
-const QChar* const traceSchSheetPaths = "KICAD_SCH_SHEET_PATHS";
-const QChar* const traceEnvVars = "KICAD_ENV_VARS";
-const QChar* const traceGalProfile = "KICAD_GAL_PROFILE";
-const QChar* const traceKiCad2Step = "KICAD2STEP";
-const QChar* const traceUiProfile = "KICAD_UI_PROFILE";
-const QChar* const traceGit = "KICAD_GIT";
-const QChar* const traceEagleIo = "KICAD_EAGLE_IO";
-const QChar* const traceDesignBlocks = "KICAD_DESIGN_BLOCK";
+const char* const traceFindReplace = "KICAD_FIND_REPLACE";
+const char* const kicadTraceCoords = "KICAD_COORDS";
+const char* const kicadTraceKeyEvent = "KICAD_KEY_EVENTS";
+const char* const kicadTraceToolStack = "KICAD_TOOL_STACK";
+const char* const kicadTraceCoroutineStack = "KICAD_COROUTINE_STACK";
+const char* const traceSchLibMem = "KICAD_SCH_LIB_MEM";
+const char* const traceFindItem = "KICAD_FIND_ITEM";
+const char* const traceSchLegacyPlugin = "KICAD_SCH_LEGACY_PLUGIN";
+const char* const traceSchPlugin = "KICAD_SCH_PLUGIN";
+const char* const traceGedaPcbPlugin = "KICAD_GEDA_PLUGIN";
+const char* const traceKicadPcbPlugin = "KICAD_PCB_PLUGIN";
+const char* const tracePrinting = "KICAD_PRINT";
+const char* const traceAutoSave = "KICAD_AUTOSAVE";
+const char* const tracePathsAndFiles = "KICAD_PATHS_AND_FILES";
+const char* const traceLocale = "KICAD_LOCALE";
+const char* const traceFonts = "KICAD_FONTS";
+const char* const traceScreen = "KICAD_SCREEN";
+const char* const traceZoomScroll = "KICAD_ZOOM_SCROLL";
+const char* const traceSymbolResolver = "KICAD_SYM_RESOLVE";
+const char* const traceDisplayLocation = "KICAD_DISPLAY_LOCATION";
+const char* const traceSchSheetPaths = "KICAD_SCH_SHEET_PATHS";
+const char* const traceEnvVars = "KICAD_ENV_VARS";
+const char* const traceGalProfile = "KICAD_GAL_PROFILE";
+const char* const traceKiCad2Step = "KICAD2STEP";
+const char* const traceUiProfile = "KICAD_UI_PROFILE";
+const char* const traceGit = "KICAD_GIT";
+const char* const traceEagleIo = "KICAD_EAGLE_IO";
+const char* const traceDesignBlocks = "KICAD_DESIGN_BLOCK";
 
 
 QString dump( const QStringList& aArray )
