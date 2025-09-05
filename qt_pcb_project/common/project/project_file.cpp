@@ -29,13 +29,13 @@ PROJECT_FILE::PROJECT_FILE( const QString& aFullPath ) :
 
     m_params.emplace_back( new PARAM_LIST<FILE_INFO_PAIR>( "boards", &m_boards, {} ) );
 
-    m_params.emplace_back( new PARAM_QSTRING_MAP( "text_variables",
+    m_params.emplace_back( new PARAM_STRING_MAP( "text_variables",
             &m_TextVars, {}, false, true ) );
 
-    m_params.emplace_back( new PARAM_LIST<QString>( "libraries.pinned_symbol_libs",
+    m_params.emplace_back( new PARAM_LIST<std::string>( "libraries.pinned_symbol_libs",
             &m_PinnedSymbolLibs, {} ) );
 
-    m_params.emplace_back( new PARAM_LIST<QString>( "libraries.pinned_footprint_libs",
+    m_params.emplace_back( new PARAM_LIST<std::string>( "libraries.pinned_footprint_libs",
             &m_PinnedFootprintLibs, {} ) );
 
     m_params.emplace_back( new PARAM_PATH_LIST( "cvpcb.equivalence_files",
@@ -71,7 +71,7 @@ PROJECT_FILE::PROJECT_FILE( const QString& aFullPath ) :
     m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.plot",
             &m_PcbLastPath[LAST_PATH_PLOT], "" ) );
 
-    m_params.emplace_back( new PARAM<QString>( "schematic.legacy_lib_dir",
+    m_params.emplace_back( new PARAM<std::string>( "schematic.legacy_lib_dir",
             &m_LegacyLibDir, "" ) );
 
     m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "schematic.legacy_lib_list",
@@ -79,8 +79,8 @@ PROJECT_FILE::PROJECT_FILE( const QString& aFullPath ) :
             {
                 nlohmann::json ret = nlohmann::json::array();
 
-                for( const QString& libName : m_LegacyLibNames )
-                    ret.push_back( libName.toStdString() );
+                for( const std::string& libName : m_LegacyLibNames )
+                    ret.push_back( libName );
 
                 return ret;
             },
@@ -92,7 +92,7 @@ PROJECT_FILE::PROJECT_FILE( const QString& aFullPath ) :
                 m_LegacyLibNames.clear();
 
                 for( const nlohmann::json& entry : aJson )
-                    m_LegacyLibNames.push_back( QString::fromStdString( entry.get<std::string>() ) );
+                    m_LegacyLibNames.push_back( entry.get<std::string>() );
             }, {} ) );
 
     m_NetSettings = std::make_shared<NET_SETTINGS>( this, "net_settings" );
@@ -105,20 +105,20 @@ PROJECT_FILE::PROJECT_FILE( const QString& aFullPath ) :
 
     m_params.emplace_back( new PARAM_LAYER_PAIRS( "board.layer_pairs", m_LayerPairInfos ) );
 
-    m_params.emplace_back( new PARAM<QString>( "board.ipc2581.internal_id",
-            &m_IP2581Bom.id, QString() ) );
+    m_params.emplace_back( new PARAM<std::string>( "board.ipc2581.internal_id",
+            &m_IP2581Bom.id, std::string() ) );
 
-    m_params.emplace_back( new PARAM<QString>( "board.ipc2581.mpn",
-            &m_IP2581Bom.MPN, QString() ) );
+    m_params.emplace_back( new PARAM<std::string>( "board.ipc2581.mpn",
+            &m_IP2581Bom.MPN, std::string() ) );
 
-    m_params.emplace_back( new PARAM<QString>( "board.ipc2581.mfg",
-            &m_IP2581Bom.mfg, QString() ) );
+    m_params.emplace_back( new PARAM<std::string>( "board.ipc2581.mfg",
+            &m_IP2581Bom.mfg, std::string() ) );
 
-    m_params.emplace_back( new PARAM<QString>( "board.ipc2581.distpn",
-            &m_IP2581Bom.distPN, QString() ) );
+    m_params.emplace_back( new PARAM<std::string>( "board.ipc2581.distpn",
+            &m_IP2581Bom.distPN, std::string() ) );
 
-    m_params.emplace_back( new PARAM<QString>( "board.ipc2581.dist",
-            &m_IP2581Bom.dist, QString() ) );
+    m_params.emplace_back( new PARAM<std::string>( "board.ipc2581.dist",
+            &m_IP2581Bom.dist, std::string() ) );
 
     registerMigration( 1, 2, std::bind( &PROJECT_FILE::migrateSchema1To2, this ) );
     registerMigration( 2, 3, std::bind( &PROJECT_FILE::migrateSchema2To3, this ) );
@@ -167,7 +167,7 @@ bool PROJECT_FILE::MigrateFromLegacy( QSettings* aCfg )
     QString  str;
     int      index = 0;
 
-    std::set<QString> group_blacklist;
+    std::set<std::string> group_blacklist;
 
     auto loadPinnedLibs =
             [&]( const std::string& aDest )
@@ -543,26 +543,26 @@ bool PROJECT_FILE::MigrateFromLegacy( QSettings* aCfg )
                 return true;
             };
 
-    std::vector<QString> groups;
+    std::vector<std::string> groups;
 
-    groups.push_back( QString() );
+    groups.push_back( std::string() );
 
     auto loadLegacyPairs =
             [&]( const std::string& aGroup ) -> bool
             {
                 bool success = true;
-                QString keyStr;
-                QString val;
+                std::string keyStr;
+                std::string val;
 
                 QStringList keys = aCfg->childKeys();
 
                 for( const QString& key : keys )
                 {
-                    val = aCfg->value( key ).toString();
+                    val = aCfg->value( key ).toString().toStdString();
 
                     try
                     {
-                        Set( "legacy." + aGroup + "." + key.toStdString(), val.toStdString() );
+                        Set( "legacy." + aGroup + "." + key.toStdString(), val );
                     }
                     catch( ... )
                     {
@@ -575,13 +575,13 @@ bool PROJECT_FILE::MigrateFromLegacy( QSettings* aCfg )
 
     for( int i = 0; i < groups.size(); i++ )
     {
-        if( !groups[i].isEmpty() )
-            aCfg->beginGroup( groups[i] );
+        if( !groups[i].empty() )
+            aCfg->beginGroup( QString::fromStdString( groups[i] ) );
 
         if( groups[i] == "sheetnames" )
         {
             ret |= loadSheetNames();
-            if( !groups[i].isEmpty() )
+            if( !groups[i].empty() )
                 aCfg->endGroup();
             continue;
         }
@@ -593,13 +593,13 @@ bool PROJECT_FILE::MigrateFromLegacy( QSettings* aCfg )
         if( aCfg->contains( "version" ) )
             aCfg->remove( "version" );
 
-        ret &= loadLegacyPairs( groups[i].toStdString() );
+        ret &= loadLegacyPairs( groups[i] );
 
         QStringList childGroups = aCfg->childGroups();
 
         for( const QString& childGroup : childGroups )
         {
-            QString group = groups[i].isEmpty() ? childGroup : groups[i] + "/" + childGroup;
+            std::string group = groups[i].empty() ? childGroup.toStdString() : groups[i] + "/" + childGroup.toStdString();
 
             if( !group_blacklist.count( group ) )
                 groups.push_back( group );
@@ -629,7 +629,7 @@ bool PROJECT_FILE::SaveToFile( const QString& aDirectory, bool aForce )
 
 bool PROJECT_FILE::SaveAs( const QString& aDirectory, const QString& aFile )
 {
-    QString oldFilename = GetFilename();
+    QString oldFilename = QString::fromStdString( GetFilename() );
     QString oldProjectName = QFileInfo( oldFilename ).baseName();
     QString oldProjectPath = QFileInfo( oldFilename ).path();
 
@@ -637,12 +637,14 @@ bool PROJECT_FILE::SaveAs( const QString& aDirectory, const QString& aFile )
     SetFilename( aFile );
 
     auto updatePath =
-            [&]( QString& aPath )
+            [&]( std::string& aPath )
             {
-                if( aPath.startsWith( oldProjectName + "." ) )
-                    aPath.replace( oldProjectName, aFile );
-                else if( aPath.startsWith( oldProjectPath + "/" ) )
-                    aPath.replace( oldProjectPath, aDirectory );
+                QString qPath = QString::fromStdString( aPath );
+                if( qPath.startsWith( oldProjectName + "." ) )
+                    qPath.replace( oldProjectName, aFile );
+                else if( qPath.startsWith( oldProjectPath + "/" ) )
+                    qPath.replace( oldProjectPath, aDirectory );
+                aPath = qPath.toStdString();
             };
 
     updatePath( m_BoardDrawingSheetFile );
@@ -653,7 +655,7 @@ bool PROJECT_FILE::SaveAs( const QString& aDirectory, const QString& aFile )
     auto updatePathByPtr =
             [&]( const std::string& aPtr )
             {
-                if( std::optional<QString> path = Get<QString>( aPtr ) )
+                if( std::optional<std::string> path = Get<std::string>( aPtr ) )
                 {
                     updatePath( path.value() );
                     Set( aPtr, path.value() );
@@ -686,7 +688,7 @@ QString PROJECT_FILE::getLegacyFileExt() const
 
 void to_json( nlohmann::json& aJson, const FILE_INFO_PAIR& aPair )
 {
-    aJson = nlohmann::json::array( { aPair.first.AsString().toStdString(), aPair.second.toStdString() } );
+    aJson = nlohmann::json::array( { aPair.first.AsString().toStdString(), aPair.second } );
 }
 
 
@@ -695,5 +697,5 @@ void from_json( const nlohmann::json& aJson, FILE_INFO_PAIR& aPair )
     if( !aJson.is_array() || aJson.size() != 2 )
         return;
     aPair.first  = KIID( QString::fromStdString( aJson[0].get<std::string>() ) );
-    aPair.second = QString::fromStdString( aJson[1].get<std::string>() );
+    aPair.second = aJson[1].get<std::string>();
 }

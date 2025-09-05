@@ -7,6 +7,10 @@
 #include <QMenu>
 #include <QString>
 #include <QList>
+#include <QAction>
+#include <vector>
+#include <string>
+#include <algorithm>
 
 #include <functional>
 using namespace std::placeholders;
@@ -34,12 +38,12 @@ void FILE_HISTORY::Load( const APP_SETTINGS_BASE& aSettings )
 }
 
 
-void FILE_HISTORY::Load( const std::vector<QString>& aList )
+void FILE_HISTORY::Load( const std::vector<std::string>& aList )
 {
     ClearFileHistory();
 
     for( const auto& file : aList )
-        AddFileToHistory( file );
+        AddFileToHistory( QString::fromStdString( file ) );
 }
 
 
@@ -47,12 +51,12 @@ void FILE_HISTORY::Save( APP_SETTINGS_BASE& aSettings )
 {
     aSettings.m_System.file_history.clear();
 
-    for( const QString& filename : m_fileHistory )
+    for( const std::string& filename : m_fileHistory )
         aSettings.m_System.file_history.emplace_back( filename );
 }
 
 
-void FILE_HISTORY::Save( std::vector<QString>* aList )
+void FILE_HISTORY::Save( std::vector<std::string>* aList )
 {
     aList->clear();
 
@@ -63,11 +67,11 @@ void FILE_HISTORY::Save( std::vector<QString>* aList )
 
 void FILE_HISTORY::SetMaxFiles( size_t aMaxFiles )
 {
-    m_fileMaxFiles = std::min( aMaxFiles, (size_t) MAX_FILE_HISTORY_SIZE );
+    m_maxFiles = std::min( aMaxFiles, (size_t) MAX_FILE_HISTORY_SIZE );
 
     size_t numFiles = m_fileHistory.size();
 
-    while( numFiles > m_fileMaxFiles )
+    while( numFiles > m_maxFiles )
         RemoveFileFromHistory( --numFiles );
 }
 
@@ -80,15 +84,19 @@ void FILE_HISTORY::AddFileToHistory( const QString &aFile )
         doRemoveClearitem( menu );
     }
 
+    std::string fileStr = aFile.toStdString();
+    
     // Remove the file from history if it already exists
-    m_fileHistory.removeAll( aFile );
+    auto it = std::find( m_fileHistory.begin(), m_fileHistory.end(), fileStr );
+    if( it != m_fileHistory.end() )
+        m_fileHistory.erase( it );
     
     // Add the file to the beginning of the list
-    m_fileHistory.prepend( aFile );
+    m_fileHistory.insert( m_fileHistory.begin(), fileStr );
     
     // Remove excess files if we exceed the maximum
-    while( m_fileHistory.size() > (int)m_maxFiles )
-        m_fileHistory.removeLast();
+    while( m_fileHistory.size() > m_maxFiles )
+        m_fileHistory.pop_back();
 
     // Add our custom items back
     for( QMenu* menu : m_fileMenus )
@@ -103,9 +111,10 @@ void FILE_HISTORY::AddFilesToMenu( QMenu* aMenu )
     doRemoveClearitem( aMenu );
     
     // Add file history items
-    for( int i = 0; i < m_fileHistory.size(); ++i )
+    for( int i = 0; i < (int)m_fileHistory.size(); ++i )
     {
-        QString menuText = QString( "&%1 %2" ).arg( i + 1 ).arg( m_fileHistory[i] );
+        QString fileName = QString::fromStdString( m_fileHistory[i] );
+        QString menuText = QString( "&%1 %2" ).arg( i + 1 ).arg( fileName );
         QAction* action = aMenu->addAction( menuText );
         action->setData( m_baseFileId + i );
     }
@@ -191,7 +200,7 @@ size_t FILE_HISTORY::GetCount() const
 QString FILE_HISTORY::GetHistoryFile( size_t index ) const
 {
     if( index < m_fileHistory.size() )
-        return m_fileHistory[index];
+        return QString::fromStdString( m_fileHistory[index] );
     return QString();
 }
 
@@ -199,7 +208,7 @@ QString FILE_HISTORY::GetHistoryFile( size_t index ) const
 void FILE_HISTORY::RemoveFileFromHistory( size_t index )
 {
     if( index < m_fileHistory.size() )
-        m_fileHistory.removeAt( index );
+        m_fileHistory.erase( m_fileHistory.begin() + index );
 }
 
 

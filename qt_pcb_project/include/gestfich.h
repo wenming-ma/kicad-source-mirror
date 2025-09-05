@@ -27,7 +27,7 @@ KICOMMON_API void KiCopyFile( const QString& aSrcPath, const QString& aDestPath,
 
 KICOMMON_API int ExecuteFile( const QString& aEditorName,
                               const QString& aFileName = QString(),
-                              QProcess* aCallback = nullptr, bool aFileForKicad = true );
+                              QProcess** aCallback = nullptr, bool aFileForKicad = true );
 
 KICOMMON_API void QuoteString( QString& string );
 

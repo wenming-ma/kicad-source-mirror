@@ -8,6 +8,9 @@
 #include <dsnlexer.h>
 #include <QString>
 #include <QStringList>
+#include <QCoreApplication>
+
+#define _(s) QCoreApplication::translate("", (s))
 
 #define FMT_CLIPBOARD       _( "clipboard" )
 

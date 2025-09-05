@@ -4,6 +4,7 @@
 #include <gal/gal.h>
 #include <view/view_item.h>
 #include <deque>
+#include <vector>
 #include <QString>
 
 namespace KIGFX
@@ -28,7 +29,7 @@ public:
     virtual VIEW_ITEM* GetItem( unsigned int aIdx ) const;
     virtual const BOX2I ViewBBox() const override;
     virtual void ViewDraw( int aLayer, VIEW* aView ) const override;
-    QVector<int> ViewGetLayers() const override;
+    std::vector<int> ViewGetLayers() const override;
 
     inline virtual void SetLayer( int aLayer )
     {

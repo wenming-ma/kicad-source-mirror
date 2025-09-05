@@ -170,7 +170,7 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const QString
     m_params.emplace_back( new PARAM_ENUM<PCB_LAYER_ID>( "board.active_layer",
                            &m_ActiveLayer, F_Cu, PCBNEW_LAYER_ID_START, F_Fab ) );
 
-    m_params.emplace_back( new PARAM<QString>( "board.active_layer_preset",
+    m_params.emplace_back( new PARAM<std::string>( "board.active_layer_preset",
                            &m_ActiveLayerPreset, "" ) );
 
     m_params.emplace_back( new PARAM_ENUM<HIGH_CONTRAST_MODE>( "board.high_contrast_mode",
@@ -184,9 +184,9 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const QString
     m_params.emplace_back( new PARAM<double>( "board.opacity.images", &m_ImageOpacity, 0.6 ) );
     m_params.emplace_back( new PARAM<double>( "board.opacity.shapes", &m_ShapeOpacity, 1.0 ) );
 
-    m_params.emplace_back( new PARAM_LIST<QString>( "board.hidden_nets", &m_HiddenNets, {} ) );
+    m_params.emplace_back( new PARAM_LIST<std::string>( "board.hidden_nets", &m_HiddenNets, {} ) );
 
-    m_params.emplace_back( new PARAM_SET<QString>( "board.hidden_netclasses",
+    m_params.emplace_back( new PARAM_SET<std::string>( "board.hidden_netclasses",
                                                      &m_HiddenNetclasses, {} ) );
 
     m_params.emplace_back( new PARAM_ENUM<NET_COLOR_MODE>( "board.net_color_mode",
@@ -201,13 +201,13 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const QString
                            ZONE_DISPLAY_MODE::SHOW_FILLED, ZONE_DISPLAY_MODE::SHOW_FILLED,
                            ZONE_DISPLAY_MODE::SHOW_TRIANGULATION ) );
 
-    m_params.emplace_back( new PARAM<QString>( "git.repo_username", &m_GitRepoUsername, "" ) );
+    m_params.emplace_back( new PARAM<std::string>( "git.repo_username", &m_GitRepoUsername, "" ) );
 
-    m_params.emplace_back( new PARAM<QString>( "git.repo_type", &m_GitRepoType, "" ) );
+    m_params.emplace_back( new PARAM<std::string>( "git.repo_type", &m_GitRepoType, "" ) );
 
-    m_params.emplace_back( new PARAM<QString>( "git.ssh_key", &m_GitSSHKey, "" ) );
+    m_params.emplace_back( new PARAM<std::string>( "git.ssh_key", &m_GitSSHKey, "" ) );
 
-    m_params.emplace_back( new PARAM<QString>( "net_inspector_panel.filter_text",
+    m_params.emplace_back( new PARAM<std::string>( "net_inspector_panel.filter_text",
                                                 &m_NetInspectorPanel.filter_text, "" ) );
     m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.filter_by_net_name",
                                             &m_NetInspectorPanel.filter_by_net_name, true ) );
@@ -217,7 +217,7 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const QString
                                             &m_NetInspectorPanel.group_by_netclass, false ) );
     m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.group_by_constraint",
                                             &m_NetInspectorPanel.group_by_constraint, false ) );
-    m_params.emplace_back( new PARAM_LIST<QString>( "net_inspector_panel.custom_group_rules",
+    m_params.emplace_back( new PARAM_LIST<std::string>( "net_inspector_panel.custom_group_rules",
                                                      &m_NetInspectorPanel.custom_group_rules,
                                                      {} ) );
     m_params.emplace_back( new PARAM<bool>( "net_inspector_panel.show_zero_pad_nets",
@@ -234,10 +234,10 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const QString
                                                 &m_NetInspectorPanel.col_widths, {} ) );
     m_params.emplace_back( new PARAM_LIST<bool>( "net_inspector_panel.col_hidden",
                                                  &m_NetInspectorPanel.col_hidden, {} ) );
-    m_params.emplace_back( new PARAM_LIST<QString>( "net_inspector_panel.expanded_rows",
+    m_params.emplace_back( new PARAM_LIST<std::string>( "net_inspector_panel.expanded_rows",
                                                      &m_NetInspectorPanel.expanded_rows, {} ) );
 
-    m_params.emplace_back( new PARAM_LIST<QString>( "open_jobsets", &m_OpenJobSets, {} ) );
+    m_params.emplace_back( new PARAM_LIST<std::string>( "open_jobsets", &m_OpenJobSets, {} ) );
 
     m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "project.files",
             [&]() -> nlohmann::json
@@ -278,7 +278,8 @@ PROJECT_LOCAL_SETTINGS::PROJECT_LOCAL_SETTINGS( PROJECT* aProject, const QString
 
                     try
                     {
-                        SetIfPresent( file, "name", fileState.fileName );
+                        if( file.contains( "name" ) && file["name"].is_string() )
+                            fileState.fileName = file["name"].get<std::string>();
                         SetIfPresent( file, "open", fileState.open );
                         SetIfPresent( file, "window.size_x", fileState.window.size_x );
                         SetIfPresent( file, "window.size_y", fileState.window.size_y );
@@ -526,10 +527,11 @@ bool PROJECT_LOCAL_SETTINGS::SaveAs( const QString& aDirectory, const QString& a
 
 const PROJECT_FILE_STATE* PROJECT_LOCAL_SETTINGS::GetFileState( const QString& aFileName )
 {
+    std::string fileName = aFileName.toStdString();
     auto it = std::find_if( m_files.begin(), m_files.end(),
-                            [&aFileName]( const PROJECT_FILE_STATE &a )
+                            [&fileName]( const PROJECT_FILE_STATE &a )
                             {
-                                return a.fileName == aFileName;
+                                return a.fileName == fileName;
                             } );
 
     if( it != m_files.end() )
@@ -544,16 +546,17 @@ const PROJECT_FILE_STATE* PROJECT_LOCAL_SETTINGS::GetFileState( const QString& a
 void PROJECT_LOCAL_SETTINGS::SaveFileState( const QString& aFileName,
                                             const WINDOW_SETTINGS* aWindowCfg, bool aOpen )
 {
+    std::string fileName = aFileName.toStdString();
     auto it = std::find_if( m_files.begin(), m_files.end(),
-                            [&aFileName]( const PROJECT_FILE_STATE& a )
+                            [&fileName]( const PROJECT_FILE_STATE& a )
                             {
-                                return a.fileName == aFileName;
+                                return a.fileName == fileName;
                             } );
 
     if( it == m_files.end() )
     {
         PROJECT_FILE_STATE fileState;
-        fileState.fileName = aFileName;
+        fileState.fileName = fileName;
         fileState.open = false;
         fileState.window.maximized = false;
         fileState.window.size_x = -1;

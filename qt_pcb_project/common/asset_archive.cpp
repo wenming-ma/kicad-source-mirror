@@ -1,6 +1,7 @@
 #include <QFile>
 #include <QByteArray>
 #include <QBuffer>
+#include <cstring>
 
 #include <asset_archive.h>
 
@@ -98,10 +99,10 @@ long ASSET_ARCHIVE::GetFilePointer( const QString& aFilePath, const unsigned cha
 
     Q_ASSERT( aDest );
 
-    if( !m_fileInfoCache.contains( aFilePath ) )
+    if( m_fileInfoCache.find( aFilePath ) == m_fileInfoCache.end() )
         return -1;
 
-    const FILE_INFO& fi = m_fileInfoCache.value( aFilePath );
+    const FILE_INFO& fi = m_fileInfoCache.at( aFilePath );
 
     *aDest = &m_cache[fi.offset];
 

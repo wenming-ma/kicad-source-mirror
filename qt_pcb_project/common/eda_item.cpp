@@ -6,9 +6,8 @@
 #include <trace_helpers.h>
 #include <trigo.h>
 #include <i18n_utility.h>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QDebug>
-#include <QVector>
 #include <eda_pattern_match.h>
 
 EDA_ITEM::EDA_ITEM( EDA_ITEM* parent, KICAD_T idType, bool isSCH_ITEM, bool isBOARD_ITEM ) :
@@ -158,15 +157,22 @@ bool EDA_ITEM::Matches( const QString& aText, const EDA_SEARCH_DATA& aSearchData
     }
     else if( aSearchData.matchMode == EDA_SEARCH_MATCH_MODE::WILDCARD )
     {
-        return QRegExp( searchText, Qt::CaseSensitive, QRegExp::Wildcard ).exactMatch( text );
+        QRegularExpression regex;
+        QString pattern = QRegularExpression::wildcardToRegularExpression( searchText );
+        regex.setPattern( pattern );
+        if( !aSearchData.matchCase )
+            regex.setPatternOptions( QRegularExpression::CaseInsensitiveOption );
+        return regex.match( text ).hasMatch();
     }
     else if( aSearchData.matchMode == EDA_SEARCH_MATCH_MODE::REGEX )
     {
         if( aSearchData.regex_string != searchText || !aSearchData.regex.isValid() )
         {
-            Qt::CaseSensitivity caseSensitive = aSearchData.matchCase ? Qt::CaseSensitive : Qt::CaseInsensitive;
+            QRegularExpression::PatternOptions options = QRegularExpression::NoPatternOption;
+            if( !aSearchData.matchCase )
+                options |= QRegularExpression::CaseInsensitiveOption;
             aSearchData.regex.setPattern( searchText );
-            aSearchData.regex.setCaseSensitivity( caseSensitive );
+            aSearchData.regex.setPatternOptions( options );
             
             if( !aSearchData.regex.isValid() )
                 return false;
@@ -174,7 +180,7 @@ bool EDA_ITEM::Matches( const QString& aText, const EDA_SEARCH_DATA& aSearchData
             aSearchData.regex_string = searchText;
         }
 
-        return aSearchData.regex.indexIn( text ) != -1;
+        return aSearchData.regex.match( text ).hasMatch();
     }
     else
     {
@@ -194,9 +200,11 @@ bool EDA_ITEM::Replace( const EDA_SEARCH_DATA& aSearchData, QString& aText )
     {
         if( aSearchData.regex_string != searchText || !aSearchData.regex.isValid() )
         {
-            Qt::CaseSensitivity caseSensitive = aSearchData.matchCase ? Qt::CaseSensitive : Qt::CaseInsensitive;
+            QRegularExpression::PatternOptions options = QRegularExpression::NoPatternOption;
+            if( !aSearchData.matchCase )
+                options |= QRegularExpression::CaseInsensitiveOption;
             aSearchData.regex.setPattern( searchText );
-            aSearchData.regex.setCaseSensitivity( caseSensitive );
+            aSearchData.regex.setPatternOptions( options );
             
             if( !aSearchData.regex.isValid() )
                 return false;
@@ -299,10 +307,10 @@ const BOX2I EDA_ITEM::ViewBBox() const
 }
 
 
-QVector<int> EDA_ITEM::ViewGetLayers() const
+std::vector<int> EDA_ITEM::ViewGetLayers() const
 {
     // Basic fallback
-    QVector<int> layers{ 1 };
+    std::vector<int> layers{ 1 };
     return layers;
 }
 
@@ -432,4 +440,4 @@ static struct EDA_ITEM_DESC
     }
 } _EDA_ITEM_DESC;
 
-ENUM_TO_WXANY( KICAD_T );
+ENUM_TO_QVARIANT( KICAD_T );

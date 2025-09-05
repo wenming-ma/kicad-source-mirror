@@ -107,19 +107,21 @@ void GRPrintText( QPaintDevice* aDC, const VECTOR2I& aPos, const QColor& aColor,
         fill_mode = false;
     }
 
+    QPainter painter( aDC );
+
     CALLBACK_GAL callback_gal( empty_opts,
             // Stroke callback
             [&]( const VECTOR2I& aPt1, const VECTOR2I& aPt2 )
             {
                 if( fill_mode )
-                    GRLine( aDC, aPt1, aPt2, aWidth, aColor );
+                    GRLine( &painter, aPt1, aPt2, aWidth, aColor );
                 else
-                    GRCSegm( aDC, aPt1, aPt2, aWidth, aColor );
+                    GRCSegm( &painter, aPt1, aPt2, aWidth, aColor );
             },
             // Polygon callback
             [&]( const SHAPE_LINE_CHAIN& aPoly )
             {
-                GRClosedPoly( aDC, aPoly.PointCount(), aPoly.CPoints().data(), true, aColor );
+                GRClosedPoly( &painter, aPoly.PointCount(), aPoly.CPoints().data(), true, aColor );
             } );
 
     TEXT_ATTRIBUTES attributes;

@@ -413,14 +413,14 @@ std::vector<int> PCB_TEXTBOX::ViewGetLayers() const
 }
 
 
-wxString PCB_TEXTBOX::GetShownText( bool aAllowExtraText, int aDepth ) const
+QString PCB_TEXTBOX::GetShownText( bool aAllowExtraText, int aDepth ) const
 {
     const FOOTPRINT* parentFootprint = GetParentFootprint();
     const BOARD*     board = GetBoard();
 
-    std::function<bool( wxString* )> resolver = [&]( wxString* token ) -> bool
+    std::function<bool( QString* )> resolver = [&]( QString* token ) -> bool
     {
-        if( token->IsSameAs( wxT( "LAYER" ) ) )
+        if( *token == QString( "LAYER" ) )
         {
             *token = GetLayerName();
             return true;
@@ -435,7 +435,7 @@ wxString PCB_TEXTBOX::GetShownText( bool aAllowExtraText, int aDepth ) const
         return false;
     };
 
-    wxString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
+    QString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
 
     if( HasTextVars() )
     {
@@ -578,10 +578,10 @@ bool PCB_TEXTBOX::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) 
 }
 
 
-wxString PCB_TEXTBOX::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PCB_TEXTBOX::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "PCB Text Box '%s' on %s" ),
-                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ),
+    return QString( _( "PCB Text Box '%s' on %s" ) ).arg(
+                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) ).arg(
                              GetLayerName() );
 }
 

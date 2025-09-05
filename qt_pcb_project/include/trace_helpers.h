@@ -13,61 +13,61 @@
 
 // Trace environment variables for debug output control
 
-extern KICOMMON_API const QChar* const traceFindItem;
+extern KICOMMON_API const char* const traceFindItem;
 
-extern KICOMMON_API const QChar* const traceFindReplace;
+extern KICOMMON_API const char* const traceFindReplace;
 
-extern KICOMMON_API const QChar* const kicadTraceCoords;
+extern KICOMMON_API const char* const kicadTraceCoords;
 
-extern KICOMMON_API const QChar* const kicadTraceKeyEvent;
+extern KICOMMON_API const char* const kicadTraceKeyEvent;
 
-extern KICOMMON_API const QChar* const kicadTraceToolStack;
+extern KICOMMON_API const char* const kicadTraceToolStack;
 
-extern KICOMMON_API const QChar* const kicadTraceCoroutineStack;
+extern KICOMMON_API const char* const kicadTraceCoroutineStack;
 
-extern KICOMMON_API const QChar* const traceAutoSave;
+extern KICOMMON_API const char* const traceAutoSave;
 
-extern KICOMMON_API const QChar* const traceSchLibMem;
+extern KICOMMON_API const char* const traceSchLibMem;
 
-extern KICOMMON_API const QChar* const traceSchPlugin;
+extern KICOMMON_API const char* const traceSchPlugin;
 
-extern KICOMMON_API const QChar* const traceSchLegacyPlugin;
+extern KICOMMON_API const char* const traceSchLegacyPlugin;
 
-extern KICOMMON_API const QChar* const traceKicadPcbPlugin;
+extern KICOMMON_API const char* const traceKicadPcbPlugin;
 
-extern KICOMMON_API const QChar* const traceGedaPcbPlugin;
+extern KICOMMON_API const char* const traceGedaPcbPlugin;
 
-extern KICOMMON_API const QChar* const tracePrinting;
+extern KICOMMON_API const char* const tracePrinting;
 
-extern KICOMMON_API const QChar* const tracePathsAndFiles;
+extern KICOMMON_API const char* const tracePathsAndFiles;
 
-extern KICOMMON_API const QChar* const traceLocale;
+extern KICOMMON_API const char* const traceLocale;
 
-extern KICOMMON_API const QChar* const traceFonts;
+extern KICOMMON_API const char* const traceFonts;
 
-extern KICOMMON_API const QChar* const traceScreen;
+extern KICOMMON_API const char* const traceScreen;
 
-extern KICOMMON_API const QChar* const traceDisplayLocation;
+extern KICOMMON_API const char* const traceDisplayLocation;
 
-extern KICOMMON_API const QChar* const traceZoomScroll;
+extern KICOMMON_API const char* const traceZoomScroll;
 
-extern KICOMMON_API const QChar* const traceSymbolResolver;
+extern KICOMMON_API const char* const traceSymbolResolver;
 
-extern KICOMMON_API const QChar* const traceSchSheetPaths;
+extern KICOMMON_API const char* const traceSchSheetPaths;
 
-extern KICOMMON_API const QChar* const traceEnvVars;
+extern KICOMMON_API const char* const traceEnvVars;
 
-extern KICOMMON_API const QChar* const traceGalProfile;
+extern KICOMMON_API const char* const traceGalProfile;
 
-extern KICOMMON_API const QChar* const traceKiCad2Step;
+extern KICOMMON_API const char* const traceKiCad2Step;
 
-extern KICOMMON_API const QChar* const traceUiProfile;
+extern KICOMMON_API const char* const traceUiProfile;
 
-extern KICOMMON_API const QChar* const traceGit;
+extern KICOMMON_API const char* const traceGit;
 
-extern KICOMMON_API const QChar* const traceEagleIo;
+extern KICOMMON_API const char* const traceEagleIo;
 
-extern KICOMMON_API const QChar* const traceDesignBlocks;
+extern KICOMMON_API const char* const traceDesignBlocks;
 
 
 extern KICOMMON_API QString dump( const QKeyEvent& aEvent );
@@ -87,7 +87,7 @@ public:
 
     void Trace( const QString& aWhat, const QString& aFmt, ... );
 
-    void DoTrace( const QString aWhat, const QChar* aFmt, ... )
+    void DoTrace( const QString& aWhat, const char* aFmt, ... )
     {
         va_list argptr;
         va_start( argptr, aFmt );
@@ -102,9 +102,9 @@ private:
     void traceV( const QString& aWhat, const QString& aFmt, va_list vargs );
     void init();
 
-    std::map<QString, bool> m_enabledTraces;
-    bool                     m_globalTraceEnabled;
-    bool                     m_printAllTraces;
+    std::map<std::string, bool> m_enabledTraces;
+    bool                         m_globalTraceEnabled;
+    bool                         m_printAllTraces;
 };
 
 #define KI_TRACE( aWhat, ... )                                                                     \

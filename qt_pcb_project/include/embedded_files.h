@@ -6,7 +6,6 @@
 
 #include <QString>
 #include <QFileInfo>
-#include <QHash>
 
 #include <mmh3_hash.h>
 #include <picosha2.h>

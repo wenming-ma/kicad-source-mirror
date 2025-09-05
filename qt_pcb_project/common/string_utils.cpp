@@ -10,9 +10,10 @@
 #include <fmt/chrono.h>
 #include <QRegularExpression>
 #include <QString>
-#include <QStringList>
 #include <QChar>
 #include <QRegExp>
+#include <vector>
+#include <algorithm>
 #include "locale_io.h"
 
 
@@ -356,8 +357,8 @@ QString UnescapeString( const QString& aSource )
 
 QString TitleCaps( const QString& aString )
 {
-    QStringList words = aString.split( ' ' );
-    QString     result;
+    auto words = aString.split( ' ' );
+    QString result;
 
     result.reserve( aString.length() );
 
@@ -1285,7 +1286,7 @@ bool ReplaceIllegalFileNameChars( QString& aName, int aReplaceChar )
 }
 
 
-void QStringSplit( const QString& aText, QStringList& aStrings, QChar aSplitter )
+void QStringSplit( const QString& aText, std::vector<std::string>& aStrings, QChar aSplitter )
 {
     QString tmp;
 
@@ -1293,7 +1294,7 @@ void QStringSplit( const QString& aText, QStringList& aStrings, QChar aSplitter 
     {
         if( aText[ii] == aSplitter )
         {
-            aStrings.append( tmp );
+            aStrings.push_back( tmp.toStdString() );
             tmp.clear();
         }
         else
@@ -1303,7 +1304,7 @@ void QStringSplit( const QString& aText, QStringList& aStrings, QChar aSplitter 
     }
 
     if( !tmp.isEmpty() )
-        aStrings.append( tmp );
+        aStrings.push_back( tmp.toStdString() );
 }
 
 

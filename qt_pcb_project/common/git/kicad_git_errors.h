@@ -1,7 +1,8 @@
 #ifndef KICAD_GIT_ERRORS_H
 #define KICAD_GIT_ERRORS_H
 
-#include <QVector>
+#include <vector>
+#include <string>
 #include <QString>
 
 class KIGIT_ERRORS
@@ -11,40 +12,39 @@ public:
     KIGIT_ERRORS() = default;
     virtual ~KIGIT_ERRORS() = default;
 
-    const QVector<QString>& GetErrorStrings() const
+    std::vector<std::string> GetErrorStrings() const
     {
         return m_errorStrings;
     }
 
-    const QString& PeekErrorString() const
+    QString PeekErrorString() const
     {
         if( m_errorStrings.empty() )
         {
-            static const QString noError = "No error";
-            return noError;
+            return QString("No error");
         }
         else
-            return m_errorStrings.back();
+            return QString::fromStdString(m_errorStrings.back());
     }
 
     QString GetErrorString()
     {
         if( m_errorStrings.empty() )
-            return "No error";
+            return QString("No error");
 
-        const QString errorString( m_errorStrings.back() );
+        const std::string errorString = m_errorStrings.back();
         m_errorStrings.pop_back();
-        return errorString;
+        return QString::fromStdString(errorString);
     }
 
     void AddErrorString( const QString aErrorString )
     {
-        m_errorStrings.push_back( aErrorString );
+        m_errorStrings.push_back( aErrorString.toStdString() );
     }
 
     void AddErrorString( const std::string aErrorString )
     {
-        m_errorStrings.push_back( QString::fromStdString( aErrorString ) );
+        m_errorStrings.push_back( aErrorString );
     }
 
     void ClearErrorStrings()
@@ -53,7 +53,7 @@ public:
     }
 
 private:
-    QVector<QString> m_errorStrings;
+    std::vector<std::string> m_errorStrings;
 };
 
 #endif // KICAD_GIT_ERRORS_H

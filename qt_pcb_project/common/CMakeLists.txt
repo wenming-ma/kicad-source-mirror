@@ -239,6 +239,11 @@ target_link_libraries( common PUBLIC
     json_schema_validator
     ${wxWidgets_LIBRARIES}
     ${Boost_LIBRARIES}
+    # Qt libraries
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Gui
+    Qt6::Network
     # Third-party libraries (local)
     fmt
     libcontext

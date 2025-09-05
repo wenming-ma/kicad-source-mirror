@@ -1,13 +1,37 @@
 #include <grid_tricks.h>
 #include <QtCore/QString>
-#include <QtCore/QStringList>
 #include <QtGui/QClipboard>
 #include <QtCore/QDebug>
 #include <QtWidgets/QApplication>
 #include <QtCore/QTextStream>
 #include <QtWidgets/QMenu>
-#include <QtWidgets/QAction>
+#include <QtGui/QCursor>
+#include <QtCore/QMimeData>
 #include <widgets/grid_text_helpers.h>
+#include <vector>
+#include <string>
+
+// Utility functions for string splitting to replace QStringList functionality
+namespace {
+    std::vector<std::string> splitString(const QString& str, const QChar& separator, Qt::SplitBehavior behavior = Qt::KeepEmptyParts) {
+        QStringList qlist = str.split(separator, behavior);
+        std::vector<std::string> result;
+        result.reserve(qlist.size());
+        for (const QString& item : qlist) {
+            result.push_back(item.toStdString());
+        }
+        return result;
+    }
+    
+    QString joinStrings(const std::vector<std::string>& strings, const QChar& separator) {
+        QStringList qlist;
+        qlist.reserve(strings.size());
+        for (const std::string& str : strings) {
+            qlist.push_back(QString::fromStdString(str));
+        }
+        return qlist.join(separator);
+    }
+}
 
 #define COL_SEP     QLatin1Char( '\t' )
 #define ROW_SEP     QLatin1Char( '\n' )
@@ -59,9 +83,7 @@ void GRID_TRICKS::init()
 
 bool GRID_TRICKS::isTextEntry( int aRow, int aCol )
 {
-    QWidget* editor = m_grid->GetCellEditor( aRow, aCol );
-    bool retval = m_grid->IsTextEntry( aRow, aCol );
-    return retval;
+    return m_grid->IsTextEntry( aRow, aCol );
 }
 
 
@@ -127,7 +149,7 @@ bool GRID_TRICKS::showEditor( int aRow, int aCol )
 
         if( m_grid->GetSelectionMode() == QT_GRID::SelectRows )
         {
-            QVector<int> rows = m_grid->GetSelectedRows();
+            std::vector<int> rows = m_grid->GetSelectedRows();
             if( rows.size() != 1 || rows[0] != aRow )
                 m_grid->SelectRow( aRow );
         }
@@ -213,26 +235,26 @@ bool GRID_TRICKS::handleDoubleClick( int row, int col )
 
 void GRID_TRICKS::getSelectedArea()
 {
-    QVector<QVector<int>> blocks = m_grid->GetSelectionBlockTopLeft();
-    QVector<QVector<int>> botRight = m_grid->GetSelectionBlockBottomRight();
-    QVector<int> cols = m_grid->GetSelectedCols();
-    QVector<int> rows = m_grid->GetSelectedRows();
+    std::vector<std::vector<int>> blocks = m_grid->GetSelectionBlockTopLeft();
+    std::vector<std::vector<int>> botRight = m_grid->GetSelectionBlockBottomRight();
+    std::vector<int> cols = m_grid->GetSelectedCols();
+    std::vector<int> rows = m_grid->GetSelectedRows();
 
-    if( !blocks.isEmpty() && !botRight.isEmpty() )
+    if( !blocks.empty() && !botRight.empty() )
     {
         m_sel_row_start = blocks[0][0];
         m_sel_col_start = blocks[0][1];
         m_sel_row_count = botRight[0][0] - m_sel_row_start + 1;
         m_sel_col_count = botRight[0][1] - m_sel_col_start + 1;
     }
-    else if( !cols.isEmpty() )
+    else if( !cols.empty() )
     {
         m_sel_col_start = cols[0];
         m_sel_col_count = cols.size();
         m_sel_row_start = 0;
         m_sel_row_count = m_grid->GetNumberRows();
     }
-    else if( !rows.isEmpty() )
+    else if( !rows.empty() )
     {
         m_sel_col_start = 0;
         m_sel_col_count = m_grid->GetNumberCols();
@@ -289,9 +311,9 @@ void GRID_TRICKS::showPopupMenu( QMenu& menu, int row, int col )
     Q_UNUSED( row )
     Q_UNUSED( col )
     
-    QAction* cutAction = menu.addAction( tr("Cut") + "\tCtrl+X" );
+    QAction* cutAction = menu.addAction( QObject::tr("Cut") + "\tCtrl+X" );
     cutAction->setData( GRIDTRICKS_ID_CUT );
-    QAction* copyAction = menu.addAction( tr("Copy") + "\tCtrl+C" );
+    QAction* copyAction = menu.addAction( QObject::tr("Copy") + "\tCtrl+C" );
     copyAction->setData( GRIDTRICKS_ID_COPY );
     
     QAction* pasteAction = nullptr;
@@ -299,13 +321,13 @@ void GRID_TRICKS::showPopupMenu( QMenu& menu, int row, int col )
     
     if( m_multiCellEditEnabled )
     {
-        pasteAction = menu.addAction( tr("Paste") + "\tCtrl+V" );
+        pasteAction = menu.addAction( QObject::tr("Paste") + "\tCtrl+V" );
         pasteAction->setData( GRIDTRICKS_ID_PASTE );
-        deleteAction = menu.addAction( tr("Delete") + "\tDel" );
+        deleteAction = menu.addAction( QObject::tr("Delete") + "\tDel" );
         deleteAction->setData( GRIDTRICKS_ID_DELETE );
     }
 
-    QAction* selectAllAction = menu.addAction( tr("Select All") + "\tCtrl+A" );
+    QAction* selectAllAction = menu.addAction( QObject::tr("Select All") + "\tCtrl+A" );
     selectAllAction->setData( GRIDTRICKS_ID_SELECT );
 
     cutAction->setEnabled( false );
@@ -494,23 +516,23 @@ void GRID_TRICKS::onKeyDown( QKeyEvent* ev )
 
         if( m_grid->GetSelectionMode() == QT_GRID::SelectRows )
         {
-            QVector<int> rowSel = m_grid->GetSelectedRows();
+            std::vector<int> rowSel = m_grid->GetSelectedRows();
             for( int rowInd = 0; rowInd < rowSel.size(); rowInd++ )
                 retVal |= toggleCell( rowSel[rowInd], 0, true );
         }
         else if( m_grid->GetSelectionMode() == QT_GRID::SelectColumns )
         {
-            QVector<int> colSel = m_grid->GetSelectedCols();
+            std::vector<int> colSel = m_grid->GetSelectedCols();
             for( int colInd = 0; colInd < colSel.size(); colInd++ )
                 retVal |= toggleCell( 0, colSel[colInd], true );
         }
         else if( m_grid->GetSelectionMode() == QT_GRID::SelectCells )
         {
-            QVector<int> rowSel = m_grid->GetSelectedRows();
-            QVector<int> colSel = m_grid->GetSelectedCols();
-            QVector<QVector<int>> cellSel = m_grid->GetSelectedCells();
-            QVector<QVector<int>> topLeft = m_grid->GetSelectionBlockTopLeft();
-            QVector<QVector<int>> botRight = m_grid->GetSelectionBlockBottomRight();
+            std::vector<int> rowSel = m_grid->GetSelectedRows();
+            std::vector<int> colSel = m_grid->GetSelectedCols();
+            std::vector<std::vector<int>> cellSel = m_grid->GetSelectedCells();
+            std::vector<std::vector<int>> topLeft = m_grid->GetSelectionBlockTopLeft();
+            std::vector<std::vector<int>> botRight = m_grid->GetSelectionBlockBottomRight();
 
             for( int cellInd = 0; cellInd < cellSel.size(); cellInd++ )
             {
@@ -531,8 +553,8 @@ void GRID_TRICKS::onKeyDown( QKeyEvent* ev )
 
             for( int blockInd = 0; blockInd < topLeft.size(); blockInd++ )
             {
-                QVector<int> start = topLeft[blockInd];
-                QVector<int> end = botRight[blockInd];
+                std::vector<int> start = topLeft[blockInd];
+                std::vector<int> end = botRight[blockInd];
 
                 for( int row = start[0]; row <= end[0]; row++ )
                 {
@@ -742,7 +764,7 @@ void GRID_TRICKS::onUpdateUI()
         int cursorRow = m_grid->GetGridCursorRow();
         bool cursorInSelectedRow = false;
 
-        QVector<int> selectedRows = m_grid->GetSelectedRows();
+        std::vector<int> selectedRows = m_grid->GetSelectedRows();
         for( int row : selectedRows )
         {
             if( row == cursorRow )

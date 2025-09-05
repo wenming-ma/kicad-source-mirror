@@ -204,7 +204,7 @@ public:
     }
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
-    wxString GetFriendlyName() const override;
+    QString GetFriendlyName() const override;
 
     INSPECT_RESULT Visit( INSPECTOR inspector, void* testData,
                           const std::vector<KICAD_T>& aScanTypes ) override;
@@ -214,14 +214,14 @@ public:
 
     bool ApproxCollinear( const PCB_TRACK& aTrack );
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "PCB_TRACK" );
+        return QStringLiteral( "PCB_TRACK" );
     }
 
-    virtual MINOPTMAX<int> GetWidthConstraint( wxString* aSource = nullptr ) const;
+    virtual MINOPTMAX<int> GetWidthConstraint( QString* aSource = nullptr ) const;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -326,9 +326,9 @@ public:
 
     bool IsCCW() const;
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "PCB_ARC" );
+        return QStringLiteral( "PCB_ARC" );
     }
 
     // @copydoc BOARD_ITEM::GetEffectiveShape
@@ -448,8 +448,8 @@ public:
 
     std::shared_ptr<SHAPE_SEGMENT> GetEffectiveHoleShape() const override;
 
-    MINOPTMAX<int> GetWidthConstraint( wxString* aSource = nullptr ) const override;
-    MINOPTMAX<int> GetDrillConstraint( wxString* aSource = nullptr ) const;
+    MINOPTMAX<int> GetWidthConstraint( QString* aSource = nullptr ) const override;
+    MINOPTMAX<int> GetDrillConstraint( QString* aSource = nullptr ) const;
 
     void SetFrontTentingMode( TENTING_MODE aMode );
     TENTING_MODE GetFrontTentingMode() const;
@@ -509,12 +509,12 @@ public:
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "PCB_VIA" );
+        return QStringLiteral( "PCB_VIA" );
     }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -674,7 +674,7 @@ public:
 protected:
     void swapData( BOARD_ITEM* aImage ) override;
 
-    wxString layerMaskDescribe() const override;
+    QString layerMaskDescribe() const override;
 
 private:
     // Silence GCC warning about hiding the PCB_TRACK base method

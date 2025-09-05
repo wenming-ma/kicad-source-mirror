@@ -21,7 +21,9 @@ public:
 
     QModelIndex GetNextSibling( const QModelIndex& aItem );
 
-    void DoSetToolTipText( const QString &tip ) override {}
+    void DoSetToolTipText( const QString &tip ) { setToolTip(tip); }
+
+    int GetSelectedItemsCount() { return selectionModel()->selectedIndexes().size(); }
 
     void ExpandAll();
     void CollapseAll();

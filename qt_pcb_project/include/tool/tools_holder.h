@@ -2,7 +2,6 @@
 #ifndef  TOOL_HOLDER_H
 #define  TOOL_HOLDER_H
 
-#include <QVector>
 #include <QString>
 #include <QWidget>
 #include <vector>

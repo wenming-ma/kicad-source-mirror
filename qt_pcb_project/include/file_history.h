@@ -7,8 +7,11 @@
 #include <tool/selection_conditions.h>
 #include <QObject>
 #include <QString>
-#include <QStringList>
 #include <QMenu>
+#include <QList>
+#include <QAction>
+#include <vector>
+#include <string>
 
 
 class APP_SETTINGS_BASE;
@@ -22,9 +25,9 @@ public:
             QString aClearText = tr( "Clear Recent Files" ) );
 
     void Load( const APP_SETTINGS_BASE& aSettings );
-    void Load( const std::vector<QString>& aList );
+    void Load( const std::vector<std::string>& aList );
     void Save( APP_SETTINGS_BASE& aSettings );
-    void Save( std::vector<QString>* aList );
+    void Save( std::vector<std::string>* aList );
 
     void AddFileToHistory( const QString& aFile );
 
@@ -41,6 +44,12 @@ public:
     void UpdateClearText( QMenu* aMenu, QString aClearText );
     void ClearFileHistory();
 
+    size_t GetCount() const;
+    QString GetHistoryFile( size_t index ) const;
+    void RemoveFileFromHistory( size_t index );
+    void AddFileMenu( QMenu* aMenu );
+    void RemoveFileMenu( QMenu* aMenu );
+
     static SELECTION_CONDITION FileHistoryNotEmpty( const FILE_HISTORY& aHistory );
 
 protected:
@@ -50,7 +59,8 @@ protected:
 private:
     static bool isHistoryNotEmpty( const SELECTION& aSelection, const FILE_HISTORY& aHistory );
 
-    QStringList m_fileHistory;
+    std::vector<std::string> m_fileHistory;
+    QList<QMenu*>           m_fileMenus;
     size_t      m_maxFiles;
     int         m_baseFileId;
     int         m_clearId;

@@ -12,6 +12,8 @@
 #include <QObject>
 #include <QString>
 #include <QAction>
+#include <QMimeData>
+#include <QClipboard>
 #include <widgets/qt_grid.h>
 
 #define GRIDTRICKS_MAX_COL 50

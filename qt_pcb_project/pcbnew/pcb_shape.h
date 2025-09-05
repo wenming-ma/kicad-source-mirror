@@ -53,9 +53,9 @@ public:
         return aItem && PCB_SHAPE_T == aItem->Type();
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "PCB_SHAPE" );
+        return QStringLiteral( "PCB_SHAPE" );
     }
 
     //void Serialize( google::protobuf::Any &aContainer ) const override;
@@ -63,7 +63,7 @@ public:
 
     bool IsConnected() const override;
 
-    wxString GetFriendlyName() const override { return getFriendlyName(); }
+    QString GetFriendlyName() const override { return getFriendlyName(); }
 
     bool IsType( const std::vector<KICAD_T>& aScanTypes ) const override;
 
@@ -163,7 +163,7 @@ public:
                                   int aError, ERROR_LOC aErrorLoc,
                                   bool ignoreLineWidth = false ) const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 

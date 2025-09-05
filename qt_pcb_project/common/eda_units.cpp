@@ -6,8 +6,10 @@
 #include <charconv>
 #include <QString>
 #include <QLocale>
+#include <QObject>
 
-
+// Define translation macro for Qt compatibility
+#define _( x ) QObject::tr( x )
 static void removeTrailingZeros( QString& aText )
 {
     int len = aText.length();
@@ -453,12 +455,12 @@ double EDA_UNIT_UTILS::UI::DoubleValueFromString( const QString& aTextValue )
     // Acquire the 'right' decimal point separator
     QLocale locale;
 
-    QChar   decimal_point = locale.decimalPoint();
+    QChar   decimal_point = locale.decimalPoint().at(0);
     QString buf( aTextValue.trimmed() );
 
     // Convert any entered decimal point separators to the 'right' one
-    buf.replace( ".", QString( decimal_point ) );
-    buf.replace( ",", QString( decimal_point ) );
+    buf.replace( QChar('.'), decimal_point );
+    buf.replace( QChar(','), decimal_point );
 
     // Find the end of the numeric part
     unsigned brk_point = 0;
@@ -491,12 +493,12 @@ double EDA_UNIT_UTILS::UI::DoubleValueFromString( const EDA_IU_SCALE& aIuScale, 
     // Acquire the 'right' decimal point separator
     QLocale locale;
 
-    QChar      decimal_point = locale.decimalPoint();
+    QChar      decimal_point = locale.decimalPoint().at(0);
     QString    buf( aTextValue.trimmed() );
 
     // Convert any entered decimal point separators to the 'right' one
-    buf.replace( ".", QString( decimal_point ) );
-    buf.replace( ",", QString( decimal_point ) );
+    buf.replace( QChar('.'), decimal_point );
+    buf.replace( QChar(','), decimal_point );
 
     // Find the end of the numeric part
     unsigned brk_point = 0;

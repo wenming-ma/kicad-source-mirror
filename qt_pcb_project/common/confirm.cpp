@@ -8,6 +8,9 @@
 #include <QTextStream>
 #include <QDebug>
 #include <QObject>
+#include <QAbstractButton>
+#include <QPushButton>
+#include <QCoreApplication>
 
 // Define translation macro for Qt compatibility
 #define _(x) QObject::tr(x)
@@ -30,7 +33,7 @@ bool AskOverrideLock( QWidget* aParent, const QString& aMessage )
     msgBox.setDefaultButton( cancelBtn );
     msgBox.exec();
     
-    return msgBox.clickedButton() == static_cast<QAbstractButton*>(openBtn);
+    return msgBox.clickedButton() == openBtn;
 }
 
 
@@ -146,7 +149,7 @@ void DisplayError( QWidget* aParent, const QString& aText, int aDisplayTime )
         return;
     }
 
-    if( app->type() == QApplication::Tty )
+    if( QCoreApplication::instance() && !QCoreApplication::instance()->inherits("QApplication") )
     {
         QTextStream( stderr ) << aText << Qt::endl;
         return;
@@ -171,7 +174,7 @@ void DisplayErrorMessage( QWidget* aParent, const QString& aText, const QString&
         return;
     }
 
-    if( app->type() == QApplication::Tty )
+    if( QCoreApplication::instance() && !QCoreApplication::instance()->inherits("QApplication") )
     {
         QTextStream( stderr ) << aText << Qt::endl;
         return;
@@ -199,7 +202,7 @@ void DisplayInfoMessage( QWidget* aParent, const QString& aMessage, const QStrin
         return;
     }
 
-    if( app->type() == QApplication::Tty )
+    if( QCoreApplication::instance() && !QCoreApplication::instance()->inherits("QApplication") )
     {
         QTextStream( stdout ) << aMessage << " " << aExtraInfo << Qt::endl;
         return;

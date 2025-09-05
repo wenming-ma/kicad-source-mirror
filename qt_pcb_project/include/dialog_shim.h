@@ -7,6 +7,7 @@
 #include <QDialog>
 #include <QEvent>
 #include <QKeyEvent>
+#include <QObject>
 #include <QPaintEvent>
 #include <QCloseEvent>
 #include <QMoveEvent>
@@ -24,10 +25,10 @@ class QEventLoop;
 class KICOMMON_API DIALOG_SHIM : public QDialog, public KIWAY_HOLDER
 {
 public:
-    DIALOG_SHIM( QWidget* aParent, int id, const QString& title,
+    DIALOG_SHIM( QWidget* aParent, int id = -1, const QString& title = QString(),
                  const QPoint& pos = QPoint(-1, -1),
                  const QSize& size = QSize(-1, -1),
-                 Qt::WindowFlags style = Qt::WindowTitleHint | Qt::WindowSystemMenuHint | Qt::WindowCloseButtonHint,
+                 long style = 0,
                  const QString& name = QString() );
 
     ~DIALOG_SHIM();
@@ -48,11 +49,14 @@ public:
     void PrepareForModalSubDialog();
     void CleanupAfterModalSubDialog();
 
-    void show();
+    bool Show( bool show = true );
 
-    bool setEnabled( bool enable );
+    bool Enable( bool enable );
 
     void paintEvent( QPaintEvent* event );
+
+    virtual bool Validate() { return true; }
+    virtual bool TransferDataFromWindow() { return true; }
 
     void OnModify();
     void ClearModify();
@@ -64,7 +68,7 @@ public:
         return m_units;
     }
 
-    void SelectAllInTextCtrls( QList<QWidget*>& children );
+    void SelectAllInTextCtrls( const QList<QWidget*>& children );
 
     void SetupStandardButtons( std::map<int, QString> aLabels = {} );
 
@@ -95,6 +99,8 @@ protected:
 
     virtual void keyPressEvent( QKeyEvent* aEvt );
 
+    virtual bool eventFilter( QObject* watched, QEvent* event ) override;
+
     virtual void TearDownQuasiModal() {}
 
 private:
@@ -106,6 +112,8 @@ private:
     void buttonClicked();
 
     void onChildSetFocus( QFocusEvent* aEvent );
+
+    void OnButton( int id );
 
 protected:
     EDA_UNITS              m_units;    // userUnits for display and parsing

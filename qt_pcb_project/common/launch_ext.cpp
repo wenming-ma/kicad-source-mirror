@@ -2,14 +2,18 @@
 #include <QProcess>
 #include <QDesktopServices>
 #include <QUrl>
+#include <vector>
+#include <string>
 
 bool LaunchExternal( const QString& aPath )
 {
 #ifdef Q_OS_MAC
 
     QProcess process;
+    std::vector<std::string> argsVec = { aPath.toStdString() };
     QStringList args;
-    args << aPath;
+    for( const std::string& arg : argsVec )
+        args << QString::fromStdString( arg );
     return process.startDetached("open", args);
 
 #else

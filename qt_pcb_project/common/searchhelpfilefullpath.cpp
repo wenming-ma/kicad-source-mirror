@@ -4,7 +4,8 @@
 #include <systemdirsappend.h>
 #include <trace_helpers.h>
 
-#include <QStringList>
+#include <vector>
+#include <string>
 #include <QLoggingCategory>
 
 
@@ -31,20 +32,20 @@ QString SearchHelpFileFullPath( const QString& aBaseName )
     // located in a folder named "help". If no translation matching the current locale settings is
     // available, the English version will be returned instead.
 
-    wxLocale*    currentLocale = Pgm().GetLocale();
-    QStringList  localeNameDirs;
+    wxLocale*                currentLocale = Pgm().GetLocale();
+    std::vector<std::string> localeNameDirs;
 
     // canonical form of the current locale (e.g., "fr_FR")
-    localeNameDirs.append( currentLocale->GetCanonicalName() );
+    localeNameDirs.push_back( currentLocale->GetCanonicalName().toStdString() );
 
     // short form of the current locale (e.g., "fr")
     // wxLocale::GetName() does not always return the short form
-    localeNameDirs.append( currentLocale->GetName().BeforeLast( '_' ) );
+    localeNameDirs.push_back( currentLocale->GetName().BeforeLast( '_' ).toStdString() );
 
     // plain English (in case a localised version of the help file cannot be found)
-    localeNameDirs.append( "en" );
+    localeNameDirs.push_back( "en" );
 
-    for( QString& locale : localeNameDirs )
+    for( const std::string& locale : localeNameDirs )
     {
         SEARCH_STACK docPaths;
 
@@ -54,7 +55,7 @@ QString SearchHelpFileFullPath( const QString& aBaseName )
 
             // add <base>/help/<locale>/
             path.AppendDir( "help" );
-            path.AppendDir( locale );
+            path.AppendDir( QString::fromStdString( locale ) );
             docPaths.AddPaths( path.GetPath() );
 
             // add <base>/doc/help/<locale>/
@@ -67,7 +68,7 @@ QString SearchHelpFileFullPath( const QString& aBaseName )
         }
 
 #if defined( DEBUG )
-        docPaths.Show( QString( __func__ ) + ": docPaths (" + locale + ")" );
+        docPaths.Show( QString( __func__ ) + ": docPaths (" + QString::fromStdString( locale ) + ")" );
 #endif
 
         // search HTML first, as it is the preferred format for help files

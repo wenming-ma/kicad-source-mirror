@@ -7,7 +7,8 @@
 #include <mutex>
 #include <set>
 #include <QString>
-#include <QVector>
+#include <vector>
+#include <string>
 
 class KIGIT_COMMON
 {
@@ -26,15 +27,15 @@ public:
 
     QString GetCurrentBranchName() const;
 
-    QVector<QString> GetBranchNames() const;
+    std::vector<std::string> GetBranchNames() const;
 
     /**
      * Return a vector of project files in the repository.  Sorted by the depth of
      * the project file in the directory tree
      *
-     * @return QVector<QString> of project files
+     * @return std::vector<std::string> of project files
      */
-    QVector<QString> GetProjectDirs();
+    std::vector<std::string> GetProjectDirs();
 
     /**
      * Return a pair of sets of files that differ locally from the remote repository
@@ -98,7 +99,7 @@ public:
         if( m_nextPublicKey >= static_cast<int>( m_publicKeys.size() ) )
             return QString();
 
-        return m_publicKeys[m_nextPublicKey++];
+        return QString::fromStdString(m_publicKeys[m_nextPublicKey++]);
     }
 
     void SetRemote( const QString& aRemote )
@@ -145,7 +146,7 @@ private:
     void updatePublicKeys();
     void updateConnectionType();
 
-    QVector<QString> m_publicKeys;
+    std::vector<std::string> m_publicKeys;
     int m_nextPublicKey;
 
     // Create a dummy flag to tell if we have tested ssh agent credentials separately

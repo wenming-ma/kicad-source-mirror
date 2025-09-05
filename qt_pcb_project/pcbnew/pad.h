@@ -836,9 +836,9 @@ public:
     */
     std::vector<PCB_SHAPE*> Recombine( bool aIsDryRun, int aMaxError );
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "PAD" );
+        return QString( "PAD" );
     }
 
     /**
@@ -863,7 +863,7 @@ public:
 
     void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 

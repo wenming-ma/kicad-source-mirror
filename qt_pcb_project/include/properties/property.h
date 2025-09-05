@@ -22,6 +22,8 @@
 #include <typeindex>
 #include <type_traits>
 #include <algorithm>
+#include <vector>
+#include <string>
 #include "std_optional_variants.h"
 
 // std::hash<QString> is already defined in Qt 6.9.1
@@ -491,7 +493,11 @@ public:
     {
         if ( std::is_enum<T>::value )
         {
-            m_choices = ENUM_MAP<T>::Instance().Choices();
+            QStringList qtChoices = ENUM_MAP<T>::Instance().Choices();
+            m_choices.clear();
+            for (const QString& choice : qtChoices) {
+                m_choices.push_back(choice.toStdString());
+            }
             Q_ASSERT_X( m_choices.size() > 0, "PROPERTY_ENUM", "No enum choices defined" );
         }
     }
@@ -509,7 +515,11 @@ public:
     {
         if ( std::is_enum<T>::value )
         {
-            m_choices = ENUM_MAP<T>::Instance().Choices();
+            QStringList qtChoices = ENUM_MAP<T>::Instance().Choices();
+            m_choices.clear();
+            for (const QString& choice : qtChoices) {
+                m_choices.push_back(choice.toStdString());
+            }
             Q_ASSERT_X( m_choices.size() > 0, "PROPERTY_ENUM", "No enum choices defined" );
         }
     }
@@ -545,12 +555,25 @@ public:
 
     const QStringList& Choices() const override
     {
-        return m_choices.size() > 0 ? m_choices : ENUM_MAP<T>::Instance().Choices();
+        // Convert std::vector<std::string> to QStringList for Qt compatibility
+        static QStringList qtChoices;
+        if (m_choices.size() > 0) {
+            qtChoices.clear();
+            for (const auto& choice : m_choices) {
+                qtChoices.append(QString::fromStdString(choice));
+            }
+            return qtChoices;
+        } else {
+            return ENUM_MAP<T>::Instance().Choices();
+        }
     }
 
     void SetChoices( const QStringList& aChoices ) override
     {
-        m_choices = aChoices;
+        m_choices.clear();
+        for (const auto& choice : aChoices) {
+            m_choices.push_back(choice.toStdString());
+        }
     }
 
     bool HasChoices() const override
@@ -559,7 +582,7 @@ public:
     }
 
 protected:
-    QStringList m_choices;
+    std::vector<std::string> m_choices;
 };
 
 
@@ -618,7 +641,7 @@ public:
 
     ENUM_MAP& Map( T aValue, const QString& aName )
     {
-        m_choices.append( aName );
+        m_choices.push_back( aName.toStdString() );
         m_reverseMap[ aName ] = aValue;
         return *this;
     }
@@ -660,11 +683,17 @@ public:
 
     QStringList& Choices()
     {
-        return m_choices;
+        // Convert std::vector<std::string> to QStringList for Qt compatibility
+        static QStringList qtChoices;
+        qtChoices.clear();
+        for (const auto& choice : m_choices) {
+            qtChoices.append(QString::fromStdString(choice));
+        }
+        return qtChoices;
     }
 
 private:
-    QStringList                     m_choices;
+    std::vector<std::string>        m_choices;
     std::unordered_map<QString, T>  m_reverseMap;
     T                               m_undefined;
 

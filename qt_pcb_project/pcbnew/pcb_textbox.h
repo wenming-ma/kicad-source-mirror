@@ -67,7 +67,7 @@ public:
     //void Serialize( google::protobuf::Any &aContainer ) const override;
     //bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
-    wxString GetFriendlyName() const override { return _( "Text Box" ); }
+    QString GetFriendlyName() const override { return _( "Text Box" ); }
 
     VECTOR2I GetTopLeft() const override;
     VECTOR2I GetBotRight() const override;
@@ -96,7 +96,7 @@ public:
 
     void SetTextAngle( const EDA_ANGLE& aAngle ) override;
 
-    wxString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override;
+    QString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override;
 
     bool Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const override;
 
@@ -114,9 +114,9 @@ public:
 
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "PCB_TEXTBOX" );
+        return QString( "PCB_TEXTBOX" );
     }
 
     /**
@@ -139,7 +139,7 @@ public:
     std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
                                               FLASHING aFlash = FLASHING::DEFAULT ) const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 

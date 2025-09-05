@@ -1,7 +1,7 @@
 #ifndef WXSTREAM_HELPER_H
 #define WXSTREAM_HELPER_H
 
-#include <QVector>
+#include <vector>
 #include <QIODevice>
 #include <QDebug>
 
@@ -10,7 +10,7 @@ static bool CopyStreamData( QIODevice& inputStream, QIODevice& outputStream,
                             qint64 size )
 {
     constexpr size_t bufSize = 128 * 1024;
-    QVector<char> buf( bufSize );
+    std::vector<char> buf( bufSize );
 
     qint64 copiedData = 0;
     qint64 readSize   = bufSize;

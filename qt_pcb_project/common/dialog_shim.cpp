@@ -11,6 +11,7 @@
 
 #include <QApplication>
 #include <QWidget>
+#include <QCoreApplication>
 #include <QDialog>
 #include <QTextEdit>
 #include <QLineEdit>
@@ -29,13 +30,18 @@
 #include <QPushButton>
 #include <QSizePolicy>
 #include <QTextCursor>
-#include <QDesktopWidget>
+#include <QScreen>
+#include <QGuiApplication>
 #include <QDialogButtonBox>
 #include <QAbstractButton>
 #include <QList>
 #include <QtGlobal>
+#include <QObject>
 
 #include <algorithm>
+
+// Internationalization macro
+#define _(s) QCoreApplication::translate("", (s))
 
 
 DIALOG_SHIM::DIALOG_SHIM( QWidget* aParent, int id, const QString& title,
@@ -67,9 +73,9 @@ DIALOG_SHIM::DIALOG_SHIM( QWidget* aParent, int id, const QString& title,
     {
         kiwayHolder = dynamic_cast<KIWAY_HOLDER*>( aParent );
 
-        while( !kiwayHolder && aParent->GetParent() )
+        while( !kiwayHolder && aParent->parentWidget() )
         {
-            aParent = aParent->GetParent();
+            aParent = aParent->parentWidget();
             kiwayHolder = dynamic_cast<KIWAY_HOLDER*>( aParent );
         }
     }
@@ -121,13 +127,13 @@ DIALOG_SHIM::~DIALOG_SHIM()
                 {
                     if( QLineEdit* textCtrl = qobject_cast<QLineEdit*>( child ) )
                     {
-                        disconnect( textCtrl, &QWidget::focusInEvent,
-                                    this, &DIALOG_SHIM::onChildSetFocus );
+                        // Qt handles focus events through event filters, not signals
+                        textCtrl->removeEventFilter( this );
                     }
                     else if( QTextEdit* textEdit = qobject_cast<QTextEdit*>( child ) )
                     {
-                        disconnect( textEdit, &QWidget::focusInEvent,
-                                    this, &DIALOG_SHIM::onChildSetFocus );
+                        // Qt handles focus events through event filters, not signals
+                        textEdit->removeEventFilter( this );
                     }
                     else
                     {
@@ -209,7 +215,7 @@ void DIALOG_SHIM::SetPosition( const QPoint& aNewPosition )
     if( it == class_map.end() )
         return;
 
-    QRect rect = it.value();
+    QRect rect = it->second;
     rect.moveTopLeft( aNewPosition );
 
     class_map[ hash_key ] = rect;
@@ -238,7 +244,8 @@ bool DIALOG_SHIM::Show( bool show )
 #ifndef Q_OS_WIN
         raise();
 #endif
-        ret = setVisible( show );
+        this->setVisible( show );
+        ret = this->isVisible();
 
         // classname is key, returns a zeroed-out default QRect if none existed before.
         QRect savedDialogRect = class_map[ hash_key ];
@@ -260,10 +267,10 @@ bool DIALOG_SHIM::Show( bool show )
             if( parentWidget() != nullptr )
             {
                 QRect parentRect = parentWidget()->geometry();
-                if( QApplication::desktop()->screenNumber( parentRect.center() )
-                    != QApplication::desktop()->screenNumber( savedDialogRect.center() ) )
+                if( QGuiApplication::screenAt( parentRect.center() )
+                    != QGuiApplication::screenAt( savedDialogRect.center() ) )
                 {
-                    move( QApplication::desktop()->availableGeometry().center() - rect().center() );
+                    move( QGuiApplication::primaryScreen()->availableGeometry().center() - rect().center() );
                 }
             }
 #endif
@@ -271,14 +278,14 @@ bool DIALOG_SHIM::Show( bool show )
         else if( m_initialSize != QSize() )
         {
             resize( m_initialSize );
-            move( QApplication::desktop()->availableGeometry().center() - rect().center() );
+            move( QGuiApplication::primaryScreen()->availableGeometry().center() - rect().center() );
         }
 
         // Be sure that the dialog appears in a visible area
         // (the dialog position might have been stored at the time when it was
         // shown on another display)
-        if( QApplication::desktop()->screenNumber( this ) == -1 )
-            move( QApplication::desktop()->availableGeometry().center() - rect().center() );
+        if( !QGuiApplication::screenAt( mapToGlobal( rect().center() ) ) )
+            move( QGuiApplication::primaryScreen()->availableGeometry().center() - rect().center() );
 
         m_userPositioned = false;
         m_userResized = false;
@@ -303,7 +310,8 @@ bool DIALOG_SHIM::Show( bool show )
             m_eventLoop->exit( result() );
 #endif
 
-        ret = setVisible( show );
+        this->setVisible( show );
+        ret = this->isVisible();
 
         if( parentWidget() )
             parentWidget()->setFocus();
@@ -332,7 +340,7 @@ void DIALOG_SHIM::resetSize()
     if( it == class_map.end() )
         return;
 
-    QRect rect = it.value();
+    QRect rect = it->second;
     rect.setSize( QSize( 0, 0 ) );
     class_map[ hash_key ] = rect;
 }
@@ -355,8 +363,8 @@ void DIALOG_SHIM::moveEvent( QMoveEvent* aEvent )
 bool DIALOG_SHIM::Enable( bool enable )
 {
     // so we can do logging of this state change:
-    setEnabled( enable );
-    return isEnabled();
+    this->setEnabled( enable );
+    return this->isEnabled();
 }
 
 
@@ -370,8 +378,8 @@ void DIALOG_SHIM::SelectAllInTextCtrls( const QList<QWidget*>& children )
         if( QLineEdit* textCtrl = qobject_cast<QLineEdit*>( child ) )
         {
             m_beforeEditValues[ textCtrl ] = textCtrl->text();
-            connect( textCtrl, &QWidget::focusInEvent,
-                     this, &DIALOG_SHIM::onChildSetFocus );
+            // Qt handles focus events through event filters
+            textCtrl->installEventFilter( this );
 
             // We don't currently run this on GTK because some window managers don't hide the
             // selection in non-active controls, and other window managers do the selection
@@ -392,8 +400,8 @@ void DIALOG_SHIM::SelectAllInTextCtrls( const QList<QWidget*>& children )
         else if( QTextEdit* textEdit = qobject_cast<QTextEdit*>( child ) )
         {
             m_beforeEditValues[ textEdit ] = textEdit->toPlainText();
-            connect( textEdit, &QWidget::focusInEvent,
-                     this, &DIALOG_SHIM::onChildSetFocus );
+            // Qt handles focus events through event filters
+            textEdit->installEventFilter( this );
 
             if( !textEdit->textCursor().selectedText().isEmpty() )
             {
@@ -493,7 +501,7 @@ int DIALOG_SHIM::ShowQuasiModal()
     // release the mouse if it's currently captured as the window having it
     // will be disabled when this dialog is shown -- but will still keep the
     // capture making it impossible to do anything in the modal dialog itself
-    QWidget* win = QApplication::mouseGrabber();
+    QWidget* win = QWidget::mouseGrabber();
     if( win )
         win->releaseMouse();
 
@@ -622,6 +630,18 @@ void DIALOG_SHIM::OnButton( int id )
 
 }
 
+
+bool DIALOG_SHIM::eventFilter( QObject* watched, QEvent* event )
+{
+    if( event->type() == QEvent::FocusIn && !m_isClosing )
+    {
+        if( QLineEdit* textCtrl = qobject_cast<QLineEdit*>( watched ) )
+            m_beforeEditValues[ textCtrl ] = textCtrl->text();
+        else if( QTextEdit* textEdit = qobject_cast<QTextEdit*>( watched ) )
+            m_beforeEditValues[ textEdit ] = textEdit->toPlainText();
+    }
+    return QDialog::eventFilter( watched, event );
+}
 
 void DIALOG_SHIM::onChildSetFocus( QFocusEvent* aEvent )
 {

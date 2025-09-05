@@ -103,11 +103,11 @@ void ConfigBaseWriteDouble( QSettings* aConfig, const QString& aKey, double aVal
 
 
 PARAM_CFG::PARAM_CFG( const QString& ident, const paramcfg_id type,
-                      const QString& group, const QString& legacy )
+                      const QChar* group, const QString& legacy )
 {
     m_Ident = ident;
     m_Type  = type;
-    m_Group = group;
+    m_Group = group ? QString(group) : QString();
     m_Setup = false;
 
     m_Ident_legacy = legacy;
@@ -115,7 +115,7 @@ PARAM_CFG::PARAM_CFG( const QString& ident, const paramcfg_id type,
 
 
 PARAM_CFG_INT::PARAM_CFG_INT( const QString& ident, int* ptparam, int default_val,
-                              int min, int max, const QString& group, const QString& legacy ) :
+                              int min, int max, const QChar* group, const QString& legacy ) :
         PARAM_CFG( ident, PARAM_INT, group, legacy )
 {
     m_Pt_param = ptparam;
@@ -126,7 +126,7 @@ PARAM_CFG_INT::PARAM_CFG_INT( const QString& ident, int* ptparam, int default_va
 
 
 PARAM_CFG_INT::PARAM_CFG_INT( bool setup, const QString& ident, int* ptparam, int default_val,
-                              int min, int max, const QString& group, const QString& legacy ) :
+                              int min, int max, const QChar* group, const QString& legacy ) :
         PARAM_CFG( ident, PARAM_INT, group, legacy )
 {
     m_Pt_param = ptparam;
@@ -167,7 +167,7 @@ void PARAM_CFG_INT::SaveParam( QSettings* aConfig ) const
 
 PARAM_CFG_INT_WITH_SCALE::PARAM_CFG_INT_WITH_SCALE( const QString& ident, int* ptparam,
                                                     int default_val, int min, int max,
-                                                    const QString& group, double aBiu2cfgunit,
+                                                    const QChar* group, double aBiu2cfgunit,
                                                     const QString& legacy_ident ) :
     PARAM_CFG_INT( ident, ptparam, default_val, min, max, group, legacy_ident )
 {
@@ -178,7 +178,7 @@ PARAM_CFG_INT_WITH_SCALE::PARAM_CFG_INT_WITH_SCALE( const QString& ident, int* p
 
 PARAM_CFG_INT_WITH_SCALE::PARAM_CFG_INT_WITH_SCALE( bool setup, const QString& ident, int* ptparam,
                                                     int default_val, int min, int max,
-                                                    const QString& group, double aBiu2cfgunit,
+                                                    const QChar* group, double aBiu2cfgunit,
                                                     const QString& legacy_ident ) :
     PARAM_CFG_INT( setup, ident, ptparam, default_val, min, max, group, legacy_ident )
 {
@@ -222,7 +222,7 @@ void PARAM_CFG_INT_WITH_SCALE::SaveParam( QSettings* aConfig ) const
 
 PARAM_CFG_DOUBLE::PARAM_CFG_DOUBLE( const QString& ident, double* ptparam,
                                     double default_val, double min, double max,
-                                    const QString& group ) :
+                                    const QChar* group ) :
         PARAM_CFG( ident, PARAM_DOUBLE, group )
 {
     m_Pt_param = ptparam;
@@ -238,7 +238,7 @@ PARAM_CFG_DOUBLE::PARAM_CFG_DOUBLE( bool          Insetup,
                                     double        default_val,
                                     double        min,
                                     double        max,
-                                    const QString& group ) :
+                                    const QChar* group ) :
         PARAM_CFG( ident, PARAM_DOUBLE, group )
 {
     m_Pt_param = ptparam;
@@ -278,7 +278,7 @@ void PARAM_CFG_DOUBLE::SaveParam( QSettings* aConfig ) const
 
 
 PARAM_CFG_BOOL::PARAM_CFG_BOOL( const QString& ident, bool* ptparam, int default_val,
-                                const QString& group, const QString& legacy ) :
+                                const QChar* group, const QString& legacy ) :
         PARAM_CFG( ident, PARAM_BOOL, group, legacy )
 {
     m_Pt_param = ptparam;
@@ -287,7 +287,7 @@ PARAM_CFG_BOOL::PARAM_CFG_BOOL( const QString& ident, bool* ptparam, int default
 
 
 PARAM_CFG_BOOL::PARAM_CFG_BOOL( bool Insetup, const QString& ident, bool* ptparam,
-                                int default_val, const QString& group, const QString& legacy ) :
+                                int default_val, const QChar* group, const QString& legacy ) :
         PARAM_CFG( ident, PARAM_BOOL, group, legacy )
 {
     m_Pt_param = ptparam;
@@ -322,16 +322,16 @@ void PARAM_CFG_BOOL::SaveParam( QSettings* aConfig ) const
 
 
 PARAM_CFG_QSTRING::PARAM_CFG_QSTRING( const QString& ident, QString* ptparam,
-                                        const QString& group ) :
-        PARAM_CFG( ident, PARAM_QSTRING, group )
+                                        const QChar* group ) :
+        PARAM_CFG( ident, PARAM_WXSTRING, group )
 {
     m_Pt_param = ptparam;
 }
 
 
 PARAM_CFG_QSTRING::PARAM_CFG_QSTRING( bool Insetup, const QString& ident, QString* ptparam,
-                                        const QString& default_val, const QString& group ) :
-        PARAM_CFG( ident, PARAM_QSTRING, group )
+                                        const QString& default_val, const QChar* group ) :
+        PARAM_CFG( ident, PARAM_WXSTRING, group )
 {
     m_Pt_param = ptparam;
     m_Setup    = Insetup;
@@ -358,16 +358,16 @@ void PARAM_CFG_QSTRING::SaveParam( QSettings* aConfig ) const
 
 
 PARAM_CFG_QSTRING_SET::PARAM_CFG_QSTRING_SET( const QString& ident, std::set<QString>* ptparam,
-                                                const QString& group ) :
-        PARAM_CFG( ident, PARAM_QSTRING_SET, group )
+                                                const QChar* group ) :
+        PARAM_CFG( ident, PARAM_WXSTRING_SET, group )
 {
     m_Pt_param = ptparam;
 }
 
 
 PARAM_CFG_QSTRING_SET::PARAM_CFG_QSTRING_SET( bool Insetup, const QString& ident,
-                                                std::set<QString>* ptparam, const QString& group ) :
-        PARAM_CFG( ident, PARAM_QSTRING_SET, group )
+                                                std::set<QString>* ptparam, const QChar* group ) :
+        PARAM_CFG( ident, PARAM_WXSTRING_SET, group )
 {
     m_Pt_param = ptparam;
     m_Setup    = Insetup;
@@ -416,7 +416,7 @@ void PARAM_CFG_QSTRING_SET::SaveParam( QSettings* aConfig ) const
 
 PARAM_CFG_FILENAME::PARAM_CFG_FILENAME( const QString& ident,
                                         QString*     ptparam,
-                                        const QString& group ) :
+                                        const QChar* group ) :
         PARAM_CFG( ident, PARAM_FILENAME, group )
 {
     m_Pt_param = ptparam;
@@ -452,10 +452,10 @@ void PARAM_CFG_FILENAME::SaveParam( QSettings* aConfig ) const
 }
 
 
-PARAM_CFG_LIBNAME_LIST::PARAM_CFG_LIBNAME_LIST( const QString&  ident,
-                                                QStringList* ptparam,
-                                                const QString&  group ) :
-        PARAM_CFG( ident, PARAM_LIBNAME_LIST, group )
+PARAM_CFG_LIBNAME_LIST::PARAM_CFG_LIBNAME_LIST( const QChar*  ident,
+                                                std::vector<std::string>* ptparam,
+                                                const QChar*  group ) :
+        PARAM_CFG( QString(ident), PARAM_LIBNAME_LIST, group )
 {
     m_Pt_param = ptparam;
 }
@@ -469,7 +469,7 @@ void PARAM_CFG_LIBNAME_LIST::ReadParam( QSettings* aConfig ) const
     int            indexlib = 1; // We start indexlib to 1 because first
                                  // lib name is LibName1
     QString        libname, id_lib;
-    QStringList* libname_list = m_Pt_param;
+    std::vector<std::string>* libname_list = m_Pt_param;
 
     while( 1 )
     {
@@ -487,7 +487,7 @@ void PARAM_CFG_LIBNAME_LIST::ReadParam( QSettings* aConfig ) const
 #ifdef __WINDOWS__
         libname.replace( "/", "\\" );
 #endif
-        libname_list->append( libname );
+        libname_list->push_back( libname.toStdString() );
     }
 }
 
@@ -497,18 +497,18 @@ void PARAM_CFG_LIBNAME_LIST::SaveParam( QSettings* aConfig ) const
     if( !m_Pt_param || !aConfig )
         return;
 
-    QStringList* libname_list = m_Pt_param;
+    std::vector<std::string>* libname_list = m_Pt_param;
 
     QString       configkey;
     QString       libname;
 
-    for( int indexlib = 0;  indexlib < libname_list->size();  indexlib++ )
+    for( int indexlib = 0;  indexlib < static_cast<int>(libname_list->size());  indexlib++ )
     {
         configkey = m_Ident;
 
         // We use indexlib+1 because first lib name is LibName1
         configkey += QString::number( indexlib + 1 );
-        libname = libname_list->at( indexlib );
+        libname = QString::fromStdString( libname_list->at( indexlib ) );
 
         // filenames are stored using Unix notation
         libname.replace( "\\", "/" );

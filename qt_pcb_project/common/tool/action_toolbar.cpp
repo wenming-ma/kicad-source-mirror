@@ -26,8 +26,6 @@
 #include <QtGui/QPainter>
 #include <QtCore/QTimer>
 #include <QtWidgets/QApplication>
-#include <QtCore/QHash>
-#include <QtCore/QVector>
 
 
 ACTION_GROUP::ACTION_GROUP( const std::string& aName,

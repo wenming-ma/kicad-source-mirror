@@ -109,54 +109,54 @@ bool PROJECT_ARCHIVER::Archive( const QString& aSrcDir, const QString& aDestFile
                                 REPORTER& aReporter, bool aVerbose, bool aIncludeExtraFiles )
 {
 
-    std::set<QString> extensions;
-    std::set<QString> files;
+    std::set<std::string> extensions;
+    std::set<std::string> files;
 
-    extensions.emplace( FILEEXT::ProjectFileExtension );
-    extensions.emplace( FILEEXT::ProjectLocalSettingsFileExtension );
-    extensions.emplace( FILEEXT::KiCadSchematicFileExtension );
-    extensions.emplace( FILEEXT::KiCadSymbolLibFileExtension );
-    extensions.emplace( FILEEXT::KiCadPcbFileExtension );
-    extensions.emplace( FILEEXT::KiCadFootprintFileExtension );
-    extensions.emplace( FILEEXT::DesignRulesFileExtension );
-    extensions.emplace( FILEEXT::DrawingSheetFileExtension );
-    extensions.emplace( FILEEXT::KiCadJobSetFileExtension );
-    extensions.emplace( FILEEXT::JsonFileExtension );
-    extensions.emplace( FILEEXT::WorkbookFileExtension );
+    extensions.emplace( FILEEXT::ProjectFileExtension.toStdString() );
+    extensions.emplace( FILEEXT::ProjectLocalSettingsFileExtension.toStdString() );
+    extensions.emplace( FILEEXT::KiCadSchematicFileExtension.toStdString() );
+    extensions.emplace( FILEEXT::KiCadSymbolLibFileExtension.toStdString() );
+    extensions.emplace( FILEEXT::KiCadPcbFileExtension.toStdString() );
+    extensions.emplace( FILEEXT::KiCadFootprintFileExtension.toStdString() );
+    extensions.emplace( FILEEXT::DesignRulesFileExtension.toStdString() );
+    extensions.emplace( FILEEXT::DrawingSheetFileExtension.toStdString() );
+    extensions.emplace( FILEEXT::KiCadJobSetFileExtension.toStdString() );
+    extensions.emplace( FILEEXT::JsonFileExtension.toStdString() );
+    extensions.emplace( FILEEXT::WorkbookFileExtension.toStdString() );
 
-    files.emplace( FILEEXT::FootprintLibraryTableFileName );
-    files.emplace( FILEEXT::SymbolLibraryTableFileName );
-    files.emplace( FILEEXT::DesignBlockLibraryTableFileName );
+    files.emplace( FILEEXT::FootprintLibraryTableFileName.toStdString() );
+    files.emplace( FILEEXT::SymbolLibraryTableFileName.toStdString() );
+    files.emplace( FILEEXT::DesignBlockLibraryTableFileName.toStdString() );
 
     if( aIncludeExtraFiles )
     {
-        extensions.emplace( FILEEXT::LegacyProjectFileExtension );
-        extensions.emplace( FILEEXT::LegacySchematicFileExtension );
-        extensions.emplace( FILEEXT::LegacySymbolLibFileExtension );
-        extensions.emplace( FILEEXT::LegacySymbolDocumentFileExtension );
-        extensions.emplace( FILEEXT::FootprintAssignmentFileExtension );
-        extensions.emplace( FILEEXT::LegacyPcbFileExtension );
-        extensions.emplace( FILEEXT::LegacyFootprintLibPathExtension );
-        extensions.emplace( FILEEXT::StepFileAbrvExtension );
-        extensions.emplace( FILEEXT::StepFileExtension );
-        extensions.emplace( FILEEXT::VrmlFileExtension );
-        extensions.emplace( FILEEXT::GerberJobFileExtension );
-        extensions.emplace( FILEEXT::FootprintPlaceFileExtension );
-        extensions.emplace( FILEEXT::DrillFileExtension );
+        extensions.emplace( FILEEXT::LegacyProjectFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::LegacySchematicFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::LegacySymbolLibFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::LegacySymbolDocumentFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::FootprintAssignmentFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::LegacyPcbFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::LegacyFootprintLibPathExtension.toStdString() );
+        extensions.emplace( FILEEXT::StepFileAbrvExtension.toStdString() );
+        extensions.emplace( FILEEXT::StepFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::VrmlFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::GerberJobFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::FootprintPlaceFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::DrillFileExtension.toStdString() );
         extensions.emplace( "nc" );
         extensions.emplace( "xnc" );
-        extensions.emplace( FILEEXT::IpcD356FileExtension );
-        extensions.emplace( FILEEXT::ReportFileExtension );
-        extensions.emplace( FILEEXT::NetlistFileExtension );
-        extensions.emplace( FILEEXT::PythonFileExtension );
-        extensions.emplace( FILEEXT::PdfFileExtension );
-        extensions.emplace( FILEEXT::TextFileExtension );
-        extensions.emplace( FILEEXT::SpiceFileExtension );
-        extensions.emplace( FILEEXT::SpiceSubcircuitFileExtension );
-        extensions.emplace( FILEEXT::SpiceModelFileExtension );
-        extensions.emplace( FILEEXT::IbisFileExtension );
+        extensions.emplace( FILEEXT::IpcD356FileExtension.toStdString() );
+        extensions.emplace( FILEEXT::ReportFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::NetlistFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::PythonFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::PdfFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::TextFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::SpiceFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::SpiceSubcircuitFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::SpiceModelFileExtension.toStdString() );
+        extensions.emplace( FILEEXT::IbisFileExtension.toStdString() );
         extensions.emplace( "pkg" );
-        extensions.emplace( FILEEXT::GencadFileExtension );
+        extensions.emplace( FILEEXT::GencadFileExtension.toStdString() );
     }
 
     QRegExp gerberFiles( FILEEXT::GerberFileExtensionsRegex );
@@ -200,17 +200,17 @@ bool PROJECT_ARCHIVER::Archive( const QString& aSrcDir, const QString& aDestFile
     for( const std::string& fileName : traverser.GetFilesToArchive() )
     {
         QFileInfo fn( QString::fromStdString( fileName ) );
-        QString extLower = fn.suffix().toLower();
-        QString fileNameLower = fn.baseName().toLower();
+        std::string extLower = fn.suffix().toLower().toStdString();
+        std::string fileNameLower = fn.baseName().toLower().toStdString();
         bool archive = false;
 
-        if( !extLower.isEmpty() )
+        if( !extLower.empty() )
         {
             if( ( extensions.find( extLower ) != extensions.end() )
               || ( aIncludeExtraFiles && gerberFiles.exactMatch( extLower ) ) )
                 archive = true;
         }
-        else if( !fileNameLower.isEmpty() && ( files.find( fileNameLower ) != files.end() ) )
+        else if( !fileNameLower.empty() && ( files.find( fileNameLower ) != files.end() ) )
         {
                 archive = true;
         }

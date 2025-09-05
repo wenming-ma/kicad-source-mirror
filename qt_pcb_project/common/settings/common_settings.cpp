@@ -14,6 +14,11 @@
 #include <trace_helpers.h>
 #include <QDebug>
 #include <QRegularExpression>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QSettings>
+#include <QtCore/Qt>
 
 
 ///! The following environment variables will never be migrated from a previous version
@@ -39,7 +44,7 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     /*
      * Automatic dark mode detection works fine on Mac.
      */
-#if defined( __WXGTK__ ) || defined( __WXMSW__ )
+#if defined( Q_OS_LINUX ) || defined( Q_OS_WIN )
     m_params.emplace_back( new PARAM_ENUM<ICON_THEME>( "appearance.icon_theme",
             &m_Appearance.icon_theme, ICON_THEME::AUTO, ICON_THEME::LIGHT, ICON_THEME::AUTO ) );
 #else
@@ -55,7 +60,7 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     /*
      * Menu icons are off by default on OSX and on for all other platforms.
      */
-#ifdef __WXMAC__
+#ifdef Q_OS_MACOS
     m_params.emplace_back( new PARAM<bool>( "appearance.use_icons_in_menus",
             &m_Appearance.use_icons_in_menus, false ) );
 #else
@@ -109,7 +114,7 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
                 {
                     const ENV_VAR_ITEM& var = entry.second;
 
-                    wxASSERT( entry.first == var.GetKey() );
+                    Q_ASSERT( entry.first == var.GetKey() );
 
                     // Default values are never persisted
                     if( var.IsDefault() )
@@ -120,7 +125,7 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
 
                     QString value = var.GetValue();
 
-                    value.Trim( true ).Trim( false ); // Trim from both sides
+                    value = value.trimmed(); // Trim from both sides
 
                     // Vars that existed in JSON are persisted, but if they were overridden
                     // externally, we persist the old value (i.e. the one that was loaded from JSON)
@@ -228,10 +233,10 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
             &m_Input.scroll_modifier_zoom, 0 ) );
 
     m_params.emplace_back( new PARAM<int>( "input.scroll_modifier_pan_h",
-            &m_Input.scroll_modifier_pan_h, WXK_CONTROL ) );
+            &m_Input.scroll_modifier_pan_h, Qt::Key_Control ) );
 
     m_params.emplace_back( new PARAM<int>( "input.scroll_modifier_pan_v",
-            &m_Input.scroll_modifier_pan_v, WXK_SHIFT ) );
+            &m_Input.scroll_modifier_pan_v, Qt::Key_Shift ) );
 
     m_params.emplace_back( new PARAM<bool>( "input.reverse_scroll_zoom",
             &m_Input.reverse_scroll_zoom, false ) );
@@ -432,19 +437,19 @@ bool COMMON_SETTINGS::migrateSchema0to1()
         ( *m_internals )[nlohmann::json::json_pointer( "/input/horizontal_pan" )] = true;
 
         ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_h" )] =
-                WXK_SHIFT;
+                Qt::Key_Shift;
         ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_v" )] = 0;
         ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_zoom" )] =
-                WXK_CONTROL;
+                Qt::Key_Control;
     }
     else
     {
         ( *m_internals )[nlohmann::json::json_pointer( "/input/horizontal_pan" )] = false;
 
         ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_h" )] =
-                WXK_CONTROL;
+                Qt::Key_Control;
         ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_v" )] =
-                WXK_SHIFT;
+                Qt::Key_Shift;
         ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_zoom" )] = 0;
     }
 
@@ -482,14 +487,12 @@ bool COMMON_SETTINGS::migrateSchema1to2()
 
 bool COMMON_SETTINGS::migrateSchema2to3()
 {
-    wxFileName cfgpath;
-    cfgpath.AssignDir( PATHS::GetUserSettingsPath() );
-    cfgpath.AppendDir( wxT( "3d" ) );
-    cfgpath.SetFullName( wxS( "3Dresolver.cfg" ) );
-    cfgpath.MakeAbsolute();
+    QDir cfgdir( PATHS::GetUserSettingsPath() );
+    cfgdir.cd( "3d" );
+    QString cfgpath = cfgdir.absoluteFilePath( "3Dresolver.cfg" );
 
     std::vector<LEGACY_3D_SEARCH_PATH> legacyPaths;
-    readLegacy3DResolverCfg( cfgpath.GetFullPath(), legacyPaths );
+    readLegacy3DResolverCfg( cfgpath, legacyPaths );
 
     // env variables have a limited allowed character set for names
     QRegularExpression nonValidCharsRegex( "[^A-Z0-9_]+" );
@@ -518,94 +521,14 @@ bool COMMON_SETTINGS::migrateSchema2to3()
         }
     }
 
-    if( cfgpath.FileExists() )
+    if( QFile::exists( cfgpath ) )
     {
-        wxRemoveFile( cfgpath.GetFullPath() );
+        QFile::remove( cfgpath );
     }
 
     return true;
 }
 
-
-bool COMMON_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
-{
-    bool ret = true;
-
-    ret &= fromLegacy<double>( aCfg, "CanvasScale",             "appearance.canvas_scale" );
-    ret &= fromLegacy<int>(    aCfg, "IconScale",               "appearance.icon_scale" );
-    ret &= fromLegacy<bool>(   aCfg, "UseIconsInMenus",         "appearance.use_icons_in_menus" );
-    ret &= fromLegacy<bool>(   aCfg, "ShowEnvVarWarningDialog", "environment.show_warning_dialog" );
-
-    auto load_env_vars =
-            [&]()
-            {
-                QString key, value;
-                long index = 0;
-                nlohmann::json::json_pointer ptr =
-                        m_internals->PointerFromString( "environment.vars" );
-
-                aCfg->SetPath( "EnvironmentVariables" );
-                ( *m_internals )[ptr] = nlohmann::json( {} );
-
-                while( aCfg->GetNextEntry( key, index ) )
-                {
-                    if( versionedEnvVarRegex.match( key ).hasMatch() )
-                    {
-                        qDebug() << "Migrate Env:" << key << "is blacklisted; skipping.";
-                        continue;
-                    }
-
-                    value = aCfg->Read( key, QString() );
-
-                    if( !value.isEmpty() )
-                    {
-                        ptr.push_back( key.toStdString() );
-
-                        qDebug() << "Migrate Env:" << QString::fromStdString( ptr.to_string() ) << "=" << value;
-                        ( *m_internals )[ptr] = value.toUtf8().constData();
-
-                        ptr.pop_back();
-                    }
-                }
-
-                aCfg->SetPath( ".." );
-            };
-
-    load_env_vars();
-
-    bool mousewheel_pan = false;
-
-    if( aCfg->Read( "MousewheelPAN", &mousewheel_pan ) && mousewheel_pan )
-    {
-        Set( "input.horizontal_pan", true );
-        Set( "input.scroll_modifier_pan_h", static_cast<int>( WXK_SHIFT ) );
-        Set( "input.scroll_modifier_pan_v", 0 );
-        Set( "input.scroll_modifier_zoom",  static_cast<int>( WXK_CONTROL ) );
-    }
-
-    ret &= fromLegacy<bool>( aCfg, "AutoPAN",                   "input.auto_pan" );
-    ret &= fromLegacy<bool>( aCfg, "ImmediateActions",          "input.immediate_actions" );
-    ret &= fromLegacy<bool>( aCfg, "PreferSelectionToDragging", "input.prefer_select_to_drag" );
-    ret &= fromLegacy<bool>( aCfg, "MoveWarpsCursor",           "input.warp_mouse_on_move" );
-    ret &= fromLegacy<bool>( aCfg, "ZoomNoCenter",              "input.center_on_zoom" );
-
-    // This was stored inverted in legacy config
-    if( std::optional<bool> value = Get<bool>( "input.center_on_zoom" ) )
-        Set( "input.center_on_zoom", !( *value ) );
-
-    ret &= fromLegacy<int>( aCfg, "OpenGLAntialiasingMode", "graphics.opengl_antialiasing_mode" );
-    ret &= fromLegacy<int>( aCfg, "CairoAntialiasingMode",  "graphics.cairo_antialiasing_mode" );
-
-    ret &= fromLegacy<int>(  aCfg, "AutoSaveInterval",        "system.autosave_interval" );
-    ret &= fromLegacyString( aCfg, "Editor",                  "system.editor_name" );
-    ret &= fromLegacy<int>(  aCfg, "FileHistorySize",         "system.file_history_size" );
-    ret &= fromLegacyString( aCfg, "LanguageID",              "system.language" );
-    ret &= fromLegacyString( aCfg, "PdfBrowserName",          "system.pdf_viewer_name" );
-    ret &= fromLegacy<bool>( aCfg, "UseSystemBrowser",        "system.use_system_pdf_viewer" );
-    ret &= fromLegacyString( aCfg, "WorkingDir",              "system.working_dir" );
-
-    return ret;
-}
 
 
 void COMMON_SETTINGS::InitializeEnvironment()
@@ -630,68 +553,65 @@ void COMMON_SETTINGS::InitializeEnvironment()
             }
         };
 
-    wxFileName basePath( PATHS::GetStockEDALibraryPath(), wxEmptyString );
+    QString basePath = PATHS::GetStockEDALibraryPath();
 
-    wxFileName path( basePath );
-    path.AppendDir( wxT( "footprints" ) );
-    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "FOOTPRINT_DIR" ) ), path.GetFullPath() );
+    QDir footprintDir( basePath );
+    footprintDir.cd( "footprints" );
+    addVar( ENV_VAR::GetVersionedEnvVarName( "FOOTPRINT_DIR" ), footprintDir.absolutePath() );
 
-    path = basePath;
-    path.AppendDir( wxT( "3dmodels" ) );
-    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "3DMODEL_DIR" ) ), path.GetFullPath() );
+    QDir modelsDir( basePath );
+    modelsDir.cd( "3dmodels" );
+    addVar( ENV_VAR::GetVersionedEnvVarName( "3DMODEL_DIR" ), modelsDir.absolutePath() );
 
-    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "TEMPLATE_DIR" ) ),
+    addVar( ENV_VAR::GetVersionedEnvVarName( "TEMPLATE_DIR" ),
             PATHS::GetStockTemplatesPath() );
 
-    addVar( wxT( "KICAD_USER_TEMPLATE_DIR" ), PATHS::GetUserTemplatesPath() );
+    addVar( "KICAD_USER_TEMPLATE_DIR", PATHS::GetUserTemplatesPath() );
 
-    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "3RD_PARTY" ) ),
+    addVar( ENV_VAR::GetVersionedEnvVarName( "3RD_PARTY" ),
             PATHS::GetDefault3rdPartyPath() );
 
-    path = basePath;
-    path.AppendDir( wxT( "symbols" ) );
-    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "SYMBOL_DIR" ) ), path.GetFullPath() );
+    QDir symbolDir( basePath );
+    symbolDir.cd( "symbols" );
+    addVar( ENV_VAR::GetVersionedEnvVarName( "SYMBOL_DIR" ), symbolDir.absolutePath() );
 
-    path = basePath;
-    path.AppendDir( wxT( "blocks" ) );
-    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "DESIGN_BLOCK_DIR" ) ), path.GetFullPath() );
+    QDir blocksDir( basePath );
+    blocksDir.cd( "blocks" );
+    addVar( ENV_VAR::GetVersionedEnvVarName( "DESIGN_BLOCK_DIR" ), blocksDir.absolutePath() );
 }
 
 
 bool COMMON_SETTINGS::readLegacy3DResolverCfg( const QString&                   path,
-                                               QVector<LEGACY_3D_SEARCH_PATH>& aSearchPaths )
+                                               std::vector<LEGACY_3D_SEARCH_PATH>& aSearchPaths )
 {
-    wxFileName cfgpath( path );
+    QFileInfo cfgpath( path );
 
-    // This should be the same as wxWidgets 3.0 wxPATH_NORM_ALL which is deprecated in 3.1.
-    // There are known issues with environment variable expansion so maybe we should be using
-    // our own ExpandEnvVarSubstitutions() here instead.
-    cfgpath.Normalize( FN_NORMALIZE_FLAGS | wxPATH_NORM_ENV_VARS );
-    wxString cfgname = cfgpath.GetFullPath();
+    // Normalize path - Qt handles this automatically
+    QString cfgname = cfgpath.absoluteFilePath();
 
     std::ifstream cfgFile;
     std::string   cfgLine;
 
-    if( !wxFileName::Exists( cfgname ) )
+    if( !QFile::exists( cfgname ) )
     {
         std::ostringstream ostr;
         ostr << __FILE__ << ": " << __FUNCTION__ << ": " << __LINE__ << "\n";
-        wxString errmsg = "no 3D configuration file";
-        ostr << " * " << errmsg.ToUTF8() << " '";
-        ostr << cfgname.ToUTF8() << "'";
-        wxLogTrace( traceSettings, "%s\n", ostr.str().c_str() );
+        QString errmsg = "no 3D configuration file";
+        ostr << " * " << errmsg.toUtf8().constData() << " '";
+        ostr << cfgname.toUtf8().constData() << "'";
+        qDebug() << QString::fromStdString( ostr.str() );
         return false;
     }
 
-    cfgFile.open( cfgname.ToUTF8() );
+    cfgFile.open( cfgname.toUtf8().constData() );
 
     if( !cfgFile.is_open() )
     {
         std::ostringstream ostr;
         ostr << __FILE__ << ": " << __FUNCTION__ << ": " << __LINE__ << "\n";
-        wxString errmsg = wxS( "Could not open configuration file" );
-        ostr << " * " << errmsg.ToUTF8() << " '" << cfgname.ToUTF8() << "'";
-        wxLogTrace( traceSettings, wxS( "%s\n" ), ostr.str().c_str() );
+        QString errmsg = "Could not open configuration file";
+        ostr << " * " << errmsg.toUtf8().constData() << " '" << cfgname.toUtf8().constData() << "'";
+        qDebug() << QString::fromStdString( ostr.str() );
         return false;
     }
 
@@ -734,12 +654,12 @@ bool COMMON_SETTINGS::readLegacy3DResolverCfg( const QString&                   
 
         // Don't add KICADn_3DMODEL_DIR, one of its legacy equivalents, or KIPRJMOD from a
         // config file.  They're system variables which are defined at runtime.
-        wxString versionedPath = wxString::Format( wxS( "${%s}" ),
-                                       ENV_VAR::GetVersionedEnvVarName( wxS( "3DMODEL_DIR" ) ) );
+        QString versionedPath = QString( "${%1}" )
+                                       .arg( ENV_VAR::GetVersionedEnvVarName( "3DMODEL_DIR" ) );
 
-        if( al.m_Alias == versionedPath || al.m_Alias == wxS( "${KIPRJMOD}" )
-            || al.m_Alias == wxS( "$(KIPRJMOD)" ) || al.m_Alias == wxS( "${KISYS3DMOD}" )
-            || al.m_Alias == wxS( "$(KISYS3DMOD)" ) )
+        if( al.m_Alias == versionedPath || al.m_Alias == "${KIPRJMOD}"
+            || al.m_Alias == "$(KIPRJMOD)" || al.m_Alias == "${KISYS3DMOD}"
+            || al.m_Alias == "$(KISYS3DMOD)" )
         {
             continue;
         }
@@ -760,7 +680,7 @@ bool COMMON_SETTINGS::readLegacy3DResolverCfg( const QString&                   
 
 
 bool COMMON_SETTINGS::getLegacy3DHollerith( const std::string& aString, size_t& aIndex,
-                                            wxString& aResult )
+                                            QString& aResult )
 {
     aResult.clear();
 
@@ -768,9 +688,9 @@ bool COMMON_SETTINGS::getLegacy3DHollerith( const std::string& aString, size_t& 
     {
         std::ostringstream ostr;
         ostr << __FILE__ << ": " << __FUNCTION__ << ": " << __LINE__ << "\n";
-        wxString errmsg = wxS( "bad Hollerith string on line" );
-        ostr << " * " << errmsg.ToUTF8() << "\n'" << aString << "'";
-        wxLogTrace( traceSettings, wxS( "%s\n" ), ostr.str().c_str() );
+        QString errmsg = "bad Hollerith string on line";
+        ostr << " * " << errmsg.toUtf8().constData() << "\n'" << aString << "'";
+        qDebug() << QString::fromStdString( ostr.str() );
 
         return false;
     }
@@ -781,9 +701,9 @@ bool COMMON_SETTINGS::getLegacy3DHollerith( const std::string& aString, size_t& 
     {
         std::ostringstream ostr;
         ostr << __FILE__ << ": " << __FUNCTION__ << ": " << __LINE__ << "\n";
-        wxString errmsg = wxS( "missing opening quote mark in config file" );
-        ostr << " * " << errmsg.ToUTF8() << "\n'" << aString << "'";
-        wxLogTrace( traceSettings, wxS( "%s\n" ), ostr.str().c_str() );
+        QString errmsg = "missing opening quote mark in config file";
+        ostr << " * " << errmsg.toUtf8().constData() << "\n'" << aString << "'";
+        qDebug() << QString::fromStdString( ostr.str() );
 
         return false;
     }
@@ -794,9 +714,9 @@ bool COMMON_SETTINGS::getLegacy3DHollerith( const std::string& aString, size_t& 
     {
         std::ostringstream ostr;
         ostr << __FILE__ << ": " << __FUNCTION__ << ": " << __LINE__ << "\n";
-        wxString errmsg = wxS( "invalid entry (unexpected end of line)" );
-        ostr << " * " << errmsg.ToUTF8() << "\n'" << aString << "'";
-        wxLogTrace( traceSettings, wxS( "%s\n" ), ostr.str().c_str() );
+        QString errmsg = "invalid entry (unexpected end of line)";
+        ostr << " * " << errmsg.toUtf8().constData() << "\n'" << aString << "'";
+        qDebug() << QString::fromStdString( ostr.str() );
 
         return false;
     }
@@ -810,9 +730,9 @@ bool COMMON_SETTINGS::getLegacy3DHollerith( const std::string& aString, size_t& 
     {
         std::ostringstream ostr;
         ostr << __FILE__ << ": " << __FUNCTION__ << ": " << __LINE__ << "\n";
-        wxString errmsg = wxS( "bad Hollerith string on line" );
-        ostr << " * " << errmsg.ToUTF8() << "\n'" << aString << "'";
-        wxLogTrace( traceSettings, wxS( "%s\n" ), ostr.str().c_str() );
+        QString errmsg = "bad Hollerith string on line";
+        ostr << " * " << errmsg.toUtf8().constData() << "\n'" << aString << "'";
+        qDebug() << QString::fromStdString( ostr.str() );
 
         return false;
     }
@@ -826,16 +746,16 @@ bool COMMON_SETTINGS::getLegacy3DHollerith( const std::string& aString, size_t& 
     {
         std::ostringstream ostr;
         ostr << __FILE__ << ": " << __FUNCTION__ << ": " << __LINE__ << "\n";
-        wxString errmsg = wxS( "invalid entry (unexpected end of line)" );
-        ostr << " * " << errmsg.ToUTF8() << "\n'" << aString << "'";
-        wxLogTrace( traceSettings, wxS( "%s\n" ), ostr.str().c_str() );
+        QString errmsg = "invalid entry (unexpected end of line)";
+        ostr << " * " << errmsg.toUtf8().constData() << "\n'" << aString << "'";
+        qDebug() << QString::fromStdString( ostr.str() );
 
         return false;
     }
 
     if( nchars > 0 )
     {
-        aResult = wxString::FromUTF8( aString.substr( i2, nchars ).c_str() );
+        aResult = QString::fromUtf8( aString.substr( i2, nchars ).c_str() );
         i2 += nchars;
     }
 
@@ -843,9 +763,9 @@ bool COMMON_SETTINGS::getLegacy3DHollerith( const std::string& aString, size_t& 
     {
         std::ostringstream ostr;
         ostr << __FILE__ << ": " << __FUNCTION__ << ": " << __LINE__ << "\n";
-        wxString errmsg = wxS( "missing closing quote mark in config file" );
-        ostr << " * " << errmsg.ToUTF8() << "\n'" << aString << "'";
-        wxLogTrace( traceSettings, wxS( "%s\n" ), ostr.str().c_str() );
+        QString errmsg = "missing closing quote mark in config file";
+        ostr << " * " << errmsg.toUtf8().constData() << "\n'" << aString << "'";
+        qDebug() << QString::fromStdString( ostr.str() );
 
         return false;
     }

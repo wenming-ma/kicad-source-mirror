@@ -241,11 +241,21 @@ bool TRACE_MANAGER::IsTraceEnabled( const QString& aWhat )
         if( !m_globalTraceEnabled )
             return false;
 
-        if( m_enabledTraces.find( aWhat ) == m_enabledTraces.end() )
+        std::string key = aWhat.toStdString();
+        if( m_enabledTraces.find( key ) == m_enabledTraces.end() )
             return false;
     }
 
     return true;
+}
+
+
+void TRACE_MANAGER::Trace( const QString& aWhat, const QString& aFmt, ... )
+{
+    va_list argptr;
+    va_start( argptr, aFmt );
+    traceV( aWhat, aFmt, argptr );
+    va_end( argptr );
 }
 
 
@@ -278,7 +288,8 @@ void TRACE_MANAGER::init()
 
     for( const QString& token : tokens )
     {
-        m_enabledTraces[token] = true;
+        std::string key = token.toStdString();
+        m_enabledTraces[key] = true;
 
         if( token.toLower() == "all" )
             m_printAllTraces = true;

@@ -15,8 +15,12 @@
 #include <eda_item.h>
 #include <plotters/plotter.h>
 #include <api/api_enums.h>
+#include <QObject>
 // #include <api/api_utils.h>
 // #include <api/common/types/base_types.pb.h>
+
+// Define translation macro for Qt compatibility
+#define _(x) QObject::tr(x)
 
 
 EDA_SHAPE::EDA_SHAPE( SHAPE_T aType, int aLineWidth, FILL_T aFill ) :
@@ -2310,7 +2314,7 @@ static struct EDA_SHAPE_DESC
 
         ENUM_MAP<LINE_STYLE>& lineStyleEnum = ENUM_MAP<LINE_STYLE>::Instance();
 
-        if( lineStyleEnum.Choices().GetCount() == 0 )
+        if( lineStyleEnum.Choices().size() == 0 )
         {
             lineStyleEnum.Map( LINE_STYLE::SOLID, _HKI( "Solid" ) )
                          .Map( LINE_STYLE::DASH, _HKI( "Dashed" ) )
