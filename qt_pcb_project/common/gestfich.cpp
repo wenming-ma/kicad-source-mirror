@@ -14,9 +14,7 @@
 
 #include <filesystem>
 #include <vector>
-
-// Define translation macro for Qt compatibility
-#define _( x ) QObject::tr( x )
+#include <i18n_utility.h>
 void QuoteString( QString& string )
 {
     if( !string.startsWith( "\"" ) )

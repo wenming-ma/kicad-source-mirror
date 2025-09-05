@@ -20,6 +20,8 @@
 // use the _() macro so that string harvesting by the I18N framework doesn't have to be
 // specialized, but we don't translate on initialization and instead do it in the getters.
 
+#include <i18n_utility.h>
+// For static initialization, temporarily disable translation
 #undef _
 #define _(s) s
 

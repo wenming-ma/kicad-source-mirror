@@ -6,11 +6,13 @@
 #include <tool/actions.h>
 #include <tool/tool_action.h>
 #include <tool/tool_event.h>
+#include <i18n_utility.h>
 
 // Actions, being statically-defined, require specialized I18N handling. We continue to
 // use the _() macro so that string harvesting by the I18N framework doesn't have to be
 // specialized, but we don't translate on initialization and instead do it in the getters.
 
+// For static initialization, temporarily disable translation
 #undef _
 #define _(s) s
 

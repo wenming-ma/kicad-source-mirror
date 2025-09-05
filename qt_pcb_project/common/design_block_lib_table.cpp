@@ -22,11 +22,9 @@
 #include <QCoreApplication>
 #include <vector>
 #include <locale_io.h>
+#include <i18n_utility.h>
 
 #define OPT_SEP '|'
-
-// Translation function for localization
-#define _(s) QCoreApplication::translate("", (s))
 
 DESIGN_BLOCK_LIB_TABLE GDesignBlockTable;
 

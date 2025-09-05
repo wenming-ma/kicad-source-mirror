@@ -19,8 +19,6 @@
 #include <trace_helpers.h>
 #include <fstream>
 
-#define _(s) QCoreApplication::translate("", (s))
-
 const QString DESIGN_BLOCK_IO_MGR::ShowType( DESIGN_BLOCK_FILE_T aFileType )
 {
     switch( aFileType )

@@ -35,6 +35,7 @@
 #include <trace_helpers.h>
 
 #include <widgets/wx_splash.h>
+#include <i18n_utility.h>
 
 #ifdef KICAD_USE_SENTRY
 #include <boost/uuid/uuid_io.hpp>
@@ -49,6 +50,7 @@
 #include <python_manager.h>
 #endif
 
+// For static initialization, temporarily disable translation
 #undef _
 #define _(s) s
 LANGUAGE_DESCR LanguagesList[] =
@@ -81,8 +83,8 @@ LANGUAGE_DESCR LanguagesList[] =
             "繁體中文", true },
     { QLocale::AnyLanguage, 0, "", false }         // Sentinel
 };
+// Re-enable translation after static initialization
 #undef _
-#define _(s) QCoreApplication::translate("", (s))
 
 
 PGM_BASE::PGM_BASE()

@@ -11,9 +11,7 @@
 #include <QAbstractButton>
 #include <QPushButton>
 #include <QCoreApplication>
-
-// Define translation macro for Qt compatibility
-#define _(x) QObject::tr(x)
+#include <i18n_utility.h>
 
 
 static const QString traceConfirm = QStringLiteral( "KICAD_CONFIRM" );
