@@ -11,6 +11,7 @@
 
 #include <macros.h>
 #include <functional>
+#include <vector>
 
 
 using namespace std;
@@ -197,7 +198,7 @@ size_t hash_fp_item( const EDA_ITEM* aItem, int aFlags )
 
         if( aFlags & HASH_POS )
         {
-            QVector<VECTOR2I> points;
+            std::vector<VECTOR2I> points;
 
             points.push_back( shape->GetStart() );
             points.push_back( shape->GetEnd() );

@@ -6,7 +6,7 @@
 #include <settings/environment.h>
 #include <settings/json_settings.h>
 #include <QString>
-#include <QVector>
+#include <vector>
 
 
 enum class MOUSE_DRAG_ACTION
@@ -95,9 +95,9 @@ public:
     struct SESSION
     {
         bool remember_open_files;
-        QVector<QString> pinned_symbol_libs;
-        QVector<QString> pinned_fp_libs;
-        QVector<QString> pinned_design_block_libs;
+        std::vector<QString> pinned_symbol_libs;
+        std::vector<QString> pinned_fp_libs;
+        std::vector<QString> pinned_design_block_libs;
     };
 
     struct SYSTEM
@@ -147,7 +147,7 @@ public:
 
     struct GIT
     {
-        QVector<GIT_REPOSITORY> repositories;
+        std::vector<GIT_REPOSITORY> repositories;
         bool                    enableGit;
         int                     updatInterval;
         bool                    useDefaultAuthor;
@@ -185,7 +185,7 @@ private:
     static bool getLegacy3DHollerith( const std::string& aString, size_t& aIndex,
                                       QString& aResult );
     bool readLegacy3DResolverCfg( const QString& aPath,
-                                  QVector<LEGACY_3D_SEARCH_PATH>& aSearchPaths );
+                                  std::vector<LEGACY_3D_SEARCH_PATH>& aSearchPaths );
 
 public:
     APPEARANCE m_Appearance;

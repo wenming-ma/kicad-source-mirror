@@ -4,26 +4,28 @@
 
 #include <algorithm>
 #include <utility>
-#include <QString>
+#include <vector>
+#include <string>
+#include <cassert>
 
-static QString EMPTY_STRING;
+static std::string EMPTY_STRING;
 
 
-void PROPERTY_MANAGER::RegisterType( TYPE_ID aType, const QString& aName )
+void PROPERTY_MANAGER::RegisterType( TYPE_ID aType, const std::string& aName )
 {
-    Q_ASSERT( m_classNames.count( aType ) == 0 );
+    assert( m_classNames.count( aType ) == 0 );
     m_classNames.emplace( aType, aName );
 }
 
 
-const QString& PROPERTY_MANAGER::ResolveType( TYPE_ID aType ) const
+const std::string& PROPERTY_MANAGER::ResolveType( TYPE_ID aType ) const
 {
     auto it = m_classNames.find( aType );
     return it != m_classNames.end() ? it->second : EMPTY_STRING;
 }
 
 
-PROPERTY_BASE* PROPERTY_MANAGER::GetProperty( TYPE_ID aType, const QString& aProperty ) const
+PROPERTY_BASE* PROPERTY_MANAGER::GetProperty( TYPE_ID aType, const std::string& aProperty ) const
 {
     if( m_dirty )
         const_cast<PROPERTY_MANAGER*>( this )->Rebuild();
@@ -37,7 +39,7 @@ PROPERTY_BASE* PROPERTY_MANAGER::GetProperty( TYPE_ID aType, const QString& aPro
 
     for( PROPERTY_BASE* property : classDesc.m_allProperties )
     {
-        if( aProperty.compare( property->Name(), Qt::CaseInsensitive ) == 0 )
+        if( aProperty == property->Name() )
             return property;
     }
 
@@ -75,12 +77,12 @@ const PROPERTY_DISPLAY_ORDER& PROPERTY_MANAGER::GetDisplayOrder( TYPE_ID aType )
 }
 
 
-const QVector<QString>& PROPERTY_MANAGER::GetGroupDisplayOrder( TYPE_ID aType ) const
+const std::vector<std::string>& PROPERTY_MANAGER::GetGroupDisplayOrder( TYPE_ID aType ) const
 {
     if( m_dirty )
         const_cast<PROPERTY_MANAGER*>( this )->Rebuild();
 
-    static const QVector<QString> empty;
+    static const std::vector<std::string> empty;
     auto it = m_classes.find( aType );
 
     if( it == m_classes.end() )
@@ -110,9 +112,9 @@ const void* PROPERTY_MANAGER::TypeCast( const void* aSource, TYPE_ID aBase, TYPE
 }
 
 
-PROPERTY_BASE& PROPERTY_MANAGER::AddProperty( PROPERTY_BASE* aProperty, const QString& aGroup )
+PROPERTY_BASE& PROPERTY_MANAGER::AddProperty( PROPERTY_BASE* aProperty, const std::string& aGroup )
 {
-    const QString& name = aProperty->Name();
+    const std::string& name = aProperty->Name();
     TYPE_ID hash = aProperty->OwnerHash();
     CLASS_DESC& classDesc = getClass( hash );
     classDesc.m_ownProperties.emplace( name, aProperty );
@@ -122,7 +124,7 @@ PROPERTY_BASE& PROPERTY_MANAGER::AddProperty( PROPERTY_BASE* aProperty, const QS
 
     if( !classDesc.m_groups.count( aGroup ) )
     {
-        classDesc.m_groupDisplayOrder.emplace_back( aGroup );
+        classDesc.m_groupDisplayOrder.push_back( aGroup );
         classDesc.m_groups.insert( aGroup );
     }
 
@@ -131,8 +133,8 @@ PROPERTY_BASE& PROPERTY_MANAGER::AddProperty( PROPERTY_BASE* aProperty, const QS
 }
 
 
-PROPERTY_BASE& PROPERTY_MANAGER::ReplaceProperty( size_t aBase, const QString& aName,
-                                                  PROPERTY_BASE* aNew, const QString& aGroup )
+PROPERTY_BASE& PROPERTY_MANAGER::ReplaceProperty( size_t aBase, const std::string& aName,
+                                                  PROPERTY_BASE* aNew, const std::string& aGroup )
 {
     CLASS_DESC& classDesc = getClass( aNew->OwnerHash() );
     classDesc.m_replaced.insert( std::make_pair( aBase, aName ) );
@@ -145,28 +147,28 @@ void PROPERTY_MANAGER::AddTypeCast( TYPE_CAST_BASE* aCast )
     TYPE_ID derivedHash = aCast->DerivedHash();
     CLASS_DESC& classDesc = getClass( aCast->BaseHash() );
     auto& typeCasts = classDesc.m_typeCasts;
-    Q_ASSERT_X( typeCasts.count( derivedHash ) == 0, "AddTypeCast", "Such converter already exists" );
+    assert_X( typeCasts.count( derivedHash ) == 0, "AddTypeCast", "Such converter already exists" );
     typeCasts.emplace( derivedHash, aCast );
 }
 
 
 void PROPERTY_MANAGER::InheritsAfter( TYPE_ID aDerived, TYPE_ID aBase )
 {
-    Q_ASSERT_X( aDerived != aBase, "InheritsAfter", "Class cannot inherit from itself" );
+    assert_X( aDerived != aBase, "InheritsAfter", "Class cannot inherit from itself" );
 
     CLASS_DESC& derived = getClass( aDerived );
     CLASS_DESC& base = getClass( aBase );
     derived.m_bases.push_back( base );
     m_dirty = true;
 
-    Q_ASSERT_X( derived.m_bases.size() == 1 || derived.m_typeCasts.count( aBase ) == 1,
+    assert_X( derived.m_bases.size() == 1 || derived.m_typeCasts.count( aBase ) == 1,
                 "InheritsAfter", "You need to add a TYPE_CAST for classes inheriting from multiple bases" );
 }
 
 
-void PROPERTY_MANAGER::Mask( TYPE_ID aDerived, TYPE_ID aBase, const QString& aName )
+void PROPERTY_MANAGER::Mask( TYPE_ID aDerived, TYPE_ID aBase, const std::string& aName )
 {
-    Q_ASSERT_X( aDerived != aBase, "Mask", "Class cannot mask from itself" );
+    assert_X( aDerived != aBase, "Mask", "Class cannot mask from itself" );
 
     CLASS_DESC& derived = getClass( aDerived );
     derived.m_maskedBaseProperties.insert( std::make_pair( aBase, aName ) );
@@ -175,10 +177,10 @@ void PROPERTY_MANAGER::Mask( TYPE_ID aDerived, TYPE_ID aBase, const QString& aNa
 
 
 void PROPERTY_MANAGER::OverrideAvailability( TYPE_ID aDerived, TYPE_ID aBase,
-                                             const QString& aName,
+                                             const std::string& aName,
                                              std::function<bool( INSPECTABLE* )> aFunc )
 {
-    Q_ASSERT_X( aDerived != aBase, "OverrideAvailability", "Class cannot override from itself" );
+    assert_X( aDerived != aBase, "OverrideAvailability", "Class cannot override from itself" );
 
     CLASS_DESC& derived = getClass( aDerived );
     derived.m_availabilityOverrides[std::make_pair( aBase, aName )] = std::move( aFunc );
@@ -187,10 +189,10 @@ void PROPERTY_MANAGER::OverrideAvailability( TYPE_ID aDerived, TYPE_ID aBase,
 
 
 void PROPERTY_MANAGER::OverrideWriteability( TYPE_ID aDerived, TYPE_ID aBase,
-                                             const QString& aName,
+                                             const std::string& aName,
                                              std::function<bool( INSPECTABLE* )> aFunc )
 {
-    Q_ASSERT_X( aDerived != aBase, "OverrideWriteability", "Class cannot override from itself" );
+    assert_X( aDerived != aBase, "OverrideWriteability", "Class cannot override from itself" );
 
     CLASS_DESC& derived = getClass( aDerived );
     derived.m_writeabilityOverrides[std::make_pair( aBase, aName )] = std::move( aFunc );
@@ -284,22 +286,22 @@ void PROPERTY_MANAGER::CLASS_DESC::rebuild()
     // We need to keep properties sorted to be able to use std::set_* functions
     sort( m_allProperties.begin(), m_allProperties.end() );
 
-    QVector<QString> displayOrder;
-    std::set<QString> groups;
+    std::vector<std::string> displayOrder;
+    std::set<std::string> groups;
 
     auto collectGroups =
-            [&]( std::set<QString>& aSet, QVector<QString>& aResult )
+            [&]( std::set<std::string>& aSet, std::vector<std::string>& aResult )
     {
         auto collectGroupsRecursive =
-                []( auto& aSelf, std::set<QString>& aSetR, QVector<QString>& aResultR,
+                []( auto& aSelf, std::set<std::string>& aSetR, std::vector<std::string>& aResultR,
                     const CLASS_DESC& aClassR ) -> void
         {
-            for( const QString& group : aClassR.m_groupDisplayOrder )
+            for( const std::string& group : aClassR.m_groupDisplayOrder )
             {
                 if( !aSetR.count( group ) )
                 {
                     aSetR.insert( group );
-                    aResultR.emplace_back( group );
+                    aResultR.push_back( group );
                 }
             }
 
@@ -320,10 +322,10 @@ void PROPERTY_MANAGER::CLASS_DESC::collectPropsRecur( PROPERTY_LIST& aResult,
                                                       PROPERTY_DISPLAY_ORDER& aDisplayOrder,
                                                       PROPERTY_SET& aMasked ) const
 {
-    for( const std::pair<size_t, QString>& replacedEntry : m_replaced )
+    for( const std::pair<size_t, std::string>& replacedEntry : m_replaced )
         aReplaced.emplace( replacedEntry );
 
-    for( const std::pair<size_t, QString>& maskedEntry : m_maskedBaseProperties )
+    for( const std::pair<size_t, std::string>& maskedEntry : m_maskedBaseProperties )
         aMasked.emplace( maskedEntry );
 
     int displayOrderStart = 0;
@@ -428,7 +430,7 @@ PROPERTY_COMMIT_HANDLER::PROPERTY_COMMIT_HANDLER( COMMIT* aCommit )
 
 PROPERTY_COMMIT_HANDLER::~PROPERTY_COMMIT_HANDLER()
 {
-    Q_ASSERT_X( PROPERTY_MANAGER::Instance().m_managedCommit != nullptr,
+    assert_X( PROPERTY_MANAGER::Instance().m_managedCommit != nullptr,
                 "~PROPERTY_COMMIT_HANDLER", "Something went wrong: m_managedCommit already null!" );
 
     PROPERTY_MANAGER::Instance().m_managedCommit = nullptr;

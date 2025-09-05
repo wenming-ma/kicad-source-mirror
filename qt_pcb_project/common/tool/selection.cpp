@@ -1,6 +1,6 @@
 
 #include <algorithm>
-#include <QVector>
+#include <vector>
 #include <eda_item.h>
 #include <tool/selection.h>
 
@@ -67,7 +67,7 @@ bool SELECTION::Contains( EDA_ITEM* aItem ) const
 
 VECTOR2I SELECTION::GetCenter() const
 {
-    static const QVector<KICAD_T> textTypes = { SCH_TEXT_T, SCH_LABEL_LOCATE_ANY_T };
+    static const std::vector<KICAD_T> textTypes = { SCH_TEXT_T, SCH_LABEL_LOCATE_ANY_T };
     bool                              hasOnlyText = true;
 
     // If the selection contains only texts calculate the center as the mean of all positions
@@ -163,9 +163,9 @@ void SELECTION::ClearReferencePoint()
 }
 
 
-const QVector<KIGFX::VIEW_ITEM*> SELECTION::updateDrawList() const
+const std::vector<KIGFX::VIEW_ITEM*> SELECTION::updateDrawList() const
 {
-    QVector<VIEW_ITEM*> items;
+    std::vector<VIEW_ITEM*> items;
 
     for( EDA_ITEM* item : m_items )
         items.push_back( item );
@@ -184,7 +184,7 @@ bool SELECTION::AreAllItemsIdentical() const
 }
 
 
-bool SELECTION::OnlyContains( QVector<KICAD_T> aList ) const
+bool SELECTION::OnlyContains( std::vector<KICAD_T> aList ) const
 {
     return std::all_of( m_items.begin(), m_items.end(),
             [&]( const EDA_ITEM* r )
@@ -194,10 +194,10 @@ bool SELECTION::OnlyContains( QVector<KICAD_T> aList ) const
 }
 
 
-QVector<EDA_ITEM*> SELECTION::GetItemsSortedByTypeAndXY( bool leftBeforeRight,
+std::vector<EDA_ITEM*> SELECTION::GetItemsSortedByTypeAndXY( bool leftBeforeRight,
                                                              bool topBeforeBottom ) const
 {
-    QVector<EDA_ITEM*> sorted_items = QVector<EDA_ITEM*>( m_items.begin(), m_items.end() );
+    std::vector<EDA_ITEM*> sorted_items = std::vector<EDA_ITEM*>( m_items.begin(), m_items.end() );
 
     std::sort( sorted_items.begin(), sorted_items.end(),
                [&]( EDA_ITEM* a, EDA_ITEM* b )
@@ -236,13 +236,13 @@ QVector<EDA_ITEM*> SELECTION::GetItemsSortedByTypeAndXY( bool leftBeforeRight,
 }
 
 
-QVector<EDA_ITEM*> SELECTION::GetItemsSortedBySelectionOrder() const
+std::vector<EDA_ITEM*> SELECTION::GetItemsSortedBySelectionOrder() const
 {
     using pairedIterators = std::pair<decltype( m_items.begin() ),
                                       decltype( m_itemsOrders.begin() )>;
 
     // Create a vector of all {selection item, selection order} iterator pairs
-    QVector<pairedIterators> pairs;
+    std::vector<pairedIterators> pairs;
     auto                         item = m_items.begin();
     auto                         order = m_itemsOrders.begin();
 
@@ -257,7 +257,7 @@ QVector<EDA_ITEM*> SELECTION::GetItemsSortedBySelectionOrder() const
                } );
 
     // Make a vector of just the sortedItems
-    QVector<EDA_ITEM*> sortedItems;
+    std::vector<EDA_ITEM*> sortedItems;
 
     for( pairedIterators sortedItem : pairs )
         sortedItems.emplace_back( *sortedItem.first );

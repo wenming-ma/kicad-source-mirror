@@ -3,7 +3,7 @@
 #include <string_utils.h>
 #include <scintilla_tricks.h>
 #include <widgets/wx_grid.h>
-#include "widgets/ui_common.h"
+#include <widgets/ui_common.h>
 #include <gal/color4d.h>
 #include <dialog_shim.h>
 #include <QClipboard>

@@ -4,9 +4,10 @@
 #define _SETTINGS_MANAGER_H
 
 #include <algorithm>
+#include <map>
 #include <mutex>
 #include <typeinfo>
-#include <QHash>
+#include <unordered_map>
 #include <QString>
 #include <settings/color_settings.h>
 
@@ -193,7 +194,7 @@ private:
 
     std::vector<std::unique_ptr<JSON_SETTINGS>> m_settings;
 
-    QHash<QString, COLOR_SETTINGS*> m_color_settings;
+    std::unordered_map<QString, COLOR_SETTINGS*> m_color_settings;
 
     std::unordered_map<size_t, JSON_SETTINGS*> m_app_settings_cache;
     std::mutex m_app_settings_mutex;
@@ -208,9 +209,9 @@ private:
 
     std::vector<std::unique_ptr<PROJECT>> m_projects_list;
 
-    QHash<QString, PROJECT*> m_projects;
+    std::map<QString, PROJECT*> m_projects;
 
-    QHash<QString, PROJECT_FILE*> m_project_files;
+    std::map<QString, PROJECT_FILE*> m_project_files;
 
     std::unique_ptr<LOCKFILE> m_project_lock;
 

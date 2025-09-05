@@ -50,7 +50,7 @@ Supported units are millimeters (mm), Mil (mil) and inch (")
 #define NUMERIC_EVALUATOR_H_
 
 #include <cstddef>
-#include <QHash>
+#include <map>
 #include <string>
 #include <QString>
 
@@ -117,7 +117,7 @@ public:
     double GetVar( const QString& aString );
 
     /* Remove single variable */
-    void RemoveVar( const QString& aString ) { m_varMap.remove( aString ); }
+    void RemoveVar( const QString& aString ) { m_varMap.erase( aString ); }
 
     /* Remove all variables */
     void ClearVar() { m_varMap.clear(); }
@@ -170,7 +170,7 @@ private:
 
     QString m_originalText;
 
-    QHash<QString, double> m_varMap;
+    std::map<QString, double> m_varMap;
 };
 
 

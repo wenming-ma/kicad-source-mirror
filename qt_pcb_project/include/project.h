@@ -2,8 +2,7 @@
 #define PROJECT_H_
 
 #include <array>
-#include <QHash>
-#include <QVector>
+#include <map>
 #include <kiid.h>
 #include <QString>
 #include <QFileInfo>
@@ -61,12 +60,12 @@ public:
 
     virtual bool TextVarResolver( QString* aToken ) const;
 
-    virtual QHash<QString, QString>& GetTextVars() const;
+    virtual std::map<QString, QString>& GetTextVars() const;
 
     /**
      * Applies the given var map, it will create or update existing vars
      */
-    virtual void ApplyTextVars( const QHash<QString, QString>& aVarsMap );
+    virtual void ApplyTextVars( const std::map<QString, QString>& aVarsMap );
 
     int  GetTextVarsTicker() const { return m_textVarsTicker; }
     void IncrementTextVarsTicker() { m_textVarsTicker++; }
@@ -312,7 +311,7 @@ private:
     /// Backing store for project local settings -- owned by SETTINGS_MANAGER
     PROJECT_LOCAL_SETTINGS*  m_localSettings;
 
-    QHash<KIID, QString> m_sheetNames;
+    std::map<KIID, QString> m_sheetNames;
 
     /// @see this::SetRString(), GetRString(), and enum RSTRING_T.
     std::array<QString,RSTRING_COUNT> m_rstrings;

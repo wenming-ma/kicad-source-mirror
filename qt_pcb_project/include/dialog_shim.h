@@ -12,8 +12,8 @@
 #include <QMoveEvent>
 #include <QResizeEvent>
 #include <QFocusEvent>
-#include <QHash>
-#include <QVector>
+#include <map>
+#include <vector>
 #include <core/raii.h>
 
 class EDA_BASE_FRAME;
@@ -66,7 +66,7 @@ public:
 
     void SelectAllInTextCtrls( QList<QWidget*>& children );
 
-    void SetupStandardButtons( QHash<int, QString> aLabels = {} );
+    void SetupStandardButtons( std::map<int, QString> aLabels = {} );
 
     static bool IsCtrl( int aChar, const QKeyEvent& e )
     {
@@ -123,13 +123,13 @@ protected:
 
     EDA_BASE_FRAME*        m_parentFrame;
 
-    QVector<QWidget*>      m_tabOrder;
+    std::vector<QWidget*>  m_tabOrder;
 
     QSize                  m_initialSize;
     bool                   m_userPositioned;
     bool                   m_userResized;
 
-    QHash<QWidget*, QString> m_beforeEditValues;
+    std::map<QWidget*, QString> m_beforeEditValues;
 };
 
 #endif  // DIALOG_SHIM_

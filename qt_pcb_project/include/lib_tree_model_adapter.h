@@ -12,10 +12,9 @@
 #include <QVariant>
 #include <QTreeView>
 #include <QHeaderView>
-#include <QStringList>
-#include <QHash>
 #include <QWidget>
 #include <vector>
+#include <string>
 #include <functional>
 #include <set>
 #include <map>
@@ -71,14 +70,14 @@ public:
 
     void RemoveGroup( bool aRecentlyUsedGroup, bool aAlreadyPlacedGroup );
 
-    QStringList GetAvailableColumns() const { return m_availableColumns; }
+    std::vector<std::string> GetAvailableColumns() const { return m_availableColumns; }
 
-    QStringList GetShownColumns() const { return m_shownColumns; }
+    std::vector<std::string> GetShownColumns() const { return m_shownColumns; }
 
-    QStringList GetOpenLibs() const;
-    void        OpenLibs( const QStringList& aLibs );
+    std::vector<std::string> GetOpenLibs() const;
+    void        OpenLibs( const std::vector<std::string>& aLibs );
 
-    void SetShownColumns( const QStringList& aColumnNames );
+    void SetShownColumns( const std::vector<std::string>& aColumnNames );
 
     void AssignIntrinsicRanks() { m_tree.AssignIntrinsicRanks(); }
 
@@ -162,8 +161,8 @@ protected:
     void recreateColumns();
 
     LIB_TREE_NODE_ROOT           m_tree;
-    QHash<int, QString>          m_colIdxMap;
-    QStringList                  m_availableColumns;
+    std::map<unsigned, std::string> m_colIdxMap;
+    std::vector<std::string>     m_availableColumns;
 
     QTreeView*                   m_widget;
 
@@ -179,7 +178,7 @@ private:
 
     std::function<bool( LIB_TREE_NODE& aNode )>* m_filter;
 
-    QStringList                                  m_shownColumns;
+    std::vector<std::string>                     m_shownColumns;
 };
 
 #endif // LIB_TREE_MODEL_ADAPTER_H

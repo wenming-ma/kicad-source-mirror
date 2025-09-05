@@ -1,7 +1,7 @@
 #include <QWidget>
 #include <QTreeWidget>
 #include <QApplication>
-#include "widgets/ui_common.h"
+#include <widgets/ui_common.h>
 #include <marker_base.h>
 #include <eda_draw_frame.h>
 #include <rc_item.h>

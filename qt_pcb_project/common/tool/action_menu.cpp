@@ -19,7 +19,7 @@
 #include <QTableView>
 #include <QKeySequence>
 #include <QtGlobal>
-#include "widgets/ui_common.h"
+#include <widgets/ui_common.h>
 
 using namespace std::placeholders;
 

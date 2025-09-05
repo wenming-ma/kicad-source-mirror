@@ -1,6 +1,7 @@
 
 #include <eda_shape.h>
 
+#include <vector>
 #include <bezier_curves.h>
 #include <convert_basic_shapes_to_polygon.h>
 #include <eda_draw_frame.h>
@@ -576,7 +577,7 @@ void EDA_SHAPE::scale( double aScale )
 
     case SHAPE_T::POLY: // polygon
     {
-        QVector<VECTOR2I> pts;
+        std::vector<VECTOR2I> pts;
 
         for( int ii = 0; ii < m_poly.OutlineCount(); ++ ii )
         {
@@ -724,12 +725,12 @@ void EDA_SHAPE::RebuildBezierToSegmentsPointsList( int aMaxError )
 }
 
 
-const QVector<VECTOR2I> EDA_SHAPE::buildBezierToSegmentsPointsList( int aMaxError ) const
+const std::vector<VECTOR2I> EDA_SHAPE::buildBezierToSegmentsPointsList( int aMaxError ) const
 {
-    QVector<VECTOR2I> bezierPoints;
+    std::vector<VECTOR2I> bezierPoints;
 
     // Rebuild the m_BezierPoints vertex list that approximate the Bezier curve
-    QVector<VECTOR2I> ctrlPoints = { m_start, m_bezierC1, m_bezierC2, m_end };
+    std::vector<VECTOR2I> ctrlPoints = { m_start, m_bezierC1, m_bezierC2, m_end };
     BEZIER_POLY converter( ctrlPoints );
     converter.GetPoly( bezierPoints, aMaxError );
 
@@ -965,7 +966,7 @@ QString EDA_SHAPE::getFriendlyName() const
 }
 
 
-void EDA_SHAPE::ShapeGetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, QVector<MSG_PANEL_ITEM>& aList )
+void EDA_SHAPE::ShapeGetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     QString msg;
 
@@ -1142,8 +1143,8 @@ bool EDA_SHAPE::hitTest( const VECTOR2I& aPosition, int aAccuracy ) const
 
     case SHAPE_T::BEZIER:
     {
-        const QVector<VECTOR2I>* pts = &m_bezierPoints;
-        QVector<VECTOR2I> updatedBezierPoints;
+        const std::vector<VECTOR2I>* pts = &m_bezierPoints;
+        std::vector<VECTOR2I> updatedBezierPoints;
 
         if( m_bezierPoints.empty() )
         {
@@ -1176,7 +1177,7 @@ bool EDA_SHAPE::hitTest( const VECTOR2I& aPosition, int aAccuracy ) const
         }
         else                                            // Open rect hit-test
         {
-            QVector<VECTOR2I> pts = GetRectCorners();
+            std::vector<VECTOR2I> pts = GetRectCorners();
 
             return TestSegmentHit( aPosition, pts[0], pts[1], maxdist )
                     || TestSegmentHit( aPosition, pts[1], pts[2], maxdist )
@@ -1267,7 +1268,7 @@ bool EDA_SHAPE::hitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
         }
         else
         {
-            QVector<VECTOR2I> pts = GetRectCorners();
+            std::vector<VECTOR2I> pts = GetRectCorners();
 
             // Account for the width of the lines
             arect.Inflate( GetWidth() / 2 );
@@ -1353,8 +1354,8 @@ bool EDA_SHAPE::hitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
 
             // Account for the width of the line
             arect.Inflate( GetWidth() / 2 );
-            const QVector<VECTOR2I>* pts = &m_bezierPoints;
-            QVector<VECTOR2I> updatedBezierPoints;
+            const std::vector<VECTOR2I>* pts = &m_bezierPoints;
+            std::vector<VECTOR2I> updatedBezierPoints;
 
             if( m_bezierPoints.empty() )
             {
@@ -1387,9 +1388,9 @@ bool EDA_SHAPE::hitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
 }
 
 
-QVector<VECTOR2I> EDA_SHAPE::GetRectCorners() const
+std::vector<VECTOR2I> EDA_SHAPE::GetRectCorners() const
 {
-    QVector<VECTOR2I> pts;
+    std::vector<VECTOR2I> pts;
     VECTOR2I              topLeft = GetStart();
     VECTOR2I              botRight = GetEnd();
 
@@ -1402,9 +1403,9 @@ QVector<VECTOR2I> EDA_SHAPE::GetRectCorners() const
 }
 
 
-QVector<VECTOR2I> EDA_SHAPE::GetCornersInSequence( EDA_ANGLE angle ) const
+std::vector<VECTOR2I> EDA_SHAPE::GetCornersInSequence( EDA_ANGLE angle ) const
 {
-    QVector<VECTOR2I> pts;
+    std::vector<VECTOR2I> pts;
 
     angle.Normalize();
 
@@ -1453,7 +1454,7 @@ QVector<VECTOR2I> EDA_SHAPE::GetCornersInSequence( EDA_ANGLE angle ) const
         //
         // To address this, a portion of the getCorners implementation for SHAPE_T::POLY elements
         // has been replicated here to restore the correct behavior.
-        QVector<VECTOR2I> corners;
+        std::vector<VECTOR2I> corners;
 
         for( int ii = 0; ii < GetPolyShape().OutlineCount(); ++ii )
         {
@@ -1568,7 +1569,7 @@ void EDA_SHAPE::computeArcBBox( BOX2I& aBBox ) const
 }
 
 
-void EDA_SHAPE::SetPolyPoints( const QVector<VECTOR2I>& aPoints )
+void EDA_SHAPE::SetPolyPoints( const std::vector<VECTOR2I>& aPoints )
 {
     m_poly.RemoveAllContours();
     m_poly.NewOutline();
@@ -1578,9 +1579,9 @@ void EDA_SHAPE::SetPolyPoints( const QVector<VECTOR2I>& aPoints )
 }
 
 
-QVector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineChainOnly ) const
+std::vector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineChainOnly ) const
 {
-    QVector<SHAPE*> effectiveShapes;
+    std::vector<SHAPE*> effectiveShapes;
     int                 width = GetEffectiveWidth();
 
     switch( m_shape )
@@ -1595,7 +1596,7 @@ QVector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineChainO
 
     case SHAPE_T::RECTANGLE:
     {
-        QVector<VECTOR2I> pts = GetRectCorners();
+        std::vector<VECTOR2I> pts = GetRectCorners();
 
         if( ( IsFilled() || IsProxyItem() ) && !aEdgeOnly )
             effectiveShapes.emplace_back( new SHAPE_SIMPLE( pts ) );
@@ -1624,7 +1625,7 @@ QVector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineChainO
 
     case SHAPE_T::BEZIER:
     {
-        QVector<VECTOR2I> bezierPoints = buildBezierToSegmentsPointsList( getMaxError() );
+        std::vector<VECTOR2I> bezierPoints = buildBezierToSegmentsPointsList( getMaxError() );
         VECTOR2I              start_pt = bezierPoints[0];
 
         for( unsigned int jj = 1; jj < bezierPoints.size(); jj++ )
@@ -1672,7 +1673,7 @@ QVector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineChainO
 }
 
 
-void EDA_SHAPE::DupPolyPointsList( QVector<VECTOR2I>& aBuffer ) const
+void EDA_SHAPE::DupPolyPointsList( std::vector<VECTOR2I>& aBuffer ) const
 {
     for( int ii = 0; ii < m_poly.OutlineCount(); ++ii )
     {
@@ -2057,7 +2058,7 @@ void EDA_SHAPE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, int aClearance
 
     case SHAPE_T::RECTANGLE:
     {
-        QVector<VECTOR2I> pts = GetRectCorners();
+        std::vector<VECTOR2I> pts = GetRectCorners();
 
         if( IsFilled() || IsProxyItem() )
         {
@@ -2136,9 +2137,9 @@ void EDA_SHAPE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, int aClearance
 
     case SHAPE_T::BEZIER:
     {
-        QVector<VECTOR2I> ctrlPts = { GetStart(), GetBezierC1(), GetBezierC2(), GetEnd() };
+        std::vector<VECTOR2I> ctrlPts = { GetStart(), GetBezierC1(), GetBezierC2(), GetEnd() };
         BEZIER_POLY converter( ctrlPts );
-        QVector<VECTOR2I> poly;
+        std::vector<VECTOR2I> poly;
         converter.GetPoly( poly, aError );
 
         for( unsigned ii = 1; ii < poly.size(); ii++ )
@@ -2260,8 +2261,8 @@ double EDA_SHAPE::Similarity( const EDA_SHAPE& aOther ) const
     {
         int m = m_poly.TotalVertices();
         int n = aOther.m_poly.TotalVertices();
-        QVector<VECTOR2I> poly;
-        QVector<VECTOR2I> otherPoly;
+        std::vector<VECTOR2I> poly;
+        std::vector<VECTOR2I> otherPoly;
         VECTOR2I              lastPt( 0, 0 );
 
         // We look for the longest common subset of the two polygons, but we need to

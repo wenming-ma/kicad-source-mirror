@@ -2,14 +2,14 @@
 #ifndef QT_GRID_AUTOSIZER_H
 #define QT_GRID_AUTOSIZER_H
 
-#include <QHash>
+#include <map>
 #include <QTableWidget>
 #include <QResizeEvent>
 
 class QT_GRID_AUTOSIZER
 {
 public:
-    using COL_MIN_WIDTHS = QHash<int, int>;
+    using COL_MIN_WIDTHS = std::map<int, int>;
 
     QT_GRID_AUTOSIZER( QTableWidget& aGrid, COL_MIN_WIDTHS aAutosizedCols, unsigned aFlexibleCol );
 

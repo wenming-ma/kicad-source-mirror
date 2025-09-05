@@ -1,6 +1,8 @@
 
 #include <eda_pattern_match.h>
 #include <limits>
+#include <vector>
+#include <map>
 #include <QRegularExpression>
 #include <QStringList>
 #include <algorithm>
@@ -331,7 +333,7 @@ int EDA_PATTERN_MATCH_RELATIONAL::FindOne( const QString& aCandidate ) const
 }
 
 
-const QHash<QString, double> EDA_PATTERN_MATCH_RELATIONAL::m_units = {
+const std::map<QString, double> EDA_PATTERN_MATCH_RELATIONAL::m_units = {
     { "p",  1e-12 },
     { "n",  1e-9 },
     { "u",  1e-6 },
@@ -436,7 +438,7 @@ bool EDA_COMBINED_MATCHER::StartsWith( const QString& aTerm )
 }
 
 
-int EDA_COMBINED_MATCHER::ScoreTerms( QVector<SEARCH_TERM>& aWeightedTerms )
+int EDA_COMBINED_MATCHER::ScoreTerms( std::vector<SEARCH_TERM>& aWeightedTerms )
 {
     int score = 0;
 

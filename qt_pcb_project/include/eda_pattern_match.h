@@ -4,8 +4,8 @@
 #define EDA_PATTERN_MATCH_H
 
 #include <kicommon.h>
-#include <QVector>
-#include <QHash>
+#include <vector>
+#include <map>
 #include <memory>
 #include <QString>
 #include <QRegularExpression>
@@ -168,7 +168,7 @@ protected:
     RELATION m_relation;
     double   m_value;
 
-    static const QHash<QString, double> m_units;
+    static const std::map<QString, double> m_units;
 };
 
 
@@ -216,12 +216,12 @@ public:
 
     const QString& GetPattern() const;
 
-    int ScoreTerms( QVector<SEARCH_TERM>& aWeightedTerms );
+    int ScoreTerms( std::vector<SEARCH_TERM>& aWeightedTerms );
 
 private:
     void AddMatcher( const QString& aPattern, std::unique_ptr<EDA_PATTERN_MATCH> aMatcher );
 
-    QVector<std::unique_ptr<EDA_PATTERN_MATCH>> m_matchers;
+    std::vector<std::unique_ptr<EDA_PATTERN_MATCH>> m_matchers;
     QString m_pattern;
 };
 

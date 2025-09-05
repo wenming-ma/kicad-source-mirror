@@ -5,7 +5,7 @@
 
 #include <functional>
 #include <core/typeinfo.h>
-#include <QVector>
+#include <vector>
 
 class SELECTION;
 
@@ -51,9 +51,9 @@ public:
 
     static SELECTION_CONDITION HasType( KICAD_T aType );
 
-    static SELECTION_CONDITION HasTypes( QVector<KICAD_T> aTypes );
+    static SELECTION_CONDITION HasTypes( std::vector<KICAD_T> aTypes );
 
-    static SELECTION_CONDITION OnlyTypes( QVector<KICAD_T> aTypes );
+    static SELECTION_CONDITION OnlyTypes( std::vector<KICAD_T> aTypes );
 
     static SELECTION_CONDITION Count( int aNumber );
 
@@ -64,9 +64,9 @@ public:
 private:
     static bool hasTypeFunc( const SELECTION& aSelection, KICAD_T aType );
 
-    static bool hasTypesFunc( const SELECTION& aSelection, QVector<KICAD_T> aTypes );
+    static bool hasTypesFunc( const SELECTION& aSelection, std::vector<KICAD_T> aTypes );
 
-    static bool onlyTypesFunc( const SELECTION& aSelection, QVector<KICAD_T> aTypes );
+    static bool onlyTypesFunc( const SELECTION& aSelection, std::vector<KICAD_T> aTypes );
 
     static bool countFunc( const SELECTION& aSelection, int aNumber );
 

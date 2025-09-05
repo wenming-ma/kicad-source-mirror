@@ -3,8 +3,9 @@
 #define  EDA_BASE_FRAME_H_
 
 
-#include <QVector>
-#include <QHash>
+#include <vector>
+#include <map>
+#include <unordered_map>
 #include <QMainWindow>
 #include <QWidget>
 #include <QMenuBar>
@@ -28,7 +29,7 @@
 #include <hotkeys_basic.h>
 #include <kiway_holder.h>
 #include <tool/tools_holder.h>
-#include "widgets/ui_common.h"
+#include <widgets/ui_common.h>
 #include <widgets/qt_infobar.h>
 #include <undo_redo_container.h>
 #include <units_provider.h>
@@ -187,7 +188,7 @@ public:
 
     virtual void SaveProjectLocalSettings() {};
 
-    void ImportHotkeyConfigFromFile( QHash<std::string, TOOL_ACTION*> aActionMap,
+    void ImportHotkeyConfigFromFile( std::map<std::string, TOOL_ACTION*> aActionMap,
                                      const QString& aDefaultShortname );
 
     QString GetFileFromHistory( int cmdId, const QString& type,
@@ -306,7 +307,7 @@ protected:
     void AddMenuLanguageList( ACTION_MENU* aMasterMenu, TOOL_INTERACTIVE* aControlTool );
 
     virtual void            DoWithAcceptedFiles();
-    QVector<QFileInfo> m_AcceptedFiles;
+    std::vector<QFileInfo> m_AcceptedFiles;
 
 private:
     void windowClosing( QCloseEvent& event );
@@ -359,7 +360,7 @@ private:
     ORIGIN_TRANSFORMS       m_originTransforms;  // Default display origin transforms object.
 
     // Map containing the UI update handlers registered with Qt for each action.
-    QHash<int, UIUpdateHandler> m_uiUpdateMap;
+    std::map<int, UIUpdateHandler> m_uiUpdateMap;
 
     // Set by the close window event handler after frames are asked if they can close.
     // Allows other functions when called to know our state is cleanup.
@@ -369,7 +370,7 @@ private:
     bool            m_isNonUserClose;
 
     // Associate file extensions with action to execute.
-    QHash<const QString, TOOL_ACTION*> m_acceptedExts;
+    std::map<const QString, TOOL_ACTION*> m_acceptedExts;
 };
 
 

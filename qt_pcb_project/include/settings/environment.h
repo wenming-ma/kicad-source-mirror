@@ -3,7 +3,7 @@
 #ifndef KICAD_ENVIRONMENT_H
 #define KICAD_ENVIRONMENT_H
 
-#include <QHash>
+#include <map>
 #include <QString>
 
 
@@ -68,8 +68,8 @@ private:
     bool m_isDefinedInSettings;
 };
 
-typedef QHash<QString, ENV_VAR_ITEM>                    ENV_VAR_MAP;
-typedef QHash<QString, ENV_VAR_ITEM>::iterator          ENV_VAR_MAP_ITER;
-typedef QHash<QString, ENV_VAR_ITEM>::const_iterator    ENV_VAR_MAP_CITER;
+typedef std::map<QString, ENV_VAR_ITEM>                    ENV_VAR_MAP;
+typedef std::map<QString, ENV_VAR_ITEM>::iterator          ENV_VAR_MAP_ITER;
+typedef std::map<QString, ENV_VAR_ITEM>::const_iterator    ENV_VAR_MAP_CITER;
 
 #endif // KICAD_ENVIRONMENT_H

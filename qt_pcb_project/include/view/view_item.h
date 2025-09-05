@@ -1,7 +1,7 @@
 #pragma once
 
 #include <bitset>
-#include <QVector>
+#include <vector>
 #include <limits>
 #include <QString>
 
@@ -70,7 +70,7 @@ public:
 
     virtual void ViewDraw( int aLayer, VIEW* aView ) const;
 
-    virtual QVector<int> ViewGetLayers() const = 0;
+    virtual std::vector<int> ViewGetLayers() const = 0;
 
     virtual double ViewGetLOD( int aLayer, const VIEW* aView ) const
     {

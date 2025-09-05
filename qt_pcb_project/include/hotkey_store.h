@@ -3,7 +3,7 @@
 
 #include <hotkeys_basic.h>
 #include <tool/tool_action.h>
-#include <QVector>
+#include <vector>
 #include <QString>
 
 class TOOL_MANAGER;
@@ -11,7 +11,7 @@ class TOOL_MANAGER;
 
 struct HOTKEY
 {
-    QVector<TOOL_ACTION*> m_Actions;
+    std::vector<TOOL_ACTION*> m_Actions;
     int                       m_EditKeycode;
     int                       m_EditKeycodeAlt;
 
@@ -32,7 +32,7 @@ struct HOTKEY
 struct HOTKEY_SECTION
 {
     QString            m_SectionName;
-    QVector<HOTKEY> m_HotKeys;
+    std::vector<HOTKEY> m_HotKeys;
 };
 
 
@@ -42,12 +42,12 @@ public:
 
     HOTKEY_STORE();
 
-    void Init( QVector<TOOL_ACTION*> aActionsList, bool aIncludeReadOnlyCmds );
+    void Init( std::vector<TOOL_ACTION*> aActionsList, bool aIncludeReadOnlyCmds );
 
     static QString GetAppName( TOOL_ACTION* aAction );
     static QString GetSectionName( TOOL_ACTION* aAction );
 
-    QVector<HOTKEY_SECTION>& GetSections();
+    std::vector<HOTKEY_SECTION>& GetSections();
 
     void SaveAllHotkeys();
 
@@ -58,8 +58,8 @@ public:
     bool CheckKeyConflicts( TOOL_ACTION* aAction, long aKey, HOTKEY** aConflict );
 
 private:
-    QVector<TOOL_MANAGER*>  m_toolManagers;
-    QVector<HOTKEY_SECTION> m_hk_sections;
+    std::vector<TOOL_MANAGER*>  m_toolManagers;
+    std::vector<HOTKEY_SECTION> m_hk_sections;
 };
 
 #endif // HOTKEY_STORE__H

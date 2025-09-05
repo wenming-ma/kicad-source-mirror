@@ -2,7 +2,8 @@
 #ifndef COLLECTOR_H
 #define COLLECTOR_H
 
-#include <QVector>
+#include <vector>
+#include <algorithm>
 #include <core/kicad_algo.h>
 #include <eda_item.h>
 
@@ -31,13 +32,13 @@ public:
         return INSPECT_RESULT::QUIT;
     };
 
-    using ITER = QVector<EDA_ITEM*>::iterator;
-    using CITER = QVector<EDA_ITEM*>::const_iterator;
+    using ITER = std::vector<EDA_ITEM*>::iterator;
+    using CITER = std::vector<EDA_ITEM*>::const_iterator;
 
     ITER begin() { return m_list.begin(); }
     ITER end() { return m_list.end(); }
-    CITER begin() const { return m_list.constBegin(); }
-    CITER end() const { return m_list.constEnd(); }
+    CITER begin() const { return m_list.cbegin(); }
+    CITER end() const { return m_list.cend(); }
 
     int GetCount() const
     {
@@ -51,12 +52,12 @@ public:
 
     void Append( EDA_ITEM* item )
     {
-        m_list.append( item );
+        m_list.push_back( item );
     }
 
     void Remove( int aIndex )
     {
-        m_list.remove( aIndex );
+        m_list.erase( m_list.begin() + aIndex );
     }
 
     void Remove( const EDA_ITEM* aItem )
@@ -74,14 +75,14 @@ public:
 
     void Combine()
     {
-        m_list += m_backupList;
+        std::copy( m_backupList.begin(), m_backupList.end(), std::back_inserter( m_list ) );
         m_backupList.clear();
     }
 
     void Transfer( int aIndex )
     {
-        m_backupList.append( m_list[aIndex] );
-        m_list.remove( aIndex );
+        m_backupList.push_back( m_list[aIndex] );
+        m_list.erase( m_list.begin() + aIndex );
     }
 
     void Transfer( EDA_ITEM* aItem )
@@ -90,8 +91,8 @@ public:
         {
             if( m_list[i] == aItem )
             {
-                m_list.remove( i );
-                m_backupList.append( aItem );
+                m_list.erase( m_list.begin() + i );
+                m_backupList.push_back( aItem );
                 return;
             }
         }
@@ -116,7 +117,7 @@ public:
         return false;
     }
 
-    void SetScanTypes( const QVector<KICAD_T>& aTypes ) { m_scanTypes = aTypes; }
+    void SetScanTypes( const std::vector<KICAD_T>& aTypes ) { m_scanTypes = aTypes; }
 
     void SetRefPos( const VECTOR2I& aRefPos ) { m_refPos = aRefPos; }
 
@@ -139,10 +140,10 @@ public:
     bool           m_MenuCancelled;
 
 protected:
-    QVector<EDA_ITEM*> m_list;
-    QVector<EDA_ITEM*> m_backupList;
+    std::vector<EDA_ITEM*> m_list;
+    std::vector<EDA_ITEM*> m_backupList;
 
-    QVector<KICAD_T>   m_scanTypes;
+    std::vector<KICAD_T>   m_scanTypes;
     INSPECTOR_FUNC     m_inspector;
 
     VECTOR2I           m_refPos;
