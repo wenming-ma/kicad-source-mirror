@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2011-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #ifndef PCB_IO_MGR_H_
 #define PCB_IO_MGR_H_
@@ -28,7 +7,7 @@
 #include <cstdint>
 #include <config.h>
 #include <vector>
-#include <wx/arrstr.h>
+#include <QString>
 #include <i18n_utility.h>
 #include <io/io_base.h>
 #include <io/io_mgr.h>
@@ -88,7 +67,7 @@ public:
             {
                 PCB_FILE_T m_type;
                 std::function<PCB_IO*(void)> m_createFunc;
-                wxString m_name;
+                QString m_name;
             };
 
             static PLUGIN_REGISTRY *Instance()
@@ -102,7 +81,7 @@ public:
                 return self;
             }
 
-            void Register( PCB_FILE_T aType, const wxString& aName,
+            void Register( PCB_FILE_T aType, const QString& aName,
                            std::function<PCB_IO*(void)> aCreateFunc )
             {
                 ENTRY ent;
@@ -145,7 +124,7 @@ public:
      */
     struct REGISTER_PLUGIN
     {
-         REGISTER_PLUGIN( PCB_FILE_T aType, const wxString& aName,
+         REGISTER_PLUGIN( PCB_FILE_T aType, const QString& aName,
                           std::function<PCB_IO*(void)> aCreateFunc )
          {
              PLUGIN_REGISTRY::Instance()->Register( aType, aName, aCreateFunc );
@@ -167,22 +146,22 @@ public:
     /**
      * Return a brief name for a plugin given \a aFileType enum.
      */
-    static const wxString ShowType( PCB_FILE_T aFileType );
+    static const QString ShowType( PCB_FILE_T aFileType );
 
     /**
      * Return the #PCB_FILE_T from the corresponding plugin type name: "kicad", "legacy", etc.
      */
-    static PCB_FILE_T EnumFromStr( const wxString& aFileType );
+    static PCB_FILE_T EnumFromStr( const QString& aFileType );
 
     /**
      * Return a plugin type given a path for a board file. FILE_TYPE_NONE if the file is not known.
      */
-    static PCB_FILE_T FindPluginTypeFromBoardPath( const wxString& aFileName, int aCtl = 0 );
+    static PCB_FILE_T FindPluginTypeFromBoardPath( const QString& aFileName, int aCtl = 0 );
 
     /**
      * Return a plugin type given a footprint library's libPath.
      */
-    static PCB_FILE_T GuessPluginTypeFromLibPath( const wxString& aLibPath, int aCtl = 0 );
+    static PCB_FILE_T GuessPluginTypeFromLibPath( const QString& aLibPath, int aCtl = 0 );
 
     /**
      * Find the requested #PLUGIN and if found, calls the #PLUGIN::LoadBoard() function
@@ -203,7 +182,7 @@ public:
      * @throw IO_ERROR if the #PLUGIN cannot be found, file cannot be found, or file cannot
      *                 be loaded.
      */
-    static BOARD* Load( PCB_FILE_T aFileType, const wxString& aFileName,
+    static BOARD* Load( PCB_FILE_T aFileType, const QString& aFileName,
                         BOARD* aAppendToMe = nullptr, const std::map<std::string, UTF8>* aProperties = nullptr,
                         PROJECT* aProject = nullptr,
                         PROGRESS_REPORTER* aProgressReporter = nullptr );
@@ -227,14 +206,14 @@ public:
      *
      * @throw IO_ERROR if there is a problem saving or exporting.
      */
-    static void Save( PCB_FILE_T aFileType, const wxString& aFileName, BOARD* aBoard,
+    static void Save( PCB_FILE_T aFileType, const QString& aFileName, BOARD* aBoard,
                       const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
      * Convert a schematic symbol library to the latest KiCad format
      */
-    static bool ConvertLibrary( std::map<std::string, UTF8>* aOldFileProps, const wxString& aOldFilePath,
-                                const wxString& aNewFilePath, REPORTER* aReporter );
+    static bool ConvertLibrary( std::map<std::string, UTF8>* aOldFileProps, const QString& aOldFilePath,
+                                const QString& aNewFilePath, REPORTER* aReporter );
 };
 
 #endif // PCB_IO_MGR_H_

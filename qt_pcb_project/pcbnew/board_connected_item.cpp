@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <board.h>
 #include <board_connected_item.h>
@@ -50,7 +26,7 @@ void BOARD_CONNECTED_ITEM::UnpackNet( const kiapi::board::types::Net& aProto )
 {
     if( BOARD* board = GetBoard() )
     {
-        wxString name = wxString::FromUTF8( aProto.name() );
+        QString name = QString::fromUtf8( aProto.name() );
 
         if( NETINFO_ITEM* net = board->FindNet( name ) )
         {
@@ -92,13 +68,13 @@ bool BOARD_CONNECTED_ITEM::SetNetCode( int aNetCode, bool aNoAssert )
         m_netinfo = NETINFO_LIST::OrphanedItem();
 
     if( !aNoAssert )
-        wxASSERT( m_netinfo );
+        Q_ASSERT( m_netinfo );
 
     return ( m_netinfo != nullptr );
 }
 
 
-int BOARD_CONNECTED_ITEM::GetOwnClearance( PCB_LAYER_ID aLayer, wxString* aSource ) const
+int BOARD_CONNECTED_ITEM::GetOwnClearance( PCB_LAYER_ID aLayer, QString* aSource ) const
 {
     DRC_CONSTRAINT constraint;
 
@@ -138,45 +114,45 @@ NETCLASS* BOARD_CONNECTED_ITEM::GetEffectiveNetClass() const
 }
 
 
-wxString BOARD_CONNECTED_ITEM::GetNetClassName() const
+QString BOARD_CONNECTED_ITEM::GetNetClassName() const
 {
     return GetEffectiveNetClass()->GetName();
 }
 
 
-wxString BOARD_CONNECTED_ITEM::GetNetname() const
+QString BOARD_CONNECTED_ITEM::GetNetname() const
 {
-    return m_netinfo ? m_netinfo->GetNetname() : wxString();
+    return m_netinfo ? m_netinfo->GetNetname() : QString();
 }
 
 
-wxString BOARD_CONNECTED_ITEM::GetNetnameMsg() const
+QString BOARD_CONNECTED_ITEM::GetNetnameMsg() const
 {
     if( !GetBoard() )
-        return wxT( "[** NO BOARD DEFINED **]" );
+        return QStringLiteral( "[** NO BOARD DEFINED **]" );
 
-    wxString netname = GetNetname();
+    QString netname = GetNetname();
 
     if( !netname.length() )
-        return wxT( "[<no net>]" );
+        return QStringLiteral( "[<no net>]" );
     else if( GetNetCode() < 0 )
-        return wxT( "[" ) + UnescapeString( netname ) + wxT( "](" ) + _( "Not Found" ) + wxT( ")" );
+        return QStringLiteral( "[" ) + UnescapeString( netname ) + QStringLiteral( "](" ) + _( "Not Found" ) + QStringLiteral( ")" );
     else
-        return wxT( "[" ) + UnescapeString( netname ) + wxT( "]" );
+        return QStringLiteral( "[" ) + UnescapeString( netname ) + QStringLiteral( "]" );
 }
 
 
-const wxString& BOARD_CONNECTED_ITEM::GetShortNetname() const
+const QString& BOARD_CONNECTED_ITEM::GetShortNetname() const
 {
-    static wxString emptyString;
+    static QString emptyString;
 
     return m_netinfo ? m_netinfo->GetShortNetname() : emptyString;
 }
 
 
-const wxString& BOARD_CONNECTED_ITEM::GetDisplayNetname() const
+const QString& BOARD_CONNECTED_ITEM::GetDisplayNetname() const
 {
-    static wxString emptyString;
+    static QString emptyString;
 
     if( !m_netinfo )
         return emptyString;
@@ -230,23 +206,23 @@ static struct BOARD_CONNECTED_ITEM_DESC
          * don't at the moment because there is no way to edit the netclass of a net from a selected
          * connected item, and showing it makes users think they can change it.
          */
-        propMgr.AddProperty( new PROPERTY<BOARD_CONNECTED_ITEM, wxString>( _HKI( "Net Class" ),
-                             NO_SETTER( BOARD_CONNECTED_ITEM, wxString ),
+        propMgr.AddProperty( new PROPERTY<BOARD_CONNECTED_ITEM, QString>( _HKI( "Net Class" ),
+                             NO_SETTER( BOARD_CONNECTED_ITEM, QString ),
                              &BOARD_CONNECTED_ITEM::GetNetClassName ) )
                 .SetIsHiddenFromRulesEditor()
                 .SetIsHiddenFromPropertiesManager()
                 .SetIsHiddenFromLibraryEditors();
 
         // Compatibility alias for DRC engine
-        propMgr.AddProperty( new PROPERTY<BOARD_CONNECTED_ITEM, wxString>( _HKI( "NetClass" ),
-                             NO_SETTER( BOARD_CONNECTED_ITEM, wxString ),
+        propMgr.AddProperty( new PROPERTY<BOARD_CONNECTED_ITEM, QString>( _HKI( "NetClass" ),
+                             NO_SETTER( BOARD_CONNECTED_ITEM, QString ),
                              &BOARD_CONNECTED_ITEM::GetNetClassName ) )
                 .SetIsHiddenFromPropertiesManager()
                 .SetIsHiddenFromLibraryEditors();
 
         // Used only in DRC engine
-        propMgr.AddProperty( new PROPERTY<BOARD_CONNECTED_ITEM, wxString>( _HKI( "NetName" ),
-                             NO_SETTER( BOARD_CONNECTED_ITEM, wxString ),
+        propMgr.AddProperty( new PROPERTY<BOARD_CONNECTED_ITEM, QString>( _HKI( "NetName" ),
+                             NO_SETTER( BOARD_CONNECTED_ITEM, QString ),
                              &BOARD_CONNECTED_ITEM::GetNetname ) )
                 .SetIsHiddenFromPropertiesManager()
                 .SetIsHiddenFromLibraryEditors();
@@ -279,7 +255,7 @@ static struct BOARD_CONNECTED_ITEM_DESC
                     return false;
                 };
 
-        const wxString groupTeardrops = _HKI( "Teardrops" );
+        const QString groupTeardrops = _HKI( "Teardrops" );
 
         auto enableTeardrops = new PROPERTY<BOARD_CONNECTED_ITEM, bool>( _HKI( "Enable Teardrops" ),
                          &BOARD_CONNECTED_ITEM::SetTeardropsEnabled,

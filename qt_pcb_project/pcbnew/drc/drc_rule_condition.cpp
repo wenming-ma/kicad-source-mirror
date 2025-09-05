@@ -1,34 +1,13 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 
+#include <QString>
 #include <board_item.h>
 #include <reporter.h>
 #include <drc/drc_rule_condition.h>
 #include <pcbexpr_evaluator.h>
 
 
-DRC_RULE_CONDITION::DRC_RULE_CONDITION( const wxString& aExpression ) :
+DRC_RULE_CONDITION::DRC_RULE_CONDITION( const QString& aExpression ) :
     m_expression( aExpression ),
     m_ucode ( nullptr )
 {
@@ -43,7 +22,7 @@ DRC_RULE_CONDITION::~DRC_RULE_CONDITION()
 bool DRC_RULE_CONDITION::EvaluateFor( const BOARD_ITEM* aItemA, const BOARD_ITEM* aItemB,
                                       int aConstraint, PCB_LAYER_ID aLayer, REPORTER* aReporter )
 {
-    if( GetExpression().IsEmpty() )
+    if( GetExpression().isEmpty() )
         return true;
 
     if( !m_ucode )
@@ -59,9 +38,9 @@ bool DRC_RULE_CONDITION::EvaluateFor( const BOARD_ITEM* aItemA, const BOARD_ITEM
     if( aReporter )
     {
         ctx.SetErrorCallback(
-                [&]( const wxString& aMessage, int aOffset )
+                [&]( const QString& aMessage, int aOffset )
                 {
-                    aReporter->Report( _( "ERROR:" ) + wxS( " " ) + aMessage );
+                    aReporter->Report( QStringLiteral( "ERROR: " ) + aMessage );
                 } );
     }
 
@@ -93,15 +72,18 @@ bool DRC_RULE_CONDITION::Compile( REPORTER* aReporter, int aSourceLine, int aSou
     if( aReporter )
     {
         compiler.SetErrorCallback(
-                [&]( const wxString& aMessage, int aOffset )
+                [&]( const QString& aMessage, int aOffset )
                 {
-                    wxString rest;
-                    wxString first = aMessage.BeforeFirst( '|', &rest );
-                    wxString msg = wxString::Format( _( "ERROR: <a href='%d:%d'>%s</a>%s" ),
+                    QString rest;
+                    int index = aMessage.indexOf( '|' );
+                    QString first = index >= 0 ? aMessage.left( index ) : aMessage;
+                    if( index >= 0 )
+                        rest = aMessage.mid( index + 1 );
+                    QString msg = QString::asprintf( "ERROR: <a href='%d:%d'>%s</a>%s",
                                                      aSourceLine,
                                                      aSourceOffset + aOffset,
-                                                     first,
-                                                     rest );
+                                                     qPrintable( first ),
+                                                     qPrintable( rest ) );
 
                     aReporter->Report( msg, RPT_SEVERITY_ERROR );
                 } );
@@ -111,7 +93,7 @@ bool DRC_RULE_CONDITION::Compile( REPORTER* aReporter, int aSourceLine, int aSou
 
     PCBEXPR_CONTEXT preflightContext( 0, F_Cu );
 
-    bool ok = compiler.Compile( GetExpression().ToUTF8().data(), m_ucode.get(), &preflightContext );
+    bool ok = compiler.Compile( GetExpression().toUtf8().data(), m_ucode.get(), &preflightContext );
     return ok;
 }
 

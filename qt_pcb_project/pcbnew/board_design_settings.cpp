@@ -1,26 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+#include <QString>
+#include <QStringLiteral>
 #include <pcb_dimension.h>
 #include <pcb_track.h>
 #include <layer_ids.h>
@@ -71,11 +51,11 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
     m_TempOverrideTrackWidth = false;
 
     // First is always the reference designator
-    m_DefaultFPTextItems.emplace_back( wxT( "REF**" ), true, F_SilkS );
+    m_DefaultFPTextItems.emplace_back( QStringLiteral( "REF**" ), true, F_SilkS );
     // Second is always the value
-    m_DefaultFPTextItems.emplace_back( wxT( "" ), true, F_Fab );
+    m_DefaultFPTextItems.emplace_back( QStringLiteral( "" ), true, F_Fab );
     // Any following ones are freebies
-    m_DefaultFPTextItems.emplace_back( wxT( "${REFERENCE}" ), true, F_Fab );
+    m_DefaultFPTextItems.emplace_back( QStringLiteral( "${REFERENCE}" ), true, F_Fab );
 
     m_LineThickness[ LAYER_CLASS_SILK ] = pcbIUScale.mmToIU( DEFAULT_SILK_LINE_WIDTH );
     m_TextSize[ LAYER_CLASS_SILK ] = VECTOR2I( pcbIUScale.mmToIU( DEFAULT_SILK_TEXT_SIZE ),
@@ -322,13 +302,13 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
 
                 for( const RC_ITEM& item : DRC_ITEM::GetItemsWithSeverities() )
                 {
-                    wxString name = item.GetSettingsKey();
-                    int      code = item.GetErrorCode();
+                    QString name = item.GetSettingsKey();
+                    int     code = item.GetErrorCode();
 
-                    if( name.IsEmpty() || m_DRCSeverities.count( code ) == 0 )
+                    if( name.isEmpty() || m_DRCSeverities.count( code ) == 0 )
                         continue;
 
-                    ret[std::string( name.ToUTF8() )] = SeverityToString( m_DRCSeverities[code] );
+                    ret[std::string( name.toStdString() )] = SeverityToString( m_DRCSeverities[code] );
                 }
 
                 return ret;
@@ -348,8 +328,8 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
 
                 for( const RC_ITEM& item : DRC_ITEM::GetItemsWithSeverities() )
                 {
-                    wxString name = item.GetSettingsKey();
-                    std::string key( name.ToUTF8() );
+                    QString name = item.GetSettingsKey();
+                    std::string key( name.toStdString() );
 
                     if( aJson.contains( key ) )
                         m_DRCSeverities[item.GetErrorCode()] = SeverityFromString( aJson[key] );
@@ -361,7 +341,7 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
             {
                 nlohmann::json js = nlohmann::json::array();
 
-                for( const wxString& entry : m_DrcExclusions )
+                for( const QString& entry : m_DrcExclusions )
                     js.push_back( { entry, m_DrcExclusionComments[ entry ] } );
 
                 return js;
@@ -377,13 +357,13 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
                 {
                     if( entry.is_array() )
                     {
-                        wxString serialized = entry[0].get<wxString>();
+                        QString serialized = entry[0].get<QString>();
                         m_DrcExclusions.insert( serialized );
-                        m_DrcExclusionComments[ serialized ] = entry[1].get<wxString>();
+                        m_DrcExclusionComments[ serialized ] = entry[1].get<QString>();
                     }
                     else if( entry.is_string() )
                     {
-                        m_DrcExclusions.insert( entry.get<wxString>() );
+                        m_DrcExclusions.insert( entry.get<QString>() );
                     }
                 }
             },
@@ -1196,7 +1176,7 @@ bool BOARD_DESIGN_SETTINGS::migrateSchema0to1()
 }
 
 
-bool BOARD_DESIGN_SETTINGS::LoadFromFile( const wxString& aDirectory )
+bool BOARD_DESIGN_SETTINGS::LoadFromFile( const QString& aDirectory )
 {
     bool ret = NESTED_SETTINGS::LoadFromFile( aDirectory );
 
@@ -1215,8 +1195,8 @@ bool BOARD_DESIGN_SETTINGS::LoadFromFile( const wxString& aDirectory )
             []( int aCode ) -> std::string
             {
                 std::shared_ptr<DRC_ITEM> item = DRC_ITEM::Create( aCode );
-                wxString name = item->GetSettingsKey();
-                return std::string( name.ToUTF8() );
+                QString name = item->GetSettingsKey();
+                return std::string( name.toStdString() );
             };
 
     const std::string rs = "rule_severities.";

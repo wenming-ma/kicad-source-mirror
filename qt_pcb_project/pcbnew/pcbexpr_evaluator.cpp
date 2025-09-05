@@ -1,30 +1,12 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #include <cstdio>
 #include <memory>
 #include <mutex>
+#include <QString>
+#include <QRegExp>
+#include <QtCore>
 #include <board.h>
 #include <footprint.h>
 #include <lset.h>
@@ -38,7 +20,7 @@
 
 BOARD_ITEM* PCBEXPR_VAR_REF::GetObject( const LIBEVAL::CONTEXT* aCtx ) const
 {
-    wxASSERT( dynamic_cast<const PCBEXPR_CONTEXT*>( aCtx ) );
+    Q_ASSERT( dynamic_cast<const PCBEXPR_CONTEXT*>( aCtx ) );
 
     const PCBEXPR_CONTEXT* ctx = static_cast<const PCBEXPR_CONTEXT*>( aCtx );
     BOARD_ITEM*            item  = ctx->GetItem( m_itemIndex );
@@ -60,8 +42,8 @@ public:
         // in the ENUM_MAP: one for the canonical layer name and one for the user layer name.
         // We need to check against both.
 
-        wxPGChoices&    layerMap = ENUM_MAP<PCB_LAYER_ID>::Instance().Choices();
-        const wxString& layerName = b->AsString();
+        auto&    layerMap = ENUM_MAP<PCB_LAYER_ID>::Instance().Choices();
+        const QString& layerName = b->AsString();
         BOARD*          board = static_cast<PCBEXPR_CONTEXT*>( aCtx )->GetBoard();
 
         {
@@ -75,12 +57,12 @@ public:
 
         LSET mask;
 
-        for( unsigned ii = 0; ii < layerMap.GetCount(); ++ii )
+        for( unsigned ii = 0; ii < layerMap.count(); ++ii )
         {
-            wxPGChoiceEntry& entry = layerMap[ii];
+            const QString& entry = layerMap[ii];
 
-            if( entry.GetText().Matches( layerName ) )
-                mask.set( ToLAYER_ID( entry.GetValue() ) );
+            if( QRegExp( layerName, Qt::CaseInsensitive, QRegExp::Wildcard ).exactMatch( entry ) )
+                mask.set( ToLAYER_ID( ENUM_MAP<PCB_LAYER_ID>::Instance().ToEnum( entry ) ) );
         }
 
         {
@@ -99,43 +81,43 @@ protected:
 class PCBEXPR_PINTYPE_VALUE : public LIBEVAL::VALUE
 {
 public:
-    PCBEXPR_PINTYPE_VALUE( const wxString& aPinTypeName ) :
+    PCBEXPR_PINTYPE_VALUE( const QString& aPinTypeName ) :
             LIBEVAL::VALUE( aPinTypeName )
     {};
 
     bool EqualTo( LIBEVAL::CONTEXT* aCtx, const VALUE* b ) const override
     {
-        const wxString& thisStr = AsString();
-        const wxString& otherStr = b->AsString();
+        const QString& thisStr = AsString();
+        const QString& otherStr = b->AsString();
 
         // Case insensitive
-        if( thisStr.IsSameAs( otherStr, false ) )
+        if( thisStr.compare( otherStr, Qt::CaseInsensitive ) == 0 )
             return true;
 
         // Wildcards
-        if( thisStr.Matches( otherStr ) )
+        if( QRegExp( otherStr, Qt::CaseInsensitive, QRegExp::Wildcard ).exactMatch( thisStr ) )
             return true;
 
         // Handle cases where the netlist token is different from the EEschema token
-        wxString altStr;
+        QString altStr;
 
-        if( thisStr == wxT( "tri_state" ) )
-            altStr = wxT( "Tri-state" );
-        else if( thisStr == wxT( "power_in" ) )
-            altStr = wxT( "Power input" );
-        else if( thisStr == wxT( "power_out" ) )
-            altStr = wxT( "Power output" );
-        else if( thisStr == wxT( "no_connect" ) )
-            altStr = wxT( "Unconnected" );
+        if( thisStr == "tri_state" )
+            altStr = "Tri-state";
+        else if( thisStr == "power_in" )
+            altStr = "Power input";
+        else if( thisStr == "power_out" )
+            altStr = "Power output";
+        else if( thisStr == "no_connect" )
+            altStr = "Unconnected";
 
-        if( !altStr.IsEmpty() )
+        if( !altStr.isEmpty() )
         {
             // Case insensitive
-            if( altStr.IsSameAs( otherStr, false ) )
+            if( altStr.compare( otherStr, Qt::CaseInsensitive ) == 0 )
                 return true;
 
             // Wildcards
-            if( altStr.Matches( otherStr ) )
+            if( QRegExp( otherStr, Qt::CaseInsensitive, QRegExp::Wildcard ).exactMatch( altStr ) )
                 return true;
         }
 
@@ -148,11 +130,11 @@ class PCBEXPR_NETCLASS_VALUE : public LIBEVAL::VALUE
 {
 public:
     PCBEXPR_NETCLASS_VALUE( BOARD_CONNECTED_ITEM* aItem ) :
-            LIBEVAL::VALUE( wxEmptyString ),
+            LIBEVAL::VALUE( QString() ),
             m_item( aItem )
     {};
 
-    const wxString& AsString() const override
+    const QString& AsString() const override
     {
         const_cast<PCBEXPR_NETCLASS_VALUE*>( this )->Set( m_item->GetEffectiveNetClass()->GetName() );
         return LIBEVAL::VALUE::AsString();
@@ -169,7 +151,7 @@ public:
             // tested in the fallthrough condition.
             for( const NETCLASS* nc : m_item->GetEffectiveNetClass()->GetConstituentNetclasses() )
             {
-                const wxString& ncName = nc->GetName();
+                const QString& ncName = nc->GetName();
 
                 if( b->StringIsWildcard() )
                 {
@@ -178,7 +160,7 @@ public:
                 }
                 else
                 {
-                    if( ncName.IsSameAs( b->AsString(), false ) )
+                    if( ncName.compare( b->AsString(), Qt::CaseInsensitive ) == 0 )
                         return true;
                 }
             }
@@ -199,7 +181,7 @@ public:
 
             for( const NETCLASS* nc : m_item->GetEffectiveNetClass()->GetConstituentNetclasses() )
             {
-                const wxString& ncName = nc->GetName();
+                const QString& ncName = nc->GetName();
 
                 if( b->StringIsWildcard() )
                 {
@@ -211,7 +193,7 @@ public:
                 }
                 else
                 {
-                    if( ncName.IsSameAs( b->AsString(), false ) )
+                    if( ncName.compare( b->AsString(), Qt::CaseInsensitive ) == 0 )
                     {
                         isInConstituents = true;
                         break;
@@ -237,11 +219,11 @@ class PCBEXPR_COMPONENT_CLASS_VALUE : public LIBEVAL::VALUE
 {
 public:
     PCBEXPR_COMPONENT_CLASS_VALUE( BOARD_ITEM* aItem ) :
-            LIBEVAL::VALUE( wxEmptyString ),
+            LIBEVAL::VALUE( QString() ),
             m_item( dynamic_cast<FOOTPRINT*>( aItem ) )
     {};
 
-    const wxString& AsString() const override
+    const QString& AsString() const override
     {
         if( !m_item )
             return LIBEVAL::VALUE::AsString();
@@ -273,7 +255,7 @@ public:
             // (e.g. CLASS1,CLASS2,OTHER_CLASS) is tested in the fallthrough condition.
             for( const COMPONENT_CLASS* cc : m_item->GetComponentClass()->GetConstituentClasses() )
             {
-                const wxString& ccName = cc->GetFullName();
+                const QString& ccName = cc->GetFullName();
 
                 if( b->StringIsWildcard() )
                 {
@@ -282,7 +264,7 @@ public:
                 }
                 else
                 {
-                    if( ccName.IsSameAs( b->AsString(), false ) )
+                    if( ccName.compare( b->AsString(), Qt::CaseInsensitive ) == 0 )
                         return true;
                 }
             }
@@ -313,7 +295,7 @@ public:
 
             for( const COMPONENT_CLASS* cc : m_item->GetComponentClass()->GetConstituentClasses() )
             {
-                const wxString& ccName = cc->GetFullName();
+                const QString& ccName = cc->GetFullName();
 
                 if( b->StringIsWildcard() )
                 {
@@ -325,7 +307,7 @@ public:
                 }
                 else
                 {
-                    if( ccName.IsSameAs( b->AsString(), false ) )
+                    if( ccName.compare( b->AsString(), Qt::CaseInsensitive ) == 0 )
                     {
                         isInConstituents = true;
                         break;
@@ -351,11 +333,11 @@ class PCBEXPR_NET_VALUE : public LIBEVAL::VALUE
 {
 public:
     PCBEXPR_NET_VALUE( BOARD_CONNECTED_ITEM* aItem ) :
-            LIBEVAL::VALUE( wxEmptyString ),
+            LIBEVAL::VALUE( QString() ),
             m_item( aItem )
     {};
 
-    const wxString& AsString() const override
+    const QString& AsString() const override
     {
         const_cast<PCBEXPR_NET_VALUE*>( this )->Set( m_item->GetNetname() );
         return LIBEVAL::VALUE::AsString();
@@ -439,35 +421,44 @@ LIBEVAL::VALUE* PCBEXPR_VAR_REF::GetValue( LIBEVAL::CONTEXT* aCtx )
         }
         else
         {
-            wxString str;
+            QString str;
 
             if( !m_isEnum )
             {
-                str = item->Get<wxString>( it->second );
+                str = item->Get<QString>( it->second );
 
-                if( it->second->Name() == wxT( "Pin Type" ) )
+                if( it->second->Name() == "Pin Type" )
                     return new PCBEXPR_PINTYPE_VALUE( str );
                 else
                     return new LIBEVAL::VALUE( str );
             }
             else
             {
-                const wxAny& any = item->Get( it->second );
+                const QVariant& any = item->Get( it->second );
                 PCB_LAYER_ID layer;
 
-                if( it->second->Name() == wxT( "Layer" )
-                        || it->second->Name() == wxT( "Layer Top" )
-                        || it->second->Name() == wxT( "Layer Bottom" ) )
+                if( it->second->Name() == "Layer"
+                        || it->second->Name() == "Layer Top"
+                        || it->second->Name() == "Layer Bottom" )
                 {
-                    if( any.GetAs<PCB_LAYER_ID>( &layer ) )
+                    if( any.canConvert<PCB_LAYER_ID>() )
+                    {
+                        layer = any.value<PCB_LAYER_ID>();
                         return new PCBEXPR_LAYER_VALUE( layer );
-                    else if( any.GetAs<wxString>( &str ) )
+                    }
+                    else if( any.canConvert<QString>() )
+                    {
+                        str = any.toString();
                         return new PCBEXPR_LAYER_VALUE( context->GetBoard()->GetLayerID( str ) );
+                    }
                 }
                 else
                 {
-                    if( any.GetAs<wxString>( &str ) )
+                    if( any.canConvert<QString>() )
+                    {
+                        str = any.toString();
                         return new LIBEVAL::VALUE( str );
+                    }
                 }
             }
 
@@ -521,21 +512,21 @@ LIBEVAL::VALUE* PCBEXPR_TYPE_REF::GetValue( LIBEVAL::CONTEXT* aCtx )
 }
 
 
-LIBEVAL::FUNC_CALL_REF PCBEXPR_UCODE::CreateFuncCall( const wxString& aName )
+LIBEVAL::FUNC_CALL_REF PCBEXPR_UCODE::CreateFuncCall( const QString& aName )
 {
     PCBEXPR_BUILTIN_FUNCTIONS& registry = PCBEXPR_BUILTIN_FUNCTIONS::Instance();
 
-    return registry.Get( aName.Lower() );
+    return registry.Get( aName.toLower() );
 }
 
 
-std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const wxString& aVar,
-                                                               const wxString& aField )
+std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const QString& aVar,
+                                                               const QString& aField )
 {
     PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
     std::unique_ptr<PCBEXPR_VAR_REF> vref;
 
-    if( aVar.IsSameAs( wxT( "null" ), false ) )
+    if( aVar.compare( "null", Qt::CaseInsensitive ) == 0 )
     {
         vref = std::make_unique<PCBEXPR_VAR_REF>( 0 );
         vref->SetType( LIBEVAL::VT_NULL );
@@ -544,48 +535,48 @@ std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const wxString& a
 
     // Check for a couple of very common cases and compile them straight to "object code".
 
-    if( aField.CmpNoCase( wxT( "NetClass" ) ) == 0 )
+    if( aField.compare( "NetClass", Qt::CaseInsensitive ) == 0 )
     {
-        if( aVar == wxT( "A" ) )
+        if( aVar == "A" )
             return std::make_unique<PCBEXPR_NETCLASS_REF>( 0 );
-        else if( aVar == wxT( "B" ) )
+        else if( aVar == "B" )
             return std::make_unique<PCBEXPR_NETCLASS_REF>( 1 );
         else
             return nullptr;
     }
-    else if( aField.CmpNoCase( wxT( "ComponentClass" ) ) == 0 )
+    else if( aField.compare( "ComponentClass", Qt::CaseInsensitive ) == 0 )
     {
-        if( aVar == wxT( "A" ) )
+        if( aVar == "A" )
             return std::make_unique<PCBEXPR_COMPONENT_CLASS_REF>( 0 );
-        else if( aVar == wxT( "B" ) )
+        else if( aVar == "B" )
             return std::make_unique<PCBEXPR_COMPONENT_CLASS_REF>( 1 );
         else
             return nullptr;
     }
-    else if( aField.CmpNoCase( wxT( "NetName" ) ) == 0 )
+    else if( aField.compare( "NetName", Qt::CaseInsensitive ) == 0 )
     {
-        if( aVar == wxT( "A" ) )
+        if( aVar == "A" )
             return std::make_unique<PCBEXPR_NETNAME_REF>( 0 );
-        else if( aVar == wxT( "B" ) )
+        else if( aVar == "B" )
             return std::make_unique<PCBEXPR_NETNAME_REF>( 1 );
         else
             return nullptr;
     }
-    else if( aField.CmpNoCase( wxT( "Type" ) ) == 0 )
+    else if( aField.compare( "Type", Qt::CaseInsensitive ) == 0 )
     {
-        if( aVar == wxT( "A" ) )
+        if( aVar == "A" )
             return std::make_unique<PCBEXPR_TYPE_REF>( 0 );
-        else if( aVar == wxT( "B" ) )
+        else if( aVar == "B" )
             return std::make_unique<PCBEXPR_TYPE_REF>( 1 );
         else
             return nullptr;
     }
 
-    if( aVar == wxT( "A" ) || aVar == wxT( "AB" ) )
+    if( aVar == "A" || aVar == "AB" )
         vref = std::make_unique<PCBEXPR_VAR_REF>( 0 );
-    else if( aVar == wxT( "B" ) )
+    else if( aVar == "B" )
         vref = std::make_unique<PCBEXPR_VAR_REF>( 1 );
-    else if( aVar == wxT( "L" ) )
+    else if( aVar == "L" )
         vref = std::make_unique<PCBEXPR_VAR_REF>( 2 );
     else
         return nullptr;
@@ -593,8 +584,8 @@ std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const wxString& a
     if( aField.length() == 0 ) // return reference to base object
         return vref;
 
-    wxString field( aField );
-    field.Replace( wxT( "_" ),  wxT( " " ) );
+    QString field( aField );
+    field.replace( "_",  " " );
 
     for( const PROPERTY_MANAGER::CLASS_INFO& cls : propMgr.GetAllClasses() )
     {
@@ -628,7 +619,7 @@ std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const wxString& a
                 {
                     vref->SetType( LIBEVAL::VT_NUMERIC );
                 }
-                else if( prop->TypeHash() == TYPE_HASH( wxString ) )
+                else if( prop->TypeHash() == TYPE_HASH( QString ) )
                 {
                     vref->SetType( LIBEVAL::VT_STRING );
                 }
@@ -639,11 +630,11 @@ std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const wxString& a
                 }
                 else
                 {
-                    wxString msg = wxString::Format( wxT( "PCBEXPR_UCODE::createVarRef: Unknown "
-                                                          "property type %s from %s." ),
-                                                     cls.name,
-                                                     field );
-                    wxFAIL_MSG( msg );
+                    QString msg = QString::asprintf( "PCBEXPR_UCODE::createVarRef: Unknown "
+                                                     "property type %s from %s.",
+                                                     cls.name.data(),
+                                                     field.toStdString().c_str() );
+                    Q_ASSERT_X( false, "PCBEXPR_UCODE::createVarRef", msg.toStdString().c_str() );
                 }
             }
         }
@@ -669,24 +660,24 @@ BOARD* PCBEXPR_CONTEXT::GetBoard() const
  * Unit Resolvers
  */
 
-const std::vector<wxString>& PCBEXPR_UNIT_RESOLVER::GetSupportedUnits() const
+const std::vector<QString>& PCBEXPR_UNIT_RESOLVER::GetSupportedUnits() const
 {
-    static const std::vector<wxString> pcbUnits = { wxT( "mil" ), wxT( "mm" ), wxT( "in" ),
-                                                    wxT( "deg" ) };
+    static const std::vector<QString> pcbUnits = { "mil", "mm", "in",
+                                                   "deg" };
 
     return pcbUnits;
 }
 
 
-wxString PCBEXPR_UNIT_RESOLVER::GetSupportedUnitsMessage() const
+QString PCBEXPR_UNIT_RESOLVER::GetSupportedUnitsMessage() const
 {
     return _( "must be mm, in, or mil" );
 }
 
 
-double PCBEXPR_UNIT_RESOLVER::Convert( const wxString& aString, int unitId ) const
+double PCBEXPR_UNIT_RESOLVER::Convert( const QString& aString, int unitId ) const
 {
-    double v = wxAtof( aString );
+    double v = aString.toDouble();
 
     switch( unitId )
     {
@@ -698,17 +689,17 @@ double PCBEXPR_UNIT_RESOLVER::Convert( const wxString& aString, int unitId ) con
 };
 
 
-const std::vector<wxString>& PCBEXPR_UNITLESS_RESOLVER::GetSupportedUnits() const
+const std::vector<QString>& PCBEXPR_UNITLESS_RESOLVER::GetSupportedUnits() const
 {
-    static const std::vector<wxString> emptyUnits;
+    static const std::vector<QString> emptyUnits;
 
     return emptyUnits;
 }
 
 
-double PCBEXPR_UNITLESS_RESOLVER::Convert( const wxString& aString, int unitId ) const
+double PCBEXPR_UNITLESS_RESOLVER::Convert( const QString& aString, int unitId ) const
 {
-    return wxAtof( aString );
+    return aString.toDouble();
 };
 
 
@@ -736,12 +727,12 @@ PCBEXPR_EVALUATOR::~PCBEXPR_EVALUATOR()
 }
 
 
-bool PCBEXPR_EVALUATOR::Evaluate( const wxString& aExpr )
+bool PCBEXPR_EVALUATOR::Evaluate( const QString& aExpr )
 {
     PCBEXPR_UCODE    ucode;
     PCBEXPR_CONTEXT  preflightContext( NULL_CONSTRAINT, F_Cu );
 
-    if( !m_compiler.Compile( aExpr.ToUTF8().data(), &ucode, &preflightContext ) )
+    if( !m_compiler.Compile( aExpr.toUtf8().data(), &ucode, &preflightContext ) )
         return false;
 
     PCBEXPR_CONTEXT  evaluationContext( NULL_CONSTRAINT, F_Cu );

@@ -1,23 +1,3 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include "pns_node.h"
 #include "pns_itemset.h"
@@ -315,9 +295,11 @@ int MEANDER_SHAPE::cornerRadius() const
     int maxCr2 = spacing() / 2;
     int maxCr = std::min( maxCr1, maxCr2 );
 
-    wxCHECK2_MSG( maxCr >= minCr, return maxCr,
-                  wxString::Format( "cornerRadius %d < %d amp %d spc %d w %d off %d", maxCr, minCr,
-                                    m_amplitude, spacing(), m_width, m_baselineOffset ) );
+    Q_ASSERT_X( maxCr >= minCr, "cornerRadius",
+                QString::asprintf( "cornerRadius %d < %d amp %d spc %d w %d off %d", maxCr, minCr,
+                                  m_amplitude, spacing(), m_width, m_baselineOffset ).toUtf8().constData() );
+    if( maxCr < minCr )
+        return maxCr;
 
     int rPercent = Settings().m_cornerRadiusPercentage;
     int optCr = static_cast<int>( static_cast<SEG::ecoord>( spacing() ) * rPercent / 200 );

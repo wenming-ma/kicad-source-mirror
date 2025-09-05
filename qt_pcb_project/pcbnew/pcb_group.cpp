@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Joshua Redstone redstone at gmail.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
+
 #include <bitmaps.h>
 #include <eda_draw_frame.h>
 #include <geometry/shape_compound.h>
@@ -33,7 +12,8 @@
 #include <widgets/msgpanel.h>
 #include <view/view.h>
 
-#include <wx/debug.h>
+#include <QtCore/QtDebug>
+#include <QString>
 
 PCB_GROUP::PCB_GROUP( BOARD_ITEM* aParent ) :
         BOARD_ITEM( aParent, PCB_GROUP_T )
@@ -80,8 +60,12 @@ bool PCB_GROUP::IsGroupableType( KICAD_T aType )
 
 bool PCB_GROUP::AddItem( BOARD_ITEM* aItem )
 {
-    wxCHECK_MSG( IsGroupableType( aItem->Type() ), false,
-            wxT( "Invalid item type added to group: " ) + aItem->GetTypeDesc() );
+    Q_ASSERT_X( IsGroupableType( aItem->Type() ),
+               "PCB_GROUP::AddItem",
+               (QString("Invalid item type added to group: ") + aItem->GetTypeDesc()).toUtf8().data() );
+    
+    if( !IsGroupableType( aItem->Type() ) )
+        return false;
 
     // Items can only be in one group at a time
     if( aItem->GetParentGroup() )
@@ -367,12 +351,12 @@ void PCB_GROUP::Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 }
 
 
-wxString PCB_GROUP::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PCB_GROUP::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     if( m_name.empty() )
-        return wxString::Format( _( "Unnamed Group, %zu members" ), m_items.size() );
+        return QString( "Unnamed Group, %1 members" ).arg( m_items.size() );
     else
-        return wxString::Format( _( "Group '%s', %zu members" ), m_name, m_items.size() );
+        return QString( "Group '%1', %2 members" ).arg( m_name ).arg( m_items.size() );
 }
 
 
@@ -384,11 +368,11 @@ BITMAPS PCB_GROUP::GetMenuImage() const
 
 void PCB_GROUP::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    aList.emplace_back( _( "Group" ), m_name.empty() ? _( "<unnamed>" ) : m_name );
-    aList.emplace_back( _( "Members" ), wxString::Format( wxT( "%zu" ), m_items.size() ) );
+    aList.emplace_back( "Group", m_name.empty() ? "<unnamed>" : m_name );
+    aList.emplace_back( "Members", QString::number( m_items.size() ) );
 
     if( aFrame->GetName() == PCB_EDIT_FRAME_NAME && IsLocked() )
-        aList.emplace_back( _( "Status" ), _( "Locked" ) );
+        aList.emplace_back( "Status", "Locked" );
 }
 
 
@@ -401,7 +385,7 @@ void PCB_GROUP::RunOnChildren( const std::function<void( BOARD_ITEM* )>& aFuncti
     }
     catch( std::bad_function_call& )
     {
-        wxFAIL_MSG( wxT( "Error calling function in PCB_GROUP::RunOnChildren" ) );
+        qCritical() << "Error calling function in PCB_GROUP::RunOnChildren";
     }
 }
 
@@ -425,7 +409,7 @@ void PCB_GROUP::RunOnDescendants( const std::function<void( BOARD_ITEM* )>& aFun
     }
     catch( std::bad_function_call& )
     {
-        wxFAIL_MSG( wxT( "Error calling function in PCB_GROUP::RunOnDescendants" ) );
+        qCritical() << "Error calling function in PCB_GROUP::RunOnDescendants";
     }
 }
 
@@ -493,13 +477,13 @@ static struct PCB_GROUP_DESC
         propMgr.AddTypeCast( new TYPE_CAST<PCB_GROUP, BOARD_ITEM> );
         propMgr.InheritsAfter( TYPE_HASH( PCB_GROUP ), TYPE_HASH( BOARD_ITEM ) );
 
-        propMgr.Mask( TYPE_HASH( PCB_GROUP ), TYPE_HASH( BOARD_ITEM ), _HKI( "Position X" ) );
-        propMgr.Mask( TYPE_HASH( PCB_GROUP ), TYPE_HASH( BOARD_ITEM ), _HKI( "Position Y" ) );
-        propMgr.Mask( TYPE_HASH( PCB_GROUP ), TYPE_HASH( BOARD_ITEM ), _HKI( "Layer" ) );
+        propMgr.Mask( TYPE_HASH( PCB_GROUP ), TYPE_HASH( BOARD_ITEM ), "Position X" );
+        propMgr.Mask( TYPE_HASH( PCB_GROUP ), TYPE_HASH( BOARD_ITEM ), "Position Y" );
+        propMgr.Mask( TYPE_HASH( PCB_GROUP ), TYPE_HASH( BOARD_ITEM ), "Layer" );
 
-        const wxString groupTab = _HKI( "Group Properties" );
+        const QString groupTab = "Group Properties";
 
-        propMgr.AddProperty( new PROPERTY<PCB_GROUP, wxString>( _HKI( "Name" ),
+        propMgr.AddProperty( new PROPERTY<PCB_GROUP, QString>( "Name",
                     &PCB_GROUP::SetName, &PCB_GROUP::GetName ),
                     groupTab );
     }

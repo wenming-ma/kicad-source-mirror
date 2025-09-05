@@ -1,27 +1,8 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <chrono>
 #include <advanced_config.h>
 #include <optional>
+#include <QString>
 
 #include <geometry/shape_line_chain.h>
 
@@ -90,15 +71,15 @@ void WALKAROUND::RestrictToCluster( bool aEnabled, const TOPOLOGY::CLUSTER& aClu
     }
 }
 
-static wxString policy2string ( WALKAROUND::WALK_POLICY policy )
+static QString policy2string ( WALKAROUND::WALK_POLICY policy )
 {
     switch(policy)
     {
-        case WALKAROUND::WP_CCW: return wxT("ccw");
-        case WALKAROUND::WP_CW: return wxT("cw");
-        case WALKAROUND::WP_SHORTEST: return wxT("shortest");
+        case WALKAROUND::WP_CCW: return "ccw";
+        case WALKAROUND::WP_CW: return "cw";
+        case WALKAROUND::WP_SHORTEST: return "shortest";
     }
-    return wxT("?");
+    return "?";
 }
 
 bool WALKAROUND::singleStep()
@@ -114,7 +95,7 @@ bool WALKAROUND::singleStep()
         auto& line = m_currentResult.lines[ i ];
         auto& status = m_currentResult.status[ i ];
 
-        PNS_DBG( Dbg(), AddItem, &line, WHITE, 10000, wxString::Format( "current (policy %d, stat %d)", i, status ) );
+        PNS_DBG( Dbg(), AddItem, &line, WHITE, 10000, QString::asprintf( "current (policy %d, stat %d)", i, status ) );
 
         if( status != ST_IN_PROGRESS )
             continue;
@@ -125,14 +106,14 @@ bool WALKAROUND::singleStep()
         {
 
             m_currentResult.status[ i ] = ST_DONE;
-            PNS_DBG( Dbg(), Message,  wxString::Format( "no-more-colls pol %d st %d", i, status ) );
+            PNS_DBG( Dbg(), Message,  QString::asprintf( "no-more-colls pol %d st %d", i, status ) );
 
             continue;
         }
 
 
         pendingClusters[ i ] = topo.AssembleCluster( obstacle->m_item, line.Layer(), 0.0, line.Net() );
-        PNS_DBG( Dbg(), AddItem, obstacle->m_item, BLUE, 10000, wxString::Format( "col-item owner-depth %d cl-items=%d", static_cast<const NODE*>( obstacle->m_item->Owner() )->Depth(), (int) pendingClusters[i].m_items.size() ) );
+        PNS_DBG( Dbg(), AddItem, obstacle->m_item, BLUE, 10000, QString::asprintf( "col-item owner-depth %d cl-items=%d", static_cast<const NODE*>( obstacle->m_item->Owner() )->Depth(), (int) pendingClusters[i].m_items.size() ) );
 
     }
 
@@ -145,7 +126,7 @@ bool WALKAROUND::singleStep()
 
         int timeout_ms = ADVANCED_CFG::GetCfg().m_PNSProcessClusterTimeout;
 
-        PNS_DBG( Dbg(), BeginGroup, wxString::Format( "cluster-details [cw %d]", aCw?1:0 ), 1 );
+        PNS_DBG( Dbg(), BeginGroup, QString::asprintf( "cluster-details [cw %d]", aCw?1:0 ), 1 );
 
         for( auto& clItem : aCluster.m_items )
         {
@@ -158,7 +139,7 @@ bool WALKAROUND::singleStep()
 
             if( elapsed > timeout_ms )
             {
-                PNS_DBG( Dbg(), Message, wxString::Format( "processCluster timeout after %d ms", timeout_ms ) );
+                PNS_DBG( Dbg(), Message, QString::asprintf( "processCluster timeout after %d ms", timeout_ms ) );
                 PNS_DBGN( Dbg(), EndGroup );
                 return false;
             }
@@ -180,9 +161,9 @@ bool WALKAROUND::singleStep()
 
             bool stat = aLine.Walkaround( hull, tmp.Line(), aCw );
 
-            PNS_DBG( Dbg(), AddShape, &hull, YELLOW, 10000, wxString::Format( "hull stat %d", stat?1:0 ) );
-            PNS_DBG( Dbg(), AddItem, &tmp, RED, 10000, wxString::Format( "walk stat %d", stat?1:0 ) );
-            PNS_DBG( Dbg(), AddItem, clItem, WHITE, 10000, wxString::Format( "item stat %d", stat?1:0 ) );
+            PNS_DBG( Dbg(), AddShape, &hull, YELLOW, 10000, QString::asprintf( "hull stat %d", stat?1:0 ) );
+            PNS_DBG( Dbg(), AddItem, &tmp, RED, 10000, QString::asprintf( "walk stat %d", stat?1:0 ) );
+            PNS_DBG( Dbg(), AddItem, clItem, WHITE, 10000, QString::asprintf( "item stat %d", stat?1:0 ) );
 
             if( !stat )
             {
@@ -226,8 +207,8 @@ bool WALKAROUND::singleStep()
         double lengthFactorCw = (double) path_cw.CLine().Length() / (double) m_initialLength;
         double lengthFactorCcw = (double) path_ccw.CLine().Length() / (double) m_initialLength;
 
-        PNS_DBG( Dbg(), AddItem, &path_cw, RED, 10000, wxString::Format( "shortest-cw stat %d lf %.1f", st_cw?1:0, lengthFactorCw ) );
-        PNS_DBG( Dbg(), AddItem, &path_ccw, BLUE, 10000, wxString::Format( "shortest-ccw stat %d lf %.1f", st_ccw?1:0, lengthFactorCcw ) );
+        PNS_DBG( Dbg(), AddItem, &path_cw, RED, 10000, QString::asprintf( "shortest-cw stat %d lf %.1f", st_cw?1:0, lengthFactorCw ) );
+        PNS_DBG( Dbg(), AddItem, &path_ccw, BLUE, 10000, QString::asprintf( "shortest-ccw stat %d lf %.1f", st_ccw?1:0, lengthFactorCcw ) );
 
 
         std::optional<LINE> shortest;
@@ -273,7 +254,7 @@ bool WALKAROUND::singleStep()
                 }
             }
 
-            PNS_DBG( Dbg(), Message, wxString::Format("check-back cc %d items %d coll %d", (int) pendingClusters[ WP_SHORTEST ].m_items.size(), (int) m_lastShortestCluster->m_items.size(), anyColliding ? 1: 0 ) );
+            PNS_DBG( Dbg(), Message, QString::asprintf("check-back cc %d items %d coll %d", (int) pendingClusters[ WP_SHORTEST ].m_items.size(), (int) m_lastShortestCluster->m_items.size(), anyColliding ? 1: 0 ) );
         }
 
         if ( anyColliding )
@@ -321,7 +302,7 @@ const WALKAROUND::RESULT WALKAROUND::Route( const LINE& aInitialPath )
 
     start( aInitialPath );
 
-    PNS_DBG( Dbg(), AddItem, &aInitialPath, WHITE, 10000, wxT( "initial-path" ) );
+    PNS_DBG( Dbg(), AddItem, &aInitialPath, WHITE, 10000, "initial-path" );
 
     while( m_iteration < m_iterationLimit )
     {
@@ -347,7 +328,7 @@ const WALKAROUND::RESULT WALKAROUND::Route( const LINE& aInitialPath )
                     st = ST_ALMOST_DONE;
             }
 
-            PNS_DBG( Dbg(), Message, wxString::Format( "check-wp iter %d st %d i %d lf %.1f", m_iteration, st, pol, lengthFactor ) );
+            PNS_DBG( Dbg(), Message, QString::asprintf( "check-wp iter %d st %d i %d lf %.1f", m_iteration, st, pol, lengthFactor ) );
 
             if ( st == ST_IN_PROGRESS )
                 stillInProgress = true;
@@ -382,7 +363,7 @@ const WALKAROUND::RESULT WALKAROUND::Route( const LINE& aInitialPath )
             st = ST_ALMOST_DONE;
 
         }
-        PNS_DBG( Dbg(), Message, wxString::Format( "stat=%d", st ) );
+        PNS_DBG( Dbg(), Message, QString::asprintf( "stat=%d", st ) );
 
     }
 

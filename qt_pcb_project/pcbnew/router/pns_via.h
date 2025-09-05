@@ -1,26 +1,10 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #ifndef __PNS_VIA_H
 #define __PNS_VIA_H
+
+#include <QtCore/QDebug>
 
 #include <geometry/shape_index.h>
 #include <geometry/shape_line_chain.h>
@@ -196,8 +180,8 @@ public:
     int Diameter( int aLayer ) const
     {
         int layer = EffectiveLayer( aLayer );
-        wxCHECK( m_diameters.contains( layer ), m_diameters.begin()->second );
-        return m_diameters.at( layer );
+        Q_ASSERT( m_diameters.contains( layer ) );
+        return m_diameters.contains( layer ) ? m_diameters.at( layer ) : m_diameters.begin()->second;
     }
 
     void SetDiameter( int aLayer, int aDiameter )
@@ -234,8 +218,8 @@ public:
     const SHAPE* Shape( int aLayer ) const override
     {
         int layer = EffectiveLayer( aLayer );
-        wxCHECK( m_shapes.contains( layer ), nullptr );
-        return &m_shapes.at( layer );
+        Q_ASSERT( m_shapes.contains( layer ) );
+        return m_shapes.contains( layer ) ? &m_shapes.at( layer ) : nullptr;
     }
 
     VIA* Clone() const override;

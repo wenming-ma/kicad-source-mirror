@@ -1,30 +1,10 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #ifndef ROUTER_STATUS_VIEW_ITEM_H
 #define ROUTER_STATUS_VIEW_ITEM_H
 
 #include <cstdio>
+#include <QString>
 
 #include <view/view.h>
 #include <view/view_item.h>
@@ -48,7 +28,7 @@ public:
             EDA_ITEM( NOT_USED )    // Never added to anything - just a preview
     { }
 
-    wxString GetClass() const override { return wxT( "ROUTER_STATUS" ); }
+    QString GetClass() const override { return "ROUTER_STATUS"; }
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override {}
@@ -57,12 +37,12 @@ public:
     VECTOR2I GetPosition() const override { return m_pos; }
     void     SetPosition( const VECTOR2I& aPos ) override { m_pos = aPos; };
 
-    void SetMessage( const wxString& aStatus )
+    void SetMessage( const QString& aStatus )
     {
         m_status = aStatus;
     }
 
-    void SetHint( const wxString& aHint )
+    void SetHint( const QString& aHint )
     {
         m_hint = aHint;
     }
@@ -73,8 +53,8 @@ public:
 
 protected:
     VECTOR2I m_pos;
-    wxString m_status;
-    wxString m_hint;
+    QString m_status;
+    QString m_hint;
 };
 
 

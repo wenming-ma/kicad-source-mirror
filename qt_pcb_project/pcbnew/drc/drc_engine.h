@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef DRC_ENGINE_H
 #define DRC_ENGINE_H
@@ -27,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
+#include <QString>
 
 #include <units_provider.h>
 #include <geometry/shape.h>
@@ -49,17 +28,16 @@ class NETLIST;
 class NETINFO_ITEM;
 class PROGRESS_REPORTER;
 class REPORTER;
-class wxFileName;
 
 namespace KIGFX
 {
     class VIEW_OVERLAY;
 };
 
-void drcPrintDebugMessage( int level, const wxString& msg, const char *function, int line );
+void drcPrintDebugMessage( int level, const QString& msg, const char *function, int line );
 
 #define drc_dbg(level, fmt, ...) \
-    drcPrintDebugMessage(level, wxString::Format( fmt, __VA_ARGS__ ), __FUNCTION__, __LINE__ );
+    drcPrintDebugMessage(level, QString::asprintf( fmt, __VA_ARGS__ ), __FUNCTION__, __LINE__ );
 
 class DRC_RULE_CONDITION;
 class DRC_ITEM;
@@ -149,7 +127,7 @@ public:
      *
      * @throws PARSE_ERROR if the rules file contains errors
      */
-    void InitEngine( const wxFileName& aRulePath );
+    void InitEngine( const QString& aRulePath );
 
     /**
      * Run the DRC tests.
@@ -184,8 +162,8 @@ public:
     void AdvanceProgress();
     void SetMaxProgress( int aSize );
     bool ReportProgress( double aProgress );
-    bool ReportPhase( const wxString& aMessage );
-    void ReportAux( const wxString& aStr );
+    bool ReportPhase( const QString& aMessage );
+    void ReportAux( const QString& aStr );
     bool IsCancelled() const;
 
     bool QueryWorstConstraint( DRC_CONSTRAINT_T aRuleId, DRC_CONSTRAINT& aConstraint );
@@ -193,7 +171,7 @@ public:
 
     std::vector<DRC_TEST_PROVIDER*> GetTestProviders() const { return m_testProviders; };
 
-    DRC_TEST_PROVIDER* GetTestProvider( const wxString& name ) const;
+    DRC_TEST_PROVIDER* GetTestProvider( const QString& name ) const;
 
     static bool IsNetADiffPair( BOARD* aBoard, NETINFO_ITEM* aNet, int& aNetP, int& aNetN );
 
@@ -204,8 +182,8 @@ public:
      * @param aBaseDpName will be filled with the base name, like DIFF
      * @return 1 if aNetName is the positive half of a pair, -1 if negative, 0 if not a diff pair
      */
-    static int MatchDpSuffix( const wxString& aNetName, wxString& aComplementNet,
-                              wxString& aBaseDpName );
+    static int MatchDpSuffix( const QString& aNetName, QString& aComplementNet,
+                              QString& aBaseDpName );
 
     /**
      * Check if the given collision between a track and another item occurs during the track's
@@ -225,7 +203,7 @@ private:
      *
      * @throws PARSE_ERROR
      */
-    void loadRules( const wxFileName& aPath );
+    void loadRules( const QString& aPath );
 
     void compileRules();
 
@@ -238,7 +216,7 @@ private:
     };
 
     void loadImplicitRules();
-    std::shared_ptr<DRC_RULE> createImplicitRule( const wxString& name );
+    std::shared_ptr<DRC_RULE> createImplicitRule( const QString& name );
 
 protected:
     BOARD_DESIGN_SETTINGS*     m_designSettings;

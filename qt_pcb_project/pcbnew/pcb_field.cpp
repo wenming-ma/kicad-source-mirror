@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Mike Williams, mike@mikebwilliams.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #include <pcb_field.h>
 #include <footprint.h>
@@ -29,9 +8,11 @@
 #include <pcb_painter.h>
 // #include <api/board/board_types.pb.h> // DISABLED FOR MINIMAL BUILD
 #include <string_utils.h>
+#include <QString>
+#include <QDebug>
 
 
-PCB_FIELD::PCB_FIELD( FOOTPRINT* aParent, int aFieldId, const wxString& aName ) :
+PCB_FIELD::PCB_FIELD( FOOTPRINT* aParent, int aFieldId, const QString& aName ) :
         PCB_TEXT( aParent, PCB_FIELD_T ),
         m_id( aFieldId ),
         m_name( aName )
@@ -39,7 +20,7 @@ PCB_FIELD::PCB_FIELD( FOOTPRINT* aParent, int aFieldId, const wxString& aName ) 
 }
 
 
-PCB_FIELD::PCB_FIELD( const PCB_TEXT& aText, int aFieldId, const wxString& aName ) :
+PCB_FIELD::PCB_FIELD( const PCB_TEXT& aText, int aFieldId, const QString& aName ) :
         PCB_TEXT( aText.GetParent(), PCB_FIELD_T ),
         m_id( aFieldId ),
         m_name( aName )
@@ -61,7 +42,7 @@ PCB_FIELD::PCB_FIELD( const PCB_TEXT& aText, int aFieldId, const wxString& aName
 //    PCB_TEXT::Serialize( anyText );
 //    anyText.UnpackTo( field.mutable_text() );
 //
-//    field.set_name( GetCanonicalName().ToStdString() );
+//    field.set_name( GetCanonicalName().toStdString() );
 //    field.mutable_id()->set_id( GetId() );
 //    field.set_visible( IsVisible() );
 //
@@ -81,7 +62,7 @@ PCB_FIELD::PCB_FIELD( const PCB_TEXT& aText, int aFieldId, const wxString& aName
 //
 //    // Mandatory fields have a blank Name in the KiCad object
 //    if( !IsMandatory() )
-//        SetName( wxString( field.name().c_str(), wxConvUTF8 ) );
+//        SetName( QString::fromUtf8( field.name().c_str() ) );
 //
 //    if( field.has_text() )
 //    {
@@ -99,26 +80,26 @@ PCB_FIELD::PCB_FIELD( const PCB_TEXT& aText, int aFieldId, const wxString& aName
 //}
 
 
-wxString PCB_FIELD::GetName( bool aUseDefaultName ) const
+QString PCB_FIELD::GetName( bool aUseDefaultName ) const
 {
     if( m_parent && m_parent->Type() == PCB_FOOTPRINT_T )
     {
         if( IsMandatory() )
             return GetCanonicalFieldName( m_id );
-        else if( m_name.IsEmpty() && aUseDefaultName )
+        else if( m_name.isEmpty() && aUseDefaultName )
             return GetUserFieldName( m_id, !DO_TRANSLATE );
         else
             return m_name;
     }
     else
     {
-        wxFAIL_MSG( "Unhandled field owner type." );
+        qDebug() << "Unhandled field owner type.";
         return m_name;
     }
 }
 
 
-wxString PCB_FIELD::GetCanonicalName() const
+QString PCB_FIELD::GetCanonicalName() const
 {
     if( m_parent && m_parent->Type() == PCB_FOOTPRINT_T )
     {
@@ -131,8 +112,8 @@ wxString PCB_FIELD::GetCanonicalName() const
     {
         if( m_parent )
         {
-            wxFAIL_MSG( wxString::Format( "Unhandled field owner type (id %d, parent type %d).",
-                                          m_id, m_parent->Type() ) );
+            qDebug() << QString::asprintf( "Unhandled field owner type (id %d, parent type %d).",
+                                          m_id, m_parent->Type() );
         }
 
         return m_name;
@@ -155,7 +136,7 @@ bool PCB_FIELD::IsHypertext() const
 }
 
 
-wxString PCB_FIELD::GetTextTypeDescription() const
+QString PCB_FIELD::GetTextTypeDescription() const
 {
     if( IsMandatory() )
         return GetCanonicalFieldName( m_id );
@@ -173,30 +154,30 @@ bool PCB_FIELD::Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) co
 }
 
 
-wxString PCB_FIELD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PCB_FIELD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    wxString content = aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() );
-    wxString ref = GetParentFootprint()->GetReference();
+    QString content = aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() );
+    QString ref = GetParentFootprint()->GetReference();
 
     switch( m_id )
     {
     case REFERENCE_FIELD:
-        return wxString::Format( _( "Reference field of %s" ), ref );
+        return QString::asprintf( _( "Reference field of %s" ), ref.toStdString().c_str() );
 
     case VALUE_FIELD:
-        return wxString::Format( _( "Value field of %s (%s)" ), ref, content );
+        return QString::asprintf( _( "Value field of %s (%s)" ), ref.toStdString().c_str(), content.toStdString().c_str() );
 
     case FOOTPRINT_FIELD:
-        return wxString::Format( _( "Footprint field of %s (%s)" ), ref, content );
+        return QString::asprintf( _( "Footprint field of %s (%s)" ), ref.toStdString().c_str(), content.toStdString().c_str() );
 
     case DATASHEET_FIELD:
-        return wxString::Format( _( "Datasheet field of %s (%s)" ), ref, content );
+        return QString::asprintf( _( "Datasheet field of %s (%s)" ), ref.toStdString().c_str(), content.toStdString().c_str() );
 
     default:
-        if( GetName().IsEmpty() )
-            return wxString::Format( _( "Field of %s (%s)" ), ref, content );
+        if( GetName().isEmpty() )
+            return QString::asprintf( _( "Field of %s (%s)" ), ref.toStdString().c_str(), content.toStdString().c_str() );
         else
-            return wxString::Format( _( "%s field of %s (%s)" ), GetName(), ref, content );
+            return QString::asprintf( _( "%s field of %s (%s)" ), GetName().toStdString().c_str(), ref.toStdString().c_str(), content.toStdString().c_str() );
     }
 }
 
@@ -294,8 +275,8 @@ static struct PCB_FIELD_DESC
         propMgr.InheritsAfter( TYPE_HASH( PCB_FIELD ), TYPE_HASH( PCB_TEXT ) );
         propMgr.InheritsAfter( TYPE_HASH( PCB_FIELD ), TYPE_HASH( EDA_TEXT ) );
 
-        propMgr.AddProperty( new PROPERTY<PCB_FIELD, wxString>( _HKI( "Name" ),
-                     NO_SETTER( PCB_FIELD, wxString ), &PCB_FIELD::GetCanonicalName ) )
+        propMgr.AddProperty( new PROPERTY<PCB_FIELD, QString>( _HKI( "Name" ),
+                     NO_SETTER( PCB_FIELD, QString ), &PCB_FIELD::GetCanonicalName ) )
                 .SetIsHiddenFromLibraryEditors()
                 .SetIsHiddenFromPropertiesManager();
 

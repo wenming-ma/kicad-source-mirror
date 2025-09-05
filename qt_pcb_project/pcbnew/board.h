@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2007 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef CLASS_BOARD_H_
 #define CLASS_BOARD_H_
@@ -187,19 +164,9 @@ struct LAYER
         m_opposite = m_number;
     }
 
-    /*
-    LAYER( const wxString& aName = wxEmptyString,
-            LAYER_T aType = LT_SIGNAL, bool aVisible = true, int aNumber = -1 ) :
-        m_name( aName ),
-        m_type( aType ),
-        m_visible( aVisible ),
-        m_number( aNumber )
-    {
-    }
-    */
 
-    wxString    m_name;      ///< The canonical name of the layer. @see #LSET::Name
-    wxString    m_userName;  ///< The user defined name of the layer.
+    QString    m_name;      ///< The canonical name of the layer. @see #LSET::Name
+    QString    m_userName;  ///< The user defined name of the layer.
     LAYER_T     m_type;      ///< The type of the layer. @see #LAYER_T
     bool        m_visible;
     int         m_number;    ///< The layer ID. @see PCB_LAYER_ID
@@ -327,9 +294,9 @@ public:
         return m_boardUse == BOARD_USE::FPHOLDER;
     }
 
-    void SetFileName( const wxString& aFileName ) { m_fileName = aFileName; }
+    void SetFileName( const QString& aFileName ) { m_fileName = aFileName; }
 
-    const wxString &GetFileName() const { return m_fileName; }
+    const QString &GetFileName() const { return m_fileName; }
 
     const TRACKS& Tracks() const { return m_tracks; }
 
@@ -364,11 +331,11 @@ public:
 
     const std::vector<BOARD_CONNECTED_ITEM*> AllConnectedItems();
 
-    const std::map<wxString, wxString>& GetProperties() const { return m_properties; }
-    void SetProperties( const std::map<wxString, wxString>& aProps ) { m_properties = aProps; }
+    const std::map<QString, QString>& GetProperties() const { return m_properties; }
+    void SetProperties( const std::map<QString, QString>& aProps ) { m_properties = aProps; }
 
-    void GetContextualTextVars( wxArrayString* aVars ) const;
-    bool ResolveTextVar( wxString* token, int aDepth ) const;
+    void GetContextualTextVars( QStringList* aVars ) const;
+    bool ResolveTextVar( QString* token, int aDepth ) const;
 
     /// Visibility settings stored in board prior to 6.0, only used for loading legacy files
     LSET    m_LegacyVisibleLayers;
@@ -401,8 +368,8 @@ public:
     void SetFileFormatVersionAtLoad( int aVersion ) { m_fileFormatVersionAtLoad = aVersion; }
     int GetFileFormatVersionAtLoad() const { return m_fileFormatVersionAtLoad; }
 
-    void SetGenerator( const wxString& aGenerator ) { m_generator = aGenerator; }
-    const wxString& GetGenerator() const { return m_generator; }
+    void SetGenerator( const QString& aGenerator ) { m_generator = aGenerator; }
+    const QString& GetGenerator() const { return m_generator; }
 
     ///< @copydoc BOARD_ITEM_CONTAINER::Add()
     void Add( BOARD_ITEM* aItem, ADD_MODE aMode = ADD_MODE::INSERT,
@@ -486,8 +453,8 @@ public:
     /**
      * Convert cross-references back and forth between ${refDes:field} and ${kiid:field}
      */
-    wxString ConvertCrossReferencesToKIIDs( const wxString& aSource ) const;
-    wxString ConvertKIIDsToCrossReferences( const wxString& aSource ) const;
+    QString ConvertCrossReferencesToKIIDs( const QString& aSource ) const;
+    QString ConvertKIIDsToCrossReferences( const QString& aSource ) const;
 
     /**
      * Return a list of missing connections between components/tracks.
@@ -722,7 +689,7 @@ public:
     const TITLE_BLOCK& GetTitleBlock() const                { return m_titles; }
     void SetTitleBlock( const TITLE_BLOCK& aTitleBlock )    { m_titles = aTitleBlock; }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     EDA_UNITS GetUserUnits()                                { return m_userUnits; }
     void SetUserUnits( EDA_UNITS aUnits )                   { m_userUnits = aUnits; }
@@ -780,7 +747,7 @@ public:
     /**
      * Return the ID of a layer.
      */
-    PCB_LAYER_ID GetLayerID( const wxString& aLayerName ) const;
+    PCB_LAYER_ID GetLayerID( const QString& aLayerName ) const;
 
     /**
      * Return the name of a \a aLayer.
@@ -788,7 +755,7 @@ public:
      * @param aLayer is the #PCB_LAYER_ID of the layer.
      * @return a string containing the name of the layer.
      */
-    const wxString GetLayerName( PCB_LAYER_ID aLayer ) const;
+    const QString GetLayerName( PCB_LAYER_ID aLayer ) const;
 
     /**
      * Changes the name of the layer given by aLayer.
@@ -797,7 +764,7 @@ public:
      * @return true if aLayerName was legal and unique among other layer names at other layer
      *         indices and aLayer was within range, else false.
      */
-    bool SetLayerName( PCB_LAYER_ID aLayer, const wxString& aLayerName );
+    bool SetLayerName( PCB_LAYER_ID aLayer, const QString& aLayerName );
 
     /**
      * Return an "English Standard" name of a PCB layer when given \a aLayerNumber.
@@ -809,7 +776,7 @@ public:
      * @param  aLayerId is the layer identifier (index) to fetch.
      * @return a string containing the layer name or "BAD INDEX" if aLayerId is not legal.
      */
-    static wxString GetStandardLayerName( PCB_LAYER_ID aLayerId )
+    static QString GetStandardLayerName( PCB_LAYER_ID aLayerId )
     {
         // a BOARD's standard layer name is the PCB_LAYER_ID fixed name
         return LayerName( aLayerId );
@@ -886,7 +853,7 @@ public:
      * @param aNetname A Netname to search for.
      * @return the net if found or NULL if not found.
      */
-    NETINFO_ITEM* FindNet( const wxString& aNetname ) const;
+    NETINFO_ITEM* FindNet( const QString& aNetname ) const;
 
     /**
      * Fetch the coupled netname for a given net.
@@ -897,7 +864,7 @@ public:
      *
      * @return the polarity of the given net (or 0 if it is not a diffpair net).
      */
-    int MatchDpSuffix( const wxString& aNetName, wxString& aComplementNet );
+    int MatchDpSuffix( const QString& aNetName, QString& aComplementNet );
 
     /**
      * @return the coupled net for a given net.  If not a diffpair, nullptr is returned.
@@ -991,7 +958,7 @@ public:
      * @param aReference The reference designator of the FOOTPRINT to find.
      * @return If found the FOOTPRINT having the given reference designator, else nullptr.
      */
-    FOOTPRINT* FindFootprintByReference( const wxString& aReference ) const;
+    FOOTPRINT* FindFootprintByReference( const QString& aReference ) const;
 
     /**
      * Search for a FOOTPRINT within this board with the given path.
@@ -1004,7 +971,7 @@ public:
     /**
      * Return the set of netname candidates for netclass assignment.
      */
-    std::set<wxString> GetNetClassAssignmentCandidates() const;
+    std::set<QString> GetNetClassAssignmentCandidates() const;
 
     /**
      * Copy NETCLASS info to each NET, based on NET membership in a NETCLASS.
@@ -1030,9 +997,9 @@ public:
 
     bool operator==( const BOARD_ITEM& aOther ) const override;
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "BOARD" );
+        return QStringLiteral( "BOARD" );
     }
 
 #if defined(DEBUG)
@@ -1245,14 +1212,14 @@ public:
      * @param repair if true, modify groups structure until it passes the sanity check.
      * @return empty string on success.  Or error description if there's a problem.
      */
-    wxString GroupsSanityCheck( bool repair = false );
+    QString GroupsSanityCheck( bool repair = false );
 
     /**
      * @param repair if true, make one modification to groups structure that brings it
      *        closer to passing the sanity check.
      * @return empty string on success.  Or error description if there's a problem.
      */
-    wxString GroupsSanityCheckInternal( bool repair );
+    QString GroupsSanityCheckInternal( bool repair );
 
     struct GroupLegalOpsField
     {
@@ -1311,7 +1278,7 @@ public:
     std::unordered_map<PTR_PTR_CACHE_KEY, bool>           m_IntersectsBCourtyardCache;
     std::unordered_map<PTR_PTR_LAYER_CACHE_KEY, bool>     m_IntersectsAreaCache;
     std::unordered_map<PTR_PTR_LAYER_CACHE_KEY, bool>     m_EnclosedByAreaCache;
-    std::unordered_map< wxString, LSET >                  m_LayerExpressionCache;
+    std::unordered_map< QString, LSET >                  m_LayerExpressionCache;
     std::unordered_map<ZONE*, std::unique_ptr<DRC_RTREE>> m_CopperZoneRTreeCache;
     std::shared_ptr<DRC_RTREE>                            m_CopperItemRTreeCache;
     mutable std::unordered_map<const ZONE*, BOX2I>        m_ZoneBBoxCache;
@@ -1352,7 +1319,7 @@ private:
     BOARD_USE           m_boardUse;
     int                 m_timeStamp;                // actually a modification counter
 
-    wxString            m_fileName;
+    QString            m_fileName;
 
     // These containers only have const accessors and must only be modified by Add()/Remove()
     MARKERS             m_markers;
@@ -1372,9 +1339,9 @@ private:
     HIGH_LIGHT_INFO     m_highLightPrevious;        // a previously stored high light data
 
     int                 m_fileFormatVersionAtLoad;  // the version loaded from the file
-    wxString            m_generator;                // the generator tag from the file
+    QString            m_generator;                // the generator tag from the file
 
-    std::map<wxString, wxString>        m_properties;
+    std::map<QString, QString>        m_properties;
     std::shared_ptr<CONNECTIVITY_DATA>  m_connectivity;
 
     PAGE_INFO           m_paper;

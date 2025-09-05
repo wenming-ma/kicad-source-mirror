@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 #ifndef DRC_RULE_H
 #define DRC_RULE_H
 
@@ -34,7 +11,7 @@
 #include <netclass.h>
 #include <zones.h>
 #include <libeval_compiler/libeval_compiler.h>
-#include <wx/intl.h>
+#include <QString>
 #include <widgets/report_severity.h>
 
 class BOARD_ITEM;
@@ -98,7 +75,7 @@ class DRC_RULE
 {
 public:
     DRC_RULE();
-    DRC_RULE( const wxString& aName );
+    DRC_RULE( const QString& aName );
 
     virtual ~DRC_RULE();
 
@@ -114,8 +91,8 @@ public:
     bool                        m_Unary;
     bool                        m_Implicit;
     KIID                        m_ImplicitItemId;
-    wxString                    m_Name;
-    wxString                    m_LayerSource;
+    QString                     m_Name;
+    QString                     m_LayerSource;
     LSET                        m_LayerCondition;
     DRC_RULE_CONDITION*         m_Condition;
     std::vector<DRC_CONSTRAINT> m_Constraints;
@@ -127,7 +104,7 @@ class DRC_CONSTRAINT
 {
 public:
     DRC_CONSTRAINT( DRC_CONSTRAINT_T aType = NULL_CONSTRAINT,
-                    const wxString& aName = wxEmptyString ) :
+                    const QString& aName = QString() ) :
             m_Type( aType ),
             m_Value(),
             m_DisallowFlags( 0 ),
@@ -155,16 +132,16 @@ public:
     void SetParentRule( DRC_RULE *aParentRule ) { m_parentRule = aParentRule; }
     DRC_RULE* GetParentRule() const { return m_parentRule; }
 
-    void SetName( const wxString& aName ) { m_name = aName; }
+    void SetName( const QString& aName ) { m_name = aName; }
 
-    wxString GetName() const
+    QString GetName() const
     {
         if( m_parentRule )
         {
             if( m_parentRule->m_Implicit )
                 return m_parentRule->m_Name;
             else
-                return wxString::Format( _( "rule '%s'" ), m_parentRule->m_Name );
+                return QString( "rule '%1'" ).arg( m_parentRule->m_Name );
         }
 
         return m_name;
@@ -194,7 +171,7 @@ public:
     bool                m_ImplicitMin;
 
 private:
-    wxString            m_name;          // For just-in-time constraints
+    QString             m_name;          // For just-in-time constraints
     DRC_RULE*           m_parentRule;    // For constraints found in rules
     std::bitset<1>      m_options;       // Constraint-specific option bits
                                          // (indexed from DRC_CONSTRAINT::OPTIONS)
@@ -203,7 +180,7 @@ private:
 
 const DRC_CONSTRAINT* GetConstraint( const BOARD_ITEM* aItem, const BOARD_ITEM* bItem,
                                      int aConstraint, PCB_LAYER_ID aLayer,
-                                     wxString* aRuleName = nullptr );
+                                     QString* aRuleName = nullptr );
 
 
 #endif // DRC_RULE_H

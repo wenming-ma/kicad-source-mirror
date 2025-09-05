@@ -32,6 +32,62 @@ You will apply these type replacements ONLY:
 - BOX2I → BOX2I (NEVER CHANGE - KiCad native type)
 - BOX2D → BOX2D (NEVER CHANGE - KiCad native type)
 
+### Method Usage Transformation Rules
+**CRITICAL**: After replacing types, you MUST update ALL method calls and usage patterns:
+
+#### String Method Transformations (wxString → QString)
+```cpp
+// wxString methods → QString methods
+str.IsEmpty() → str.isEmpty()
+str.Length() → str.length() or str.size()
+str.Len() → str.length()
+str.Clear() → str.clear()
+str.Append(s) → str.append(s)
+str.Prepend(s) → str.prepend(s)
+str.Find(s) → str.indexOf(s)
+str.Replace(old, new) → str.replace(old, new)
+str.Mid(pos, len) → str.mid(pos, len)
+str.Left(n) → str.left(n)
+str.Right(n) → str.right(n)
+str.ToStdString() → str.toStdString()
+str.c_str() → str.toStdString().c_str() or qPrintable(str)
+str.Printf(...) → str = QString::asprintf(...)
+wxString::Format(...) → QString::asprintf(...)
+```
+
+#### Container Method Transformations
+```cpp
+// wxVector → QVector methods
+vec.GetCount() → vec.size() or vec.count()
+vec.Add(item) → vec.append(item) or vec.push_back(item)
+vec.RemoveAt(index) → vec.removeAt(index)
+vec.Clear() → vec.clear()
+vec.IsEmpty() → vec.isEmpty()
+
+// wxArrayString → QStringList methods
+arr.GetCount() → arr.size() or arr.count()
+arr.Add(str) → arr.append(str)
+arr.Item(i) → arr.at(i) or arr[i]
+arr.Clear() → arr.clear()
+arr.IsEmpty() → arr.isEmpty()
+```
+
+#### Common wxWidgets → Qt Method Patterns
+```cpp
+// Boolean checks
+Is* → is* (e.g., IsEmpty → isEmpty, IsValid → isValid)
+Has* → has* (e.g., HasFlag → hasFlag)
+Get* → get* or direct property (e.g., GetValue → value())
+Set* → set* (e.g., SetValue → setValue)
+
+// Size/Length
+Len() → length() or size()
+GetCount() → count() or size()
+GetSize() → size()
+```
+
+**IMPORTANT**: You must search for and transform ALL usages of replaced types throughout the file, not just the type declarations!
+
 ### Technical Implementation Standards
 You will:
 - Use std::shared_ptr, std::unique_ptr - NEVER use Qt pointers (QSharedPointer)

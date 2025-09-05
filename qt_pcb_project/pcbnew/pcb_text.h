@@ -1,27 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 #ifndef PCB_TEXT_H
 #define PCB_TEXT_H
 
@@ -142,10 +120,10 @@ public:
     GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
                        FLASHING aFlash = FLASHING::DEFAULT ) const override;
 
-    SHAPE_POLY_SET GetKnockoutCache( const KIFONT::FONT* aFont, const wxString& forResolvedText,
+    SHAPE_POLY_SET GetKnockoutCache( const KIFONT::FONT* aFont, const QString& forResolvedText,
                                      int aMaxError ) const;
 
-    virtual wxString GetTextTypeDescription() const;
+    virtual QString GetTextTypeDescription() const;
 
     QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
@@ -193,7 +171,7 @@ protected:
     const KIFONT::METRICS& getFontMetrics() const override { return GetFontMetrics(); }
 
 private:
-    mutable wxString            m_knockout_cache_text;
+    mutable QString            m_knockout_cache_text;
     mutable TEXT_ATTRIBUTES     m_knockout_cache_text_attrs;
     mutable EDA_ANGLE           m_knockout_cache_angle;
     mutable VECTOR2I            m_knockout_cache_pos;

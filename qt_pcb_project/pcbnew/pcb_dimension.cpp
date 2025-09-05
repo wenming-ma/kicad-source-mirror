@@ -1,29 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2023 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+#include <QString>
+#include <QChar>
+#include <QStringLiteral>
 
 #include <bitmaps.h>
 #include <pcb_edit_frame.h>
@@ -326,9 +304,9 @@ double PCB_DIMENSION_BASE::Similarity( const BOARD_ITEM& aOther ) const
 //    EDA_TEXT::Deserialize( any );
 //
 //    SetOverrideTextEnabled( dimension.override_text_enabled() );
-//    SetOverrideText( wxString::FromUTF8( dimension.override_text() ) );
-//    SetPrefix( wxString::FromUTF8( dimension.prefix() ) );
-//    SetSuffix( wxString::FromUTF8( dimension.suffix() ) );
+//    SetOverrideText( QString::fromUtf8( dimension.override_text() ) );
+//    SetPrefix( QString::fromUtf8( dimension.prefix() ) );
+//    SetSuffix( QString::fromUtf8( dimension.suffix() ) );
 //
 //    SetUnitsMode( FromProtoEnum<DIM_UNITS_MODE>( dimension.unit() ) );
 //    SetUnitsFormat( FromProtoEnum<DIM_UNITS_FORMAT>( dimension.unit_format() ) );
@@ -370,7 +348,7 @@ void PCB_DIMENSION_BASE::drawAnArrow( VECTOR2I startPoint, EDA_ANGLE anAngle, in
 
 void PCB_DIMENSION_BASE::updateText()
 {
-    wxString text = m_overrideTextEnabled ? m_valueString : GetValueText();
+    QString text = m_overrideTextEnabled ? m_valueString : GetValueText();
 
     switch( m_unitsFormat )
     {
@@ -382,12 +360,12 @@ void PCB_DIMENSION_BASE::updateText()
         break;
 
     case DIM_UNITS_FORMAT::PAREN_SUFFIX: // parenthetical
-        text += wxT( " (" ) + EDA_UNIT_UTILS::GetText( m_units ).Trim( false ) + wxT( ")" );
+        text += QStringLiteral( " (" ) + EDA_UNIT_UTILS::GetText( m_units ).trimmed() + QStringLiteral( ")" );
         break;
     }
 
-    text.Prepend( m_prefix );
-    text.Append( m_suffix );
+    text = m_prefix + text;
+    text += m_suffix;
 
     SetText( text );
 }
@@ -416,14 +394,14 @@ void PCB_DIMENSION_BASE::addShape( const ShapeType& aShape )
 }
 
 
-wxString PCB_DIMENSION_BASE::GetValueText() const
+QString PCB_DIMENSION_BASE::GetValueText() const
 {
     struct lconv* lc = localeconv();
-    wxChar sep = lc->decimal_point[0];
+    QChar sep = lc->decimal_point[0];
 
     int      val = GetMeasuredValue();
     int      precision = static_cast<int>( m_precision );
-    wxString text;
+    QString text;
 
     if( precision >= 6 )
     {
@@ -436,19 +414,19 @@ wxString PCB_DIMENSION_BASE::GetValueText() const
         }
     }
 
-    wxString format = wxT( "%." ) + wxString::Format( wxT( "%i" ), precision ) + wxT( "f" );
+    QString format = QStringLiteral( "%." ) + QString::asprintf( "%i", precision ) + QStringLiteral( "f" );
 
-    text.Printf( format, EDA_UNIT_UTILS::UI::ToUserUnit( pcbIUScale, m_units, val ) );
+    text = QString::asprintf( format.toStdString().c_str(), EDA_UNIT_UTILS::UI::ToUserUnit( pcbIUScale, m_units, val ) );
 
     if( m_suppressZeroes )
     {
-        while( text.EndsWith( '0' ) )
+        while( text.endsWith( '0' ) )
         {
-            text.RemoveLast();
+            text.chop(1);
 
-            if( text.EndsWith( '.' ) || text.EndsWith( sep ) )
+            if( text.endsWith( '.' ) || text.endsWith( sep ) )
             {
-                text.RemoveLast();
+                text.chop(1);
                 break;
             }
         }
@@ -458,13 +436,13 @@ wxString PCB_DIMENSION_BASE::GetValueText() const
 }
 
 
-void PCB_DIMENSION_BASE::SetPrefix( const wxString& aPrefix )
+void PCB_DIMENSION_BASE::SetPrefix( const QString& aPrefix )
 {
     m_prefix = aPrefix;
 }
 
 
-void PCB_DIMENSION_BASE::SetSuffix( const wxString& aSuffix )
+void PCB_DIMENSION_BASE::SetSuffix( const QString& aSuffix )
 {
     m_suffix = aSuffix;
 }
@@ -601,9 +579,10 @@ void PCB_DIMENSION_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
                                           std::vector<MSG_PANEL_ITEM>& aList )
 {
     // for now, display only the text within the DIMENSION using class PCB_TEXT.
-    wxString    msg;
+    QString    msg;
 
-    wxCHECK_RET( m_parent != nullptr, wxT( "PCB_TEXT::GetMsgPanelInfo() m_Parent is NULL." ) );
+    Q_ASSERT_X( m_parent != nullptr, "PCB_DIMENSION_BASE::GetMsgPanelInfo", "m_Parent is NULL" );
+    if( m_parent == nullptr ) return;
 
     // Don't use GetShownText(); we want to see the variable references here
     aList.emplace_back( _( "Dimension" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
@@ -620,14 +599,14 @@ void PCB_DIMENSION_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
 
         switch( GetPrecision() )
         {
-        case DIM_PRECISION::V_VV:    msg = wxT( "0.00 in / 0 mils / 0.0 mm" );          break;
-        case DIM_PRECISION::V_VVV:   msg = wxT( "0.000 in / 0 mils / 0.00 mm" );        break;
-        case DIM_PRECISION::V_VVVV:  msg = wxT( "0.0000 in / 0.0 mils / 0.000 mm" );    break;
-        case DIM_PRECISION::V_VVVVV: msg = wxT( "0.00000 in / 0.00 mils / 0.0000 mm" ); break;
-        default:  msg = wxT( "%" ) + wxString::Format( wxT( "1.%df" ), GetPrecision() );
+        case DIM_PRECISION::V_VV:    msg = QStringLiteral( "0.00 in / 0 mils / 0.0 mm" );          break;
+        case DIM_PRECISION::V_VVV:   msg = QStringLiteral( "0.000 in / 0 mils / 0.00 mm" );        break;
+        case DIM_PRECISION::V_VVVV:  msg = QStringLiteral( "0.0000 in / 0.0 mils / 0.000 mm" );    break;
+        case DIM_PRECISION::V_VVVVV: msg = QStringLiteral( "0.00000 in / 0.00 mils / 0.0000 mm" ); break;
+        default:  msg = QStringLiteral( "%" ) + QString::asprintf( "1.%df", GetPrecision() );
         }
 
-        aList.emplace_back( _( "Precision" ), wxString::Format( msg, 0.0 ) );
+        aList.emplace_back( _( "Precision" ), QString::asprintf( msg.toStdString().c_str(), 0.0 ) );
     }
 
     aList.emplace_back( _( "Suffix" ), GetSuffix() );
@@ -649,22 +628,22 @@ void PCB_DIMENSION_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
     if( Type() == PCB_DIM_CENTER_T )
     {
         VECTOR2I startCoord = originTransforms.ToDisplayAbs( GetStart() );
-        wxString start = wxString::Format( wxT( "@(%s, %s)" ),
-                                           aFrame->MessageTextFromValue( startCoord.x ),
-                                           aFrame->MessageTextFromValue( startCoord.y ) );
+        QString start = QString::asprintf( "@(%s, %s)",
+                                           aFrame->MessageTextFromValue( startCoord.x ).toStdString().c_str(),
+                                           aFrame->MessageTextFromValue( startCoord.y ).toStdString().c_str() );
 
-        aList.emplace_back( start, wxEmptyString );
+        aList.emplace_back( start, QString() );
     }
     else
     {
         VECTOR2I startCoord = originTransforms.ToDisplayAbs( GetStart() );
-        wxString start = wxString::Format( wxT( "@(%s, %s)" ),
-                                           aFrame->MessageTextFromValue( startCoord.x ),
-                                           aFrame->MessageTextFromValue( startCoord.y ) );
+        QString start = QString::asprintf( "@(%s, %s)",
+                                           aFrame->MessageTextFromValue( startCoord.x ).toStdString().c_str(),
+                                           aFrame->MessageTextFromValue( startCoord.y ).toStdString().c_str() );
         VECTOR2I endCoord = originTransforms.ToDisplayAbs( GetEnd() );
-        wxString end   = wxString::Format( wxT( "@(%s, %s)" ),
-                                           aFrame->MessageTextFromValue( endCoord.x ),
-                                           aFrame->MessageTextFromValue( endCoord.y ) );
+        QString end   = QString::asprintf( "@(%s, %s)",
+                                           aFrame->MessageTextFromValue( endCoord.x ).toStdString().c_str(),
+                                           aFrame->MessageTextFromValue( endCoord.y ).toStdString().c_str() );
 
         aList.emplace_back( start, end );
     }
@@ -758,11 +737,11 @@ const BOX2I PCB_DIMENSION_BASE::GetBoundingBox() const
 }
 
 
-wxString PCB_DIMENSION_BASE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PCB_DIMENSION_BASE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Dimension '%s' on %s" ),
-                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ),
-                             GetLayerName() );
+    return QString::asprintf( _( "Dimension '%s' on %s" ).toStdString().c_str(),
+                             (aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() )).toStdString().c_str(),
+                             GetLayerName().toStdString().c_str() );
 }
 
 
@@ -781,7 +760,7 @@ void PCB_DIMENSION_BASE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_L
                                                   int aClearance, int aError, ERROR_LOC aErrorLoc,
                                                   bool aIgnoreLineWidth ) const
 {
-    wxASSERT_MSG( !aIgnoreLineWidth, wxT( "IgnoreLineWidth has no meaning for dimensions." ) );
+    Q_ASSERT_X( !aIgnoreLineWidth, "PCB_DIMENSION_BASE::TransformShapeToPolygon", "IgnoreLineWidth has no meaning for dimensions" );
 
     for( const std::shared_ptr<SHAPE>& shape : m_shapes )
     {
@@ -801,7 +780,7 @@ void PCB_DIMENSION_BASE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_L
         }
         else
         {
-            wxFAIL_MSG( wxT( "PCB_DIMENSION_BASE::TransformShapeToPolygon unknown shape type." ) );
+            Q_ASSERT_X( false, "PCB_DIMENSION_BASE::TransformShapeToPolygon", "unknown shape type" );
         }
     }
 }
@@ -869,7 +848,7 @@ bool PCB_DIM_ALIGNED::Deserialize( const google::protobuf::Any &aContainer )
 
 void PCB_DIM_ALIGNED::swapData( BOARD_ITEM* aImage )
 {
-    wxASSERT( aImage->Type() == Type() );
+    Q_ASSERT( aImage->Type() == Type() );
 
     m_shapes.clear();
     static_cast<PCB_DIM_ALIGNED*>( aImage )->m_shapes.clear();
@@ -1106,7 +1085,7 @@ bool PCB_DIM_ORTHOGONAL::Deserialize( const google::protobuf::Any &aContainer )
 
 void PCB_DIM_ORTHOGONAL::swapData( BOARD_ITEM* aImage )
 {
-    wxASSERT( aImage->Type() == Type() );
+    Q_ASSERT( aImage->Type() == Type() );
 
     m_shapes.clear();
     static_cast<PCB_DIM_ORTHOGONAL*>( aImage )->m_shapes.clear();
@@ -1373,7 +1352,7 @@ EDA_ITEM* PCB_DIM_LEADER::Clone() const
 
 void PCB_DIM_LEADER::swapData( BOARD_ITEM* aImage )
 {
-    wxASSERT( aImage->Type() == Type() );
+    Q_ASSERT( aImage->Type() == Type() );
 
     m_shapes.clear();
     static_cast<PCB_DIM_LEADER*>( aImage )->m_shapes.clear();
@@ -1451,7 +1430,7 @@ void PCB_DIM_LEADER::updateGeometry()
 
     drawAnArrow( start, EDA_ANGLE( firstLine ), 0 );
 
-    if( !GetText().IsEmpty() )
+    if( !GetText().isEmpty() )
     {
         switch( m_textBorder )
         {
@@ -1492,11 +1471,11 @@ void PCB_DIM_LEADER::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PA
     ORIGIN_TRANSFORMS& originTransforms = aFrame->GetOriginTransforms();
 
     VECTOR2I startCoord = originTransforms.ToDisplayAbs( GetStart() );
-    wxString start = wxString::Format( wxT( "@(%s, %s)" ),
-                                       aFrame->MessageTextFromValue( startCoord.x ),
-                                       aFrame->MessageTextFromValue( startCoord.y ) );
+    QString start = QString::asprintf( "@(%s, %s)",
+                                       aFrame->MessageTextFromValue( startCoord.x ).toStdString().c_str(),
+                                       aFrame->MessageTextFromValue( startCoord.y ).toStdString().c_str() );
 
-    aList.emplace_back( start, wxEmptyString );
+    aList.emplace_back( start, QString() );
 
     aList.emplace_back( _( "Layer" ), GetLayerName() );
 }
@@ -1564,7 +1543,7 @@ EDA_ITEM* PCB_DIM_RADIAL::Clone() const
 
 void PCB_DIM_RADIAL::swapData( BOARD_ITEM* aImage )
 {
-    wxASSERT( aImage->Type() == Type() );
+    Q_ASSERT( aImage->Type() == Type() );
 
     m_shapes.clear();
     static_cast<PCB_DIM_RADIAL*>( aImage )->m_shapes.clear();
@@ -1715,7 +1694,7 @@ EDA_ITEM* PCB_DIM_CENTER::Clone() const
 
 void PCB_DIM_CENTER::swapData( BOARD_ITEM* aImage )
 {
-    wxASSERT( aImage->Type() == Type() );
+    Q_ASSERT( aImage->Type() == Type() );
 
     std::swap( *static_cast<PCB_DIM_CENTER*>( this ), *static_cast<PCB_DIM_CENTER*>( aImage ) );
 }
@@ -1817,7 +1796,7 @@ static struct DIMENSION_DESC
 
         propMgr.Mask( TYPE_HASH( PCB_DIMENSION_BASE ), TYPE_HASH( EDA_TEXT ), _HKI( "Orientation" ) );
 
-        const wxString groupDimension = _HKI( "Dimension Properties" );
+        const QString groupDimension = _HKI( "Dimension Properties" );
 
         auto isLeader =
                 []( INSPECTABLE* aItem ) -> bool
@@ -1837,20 +1816,20 @@ static struct DIMENSION_DESC
                     return dynamic_cast<PCB_DIM_ALIGNED*>( aItem ) != nullptr;
                 };
 
-        propMgr.AddProperty( new PROPERTY<PCB_DIMENSION_BASE, wxString>( _HKI( "Prefix" ),
+        propMgr.AddProperty( new PROPERTY<PCB_DIMENSION_BASE, QString>( _HKI( "Prefix" ),
                 &PCB_DIMENSION_BASE::ChangePrefix, &PCB_DIMENSION_BASE::GetPrefix ),
                 groupDimension )
                 .SetAvailableFunc( isNotLeader );
-        propMgr.AddProperty( new PROPERTY<PCB_DIMENSION_BASE, wxString>( _HKI( "Suffix" ),
+        propMgr.AddProperty( new PROPERTY<PCB_DIMENSION_BASE, QString>( _HKI( "Suffix" ),
                 &PCB_DIMENSION_BASE::ChangeSuffix, &PCB_DIMENSION_BASE::GetSuffix ),
                 groupDimension )
                 .SetAvailableFunc( isNotLeader );
-        propMgr.AddProperty( new PROPERTY<PCB_DIMENSION_BASE, wxString>( _HKI( "Override Text" ),
+        propMgr.AddProperty( new PROPERTY<PCB_DIMENSION_BASE, QString>( _HKI( "Override Text" ),
                 &PCB_DIMENSION_BASE::ChangeOverrideText, &PCB_DIMENSION_BASE::GetOverrideText ),
                 groupDimension )
                 .SetAvailableFunc( isNotLeader );
 
-        propMgr.AddProperty( new PROPERTY<PCB_DIMENSION_BASE, wxString>( _HKI( "Text" ),
+        propMgr.AddProperty( new PROPERTY<PCB_DIMENSION_BASE, QString>( _HKI( "Text" ),
                 &PCB_DIMENSION_BASE::ChangeOverrideText, &PCB_DIMENSION_BASE::GetOverrideText ),
                 groupDimension )
                 .SetAvailableFunc( isLeader );
@@ -1877,7 +1856,7 @@ static struct DIMENSION_DESC
                 groupDimension )
                 .SetAvailableFunc( isMultiArrowDirection );
 
-        const wxString groupText = _HKI( "Text Properties" );
+        const QString groupText = _HKI( "Text Properties" );
 
         const auto isTextOrientationWriteable =
                 []( INSPECTABLE* aItem ) -> bool
@@ -1899,10 +1878,10 @@ static struct DIMENSION_DESC
     }
 } _DIMENSION_DESC;
 
-ENUM_TO_WXANY( DIM_PRECISION )
-ENUM_TO_WXANY( DIM_UNITS_FORMAT )
-ENUM_TO_WXANY( DIM_UNITS_MODE )
-ENUM_TO_WXANY( DIM_ARROW_DIRECTION )
+// ENUM_TO_WXANY( DIM_PRECISION ) - Removed wxWidgets macro
+// ENUM_TO_WXANY( DIM_UNITS_FORMAT ) - Removed wxWidgets macro
+// ENUM_TO_WXANY( DIM_UNITS_MODE ) - Removed wxWidgets macro
+// ENUM_TO_WXANY( DIM_ARROW_DIRECTION ) - Removed wxWidgets macro
 
 
 static struct ALIGNED_DIMENSION_DESC
@@ -1920,7 +1899,7 @@ static struct ALIGNED_DIMENSION_DESC
         propMgr.InheritsAfter( TYPE_HASH( PCB_DIM_ALIGNED ), TYPE_HASH( PCB_TEXT ) );
         propMgr.InheritsAfter( TYPE_HASH( PCB_DIM_ALIGNED ), TYPE_HASH( PCB_DIMENSION_BASE ) );
 
-        const wxString groupDimension = _HKI( "Dimension Properties" );
+        const QString groupDimension = _HKI( "Dimension Properties" );
 
         propMgr.AddProperty( new PROPERTY<PCB_DIM_ALIGNED, int>( _HKI( "Crossbar Height" ),
                 &PCB_DIM_ALIGNED::ChangeHeight, &PCB_DIM_ALIGNED::GetHeight,
@@ -1995,7 +1974,7 @@ static struct RADIAL_DIMENSION_DESC
         propMgr.InheritsAfter( TYPE_HASH( PCB_DIM_RADIAL ), TYPE_HASH( PCB_TEXT ) );
         propMgr.InheritsAfter( TYPE_HASH( PCB_DIM_RADIAL ), TYPE_HASH( PCB_DIMENSION_BASE ) );
 
-        const wxString groupDimension = _HKI( "Dimension Properties" );
+        const QString groupDimension = _HKI( "Dimension Properties" );
 
         propMgr.AddProperty( new PROPERTY<PCB_DIM_RADIAL, int>( _HKI( "Leader Length" ),
                 &PCB_DIM_RADIAL::ChangeLeaderLength, &PCB_DIM_RADIAL::GetLeaderLength,
@@ -2038,7 +2017,7 @@ static struct LEADER_DIMENSION_DESC
         propMgr.InheritsAfter( TYPE_HASH( PCB_DIM_LEADER ), TYPE_HASH( PCB_TEXT ) );
         propMgr.InheritsAfter( TYPE_HASH( PCB_DIM_LEADER ), TYPE_HASH( PCB_DIMENSION_BASE ) );
 
-        const wxString groupDimension = _HKI( "Dimension Properties" );
+        const QString groupDimension = _HKI( "Dimension Properties" );
 
         propMgr.AddProperty( new PROPERTY_ENUM<PCB_DIM_LEADER, DIM_TEXT_BORDER>( _HKI( "Text Frame" ),
                 &PCB_DIM_LEADER::ChangeTextBorder, &PCB_DIM_LEADER::GetTextBorder ),
@@ -2059,7 +2038,7 @@ static struct LEADER_DIMENSION_DESC
     }
 } LEADER_DIMENSION_DESC;
 
-ENUM_TO_WXANY( DIM_TEXT_BORDER )
+// ENUM_TO_WXANY( DIM_TEXT_BORDER ) - Removed wxWidgets macro
 
 
 static struct CENTER_DIMENSION_DESC

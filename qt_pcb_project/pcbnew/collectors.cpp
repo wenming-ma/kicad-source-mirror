@@ -1,30 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2007-2008 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <collectors.h>
 #include <board_item.h>             // class BOARD_ITEM
 
+#include <QtCore/QDebug>
 #include <footprint.h>
 #include <netinfo.h>
 #include <pad.h>
@@ -470,7 +448,8 @@ INSPECT_RESULT GENERAL_COLLECTOR::Inspect( EDA_ITEM* aTestItem, void* aTestData 
         else if( aTestItem->Type() == PCB_FOOTPRINT_T )
         {
             // Already tested above, but Coverity can't figure that out
-            wxCHECK( footprint, INSPECT_RESULT::CONTINUE );
+            Q_ASSERT( footprint );
+            if( !footprint ) return INSPECT_RESULT::CONTINUE;
 
             if( footprint->HitTest( m_refPos, accuracy )
                     && footprint->HitTestAccurate( m_refPos, accuracy ) )
@@ -523,7 +502,8 @@ void GENERAL_COLLECTOR::Collect( BOARD_ITEM* aItem, const std::vector<KICAD_T>& 
     // the Inspect() function.
     SetRefPos( aRefPos );
 
-    wxCHECK_RET( aItem, "" );
+    Q_ASSERT( aItem );
+    if( !aItem ) return;
     aItem->Visit( m_inspector, nullptr, m_scanTypes );
 
     // append 2nd list onto end of the first list

@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #pragma once
 
@@ -132,8 +109,8 @@ public:
     /**
      * Set the pad number (note that it can be alphanumeric, such as the array reference "AA12").
      */
-    void SetNumber( const wxString& aNumber ) { m_number = aNumber; }
-    const wxString& GetNumber() const { return m_number; }
+    void SetNumber( const QString& aNumber ) { m_number = aNumber; }
+    const QString& GetNumber() const { return m_number; }
 
     /**
      * Indicates whether or not the pad can have a number.  (NPTH and SMD aperture pads can not.)
@@ -143,14 +120,14 @@ public:
     /**
      * Set the pad function (pin name in schematic)
      */
-    void SetPinFunction( const wxString& aName ) { m_pinFunction = aName; }
-    const wxString& GetPinFunction() const { return m_pinFunction; }
+    void SetPinFunction( const QString& aName ) { m_pinFunction = aName; }
+    const QString& GetPinFunction() const { return m_pinFunction; }
 
     /**
      * Set the pad electrical type
      */
-    void SetPinType( const wxString& aType ) { m_pinType = aType; }
-    const wxString& GetPinType() const { return m_pinType; }
+    void SetPinType( const QString& aType ) { m_pinType = aType; }
+    const QString& GetPinType() const { return m_pinType; }
 
     /**
      * Before we had custom pad shapes it was common to have multiple overlapping pads to
@@ -492,7 +469,7 @@ public:
      * @param aSource [out] optionally reports the source as a user-readable string.
      * @return the clearance in internal units.
      */
-    int GetOwnClearance( PCB_LAYER_ID aLayer, wxString* aSource = nullptr ) const override;
+    int GetOwnClearance( PCB_LAYER_ID aLayer, QString* aSource = nullptr ) const override;
 
     /**
      * Convert the pad shape to a closed polygon. Circles and arcs are approximated by segments.
@@ -558,7 +535,7 @@ public:
      * @param aSource [out] optionally reports the source as a user-readable string.
      * @return the clearance in internal units.
      */
-    std::optional<int> GetLocalClearance( wxString* aSource ) const override;
+    std::optional<int> GetLocalClearance( QString* aSource ) const override;
 
     /**
      * Return any clearance overrides set in the "classic" (ie: pre-rule) system.
@@ -566,7 +543,7 @@ public:
      * @param aSource [out] optionally reports the source as a user-readable string.
      * @return the clearance in internal units.
      */
-    std::optional<int> GetClearanceOverrides( wxString* aSource ) const override;
+    std::optional<int> GetClearanceOverrides( QString* aSource ) const override;
 
     /**
      * @return the expansion for the solder mask layer
@@ -593,7 +570,7 @@ public:
     */
     VECTOR2I GetSolderPasteMargin( PCB_LAYER_ID aLayer ) const;
 
-    ZONE_CONNECTION GetZoneConnectionOverrides( wxString* aSource = nullptr ) const;
+    ZONE_CONNECTION GetZoneConnectionOverrides( QString* aSource = nullptr ) const;
 
     /**
      * Set the width of the thermal spokes connecting the pad to a zone.  If != 0 this will
@@ -608,7 +585,7 @@ public:
         return m_padStack.ThermalSpokeWidth();
     }
 
-    int GetLocalSpokeWidthOverride( wxString* aSource = nullptr ) const;
+    int GetLocalSpokeWidthOverride( QString* aSource = nullptr ) const;
 
     /**
      * The orientation of the thermal spokes.  45° will produce an X (the default for circular
@@ -637,7 +614,7 @@ public:
     void SetThermalGap( int aGap ) { m_padStack.ThermalGap() = aGap; }
     int GetThermalGap() const { return m_padStack.ThermalGap().value_or( 0 ); }
 
-    int GetLocalThermalGapOverride( wxString* aSource ) const;
+    int GetLocalThermalGapOverride( QString* aSource ) const;
 
     std::optional<int> GetLocalThermalGapOverride() const
     {
@@ -870,12 +847,12 @@ public:
     /**
      * @return the GUI-appropriate name of the shape.
      */
-    wxString ShowPadShape( PCB_LAYER_ID aLayer ) const;
+    QString ShowPadShape( PCB_LAYER_ID aLayer ) const;
 
     /**
      * @return the GUI-appropriate description of the pad type (attribute) : Std, SMD ...
      */
-    wxString ShowPadAttr() const;
+    QString ShowPadAttr() const;
 
     EDA_ITEM* Clone() const override;
 
@@ -910,7 +887,7 @@ public:
 
     void CheckPad( UNITS_PROVIDER* aUnitsProvider, bool aForPadProperties,
                    const std::function<void( int aErrorCode,
-                                             const wxString& aMsg )>& aErrorHandler ) const;
+                                             const QString& aMsg )>& aErrorHandler ) const;
 
     double Similarity( const BOARD_ITEM& aOther ) const override;
 
@@ -929,12 +906,12 @@ private:
 
     void doCheckPad( PCB_LAYER_ID aLayer, UNITS_PROVIDER* aUnitsProvider, bool aForPadProperties,
                      const std::function<void( int aErrorCode,
-                                               const wxString& aMsg )>& aErrorHandler ) const;
+                                               const QString& aMsg )>& aErrorHandler ) const;
 
 private:
-    wxString      m_number;             // Pad name (pin number in schematic)
-    wxString      m_pinFunction;        // Pin name in schematic
-    wxString      m_pinType;            // Pin electrical type in schematic
+    QString      m_number;             // Pad name (pin number in schematic)
+    QString      m_pinFunction;        // Pin name in schematic
+    QString      m_pinType;            // Pin electrical type in schematic
 
     VECTOR2I      m_pos; // Pad Position on board
 

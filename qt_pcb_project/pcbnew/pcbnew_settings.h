@@ -1,26 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef PCBNEW_SETTINGS_H_
 #define PCBNEW_SETTINGS_H_
 
+#include <QString>
+#include <QSettings>
 #include <core/mirror.h> // for FLIP_DIRECTION
 #include <geometry/eda_angle.h>
 #include <settings/app_settings.h>
@@ -101,7 +84,7 @@ enum PCB_DISPLAY_ORIGIN
 };
 
 
-typedef std::vector<std::pair<wxString, bool>> ACTION_PLUGIN_SETTINGS_LIST;
+typedef std::vector<std::pair<QString, bool>> ACTION_PLUGIN_SETTINGS_LIST;
 
 
 // base class to handle Pcbnew SETTINGS also used in Cvpcb
@@ -250,7 +233,7 @@ public:
         bool        group_items;
         bool        fix_discontinuities;
         double      tolerance;
-        wxString    last_file;
+        QString    last_file;
         double      dxf_line_width;
         int         dxf_line_width_units;
         int         origin_units;
@@ -270,7 +253,7 @@ public:
 
     struct DIALOG_PLACE_FILE
     {
-        wxString output_directory;  // only used at run-time; actual data in project settings
+        QString output_directory;  // only used at run-time; actual data in project settings
         int      units;
         int      file_options;
         int      file_format;
@@ -304,12 +287,12 @@ public:
         int      sort_code;
         int      annotation_choice;
         int      report_severity;
-        wxString front_refdes_start;
-        wxString back_refdes_start;
-        wxString front_prefix;
-        wxString back_prefix;
-        wxString exclude_list;
-        wxString report_file_name;
+        QString front_refdes_start;
+        QString back_refdes_start;
+        QString front_prefix;
+        QString back_prefix;
+        QString exclude_list;
+        QString report_file_name;
     };
 
     struct FOOTPRINT_CHOOSER
@@ -367,7 +350,7 @@ public:
 
     virtual ~PCBNEW_SETTINGS();
 
-    virtual bool MigrateFromLegacy( wxConfigBase* aLegacyConfig ) override;
+    virtual bool MigrateFromLegacy( QSettings* aLegacyConfig ) override;
 
     AUI_PANELS m_AuiPanels;
 
@@ -438,7 +421,7 @@ public:
                           // False (default): all pads are treated as locked for the purposes of
                           // movement and any attempt to move them will move the footprint instead.
 
-    wxString m_FootprintTextShownColumns;
+    QString m_FootprintTextShownColumns;
 
     std::unique_ptr<PNS::ROUTING_SETTINGS> m_PnsSettings;
 
@@ -447,9 +430,9 @@ public:
     int    m_FootprintViewerLibListWidth;
     int    m_FootprintViewerFPListWidth;
 
-    wxString m_lastFootprintLibDir;
+    QString m_lastFootprintLibDir;
 
-    wxString m_lastFootprint3dDir;
+    QString m_lastFootprint3dDir;
 
     LOCKING_OPTIONS m_LockingOptions;
 

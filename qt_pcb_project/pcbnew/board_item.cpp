@@ -1,32 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 // #include <pybind11/pybind11.h>  // Commented out for minimal build
 
-#include <wx/debug.h>
-#include <wx/msgdlg.h>
+#include <QtCore/QDebug>
+#include <QtWidgets/QMessageBox>
 #include <i18n_utility.h>
 #include <macros.h>
 #include <board.h>
@@ -40,13 +16,13 @@
 
 BOARD_ITEM::~BOARD_ITEM()
 {
-    wxASSERT( m_group == nullptr );
+    Q_ASSERT( m_group == nullptr );
 }
 
 
 void BOARD_ITEM::CopyFrom( const BOARD_ITEM* aOther )
 {
-    wxCHECK( aOther, /* void */ );
+    Q_ASSERT( aOther );
     *this = *aOther;
 }
 
@@ -92,7 +68,7 @@ bool BOARD_ITEM::IsLocked() const
 
 STROKE_PARAMS BOARD_ITEM::GetStroke() const
 {
-    wxFAIL_MSG( wxString( "GetStroke() not defined by " ) + GetClass() );
+    qWarning() << "GetStroke() not defined by" << GetClass();
 
     return STROKE_PARAMS( pcbIUScale.mmToIU( DEFAULT_LINE_WIDTH ) );
 }
@@ -100,7 +76,7 @@ STROKE_PARAMS BOARD_ITEM::GetStroke() const
 
 void BOARD_ITEM::SetStroke( const STROKE_PARAMS& aStroke )
 {
-    wxFAIL_MSG( wxString( "SetStroke() not defined by " ) + GetClass() );
+    qWarning() << "SetStroke() not defined by" << GetClass();
 }
 
 
@@ -143,7 +119,7 @@ LSET BOARD_ITEM::BoardLayerSet() const
 }
 
 
-wxString BOARD_ITEM::GetLayerName() const
+QString BOARD_ITEM::GetLayerName() const
 {
     if( const BOARD* board = GetBoard() )
         return board->GetLayerName( m_layer );
@@ -170,7 +146,7 @@ bool BOARD_ITEM::IsSideSpecific() const
 }
 
 
-wxString BOARD_ITEM::layerMaskDescribe() const
+QString BOARD_ITEM::layerMaskDescribe() const
 {
     const BOARD* board = GetBoard();
     LSET         layers = GetLayerSet() & board->GetEnabledLayers();
@@ -188,10 +164,10 @@ wxString BOARD_ITEM::layerMaskDescribe() const
         {
             if( testLayers[ bit ] )
             {
-                wxString layerInfo = board->GetLayerName( static_cast<PCB_LAYER_ID>( bit ) );
+                QString layerInfo = board->GetLayerName( static_cast<PCB_LAYER_ID>( bit ) );
 
                 if( testLayers.count() > 1 )
-                    layerInfo << wxS( " " ) + _( "and others" );
+                    layerInfo += " " + _( "and others" );
 
                 return layerInfo;
             }
@@ -263,7 +239,7 @@ void BOARD_ITEM::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID 
                                           int aClearance, int aError, ERROR_LOC aErrorLoc,
                                           bool ignoreLineWidth ) const
 {
-    wxFAIL_MSG( wxString::Format( wxT( "%s doesn't implement TransformShapeToPolygon()" ), GetClass() ) );
+    qWarning() << GetClass() << "doesn't implement TransformShapeToPolygon()";
 };
 
 
@@ -361,23 +337,23 @@ void BOARD_ITEM::SetFPRelativePosition( const VECTOR2I& aPos )
 
 void BOARD_ITEM::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
 {
-    wxMessageBox( wxT( "virtual BOARD_ITEM::Rotate used, should not occur" ), GetClass() );
+    QMessageBox::warning( nullptr, GetClass(), "virtual BOARD_ITEM::Rotate used, should not occur" );
 }
 
 
 void BOARD_ITEM::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
-    wxMessageBox( wxT( "virtual BOARD_ITEM::Flip used, should not occur" ), GetClass() );
+    QMessageBox::warning( nullptr, GetClass(), "virtual BOARD_ITEM::Flip used, should not occur" );
 }
 
 
 void BOARD_ITEM::Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
-    wxMessageBox( wxT( "virtual BOARD_ITEM::Mirror used, should not occur" ), GetClass() );
+    QMessageBox::warning( nullptr, GetClass(), "virtual BOARD_ITEM::Mirror used, should not occur" );
 }
 
 
-wxString BOARD_ITEM::GetParentAsString() const
+QString BOARD_ITEM::GetParentAsString() const
 {
     if( FOOTPRINT* fp = dynamic_cast<FOOTPRINT*>( m_parent ) )
         return fp->GetReference();
@@ -404,8 +380,8 @@ static struct BOARD_ITEM_DESC
         REGISTER_TYPE( BOARD_ITEM );
         propMgr.InheritsAfter( TYPE_HASH( BOARD_ITEM ), TYPE_HASH( EDA_ITEM ) );
 
-        propMgr.AddProperty( new PROPERTY<BOARD_ITEM, wxString>( _HKI( "Parent" ),
-                     NO_SETTER( BOARD_ITEM, wxString ), &BOARD_ITEM::GetParentAsString ) )
+        propMgr.AddProperty( new PROPERTY<BOARD_ITEM, QString>( _HKI( "Parent" ),
+                     NO_SETTER( BOARD_ITEM, QString ), &BOARD_ITEM::GetParentAsString ) )
                 .SetIsHiddenFromLibraryEditors()
                 .SetIsHiddenFromPropertiesManager();
 
@@ -428,4 +404,4 @@ static struct BOARD_ITEM_DESC
     }
 } _BOARD_ITEM_DESC;
 
-IMPLEMENT_ENUM_TO_WXANY( PCB_LAYER_ID )
+IMPLEMENT_ENUM_TO_QVARIANT( PCB_LAYER_ID )

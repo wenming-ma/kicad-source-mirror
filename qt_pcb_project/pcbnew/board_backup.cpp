@@ -1,7 +1,12 @@
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
+
 #include <iterator>
 
-#include <QLoggingCategory>
 #include <QDebug>
+#include <QFileInfo>
+#include <QString>
+#include <QStringList>
 
 #include <drc/drc_rtree.h>
 #include <board_design_settings.h>
@@ -56,7 +61,7 @@ BOARD::BOARD() :
         m_paper( PAGE_INFO::A4 ),
         m_project( nullptr ),
         m_userUnits( EDA_UNITS::MM ),
-        m_designSettings( new BOARD_DESIGN_SETTINGS( nullptr, "board.design_settings" ) ),
+        m_designSettings( new BOARD_DESIGN_SETTINGS( nullptr, "board.design_settings" ),
         m_NetInfo( this ),
         m_embedFonts( false ),
         m_embeddedFilesDelegate( nullptr )
@@ -103,7 +108,7 @@ BOARD::BOARD() :
     // Initialize default netclass.
     bds.m_NetSettings->SetDefaultNetclass( std::make_shared<NETCLASS>( NETCLASS::Default ) );
     bds.m_NetSettings->GetDefaultNetclass()->SetDescription(
-            _( "This is the default net class." ) );
+            _( "This is the default net class." );
 
     bds.UseCustomTrackViaSize( false );
 
@@ -350,7 +355,7 @@ std::set<QString>::iterator FindByFirstNFields( std::set<QString>& strSet,
     }
 
     if( delimiterCount == n )
-        searchPrefix = searchPrefix.left(pos - 1 ); // Exclude the nth delimiter
+        searchPrefix = searchPrefix.Left( pos - 1 ); // Exclude the nth delimiter
 
     for( auto it = strSet.begin(); it != strSet.end(); ++it )
     {
@@ -377,7 +382,7 @@ std::vector<PCB_MARKER*> BOARD::ResolveDRCExclusions( bool aCreateMarkers )
         QString                     serialized = marker->SerializeToString();
         QString                     matchedExclusion;
 
-        if( !serialized.contains("unconnected_items" ) )
+        if( !serialized.Contains( "unconnected_items" )
         {
             it = exclusions.find( serialized );
             if( it != exclusions.end() )
@@ -455,15 +460,15 @@ void BOARD::GetContextualTextVars( QStringList* aVars ) const
             [&]( const QString& aVar )
             {
                 if( !alg::contains( *aVars, aVar ) )
-                    aVars->append(aVar );
+                    aVars->push_back( aVar );
             };
 
-    add( "LAYER"  );
-    add( "FILENAME"  );
-    add( "FILEPATH"  );
-    add( "PROJECTNAME"  );
-    add( "DRC_ERROR <message_text>"  );
-    add( "DRC_WARNING <message_text>"  );
+    add( "LAYER" );
+    add( "FILENAME" );
+    add( "FILEPATH" );
+    add( "PROJECTNAME" );
+    add( "DRC_ERROR <message_text>" );
+    add( "DRC_WARNING <message_text>" );
 
     GetTitleBlock().GetContextualTextVars( aVars );
 
@@ -495,19 +500,19 @@ bool BOARD::ResolveTextVar( QString* token, int aDepth ) const
         }
     }
 
-    if( *token == "FILENAME" )
+    if( token->IsSameAs( "FILENAME" ) )
     {
         QFileInfo fn( GetFileName() );
-        *token = fn.baseName() + "." + fn.completeSuffix();
+        *token = fn.GetFullName();
         return true;
     }
-    else if( *token == "FILEPATH" )
+    else if( token->IsSameAs( "FILEPATH" ) )
     {
         QFileInfo fn( GetFileName() );
-        *token = fn.absoluteFilePath();
+        *token = fn.GetFullPath();
         return true;
     }
-    else if( *token == "PROJECTNAME" && GetProject() )
+    else if( token->IsSameAs( "PROJECTNAME" ) && GetProject() )
     {
         *token = GetProject()->GetProjectName();
         return true;
@@ -540,7 +545,7 @@ VECTOR2I BOARD::GetPosition() const
 
 void BOARD::SetPosition( const VECTOR2I& aPos )
 {
-    qWarning() << "This should not be called on the BOARD object" ;
+    qWarning() << "This should not be called on the BOARD object";
 }
 
 
@@ -597,7 +602,7 @@ void BOARD::RunOnDescendants( const std::function<void ( BOARD_ITEM* )>& aFuncti
     }
     catch( std::bad_function_call& )
     {
-        qDebug() << "Error running BOARD::RunOnDescendants"  ;
+        qWarning() << "Error running BOARD::RunOnDescendants";
     }
 }
 
@@ -675,7 +680,7 @@ bool BOARD::SetLayerName( PCB_LAYER_ID aLayer, const QString& aLayerName )
     if( !aLayerName.isEmpty() )
     {
         // no quote chars in the name allowed
-        if( aLayerName.indexOf(QChar( '"' ) ) != -1 )
+        if( aLayerName.Find( QChar( '"' ) ) != -1 )
             return false;
 
         if( IsLayerEnabled( aLayer ) )
@@ -752,13 +757,13 @@ const char* LAYER::ShowType( LAYER_T aType )
 
 LAYER_T LAYER::ParseType( const char* aType )
 {
-    if(      strcmp( aType, "signal" ) == 0 )    return LT_SIGNAL;
-    else if( strcmp( aType, "power" ) == 0 )     return LT_POWER;
-    else if( strcmp( aType, "mixed" ) == 0 )     return LT_MIXED;
-    else if( strcmp( aType, "jumper" ) == 0 )    return LT_JUMPER;
-    else if( strcmp( aType, "auxiliary" ) == 0 ) return LT_AUX;
-    else if( strcmp( aType, "front" ) == 0 )     return LT_FRONT;
-    else if( strcmp( aType, "back" ) == 0 )      return LT_BACK;
+    if(      strcmp( aType, "signal" == 0 )    return LT_SIGNAL;
+    else if( strcmp( aType, "power" == 0 )     return LT_POWER;
+    else if( strcmp( aType, "mixed" == 0 )     return LT_MIXED;
+    else if( strcmp( aType, "jumper" == 0 )    return LT_JUMPER;
+    else if( strcmp( aType, "auxiliary" == 0 ) return LT_AUX;
+    else if( strcmp( aType, "front" == 0 )     return LT_FRONT;
+    else if( strcmp( aType, "back" == 0 )      return LT_BACK;
     else                                         return LT_UNDEFINED;
 }
 
@@ -777,7 +782,8 @@ void BOARD::recalcOpposites()
         if( m_layers[layer].m_type != LT_FRONT && m_layers[layer].m_type != LT_BACK )
             continue;
 
-        QString principalName = m_layers[layer].m_userName.section('.', 1);
+        QString principalName = m_layers[layer].m_userName.contains('.') ? 
+                                m_layers[layer].m_userName.split('.').last() : QString();
 
         for( int ii = layer + 2; ii <= PCB_LAYER_ID_COUNT; ii += 2 )
         {
@@ -790,7 +796,8 @@ void BOARD::recalcOpposites()
             if( m_layers[layer].m_type == m_layers[ii].m_type )
                 continue;
 
-            QString candidate = m_layers[ii].m_userName.section('.', 1);
+            QString candidate = m_layers[ii].m_userName.contains('.') ? 
+                               m_layers[ii].m_userName.split('.').last() : QString();
 
             if( !candidate.isEmpty() && candidate == principalName )
             {
@@ -990,7 +997,7 @@ bool BOARD::IsFootprintLayerVisible( PCB_LAYER_ID aLayer ) const
     {
     case F_Cu: return IsElementVisible( LAYER_FOOTPRINTS_FR );
     case B_Cu: return IsElementVisible( LAYER_FOOTPRINTS_BK );
-    default:   qDebug() << "BOARD::IsModuleLayerVisible(): bad layer"; return true;
+    default:   qWarning() << "BOARD::IsModuleLayerVisible(): bad layer"; return true;
     }
 }
 
@@ -1045,7 +1052,7 @@ void BOARD::CacheTriangulation( PROGRESS_REPORTER* aReporter, const std::vector<
         return;
 
     if( aReporter )
-        aReporter->Report( _( "Tessellating copper zones..." ) );
+        aReporter->Report( _( "Tessellating copper zones..." );
 
     thread_pool& tp = GetKiCadThreadPool();
     std::vector<std::future<size_t>> returns;
@@ -1116,7 +1123,7 @@ void BOARD::Add( BOARD_ITEM* aBoardItem, ADD_MODE aMode, bool aSkipConnectivity 
 {
     if( aBoardItem == nullptr )
     {
-        qDebug() << "BOARD::Add( param error: aBoardItem nullptr"  );
+        qWarning() << "BOARD::Add() param error: aBoardItem nullptr";
         return;
     }
 
@@ -1163,7 +1170,8 @@ void BOARD::Add( BOARD_ITEM* aBoardItem, ADD_MODE aMode, bool aSkipConnectivity 
         {
             // The only current known source of these is SWIG (KICAD-BY7, et al).
             // N.B. This inserts a small memory leak as we lose the track/via/arc.
-            qDebug() << QString("BOARD::Add() Cannot place Track on non-copper layer: %1 = %2").arg(static_cast<int>( aBoardItem->GetLayer() ),
+            qWarning() << QString("BOARD::Add() Cannot place Track on non-copper layer: %1 = %2").arg(
+                                          static_cast<int>( aBoardItem->GetLayer() ),
                                           GetLayerName( aBoardItem->GetLayer() ) ) );
             return;
         }
@@ -1227,7 +1235,8 @@ void BOARD::Add( BOARD_ITEM* aBoardItem, ADD_MODE aMode, bool aSkipConnectivity 
         break;
 
     default:
-        qDebug() << QString("BOARD::Add() item type %1 not handled").arg(aBoardItem->GetClass());
+        qWarning() << QString("BOARD::Add() item type %1 not handled").arg(
+                                      aBoardItem->GetClass() );
         return;
     }
 
@@ -1364,7 +1373,8 @@ void BOARD::Remove( BOARD_ITEM* aBoardItem, REMOVE_MODE aRemoveMode )
 
     // other types may use linked list
     default:
-        qDebug() << QString("BOARD::Remove() item type %1 not handled").arg(aBoardItem->GetClass());
+        qWarning() << QString("BOARD::Remove() item type %1 not handled").arg(
+                                      aBoardItem->GetClass() );
     }
 
     aBoardItem->SetFlags( STRUCT_DELETED );
@@ -1428,7 +1438,7 @@ void BOARD::RemoveAll( std::initializer_list<KICAD_T> aTypes )
 
         case PCB_ARC_T:
         case PCB_VIA_T:
-            qDebug() << "Use PCB_TRACE_T to remove all tracks, arcs, and vias"  ;
+            qWarning() << "Use PCB_TRACE_T to remove all tracks, arcs, and vias";
             break;
 
         case PCB_SHAPE_T:
@@ -1447,11 +1457,11 @@ void BOARD::RemoveAll( std::initializer_list<KICAD_T> aTypes )
         case PCB_TEXTBOX_T:
         case PCB_TABLE_T:
         case PCB_TARGET_T:
-            qDebug() << "Use PCB_SHAPE_T to remove all graphics and text"  ;
+            qWarning() << "Use PCB_SHAPE_T to remove all graphics and text";
             break;
 
         default:
-            qDebug() << "BOARD::RemoveAll( needs more ::Type( support" ) );
+            qWarning() << "BOARD::RemoveAll() needs more ::Type() support";
         }
     }
 
@@ -1463,7 +1473,7 @@ void BOARD::RemoveAll( std::initializer_list<KICAD_T> aTypes )
 
 QString BOARD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return QString(_( "PCB" ));
+    return QString( _( "PCB" ) );
 }
 
 
@@ -1718,8 +1728,9 @@ QString BOARD::ConvertCrossReferencesToKIIDs( const QString& aSource ) const
 
             if( isCrossRef )
             {
-                QString ref = token.section(':', 0, 0);
-                QString remainder = token.section(':', 1);
+                QStringList parts = token.split(':', Qt::KeepEmptyParts);
+                QString ref = parts.isEmpty() ? QString() : parts[0];
+                QString remainder = parts.size() > 1 ? parts.mid(1).join(':') : QString();
 
                 for( const FOOTPRINT* footprint : Footprints() )
                 {
@@ -1735,7 +1746,7 @@ QString BOARD::ConvertCrossReferencesToKIIDs( const QString& aSource ) const
                 }
             }
 
-            newbuf.append( "${"  + token + "}"  );
+            newbuf.append( "${" + token + "}" );
         }
         else
         {
@@ -1772,17 +1783,19 @@ QString BOARD::ConvertKIIDsToCrossReferences( const QString& aSource ) const
 
             if( isCrossRef )
             {
-                QString      remainder = token.section(':', 1);
-                QString      ref = token.section(':', 0, 0);
+                QStringList parts = token.split(':', Qt::KeepEmptyParts);
+                QString     ref = parts.isEmpty() ? QString() : parts[0];
+                QString     remainder = parts.size() > 1 ? parts.mid(1).join(':') : QString();
                 BOARD_ITEM*   refItem = GetItem( KIID( ref ) );
 
                 if( refItem && refItem->Type() == PCB_FOOTPRINT_T )
                 {
-                    token = static_cast<FOOTPRINT*>( refItem )->GetReference() + ":" + remainder;
+                    token = static_cast<FOOTPRINT*>( refItem )->GetReference() + ":"
+                                                                               + remainder;
                 }
             }
 
-            newbuf.append( "${"  + token + "}"  );
+            newbuf.append( "${" + token + "}" );
         }
         else
         {
@@ -1902,11 +1915,11 @@ void BOARD::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>
         }
     }
 
-    aList.emplace_back( _( "Pads" ), QString::number(padCount) );
-    aList.emplace_back( _( "Vias" ), QString::number(viaCount) );
-    aList.emplace_back( _( "Track Segments" ), QString::number(trackSegmentCount) );
-    aList.emplace_back( _( "Nets" ), QString::number((int) netCodes.size()) );
-    aList.emplace_back( _( "Unrouted" ), QString::number(unconnected) );
+    aList.emplace_back( _( "Pads", QString::number(, padCount ) );
+    aList.emplace_back( _( "Vias", QString::number(, viaCount ) );
+    aList.emplace_back( _( "Track Segments", QString::number(, trackSegmentCount ) );
+    aList.emplace_back( _( "Nets", QString::number(, (int) netCodes.size() ) );
+    aList.emplace_back( _( "Unrouted", QString::number(, unconnected ) );
 }
 
 
@@ -2093,22 +2106,22 @@ int BOARD::MatchDpSuffix( const QString& aNetName, QString& aComplementNet )
         }
         else if( ch == '+' )
         {
-            aComplementNet = "-" ;
+            aComplementNet = "-";
             rv = 1;
         }
         else if( ch == '-' )
         {
-            aComplementNet = "+" ;
+            aComplementNet = "+";
             rv = -1;
         }
         else if( ch == 'N' )
         {
-            aComplementNet = "P" ;
+            aComplementNet = "P";
             rv = -1;
         }
         else if ( ch == 'P' )
         {
-            aComplementNet = "N" ;
+            aComplementNet = "N";
             rv = 1;
         }
         else
@@ -2119,9 +2132,9 @@ int BOARD::MatchDpSuffix( const QString& aNetName, QString& aComplementNet )
 
     if( rv != 0 && count >= 1 )
     {
-        aComplementNet = aNetName.left(aNetName.length() - count )
+        aComplementNet = aNetName.Left( aNetName.length() - count )
                             + aComplementNet
-                            + aNetName.right( count - 1 );
+                            + aNetName.Right( count - 1 );
     }
 
     return rv;
@@ -2851,7 +2864,7 @@ QString BOARD::GroupsSanityCheck( bool repair )
 {
     if( repair )
     {
-        while( !GroupsSanityCheckInternal( repair ).isEmpty() )
+        while( GroupsSanityCheckInternal( repair ) != QString() )
         {};
 
         return QString();
@@ -3182,7 +3195,7 @@ bool BOARD::operator==( const BOARD_ITEM& aItem ) const
     if( m_paper.GetPaperId() != other.m_paper.GetPaperId() )
         return false;
 
-    if( m_paper.GetOrientation() != other.m_paper.GetOrientation() )
+    if( m_paper.GetWxOrientation() != other.m_paper.GetWxOrientation() )
         return false;
 
     for( int ii = 0; !m_titles.GetComment( ii ).empty(); ++ii )

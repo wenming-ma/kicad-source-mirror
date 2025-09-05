@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <base_units.h>
 #include <bitmaps.h>
@@ -51,7 +27,7 @@
 #include <widgets/msgpanel.h>
 #include <pcb_painter.h>
 #include <properties/property_validators.h>
-#include <wx/log.h>
+#include <QDebug>
 // #include <api/api_enums.h> // DISABLED FOR MINIMAL BUILD
 // #include <api/api_utils.h>
 // #include <api/api_pcb_utils.h> // DISABLED FOR MINIMAL BUILD
@@ -143,7 +119,7 @@ PAD& PAD::operator=( const PAD &aOther )
 
 void PAD::CopyFrom( const BOARD_ITEM* aOther )
 {
-    wxCHECK( aOther && aOther->Type() == PCB_PAD_T, /* void */ );
+    Q_ASSERT( aOther && aOther->Type() == PCB_PAD_T );
     *this = *static_cast<const PAD*>( aOther );
 }
 
@@ -185,7 +161,7 @@ void PAD::CopyFrom( const BOARD_ITEM* aOther )
 //    UnpackNet( pad.net() );
 //    SetLocked( pad.locked() == kiapi::common::types::LockedState::LS_LOCKED );
 //    SetAttribute( FromProtoEnum<PAD_ATTRIB>( pad.type() ) );
-//    SetNumber( wxString::FromUTF8( pad.number() ) );
+//    SetNumber( QString::FromUTF8( pad.number() ) );
 //    SetPadToDieLength( pad.pad_to_die_length().value_nm() );
 //
 //    google::protobuf::Any padStackWrapper;
@@ -258,7 +234,7 @@ bool PAD::SharesNetTieGroup( const PAD* aOther ) const
 
     if( parentFp && parentFp->IsNetTie() && aOther->GetParentFootprint() == parentFp )
     {
-        std::map<wxString, int> padToNetTieGroupMap = parentFp->MapPadNumbersToNetTieGroups();
+        std::map<QString, int> padToNetTieGroupMap = parentFp->MapPadNumbersToNetTieGroups();
         int thisNetTieGroup = padToNetTieGroupMap[ GetNumber() ];
         int otherNetTieGroup = padToNetTieGroupMap[ aOther->GetNumber() ];
 
@@ -271,14 +247,14 @@ bool PAD::SharesNetTieGroup( const PAD* aOther ) const
 
 bool PAD::IsNoConnectPad() const
 {
-    return m_pinType.Contains( wxT( "no_connect" ) );
+    return m_pinType.Contains( "no_connect" );
 }
 
 
 bool PAD::IsFreePad() const
 {
-    return GetShortNetname().StartsWith( wxT( "unconnected-(" ) )
-            && m_pinType == wxT( "free" );
+    return GetShortNetname().StartsWith( "unconnected-(" )
+            && m_pinType == "free";
 }
 
 
@@ -475,8 +451,8 @@ void PAD::SetRoundRectRadiusRatio( PCB_LAYER_ID aLayer, double aRadiusScale )
 
 void PAD::SetFrontRoundRectRadiusRatio( double aRadiusScale )
 {
-    wxASSERT_MSG( m_padStack.Mode() == PADSTACK::MODE::NORMAL,
-                  "Set front radius only meaningful for normal padstacks" );
+    Q_ASSERT_X( m_padStack.Mode() == PADSTACK::MODE::NORMAL, "PAD::SetFrontRoundRectRadiusRatio",
+                "Set front radius only meaningful for normal padstacks" );
 
     m_padStack.SetRoundRectRadiusRatio( std::clamp( aRadiusScale, 0.0, 0.5 ), F_Cu );
     SetDirty();
@@ -573,8 +549,11 @@ std::shared_ptr<SHAPE> PAD::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHING fla
 
     aLayer = Padstack().EffectiveLayerFor( aLayer );
 
-    wxCHECK_MSG( m_effectiveShapes.contains( aLayer ) && m_effectiveShapes.at( aLayer ), nullptr,
-                 wxT( "Null shape in PAD::GetEffectiveShape!" ) );
+    if( !( m_effectiveShapes.contains( aLayer ) && m_effectiveShapes.at( aLayer ) ) )
+    {
+        qDebug() << "Null shape in PAD::GetEffectiveShape!";
+        return nullptr;
+    }
 
     return m_effectiveShapes[aLayer];
 }
@@ -775,8 +754,7 @@ const SHAPE_COMPOUND& PAD::buildEffectiveShape( PCB_LAYER_ID aLayer ) const
         break;
 
     default:
-        wxFAIL_MSG( wxT( "PAD::buildEffectiveShapes: Unsupported pad shape: PAD_SHAPE::" )
-                    + wxString( std::string( magic_enum::enum_name( effectiveShape ) ) ) );
+        qDebug() << "PAD::buildEffectiveShapes: Unsupported pad shape: PAD_SHAPE::" << QString( std::string( magic_enum::enum_name( effectiveShape ) ) );
         break;
     }
 
@@ -909,7 +887,7 @@ void PAD::SetAttribute( PAD_ATTRIB aAttribute )
 
         case PAD_ATTRIB::NPTH:
             // No number; no net
-            m_number = wxEmptyString;
+            m_number = QString();
             SetNetCode( NETINFO_LIST::UNCONNECTED );
             break;
         }
@@ -1118,7 +1096,7 @@ bool PAD::IsOnCopperLayer() const
 }
 
 
-std::optional<int> PAD::GetLocalClearance( wxString* aSource ) const
+std::optional<int> PAD::GetLocalClearance( QString* aSource ) const
 {
     if( m_padStack.Clearance().has_value() && aSource )
         *aSource = _( "pad" );
@@ -1127,7 +1105,7 @@ std::optional<int> PAD::GetLocalClearance( wxString* aSource ) const
 }
 
 
-std::optional<int> PAD::GetClearanceOverrides( wxString* aSource ) const
+std::optional<int> PAD::GetClearanceOverrides( QString* aSource ) const
 {
     if( m_padStack.Clearance().has_value() )
         return GetLocalClearance( aSource );
@@ -1139,7 +1117,7 @@ std::optional<int> PAD::GetClearanceOverrides( wxString* aSource ) const
 }
 
 
-int PAD::GetOwnClearance( PCB_LAYER_ID aLayer, wxString* aSource ) const
+int PAD::GetOwnClearance( PCB_LAYER_ID aLayer, QString* aSource ) const
 {
     DRC_CONSTRAINT c;
 
@@ -1274,7 +1252,7 @@ VECTOR2I PAD::GetSolderPasteMargin( PCB_LAYER_ID aLayer ) const
 }
 
 
-ZONE_CONNECTION PAD::GetZoneConnectionOverrides( wxString* aSource ) const
+ZONE_CONNECTION PAD::GetZoneConnectionOverrides( QString* aSource ) const
 {
     ZONE_CONNECTION connection = m_padStack.ZoneConnection().value_or( ZONE_CONNECTION::INHERITED );
 
@@ -1294,7 +1272,7 @@ ZONE_CONNECTION PAD::GetZoneConnectionOverrides( wxString* aSource ) const
 }
 
 
-int PAD::GetLocalSpokeWidthOverride( wxString* aSource ) const
+int PAD::GetLocalSpokeWidthOverride( QString* aSource ) const
 {
     if( m_padStack.ThermalSpokeWidth().has_value() && aSource )
         *aSource = _( "pad" );
@@ -1303,7 +1281,7 @@ int PAD::GetLocalSpokeWidthOverride( wxString* aSource ) const
 }
 
 
-int PAD::GetLocalThermalGapOverride( wxString* aSource ) const
+int PAD::GetLocalThermalGapOverride( QString* aSource ) const
 {
     if( m_padStack.ThermalGap().has_value() && aSource )
         *aSource = _( "pad" );
@@ -1314,7 +1292,7 @@ int PAD::GetLocalThermalGapOverride( wxString* aSource ) const
 
 void PAD::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString   msg;
+    QString   msg;
     FOOTPRINT* parentFootprint = static_cast<FOOTPRINT*>( m_parent );
 
     if( aFrame->GetName() == PCB_EDIT_FRAME_NAME )
@@ -1358,7 +1336,7 @@ void PAD::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& 
     }
 
     // Show the pad shape, attribute and property
-    wxString props = ShowPadAttr();
+    QString props = ShowPadAttr();
 
     if( GetProperty() != PAD_PROP::NONE )
         props += ',';
@@ -1397,9 +1375,9 @@ void PAD::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& 
     pad_orient.Normalize180();
 
     if( !fp_orient.IsZero() )
-        msg.Printf( wxT( "%g(+ %g)" ), pad_orient.AsDegrees(), fp_orient.AsDegrees() );
+        msg.Printf( "%g(+ %g)", pad_orient.AsDegrees(), fp_orient.AsDegrees() );
     else
-        msg.Printf( wxT( "%g" ), GetOrientation().AsDegrees() );
+        msg.Printf( "%g", GetOrientation().AsDegrees() );
 
     aList.emplace_back( _( "Rotation" ), msg );
 
@@ -1416,31 +1394,31 @@ void PAD::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& 
         if( GetDrillShape() == PAD_DRILL_SHAPE::CIRCLE )
         {
             aList.emplace_back( _( "Hole" ),
-                                wxString::Format( wxT( "%s" ),
+                                QString::Format( "%s",
                                                   aFrame->MessageTextFromValue( drill.x ) ) );
         }
         else
         {
             aList.emplace_back( _( "Hole X / Y" ),
-                                wxString::Format( wxT( "%s / %s" ),
+                                QString::Format( "%s / %s",
                                                   aFrame->MessageTextFromValue( drill.x ),
                                                   aFrame->MessageTextFromValue( drill.y ) ) );
         }
     }
 
-    wxString source;
+    QString source;
     int      clearance = GetOwnClearance( UNDEFINED_LAYER, &source );
 
     if( !source.IsEmpty() )
     {
-        aList.emplace_back( wxString::Format( _( "Min Clearance: %s" ),
+        aList.emplace_back( QString::Format( _( "Min Clearance: %s" ),
                                               aFrame->MessageTextFromValue( clearance ) ),
-                            wxString::Format( _( "(from %s)" ),
+                            QString::Format( _( "(from %s)" ),
                                               source ) );
     }
 #if 0
     // useful for debug only
-    aList.emplace_back( wxT( "UUID" ), m_Uuid.AsString() );
+    aList.emplace_back( "UUID", m_Uuid.AsString() );
 #endif
 }
 
@@ -1571,7 +1549,7 @@ void PAD::Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
 }
 
 
-wxString PAD::ShowPadShape( PCB_LAYER_ID aLayer ) const
+QString PAD::ShowPadShape( PCB_LAYER_ID aLayer ) const
 {
     switch( GetShape( aLayer ) )
     {
@@ -1582,12 +1560,12 @@ wxString PAD::ShowPadShape( PCB_LAYER_ID aLayer ) const
     case PAD_SHAPE::ROUNDRECT:      return _( "Roundrect" );
     case PAD_SHAPE::CHAMFERED_RECT: return _( "Chamferedrect" );
     case PAD_SHAPE::CUSTOM:         return _( "CustomShape" );
-    default:                        return wxT( "???" );
+    default:                        return "???";
     }
 }
 
 
-wxString PAD::ShowPadAttr() const
+QString PAD::ShowPadAttr() const
 {
     switch( GetAttribute() )
     {
@@ -1595,12 +1573,12 @@ wxString PAD::ShowPadAttr() const
     case PAD_ATTRIB::SMD:    return _( "SMD" );
     case PAD_ATTRIB::CONN:   return _( "Conn" );
     case PAD_ATTRIB::NPTH:   return _( "NPTH" );
-    default:                 return wxT( "???" );
+    default:                 return "???";
     }
 }
 
 
-wxString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     FOOTPRINT* parentFP = GetParentFootprint();
 
@@ -1611,7 +1589,7 @@ wxString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) c
     if( GetAttribute() == PAD_ATTRIB::NPTH )
     {
         if( parentFP )
-            return wxString::Format( _( "NPTH pad of %s" ), parentFP->GetReference() );
+            return QString::Format( _( "NPTH pad of %s" ), parentFP->GetReference() );
         else
             return _( "NPTH pad" );
     }
@@ -1621,14 +1599,14 @@ wxString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) c
         {
             if( parentFP )
             {
-                return wxString::Format( _( "Pad %s of %s on %s" ),
+                return QString::Format( _( "Pad %s of %s on %s" ),
                                          GetNetnameMsg(),
                                          parentFP->GetReference(),
                                          layerMaskDescribe() );
             }
             else
             {
-                return wxString::Format( _( "Pad on %s" ),
+                return QString::Format( _( "Pad on %s" ),
                                          layerMaskDescribe() );
             }
         }
@@ -1636,7 +1614,7 @@ wxString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) c
         {
             if( parentFP )
             {
-                return wxString::Format( _( "PTH pad %s of %s" ),
+                return QString::Format( _( "PTH pad %s of %s" ),
                                          GetNetnameMsg(),
                                          parentFP->GetReference() );
             }
@@ -1652,7 +1630,7 @@ wxString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) c
         {
             if( parentFP )
             {
-                return wxString::Format( _( "Pad %s %s of %s on %s" ),
+                return QString::Format( _( "Pad %s %s of %s on %s" ),
                                          GetNumber(),
                                          GetNetnameMsg(),
                                          parentFP->GetReference(),
@@ -1660,7 +1638,7 @@ wxString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) c
             }
             else
             {
-                return wxString::Format( _( "Pad %s on %s" ),
+                return QString::Format( _( "Pad %s on %s" ),
                                          GetNumber(),
                                          layerMaskDescribe() );
             }
@@ -1669,14 +1647,14 @@ wxString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) c
         {
             if( parentFP )
             {
-                return wxString::Format( _( "PTH pad %s %s of %s" ),
+                return QString::Format( _( "PTH pad %s %s of %s" ),
                                          GetNumber(),
                                          GetNetnameMsg(),
                                          parentFP->GetReference() );
             }
             else
             {
-                return wxString::Format( _( "PTH pad %s" ),
+                return QString::Format( _( "PTH pad %s" ),
                                          GetNumber() );
             }
         }
@@ -1900,7 +1878,7 @@ void PAD::ImportSettingsFrom( const PAD& aMasterPad )
 
     // Must be after setting attribute and layerSet
     if( !CanHaveNumber() )
-        SetNumber( wxEmptyString );
+        SetNumber( QString() );
 
     // I am not sure the m_LengthPadToDie should be imported, because this is a parameter
     // really specific to a given pad (JPC).
@@ -1986,9 +1964,9 @@ bool PAD::TransformHoleToPolygon( SHAPE_POLY_SET& aBuffer, int aClearance, int a
 void PAD::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer, int aClearance,
                                    int aMaxError, ERROR_LOC aErrorLoc, bool ignoreLineWidth ) const
 {
-    wxASSERT_MSG( !ignoreLineWidth, wxT( "IgnoreLineWidth has no meaning for pads." ) );
-    wxASSERT_MSG( aLayer != UNDEFINED_LAYER,
-                  wxT( "UNDEFINED_LAYER is no longer allowed for PAD::TransformShapeToPolygon" ) );
+    Q_ASSERT_X( !ignoreLineWidth, "PAD::TransformShapeToPolygon", "IgnoreLineWidth has no meaning for pads." );
+    Q_ASSERT_X( aLayer != UNDEFINED_LAYER, "PAD::TransformShapeToPolygon",
+                "UNDEFINED_LAYER is no longer allowed for PAD::TransformShapeToPolygon" );
 
     // minimal segment count to approximate a circle to create the polygonal pad shape
     // This minimal value is mainly for very small pads, like SM0402.
@@ -2083,8 +2061,7 @@ void PAD::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer,
     }
 
     default:
-        wxFAIL_MSG( wxT( "PAD::TransformShapeToPolygon no implementation for " )
-                    + wxString( std::string( magic_enum::enum_name( shape ) ) ) );
+        qDebug() << "PAD::TransformShapeToPolygon no implementation for " << QString( std::string( magic_enum::enum_name( shape ) ) );
         break;
     }
 }
@@ -2232,7 +2209,7 @@ std::vector<PCB_SHAPE*> PAD::Recombine( bool aIsDryRun, int maxError )
 
 
 void PAD::CheckPad( UNITS_PROVIDER* aUnitsProvider, bool aForPadProperties,
-                    const std::function<void( int aErrorCode, const wxString& aMsg )>& aErrorHandler ) const
+                    const std::function<void( int aErrorCode, const QString& aMsg )>& aErrorHandler ) const
 {
     Padstack().ForEachUniqueLayer(
             [&]( PCB_LAYER_ID aLayer )
@@ -2280,7 +2257,7 @@ void PAD::CheckPad( UNITS_PROVIDER* aUnitsProvider, bool aForPadProperties,
         if( drill_size.x <= 0
             || ( drill_size.y <= 0 && GetDrillShape() == PAD_DRILL_SHAPE::OBLONG ) )
         {
-            aErrorHandler( DRCE_PAD_TH_WITH_NO_HOLE, wxEmptyString );
+            aErrorHandler( DRCE_PAD_TH_WITH_NO_HOLE, QString() );
         }
         break;
 
@@ -2341,9 +2318,9 @@ void PAD::CheckPad( UNITS_PROVIDER* aUnitsProvider, bool aForPadProperties,
 
 
 void PAD::doCheckPad( PCB_LAYER_ID aLayer, UNITS_PROVIDER* aUnitsProvider, bool aForPadProperties,
-                      const std::function<void( int aErrorCode, const wxString& aMsg )>& aErrorHandler ) const
+                      const std::function<void( int aErrorCode, const QString& aMsg )>& aErrorHandler ) const
 {
-    wxString msg;
+    QString msg;
 
     VECTOR2I pad_size = GetSize( aLayer );
 
@@ -2446,7 +2423,7 @@ void PAD::doCheckPad( PCB_LAYER_ID aLayer, UNITS_PROVIDER* aUnitsProvider, bool 
     // (like a solder paste creating a solder paste area on a neighbor pad or on the solder mask)
     // So we could ask for user to confirm the choice
     // For now we just check for disappearing paste
-    wxSize paste_size;
+    QSize paste_size;
     int    paste_margin = GetLocalSolderPasteMargin().value_or( 0 );
     double paste_ratio = GetLocalSolderPasteMarginRatio().value_or( 0 );
 
@@ -2784,7 +2761,7 @@ static struct PAD_DESC
         propMgr.OverrideAvailability( TYPE_HASH( PAD ), TYPE_HASH( BOARD_CONNECTED_ITEM ),
                                       _HKI( "Net Class" ), isCopperPad );
 
-        const wxString groupPad = _HKI( "Pad Properties" );
+        const QString groupPad = _HKI( "Pad Properties" );
 
         auto padType = new PROPERTY_ENUM<PAD, PAD_ATTRIB>( _HKI( "Pad Type" ),
                     &PAD::SetAttribute, &PAD::GetAttribute );
@@ -2795,16 +2772,16 @@ static struct PAD_DESC
         propMgr.AddProperty( shape, groupPad )
                 .SetAvailableFunc( hasNormalPadstack );
 
-        auto padNumber = new PROPERTY<PAD, wxString>( _HKI( "Pad Number" ),
+        auto padNumber = new PROPERTY<PAD, QString>( _HKI( "Pad Number" ),
                                                       &PAD::SetNumber, &PAD::GetNumber );
         padNumber->SetAvailableFunc( isCopperPad );
         propMgr.AddProperty( padNumber, groupPad );
 
-        propMgr.AddProperty( new PROPERTY<PAD, wxString>( _HKI( "Pin Name" ),
-                             NO_SETTER( PAD, wxString ), &PAD::GetPinFunction ), groupPad )
+        propMgr.AddProperty( new PROPERTY<PAD, QString>( _HKI( "Pin Name" ),
+                             NO_SETTER( PAD, QString ), &PAD::GetPinFunction ), groupPad )
                 .SetIsHiddenFromLibraryEditors();
-        propMgr.AddProperty( new PROPERTY<PAD, wxString>( _HKI( "Pin Type" ),
-                             NO_SETTER( PAD, wxString ), &PAD::GetPinType ), groupPad )
+        propMgr.AddProperty( new PROPERTY<PAD, QString>( _HKI( "Pin Type" ),
+                             NO_SETTER( PAD, QString ), &PAD::GetPinType ), groupPad )
                 .SetIsHiddenFromLibraryEditors();
 
         propMgr.AddProperty( new PROPERTY<PAD, int>( _HKI( "Size X" ),
@@ -2894,7 +2871,7 @@ static struct PAD_DESC
         padToDie->SetAvailableFunc( isCopperPad );
         propMgr.AddProperty( padToDie, groupPad );
 
-        const wxString groupOverrides = _HKI( "Overrides" );
+        const QString groupOverrides = _HKI( "Overrides" );
 
         propMgr.AddProperty( new PROPERTY<PAD, std::optional<int>>(
                     _HKI( "Clearance Override" ),

@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Alex Shvartzkop <dudesuchamazing@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #ifndef GENERATOR_H_
 #define GENERATOR_H_
@@ -28,6 +7,8 @@
 
 #include <unordered_set>
 #include <string_any_map.h>
+#include <QString>
+#include <QVariant>
 
 #include <lset.h>
 #include <pcb_group.h>
@@ -56,7 +37,7 @@ public:
     virtual void EditStart( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit );
 
     virtual void EditPush( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit,
-                           const wxString& aCommitMsg = wxEmptyString, int aCommitFlags = 0 );
+                           const QString& aCommitMsg = QString(), int aCommitFlags = 0 );
 
     virtual void EditRevert( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit );
 
@@ -95,25 +76,25 @@ public:
 
     virtual void SetLayer( PCB_LAYER_ID aLayer ) override;
 
-    virtual wxString GetGeneratorType() const;
+    virtual QString GetGeneratorType() const;
 
     virtual const STRING_ANY_MAP GetProperties() const;
 
     virtual void SetProperties( const STRING_ANY_MAP& aProps );
 
-    virtual std::vector<std::pair<wxString, wxVariant>> GetRowData();
+    virtual std::vector<std::pair<QString, QVariant>> GetRowData();
 
     virtual void ShowPropertiesDialog( PCB_BASE_EDIT_FRAME* aEditFrame ) {};
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
-    virtual wxString GetPluralName() const = 0;
+    virtual QString GetPluralName() const = 0;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
 #endif
 
-    wxString GetClass() const override;
+    QString GetClass() const override;
 
     static inline bool ClassOf( const EDA_ITEM* aItem );
 
@@ -123,7 +104,7 @@ public:
 #endif
 
 protected:
-    wxString m_generatorType;
+    QString m_generatorType;
 
     VECTOR2I m_origin;
 

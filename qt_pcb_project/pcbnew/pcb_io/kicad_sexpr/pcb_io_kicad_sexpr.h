@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 CERN.
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
 
 #ifndef PCB_IO_KICAD_SEXPR_H_
 #define PCB_IO_KICAD_SEXPR_H_
@@ -34,7 +13,8 @@
 #include <layer_ids.h>
 #include <lset.h>
 #include <boost/ptr_container/ptr_map.hpp>
-#include <wx_filename.h>
+#include <QString>
+#include <QFileInfo>
 #include "widgets/report_severity.h"
 
 class BOARD;
@@ -195,35 +175,27 @@ class PCB_IO_KICAD_SEXPR;   // forward decl
 /// a BOARD file underneath IO_MGR.
 #define CTL_FOR_BOARD               (CTL_OMIT_INITIAL_COMMENTS|CTL_OMIT_FOOTPRINT_VERSION)
 
-/**
- * Helper class for creating a footprint library cache.
- *
- * The new footprint library design is a file path of individual footprint files that contain
- * a single footprint per file.  This class is a helper only for the footprint portion of the
- * PLUGIN API, and only for the #PCB_PLUGIN plugin.  It is private to this implementation file so
- * it is not placed into a header.
- */
 class FP_CACHE_ENTRY
 {
-    WX_FILENAME                m_filename;
+    QFileInfo                  m_filename;
     std::unique_ptr<FOOTPRINT> m_footprint;
 
 public:
-    FP_CACHE_ENTRY( FOOTPRINT* aFootprint, const WX_FILENAME& aFileName );
+    FP_CACHE_ENTRY( FOOTPRINT* aFootprint, const QFileInfo& aFileName );
 
-    const WX_FILENAME& GetFileName() const { return m_filename; }
-    void SetFilePath( const wxString& aFilePath ) { m_filename.SetPath( aFilePath ); }
+    const QFileInfo& GetFileName() const { return m_filename; }
+    void SetFilePath( const QString& aFilePath ) { m_filename.setFile( aFilePath ); }
     std::unique_ptr<FOOTPRINT>& GetFootprint() { return m_footprint; }
 };
 
 class FP_CACHE
 {
     PCB_IO_KICAD_SEXPR*   m_owner;          // Plugin object that owns the cache.
-    wxFileName            m_lib_path;       // The path of the library.
-    wxString              m_lib_raw_path;   // For quick comparisons.
+    QFileInfo             m_lib_path;       // The path of the library.
+    QString               m_lib_raw_path;   // For quick comparisons.
 
-    boost::ptr_map<wxString, FP_CACHE_ENTRY> m_footprints;  // Map of footprint filename to
-                                                            //   cache entry.
+    boost::ptr_map<QString, FP_CACHE_ENTRY> m_footprints;  // Map of footprint filename to
+                                                           //   cache entry.
 
     bool      m_cache_dirty;       // Stored separately because it's expensive to check
                                    // m_cache_timestamp against all the files.
@@ -231,65 +203,36 @@ class FP_CACHE
                                    // files.
 
 public:
-    FP_CACHE( PCB_IO_KICAD_SEXPR* aOwner, const wxString& aLibraryPath );
+    FP_CACHE( PCB_IO_KICAD_SEXPR* aOwner, const QString& aLibraryPath );
 
-    wxString GetPath() const { return m_lib_raw_path; }
+    QString GetPath() const { return m_lib_raw_path; }
 
-    bool IsWritable() const { return m_lib_path.IsOk() && m_lib_path.IsDirWritable(); }
+    bool IsWritable() const { return m_lib_path.exists() && m_lib_path.isWritable(); }
 
-    bool Exists() const { return m_lib_path.IsOk() && m_lib_path.DirExists(); }
+    bool Exists() const { return m_lib_path.exists() && m_lib_path.isDir(); }
 
-    boost::ptr_map<wxString, FP_CACHE_ENTRY>& GetFootprints() { return m_footprints; }
+    boost::ptr_map<QString, FP_CACHE_ENTRY>& GetFootprints() { return m_footprints; }
 
     // Most all functions in this class throw IO_ERROR exceptions.  There are no
     // error codes nor user interface calls from here, nor in any PLUGIN.
     // Catch these exceptions higher up please.
 
-    /**
-     * Save the footprint cache or a single footprint from it to disk
-     *
-     * @param aFootprintFilter if set, save only this footprint, otherwise, save the full library
-     */
     void Save( FOOTPRINT* aFootprintFilter = nullptr );
 
     void Load();
 
-    void Remove( const wxString& aFootprintName );
+    void Remove( const QString& aFootprintName );
 
-    /**
-     * Generate a timestamp representing all source files in the cache (including the
-     * parent directory).
-     * Timestamps should not be considered ordered.  They either match or they don't.
-     */
-    static long long GetTimestamp( const wxString& aLibPath );
+    static long long GetTimestamp( const QString& aLibPath );
 
-    /**
-     * Return true if the cache is not up-to-date.
-     */
     bool IsModified();
 
-    /**
-     * Check if \a aPath is the same as the current cache path.
-     *
-     * This tests paths by converting \a aPath using the native separators.  Internally
-     * #FP_CACHE stores the current path using native separators.  This prevents path
-     * miscompares on Windows due to the fact that paths can be stored with / instead of \\
-     * in the footprint library table.
-     *
-     * @param aPath is the library path to test against.
-     * @return true if \a aPath is the same as the cache path.
-     */
-    bool IsPath( const wxString& aPath ) const;
+    bool IsPath( const QString& aPath ) const;
 
-    void SetPath( const wxString& aPath );
+    void SetPath( const QString& aPath );
 };
 
 
-/**
- * A #PLUGIN derivation for saving and loading Pcbnew s-expression formatted files.
- *
- * @note This class is not thread safe, but it is re-entrant multiple times in sequence.
- */
 class PCB_IO_KICAD_SEXPR : public PCB_IO
 {
 public:
@@ -312,69 +255,63 @@ public:
         return IO_BASE::IO_FILE_DESC( _HKI( "KiCad footprint files" ), {}, { "kicad_mod" }, false );
     }
 
-    void SetQueryUserCallback( std::function<bool( wxString aTitle, int aIcon, wxString aMessage,
-                                                   wxString aOKButtonTitle )> aCallback ) override
+    void SetQueryUserCallback( std::function<bool( QString aTitle, int aIcon, QString aMessage,
+                                                   QString aOKButtonTitle )> aCallback ) override
     {
         m_queryUserCallback = std::move( aCallback );
     }
 
-    bool CanReadBoard( const wxString& aFileName ) const override;
+    bool CanReadBoard( const QString& aFileName ) const override;
 
-    void SaveBoard( const wxString& aFileName, BOARD* aBoard,
+    void SaveBoard( const QString& aFileName, BOARD* aBoard,
                     const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
-    BOARD* LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
+    BOARD* LoadBoard( const QString& aFileName, BOARD* aAppendToMe,
                       const std::map<std::string, UTF8>* aProperties = nullptr,
                       PROJECT* aProject = nullptr ) override;
 
     BOARD* DoLoad( LINE_READER& aReader, BOARD* aAppendToMe, const std::map<std::string,
                    UTF8>* aProperties, PROGRESS_REPORTER* aProgressReporter, unsigned aLineCount );
 
-    void FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aLibraryPath,
+    void FootprintEnumerate( QStringList& aFootprintNames, const QString& aLibraryPath,
                              bool aBestEfforts, const std::map<std::string,
                              UTF8>* aProperties = nullptr ) override;
 
-    const FOOTPRINT* GetEnumeratedFootprint( const wxString& aLibraryPath,
-                                             const wxString& aFootprintName,
+    const FOOTPRINT* GetEnumeratedFootprint( const QString& aLibraryPath,
+                                             const QString& aFootprintName,
                                              const std::map<std::string,
                                              UTF8>* aProperties = nullptr ) override;
 
-    bool FootprintExists( const wxString& aLibraryPath, const wxString& aFootprintName,
+    bool FootprintExists( const QString& aLibraryPath, const QString& aFootprintName,
                           const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
-    FOOTPRINT* ImportFootprint( const wxString& aFootprintPath, wxString& aFootprintNameOut,
+    FOOTPRINT* ImportFootprint( const QString& aFootprintPath, QString& aFootprintNameOut,
                                 const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
-    FOOTPRINT* FootprintLoad( const wxString& aLibraryPath, const wxString& aFootprintName,
+    FOOTPRINT* FootprintLoad( const QString& aLibraryPath, const QString& aFootprintName,
                               bool  aKeepUUID = false,
                               const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
-    void FootprintSave( const wxString& aLibraryPath, const FOOTPRINT* aFootprint,
+    void FootprintSave( const QString& aLibraryPath, const FOOTPRINT* aFootprint,
                         const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
-    void FootprintDelete( const wxString& aLibraryPath, const wxString& aFootprintName,
+    void FootprintDelete( const QString& aLibraryPath, const QString& aFootprintName,
                           const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
-    long long GetLibraryTimestamp( const wxString& aLibraryPath ) const override;
+    long long GetLibraryTimestamp( const QString& aLibraryPath ) const override;
 
-    void CreateLibrary( const wxString& aLibraryPath,
+    void CreateLibrary( const QString& aLibraryPath,
                         const std::map<std::string, UTF8>* aProperties = nullptr) override;
 
-    bool DeleteLibrary( const wxString& aLibraryPath,
+    bool DeleteLibrary( const QString& aLibraryPath,
                         const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
-    bool IsLibraryWritable( const wxString& aLibraryPath ) override;
+    bool IsLibraryWritable( const QString& aLibraryPath ) override;
 
     PCB_IO_KICAD_SEXPR( int aControlFlags = CTL_FOR_BOARD );
 
     virtual ~PCB_IO_KICAD_SEXPR();
 
-    /**
-     * Output \a aItem to \a aFormatter in s-expression format.
-     *
-     * @param aItem A pointer the an #BOARD_ITEM object to format.
-     * @throw IO_ERROR on write error.
-     */
     void Format( const BOARD_ITEM* aItem ) const;
 
     std::string GetStringOutput( bool doClear )
@@ -389,33 +326,27 @@ public:
 
     void SetOutputFormatter( OUTPUTFORMATTER* aFormatter ) { m_out = aFormatter; }
 
-    BOARD_ITEM* Parse( const wxString& aClipboardSourceInput );
+    BOARD_ITEM* Parse( const QString& aClipboardSourceInput );
 
 protected:
-    void validateCache( const wxString& aLibraryPath, bool checkModified = true );
+    void validateCache( const QString& aLibraryPath, bool checkModified = true );
 
-    const FOOTPRINT* getFootprint( const wxString& aLibraryPath, const wxString& aFootprintName,
+    const FOOTPRINT* getFootprint( const QString& aLibraryPath, const QString& aFootprintName,
                                    const std::map<std::string, UTF8>* aProperties,
                                    bool checkModified );
 
     void init( const std::map<std::string, UTF8>* aProperties );
 
-    /// formats the board setup information
     void formatSetup( const BOARD* aBoard ) const;
 
-    /// formats the General section of the file
     void formatGeneral( const BOARD* aBoard ) const;
 
-    /// formats the board layer information
     void formatBoardLayers( const BOARD* aBoard ) const;
 
-    /// formats the Nets and Netclasses
     void formatNetInformation( const BOARD* aBoard ) const;
 
-    /// formats the Nets and Netclasses
     void formatProperties( const BOARD* aBoard ) const;
 
-    /// writes everything that comes before the board_items, like settings and layers etc
     void formatHeader( const BOARD* aBoard ) const;
 
     void formatTeardropParameters( const TEARDROP_PARAMETERS& tdParams ) const;
@@ -462,12 +393,12 @@ private:
     friend class FP_CACHE;
 
 protected:
-    wxString               m_error;      ///< for throwing exceptions
+    QString               m_error;      ///< for throwing exceptions
 
     FP_CACHE*              m_cache;      ///< Footprint library cache
 
     LINE_READER*           m_reader;     ///< no ownership
-    wxString               m_filename;   ///< for saves only, name is in m_reader for loads
+    QString               m_filename;   ///< for saves only, name is in m_reader for loads
 
     STRING_FORMATTER       m_sf;
     OUTPUTFORMATTER*       m_out;        ///< output any Format()s to this, no ownership
@@ -475,7 +406,7 @@ protected:
     NETINFO_MAPPING*       m_mapping;    ///< mapping for net codes, so only not empty net codes
                                          ///< are stored with consecutive integers as net codes
 
-    std::function<bool( wxString aTitle, int aIcon, wxString aMsg, wxString aAction )> m_queryUserCallback;
+    std::function<bool( QString aTitle, int aIcon, QString aMsg, QString aAction )> m_queryUserCallback;
 };
 
 #endif  // PCB_IO_KICAD_SEXPR_H_

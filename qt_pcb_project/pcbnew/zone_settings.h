@@ -1,31 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2008-2018 Jean-Pierre Charras, jean-pierre.charras@ujf-grenoble.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @file zone_settings.h
- * @brief Class ZONE_SETTINGS used to handle zones parameters in dialogs.
- */
 
 #ifndef ZONE_SETTINGS_H_
 #define ZONE_SETTINGS_H_
@@ -35,8 +8,9 @@
 #include <zones.h>
 #include <geometry/eda_angle.h>
 #include <teardrop/teardrop_types.h>
+#include <QString>
 
-class wxDataViewListCtrl;
+class QTreeWidget;
 
 enum class ZONE_FILL_MODE
 {
@@ -102,7 +76,7 @@ public:
 
     int             m_Netcode;               // Net code selection for the current zone
 
-    wxString        m_Name;                  // Unique name for the current zone (can be blank)
+    QString         m_Name;                  // Unique name for the current zone (can be blank)
 
     LSET            m_Layers;                // Layers that this zone exists on
 
@@ -136,7 +110,7 @@ private:
      */
     bool                            m_ruleAreaPlacementEnabled;
     RULE_AREA_PLACEMENT_SOURCE_TYPE m_ruleAreaPlacementSourceType;
-    wxString                        m_ruleAreaPlacementSource;
+    QString                         m_ruleAreaPlacementSource;
 
     bool            m_keepoutDoNotAllowCopperPour;
     bool            m_keepoutDoNotAllowVias;
@@ -169,11 +143,11 @@ public:
 
     /**
      * A helper routine for the various zone dialogs (copper, non-copper, keepout).
-     * @param aList the wxDataViewListCtrl to populate
+     * @param aList the QTreeWidget to populate
      * @param aFrame the parent editor frame
      * @param aFpEditorMode true to show a single "Inner Layers" item for all inner copper layers
      */
-    void SetupLayersList( wxDataViewListCtrl* aList, PCB_BASE_FRAME* aFrame, LSET aLayers,
+    void SetupLayersList( QTreeWidget* aList, PCB_BASE_FRAME* aFrame, LSET aLayers,
                           bool aFpEditorMode );
 
     /**
@@ -213,7 +187,7 @@ public:
     {
         return m_ruleAreaPlacementSourceType;
     }
-    wxString GetRuleAreaPlacementSource() const { return m_ruleAreaPlacementSource; }
+    QString GetRuleAreaPlacementSource() const { return m_ruleAreaPlacementSource; }
     bool GetDoNotAllowCopperPour() const { return m_keepoutDoNotAllowCopperPour; }
     bool GetDoNotAllowVias() const { return m_keepoutDoNotAllowVias; }
     bool GetDoNotAllowTracks() const { return m_keepoutDoNotAllowTracks; }
@@ -226,7 +200,7 @@ public:
     {
         m_ruleAreaPlacementSourceType = aType;
     }
-    void SetRuleAreaPlacementSource( const wxString& aSource )
+    void SetRuleAreaPlacementSource( const QString& aSource )
     {
         m_ruleAreaPlacementSource = aSource;
     }

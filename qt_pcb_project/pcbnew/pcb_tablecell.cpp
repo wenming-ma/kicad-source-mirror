@@ -1,25 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+#include <QString>
 
 #include <pcb_edit_frame.h>
 #include <font/font.h>
@@ -44,15 +24,15 @@ PCB_TABLECELL::PCB_TABLECELL( BOARD_ITEM* aParent ) :
 
 void PCB_TABLECELL::swapData( BOARD_ITEM* aImage )
 {
-    wxASSERT( aImage->Type() == PCB_TABLECELL_T );
+    Q_ASSERT( aImage->Type() == PCB_TABLECELL_T );
 
     std::swap( *((PCB_TABLECELL*) this), *((PCB_TABLECELL*) aImage) );
 }
 
 
-wxString PCB_TABLECELL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString PCB_TABLECELL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Table Cell %s" ), GetAddr() );
+    return QString::asprintf( _( "Table Cell %s" ).toStdString().c_str(), GetAddr().toStdString().c_str() );
 }
 
 
@@ -90,9 +70,9 @@ int PCB_TABLECELL::GetColumn() const
 }
 
 
-wxString PCB_TABLECELL::GetAddr() const
+QString PCB_TABLECELL::GetAddr() const
 {
-    return wxString::Format( wxT( "%c%d" ),
+    return QString::asprintf( "%c%d",
                              'A' + GetColumn() % 26,
                              GetRow() + 1 );
 }
@@ -242,7 +222,7 @@ static struct PCB_TABLECELL_DESC
         propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( EDA_TEXT ), _HKI( "Hyperlink" ) );
         propMgr.Mask( TYPE_HASH( PCB_TABLECELL ), TYPE_HASH( EDA_TEXT ), _HKI( "Color" ) );
 
-        const wxString tableProps = _( "Table" );
+        const QString tableProps = _( "Table" );
 
         propMgr.AddProperty( new PROPERTY<PCB_TABLECELL, int>( _HKI( "Column Width" ),
                     &PCB_TABLECELL::SetColumnWidth, &PCB_TABLECELL::GetColumnWidth,
