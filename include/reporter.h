@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef _REPORTER_H_
 #define _REPORTER_H_
@@ -43,9 +20,9 @@
  *          will not require pulling in wxWidgets to building them.
  */
 
-class wxString;
-class wxStatusBar;
-class wxTextCtrl;
+class QString;
+class QStatusBar;
+class QTextEdit;
 class WX_HTML_REPORT_PANEL;
 class WX_INFOBAR;
 
@@ -99,7 +76,7 @@ public:
      *                  RPT_ACTION ) used to filter and format messages
      */
 
-    virtual REPORTER& Report( const wxString& aText,
+    virtual REPORTER& Report( const QString& aText,
                               SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED )
     {
         m_reportedSeverityMask |= aSeverity;
@@ -109,7 +86,7 @@ public:
     /**
      * Places the report at the end of the list, for objects that support report ordering
      */
-    virtual REPORTER& ReportTail( const wxString& aText,
+    virtual REPORTER& ReportTail( const QString& aText,
                                   SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED )
     {
         return Report( aText, aSeverity );
@@ -118,7 +95,7 @@ public:
     /**
      * Places the report at the beginning of the list for objects that support ordering.
      */
-    virtual REPORTER& ReportHead( const wxString& aText,
+    virtual REPORTER& ReportHead( const QString& aText,
                                   SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED )
     {
         return Report( aText, aSeverity );
@@ -126,7 +103,7 @@ public:
 
     REPORTER& Report( const char* aText, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED );
 
-    REPORTER& operator <<( const wxString& aText ) { return Report( aText ); }
+    REPORTER& operator <<( const QString& aText ) { return Report( aText ); }
 
     /**
      * Returns true if any messages were reported.
@@ -166,7 +143,7 @@ private:
 class KICOMMON_API WX_TEXT_CTRL_REPORTER : public REPORTER
 {
 public:
-    WX_TEXT_CTRL_REPORTER( wxTextCtrl* aTextCtrl ) :
+    WX_TEXT_CTRL_REPORTER( QTextEdit* aTextCtrl ) :
         REPORTER(),
         m_textCtrl( aTextCtrl )
     {
@@ -176,11 +153,11 @@ public:
     {
     }
 
-    REPORTER& Report( const wxString& aText,
+    REPORTER& Report( const QString& aText,
                       SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
 
 private:
-    wxTextCtrl* m_textCtrl;
+    QTextEdit* m_textCtrl;
 };
 
 
@@ -197,13 +174,13 @@ public:
     virtual ~WX_STRING_REPORTER()
     { }
 
-    REPORTER& Report( const wxString& aText, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
+    REPORTER& Report( const QString& aText, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
 
-    const wxString& GetMessages() const;
+    const QString& GetMessages() const;
     void            Clear() override;
 
 private:
-    wxString m_string;
+    QString m_string;
 };
 
 
@@ -223,7 +200,7 @@ public:
 
     static REPORTER& GetInstance();
 
-    REPORTER& Report( const wxString& aText,
+    REPORTER& Report( const QString& aText,
                       SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
 };
 
@@ -242,7 +219,7 @@ public:
 
     static REPORTER& GetInstance();
 
-    REPORTER& Report( const wxString& aMsg, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
+    REPORTER& Report( const QString& aMsg, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
 };
 
 
@@ -260,7 +237,7 @@ public:
 
     static REPORTER& GetInstance();
 
-    REPORTER& Report( const wxString& aMsg, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
+    REPORTER& Report( const QString& aMsg, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
 };
 
 
@@ -275,7 +252,7 @@ public:
 
     static REPORTER& GetInstance();
 
-    REPORTER& Report( const wxString& aMsg, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
+    REPORTER& Report( const QString& aMsg, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
 };
 
 
@@ -284,7 +261,7 @@ class KICOMMON_API REDIRECT_REPORTER : public REPORTER
 public:
     REDIRECT_REPORTER( REPORTER* aRedirectTarget ) : m_redirectTarget( aRedirectTarget ) {}
 
-    REPORTER& Report( const wxString& aMsg, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
+    REPORTER& Report( const QString& aMsg, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
 
     REPORTER* m_redirectTarget;
 };
@@ -296,16 +273,16 @@ public:
 class KICOMMON_API STATUSBAR_REPORTER : public REPORTER
 {
 public:
-    STATUSBAR_REPORTER( wxStatusBar* aStatusBar, int aPosition = 0 )
+    STATUSBAR_REPORTER( QStatusBar* aStatusBar, int aPosition = 0 )
             : REPORTER(),
               m_statusBar( aStatusBar ),
               m_position( aPosition )
     { }
 
-    REPORTER& Report( const wxString& aText, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
+    REPORTER& Report( const QString& aText, SEVERITY aSeverity = RPT_SEVERITY_UNDEFINED ) override;
 
 private:
-    wxStatusBar* m_statusBar;
+    QStatusBar* m_statusBar;
     int          m_position;
 };
 

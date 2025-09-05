@@ -15,7 +15,7 @@ DATABASE_FIELD_MAPPING::DATABASE_FIELD_MAPPING( std::string aColumn, std::string
                                                 bool aShowName, bool aInheritProperties ) :
         column( aColumn ),
         name( aName ),
-        name_wx( QString::fromStdString( aName ) ),
+        name_qt( QString::fromStdString( aName ) ),
         visible_on_add( aVisibleOnAdd ),
         visible_in_chooser( aVisibleInChooser ),
         show_name( aShowName ),

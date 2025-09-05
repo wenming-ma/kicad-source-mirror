@@ -69,7 +69,7 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
 #endif
 
     /*
-     * Font scaling hacks are only needed on GTK under wxWidgets 3.0.
+     * Font scaling hacks are not needed with Qt framework.
      */
     m_Appearance.apply_icon_scale_to_fonts = false;
 

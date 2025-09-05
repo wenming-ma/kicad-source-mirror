@@ -217,6 +217,7 @@ target_include_directories( common PUBLIC
     ../scripting
     ../thirdparty/magic_enum
     ${wxWidgets_INCLUDE_DIRS}
+    ${Qt6_INCLUDE_DIRS}
 )
 
 # Skip AutoUIC processing for widgets/ui_common.h (it's a hand-written header, not generated from .ui)

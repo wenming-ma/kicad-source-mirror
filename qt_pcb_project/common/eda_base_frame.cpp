@@ -403,8 +403,9 @@ void EDA_BASE_FRAME::HandleUpdateUIEvent( QEvent& aEvent, EDA_BASE_FRAME* aFrame
             enableRes = true;
         else if( textEntry && isPaste && !textEntry->isReadOnly() )
             enableRes = true;
-        else if( dynamic_cast<WX_GRID*>( focus ) )
-            enableRes = false;  // Must disable menu in order to get command as CharHook event
+        // Note: WX_GRID reference removed - Qt equivalent would be QTableWidget or QTableView
+        // else if( dynamic_cast<QTableWidget*>( focus ) )
+        //     enableRes = false;  // Must disable menu in order to get command as CharHook event
     }
 
     // Qt action state updates would be handled through QAction properties
@@ -424,7 +425,7 @@ void EDA_BASE_FRAME::setupUIConditions()
     {
         ACTION_CONDITIONS cond;
         cond.Check( std::bind( isCurrentLang, std::placeholders::_1,
-                               LanguagesList[ii].m_WX_Lang_Identifier ) );
+                               LanguagesList[ii].m_KI_Lang_Identifier ) );
 
         RegisterUIUpdateHandler( LanguagesList[ii].m_KI_Lang_Identifier, cond );
     }
@@ -512,12 +513,8 @@ void EDA_BASE_FRAME::ThemeChanged()
 
     // Update all the toolbars to have new icons
     // Qt docking system would be used instead of wxAUI
-
-    for( size_t i = 0; i < panes.GetCount(); ++i )
-    {
-        if( ACTION_TOOLBAR* toolbar = dynamic_cast<ACTION_TOOLBAR*>( panes[i].window ) )
-            toolbar->RefreshBitmaps();
-    }
+    // TODO: Implement toolbar refresh for Qt docking system
+    // This section needs to be implemented with proper Qt dock widgets and toolbars
 }
 
 
@@ -832,7 +829,7 @@ void EDA_BASE_FRAME::FinishAUIInitialization()
 
 
 void EDA_BASE_FRAME::ShowInfoBarError( const QString& aErrorMsg, bool aShowCloseButton,
-                                       WX_INFOBAR::MESSAGE_TYPE aType )
+                                       int aType )
 {
     // UI component - commented out for minimal build
     // InfoBar widget implementation removed, use status bar instead
@@ -893,11 +890,11 @@ QString EDA_BASE_FRAME::GetFileFromHistory( int cmdId, const QString& type,
 
     int baseId = aFileHistory->GetBaseId();
 
-    Q_ASSERT( cmdId >= baseId && cmdId < baseId + (int) aFileHistory->GetCount() );
+    Q_ASSERT( cmdId >= baseId && cmdId < baseId + (int) aFileHistory->size() );
 
     unsigned i = cmdId - baseId;
 
-    if( i < aFileHistory->GetCount() )
+    if( i < aFileHistory->size() )
     {
         QString fn = aFileHistory->GetHistoryFile( i );
 

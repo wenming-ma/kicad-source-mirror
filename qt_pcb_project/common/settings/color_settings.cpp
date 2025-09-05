@@ -5,6 +5,7 @@
 #include <settings/parameters.h>
 #include <settings/settings_manager.h>
 #include <QDebug>
+#include <QSettings>
 
 #include "builtin_color_themes.h"
 
@@ -29,7 +30,7 @@ COLOR_SETTINGS::COLOR_SETTINGS( const QString& aFilename, bool aAbsolutePath ) :
                                             &m_overrideSchItemColors, false ) );
 
 #define CLR( x, y ) \
-    wxASSERT( s_defaultTheme.count( y ) ); \
+    Q_ASSERT( s_defaultTheme.count( y ) ); \
     m_params.emplace_back( new COLOR_MAP_PARAM( x, y, s_defaultTheme.at( y ), &m_colors ) );
 
     CLR( "schematic.anchor",            LAYER_SCHEMATIC_ANCHOR       );
@@ -92,7 +93,7 @@ COLOR_SETTINGS::COLOR_SETTINGS( const QString& aFilename, bool aAbsolutePath ) :
     {
         if( !s_defaultTheme.count( id ) )
         {
-            wxLogTrace( "colors", "Missing default color for gerbview layer %d", id );
+            qDebug() << "Missing default color for gerbview layer" << id;
             continue;
         }
 
@@ -324,7 +325,7 @@ void COLOR_SETTINGS::initFromOther( const COLOR_SETTINGS& aOther )
 }
 
 
-bool COLOR_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
+bool COLOR_SETTINGS::MigrateFromLegacy( QSettings* aCfg )
 {
     return false;
 }

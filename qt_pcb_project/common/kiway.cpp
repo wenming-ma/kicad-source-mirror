@@ -26,6 +26,7 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QStringList>
+#include <QCloseEvent>
 #include <confirm.h>
 
 #ifdef KICAD_USE_SENTRY
@@ -54,16 +55,15 @@ KIWAY::KIWAY( int aCtlBits, QMainWindow* aTop ):
 
 
 #if 0
-// Any event types derived from wxCommandEvt, like wxWindowDestroyEvent, are
-// propagated upwards to parent windows if not handled below.  Therefore the
-// m_top window should receive all wxWindowDestroyEvents originating from
-// KIWAY_PLAYERs.  It does anyways, but now player_destroy_handler eavesdrops
-// on that event stream looking for KIWAY_PLAYERs being closed.
+// Any event types derived from QEvent, like window destroy events, are
+// handled through Qt's event system. The m_top window should receive all destroy events
+// originating from KIWAY_PLAYERs. This handler eavesdrops on that event stream
+// looking for KIWAY_PLAYERs being closed.
 
-void KIWAY::player_destroy_handler( wxWindowDestroyEvent& event )
+void KIWAY::player_destroy_handler( QCloseEvent& event )
 {
     // Currently : do nothing
-    event.Skip();  // skip to who, the wxApp?  I'm the top window.
+    event.accept();  // accept the close event
 }
 #endif
 
@@ -71,19 +71,9 @@ void KIWAY::player_destroy_handler( wxWindowDestroyEvent& event )
 void KIWAY::SetTop( QMainWindow* aTop )
 {
 #if 0
-    if( m_top )
-    {
-        m_top->Disconnect( wxEVT_DESTROY,
-                           wxWindowDestroyEventHandler( KIWAY::player_destroy_handler ),
-                           nullptr, this );
-    }
-
-    if( aTop )
-    {
-        aTop->Connect( wxEVT_DESTROY,
-                       wxWindowDestroyEventHandler( KIWAY::player_destroy_handler ),
-                       nullptr, this );
-    }
+    // Qt event handling would be different - using QObject::connect
+    // and QWidget's closeEvent() virtual method override instead of
+    // the old wxWidgets Connect/Disconnect pattern
 #endif
 
     m_top = aTop;
@@ -110,7 +100,7 @@ const QString KIWAY::dso_search_path( FACE_T aFaceId )
         return QString();
     }
 
-#ifndef __WXMAC__
+#if !defined(Q_OS_MAC)
     QString path;
 
     if( m_ctl & (KFCTL_STANDALONE | KFCTL_CPP_PROJECT_SUITE) )
@@ -138,7 +128,7 @@ const QString KIWAY::dso_search_path( FACE_T aFaceId )
     // To find the DSOs, we need to go up one directory and then enter a subdirectory.
     if( !qEnvironmentVariable( "KICAD_RUN_FROM_BUILD_DIR" ).isEmpty() )
     {
-#ifdef __WXMAC__
+#if defined(Q_OS_MAC)
         // On Mac, all of the kifaces are placed in the kicad.app bundle, even though the individual
         // standalone binaries are placed in separate bundles before the make install step runs.
         // So, we have to jump up to the kicad directory, then the PlugIns section of the kicad

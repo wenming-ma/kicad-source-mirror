@@ -383,15 +383,11 @@ void PGM_BASE::BuildArgvUtf8()
 
 void PGM_BASE::ShowSplash()
 {
-#if 0
     if( m_splash )
         return;
 
-    m_splash = new WX_SPLASH( KiBitmap( BITMAPS::splash ), Qt::SplashScreen, 0,
-                              NULL, -1, QPoint(), QSize(),
-                              Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint );
+    m_splash = new WX_SPLASH( KiBitmap( BITMAPS::splash ), Qt::SplashScreen, 0, nullptr );
     QCoreApplication::processEvents();
-#endif
 }
 
 

@@ -32,7 +32,7 @@
 
 using namespace KIGFX;
 
-const QEvent::Type WX_VIEW_CONTROLS::EVT_REFRESH_MOUSE = static_cast<QEvent::Type>(QEvent::User + 1);
+const QEvent::Type QT_VIEW_CONTROLS::EVT_REFRESH_MOUSE = static_cast<QEvent::Type>(QEvent::User + 1);
 
 
 static std::unique_ptr<ZOOM_CONTROLLER> GetZoomControllerForPlatform( bool aAcceleration )
@@ -50,7 +50,7 @@ static std::unique_ptr<ZOOM_CONTROLLER> GetZoomControllerForPlatform( bool aAcce
 }
 
 
-WX_VIEW_CONTROLS::WX_VIEW_CONTROLS( VIEW* aView, EDA_DRAW_PANEL_GAL* aParentPanel ) :
+QT_VIEW_CONTROLS::QT_VIEW_CONTROLS( VIEW* aView, EDA_DRAW_PANEL_GAL* aParentPanel ) :
         VIEW_CONTROLS( aView ), m_state( IDLE ), m_parentPanel( aParentPanel ),
         m_scrollScale( 1.0, 1.0 ), m_cursorPos( 0, 0 ), m_updateCursor( true ),
         m_infinitePanWorks( false ), m_gestureLastZoomFactor( 1.0 )
@@ -71,7 +71,7 @@ WX_VIEW_CONTROLS::WX_VIEW_CONTROLS( VIEW* aView, EDA_DRAW_PANEL_GAL* aParentPane
     m_cursorWarped = false;
 
     m_panTimer.setSingleShot(false);
-    connect(&m_panTimer, &QTimer::timeout, this, &WX_VIEW_CONTROLS::onTimer);
+    connect(&m_panTimer, &QTimer::timeout, this, &QT_VIEW_CONTROLS::onTimer);
 
     m_settings.m_lastKeyboardCursorPositionValid = false;
     m_settings.m_lastKeyboardCursorPosition = { 0.0, 0.0 };
@@ -79,7 +79,7 @@ WX_VIEW_CONTROLS::WX_VIEW_CONTROLS( VIEW* aView, EDA_DRAW_PANEL_GAL* aParentPane
 }
 
 
-WX_VIEW_CONTROLS::~WX_VIEW_CONTROLS()
+QT_VIEW_CONTROLS::~QT_VIEW_CONTROLS()
 {
 #if defined USE_MOUSE_CAPTURE
     if( m_parentPanel->HasCapture() )
@@ -88,7 +88,7 @@ WX_VIEW_CONTROLS::~WX_VIEW_CONTROLS()
 }
 
 
-void WX_VIEW_CONTROLS::LoadSettings()
+void QT_VIEW_CONTROLS::LoadSettings()
 {
     COMMON_SETTINGS* cfg = Pgm().GetCommonSettings();
 
@@ -132,7 +132,7 @@ void WX_VIEW_CONTROLS::LoadSettings()
 }
 
 
-void WX_VIEW_CONTROLS::onMotion( QMouseEvent& aEvent )
+void QT_VIEW_CONTROLS::onMotion( QMouseEvent& aEvent )
 {
     ( *m_MotionEventCounter )++;
 
@@ -283,7 +283,7 @@ void WX_VIEW_CONTROLS::onMotion( QMouseEvent& aEvent )
 }
 
 
-void WX_VIEW_CONTROLS::onWheel( QWheelEvent& aEvent )
+void QT_VIEW_CONTROLS::onWheel( QWheelEvent& aEvent )
 {
     const double wheelPanSpeed = 0.001;
     const int    axis = aEvent.orientation();
@@ -376,7 +376,7 @@ void WX_VIEW_CONTROLS::onWheel( QWheelEvent& aEvent )
 }
 
 
-void WX_VIEW_CONTROLS::onMagnify( QMouseEvent& aEvent )
+void QT_VIEW_CONTROLS::onMagnify( QMouseEvent& aEvent )
 {
     VECTOR2D anchor = m_view->ToWorld( VECTOR2D( aEvent.position().x(), aEvent.position().y() ) );
     m_view->SetScale( m_view->GetScale() * 1.1f, anchor );
@@ -385,13 +385,13 @@ void WX_VIEW_CONTROLS::onMagnify( QMouseEvent& aEvent )
 }
 
 
-void WX_VIEW_CONTROLS::setState( STATE aNewState )
+void QT_VIEW_CONTROLS::setState( STATE aNewState )
 {
     m_state = aNewState;
 }
 
 
-void WX_VIEW_CONTROLS::onButton( QMouseEvent& aEvent )
+void QT_VIEW_CONTROLS::onButton( QMouseEvent& aEvent )
 {
     switch( m_state )
     {
@@ -439,7 +439,7 @@ void WX_VIEW_CONTROLS::onButton( QMouseEvent& aEvent )
 }
 
 
-void WX_VIEW_CONTROLS::onEnter( QEnterEvent& aEvent )
+void QT_VIEW_CONTROLS::onEnter( QEnterEvent& aEvent )
 {
     if( KIUI::IsInputControlFocused() )
     {
@@ -464,7 +464,7 @@ void WX_VIEW_CONTROLS::onEnter( QEnterEvent& aEvent )
 }
 
 
-void WX_VIEW_CONTROLS::onLeave( QEvent& aEvent )
+void QT_VIEW_CONTROLS::onLeave( QEvent& aEvent )
 {
 #if !defined USE_MOUSE_CAPTURE
     // onMotion( aEvent );  // Qt event handling differs
@@ -472,13 +472,13 @@ void WX_VIEW_CONTROLS::onLeave( QEvent& aEvent )
 }
 
 
-void WX_VIEW_CONTROLS::onCaptureLost( QEvent& aEvent )
+void QT_VIEW_CONTROLS::onCaptureLost( QEvent& aEvent )
 {
     // Qt mouse capture flag handling
 }
 
 
-void WX_VIEW_CONTROLS::onTimer()
+void QT_VIEW_CONTROLS::onTimer()
 {
     switch( m_state )
     {
@@ -528,7 +528,7 @@ void WX_VIEW_CONTROLS::onTimer()
 }
 
 
-void WX_VIEW_CONTROLS::onZoomGesture( QEvent& aEvent )
+void QT_VIEW_CONTROLS::onZoomGesture( QEvent& aEvent )
 {
     // Qt gesture handling implementation needed
 
@@ -536,7 +536,7 @@ void WX_VIEW_CONTROLS::onZoomGesture( QEvent& aEvent )
 }
 
 
-void WX_VIEW_CONTROLS::onPanGesture( QEvent& aEvent )
+void QT_VIEW_CONTROLS::onPanGesture( QEvent& aEvent )
 {
     // Qt pan gesture handling implementation needed
 
@@ -544,7 +544,7 @@ void WX_VIEW_CONTROLS::onPanGesture( QEvent& aEvent )
 }
 
 
-void WX_VIEW_CONTROLS::onScroll( QScrollEvent& aEvent )
+void QT_VIEW_CONTROLS::onScroll( QScrollEvent& aEvent )
 {
     const double linePanDelta = 0.05;
     const double pagePanDelta = 0.5;
@@ -615,14 +615,14 @@ void WX_VIEW_CONTROLS::onScroll( QScrollEvent& aEvent )
 }
 
 
-void WX_VIEW_CONTROLS::CaptureCursor( bool aEnabled )
+void QT_VIEW_CONTROLS::CaptureCursor( bool aEnabled )
 {
     // Qt mouse capture implementation differs
     VIEW_CONTROLS::CaptureCursor( aEnabled );
 }
 
 
-void WX_VIEW_CONTROLS::CancelDrag()
+void QT_VIEW_CONTROLS::CancelDrag()
 {
     if( m_state == DRAG_PANNING || m_state == DRAG_ZOOMING )
     {
@@ -633,7 +633,7 @@ void WX_VIEW_CONTROLS::CancelDrag()
 }
 
 
-VECTOR2D WX_VIEW_CONTROLS::GetMousePosition( bool aWorldCoordinates ) const
+VECTOR2D QT_VIEW_CONTROLS::GetMousePosition( bool aWorldCoordinates ) const
 {
     QPoint msp = getMouseScreenPosition();
     VECTOR2D screenPos( msp.x(), msp.y() );
@@ -642,7 +642,7 @@ VECTOR2D WX_VIEW_CONTROLS::GetMousePosition( bool aWorldCoordinates ) const
 }
 
 
-VECTOR2D WX_VIEW_CONTROLS::GetRawCursorPosition( bool aEnableSnapping ) const
+VECTOR2D QT_VIEW_CONTROLS::GetRawCursorPosition( bool aEnableSnapping ) const
 {
     GAL* gal = m_view->GetGAL();
 
@@ -657,7 +657,7 @@ VECTOR2D WX_VIEW_CONTROLS::GetRawCursorPosition( bool aEnableSnapping ) const
 }
 
 
-VECTOR2D WX_VIEW_CONTROLS::GetCursorPosition( bool aEnableSnapping ) const
+VECTOR2D QT_VIEW_CONTROLS::GetCursorPosition( bool aEnableSnapping ) const
 {
     if( m_settings.m_forceCursorPosition )
     {
@@ -670,7 +670,7 @@ VECTOR2D WX_VIEW_CONTROLS::GetCursorPosition( bool aEnableSnapping ) const
 }
 
 
-void WX_VIEW_CONTROLS::SetCursorPosition( const VECTOR2D& aPosition, bool aWarpView,
+void QT_VIEW_CONTROLS::SetCursorPosition( const VECTOR2D& aPosition, bool aWarpView,
                                           bool aTriggeredByArrows, long aArrowCommand )
 {
     m_updateCursor = false;
@@ -697,7 +697,7 @@ void WX_VIEW_CONTROLS::SetCursorPosition( const VECTOR2D& aPosition, bool aWarpV
 }
 
 
-void WX_VIEW_CONTROLS::SetCrossHairCursorPosition( const VECTOR2D& aPosition,
+void QT_VIEW_CONTROLS::SetCrossHairCursorPosition( const VECTOR2D& aPosition,
                                                    bool aWarpView = true )
 {
     m_updateCursor = false;
@@ -715,7 +715,7 @@ void WX_VIEW_CONTROLS::SetCrossHairCursorPosition( const VECTOR2D& aPosition,
 }
 
 
-void WX_VIEW_CONTROLS::WarpMouseCursor( const VECTOR2D& aPosition, bool aWorldCoordinates,
+void QT_VIEW_CONTROLS::WarpMouseCursor( const VECTOR2D& aPosition, bool aWorldCoordinates,
                                         bool aWarpView )
 {
     if( aWorldCoordinates )
@@ -749,7 +749,7 @@ void WX_VIEW_CONTROLS::WarpMouseCursor( const VECTOR2D& aPosition, bool aWorldCo
 }
 
 
-void WX_VIEW_CONTROLS::CenterOnCursor()
+void QT_VIEW_CONTROLS::CenterOnCursor()
 {
     const VECTOR2I& screenSize = m_view->GetGAL()->GetScreenPixelSize();
     VECTOR2D screenCenter( screenSize / 2 );
@@ -767,7 +767,7 @@ void WX_VIEW_CONTROLS::CenterOnCursor()
 }
 
 
-void WX_VIEW_CONTROLS::PinCursorInsideNonAutoscrollArea( bool aWarpMouseCursor )
+void QT_VIEW_CONTROLS::PinCursorInsideNonAutoscrollArea( bool aWarpMouseCursor )
 {
     int border = std::min( m_settings.m_autoPanMargin * m_view->GetScreenPixelSize().x,
                            m_settings.m_autoPanMargin * m_view->GetScreenPixelSize().y );
@@ -799,7 +799,7 @@ void WX_VIEW_CONTROLS::PinCursorInsideNonAutoscrollArea( bool aWarpMouseCursor )
 }
 
 
-bool WX_VIEW_CONTROLS::handleAutoPanning( const QMouseEvent& aEvent )
+bool QT_VIEW_CONTROLS::handleAutoPanning( const QMouseEvent& aEvent )
 {
     VECTOR2I p( aEvent.position().x(), aEvent.position().y() );
     VECTOR2I pKey( m_view->ToScreen(m_settings.m_lastKeyboardCursorPosition ) );
@@ -871,7 +871,7 @@ bool WX_VIEW_CONTROLS::handleAutoPanning( const QMouseEvent& aEvent )
 }
 
 
-void WX_VIEW_CONTROLS::handleCursorCapture( int x, int y )
+void QT_VIEW_CONTROLS::handleCursorCapture( int x, int y )
 {
     if( m_settings.m_cursorCaptured )
     {
@@ -906,7 +906,7 @@ void WX_VIEW_CONTROLS::handleCursorCapture( int x, int y )
 }
 
 
-void WX_VIEW_CONTROLS::refreshMouse( bool aSetModifiers )
+void QT_VIEW_CONTROLS::refreshMouse( bool aSetModifiers )
 {
     QMouseEvent* moveEvent = new QMouseEvent( static_cast<QEvent::Type>(EVT_REFRESH_MOUSE), 
                                               QPointF(0,0), Qt::NoButton, Qt::NoButton, Qt::NoModifier );
@@ -919,7 +919,7 @@ void WX_VIEW_CONTROLS::refreshMouse( bool aSetModifiers )
 }
 
 
-QPoint WX_VIEW_CONTROLS::getMouseScreenPosition() const
+QPoint QT_VIEW_CONTROLS::getMouseScreenPosition() const
 {
     QPoint msp = KIPLATFORM::UI::GetMousePosition();
     msp = m_parentPanel->mapFromGlobal( msp );
@@ -927,7 +927,7 @@ QPoint WX_VIEW_CONTROLS::getMouseScreenPosition() const
 }
 
 
-void WX_VIEW_CONTROLS::UpdateScrollbars()
+void QT_VIEW_CONTROLS::UpdateScrollbars()
 {
     const BOX2D viewport = m_view->GetViewport();
     const BOX2D& boundary = m_view->GetBoundary();
@@ -960,7 +960,7 @@ void WX_VIEW_CONTROLS::UpdateScrollbars()
 }
 
 
-void WX_VIEW_CONTROLS::ForceCursorPosition( bool aEnabled, const VECTOR2D& aPosition )
+void QT_VIEW_CONTROLS::ForceCursorPosition( bool aEnabled, const VECTOR2D& aPosition )
 {
     VECTOR2D clampedPosition = GetClampedCoords( aPosition );
 

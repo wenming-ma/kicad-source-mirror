@@ -146,9 +146,32 @@ You will delete:
 - **File headers only** - Remove GPL/copyright/author declarations at the beginning of files
 - **Redundant documentation only** - Remove verbose /** and /// documentation blocks that don't add essential technical information
 - **Preserve useful comments** - Keep inline comments, algorithm explanations, and technical notes that help understand the code logic
-- **File headers only** - Remove GPL/copyright/author declarations at the beginning of files
-- **Redundant documentation only** - Remove verbose /** and /// documentation blocks that don't add essential technical information
-- **Preserve useful comments** - Keep inline comments, algorithm explanations, and technical notes that help understand the code logic
+
+### CMakeLists.txt Transformation Rules
+**CRITICAL PRINCIPLE**: When transforming CMakeLists.txt files:
+1. **PRESERVE wxWidgets Configuration** - NEVER remove or replace wxWidgets-related configurations (find_package, include directories, libraries)
+2. **ADD Qt Configuration** - Only add Qt-related configurations alongside wxWidgets
+3. **Dual Framework Support** - The build system must support BOTH wxWidgets and Qt frameworks simultaneously
+
+Example for CMakeLists.txt:
+```cmake
+# CORRECT - Keep both frameworks
+target_include_directories( common PUBLIC
+    ${wxWidgets_INCLUDE_DIRS}  # Keep this
+    ${Qt6_INCLUDE_DIRS}         # Add this
+)
+
+target_link_libraries( common PUBLIC
+    ${wxWidgets_LIBRARIES}      # Keep this
+    Qt6::Core                   # Add this
+    Qt6::Widgets                # Add this
+)
+
+# WRONG - Don't remove wxWidgets
+target_include_directories( common PUBLIC
+    ${Qt6_INCLUDE_DIRS}         # Missing wxWidgets
+)
+```
 
 ### wx Macro Transformation Guidelines
 You will apply these rules for wx macro handling:

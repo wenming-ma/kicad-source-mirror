@@ -241,7 +241,7 @@ COLOR_SETTINGS* SETTINGS_MANAGER::loadColorSettingsByName( const QString& aName 
 
     COLOR_SETTINGS* settings = RegisterSettings( new COLOR_SETTINGS( aName ) );
 
-    if( settings->GetFilename() != aName.ToStdString() )
+    if( settings->GetFilename() != aName.toStdString() )
     {
         qDebug() << "Warning: stored filename is actually" << settings->GetFilename();
     }
@@ -549,13 +549,7 @@ bool SETTINGS_MANAGER::MigrateIfNeeded()
     }
 
     // Now we have an empty path, let's figure out what to put in it
-    // DIALOG_MIGRATE_SETTINGS dlg( this );
-
-    // if( dlg.ShowModal() != wxID_OK )
-    // {
-    //     wxLogTrace( traceSettings, wxT( "Migration dialog canceled; exiting" ) );
-    //     return false;
-    // }
+    // Migration dialog handling removed
 
     if( !path.exists() )
     {
@@ -780,7 +774,7 @@ QString SETTINGS_MANAGER::GetColorSettingsPath()
 std::string SETTINGS_MANAGER::GetSettingsVersion()
 {
     // CMake computes the major.minor string for us.
-    return GetMajorMinorVersion().ToStdString();
+    return GetMajorMinorVersion().toStdString();
 }
 
 
