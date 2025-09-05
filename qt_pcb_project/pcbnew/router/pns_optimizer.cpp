@@ -1,23 +1,3 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <geometry/shape_line_chain.h>
 #include <geometry/shape_rect.h>
@@ -237,9 +217,9 @@ bool AREA_CONSTRAINT::Check( int aVertex1, int aVertex2, const LINE* aOriginLine
                 .Angle( aCurrentPath.CSegment( aVertex2 - 1 ) )
                 .IsHorizontal();
 
-    //PNS_DBG( dbg, AddShape, m_allowedArea, YELLOW, 10000, wxT( "drag-affected-area" ) );
-    //PNS_DBG( dbg, AddPoint, p1, YELLOW, 1000000, wxT( "drag-p1" ) );
-    //PNS_DBG( dbg, AddPoint, p2, YELLOW, 1000000, wxT( "drag-p2" ) );
+    //PNS_DBG( dbg, AddShape, m_allowedArea, YELLOW, 10000, "drag-affected-area" );
+    //PNS_DBG( dbg, AddPoint, p1, YELLOW, 1000000, "drag-p1" );
+    //PNS_DBG( dbg, AddPoint, p2, YELLOW, 1000000, "drag-p2" );
 
     return false;
 }
@@ -617,7 +597,7 @@ bool OPTIMIZER::Optimize( const LINE* aLine, LINE* aResult, LINE* aRoot )
 
     if( aRoot )
     {
-        //PNS_DBG( dbg, AddItem, aRoot, BLUE, 100000, wxT( "root-line" ) );
+        //PNS_DBG( dbg, AddItem, aRoot, BLUE, 100000, "root-line" );
     }
 
 
@@ -637,7 +617,7 @@ bool OPTIMIZER::Optimize( const LINE* aLine, LINE* aResult, LINE* aRoot )
         auto c = new CORNER_COUNT_LIMIT_CONSTRAINT( m_world, rootObtuseCorners,
                                                     aLine->SegmentCount(), angleMask );
         //PNS_DBG( dbg, Message,
-         //        wxString::Format( "opt limit-corner-count root %d maxc %d mask %x",
+         //        QString::asprintf( "opt limit-corner-count root %d maxc %d mask %x",
            //                        rootObtuseCorners, aLine->SegmentCount(), angleMask ) );
 
         addConstraint( c );
@@ -660,7 +640,7 @@ bool OPTIMIZER::Optimize( const LINE* aLine, LINE* aResult, LINE* aRoot )
     {
         auto c = new AREA_CONSTRAINT( m_world, m_restrictArea, m_restrictAreaIsStrict );
         SHAPE_RECT r( m_restrictArea );
-        //PNS_DBG( dbg, AddShape, &r, YELLOW, 0, wxT( "area-constraint" ) );
+        //PNS_DBG( dbg, AddShape, &r, YELLOW, 0, "area-constraint" );
         addConstraint( c );
     }
 

@@ -1,25 +1,7 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <optional>
+#include <QtGlobal>
+#include <QString>
 
 #include <math/box2.h>
 #include <math/vector2d.h>
@@ -574,8 +556,8 @@ const SHAPE_LINE_CHAIN SEGMENT::Hull( int aClearance, int aWalkaroundThickness, 
 {
     /*DEBUG_DECORATOR* debugDecorator = ROUTER::GetInstance()->GetInterface()->GetDebugDecorator();
 
-    PNS_DBG( debugDecorator, Message, wxString::Format( wxT( "seghull %d %d" ), aWalkaroundThickness, aClearance ) );
-    PNS_DBG(debugDecorator, AddShape, &m_seg, RED, 0, wxT("theseg") );
+    PNS_DBG( debugDecorator, Message, QString::asprintf( "seghull %d %d", aWalkaroundThickness, aClearance ) );
+    PNS_DBG(debugDecorator, AddShape, &m_seg, RED, 0, "theseg" );
         */
 
    return SegmentHull( m_seg, aClearance, aWalkaroundThickness );
@@ -630,7 +612,7 @@ SHAPE_LINE_CHAIN dragCornerInternal( const SHAPE_LINE_CHAIN& aOrigin, const VECT
     int i;
     int d = 2;
 
-    wxASSERT( aOrigin.PointCount() > 0 );
+    Q_ASSERT( aOrigin.PointCount() > 0 );
 
     if( aOrigin.PointCount() == 1 )
     {
@@ -778,7 +760,7 @@ void LINE::dragCornerFree( const VECTOR2I& aP, int aIndex )
         }
         else
         {
-            wxASSERT_MSG( false, wxT( "Attempt to dragCornerFree in the middle of an arc!" ) );
+            Q_ASSERT_X( false, "dragCornerFree", "Attempt to dragCornerFree in the middle of an arc!" );
         }
     }
 
@@ -788,7 +770,8 @@ void LINE::dragCornerFree( const VECTOR2I& aP, int aIndex )
 
 void LINE::DragCorner( const VECTOR2I& aP, int aIndex, bool aFreeAngle, DIRECTION_45 aPreferredEndingDirection )
 {
-    wxCHECK_RET( aIndex >= 0, wxT( "Negative index passed to LINE::DragCorner" ) );
+    Q_ASSERT_X( aIndex >= 0, "DragCorner", "Negative index passed to LINE::DragCorner" );
+    if( aIndex < 0 ) return;
 
     if( aFreeAngle )
     {
@@ -904,7 +887,7 @@ void LINE::dragSegment45( const VECTOR2I& aP, int aIndex )
     SHAPE_LINE_CHAIN path( m_line );
     VECTOR2I         target( aP );
 
-    wxASSERT( aIndex < m_line.PointCount() );
+    Q_ASSERT( aIndex < m_line.PointCount() );
 
     SEG guideA[2], guideB[2];
     int index = aIndex;
@@ -1166,14 +1149,14 @@ void LINE::ClipVertexRange( int aStart, int aEnd )
         linkIdx++;
     }
 
-    wxASSERT( lastLink >= firstLink );
+    Q_ASSERT( lastLink >= firstLink );
 
     m_line = m_line.Slice( aStart, aEnd );
 
     if( IsLinked() )
     {
-        wxASSERT( m_links.size() < INT_MAX );
-        wxASSERT( static_cast<int>( m_links.size() ) >= ( lastLink - firstLink ) );
+        Q_ASSERT( m_links.size() < INT_MAX );
+        Q_ASSERT( static_cast<int>( m_links.size() ) >= ( lastLink - firstLink ) );
 
         // Note: The range includes aEnd, but we have n-1 segments.
         std::rotate(

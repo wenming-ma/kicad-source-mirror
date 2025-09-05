@@ -1,24 +1,3 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2019 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <vector>
 #include <cassert>
@@ -30,7 +9,7 @@
 #include <geometry/shape_line_chain.h>
 #include <zone.h>
 
-#include <wx/log.h>
+#include <QDebug>
 
 #include "pns_arc.h"
 #include "pns_item.h"
@@ -71,14 +50,14 @@ NODE::~NODE()
 {
     if( !m_children.empty() )
     {
-        wxLogTrace( wxT( "PNS" ), wxT( "attempting to free a node that has kids." ) );
+        qDebug() << "PNS: attempting to free a node that has kids.";
         assert( false );
     }
 
 #ifdef DEBUG
     if( allocNodes.find( this ) == allocNodes.end() )
     {
-        wxLogTrace( wxT( "PNS" ), wxT( "attempting to free an already-free'd node." ) );
+        qDebug() << "PNS: attempting to free an already-free'd node.";
         assert( false );
     }
 
@@ -110,7 +89,7 @@ NODE::~NODE()
 
     for( const ITEM* item : toDelete )
     {
-        wxLogTrace( wxT( "PNS" ), wxT( "del item %p type %s" ), item, item->KindStr().c_str() );
+        qDebug() << QString("PNS: del item %1 type %2").arg(reinterpret_cast<quintptr>(item), 0, 16).arg(item->KindStr().c_str());
         delete item;
     }
 
@@ -166,10 +145,10 @@ NODE* NODE::Branch()
     }
 
 #if 0
-    wxLogTrace( wxT( "PNS" ), wxT( "%d items, %d joints, %d overrides" ),
-                child->m_index->Size(),
-                (int) child->m_joints.size(),
-                (int) child->m_override.size() );
+    qDebug() << QString("PNS: %1 items, %2 joints, %3 overrides")
+                .arg(child->m_index->Size())
+                .arg(child->m_joints.size())
+                .arg(child->m_override.size());
 #endif
 
     return child;
@@ -354,7 +333,7 @@ NODE::OPT_OBSTACLE NODE::NearestObstacle( const LINE* aLine,
 
         for( const auto& ip : intersectingPts )
         {
-            //debugDecorator->AddPoint( ip.p, ip.valid?3:6, 100000, (const char *) wxString::Format("obstacle-isect-point-%d" ).c_str() );
+            //debugDecorator->AddPoint( ip.p, ip.valid?3:6, 100000, QString("obstacle-isect-point-%1").arg(ip.index_their).toStdString().c_str() );
             if( ip.valid )
                 updateNearest( ip, obstacle );
         }
@@ -666,8 +645,7 @@ bool NODE::Add( std::unique_ptr< SEGMENT > aSegment, bool aAllowRedundant )
 {
     if( aSegment->Seg().A == aSegment->Seg().B )
     {
-        wxLogTrace( wxT( "PNS" ),
-                    wxT( "attempting to add a segment with same end coordinates, ignoring." ) );
+        qDebug() << "PNS: attempting to add a segment with same end coordinates, ignoring.";
         return false;
     }
 
@@ -1112,7 +1090,7 @@ const LINE NODE::AssembleLine( LINKED_ITEM* aSeg, int* aOriginSegmentIndex, bool
             // latter condition to avoid loops
             if( li == aSeg && aOriginSegmentIndex && !originSet )
             {
-                wxASSERT( n < line.SegmentCount() ||
+                Q_ASSERT( n < line.SegmentCount() ||
                           ( n == line.SegmentCount() && li->Kind() == ITEM::SEGMENT_T ) );
                 *aOriginSegmentIndex = line.PointCount() - 1;
                 originSet = true;
@@ -1129,7 +1107,7 @@ const LINE NODE::AssembleLine( LINKED_ITEM* aSeg, int* aOriginSegmentIndex, bool
     if( aOriginSegmentIndex && *aOriginSegmentIndex >= pl.SegmentCount() )
         *aOriginSegmentIndex = pl.SegmentCount() - 1;
 
-    wxASSERT_MSG( pl.SegmentCount() != 0, "assembled line should never be empty" );
+    Q_ASSERT( pl.SegmentCount() != 0 ); // assembled line should never be empty
 
     return pl;
 }
@@ -1351,12 +1329,12 @@ JOINT& NODE::touchJoint( const VECTOR2I& aPos, const PNS_LAYER_RANGE& aLayers, N
 
 void JOINT::Dump() const
 {
-    wxLogTrace( wxT( "PNS" ), wxT( "joint layers %d-%d, net %d, pos %s, links: %d" ),
-                m_layers.Start(),
-                m_layers.End(),
-                m_tag.net,
-                m_tag.pos.Format().c_str(),
-                LinkCount() );
+    qDebug() << QString("PNS: joint layers %1-%2, net %3, pos %4, links: %5")
+                .arg(m_layers.Start())
+                .arg(m_layers.End())
+                .arg(m_tag.net)
+                .arg(m_tag.pos.Format().c_str())
+                .arg(LinkCount());
 }
 
 
@@ -1406,7 +1384,7 @@ void NODE::Dump( bool aLong )
     {
         for( j = m_joints.begin(); j != m_joints.end(); ++j )
         {
-            wxLogTrace( wxT( "PNS" ), wxT( "joint : %s, links : %d\n" ),
+            qDebug() << "PNS: joint :" << joint->Pos().Format().c_str() << ", links :" << joint->LinkCount();
                         j->second.GetPos().Format().c_str(), j->second.LinkCount() );
             JOINT::LINKED_ITEMS::const_iterator k;
 
@@ -1419,7 +1397,7 @@ void NODE::Dump( bool aLong )
                 case ITEM::SEGMENT_T:
                     {
                         const SEGMENT* seg = static_cast<const SEGMENT*>( m_item );
-                        wxLogTrace( wxT( "PNS" ), wxT( " -> seg %s %s\n" ),
+                        qDebug() << "PNS:  -> seg" << via->GetLayer().c_str() << via->GetPos().Format().c_str();
                                     seg->GetSeg().A.Format().c_str(),
                                     seg->GetSeg().B.Format().c_str() );
                         break;
@@ -1443,16 +1421,16 @@ void NODE::Dump( bool aLong )
 
         if( aLong )
         {
-            wxLogTrace( wxT( "PNS" ), wxT( "Line: %s, net %d " ),
+            qDebug() << "PNS: Line:" << aLine->GetLine().Format().c_str() << ", net" << aLine->GetNet();
                         l->GetLine().Format().c_str(), l->GetNet() );
         }
 
         for( std::vector<SEGMENT*>::iterator j = seg_refs->begin(); j != seg_refs->end(); ++j )
         {
-            wxLogTrace( wxT( "PNS" ), wxT( "%s " ), (*j)->GetSeg().A.Format().c_str() );
+            qDebug() << (*j)->GetSeg().A.Format().c_str();
 
             if( j + 1 == seg_refs->end() )
-                wxLogTrace( wxT( "PNS" ), wxT( "%s\n" ), (*j)->GetSeg().B.Format().c_str() );
+                qDebug() << (*j)->GetSeg().B.Format().c_str();
 
             all_segs.erase( *j );
         }
@@ -1460,8 +1438,7 @@ void NODE::Dump( bool aLong )
         lines_count++;
     }
 
-    wxLogTrace( wxT( "PNS" ), wxT( "Local joints: %d, lines : %d \n" ),
-                m_joints.size(), lines_count );
+    qDebug() << "PNS: Local joints:" << m_joints.size() << ", lines :" << lines_count;
 #endif
 }
 

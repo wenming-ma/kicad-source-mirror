@@ -1,23 +1,3 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2015 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include "pns_node.h"
 #include "pns_itemset.h"
@@ -146,7 +126,7 @@ bool MEANDER_SKEW_PLACER::Move( const VECTOR2I& aP, ITEM* aEndItem )
     {
         if( const LINE* l = dyn_cast<const LINE*>( item ) )
         {
-            PNS_DBG( Dbg(), AddItem, l, BLUE, 10000, wxT( "tuned-path-skew-p" ) );
+            PNS_DBG( Dbg(), AddItem, l, BLUE, 10000, "tuned-path-skew-p" );
 
             m_router->GetInterface()->DisplayPathLine( l->CLine(), isPositive ? 1 : 0 );
         }
@@ -156,7 +136,7 @@ bool MEANDER_SKEW_PLACER::Move( const VECTOR2I& aP, ITEM* aEndItem )
     {
         if( const LINE* l = dyn_cast<const LINE*>( item ) )
         {
-            PNS_DBG( Dbg(), AddItem, l, YELLOW, 10000, wxT( "tuned-path-skew-n" ) );
+            PNS_DBG( Dbg(), AddItem, l, YELLOW, 10000, "tuned-path-skew-n" );
 
             m_router->GetInterface()->DisplayPathLine( l->CLine(), isPositive ? 0 : 1 );
         }

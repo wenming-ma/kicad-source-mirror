@@ -1,23 +1,5 @@
-/*
- * KiRouter - a push-and-(sometimes-)shove PCB router
- *
- * Copyright (C) 2013-2014 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+#include <QString>
 
 #include "pns_arc.h"
 
@@ -250,7 +232,7 @@ bool DRAGGER::Start( const VECTOR2I& aP, ITEM_SET& aPrimitives )
 
     startItem->Unmark( MK_LOCKED );
 
-    PNS_DBG( Dbg(), Message, wxString::Format( "StartDragging: item %p [kind %d]",
+    PNS_DBG( Dbg(), Message, QString::asprintf( "StartDragging: item %p [kind %d]",
                                                startItem, (int) startItem->Kind() ) );
 
     switch( startItem->Kind() )
@@ -497,16 +479,16 @@ void DRAGGER::optimizeAndUpdateDraggedLine( LINE& aDragged, const LINE& aOrig, c
         if( !affectedArea )
             affectedArea = BOX2I( aP ); // No valid area yet? set to minimum to disable optimization
 
-        PNS_DBG( Dbg(), AddPoint, anchor, YELLOW, 100000, wxT( "drag-anchor" ) );
-        PNS_DBG( Dbg(), AddShape, *affectedArea, RED, 0, wxT( "drag-affected-area" ) );
+        PNS_DBG( Dbg(), AddPoint, anchor, YELLOW, 100000, "drag-anchor" );
+        PNS_DBG( Dbg(), AddShape, *affectedArea, RED, 0, "drag-affected-area" );
 
         optimizer.SetRestrictArea( *affectedArea );
 
-        PNS_DBG( Dbg(), AddItem, aDragged.Clone(), RED, 0, wxT( "drag-preopt" ) );
+        PNS_DBG( Dbg(), AddItem, aDragged.Clone(), RED, 0, "drag-preopt" );
         aDragged.Line().Split( anchor );
 
         optimizer.Optimize( &aDragged, &draggedPostOpt, &origLine );
-        PNS_DBG( Dbg(), AddItem, aDragged.Clone(), GREEN, 0, wxT( "drag-postopt" ) );
+        PNS_DBG( Dbg(), AddItem, aDragged.Clone(), GREEN, 0, "drag-postopt" );
     }
     else
     {
@@ -589,8 +571,8 @@ bool DRAGGER::dragWalkaround( const VECTOR2I& aP )
 
         if( ok )
         {
-            PNS_DBG( Dbg(), AddShape, &origLine.CLine(), BLUE, 50000, wxT( "drag-orig-line" ) );
-            PNS_DBG( Dbg(), AddShape, &draggedWalk.CLine(), CYAN, 75000, wxT( "drag-walk" ) );
+            PNS_DBG( Dbg(), AddShape, &origLine.CLine(), BLUE, 50000, "drag-orig-line" );
+            PNS_DBG( Dbg(), AddShape, &draggedWalk.CLine(), CYAN, 75000, "drag-walk" );
             m_lastNode->Remove( origLine );
             optimizeAndUpdateDraggedLine( draggedWalk, origLine, aP );
         }
@@ -682,14 +664,14 @@ bool DRAGGER::dragShove( const VECTOR2I& aP )
 
         SHOVE::SHOVE_STATUS st = m_shove->Run(); //ShoveDraggingVia( m_draggedVia, aP, newVia );
 
-            PNS_DBG( Dbg(), Message, wxString::Format("head-mod %d",
+            PNS_DBG( Dbg(), Message, QString::asprintf("head-mod %d",
                 m_shove->HeadsModified() ? 1:  0 ) );
 
             if( m_shove->HeadsModified() )
             {
                 newVia = m_shove->GetModifiedHeadVia( 0 );
 
-                PNS_DBG( Dbg(), Message, wxString::Format("newvia %d %d %d %d",
+                PNS_DBG( Dbg(), Message, QString::asprintf("newvia %d %d %d %d",
                         newVia.pos.x,
                         newVia.pos.y,
                         newVia.layers.Start(),
