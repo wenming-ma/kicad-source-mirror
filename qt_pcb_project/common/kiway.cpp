@@ -283,7 +283,8 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
             // KIFACE_GETTER_FUNC function comment (API) says the non-NULL is unconditional.
             Q_ASSERT_X( kiface, "KIWAY::KiFACE", "attempted DSO has a bug, failed to return a KIFACE*" );
 
-            void* dsoHandle = dso.handle();
+            // Qt QLibrary doesn't expose handle() method directly - not needed for current functionality
+            // void* dsoHandle = dso.handle();
 
             bool startSuccess = false;
 
@@ -393,7 +394,7 @@ KIWAY_PLAYER* KIWAY::GetPlayerFrame( FRAME_T aFrameType )
 }
 
 
-KIWAY_PLAYER* KIWAY::Player( FRAME_T aFrameType, bool doCreate, QWidget* aParent )
+KIWAY_PLAYER* KIWAY::Player( FRAME_T aFrameType, bool doCreate, QMainWindow* aParent )
 {
     // Since this will be called from python, cannot assume that code will
     // not pass a bad aFrameType.
@@ -546,9 +547,9 @@ void KIWAY::SetLanguage( int aLanguage )
             if( aLanguage == LanguagesList[ii].m_KI_Lang_Identifier )
             {
                 if( LanguagesList[ii].m_DoNotTranslate )
-                    lang = QString::fromUtf8( LanguagesList[ii].m_Lang_Label );
+                    lang = LanguagesList[ii].m_Lang_Label;
                 else
-                    lang = QString::fromUtf8( LanguagesList[ii].m_Lang_Label );
+                    lang = _( LanguagesList[ii].m_Lang_Label.toUtf8().data() );
 
                 break;
             }
@@ -578,7 +579,7 @@ void KIWAY::SetLanguage( int aLanguage )
         if ( top )
         {
             top->ShowChangedLanguage();
-            QEvent e( QEvent::Type( EDA_LANG_CHANGED ) );
+            QEvent e( EDA_LANG_CHANGED );
             QCoreApplication::sendEvent( top, &e );
         }
     }
@@ -591,7 +592,7 @@ void KIWAY::SetLanguage( int aLanguage )
         if( frame )
         {
             frame->ShowChangedLanguage();
-            QEvent e( QEvent::Type( EDA_LANG_CHANGED ) );
+            QEvent e( EDA_LANG_CHANGED );
             QCoreApplication::sendEvent( frame, &e );
         }
     }
@@ -726,7 +727,7 @@ void KIWAY::OnKiCadExit()
         EDA_BASE_FRAME* top = static_cast<EDA_BASE_FRAME*>( m_top );
 
         if( top )
-            top->Close( false );
+            top->close();
     }
 }
 

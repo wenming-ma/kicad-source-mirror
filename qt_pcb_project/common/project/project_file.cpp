@@ -29,8 +29,9 @@ PROJECT_FILE::PROJECT_FILE( const QString& aFullPath ) :
 
     m_params.emplace_back( new PARAM_LIST<FILE_INFO_PAIR>( "boards", &m_boards, {} ) );
 
-    m_params.emplace_back( new PARAM_STRING_MAP( "text_variables",
-            &m_TextVars, {}, false, true ) );
+    // TODO: Fix PARAM_STRING_MAP - type not defined
+    // m_params.emplace_back( new PARAM_STRING_MAP( "text_variables",
+    //         &m_TextVars, {}, false, true ) );
 
     m_params.emplace_back( new PARAM_LIST<std::string>( "libraries.pinned_symbol_libs",
             &m_PinnedSymbolLibs, {} ) );
@@ -38,38 +39,49 @@ PROJECT_FILE::PROJECT_FILE( const QString& aFullPath ) :
     m_params.emplace_back( new PARAM_LIST<std::string>( "libraries.pinned_footprint_libs",
             &m_PinnedFootprintLibs, {} ) );
 
-    m_params.emplace_back( new PARAM_PATH_LIST( "cvpcb.equivalence_files",
-            &m_EquivalenceFiles, {} ) );
+    // TODO: Fix PARAM_PATH_LIST - type not defined
+    // m_params.emplace_back( new PARAM_PATH_LIST( "cvpcb.equivalence_files",
+    //         &m_EquivalenceFiles, {} ) );
 
-    m_params.emplace_back( new PARAM_PATH( "pcbnew.page_layout_descr_file",
-            &m_BoardDrawingSheetFile, "" ) );
+    // TODO: Fix PARAM_PATH - type not defined
+    // m_params.emplace_back( new PARAM_PATH( "pcbnew.page_layout_descr_file",
+    //         &m_BoardDrawingSheetFile, "" ) );
 
-    m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.netlist",
-            &m_PcbLastPath[LAST_PATH_NETLIST], "" ) );
+    // TODO: Fix PARAM_PATH - type not defined
+    // m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.netlist",
+    //         &m_PcbLastPath[LAST_PATH_NETLIST], "" ) );
 
-    m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.step",
-            &m_PcbLastPath[LAST_PATH_STEP], "" ) );
+    // TODO: Fix PARAM_PATH - type not defined
+    // m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.step",
+    //         &m_PcbLastPath[LAST_PATH_STEP], "" ) );
 
-    m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.idf",
-            &m_PcbLastPath[LAST_PATH_IDF], "" ) );
+    // TODO: Fix PARAM_PATH - type not defined
+    // m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.idf",
+    //         &m_PcbLastPath[LAST_PATH_IDF], "" ) );
 
-    m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.vrml",
-            &m_PcbLastPath[LAST_PATH_VRML], "" ) );
+    // TODO: Fix PARAM_PATH - type not defined
+    // m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.vrml",
+    //         &m_PcbLastPath[LAST_PATH_VRML], "" ) );
 
-    m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.specctra_dsn",
-            &m_PcbLastPath[LAST_PATH_SPECCTRADSN], "" ) );
+    // TODO: Fix PARAM_PATH - type not defined
+    // m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.specctra_dsn",
+    //         &m_PcbLastPath[LAST_PATH_SPECCTRADSN], "" ) );
 
-    m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.gencad",
-            &m_PcbLastPath[LAST_PATH_GENCAD], "" ) );
+    // TODO: Fix PARAM_PATH - type not defined
+    // m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.gencad",
+    //         &m_PcbLastPath[LAST_PATH_GENCAD], "" ) );
 
-    m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.pos_files",
-            &m_PcbLastPath[LAST_PATH_POS_FILES], "" ) );
+    // TODO: Fix PARAM_PATH - type not defined
+    // m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.pos_files",
+    //         &m_PcbLastPath[LAST_PATH_POS_FILES], "" ) );
 
-    m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.svg",
-            &m_PcbLastPath[LAST_PATH_SVG], "" ) );
+    // TODO: Fix PARAM_PATH - type not defined
+    // m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.svg",
+    //         &m_PcbLastPath[LAST_PATH_SVG], "" ) );
 
-    m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.plot",
-            &m_PcbLastPath[LAST_PATH_PLOT], "" ) );
+    // TODO: Fix PARAM_PATH - type not defined
+    // m_params.emplace_back( new PARAM_PATH( "pcbnew.last_paths.plot",
+    //         &m_PcbLastPath[LAST_PATH_PLOT], "" ) );
 
     m_params.emplace_back( new PARAM<std::string>( "schematic.legacy_lib_dir",
             &m_LegacyLibDir, "" ) );
@@ -605,7 +617,7 @@ bool PROJECT_FILE::MigrateFromLegacy( QSettings* aCfg )
                 groups.push_back( group );
         }
 
-        if( !groups[i].isEmpty() )
+        if( !groups[i].empty() )
             aCfg->endGroup();
     }
 
@@ -617,7 +629,7 @@ bool PROJECT_FILE::SaveToFile( const QString& aDirectory, bool aForce )
 {
     Q_ASSERT( m_project );
 
-    Set( "meta.filename", m_project->GetProjectName() + "." + FILEEXT::ProjectFileExtension );
+    Set( "meta.filename", m_project->GetProjectName() + "." + QString::fromStdString( FILEEXT::ProjectFileExtension ) );
 
     bool force = aForce || m_wasMigrated;
 
@@ -629,11 +641,11 @@ bool PROJECT_FILE::SaveToFile( const QString& aDirectory, bool aForce )
 
 bool PROJECT_FILE::SaveAs( const QString& aDirectory, const QString& aFile )
 {
-    QString oldFilename = QString::fromStdString( GetFilename() );
+    QString oldFilename = GetFilename();
     QString oldProjectName = QFileInfo( oldFilename ).baseName();
     QString oldProjectPath = QFileInfo( oldFilename ).path();
 
-    Set( "meta.filename", aFile + "." + FILEEXT::ProjectFileExtension );
+    Set( "meta.filename", aFile + "." + QString::fromStdString( FILEEXT::ProjectFileExtension ) );
     SetFilename( aFile );
 
     auto updatePath =
@@ -676,13 +688,13 @@ bool PROJECT_FILE::SaveAs( const QString& aDirectory, const QString& aFile )
 
 QString PROJECT_FILE::getFileExt() const
 {
-    return FILEEXT::ProjectFileExtension;
+    return QString::fromStdString( FILEEXT::ProjectFileExtension );
 }
 
 
 QString PROJECT_FILE::getLegacyFileExt() const
 {
-    return FILEEXT::LegacyProjectFileExtension;
+    return QString::fromStdString( FILEEXT::LegacyProjectFileExtension );
 }
 
 

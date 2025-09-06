@@ -2,9 +2,19 @@
 #ifndef  PANELGAL_QTSTRUCT_H
 #define  PANELGAL_QTSTRUCT_H
 
-#include <QWidget>
-#include <QTimer>
-#include <QScrollArea>
+#include <QtWidgets/QWidget>
+#include <QtCore/QTimer>
+#include <QtWidgets/QScrollArea>
+#include <QtCore/QEvent>
+#include <QtGui/QPaintEvent>
+#include <QtGui/QResizeEvent>
+#include <QtGui/QMouseEvent>
+#include <QtGui/QFocusEvent>
+#include <QtCore/QTimerEvent>
+#include <QtGui/QShowEvent>
+#include <QtCore/QPoint>
+#include <QtCore/QSize>
+#include <QtCore/QRect>
 #include <math/box2.h>
 #include <math/vector2d.h>
 #include <widgets/msgpanel.h>

@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <harfbuzz/hb.h>
 #include <harfbuzz/hb-ft.h>
+#include <hash.h>
 #include <bezier_curves.h>
 #include <geometry/shape_poly_set.h>
 #include <font/fontconfig.h>
@@ -298,11 +299,17 @@ struct GLYPH_CACHE_KEY {
     }
 };
 
-
-uint qHash(const GLYPH_CACHE_KEY& k)
-{
-    return hash_val( k.face, k.codepoint, k.scale.x, k.scale.y, k.forDrawingSheet,
-                     k.fakeItalic, k.fakeBold, k.mirror, k.supersub, k.angle.AsDegrees() );
+// Specialization of std::hash for GLYPH_CACHE_KEY to be used with std::unordered_map
+namespace std {
+    template<>
+    struct hash<GLYPH_CACHE_KEY>
+    {
+        std::size_t operator()(const GLYPH_CACHE_KEY& k) const
+        {
+            return hash_val( k.face, k.codepoint, k.scale.x, k.scale.y, k.forDrawingSheet,
+                             k.fakeItalic, k.fakeBold, k.mirror, k.supersub, k.angle.AsDegrees() );
+        }
+    };
 }
 
 

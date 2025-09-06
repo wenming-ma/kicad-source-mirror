@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <QString>
+#include <QHash>
+#include <hashtables.h>
 
 #include <board_item.h>
 

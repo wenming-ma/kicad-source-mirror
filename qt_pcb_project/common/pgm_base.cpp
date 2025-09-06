@@ -11,6 +11,7 @@
 #include <QTranslator>
 #include <QLibraryInfo>
 #include <QToolTip>
+#include <QSharedMemory>
 
 #include <advanced_config.h>
 #include <background_jobs_monitor.h>
@@ -85,11 +86,12 @@ LANGUAGE_DESCR LanguagesList[] =
 };
 // Re-enable translation after static initialization
 #undef _
+#define _( s ) QCoreApplication::translate( "", (s) )
 
 
 PGM_BASE::PGM_BASE()
 {
-    m_locale = QLocale::AnyLanguage;
+    m_language_id = static_cast<int>(QLocale::AnyLanguage);
     m_translator = nullptr;
     m_Printing = false;
     m_Quitting = false;
@@ -98,7 +100,7 @@ PGM_BASE::PGM_BASE()
     m_splash = nullptr;
     m_PropertyGridInitialized = false;
 
-    setLanguageId( QLocale::AnyLanguage );
+    setLanguageId( static_cast<int>(QLocale::AnyLanguage) );
 
     ForceSystemPdfBrowser( false );
 }
@@ -133,7 +135,7 @@ void PGM_BASE::Destroy()
 }
 
 
-QApplication& PGM_BASE::App()
+QCoreApplication& PGM_BASE::App()
 {
     Q_ASSERT( qApp );
     return *qApp;
@@ -448,14 +450,15 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
     QString instanceCheckerName = QString( "%1-%2" ).arg( pgm_name )
                                                     .arg( GetMajorMinorVersion() );
 
-    m_pgm_checker = std::make_unique<QSharedMemory>( instanceCheckerName );
-    if( !m_pgm_checker->create( 1 ) )
+    QSharedMemory* sharedMem = new QSharedMemory( instanceCheckerName );
+    if( !sharedMem->create( 1 ) )
     {
-        if( m_pgm_checker->error() == QSharedMemory::AlreadyExists )
+        if( sharedMem->error() == QSharedMemory::AlreadyExists )
         {
-            m_pgm_checker->attach();
+            sharedMem->attach();
         }
     }
+    m_pgm_checker.reset( sharedMem );
 
     QString kicadEnv = qEnvironmentVariable( "KICAD" );
     bool isDefined = !kicadEnv.isEmpty();
@@ -549,7 +552,7 @@ void PGM_BASE::loadCommonSettings()
 {
     m_text_editor = GetCommonSettings()->m_System.text_editor;
 
-    for( const std::pair<QString, ENV_VAR_ITEM> it : GetCommonSettings()->m_Env.vars )
+    for( const std::pair<const QString, ENV_VAR_ITEM>& it : GetCommonSettings()->m_Env.vars )
     {
         qDebug() << QString( "PGM_BASE::loadSettings: Found entry %1 = %2" )
                     .arg( it.first, it.second.GetValue() );
@@ -585,7 +588,7 @@ bool PGM_BASE::SetLanguage( QString& aErrMsg, bool first_time )
 {
     if( first_time )
     {
-        setLanguageId( QLocale::AnyLanguage );
+        setLanguageId( static_cast<int>(QLocale::AnyLanguage) );
 
         QString languageSel = GetCommonSettings()->m_System.language;
 
@@ -604,14 +607,13 @@ bool PGM_BASE::SetLanguage( QString& aErrMsg, bool first_time )
     delete m_translator;
     m_translator = new QTranslator;
 
-    QLocale locale( m_language_id );
+    QLocale locale( static_cast<QLocale::Language>(m_language_id) );
     if( !m_translator->load( locale, dictionaryName, "_", GetLanguagePath() ) )
     {
         qDebug() << "This language is not supported by the system.";
 
-        setLanguageId( QLocale::AnyLanguage );
+        setLanguageId( static_cast<int>(QLocale::AnyLanguage) );
         delete m_translator;
-
         m_translator = new QTranslator;
         QLocale::setDefault( QLocale::system() );
 
@@ -650,7 +652,7 @@ bool PGM_BASE::SetLanguage( QString& aErrMsg, bool first_time )
 
 bool PGM_BASE::SetDefaultLanguage( QString& aErrMsg )
 {
-    setLanguageId( QLocale::AnyLanguage );
+    setLanguageId( static_cast<int>(QLocale::AnyLanguage) );
 
     QString dictionaryName( "kicad" );
 
@@ -659,14 +661,13 @@ bool PGM_BASE::SetDefaultLanguage( QString& aErrMsg )
     QLocale::setDefault( QLocale::system() );
 
     if( !m_translator->load( QLocale::system(), dictionaryName, "_", GetLanguagePath() ) 
-        && m_language_id != QLocale::English )
+        && m_language_id != static_cast<int>(QLocale::English) )
     {
         qDebug() << QString( "Unable to load dictionary %1.qm in %2" )
                     .arg( dictionaryName, GetLanguagePath() );
 
-        setLanguageId( QLocale::AnyLanguage );
+        setLanguageId( static_cast<int>(QLocale::AnyLanguage) );
         delete m_translator;
-
         m_translator = new QTranslator;
         QLocale::setDefault( QLocale::system() );
 
@@ -697,7 +698,7 @@ void PGM_BASE::SetLanguageIdentifier( int menu_id )
 
 QString PGM_BASE::GetLanguageTag()
 {
-    QLocale locale( m_language_id );
+    QLocale locale( static_cast<QLocale::Language>(m_language_id) );
     QString str = locale.name();
     str.replace( "_", "-" );
     return str;
@@ -759,7 +760,7 @@ bool PGM_BASE::SetLocalEnvVariable( const QString& aName, const QString& aValue 
 
 void PGM_BASE::SetLocalEnvVariables()
 {
-    for( const std::pair<QString, ENV_VAR_ITEM> m_local_env_var : GetCommonSettings()->m_Env.vars )
+    for( const std::pair<const QString, ENV_VAR_ITEM>& m_local_env_var : GetCommonSettings()->m_Env.vars )
     {
         qDebug() << QString( "PGM_BASE::SetLocalEnvVariables: Setting local environment variable %1 "
                          "to %2" ).arg( m_local_env_var.first,

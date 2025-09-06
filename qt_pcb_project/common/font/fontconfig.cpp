@@ -4,7 +4,6 @@
 #include <font/fontconfig.h>
 #include <QString>
 #include <QStringList>
-#include <QTextCodec>
 #include <trace_helpers.h>
 #include <string_utils.h>
 #include <macros.h>
@@ -12,9 +11,11 @@
 #include <reporter.h>
 #include <embedded_files.h>
 
-#ifdef __WIN32__
+#if defined(__WIN32__) || defined(_MSC_VER)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <winnt.h>
+#include <excpt.h>
 #endif
 
 using namespace fontconfig;
@@ -432,7 +433,7 @@ void FONTCONFIG::ListFonts( std::vector<std::string>& aFonts, const std::string&
         if( fs )
             FcFontSetDestroy( fs );
 
-        m_fontCacheLastLang = aDesiredLang;
+        m_fontCacheLastLang = QString::fromStdString(aDesiredLang);
     }
 
     for( const std::pair<const std::string, FONTINFO>& entry : m_fontInfoCache )

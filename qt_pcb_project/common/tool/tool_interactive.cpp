@@ -12,6 +12,9 @@
 
 #include <QLoggingCategory>
 
+// Define Qt logging category for tool stack
+Q_LOGGING_CATEGORY(kicadTraceToolStackCategory, "KICAD_TOOL_STACK")
+
 
 TOOL_INTERACTIVE::TOOL_INTERACTIVE( TOOL_ID aId, const std::string& aName ) :
     TOOL_BASE( INTERACTIVE, aId, aName )
@@ -60,7 +63,7 @@ void TOOL_INTERACTIVE::resetTransitions()
 
 void TOOL_INTERACTIVE::goInternal( TOOL_STATE_FUNC& aState, const TOOL_EVENT_LIST& aConditions )
 {
-    qCDebug(kicadTraceToolStack,
+    qCDebug(kicadTraceToolStackCategory,
             "TOOL_INTERACTIVE::goInternal: Tool '%s', Registering handler for "
             "actions '%s'",
             GetName(), aConditions.Names());

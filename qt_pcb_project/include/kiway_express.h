@@ -22,7 +22,7 @@ public:
     std::string&  GetPayload() { return m_payload; }
     void SetPayload( const std::string& aPayload ) { m_payload = aPayload; }
 
-    KIWAY_EXPRESS* Clone() const override { return new KIWAY_EXPRESS( *this ); }
+    KIWAY_EXPRESS* Clone() const { return new KIWAY_EXPRESS( *this ); }
 
     //KIWAY_EXPRESS() {}
 
@@ -32,7 +32,7 @@ public:
     KIWAY_EXPRESS( const KIWAY_EXPRESS& anOther );
 
     /// The QEvent::Type argument to QEvent() and identifies an event class
-    static const QEvent::Type KIWAY_EXPRESS_EVENT;
+    static const int QT_EVENT_ID;
 
 
 private:

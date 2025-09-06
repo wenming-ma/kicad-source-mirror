@@ -28,6 +28,7 @@
 #include <tool/actions.h>
 #include <view/view.h>
 #include <view/view_controls.h>
+#include <Qt>
 
 using namespace KIGFX;
 
@@ -74,8 +75,8 @@ void VC_SETTINGS::Reset()
     m_zoomSpeed                       = 5;
     m_zoomSpeedAuto                   = true;
     m_scrollModifierZoom              = 0;
-    m_scrollModifierPanH              = WXK_CONTROL;
-    m_scrollModifierPanV              = WXK_SHIFT;
+    m_scrollModifierPanH              = Qt::Key_Control;
+    m_scrollModifierPanV              = Qt::Key_Shift;
     m_dragLeft                        = MOUSE_DRAG_ACTION::NONE;
     m_dragMiddle                      = MOUSE_DRAG_ACTION::PAN;
     m_dragRight                       = MOUSE_DRAG_ACTION::PAN;

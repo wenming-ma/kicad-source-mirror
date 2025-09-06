@@ -4,6 +4,7 @@
 
 #include <QMainWindow>
 #include <QTimer>
+#include <QAction>
 #include <QtNetwork/QTcpServer>
 #include <QtNetwork/QTcpSocket>
 
@@ -82,7 +83,7 @@ protected:
 
     void kiway_express( KIWAY_EXPRESS& aEvent );
 
-    void language_change();
+    void language_change( QAction* action );
 
     // variables for modal behavior support, only used by a few derivatives.
     bool            m_modal;        // true if frame is intended to be modal, not modeless

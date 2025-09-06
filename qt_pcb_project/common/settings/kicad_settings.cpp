@@ -51,8 +51,8 @@ KICAD_SETTINGS::KICAD_SETTINGS() :
 
                 for( const auto& pair : m_PcmRepositories )
                 {
-                    js.push_back( nlohmann::json( { { "name", pair.first.ToUTF8() },
-                                                    { "url", pair.second.ToUTF8() } } ) );
+                    js.push_back( nlohmann::json( { { "name", pair.first.toStdString() },
+                                                    { "url", pair.second.toStdString() } } ) );
                 }
 
                 return js;

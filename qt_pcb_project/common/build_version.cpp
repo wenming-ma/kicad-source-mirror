@@ -3,6 +3,8 @@
 #include <QSysInfo>
 #include <QLocale>
 #include <QByteArray>
+#include <QChar>
+#include <QtGlobal>
 #include <config.h>
 #include <boost/version.hpp>
 #include <kiplatform/app.h>
@@ -18,7 +20,9 @@
 extern std::string GetKicadCurlVersion();
 extern std::string GetCurlLibVersion();
 
+#ifdef KICAD_USE_OCC
 #include <Standard_Version.hxx>
+#endif
 
 #include <ngspice/sharedspice.h>
 
@@ -218,7 +222,11 @@ QString GetVersionInfoData( const QString& aTitle, bool aHtml, bool aBrief )
                                                       .arg(BOOST_VERSION / 100 % 1000)
                                                       .arg(BOOST_VERSION % 100) + eol;
 
+#ifdef KICAD_USE_OCC
     aMsg += indent4 + "OCC: " + QString(OCC_VERSION_COMPLETE) + eol;
+#else
+    aMsg += indent4 + "OCC: Not Available" + eol;
+#endif
     aMsg += indent4 + "Curl: " + QString::fromStdString(GetCurlLibVersion()) + eol;
 
 #if defined( NGSPICE_BUILD_VERSION )

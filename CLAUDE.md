@@ -22,7 +22,11 @@ Orchestrate multiple qt-compatibility-fixer agents (up to 10 in parallel) to fix
 
 1. **Parse Errors** - Extract files, line numbers, error types from user input
 2. **Group Logically** - By file or error pattern  
-3. **Dispatch Agents** - Up to 10 parallel agents with specific error assignments
+3. **Dispatch Agents** - Up to 10 parallel agents with **COMPLETE ERROR MESSAGES**
+   - Pass ENTIRE error output to each agent
+   - Include ALL context: file paths, line numbers, error codes, messages
+   - Provide complete errors PLUS your analysis/summary when helpful
+   - Add pattern recognition and grouping insights
 4. **Track Progress** - Use TodoWrite to monitor completion
 
 ## Error Prioritization
@@ -55,7 +59,12 @@ Agent 2 → All Length() errors [file:line list]
 
 ## ERROR PASSING RULE
 
-**Pass user error messages VERBATIM to agents** - preserve original language, format, error codes, line numbers. Never translate or modify.
+**CRITICAL: Pass COMPLETE error messages to qt-compatibility-fixer agents**
+- **VERBATIM**: Preserve original language, format, error codes, line numbers
+- **COMPLETE**: Include ENTIRE error output, not just summaries
+- **UNMODIFIED**: Never translate, truncate, or paraphrase the actual errors
+- **CONTEXTUAL**: Include surrounding build output when relevant
+- **ENHANCED**: Can ADD analysis/summary AFTER complete errors (never replace)
 
 ## Agent Task Template
 
@@ -77,9 +86,16 @@ Instructions:
 6. Report back when complete with summary
 
 Expected Errors to Fix:
-[PASS USER-PROVIDED ERROR MESSAGES VERBATIM - DO NOT MODIFY OR TRANSLATE]
-[INCLUDE EXACT ERROR TEXT IN ORIGINAL LANGUAGE]
-[PRESERVE ALL ERROR CODES, LINE NUMBERS, FILE PATHS]
+[PASS COMPLETE ERROR MESSAGES TO qt-compatibility-fixer]
+[INCLUDE ENTIRE BUILD OUTPUT FOR EACH ERROR]
+[PRESERVE EXACT ERROR TEXT IN ORIGINAL LANGUAGE]
+[INCLUDE ALL: ERROR CODES, LINE NUMBERS, FILE PATHS, CONTEXT]
+[PROVIDE FULL ERROR DETAILS FIRST, THEN ADD SUMMARY/ANALYSIS]
+
+Additional Context (Optional):
+[Your analysis of error patterns]
+[Grouping rationale and insights]
+[Suggested fix approaches]
 
 Success Criteria:
 - All assigned files compile successfully

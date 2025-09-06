@@ -499,7 +499,7 @@ bool PROJECT_LOCAL_SETTINGS::SaveToFile( const QString& aDirectory, bool aForce 
     Q_ASSERT( m_project );
 
     Set( "meta.filename",
-         m_project->GetProjectName() + "." + FILEEXT::ProjectLocalSettingsFileExtension );
+         m_project->GetProjectName() + "." + QString::fromStdString( FILEEXT::ProjectLocalSettingsFileExtension ) );
 
     // Even if parameters were not modified, we should resave after migration
     bool force = aForce || m_wasMigrated;
@@ -514,7 +514,7 @@ bool PROJECT_LOCAL_SETTINGS::SaveToFile( const QString& aDirectory, bool aForce 
 
 bool PROJECT_LOCAL_SETTINGS::SaveAs( const QString& aDirectory, const QString& aFile )
 {
-    Set( "meta.filename", aFile + "." + FILEEXT::ProjectLocalSettingsFileExtension );
+    Set( "meta.filename", aFile + "." + QString::fromStdString( FILEEXT::ProjectLocalSettingsFileExtension ) );
     SetFilename( aFile );
 
     // If we're actually going ahead and doing the save, the flag that keeps code from doing the

@@ -432,7 +432,7 @@ std::vector<COLOR_SETTINGS*> COLOR_SETTINGS::CreateBuiltinColorSettings()
 
     classicTheme->m_params.clear(); // Disable load/store
 
-    for( const std::pair<int, COLOR4D> entry : s_classicTheme )
+    for( const std::pair<const int, COLOR4D>& entry : s_classicTheme )
         classicTheme->m_colors[entry.first] = entry.second;
 
     std::vector<COLOR_SETTINGS*> ret;

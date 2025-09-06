@@ -469,7 +469,7 @@ void BOARD::GetContextualTextVars( QStringList* aVars ) const
 
     if( GetProject() )
     {
-        for( std::pair<QString, QString> entry : GetProject()->GetTextVars() )
+        for( const std::pair<const std::string, std::string>& entry : GetProject()->GetTextVars() )
             add( entry.first );
     }
 }

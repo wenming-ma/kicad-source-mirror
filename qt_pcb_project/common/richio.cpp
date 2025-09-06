@@ -7,11 +7,13 @@
 #include <errno.h>
 #include <advanced_config.h>
 #include <io/kicad/kicad_io_utils.h>
+#include <i18n_utility.h>
 
 #include <QFile>
 #include <QFileInfo>
 #include <QTextStream>
 #include <QIODevice>
+#include <QStringConverter>
 
 
 // Fall back to getc() when getc_unlocked() is not available on the target platform.
@@ -94,16 +96,16 @@ QString SafeReadFile( const QString& aFilePath, const QString& aReadType )
 
     QTextStream stream( &file );
     if( utf16le )
-        stream.setCodec( "UTF-16LE" );
+        stream.setEncoding( QStringConverter::Utf16LE );
     else
-        stream.setCodec( "UTF-8" );
+        stream.setEncoding( QStringConverter::Utf8 );
 
     contents = stream.readAll();
 
     if( contents.isEmpty() )
     {
         file.seek( 0 );
-        stream.setCodec( "windows-1252" );
+        stream.setEncoding( QStringConverter::Latin1 );
         contents = stream.readAll();
     }
 
@@ -316,7 +318,7 @@ char* STRING_LINE_READER::ReadLine()
 }
 
 
-INPUTSTREAM_LINE_READER::INPUTSTREAM_LINE_READER( QIODevice* aStream,
+INPUTSTREAM_LINE_READER::INPUTSTREAM_LINE_READER( QTextStream* aStream,
                                                   const QString& aSource ) :
     LINE_READER( LINE_READER_LINE_DEFAULT_MAX ),
     m_stream( aStream )
@@ -337,12 +339,13 @@ char* INPUTSTREAM_LINE_READER::ReadLine()
         if( m_length + 1 > m_capacity )
             expandCapacity( m_capacity * 2 );
 
-        // this read may fail, docs say to test bytesAvailable() before trusting cc.
-        char cc;
-        qint64 bytesRead = m_stream->read( &cc, 1 );
-
-        if( bytesRead != 1 )
+        // this read may fail, docs say to test atEnd() before trusting cc.
+        if( m_stream->atEnd() )
             break;
+            
+        QChar qc;
+        *m_stream >> qc;
+        char cc = qc.toLatin1();
 
         m_line[ m_length++ ] = cc;
 

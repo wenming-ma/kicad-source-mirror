@@ -3,6 +3,7 @@
 
 #include <QString>
 #include <pcb_textbox.h>
+#include <i18n_utility.h>
 
 
 class PCB_TABLECELL : public PCB_TEXTBOX

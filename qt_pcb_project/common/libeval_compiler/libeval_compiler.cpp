@@ -442,7 +442,7 @@ bool COMPILER::lexDefault( T_TOKEN& aToken )
             [&]()
             {
                 bool      haveSeparator = false;
-                QChar ch = m_tokenizer.GetChar();
+                QChar ch = QChar(m_tokenizer.GetChar());
 
                 do
                 {
@@ -455,13 +455,13 @@ bool COMPILER::lexDefault( T_TOKEN& aToken )
                         haveSeparator = true;
 
                     m_tokenizer.NextChar();
-                    ch = m_tokenizer.GetChar();
+                    ch = QChar(m_tokenizer.GetChar());
                 } while( ch.isDigit() || isDecimalSeparator( ch ) );
 
                 for( int i = current.length(); i; i-- )
                 {
                     if( isDecimalSeparator( current[i - 1] ) )
-                        current[i - 1] = m_localeDecimalSeparator;
+                        current[i - 1] = QChar(m_localeDecimalSeparator);
                 }
             };
 
@@ -469,7 +469,7 @@ bool COMPILER::lexDefault( T_TOKEN& aToken )
 
     for( ;; )
     {
-        ch = m_tokenizer.GetChar();
+        ch = QChar(m_tokenizer.GetChar());
 
         if( ch == ' ' )
             m_tokenizer.NextChar();

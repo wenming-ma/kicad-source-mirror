@@ -67,7 +67,7 @@ void PARAM_LAYER_PRESET::jsonToPresets( const nlohmann::json& aJson )
     {
         if( preset.contains( "name" ) )
         {
-            LAYER_PRESET p( preset.at( "name" ).get<QString>() );
+            LAYER_PRESET p( preset.at( "name" ).get<std::string>() );
 
             if( preset.contains( "flipBoard" ) && preset.at( "flipBoard" ).is_boolean() )
             {
@@ -205,7 +205,7 @@ void PARAM_VIEWPORT::jsonToViewports( const nlohmann::json& aJson )
     {
         if( viewport.contains( "name" ) )
         {
-            VIEWPORT v( viewport.at( "name" ).get<QString>() );
+            VIEWPORT v( viewport.at( "name" ).get<std::string>() );
 
             if( viewport.contains( "x" ) )
                 v.rect.SetX( viewport.at( "x" ).get<double>() );
@@ -281,7 +281,7 @@ void PARAM_VIEWPORT3D::jsonToViewports( const nlohmann::json& aJson )
     {
         if( viewport.contains( "name" ) )
         {
-            VIEWPORT3D v( viewport.at( "name" ).get<QString>() );
+            VIEWPORT3D v( viewport.at( "name" ).get<std::string>() );
 
             if( viewport.contains( "xx" ) )
                 v.matrix[0].x = viewport.at( "xx" ).get<double>();
@@ -391,9 +391,9 @@ void PARAM_LAYER_PAIRS::jsonToLayerPairs( const nlohmann::json& aJson )
             if( pairJson.contains( "enabled" ) )
                 enabled = pairJson.at( "enabled" ).get<bool>();
 
-            std::optional<QString> name;
+            std::optional<std::string> name;
             if( pairJson.contains( "name" ) )
-                name = pairJson.at( "name" ).get<QString>();
+                name = pairJson.at( "name" ).get<std::string>();
 
             m_layerPairInfos.emplace_back( LAYER_PAIR_INFO( pair, enabled, std::move( name ) ) );
         }

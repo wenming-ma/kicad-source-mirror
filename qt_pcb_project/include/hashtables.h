@@ -6,6 +6,10 @@
 #include <unordered_map>
 
 #include <QString>
+#include <QHash>
+
+// Qt 6.9.1 already provides std::hash<QString> specialization
+// No need to define it manually
 
 // First some utility classes and functions
 

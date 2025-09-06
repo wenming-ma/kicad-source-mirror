@@ -8,8 +8,8 @@
 #include <QObject>
 #include <QString>
 #include <QMenu>
-#include <QList>
 #include <QAction>
+#include <QStringList>
 #include <vector>
 #include <string>
 
@@ -22,7 +22,7 @@ class FILE_HISTORY : public QObject
 
 public:
     FILE_HISTORY( size_t aMaxFiles, int aBaseFileId, int aClearId,
-            QString aClearText = tr( "Clear Recent Files" ) );
+            QString aClearText = QString() );
 
     void Load( const APP_SETTINGS_BASE& aSettings );
     void Load( const std::vector<std::string>& aList );
@@ -59,8 +59,8 @@ protected:
 private:
     static bool isHistoryNotEmpty( const SELECTION& aSelection, const FILE_HISTORY& aHistory );
 
-    std::vector<std::string> m_fileHistory;
-    QList<QMenu*>           m_fileMenus;
+    QStringList             m_fileHistory;
+    std::vector<QMenu*>     m_fileMenus;
     size_t      m_maxFiles;
     int         m_baseFileId;
     int         m_clearId;

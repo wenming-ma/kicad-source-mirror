@@ -6,9 +6,11 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
-#include <Qsci/qsciscintilla.h>
 #include <QKeyEvent>
 #include <functional>
+
+#ifdef HAVE_QSCINTILLA
+#include <Qsci/qsciscintilla.h>
 
 class SCINTILLA_TRICKS : public QObject
 {
@@ -58,5 +60,7 @@ protected:
     std::function<void( QKeyEvent& aEvent )>         m_onAcceptFn;
     std::function<void( QKeyEvent& aEvent )>         m_onCharAddedFn;
 };
+
+#endif // HAVE_QSCINTILLA
 
 #endif  // SCINTILLA_TRICKS_H

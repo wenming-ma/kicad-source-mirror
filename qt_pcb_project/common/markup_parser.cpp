@@ -41,9 +41,9 @@ std::string NODE::typeString() const
 }
 
 
-QString NODE::asWxString() const
+QString NODE::asQString() const
 {
-    return From_UTF8( string().c_str() );
+    return From_UTF8( string() );
 }
 
 

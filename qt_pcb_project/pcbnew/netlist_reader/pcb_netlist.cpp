@@ -74,7 +74,7 @@ void COMPONENT::Format( OUTPUTFORMATTER* aOut, int aNestLevel, int aCtl )
         // Add all fields as a (field) under a (fields) node
         aOut->Print( nl + 1, "(fields" );
 
-        for( std::pair<QString, QString> field : m_fields )
+        for( const std::pair<const QString, QString>& field : m_fields )
             aOut->Print( nl + 2, "\n(field (name %s) %s)", aOut->Quotew( field.first ).c_str(),
                          aOut->Quotew( field.second ).c_str() );
 

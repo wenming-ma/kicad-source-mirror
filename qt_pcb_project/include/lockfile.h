@@ -26,8 +26,8 @@ public:
 
         qDebug() << "Trying to lock" << filename;
         QFileInfo fn( filename );
-        QString lockName = FILEEXT::LockFilePrefix + fn.baseName();
-        QString lockExt = fn.suffix() + '.' + FILEEXT::LockFileExtension;
+        QString lockName = QString::fromStdString(FILEEXT::LockFilePrefix) + fn.baseName();
+        QString lockExt = fn.suffix() + QLatin1Char('.') + QString::fromStdString(FILEEXT::LockFileExtension);
         QString lockPath = fn.path() + "/" + lockName + "." + lockExt;
 
         QFileInfo dirInfo( fn.path() );

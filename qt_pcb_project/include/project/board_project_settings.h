@@ -10,6 +10,7 @@
 #include <json_common.h>
 #include <math/box2.h>
 #include <glm/glm.hpp>
+#include <string>
 #include <vector>
 
 
@@ -89,16 +90,16 @@ enum class RATSNEST_MODE
 
 struct KICOMMON_API IP2581_BOM
 {
-    QString mfg;       ///< Manufacturer name column
-    QString MPN;     ///< Manufacturer part number column
-    QString dist;      ///< Distributor name column
-    QString distPN;    ///< Distributor part number column
-    QString id;        ///< Internal ID column
+    std::string mfg;       ///< Manufacturer name column
+    std::string MPN;     ///< Manufacturer part number column
+    std::string dist;      ///< Distributor name column
+    std::string distPN;    ///< Distributor part number column
+    std::string id;        ///< Internal ID column
 };
 
 struct KICOMMON_API LAYER_PRESET
 {
-    LAYER_PRESET( const QString& aName = QString() ) :
+    LAYER_PRESET( const std::string& aName = std::string() ) :
             name( aName ),
             layers( LSET::AllLayersMask() ),
             renderLayers( GAL_SET::DefaultVisible() ),
@@ -108,7 +109,7 @@ struct KICOMMON_API LAYER_PRESET
         readOnly     = false;
     }
 
-    LAYER_PRESET( const QString& aName, const LSET& aVisibleLayers, bool aFlipBoard ) :
+    LAYER_PRESET( const std::string& aName, const LSET& aVisibleLayers, bool aFlipBoard ) :
             name( aName ),
             layers( aVisibleLayers ),
             renderLayers( GAL_SET::DefaultVisible() ),
@@ -118,7 +119,7 @@ struct KICOMMON_API LAYER_PRESET
         readOnly     = false;
     }
 
-    LAYER_PRESET( const QString& aName, const LSET& aVisibleLayers, const GAL_SET& aVisibleObjects,
+    LAYER_PRESET( const std::string& aName, const LSET& aVisibleLayers, const GAL_SET& aVisibleObjects,
                   PCB_LAYER_ID aActiveLayer, bool aFlipBoard ) :
             name( aName ),
             layers( aVisibleLayers ),
@@ -134,7 +135,7 @@ struct KICOMMON_API LAYER_PRESET
         return aOther.layers == layers && aOther.renderLayers == renderLayers;
     }
 
-    QString     name;          ///< A name for this layer set
+    std::string     name;          ///< A name for this layer set
     LSET         layers;        ///< Board layers that are visible
     GAL_SET      renderLayers;  ///< Render layers (e.g. object types) that are visible
     bool         flipBoard;     ///< True if the flip board is enabled
@@ -163,16 +164,16 @@ private:
 
 struct KICOMMON_API VIEWPORT
 {
-    VIEWPORT( const QString& aName = QString() ) :
+    VIEWPORT( const std::string& aName = std::string() ) :
             name( aName )
     { }
 
-    VIEWPORT( const QString& aName, const BOX2D& aRect ) :
+    VIEWPORT( const std::string& aName, const BOX2D& aRect ) :
             name( aName ),
             rect( aRect )
     { }
 
-    QString name;
+    std::string name;
     BOX2D    rect;
 };
 
@@ -193,16 +194,16 @@ private:
 
 struct KICOMMON_API VIEWPORT3D
 {
-    VIEWPORT3D( const QString& aName = QString() ) :
+    VIEWPORT3D( const std::string& aName = std::string() ) :
             name( aName )
     { }
 
-    VIEWPORT3D( const QString& aName, glm::mat4 aViewMatrix ) :
+    VIEWPORT3D( const std::string& aName, glm::mat4 aViewMatrix ) :
             name( aName ),
             matrix( std::move( aViewMatrix ) )
     { }
 
-    QString  name;
+    std::string  name;
     glm::mat4 matrix;
 };
 
@@ -261,16 +262,16 @@ private:
 class KICOMMON_API LAYER_PAIR_INFO
 {
 public:
-    LAYER_PAIR_INFO( LAYER_PAIR aPair, bool aEnabled, std::optional<QString> aName ) :
+    LAYER_PAIR_INFO( LAYER_PAIR aPair, bool aEnabled, std::optional<std::string> aName ) :
             m_pair( std::move( aPair ) ), m_enabled( aEnabled), m_name( std::move( aName ) )
     {
     }
 
     const LAYER_PAIR& GetLayerPair() const { return m_pair; }
 
-    const std::optional<QString>& GetName() const { return m_name; }
+    const std::optional<std::string>& GetName() const { return m_name; }
 
-    void SetName( const QString& aNewName ) { m_name = aNewName; }
+    void SetName( const std::string& aNewName ) { m_name = aNewName; }
     void UnsetName() { m_name = std::nullopt; }
 
     bool IsEnabled() const { return m_enabled; }
@@ -279,7 +280,7 @@ public:
 private:
     LAYER_PAIR              m_pair;
     bool                    m_enabled = true;
-    std::optional<QString> m_name;
+    std::optional<std::string> m_name;
 };
 
 
@@ -299,12 +300,12 @@ private:
 
 struct KICOMMON_API PANEL_NET_INSPECTOR_SETTINGS
 {
-    QString              filter_text;
+    std::string              filter_text;
     bool                  filter_by_net_name;
     bool                  filter_by_netclass;
     bool                  group_by_netclass;
     bool                  group_by_constraint;
-    std::vector<QString> custom_group_rules;
+    std::vector<std::string> custom_group_rules;
     bool                  show_zero_pad_nets;
     bool                  show_unconnected_nets;
     int                   sorting_column;
@@ -313,7 +314,7 @@ struct KICOMMON_API PANEL_NET_INSPECTOR_SETTINGS
     std::vector<int>      col_widths;
     std::vector<bool>     col_hidden;
 
-    std::vector<QString> expanded_rows;
+    std::vector<std::string> expanded_rows;
 
     PANEL_NET_INSPECTOR_SETTINGS()
     {

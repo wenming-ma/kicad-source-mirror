@@ -47,7 +47,7 @@ public:
 protected:
     QString getFileExt() const override
     {
-        return FILEEXT::ProjectLocalSettingsFileExtension;
+        return QString::fromStdString( FILEEXT::ProjectLocalSettingsFileExtension );
     }
 
     QString getLegacyFileExt() const override

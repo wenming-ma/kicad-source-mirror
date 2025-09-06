@@ -250,6 +250,6 @@ const QString LIB_ID::GetFullLibraryName() const
 {
     QString suffix = m_subLibraryName.empty()
                               ? QString( "" )
-                              : QString( " - %1" ).arg( QString::fromStdString( m_subLibraryName.ToStdString() ) );
-    return QString( "%1%2" ).arg( QString::fromStdString( m_libraryName.ToStdString() ) ).arg( suffix );
+                              : QString( " - %1" ).arg( m_subLibraryName.qt_str() );
+    return QString( "%1%2" ).arg( m_libraryName.qt_str() ).arg( suffix );
 }

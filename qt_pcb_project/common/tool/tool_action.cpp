@@ -52,8 +52,8 @@ TOOL_ACTION::TOOL_ACTION( const TOOL_ACTION_ARGS& aArgs ) :
         m_hotKey( aArgs.m_defaultHotKey.value_or( 0 ) ),
         m_hotKeyAlt( 0 ),
         m_legacyName( aArgs.m_legacyName.value_or( "" ) ),
-        m_friendlyName( QString::fromStdString( aArgs.m_friendlyName.value_or( "" ) ) ),
-        m_tooltip( QString::fromStdString( aArgs.m_tooltip.value_or( "" ) ) ),
+        m_friendlyName( QString::fromStdString( std::string( aArgs.m_friendlyName.value_or( "" ) ) ) ),
+        m_tooltip( QString::fromStdString( std::string( aArgs.m_tooltip.value_or( "" ) ) ) ),
         m_icon( aArgs.m_icon.value_or( BITMAPS::INVALID_BITMAP) ),
         m_id( -1 ),
         m_uiid( std::nullopt ),
@@ -63,7 +63,7 @@ TOOL_ACTION::TOOL_ACTION( const TOOL_ACTION_ARGS& aArgs ) :
     assert( !m_name.empty() );
 
     if( aArgs.m_menuText.has_value() )
-        m_menuLabel = QString::fromStdString( aArgs.m_menuText.value() );
+        m_menuLabel = QString::fromStdString( std::string( aArgs.m_menuText.value() ) );
 
     if( aArgs.m_uiid.has_value() )
         m_uiid = aArgs.m_uiid.value();
@@ -72,7 +72,7 @@ TOOL_ACTION::TOOL_ACTION( const TOOL_ACTION_ARGS& aArgs ) :
         m_param = aArgs.m_param;
 
     if( aArgs.m_description.has_value() )
-        m_description = QString::fromStdString( aArgs.m_description.value() );
+        m_description = QString::fromStdString( std::string( aArgs.m_description.value() ) );
 
     if( aArgs.m_group.has_value() )
         m_group = aArgs.m_group;

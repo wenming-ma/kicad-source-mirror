@@ -15,6 +15,8 @@
 #include <QValidator>
 #include <QMetaType>
 #include <QDebug>
+#include <QHash>
+#include <hashtables.h>
 
 #include <functional>
 #include <unordered_map>

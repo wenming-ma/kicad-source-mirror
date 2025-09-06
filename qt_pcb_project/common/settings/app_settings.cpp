@@ -16,7 +16,7 @@
 
 
 APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaVersion ) :
-        JSON_SETTINGS( aFilename, SETTINGS_LOC::USER, aSchemaVersion ),
+        JSON_SETTINGS( QString::fromStdString( aFilename ), SETTINGS_LOC::USER, aSchemaVersion ),
         m_CrossProbing(),
         m_FindReplace(),
         m_Graphics(),
@@ -74,7 +74,7 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
                 nlohmann::json ret = {};
 
                 for( const std::pair<const QString, int>& pair : m_LibTree.column_widths )
-                    ret[std::string( pair.first.toUtf8().constData() )] = pair.second;
+                    ret[pair.first.toStdString()] = pair.second;
 
                 return ret;
             },
@@ -90,7 +90,7 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
                     if( !entry.value().is_number_integer() )
                         continue;
 
-                    m_LibTree.column_widths[ entry.key() ] = entry.value().get<int>();
+                    m_LibTree.column_widths[QString::fromStdString(entry.key())] = entry.value().get<int>();
                 }
             },
             {} ) );
@@ -162,7 +162,7 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
                 nlohmann::json js = nlohmann::json::array();
 
                 for( const auto& [identifier, visible] : m_Plugins.actions )
-                    js.push_back( nlohmann::json( { { identifier.toUtf8().constData(), visible } } ) );
+                    js.push_back( nlohmann::json( { { identifier.toStdString(), visible } } ) );
 
                 return js;
             },
@@ -183,7 +183,7 @@ APP_SETTINGS_BASE::APP_SETTINGS_BASE( const std::string& aFilename, int aSchemaV
                     for( const auto& pair : entry.items() )
                     {
                         m_Plugins.actions.emplace_back( std::make_pair(
-                                QString( pair.key().c_str()), pair.value() ) );
+                                QString::fromStdString(pair.key()), pair.value() ) );
                     }
                 }
             },
@@ -231,13 +231,12 @@ bool APP_SETTINGS_BASE::MigrateFromLegacy( QSettings* aCfg )
     {
         nlohmann::json js = nlohmann::json::array();
         QString       key;
-        bool           val = false;
 
         for( unsigned i = 0; i < PCB_LAYER_ID_COUNT; ++i )
         {
             key = QString::asprintf( "PlotLayer_%d", i );
 
-            if( aCfg->Read( key, &val ) && val )
+            if( aCfg->value( key, false ).toBool() )
                 js.push_back( i );
         }
 
@@ -256,10 +255,10 @@ bool APP_SETTINGS_BASE::MigrateFromLegacy( QSettings* aCfg )
         for( int i = 1; i <= max_history_size; i++ )
         {
             key = QString::asprintf( "file%d", i );
-            file = aCfg->Read( key, QString() );
+            file = aCfg->value( key, QString() ).toString();
 
             if( !file.isEmpty() )
-                js.push_back( file.toStdString() );
+                js.push_back( file );
         }
 
         Set( "system.file_history", js );
@@ -283,11 +282,13 @@ void APP_SETTINGS_BASE::migrateFindReplace( QSettings* aCfg )
         find_key = QString::asprintf( "FindStringHistoryList%d", i );
         replace_key = QString::asprintf( "ReplaceStringHistoryList%d", i );
 
-        if( aCfg->Read( find_key, &tmp ) )
-            find_history.push_back( tmp.toStdString() );
+        tmp = aCfg->value( find_key, QString() ).toString();
+        if( !tmp.isEmpty() )
+            find_history.push_back( tmp );
 
-        if( aCfg->Read( replace_key, &tmp ) )
-            replace_history.push_back( tmp.toStdString() );
+        tmp = aCfg->value( replace_key, QString() ).toString();
+        if( !tmp.isEmpty() )
+            replace_history.push_back( tmp );
     }
 
     Set( "find_replace.find_history", find_history );

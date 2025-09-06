@@ -19,10 +19,23 @@
 #include <QTableView>
 #include <QKeySequence>
 #include <QtGlobal>
+#include <QDialog>
 #include <widgets/ui_common.h>
 
 using namespace std::placeholders;
 
+// We need to store the position of the mouse when the menu was opened so it can be passed
+// to the command event generated when the menu item is selected.
+static VECTOR2D g_menu_open_position;
+
+// Qt doesn't tell us when a menu command was generated from a hotkey or from
+// a menu selection.  It's important to us because a hotkey can be an immediate action
+// while the menu selection can not (as it has no associated position).
+//
+// We get around this by storing the last highlighted menuId.  If it matches the command
+// id then we know this is a menu selection.  (You might think we could use the menuOpen
+// menuClose events, but these are actually generated for hotkeys as well.)
+static int g_last_menu_highlighted_id = 0;
 
 // Helper functions for Qt implementation
 QAction* ACTION_MENU::findActionById( int aId ) const
@@ -379,8 +392,8 @@ void ACTION_MENU::updateHotKeys()
 
     for( auto it = m_toolActions.begin(); it != m_toolActions.end(); ++it )
     {
-        int                id = it.key();
-        const TOOL_ACTION& action = *it.value();
+        int                id = it->first;
+        const TOOL_ACTION& action = *it->second;
         int                key = toolMgr->GetHotKey( action ) & ~MD_MODIFIER_MASK;
 
         if( key > 0 )
@@ -402,22 +415,6 @@ void ACTION_MENU::updateHotKeys()
         }
     }
 }
-
-
-// Qt doesn't tell us when a menu command was generated from a hotkey or from
-// a menu selection.  It's important to us because a hotkey can be an immediate action
-// while the menu selection can not (as it has no associated position).
-//
-// We get around this by storing the last highlighted menuId.  If it matches the command
-// id then we know this is a menu selection.  (You might think we could use the menuOpen
-// menuClose events, but these are actually generated for hotkeys as well.)
-
-static int g_last_menu_highlighted_id = 0;
-
-
-// We need to store the position of the mouse when the menu was opened so it can be passed
-// to the command event generated when the menu item is selected.
-static VECTOR2D g_menu_open_position;
 
 
 void ACTION_MENU::OnIdle()
@@ -595,7 +592,7 @@ OPT_TOOL_EVENT ACTION_MENU::findToolAction( int aId )
                 const auto it = m->m_toolActions.find( aId );
 
                 if( it != m->m_toolActions.end() )
-                    evt = it.value()->MakeEvent();
+                    evt = it->second->MakeEvent();
             };
 
     findFunc( this );

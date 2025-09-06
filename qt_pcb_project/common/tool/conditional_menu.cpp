@@ -5,6 +5,7 @@
 #include <tool/selection.h>
 #include <kiface_base.h>
 #include <widgets/ui_common.h>
+#include <QCoreApplication>
 
 
 CONDITIONAL_MENU::CONDITIONAL_MENU( TOOL_INTERACTIVE* aTool ) :
@@ -48,7 +49,7 @@ void CONDITIONAL_MENU::AddItem( int aId, const QString& aText, const QString& aT
     item.setCheckable( false );
 
     if( !!aIcon )
-        KIUI::AddBitmapToAction( &item, KiBitmap( aIcon ) );
+        KIUI::AddBitmapToMenuItem( &item, KiBitmap( aIcon ) );
 
     addEntry( ENTRY( item, aIcon, aCondition, aOrder, false ) );
 }
@@ -65,7 +66,7 @@ void CONDITIONAL_MENU::AddCheckItem( int aId, const QString& aText, const QStrin
     item.setCheckable( true );
 
     if( !!aIcon )
-        KIUI::AddBitmapToAction( &item, KiBitmap( aIcon ) );
+        KIUI::AddBitmapToMenuItem( &item, KiBitmap( aIcon ) );
 
     addEntry( ENTRY( item, aIcon, aCondition, aOrder, true ) );
 }
@@ -155,7 +156,7 @@ void CONDITIONAL_MENU::Evaluate( const SELECTION& aSelection )
             menuItem->setCheckable( entry.qtItem()->isCheckable() );
 
             if( !!entry.GetIcon() )
-                KIUI::AddBitmapToAction( menuItem, KiBitmap( entry.GetIcon() ) );
+                KIUI::AddBitmapToMenuItem( menuItem, KiBitmap( entry.GetIcon() ) );
 
             // the QAction must be added only after the bitmap is set:
             addAction( menuItem );
@@ -165,7 +166,7 @@ void CONDITIONAL_MENU::Evaluate( const SELECTION& aSelection )
 
         case ENTRY::SEPARATOR:
             if( menu_count )
-                AppendSeparator();
+                addSeparator();
 
             menu_count = 0;
             break;

@@ -110,7 +110,7 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
             {
                 nlohmann::json ret = {};
 
-                for( const std::pair<QString, ENV_VAR_ITEM> entry : m_Env.vars )
+                for( const std::pair<const QString, ENV_VAR_ITEM>& entry : m_Env.vars )
                 {
                     const ENV_VAR_ITEM& var = entry.second;
 

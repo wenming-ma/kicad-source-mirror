@@ -14,6 +14,8 @@
 #include <font/kicad_font_name.h>
 #include <QString>
 #include <QStringList>
+#include <QHash>
+#include <hashtables.h>
 
 
 using namespace KIFONT;
@@ -466,7 +468,7 @@ void wordbreakMarkup( std::vector<std::pair<QString, int>>* aWords,
             textStyle |= TEXT_STYLE::OVERBAR;
         }
 
-        if( escapeChar )
+        if( !escapeChar.isNull() )
         {
             QString word = QString("%1{").arg(escapeChar);
             int      width = 0;

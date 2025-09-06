@@ -74,8 +74,8 @@ public:
     typedef typename VECTOR2_TRAITS<T>::extended_type extended_type;
     typedef T coord_type;
 
-    static constexpr extended_type ECOORD_MAX = std::numeric_limits<extended_type>::max();
-    static constexpr extended_type ECOORD_MIN = std::numeric_limits<extended_type>::min();
+    static constexpr extended_type ECOORD_MAX = (std::numeric_limits<extended_type>::max)();
+    static constexpr extended_type ECOORD_MIN = (std::numeric_limits<extended_type>::min)();
 
     T x, y;
 
@@ -96,16 +96,16 @@ public:
         }
         else if( std::is_floating_point<CastingType>() )
         {
-            CastingType minI = static_cast<CastingType>( std::numeric_limits<T>::min() );
-            CastingType maxI = static_cast<CastingType>( std::numeric_limits<T>::max() );
+            CastingType minI = static_cast<CastingType>( (std::numeric_limits<T>::min)() );
+            CastingType maxI = static_cast<CastingType>( (std::numeric_limits<T>::max)() );
 
             x = static_cast<T>( std::clamp( aVec.x, minI, maxI ) );
             y = static_cast<T>( std::clamp( aVec.y, minI, maxI ) );
         }
         else if( std::is_integral<T>() && std::is_integral<CastingType>() )
         {
-            int64_t minI = static_cast<int64_t>( std::numeric_limits<T>::min() );
-            int64_t maxI = static_cast<int64_t>( std::numeric_limits<T>::max() );
+            int64_t minI = static_cast<int64_t>( (std::numeric_limits<T>::min)() );
+            int64_t maxI = static_cast<int64_t>( (std::numeric_limits<T>::max)() );
 
             x = static_cast<T>( std::clamp( static_cast<int64_t>( aVec.x ), minI, maxI ) );
             y = static_cast<T>( std::clamp( static_cast<int64_t>( aVec.y ), minI, maxI ) );
@@ -134,15 +134,15 @@ public:
         }
         else if( std::is_floating_point<T>() )
         {
-            T minI = static_cast<T>( std::numeric_limits<U>::min() );
-            T maxI = static_cast<T>( std::numeric_limits<U>::max() );
+            T minI = static_cast<T>( (std::numeric_limits<U>::min)() );
+            T maxI = static_cast<T>( (std::numeric_limits<U>::max)() );
             return VECTOR2<U>( static_cast<U>( std::clamp( x, minI, maxI ) ),
                                static_cast<U>( std::clamp( y, minI, maxI ) ) );
         }
         else if( std::is_integral<T>() && std::is_integral<U>() )
         {
-            int64_t minI = static_cast<int64_t>( std::numeric_limits<U>::min() );
-            int64_t maxI = static_cast<int64_t>( std::numeric_limits<U>::max() );
+            int64_t minI = static_cast<int64_t>( (std::numeric_limits<U>::min)() );
+            int64_t maxI = static_cast<int64_t>( (std::numeric_limits<U>::max)() );
             int64_t x64 = static_cast<int64_t>( x );
             int64_t y64 = static_cast<int64_t>( y );
 

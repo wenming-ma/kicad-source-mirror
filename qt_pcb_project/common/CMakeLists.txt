@@ -201,6 +201,7 @@ add_library( common STATIC
     view/zoom_controller.cpp
     
     # Widget files
+    widgets/bitmap_button.cpp
     widgets/progress_reporter_base.cpp
     widgets/ui_common.cpp
     
@@ -217,7 +218,6 @@ target_include_directories( common PUBLIC
     ../scripting
     ../thirdparty/magic_enum
     ${wxWidgets_INCLUDE_DIRS}
-    ${Qt6_INCLUDE_DIRS}
 )
 
 # Skip AutoUIC processing for widgets/ui_common.h (it's a hand-written header, not generated from .ui)
@@ -240,7 +240,7 @@ target_link_libraries( common PUBLIC
     json_schema_validator
     ${wxWidgets_LIBRARIES}
     ${Boost_LIBRARIES}
-    # Qt libraries
+    # Qt libraries - these provide include directories automatically
     Qt6::Core
     Qt6::Widgets
     Qt6::Gui

@@ -23,8 +23,11 @@
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QHBoxLayout>
 #include <QtGui/QPainter>
+#include <QtGui/QIcon>
 #include <QtCore/QTimer>
+#include <QtCore/QSize>
 #include <QtWidgets/QApplication>
+#include <QtWidgets/QMainWindow>
 
 
 ACTION_GROUP::ACTION_GROUP( const std::string& aName,
@@ -94,24 +97,31 @@ ACTION_TOOLBAR_PALETTE::ACTION_TOOLBAR_PALETTE( QWidget* aParent, bool aVertical
 void ACTION_TOOLBAR_PALETTE::AddAction( const TOOL_ACTION& aAction )
 {
     int            size = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
-    QPixmap normalBmp = KiBitmapBundle( aAction.GetIcon(), size ).pixmap();
+    QPixmap normalBmp = KiBitmapBundle( aAction.GetIcon(), size ).pixmap( QSize( size, size ) );
 
     int bmpWidth = normalBmp.width();
     int padding = ( m_buttonSize.width() - bmpWidth ) / 2;
     QSize bmSize( size, size );
-    bmSize *= KIPLATFORM::UI::GetContentScaleFactor( m_parent );
+    bmSize *= KIPLATFORM::UI::GetContentScaleFactor( parentWidget() );
 
     BITMAP_BUTTON* button = new BITMAP_BUTTON( m_panel, aAction.GetUIId() );
 
     button->SetIsToolbarButton();
     button->SetBitmap( normalBmp );
-    button->SetDisabledBitmap( KiDisabledBitmapBundle( aAction.GetIcon() ) );
+    button->SetDisabledBitmap( KiDisabledBitmapBundle( aAction.GetIcon() ).pixmap( QSize( size, size ) ) );
     button->SetPadding( padding );
-    button->SetToolTip( aAction.GetButtonTooltip() );
+    button->setToolTip( aAction.GetButtonTooltip() );
     button->AcceptDragInAsClick();
     button->SetBitmapCentered();
 
     m_buttons[aAction.GetUIId()] = button;
+    
+    // Connect button clicked signal to emit our actionTriggered signal
+    connect( button, &BITMAP_BUTTON::clicked, [this, actionId = aAction.GetUIId()]() {
+        QAction* action = new QAction( this );
+        action->setData( actionId );
+        emit actionTriggered( action );
+    });
 
     if( m_isVertical )
     {
@@ -133,7 +143,7 @@ void ACTION_TOOLBAR_PALETTE::EnableAction( const TOOL_ACTION& aAction, bool aEna
     auto it = m_buttons.find( aAction.GetUIId() );
 
     if( it != m_buttons.end() )
-        it->second->Enable( aEnable );
+        it->second->setEnabled( aEnable );
 }
 
 
@@ -218,8 +228,8 @@ void ACTION_TOOLBAR::Add( const TOOL_ACTION& aAction, bool aIsToggleEntry, bool 
 
     int toolId = aAction.GetUIId();
 
-    QAction* qtAction = addAction( KiBitmapBundle( aAction.GetIcon(),
-                                                   Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ).pixmap(),
+    int iconSize = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
+    QAction* qtAction = addAction( KiBitmapBundle( aAction.GetIcon(), iconSize ).pixmap( QSize( iconSize, iconSize ) ),
                                    QString() );
     qtAction->setToolTip( aAction.GetButtonTooltip() );
     qtAction->setCheckable( aIsToggleEntry );
@@ -235,8 +245,8 @@ void ACTION_TOOLBAR::AddButton( const TOOL_ACTION& aAction )
 {
     int toolId = aAction.GetUIId();
 
-    QAction* qtAction = addAction( KiBitmapBundle( aAction.GetIcon(),
-                                                   Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ).pixmap(),
+    int iconSize = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
+    QAction* qtAction = addAction( KiBitmapBundle( aAction.GetIcon(), iconSize ).pixmap( QSize( iconSize, iconSize ) ),
                                    QString() );
     qtAction->setToolTip( aAction.GetButtonTooltip() );
     qtAction->setData( toolId );
@@ -290,8 +300,8 @@ void ACTION_TOOLBAR::AddGroup( ACTION_GROUP* aGroup, bool aIsToggleEntry )
     m_actionGroups[ groupId ] = aGroup;
 
     // Add the main toolbar item representing the group
-    QAction* qtAction = addAction( KiBitmapBundle( defaultAction->GetIcon(),
-                                                   Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ).pixmap(),
+    int iconSize = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
+    QAction* qtAction = addAction( KiBitmapBundle( defaultAction->GetIcon(), iconSize ).pixmap( QSize( iconSize, iconSize ) ),
                                    QString() );
     qtAction->setCheckable( aIsToggleEntry );
     qtAction->setData( groupId );
@@ -330,8 +340,8 @@ void ACTION_TOOLBAR::doSelectAction( ACTION_GROUP* aGroup, const TOOL_ACTION& aA
     if( item )
     {
         item->setToolTip( aAction.GetButtonTooltip() );
-        item->setIcon( KiBitmapBundle( aAction.GetIcon(),
-                                       Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ).pixmap() );
+        int iconSize = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
+        item->setIcon( KiBitmapBundle( aAction.GetIcon(), iconSize ).pixmap( QSize( iconSize, iconSize ) ) );
     }
 
     // Register a new handler with the new UI conditions
@@ -775,14 +785,14 @@ void ACTION_TOOLBAR::onThemeChanged()
 
 void ACTION_TOOLBAR::RefreshBitmaps()
 {
-    for( const std::pair<int, const TOOL_ACTION*> pair : m_toolActions )
+    for( const std::pair<const int, const TOOL_ACTION*>& pair : m_toolActions )
     {
         QAction* action = findActionById( pair.first );
         
         if( action )
         {
-            action->setIcon( KiBitmapBundle( pair.second->GetIcon(),
-                                           Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ).pixmap() );
+            int iconSize = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
+            action->setIcon( KiBitmapBundle( pair.second->GetIcon(), iconSize ).pixmap( QSize( iconSize, iconSize ) ) );
         }
     }
 

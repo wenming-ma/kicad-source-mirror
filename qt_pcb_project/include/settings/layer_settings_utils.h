@@ -4,7 +4,7 @@
 #define LAYER_SETTINGS_UTILS_H
 
 #include <optional>
-#include <QString>
+#include <string>
 #include <layer_ids.h>
 
 enum class VISIBILITY_LAYER
@@ -36,8 +36,8 @@ GAL_SET UserVisbilityLayers();
 GAL_LAYER_ID RenderLayerFromVisibilityLayer( VISIBILITY_LAYER aLayer );
 std::optional<VISIBILITY_LAYER> VisibilityLayerFromRenderLayer( GAL_LAYER_ID aLayerId );
 
-std::optional<GAL_LAYER_ID> RenderLayerFromVisbilityString( const QString& aLayer );
-QString VisibilityLayerToString( VISIBILITY_LAYER aLayerId );
+std::optional<GAL_LAYER_ID> RenderLayerFromVisbilityString( const std::string& aLayer );
+std::string VisibilityLayerToString( VISIBILITY_LAYER aLayerId );
 
 
 #endif //LAYER_SETTINGS_UTILS_H

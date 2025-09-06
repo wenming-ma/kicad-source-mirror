@@ -3,7 +3,7 @@
 #include <QDir>
 #include <limits.h>
 
-#ifndef __WINDOWS__
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(__WIN32__) && !defined(__WINDOWS__)
 #include <unistd.h>
 #include <climits>
 #endif
@@ -83,7 +83,7 @@ long long WX_FILENAME::GetTimestamp()
 
 void WX_FILENAME::ResolvePossibleSymlinks( QFileInfo& aFilename )
 {
-#ifndef __WINDOWS__
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(__WIN32__) && !defined(__WINDOWS__)
     if( aFilename.isSymLink() )
     {
         char buffer[PATH_MAX];

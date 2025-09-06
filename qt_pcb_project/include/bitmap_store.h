@@ -6,6 +6,8 @@
 
 #include <QPixmap>
 #include <QImage>
+#include <QString>
+#include <hashtables.h>
 
 #include <bitmaps/bitmap_info.h>
 #include <kicommon.h>

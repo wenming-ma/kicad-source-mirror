@@ -60,12 +60,12 @@ public:
 
     virtual bool TextVarResolver( QString* aToken ) const;
 
-    virtual std::map<QString, QString>& GetTextVars() const;
+    virtual std::map<std::string, std::string>& GetTextVars() const;
 
     /**
      * Applies the given var map, it will create or update existing vars
      */
-    virtual void ApplyTextVars( const std::map<QString, QString>& aVarsMap );
+    virtual void ApplyTextVars( const std::map<std::string, std::string>& aVarsMap );
 
     int  GetTextVarsTicker() const { return m_textVarsTicker; }
     void IncrementTextVarsTicker() { m_textVarsTicker++; }

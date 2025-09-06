@@ -9,7 +9,10 @@
 #include <common.h> // Needed for stl hash extensions
 #include <convert_shape_list_to_polygon.h> // for OUTLINE_ERROR_HANDLER
 #include <hash.h>
+#include <hashtables.h>
 #include <layer_ids.h>
+#include <QString>
+#include <QHash>
 #include <lset.h>
 #include <netinfo.h>
 #include <pcb_item_containers.h>

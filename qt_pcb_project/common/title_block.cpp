@@ -24,16 +24,16 @@ void TITLE_BLOCK::Format( OUTPUTFORMATTER* aFormatter ) const
         aFormatter->Print( "(title_block" );
 
         if( !GetTitle().isEmpty() )
-            aFormatter->Print( "(title %s)", aFormatter->Quotew( GetTitle() ).toStdString().c_str() );
+            aFormatter->Print( "(title %s)", aFormatter->Quotew( GetTitle() ).c_str() );
 
         if( !GetDate().isEmpty() )
-            aFormatter->Print( "(date %s)", aFormatter->Quotew( GetDate() ).toStdString().c_str() );
+            aFormatter->Print( "(date %s)", aFormatter->Quotew( GetDate() ).c_str() );
 
         if( !GetRevision().isEmpty() )
-            aFormatter->Print( "(rev %s)", aFormatter->Quotew( GetRevision() ).toStdString().c_str() );
+            aFormatter->Print( "(rev %s)", aFormatter->Quotew( GetRevision() ).c_str() );
 
         if( !GetCompany().isEmpty() )
-            aFormatter->Print( "(company %s)", aFormatter->Quotew( GetCompany() ).toStdString().c_str() );
+            aFormatter->Print( "(company %s)", aFormatter->Quotew( GetCompany() ).c_str() );
 
         for( int ii = 0; ii < 9; ii++ )
         {
@@ -41,7 +41,7 @@ void TITLE_BLOCK::Format( OUTPUTFORMATTER* aFormatter ) const
             {
                 aFormatter->Print( "(comment %d %s)",
                                    ii+1,
-                                   aFormatter->Quotew( GetComment(ii) ).toStdString().c_str() );
+                                   aFormatter->Quotew( GetComment(ii) ).c_str() );
             }
         }
 
@@ -112,7 +112,7 @@ bool TITLE_BLOCK::TextVarResolver( QString* aToken, const PROJECT* aProject, int
     {
         QChar c = aToken->at( aToken->length() - 1 );
 
-        switch( c )
+        switch( c.toLatin1() )
         {
         case '1':
         case '2':
@@ -123,7 +123,7 @@ bool TITLE_BLOCK::TextVarResolver( QString* aToken, const PROJECT* aProject, int
         case '7':
         case '8':
         case '9':
-            *aToken = GetComment( c - '1' );
+            *aToken = GetComment( c.toLatin1() - '1' );
             tokenUpdated = true;
         }
     }

@@ -54,7 +54,7 @@ protected:
     /**
      * Called on dialog initialisation - inits the dialog's own widgets
      */
-    bool TransferDataToWindow() override;
+    bool TransferDataToWindow();
 
 private:
     PANEL_HOTKEYS_EDITOR* m_hk_list;

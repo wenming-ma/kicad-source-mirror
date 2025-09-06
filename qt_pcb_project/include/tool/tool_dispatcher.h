@@ -43,23 +43,6 @@ private:
     // Returns the instance of VIEW, used by the application
     KIGFX::VIEW* getView();
 
-    // Saves the state of key modifiers (Alt, Ctrl and so on)
-    static int decodeModifiers( const QKeyEvent* aState )
-    {
-        int mods = 0;
-
-        if( aState->modifiers() & Qt::ControlModifier )
-            mods |= MD_CTRL;
-
-        if( aState->modifiers() & Qt::AltModifier )
-            mods |= MD_ALT;
-
-        if( aState->modifiers() & Qt::ShiftModifier )
-            mods |= MD_SHIFT;
-
-        return mods;
-    }
-
 private:
     // Time threshold for distinguishing click vs drag (milliseconds)
     static const int DragTimeThreshold = 300;

@@ -19,21 +19,21 @@ REPORTER& REPORTER::Report( const char* aText, SEVERITY aSeverity )
 }
 
 
-REPORTER& WX_TEXT_CTRL_REPORTER::Report( const QString& aText, SEVERITY aSeverity )
+REPORTER& QT_TEXT_EDIT_REPORTER::Report( const QString& aText, SEVERITY aSeverity )
 {
     REPORTER::Report( aText, aSeverity );
 
-    if( m_textCtrl == nullptr )
+    if( m_textEdit == nullptr )
     {
         return *this;
     }
 
-    m_textCtrl->append( aText + "\n" );
+    m_textEdit->append( aText + "\n" );
     return *this;
 }
 
 
-REPORTER& WX_STRING_REPORTER::Report( const QString& aText, SEVERITY aSeverity )
+REPORTER& QT_STRING_REPORTER::Report( const QString& aText, SEVERITY aSeverity )
 {
     REPORTER::Report( aText, aSeverity );
 
@@ -42,13 +42,13 @@ REPORTER& WX_STRING_REPORTER::Report( const QString& aText, SEVERITY aSeverity )
 }
 
 
-const QString& WX_STRING_REPORTER::GetMessages() const
+const QString& QT_STRING_REPORTER::GetMessages() const
 {
     return m_string;
 }
 
 
-void WX_STRING_REPORTER::Clear()
+void QT_STRING_REPORTER::Clear()
 {
     REPORTER::Clear();
     m_string.clear();
@@ -133,7 +133,7 @@ REPORTER& STDOUT_REPORTER::GetInstance()
 }
 
 
-REPORTER& WXLOG_REPORTER::Report( const QString& aMsg, SEVERITY aSeverity )
+REPORTER& QTLOG_REPORTER::Report( const QString& aMsg, SEVERITY aSeverity )
 {
     REPORTER::Report( aMsg, aSeverity );
 
@@ -153,15 +153,15 @@ REPORTER& WXLOG_REPORTER::Report( const QString& aMsg, SEVERITY aSeverity )
 }
 
 
-REPORTER& WXLOG_REPORTER::GetInstance()
+REPORTER& QTLOG_REPORTER::GetInstance()
 {
-    static REPORTER* s_wxLogReporter = nullptr;
+    static REPORTER* s_qtLogReporter = nullptr;
     std::lock_guard lock( g_logReporterMutex );
 
-    if( !s_wxLogReporter )
-        s_wxLogReporter = new WXLOG_REPORTER();
+    if( !s_qtLogReporter )
+        s_qtLogReporter = new QTLOG_REPORTER();
 
-    return *s_wxLogReporter;
+    return *s_qtLogReporter;
 }
 
 

@@ -27,6 +27,7 @@
 
 #include <eda_text.h>
 #include <pcb_shape.h>
+#include <i18n_utility.h>
 
 
 class LINE_READER;

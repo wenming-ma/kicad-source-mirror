@@ -5,6 +5,9 @@
 
 #include <utility>
 #include <QString>
+#include <QPoint>
+#include <QSize>
+#include <QRect>
 
 #include <functional>
 #include <optional>
