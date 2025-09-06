@@ -14,6 +14,20 @@ set( COMMON_GENERATED_SRCS
     ${KICAD_GENERATED_DIR}/common/drawing_sheet/drawing_sheet_keywords.cpp
 )
 
+# Headers that need MOC processing (contain Q_OBJECT macro)
+set( MOC_HEADERS
+    ../include/rc_item.h
+    ../include/dialogs/dialog_migrate_settings.h
+    dialogs/dialog_migrate_settings_base.h
+    ../include/widgets/wx_splash.h
+    ../include/widgets/std_bitmap_button.h
+    ../include/widgets/bitmap_button.h
+    ../include/widgets/html_window.h
+)
+
+# Generate MOC files for headers with Q_OBJECT
+qt6_wrap_cpp( MOC_SOURCES ${MOC_HEADERS} )
+
 add_library( common STATIC
     # Core common files
     advanced_config.cpp
@@ -36,6 +50,8 @@ add_library( common STATIC
     design_block_io.cpp
     design_block_lib_table.cpp
     dialog_shim.cpp
+    dialogs/dialog_migrate_settings_base.cpp
+    dialogs/dialog_migrate_settings.cpp
     dpi_scaling.cpp
     dpi_scaling_common.cpp
     dsnlexer.cpp
@@ -202,12 +218,18 @@ add_library( common STATIC
     
     # Widget files
     widgets/bitmap_button.cpp
+    widgets/html_window.cpp
     widgets/progress_reporter_base.cpp
+    widgets/std_bitmap_button.cpp
     widgets/ui_common.cpp
+    widgets/wx_splash.cpp
     
     # Generated files
     ${COMMON_GENERATED_SRCS}
     ${CMAKE_CURRENT_SOURCE_DIR}/../generated/common/template_fieldnames_keywords.cpp
+    
+    # MOC generated files
+    ${MOC_SOURCES}
 )
 
 target_include_directories( common PUBLIC

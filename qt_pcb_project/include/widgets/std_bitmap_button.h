@@ -8,6 +8,7 @@
 #include <QPainter>
 #include <QMouseEvent>
 #include <QFocusEvent>
+#include <QEnterEvent>
 
 class QPushButton;
 
@@ -24,12 +25,19 @@ public:
     ~STD_BITMAP_BUTTON();
 
     void SetBitmap( const QPixmap& aBmp );
-    void setEnabled( bool aEnable = true ) override;
+    void setEnabled( bool aEnable = true );  // Not virtual in QWidget, remove override
+
+signals:
+    void clicked();
 
 protected:
     void focusOutEvent( QFocusEvent* aEvent ) override;
     void leaveEvent( QEvent* aEvent ) override;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    void enterEvent( QEnterEvent* aEvent ) override;
+#else
     void enterEvent( QEvent* aEvent ) override;
+#endif
     void mouseReleaseEvent( QMouseEvent* aEvent ) override;
     void mousePressEvent( QMouseEvent* aEvent ) override;
     void paintEvent( QPaintEvent* aEvent ) override;

@@ -41,6 +41,9 @@
 #include <QDebug>
 #include <QLoggingCategory>
 
+// Define the logging category for triangulation tracing
+Q_LOGGING_CATEGORY(TRIANGULATE_TRACE, "triangulate.trace")
+
 // ADVANCED_CFG::GetCfg() cannot be used on msys2/mingw builds (link failure)
 // So we use the ADVANCED_CFG default values
 #if defined( __MINGW32__ )

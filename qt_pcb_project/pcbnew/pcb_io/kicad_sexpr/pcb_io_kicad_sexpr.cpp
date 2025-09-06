@@ -1038,9 +1038,14 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_REFERENCE_IMAGE* aBitmap ) const
         KICAD_FORMAT::FormatBool( m_out, "locked", true );
 
     QBuffer ostream;
+    ostream.open( QIODevice::WriteOnly );
     refImage.GetImage().SaveImageData( ostream );
+    ostream.close();
+    ostream.open( QIODevice::ReadOnly );
 
     KICAD_FORMAT::FormatStreamData( *m_out, ostream );
+    
+    ostream.close();
 
     KICAD_FORMAT::FormatUuid( m_out, aBitmap->m_Uuid );
     m_out->Print( ")" );      // Closes image token.

@@ -1,6 +1,7 @@
 #include "io/kicad/kicad_io_utils.h"
 
 #include <QByteArray>
+#include <QIODevice>
 #include <QString>
 
 #include <fmt/format.h>
@@ -23,11 +24,13 @@ void FormatUuid( OUTPUTFORMATTER* aOut, const KIID& aUuid )
 }
 
 
-void FormatStreamData( OUTPUTFORMATTER& aOut, const QByteArray& aStream )
+void FormatStreamData( OUTPUTFORMATTER& aOut, QIODevice& aStream )
 {
     aOut.Print( "(data" );
 
-    const QString out = QString::fromLatin1( aStream.toBase64() );
+    // Read all data from the QIODevice
+    QByteArray data = aStream.readAll();
+    const QString out = QString::fromLatin1( data.toBase64() );
 
     static constexpr unsigned MIME_BASE64_LENGTH = 76;
 
