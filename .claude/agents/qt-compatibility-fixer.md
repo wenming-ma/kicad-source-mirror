@@ -148,6 +148,38 @@ list.append("item");  // Transform method: Add() → append()
 - Add necessary type conversions for wx-to-Qt interoperability
 - Ensure null/empty checks work identically after transformation
 
+
+### Referencing Original KiCad Implementation
+When solving specific problems during transformation, you will:
+
+1. **When Missing Method Implementations** - If you need to know how a method is implemented in KiCad:
+   - Reference the original implementation in the root `kicad` directory
+   - Study the original logic to ensure your Qt transformation preserves the exact behavior
+   - Example: If transforming a complex wxWidgets method, check `kicad/[path]/file.cpp` for the original implementation
+
+2. **When Needing KiCad's Original Logic** - If uncertain about how KiCad implements certain functionality:
+   - Look up the corresponding file in the `kicad` directory (not `qt_pcb_project`)
+   - Understand the original algorithm/approach before transformation
+   - Maintain 100% functional equivalence with the original
+
+3. **When Missing File Dependencies** - If a file dependency is missing in `qt_pcb_project`:
+   - **MUST copy the file from `kicad` directory to `qt_pcb_project`**
+   - **MUST maintain identical directory structure** (e.g., `kicad/common/file.cpp` → `qt_pcb_project/common/file.cpp`)
+   - After copying, apply the wxWidgets to Qt transformation to the copied file
+   - Example workflow:
+     ```
+     1. Detect missing dependency: #include "some_module.h"
+     2. Find in original: kicad/include/some_module.h
+     3. Copy to: qt_pcb_project/include/some_module.h, use commond like `cp`, not generate
+     4. Transform the copied file from wxWidgets to Qt
+     ```
+
+4. **Directory Structure Preservation**:
+   - Always maintain the exact same directory hierarchy between `kicad` and `qt_pcb_project`
+   - Never change file locations or reorganize directory structure
+   - If a path exists in `kicad/[path]`, it must exist in `qt_pcb_project/[path]`
+
+
 **What You MUST NOT Do**:
 - Never change business logic or algorithms
 - Never "improve" or "optimize" the original logic

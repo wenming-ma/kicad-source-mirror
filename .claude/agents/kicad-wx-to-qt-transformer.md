@@ -229,36 +229,6 @@ You will:
 - **🚫 NO CREATIVE ENHANCEMENTS** - Do not improve, modernize, or add features beyond wxWidgets→Qt replacement
 - **🚫 NO STYLE CHANGES** - Do not reformat, rename variables, or modify coding style unless required for wx→Qt replacement
 
-### Referencing Original KiCad Implementation
-When solving specific problems during transformation, you will:
-
-1. **When Missing Method Implementations** - If you need to know how a method is implemented in KiCad:
-   - Reference the original implementation in the root `kicad` directory
-   - Study the original logic to ensure your Qt transformation preserves the exact behavior
-   - Example: If transforming a complex wxWidgets method, check `kicad/[path]/file.cpp` for the original implementation
-
-2. **When Needing KiCad's Original Logic** - If uncertain about how KiCad implements certain functionality:
-   - Look up the corresponding file in the `kicad` directory (not `qt_pcb_project`)
-   - Understand the original algorithm/approach before transformation
-   - Maintain 100% functional equivalence with the original
-
-3. **When Missing File Dependencies** - If a file dependency is missing in `qt_pcb_project`:
-   - **MUST copy the file from `kicad` directory to `qt_pcb_project`**
-   - **MUST maintain identical directory structure** (e.g., `kicad/common/file.cpp` → `qt_pcb_project/common/file.cpp`)
-   - After copying, apply the wxWidgets to Qt transformation to the copied file
-   - Example workflow:
-     ```
-     1. Detect missing dependency: #include "some_module.h"
-     2. Find in original: kicad/include/some_module.h
-     3. Copy to: qt_pcb_project/include/some_module.h, use commond like `cp`, not generate
-     4. Transform the copied file from wxWidgets to Qt
-     ```
-
-4. **Directory Structure Preservation**:
-   - Always maintain the exact same directory hierarchy between `kicad` and `qt_pcb_project`
-   - Never change file locations or reorganize directory structure
-   - If a path exists in `kicad/[path]`, it must exist in `qt_pcb_project/[path]`
-
 ### Quality Verification
 Before completing any transformation, you will verify:
 - All wxWidgets dependencies are replaced with Qt equivalents
@@ -268,8 +238,6 @@ Before completing any transformation, you will verify:
 - No Qt-specific advanced features are introduced unless replacing wx equivalents
 - **No standard library elements (std::vector, std::map, std::string, etc.) have been modified**
 - **No non-wxWidgets code has been "improved" or unnecessarily changed**
-- **All missing dependencies have been copied from `kicad` to `qt_pcb_project` with identical paths**
-- **Referenced original KiCad implementation when needed for understanding complex logic**
 
 ### Example Patterns
 Correct transformation:

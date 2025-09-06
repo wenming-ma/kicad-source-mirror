@@ -81,6 +81,61 @@ int GRTextWidth( const QString& aText, KIFONT::FONT* aFont, const VECTOR2I& aSiz
 }
 
 
+// Overloaded version with QPainter and COLOR4D (the one that's actually needed)
+void GRPrintText( QPainter* aPainter, const VECTOR2I& aPos, const KIGFX::COLOR4D& aColor, const QString& aText,
+                  const EDA_ANGLE& aOrient, const VECTOR2I& aSize,
+                  enum GR_TEXT_H_ALIGN_T aH_justify, enum GR_TEXT_V_ALIGN_T aV_justify,
+                  int aWidth, bool aItalic, bool aBold, KIFONT::FONT* aFont,
+                  const KIFONT::METRICS& aFontMetrics )
+{
+    KIGFX::GAL_DISPLAY_OPTIONS empty_opts;
+    bool                       fill_mode = true;
+
+    if( !aFont )
+        aFont = KIFONT::FONT::GetFont();
+
+    if( aWidth == 0 ) // Use default values if aWidth == 0
+    {
+        if( aBold )
+            aWidth = GetPenSizeForBold( std::min( aSize.x, aSize.y ) );
+        else
+            aWidth = GetPenSizeForNormal( std::min( aSize.x, aSize.y ) );
+    }
+
+    if( aWidth < 0 )
+    {
+        aWidth = -aWidth;
+        fill_mode = false;
+    }
+
+    CALLBACK_GAL callback_gal( empty_opts,
+            // Stroke callback
+            [&]( const VECTOR2I& aPt1, const VECTOR2I& aPt2 )
+            {
+                if( fill_mode )
+                    GRLine( aPainter, aPt1, aPt2, aWidth, aColor );
+                else
+                    GRCSegm( aPainter, aPt1, aPt2, aWidth, aColor );
+            },
+            // Polygon callback
+            [&]( const SHAPE_LINE_CHAIN& aPoly )
+            {
+                GRClosedPoly( aPainter, aPoly.PointCount(), aPoly.CPoints().data(), true, aColor );
+            } );
+
+    TEXT_ATTRIBUTES attributes;
+    attributes.m_Angle = aOrient;
+    attributes.m_StrokeWidth = aWidth;
+    attributes.m_Italic = aItalic;
+    attributes.m_Bold = aBold;
+    attributes.m_Halign = aH_justify;
+    attributes.m_Valign = aV_justify;
+    attributes.m_Size = aSize;
+
+    aFont->Draw( &callback_gal, aText, aPos, attributes, aFontMetrics );
+}
+
+// Original version with QPaintDevice (for backward compatibility if needed)
 void GRPrintText( QPaintDevice* aDC, const VECTOR2I& aPos, const QColor& aColor, const QString& aText,
                   const EDA_ANGLE& aOrient, const VECTOR2I& aSize,
                   enum GR_TEXT_H_ALIGN_T aH_justify, enum GR_TEXT_V_ALIGN_T aV_justify,

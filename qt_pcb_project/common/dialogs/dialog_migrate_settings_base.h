@@ -9,6 +9,7 @@
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QHBoxLayout>
 #include <QtCore/QString>
+#include <QtCore/QEvent>
 class STD_BITMAP_BUTTON;
 
 #include "dialog_shim.h"
@@ -17,6 +18,8 @@ class STD_BITMAP_BUTTON;
 
 class KICOMMON_API DIALOG_MIGRATE_SETTINGS_BASE : public DIALOG_SHIM
 {
+	Q_OBJECT
+	
 	private:
 
 	protected:
@@ -46,6 +49,8 @@ class KICOMMON_API DIALOG_MIGRATE_SETTINGS_BASE : public DIALOG_SHIM
 		DIALOG_MIGRATE_SETTINGS_BASE( QWidget* parent = nullptr, const QString& title = "Configure KiCad Settings Path" );
 
 		~DIALOG_MIGRATE_SETTINGS_BASE();
+		
+		bool eventFilter( QObject* watched, QEvent* event ) override;
 
 };
 

@@ -54,6 +54,12 @@ void GRResetPenAndBrush( QPainter* painter )
 }
 
 
+// Overloaded version with COLOR4D
+void GRSetColorPen( QPainter* painter, const COLOR4D& color, int width, Qt::PenStyle style )
+{
+    GRSetColorPen( painter, color.ToColor(), width, style );
+}
+
 void GRSetColorPen( QPainter* painter, const QColor& color, int width, Qt::PenStyle style )
 {
     QColor penColor = color;
@@ -98,6 +104,12 @@ void GRSetColorPen( QPainter* painter, const QColor& color, int width, Qt::PenSt
 }
 
 
+// Overloaded version with COLOR4D
+void GRSetBrush( QPainter* painter, const COLOR4D& color, bool fill )
+{
+    GRSetBrush( painter, color.ToColor(), fill );
+}
+
 void GRSetBrush( QPainter* painter, const QColor& color, bool fill )
 {
     QColor brushColor = color;
@@ -137,6 +149,13 @@ bool GetGRForceBlackPenState( void )
 }
 
 
+// Overloaded version with COLOR4D
+void GRLine( QPainter* painter, int x1, int y1, int x2, int y2, int width, const COLOR4D& color,
+             Qt::PenStyle aStyle)
+{
+    GRLine( painter, x1, y1, x2, y2, width, color.ToColor(), aStyle );
+}
+
 void GRLine( QPainter* painter, int x1, int y1, int x2, int y2, int width, const QColor& color,
              Qt::PenStyle aStyle)
 {
@@ -146,6 +165,13 @@ void GRLine( QPainter* painter, int x1, int y1, int x2, int y2, int width, const
     GRLastMoveToY = y2;
 }
 
+
+// Overloaded version with COLOR4D
+void GRLine( QPainter* aPainter, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
+             const COLOR4D& aColor, Qt::PenStyle aStyle )
+{
+    GRLine( aPainter, aStart.x, aStart.y, aEnd.x, aEnd.y, aWidth, aColor, aStyle );
+}
 
 void GRLine( QPainter* aPainter, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
              const QColor& aColor, Qt::PenStyle aStyle )
@@ -161,11 +187,23 @@ void GRMoveTo( int x, int y )
 }
 
 
+// Overloaded version with COLOR4D
+void GRLineTo( QPainter* painter, int x, int y, int width, const COLOR4D& color )
+{
+    GRLine( painter, GRLastMoveToX, GRLastMoveToY, x, y, width, color.ToColor() );
+}
+
 void GRLineTo( QPainter* painter, int x, int y, int width, const QColor& color )
 {
     GRLine( painter, GRLastMoveToX, GRLastMoveToY, x, y, width, color );
 }
 
+
+// Overloaded version with COLOR4D
+void GRCSegm( QPainter* painter, const VECTOR2I& A, const VECTOR2I& B, int width, const COLOR4D& color )
+{
+    GRCSegm( painter, A, B, width, color.ToColor() );
+}
 
 void GRCSegm( QPainter* painter, const VECTOR2I& A, const VECTOR2I& B, int width, const QColor& color )
 {
@@ -250,6 +288,13 @@ void GRCSegm( QPainter* painter, const VECTOR2I& A, const VECTOR2I& B, int width
 }
 
 
+// Overloaded version with COLOR4D
+void GRFilledSegment( QPainter* aPainter, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
+                      const COLOR4D& aColor )
+{
+    GRFilledSegment( aPainter, aStart, aEnd, aWidth, aColor.ToColor() );
+}
+
 void GRFilledSegment( QPainter* aPainter, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
                       const QColor& aColor )
 {
@@ -257,6 +302,10 @@ void GRFilledSegment( QPainter* aPainter, const VECTOR2I& aStart, const VECTOR2I
     qtDrawLine( aPainter, aStart.x, aStart.y, aEnd.x, aEnd.y, aWidth );
 }
 
+
+// Forward declaration for COLOR4D overload
+static void GRSPoly( QPainter* painter, int n, const VECTOR2I* Points, bool Fill, int width,
+                     const COLOR4D& Color, const COLOR4D& BgColor );
 
 static void GRSPoly( QPainter* painter, int n, const VECTOR2I* Points, bool Fill, int width,
                      const QColor& Color, const QColor& BgColor )
@@ -277,6 +326,10 @@ static void GRSPoly( QPainter* painter, int n, const VECTOR2I* Points, bool Fill
     }
 }
 
+
+// Forward declaration for COLOR4D overload
+static void GRSClosedPoly( QPainter* aPainter, int aPointCount, const VECTOR2I* aPoints, bool aFill,
+                           int aWidth, const COLOR4D& aColor, const COLOR4D& aBgColor );
 
 static void GRSClosedPoly( QPainter* aPainter, int aPointCount, const VECTOR2I* aPoints, bool aFill,
                            int aWidth, const QColor& aColor, const QColor& aBgColor )
@@ -303,6 +356,26 @@ static void GRSClosedPoly( QPainter* aPainter, int aPointCount, const VECTOR2I* 
     }
 }
 
+// COLOR4D overload implementation
+static void GRSPoly( QPainter* painter, int n, const VECTOR2I* Points, bool Fill, int width,
+                     const COLOR4D& Color, const COLOR4D& BgColor )
+{
+    GRSPoly( painter, n, Points, Fill, width, Color.ToColor(), BgColor.ToColor() );
+}
+
+// COLOR4D overload implementation
+static void GRSClosedPoly( QPainter* aPainter, int aPointCount, const VECTOR2I* aPoints, bool aFill,
+                           int aWidth, const COLOR4D& aColor, const COLOR4D& aBgColor )
+{
+    GRSClosedPoly( aPainter, aPointCount, aPoints, aFill, aWidth, aColor.ToColor(), aBgColor.ToColor() );
+}
+
+// Overloaded version with COLOR4D
+void GRPoly( QPainter* painter, int n, const VECTOR2I* Points, bool Fill, int width, const COLOR4D& Color,
+             const COLOR4D& BgColor )
+{
+    GRSPoly( painter, n, Points, Fill, width, Color.ToColor(), BgColor.ToColor() );
+}
 
 void GRPoly( QPainter* painter, int n, const VECTOR2I* Points, bool Fill, int width, const QColor& Color,
              const QColor& BgColor )
@@ -311,11 +384,23 @@ void GRPoly( QPainter* painter, int n, const VECTOR2I* Points, bool Fill, int wi
 }
 
 
+// Overloaded version with COLOR4D
+void GRClosedPoly( QPainter* painter, int n, const VECTOR2I* Points, bool Fill, const COLOR4D& Color )
+{
+    GRSClosedPoly( painter, n, Points, Fill, 0, Color.ToColor(), Color.ToColor() );
+}
+
 void GRClosedPoly( QPainter* painter, int n, const VECTOR2I* Points, bool Fill, const QColor& Color )
 {
     GRSClosedPoly( painter, n, Points, Fill, 0, Color, Color );
 }
 
+
+// Overloaded version with COLOR4D
+void GRCircle( QPainter* aPainter, const VECTOR2I& aPos, int aRadius, int aWidth, const COLOR4D& aColor )
+{
+    GRCircle( aPainter, aPos, aRadius, aWidth, aColor.ToColor() );
+}
 
 void GRCircle( QPainter* aPainter, const VECTOR2I& aPos, int aRadius, int aWidth, const QColor& aColor )
 {
@@ -328,6 +413,13 @@ void GRCircle( QPainter* aPainter, const VECTOR2I& aPos, int aRadius, int aWidth
 }
 
 
+// Overloaded version with COLOR4D
+void GRFilledCircle( QPainter* aPainter, const VECTOR2I& aPos, int aRadius, int aWidth,
+                     const COLOR4D& aStrokeColor, const COLOR4D& aFillColor )
+{
+    GRFilledCircle( aPainter, aPos, aRadius, aWidth, aStrokeColor.ToColor(), aFillColor.ToColor() );
+}
+
 void GRFilledCircle( QPainter* aPainter, const VECTOR2I& aPos, int aRadius, int aWidth,
                      const QColor& aStrokeColor, const QColor& aFillColor )
 {
@@ -336,6 +428,13 @@ void GRFilledCircle( QPainter* aPainter, const VECTOR2I& aPos, int aRadius, int 
     aPainter->drawEllipse( aPos.x - aRadius, aPos.y - aRadius, 2 * aRadius, 2 * aRadius );
 }
 
+
+// Overloaded version with COLOR4D
+void GRArc( QPainter* aPainter, const VECTOR2I& aStart, const VECTOR2I& aEnd, const VECTOR2I& aCenter,
+            int aWidth, const COLOR4D& aColor )
+{
+    GRArc( aPainter, aStart, aEnd, aCenter, aWidth, aColor.ToColor() );
+}
 
 void GRArc( QPainter* aPainter, const VECTOR2I& aStart, const VECTOR2I& aEnd, const VECTOR2I& aCenter,
             int aWidth, const QColor& aColor )
@@ -354,6 +453,13 @@ void GRArc( QPainter* aPainter, const VECTOR2I& aStart, const VECTOR2I& aEnd, co
 }
 
 
+// Overloaded version with COLOR4D
+void GRFilledArc( QPainter* painter, const VECTOR2I& aStart, const VECTOR2I& aEnd, const VECTOR2I& aCenter,
+                  int width, const COLOR4D& Color, const COLOR4D& BgColor )
+{
+    GRFilledArc( painter, aStart, aEnd, aCenter, width, Color.ToColor(), BgColor.ToColor() );
+}
+
 void GRFilledArc( QPainter* painter, const VECTOR2I& aStart, const VECTOR2I& aEnd, const VECTOR2I& aCenter,
                   int width, const QColor& Color, const QColor& BgColor )
 {
@@ -371,12 +477,26 @@ void GRFilledArc( QPainter* painter, const VECTOR2I& aStart, const VECTOR2I& aEn
 }
 
 
+// Overloaded version with COLOR4D
+void GRRect( QPainter* painter, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
+             const COLOR4D& aColor )
+{
+    GRSRect( painter, aStart.x, aStart.y, aEnd.x, aEnd.y, aWidth, aColor.ToColor() );
+}
+
 void GRRect( QPainter* painter, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
              const QColor& aColor )
 {
     GRSRect( painter, aStart.x, aStart.y, aEnd.x, aEnd.y, aWidth, aColor );
 }
 
+
+// Overloaded version with COLOR4D
+void GRFilledRect( QPainter* painter, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
+                   const COLOR4D& aColor, const COLOR4D& aBgColor )
+{
+    GRSFilledRect( painter, aStart.x, aStart.y, aEnd.x, aEnd.y, aWidth, aColor.ToColor(), aBgColor.ToColor() );
+}
 
 void GRFilledRect( QPainter* painter, const VECTOR2I& aStart, const VECTOR2I& aEnd, int aWidth,
                    const QColor& aColor, const QColor& aBgColor )
@@ -396,6 +516,13 @@ void GRSRect( QPainter* aPainter, int x1, int y1, int x2, int y2, int aWidth, co
     GRSClosedPoly( aPainter, 5, points, NOT_FILLED, aWidth, aColor, aColor );
 }
 
+
+// Overloaded version with COLOR4D
+void GRSFilledRect( QPainter* aPainter, int x1, int y1, int x2, int y2, int aWidth, const COLOR4D& aColor,
+                    const COLOR4D& aBgColor )
+{
+    GRSFilledRect( aPainter, x1, y1, x2, y2, aWidth, aColor.ToColor(), aBgColor.ToColor() );
+}
 
 void GRSFilledRect( QPainter* aPainter, int x1, int y1, int x2, int y2, int aWidth, const QColor& aColor,
                     const QColor& aBgColor )
