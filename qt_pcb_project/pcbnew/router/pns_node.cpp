@@ -1332,8 +1332,8 @@ void JOINT::Dump() const
     qDebug() << QString("PNS: joint layers %1-%2, net %3, pos %4, links: %5")
                 .arg(m_layers.Start())
                 .arg(m_layers.End())
-                .arg(m_tag.net)
-                .arg(m_tag.pos.Format().c_str())
+                .arg(reinterpret_cast<quintptr>(m_tag.net), 0, 16)
+                .arg(QString::fromStdString(m_tag.pos.Format()))
                 .arg(LinkCount());
 }
 

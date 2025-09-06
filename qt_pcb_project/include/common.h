@@ -2,10 +2,12 @@
 #ifndef INCLUDE__COMMON_H_
 #define INCLUDE__COMMON_H_
 
-#include <kicommon.h>
+#include <qt_compat_fix.h>  // Ensure proper include order for Qt/Windows compatibility
+
 #include <functional>
 #include <memory>
 
+#include <kicommon.h>
 #include <QtCore/QSettings>
 #include <QtCore/QString>
 #include <QtCore/QProcess>

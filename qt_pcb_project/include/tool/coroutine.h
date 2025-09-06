@@ -26,6 +26,13 @@
 #include <QDebug>
 
 #ifdef _WIN32
+// Prevent Windows.h from defining macros that conflict with Qt and standard library
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #else                   // Linux, BSD, MacOS
 #include <unistd.h>     // getpagesize

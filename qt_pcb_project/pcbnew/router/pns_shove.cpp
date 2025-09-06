@@ -64,7 +64,7 @@ SHOVE::ROOT_LINE_ENTRY* SHOVE::replaceLine( LINE& aOld, LINE& aNew, bool aInclud
         if( changed_area )
         {
             SHAPE_RECT r( *changed_area );
-            PNS_DBG( Dbg(), AddShape, &r, BLUE, 0, "shove-changed-area";
+            PNS_DBG( Dbg(), AddShape, &r, BLUE, 0, "shove-changed-area" );
 
             m_affectedArea = m_affectedArea ? m_affectedArea->Merge( *changed_area )
                                             : *changed_area;
@@ -346,7 +346,7 @@ bool SHOVE::shoveLineToHullSet( const LINE& aCurLine, const LINE& aObstacleLine,
 
             if( minDist1 < c_ENDPOINT_ON_HULL_THRESHOLD && aPermitAdjustingEnd )
             {
-                l.Line().append( p1 );
+                l.Line().Append( p1 );
                 obs = l.CLine();
                 path = l.CLine();
             }
@@ -870,7 +870,7 @@ SHOVE::SHOVE_STATUS SHOVE::onCollidingSolid( LINE& aCurrent, ITEM* aObstacle, OB
 
 void SHOVE::pruneRootLines( NODE *aRemovedNode )
 {
-    PNS_DBG( Dbg(), Message, QString::asprintf("prune called" );
+    PNS_DBG( Dbg(), Message, QString::asprintf("prune called" ) );
 
     NODE::ITEM_VECTOR added, removed;
     aRemovedNode->GetUpdatedItems( removed, added );
@@ -1079,8 +1079,8 @@ SHOVE::SHOVE_STATUS SHOVE::pushOrShoveVia( VIA* aVia, const VECTOR2I& aForce, in
     pushedVia->SetRank( aNewRank );
     PNS_DBG( Dbg(), Message, QString::asprintf("via rank %d, fanout %d\n", pushedVia->Rank(), (int) draggedLines.size() ) );
 
-    PNS_DBG( Dbg(), AddPoint, aVia->Pos(), LIGHTGREEN, 100000, "via-pre";
-    PNS_DBG( Dbg(), AddPoint, pushedVia->Pos(), LIGHTRED, 100000, "via-post";
+    PNS_DBG( Dbg(), AddPoint, aVia->Pos(), LIGHTGREEN, 100000, "via-pre" );
+    PNS_DBG( Dbg(), AddPoint, pushedVia->Pos(), LIGHTRED, 100000, "via-post" );
 
     VIA *v2 = pushedVia.get();
 
@@ -1621,7 +1621,7 @@ SHOVE::SHOVE_STATUS SHOVE::shoveIteration( int aIter )
     PNS_DBG( Dbg(), AddItem, &currentLine, RED, currentLine.Width(),
              QString::asprintf( "current sc=%d net=%s evia=%d",
              currentLine.SegmentCount(),
-             iface->GetNetName( currentLine.Net() ),
+             iface->GetNetName( currentLine.Net() ).toStdString().c_str(),
              currentLine.EndsWithVia() ? 1 : 0 ) );
 
     for( ITEM::PnsKind search_order : { ITEM::SOLID_T, ITEM::VIA_T, ITEM::SEGMENT_T, ITEM::HOLE_T } )
@@ -1670,7 +1670,7 @@ SHOVE::SHOVE_STATUS SHOVE::shoveIteration( int aIter )
     if( !nearest )
     {
         m_lineStack.pop_back();
-        PNS_DBG( Dbg(), Message, "no-nearest-item ") );
+        PNS_DBG( Dbg(), Message, "no-nearest-item " );
         return SH_OK;
     }
 
@@ -1683,9 +1683,9 @@ SHOVE::SHOVE_STATUS SHOVE::shoveIteration( int aIter )
 
     UNITS_PROVIDER up( pcbIUScale, EDA_UNITS::MM );
     PNS_DBG( Dbg(), Message, QString::asprintf( "NI: %s (%s) %p %d",
-                                               ni->Format(),
-                                               ni->Parent() ? ni->Parent()->GetItemDescription( &up, false )
-                                                            : QString( "null" ),
+                                               ni->Format().c_str(),
+                                               ni->Parent() ? ni->Parent()->GetItemDescription( &up, false ).toStdString().c_str()
+                                                            : "null",
                                                ni,
                                                ni->OwningNode()->Depth() ) );
 
@@ -1948,7 +1948,7 @@ SHOVE::ROOT_LINE_ENTRY* SHOVE::touchRootLine( const LINE& aLine )
 
         if( it != m_rootLineHistory.end() )
         {
-            PNS_DBG( Dbg(), Message, QString::asprintf( "touch [found] uid=%llu type=%s"), link->Uid(), link->KindStr() ) );
+            PNS_DBG( Dbg(), Message, QString::asprintf( "touch [found] uid=%llu type=%s", link->Uid(), link->KindStr().c_str() ) );
 
             return it->second;
         }
@@ -1959,7 +1959,7 @@ SHOVE::ROOT_LINE_ENTRY* SHOVE::touchRootLine( const LINE& aLine )
 
     for( const LINKED_ITEM* link : aLine.Links() )
     {
-        PNS_DBG( Dbg(), Message, QString::asprintf( "touch [create] uid=%llu type=%s"), link->Uid(), link->KindStr() ) );
+        PNS_DBG( Dbg(), Message, QString::asprintf( "touch [create] uid=%llu type=%s", link->Uid(), link->KindStr().c_str() ) );
         m_rootLineHistory[link->Uid()] = rootEntry;
     }
 
@@ -1974,13 +1974,13 @@ SHOVE::ROOT_LINE_ENTRY* SHOVE::touchRootLine( const LINKED_ITEM* aItem )
 
     if( it != m_rootLineHistory.end() )
     {
-        PNS_DBG( Dbg(), Message, QString::asprintf( "touch [create] uid=%llu"), aItem->Uid() ) );
+        PNS_DBG( Dbg(), Message, QString::asprintf( "touch [create] uid=%llu", aItem->Uid() ) );
         return it->second;
     }
 
     auto rootEntry = new ROOT_LINE_ENTRY( nullptr );
 
-    PNS_DBG( Dbg(), Message, QString::asprintf( "touch [create] uid=%llu"), aItem->Uid() ) );
+    PNS_DBG( Dbg(), Message, QString::asprintf( "touch [create] uid=%llu", aItem->Uid() ) );
     m_rootLineHistory[ aItem->Uid() ] = rootEntry;
 
     return rootEntry;
@@ -2062,7 +2062,7 @@ void SHOVE::runOptimizer( NODE* aNode )
     {
         std::reverse( m_optimizerQueue.begin(), m_optimizerQueue.end() );
 
-        PNS_DBG( Dbg(), Message, QString::asprintf( "optimize %d lines, pass %d"), (int)m_optimizerQueue.size(), (int)pass ) );
+        PNS_DBG( Dbg(), Message, QString::asprintf( "optimize %d lines, pass %d", (int)m_optimizerQueue.size(), (int)pass ) );
 
         for( int i = 0; i < m_optimizerQueue.size(); i++ )
         {
@@ -2289,7 +2289,7 @@ void SHOVE::reconstructHeads( bool aShoveFailed )
 
                 QString msg = QString::asprintf(
                         "head %d/%d [net %-20s]: root %p, lc-root %d, lc-new %d\n", i, (int) m_headLines.size(),
-                        iface->GetNetName( rootEntry->rootLine->Net() ).c_str().AsChar(), rootEntry->rootLine, rootEntry->rootLine->LinkCount(), headEntry.newHead->LinkCount() );
+                        iface->GetNetName( rootEntry->rootLine->Net() ).toStdString().c_str(), rootEntry->rootLine, rootEntry->rootLine->LinkCount(), headEntry.newHead->LinkCount() );
                 PNS_DBG( Dbg(), AddItem, rootEntry->rootLine, CYAN, 0, msg );
                 PNS_DBG( Dbg(), Message, msg );
 
@@ -2298,7 +2298,7 @@ void SHOVE::reconstructHeads( bool aShoveFailed )
             {
                 QString msg = QString::asprintf(
                         "head %d/%d [net %-20s]: unmodified, lc-orig %d\n", i, (int) m_headLines.size(),
-                        iface->GetNetName( headEntry.origHead->Net() ).c_str().AsChar(),
+                        iface->GetNetName( headEntry.origHead->Net() ).toStdString().c_str(),
                         headEntry.origHead->LinkCount() );
                 PNS_DBG( Dbg(), Message, msg );
             }
@@ -2420,7 +2420,7 @@ SHOVE::SHOVE_STATUS SHOVE::Run()
     {
         //if( rootEntry->line ) // head already processed in previous steps
         //{
-        //  PNS_DBG( Dbg(), Message, QString::asprintf( "RL found" );
+        //  PNS_DBG( Dbg(), Message, QString::asprintf( "RL found" ) );
 
         //continue;
         //}
@@ -2516,7 +2516,7 @@ SHOVE::SHOVE_STATUS SHOVE::Run()
             PNS_DBG( Dbg(), Message,
                      QString::asprintf( "Shove heads %d/%d h-lc=%d net=%s Line=%d Policy=%s",
                                        currentHeadId, totalHeads, head.LinkCount(),
-                                       iface->GetNetName( head.Net() ), headRoot->newLine ? 1 : 0,
+                                       iface->GetNetName( head.Net() ).toStdString().c_str(), headRoot->newLine ? 1 : 0,
                                        headRoot ? formatPolicy( headRoot->policy )
                                                 : QString( "default[ne]" ) ) );
 
@@ -2540,7 +2540,7 @@ SHOVE::SHOVE_STATUS SHOVE::Run()
 
    PNS_DBG( Dbg(), Message,
                  QString::asprintf( "Shove status : %s after %d iterations, heads: %d",
-                                   ( ( st == SH_OK || st == SH_HEAD_MODIFIED ) ? "OK" : "FAILURE",
+                                   ( st == SH_OK || st == SH_HEAD_MODIFIED ) ? "OK" : "FAILURE",
                                    m_iter, (int) m_headLines.size() ) );
     if( st == SH_OK )
     {

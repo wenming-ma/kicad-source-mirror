@@ -3,6 +3,11 @@
 #ifndef FILEHISTORY_H_
 #define FILEHISTORY_H_
 
+#include <qt_compat_fix.h>  // Ensure proper include order for Qt/Windows compatibility
+
+#include <vector>
+#include <string>
+
 #include <tool/action_menu.h>
 #include <tool/selection_conditions.h>
 #include <QObject>
@@ -10,8 +15,6 @@
 #include <QMenu>
 #include <QAction>
 #include <QStringList>
-#include <vector>
-#include <string>
 
 
 class APP_SETTINGS_BASE;

@@ -3,6 +3,8 @@
 #ifndef EDA_UNITS_H
 #define EDA_UNITS_H
 
+#include <qt_compat_fix.h>  // Ensure proper include order for Qt/Windows compatibility
+
 #include <kicommon.h>
 #include <QString>
 #include <geometry/eda_angle.h>

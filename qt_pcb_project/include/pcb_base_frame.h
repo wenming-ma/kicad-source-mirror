@@ -201,11 +201,11 @@ public:
 
 
 protected:
-    bool canCloseWindow( QCloseEvent* aCloseEvent ) override;
+    bool canCloseWindow( QCloseEvent& aCloseEvent ) override;
 
-    void handleActivateEvent( QEvent* aEvent ) override;
+    void handleActivateEvent( QEvent& aEvent ) override;
 
-    void handleIconizeEvent( QEvent* aEvent ) override;
+    void handleIconizeEvent( QEvent& aEvent ) override;
 
     virtual void doReCreateMenuBar() override;
 

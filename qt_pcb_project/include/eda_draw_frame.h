@@ -37,7 +37,7 @@ class QCommandEvent;
 class QUpdateUIEvent;
 class QSizeEvent;
 class QMoveEvent;
-class QActivateEvent;
+// Note: QActivateEvent doesn't exist in Qt, using QEvent for activation events
 class SEARCH_PANE;
 class HOTKEY_CYCLE_POPUP;
 class PROPERTIES_PANEL;
@@ -380,8 +380,8 @@ protected:
     bool saveCanvasTypeSetting( EDA_DRAW_PANEL_GAL::GAL_TYPE aCanvasType );
 
     // Handle a window activation event.
-    virtual void handleActivateEvent( QActivateEvent& aEvent );
-    void onActivate( QActivateEvent& aEvent );
+    virtual void handleActivateEvent( QEvent& aEvent );
+    void onActivate( QEvent& aEvent );
 
     // Append actions from API plugins to the main toolbar
     virtual void addApiPluginTools();

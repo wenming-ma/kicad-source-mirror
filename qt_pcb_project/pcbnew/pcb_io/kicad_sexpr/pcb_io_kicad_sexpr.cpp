@@ -65,7 +65,7 @@ FP_CACHE::FP_CACHE( PCB_IO_KICAD_SEXPR* aOwner, const QString& aLibraryPath )
 {
     m_owner = aOwner;
     m_lib_raw_path = aLibraryPath;
-    m_lib_path.SetPath( aLibraryPath );
+    m_lib_path.setFile( aLibraryPath );
     m_cache_timestamp = 0;
     m_cache_dirty = true;
 }
@@ -75,13 +75,13 @@ void FP_CACHE::Save( FOOTPRINT* aFootprintFilter )
 {
     m_cache_timestamp = 0;
 
-    if( !m_lib_path.DirExists() && !m_lib_path.Mkdir() )
+    if( !m_lib_path.isDir() && !QDir().mkpath( m_lib_path.absoluteFilePath() ) )
     {
         THROW_IO_ERROR( QString( _( "Cannot create footprint library '%s'." ) ).arg(
                                           m_lib_raw_path ) );
     }
 
-    if( !m_lib_path.IsDirWritable() )
+    if( !m_lib_path.isWritable() )
     {
         THROW_IO_ERROR( QString( _( "Footprint library '%s' is read only." ) ).arg(
                                           m_lib_raw_path ) );
@@ -103,13 +103,13 @@ void FP_CACHE::Save( FOOTPRINT* aFootprintFilter )
             footprint->GetEmbeddedFiles()->ClearEmbeddedFonts();
 
         QFileInfo fn = fpCacheEntry->GetFileName();
-        QString    fileName = fn.GetFullPath();
+        QString    fileName = fn.absoluteFilePath();
 
         // Allow file output stream to go out of scope to close the file stream before
         // renaming the file.
         {
             qDebug() << "Writing library file" <<
-                        fileName );
+                        fileName;
 
             PRETTIFIED_FILE_OUTPUTFORMATTER formatter( fileName );
 
@@ -117,11 +117,11 @@ void FP_CACHE::Save( FOOTPRINT* aFootprintFilter )
             m_owner->Format( footprint.get() );
         }
 
-        m_cache_timestamp += fn.GetTimestamp();
+        m_cache_timestamp += fn.lastModified().toMSecsSinceEpoch();
     }
 
-    if( m_lib_path.IsFileReadable() && m_lib_path.GetModificationTime().IsValid() )
-        m_cache_timestamp += m_lib_path.GetModificationTime().GetValue().GetValue();
+    if( m_lib_path.isReadable() && m_lib_path.exists() )
+        m_cache_timestamp += m_lib_path.lastModified().toMSecsSinceEpoch();
 
     // If we've saved the full cache, we clear the dirty flag.
     if( !aFootprintFilter )
@@ -144,7 +144,7 @@ void FP_CACHE::Load()
     }
 
     QString fullName;
-    QString fileSpec = QLatin1String( "*." ) + QString( FILEEXT::KiCadFootprintFileExtension );
+    QString fileSpec = QLatin1String( "*." ) + QString::fromStdString( FILEEXT::KiCadFootprintFileExtension );
 
     // QFileInfo construction is egregiously slow.  Construct it once and just swap out
     // the filename thereafter.
@@ -206,7 +206,7 @@ void FP_CACHE::Remove( const QString& aFootprintName )
     }
 
     // Remove the footprint from the cache and delete the footprint file from the library.
-    QString fullPath = it->second->GetFileName().GetFullPath();
+    QString fullPath = it->second->GetFileName().absoluteFilePath();
     m_footprints.erase( aFootprintName );
     QFile::remove( fullPath );
 }
@@ -221,7 +221,7 @@ bool FP_CACHE::IsPath( const QString& aPath ) const
 void FP_CACHE::SetPath( const QString& aPath )
 {
     m_lib_raw_path = aPath;
-    m_lib_path.SetPath( aPath );
+    m_lib_path.setFile( aPath );
 
 
     for( const auto& footprint : GetFootprints() )
@@ -231,7 +231,7 @@ void FP_CACHE::SetPath( const QString& aPath )
 
 bool FP_CACHE::IsModified()
 {
-    m_cache_dirty = m_cache_dirty || GetTimestamp( m_lib_path.GetFullPath() ) != m_cache_timestamp;
+    m_cache_dirty = m_cache_dirty || GetTimestamp( m_lib_path.absoluteFilePath() ) != m_cache_timestamp;
 
     return m_cache_dirty;
 }
@@ -239,7 +239,7 @@ bool FP_CACHE::IsModified()
 
 long long FP_CACHE::GetTimestamp( const QString& aLibPath )
 {
-    QString fileSpec = QLatin1String( "*." ) + QString( FILEEXT::KiCadFootprintFileExtension );
+    QString fileSpec = QLatin1String( "*." ) + QString::fromStdString( FILEEXT::KiCadFootprintFileExtension );
 
     return TimestampDir( aLibPath, fileSpec );
 }
@@ -792,7 +792,7 @@ void PCB_IO_KICAD_SEXPR::format( const BOARD* aBoard ) const
     m_out->Print( "(embedded_fonts %s)",
                   aBoard->GetEmbeddedFiles()->GetAreFontsEmbedded() ? "yes" : "no" );
 
-    if( !files_to_write.isEmpty() )
+    if( !files_to_write.EmbeddedFileMap().empty() )
         files_to_write.WriteEmbeddedFiles( *m_out, ( m_ctl & CTL_FOR_BOARD ) );
 
     // Remove the files so that they are not freed in the DTOR
@@ -1040,7 +1040,7 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_REFERENCE_IMAGE* aBitmap ) const
     QBuffer ostream;
     refImage.GetImage().SaveImageData( ostream );
 
-    KICAD_FORMAT::FormatStreamData( *m_out, *ostream.GetOutputStreamBuffer() );
+    KICAD_FORMAT::FormatStreamData( *m_out, ostream );
 
     KICAD_FORMAT::FormatUuid( m_out, aBitmap->m_Uuid );
     m_out->Print( ")" );      // Closes image token.
@@ -1071,7 +1071,7 @@ void PCB_IO_KICAD_SEXPR::format( const FOOTPRINT* aFootprint ) const
 
         if( initial_comments )
         {
-            for( unsigned i = 0; i < initial_comments->GetCount(); ++i )
+            for( unsigned i = 0; i < initial_comments->size(); ++i )
                 m_out->Print( "%s\n", TO_UTF8( (*initial_comments)[i] ) );
         }
     }
@@ -1137,7 +1137,7 @@ void PCB_IO_KICAD_SEXPR::format( const FOOTPRINT* aFootprint ) const
 
     if( const COMPONENT_CLASS* compClass = aFootprint->GetComponentClass() )
     {
-        if( !compClass->isEmpty() )
+        if( !compClass->IsEmpty() )
         {
             m_out->Print( "(component_classes" );
 
@@ -1148,7 +1148,7 @@ void PCB_IO_KICAD_SEXPR::format( const FOOTPRINT* aFootprint ) const
         }
     }
 
-    if( !aFootprint->GetFilters().empty() )
+    if( !aFootprint->GetFilters().isEmpty() )
     {
         m_out->Print( "(property ki_fp_filters %s)",
                       m_out->Quotew( aFootprint->GetFilters() ).c_str() );
@@ -1157,10 +1157,10 @@ void PCB_IO_KICAD_SEXPR::format( const FOOTPRINT* aFootprint ) const
     if( !( m_ctl & CTL_OMIT_PATH ) && !aFootprint->GetPath().empty() )
         m_out->Print( "(path %s)", m_out->Quotew( aFootprint->GetPath().AsString() ).c_str() );
 
-    if( !aFootprint->GetSheetname().empty() )
+    if( !aFootprint->GetSheetname().isEmpty() )
         m_out->Print( "(sheetname %s)", m_out->Quotew( aFootprint->GetSheetname() ).c_str() );
 
-    if( !aFootprint->GetSheetfile().empty() )
+    if( !aFootprint->GetSheetfile().isEmpty() )
         m_out->Print( "(sheetfile %s)", m_out->Quotew( aFootprint->GetSheetfile() ).c_str() );
 
     if( aFootprint->GetLocalSolderMaskMargin().has_value() )
@@ -1281,7 +1281,7 @@ void PCB_IO_KICAD_SEXPR::format( const FOOTPRINT* aFootprint ) const
     KICAD_FORMAT::FormatBool( m_out, "embedded_fonts",
                               aFootprint->GetEmbeddedFiles()->GetAreFontsEmbedded() );
 
-    if( !aFootprint->GetEmbeddedFiles()->isEmpty() )
+    if( !aFootprint->GetEmbeddedFiles()->EmbeddedFileMap().empty() )
         aFootprint->WriteEmbeddedFiles( *m_out, !( m_ctl & CTL_FOR_BOARD ) );
 
     // Save 3D info.
@@ -1426,8 +1426,8 @@ void PCB_IO_KICAD_SEXPR::format( const PAD* aPad ) const
             case PAD_SHAPE::CUSTOM:          return "custom";
 
             default:
-                THROW_IO_ERROR( QString( _( "unknown pad type: %d" ) ).arg(
-                                aPad->GetShape( aLayer ) ) );
+                THROW_IO_ERROR( _( "unknown pad type: %1" ).arg(
+                                static_cast<int>( aPad->GetShape( aLayer ) ) ) );
             }
         };
 
@@ -1442,7 +1442,7 @@ void PCB_IO_KICAD_SEXPR::format( const PAD* aPad ) const
 
     default:
         THROW_IO_ERROR( QString( "unknown pad attribute: %1" ).arg(
-                                          aPad->GetAttribute() ) );
+                                          static_cast<int>( aPad->GetAttribute() ) ) );
     }
 
     const char* property = nullptr;
@@ -1460,7 +1460,7 @@ void PCB_IO_KICAD_SEXPR::format( const PAD* aPad ) const
 
     default:
         THROW_IO_ERROR( QString( "unknown pad property: %1" ).arg(
-                                          aPad->GetProperty() ) );
+                                          static_cast<int>( aPad->GetProperty() ) ) );
     }
 
     m_out->Print( "(pad %s %s %s",
@@ -2131,9 +2131,9 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_GROUP* aGroup ) const
     QStringList memberIds;
 
     for( BOARD_ITEM* member : aGroup->GetItems() )
-        memberIds.Add( member->m_Uuid.AsString() );
+        memberIds.append( member->m_Uuid.AsString() );
 
-    memberIds.Sort();
+    std::sort( memberIds.begin(), memberIds.end() );
 
     m_out->Print( "(members" );
 
@@ -2168,12 +2168,12 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_GENERATOR* aGenerator ) const
 
     for( const auto& [key, value] : aGenerator->GetProperties() )
     {
-        if( value.CheckType<double>() || value.CheckType<int>() || value.CheckType<long>()
-            || value.CheckType<long long>() )
+        if( value.canConvert<double>() || value.canConvert<int>() || value.canConvert<long>()
+            || value.canConvert<long long>() )
         {
-            double val;
+            double val = value.toDouble();
 
-            if( !value.GetAs( &val ) )
+            if( !value.isValid() )
                 continue;
 
             std::string buf = fmt::format( "{:.10g}", val );
@@ -2181,26 +2181,23 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_GENERATOR* aGenerator ) const
             // Don't quote numbers
             m_out->Print( "(%s %s)", key.c_str(), buf.c_str() );
         }
-        else if( value.CheckType<bool>() )
+        else if( value.canConvert<bool>() )
         {
-            bool val;
-            value.GetAs( &val );
+            bool val = value.toBool();
 
-            KICAD_FORMAT::FormatBool( m_out, key, val );
+            KICAD_FORMAT::FormatBool( m_out, QString::fromStdString( key ), val );
         }
-        else if( value.CheckType<VECTOR2I>() )
+        else if( value.canConvert<VECTOR2I>() )
         {
-            VECTOR2I val;
-            value.GetAs( &val );
+            VECTOR2I val = value.value<VECTOR2I>();
 
             m_out->Print( "(%s (xy %s))",
                           key.c_str(),
                           formatInternalUnits( val ).c_str() );
         }
-        else if( value.CheckType<SHAPE_LINE_CHAIN>() )
+        else if( value.canConvert<SHAPE_LINE_CHAIN>() )
         {
-            SHAPE_LINE_CHAIN val;
-            value.GetAs( &val );
+            SHAPE_LINE_CHAIN val = value.value<SHAPE_LINE_CHAIN>();
 
             m_out->Print( "(%s ", key.c_str() );
             formatPolyPts( val );
@@ -2210,14 +2207,13 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_GENERATOR* aGenerator ) const
         {
             QString val;
 
-            if( value.CheckType<QString>() )
+            if( value.canConvert<QString>() )
             {
-                value.GetAs( &val );
+                val = value.toString();
             }
-            else if( value.CheckType<std::string>() )
+            else if( value.canConvert<std::string>() )
             {
-                std::string str;
-                value.GetAs( &str );
+                std::string str = value.value<std::string>();
 
                 val = QString::fromUtf8( str );
             }
@@ -2229,9 +2225,9 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_GENERATOR* aGenerator ) const
     QStringList memberIds;
 
     for( BOARD_ITEM* member : aGenerator->GetItems() )
-        memberIds.Add( member->m_Uuid.AsString() );
+        memberIds.append( member->m_Uuid.AsString() );
 
-    memberIds.Sort();
+    std::sort( memberIds.begin(), memberIds.end() );
 
     m_out->Print( "(members" );
 
@@ -2272,7 +2268,7 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_TRACK* aTrack ) const
             break;
 
         default:
-            THROW_IO_ERROR( QString( _( "unknown via type %1" ) ).arg( via->GetViaType() ) );
+            THROW_IO_ERROR( _( "unknown via type %1" ).arg( static_cast<int>( via->GetViaType() ) ) );
         }
 
         m_out->Print( "(at %s) (size %s)",
@@ -2445,7 +2441,7 @@ void PCB_IO_KICAD_SEXPR::format( const ZONE* aZone ) const
 
     KICAD_FORMAT::FormatUuid( m_out, aZone->m_Uuid );
 
-    if( !aZone->GetZoneName().empty() )
+    if( !aZone->GetZoneName().isEmpty() )
         m_out->Print( "(name %s)", m_out->Quotew( aZone->GetZoneName() ).c_str() );
 
     // Save the outline aux info
@@ -2660,7 +2656,7 @@ BOARD* PCB_IO_KICAD_SEXPR::LoadBoard( const QString& aFileName, BOARD* aAppendTo
 
     unsigned lineCount = 0;
 
-    fontconfig::FONTCONFIG::SetReporter( &WXLOG_REPORTER::GetInstance() );
+    fontconfig::FONTCONFIG::SetReporter( &QTLOG_REPORTER::GetInstance() );
 
     if( m_progressReporter )
     {
@@ -2764,7 +2760,7 @@ void PCB_IO_KICAD_SEXPR::FootprintEnumerate( QStringList& aFootprintNames, const
     // the library.
 
     for( const auto& footprint : m_cache->GetFootprints() )
-        aFootprintNames.Add( footprint.first );
+        aFootprintNames.append( footprint.first );
 
     if( !errorMsg.isEmpty() && !aBestEfforts )
         THROW_IO_ERROR( errorMsg );
@@ -2814,9 +2810,9 @@ bool PCB_IO_KICAD_SEXPR::FootprintExists( const QString& aLibraryPath, const QSt
     // case-insensitive filesystem) handled "for free".
     // Warning: footprint names frequently contain a point. So be careful when initializing
     // QFileInfo, and use a CTOR with extension specified
-    QFileInfo footprintFile( QDir( aLibraryPath ).filePath( aFootprintName + "." + QString( FILEEXT::KiCadFootprintFileExtension ) ) );
+    QFileInfo footprintFile( QDir( aLibraryPath ).filePath( aFootprintName + "." + QString::fromStdString( FILEEXT::KiCadFootprintFileExtension ) ) );
 
-    return footprintFile.Exists();
+    return footprintFile.exists();
 }
 
 
@@ -2880,9 +2876,8 @@ void PCB_IO_KICAD_SEXPR::FootprintSave( const QString& aLibraryPath, const FOOTP
     {
         if( !m_cache->Exists() )
         {
-            const QString msg = QString( _( "Library '%s' does not exist.\n"
-                                                      "Would you like to create it?"),
-                                                      aLibraryPath );
+            const QString msg = _( "Library '%1' does not exist.\n"
+                                    "Would you like to create it?" ).arg( aLibraryPath );
 
             if( !Pgm().IsGUI() || QMessageBox::question( nullptr, _( "Library Not Found" ), msg, QMessageBox::Yes | QMessageBox::No ) != QMessageBox::Yes )
                 return;
@@ -2892,7 +2887,7 @@ void PCB_IO_KICAD_SEXPR::FootprintSave( const QString& aLibraryPath, const FOOTP
         }
         else
         {
-            QString msg = QString( _( "Library '%s' is read only." ) ).arg( aLibraryPath );
+            QString msg = _( "Library '%1' is read only." ).arg( aLibraryPath );
             THROW_IO_ERROR( msg );
         }
     }
@@ -2903,21 +2898,21 @@ void PCB_IO_KICAD_SEXPR::FootprintSave( const QString& aLibraryPath, const FOOTP
     ReplaceIllegalFileNameChars( fpName, '_' );
 
     // Quietly overwrite footprint and delete footprint file from path for any by same name.
-    QFileInfo fn( QDir( aLibraryPath ).filePath( fpName + "." + QString( FILEEXT::KiCadFootprintFileExtension ) ) );
+    QFileInfo fn( QDir( aLibraryPath ).filePath( fpName + "." + QString::fromStdString( FILEEXT::KiCadFootprintFileExtension ) ) );
 
     // Write through symlinks, don't replace them
     // Qt QFileInfo resolves symlinks by default
 
-    if( !fn.IsOk() )
+    if( !fn.exists() )
     {
-        THROW_IO_ERROR( QString( _( "Footprint file name '%s' is not valid." ) ).arg(
-                                          fn.GetFullPath() ) );
+        THROW_IO_ERROR( _( "Footprint file name '%1' is not valid." ).arg(
+                                          fn.absoluteFilePath() ) );
     }
 
-    if( fn.FileExists() && !fn.IsFileWritable() )
+    if( fn.exists() && !fn.isWritable() )
     {
-        THROW_IO_ERROR( QString( _( "Insufficient permissions to delete '%s'." ) ).arg(
-                                          fn.GetFullPath() ) );
+        THROW_IO_ERROR( _( "Insufficient permissions to delete '%1'." ).arg(
+                                          fn.absoluteFilePath() ) );
     }
 
     QString fullPath = fn.absoluteFilePath();
@@ -2969,8 +2964,8 @@ void PCB_IO_KICAD_SEXPR::FootprintDelete( const QString& aLibraryPath, const QSt
 
     if( !m_cache->IsWritable() )
     {
-        THROW_IO_ERROR( QString( _( "Library '%s' is read only." ) ).arg(
-                                          aLibraryPath.GetData() ) );
+        THROW_IO_ERROR( _( "Library '%1' is read only." ).arg(
+                                          aLibraryPath ) );
     }
 
     m_cache->Remove( aFootprintName );
@@ -2988,8 +2983,8 @@ void PCB_IO_KICAD_SEXPR::CreateLibrary( const QString& aLibraryPath, const std::
 {
     if( QDir( aLibraryPath ).exists() )
     {
-        THROW_IO_ERROR( QString( _( "Cannot overwrite library path '%s'." ) ).arg(
-                                          aLibraryPath.GetData() ) );
+        THROW_IO_ERROR( _( "Cannot overwrite library path '%1'." ).arg(
+                                          aLibraryPath ) );
     }
 
     LOCALE_IO   toggle;
@@ -3005,28 +3000,28 @@ void PCB_IO_KICAD_SEXPR::CreateLibrary( const QString& aLibraryPath, const std::
 bool PCB_IO_KICAD_SEXPR::DeleteLibrary( const QString& aLibraryPath, const std::map<std::string, UTF8>* aProperties )
 {
     QFileInfo fn;
-    fn.SetPath( aLibraryPath );
+    fn.setFile( aLibraryPath );
 
     // Return if there is no library path to delete.
-    if( !fn.DirExists() )
+    if( !fn.isDir() )
         return false;
 
-    if( !fn.IsDirWritable() )
+    if( !fn.isWritable() )
     {
-        THROW_IO_ERROR( QString( _( "Insufficient permissions to delete folder '%s'." ) ).arg(
-                                          aLibraryPath.GetData() ) );
+        THROW_IO_ERROR( _( "Insufficient permissions to delete folder '%1'." ).arg(
+                                          aLibraryPath ) );
     }
 
     QDir dir( aLibraryPath );
 
-    if( dir.HasSubDirs() )
+    if( !dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot).isEmpty() )
     {
-        THROW_IO_ERROR( QString( _( "Library folder '%s' has unexpected sub-folders." ) ).arg(
-                                          aLibraryPath.GetData() ) );
+        THROW_IO_ERROR( _( "Library folder '%1' has unexpected sub-folders." ).arg(
+                                          aLibraryPath ) );
     }
 
     // All the footprint files must be deleted before the directory can be deleted.
-    if( dir.HasFiles() )
+    if( !dir.entryList(QDir::Files).isEmpty() )
     {
         unsigned      i;
         QFileInfo    tmp;
@@ -3037,32 +3032,29 @@ bool PCB_IO_KICAD_SEXPR::DeleteLibrary( const QString& aLibraryPath, const std::
             files.append( it.next() );
         }
 
-        for( i = 0;  i < files.GetCount();  i++ )
+        for( i = 0;  i < files.size();  i++ )
         {
-            tmp = files[i];
+            tmp = QFileInfo( files[i] );
 
-            if( tmp.GetExt() != FILEEXT::KiCadFootprintFileExtension )
+            if( tmp.suffix() != QString::fromStdString( FILEEXT::KiCadFootprintFileExtension ) )
             {
-                THROW_IO_ERROR( QString( _( "Unexpected file '%s' found in library" ) ).arg(
-                                                     "path '%s'." ),
-                                                  files[i].GetData(),
-                                                  aLibraryPath.GetData() ) );
+                THROW_IO_ERROR( _( "Unexpected file '%1' found in library path '%2'." ).arg(
+                                                  files[i] ).arg( aLibraryPath ) );
             }
         }
 
-        for( i = 0;  i < files.GetCount();  i++ )
+        for( i = 0;  i < files.size();  i++ )
             QFile::remove( files[i] );
     }
 
-    qDebug() << "Removing footprint library" <<
-                aLibraryPath.GetData() );
+    qDebug() << "Removing footprint library" << aLibraryPath;
 
     // Some of the more elaborate QFile::remove() operations may show dialogs
     // we don't want that.  we want bare metal portability with no UI here.
     if( !QDir().rmdir( aLibraryPath ) )
     {
         THROW_IO_ERROR( QString( _( "Footprint library '%s' cannot be deleted." ) ).arg(
-                                          aLibraryPath.GetData() ) );
+                                          aLibraryPath.toUtf8().constData() ) );
     }
 
     // For some reason removing a directory in Windows is not immediately updated.  This delay

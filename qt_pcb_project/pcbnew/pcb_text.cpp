@@ -247,7 +247,7 @@ void PCB_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
 {
     FOOTPRINT* parentFP = GetParentFootprint();
 
-    if( parentFP && aFrame->GetName() == PCB_EDIT_FRAME_NAME )
+    if( parentFP && aFrame->objectName() == PCB_EDIT_FRAME_NAME )
         aList.emplace_back( _( "Footprint" ), parentFP->GetReference() );
 
     // Don't use GetShownText() here; we want to show the user the variable references
@@ -259,7 +259,7 @@ void PCB_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
     if( parentFP )
         aList.emplace_back( _( "Type" ), GetTextTypeDescription() );
 
-    if( aFrame->GetName() == PCB_EDIT_FRAME_NAME && IsLocked() )
+    if( aFrame->objectName() == PCB_EDIT_FRAME_NAME && IsLocked() )
         aList.emplace_back( _( "Status" ), _( "Locked" ) );
 
     aList.emplace_back( _( "Layer" ), GetLayerName() );

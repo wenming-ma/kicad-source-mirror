@@ -3,14 +3,16 @@
 #ifndef _JSON_SETTINGS_H
 #define _JSON_SETTINGS_H
 
+#include <qt_compat_fix.h>  // Ensure proper include order for Qt/Windows compatibility
+
 #include <utility>
+#include <functional>
+#include <optional>
+
 #include <QString>
 #include <QPoint>
 #include <QSize>
 #include <QRect>
-
-#include <functional>
-#include <optional>
 #include <settings/json_settings_internals.h>
 #include <json_conversions.h>
 

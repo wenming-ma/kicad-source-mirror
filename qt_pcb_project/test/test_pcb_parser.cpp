@@ -5,9 +5,9 @@
 
 #include <iostream>
 #include <string>
-#include <wx/string.h>
-#include <wx/filename.h>
-#include <wx/app.h>
+#include <QString>
+#include <QFileInfo>
+#include <QCoreApplication>
 
 // Include necessary KiCad headers
 #include <board.h>
@@ -25,36 +25,33 @@
 #include <settings/settings_manager.h>
 #include <board_design_settings.h>
 
-// Simple wxApp implementation for minimal initialization
-class PCB_TEST_APP : public wxApp
+// Simple QCoreApplication wrapper for minimal initialization
+class PCB_TEST_APP
 {
 public:
-    bool OnInit() override
+    static QCoreApplication* createApp(int& argc, char* argv[])
     {
-        // Minimal initialization
-        return true;
+        return new QCoreApplication(argc, argv);
     }
 };
-
-wxIMPLEMENT_APP_NO_MAIN(PCB_TEST_APP);
 
 // Simple PGM implementation
 class PCB_TEST_PGM : public PGM_BASE
 {
 public:
     // Required abstract method
-    void MacOpenFile( const wxString& aFileName ) override {}
+    void MacOpenFile( const QString& aFileName ) override {}
     
     // Override virtual methods with correct signatures
-    const wxString& GetKicadEnvVariable() const override 
+    const QString& GetKicadEnvVariable() const override 
     { 
-        static wxString dummy;
+        static QString dummy;
         return dummy; 
     }
     
-    const wxString& GetExecutablePath() const override 
+    const QString& GetExecutablePath() const override 
     { 
-        static wxString dummy;
+        static QString dummy;
         return dummy; 
     }
 };
@@ -79,8 +76,8 @@ void PrintBoardStatistics(BOARD* board)
     
     for (size_t i = 0; i < footprints.size() && i < 10; ++i) {
         const FOOTPRINT* fp = footprints[i];
-        std::cout << "  [" << i+1 << "] Reference: " << fp->GetReference().utf8_str()
-                  << ", Value: " << fp->GetValue().utf8_str()
+        std::cout << "  [" << i+1 << "] Reference: " << fp->GetReference().toUtf8().constData()
+                  << ", Value: " << fp->GetValue().toUtf8().constData()
                   << ", Position: (" << fp->GetPosition().x << ", " << fp->GetPosition().y << ")"
                   << ", Pads: " << fp->Pads().size()
                   << std::endl;
@@ -89,7 +86,7 @@ void PrintBoardStatistics(BOARD* board)
         const auto& pads = fp->Pads();
         for (size_t j = 0; j < pads.size() && j < 3; ++j) {
             const PAD* pad = pads[j];
-            std::cout << "    Pad[" << j+1 << "]: " << pad->GetNumber().utf8_str()
+            std::cout << "    Pad[" << j+1 << "]: " << pad->GetNumber().toUtf8().constData()
                       << " at (" << pad->GetPosition().x << ", " << pad->GetPosition().y << ")"
                       << " size: " << pad->GetSize(F_Cu).x << "x" << pad->GetSize(F_Cu).y
                       << std::endl;
@@ -127,7 +124,7 @@ void PrintBoardStatistics(BOARD* board)
     
     for (size_t i = 0; i < zones.size() && i < 5; ++i) {
         const ZONE* zone = zones[i];
-        std::cout << "  [" << i+1 << "] Net: " << zone->GetNetname().utf8_str()
+        std::cout << "  [" << i+1 << "] Net: " << zone->GetNetname().toUtf8().constData()
                   << ", Layer: " << zone->GetLayer()
                   << ", Priority: " << zone->GetAssignedPriority()
                   << std::endl;
@@ -161,7 +158,7 @@ void PrintBoardStatistics(BOARD* board)
     for (size_t i = 0; i < std::min(static_cast<size_t>(nets.GetNetCount()), static_cast<size_t>(10)); ++i) {
         const NETINFO_ITEM* net = nets.GetNetItem(i);
         if (net) {
-            std::cout << "  [" << i+1 << "] " << net->GetNetname().utf8_str()
+            std::cout << "  [" << i+1 << "] " << net->GetNetname().toUtf8().constData()
                       << " (code: " << net->GetNetCode() << ")" << std::endl;
         }
     }
@@ -175,8 +172,8 @@ int main(int argc, char* argv[])
 {
     std::cout << "=== KiCad PCB Parser Test ===" << std::endl;
     
-    // Initialize wxWidgets
-    wxInitialize();
+    // Initialize Qt application
+    QCoreApplication* app = PCB_TEST_APP::createApp(argc, argv);
     
     BOARD* board = nullptr;
     
@@ -185,19 +182,19 @@ int main(int argc, char* argv[])
         PCB_TEST_PGM pgm;
         
         // Path to the PCB file
-        wxString pcbPath = wxT("test/complex_hierarchy.kicad_pcb");
+        QString pcbPath = "test/complex_hierarchy.kicad_pcb";
         
-        if (!wxFileName::FileExists(pcbPath)) {
-            pcbPath = wxT("complex_hierarchy.kicad_pcb");
-            if (!wxFileName::FileExists(pcbPath)) {
+        if (!QFileInfo::exists(pcbPath)) {
+            pcbPath = "complex_hierarchy.kicad_pcb";
+            if (!QFileInfo::exists(pcbPath)) {
                 std::cout << "ERROR: Cannot find PCB file!" << std::endl;
                 std::cout << "Tried: test/complex_hierarchy.kicad_pcb and complex_hierarchy.kicad_pcb" << std::endl;
-                wxUninitialize();
+                delete app;
                 return 1;
             }
         }
         
-        std::cout << "Loading PCB file: " << pcbPath.utf8_str() << std::endl;
+        std::cout << "Loading PCB file: " << pcbPath.toUtf8().constData() << std::endl;
         
         // Create PCB IO parser
         PCB_IO_KICAD_SEXPR pcbIO;
@@ -207,7 +204,7 @@ int main(int argc, char* argv[])
         
         if (!board) {
             std::cout << "ERROR: Failed to load PCB file!" << std::endl;
-            wxUninitialize();
+            delete app;
             return 1;
         }
         
@@ -228,7 +225,7 @@ int main(int argc, char* argv[])
                 std::cout << "Error during cleanup - ignored" << std::endl;
             }
         }
-        wxUninitialize();
+        delete app;
         return 1;
     }
     catch (...) {
@@ -241,11 +238,11 @@ int main(int argc, char* argv[])
                 std::cout << "Error during cleanup - ignored" << std::endl;
             }
         }
-        wxUninitialize();
+        delete app;
         return 1;
     }
     
-    // Safe cleanup: Delete board before wxUninitialize()
+    // Safe cleanup: Delete board before deleting Qt app
     if (board) {
         try {
             delete board;
@@ -256,7 +253,7 @@ int main(int argc, char* argv[])
         }
     }
     
-    // Uninitialize wxWidgets after board cleanup
-    wxUninitialize();
+    // Clean up Qt application after board cleanup
+    delete app;
     return 0;
 }

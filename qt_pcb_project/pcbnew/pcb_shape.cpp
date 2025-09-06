@@ -3,6 +3,7 @@
 
 #include <QtCore/QDebug>
 #include <QtCore/QString>
+#include <i18n_utility.h>
 
 // #include <google/protobuf/any.pb.h> // DISABLED FOR MINIMAL BUILD
 #include <magic_enum.hpp>
@@ -584,7 +585,7 @@ std::vector<int> PCB_SHAPE::ViewGetLayers() const
 
 void PCB_SHAPE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    if( aFrame->GetName() == PCB_EDIT_FRAME_NAME )
+    if( aFrame->objectName() == PCB_EDIT_FRAME_NAME )
     {
         if( FOOTPRINT* parent = GetParentFootprint() )
             aList.emplace_back( _( "Footprint" ), parent->GetReference() );
@@ -592,7 +593,7 @@ void PCB_SHAPE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
 
     aList.emplace_back( _( "Type" ), _( "Drawing" ) );
 
-    if( aFrame->GetName() == PCB_EDIT_FRAME_NAME && IsLocked() )
+    if( aFrame->objectName() == PCB_EDIT_FRAME_NAME && IsLocked() )
         aList.emplace_back( _( "Status" ), _( "Locked" ) );
 
     ShapeGetMsgPanelInfo( aFrame, aList );
@@ -613,7 +614,7 @@ QString PCB_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFul
     {
         if( parentFP )
         {
-            return QString::asprintf( _( "%s %s of %s on %s" ),
+            return QString::asprintf( _( "%s %s of %s on %s" ).toUtf8().constData(),
                                      GetFriendlyName(),
                                      GetNetnameMsg(),
                                      parentFP->GetReference(),
@@ -621,7 +622,7 @@ QString PCB_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFul
         }
         else
         {
-            return QString::asprintf( _( "%s %s on %s" ),
+            return QString::asprintf( _( "%s %s on %s" ).toUtf8().constData(),
                                      GetFriendlyName(),
                                      GetNetnameMsg(),
                                      GetLayerName() );
@@ -631,14 +632,14 @@ QString PCB_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFul
     {
         if( parentFP )
         {
-            return QString::asprintf( _( "%s of %s on %s" ),
+            return QString::asprintf( _( "%s of %s on %s" ).toUtf8().constData(),
                                      GetFriendlyName(),
                                      parentFP->GetReference(),
                                      GetLayerName() );
         }
         else
         {
-            return QString::asprintf( _( "%s on %s" ),
+            return QString::asprintf( _( "%s on %s" ).toUtf8().constData(),
                                      GetFriendlyName(),
                                      GetLayerName() );
         }
@@ -836,7 +837,7 @@ static struct PCB_SHAPE_DESC
         // Need to initialise enum_map before we can use a Property enum for it
         ENUM_MAP<PCB_LAYER_ID>& layerEnum = ENUM_MAP<PCB_LAYER_ID>::Instance();
 
-        if( layerEnum.Choices().GetCount() == 0 )
+        if( layerEnum.Choices().count() == 0 )
         {
             layerEnum.Undefined( UNDEFINED_LAYER );
 

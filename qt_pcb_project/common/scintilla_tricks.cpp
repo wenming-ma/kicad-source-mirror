@@ -5,7 +5,7 @@
 #include <string_utils.h>
 #include <scintilla_tricks.h>
 #include <widgets/qt_grid.h>
-#include <widgets/ui_common.h>
+#include <widgets/kiui_common.h>
 #include <gal/color4d.h>
 #include <dialog_shim.h>
 #include <QClipboard>

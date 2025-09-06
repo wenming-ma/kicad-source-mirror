@@ -4,6 +4,7 @@
 #include <memory>
 #include <mutex>
 #include <QDebug>
+#include <QRegularExpression>
 #include <board.h>
 #include <board_design_settings.h>
 #include <drc/drc_rtree.h>
@@ -77,7 +78,7 @@ static void existsOnLayerFunc( LIBEVAL::CONTEXT* aCtx, void *self )
             [item, arg, aCtx]() -> double
             {
                 const QString& layerName = arg->AsString();
-                auto& layerMap = ENUM_MAP<PCB_LAYER_ID>::Instance().Choices();
+                auto& enumMap = ENUM_MAP<PCB_LAYER_ID>::Instance();
 
                 if( aCtx->HasErrorCallback())
                 {
@@ -87,15 +88,20 @@ static void existsOnLayerFunc( LIBEVAL::CONTEXT* aCtx, void *self )
 
                     bool anyMatch = false;
 
-                    for( unsigned ii = 0; ii < layerMap.GetCount(); ++ii )
+                    // Iterate through all defined layer enums
+                    for( int ii = 0; ii < PCB_LAYER_ID_COUNT; ++ii )
                     {
-                        auto& entry = layerMap[ ii ];
+                        PCB_LAYER_ID layerId = static_cast<PCB_LAYER_ID>( ii );
+                        if( !enumMap.IsValueDefined( layerId ) )
+                            continue;
 
-                        if( entry.GetText().Matches( layerName ))
+                        const QString& layerText = enumMap.ToString( layerId );
+
+                        if( layerText.contains( layerName, Qt::CaseInsensitive ) )
                         {
                             anyMatch = true;
 
-                            if( item->IsOnLayer( ToLAYER_ID( entry.GetValue() ) ) )
+                            if( item->IsOnLayer( layerId ) )
                                 return 1.0;
                         }
                     }
@@ -126,12 +132,17 @@ static void existsOnLayerFunc( LIBEVAL::CONTEXT* aCtx, void *self )
 
                     LSET mask;
 
-                    for( unsigned ii = 0; ii < layerMap.GetCount(); ++ii )
+                    // Iterate through all defined layer enums
+                    for( int ii = 0; ii < PCB_LAYER_ID_COUNT; ++ii )
                     {
-                        auto& entry = layerMap[ ii ];
+                        PCB_LAYER_ID layerId = static_cast<PCB_LAYER_ID>( ii );
+                        if( !enumMap.IsValueDefined( layerId ) )
+                            continue;
 
-                        if( entry.GetText().Matches( layerName ) )
-                            mask.set( ToLAYER_ID( entry.GetValue() ) );
+                        const QString& layerText = enumMap.ToString( layerId );
+
+                        if( layerText.contains( layerName, Qt::CaseInsensitive ) )
+                            mask.set( layerId );
                     }
 
                     {
@@ -205,11 +216,11 @@ static bool testFootprintSelector( FOOTPRINT* aFp, const QString& aSelector )
         if( compClass && compClass->ContainsClassName( name ) )
             return true;
     }
-    else if( aFp->GetReference().Matches( aSelector ) )
+    else if( aFp->GetReference().contains( QRegularExpression( QRegularExpression::wildcardToRegularExpression( aSelector ) ) ) )
     {
         return true;
     }
-    else if( aSelector.contains( ':' ) && aFp->GetFPIDAsString().Matches( aSelector ) )
+    else if( aSelector.contains( ':' ) && aFp->GetFPIDAsString().contains( QRegularExpression( QRegularExpression::wildcardToRegularExpression( aSelector ) ) ) )
     {
         return true;
     }
@@ -584,7 +595,7 @@ bool searchAreas( BOARD* aBoard, const QString& aArg, PCBEXPR_CONTEXT* aCtx,
     {
         for( ZONE* area : aBoard->Zones() )
         {
-            if( area->GetZoneName().Matches( aArg ) )
+            if( area->GetZoneName().contains( QRegularExpression( QRegularExpression::wildcardToRegularExpression( aArg ) ) ) )
             {
                 // Many zones can match the name; exit only when we find an "inside"
                 if( aFunc( area ) )
@@ -597,7 +608,7 @@ bool searchAreas( BOARD* aBoard, const QString& aArg, PCBEXPR_CONTEXT* aCtx,
             for( ZONE* area : footprint->Zones() )
             {
                 // Many zones can match the name; exit only when we find an "inside"
-                if( area->GetZoneName().Matches( aArg ) )
+                if( area->GetZoneName().contains( QRegularExpression( QRegularExpression::wildcardToRegularExpression( aArg ) ) ) )
                 {
                     if( aFunc( area ) )
                         return true;
@@ -821,7 +832,7 @@ static void enclosedByAreaFunc( LIBEVAL::CONTEXT* aCtx, void* self )
                                                                ERROR_OUTSIDE );
                             }
 
-                            if( itemShape.isEmpty() )
+                            if( itemShape.IsEmpty() )
                             {
                                 // If it's already empty then our test will have no meaning.
                                 enclosedByArea = false;
@@ -830,7 +841,7 @@ static void enclosedByAreaFunc( LIBEVAL::CONTEXT* aCtx, void* self )
                             {
                                 itemShape.BooleanSubtract( *aArea->Outline() );
 
-                                enclosedByArea = itemShape.isEmpty();
+                                enclosedByArea = itemShape.IsEmpty();
                             }
 
                             if( ( item->GetFlags() & ROUTER_TRANSIENT ) == 0 )
@@ -885,7 +896,7 @@ static void memberOfGroupFunc( LIBEVAL::CONTEXT* aCtx, void* self )
 
                 while( group )
                 {
-                    if( group->GetName().Matches( arg->AsString() ) )
+                    if( group->GetName().contains( QRegularExpression( QRegularExpression::wildcardToRegularExpression( arg->AsString() ) ) ) )
                         return 1.0;
 
                     group = group->GetParentGroup();
@@ -940,7 +951,7 @@ static void memberOfSheetFunc( LIBEVAL::CONTEXT* aCtx, void* self )
                 if( refName.endsWith( "/" ) )
                     refName.chop(1);
 
-                if( sheetName.Matches( refName ) )
+                if( sheetName.contains( QRegularExpression( QRegularExpression::wildcardToRegularExpression( refName ) ) ) )
                     return 1.0;
 
                 if( ( refName.contains( "/" ) || refName.isEmpty() )
@@ -1008,7 +1019,7 @@ static void memberOfSheetOrChildrenFunc( LIBEVAL::CONTEXT* aCtx, void* self )
 
                 for( size_t i = 0; i < refPath.size(); i++ )
                 {
-                    if( !sheetPath[i].Matches( refPath[i] ) )
+                    if( !sheetPath[i].contains( QRegularExpression( QRegularExpression::wildcardToRegularExpression( refPath[i] ) ) ) )
                         return 0.0;
                 }
 
@@ -1176,7 +1187,7 @@ static void inDiffPairFunc( LIBEVAL::CONTEXT* aCtx, void* self )
 
                     if( polarity != 0 && item->GetBoard()->FindNet( coupledNet ) )
                     {
-                        if( baseName.Matches( arg ) )
+                        if( baseName.contains( QRegularExpression( QRegularExpression::wildcardToRegularExpression( arg ) ) ) )
                             return 1.0;
 
                         if( baseName.endsWith( "_" ) && baseName.left( baseName.lastIndexOf( '_' ) ).contains( arg ) )

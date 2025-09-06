@@ -257,7 +257,7 @@ QString PCB_IO_KICAD_SEXPR_PARSER::GetRequiredVersion()
             day > QDate(year, month, 1).daysInMonth() )
     {
         QString err;
-        err = QString::asprintf( _( "Cannot interpret date code %d" ), m_requiredVersion );
+        err = QString::asprintf( _( "Cannot interpret date code %d" ).toStdString().c_str(), m_requiredVersion );
         THROW_PARSE_ERROR( err, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
     }
 
@@ -850,7 +850,7 @@ BOARD_ITEM* PCB_IO_KICAD_SEXPR_PARSER::Parse()
 
     default:
         QString err;
-        err = QString::asprintf( _( "Unknown token '%s'" ), FromUTF8() );
+        err = QString::asprintf( _( "Unknown token '%s'" ).toStdString().c_str(), FromUTF8() );
         THROW_PARSE_ERROR( err, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
     }
 
@@ -897,7 +897,7 @@ BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD_unchecked()
             {
                 if( m_requiredVersion > SEXPR_BOARD_FILE_VERSION )
                 {
-                    throw FUTURE_FORMAT_ERROR( fmt::format( "{}", m_requiredVersion ),
+                    throw FUTURE_FORMAT_ERROR( QString::fromStdString( fmt::format( "{}", m_requiredVersion ) ),
                                                m_generatorVersion );
                 }
             };
@@ -1095,7 +1095,7 @@ BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD_unchecked()
             }
             catch( const PARSE_ERROR& e )
             {
-                qDebug( e.What() );
+                qDebug() << e.What();
             }
 
             SyncLineReaderWith( embeddedFilesParser );
@@ -1104,7 +1104,7 @@ BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD_unchecked()
 
         default:
             QString err;
-            err = QString::asprintf( _( "Unknown token '%s'" ), FromUTF8() );
+            err = QString::asprintf( _( "Unknown token '%s'" ).toStdString().c_str(), FromUTF8() );
             THROW_PARSE_ERROR( err, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
         }
     }
@@ -1134,7 +1134,7 @@ BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD_unchecked()
             msg = QString::asprintf( _( "Items found on undefined layers (%s).\n"
                            "Do you wish to rescue them to the %s layer?\n"
                            "\n"
-                           "Zones will need to be refilled." ),
+                           "Zones will need to be refilled." ).toStdString().c_str(),
                         undefinedLayerNames, destLayerName );
 
             if( !m_queryUserCallback( _( "Undefined Layers Warning" ), QMessageBox::Warning, msg,
@@ -1284,8 +1284,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::resolveGroups( BOARD_ITEM* aParent )
 
             if( !gen )
             {
-                THROW_IO_ERROR( QString::Format(
-                        _( "Cannot create generated object of type '%s'" ), genInfo->genType ) );
+                THROW_IO_ERROR( QString( _( "Cannot create generated object of type '%s'" ) ).arg( genInfo->genType ) );
             }
 
             gen->SetLayer( genInfo->layer );
@@ -1433,7 +1432,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parsePAGE_INFO()
     if( !pageInfo.SetType( pageType ) )
     {
         QString err;
-        err = QString::asprintf( _( "Page type '%s' is not valid." ), FromUTF8() );
+        err = QString::asprintf( _( "Page type '%s' is not valid." ).toStdString().c_str(), FromUTF8() );
         THROW_PARSE_ERROR( err, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
     }
 
@@ -1567,7 +1566,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseTITLE_BLOCK()
 
             default:
                 QString err;
-                err = QString::asprintf( QStringLiteral( "%d is not a valid title block comment number" ), commentNumber );
+                err = QString::asprintf( QStringLiteral( "%d is not a valid title block comment number" ).toStdString().c_str(), commentNumber );
                 THROW_PARSE_ERROR( err, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
             }
 
@@ -1825,7 +1824,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseBoardStackup()
                             QColor qt_color = QColor::fromRgbF(color.r, color.g, color.b, color.a);
 
                             // Format color as RGBA string
-                            name = QString::asprintf( QStringLiteral("#%02X%02X%02X%02X" ),
+                            name = QString::asprintf( "#%02X%02X%02X%02X",
                                          qt_color.red(),
                                          qt_color.green(),
                                          qt_color.blue(),
@@ -1993,7 +1992,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseLayers()
 
         if( it == m_layerIndices.end() )
         {
-            auto new_layer_it = v3_layer_names.find( layer.m_name.ToStdString() );
+            auto new_layer_it = v3_layer_names.find( layer.m_name.toStdString() );
 
             if( new_layer_it != v3_layer_names.end() )
                 it = m_layerIndices.find( new_layer_it->second );
@@ -2001,7 +2000,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseLayers()
             if( it == m_layerIndices.end() )
             {
                 QString error;
-                error = QString::asprintf( _( "Layer '%s' in file '%s' at line %d is not in fixed layer hash." ),
+                error = QString::asprintf( _( "Layer '%s' in file '%s' at line %d is not in fixed layer hash." ).toStdString().c_str(),
                               layer.m_name,
                               CurSource(),
                               CurLineNumber(),
@@ -2014,7 +2013,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseLayers()
             // so that items on this layer get the appropriate layer ID number.
             m_layerIndices[ UTF8( layer.m_name ) ] = it->second;
             m_layerMasks[   UTF8( layer.m_name ) ] = LSET( { it->second } );
-            layer.m_name = it->first;
+            layer.m_name = QString::fromStdString( it->first );
         }
 
         layer.m_number = it->second;
@@ -2038,7 +2037,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseLayers()
     // We need at least 2 copper layers and there must be an even number of them.
     if( copperLayerCount < 2 || (copperLayerCount % 2) != 0 )
     {
-        QString err = QString::Format( _( "%d is not a valid layer count" ), copperLayerCount );
+        QString err = QString( _( "%d is not a valid layer count" ) ).arg( copperLayerCount );
 
         THROW_PARSE_ERROR( err, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
     }
@@ -2071,13 +2070,13 @@ PCB_LAYER_ID PCB_IO_KICAD_SEXPR_PARSER::lookUpLayer( const LAYER_ID_MAP& aMap )
 
     if( it == aMap.end() )
     {
-        m_undefinedLayers.insert( curText );
+        m_undefinedLayers.insert( QString::fromStdString( curText ) );
         return Rescue;
     }
 
     // Some files may have saved items to the Rescue Layer due to an issue in v5
     if( it->second == Rescue )
-        m_undefinedLayers.insert( curText );
+        m_undefinedLayers.insert( QString::fromStdString( curText ) );
 
     return it->second;
 }
@@ -2785,7 +2784,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseNETCLASS()
         // Must have been a name conflict, this is a bad board file.
         // User may have done a hand edit to the file.
         QString error;
-        error = QString::asprintf( _( "Duplicate NETCLASS name '%s' in file '%s' at line %d, offset %d." ),
+        error = QString::asprintf( _( "Duplicate NETCLASS name '%s' in file '%s' at line %d, offset %d." ).toStdString().c_str(),
                       nc->GetName().toStdString().c_str(), CurSource().toStdString().c_str(), CurLineNumber(),
                       CurOffset() );
         THROW_IO_ERROR( error );
@@ -3187,8 +3186,10 @@ PCB_SHAPE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_SHAPE( BOARD_ITEM* aParent )
         case T_net:
             if( !shape->SetNetCode( getNetCode( parseInt( "net number" ) ), /* aNoAssert */ true ) )
             {
-                qDebug( _( "Invalid net ID in\nfile: '%s'\nline: %d\noffset: %d." ),
-                            CurSource(), CurLineNumber(), CurOffset() );
+                qDebug() << QString( _( "Invalid net ID in\nfile: '%1'\nline: %2\noffset: %3." ) )
+                            .arg( CurSource() )
+                            .arg( CurLineNumber() )
+                            .arg( CurOffset() );
             }
 
             NeedRIGHT();
@@ -3371,8 +3372,7 @@ PCB_TEXT* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TEXT( BOARD_ITEM* aParent, PCB_TEX
             break;
 
         default:
-            THROW_IO_ERROR( QString::Format( _( "Cannot handle footprint text type %s" ),
-                                              FromUTF8() ) );
+            THROW_IO_ERROR( QString( _( "Cannot handle footprint text type %s" ) ).arg( FromUTF8() ) );
         }
 
         token = NextTok();
@@ -3393,8 +3393,8 @@ PCB_TEXT* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TEXT( BOARD_ITEM* aParent, PCB_TEX
         Expecting( "text value" );
 
     QString value = FromUTF8();
-    value.Replace( QStringLiteral( "%V" ), QStringLiteral( "${VALUE}" ) );
-    value.Replace( QStringLiteral( "%R" ), QStringLiteral( "${REFERENCE}" ) );
+    value.replace( QStringLiteral( "%V" ), QStringLiteral( "${VALUE}" ) );
+    value.replace( QStringLiteral( "%R" ), QStringLiteral( "${REFERENCE}" ) );
     text->SetText( value );
 
     NeedLEFT();
@@ -3971,8 +3971,8 @@ PCB_DIMENSION_BASE* PCB_IO_KICAD_SEXPR_PARSER::parseDIMENSION( BOARD_ITEM* aPare
         case T_leader:     dim = std::make_unique<PCB_DIM_LEADER>( aParent );     break;
         case T_center:     dim = std::make_unique<PCB_DIM_CENTER>( aParent );     break;
         case T_radial:     dim = std::make_unique<PCB_DIM_RADIAL>( aParent );     break;
-        default:           qCritical( QStringLiteral( "Cannot parse unknown dimension type " )
-                                       + GetTokenString( CurTok() ) );
+        default:           qCritical() << QStringLiteral( "Cannot parse unknown dimension type " )
+                                       + GetTokenString( CurTok() );
         }
 
         NeedRIGHT();
@@ -4447,9 +4447,8 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( QStringList* aIn
 
     if( !name.isEmpty() && fpid.Parse( name, true ) >= 0 )
     {
-        THROW_IO_ERROR( QString::Format( _( "Invalid footprint ID in\nfile: %s\nline: %d\n"
-                                             "offset: %d." ),
-                                          CurSource(), CurLineNumber(), CurOffset() ) );
+        THROW_IO_ERROR( QString( _( "Invalid footprint ID in\nfile: %s\nline: %d\n"
+                                     "offset: %d." ) ).arg( CurSource() ).arg( CurLineNumber() ).arg( CurOffset() ) );
     }
 
     auto checkVersion =
@@ -4457,7 +4456,7 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( QStringList* aIn
             {
                 if( m_requiredVersion > SEXPR_BOARD_FILE_VERSION )
                 {
-                    throw FUTURE_FORMAT_ERROR( fmt::format( "{}", m_requiredVersion ),
+                    throw FUTURE_FORMAT_ERROR( QString::fromStdString( fmt::format( "{}", m_requiredVersion ) ),
                                                m_generatorVersion );
                 }
             };
@@ -4716,7 +4715,7 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( QStringList* aIn
 
         case T_net_tie_pad_groups:
             for( token = NextTok(); token != T_RIGHT; token = NextTok() )
-                footprint->AddNetTiePadGroup( CurStr() );
+                footprint->AddNetTiePadGroup( QString::fromStdString( CurStr() ) );
 
             break;
 
@@ -4937,7 +4936,7 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( QStringList* aIn
             }
             catch( const PARSE_ERROR& e )
             {
-                qDebug( e.What() );
+                qDebug() << e.What();
             }
 
             SyncLineReaderWith( embeddedFilesParser );
@@ -5231,8 +5230,10 @@ PAD* PCB_IO_KICAD_SEXPR_PARSER::parsePAD( FOOTPRINT* aParent )
 
             if( ! pad->SetNetCode( getNetCode( parseInt( "net number" ) ), /* aNoAssert */ true ) )
             {
-                qDebug( _( "Invalid net ID in\nfile: %s\nline: %d offset: %d" ),
-                            CurSource(), CurLineNumber(), CurOffset() );
+                qDebug() << QString( _( "Invalid net ID in\nfile: %1\nline: %2 offset: %3" ) )
+                            .arg( CurSource() )
+                            .arg( CurLineNumber() )
+                            .arg( CurOffset() );
             }
 
             NeedSYMBOLorNUMBER();
@@ -5250,8 +5251,10 @@ PAD* PCB_IO_KICAD_SEXPR_PARSER::parsePAD( FOOTPRINT* aParent )
                 if( netName != m_board->FindNet( pad->GetNetCode() )->GetNetname() )
                 {
                     pad->SetNetCode( NETINFO_LIST::ORPHANED, /* aNoAssert */ true );
-                    qDebug( _( "Net name doesn't match ID in\nfile: %s\nline: %d offset: %d" ),
-                                CurSource(), CurLineNumber(), CurOffset() );
+                    qDebug() << QString( _( "Net name doesn't match ID in\nfile: %1\nline: %2 offset: %3" ) )
+                                .arg( CurSource() )
+                                .arg( CurLineNumber() )
+                                .arg( CurOffset() );
                 }
             }
 
@@ -5581,8 +5584,11 @@ PAD* PCB_IO_KICAD_SEXPR_PARSER::parsePAD( FOOTPRINT* aParent )
         pad->SetSize( PADSTACK::ALL_LAYERS,
                       VECTOR2I( pcbIUScale.mmToIU( 0.001 ), pcbIUScale.mmToIU( 0.001 ) ) );
 
-        qWarning( _( "Invalid zero-sized pad pinned to %s in\nfile: %s\nline: %d\noffset: %d" ),
-                      QStringLiteral( "1µm" ), CurSource(), CurLineNumber(), CurOffset() );
+        qWarning() << QString( _( "Invalid zero-sized pad pinned to %1 in\nfile: %2\nline: %3\noffset: %4" ) )
+                      .arg( QStringLiteral( "1µm" ) )
+                      .arg( CurSource() )
+                      .arg( CurLineNumber() )
+                      .arg( CurOffset() );
     }
 
     return pad.release();
@@ -5704,9 +5710,8 @@ void PCB_IO_KICAD_SEXPR_PARSER::parsePadstack( PAD* aPad )
             {
                 if( padstack.Mode() != PADSTACK::MODE::FRONT_INNER_BACK )
                 {
-                    THROW_IO_ERROR( QString::Format( _( "Invalid padstack layer in\nfile: %s\n"
-                                                         "line: %d\noffset: %d." ),
-                                                      CurSource(), CurLineNumber(), CurOffset() ) );
+                    THROW_IO_ERROR( QString( _( "Invalid padstack layer in\nfile: %s\n"
+                                                 "line: %d\noffset: %d." ) ).arg( CurSource() ).arg( CurLineNumber() ).arg( CurOffset() ) );
                 }
 
                 curLayer = PADSTACK::INNER_LAYERS;
@@ -5719,7 +5724,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parsePadstack( PAD* aPad )
             if( !IsCopperLayer( curLayer ) )
             {
                 QString error;
-                error = QString::asprintf( _( "Invalid padstack layer '%s' in file '%s' at line %d, offset %d." ),
+                error = QString::asprintf( _( "Invalid padstack layer '%s' in file '%s' at line %d, offset %d." ).toStdString().c_str(),
                               curText, CurSource().toStdString().c_str(), CurLineNumber(), CurOffset() );
                 THROW_IO_ERROR( error );
             }
@@ -6155,27 +6160,27 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseGENERATOR( BOARD_ITEM* aParent )
             {
             case T_yes:
             {
-                genInfo.properties.emplace( pName, QVariant( true ) );
+                genInfo.properties.emplace( pName.toStdString(), QVariant( true ) );
                 NeedRIGHT();
                 break;
             }
             case T_no:
             {
-                genInfo.properties.emplace( pName, QVariant( false ) );
+                genInfo.properties.emplace( pName.toStdString(), QVariant( false ) );
                 NeedRIGHT();
                 break;
             }
             case T_NUMBER:
             {
                 double pValue = parseDouble();
-                genInfo.properties.emplace( pName, QVariant( pValue ) );
+                genInfo.properties.emplace( pName.toStdString(), QVariant( pValue ) );
                 NeedRIGHT();
                 break;
             }
             case T_STRING: // Quoted string
             {
                 QString pValue = FromUTF8();
-                genInfo.properties.emplace( pName, pValue );
+                genInfo.properties.emplace( pName.toStdString(), pValue );
                 NeedRIGHT();
                 break;
             }
@@ -6193,7 +6198,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseGENERATOR( BOARD_ITEM* aParent )
                     pt.x = parseBoardUnits( "X coordinate" );
                     pt.y = parseBoardUnits( "Y coordinate" );
 
-                    genInfo.properties.emplace( pName, QVariant( pt ) );
+                    genInfo.properties.emplace( pName.toStdString(), QVariant::fromValue( pt ) );
                     NeedRIGHT();
                     NeedRIGHT();
 
@@ -6208,7 +6213,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseGENERATOR( BOARD_ITEM* aParent )
 
                     NeedRIGHT();
 
-                    genInfo.properties.emplace( pName, QVariant( chain ) );
+                    genInfo.properties.emplace( pName.toStdString(), QVariant::fromValue( chain ) );
                     break;
                 }
                 default: Expecting( "xy or pts" );
@@ -6302,8 +6307,10 @@ PCB_ARC* PCB_IO_KICAD_SEXPR_PARSER::parseARC()
         case T_net:
             if( !arc->SetNetCode( getNetCode( parseInt( "net number" ) ), /* aNoAssert */ true ) )
             {
-                qDebug( _( "Invalid net ID in\nfile: %s\nline: %d\noffset: %d." ),
-                            CurSource(), CurLineNumber(), CurOffset() );
+                qDebug() << QString( _( "Invalid net ID in\nfile: %1\nline: %2\noffset: %3." ) )
+                            .arg( CurSource() )
+                            .arg( CurLineNumber() )
+                            .arg( CurOffset() );
             }
             NeedRIGHT();
             break;
@@ -6406,8 +6413,10 @@ PCB_TRACK* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TRACK()
         case T_net:
             if( !track->SetNetCode( getNetCode( parseInt( "net number" ) ), /* aNoAssert */ true ) )
             {
-                qDebug( _( "Invalid net ID in\nfile: '%s'\nline: %d\noffset: %d." ),
-                            CurSource(), CurLineNumber(), CurOffset() );
+                qDebug() << QString( _( "Invalid net ID in\nfile: '%1'\nline: %2\noffset: %3." ) )
+                            .arg( CurSource() )
+                            .arg( CurLineNumber() )
+                            .arg( CurOffset() );
             }
             NeedRIGHT();
             break;
@@ -6520,8 +6529,10 @@ PCB_VIA* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_VIA()
         case T_net:
             if( !via->SetNetCode( getNetCode( parseInt( "net number" ) ), /* aNoAssert */ true ) )
             {
-                qDebug( _( "Invalid net ID in\nfile: %s\nline: %d\noffset: %d" ),
-                            CurSource(), CurLineNumber(), CurOffset() );
+                qDebug() << QString( _( "Invalid net ID in\nfile: %1\nline: %2\noffset: %3" ) )
+                            .arg( CurSource() )
+                            .arg( CurLineNumber() )
+                            .arg( CurOffset() );
             }
 
             NeedRIGHT();
@@ -6669,9 +6680,8 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseViastack( PCB_VIA* aVia )
             {
                 if( padstack.Mode() != PADSTACK::MODE::FRONT_INNER_BACK )
                 {
-                    THROW_IO_ERROR( QString::Format( _( "Invalid padstack layer in\nfile: %s\n"
-                                                         "line: %d\noffset: %d." ),
-                                                      CurSource(), CurLineNumber(), CurOffset() ) );
+                    THROW_IO_ERROR( QString( _( "Invalid padstack layer in\nfile: %s\n"
+                                                 "line: %d\noffset: %d." ) ).arg( CurSource() ).arg( CurLineNumber() ).arg( CurOffset() ) );
                 }
 
                 curLayer = PADSTACK::INNER_LAYERS;
@@ -6684,7 +6694,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseViastack( PCB_VIA* aVia )
             if( !IsCopperLayer( curLayer ) )
             {
                 QString error;
-                error = QString::asprintf( _( "Invalid padstack layer '%s' in file '%s' at line %d, offset %d." ),
+                error = QString::asprintf( _( "Invalid padstack layer '%s' in file '%s' at line %d, offset %d." ).toStdString().c_str(),
                               curText, CurSource().toStdString().c_str(), CurLineNumber(), CurOffset() );
                 THROW_IO_ERROR( error );
             }
@@ -6778,8 +6788,10 @@ ZONE* PCB_IO_KICAD_SEXPR_PARSER::parseZONE( BOARD_ITEM_CONTAINER* aParent )
 
             if( !zone->SetNetCode( tmp, /* aNoAssert */ true ) )
             {
-                qDebug( _( "Invalid net ID in\nfile: %s;\nline: %d\noffset: %d." ),
-                            CurSource(), CurLineNumber(), CurOffset() );
+                qDebug() << QString( _( "Invalid net ID in\nfile: %1;\nline: %2\noffset: %3." ) )
+                            .arg( CurSource() )
+                            .arg( CurLineNumber() )
+                            .arg( CurOffset() );
             }
 
             NeedRIGHT();
@@ -7229,7 +7241,7 @@ ZONE* PCB_IO_KICAD_SEXPR_PARSER::parseZONE( BOARD_ITEM_CONTAINER* aParent )
 
                 NeedRIGHT();
 
-                addedFilledPolygons |= !poly.isEmpty();
+                addedFilledPolygons |= !poly.IsEmpty();
             }
 
             break;
@@ -7341,9 +7353,8 @@ ZONE* PCB_IO_KICAD_SEXPR_PARSER::parseZONE( BOARD_ITEM_CONTAINER* aParent )
         {
             if( m_showLegacy5ZoneWarning )
             {
-                qWarning(
-                        _( "Legacy zone fill strategy is not supported anymore.\nZone fills will "
-                           "be converted on best-effort basis." ) );
+                qWarning() << _( "Legacy zone fill strategy is not supported anymore.\nZone fills will "
+                           "be converted on best-effort basis." );
 
                 m_showLegacy5ZoneWarning = false;
             }
@@ -7372,8 +7383,8 @@ ZONE* PCB_IO_KICAD_SEXPR_PARSER::parseZONE( BOARD_ITEM_CONTAINER* aParent )
 
         if( m_showLegacySegmentZoneWarning )
         {
-            qWarning( _( "The legacy segment zone fill mode is no longer supported.\n"
-                             "Zone fills will be converted on a best-effort basis." ) );
+            qWarning() << _( "The legacy segment zone fill mode is no longer supported.\n"
+                             "Zone fills will be converted on a best-effort basis." );
 
             m_showLegacySegmentZoneWarning = false;
         }
@@ -7526,7 +7537,7 @@ KIID PCB_IO_KICAD_SEXPR_PARSER::CurStrToKIID()
     if( m_appendToExisting )
     {
         aId = KIID();
-        m_resetKIIDMap.insert( std::make_pair( idStr, aId ) );
+        m_resetKIIDMap.insert( std::make_pair( QString::fromStdString( idStr ), aId ) );
     }
     else
     {

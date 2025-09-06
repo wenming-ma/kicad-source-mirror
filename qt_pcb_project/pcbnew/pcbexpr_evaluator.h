@@ -176,7 +176,7 @@ public:
     void RegisterFunc( const QString& funcSignature, LIBEVAL::FUNC_CALL_REF funcPtr )
     {
         QString funcName = funcSignature.section( '(', 0, 0 );
-        m_funcs[std::string( funcName.toLower().toStdString() )] = std::move( funcPtr );
+        m_funcs[funcName.toLower()] = std::move( funcPtr );
         m_funcSigs.append( funcSignature );
     }
 

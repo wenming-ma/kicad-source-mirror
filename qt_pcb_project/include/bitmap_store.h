@@ -1,6 +1,8 @@
 #ifndef KICAD_BITMAP_STORE_H
 #define KICAD_BITMAP_STORE_H
 
+#include <qt_compat_fix.h>  // Ensure proper include order for Qt/Windows compatibility
+
 #include <memory>
 #include <unordered_map>
 

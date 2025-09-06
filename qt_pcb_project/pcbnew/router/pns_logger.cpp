@@ -69,7 +69,7 @@ QString LOGGER::FormatLogFileAsString( int aMode,
         result += PNS::LOGGER::FormatEvent( evt );
 
     for( const KIID& uuid : aRemovedItems )
-        result += QString::asprintf( "removed %s\n", uuid.AsString().c_str() );
+        result += QString::asprintf( "removed %s\n", uuid.AsString().toUtf8().constData() );
 
     for( ITEM* item : aAddedItems )
         result += QString::asprintf( "added %s\n", item->Format().c_str() );

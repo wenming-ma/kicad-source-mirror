@@ -34,7 +34,7 @@ public:
 
     virtual ~PCB_BASE_EDIT_FRAME();
 
-    bool TryBefore( QEvent& aEvent ) override;
+    // TryBefore is a wxWidgets-specific method, removed in Qt transformation
 
     void doCloseWindow() override;
 

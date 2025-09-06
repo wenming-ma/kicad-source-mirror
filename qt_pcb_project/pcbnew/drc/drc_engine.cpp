@@ -1712,7 +1712,7 @@ int DRC_ENGINE::MatchDpSuffix( const QString& aNetName, QString& aComplementNet,
 
     for( auto it = aNetName.rbegin(); it != aNetName.rend() && rv == 0; ++it, ++count )
     {
-        int ch = *it;
+        int ch = (*it).unicode();
 
         if( ( ch >= '0' && ch <= '9' ) || ch == '_' )
         {

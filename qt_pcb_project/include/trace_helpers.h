@@ -2,14 +2,16 @@
 #ifndef _TRACE_HELPERS_H_
 #define _TRACE_HELPERS_H_
 
+#include <qt_compat_fix.h>  // Ensure proper include order for Qt/Windows compatibility
+
+#include <stdarg.h>
+#include <map>
+
 #include <kicommon.h>
 #include <QString>
 #include <QStringList>
 #include <QKeyEvent>
 #include <QLoggingCategory>
-
-#include <stdarg.h>
-#include <map>
 
 // Trace environment variables for debug output control
 

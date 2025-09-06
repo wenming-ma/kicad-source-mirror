@@ -5,8 +5,9 @@
 #include <memory>
 #include <mutex>
 #include <QString>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QtCore>
+#include <i18n_utility.h>
 #include <board.h>
 #include <footprint.h>
 #include <lset.h>
@@ -61,7 +62,7 @@ public:
         {
             const QString& entry = layerMap[ii];
 
-            if( QRegExp( layerName, Qt::CaseInsensitive, QRegExp::Wildcard ).exactMatch( entry ) )
+            if( QRegularExpression::fromWildcard( layerName, Qt::CaseInsensitive ).match( entry ).hasMatch() )
                 mask.set( ToLAYER_ID( ENUM_MAP<PCB_LAYER_ID>::Instance().ToEnum( entry ) ) );
         }
 
@@ -95,7 +96,7 @@ public:
             return true;
 
         // Wildcards
-        if( QRegExp( otherStr, Qt::CaseInsensitive, QRegExp::Wildcard ).exactMatch( thisStr ) )
+        if( QRegularExpression::fromWildcard( otherStr, Qt::CaseInsensitive ).match( thisStr ).hasMatch() )
             return true;
 
         // Handle cases where the netlist token is different from the EEschema token
@@ -117,7 +118,7 @@ public:
                 return true;
 
             // Wildcards
-            if( QRegExp( otherStr, Qt::CaseInsensitive, QRegExp::Wildcard ).exactMatch( altStr ) )
+            if( QRegularExpression::fromWildcard( otherStr, Qt::CaseInsensitive ).match( altStr ).hasMatch() )
                 return true;
         }
 
@@ -530,7 +531,7 @@ std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const QString& aV
     {
         vref = std::make_unique<PCBEXPR_VAR_REF>( 0 );
         vref->SetType( LIBEVAL::VT_NULL );
-        return vref;
+        return std::move(vref);
     }
 
     // Check for a couple of very common cases and compile them straight to "object code".
@@ -582,7 +583,7 @@ std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const QString& aV
         return nullptr;
 
     if( aField.length() == 0 ) // return reference to base object
-        return vref;
+        return std::move(vref);
 
     QString field( aField );
     field.replace( "_",  " " );
@@ -643,7 +644,7 @@ std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const QString& aV
     if( vref->GetType() == LIBEVAL::VT_UNDEFINED )
         vref->SetType( LIBEVAL::VT_PARSE_ERROR );
 
-    return vref;
+    return std::move(vref);
 }
 
 

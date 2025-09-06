@@ -1,6 +1,8 @@
 
 #include <utility>
 #include <QString>
+#include "i18n_utility.h"
+
 
 #include <component_class_manager.h>
 
@@ -41,19 +43,20 @@ QString COMPONENT_CLASS::GetName() const
 
     if( m_constituentClasses.size() == 2 )
     {
-        name = QString::asprintf( _( "%s and %s" ), m_constituentClasses[0]->GetName().toStdString().c_str(),
-                     m_constituentClasses[1]->GetName().toStdString().c_str() );
+        name = _( "%1 and %2" ).arg( m_constituentClasses[0]->GetName() )
+                                .arg( m_constituentClasses[1]->GetName() );
     }
     else if( m_constituentClasses.size() == 3 )
     {
-        name = QString::asprintf( _( "%s, %s and %s" ), m_constituentClasses[0]->GetName().toStdString().c_str(),
-                     m_constituentClasses[1]->GetName().toStdString().c_str(), m_constituentClasses[2]->GetName().toStdString().c_str() );
+        name = _( "%1, %2 and %3" ).arg( m_constituentClasses[0]->GetName() )
+                                    .arg( m_constituentClasses[1]->GetName() )
+                                    .arg( m_constituentClasses[2]->GetName() );
     }
     else if( m_constituentClasses.size() > 3 )
     {
-        name = QString::asprintf( _( "%s, %s and %d more" ), m_constituentClasses[0]->GetName().toStdString().c_str(),
-                     m_constituentClasses[1]->GetName().toStdString().c_str(),
-                     static_cast<int>( m_constituentClasses.size() - 2 ) );
+        name = _( "%1, %2 and %3 more" ).arg( m_constituentClasses[0]->GetName() )
+                                         .arg( m_constituentClasses[1]->GetName() )
+                                         .arg( static_cast<int>( m_constituentClasses.size() - 2 ) );
     }
 
     return name;

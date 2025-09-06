@@ -622,7 +622,7 @@ void CN_CONNECTIVITY_ALGO::propagateConnections( BOARD_COMMIT* aCommit )
                 qDebug() << QString("CN: Cluster %1: net: %2 %3")
                             .arg(reinterpret_cast<quintptr>(cluster.get()), 0, 16)
                             .arg(cluster->OriginNet())
-                            .arg(QString::fromStdString(cluster->OriginNetName().ToStdString()));
+                            .arg(cluster->OriginNetName());
             }
             else
             {

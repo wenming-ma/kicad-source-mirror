@@ -4,6 +4,7 @@
 #include "pcb_generator.h"
 
 #include <board.h>
+#include <i18n_utility.h>
 
 
 PCB_GENERATOR::PCB_GENERATOR( BOARD_ITEM* aParent, PCB_LAYER_ID aLayer ) :

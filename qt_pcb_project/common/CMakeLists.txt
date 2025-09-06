@@ -220,6 +220,9 @@ target_include_directories( common PUBLIC
     ${wxWidgets_INCLUDE_DIRS}
 )
 
+# Configure Qt MOC, UIC, and RCC processing
+set_target_properties( common PROPERTIES AUTOMOC ON )
+set_target_properties( common PROPERTIES AUTORCC ON )
 # Skip AutoUIC processing for widgets/ui_common.h (it's a hand-written header, not generated from .ui)
 set_property( TARGET common PROPERTY AUTOUIC_SKIP_QTDIR ON )
 set_target_properties( common PROPERTIES AUTOUIC OFF )

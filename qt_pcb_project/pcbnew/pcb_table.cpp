@@ -397,7 +397,7 @@ INSPECT_RESULT PCB_TABLE::Visit( INSPECTOR aInspector, void* aTestData,
 
 QString PCB_TABLE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return QString::asprintf( _( "%d Column Table" ), m_colCount );
+    return QString::asprintf( _( "%d Column Table" ).toUtf8().constData(), m_colCount );
 }
 
 
@@ -433,7 +433,7 @@ bool PCB_TABLE::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
 void PCB_TABLE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     // Don't use GetShownText() here; we want to show the user the variable references
-    aList.emplace_back( _( "Table" ), QString::asprintf( _( "%d Columns" ), m_colCount ) );
+    aList.emplace_back( _( "Table" ), QString::asprintf( _( "%d Columns" ).toUtf8().constData(), m_colCount ) );
 }
 
 

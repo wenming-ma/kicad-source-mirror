@@ -36,6 +36,7 @@
 #include <concepts>
 
 #include <math/util.h>
+#include <QMetaType>
 
 /**
  * Traits class for VECTOR2.
@@ -695,6 +696,11 @@ std::ostream& operator<<( std::ostream& aStream, const VECTOR2<T>& aVector )
 typedef VECTOR2<double>  VECTOR2D;
 typedef VECTOR2<int32_t> VECTOR2I;
 typedef VECTOR2<int64_t> VECTOR2L;
+
+// Register VECTOR2 types with Qt's meta type system
+Q_DECLARE_METATYPE(VECTOR2I)
+Q_DECLARE_METATYPE(VECTOR2D)
+Q_DECLARE_METATYPE(VECTOR2L)
 
 /* KiROUND specialization for vectors */
 inline constexpr VECTOR2I KiROUND( const VECTOR2D& vec )

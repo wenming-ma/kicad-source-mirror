@@ -247,13 +247,13 @@ bool PAD::SharesNetTieGroup( const PAD* aOther ) const
 
 bool PAD::IsNoConnectPad() const
 {
-    return m_pinType.Contains( "no_connect" );
+    return m_pinType.contains( "no_connect" );
 }
 
 
 bool PAD::IsFreePad() const
 {
-    return GetShortNetname().StartsWith( "unconnected-(" )
+    return GetShortNetname().startsWith( "unconnected-(" )
             && m_pinType == "free";
 }
 
@@ -754,7 +754,7 @@ const SHAPE_COMPOUND& PAD::buildEffectiveShape( PCB_LAYER_ID aLayer ) const
         break;
 
     default:
-        qDebug() << "PAD::buildEffectiveShapes: Unsupported pad shape: PAD_SHAPE::" << QString( std::string( magic_enum::enum_name( effectiveShape ) ) );
+        qDebug() << "PAD::buildEffectiveShapes: Unsupported pad shape: PAD_SHAPE::" << QString::fromStdString( std::string( magic_enum::enum_name( effectiveShape ) ) );
         break;
     }
 
@@ -1295,7 +1295,7 @@ void PAD::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& 
     QString   msg;
     FOOTPRINT* parentFootprint = static_cast<FOOTPRINT*>( m_parent );
 
-    if( aFrame->GetName() == PCB_EDIT_FRAME_NAME )
+    if( aFrame->GetFrameType() == FRAME_PCB_EDITOR )
     {
         if( parentFootprint )
             aList.emplace_back( _( "Footprint" ), parentFootprint->GetReference() );
@@ -1303,13 +1303,13 @@ void PAD::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& 
 
     aList.emplace_back( _( "Pad" ), m_number );
 
-    if( !GetPinFunction().IsEmpty() )
+    if( !GetPinFunction().isEmpty() )
         aList.emplace_back( _( "Pin Name" ), GetPinFunction() );
 
-    if( !GetPinType().IsEmpty() )
+    if( !GetPinType().isEmpty() )
         aList.emplace_back( _( "Pin Type" ), GetPinType() );
 
-    if( aFrame->GetName() == PCB_EDIT_FRAME_NAME )
+    if( aFrame->GetFrameType() == FRAME_PCB_EDITOR )
     {
         aList.emplace_back( _( "Net" ), UnescapeString( GetNetname() ) );
 
@@ -1323,7 +1323,7 @@ void PAD::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& 
     if( GetAttribute() == PAD_ATTRIB::SMD || GetAttribute() == PAD_ATTRIB::CONN )
         aList.emplace_back( _( "Layer" ), layerMaskDescribe() );
 
-    if( aFrame->GetName() == FOOTPRINT_EDIT_FRAME_NAME )
+    if( aFrame->GetFrameType() == FRAME_FOOTPRINT_EDITOR )
     {
         if( GetAttribute() == PAD_ATTRIB::SMD )
         {
@@ -1375,9 +1375,9 @@ void PAD::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& 
     pad_orient.Normalize180();
 
     if( !fp_orient.IsZero() )
-        msg.Printf( "%g(+ %g)", pad_orient.AsDegrees(), fp_orient.AsDegrees() );
+        msg = QString::asprintf( "%g(+ %g)", pad_orient.AsDegrees(), fp_orient.AsDegrees() );
     else
-        msg.Printf( "%g", GetOrientation().AsDegrees() );
+        msg = QString::asprintf( "%g", GetOrientation().AsDegrees() );
 
     aList.emplace_back( _( "Rotation" ), msg );
 
@@ -1394,26 +1394,25 @@ void PAD::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& 
         if( GetDrillShape() == PAD_DRILL_SHAPE::CIRCLE )
         {
             aList.emplace_back( _( "Hole" ),
-                                QString::Format( "%s",
-                                                  aFrame->MessageTextFromValue( drill.x ) ) );
+                                aFrame->MessageTextFromValue( drill.x ) );
         }
         else
         {
             aList.emplace_back( _( "Hole X / Y" ),
-                                QString::Format( "%s / %s",
-                                                  aFrame->MessageTextFromValue( drill.x ),
-                                                  aFrame->MessageTextFromValue( drill.y ) ) );
+                                QString::asprintf( "%s / %s",
+                                                  aFrame->MessageTextFromValue( drill.x ).toStdString().c_str(),
+                                                  aFrame->MessageTextFromValue( drill.y ).toStdString().c_str() ) );
         }
     }
 
     QString source;
     int      clearance = GetOwnClearance( UNDEFINED_LAYER, &source );
 
-    if( !source.IsEmpty() )
+    if( !source.isEmpty() )
     {
-        aList.emplace_back( QString::Format( _( "Min Clearance: %s" ),
+        aList.emplace_back( QString( _( "Min Clearance: %s" ) ).arg(
                                               aFrame->MessageTextFromValue( clearance ) ),
-                            QString::Format( _( "(from %s)" ),
+                            QString( _( "(from %s)" ) ).arg(
                                               source ) );
     }
 #if 0
@@ -1589,34 +1588,34 @@ QString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) co
     if( GetAttribute() == PAD_ATTRIB::NPTH )
     {
         if( parentFP )
-            return QString::Format( _( "NPTH pad of %s" ), parentFP->GetReference() );
+            return QString( _( "NPTH pad of %s" ) ).arg( parentFP->GetReference() );
         else
             return _( "NPTH pad" );
     }
-    else if( GetNumber().IsEmpty() )
+    else if( GetNumber().isEmpty() )
     {
         if( GetAttribute() == PAD_ATTRIB::SMD || GetAttribute() == PAD_ATTRIB::CONN )
         {
             if( parentFP )
             {
-                return QString::Format( _( "Pad %s of %s on %s" ),
-                                         GetNetnameMsg(),
-                                         parentFP->GetReference(),
-                                         layerMaskDescribe() );
+                return QString( _( "Pad %s of %s on %s" ) )
+                                         .arg( GetNetnameMsg() )
+                                         .arg( parentFP->GetReference() )
+                                         .arg( layerMaskDescribe() );
             }
             else
             {
-                return QString::Format( _( "Pad on %s" ),
-                                         layerMaskDescribe() );
+                return QString( _( "Pad on %s" ) )
+                                         .arg( layerMaskDescribe() );
             }
         }
         else
         {
             if( parentFP )
             {
-                return QString::Format( _( "PTH pad %s of %s" ),
-                                         GetNetnameMsg(),
-                                         parentFP->GetReference() );
+                return QString( _( "PTH pad %s of %s" ) )
+                                         .arg( GetNetnameMsg() )
+                                         .arg( parentFP->GetReference() );
             }
             else
             {
@@ -1630,32 +1629,32 @@ QString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) co
         {
             if( parentFP )
             {
-                return QString::Format( _( "Pad %s %s of %s on %s" ),
-                                         GetNumber(),
-                                         GetNetnameMsg(),
-                                         parentFP->GetReference(),
-                                         layerMaskDescribe() );
+                return QString( _( "Pad %s %s of %s on %s" ) )
+                                         .arg( GetNumber() )
+                                         .arg( GetNetnameMsg() )
+                                         .arg( parentFP->GetReference() )
+                                         .arg( layerMaskDescribe() );
             }
             else
             {
-                return QString::Format( _( "Pad %s on %s" ),
-                                         GetNumber(),
-                                         layerMaskDescribe() );
+                return QString( _( "Pad %s on %s" ) )
+                                         .arg( GetNumber() )
+                                         .arg( layerMaskDescribe() );
             }
         }
         else
         {
             if( parentFP )
             {
-                return QString::Format( _( "PTH pad %s %s of %s" ),
-                                         GetNumber(),
-                                         GetNetnameMsg(),
-                                         parentFP->GetReference() );
+                return QString( _( "PTH pad %s %s of %s" ) )
+                                         .arg( GetNumber() )
+                                         .arg( GetNetnameMsg() )
+                                         .arg( parentFP->GetReference() );
             }
             else
             {
-                return QString::Format( _( "PTH pad %s" ),
-                                         GetNumber() );
+                return QString( _( "PTH pad %s" ) )
+                                         .arg( GetNumber() );
             }
         }
     }
@@ -2061,7 +2060,7 @@ void PAD::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer,
     }
 
     default:
-        qDebug() << "PAD::TransformShapeToPolygon no implementation for " << QString( std::string( magic_enum::enum_name( shape ) ) );
+        qDebug() << "PAD::TransformShapeToPolygon no implementation for " << QString::fromStdString( std::string( magic_enum::enum_name( shape ) ) );
         break;
     }
 }
@@ -2338,7 +2337,7 @@ void PAD::doCheckPad( PCB_LAYER_ID aLayer, UNITS_PROVIDER* aUnitsProvider, bool 
 
         if( GetDrillSizeX() <= min_drill_size || GetDrillSizeY() <= min_drill_size )
         {
-            msg.Printf( _( "(PTH pad hole size must be larger than %s)" ),
+            msg = QString( _( "(PTH pad hole size must be larger than %s)" ) ).arg(
                         aUnitsProvider->StringFromValue( min_drill_size, true ) );
             aErrorHandler( DRCE_PADSTACK_INVALID, msg );
         }
@@ -2423,7 +2422,7 @@ void PAD::doCheckPad( PCB_LAYER_ID aLayer, UNITS_PROVIDER* aUnitsProvider, bool 
     // (like a solder paste creating a solder paste area on a neighbor pad or on the solder mask)
     // So we could ask for user to confirm the choice
     // For now we just check for disappearing paste
-    QSize paste_size;
+    VECTOR2I paste_size;
     int    paste_margin = GetLocalSolderPasteMargin().value_or( 0 );
     double paste_ratio = GetLocalSolderPasteMarginRatio().value_or( 0 );
 
@@ -2699,7 +2698,7 @@ static struct PAD_DESC
 
         ENUM_MAP<ZONE_CONNECTION>& zcMap = ENUM_MAP<ZONE_CONNECTION>::Instance();
 
-        if( zcMap.Choices().GetCount() == 0 )
+        if( zcMap.Choices().count() == 0 )
         {
             zcMap.Undefined( ZONE_CONNECTION::INHERITED );
             zcMap.Map( ZONE_CONNECTION::INHERITED, _HKI( "Inherited" ) )
@@ -2921,7 +2920,8 @@ static struct PAD_DESC
     }
 } _PAD_DESC;
 
-ENUM_TO_WXANY( PAD_ATTRIB );
-ENUM_TO_WXANY( PAD_SHAPE );
-ENUM_TO_WXANY( PAD_PROP );
-ENUM_TO_WXANY( PAD_DRILL_SHAPE );
+// Qt Note: The wxWidgets DECLARE_ENUM_TO_WXANY macros have been removed.
+// DECLARE_ENUM_TO_WXANY( PAD_ATTRIB );
+// DECLARE_ENUM_TO_WXANY( PAD_SHAPE );
+// DECLARE_ENUM_TO_WXANY( PAD_PROP );
+// DECLARE_ENUM_TO_WXANY( PAD_DRILL_SHAPE );

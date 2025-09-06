@@ -9,6 +9,12 @@
 #include <QDir>
 #include <QRegularExpression>
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <Windows.h>
 #include <shellapi.h>
 #include <shlwapi.h>
