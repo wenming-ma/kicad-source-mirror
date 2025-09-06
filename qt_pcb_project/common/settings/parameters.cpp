@@ -38,7 +38,7 @@ bool PARAM_PATH_LIST::MatchesFile( const JSON_SETTINGS& aSettings ) const
 }
 
 
-void PARAM_WXSTRING_MAP::Load( const JSON_SETTINGS& aSettings, bool aResetIfMissing ) const
+void PARAM_QSTRING_MAP::Load( const JSON_SETTINGS& aSettings, bool aResetIfMissing ) const
 {
     if( m_readOnly )
         return;
@@ -60,13 +60,13 @@ void PARAM_WXSTRING_MAP::Load( const JSON_SETTINGS& aSettings, bool aResetIfMiss
 }
 
 
-void PARAM_WXSTRING_MAP::Store( JSON_SETTINGS* aSettings ) const
+void PARAM_QSTRING_MAP::Store( JSON_SETTINGS* aSettings ) const
 {
     nlohmann::json js( {} );
 
     for( const auto& el : *m_ptr )
     {
-        std::string key( el.first.ToUTF8() );
+        std::string key = el.first.toStdString();
         js[key] = el.second;
     }
 
@@ -74,7 +74,7 @@ void PARAM_WXSTRING_MAP::Store( JSON_SETTINGS* aSettings ) const
 }
 
 
-bool PARAM_WXSTRING_MAP::MatchesFile( const JSON_SETTINGS& aSettings ) const
+bool PARAM_QSTRING_MAP::MatchesFile( const JSON_SETTINGS& aSettings ) const
 {
     if( std::optional<nlohmann::json> js = aSettings.GetJson( m_path ) )
     {

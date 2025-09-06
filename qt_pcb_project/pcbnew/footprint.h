@@ -280,7 +280,7 @@ public:
     {
         for( const QString& group : m_netTiePadGroups )
         {
-            if( !group.IsEmpty() )
+            if( !group.isEmpty() )
                 return true;
         }
 

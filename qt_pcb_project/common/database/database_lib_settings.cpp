@@ -25,7 +25,7 @@ DATABASE_FIELD_MAPPING::DATABASE_FIELD_MAPPING( std::string aColumn, std::string
 
 
 DATABASE_LIB_SETTINGS::DATABASE_LIB_SETTINGS( const std::string& aFilename ) :
-        JSON_SETTINGS( aFilename, SETTINGS_LOC::NONE, dblibSchemaVersion )
+        JSON_SETTINGS( QString::fromStdString( aFilename ), SETTINGS_LOC::NONE, dblibSchemaVersion )
 {
 
     m_params.emplace_back( new PARAM<std::string>( "source.dsn", &m_Source.dsn, "" ) );
@@ -153,5 +153,5 @@ DATABASE_LIB_SETTINGS::DATABASE_LIB_SETTINGS( const std::string& aFilename ) :
 
 QString DATABASE_LIB_SETTINGS::getFileExt() const
 {
-    return FILEEXT::DatabaseLibraryFileExtension;
+    return QString::fromStdString( FILEEXT::DatabaseLibraryFileExtension );
 }

@@ -16,6 +16,7 @@
 #include <QEvent>
 #include <QFocusEvent>
 #include <QObject>
+#include <QEnterEvent>
 
 
 class KICOMMON_API BITMAP_BUTTON : public QWidget
@@ -78,7 +79,11 @@ protected:
     void setupEvents();
 
     void leaveEvent( QEvent* aEvent ) override;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    void enterEvent( QEnterEvent* aEvent ) override;
+#else
     void enterEvent( QEvent* aEvent ) override;
+#endif
     void focusOutEvent( QFocusEvent* aEvent ) override;
     void focusInEvent( QFocusEvent* aEvent ) override;
     void mouseReleaseEvent( QMouseEvent* aEvent ) override;

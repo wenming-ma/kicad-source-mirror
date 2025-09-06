@@ -137,7 +137,7 @@ public:
     {
         // hide tricks behind sensible API
         return GetParentFootprint() == aOther->GetParentFootprint()
-            && !m_number.IsEmpty() && m_number == aOther->m_number;
+            && !m_number.isEmpty() && m_number == aOther->m_number;
     }
 
     /**

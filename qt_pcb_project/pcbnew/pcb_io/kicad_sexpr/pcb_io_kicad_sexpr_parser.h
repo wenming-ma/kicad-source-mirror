@@ -7,6 +7,7 @@
 
 #include <QString>
 #include <QStringList>
+#include <QHash>
 #include <hashtables.h>
 #include <layer_ids.h>     // PCB_LAYER_ID
 #include <lset.h>

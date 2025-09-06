@@ -10,6 +10,7 @@
 #include <ki_any.h>
 #include <QString>
 #include <QDebug>
+#include <QKeySequence>
 
 class TOOL_EVENT;
 
@@ -276,6 +277,7 @@ protected:
     TOOL_ACTION();
 
     friend class ACTION_MANAGER;
+    friend class ACTIONS;
 
     /// Base ID to use inside the user interface system to offset the action IDs.
     static constexpr int ACTION_BASE_UI_ID = 20000;

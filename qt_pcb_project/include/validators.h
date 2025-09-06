@@ -134,7 +134,7 @@ public:
 
     virtual QValidator::State validate( QString& aInput, int& aPos ) const override;
 
-    bool DoValidate( const QString& aValue, QWidget* aParent );
+    bool DoValidate( const QString& aValue, QWidget* aParent ) const;
 
 private:
     int m_fieldId;

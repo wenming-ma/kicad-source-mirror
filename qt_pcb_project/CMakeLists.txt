@@ -72,16 +72,10 @@ list( APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-
 # Find required dependencies for minimal PCB set
 find_package( PkgConfig QUIET )
 
-# Find wxWidgets - keeping for compatibility during transformation
+# Find wxWidgets - keeping for compatibility during transformation (OPTIONAL for now)
 set( wxWidgets_USE_STATIC ON )
 find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc )
-
-# Find Qt6 components - try different approaches
 find_package( Qt6 QUIET COMPONENTS Core Widgets Gui OpenGL PrintSupport Xml Svg Network )
-if( NOT Qt6_FOUND )
-    message( STATUS "Qt6 not found through standard search, trying CONFIG mode..." )
-    find_package( Qt6 REQUIRED CONFIG COMPONENTS Core Widgets Gui OpenGL PrintSupport Xml Svg Network )
-endif()
 find_package( Boost REQUIRED )
 find_package( glm REQUIRED )
 # find_package( protobuf REQUIRED )
@@ -111,14 +105,16 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/magic_enum/magic_enum
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/expected/include
     ${wxWidgets_INCLUDE_DIRS}
-    ${Qt6Core_INCLUDE_DIRS}
-    ${Qt6Widgets_INCLUDE_DIRS}
-    ${Qt6Gui_INCLUDE_DIRS}
-    ${Qt6OpenGL_INCLUDE_DIRS}
-    ${Qt6PrintSupport_INCLUDE_DIRS}
-    ${Qt6Xml_INCLUDE_DIRS}
-    ${Qt6Svg_INCLUDE_DIRS}
-    ${Qt6Network_INCLUDE_DIRS}
+    # Qt6 include directories - add module-specific paths for direct includes
+    ${Qt6_ROOT}/include
+    ${Qt6_ROOT}/include/QtCore
+    ${Qt6_ROOT}/include/QtWidgets
+    ${Qt6_ROOT}/include/QtGui
+    ${Qt6_ROOT}/include/QtNetwork
+    ${Qt6_ROOT}/include/QtOpenGL
+    ${Qt6_ROOT}/include/QtPrintSupport
+    ${Qt6_ROOT}/include/QtXml
+    ${Qt6_ROOT}/include/QtSvg
     ${CMAKE_PREFIX_PATH}/include/opencascade
 )
 

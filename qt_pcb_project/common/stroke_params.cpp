@@ -15,6 +15,7 @@
 #include <trigo.h>
 #include <widgets/msgpanel.h>
 #include <QDebug>
+#include <i18n_utility.h>
 
 using namespace STROKEPARAMS_T;
 

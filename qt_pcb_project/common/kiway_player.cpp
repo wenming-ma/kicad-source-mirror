@@ -6,22 +6,21 @@
 #include <typeinfo>
 #include <QWidget>
 #include <QEventLoop>
+#include <QApplication>
 #include <QtNetwork/QTcpServer>
 #include <QtNetwork/QTcpSocket>
 #include <core/raii.h>
 
 
-BEGIN_EVENT_TABLE( KIWAY_PLAYER, EDA_BASE_FRAME )
-    EVT_KIWAY_EXPRESS( KIWAY_PLAYER::kiway_express )
-    EVT_MENU_RANGE( ID_LANGUAGE_CHOICE, ID_LANGUAGE_CHOICE_END, KIWAY_PLAYER::language_change )
-END_EVENT_TABLE()
+// Event table macros removed - Qt uses signal/slot mechanism instead
 
 
 KIWAY_PLAYER::KIWAY_PLAYER( KIWAY* aKiway, QWidget* aParent, FRAME_T aFrameType,
                             const QString& aTitle, const QPoint& aPos, const QSize& aSize,
                             long aStyle, const QString& aFrameName,
                             const EDA_IU_SCALE& aIuScale ) :
-        EDA_BASE_FRAME( aParent, aFrameType, aTitle, aPos, aSize, aStyle, aFrameName, aKiway,
+        EDA_BASE_FRAME( aParent, aFrameType, aTitle, aPos, aSize, 
+                        static_cast<Qt::WindowFlags>(aStyle), aFrameName, aKiway,
                         aIuScale ),
         m_modal( false ),
         m_modal_loop( nullptr ),
@@ -119,7 +118,10 @@ bool KIWAY_PLAYER::Destroy()
 {
     Kiway().PlayerDidClose( GetFrameType() );
 
-    return EDA_BASE_FRAME::Destroy();
+    // In Qt, we use close() and deleteLater() instead of wxWidgets Destroy()
+    close();
+    deleteLater();
+    return true;
 }
 
 
@@ -151,9 +153,9 @@ void KIWAY_PLAYER::kiway_express( KIWAY_EXPRESS& aEvent )
 }
 
 
-void KIWAY_PLAYER::language_change( QCommandEvent& event )
+void KIWAY_PLAYER::language_change( QAction* action )
 {
-    int id = event.GetId();
+    int id = action->data().toInt();
 
     // tell all the KIWAY_PLAYERs about the language change.
     Kiway().SetLanguage( id );

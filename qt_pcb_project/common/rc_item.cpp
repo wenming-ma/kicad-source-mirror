@@ -1,5 +1,5 @@
 #include <QWidget>
-#include <QTreeWidget>
+#include <QTreeView>
 #include <QApplication>
 #include <widgets/ui_common.h>
 #include <marker_base.h>
@@ -193,9 +193,9 @@ void RC_ITEM::GetJsonViolation( RC_JSON::VIOLATION& aViolation, UNITS_PROVIDER* 
 }
 
 
-KIID RC_TREE_MODEL::ToUUID( QTreeWidgetItem* aItem )
+KIID RC_TREE_MODEL::ToUUID( const QModelIndex& aIndex )
 {
-    const RC_TREE_NODE* node = RC_TREE_MODEL::ToNode( aItem );
+    const RC_TREE_NODE* node = RC_TREE_MODEL::ToNode( aIndex );
 
     if( node && node->m_RcItem )
     {
@@ -223,7 +223,7 @@ KIID RC_TREE_MODEL::ToUUID( QTreeWidgetItem* aItem )
 }
 
 
-RC_TREE_MODEL::RC_TREE_MODEL( EDA_DRAW_FRAME* aParentFrame, QTreeWidget* aView ) :
+RC_TREE_MODEL::RC_TREE_MODEL( EDA_DRAW_FRAME* aParentFrame, QTreeView* aView ) :
         m_editFrame( aParentFrame ),
         m_view( aView ),
         m_severities( 0 ),
@@ -247,14 +247,15 @@ void RC_TREE_MODEL::rebuildModel( std::shared_ptr<RC_ITEMS_PROVIDER> aProvider, 
 
     if( m_view )
     {
-        RC_TREE_NODE* selectedNode = ToNode( m_view->currentItem() );
+        QModelIndex currentIndex = m_view->currentIndex();
+        RC_TREE_NODE* selectedNode = ToNode( currentIndex );
         selectedRcItem = selectedNode ? selectedNode->m_RcItem : nullptr;
 
         // Clear selection before rebuilding to avoid issues with deleted items
         m_view->clearSelection();
     }
 
-    BeforeReset();
+    beginResetModel();
 
     m_rcItemsProvider = std::move( aProvider );
 
@@ -303,9 +304,9 @@ void RC_TREE_MODEL::rebuildModel( std::shared_ptr<RC_ITEMS_PROVIDER> aProvider, 
 
     // Must be called after a significant change of items to force the
     // tree model to reread all of them, repopulating itself entirely.
-    AfterReset();
+    endResetModel();
 
-    m_view->clear();
+    // Model reset will clear the view
     m_view->setHeaderHidden( true );
 
     ExpandAll();
@@ -313,13 +314,13 @@ void RC_TREE_MODEL::rebuildModel( std::shared_ptr<RC_ITEMS_PROVIDER> aProvider, 
     // Qt provides better scroll position handling, but we'll restore selection similarly
     if( selectedRcItem )
     {
-        for( RC_TREE_NODE* candidate : m_tree )
+        for( size_t i = 0; i < m_tree.size(); ++i )
         {
-            if( candidate->m_RcItem == selectedRcItem )
+            if( m_tree[i]->m_RcItem == selectedRcItem )
             {
-                QTreeWidgetItem* item = ToItem( candidate );
-                m_view->setCurrentItem( item );
-                m_view->scrollToItem( item );
+                QModelIndex idx = index( i, 0 );
+                m_view->setCurrentIndex( idx );
+                m_view->scrollTo( idx );
                 break;
             }
         }
@@ -337,47 +338,96 @@ void RC_TREE_MODEL::Update( std::shared_ptr<RC_ITEMS_PROVIDER> aProvider, int aS
 
 void RC_TREE_MODEL::ExpandAll()
 {
-    for( RC_TREE_NODE* topLevelNode : m_tree )
-        m_view->expandItem( ToItem( topLevelNode ) );
+    for( size_t i = 0; i < m_tree.size(); ++i )
+        m_view->expand( index( i, 0 ) );
 }
 
 
-bool RC_TREE_MODEL::IsContainer( QTreeWidgetItem* const aItem ) const
+bool RC_TREE_MODEL::hasChildren( const QModelIndex& aParent ) const
 {
-    if( ToNode( aItem ) == nullptr )    // must be tree root...
-        return true;
+    if( !aParent.isValid() )    // Root has children (the tree)
+        return !m_tree.empty();
+        
+    RC_TREE_NODE* node = ToNode( aParent );
+    return node && !node->m_Children.empty();
+}
+
+
+QModelIndex RC_TREE_MODEL::parent( const QModelIndex& aChild ) const
+{
+    if( !aChild.isValid() )
+        return QModelIndex();
+        
+    RC_TREE_NODE* node = ToNode( aChild );
+    if( !node || !node->m_Parent )
+        return QModelIndex();
+        
+    // Find parent's row in its parent's children
+    RC_TREE_NODE* parent = node->m_Parent;
+    RC_TREE_NODE* grandparent = parent->m_Parent;
+    
+    if( !grandparent )  // Parent is a top-level node
+    {
+        for( size_t i = 0; i < m_tree.size(); ++i )
+        {
+            if( m_tree[i] == parent )
+                return createIndex( i, 0, parent );
+        }
+    }
+    else  // Parent is a child node
+    {
+        for( size_t i = 0; i < grandparent->m_Children.size(); ++i )
+        {
+            if( grandparent->m_Children[i] == parent )
+                return createIndex( i, 0, parent );
+        }
+    }
+    
+    return QModelIndex();
+}
+
+
+int RC_TREE_MODEL::rowCount( const QModelIndex& aParent ) const
+{
+    if( !aParent.isValid() )
+        return m_tree.size();
+        
+    RC_TREE_NODE* node = ToNode( aParent );
+    return node ? node->m_Children.size() : 0;
+}
+
+int RC_TREE_MODEL::columnCount( const QModelIndex& aParent ) const
+{
+    return 1;  // Single column tree
+}
+
+QModelIndex RC_TREE_MODEL::index( int row, int column, const QModelIndex& parent ) const
+{
+    if( column != 0 || row < 0 )
+        return QModelIndex();
+        
+    if( !parent.isValid() )  // Top level
+    {
+        if( row < (int)m_tree.size() )
+            return createIndex( row, column, m_tree[row] );
+    }
     else
-        return ToNode( aItem )->m_Type == RC_TREE_NODE::MARKER;
+    {
+        RC_TREE_NODE* parentNode = ToNode( parent );
+        if( parentNode && row < (int)parentNode->m_Children.size() )
+            return createIndex( row, column, parentNode->m_Children[row] );
+    }
+    
+    return QModelIndex();
 }
 
 
-QTreeWidgetItem* RC_TREE_MODEL::GetParent( QTreeWidgetItem* const aItem ) const
+QVariant RC_TREE_MODEL::data( const QModelIndex& aIndex, int aRole ) const
 {
-    return ToItem( ToNode( aItem)->m_Parent );
-}
+    if( !aIndex.isValid() || !m_view->updatesEnabled() )
+        return QVariant();
 
-
-unsigned int RC_TREE_MODEL::GetChildren( QTreeWidgetItem* const aItem,
-                                         QVector<QTreeWidgetItem*>&  aChildren ) const
-{
-    const RC_TREE_NODE* node = ToNode( aItem );
-    const std::vector<RC_TREE_NODE*>& children = node ? node->m_Children : m_tree;
-
-    for( const RC_TREE_NODE* child: children )
-        aChildren.push_back( ToItem( child ) );
-
-    return children.size();
-}
-
-
-void RC_TREE_MODEL::GetValue( QString&                aText,
-                              QTreeWidgetItem*        aItem,
-                              unsigned int            aCol ) const
-{
-    if( !aItem || !m_view->updatesEnabled() )
-        return;
-
-    const RC_TREE_NODE*            node = ToNode( aItem );
+    const RC_TREE_NODE*            node = ToNode( aIndex );
     const std::shared_ptr<RC_ITEM> rcItem = node->m_RcItem;
     MARKER_BASE*                   marker = rcItem->GetParent();
     EDA_ITEM*                      item = nullptr;
@@ -441,19 +491,35 @@ void RC_TREE_MODEL::GetValue( QString&                aText,
         msg += item->GetItemDescription( m_editFrame, true );
 
     msg.replace( "\n", " " );
-    aText = msg;
+    
+    if( aRole == Qt::DisplayRole )
+        return msg;
+    else if( aRole == Qt::FontRole || aRole == Qt::ForegroundRole )
+    {
+        QFont font;
+        QColor textColor;
+        if( GetAttr( aIndex, 0, font, textColor ) )
+        {
+            if( aRole == Qt::FontRole )
+                return font;
+            else
+                return textColor;
+        }
+    }
+    
+    return QVariant();
 }
 
 
-bool RC_TREE_MODEL::GetAttr( QTreeWidgetItem*        aItem,
+bool RC_TREE_MODEL::GetAttr( const QModelIndex&     aIndex,
                              unsigned int            aCol,
                              QFont&                  aFont,
                              QColor&                 aTextColor ) const
 {
-    if( !aItem || !m_view->updatesEnabled() )
+    if( !aIndex.isValid() || !m_view->updatesEnabled() )
         return false;
 
-    const RC_TREE_NODE* node = ToNode( aItem );
+    const RC_TREE_NODE* node = ToNode( aIndex );
 
     bool ret = false;
     bool heading = node->m_Type == RC_TREE_NODE::MARKER;
@@ -496,13 +562,28 @@ void RC_TREE_MODEL::ValueChanged( RC_TREE_NODE* aNode )
         return;
     }
 
-    QTreeWidgetItem* markerItem = ToItem( aNode );
+    // Find the index for this node
+    QModelIndex markerIndex;
+    for( size_t i = 0; i < m_tree.size(); ++i )
+    {
+        if( m_tree[i] == aNode )
+        {
+            markerIndex = index( i, 0 );
+            break;
+        }
+    }
+    
+    if( !markerIndex.isValid() )
+        return;
 
-    // Qt automatically updates the display when we change item text or properties
-    m_view->update( m_view->indexFromItem( markerItem ) );
+    // Emit dataChanged signal for the node and its children
+    emit dataChanged( markerIndex, markerIndex );
 
-    for( const RC_TREE_NODE* child : aNode->m_Children )
-        m_view->update( m_view->indexFromItem( ToItem( child ) ) );
+    for( size_t i = 0; i < aNode->m_Children.size(); ++i )
+    {
+        QModelIndex childIndex = index( i, 0, markerIndex );
+        emit dataChanged( childIndex, childIndex );
+    }
 
     // Comment items can come and go depending on exclusion state and comment content.
     const std::shared_ptr<RC_ITEM> rcItem = aNode->m_RcItem;
@@ -518,19 +599,17 @@ void RC_TREE_MODEL::ValueChanged( RC_TREE_NODE* aNode )
 
         if( needsCommentNode && !commentNode )
         {
+            beginInsertRows( markerIndex, aNode->m_Children.size(), aNode->m_Children.size() );
             commentNode = new RC_TREE_NODE( aNode, rcItem, RC_TREE_NODE::COMMENT );
-            QTreeWidgetItem* newItem = ToItem( commentNode );
-
             aNode->m_Children.push_back( commentNode );
-            markerItem->addChild( newItem );
+            endInsertRows();
         }
         else if( commentNode && !needsCommentNode )
         {
-            QTreeWidgetItem* itemToDelete = ToItem( commentNode );
-            
+            beginRemoveRows( markerIndex, aNode->m_Children.size() - 1, aNode->m_Children.size() - 1 );
             aNode->m_Children.erase( aNode->m_Children.end() - 1 );
-            markerItem->removeChild( itemToDelete );
-            delete itemToDelete;
+            delete commentNode;
+            endRemoveRows();
         }
     }
 }
@@ -544,7 +623,7 @@ void RC_TREE_MODEL::DeleteCurrentItem( bool aDeep )
 
 void RC_TREE_MODEL::DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, bool aDeep )
 {
-    RC_TREE_NODE* current_node = m_view ? ToNode( m_view->currentItem() ) : nullptr;
+    RC_TREE_NODE* current_node = m_view ? ToNode( m_view->currentIndex() ) : nullptr;
     const std::shared_ptr<RC_ITEM> current_item = current_node ? current_node->m_RcItem : nullptr;
 
     // Keep a vector of elements to free after Qt is definitely done accessing them
@@ -560,10 +639,11 @@ void RC_TREE_MODEL::DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, boo
     // Qt preserves expanded state better, but we'll track it anyway
     if( m_view && aCurrentOnly )
     {
-        for( RC_TREE_NODE* node : m_tree )
+        for( size_t i = 0; i < m_tree.size(); ++i )
         {
-            if( m_view->isItemExpanded( ToItem( node ) ) )
-                expanded.push_back( node );
+            QModelIndex idx = index( i, 0 );
+            if( m_view->isExpanded( idx ) )
+                expanded.push_back( m_tree[i] );
         }
     }
 
@@ -603,24 +683,18 @@ void RC_TREE_MODEL::DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, boo
 
         if( i < (int) m_tree.size() )   // Careful; tree is truncated for large datasets
         {
-            QTreeWidgetItem*    markerItem = ToItem( m_tree[i] );
-            QTreeWidgetItem*    parentItem = ToItem( m_tree[i]->m_Parent );
-
+            beginRemoveRows( QModelIndex(), i, i );
+            
             for( RC_TREE_NODE* child : m_tree[i]->m_Children )
             {
                 to_delete.push_back( child );
             }
 
             m_tree[i]->m_Children.clear();
-            
-            // Remove from tree widget
-            if( parentItem )
-                parentItem->removeChild( markerItem );
-            else
-                m_view->takeTopLevelItem( m_view->indexOfTopLevelItem( markerItem ) );
-
             to_delete.push_back( m_tree[i] );
             m_tree.erase( m_tree.begin() + i );
+            
+            endRemoveRows();
         }
 
         // Only deep delete the current item here; others will be done by the caller, which
@@ -637,14 +711,19 @@ void RC_TREE_MODEL::DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, boo
     {
         for( RC_TREE_NODE* node : expanded )
         {
-            QTreeWidgetItem* item = ToItem( node );
-
-            if( item )
-                m_view->expandItem( item );
+            // Node may not exist in current tree after deletion
+            for( size_t i = 0; i < m_tree.size(); ++i )
+            {
+                if( m_tree[i] == node )
+                {
+                    m_view->expand( index( i, 0 ) );
+                    break;
+                }
+            }
         }
 
-        QTreeWidgetItem* selItem = ToItem( m_tree[ lastGood ] );
-        m_view->setCurrentItem( selItem );
+        QModelIndex selIndex = index( lastGood, 0 );
+        m_view->setCurrentIndex( selIndex );
 
         // Qt automatically emits selection changed signals
     }
@@ -659,7 +738,7 @@ void RC_TREE_MODEL::DeleteItems( bool aCurrentOnly, bool aIncludeExclusions, boo
 
 void RC_TREE_MODEL::PrevMarker()
 {
-    RC_TREE_NODE* currentNode = ToNode( m_view->currentItem() );
+    RC_TREE_NODE* currentNode = ToNode( m_view->currentIndex() );
     RC_TREE_NODE* prevMarker = nullptr;
 
     while( currentNode && currentNode->m_Type != RC_TREE_NODE::MARKER )
@@ -674,13 +753,22 @@ void RC_TREE_MODEL::PrevMarker()
     }
 
     if( prevMarker )
-        m_view->setCurrentItem( ToItem( prevMarker ) );
+    {
+        for( size_t i = 0; i < m_tree.size(); ++i )
+        {
+            if( m_tree[i] == prevMarker )
+            {
+                m_view->setCurrentIndex( index( i, 0 ) );
+                break;
+            }
+        }
+    }
 }
 
 
 void RC_TREE_MODEL::NextMarker()
 {
-    RC_TREE_NODE* currentNode = ToNode( m_view->currentItem() );
+    RC_TREE_NODE* currentNode = ToNode( m_view->currentIndex() );
 
     while( currentNode && currentNode->m_Type != RC_TREE_NODE::MARKER )
         currentNode = currentNode->m_Parent;
@@ -702,7 +790,16 @@ void RC_TREE_MODEL::NextMarker()
     }
 
     if( nextMarker )
-        m_view->setCurrentItem( ToItem( nextMarker ) );
+    {
+        for( size_t i = 0; i < m_tree.size(); ++i )
+        {
+            if( m_tree[i] == nextMarker )
+            {
+                m_view->setCurrentIndex( index( i, 0 ) );
+                break;
+            }
+        }
+    }
 }
 
 
@@ -711,11 +808,11 @@ void RC_TREE_MODEL::SelectMarker( const MARKER_BASE* aMarker )
     if( !m_view->updatesEnabled() )
         return;
 
-    for( RC_TREE_NODE* candidate : m_tree )
+    for( size_t i = 0; i < m_tree.size(); ++i )
     {
-        if( candidate->m_RcItem->GetParent() == aMarker )
+        if( m_tree[i]->m_RcItem->GetParent() == aMarker )
         {
-            m_view->setCurrentItem( ToItem( candidate ) );
+            m_view->setCurrentIndex( index( i, 0 ) );
             return;
         }
     }
@@ -727,11 +824,11 @@ void RC_TREE_MODEL::CenterMarker( const MARKER_BASE* aMarker )
     if( !m_view->updatesEnabled() )
         return;
 
-    for( RC_TREE_NODE* candidate : m_tree )
+    for( size_t i = 0; i < m_tree.size(); ++i )
     {
-        if( candidate->m_RcItem->GetParent() == aMarker )
+        if( m_tree[i]->m_RcItem->GetParent() == aMarker )
         {
-            m_view->scrollToItem( ToItem( candidate ) );
+            m_view->scrollTo( index( i, 0 ) );
             return;
         }
     }

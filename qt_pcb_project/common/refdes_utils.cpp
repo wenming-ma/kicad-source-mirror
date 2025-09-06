@@ -20,7 +20,9 @@ QString GetRefDesPrefix( const QString& aRefDes )
                 return aChr != '?' && !std::isdigit( aChr.unicode() );
             } );
 
-    return QString( aRefDes.begin(), res.base() );
+    // Calculate the position where the prefix ends
+    int prefixLength = std::distance( aRefDes.begin(), res.base() );
+    return aRefDes.left( prefixLength );
 }
 
 

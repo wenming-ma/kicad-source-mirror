@@ -30,35 +30,35 @@ void SystemDirsAppend( SEARCH_STACK* aSearchStack )
     // what they are doing.  It should take precedence over anything else.
     // Otherwise don't set it.
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    maybe.AddPaths( env.value( "KICAD" ) );
+    maybe.AddPaths( env.value( "KICAD" ).toStdString() );
 
 #ifdef __APPLE__
     // Add the directory for the user-dependent, program specific data files.
-    maybe.AddPaths( PATHS::GetOSXKicadUserDataDir() );
+    maybe.AddPaths( PATHS::GetOSXKicadUserDataDir().toStdString() );
 
     // Global machine specific application data
-    maybe.AddPaths( PATHS::GetOSXKicadMachineDataDir() );
+    maybe.AddPaths( PATHS::GetOSXKicadMachineDataDir().toStdString() );
 
     // Global application specific data files inside bundle
-    maybe.AddPaths( PATHS::GetOSXKicadDataDir() );
+    maybe.AddPaths( PATHS::GetOSXKicadDataDir().toStdString() );
 #else
     // This is from CMAKE_INSTALL_PREFIX.
     // Useful when KiCad is installed by `make install`.
     // Use as second ranked place.
-    maybe.AddPaths( QString( DEFAULT_INSTALL_PATH ) );
+    maybe.AddPaths( std::string( DEFAULT_INSTALL_PATH ) );
 
 #ifdef __linux__
     // On Linux, the stock EDA library data install path can be redefined via
     // KICAD_LIBRARY_DATA, otherwise KICAD_DATA will be used.
     // Useful when multiple versions of KiCad are installed in parallel.
-    maybe.AddPaths( PATHS::GetStockEDALibraryPath() );
+    maybe.AddPaths( PATHS::GetStockEDALibraryPath().toStdString() );
 #endif
 
     // Add the directory for the user-dependent, program specific data files.
     // According to Qt documentation:
     // Unix: ~/.appname
     // Windows: C:\Documents and Settings\username\Application Data\appname
-    maybe.AddPaths( KIPLATFORM::ENV::GetDocumentsPath() );
+    maybe.AddPaths( KIPLATFORM::ENV::GetDocumentsPath().toStdString() );
 
     {
         // Should be full path to this program executable.
@@ -83,13 +83,13 @@ void SystemDirsAppend( SEARCH_STACK* aSearchStack )
         if( bin_fn.absolutePath() != data_dir )
         {
             // add data_dir if it is different from the bin_dir
-            maybe.AddPaths( data_dir );
+            maybe.AddPaths( data_dir.toStdString() );
         }
 
         // Up one level relative to binary path with "share" appended below.
         QDir parent_dir( bin_fn.absolutePath() );
         parent_dir.cdUp();
-        maybe.AddPaths( parent_dir.absolutePath() );
+        maybe.AddPaths( parent_dir.absolutePath().toStdString() );
     }
 
     /* The normal OS program file install paths allow for a binary to be
@@ -99,9 +99,9 @@ void SystemDirsAppend( SEARCH_STACK* aSearchStack )
      * figure out a way to implement this without #ifdef, please do.
      */
 #if defined(_WIN32)
-    maybe.AddPaths( env.value( "PROGRAMFILES" ) );
+    maybe.AddPaths( env.value( "PROGRAMFILES" ).toStdString() );
 #else
-    maybe.AddPaths( env.value( "PATH" ) );
+    maybe.AddPaths( env.value( "PATH" ).toStdString() );
 #endif
 #endif
 
@@ -115,7 +115,7 @@ void SystemDirsAppend( SEARCH_STACK* aSearchStack )
     // actually appended.
     for( unsigned i = 0; i < maybe.GetCount();  ++i )
     {
-        QDir fn( maybe[i] );
+        QDir fn( QString::fromStdString( maybe[i] ) );
 
 #ifndef __APPLE__
         if( fn.dirName() == QString( "bin" ) )
@@ -127,23 +127,23 @@ void SystemDirsAppend( SEARCH_STACK* aSearchStack )
         }
 #endif
 
-        aSearchStack->AddPaths( fn.absolutePath() );
+        aSearchStack->AddPaths( fn.absolutePath().toStdString() );
 
 #ifndef __APPLE__
         fn.cd( QString( "kicad" ) );
-        aSearchStack->AddPaths( fn.absolutePath() );     // add maybe[i]/kicad
+        aSearchStack->AddPaths( fn.absolutePath().toStdString() );     // add maybe[i]/kicad
 
         fn.cd( QString( "share" ) );
-        aSearchStack->AddPaths( fn.absolutePath() );     // add maybe[i]/kicad/share
+        aSearchStack->AddPaths( fn.absolutePath().toStdString() );     // add maybe[i]/kicad/share
 
         fn.cdUp();                                       // ../  clear share
         fn.cdUp();                                       // ../  clear kicad
 
         fn.cd( QString( "share" ) );
-        aSearchStack->AddPaths( fn.absolutePath() );     // add maybe[i]/share
+        aSearchStack->AddPaths( fn.absolutePath().toStdString() );     // add maybe[i]/share
 
         fn.cd( QString( "kicad" ) );
-        aSearchStack->AddPaths( fn.absolutePath() );     // add maybe[i]/share/kicad
+        aSearchStack->AddPaths( fn.absolutePath().toStdString() );     // add maybe[i]/share/kicad
 #endif
     }
 
@@ -163,7 +163,7 @@ void GlobalPathsAppend( SEARCH_STACK* aDst, KIWAY::FACE_T aId )
 
     for( unsigned i = 0; i < bases.GetCount(); ++i )
     {
-        QDir fn( bases[i] );
+        QDir fn( QString::fromStdString( bases[i] ) );
 
         // Add schematic library file path to search path list.
         // we must add <kicad path>/library and <kicad path>/library/doc
@@ -172,19 +172,19 @@ void GlobalPathsAppend( SEARCH_STACK* aDst, KIWAY::FACE_T aId )
             // Add schematic doc file path (library/doc) to search path list.
 
             fn.cd( QString( "library" ) );
-            aDst->AddPaths( fn.absolutePath() );
+            aDst->AddPaths( fn.absolutePath().toStdString() );
 
             fn.cd( QString( "doc" ) );
-            aDst->AddPaths( fn.absolutePath() );
+            aDst->AddPaths( fn.absolutePath().toStdString() );
 
             fn.cdUp();
             fn.cdUp(); // "../../"  up twice, removing library/doc/
 
             fn.cd( QString( "symbols" ) );
-            aDst->AddPaths( fn.absolutePath() );
+            aDst->AddPaths( fn.absolutePath().toStdString() );
 
             fn.cd( QString( "doc" ) );
-            aDst->AddPaths( fn.absolutePath() );
+            aDst->AddPaths( fn.absolutePath().toStdString() );
 
             fn.cdUp();
             fn.cdUp(); // "../../"  up twice, removing symbols/doc/
@@ -194,25 +194,25 @@ void GlobalPathsAppend( SEARCH_STACK* aDst, KIWAY::FACE_T aId )
         if( aId == KIWAY::FACE_PCB || aId == KIWAY::FACE_CVPCB )
         {
             fn.cd( QString( "modules" ) );
-            aDst->AddPaths( fn.absolutePath() );
+            aDst->AddPaths( fn.absolutePath().toStdString() );
             fn.cdUp();
 
             fn.cd( QString( "footprints" ) );
-            aDst->AddPaths( fn.absolutePath() );
+            aDst->AddPaths( fn.absolutePath().toStdString() );
             fn.cdUp();
 
             // Add 3D module library file path to search path list.
             fn.cd( QString( "3dmodels" ) );
-            aDst->AddPaths( fn.absolutePath() );
+            aDst->AddPaths( fn.absolutePath().toStdString() );
             fn.cdUp();
         }
 
         // Add KiCad template file path to search path list.
         fn.cd( QString( "template" ) );
-        aDst->AddPaths( fn.absolutePath() );
+        aDst->AddPaths( fn.absolutePath().toStdString() );
     }
 
 #ifndef __APPLE__
-    aDst->AddPaths( QString( "/usr/local/share" ) );
+    aDst->AddPaths( std::string( "/usr/local/share" ) );
 #endif
 }

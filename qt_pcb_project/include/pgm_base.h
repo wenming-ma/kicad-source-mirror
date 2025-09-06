@@ -13,12 +13,15 @@
 #include <QString>
 #include <QCoreApplication>
 #include <QLocale>
+#include <QFileInfo>
 #include <QSplashScreen>
 
 class QCoreApplication;
 class QMenu;
 class QWidget;
 class QSplashScreen;
+class QTranslator;
+class QSharedMemory;
 
 class BACKGROUND_JOBS_MONITOR;
 class NOTIFICATIONS_MANAGER;
@@ -150,6 +153,9 @@ public:
 
     virtual void SetLanguagePath();
 
+    // Get the language path for translation files
+    virtual QString GetLanguagePath();
+
     // Read the PDF browser choice from the common configuration.
     virtual void ReadPdfBrowserInfos();
 
@@ -237,7 +243,7 @@ public:
     void HideSplash();
 
     // Allow access to test for other running KiCads.
-    std::unique_ptr<QObject>& SingleInstance()
+    std::unique_ptr<QSharedMemory>& SingleInstance()
     {
         return m_pgm_checker;
     }
@@ -270,7 +276,7 @@ protected:
     std::unique_ptr<NOTIFICATIONS_MANAGER> m_notifications_manager;
 
     // Check if there is another copy of Kicad running at the same time.
-    std::unique_ptr<QObject> m_pgm_checker;
+    std::unique_ptr<QSharedMemory> m_pgm_checker;
 
 #ifdef KICAD_IPC_API
     std::unique_ptr<API_PLUGIN_MANAGER> m_plugin_manager;
@@ -280,6 +286,7 @@ protected:
     QString         m_kicad_env;              // The KICAD system environment variable.
 
     QLocale*        m_locale;
+    QTranslator*    m_translator;
     int             m_language_id;
 
     bool            m_use_system_pdf_browser;
@@ -290,8 +297,8 @@ protected:
     KICAD_SINGLETON m_singleton;
 
 #ifdef KICAD_USE_SENTRY
-    QString         m_sentry_optin_fn;
-    QString         m_sentry_uid_fn;
+    QFileInfo       m_sentry_optin_fn;
+    QFileInfo       m_sentry_uid_fn;
     QString         m_sentryUid;
 #endif
 

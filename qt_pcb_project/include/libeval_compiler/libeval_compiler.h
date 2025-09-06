@@ -458,7 +458,7 @@ public:
         if( m_pos >= m_str.length() )
             return 0;
 
-        return m_str[m_pos];
+        return m_str[m_pos].unicode();
     }
 
     bool Done() const

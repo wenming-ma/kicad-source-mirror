@@ -124,7 +124,7 @@ bool ACTION_MANAGER::RunHotKey( int aHotKey ) const
         key = std::toupper( key );
 
     qDebug() << QString("ACTION_MANAGER::RunHotKey Key: %1")
-                    .arg(QString::fromStdString(KeyNameFromKeyCode( aHotKey )));
+                    .arg(KeyNameFromKeyCode( aHotKey ));
 
     HOTKEY_LIST::const_iterator it = m_actionHotKeys.find( key | mod );
 
@@ -136,7 +136,7 @@ bool ACTION_MANAGER::RunHotKey( int aHotKey ) const
     if( it == m_actionHotKeys.end() && !std::isalpha( key ) )
     {
         qDebug() << QString("ACTION_MANAGER::RunHotKey No actions found, searching with key: %1")
-                        .arg(QString::fromStdString(KeyNameFromKeyCode( key | ( mod & ~MD_SHIFT ) )));
+                        .arg(KeyNameFromKeyCode( key | ( mod & ~MD_SHIFT ) ));
 
         it = m_actionHotKeys.find( key | ( mod & ~MD_SHIFT ) );
     }
@@ -192,7 +192,7 @@ bool ACTION_MANAGER::RunHotKey( int aHotKey ) const
         qDebug() << QString("ACTION_MANAGER::RunHotKey %1 context action: %2 for hotkey %3")
                         .arg(runAction ? "Running" : "Not running")
                         .arg(QString::fromStdString(context->GetName()))
-                        .arg(QString::fromStdString(KeyNameFromKeyCode( aHotKey )));
+                        .arg(KeyNameFromKeyCode( aHotKey ));
 
         if( runAction )
             return m_toolMgr->RunAction( *context );
@@ -209,7 +209,7 @@ bool ACTION_MANAGER::RunHotKey( int aHotKey ) const
             qDebug() << QString("ACTION_MANAGER::RunHotKey %1 global action: %2 for hotkey %3")
                             .arg(runAction ? "Running" : "Not running")
                             .arg(QString::fromStdString(act->GetName()))
-                            .arg(QString::fromStdString(KeyNameFromKeyCode( aHotKey )));
+                            .arg(KeyNameFromKeyCode( aHotKey ));
 
             if( runAction && m_toolMgr->RunAction( *act ) )
                 return true;
@@ -217,7 +217,7 @@ bool ACTION_MANAGER::RunHotKey( int aHotKey ) const
     }
 
     qDebug() << QString("ACTION_MANAGER::RunHotKey No action found for key %1")
-                    .arg(QString::fromStdString(KeyNameFromKeyCode( aHotKey )));
+                    .arg(KeyNameFromKeyCode( aHotKey ));
 
     return false;
 }

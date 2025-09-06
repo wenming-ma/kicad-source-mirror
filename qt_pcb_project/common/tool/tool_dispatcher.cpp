@@ -26,12 +26,50 @@
 #include <tool/action_manager.h>
 #include <tool/action_menu.h>
 #include <view/view.h>
-#include <view/qt_view_controls.h>
+#include <view/wx_view_controls.h>
 #include <eda_draw_frame.h>
 #include <core/kicad_algo.h>
 
 #include <kiplatform/app.h>
 #include <kiplatform/ui.h>
+
+// Define custom event types for Qt
+static const QEvent::Type EVT_REFRESH_MOUSE = static_cast<QEvent::Type>(QEvent::User + 1);
+static const QEvent::Type EVT_MENUBAR_UPDATED = static_cast<QEvent::Type>(QEvent::User + 2);
+
+// Helper function to decode modifiers from mouse events
+static int decodeModifiers( const QMouseEvent* aState )
+{
+    int mods = 0;
+
+    if( aState->modifiers() & Qt::ControlModifier )
+        mods |= MD_CTRL;
+
+    if( aState->modifiers() & Qt::AltModifier )
+        mods |= MD_ALT;
+
+    if( aState->modifiers() & Qt::ShiftModifier )
+        mods |= MD_SHIFT;
+
+    return mods;
+}
+
+// Helper function to decode modifiers from key events
+static int decodeModifiers( const QKeyEvent* aState )
+{
+    int mods = 0;
+
+    if( aState->modifiers() & Qt::ControlModifier )
+        mods |= MD_CTRL;
+
+    if( aState->modifiers() & Qt::AltModifier )
+        mods |= MD_ALT;
+
+    if( aState->modifiers() & Qt::ShiftModifier )
+        mods |= MD_SHIFT;
+
+    return mods;
+}
 
 
 struct TOOL_DISPATCHER::BUTTON_STATE
@@ -401,7 +439,7 @@ void TOOL_DISPATCHER::DispatchQtEvent( QEvent& aEvent )
     if( type == QEvent::MouseMove || type == QEvent::Wheel ||
         type == QEvent::Gesture ||
         isMouseClick( type ) ||
-        type == KIGFX::QT_VIEW_CONTROLS::EVT_REFRESH_MOUSE )
+        type == EVT_REFRESH_MOUSE )
     {
         QMouseEvent* me = static_cast<QMouseEvent*>( &aEvent );
         int mods = decodeModifiers( me );
@@ -486,38 +524,25 @@ void TOOL_DISPATCHER::DispatchQtEvent( QEvent& aEvent )
 
         evt = GetToolEvent( ke, &keyIsSpecial );
     }
-    else if( type == QEvent::MenubarUpdated || type == QEvent::Show || type == QEvent::Hide )
+    else if( type == EVT_MENUBAR_UPDATED || type == QEvent::Show || type == QEvent::Hide )
     {
-        QEvent* tmp = &aEvent;
-
-        if( !tmp )
-        {
-            aEvent.ignore();
-            return;
-        }
-
-        QEvent& menuEvent = *tmp;
-
-        static ACTION_MENU* currentMenu;
+        // These events are for menu handling but don't directly map to QAction events
+        // Skip processing for now as they would need special handling
+        static ACTION_MENU* currentMenu = nullptr;
 
         if( type == QEvent::Show )
         {
             currentMenu = nullptr;
-
-            if( currentMenu )
-                currentMenu->OnMenuEvent( menuEvent );
+            // Menu show events might need special handling in the future
         }
-        else if( type == QEvent::MenubarUpdated )
+        else if( type == EVT_MENUBAR_UPDATED )
         {
-            if( currentMenu )
-                currentMenu->OnMenuEvent( menuEvent );
+            // Menubar update events might need special handling in the future
         }
         else if( type == QEvent::Hide )
         {
-            if( currentMenu )
-                currentMenu->OnMenuEvent( menuEvent );
-
             currentMenu = nullptr;
+            // Menu hide events might need special handling in the future
         }
 
         aEvent.ignore();

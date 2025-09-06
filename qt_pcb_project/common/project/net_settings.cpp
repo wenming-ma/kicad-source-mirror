@@ -63,7 +63,7 @@ NET_SETTINGS::NET_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
         NESTED_SETTINGS( "net_settings", netSettingsSchemaVersion, aParent, aPath, false )
 {
     m_defaultNetClass = std::make_shared<NETCLASS>( NETCLASS::Default, true );
-    m_defaultNetClass->SetDescription( _( "This is the default net class." ) );
+    m_defaultNetClass->SetDescription( "This is the default net class." );
     m_defaultNetClass->SetPriority( std::numeric_limits<int>::max() );
 
     auto saveNetclass =
@@ -71,7 +71,7 @@ NET_SETTINGS::NET_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
             {
                 // Note: we're in common/, but we do happen to know which of these
                 // fields are used in which units system.
-                nlohmann::json nc_json = { { "name", nc->GetName().ToUTF8() },
+                nlohmann::json nc_json = { { "name", nc->GetName().toUtf8().constData() },
                                            { "priority", nc->GetPriority() },
                                            { "schematic_color", nc->GetSchematicColor( true ) },
                                            { "pcb_color", nc->GetPcbColor( true ) } };
@@ -222,7 +222,7 @@ NET_SETTINGS::NET_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
 
                 for( const auto& [netname, color] : m_netColorAssignments )
                 {
-                    std::string key( netname.ToUTF8() );
+                    std::string key( netname.toUtf8().constData() );
                     ret[ std::move( key ) ] = color;
                 }
 
@@ -254,11 +254,11 @@ NET_SETTINGS::NET_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
 
                     for( const auto& netclass : netclassNames )
                     {
-                        std::string netclassStr( netclass.ToUTF8() );
+                        std::string netclassStr( netclass.toUtf8().constData() );
                         netclassesJson.push_back( std::move( netclassStr ) );
                     }
 
-                    std::string key( netname.ToUTF8() );
+                    std::string key( netname.toUtf8().constData() );
                     ret[std::move( key )] = netclassesJson;
                 }
 
@@ -289,8 +289,8 @@ NET_SETTINGS::NET_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
                 for( const auto& [matcher, netclassName] : m_netClassPatternAssignments )
                 {
                     nlohmann::json pattern_json = {
-                        { "pattern",  matcher->GetPattern().ToUTF8() },
-                        { "netclass", netclassName.ToUTF8() }
+                        { "pattern",  matcher->GetPattern().toUtf8().constData() },
+                        { "netclass", netclassName.toUtf8().constData() }
                     };
 
                     ret.push_back( std::move( pattern_json ) );
@@ -807,7 +807,7 @@ void NET_SETTINGS::makeEffectiveNetclass( std::shared_ptr<NETCLASS>& effectiveNe
                        return true;
 
                    if (p1 == p2)
-                       return nc1->GetName().Cmp( nc2->GetName() ) < 0;
+                       return nc1->GetName().compare( nc2->GetName() ) < 0;
 
                    return false;
                } );
@@ -1071,7 +1071,7 @@ bool NET_SETTINGS::ParseBusVector( const QString& aBus, QString* aName,
     {
         if( aBus[i] == '.' && i + 1 < busLen && aBus[i+1] == '.' )
         {
-            tmp.ToLong( &begin );
+            begin = tmp.toLongLong();
             i += 2;
             break;
         }
@@ -1093,7 +1093,7 @@ bool NET_SETTINGS::ParseBusVector( const QString& aBus, QString* aName,
     {
         if( aBus[i] == ']' )
         {
-            tmp.ToLong( &end );
+            end = tmp.toLongLong();
             ++i;
             break;
         }
@@ -1135,8 +1135,8 @@ bool NET_SETTINGS::ParseBusVector( const QString& aBus, QString* aName,
         for( long idx = begin; idx <= end; ++idx )
         {
             QString str = prefix;
-            str << idx;
-            str << suffix;
+            str += QString::number( idx );
+            str += suffix;
 
             aMemberList->emplace_back( str );
         }

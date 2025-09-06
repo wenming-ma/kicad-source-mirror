@@ -470,8 +470,12 @@ bool LIB_TABLE::migrate()
 
         for( int ii = 5; ii < version - 1; ++ii )
         {
-            row_updated |= ( uri.replace( fmtStr.arg( ii ),
-                                          fmtStr.arg( version ) ) > 0 );
+            QString searchStr = fmtStr.arg( ii );
+            if( uri.contains( searchStr ) )
+            {
+                uri.replace( searchStr, fmtStr.arg( version ) );
+                row_updated = true;
+            }
         }
 
         if( row_updated )

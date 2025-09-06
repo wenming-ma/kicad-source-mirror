@@ -4,6 +4,7 @@
 #define PROPERTY_MGR_H
 
 #include <QString>
+#include <hashtables.h>
 
 #include <functional>
 #include <list>

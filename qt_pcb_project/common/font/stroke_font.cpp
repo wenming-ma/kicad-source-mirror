@@ -228,13 +228,13 @@ VECTOR2I STROKE_FONT::GetTextAsGlyphs( BOX2I* aBBox, std::vector<std::unique_ptr
         else
         {
             // dd is the index into bounding boxes table
-            int dd = (signed) c - ' ';
+            int dd = c.unicode() - ' ';
 
             // Filtering non existing glyphs and non printable chars
             if( dd < 0 || dd >= (int) m_glyphBoundingBoxes->size() )
             {
                 c = '?';
-                dd = (signed) c - ' ';
+                dd = c.unicode() - ' ';
             }
 
             STROKE_GLYPH* source = static_cast<STROKE_GLYPH*>( m_glyphs->at( dd ).get() );

@@ -1,7 +1,7 @@
 ---
 name: qt-compatibility-fixer
 description: Use this agent when you need to fix API compatibility issues after wxWidgets-to-Qt transformation. This includes resolving compilation errors from incorrect Qt API usage, fixing method name mismatches, adjusting parameter differences, and ensuring the transformed code maintains 100% functional equivalence with the original wxWidgets code. <example>Context: After running the wx-to-qt transformer, compilation errors occur due to API mismatches. user: "Fix the compilation errors in the transformed Qt code" assistant: "I'll use the qt-compatibility-fixer agent to resolve the API compatibility issues while preserving all business logic" <commentary>Since there are compilation errors from wx-to-Qt transformation, use the qt-compatibility-fixer agent to fix API usage issues.</commentary></example> <example>Context: Qt transformed code has method call errors like QString.IsEmpty() instead of isEmpty(). user: "The transformed code is calling wrong Qt methods" assistant: "Let me launch the qt-compatibility-fixer agent to correct all the Qt API calls" <commentary>API method names need correction after transformation, use the qt-compatibility-fixer agent.</commentary></example>
-model: sonnet
+model: opus
 color: cyan
 ---
 

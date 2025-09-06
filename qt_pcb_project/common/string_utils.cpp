@@ -11,7 +11,6 @@
 #include <QRegularExpression>
 #include <QString>
 #include <QChar>
-#include <QRegExp>
 #include <vector>
 #include <algorithm>
 #include "locale_io.h"
@@ -39,7 +38,7 @@ bool IsFullFileNameValid( const QString& aFullFilename )
         filtered_fullpath[1] = ' ';
 #endif
 
-    if( -1 != filtered_fullpath.indexOf( QRegExp( "[\\/:*?\"<>|]" ) ) )
+    if( filtered_fullpath.contains( QRegularExpression( "[\\/:*?\"<>|]" ) ) )
         return false;
 
     return true;
@@ -203,9 +202,9 @@ QString EscapeString( const QString& aSource, ESCAPE_CONTEXT aContext )
         }
         else if( aContext == CTX_JS_STR )
         {
-            if( c >= 0x7F || c == '\'' || c == '\\' || c == '(' || c == ')' )
+            if( c.unicode() >= 0x7F || c == '\'' || c == '\\' || c == '(' || c == ')' )
             {
-                unsigned int code = c;
+                unsigned int code = c.unicode();
                 char buffer[16];
                 snprintf( buffer, sizeof(buffer), "\\u%4.4X", code );
                 converted += buffer;
@@ -585,7 +584,7 @@ QString UnescapeHTML( const QString& aString )
                 codeVal = codeHex.toULong( nullptr, 16 );
 
             if( codeVal != 0 )
-                result += QChar( codeVal );
+                result += QChar( static_cast<ushort>( codeVal ) );
         }
         else if( auto val = get_opt( c_replacements, code ) )
         {
@@ -871,7 +870,7 @@ bool WildCompareString( const QString& pattern, const QString& string_to_tst,
         str = _string_to_tst.constData();
     }
 
-    while( ( *str ) && ( *wild != '*' ) )
+    while( ( !str->isNull() ) && ( *wild != '*' ) )
     {
         if( ( *wild != *str ) && ( *wild != '?' ) )
             return false;
@@ -880,11 +879,11 @@ bool WildCompareString( const QString& pattern, const QString& string_to_tst,
         str++;
     }
 
-    while( *str )
+    while( !str->isNull() )
     {
         if( *wild == '*' )
         {
-            if( !*++wild )
+            if( (++wild)->isNull() )
                 return true;
 
             mp = wild;
@@ -907,7 +906,7 @@ bool WildCompareString( const QString& pattern, const QString& string_to_tst,
         wild++;
     }
 
-    return !*wild;
+    return wild->isNull();
 }
 
 
@@ -1236,9 +1235,13 @@ bool ReplaceIllegalFileNameChars( std::string* aName, int aReplaceChar )
         if( strchr( illegalFileNameChars, *it ) )
         {
             if( aReplaceChar )
-                StrPrintf( &result, "%c", aReplaceChar );
+                result += static_cast<char>( aReplaceChar );
             else
-                StrPrintf( &result, "%%%02x", *it );
+            {
+                char buffer[8];
+                snprintf( buffer, sizeof(buffer), "%%%02x", static_cast<unsigned char>(*it) );
+                result += buffer;
+            }
 
             changed = true;
         }
@@ -1267,7 +1270,7 @@ bool ReplaceIllegalFileNameChars( QString& aName, int aReplaceChar )
         if( illWChars.indexOf( *it ) != -1 )
         {
             if( aReplaceChar )
-                result += aReplaceChar;
+                result += QChar( aReplaceChar );
             else
                 result += QString::asprintf( "%%%02x", it->unicode() );
 

@@ -5,6 +5,7 @@
 
 #include <template_fieldnames_lexer.h>
 #include <string_utils.h>
+#include <i18n_utility.h>
 
 using namespace TFIELD_T;
 
@@ -237,7 +238,7 @@ void TEMPLATES::AddTemplateFieldName( const TEMPLATE_FIELDNAME& aFieldName, bool
 
 void TEMPLATES::AddTemplateFieldNames( const QString& aSerializedFieldNames )
 {
-    TEMPLATE_FIELDNAMES_LEXER field_lexer( TO_UTF8( aSerializedFieldNames ) );
+    TEMPLATE_FIELDNAMES_LEXER field_lexer( std::string( TO_UTF8( aSerializedFieldNames ) ) );
 
     try
     {

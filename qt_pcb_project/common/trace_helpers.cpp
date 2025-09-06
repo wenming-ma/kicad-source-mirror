@@ -1,6 +1,7 @@
 #include <trace_helpers.h>
 
 #include <QStringList>
+#include <Qt>
 
 const char* const traceFindReplace = "KICAD_FIND_REPLACE";
 const char* const kicadTraceCoords = "KICAD_COORDS";
@@ -52,115 +53,88 @@ const char* GetVirtualKeyCodeName(int keycode)
 {
     switch ( keycode )
     {
-#define WXK_(x) \
-        case WXK_##x: return #x;
-
-        WXK_(BACK)
-        WXK_(TAB)
-        WXK_(RETURN)
-        WXK_(ESCAPE)
-        WXK_(SPACE)
-        WXK_(DELETE)
-        WXK_(START)
-        WXK_(LBUTTON)
-        WXK_(RBUTTON)
-        WXK_(CANCEL)
-        WXK_(MBUTTON)
-        WXK_(CLEAR)
-        WXK_(SHIFT)
-        WXK_(ALT)
-        WXK_(CONTROL)
-        WXK_(MENU)
-        WXK_(PAUSE)
-        WXK_(CAPITAL)
-        WXK_(END)
-        WXK_(HOME)
-        WXK_(LEFT)
-        WXK_(UP)
-        WXK_(RIGHT)
-        WXK_(DOWN)
-        WXK_(SELECT)
-        WXK_(PRINT)
-        WXK_(EXECUTE)
-        WXK_(SNAPSHOT)
-        WXK_(INSERT)
-        WXK_(HELP)
-        WXK_(NUMPAD0)
-        WXK_(NUMPAD1)
-        WXK_(NUMPAD2)
-        WXK_(NUMPAD3)
-        WXK_(NUMPAD4)
-        WXK_(NUMPAD5)
-        WXK_(NUMPAD6)
-        WXK_(NUMPAD7)
-        WXK_(NUMPAD8)
-        WXK_(NUMPAD9)
-        WXK_(MULTIPLY)
-        WXK_(ADD)
-        WXK_(SEPARATOR)
-        WXK_(SUBTRACT)
-        WXK_(DECIMAL)
-        WXK_(DIVIDE)
-        WXK_(F1)
-        WXK_(F2)
-        WXK_(F3)
-        WXK_(F4)
-        WXK_(F5)
-        WXK_(F6)
-        WXK_(F7)
-        WXK_(F8)
-        WXK_(F9)
-        WXK_(F10)
-        WXK_(F11)
-        WXK_(F12)
-        WXK_(F13)
-        WXK_(F14)
-        WXK_(F15)
-        WXK_(F16)
-        WXK_(F17)
-        WXK_(F18)
-        WXK_(F19)
-        WXK_(F20)
-        WXK_(F21)
-        WXK_(F22)
-        WXK_(F23)
-        WXK_(F24)
-        WXK_(NUMLOCK)
-        WXK_(SCROLL)
-        WXK_(PAGEUP)
-        WXK_(PAGEDOWN)
-        WXK_(NUMPAD_SPACE)
-        WXK_(NUMPAD_TAB)
-        WXK_(NUMPAD_ENTER)
-        WXK_(NUMPAD_F1)
-        WXK_(NUMPAD_F2)
-        WXK_(NUMPAD_F3)
-        WXK_(NUMPAD_F4)
-        WXK_(NUMPAD_HOME)
-        WXK_(NUMPAD_LEFT)
-        WXK_(NUMPAD_UP)
-        WXK_(NUMPAD_RIGHT)
-        WXK_(NUMPAD_DOWN)
-        WXK_(NUMPAD_PAGEUP)
-        WXK_(NUMPAD_PAGEDOWN)
-        WXK_(NUMPAD_END)
-        WXK_(NUMPAD_BEGIN)
-        WXK_(NUMPAD_INSERT)
-        WXK_(NUMPAD_DELETE)
-        WXK_(NUMPAD_EQUAL)
-        WXK_(NUMPAD_MULTIPLY)
-        WXK_(NUMPAD_ADD)
-        WXK_(NUMPAD_SEPARATOR)
-        WXK_(NUMPAD_SUBTRACT)
-        WXK_(NUMPAD_DECIMAL)
-        WXK_(NUMPAD_DIVIDE)
-
-        WXK_(WINDOWS_LEFT)
-        WXK_(WINDOWS_RIGHT)
-#ifdef __WXOSX__
-        WXK_(RAW_CONTROL)
-#endif
-#undef WXK_
+        case Qt::Key_Backspace: return "BACK";
+        case Qt::Key_Tab: return "TAB";
+        case Qt::Key_Return: return "RETURN";
+        case Qt::Key_Escape: return "ESCAPE";
+        case Qt::Key_Space: return "SPACE";
+        case Qt::Key_Delete: return "DELETE";
+        // Qt doesn't have direct equivalents for START, LBUTTON, RBUTTON, MBUTTON
+        // These would typically be handled via mouse events in Qt
+        case Qt::Key_Cancel: return "CANCEL";
+        case Qt::Key_Clear: return "CLEAR";
+        case Qt::Key_Shift: return "SHIFT";
+        case Qt::Key_Alt: return "ALT";
+        case Qt::Key_Control: return "CONTROL";
+        case Qt::Key_Menu: return "MENU";
+        case Qt::Key_Pause: return "PAUSE";
+        case Qt::Key_CapsLock: return "CAPITAL";
+        case Qt::Key_End: return "END";
+        case Qt::Key_Home: return "HOME";
+        case Qt::Key_Left: return "LEFT";
+        case Qt::Key_Up: return "UP";
+        case Qt::Key_Right: return "RIGHT";
+        case Qt::Key_Down: return "DOWN";
+        case Qt::Key_Select: return "SELECT";
+        case Qt::Key_Print: return "PRINT";
+        case Qt::Key_Execute: return "EXECUTE";
+        // Qt uses Key_Print for snapshot/print screen
+        case Qt::Key_Insert: return "INSERT";
+        case Qt::Key_Help: return "HELP";
+        // Numpad keys
+        case Qt::Key_0: return "NUMPAD0";
+        case Qt::Key_1: return "NUMPAD1";
+        case Qt::Key_2: return "NUMPAD2";
+        case Qt::Key_3: return "NUMPAD3";
+        case Qt::Key_4: return "NUMPAD4";
+        case Qt::Key_5: return "NUMPAD5";
+        case Qt::Key_6: return "NUMPAD6";
+        case Qt::Key_7: return "NUMPAD7";
+        case Qt::Key_8: return "NUMPAD8";
+        case Qt::Key_9: return "NUMPAD9";
+        case Qt::Key_Asterisk: return "MULTIPLY";
+        case Qt::Key_Plus: return "ADD";
+        // Qt doesn't have a specific separator key
+        case Qt::Key_Minus: return "SUBTRACT";
+        case Qt::Key_Period: return "DECIMAL";
+        case Qt::Key_Slash: return "DIVIDE";
+        // Function keys
+        case Qt::Key_F1: return "F1";
+        case Qt::Key_F2: return "F2";
+        case Qt::Key_F3: return "F3";
+        case Qt::Key_F4: return "F4";
+        case Qt::Key_F5: return "F5";
+        case Qt::Key_F6: return "F6";
+        case Qt::Key_F7: return "F7";
+        case Qt::Key_F8: return "F8";
+        case Qt::Key_F9: return "F9";
+        case Qt::Key_F10: return "F10";
+        case Qt::Key_F11: return "F11";
+        case Qt::Key_F12: return "F12";
+        case Qt::Key_F13: return "F13";
+        case Qt::Key_F14: return "F14";
+        case Qt::Key_F15: return "F15";
+        case Qt::Key_F16: return "F16";
+        case Qt::Key_F17: return "F17";
+        case Qt::Key_F18: return "F18";
+        case Qt::Key_F19: return "F19";
+        case Qt::Key_F20: return "F20";
+        case Qt::Key_F21: return "F21";
+        case Qt::Key_F22: return "F22";
+        case Qt::Key_F23: return "F23";
+        case Qt::Key_F24: return "F24";
+        case Qt::Key_NumLock: return "NUMLOCK";
+        case Qt::Key_ScrollLock: return "SCROLL";
+        case Qt::Key_PageUp: return "PAGEUP";
+        case Qt::Key_PageDown: return "PAGEDOWN";
+        // Qt doesn't have specific numpad versions for all keys
+        // We'll handle the basic numpad enter
+        case Qt::Key_Enter: return "NUMPAD_ENTER";
+        // Qt uses Key_Home, Key_End, etc. for both regular and numpad versions
+        // Windows-specific keys
+        case Qt::Key_Meta: return "WINDOWS_LEFT";
+        case Qt::Key_Super_L: return "WINDOWS_LEFT";
+        case Qt::Key_Super_R: return "WINDOWS_RIGHT";
 
     default:
         return nullptr;
@@ -250,11 +224,11 @@ bool TRACE_MANAGER::IsTraceEnabled( const QString& aWhat )
 }
 
 
-void TRACE_MANAGER::Trace( const QString& aWhat, const QString& aFmt, ... )
+void TRACE_MANAGER::Trace( const QString& aWhat, const char* aFmt, ... )
 {
     va_list argptr;
     va_start( argptr, aFmt );
-    traceV( aWhat, aFmt, argptr );
+    traceV( aWhat, QString(aFmt), argptr );
     va_end( argptr );
 }
 

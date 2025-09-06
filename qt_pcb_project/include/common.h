@@ -6,9 +6,9 @@
 #include <functional>
 #include <memory>
 
-#include <QSettings>
-#include <QString>
-#include <QProcess>
+#include <QtCore/QSettings>
+#include <QtCore/QString>
+#include <QtCore/QProcess>
 
 class PROJECT;
 class SEARCH_STACK;

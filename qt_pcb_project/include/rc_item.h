@@ -4,7 +4,7 @@
 #define RC_ITEM_H
 
 #include <QAbstractItemModel>
-#include <QAbstractItemView>
+#include <QTreeView>
 #include <QModelIndex>
 #include <QVariant>
 #include <units_provider.h>
@@ -184,11 +184,11 @@ public:
         return static_cast<RC_TREE_NODE*>( aIndex.internalPointer() );
     }
 
-    const QAbstractItemView* GetView() const { return m_view; }
+    const QTreeView* GetView() const { return m_view; }
 
     static KIID ToUUID( const QModelIndex& aIndex );
 
-    RC_TREE_MODEL( EDA_DRAW_FRAME* aParentFrame, QAbstractItemView* aView );
+    RC_TREE_MODEL( EDA_DRAW_FRAME* aParentFrame, QTreeView* aView );
 
     ~RC_TREE_MODEL();
 
@@ -210,6 +210,8 @@ public:
 
     int rowCount( const QModelIndex& aParent = QModelIndex() ) const override;
     int columnCount( const QModelIndex& aParent = QModelIndex() ) const override;
+    
+    QModelIndex index( int row, int column, const QModelIndex& parent = QModelIndex() ) const override;
 
 
 
@@ -229,9 +231,10 @@ public:
 
 protected:
     void     rebuildModel( std::shared_ptr<RC_ITEMS_PROVIDER> aProvider, int aSeverities );
+    bool     GetAttr( const QModelIndex& aIndex, unsigned int aCol, QFont& aFont, QColor& aTextColor ) const;
 
     EDA_DRAW_FRAME*                    m_editFrame;
-    QAbstractItemView*                 m_view;
+    QTreeView*                         m_view;
     int                                m_severities;
     std::shared_ptr<RC_ITEMS_PROVIDER> m_rcItemsProvider;
 

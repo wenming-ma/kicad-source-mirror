@@ -170,7 +170,7 @@ int COMMON_CONTROL::ShowHelp( const TOOL_EVENT& aEvent )
     QString msg;
 
     const QString baseUrl = URL_DOCUMENTATION + GetMajorMinorVersion() + QString( "/" )
-                           + Pgm().GetLocale()->GetName().section( '_', 0, 0 ) + QString( "/" );
+                           + Pgm().GetLocale()->name().section( '_', 0, 0 ) + QString( "/" );
 
     if( aEvent.IsAction( &ACTIONS::gettingStarted ) )
     {

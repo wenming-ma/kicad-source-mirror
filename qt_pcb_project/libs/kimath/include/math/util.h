@@ -49,11 +49,11 @@ inline constexpr ret_type KiCheckedCast( in_type v )
 {
     if constexpr( std::is_same_v<in_type, long long int> && std::is_same_v<ret_type, int> )
     {
-        if( v > std::numeric_limits<int>::max() )
+        if( v > (std::numeric_limits<int>::max)() )
         {
             kimathLogOverflow( double( v ), typeid( int ).name() );
 
-            return std::numeric_limits<int>::max();
+            return (std::numeric_limits<int>::max)();
         }
         else if( v < std::numeric_limits<int>::lowest() )
         {
@@ -77,14 +77,14 @@ constexpr ret_type KiROUND( fp_type v, bool aQuiet = false )
     using max_ret = long long int;
     fp_type ret = v < 0 ? v - 0.5 : v + 0.5;
 
-    if( ret > std::numeric_limits<ret_type>::max() )
+    if( ret > (std::numeric_limits<ret_type>::max)() )
     {
         if( !aQuiet )
         {
             kimathLogOverflow( double( v ), typeid( ret_type ).name() );
         }
 
-        return std::numeric_limits<ret_type>::max() - 1;
+        return (std::numeric_limits<ret_type>::max)() - 1;
     }
     else if( ret < std::numeric_limits<ret_type>::lowest() )
     {

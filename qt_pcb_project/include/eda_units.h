@@ -6,6 +6,7 @@
 #include <kicommon.h>
 #include <QString>
 #include <geometry/eda_angle.h>
+#include <math/vector2d.h>
 #include <base_units.h>
 #include <core/minoptmax.h>
 

@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 #include <QBitmap>
+#include <QPixmap>
 #include <QToolBar>
 #include <QDockWidget>
 #include <QWidget>
@@ -16,6 +17,7 @@
 #include <QKeyEvent>
 #include <QEvent>
 #include <QContextMenuEvent>
+#include <QPaintEvent>
 #include <QTimerEvent>
 #include <QPalette>
 #include <QPoint>
@@ -84,6 +86,7 @@ protected:
 
 class ACTION_TOOLBAR_PALETTE : public QWidget
 {
+    Q_OBJECT
 public:
     ACTION_TOOLBAR_PALETTE( QWidget* aParent, bool aVertical );
 
@@ -120,8 +123,11 @@ public:
     void SetGroup( ACTION_GROUP* aGroup ) { m_group = aGroup; }
     ACTION_GROUP* GetGroup() { return m_group; }
 
+signals:
+    void actionTriggered( QAction* action );
+
 protected:
-    void onCharHook( QKeyEvent& aEvent );
+    void keyPressEvent( QKeyEvent* aEvent ) override;
 
     // The group that the buttons in the palette are part of
      ACTION_GROUP* m_group;
@@ -140,6 +146,7 @@ protected:
 
 class ACTION_TOOLBAR : public QToolBar
 {
+    Q_OBJECT
 public:
     ACTION_TOOLBAR( EDA_BASE_FRAME* parent, int id = -1,
                     const QPoint& pos = QPoint(), const QSize& size = QSize(),
@@ -215,7 +222,7 @@ public:
      */
     void ClearToolbar();
 
-    void SetToolBitmap( const TOOL_ACTION& aAction, const QBitmap& aBitmap );
+    void SetToolBitmap( const TOOL_ACTION& aAction, const QPixmap& aBitmap );
 
     /**
      * Apply the default toggle action.
@@ -234,25 +241,23 @@ public:
     static constexpr bool CANCEL = true;
 
 protected:
+    // Qt event overrides
+    void contextMenuEvent( QContextMenuEvent* aEvent ) override;
+    void mousePressEvent( QMouseEvent* aEvent ) override;
+    void mouseReleaseEvent( QMouseEvent* aEvent ) override;
+    void mouseMoveEvent( QMouseEvent* aEvent ) override;
+    void paintEvent( QPaintEvent* aEvent ) override;
+
+    // Internal methods
     void doSelectAction( ACTION_GROUP* aGroup, const TOOL_ACTION& aAction );
-
     void popupPalette( QAction* aItem );
+    QAction* findActionById( int id );
 
-    void onMouseClick( QMouseEvent& aEvent );
-
-    void onItemDrag( QEvent& aEvent );
-
-    void onToolEvent( QEvent& aEvent );
-
-    void onToolRightClick( QContextMenuEvent& aEvent );
-
-    void onPaletteEvent( QEvent& aEvent );
-
-    void onTimerDone( QTimerEvent& aEvent );
-
-    void onThemeChanged( QEvent& aEvent );
-
-    void OnCustomRender( QPainter& aDc, const QAction& aItem, const QRect& aRect );
+protected slots:
+    void onToolEvent( QAction* aAction );
+    void onPaletteEvent( QAction* aAction );
+    void onTimerDone();
+    void onThemeChanged();
 
 protected:
     QTimer* m_paletteTimer;

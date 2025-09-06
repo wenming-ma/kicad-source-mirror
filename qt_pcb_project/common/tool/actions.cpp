@@ -488,7 +488,7 @@ TOOL_ACTION ACTIONS::findPrevious( TOOL_ACTION_ARGS()
 TOOL_ACTION ACTIONS::findNextMarker( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.findNextMarker" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( Qt::CTRL + Qt::SHIFT + Qt::Key_F3 )
+        .DefaultHotkey( Qt::CTRL | Qt::SHIFT | Qt::Key_F3 )
         .LegacyHotkeyName( "Find Next Marker" )
         .FriendlyName( _( "Find Next Marker" ) )
         .Icon( BITMAPS::find ) );

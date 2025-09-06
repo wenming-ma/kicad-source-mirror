@@ -11,7 +11,7 @@
 using namespace KIGFX;
 
 
-static const QChar* traceGalDispOpts = QLatin1String( "KICAD_GAL_DISPLAY_OPTIONS" ).data();
+static const char* traceGalDispOpts = "KICAD_GAL_DISPLAY_OPTIONS";
 
 
 GAL_DISPLAY_OPTIONS::GAL_DISPLAY_OPTIONS()

@@ -16,6 +16,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QDebug>
 #include <QTextStream>
@@ -808,7 +809,7 @@ bool JSON_SETTINGS::fromLegacyColor( QSettings* aConfig, const std::string& aKey
     {
         QString str = aConfig->value( QString::fromStdString( aKey ) ).toString();
         KIGFX::COLOR4D color;
-        color.SetFromString( str.toStdString() );
+        color.SetFromQString( str );
 
         try
         {

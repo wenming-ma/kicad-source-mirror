@@ -6,6 +6,8 @@
 #include <vector>
 
 #include <QString>
+#include <QHash>
+#include <hashtables.h>
 
 class KICOMMON_API ASSET_ARCHIVE
 {

@@ -207,7 +207,7 @@ COLOR_SETTINGS* SETTINGS_MANAGER::GetColorSettings( const QString& aName )
     }
 
     // No match? See if we can load it
-    if( !aName.empty() )
+    if( !aName.isEmpty() )
     {
         COLOR_SETTINGS* ret = loadColorSettingsByName( aName );
 
@@ -854,7 +854,7 @@ bool SETTINGS_MANAGER::LoadProject( const QString& aFullPath, bool aSetActive )
     
     QString fullPath = aFullPath;
     if( path.suffix() == FILEEXT::LegacyProjectFileExtension )
-        fullPath = path.absolutePath() + "/" + path.baseName() + "." + FILEEXT::ProjectFileExtension;
+        fullPath = path.absolutePath() + "/" + path.baseName() + "." + QString::fromStdString(FILEEXT::ProjectFileExtension);
     
     if( fullPath == aFullPath )
         fullPath = path.absoluteFilePath();
@@ -901,7 +901,7 @@ bool SETTINGS_MANAGER::LoadProject( const QString& aFullPath, bool aSetActive )
         // until multiple projects are in play, set an environment variable for the
         // the project pointer.
         QFileInfo projectPath( fullPath );
-        qputenv( PROJECT_VAR_NAME, projectPath.absolutePath().toUtf8() );
+        qputenv( PROJECT_VAR_NAME.toLocal8Bit().constData(), projectPath.absolutePath().toUtf8() );
 
         // set the cwd but don't impact kicad-cli
         if( !projectPath.absolutePath().isEmpty() && QCoreApplication::instance() )
@@ -972,7 +972,7 @@ bool SETTINGS_MANAGER::UnloadProject( PROJECT* aProject, bool aSave )
             LoadProject( "" );
 
         // Remove the reference in the environment to the previous project
-        qputenv( PROJECT_VAR_NAME, "" );
+        qputenv( PROJECT_VAR_NAME.toLocal8Bit().constData(), "" );
 
         // Release lock on the file, in case we had one
         m_project_lock = nullptr;
@@ -1037,7 +1037,7 @@ bool SETTINGS_MANAGER::SaveProject( const QString& aFullPath, PROJECT* aProject 
 
     QString path = aFullPath;
 
-    if( path.empty() )
+    if( path.isEmpty() )
         path = aProject->GetProjectFullName();
 
     // TODO: refactor for MDI
@@ -1198,7 +1198,7 @@ bool SETTINGS_MANAGER::BackupProject( REPORTER& aReporter, QFileInfo& aTarget ) 
 
     if( aTarget.filePath().isEmpty() )
     {
-        QString targetPath = QDir(GetProjectBackupsPath()).filePath(fileName + "." + FILEEXT::ArchiveFileExtension);
+        QString targetPath = QDir(GetProjectBackupsPath()).filePath(fileName + "." + QString::fromStdString(FILEEXT::ArchiveFileExtension));
         aTarget = QFileInfo(targetPath);
     }
 

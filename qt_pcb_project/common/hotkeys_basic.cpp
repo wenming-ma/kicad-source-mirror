@@ -19,11 +19,13 @@
 #include <QStandardPaths>
 #include <QRegularExpression>
 #include <tool/tool_action.h>
+#include <tool/tool_event.h>
+#include <QKeyEvent>
 
 
 struct hotkey_name_descr
 {
-    const QChar* m_Name;
+    const char* m_Name;
     int          m_KeyCode;
 };
 
@@ -31,77 +33,77 @@ struct hotkey_name_descr
 #define KEY_NON_FOUND -1
 static struct hotkey_name_descr hotkeyNameList[] =
 {
-    { "F1",            WXK_F1                 },
-    { "F2",            WXK_F2                 },
-    { "F3",            WXK_F3                 },
-    { "F4",            WXK_F4                 },
-    { "F5",            WXK_F5                 },
-    { "F6",            WXK_F6                 },
-    { "F7",            WXK_F7                 },
-    { "F8",            WXK_F8                 },
-    { "F9",            WXK_F9                 },
-    { "F10",           WXK_F10                },
-    { "F11",           WXK_F11                },
-    { "F12",           WXK_F12                },
-    { "F13",           WXK_F13                },
-    { "F14",           WXK_F14                },
-    { "F15",           WXK_F15                },
-    { "F16",           WXK_F16                },
-    { "F17",           WXK_F17                },
-    { "F18",           WXK_F18                },
-    { "F19",           WXK_F19                },
-    { "F20",           WXK_F20                },
-    { "F21",           WXK_F21                },
-    { "F22",           WXK_F22                },
-    { "F23",           WXK_F23                },
-    { "F24",           WXK_F24                },
+    { "F1",            Qt::Key_F1             },
+    { "F2",            Qt::Key_F2             },
+    { "F3",            Qt::Key_F3             },
+    { "F4",            Qt::Key_F4             },
+    { "F5",            Qt::Key_F5             },
+    { "F6",            Qt::Key_F6             },
+    { "F7",            Qt::Key_F7             },
+    { "F8",            Qt::Key_F8             },
+    { "F9",            Qt::Key_F9             },
+    { "F10",           Qt::Key_F10            },
+    { "F11",           Qt::Key_F11            },
+    { "F12",           Qt::Key_F12            },
+    { "F13",           Qt::Key_F13            },
+    { "F14",           Qt::Key_F14            },
+    { "F15",           Qt::Key_F15            },
+    { "F16",           Qt::Key_F16            },
+    { "F17",           Qt::Key_F17            },
+    { "F18",           Qt::Key_F18            },
+    { "F19",           Qt::Key_F19            },
+    { "F20",           Qt::Key_F20            },
+    { "F21",           Qt::Key_F21            },
+    { "F22",           Qt::Key_F22            },
+    { "F23",           Qt::Key_F23            },
+    { "F24",           Qt::Key_F24            },
 
-    { "Esc",           WXK_ESCAPE             },
-    { "Del",           WXK_DELETE             },
-    { "Tab",           WXK_TAB                },
-    { "Back",          WXK_BACK               },
-    { "Ins",           WXK_INSERT             },
+    { "Esc",           Qt::Key_Escape         },
+    { "Del",           Qt::Key_Delete         },
+    { "Tab",           Qt::Key_Tab            },
+    { "Back",          Qt::Key_Backspace      },
+    { "Ins",           Qt::Key_Insert         },
 
-    { "Home",          WXK_HOME               },
-    { "End",           WXK_END                },
-    { "PgUp",          WXK_PAGEUP             },
-    { "PgDn",          WXK_PAGEDOWN           },
+    { "Home",          Qt::Key_Home           },
+    { "End",           Qt::Key_End            },
+    { "PgUp",          Qt::Key_PageUp         },
+    { "PgDn",          Qt::Key_PageDown       },
 
-    { "Up",            WXK_UP                 },
-    { "Down",          WXK_DOWN               },
-    { "Left",          WXK_LEFT               },
-    { "Right",         WXK_RIGHT              },
+    { "Up",            Qt::Key_Up             },
+    { "Down",          Qt::Key_Down           },
+    { "Left",          Qt::Key_Left           },
+    { "Right",         Qt::Key_Right          },
 
-    { "Return",        WXK_RETURN             },
+    { "Return",        Qt::Key_Return         },
 
-    { "Space",         WXK_SPACE              },
+    { "Space",         Qt::Key_Space          },
 
-    { "Num Pad 0",     WXK_NUMPAD0            },
-    { "Num Pad 1",     WXK_NUMPAD1            },
-    { "Num Pad 2",     WXK_NUMPAD2            },
-    { "Num Pad 3",     WXK_NUMPAD3            },
-    { "Num Pad 4",     WXK_NUMPAD4            },
-    { "Num Pad 5",     WXK_NUMPAD5            },
-    { "Num Pad 6",     WXK_NUMPAD6            },
-    { "Num Pad 7",     WXK_NUMPAD7            },
-    { "Num Pad 8",     WXK_NUMPAD8            },
-    { "Num Pad 9",     WXK_NUMPAD9            },
-    { "Num Pad +",     WXK_NUMPAD_ADD         },
-    { "Num Pad -",     WXK_NUMPAD_SUBTRACT    },
-    { "Num Pad *",     WXK_NUMPAD_MULTIPLY    },
-    { "Num Pad /",     WXK_NUMPAD_DIVIDE      },
-    { "Num Pad .",     WXK_NUMPAD_SEPARATOR   },
-    { "Num Pad Enter", WXK_NUMPAD_ENTER       },
-    { "Num Pad F1",    WXK_NUMPAD_F1          },
-    { "Num Pad F2",    WXK_NUMPAD_F2          },
-    { "Num Pad F3",    WXK_NUMPAD_F3          },
-    { "Num Pad F4",    WXK_NUMPAD_F4          },
+    { "Num Pad 0",     Qt::Key_0              },
+    { "Num Pad 1",     Qt::Key_1              },
+    { "Num Pad 2",     Qt::Key_2              },
+    { "Num Pad 3",     Qt::Key_3              },
+    { "Num Pad 4",     Qt::Key_4              },
+    { "Num Pad 5",     Qt::Key_5              },
+    { "Num Pad 6",     Qt::Key_6              },
+    { "Num Pad 7",     Qt::Key_7              },
+    { "Num Pad 8",     Qt::Key_8              },
+    { "Num Pad 9",     Qt::Key_9              },
+    { "Num Pad +",     Qt::Key_Plus           },
+    { "Num Pad -",     Qt::Key_Minus          },
+    { "Num Pad *",     Qt::Key_Asterisk       },
+    { "Num Pad /",     Qt::Key_Slash          },
+    { "Num Pad .",     Qt::Key_Period         },
+    { "Num Pad Enter", Qt::Key_Enter          },
+    { "Num Pad F1",    Qt::Key_F1             },
+    { "Num Pad F2",    Qt::Key_F2             },
+    { "Num Pad F3",    Qt::Key_F3             },
+    { "Num Pad F4",    Qt::Key_F4             },
 
     { "",              0                      },
 
-    { "Click",         PSEUDO_WXK_CLICK       },
-    { "DblClick",      PSEUDO_WXK_DBLCLICK    },
-    { "Wheel",         PSEUDO_WXK_WHEEL       },
+    { "Click",         PSEUDO_QT_CLICK       },
+    { "DblClick",      PSEUDO_QT_DBLCLICK    },
+    { "Wheel",         PSEUDO_QT_WHEEL       },
 
     { "",              KEY_NON_FOUND          }
 };
@@ -129,13 +131,13 @@ QString KeyNameFromKeyCode( int aKeycode, bool* aIsFound )
     int      ii;
     bool     found = false;
 
-    if( aKeycode == WXK_CONTROL )
+    if( aKeycode == Qt::Key_Control )
         return QString( MODIFIER_CTRL ).section( '+', 0, 0 );
-    else if( aKeycode == WXK_RAW_CONTROL )
+    else if( aKeycode == Qt::Key_Control )
         return QString( MODIFIER_CTRL_BASE ).section( '+', 0, 0 );
-    else if( aKeycode == WXK_SHIFT )
+    else if( aKeycode == Qt::Key_Shift )
         return QString( MODIFIER_SHIFT ).section( '+', 0, 0 );
-    else if( aKeycode == WXK_ALT )
+    else if( aKeycode == Qt::Key_Alt )
         return QString( MODIFIER_ALT ).section( '+', 0, 0 );
 
     if( (aKeycode & MD_CTRL) != 0 )
@@ -209,7 +211,7 @@ QString AddHotkeyName( const QString& aText, int aHotKey, HOTKEY_ACTION_TYPE aSt
 #ifdef USING_MAC_CMD
     // On OSX, the modifier equivalent to the Ctrl key of PCs
     // is the Cmd key, but in code we should use Ctrl as prefix in menus
-    msg.Replace( MODIFIER_CMD_MAC, MODIFIER_CTRL_BASE );
+    msg.replace( MODIFIER_CMD_MAC, MODIFIER_CTRL_BASE );
 #endif
 
     return msg;
@@ -257,9 +259,9 @@ int KeyCodeFromKeyName( const QString& keyname )
             key.remove( 0, prefix.length() );
     }
 
-    if( (key.length() == 1) && (key[0] > ' ') && (key[0] < 0x7F) )
+    if( (key.length() == 1) && (key[0].unicode() > ' ') && (key[0].unicode() < 0x7F) )
     {
-        keycode = key[0];
+        keycode = key[0].unicode();
         keycode += modifier;
         return keycode;
     }
@@ -292,7 +294,7 @@ void ReadHotKeyConfig( const QString&                              aFileName,
     if( fileName.isEmpty() )
     {
         QString userSettingsPath = PATHS::GetUserSettingsPath();
-        fileName = userSettingsPath + "/user." + FILEEXT::HotkeyFileExtension;
+        fileName = userSettingsPath + "/user." + QString::fromStdString(FILEEXT::HotkeyFileExtension);
     }
 
     if( !QFile::exists( fileName ) )
@@ -349,7 +351,7 @@ int WriteHotKeyConfig( const std::vector<TOOL_ACTION*>& aActions )
 {
     std::map<std::string, std::pair<int, int>> hotkeys;
     QString userSettingsPath = PATHS::GetUserSettingsPath();
-    QString fileName = userSettingsPath + "/user." + FILEEXT::HotkeyFileExtension;
+    QString fileName = userSettingsPath + "/user." + QString::fromStdString(FILEEXT::HotkeyFileExtension);
 
     ReadHotKeyConfig( fileName, hotkeys );
 
@@ -392,7 +394,7 @@ int ReadLegacyHotkeyConfig( const QString& aAppname, std::map<std::string, int>&
 int ReadLegacyHotkeyConfigFile( const QString& aFilename, std::map<std::string, int>& aMap )
 {
     QString userSettingsPath = PATHS::GetUserSettingsPath();
-    QString fileName = userSettingsPath + "/" + aFilename + "." + FILEEXT::HotkeyFileExtension;
+    QString fileName = userSettingsPath + "/" + aFilename + "." + QString::fromStdString(FILEEXT::HotkeyFileExtension);
 
     if( !QFile::exists( fileName ) )
         return 0;

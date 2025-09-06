@@ -3,8 +3,8 @@
 
 #include <kicommon.h>
 #include <gal/gal.h>
-#include <QOpenGLWidget>
-#include <QOpenGLContext>
+#include <QtOpenGLWidgets/QOpenGLWidget>
+#include <QtGui/QOpenGLContext>
 #include <mutex>
 #include <map>
 

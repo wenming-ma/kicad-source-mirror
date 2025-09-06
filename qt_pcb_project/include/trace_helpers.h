@@ -85,7 +85,7 @@ public:
 
     static TRACE_MANAGER& Instance();
 
-    void Trace( const QString& aWhat, const QString& aFmt, ... );
+    void Trace( const QString& aWhat, const char* aFmt, ... );
 
     void DoTrace( const QString& aWhat, const char* aFmt, ... )
     {

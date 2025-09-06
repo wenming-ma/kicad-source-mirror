@@ -33,7 +33,7 @@ public:
 
     bool operator!=( const FP_LIB_TABLE_ROW& aRow ) const   { return !( *this == aRow ); }
 
-    const QString GetType() const override         { return QString::fromStdString( PCB_IO_MGR::ShowType( type ).ToStdString() ); }
+    const QString GetType() const override         { return PCB_IO_MGR::ShowType( type ); }
 
     void SetType( const QString& aType ) override;
 

@@ -105,7 +105,7 @@ bool GRID_TRICKS::toggleCell( int aRow, int aCol, bool aPreserveSelection )
     {
         if( !aPreserveSelection )
         {
-            m_grid->ClearSelection();
+            m_grid->clearSelection();
             m_grid->SetGridCursor( aRow, aCol );
         }
 
@@ -140,7 +140,7 @@ bool GRID_TRICKS::showEditor( int aRow, int aCol )
 
     if( !isReadOnly( aRow, aCol ) )
     {
-        m_grid->ClearSelection();
+        m_grid->clearSelection();
 
         m_sel_row_start = aRow;
         m_sel_col_start = aCol;
@@ -178,9 +178,9 @@ void GRID_TRICKS::onGridCellLeftClick( int row, int col )
         {
             getSelectedArea();
 
-            if( !m_grid->GetSelectedCells().isEmpty() || m_sel_row_count < 2 )
+            if( !m_grid->GetSelectedCells().empty() || m_sel_row_count < 2 )
             {
-                m_grid->ClearSelection();
+                m_grid->clearSelection();
                 return;
             }
 

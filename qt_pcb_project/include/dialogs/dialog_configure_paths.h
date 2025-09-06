@@ -20,16 +20,16 @@ public:
     DIALOG_CONFIGURE_PATHS(  QWidget* aParent );
     ~DIALOG_CONFIGURE_PATHS() override;
 
-    bool TransferDataToWindow() override;
+    bool TransferDataToWindow();
     bool TransferDataFromWindow() override;
 
 protected:
     // Various button callbacks
-    void OnUpdateUI( QEvent& event ) override;
+    void OnUpdateUI() override;
     void OnGridCellChanging( QEvent& event );
-    void OnAddEnvVar( QEvent& event ) override;
-    void OnRemoveEnvVar( QEvent& event ) override;
-    void OnHelp( QEvent& event ) override;
+    void OnAddEnvVar() override;
+    void OnRemoveEnvVar() override;
+    void OnHelp() override;
 
     void AppendEnvVar( const QString& aName, const QString& aPath, bool isExternal );
     void AppendSearchPath( const QString& aName, const QString& aPath, const QString& aDesc );

@@ -64,9 +64,9 @@ bool PROJECT::TextVarResolver( QString* aToken ) const
         *aToken = TITLE_BLOCK::GetCurrentDate();
         return true;
     }
-    else if( GetTextVars().count( *aToken ) > 0 )
+    else if( GetTextVars().count( aToken->toStdString() ) > 0 )
     {
-        *aToken = GetTextVars().at( *aToken );
+        *aToken = QString::fromStdString( GetTextVars().at( aToken->toStdString() ) );
         return true;
     }
 
@@ -74,18 +74,18 @@ bool PROJECT::TextVarResolver( QString* aToken ) const
 }
 
 
-std::map<QString, QString>& PROJECT::GetTextVars() const
+std::map<std::string, std::string>& PROJECT::GetTextVars() const
 {
     return GetProjectFile().m_TextVars;
 }
 
 
-void PROJECT::ApplyTextVars( const std::map<QString, QString>& aVarsMap )
+void PROJECT::ApplyTextVars( const std::map<std::string, std::string>& aVarsMap )
 {
     if( aVarsMap.size() == 0 )
         return;
 
-    std::map<QString, QString>& existingVarsMap = GetTextVars();
+    std::map<std::string, std::string>& existingVarsMap = GetTextVars();
 
     for( auto it = aVarsMap.begin(); it != aVarsMap.end(); ++it )
     {
@@ -145,19 +145,19 @@ bool PROJECT::IsNullProject() const
 
 const QString PROJECT::SymbolLibTableName() const
 {
-    return libTableName( FILEEXT::SymbolLibraryTableFileName );
+    return libTableName( QString::fromStdString( FILEEXT::SymbolLibraryTableFileName ) );
 }
 
 
 const QString PROJECT::FootprintLibTblName() const
 {
-    return libTableName( FILEEXT::FootprintLibraryTableFileName );
+    return libTableName( QString::fromStdString( FILEEXT::FootprintLibraryTableFileName ) );
 }
 
 
 const QString PROJECT::DesignBlockLibTblName() const
 {
-    return libTableName( FILEEXT::DesignBlockLibraryTableFileName );
+    return libTableName( QString::fromStdString( FILEEXT::DesignBlockLibraryTableFileName ) );
 }
 
 
@@ -165,7 +165,7 @@ void PROJECT::PinLibrary( const QString& aLibrary, enum LIB_TYPE_T aLibType )
 {
     COMMON_SETTINGS*     cfg = Pgm().GetCommonSettings();
     std::vector<QString>* pinnedLibsCfg = nullptr;
-    std::vector<QString>* pinnedLibsFile = nullptr;
+    std::vector<std::string>* pinnedLibsFile = nullptr;
 
     switch( aLibType )
     {
@@ -186,8 +186,8 @@ void PROJECT::PinLibrary( const QString& aLibrary, enum LIB_TYPE_T aLibType )
         return;
     }
 
-    if( !alg::contains( *pinnedLibsFile, aLibrary ) )
-        pinnedLibsFile->push_back( aLibrary );
+    if( !alg::contains( *pinnedLibsFile, aLibrary.toStdString() ) )
+        pinnedLibsFile->push_back( aLibrary.toStdString() );
 
     Pgm().GetSettingsManager().SaveProject();
 
@@ -202,7 +202,7 @@ void PROJECT::UnpinLibrary( const QString& aLibrary, enum LIB_TYPE_T aLibType )
 {
     COMMON_SETTINGS*     cfg = Pgm().GetCommonSettings();
     std::vector<QString>* pinnedLibsCfg = nullptr;
-    std::vector<QString>* pinnedLibsFile = nullptr;
+    std::vector<std::string>* pinnedLibsFile = nullptr;
 
     switch( aLibType )
     {
@@ -223,7 +223,7 @@ void PROJECT::UnpinLibrary( const QString& aLibrary, enum LIB_TYPE_T aLibType )
         return;
     }
 
-    alg::delete_matching( *pinnedLibsFile, aLibrary );
+    alg::delete_matching( *pinnedLibsFile, aLibrary.toStdString() );
     Pgm().GetSettingsManager().SaveProject();
 
     alg::delete_matching( *pinnedLibsCfg, aLibrary );
@@ -266,11 +266,12 @@ const QString PROJECT::GetSheetName( const KIID& aSheetID )
     if( m_sheetNames.empty() )
     {
         for( const auto& pair : GetProjectFile().GetSheets() )
-            m_sheetNames[pair.first] = pair.second;
+            m_sheetNames[pair.first] = QString::fromStdString( pair.second );
     }
 
-    if( m_sheetNames.contains( aSheetID ) )
-        return m_sheetNames.value( aSheetID );
+    auto it = m_sheetNames.find( aSheetID );
+    if( it != m_sheetNames.end() )
+        return it->second;
     else
         return aSheetID.AsString();
 }

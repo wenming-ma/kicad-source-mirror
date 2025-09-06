@@ -19,132 +19,121 @@
 #endif
 
 
-void PATHS::getUserDocumentPath( QFileInfo& aPath )
+void PATHS::getUserDocumentPath( QDir& aPath )
 {
     QString envPath;
 
     if( qEnvironmentVariableIsSet( "KICAD_DOCUMENTS_HOME" ) )
     {
         envPath = qgetenv( "KICAD_DOCUMENTS_HOME" );
-        aPath = QFileInfo( QDir( envPath ).absolutePath() );
+        aPath = QDir( envPath );
     }
     else
     {
-        aPath = QFileInfo( QDir( KIPLATFORM::ENV::GetDocumentsPath() ).absolutePath() );
+        aPath = QDir( KIPLATFORM::ENV::GetDocumentsPath() );
     }
 
-    QDir dir( aPath.absoluteFilePath() );
-    dir.cd( KICAD_PATH_STR );
-    dir.cd( GetMajorMinorVersion().toStdString().c_str() );
-    aPath = QFileInfo( dir.absolutePath() );
+    aPath.cd( KICAD_PATH_STR );
+    aPath.cd( GetMajorMinorVersion().toStdString().c_str() );
 }
 
 
 QString PATHS::GetUserPluginsPath()
 {
-    QFileInfo tmp;
+    QDir tmp;
     getUserDocumentPath( tmp );
 
-    QDir dir( tmp.absoluteFilePath() );
-    dir.cd( "plugins" );
+    tmp.cd( "plugins" );
 
-    return dir.absolutePath();
+    return tmp.absolutePath();
 }
 
 
 QString PATHS::GetUserScriptingPath()
 {
-    QFileInfo tmp;
+    QDir tmp;
     getUserDocumentPath( tmp );
 
-    QDir dir( tmp.absoluteFilePath() );
-    dir.cd( "scripting" );
+    tmp.cd( "scripting" );
 
-    return dir.absolutePath();
+    return tmp.absolutePath();
 }
 
 
 QString PATHS::GetUserTemplatesPath()
 {
-    QFileInfo tmp;
+    QDir tmp;
     getUserDocumentPath( tmp );
 
-    QDir dir( tmp.absoluteFilePath() );
-    dir.cd( "template" );
+    tmp.cd( "template" );
 
-    return dir.absolutePath() + QDir::separator();
+    return tmp.absolutePath() + QDir::separator();
 }
 
 
 QString PATHS::GetDefaultUserSymbolsPath()
 {
-    QFileInfo tmp;
+    QDir tmp;
     getUserDocumentPath( tmp );
 
-    QDir dir( tmp.absoluteFilePath() );
-    dir.cd( "symbols" );
+    tmp.cd( "symbols" );
 
-    return dir.absolutePath();
+    return tmp.absolutePath();
 }
 
 
 QString PATHS::GetDefaultUserFootprintsPath()
 {
-    QFileInfo tmp;
+    QDir tmp;
     getUserDocumentPath( tmp );
 
-    QDir dir( tmp.absoluteFilePath() );
-    dir.cd( "footprints" );
+    tmp.cd( "footprints" );
 
-    return dir.absolutePath();
+    return tmp.absolutePath();
 }
 
 
 QString PATHS::GetDefaultUserDesignBlocksPath()
 {
-    QFileInfo tmp;
+    QDir tmp;
     getUserDocumentPath( tmp );
 
-    QDir dir( tmp.absoluteFilePath() );
-    dir.cd( "blocks" );
+    tmp.cd( "blocks" );
 
-    return dir.absolutePath();
+    return tmp.absolutePath();
 }
 
 
 QString PATHS::GetDefaultUser3DModelsPath()
 {
-    QFileInfo tmp;
+    QDir tmp;
     getUserDocumentPath( tmp );
 
-    QDir dir( tmp.absoluteFilePath() );
-    dir.cd( "3dmodels" );
+    tmp.cd( "3dmodels" );
 
-    return dir.absolutePath();
+    return tmp.absolutePath();
 }
 
 
 QString PATHS::GetDefault3rdPartyPath()
 {
-    QFileInfo tmp;
+    QDir tmp;
     getUserDocumentPath( tmp );
 
-    QDir dir( tmp.absoluteFilePath() );
-    dir.cd( "3rdparty" );
+    tmp.cd( "3rdparty" );
 
-    return dir.absolutePath();
+    return tmp.absolutePath();
 }
 
 
 QString PATHS::GetDefaultUserProjectsPath()
 {
-    QFileInfo tmp;
+    QDir tmp;
     getUserDocumentPath( tmp );
 
-    QDir dir( tmp.absoluteFilePath() );
-    dir.cd( "projects" );
+    tmp.cd( "projects" );
 
-    return dir.absolutePath();
+    return tmp.absolutePath();
 }
 
 
@@ -451,13 +440,12 @@ QString PATHS::GetInstanceCheckerPath()
 
 QString PATHS::GetLogsPath()
 {
-    QFileInfo tmp;
+    QDir tmp;
     getUserDocumentPath( tmp );
 
-    QDir dir( tmp.absoluteFilePath() );
-    dir.cd( "logs" );
+    tmp.cd( "logs" );
 
-    return dir.absolutePath();
+    return tmp.absolutePath();
 }
 
 

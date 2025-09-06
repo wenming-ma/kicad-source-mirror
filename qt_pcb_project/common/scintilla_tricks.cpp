@@ -1,5 +1,7 @@
 // QT_TRANSFORMATION_COMPLETED
 
+#ifdef HAVE_QSCINTILLA
+
 #include <string_utils.h>
 #include <scintilla_tricks.h>
 #include <widgets/qt_grid.h>
@@ -670,3 +672,5 @@ bool SCINTILLA_TRICKS::eventFilter( QObject* obj, QEvent* event )
     }
     return QObject::eventFilter( obj, event );
 }
+
+#endif // HAVE_QSCINTILLA

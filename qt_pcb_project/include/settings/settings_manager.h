@@ -9,6 +9,8 @@
 #include <typeinfo>
 #include <unordered_map>
 #include <QString>
+#include <QHash>
+#include <hashtables.h>
 #include <settings/color_settings.h>
 
 class COLOR_SETTINGS;

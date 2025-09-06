@@ -283,7 +283,7 @@ QValidator::State FIELD_VALIDATOR::validate( QString& aInput, int& aPos ) const
 }
 
 
-bool FIELD_VALIDATOR::DoValidate( const QString& aValue, QWidget* aParent )
+bool FIELD_VALIDATOR::DoValidate( const QString& aValue, QWidget* aParent ) const
 {
     QString msg;
 

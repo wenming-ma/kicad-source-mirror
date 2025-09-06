@@ -16,8 +16,11 @@ public:
     WX_SPLASH() : QSplashScreen() {}
 
     WX_SPLASH( const QPixmap& aBitmap, Qt::WindowFlags aSplashStyle, int aMilliseconds, QWidget* aParent = nullptr ) :
-            QSplashScreen( aParent, aBitmap, aSplashStyle )
+            QSplashScreen( aBitmap, aSplashStyle )
     {
+        if( aParent )
+            setParent( aParent );
+        
         if( aMilliseconds > 0 )
             showMessage( QString(), Qt::AlignCenter, Qt::white );
     }

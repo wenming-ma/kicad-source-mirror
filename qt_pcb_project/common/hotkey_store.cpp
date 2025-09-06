@@ -8,33 +8,38 @@
 #include <advanced_config.h>
 #include <map>
 #include <vector>
+#include <QKeySequence>
+#include <QCoreApplication>
 
 class PSEUDO_ACTION : public TOOL_ACTION
 {
 public:
-    PSEUDO_ACTION( const QString& aLabel, int aHotKey, int aHotKeyAlt = 0 )
+    PSEUDO_ACTION( const QString& aLabel, int aHotKey, int aHotKeyAlt = 0 ) :
+        TOOL_ACTION( TOOL_ACTION_ARGS()
+                        .Name( "pseudo." + aLabel.toStdString() )
+                        .FriendlyName( aLabel.toStdString() )
+                        .DefaultHotkey( aHotKey )
+                        .DefaultHotkeyAlt( aHotKeyAlt )
+                        .Scope( AS_GLOBAL ) )
     {
-        m_friendlyName = aLabel;
-        m_hotKey = aHotKey;
-        m_hotKeyAlt = aHotKeyAlt;
     }
 };
 
-static PSEUDO_ACTION* g_gesturePseudoActions[] = {
-    new PSEUDO_ACTION( _( "Accept Autocomplete" ), WXK_RETURN, WXK_NUMPAD_ENTER ),
-    new PSEUDO_ACTION( _( "Cancel Autocomplete" ), WXK_ESCAPE ),
-    new PSEUDO_ACTION( _( "Toggle Checkbox" ), WXK_SPACE ),
-    new PSEUDO_ACTION( _( "Pan Left/Right" ), MD_CTRL + PSEUDO_WXK_WHEEL ),
-    new PSEUDO_ACTION( _( "Pan Up/Down" ), MD_SHIFT + PSEUDO_WXK_WHEEL ),
-    new PSEUDO_ACTION( _( "Finish Drawing" ), PSEUDO_WXK_DBLCLICK ),
-    new PSEUDO_ACTION( _( "Add to Selection" ), MD_SHIFT + PSEUDO_WXK_CLICK ),
-    new PSEUDO_ACTION( _( "Highlight Net" ), MD_CTRL + PSEUDO_WXK_CLICK ),
-    new PSEUDO_ACTION( _( "Remove from Selection" ), MD_CTRL + MD_SHIFT + PSEUDO_WXK_CLICK ),
+static std::vector<PSEUDO_ACTION*> g_gesturePseudoActions = {
+    new PSEUDO_ACTION( _( "Accept Autocomplete" ), Qt::Key_Return, Qt::Key_Enter ),
+    new PSEUDO_ACTION( _( "Cancel Autocomplete" ), Qt::Key_Escape ),
+    new PSEUDO_ACTION( _( "Toggle Checkbox" ), Qt::Key_Space ),
+    new PSEUDO_ACTION( _( "Pan Left/Right" ), MD_CTRL + PSEUDO_QT_WHEEL ),
+    new PSEUDO_ACTION( _( "Pan Up/Down" ), MD_SHIFT + PSEUDO_QT_WHEEL ),
+    new PSEUDO_ACTION( _( "Finish Drawing" ), PSEUDO_QT_DBLCLICK ),
+    new PSEUDO_ACTION( _( "Add to Selection" ), MD_SHIFT + PSEUDO_QT_CLICK ),
+    new PSEUDO_ACTION( _( "Highlight Net" ), MD_CTRL + PSEUDO_QT_CLICK ),
+    new PSEUDO_ACTION( _( "Remove from Selection" ), MD_CTRL + MD_SHIFT + PSEUDO_QT_CLICK ),
     new PSEUDO_ACTION( _( "Ignore Grid Snaps" ), MD_CTRL ),
     new PSEUDO_ACTION( _( "Ignore Other Snaps" ), MD_SHIFT ),
 };
 
-static PSEUDO_ACTION* g_standardPlatformCommands[] = {
+static std::vector<PSEUDO_ACTION*> g_standardPlatformCommands = {
 #ifndef __WINDOWS__
     new PSEUDO_ACTION( _( "Close" ), MD_CTRL + 'W' ),
 #endif
@@ -44,7 +49,7 @@ static PSEUDO_ACTION* g_standardPlatformCommands[] = {
 
 QString HOTKEY_STORE::GetAppName( TOOL_ACTION* aAction )
 {
-    QString name( aAction->GetName() );
+    QString name = QString::fromStdString( aAction->GetName() );
     return name.left( name.indexOf( '.' ) );
 }
 
@@ -82,7 +87,7 @@ void HOTKEY_STORE::Init( std::vector<TOOL_ACTION*> aActionsList, bool aIncludeRe
     for( TOOL_ACTION* action : aActionsList )
     {
         // Internal actions probably shouldn't be allowed hotkeys
-        if( action->GetFriendlyName().IsEmpty() )
+        if( action->GetFriendlyName().isEmpty() )
             continue;
 
         if( !ADVANCED_CFG::GetCfg().m_ExtraZoneDisplayModes )

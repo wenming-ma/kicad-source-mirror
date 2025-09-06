@@ -49,7 +49,7 @@ void TOOLS_HOLDER::PushTool( const TOOL_EVENT& aEvent )
     if( action )
         DisplayToolMsg( action->GetFriendlyName() );
     else
-        DisplayToolMsg( actionName );
+        DisplayToolMsg( QString::fromStdString( actionName ) );
 }
 
 

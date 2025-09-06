@@ -14,6 +14,7 @@
 #include <QString>
 #include <QPoint>
 
+#include <hashtables.h>
 #include <hotkeys_basic.h>
 #include <hotkey_store.h>
 
