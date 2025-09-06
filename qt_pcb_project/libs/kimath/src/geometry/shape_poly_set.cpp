@@ -1,8 +1,9 @@
 
 // QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-04
 
-#include <algorithm>
+// Standard library headers first (including assert.h before any other headers)
 #include <assert.h>                          // for assert
+#include <algorithm>
 #include <cmath>                             // for sqrt, cos, hypot, isinf
 #include <cstdio>
 #include <istream>                           // for operator<<, operator>>
@@ -15,7 +16,10 @@
 #include <utility> // for swap, move
 #include <vector>
 
+// Third-party libraries
 #include <clipper2/clipper.h>
+
+// KiCad headers (non-Qt)
 #include <geometry/geometry_utils.h>
 #include <geometry/polygon_triangulation.h>
 #include <geometry/seg.h>                    // for SEG, OPT_VECTOR2I
@@ -33,6 +37,7 @@
 // Do not keep this for release.  Only for testing clipper
 #include <advanced_config.h>
 
+// Qt headers last to avoid macro conflicts with system headers
 #include <QDebug>
 #include <QLoggingCategory>
 

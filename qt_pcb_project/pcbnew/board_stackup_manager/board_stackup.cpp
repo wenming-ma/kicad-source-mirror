@@ -309,7 +309,7 @@ QString BOARD_STACKUP_ITEM::FormatEpsilonR( int aDielectricSubLayer ) const
 {
     // return a QString to print/display Epsilon R
     // note: we do not want scientific notation
-    QString txt = UIDouble2Str( GetEpsilonR( aDielectricSubLayer ) );
+    QString txt = QString::fromStdString( UIDouble2Str( GetEpsilonR( aDielectricSubLayer ) ) );
     return txt;
 }
 
@@ -318,7 +318,7 @@ QString BOARD_STACKUP_ITEM::FormatLossTangent( int aDielectricSubLayer ) const
 {
     // return a QString to print/display Loss Tangent
     // note: we do not want scientific notation
-    QString txt = UIDouble2Str( GetLossTangent( aDielectricSubLayer ) );
+    QString txt = QString::fromStdString( UIDouble2Str( GetLossTangent( aDielectricSubLayer ) ) );
     return txt;
 }
 

@@ -13,7 +13,7 @@
 #include <geometry/shape_poly_set.h>
 #include <zone_settings.h>
 #include <teardrop/teardrop_types.h>
-
+#include "i18n_utility.h"
 
 class LINE_READER;
 class PCB_EDIT_FRAME;
@@ -953,10 +953,11 @@ protected:
     std::mutex m_lock;
 };
 
-
-DECLARE_ENUM_TO_WXANY( ZONE_CONNECTION )
-DECLARE_ENUM_TO_WXANY( ZONE_FILL_MODE )
-DECLARE_ENUM_TO_WXANY( ISLAND_REMOVAL_MODE )
-DECLARE_ENUM_TO_WXANY( RULE_AREA_PLACEMENT_SOURCE_TYPE )
+// Qt Note: The wxWidgets DECLARE_ENUM_TO_WXANY macros have been removed.
+// If Qt variant support is needed for these enums in the future, use:
+// Q_DECLARE_METATYPE(ZONE_CONNECTION)
+// Q_DECLARE_METATYPE(ZONE_FILL_MODE)
+// Q_DECLARE_METATYPE(ISLAND_REMOVAL_MODE)
+// Q_DECLARE_METATYPE(RULE_AREA_PLACEMENT_SOURCE_TYPE)
 
 #endif  // ZONE_H

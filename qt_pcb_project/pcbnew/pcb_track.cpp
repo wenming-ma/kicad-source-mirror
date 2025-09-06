@@ -1647,7 +1647,7 @@ void PCB_TRACK::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
     MINOPTMAX<int> constraintValue = GetWidthConstraint( &source );
     msg = aFrame->MessageTextFromMinOptMax( constraintValue );
 
-    if( !msg.IsEmpty() )
+    if( !msg.isEmpty() )
     {
         aList.emplace_back( QString( "Width Constraints: %1" ).arg( msg ),
                             QString( "(from %1)" ).arg( source ) );
@@ -1710,7 +1710,7 @@ void PCB_TRACK::GetMsgPanelInfoBase_Common( EDA_DRAW_FRAME* aFrame,
     aList.emplace_back( "End pos", QString( "%1 %2" ).arg( m_End.x ).arg( m_End.y ) );
 #endif
 
-    if( aFrame->GetName() == PCB_EDIT_FRAME_NAME && IsLocked() )
+    if( aFrame->objectName() == PCB_EDIT_FRAME_NAME && IsLocked() )
         aList.emplace_back( "Status", "Locked" );
 }
 
@@ -2087,7 +2087,7 @@ static struct TRACK_VIA_DESC
 
         ENUM_MAP<PCB_LAYER_ID>& layerEnum = ENUM_MAP<PCB_LAYER_ID>::Instance();
 
-        if( layerEnum.Choices().GetCount() == 0 )
+        if( layerEnum.Choices().count() == 0 )
         {
             layerEnum.Undefined( UNDEFINED_LAYER );
 
@@ -2167,5 +2167,6 @@ static struct TRACK_VIA_DESC
     }
 } _TRACK_VIA_DESC;
 
-ENUM_TO_WXANY( VIATYPE );
-ENUM_TO_WXANY( TENTING_MODE );
+// Qt Note: The wxWidgets ENUM_TO_WXANY macros have been removed.
+// ENUM_TO_WXANY( VIATYPE );
+// ENUM_TO_WXANY( TENTING_MODE );

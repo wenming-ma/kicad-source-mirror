@@ -466,7 +466,7 @@ KIID DRC_ITEM::GetAuxItem3ID() const
 QString DRC_ITEM::GetViolatingRuleDesc() const
 {
     if( m_violatingRule )
-        return QString::asprintf( _( "Rule: %s" ), m_violatingRule->m_Name );
+        return _( "Rule: %1" ).arg( m_violatingRule->m_Name );
     else
         return _( "Local override" );
 }

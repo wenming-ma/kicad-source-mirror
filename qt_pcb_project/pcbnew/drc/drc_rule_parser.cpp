@@ -1,5 +1,6 @@
 #include <QString>
-#include <QRegExp>
+#include <QRegularExpression>
+#include <i18n_utility.h>
 #include <board.h>
 #include <zones.h>
 #include <drc/drc_rule_parser.h>
@@ -39,14 +40,14 @@ void DRC_RULES_PARSER::reportError( const QString& aMessage )
 
     if( m_reporter )
     {
-        QString msg = QString::asprintf( _( "ERROR: <a href='%d:%d'>%s</a>%s" ).toStdString().c_str(), CurLineNumber(),
-                                         CurOffset(), first.toStdString().c_str(), rest.toStdString().c_str() );
+        QString msg = _( "ERROR: <a href='%1:%2'>%3</a>%4" ).arg( CurLineNumber() )
+                                         .arg( CurOffset() ).arg( first ).arg( rest );
 
         m_reporter->Report( msg, RPT_SEVERITY_ERROR );
     }
     else
     {
-        QString msg = QString::asprintf( _( "ERROR: %s%s" ).toStdString().c_str(), first.toStdString().c_str(), rest.toStdString().c_str() );
+        QString msg = _( "ERROR: %1%2" ).arg( first ).arg( rest );
 
         THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
     }
@@ -57,10 +58,10 @@ void DRC_RULES_PARSER::reportDeprecation( const QString& oldToken, const QString
 {
     if( m_reporter )
     {
-        QString msg = QString::asprintf( _( "The '%s' keyword has been deprecated.  "
-                                            "Please use '%s' instead." ).toStdString().c_str(),
-                                         oldToken.toStdString().c_str(),
-                                         newToken.toStdString().c_str());
+        QString msg = _( "The '%1' keyword has been deprecated.  "
+                                            "Please use '%2' instead." )
+                                         .arg( oldToken )
+                                         .arg( newToken );
 
         m_reporter->Report( msg, RPT_SEVERITY_WARNING );
     }
@@ -125,15 +126,15 @@ void DRC_RULES_PARSER::Parse( std::vector<std::shared_ptr<DRC_RULE>>& aRules, RE
             }
             else
             {
-                msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected version number." ).toStdString().c_str(),
-                            FromUTF8().toStdString().c_str() );
+                msg = _( "Unrecognized item '%1'.| Expected version number." )
+                            .arg( FromUTF8() );
                 reportError( msg );
             }
 
             if( (int) token != DSN_RIGHT )
             {
-                msg = QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(),
-                            FromUTF8().toStdString().c_str() );
+                msg = _( "Unrecognized item '%1'." )
+                            .arg( FromUTF8() );
                 reportError( msg );
                 parseUnknown();
             }
@@ -149,8 +150,8 @@ void DRC_RULES_PARSER::Parse( std::vector<std::shared_ptr<DRC_RULE>>& aRules, RE
             break;
 
         default:
-            msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(), FromUTF8().toStdString().c_str(),
-                        "rule or version" );
+            msg = _( "Unrecognized item '%1'.| Expected %2." ).arg( FromUTF8() )
+                        .arg( "rule or version" );
             reportError( msg );
             parseUnknown();
         }
@@ -204,14 +205,14 @@ std::shared_ptr<DRC_RULE> DRC_RULES_PARSER::parseDRC_RULE()
             }
             else
             {
-                msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected quoted expression." ).toStdString().c_str(),
-                            FromUTF8().toStdString().c_str() );
+                msg = _( "Unrecognized item '%1'.| Expected quoted expression." )
+                            .arg( FromUTF8() );
                 reportError( msg );
             }
 
             if( (int) NextTok() != DSN_RIGHT )
             {
-                reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
+                reportError( _( "Unrecognized item '%1'." ).arg( FromUTF8() ) );
                 parseUnknown();
             }
 
@@ -233,8 +234,8 @@ std::shared_ptr<DRC_RULE> DRC_RULES_PARSER::parseDRC_RULE()
             return rule;
 
         default:
-            msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(), FromUTF8().toStdString().c_str(),
-                        "constraint, condition, or disallow" );
+            msg = _( "Unrecognized item '%1'.| Expected %2." ).arg( FromUTF8() )
+                        .arg( "constraint, condition, or disallow" );
             reportError( msg );
             parseUnknown();
         }
@@ -272,8 +273,8 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
     }
     else if( (int) token == DSN_RIGHT || token == T_EOF )
     {
-        msg = QString::asprintf( _( "Missing constraint type.|  Expected %s." ).toStdString().c_str(),
-                    "assertion, clearance, hole_clearance, edge_clearance, "
+        msg = _( "Missing constraint type.|  Expected %1." )
+                    .arg( "assertion, clearance, hole_clearance, edge_clearance, "
                          "physical_clearance, physical_hole_clearance, courtyard_clearance, "
                          "silk_clearance, hole_size, hole_to_hole, track_width, annular_width, "
                          "via_diameter, disallow, zone_connection, thermal_relief_gap, "
@@ -315,8 +316,8 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
     case T_physical_clearance:        c.m_Type = PHYSICAL_CLEARANCE_CONSTRAINT;        break;
     case T_physical_hole_clearance:   c.m_Type = PHYSICAL_HOLE_CLEARANCE_CONSTRAINT;   break;
     default:
-        msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(), FromUTF8().toStdString().c_str(),
-                    "assertion, clearance, hole_clearance, edge_clearance, "
+        msg = _( "Unrecognized item '%1'.| Expected %2." ).arg( FromUTF8() )
+                    .arg( "assertion, clearance, hole_clearance, edge_clearance, "
                          "physical_clearance, physical_hole_clearance, courtyard_clearance, "
                          "silk_clearance, hole_size, hole_to_hole, track_width, track_angle, track_segment_length, annular_width, "
                          "disallow, zone_connection, thermal_relief_gap, thermal_spoke_width, "
@@ -327,7 +328,7 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 
     if( aRule->FindConstraint( c.m_Type ) )
     {
-        msg = QString::asprintf( _( "Rule already has a '%s' constraint." ).toStdString().c_str(), FromUTF8().toStdString().c_str() );
+        msg = _( "Rule already has a '%1' constraint." ).arg( FromUTF8() );
         reportError( msg );
     }
 
@@ -360,8 +361,8 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
                 return;
 
             default:
-                msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(), FromUTF8().toStdString().c_str(),
-                            "track, via, micro_via, buried_via, pad, zone, text, graphic, "
+                msg = _( "Unrecognized item '%1'.| Expected %2." ).arg( FromUTF8() )
+                            .arg( "track, via, micro_via, buried_via, pad, zone, text, graphic, "
                                  "hole, or footprint." );
                 reportError( msg );
                 break;
@@ -392,8 +393,8 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
             return;
 
         default:
-            msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(), FromUTF8().toStdString().c_str(),
-                        "solid, thermal_reliefs or none." );
+            msg = _( "Unrecognized item '%1'.| Expected %2." ).arg( FromUTF8() )
+                        .arg( "solid, thermal_reliefs or none." );
             reportError( msg );
             break;
         }
@@ -444,13 +445,13 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
         }
         else
         {
-            msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected quoted expression." ).toStdString().c_str(), FromUTF8().toStdString().c_str() );
+            msg = _( "Unrecognized item '%1'.| Expected quoted expression." ).arg( FromUTF8() );
             reportError( msg );
         }
 
         if( (int) NextTok() != DSN_RIGHT )
         {
-            reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
+            reportError( _( "Unrecognized item '%1'." ).arg( FromUTF8() ) );
             parseUnknown();
         }
 
@@ -478,7 +479,7 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 
             if( (int) NextTok() != DSN_RIGHT )
             {
-                reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
+                reportError( _( "Unrecognized item '%1'." ).arg( FromUTF8() ) );
                 parseUnknown();
             }
 
@@ -498,7 +499,7 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 
             if( (int) NextTok() != DSN_RIGHT )
             {
-                reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
+                reportError( _( "Unrecognized item '%1'." ).arg( FromUTF8() ) );
                 parseUnknown();
             }
 
@@ -519,7 +520,7 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 
             if( (int) NextTok() != DSN_RIGHT )
             {
-                reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
+                reportError( _( "Unrecognized item '%1'." ).arg( FromUTF8() ) );
                 parseUnknown();
             }
 
@@ -539,7 +540,7 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 
             if( (int) NextTok() != DSN_RIGHT )
             {
-                reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
+                reportError( _( "Unrecognized item '%1'." ).arg( FromUTF8() ) );
                 parseUnknown();
             }
 
@@ -550,9 +551,9 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
             return;
 
         default:
-            msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(),
-                        FromUTF8().toStdString().c_str(),
-                        "min, max, or opt" );
+            msg = _( "Unrecognized item '%1'.| Expected %2." )
+                        .arg( FromUTF8() )
+                        .arg( "min, max, or opt" );
             reportError( msg );
             parseUnknown();
         }
@@ -578,14 +579,14 @@ void DRC_RULES_PARSER::parseValueWithUnits( const QString& aExpr, int& aResult, 
 
                 if( m_reporter )
                 {
-                    QString msg = QString::asprintf( _( "ERROR: <a href='%d:%d'>%s</a>%s" ).toStdString().c_str(),
-                                                     CurLineNumber(), CurOffset() + aOffset, first.toStdString().c_str(), rest.toStdString().c_str() );
+                    QString msg = _( "ERROR: <a href='%1:%2'>%3</a>%4" )
+                                                     .arg( CurLineNumber() ).arg( CurOffset() + aOffset ).arg( first ).arg( rest );
 
                     m_reporter->Report( msg, RPT_SEVERITY_ERROR );
                 }
                 else
                 {
-                    QString msg = QString::asprintf( _( "ERROR: %s%s" ).toStdString().c_str(), first.toStdString().c_str(), rest.toStdString().c_str() );
+                    QString msg = _( "ERROR: %1%2" ).arg( first ).arg( rest );
 
                     THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(),
                                        CurOffset() + aOffset );
@@ -630,7 +631,9 @@ LSET DRC_RULES_PARSER::parseLayer( QString* aSource )
         {
             const QString& entry = layerMap[ii];
 
-            if( QRegExp( layerName, Qt::CaseInsensitive, QRegExp::Wildcard ).exactMatch( entry ) )
+            QRegularExpression regex( QRegularExpression::wildcardToRegularExpression( layerName ), 
+                                     QRegularExpression::CaseInsensitiveOption );
+            if( regex.match( entry ).hasMatch() )
             {
                 *aSource = layerName;
                 retVal.set( ToLAYER_ID( ENUM_MAP<PCB_LAYER_ID>::Instance().ToEnum( entry ) ) );
@@ -639,14 +642,14 @@ LSET DRC_RULES_PARSER::parseLayer( QString* aSource )
 
         if( !retVal.any() )
         {
-            reportError( QString::asprintf( _( "Unrecognized layer '%s'." ).toStdString().c_str(), layerName.toStdString().c_str() ) );
+            reportError( _( "Unrecognized layer '%1'." ).arg( layerName ) );
             retVal.set( Rescue );
         }
     }
 
     if( (int) NextTok() != DSN_RIGHT )
     {
-        reportError( QString::asprintf( _( "Unrecognized item '%s'." ).toStdString().c_str(), FromUTF8().toStdString().c_str() ) );
+        reportError( _( "Unrecognized item '%1'." ).arg( FromUTF8() ) );
         parseUnknown();
     }
 
@@ -675,9 +678,9 @@ SEVERITY DRC_RULES_PARSER::parseSeverity()
     case T_exclusion: retVal = RPT_SEVERITY_EXCLUSION; break;
 
     default:
-        msg = QString::asprintf( _( "Unrecognized item '%s'.| Expected %s." ).toStdString().c_str(),
-                    FromUTF8().toStdString().c_str(),
-                    "ignore, warning, error, or exclusion" );
+        msg = _( "Unrecognized item '%1'.| Expected %2." )
+                    .arg( FromUTF8() )
+                    .arg( "ignore, warning, error, or exclusion" );
         reportError( msg );
         parseUnknown();
     }

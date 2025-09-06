@@ -12,7 +12,12 @@
 #include <embedded_files.h>
 
 #if defined(__WIN32__) || defined(_MSC_VER)
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #include <winnt.h>
 #include <excpt.h>

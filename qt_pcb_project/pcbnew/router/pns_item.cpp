@@ -344,7 +344,7 @@ const std::string ITEM::Format() const
     ss << KindStr() << " ";
 
     if( iface )
-        ss << "net " << iface->GetNetName( Net() ) << " ";
+        ss << "net " << iface->GetNetName( Net() ).toStdString() << " ";
 
     ss << "layers " << m_layers.Start() << " " << m_layers.End();
     return ss.str();

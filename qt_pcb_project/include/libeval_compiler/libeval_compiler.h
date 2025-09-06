@@ -1,16 +1,18 @@
 
 #pragma once
 
+#include <qt_compat_fix.h>  // Ensure proper include order for Qt/Windows compatibility
+
 #include <cstddef>
 #include <functional>
 #include <map>
 #include <string>
 #include <stack>
+#include <vector>
 
 #include <kicommon.h>
 #include <base_units.h>
 #include <QString>
-#include <vector>
 
 #if defined(WIN32)
 // This gets leaked by python headers on MSVC only and will cause chaos

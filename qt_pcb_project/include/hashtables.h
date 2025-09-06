@@ -3,6 +3,8 @@
 #ifndef HASHTABLES_H_
 #define HASHTABLES_H_
 
+#include <qt_compat_fix.h>  // Ensure proper include order for Qt/Windows compatibility
+
 #include <unordered_map>
 
 #include <QString>

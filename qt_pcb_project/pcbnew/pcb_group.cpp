@@ -353,7 +353,7 @@ void PCB_GROUP::Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 
 QString PCB_GROUP::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    if( m_name.empty() )
+    if( m_name.isEmpty() )
         return QString( "Unnamed Group, %1 members" ).arg( m_items.size() );
     else
         return QString( "Group '%1', %2 members" ).arg( m_name ).arg( m_items.size() );
@@ -368,10 +368,10 @@ BITMAPS PCB_GROUP::GetMenuImage() const
 
 void PCB_GROUP::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    aList.emplace_back( "Group", m_name.empty() ? "<unnamed>" : m_name );
+    aList.emplace_back( "Group", m_name.isEmpty() ? "<unnamed>" : m_name );
     aList.emplace_back( "Members", QString::number( m_items.size() ) );
 
-    if( aFrame->GetName() == PCB_EDIT_FRAME_NAME && IsLocked() )
+    if( aFrame->objectName() == PCB_EDIT_FRAME_NAME && IsLocked() )
         aList.emplace_back( "Status", "Locked" );
 }
 

@@ -7,6 +7,7 @@
 
 #include "pns_router.h"
 #include "pns_debug_decorator.h"
+#include "i18n_utility.h"
 
 namespace PNS {
 

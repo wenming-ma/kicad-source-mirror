@@ -1,6 +1,7 @@
 
 
 #include <QString>
+#include <i18n_utility.h>
 #include <board_item.h>
 #include <reporter.h>
 #include <drc/drc_rule_condition.h>

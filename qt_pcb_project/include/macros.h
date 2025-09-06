@@ -3,6 +3,8 @@
 #ifndef MACROS_H
 #define MACROS_H
 
+#include <qt_compat_fix.h>  // Ensure proper include order for Qt/Windows compatibility
+
 #include <QString>
 #include <QDebug>
 

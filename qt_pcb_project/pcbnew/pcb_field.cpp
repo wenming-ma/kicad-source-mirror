@@ -162,22 +162,22 @@ QString PCB_FIELD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFul
     switch( m_id )
     {
     case REFERENCE_FIELD:
-        return QString::asprintf( _( "Reference field of %s" ), ref.toStdString().c_str() );
+        return _( "Reference field of %1" ).arg( ref );
 
     case VALUE_FIELD:
-        return QString::asprintf( _( "Value field of %s (%s)" ), ref.toStdString().c_str(), content.toStdString().c_str() );
+        return _( "Value field of %1 (%2)" ).arg( ref ).arg( content );
 
     case FOOTPRINT_FIELD:
-        return QString::asprintf( _( "Footprint field of %s (%s)" ), ref.toStdString().c_str(), content.toStdString().c_str() );
+        return _( "Footprint field of %1 (%2)" ).arg( ref ).arg( content );
 
     case DATASHEET_FIELD:
-        return QString::asprintf( _( "Datasheet field of %s (%s)" ), ref.toStdString().c_str(), content.toStdString().c_str() );
+        return _( "Datasheet field of %1 (%2)" ).arg( ref ).arg( content );
 
     default:
         if( GetName().isEmpty() )
-            return QString::asprintf( _( "Field of %s (%s)" ), ref.toStdString().c_str(), content.toStdString().c_str() );
+            return _( "Field of %1 (%2)" ).arg( ref ).arg( content );
         else
-            return QString::asprintf( _( "%s field of %s (%s)" ), GetName().toStdString().c_str(), ref.toStdString().c_str(), content.toStdString().c_str() );
+            return _( "%1 field of %2 (%3)" ).arg( GetName() ).arg( ref ).arg( content );
     }
 }
 

@@ -42,7 +42,8 @@
 #include <QLoggingCategory>
 #include <QString>
 #include <QStringList>
-#include <QRegExp>
+#include <QRegularExpression>
+#include <QFileInfo>
 
 
 FOOTPRINT::FOOTPRINT( BOARD* parent ) :
@@ -608,7 +609,7 @@ bool FOOTPRINT::HasFieldByName( const QString& aFieldName ) const
 
 PCB_FIELD* FOOTPRINT::GetFieldByName( const QString& aFieldName )
 {
-    if( aFieldName.empty() )
+    if( aFieldName.isEmpty() )
         return nullptr;
 
     for( PCB_FIELD* field : m_fields )
@@ -647,7 +648,7 @@ std::vector<PCB_FIELD*> FOOTPRINT::GetFields( bool aVisibleOnly ) const
 
         if( aVisibleOnly )
         {
-            if( !field->IsVisible() || field->GetText().IsEmpty() )
+            if( !field->IsVisible() || field->GetText().isEmpty() )
                 continue;
         }
 
@@ -1061,7 +1062,7 @@ bool FOOTPRINT::ResolveTextVar( QString* token, int aDepth ) const
                  || token->startsWith( "PIN_NAME(" ) )
     {
         QString padNumber = token->mid( token->indexOf( '(' ) + 1 );
-        padNumber = padNumber.BeforeLast( ')' );
+        padNumber = padNumber.left( padNumber.lastIndexOf( ')' ) );
 
         for( PAD* pad : Pads() )
         {
@@ -1757,13 +1758,13 @@ void FOOTPRINT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
         aList.emplace_back( _( "Component Class" ), m_componentClass->GetName() );
     }
 
-    msg.Printf( _( "Footprint: %s" ), m_fpid.GetUniStringLibId() );
-    msg2.Printf( _( "3D-Shape: %s" ), m_3D_Drawings.empty() ? _( "<none>" )
+    msg = QString::asprintf( _( "Footprint: %s" ).toUtf8().constData(), m_fpid.GetUniStringLibId() );
+    msg2 = QString::asprintf( _( "3D-Shape: %s" ).toUtf8().constData(), m_3D_Drawings.empty() ? _( "<none>" )
                                                             : m_3D_Drawings.front().m_Filename );
     aList.emplace_back( msg, msg2 );
 
-    msg.Printf( _( "Doc: %s" ), m_libDescription );
-    msg2.Printf( _( "Keywords: %s" ), m_keywords );
+    msg = QString::asprintf( _( "Doc: %s" ).toUtf8().constData(), m_libDescription );
+    msg2 = QString::asprintf( _( "Keywords: %s" ).toUtf8().constData(), m_keywords );
     aList.emplace_back( msg, msg2 );
 }
 
@@ -2047,7 +2048,7 @@ std::set<QString> FOOTPRINT::GetUniquePadNumbers( INCLUDE_NPTH_T aIncludeNPTH ) 
 
         // Skip pads with no name, because they are usually "mechanical"
         // pads, not "electrical" pads
-        if( pad->GetNumber().IsEmpty() )
+        if( pad->GetNumber().isEmpty() )
             continue;
 
         if( !aIncludeNPTH )
@@ -2075,7 +2076,7 @@ void FOOTPRINT::Add3DModel( FP_3DMODEL* a3DModel )
     if( nullptr == a3DModel )
         return;
 
-    if( !a3DModel->m_Filename.empty() )
+    if( !a3DModel->m_Filename.isEmpty() )
         m_3D_Drawings.push_back( *a3DModel );
 }
 
@@ -2373,7 +2374,7 @@ bool FOOTPRINT::IsLibNameValid( const QString & aName )
 {
     const QChar * invalids = StringLibNameInvalidChars( false );
 
-    if( aName.indexOf( QRegExp( QString( "[" ) + QString( invalids ) + "]" ) ) != -1 )
+    if( aName.indexOf( QRegularExpression( QString( "[" ) + QString( invalids ) + "]" ) ) != -1 )
         return false;
 
     return true;
@@ -2387,13 +2388,13 @@ const QChar* FOOTPRINT::StringLibNameInvalidChars( bool aUserReadable )
     // TODO: Unify forbidden character lists - Warning, invalid filename characters are not the same
     // as invalid LIB_ID characters.  We will need to separate the FP filenames from FP names before this
     // can be unified
-    static const QChar invalidChars[] = "%$<>\t\n\r\"\\/:");
-    static const QChar invalidCharsReadable[] = "% $ < > 'tab' 'return' 'line feed' \\ \" / :";
+    static const QString invalidCharsStr = "%$<>\t\n\r\"\\/:" ;
+    static const QString invalidCharsReadableStr = "% $ < > 'tab' 'return' 'line feed' \\ \" / :";
 
     if( aUserReadable )
-        return invalidCharsReadable;
+        return invalidCharsReadableStr.data();
     else
-        return invalidChars;
+        return invalidCharsStr.data();
 }
 
 
@@ -3267,11 +3268,11 @@ std::map<QString, int> FOOTPRINT::MapPadNumbersToNetTieGroups() const
             if( esc )
             {
                 esc = false;
-                pad.Append( ch );
+                pad.append( ch );
                 continue;
             }
 
-            switch( static_cast<unsigned char>( ch ) )
+            switch( static_cast<unsigned char>( ch.toLatin1() ) )
             {
             case '\\':
                 esc = true;
@@ -3279,11 +3280,11 @@ std::map<QString, int> FOOTPRINT::MapPadNumbersToNetTieGroups() const
 
             case ',':
                 processPad( pad, ii );
-                pad.Clear();
+                pad.clear();
                 break;
 
             default:
-                pad.Append( ch );
+                pad.append( ch );
                 break;
             }
         }
@@ -3329,10 +3330,10 @@ void FOOTPRINT::CheckFootprintAttributes( const std::function<void( const QStrin
         switch( likelyAttr )
         {
         case FP_THROUGH_HOLE:
-            msg.Printf( _( "(expected 'Through hole'; actual '%s')" ), GetTypeName() );
+            msg = _( "(expected 'Through hole'; actual '%s')" ).arg( GetTypeName() );
             break;
         case FP_SMD:
-            msg.Printf( _( "(expected 'SMD'; actual '%s')" ), GetTypeName() );
+            msg = _( "(expected 'SMD'; actual '%s')" ).arg( GetTypeName() );
             break;
         }
 
@@ -3553,12 +3554,12 @@ void FOOTPRINT::CheckNetTiePadGroups( const std::function<void( const QString& )
 
         if( !pad )
         {
-            msg.Printf( _( "(net-tie pad group contains unknown pad number %s)" ), padNumber );
+            msg = _( "(net-tie pad group contains unknown pad number %s)" ).arg( padNumber );
             aErrorHandler( msg );
         }
         else if( !padNumbers.insert( pad->GetNumber() ).second )
         {
-            msg.Printf( _( "(pad %s appears in more than one net-tie pad group)" ), padNumber );
+            msg = _( "(pad %s appears in more than one net-tie pad group)" ).arg( padNumber );
             aErrorHandler( msg );
         }
     }
@@ -4083,7 +4084,7 @@ void FOOTPRINT::EmbedFonts()
 {
     for( KIFONT::OUTLINE_FONT* font : GetFonts() )
     {
-        EMBEDDED_FILES::EMBEDDED_FILE* file = GetEmbeddedFiles()->AddFile( font->GetFileName(), false );
+        EMBEDDED_FILES::EMBEDDED_FILE* file = GetEmbeddedFiles()->AddFile( QFileInfo( font->GetFileName() ), false );
         file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::FONT;
     }
 }
@@ -4115,7 +4116,7 @@ static struct FOOTPRINT_DESC
     {
         ENUM_MAP<ZONE_CONNECTION>& zcMap = ENUM_MAP<ZONE_CONNECTION>::Instance();
 
-        if( zcMap.Choices().GetCount() == 0 )
+        if( zcMap.Choices().count() == 0 )
         {
             zcMap.Undefined( ZONE_CONNECTION::INHERITED );
             zcMap.Map( ZONE_CONNECTION::INHERITED, _HKI( "Inherited" ) )
@@ -4127,7 +4128,7 @@ static struct FOOTPRINT_DESC
 
         ENUM_MAP<PCB_LAYER_ID>& layerEnum = ENUM_MAP<PCB_LAYER_ID>::Instance();
 
-        if( layerEnum.Choices().GetCount() == 0 )
+        if( layerEnum.Choices().count() == 0 )
         {
             layerEnum.Undefined( UNDEFINED_LAYER );
 

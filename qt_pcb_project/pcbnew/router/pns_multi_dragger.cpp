@@ -584,7 +584,7 @@ bool MULTI_DRAGGER::multidragShove( std::vector<MDRAG_LINE>& aCompletedLines )
     for( auto& l : m_mdragLines )
     {
         PNS_DBG( Dbg(), Message, QString::asprintf("net %-30s: isCorner %d isStrict %d c-Dist %-10d l-dist %-10d leadIndex %-2d CisLast %d dragDist %-10d",
-            iface->GetNetName( l.draggedLine.Net() ),
+            iface->GetNetName( l.draggedLine.Net() ).toStdString().c_str(),
             (int) l.isCorner?1:0,
             (int) l.isStrict?1:0,
             (int) l.cornerDistance,

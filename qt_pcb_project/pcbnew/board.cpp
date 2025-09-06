@@ -2,6 +2,7 @@
 
 #include <QLoggingCategory>
 #include <QDebug>
+#include <QFileInfo>
 
 #include <drc/drc_rtree.h>
 #include <board_design_settings.h>
@@ -354,7 +355,7 @@ std::set<QString>::iterator FindByFirstNFields( std::set<QString>& strSet,
 
     for( auto it = strSet.begin(); it != strSet.end(); ++it )
     {
-        if( it->StartsWith( searchPrefix + delimiter ) || *it == searchPrefix )
+        if( it->startsWith( searchPrefix + delimiter ) || *it == searchPrefix )
         {
             return it;
         }
@@ -470,17 +471,17 @@ void BOARD::GetContextualTextVars( QStringList* aVars ) const
     if( GetProject() )
     {
         for( const std::pair<const std::string, std::string>& entry : GetProject()->GetTextVars() )
-            add( entry.first );
+            add( QString::fromStdString( entry.first ) );
     }
 }
 
 
 bool BOARD::ResolveTextVar( QString* token, int aDepth ) const
 {
-    if( token->Contains( ':' ) )
+    if( token->contains( ':' ) )
     {
-        QString      remainder;
-        QString      ref = token->BeforeFirst( ':', &remainder );
+        QString      ref = token->section( ':', 0, 0 );
+        QString      remainder = token->section( ':', 1 );
         BOARD_ITEM*   refItem = GetItem( KIID( ref ) );
 
         if( refItem && refItem->Type() == PCB_FOOTPRINT_T )
@@ -1116,7 +1117,7 @@ void BOARD::Add( BOARD_ITEM* aBoardItem, ADD_MODE aMode, bool aSkipConnectivity 
 {
     if( aBoardItem == nullptr )
     {
-        qDebug() << "BOARD::Add( param error: aBoardItem nullptr"  );
+        qDebug() << "BOARD::Add( param error: aBoardItem nullptr";
         return;
     }
 
@@ -1163,8 +1164,8 @@ void BOARD::Add( BOARD_ITEM* aBoardItem, ADD_MODE aMode, bool aSkipConnectivity 
         {
             // The only current known source of these is SWIG (KICAD-BY7, et al).
             // N.B. This inserts a small memory leak as we lose the track/via/arc.
-            qDebug() << QString("BOARD::Add() Cannot place Track on non-copper layer: %1 = %2").arg(static_cast<int>( aBoardItem->GetLayer() ),
-                                          GetLayerName( aBoardItem->GetLayer() ) ) );
+            qDebug() << QString("BOARD::Add() Cannot place Track on non-copper layer: %1 = %2").arg(static_cast<int>( aBoardItem->GetLayer() ))
+                                          .arg( GetLayerName( aBoardItem->GetLayer() ) );
             return;
         }
 
@@ -1451,7 +1452,7 @@ void BOARD::RemoveAll( std::initializer_list<KICAD_T> aTypes )
             break;
 
         default:
-            qDebug() << "BOARD::RemoveAll( needs more ::Type( support" ) );
+            qDebug() << "BOARD::RemoveAll( needs more ::Type( support)";
         }
     }
 
@@ -2085,7 +2086,7 @@ int BOARD::MatchDpSuffix( const QString& aNetName, QString& aComplementNet )
 
     for( auto it = aNetName.rbegin(); it != aNetName.rend() && rv == 0; ++it, ++count )
     {
-        int ch = *it;
+        QChar ch = *it;
 
         if( ( ch >= '0' && ch <= '9' ) || ch == '_' )
         {
@@ -2184,7 +2185,12 @@ std::set<QString> BOARD::GetNetClassAssignmentCandidates() const
 void BOARD::SynchronizeProperties()
 {
     if( m_project && !m_project->IsNullProject() )
-        SetProperties( m_project->GetTextVars() );
+    {
+        std::map<QString, QString> props;
+        for( const auto& [key, value] : m_project->GetTextVars() )
+            props[QString::fromStdString(key)] = QString::fromStdString(value);
+        SetProperties( props );
+    }
 }
 
 
@@ -2688,7 +2694,7 @@ void BOARD::EmbedFonts()
 {
     for( KIFONT::OUTLINE_FONT* font : GetFonts() )
     {
-        auto file = GetEmbeddedFiles()->AddFile( font->GetFileName(), false );
+        auto file = GetEmbeddedFiles()->AddFile( QFileInfo( font->GetFileName() ), false );
         file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::FONT;
     }
 }
@@ -3182,10 +3188,10 @@ bool BOARD::operator==( const BOARD_ITEM& aItem ) const
     if( m_paper.GetPaperId() != other.m_paper.GetPaperId() )
         return false;
 
-    if( m_paper.GetOrientation() != other.m_paper.GetOrientation() )
+    if( m_paper.IsPortrait() != other.m_paper.IsPortrait() )
         return false;
 
-    for( int ii = 0; !m_titles.GetComment( ii ).empty(); ++ii )
+    for( int ii = 0; !m_titles.GetComment( ii ).isEmpty(); ++ii )
     {
         if( m_titles.GetComment( ii ) != other.m_titles.GetComment( ii ) )
             return false;

@@ -21,6 +21,7 @@
 #include <trigo.h>
 #include <i18n_utility.h>
 #include <mutex>
+#include <QtGlobal>  // For Q_ASSERT_X
 
 // #include <google/protobuf/any.pb.h>  // DISABLED FOR MINIMAL BUILD
 // #include <api/api_enums.h>  // DISABLED FOR MINIMAL BUILD
@@ -606,7 +607,7 @@ void ZONE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>&
     }
     else if( IsOnCopperLayer() )
     {
-        if( aFrame->GetName() == PCB_EDIT_FRAME_NAME )
+        if( aFrame->objectName() == PCB_EDIT_FRAME_NAME )
         {
             aList.emplace_back( _( "Net" ), UnescapeString( GetNetname() ) );
 
@@ -619,7 +620,7 @@ void ZONE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>&
                             QString::number( GetAssignedPriority() ) );
     }
 
-    if( aFrame->GetName() == PCB_EDIT_FRAME_NAME )
+    if( aFrame->objectName() == PCB_EDIT_FRAME_NAME )
     {
         if( IsLocked() )
             aList.emplace_back( _( "Status" ), _( "Locked" ) );
@@ -1417,7 +1418,7 @@ std::shared_ptr<SHAPE> ZONE::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHING aF
 void ZONE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer, int aClearance,
                                     int aError, ERROR_LOC aErrorLoc, bool aIgnoreLineWidth ) const
 {
-    Q_ASSERT_MSG( !aIgnoreLineWidth, "IgnoreLineWidth has no meaning for zones." );
+    Q_ASSERT_X( !aIgnoreLineWidth, "TransformShapeToPolygon", "IgnoreLineWidth has no meaning for zones." );
 
     if( !m_FilledPolysList.count( aLayer ) )
         return;
@@ -1632,7 +1633,7 @@ static struct ZONE_DESC
     {
         ENUM_MAP<PCB_LAYER_ID>& layerEnum = ENUM_MAP<PCB_LAYER_ID>::Instance();
 
-        if( layerEnum.Choices().GetCount() == 0 )
+        if( layerEnum.Choices().count() == 0 )
         {
             layerEnum.Undefined( UNDEFINED_LAYER );
 
@@ -1642,7 +1643,7 @@ static struct ZONE_DESC
 
         ENUM_MAP<ZONE_CONNECTION>& zcMap = ENUM_MAP<ZONE_CONNECTION>::Instance();
 
-        if( zcMap.Choices().GetCount() == 0 )
+        if( zcMap.Choices().count() == 0 )
         {
             zcMap.Undefined( ZONE_CONNECTION::INHERITED );
             zcMap.Map( ZONE_CONNECTION::INHERITED,   _HKI( "Inherited" ) )
@@ -1654,7 +1655,7 @@ static struct ZONE_DESC
 
         ENUM_MAP<ZONE_FILL_MODE>& zfmMap = ENUM_MAP<ZONE_FILL_MODE>::Instance();
 
-        if( zfmMap.Choices().GetCount() == 0 )
+        if( zfmMap.Choices().count() == 0 )
         {
             zfmMap.Undefined( ZONE_FILL_MODE::POLYGONS );
             zfmMap.Map( ZONE_FILL_MODE::POLYGONS,      _HKI( "Solid fill" ) )
@@ -1663,7 +1664,7 @@ static struct ZONE_DESC
 
         ENUM_MAP<ISLAND_REMOVAL_MODE>& irmMap = ENUM_MAP<ISLAND_REMOVAL_MODE>::Instance();
 
-        if( irmMap.Choices().GetCount() == 0 )
+        if( irmMap.Choices().count() == 0 )
         {
             irmMap.Undefined( ISLAND_REMOVAL_MODE::ALWAYS );
             irmMap.Map( ISLAND_REMOVAL_MODE::ALWAYS, _HKI( "Always" ) )
@@ -1674,7 +1675,7 @@ static struct ZONE_DESC
         ENUM_MAP<RULE_AREA_PLACEMENT_SOURCE_TYPE>& rapstMap =
                 ENUM_MAP<RULE_AREA_PLACEMENT_SOURCE_TYPE>::Instance();
 
-        if( rapstMap.Choices().GetCount() == 0 )
+        if( rapstMap.Choices().count() == 0 )
         {
             rapstMap.Undefined( RULE_AREA_PLACEMENT_SOURCE_TYPE::SHEETNAME );
             rapstMap.Map( RULE_AREA_PLACEMENT_SOURCE_TYPE::SHEETNAME,       _HKI( "Sheet Name" ) )

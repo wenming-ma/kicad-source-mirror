@@ -6,6 +6,7 @@
 #include <board_item.h>
 #include <bitmap_base.h>
 #include <reference_image.h>
+#include <i18n_utility.h>
 
 
 /**

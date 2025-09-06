@@ -356,7 +356,7 @@ void PCB_TEXTBOX::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL
     // Don't use GetShownText() here; we want to show the user the variable references
     aList.emplace_back( _( "Text Box" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
 
-    if( aFrame->GetName() == PCB_EDIT_FRAME_NAME && IsLocked() )
+    if( aFrame->objectName() == PCB_EDIT_FRAME_NAME && IsLocked() )
         aList.emplace_back( _( "Status" ), _( "Locked" ) );
 
     aList.emplace_back( _( "Layer" ), GetLayerName() );
@@ -670,7 +670,7 @@ static struct PCB_TEXTBOX_DESC
     {
         ENUM_MAP<LINE_STYLE>& lineStyleEnum = ENUM_MAP<LINE_STYLE>::Instance();
 
-        if( lineStyleEnum.Choices().GetCount() == 0 )
+        if( lineStyleEnum.Choices().count() == 0 )
         {
             lineStyleEnum.Map( LINE_STYLE::SOLID, _HKI( "Solid" ) )
                          .Map( LINE_STYLE::DASH, _HKI( "Dashed" ) )

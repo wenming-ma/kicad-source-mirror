@@ -24,8 +24,12 @@ public:
         if( !contains( aKey ) )
             return false;
 
-        aVar = at( aKey ).value<T>();
-        return at( aKey ).canConvert<T>();
+        const QVariant& value = at( aKey );
+        if( !value.canConvert<T>() )
+            return false;
+        
+        aVar = value.value<T>();
+        return true;
     }
 
     template <typename T>
@@ -62,13 +66,15 @@ public:
     template <typename T>
     void set( const std::string& aKey, const T& aVar )
     {
-        emplace( aKey, aVar );
+        // Explicitly construct QVariant from the value
+        (*this)[aKey] = QVariant::fromValue( aVar );
     }
 
     template <typename T>
     void set_iu( const std::string& aKey, const T& aVar)
     {
-        emplace( aKey, aVar / m_iuScale );
+        // Explicitly construct QVariant from the scaled value
+        (*this)[aKey] = QVariant::fromValue( aVar / m_iuScale );
     }
 
     bool contains( const std::string& aKey ) const
@@ -81,14 +87,12 @@ public:
     {
         if( contains( aKey ) )
         {
-            T val;
-
-            if( !at( aKey ).canConvert<T>() )
+            const QVariant& value = at( aKey );
+            
+            if( !value.canConvert<T>() )
                 return std::nullopt;
 
-            val = at( aKey ).value<T>();
-
-            return val;
+            return value.value<T>();
         }
 
         return std::nullopt;

@@ -368,7 +368,7 @@ static struct BOARD_ITEM_DESC
     {
         ENUM_MAP<PCB_LAYER_ID>& layerEnum = ENUM_MAP<PCB_LAYER_ID>::Instance();
 
-        if( layerEnum.Choices().GetCount() == 0 )
+        if( layerEnum.Choices().size() == 0 )
         {
             layerEnum.Undefined( UNDEFINED_LAYER );
 

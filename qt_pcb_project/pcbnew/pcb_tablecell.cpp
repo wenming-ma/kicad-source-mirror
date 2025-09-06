@@ -115,7 +115,7 @@ void PCB_TABLECELL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PAN
     // Don't use GetShownText() here; we want to show the user the variable references
     aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
 
-    if( aFrame->GetName() == PCB_EDIT_FRAME_NAME && IsLocked() )
+    if( aFrame->objectName() == PCB_EDIT_FRAME_NAME && IsLocked() )
         aList.emplace_back( _( "Status" ), _( "Locked" ) );
 
     aList.emplace_back( _( "Layer" ), GetLayerName() );

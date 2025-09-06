@@ -29,6 +29,7 @@ set( CMAKE_CXX_STANDARD_REQUIRED ON )
 # Windows specific settings
 if( WIN32 )
     add_compile_definitions( WIN32_LEAN_AND_MEAN )
+    add_compile_definitions( NOMINMAX )
     add_compile_definitions( WXSTATIC )
     add_compile_definitions( wxUSE_DLL=0 )
     add_compile_definitions( __WXMSW__ )
@@ -130,8 +131,8 @@ set( CMAKE_AUTOUIC ON )
 add_subdirectory( thirdparty )
 add_subdirectory( libs )
 add_subdirectory( common )
-# add_subdirectory( pcbnew )  # Disabled until common is fully working
-# add_subdirectory( test )     # Disabled until common is fully working
+add_subdirectory( pcbnew ) 
+add_subdirectory( test )  
 
 # Create simple main executable for minimal build testing
 add_executable( qt_pcb_project
@@ -141,8 +142,7 @@ add_executable( qt_pcb_project
 target_link_libraries( qt_pcb_project
     # Core libraries
     common
-    # pcbnew  # Disabled until common is fully working
-    
+    pcbnew 
     # wxWidgets libraries (for compatibility)
     ${wxWidgets_LIBRARIES}
     
