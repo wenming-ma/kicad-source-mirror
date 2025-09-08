@@ -1,9 +1,7 @@
 # Common library for minimum PCB set
 
-# Generated files from qt_pcb_project generated directory
 set( KICAD_GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../generated" )
 set( COMMON_GENERATED_SRCS
-    # ${KICAD_GENERATED_DIR}/api/cpp/api/common/envelope.pb.cc  # DISABLED FOR MINIMAL BUILD
     ${KICAD_GENERATED_DIR}/common/drc_rules_keywords.cpp
     ${KICAD_GENERATED_DIR}/common/embedded_files_keywords.cpp
     ${KICAD_GENERATED_DIR}/common/lib_table_keywords.cpp
@@ -12,13 +10,13 @@ set( COMMON_GENERATED_SRCS
     ${KICAD_GENERATED_DIR}/common/pcb_plot_params_keywords.cpp
     ${KICAD_GENERATED_DIR}/common/stroke_params_keywords.cpp
     ${KICAD_GENERATED_DIR}/common/drawing_sheet/drawing_sheet_keywords.cpp
+    ${KICAD_GENERATED_DIR}/common/template_fieldnames_keywords.cpp
+
 )
 
 # Headers that need MOC processing (contain Q_OBJECT macro)
 set( MOC_HEADERS
     ../include/rc_item.h
-    # ../include/dialogs/dialog_migrate_settings.h
-    # dialogs/dialog_migrate_settings_base.h
     ../include/widgets/wx_splash.h
     ../include/widgets/std_bitmap_button.h
     ../include/widgets/bitmap_button.h
@@ -50,8 +48,6 @@ add_library( common STATIC
     design_block_io.cpp
     design_block_lib_table.cpp
     dialog_shim.cpp
-    # dialogs/dialog_migrate_settings_base.cpp
-    # dialogs/dialog_migrate_settings.cpp
     dpi_scaling.cpp
     dpi_scaling_common.cpp
     dsnlexer.cpp
@@ -226,7 +222,6 @@ add_library( common STATIC
     
     # Generated files
     ${COMMON_GENERATED_SRCS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../generated/common/template_fieldnames_keywords.cpp
     
     # MOC generated files
     ${MOC_SOURCES}
@@ -235,8 +230,6 @@ add_library( common STATIC
 target_include_directories( common PUBLIC
     .
     ../include
-    # ../generated/api/cpp  # DISABLED FOR MINIMAL BUILD
-    # ../generated/api/cpp/api  # DISABLED FOR MINIMAL BUILD
     ../scripting
     ../thirdparty/magic_enum
     ${wxWidgets_INCLUDE_DIRS}

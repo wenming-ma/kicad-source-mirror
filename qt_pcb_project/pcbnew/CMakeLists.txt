@@ -5,8 +5,6 @@ add_compile_definitions( PCBNEW )
 # Add router subdirectory first
 add_subdirectory(router)
 
-# pnsrouter depends on make_lexer outputs in common (bug #1285878 )
-# Note: In qt_pcb_project, we use 'common' instead of 'pcbcommon'
 add_dependencies( pnsrouter common )
 
 add_library( pcbnew STATIC
@@ -96,7 +94,7 @@ target_link_libraries( pcbnew PUBLIC
     kiplatform
     delaunator
     other_math
-    pnsrouter  # Add router library dependency
+    pnsrouter
     ${wxWidgets_LIBRARIES}
     ${Boost_LIBRARIES}
 )
