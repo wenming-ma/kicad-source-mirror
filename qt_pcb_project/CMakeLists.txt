@@ -65,7 +65,7 @@ if( Qt6_ROOT )
 endif()
 
 # Use vcpkg installed packages
-list( APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows" )
+list( APPEND CMAKE_PREFIX_PATH "${VCPKG_ROOT}/x64-windows" )
 
 # Enable KICAD API support - DISABLED FOR MINIMAL BUILD
 # add_compile_definitions( KICAD_IPC_API )
