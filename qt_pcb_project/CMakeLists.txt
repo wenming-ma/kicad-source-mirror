@@ -156,3 +156,23 @@ target_link_libraries( qt_pcb_project
     Qt6::Svg
     Qt6::Network
 )
+
+# Windows-specific Qt deployment
+if( WIN32 AND Qt6_FOUND )
+    # Use windeployqt for automatic deployment with --force-debug-info flag
+    add_custom_command( TARGET qt_pcb_project POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E env PATH="${Qt6_ROOT}/bin" 
+        ${Qt6_ROOT}/bin/windeployqt.exe 
+        --debug
+        --force
+        --no-compiler-runtime
+        --no-translations
+        --no-system-d3d-compiler
+        --no-opengl-sw
+        --dir $<TARGET_FILE_DIR:qt_pcb_project>
+        $<TARGET_FILE:qt_pcb_project>
+        COMMENT "Deploying Qt dependencies..."
+    )
+    
+    message( STATUS "Qt deployment configured: windeployqt will copy required DLLs after build" )
+endif()
