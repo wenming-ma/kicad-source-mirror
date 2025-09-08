@@ -9,7 +9,7 @@
 
 #include <build_version.h>
 #include <confirm.h>
-#include <dialogs/dialog_migrate_settings.h>
+// #include <dialogs/dialog_migrate_settings.h>
 #include <gestfich.h>
 #include <kiplatform/environment.h>
 #include <kiplatform/io.h>
