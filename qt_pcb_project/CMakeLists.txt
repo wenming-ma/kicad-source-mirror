@@ -30,9 +30,9 @@ set( CMAKE_CXX_STANDARD_REQUIRED ON )
 if( WIN32 )
     add_compile_definitions( WIN32_LEAN_AND_MEAN )
     add_compile_definitions( NOMINMAX )
-    add_compile_definitions( WXSTATIC )
-    add_compile_definitions( wxUSE_DLL=0 )
-    add_compile_definitions( __WXMSW__ )
+    # add_compile_definitions( WXSTATIC )
+    # add_compile_definitions( wxUSE_DLL=0 )
+    # add_compile_definitions( __WXMSW__ )
     # Add UTF-8 support for fmt library and Unicode
     if( MSVC )
         add_compile_options( /utf-8 )
@@ -74,8 +74,8 @@ list( APPEND CMAKE_PREFIX_PATH "${VCPKG_ROOT}/x64-windows" )
 find_package( PkgConfig QUIET )
 
 # Find wxWidgets - keeping for compatibility during transformation (OPTIONAL for now)
-set( wxWidgets_USE_STATIC ON )
-find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc )
+# set( wxWidgets_USE_STATIC ON )
+# find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc )
 find_package( Qt6 QUIET COMPONENTS Core Widgets Gui OpenGL PrintSupport Xml Svg Network )
 find_package( Boost REQUIRED )
 find_package( glm REQUIRED )
@@ -105,7 +105,7 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/fmt/include
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/magic_enum/magic_enum
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/expected/include
-    ${wxWidgets_INCLUDE_DIRS}
+    # ${wxWidgets_INCLUDE_DIRS}
     # Qt6 include directories - add module-specific paths for direct includes
     ${Qt6_ROOT}/include
     ${Qt6_ROOT}/include/QtCore
@@ -120,7 +120,7 @@ include_directories( BEFORE
 )
 
 # Add wxWidgets compile definitions globally
-add_compile_definitions( ${wxWidgets_DEFINITIONS} )
+# add_compile_definitions( ${wxWidgets_DEFINITIONS} )
 
 # Enable Qt automoc for automatic meta-object compilation
 set( CMAKE_AUTOMOC ON )
@@ -128,7 +128,7 @@ set( CMAKE_AUTORCC ON )
 set( CMAKE_AUTOUIC ON )
 
 # Add subdirectories - only common for now
-add_subdirectory( thirdparty )
+add_subdirectory( thirdparty ) 
 add_subdirectory( libs )
 add_subdirectory( common )
 add_subdirectory( pcbnew ) 
@@ -144,7 +144,7 @@ target_link_libraries( qt_pcb_project
     common
     pcbnew 
     # wxWidgets libraries (for compatibility)
-    ${wxWidgets_LIBRARIES}
+    # ${wxWidgets_LIBRARIES}
     
     # Qt libraries
     Qt6::Core
