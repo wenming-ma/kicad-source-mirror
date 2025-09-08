@@ -17,8 +17,8 @@ set( COMMON_GENERATED_SRCS
 # Headers that need MOC processing (contain Q_OBJECT macro)
 set( MOC_HEADERS
     ../include/rc_item.h
-    ../include/dialogs/dialog_migrate_settings.h
-    dialogs/dialog_migrate_settings_base.h
+    # ../include/dialogs/dialog_migrate_settings.h
+    # dialogs/dialog_migrate_settings_base.h
     ../include/widgets/wx_splash.h
     ../include/widgets/std_bitmap_button.h
     ../include/widgets/bitmap_button.h
@@ -50,8 +50,8 @@ add_library( common STATIC
     design_block_io.cpp
     design_block_lib_table.cpp
     dialog_shim.cpp
-    dialogs/dialog_migrate_settings_base.cpp
-    dialogs/dialog_migrate_settings.cpp
+    # dialogs/dialog_migrate_settings_base.cpp
+    # dialogs/dialog_migrate_settings.cpp
     dpi_scaling.cpp
     dpi_scaling_common.cpp
     dsnlexer.cpp
