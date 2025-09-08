@@ -17,7 +17,7 @@
         "KICAD_BUILD_I18N": "OFF",
         "KICAD_SCRIPTING_WXPYTHON": "OFF",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "VCPKG_INSTALLED_DIR": "$env{VCPKG_ROOT}/installed"
+        "VCPKG_INSTALLED_DIR": "$env{VCPKG_ROOT}"
       }
     },
     {
