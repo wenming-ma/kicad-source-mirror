@@ -13,8 +13,9 @@
 #include <tool/common_control.h>
 #include <id.h>
 #include <kiface_base.h>
-#include <dialogs/dialog_configure_paths.h>
+// #include <dialogs/dialog_configure_paths.h>
 #include <eda_doc.h>
+#include <i18n_utility.h>
 #include <QMessageBox>
 #include <QDesktopServices>
 #include <QUrl>
@@ -59,9 +60,9 @@ int COMMON_CONTROL::ConfigurePaths( const TOOL_EVENT& aEvent )
     }
     else
     {
-        DIALOG_CONFIGURE_PATHS dlg( m_frame );
-        if( dlg.exec() == QDialog::Accepted )
-            m_frame->Kiway().CommonSettingsChanged( ENVVARS_CHANGED );
+        // DIALOG_CONFIGURE_PATHS dlg( m_frame );
+        // if( dlg.exec() == QDialog::Accepted )
+        //     m_frame->Kiway().CommonSettingsChanged( ENVVARS_CHANGED );
     }
 
     return 0;

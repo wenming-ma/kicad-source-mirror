@@ -9,7 +9,7 @@
 #include <paths.h>
 
 #include <tool/tool_manager.h>
-#include "dialogs/dialog_hotkey_list.h"
+// #include "dialogs/dialog_hotkey_list.h"
 #include <QString>
 #include <QChar>
 #include <QStringList>
@@ -281,8 +281,8 @@ int KeyCodeFromKeyName( const QString& keyname )
 
 void DisplayHotkeyList( EDA_BASE_FRAME* aParent )
 {
-    DIALOG_LIST_HOTKEYS dlg( aParent );
-    dlg.ShowModal();
+    // DIALOG_LIST_HOTKEYS dlg( aParent );
+    // dlg.ShowModal();
 }
 
 

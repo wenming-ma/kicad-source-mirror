@@ -4,7 +4,7 @@
 #include <core/arraydim.h>
 #include <geometry/shape_line_chain.h>
 #include <render_settings.h>
-#include "dialogs/dialog_display_html_text_base.h"
+// #include "dialogs/dialog_display_html_text_base.h"
 
 
 /**
