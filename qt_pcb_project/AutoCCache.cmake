@@ -1,5 +1,10 @@
 # AutoCCache.cmake - Automatic ccache detection and setup
 
+# Prevent multiple configurations
+if(DEFINED CCACHE_CONFIGURED)
+    return()
+endif()
+
 find_program(CCACHE_PROGRAM ccache)
 
 if(CCACHE_PROGRAM)
@@ -28,7 +33,7 @@ if(CCACHE_PROGRAM)
             set(ENV{CCACHE_DIR} "${CMAKE_BINARY_DIR}/.ccache")
         endif()
         set(ENV{CCACHE_MAXSIZE} "5G")
-        set(ENV{CCACHE_SLOPPINESS} "pch_defines,time_macros,include_file_mtime,include_file_ctime")
+        set(ENV{CCACHE_SLOPPINESS} "pch_defines,time_macros")
     endif()
     
     # Show ccache stats
@@ -41,6 +46,10 @@ if(CCACHE_PROGRAM)
     message(STATUS "ccache stats:")
     message(STATUS "${CCACHE_STATS}")
     
+    # Mark as configured to prevent re-execution
+    set(CCACHE_CONFIGURED TRUE CACHE INTERNAL "ccache has been configured")
+    
 else()
     message(STATUS "ccache not found - compilation will proceed without caching")
+    set(CCACHE_CONFIGURED FALSE CACHE INTERNAL "ccache configuration attempted")
 endif()

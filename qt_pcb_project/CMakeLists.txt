@@ -5,6 +5,11 @@ cmake_minimum_required( VERSION 3.22 FATAL_ERROR )
 # Set CMake policies to avoid warnings
 cmake_policy(SET CMP0167 NEW)  # Use find_package for Boost instead of FindBoost
 
+# Enable CMAKE_MSVC_DEBUG_INFORMATION_FORMAT to override the cmake pdb flags easily
+if (POLICY CMP0141)
+  cmake_policy(SET CMP0141 NEW)
+endif (POLICY CMP0141)
+
 # Default to CMAKE_BUILD_TYPE = Release unless overridden on command line
 if( DEFINED CMAKE_BUILD_TYPE )
     set( CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING "Set to either \"Release\" or \"Debug\"" )
@@ -14,11 +19,25 @@ endif()
 
 project( qt_pcb_project )
 
+# Auto-detect and configure ccache if available
+include( ${CMAKE_CURRENT_SOURCE_DIR}/AutoCCache.cmake )
+
 # Output compile_commands.json for various LSP and other users
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 
-# Include ccache configuration
-include( ${CMAKE_CURRENT_SOURCE_DIR}/AutoCCache.cmake )
+# MSVC debug information format settings for ccache compatibility
+if( MSVC )
+    # cmake 3.25 or higher required for MSVC, should be fine
+    if( CMAKE_C_COMPILER_LAUNCHER OR CMAKE_CXX_COMPILER_LAUNCHER )
+        # Equivalent to /Z7, ensures cmake doesn't fight over the default
+        # ccache may encounter external PDB file write errors due to parallelism
+        # Using the embedded PDB mode is ok for development use of ccache
+        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "Embedded")
+    else()
+        # Equivalent to /Zi, ensures cmake doesn't fight over the default
+        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "ProgramDatabase")
+    endif()
+endif()
 
 include( GNUInstallDirs )
 
