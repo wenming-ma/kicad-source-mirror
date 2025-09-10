@@ -12,11 +12,10 @@ import pandas as pd
 # Configuration: File paths and build settings
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = ROOT / "scripts"
-BUILD_DIR = ROOT / "build" / "x64-Debug"  # Build directory path setting
 TU_INDEX_FILE = SCRIPTS_DIR / "tu_index.json"
-MINSET_SOURCES_FILE = SCRIPTS_DIR / "pns_sources.json"
+MINSET_SOURCES_FILE = SCRIPTS_DIR / "sch_sources.json"
 RESOLVE_SCRIPT = SCRIPTS_DIR / "30_resolve_minset.py"
-OUTPUT_EXCEL = ROOT / "pns_file_dependencies.xlsx"
+OUTPUT_EXCEL = ROOT / "sch_file_dependencies.xlsx"
 
 
 def load_minset_sources():
@@ -91,10 +90,10 @@ def run_resolve_minset_for_file(target_file):
         )
 
         if result.returncode == 0:
-            # Read the generated minset_sources.json
-            build_output = BUILD_DIR / "minset_sources.json"
-            if build_output.exists():
-                with open(build_output, "r", encoding="utf-8") as f:
+            # Read the generated minset_sources.json from tem directory
+            tem_output = SCRIPTS_DIR / "tem" / "minset_sources.json"
+            if tem_output.exists():
+                with open(tem_output, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     dependencies = data.get("sources", [])
             else:

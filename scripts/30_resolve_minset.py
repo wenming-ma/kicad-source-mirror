@@ -3,11 +3,10 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD = ROOT / r"build\x64-Debug"
-INDEX = BUILD / "tu_index.json"
-SEEDS = ROOT / r"scripts\seeds-pns.txt"
-OUT = BUILD / "minset_sources.json"
-UNRES = BUILD / "unresolved_symbols.json"
+INDEX = ROOT / r"scripts\tu_index.json"
+SEEDS = ROOT / r"scripts\seeds-sch.txt"
+OUT = ROOT / r"scripts\tem\minset_sources.json"
+UNRES = ROOT / r"scripts\tem\unresolved_symbols.json"
 
 # 扩展的外部库符号前缀，避免把系统/三方库当"缺失"
 EXTERNAL_HINTS = [
@@ -216,6 +215,9 @@ def main():
         provided |= d
         required |= u
     unresolved = sorted(required - provided)
+
+    # Ensure output directory exists
+    OUT.parent.mkdir(parents=True, exist_ok=True)
 
     OUT.write_text(json.dumps({"sources": sorted(S)}, indent=2), encoding="utf-8")
     UNRES.write_text(

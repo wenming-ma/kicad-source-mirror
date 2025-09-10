@@ -4,8 +4,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = ROOT / "scripts"
-SEEDS_FILE = SCRIPTS_DIR / "seeds.txt"
-OUTPUT_JSON = SCRIPTS_DIR / "pns_sources.json"
+SEEDS_FILE = SCRIPTS_DIR / "seeds-sch.txt"
+OUTPUT_JSON = SCRIPTS_DIR / "sch_sources.json"
 
 
 def convert_seeds_to_json():
