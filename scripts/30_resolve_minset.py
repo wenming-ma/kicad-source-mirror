@@ -237,7 +237,8 @@ def create_excel_report(iteration_reports):
         cell.font = header_font
         cell.fill = header_fill
     
-    detail_sheet_counter = 0
+    # First pass: Create all iteration sheets at the front
+    detail_sheets_to_create = []  # Store detail sheet info for later creation
     
     for iter_num, report in enumerate(iteration_reports, 1):
         # Create iteration sheet
@@ -260,51 +261,21 @@ def create_excel_report(iteration_reports):
             iter_ws.cell(row=row_num, column=1, value=file_name)
             
             if introduced_count > 0:
-                # Create detail sheet for this file
-                detail_sheet_counter += 1
-                detail_sheet_name = f"Detail_{iter_num}_{detail_sheet_counter}"
+                # Store detail sheet info for later creation
+                detail_sheet_name = f"Detail_{iter_num}_{row_num}"
+                detail_sheets_to_create.append({
+                    'sheet_name': detail_sheet_name,
+                    'file_name': file_name,
+                    'iter_num': iter_num,
+                    'iter_sheet_name': iter_sheet_name,
+                    'row_num': row_num,
+                    'introduced_files': info["introduced_files"]
+                })
                 
                 # Create hyperlink in count cell
                 count_cell = iter_ws.cell(row=row_num, column=2, value=introduced_count)
                 count_cell.hyperlink = f"#'{detail_sheet_name}'!A1"
                 count_cell.font = link_font
-                
-                # Create detail sheet
-                detail_ws = wb.create_sheet(detail_sheet_name)
-                detail_ws.append([f"Files introduced by {file_name} in Iteration {iter_num}"])
-                detail_ws["A1"].font = Font(bold=True, size=12)
-                detail_ws.merge_cells("A1:C1")
-                
-                detail_ws.append(["Introduced File", "Symbol", "Type"])
-                for cell in detail_ws[2]:
-                    cell.font = header_font
-                    cell.fill = header_fill
-                
-                for introduced_file, symbol in info["introduced_files"]:
-                    detail_ws.append([
-                        Path(introduced_file).name,
-                        symbol[:100],  # Truncate long symbols
-                        "Required Symbol"
-                    ])
-                
-                # Add back link
-                detail_ws.append([])
-                back_cell = detail_ws.cell(row=detail_ws.max_row+1, column=1, value="<< Back to iteration sheet")
-                back_cell.hyperlink = f"#'{iter_sheet_name}'!A{row_num}"
-                back_cell.font = link_font
-                
-                # Auto-adjust column widths
-                for column in detail_ws.columns:
-                    max_length = 0
-                    column = [cell for cell in column]
-                    for cell in column:
-                        try:
-                            if len(str(cell.value)) > max_length:
-                                max_length = len(str(cell.value))
-                        except:
-                            pass
-                    adjusted_width = min(max_length + 2, 100)
-                    detail_ws.column_dimensions[get_column_letter(column[0].column)].width = adjusted_width
             else:
                 iter_ws.cell(row=row_num, column=2, value=0)
             
@@ -332,6 +303,44 @@ def create_excel_report(iteration_reports):
             report["final_files"],
             report["missing_symbols"]
         ])
+    
+    # Second pass: Create all detail sheets at the end
+    for detail_info in detail_sheets_to_create:
+        detail_ws = wb.create_sheet(detail_info['sheet_name'])
+        detail_ws.append([f"Files introduced by {detail_info['file_name']} in Iteration {detail_info['iter_num']}"])
+        detail_ws["A1"].font = Font(bold=True, size=12)
+        detail_ws.merge_cells("A1:C1")
+        
+        detail_ws.append(["Introduced File", "Symbol", "Type"])
+        for cell in detail_ws[2]:
+            cell.font = header_font
+            cell.fill = header_fill
+        
+        for introduced_file, symbol in detail_info['introduced_files']:
+            detail_ws.append([
+                Path(introduced_file).name,
+                symbol[:100],  # Truncate long symbols
+                "Required Symbol"
+            ])
+        
+        # Add back link
+        detail_ws.append([])
+        back_cell = detail_ws.cell(row=detail_ws.max_row+1, column=1, value="<< Back to iteration sheet")
+        back_cell.hyperlink = f"#'{detail_info['iter_sheet_name']}'!A{detail_info['row_num']}"
+        back_cell.font = link_font
+        
+        # Auto-adjust column widths
+        for column in detail_ws.columns:
+            max_length = 0
+            column = [cell for cell in column]
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 100)
+            detail_ws.column_dimensions[get_column_letter(column[0].column)].width = adjusted_width
     
     # Auto-adjust summary sheet columns
     for column in summary_ws.columns:
