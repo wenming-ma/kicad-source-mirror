@@ -32,6 +32,7 @@
 #include <geometry/shape_segment.h>
 #include <padstack.h>
 #include <convert_basic_shapes_to_polygon.h>
+// Note: We don't include pgm_base.h to avoid dependency issues
 
 // Simple QCoreApplication wrapper for minimal initialization
 class PCB_TEST_APP
@@ -43,25 +44,11 @@ public:
     }
 };
 
-// Simple PGM implementation
-class PCB_TEST_PGM : public PGM_BASE
+// Simple PGM implementation - we don't need PGM_BASE for this test
+class PCB_TEST_PGM
 {
 public:
-    // Required abstract method
-    void MacOpenFile( const QString& aFileName ) override {}
-    
-    // Override virtual methods with correct signatures
-    const QString& GetKicadEnvVariable() const override 
-    { 
-        static QString dummy;
-        return dummy; 
-    }
-    
-    const QString& GetExecutablePath() const override 
-    { 
-        static QString dummy;
-        return dummy; 
-    }
+    PCB_TEST_PGM() {}
 };
 
 // Helper function to print BOARD statistics
