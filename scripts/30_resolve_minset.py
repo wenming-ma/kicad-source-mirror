@@ -152,18 +152,44 @@ def is_external(sym):
 
 def main():
     idx_all = json.loads(INDEX.read_text(encoding="utf-8"))["items"]
-    per = {it["src"]: (set(it["defined"]), set(it["undefined"])) for it in idx_all}
+    
+    # Build mapping using Path suffix matching
+    per = {}
     providers = {}
+    
     for it in idx_all:
+        abs_path = Path(it["src"])
+        per[abs_path] = (set(it["defined"]), set(it["undefined"]))
+        
         for s in it["defined"]:
-            providers.setdefault(s, set()).add(it["src"])
+            providers.setdefault(s, set()).add(abs_path)
 
-    seeds = {
-        str((ROOT / s.strip()).resolve())
-        for s in SEEDS.read_text(encoding="utf-8").splitlines()
-        if s.strip() and not s.strip().startswith("#")
-    }
-    S = {s for s in seeds if s in per}
+    # Load seed paths and convert to Path objects
+    seeds = []
+    for s in SEEDS.read_text(encoding="utf-8").splitlines():
+        if s.strip() and not s.strip().startswith("#"):
+            seeds.append(Path(s.strip()))
+    
+    # Find matching seeds using Path suffix matching
+    S = set()
+    for seed in seeds:
+        for abs_path in per.keys():
+            # Check if the absolute path ends with the seed path
+            if abs_path.match(f"*/{seed}") or abs_path.match(f"*\\{seed}"):
+                S.add(abs_path)
+                break
+            # Also try direct suffix check
+            try:
+                if abs_path.relative_to(abs_path.anchor).match(str(seed).replace('\\', '/')):
+                    S.add(abs_path)
+                    break
+            except ValueError:
+                pass
+            # Fallback: check if parts match
+            if len(seed.parts) <= len(abs_path.parts):
+                if abs_path.parts[-len(seed.parts):] == seed.parts:
+                    S.add(abs_path)
+                    break
     print(f"Initial seed files: {len(S)} files")
 
     iteration = 0
@@ -219,7 +245,7 @@ def main():
     # Ensure output directory exists
     OUT.parent.mkdir(parents=True, exist_ok=True)
 
-    OUT.write_text(json.dumps({"sources": sorted(S)}, indent=2), encoding="utf-8")
+    OUT.write_text(json.dumps({"sources": sorted(str(s) for s in S)}, indent=2), encoding="utf-8")
     UNRES.write_text(
         json.dumps({"unresolved_symbols": unresolved}, indent=2), encoding="utf-8"
     )
