@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / r"scripts\tu_index.json"
-SEEDS = ROOT / r"scripts\seeds-sch.txt"
+SEEDS = ROOT / r"scripts\seeds.txt"
 OUT = ROOT / r"scripts\tem\minset_sources.json"
 UNRES = ROOT / r"scripts\tem\unresolved_symbols.json"
 
