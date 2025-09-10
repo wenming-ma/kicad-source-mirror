@@ -2758,6 +2758,7 @@
     "PKEY_AppUserModel_RelaunchCommand",
     "PKEY_AppUserModel_RelaunchDisplayNameResource",
     "WinVerifyTrust",
+    "_Avx2WmemEnabled",
     "_Cnd_broadcast",
     "_Cnd_do_broadcast_at_thread_exit",
     "_Cnd_register_at_thread_exit",
@@ -3971,6 +3972,7 @@
     "__imp_?Find@wxString@@QEBAHAEBV1@@Z",
     "__imp_?Find@wxString@@QEBAHD_N@Z",
     "__imp_?Find@wxString@@QEBAHPEBD@Z",
+    "__imp_?Find@wxString@@QEBAHPEB_W@Z",
     "__imp_?Find@wxString@@QEBAHVwxUniChar@@_N@Z",
     "__imp_?Find@wxString@@QEBAHVwxUniCharRef@@_N@Z",
     "__imp_?Find@wxString@@QEBAH_W_N@Z",
@@ -6495,8 +6497,8 @@
     "__imp__get_osfhandle",
     "__imp__get_stream_buffer_pointers",
     "__imp__get_timezone",
-    "__imp__invalid_parameter",
     "__imp__invalid_parameter_noinfo",
+    "__imp__invoke_watson",
     "__imp__isatty",
     "__imp__ldtest",
     "__imp__localtime64_s",
@@ -6591,7 +6593,7 @@
     "__std_exception_copy",
     "__std_exception_destroy",
     "__std_find_end_1",
-    "__std_find_first_of_trivial_1",
+    "__std_find_first_of_trivial_pos_1",
     "__std_find_last_trivial_1",
     "__std_find_trivial_1",
     "__std_find_trivial_4",
@@ -6663,6 +6665,7 @@
     "strchr",
     "strcmp",
     "strlen",
-    "tan"
+    "tan",
+    "wcslen"
   ]
 }
