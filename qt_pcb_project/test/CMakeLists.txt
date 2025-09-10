@@ -54,3 +54,49 @@ add_custom_target(run_pcb_test
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Running PCB parser test"
 )
+
+# Test executable for PCB renderer
+add_executable(test_pcb_renderer
+    test_pcb_renderer.cpp
+)
+
+# Include directories
+target_include_directories(test_pcb_renderer PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/pcbnew
+    ${CMAKE_SOURCE_DIR}/common
+    ${CMAKE_SOURCE_DIR}/libs
+    ${CMAKE_SOURCE_DIR}/generated
+    ${CMAKE_BINARY_DIR}/generated
+)
+
+# Link required libraries
+target_link_libraries(test_pcb_renderer
+    pcbnew
+    common
+    kimath
+    sexpr
+    Qt6::Core
+    Qt6::Widgets
+    ${Boost_LIBRARIES}
+)
+
+# Compiler flags
+target_compile_definitions(test_pcb_renderer PRIVATE
+    QT_NO_KEYWORDS
+    _UNICODE
+    UNICODE
+)
+
+# Set output directory
+set_target_properties(test_pcb_renderer PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+# Add custom target to run renderer
+add_custom_target(run_pcb_renderer
+    COMMAND test_pcb_renderer
+    DEPENDS test_pcb_renderer
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Running PCB renderer test"
+)
