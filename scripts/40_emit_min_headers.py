@@ -4,10 +4,9 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD = ROOT / r"build\x64-Debug"
-INDEX = BUILD / "tu_index.json"
-MINSR = BUILD / "minset_sources.json"
-OUT = BUILD / "minset_headers.json"
+INDEX = ROOT / r"scripts\tu_index.json"
+MINSR = ROOT / r"scripts\tem\minset_sources.json"
+OUT = ROOT / r"scripts\tem\minset_headers.json"
 
 
 def is_project_header(header_path, project_root):
@@ -45,6 +44,9 @@ def main():
                 if is_project_header(h, ROOT):
                     filtered_headers.add(h)
 
+    # Ensure output directory exists
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    
     OUT.write_text(
         json.dumps({"headers": sorted(filtered_headers)}, indent=2), encoding="utf-8"
     )
