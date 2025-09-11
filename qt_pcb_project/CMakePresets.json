@@ -6,9 +6,9 @@
       "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build",
-      "environment": {
-        "VCPKG_ROOT": "D:\\Tools\\vcpkg"
-      },
+        "environment": {
+            "VCPKG_ROOT": "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\qt_pcb_project\\vcpkg_installed"
+        },
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "condition": {
         "type": "equals",
@@ -20,7 +20,7 @@
         "KICAD_BUILD_I18N": "OFF",
         "KICAD_SCRIPTING_WXPYTHON": "OFF",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "VCPKG_INSTALLED_DIR": "$env{VCPKG_ROOT}/installed"
+        "VCPKG_INSTALLED_DIR": "$env{VCPKG_ROOT}"
       }
     },
     {
