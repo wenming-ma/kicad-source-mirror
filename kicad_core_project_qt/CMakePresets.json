@@ -7,7 +7,7 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build",
         "environment": {
-            "VCPKG_ROOT": "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror-sch-core-data\\qt_sch_project\\vcpkg_installed"
+            "VCPKG_ROOT": "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\kicad_core_project_qt\\vcpkg_installed"
         },
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "condition": {
