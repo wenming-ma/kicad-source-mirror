@@ -466,7 +466,7 @@ bool PCB_TEXTBOX::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) 
 
 QString PCB_TEXTBOX::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return QString( _( "PCB Text Box '%s' on %s" ) ).arg(
+    return QString( _( "PCB Text Box '%1' on %2" ) ).arg(
                              aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) ).arg(
                              GetLayerName() );
 }

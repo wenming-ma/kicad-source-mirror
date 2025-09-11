@@ -1410,9 +1410,9 @@ void PAD::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& 
 
     if( !source.isEmpty() )
     {
-        aList.emplace_back( QString( _( "Min Clearance: %s" ) ).arg(
+        aList.emplace_back( QString( _( "Min Clearance: %1" ) ).arg(
                                               aFrame->MessageTextFromValue( clearance ) ),
-                            QString( _( "(from %s)" ) ).arg(
+                            QString( _( "(from %1)" ) ).arg(
                                               source ) );
     }
 #if 0
@@ -1588,7 +1588,7 @@ QString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) co
     if( GetAttribute() == PAD_ATTRIB::NPTH )
     {
         if( parentFP )
-            return QString( _( "NPTH pad of %s" ) ).arg( parentFP->GetReference() );
+            return QString( _( "NPTH pad of %1" ) ).arg( parentFP->GetReference() );
         else
             return _( "NPTH pad" );
     }
@@ -1598,14 +1598,14 @@ QString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) co
         {
             if( parentFP )
             {
-                return QString( _( "Pad %s of %s on %s" ) )
+                return QString( _( "Pad %1 of %2 on %3" ) )
                                          .arg( GetNetnameMsg() )
                                          .arg( parentFP->GetReference() )
                                          .arg( layerMaskDescribe() );
             }
             else
             {
-                return QString( _( "Pad on %s" ) )
+                return QString( _( "Pad on %1" ) )
                                          .arg( layerMaskDescribe() );
             }
         }
@@ -1613,7 +1613,7 @@ QString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) co
         {
             if( parentFP )
             {
-                return QString( _( "PTH pad %s of %s" ) )
+                return QString( _( "PTH pad %1 of %2" ) )
                                          .arg( GetNetnameMsg() )
                                          .arg( parentFP->GetReference() );
             }
@@ -1629,7 +1629,7 @@ QString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) co
         {
             if( parentFP )
             {
-                return QString( _( "Pad %s %s of %s on %s" ) )
+                return QString( _( "Pad %1 %2 of %3 on %4" ) )
                                          .arg( GetNumber() )
                                          .arg( GetNetnameMsg() )
                                          .arg( parentFP->GetReference() )
@@ -1637,7 +1637,7 @@ QString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) co
             }
             else
             {
-                return QString( _( "Pad %s on %s" ) )
+                return QString( _( "Pad %1 on %2" ) )
                                          .arg( GetNumber() )
                                          .arg( layerMaskDescribe() );
             }
@@ -1646,14 +1646,14 @@ QString PAD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) co
         {
             if( parentFP )
             {
-                return QString( _( "PTH pad %s %s of %s" ) )
+                return QString( _( "PTH pad %1 %2 of %3" ) )
                                          .arg( GetNumber() )
                                          .arg( GetNetnameMsg() )
                                          .arg( parentFP->GetReference() );
             }
             else
             {
-                return QString( _( "PTH pad %s" ) )
+                return QString( _( "PTH pad %1" ) )
                                          .arg( GetNumber() );
             }
         }
@@ -2337,7 +2337,7 @@ void PAD::doCheckPad( PCB_LAYER_ID aLayer, UNITS_PROVIDER* aUnitsProvider, bool 
 
         if( GetDrillSizeX() <= min_drill_size || GetDrillSizeY() <= min_drill_size )
         {
-            msg = QString( _( "(PTH pad hole size must be larger than %s)" ) ).arg(
+            msg = QString( _( "(PTH pad hole size must be larger than %1)" ) ).arg(
                         aUnitsProvider->StringFromValue( min_drill_size, true ) );
             aErrorHandler( DRCE_PADSTACK_INVALID, msg );
         }

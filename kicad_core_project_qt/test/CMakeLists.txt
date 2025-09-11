@@ -35,12 +35,16 @@ target_compile_definitions(test_pcb_parser PRIVATE
     UNICODE
 )
 
-# Copy test PCB file to build directory for easier testing
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/complex_hierarchy.kicad_pcb
-    ${CMAKE_CURRENT_BINARY_DIR}/complex_hierarchy.kicad_pcb
-    COPYONLY
-)
+# Copy all test PCB files to build directory for easier testing
+file(GLOB PCB_TEST_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.kicad_pcb")
+foreach(PCB_FILE ${PCB_TEST_FILES})
+    get_filename_component(PCB_FILE_NAME ${PCB_FILE} NAME)
+    configure_file(
+        ${PCB_FILE}
+        ${CMAKE_CURRENT_BINARY_DIR}/${PCB_FILE_NAME}
+        COPYONLY
+    )
+endforeach()
 
 # Set output directory
 set_target_properties(test_pcb_parser PROPERTIES

@@ -398,7 +398,7 @@ int DSNLEXER::NeedNUMBER( const char* aExpectation )
 
     if( !IsNumber( tok ) )
     {
-        QString errText = QString( _( "need a number for '%s'" ) ).arg(
+        QString errText = QString( _( "need a number for '%1'" ) ).arg(
                                              QString::fromUtf8( aExpectation ) );
         THROW_PARSE_ERROR( errText, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
     }
@@ -789,7 +789,7 @@ double DSNLEXER::parseDouble()
     if( errno )
     {
         QString error;
-        error = QString( _( "Invalid floating point number in\nfile: '%s'\nline: %d\noffset: %d" ) )
+        error = QString( _( "Invalid floating point number in\nfile: '%1'\nline: %d\noffset: %d" ) )
                     .arg( CurSource() ).arg( CurLineNumber() ).arg( CurOffset() );
 
         THROW_IO_ERROR( error );
@@ -798,7 +798,7 @@ double DSNLEXER::parseDouble()
     if( CurText() == tmp )
     {
         QString error;
-        error = QString( _( "Missing floating point number in\nfile: '%s'\nline: %d\noffset: %d" ) )
+        error = QString( _( "Missing floating point number in\nfile: '%1'\nline: %d\noffset: %d" ) )
                     .arg( CurSource() ).arg( CurLineNumber() ).arg( CurOffset() );
 
         THROW_IO_ERROR( error );
