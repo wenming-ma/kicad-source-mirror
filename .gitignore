@@ -30,7 +30,6 @@ CMakeCache.txt
 .cache/
 auto_renamed_to_cpp
 Testing
-config.h
 install_manifest.txt
 doxygen/out
 *.bak

@@ -523,7 +523,7 @@ int main(int argc, char* argv[])
         PCB_TEST_PGM pgm;
         
         // Path to the PCB file
-        QString pcbPath = "test/complex_hierarchy.kicad_pcb";
+        QString pcbPath = "test/vme-wren.kicad_pcb";
         
         if (!QFileInfo::exists(pcbPath)) {
             pcbPath = "complex_hierarchy.kicad_pcb";
@@ -541,7 +541,22 @@ int main(int argc, char* argv[])
         PCB_IO_KICAD_SEXPR pcbIO;
         
         // Load the board
-        board = pcbIO.LoadBoard(pcbPath, nullptr);
+        std::cout << "Attempting to load board..." << std::endl;
+        try {
+            board = pcbIO.LoadBoard(pcbPath, nullptr);
+        }
+        catch (const IO_ERROR& ioe) {
+            std::cout << "IO_ERROR: " << ioe.What().toUtf8().constData() << std::endl;
+            throw;
+        }
+        catch (const std::exception& e) {
+            std::cout << "std::exception: " << e.what() << std::endl;
+            throw;
+        }
+        catch (...) {
+            std::cout << "Unknown exception during LoadBoard" << std::endl;
+            throw;
+        }
         
         if (!board) {
             std::cout << "ERROR: Failed to load PCB file!" << std::endl;

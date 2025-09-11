@@ -463,7 +463,7 @@ private:
                 if (via->IsOnLayer(layer)) {
                     QColor color = m_settings->getLayerColor(layer);
                     QPointF center = toScene(via->GetPosition());
-                    double radius = toScene(via->GetWidth() / 2);
+                    double radius = toScene(via->GetWidth(layer) / 2);
                     
                     if (m_settings->m_fillMode) {
                         m_painter->setPen(Qt::NoPen);
@@ -671,6 +671,7 @@ protected:
         if (!m_board) {
             painter.setPen(Qt::white);
             painter.drawText(rect(), Qt::AlignCenter, "No board loaded");
+            painter.end();  // Explicitly end painter before returning
             return;
         }
         
@@ -733,6 +734,8 @@ protected:
         painter.setPen(Qt::gray);
         painter.drawText(10, height() - 40, "Controls: Mouse wheel = Zoom, Left drag = Pan");
         painter.drawText(10, height() - 20, "Keys: F = Fit to window, R = Reset view");
+        
+        painter.end();  // Explicitly end painter
     }
     
     void wheelEvent(QWheelEvent* event) override {
@@ -947,7 +950,7 @@ int main(int argc, char* argv[]) {
         if (argc > 1) {
             pcbPath = argv[1];
         } else {
-            pcbPath = "test/complex_hierarchy.kicad_pcb";
+            pcbPath = "test/video.kicad_pcb";
             if (!QFileInfo::exists(pcbPath)) {
                 pcbPath = "complex_hierarchy.kicad_pcb";
             }

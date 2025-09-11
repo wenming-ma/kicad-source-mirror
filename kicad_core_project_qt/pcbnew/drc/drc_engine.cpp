@@ -922,41 +922,41 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                 case EDGE_CLEARANCE_CONSTRAINT:
                 case PHYSICAL_CLEARANCE_CONSTRAINT:
                 case PHYSICAL_HOLE_CLEARANCE_CONSTRAINT:
-                    REPORT( QString(_("Checking %1 clearance: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 clearance: %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               MessageTextFromValue( c->constraint.m_Value.Min() ) ) )
                     break;
                 case CREEPAGE_CONSTRAINT:
-                    REPORT( QString(_("Checking %1 creepage: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 creepage: %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               MessageTextFromValue( c->constraint.m_Value.Min() ) ) )
                     break;
                 case MAX_UNCOUPLED_CONSTRAINT:
-                    REPORT( QString(_("Checking %1 max uncoupled length: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 max uncoupled length: %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               MessageTextFromValue( c->constraint.m_Value.Max() ) ) )
                     break;
 
                 case SKEW_CONSTRAINT:
-                    REPORT( QString(_("Checking %1 max skew: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 max skew: %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               MessageTextFromValue( c->constraint.m_Value.Max() ) ) )
                     break;
 
                 case THERMAL_RELIEF_GAP_CONSTRAINT:
-                    REPORT( QString(_("Checking %1 gap: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 gap: %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               MessageTextFromValue( c->constraint.m_Value.Min() ) ) )
                     break;
 
                 case THERMAL_SPOKE_WIDTH_CONSTRAINT:
-                    REPORT( QString(_("Checking %1 thermal spoke width: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 thermal spoke width: %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               MessageTextFromValue( c->constraint.m_Value.Opt() ) ) )
                     break;
 
                 case MIN_RESOLVED_SPOKES_CONSTRAINT:
-                    REPORT( QString(_("Checking %1 min spoke count: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 min spoke count: %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               EDA_UNIT_UTILS::UI::MessageTextFromValue( unityScale, EDA_UNITS::UNSCALED,
                                                                                         c->constraint.m_Value.Min() ) ) )
                     break;
 
                 case ZONE_CONNECTION_CONSTRAINT:
-                    REPORT( QString(_("Checking %1 zone connection: %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                    REPORT( QString(_("Checking %1 zone connection: %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                               EscapeHTML( PrintZoneConnection( c->constraint.m_ZoneConnection ) ) ) )
                     break;
 
@@ -987,31 +987,31 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                             case TRACK_WIDTH_CONSTRAINT:
                                 if( c->constraint.m_Value.HasOpt() )
                                 {
-                                    REPORT( QString(_("Checking %1 track width: opt %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 track width: opt %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               opt ) )
                                 }
                                 else if( c->constraint.m_Value.HasMin() )
                                 {
-                                    REPORT( QString(_("Checking %1 track width: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 track width: min %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               min ) )
                                 }
 
                                 break;
 
                             case ANNULAR_WIDTH_CONSTRAINT:
-                                REPORT( QString(_("Checking %1 annular width: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                                REPORT( QString(_("Checking %1 annular width: min %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                           opt ) )
                                 break;
 
                             case VIA_DIAMETER_CONSTRAINT:
                                 if( c->constraint.m_Value.HasOpt() )
                                 {
-                                    REPORT( QString(_("Checking %1 via diameter: opt %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 via diameter: opt %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               opt ) )
                                 }
                                 else if( c->constraint.m_Value.HasMin() )
                                 {
-                                    REPORT( QString(_("Checking %1 via diameter: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 via diameter: min %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               min ) )
                                 }
                                 break;
@@ -1019,12 +1019,12 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                             case HOLE_SIZE_CONSTRAINT:
                                 if( c->constraint.m_Value.HasOpt() )
                                 {
-                                    REPORT( QString(_("Checking %1 hole size: opt %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 hole size: opt %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               opt ) )
                                 }
                                 else if( c->constraint.m_Value.HasMin() )
                                 {
-                                    REPORT( QString(_("Checking %1 hole size: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 hole size: min %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               min ) )
                                 }
 
@@ -1033,26 +1033,26 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                             case TEXT_HEIGHT_CONSTRAINT:
                             case TEXT_THICKNESS_CONSTRAINT:
                             case CONNECTION_WIDTH_CONSTRAINT:
-                                REPORT( QString(_("Checking %1: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                                REPORT( QString(_("Checking %1: min %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                           min ) )
                                 break;
 
                             case DIFF_PAIR_GAP_CONSTRAINT:
                                 if( c->constraint.m_Value.HasOpt() )
                                 {
-                                    REPORT( QString(_("Checking %1 diff pair gap: opt %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 diff pair gap: opt %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               opt ) )
                                 }
                                 else if( c->constraint.m_Value.HasMin() )
                                 {
-                                    REPORT( QString(_("Checking %1 clearance: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                                    REPORT( QString(_("Checking %1 clearance: min %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                               min ) )
                                 }
 
                                 break;
 
                             case HOLE_TO_HOLE_CONSTRAINT:
-                                REPORT( QString(_("Checking %1 hole to hole: min %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                                REPORT( QString(_("Checking %1 hole to hole: min %2.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                           min ) )
                                 break;
 
@@ -1071,7 +1071,7 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                             if( c->constraint.m_Value.HasMax() )
                                 max = MessageTextFromValue( c->constraint.m_Value.Max() );
 
-                            REPORT( QString(_("Checking %1: min %1; opt %1; max %1.")).arg(EscapeHTML( c->constraint.GetName() ),
+                            REPORT( QString(_("Checking %1: min %2; opt %3; max %4.")).arg(EscapeHTML( c->constraint.GetName() ),
                                                       min,
                                                       opt,
                                                       max ) )

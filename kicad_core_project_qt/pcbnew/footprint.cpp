@@ -1704,8 +1704,8 @@ void FOOTPRINT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
 
         aList.emplace_back( _( "Pads" ), QString::number( padCount ) );
 
-        aList.emplace_back( QString( _( "Doc: %s" ) ).arg( GetLibDescription() ),
-                            QString( _( "Keywords: %s" ) ).arg( GetKeywords() ) );
+        aList.emplace_back( QString( _( "Doc: %1" ) ).arg( GetLibDescription() ),
+                            QString( _( "Keywords: %1" ) ).arg( GetKeywords() ) );
 
         return;
     }
@@ -2176,7 +2176,7 @@ QString FOOTPRINT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFul
     if( reference.isEmpty() )
         reference = _( "<no reference designator>" );
 
-    return QString( _( "Footprint %s" ) ).arg( reference );
+    return QString( _( "Footprint %1" ) ).arg( reference );
 }
 
 

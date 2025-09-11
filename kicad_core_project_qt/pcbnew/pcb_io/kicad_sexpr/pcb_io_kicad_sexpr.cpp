@@ -77,13 +77,13 @@ void FP_CACHE::Save( FOOTPRINT* aFootprintFilter )
 
     if( !m_lib_path.isDir() && !QDir().mkpath( m_lib_path.absoluteFilePath() ) )
     {
-        THROW_IO_ERROR( QString( _( "Cannot create footprint library '%s'." ) ).arg(
+        THROW_IO_ERROR( QString( _( "Cannot create footprint library '%1'." ) ).arg(
                                           m_lib_raw_path ) );
     }
 
     if( !m_lib_path.isWritable() )
     {
-        THROW_IO_ERROR( QString( _( "Footprint library '%s' is read only." ) ).arg(
+        THROW_IO_ERROR( QString( _( "Footprint library '%1' is read only." ) ).arg(
                                           m_lib_raw_path ) );
     }
 
@@ -138,7 +138,7 @@ void FP_CACHE::Load()
 
     if( !dir.exists() )
     {
-        QString msg = QString( _( "Footprint library '%s' not found." ) ).arg(
+        QString msg = QString( _( "Footprint library '%1' not found." ) ).arg(
                                          m_lib_raw_path );
         THROW_IO_ERROR( msg );
     }
@@ -199,7 +199,7 @@ void FP_CACHE::Remove( const QString& aFootprintName )
 
     if( it == m_footprints.end() )
     {
-        QString msg = QString( _( "Library '%s' has no footprint '%s'." ) ).arg(
+        QString msg = QString( _( "Library '%1' has no footprint '%2'." ) ).arg(
                                          m_lib_raw_path,
                                          aFootprintName );
         THROW_IO_ERROR( msg );
@@ -3058,7 +3058,7 @@ bool PCB_IO_KICAD_SEXPR::DeleteLibrary( const QString& aLibraryPath, const std::
     // we don't want that.  we want bare metal portability with no UI here.
     if( !QDir().rmdir( aLibraryPath ) )
     {
-        THROW_IO_ERROR( QString( _( "Footprint library '%s' cannot be deleted." ) ).arg(
+        THROW_IO_ERROR( QString( _( "Footprint library '%1' cannot be deleted." ) ).arg(
                                           aLibraryPath.toUtf8().constData() ) );
     }
 

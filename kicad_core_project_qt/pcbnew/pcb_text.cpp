@@ -421,10 +421,10 @@ QString PCB_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull
     if( FOOTPRINT* parentFP = GetParentFootprint() )
     {
         QString ref = parentFP->GetReference();
-        return QString( _( "Footprint text of %s (%s)" ) ).arg( ref ).arg( content );
+        return QString( _( "Footprint text of %1 (%2)" ) ).arg( ref ).arg( content );
     }
 
-    return QString( _( "PCB text '%s' on %s" ) ).arg( content ).arg( GetLayerName() );
+    return QString( _( "PCB text '%1' on %2" ) ).arg( content ).arg( GetLayerName() );
 }
 
 

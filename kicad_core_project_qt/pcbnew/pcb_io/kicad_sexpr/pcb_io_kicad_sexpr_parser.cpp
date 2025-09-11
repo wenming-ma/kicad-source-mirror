@@ -1284,7 +1284,7 @@ void PCB_IO_KICAD_SEXPR_PARSER::resolveGroups( BOARD_ITEM* aParent )
 
             if( !gen )
             {
-                THROW_IO_ERROR( QString( _( "Cannot create generated object of type '%s'" ) ).arg( genInfo->genType ) );
+                THROW_IO_ERROR( QString( _( "Cannot create generated object of type '%1'" ) ).arg( genInfo->genType ) );
             }
 
             gen->SetLayer( genInfo->layer );
@@ -3372,7 +3372,7 @@ PCB_TEXT* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_TEXT( BOARD_ITEM* aParent, PCB_TEX
             break;
 
         default:
-            THROW_IO_ERROR( QString( _( "Cannot handle footprint text type %s" ) ).arg( FromUTF8() ) );
+            THROW_IO_ERROR( QString( _( "Cannot handle footprint text type %1" ) ).arg( FromUTF8() ) );
         }
 
         token = NextTok();
@@ -4447,8 +4447,8 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( QStringList* aIn
 
     if( !name.isEmpty() && fpid.Parse( name, true ) >= 0 )
     {
-        THROW_IO_ERROR( QString( _( "Invalid footprint ID in\nfile: %s\nline: %d\n"
-                                     "offset: %d." ) ).arg( CurSource() ).arg( CurLineNumber() ).arg( CurOffset() ) );
+        THROW_IO_ERROR( QString( _( "Invalid footprint ID in\nfile: %1\nline: %2\n"
+                                     "offset: %3." ) ).arg( CurSource() ).arg( CurLineNumber() ).arg( CurOffset() ) );
     }
 
     auto checkVersion =
