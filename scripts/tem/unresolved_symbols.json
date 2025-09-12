@@ -4359,7 +4359,6 @@
     "SQLTablePrivilegesW",
     "SQLTablesW",
     "WinVerifyTrust",
-    "_Avx2WmemEnabled",
     "_Cnd_broadcast",
     "_Cnd_do_broadcast_at_thread_exit",
     "_Cnd_register_at_thread_exit",
@@ -9335,8 +9334,8 @@
     "__imp__get_osfhandle",
     "__imp__get_stream_buffer_pointers",
     "__imp__get_timezone",
+    "__imp__invalid_parameter",
     "__imp__invalid_parameter_noinfo",
-    "__imp__invoke_watson",
     "__imp__isatty",
     "__imp__ldtest",
     "__imp__localtime64",
@@ -9557,7 +9556,7 @@
     "__std_exception_copy",
     "__std_exception_destroy",
     "__std_find_end_1",
-    "__std_find_first_of_trivial_pos_1",
+    "__std_find_first_of_trivial_1",
     "__std_find_last_trivial_1",
     "__std_find_trivial_1",
     "__std_find_trivial_2",
@@ -9648,7 +9647,6 @@
     "strcpy",
     "strlen",
     "strstr",
-    "tan",
-    "wcslen"
+    "tan"
   ]
 }
