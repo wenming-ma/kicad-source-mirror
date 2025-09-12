@@ -8,8 +8,8 @@ set( GAL_SRCS
     painter.cpp
     
     # Cairo backend - disabled for minimal build
-    # cairo/cairo_compositor.cpp
-    # cairo/cairo_gal.cpp
+    cairo/cairo_compositor.cpp
+    cairo/cairo_gal.cpp
     
     # OpenGL backend
     hidpi_gl_canvas.cpp

@@ -10,10 +10,13 @@ This project (`kicad_core_project_wx`) is a minimum compilable subset extracted 
 
 ## CRITICAL RULES
 
-1. **NEVER MODIFY SOURCE CODE**: Only fix CMakeLists.txt configuration files
-2. **NO SOURCE COMPILATION**: Only fix CMake configuration phase errors
-3. **VERBATIM ERRORS**: Pass user error messages to agents exactly as provided (preserve original format)
-4. **MINIMIZE DEPENDENCIES**: Remove optional features rather than adding new dependencies
+1. **NEVER MODIFY SOURCE CODE DIRECTLY**: Only dispatch cmake-config-fixer agents to fix CMakeLists.txt files
+2. **ORCHESTRATE, DON'T EXECUTE**: NEVER solve problems yourself - ALWAYS dispatch specialized agents
+3. **MANDATORY AGENT DISPATCH**: For ANY CMake/build error, immediately deploy cmake-config-fixer agents
+4. **NO DIRECT FILE EDITING**: Use Task tool to launch agents, never use Edit/MultiEdit tools directly
+5. **NO SOURCE COMPILATION**: Only fix CMake configuration phase errors through agents
+6. **VERBATIM ERRORS**: Pass user error messages to agents exactly as provided (preserve original format)
+7. **MINIMIZE DEPENDENCIES**: Remove optional features rather than adding new dependencies
 
 ## Parallel Dispatch Strategy
 
@@ -21,6 +24,8 @@ This project (`kicad_core_project_wx`) is a minimum compilable subset extracted 
 - **ALWAYS launch up to 10 agents SIMULTANEOUSLY** - Never wait for one to complete before launching others
 - **Launch ALL agents in a SINGLE message** with multiple Task tool calls
 - **Maximize parallel execution** even if it means smaller work units per agent
+- **IMMEDIATE DISPATCH**: Upon receiving ANY error message, deploy agents without analysis or direct fixes
+- **ZERO TOLERANCE**: Never attempt to fix problems manually - dispatch is MANDATORY
 
 ### Smart Distribution Rules
 - **One agent per CMakeLists.txt file** - Each file's ALL errors handled by ONE agent
@@ -188,10 +193,13 @@ Success Criteria:
 
 ## Key Principles
 
+- **MANDATORY ORCHESTRATION**: You are a COORDINATOR, not a fixer - dispatch agents for ALL problems
 - **MAXIMIZE PARALLELIZATION**: Always aim for 10 simultaneous agents
 - **SINGLE MESSAGE DISPATCH**: Launch all agents in ONE message, never sequentially
 - **SPLIT WORK AGGRESSIVELY**: Better to have 10 agents with small tasks than 3 agents with large tasks
 - **NO WAITING**: Never wait for one agent to complete before launching others
+- **ZERO DIRECT FIXES**: Never use Edit, MultiEdit, Write tools - only Task tool for agent dispatch
+- **STRICT ROLE ADHERENCE**: Orchestrate and coordinate - never execute fixes yourself
 - Provide complete error context to each agent
 - Prioritize removal over addition of dependencies
 - Document all changes for future reference
