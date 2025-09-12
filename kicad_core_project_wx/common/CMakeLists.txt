@@ -386,6 +386,7 @@ target_include_directories( common PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/..
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cursors  # For cursor XPM files
     ${CMAKE_CURRENT_SOURCE_DIR}/dialogs  # Added for eda_view_switcher_base.h
     ${KICAD_GENERATED_DIR}
     ${KICAD_GENERATED_DIR}/common

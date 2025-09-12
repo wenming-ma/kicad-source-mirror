@@ -23,3 +23,10 @@ target_include_directories( core PUBLIC
     PRIVATE
     ${CMAKE_BINARY_DIR} # to get config.h
 )
+
+# Export core include directory for project-wide access to core headers
+# This allows other parts of the project to #include <core/observable.h> etc.
+target_include_directories( core 
+    INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)

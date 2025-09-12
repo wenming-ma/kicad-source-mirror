@@ -74,8 +74,9 @@ if( DEFINED CMAKE_TOOLCHAIN_FILE )
     # Using vcpkg toolchain, paths are handled automatically
     message( STATUS "Using vcpkg from toolchain: ${CMAKE_TOOLCHAIN_FILE}" )
 else()
-    # Fallback to local vcpkg_installed directory
-    set( CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows" )
+    # Fallback to local vcpkg_installed directory - disabled for minimal build testing
+    # set( CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows" )
+    message( STATUS "No vcpkg toolchain specified, dependencies must be found via system paths" )
 endif()
 set( wxWidgets_USE_STATIC ON )
 find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc gl net xml richtext webview )
@@ -111,9 +112,26 @@ find_package( OpenGL REQUIRED )
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set( KICAD_CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
 
-# Find Cairo and Pixman using custom modules
-find_package( Cairo REQUIRED )
-find_package( Pixman QUIET )  # Optional for enhanced Cairo performance
+# Find Cairo and Pixman using custom modules - both are optional for minimal build
+find_package( Cairo QUIET )   # Optional - if not found, Cairo GAL backend will be disabled
+find_package( Pixman QUIET )  # Optional - enhanced Cairo performance
+
+# Check if Cairo and Pixman were found and configure accordingly
+if( CAIRO_FOUND )
+    message( STATUS "Cairo found: ${CAIRO_INCLUDE_DIR}" )
+    add_compile_definitions( HAVE_CAIRO=1 )
+    if( PIXMAN_FOUND )
+        message( STATUS "Pixman found: ${PIXMAN_INCLUDE_DIR}" )
+        add_compile_definitions( HAVE_PIXMAN=1 )
+    else()
+        message( WARNING "Pixman not found - Cairo GAL will use fallback implementation without pixman.h" )
+        add_compile_definitions( HAVE_PIXMAN=0 )
+    endif()
+else()
+    message( WARNING "Cairo not found - Cairo GAL backend will be disabled" )
+    add_compile_definitions( HAVE_CAIRO=0 )
+    add_compile_definitions( HAVE_PIXMAN=0 )
+endif()
 
 # Find GLEW library, required for OpenGL
 find_package( GLEW REQUIRED )
@@ -124,9 +142,20 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/gal/opengl  # For bitmap_font_img.c
+    ${CMAKE_CURRENT_SOURCE_DIR}  # For cursor XPM files (cursors/cursor-*.xpm) - using local cursors directory
     ${CMAKE_CURRENT_SOURCE_DIR}/generated
     ${CMAKE_CURRENT_SOURCE_DIR}/generated/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/generated/include
     # ${CMAKE_CURRENT_SOURCE_DIR}/generated/api/cpp  # DISABLED FOR MINIMAL BUILD
+    
+    # Core libraries include paths (for headers like math/*, kiplatform/*, core/*)
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/kimath/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/kiplatform/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/core/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/sexpr/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs/kinng/include
+    
     ${CMAKE_CURRENT_SOURCE_DIR}/pcbnew
     ${CMAKE_CURRENT_SOURCE_DIR}/eeschema
     ${CMAKE_CURRENT_SOURCE_DIR}/bitmap2component
@@ -156,12 +185,16 @@ include_directories( BEFORE
     ${CMAKE_PREFIX_PATH}/include/opencascade
     ${Boost_INCLUDE_DIRS}
     ${GLM_INCLUDE_DIR}
-    ${CAIRO_INCLUDE_DIR}
     ${FREETYPE_INCLUDE_DIRS}
     ${HarfBuzz_INCLUDE_DIRS}
     ${OPENGL_INCLUDE_DIR}
     ${ZLIB_INCLUDE_DIRS}
 )
+
+# Add Cairo include directory conditionally
+if( CAIRO_FOUND )
+    include_directories( ${CAIRO_INCLUDE_DIR} )
+endif()
 
 # Add wxWidgets compile definitions globally
 add_compile_definitions( ${wxWidgets_DEFINITIONS} )
@@ -172,6 +205,9 @@ add_compile_definitions(
     KICAD_SPICE=0  # Disable spice simulation for minimal build
     KICAD_USE_SENTRY=0  # Disable sentry metrics
     GLM_FORCE_CTOR_INIT  # Force GLM constructor initialization
+    # Fix DLL import/export issues for static builds
+    KICOMMON_DLL=1  # Define as DLL to use APIEXPORT instead of APIIMPORT for static builds
+    COMPILING_DLL=1  # Ensure KIFACE_API uses APIEXPORT
 )
 
 # Include version header creation
