@@ -6,7 +6,7 @@ add_compile_definitions( PCBNEW )
 add_subdirectory(router)
 
 # pnsrouter depends on make_lexer outputs in common (bug #1285878 )
-# Note: In qt_sch_project, we use 'common' instead of 'pcbcommon'
+# Note: In kicad_core_project_wx, we use 'common' instead of 'pcbcommon'
 add_dependencies( pnsrouter common )
 
 add_library( pcbnew STATIC

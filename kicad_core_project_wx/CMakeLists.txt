@@ -17,7 +17,7 @@ else()
     set( CMAKE_BUILD_TYPE Release CACHE STRING "Set to either \"Release\" or \"Debug\"" )
 endif()
 
-project( qt_sch_project )
+project( kicad_core_project_wx )
 
 # Auto-detect and configure ccache if available
 include( ${CMAKE_CURRENT_SOURCE_DIR}/AutoCCache.cmake )
@@ -110,11 +110,11 @@ add_subdirectory( pcbnew )
 add_subdirectory( test )
 
 # Create simple main executable for minimal build testing
-add_executable( qt_sch_project
+add_executable( kicad_core_project_wx
     main.cpp
  "config.h")
 
-target_link_libraries( qt_sch_project
+target_link_libraries( kicad_core_project_wx
     # Core libraries
     common
     pcbnew
