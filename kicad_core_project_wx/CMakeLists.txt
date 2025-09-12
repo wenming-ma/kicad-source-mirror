@@ -95,6 +95,8 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/fmt/include
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/magic_enum/magic_enum
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/expected/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nlohmann_json
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json_schema_validator
     ${wxWidgets_INCLUDE_DIRS}
     ${CMAKE_PREFIX_PATH}/include/opencascade
 )
@@ -102,12 +104,19 @@ include_directories( BEFORE
 # Add wxWidgets compile definitions globally
 add_compile_definitions( ${wxWidgets_DEFINITIONS} )
 
+# Disable optional features for minimum build
+add_compile_definitions( 
+    KICAD_USE_3DCONNEXION=0  # Disable 3D mouse support
+)
+
 # Add subdirectories for minimal PCB functionality
 add_subdirectory( thirdparty )
 add_subdirectory( libs )
 add_subdirectory( common )
 add_subdirectory( pcbnew )
 add_subdirectory( test )
+add_subdirectory(bitmap2component)
+add_subdirectory(eeschema)
 
 # Create simple main executable for minimal build testing
 add_executable( kicad_core_project_wx

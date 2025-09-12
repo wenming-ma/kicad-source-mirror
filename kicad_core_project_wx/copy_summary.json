@@ -1,0 +1,9 @@
+{
+  "total_headers": 1134,
+  "total_sources": 779,
+  "regular_headers": 1108,
+  "generated_headers": 26,
+  "regular_sources": 762,
+  "generated_sources": 17,
+  "cmake_directories": 163
+}
