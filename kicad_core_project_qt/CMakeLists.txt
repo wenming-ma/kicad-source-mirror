@@ -70,17 +70,15 @@ if( WIN32 )
     set(CMAKE_CXX_DEPENDS_USE_COMPILER FALSE)
 endif()
 
-# Set Qt root directory - Check for Qt 6.9.1 installation
-if( EXISTS "C:/Qt/6.9.1/msvc2022_64" )
-    set( Qt6_ROOT "C:/Qt/6.9.1/msvc2022_64" )
-else()
-    message( STATUS "Qt6 6.9.1 not found at C:/Qt/6.9.1/msvc2022_64, trying vcpkg..." )
-endif()
-
-if( Qt6_ROOT )
+# Qt6_ROOT should be set in CMakePresets.json cacheVariables
+if( Qt6_ROOT AND EXISTS "${Qt6_ROOT}" )
     set( Qt6_DIR "${Qt6_ROOT}/lib/cmake/Qt6" )
     list( APPEND CMAKE_PREFIX_PATH "${Qt6_ROOT}" )
     message( STATUS "Found Qt6 at: ${Qt6_ROOT}" )
+elseif( Qt6_ROOT )
+    message( WARNING "Qt6_ROOT is set to '${Qt6_ROOT}' but directory does not exist" )
+else()
+    message( STATUS "Qt6_ROOT not set, trying vcpkg..." )
 endif()
 
 # Use vcpkg installed packages

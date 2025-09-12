@@ -8,6 +8,8 @@
 #include <QEvent>
 #include <QString>
 
+class QWidget;
+
 
 class KICOMMON_API KIWAY_EXPRESS : public QEvent
 {
