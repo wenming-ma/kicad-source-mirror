@@ -1,6 +1,6 @@
 # Common library for minimum PCB set
 
-# Generated files from qt_sch_project generated directory
+# Generated files from kicad_core_project_wx generated directory
 set( KICAD_GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../generated" )
 set( COMMON_GENERATED_SRCS
     # ${KICAD_GENERATED_DIR}/api/cpp/api/common/envelope.pb.cc  # DISABLED FOR MINIMAL BUILD

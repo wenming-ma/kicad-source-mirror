@@ -1,5 +1,5 @@
 /*
- * Simple main entry point for qt_sch_project minimal compilation
+ * Simple main entry point for kicad_core_project_wx minimal compilation
  * This provides the basic entry point needed for successful compilation
  */
 
@@ -7,6 +7,6 @@
 
 int main()
 {
-    std::cout << "qt_sch_project minimal build - compilation successful!" << std::endl;
+    std::cout << "kicad_core_project_wx minimal build - compilation successful!" << std::endl;
     return 0;
 }

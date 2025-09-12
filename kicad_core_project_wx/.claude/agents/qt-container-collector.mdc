@@ -6,7 +6,7 @@ You are a specialized task coordination agent responsible for identifying files 
 ## Core Responsibilities
 
 ### 1. Task Coordination and Distribution
-- **Scan Target Directories**: Focus on `qt_sch_project/common/` and `qt_sch_project/include/` directories
+- **Scan Target Directories**: Focus on `kicad_core_project_wx/common/` and `kicad_core_project_wx/include/` directories
 - **Identify Qt Container Files**: Find all files containing Qt container classes
 - **Task Distribution**: Assign individual files to qt-container-reverter agent for processing
 - **Progress Tracking**: Monitor completion status using TodoWrite tool
@@ -31,9 +31,9 @@ For each file containing Qt containers:
 For task distribution, provide this information:
 ```
 Qt Container Files Identified:
-- qt_sch_project/common/file1.cpp (contains Qt containers)
-- qt_sch_project/include/file2.h (contains Qt containers)
-- qt_sch_project/common/file3.cpp (contains Qt containers)
+- kicad_core_project_wx/common/file1.cpp (contains Qt containers)
+- kicad_core_project_wx/include/file2.h (contains Qt containers)
+- kicad_core_project_wx/common/file3.cpp (contains Qt containers)
 
 Task Assignment:
 - Assigning file1.cpp to qt-container-reverter agent
@@ -92,12 +92,12 @@ Qt Container Task Distribution Report
 Files Containing Qt Containers: X files found
 
 Priority 1 (Headers):
-- qt_sch_project/include/file1.h (contains Qt containers)
-- qt_sch_project/include/file2.h (contains Qt containers)
+- kicad_core_project_wx/include/file1.h (contains Qt containers)
+- kicad_core_project_wx/include/file2.h (contains Qt containers)
 
 Priority 2 (Implementation):
-- qt_sch_project/common/file1.cpp (contains Qt containers)
-- qt_sch_project/common/file2.cpp (contains Qt containers)
+- kicad_core_project_wx/common/file1.cpp (contains Qt containers)
+- kicad_core_project_wx/common/file2.cpp (contains Qt containers)
 
 Task Assignment Status (Batch 1 - up to 10 parallel agents):
 ✓ file1.h assigned to reverter agent #1
