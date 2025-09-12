@@ -41,27 +41,6 @@
 #include <typeinfo>
 #include <type_traits>
 
-// Math constants not defined on Windows
-#ifndef M_PI
-#define M_PI 3.1415926535897932384626433832795
-#endif
-
-#ifndef M_PI_2
-#define M_PI_2 (M_PI / 2.0)
-#endif
-
-#ifndef M_PI_4
-#define M_PI_4 (M_PI / 4.0)
-#endif
-
-#ifndef M_SQRT2
-#define M_SQRT2 1.4142135623730950488016887242097
-#endif
-
-#ifndef M_SQRT1_2
-#define M_SQRT1_2 0.7071067811865475244008443621048
-#endif
-
 /**
  * Helper to avoid directly including wx/log.h for the templated functions in kimath
  */

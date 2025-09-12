@@ -1,22 +1,38 @@
-# Kinng library for minimum PCB set
+# This program source code file is part of KiCad, a free EDA CAD application.
+#
+# Copyright (C) 2023 KiCad Developers, see AUTHORS.TXT for contributors.
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at your
+# option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+set( KINNG_SRCS
+    src/kinng.cpp
+    )
 
 add_library( kinng STATIC
-    src/kinng.cpp
-)
+    ${KINNG_SRCS}
+    )
+
+target_link_libraries( kinng
+    ${NNG_LIBRARY}
+    )
 
 target_include_directories( kinng PUBLIC
-    include
-    ${CMAKE_SOURCE_DIR}/vcpkg_installed/x64-windows/include
-)
+    ${PROJECT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
 
-# Find and link nng library (optional for minimal build)
-find_package( nng QUIET )
-if( nng_FOUND )
-    target_link_libraries( kinng PRIVATE nng::nng )
-    target_compile_definitions( kinng PRIVATE HAVE_NNG )
-else()
-    message( STATUS "nng library not found, building without nng support" )
-endif()
-
-# For now, comment out wx functionality since it's causing configuration issues
-# Will use simplified includes approach instead
+target_include_directories( kinng PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+    ${NNG_INCLUDE_DIR}
+    )

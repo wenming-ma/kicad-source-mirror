@@ -33,6 +33,16 @@
 #include <geometry/shape_arc.h>
 #include <geometry/corner_strategy.h>
 #include <math/vector2d.h>
+#include <cstddef>
+
+// Define ssize_t for platforms that don't have it (like Windows/MSVC)
+#ifdef _WIN32
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#elif !defined(__GNUC__) && !defined(__clang__)
+// For other compilers that might not have ssize_t
+#include <sys/types.h>
+#endif
 
 /**
  * Holds information on each point of a SHAPE_LINE_CHAIN that is retrievable

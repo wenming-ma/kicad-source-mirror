@@ -107,6 +107,32 @@ You will recognize that build directories may be relocated, use relative paths w
 ### Dependency Versions
 You will understand that the minimum set may not need specific versions, simplify or remove version checks, and focus on compilation over version compatibility.
 
+## CRITICAL BUILD RULES - NEVER VIOLATE
+
+### Rule 1: NEVER MODIFY SOURCE CODE TO FIX BUILD ERRORS
+**WRONG**: Edit .cpp files to fix std::min conflicts  
+**RIGHT**: Add `NOMINMAX` definition in CMakeLists.txt
+
+### Rule 2: COPY BUILD FIXES FROM ORIGINAL PROJECT
+**WRONG**: Manually define M_PI in config.h  
+**RIGHT**: Add `_USE_MATH_DEFINES` like KiCad's main CMakeLists.txt does
+
+### Rule 3: VERIFY EXACT LIBRARY NAMES
+**WRONG**: Guess library name as `json_schema_validator`  
+**RIGHT**: Check actual add_library() call - it's `nlohmann_json_schema_validator`
+
+### Rule 4: MATCH DEPENDENCIES WITH SUBDIRECTORIES
+**WRONG**: Link to `common` when add_subdirectory(common) is commented out  
+**RIGHT**: Either uncomment subdirectory or remove from link list
+
+### Rule 5: ONLY COPY MINIMUM REQUIRED FILES
+**WRONG**: Copy entire directories or extra files "just in case"  
+**RIGHT**: Copy only the specific file needed to fix the current error
+
+### Rule 6: ALWAYS REFERENCE KICAD'S ORIGINAL IMPLEMENTATION
+**WRONG**: Invent your own solution or guess how to fix issues  
+**RIGHT**: Check how KiCad's original CMakeLists.txt handles the same problem
+
 ## Success Criteria
 
 Your fix is successful when:
