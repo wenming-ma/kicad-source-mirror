@@ -7,7 +7,7 @@ set( GAL_SRCS
     graphics_abstraction_layer.cpp
     painter.cpp
     
-    # Cairo backend - disabled for minimal build
+    # Cairo backend
     cairo/cairo_compositor.cpp
     cairo/cairo_gal.cpp
     
@@ -37,16 +37,18 @@ target_include_directories( gal PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/..
     ${CMAKE_CURRENT_SOURCE_DIR}/../..
     ${CMAKE_CURRENT_SOURCE_DIR}/../../include
+    ${CAIRO_INCLUDE_DIR}
 )
 
 if( WIN32 )
-    # we need the gdiplus library for cairo printing on windows
+    # GDI+ library needed for cairo printing on windows
     set( GDI_PLUS_LIBRARIES gdiplus )
 endif()
 
 target_link_libraries( gal PUBLIC
     ${wxWidgets_LIBRARIES}
     ${GDI_PLUS_LIBRARIES}
+    ${CAIRO_LIBRARIES}
 )
 
 # Add compile definitions

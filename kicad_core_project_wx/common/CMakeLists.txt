@@ -205,29 +205,8 @@ add_library( common STATIC
     font/text_attributes.cpp
     font/version_info.cpp
 
-    # gal subdirectory
-    gal/cairo/cairo_compositor.cpp
-    gal/cairo/cairo_gal.cpp
-    gal/color4d.cpp
-    gal/cursors.cpp
-    gal/graphics_abstraction_layer.cpp
-    gal/hidpi_gl_canvas.cpp
-    gal/opengl/antialiasing.cpp
-    gal/opengl/cached_container.cpp
-    gal/opengl/cached_container_gpu.cpp
-    gal/opengl/cached_container_ram.cpp
-    gal/opengl/gl_context_mgr.cpp
-    gal/opengl/gl_resources.cpp
-    gal/opengl/gpu_manager.cpp
-    gal/opengl/noncached_container.cpp
-    gal/opengl/opengl_compositor.cpp
-    gal/opengl/opengl_gal.cpp
-    gal/opengl/shader.cpp
-    gal/opengl/utils.cpp
-    gal/opengl/vertex_container.cpp
-    gal/opengl/vertex_item.cpp
-    gal/opengl/vertex_manager.cpp
-    gal/painter.cpp
+    # gal subdirectory files moved to separate gal library (built via add_subdirectory)
+    # All gal/* files now built in dedicated gal library to avoid duplication
 
     # http_lib subdirectory
     http_lib/http_lib_connection.cpp
@@ -407,6 +386,7 @@ target_include_directories( common PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/..
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/dialogs  # Added for eda_view_switcher_base.h
     ${KICAD_GENERATED_DIR}
     ${KICAD_GENERATED_DIR}/common
 )
@@ -416,6 +396,7 @@ add_subdirectory( gal )
 
 # Link libraries
 target_link_libraries( common PUBLIC
+    gal
     kimath
     kiplatform
     ${wxWidgets_LIBRARIES}

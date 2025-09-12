@@ -53,7 +53,7 @@ if( WIN32 )
     add_compile_definitions( __WXMSW__ )
     # Add UTF-8 support for fmt library and Unicode
     if( MSVC )
-        add_compile_options( /utf-8 )
+        add_compile_options( /utf-8 /wd4273 )
     endif()
 endif()
 
@@ -77,6 +77,12 @@ find_package( CURL REQUIRED )
 find_package( zstd REQUIRED )
 find_package( Freetype REQUIRED )
 find_package( harfbuzz CONFIG REQUIRED )
+
+# Add CMAKE_MODULE_PATH for finding custom modules
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+# Find Cairo using custom FindCairo.cmake
+find_package( Cairo REQUIRED )
 
 # Include directories
 include_directories( BEFORE 
