@@ -236,6 +236,8 @@ add_custom_target(
 add_subdirectory( thirdparty )
 add_subdirectory( libs )
 add_subdirectory( common )
+add_subdirectory( bitmap2component )
+add_subdirectory( eeschema )
 add_subdirectory( pcbnew )
 add_subdirectory( test )
 

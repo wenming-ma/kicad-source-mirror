@@ -1,0 +1,582 @@
+# KiCad BOARD 和 footprint Qt 代码改造 
+
+## 代码改造策略变更说明
+
+### 新策略核心思路
+1. **直接从KiCad 源码复制原始文件** - 作为改造基准，注意第一步是复制源文件，而不是生成，直接使用 `cp` 相关的命令进行
+2. **逐个文件进行Qt化改造** - 保持原有逻辑不变，仅进行框架适配
+3. **渐进式改造** - 每次专注一个文件或模块
+
+
+## 文件来源映射
+
+### 主要PCB文件 (来自 kicad/pcbnew/)
+- board.cpp/h - PCB板管理
+- footprint.cpp/h - 封装管理
+- pad.cpp/h - 焊盘对象
+- pcb_*.cpp/h 系列文件 (所有PCB对象)
+- zone.cpp/h - 铜皮区域
+- pcb_track.cpp/h - 走线对象
+
+
+
+## 改造规范 - 基于原始代码修改策略
+
+### 🎯 核心铁律 (Qt改造阶段关键原则)
+1. **严格保持代码逻辑不变** - 绝不修改任何业务逻辑、算法流程、数据处理逻辑
+2. **仅进行框架替换** - 只将wxWidgets相关调用替换为Qt等价实现
+3. **保持类层级关系不变** - 继承关系、虚函数声明、类结构完全保持原样
+4. **保持构造函数结构不变** - 参数列表、初始化顺序、调用关系保持一致
+5. **保持成员变量布局不变** - 变量类型可以映射，但逻辑用途和访问模式不变
+6. **🚫 绝不改造KiCad自有实现** - 对于KiCad自己实现的类型如VECTOR2I, VECTOR2D, BOX2I, BOX2D等，即使Qt有更好的实现，也绝不替换，因为KiCad自有实现有其特殊用途和优化
+7. **仅改造wx相关代码** - 只对wxWidgets相关的UI、字符串、容器等进行Qt替换，其他所有KiCad原生代码保持不变
+
+### 🔧 修改策略 (与生成策略的本质区别)
+- ✅ **方式**: 在KiCad 原始代码基础上逐行替换框架调用
+- ✅ **核心思想**: 保持代码骨架，仅更换"皮肤"(框架接口)
+
+### 🛠️ 具体修改规范
+
+#### 类型映射替换 (仅改变类型，不改变用法)
+| KiCad 原始类型 | Qt 替换类型 | 替换原则 |
+|---------------|------------|---------|
+| wxString | QString | 保持所有字符串操作逻辑不变 |
+| **VECTOR2I** | **VECTOR2I** | **🚫 绝不替换** - KiCad自有实现，保持原样 |
+| **VECTOR2D** | **VECTOR2D** | **🚫 绝不替换** - KiCad自有实现，保持原样 |
+| **BOX2I** | **BOX2I** | **🚫 绝不替换** - KiCad自有实现，保持原样 |
+| **BOX2D** | **BOX2D** | **🚫 绝不替换** - KiCad自有实现，保持原样 |
+| std::vector | QVector | 保持所有容器操作不变 |
+| std::map | QHash/QMap | 保持所有映射逻辑不变 |
+| COLOR4D | QColor | 保持所有颜色处理不变 |
+
+#### 与libs目录和KiCad自有类型的处理指导
+**核心原则**: KiCad自有类型(VECTOR2I, VECTOR2D, BOX2I, BOX2D等)直接使用，不进行任何转换
+
+1. **改造代码中直接使用KiCad自有类型**
+   ```cpp
+   // 改造后的代码中直接使用KiCad自有类型
+   VECTOR2D position(100.0, 200.0);
+   BOX2D bounds(VECTOR2D(0, 0), VECTOR2D(300, 400));
+   QString name = "component_name";  // 只有wxString替换为QString
+   
+   // 所有几何计算都使用KiCad类型
+   VECTOR2D newPos = position + VECTOR2D(10, 20);
+   ```
+
+2. **只替换wxWidgets相关类型**
+   ```cpp
+   // 只替换wx相关类型，其他保持不变
+   VECTOR2D kicadCenter(100.0, 200.0);  // 保持VECTOR2D
+   BOX2D kicadBounds(VECTOR2D(0, 0), VECTOR2D(300, 400));  // 保持BOX2D
+   QString qtName = "component";  // wxString → QString
+   
+   // 调用函数时无需转换，直接使用
+   bool result = LibsGeometryFunction(kicadCenter, kicadBounds);
+   ```
+
+3. **转换工具仅用于wx相关类型**
+   ```cpp
+   // type_converters.h 中只转换wx相关类型
+   namespace TypeConverters {
+       // KiCad几何类型无需转换，直接使用
+       
+       // 只转换wxWidgets相关类型
+       wxString toKiCad(const QString& qt) { return wxString(qt.toStdString()); }
+       QString toQt(const wxString& wx) { return QString::fromStdString(wx.ToStdString()); }
+   }
+   ```
+
+**🚫 重要说明**: 
+- **VECTOR2I, VECTOR2D, BOX2I, BOX2D等KiCad自有类型绝不替换，直接使用**
+- 只有wxString等wxWidgets类型才替换为QString等Qt类型
+- 无需进行几何类型转换，保持KiCad原有的几何计算体系
+
+#### 函数调用替换 (仅改变调用语法，不改变逻辑)
+- wxWidgets方法调用 → Qt等价方法调用
+- 保持所有条件判断、循环控制、异常处理逻辑完全不变
+- 保持所有计算公式、算法实现完全不变
+- 保持所有错误处理和边界检查不变
+
+#### 继承关系保持规范
+- 所有virtual函数声明保持不变
+- 所有override函数实现保持不变  
+- 构造函数调用父类构造的方式保持不变
+- 析构函数的清理逻辑保持不变
+- 成员函数的访问修饰符(public/private/protected)保持不变
+
+### 代码规范 (技术实现细节)
+- **智能指针**: 使用 `std::shared_ptr`, `std::unique_ptr`，绝对不使用Qt指针 (`QSharedPointer`)，并且不要滥用智能指针，没有必要的情况下，使用普通指针
+- **容器类**: 使用 `QVector`, `QHash`, `QMap`，但保持原有的遍历和操作逻辑
+- **字符串**: 使用 `QString`，但保持原有的字符串处理算法
+- **几何类**: 使用 `QPointF`, `QRectF`, `QSizeF`，但保持原有的几何计算
+- **颜色**: 使用 `QColor` 替代 `COLOR4D`
+- **类名**: 完全保持KiCad原有的命名规范和大小写，从 KiCad 改造过来的类，所有的类名都要大写
+- **Qt高级功能**: 除非用户明确要求，否则坚决不使用信号槽、属性注册等Qt高级功能
+- **翻译策略**: 所有翻译相关的地方统一使用纯文本，不用翻译框架
+
+
+### 不改造的功能（直接删除相关的代码即可）
+- **永远不要改造KiCad中的python接口相关的代码**，比如和wsig代码，我们不需要这个功能
+- **永远不要改造KiCad中向后兼容相关的代码**，我们直接基于当前的代码，不做向后兼容，这是一个新的起点
+
+### 📚 libs目录处理策略
+**核心原则**: libs目录是依赖库，绝对不要修改，通过类型转换来对接
+
+#### libs目录说明
+- `libs/` 目录包含KiCad的底层库和工具函数
+- 这些库使用KiCad自定义数据结构 (如VECTOR2D, BOX2I等)
+- 我们的Qt改造代码需要调用这些函数但不能修改libs内容
+
+#### 对接策略
+1. **保持libs目录完全不变** - 不修改libs中的任何代码文件
+2. **类型转换适配** - 当调用libs函数时进行类型转换
+3. **转换示例**:
+   ```cpp
+   // libs函数期望 VECTOR2D 参数
+   void SomeLibsFunction(const VECTOR2D& point);
+   
+   // 我们的Qt代码中使用QPointF
+   QPointF qtPoint(100.0, 200.0);
+   
+   // 调用时进行类型转换
+   VECTOR2D kicadPoint(qtPoint.x(), qtPoint.y());
+   SomeLibsFunction(kicadPoint);
+   
+   // 或者创建转换工具函数
+   VECTOR2D toKiCadVector(const QPointF& qtPoint) {
+       return VECTOR2D(qtPoint.x(), qtPoint.y());
+   }
+   ```
+
+#### 常见KiCad自有类型处理
+| 类型 | 处理方式 | 说明 |
+|------|---------|------|
+| `VECTOR2I` | **直接使用，不转换** | KiCad自有几何类型 |
+| `VECTOR2D` | **直接使用，不转换** | KiCad自有几何类型 |
+| `BOX2I` | **直接使用，不转换** | KiCad自有几何类型 |
+| `BOX2D` | **直接使用，不转换** | KiCad自有几何类型 |
+| `wxString` | **替换为QString** | wxWidgets UI类型 |
+
+#### 转换原则重申
+**🚫 绝不创建几何类型转换工具** - KiCad的VECTOR2D、BOX2D等类型有其特殊优化和用途，Qt虽然有类似实现但不能替代KiCad的自有实现。改造时保持所有KiCad几何类型不变。
+
+### 改造流程 (基于依赖关系的分阶段改造)
+
+#### ⚠️ 核心原则：严格按优先级顺序改造
+解析器依赖所有数据类，必须**最后改造**！
+
+#### 🔄 改造循环 (每个优先级执行)
+1. **复制原始文件**: 从KiCad源码直接复制该优先级的所有文件，**保持原有目录结构**
+2. **分析依赖**: 识别当前优先级文件的wxWidgets依赖
+3. **Qt化改造**: 将wx依赖替换为Qt实现，保持调用逻辑不变
+4. **编译测试**: 确保当前优先级所有文件都能编译通过
+5. **依赖验证**: 确认下一优先级的依赖已满足
+
+#### 📁 文件复制目录结构 (保持KiCad原有结构)
+**重要原则**: 复制文件时必须保持与KiCad完全相同的目录结构，确保头文件包含路径不变
+
+```
+项目根目录/
+├── include/                  # 公共头文件
+│   ├── eda_item.h           # EDA基类
+│   ├── board_item.h         # 板对象基类
+│   ├── layer_ids.h          # 图层定义
+│   ├── lset.h              # 图层集合
+│   ├── kiid.h              # 唯一标识符
+│   └── ...
+│
+├── pcbnew/                  # PCB主目录
+│   ├── board.cpp/h          # 板对象
+│   ├── footprint.cpp/h      # 封装
+│   ├── pad.cpp/h           # 焊盘
+│   ├── padstack.cpp/h      # 焊盘堆栈
+│   ├── zone.cpp/h          # 铜皮区域
+│   ├── pcb_*.cpp/h         # PCB对象系列
+│   │
+│   └── pcb_io/             # IO子目录
+│       └── kicad_sexpr/    # S表达式解析
+│           ├── pcb_io_kicad_sexpr.cpp/h
+│           └── pcb_io_kicad_sexpr_parser.cpp/h
+│
+└── common/                 # 通用功能
+    ├── layer_id.cpp        # 图层实现
+    ├── lset.cpp           # 图层集合实现
+    └── ...
+```
+
+#### 📋 分阶段改造计划
+- **阶段1** (优先级1-2): 基础工具类 + 抽象基类
+- **阶段2** (优先级3-4): 容器对象 + 核心数据类  
+- **阶段3** (优先级5-7): 具体PCB对象类
+- **阶段4** (优先级8-9): 配置和3D模型类
+- **阶段5** (优先级10): **解析器类** (最后！)
+
+## 当前状态
+
+### 需要改造的文件
+
+#### 主要PCB文件 (待复制)
+- `board.cpp/h` - PCB板管理
+- `footprint.cpp/h` - 封装管理
+- `pad.cpp/h` - 焊盘对象
+- `zone.cpp/h` - 铜皮区域
+- `board_design_settings.cpp/h` - 板设计设置
+- `netinfo.cpp/h` - 网络信息
+
+#### PCB对象系列 (待复制)
+- `pcb_shape.cpp/h` - PCB图形对象
+- `pcb_text.cpp/h` - PCB文本
+- `pcb_textbox.cpp/h` - PCB文本框
+- `pcb_field.cpp/h` - PCB字段
+- `pcb_track.cpp/h` - 走线
+- `pcb_via.cpp/h` - 过孔
+- `pcb_dimension.cpp/h` - 尺寸标注
+- `pcb_target.cpp/h` - 目标点
+- `pcb_marker.cpp/h` - 标记
+- `pcb_group.cpp/h` - 组合
+- `pcb_generator.cpp/h` - 生成器
+- `pcb_reference_image.cpp/h` - 参考图像
+- `pcb_table.cpp/h` - 表格
+- `pcb_tablecell.cpp/h` - 表格单元
+
+
+
+## 📊 文件统计总结
+
+### 待改造文件统计
+- **主要PCB文件**: 约20个 (.cpp/.h 对)
+- **PCB对象文件**: 约15个 (.cpp/.h 对)
+- **完整依赖文件**: 约15个 (从KiCad源码完整复制)
+- **构建和测试文件**: 2个
+
+### 预估总文件数: **约52个文件**
+- 全部来自KiCad源码完整复制: 约52个
+- 无需新创建或最小化实现
+
+### 下一步计划
+1. 从KiCad源码复制PCB和footprint相关文件
+2. 逐个文件进行Qt化改造 - 严格按照原始代码结构
+3. 解决编译依赖问题 - 仅替换框架调用，不改变逻辑
+4. 建立稳定的编译系统 - 保持功能完全一致
+
+## 🚫 改造排除范围
+
+### 完全不改造的目录和文件范围
+#### 1. libs/ 目录 - **复制但不改造**
+- **完整路径**: `libs/` 目录下的所有文件
+- **处理方式**: **完整复制到项目中，但绝不改造其中的代码**
+- **对接方式**: 通过类型转换调用libs中的函数
+- **包含内容**: 
+  - 所有KiCad底层库和工具函数
+  - 几何计算库 (如VECTOR2D, BOX2I等类型的实现)
+  - 数学工具库、字符串工具库等
+  - 各种基础数据结构和算法
+- **重要说明**: libs是KiCad核心库的一部分，需要复制但保持原样
+
+#### 2. thirdparty/ 目录 - **直接使用，不复制**
+- **完整路径**: `thirdparty/` 目录下的所有文件
+- **处理方式**: 直接使用原位置的文件，不复制到改造工作目录
+- **使用方式**: 在构建系统中直接引用thirdparty目录
+- **包含内容**: 
+  - 第三方开源库
+  - 外部依赖组件
+  - 与KiCad代码无关的独立库
+- **原因**: 第三方库与KiCad代码本来就无关，无需复制管理
+
+#### 3. include/ 目录中的部分文件 - **选择性不改造**
+- **基础类型定义文件** - 不改造，直接使用
+  - `math/vector2d.h` - 向量数学类型
+  - `math/box2.h` - 边界框类型  
+  - `geometry/` 相关几何类型定义
+- **系统级配置文件** - 不改造
+  - 平台相关配置文件
+  - 编译器相关定义文件
+
+#### 4. 功能模块改造策略
+**核心原则**: 复制过来的代码有什么就改造什么，用Qt替换wxWidgets
+
+- **UI相关代码** - **全部改造**，用Qt替换wxWidgets
+  - 继承关系保持不变 (如继承VIEW_ITEM的仍然继承)
+  - wxWidgets UI调用 → Qt UI调用
+  - 所有界面显示相关的虚函数 → Qt等价实现
+  
+- **序列化接口** - **保持并改造**
+  - `SERIALIZABLE` 接口保持不变
+  - 相关的序列化虚函数保持实现，用Qt类型替换
+  
+- **文件嵌入功能** - **保持并改造**
+  - `EMBEDDED_FILES` 接口保持不变
+  - 相关功能用Qt文件操作替换wxWidgets文件操作
+
+#### 5. Python和脚本接口 - **完全删除**
+- 所有SWIG相关代码和接口
+- Python绑定相关的代码
+- 脚本接口和插件系统
+
+#### 6. 向后兼容代码 - **完全删除**
+- 旧版本文件格式支持代码
+- 版本迁移和转换代码
+- 历史遗留接口兼容代码
+
+### 改造边界原则
+1. **复制的代码** - **全部改造**，用Qt替换wxWidgets，保持逻辑不变
+2. **底层库和工具** - 不改造，通过转换对接 (libs/目录)
+3. **基础类型定义** - 不改造，直接使用 (VECTOR2D等) 
+4. **UI相关功能** - **全部改造**，用Qt替换wxWidgets UI调用
+5. **所有功能模块** - 复制过来的都改造，删除的只有Python和向后兼容代码
+
+**核心改造理念**: 
+- "复制过来的代码有什么就改造什么"
+- "只是用Qt将wxWidgets替换掉"
+- 保持所有类结构、继承关系、功能逻辑完全不变
+- 仅进行框架层面的替换 (wxWidgets → Qt)
+
+
+
+### 注释清理规范
+- **文件头版权声明** - 直接删除所有GPL/版权/作者等文件头注释
+- **doxygen文档注释** - 删除所有 `/**` 或 `///` 开头的文档注释
+- **TODO/FIXME注释** - 删除原始代码中的TODO、FIXME等标记注释
+- **历史遗留注释** - 删除所有与版本历史、修改记录相关的注释
+- **保留的注释** - 仅保留解释复杂业务逻辑的必要注释
+
+## 🔧 编译问题解决策略 (参考原项目经验)
+
+### 常见编译错误类型及解决原则
+1. **成员函数未找到** - 检查KiCad原始代码中的确切函数名和参数
+2. **继承关系错误** - 跟踪完整的继承层次，包括父类的父类
+3. **头文件包含错误** - 严格按照KiCad的#include顺序和路径
+4. **类型转换错误** - 使用类型映射表，但保持原有的转换逻辑
+5. **缺失类或枚举** - 从KiCad源码完整复制相关依赖文件
+
+### 🔴 核心解决铁律 (继承原项目经验)
+- ✅ **严格按照KiCad源码实现** - 每次修改都要参照KiCad原始代码
+- ✅ **使用已改造的代码** - 优先查看已有的类和函数实现
+- ✅ **模糊搜索匹配** - 搜索时使用忽略大小写、关键词包含等方法
+- ✅ **完整依赖复制** - 所有依赖都要完整复制，不做最小化实现
+- ✅ **注释问题代码** - 改造阶段对于有问题的日志代码、图形渲染代码直接注释
+- ✅ **保持继承关系** - 跟踪完整的类继承层次来解决虚函数错误
+- **所有的注释必须使用英语，不要出现中文**
+
+## 📋 改造检查清单
+
+### 每个文件修改完成后的验证
+- [ ] 是否保持了原有的类继承关系？
+- [ ] 是否保持了所有成员函数的签名？
+- [ ] 是否保持了所有构造函数的参数和初始化顺序？
+- [ ] 是否只进行了类型映射，没有改变算法逻辑？
+- [ ] 是否保持了所有条件判断和循环的控制流程？
+- [ ] 是否保持了异常处理和错误检查的逻辑？
+
+## 重要提醒
+- **基准代码**: 所有修改都以 kicad源码为准
+- **问题隔离**: 每次只修改一个文件，避免问题累积  
+- **逻辑不变**: 绝不能为了编译通过而改变业务逻辑
+- **保持同步**: 及时更新此文档记录进度
+
+## 🗺️ KiCad原始类到Qt改造类的映射表
+
+
+
+### 重要类型定义映射 (Qt改造阶段)
+| KiCad原始定义 | Qt改造定义 | 说明 |
+|-----------|----------|------|
+| `KICAD_T` | `KICAD_T` | 对象类型枚举，保持不变 |
+| `COLOR4D` | `QColor` | 颜色类型 |
+| **`VECTOR2I`** | **`VECTOR2I`** | **🚫 KiCad自有类型，绝不替换** |
+| **`VECTOR2D`** | **`VECTOR2D`** | **🚫 KiCad自有类型，绝不替换** |
+| **`BOX2I`** | **`BOX2I`** | **🚫 KiCad自有类型，绝不替换** |
+| **`BOX2D`** | **`BOX2D`** | **🚫 KiCad自有类型，绝不替换** |
+| `wxString` | `QString` | 字符串类型，wx→Qt |
+| `std::vector` | `QVector`/`QList` | 动态数组 |
+| `std::map` | `QMap`/`QHash` | 映射容器 |
+
+
+
+## 🎯 项目总结
+
+
+
+#### 关键优势
+1. **逻辑保真度100%** - 业务逻辑完全与KiCad一致
+2. **问题可控性** - 只有框架替换问题，没有逻辑设计问题
+3. **验证简化** - 只需验证Qt调用是否等价，不需要验证算法正确性
+4. **维护性提升** - 未来KiCad更新时，可以轻松对比和合并
+
+### 预期收益
+- **代码质量**: 保持KiCad经过验证的成熟逻辑
+- **开发效率**: 避免重复的逻辑设计和调试工作
+- **稳定性**: 降低引入逻辑错误的风险
+- **可追溯性**: 每个修改都可以追溯到对应的原始代码
+
+这个项目将成为**大型C++项目框架改造**的经典案例，证明了**保持逻辑不变的前提下进行框架替换**的可行性和优越性。
+
+## 📋 PCB和Footprint核心文件清单 (基于解析需求)
+
+**终极目标：解析board和footprint S表达式文件**
+
+基于PCB_IO_KICAD_SEXPR_PARSER解析器代码的实际分析，以下是解析board和footprint文件时**真正需要**的类：
+
+### 🛠️ 基础工具和依赖 (第1优先级 - 支撑类，**最先改造**)
+- `layer_ids.h` - 图层定义枚举
+- `lset.cpp/h` - 图层集合类  
+- `kiid.cpp/h` - 唯一标识符类
+- `vector2d.h`/`box2d.h` - 几何计算类
+
+### 🏗️ 基础抽象类 (第2优先级 - 继承基础)
+- `eda_item.cpp/h` - EDA对象基类 (继承自VIEW_ITEM + SERIALIZABLE)  
+- `board_item.cpp/h` - PCB对象基类
+- `board_connected_item.cpp/h` - 连接对象基类
+- `board_item_container.cpp/h` - 容器基类
+
+### 📦 顶层容器对象 (第3优先级 - 直接创建)
+- `board.cpp/h` - PCB板 (`new BOARD()`)
+- `footprint.cpp/h` - 封装 (`std::make_unique<FOOTPRINT>()`)
+
+### ⚡ 连接对象系列 (第4优先级 - 解析创建)
+- `pad.cpp/h` - 焊盘 (解析pad标签, 包含m_padStack成员)
+- `padstack.cpp/h` - 焊盘堆栈 (**核心**：承载pad和via的所有属性, SERIALIZABLE)
+- `zone.cpp/h` - 铜皮区域 (`parseZONE()`)
+- `pcb_track.cpp/h` - 走线 (`parsePCB_TRACK()`)
+- `pcb_via.cpp/h` - 过孔 (继承自PCB_TRACK, `parsePCB_VIA()`, 使用padstack)
+- `pcb_shape.cpp/h` - PCB图形 (`std::make_unique<PCB_SHAPE>()`)
+
+### 📝 文本和标注系列 (第5优先级 - 解析创建)
+- `pcb_text.cpp/h` - PCB文本 (`std::make_unique<PCB_TEXT>()`)
+- `pcb_field.cpp/h` - PCB字段 (`std::make_unique<PCB_FIELD>()`)
+- `pcb_textbox.cpp/h` - PCB文本框 (`std::make_unique<PCB_TEXTBOX>()`)
+- `pcb_dimension.cpp/h` - 尺寸标注基类
+- `pcb_tablecell.cpp/h` - 表格单元 (`std::make_unique<PCB_TABLECELL>()`)
+
+### 📊 表格系列 (第6优先级 - 解析创建)
+- `pcb_table.cpp/h` - 表格 (`std::make_unique<PCB_TABLE>()`)
+
+### 🎯 其他PCB对象 (第7优先级 - 解析创建)
+- `pcb_group.cpp/h` - PCB组合 (`new PCB_GROUP()`)
+- `pcb_target.cpp/h` - PCB目标点 (`parsePCB_TARGET()`)
+- `pcb_reference_image.cpp/h` - 参考图像 (`std::make_unique<PCB_REFERENCE_IMAGE>()`)
+
+### 🌐 网络和设置对象 (第8优先级 - 解析创建)
+- `netinfo.cpp/h` - 网络信息 (`new NETINFO_ITEM()`)
+- `netclass.cpp/h` - 网络类 (`std::make_shared<NETCLASS>()`)
+- `board_design_settings.cpp/h` - 板设计设置
+- `board_stackup_item.cpp/h` - 板层叠 (`new BOARD_STACKUP_ITEM()`)
+
+### 🎨 3D模型 (第9优先级 - 解析创建)
+- `fp_3dmodel.cpp/h` - 3D模型 (`new FP_3DMODEL`)
+
+### 🔧 解析器核心 (第10优先级 - **最后改造**，依赖所有上述类)
+- `pcb_io_kicad_sexpr_parser.cpp/h` - PCB S表达式解析器主类
+- `pcb_io_kicad_sexpr.cpp/h` - PCB IO处理接口
+
+**⚠️ 重要**：解析器依赖上述所有1-9优先级的类，必须在所有数据类改造完成后最后进行！
+
+## 🔗 改造依赖关系图
+
+```
+阶段5: 解析器 (第10优先级)
+    ↑ 依赖
+阶段4: 配置和3D模型 (第8-9优先级)  
+    ↑ 依赖
+阶段3: 具体PCB对象 (第5-7优先级)
+    ↑ 依赖  
+阶段2: 容器和核心数据 (第3-4优先级)
+    ↑ 依赖
+阶段1: 基础工具和抽象类 (第1-2优先级) ← 最先开始
+```
+
+### 📋 关键依赖说明
+- **解析器** → 依赖所有PCB数据类 (PAD, ZONE, TRACK等)
+- **PCB对象** → 依赖基础抽象类 (BOARD_ITEM, BOARD_CONNECTED_ITEM等)  
+- **容器类** → 依赖基础抽象类
+- **抽象基类** → 依赖基础工具类 (LAYER_ID, LSET, KIID等)
+- **所有类** → 依赖PADSTACK (pad和via的属性容器)
+
+### 📊 解析统计
+- **解析器核心**: 2个文件
+- **基础抽象类**: 8个文件  
+- **实际解析对象**: 约26个类 (包含PADSTACK)
+- **支撑工具**: 6个文件
+- **总计**: **约42个核心文件**
+
+这个清单是基于**实际解析代码**分析得出，确保包含了解析board和footprint文件的所有必需类，去除了不必要的UI和其他非核心功能。
+
+## 📂 文件路径映射表 (源文件位置)
+
+### 🛠️ 基础工具和依赖 (第1优先级)
+| 文件 | KiCad源路径 | 说明 |
+|------|------------|------|
+| `layer_ids.h` | `include/layer_ids.h` | 图层定义枚举 |
+| `lset.h/.cpp` | `include/lset.h`, `common/lset.cpp` | 图层集合类 |
+| `kiid.h/.cpp` | `include/kiid.h`, `common/kiid.cpp` | 唯一标识符 |
+| `math/vector2d.h` | `include/math/vector2d.h` | 2D向量类 |
+| `math/box2.h` | `include/math/box2.h` | 边界框类 |
+
+### 🏗️ 基础抽象类 (第2优先级)
+| 文件 | KiCad源路径 | 说明 |
+|------|------------|------|
+| `eda_item.h/.cpp` | `include/eda_item.h`, `common/eda_item.cpp` | EDA基类 |
+| `board_item.h/.cpp` | `include/board_item.h`, `pcbnew/board_item.cpp` | 板对象基类 |
+| `board_connected_item.h/.cpp` | `pcbnew/board_connected_item.h/.cpp` | 连接对象基类 |
+| `board_item_container.h` | `pcbnew/board_item_container.h` | 容器基类 |
+
+### 📦 顶层容器对象 (第3优先级)
+| 文件 | KiCad源路径 | 说明 |
+|------|------------|------|
+| `board.h/.cpp` | `pcbnew/board.h/.cpp` | PCB板主类 |
+| `footprint.h/.cpp` | `pcbnew/footprint.h/.cpp` | 封装主类 |
+
+### 🔧 核心数据类 (第4优先级)
+| 文件 | KiCad源路径 | 说明 |
+|------|------------|------|
+| `padstack.h/.cpp` | `pcbnew/padstack.h/.cpp` | 焊盘堆栈 |
+| `netinfo.h/.cpp` | `pcbnew/netinfo.h`, `pcbnew/netinfo_item.cpp` | 网络信息 |
+| `netclass.h/.cpp` | `include/netclass.h`, `common/netclass.cpp` | 网络类 |
+
+### ⚡ 连接对象系列 (第5优先级)
+| 文件 | KiCad源路径 | 说明 |
+|------|------------|------|
+| `pad.h/.cpp` | `pcbnew/pad.h/.cpp` | 焊盘类 |
+| `zone.h/.cpp` | `pcbnew/zone.h/.cpp` | 铜皮区域 |
+| `pcb_track.h/.cpp` | `pcbnew/pcb_track.h/.cpp` | 走线类 |
+| `pcb_shape.h/.cpp` | `pcbnew/pcb_shape.h/.cpp` | PCB图形 |
+
+### 📝 文本和标注系列 (第6优先级)
+| 文件 | KiCad源路径 | 说明 |
+|------|------------|------|
+| `pcb_text.h/.cpp` | `pcbnew/pcb_text.h/.cpp` | PCB文本 |
+| `pcb_field.h/.cpp` | `pcbnew/pcb_field.h/.cpp` | PCB字段 |
+| `pcb_textbox.h/.cpp` | `pcbnew/pcb_textbox.h/.cpp` | PCB文本框 |
+| `pcb_dimension.h/.cpp` | `pcbnew/pcb_dimension.h/.cpp` | 尺寸标注 |
+| `pcb_tablecell.h/.cpp` | `pcbnew/pcb_tablecell.h/.cpp` | 表格单元 |
+
+### 📊 表格和其他对象 (第7优先级)
+| 文件 | KiCad源路径 | 说明 |
+|------|------------|------|
+| `pcb_table.h/.cpp` | `pcbnew/pcb_table.h/.cpp` | 表格类 |
+| `pcb_group.h/.cpp` | `pcbnew/pcb_group.h/.cpp` | PCB组合 |
+| `pcb_target.h/.cpp` | `pcbnew/pcb_target.h/.cpp` | PCB目标点 |
+| `pcb_reference_image.h/.cpp` | `pcbnew/pcb_reference_image.h/.cpp` | 参考图像 |
+
+### 🌐 设置和配置对象 (第8优先级)
+| 文件 | KiCad源路径 | 说明 |
+|------|------------|------|
+| `board_design_settings.h/.cpp` | `include/board_design_settings.h`, `pcbnew/board_design_settings.cpp` | 板设计设置 |
+
+### 🔧 解析器核心 (第10优先级 - 最后)
+| 文件 | KiCad源路径 | 说明 |
+|------|------------|------|
+| `pcb_io_kicad_sexpr.h/.cpp` | `pcbnew/pcb_io/kicad_sexpr/pcb_io_kicad_sexpr.h/.cpp` | IO接口 |
+| `pcb_io_kicad_sexpr_parser.h/.cpp` | `pcbnew/pcb_io/kicad_sexpr/pcb_io_kicad_sexpr_parser.h/.cpp` | S表达式解析器 |
+
+### 💡 复制命令示例
+```bash
+# 示例：复制基础工具类 (第1优先级)
+cp "C:\path\to\kicad\include\layer_ids.h" "目标项目\include\layer_ids.h"
+cp "C:\path\to\kicad\include\lset.h" "目标项目\include\lset.h"  
+cp "C:\path\to\kicad\common\lset.cpp" "目标项目\common\lset.cpp"
+
+# 示例：复制PCB主文件 (保持目录结构)
+cp "C:\path\to\kicad\pcbnew\board.h" "目标项目\pcbnew\board.h"
+cp "C:\path\to\kicad\pcbnew\board.cpp" "目标项目\pcbnew\board.cpp"
+```
