@@ -232,7 +232,7 @@ target_link_libraries( common PUBLIC
     kimath
     kiplatform
     sexpr
-    json_schema_validator
+    nlohmann_json_schema_validator
     ${wxWidgets_LIBRARIES}
     ${Boost_LIBRARIES}
     # Third-party libraries (local)
@@ -240,7 +240,7 @@ target_link_libraries( common PUBLIC
     libcontext
     clipper2
     delaunator
-    other_math
+    othermath
     potrace
     # Third-party libraries from vcpkg
     Fontconfig::Fontconfig

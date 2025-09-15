@@ -164,19 +164,19 @@ EXTERNAL_HINTS = [
 # 黑名单文件列表 - 定义不想引入的文件
 # 当某个符号的定义只在这些文件中时，不引入这些文件，但记录符号信息
 BLACKLISTED_FILES = [
-    # "eeschema/sch_edit_frame.cpp",
-    # "eeschema/tools/sch_editor_control.cpp",
-    # "eeschema/tools/symbol_editor_edit_tool.cpp",
-    # "eeschema/sim/sim_model.cpp",
-    # "eeschema/sim/sim_lib_mgr.cpp",
-    # "eeschema/dialogs/dialog_schematic_setup.cpp",
-    # "common/dialogs/html_message_box.cpp",
-    # "common/dialog_shim.cpp",
-    # "eeschema/symbol_editor/symbol_edit_frame.cpp",
-    # "common/eda_base_frame.cpp",
-    # "eeschema/tools/sch_selection_tool.cpp",
-    # "common/tool/selection_tool.cpp",
-    # "common/tool/tool_manager.cpp",
+    "eeschema/sch_edit_frame.cpp",
+    "eeschema/tools/sch_editor_control.cpp",
+    "eeschema/tools/symbol_editor_edit_tool.cpp",
+    "eeschema/sim/sim_model.cpp",
+    "eeschema/sim/sim_lib_mgr.cpp",
+    "eeschema/dialogs/dialog_schematic_setup.cpp",
+    "common/dialogs/html_message_box.cpp",
+    "common/dialog_shim.cpp",
+    "eeschema/symbol_editor/symbol_edit_frame.cpp",
+    "common/eda_base_frame.cpp",
+    "eeschema/tools/sch_selection_tool.cpp",
+    "common/tool/selection_tool.cpp",
+    "common/tool/tool_manager.cpp",
     # 可以在这里添加更多不想引入的文件路径
     # 支持相对路径或者绝对路径模式
 ]

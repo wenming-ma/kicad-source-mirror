@@ -60,6 +60,8 @@ if( WIN32 )
     if( MSVC )
         add_compile_options( /utf-8 /wd4273 )
     endif()
+    # Set wxWidgets port for KIPLATFORM
+    set( KICAD_WX_PORT "msw" )
 endif()
 
 # Enable KICAD API support - DISABLED FOR MINIMAL BUILD
@@ -200,10 +202,10 @@ endif()
 add_compile_definitions( ${wxWidgets_DEFINITIONS} )
 
 # Disable optional features for minimum build
-add_compile_definitions( 
+add_compile_definitions(
     KICAD_USE_3DCONNEXION=0  # Disable 3D mouse support
     KICAD_SPICE=0  # Disable spice simulation for minimal build
-    KICAD_USE_SENTRY=0  # Disable sentry metrics
+    # KICAD_USE_SENTRY=0  # Disable sentry metrics - DO NOT DEFINE to avoid #ifdef evaluation
     GLM_FORCE_CTOR_INIT  # Force GLM constructor initialization
     # Fix DLL import/export issues for static builds
     KICOMMON_DLL=1  # Define as DLL to use APIEXPORT instead of APIIMPORT for static builds
@@ -235,9 +237,8 @@ add_subdirectory( thirdparty )
 add_subdirectory( libs )
 add_subdirectory( common )
 add_subdirectory( pcbnew )
-# add_subdirectory( test )
-# add_subdirectory(bitmap2component)
-# add_subdirectory(eeschema)
+add_subdirectory( test )
+
 
 # Create simple main executable for minimal build testing
 add_executable( kicad_core_project_wx

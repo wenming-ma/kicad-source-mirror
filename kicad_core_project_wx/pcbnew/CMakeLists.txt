@@ -95,7 +95,7 @@ target_link_libraries( pcbnew PUBLIC
     kimath
     kiplatform
     delaunator
-    other_math
+    othermath
     pnsrouter  # Add router library dependency
     ${wxWidgets_LIBRARIES}
     ${Boost_LIBRARIES}
