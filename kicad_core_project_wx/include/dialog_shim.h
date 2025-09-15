@@ -48,7 +48,7 @@ class wxGUIEventLoop;
  * <br>
  * in the dialog window's properties.
  */
-class DIALOG_SHIM : public wxDialog, public KIWAY_HOLDER
+class KICOMMON_API DIALOG_SHIM : public wxDialog, public KIWAY_HOLDER
 {
 public:
     DIALOG_SHIM( wxWindow* aParent, wxWindowID id, const wxString& title,
