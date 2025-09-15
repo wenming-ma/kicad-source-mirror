@@ -177,6 +177,20 @@ BLACKLISTED_FILES = [
     "eeschema/tools/sch_selection_tool.cpp",
     "common/tool/selection_tool.cpp",
     "common/tool/tool_manager.cpp",
+    "eeschema/sch_base_frame.cpp",
+    "eeschema/sch_io/kicad_legacy/sch_io_kicad_legacy.cpp",
+    "eeschema/sch_io/sch_io_mgr.cpp",
+    "eeschema/sch_commit.cpp",
+    "common/dialogs/dialog_migrate_settings.cpp",
+    "common/dialogs/dialog_configure_paths.cpp",
+    "eeschema/dialogs/dialog_database_lib_settings.cpp",
+    "common/dialogs/dialog_hotkey_list.cpp",
+    "common/dialog_about/AboutDialog_main.cpp",
+    "eeschema/netlist_exporters/netlist_exporter_spice.cpp",
+    "eeschema/dialogs/dialog_database_lib_settings_base.cpp",
+    "eeschema/sim/spice_settings.cpp",
+    "eeschema/sim/spice_value.cpp",
+    "common/api/api_plugin_manager.cpp",
     # 可以在这里添加更多不想引入的文件路径
     # 支持相对路径或者绝对路径模式
 ]
