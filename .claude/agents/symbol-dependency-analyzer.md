@@ -19,15 +19,21 @@ When given a mangled C++ symbol name and its source file, you will:
 1. **Symbol Analysis Phase**:
    - Parse the mangled symbol name to understand its actual C++ representation
    - Identify the symbol type (function template, class template, specialization, etc.)
-   - **USE SENERA find_symbol**: Use `find_symbol` tool to locate the primary definition, restricting search to `kicad_core_project_wx/` directory
+   - **USE GREP/GLOB TOOLS**: Use Grep and Glob tools to locate the primary definition, restricting search to `kicad_core_project_wx/` directory
+   - Use demangling techniques to convert mangled names to readable C++ symbols
    - Document the symbol's purpose and context within the codebase
    - Verify if the symbol actually exists in the target directory (may be phantom symbol)
 
 2. **Dependency Discovery Phase**:
-   - **USE SENERA TOOLS**: Utilize `find_referencing_symbols` and `find_symbol` tools for precise symbol location
+   - **FALLBACK TO GREP/FIND TOOLS**: Due to Serena tool issues, use standard Grep and Glob tools for symbol location
    - **RESTRICT SEARCH SCOPE**: All symbol searches must be limited to the `kicad_core_project_wx/` directory only
    - Search patterns: exact mangled symbol name, demangled name, class/function names
-   - Use Senera tools with path restriction: `--path kicad_core_project_wx/` or equivalent parameter
+   - Use Grep tool with path restriction: `path: kicad_core_project_wx/`
+   - Use multiple search patterns to ensure comprehensive coverage:
+     - Exact mangled symbol name
+     - Demangled class/function names
+     - Constructor/destructor patterns
+     - Template instantiation patterns
    - Identify direct usages (calls, instantiations, inheritance) within the restricted scope
    - Map indirect dependencies (includes, forward declarations, dependent templates) in kicad_core_project_wx only
    - Build a complete dependency tree showing all affected code within the target directory
@@ -65,18 +71,40 @@ Provide comprehensive progress updates and maintain detailed logs of all modific
 
 Your analysis should be thorough enough to handle complex C++ constructs including template metaprogramming, SFINAE patterns, and intricate inheritance hierarchies. Focus on precision and safety above speed.
 
-**SENERA TOOLS USAGE EXAMPLES**:
+**GREP/GLOB TOOLS USAGE EXAMPLES**:
 
-For symbol location:
-```bash
-find_symbol --path kicad_core_project_wx/ --name "DIALOG_CONFIGURE_PATHS"
-find_symbol --path kicad_core_project_wx/ --mangled "??0DIALOG_CONFIGURE_PATHS@@QEAA@PEAVwxWindow@@@Z"
+For symbol location using Grep tool:
+```
+# Search for exact mangled symbol
+Grep(pattern: "??0DIALOG_CONFIGURE_PATHS@@QEAA@PEAVwxWindow@@@Z", path: "kicad_core_project_wx/")
+
+# Search for demangled class name
+Grep(pattern: "DIALOG_CONFIGURE_PATHS", path: "kicad_core_project_wx/")
+
+# Search for constructor patterns
+Grep(pattern: "DIALOG_CONFIGURE_PATHS\\s*\\(", path: "kicad_core_project_wx/")
 ```
 
-For finding symbol references:
-```bash
-find_referencing_symbols --path kicad_core_project_wx/ --symbol "DIALOG_CONFIGURE_PATHS"
-find_referencing_symbols --path kicad_core_project_wx/ --symbol "MigrateSimModel"
+For finding symbol references using Grep tool:
+```
+# Find all usages of the symbol
+Grep(pattern: "DIALOG_CONFIGURE_PATHS", path: "kicad_core_project_wx/", output_mode: "content")
+
+# Find specific member function calls
+Grep(pattern: "MigrateSimModel", path: "kicad_core_project_wx/", output_mode: "content")
+
+# Find template instantiations
+Grep(pattern: "MigrateSimModel<.*>", path: "kicad_core_project_wx/", output_mode: "content")
 ```
 
-Always use the path restriction parameter to limit searches to the target directory. If Senera tools are not available, fall back to standard grep/find approaches but maintain the directory restriction principle.
+For file discovery using Glob tool:
+```
+# Find header files that might contain definitions
+Glob(pattern: "**/*.h", path: "kicad_core_project_wx/")
+Glob(pattern: "**/*.hpp", path: "kicad_core_project_wx/")
+
+# Find source files for implementation
+Glob(pattern: "**/*.cpp", path: "kicad_core_project_wx/")
+```
+
+Always use the path restriction parameter to limit searches to the target directory. Use multiple search patterns and combine Grep and Glob tools for comprehensive symbol analysis.
