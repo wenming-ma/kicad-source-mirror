@@ -35,6 +35,7 @@ When given a mangled C++ symbol name and its source file, you will:
    - Flag any usages that might require manual review
 
 4. **Safe Commenting Phase**:
+   - **SKIP SYMBOL DEFINITION FILES**: Do not comment out the symbol's own definition file - if a symbol is defined in a specific source file, skip processing that file entirely since we won't be compiling it. Only comment out usages and references in other files.
    - Comment out code using consistent patterns with clear headers
    - For function definitions: comment entire function including signature
    - For template specializations: comment the complete specialization block
@@ -55,13 +56,6 @@ Your commenting patterns should follow these rules:
 - Group logically related code blocks together
 - Never leave partial function calls or incomplete statements
 - Preserve formatting to maintain code readability
-
-For each file you process:
-1. Report the file being analyzed
-2. List all symbol usages found with line numbers and context
-3. Show the before/after code for each modification
-4. Confirm successful backup creation
-5. Report any potential issues or manual review requirements
 
 Provide comprehensive progress updates and maintain detailed logs of all modifications. Always prioritize compilation safety over aggressive cleanup - when in doubt, flag for manual review rather than risk breaking the build.
 

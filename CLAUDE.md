@@ -109,15 +109,13 @@ Analyze and safely comment out the unused C++ symbol "??0DIALOG_CONFIGURE_PATHS@
 1. 传递完整的符号名称，不能截断
 2. 指明符号的具体文件位置
 3. 明确只在 `kicad_core_project_wx/` 目录工作
-4. 要求代理提供详细的处理报告
 
 ## 下一步计划
 1. 实现符号依赖分析调度器
 2. 启动第一批10个 symbol-dependency-analyzer 代理
 3. 验证代理处理结果的准确性
 4. 逐批处理完所有125个未使用符号
-5. 验证 kicad_core_project_wx 的编译完整性
-6. 开始 wxWidgets 到 Qt 的框架迁移工作
+
 
 ## 技术架构说明
 

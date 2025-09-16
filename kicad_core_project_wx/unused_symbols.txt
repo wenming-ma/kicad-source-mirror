@@ -1,13 +1,13 @@
-??$MigrateSimModel@VLIB_SYMBOL@@@SIM_MODEL@@SAXAEA	eeschema\sim\sim_model.cpp
-??$MigrateSimModel@VSCH_SYMBOL@@@SIM_MODEL@@SAXAEA	eeschema\sim\sim_model.cpp
-??0API_PLUGIN_MANAGER@@QEAA@PEAVwxEvtHandler@@@Z	common\api\api_plugin_manager.cpp
-??0DIALOG_CONFIGURE_PATHS@@QEAA@PEAVwxWindow@@@Z	common\dialogs\dialog_configure_paths.cpp
-??0DIALOG_DATABASE_LIB_SETTINGS@@QEAA@PEAVwxWindow	eeschema\dialogs\dialog_database_lib_settings.cpp
-??0DIALOG_LIST_HOTKEYS@@QEAA@PEAVEDA_BASE_FRAME@@@	common\dialogs\dialog_hotkey_list.cpp
-??0DIALOG_MIGRATE_SETTINGS@@QEAA@PEAVSETTINGS_MANA	common\dialogs\dialog_migrate_settings.cpp
-??0EDA_BASE_FRAME@@QEAA@PEAVwxWindow@@W4FRAME_T@@A	common\eda_base_frame.cpp
-??0HTML_MESSAGE_BOX@@QEAA@PEAVwxWindow@@AEBVwxStri	common\dialogs\html_message_box.cpp
-??0NGSPICE_SETTINGS@@QEAA@PEAVJSON_SETTINGS@@AEBV?	eeschema\sim\spice_settings.cpp
+[已处理]??$MigrateSimModel@VLIB_SYMBOL@@@SIM_MODEL@@SAXAEA	eeschema\sim\sim_model.cpp
+[跳过] ??$MigrateSimModel@VSCH_SYMBOL@@@SIM_MODEL@@SAXAEA	eeschema\sim\sim_model.cpp
+[已处理]??0API_PLUGIN_MANAGER@@QEAA@PEAVwxEvtHandler@@@Z	common\api\api_plugin_manager.cpp
+[已处理]??0DIALOG_CONFIGURE_PATHS@@QEAA@PEAVwxWindow@@@Z	common\dialogs\dialog_configure_paths.cpp
+[已处理]??0DIALOG_DATABASE_LIB_SETTINGS@@QEAA@PEAVwxWindow	eeschema\dialogs\dialog_database_lib_settings.cpp
+[已处理]??0DIALOG_LIST_HOTKEYS@@QEAA@PEAVEDA_BASE_FRAME@@@	common\dialogs\dialog_hotkey_list.cpp
+[已处理]??0DIALOG_MIGRATE_SETTINGS@@QEAA@PEAVSETTINGS_MANA	common\dialogs\dialog_migrate_settings.cpp
+[跳过] ??0EDA_BASE_FRAME@@QEAA@PEAVwxWindow@@W4FRAME_T@@A	common\eda_base_frame.cpp
+[已处理]??0HTML_MESSAGE_BOX@@QEAA@PEAVwxWindow@@AEBVwxStri	common\dialogs\html_message_box.cpp
+[已处理]??0NGSPICE_SETTINGS@@QEAA@PEAVJSON_SETTINGS@@AEBV?	eeschema\sim\spice_settings.cpp
 ??0SCH_COMMIT@@QEAA@PEAVTOOL_MANAGER@@@Z	eeschema\sch_commit.cpp
 ??0SIM_LIB_MGR@@QEAA@PEBVPROJECT@@@Z	eeschema\sim\sim_lib_mgr.cpp
 ??0TOOL_MANAGER@@QEAA@XZ	common\tool\tool_manager.cpp
