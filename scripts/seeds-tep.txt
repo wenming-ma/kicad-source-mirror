@@ -1,0 +1,6 @@
+common\drawing_sheet\ds_proxy_view_item.cpp
+pcbnew\footprint_info_impl.cpp
+pcbnew\ratsnest\ratsnest_view_item.cpp
+pcbnew\pcb_view.cpp
+pcbnew\pcb_painter.cpp
+common\draw_panel_gal.cpp

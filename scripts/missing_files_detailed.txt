@@ -1,0 +1,422 @@
+缺失文件详细列表 (总计 101 个文件)
+================================================================================
+
+PCB IO Plugins (49 files):
+--------------------------------------------------
+  pcbnew\pcb_io\altium\altium_parser_pcb.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\altium\altium_parser_pcb.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\altium\altium_parser_pcb.cpp
+
+  pcbnew\pcb_io\altium\altium_pcb.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\altium\altium_pcb.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\altium\altium_pcb.cpp
+
+  pcbnew\pcb_io\altium\altium_pcb_compound_file.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\altium\altium_pcb_compound_file.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\altium\altium_pcb_compound_file.cpp
+
+  pcbnew\pcb_io\altium\pcb_io_altium_circuit_maker.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\altium\pcb_io_altium_circuit_maker.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\altium\pcb_io_altium_circuit_maker.cpp
+
+  pcbnew\pcb_io\altium\pcb_io_altium_circuit_studio.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\altium\pcb_io_altium_circuit_studio.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\altium\pcb_io_altium_circuit_studio.cpp
+
+  pcbnew\pcb_io\altium\pcb_io_altium_designer.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\altium\pcb_io_altium_designer.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\altium\pcb_io_altium_designer.cpp
+
+  pcbnew\pcb_io\altium\pcb_io_solidworks.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\altium\pcb_io_solidworks.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\altium\pcb_io_solidworks.cpp
+
+  pcbnew\pcb_io\cadstar\cadstar_pcb_archive_loader.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\cadstar\cadstar_pcb_archive_loader.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\cadstar\cadstar_pcb_archive_loader.cpp
+
+  pcbnew\pcb_io\cadstar\cadstar_pcb_archive_parser.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\cadstar\cadstar_pcb_archive_parser.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\cadstar\cadstar_pcb_archive_parser.cpp
+
+  pcbnew\pcb_io\cadstar\pcb_io_cadstar_archive.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\cadstar\pcb_io_cadstar_archive.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\cadstar\pcb_io_cadstar_archive.cpp
+
+  pcbnew\pcb_io\eagle\pcb_io_eagle.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\eagle\pcb_io_eagle.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\eagle\pcb_io_eagle.cpp
+
+  pcbnew\pcb_io\easyeda\pcb_io_easyeda_parser.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\easyeda\pcb_io_easyeda_parser.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\easyeda\pcb_io_easyeda_parser.cpp
+
+  pcbnew\pcb_io\easyeda\pcb_io_easyeda_plugin.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\easyeda\pcb_io_easyeda_plugin.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\easyeda\pcb_io_easyeda_plugin.cpp
+
+  pcbnew\pcb_io\easyedapro\pcb_io_easyedapro.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\easyedapro\pcb_io_easyedapro.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\easyedapro\pcb_io_easyedapro.cpp
+
+  pcbnew\pcb_io\easyedapro\pcb_io_easyedapro_parser.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\easyedapro\pcb_io_easyedapro_parser.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\easyedapro\pcb_io_easyedapro_parser.cpp
+
+  pcbnew\pcb_io\fabmaster\import_fabmaster.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\fabmaster\import_fabmaster.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\fabmaster\import_fabmaster.cpp
+
+  pcbnew\pcb_io\fabmaster\pcb_io_fabmaster.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\fabmaster\pcb_io_fabmaster.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\fabmaster\pcb_io_fabmaster.cpp
+
+  pcbnew\pcb_io\geda\pcb_io_geda.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\geda\pcb_io_geda.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\geda\pcb_io_geda.cpp
+
+  pcbnew\pcb_io\ipc2581\pcb_io_ipc2581.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\ipc2581\pcb_io_ipc2581.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\ipc2581\pcb_io_ipc2581.cpp
+
+  pcbnew\pcb_io\kicad_legacy\pcb_io_kicad_legacy.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\kicad_legacy\pcb_io_kicad_legacy.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\kicad_legacy\pcb_io_kicad_legacy.cpp
+
+  pcbnew\pcb_io\odbpp\odb_attribute.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\odbpp\odb_attribute.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\odbpp\odb_attribute.cpp
+
+  pcbnew\pcb_io\odbpp\odb_component.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\odbpp\odb_component.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\odbpp\odb_component.cpp
+
+  pcbnew\pcb_io\odbpp\odb_eda_data.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\odbpp\odb_eda_data.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\odbpp\odb_eda_data.cpp
+
+  pcbnew\pcb_io\odbpp\odb_entity.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\odbpp\odb_entity.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\odbpp\odb_entity.cpp
+
+  pcbnew\pcb_io\odbpp\odb_feature.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\odbpp\odb_feature.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\odbpp\odb_feature.cpp
+
+  pcbnew\pcb_io\odbpp\odb_fonts.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\odbpp\odb_fonts.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\odbpp\odb_fonts.cpp
+
+  pcbnew\pcb_io\odbpp\odb_netlist.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\odbpp\odb_netlist.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\odbpp\odb_netlist.cpp
+
+  pcbnew\pcb_io\odbpp\odb_util.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\odbpp\odb_util.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\odbpp\odb_util.cpp
+
+  pcbnew\pcb_io\odbpp\pcb_io_odbpp.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\odbpp\pcb_io_odbpp.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\odbpp\pcb_io_odbpp.cpp
+
+  pcbnew\pcb_io\pcad\pcad2kicad_common.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad2kicad_common.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad2kicad_common.cpp
+
+  pcbnew\pcb_io\pcad\pcad_arc.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_arc.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_arc.cpp
+
+  pcbnew\pcb_io\pcad\pcad_copper_pour.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_copper_pour.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_copper_pour.cpp
+
+  pcbnew\pcb_io\pcad\pcad_cutout.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_cutout.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_cutout.cpp
+
+  pcbnew\pcb_io\pcad\pcad_footprint.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_footprint.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_footprint.cpp
+
+  pcbnew\pcb_io\pcad\pcad_keepout.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_keepout.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_keepout.cpp
+
+  pcbnew\pcb_io\pcad\pcad_line.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_line.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_line.cpp
+
+  pcbnew\pcb_io\pcad\pcad_nets.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_nets.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_nets.cpp
+
+  pcbnew\pcb_io\pcad\pcad_pad.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_pad.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_pad.cpp
+
+  pcbnew\pcb_io\pcad\pcad_pad_shape.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_pad_shape.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_pad_shape.cpp
+
+  pcbnew\pcb_io\pcad\pcad_pcb.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_pcb.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_pcb.cpp
+
+  pcbnew\pcb_io\pcad\pcad_pcb_component.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_pcb_component.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_pcb_component.cpp
+
+  pcbnew\pcb_io\pcad\pcad_plane.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_plane.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_plane.cpp
+
+  pcbnew\pcb_io\pcad\pcad_polygon.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_polygon.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_polygon.cpp
+
+  pcbnew\pcb_io\pcad\pcad_text.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_text.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_text.cpp
+
+  pcbnew\pcb_io\pcad\pcad_via.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_via.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_via.cpp
+
+  pcbnew\pcb_io\pcad\pcad_via_shape.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcad_via_shape.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcad_via_shape.cpp
+
+  pcbnew\pcb_io\pcad\pcb_io_pcad.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\pcb_io_pcad.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\pcb_io_pcad.cpp
+
+  pcbnew\pcb_io\pcad\s_expr_loader.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcad\s_expr_loader.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcad\s_expr_loader.cpp
+
+  pcbnew\pcb_io\pcb_io_mgr.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_io\pcb_io_mgr.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_io\pcb_io_mgr.cpp
+
+
+Common IO Parsers (9 files):
+--------------------------------------------------
+  common\io\altium\altium_binary_parser.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\io\altium\altium_binary_parser.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\io\altium\altium_binary_parser.cpp
+
+  common\io\altium\altium_parser_utils.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\io\altium\altium_parser_utils.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\io\altium\altium_parser_utils.cpp
+
+  common\io\altium\altium_props_utils.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\io\altium\altium_props_utils.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\io\altium\altium_props_utils.cpp
+
+  common\io\cadstar\cadstar_archive_parser.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\io\cadstar\cadstar_archive_parser.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\io\cadstar\cadstar_archive_parser.cpp
+
+  common\io\eagle\eagle_parser.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\io\eagle\eagle_parser.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\io\eagle\eagle_parser.cpp
+
+  common\io\easyeda\easyeda_parser_base.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\io\easyeda\easyeda_parser_base.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\io\easyeda\easyeda_parser_base.cpp
+
+  common\io\easyeda\easyeda_parser_structs.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\io\easyeda\easyeda_parser_structs.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\io\easyeda\easyeda_parser_structs.cpp
+
+  common\io\easyedapro\easyedapro_import_utils.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\io\easyedapro\easyedapro_import_utils.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\io\easyedapro\easyedapro_import_utils.cpp
+
+  common\io\easyedapro\easyedapro_parser.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\io\easyedapro\easyedapro_parser.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\io\easyedapro\easyedapro_parser.cpp
+
+
+Graphics/GAL (1 files):
+--------------------------------------------------
+  common\draw_panel_gal.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\draw_panel_gal.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\draw_panel_gal.cpp
+
+
+Other Common (36 files):
+--------------------------------------------------
+  build\x64-Debug\common\drawing_sheet\drawing_sheet_keywords.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\build\x64-Debug\common\drawing_sheet\drawing_sheet_keywords.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\build\x64-Debug\common\drawing_sheet\drawing_sheet_keywords.cpp
+
+  build\x64-Debug\common\gal\glsl_kicad_frag.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\build\x64-Debug\common\gal\glsl_kicad_frag.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\build\x64-Debug\common\gal\glsl_kicad_frag.cpp
+
+  build\x64-Debug\common\gal\glsl_kicad_vert.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\build\x64-Debug\common\gal\glsl_kicad_vert.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\build\x64-Debug\common\gal\glsl_kicad_vert.cpp
+
+  build\x64-Debug\common\gal\glsl_smaa_base.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\build\x64-Debug\common\gal\glsl_smaa_base.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\build\x64-Debug\common\gal\glsl_smaa_base.cpp
+
+  build\x64-Debug\common\gal\glsl_smaa_pass_1_frag_luma.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\build\x64-Debug\common\gal\glsl_smaa_pass_1_frag_luma.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\build\x64-Debug\common\gal\glsl_smaa_pass_1_frag_luma.cpp
+
+  build\x64-Debug\common\gal\glsl_smaa_pass_1_vert.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\build\x64-Debug\common\gal\glsl_smaa_pass_1_vert.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\build\x64-Debug\common\gal\glsl_smaa_pass_1_vert.cpp
+
+  build\x64-Debug\common\gal\glsl_smaa_pass_2_frag.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\build\x64-Debug\common\gal\glsl_smaa_pass_2_frag.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\build\x64-Debug\common\gal\glsl_smaa_pass_2_frag.cpp
+
+  build\x64-Debug\common\gal\glsl_smaa_pass_2_vert.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\build\x64-Debug\common\gal\glsl_smaa_pass_2_vert.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\build\x64-Debug\common\gal\glsl_smaa_pass_2_vert.cpp
+
+  build\x64-Debug\common\gal\glsl_smaa_pass_3_frag.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\build\x64-Debug\common\gal\glsl_smaa_pass_3_frag.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\build\x64-Debug\common\gal\glsl_smaa_pass_3_frag.cpp
+
+  build\x64-Debug\common\gal\glsl_smaa_pass_3_vert.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\build\x64-Debug\common\gal\glsl_smaa_pass_3_vert.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\build\x64-Debug\common\gal\glsl_smaa_pass_3_vert.cpp
+
+  build\x64-Debug\common\lib_table_keywords.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\build\x64-Debug\common\lib_table_keywords.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\build\x64-Debug\common\lib_table_keywords.cpp
+
+  build\x64-Debug\common\pcb_keywords.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\build\x64-Debug\common\pcb_keywords.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\build\x64-Debug\common\pcb_keywords.cpp
+
+  build\x64-Debug\common\pcb_plot_params_keywords.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\build\x64-Debug\common\pcb_plot_params_keywords.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\build\x64-Debug\common\pcb_plot_params_keywords.cpp
+
+  common\dialogs\dialog_color_picker.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\dialogs\dialog_color_picker.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\dialogs\dialog_color_picker.cpp
+
+  common\dialogs\dialog_color_picker_base.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\dialogs\dialog_color_picker_base.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\dialogs\dialog_color_picker_base.cpp
+
+  common\filter_reader.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\filter_reader.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\filter_reader.cpp
+
+  common\footprint_info.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\footprint_info.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\footprint_info.cpp
+
+  common\fp_lib_table.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\fp_lib_table.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\fp_lib_table.cpp
+
+  common\gal\cairo\cairo_compositor.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\cairo\cairo_compositor.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\cairo\cairo_compositor.cpp
+
+  common\gal\cairo\cairo_gal.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\cairo\cairo_gal.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\cairo\cairo_gal.cpp
+
+  common\gal\opengl\antialiasing.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\antialiasing.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\antialiasing.cpp
+
+  common\gal\opengl\cached_container.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\cached_container.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\cached_container.cpp
+
+  common\gal\opengl\cached_container_gpu.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\cached_container_gpu.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\cached_container_gpu.cpp
+
+  common\gal\opengl\cached_container_ram.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\cached_container_ram.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\cached_container_ram.cpp
+
+  common\gal\opengl\gl_resources.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\gl_resources.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\gl_resources.cpp
+
+  common\gal\opengl\gpu_manager.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\gpu_manager.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\gpu_manager.cpp
+
+  common\gal\opengl\noncached_container.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\noncached_container.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\noncached_container.cpp
+
+  common\gal\opengl\opengl_compositor.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\opengl_compositor.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\opengl_compositor.cpp
+
+  common\gal\opengl\opengl_gal.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\opengl_gal.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\opengl_gal.cpp
+
+  common\gal\opengl\shader.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\shader.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\shader.cpp
+
+  common\gal\opengl\utils.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\utils.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\utils.cpp
+
+  common\gal\opengl\vertex_container.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\vertex_container.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\vertex_container.cpp
+
+  common\gal\opengl\vertex_item.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\vertex_item.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\vertex_item.cpp
+
+  common\gal\opengl\vertex_manager.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\gal\opengl\vertex_manager.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\gal\opengl\vertex_manager.cpp
+
+  common\widgets\color_swatch.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\widgets\color_swatch.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\widgets\color_swatch.cpp
+
+  common\xnode.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\common\xnode.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\common\xnode.cpp
+
+
+PCB Core (6 files):
+--------------------------------------------------
+  pcbnew\board_stackup_manager\stackup_predefined_prms.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\board_stackup_manager\stackup_predefined_prms.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\board_stackup_manager\stackup_predefined_prms.cpp
+
+  pcbnew\fix_board_shape.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\fix_board_shape.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\fix_board_shape.cpp
+
+  pcbnew\footprint_info_impl.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\footprint_info_impl.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\footprint_info_impl.cpp
+
+  pcbnew\pcb_painter.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_painter.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_painter.cpp
+
+  pcbnew\pcb_view.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\pcb_view.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\pcb_view.cpp
+
+  pcbnew\ratsnest\ratsnest_view_item.cpp
+    原始: C:\Users\wenming_ma\source\repos\kicad-source-mirror\pcbnew\ratsnest\ratsnest_view_item.cpp
+    目标: C:\Users\wenming_ma\source\repos\kicad-source-mirror\kicad_core_project_wx\pcbnew\ratsnest\ratsnest_view_item.cpp
+
+
