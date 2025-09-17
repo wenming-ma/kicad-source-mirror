@@ -54,7 +54,7 @@
 #include <drawing_sheet/ds_proxy_view_item.h>
 #include <vector>
 #include <wx/ffile.h>
-#include <sim/sim_lib_mgr.h>
+// #include <sim/sim_lib_mgr.h> // UNUSED_SYMBOL: SIM functionality disabled
 #include <progress_reporter.h>
 #include <kiway.h>
 
@@ -1864,10 +1864,10 @@ void ERC_TESTER::RunTests( DS_PROXY_VIEW_ITEM* aDrawingSheet, SCH_EDIT_FRAME* aE
     if( aEditFrame )
     {
         // UNUSED_SYMBOL: RecalculateConnections@SCH_EDIT_FRAME - Method calls commented out
-        if( ADVANCED_CFG::GetCfg().m_IncrementalConnectivity )
-            // aEditFrame->RecalculateConnections( nullptr, GLOBAL_CLEANUP );
-        else
-            // aEditFrame->RecalculateConnections( nullptr, NO_CLEANUP );
+        // if( ADVANCED_CFG::GetCfg().m_IncrementalConnectivity )
+        //     aEditFrame->RecalculateConnections( nullptr, GLOBAL_CLEANUP );
+        // else
+        //     aEditFrame->RecalculateConnections( nullptr, NO_CLEANUP );
     }
 
     m_schematic->ConnectionGraph()->RunERC();

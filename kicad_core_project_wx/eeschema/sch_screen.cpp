@@ -56,7 +56,7 @@
 #include <symb_transforms_utils.h>
 #include <symbol_lib_table.h>
 #include <tool/common_tools.h>
-#include <sim/sim_model.h> // For V6 to V7 simulation model migration.
+// #include <sim/sim_model.h> // UNUSED_SYMBOL: SIM functionality disabled - V6 to V7 migration
 #include <locale_io.h>
 
 #include <algorithm>
@@ -2024,11 +2024,12 @@ void SCH_SCREEN::MigrateSimModels()
     // V6 schematics may specify model names in Value fields, which we don't do in V7.
     // Migrate by adding an equivalent model for these symbols.
 
-    for( SCH_ITEM* item : Items().OfType( SCH_SYMBOL_T ) )
-    {
-        SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
-        SIM_MODEL::MigrateSimModel<SCH_SYMBOL>( *symbol, &Schematic()->Prj() );
-    }
+    // UNUSED_SYMBOL: SIM functionality disabled
+    // for( SCH_ITEM* item : Items().OfType( SCH_SYMBOL_T ) )
+    // {
+    //     SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
+    //     SIM_MODEL::MigrateSimModel<SCH_SYMBOL>( *symbol, &Schematic()->Prj() );
+    // }
 }
 
 

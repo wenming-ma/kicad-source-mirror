@@ -20,6 +20,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / r"scripts\tu_index.json"
 SEEDS = ROOT / r"scripts\seeds.txt"
+COMMON_SYMBOLS = ROOT / r"scripts\common_symbols.txt"
 OUT = ROOT / r"scripts\tem\minset_sources.json"
 UNRES = ROOT / r"scripts\tem\unresolved_symbols.json"
 REPORT = ROOT / r"scripts\tem\dependency_report.xlsx"
@@ -216,6 +217,33 @@ def is_blacklisted_file(file_path):
 
 def is_external(sym):
     return any(sym.startswith(p) for p in EXTERNAL_HINTS)
+
+
+def load_common_symbols(common_symbols_file):
+    """
+    Load common/repeated symbols that should be considered as always available
+    These symbols are compiler-generated or framework symbols that appear in many files
+    and don't represent real dependencies between user code modules
+
+    Returns:
+        Set of symbol names that should be considered as predefined
+    """
+    common_symbols = set()
+
+    try:
+        if common_symbols_file.exists():
+            for line in common_symbols_file.read_text(encoding='utf-8').splitlines():
+                line = line.strip()
+                # Each line contains one symbol name
+                if line:
+                    common_symbols.add(line)
+
+        print(f"Loaded {len(common_symbols)} common symbols from {common_symbols_file}")
+    except Exception as e:
+        print(f"Warning: Could not load common symbols from {common_symbols_file}: {e}")
+        print("Continuing without common symbol filtering...")
+
+    return common_symbols
 
 
 def get_seed_files(per, seeds_file):
@@ -503,6 +531,9 @@ def create_excel_report(iteration_reports, blacklisted_symbols=None):
 def main():
     idx_all = json.loads(INDEX.read_text(encoding="utf-8"))["items"]
 
+    # Load common symbols that should be considered as always available
+    common_symbols = load_common_symbols(COMMON_SYMBOLS)
+
     # Build mapping using Path suffix matching
     per = {}
     providers = {}
@@ -546,13 +577,22 @@ def main():
             provided |= d
             required |= u
 
-        # 找出缺失的内部符号
-        missing = {m for m in (required - provided) if not is_external(m)}
+        # 将公共符号添加到已提供的符号集合中
+        # 这些符号被认为是"始终可用的"，不需要引入额外的文件
+        provided |= common_symbols
+
+        # 找出缺失的内部符号（排除外部库符号和公共符号）
+        missing = {m for m in (required - provided) if not is_external(m) and m not in common_symbols}
         initial_missing_count = len(missing)
 
+        # 统计公共符号的使用情况
+        common_symbols_used = len(required & common_symbols)
         print(
             f"Iteration {iteration}: size={len(S)}, provided={len(provided)}, required={len(required)}, missing={initial_missing_count}"
         )
+        print(f"  Common symbols in use: {common_symbols_used}/{len(common_symbols)}")
+        if common_symbols_used > 0:
+            print(f"  -> Avoiding potential file additions due to common symbol filtering")
 
         # Track introductions for this iteration
         file_introductions = defaultdict(

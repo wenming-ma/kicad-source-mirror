@@ -26,7 +26,7 @@
 #include <sch_collectors.h>
 #include <erc/erc_settings.h>
 #include <font/outline_font.h>
-#include <netlist_exporter_spice.h>
+// #include <netlist_exporter_spice.h> // UNUSED_SYMBOL: SIM functionality disabled
 #include <progress_reporter.h>
 #include <project.h>
 #include <project/net_settings.h>
@@ -43,8 +43,8 @@
 #include <sch_screen.h>
 #include <sch_sheet_pin.h>
 #include <sch_selection_tool.h>
-#include <sim/spice_settings.h>
-#include <sim/spice_value.h>
+// #include <sim/spice_settings.h> // UNUSED_SYMBOL: SIM functionality disabled
+// #include <sim/spice_value.h> // UNUSED_SYMBOL: SIM functionality disabled
 #include <tool/tool_manager.h>
 #include <undo_redo_container.h>
 

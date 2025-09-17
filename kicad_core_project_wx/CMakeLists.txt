@@ -150,7 +150,7 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/generated/common
     ${CMAKE_CURRENT_SOURCE_DIR}/generated/eeschema
     ${CMAKE_CURRENT_SOURCE_DIR}/generated/include
-    # ${CMAKE_CURRENT_SOURCE_DIR}/generated/api/cpp  # DISABLED FOR MINIMAL BUILD
+    ${CMAKE_CURRENT_SOURCE_DIR}/generated/api/cpp  # Re-enabled for API headers
     
     # Core libraries include paths (for headers like math/*, kiplatform/*, core/*)
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/kimath/include
@@ -237,9 +237,9 @@ add_custom_target(
 add_subdirectory( thirdparty )
 add_subdirectory( libs )
 add_subdirectory( common )
-add_subdirectory( bitmap2component )
+# add_subdirectory( bitmap2component )
 add_subdirectory( eeschema )
-add_subdirectory( pcbnew )
+# add_subdirectory( pcbnew )
 add_subdirectory( test )
 
 

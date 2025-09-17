@@ -27,7 +27,7 @@
 #include <wx/aui/framemanager.h>
 
 #include <settings/app_settings.h>
-#include <sim/sim_preferences.h>
+// #include <sim/sim_preferences.h> // UNUSED_SYMBOL: SIM functionality disabled
 
 using KIGFX::COLOR4D;
 

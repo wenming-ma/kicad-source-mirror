@@ -30,9 +30,9 @@
 #include <core/mirror.h>
 #include <sch_shape.h>
 #include <pgm_base.h>
-#include <sim/sim_model.h>
-#include <sim/spice_generator.h>
-#include <sim/sim_lib_mgr.h>
+// #include <sim/sim_model.h> // UNUSED_SYMBOL: SIM functionality disabled
+// #include <sim/spice_generator.h> // UNUSED_SYMBOL: SIM functionality disabled
+// #include <sim/sim_lib_mgr.h> // UNUSED_SYMBOL: SIM functionality disabled
 #include <trace_helpers.h>
 #include <trigo.h>
 #include <refdes_utils.h>
@@ -106,7 +106,9 @@ SCH_SYMBOL::SCH_SYMBOL( const LIB_SYMBOL& aSymbol, const LIB_ID& aLibId,
 
     // Inherit the include in bill of materials and board netlist settings from flattened
     // library symbol.
-    m_excludedFromSim = m_part->GetExcludedFromSim();
+    // UNUSED_SYMBOL: SIM functionality disabled
+    // m_excludedFromSim = m_part->GetExcludedFromSim();
+    m_excludedFromSim = false; // Default to false when SIM disabled
     m_excludedFromBOM = m_part->GetExcludedFromBOM();
     m_excludedFromBoard = m_part->GetExcludedFromBoard();
 }
@@ -1555,8 +1557,9 @@ bool SCH_SYMBOL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, i
     {
         *token = wxEmptyString;
 
-        if( aPath->GetExcludedFromSim() || this->GetExcludedFromSim() )
-            *token = _( "Excluded from simulation" );
+        // UNUSED_SYMBOL: SIM functionality disabled
+        // if( aPath->GetExcludedFromSim() || this->GetExcludedFromSim() )
+        //     *token = _( "Excluded from simulation" );
 
         return true;
     }
@@ -1973,8 +1976,9 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
             {
                 wxArrayString msgs;
 
-                if( GetExcludedFromSim() )
-                    msgs.Add( _( "Simulation" ) );
+                // UNUSED_SYMBOL: SIM functionality disabled
+                // if( GetExcludedFromSim() )
+                //     msgs.Add( _( "Simulation" ) );
 
                 if( GetExcludedFromBOM() )
                     msgs.Add( _( "BOM" ) );
@@ -3005,9 +3009,10 @@ static struct SCH_SYMBOL_DESC
         propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( _HKI( "Exclude From Board" ),
                     &SYMBOL::SetExcludedFromBoard, &SYMBOL::GetExcludedFromBoard ),
                     groupAttributes );
-        propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( _HKI( "Exclude From Simulation" ),
-                    &SYMBOL::SetExcludedFromSim, &SYMBOL::GetExcludedFromSim ),
-                    groupAttributes );
+        // UNUSED_SYMBOL: SIM functionality disabled
+        // propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( _HKI( "Exclude From Simulation" ),
+        //             &SYMBOL::SetExcludedFromSim, &SYMBOL::GetExcludedFromSim ),
+        //             groupAttributes );
         propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( _HKI( "Exclude From Bill of Materials" ),
                     &SYMBOL::SetExcludedFromBOM, &SYMBOL::GetExcludedFromBOM ),
                     groupAttributes );

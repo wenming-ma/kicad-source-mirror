@@ -443,32 +443,38 @@ void ERC_TREE_MODEL::GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
         break;
 
     case RC_TREE_NODE::AUX_ITEM:
-        // UNUSED_SYMBOL: GetCurrentSheet - sheet path fallback commented out due to unused symbol
-        // msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItemID() ),
-        //                    ercItem->AuxItemHasSheetPath() ? ercItem->GetAuxItemSheetPath()
-        //                                                   : schEditFrame->GetCurrentSheet() );
-        SCH_SHEET_PATH fallbackSheet;
-        msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItemID() ),
-                           ercItem->AuxItemHasSheetPath() ? ercItem->GetAuxItemSheetPath()
-                                                          : fallbackSheet );
+        {
+            // UNUSED_SYMBOL: GetCurrentSheet - sheet path fallback commented out due to unused symbol
+            // msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItemID() ),
+            //                    ercItem->AuxItemHasSheetPath() ? ercItem->GetAuxItemSheetPath()
+            //                                                   : schEditFrame->GetCurrentSheet() );
+            SCH_SHEET_PATH fallbackSheet;
+            msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItemID() ),
+                               ercItem->AuxItemHasSheetPath() ? ercItem->GetAuxItemSheetPath()
+                                                              : fallbackSheet );
+        }
         break;
 
     case RC_TREE_NODE::AUX_ITEM2:
-        // UNUSED_SYMBOL: GetCurrentSheet - sheet path parameter commented out due to unused symbol
-        // msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem2ID() ),
-        //                    schEditFrame->GetCurrentSheet() );
-        SCH_SHEET_PATH fallbackSheet;
-        msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem2ID() ),
-                           fallbackSheet );
+        {
+            // UNUSED_SYMBOL: GetCurrentSheet - sheet path parameter commented out due to unused symbol
+            // msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem2ID() ),
+            //                    schEditFrame->GetCurrentSheet() );
+            SCH_SHEET_PATH fallbackSheet;
+            msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem2ID() ),
+                               fallbackSheet );
+        }
         break;
 
     case RC_TREE_NODE::AUX_ITEM3:
-        // UNUSED_SYMBOL: GetCurrentSheet - sheet path parameter commented out due to unused symbol
-        // msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem3ID() ),
-        //                    schEditFrame->GetCurrentSheet() );
-        SCH_SHEET_PATH fallbackSheet;
-        msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem3ID() ),
-                           fallbackSheet );
+        {
+            // UNUSED_SYMBOL: GetCurrentSheet - sheet path parameter commented out due to unused symbol
+            // msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem3ID() ),
+            //                    schEditFrame->GetCurrentSheet() );
+            SCH_SHEET_PATH fallbackSheet;
+            msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem3ID() ),
+                               fallbackSheet );
+        }
         break;
 
     case RC_TREE_NODE::COMMENT:

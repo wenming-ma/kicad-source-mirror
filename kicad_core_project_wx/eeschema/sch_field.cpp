@@ -42,7 +42,7 @@
 #include <tool/tool_manager.h>
 #include <tools/sch_navigate_tool.h>
 #include <font/outline_font.h>
-#include "sim/sim_lib_mgr.h"
+// #include "sim/sim_lib_mgr.h" // UNUSED_SYMBOL: SIM functionality disabled
 
 static const std::vector<KICAD_T> labelTypes = { SCH_LABEL_LOCATE_ANY_T };
 

@@ -66,7 +66,7 @@
 #include <template_fieldnames.h>
 #include <trigo.h>
 #include <progress_reporter.h>
-#include <sim/sim_model.h>
+// #include <sim/sim_model.h> // UNUSED_SYMBOL: SIM functionality disabled
 
 
 using namespace TSCHEMATIC_T;
@@ -382,7 +382,9 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
             break;
 
         case T_exclude_from_sim:
-            symbol->SetExcludedFromSim( parseBool() );
+            // UNUSED_SYMBOL: SIM functionality disabled
+            // symbol->SetExcludedFromSim( parseBool() );
+            parseBool(); // consume the value but ignore it
             NeedRIGHT();
             break;
 
@@ -3110,7 +3112,9 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
             break;
 
         case T_exclude_from_sim:
-            symbol->SetExcludedFromSim( parseBool() );
+            // UNUSED_SYMBOL: SIM functionality disabled
+            // symbol->SetExcludedFromSim( parseBool() );
+            parseBool(); // consume the value but ignore it
             NeedRIGHT();
             break;
 
@@ -3267,20 +3271,21 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
             // the field positions are set.
             field = parseSchField( symbol.get() );
 
-            // Exclude from simulation used to be managed by a Sim.Enable field set to "0" when
-            // simulation was disabled.
-            if( field->GetCanonicalName() == SIM_LEGACY_ENABLE_FIELD_V7 )
-            {
-                symbol->SetExcludedFromSim( field->GetText() == wxS( "0" ) );
-                break;
-            }
-
-            // Even longer ago, we had a "Spice_Netlist_Enabled" field
-            if( field->GetCanonicalName() == SIM_LEGACY_ENABLE_FIELD )
-            {
-                symbol->SetExcludedFromSim( field->GetText() == wxS( "N" ) );
-                break;
-            }
+            // UNUSED_SYMBOL: SIM legacy field processing disabled
+            // // Exclude from simulation used to be managed by a Sim.Enable field set to "0" when
+            // // simulation was disabled.
+            // if( field->GetCanonicalName() == SIM_LEGACY_ENABLE_FIELD_V7 )
+            // {
+            //     symbol->SetExcludedFromSim( field->GetText() == wxS( "0" ) );
+            //     break;
+            // }
+            //
+            // // Even longer ago, we had a "Spice_Netlist_Enabled" field
+            // if( field->GetCanonicalName() == SIM_LEGACY_ENABLE_FIELD )
+            // {
+            //     symbol->SetExcludedFromSim( field->GetText() == wxS( "N" ) );
+            //     break;
+            // }
 
             if( ( field->GetId() >= MANDATORY_FIELD_COUNT ) && m_fieldIDsRead.count( field->GetId() ) )
             {
@@ -3490,7 +3495,9 @@ SCH_SHEET* SCH_IO_KICAD_SEXPR_PARSER::parseSheet()
         }
 
         case T_exclude_from_sim:
-            sheet->SetExcludedFromSim( parseBool() );
+            // UNUSED_SYMBOL: SIM functionality disabled
+            // sheet->SetExcludedFromSim( parseBool() );
+            parseBool(); // consume the value but ignore it
             NeedRIGHT();
             break;
 
@@ -4296,7 +4303,9 @@ SCH_TEXT* SCH_IO_KICAD_SEXPR_PARSER::parseSchText()
         switch( token )
         {
         case T_exclude_from_sim:
-            text->SetExcludedFromSim( parseBool() );
+            // UNUSED_SYMBOL: SIM functionality disabled
+            // text->SetExcludedFromSim( parseBool() );
+            parseBool(); // consume the value but ignore it
             NeedRIGHT();
             break;
 
@@ -4491,7 +4500,9 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseSchTextBoxContent( SCH_TEXTBOX* aTextBox )
         switch( token )
         {
         case T_exclude_from_sim:
-            aTextBox->SetExcludedFromSim( parseBool() );
+            // UNUSED_SYMBOL: SIM functionality disabled
+            // aTextBox->SetExcludedFromSim( parseBool() );
+            parseBool(); // consume the value but ignore it
             NeedRIGHT();
             break;
 
