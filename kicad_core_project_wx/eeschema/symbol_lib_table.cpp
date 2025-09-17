@@ -134,15 +134,14 @@ void SYMBOL_LIB_TABLE_ROW::ShowSettingsDialog( wxWindow* aParent ) const
 {
     // Database library settings dialog is not available in minimal project
     // Original implementation commented out to maintain compilation integrity
-    /* ORIGINAL CODE:
-    wxCHECK( plugin, /* void */ );
-
-    if( type != SCH_IO_MGR::SCH_DATABASE )
-        return;
-
-    DIALOG_DATABASE_LIB_SETTINGS dlg( aParent, static_cast<SCH_IO_DATABASE*>( plugin.get() ) );
-    dlg.ShowModal();
-    */
+    // ORIGINAL CODE:
+    // wxCHECK( plugin, /* void */ );
+    //
+    // if( type != SCH_IO_MGR::SCH_DATABASE )
+    //     return;
+    //
+    // DIALOG_DATABASE_LIB_SETTINGS dlg( aParent, static_cast<SCH_IO_DATABASE*>( plugin.get() ) );
+    // dlg.ShowModal();
 
     // For now, do nothing - this maintains interface compatibility
     // but disables database-specific settings functionality
