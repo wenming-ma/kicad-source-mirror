@@ -32,7 +32,8 @@
 #include <schematic.h>
 
 
-class HTML_MESSAGE_BOX;
+// UNUSED_SYMBOL: HTML_MESSAGE_BOX destructor - Forward declaration not needed since class is unused
+// class HTML_MESSAGE_BOX;
 
 class SCH_TEXT : public SCH_ITEM, public EDA_TEXT
 {
@@ -173,7 +174,9 @@ public:
     void Show( int nestLevel, std::ostream& os ) const override;
 #endif
 
-    static HTML_MESSAGE_BOX* ShowSyntaxHelp( wxWindow* aParentWindow );
+    // UNUSED_SYMBOL: HTML_MESSAGE_BOX destructor - Method signature commented out since return type is unused
+    // static HTML_MESSAGE_BOX* ShowSyntaxHelp( wxWindow* aParentWindow );
+    static void* ShowSyntaxHelp( wxWindow* aParentWindow );
 
 protected:
     const KIFONT::METRICS& getFontMetrics() const override { return GetFontMetrics(); }

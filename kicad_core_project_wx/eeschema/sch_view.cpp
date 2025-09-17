@@ -69,9 +69,10 @@ void SCH_VIEW::SetScale( double aScale, VECTOR2D aAnchor )
 {
     VIEW::SetScale( aScale, aAnchor );
 
+    // UNUSED_SYMBOL: RefreshZoomDependentItems - method call commented out as the implementation is not included in the minimal compilation set
     // Redraw items whose rendering is dependent on zoom
-    if( m_frame )
-        m_frame->RefreshZoomDependentItems();
+    // if( m_frame )
+    //     m_frame->RefreshZoomDependentItems();
 }
 
 
@@ -80,10 +81,15 @@ void SCH_VIEW::DisplaySheet( const SCH_SCREEN *aScreen )
     for( SCH_ITEM* item : aScreen->Items() )
         Add( item );
 
+    // UNUSED_SYMBOL: Schematic() - method calls commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+    // m_drawingSheet.reset( new DS_PROXY_VIEW_ITEM( schIUScale, &aScreen->GetPageSettings(),
+    //                                               &aScreen->Schematic()->Prj(),
+    //                                               &aScreen->GetTitleBlock(),
+    //                                               aScreen->Schematic()->GetProperties() ) );
     m_drawingSheet.reset( new DS_PROXY_VIEW_ITEM( schIUScale, &aScreen->GetPageSettings(),
-                                                  &aScreen->Schematic()->Prj(),
+                                                  nullptr, // PROJECT*
                                                   &aScreen->GetTitleBlock(),
-                                                  aScreen->Schematic()->GetProperties() ) );
+                                                  nullptr ) ); // properties
     m_drawingSheet->SetPageNumber( TO_UTF8( aScreen->GetPageNumber() ) );
     m_drawingSheet->SetSheetCount( aScreen->GetPageCount() );
     m_drawingSheet->SetFileName( TO_UTF8( aScreen->GetFileName() ) );
@@ -110,9 +116,10 @@ void SCH_VIEW::DisplaySheet( const SCH_SCREEN *aScreen )
 
     InitPreview();
 
+    // UNUSED_SYMBOL: ResetTools - commented out call to unused ResetTools method for view initialization
     // Allow tools to add anything they require to the view (such as the selection VIEW_GROUP)
-    if( m_frame && m_frame->GetToolManager() )
-        m_frame->GetToolManager()->ResetTools( TOOL_BASE::REDRAW );
+    // if( m_frame && m_frame->GetToolManager() )
+    //     m_frame->GetToolManager()->ResetTools( TOOL_BASE::REDRAW );
 }
 
 

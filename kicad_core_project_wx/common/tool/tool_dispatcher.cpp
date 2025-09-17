@@ -255,13 +255,14 @@ bool TOOL_DISPATCHER::handleMouseButton( wxEvent& aEvent, int aIndex, bool aMoti
         }
     }
 
-    if( evt )
-    {
-        evt->SetMousePosition( isClick ? st->downPosition : m_lastMousePos );
-        m_toolMgr->ProcessEvent( *evt );
-
-        return true;
-    }
+    // UNUSED_SYMBOL: ?ProcessEvent@TOOL_MANAGER@@QEAA_NAEBVTOOL_EVENT@@ - commenting out ProcessEvent call
+    // if( evt )
+    // {
+    //     evt->SetMousePosition( isClick ? st->downPosition : m_lastMousePos );
+    //     m_toolMgr->ProcessEvent( *evt );
+    //
+    //     return true;
+    // }
 
     return false;
 }
@@ -622,19 +623,21 @@ void TOOL_DISPATCHER::DispatchWxEvent( wxEvent& aEvent )
         aEvent.Skip();
     }
 
+    // UNUSED_SYMBOL: ?ProcessEvent@TOOL_MANAGER@@QEAA_NAEBVTOOL_EVENT@@ - commenting out ProcessEvent call
+    // bool handled = false;
+    //
+    // if( evt )
+    // {
+    //     wxLogTrace( kicadTraceToolStack, wxS( "TOOL_DISPATCHER::DispatchWxEvent %s" ),
+    //                 evt->Format() );
+    //
+    //     handled = m_toolMgr->ProcessEvent( *evt );
+    //
+    //     wxLogTrace( kicadTraceToolStack,
+    //                 wxS( "TOOL_DISPATCHER::DispatchWxEvent - Handled: %s  %s" ),
+    //                 ( handled ? wxS( "true" ) : wxS( "false" ) ), evt->Format() );
+    // }
     bool handled = false;
-
-    if( evt )
-    {
-        wxLogTrace( kicadTraceToolStack, wxS( "TOOL_DISPATCHER::DispatchWxEvent %s" ),
-                    evt->Format() );
-
-        handled = m_toolMgr->ProcessEvent( *evt );
-
-        wxLogTrace( kicadTraceToolStack,
-                    wxS( "TOOL_DISPATCHER::DispatchWxEvent - Handled: %s  %s" ),
-                    ( handled ? wxS( "true" ) : wxS( "false" ) ), evt->Format() );
-    }
 
     // pass the event to the GUI, it might still be interested in it
     // Note wxEVT_CHAR_HOOK event is already skipped for special keys not used by KiCad

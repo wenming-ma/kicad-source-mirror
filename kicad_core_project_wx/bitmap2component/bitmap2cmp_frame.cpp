@@ -33,11 +33,12 @@
 #include <widgets/wx_menubar.h>
 #include <wildcards_and_files_ext.h>
 #include <file_history.h>
-#include <tool/tool_manager.h>
-#include <tool/tool_dispatcher.h>
-#include <tool/common_control.h>
-#include <tool/action_manager.h>
-#include <bitmap2cmp_control.h>
+// UNUSED_SYMBOL: ??0TOOL_MANAGER@@QEAA@XZ - TOOL_MANAGER related includes commented out
+// #include <tool/tool_manager.h>
+// #include <tool/tool_dispatcher.h>
+// #include <tool/common_control.h>
+// #include <tool/action_manager.h>
+// #include <bitmap2cmp_control.h>
 #include <tool/actions.h>
 
 #include <wx/filedlg.h>
@@ -141,8 +142,10 @@ BEGIN_EVENT_TABLE( BITMAP2CMP_FRAME, KIWAY_PLAYER )
     EVT_MENU( wxID_CLOSE, BITMAP2CMP_FRAME::OnExit )
     EVT_MENU( wxID_EXIT, BITMAP2CMP_FRAME::OnExit )
 
-    EVT_MENU_RANGE( ID_FILE1, ID_FILEMAX, BITMAP2CMP_FRAME::OnFileHistory )
-    EVT_MENU( ID_FILE_LIST_CLEAR, BITMAP2CMP_FRAME::OnClearFileHistory )
+    // UNUSED_SYMBOL: GetFileFromHistory - OnFileHistory method commented out as it depends on unused GetFileFromHistory
+    // EVT_MENU_RANGE( ID_FILE1, ID_FILEMAX, BITMAP2CMP_FRAME::OnFileHistory )
+    // UNUSED_SYMBOL: OnClearFileHistory event mapping - depends on ClearFileHistory method not used in minimal build
+    // EVT_MENU( ID_FILE_LIST_CLEAR, BITMAP2CMP_FRAME::OnClearFileHistory )
 END_EVENT_TABLE()
 
 
@@ -179,19 +182,22 @@ BITMAP2CMP_FRAME::BITMAP2CMP_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
 
     m_statusBar = this->CreateStatusBar( 1, wxSTB_SIZEGRIP, wxID_ANY );
 
-    LoadSettings( config() );
+    // UNUSED_SYMBOL: ?LoadSettings@EDA_BASE_FRAME@@UEAAXPEAVAPP_SETTING - EDA_BASE_FRAME::LoadSettings method not used in minimal set
+    // LoadSettings( config() );
 
-    m_toolManager = new TOOL_MANAGER;
-    m_toolManager->SetEnvironment( nullptr, nullptr, nullptr, config(), this );
+    // UNUSED_SYMBOL: ??0TOOL_MANAGER@@QEAA@XZ - TOOL_MANAGER default constructor not used in minimal set
+    // m_toolManager = new TOOL_MANAGER;
+    // m_toolManager->SetEnvironment( nullptr, nullptr, nullptr, config(), this );
+    //
+    // m_toolDispatcher = new TOOL_DISPATCHER( m_toolManager );
+    //
+    // // Register tools
+    // m_toolManager->RegisterTool( new COMMON_CONTROL );
+    // m_toolManager->RegisterTool( new BITMAP2CMP_CONTROL );
+    // m_toolManager->InitTools();
 
-    m_toolDispatcher = new TOOL_DISPATCHER( m_toolManager );
-
-    // Register tools
-    m_toolManager->RegisterTool( new COMMON_CONTROL );
-    m_toolManager->RegisterTool( new BITMAP2CMP_CONTROL );
-    m_toolManager->InitTools();
-
-    ReCreateMenuBar();
+    // UNUSED_SYMBOL: ReCreateMenuBar - ReCreateMenuBar method not used in minimal set
+    // ReCreateMenuBar();
     setupUIConditions();
 
     GetSizer()->SetSizeHints( this );
@@ -227,6 +233,8 @@ wxWindow* BITMAP2CMP_FRAME::GetToolCanvas() const
 }
 
 
+// UNUSED_SYMBOL: GetFileFromHistory - OnFileHistory method commented out as it depends on unused GetFileFromHistory
+/*
 void BITMAP2CMP_FRAME::OnFileHistory( wxCommandEvent& event )
 {
     wxString fn = GetFileFromHistory( event.GetId(), _( "Image files" ) );
@@ -237,17 +245,22 @@ void BITMAP2CMP_FRAME::OnFileHistory( wxCommandEvent& event )
         Refresh();
     }
 }
+*/
 
 
+// UNUSED_SYMBOL: OnClearFileHistory - depends on ClearFileHistory method not used in minimal build
+/*
 void BITMAP2CMP_FRAME::OnClearFileHistory( wxCommandEvent& aEvent )
 {
     ClearFileHistory();
 }
+*/
 
 
 void BITMAP2CMP_FRAME::doReCreateMenuBar()
 {
-    COMMON_CONTROL* tool = m_toolManager->GetTool<COMMON_CONTROL>();
+    // UNUSED_SYMBOL: ??0TOOL_MANAGER@@QEAA@XZ - TOOL_MANAGER default constructor not used in minimal set
+    // COMMON_CONTROL* tool = m_toolManager->GetTool<COMMON_CONTROL>();
     EDA_BASE_FRAME* base_frame = dynamic_cast<EDA_BASE_FRAME*>( this );
 
     // base_frame == nullptr should not happen, but it makes Coverity happy
@@ -260,7 +273,7 @@ void BITMAP2CMP_FRAME::doReCreateMenuBar()
 
     //-- File menu -----------------------------------------------------------
     //
-    ACTION_MENU* fileMenu = new ACTION_MENU( false, tool );
+    ACTION_MENU* fileMenu = new ACTION_MENU( false, nullptr );
 
     fileMenu->Add( ACTIONS::open );
 
@@ -271,7 +284,7 @@ void BITMAP2CMP_FRAME::doReCreateMenuBar()
     // will automatically refresh the menu.
     if( !openRecentMenu )
     {
-        openRecentMenu = new ACTION_MENU( false, tool );
+        openRecentMenu = new ACTION_MENU( false, nullptr );
         openRecentMenu->SetIcon( BITMAPS::recent );
 
         fileHistory.UseMenu( openRecentMenu );
@@ -284,35 +297,42 @@ void BITMAP2CMP_FRAME::doReCreateMenuBar()
 
     wxMenuItem* item = fileMenu->Add( openRecentMenu->Clone() );
 
+    // UNUSED_SYMBOL: RegisterUIUpdateHandler@EDA_BASE_FRAME - file history UI handler registration commented out
     // Add the file menu condition here since it needs the item ID for the submenu
-    ACTION_CONDITIONS cond;
-    cond.Enable( FILE_HISTORY::FileHistoryNotEmpty( fileHistory ) );
-    RegisterUIUpdateHandler( item->GetId(), cond );
+    // ACTION_CONDITIONS cond;
+    // cond.Enable( FILE_HISTORY::FileHistoryNotEmpty( fileHistory ) );
+    // RegisterUIUpdateHandler( item->GetId(), cond );
 
     fileMenu->AppendSeparator();
     fileMenu->AddQuit( _( "Image Converter" ) );
 
     //-- Preferences menu -----------------------------------------------
     //
-    ACTION_MENU* prefsMenu = new ACTION_MENU( false, tool );
+    // UNUSED_SYMBOL: ?AddMenuLanguageList@EDA_BASE_FRAME@@IEAAXPEAVACTI - Language menu functionality commented out
+    // ACTION_MENU* prefsMenu = new ACTION_MENU( false, tool );
+    ACTION_MENU* prefsMenu = new ACTION_MENU( false, nullptr );
 
     prefsMenu->Add( ACTIONS::openPreferences );
 
     prefsMenu->AppendSeparator();
-    AddMenuLanguageList( prefsMenu, tool );
+    // UNUSED_SYMBOL: ?AddMenuLanguageList@EDA_BASE_FRAME@@IEAAXPEAVACTI - AddMenuLanguageList method call commented out
+    // AddMenuLanguageList( prefsMenu, tool );
 
 
     //-- Menubar -------------------------------------------------------------
     //
     menuBar->Append( fileMenu, _( "&File" ) );
     menuBar->Append( prefsMenu, _( "&Preferences" ) );
-    base_frame->AddStandardHelpMenu( menuBar );
+    // UNUSED_SYMBOL: ?AddStandardHelpMenu@EDA_BASE_FRAME@@QEAAXPEAVwxMe - AddStandardHelpMenu method not used in minimal set
+    // base_frame->AddStandardHelpMenu( menuBar );
 
     base_frame->SetMenuBar( menuBar );
     delete oldMenuBar;
 }
 
 
+// UNUSED_SYMBOL: ShowChangedLanguage - BITMAP2CMP_FRAME method implementation commented out as symbol is unused
+/*
 void BITMAP2CMP_FRAME::ShowChangedLanguage()
 {
     EDA_BASE_FRAME::ShowChangedLanguage();
@@ -335,12 +355,14 @@ void BITMAP2CMP_FRAME::ShowChangedLanguage()
     if( !m_srcFileName.IsEmpty() )
         OpenProjectFiles( std::vector<wxString>( 1, m_srcFileName ) );
 
-    LoadSettings( config() );
+    // UNUSED_SYMBOL: ?LoadSettings@EDA_BASE_FRAME@@UEAAXPEAVAPP_SETTING - EDA_BASE_FRAME::LoadSettings method not used in minimal set
+    // LoadSettings( config() );
     m_panel->SetOutputSize( imageSizeX, imageSizeY );
 
     Thaw();
     Refresh();
 }
+*/
 
 
 void BITMAP2CMP_FRAME::UpdateTitle()
@@ -361,7 +383,8 @@ void BITMAP2CMP_FRAME::UpdateTitle()
 
 void BITMAP2CMP_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
 {
-    EDA_BASE_FRAME::LoadSettings( aCfg );
+    // UNUSED_SYMBOL: ?LoadSettings@EDA_BASE_FRAME@@UEAAXPEAVAPP_SETTING - Direct call to base class LoadSettings method not used in minimal set
+    // EDA_BASE_FRAME::LoadSettings( aCfg );
 
     if( BITMAP2CMP_SETTINGS* cfg = dynamic_cast<BITMAP2CMP_SETTINGS*>( aCfg ) )
     {
@@ -419,7 +442,8 @@ bool BITMAP2CMP_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, 
 
     if( m_panel->OpenProjectFiles( aFileSet, aCtl ) )
     {
-        UpdateFileHistory( m_srcFileName );
+        // UNUSED_SYMBOL: UpdateFileHistory - Method call commented out as symbol is unused
+        // UpdateFileHistory( m_srcFileName );
         return true;
     }
 

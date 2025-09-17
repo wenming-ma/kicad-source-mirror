@@ -21,4 +21,5 @@ target_include_directories( bitmap2component_lib PUBLIC
     ${CMAKE_SOURCE_DIR}/libs/kimath/include
     ${CMAKE_SOURCE_DIR}/libs/kiplatform/include
     ${CMAKE_SOURCE_DIR}/thirdparty
+    ${CMAKE_SOURCE_DIR}/thirdparty/potrace/include
 )

@@ -872,7 +872,9 @@ void SCH_SHEET::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
 
     if( SCH_EDIT_FRAME* schframe = dynamic_cast<SCH_EDIT_FRAME*>( aFrame ) )
     {
-        SCH_SHEET_PATH path = schframe->GetCurrentSheet();
+        // UNUSED_SYMBOL: GetCurrentSheet - sheet path creation commented out due to unused symbol
+        // SCH_SHEET_PATH path = schframe->GetCurrentSheet();
+        SCH_SHEET_PATH path;
         path.push_back( this );
 
         aList.emplace_back( _( "Hierarchical Path" ), path.PathHumanReadable( false, true ) );

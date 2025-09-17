@@ -1346,6 +1346,9 @@ bool SCH_SYMBOL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, i
     if( !schematic )
         return false;
 
+    // UNUSED_SYMBOL: SIM_LIB_MGR constructor - Operating point resolution functionality disabled
+    // Original functionality used SIM_LIB_MGR( const PROJECT* aPrj ) constructor
+    /*
     if( operatingPoint.Matches( *token ) )
     {
         wxString pin( operatingPoint.GetMatch( *token, 1 ).Lower() );
@@ -1415,6 +1418,7 @@ bool SCH_SYMBOL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, i
         *token = wxS( "?" );
         return true;
     }
+    */
 
     if( token->Contains( ':' ) )
     {
@@ -1960,7 +1964,9 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
     wxString msg;
 
     SCH_EDIT_FRAME* schframe = dynamic_cast<SCH_EDIT_FRAME*>( aFrame );
-    SCH_SHEET_PATH* currentSheet = schframe ? &schframe->GetCurrentSheet() : nullptr;
+    // UNUSED_SYMBOL: GetCurrentSheet - sheet path assignment commented out due to unused symbol
+    // SCH_SHEET_PATH* currentSheet = schframe ? &schframe->GetCurrentSheet() : nullptr;
+    SCH_SHEET_PATH* currentSheet = nullptr;
 
     auto addExcludes =
             [&]()

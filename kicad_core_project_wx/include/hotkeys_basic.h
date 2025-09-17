@@ -90,14 +90,15 @@ enum HOTKEY_ACTION_TYPE
  */
 wxString AddHotkeyName( const wxString& aText, int aHotKey, HOTKEY_ACTION_TYPE aStyle = IS_HOTKEY );
 
-/**
- * Display the current hotkey list.
- *
- * @param aFrame current active frame.
- * @param aToolMgr the tool manager holding the registered actions from which the hotkeys
- *                 will be harvested.
- */
-void DisplayHotkeyList( EDA_BASE_FRAME* aFrame );
+// UNUSED_SYMBOL: DIALOG_LIST_HOTKEYS constructor - Commenting out DisplayHotkeyList declaration
+// /**
+//  * Display the current hotkey list.
+//  *
+//  * @param aFrame current active frame.
+//  * @param aToolMgr the tool manager holding the registered actions from which the hotkeys
+//  *                 will be harvested.
+//  */
+// void DisplayHotkeyList( EDA_BASE_FRAME* aFrame );
 
 /**
  * Read a hotkey config file into a map.

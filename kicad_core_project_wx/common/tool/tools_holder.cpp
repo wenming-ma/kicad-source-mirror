@@ -40,17 +40,21 @@ TOOLS_HOLDER::TOOLS_HOLDER() :
 { }
 
 
-void TOOLS_HOLDER::RegisterUIUpdateHandler( const TOOL_ACTION& aAction,
-                                            const ACTION_CONDITIONS& aConditions )
-{
-    RegisterUIUpdateHandler( aAction.GetUIId(), aConditions );
-}
+// UNUSED_SYMBOL: RegisterUIUpdateHandler@EDA_BASE_FRAME - overloaded method commented out
+// void TOOLS_HOLDER::RegisterUIUpdateHandler( const TOOL_ACTION& aAction,
+//                                             const ACTION_CONDITIONS& aConditions )
+// {
+//     RegisterUIUpdateHandler( aAction.GetUIId(), aConditions );
+// }
 
 
+// UNUSED_SYMBOL: UnregisterUIUpdateHandler(int) - Method call commented out as EDA_BASE_FRAME::UnregisterUIUpdateHandler(int) is unused
+/*
 void TOOLS_HOLDER::UnregisterUIUpdateHandler( const TOOL_ACTION& aAction )
 {
     UnregisterUIUpdateHandler( aAction.GetUIId() );
 }
+*/
 
 
 // TODO: Implement an RAII mechanism for the stack PushTool/PopTool pairs
@@ -97,16 +101,17 @@ void TOOLS_HOLDER::PopTool( const TOOL_EVENT& aEvent )
                 std::string  back = m_toolStack[ i ];
                 TOOL_ACTION* action = m_toolManager->GetActionManager()->FindAction( back );
 
-                if( action )
-                {
-                    // Pop the action as running it will push it back onto the stack
-                    m_toolStack.pop_back();
-
-                    TOOL_EVENT evt = action->MakeEvent();
-                    evt.SetHasPosition( false );
-                    evt.SetReactivate( true );
-                    GetToolManager()->PostEvent( evt );
-                }
+                // UNUSED_SYMBOL: PostEvent@TOOL_MANAGER - commenting out block due to PostEvent dependency
+                // if( action )
+                // {
+                //     // Pop the action as running it will push it back onto the stack
+                //     m_toolStack.pop_back();
+                //
+                //     TOOL_EVENT evt = action->MakeEvent();
+                //     evt.SetHasPosition( false );
+                //     evt.SetReactivate( true );
+                //     GetToolManager()->PostEvent( evt );
+                // }
             }
             else
                 DisplayToolMsg( ACTIONS::selectionTool.GetFriendlyName() );
@@ -135,6 +140,8 @@ bool TOOLS_HOLDER::IsCurrentTool( const TOOL_ACTION& aAction ) const
 }
 
 
+// UNUSED_SYMBOL: ShowChangedLanguage - TOOLS_HOLDER method implementation commented out as symbol is unused
+/*
 void TOOLS_HOLDER::ShowChangedLanguage()
 {
     if( !GetToolManager() )
@@ -146,6 +153,7 @@ void TOOLS_HOLDER::ShowChangedLanguage()
     if( action )
         DisplayToolMsg( action->GetFriendlyName() );
 }
+*/
 
 
 void TOOLS_HOLDER::CommonSettingsChanged( int aFlags )

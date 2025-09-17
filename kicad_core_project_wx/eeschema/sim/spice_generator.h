@@ -65,10 +65,13 @@ public:
     virtual std::string Preview( const SPICE_ITEM& aItem ) const;
 
 protected:
+    // UNUSED_SYMBOL: SIM_MODEL::GetPins() - Method and its dependency commented out
+    /*
     virtual std::vector<std::reference_wrapper<const SIM_MODEL_PIN>> GetPins() const
     {
         return m_model.GetPins();
     }
+    */
 
     const SIM_MODEL& m_model;
 };

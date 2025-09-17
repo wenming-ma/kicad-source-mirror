@@ -59,14 +59,16 @@ void TOOL_MENU::ShowContextMenu( SELECTION& aSelection )
     m_menu.Evaluate( aSelection );
     m_menu.UpdateAll();
     m_menu.ClearDirty();
-    m_tool.SetContextMenu( &m_menu, CMENU_NOW );
+    // UNUSED_SYMBOL: SetContextMenu - method call commented out due to ScheduleContextMenu dependency
+    // m_tool.SetContextMenu( &m_menu, CMENU_NOW );
 }
 
 
 void TOOL_MENU::ShowContextMenu()
 {
     m_menu.SetDirty();
-    m_tool.SetContextMenu( &m_menu, CMENU_NOW );
+    // UNUSED_SYMBOL: SetContextMenu - method call commented out due to ScheduleContextMenu dependency
+    // m_tool.SetContextMenu( &m_menu, CMENU_NOW );
 }
 
 

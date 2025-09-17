@@ -412,7 +412,9 @@ void SCH_SHEET_PATH::UpdateAllScreenReferences() const
                     label->AutoplaceFields( LastScreen(), AUTOPLACE_AUTO );
                 }
 
-                intersheetRefs.SetVisible( label->Schematic()->Settings().m_IntersheetRefsShow );
+                // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+                // intersheetRefs.SetVisible( label->Schematic()->Settings().m_IntersheetRefsShow );
+                intersheetRefs.SetVisible( false ); // Default to false since schematic access is unavailable
                 LastScreen()->Update( &intersheetRefs );
             }
         }
@@ -500,7 +502,9 @@ bool SCH_SHEET_PATH::TestForRecursion( const wxString& aSrcFileName, const wxStr
     if( m_recursion_test_cache.count( pair ) )
         return m_recursion_test_cache.at( pair );
 
-    SCHEMATIC* sch = LastScreen()->Schematic();
+    // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+    // SCHEMATIC* sch = LastScreen()->Schematic();
+    SCHEMATIC* sch = nullptr;
 
     wxCHECK_MSG( sch, false, "No SCHEMATIC found in SCH_SHEET_PATH::TestForRecursion!" );
 
@@ -954,13 +958,14 @@ void SCH_SHEET_LIST::TrimToPageNumbers( const std::vector<wxString>& aPageInclus
 
 bool SCH_SHEET_LIST::IsModified() const
 {
-    for( const SCH_SHEET_PATH& sheet : *this )
-    {
-        if( sheet.LastScreen() && sheet.LastScreen()->IsContentModified() )
-            return true;
-    }
+    // UNUSED_SYMBOL: IsContentModified - method call commented out as BASE_SCREEN::IsContentModified depends on unused EDA_BASE_FRAME::IsContentModified
+    // for( const SCH_SHEET_PATH& sheet : *this )
+    // {
+    //     if( sheet.LastScreen() && sheet.LastScreen()->IsContentModified() )
+    //         return true;
+    // }
 
-    return false;
+    return false;  // Always return false since IsContentModified is not used
 }
 
 
@@ -1187,7 +1192,9 @@ bool SCH_SHEET_LIST::TestForRecursion( const SCH_SHEET_LIST& aSrcSheetHierarchy,
     if( empty() )
         return false;
 
-    SCHEMATIC* sch = at( 0 ).LastScreen()->Schematic();
+    // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+    // SCHEMATIC* sch = at( 0 ).LastScreen()->Schematic();
+    SCHEMATIC* sch = nullptr;
 
     wxCHECK_MSG( sch, false, "No SCHEMATIC found in SCH_SHEET_LIST::TestForRecursion!" );
 

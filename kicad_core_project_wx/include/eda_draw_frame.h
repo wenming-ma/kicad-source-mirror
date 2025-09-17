@@ -284,7 +284,8 @@ public:
     /**
      * Recalculate the size of toolbars and display panel when the frame size changes.
      */
-    virtual void OnSize( wxSizeEvent& event ) override;
+    // UNUSED_SYMBOL: OnSize - Override declaration commented out as base EDA_BASE_FRAME::OnSize is unused
+    // virtual void OnSize( wxSizeEvent& event ) override;
 
     void OnMove( wxMoveEvent& aEvent ) override;
 
@@ -489,10 +490,11 @@ public:
      */
     void OnToolbarSizeChanged();
 
+    // UNUSED_SYMBOL: ShowChangedLanguage - Method declaration commented out as symbol is unused
     /**
      * Redraw the menus and what not in current language.
      */
-    void ShowChangedLanguage() override;
+    // void ShowChangedLanguage() override;
 
     HOTKEY_CYCLE_POPUP* GetHotkeyPopup() { return m_hotkeyPopup; }
 

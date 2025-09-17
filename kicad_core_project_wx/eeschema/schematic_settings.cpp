@@ -30,7 +30,8 @@
 #include <settings/parameters.h>
 #include <settings/settings_manager.h>
 #include <settings/bom_settings.h>
-#include <sim/spice_settings.h>
+// UNUSED_SYMBOL: NGSPICE_SETTINGS include - Commented out unused NGSPICE settings include
+// #include <sim/spice_settings.h>
 
 
 const int schSettingsSchemaVersion = 1;
@@ -64,8 +65,9 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
         m_SpiceSaveAllDissipations( false ),
         m_SpiceSaveAllEvents( true ),
         m_SpiceModelCurSheetAsRoot( true ),
-        m_MaxError( ARC_LOW_DEF_MM * schIUScale.IU_PER_MM ),
-        m_NgspiceSettings( nullptr )
+        m_MaxError( ARC_LOW_DEF_MM * schIUScale.IU_PER_MM )
+        // UNUSED_SYMBOL: NGSPICE_SETTINGS initializer - Commented out unused NGSPICE member initialization
+        // , m_NgspiceSettings( nullptr )
 {
     SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
     EESCHEMA_SETTINGS* cfg = mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
@@ -247,7 +249,8 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
     m_params.emplace_back( new PARAM<int>( "annotate_start_num",
             &m_AnnotateStartNum, 0 ) );
 
-    m_NgspiceSettings = std::make_shared<NGSPICE_SETTINGS>( this, "ngspice" );
+    // UNUSED_SYMBOL: NGSPICE_SETTINGS constructor - Commented out unused NGSPICE simulator settings
+    // m_NgspiceSettings = std::make_shared<NGSPICE_SETTINGS>( this, "ngspice" );
 
     registerMigration( 0, 1,
             [&]() -> bool
@@ -264,8 +267,9 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
 
 SCHEMATIC_SETTINGS::~SCHEMATIC_SETTINGS()
 {
-    ReleaseNestedSettings( m_NgspiceSettings.get() );
-    m_NgspiceSettings.reset();
+    // UNUSED_SYMBOL: NGSPICE_SETTINGS destructor cleanup - Commented out unused NGSPICE cleanup
+    // ReleaseNestedSettings( m_NgspiceSettings.get() );
+    // m_NgspiceSettings.reset();
 
     if( m_parent )
     {

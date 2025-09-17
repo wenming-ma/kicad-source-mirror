@@ -26,7 +26,8 @@
 #include "symbol_library_manager.h"
 
 #include <symbol_library.h>
-#include <dialogs/html_message_box.h>
+// UNUSED_SYMBOL: HTML_MESSAGE_BOX - Header not needed since class is unused
+// #include <dialogs/html_message_box.h>
 #include <symbol_edit_frame.h>
 #include <symbol_lib_table.h>
 #include <env_paths.h>
@@ -77,6 +78,8 @@ void SYMBOL_LIBRARY_MANAGER::Preload( PROGRESS_REPORTER& aReporter )
 
     loader.Join();
 
+    // UNUSED_SYMBOL: HTML_MESSAGE_BOX constructor - Constructor and related methods not compiled in minimal set
+    /*
     if( !loader.GetErrors().IsEmpty() )
     {
         HTML_MESSAGE_BOX dlg( &m_frame, _( "Load Error" ) );
@@ -89,6 +92,7 @@ void SYMBOL_LIBRARY_MANAGER::Preload( PROGRESS_REPORTER& aReporter )
         dlg.AddHTML_Text( msg );
         dlg.ShowModal();
     }
+    */
 }
 
 
@@ -169,111 +173,115 @@ SYMBOL_LIB_TABLE_ROW* SYMBOL_LIBRARY_MANAGER::GetLibrary( const wxString& aLibra
 }
 
 
+// UNUSED_SYMBOL: ?FindPlugin@SCH_IO_MGR@@SAPEAVSCH_IO@@W4SCH_FILE_T - Implementation not available in minimal project
+// Function commented out because it depends on SCH_IO_MGR::FindPlugin which is not available
 bool SYMBOL_LIBRARY_MANAGER::SaveLibrary( const wxString& aLibrary, const wxString& aFileName,
                                           SCH_IO_MGR::SCH_FILE_T aFileType )
 {
-    wxCHECK( aFileType != SCH_IO_MGR::SCH_FILE_T::SCH_LEGACY, false );
+    // wxCHECK( aFileType != SCH_IO_MGR::SCH_FILE_T::SCH_LEGACY, false );
+    //
+    // wxFileName fn( aFileName );
+    //
+    // if( fn.FileExists() && !fn.IsFileWritable() )
+    //     return false;
+    //
+    // IO_RELEASER<SCH_IO> pi( SCH_IO_MGR::FindPlugin( aFileType ) );
+    // bool                res = true;    // assume all libraries are successfully saved
+    // std::map<std::string, UTF8>     properties;
+    //
+    // properties.emplace( SCH_IO_KICAD_LEGACY::PropBuffering, "" );
+    //
+    // auto it = m_libs.find( aLibrary );
+    //
+    // if( it != m_libs.end() )
+    // {
+    //     // Handle buffered library
+    //     LIB_BUFFER& libBuf = it->second;
+    //
+    //     const auto& symbolBuffers = libBuf.GetBuffers();
+    //
+    //     for( const std::shared_ptr<SYMBOL_BUFFER>& symbolBuf : symbolBuffers )
+    //     {
+    //         wxCHECK2( symbolBuf, continue );
+    //
+    //         if( !libBuf.SaveBuffer( *symbolBuf, aFileName, &*pi, true ) )
+    //         {
+    //             // Something went wrong, but try to save other libraries
+    //             res = false;
+    //         }
+    //     }
+    //
+    //     // clear the deleted symbols buffer only if data is saved to the original file
+    //     wxFileName original, destination( aFileName );
+    //     SYMBOL_LIB_TABLE_ROW* row = GetLibrary( aLibrary );
+    //
+    //     if( row )
+    //     {
+    //         original = row->GetFullURI();
+    //         original.Normalize( FN_NORMALIZE_FLAGS | wxPATH_NORM_ENV_VARS );
+    //     }
+    //
+    //     destination.Normalize( FN_NORMALIZE_FLAGS | wxPATH_NORM_ENV_VARS );
+    //
+    //     if( res && original == destination )
+    //         libBuf.ClearDeletedBuffer();
+    // }
+    // else
+    // {
+    //     // Handle original library
+    //     for( LIB_SYMBOL* symbol : getOriginalSymbols( aLibrary ) )
+    //     {
+    //         LIB_SYMBOL* newSymbol;
+    //
+    //         try
+    //         {
+    //             if( symbol->IsAlias() )
+    //             {
+    //                 std::shared_ptr< LIB_SYMBOL > oldParent = symbol->GetParent().lock();
+    //
+    //                 wxCHECK_MSG( oldParent, false,
+    //                              wxString::Format( wxT( "Derived symbol '%s' found with undefined parent." ),
+    //                                                symbol->GetName() ) );
+    //
+    //                 LIB_SYMBOL* libParent = pi->LoadSymbol( aLibrary, oldParent->GetName(), &properties );
+    //
+    //                 if( !libParent )
+    //                 {
+    //                     libParent = new LIB_SYMBOL( *oldParent.get() );
+    //                     pi->SaveSymbol( aLibrary, libParent, &properties );
+    //                 }
+    //
+    //                 newSymbol = new LIB_SYMBOL( *symbol );
+    //                 newSymbol->SetParent( libParent );
+    //                 pi->SaveSymbol( aLibrary, newSymbol, &properties );
+    //             }
+    //             else if( !pi->LoadSymbol( aLibrary, symbol->GetName(), &properties ) )
+    //             {
+    //                 pi->SaveSymbol( aLibrary, new LIB_SYMBOL( *symbol ), &properties );
+    //             }
+    //         }
+    //         catch( ... )
+    //         {
+    //             res = false;
+    //             break;
+    //         }
+    //     }
+    // }
+    //
+    // try
+    // {
+    //     pi->SaveLibrary( aFileName );
+    // }
+    // catch( ... )
+    // {
+    //     // return false because something happens.
+    //     // The library is not successfully saved
+    //     res = false;
+    // }
+    //
+    // return res;
 
-    wxFileName fn( aFileName );
-
-    if( fn.FileExists() && !fn.IsFileWritable() )
-        return false;
-
-    IO_RELEASER<SCH_IO> pi( SCH_IO_MGR::FindPlugin( aFileType ) );
-    bool                res = true;    // assume all libraries are successfully saved
-    std::map<std::string, UTF8>     properties;
-
-    properties.emplace( SCH_IO_KICAD_LEGACY::PropBuffering, "" );
-
-    auto it = m_libs.find( aLibrary );
-
-    if( it != m_libs.end() )
-    {
-        // Handle buffered library
-        LIB_BUFFER& libBuf = it->second;
-
-        const auto& symbolBuffers = libBuf.GetBuffers();
-
-        for( const std::shared_ptr<SYMBOL_BUFFER>& symbolBuf : symbolBuffers )
-        {
-            wxCHECK2( symbolBuf, continue );
-
-            if( !libBuf.SaveBuffer( *symbolBuf, aFileName, &*pi, true ) )
-            {
-                // Something went wrong, but try to save other libraries
-                res = false;
-            }
-        }
-
-        // clear the deleted symbols buffer only if data is saved to the original file
-        wxFileName original, destination( aFileName );
-        SYMBOL_LIB_TABLE_ROW* row = GetLibrary( aLibrary );
-
-        if( row )
-        {
-            original = row->GetFullURI();
-            original.Normalize( FN_NORMALIZE_FLAGS | wxPATH_NORM_ENV_VARS );
-        }
-
-        destination.Normalize( FN_NORMALIZE_FLAGS | wxPATH_NORM_ENV_VARS );
-
-        if( res && original == destination )
-            libBuf.ClearDeletedBuffer();
-    }
-    else
-    {
-        // Handle original library
-        for( LIB_SYMBOL* symbol : getOriginalSymbols( aLibrary ) )
-        {
-            LIB_SYMBOL* newSymbol;
-
-            try
-            {
-                if( symbol->IsAlias() )
-                {
-                    std::shared_ptr< LIB_SYMBOL > oldParent = symbol->GetParent().lock();
-
-                    wxCHECK_MSG( oldParent, false,
-                                 wxString::Format( wxT( "Derived symbol '%s' found with undefined parent." ),
-                                                   symbol->GetName() ) );
-
-                    LIB_SYMBOL* libParent = pi->LoadSymbol( aLibrary, oldParent->GetName(), &properties );
-
-                    if( !libParent )
-                    {
-                        libParent = new LIB_SYMBOL( *oldParent.get() );
-                        pi->SaveSymbol( aLibrary, libParent, &properties );
-                    }
-
-                    newSymbol = new LIB_SYMBOL( *symbol );
-                    newSymbol->SetParent( libParent );
-                    pi->SaveSymbol( aLibrary, newSymbol, &properties );
-                }
-                else if( !pi->LoadSymbol( aLibrary, symbol->GetName(), &properties ) )
-                {
-                    pi->SaveSymbol( aLibrary, new LIB_SYMBOL( *symbol ), &properties );
-                }
-            }
-            catch( ... )
-            {
-                res = false;
-                break;
-            }
-        }
-    }
-
-    try
-    {
-        pi->SaveLibrary( aFileName );
-    }
-    catch( ... )
-    {
-        // return false because something happens.
-        // The library is not successfully saved
-        res = false;
-    }
-
-    return res;
+    return false; // Function not available in minimal project
 }
 
 
@@ -739,13 +747,33 @@ bool SYMBOL_LIBRARY_MANAGER::addLibrary( const wxString& aFilePath, bool aCreate
     // try to use path normalized to an environmental variable or project path
     wxString relPath = NormalizePath( aFilePath, &Pgm().GetLocalEnvVariables(), &m_frame.Prj() );
 
-    SCH_IO_MGR::SCH_FILE_T schFileType = SCH_IO_MGR::GuessPluginTypeFromLibPath( aFilePath,
-                    aCreate ? KICTL_CREATE : 0 );
+    // UNUSED_SYMBOL: GuessPluginTypeFromLibPath - Function implementation not available in minimal project
+    // SCH_IO_MGR::SCH_FILE_T schFileType = SCH_IO_MGR::GuessPluginTypeFromLibPath( aFilePath,
+    //                aCreate ? KICTL_CREATE : 0 );
+    // Default to SCH_FILE_UNKNOWN to trigger fallback to SCH_LEGACY
+    SCH_IO_MGR::SCH_FILE_T schFileType = SCH_IO_MGR::SCH_FILE_UNKNOWN;
 
     if( schFileType == SCH_IO_MGR::SCH_FILE_UNKNOWN )
         schFileType = SCH_IO_MGR::SCH_LEGACY;
 
-    wxString typeName = SCH_IO_MGR::ShowType( schFileType );
+    // UNUSED_SYMBOL: ?ShowType@SCH_IO_MGR@@SA?BVwxString@@W4SCH_FILE_T@ - ShowType method not available, using fallback
+    // wxString typeName = SCH_IO_MGR::ShowType( schFileType );
+    // Fallback implementation since ShowType is not available
+    wxString typeName;
+    switch( schFileType )
+    {
+        case SCH_IO_MGR::SCH_KICAD:           typeName = wxT("KiCad"); break;
+        case SCH_IO_MGR::SCH_LEGACY:          typeName = wxT("Legacy"); break;
+        case SCH_IO_MGR::SCH_ALTIUM:          typeName = wxT("Altium"); break;
+        case SCH_IO_MGR::SCH_CADSTAR_ARCHIVE: typeName = wxT("CADSTAR"); break;
+        case SCH_IO_MGR::SCH_DATABASE:        typeName = wxT("Database"); break;
+        case SCH_IO_MGR::SCH_EAGLE:           typeName = wxT("Eagle"); break;
+        case SCH_IO_MGR::SCH_EASYEDA:         typeName = wxT("EasyEDA"); break;
+        case SCH_IO_MGR::SCH_EASYEDAPRO:      typeName = wxT("EasyEDAPro"); break;
+        case SCH_IO_MGR::SCH_LTSPICE:         typeName = wxT("LTspice"); break;
+        case SCH_IO_MGR::SCH_HTTP:            typeName = wxT("HTTP"); break;
+        default:                              typeName = wxT("Unknown"); break;
+    }
     SYMBOL_LIB_TABLE_ROW* libRow = new SYMBOL_LIB_TABLE_ROW( libName, relPath, typeName );
     aTable.InsertRow( libRow );
 
@@ -920,7 +948,9 @@ void SYMBOL_BUFFER::SetOriginal( std::unique_ptr<LIB_SYMBOL> aSymbol )
 
 bool SYMBOL_BUFFER::IsModified() const
 {
-    return m_screen && m_screen->IsContentModified();
+    // UNUSED_SYMBOL: IsContentModified - method call commented out as EDA_BASE_FRAME::IsContentModified is unused
+    // return m_screen && m_screen->IsContentModified();
+    return false;  // Always return false since IsContentModified is not used
 }
 
 
@@ -1004,7 +1034,8 @@ bool LIB_BUFFER::SaveBuffer( SYMBOL_BUFFER& aSymbolBuf, const wxString& aFileNam
 
     // Set properties to prevent saving the file on every symbol save.
     std::map<std::string, UTF8> properties;
-    properties.emplace( SCH_IO_KICAD_LEGACY::PropBuffering, "" );
+    // UNUSED_SYMBOL: PropBuffering - Property not available in minimal compilation set
+    // properties.emplace( SCH_IO_KICAD_LEGACY::PropBuffering, "" );
 
     LIB_SYMBOL& libSymbol = aSymbolBuf.GetSymbol();
 

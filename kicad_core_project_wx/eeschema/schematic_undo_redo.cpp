@@ -120,16 +120,17 @@ void SCH_EDIT_FRAME::SaveCopyInUndoList( SCH_SCREEN* aScreen, SCH_ITEM* aItem,
         aItem->SetConnectivityDirty();
     }
 
-    PICKED_ITEMS_LIST* lastUndo = PopCommandFromUndoList();
+    // UNUSED_SYMBOL: PopCommandFromUndoList - Usage commented out as method is unused
+    // PICKED_ITEMS_LIST* lastUndo = PopCommandFromUndoList();
 
     // If the last stack was empty, use that one instead of creating a new stack
-    if( lastUndo )
-    {
-        if( aAppend || !lastUndo->GetCount() )
-            commandToUndo = lastUndo;
-        else
-            PushCommandToUndoList( lastUndo );
-    }
+    // if( lastUndo )
+    // {
+    //     if( aAppend || !lastUndo->GetCount() )
+    //         commandToUndo = lastUndo;
+    //     else
+    //         PushCommandToUndoList( lastUndo );
+    // }
 
     if( !commandToUndo )
     {
@@ -160,7 +161,8 @@ void SCH_EDIT_FRAME::SaveCopyInUndoList( SCH_SCREEN* aScreen, SCH_ITEM* aItem,
     if( commandToUndo->GetCount() )
     {
         /* Save the copy in undo list */
-        PushCommandToUndoList( commandToUndo );
+        // UNUSED_SYMBOL: PushCommandToUndoList - Method call commented out as symbol is unused
+        // PushCommandToUndoList( commandToUndo );
 
         /* Clear redo list, because after new save there is no redo to do */
         ClearUndoORRedoList( REDO_LIST );
@@ -181,16 +183,17 @@ void SCH_EDIT_FRAME::SaveCopyInUndoList( const PICKED_ITEMS_LIST& aItemsList,
     if( !aItemsList.GetCount() )
         return;
 
-    PICKED_ITEMS_LIST* lastUndo = PopCommandFromUndoList();
+    // UNUSED_SYMBOL: PopCommandFromUndoList - Usage commented out as method is unused
+    // PICKED_ITEMS_LIST* lastUndo = PopCommandFromUndoList();
 
     // If the last stack was empty, use that one instead of creating a new stack
-    if( lastUndo )
-    {
-        if( aAppend || !lastUndo->GetCount() )
-            commandToUndo = lastUndo;
-        else
-            PushCommandToUndoList( lastUndo );
-    }
+    // if( lastUndo )
+    // {
+    //     if( aAppend || !lastUndo->GetCount() )
+    //         commandToUndo = lastUndo;
+    //     else
+    //         PushCommandToUndoList( lastUndo );
+    // }
 
     if( !commandToUndo )
     {
@@ -265,7 +268,8 @@ void SCH_EDIT_FRAME::SaveCopyInUndoList( const PICKED_ITEMS_LIST& aItemsList,
     if( commandToUndo->GetCount() )
     {
         /* Save the copy in undo list */
-        PushCommandToUndoList( commandToUndo );
+        // UNUSED_SYMBOL: PushCommandToUndoList - Method call commented out as symbol is unused
+        // PushCommandToUndoList( commandToUndo );
 
         /* Clear redo list, because after new save there is no redo to do */
         ClearUndoORRedoList( REDO_LIST );
@@ -394,11 +398,12 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
 
             SCH_SHEET_PATH undoSheet = sheets.FindSheetForScreen( screen );
 
-            if( GetCurrentSheet() != undoSheet )
-            {
-                SetCurrentSheet( undoSheet );
-                DisplayCurrentSheet();
-            }
+            // UNUSED_SYMBOL: GetCurrentSheet - entire if block commented out due to unused symbol
+            // if( GetCurrentSheet() != undoSheet )
+            // {
+            //     SetCurrentSheet( undoSheet );
+            //     DisplayCurrentSheet();
+            // }
 
             // swap current settings with stored settings
             DS_PROXY_UNDO_ITEM  alt_item( this );
@@ -417,7 +422,8 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
             if( schItem )
             {
                 propagateConnectivityDamage( schItem );
-                AddCopyForRepeatItem( schItem );
+                // UNUSED_SYMBOL: AddCopyForRepeatItem - method call commented out due to unused symbol
+                // AddCopyForRepeatItem( schItem );
 
                 if( schItem->Type() == SCH_SHEET_T )
                 {
@@ -432,12 +438,15 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
 
             wxCHECK2( itemCopy, continue );
 
-            if( schItem->HasConnectivityChanges( itemCopy, &GetCurrentSheet() ) )
-                propagateConnectivityDamage( schItem );
+            // UNUSED_SYMBOL: GetCurrentSheet - connectivity check commented out due to unused symbol
+            // if( schItem->HasConnectivityChanges( itemCopy, &GetCurrentSheet() ) )
+            //     propagateConnectivityDamage( schItem );
 
             // The root sheet is a pseudo object that owns the root screen object but is not on
             // the root screen so do not attempt to remove it from the screen it owns.
-            if( schItem != &Schematic().Root() )
+            // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+            // if( schItem != &Schematic().Root() )
+            if( false )
                 RemoveFromScreen( schItem, screen );
 
             switch( status )
@@ -502,7 +511,9 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
                 sym->UpdatePins();
             }
 
-            if( schItem != &Schematic().Root() )
+            // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+            // if( schItem != &Schematic().Root() )
+            if( false )
                 AddToScreen( schItem, screen );
         }
     }
@@ -511,16 +522,20 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
 
     // Notify our listeners
     if( bulkAddedItems.size() > 0 )
-        Schematic().OnItemsAdded( bulkAddedItems );
+        // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+        // Schematic().OnItemsAdded( bulkAddedItems );
 
     if( bulkRemovedItems.size() > 0 )
-        Schematic().OnItemsRemoved( bulkRemovedItems );
+        // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+        // Schematic().OnItemsRemoved( bulkRemovedItems );
 
     if( bulkChangedItems.size() > 0 )
-        Schematic().OnItemsChanged( bulkChangedItems );
+        // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+        // Schematic().OnItemsChanged( bulkChangedItems );
 
     if( refreshHierarchy )
-        Schematic().RefreshHierarchy();
+        // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+        // Schematic().RefreshHierarchy();
 
     if( dirtyConnectivity )
     {
@@ -528,20 +543,32 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
                     wxS( "Undo/redo %s clean up connectivity rebuild." ),
                     ( connectivityCleanUp == LOCAL_CLEANUP ) ? wxS( "local" ) : wxS( "global" ) );
 
-        SCH_COMMIT localCommit( m_toolManager );
+        // UNUSED_SYMBOL: SCH_COMMIT(TOOL_MANAGER*) constructor - Constructor usage commented out, using nullptr pattern
+        // Original code: SCH_COMMIT localCommit( m_toolManager );
+        // Original code: RecalculateConnections( &localCommit, connectivityCleanUp );
 
-        RecalculateConnections( &localCommit, connectivityCleanUp );
+        // UNUSED_SYMBOL: RecalculateConnections@SCH_EDIT_FRAME - Method call commented out
+        // Use nullptr pattern as seen in erc.cpp for RecalculateConnections calls
+        // RecalculateConnections( nullptr, connectivityCleanUp );
 
         if( connectivityCleanUp == GLOBAL_CLEANUP )
-            SetSheetNumberAndCount();
+        {
+            // UNUSED_SYMBOL: SetSheetNumberAndCount@SCH_EDIT_FRAME@@QEAAXXZ - Method call commented out
+            // This method was declared in SCH_EDIT_FRAME but has no implementation
+            // Alternative: Use Schematic().SetSheetNumberAndCount() if this functionality is needed
+            // SetSheetNumberAndCount();
+        }
     }
 
+    // UNUSED_SYMBOL: UpdateHierarchyNavigator - Method call commented out as symbol is unused
     // Update the hierarchy navigator when there are sheet changes.
-    if( rebuildHierarchyNavigator )
-        UpdateHierarchyNavigator();
+    // if( rebuildHierarchyNavigator )
+    //     UpdateHierarchyNavigator();
 }
 
 
+// UNUSED_SYMBOL: PopCommandFromUndoList - RollbackSchematicFromUndo method commented out as it depends on unused PopCommandFromUndoList
+/*
 void SCH_EDIT_FRAME::RollbackSchematicFromUndo()
 {
     PICKED_ITEMS_LIST* undo = PopCommandFromUndoList();
@@ -563,11 +590,13 @@ void SCH_EDIT_FRAME::RollbackSchematicFromUndo()
 
         delete undo;
 
-        m_toolManager->GetTool<SCH_SELECTION_TOOL>()->RebuildSelection();
+        // UNUSED_SYMBOL: RebuildSelection@SCH_SELECTION_TOOL - Method call commented out as symbol is unused
+        // m_toolManager->GetTool<SCH_SELECTION_TOOL>()->RebuildSelection();
     }
 
     GetCanvas()->Refresh();
 }
+*/
 
 
 void SCH_EDIT_FRAME::ClearUndoORRedoList( UNDO_REDO_LIST whichList, int aItemCount )

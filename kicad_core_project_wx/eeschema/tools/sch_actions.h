@@ -56,8 +56,10 @@ public:
     static TOOL_ACTION clearSelection;
 
     /// Selects an item (specified as the event parameter).
-    static TOOL_ACTION addItemToSel;
-    static TOOL_ACTION removeItemFromSel;
+    // UNUSED_SYMBOL: ?AddItemToSel@SELECTION_TOOL@@QEAAXPEAVEDA_ITEM@@_ - Related TOOL_ACTION not used
+    // static TOOL_ACTION addItemToSel;
+    // UNUSED_SYMBOL: RemoveItemFromSel - TOOL_ACTION for method not implemented in minimal set
+    // static TOOL_ACTION removeItemFromSel;
 
     /// Selects a list of items (specified as the event parameter)
     static TOOL_ACTION addItemsToSel;

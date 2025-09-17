@@ -354,27 +354,29 @@ void ACTION_MENU::updateHotKeys()
     {
         int                id = ii.first;
         const TOOL_ACTION& action = *ii.second;
-        int                key = toolMgr->GetHotKey( action ) & ~MD_MODIFIER_MASK;
 
-        if( key > 0 )
-        {
-            int mod = toolMgr->GetHotKey( action ) & MD_MODIFIER_MASK;
-            int flags = 0;
-            wxMenuItem* item = FindChildItem( id );
-
-            if( item )
-            {
-                flags |= ( mod & MD_ALT ) ? wxACCEL_ALT : 0;
-                flags |= ( mod & MD_CTRL ) ? wxACCEL_CTRL : 0;
-                flags |= ( mod & MD_SHIFT ) ? wxACCEL_SHIFT : 0;
-
-                if( !flags )
-                    flags = wxACCEL_NORMAL;
-
-                wxAcceleratorEntry accel( flags, key, id, item );
-                item->SetAccel( &accel );
-            }
-        }
+        // UNUSED_SYMBOL: TOOL_MANAGER::GetHotKey - commenting out calls to unused method
+        // int                key = toolMgr->GetHotKey( action ) & ~MD_MODIFIER_MASK;
+        //
+        // if( key > 0 )
+        // {
+        //     int mod = toolMgr->GetHotKey( action ) & MD_MODIFIER_MASK;
+        //     int flags = 0;
+        //     wxMenuItem* item = FindChildItem( id );
+        //
+        //     if( item )
+        //     {
+        //         flags |= ( mod & MD_ALT ) ? wxACCEL_ALT : 0;
+        //         flags |= ( mod & MD_CTRL ) ? wxACCEL_CTRL : 0;
+        //         flags |= ( mod & MD_SHIFT ) ? wxACCEL_SHIFT : 0;
+        //
+        //         if( !flags )
+        //             flags = wxACCEL_NORMAL;
+        //
+        //         wxAcceleratorEntry accel( flags, key, id, item );
+        //         item->SetAccel( &accel );
+        //     }
+        // }
     }
 }
 
@@ -420,7 +422,9 @@ void ACTION_MENU::OnMenuEvent( wxMenuEvent& aEvent )
 
         // Don't update the position if this menu has a parent or is a menubar menu
         if( !parent && !IsAttached() && toolMgr )
-            g_menu_open_position = toolMgr->GetMousePosition();
+            // UNUSED_SYMBOL: GetMousePosition@TOOL_MANAGER - commenting out unused method call
+            // g_menu_open_position = toolMgr->GetMousePosition();
+            g_menu_open_position = VECTOR2D( 0.0, 0.0 );
 
         g_last_menu_highlighted_id = 0;
     }
@@ -565,10 +569,13 @@ void ACTION_MENU::OnMenuEvent( wxMenuEvent& aEvent )
         // manager so that immediate actions work.
         else
         {
-            evt->SetMousePosition( toolMgr->GetMousePosition() );
+            // UNUSED_SYMBOL: GetMousePosition@TOOL_MANAGER - commenting out unused method call
+            // evt->SetMousePosition( toolMgr->GetMousePosition() );
+            evt->SetHasPosition( false );
         }
 
-        toolMgr->ProcessEvent( *evt );
+        // UNUSED_SYMBOL: ?ProcessEvent@TOOL_MANAGER@@QEAA_NAEBVTOOL_EVENT@@ - commenting out ProcessEvent call
+        // toolMgr->ProcessEvent( *evt );
     }
     else
     {

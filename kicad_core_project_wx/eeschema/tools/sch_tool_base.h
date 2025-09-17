@@ -47,16 +47,17 @@ template <class T>
 class SCH_TOOL_BASE : public TOOL_INTERACTIVE
 {
 public:
-    /**
-     * Create a tool with given name. The name must be unique.
-     */
-    SCH_TOOL_BASE( const std::string& aName ) :
-            TOOL_INTERACTIVE ( aName ),
-            m_frame( nullptr ),
-            m_view( nullptr ),
-            m_selectionTool( nullptr ),
-            m_isSymbolEditor( false )
-    {};
+    // UNUSED_SYMBOL: SCH_TOOL_BASE string constructor - Constructor using TOOL_INTERACTIVE(aName)
+    // /**
+    //  * Create a tool with given name. The name must be unique.
+    //  */
+    // SCH_TOOL_BASE( const std::string& aName ) :
+    //         TOOL_INTERACTIVE ( aName ),
+    //         m_frame( nullptr ),
+    //         m_view( nullptr ),
+    //         m_selectionTool( nullptr ),
+    //         m_isSymbolEditor( false )
+    // {};
 
     ~SCH_TOOL_BASE() override {};
 

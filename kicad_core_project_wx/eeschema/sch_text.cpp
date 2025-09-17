@@ -38,7 +38,8 @@
 #include <default_values.h>
 #include <wx/debug.h>
 #include <wx/log.h>
-#include <dialogs/html_message_box.h>
+// UNUSED_SYMBOL: HTML_MESSAGE_BOX - Header not needed since class is unused
+// #include <dialogs/html_message_box.h>
 #include <project/project_file.h>
 #include <project/net_settings.h>
 #include <core/mirror.h>

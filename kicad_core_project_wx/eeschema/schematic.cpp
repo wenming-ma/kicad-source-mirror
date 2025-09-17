@@ -206,7 +206,8 @@ void SCHEMATIC::SetProject( PROJECT* aPrj )
         project.m_SchematicSettings = new SCHEMATIC_SETTINGS( &project, "schematic" );
 
         project.m_SchematicSettings->LoadFromFile();
-        project.m_SchematicSettings->m_NgspiceSettings->LoadFromFile();
+        // UNUSED_SYMBOL: NGSPICE_SETTINGS LoadFromFile - Commented out unused NGSPICE settings load
+        // project.m_SchematicSettings->m_NgspiceSettings->LoadFromFile();
         project.m_ErcSettings->LoadFromFile();
     }
 }
@@ -765,7 +766,8 @@ wxString SCHEMATIC::GetOperatingPoint( const wxString& aNetName, int aPrecision,
                                        const wxString& aRange )
 {
     wxString spiceNetName( aNetName.Lower() );
-    NETLIST_EXPORTER_SPICE::ConvertToSpiceMarkup( &spiceNetName );
+    // UNUSED_SYMBOL: ConvertToSpiceMarkup - Method implementation not available in minimal set
+    // NETLIST_EXPORTER_SPICE::ConvertToSpiceMarkup( &spiceNetName );
 
     if( spiceNetName == wxS( "gnd" ) || spiceNetName == wxS( "0" ) )
         return wxEmptyString;
@@ -773,7 +775,9 @@ wxString SCHEMATIC::GetOperatingPoint( const wxString& aNetName, int aPrecision,
     auto it = m_operatingPoints.find( spiceNetName );
 
     if( it != m_operatingPoints.end() )
-        return SPICE_VALUE( it->second ).ToString( { aPrecision, aRange } );
+        // UNUSED_SYMBOL: SPICE_VALUE constructor with Normalize() - Implementation missing
+        // return SPICE_VALUE( it->second ).ToString( { aPrecision, aRange } );
+        return wxString::Format( wxT("%g"), it->second );  // Simple fallback without normalization
     else if( m_operatingPoints.empty() )
         return wxS( "--" );
     else
@@ -1111,8 +1115,9 @@ void SCHEMATIC::CleanUp( SCH_COMMIT* aCommit, SCH_SCREEN* aScreen )
                            {
                                aItem->SetFlags( STRUCT_DELETED );
 
-                               if( aItem->IsSelected() && selectionTool )
-                                   selectionTool->RemoveItemFromSel( aItem, true /*quiet mode*/ );
+                               // UNUSED_SYMBOL: RemoveItemFromSel - Method not implemented in minimal set
+                               // if( aItem->IsSelected() && selectionTool )
+                               //     selectionTool->RemoveItemFromSel( aItem, true /*quiet mode*/ );
 
                                if( m_schematicHolder )
                                {
@@ -1271,8 +1276,9 @@ void SCHEMATIC::CleanUp( SCH_COMMIT* aCommit, SCH_SCREEN* aScreen )
 
                     aCommit->Added( mergedLine, aScreen );
 
-                    if( firstLine->IsSelected() || secondLine->IsSelected() )
-                        selectionTool->AddItemToSel( mergedLine, true /*quiet mode*/ );
+                    // UNUSED_SYMBOL: ?AddItemToSel@SELECTION_TOOL@@QEAAXPEAVEDA_ITEM@@_ - Method call commented out
+                    // if( firstLine->IsSelected() || secondLine->IsSelected() )
+                    //     selectionTool->AddItemToSel( mergedLine, true /*quiet mode*/ );
 
                     break;
                 }
@@ -1290,10 +1296,11 @@ void SCHEMATIC::RecalculateConnections( SCH_COMMIT* aCommit, SCH_CLEANUP_FLAGS a
 {
     SCHEMATIC_SETTINGS& settings = Settings();
     SCH_SHEET_LIST      list = Hierarchy();
-    SCH_COMMIT          localCommit( aToolManager );
-
-    if( !aCommit )
-        aCommit = &localCommit;
+    // UNUSED_SYMBOL: SCH_COMMIT destructor - Commenting out localCommit creation and assignment
+    // SCH_COMMIT          localCommit( aToolManager );
+    //
+    // if( !aCommit )
+    //     aCommit = &localCommit;
 
     PROF_TIMER timer;
 
@@ -1539,6 +1546,7 @@ void SCHEMATIC::RecalculateConnections( SCH_COMMIT* aCommit, SCH_CLEANUP_FLAGS a
         ConnectionGraph()->Merge( new_graph );
     }
 
-    if( !localCommit.Empty() )
-        localCommit.Push( _( "Schematic Cleanup" ) );
+    // UNUSED_SYMBOL: SCH_COMMIT destructor - Commenting out localCommit usage
+    // if( !localCommit.Empty() )
+    //     localCommit.Push( _( "Schematic Cleanup" ) );
 }

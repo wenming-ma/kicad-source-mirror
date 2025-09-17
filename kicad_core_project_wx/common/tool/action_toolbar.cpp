@@ -352,17 +352,18 @@ void ACTION_TOOLBAR::doSelectAction( ACTION_GROUP* aGroup, const TOOL_ACTION& aA
                                      Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size ) );
     item->SetDisabledBitmap( KiDisabledBitmapBundle( aAction.GetIcon() ) );
 
+    // UNUSED_SYMBOL: RegisterUIUpdateHandler@EDA_BASE_FRAME - UI handler registration commented out
     // Register a new handler with the new UI conditions
-    if( m_toolManager )
-    {
-        const ACTION_CONDITIONS* cond = m_toolManager->GetActionManager()->GetCondition( aAction );
-
-        wxASSERT_MSG( cond, wxString::Format( "Missing UI condition for action %s",
-                                              aAction.GetName() ) );
-
-        m_toolManager->GetToolHolder()->UnregisterUIUpdateHandler( groupId );
-        m_toolManager->GetToolHolder()->RegisterUIUpdateHandler( groupId, *cond );
-    }
+    // if( m_toolManager )
+    // {
+    //     const ACTION_CONDITIONS* cond = m_toolManager->GetActionManager()->GetCondition( aAction );
+    //
+    //     wxASSERT_MSG( cond, wxString::Format( "Missing UI condition for action %s",
+    //                                           aAction.GetName() ) );
+    //
+    //     m_toolManager->GetToolHolder()->UnregisterUIUpdateHandler( groupId );
+    //     m_toolManager->GetToolHolder()->RegisterUIUpdateHandler( groupId, *cond );
+    // }
 
     // Update the currently selected action
     m_toolActions[ groupId ] = &aAction;
@@ -489,15 +490,16 @@ void ACTION_TOOLBAR::onToolEvent( wxAuiToolBarEvent& aEvent )
             m_toolManager->CancelTool();
             handled = true;
         }
-        else if( actionIt != m_toolActions.end() )
-        {
-            // Dispatch a tool event
-            evt = actionIt->second->MakeEvent();
-            evt->SetHasPosition( false );
-            m_toolManager->ProcessEvent( *evt );
-            m_toolManager->GetToolHolder()->RefreshCanvas();
-            handled = true;
-        }
+        // UNUSED_SYMBOL: ?ProcessEvent@TOOL_MANAGER@@QEAA_NAEBVTOOL_EVENT@@ - commenting out ProcessEvent call
+        // else if( actionIt != m_toolActions.end() )
+        // {
+        //     // Dispatch a tool event
+        //     evt = actionIt->second->MakeEvent();
+        //     evt->SetHasPosition( false );
+        //     m_toolManager->ProcessEvent( *evt );
+        //     m_toolManager->GetToolHolder()->RefreshCanvas();
+        //     handled = true;
+        // }
     }
 
     // Skip the event if we don't handle it
@@ -627,19 +629,20 @@ void ACTION_TOOLBAR::onPaletteEvent( wxCommandEvent& aEvent )
                                       return aAction->GetUIId() == aEvent.GetId();
                                   } );
 
-    if( actionIt != group->GetActions().end() )
-    {
-        const TOOL_ACTION* action = *actionIt;
-
-        // Dispatch a tool event
-        evt = action->MakeEvent();
-        evt->SetHasPosition( false );
-        m_toolManager->ProcessEvent( *evt );
-        m_toolManager->GetToolHolder()->RefreshCanvas();
-
-        // Update the main toolbar item with the selected action
-        doSelectAction( group, *action );
-    }
+    // UNUSED_SYMBOL: ?ProcessEvent@TOOL_MANAGER@@QEAA_NAEBVTOOL_EVENT@@ - commenting out ProcessEvent call
+    // if( actionIt != group->GetActions().end() )
+    // {
+    //     const TOOL_ACTION* action = *actionIt;
+    //
+    //     // Dispatch a tool event
+    //     evt = action->MakeEvent();
+    //     evt->SetHasPosition( false );
+    //     m_toolManager->ProcessEvent( *evt );
+    //     m_toolManager->GetToolHolder()->RefreshCanvas();
+    //
+    //     // Update the main toolbar item with the selected action
+    //     doSelectAction( group, *action );
+    // }
 
     // Hide the palette
     m_palette->Hide();

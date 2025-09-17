@@ -33,7 +33,8 @@
 #include <paths.h>
 
 #include <tool/tool_manager.h>
-#include "dialogs/dialog_hotkey_list.h"
+// UNUSED_SYMBOL: DIALOG_LIST_HOTKEYS constructor - Commenting out include
+// #include "dialogs/dialog_hotkey_list.h"
 #include <wx/apptrait.h>
 #include <wx/stdpaths.h>
 #include <wx/tokenzr.h>
@@ -321,11 +322,12 @@ int KeyCodeFromKeyName( const wxString& keyname )
 }
 
 
-void DisplayHotkeyList( EDA_BASE_FRAME* aParent )
-{
-    DIALOG_LIST_HOTKEYS dlg( aParent );
-    dlg.ShowModal();
-}
+// UNUSED_SYMBOL: DIALOG_LIST_HOTKEYS constructor - Commenting out DisplayHotkeyList function
+// void DisplayHotkeyList( EDA_BASE_FRAME* aParent )
+// {
+//     DIALOG_LIST_HOTKEYS dlg( aParent );
+//     dlg.ShowModal();
+// }
 
 
 void ReadHotKeyConfig( const wxString&                             aFileName,

@@ -371,17 +371,21 @@ void ERC_TREE_MODEL::GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
     auto getItemDesc =
             [&]( EDA_ITEM* aCurrItem, SCH_SHEET_PATH& aSheet )
             {
-                SCH_SHEET_PATH curSheet = schEditFrame->GetCurrentSheet();
+                // UNUSED_SYMBOL: GetCurrentSheet - sheet path assignment commented out due to unused symbol
+                // SCH_SHEET_PATH curSheet = schEditFrame->GetCurrentSheet();
+                SCH_SHEET_PATH curSheet;
                 wxString       desc;
 
                 if( aSheet != curSheet )
                 {
-                    schEditFrame->SetCurrentSheet( aSheet );
+                    // UNUSED_SYMBOL: SetCurrentSheet - Method calls commented out due to unused symbol ?SetCurrentSheet@SCH_EDIT_FRAME@@QEAAXAEBVSCH_SHEE
+                    // schEditFrame->SetCurrentSheet( aSheet );
                     aSheet.UpdateAllScreenReferences();
                     {
                         desc = aCurrItem->GetItemDescription( m_editFrame, true );
                     }
-                    schEditFrame->SetCurrentSheet( curSheet );
+                    // UNUSED_SYMBOL: SetCurrentSheet - Method calls commented out due to unused symbol ?SetCurrentSheet@SCH_EDIT_FRAME@@QEAAXAEBVSCH_SHEE
+                    // schEditFrame->SetCurrentSheet( curSheet );
                     curSheet.UpdateAllScreenReferences();
                 }
                 else
@@ -426,27 +430,45 @@ void ERC_TREE_MODEL::GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
         }
         else
         {
+            // UNUSED_SYMBOL: GetCurrentSheet - sheet path fallback commented out due to unused symbol
+            // msg = getItemDesc( schEditFrame->GetItem( ercItem->GetMainItemID() ),
+            //                    ercItem->MainItemHasSheetPath() ? ercItem->GetMainItemSheetPath()
+            //                                                     : schEditFrame->GetCurrentSheet() );
+            SCH_SHEET_PATH fallbackSheet;
             msg = getItemDesc( schEditFrame->GetItem( ercItem->GetMainItemID() ),
                                ercItem->MainItemHasSheetPath() ? ercItem->GetMainItemSheetPath()
-                                                               : schEditFrame->GetCurrentSheet() );
+                                                               : fallbackSheet );
         }
 
         break;
 
     case RC_TREE_NODE::AUX_ITEM:
+        // UNUSED_SYMBOL: GetCurrentSheet - sheet path fallback commented out due to unused symbol
+        // msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItemID() ),
+        //                    ercItem->AuxItemHasSheetPath() ? ercItem->GetAuxItemSheetPath()
+        //                                                   : schEditFrame->GetCurrentSheet() );
+        SCH_SHEET_PATH fallbackSheet;
         msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItemID() ),
                            ercItem->AuxItemHasSheetPath() ? ercItem->GetAuxItemSheetPath()
-                                                          : schEditFrame->GetCurrentSheet() );
+                                                          : fallbackSheet );
         break;
 
     case RC_TREE_NODE::AUX_ITEM2:
+        // UNUSED_SYMBOL: GetCurrentSheet - sheet path parameter commented out due to unused symbol
+        // msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem2ID() ),
+        //                    schEditFrame->GetCurrentSheet() );
+        SCH_SHEET_PATH fallbackSheet;
         msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem2ID() ),
-                           schEditFrame->GetCurrentSheet() );
+                           fallbackSheet );
         break;
 
     case RC_TREE_NODE::AUX_ITEM3:
+        // UNUSED_SYMBOL: GetCurrentSheet - sheet path parameter commented out due to unused symbol
+        // msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem3ID() ),
+        //                    schEditFrame->GetCurrentSheet() );
+        SCH_SHEET_PATH fallbackSheet;
         msg = getItemDesc( schEditFrame->GetItem( ercItem->GetAuxItem3ID() ),
-                           schEditFrame->GetCurrentSheet() );
+                           fallbackSheet );
         break;
 
     case RC_TREE_NODE::COMMENT:

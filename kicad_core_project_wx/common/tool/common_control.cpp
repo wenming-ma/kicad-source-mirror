@@ -40,7 +40,8 @@
 #include <tool/common_control.h>
 #include <id.h>
 #include <kiface_base.h>
-#include <dialogs/dialog_configure_paths.h>
+// UNUSED_SYMBOL: ??0DIALOG_CONFIGURE_PATHS@@QEAA@PEAVwxWindow@@@Z - Constructor implementation missing from minimal build
+// #include <dialogs/dialog_configure_paths.h>
 #include <eda_doc.h>
 #include <wx/msgdlg.h>
 
@@ -68,11 +69,14 @@ void COMMON_CONTROL::Reset( RESET_REASON aReason )
 }
 
 
+// UNUSED_SYMBOL: ShowPreferences - OpenPreferences method commented out since ShowPreferences is unused
+/*
 int COMMON_CONTROL::OpenPreferences( const TOOL_EVENT& aEvent )
 {
     m_frame->ShowPreferences( wxEmptyString, wxEmptyString );
     return 0;
 }
+*/
 
 
 int COMMON_CONTROL::ConfigurePaths( const TOOL_EVENT& aEvent )
@@ -288,17 +292,24 @@ int COMMON_CONTROL::ShowHelp( const TOOL_EVENT& aEvent )
 
 int COMMON_CONTROL::About( const TOOL_EVENT& aEvent )
 {
-    void ShowAboutDialog( EDA_BASE_FRAME * aParent ); // See AboutDialog_main.cpp
-    ShowAboutDialog( m_frame );
+    // UNUSED_SYMBOL: ?ShowAboutDialog@@YAXPEAVEDA_BASE_FRAME@@@Z - ShowAboutDialog function not available in minimal build
+    // void ShowAboutDialog( EDA_BASE_FRAME * aParent ); // See AboutDialog_main.cpp
+    // ShowAboutDialog( m_frame );
+
+    // Minimal implementation - just show a simple message box instead
+    wxMessageBox( wxString::Format( _( "About %s\n\nMinimal build - full About dialog not available" ),
+                                   m_frame->GetTitle() ),
+                  _( "About" ), wxOK | wxICON_INFORMATION, m_frame );
     return 0;
 }
 
 
-int COMMON_CONTROL::ListHotKeys( const TOOL_EVENT& aEvent )
-{
-    DisplayHotkeyList( m_frame );
-    return 0;
-}
+// UNUSED_SYMBOL: DIALOG_LIST_HOTKEYS constructor - Commenting out ListHotKeys method
+// int COMMON_CONTROL::ListHotKeys( const TOOL_EVENT& aEvent )
+// {
+//     DisplayHotkeyList( m_frame );
+//     return 0;
+// }
 
 
 int COMMON_CONTROL::GetInvolved( const TOOL_EVENT& aEvent )
@@ -357,7 +368,8 @@ int COMMON_CONTROL::ReportBug( const TOOL_EVENT& aEvent )
 
 void COMMON_CONTROL::setTransitions()
 {
-    Go( &COMMON_CONTROL::OpenPreferences,    ACTIONS::openPreferences.MakeEvent() );
+    // UNUSED_SYMBOL: ShowPreferences - OpenPreferences transition commented out since method is unused
+    // Go( &COMMON_CONTROL::OpenPreferences,    ACTIONS::openPreferences.MakeEvent() );
     Go( &COMMON_CONTROL::ConfigurePaths,     ACTIONS::configurePaths.MakeEvent() );
     Go( &COMMON_CONTROL::ShowLibraryTable,   ACTIONS::showSymbolLibTable.MakeEvent() );
     Go( &COMMON_CONTROL::ShowLibraryTable,   ACTIONS::showFootprintLibTable.MakeEvent() );

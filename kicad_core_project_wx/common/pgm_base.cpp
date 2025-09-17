@@ -571,7 +571,8 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
     m_notifications_manager = nullptr;
 
 #ifdef KICAD_IPC_API
-    m_plugin_manager = std::make_unique<API_PLUGIN_MANAGER>( &App() );
+    // UNUSED_SYMBOL: API_PLUGIN_MANAGER::API_PLUGIN_MANAGER(wxEvtHandler*) - Constructor usage commented out
+    // m_plugin_manager = std::make_unique<API_PLUGIN_MANAGER>( &App() );
 #endif
 
     // Our unit test mocks break if we continue
@@ -627,7 +628,8 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
 
 #ifdef KICAD_IPC_API
     if( commonSettings->m_Api.enable_server )
-        m_plugin_manager->ReloadPlugins();
+        // UNUSED_SYMBOL: Related to API_PLUGIN_MANAGER constructor - method call commented out
+        // m_plugin_manager->ReloadPlugins();
 #endif
 
     // This sets the maximum tooltip display duration to 10s (up from 5) but only affects

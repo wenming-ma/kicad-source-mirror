@@ -19,7 +19,8 @@
 
 #include <symbol_library.h>
 #include <confirm.h>
-#include <dialogs/html_message_box.h>
+// UNUSED_SYMBOL: HTML_MESSAGE_BOX - Header not needed since class is unused
+// #include <dialogs/html_message_box.h>
 #include <kiface_base.h>
 #include <pgm_base.h>
 #include <wx/app.h>
@@ -106,6 +107,8 @@ SYMBOL_LIBS* PROJECT_SCH::SchLibs( PROJECT* aProject )
         }
         catch( const PARSE_ERROR& pe )
         {
+            // UNUSED_SYMBOL: HTML_MESSAGE_BOX constructor - Constructor and related methods not compiled in minimal set
+            /*
             wxString    lib_list = UTF8( pe.inputLine );
             wxWindow*   parent = Pgm().App().GetTopWindow();
 
@@ -117,6 +120,7 @@ SYMBOL_LIBS* PROJECT_SCH::SchLibs( PROJECT* aProject )
             dlg.Layout();
 
             dlg.ShowModal();
+            */
         }
         catch( const IO_ERROR& ioe )
         {

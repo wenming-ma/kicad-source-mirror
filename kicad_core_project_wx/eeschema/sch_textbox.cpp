@@ -33,7 +33,8 @@
 #include <settings/color_settings.h>
 #include <sch_painter.h>
 #include <wx/log.h>
-#include <dialogs/html_message_box.h>
+// UNUSED_SYMBOL: HTML_MESSAGE_BOX - Header not needed since class is unused
+// #include <dialogs/html_message_box.h>
 #include <project/project_file.h>
 #include <trigo.h>
 #include <sch_textbox.h>

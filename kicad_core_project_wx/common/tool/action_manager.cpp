@@ -92,8 +92,11 @@ void ACTION_MANAGER::SetConditions( const TOOL_ACTION& aAction,
 {
     // Remove any existing handlers with the old conditions to ensure the UI layer doesn't have
     // stale data.
+    // UNUSED_SYMBOL: UnregisterUIUpdateHandler(int) - Method call commented out as EDA_BASE_FRAME::UnregisterUIUpdateHandler(int) is unused
+    /*
     if( m_toolMgr )
         m_toolMgr->GetToolHolder()->UnregisterUIUpdateHandler( aAction );
+    */
 
     m_uiConditions[aAction.GetId()] = aConditions;
 
@@ -101,9 +104,10 @@ void ACTION_MANAGER::SetConditions( const TOOL_ACTION& aAction,
                 wxS( "ACTION_MANAGER::SetConditions: Registering conditions for ID %d - %s" ),
                 aAction.GetId(), aAction.GetName() );
 
+    // UNUSED_SYMBOL: RegisterUIUpdateHandler@EDA_BASE_FRAME - UI handler registration commented out
     // Register a new handler with the new conditions
-    if( m_toolMgr )
-        m_toolMgr->GetToolHolder()->RegisterUIUpdateHandler( aAction, aConditions );
+    // if( m_toolMgr )
+    //     m_toolMgr->GetToolHolder()->RegisterUIUpdateHandler( aAction, aConditions );
 }
 
 
@@ -187,20 +191,21 @@ bool ACTION_MANAGER::RunHotKey( int aHotKey ) const
             continue;
         }
 
-        TOOL_BASE* tool = m_toolMgr->FindTool( action->GetToolName() );
-
-        if( tool )
-        {
-            // Choose the action that goes to the tool with highest priority
-            // (i.e. is on the top of active tools stack)
-            priority = m_toolMgr->GetPriority( tool->GetId() );
-
-            if( priority >= 0 && priority > highestPriority )
-            {
-                highestPriority = priority;
-                context = action;
-            }
-        }
+        // UNUSED_SYMBOL: FindTool dependency - commented out tool priority checking
+        // TOOL_BASE* tool = m_toolMgr->FindTool( action->GetToolName() );
+        //
+        // if( tool )
+        // {
+        //     // Choose the action that goes to the tool with highest priority
+        //     // (i.e. is on the top of active tools stack)
+        //     priority = m_toolMgr->GetPriority( tool->GetId() );
+        //
+        //     if( priority >= 0 && priority > highestPriority )
+        //     {
+        //         highestPriority = priority;
+        //         context = action;
+        //     }
+        // }
     }
 
     // Get the selection to use to test if the action is enabled

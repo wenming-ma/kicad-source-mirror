@@ -35,11 +35,13 @@
 #include <systemdirsappend.h>
 #include <symbol_lib_table.h>
 #include <lib_symbol.h>
-#include <sch_io/database/sch_io_database.h>
-#include <dialogs/dialog_database_lib_settings.h>
+// UNUSED_SYMBOL: ??0DIALOG_DATABASE_LIB_SETTINGS@@QEAA@PEAVwxWindow - Constructor not available in minimal project
+// #include <sch_io/database/sch_io_database.h>
+// #include <dialogs/dialog_database_lib_settings.h>
 
 #include <wx/dir.h>
-#include "sim/sim_model.h"
+// UNUSED_SYMBOL: MigrateSimModel<LIB_SYMBOL> - Template specialization not available in minimal project
+// #include "sim/sim_model.h"
 
 #define OPT_SEP     '|'         ///< options separator character
 
@@ -64,7 +66,24 @@ bool SYMBOL_LIB_TABLE_ROW::operator==( const SYMBOL_LIB_TABLE_ROW& aRow ) const
 
 void SYMBOL_LIB_TABLE_ROW::SetType( const wxString& aType )
 {
-    type = SCH_IO_MGR::EnumFromStr( aType );
+    // UNUSED_SYMBOL: ?EnumFromStr@SCH_IO_MGR@@SA?AW4SCH_FILE_T@1@AEBVwx - Static method not available in minimal project
+    // Original implementation commented out due to missing SCH_IO_MGR::EnumFromStr symbol
+    // type = SCH_IO_MGR::EnumFromStr( aType );
+
+    // Fallback implementation: map known type strings to enum values
+    if( aType == wxT("KiCad") || aType == wxT("kicad") )
+        type = SCH_IO_MGR::SCH_KICAD;
+    else if( aType == wxT("Legacy") || aType == wxT("legacy") )
+        type = SCH_IO_MGR::SCH_LEGACY;
+    else if( aType == wxT("Eagle") || aType == wxT("eagle") )
+        type = SCH_IO_MGR::SCH_EAGLE;
+    else if( aType == wxT("Altium") || aType == wxT("altium") )
+        type = SCH_IO_MGR::SCH_ALTIUM;
+    else
+    {
+        // Unknown type, default to KiCad format
+        type = SCH_IO_MGR::SCH_KICAD;
+    }
 
     if( type == SCH_IO_MGR::SCH_FILE_UNKNOWN )
         type = SCH_IO_MGR::SCH_KICAD;
@@ -75,17 +94,18 @@ void SYMBOL_LIB_TABLE_ROW::SetType( const wxString& aType )
 
 bool SYMBOL_LIB_TABLE_ROW::Refresh()
 {
-    if( !plugin )
-    {
-        wxArrayString dummyList;
-
-        plugin.reset( SCH_IO_MGR::FindPlugin( type ) );
-        SetLoaded( false );
-        plugin->SetLibTable( static_cast<SYMBOL_LIB_TABLE*>( GetParent() ) );
-        plugin->EnumerateSymbolLib( dummyList, GetFullURI( true ), GetProperties() );
-        SetLoaded( true );
-        return true;
-    }
+    // UNUSED_SYMBOL: ?FindPlugin@SCH_IO_MGR@@SAPEAVSCH_IO@@W4SCH_FILE_T - Implementation not available in minimal project
+    // if( !plugin )
+    // {
+    //     wxArrayString dummyList;
+    //
+    //     plugin.reset( SCH_IO_MGR::FindPlugin( type ) );
+    //     SetLoaded( false );
+    //     plugin->SetLibTable( static_cast<SYMBOL_LIB_TABLE*>( GetParent() ) );
+    //     plugin->EnumerateSymbolLib( dummyList, GetFullURI( true ), GetProperties() );
+    //     SetLoaded( true );
+    //     return true;
+    // }
 
     return false;
 }
@@ -109,8 +129,12 @@ wxString SYMBOL_LIB_TABLE_ROW::GetSubLibraryDescription( const wxString& aName )
 }
 
 
+// UNUSED_SYMBOL: ??0DIALOG_DATABASE_LIB_SETTINGS@@QEAA@PEAVwxWindow - Constructor and related dialog functionality not available in minimal project
 void SYMBOL_LIB_TABLE_ROW::ShowSettingsDialog( wxWindow* aParent ) const
 {
+    // Database library settings dialog is not available in minimal project
+    // Original implementation commented out to maintain compilation integrity
+    /* ORIGINAL CODE:
     wxCHECK( plugin, /* void */ );
 
     if( type != SCH_IO_MGR::SCH_DATABASE )
@@ -118,6 +142,10 @@ void SYMBOL_LIB_TABLE_ROW::ShowSettingsDialog( wxWindow* aParent ) const
 
     DIALOG_DATABASE_LIB_SETTINGS dlg( aParent, static_cast<SCH_IO_DATABASE*>( plugin.get() ) );
     dlg.ShowModal();
+    */
+
+    // For now, do nothing - this maintains interface compatibility
+    // but disables database-specific settings functionality
 }
 
 
@@ -363,10 +391,11 @@ SYMBOL_LIB_TABLE_ROW* SYMBOL_LIB_TABLE::FindRow( const wxString& aNickname, bool
     // We've been 'lazy' up until now, but it cannot be deferred any longer,
     // instantiate a PLUGIN of the proper kind if it is not already in this
     // SYMBOL_LIB_TABLE_ROW.
-    if( !row->plugin )
-        row->setPlugin( SCH_IO_MGR::FindPlugin( row->type ) );
-
-    row->plugin->SetLibTable( this );
+    // UNUSED_SYMBOL: ?FindPlugin@SCH_IO_MGR@@SAPEAVSCH_IO@@W4SCH_FILE_T - Implementation not available in minimal project
+    // if( !row->plugin )
+    //     row->setPlugin( SCH_IO_MGR::FindPlugin( row->type ) );
+    //
+    // row->plugin->SetLibTable( this );
 
     return row;
 }
@@ -436,7 +465,8 @@ LIB_SYMBOL* SYMBOL_LIB_TABLE::LoadSymbol( const wxString& aNickname, const wxStr
         id.SetLibNickname( row->GetNickName() );
         symbol->SetLibId( id );
 
-        SIM_MODEL::MigrateSimModel<LIB_SYMBOL>( *symbol, nullptr );
+        // UNUSED_SYMBOL: MigrateSimModel<LIB_SYMBOL> - Template specialization not available in minimal project
+        // SIM_MODEL::MigrateSimModel<LIB_SYMBOL>( *symbol, nullptr );
     }
 
     return symbol;

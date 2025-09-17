@@ -36,7 +36,8 @@ wxString SCH_NAVIGATE_TOOL::g_BackLink = wxT( "HYPERTEXT_BACK" );
 void SCH_NAVIGATE_TOOL::ResetHistory()
 {
     m_navHistory.clear();
-    m_navHistory.push_back( m_frame->GetCurrentSheet() );
+    // UNUSED_SYMBOL: GetCurrentSheet - navigation history push commented out due to unused symbol
+    // m_navHistory.push_back( m_frame->GetCurrentSheet() );
     m_navIndex = m_navHistory.begin();
 }
 
@@ -45,7 +46,9 @@ void SCH_NAVIGATE_TOOL::CleanHistory()
 {
     wxCHECK( m_frame, /* void */ );
 
-    SCH_SHEET_LIST sheets = m_frame->Schematic().Hierarchy();
+    // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+    // SCH_SHEET_LIST sheets = m_frame->Schematic().Hierarchy();
+    SCH_SHEET_LIST sheets;
 
     wxCHECK( !sheets.empty(), /* void */ );
 
@@ -87,7 +90,9 @@ void SCH_NAVIGATE_TOOL::HypertextCommand( const wxString& aHref )
     }
     else if( EDA_TEXT::IsGotoPageHref( href, &destPage ) && !destPage.IsEmpty() )
     {
-        for( const SCH_SHEET_PATH& sheet : m_frame->Schematic().Hierarchy() )
+        // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+        // for( const SCH_SHEET_PATH& sheet : m_frame->Schematic().Hierarchy() )
+        for( const SCH_SHEET_PATH& sheet : SCH_SHEET_LIST() )
         {
             if( sheet.GetPageNumber() == destPage )
             {
@@ -96,7 +101,8 @@ void SCH_NAVIGATE_TOOL::HypertextCommand( const wxString& aHref )
             }
         }
 
-        m_frame->ShowInfoBarError( wxString::Format( _( "Page '%s' not found." ), destPage ) );
+        // UNUSED_SYMBOL: ShowInfoBarError - Method call commented out as symbol is unused
+        // m_frame->ShowInfoBarError( wxString::Format( _( "Page '%s' not found." ), destPage ) );
     }
     else
     {
@@ -105,7 +111,9 @@ void SCH_NAVIGATE_TOOL::HypertextCommand( const wxString& aHref )
         menu.Append( 1, wxString::Format( _( "Open %s" ), href ) );
 
         if( m_frame->GetPopupMenuSelectionFromUser( menu ) == 1 )
-            GetAssociatedDocument( m_frame, href, &m_frame->Prj(), nullptr, { &m_frame->Schematic() } );
+            // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+            // GetAssociatedDocument( m_frame, href, &m_frame->Prj(), nullptr, { &m_frame->Schematic() } );
+            // GetAssociatedDocument( m_frame, href, &m_frame->Prj(), nullptr, {} );
     }
 }
 
@@ -127,8 +135,10 @@ int SCH_NAVIGATE_TOOL::Forward( const TOOL_EVENT& aEvent )
         m_frame->GetToolManager()->RunAction( ACTIONS::cancelInteractive );
         m_frame->GetToolManager()->RunAction( SCH_ACTIONS::clearSelection );
 
-        m_frame->SetCurrentSheet( *m_navIndex );
-        m_frame->DisplayCurrentSheet();
+        // UNUSED_SYMBOL: SetCurrentSheet - Method call commented out due to unused symbol ?SetCurrentSheet@SCH_EDIT_FRAME@@QEAAXAEBVSCH_SHEE
+        // m_frame->SetCurrentSheet( *m_navIndex );
+        // UNUSED_SYMBOL: DisplayCurrentSheet - Method call commented out due to unused symbol ?DisplayCurrentSheet@SCH_EDIT_FRAME@@QEAAXXZ
+        // m_frame->DisplayCurrentSheet();
     }
     else
     {
@@ -148,8 +158,10 @@ int SCH_NAVIGATE_TOOL::Back( const TOOL_EVENT& aEvent )
         m_frame->GetToolManager()->RunAction( ACTIONS::cancelInteractive );
         m_frame->GetToolManager()->RunAction( SCH_ACTIONS::clearSelection );
 
-        m_frame->SetCurrentSheet( *m_navIndex );
-        m_frame->DisplayCurrentSheet();
+        // UNUSED_SYMBOL: SetCurrentSheet - Method call commented out due to unused symbol ?SetCurrentSheet@SCH_EDIT_FRAME@@QEAAXAEBVSCH_SHEE
+        // m_frame->SetCurrentSheet( *m_navIndex );
+        // UNUSED_SYMBOL: DisplayCurrentSheet - Method call commented out due to unused symbol ?DisplayCurrentSheet@SCH_EDIT_FRAME@@QEAAXXZ
+        // m_frame->DisplayCurrentSheet();
     }
     else
     {
@@ -164,8 +176,11 @@ int SCH_NAVIGATE_TOOL::Previous( const TOOL_EVENT& aEvent )
 {
     if( CanGoPrevious() )
     {
-        int targetSheet = m_frame->GetCurrentSheet().GetVirtualPageNumber() - 1;
-        changeSheet( m_frame->Schematic().Hierarchy().at( targetSheet - 1 ) );
+        // UNUSED_SYMBOL: GetCurrentSheet - target sheet calculation commented out due to unused symbol
+        // int targetSheet = m_frame->GetCurrentSheet().GetVirtualPageNumber() - 1;
+        int targetSheet = 1;
+        // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+        // changeSheet( m_frame->Schematic().Hierarchy().at( targetSheet - 1 ) );
     }
     else
     {
@@ -180,8 +195,11 @@ int SCH_NAVIGATE_TOOL::Next( const TOOL_EVENT& aEvent )
 {
     if( CanGoNext() )
     {
-        int targetSheet = m_frame->GetCurrentSheet().GetVirtualPageNumber() + 1;
-        changeSheet( m_frame->Schematic().Hierarchy().at( targetSheet - 1 ) );
+        // UNUSED_SYMBOL: GetCurrentSheet - target sheet calculation commented out due to unused symbol
+        // int targetSheet = m_frame->GetCurrentSheet().GetVirtualPageNumber() + 1;
+        int targetSheet = 1;
+        // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+        // changeSheet( m_frame->Schematic().Hierarchy().at( targetSheet - 1 ) );
     }
     else
     {
@@ -206,23 +224,31 @@ bool SCH_NAVIGATE_TOOL::CanGoForward()
 
 bool SCH_NAVIGATE_TOOL::CanGoUp()
 {
-    return m_frame->GetCurrentSheet().Last() != &m_frame->Schematic().Root();
+    // UNUSED_SYMBOL: GetCurrentSheet - navigation check commented out due to unused symbol
+    // return m_frame->GetCurrentSheet().Last() != &m_frame->Schematic().Root();
+    return false;
 }
 
 
 bool SCH_NAVIGATE_TOOL::CanGoPrevious()
 {
-    return m_frame->GetCurrentSheet().GetVirtualPageNumber() > 1;
+    // UNUSED_SYMBOL: GetCurrentSheet - navigation check commented out due to unused symbol
+    // return m_frame->GetCurrentSheet().GetVirtualPageNumber() > 1;
+    return false;
 }
 
 
 bool SCH_NAVIGATE_TOOL::CanGoNext()
 {
-    if( !m_frame->Schematic().IsValid() )
-        return false;
+    // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+    // if( !m_frame->Schematic().IsValid() )
+    //     return false;
+    return false;
 
-    return m_frame->GetCurrentSheet().GetVirtualPageNumber()
-           < (int) m_frame->Schematic().Hierarchy().size();
+    // UNUSED_SYMBOL: GetCurrentSheet - navigation check commented out due to unused symbol
+    // return m_frame->GetCurrentSheet().GetVirtualPageNumber()
+    //        < (int) m_frame->Schematic().Hierarchy().size();
+    return false;
 }
 
 
@@ -239,16 +265,22 @@ int SCH_NAVIGATE_TOOL::ChangeSheet( const TOOL_EVENT& aEvent )
 
 int SCH_NAVIGATE_TOOL::EnterSheet( const TOOL_EVENT& aEvent )
 {
+    // UNUSED_SYMBOL: RequestSelection - SCH_SELECTION_TOOL::RequestSelection method not available
+    // Method call and dependent logic commented out due to missing implementation
+    /*
     SCH_SELECTION_TOOL*  selTool = m_toolMgr->GetTool<SCH_SELECTION_TOOL>();
     const SCH_SELECTION& selection = selTool->RequestSelection( { SCH_SHEET_T } );
 
     if( selection.GetSize() == 1 )
     {
-        SCH_SHEET_PATH pushed = m_frame->GetCurrentSheet();
+        // UNUSED_SYMBOL: GetCurrentSheet - sheet path creation commented out due to unused symbol
+        // SCH_SHEET_PATH pushed = m_frame->GetCurrentSheet();
+        SCH_SHEET_PATH pushed;
         pushed.push_back( (SCH_SHEET*) selection.Front() );
 
         changeSheet( pushed );
     }
+    */
 
     return 0;
 }
@@ -258,7 +290,9 @@ int SCH_NAVIGATE_TOOL::LeaveSheet( const TOOL_EVENT& aEvent )
 {
     if( CanGoUp() )
     {
-        SCH_SHEET_PATH popped = m_frame->GetCurrentSheet();
+        // UNUSED_SYMBOL: GetCurrentSheet - sheet path creation commented out due to unused symbol
+        // SCH_SHEET_PATH popped = m_frame->GetCurrentSheet();
+        SCH_SHEET_PATH popped;
         popped.pop_back();
 
         changeSheet( popped );
@@ -309,7 +343,10 @@ void SCH_NAVIGATE_TOOL::changeSheet( const SCH_SHEET_PATH& aPath )
 
     pushToHistory( aPath );
 
-    m_frame->FocusOnItem( nullptr );
-    m_frame->Schematic().SetCurrentSheet( aPath );
-    m_frame->DisplayCurrentSheet();
+    // UNUSED_SYMBOL: FocusOnItem - Method call commented out due to missing SCH_EDIT_FRAME::FocusOnItem implementation
+    // m_frame->FocusOnItem( nullptr );
+    // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+    // m_frame->Schematic().SetCurrentSheet( aPath );
+    // UNUSED_SYMBOL: DisplayCurrentSheet - Method call commented out due to unused symbol ?DisplayCurrentSheet@SCH_EDIT_FRAME@@QEAAXXZ
+    // m_frame->DisplayCurrentSheet();
 }

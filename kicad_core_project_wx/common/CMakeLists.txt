@@ -35,7 +35,7 @@ add_library( common STATIC
     design_block_info_impl.cpp
     design_block_io.cpp
     design_block_lib_table.cpp
-    dialog_shim.cpp
+    # dialog_shim.cpp
     dpi_scaling.cpp
     dpi_scaling_common.cpp
     dsnlexer.cpp
@@ -186,7 +186,7 @@ add_library( common STATIC
     tool/tool_dispatcher.cpp
     tool/tool_event.cpp
     tool/tool_interactive.cpp
-    tool/tool_manager.cpp
+    # tool/tool_manager.cpp
     tool/tool_menu.cpp
     tool/tools_holder.cpp
     

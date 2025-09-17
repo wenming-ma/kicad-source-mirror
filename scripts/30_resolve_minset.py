@@ -19,7 +19,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / r"scripts\tu_index.json"
-SEEDS = ROOT / r"scripts\seeds-tep.txt"
+SEEDS = ROOT / r"scripts\seeds.txt"
 OUT = ROOT / r"scripts\tem\minset_sources.json"
 UNRES = ROOT / r"scripts\tem\unresolved_symbols.json"
 REPORT = ROOT / r"scripts\tem\dependency_report.xlsx"
@@ -405,7 +405,7 @@ def create_excel_report(iteration_reports, blacklisted_symbols=None):
             detail_ws.append(
                 [
                     file_display,
-                    symbol[:100],  # Truncate long symbols
+                    symbol,
                     "Required Symbol",
                 ]
             )
@@ -477,8 +477,8 @@ def create_excel_report(iteration_reports, blacklisted_symbols=None):
                 else f"{', '.join(file_paths[:2])} ... ({len(file_paths)} files)"
             )
             summary_ws.append(
-                [symbol[:50], file_list, "", "", ""]
-            )  # Truncate long symbols
+                [symbol, file_list, "", "", ""]
+            )
 
     # Auto-adjust summary sheet columns
     for column in summary_ws.columns:

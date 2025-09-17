@@ -38,7 +38,8 @@
 #include <default_values.h>
 #include <wx/debug.h>
 #include <wx/log.h>
-#include <dialogs/html_message_box.h>
+// UNUSED_SYMBOL: HTML_MESSAGE_BOX - Header not needed since class is unused
+// #include <dialogs/html_message_box.h>
 #include <project/project_file.h>
 #include <project/net_settings.h>
 #include <core/kicad_algo.h>
@@ -2212,6 +2213,8 @@ BITMAPS SCH_HIERLABEL::GetMenuImage() const
 }
 
 
+// UNUSED_SYMBOL: HTML_MESSAGE_BOX constructor - Constructor and related methods not compiled in minimal set
+/*
 HTML_MESSAGE_BOX* SCH_TEXT::ShowSyntaxHelp( wxWindow* aParentWindow )
 {
     wxString msg =
@@ -2230,6 +2233,14 @@ HTML_MESSAGE_BOX* SCH_TEXT::ShowSyntaxHelp( wxWindow* aParentWindow )
     dlg->ShowModeless();
 
     return dlg;
+}
+*/
+
+// UNUSED_SYMBOL: HTML_MESSAGE_BOX destructor - Updated stub implementation with generic return type
+// Stub implementation to maintain function signature for compilation
+void* SCH_TEXT::ShowSyntaxHelp( wxWindow* aParentWindow )
+{
+    return nullptr;
 }
 
 

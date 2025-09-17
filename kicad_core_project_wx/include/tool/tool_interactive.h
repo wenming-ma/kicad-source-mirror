@@ -61,35 +61,39 @@ public:
      */
     TOOL_INTERACTIVE( TOOL_ID aId, const std::string& aName );
 
-    /**
-     * Creates a tool with given name. The name must be unique.
-     */
-    TOOL_INTERACTIVE( const std::string& aName );
+    // UNUSED_SYMBOL: TOOL_INTERACTIVE string constructor - Declaration commented out
+    // /**
+    //  * Creates a tool with given name. The name must be unique.
+    //  */
+    // TOOL_INTERACTIVE( const std::string& aName );
     virtual ~TOOL_INTERACTIVE();
 
-    /**
-     * Run the tool.
-     *
-     * After activation, the tool starts receiving events until it is finished.
-     */
-    void Activate();
+    // UNUSED_SYMBOL: InvokeTool - Activate method commented out due to InvokeTool dependency
+    // /**
+    //  * Run the tool.
+    //  *
+    //  * After activation, the tool starts receiving events until it is finished.
+    //  */
+    // void Activate();
 
     TOOL_MENU& GetToolMenu();
 
-    /**
-     * Assign a context menu and tells when it should be activated.
-     *
-     * @param aMenu is the menu to be assigned.
-     * @param aTrigger determines conditions upon which the context menu is activated.
-     */
-    void SetContextMenu( ACTION_MENU* aMenu, CONTEXT_MENU_TRIGGER aTrigger = CMENU_BUTTON );
+    // UNUSED_SYMBOL: SetContextMenu - method declaration commented out due to ScheduleContextMenu dependency
+    // /**
+    //  * Assign a context menu and tells when it should be activated.
+    //  *
+    //  * @param aMenu is the menu to be assigned.
+    //  * @param aTrigger determines conditions upon which the context menu is activated.
+    //  */
+    // void SetContextMenu( ACTION_MENU* aMenu, CONTEXT_MENU_TRIGGER aTrigger = CMENU_BUTTON );
 
-    /**
-     * Call a function using the main stack.
-     *
-     * @param aFunc is the function to be calls.
-     */
-    void RunMainStack( std::function<void()> aFunc );
+    // UNUSED_SYMBOL: RunMainStack - TOOL_INTERACTIVE wrapper method for main stack execution
+    // /**
+    //  * Call a function using the main stack.
+    //  *
+    //  * @param aFunc is the function to be calls.
+    //  */
+    // void RunMainStack( std::function<void()> aFunc );
 
     /**
      * Define which state (aStateFunc) to go when a certain event arrives (aConditions).
@@ -100,12 +104,13 @@ public:
     void Go( int (T::* aStateFunc)( const TOOL_EVENT& ),
              const TOOL_EVENT_LIST& aConditions = TOOL_EVENT( TC_ANY, TA_ANY ) );
 
-    /**
-     * Suspend execution of the tool until an event specified in aEventList arrives.
-     *
-     * No parameters means waiting for any event.
-     */
-    TOOL_EVENT* Wait( const TOOL_EVENT_LIST& aEventList = TOOL_EVENT( TC_ANY, TA_ANY ) );
+    // UNUSED_SYMBOL: ScheduleWait - Wait method declaration commented out due to ScheduleWait dependency
+    // /**
+    //  * Suspend execution of the tool until an event specified in aEventList arrives.
+    //  *
+    //  * No parameters means waiting for any event.
+    //  */
+    // TOOL_EVENT* Wait( const TOOL_EVENT_LIST& aEventList = TOOL_EVENT( TC_ANY, TA_ANY ) );
 
     /**
      * The functions below are not yet implemented - their interface may change

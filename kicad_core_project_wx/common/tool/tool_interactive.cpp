@@ -46,15 +46,16 @@ TOOL_INTERACTIVE::TOOL_INTERACTIVE( TOOL_ID aId, const std::string& aName ) :
 }
 
 
-TOOL_INTERACTIVE::TOOL_INTERACTIVE( const std::string& aName ) :
-    TOOL_BASE( INTERACTIVE, TOOL_MANAGER::MakeToolId( aName ), aName )
-
-{
-    if( Pgm().IsGUI() )
-    {
-        m_menu.reset( new TOOL_MENU( *this ) );
-    }
-}
+// UNUSED_SYMBOL: TOOL_INTERACTIVE string constructor - Constructor using MakeToolId
+// TOOL_INTERACTIVE::TOOL_INTERACTIVE( const std::string& aName ) :
+//     TOOL_BASE( INTERACTIVE, TOOL_MANAGER::MakeToolId( aName ), aName )
+//
+// {
+//     if( Pgm().IsGUI() )
+//     {
+//         m_menu.reset( new TOOL_MENU( *this ) );
+//     }
+// }
 
 
 TOOL_INTERACTIVE::~TOOL_INTERACTIVE()
@@ -62,51 +63,57 @@ TOOL_INTERACTIVE::~TOOL_INTERACTIVE()
 }
 
 
-void TOOL_INTERACTIVE::Activate()
-{
-    m_toolMgr->InvokeTool( m_toolId );
-}
+// UNUSED_SYMBOL: InvokeTool - Activate method commented out due to InvokeTool dependency
+// void TOOL_INTERACTIVE::Activate()
+// {
+//     m_toolMgr->InvokeTool( m_toolId );
+// }
 
 
-TOOL_EVENT* TOOL_INTERACTIVE::Wait( const TOOL_EVENT_LIST& aEventList )
-{
-    return m_toolMgr->ScheduleWait( this, aEventList );
-}
+// UNUSED_SYMBOL: ScheduleWait - Wait method commented out due to ScheduleWait dependency
+// TOOL_EVENT* TOOL_INTERACTIVE::Wait( const TOOL_EVENT_LIST& aEventList )
+// {
+//     return m_toolMgr->ScheduleWait( this, aEventList );
+// }
 
 
 void TOOL_INTERACTIVE::resetTransitions()
 {
-    m_toolMgr->ClearTransitions( this );
+    // UNUSED_SYMBOL: ClearTransitions - method not compiled, transitions clearing skipped
+    // m_toolMgr->ClearTransitions( this );
     setTransitions();
 }
 
 
-void TOOL_INTERACTIVE::goInternal( TOOL_STATE_FUNC& aState, const TOOL_EVENT_LIST& aConditions )
-{
-    wxLogTrace( kicadTraceToolStack,
-                wxS( "TOOL_INTERACTIVE::goInternal: Tool '%s', Registering handler for "
-                     "actions '%s'" ),
-                GetName(), aConditions.Names() );
-
-    m_toolMgr->ScheduleNextState( this, aState, aConditions );
-}
-
-
-void TOOL_INTERACTIVE::SetContextMenu( ACTION_MENU* aMenu, CONTEXT_MENU_TRIGGER aTrigger )
-{
-    if( aMenu )
-        aMenu->SetTool( this );
-    else
-        aTrigger = CMENU_OFF;
-
-    m_toolMgr->ScheduleContextMenu( this, aMenu, aTrigger );
-}
+// UNUSED_SYMBOL: ScheduleNextState - goInternal method commented out due to unused ScheduleNextState method
+// void TOOL_INTERACTIVE::goInternal( TOOL_STATE_FUNC& aState, const TOOL_EVENT_LIST& aConditions )
+// {
+//     wxLogTrace( kicadTraceToolStack,
+//                 wxS( "TOOL_INTERACTIVE::goInternal: Tool '%s', Registering handler for "
+//                      "actions '%s'" ),
+//                 GetName(), aConditions.Names() );
+//
+//     m_toolMgr->ScheduleNextState( this, aState, aConditions );
+// }
 
 
-void TOOL_INTERACTIVE::RunMainStack( std::function<void()> aFunc )
-{
-    m_toolMgr->RunMainStack( this, std::move( aFunc ) );
-}
+// UNUSED_SYMBOL: ScheduleContextMenu - SetContextMenu method commented out due to ScheduleContextMenu dependency
+// void TOOL_INTERACTIVE::SetContextMenu( ACTION_MENU* aMenu, CONTEXT_MENU_TRIGGER aTrigger )
+// {
+//     if( aMenu )
+//         aMenu->SetTool( this );
+//     else
+//         aTrigger = CMENU_OFF;
+//
+//     m_toolMgr->ScheduleContextMenu( this, aMenu, aTrigger );
+// }
+
+
+// UNUSED_SYMBOL: RunMainStack - TOOL_INTERACTIVE wrapper method for main stack execution
+// void TOOL_INTERACTIVE::RunMainStack( std::function<void()> aFunc )
+// {
+//     m_toolMgr->RunMainStack( this, std::move( aFunc ) );
+// }
 
 
 TOOL_MENU& TOOL_INTERACTIVE::GetToolMenu()

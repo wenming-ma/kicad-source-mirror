@@ -118,17 +118,21 @@ TOOL_ACTION SCH_ACTIONS::selectionMenu( TOOL_ACTION_ARGS()
         .Name( "eeschema.InteractiveSelection.SelectionMenu" )
         .Scope( AS_GLOBAL ) );
 
+// UNUSED_SYMBOL: ?AddItemToSel@SELECTION_TOOL@@QEAAXPEAVEDA_ITEM@@_ - Related TOOL_ACTION not used
+/*
 TOOL_ACTION SCH_ACTIONS::addItemToSel( TOOL_ACTION_ARGS()
         .Name( "eeschema.InteractiveSelection.AddItemToSel" )
         .Scope( AS_GLOBAL ) );
+*/
 
 TOOL_ACTION SCH_ACTIONS::addItemsToSel( TOOL_ACTION_ARGS()
         .Name( "eeschema.InteractiveSelection.AddItemsToSel" )
         .Scope( AS_GLOBAL ) );
 
-TOOL_ACTION SCH_ACTIONS::removeItemFromSel( TOOL_ACTION_ARGS()
-        .Name( "eeschema.InteractiveSelection.RemoveItemFromSel" )
-        .Scope( AS_GLOBAL ) );
+// UNUSED_SYMBOL: RemoveItemFromSel - TOOL_ACTION for method not implemented in minimal set
+// TOOL_ACTION SCH_ACTIONS::removeItemFromSel( TOOL_ACTION_ARGS()
+//         .Name( "eeschema.InteractiveSelection.RemoveItemFromSel" )
+//         .Scope( AS_GLOBAL ) );
 
 TOOL_ACTION SCH_ACTIONS::removeItemsFromSel( TOOL_ACTION_ARGS()
         .Name( "eeschema.InteractiveSelection.RemoveItemsFromSel" )

@@ -42,8 +42,10 @@ public:
 
     void OnLoadFile();
 
-    void OnFileHistory( wxCommandEvent& event );
-    void OnClearFileHistory( wxCommandEvent& event );
+    // UNUSED_SYMBOL: GetFileFromHistory - OnFileHistory method commented out as it depends on unused GetFileFromHistory
+    // void OnFileHistory( wxCommandEvent& event );
+    // UNUSED_SYMBOL: OnClearFileHistory - depends on ClearFileHistory method not used in minimal build
+    // void OnClearFileHistory( wxCommandEvent& event );
 
     /**
      * Generate a schematic library which contains one component:
@@ -67,7 +69,8 @@ public:
     void ExportDrawingSheetFormat();
 
     void UpdateTitle();
-    void ShowChangedLanguage() override;
+    // UNUSED_SYMBOL: ShowChangedLanguage - Method declaration commented out as symbol is unused
+    // void ShowChangedLanguage() override;
 
     void LoadSettings( APP_SETTINGS_BASE* aCfg ) override;
     void SaveSettings( APP_SETTINGS_BASE* aCfg ) override;

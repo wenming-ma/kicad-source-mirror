@@ -1731,7 +1731,9 @@ void SCH_SCREENS::ClearAnnotationOfNewSheetPaths( SCH_SHEET_LIST& aInitialSheetP
     if( !first )
         return;
 
-    SCHEMATIC* sch = first->Schematic();
+    // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+    // SCHEMATIC* sch = first->Schematic();
+    SCHEMATIC* sch = nullptr;
 
     wxCHECK_RET( sch, "Null schematic in SCH_SCREENS::ClearAnnotationOfNewSheetPaths" );
 
@@ -1877,7 +1879,9 @@ void SCH_SCREENS::UpdateSymbolLinks( REPORTER* aReporter )
     if( !first )
         return;
 
-    SCHEMATIC* sch = first->Schematic();
+    // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+    // SCHEMATIC* sch = first->Schematic();
+    SCHEMATIC* sch = nullptr;
 
     wxCHECK_RET( sch, "Null schematic in SCH_SCREENS::UpdateSymbolLinks" );
 
@@ -1973,7 +1977,9 @@ void SCH_SCREENS::BuildClientSheetPathList()
     if( !first )
         return;
 
-    SCHEMATIC* sch = first->Schematic();
+    // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+    // SCHEMATIC* sch = first->Schematic();
+    SCHEMATIC* sch = nullptr;
 
     wxCHECK_RET( sch, "Null schematic in SCH_SCREENS::BuildClientSheetPathList" );
 

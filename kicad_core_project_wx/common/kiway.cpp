@@ -594,7 +594,8 @@ void KIWAY::SetLanguage( int aLanguage )
 
         if ( top )
         {
-            top->ShowChangedLanguage();
+            // UNUSED_SYMBOL: ShowChangedLanguage - Method call commented out as symbol is unused
+            // top->ShowChangedLanguage();
             wxCommandEvent e( EDA_LANG_CHANGED );
             top->GetEventHandler()->ProcessEvent( e );
         }
@@ -607,7 +608,8 @@ void KIWAY::SetLanguage( int aLanguage )
 
         if( frame )
         {
-            frame->ShowChangedLanguage();
+            // UNUSED_SYMBOL: ShowChangedLanguage - Method call commented out as symbol is unused
+            // frame->ShowChangedLanguage();
             wxCommandEvent e( EDA_LANG_CHANGED );
             frame->GetEventHandler()->ProcessEvent( e );
         }

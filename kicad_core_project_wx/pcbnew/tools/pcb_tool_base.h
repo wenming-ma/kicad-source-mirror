@@ -80,15 +80,16 @@ public:
             m_isBoardEditor( false )
     {};
 
-    /**
-     * Constructor
-     *
-     * Creates a tool with given name. The name must be unique. */
-    PCB_TOOL_BASE( const std::string& aName ) :
-            TOOL_INTERACTIVE ( aName ),
-            m_isFootprintEditor( false ),
-            m_isBoardEditor( false )
-    {};
+    // UNUSED_SYMBOL: PCB_TOOL_BASE string constructor - Constructor using TOOL_INTERACTIVE(aName)
+    // /**
+    //  * Constructor
+    //  *
+    //  * Creates a tool with given name. The name must be unique. */
+    // PCB_TOOL_BASE( const std::string& aName ) :
+    //         TOOL_INTERACTIVE ( aName ),
+    //         m_isFootprintEditor( false ),
+    //         m_isBoardEditor( false )
+    // {};
 
     virtual ~PCB_TOOL_BASE() {};
 

@@ -883,7 +883,9 @@ void SCH_FIELD::OnScintillaCharAdded( SCINTILLA_TRICKS* aScintillaTricks,
                                       wxStyledTextEvent &aEvent ) const
 {
     SCH_ITEM*  parent = dynamic_cast<SCH_ITEM*>( GetParent() );
-    SCHEMATIC* schematic = parent ? parent->Schematic() : nullptr;
+    // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+    // SCHEMATIC* schematic = parent ? parent->Schematic() : nullptr;
+    SCHEMATIC* schematic = nullptr;
 
     if( !schematic )
         return;
@@ -926,6 +928,9 @@ void SCH_FIELD::OnScintillaCharAdded( SCINTILLA_TRICKS* aScintillaTricks,
 
             wxString ref = scintilla->GetRange( refStart, start - 1 );
 
+            // UNUSED_SYMBOL: SIM_LIB_MGR constructor - SPICE operating point autocomplete disabled
+            // Original functionality used SIM_LIB_MGR( const PROJECT* aPrj ) constructor
+            /*
             if( ref == wxS( "OP" ) )
             {
                 // SPICE operating points use ':' syntax for ports
@@ -957,6 +962,7 @@ void SCH_FIELD::OnScintillaCharAdded( SCINTILLA_TRICKS* aScintillaTricks,
                     autocompleteTokens.push_back( wxT( "power" ) );
                 }
             }
+            */
             else
             {
                 SCH_REFERENCE_LIST refs;
@@ -1268,7 +1274,9 @@ void SCH_FIELD::DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const
 
         if( global && m_id == INTERSHEET_REFS )
         {
-            SCH_SHEET_PATH* sheet = &global->Schematic()->CurrentSheet();
+            // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+            // SCH_SHEET_PATH* sheet = &global->Schematic()->CurrentSheet();
+            SCH_SHEET_PATH* sheet = nullptr;
             wxMenu          menu;
 
             std::vector<std::pair<wxString, wxString>> pages;

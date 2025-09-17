@@ -73,7 +73,9 @@ PIN_LAYOUT_CACHE::PIN_LAYOUT_CACHE( const SCH_PIN& aPin ) :
         m_pin( aPin ), m_schSettings( nullptr ), m_dirtyFlags( DIRTY_FLAGS::ALL )
 {
     // Resolve the schematic (can be null, e.g. in previews)
-    const SCHEMATIC* schematic = aPin.Schematic();
+    // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
+    // const SCHEMATIC* schematic = aPin.Schematic();
+    const SCHEMATIC* schematic = nullptr;
 
     if( schematic )
     {

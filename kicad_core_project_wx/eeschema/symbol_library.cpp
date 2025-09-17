@@ -42,7 +42,8 @@
 #include <wx/log.h>
 #include <wx/progdlg.h>
 #include <wx/tokenzr.h>
-#include "sim/sim_model.h"
+// UNUSED_SYMBOL: MigrateSimModel<LIB_SYMBOL> - Template specialization not available in minimal project
+// #include "sim/sim_model.h"
 
 SYMBOL_LIB::SYMBOL_LIB( SCH_LIB_TYPE aType, const wxString& aFileName,
                         SCH_IO_MGR::SCH_FILE_T aPluginType ) :
@@ -60,7 +61,8 @@ SYMBOL_LIB::SYMBOL_LIB( SCH_LIB_TYPE aType, const wxString& aFileName,
     if( !fileName.IsOk() )
         fileName = "unnamed.lib";
 
-    m_plugin.reset( SCH_IO_MGR::FindPlugin( m_pluginType ) );
+    // UNUSED_SYMBOL: ?FindPlugin@SCH_IO_MGR@@SAPEAVSCH_IO@@W4SCH_FILE_T - Implementation not available in minimal project
+    // m_plugin.reset( SCH_IO_MGR::FindPlugin( m_pluginType ) );
     m_properties = std::make_unique<std::map<std::string, UTF8>>();
     m_mod_hash = 0;
 }
@@ -79,8 +81,9 @@ void SYMBOL_LIB::Save( bool aSaveDocFile )
 
     std::map<std::string, UTF8> props;
 
-    if( !aSaveDocFile )
-        props[ SCH_IO_KICAD_LEGACY::PropNoDocFile ] = "";
+    // UNUSED_SYMBOL: PropNoDocFile - Static property not available in minimal compilation set
+    // if( !aSaveDocFile )
+    //     props[ SCH_IO_KICAD_LEGACY::PropNoDocFile ] = "";
 
     m_plugin->SaveLibrary( fileName.GetFullPath(), &props );
     isModified = false;
@@ -103,29 +106,38 @@ void SYMBOL_LIB::SetPluginType( SCH_IO_MGR::SCH_FILE_T aPluginType )
     if( m_pluginType != aPluginType )
     {
         m_pluginType = aPluginType;
-        m_plugin.reset( SCH_IO_MGR::FindPlugin( m_pluginType ) );
+        // UNUSED_SYMBOL: ?FindPlugin@SCH_IO_MGR@@SAPEAVSCH_IO@@W4SCH_FILE_T - Implementation not available in minimal project
+        // m_plugin.reset( SCH_IO_MGR::FindPlugin( m_pluginType ) );
     }
 }
 
 
 bool SYMBOL_LIB::IsCache() const
 {
-    return m_properties->contains( SCH_IO_KICAD_LEGACY::PropNoDocFile );
+    // UNUSED_SYMBOL: PropNoDocFile - Static property not available in minimal compilation set
+    // return m_properties->contains( SCH_IO_KICAD_LEGACY::PropNoDocFile );
+    return false; // Default to non-cache behavior
 }
 
 
 void SYMBOL_LIB::SetCache()
 {
-    (*m_properties)[ SCH_IO_KICAD_LEGACY::PropNoDocFile ] = "";
+    // UNUSED_SYMBOL: PropNoDocFile - Static property not available in minimal compilation set
+    // (*m_properties)[ SCH_IO_KICAD_LEGACY::PropNoDocFile ] = "";
 }
 
 
+// UNUSED_SYMBOL: PropBuffering - Method depends on unused PropBuffering property
+/*
 bool SYMBOL_LIB::IsBuffering() const
 {
     return m_properties->contains( SCH_IO_KICAD_LEGACY::PropBuffering );
 }
+*/
 
 
+// UNUSED_SYMBOL: PropBuffering - Method depends on unused PropBuffering property
+/*
 void SYMBOL_LIB::EnableBuffering( bool aEnable )
 {
     if( aEnable )
@@ -133,6 +145,7 @@ void SYMBOL_LIB::EnableBuffering( bool aEnable )
     else
         m_properties->erase( SCH_IO_KICAD_LEGACY::PropBuffering );
 }
+*/
 
 
 void SYMBOL_LIB::GetSymbolNames( wxArrayString& aNames ) const
@@ -167,7 +180,8 @@ LIB_SYMBOL* SYMBOL_LIB::FindSymbol( const wxString& aName ) const
         if( !symbol->GetLib() )
             symbol->SetLib( const_cast<SYMBOL_LIB*>( this ) );
 
-        SIM_MODEL::MigrateSimModel<LIB_SYMBOL>( *symbol, nullptr );
+        // UNUSED_SYMBOL: MigrateSimModel<LIB_SYMBOL> - Template specialization not available in minimal project
+        // SIM_MODEL::MigrateSimModel<LIB_SYMBOL>( *symbol, nullptr );
     }
 
     return symbol;
@@ -189,7 +203,8 @@ void SYMBOL_LIB::AddSymbol( LIB_SYMBOL* aSymbol )
 
     // If we are not buffering, the library file is updated immediately when the plugin
     // SaveSymbol() function is called.
-    if( IsBuffering() )
+    // UNUSED_SYMBOL: IsBuffering - Method not available, always assume buffering
+    // if( IsBuffering() )
         isModified = true;
 
     ++m_mod_hash;
@@ -204,7 +219,8 @@ LIB_SYMBOL* SYMBOL_LIB::RemoveSymbol( LIB_SYMBOL* aEntry )
 
     // If we are not buffering, the library file is updated immediately when the plugin
     // SaveSymbol() function is called.
-    if( IsBuffering() )
+    // UNUSED_SYMBOL: IsBuffering - Method not available, always assume buffering
+    // if( IsBuffering() )
         isModified = true;
 
     ++m_mod_hash;
@@ -225,7 +241,8 @@ LIB_SYMBOL* SYMBOL_LIB::ReplaceSymbol( LIB_SYMBOL* aOldSymbol, LIB_SYMBOL* aNewS
 
     // If we are not buffering, the library file is updated immediately when the plugin
     // SaveSymbol() function is called.
-    if( IsBuffering() )
+    // UNUSED_SYMBOL: IsBuffering - Method not available, always assume buffering
+    // if( IsBuffering() )
         isModified = true;
 
     ++m_mod_hash;

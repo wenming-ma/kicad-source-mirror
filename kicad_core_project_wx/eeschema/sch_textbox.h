@@ -30,7 +30,8 @@
 #include <schematic.h>
 
 
-class HTML_MESSAGE_BOX;
+// UNUSED_SYMBOL: HTML_MESSAGE_BOX destructor - Forward declaration not needed since class is unused
+// class HTML_MESSAGE_BOX;
 
 class SCH_TEXTBOX : public SCH_SHAPE, public EDA_TEXT
 {

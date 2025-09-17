@@ -252,7 +252,8 @@ bool OpenProjectFiles( const std::vector<wxString>& aFileList, int aCtl = 0 )
         use the project config file for project given by aFileList[0]s full path.
     }
 
-    UpdateFileHistory( g_RootSheet->GetScreen()->GetFileName() );
+    // UNUSED_SYMBOL: UpdateFileHistory - Method call commented out as symbol is unused
+    // UpdateFileHistory( g_RootSheet->GetScreen()->GetFileName() );
 
     /* done in ReDraw typically:
     UpdateTitle();
