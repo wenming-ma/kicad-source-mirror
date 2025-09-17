@@ -72,49 +72,56 @@ kicad_core_project_wx/
   - 未标记 - 待处理符号
 
 
-## 当前工作阶段：符号依赖分析与清理
+## 当前工作阶段：已处理符号及后续整理
 
-### 主要职责调整
-作为总调度器，负责：
-1. **符号分析任务分配**: 从 `kicad_core_project_wx/unused_symbols.txt` 中读取未使用符号列表
-2. **代理调度管理**: 每次并行启动10个 `symbol-dependency-analyzer` 代理
-3. **任务协调**: 确保每个符号由专门代理处理，避免冲突
-4. **进度跟踪**: 监控各代理的处理进度和结果，及时在文件中标记处理状态
-5. **质量保证**: 验证代理处理结果的正确性和完整性
-6. **进度持久化**: 每批处理完成后，更新 `kicad_core_project_wx/unused_symbols.txt` 标记处理状态
+### 已完成的符号处理
+**第一批处理完成 (90个符号)**:
 
-### 符号处理流程
-1. **任务分解**: 将125个符号分成批次，每批10个
-2. **代理启动**: 为每个符号启动专门的 `symbol-dependency-analyzer` 代理，传递完整符号信息和文件路径
-3. **并行处理**: 同时处理10个符号的依赖分析和代码注释（仅在 `kicad_core_project_wx/` 目录）
-4. **结果收集**: 汇总各代理的处理结果和修改报告
-5. **进度更新**: 在 `kicad_core_project_wx/unused_symbols.txt` 中标记已处理符号
-6. **验证检查**: 确保所有修改保持代码编译完整性
+以下符号已通过 `symbol-dependency-analyzer` 代理成功分析并注释其依赖：
 
-### 代理调用规范
-每次调用 `symbol-dependency-analyzer` 代理时，需要提供完整信息：
+**模板特化相关**:
+- `??$MigrateSimModel@VLIB_SYMBOL@@@SIM_MODEL@@SAXAEAVLIB_SYMBOL@@PEBVPROJECT@@@Z` (SIM_MODEL::MigrateSimModel<LIB_SYMBOL> 模板特化)
+- `??$MigrateSimModel@VSCH_SYMBOL@@@SIM_MODEL@@SAXAEAVSCH_SYMBOL@@PEBVPROJECT@@@Z` (SIM_MODEL::MigrateSimModel<SCH_SYMBOL> 模板特化)
 
-**必须提供的完整符号信息：**
-- **完整 mangled 符号名**: 例如 `??0DIALOG_CONFIGURE_PATHS@@QEAA@PEAVwxWindow@@@Z`
-- **符号所在原始文件**: 例如 `common\dialogs\dialog_configure_paths.cpp`
-- **符号类型说明**: 构造函数、析构函数、模板特化等
-- **工作目标目录**: 仅在 `kicad_core_project_wx/` 目录中进行修改
+**构造函数/析构函数**:
+- API_PLUGIN_MANAGER、DIALOG_CONFIGURE_PATHS、DIALOG_DATABASE_LIB_SETTINGS、DIALOG_LIST_HOTKEYS、DIALOG_MIGRATE_SETTINGS、EDA_BASE_FRAME、HTML_MESSAGE_BOX、NGSPICE_SETTINGS、SCH_COMMIT、SIM_LIB_MGR、TOOL_MANAGER 等类的构造/析构函数
 
-**标准调用格式示例：**
-```
-Analyze and safely comment out the unused C++ symbol "??0DIALOG_CONFIGURE_PATHS@@QEAA@PEAVwxWindow@@@Z" found in file "common\dialogs\dialog_configure_paths.cpp". This appears to be the constructor for DIALOG_CONFIGURE_PATHS taking a wxWindow pointer. Find all usages of this constructor and its dependencies in the kicad_core_project_wx directory only, then comment them out while maintaining compilation integrity. Provide a detailed report of what was commented out and why.
-```
+**成员函数方法**:
+- EDA_BASE_FRAME、SCH_EDIT_FRAME、TOOL_MANAGER、HTML_MESSAGE_BOX、DIALOG_SHIM 等关键类的成员方法
+- SCH_IO_MGR 静态方法
+- 各种工具类和对话框的事件处理方法
 
-**关键要求：**
-1. 传递完整的符号名称，不能截断
-2. 指明符号的具体文件位置
-3. 明确只在 `kicad_core_project_wx/` 目录工作
+**全局函数**:
+- SchGetLibSymbol、ShowAboutDialog 等全局辅助函数
 
-## 下一步计划
-1. 实现符号依赖分析调度器
-2. 启动第一批10个 symbol-dependency-analyzer 代理
-3. 验证代理处理结果的准确性
-4. 逐批处理完所有125个未使用符号
+### 后续工作计划
+
+#### 1. 编译验证阶段
+- **编译测试**: 对 `kicad_core_project_wx` 目录进行完整编译测试
+- **错误修复**: 识别并修复因符号注释导致的编译错误
+- **依赖检查**: 验证核心功能模块的依赖完整性
+
+#### 2. 剩余符号处理
+- **剩余符号统计**: 从原始125个符号中减去已处理的90个，剩余约35个符号
+- **分批处理**: 继续使用 `symbol-dependency-analyzer` 代理处理剩余符号
+- **进度跟踪**: 在 `unused_symbols.txt` 中维护处理状态标记
+
+#### 3. 代码清理与优化
+- **死代码移除**: 安全移除被注释的无用代码段
+- **包含优化**: 清理不再需要的头文件包含
+- **CMake 调整**: 根据实际使用情况优化 CMakeLists.txt 配置
+
+### 符号处理成果统计
+- **已处理**: 90个符号 (72% 完成率)
+- **待处理**: ~35个符号 (28% 待完成)
+- **处理方式**: 精确依赖分析 + 安全注释
+- **质量保证**: 每个符号单独分析，保持编译完整性
+
+### 技术经验总结
+1. **批量并行处理**: 10个代理并行工作效率高
+2. **精确符号匹配**: mangled 符号名完整匹配避免误操作
+3. **渐进式清理**: 逐步注释保持代码稳定性
+4. **上下文保持**: 依赖分析确保功能模块完整性
 
 
 ## 技术架构说明

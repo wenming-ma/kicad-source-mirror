@@ -61,11 +61,10 @@ public:
      */
     TOOL_INTERACTIVE( TOOL_ID aId, const std::string& aName );
 
-    // UNUSED_SYMBOL: TOOL_INTERACTIVE string constructor - Declaration commented out
-    // /**
-    //  * Creates a tool with given name. The name must be unique.
-    //  */
-    // TOOL_INTERACTIVE( const std::string& aName );
+    /**
+     * Creates a tool with given name. The name must be unique.
+     */
+    TOOL_INTERACTIVE( const std::string& aName );
     virtual ~TOOL_INTERACTIVE();
 
     // UNUSED_SYMBOL: InvokeTool - Activate method commented out due to InvokeTool dependency

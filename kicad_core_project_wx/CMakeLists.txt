@@ -148,6 +148,7 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}  # For cursor XPM files (cursors/cursor-*.xpm) - using local cursors directory
     ${CMAKE_CURRENT_SOURCE_DIR}/generated
     ${CMAKE_CURRENT_SOURCE_DIR}/generated/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/generated/eeschema
     ${CMAKE_CURRENT_SOURCE_DIR}/generated/include
     # ${CMAKE_CURRENT_SOURCE_DIR}/generated/api/cpp  # DISABLED FOR MINIMAL BUILD
     

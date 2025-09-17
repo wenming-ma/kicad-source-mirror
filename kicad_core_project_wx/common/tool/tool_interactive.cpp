@@ -46,16 +46,15 @@ TOOL_INTERACTIVE::TOOL_INTERACTIVE( TOOL_ID aId, const std::string& aName ) :
 }
 
 
-// UNUSED_SYMBOL: TOOL_INTERACTIVE string constructor - Constructor using MakeToolId
-// TOOL_INTERACTIVE::TOOL_INTERACTIVE( const std::string& aName ) :
-//     TOOL_BASE( INTERACTIVE, TOOL_MANAGER::MakeToolId( aName ), aName )
-//
-// {
-//     if( Pgm().IsGUI() )
-//     {
-//         m_menu.reset( new TOOL_MENU( *this ) );
-//     }
-// }
+TOOL_INTERACTIVE::TOOL_INTERACTIVE( const std::string& aName ) :
+    TOOL_BASE( INTERACTIVE, TOOL_MANAGER::MakeToolId( aName ), aName )
+
+{
+    if( Pgm().IsGUI() )
+    {
+        m_menu.reset( new TOOL_MENU( *this ) );
+    }
+}
 
 
 TOOL_INTERACTIVE::~TOOL_INTERACTIVE()

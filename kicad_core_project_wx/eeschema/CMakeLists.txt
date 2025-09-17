@@ -5,6 +5,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/common/dialogs
     ${CMAKE_SOURCE_DIR}/libs/sexpr/include
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/generated/eeschema
     ${CMAKE_CURRENT_SOURCE_DIR}
     ./dialogs
     ./symbol_editor
@@ -91,6 +92,7 @@ add_library( eeschema_lib STATIC
 target_include_directories( eeschema_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/generated/eeschema
     ${CMAKE_SOURCE_DIR}/libs/core/include
     ${CMAKE_SOURCE_DIR}/libs/kimath/include
     ${CMAKE_SOURCE_DIR}/libs/kiplatform/include
