@@ -48,7 +48,7 @@
 #include <sch_label.h>
 #include <magic_enum.hpp>
 #include <api/api_utils.h>
-#include <api/schematic/schematic_types.pb.h>
+// #include <api/schematic/schematic_types.pb.h> // UNUSED_SYMBOL: API functionality disabled
 
 
 /* Coding polygons for global symbol graphic shapes.
@@ -1478,29 +1478,29 @@ SCH_LABEL::SCH_LABEL( const VECTOR2I& pos, const wxString& text ) :
 }
 
 
-void SCH_LABEL::Serialize( google::protobuf::Any &aContainer ) const
-{
-    kiapi::schematic::types::LocalLabel label;
+// void SCH_LABEL::Serialize( google::protobuf::Any &aContainer ) const // UNUSED_SYMBOL: API functionality disabled
+// {
+//     kiapi::schematic::types::LocalLabel label;
 
-    label.mutable_id()->set_value( m_Uuid.AsStdString() );
-    kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
+//     label.mutable_id()->set_value( m_Uuid.AsStdString() );
+//     kiapi::common::PackVector2( *label.mutable_position(), GetPosition() );
 
-    aContainer.PackFrom( label );
-}
+//     aContainer.PackFrom( label );
+// }
 
 
-bool SCH_LABEL::Deserialize( const google::protobuf::Any &aContainer )
-{
-    kiapi::schematic::types::LocalLabel label;
+// bool SCH_LABEL::Deserialize( const google::protobuf::Any &aContainer ) // UNUSED_SYMBOL: API functionality disabled
+// {
+//     kiapi::schematic::types::LocalLabel label;
 
-    if( !aContainer.UnpackTo( &label ) )
-        return false;
+//     if( !aContainer.UnpackTo( &label ) )
+//         return false;
 
-    const_cast<KIID&>( m_Uuid ) = KIID( label.id().value() );
-    SetPosition( kiapi::common::UnpackVector2( label.position() ) );
+//     const_cast<KIID&>( m_Uuid ) = KIID( label.id().value() );
+//     SetPosition( kiapi::common::UnpackVector2( label.position() ) );
 
-    return true;
-}
+//     return true;
+// }
 
 
 const BOX2I SCH_LABEL::GetBodyBoundingBox( const RENDER_SETTINGS* aSettings ) const
@@ -1575,17 +1575,17 @@ SCH_DIRECTIVE_LABEL::SCH_DIRECTIVE_LABEL( const SCH_DIRECTIVE_LABEL& aClassLabel
 }
 
 
-void SCH_DIRECTIVE_LABEL::Serialize( google::protobuf::Any &aContainer ) const
-{
-    // TODO
-}
+// void SCH_DIRECTIVE_LABEL::Serialize( google::protobuf::Any &aContainer ) const // UNUSED_SYMBOL: API functionality disabled
+// {
+//     // TODO
+// }
 
 
-bool SCH_DIRECTIVE_LABEL::Deserialize( const google::protobuf::Any &aContainer )
-{
-    // TODO
-    return false;
-}
+// bool SCH_DIRECTIVE_LABEL::Deserialize( const google::protobuf::Any &aContainer ) // UNUSED_SYMBOL: API functionality disabled
+// {
+//     // TODO
+//     return false;
+// }
 
 
 int SCH_DIRECTIVE_LABEL::GetPenWidth() const
@@ -1867,17 +1867,17 @@ SCH_GLOBALLABEL::SCH_GLOBALLABEL( const SCH_GLOBALLABEL& aGlobalLabel ) :
 }
 
 
-void SCH_GLOBALLABEL::Serialize( google::protobuf::Any &aContainer ) const
-{
-    // TODO
-}
+// void SCH_GLOBALLABEL::Serialize( google::protobuf::Any &aContainer ) const // UNUSED_SYMBOL: API functionality disabled
+// {
+//     // TODO
+// }
 
 
-bool SCH_GLOBALLABEL::Deserialize( const google::protobuf::Any &aContainer )
-{
-    // TODO
-    return false;
-}
+// bool SCH_GLOBALLABEL::Deserialize( const google::protobuf::Any &aContainer ) // UNUSED_SYMBOL: API functionality disabled
+// {
+//     // TODO
+//     return false;
+// }
 
 
 VECTOR2I SCH_GLOBALLABEL::GetSchematicTextOffset( const RENDER_SETTINGS* aSettings ) const
@@ -2075,17 +2075,17 @@ SCH_HIERLABEL::SCH_HIERLABEL( const VECTOR2I& pos, const wxString& text, KICAD_T
 }
 
 
-void SCH_HIERLABEL::Serialize( google::protobuf::Any &aContainer ) const
-{
-    // TODO
-}
+// void SCH_HIERLABEL::Serialize( google::protobuf::Any &aContainer ) const // UNUSED_SYMBOL: API functionality disabled
+// {
+//     // TODO
+// }
 
 
-bool SCH_HIERLABEL::Deserialize( const google::protobuf::Any &aContainer )
-{
-    // TODO
-    return false;
-}
+// bool SCH_HIERLABEL::Deserialize( const google::protobuf::Any &aContainer ) // UNUSED_SYMBOL: API functionality disabled
+// {
+//     // TODO
+//     return false;
+// }
 
 
 void SCH_HIERLABEL::SetSpinStyle( SPIN_STYLE aSpinStyle )

@@ -318,7 +318,7 @@ public:
 
         VIEW            view;
         WINDOW_SETTINGS window;
-        SIM_PREFERENCES preferences;
+        // SIM_PREFERENCES preferences; // UNUSED_SYMBOL: SIM functionality disabled
     };
 
     struct FIND_REPLACE_EXTRA

@@ -963,25 +963,25 @@ void SCH_FIELD::OnScintillaCharAdded( SCINTILLA_TRICKS* aScintillaTricks,
                 }
             }
             */
-            else
-            {
-                SCH_REFERENCE_LIST refs;
-                SCH_SYMBOL*        refSymbol = nullptr;
+            // else // UNUSED_SYMBOL: SIM functionality disabled - commented out else block
+            // {
+            //     SCH_REFERENCE_LIST refs;
+            //     SCH_SYMBOL*        refSymbol = nullptr;
 
-                schematic->Hierarchy().GetSymbols( refs );
+            //     schematic->Hierarchy().GetSymbols( refs );
 
-                for( size_t jj = 0; jj < refs.GetCount(); jj++ )
-                {
-                    if( refs[ jj ].GetSymbol()->GetRef( &refs[ jj ].GetSheetPath(), true ) == ref )
-                    {
-                        refSymbol = refs[ jj ].GetSymbol();
-                        break;
-                    }
-                }
+            //     for( size_t jj = 0; jj < refs.GetCount(); jj++ )
+            //     {
+            //         if( refs[ jj ].GetSymbol()->GetRef( &refs[ jj ].GetSheetPath(), true ) == ref )
+            //         {
+            //             refSymbol = refs[ jj ].GetSymbol();
+            //             break;
+            //         }
+            //     }
 
-                if( refSymbol )
-                    refSymbol->GetContextualTextVars( &autocompleteTokens );
-            }
+            //     if( refSymbol )
+            //         refSymbol->GetContextualTextVars( &autocompleteTokens );
+            // } // UNUSED_SYMBOL: SIM functionality disabled - end of else block
         }
     }
     else if( textVarRef( start ) )
@@ -1256,8 +1256,8 @@ bool SCH_FIELD::IsHypertext() const
     if( GetCanonicalName() == wxT( "Intersheetrefs" ) )
         return true;
 
-    if( m_name == SIM_LIBRARY::LIBRARY_FIELD )
-        return true;
+    // if( m_name == SIM_LIBRARY::LIBRARY_FIELD ) // UNUSED_SYMBOL: SIM functionality disabled
+    //     return true;
 
     return IsURL( GetShownText( false ) );
 }
@@ -1300,7 +1300,7 @@ void SCH_FIELD::DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const
             else if( sel == 999 )
                 href = SCH_NAVIGATE_TOOL::g_BackLink;
         }
-        else if( IsURL( GetShownText( false ) ) || m_name == SIM_LIBRARY::LIBRARY_FIELD )
+        else if( IsURL( GetShownText( false ) ) /* || m_name == SIM_LIBRARY::LIBRARY_FIELD */ ) // UNUSED_SYMBOL: SIM functionality disabled
         {
             href = GetShownText( false );
         }

@@ -39,7 +39,7 @@
 #include <board_item.h>
 #include <api/api_enums.h>
 #include <api/api_utils.h>
-#include <api/schematic/schematic_types.pb.h>
+// #include <api/schematic/schematic_types.pb.h> // UNUSED_SYMBOL: API functionality disabled
 #include <properties/property.h>
 
 
@@ -93,47 +93,47 @@ SCH_LINE::SCH_LINE( const SCH_LINE& aLine ) :
 }
 
 
-void SCH_LINE::Serialize( google::protobuf::Any &aContainer ) const
-{
-    kiapi::schematic::types::Line line;
+// void SCH_LINE::Serialize( google::protobuf::Any &aContainer ) const // UNUSED_SYMBOL: API functionality disabled
+// {
+//     kiapi::schematic::types::Line line;
 
-    line.mutable_id()->set_value( m_Uuid.AsStdString() );
-    kiapi::common::PackVector2( *line.mutable_start(), GetStartPoint() );
-    kiapi::common::PackVector2( *line.mutable_end(), GetEndPoint() );
-    line.set_layer(
-            ToProtoEnum<SCH_LAYER_ID, kiapi::schematic::types::SchematicLayer>( GetLayer() ) );
+//     line.mutable_id()->set_value( m_Uuid.AsStdString() );
+//     kiapi::common::PackVector2( *line.mutable_start(), GetStartPoint() );
+//     kiapi::common::PackVector2( *line.mutable_end(), GetEndPoint() );
+//     line.set_layer(
+//             ToProtoEnum<SCH_LAYER_ID, kiapi::schematic::types::SchematicLayer>( GetLayer() ) );
 
-    aContainer.PackFrom( line );
-}
+//     aContainer.PackFrom( line );
+// }
 
 
-bool SCH_LINE::Deserialize( const google::protobuf::Any &aContainer )
-{
-    kiapi::schematic::types::Line line;
+// bool SCH_LINE::Deserialize( const google::protobuf::Any &aContainer ) // UNUSED_SYMBOL: API functionality disabled
+// {
+//     kiapi::schematic::types::Line line;
 
-    if( !aContainer.UnpackTo( &line ) )
-        return false;
+//     if( !aContainer.UnpackTo( &line ) )
+//         return false;
 
-    const_cast<KIID&>( m_Uuid ) = KIID( line.id().value() );
-    SetStartPoint( kiapi::common::UnpackVector2( line.start() ) );
-    SetEndPoint( kiapi::common::UnpackVector2( line.end() ) );
-    SCH_LAYER_ID layer =
-            FromProtoEnum<SCH_LAYER_ID, kiapi::schematic::types::SchematicLayer>( line.layer() );
+//     const_cast<KIID&>( m_Uuid ) = KIID( line.id().value() );
+//     SetStartPoint( kiapi::common::UnpackVector2( line.start() ) );
+//     SetEndPoint( kiapi::common::UnpackVector2( line.end() ) );
+//     SCH_LAYER_ID layer =
+//             FromProtoEnum<SCH_LAYER_ID, kiapi::schematic::types::SchematicLayer>( line.layer() );
 
-    switch( layer )
-    {
-    case LAYER_WIRE:
-    case LAYER_BUS:
-    case LAYER_NOTES:
-        SetLayer( layer );
-        break;
+//     switch( layer )
+//     {
+//     case LAYER_WIRE:
+//     case LAYER_BUS:
+//     case LAYER_NOTES:
+//         SetLayer( layer );
+//         break;
 
-    default:
-        break;
-    }
+//     default:
+//         break;
+//     }
 
-    return true;
-}
+//     return true;
+// }
 
 
 wxString SCH_LINE::GetFriendlyName() const
