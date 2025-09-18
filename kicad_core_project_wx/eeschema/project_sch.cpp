@@ -81,7 +81,7 @@ SEARCH_STACK* PROJECT_SCH::SchSearchS( PROJECT* aProject )
         }
 
         // append all paths from aSList
-        add_search_paths( ss, Kiface().KifaceSearch(), -1 );
+        // add_search_paths( ss, Kiface().KifaceSearch(), -1 ); // UNUSED_SYMBOL: Kiface function not available
     }
 
     return ss;

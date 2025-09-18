@@ -47,6 +47,7 @@ set( TOOLS_SRCS
 set( EESCHEMA_SRCS
     autoplace_fields.cpp
     connection_graph.cpp
+    eeschema_settings.cpp
     junction_helpers.cpp
     lib_symbol.cpp
     pin_layout_cache.cpp
@@ -91,6 +92,7 @@ set( EESCHEMA_SRCS
 
     # Generated files
     ${CMAKE_SOURCE_DIR}/generated/eeschema/schematic_keywords.cpp
+    ${CMAKE_SOURCE_DIR}/generated/eeschema/dialogs/dialog_bom_cfg_keywords.cpp
 )
 
 # Build static library

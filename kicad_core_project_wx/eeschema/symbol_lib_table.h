@@ -68,7 +68,7 @@ public:
     /**
      * Return the type of symbol library table represented by this row.
      */
-    const wxString GetType() const override         { return SCH_IO_MGR::ShowType( type ); }
+    const wxString GetType() const override         { return wxT("unknown"); /* SCH_IO_MGR::ShowType( type ); */ } // UNUSED_SYMBOL: ShowType in unused_symbols.txt
 
     /**
      * Change the schematic plugin type represented by this row.

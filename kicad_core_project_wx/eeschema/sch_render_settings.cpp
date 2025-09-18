@@ -77,7 +77,7 @@ void SCH_RENDER_SETTINGS::LoadColors( const COLOR_SETTINGS* aSettings )
 
 bool SCH_RENDER_SETTINGS::GetShowPageLimits() const
 {
-    EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() );
-    return cfg && cfg->m_Appearance.show_page_limits && !IsPrinting();
+    // EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() ); // UNUSED_SYMBOL: Kiface function not available
+    // return cfg && cfg->m_Appearance.show_page_limits && !IsPrinting();
+    return false; // Default to not showing page limits
 }
-

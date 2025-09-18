@@ -52,8 +52,8 @@ public:
 
     ~SCH_LINE() { }
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    // void Serialize( google::protobuf::Any &aContainer ) const override; // UNUSED_SYMBOL: API functionality disabled
+    // bool Deserialize( const google::protobuf::Any &aContainer ) override; // UNUSED_SYMBOL: API functionality disabled
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {

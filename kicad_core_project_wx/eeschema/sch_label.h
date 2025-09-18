@@ -399,8 +399,8 @@ public:
 
     ~SCH_LABEL() { }
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    // void Serialize( google::protobuf::Any &aContainer ) const override; // UNUSED_SYMBOL: API functionality disabled
+    // bool Deserialize( const google::protobuf::Any &aContainer ) override; // UNUSED_SYMBOL: API functionality disabled
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
@@ -451,8 +451,8 @@ public:
 
     ~SCH_DIRECTIVE_LABEL() { }
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    // void Serialize( google::protobuf::Any &aContainer ) const override; // UNUSED_SYMBOL: API functionality disabled
+    // bool Deserialize( const google::protobuf::Any &aContainer ) override; // UNUSED_SYMBOL: API functionality disabled
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
@@ -527,8 +527,8 @@ public:
 
     ~SCH_GLOBALLABEL() { }
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    // void Serialize( google::protobuf::Any &aContainer ) const override; // UNUSED_SYMBOL: API functionality disabled
+    // bool Deserialize( const google::protobuf::Any &aContainer ) override; // UNUSED_SYMBOL: API functionality disabled
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
@@ -590,8 +590,8 @@ public:
 
     ~SCH_HIERLABEL() override = default;
 
-    void Serialize( google::protobuf::Any &aContainer ) const override;
-    bool Deserialize( const google::protobuf::Any &aContainer ) override;
+    // void Serialize( google::protobuf::Any &aContainer ) const override; // UNUSED_SYMBOL: API functionality disabled
+    // bool Deserialize( const google::protobuf::Any &aContainer ) override; // UNUSED_SYMBOL: API functionality disabled
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {

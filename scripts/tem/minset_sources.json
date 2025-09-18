@@ -1,6 +1,7 @@
 {
   "sources": [
     "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\build\\x64-Debug\\common\\lib_table_keywords.cpp",
+    "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\build\\x64-Debug\\eeschema\\dialogs\\dialog_bom_cfg_keywords.cpp",
     "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\build\\x64-Debug\\eeschema\\schematic_keywords.cpp",
     "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\common\\advanced_config.cpp",
     "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\common\\api\\api_enums.cpp",
@@ -166,6 +167,7 @@
     "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\common\\wildcards_and_files_ext.cpp",
     "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\eeschema\\autoplace_fields.cpp",
     "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\eeschema\\connection_graph.cpp",
+    "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\eeschema\\eeschema_settings.cpp",
     "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\eeschema\\erc\\erc.cpp",
     "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\eeschema\\erc\\erc_item.cpp",
     "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\eeschema\\erc\\erc_sch_pin_context.cpp",

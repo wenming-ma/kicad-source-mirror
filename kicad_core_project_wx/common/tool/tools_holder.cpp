@@ -40,21 +40,17 @@ TOOLS_HOLDER::TOOLS_HOLDER() :
 { }
 
 
-// UNUSED_SYMBOL: RegisterUIUpdateHandler@EDA_BASE_FRAME - overloaded method commented out
-// void TOOLS_HOLDER::RegisterUIUpdateHandler( const TOOL_ACTION& aAction,
-//                                             const ACTION_CONDITIONS& aConditions )
-// {
-//     RegisterUIUpdateHandler( aAction.GetUIId(), aConditions );
-// }
+void TOOLS_HOLDER::RegisterUIUpdateHandler( const TOOL_ACTION& aAction,
+                                            const ACTION_CONDITIONS& aConditions )
+{
+    RegisterUIUpdateHandler( aAction.GetUIId(), aConditions );
+}
 
 
-// UNUSED_SYMBOL: UnregisterUIUpdateHandler(int) - Method call commented out as EDA_BASE_FRAME::UnregisterUIUpdateHandler(int) is unused
-/*
 void TOOLS_HOLDER::UnregisterUIUpdateHandler( const TOOL_ACTION& aAction )
 {
     UnregisterUIUpdateHandler( aAction.GetUIId() );
 }
-*/
 
 
 // TODO: Implement an RAII mechanism for the stack PushTool/PopTool pairs
@@ -140,8 +136,6 @@ bool TOOLS_HOLDER::IsCurrentTool( const TOOL_ACTION& aAction ) const
 }
 
 
-// UNUSED_SYMBOL: ShowChangedLanguage - TOOLS_HOLDER method implementation commented out as symbol is unused
-/*
 void TOOLS_HOLDER::ShowChangedLanguage()
 {
     if( !GetToolManager() )
@@ -153,7 +147,6 @@ void TOOLS_HOLDER::ShowChangedLanguage()
     if( action )
         DisplayToolMsg( action->GetFriendlyName() );
 }
-*/
 
 
 void TOOLS_HOLDER::CommonSettingsChanged( int aFlags )
@@ -167,4 +160,3 @@ void TOOLS_HOLDER::CommonSettingsChanged( int aFlags )
     m_dragAction = settings->m_Input.drag_left;
     m_immediateActions = settings->m_Input.immediate_actions;
 }
-

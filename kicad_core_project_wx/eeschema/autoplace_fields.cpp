@@ -102,8 +102,9 @@ public:
     {
         m_symbol->GetFields( m_fields, /* aVisibleOnly */ true );
 
-        auto cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() );
-        wxASSERT( cfg );
+        // auto cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() ); // UNUSED_SYMBOL: Kiface function not available
+        // wxASSERT( cfg );
+        EESCHEMA_SETTINGS* cfg = nullptr; // Use nullptr as fallback
 
         m_allow_rejustify = false;
         m_align_to_grid = true;

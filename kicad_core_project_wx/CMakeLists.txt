@@ -17,7 +17,10 @@ else()
     set( CMAKE_BUILD_TYPE Release CACHE STRING "Set to either \"Release\" or \"Debug\"" )
 endif()
 
-project( kicad_core_project_wx )
+project( kicad_core_project_wx LANGUAGES C CXX )
+
+# Configure platform-specific settings including assembly language support
+include( ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ConfigurePlatform.cmake )
 
 # Auto-detect and configure ccache if available
 include( ${CMAKE_CURRENT_SOURCE_DIR}/AutoCCache.cmake )

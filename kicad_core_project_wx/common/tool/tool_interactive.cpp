@@ -84,16 +84,15 @@ void TOOL_INTERACTIVE::resetTransitions()
 }
 
 
-// UNUSED_SYMBOL: ScheduleNextState - goInternal method commented out due to unused ScheduleNextState method
-// void TOOL_INTERACTIVE::goInternal( TOOL_STATE_FUNC& aState, const TOOL_EVENT_LIST& aConditions )
-// {
-//     wxLogTrace( kicadTraceToolStack,
-//                 wxS( "TOOL_INTERACTIVE::goInternal: Tool '%s', Registering handler for "
-//                      "actions '%s'" ),
-//                 GetName(), aConditions.Names() );
-//
-//     m_toolMgr->ScheduleNextState( this, aState, aConditions );
-// }
+void TOOL_INTERACTIVE::goInternal( TOOL_STATE_FUNC& aState, const TOOL_EVENT_LIST& aConditions )
+{
+    wxLogTrace( kicadTraceToolStack,
+                wxS( "TOOL_INTERACTIVE::goInternal: Tool '%s', Registering handler for "
+                     "actions '%s'" ),
+                GetName(), aConditions.Names() );
+
+    m_toolMgr->ScheduleNextState( this, aState, aConditions );
+}
 
 
 // UNUSED_SYMBOL: ScheduleContextMenu - SetContextMenu method commented out due to ScheduleContextMenu dependency

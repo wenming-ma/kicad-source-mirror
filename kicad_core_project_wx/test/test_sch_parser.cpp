@@ -1,6 +1,6 @@
 /*
- * Schematic Parser Test Program
- * Tests parsing .kicad_sch files and prints schematic information
+ * Simple Schematic Parser Test Program
+ * Directly parses .kicad_sch files without full project initialization
  */
 
 #include <iostream>
@@ -9,8 +9,7 @@
 #include <wx/filename.h>
 #include <wx/app.h>
 
-// Include necessary KiCad headers for schematic parsing
-#include <schematic.h>
+// Include minimal KiCad headers for direct schematic parsing
 #include <sch_screen.h>
 #include <sch_sheet.h>
 #include <sch_symbol.h>
@@ -22,14 +21,9 @@
 #include <sch_text.h>
 #include <sch_no_connect.h>
 #include <sch_bus_entry.h>
-#include <connection_graph.h>
 #include <sch_io/kicad_sexpr/sch_io_kicad_sexpr.h>
-#include <sch_io/sch_io_mgr.h>
-#include <pgm_base.h>
-#include <kiface_base.h>
-#include <settings/settings_manager.h>
+#include <schematic.h>
 #include <project.h>
-#include <sch_sheet_path.h>
 
 // Simple wxApp implementation for minimal initialization
 class SCH_TEST_APP : public wxApp
@@ -44,48 +38,25 @@ public:
 
 wxIMPLEMENT_APP_NO_MAIN(SCH_TEST_APP);
 
-// Simple PGM implementation
-class SCH_TEST_PGM : public PGM_BASE
-{
-public:
-    // Required abstract method
-    void MacOpenFile( const wxString& aFileName ) override {}
-
-    // Override virtual methods with correct signatures
-    const wxString& GetKicadEnvVariable() const override
-    {
-        static wxString dummy;
-        return dummy;
-    }
-
-    const wxString& GetExecutablePath() const override
-    {
-        static wxString dummy;
-        return dummy;
-    }
-};
-
 // Helper function to print schematic statistics
-void PrintSchematicStatistics(SCHEMATIC* schematic)
+void PrintSchematicStatistics(SCH_SHEET* root_sheet)
 {
-    if (!schematic) {
-        std::cout << "ERROR: Schematic is null!" << std::endl;
+    if (!root_sheet) {
+        std::cout << "ERROR: Root sheet is null!" << std::endl;
         return;
     }
 
     std::cout << "\n=== SCHEMATIC STATISTICS ===" << std::endl;
 
-    // Get the root sheet
-    SCH_SHEET& root_sheet = schematic->Root();
-    SCH_SCREEN* screen = root_sheet.GetScreen();
+    SCH_SCREEN* screen = root_sheet->GetScreen();
 
     if (!screen) {
         std::cout << "ERROR: Root screen is null!" << std::endl;
         return;
     }
 
-    std::cout << "Root sheet name: " << root_sheet.GetName().utf8_str() << std::endl;
-    std::cout << "Root sheet filename: " << root_sheet.GetFileName().utf8_str() << std::endl;
+    std::cout << "Root sheet name: " << root_sheet->GetName().utf8_str() << std::endl;
+    std::cout << "Root sheet filename: " << root_sheet->GetFileName().utf8_str() << std::endl;
 
     // Count different types of items on the schematic
     size_t symbol_count = 0;
@@ -151,11 +122,9 @@ void PrintSchematicStatistics(SCHEMATIC* schematic)
             SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>(item);
 
             if (symbol_index < 10) { // Show first 10 symbols
-                SCH_SHEET_PATH sheet_path;
-                sheet_path.push_back(&root_sheet);
-
-                wxString ref = symbol->GetRef(&sheet_path);
-                wxString value = symbol->GetValue(false, &sheet_path, false);
+                // Use simplified methods without sheet path
+                wxString ref = symbol->GetRef(nullptr);
+                wxString value = symbol->GetValue(false, nullptr, false);
 
                 std::cout << "  [" << (symbol_index + 1) << "] Reference: "
                           << ref.utf8_str()
@@ -247,22 +216,32 @@ void PrintSchematicStatistics(SCHEMATIC* schematic)
 
 int main(int argc, char* argv[])
 {
-    std::cout << "=== KiCad Schematic Parser Test ===" << std::endl;
+    std::cout << "=== Simple KiCad Schematic Parser Test ===" << std::endl;
 
     // Initialize wxWidgets
     wxInitialize();
 
-    SCHEMATIC* schematic = nullptr;
+    SCH_SHEET* root_sheet = nullptr;
 
     try {
-        // Create a simple PGM instance
-        SCH_TEST_PGM pgm;
-
         // Path to the schematic file
         wxString schPath = wxT("test/complex_hierarchy.kicad_sch");
 
+        // Convert to absolute path
+        wxFileName fn(schPath);
+        if (!fn.IsAbsolute()) {
+            fn.MakeAbsolute();
+            schPath = fn.GetFullPath();
+        }
+
         if (!wxFileName::FileExists(schPath)) {
             schPath = wxT("complex_hierarchy.kicad_sch");
+            wxFileName fn2(schPath);
+            if (!fn2.IsAbsolute()) {
+                fn2.MakeAbsolute();
+                schPath = fn2.GetFullPath();
+            }
+
             if (!wxFileName::FileExists(schPath)) {
                 std::cout << "ERROR: Cannot find schematic file!" << std::endl;
                 std::cout << "Tried: test/complex_hierarchy.kicad_sch and complex_hierarchy.kicad_sch" << std::endl;
@@ -273,21 +252,18 @@ int main(int argc, char* argv[])
 
         std::cout << "Loading schematic file: " << schPath.utf8_str() << std::endl;
 
+        // Create minimal project and schematic objects
+        PROJECT project;
+        SCHEMATIC schematic(&project);
+
         // Create schematic IO parser
         SCH_IO_KICAD_SEXPR schIO;
 
-        // Create a project for the schematic
-        PROJECT project;
-
-        // Create schematic
-        schematic = new SCHEMATIC(&project);
-
-        // Load the schematic
-        SCH_SHEET* root_sheet = schIO.LoadSchematicFile(schPath, schematic);
+        // Load the schematic file
+        root_sheet = schIO.LoadSchematicFile(schPath, &schematic);
 
         if (!root_sheet) {
             std::cout << "ERROR: Failed to load schematic file!" << std::endl;
-            delete schematic;
             wxUninitialize();
             return 1;
         }
@@ -295,49 +271,51 @@ int main(int argc, char* argv[])
         std::cout << "Schematic file loaded successfully!" << std::endl;
 
         // Print detailed schematic information
-        PrintSchematicStatistics(schematic);
+        PrintSchematicStatistics(root_sheet);
 
         std::cout << "\n=== Test completed successfully! ===" << std::endl;
     }
     catch (const std::exception& e) {
         std::cout << "Exception caught: " << e.what() << std::endl;
-        if (schematic) {
+        if (root_sheet) {
             try {
-                delete schematic;
+                delete root_sheet;
             }
             catch (...) {
                 std::cout << "Error during cleanup - ignored" << std::endl;
             }
         }
+
         wxUninitialize();
         return 1;
     }
     catch (...) {
         std::cout << "Unknown exception caught!" << std::endl;
-        if (schematic) {
+        if (root_sheet) {
             try {
-                delete schematic;
+                delete root_sheet;
             }
             catch (...) {
                 std::cout << "Error during cleanup - ignored" << std::endl;
             }
         }
+
         wxUninitialize();
         return 1;
     }
 
-    // Safe cleanup: Delete schematic before wxUninitialize()
-    if (schematic) {
+    // Safe cleanup: Delete root sheet before wxUninitialize()
+    if (root_sheet) {
         try {
-            delete schematic;
-            schematic = nullptr;
+            delete root_sheet;
+            root_sheet = nullptr;
         }
         catch (...) {
-            std::cout << "Warning: Exception during schematic cleanup - continuing..." << std::endl;
+            std::cout << "Warning: Exception during cleanup - continuing..." << std::endl;
         }
     }
 
-    // Uninitialize wxWidgets after schematic cleanup
+    // Uninitialize wxWidgets
     wxUninitialize();
     return 0;
 }

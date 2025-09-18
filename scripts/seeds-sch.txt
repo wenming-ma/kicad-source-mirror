@@ -42,4 +42,4 @@ eeschema/sync_sheet_pin/sheet_synchronization_agent.cpp
 eeschema/sync_sheet_pin/sheet_synchronization_item.cpp
 eeschema/sync_sheet_pin/sheet_synchronization_model.cpp
 common/sch_io/sch_io.cpp
-#common/sch_io/sch_io_mgr.cpp
+eeschema/eeschema_settings.cpp

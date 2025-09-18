@@ -497,11 +497,11 @@ bool SCH_LABEL_BASE::IncrementLabel( int aIncrement )
 {
     wxString text = GetText();
 
-    if( IncrementString( text, aIncrement ) )
-    {
-        SetText( text );
-        return true;
-    }
+    // if( IncrementString( text, aIncrement ) ) // UNUSED_SYMBOL: IncrementString function not in minset
+    // {
+    //     SetText( text );
+    //     return true;
+    // }
 
     return false;
 }
