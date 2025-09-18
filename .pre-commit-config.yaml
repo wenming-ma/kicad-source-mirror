@@ -1,0 +1,10 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      # 阻止提交超过 95 MB 的新文件（可按需调节）
+      - id: check-added-large-files
+        args: ["--maxkb=97280"]  # 95 * 1024 KB
+      # 其它常用检查（可选）
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
