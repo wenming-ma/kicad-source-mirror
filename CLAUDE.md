@@ -63,10 +63,10 @@ kicad_core_project_wx/
 | `kicad_core_project_wx/copy_summary.json` | 复制统计摘要 |
 
 ### 5. 未使用符号处理
-- **符号列表**: `kicad_core_project_wx/unused_symbols.txt` (125个未使用符号)
+- **符号列表**: `scripts/unused_symbols.txt` (125个未使用符号)
 - **处理策略**: 使用专门的 `symbol-dependency-analyzer` 代理进行精确处理
 - **调度方式**: 每次并行调度10个代理，分别处理不同的符号
-- **进度管理**: 在 `kicad_core_project_wx/unused_symbols.txt` 中标记处理状态
+- **进度管理**: 在 `scripts/unused_symbols.txt` 中标记处理状态
   - `[已处理]` - 符号已完成分析并注释
   - `[跳过]` - 符号不存在或为幻影符号
   - 未标记 - 待处理符号
@@ -104,7 +104,7 @@ kicad_core_project_wx/
 #### 2. 剩余符号处理
 - **剩余符号统计**: 从原始125个符号中减去已处理的90个，剩余约35个符号
 - **分批处理**: 继续使用 `symbol-dependency-analyzer` 代理处理剩余符号
-- **进度跟踪**: 在 `unused_symbols.txt` 中维护处理状态标记
+- **进度跟踪**: 在 `scripts/unused_symbols.txt` 中维护处理状态标记
 
 #### 3. 代码清理与优化
 - **死代码移除**: 安全移除被注释的无用代码段

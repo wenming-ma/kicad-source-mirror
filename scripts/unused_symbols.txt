@@ -71,3 +71,18 @@
 ?TransferDataToWindow@DIALOG_DATABASE_LIB_SETTINGS@@UEAA_NXZ	eeschema\dialogs\dialog_database_lib_settings.cpp
 ?UpdateHierarchyNavigator@SCH_EDIT_FRAME@@QEAAX_N0@Z	eeschema\sch_edit_frame.cpp
 ?doRunAction@TOOL_MANAGER@@AEAA_NAEBVTOOL_ACTION@@_NAEBVany@ki@@PEAVCOMMIT@@1@Z	common\tool\tool_manager.cpp
+??0API_PLUGIN_MANAGER@@QEAA@PEAVwxEvtHandler@@@Z	common\api\api_plugin_manager.cpp
+??0DIALOG_MIGRATE_SETTINGS@@QEAA@PEAVSETTINGS_MANAGER@@@Z	common\dialogs\dialog_migrate_settings.cpp
+??0HTML_MESSAGE_BOX@@QEAA@PEAVwxWindow@@AEBVwxString@@AEBVwxPoint@@AEBVwxSize@@@Z	common\dialogs\html_message_box.cpp
+??1DIALOG_MIGRATE_SETTINGS@@UEAA@XZ	common\dialogs\dialog_migrate_settings.cpp
+??1HTML_MESSAGE_BOX@@UEAA@XZ	common\dialogs\html_message_box.cpp
+?AddHTML_Text@HTML_MESSAGE_BOX@@QEAAXAEBVwxString@@@Z	common\dialogs\html_message_box.cpp
+?Enable@DIALOG_SHIM@@UEAA_N_N@Z	common\dialog_shim.cpp
+?GetEventHashTable@DIALOG_SHIM@@MEBAAEAVwxEventHashTable@@XZ	common\dialog_shim.cpp
+?GetEventTable@DIALOG_SHIM@@MEBAPEBUwxEventTable@@XZ	common\dialog_shim.cpp
+?MessageSet@HTML_MESSAGE_BOX@@QEAAXAEBVwxString@@@Z	common\dialogs\html_message_box.cpp
+?OnCharHook@DIALOG_SHIM@@MEAAXAEAVwxKeyEvent@@@Z	common\dialog_shim.cpp
+?ReloadPlugins@API_PLUGIN_MANAGER@@QEAAXXZ	common\api\api_plugin_manager.cpp
+?Show@DIALOG_SHIM@@UEAA_N_N@Z	common\dialog_shim.cpp
+?ShowModal@DIALOG_SHIM@@UEAAHXZ	common\dialog_shim.cpp
+

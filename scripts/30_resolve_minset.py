@@ -19,7 +19,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / r"scripts\tu_index.json"
-SEEDS = ROOT / r"scripts\seeds.txt"
+SEEDS = ROOT / r"scripts\seeds-tep.txt"
 COMMON_SYMBOLS = ROOT / r"scripts\common_symbols.txt"
 OUT = ROOT / r"scripts\tem\minset_sources.json"
 UNRES = ROOT / r"scripts\tem\unresolved_symbols.json"
@@ -232,7 +232,7 @@ def load_common_symbols(common_symbols_file):
 
     try:
         if common_symbols_file.exists():
-            for line in common_symbols_file.read_text(encoding='utf-8').splitlines():
+            for line in common_symbols_file.read_text(encoding="utf-8").splitlines():
                 line = line.strip()
                 # Each line contains one symbol name
                 if line:
@@ -504,9 +504,7 @@ def create_excel_report(iteration_reports, blacklisted_symbols=None):
                 if len(file_paths) <= 2
                 else f"{', '.join(file_paths[:2])} ... ({len(file_paths)} files)"
             )
-            summary_ws.append(
-                [symbol, file_list, "", "", ""]
-            )
+            summary_ws.append([symbol, file_list, "", "", ""])
 
     # Auto-adjust summary sheet columns
     for column in summary_ws.columns:
@@ -582,7 +580,11 @@ def main():
         provided |= common_symbols
 
         # 找出缺失的内部符号（排除外部库符号和公共符号）
-        missing = {m for m in (required - provided) if not is_external(m) and m not in common_symbols}
+        missing = {
+            m
+            for m in (required - provided)
+            if not is_external(m) and m not in common_symbols
+        }
         initial_missing_count = len(missing)
 
         # 统计公共符号的使用情况
@@ -592,7 +594,9 @@ def main():
         )
         print(f"  Common symbols in use: {common_symbols_used}/{len(common_symbols)}")
         if common_symbols_used > 0:
-            print(f"  -> Avoiding potential file additions due to common symbol filtering")
+            print(
+                f"  -> Avoiding potential file additions due to common symbol filtering"
+            )
 
         # Track introductions for this iteration
         file_introductions = defaultdict(
