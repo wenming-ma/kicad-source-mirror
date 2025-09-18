@@ -6,7 +6,7 @@
  * your DSN lexer.
  */
 
-#include <C:/Users/wenming_ma/source/repos/kicad-source-mirror/build/x64-Debug/eeschema/schematic_lexer.h>
+#include <schematic_lexer.h>
 
 using namespace TSCHEMATIC_T;
 

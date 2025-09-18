@@ -36,11 +36,24 @@ add_library( common STATIC
     design_block_io.cpp
     design_block_lib_table.cpp
     # dialog_shim.cpp
+
+    # Dialog files
+    dialogs/git/panel_git_repos.cpp
+    dialogs/git/panel_git_repos_base.cpp
+    dialogs/panel_common_settings.cpp
+    dialogs/panel_common_settings_base.cpp
+    dialogs/panel_hotkeys_editor.cpp
+    dialogs/panel_mouse_settings.cpp
+    dialogs/panel_mouse_settings_base.cpp
+    dialogs/panel_packages_and_updates.cpp
+    dialogs/panel_packages_and_updates_base.cpp
+    dialogs/panel_plugin_settings.cpp
+    dialogs/panel_plugin_settings_base.cpp
     dpi_scaling.cpp
     dpi_scaling_common.cpp
     dsnlexer.cpp
-    # UI component - commented out for minimal build
-    # eda_base_frame.cpp
+    # UI component - re-enabled for compilation
+    eda_base_frame.cpp
     eda_dde.cpp
     eda_doc.cpp
     eda_item.cpp
@@ -186,7 +199,7 @@ add_library( common STATIC
     tool/tool_dispatcher.cpp
     tool/tool_event.cpp
     tool/tool_interactive.cpp
-    # tool/tool_manager.cpp
+    tool/tool_manager.cpp
     tool/tool_menu.cpp
     tool/tools_holder.cpp
     
@@ -202,8 +215,17 @@ add_library( common STATIC
     
     # Widget files
     widgets/app_progress_dialog.cpp
+    widgets/button_row_panel.cpp
+    widgets/paged_dialog.cpp
     widgets/progress_reporter_base.cpp
+    widgets/std_bitmap_button.cpp
     widgets/ui_common.cpp
+    widgets/widget_hotkey_list.cpp
+    widgets/wx_aui_art_providers.cpp
+    widgets/wx_busy_indicator.cpp
+    widgets/wx_infobar.cpp
+    widgets/wx_panel.cpp
+    widgets/wx_treebook.cpp
     
     # Generated files
     ${COMMON_GENERATED_SRCS}
@@ -212,6 +234,7 @@ add_library( common STATIC
 
 target_include_directories( common PUBLIC
     .
+    ./dialogs
     ../include
     # ../generated/api/cpp  # DISABLED FOR MINIMAL BUILD
     # ../generated/api/cpp/api  # DISABLED FOR MINIMAL BUILD

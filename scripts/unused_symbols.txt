@@ -15,26 +15,19 @@
 ?AddCopyForRepeatItem@SCH_EDIT_FRAME@@QEAAXPEBVSCH_ITEM@@@Z	eeschema\sch_edit_frame.cpp
 ?AddHTML_Text@HTML_MESSAGE_BOX@@QEAAXAEBVwxString@@@Z	common\dialogs\html_message_box.cpp
 ?AddItemToSel@SELECTION_TOOL@@QEAAXPEAVEDA_ITEM@@_N@Z	common\tool\selection_tool.cpp
-?ClearTransitions@TOOL_MANAGER@@QEAAXPEAVTOOL_BASE@@@Z	common\tool\tool_manager.cpp
 ?ConvertToSpiceMarkup@NETLIST_EXPORTER_SPICE@@SAXPEAVwxString@@@Z	eeschema\netlist_exporters\netlist_exporter_spice.cpp
 ?CreateModel@SIM_LIB_MGR@@QEAA?AUMODEL@SIM_LIBRARY@@PEBVSCH_SHEET_PATH@@AEAVSCH_SYMBOL@@_NHAEAVREPORTER@@@Z	eeschema\sim\sim_lib_mgr.cpp
 ?DisplayCurrentSheet@SCH_EDIT_FRAME@@QEAAXXZ	eeschema\sch_edit_frame.cpp
 ?Enable@DIALOG_SHIM@@UEAA_N_N@Z	common\dialog_shim.cpp
 ?EnumFromStr@SCH_IO_MGR@@SA?AW4SCH_FILE_T@1@AEBVwxString@@@Z	eeschema\sch_io\sch_io_mgr.cpp
 ?FindPlugin@SCH_IO_MGR@@SAPEAVSCH_IO@@W4SCH_FILE_T@1@@Z	eeschema\sch_io\sch_io_mgr.cpp
-?FindTool@TOOL_MANAGER@@QEBAPEAVTOOL_BASE@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z	common\tool\tool_manager.cpp
 ?FocusOnItem@SCH_EDIT_FRAME@@QEAAXPEAVSCH_ITEM@@@Z	eeschema\sch_edit_frame.cpp
 ?GetCurrentSheet@SCH_EDIT_FRAME@@QEBAAEAVSCH_SHEET_PATH@@XZ	eeschema\sch_edit_frame.cpp
 ?GetEventHashTable@DIALOG_SHIM@@MEBAAEAVwxEventHashTable@@XZ	common\dialog_shim.cpp
 ?GetEventTable@DIALOG_SHIM@@MEBAPEBUwxEventTable@@XZ	common\dialog_shim.cpp
-?GetHotKey@TOOL_MANAGER@@QEBAHAEBVTOOL_ACTION@@@Z	common\tool\tool_manager.cpp
-?GetMousePosition@TOOL_MANAGER@@QEBA?AV?$VECTOR2@N@@XZ	common\tool\tool_manager.cpp
 ?GetPins@SIM_MODEL@@QEBA?AV?$vector@V?$reference_wrapper@$$CBUSIM_MODEL_PIN@@@std@@V?$allocator@V?$reference_wrapper@$$CBUSIM_MODEL_PIN@@@std@@@2@@std@@XZ	eeschema\sim\sim_model.cpp
-?GetPriority@TOOL_MANAGER@@QEBAHH@Z	common\tool\tool_manager.cpp
 ?GuessPluginTypeFromLibPath@SCH_IO_MGR@@SA?AW4SCH_FILE_T@1@AEBVwxString@@H@Z	eeschema\sch_io\sch_io_mgr.cpp
-?InvokeTool@TOOL_MANAGER@@QEAA_NH@Z	common\tool\tool_manager.cpp
 ?ListSet@HTML_MESSAGE_BOX@@QEAAXAEBVwxString@@@Z	common\dialogs\html_message_box.cpp
-?MakeToolId@TOOL_MANAGER@@SAHAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z	common\tool\tool_manager.cpp
 ?MessageSet@HTML_MESSAGE_BOX@@QEAAXAEBVwxString@@@Z	common\dialogs\html_message_box.cpp
 ?Normalize@SPICE_VALUE@@QEAAXXZ	eeschema\sim\spice_value.cpp
 ?OnBtnReloadConfig@DIALOG_DATABASE_LIB_SETTINGS@@MEAAXAEAVwxCommandEvent@@@Z	eeschema\dialogs\dialog_database_lib_settings.cpp
@@ -42,7 +35,6 @@
 ?OnCharHook@DIALOG_SHIM@@MEAAXAEAVwxKeyEvent@@@Z	common\dialog_shim.cpp
 ?OnConnectionStringSelected@DIALOG_DATABASE_LIB_SETTINGS@@MEAAXAEAVwxCommandEvent@@@Z	eeschema\dialogs\dialog_database_lib_settings.cpp
 ?OnDSNSelected@DIALOG_DATABASE_LIB_SETTINGS@@MEAAXAEAVwxCommandEvent@@@Z	eeschema\dialogs\dialog_database_lib_settings.cpp
-?ProcessEvent@TOOL_MANAGER@@QEAA_NAEBVTOOL_EVENT@@@Z	common\tool\tool_manager.cpp
 ?PropBuffering@SCH_IO_KICAD_LEGACY@@2PEBDEB	eeschema\sch_io\kicad_legacy\sch_io_kicad_legacy.cpp
 ?PropNoDocFile@SCH_IO_KICAD_LEGACY@@2PEBDEB	eeschema\sch_io\kicad_legacy\sch_io_kicad_legacy.cpp
 ?Push@SCH_COMMIT@@UEAAXAEBVwxString@@H@Z	eeschema\sch_commit.cpp
@@ -52,17 +44,11 @@
 ?ReloadPlugins@API_PLUGIN_MANAGER@@QEAAXXZ	common\api\api_plugin_manager.cpp
 ?RemoveItemFromSel@SELECTION_TOOL@@QEAAXPEAVEDA_ITEM@@_N@Z	common\tool\selection_tool.cpp
 ?RequestSelection@SCH_SELECTION_TOOL@@QEAAAEAVSCH_SELECTION@@AEBV?$vector@W4KICAD_T@@V?$allocator@W4KICAD_T@@@std@@@std@@_N@Z	eeschema\tools\sch_selection_tool.cpp
-?ResetTools@TOOL_MANAGER@@QEAAXW4RESET_REASON@TOOL_BASE@@@Z	common\tool\tool_manager.cpp
-?RunMainStack@TOOL_MANAGER@@QEAAXPEAVTOOL_BASE@@V?$function@$$A6AXXZ@std@@@Z	common\tool\tool_manager.cpp
 ?SchGetLibSymbol@@YAPEAVLIB_SYMBOL@@AEBVLIB_ID@@PEAVSYMBOL_LIB_TABLE@@PEAVSYMBOL_LIB@@PEAVwxWindow@@_N@Z	eeschema\sch_base_frame.cpp
-?ScheduleContextMenu@TOOL_MANAGER@@QEAAXPEAVTOOL_BASE@@PEAVACTION_MENU@@W4CONTEXT_MENU_TRIGGER@@@Z	common\tool\tool_manager.cpp
-?ScheduleNextState@TOOL_MANAGER@@QEAAXPEAVTOOL_BASE@@AEAV?$function@$$A6AHAEBVTOOL_EVENT@@@Z@std@@AEBVTOOL_EVENT_LIST@@@Z	common\tool\tool_manager.cpp
-?ScheduleWait@TOOL_MANAGER@@QEAAPEAVTOOL_EVENT@@PEAVTOOL_BASE@@AEBVTOOL_EVENT_LIST@@@Z	common\tool\tool_manager.cpp
 ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ	eeschema\sch_edit_frame.cpp
 ?SetCurrentSheet@SCH_EDIT_FRAME@@QEAAXAEBVSCH_SHEET_PATH@@@Z	eeschema\sch_edit_frame.cpp
 ?SetSheetNumberAndCount@SCH_EDIT_FRAME@@QEAAXXZ	eeschema\sch_edit_frame.cpp
 ?Show@DIALOG_SHIM@@UEAA_N_N@Z	common\dialog_shim.cpp
-?ShowInfoBarError@EDA_BASE_FRAME@@QEAAXAEBVwxString@@_NW4MESSAGE_TYPE@WX_INFOBAR@@@Z	common\eda_base_frame.cpp
 ?ShowModal@DIALOG_SHIM@@UEAAHXZ	common\dialog_shim.cpp
 ?ShowModeless@HTML_MESSAGE_BOX@@QEAAXXZ	common\dialogs\html_message_box.cpp
 ?ShowType@SCH_IO_MGR@@SA?BVwxString@@W4SCH_FILE_T@1@@Z	eeschema\sch_io\sch_io_mgr.cpp
@@ -70,7 +56,6 @@
 ?TransferDataFromWindow@DIALOG_DATABASE_LIB_SETTINGS@@UEAA_NXZ	eeschema\dialogs\dialog_database_lib_settings.cpp
 ?TransferDataToWindow@DIALOG_DATABASE_LIB_SETTINGS@@UEAA_NXZ	eeschema\dialogs\dialog_database_lib_settings.cpp
 ?UpdateHierarchyNavigator@SCH_EDIT_FRAME@@QEAAX_N0@Z	eeschema\sch_edit_frame.cpp
-?doRunAction@TOOL_MANAGER@@AEAA_NAEBVTOOL_ACTION@@_NAEBVany@ki@@PEAVCOMMIT@@1@Z	common\tool\tool_manager.cpp
 ??0API_PLUGIN_MANAGER@@QEAA@PEAVwxEvtHandler@@@Z	common\api\api_plugin_manager.cpp
 ??0DIALOG_MIGRATE_SETTINGS@@QEAA@PEAVSETTINGS_MANAGER@@@Z	common\dialogs\dialog_migrate_settings.cpp
 ??0HTML_MESSAGE_BOX@@QEAA@PEAVwxWindow@@AEBVwxString@@AEBVwxPoint@@AEBVwxSize@@@Z	common\dialogs\html_message_box.cpp
@@ -85,4 +70,3 @@
 ?ReloadPlugins@API_PLUGIN_MANAGER@@QEAAXXZ	common\api\api_plugin_manager.cpp
 ?Show@DIALOG_SHIM@@UEAA_N_N@Z	common\dialog_shim.cpp
 ?ShowModal@DIALOG_SHIM@@UEAAHXZ	common\dialog_shim.cpp
-

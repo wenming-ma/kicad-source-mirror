@@ -6,7 +6,7 @@
  * your DSN lexer.
  */
 
-#include <C:/Users/wenming_ma/source/repos/kicad-source-mirror/build/x64-Debug/common/lib_table_lexer.h>
+#include <lib_table_lexer.h>
 
 using namespace LIB_TABLE_T;
 
