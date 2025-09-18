@@ -150,6 +150,7 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/generated/common
     ${CMAKE_CURRENT_SOURCE_DIR}/generated/eeschema
     ${CMAKE_CURRENT_SOURCE_DIR}/generated/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/generated/include/gal/shaders  # For GLSL shader headers
     ${CMAKE_CURRENT_SOURCE_DIR}/generated/api/cpp  # Re-enabled for API headers
     
     # Core libraries include paths (for headers like math/*, kiplatform/*, core/*)

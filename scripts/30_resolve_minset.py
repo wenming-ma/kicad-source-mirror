@@ -181,7 +181,7 @@ BLACKLISTED_FILES = [
     "eeschema/sch_base_frame.cpp",
     "eeschema/sch_io/kicad_legacy/sch_io_kicad_legacy.cpp",
     "eeschema/sch_io/sch_io_mgr.cpp",
-    "pcbnew\pcb_io\pcb_io_mgr.cpp",
+    "pcbnew/pcb_io/pcb_io_mgr.cpp",
     "eeschema/sch_commit.cpp",
     "common/dialogs/dialog_migrate_settings.cpp",
     "common/dialogs/dialog_configure_paths.cpp",

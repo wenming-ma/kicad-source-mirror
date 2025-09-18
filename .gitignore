@@ -149,3 +149,4 @@ qt_pcb_project/vcpkg_installed.zip
 vcpkg_installed.zip
 
 scripts/duplicate_symbols_analysis.json
+scripts/tu_index.json
