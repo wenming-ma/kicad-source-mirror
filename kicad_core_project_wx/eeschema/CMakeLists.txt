@@ -35,6 +35,15 @@ set( SYNC_SHEET_PIN_SRCS
     sync_sheet_pin/sheet_synchronization_model.cpp
 )
 
+set( SYMBOL_EDITOR_SRCS
+    symbol_editor/lib_logger.cpp
+)
+
+set( TOOLS_SRCS
+    tools/sch_actions.cpp
+    tools/sch_navigate_tool.cpp
+)
+
 set( EESCHEMA_SRCS
     autoplace_fields.cpp
     connection_graph.cpp
@@ -79,6 +88,9 @@ set( EESCHEMA_SRCS
     symbol_lib_table.cpp
     symbol_library.cpp
     symbol_library_manager.cpp
+
+    # Generated files
+    ${CMAKE_SOURCE_DIR}/generated/eeschema/schematic_keywords.cpp
 )
 
 # Build static library
@@ -86,6 +98,8 @@ add_library( eeschema_lib STATIC
     ${EESCHEMA_SCH_IO}
     ${EESCHEMA_ERC_SRCS}
     ${SYNC_SHEET_PIN_SRCS}
+    ${SYMBOL_EDITOR_SRCS}
+    ${TOOLS_SRCS}
     ${EESCHEMA_SRCS}
 )
 

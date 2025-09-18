@@ -1,0 +1,80 @@
+# KiCad Gerber Core Files - Seeds Configuration (CPP files only)
+# This file contains only the .cpp implementation files for Gerber functionality
+
+# ===== GERBER VIEW (Reading/Viewing Gerber Files) =====
+
+# Core Framework Files
+gerbview/gerber_file_image.cpp
+gerbview/gerber_draw_item.cpp
+gerbview/gbr_layout.cpp
+gerbview/gerber_file_image_list.cpp
+
+# RS-274X Parsers
+gerbview/rs274x.cpp
+gerbview/rs274d.cpp
+gerbview/rs274_read_XY_and_IJ_coordinates.cpp
+gerbview/readgerb.cpp
+gerbview/evaluate.cpp
+
+# D-Code and Aperture Processing
+gerbview/dcode.cpp
+gerbview/aperture_macro.cpp
+gerbview/am_primitive.cpp
+gerbview/am_param.cpp
+
+# Excellon Drill Files
+gerbview/excellon_read_drill_file.cpp
+
+# File Loading
+gerbview/files.cpp
+
+# Collectors
+gerbview/gerber_collectors.cpp
+
+# Export to PCBNew
+gerbview/export_to_pcbnew.cpp
+
+# Job File Reader
+gerbview/job_file_reader.cpp
+
+# Clear Functions
+gerbview/clear_gbr_drawlayers.cpp
+
+# X2 Attributes
+gerbview/X2_gerber_attributes.cpp
+
+# ===== GERBER GENERATION/EXPORT (PCBNew) =====
+
+# Core Plotter
+common/plotters/GERBER_plotter.cpp
+
+# Exporters
+pcbnew/exporters/gerber_jobfile_writer.cpp
+pcbnew/exporters/gerber_placefile_writer.cpp
+pcbnew/exporters/gendrill_gerber_writer.cpp
+pcbnew/exporters/gendrill_file_writer_base.cpp
+pcbnew/exporters/gen_drill_report_files.cpp
+
+# PCB Plot Management
+pcbnew/pcb_plotter.cpp
+pcbnew/pcb_plot_params.cpp
+pcbnew/plot_board_layers.cpp
+pcbnew/plot_brditems_plotter.cpp
+
+# Jobs Handler
+pcbnew/pcbnew_jobs_handler.cpp
+
+# Command Line Interface (CLI interface only, not core Gerber logic)
+# kicad/cli/command_pcb_export_gerber.cpp
+# kicad/cli/command_pcb_export_gerbers.cpp
+# kicad/cli/command_pcb_export_drill.cpp
+
+# ===== COMMON COMPONENTS =====
+
+# Job Export Classes (CLI configuration only, not core Gerber logic)
+# common/jobs/job_export_pcb_gerber.cpp
+# common/jobs/job_export_pcb_gerbers.cpp
+# common/jobs/job_export_pcb_drill.cpp
+
+# Generated Files
+common/pcb_plot_params_keywords.cpp

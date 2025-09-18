@@ -141,3 +141,33 @@ kicad_core_project_wx/
 - CMakeLists.txt 保持与 KiCad 原始结构一致，便于维护
 - 所有新增文件已整合到相应的 CMake 配置中
 - 符号处理采用渐进式方法，确保每步都能维持编译完整性
+
+## 6. 基于 unused_symbols.txt 的链接错误解决策略
+
+### 核心原则
+基于 `scripts/unused_symbols.txt` 中的文件和符号列表，采用以下策略：
+
+**删除文件策略**:
+1. 删除 `unused_symbols.txt` 中对应的源文件(.cpp)和头文件(.h)
+2. 注释编译文件中对已删除头文件的 `#include` 引用
+3. 不修改 `unused_symbols.txt` 中列出的文件
+
+**符号处理策略**:
+- 如果符号在 `unused_symbols.txt` 中：注释调用该符号的代码
+- 如果符号不在列表中：补充缺失的实现或依赖
+
+### 已处理内容
+- **删除21个未使用文件** (基于 unused_symbols.txt 提取的唯一文件路径)
+- **序列化方法修复** (Serialize/Deserialize 方法声明和实现同步注释)
+- **批量头文件引用修复** (注释对已删除头文件的 #include)
+- **关键依赖补充** (APP_PROGRESS_DIALOG, SCHEMATIC_LEXER)
+
+### 操作命令示例
+```bash
+# 1. 提取并删除未使用文件
+awk -F'\t' 'NF==2 {print $2}' scripts/unused_symbols.txt | sort | uniq
+rm -f [文件列表]
+
+# 2. 批量注释头文件引用
+sed -i 's|#include <头文件>|// #include <头文件> // UNUSED_SYMBOL: Header file deleted|g' *.cpp
+```

@@ -19,7 +19,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / r"scripts\tu_index.json"
-SEEDS = ROOT / r"scripts\seeds-tep.txt"
+SEEDS = ROOT / r"scripts\seeds.txt"
 COMMON_SYMBOLS = ROOT / r"scripts\common_symbols.txt"
 OUT = ROOT / r"scripts\tem\minset_sources.json"
 UNRES = ROOT / r"scripts\tem\unresolved_symbols.json"
@@ -174,10 +174,10 @@ BLACKLISTED_FILES = [
     "common/dialogs/html_message_box.cpp",
     "common/dialog_shim.cpp",
     "eeschema/symbol_editor/symbol_edit_frame.cpp",
-    "common/eda_base_frame.cpp",
+    # "common/eda_base_frame.cpp",
     "eeschema/tools/sch_selection_tool.cpp",
     "common/tool/selection_tool.cpp",
-    "common/tool/tool_manager.cpp",
+    # "common/tool/tool_manager.cpp",
     "eeschema/sch_base_frame.cpp",
     "eeschema/sch_io/kicad_legacy/sch_io_kicad_legacy.cpp",
     "eeschema/sch_io/sch_io_mgr.cpp",

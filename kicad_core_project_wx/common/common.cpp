@@ -23,7 +23,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <eda_base_frame.h>
+// #include <eda_base_frame.h> // UNUSED_SYMBOL: Header file deleted
 #include <kiplatform/app.h>
 #include <project.h>
 #include <common.h>

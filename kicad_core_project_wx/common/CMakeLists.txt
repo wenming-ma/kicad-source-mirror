@@ -201,6 +201,7 @@ add_library( common STATIC
     view/zoom_controller.cpp
     
     # Widget files
+    widgets/app_progress_dialog.cpp
     widgets/progress_reporter_base.cpp
     widgets/ui_common.cpp
     
