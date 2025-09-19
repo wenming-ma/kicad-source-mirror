@@ -230,27 +230,33 @@ int main(int argc, char* argv[])
         SCH_TEST_PGM pgm;
         SetPgm(&pgm);
 
-        std::cout << "Creating sheet and screen without SCHEMATIC..." << std::endl;
+        std::cout << "Creating minimal sheet and screen..." << std::endl;
 
-        // Create sheet and screen without SCHEMATIC to avoid PROJECT dependency
-        // This is similar to how test code might work
+        // Create minimal sheet and screen
         sheet = new SCH_SHEET();
         sheet->SetFileName(schPath);
 
         SCH_SCREEN* screen = new SCH_SCREEN();
         sheet->SetScreen(screen);
 
-        // Load the file directly using the parser (similar to loadFile method)
+        std::cout << "Parsing schematic file..." << std::endl;
+
+        // Use the simplest approach: directly call ParseSchematic
         try {
             FILE_LINE_READER reader(schPath.ToStdString());
-            SCH_IO_KICAD_SEXPR_PARSER parser(&reader);
 
-            std::cout << "Parsing schematic file..." << std::endl;
-            parser.ParseSchematic(sheet);
-            std::cout << "Schematic parsed successfully!" << std::endl;
+            // Create parser with minimal parameters
+            // Parameters: reader, progress reporter, line count, root sheet, appending
+            SCH_IO_KICAD_SEXPR_PARSER parser(&reader, nullptr, 0, nullptr, false);
+
+            // ParseSchematic will handle the entire file including the header
+            parser.ParseSchematic(sheet, false, SEXPR_SCHEMATIC_FILE_VERSION);
+
+            std::cout << "Parsing completed successfully!" << std::endl;
         }
         catch (const std::exception& e) {
             std::cout << "Parse error: " << e.what() << std::endl;
+            std::cout << "Note: Some features may require SCHEMATIC object" << std::endl;
         }
 
         if (!sheet) {

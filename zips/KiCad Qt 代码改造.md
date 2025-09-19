@@ -1,4 +1,4 @@
-# KiCad BOARD 和 footprint Qt 代码改造 
+# KiCad Qt 代码改造 
 
 ## 🤖 System Identity and Role
 
@@ -92,4 +92,3 @@ Systematically transform KiCad source code from wxWidgets to Qt framework while 
 - Maintainable codebase aligned with Qt framework
 - Proven methodology for large-scale framework migrations
 - Complete traceability of all transformations
-
