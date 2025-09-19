@@ -226,61 +226,61 @@ add_subdirectory( thirdparty )
 add_subdirectory( libs )
 add_subdirectory( common )
 add_subdirectory( eeschema )
-# add_subdirectory( pcbnew )
+add_subdirectory( pcbnew )
 add_subdirectory( test )
 
 
 # Create simple main executable for minimal build testing
-# add_executable( kicad_core_project_wx
-#     main.cpp
-#  "config.h")
+add_executable( kicad_core_project_wx
+    main.cpp
+ "config.h")
 
-# target_link_libraries( kicad_core_project_wx
-#     # Core KiCad libraries - commented out for minimal build
-#     common
-#     pcbnew
-#     eeschema_lib
+target_link_libraries( kicad_core_project_wx
+    # Core KiCad libraries - commented out for minimal build
+    common
+    pcbnew
+    eeschema_lib
     
-#     # Libraries from libs directory
-#     kimath
-#     kiplatform
-#     core
-#     sexpr
+    # Libraries from libs directory
+    kimath
+    kiplatform
+    core
+    sexpr
     
-#     # Thirdparty libraries from local build
-#     clipper2
-#     delaunator
-#     fmt
-#     nlohmann_json_schema_validator
-#     libcontext
-#     othermath
-#     potrace
-#     dxflib_qcad
-#     tinyspline_lib
-#     markdown_lib  
-#     nanodbc
-#     compoundfilereader
-#     TDxNavlib  
-#     rtree
-#     nlohmann_json
+    # Thirdparty libraries from local build
+    clipper2
+    delaunator
+    fmt
+    nlohmann_json_schema_validator
+    libcontext
+    othermath
+    potrace
+    dxflib_qcad
+    tinyspline_lib
+    markdown_lib  
+    nanodbc
+    compoundfilereader
+    TDxNavlib  
+    rtree
+    nlohmann_json
     
-#     # Third-party libraries from vcpkg
-#     ${wxWidgets_LIBRARIES}
-#     ${Boost_LIBRARIES}
-#     ${CAIRO_LIBRARIES}
-#     ${FREETYPE_LIBRARIES}
-#     ${OPENGL_LIBRARIES}
-#     ${GLEW_LIBRARIES}
-#     ${CURL_LIBRARIES}
-#     ${ZLIB_LIBRARIES}
-#     $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>
-#     harfbuzz::harfbuzz
-#     Fontconfig::Fontconfig
+    # Third-party libraries from vcpkg
+    ${wxWidgets_LIBRARIES}
+    ${Boost_LIBRARIES}
+    ${CAIRO_LIBRARIES}
+    ${FREETYPE_LIBRARIES}
+    ${OPENGL_LIBRARIES}
+    ${GLEW_LIBRARIES}
+    ${CURL_LIBRARIES}
+    ${ZLIB_LIBRARIES}
+    $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>
+    harfbuzz::harfbuzz
+    Fontconfig::Fontconfig
     
-#     # Windows-specific libraries
-#     $<$<PLATFORM_ID:Windows>:ws2_32>
-#     $<$<PLATFORM_ID:Windows>:winmm>
-#     $<$<PLATFORM_ID:Windows>:shlwapi>
-#     $<$<PLATFORM_ID:Windows>:bcrypt>
-#     $<$<PLATFORM_ID:Windows>:odbc32>
-# )
+    # Windows-specific libraries
+    $<$<PLATFORM_ID:Windows>:ws2_32>
+    $<$<PLATFORM_ID:Windows>:winmm>
+    $<$<PLATFORM_ID:Windows>:shlwapi>
+    $<$<PLATFORM_ID:Windows>:bcrypt>
+    $<$<PLATFORM_ID:Windows>:odbc32>
+)
