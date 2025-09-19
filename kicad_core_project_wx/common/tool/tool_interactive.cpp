@@ -62,18 +62,16 @@ TOOL_INTERACTIVE::~TOOL_INTERACTIVE()
 }
 
 
-// UNUSED_SYMBOL: InvokeTool - Activate method commented out due to InvokeTool dependency
-// void TOOL_INTERACTIVE::Activate()
-// {
-//     m_toolMgr->InvokeTool( m_toolId );
-// }
+void TOOL_INTERACTIVE::Activate()
+{
+    m_toolMgr->InvokeTool( m_toolId );
+}
 
 
-// UNUSED_SYMBOL: ScheduleWait - Wait method commented out due to ScheduleWait dependency
-// TOOL_EVENT* TOOL_INTERACTIVE::Wait( const TOOL_EVENT_LIST& aEventList )
-// {
-//     return m_toolMgr->ScheduleWait( this, aEventList );
-// }
+TOOL_EVENT* TOOL_INTERACTIVE::Wait( const TOOL_EVENT_LIST& aEventList )
+{
+    return m_toolMgr->ScheduleWait( this, aEventList );
+}
 
 
 void TOOL_INTERACTIVE::resetTransitions()

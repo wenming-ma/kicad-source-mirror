@@ -117,26 +117,14 @@ find_package( OpenGL REQUIRED )
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set( KICAD_CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
 
-# Find Cairo and Pixman using custom modules - both are optional for minimal build
-find_package( Cairo QUIET )   # Optional - if not found, Cairo GAL backend will be disabled
-find_package( Pixman QUIET )  # Optional - enhanced Cairo performance
+# Cairo and Pixman are required and always available in this build
+find_package( Cairo REQUIRED )
+find_package( Pixman REQUIRED )
 
-# Check if Cairo and Pixman were found and configure accordingly
-if( CAIRO_FOUND )
-    message( STATUS "Cairo found: ${CAIRO_INCLUDE_DIR}" )
-    add_compile_definitions( HAVE_CAIRO=1 )
-    if( PIXMAN_FOUND )
-        message( STATUS "Pixman found: ${PIXMAN_INCLUDE_DIR}" )
-        add_compile_definitions( HAVE_PIXMAN=1 )
-    else()
-        message( WARNING "Pixman not found - Cairo GAL will use fallback implementation without pixman.h" )
-        add_compile_definitions( HAVE_PIXMAN=0 )
-    endif()
-else()
-    message( WARNING "Cairo not found - Cairo GAL backend will be disabled" )
-    add_compile_definitions( HAVE_CAIRO=0 )
-    add_compile_definitions( HAVE_PIXMAN=0 )
-endif()
+message( STATUS "Cairo found: ${CAIRO_INCLUDE_DIR}" )
+message( STATUS "Pixman found: ${PIXMAN_INCLUDE_DIR}" )
+add_compile_definitions( HAVE_CAIRO=1 )
+add_compile_definitions( HAVE_PIXMAN=1 )
 
 # Find GLEW library, required for OpenGL
 find_package( GLEW REQUIRED )
@@ -196,12 +184,8 @@ include_directories( BEFORE
     ${HarfBuzz_INCLUDE_DIRS}
     ${OPENGL_INCLUDE_DIR}
     ${ZLIB_INCLUDE_DIRS}
+    ${CAIRO_INCLUDE_DIR}
 )
-
-# Add Cairo include directory conditionally
-if( CAIRO_FOUND )
-    include_directories( ${CAIRO_INCLUDE_DIR} )
-endif()
 
 # Add wxWidgets compile definitions globally
 add_compile_definitions( ${wxWidgets_DEFINITIONS} )
@@ -241,63 +225,62 @@ add_custom_target(
 add_subdirectory( thirdparty )
 add_subdirectory( libs )
 add_subdirectory( common )
-# add_subdirectory( bitmap2component )
 add_subdirectory( eeschema )
-add_subdirectory( pcbnew )
+# add_subdirectory( pcbnew )
 add_subdirectory( test )
 
 
 # Create simple main executable for minimal build testing
-add_executable( kicad_core_project_wx
-    main.cpp
- "config.h")
+# add_executable( kicad_core_project_wx
+#     main.cpp
+#  "config.h")
 
-target_link_libraries( kicad_core_project_wx
-    # Core KiCad libraries - commented out for minimal build
-    common
-    pcbnew
-    eeschema_lib
+# target_link_libraries( kicad_core_project_wx
+#     # Core KiCad libraries - commented out for minimal build
+#     common
+#     pcbnew
+#     eeschema_lib
     
-    # Libraries from libs directory
-    kimath
-    kiplatform
-    core
-    sexpr
+#     # Libraries from libs directory
+#     kimath
+#     kiplatform
+#     core
+#     sexpr
     
-    # Thirdparty libraries from local build
-    clipper2
-    delaunator
-    fmt
-    nlohmann_json_schema_validator
-    libcontext
-    othermath
-    potrace
-    dxflib_qcad
-    tinyspline_lib
-    markdown_lib  
-    nanodbc
-    compoundfilereader
-    TDxNavlib  
-    rtree
-    nlohmann_json
+#     # Thirdparty libraries from local build
+#     clipper2
+#     delaunator
+#     fmt
+#     nlohmann_json_schema_validator
+#     libcontext
+#     othermath
+#     potrace
+#     dxflib_qcad
+#     tinyspline_lib
+#     markdown_lib  
+#     nanodbc
+#     compoundfilereader
+#     TDxNavlib  
+#     rtree
+#     nlohmann_json
     
-    # Third-party libraries from vcpkg
-    ${wxWidgets_LIBRARIES}
-    ${Boost_LIBRARIES}
-    ${CAIRO_LIBRARIES}
-    ${FREETYPE_LIBRARIES}
-    ${OPENGL_LIBRARIES}
-    ${GLEW_LIBRARIES}
-    ${CURL_LIBRARIES}
-    ${ZLIB_LIBRARIES}
-    $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>
-    harfbuzz::harfbuzz
-    Fontconfig::Fontconfig
+#     # Third-party libraries from vcpkg
+#     ${wxWidgets_LIBRARIES}
+#     ${Boost_LIBRARIES}
+#     ${CAIRO_LIBRARIES}
+#     ${FREETYPE_LIBRARIES}
+#     ${OPENGL_LIBRARIES}
+#     ${GLEW_LIBRARIES}
+#     ${CURL_LIBRARIES}
+#     ${ZLIB_LIBRARIES}
+#     $<IF:$<TARGET_EXISTS:zstd::libzstd_shared>,zstd::libzstd_shared,zstd::libzstd_static>
+#     harfbuzz::harfbuzz
+#     Fontconfig::Fontconfig
     
-    # Windows-specific libraries
-    $<$<PLATFORM_ID:Windows>:ws2_32>
-    $<$<PLATFORM_ID:Windows>:winmm>
-    $<$<PLATFORM_ID:Windows>:shlwapi>
-    $<$<PLATFORM_ID:Windows>:bcrypt>
-    $<$<PLATFORM_ID:Windows>:odbc32>
-)
+#     # Windows-specific libraries
+#     $<$<PLATFORM_ID:Windows>:ws2_32>
+#     $<$<PLATFORM_ID:Windows>:winmm>
+#     $<$<PLATFORM_ID:Windows>:shlwapi>
+#     $<$<PLATFORM_ID:Windows>:bcrypt>
+#     $<$<PLATFORM_ID:Windows>:odbc32>
+# )

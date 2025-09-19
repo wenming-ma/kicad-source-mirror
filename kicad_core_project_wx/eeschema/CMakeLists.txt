@@ -37,11 +37,41 @@ set( SYNC_SHEET_PIN_SRCS
 
 set( SYMBOL_EDITOR_SRCS
     symbol_editor/lib_logger.cpp
+    symbol_editor/lib_symbol_library_manager.cpp
+    symbol_editor/symbol_editor.cpp
+    symbol_editor/symbol_editor_settings.cpp
+    symbol_editor/symbol_editor_undo_redo.cpp
 )
 
 set( TOOLS_SRCS
     tools/sch_actions.cpp
     tools/sch_navigate_tool.cpp
+    tools/ee_grid_helper.cpp
+    tools/sch_selection.cpp
+    tools/symbol_editor_drawing_tools.cpp
+    tools/symbol_editor_pin_tool.cpp
+)
+
+set( EESCHEMA_DIALOGS
+    dialogs/dialog_lib_new_symbol.cpp
+    dialogs/dialog_lib_new_symbol_base.cpp
+    dialogs/dialog_pin_properties.cpp
+    dialogs/dialog_pin_properties_base.cpp
+    dialogs/dialog_text_properties.cpp
+)
+
+set( EESCHEMA_IMPORT_GFX
+    import_gfx/dialog_import_gfx_sch.cpp
+    import_gfx/dialog_import_gfx_sch_base.cpp
+    import_gfx/graphics_importer_lib_symbol.cpp
+    import_gfx/graphics_importer_sch.cpp
+)
+
+set( EESCHEMA_WIDGETS
+    widgets/pin_shape_combobox.cpp
+    widgets/pin_type_combobox.cpp
+    widgets/symbol_filter_combobox.cpp
+    widgets/symbol_preview_widget.cpp
 )
 
 set( EESCHEMA_SRCS
@@ -89,6 +119,9 @@ set( EESCHEMA_SRCS
     symbol_lib_table.cpp
     symbol_library.cpp
     symbol_library_manager.cpp
+    sch_painter.cpp
+    sch_preview_panel.cpp
+    symbol_tree_synchronizing_adapter.cpp
 
     # Generated files
     ${CMAKE_SOURCE_DIR}/generated/eeschema/schematic_keywords.cpp
@@ -102,6 +135,9 @@ add_library( eeschema_lib STATIC
     ${SYNC_SHEET_PIN_SRCS}
     ${SYMBOL_EDITOR_SRCS}
     ${TOOLS_SRCS}
+    ${EESCHEMA_DIALOGS}
+    ${EESCHEMA_IMPORT_GFX}
+    ${EESCHEMA_WIDGETS}
     ${EESCHEMA_SRCS}
 )
 

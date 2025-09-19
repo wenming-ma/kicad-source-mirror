@@ -67,13 +67,12 @@ public:
     TOOL_INTERACTIVE( const std::string& aName );
     virtual ~TOOL_INTERACTIVE();
 
-    // UNUSED_SYMBOL: InvokeTool - Activate method commented out due to InvokeTool dependency
-    // /**
-    //  * Run the tool.
-    //  *
-    //  * After activation, the tool starts receiving events until it is finished.
-    //  */
-    // void Activate();
+    /**
+     * Run the tool.
+     *
+     * After activation, the tool starts receiving events until it is finished.
+     */
+    void Activate();
 
     TOOL_MENU& GetToolMenu();
 
@@ -103,13 +102,12 @@ public:
     void Go( int (T::* aStateFunc)( const TOOL_EVENT& ),
              const TOOL_EVENT_LIST& aConditions = TOOL_EVENT( TC_ANY, TA_ANY ) );
 
-    // UNUSED_SYMBOL: ScheduleWait - Wait method declaration commented out due to ScheduleWait dependency
-    // /**
-    //  * Suspend execution of the tool until an event specified in aEventList arrives.
-    //  *
-    //  * No parameters means waiting for any event.
-    //  */
-    // TOOL_EVENT* Wait( const TOOL_EVENT_LIST& aEventList = TOOL_EVENT( TC_ANY, TA_ANY ) );
+    /**
+     * Suspend execution of the tool until an event specified in aEventList arrives.
+     *
+     * No parameters means waiting for any event.
+     */
+    TOOL_EVENT* Wait( const TOOL_EVENT_LIST& aEventList = TOOL_EVENT( TC_ANY, TA_ANY ) );
 
     /**
      * The functions below are not yet implemented - their interface may change

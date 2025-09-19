@@ -37,7 +37,23 @@ add_library( common STATIC
     design_block_lib_table.cpp
     # dialog_shim.cpp
 
+    # New common files
+    clipboard.cpp
+    eda_draw_frame.cpp
+    gal_display_options_common.cpp
+    lib_tree_model.cpp
+    lib_tree_model_adapter.cpp
+    origin_viewitem.cpp
+
     # Dialog files
+    dialogs/dialog_unit_entry.cpp
+    dialogs/dialog_unit_entry_base.cpp
+    dialogs/eda_list_dialog.cpp
+    dialogs/eda_list_dialog_base.cpp
+    dialogs/eda_reorderable_list_dialog.cpp
+    dialogs/eda_reorderable_list_dialog_base.cpp
+    dialogs/eda_view_switcher_base.cpp
+    dialogs/hotkey_cycle_popup.cpp
     dialogs/git/panel_git_repos.cpp
     dialogs/git/panel_git_repos_base.cpp
     dialogs/panel_common_settings.cpp
@@ -152,6 +168,13 @@ add_library( common STATIC
     # UI component - commented out for minimal build (OpenGL UI context)
     # gal/opengl/gl_context_mgr.cpp
     
+    # Import/Export GFX files
+    import_gfx/dxf_import_plugin.cpp
+    import_gfx/graphics_import_mgr.cpp
+    import_gfx/graphics_importer.cpp
+    import_gfx/graphics_importer_buffer.cpp
+    import_gfx/svg_import_plugin.cpp
+
     # IO files
     io/io_base.cpp
     io/kicad/kicad_io_utils.cpp
@@ -161,7 +184,13 @@ add_library( common STATIC
     
     # Libeval compiler
     libeval_compiler/libeval_compiler.cpp
-    
+
+    # Preview items
+    preview_items/anchor_debug.cpp
+    preview_items/construction_geom.cpp
+    preview_items/item_drawing_utils.cpp
+    preview_items/snap_indicator.cpp
+
     # Project files
     project/board_project_settings.cpp
     project/net_settings.cpp
@@ -192,8 +221,13 @@ add_library( common STATIC
     tool/action_toolbar.cpp
     tool/actions.cpp
     tool/common_control.cpp
+    tool/common_tools.cpp
     tool/conditional_menu.cpp
+    tool/construction_manager.cpp
+    tool/grid_helper.cpp
+    tool/grid_menu.cpp
     tool/selection.cpp
+    tool/selection_conditions.cpp
     tool/tool_action.cpp
     tool/tool_base.cpp
     tool/tool_dispatcher.cpp
@@ -202,7 +236,8 @@ add_library( common STATIC
     tool/tool_manager.cpp
     tool/tool_menu.cpp
     tool/tools_holder.cpp
-    
+    tool/zoom_menu.cpp
+
     # View files
     view/view.cpp
     view/view_controls.cpp
@@ -216,11 +251,21 @@ add_library( common STATIC
     # Widget files
     widgets/app_progress_dialog.cpp
     widgets/button_row_panel.cpp
+    widgets/filter_combobox.cpp
+    widgets/font_choice.cpp
+    widgets/grid_icon_text_helpers.cpp
+    widgets/html_window.cpp
+    widgets/lib_tree.cpp
+    widgets/msgpanel.cpp
     widgets/paged_dialog.cpp
     widgets/progress_reporter_base.cpp
     widgets/std_bitmap_button.cpp
     widgets/ui_common.cpp
+    widgets/unit_binder.cpp
     widgets/widget_hotkey_list.cpp
+    widgets/wx_combobox.cpp
+    widgets/wx_dataviewctrl.cpp
+    widgets/wx_grid.cpp
     widgets/wx_aui_art_providers.cpp
     widgets/wx_busy_indicator.cpp
     widgets/wx_infobar.cpp
@@ -240,6 +285,7 @@ target_include_directories( common PUBLIC
     # ../generated/api/cpp/api  # DISABLED FOR MINIMAL BUILD
     ../scripting
     ../thirdparty/magic_enum
+    ../thirdparty/nanosvg
     ${wxWidgets_INCLUDE_DIRS}
 )
 

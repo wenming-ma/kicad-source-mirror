@@ -62,7 +62,7 @@ pcbnew/plot_board_layers.cpp
 pcbnew/plot_brditems_plotter.cpp
 
 # Jobs Handler
-pcbnew/pcbnew_jobs_handler.cpp
+#pcbnew/pcbnew_jobs_handler.cpp
 
 # Command Line Interface (CLI interface only, not core Gerber logic)
 # kicad/cli/command_pcb_export_gerber.cpp

@@ -5,7 +5,7 @@
       "name": "base",
       "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build",
+      "binaryDir": "Y:/wenming/build",
         "environment": {
             "VCPKG_ROOT": "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\kicad_core_project_wx\\vcpkg_installed"
         },

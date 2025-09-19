@@ -8,8 +8,8 @@
 ### 1. 最小集合收集与分析
 - **分析工具**: 使用 `scripts/20_build_tu_index.py` 和 `scripts/30_resolve_minset.py` 进行符号依赖分析
 - **分析结果**:
-  - 源文件列表: `scripts/tem/minset_sources.json` (263个文件)
-  - 头文件列表: `scripts/tem/minset_headers.json` (609个文件)
+  - 源文件列表: `scripts/tem/minset_sources.json` 
+  - 头文件列表: `scripts/tem/minset_headers.json`
   - 未解析符号: `scripts/tem/unresolved_symbols.json`
 
 ### 2. 文件复制与组织
@@ -18,17 +18,10 @@
 - **构建路径映射**: Y:\wenming\kicad\build\x64-Debug -> generated/
 - **复制日志**: `kicad_core_project_wx/file_copy_log.txt` (记录所有文件状态)
 - **复制统计**: `kicad_core_project_wx/copy_summary.json`
-  - 总计处理 897 个文件
-  - 新复制 208 个文件
-  - 跳过已存在 689 个文件
-
 ### 3. CMake 配置更新
 - **更新脚本**: `scripts/update_cmake_proper.py`
 - **更新策略**: 保持与 KiCad 原始 CMakeLists.txt 相同的文件结构和组织方式
-- **已更新的 CMakeLists.txt**:
-  - `kicad_core_project_wx/CMakeLists.txt` (主配置，已添加新子目录)
-  - `kicad_core_project_wx/bitmap2component/CMakeLists.txt`
-  - `kicad_core_project_wx/eeschema/CMakeLists.txt`
+
 
 ### 4. 目录结构
 ```
@@ -145,6 +138,8 @@ kicad_core_project_wx/
 ## 6. 基于 unused_symbols.txt 的链接错误解决策略
 
 ### 核心原则
+**所有符号的注释与否必须严格以 `scripts/unused_symbols.txt` 中的内容为主**
+
 基于 `scripts/unused_symbols.txt` 中的文件和符号列表，采用以下策略：
 
 **删除文件策略**:
@@ -153,8 +148,9 @@ kicad_core_project_wx/
 3. 不修改 `unused_symbols.txt` 中列出的文件
 
 **符号处理策略**:
-- 如果符号在 `unused_symbols.txt` 中：注释调用该符号的代码
-- 如果符号不在列表中：补充缺失的实现或依赖
+- 如果符号在 `unused_symbols.txt` 中：必须注释该符号的声明和实现
+- 如果符号不在 `unused_symbols.txt` 中：必须保留或补充实现，即使之前被错误注释
+- 特别注意：如果基类（如 EDA_BASE_FRAME）不在 unused_symbols.txt 中，其虚函数在派生类中的重写必须保留
 
 ### 已处理内容
 - **删除21个未使用文件** (基于 unused_symbols.txt 提取的唯一文件路径)
@@ -171,3 +167,16 @@ rm -f [文件列表]
 # 2. 批量注释头文件引用
 sed -i 's|#include <头文件>|// #include <头文件> // UNUSED_SYMBOL: Header file deleted|g' *.cpp
 ```
+
+## 7. 编译错误修复策略
+
+### 核心原则
+**以 `scripts/unused_symbols.txt` 为准判断符号是否应该注释**
+
+### 处理规则
+1. **符号不在 unused_symbols.txt**：恢复声明和实现
+2. **符号在 unused_symbols.txt**：保持注释，相关调用点也注释
+
+### 示例
+- `Activate()`, `Wait()` → 恢复（不在列表）
+- `HTML_MESSAGE_BOX` 调用 → 注释（在列表）
