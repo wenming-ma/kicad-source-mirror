@@ -26,9 +26,7 @@
 #include <sch_file_versions.h>
 #include <schematic.h>
 #include <project.h>
-#include <project/project_file.h>
-#include <schematic_settings.h>
-#include <erc/erc_settings.h>
+#include <settings/settings_manager.h>
 
 // Simple wxApp implementation for minimal initialization
 class SCH_TEST_APP : public wxApp
@@ -47,6 +45,12 @@ wxIMPLEMENT_APP_NO_MAIN(SCH_TEST_APP);
 class SCH_TEST_PGM : public PGM_BASE
 {
 public:
+    SCH_TEST_PGM()
+    {
+        // Initialize the settings manager using unique_ptr
+        m_settings_manager = std::make_unique<SETTINGS_MANAGER>(true);
+    }
+
     // Required abstract method
     void MacOpenFile( const wxString& aFileName ) override {}
 

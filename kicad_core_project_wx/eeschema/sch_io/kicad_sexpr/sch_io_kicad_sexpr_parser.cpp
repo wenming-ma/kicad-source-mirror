@@ -3269,18 +3269,19 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
 
             // Exclude from simulation used to be managed by a Sim.Enable field set to "0" when
             // simulation was disabled.
-            if( field->GetCanonicalName() == SIM_LEGACY_ENABLE_FIELD_V7 )
-            {
-                symbol->SetExcludedFromSim( field->GetText() == wxS( "0" ) );
-                break;
-            }
+            //UNUSED_SYMBOL:SIM functionality disabled
+            //if( field->GetCanonicalName() == SIM_LEGACY_ENABLE_FIELD_V7 )
+            //{
+            //    symbol->SetExcludedFromSim( field->GetText() == wxS( "0" ) );
+            //    break;
+            //}
 
-            // Even longer ago, we had a "Spice_Netlist_Enabled" field
-            if( field->GetCanonicalName() == SIM_LEGACY_ENABLE_FIELD )
-            {
-                symbol->SetExcludedFromSim( field->GetText() == wxS( "N" ) );
-                break;
-            }
+            //// Even longer ago, we had a "Spice_Netlist_Enabled" field
+            //if( field->GetCanonicalName() == SIM_LEGACY_ENABLE_FIELD )
+            //{
+            //    symbol->SetExcludedFromSim( field->GetText() == wxS( "N" ) );
+            //    break;
+            //}
 
             if( ( field->GetId() >= MANDATORY_FIELD_COUNT ) && m_fieldIDsRead.count( field->GetId() ) )
             {
