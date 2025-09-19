@@ -150,3 +150,5 @@ vcpkg_installed.zip
 
 scripts/duplicate_symbols_analysis.json
 scripts/tu_index.json
+install
+kicad/x64-debug

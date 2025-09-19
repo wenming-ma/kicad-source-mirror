@@ -5,9 +5,12 @@
       "name": "base",
       "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "Y:/wenming/build/${presetName}",
-      "installDir": "Y:/wenming/kicad/${presetName}",
-      "toolchainFile": "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "installDir": "${sourceDir}/install/${presetName}",
+        "environment": {
+            "VCPKG_ROOT": "D:\\Tools\\vcpkg"
+        },
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -15,10 +18,10 @@
       },
       "cacheVariables": {
         "KICAD_BUILD_QA_TESTS": "OFF",
-        "KICAD_WIN32_DPI_AWARE": "ON",
+        "KICAD_BUILD_I18N": "OFF",
+        "KICAD_SCRIPTING_WXPYTHON": "OFF",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "SWIG_EXECUTABLE": "C:/swig/swigwin-4.3.1/swig.exe",
-        "VCPKG_MANIFEST_MODE": "OFF"
+        "VCPKG_INSTALLED_DIR": "$env{VCPKG_ROOT}/installed"
       }
     },
     {
@@ -28,7 +31,7 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "VCPKG_INSTALLED_DIR": "${VCPKG_ROOT}"
+        "VCPKG_INSTALLED_DIR": "$env{VCPKG_ROOT}/installed"
       },
       "architecture": {
         "value": "x64",
@@ -42,7 +45,7 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "VCPKG_INSTALLED_DIR": "${VCPKG_ROOT}"
+        "VCPKG_INSTALLED_DIR": "$env{VCPKG_ROOT}/installed"
       },
       "architecture": {
         "value": "x64",

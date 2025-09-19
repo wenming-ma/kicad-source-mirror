@@ -1,13 +1,13 @@
 {
-  "total_headers": 759,
-  "total_sources": 377,
-  "regular_headers": 735,
-  "generated_headers": 24,
-  "regular_sources": 365,
-  "generated_sources": 12,
-  "cmake_directories": 122,
-  "files_copied": 122,
-  "files_skipped": 1042,
-  "files_not_found": 0,
-  "total_files_processed": 1164
+  "total_headers": 724,
+  "total_sources": 378,
+  "regular_headers": 724,
+  "generated_headers": 0,
+  "regular_sources": 378,
+  "generated_sources": 0,
+  "cmake_directories": 0,
+  "files_copied": 0,
+  "files_skipped": 0,
+  "files_not_found": 1102,
+  "total_files_processed": 1102
 }
