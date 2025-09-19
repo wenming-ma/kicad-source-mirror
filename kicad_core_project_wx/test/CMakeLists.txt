@@ -75,13 +75,11 @@ configure_file(
     COPYONLY
 )
 
-# Check if schematic test file exists and copy it
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/complex_hierarchy.kicad_sch)
-    configure_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/complex_hierarchy.kicad_sch
-        ${CMAKE_CURRENT_BINARY_DIR}/complex_hierarchy.kicad_sch
-        COPYONLY
-    )
+
+# Copy the entire complex_hierarchy project folder to build directory
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/complex_hierarchy)
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/complex_hierarchy
+         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
 # Set output directories

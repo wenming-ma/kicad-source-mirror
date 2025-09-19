@@ -24,6 +24,10 @@
 #include <sch_io/kicad_sexpr/sch_io_kicad_sexpr.h>
 #include <schematic.h>
 #include <project.h>
+#include <project/project_file.h>
+#include <project/project_local_settings.h>
+#include <settings/settings_manager.h>
+#include <pgm_base.h>
 
 // Simple wxApp implementation for minimal initialization
 class SCH_TEST_APP : public wxApp
@@ -217,53 +221,115 @@ void PrintSchematicStatistics(SCH_SHEET* root_sheet)
 int main(int argc, char* argv[])
 {
     std::cout << "=== Simple KiCad Schematic Parser Test ===" << std::endl;
+    std::cout << "Initializing wxWidgets..." << std::endl;
 
     // Initialize wxWidgets
     wxInitialize();
 
+    std::cout << "wxWidgets initialized successfully." << std::endl;
+
     SCH_SHEET* root_sheet = nullptr;
+    SCHEMATIC* schematic = nullptr;
+    PROJECT_FILE* projectFile = nullptr;
+    PROJECT_LOCAL_SETTINGS* localSettings = nullptr;
 
     try {
-        // Path to the schematic file
-        wxString schPath = wxT("test/complex_hierarchy.kicad_sch");
+        // Path to the schematic file - look in the complex_hierarchy folder copied to build directory
+        wxString schPath = wxT("complex_hierarchy/complex_hierarchy.kicad_sch");
+        wxString projectPath = wxT("complex_hierarchy/complex_hierarchy.kicad_pro");
 
-        // Convert to absolute path
-        wxFileName fn(schPath);
-        if (!fn.IsAbsolute()) {
-            fn.MakeAbsolute();
-            schPath = fn.GetFullPath();
+        // Make paths absolute relative to current working directory
+        wxFileName schFile(schPath);
+        wxFileName projFile(projectPath);
+        if (!schFile.IsAbsolute()) {
+            schFile.MakeAbsolute();
+            schPath = schFile.GetFullPath();
+        }
+        if (!projFile.IsAbsolute()) {
+            projFile.MakeAbsolute();
+            projectPath = projFile.GetFullPath();
         }
 
         if (!wxFileName::FileExists(schPath)) {
-            schPath = wxT("complex_hierarchy.kicad_sch");
-            wxFileName fn2(schPath);
-            if (!fn2.IsAbsolute()) {
-                fn2.MakeAbsolute();
-                schPath = fn2.GetFullPath();
-            }
+            std::cout << "ERROR: Cannot find schematic file!" << std::endl;
+            std::cout << "Tried path: " << schPath.utf8_str() << std::endl;
+            std::cout << "Current working directory: " << wxGetCwd().utf8_str() << std::endl;
+            wxUninitialize();
+            return 1;
+        }
 
-            if (!wxFileName::FileExists(schPath)) {
-                std::cout << "ERROR: Cannot find schematic file!" << std::endl;
-                std::cout << "Tried: test/complex_hierarchy.kicad_sch and complex_hierarchy.kicad_sch" << std::endl;
-                wxUninitialize();
-                return 1;
-            }
+        if (!wxFileName::FileExists(projectPath)) {
+            std::cout << "ERROR: Cannot find project file!" << std::endl;
+            std::cout << "Tried path: " << projectPath.utf8_str() << std::endl;
+            wxUninitialize();
+            return 1;
         }
 
         std::cout << "Loading schematic file: " << schPath.utf8_str() << std::endl;
 
-        // Create minimal project and schematic objects
-        PROJECT project;
-        SCHEMATIC schematic(&project);
+        // Create a minimal SCHEMATIC with simplified initialization
+        std::cout << "Creating SCHEMATIC with simplified initialization..." << std::endl;
+
+        // Create project with minimal initialization to avoid private member access
+        PROJECT* project = new PROJECT();
+
+        // Create minimal project file and local settings objects
+        projectFile = new PROJECT_FILE(projectPath.ToStdString());
+        localSettings = new PROJECT_LOCAL_SETTINGS(project, projectPath.ToStdString());
+
+        std::cout << "Project objects created, proceeding with SCHEMATIC..." << std::endl;
+
+        // Try to create SCHEMATIC but catch any initialization issues
+        try {
+            std::cout << "Attempting to create SCHEMATIC..." << std::endl;
+            schematic = new SCHEMATIC(project);
+            std::cout << "SCHEMATIC created successfully!" << std::endl;
+        } catch (const std::exception& e) {
+            std::cout << "Failed to create SCHEMATIC: " << e.what() << std::endl;
+            delete project;
+            delete projectFile;
+            delete localSettings;
+            wxUninitialize();
+            return 1;
+        } catch (...) {
+            std::cout << "Failed to create SCHEMATIC: unknown error" << std::endl;
+            delete project;
+            delete projectFile;
+            delete localSettings;
+            wxUninitialize();
+            return 1;
+        }
 
         // Create schematic IO parser
+        std::cout << "Creating SCH_IO_KICAD_SEXPR parser..." << std::endl;
         SCH_IO_KICAD_SEXPR schIO;
 
-        // Load the schematic file
-        root_sheet = schIO.LoadSchematicFile(schPath, &schematic);
+        // Load the schematic file using our minimal SCHEMATIC
+        std::cout << "Loading schematic file..." << std::endl;
+        try {
+            root_sheet = schIO.LoadSchematicFile(schPath, schematic);
+            std::cout << "Schematic loaded successfully!" << std::endl;
+        } catch (const std::exception& e) {
+            std::cout << "Exception during loading: " << e.what() << std::endl;
+            delete schematic;
+            delete projectFile;
+            delete localSettings;
+            wxUninitialize();
+            return 1;
+        } catch (...) {
+            std::cout << "Unknown exception during loading" << std::endl;
+            delete schematic;
+            delete projectFile;
+            delete localSettings;
+            wxUninitialize();
+            return 1;
+        }
 
         if (!root_sheet) {
             std::cout << "ERROR: Failed to load schematic file!" << std::endl;
+            delete schematic;
+            delete projectFile;
+            delete localSettings;
             wxUninitialize();
             return 1;
         }
@@ -285,6 +351,14 @@ int main(int argc, char* argv[])
                 std::cout << "Error during cleanup - ignored" << std::endl;
             }
         }
+        if (schematic) {
+            try {
+                delete schematic;
+            }
+            catch (...) {
+                std::cout << "Error during schematic cleanup - ignored" << std::endl;
+            }
+        }
 
         wxUninitialize();
         return 1;
@@ -299,20 +373,48 @@ int main(int argc, char* argv[])
                 std::cout << "Error during cleanup - ignored" << std::endl;
             }
         }
+        if (schematic) {
+            try {
+                delete schematic;
+            }
+            catch (...) {
+                std::cout << "Error during schematic cleanup - ignored" << std::endl;
+            }
+        }
 
         wxUninitialize();
         return 1;
     }
 
-    // Safe cleanup: Delete root sheet before wxUninitialize()
+    // Safe cleanup: Delete objects in reverse order
     if (root_sheet) {
         try {
             delete root_sheet;
             root_sheet = nullptr;
         }
         catch (...) {
-            std::cout << "Warning: Exception during cleanup - continuing..." << std::endl;
+            std::cout << "Warning: Exception during root_sheet cleanup - continuing..." << std::endl;
         }
+    }
+
+    // Clean up schematic if we created one
+    if (schematic) {
+        try {
+            delete schematic;
+            schematic = nullptr;
+        }
+        catch (...) {
+            std::cout << "Warning: Exception during schematic cleanup - continuing..." << std::endl;
+        }
+    }
+
+    // Clean up project file and local settings
+    try {
+        delete projectFile;
+        delete localSettings;
+    }
+    catch (...) {
+        std::cout << "Warning: Exception during project cleanup - continuing..." << std::endl;
     }
 
     // Uninitialize wxWidgets
