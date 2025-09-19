@@ -27,6 +27,7 @@
 #include <schematic.h>
 #include <project.h>
 #include <settings/settings_manager.h>
+#include <settings/app_settings.h>
 
 // Simple wxApp implementation for minimal initialization
 class SCH_TEST_APP : public wxApp
@@ -41,6 +42,26 @@ public:
 
 wxIMPLEMENT_APP_NO_MAIN(SCH_TEST_APP);
 
+// Minimal mock for SYMBOL_EDITOR_SETTINGS to avoid linker issues
+class MOCK_SYMBOL_EDITOR_SETTINGS : public APP_SETTINGS_BASE
+{
+public:
+    MOCK_SYMBOL_EDITOR_SETTINGS() : APP_SETTINGS_BASE("symbol_editor", 1)
+    {
+        // Set default values that SCH_PIN expects
+        m_Defaults.pin_length = 100;  // in mils
+        m_Defaults.pin_num_size = 50;
+        m_Defaults.pin_name_size = 50;
+    }
+
+    struct PIN_DEFAULTS
+    {
+        int pin_length;
+        int pin_num_size;
+        int pin_name_size;
+    } m_Defaults;
+};
+
 // Simple PGM implementation
 class SCH_TEST_PGM : public PGM_BASE
 {
@@ -49,6 +70,9 @@ public:
     {
         // Initialize the settings manager using unique_ptr
         m_settings_manager = std::make_unique<SETTINGS_MANAGER>(true);
+
+        // Register our mock settings to satisfy SCH_PIN
+        m_settings_manager->RegisterSettings(new MOCK_SYMBOL_EDITOR_SETTINGS());
     }
 
     // Required abstract method

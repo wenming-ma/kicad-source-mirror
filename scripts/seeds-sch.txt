@@ -43,3 +43,6 @@ eeschema/sync_sheet_pin/sheet_synchronization_item.cpp
 eeschema/sync_sheet_pin/sheet_synchronization_model.cpp
 common/sch_io/sch_io.cpp
 eeschema/eeschema_settings.cpp
+#eeschema/symbol_editor/symbol_editor_undo_redo.cpp
+#eeschema/symbol_editor/symbol_editor_settings.cpp
+#eeschema\symbol_editor\lib_symbol_library_manager.cpp
