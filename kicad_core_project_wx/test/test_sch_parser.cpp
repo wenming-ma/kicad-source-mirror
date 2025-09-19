@@ -1,6 +1,6 @@
 /*
- * Simple Schematic Parser Test Program
- * Directly parses .kicad_sch files without full project initialization
+ * Schematic Parser Test Program
+ * Tests parsing .kicad_sch files and prints component information
  */
 
 #include <iostream>
@@ -9,25 +9,26 @@
 #include <wx/filename.h>
 #include <wx/app.h>
 
-// Include minimal KiCad headers for direct schematic parsing
-#include <sch_screen.h>
+// Include necessary KiCad headers
 #include <sch_sheet.h>
+#include <sch_screen.h>
 #include <sch_symbol.h>
-#include <sch_pin.h>
-#include <sch_field.h>
 #include <sch_line.h>
 #include <sch_junction.h>
 #include <sch_label.h>
 #include <sch_text.h>
 #include <sch_no_connect.h>
-#include <sch_bus_entry.h>
 #include <sch_io/kicad_sexpr/sch_io_kicad_sexpr.h>
+#include <sch_io/kicad_sexpr/sch_io_kicad_sexpr_parser.h>
+#include <sch_io/sch_io_mgr.h>
+#include <pgm_base.h>
+#include <richio.h>
+#include <sch_file_versions.h>
 #include <schematic.h>
 #include <project.h>
 #include <project/project_file.h>
-#include <project/project_local_settings.h>
-#include <settings/settings_manager.h>
-#include <pgm_base.h>
+#include <schematic_settings.h>
+#include <erc/erc_settings.h>
 
 // Simple wxApp implementation for minimal initialization
 class SCH_TEST_APP : public wxApp
@@ -42,294 +43,218 @@ public:
 
 wxIMPLEMENT_APP_NO_MAIN(SCH_TEST_APP);
 
-// Helper function to print schematic statistics
-void PrintSchematicStatistics(SCH_SHEET* root_sheet)
+// Simple PGM implementation
+class SCH_TEST_PGM : public PGM_BASE
 {
-    if (!root_sheet) {
-        std::cout << "ERROR: Root sheet is null!" << std::endl;
+public:
+    // Required abstract method
+    void MacOpenFile( const wxString& aFileName ) override {}
+
+    // Override virtual methods with correct signatures
+    const wxString& GetKicadEnvVariable() const override
+    {
+        static wxString dummy;
+        return dummy;
+    }
+
+    const wxString& GetExecutablePath() const override
+    {
+        static wxString dummy;
+        return dummy;
+    }
+};
+
+
+// Helper function to print schematic statistics
+void PrintSchematicStatistics(SCH_SHEET* sheet)
+{
+    if (!sheet || !sheet->GetScreen()) {
+        std::cout << "ERROR: Sheet or screen is null!" << std::endl;
         return;
     }
 
+    SCH_SCREEN* screen = sheet->GetScreen();
     std::cout << "\n=== SCHEMATIC STATISTICS ===" << std::endl;
 
-    SCH_SCREEN* screen = root_sheet->GetScreen();
+    // Get all items from the screen
+    std::vector<SCH_SYMBOL*> symbols;
+    std::vector<SCH_LINE*> lines;
+    std::vector<SCH_LABEL_BASE*> labels;
+    std::vector<SCH_JUNCTION*> junctions;
+    std::vector<SCH_NO_CONNECT*> noConnects;
+    std::vector<SCH_TEXT*> texts;
+    std::vector<SCH_SHEET*> subSheets;
 
-    if (!screen) {
-        std::cout << "ERROR: Root screen is null!" << std::endl;
-        return;
-    }
-
-    std::cout << "Root sheet name: " << root_sheet->GetName().utf8_str() << std::endl;
-    std::cout << "Root sheet filename: " << root_sheet->GetFileName().utf8_str() << std::endl;
-
-    // Count different types of items on the schematic
-    size_t symbol_count = 0;
-    size_t wire_count = 0;
-    size_t label_count = 0;
-    size_t junction_count = 0;
-    size_t noconnect_count = 0;
-    size_t bus_entry_count = 0;
-    size_t text_count = 0;
-    size_t sheet_count = 0;
-
-    // Iterate through all items in the schematic
+    // Iterate through all items in the screen
     for (SCH_ITEM* item : screen->Items()) {
         switch (item->Type()) {
             case SCH_SYMBOL_T:
-                symbol_count++;
+                symbols.push_back(static_cast<SCH_SYMBOL*>(item));
                 break;
             case SCH_LINE_T:
-                wire_count++;
+                lines.push_back(static_cast<SCH_LINE*>(item));
                 break;
             case SCH_LABEL_T:
             case SCH_GLOBAL_LABEL_T:
             case SCH_HIER_LABEL_T:
-                label_count++;
+                labels.push_back(static_cast<SCH_LABEL_BASE*>(item));
                 break;
             case SCH_JUNCTION_T:
-                junction_count++;
+                junctions.push_back(static_cast<SCH_JUNCTION*>(item));
                 break;
             case SCH_NO_CONNECT_T:
-                noconnect_count++;
-                break;
-            case SCH_BUS_WIRE_ENTRY_T:
-            case SCH_BUS_BUS_ENTRY_T:
-                bus_entry_count++;
+                noConnects.push_back(static_cast<SCH_NO_CONNECT*>(item));
                 break;
             case SCH_TEXT_T:
-                text_count++;
+                texts.push_back(static_cast<SCH_TEXT*>(item));
                 break;
             case SCH_SHEET_T:
-                sheet_count++;
+                subSheets.push_back(static_cast<SCH_SHEET*>(item));
                 break;
             default:
+                // Other types...
                 break;
         }
     }
 
-    std::cout << "\n=== ITEM COUNTS ===" << std::endl;
-    std::cout << "Symbols: " << symbol_count << std::endl;
-    std::cout << "Wires: " << wire_count << std::endl;
-    std::cout << "Labels: " << label_count << std::endl;
-    std::cout << "Junctions: " << junction_count << std::endl;
-    std::cout << "No-connects: " << noconnect_count << std::endl;
-    std::cout << "Bus entries: " << bus_entry_count << std::endl;
-    std::cout << "Text items: " << text_count << std::endl;
-    std::cout << "Sub-sheets: " << sheet_count << std::endl;
+    // Print statistics
+    std::cout << "\n=== OBJECT COUNTS ===" << std::endl;
+    std::cout << "Symbols: " << symbols.size() << std::endl;
+    std::cout << "Lines/Wires: " << lines.size() << std::endl;
+    std::cout << "Labels: " << labels.size() << std::endl;
+    std::cout << "Junctions: " << junctions.size() << std::endl;
+    std::cout << "No-Connects: " << noConnects.size() << std::endl;
+    std::cout << "Text Items: " << texts.size() << std::endl;
+    std::cout << "Sub-Sheets: " << subSheets.size() << std::endl;
 
-    // Print detailed symbol information
+    // Analyze symbols in detail
     std::cout << "\n=== SYMBOL DETAILS ===" << std::endl;
-    size_t symbol_index = 0;
-
-    for (SCH_ITEM* item : screen->Items()) {
-        if (item->Type() == SCH_SYMBOL_T) {
-            SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>(item);
-
-            if (symbol_index < 10) { // Show first 10 symbols
-                // Use simplified methods without sheet path
-                wxString ref = symbol->GetRef(nullptr);
-                wxString value = symbol->GetValue(false, nullptr, false);
-
-                std::cout << "  [" << (symbol_index + 1) << "] Reference: "
-                          << ref.utf8_str()
-                          << ", Value: " << value.utf8_str()
-                          << ", LibId: " << std::string(symbol->GetLibId().Format())
-                          << std::endl;
-
-                std::cout << "      Position: (" << symbol->GetPosition().x
-                          << ", " << symbol->GetPosition().y << ")"
-                          << ", Unit: " << symbol->GetUnit()
-                          << ", Pins: " << symbol->GetPins().size()
-                          << std::endl;
-
-                // Show field information
-                std::vector<SCH_FIELD*> fields;
-                symbol->GetFields(fields, false);
-                if (!fields.empty()) {
-                    std::cout << "      Fields: ";
-                    for (size_t i = 0; i < fields.size() && i < 3; ++i) {
-                        std::cout << fields[i]->GetName().utf8_str()
-                                  << "=\"" << fields[i]->GetText().utf8_str() << "\"";
-                        if (i < fields.size() - 1 && i < 2) std::cout << ", ";
-                    }
-                    if (fields.size() > 3) {
-                        std::cout << " + " << (fields.size() - 3) << " more";
-                    }
-                    std::cout << std::endl;
-                }
-            }
-            symbol_index++;
-        }
+    for (size_t i = 0; i < symbols.size() && i < 10; ++i) {
+        SCH_SYMBOL* symbol = symbols[i];
+        std::cout << "  [" << (i + 1) << "] Reference: " << symbol->GetRef(nullptr).utf8_str()
+                  << ", Value: " << symbol->GetValue(false, nullptr, false).utf8_str()
+                  << ", Library ID: " << symbol->GetLibId().Format().c_str()
+                  << ", Position: (" << symbol->GetPosition().x << ", " << symbol->GetPosition().y << ")"
+                  << ", Pins: " << symbol->GetPins().size()
+                  << std::endl;
     }
 
-    if (symbol_count > 10) {
-        std::cout << "  ... and " << (symbol_count - 10) << " more symbols" << std::endl;
+    if (symbols.size() > 10) {
+        std::cout << "  ... and " << (symbols.size() - 10) << " more symbols" << std::endl;
     }
 
-    // Print wire/connection information
-    std::cout << "\n=== WIRE DETAILS ===" << std::endl;
-    size_t wire_index = 0;
-
-    for (SCH_ITEM* item : screen->Items()) {
-        if (item->Type() == SCH_LINE_T) {
-            SCH_LINE* wire = static_cast<SCH_LINE*>(item);
-
-            if (wire_index < 5) { // Show first 5 wires
-                std::cout << "  [" << (wire_index + 1) << "] From: ("
-                          << wire->GetStartPoint().x << ", " << wire->GetStartPoint().y
-                          << ") To: (" << wire->GetEndPoint().x << ", " << wire->GetEndPoint().y
-                          << "), Layer: " << wire->GetLayer() << std::endl;
-            }
-            wire_index++;
-        }
+    // Analyze lines/wires
+    std::cout << "\n=== WIRE/LINE DETAILS ===" << std::endl;
+    for (size_t i = 0; i < lines.size() && i < 5; ++i) {
+        SCH_LINE* line = lines[i];
+        std::cout << "  [" << (i + 1) << "] From: (" << line->GetStartPoint().x << ", " << line->GetStartPoint().y << ")"
+                  << " To: (" << line->GetEndPoint().x << ", " << line->GetEndPoint().y << ")"
+                  << " Layer: " << line->GetLayer()
+                  << std::endl;
     }
 
-    if (wire_count > 5) {
-        std::cout << "  ... and " << (wire_count - 5) << " more wires" << std::endl;
+    if (lines.size() > 5) {
+        std::cout << "  ... and " << (lines.size() - 5) << " more lines" << std::endl;
     }
 
-    // Print label information
+    // Analyze labels
     std::cout << "\n=== LABEL DETAILS ===" << std::endl;
-    size_t label_index = 0;
+    for (size_t i = 0; i < labels.size() && i < 10; ++i) {
+        SCH_LABEL_BASE* label = labels[i];
+        const char* type_str = "Label";
+        if (label->Type() == SCH_GLOBAL_LABEL_T) type_str = "Global Label";
+        else if (label->Type() == SCH_HIER_LABEL_T) type_str = "Hierarchical Label";
 
-    for (SCH_ITEM* item : screen->Items()) {
-        if (item->Type() == SCH_LABEL_T ||
-            item->Type() == SCH_GLOBAL_LABEL_T ||
-            item->Type() == SCH_HIER_LABEL_T) {
-
-            SCH_LABEL_BASE* label = static_cast<SCH_LABEL_BASE*>(item);
-
-            if (label_index < 10) { // Show first 10 labels
-                const char* type_str = "Label";
-                if (item->Type() == SCH_GLOBAL_LABEL_T) type_str = "Global";
-                else if (item->Type() == SCH_HIER_LABEL_T) type_str = "Hierarchical";
-
-                std::cout << "  [" << (label_index + 1) << "] " << type_str
-                          << ": \"" << label->GetText().utf8_str() << "\""
-                          << " at (" << label->GetPosition().x << ", " << label->GetPosition().y << ")"
-                          << std::endl;
-            }
-            label_index++;
-        }
+        std::cout << "  [" << (i + 1) << "] " << type_str << ": \"" << label->GetText().utf8_str() << "\""
+                  << " at (" << label->GetPosition().x << ", " << label->GetPosition().y << ")"
+                  << std::endl;
     }
 
-    if (label_count > 10) {
-        std::cout << "  ... and " << (label_count - 10) << " more labels" << std::endl;
+    if (labels.size() > 10) {
+        std::cout << "  ... and " << (labels.size() - 10) << " more labels" << std::endl;
     }
 }
 
+
 int main(int argc, char* argv[])
 {
-    std::cout << "=== Simple KiCad Schematic Parser Test ===" << std::endl;
-    std::cout << "Initializing wxWidgets..." << std::endl;
+    std::cout << "=== KiCad Schematic Parser Test ===" << std::endl;
 
     // Initialize wxWidgets
     wxInitialize();
 
-    std::cout << "wxWidgets initialized successfully." << std::endl;
-
-    SCH_SHEET* root_sheet = nullptr;
-    SCHEMATIC* schematic = nullptr;
-    PROJECT_FILE* projectFile = nullptr;
-    PROJECT_LOCAL_SETTINGS* localSettings = nullptr;
+    SCH_SHEET* sheet = nullptr;
 
     try {
-        // Path to the schematic file - look in the complex_hierarchy folder copied to build directory
-        wxString schPath = wxT("complex_hierarchy/complex_hierarchy.kicad_sch");
-        wxString projectPath = wxT("complex_hierarchy/complex_hierarchy.kicad_pro");
+        // Path to the schematic file
+        wxString schPath = wxT("test/complex_hierarchy/complex_hierarchy.kicad_sch");
 
-        // Make paths absolute relative to current working directory
+        // Check for file existence and make absolute
         wxFileName schFile(schPath);
-        wxFileName projFile(projectPath);
-        if (!schFile.IsAbsolute()) {
-            schFile.MakeAbsolute();
-            schPath = schFile.GetFullPath();
-        }
-        if (!projFile.IsAbsolute()) {
-            projFile.MakeAbsolute();
-            projectPath = projFile.GetFullPath();
-        }
-
-        if (!wxFileName::FileExists(schPath)) {
-            std::cout << "ERROR: Cannot find schematic file!" << std::endl;
-            std::cout << "Tried path: " << schPath.utf8_str() << std::endl;
-            std::cout << "Current working directory: " << wxGetCwd().utf8_str() << std::endl;
-            wxUninitialize();
-            return 1;
+        if (!schFile.FileExists()) {
+            schFile.Assign(wxT("complex_hierarchy.kicad_sch"));
+            if (!schFile.FileExists()) {
+                // Try looking in complex_hierarchy folder
+                schFile.Assign(wxT("complex_hierarchy/complex_hierarchy.kicad_sch"));
+                if (!schFile.FileExists()) {
+                    std::cout << "ERROR: Cannot find schematic file!" << std::endl;
+                    std::cout << "Tried: test/complex_hierarchy/complex_hierarchy.kicad_sch," << std::endl;
+                    std::cout << "       complex_hierarchy.kicad_sch," << std::endl;
+                    std::cout << "       complex_hierarchy/complex_hierarchy.kicad_sch" << std::endl;
+                    wxUninitialize();
+                    return 1;
+                }
+            }
         }
 
-        if (!wxFileName::FileExists(projectPath)) {
-            std::cout << "ERROR: Cannot find project file!" << std::endl;
-            std::cout << "Tried path: " << projectPath.utf8_str() << std::endl;
-            wxUninitialize();
-            return 1;
-        }
+        // Make the path absolute (required by LoadSchematicFile)
+        schFile.MakeAbsolute();
+        schPath = schFile.GetFullPath();
 
         std::cout << "Loading schematic file: " << schPath.utf8_str() << std::endl;
 
-        // Create a minimal SCHEMATIC with simplified initialization
-        std::cout << "Creating SCHEMATIC with simplified initialization..." << std::endl;
+        // Check for project file
+        wxString projPath = schPath;
+        projPath.Replace(wxT(".kicad_sch"), wxT(".kicad_pro"));
 
-        // Create project with minimal initialization to avoid private member access
-        PROJECT* project = new PROJECT();
-
-        // Create minimal project file and local settings objects
-        projectFile = new PROJECT_FILE(projectPath.ToStdString());
-        localSettings = new PROJECT_LOCAL_SETTINGS(project, projectPath.ToStdString());
-
-        std::cout << "Project objects created, proceeding with SCHEMATIC..." << std::endl;
-
-        // Try to create SCHEMATIC but catch any initialization issues
-        try {
-            std::cout << "Attempting to create SCHEMATIC..." << std::endl;
-            schematic = new SCHEMATIC(project);
-            std::cout << "SCHEMATIC created successfully!" << std::endl;
-        } catch (const std::exception& e) {
-            std::cout << "Failed to create SCHEMATIC: " << e.what() << std::endl;
-            delete project;
-            delete projectFile;
-            delete localSettings;
-            wxUninitialize();
-            return 1;
-        } catch (...) {
-            std::cout << "Failed to create SCHEMATIC: unknown error" << std::endl;
-            delete project;
-            delete projectFile;
-            delete localSettings;
-            wxUninitialize();
-            return 1;
+        if (!wxFileName::FileExists(projPath)) {
+            // Try in the same directory as the schematic
+            wxFileName projFile(schPath);
+            projFile.SetExt(wxT("kicad_pro"));
+            projPath = projFile.GetFullPath();
         }
 
-        // Create schematic IO parser
-        std::cout << "Creating SCH_IO_KICAD_SEXPR parser..." << std::endl;
-        SCH_IO_KICAD_SEXPR schIO;
+        std::cout << "Project file: " << projPath.utf8_str() << std::endl;
 
-        // Load the schematic file using our minimal SCHEMATIC
-        std::cout << "Loading schematic file..." << std::endl;
+        // Set PGM to avoid assertions
+        SCH_TEST_PGM pgm;
+        SetPgm(&pgm);
+
+        std::cout << "Creating sheet and screen without SCHEMATIC..." << std::endl;
+
+        // Create sheet and screen without SCHEMATIC to avoid PROJECT dependency
+        // This is similar to how test code might work
+        sheet = new SCH_SHEET();
+        sheet->SetFileName(schPath);
+
+        SCH_SCREEN* screen = new SCH_SCREEN();
+        sheet->SetScreen(screen);
+
+        // Load the file directly using the parser (similar to loadFile method)
         try {
-            root_sheet = schIO.LoadSchematicFile(schPath, schematic);
-            std::cout << "Schematic loaded successfully!" << std::endl;
-        } catch (const std::exception& e) {
-            std::cout << "Exception during loading: " << e.what() << std::endl;
-            delete schematic;
-            delete projectFile;
-            delete localSettings;
-            wxUninitialize();
-            return 1;
-        } catch (...) {
-            std::cout << "Unknown exception during loading" << std::endl;
-            delete schematic;
-            delete projectFile;
-            delete localSettings;
-            wxUninitialize();
-            return 1;
+            FILE_LINE_READER reader(schPath.ToStdString());
+            SCH_IO_KICAD_SEXPR_PARSER parser(&reader);
+
+            std::cout << "Parsing schematic file..." << std::endl;
+            parser.ParseSchematic(sheet);
+            std::cout << "Schematic parsed successfully!" << std::endl;
+        }
+        catch (const std::exception& e) {
+            std::cout << "Parse error: " << e.what() << std::endl;
         }
 
-        if (!root_sheet) {
+        if (!sheet) {
             std::cout << "ERROR: Failed to load schematic file!" << std::endl;
-            delete schematic;
-            delete projectFile;
-            delete localSettings;
             wxUninitialize();
             return 1;
         }
@@ -337,87 +262,53 @@ int main(int argc, char* argv[])
         std::cout << "Schematic file loaded successfully!" << std::endl;
 
         // Print detailed schematic information
-        PrintSchematicStatistics(root_sheet);
+        PrintSchematicStatistics(sheet);
 
         std::cout << "\n=== Test completed successfully! ===" << std::endl;
     }
     catch (const std::exception& e) {
         std::cout << "Exception caught: " << e.what() << std::endl;
-        if (root_sheet) {
+        if (sheet) {
             try {
-                delete root_sheet;
+                delete sheet;
             }
             catch (...) {
                 std::cout << "Error during cleanup - ignored" << std::endl;
             }
         }
-        if (schematic) {
-            try {
-                delete schematic;
-            }
-            catch (...) {
-                std::cout << "Error during schematic cleanup - ignored" << std::endl;
-            }
-        }
-
         wxUninitialize();
         return 1;
     }
     catch (...) {
         std::cout << "Unknown exception caught!" << std::endl;
-        if (root_sheet) {
+        if (sheet) {
             try {
-                delete root_sheet;
+                delete sheet;
             }
             catch (...) {
                 std::cout << "Error during cleanup - ignored" << std::endl;
             }
         }
-        if (schematic) {
-            try {
-                delete schematic;
-            }
-            catch (...) {
-                std::cout << "Error during schematic cleanup - ignored" << std::endl;
-            }
-        }
-
         wxUninitialize();
         return 1;
     }
 
-    // Safe cleanup: Delete objects in reverse order
-    if (root_sheet) {
+    // Safe cleanup: Delete sheet before wxUninitialize()
+    if (sheet) {
         try {
-            delete root_sheet;
-            root_sheet = nullptr;
+            delete sheet;
+            sheet = nullptr;
         }
         catch (...) {
-            std::cout << "Warning: Exception during root_sheet cleanup - continuing..." << std::endl;
+            std::cout << "Warning: Exception during sheet cleanup - continuing..." << std::endl;
         }
     }
 
-    // Clean up schematic if we created one
-    if (schematic) {
-        try {
-            delete schematic;
-            schematic = nullptr;
-        }
-        catch (...) {
-            std::cout << "Warning: Exception during schematic cleanup - continuing..." << std::endl;
-        }
-    }
 
-    // Clean up project file and local settings
-    try {
-        delete projectFile;
-        delete localSettings;
-    }
-    catch (...) {
-        std::cout << "Warning: Exception during project cleanup - continuing..." << std::endl;
-    }
+    // Clean up PGM
+    SetPgm(nullptr);
 
-    // Uninitialize wxWidgets
+    // Uninitialize wxWidgets after sheet cleanup
     wxUninitialize();
     return 0;
 }
