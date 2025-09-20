@@ -50,6 +50,7 @@ add_library( pcbnew STATIC
     
     # Board stackup
     board_stackup_manager/board_stackup.cpp
+    board_stackup_manager/stackup_predefined_prms.cpp
     
     # Connectivity files
     connectivity/connectivity_algo.cpp
@@ -80,12 +81,28 @@ add_library( pcbnew STATIC
     # Teardrop
     teardrop/teardrop_parameters.cpp
     
+    # Plotting and export files
+    pcb_plotter.cpp
+    pcbplot.cpp
+    plot_board_layers.cpp
+    plot_brditems_plotter.cpp
+
+    # Exporters
+    exporters/gen_drill_report_files.cpp
+    exporters/gendrill_file_writer_base.cpp
+    exporters/gendrill_gerber_writer.cpp
+    exporters/gerber_jobfile_writer.cpp
+    exporters/gerber_placefile_writer.cpp
+
     # Tools
     tools/pcb_actions.cpp
 )
 
 target_include_directories( pcbnew PUBLIC
     .
+    board_stackup_manager
+    dialogs
+    exporters
     ../include
     ../thirdparty/magic_enum
 )

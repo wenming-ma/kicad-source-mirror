@@ -69,14 +69,11 @@ void COMMON_CONTROL::Reset( RESET_REASON aReason )
 }
 
 
-// UNUSED_SYMBOL: ShowPreferences - OpenPreferences method commented out since ShowPreferences is unused
-/*
 int COMMON_CONTROL::OpenPreferences( const TOOL_EVENT& aEvent )
 {
     m_frame->ShowPreferences( wxEmptyString, wxEmptyString );
     return 0;
 }
-*/
 
 
 int COMMON_CONTROL::ConfigurePaths( const TOOL_EVENT& aEvent )
@@ -305,11 +302,13 @@ int COMMON_CONTROL::About( const TOOL_EVENT& aEvent )
 
 
 // UNUSED_SYMBOL: DIALOG_LIST_HOTKEYS constructor - Commenting out ListHotKeys method
-// int COMMON_CONTROL::ListHotKeys( const TOOL_EVENT& aEvent )
-// {
-//     DisplayHotkeyList( m_frame );
-//     return 0;
-// }
+int COMMON_CONTROL::ListHotKeys( const TOOL_EVENT& aEvent )
+{
+    // DisplayHotkeyList relies on DIALOG_LIST_HOTKEYS which is in unused symbols
+    // DisplayHotkeyList( m_frame );
+    m_frame->SetStatusText( _( "Hotkey list dialog disabled in minimal build" ) );
+    return 0;
+}
 
 
 int COMMON_CONTROL::GetInvolved( const TOOL_EVENT& aEvent )
@@ -368,8 +367,7 @@ int COMMON_CONTROL::ReportBug( const TOOL_EVENT& aEvent )
 
 void COMMON_CONTROL::setTransitions()
 {
-    // UNUSED_SYMBOL: ShowPreferences - OpenPreferences transition commented out since method is unused
-    // Go( &COMMON_CONTROL::OpenPreferences,    ACTIONS::openPreferences.MakeEvent() );
+    Go( &COMMON_CONTROL::OpenPreferences,    ACTIONS::openPreferences.MakeEvent() );
     Go( &COMMON_CONTROL::ConfigurePaths,     ACTIONS::configurePaths.MakeEvent() );
     Go( &COMMON_CONTROL::ShowLibraryTable,   ACTIONS::showSymbolLibTable.MakeEvent() );
     Go( &COMMON_CONTROL::ShowLibraryTable,   ACTIONS::showFootprintLibTable.MakeEvent() );
