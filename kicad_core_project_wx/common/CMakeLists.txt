@@ -63,7 +63,6 @@ add_library( common STATIC
     design_block_info_impl.cpp
     design_block_io.cpp
     design_block_lib_table.cpp
-    # dialog_shim.cpp
 
     # New common files
     board_printout.cpp
