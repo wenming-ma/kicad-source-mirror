@@ -83,6 +83,7 @@ add_library( gerbview_kiface_objects OBJECT
 target_link_libraries( gerbview_kiface_objects
     PUBLIC
         common
+        gal
         core
     )
 
@@ -100,6 +101,8 @@ set_target_properties( gerbview_kiface PROPERTIES
 
 target_link_libraries( gerbview_kiface
     PRIVATE
+        nlohmann_json
+        gal
         common
         core
         gerbview_kiface_objects

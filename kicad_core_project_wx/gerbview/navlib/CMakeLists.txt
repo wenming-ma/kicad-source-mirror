@@ -16,4 +16,5 @@ target_include_directories(gerbview_navlib PRIVATE
 
 target_link_libraries(gerbview_navlib
     kiplatform
+    3DxWare::Navlib
 )

@@ -1,5 +1,33 @@
 # Common library for minimum PCB set
 
+# Create minimal kicommon library first (needed by gal)
+add_library( kicommon STATIC
+    # Minimal files needed by gal and other components
+    build_version.cpp
+    string_utils.cpp
+    exceptions.cpp
+    richio.cpp
+    config_params.cpp
+    common.cpp
+    eda_units.cpp
+)
+
+target_link_libraries( kicommon
+    kimath
+    kiplatform
+    nlohmann_json
+    ${wxWidgets_LIBRARIES}
+)
+
+target_include_directories( kicommon PUBLIC
+    .
+    ${CMAKE_BINARY_DIR}
+    ../include
+)
+
+# Add subdirectories
+add_subdirectory( gal )
+
 # Generated files from kicad_core_project_wx generated directory
 set( KICAD_GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../generated" )
 set( COMMON_GENERATED_SRCS
