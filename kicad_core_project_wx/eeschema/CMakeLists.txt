@@ -53,11 +53,11 @@ set( TOOLS_SRCS
 )
 
 set( EESCHEMA_DIALOGS
-    dialogs/dialog_lib_new_symbol.cpp
-    dialogs/dialog_lib_new_symbol_base.cpp
-    dialogs/dialog_pin_properties.cpp
-    dialogs/dialog_pin_properties_base.cpp
-    dialogs/dialog_text_properties.cpp
+    # dialogs/dialog_lib_new_symbol.cpp
+    # dialogs/dialog_lib_new_symbol_base.cpp
+    # dialogs/dialog_pin_properties.cpp
+    # dialogs/dialog_pin_properties_base.cpp
+    # dialogs/dialog_text_properties.cpp
 )
 
 set( EESCHEMA_IMPORT_GFX

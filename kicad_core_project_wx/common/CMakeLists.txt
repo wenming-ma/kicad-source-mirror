@@ -76,31 +76,30 @@ add_library( common STATIC
     printout.cpp
 
     # Dialog files
-    dialogs/dialog_print_generic.cpp
-    dialogs/dialog_print_generic_base.cpp
-    dialogs/dialog_unit_entry.cpp
-    dialogs/dialog_unit_entry_base.cpp
-    dialogs/eda_list_dialog.cpp
-    dialogs/eda_list_dialog_base.cpp
-    dialogs/eda_reorderable_list_dialog.cpp
-    dialogs/eda_reorderable_list_dialog_base.cpp
-    dialogs/eda_view_switcher_base.cpp
-    dialogs/hotkey_cycle_popup.cpp
-    dialogs/git/panel_git_repos.cpp
-    dialogs/git/panel_git_repos_base.cpp
-    dialogs/panel_common_settings.cpp
-    dialogs/panel_common_settings_base.cpp
-    dialogs/panel_hotkeys_editor.cpp
-    dialogs/panel_mouse_settings.cpp
-    dialogs/panel_mouse_settings_base.cpp
-    dialogs/panel_packages_and_updates.cpp
-    dialogs/panel_packages_and_updates_base.cpp
-    dialogs/panel_plugin_settings.cpp
-    dialogs/panel_plugin_settings_base.cpp
+    # dialogs/dialog_print_generic.cpp
+    # dialogs/dialog_print_generic_base.cpp
+    # dialogs/dialog_unit_entry.cpp
+    # dialogs/dialog_unit_entry_base.cpp
+    # dialogs/eda_list_dialog.cpp
+    # dialogs/eda_list_dialog_base.cpp
+    # dialogs/eda_reorderable_list_dialog.cpp
+    # dialogs/eda_reorderable_list_dialog_base.cpp
+    # dialogs/eda_view_switcher_base.cpp
+    # dialogs/hotkey_cycle_popup.cpp
+    # dialogs/git/panel_git_repos.cpp
+    # dialogs/git/panel_git_repos_base.cpp
+    # dialogs/panel_common_settings.cpp
+    # dialogs/panel_common_settings_base.cpp
+    # dialogs/panel_hotkeys_editor.cpp
+    # dialogs/panel_mouse_settings.cpp
+    # dialogs/panel_mouse_settings_base.cpp
+    # dialogs/panel_packages_and_updates.cpp
+    # dialogs/panel_packages_and_updates_base.cpp
+    # dialogs/panel_plugin_settings.cpp
+    # dialogs/panel_plugin_settings_base.cpp
     dpi_scaling.cpp
     dpi_scaling_common.cpp
     dsnlexer.cpp
-    # UI component - re-enabled for compilation
     eda_base_frame.cpp
     eda_dde.cpp
     eda_doc.cpp
@@ -298,34 +297,34 @@ add_library( common STATIC
     # view/wx_view_controls.cpp
     view/zoom_controller.cpp
     
-    # Widget files
-    widgets/app_progress_dialog.cpp
-    widgets/button_row_panel.cpp
-    widgets/filter_combobox.cpp
-    widgets/font_choice.cpp
-    widgets/grid_icon_text_helpers.cpp
-    widgets/html_window.cpp
-    widgets/indicator_icon.cpp
-    widgets/layer_box_selector.cpp
-    widgets/layer_presentation.cpp
-    widgets/lib_tree.cpp
-    widgets/msgpanel.cpp
-    widgets/paged_dialog.cpp
-    widgets/progress_reporter_base.cpp
-    widgets/std_bitmap_button.cpp
-    widgets/ui_common.cpp
-    widgets/unit_binder.cpp
-    widgets/widget_hotkey_list.cpp
-    widgets/wx_aui_art_providers.cpp
-    widgets/wx_busy_indicator.cpp
-    widgets/wx_combobox.cpp
-    widgets/wx_dataviewctrl.cpp
-    widgets/wx_ellipsized_static_text.cpp
-    widgets/wx_grid.cpp
-    widgets/wx_infobar.cpp
-    widgets/wx_panel.cpp
-    widgets/wx_progress_reporters.cpp
-    widgets/wx_treebook.cpp
+    # Widget files - commented out as files were removed
+    # widgets/app_progress_dialog.cpp
+    # widgets/button_row_panel.cpp
+    # widgets/filter_combobox.cpp
+    # widgets/font_choice.cpp
+    # widgets/grid_icon_text_helpers.cpp
+    # widgets/html_window.cpp
+    # widgets/indicator_icon.cpp
+    # widgets/layer_box_selector.cpp
+    # widgets/layer_presentation.cpp
+    # widgets/lib_tree.cpp
+    # widgets/msgpanel.cpp
+    # widgets/paged_dialog.cpp
+    # widgets/progress_reporter_base.cpp
+    # widgets/std_bitmap_button.cpp
+    # widgets/ui_common.cpp
+    # widgets/unit_binder.cpp
+    # widgets/widget_hotkey_list.cpp
+    # widgets/wx_aui_art_providers.cpp
+    # widgets/wx_busy_indicator.cpp
+    # widgets/wx_combobox.cpp
+    # widgets/wx_dataviewctrl.cpp
+    # widgets/wx_ellipsized_static_text.cpp
+    # widgets/wx_grid.cpp
+    # widgets/wx_infobar.cpp
+    # widgets/wx_panel.cpp
+    # widgets/wx_progress_reporters.cpp
+    # widgets/wx_treebook.cpp
     
     # Generated files
     ${COMMON_GENERATED_SRCS}

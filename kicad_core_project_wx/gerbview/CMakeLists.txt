@@ -44,20 +44,20 @@ set( GERBVIEW_SRCS
 
 # Dialog files
 set( DIALOGS_SRCS
-    dialogs/dialog_draw_layers_settings.cpp
-    dialogs/dialog_draw_layers_settings_base.cpp
-    dialogs/dialog_layers_select_to_pcb.cpp
-    dialogs/dialog_layers_select_to_pcb_base.cpp
-    dialogs/dialog_print_gerbview.cpp
-    dialogs/dialog_select_one_pcb_layer.cpp
+    # dialogs/dialog_draw_layers_settings.cpp
+    # dialogs/dialog_draw_layers_settings_base.cpp
+    # dialogs/dialog_layers_select_to_pcb.cpp
+    # dialogs/dialog_layers_select_to_pcb_base.cpp
+    # dialogs/dialog_print_gerbview.cpp
+    # dialogs/dialog_select_one_pcb_layer.cpp
     )
 
 # Widget files
 set( WIDGET_SRCS
-    widgets/dcode_selection_box.cpp
-    widgets/gbr_layer_box_selector.cpp
-    widgets/gerbview_layer_widget.cpp
-    widgets/layer_widget.cpp
+    # widgets/dcode_selection_box.cpp
+    # widgets/gbr_layer_box_selector.cpp
+    # widgets/gerbview_layer_widget.cpp
+    # widgets/layer_widget.cpp
     )
 
 # Tool files
@@ -73,7 +73,7 @@ set( TOOLS_SRCS
 add_subdirectory( navlib )
 
 # Create gerbview library
-add_library( gerbview_kiface_objects OBJECT
+add_library( gerbview_kiface_objects STATIC
     ${GERBVIEW_SRCS}
     ${DIALOGS_SRCS}
     ${WIDGET_SRCS}
@@ -91,7 +91,7 @@ target_link_libraries( gerbview_kiface_objects PUBLIC gerbview_navlib)
 add_dependencies( gerbview_kiface_objects gerbview_navlib )
 
 # Main gerbview kiface module
-add_library( gerbview_kiface MODULE )
+add_library( gerbview_kiface STATIC )
 
 set_target_properties( gerbview_kiface PROPERTIES
     OUTPUT_NAME     gerbview
