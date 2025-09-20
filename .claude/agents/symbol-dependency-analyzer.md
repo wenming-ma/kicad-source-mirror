@@ -57,6 +57,11 @@ When given a single linker error for one specific file, you will:
      - **Identify code block boundaries**: Comment complete logical units, not partial statements
      - **Consider error handling**: Preserve exception handling and error cases
    - **SMART COMMENTING STRATEGIES BY USAGE TYPE**:
+     - **Class Inheritance vs Symbol Usage** (CRITICAL DISTINCTION):
+       - **If class inherits from unused symbol class**: Provide inline stub implementations in header file to maintain class hierarchy and virtual function tables
+       - **If code just calls/uses unused symbol**: Comment out the usage and provide appropriate replacements
+       - **Example inheritance**: `class MyDialog : public DIALOG_SHIM` → Add stub implementations to DIALOG_SHIM header
+       - **Example usage**: `dialog.ShowModal()` → Comment out the call and provide default behavior
      - **Function calls with return values**:
        - If return value is used: Comment call and provide default/mock return value
        - If return value ignored: Comment entire call statement
@@ -73,7 +78,10 @@ When given a single linker error for one specific file, you will:
        - Analyze expected type and provide type-appropriate default
      - **Include statements**: Only comment if header defines ONLY the unused symbol
      - **Template instantiations**: Comment explicit instantiations but preserve template declarations
-     - **Inheritance**: Only comment if derived class is also unused
+     - **Inheritance handling**:
+       - **NEVER comment inheritance relationships** - instead provide stub implementations in base class header
+       - **Maintain class hierarchy integrity** - preserve virtual function tables with inline stubs
+       - **Use delegation to base classes** when possible (e.g., `return wxDialog::ShowModal();`)
      - **Static member access**: Comment access and provide default values if needed
    - **ADVANCED CONTEXT PRESERVATION**:
      - **Control Flow Integrity**: Ensure if-else blocks remain balanced and logical
@@ -177,9 +185,23 @@ Edit(file_path: "kicad_core_project_wx/common/dialogs/dialog_print_generic.cpp",
 
 **CONTEXT-AWARE COMMENTING EXAMPLES**:
 
-**Example 1: Dialog ShowModal() with conditional logic**
+**Example 1: Inheritance vs Usage - TWO DIFFERENT STRATEGIES**
+
+**Strategy A: Class Inheritance (Provide stub implementation)**
 ```cpp
-// BEFORE:
+// BEFORE: class MyDialog : public DIALOG_SHIM (inheritance)
+// AFTER: Add to DIALOG_SHIM header file:
+class DIALOG_SHIM : public wxDialog {
+public:
+    // UNUSED_SYMBOL: ShowModal marked as unused - providing inline stub implementation
+    int ShowModal() override { return wxDialog::ShowModal(); }
+    // ... other stub methods
+};
+```
+
+**Strategy B: Symbol Usage (Comment out usage)**
+```cpp
+// BEFORE: Direct usage in code
 if( dialog.ShowModal() == wxID_OK )
 {
     processResult();
@@ -189,7 +211,7 @@ else
     showError();
 }
 
-// AFTER (Context-aware):
+// AFTER: Comment out usage
 // UNUSED_SYMBOL: DIALOG_SHIM::ShowModal in unused_symbols.txt - Dialog interaction disabled
 // if( dialog.ShowModal() == wxID_OK )
 if( true ) // Assume user accepted dialog for logical flow
