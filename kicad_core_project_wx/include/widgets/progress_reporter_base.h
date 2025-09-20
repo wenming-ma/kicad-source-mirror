@@ -38,7 +38,13 @@ class KICOMMON_API PROGRESS_REPORTER_BASE : public PROGRESS_REPORTER
 {
 public:
 
-    PROGRESS_REPORTER_BASE( int aNumPhases );
+    PROGRESS_REPORTER_BASE( int aNumPhases ) :
+        m_phase(0),
+        m_numPhases(aNumPhases),
+        m_progress(0),
+        m_maxProgress(1000),
+        m_cancelled(false),
+        m_messageChanged(false) {}
     PROGRESS_REPORTER_BASE( const PROGRESS_REPORTER_BASE& ) = delete;
 
     virtual ~PROGRESS_REPORTER_BASE()
@@ -48,44 +54,44 @@ public:
     /**
      * Set the number of phases.
      */
-    void SetNumPhases( int aNumPhases ) override;
-    void AddPhases( int aNumPhases ) override;
+    void SetNumPhases( int aNumPhases ) override { }
+    void AddPhases( int aNumPhases ) override { }
 
     /**
      * Initialize the \a aPhase virtual zone of the dialog progress bar.
      */
-    virtual void BeginPhase( int aPhase ) override;
+    virtual void BeginPhase( int aPhase ) override { }
 
     /**
      * Use the next available virtual zone of the dialog progress bar.
      */
-    virtual void AdvancePhase() override;
+    virtual void AdvancePhase() override { }
 
     /**
      * Use the next available virtual zone of the dialog progress bar and updates the message.
      */
-    virtual void AdvancePhase( const wxString& aMessage ) override;
+    virtual void AdvancePhase( const wxString& aMessage ) override { }
 
     /**
      * Display \a aMessage in the progress bar dialog.
      */
-    virtual void Report( const wxString& aMessage ) override;
+    virtual void Report( const wxString& aMessage ) override { }
 
     /**
      * Set the progress value to aProgress (0..1).
      */
-    virtual void SetCurrentProgress( double aProgress ) override;
+    virtual void SetCurrentProgress( double aProgress ) override { }
 
     /**
      * Fix the value that gives the 100 percent progress bar length
      * (inside the current virtual zone).
      */
-    void SetMaxProgress( int aMaxProgress ) override;
+    void SetMaxProgress( int aMaxProgress ) override { }
 
     /**
      * Increment the progress bar length (inside the current virtual zone).
      */
-    void AdvanceProgress() override;
+    void AdvanceProgress() override { }
 
     /**
      * Update the UI dialog.
@@ -94,7 +100,7 @@ public:
      *
      * @return false if the user clicked Cancel.
      */
-    bool KeepRefreshing( bool aWait = false ) override;
+    bool KeepRefreshing( bool aWait = false ) override { return true; }
 
     /**
      * Change the title displayed on the window caption.

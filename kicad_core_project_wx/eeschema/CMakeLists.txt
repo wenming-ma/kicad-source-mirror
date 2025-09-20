@@ -68,10 +68,10 @@ set( EESCHEMA_IMPORT_GFX
 )
 
 set( EESCHEMA_WIDGETS
-    widgets/pin_shape_combobox.cpp
-    widgets/pin_type_combobox.cpp
-    widgets/symbol_filter_combobox.cpp
-    widgets/symbol_preview_widget.cpp
+    # widgets/pin_shape_combobox.cpp
+    # widgets/pin_type_combobox.cpp
+    # widgets/symbol_filter_combobox.cpp
+    # widgets/symbol_preview_widget.cpp
 )
 
 set( EESCHEMA_SRCS
@@ -125,7 +125,7 @@ set( EESCHEMA_SRCS
 
     # Generated files
     ${CMAKE_SOURCE_DIR}/generated/eeschema/schematic_keywords.cpp
-    ${CMAKE_SOURCE_DIR}/generated/eeschema/dialogs/dialog_bom_cfg_keywords.cpp
+    # ${CMAKE_SOURCE_DIR}/generated/eeschema/dialogs/dialog_bom_cfg_keywords.cpp
 )
 
 # Build static library
