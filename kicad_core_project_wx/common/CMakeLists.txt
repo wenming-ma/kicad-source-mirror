@@ -38,14 +38,19 @@ add_library( common STATIC
     # dialog_shim.cpp
 
     # New common files
+    board_printout.cpp
     clipboard.cpp
     eda_draw_frame.cpp
     gal_display_options_common.cpp
+    gbr_metadata.cpp
     lib_tree_model.cpp
     lib_tree_model_adapter.cpp
     origin_viewitem.cpp
+    printout.cpp
 
     # Dialog files
+    dialogs/dialog_print_generic.cpp
+    dialogs/dialog_print_generic_base.cpp
     dialogs/dialog_unit_entry.cpp
     dialogs/dialog_unit_entry_base.cpp
     dialogs/eda_list_dialog.cpp
@@ -178,6 +183,8 @@ add_library( common STATIC
     # IO files
     io/io_base.cpp
     io/kicad/kicad_io_utils.cpp
+
+    # Job files (only headers copied, no .cpp files)
     
     # Kicad curl
     kicad_curl/kicad_curl.cpp
@@ -185,10 +192,24 @@ add_library( common STATIC
     # Libeval compiler
     libeval_compiler/libeval_compiler.cpp
 
+    # Plotters
+    plotters/DXF_plotter.cpp
+    plotters/GERBER_plotter.cpp
+    plotters/HPGL_plotter.cpp
+    plotters/PDF_plotter.cpp
+    plotters/PS_plotter.cpp
+    plotters/SVG_plotter.cpp
+    plotters/common_plot_functions.cpp
+    plotters/plotter.cpp
+
     # Preview items
     preview_items/anchor_debug.cpp
     preview_items/construction_geom.cpp
     preview_items/item_drawing_utils.cpp
+    preview_items/preview_utils.cpp
+    preview_items/ruler_item.cpp
+    preview_items/selection_area.cpp
+    preview_items/simple_overlay_item.cpp
     preview_items/snap_indicator.cpp
 
     # Project files
@@ -224,6 +245,7 @@ add_library( common STATIC
     tool/common_tools.cpp
     tool/conditional_menu.cpp
     tool/construction_manager.cpp
+    tool/editor_conditions.cpp
     tool/grid_helper.cpp
     tool/grid_menu.cpp
     tool/selection.cpp
@@ -237,6 +259,7 @@ add_library( common STATIC
     tool/tool_menu.cpp
     tool/tools_holder.cpp
     tool/zoom_menu.cpp
+    tool/zoom_tool.cpp
 
     # View files
     view/view.cpp
@@ -255,6 +278,9 @@ add_library( common STATIC
     widgets/font_choice.cpp
     widgets/grid_icon_text_helpers.cpp
     widgets/html_window.cpp
+    widgets/indicator_icon.cpp
+    widgets/layer_box_selector.cpp
+    widgets/layer_presentation.cpp
     widgets/lib_tree.cpp
     widgets/msgpanel.cpp
     widgets/paged_dialog.cpp
@@ -263,13 +289,15 @@ add_library( common STATIC
     widgets/ui_common.cpp
     widgets/unit_binder.cpp
     widgets/widget_hotkey_list.cpp
-    widgets/wx_combobox.cpp
-    widgets/wx_dataviewctrl.cpp
-    widgets/wx_grid.cpp
     widgets/wx_aui_art_providers.cpp
     widgets/wx_busy_indicator.cpp
+    widgets/wx_combobox.cpp
+    widgets/wx_dataviewctrl.cpp
+    widgets/wx_ellipsized_static_text.cpp
+    widgets/wx_grid.cpp
     widgets/wx_infobar.cpp
     widgets/wx_panel.cpp
+    widgets/wx_progress_reporters.cpp
     widgets/wx_treebook.cpp
     
     # Generated files

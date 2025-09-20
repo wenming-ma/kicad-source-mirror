@@ -153,6 +153,7 @@ include_directories( BEFORE
     
     ${CMAKE_CURRENT_SOURCE_DIR}/pcbnew
     ${CMAKE_CURRENT_SOURCE_DIR}/eeschema
+    ${CMAKE_CURRENT_SOURCE_DIR}/gerbview
     ${CMAKE_CURRENT_SOURCE_DIR}/bitmap2component
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/dynamic_bitset
@@ -227,6 +228,7 @@ add_subdirectory( libs )
 add_subdirectory( common )
 add_subdirectory( eeschema )
 add_subdirectory( pcbnew )
+add_subdirectory( gerbview )
 add_subdirectory( test )
 
 

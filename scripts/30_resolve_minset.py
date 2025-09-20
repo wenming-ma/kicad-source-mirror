@@ -167,7 +167,6 @@ EXTERNAL_HINTS = [
 # 按模块和层次结构组织，便于维护和理解
 BLACKLISTED_FILES = [
     # === Core Framework Files ===
-    # "common/eda_base_frame.cpp",           # Base frame class
     "common/dialog_shim.cpp",  # Dialog base class
     # === Common Dialogs ===
     "common/dialogs/html_message_box.cpp",
@@ -177,7 +176,6 @@ BLACKLISTED_FILES = [
     "common/dialog_about/AboutDialog_main.cpp",
     # === Tool Framework ===
     "common/tool/selection_tool.cpp",
-    # "common/tool/tool_manager.cpp",
     # === API & Plugin System ===
     "common/api/api_plugin_manager.cpp",
     # === Eeschema Core Frames ===

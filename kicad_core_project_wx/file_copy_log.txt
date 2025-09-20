@@ -1,10 +1,10 @@
-# File Copy Log - 2025-09-20 12:48:27
+# File Copy Log - 2025-09-20 12:54:10
 # Status: COPIED (new file copied), SKIPPED_EXISTS (file already exists), NOT_FOUND (source not found)
 
 ## Summary
 - Total files: 1183
-- Copied: 0
-- Skipped (exists): 1183
+- Copied: 155
+- Skipped (exists): 1028
 - Not found: 0
 
 ## All Files (one per line)
@@ -44,7 +44,7 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_configure_paths_base.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_display_html_text_base.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_migrate_settings_base.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_print_generic_base.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_print_generic_base.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_unit_entry_base.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\eda_view_switcher_base.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\git\dialog_git_repository.h [SKIPPED: already exists]
@@ -65,52 +65,52 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\gal\opengl\gl_r
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\git\kicad_git_common.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\git\kicad_git_errors.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\git\kicad_git_memory.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job_export_pcb_dxf.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job_export_pcb_gerber.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job_export_pcb_gerbers.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job_export_pcb_pdf.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job_export_pcb_plot.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job_export_pcb_svg.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job_export_pcb_dxf.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job_export_pcb_gerber.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job_export_pcb_gerbers.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job_export_pcb_pdf.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job_export_pcb_plot.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\jobs\job_export_pcb_svg.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\settings\builtin_color_themes.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\properties_panel.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\search_pane_base.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\X2_gerber_attributes.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\am_param.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\am_primitive.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\aperture_macro.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dcode.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_draw_layers_settings.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_draw_layers_settings_base.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_layers_select_to_pcb.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_layers_select_to_pcb_base.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\excellon_defaults.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\excellon_image.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\export_to_pcbnew.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gbr_display_options.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gbr_layout.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_collectors.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_draw_item.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_file_image.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_file_image_list.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_draw_panel_gal.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_frame.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_id.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_painter.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_printout.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_settings.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\navlib\nl_gerbview_plugin.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\navlib\nl_gerbview_plugin_impl.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_actions.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_control.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_inspection_tool.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_selection.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_selection_tool.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\dcode_selection_box.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\gbr_layer_box_selector.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\gerbview_layer_widget.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\layer_widget.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\X2_gerber_attributes.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\am_param.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\am_primitive.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\aperture_macro.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dcode.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_draw_layers_settings.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_draw_layers_settings_base.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_layers_select_to_pcb.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_layers_select_to_pcb_base.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\excellon_defaults.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\excellon_image.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\export_to_pcbnew.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gbr_display_options.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gbr_layout.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_collectors.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_draw_item.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_file_image.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_file_image_list.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_draw_panel_gal.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_frame.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_id.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_painter.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_printout.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_settings.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\navlib\nl_gerbview_plugin.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\navlib\nl_gerbview_plugin_impl.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_actions.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_control.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_inspection_tool.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_selection.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_selection_tool.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\dcode_selection_box.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\gbr_layer_box_selector.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\gerbview_layer_widget.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\layer_widget.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\advanced_config.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\api\api_enums.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\api\api_plugin.h [SKIPPED: already exists]
@@ -132,7 +132,7 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\bitmaps\bitmap
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\bitmaps\bitmaps_list.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\board_design_settings.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\board_item.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\board_printout.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\board_printout.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\build_version.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\callback_gal.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\class_draw_panel_gal.h [SKIPPED: already exists]
@@ -151,7 +151,7 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\dialogs\dialog
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\dialogs\dialog_configure_paths.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\dialogs\dialog_hotkey_list.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\dialogs\dialog_migrate_settings.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\dialogs\dialog_print_generic.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\dialogs\dialog_print_generic.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\dialogs\dialog_unit_entry.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\dialogs\html_message_box.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\dialogs\panel_common_settings.h [SKIPPED: already exists]
@@ -203,7 +203,7 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gal\cursors.h 
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gal\definitions.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gal\gal.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gal\gal_display_options.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gal\gal_print.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gal\gal_print.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gal\graphics_abstraction_layer.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gal\hidpi_gl_canvas.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gal\opengl\cached_container.h [SKIPPED: already exists]
@@ -224,8 +224,8 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gal\opengl\ver
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gal\opengl\vertex_manager.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gal\painter.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gal_display_options_common.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gbr_metadata.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gbr_netlist_metadata.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gbr_metadata.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gbr_netlist_metadata.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gestfich.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gr_basic.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\gr_text.h [SKIPPED: already exists]
@@ -287,23 +287,23 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\pcb_base_frame
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\pcb_display_options.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\pcb_screen.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\pgm_base.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\plotters\gbr_plotter_aperture_macros.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\plotters\gbr_plotter_apertures.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\plotters\gbr_plotter_aperture_macros.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\plotters\gbr_plotter_apertures.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\plotters\plotter.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\plotters\plotter_dxf.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\plotters\plotter_gerber.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\plotters\plotter_hpgl.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\plotters\plotters_pslike.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\plotters\plotter_dxf.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\plotters\plotter_gerber.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\plotters\plotter_hpgl.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\plotters\plotters_pslike.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\policy_keys.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\preview_items\anchor_debug.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\preview_items\construction_geom.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\preview_items\preview_utils.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\preview_items\ruler_item.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\preview_items\preview_utils.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\preview_items\ruler_item.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\preview_items\selection_area.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\preview_items\simple_overlay_item.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\preview_items\snap_indicator.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\preview_items\two_point_geom_manager.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\printout.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\preview_items\two_point_geom_manager.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\printout.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\progress_reporter.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\project.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\project\board_project_settings.h [SKIPPED: already exists]
@@ -362,7 +362,7 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\common_to
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\conditional_menu.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\construction_manager.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\coroutine.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\editor_conditions.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\editor_conditions.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\grid_helper.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\grid_menu.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\selection.h [SKIPPED: already exists]
@@ -377,7 +377,7 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\tool_mana
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\tool_menu.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\tools_holder.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\zoom_menu.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\zoom_tool.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\tool\zoom_tool.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\trace_helpers.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\ui_events.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\undo_redo_container.h [SKIPPED: already exists]
@@ -395,10 +395,10 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\busy_i
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\button_row_panel.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\color_swatch.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\html_window.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\indicator_icon.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\indicator_icon.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\kistatusbar.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\layer_box_selector.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\layer_presentation.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\layer_box_selector.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\layer_presentation.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\lib_tree.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\msgpanel.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\paged_dialog.h [SKIPPED: already exists]
@@ -414,12 +414,12 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\widget
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\wx_aui_art_providers.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\wx_busy_indicator.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\wx_dataviewctrl.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\wx_ellipsized_static_text.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\wx_ellipsized_static_text.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\wx_grid.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\wx_infobar.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\wx_menubar.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\wx_panel.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\wx_progress_reporters.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\wx_progress_reporters.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\wx_splash.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\widgets\wx_treebook.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\include\wildcards_and_files_ext.h [SKIPPED: already exists]
@@ -503,8 +503,8 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\connectivity\co
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\connectivity\connectivity_rtree.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\connectivity\from_to_cache.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\convert_shape_list_to_polygon.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\dialogs\dialog_plot.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\dialogs\dialog_plot_base.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\dialogs\dialog_plot.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\dialogs\dialog_plot_base.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\drc\drc_cache_generator.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\drc\drc_creepage_utils.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\drc\drc_engine.h [SKIPPED: already exists]
@@ -515,10 +515,10 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\drc\drc_rule_co
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\drc\drc_rule_parser.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\drc\drc_test_provider.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\drc\drc_test_provider_clearance_base.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gendrill_file_writer_base.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gendrill_gerber_writer.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gerber_jobfile_writer.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gerber_placefile_writer.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gendrill_file_writer_base.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gendrill_gerber_writer.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gerber_jobfile_writer.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gerber_placefile_writer.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\footprint.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\netinfo.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pad.h [SKIPPED: already exists]
@@ -539,7 +539,7 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_origin_tran
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_painter.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_plot_params.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_plot_params_parser.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_plotter.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_plotter.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_reference_image.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_shape.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_table.h [SKIPPED: already exists]
@@ -551,8 +551,8 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_track.h [SK
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_view.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcbexpr_evaluator.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcbnew_settings.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcbplot.h [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\plotcontroller.h [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcbplot.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\plotcontroller.h
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\plotprint_opts.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\ratsnest\ratsnest_data.h [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\router\pns_algo_base.h [SKIPPED: already exists]
@@ -807,7 +807,7 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\bitmap.cpp [SKI
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\bitmap_base.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\bitmap_info.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\bitmap_store.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\board_printout.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\board_printout.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\build_version.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\common.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\config_params.cpp [SKIPPED: already exists]
@@ -818,8 +818,8 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\design_block_io
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\design_block_lib_table.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_color_picker.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_color_picker_base.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_print_generic.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_print_generic_base.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_print_generic.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_print_generic_base.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_unit_entry.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\dialog_unit_entry_base.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\dialogs\eda_view_switcher_base.cpp [SKIPPED: already exists]
@@ -888,7 +888,7 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\gal\opengl\vert
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\gal\opengl\vertex_manager.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\gal\painter.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\gal_display_options_common.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\gbr_metadata.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\gbr_metadata.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\gestfich.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\gr_basic.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\gr_text.cpp [SKIPPED: already exists]
@@ -916,19 +916,19 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\notifications_m
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\origin_transforms.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\paths.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\pgm_base.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\DXF_plotter.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\GERBER_plotter.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\HPGL_plotter.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\PDF_plotter.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\PS_plotter.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\SVG_plotter.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\common_plot_functions.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\plotter.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\preview_items\preview_utils.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\preview_items\ruler_item.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\preview_items\selection_area.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\preview_items\simple_overlay_item.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\printout.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\DXF_plotter.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\GERBER_plotter.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\HPGL_plotter.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\PDF_plotter.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\PS_plotter.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\SVG_plotter.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\common_plot_functions.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\plotters\plotter.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\preview_items\preview_utils.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\preview_items\ruler_item.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\preview_items\selection_area.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\preview_items\simple_overlay_item.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\printout.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\project.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\project\board_project_settings.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\project\net_settings.cpp [SKIPPED: already exists]
@@ -970,7 +970,7 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\actions.cp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\common_control.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\common_tools.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\conditional_menu.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\editor_conditions.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\editor_conditions.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\grid_menu.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\selection.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\tool_action.cpp [SKIPPED: already exists]
@@ -982,7 +982,7 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\tool_manag
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\tool_menu.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\tools_holder.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\zoom_menu.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\zoom_tool.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\tool\zoom_tool.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\trace_helpers.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\ui_events.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\undo_redo_container.cpp [SKIPPED: already exists]
@@ -996,10 +996,10 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\view\zoom_contr
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\bitmap_button.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\button_row_panel.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\color_swatch.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\indicator_icon.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\indicator_icon.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\kistatusbar.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\layer_box_selector.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\layer_presentation.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\layer_box_selector.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\layer_presentation.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\msgpanel.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\paged_dialog.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\progress_reporter_base.cpp [SKIPPED: already exists]
@@ -1009,56 +1009,56 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\unit_bi
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\widget_hotkey_list.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\wx_aui_art_providers.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\wx_busy_indicator.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\wx_ellipsized_static_text.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\wx_ellipsized_static_text.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\wx_infobar.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\wx_panel.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\wx_progress_reporters.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\wx_progress_reporters.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\widgets\wx_treebook.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\wildcards_and_files_ext.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\X2_gerber_attributes.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\am_param.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\am_primitive.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\aperture_macro.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\clear_gbr_drawlayers.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dcode.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_draw_layers_settings.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_draw_layers_settings_base.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_layers_select_to_pcb.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_layers_select_to_pcb_base.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_print_gerbview.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_select_one_pcb_layer.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\evaluate.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\events_called_functions.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\excellon_read_drill_file.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\export_to_pcbnew.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\files.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gbr_layout.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_collectors.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_draw_item.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_file_image.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_file_image_list.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_draw_panel_gal.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_frame.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_painter.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_printout.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\job_file_reader.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\menubar.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\navlib\nl_gerbview_plugin.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\navlib\nl_gerbview_plugin_impl.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\readgerb.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\rs274_read_XY_and_IJ_coordinates.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\rs274d.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\rs274x.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\toolbars_gerber.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_actions.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_control.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_inspection_tool.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_selection.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_selection_tool.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\dcode_selection_box.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\gbr_layer_box_selector.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\gerbview_layer_widget.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\layer_widget.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\X2_gerber_attributes.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\am_param.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\am_primitive.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\aperture_macro.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\clear_gbr_drawlayers.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dcode.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_draw_layers_settings.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_draw_layers_settings_base.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_layers_select_to_pcb.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_layers_select_to_pcb_base.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_print_gerbview.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\dialogs\dialog_select_one_pcb_layer.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\evaluate.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\events_called_functions.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\excellon_read_drill_file.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\export_to_pcbnew.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\files.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gbr_layout.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_collectors.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_draw_item.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_file_image.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerber_file_image_list.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_draw_panel_gal.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_frame.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_painter.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\gerbview_printout.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\job_file_reader.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\menubar.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\navlib\nl_gerbview_plugin.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\navlib\nl_gerbview_plugin_impl.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\readgerb.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\rs274_read_XY_and_IJ_coordinates.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\rs274d.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\rs274x.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\toolbars_gerber.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_actions.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_control.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_inspection_tool.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_selection.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\tools\gerbview_selection_tool.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\dcode_selection_box.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\gbr_layer_box_selector.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\gerbview_layer_widget.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\widgets\layer_widget.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\libs\core\base64.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\libs\core\observable.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\libs\core\utf8.cpp [SKIPPED: already exists]
@@ -1098,7 +1098,7 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\board_connected
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\board_design_settings.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\board_item.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\board_stackup_manager\board_stackup.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\board_stackup_manager\stackup_predefined_prms.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\board_stackup_manager\stackup_predefined_prms.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\collectors.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\component_class_manager.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\connectivity\connectivity_algo.cpp [SKIPPED: already exists]
@@ -1113,11 +1113,11 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\drc\drc_rule.cp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\drc\drc_rule_condition.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\drc\drc_rule_parser.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\drc\drc_test_provider.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gen_drill_report_files.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gendrill_file_writer_base.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gendrill_gerber_writer.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gerber_jobfile_writer.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gerber_placefile_writer.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gen_drill_report_files.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gendrill_file_writer_base.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gendrill_gerber_writer.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gerber_jobfile_writer.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\exporters\gerber_placefile_writer.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\footprint.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\netinfo_item.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\netinfo_list.cpp [SKIPPED: already exists]
@@ -1131,7 +1131,7 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_group.cpp [
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_marker.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_painter.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_plot_params.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_plotter.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_plotter.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_reference_image.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_shape.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_table.cpp [SKIPPED: already exists]
@@ -1141,9 +1141,9 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_textbox.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcb_track.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcbexpr_evaluator.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcbexpr_functions.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcbplot.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\plot_board_layers.cpp [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\plot_brditems_plotter.cpp [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\pcbplot.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\plot_board_layers.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\plot_brditems_plotter.cpp
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\ratsnest\ratsnest_data.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\router\pns_meander.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\pcbnew\teardrop\teardrop_parameters.cpp [SKIPPED: already exists]
@@ -1164,8 +1164,8 @@ C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\thirdparty\libcontext\
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\thirdparty\other_math\math_for_graphics.cpp [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\CMakeLists.txt [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\common\gal\CMakeLists.txt [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\CMakeLists.txt [SKIPPED: already exists]
-C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\navlib\CMakeLists.txt [SKIPPED: already exists]
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\CMakeLists.txt
+C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\gerbview\navlib\CMakeLists.txt
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\kicad\CMakeLists.txt [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\libs\CMakeLists.txt [SKIPPED: already exists]
 C:\Users\wenming\source\repos\kicad\kicad_core_project_wx\libs\core\CMakeLists.txt [SKIPPED: already exists]
