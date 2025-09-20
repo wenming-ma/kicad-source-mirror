@@ -1,0 +1,372 @@
+[
+  {
+    "file": "CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "common\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "eeschema\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "gerbview\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "kicad\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "libs\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "pcbnew\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "scripting\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "test\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "common\\gal\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "gerbview\\navlib\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "libs\\core\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "libs\\kimath\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "libs\\kinng\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "libs\\kiplatform\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "libs\\sexpr\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "pcbnew\\connectivity\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "pcbnew\\router\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\3dxware_sdk\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\argparse\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\clipper2\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\compoundfilereader\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\delaunator\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\dxflib_qcad\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\dynamic_bitset\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\expected\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\fmt\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\glew\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\gzip-hpp\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\json_schema_validator\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\lemon\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\libcontext\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\libpopcnt\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\magic_enum\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\markdown2html\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\nanodbc\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\nanosvg\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\nlohmann_json\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\other_math\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\pegtl\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\picosha2\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\potrace\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\pybind11\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\rectpack2d\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\rtree\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\thread-pool\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\tinyspline_lib\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\turtle\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\argparse\\samples\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\argparse\\test\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\pybind11\\tests\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\pybind11\\tests\\test_embed\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\src\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\client\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\compat\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\handler\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\libunwind\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\minidump\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\snapshot\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\tools\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\util\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\libunwind\\docs\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\libunwind\\src\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\libunwind\\test\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\third_party\\getopt\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\third_party\\mini_chromium\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\third_party\\zlib\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\crashpad\\third_party\\zlib\\zlib\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\external\\libunwindstack-ndk\\cmake\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  },
+  {
+    "file": "thirdparty\\sentry-native\\tests\\unit\\CMakeLists.txt",
+    "status": "skipped",
+    "message": "Preserving existing Qt CMakeLists.txt"
+  }
+]

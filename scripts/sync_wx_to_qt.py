@@ -40,54 +40,61 @@ def find_unique_files(wx_dir: Path, qt_dir: Path) -> Tuple[Set[str], Set[str], S
 
     return unique_wx, unique_qt, common
 
-def copy_files(unique_files: Set[str], source_dir: Path, target_dir: Path) -> List[Dict]:
-    """Copy unique files from source to target directory (skip existing files)"""
+def copy_files_safely(wx_dir: Path, qt_dir: Path) -> List[Dict]:
+    """Copy files from wx to qt, skipping existing files"""
     copy_log = []
+    skip_dirs = ['.vs', 'build', '.git', '__pycache__', '.vscode', 'Debug', 'Release', 'x64-Debug', 'x64-Release']
 
-    for file_path in sorted(unique_files):
-        source = source_dir / file_path
-        target = target_dir / file_path
+    # Get all files from wx directory
+    for root, dirs, filenames in os.walk(wx_dir):
+        # Skip unwanted directories
+        dirs[:] = [d for d in dirs if not any(skip in d for skip in skip_dirs)]
 
-        if not source.exists():
-            copy_log.append({
-                'file': file_path,
-                'status': 'source_not_found',
-                'message': f'Source file not found: {source}'
-            })
+        # Skip if current directory contains skip patterns
+        if any(skip in str(root) for skip in skip_dirs):
             continue
 
-        # Skip if target file already exists
-        if target.exists():
-            copy_log.append({
-                'file': file_path,
-                'status': 'skipped',
-                'message': 'Target file already exists'
-            })
-            print(f"Skipped (exists): {file_path}")
-            continue
+        for filename in filenames:
+            # Skip log and temporary files
+            if filename in ['file_copy_log.txt', 'copy_summary.json', 'link-error.txt'] or filename.endswith('.log'):
+                continue
 
-        try:
-            # Create target directory if it doesn't exist
-            target.parent.mkdir(parents=True, exist_ok=True)
+            source_file = Path(root) / filename
+            relative_path = source_file.relative_to(wx_dir)
+            target_file = qt_dir / relative_path
 
-            # Copy the file
-            shutil.copy2(source, target)
+            # Skip if target file already exists
+            if target_file.exists():
+                copy_log.append({
+                    'file': str(relative_path).replace('\\', '/'),
+                    'status': 'skipped',
+                    'message': 'Target file already exists'
+                })
+                print(f"Skipped (exists): {relative_path}")
+                continue
 
-            copy_log.append({
-                'file': file_path,
-                'status': 'copied',
-                'source': str(source),
-                'target': str(target)
-            })
-            print(f"Copied: {file_path}")
+            try:
+                # Create target directory if it doesn't exist
+                target_file.parent.mkdir(parents=True, exist_ok=True)
 
-        except Exception as e:
-            copy_log.append({
-                'file': file_path,
-                'status': 'error',
-                'message': str(e)
-            })
-            print(f"Error copying {file_path}: {e}")
+                # Copy the file
+                shutil.copy2(source_file, target_file)
+
+                copy_log.append({
+                    'file': str(relative_path).replace('\\', '/'),
+                    'status': 'copied',
+                    'source': str(source_file),
+                    'target': str(target_file)
+                })
+                print(f"Copied: {relative_path}")
+
+            except Exception as e:
+                copy_log.append({
+                    'file': str(relative_path).replace('\\', '/'),
+                    'status': 'error',
+                    'message': str(e)
+                })
+                print(f"Error copying {relative_path}: {e}")
 
     return copy_log
 
@@ -149,44 +156,17 @@ def main():
     print(f"Target directory: {qt_dir}")
     print("-" * 80)
 
-    # Find unique files
-    print("Analyzing directories...")
-    unique_wx, unique_qt, common = find_unique_files(wx_dir, qt_dir)
-
-    print(f"\nFound {len(unique_wx)} files unique to wx directory")
-    print(f"Found {len(unique_qt)} files unique to qt directory")
-    print(f"Found {len(common)} common files")
-
-    # Filter out only log and temporary files, keep source files
-    files_to_copy = {f for f in unique_wx
-                     if not (f.endswith('.log') or
-                            f == 'file_copy_log.txt' or
-                            f == 'copy_summary.json' or
-                            f == 'link-error.txt')}
-
-    print(f"\nWill copy {len(files_to_copy)} files (excluding logs and temporary files)")
-
-    # Save list of files to copy
-    output_dir = base_dir / "scripts" / "sync_results"
-    output_dir.mkdir(exist_ok=True)
-
-    with open(output_dir / "files_to_copy.json", 'w', encoding='utf-8') as f:
-        json.dump({
-            'unique_to_wx': sorted(list(unique_wx)),
-            'unique_to_qt': sorted(list(unique_qt)),
-            'common_files': sorted(list(common)),
-            'files_to_copy': sorted(list(files_to_copy))
-        }, f, indent=2)
-
-    print(f"\nFile lists saved to {output_dir / 'files_to_copy.json'}")
-
     # Proceed with copying automatically
-    print("\nProceeding with file synchronization...")
+    print("Synchronizing files (skipping existing files)...")
 
-    # Copy files
+    # Copy files safely
     print("\n" + "=" * 80)
     print("Copying files...")
-    copy_log = copy_files(files_to_copy, wx_dir, qt_dir)
+    copy_log = copy_files_safely(wx_dir, qt_dir)
+
+    # Create output directory and save results
+    output_dir = base_dir / "scripts" / "sync_results"
+    output_dir.mkdir(exist_ok=True)
 
     # Save copy log
     with open(output_dir / "copy_log.json", 'w', encoding='utf-8') as f:

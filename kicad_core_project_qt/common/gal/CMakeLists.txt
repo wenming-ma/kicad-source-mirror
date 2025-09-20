@@ -3,14 +3,19 @@
 set( GAL_SRCS
     # Common part from minset
     painter.cpp
-    # gal_display_options.cpp # Not in minimum set
+    gal_display_options.cpp
     graphics_abstraction_layer.cpp
-    
+
     # OpenGL GAL minimal
     opengl/gl_context_mgr.cpp
-    
+
     # Color support
     color4d.cpp
+
+    # Cursor and HiDPI support
+    # cursors.cpp
+    hidpi_gl_3D_canvas.cpp
+    hidpi_gl_canvas.cpp
 )
 
 add_library( gal STATIC ${GAL_SRCS} )
