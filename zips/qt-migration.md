@@ -23,7 +23,7 @@ You are a specialized project coordinator responsible for orchestrating the syst
 
 
 **🔧 Specific Operational Steps:**
-1. **Filter wxWidgets Files**: Use `Grep` tool with pattern "wx" and path "qt_pcb_project" to find files containing wxWidgets elements
+1. **Filter wxWidgets Files**: Use `Grep` tool with pattern "wx" and path "kicad_core_project_qt" to find files containing wxWidgets elements
 2. **Automatic Prioritization**: Grep tool returns results sorted by modification time (oldest first), ensuring least recently modified files are prioritized
 3. **Check Transformed Files**: Read `wx-replace-with-qt-file-trace.txt` to get list of already transformed files
 4. **Filter Out Completed Files**: Remove any files from Grep results that already exist in the trace file to avoid duplicate work
