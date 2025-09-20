@@ -13,11 +13,17 @@ from typing import Set, List, Dict, Tuple
 def get_all_files(directory: Path, base_dir: Path) -> Set[str]:
     """Get all files in directory relative to base directory"""
     files = set()
-    for root, _, filenames in os.walk(directory):
+    skip_dirs = ['.vs', 'build', '.git', '__pycache__', '.vscode', 'Debug', 'Release', 'x64-Debug', 'x64-Release']
+
+    for root, dirs, filenames in os.walk(directory):
+        # Skip unwanted directories
+        dirs[:] = [d for d in dirs if not any(skip in d for skip in skip_dirs)]
+
+        # Skip if current directory contains skip patterns
+        if any(skip in str(root) for skip in skip_dirs):
+            continue
+
         for filename in filenames:
-            # Skip build directories and generated files
-            if any(skip in str(root) for skip in ['.vs', 'build', '.git', '__pycache__']):
-                continue
             file_path = Path(root) / filename
             relative_path = file_path.relative_to(base_dir)
             files.add(str(relative_path).replace('\\', '/'))
@@ -35,7 +41,7 @@ def find_unique_files(wx_dir: Path, qt_dir: Path) -> Tuple[Set[str], Set[str], S
     return unique_wx, unique_qt, common
 
 def copy_files(unique_files: Set[str], source_dir: Path, target_dir: Path) -> List[Dict]:
-    """Copy unique files from source to target directory"""
+    """Copy unique files from source to target directory (skip existing files)"""
     copy_log = []
 
     for file_path in sorted(unique_files):
@@ -48,6 +54,16 @@ def copy_files(unique_files: Set[str], source_dir: Path, target_dir: Path) -> Li
                 'status': 'source_not_found',
                 'message': f'Source file not found: {source}'
             })
+            continue
+
+        # Skip if target file already exists
+        if target.exists():
+            copy_log.append({
+                'file': file_path,
+                'status': 'skipped',
+                'message': 'Target file already exists'
+            })
+            print(f"Skipped (exists): {file_path}")
             continue
 
         try:
@@ -76,7 +92,7 @@ def copy_files(unique_files: Set[str], source_dir: Path, target_dir: Path) -> Li
     return copy_log
 
 def update_cmake_files(wx_dir: Path, qt_dir: Path) -> List[Dict]:
-    """Update CMakeLists.txt files from wx to qt directory"""
+    """Update CMakeLists.txt files from wx to qt directory (preserving Qt configs)"""
     update_log = []
 
     # Find all CMakeLists.txt files in wx directory
@@ -93,36 +109,15 @@ def update_cmake_files(wx_dir: Path, qt_dir: Path) -> List[Dict]:
             with open(cmake_file, 'r', encoding='utf-8') as f:
                 wx_content = f.read()
 
-            # Check if target exists and read it
+            # Check if target exists
             if target_cmake.exists():
-                with open(target_cmake, 'r', encoding='utf-8') as f:
-                    qt_content = f.read()
-
-                # Check if Qt-specific configurations exist
-                has_qt_config = any(qt_marker in qt_content for qt_marker in
-                                  ['find_package(Qt', 'Qt5', 'Qt6', 'qt_add', 'qt5_add'])
-
-                if has_qt_config:
-                    # Preserve Qt configurations but update the rest
-                    print(f"Updating CMakeLists.txt (preserving Qt config): {relative_path}")
-                    # For now, we'll completely replace with wx content
-                    # In production, you might want to merge more carefully
-                    with open(target_cmake, 'w', encoding='utf-8') as f:
-                        f.write(wx_content)
-                    update_log.append({
-                        'file': str(relative_path),
-                        'status': 'updated_with_qt_preservation',
-                        'note': 'Qt configurations may need manual review'
-                    })
-                else:
-                    # No Qt config, safe to replace
-                    print(f"Updating CMakeLists.txt: {relative_path}")
-                    with open(target_cmake, 'w', encoding='utf-8') as f:
-                        f.write(wx_content)
-                    update_log.append({
-                        'file': str(relative_path),
-                        'status': 'updated'
-                    })
+                # Always preserve existing Qt CMakeLists.txt files
+                print(f"Skipped (preserving existing): CMakeLists.txt - {relative_path}")
+                update_log.append({
+                    'file': str(relative_path),
+                    'status': 'skipped',
+                    'message': 'Preserving existing Qt CMakeLists.txt'
+                })
             else:
                 # Target doesn't exist, create it
                 target_cmake.parent.mkdir(parents=True, exist_ok=True)
@@ -162,10 +157,12 @@ def main():
     print(f"Found {len(unique_qt)} files unique to qt directory")
     print(f"Found {len(common)} common files")
 
-    # Filter out certain file types from copying
+    # Filter out only log and temporary files, keep source files
     files_to_copy = {f for f in unique_wx
-                     if not f.endswith(('.log', '.json', '.md', '.txt'))
-                     or f.endswith('CMakeLists.txt')}
+                     if not (f.endswith('.log') or
+                            f == 'file_copy_log.txt' or
+                            f == 'copy_summary.json' or
+                            f == 'link-error.txt')}
 
     print(f"\nWill copy {len(files_to_copy)} files (excluding logs and temporary files)")
 
@@ -183,11 +180,8 @@ def main():
 
     print(f"\nFile lists saved to {output_dir / 'files_to_copy.json'}")
 
-    # Ask for confirmation before copying
-    response = input("\nProceed with copying files? (yes/no): ")
-    if response.lower() != 'yes':
-        print("Aborted.")
-        return
+    # Proceed with copying automatically
+    print("\nProceeding with file synchronization...")
 
     # Copy files
     print("\n" + "=" * 80)
