@@ -111,23 +111,29 @@ kicad_core_project_wx/
 - **质量保证**: 每个符号单独分析，保持编译完整性
 
 ### 技术经验总结
-1. **批量并行处理**: 10个代理并行工作效率高
-2. **精确符号匹配**: mangled 符号名完整匹配避免误操作
-3. **渐进式清理**: 逐步注释保持代码稳定性
-4. **上下文保持**: 依赖分析确保功能模块完整性
+1. **高效并行处理**: 每次并行10个代理工作，平衡效率与资源使用
+2. **分批处理策略**: 大量链接错误文件时分批处理，避免系统过载
+3. **单文件专注**: 每个代理只处理一个文件，避免冲突和重复工作
+4. **上下文感知修复**: 智能注释保持程序逻辑完整性
+5. **链接错误驱动**: 直接基于错误信息进行精确修复，无需全局搜索
+6. **进度可视化**: 通过 `[已处理]` 标志跟踪修复进度，便于管理大量错误
+7. **责任分离**: 代理专注修复，主调度器负责进度管理
 
 
 ## 技术架构说明
 
 ### 代理架构
-- **主调度器**: 负责任务分配和进度管理
-- **子代理**: `symbol-dependency-analyzer` - 专门处理单个符号的依赖分析
-- **并发控制**: 最多同时运行10个子代理，避免资源冲突
+- **主调度器**: 负责解析链接错误并分配任务给子代理
+- **子代理**: `symbol-dependency-analyzer` - 专门处理单个文件的链接错误修复
+- **并发控制**: 每次并行启动10个子代理，避免资源过载
+- **分批处理**: 超过10个文件时分批进行，等待前一批完成后启动下一批
+- **单文件专注**: 每个代理只负责一个文件，不需要协调或感知其他代理
 
 ### 处理精度提升
-- **精确符号匹配**: 每个代理只处理一个特定符号
-- **上下文感知**: 分析符号周围的依赖代码块
-- **安全注释**: 保持代码结构完整性，避免编译错误
+- **链接错误驱动**: 直接基于链接错误信息确定需要处理的文件和符号
+- **单文件范围**: 每个代理只在分配的文件中搜索和修复符号使用
+- **上下文感知注释**: 分析符号使用上下文，保持程序逻辑和控制流完整性
+- **智能替换**: 用适当的默认值或假设条件替换被注释的符号调用
 
 ## 注意事项
 - 生成文件的实际路径在 Y:\wenming\kicad\build\x64-Debug
@@ -135,22 +141,49 @@ kicad_core_project_wx/
 - 所有新增文件已整合到相应的 CMake 配置中
 - 符号处理采用渐进式方法，确保每步都能维持编译完整性
 
-## 6. 基于 unused_symbols.txt 的链接错误解决策略
+## 6. 基于链接错误的并行修复策略
 
 ### 核心原则
 **所有符号的注释与否必须严格以 `scripts/unused_symbols.txt` 中的内容为主**
 
-基于 `scripts/unused_symbols.txt` 中的文件和符号列表，采用以下策略：
+### 链接错误并行处理流程
 
-**删除文件策略**:
-1. 删除 `unused_symbols.txt` 中对应的源文件(.cpp)和头文件(.h)
-2. 注释编译文件中对已删除头文件的 `#include` 引用
-3. 不修改 `unused_symbols.txt` 中列出的文件
+**第一阶段：链接错误解析**
+1. 读取 `kicad_core_project_wx\link-error.txt` 文件（每行一个完整的链接错误）
+2. 解析每个错误行，提取：
+   - 错误类型（LNK2001/LNK2019）
+   - 完整的符号描述和 mangled 符号名
+   - 引用该符号的具体源文件（从.obj路径提取.cpp文件名）
+3. 验证符号是否在 `scripts/unused_symbols.txt` 中
+4. 按文件名分组，准备分配给不同代理
 
-**符号处理策略**:
-- 如果符号在 `unused_symbols.txt` 中：必须注释该符号的声明和实现
-- 如果符号不在 `unused_symbols.txt` 中：必须保留或补充实现，即使之前被错误注释
-- 特别注意：如果基类（如 EDA_BASE_FRAME）不在 unused_symbols.txt 中，其虚函数在派生类中的重写必须保留
+**第二阶段：并行代理调度**
+1. **批量并行处理**: 每次并行启动10个 `symbol-dependency-analyzer` 代理
+2. **单文件职责**: 每个代理只负责修复分配给它的一个文件中的符号使用
+3. **分批处理**: 如果链接错误文件超过10个，分批进行处理
+4. **并行执行**: 同批次的代理同时工作，互不干扰
+5. **进度跟踪**: 代理只负责修复，不修改link-error.txt文件
+
+**第三阶段：上下文感知修复**
+每个代理在其分配的文件中：
+1. 查找未解析符号的使用位置
+2. 分析使用上下文（条件语句、返回值、循环等）
+3. 应用智能注释策略：
+   - 保持控制流逻辑（if-else平衡）
+   - 提供适当的默认返回值
+   - 维护变量生命周期
+
+**第四阶段：进度标记**
+主调度器（我）在代理完成后：
+1. 监控代理完成状态
+2. 代理完成文件修复后，在 `link-error.txt` 对应行前添加完成标志
+3. 标志格式：`[已处理] Error LNK2001 unresolved external symbol...`
+4. 继续处理下一批未标记的错误行
+
+### 符号处理策略（更新）
+- **符号在 unused_symbols.txt 中**: 注释其使用，但保持程序逻辑完整性
+- **符号不在 unused_symbols.txt 中**: 必须保留或补充实现
+- **上下文保持**: 注释符号调用时，用适当的假设值维持程序流程
 
 ### 已处理内容
 - **删除21个未使用文件** (基于 unused_symbols.txt 提取的唯一文件路径)
@@ -159,6 +192,8 @@ kicad_core_project_wx/
 - **关键依赖补充** (APP_PROGRESS_DIALOG, SCHEMATIC_LEXER)
 
 ### 操作命令示例
+
+**传统批量处理方式**:
 ```bash
 # 1. 提取并删除未使用文件
 awk -F'\t' 'NF==2 {print $2}' scripts/unused_symbols.txt | sort | uniq
@@ -167,6 +202,63 @@ rm -f [文件列表]
 # 2. 批量注释头文件引用
 sed -i 's|#include <头文件>|// #include <头文件> // UNUSED_SYMBOL: Header file deleted|g' *.cpp
 ```
+
+**新的并行链接错误修复方式**:
+```bash
+# 1. 读取链接错误文件
+# 用户已将所有链接错误放入 kicad_core_project_wx\link-error.txt
+
+# 2. 解析错误文件，提取关键信息
+# 从每行错误中提取：符号名、mangled名、文件名
+# 示例错误行：
+# Error	LNK2001	unresolved external symbol "DIALOG_SHIM::ShowModal()" (?ShowModal@DIALOG_SHIM@@UEAAHXZ)	...dialog_print_generic.cpp.obj
+
+# 3. 按文件分组，为每个文件并行启动代理
+# 每个代理收到完整的错误信息：符号描述 + mangled名 + 文件名
+```
+
+**代理调用示例（每次并行10个）**:
+```
+# 第一批（并行10个代理，传递完整链接错误信息）
+Task(symbol-dependency-analyzer): "修复文件 excellon_read_drill_file.cpp 中的链接错误：
+Error LNK2001 unresolved external symbol 'public: virtual int __cdecl DIALOG_SHIM::ShowModal(void)' (?ShowModal@DIALOG_SHIM@@UEAAHXZ)"
+
+Task(symbol-dependency-analyzer): "修复文件 dialog_print_generic_base.cpp 中的链接错误：
+Error LNK2001 unresolved external symbol 'public: virtual int __cdecl DIALOG_SHIM::ShowModal(void)' (?ShowModal@DIALOG_SHIM@@UEAAHXZ)"
+
+Task(symbol-dependency-analyzer): "修复文件 eda_view_switcher_base.cpp 中的链接错误：
+Error LNK2001 unresolved external symbol 'public: virtual int __cdecl DIALOG_SHIM::ShowModal(void)' (?ShowModal@DIALOG_SHIM@@UEAAHXZ)"
+
+Task(symbol-dependency-analyzer): "修复文件 dialog_print_generic.cpp 中的链接错误：
+Error LNK2001 unresolved external symbol 'public: virtual int __cdecl DIALOG_SHIM::ShowModal(void)' (?ShowModal@DIALOG_SHIM@@UEAAHXZ)"
+
+Task(symbol-dependency-analyzer): "修复文件 hotkey_cycle_popup.cpp 中的链接错误：
+Error LNK2001 unresolved external symbol 'public: virtual int __cdecl DIALOG_SHIM::ShowModal(void)' (?ShowModal@DIALOG_SHIM@@UEAAHXZ)"
+
+# ... 继续其他5个代理
+
+# 如果有更多文件，等第一批完成后启动第二批
+```
+
+**关键要点**：
+- 每个代理收到完整的链接错误信息（包括符号描述和mangled名）
+- 明确指定需要修复的文件名
+- 代理可以直接解析错误信息，无需额外搜索
+- 代理完成后，主调度器负责标记进度
+
+**进度标记示例**：
+```bash
+# 代理完成前（原始错误行）：
+Error	LNK2001	unresolved external symbol "public: virtual int __cdecl DIALOG_SHIM::ShowModal(void)" (?ShowModal@DIALOG_SHIM@@UEAAHXZ)	...dialog_print_generic.cpp.obj
+
+# 代理完成后（添加标志）：
+[已处理] Error	LNK2001	unresolved external symbol "public: virtual int __cdecl DIALOG_SHIM::ShowModal(void)" (?ShowModal@DIALOG_SHIM@@UEAAHXZ)	...dialog_print_generic.cpp.obj
+```
+
+**工作流程**：
+1. 启动10个代理处理未标记的错误行
+2. 代理完成后，给对应错误行添加 `[已处理]` 标志
+3. 继续处理下一批未标记的错误行，直到全部完成
 
 ## 7. 编译错误修复策略
 

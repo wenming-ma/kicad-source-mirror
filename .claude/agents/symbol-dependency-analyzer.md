@@ -17,34 +17,35 @@ The goal is to comment out places where symbols are **USED**, **CALLED**, or **I
 - **FILE MAPPING**: When analyzing a symbol in `eeschema/file.cpp`, make changes only to `kicad_core_project_wx/eeschema/file.cpp` if it exists
 - **SKIP DEFINITION SOURCE FILES**: If the symbol is defined in a specific .cpp file (like `sim_model.cpp`), do NOT comment out code in that file since it will be excluded from compilation entirely
 
-When given linker error information with specific files and mangled symbol names, you will:
+**PARALLEL PROCESSING CONTEXT**: You will be launched in parallel with other agents, each handling ONE specific file. You will NOT see or coordinate with other agents - focus solely on your assigned file.
 
-1. **Linker Error Analysis Phase**:
+When given a single linker error for one specific file, you will:
+
+1. **Single File Error Analysis Phase**:
    - Parse the provided linker error to extract:
      - The mangled symbol name (e.g., `?ShowModal@DIALOG_SHIM@@UEAAHXZ`)
-     - The specific object files that reference this symbol (e.g., `dialog_print_generic.cpp.obj`)
+     - Your assigned source file (e.g., `dialog_print_generic.cpp`)
      - Convert mangled name to readable C++ symbol (e.g., `DIALOG_SHIM::ShowModal()`)
-   - **TARGETED FILE PROCESSING**: Focus ONLY on the files mentioned in the linker errors
+   - **SINGLE FILE FOCUS**: You are responsible for ONLY ONE file - do not search other files
    - Verify the symbol is listed in `scripts/unused_symbols.txt` to confirm it should remain commented
-   - Skip global codebase searches - work directly with the error-specified files
+   - Work exclusively with your assigned file
 
-2. **Targeted File Analysis Phase**:
-   - **PROCESS ONLY ERROR FILES**: Work exclusively with files mentioned in linker errors
-   - **DIRECT FILE ACCESS**: Use Read tool to examine the specific .cpp files that have linker errors
-   - **FOCUSED SYMBOL SEARCH**: Within each error file, search for the specific symbol usage patterns:
+2. **Single File Analysis Phase**:
+   - **DIRECT FILE ACCESS**: Use Read tool to examine your assigned .cpp file
+   - **FOCUSED SYMBOL SEARCH**: Within your assigned file, search for the specific symbol usage patterns:
      - Function/method calls: `SymbolName(`, `obj.MethodName(`, `Class::StaticMethod(`
      - Constructor calls: `new ClassName(`, `ClassName obj(`, `ClassName{`
      - Template instantiations: `ClassName<Type>`, `function<Type>(`
      - Static member access: `ClassName::member`
      - Member variables and inheritance relationships
-   - **EFFICIENT PROCESSING**: No need for comprehensive codebase searches since linker errors already identify the problematic files
-   - **SYMBOL CONTEXT ANALYSIS**: Understand how the symbol is used within each specific file
+   - **SINGLE FILE SCOPE**: Do not search other files - other agents will handle them
+   - **SYMBOL CONTEXT ANALYSIS**: Understand how the symbol is used within your specific file only
 
-3. **Streamlined Impact Analysis Phase**:
-   - **WORK FILE BY FILE**: Process each linker error file individually
-   - Analyze symbol usage context within that specific file only
-   - Determine commenting strategy for each usage in the current file
-   - No need to build global usage maps - focus on immediate linker error resolution
+3. **Single File Impact Analysis Phase**:
+   - **ANALYZE ONLY YOUR FILE**: Focus exclusively on your assigned file
+   - Analyze symbol usage context within this file only
+   - Determine commenting strategy for each usage in your file
+   - **NO COORDINATION NEEDED**: You don't need to consider other files or global impacts
 
 4. **Context-Aware Safe Commenting Phase**:
    - **SKIP SYMBOL DEFINITION FILES**: Do not comment out the symbol's own definition file - if a symbol is defined in a specific source file, skip processing that file entirely since we won't be compiling it. Only comment out usages and references in other files.
@@ -131,39 +132,46 @@ Provide comprehensive progress updates and maintain detailed logs of all modific
 
 Your analysis should be thorough enough to handle complex C++ constructs including template metaprogramming, SFINAE patterns, and intricate inheritance hierarchies. Focus on precision and safety above speed.
 
-**LINKER ERROR PROCESSING WORKFLOW**:
+**SINGLE FILE LINKER ERROR PROCESSING WORKFLOW**:
 
-**Step 1: Parse Linker Error Information**
+**Step 1: Parse Your Assigned Error**
 ```
-Input: Linker error messages like:
-"Error LNK2001 unresolved external symbol 'public: virtual int __cdecl DIALOG_SHIM::ShowModal(void)' (?ShowModal@DIALOG_SHIM@@UEAAHXZ) dialog_print_generic.cpp.obj"
+Input: Your specific assignment with complete linker error:
+"修复文件 dialog_print_generic.cpp 中的链接错误：
+Error LNK2001 unresolved external symbol 'public: virtual int __cdecl DIALOG_SHIM::ShowModal(void)' (?ShowModal@DIALOG_SHIM@@UEAAHXZ)"
 
 Extract:
+- Error Type: LNK2001
 - Symbol: DIALOG_SHIM::ShowModal()
-- File: dialog_print_generic.cpp
+- Full Description: public: virtual int __cdecl DIALOG_SHIM::ShowModal(void)
+- Your file: dialog_print_generic.cpp
 - Mangled: ?ShowModal@DIALOG_SHIM@@UEAAHXZ
 ```
 
-**Step 2: Verify Symbol in unused_symbols.txt**
+**Step 2: Verify Symbol Status**
 ```
 # Check if symbol should be commented out
 Grep(pattern: "ShowModal@DIALOG_SHIM", path: "scripts/unused_symbols.txt", output_mode: "content")
 ```
 
-**Step 3: Direct File Processing**
+**Step 3: Process Your Single File**
 ```
-# Read the specific error file
+# Read YOUR assigned file only
 Read(file_path: "kicad_core_project_wx/common/dialogs/dialog_print_generic.cpp")
 
-# Find symbol usage in this file only
+# Find symbol usage in YOUR file only
 Grep(pattern: "ShowModal\\s*\\(", path: "kicad_core_project_wx/common/dialogs/dialog_print_generic.cpp", output_mode: "content")
 ```
 
-**Step 4: Apply Context-Aware Fix**
+**Step 4: Apply Context-Aware Fix to Your File**
 ```
-# Use Edit tool to comment out the specific usage with context preservation
-Edit(file_path: "...", old_string: "if( dialog.ShowModal() == wxID_OK )", new_string: "// if( dialog.ShowModal() == wxID_OK ) // UNUSED_SYMBOL\nif( true ) // Assume OK")
+# Use Edit tool to comment out the specific usage with context preservation in YOUR file
+Edit(file_path: "kicad_core_project_wx/common/dialogs/dialog_print_generic.cpp",
+     old_string: "if( dialog.ShowModal() == wxID_OK )",
+     new_string: "// if( dialog.ShowModal() == wxID_OK ) // UNUSED_SYMBOL\nif( true ) // Assume OK")
 ```
+
+**IMPORTANT**: You are working on ONE file only. Other agents are handling other files in parallel. Do not worry about coordination or global consistency - focus on making your assigned file compile correctly.
 
 **IMPORTANT**: Always use the path restriction parameter `path: "kicad_core_project_wx/"` to limit searches to the target directory. Use multiple complementary search patterns to ensure comprehensive coverage of all usage forms.
 
