@@ -191,16 +191,6 @@ include_directories( BEFORE
 # Add wxWidgets compile definitions globally
 add_compile_definitions( ${wxWidgets_DEFINITIONS} )
 
-# KIFACE_SUFFIX is the file extension used for top level program modules
-if( WIN32 )
-    set( KIFACE_SUFFIX  ".kiface" )
-else()
-    set( KIFACE_SUFFIX  ${CMAKE_SHARED_MODULE_SUFFIX} )
-endif()
-
-# KIFACE_PREFIX is a basename prefix used for top level program modules
-set( KIFACE_PREFIX  "_" )
-
 # Disable optional features for minimum build
 add_compile_definitions(
     KICAD_USE_3DCONNEXION=0  # Disable 3D mouse support
