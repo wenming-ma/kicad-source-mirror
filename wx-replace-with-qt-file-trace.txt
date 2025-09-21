@@ -1,60 +1,10 @@
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\rc_item.cpp
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\view\wx_view_controls.cpp
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\eda_base_frame.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\eeschema\erc\erc_settings.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\eeschema\sch_marker.cpp
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\lib_tree_model_adapter.cpp
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\eeschema\eeschema_settings.cpp
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\eeschema\connection_graph.cpp
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\eda_draw_frame.cpp
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\app_progress_dialog.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\tepui_common.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\pcbnew\dialogs\dialog_plot_base.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\pcbnew\widgets\net_inspector_panel.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\pcbnew\dialogs\dialog_plot.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\wx_panel.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\wx_progress_reporters.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\tab_traversal.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\unit_binder.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\wx_combobox.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\wx_ellipsized_static_text.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\wx_grid_autosizer.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\stepped_slider.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\search_pane.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\indicator_icon.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\layer_box_selector.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\layer_presentation.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\grid_text_button_helpers.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\font_choice.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\grid_icon_text_helpers.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\color_swatch.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\filedlg_open_embed_file.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\filter_combobox.h - COMPLETED
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\widgets\button_row_panel.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\dialogs\panel_plugin_settings.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\dialogs\html_message_box.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\dialogs\panel_common_settings.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\dialogs\panel_data_collection.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\dialogs\panel_mouse_settings.h - COMPLETED
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\dialogs\dialog_unit_entry.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\dialogs\eda_reorderable_list_dialog.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\dialogs\dialog_print_generic.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\dialogs\dialog_display_html_text_base.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\dialogs\dialog_migrate_settings.h - COMPLETED
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\dialogs\dialog_color_picker.h - COMPLETED
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\include\dialogs\dialog_configure_paths.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\gerbview\widgets\layer_widget.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\gerbview\widgets\dcode_selection_box.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\gerbview\widgets\gbr_layer_box_selector.h - COMPLETED
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\gerbview\widgets\gerbview_layer_widget.h - COMPLETED
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\gerbview\dialogs\dialog_layers_select_to_pcb_base.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\gerbview\dialogs\dialog_draw_layers_settings_base.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\generated\eeschema\dialogs\dialog_bom_cfg_lexer.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\eeschema\widgets\symbol_preview_widget.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\eeschema\widgets\symbol_tree_pane.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\eeschema\widgets\symbol_filter_combobox.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\eeschema\widgets\pin_shape_combobox.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\eeschema\widgets\pin_type_combobox.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\eeschema\widgets\symbol_filedlg_save_as.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\eeschema\dialogs\dialog_text_properties_base.h
-C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\eeschema\dialogs\dialog_text_properties.h
+C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\tool\zoom_tool.cpp - COMPLETED
+C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\tool\zoom_menu.cpp - COMPLETED
+C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\tool\tool_manager.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\tool\tool_dispatcher.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\tool\grid_menu.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\tool\editor_conditions.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\tool\common_tools.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\plotters\SVG_plotter.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\plotters\PS_plotter.cpp
+C:\Users\wenming\source\repos\kicad\kicad_core_project_qt\common\plotters\plotter.cpp
