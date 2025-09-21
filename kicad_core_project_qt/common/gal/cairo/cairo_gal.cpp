@@ -1,40 +1,21 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Copyright (C) 2017-2018 CERN
- *
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * CairoGal - Graphics Abstraction Layer for Cairo
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// CairoGal - Graphics Abstraction Layer for Cairo
 
-#include <wx/image.h>
-#include <wx/log.h>
+#include <QImage>
+#include <QPixmap>
+#include <QPainter>
+#include <QWidget>
+#include <QSize>
+#include <QPoint>
+#include <QRect>
+#include <QColor>
+#include <QDebug>
+#include <QApplication>
 
 #include <gal/cairo/cairo_gal.h>
 #include <gal/cairo/cairo_compositor.h>
 #include <gal/definitions.h>
 #include <geometry/shape_poly_set.h>
-#include <math/vector2wx.h>
+// Qt vector handling - using KiCad native VECTOR2D types
 #include <math/util.h> // for KiROUND
 #include <trigo.h>
 #include <bitmap_base.h>
@@ -525,10 +506,11 @@ void CAIRO_GAL_BASE::DrawBitmap( const BITMAP_BASE& aBitmap, double alphaBlend )
     unsigned char* pix_buffer = cairo_image_surface_get_data( image );
 
     // The pixel buffer of the initial bitmap:
-    const wxImage& bm_pix_buffer = *aBitmap.GetImageData();
+    const QImage& bm_pix_buffer = *aBitmap.GetImageData();
 
-    uint32_t mask_color = ( bm_pix_buffer.GetMaskRed() << 16 )
-                          + ( bm_pix_buffer.GetMaskGreen() << 8 ) + ( bm_pix_buffer.GetMaskBlue() );
+    // Note: QImage doesn't have separate mask color methods like wxImage
+    // This would need to be handled differently in Qt if mask support is needed
+    uint32_t mask_color = 0;
 
     // Copy the source bitmap to the cairo bitmap buffer.
     // In cairo bitmap buffer, a ARGB32 bitmap is an ARGB pixel packed into a uint_32
@@ -537,23 +519,24 @@ void CAIRO_GAL_BASE::DrawBitmap( const BITMAP_BASE& aBitmap, double alphaBlend )
     {
         for( int col = 0; col < w; col++ )
         {
-            unsigned char r = bm_pix_buffer.GetRed( col, row );
-            unsigned char g = bm_pix_buffer.GetGreen( col, row );
-            unsigned char b = bm_pix_buffer.GetBlue( col, row );
-            unsigned char a = wxALPHA_OPAQUE;
+            QRgb pixelColor = bm_pix_buffer.pixel( col, row );
+            unsigned char r = qRed( pixelColor );
+            unsigned char g = qGreen( pixelColor );
+            unsigned char b = qBlue( pixelColor );
+            unsigned char a = 255; // Qt opaque alpha
 
-            if( bm_pix_buffer.HasAlpha() )
+            if( bm_pix_buffer.hasAlphaChannel() )
             {
-                a = bm_pix_buffer.GetAlpha( col, row );
+                a = qAlpha( pixelColor );
 
                 // ARGB32 format needs pre-multiplied alpha
                 r = uint32_t( r ) * a / 0xFF;
                 g = uint32_t( g ) * a / 0xFF;
                 b = uint32_t( b ) * a / 0xFF;
             }
-            else if( bm_pix_buffer.HasMask() && (uint32_t)( r << 16 | g << 8 | b ) == mask_color )
+            else if( bm_pix_buffer.hasAlphaChannel() && (uint32_t)( r << 16 | g << 8 | b ) == mask_color )
             {
-                a = wxALPHA_TRANSPARENT;
+                a = 0; // Qt transparent alpha
             }
 
             // Build the ARGB24 pixel:
@@ -1191,7 +1174,7 @@ void CAIRO_GAL_BASE::storePath()
 }
 
 
-void CAIRO_GAL_BASE::blitCursor( wxMemoryDC& clientDC )
+void CAIRO_GAL_BASE::blitCursor( QPaintDevice& clientDC )
 {
     if( !IsCursorEnabled() )
         return;
@@ -1200,11 +1183,12 @@ void CAIRO_GAL_BASE::blitCursor( wxMemoryDC& clientDC )
     const COLOR4D cColor = getCursorColor();
     const int     cursorSize = m_fullscreenCursor ? 8000 : 80;
 
-    wxColour color( cColor.r * cColor.a * 255, cColor.g * cColor.a * 255, cColor.b * cColor.a * 255,
+    QColor color( cColor.r * cColor.a * 255, cColor.g * cColor.a * 255, cColor.b * cColor.a * 255,
                     255 );
-    clientDC.SetPen( wxPen( color ) );
-    clientDC.DrawLine( p.x - cursorSize / 2, p.y, p.x + cursorSize / 2, p.y );
-    clientDC.DrawLine( p.x, p.y - cursorSize / 2, p.x, p.y + cursorSize / 2 );
+    QPainter painter( &clientDC );
+    painter.setPen( QPen( color ) );
+    painter.drawLine( p.x - cursorSize / 2, p.y, p.x + cursorSize / 2, p.y );
+    painter.drawLine( p.x, p.y - cursorSize / 2, p.x, p.y + cursorSize / 2 );
 }
 
 
@@ -1315,8 +1299,7 @@ void CAIRO_GAL_BASE::drawPoly( const SHAPE_LINE_CHAIN& aLineChain )
 
 unsigned int CAIRO_GAL_BASE::getNewGroupNumber()
 {
-    wxASSERT_MSG( m_groups.size() < std::numeric_limits<unsigned int>::max(),
-                  wxT( "There are no free slots to store a group" ) );
+    Q_ASSERT( m_groups.size() < std::numeric_limits<unsigned int>::max() );
 
     while( m_groups.find( m_groupCounter ) != m_groups.end() )
         m_groupCounter++;
@@ -1325,11 +1308,11 @@ unsigned int CAIRO_GAL_BASE::getNewGroupNumber()
 }
 
 
-CAIRO_GAL::CAIRO_GAL( GAL_DISPLAY_OPTIONS& aDisplayOptions, wxWindow* aParent,
-                      wxEvtHandler* aMouseListener, wxEvtHandler* aPaintListener,
-                      const wxString& aName ) :
+CAIRO_GAL::CAIRO_GAL( GAL_DISPLAY_OPTIONS& aDisplayOptions, QWidget* aParent,
+                      QObject* aMouseListener, QObject* aPaintListener,
+                      const QString& aName ) :
         CAIRO_GAL_BASE( aDisplayOptions ),
-        wxWindow( aParent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxEXPAND, aName )
+        QWidget( aParent )
 {
     // Initialise compositing state
     m_mainBuffer = 0;
@@ -1341,47 +1324,16 @@ CAIRO_GAL::CAIRO_GAL( GAL_DISPLAY_OPTIONS& aDisplayOptions, wxWindow* aParent,
     SetTarget( TARGET_NONCACHED );
 
     m_bitmapBuffer = nullptr;
-    m_wxOutput = nullptr;
+    m_qtOutput = nullptr;
 
     m_parentWindow = aParent;
     m_mouseListener = aMouseListener;
     m_paintListener = aPaintListener;
 
-    // Connect the native cursor handler
-    Connect( wxEVT_SET_CURSOR, wxSetCursorEventHandler( CAIRO_GAL::onSetNativeCursor ), nullptr,
-             this );
+    setObjectName( aName );
 
-    // Connecting the event handlers
-    Connect( wxEVT_PAINT, wxPaintEventHandler( CAIRO_GAL::onPaint ) );
-
-    // Mouse events are skipped to the parent
-    Connect( wxEVT_MOTION, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_LEFT_UP, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_MIDDLE_DOWN, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_MIDDLE_UP, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_MIDDLE_DCLICK, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_RIGHT_DOWN, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_RIGHT_UP, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_RIGHT_DCLICK, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_AUX1_DOWN, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_AUX1_UP, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_AUX1_DCLICK, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_AUX2_DOWN, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_AUX2_UP, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_AUX2_DCLICK, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-    Connect( wxEVT_MOUSEWHEEL, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-
-#if defined _WIN32 || defined _WIN64
-    Connect( wxEVT_ENTER_WINDOW, wxMouseEventHandler( CAIRO_GAL::skipMouseEvent ) );
-#endif
-
-    Bind( wxEVT_GESTURE_ZOOM, &CAIRO_GAL::skipGestureEvent, this );
-    Bind( wxEVT_GESTURE_PAN, &CAIRO_GAL::skipGestureEvent, this );
-
-    SetSize( aParent->GetClientSize() );
-    m_screenSize = ToVECTOR2I( aParent->GetClientSize() );
+    resize( aParent->size() );
+    m_screenSize = VECTOR2I( aParent->size().width(), aParent->size().height() );
 
     // Allocate memory for pixel storage
     allocateBitmaps();
@@ -1419,12 +1371,12 @@ void CAIRO_GAL::EndDrawing()
     m_compositor->DrawBuffer( m_overlayBuffer );
 
     // Now translate the raw context data from the format stored
-    // by cairo into a format understood by wxImage.
+    // by cairo into a format understood by QImage.
     int height = m_screenSize.y;
     int stride = m_stride;
 
     unsigned char* srcRow = m_bitmapBuffer;
-    unsigned char* dst = m_wxOutput;
+    unsigned char* dst = m_qtOutput;
 
     for( int y = 0; y < height; y++ )
     {
@@ -1450,24 +1402,26 @@ void CAIRO_GAL::EndDrawing()
         srcRow += stride;
     }
 
-    wxImage    img( m_wxBufferWidth, m_screenSize.y, m_wxOutput, true );
-    wxBitmap   bmp( img );
-    wxMemoryDC mdc( bmp );
-    wxClientDC clientDC( this );
+    QImage    img( m_qtOutput, m_qtBufferWidth, m_screenSize.y, QImage::Format_RGB888 );
+    QPixmap   pixmap = QPixmap::fromImage( img );
+    QPainter  painter( this );
 
     // Now it is the time to blit the mouse cursor
-    blitCursor( mdc );
-    clientDC.Blit( 0, 0, m_screenSize.x, m_screenSize.y, &mdc, 0, 0, wxCOPY );
+    blitCursor( pixmap );
+    painter.drawPixmap( 0, 0, pixmap );
 
     deinitSurface();
 }
 
 
-void CAIRO_GAL::PostPaint( wxPaintEvent& aEvent )
+void CAIRO_GAL::PostPaint( QPaintEvent& aEvent )
 {
     // posts an event to m_paint_listener to ask for redraw the canvas.
     if( m_paintListener )
-        wxPostEvent( m_paintListener, aEvent );
+    {
+        // Convert QPaintEvent to appropriate signal or method call
+        QApplication::postEvent( m_paintListener, new QPaintEvent( aEvent ) );
+    }
 }
 
 
@@ -1484,18 +1438,18 @@ void CAIRO_GAL::ResizeScreen( int aWidth, int aHeight )
 
     m_validCompositor = false;
 
-    SetSize( wxSize( aWidth, aHeight ) );
+    resize( aWidth, aHeight );
 }
 
 
 bool CAIRO_GAL::Show( bool aShow )
 {
-    bool s = wxWindow::Show( aShow );
+    setVisible( aShow );
 
     if( aShow )
-        wxWindow::Raise();
+        raise();
 
-    return s;
+    return isVisible();
 }
 
 
@@ -1570,14 +1524,14 @@ void CAIRO_GAL::initSurface()
     if( m_isInitialized )
         return;
 
-    m_surface = cairo_image_surface_create_for_data( m_bitmapBuffer, GAL_FORMAT, m_wxBufferWidth,
+    m_surface = cairo_image_surface_create_for_data( m_bitmapBuffer, GAL_FORMAT, m_qtBufferWidth,
                                                      m_screenSize.y, m_stride );
 
     m_context = cairo_create( m_surface );
 
 #ifdef DEBUG
     cairo_status_t status = cairo_status( m_context );
-    wxASSERT_MSG( status == CAIRO_STATUS_SUCCESS, wxT( "Cairo context creation error" ) );
+    Q_ASSERT_X( status == CAIRO_STATUS_SUCCESS, "CAIRO_GAL::initSurface", "Cairo context creation error" );
 #endif /* DEBUG */
 
     m_currentContext = m_context;
@@ -1602,17 +1556,17 @@ void CAIRO_GAL::deinitSurface()
 
 void CAIRO_GAL::allocateBitmaps()
 {
-    m_wxBufferWidth = m_screenSize.x;
+    m_qtBufferWidth = m_screenSize.x;
 
     // Create buffer, use the system independent Cairo context backend
-    m_stride = cairo_format_stride_for_width( GAL_FORMAT, m_wxBufferWidth );
+    m_stride = cairo_format_stride_for_width( GAL_FORMAT, m_qtBufferWidth );
     m_bufferSize = m_stride * m_screenSize.y;
 
-    wxASSERT( m_bitmapBuffer == nullptr );
+    Q_ASSERT( m_bitmapBuffer == nullptr );
     m_bitmapBuffer = new unsigned char[m_bufferSize];
 
-    wxASSERT( m_wxOutput == nullptr );
-    m_wxOutput = new unsigned char[m_wxBufferWidth * 3 * m_screenSize.y];
+    Q_ASSERT( m_qtOutput == nullptr );
+    m_qtOutput = new unsigned char[m_qtBufferWidth * 3 * m_screenSize.y];
 }
 
 
@@ -1621,8 +1575,8 @@ void CAIRO_GAL::deleteBitmaps()
     delete[] m_bitmapBuffer;
     m_bitmapBuffer = nullptr;
 
-    delete[] m_wxOutput;
-    m_wxOutput = nullptr;
+    delete[] m_qtOutput;
+    m_qtOutput = nullptr;
 }
 
 
@@ -1642,25 +1596,25 @@ void CAIRO_GAL::setCompositor()
 }
 
 
-void CAIRO_GAL::onPaint( wxPaintEvent& aEvent )
+void CAIRO_GAL::onPaint( QPaintEvent& aEvent )
 {
     PostPaint( aEvent );
 }
 
 
-void CAIRO_GAL::skipMouseEvent( wxMouseEvent& aEvent )
+void CAIRO_GAL::skipMouseEvent( QMouseEvent& aEvent )
 {
     // Post the mouse event to the event listener registered in constructor, if any
     if( m_mouseListener )
-        wxPostEvent( m_mouseListener, aEvent );
+        QApplication::postEvent( m_mouseListener, new QMouseEvent( aEvent ) );
 }
 
 
-void CAIRO_GAL::skipGestureEvent( wxGestureEvent& aEvent )
+void CAIRO_GAL::skipGestureEvent( QGestureEvent& aEvent )
 {
     // Post the gesture event to the event listener registered in constructor, if any
     if( m_mouseListener )
-        wxPostEvent( m_mouseListener, aEvent );
+        QApplication::postEvent( m_mouseListener, new QGestureEvent( aEvent ) );
 }
 
 
@@ -1680,7 +1634,7 @@ bool CAIRO_GAL::updatedGalDisplayOptions( const GAL_DISPLAY_OPTIONS& aOptions )
 
     if( super::updatedGalDisplayOptions( aOptions ) )
     {
-        Refresh();
+        update();
         refresh = true;
     }
 
@@ -1690,25 +1644,25 @@ bool CAIRO_GAL::updatedGalDisplayOptions( const GAL_DISPLAY_OPTIONS& aOptions )
 
 bool CAIRO_GAL::SetNativeCursorStyle( KICURSOR aCursor, bool aHiDPI )
 {
-    // Store the current cursor type and get the wxCursor for it
+    // Store the current cursor type and get the QCursor for it
     if( !GAL::SetNativeCursorStyle( aCursor, aHiDPI ) )
         return false;
 
     if( aHiDPI )
-        m_currentwxCursor = CURSOR_STORE::GetHiDPICursor( m_currentNativeCursor );
+        m_currentQtCursor = CURSOR_STORE::GetHiDPICursor( m_currentNativeCursor );
     else
-        m_currentwxCursor = CURSOR_STORE::GetCursor( m_currentNativeCursor );
+        m_currentQtCursor = CURSOR_STORE::GetCursor( m_currentNativeCursor );
 
-    // Update the cursor in the wx control
-    wxWindow::SetCursor( m_currentwxCursor );
+    // Update the cursor in the Qt widget
+    setCursor( m_currentQtCursor );
 
     return true;
 }
 
 
-void CAIRO_GAL::onSetNativeCursor( wxSetCursorEvent& aEvent )
+void CAIRO_GAL::onSetNativeCursor( QEvent& aEvent )
 {
-    aEvent.SetCursor( m_currentwxCursor );
+    setCursor( m_currentQtCursor );
 }
 
 

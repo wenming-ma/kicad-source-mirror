@@ -1,22 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <gerbview_painter.h>
 #include <gal/graphics_abstraction_layer.h>
@@ -27,6 +8,9 @@
 #include <convert_basic_shapes_to_polygon.h>
 #include <gerbview.h>
 #include <trigo.h>
+
+#include <QString>
+#include <QtGlobal>
 
 #include <dcode.h>
 #include <gerber_draw_item.h>
@@ -91,9 +75,9 @@ void GERBVIEW_RENDER_SETTINGS::LoadColors( const COLOR_SETTINGS* aSettings )
 void GERBVIEW_RENDER_SETTINGS::ClearHighlightSelections()
 {
     // Clear all highlight selections (dcode, net, component, attribute selection)
-    m_componentHighlightString.Empty();
-    m_netHighlightString.Empty();
-    m_attributeHighlightString.Empty();
+    m_componentHighlightString.clear();
+    m_netHighlightString.clear();
+    m_attributeHighlightString.clear();
     m_dcodeHighlightValue = -1;
 }
 
@@ -132,21 +116,21 @@ COLOR4D GERBVIEW_RENDER_SETTINGS::GetColor( const VIEW_ITEM* aItem, int aLayer )
         }
     }
 
-    if( !m_netHighlightString.IsEmpty() && gbrItem &&
+    if( !m_netHighlightString.isEmpty() && gbrItem &&
         m_netHighlightString == gbrItem->GetNetAttributes().m_Netname )
     {
         auto it = m_layerColorsHi.find( aLayer );
         return it == m_layerColorsHi.end() ? COLOR4D::WHITE : it->second;
     }
 
-    if( !m_componentHighlightString.IsEmpty() && gbrItem &&
+    if( !m_componentHighlightString.isEmpty() && gbrItem &&
         m_componentHighlightString == gbrItem->GetNetAttributes().m_Cmpref )
     {
         auto it = m_layerColorsHi.find( aLayer );
         return it == m_layerColorsHi.end() ? COLOR4D::WHITE : it->second;
     }
 
-    if( !m_attributeHighlightString.IsEmpty() && gbrItem && gbrItem->GetDcodeDescr() &&
+    if( !m_attributeHighlightString.isEmpty() && gbrItem && gbrItem->GetDcodeDescr() &&
         m_attributeHighlightString == gbrItem->GetDcodeDescr()->m_AperFunction )
     {
         auto it = m_layerColorsHi.find( aLayer );
@@ -234,7 +218,7 @@ void GERBVIEW_PAINTER::draw( /*const*/ GERBER_DRAW_ITEM* aItem, int aLayer )
     // Draw DCODE overlay text
     if( IsDCodeLayer( aLayer ) )
     {
-        wxString  codeText;
+        QString  codeText;
         VECTOR2I  textPosition;
         int       textSize;
         EDA_ANGLE orient;
@@ -243,7 +227,7 @@ void GERBVIEW_PAINTER::draw( /*const*/ GERBER_DRAW_ITEM* aItem, int aLayer )
             return;
 
         color = m_gerbviewSettings.GetColor( aItem, aLayer );
-        codeText.Printf( wxT( "D%d" ), aItem->m_DCode );
+        codeText = QString::asprintf( "D%d", aItem->m_DCode );
 
         m_gal->SetIsStroke( true );
         m_gal->SetIsFill( false );
@@ -336,7 +320,7 @@ void GERBVIEW_PAINTER::draw( /*const*/ GERBER_DRAW_ITEM* aItem, int aLayer )
     {
         isFilled = gvconfig()->m_Display.m_DisplayLinesFill;
 
-        // These are swapped because wxDC fills arcs counterclockwise and GAL
+        // These are swapped because traditional drawing contexts fill arcs counterclockwise and GAL
         // fills them clockwise.
         VECTOR2I arcStart = aItem->m_End;
         VECTOR2I arcEnd = aItem->m_Start;
@@ -435,7 +419,7 @@ void GERBVIEW_PAINTER::draw( /*const*/ GERBER_DRAW_ITEM* aItem, int aLayer )
     }
 
     default:
-        wxASSERT_MSG( false, wxT( "GERBER_DRAW_ITEM shape is unknown!" ) );
+        Q_ASSERT_X( false, "GERBVIEW_PAINTER::draw", "GERBER_DRAW_ITEM shape is unknown!" );
         break;
     }
     m_gal->SetNegativeDrawMode( false );
@@ -456,7 +440,7 @@ void GERBVIEW_PAINTER::draw( /*const*/ GERBER_DRAW_ITEM* aItem, int aLayer )
 void GERBVIEW_PAINTER::drawPolygon( GERBER_DRAW_ITEM* aParent, const SHAPE_POLY_SET& aPolygon,
                                     bool aFilled, bool aShift )
 {
-    wxASSERT( aPolygon.OutlineCount() == 1 );
+    Q_ASSERT( aPolygon.OutlineCount() == 1 );
 
     if( aPolygon.OutlineCount() == 0 )
         return;
@@ -483,7 +467,7 @@ void GERBVIEW_PAINTER::drawFlashedShape( GERBER_DRAW_ITEM* aItem, bool aFilled )
 {
     D_CODE* code = aItem->GetDcodeDescr();
 
-    wxASSERT_MSG( code, wxT( "drawFlashedShape: Item has no D_CODE!" ) );
+    Q_ASSERT_X( code, "GERBVIEW_PAINTER::drawFlashedShape", "Item has no D_CODE!" );
 
     if( !code )
         return;
@@ -589,7 +573,7 @@ void GERBVIEW_PAINTER::drawFlashedShape( GERBER_DRAW_ITEM* aItem, bool aFilled )
         break;
 
     default:
-        wxASSERT_MSG( false, wxT( "Unknown Gerber flashed shape!" ) );
+        Q_ASSERT_X( false, "GERBVIEW_PAINTER::drawFlashedShape", "Unknown Gerber flashed shape!" );
         break;
     }
 }

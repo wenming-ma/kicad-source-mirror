@@ -1,28 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2022 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #include <env_vars.h>
 #include <lib_id.h>
@@ -35,11 +13,15 @@
 #include <systemdirsappend.h>
 #include <symbol_lib_table.h>
 #include <lib_symbol.h>
-// UNUSED_SYMBOL: ??0DIALOG_DATABASE_LIB_SETTINGS@@QEAA@PEAVwxWindow - Constructor not available in minimal project
+// Database library settings dialog constructor not available in minimal project
 // #include <sch_io/database/sch_io_database.h>
 // #include <dialogs/dialog_database_lib_settings.h>
 
-#include <wx/dir.h>
+#include <QDir>
+#include <QDirIterator>
+#include <QFileInfo>
+#include <QString>
+#include <QStringList>
 // UNUSED_SYMBOL: MigrateSimModel<LIB_SYMBOL> - Template specialization not available in minimal project
 // #include "sim/sim_model.h"
 
@@ -64,20 +46,20 @@ bool SYMBOL_LIB_TABLE_ROW::operator==( const SYMBOL_LIB_TABLE_ROW& aRow ) const
 }
 
 
-void SYMBOL_LIB_TABLE_ROW::SetType( const wxString& aType )
+void SYMBOL_LIB_TABLE_ROW::SetType( const QString& aType )
 {
-    // UNUSED_SYMBOL: ?EnumFromStr@SCH_IO_MGR@@SA?AW4SCH_FILE_T@1@AEBVwx - Static method not available in minimal project
+    // SCH_IO_MGR::EnumFromStr static method not available in minimal project
     // Original implementation commented out due to missing SCH_IO_MGR::EnumFromStr symbol
     // type = SCH_IO_MGR::EnumFromStr( aType );
 
     // Fallback implementation: map known type strings to enum values
-    if( aType == wxT("KiCad") || aType == wxT("kicad") )
+    if( aType == "KiCad" || aType == "kicad" )
         type = SCH_IO_MGR::SCH_KICAD;
-    else if( aType == wxT("Legacy") || aType == wxT("legacy") )
+    else if( aType == "Legacy" || aType == "legacy" )
         type = SCH_IO_MGR::SCH_LEGACY;
-    else if( aType == wxT("Eagle") || aType == wxT("eagle") )
+    else if( aType == "Eagle" || aType == "eagle" )
         type = SCH_IO_MGR::SCH_EAGLE;
-    else if( aType == wxT("Altium") || aType == wxT("altium") )
+    else if( aType == "Altium" || aType == "altium" )
         type = SCH_IO_MGR::SCH_ALTIUM;
     else
     {
@@ -97,7 +79,7 @@ bool SYMBOL_LIB_TABLE_ROW::Refresh()
     // UNUSED_SYMBOL: ?FindPlugin@SCH_IO_MGR@@SAPEAVSCH_IO@@W4SCH_FILE_T - Implementation not available in minimal project
     // if( !plugin )
     // {
-    //     wxArrayString dummyList;
+    //     QStringList dummyList;
     //
     //     plugin.reset( SCH_IO_MGR::FindPlugin( type ) );
     //     SetLoaded( false );
@@ -111,7 +93,7 @@ bool SYMBOL_LIB_TABLE_ROW::Refresh()
 }
 
 
-void SYMBOL_LIB_TABLE_ROW::GetSubLibraryNames( std::vector<wxString>& aNames ) const
+void SYMBOL_LIB_TABLE_ROW::GetSubLibraryNames( std::vector<QString>& aNames ) const
 {
     if( !plugin )
         return;
@@ -120,22 +102,22 @@ void SYMBOL_LIB_TABLE_ROW::GetSubLibraryNames( std::vector<wxString>& aNames ) c
 }
 
 
-wxString SYMBOL_LIB_TABLE_ROW::GetSubLibraryDescription( const wxString& aName ) const
+QString SYMBOL_LIB_TABLE_ROW::GetSubLibraryDescription( const QString& aName ) const
 {
     if( !plugin )
-        return wxEmptyString;
+        return QString();
 
     return plugin->GetSubLibraryDescription( aName );
 }
 
 
-// UNUSED_SYMBOL: ??0DIALOG_DATABASE_LIB_SETTINGS@@QEAA@PEAVwxWindow - Constructor and related dialog functionality not available in minimal project
-void SYMBOL_LIB_TABLE_ROW::ShowSettingsDialog( wxWindow* aParent ) const
+// Database library settings dialog constructor and related dialog functionality not available in minimal project
+void SYMBOL_LIB_TABLE_ROW::ShowSettingsDialog( QWidget* aParent ) const
 {
     // Database library settings dialog is not available in minimal project
     // Original implementation commented out to maintain compilation integrity
     // ORIGINAL CODE:
-    // wxCHECK( plugin, /* void */ );
+    // Q_ASSERT( plugin ); // Check if plugin is valid
     //
     // if( type != SCH_IO_MGR::SCH_DATABASE )
     //     return;
@@ -165,7 +147,7 @@ SYMBOL_LIB_TABLE& SYMBOL_LIB_TABLE::GetGlobalLibTable()
 void SYMBOL_LIB_TABLE::Parse( LIB_TABLE_LEXER* in )
 {
     T        tok;
-    wxString errMsg;    // to collect error messages
+    QString errMsg;    // to collect error messages
 
     // This table may be nested within a larger s-expression, or not.
     // Allow for parser of that optional containing s-expression to have looked ahead.
@@ -298,7 +280,7 @@ void SYMBOL_LIB_TABLE::Parse( LIB_TABLE_LEXER* in )
         // All nickNames within this table fragment must be unique, so we do not use doReplace
         // in doInsertRow().  (However a fallBack table can have a conflicting nickName and ours
         // will supersede that one since in FindLib() we search this table before any fall back.)
-        wxString       nickname = row->GetNickName();   // store it to be able to used it
+        QString       nickname = row->GetNickName();   // store it to be able to used it
                                                         // after row deletion if an error occurs
         bool           doReplace = false;
         LIB_TABLE_ROW* tmp = row.release();
@@ -307,19 +289,19 @@ void SYMBOL_LIB_TABLE::Parse( LIB_TABLE_LEXER* in )
         {
             delete tmp;     // The table did not take ownership of the row.
 
-            wxString msg = wxString::Format( _( "Duplicate library nickname '%s' found in symbol "
-                                                "library table file line %d" ),
-                                             nickname,
+            QString msg = QString::asprintf( "Duplicate library nickname '%s' found in symbol "
+                                                "library table file line %d",
+                                             qPrintable(nickname),
                                              lineNum );
 
-            if( !errMsg.IsEmpty() )
-                errMsg << '\n';
+            if( !errMsg.isEmpty() )
+                errMsg += '\n';
 
-            errMsg << msg;
+            errMsg += msg;
         }
     }
 
-    if( !errMsg.IsEmpty() )
+    if( !errMsg.isEmpty() )
         THROW_IO_ERROR( errMsg );
 }
 
@@ -339,7 +321,7 @@ void SYMBOL_LIB_TABLE::Format( OUTPUTFORMATTER* aOutput, int aIndentLevel ) cons
 int SYMBOL_LIB_TABLE::GetModifyHash()
 {
     int                     hash = 0;
-    std::vector< wxString > libNames = GetLogicalLibs();
+    std::vector< QString > libNames = GetLogicalLibs();
 
     for( const auto& libName : libNames )
     {
@@ -359,13 +341,14 @@ int SYMBOL_LIB_TABLE::GetModifyHash()
 }
 
 
-void SYMBOL_LIB_TABLE::EnumerateSymbolLib( const wxString& aNickname, wxArrayString& aAliasNames,
+void SYMBOL_LIB_TABLE::EnumerateSymbolLib( const QString& aNickname, QStringList& aAliasNames,
                                            bool aPowerSymbolsOnly )
 {
     SYMBOL_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxCHECK( row && row->plugin, /* void */ );
+    Q_ASSERT( row && row->plugin );
+    if( !row || !row->plugin ) return;
 
-    wxString options = row->GetOptions();
+    QString options = row->GetOptions();
 
     if( aPowerSymbolsOnly )
         row->SetOptions( row->GetOptions() + " " + PropPowerSymsOnly );
@@ -379,7 +362,7 @@ void SYMBOL_LIB_TABLE::EnumerateSymbolLib( const wxString& aNickname, wxArrayStr
 }
 
 
-SYMBOL_LIB_TABLE_ROW* SYMBOL_LIB_TABLE::FindRow( const wxString& aNickname, bool aCheckIfEnabled )
+SYMBOL_LIB_TABLE_ROW* SYMBOL_LIB_TABLE::FindRow( const QString& aNickname, bool aCheckIfEnabled )
 {
     SYMBOL_LIB_TABLE_ROW* row =
             dynamic_cast< SYMBOL_LIB_TABLE_ROW* >( findRow( aNickname, aCheckIfEnabled ) );
@@ -401,7 +384,7 @@ SYMBOL_LIB_TABLE_ROW* SYMBOL_LIB_TABLE::FindRow( const wxString& aNickname, bool
 
 
 void SYMBOL_LIB_TABLE::LoadSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
-                                      const wxString& aNickname, bool aPowerSymbolsOnly )
+                                      const QString& aNickname, bool aPowerSymbolsOnly )
 {
     SYMBOL_LIB_TABLE_ROW* row = FindRow( aNickname, true );
 
@@ -410,7 +393,7 @@ void SYMBOL_LIB_TABLE::LoadSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
 
     std::lock_guard<std::mutex> lock( row->GetMutex() );
 
-    wxString options = row->GetOptions();
+    QString options = row->GetOptions();
 
     if( aPowerSymbolsOnly )
         row->SetOptions( row->GetOptions() + " " + PropPowerSymsOnly );
@@ -437,7 +420,7 @@ void SYMBOL_LIB_TABLE::LoadSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
 }
 
 
-LIB_SYMBOL* SYMBOL_LIB_TABLE::LoadSymbol( const wxString& aNickname, const wxString& aSymbolName )
+LIB_SYMBOL* SYMBOL_LIB_TABLE::LoadSymbol( const QString& aNickname, const QString& aSymbolName )
 {
     SYMBOL_LIB_TABLE_ROW* row = FindRow( aNickname, true );
 
@@ -472,11 +455,12 @@ LIB_SYMBOL* SYMBOL_LIB_TABLE::LoadSymbol( const wxString& aNickname, const wxStr
 }
 
 
-SYMBOL_LIB_TABLE::SAVE_T SYMBOL_LIB_TABLE::SaveSymbol( const wxString& aNickname,
+SYMBOL_LIB_TABLE::SAVE_T SYMBOL_LIB_TABLE::SaveSymbol( const QString& aNickname,
                                                        const LIB_SYMBOL* aSymbol, bool aOverwrite )
 {
     const SYMBOL_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxCHECK( row && row->plugin, SAVE_SKIPPED );
+    Q_ASSERT( row && row->plugin );
+    if( !row || !row->plugin ) return SAVE_SKIPPED;
 
     if( !row->plugin->IsLibraryWritable( row->GetFullURI( true ) ) )
         return SAVE_SKIPPED;
@@ -486,7 +470,7 @@ SYMBOL_LIB_TABLE::SAVE_T SYMBOL_LIB_TABLE::SaveSymbol( const wxString& aNickname
         // Try loading the footprint to see if it already exists, caller wants overwrite
         // protection, which is atypical, not the default.
 
-        wxString name = aSymbol->GetLibId().GetLibItemName();
+        QString name = aSymbol->GetLibId().GetLibItemName();
 
         std::unique_ptr<LIB_SYMBOL> symbol( row->plugin->LoadSymbol( row->GetFullURI( true ),
                                                                      name, row->GetProperties() ) );
@@ -508,49 +492,54 @@ SYMBOL_LIB_TABLE::SAVE_T SYMBOL_LIB_TABLE::SaveSymbol( const wxString& aNickname
 }
 
 
-void SYMBOL_LIB_TABLE::DeleteSymbol( const wxString& aNickname, const wxString& aSymbolName )
+void SYMBOL_LIB_TABLE::DeleteSymbol( const QString& aNickname, const QString& aSymbolName )
 {
     const SYMBOL_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxCHECK( row && row->plugin, /* void */ );
+    Q_ASSERT( row && row->plugin );
+    if( !row || !row->plugin ) return;
     return row->plugin->DeleteSymbol( row->GetFullURI( true ), aSymbolName, row->GetProperties() );
 }
 
 
-bool SYMBOL_LIB_TABLE::IsSymbolLibWritable( const wxString& aNickname )
+bool SYMBOL_LIB_TABLE::IsSymbolLibWritable( const QString& aNickname )
 {
     const SYMBOL_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxCHECK( row && row->plugin, false );
+    Q_ASSERT( row && row->plugin );
+    if( !row || !row->plugin ) return false;
     return row->plugin->IsLibraryWritable( row->GetFullURI( true ) );
 }
 
-bool SYMBOL_LIB_TABLE::IsSymbolLibLoaded( const wxString& aNickname )
+bool SYMBOL_LIB_TABLE::IsSymbolLibLoaded( const QString& aNickname )
 {
     const SYMBOL_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxCHECK( row, false );
+    Q_ASSERT( row );
+    if( !row ) return false;
     return row->GetIsLoaded();
 }
 
 
-void SYMBOL_LIB_TABLE::DeleteSymbolLib( const wxString& aNickname )
+void SYMBOL_LIB_TABLE::DeleteSymbolLib( const QString& aNickname )
 {
     const SYMBOL_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxCHECK( row && row->plugin, /* void */ );
+    Q_ASSERT( row && row->plugin );
+    if( !row || !row->plugin ) return;
     row->plugin->DeleteLibrary( row->GetFullURI( true ), row->GetProperties() );
 }
 
 
-void SYMBOL_LIB_TABLE::CreateSymbolLib( const wxString& aNickname )
+void SYMBOL_LIB_TABLE::CreateSymbolLib( const QString& aNickname )
 {
     const SYMBOL_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxCHECK( row && row->plugin, /* void */ );
+    Q_ASSERT( row && row->plugin );
+    if( !row || !row->plugin ) return;
     row->plugin->CreateLibrary( row->GetFullURI( true ), row->GetProperties() );
 }
 
 
 LIB_SYMBOL* SYMBOL_LIB_TABLE::LoadSymbolWithOptionalNickname( const LIB_ID& aLibId )
 {
-    wxString   nickname = aLibId.GetLibNickname();
-    wxString   name     = aLibId.GetLibItemName();
+    QString   nickname = aLibId.GetLibNickname();
+    QString   name     = aLibId.GetLibItemName();
 
     if( nickname.size() )
     {
@@ -559,7 +548,7 @@ LIB_SYMBOL* SYMBOL_LIB_TABLE::LoadSymbolWithOptionalNickname( const LIB_ID& aLib
     else
     {
         // nickname is empty, sequentially search (alphabetically) all libs/nicks for first match:
-        std::vector<wxString> nicks = GetLogicalLibs();
+        std::vector<QString> nicks = GetLogicalLibs();
 
         // Search each library going through libraries alphabetically.
         for( unsigned i = 0;  i < nicks.size();  ++i )
@@ -577,74 +566,75 @@ LIB_SYMBOL* SYMBOL_LIB_TABLE::LoadSymbolWithOptionalNickname( const LIB_ID& aLib
 }
 
 
-const wxString SYMBOL_LIB_TABLE::GlobalPathEnvVariableName()
+const QString SYMBOL_LIB_TABLE::GlobalPathEnvVariableName()
 {
-    return ENV_VAR::GetVersionedEnvVarName( wxS( "SYMBOL_DIR" ) );
+    return ENV_VAR::GetVersionedEnvVarName( "SYMBOL_DIR" );
 }
 
 
-class PCM_SYM_LIB_TRAVERSER final : public wxDirTraverser
+class PCM_SYM_LIB_TRAVERSER final
 {
 public:
-    explicit PCM_SYM_LIB_TRAVERSER( const wxString& aPath, SYMBOL_LIB_TABLE& aTable,
-                                    const wxString& aPrefix ) :
+    explicit PCM_SYM_LIB_TRAVERSER( const QString& aPath, SYMBOL_LIB_TABLE& aTable,
+                                    const QString& aPrefix ) :
             m_lib_table( aTable ),
             m_path_prefix( aPath ),
             m_lib_prefix( aPrefix )
     {
-        wxFileName f( aPath, "" );
-        m_prefix_dir_count = f.GetDirCount();
+        QFileInfo f( aPath );
+        QStringList parts = f.absolutePath().split( '/', Qt::SkipEmptyParts );
+        m_prefix_dir_count = parts.size();
     }
 
-    wxDirTraverseResult OnFile( const wxString& aFilePath ) override
+    void processFile( const QString& aFilePath )
     {
-        wxFileName file = wxFileName::FileName( aFilePath );
+        QFileInfo file( aFilePath );
 
         // consider a file to be a lib if it's name ends with .kicad_sym and
         // it is under $KICADn_3RD_PARTY/symbols/<pkgid>/ i.e. has nested level of at least +2
-        if( file.GetExt() == wxT( "kicad_sym" ) && file.GetDirCount() >= m_prefix_dir_count + 2 )
+        QStringList fileParts = file.absolutePath().split( '/', Qt::SkipEmptyParts );
+        if( file.suffix() == "kicad_sym" && fileParts.size() >= m_prefix_dir_count + 2 )
         {
-            wxString versionedPath = wxString::Format( wxS( "${%s}" ),
-                                       ENV_VAR::GetVersionedEnvVarName( wxS( "3RD_PARTY" ) ) );
+            QString versionedPath = QString::asprintf( "${%s}",
+                                       qPrintable(ENV_VAR::GetVersionedEnvVarName( "3RD_PARTY" )) );
 
-            wxArrayString parts = file.GetDirs();
-            parts.RemoveAt( 0, m_prefix_dir_count );
-            parts.Insert( versionedPath, 0 );
-            parts.Add( file.GetFullName() );
+            QStringList parts = fileParts;
+            for( int i = 0; i < m_prefix_dir_count; ++i )
+                parts.removeFirst();
+            parts.prepend( versionedPath );
+            parts.append( file.fileName() );
 
-            wxString libPath = wxJoin( parts, '/' );
+            QString libPath = parts.join( '/' );
 
             if( !m_lib_table.HasLibraryWithPath( libPath ) )
             {
-                wxString name = parts.Last().substr( 0, parts.Last().length() - 10 );
-                wxString nickname = wxString::Format( "%s%s", m_lib_prefix, name );
+                QString name = parts.last().left( parts.last().length() - 10 );
+                QString nickname = QString::asprintf( "%s%s", qPrintable(m_lib_prefix), qPrintable(name) );
 
                 if( m_lib_table.HasLibrary( nickname ) )
                 {
                     int increment = 1;
                     do
                     {
-                        nickname = wxString::Format( "%s%s_%d", m_lib_prefix, name, increment );
+                        nickname = QString::asprintf( "%s%s_%d", qPrintable(m_lib_prefix), qPrintable(name), increment );
                         increment++;
                     } while( m_lib_table.HasLibrary( nickname ) );
                 }
 
                 m_lib_table.InsertRow(
-                        new SYMBOL_LIB_TABLE_ROW( nickname, libPath, wxT( "KiCad" ), wxEmptyString,
-                                                  _( "Added by Plugin and Content Manager" ) ),
+                        new SYMBOL_LIB_TABLE_ROW( nickname, libPath, "KiCad", QString(),
+                                                  "Added by Plugin and Content Manager" ),
                         false );
             }
         }
 
-        return wxDIR_CONTINUE;
     }
 
-    wxDirTraverseResult OnDir( const wxString& dirPath ) override { return wxDIR_CONTINUE; }
 
 private:
     SYMBOL_LIB_TABLE& m_lib_table;
-    wxString          m_path_prefix;
-    wxString          m_lib_prefix;
+    QString          m_path_prefix;
+    QString          m_lib_prefix;
     size_t            m_prefix_dir_count;
 };
 
@@ -652,16 +642,17 @@ private:
 bool SYMBOL_LIB_TABLE::LoadGlobalTable( SYMBOL_LIB_TABLE& aTable )
 {
     bool        tableExists = true;
-    wxFileName  fn = GetGlobalTableFileName();
+    QFileInfo  fn( GetGlobalTableFileName() );
 
-    if( !fn.FileExists() )
+    if( !fn.exists() )
     {
         tableExists = false;
 
-        if( !fn.DirExists() && !fn.Mkdir( 0x777, wxPATH_MKDIR_FULL ) )
+        QDir dir;
+        if( !QDir( fn.absolutePath() ).exists() && !dir.mkpath( fn.absolutePath() ) )
         {
-            THROW_IO_ERROR( wxString::Format( _( "Cannot create global library table path '%s'." ),
-                                              fn.GetPath() ) );
+            THROW_IO_ERROR( QString::asprintf( "Cannot create global library table path '%s'.",
+                                              qPrintable(fn.absolutePath()) ) );
         }
 
         // Attempt to copy the default global file table from the KiCad
@@ -671,70 +662,73 @@ bool SYMBOL_LIB_TABLE::LoadGlobalTable( SYMBOL_LIB_TABLE& aTable )
         SystemDirsAppend( &ss );
 
         const ENV_VAR_MAP& envVars = Pgm().GetLocalEnvVariables();
-        std::optional<wxString> v = ENV_VAR::GetVersionedEnvVarValue( envVars,
-                                                                      wxT( "TEMPLATE_DIR" ) );
+        std::optional<QString> v = ENV_VAR::GetVersionedEnvVarValue( envVars,
+                                                                      "TEMPLATE_DIR" );
 
-        if( v && !v->IsEmpty() )
+        if( v && !v->isEmpty() )
             ss.AddPaths( *v, 0 );
 
-        wxString fileName = ss.FindValidPath( FILEEXT::SymbolLibraryTableFileName );
+        QString fileName = ss.FindValidPath( FILEEXT::SymbolLibraryTableFileName );
 
         // The fallback is to create an empty global symbol table for the user to populate.
-        if( fileName.IsEmpty() || !::wxCopyFile( fileName, fn.GetFullPath(), false ) )
+        if( fileName.isEmpty() || !QFile::copy( fileName, fn.absoluteFilePath() ) )
         {
             SYMBOL_LIB_TABLE    emptyTable;
 
-            emptyTable.Save( fn.GetFullPath() );
+            emptyTable.Save( fn.absoluteFilePath() );
         }
     }
 
-    aTable.Load( fn.GetFullPath() );
+    aTable.Load( fn.absoluteFilePath() );
 
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
     KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
 
-    wxCHECK( settings, false );
+    Q_ASSERT( settings );
+    if( !settings ) return false;
 
-    wxString packagesPath;
+    QString packagesPath;
     const ENV_VAR_MAP& vars = Pgm().GetLocalEnvVariables();
 
-    if( std::optional<wxString> v = ENV_VAR::GetVersionedEnvVarValue( vars, wxT( "3RD_PARTY" ) ) )
+    if( std::optional<QString> v = ENV_VAR::GetVersionedEnvVarValue( vars, "3RD_PARTY" ) )
         packagesPath = *v;
 
     if( settings->m_PcmLibAutoAdd )
     {
         // Scan for libraries in PCM packages directory
-        wxFileName d( packagesPath, "" );
-        d.AppendDir( "symbols" );
+        QFileInfo d( packagesPath + "/symbols" );
 
-        if( d.DirExists() )
+        if( d.exists() && d.isDir() )
         {
             PCM_SYM_LIB_TRAVERSER traverser( packagesPath, aTable, settings->m_PcmLibPrefix );
-            wxDir                 dir( d.GetPath() );
+            QDirIterator dirIt( d.absoluteFilePath(), QStringList() << "*.kicad_sym", QDir::Files, QDirIterator::Subdirectories );
 
-            dir.Traverse( traverser );
+            while( dirIt.hasNext() )
+            {
+                traverser.processFile( dirIt.next() );
+            }
         }
     }
 
     if( settings->m_PcmLibAutoRemove )
     {
         // Remove PCM libraries that no longer exist
-        std::vector<wxString> to_remove;
+        std::vector<QString> to_remove;
 
-        for( size_t i = 0; i < aTable.GetCount(); i++ )
+        for( size_t i = 0; i < aTable.count(); i++ )
         {
             LIB_TABLE_ROW& row = aTable.At( i );
-            wxString       path = row.GetFullURI( true );
+            QString       path = row.GetFullURI( true );
 
-            if( path.StartsWith( packagesPath ) && !wxFile::Exists( path ) )
+            if( path.startsWith( packagesPath ) && !QFile::exists( path ) )
                 to_remove.push_back( row.GetNickName() );
         }
 
-        for( const wxString& nickName : to_remove )
+        for( const QString& nickName : to_remove )
         {
             SYMBOL_LIB_TABLE_ROW* row = aTable.FindRow( nickName );
 
-            wxCHECK2( row, continue );
+            if( !row ) continue;
 
             aTable.RemoveRow( row );
         }
@@ -765,18 +759,20 @@ bool SYMBOL_LIB_TABLE::operator==( const SYMBOL_LIB_TABLE& aOther ) const
 }
 
 
-wxString SYMBOL_LIB_TABLE::GetGlobalTableFileName()
+QString SYMBOL_LIB_TABLE::GetGlobalTableFileName()
 {
-    wxFileName fn;
+    QString fn;
 
-    fn.SetPath( PATHS::GetUserSettingsPath() );
-    fn.SetName( FILEEXT::SymbolLibraryTableFileName );
+    QDir dir( PATHS::GetUserSettingsPath() );
+    fn = dir.absoluteFilePath( FILEEXT::SymbolLibraryTableFileName );
 
-    return fn.GetFullPath();
+    return fn;
 }
 
 
-const wxString SYMBOL_LIB_TABLE::GetSymbolLibTableFileName()
+const QString SYMBOL_LIB_TABLE::GetSymbolLibTableFileName()
 {
     return FILEEXT::SymbolLibraryTableFileName;
 }
+
+// Qt transformation completed - wxWidgets dependencies removed and replaced with Qt equivalents

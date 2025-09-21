@@ -25,6 +25,9 @@
  */
 
 
+#include <QString>
+#include <QDebug>
+
 #include <trigo.h>
 #include <bitmap_base.h>
 #include <connection_graph.h>
@@ -451,7 +454,7 @@ COLOR4D SCH_PAINTER::getRenderColor( const SCH_ITEM* aItem, int aLayer, bool aDr
 float SCH_PAINTER::getLineWidth( const SCH_ITEM* aItem, bool aDrawingShadows,
                                  bool aDrawingWireColorHighlights ) const
 {
-    wxCHECK( aItem, static_cast<float>( schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ) ) );
+    Q_ASSERT( aItem ); if( !aItem ) return static_cast<float>( schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ) );
 
     int   pen = aItem->GetEffectivePenWidth( &m_schSettings );
     float width = pen;
@@ -538,7 +541,7 @@ static bool isFieldsLayer( int aLayer )
 }
 
 
-static BOX2I GetTextExtents( const wxString& aText, const VECTOR2D& aPosition, KIFONT::FONT& aFont,
+static BOX2I GetTextExtents( const QString& aText, const VECTOR2D& aPosition, KIFONT::FONT& aFont,
                              const TEXT_ATTRIBUTES& aAttrs, const KIFONT::METRICS& aFontMetrics )
 {
     const VECTOR2I extents =
@@ -551,7 +554,7 @@ static BOX2I GetTextExtents( const wxString& aText, const VECTOR2D& aPosition, K
     case GR_TEXT_H_ALIGN_LEFT: break;
     case GR_TEXT_H_ALIGN_CENTER: box.SetX( box.GetX() - box.GetWidth() / 2 ); break;
     case GR_TEXT_H_ALIGN_RIGHT: box.SetX( box.GetX() - box.GetWidth() ); break;
-    case GR_TEXT_H_ALIGN_INDETERMINATE: wxFAIL_MSG( wxT( "Legal only in dialogs" ) ); break;
+    case GR_TEXT_H_ALIGN_INDETERMINATE: Q_ASSERT_X( false, "GetTextExtents", "Legal only in dialogs" ); break;
     }
 
     switch( aAttrs.m_Valign )
@@ -559,7 +562,7 @@ static BOX2I GetTextExtents( const wxString& aText, const VECTOR2D& aPosition, K
     case GR_TEXT_V_ALIGN_TOP: break;
     case GR_TEXT_V_ALIGN_CENTER: box.SetY( box.GetY() - box.GetHeight() / 2 ); break;
     case GR_TEXT_V_ALIGN_BOTTOM: box.SetY( box.GetY() - box.GetHeight() ); break;
-    case GR_TEXT_V_ALIGN_INDETERMINATE: wxFAIL_MSG( wxT( "Legal only in dialogs" ) ); break;
+    case GR_TEXT_V_ALIGN_INDETERMINATE: Q_ASSERT_X( false, "GetTextExtents", "Legal only in dialogs" ); break;
     }
 
     box.Normalize(); // Make h and v sizes always >= 0
@@ -569,7 +572,7 @@ static BOX2I GetTextExtents( const wxString& aText, const VECTOR2D& aPosition, K
 }
 
 
-static void strokeText( KIGFX::GAL& aGal, const wxString& aText, const VECTOR2D& aPosition,
+static void strokeText( KIGFX::GAL& aGal, const QString& aText, const VECTOR2D& aPosition,
                         const TEXT_ATTRIBUTES& aAttrs, const KIFONT::METRICS& aFontMetrics )
 {
     KIFONT::FONT* font = aAttrs.m_Font;
@@ -587,7 +590,7 @@ static void strokeText( KIGFX::GAL& aGal, const wxString& aText, const VECTOR2D&
 }
 
 
-static void bitmapText( KIGFX::GAL& aGal, const wxString& aText, const VECTOR2D& aPosition,
+static void bitmapText( KIGFX::GAL& aGal, const QString& aText, const VECTOR2D& aPosition,
                         const TEXT_ATTRIBUTES& aAttrs )
 {
     // Bitmap font has different metrics from the stroke font so we compensate a bit before
@@ -602,7 +605,7 @@ static void bitmapText( KIGFX::GAL& aGal, const wxString& aText, const VECTOR2D&
 }
 
 
-static void knockoutText( KIGFX::GAL& aGal, const wxString& aText, const VECTOR2D& aPosition,
+static void knockoutText( KIGFX::GAL& aGal, const QString& aText, const VECTOR2D& aPosition,
                           const TEXT_ATTRIBUTES& aAttrs, const KIFONT::METRICS& aFontMetrics )
 {
     TEXT_ATTRIBUTES attrs( aAttrs );
@@ -648,7 +651,7 @@ static void knockoutText( KIGFX::GAL& aGal, const wxString& aText, const VECTOR2
 }
 
 
-static void boxText( KIGFX::GAL& aGal, const wxString& aText, const VECTOR2D& aPosition,
+static void boxText( KIGFX::GAL& aGal, const QString& aText, const VECTOR2D& aPosition,
                      const TEXT_ATTRIBUTES& aAttrs, const KIFONT::METRICS& aFontMetrics )
 {
     KIFONT::FONT* font = aAttrs.m_Font;
@@ -1659,7 +1662,7 @@ void SCH_PAINTER::draw( const SCH_TEXT* aText, int aLayer, bool aDimmed )
     m_gal->SetStrokeColor( color );
     m_gal->SetFillColor( color );
 
-    wxString        shownText( aText->GetShownText( true ) );
+    QString        shownText( aText->GetShownText( true ) );
     VECTOR2I        text_offset = aText->GetSchematicTextOffset( &m_schSettings );
     TEXT_ATTRIBUTES attrs = aText->GetAttributes();
     KIFONT::FONT*   font = getFont( aText );
@@ -1710,7 +1713,7 @@ void SCH_PAINTER::draw( const SCH_TEXT* aText, int aLayer, bool aDimmed )
                 pos.y = bBox.GetTop() - shadowOffset;
                 break;
             case GR_TEXT_H_ALIGN_INDETERMINATE:
-                wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+                Q_ASSERT_X( false, "SCH_PAINTER::draw", "Indeterminate state legal only in dialogs." );
                 break;
             }
         }
@@ -1728,7 +1731,7 @@ void SCH_PAINTER::draw( const SCH_TEXT* aText, int aLayer, bool aDimmed )
                 pos.x = bBox.GetRight() + shadowOffset;
                 break;
             case GR_TEXT_H_ALIGN_INDETERMINATE:
-                wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+                Q_ASSERT_X( false, "SCH_PAINTER::draw", "Indeterminate state legal only in dialogs." );
                 break;
             }
         }
@@ -1787,7 +1790,7 @@ void SCH_PAINTER::draw( const SCH_TEXT* aText, int aLayer, bool aDimmed )
 
         if( nonCached( aText )
                 && aText->RenderAsBitmap( m_gal->GetWorldScale() )
-                && !shownText.Contains( wxT( "\n" ) ) )
+                && !shownText.contains( "\n" ) )
         {
             bitmapText( *m_gal, shownText, aText->GetDrawPos() + text_offset, attrs );
             const_cast<SCH_TEXT*>( aText )->SetFlags( IS_SHOWN_AS_BITMAP );
@@ -1878,7 +1881,7 @@ void SCH_PAINTER::draw( const SCH_TEXTBOX* aTextBox, int aLayer, bool aDimmed )
     auto drawText =
             [&]()
             {
-                wxString        shownText = aTextBox->GetShownText( true );
+                QString        shownText = aTextBox->GetShownText( true );
                 TEXT_ATTRIBUTES attrs = aTextBox->GetAttributes();
 
                 attrs.m_Angle = aTextBox->GetDrawRotation();
@@ -2049,11 +2052,11 @@ void SCH_PAINTER::draw( const SCH_TABLE* aTable, int aLayer, bool aDimmed )
 }
 
 
-wxString SCH_PAINTER::expandLibItemTextVars( const wxString& aSourceText,
+QString SCH_PAINTER::expandLibItemTextVars( const QString& aSourceText,
                                              const SCH_SYMBOL* aSymbolContext )
 {
-    std::function<bool( wxString* )> symbolResolver =
-            [&]( wxString* token ) -> bool
+    std::function<bool( QString* )> symbolResolver =
+            [&]( QString* token ) -> bool
             {
                 if( !m_schematic )
                     return false;
@@ -2268,7 +2271,7 @@ void SCH_PAINTER::draw( const SCH_FIELD* aField, int aLayer, bool aDimmed )
             return;
     }
 
-    wxString shownText = aField->GetShownText( true );
+    QString shownText = aField->GetShownText( true );
 
     if( shownText.IsEmpty() )
         return;

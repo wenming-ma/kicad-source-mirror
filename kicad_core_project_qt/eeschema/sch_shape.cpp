@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <sch_draw_panel.h>
 #include <macros.h>
@@ -299,7 +276,7 @@ void SCH_SHAPE::PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit
     if( IsPrivate() )
         return;
 
-    wxDC*    DC = aSettings->GetPrintDC();
+    QPainter* painter = aSettings->GetPainter();
     COLOR4D  color;
 
     static std::vector<VECTOR2I> ptList;
@@ -329,23 +306,23 @@ void SCH_SHAPE::PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit
         switch( GetShape() )
         {
         case SHAPE_T::ARC:
-            GRFilledArc( DC, GetEnd(), GetStart(), getCenter(), 0, color, color );
+            GRFilledArc( painter, GetEnd(), GetStart(), getCenter(), 0, color, color );
             break;
 
         case SHAPE_T::CIRCLE:
-            GRFilledCircle( DC, GetStart(), GetRadius(), 0, color, color );
+            GRFilledCircle( painter, GetStart(), GetRadius(), 0, color, color );
             break;
 
         case SHAPE_T::RECTANGLE:
-            GRFilledRect( DC, GetStart(), GetEnd(), 0, color, color );
+            GRFilledRect( painter, GetStart(), GetEnd(), 0, color, color );
             break;
 
         case SHAPE_T::POLY:
-            GRPoly( DC, (int) ptList.size(), ptList.data(), true, 0, color, color );
+            GRPoly( painter, (int) ptList.size(), ptList.data(), true, 0, color, color );
             break;
 
         case SHAPE_T::BEZIER:
-            GRPoly( DC, (int) ptList.size(), ptList.data(), true, 0, color, color );
+            GRPoly( painter, (int) ptList.size(), ptList.data(), true, 0, color, color );
             break;
 
         default:
@@ -362,7 +339,7 @@ void SCH_SHAPE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
         return;
 
     int      penWidth = GetEffectivePenWidth( aSettings );
-    wxDC*    DC = aSettings->GetPrintDC();
+    QPainter* painter = aSettings->GetPainter();
     COLOR4D  color = GetStroke().GetColor();
     COLOR4D  bg = aSettings->GetBackgroundColor();
 
@@ -443,15 +420,15 @@ void SCH_SHAPE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
         switch( GetShape() )
         {
         case SHAPE_T::ARC:
-            GRFilledArc( DC, end, start, center, 0, fillColor, fillColor );
+            GRFilledArc( painter, end, start, center, 0, fillColor, fillColor );
             break;
 
         case SHAPE_T::CIRCLE:
-            GRFilledCircle( DC, start, GetRadius(), 0, fillColor, fillColor );
+            GRFilledCircle( painter, start, GetRadius(), 0, fillColor, fillColor );
             break;
 
         case SHAPE_T::RECTANGLE:
-            GRFilledRect( DC, start, end, 0, fillColor, fillColor );
+            GRFilledRect( painter, start, end, 0, fillColor, fillColor );
             break;
 
         case SHAPE_T::POLY:
@@ -476,23 +453,23 @@ void SCH_SHAPE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
             switch( GetShape() )
             {
             case SHAPE_T::ARC:
-                GRArc( DC, end, start, center, penWidth, color );
+                GRArc( painter, end, start, center, penWidth, color );
                 break;
 
             case SHAPE_T::CIRCLE:
-                GRCircle( DC, start, GetRadius(), penWidth, color );
+                GRCircle( painter, start, GetRadius(), penWidth, color );
                 break;
 
             case SHAPE_T::RECTANGLE:
-                GRRect( DC, start, end, penWidth, color );
+                GRRect( painter, start, end, penWidth, color );
                 break;
 
             case SHAPE_T::POLY:
-                GRPoly( DC, (int) ptList.size(), ptList.data(), false, penWidth, color, color );
+                GRPoly( painter, (int) ptList.size(), ptList.data(), false, penWidth, color, color );
                 break;
 
             case SHAPE_T::BEZIER:
-                GRPoly( DC, (int) ptList.size(), ptList.data(), false, penWidth, color, color );
+                GRPoly( painter, (int) ptList.size(), ptList.data(), false, penWidth, color, color );
                 break;
 
             default:
@@ -510,7 +487,7 @@ void SCH_SHAPE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
                         {
                             VECTOR2I ptA = aSettings->TransformCoordinate( a ) + aOffset;
                             VECTOR2I ptB = aSettings->TransformCoordinate( b ) + aOffset;
-                            GRLine( DC, ptA.x, ptA.y, ptB.x, ptB.y, penWidth, color );
+                            GRLine( painter, ptA.x, ptA.y, ptB.x, ptB.y, penWidth, color );
                         } );
             }
 
@@ -532,34 +509,34 @@ void SCH_SHAPE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
 }
 
 
-wxString SCH_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_SHAPE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     switch( GetShape() )
     {
     case SHAPE_T::ARC:
-        return wxString::Format( _( "Arc, radius %s" ),
-                                 aUnitsProvider->MessageTextFromValue( GetRadius() ) );
+        return QString::asprintf( "Arc, radius %s",
+                                 aUnitsProvider->MessageTextFromValue( GetRadius() ).toStdString().c_str() );
 
     case SHAPE_T::CIRCLE:
-        return wxString::Format( _( "Circle, radius %s" ),
-                                 aUnitsProvider->MessageTextFromValue( GetRadius() ) );
+        return QString::asprintf( "Circle, radius %s",
+                                 aUnitsProvider->MessageTextFromValue( GetRadius() ).toStdString().c_str() );
 
     case SHAPE_T::RECTANGLE:
-        return wxString::Format( _( "Rectangle, width %s height %s" ),
-                                 aUnitsProvider->MessageTextFromValue( std::abs( m_start.x - m_end.x ) ),
-                                 aUnitsProvider->MessageTextFromValue( std::abs( m_start.y - m_end.y ) ) );
+        return QString::asprintf( "Rectangle, width %s height %s",
+                                 aUnitsProvider->MessageTextFromValue( std::abs( m_start.x - m_end.x ) ).toStdString().c_str(),
+                                 aUnitsProvider->MessageTextFromValue( std::abs( m_start.y - m_end.y ) ).toStdString().c_str() );
 
     case SHAPE_T::POLY:
-        return wxString::Format( _( "Polyline, %d points" ),
+        return QString::asprintf( "Polyline, %d points",
                                  int( m_poly.Outline( 0 ).GetPointCount() ) );
 
     case SHAPE_T::BEZIER:
-        return wxString::Format( _( "Bezier Curve, %d points" ),
+        return QString::asprintf( "Bezier Curve, %d points",
                                  int( m_bezierPoints.size() ) );
 
     default:
         UNIMPLEMENTED_FOR( SHAPE_T_asString() );
-        return wxEmptyString;
+        return QString();
     }
 }
 
@@ -697,10 +674,10 @@ static struct SCH_SHAPE_DESC
 
         if( fillEnum.Choices().GetCount() == 0 )
         {
-            fillEnum.Map( FILL_T::NO_FILL, _HKI( "None" ) )
-                    .Map( FILL_T::FILLED_SHAPE, _HKI( "Body outline color" ) )
-                    .Map( FILL_T::FILLED_WITH_BG_BODYCOLOR, _HKI( "Body background color" ) )
-                    .Map( FILL_T::FILLED_WITH_COLOR, _HKI( "Fill color" ) );
+            fillEnum.Map( FILL_T::NO_FILL, "None" )
+                    .Map( FILL_T::FILLED_SHAPE, "Body outline color" )
+                    .Map( FILL_T::FILLED_WITH_BG_BODYCOLOR, "Body background color" )
+                    .Map( FILL_T::FILLED_WITH_COLOR, "Fill color" );
         }
 
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
@@ -754,22 +731,22 @@ static struct SCH_SHAPE_DESC
                 };
 
         propMgr.OverrideAvailability( TYPE_HASH( SCH_SHAPE ), TYPE_HASH( SCH_ITEM ),
-                                      _HKI( "Position X" ), isPolygon );
+                                      "Position X", isPolygon );
         propMgr.OverrideAvailability( TYPE_HASH( SCH_SHAPE ), TYPE_HASH( SCH_ITEM ),
-                                      _HKI( "Position Y" ), isPolygon );
+                                      "Position Y", isPolygon );
 
         propMgr.OverrideAvailability( TYPE_HASH( SCH_SHAPE ), TYPE_HASH( EDA_SHAPE ),
-                                      _HKI( "Filled" ), isSchematicItem );
+                                      "Filled", isSchematicItem );
 
         propMgr.OverrideWriteability( TYPE_HASH( SCH_SHAPE ), TYPE_HASH( EDA_SHAPE ),
-                                      _HKI( "Fill Color" ), isFillColorEditable );
+                                      "Fill Color", isFillColorEditable );
 
         void ( SCH_SHAPE::*fillModeSetter )( FILL_T ) = &SCH_SHAPE::SetFillMode;
         FILL_T ( SCH_SHAPE::*fillModeGetter )() const = &SCH_SHAPE::GetFillMode;
 
-        propMgr.AddProperty( new PROPERTY_ENUM<SCH_SHAPE, FILL_T>( _HKI( "Fill" ),
+        propMgr.AddProperty( new PROPERTY_ENUM<SCH_SHAPE, FILL_T>( "Fill",
                         fillModeSetter, fillModeGetter ),
-                        _HKI( "Shape Properties" ) )
+                        "Shape Properties" )
                 .SetAvailableFunc( isSymbolItem );
     }
 } _SCH_SHAPE_DESC;

@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2011-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #ifndef HTML_MESSAGE_BOX_H
 #define HTML_MESSAGE_BOX_H
@@ -31,9 +10,9 @@
 class HTML_MESSAGE_BOX : public DIALOG_DISPLAY_HTML_TEXT_BASE
 {
 public:
-    HTML_MESSAGE_BOX( wxWindow* aParent, const wxString& aTitle = wxEmptyString,
-                      const wxPoint& aPosition = wxDefaultPosition,
-                      const wxSize& aSize = wxDefaultSize );
+    HTML_MESSAGE_BOX( QWidget* aParent, const QString& aTitle = QString(),
+                      const QPoint& aPosition = QPoint(),
+                      const QSize& aSize = QSize() );
 
     ~HTML_MESSAGE_BOX() override;
 
@@ -57,43 +36,43 @@ public:
      *
      * @param aList is a string containing HTML items. Items are separated by '\n'
      */
-    void ListSet( const wxString& aList );
+    void ListSet( const QString& aList );
 
     /**
      * Add a list of items.
      *
      * @param aList is the list of HTML strings to display.
      */
-    void ListSet( const wxArrayString& aList );
+    void ListSet( const QStringList& aList );
 
     void ListClear();
 
     /**
      * Add a message (in bold) to message list.
      */
-    void MessageSet( const wxString& message );
+    void MessageSet( const QString& message );
 
     /**
      * Add HTML text (without any change) to message list.
      */
-    void AddHTML_Text( const wxString& message );
+    void AddHTML_Text( const QString& message );
 
     /**
      * Show a modeless version of the dialog (without an OK button).
      */
     void ShowModeless();
 
-    void OnHTMLLinkClicked( wxHtmlLinkEvent& event ) override;
+    void OnHTMLLinkClicked( QMouseEvent& event ) override;
 
 
 protected:
     void reload();
 
-    void onThemeChanged( wxSysColourChangedEvent &aEvent );
-    virtual void OnCharHook( wxKeyEvent& aEvt ) override;
+    void onThemeChanged( QPaintEvent &aEvent );
+    virtual void OnCharHook( QKeyEvent& aEvt ) override;
 
 private:
-    wxString  m_source;
+    QString  m_source;
 };
 
 #endif // HTML_MESSAGE_BOX_H

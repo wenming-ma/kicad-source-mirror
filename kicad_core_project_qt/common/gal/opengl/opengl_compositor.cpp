@@ -1,34 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @file opengl_compositor.cpp
- * @brief Class that handles multitarget rendering (i.e. to different textures/surfaces) and
- * later compositing into a single image (OpenGL flavour).
- */
 
 #include <gal/opengl/opengl_compositor.h>
 #include <gal/opengl/utils.h>
@@ -38,8 +8,8 @@
 #include <cassert>
 #include <memory>
 #include <stdexcept>
-#include <wx/log.h>
-#include <wx/debug.h>
+#include <QtCore/QDebug>
+#include <QtCore/QLoggingCategory>
 
 using namespace KIGFX;
 
@@ -65,8 +35,7 @@ OPENGL_COMPOSITOR::~OPENGL_COMPOSITOR()
         }
         catch( const std::runtime_error& exc )
         {
-            wxLogError( wxT( "Run time exception `%s` occurred in OPENGL_COMPOSITOR destructor." ),
-                        exc.what() );
+            qCritical() << "Run time exception" << exc.what() << "occurred in OPENGL_COMPOSITOR destructor.";
         }
     }
 }
@@ -263,15 +232,15 @@ unsigned int OPENGL_COMPOSITOR::CreateBuffer( VECTOR2I aDimensions )
 
 GLenum OPENGL_COMPOSITOR::GetBufferTexture( unsigned int aBufferHandle )
 {
-    wxASSERT( aBufferHandle > 0 && aBufferHandle <= usedBuffers() );
+    Q_ASSERT( aBufferHandle > 0 && aBufferHandle <= usedBuffers() );
     return m_buffers[aBufferHandle - 1].textureTarget;
 }
 
 
 void OPENGL_COMPOSITOR::SetBuffer( unsigned int aBufferHandle )
 {
-    wxASSERT( m_initialized );
-    wxASSERT( aBufferHandle <= usedBuffers() );
+    Q_ASSERT( m_initialized );
+    Q_ASSERT( aBufferHandle <= usedBuffers() );
 
     // Either unbind the FBO for direct rendering, or bind the one with target textures
     bindFb( aBufferHandle == DIRECT_RENDERING ? DIRECT_RENDERING : m_mainFbo );
@@ -295,7 +264,7 @@ void OPENGL_COMPOSITOR::SetBuffer( unsigned int aBufferHandle )
 
 void OPENGL_COMPOSITOR::ClearBuffer( const COLOR4D& aColor )
 {
-    wxASSERT( m_initialized );
+    Q_ASSERT( m_initialized );
 
     glClearColor( aColor.r, aColor.g, aColor.b, m_curFbo == DIRECT_RENDERING ? 1.0f : 0.0f );
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT );
@@ -305,8 +274,8 @@ void OPENGL_COMPOSITOR::ClearBuffer( const COLOR4D& aColor )
 VECTOR2I OPENGL_COMPOSITOR::GetScreenSize() const
 {
     typedef VECTOR2I::coord_type coord_t;
-    wxASSERT( m_width <= static_cast<unsigned int>( std::numeric_limits<coord_t>::max() ) );
-    wxASSERT( m_height <= static_cast<unsigned int>( std::numeric_limits<coord_t>::max() ) );
+    Q_ASSERT( m_width <= static_cast<unsigned int>( std::numeric_limits<coord_t>::max() ) );
+    Q_ASSERT( m_height <= static_cast<unsigned int>( std::numeric_limits<coord_t>::max() ) );
 
     return { static_cast<coord_t>( m_width ), static_cast<coord_t>( m_height ) };
 }
@@ -326,9 +295,9 @@ void OPENGL_COMPOSITOR::DrawBuffer( unsigned int aBufferHandle )
 
 void OPENGL_COMPOSITOR::DrawBuffer( unsigned int aSourceHandle, unsigned int aDestHandle )
 {
-    wxASSERT( m_initialized );
-    wxASSERT( aSourceHandle != 0 && aSourceHandle <= usedBuffers() );
-    wxASSERT( aDestHandle <= usedBuffers() );
+    Q_ASSERT( m_initialized );
+    Q_ASSERT( aSourceHandle != 0 && aSourceHandle <= usedBuffers() );
+    Q_ASSERT( aDestHandle <= usedBuffers() );
 
     // Switch to the destination buffer and blit the scene
     SetBuffer( aDestHandle );
@@ -380,7 +349,7 @@ void OPENGL_COMPOSITOR::Present()
 void OPENGL_COMPOSITOR::bindFb( unsigned int aFb )
 {
     // Currently there are only 2 valid FBOs
-    wxASSERT( aFb == DIRECT_RENDERING || aFb == m_mainFbo );
+    Q_ASSERT( aFb == DIRECT_RENDERING || aFb == m_mainFbo );
 
     if( m_curFbo != aFb )
     {
@@ -393,7 +362,7 @@ void OPENGL_COMPOSITOR::bindFb( unsigned int aFb )
 
 void OPENGL_COMPOSITOR::clean()
 {
-    wxASSERT( m_initialized );
+    Q_ASSERT( m_initialized );
 
     bindFb( DIRECT_RENDERING );
 

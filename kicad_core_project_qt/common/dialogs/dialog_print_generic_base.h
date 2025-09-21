@@ -1,34 +1,29 @@
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
-// http://www.wxformbuilder.org/
-//
-// PLEASE DO *NOT* EDIT THIS FILE!
+// C++ code generated for Qt framework
+// Transformed from wxWidgets to Qt
 ///////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
-#include <wx/artprov.h>
-#include <wx/xrc/xmlres.h>
-#include <wx/intl.h>
+#include <QtWidgets/QDialog>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QGridLayout>
+#include <QtWidgets/QGroupBox>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QComboBox>
+#include <QtWidgets/QCheckBox>
+#include <QtWidgets/QRadioButton>
+#include <QtWidgets/QLineEdit>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QDialogButtonBox>
+#include <QtCore/QString>
+#include <QtGui/QFont>
+#include <QtGui/QColor>
+#include <QtGui/QPixmap>
+#include <QtGui/QIcon>
 #include "dialog_shim.h"
-#include <wx/string.h>
-#include <wx/stattext.h>
-#include <wx/gdicmn.h>
-#include <wx/font.h>
-#include <wx/colour.h>
-#include <wx/settings.h>
-#include <wx/choice.h>
-#include <wx/checkbox.h>
-#include <wx/gbsizer.h>
-#include <wx/sizer.h>
-#include <wx/statbox.h>
-#include <wx/radiobut.h>
-#include <wx/textctrl.h>
-#include <wx/button.h>
-#include <wx/bitmap.h>
-#include <wx/image.h>
-#include <wx/icon.h>
-#include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -42,39 +37,39 @@ class DIALOG_PRINT_GENERIC_BASE : public DIALOG_SHIM
 	protected:
 		enum
 		{
-			wxID_FRAME_SEL = 8200,
-			wxID_PRINT_OPTIONS,
+			ID_FRAME_SEL = 8200,
+			ID_PRINT_OPTIONS,
 		};
 
-		wxBoxSizer* m_bUpperSizer;
-		wxStaticBoxSizer* m_sbOptionsSizer;
-		wxGridBagSizer* m_gbOptionsSizer;
-		wxStaticText* m_outputModeLabel;
-		wxChoice* m_outputMode;
-		wxCheckBox* m_titleBlock;
-		wxRadioButton* m_scale1;
-		wxRadioButton* m_scaleFit;
-		wxRadioButton* m_scaleCustom;
-		wxTextCtrl* m_scaleCustomText;
-		wxStaticText* m_infoText;
-		wxButton* m_buttonOption;
-		wxStdDialogButtonSizer* m_sdbSizer1;
-		wxButton* m_sdbSizer1OK;
-		wxButton* m_sdbSizer1Apply;
-		wxButton* m_sdbSizer1Cancel;
+		QVBoxLayout* m_bUpperSizer;
+		QGroupBox* m_sbOptionsSizer;
+		QGridLayout* m_gbOptionsSizer;
+		QLabel* m_outputModeLabel;
+		QComboBox* m_outputMode;
+		QCheckBox* m_titleBlock;
+		QRadioButton* m_scale1;
+		QRadioButton* m_scaleFit;
+		QRadioButton* m_scaleCustom;
+		QLineEdit* m_scaleCustomText;
+		QLabel* m_infoText;
+		QPushButton* m_buttonOption;
+		QDialogButtonBox* m_sdbSizer1;
+		QPushButton* m_sdbSizer1OK;
+		QPushButton* m_sdbSizer1Apply;
+		QPushButton* m_sdbSizer1Cancel;
 
 		// Virtual event handlers, override them in your derived class
-		virtual void onClose( wxCloseEvent& event ) { event.Skip(); }
-		virtual void onSetCustomScale( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onPageSetup( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onPrintPreview( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onCancelButtonClick( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onPrintButtonClick( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onClose( QCloseEvent* event ) { event->accept(); }
+		virtual void onSetCustomScale() { }
+		virtual void onPageSetup() { }
+		virtual void onPrintPreview() { }
+		virtual void onCancelButtonClick() { }
+		virtual void onPrintButtonClick() { }
 
 
 	public:
 
-		DIALOG_PRINT_GENERIC_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Print"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+		DIALOG_PRINT_GENERIC_BASE( QWidget* parent = nullptr, int id = -1, const QString& title = "Print", const QPoint& pos = QPoint(), const QSize& size = QSize( -1,-1 ), Qt::WindowFlags style = Qt::Dialog );
 
 		~DIALOG_PRINT_GENERIC_BASE();
 

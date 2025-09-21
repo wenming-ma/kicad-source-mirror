@@ -1,37 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2018 jean-pierre Charras <jp.charras at wanadoo.fr>
- * Copyright (C) 1992-2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @file sch_reference_list.cpp
- * @brief functions to create a symbol flat list and to annotate schematic.
- */
 
 #include <sch_reference_list.h>
 #include <core/kicad_algo.h>
 
-#include <wx/regex.h>
+#include <QRegularExpression>
 #include <algorithm>
 #include <vector>
 #include <unordered_set>
@@ -155,7 +127,7 @@ bool SCH_REFERENCE_LIST::sortByTimeStamp( const SCH_REFERENCE& item1,
 }
 
 
-int SCH_REFERENCE_LIST::FindRefByFullPath( const wxString& aFullPath ) const
+int SCH_REFERENCE_LIST::FindRefByFullPath( const QString& aFullPath ) const
 {
     for( size_t i = 0; i < m_flatList.size(); ++i )
     {
@@ -167,7 +139,7 @@ int SCH_REFERENCE_LIST::FindRefByFullPath( const wxString& aFullPath ) const
 }
 
 
-int SCH_REFERENCE_LIST::FindRef( const wxString& aRef ) const
+int SCH_REFERENCE_LIST::FindRef( const QString& aRef ) const
 {
     for( size_t i = 0; i < m_flatList.size(); ++i )
     {
@@ -340,15 +312,15 @@ int SCH_REFERENCE_LIST::createFirstFreeRefId( std::vector<int>& aIdList, int aFi
 
 
 // A helper function to build a full reference string of a SCH_REFERENCE item
-wxString buildFullReference( const SCH_REFERENCE& aItem, int aUnitNumber = -1 )
+QString buildFullReference( const SCH_REFERENCE& aItem, int aUnitNumber = -1 )
 {
-    wxString fullref;
+    QString fullref;
     fullref = aItem.GetRef() + aItem.GetRefNumber();
 
     if( aUnitNumber < 0 )
-        fullref << ".." << aItem.GetUnit();
+        fullref += ".." + QString::number(aItem.GetUnit());
     else
-        fullref << ".." << aUnitNumber;
+        fullref += ".." + QString::number(aUnitNumber);
 
     return fullref;
 }
@@ -369,7 +341,7 @@ void SCH_REFERENCE_LIST::ReannotateByOptions( ANNOTATE_ORDER_T             aSort
     for( size_t i = 0; i < GetCount(); i++ )
     {
         SCH_REFERENCE& ref = m_flatList[i];
-        wxString       refstr = ref.GetSymbol()->GetRef( &ref.GetSheetPath() );
+        QString       refstr = ref.GetSymbol()->GetRef( &ref.GetSheetPath() );
 
         // Update sheet numbers based on the reference's sheet's position within the full
         // hierarchy; we do this now before we annotate so annotation by sheet number * X
@@ -377,15 +349,14 @@ void SCH_REFERENCE_LIST::ReannotateByOptions( ANNOTATE_ORDER_T             aSort
         if( aHierarchy )
         {
             SCH_SHEET_PATH* path = aHierarchy->FindSheetForPath( &ref.GetSheetPath() );
-            wxCHECK2_MSG( path, continue,
-                          wxS( "Attempting to annotate item on sheet not part of the "
-                               "hierarchy?" ) );
+            Q_ASSERT_X( path, "ReannotateByOptions", "Attempting to annotate item on sheet not part of the hierarchy?" );
+            if( !path ) continue;
 
             ref.SetSheetNumber( path->GetVirtualPageNumber() );
         }
 
         // Never lock unassigned references
-        if( refstr[refstr.Len() - 1] == '?' )
+        if( refstr[refstr.length() - 1] == '?' )
             continue;
 
         ref.m_isNew = true; // We want to reannotate all references
@@ -464,7 +435,7 @@ void SCH_REFERENCE_LIST::Annotate( bool aUseSheetNum, int aSheetIntervalId, int 
     // therefore do not try to allocate a full reference more than once when trying
     // to keep this order of multi units.
     // inUseRefs keep trace of previously allocated references
-    std::unordered_set<wxString> inUseRefs;
+    std::unordered_set<QString> inUseRefs;
 
     for( size_t i = 0; i < aAdditionalRefs.GetCount(); i++ )
     {
@@ -546,7 +517,8 @@ void SCH_REFERENCE_LIST::Annotate( bool aUseSheetNum, int aSheetIntervalId, int 
         if( aStartAtCurrent && ref_unit.m_numRef > 0 )
             minRefId = ref_unit.m_numRef;
 
-        wxCHECK( ref_unit.GetLibPart(), /* void */ );
+        Q_ASSERT( ref_unit.GetLibPart() );
+        if( !ref_unit.GetLibPart() ) continue;
 
         // Annotation of one part per package symbols (trivial case).
         if( ref_unit.GetLibPart()->GetUnitCount() <= 1 )
@@ -606,7 +578,7 @@ void SCH_REFERENCE_LIST::Annotate( bool aUseSheetNum, int aSheetIntervalId, int 
                     if( !lockedRef.IsSameInstance( m_flatList[jj] ) )
                         continue;
 
-                    wxString ref_candidate = buildFullReference( ref_unit, lockedRef.m_unit );
+                    QString ref_candidate = buildFullReference( ref_unit, lockedRef.m_unit );
 
                     // propagate the new reference and unit selection to the "old" symbol,
                     // if this new full reference is not already used (can happens when initial
@@ -642,16 +614,16 @@ void SCH_REFERENCE_LIST::Annotate( bool aUseSheetNum, int aSheetIntervalId, int 
     // Remove aAdditionalRefs references
     m_flatList.erase( m_flatList.begin() + originalSize, m_flatList.end() );
 
-    wxASSERT( originalSize == GetCount() ); // Make sure we didn't make a mistake
+    Q_ASSERT( originalSize == GetCount() ); // Make sure we didn't make a mistake
 }
 
 
 int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
 {
     int            error = 0;
-    wxString       tmp;
-    wxString       tmp2;
-    wxString       msg;
+    QString       tmp;
+    QString       tmp2;
+    QString       msg;
 
     SortByRefAndValue();
 
@@ -667,21 +639,21 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
         if( m_flatList[ii].m_isNew )    // Not yet annotated
         {
             if( m_flatList[ii].m_numRef >= 0 )
-                tmp << m_flatList[ii].m_numRefStr;
+                tmp += m_flatList[ii].m_numRefStr;
             else
-                tmp = wxT( "?" );
+                tmp = "?";
 
             if( ( m_flatList[ii].m_unit > 0 ) && ( m_flatList[ii].m_unit < 0x7FFFFFFF )
                 && m_flatList[ii].GetLibPart()->GetUnitCount() > 1 )
             {
-                msg.Printf( _( "Item not annotated: %s%s (unit %d)" ),
-                            m_flatList[ii].GetRef(),
-                            tmp,
+                msg = QString::asprintf("Item not annotated: %s%s (unit %d)",
+                            qPrintable(m_flatList[ii].GetRef()),
+                            qPrintable(tmp),
                             m_flatList[ii].m_unit );
             }
             else
             {
-                msg.Printf( _( "Item not annotated: %s%s" ), m_flatList[ii].GetRef(), tmp );
+                msg = QString::asprintf("Item not annotated: %s%s", qPrintable(m_flatList[ii].GetRef()), qPrintable(tmp) );
             }
 
             aHandler( ERCE_UNANNOTATED, msg, &m_flatList[ii], nullptr );
@@ -695,14 +667,14 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
         if( std::max( m_flatList[ii].GetLibPart()->GetUnitCount(), 1 ) < m_flatList[ii].m_unit )
         {
             if( m_flatList[ii].m_numRef >= 0 )
-                tmp << m_flatList[ii].m_numRefStr;
+                tmp += m_flatList[ii].m_numRefStr;
             else
-                tmp = wxT( "?" );
+                tmp = "?";
 
-            msg.Printf( _( "Error: symbol %s%s%s (unit %d) exceeds units defined (%d)" ),
-                        m_flatList[ii].GetRef(),
-                        tmp,
-                        m_flatList[ii].GetSymbol()->SubReference( m_flatList[ii].GetUnit() ),
+            msg = QString::asprintf("Error: symbol %s%s%s (unit %d) exceeds units defined (%d)",
+                        qPrintable(m_flatList[ii].GetRef()),
+                        qPrintable(tmp),
+                        qPrintable(m_flatList[ii].GetSymbol()->SubReference( m_flatList[ii].GetUnit() )),
                         m_flatList[ii].m_unit,
                         m_flatList[ii].GetLibPart()->GetUnitCount() );
 
@@ -717,9 +689,9 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
 
     for( int ii = 0; ii < imax; ii++ )
     {
-        msg.Empty();
-        tmp.Empty();
-        tmp2.Empty();
+        msg.clear();
+        tmp.clear();
+        tmp2.clear();
 
         SCH_REFERENCE& first = m_flatList[ii];
         SCH_REFERENCE& second = m_flatList[ii + 1];
@@ -736,13 +708,13 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
             if( first.m_numRef >= 0 )
                 tmp << first.m_numRefStr;
             else
-                tmp = wxT( "?" );
+                tmp = "?";
 
-            msg.Printf( _( "Duplicate items %s%s%s\n" ),
-                        first.GetRef(),
-                        tmp,
-                        first.GetLibPart()->GetUnitCount() > 1 ? first.GetSymbol()->SubReference( first.GetUnit() )
-                                                               : wxString( wxT( "" ) ) );
+            msg = QString::asprintf("Duplicate items %s%s%s\n",
+                        qPrintable(first.GetRef()),
+                        qPrintable(tmp),
+                        qPrintable(first.GetLibPart()->GetUnitCount() > 1 ? first.GetSymbol()->SubReference( first.GetUnit() )
+                                                               : QString( "" )) );
 
             aHandler( ERCE_DUPLICATE_REFERENCE, msg, &first, &m_flatList[ii+1] );
             error++;
@@ -756,20 +728,20 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
             if( first.m_numRef >= 0 )
                 tmp << first.m_numRefStr;
             else
-                tmp = wxT( "?" );
+                tmp = "?";
 
             if( second.m_numRef >= 0 )
-                tmp2 << second.m_numRefStr;
+                tmp2 += second.m_numRefStr;
             else
-                tmp2 = wxT( "?" );
+                tmp2 = "?";
 
-            msg.Printf( _( "Differing unit counts for item %s%s%s and %s%s%s\n" ),
-                        first.GetRef(),
-                        tmp,
-                        first.GetSymbol()->SubReference( first.GetUnit() ),
-                        second.GetRef(),
-                        tmp2,
-                        first.GetSymbol()->SubReference( second.GetUnit() )  );
+            msg = QString::asprintf("Differing unit counts for item %s%s%s and %s%s%s\n",
+                        qPrintable(first.GetRef()),
+                        qPrintable(tmp),
+                        qPrintable(first.GetSymbol()->SubReference( first.GetUnit() )),
+                        qPrintable(second.GetRef()),
+                        qPrintable(tmp2),
+                        qPrintable(first.GetSymbol()->SubReference( second.GetUnit() ))  );
 
             aHandler( ERCE_DUPLICATE_REFERENCE, msg, &first, &second );
             error++;
@@ -779,15 +751,15 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
         // Error if values are different between units, for the same reference
         if( first.CompareValue( second ) != 0 )
         {
-            msg.Printf( _( "Different values for %s%d%s (%s) and %s%d%s (%s)" ),
-                        first.GetRef(),
+            msg = QString::asprintf("Different values for %s%d%s (%s) and %s%d%s (%s)",
+                        qPrintable(first.GetRef()),
                         first.m_numRef,
-                        first.GetSymbol()->SubReference( first.GetUnit() ),
-                        first.m_value,
-                        second.GetRef(),
+                        qPrintable(first.GetSymbol()->SubReference( first.GetUnit() )),
+                        qPrintable(first.m_value),
+                        qPrintable(second.GetRef()),
                         second.m_numRef,
-                        first.GetSymbol()->SubReference( second.GetUnit() ),
-                        second.m_value );
+                        qPrintable(first.GetSymbol()->SubReference( second.GetUnit() )),
+                        qPrintable(second.m_value) );
 
             aHandler( ERCE_DIFFERENT_UNIT_VALUE, msg, &first, &second );
             error++;
@@ -800,7 +772,7 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
 
 SCH_REFERENCE::SCH_REFERENCE( SCH_SYMBOL* aSymbol, const SCH_SHEET_PATH& aSheetPath )
 {
-    wxASSERT( aSymbol != nullptr );
+    Q_ASSERT( aSymbol != nullptr );
 
     m_rootSymbol = aSymbol;
     m_unit       = aSymbol->GetUnitSelection( &aSheetPath );
@@ -812,16 +784,16 @@ SCH_REFERENCE::SCH_REFERENCE( SCH_SYMBOL* aSymbol, const SCH_SHEET_PATH& aSheetP
     m_symbolPos  = aSymbol->GetPosition();
     m_sheetNum   = 0;
 
-    if( aSymbol->GetRef( &aSheetPath ).IsEmpty() )
-        aSymbol->SetRef( &aSheetPath, wxT( "DefRef?" ) );
+    if( aSymbol->GetRef( &aSheetPath ).isEmpty() )
+        aSymbol->SetRef( &aSheetPath, "DefRef?" );
 
-    wxString ref = aSymbol->GetRef( &aSheetPath );
+    QString ref = aSymbol->GetRef( &aSheetPath );
     SetRef( ref );
 
     m_numRef = -1;
 
-    if( aSymbol->GetValue( false, &aSheetPath, false ).IsEmpty() )
-        aSymbol->SetValueFieldText( wxT( "~" ) );
+    if( aSymbol->GetValue( false, &aSheetPath, false ).isEmpty() )
+        aSymbol->SetValueFieldText( "~" );
 
     m_value = aSymbol->GetValue( false, &aSheetPath, false );
 }
@@ -842,11 +814,13 @@ void SCH_REFERENCE::Annotate()
 
 bool SCH_REFERENCE::AlwaysAnnotate() const
 {
-    wxCHECK( m_rootSymbol && m_rootSymbol->GetLibSymbolRef()
-          && !m_rootSymbol->GetRef( &m_sheetPath ).IsEmpty(), false );
+    Q_ASSERT( m_rootSymbol && m_rootSymbol->GetLibSymbolRef()
+          && !m_rootSymbol->GetRef( &m_sheetPath ).isEmpty() );
+    if( !m_rootSymbol || !m_rootSymbol->GetLibSymbolRef() || m_rootSymbol->GetRef( &m_sheetPath ).isEmpty() )
+        return false;
 
     return m_rootSymbol->GetLibSymbolRef()->IsPower()
-        || m_rootSymbol->GetRef( &m_sheetPath )[0] == wxUniChar( '#' );
+        || m_rootSymbol->GetRef( &m_sheetPath )[0] == QChar( '#' );
 }
 
 
@@ -855,7 +829,7 @@ void SCH_REFERENCE::Split()
     std::string refText = GetRefStr();
 
     m_numRef = -1;
-    m_numRefStr.Clear();
+    m_numRefStr.clear();
 
     int ll = refText.length() - 1;
 
@@ -913,16 +887,16 @@ bool SCH_REFERENCE::IsSplitNeeded()
 }
 
 
-wxString SCH_REFERENCE_LIST::Shorthand( std::vector<SCH_REFERENCE> aList,
-                                        const wxString&            refDelimiter,
-                                        const wxString&            refRangeDelimiter )
+QString SCH_REFERENCE_LIST::Shorthand( std::vector<SCH_REFERENCE> aList,
+                                        const QString&            refDelimiter,
+                                        const QString&            refRangeDelimiter )
 {
-    wxString retVal;
+    QString retVal;
     size_t   i = 0;
 
     while( i < aList.size() )
     {
-        wxString ref = aList[ i ].GetRef();
+        QString ref = aList[ i ].GetRef();
         int numRef = aList[ i ].m_numRef;
 
         size_t range = 1;
@@ -933,28 +907,28 @@ wxString SCH_REFERENCE_LIST::Shorthand( std::vector<SCH_REFERENCE> aList,
         {
             range++;
 
-            if( range == 2 && refRangeDelimiter.IsEmpty() )
+            if( range == 2 && refRangeDelimiter.isEmpty() )
                 break;
         }
 
-        if( !retVal.IsEmpty() )
-            retVal << refDelimiter;
+        if( !retVal.isEmpty() )
+            retVal += refDelimiter;
 
         if( range == 1 )
         {
-            retVal << ref << aList[ i ].GetRefNumber();
+            retVal += ref + aList[ i ].GetRefNumber();
         }
-        else if( range == 2 || refRangeDelimiter.IsEmpty() )
+        else if( range == 2 || refRangeDelimiter.isEmpty() )
         {
-            retVal << ref << aList[ i ].GetRefNumber();
-            retVal << refDelimiter;
-            retVal << ref << aList[ i + 1 ].GetRefNumber();
+            retVal += ref + aList[ i ].GetRefNumber();
+            retVal += refDelimiter;
+            retVal += ref + aList[ i + 1 ].GetRefNumber();
         }
         else
         {
-            retVal << ref << aList[ i ].GetRefNumber();
-            retVal << refRangeDelimiter;
-            retVal << ref << aList[ i + ( range - 1 ) ].GetRefNumber();
+            retVal += ref + aList[ i ].GetRefNumber();
+            retVal += refRangeDelimiter;
+            retVal += ref + aList[ i + ( range - 1 ) ].GetRefNumber();
         }
 
         i+= range;
@@ -964,14 +938,14 @@ wxString SCH_REFERENCE_LIST::Shorthand( std::vector<SCH_REFERENCE> aList,
 }
 
 
-wxString SCH_REFERENCE::formatRefStr( int aNumber ) const
+QString SCH_REFERENCE::formatRefStr( int aNumber ) const
 {
     // To avoid a risk of duplicate, for power symbols the ref number is 0nnn instead of nnn.
     // Just because sometimes only power symbols are annotated
     if( GetSymbol() && GetLibPart() && GetLibPart()->IsPower() )
-        return wxString::Format( "0%d", aNumber );
+        return QString::asprintf( "0%d", aNumber );
 
-    return wxString::Format( "%d", aNumber );
+    return QString::asprintf( "%d", aNumber );
 }
 
 

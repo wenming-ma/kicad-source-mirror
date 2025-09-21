@@ -1,32 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2009 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef _SCH_LINE_H_
 #define _SCH_LINE_H_
 
 #include <sch_item.h>
-#include <wx/pen.h>     // for wxPenStyle
+#include <QPen>     // for Qt::PenStyle
 #include <list>         // for std::list
 #include <geometry/seg.h>
 
@@ -40,7 +17,7 @@ class NETLIST_OBJECT_LIST;
 class SCH_LINE : public SCH_ITEM
 {
 public:
-    static const enum wxPenStyle PenStyle[];
+    static const enum Qt::PenStyle PenStyle[];
 
     SCH_LINE( const VECTOR2I& pos = VECTOR2I( 0, 0 ), int layer = LAYER_NOTES );
 
@@ -60,12 +37,12 @@ public:
         return aItem && SCH_LINE_T == aItem->Type();
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "SCH_LINE" );
+        return "SCH_LINE";
     }
 
-    wxString GetFriendlyName() const override;
+    QString GetFriendlyName() const override;
 
     bool IsType( const std::vector<KICAD_T>& aScanTypes ) const override
     {
@@ -283,7 +260,7 @@ public:
 
     bool CanConnect( const SCH_ITEM* aItem ) const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -317,8 +294,8 @@ public:
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
-    const wxString& GetOperatingPoint() const { return m_operatingPoint; }
-    void SetOperatingPoint( const wxString& aText ) { m_operatingPoint = aText; }
+    const QString& GetOperatingPoint() const { return m_operatingPoint; }
+    void SetOperatingPoint( const QString& aText ) { m_operatingPoint = aText; }
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override;
@@ -367,12 +344,12 @@ private:
     mutable int        m_lastResolvedWidth;
     mutable COLOR4D    m_lastResolvedColor;
 
-    wxString           m_operatingPoint;
+    QString           m_operatingPoint;
 };
 
 
 #ifndef SWIG
-DECLARE_ENUM_TO_WXANY( WIRE_STYLE );
+Q_DECLARE_METATYPE( WIRE_STYLE );
 #endif
 
 

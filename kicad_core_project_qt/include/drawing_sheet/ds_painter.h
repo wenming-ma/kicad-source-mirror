@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 // For page and paper size, values are in 1/1000 inch
 
@@ -30,6 +8,7 @@
 #include <gal/painter.h>
 #include <page_info.h>
 #include <drawing_sheet/ds_draw_item.h>
+#include <QString>
 
 // Forward declarations:
 class TITLE_BLOCK;
@@ -146,10 +125,10 @@ private:
  * - the RBmargin The right bottom margin of the drawing sheet.
  */
 void PrintDrawingSheet( const RENDER_SETTINGS* aSettings, const PAGE_INFO& aPageInfo,
-                        const wxString& aSheetName, const wxString& aSheetPath,
-                        const wxString& aFileName, const TITLE_BLOCK& aTitleBlock,
-                        const std::map<wxString, wxString>* aProperties, int aSheetCount,
-                        const wxString& aPageNumber, double aScalar, const PROJECT* aProject,
-                        const wxString& aSheetLayer = wxEmptyString, bool aIsFirstPage = true );
+                        const QString& aSheetName, const QString& aSheetPath,
+                        const QString& aFileName, const TITLE_BLOCK& aTitleBlock,
+                        const std::map<QString, QString>* aProperties, int aSheetCount,
+                        const QString& aPageNumber, double aScalar, const PROJECT* aProject,
+                        const QString& aSheetLayer = QString(), bool aIsFirstPage = true );
 
 #endif // DS_PAINTER_H

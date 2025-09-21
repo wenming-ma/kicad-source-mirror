@@ -103,7 +103,7 @@ public:
         m_symbol->GetFields( m_fields, /* aVisibleOnly */ true );
 
         // auto cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() ); // UNUSED_SYMBOL: Kiface function not available
-        // wxASSERT( cfg );
+        // Q_ASSERT( cfg );
         EESCHEMA_SETTINGS* cfg = nullptr; // Use nullptr as fallback
 
         m_allow_rejustify = false;
@@ -233,7 +233,7 @@ protected:
             case PIN_ORIENTATION::PIN_UP:    return SIDE_BOTTOM;
             case PIN_ORIENTATION::PIN_DOWN:  return SIDE_TOP;
             default:
-                wxFAIL_MSG( wxS( "Invalid pin orientation" ) );
+                Q_ASSERT_X( false, "getPinSide", "Invalid pin orientation" );
                 return SIDE_LEFT;
         }
     }
@@ -263,7 +263,11 @@ protected:
      */
     void getPossibleCollisions( std::vector<SCH_ITEM*>& aItems )
     {
-        wxCHECK_RET( m_screen, wxS( "getPossibleCollisions() with null m_screen" ) );
+        if( !m_screen )
+        {
+            Q_ASSERT_X( false, "getPossibleCollisions", "getPossibleCollisions() with null m_screen" );
+            return;
+        }
 
         BOX2I symbolBox = m_symbol->GetBodyAndPinsBoundingBox();
         std::vector<SIDE_AND_NPINS> sides = getPreferredSides();
@@ -656,7 +660,7 @@ protected:
             field_xcoord = aFieldBox.GetRight();
             break;
         default:
-            wxFAIL_MSG( wxS( "Unexpected value for SCH_FIELD::GetHorizJustify()" ) );
+            Q_ASSERT_X( false, "fieldHPlacement", "Unexpected value for SCH_FIELD::GetHorizJustify()" );
             field_xcoord = aFieldBox.Centre().x; // Most are centered
         }
 
@@ -725,7 +729,7 @@ const AUTOPLACER::SIDE AUTOPLACER::SIDE_RIGHT( 1, 0 );
 void SCH_SYMBOL::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo )
 {
     if( aAlgo == AUTOPLACE_MANUAL )
-        wxASSERT_MSG( aScreen, wxS( "A SCH_SCREEN ptr must be given for manual autoplacement" ) );
+        Q_ASSERT_X( aScreen, "AutoplaceFields", "A SCH_SCREEN ptr must be given for manual autoplacement" );
 
     AUTOPLACER autoplacer( this, aScreen );
     autoplacer.DoAutoplace( aAlgo );
@@ -734,7 +738,7 @@ void SCH_SYMBOL::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo )
     {
     case AUTOPLACE_AUTO:    m_fieldsAutoplaced = AUTOPLACE_AUTO;          break;
     case AUTOPLACE_MANUAL:  m_fieldsAutoplaced = AUTOPLACE_MANUAL;        break;
-    default:                wxFAIL_MSG( "Unknown autoplace algorithm" );  break;
+    default:                Q_ASSERT_X( false, "AutoplaceFields", "Unknown autoplace algorithm" );  break;
     }
 }
 
@@ -742,7 +746,7 @@ void SCH_SYMBOL::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo )
 void LIB_SYMBOL::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo )
 {
     if( aAlgo == AUTOPLACE_MANUAL )
-        wxFAIL_MSG( wxS( "Manual autoplacement not supported for LIB_SYMBOLs" ) );
+        Q_ASSERT_X( false, "AutoplaceFields", "Manual autoplacement not supported for LIB_SYMBOLs" );
 
     AUTOPLACER autoplacer( this, aScreen );
     autoplacer.DoAutoplace( aAlgo );
@@ -751,6 +755,6 @@ void LIB_SYMBOL::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo )
     {
     case AUTOPLACE_AUTO:    m_fieldsAutoplaced = AUTOPLACE_AUTO;          break;
     case AUTOPLACE_MANUAL:  m_fieldsAutoplaced = AUTOPLACE_MANUAL;        break;
-    default:                wxFAIL_MSG( "Unknown autoplace algorithm" );  break;
+    default:                Q_ASSERT_X( false, "AutoplaceFields", "Unknown autoplace algorithm" );  break;
     }
 }

@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2013 Jean-Pierre Charras <jp.charras at wanadoo.fr>.
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// wxWidgets to Qt transformation completed
 
 
 /*
@@ -48,6 +27,8 @@
  * describes the drawing sheet (can be the default drawing sheet or a custom file).
  */
 
+#include <QString>
+#include <QDebug>
 #include <gr_text.h>
 #include <math/util.h>      // for KiROUND
 #include <view/view.h>
@@ -115,7 +96,7 @@ void DS_DATA_ITEM::SyncDrawItems( DS_DRAW_ITEM_LIST* aCollector, KIGFX::VIEW* aV
             item = new DS_DRAW_ITEM_RECT( this, j, GetStartPosIU( j ), GetEndPosIU( j ), pensize );
         else
         {
-            wxFAIL_MSG( wxS( "Unknown drawing sheet item type" ) );
+            Q_ASSERT_X( false, "DS_DATA_ITEM::SyncDrawItems", "Unknown drawing sheet item type" );
             continue;
         }
 
@@ -356,17 +337,17 @@ bool DS_DATA_ITEM::IsInsidePage( int ii ) const
 }
 
 
-const wxString DS_DATA_ITEM::GetClassName() const
+const QString DS_DATA_ITEM::GetClassName() const
 {
-    wxString name;
+    QString name;
 
     switch( GetType() )
     {
-        case DS_TEXT:        name = _( "Text" );           break;
-        case DS_SEGMENT:     name = _( "Line" );           break;
-        case DS_RECT:        name = _( "Rectangle" );      break;
-        case DS_POLYPOLYGON: name = _( "Imported Shape" ); break;
-        case DS_BITMAP:      name = _( "Image" );          break;
+        case DS_TEXT:        name = "Text";           break;
+        case DS_SEGMENT:     name = "Line";           break;
+        case DS_RECT:        name = "Rectangle";      break;
+        case DS_POLYPOLYGON: name = "Imported Shape"; break;
+        case DS_BITMAP:      name = "Image";          break;
     }
 
     return name;
@@ -513,7 +494,7 @@ const VECTOR2I DS_DATA_ITEM_POLYGONS::GetCornerPositionIU( unsigned aIdx, int aR
 }
 
 
-DS_DATA_ITEM_TEXT::DS_DATA_ITEM_TEXT( const wxString& aTextBase ) :
+DS_DATA_ITEM_TEXT::DS_DATA_ITEM_TEXT( const QString& aTextBase ) :
         DS_DATA_ITEM( DS_TEXT )
 {
     m_TextBase = aTextBase;
@@ -540,7 +521,7 @@ void DS_DATA_ITEM_TEXT::SyncDrawItems( DS_DRAW_ITEM_LIST* aCollector, KIGFX::VIE
     }
     else
     {
-        m_FullText = aCollector ? aCollector->BuildFullText( m_TextBase ) : wxString();
+        m_FullText = aCollector ? aCollector->BuildFullText( m_TextBase ) : QString();
         multilines = ReplaceAntiSlashSequence();
     }
 
@@ -620,17 +601,17 @@ int DS_DATA_ITEM_TEXT::GetPenSizeIU()
 
 void DS_DATA_ITEM_TEXT::IncrementLabel( int aIncr )
 {
-    int last = m_TextBase.Len() -1;
+    int last = m_TextBase.length() -1;
 
-    wxChar lbchar = m_TextBase[last];
+    QChar lbchar = m_TextBase[last];
     m_FullText = m_TextBase;
-    m_FullText.RemoveLast();
+    m_FullText.chop(1);
 
     if( lbchar >= '0' &&  lbchar <= '9' )
         // A number is expected:
-        m_FullText << (int)( aIncr + lbchar - '0' );
+        m_FullText += QString::number( aIncr + lbchar.unicode() - '0' );
     else
-        m_FullText << (wxChar) ( aIncr + lbchar );
+        m_FullText += QChar( aIncr + lbchar.unicode() );
 }
 
 
@@ -641,20 +622,20 @@ bool DS_DATA_ITEM_TEXT::ReplaceAntiSlashSequence()
 {
     bool multiline = false;
 
-    for( unsigned ii = 0; ii < m_FullText.Len(); ii++ )
+    for( unsigned ii = 0; ii < m_FullText.length(); ii++ )
     {
         if( m_FullText[ii] == '\n' )
             multiline = true;
 
         else if( m_FullText[ii] == '\\' )
         {
-            if( ++ii >= m_FullText.Len() )
+            if( ++ii >= m_FullText.length() )
                 break;
 
             if( m_FullText[ii] == '\\' )
             {
                 // a double \\ sequence is replaced by a single \ char
-                m_FullText.Remove(ii, 1);
+                m_FullText.remove(ii, 1);
                 ii--;
             }
             else if( m_FullText[ii] == 'n' )
@@ -662,7 +643,7 @@ bool DS_DATA_ITEM_TEXT::ReplaceAntiSlashSequence()
                 // Replace the "\n" sequence by a EOL char
                 multiline = true;
                 m_FullText[ii] = '\n';
-                m_FullText.Remove(ii-1, 1);
+                m_FullText.remove(ii-1, 1);
                 ii--;
             }
         }

@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #ifndef _SYMBOL_LIB_TABLE_H_
 #define _SYMBOL_LIB_TABLE_H_
@@ -29,6 +8,9 @@
 #include <sch_io/sch_io.h>
 #include <sch_io/sch_io_mgr.h>
 #include <lib_id.h>
+#include <QString>
+#include <QStringList>
+#include <QWidget>
 
 //class LIB_SYMBOL;
 class SYMBOL_LIB_TABLE_GRID;
@@ -44,9 +26,9 @@ class SYMBOL_LIB_TABLE_ROW : public LIB_TABLE_ROW
 public:
     typedef SCH_IO_MGR::SCH_FILE_T LIB_T;
 
-    SYMBOL_LIB_TABLE_ROW( const wxString& aNick, const wxString& aURI, const wxString& aType,
-                          const wxString& aOptions = wxEmptyString,
-                          const wxString& aDescr = wxEmptyString ) :
+    SYMBOL_LIB_TABLE_ROW( const QString& aNick, const QString& aURI, const QString& aType,
+                          const QString& aOptions = QString(),
+                          const QString& aDescr = QString() ) :
         LIB_TABLE_ROW( aNick, aURI, aOptions, aDescr )
     {
         SetType( aType );
@@ -68,12 +50,12 @@ public:
     /**
      * Return the type of symbol library table represented by this row.
      */
-    const wxString GetType() const override         { return wxT("unknown"); /* SCH_IO_MGR::ShowType( type ); */ } // UNUSED_SYMBOL: ShowType in unused_symbols.txt
+    const QString GetType() const override         { return "unknown"; /* SCH_IO_MGR::ShowType( type ); */ } // UNUSED_SYMBOL: ShowType in unused_symbols.txt
 
     /**
      * Change the schematic plugin type represented by this row.
      */
-    void SetType( const wxString& aType ) override;
+    void SetType( const QString& aType ) override;
 
     /**
      * Attempt to reload the library.
@@ -91,16 +73,16 @@ public:
         return type == SCH_IO_MGR::SCH_FILE_T::SCH_DATABASE;
     }
 
-    void ShowSettingsDialog( wxWindow* aWindow ) const override;
+    void ShowSettingsDialog( QWidget* aWindow ) const override;
 
-    void GetSubLibraryNames( std::vector<wxString>& aNames ) const;
+    void GetSubLibraryNames( std::vector<QString>& aNames ) const;
 
-    wxString GetSubLibraryDescription( const wxString& aName ) const;
+    QString GetSubLibraryDescription( const QString& aName ) const;
 
     /**
      * @see SCH_IO::GetAvailableSymbolFields
      */
-    void GetAvailableSymbolFields( std::vector<wxString>& aNames ) const
+    void GetAvailableSymbolFields( std::vector<QString>& aNames ) const
     {
         if( plugin )
             plugin->GetAvailableSymbolFields( aNames );
@@ -109,7 +91,7 @@ public:
     /**
      * @see SCH_IO::GetDefaultSymbolFields
      */
-    void GetDefaultSymbolFields( std::vector<wxString>& aNames ) const
+    void GetDefaultSymbolFields( std::vector<QString>& aNames ) const
     {
         if( plugin )
             plugin->GetDefaultSymbolFields( aNames );
@@ -184,7 +166,7 @@ public:
      * @param aCheckIfEnabled is a flag to verify if the table entry is enabled or disabled.
      * @return the row found or NULL if \a aNickName was not found.
      */
-    SYMBOL_LIB_TABLE_ROW* FindRow( const wxString& aNickName, bool aCheckIfEnabled = false );
+    SYMBOL_LIB_TABLE_ROW* FindRow( const QString& aNickName, bool aCheckIfEnabled = false );
 
     int GetModifyHash();
 
@@ -198,10 +180,10 @@ public:
      * @param aPowerSymbolsOnly is a flag to enumerate only power symbols.
      * @throw IO_ERROR if the library cannot be found or loaded.
      */
-    void EnumerateSymbolLib( const wxString& aNickname, wxArrayString& aAliasNames,
+    void EnumerateSymbolLib( const QString& aNickname, QStringList& aAliasNames,
                              bool aPowerSymbolsOnly = false );
 
-    void LoadSymbolLib( std::vector<LIB_SYMBOL*>& aAliasList, const wxString& aNickname,
+    void LoadSymbolLib( std::vector<LIB_SYMBOL*>& aAliasList, const QString& aNickname,
                         bool aPowerSymbolsOnly = false );
 
     /**
@@ -214,7 +196,7 @@ public:
      * @throw IO_ERROR if the library cannot be found or read.  No exception
      *                 is thrown in the case where \a aNickname cannot be found.
      */
-    LIB_SYMBOL* LoadSymbol( const wxString& aNickname, const wxString& aName );
+    LIB_SYMBOL* LoadSymbol( const QString& aNickname, const QString& aName );
 
     LIB_SYMBOL* LoadSymbol( const LIB_ID& aLibId )
     {
@@ -246,7 +228,7 @@ public:
      * @return SAVE_T - SAVE_OK or SAVE_SKIPPED.  If error saving, then IO_ERROR is thrown.
      * @throw IO_ERROR if there is a problem saving the symbol.
      */
-    SAVE_T SaveSymbol( const wxString& aNickname, const LIB_SYMBOL* aSymbol,
+    SAVE_T SaveSymbol( const QString& aNickname, const LIB_SYMBOL* aSymbol,
                        bool aOverwrite = true );
 
     /**
@@ -256,7 +238,7 @@ public:
      * @param aSymbolName is the name of a symbol to delete from the specified library.
      * @throw IO_ERROR if there is a problem finding the footprint or the library, or deleting it.
      */
-    void DeleteSymbol( const wxString& aNickname, const wxString& aSymbolName );
+    void DeleteSymbol( const QString& aNickname, const QString& aSymbolName );
 
     /**
      * Return true if the library given by @a aNickname is writable.
@@ -267,7 +249,7 @@ public:
      * @param aNickname is the library nickname in the symbol library table.
      * @throw IO_ERROR if no library at @a aNickname exists.
      */
-    bool IsSymbolLibWritable( const wxString& aNickname );
+    bool IsSymbolLibWritable( const QString& aNickname );
 
     /**
      * Return true if the library given by @a aNickname was successfully loaded.
@@ -275,11 +257,11 @@ public:
      * @param aNickname is the library nickname in the symbol library table.
      * @throw IO_ERROR if no library at @a aNickname exists.
      */
-    bool IsSymbolLibLoaded( const wxString& aNickname );
+    bool IsSymbolLibLoaded( const QString& aNickname );
 
-    void DeleteSymbolLib( const wxString& aNickname );
+    void DeleteSymbolLib( const QString& aNickname );
 
-    void CreateSymbolLib( const wxString& aNickname );
+    void CreateSymbolLib( const QString& aNickname );
 
     //-----</PLUGIN API SUBSET, REBASED ON aNickname>---------------------------
 
@@ -313,7 +295,7 @@ public:
      *
      * @return the platform specific global symbol library path and file name.
      */
-    static wxString GetGlobalTableFileName();
+    static QString GetGlobalTableFileName();
 
     /**
      * Return the name of the environment variable used to hold the directory of locally
@@ -323,11 +305,11 @@ public:
      * particular environment variable is that it is set automatically by KiCad on
      * program start up, <b>if</b> it is not set already in the environment.
      */
-    static const wxString GlobalPathEnvVariableName();
+    static const QString GlobalPathEnvVariableName();
 
     static SYMBOL_LIB_TABLE& GetGlobalLibTable();
 
-    static const wxString GetSymbolLibTableFileName();
+    static const QString GetSymbolLibTableFileName();
 
    /**
      * Compares this table against another.

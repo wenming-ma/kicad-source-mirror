@@ -19,7 +19,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / r"scripts\tu_index.json"
-SEEDS = ROOT / r"scripts\seeds-gerber.txt"
+SEEDS = ROOT / r"scripts\seeds-pcb.txt"
 COMMON_SYMBOLS = ROOT / r"scripts\common_symbols.txt"
 OUT = ROOT / r"scripts\tem\minset_sources.json"
 UNRES = ROOT / r"scripts\tem\unresolved_symbols.json"
@@ -204,6 +204,13 @@ BLACKLISTED_FILES = [
     "eeschema/netlist_exporters/netlist_exporter_spice.cpp",
     # === PCB IO System ===
     "pcbnew/pcb_io/pcb_io_mgr.cpp",
+    
+     # === Gerber System ===
+    # "gerbview/tools/gerbview_control.cpp",
+    # "gerbview/toolbars_gerber.cpp",
+    # "common/eda_base_frame.cpp",
+    # "common/background_jobs_monitor.cpp"
+    
     # 可以在这里添加更多不想引入的文件路径
     # 支持相对路径或者绝对路径模式
 ]

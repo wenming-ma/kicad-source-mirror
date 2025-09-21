@@ -1,28 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright 2013-2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <gal/opengl/cached_container_gpu.h>
 #include <gal/opengl/vertex_manager.h>
@@ -30,7 +5,8 @@
 #include <gal/opengl/shader.h>
 #include <gal/opengl/utils.h>
 
-#include <wx/log.h>
+#include <QLoggingCategory>
+#include <QDebug>
 
 #include <list>
 
@@ -46,7 +22,7 @@ using namespace KIGFX;
  *
  * @ingroup trace_env_vars
  */
-static const wxChar* const traceGalCachedContainerGpu = wxT( "KICAD_GAL_CACHED_CONTAINER_GPU" );
+static const char* const traceGalCachedContainerGpu = "KICAD_GAL_CACHED_CONTAINER_GPU";
 
 
 CACHED_CONTAINER_GPU::CACHED_CONTAINER_GPU( unsigned int aSize ) :
@@ -56,13 +32,13 @@ CACHED_CONTAINER_GPU::CACHED_CONTAINER_GPU( unsigned int aSize ) :
 {
     m_useCopyBuffer = GLEW_ARB_copy_buffer;
 
-    wxString vendor( glGetString( GL_VENDOR ) );
+    QString vendor( reinterpret_cast<const char*>( glGetString( GL_VENDOR ) ) );
 
     // workaround for intel GPU drivers:
     // disable glCopyBuffer, causes crashes/freezes on certain driver versions
     // Note, Intel's GL_VENDOR string varies depending on GPU/driver generation
     // But generally always starts with Intel at least
-    if( vendor.StartsWith( "Intel" ) || vendor.Contains( "etnaviv" ) )
+    if( vendor.startsWith( "Intel" ) || vendor.contains( "etnaviv" ) )
     {
         m_useCopyBuffer = false;
     }
@@ -89,7 +65,9 @@ CACHED_CONTAINER_GPU::~CACHED_CONTAINER_GPU()
 
 void CACHED_CONTAINER_GPU::Map()
 {
-    wxCHECK( !IsMapped(), /*void*/ );
+    Q_ASSERT( !IsMapped() );
+    if( IsMapped() )
+        return;
 
     // OpenGL version might suddenly stop being available in Windows when an RDP session is started
     if( !glBindBuffer )
@@ -105,7 +83,9 @@ void CACHED_CONTAINER_GPU::Map()
 
 void CACHED_CONTAINER_GPU::Unmap()
 {
-    wxCHECK( IsMapped(), /*void*/ );
+    Q_ASSERT( IsMapped() );
+    if( !IsMapped() )
+        return;
 
     // This gets called from ~CACHED_CONTAINER_GPU.  To avoid throwing an exception from
     // the dtor, catch it here instead.
@@ -119,7 +99,7 @@ void CACHED_CONTAINER_GPU::Unmap()
     }
     catch( const std::runtime_error& err )
     {
-        wxLogError( wxT( "OpenGL did not shut down properly.\n\n%s" ), err.what() );
+        qCritical() << "OpenGL did not shut down properly." << err.what();
     }
 
     m_isMapped = false;
@@ -131,11 +111,11 @@ bool CACHED_CONTAINER_GPU::defragmentResize( unsigned int aNewSize )
     if( !m_useCopyBuffer )
         return defragmentResizeMemcpy( aNewSize );
 
-    wxCHECK( IsMapped(), false );
+    Q_ASSERT( IsMapped() );
+    if( !IsMapped() )
+        return false;
 
-    wxLogTrace( traceGalCachedContainerGpu,
-                wxT( "Resizing & defragmenting container from %d to %d" ), m_currentSize,
-                aNewSize );
+    qDebug() << "Resizing & defragmenting container from" << m_currentSize << "to" << aNewSize;
 
     // No shrinking if we cannot fit all the data
     if( usedSpace() > aNewSize )
@@ -158,7 +138,7 @@ bool CACHED_CONTAINER_GPU::defragmentResize( unsigned int aNewSize )
 #ifdef KICAD_GAL_PROFILE
     GLint eaBuffer = -1;
     glGetIntegerv( GL_ELEMENT_ARRAY_BUFFER_BINDING, &eaBuffer );
-    wxASSERT( eaBuffer == 0 );
+    Q_ASSERT( eaBuffer == 0 );
 #endif /* KICAD_GAL_PROFILE */
     glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, newBuffer );
     glBufferData( GL_ELEMENT_ARRAY_BUFFER, aNewSize * VERTEX_SIZE, nullptr, GL_DYNAMIC_DRAW );
@@ -213,8 +193,7 @@ bool CACHED_CONTAINER_GPU::defragmentResize( unsigned int aNewSize )
 #ifdef KICAD_GAL_PROFILE
     totalTime.Stop();
 
-    wxLogTrace( traceGalCachedContainerGpu, "Defragmented container storing %d vertices / %.1f ms",
-                m_currentSize - m_freeSpace, totalTime.msecs() );
+    qDebug() << "Defragmented container storing" << (m_currentSize - m_freeSpace) << "vertices /" << totalTime.msecs() << "ms";
 #endif /* KICAD_GAL_PROFILE */
 
     m_freeSpace += ( aNewSize - m_currentSize );
@@ -232,11 +211,11 @@ bool CACHED_CONTAINER_GPU::defragmentResize( unsigned int aNewSize )
 
 bool CACHED_CONTAINER_GPU::defragmentResizeMemcpy( unsigned int aNewSize )
 {
-    wxCHECK( IsMapped(), false );
+    Q_ASSERT( IsMapped() );
+    if( !IsMapped() )
+        return false;
 
-    wxLogTrace( traceGalCachedContainerGpu,
-                wxT( "Resizing & defragmenting container (memcpy) from %d to %d" ), m_currentSize,
-                aNewSize );
+    qDebug() << "Resizing & defragmenting container (memcpy) from" << m_currentSize << "to" << aNewSize;
 
     // No shrinking if we cannot fit all the data
     if( usedSpace() > aNewSize )
@@ -257,7 +236,7 @@ bool CACHED_CONTAINER_GPU::defragmentResizeMemcpy( unsigned int aNewSize )
 #ifdef KICAD_GAL_PROFILE
     GLint eaBuffer = -1;
     glGetIntegerv( GL_ELEMENT_ARRAY_BUFFER_BINDING, &eaBuffer );
-    wxASSERT( eaBuffer == 0 );
+    Q_ASSERT( eaBuffer == 0 );
 #endif /* KICAD_GAL_PROFILE */
 
     glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, newBuffer );
@@ -281,8 +260,7 @@ bool CACHED_CONTAINER_GPU::defragmentResizeMemcpy( unsigned int aNewSize )
 #ifdef KICAD_GAL_PROFILE
     totalTime.Stop();
 
-    wxLogTrace( traceGalCachedContainerGpu, "Defragmented container storing %d vertices / %.1f ms",
-                m_currentSize - m_freeSpace, totalTime.msecs() );
+    qDebug() << "Defragmented container storing" << (m_currentSize - m_freeSpace) << "vertices /" << totalTime.msecs() << "ms";
 #endif /* KICAD_GAL_PROFILE */
 
     m_freeSpace += ( aNewSize - m_currentSize );

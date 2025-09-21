@@ -1,44 +1,32 @@
-///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.1.0-0-g733bf3d)
-// http://www.wxformbuilder.org/
-//
-// PLEASE DO *NOT* EDIT THIS FILE!
-///////////////////////////////////////////////////////////////////////////
-
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #pragma once
 
-#include <wx/artprov.h>
-#include <wx/xrc/xmlres.h>
-#include <wx/intl.h>
+#include <QtWidgets/QDialog>
+#include <QtWidgets/QWidget>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QTextEdit>
+#include <QtWidgets/QCheckBox>
+#include <QtWidgets/QComboBox>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QLineEdit>
+#include <QtWidgets/QFrame>
+#include <QtWidgets/QGridLayout>
+#include <QtWidgets/QBoxLayout>
+#include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QSizePolicy>
+#include <QtCore/QString>
+#include <QtGui/QFont>
+#include <QtGui/QColor>
+#include <QtCore/QEvent>
+
 class BITMAP_BUTTON;
 class COLOR_SWATCH;
 class FONT_CHOICE;
-class WX_COMBOBOX;
-class WX_INFOBAR;
+class QT_COMBOBOX;
+class QT_INFOBAR;
 
 #include "dialog_shim.h"
-#include <wx/infobar.h>
-#include <wx/gdicmn.h>
-#include <wx/font.h>
-#include <wx/colour.h>
-#include <wx/settings.h>
-#include <wx/string.h>
-#include <wx/stattext.h>
-#include <wx/stc/stc.h>
-#include <wx/hyperlink.h>
-#include <wx/sizer.h>
-#include <wx/checkbox.h>
-#include <wx/choice.h>
-#include <wx/bmpbuttn.h>
-#include <wx/bitmap.h>
-#include <wx/image.h>
-#include <wx/icon.h>
-#include <wx/button.h>
-#include <wx/textctrl.h>
-#include <wx/panel.h>
-#include <wx/bmpcbox.h>
-#include <wx/gbsizer.h>
-#include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -50,13 +38,13 @@ class DIALOG_TEXT_PROPERTIES_BASE : public DIALOG_SHIM
 	private:
 
 	protected:
-		WX_INFOBAR* m_infoBar;
-		wxGridBagSizer* m_textEntrySizer;
-		wxStaticText* m_textLabel;
-		wxStyledTextCtrl* m_textCtrl;
-		wxHyperlinkCtrl* m_syntaxHelp;
-		wxCheckBox* m_excludeFromSim;
-		wxStaticText* m_fontLabel;
+		QT_INFOBAR* m_infoBar;
+		QGridLayout* m_textEntrySizer;
+		QLabel* m_textLabel;
+		QTextEdit* m_textCtrl;
+		QLabel* m_syntaxHelp;
+		QCheckBox* m_excludeFromSim;
+		QLabel* m_fontLabel;
 		FONT_CHOICE* m_fontCtrl;
 		BITMAP_BUTTON* m_separator1;
 		BITMAP_BUTTON* m_bold;
@@ -73,48 +61,48 @@ class DIALOG_TEXT_PROPERTIES_BASE : public DIALOG_SHIM
 		BITMAP_BUTTON* m_horizontal;
 		BITMAP_BUTTON* m_vertical;
 		BITMAP_BUTTON* m_separator5;
-		wxStaticText* m_textSizeLabel;
-		wxTextCtrl* m_textSizeCtrl;
-		wxStaticText* m_textSizeUnits;
-		wxStaticText* m_textColorLabel;
-		wxPanel* m_panelBorderColor1;
+		QLabel* m_textSizeLabel;
+		QLineEdit* m_textSizeCtrl;
+		QLabel* m_textSizeUnits;
+		QLabel* m_textColorLabel;
+		QFrame* m_panelBorderColor1;
 		COLOR_SWATCH* m_textColorSwatch;
-		wxCheckBox* m_borderCheckbox;
-		wxStaticText* m_borderWidthLabel;
-		wxTextCtrl* m_borderWidthCtrl;
-		wxStaticText* m_borderWidthUnits;
-		wxStaticText* m_borderColorLabel;
-		wxPanel* m_panelBorderColor;
+		QCheckBox* m_borderCheckbox;
+		QLabel* m_borderWidthLabel;
+		QLineEdit* m_borderWidthCtrl;
+		QLabel* m_borderWidthUnits;
+		QLabel* m_borderColorLabel;
+		QFrame* m_panelBorderColor;
 		COLOR_SWATCH* m_borderColorSwatch;
-		wxStaticText* m_borderStyleLabel;
-		wxBitmapComboBox* m_borderStyleCombo;
-		wxCheckBox* m_filledCtrl;
-		wxStaticText* m_fillColorLabel;
-		wxPanel* m_panelFillColor;
+		QLabel* m_borderStyleLabel;
+		QComboBox* m_borderStyleCombo;
+		QCheckBox* m_filledCtrl;
+		QLabel* m_fillColorLabel;
+		QFrame* m_panelFillColor;
 		COLOR_SWATCH* m_fillColorSwatch;
-		wxCheckBox* m_hyperlinkCb;
-		WX_COMBOBOX* m_hyperlinkCombo;
-		wxFlexGridSizer* m_fgSymbolEditor;
-		wxCheckBox* m_privateCheckbox;
-		wxCheckBox* m_commonToAllUnits;
-		wxCheckBox* m_commonToAllBodyStyles;
-		wxStdDialogButtonSizer* m_sdbSizer1;
-		wxButton* m_sdbSizer1OK;
-		wxButton* m_sdbSizer1Cancel;
+		QCheckBox* m_hyperlinkCb;
+		QT_COMBOBOX* m_hyperlinkCombo;
+		QGridLayout* m_fgSymbolEditor;
+		QCheckBox* m_privateCheckbox;
+		QCheckBox* m_commonToAllUnits;
+		QCheckBox* m_commonToAllBodyStyles;
+		QHBoxLayout* m_sdbSizer1;
+		QPushButton* m_sdbSizer1OK;
+		QPushButton* m_sdbSizer1Cancel;
 
 		// Virtual event handlers, override them in your derived class
-		virtual void onMultiLineTCLostFocus( wxFocusEvent& event ) { event.Skip(); }
-		virtual void OnFormattingHelp( wxHyperlinkEvent& event ) { event.Skip(); }
-		virtual void onBorderChecked( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onFillChecked( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onHyperlinkChecked( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onHyperlinkCombo( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onHyperlinkText( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onMultiLineTCLostFocus( QFocusEvent* event ) { event->ignore(); }
+		virtual void OnFormattingHelp() { }
+		virtual void onBorderChecked() { }
+		virtual void onFillChecked() { }
+		virtual void onHyperlinkChecked() { }
+		virtual void onHyperlinkCombo() { }
+		virtual void onHyperlinkText() { }
 
 
 	public:
 
-		DIALOG_TEXT_PROPERTIES_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Text Properties"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+		DIALOG_TEXT_PROPERTIES_BASE( QWidget* parent = nullptr, const QString& title = "Text Properties" );
 
 		~DIALOG_TEXT_PROPERTIES_BASE();
 

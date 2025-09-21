@@ -1,26 +1,14 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// Qt transformation completed - wxWidgets to Qt framework migration
 
 #include <config.h>
 #include <gestfich.h>
-#include <wx/process.h>
+#include <QtCore/QProcess>
+#include <QtCore/QString>
+#include <QtCore/QStringList>
+#include <QtCore/QDir>
+#include <QtCore/QFileInfo>
+#include <QtCore/QStandardPaths>
+#include <QtCore/QDebug>
 
 #include <future>
 #include <utility>
@@ -30,46 +18,34 @@
 #include <pgm_base.h>
 #include <python_manager.h>
 #include <thread_pool.h>
-#include <wx_filename.h>
 
 
-class PYTHON_PROCESS : public wxProcess
+class PYTHON_PROCESS : public QProcess
 {
 public:
-    PYTHON_PROCESS( std::function<void(int, const wxString&, const wxString&)> aCallback ) :
-            wxProcess(),
+    PYTHON_PROCESS( std::function<void(int, const QString&, const QString&)> aCallback ) :
+            QProcess(),
             m_callback( std::move( aCallback ) )
     {}
 
-    void OnTerminate( int aPid, int aStatus ) override
+    void OnTerminate( int aPid, int aStatus )
     {
         // Print stdout trace info from the monitor thread
-        wxLog::GetActiveTarget()->Flush();
+        qDebug().flush();
 
         if( m_callback )
         {
-            wxString output, error;
-            wxInputStream* processOut = GetInputStream();
-            size_t bytesRead = 0;
+            QString output, error;
+            QByteArray stdoutData = readAllStandardOutput();
+            QByteArray stderrData = readAllStandardError();
 
-            while( processOut->CanRead() && bytesRead < MAX_OUTPUT_LEN )
-            {
-                char buffer[4096];
-                buffer[ processOut->Read( buffer, sizeof( buffer ) - 1 ).LastRead() ] = '\0';
-                output.append( buffer, processOut->LastRead() );
-                bytesRead += processOut->LastRead();
-            }
+            if( stdoutData.size() > MAX_OUTPUT_LEN )
+                stdoutData = stdoutData.left( MAX_OUTPUT_LEN );
+            if( stderrData.size() > MAX_OUTPUT_LEN )
+                stderrData = stderrData.left( MAX_OUTPUT_LEN );
 
-            processOut = GetErrorStream();
-            bytesRead = 0;
-
-            while( processOut->CanRead() && bytesRead < MAX_OUTPUT_LEN )
-            {
-                char buffer[4096];
-                buffer[ processOut->Read( buffer, sizeof( buffer ) - 1 ).LastRead() ] = '\0';
-                error.append( buffer, processOut->LastRead() );
-                bytesRead += processOut->LastRead();
-            }
+            output = QString::fromUtf8( stdoutData );
+            error = QString::fromUtf8( stderrData );
 
             m_callback( aStatus, output, error );
         }
@@ -78,61 +54,59 @@ public:
     static constexpr size_t MAX_OUTPUT_LEN = 1024L * 1024L;
 
 private:
-    std::function<void(int, const wxString&, const wxString&)> m_callback;
+    std::function<void(int, const QString&, const QString&)> m_callback;
 };
 
 
-PYTHON_MANAGER::PYTHON_MANAGER( const wxString& aInterpreterPath )
+PYTHON_MANAGER::PYTHON_MANAGER( const QString& aInterpreterPath )
 {
-    wxFileName path( aInterpreterPath );
-    path.Normalize( FN_NORMALIZE_FLAGS );
-    m_interpreterPath = path.GetFullPath();
+    QFileInfo path( aInterpreterPath );
+    m_interpreterPath = path.absoluteFilePath();
 }
 
 
-long PYTHON_MANAGER::Execute( const std::vector<wxString>& aArgs,
-        const std::function<void(int, const wxString&, const wxString&)>& aCallback,
-        const wxExecuteEnv* aEnv, bool aSaveOutput )
+long PYTHON_MANAGER::Execute( const std::vector<QString>& aArgs,
+        const std::function<void(int, const QString&, const QString&)>& aCallback,
+        const QProcessEnvironment* aEnv, bool aSaveOutput )
 {
     PYTHON_PROCESS* process = new PYTHON_PROCESS( aCallback );
-    process->Redirect();
+    // Qt QProcess automatically redirects output
 
-    auto monitor = 
+    auto monitor =
         []( PYTHON_PROCESS* aProcess )
         {
-            wxInputStream* processOut = aProcess->GetInputStream();
-
-            while( aProcess->IsInputOpened() )
+            while( aProcess->state() == QProcess::Running )
             {
-                if( processOut->CanRead() )
+                if( aProcess->canReadLine() )
                 {
-                    char buffer[4096];
-                    buffer[processOut->Read( buffer, sizeof( buffer ) - 1 ).LastRead()] = '\0';
-                    wxString stdOut( buffer, processOut->LastRead() );
-                    stdOut = stdOut.BeforeLast( '\n' );
-                    wxLogTrace( traceApi, wxString::Format( "Python: %s", stdOut ) );
+                    QByteArray data = aProcess->readLine();
+                    QString stdOut = QString::fromUtf8( data ).trimmed();
+                    qDebug() << QString("Python: %1").arg( stdOut );
                 }
             }
         };
 
-    wxString argsStr;
-    std::vector<const wchar_t*> args = { m_interpreterPath.wc_str() };
+    QString argsStr;
+    QStringList args;
 
-    for( const wxString& arg : aArgs )
+    for( const QString& arg : aArgs )
     {
-        args.emplace_back( arg.wc_str() );
-        argsStr << arg << " ";
+        args.append( arg );
+        argsStr += arg + " ";
     }
 
-    args.emplace_back( nullptr );
+    qDebug() << QString("Execute: %1 %2").arg( m_interpreterPath, argsStr );
 
-    wxLogTrace( traceApi, wxString::Format( "Execute: %s %s", m_interpreterPath, argsStr ) );
-    long pid = wxExecute( args.data(), wxEXEC_ASYNC, process, aEnv );
+    if( aEnv )
+        process->setProcessEnvironment( *aEnv );
+
+    process->start( m_interpreterPath, args );
+    long pid = process->processId();
 
     if( pid == 0 )
     {
         delete process;
-        aCallback( -1, wxEmptyString, _( "Process could not be created" ) );
+        aCallback( -1, QString(), "Process could not be created" );
     }
     else
     {
@@ -155,98 +129,105 @@ long PYTHON_MANAGER::Execute( const std::vector<wxString>& aArgs,
 }
 
 
-wxString PYTHON_MANAGER::FindPythonInterpreter()
+QString PYTHON_MANAGER::FindPythonInterpreter()
 {
     // First, attempt to use a Python we distribute with KiCad
 #if defined( __WINDOWS__ )
-    wxFileName pythonExe = FindKicadFile( "pythonw.exe" );
+    QString pythonPath = FindKicadFile( "pythonw.exe" );
+    QFileInfo pythonExe( pythonPath );
 
-    if( pythonExe.IsFileExecutable() )
-        return pythonExe.GetFullPath();
+    if( pythonExe.isExecutable() )
+        return pythonExe.absoluteFilePath();
 #elif defined( __WXMAC__ )
-    wxFileName pythonExe( PATHS::GetOSXKicadDataDir(), wxEmptyString );
-    pythonExe.RemoveLastDir();
-    pythonExe.AppendDir( wxT( "Frameworks" ) );
-    pythonExe.AppendDir( wxT( "Python.framework" ) );
-    pythonExe.AppendDir( wxT( "Versions" ) );
-    pythonExe.AppendDir( wxT( "Current" ) );
-    pythonExe.AppendDir( wxT( "bin" ) );
-    pythonExe.SetFullName(wxT( "python3" ) );
+    QDir pythonDir( PATHS::GetOSXKicadDataDir() );
+    pythonDir.cdUp();
+    QString pythonPath = pythonDir.absolutePath() + "/Frameworks/Python.framework/Versions/Current/bin/python3";
+    QFileInfo pythonExe( pythonPath );
 
-    if( pythonExe.IsFileExecutable() )
-        return pythonExe.GetFullPath();
+    if( pythonExe.isExecutable() )
+        return pythonExe.absoluteFilePath();
 #else
-    wxFileName pythonExe;
+    QFileInfo pythonExe;
 #endif
 
     // In case one is forced with cmake
-    pythonExe.Assign( wxString::FromUTF8Unchecked( PYTHON_EXECUTABLE ) );
+    pythonExe = QFileInfo( QString::fromUtf8( PYTHON_EXECUTABLE ) );
 
-    if( pythonExe.IsFileExecutable() )
-        return pythonExe.GetFullPath();
+    if( pythonExe.isExecutable() )
+        return pythonExe.absoluteFilePath();
 
     // Fall back on finding any Python in the user's path
 
 #ifdef _WIN32
-    wxArrayString output;
+    QProcess process;
+    process.start( "where", QStringList() << "pythonw.exe" );
+    process.waitForFinished();
 
-    if( 0 == wxExecute( wxS( "where pythonw.exe" ), output, wxEXEC_SYNC ) )
+    if( process.exitCode() == 0 )
     {
-        if( !output.IsEmpty() )
+        QStringList output = QString::fromUtf8( process.readAllStandardOutput() ).split( '\n', Qt::SkipEmptyParts );
+        if( !output.isEmpty() )
             return output[0];
     }
 #else
-    wxArrayString output;
+    QProcess process;
+    process.start( "which", QStringList() << "-a" << "python3" );
+    process.waitForFinished();
 
-    if( 0 == wxExecute( wxS( "which -a python3" ), output, wxEXEC_SYNC ) )
+    if( process.exitCode() == 0 )
     {
-        if( !output.IsEmpty() )
+        QStringList output = QString::fromUtf8( process.readAllStandardOutput() ).split( '\n', Qt::SkipEmptyParts );
+        if( !output.isEmpty() )
             return output[0];
     }
 
-    if( 0 == wxExecute( wxS( "which -a python" ), output, wxEXEC_SYNC ) )
+    process.start( "which", QStringList() << "-a" << "python" );
+    process.waitForFinished();
+
+    if( process.exitCode() == 0 )
     {
-        if( !output.IsEmpty() )
+        QStringList output = QString::fromUtf8( process.readAllStandardOutput() ).split( '\n', Qt::SkipEmptyParts );
+        if( !output.isEmpty() )
             return output[0];
     }
 #endif
 
-    return wxEmptyString;
+    return QString();
 }
 
 
-std::optional<wxString> PYTHON_MANAGER::GetPythonEnvironment( const wxString& aNamespace )
+std::optional<QString> PYTHON_MANAGER::GetPythonEnvironment( const QString& aNamespace )
 {
-    wxFileName path( PATHS::GetUserCachePath(), wxEmptyString );
-    path.AppendDir( wxS( "python-environments" ) );
-    path.AppendDir( aNamespace );
+    QDir path( PATHS::GetUserCachePath() );
+    path.mkdir( "python-environments" );
+    path.cd( "python-environments" );
+    path.mkdir( aNamespace );
+    path.cd( aNamespace );
 
-    if( !PATHS::EnsurePathExists( path.GetPath() ) )
+    if( !PATHS::EnsurePathExists( path.absolutePath() ) )
         return std::nullopt;
 
-    return path.GetPath();
+    return path.absolutePath();
 }
 
 
-std::optional<wxString> PYTHON_MANAGER::GetVirtualPython( const wxString& aNamespace )
+std::optional<QString> PYTHON_MANAGER::GetVirtualPython( const QString& aNamespace )
 {
-    std::optional<wxString> envPath = GetPythonEnvironment( aNamespace );
+    std::optional<QString> envPath = GetPythonEnvironment( aNamespace );
 
     if( !envPath )
         return std::nullopt;
 
-    wxFileName python( *envPath, wxEmptyString );
-    
+    QDir python( *envPath );
+
 #ifdef _WIN32
-    python.AppendDir( "Scripts" );
-    python.SetFullName( "pythonw.exe" );
+    QFileInfo pythonExe( python.absoluteFilePath( "Scripts/pythonw.exe" ) );
 #else
-    python.AppendDir( "bin" );
-    python.SetFullName( "python" );
+    QFileInfo pythonExe( python.absoluteFilePath( "bin/python" ) );
 #endif
 
-    if( !python.IsFileExecutable() )
+    if( !pythonExe.isExecutable() )
         return std::nullopt;
 
-    return python.GetFullPath();
+    return pythonExe.absoluteFilePath();
 }

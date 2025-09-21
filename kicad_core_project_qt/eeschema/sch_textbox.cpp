@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <advanced_config.h>
 #include <base_units.h>
@@ -32,7 +10,9 @@
 #include <schematic.h>
 #include <settings/color_settings.h>
 #include <sch_painter.h>
-#include <wx/log.h>
+#include <QtCore/QDebug>
+#include <QtCore/QString>
+#include <QtCore/QStringList>
 // UNUSED_SYMBOL: HTML_MESSAGE_BOX - Header not needed since class is unused
 // #include <dialogs/html_message_box.h>
 #include <project/project_file.h>
@@ -42,7 +22,7 @@
 
 
 SCH_TEXTBOX::SCH_TEXTBOX( SCH_LAYER_ID aLayer, int aLineWidth, FILL_T aFillType,
-                          const wxString& aText, KICAD_T aType ) :
+                          const QString& aText, KICAD_T aType ) :
         SCH_SHAPE( SHAPE_T::RECTANGLE, aLayer, aLineWidth, aFillType, aType ),
         EDA_TEXT( schIUScale, aText )
 {
@@ -148,7 +128,7 @@ VECTOR2I SCH_TEXTBOX::GetDrawPos() const
             pos.y = bbox.GetTop() + m_marginTop;
             break;
         case GR_TEXT_H_ALIGN_INDETERMINATE:
-            wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+            Q_ASSERT_X( false, "SCH_TEXTBOX::GetDrawPos", "Indeterminate state legal only in dialogs." );
             break;
         }
 
@@ -164,7 +144,7 @@ VECTOR2I SCH_TEXTBOX::GetDrawPos() const
             pos.x = bbox.GetRight() - m_marginRight;
             break;
         case GR_TEXT_V_ALIGN_INDETERMINATE:
-            wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+            Q_ASSERT_X( false, "SCH_TEXTBOX::GetDrawPos", "Indeterminate state legal only in dialogs." );
             break;
         }
     }
@@ -182,7 +162,7 @@ VECTOR2I SCH_TEXTBOX::GetDrawPos() const
             pos.x = bbox.GetRight() - m_marginRight;
             break;
         case GR_TEXT_H_ALIGN_INDETERMINATE:
-            wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+            Q_ASSERT_X( false, "SCH_TEXTBOX::GetDrawPos", "Indeterminate state legal only in dialogs." );
             break;
         }
 
@@ -198,7 +178,7 @@ VECTOR2I SCH_TEXTBOX::GetDrawPos() const
             pos.y = bbox.GetBottom() - m_marginBottom;
             break;
         case GR_TEXT_V_ALIGN_INDETERMINATE:
-            wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+            Q_ASSERT_X( false, "SCH_TEXTBOX::GetDrawPos", "Indeterminate state legal only in dialogs." );
             break;
         }
     }
@@ -276,7 +256,7 @@ void SCH_TEXTBOX::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aB
     if( IsPrivate() )
         return;
 
-    wxDC*      DC = aSettings->GetPrintDC();
+    QPainter*  painter = aSettings->GetPaintDevice();
     int        penWidth = GetEffectivePenWidth( aSettings );
     bool       blackAndWhiteMode = GetGRForceBlackPenState();
     VECTOR2I   pt1 = GetStart();
@@ -289,7 +269,7 @@ void SCH_TEXTBOX::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aB
         bg = COLOR4D::WHITE;
 
     if( GetFillMode() == FILL_T::FILLED_WITH_COLOR && !blackAndWhiteMode && !aForceNoFill )
-        GRFilledRect( DC, pt1, pt2, 0, GetFillColor(), GetFillColor() );
+        GRFilledRect( painter, pt1, pt2, 0, GetFillColor(), GetFillColor() );
 
     if( penWidth > 0 )
     {
@@ -309,7 +289,7 @@ void SCH_TEXTBOX::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aB
 
         if( lineStyle == LINE_STYLE::SOLID )
         {
-            GRRect( DC, pt1, pt2, penWidth, color );
+            GRRect( painter, pt1, pt2, penWidth, color );
         }
         else
         {
@@ -322,7 +302,7 @@ void SCH_TEXTBOX::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aB
                         {
                             VECTOR2I ptA = aSettings->TransformCoordinate( a ) + aOffset;
                             VECTOR2I ptB = aSettings->TransformCoordinate( b ) + aOffset;
-                            GRLine( DC, ptA.x, ptA.y, ptB.x, ptB.y, penWidth, color );
+                            GRLine( painter, ptA.x, ptA.y, ptB.x, ptB.y, penWidth, color );
                         } );
             }
 
@@ -346,16 +326,16 @@ void SCH_TEXTBOX::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aB
 }
 
 
-wxString SCH_TEXTBOX::GetShownText( const RENDER_SETTINGS* aSettings, const SCH_SHEET_PATH* aPath,
-                                    bool aAllowExtraText, int aDepth ) const
+QString SCH_TEXTBOX::GetShownText( const RENDER_SETTINGS* aSettings, const SCH_SHEET_PATH* aPath,
+                                   bool aAllowExtraText, int aDepth ) const
 {
     SCH_SHEET* sheet = nullptr;
 
     if( aPath )
         sheet = aPath->Last();
 
-    std::function<bool( wxString* )> textResolver =
-            [&]( wxString* token ) -> bool
+    std::function<bool( QString* )> textResolver =
+            [&]( QString* token ) -> bool
             {
                 if( sheet )
                 {
@@ -366,7 +346,7 @@ wxString SCH_TEXTBOX::GetShownText( const RENDER_SETTINGS* aSettings, const SCH_
                 return false;
             };
 
-    wxString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
+    QString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
 
     if( HasTextVars() )
     {
@@ -423,8 +403,7 @@ bool SCH_TEXTBOX::IsHypertext() const
 
 void SCH_TEXTBOX::DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const
 {
-    wxCHECK_MSG( IsHypertext(), /* void */,
-                 wxT( "Calling a hypertext menu on a SCH_TEXTBOX with no hyperlink?" ) );
+    Q_ASSERT_X( IsHypertext(), "SCH_TEXTBOX::DoHypertextAction", "Calling a hypertext menu on a SCH_TEXTBOX with no hyperlink?" );
 
     SCH_NAVIGATE_TOOL* navTool = aFrame->GetToolManager()->GetTool<SCH_NAVIGATE_TOOL>();
 
@@ -435,9 +414,9 @@ void SCH_TEXTBOX::DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const
 }
 
 
-wxString SCH_TEXTBOX::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_TEXTBOX::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Text Box" ) );
+    return QString( "Text Box" );
 }
 
 
@@ -486,10 +465,10 @@ void SCH_TEXTBOX::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS
 
     TEXT_ATTRIBUTES       attrs;
     std::vector<VECTOR2I> positions;
-    wxArrayString         strings_list;
+    QStringList           strings_list;
 
-    wxStringSplit( GetShownText( renderSettings, sheet, true ), strings_list, '\n' );
-    positions.reserve( strings_list.Count() );
+    strings_list = GetShownText( renderSettings, sheet, true ).split( '\n' );
+    positions.reserve( strings_list.count() );
 
     if( renderSettings->m_Transform != TRANSFORM() || aOffset != VECTOR2I() )
     {
@@ -505,20 +484,20 @@ void SCH_TEXTBOX::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS
         temp.SetEnd( renderSettings->TransformCoordinate( m_end ) + aOffset );
 
         attrs = temp.GetAttributes();
-        temp.GetLinePositions( renderSettings, positions, (int) strings_list.Count() );
+        temp.GetLinePositions( renderSettings, positions, (int) strings_list.count() );
     }
     else
     {
         attrs = GetAttributes();
-        GetLinePositions( renderSettings, positions, (int) strings_list.Count() );
+        GetLinePositions( renderSettings, positions, (int) strings_list.count() );
     }
 
     attrs.m_StrokeWidth = penWidth;
     attrs.m_Multiline = false;
 
-    for( unsigned ii = 0; ii < strings_list.Count(); ii++ )
+    for( int ii = 0; ii < strings_list.count(); ii++ )
     {
-        aPlotter->PlotText( positions[ii], color, strings_list.Item( ii ), attrs, font,
+        aPlotter->PlotText( positions[ii], color, strings_list.at( ii ), attrs, font,
                             GetFontMetrics() );
     }
 
@@ -537,7 +516,7 @@ void SCH_TEXTBOX::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL
 
     aList.emplace_back( _( "Font" ), GetFont() ? GetFont()->GetName() : _( "Default" ) );
 
-    wxString textStyle[] = { _( "Normal" ), _( "Italic" ), _( "Bold" ), _( "Bold Italic" ) };
+    QString textStyle[] = { "Normal", "Italic", "Bold", "Bold Italic" };
     int style = IsBold() && IsItalic() ? 3 : IsBold() ? 2 : IsItalic() ? 1 : 0;
     aList.emplace_back( _( "Style" ), textStyle[style] );
 
@@ -615,7 +594,7 @@ double SCH_TEXTBOX::Similarity( const SCH_ITEM& aOther ) const
 
 int SCH_TEXTBOX::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
 {
-    wxASSERT( aOther.Type() == SCH_TEXTBOX_T );
+    Q_ASSERT( aOther.Type() == SCH_TEXTBOX_T );
 
     int retv = SCH_SHAPE::compare( aOther, aCompareFlags );
 
@@ -624,7 +603,7 @@ int SCH_TEXTBOX::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
 
     const SCH_TEXTBOX* tmp = static_cast<const SCH_TEXTBOX*>( &aOther );
 
-    int result = GetText().CmpNoCase( tmp->GetText() );
+    int result = GetText().compare( tmp->GetText(), Qt::CaseInsensitive );
 
     if( result != 0 )
         return result;
@@ -683,7 +662,7 @@ static struct SCH_TEXTBOX_DESC
         propMgr.Mask( TYPE_HASH( SCH_TEXTBOX ), TYPE_HASH( EDA_TEXT ), _HKI( "Height" ) );
         propMgr.Mask( TYPE_HASH( SCH_TEXTBOX ), TYPE_HASH( EDA_TEXT ), _HKI( "Thickness" ) );
 
-        const wxString marginProps = _( "Margins" );
+        const QString marginProps = "Margins";
 
         propMgr.AddProperty( new PROPERTY<SCH_TEXTBOX, int>( _HKI( "Margin Left" ),
                     &SCH_TEXTBOX::SetMarginLeft, &SCH_TEXTBOX::GetMarginLeft,

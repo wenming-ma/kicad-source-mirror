@@ -99,8 +99,8 @@ public:
      * @param order Returns the order that this layer should be placed in a set of layers.
      * @param matchedExtension The actual extension pattern that this filename matched.
      */
-    static void GetGerberLayerFromFilename( const wxString& filename, enum GERBER_ORDER_ENUM& order,
-                                            wxString& matchedExtension );
+    static void GetGerberLayerFromFilename( const QString& filename, enum GERBER_ORDER_ENUM& order,
+                                            QString& matchedExtension );
 
     static GERBER_FILE_IMAGE_LIST& GetImagesList();
     GERBER_FILE_IMAGE* GetGbrImage( int aIdx );
@@ -147,7 +147,7 @@ public:
      * @return a name for image aIdx which can be used in layers manager and layer selector or
      *         in the status bar
      */
-    const wxString GetDisplayName( int aIdx, bool aNameOnly = false, bool aFullName = false );
+    const QString GetDisplayName( int aIdx, bool aNameOnly = false, bool aFullName = false );
 
     /**
      * Sort loaded images by file extension matching

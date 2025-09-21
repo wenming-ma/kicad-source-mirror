@@ -29,7 +29,7 @@
 
 
 SCH_TABLECELL::SCH_TABLECELL( int aLineWidth, FILL_T aFillType ) :
-        SCH_TEXTBOX( LAYER_NOTES, aLineWidth, aFillType, wxEmptyString, SCH_TABLECELL_T ),
+        SCH_TEXTBOX( LAYER_NOTES, aLineWidth, aFillType, QString(), SCH_TABLECELL_T ),
         m_colSpan( 1 ),
         m_rowSpan( 1 )
 {
@@ -47,9 +47,9 @@ void SCH_TABLECELL::SwapData( SCH_ITEM* aItem )
 }
 
 
-wxString SCH_TABLECELL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_TABLECELL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Table Cell %s" ), GetAddr() );
+    return QString::asprintf( _( "Table Cell %s" ), GetAddr().toStdString().c_str() );
 }
 
 
@@ -87,9 +87,9 @@ int SCH_TABLECELL::GetColumn() const
 }
 
 
-wxString SCH_TABLECELL::GetAddr() const
+QString SCH_TABLECELL::GetAddr() const
 {
-    return wxString::Format( wxT( "%c%d" ),
+    return QString::asprintf( "%c%d",
                              'A' + GetColumn() % 26,
                              GetRow() + 1 );
 }
@@ -156,7 +156,7 @@ void SCH_TABLECELL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PAN
 
     aList.emplace_back( _( "Font" ), GetFont() ? GetFont()->GetName() : _( "Default" ) );
 
-    wxString textStyle[] = { _( "Normal" ), _( "Italic" ), _( "Bold" ), _( "Bold Italic" ) };
+    QString textStyle[] = { _( "Normal" ), _( "Italic" ), _( "Bold" ), _( "Bold Italic" ) };
     int style = IsBold() && IsItalic() ? 3 : IsBold() ? 2 : IsItalic() ? 1 : 0;
     aList.emplace_back( _( "Style" ), textStyle[style] );
 
@@ -241,7 +241,7 @@ static struct SCH_TABLECELL_DESC
         propMgr.Mask( TYPE_HASH( SCH_TABLECELL ), TYPE_HASH( EDA_TEXT ), _HKI( "Visible" ) );
         propMgr.Mask( TYPE_HASH( SCH_TABLECELL ), TYPE_HASH( EDA_TEXT ), _HKI( "Hyperlink" ) );
 
-        const wxString tableProps = _( "Table" );
+        const QString tableProps = _( "Table" );
 
         propMgr.AddProperty( new PROPERTY<SCH_TABLECELL, int>( _HKI( "Column Width" ),
                     &SCH_TABLECELL::SetColumnWidth, &SCH_TABLECELL::GetColumnWidth,
@@ -253,7 +253,7 @@ static struct SCH_TABLECELL_DESC
                     PROPERTY_DISPLAY::PT_SIZE ),
                 tableProps );
 
-        const wxString cellProps = _( "Cell Properties" );
+        const QString cellProps = _( "Cell Properties" );
 
         propMgr.AddProperty( new PROPERTY<EDA_SHAPE, bool>( _HKI( "Background Fill" ),
                     &EDA_SHAPE::SetFilled, &EDA_SHAPE::IsFilled ),

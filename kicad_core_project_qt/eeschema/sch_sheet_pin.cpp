@@ -24,6 +24,8 @@
 
 #include <algorithm>
 
+#include <QtCore/QString>
+#include <QtCore/QDebug>
 #include <bitmaps.h>
 #include <general.h>
 #include <geometry/shape_line_chain.h>
@@ -38,12 +40,12 @@
 #include <trigo.h>
 
 
-SCH_SHEET_PIN::SCH_SHEET_PIN( SCH_SHEET* parent, const VECTOR2I& pos, const wxString& text ) :
+SCH_SHEET_PIN::SCH_SHEET_PIN( SCH_SHEET* parent, const VECTOR2I& pos, const QString& text ) :
     SCH_HIERLABEL( pos, text, SCH_SHEET_PIN_T ),
     m_edge( SHEET_SIDE::UNDEFINED )
 {
     SetParent( parent );
-    wxASSERT( parent );
+    Q_ASSERT( parent );
     m_layer = LAYER_SHEETLABEL;
 
     SetTextPos( pos );
@@ -77,9 +79,10 @@ void SCH_SHEET_PIN::SwapData( SCH_ITEM* aItem )
 {
     SCH_HIERLABEL::SwapData( aItem );
 
-    wxCHECK_RET( aItem->Type() == SCH_SHEET_PIN_T,
-                 wxString::Format( "SCH_SHEET_PIN object cannot swap data with %s object.",
-                                   aItem->GetClass() ) );
+    Q_ASSERT_X( aItem->Type() == SCH_SHEET_PIN_T,
+                "SCH_SHEET_PIN::SwapData",
+                QString::asprintf( "SCH_SHEET_PIN object cannot swap data with %s object.",
+                                   aItem->GetClass().toStdString().c_str() ).toStdString().c_str() );
 
     SCH_SHEET_PIN* pin = static_cast<SCH_SHEET_PIN*>( aItem );
 
@@ -105,7 +108,7 @@ int SCH_SHEET_PIN::GetPenWidth() const
 
 void SCH_SHEET_PIN::SetNumber( int aNumber )
 {
-    wxASSERT( aNumber >= 2 );
+    Q_ASSERT( aNumber >= 2 );
 
     m_number = aNumber;
 }
@@ -183,7 +186,7 @@ void SCH_SHEET_PIN::ConstrainOnEdge( VECTOR2I aPos, bool aAllowEdgeSwitch )
         case 1:  SetSide( SHEET_SIDE::RIGHT );  break;
         case 2:  SetSide( SHEET_SIDE::BOTTOM ); break;
         case 3:  SetSide( SHEET_SIDE::LEFT );   break;
-        default: wxASSERT( "Invalid segment number" );
+        default: Q_ASSERT_X( false, "SCH_SHEET_PIN::ConstrainOnEdge", "Invalid segment number" );
         }
     }
     else
@@ -218,7 +221,7 @@ void SCH_SHEET_PIN::ConstrainOnEdge( VECTOR2I aPos, bool aAllowEdgeSwitch )
         break;
 
     case SHEET_SIDE::UNDEFINED:
-        wxASSERT( "Undefined sheet side" );
+        Q_ASSERT_X( false, "SCH_SHEET_PIN::ConstrainOnEdge", "Undefined sheet side" );
     }
 }
 
@@ -334,10 +337,10 @@ void SCH_SHEET_PIN::GetEndPoints( std::vector<DANGLING_END_ITEM>& aItemList )
 }
 
 
-wxString SCH_SHEET_PIN::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_SHEET_PIN::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Hierarchical Sheet Pin %s" ),
-                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
+    return QString::asprintf( _( "Hierarchical Sheet Pin %s" ).toStdString().c_str(),
+                             (aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() )).toStdString().c_str() );
 }
 
 
@@ -400,7 +403,8 @@ bool SCH_SHEET_PIN::HasConnectivityChanges( const SCH_ITEM* aItem,
     const SCH_SHEET_PIN* pin = dynamic_cast<const SCH_SHEET_PIN*>( aItem );
 
     // Don't compare against a different SCH_ITEM.
-    wxCHECK( pin, false );
+    Q_ASSERT_X( pin, "SCH_SHEET_PIN::HasConnectivityChanges", "pin should not be null" );
+    if( !pin ) return false;
 
     if( GetPosition() != pin->GetPosition() )
         return true;

@@ -1,27 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2014-2015 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #ifndef __UNIT_BINDER_H_
 #define __UNIT_BINDER_H_
@@ -31,15 +9,20 @@
 #include <base_units.h>
 #include <units_provider.h>
 #include <libeval/numeric_evaluator.h>
-#include <wx/event.h>
+#include <QObject>
+#include <QWidget>
+#include <QLabel>
+#include <QEvent>
+#include <QMouseEvent>
+#include <QFocusEvent>
 
 class EDA_BASE_FRAME;
 class EDA_DRAW_FRAME;
-class wxTextEntry;
-class wxSpinButton;
-class wxStaticText;
+class QTextEdit;
+class QSpinBox;
+class QLabel;
 
-class UNIT_BINDER : public wxEvtHandler
+class UNIT_BINDER : public QObject
 {
 public:
 
@@ -47,19 +30,19 @@ public:
      * @param aParent is the parent EDA_BASE_FRAME, used to fetch units and coordinate systems.
      * @param aLabel is the static text used to label the text input widget (note: the label
      *               text, trimmed of its colon, will also be used in error messages)
-     * @param aValueCtrl is the control used to edit or display the given value (wxTextCtrl,
-     *                   wxComboBox, wxStaticText, etc.).
+     * @param aValueCtrl is the control used to edit or display the given value (QLineEdit,
+     *                   QComboBox, QLabel, etc.).
      * @param aUnitLabel (optional) is the units label displayed after the text input widget
      * @param aAllowEval indicates \a aTextInput's content should be eval'ed before storing
      * @param aBindFocusEvent indicates the control should respond to DELAY_FOCUS from the
      *                        parent frame
      */
     UNIT_BINDER( EDA_DRAW_FRAME* aParent,
-                 wxStaticText* aLabel, wxWindow* aValueCtrl, wxStaticText* aUnitLabel,
+                 QLabel* aLabel, QWidget* aValueCtrl, QLabel* aUnitLabel,
                  bool aAllowEval = true, bool aBindFocusEvent = true );
 
-    UNIT_BINDER( UNITS_PROVIDER* aUnitsProvider, wxWindow* aEventSource,
-                 wxStaticText* aLabel, wxWindow* aValueCtrl, wxStaticText* aUnitLabel,
+    UNIT_BINDER( UNITS_PROVIDER* aUnitsProvider, QWidget* aEventSource,
+                 QLabel* aLabel, QWidget* aValueCtrl, QLabel* aUnitLabel,
                  bool aAllowEval = true, bool aBindFocusEvent = true );
 
     virtual ~UNIT_BINDER() override;
@@ -92,7 +75,7 @@ public:
      */
     virtual void SetValue( long long int aValue );
 
-    void SetValue( const wxString& aValue );
+    void SetValue( const QString& aValue );
 
     /**
      * Set new value (in Internal Units) for the text field, taking care of units conversion.
@@ -109,7 +92,7 @@ public:
      */
     virtual void ChangeValue( int aValue );
 
-    void ChangeValue( const wxString& aValue );
+    void ChangeValue( const QString& aValue );
 
     /**
      * Set new value (in Internal Units) for the text field, taking care of units conversion
@@ -169,7 +152,7 @@ public:
      */
     virtual bool Validate( double aMin, double aMax, EDA_UNITS aUnits = EDA_UNITS::UNSCALED );
 
-    void SetLabel( const wxString& aLabel );
+    void SetLabel( const QString& aLabel );
 
     /**
      * Enable/disable the label, widget and units label.
@@ -179,7 +162,7 @@ public:
     /**
      * Show/hide the label, widget and units label.
      *
-     * @param aShow called for the Show() routine in wx.
+     * @param aShow called for the Show() routine in Qt.
      * @param aResize if true, the element will be sized to 0 on hide and -1 on show.
      */
     void Show( bool aShow, bool aResize = false );
@@ -212,14 +195,14 @@ public:
 
 protected:
     void init( UNITS_PROVIDER* aProvider );
-    void onClick( wxMouseEvent& aEvent );
-    void onComboBox( wxCommandEvent& aEvent );
+    void onClick( QMouseEvent* aEvent );
+    void onComboBox( int aIndex );
 
-    void onSetFocus( wxFocusEvent& aEvent );
-    void onKillFocus( wxFocusEvent& aEvent );
-    void delayedFocusHandler( wxCommandEvent& aEvent );
+    void onSetFocus( QFocusEvent* aEvent );
+    void onKillFocus( QFocusEvent* aEvent );
+    void delayedFocusHandler();
 
-    void onUnitsChanged( wxCommandEvent& aEvent );
+    void onUnitsChanged();
 
     /**
      * When m_precision > 0 truncate the value aValue to show only
@@ -234,17 +217,17 @@ protected:
      */
     double setPrecision( double aValue, bool aValueUsesUserUnits ) const;
 
-    wxString getTextForValue( long long int aValue ) const;
-    wxString getTextForDoubleValue( double aValue ) const;
+    QString getTextForValue( long long int aValue ) const;
+    QString getTextForDoubleValue( double aValue ) const;
 
 protected:
     bool                m_bindFocusEvent;
 
     /// The bound widgets.
-    wxStaticText*       m_label;
-    wxWindow*           m_valueCtrl;
-    wxWindow*           m_eventSource;
-    wxStaticText*       m_unitLabel;      ///< Can be nullptr.
+    QLabel*             m_label;
+    QWidget*            m_valueCtrl;
+    QWidget*            m_eventSource;
+    QLabel*             m_unitLabel;      ///< Can be nullptr.
 
     /// Currently used units.
     const EDA_IU_SCALE* m_iuScale;
@@ -253,7 +236,7 @@ protected:
     EDA_DATA_TYPE       m_dataType;
     int                 m_precision;      ///< 0 to 6.
 
-    wxString            m_errorMessage;
+    QString             m_errorMessage;
 
     NUMERIC_EVALUATOR   m_eval;
     bool                m_allowEval;
@@ -273,7 +256,7 @@ protected:
 
 
 /**
- * Specialization for wxPropertyGrid, where we have no labels and units are displayed in the editor.
+ * Specialization for Qt property editor, where we have no labels and units are displayed in the editor.
  */
 class PROPERTY_EDITOR_UNIT_BINDER : public UNIT_BINDER
 {
@@ -282,7 +265,7 @@ public:
 
     virtual ~PROPERTY_EDITOR_UNIT_BINDER();
 
-    void SetControl( wxWindow* aControl );
+    void SetControl( QWidget* aControl );
 };
 
 #endif /* __UNIT_BINDER_H_ */

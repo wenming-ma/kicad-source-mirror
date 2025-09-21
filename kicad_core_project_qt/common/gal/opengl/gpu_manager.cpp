@@ -1,28 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright 2013-2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <gal/opengl/gpu_manager.h>
 #include <gal/opengl/cached_container_gpu.h>
@@ -40,7 +15,8 @@
 
 #ifdef KICAD_GAL_PROFILE
 #include <core/profile.h>
-#include <wx/log.h>
+#include <QDebug>
+#include <QLoggingCategory>
 #endif /* KICAD_GAL_PROFILE */
 
 using namespace KIGFX;
@@ -76,7 +52,7 @@ void GPU_MANAGER::SetShader( SHADER& aShader )
 
     if( m_shaderAttrib == -1 )
     {
-        DisplayError( nullptr, wxT( "Could not get the shader attribute location" ) );
+        DisplayError( nullptr, "Could not get the shader attribute location" );
     }
 }
 
@@ -102,7 +78,7 @@ GPU_CACHED_MANAGER::~GPU_CACHED_MANAGER()
 
 void GPU_CACHED_MANAGER::BeginDrawing()
 {
-    wxASSERT( !m_isDrawing );
+    Q_ASSERT( !m_isDrawing );
 
     m_curVrangeSize = 0;
     m_indexBufMaxSize = 0;
@@ -115,7 +91,7 @@ void GPU_CACHED_MANAGER::BeginDrawing()
 
 void GPU_CACHED_MANAGER::DrawIndices( const VERTEX_ITEM* aItem )
 {
-    // Hot path: don't use wxASSERT
+    // Hot path: don't use Q_ASSERT
     assert( m_isDrawing );
 
     unsigned int offset = aItem->GetOffset();
@@ -142,7 +118,7 @@ void GPU_CACHED_MANAGER::DrawIndices( const VERTEX_ITEM* aItem )
 
 void GPU_CACHED_MANAGER::EndDrawing()
 {
-    wxASSERT( m_isDrawing );
+    Q_ASSERT( m_isDrawing );
 
     CACHED_CONTAINER* cached = static_cast<CACHED_CONTAINER*>( m_container );
 
@@ -270,7 +246,7 @@ void GPU_NONCACHED_MANAGER::BeginDrawing()
 
 void GPU_NONCACHED_MANAGER::DrawIndices( const VERTEX_ITEM* aItem )
 {
-    wxASSERT_MSG( false, wxT( "Not implemented yet" ) );
+    Q_ASSERT_X( false, "GPU_NONCACHED_MANAGER::DrawIndices", "Not implemented yet" );
 }
 
 
@@ -312,7 +288,7 @@ void GPU_NONCACHED_MANAGER::EndDrawing()
     glDrawArrays( GL_TRIANGLES, 0, m_container->GetSize() );
 
 #ifdef KICAD_GAL_PROFILE
-    wxLogTrace( traceGalProfile, wxT( "Noncached manager size: %d" ), m_container->GetSize() );
+    qDebug() << "Noncached manager size:" << m_container->GetSize();
 #endif /* KICAD_GAL_PROFILE */
 
     // Deactivate vertex array
@@ -329,8 +305,7 @@ void GPU_NONCACHED_MANAGER::EndDrawing()
 
 #ifdef KICAD_GAL_PROFILE
     totalRealTime.Stop();
-    wxLogTrace( traceGalProfile, wxT( "GPU_NONCACHED_MANAGER::EndDrawing(): %.1f ms" ),
-                totalRealTime.msecs() );
+    qDebug() << "GPU_NONCACHED_MANAGER::EndDrawing():" << totalRealTime.msecs() << "ms";
 #endif /* KICAD_GAL_PROFILE */
 }
 

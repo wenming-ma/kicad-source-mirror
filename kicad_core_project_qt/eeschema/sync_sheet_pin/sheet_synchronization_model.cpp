@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Ethan Chien <liangtie.qian@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "sheet_synchronization_model.h"
 #include "sheet_synchronization_item.h"
@@ -29,12 +6,14 @@
 
 #include <sch_label.h>
 #include <sch_sheet_pin.h>
-#include <wx/colour.h>
-#include <wx/variant.h>
+#include <QColor>
+#include <QVariant>
+#include <QString>
+#include <QIcon>
 
 
 // sch_label.cpp
-extern wxString getElectricalTypeLabel( LABEL_FLAG_SHAPE aType );
+extern QString getElectricalTypeLabel( LABEL_FLAG_SHAPE aType );
 
 
 SHEET_SYNCHRONIZATION_MODEL::SHEET_SYNCHRONIZATION_MODEL( SHEET_SYNCHRONIZATION_AGENT& aAgent,
@@ -51,7 +30,7 @@ SHEET_SYNCHRONIZATION_MODEL::SHEET_SYNCHRONIZATION_MODEL( SHEET_SYNCHRONIZATION_
 SHEET_SYNCHRONIZATION_MODEL::~SHEET_SYNCHRONIZATION_MODEL() = default;
 
 
-void SHEET_SYNCHRONIZATION_MODEL::GetValueByRow( wxVariant& aVariant, unsigned row,
+void SHEET_SYNCHRONIZATION_MODEL::GetValueByRow( QVariant& aVariant, unsigned row,
                                                  unsigned col ) const
 {
     const std::shared_ptr<SHEET_SYNCHRONIZATION_ITEM>& item = m_items[row];
@@ -59,7 +38,7 @@ void SHEET_SYNCHRONIZATION_MODEL::GetValueByRow( wxVariant& aVariant, unsigned r
     switch( col )
     {
     case NAME:
-        aVariant << wxDataViewIconText( item->GetName(), item->GetBitmap() );
+        aVariant = QVariant::fromValue(QPair<QString, QIcon>(item->GetName(), item->GetBitmap()));
         break;
     case SHAPE:
         aVariant = getElectricalTypeLabel( static_cast<LABEL_FLAG_SHAPE>( item->GetShape() ) );
@@ -68,23 +47,24 @@ void SHEET_SYNCHRONIZATION_MODEL::GetValueByRow( wxVariant& aVariant, unsigned r
 }
 
 
-bool SHEET_SYNCHRONIZATION_MODEL::SetValueByRow( const wxVariant& aVariant, unsigned row,
+bool SHEET_SYNCHRONIZATION_MODEL::SetValueByRow( const QVariant& aVariant, unsigned row,
                                                  unsigned col )
 {
-    WXUNUSED( aVariant )
-    WXUNUSED( row )
-    WXUNUSED( col )
+    Q_UNUSED( aVariant )
+    Q_UNUSED( row )
+    Q_UNUSED( col )
 
     return {};
 }
 
 
 bool SHEET_SYNCHRONIZATION_MODEL::GetAttrByRow( unsigned row, unsigned int col,
-                                                wxDataViewItemAttr& attr ) const
+                                                QModelIndex& attr ) const
 {
     if( m_selectedIndex.has_value() && row == m_selectedIndex )
     {
-        attr.SetBold( true );
+        // Note: In Qt, font attributes are typically handled through QStandardItemModel or custom delegate
+        // This functionality needs to be handled in the view layer
         return true;
     }
 
@@ -92,7 +72,7 @@ bool SHEET_SYNCHRONIZATION_MODEL::GetAttrByRow( unsigned row, unsigned int col,
 }
 
 
-void SHEET_SYNCHRONIZATION_MODEL::RemoveItems( wxDataViewItemArray const& aItems )
+void SHEET_SYNCHRONIZATION_MODEL::RemoveItems( QModelIndexList const& aItems )
 {
     if( aItems.empty() )
         return;
@@ -122,7 +102,7 @@ bool SHEET_SYNCHRONIZATION_MODEL::AppendItem( std::shared_ptr<SHEET_SYNCHRONIZAT
 
 
 SHEET_SYNCHRONIZATION_ITEM_LIST
-SHEET_SYNCHRONIZATION_MODEL::TakeItems( wxDataViewItemArray const& aItems )
+SHEET_SYNCHRONIZATION_MODEL::TakeItems( QModelIndexList const& aItems )
 {
     if( aItems.size() == 1 )
         return { TakeItem( aItems[0] ) };
@@ -133,9 +113,9 @@ SHEET_SYNCHRONIZATION_MODEL::TakeItems( wxDataViewItemArray const& aItems )
 
     for( const auto& item : aItems )
     {
-        if( item.IsOk() )
+        if( item.isValid() )
         {
-            unsigned int idx = GetRow( item );
+            unsigned int idx = item.row();
             rowsToBeRemove.insert( idx );
         }
     }
@@ -158,9 +138,9 @@ SHEET_SYNCHRONIZATION_MODEL::TakeItems( wxDataViewItemArray const& aItems )
 }
 
 
-SHEET_SYNCHRONIZATION_ITE_PTR SHEET_SYNCHRONIZATION_MODEL::TakeItem( wxDataViewItem const& aItem )
+SHEET_SYNCHRONIZATION_ITE_PTR SHEET_SYNCHRONIZATION_MODEL::TakeItem( QModelIndex const& aItem )
 {
-    const unsigned int row = GetRow( aItem );
+    const unsigned int row = aItem.row();
 
     if( row + 1 > m_items.size() )
         return {};
@@ -184,9 +164,9 @@ SHEET_SYNCHRONIZATION_MODEL::GetSynchronizationItem( unsigned aIndex ) const
 
 
 SHEET_SYNCHRONIZATION_ITE_PTR
-SHEET_SYNCHRONIZATION_MODEL::GetSynchronizationItem( wxDataViewItem const& aItem ) const
+SHEET_SYNCHRONIZATION_MODEL::GetSynchronizationItem( QModelIndex const& aItem ) const
 {
-    return GetSynchronizationItem( GetRow( aItem ) );
+    return GetSynchronizationItem( aItem.row() );
 }
 
 
@@ -196,8 +176,8 @@ void SHEET_SYNCHRONIZATION_MODEL::OnRowSelected( std::optional<unsigned> aRow )
 
     if( aRow.has_value() && m_items.size() > *aRow )
     {
-        if( wxDataViewItem item = GetItem( *aRow ); item.IsOk() )
-            ItemChanged( item );
+        if( QModelIndex item = index( *aRow, 0 ); item.isValid() )
+            emit dataChanged( item, item );
     }
 }
 

@@ -1,24 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Wayne Stambaugh <stambaughw@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef SCH_IO_KICAD_SEXPR_H_
 #define SCH_IO_KICAD_SEXPR_H_
@@ -30,7 +9,7 @@
 #include <sch_sheet_path.h>
 #include <stack>
 #include <wildcards_and_files_ext.h>
-#include <wx/string.h>
+#include <QString>
 #include <richio.h>
 
 
@@ -92,14 +71,14 @@ public:
 
     int GetModifyHash() const override;
 
-    SCH_SHEET* LoadSchematicFile( const wxString& aFileName, SCHEMATIC* aSchematic,
+    SCH_SHEET* LoadSchematicFile( const QString& aFileName, SCHEMATIC* aSchematic,
                                   SCH_SHEET*             aAppendToMe = nullptr,
                                   const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     void LoadContent( LINE_READER& aReader, SCH_SHEET* aSheet,
                       int aVersion = SEXPR_SCHEMATIC_FILE_VERSION );
 
-    void SaveSchematicFile( const wxString& aFileName, SCH_SHEET* aSheet, SCHEMATIC* aSchematic,
+    void SaveSchematicFile( const QString& aFileName, SCH_SHEET* aSheet, SCHEMATIC* aSchematic,
                             const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     void Format( SCH_SHEET* aSheet );
@@ -107,33 +86,33 @@ public:
     void Format( SCH_SELECTION* aSelection, SCH_SHEET_PATH* aSelectionPath,
                  SCHEMATIC& aSchematic, OUTPUTFORMATTER* aFormatter, bool aForClipboard );
 
-    void EnumerateSymbolLib( wxArrayString&    aSymbolNameList,
-                             const wxString&   aLibraryPath,
+    void EnumerateSymbolLib( QStringList&    aSymbolNameList,
+                             const QString&   aLibraryPath,
                              const std::map<std::string, UTF8>* aProperties = nullptr ) override;
     void EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
-                             const wxString&           aLibraryPath,
+                             const QString&           aLibraryPath,
                              const std::map<std::string, UTF8>*         aProperties = nullptr ) override;
-    LIB_SYMBOL* LoadSymbol( const wxString& aLibraryPath, const wxString& aAliasName,
+    LIB_SYMBOL* LoadSymbol( const QString& aLibraryPath, const QString& aAliasName,
                             const std::map<std::string, UTF8>* aProperties = nullptr ) override;
-    void SaveSymbol( const wxString& aLibraryPath, const LIB_SYMBOL* aSymbol,
+    void SaveSymbol( const QString& aLibraryPath, const LIB_SYMBOL* aSymbol,
                      const std::map<std::string, UTF8>* aProperties = nullptr ) override;
-    void DeleteSymbol( const wxString& aLibraryPath, const wxString& aSymbolName,
+    void DeleteSymbol( const QString& aLibraryPath, const QString& aSymbolName,
                        const std::map<std::string, UTF8>* aProperties = nullptr ) override;
-    void CreateLibrary( const wxString& aLibraryPath,
+    void CreateLibrary( const QString& aLibraryPath,
                         const std::map<std::string, UTF8>* aProperties = nullptr ) override;
-    bool DeleteLibrary( const wxString& aLibraryPath,
+    bool DeleteLibrary( const QString& aLibraryPath,
                         const std::map<std::string, UTF8>* aProperties = nullptr ) override;
-    void SaveLibrary( const wxString& aLibraryPath,
+    void SaveLibrary( const QString& aLibraryPath,
                       const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
-    bool CanReadLibrary( const wxString& aLibraryPath ) const override;
+    bool CanReadLibrary( const QString& aLibraryPath ) const override;
 
-    bool IsLibraryWritable( const wxString& aLibraryPath ) override;
+    bool IsLibraryWritable( const QString& aLibraryPath ) override;
 
-    void GetAvailableSymbolFields( std::vector<wxString>& aNames ) override;
-    void GetDefaultSymbolFields( std::vector<wxString>& aNames ) override;
+    void GetAvailableSymbolFields( std::vector<QString>& aNames ) override;
+    void GetDefaultSymbolFields( std::vector<QString>& aNames ) override;
 
-    const wxString& GetError() const override { return m_error; }
+    const QString& GetError() const override { return m_error; }
 
     static std::vector<LIB_SYMBOL*> ParseLibSymbols( std::string& aSymbolText,
                                                      std::string  aSource,
@@ -142,7 +121,7 @@ public:
 
 private:
     void loadHierarchy( const SCH_SHEET_PATH& aParentSheetPath, SCH_SHEET* aSheet );
-    void loadFile( const wxString& aFileName, SCH_SHEET* aSheet );
+    void loadFile( const QString& aFileName, SCH_SHEET* aSheet );
 
     void saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSchematic,
                      const SCH_SHEET_LIST& aSheetList, bool aForClipboard,
@@ -162,18 +141,18 @@ private:
     void saveBusAlias( std::shared_ptr<BUS_ALIAS> aAlias );
     void saveInstances( const std::vector<SCH_SHEET_INSTANCE>& aSheets );
 
-    void cacheLib( const wxString& aLibraryFileName, const std::map<std::string, UTF8>* aProperties );
+    void cacheLib( const QString& aLibraryFileName, const std::map<std::string, UTF8>* aProperties );
     bool isBuffering( const std::map<std::string, UTF8>* aProperties );
 
 protected:
     int                     m_version;          ///< Version of file being loaded.
     int                     m_nextFreeFieldId;
     bool                    m_appending;        ///< Schematic load append status.
-    wxString                m_error;            ///< For throwing exceptions or errors on partial
+    QString                m_error;            ///< For throwing exceptions or errors on partial
                                                 ///<  loads.
 
-    wxString                m_path;             ///< Root project path for loading child sheets.
-    std::stack<wxString>    m_currentPath;      ///< Stack to maintain nested sheet paths
+    QString                m_path;             ///< Root project path for loading child sheets.
+    std::stack<QString>    m_currentPath;      ///< Stack to maintain nested sheet paths
     SCH_SHEET*              m_rootSheet;        ///< The root sheet of the schematic being loaded.
     SCH_SHEET_PATH          m_currentSheetPath;
     SCHEMATIC*              m_schematic;

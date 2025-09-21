@@ -1,21 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef KICAD_SCHEMATIC_H
 #define KICAD_SCHEMATIC_H
@@ -89,9 +71,9 @@ public:
 
     virtual ~SCHEMATIC();
 
-    virtual wxString GetClass() const override
+    virtual QString GetClass() const override
     {
-        return wxT( "SCHEMATIC" );
+        return "SCHEMATIC";
     }
 
     /// Initialize this schematic to a blank one, unloading anything existing.
@@ -101,7 +83,7 @@ public:
     PROJECT& Prj() const { return *m_project; }
     void SetProject( PROJECT* aPrj );
 
-    const std::map<wxString, wxString>* GetProperties() { return &m_properties; }
+    const std::map<QString, QString>* GetProperties() { return &m_properties; }
 
     SCH_SHEET_LIST BuildSheetListSortedByPageNumbers() const
     {
@@ -158,12 +140,12 @@ public:
     /// Helper to retrieve the screen of the root sheet
     SCH_SCREEN* RootScreen() const;
 
-    void GetContextualTextVars( wxArrayString* aVars ) const;
+    void GetContextualTextVars( QStringList* aVars ) const;
 
-    bool ResolveTextVar( const SCH_SHEET_PATH* aSheetPath, wxString* token, int aDepth ) const;
+    bool ResolveTextVar( const SCH_SHEET_PATH* aSheetPath, QString* token, int aDepth ) const;
 
     /// Helper to retrieve the filename from the root sheet screen
-    wxString GetFileName() const;
+    QString GetFileName() const;
 
     SCH_SHEET_PATH& CurrentSheet() const
     {
@@ -195,7 +177,7 @@ public:
      * Return a pointer to a bus alias object for the given label, or null if one
      * doesn't exist.
      */
-    std::shared_ptr<BUS_ALIAS> GetBusAlias( const wxString& aLabel ) const;
+    std::shared_ptr<BUS_ALIAS> GetBusAlias( const QString& aLabel ) const;
 
     /**
      * Return the set of netname candidates for netclass assignment.
@@ -203,7 +185,7 @@ public:
      * The list will include both composite names (buses) and atomic net names.  Names are
      * fetched from available labels, power pins, etc.
      */
-    std::set<wxString> GetNetClassAssignmentCandidates();
+    std::set<QString> GetNetClassAssignmentCandidates();
 
     /**
      * Resolves text vars that refer to other items.
@@ -211,15 +193,15 @@ public:
      * @note The actual resolve is delegated to the symbol/sheet in question.  This routine
      *       just does the look-up and delegation.
      */
-    bool ResolveCrossReference( wxString* token, int aDepth ) const;
+    bool ResolveCrossReference( QString* token, int aDepth ) const;
 
-    std::map<wxString, std::set<int>>& GetPageRefsMap() { return m_labelToPageRefsMap; }
+    std::map<QString, std::set<int>>& GetPageRefsMap() { return m_labelToPageRefsMap; }
 
-    std::map<int, wxString> GetVirtualPageToSheetNamesMap() const;
-    std::map<int, wxString> GetVirtualPageToSheetPagesMap() const;
+    std::map<int, QString> GetVirtualPageToSheetNamesMap() const;
+    std::map<int, QString> GetVirtualPageToSheetPagesMap() const;
 
-    wxString ConvertRefsToKIIDs( const wxString& aSource ) const;
-    wxString ConvertKIIDsToRefs( const wxString& aSource ) const;
+    QString ConvertRefsToKIIDs( const QString& aSource ) const;
+    QString ConvertKIIDsToRefs( const QString& aSource ) const;
 
     /**
      * Update the symbol value and footprint instance data for legacy designs.
@@ -241,7 +223,7 @@ public:
      * @return a filename that can be used in plot and print functions for the current screen
      * and sheet path.
      */
-    wxString GetUniqueFilenameForCurrentSheet();
+    QString GetUniqueFilenameForCurrentSheet();
 
     /**
      * Set the m_ScreenNumber and m_NumberOfScreens members for screens.
@@ -269,12 +251,12 @@ public:
      *
      * Called after the simulation completes.
      */
-    void SetOperatingPoint( const wxString& aSignal, double aValue )
+    void SetOperatingPoint( const QString& aSignal, double aValue )
     {
         m_operatingPoints[ aSignal ] = aValue;
     }
 
-    wxString GetOperatingPoint( const wxString& aNetName, int aPrecision, const wxString& aRange );
+    QString GetOperatingPoint( const QString& aNetName, int aPrecision, const QString& aRange );
 
     /**
      * Add junctions to this schematic where required.
@@ -464,17 +446,17 @@ private:
      *
      * It is used for updating global label intersheet references.
      */
-    std::map<wxString, std::set<int>> m_labelToPageRefsMap;
+    std::map<QString, std::set<int>> m_labelToPageRefsMap;
 
     /**
      * Properties for text variable substitution (and perhaps other uses in future).
      */
-    std::map<wxString, wxString>      m_properties;
+    std::map<QString, QString>      m_properties;
 
     /**
      * Simulation operating points for text variable substitution.
      */
-    std::map<wxString, double>        m_operatingPoints;
+    std::map<QString, double>        m_operatingPoints;
 
     /**
      * Cache of the entire schematic hierarchy sorted by sheet page number.

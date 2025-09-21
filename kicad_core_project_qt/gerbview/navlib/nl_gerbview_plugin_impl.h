@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2024 3Dconnexion
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
-/**
- * @file  nl_gerbview_plugin_impl.h
- * @brief Declaration of the NL_GERBVIEW_PLUGIN_IMPL class
- */
 
 #ifndef NL_GERBVIEW_PLUGIN_IMPL_H_
 #define NL_GERBVIEW_PLUGIN_IMPL_H_
@@ -35,8 +11,8 @@
 // TDxWare SDK.
 #include <SpaceMouse/CNavigation3D.hpp>
 
-// wx
-#include <wx/chartype.h>
+// Qt
+#include <QString>
 
 // KiCAD
 #include <math/vector2d.h>
@@ -135,13 +111,8 @@ private:
     mutable double      m_viewportWidth = 0.0;
     mutable VECTOR2D    m_viewPosition;
 
-    /**
-     *  Trace mask used to enable or disable the trace output of this class.
-     *  The debug output can be turned on by setting the WXTRACE environment variable to
-     *  "KI_TRACE_NL_GERBVIEW_PLUGIN".  See the wxWidgets documentation on wxLogTrace for
-     *  more information.
-     */
-    static const wxChar* m_logTrace;
+    // Trace mask used to enable or disable the trace output of this class.
+    static const QString m_logTrace;
 };
 
 #endif // NL_GERBVIEW_PLUGIN_IMPL

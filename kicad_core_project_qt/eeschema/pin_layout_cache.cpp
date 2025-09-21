@@ -1,28 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "pin_layout_cache.h"
 
+#include <QString>
+#include <QtGlobal>
 #include <geometry/direction45.h>
 #include <pgm_base.h>
 #include <settings/settings_manager.h>
@@ -117,7 +97,7 @@ void PIN_LAYOUT_CACHE::SetRenderParameters( int aNameThickness, int aNumberThick
 
 
 void PIN_LAYOUT_CACHE::recomputeExtentsCache( bool aDefinitelyDirty, KIFONT::FONT* aFont, int aSize,
-                                              const wxString&        aText,
+                                              const QString&         aText,
                                               const KIFONT::METRICS& aFontMetrics,
                                               TEXT_EXTENTS_CACHE&    aCache )
 {
@@ -157,14 +137,14 @@ void PIN_LAYOUT_CACHE::recomputeCaches()
 
     {
         const bool     dirty = isDirty( DIRTY_FLAGS::NUMBER );
-        const wxString number = m_pin.GetShownNumber();
+        const QString number = m_pin.GetShownNumber();
         recomputeExtentsCache( dirty, font, m_pin.GetNumberTextSize(), number, metrics,
                                m_numExtentsCache );
     }
 
     {
         const bool     dirty = isDirty( DIRTY_FLAGS::NAME );
-        const wxString name = m_pin.GetShownName();
+        const QString name = m_pin.GetShownName();
         recomputeExtentsCache( dirty, font, m_pin.GetNameTextSize(), name, metrics,
                                m_nameExtentsCache );
     }
@@ -265,7 +245,8 @@ BOX2I PIN_LAYOUT_CACHE::GetPinBoundingBox( bool aIncludeLabelsOnInvisiblePins,
     if( const SCH_SYMBOL* symbol = dynamic_cast<const SCH_SYMBOL*>( m_pin.GetParentSymbol() ) )
     {
         SCH_PIN* const libPin = m_pin.GetLibPin();
-        wxCHECK( libPin, BOX2I() );
+        Q_ASSERT( libPin );
+        if( !libPin ) return BOX2I();
 
         BOX2I r = libPin->GetBoundingBox( aIncludeLabelsOnInvisiblePins, aIncludeNameAndNumber,
                                           aIncludeElectricalType );
@@ -277,8 +258,8 @@ BOX2I PIN_LAYOUT_CACHE::GetPinBoundingBox( bool aIncludeLabelsOnInvisiblePins,
         return r;
     }
 
-    bool     includeName = aIncludeNameAndNumber && !m_pin.GetShownName().IsEmpty();
-    bool     includeNumber = aIncludeNameAndNumber && !m_pin.GetShownNumber().IsEmpty();
+    bool     includeName = aIncludeNameAndNumber && !m_pin.GetShownName().isEmpty();
+    bool     includeNumber = aIncludeNameAndNumber && !m_pin.GetShownNumber().isEmpty();
     bool     includeType = aIncludeElectricalType;
 
     if( !aIncludeLabelsOnInvisiblePins && !m_pin.IsVisible() )
@@ -609,7 +590,7 @@ OPT_BOX2I PIN_LAYOUT_CACHE::GetAltIconBBox()
 std::optional<PIN_LAYOUT_CACHE::TEXT_INFO> PIN_LAYOUT_CACHE::GetPinNameInfo( int aShadowWidth )
 {
     recomputeCaches();
-    wxString name = m_pin.GetShownName();
+    QString name = m_pin.GetShownName();
 
     // TODO - work out exactly what we need to do to cache this
     // (or if it's worth the memory/complexity)
@@ -619,7 +600,7 @@ std::optional<PIN_LAYOUT_CACHE::TEXT_INFO> PIN_LAYOUT_CACHE::GetPinNameInfo( int
     // Because pins are very likely to share a lot of characteristics, a global
     // cache might make more sense than a per-pin cache.
 
-    if( name.IsEmpty() || !m_pin.GetParentSymbol()->GetShowPinNames() )
+    if( name.isEmpty() || !m_pin.GetParentSymbol()->GetShowPinNames() )
         return std::nullopt;
 
     std::optional<TEXT_INFO> info = TEXT_INFO();
@@ -658,8 +639,8 @@ std::optional<PIN_LAYOUT_CACHE::TEXT_INFO> PIN_LAYOUT_CACHE::GetPinNumberInfo( i
 {
     recomputeCaches();
 
-    wxString number = m_pin.GetShownNumber();
-    if( number.IsEmpty() || !m_pin.GetParentSymbol()->GetShowPinNumbers() )
+    QString number = m_pin.GetShownNumber();
+    if( number.isEmpty() || !m_pin.GetParentSymbol()->GetShowPinNumbers() )
         return std::nullopt;
 
     std::optional<TEXT_INFO> info;

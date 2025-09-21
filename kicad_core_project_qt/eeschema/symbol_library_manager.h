@@ -1,28 +1,3 @@
-/*
- * This program source code file is symbol of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A SYMBOLICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * https://www.gnu.org/licenses/gpl-3.0.html
- * or you may search the http://www.gnu.org website for the version 3 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SYMBOL_LIBRARY_MANAGER_H
 #define SYMBOL_LIBRARY_MANAGER_H
@@ -32,7 +7,8 @@
 #include <deque>
 #include <set>
 #include <memory>
-#include <wx/arrstr.h>
+#include <QString>
+#include <QStringList>
 #include <sch_io/sch_io_mgr.h>
 #include <sch_screen.h>
 
@@ -81,7 +57,7 @@ private:
 class LIB_BUFFER
 {
 public:
-    LIB_BUFFER( const wxString& aLibrary ) :
+    LIB_BUFFER( const QString& aLibrary ) :
             m_libName( aLibrary ),
             m_hash( 1 )
     {}
@@ -103,7 +79,7 @@ public:
     int GetHash() const { return m_hash; }
 
     /// Return the working copy of a #LIB_SYMBOL root object with specified alias.
-    LIB_SYMBOL* GetSymbol( const wxString& aAlias ) const;
+    LIB_SYMBOL* GetSymbol( const QString& aAlias ) const;
 
     /// Create a new buffer to store a symbol. #LIB_BUFFER takes ownership of \a aCopy.
     bool CreateBuffer( std::unique_ptr<LIB_SYMBOL> aCopy, std::unique_ptr<SCH_SCREEN> aScreen );
@@ -120,11 +96,11 @@ public:
 
     /// Save stored modifications using a plugin. aBuffer decides whether the changes
     /// should be cached or stored directly to the disk (for #SCH_IO_KICAD_LEGACY).
-    bool SaveBuffer( SYMBOL_BUFFER& aSymbolBuf, const wxString& aFileName, SCH_IO* aPlugin,
+    bool SaveBuffer( SYMBOL_BUFFER& aSymbolBuf, const QString& aFileName, SCH_IO* aPlugin,
                      bool aBuffer );
 
     /// Return a symbol buffer with #LIB_SYMBOL holding a symbolic alias.
-    std::shared_ptr<SYMBOL_BUFFER> GetBuffer( const wxString& aAlias ) const;
+    std::shared_ptr<SYMBOL_BUFFER> GetBuffer( const QString& aAlias ) const;
 
     /// Return all buffered symbols.
     const std::deque<std::shared_ptr<SYMBOL_BUFFER>>& GetBuffers() const { return m_symbols; }
@@ -136,7 +112,7 @@ public:
      * @return true if any symbols are found derived from a symbol named \a aParent, otherwise
      *         false.
      */
-    bool HasDerivedSymbols( const wxString& aParentName ) const;
+    bool HasDerivedSymbols( const QString& aParentName ) const;
 
     /**
      * Fetch a list of root symbols names from the library buffer.
@@ -144,7 +120,7 @@ public:
      * @param aRootSymbolNames is a reference to a list to populate with root symbol names.
      * @param aFilter is the symbol derivation type.
      */
-    void GetSymbolNames( wxArrayString&     aSymbolNames,
+    void GetSymbolNames( QStringList&       aSymbolNames,
                          SYMBOL_NAME_FILTER aFilter = SYMBOL_NAME_FILTER::ALL );
 
     /**
@@ -155,7 +131,7 @@ public:
      * @param aList is the list of symbols names derived from \a aSymbolName.
      * @return a size_t count of the number of symbols derived from \a aSymbolName.
      */
-    size_t GetDerivedSymbolNames( const wxString& aSymbolName, wxArrayString& aList );
+    size_t GetDerivedSymbolNames( const QString& aSymbolName, QStringList& aList );
 
 private:
     /**
@@ -170,7 +146,7 @@ private:
     std::deque<std::shared_ptr<SYMBOL_BUFFER>> m_symbols;
     std::deque<std::shared_ptr<SYMBOL_BUFFER>> m_deleted;   ///< Buffer for deleted symbols until
                                                             ///<   library is saved.
-    const wxString                             m_libName;   ///< Buffered library name
+    const QString                              m_libName;   ///< Buffered library name
     int                                        m_hash;
 };
 
@@ -204,26 +180,26 @@ public:
      * For original libraries, hash is computed basing on the library URI. Returns -1 when the
      * requested library does not exist.
      */
-    int GetLibraryHash( const wxString& aLibrary ) const;
+    int GetLibraryHash( const QString& aLibrary ) const;
 
     /**
      * Return the array of library names.
      */
-    wxArrayString GetLibraryNames() const;
+    QStringList GetLibraryNames() const;
 
     /**
      * Find a single library within the (aggregate) library table.
      */
-    SYMBOL_LIB_TABLE_ROW* GetLibrary( const wxString& aLibrary ) const;
+    SYMBOL_LIB_TABLE_ROW* GetLibrary( const QString& aLibrary ) const;
 
-    std::list<LIB_SYMBOL*> GetAliases( const wxString& aLibrary ) const;
+    std::list<LIB_SYMBOL*> GetAliases( const QString& aLibrary ) const;
 
     /**
      * Create an empty library and adds it to the library table.
      *
      * The library file is created.
      */
-    bool CreateLibrary( const wxString& aFilePath, SYMBOL_LIB_TABLE& aTable )
+    bool CreateLibrary( const QString& aFilePath, SYMBOL_LIB_TABLE& aTable )
     {
         return addLibrary( aFilePath, true, aTable );
     }
@@ -233,7 +209,7 @@ public:
      *
      * The library is added to the library table as well.
      */
-    bool AddLibrary( const wxString& aFilePath, SYMBOL_LIB_TABLE& aTable )
+    bool AddLibrary( const QString& aFilePath, SYMBOL_LIB_TABLE& aTable )
     {
         return addLibrary( aFilePath, false, aTable );
     }
@@ -245,33 +221,33 @@ public:
      *
      * It is required to save the library to use the updated symbol in the schematic editor.
      */
-    bool UpdateSymbol( LIB_SYMBOL* aSymbol, const wxString& aLibrary );
+    bool UpdateSymbol( LIB_SYMBOL* aSymbol, const QString& aLibrary );
 
     /**
      * Update the symbol buffer with a new version of the symbol when the name has changed.
      *
      * The old library buffer will be deleted and a new one created with the new name.
      */
-    bool UpdateSymbolAfterRename( LIB_SYMBOL* aSymbol, const wxString& oldAlias,
-                                  const wxString& aLibrary );
+    bool UpdateSymbolAfterRename( LIB_SYMBOL* aSymbol, const QString& oldAlias,
+                                  const QString& aLibrary );
 
     /**
      * Update the library buffer with a new version of the library.
      */
-    bool UpdateLibraryBuffer( const wxString& aLibrary );
+    bool UpdateLibraryBuffer( const QString& aLibrary );
 
     /**
      * Remove the symbol from the symbol buffer.
      *
      * It is required to save the library to have the symbol removed in the schematic editor.
      */
-    bool RemoveSymbol( const wxString& aName, const wxString& aLibrary );
+    bool RemoveSymbol( const QString& aName, const QString& aLibrary );
 
     /**
      * Return either an alias of a working LIB_SYMBOL copy, or alias of the original symbol if there
      * is no working copy.
      */
-    LIB_SYMBOL* GetAlias( const wxString& aAlias, const wxString& aLibrary ) const;
+    LIB_SYMBOL* GetAlias( const QString& aAlias, const QString& aLibrary ) const;
 
     /**
      * Return the symbol copy from the buffer.
@@ -279,60 +255,60 @@ public:
      * In case it does not exist yet, the copy is created.  #SYMBOL_LIBRARY_MANAGER retains
      * the ownership.
      */
-    LIB_SYMBOL* GetBufferedSymbol( const wxString& aAlias, const wxString& aLibrary );
+    LIB_SYMBOL* GetBufferedSymbol( const QString& aAlias, const QString& aLibrary );
 
     /**
      * Return the screen used to edit a specific symbol. #SYMBOL_LIBRARY_MANAGER retains the
      * ownership.
      */
-    SCH_SCREEN* GetScreen( const wxString& aAlias, const wxString& aLibrary );
+    SCH_SCREEN* GetScreen( const QString& aAlias, const QString& aLibrary );
 
     /**
      * Return true if symbol with a specific alias exists in library (either original one or
      * buffered).
      */
-    bool SymbolExists( const wxString& aAlias, const wxString& aLibrary ) const;
+    bool SymbolExists( const QString& aAlias, const QString& aLibrary ) const;
 
     /**
      * Return true if library exists.
      *
      * If \a aCheckEnabled is set, then the library must also be enabled in the library table.
      */
-    bool LibraryExists( const wxString& aLibrary, bool aCheckEnabled = false ) const;
+    bool LibraryExists( const QString& aLibrary, bool aCheckEnabled = false ) const;
 
     /**
      * Return true if the library was successfully loaded.
      */
-    bool IsLibraryLoaded( const wxString& aLibrary ) const;
+    bool IsLibraryLoaded( const QString& aLibrary ) const;
 
     /**
      * Return true if library has unsaved modifications.
      */
-    bool IsLibraryModified( const wxString& aLibrary ) const;
+    bool IsLibraryModified( const QString& aLibrary ) const;
 
     /**
      * Return true if symbol has unsaved modifications.
      */
-    bool IsSymbolModified( const wxString& aAlias, const wxString& aLibrary ) const;
+    bool IsSymbolModified( const QString& aAlias, const QString& aLibrary ) const;
 
-    void SetSymbolModified( const wxString& aAlias, const wxString& aLibrary );
+    void SetSymbolModified( const QString& aAlias, const QString& aLibrary );
 
     /**
      * Clear the modified flag for all symbols in a library.
      */
-    bool ClearLibraryModified( const wxString& aLibrary ) const;
+    bool ClearLibraryModified( const QString& aLibrary ) const;
 
     /**
      * Clear the modified flag for a symbol.
      */
-    bool ClearSymbolModified( const wxString& aAlias, const wxString& aLibrary ) const;
+    bool ClearSymbolModified( const QString& aAlias, const QString& aLibrary ) const;
 
     /**
      * Return true if the library is stored in a read-only file.
      *
      * @return True on success, false otherwise.
      */
-    bool IsLibraryReadOnly( const wxString& aLibrary ) const;
+    bool IsLibraryReadOnly( const QString& aLibrary ) const;
 
     /**
      * Save library to a file, including unsaved changes.
@@ -341,7 +317,7 @@ public:
      * @param aFileName is the target file name.
      * @return True on success, false otherwise.
      */
-    bool SaveLibrary( const wxString& aLibrary, const wxString& aFileName,
+    bool SaveLibrary( const QString& aLibrary, const QString& aFileName,
                       SCH_IO_MGR::SCH_FILE_T aFileType = SCH_IO_MGR::SCH_FILE_T::SCH_LEGACY );
 
     /**
@@ -350,14 +326,14 @@ public:
      * @return The LIB_ID of the reverted symbol (which may be different in the case
      * of a rename)
      */
-    LIB_ID RevertSymbol( const wxString& aAlias, const wxString& aLibrary );
+    LIB_ID RevertSymbol( const QString& aAlias, const QString& aLibrary );
 
     /**
      * Revert unsaved changes for a symbol library.
      *
      * @return True on success, false otherwise.
      */
-    bool RevertLibrary( const wxString& aLibrary );
+    bool RevertLibrary( const QString& aLibrary );
 
     /**
      * Revert all pending changes.
@@ -371,9 +347,9 @@ public:
      *
      * Used for generating names for new libraries.
      */
-    wxString GetUniqueLibraryName() const;
+    QString GetUniqueLibraryName() const;
 
-    void GetSymbolNames( const wxString& aLibName, wxArrayString& aSymbolNames,
+    void GetSymbolNames( const QString& aLibName, QStringList& aSymbolNames,
                          SYMBOL_NAME_FILTER aFilter = SYMBOL_NAME_FILTER::ALL );
 
     /**
@@ -382,7 +358,7 @@ public:
      *
      * @return true if \aSymbolName in \a aLibraryName has derived symbols.
      */
-    bool HasDerivedSymbols( const wxString& aSymbolName, const wxString& aLibraryName );
+    bool HasDerivedSymbols( const QString& aSymbolName, const QString& aLibraryName );
 
     size_t GetLibraryCount() const;
 
@@ -390,10 +366,10 @@ protected:
     virtual void OnDataChanged() const {}
 
     /// Extract library name basing on the file name.
-    static wxString getLibraryName( const wxString& aFilePath );
+    static QString getLibraryName( const QString& aFilePath );
 
     /// Helper function to add either existing or create new library.
-    bool addLibrary( const wxString& aFilePath, bool aCreate, SYMBOL_LIB_TABLE& aTable );
+    bool addLibrary( const QString& aFilePath, bool aCreate, SYMBOL_LIB_TABLE& aTable );
 
 
     /// Return the current symbol library table.
@@ -402,16 +378,16 @@ protected:
     /**
      * Return a set of #LIB_SYMBOL objects belonging to the original library.
      */
-    std::set<LIB_SYMBOL*> getOriginalSymbols( const wxString& aLibrary );
+    std::set<LIB_SYMBOL*> getOriginalSymbols( const QString& aLibrary );
 
     /**
      * Return an existing library buffer or creates one to using symbol library table to get
      * the original data.
      */
-    LIB_BUFFER& getLibraryBuffer( const wxString& aLibrary );
+    LIB_BUFFER& getLibraryBuffer( const QString& aLibrary );
 
 protected:
-    std::map<wxString, LIB_BUFFER> m_libs;       ///< The library buffers
+    std::map<QString, LIB_BUFFER> m_libs;       ///< The library buffers
     SCH_BASE_FRAME&                m_frame;      ///< Parent frame
     LIB_LOGGER*                    m_logger;
 };

@@ -62,8 +62,9 @@ void SCH_JUNCTION::SwapData( SCH_ITEM* aItem )
 {
     SCH_ITEM::SwapFlags( aItem );
 
-    wxCHECK_RET( ( aItem != nullptr ) && ( aItem->Type() == SCH_JUNCTION_T ),
-                 wxT( "Cannot swap junction data with invalid item." ) );
+    Q_ASSERT( ( aItem != nullptr ) && ( aItem->Type() == SCH_JUNCTION_T ) );
+    if( !( ( aItem != nullptr ) && ( aItem->Type() == SCH_JUNCTION_T ) ) )
+        return;
 
     SCH_JUNCTION* item = (SCH_JUNCTION*) aItem;
     std::swap( m_pos, item->m_pos );
@@ -114,7 +115,7 @@ const BOX2I SCH_JUNCTION::GetBoundingBox() const
 void SCH_JUNCTION::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
                           const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
 {
-    wxDC*   DC    = aSettings->GetPrintDC();
+    QPaintDevice*   DC    = aSettings->GetPrintDC();
     COLOR4D color = GetJunctionColor();
 
     if( color == COLOR4D::UNSPECIFIED )
@@ -161,9 +162,9 @@ std::vector<VECTOR2I> SCH_JUNCTION::GetConnectionPoints() const
 void SCH_JUNCTION::Show( int nestLevel, std::ostream& os ) const
 {
     // XML output:
-    wxString s = GetClass();
+    QString s = GetClass();
 
-    NestedSpace( nestLevel, os ) << '<' << s.Lower().mb_str() << m_pos << ", " << m_diameter
+    NestedSpace( nestLevel, os ) << '<' << s.toLower().toStdString().c_str() << m_pos << ", " << m_diameter
                                  << "/>\n";
 }
 #endif
@@ -240,7 +241,9 @@ bool SCH_JUNCTION::HasConnectivityChanges( const SCH_ITEM* aItem,
     const SCH_JUNCTION* junction = dynamic_cast<const SCH_JUNCTION*>( aItem );
 
     // Don't compare against a different SCH_ITEM.
-    wxCHECK( junction, false );
+    Q_ASSERT( junction );
+    if( !junction )
+        return false;
 
     return GetPosition() != junction->GetPosition();
 }
@@ -301,7 +304,7 @@ bool SCH_JUNCTION::operator <( const SCH_ITEM& aItem ) const
 
 void SCH_JUNCTION::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    aList.emplace_back( _( "Junction" ), wxEmptyString );
+    aList.emplace_back( _( "Junction" ), QString() );
 
     aList.emplace_back( _( "Size" ), aFrame->MessageTextFromValue( GetEffectiveDiameter() ) );
 

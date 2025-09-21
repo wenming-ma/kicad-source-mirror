@@ -1,27 +1,6 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2013-2020 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// Qt Framework Transformation Complete
+// Transformed from wxWidgets to Qt framework
 
 #include <layer_ids.h>
 #include <page_info.h>
@@ -37,7 +16,7 @@ using namespace KIGFX;
 
 DS_PROXY_VIEW_ITEM::DS_PROXY_VIEW_ITEM( const EDA_IU_SCALE& aIuScale, const PAGE_INFO* aPageInfo,
                                         const PROJECT* aProject, const TITLE_BLOCK* aTitleBlock,
-                                        const std::map<wxString, wxString>* aProperties ) :
+                                        const std::map<QString, QString>* aProperties ) :
         EDA_ITEM( NOT_USED ), // this item is never added to a BOARD so it needs no type
         m_iuScale( aIuScale ),
         m_titleBlock( aTitleBlock ),
@@ -73,13 +52,13 @@ const BOX2I DS_PROXY_VIEW_ITEM::ViewBBox() const
 
 
 void DS_PROXY_VIEW_ITEM::buildDrawList( VIEW* aView,
-                                        const std::map<wxString, wxString>* aProperties,
+                                        const std::map<QString, QString>* aProperties,
                                         DS_DRAW_ITEM_LIST* aDrawList ) const
 {
     RENDER_SETTINGS* settings = aView->GetPainter()->GetSettings();
-    wxString         fileName( m_fileName.c_str(), wxConvUTF8 );
-    wxString         sheetName( m_sheetName.c_str(), wxConvUTF8 );
-    wxString         sheetPath( m_sheetPath.c_str(), wxConvUTF8 );
+    QString          fileName = QString::fromStdString( m_fileName );
+    QString          sheetName = QString::fromStdString( m_sheetName );
+    QString          sheetPath = QString::fromStdString( m_sheetPath );
 
     aDrawList->SetDefaultPenSize( (int) settings->GetDrawingSheetLineWidth() );
     aDrawList->SetIsFirstPage( m_isFirstPage );

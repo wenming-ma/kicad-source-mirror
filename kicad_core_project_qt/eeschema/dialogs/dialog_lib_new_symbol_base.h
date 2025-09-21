@@ -1,32 +1,30 @@
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
-// http://www.wxformbuilder.org/
-//
-// PLEASE DO *NOT* EDIT THIS FILE!
+// C++ code generated for Qt framework
+// Transformed from wxWidgets to Qt
 ///////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
-#include <wx/artprov.h>
-#include <wx/xrc/xmlres.h>
-#include <wx/intl.h>
-class WX_INFOBAR;
+#include <QtWidgets/QWidget>
+#include <QtWidgets/QDialog>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QLineEdit>
+#include <QtWidgets/QComboBox>
+#include <QtWidgets/QSpinBox>
+#include <QtWidgets/QCheckBox>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QGridLayout>
+#include <QtWidgets/QDialogButtonBox>
+#include <QtCore/QString>
+#include <QtGui/QFont>
+#include <QtGui/QColor>
+class QT_INFOBAR;
 
 #include "dialog_shim.h"
-#include <wx/infobar.h>
-#include <wx/gdicmn.h>
-#include <wx/font.h>
-#include <wx/colour.h>
-#include <wx/settings.h>
-#include <wx/string.h>
-#include <wx/stattext.h>
-#include <wx/textctrl.h>
 #include <widgets/symbol_filter_combobox.h>
-#include <wx/spinctrl.h>
-#include <wx/sizer.h>
-#include <wx/checkbox.h>
-#include <wx/button.h>
-#include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -35,45 +33,49 @@ class WX_INFOBAR;
 ///////////////////////////////////////////////////////////////////////////////
 class DIALOG_LIB_NEW_SYMBOL_BASE : public DIALOG_SHIM
 {
-	DECLARE_EVENT_TABLE()
-	private:
+	Q_OBJECT
+
+private:
 
 		// Private event handlers
-		void _wxFB_onPowerCheckBox( wxCommandEvent& event ){ onPowerCheckBox( event ); }
+		void _qt_onPowerCheckBox();
+
+private slots:
+		void onPowerCheckBoxClicked();
 
 
 	protected:
-		WX_INFOBAR* m_infoBar;
-		wxStaticText* m_staticTextName;
-		wxTextCtrl* m_textName;
-		wxStaticText* m_staticText5;
+		QT_INFOBAR* m_infoBar;
+		QLabel* m_staticTextName;
+		QLineEdit* m_textName;
+		QLabel* m_staticText5;
 		SYMBOL_FILTER_COMBOBOX* m_comboInheritanceSelect;
-		wxStaticText* m_staticTextDes;
-		wxTextCtrl* m_textReference;
-		wxStaticText* m_staticTextUnits;
-		wxSpinCtrl* m_spinPartCount;
-		wxCheckBox* m_checkUnitsInterchangeable;
-		wxCheckBox* m_checkHasAlternateBodyStyle;
-		wxCheckBox* m_checkIsPowerSymbol;
-		wxCheckBox* m_excludeFromBomCheckBox;
-		wxCheckBox* m_excludeFromBoardCheckBox;
-		wxStaticText* m_staticPinTextPositionLabel;
-		wxTextCtrl* m_textPinTextPosition;
-		wxStaticText* m_staticPinTextPositionUnits;
-		wxCheckBox* m_checkShowPinNumber;
-		wxCheckBox* m_checkShowPinName;
-		wxCheckBox* m_checkShowPinNameInside;
-		wxStdDialogButtonSizer* m_sdbSizer;
-		wxButton* m_sdbSizerOK;
-		wxButton* m_sdbSizerCancel;
+		QLabel* m_staticTextDes;
+		QLineEdit* m_textReference;
+		QLabel* m_staticTextUnits;
+		QSpinBox* m_spinPartCount;
+		QCheckBox* m_checkUnitsInterchangeable;
+		QCheckBox* m_checkHasAlternateBodyStyle;
+		QCheckBox* m_checkIsPowerSymbol;
+		QCheckBox* m_excludeFromBomCheckBox;
+		QCheckBox* m_excludeFromBoardCheckBox;
+		QLabel* m_staticPinTextPositionLabel;
+		QLineEdit* m_textPinTextPosition;
+		QLabel* m_staticPinTextPositionUnits;
+		QCheckBox* m_checkShowPinNumber;
+		QCheckBox* m_checkShowPinName;
+		QCheckBox* m_checkShowPinNameInside;
+		QDialogButtonBox* m_sdbSizer;
+		QPushButton* m_sdbSizerOK;
+		QPushButton* m_sdbSizerCancel;
 
 		// Virtual event handlers, override them in your derived class
-		virtual void onPowerCheckBox( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onPowerCheckBox();
 
 
 	public:
 
-		DIALOG_LIB_NEW_SYMBOL_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("New Symbol"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+		DIALOG_LIB_NEW_SYMBOL_BASE( QWidget* parent = nullptr, const QString& title = "New Symbol" );
 
 		~DIALOG_LIB_NEW_SYMBOL_BASE();
 

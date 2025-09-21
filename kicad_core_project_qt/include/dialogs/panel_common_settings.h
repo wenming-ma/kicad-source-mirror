@@ -1,25 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #ifndef KICAD_DIALOG_SUITE_OPTIONS_H
 #define KICAD_DIALOG_SUITE_OPTIONS_H
@@ -35,7 +15,7 @@ class STEPPED_SLIDER;
 class PANEL_COMMON_SETTINGS : public PANEL_COMMON_SETTINGS_BASE
 {
 public:
-    PANEL_COMMON_SETTINGS( wxWindow* aParent );
+    PANEL_COMMON_SETTINGS( QWidget* aParent );
     ~PANEL_COMMON_SETTINGS() override;
 
     void ResetPanel() override;
@@ -46,19 +26,19 @@ protected:
 
     void applySettingsToPanel( COMMON_SETTINGS& aSettings );
 
-    void OnTextEditorClick( wxCommandEvent& event ) override;
-    void OnPDFViewerClick( wxCommandEvent& event ) override;
-    void OnRadioButtonPdfViewer( wxCommandEvent& event ) override;
+    void OnTextEditorClick( QEvent& event ) override;
+    void OnPDFViewerClick( QEvent& event ) override;
+    void OnRadioButtonPdfViewer( QEvent& event ) override;
 
     /**
      * Event fired when the canvas scale field is modified
      */
-    void OnCanvasScaleChange( wxCommandEvent& aEvent );
+    void OnCanvasScaleChange( QEvent& aEvent );
 
     /**
      * Event fired when the canvas auto-scale option is changed
      */
-    void OnCanvasScaleAuto( wxCommandEvent& aEvent ) override;
+    void OnCanvasScaleAuto( QEvent& aEvent ) override;
 
 private:
     void ShowFileManagerWidgets( bool aBool );

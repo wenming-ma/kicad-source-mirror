@@ -1,31 +1,29 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6a-dirty)
-// http://www.wxformbuilder.org/
+// C++ code generated for Qt framework
+// Transformed from wxWidgets implementation
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
 ///////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
-#include <wx/artprov.h>
-#include <wx/xrc/xmlres.h>
-#include <wx/intl.h>
+#include <QtWidgets/QWidget>
+#include <QtWidgets/QDialog>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QFrame>
+#include <QtWidgets/QLineEdit>
+#include <QtWidgets/QComboBox>
+#include <QtWidgets/QCheckBox>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QTextEdit>
+#include <QtWidgets/QFileDialog>
+#include <QtCore/QString>
+#include <QtCore/QEvent>
+#include <QtGui/QCloseEvent>
+#include <QtGui/QFocusEvent>
 #include "dialog_shim.h"
-#include <wx/string.h>
-#include <wx/stattext.h>
-#include <wx/gdicmn.h>
-#include <wx/font.h>
-#include <wx/colour.h>
-#include <wx/settings.h>
-#include <wx/statline.h>
-#include <wx/textctrl.h>
-#include <wx/choice.h>
-#include <wx/sizer.h>
-#include <wx/checkbox.h>
-#include <wx/filepicker.h>
-#include <wx/panel.h>
-#include <wx/button.h>
-#include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -37,43 +35,43 @@ class DIALOG_GIT_REPOSITORY_BASE : public DIALOG_SHIM
 	private:
 
 	protected:
-		wxBoxSizer* bSizerMain;
-		wxStaticText* m_staticText1;
-		wxStaticLine* m_staticline1;
-		wxStaticText* m_staticText3;
-		wxTextCtrl* m_txtName;
-		wxStaticText* m_staticText4;
-		wxTextCtrl* m_txtURL;
-		wxStaticText* m_staticText9;
-		wxChoice* m_ConnType;
-		wxPanel* m_panelAuth;
-		wxStaticText* m_staticText2;
-		wxStaticLine* m_staticline2;
-		wxCheckBox* m_cbCustom;
-		wxFilePickerCtrl* m_fpSSHKey;
-		wxStaticText* m_staticText11;
-		wxTextCtrl* m_txtUsername;
-		wxStaticText* m_labelPass1;
-		wxTextCtrl* m_txtPassword;
-		wxStdDialogButtonSizer* m_sdbSizer;
-		wxButton* m_sdbSizerOK;
-		wxButton* m_sdbSizerCancel;
-		wxButton* m_sdbSizerHelp;
+		QVBoxLayout* bSizerMain;
+		QLabel* m_staticText1;
+		QFrame* m_staticline1;
+		QLabel* m_staticText3;
+		QLineEdit* m_txtName;
+		QLabel* m_staticText4;
+		QLineEdit* m_txtURL;
+		QLabel* m_staticText9;
+		QComboBox* m_ConnType;
+		QWidget* m_panelAuth;
+		QLabel* m_staticText2;
+		QFrame* m_staticline2;
+		QCheckBox* m_cbCustom;
+		QWidget* m_fpSSHKey;
+		QLabel* m_staticText11;
+		QLineEdit* m_txtUsername;
+		QLabel* m_labelPass1;
+		QLineEdit* m_txtPassword;
+		QHBoxLayout* m_sdbSizer;
+		QPushButton* m_sdbSizerOK;
+		QPushButton* m_sdbSizerCancel;
+		QPushButton* m_sdbSizerHelp;
 
 		// Virtual event handlers, override them in your derived class
-		virtual void OnClose( wxCloseEvent& event ) { event.Skip(); }
-		virtual void OnUpdateUI( wxUpdateUIEvent& event ) { event.Skip(); }
-		virtual void OnLocationExit( wxFocusEvent& event ) { event.Skip(); }
-		virtual void OnSelectConnType( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onCbCustom( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnFileUpdated( wxFileDirPickerEvent& event ) { event.Skip(); }
-		virtual void OnTestClick( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnOKClick( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnClose( QCloseEvent* event ) { event->accept(); }
+		virtual void OnUpdateUI() { }
+		virtual void OnLocationExit( QFocusEvent* event ) { }
+		virtual void OnSelectConnType() { }
+		virtual void onCbCustom() { }
+		virtual void OnFileUpdated() { }
+		virtual void OnTestClick() { }
+		virtual void OnOKClick() { }
 
 
 	public:
 
-		DIALOG_GIT_REPOSITORY_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Git Repository"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxCAPTION|wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+		DIALOG_GIT_REPOSITORY_BASE( QWidget* parent = nullptr, const QString& title = "Git Repository" );
 
 		~DIALOG_GIT_REPOSITORY_BASE();
 

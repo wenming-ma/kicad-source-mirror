@@ -34,6 +34,8 @@
 #include <settings/color_settings.h>
 #include <sch_pin.h>
 #include <sch_shape.h>
+#include <QString>
+#include <QStringList>
 
 #include <memory>
 
@@ -45,13 +47,13 @@ std::vector<SEARCH_TERM> LIB_SYMBOL::GetSearchTerms()
     terms.emplace_back( SEARCH_TERM( GetName(), 8 ) );
     terms.emplace_back( SEARCH_TERM( GetLIB_ID().Format(), 16 ) );
 
-    wxStringTokenizer keywordTokenizer( GetKeyWords(), wxS( " " ), wxTOKEN_STRTOK );
+    QStringList keywordTokens = GetKeyWords().split(QStringLiteral(" "), Qt::SkipEmptyParts);
 
-    while( keywordTokenizer.HasMoreTokens() )
-        terms.emplace_back( SEARCH_TERM( keywordTokenizer.GetNextToken(), 4 ) );
+    for( const QString& token : keywordTokens )
+        terms.emplace_back( SEARCH_TERM( token, 4 ) );
 
     // TODO(JE) rework this later so we can highlight matches in their column
-    std::map<wxString, wxString> fields;
+    std::map<QString, QString> fields;
     GetChooserFields( fields );
 
     for( const auto& [ name, text ] : fields )
@@ -61,16 +63,16 @@ std::vector<SEARCH_TERM> LIB_SYMBOL::GetSearchTerms()
     terms.emplace_back( SEARCH_TERM( GetKeyWords(), 1 ) );
     terms.emplace_back( SEARCH_TERM( GetDescription(), 1 ) );
 
-    wxString  footprint = GetFootprintField().GetText();
+    QString  footprint = GetFootprintField().GetText();
 
-    if( !footprint.IsEmpty() )
+    if( !footprint.isEmpty() )
         terms.emplace_back( SEARCH_TERM( GetFootprintField().GetText(), 1 ) );
 
     return terms;
 }
 
 
-void LIB_SYMBOL::GetChooserFields( std::map<wxString, wxString>& aColumnMap )
+void LIB_SYMBOL::GetChooserFields( std::map<QString, QString>& aColumnMap )
 {
     for( SCH_ITEM& item : m_drawings[ SCH_FIELD_T ] )
     {
@@ -97,7 +99,7 @@ struct null_deleter
 };
 
 
-LIB_SYMBOL::LIB_SYMBOL( const wxString& aName, LIB_SYMBOL* aParent, SYMBOL_LIB* aLibrary ) :
+LIB_SYMBOL::LIB_SYMBOL( const QString& aName, LIB_SYMBOL* aParent, SYMBOL_LIB* aLibrary ) :
     SYMBOL( LIB_SYMBOL_T ),
     m_me( this, null_deleter() )
 {
@@ -141,7 +143,7 @@ LIB_SYMBOL::LIB_SYMBOL( const LIB_SYMBOL& aSymbol, SYMBOL_LIB* aLibrary ) :
 {
     m_library        = aLibrary;
     m_name           = aSymbol.m_name;
-    m_fpFilters      = wxArrayString( aSymbol.m_fpFilters );
+    m_fpFilters      = QStringList( aSymbol.m_fpFilters );
     m_unitCount      = aSymbol.m_unitCount;
     m_unitsLocked    = aSymbol.m_unitsLocked;
     m_lastModDate    = aSymbol.m_lastModDate;
@@ -167,7 +169,7 @@ LIB_SYMBOL::LIB_SYMBOL( const LIB_SYMBOL& aSymbol, SYMBOL_LIB* aLibrary ) :
         }
         catch( ... )
         {
-            wxFAIL_MSG( "Failed to clone SCH_ITEM." );
+            Q_ASSERT_X(false, "LIB_SYMBOL", "Failed to clone SCH_ITEM.");
             return;
         }
     }
@@ -188,7 +190,7 @@ const LIB_SYMBOL& LIB_SYMBOL::operator=( const LIB_SYMBOL& aSymbol )
 
     m_library     = aSymbol.m_library;
     m_name        = aSymbol.m_name;
-    m_fpFilters   = wxArrayString( aSymbol.m_fpFilters );
+    m_fpFilters   = QStringList( aSymbol.m_fpFilters );
     m_unitCount   = aSymbol.m_unitCount;
     m_unitsLocked = aSymbol.m_unitsLocked;
     m_lastModDate = aSymbol.m_lastModDate;
@@ -235,7 +237,7 @@ LIB_SYMBOL* LIB_SYMBOL::GetDummy()
 
     if( !symbol )
     {
-        symbol = new LIB_SYMBOL( wxEmptyString );
+        symbol = new LIB_SYMBOL( QString() );
 
         SCH_SHAPE* square = new SCH_SHAPE( SHAPE_T::RECTANGLE, LAYER_DEVICE );
 
@@ -243,7 +245,7 @@ LIB_SYMBOL* LIB_SYMBOL::GetDummy()
         square->SetEnd( VECTOR2I( schIUScale.MilsToIU( 200 ), schIUScale.MilsToIU( -200 ) ) );
         symbol->AddDrawItem( square );
 
-        SCH_TEXT* text = new SCH_TEXT( { 0, 0 }, wxT( "??" ), LAYER_DEVICE );
+        SCH_TEXT* text = new SCH_TEXT( { 0, 0 }, QStringLiteral( "??" ), LAYER_DEVICE );
 
         text->SetTextSize( VECTOR2I( schIUScale.MilsToIU( 150 ), schIUScale.MilsToIU( 150 ) ) );
         symbol->AddDrawItem( text );
@@ -281,7 +283,7 @@ LIB_SYMBOL_SPTR LIB_SYMBOL::GetRootSymbol() const
 }
 
 
-wxString LIB_SYMBOL::GetUnitReference( int aUnit )
+QString LIB_SYMBOL::GetUnitReference( int aUnit )
 {
     return LIB_SYMBOL::LetterSubReference( aUnit, 'A' );
 }
@@ -293,27 +295,27 @@ bool LIB_SYMBOL::HasUnitDisplayName( int aUnit )
 }
 
 
-wxString LIB_SYMBOL::GetUnitDisplayName( int aUnit )
+QString LIB_SYMBOL::GetUnitDisplayName( int aUnit )
 {
     if( HasUnitDisplayName( aUnit ) )
         return m_unitDisplayNames[aUnit];
     else
-        return wxString::Format( _( "Unit %s" ), GetUnitReference( aUnit ) );
+        return QString::asprintf( _( "Unit %s" ), GetUnitReference( aUnit ).toStdString().c_str() );
 }
 
 
-void LIB_SYMBOL::CopyUnitDisplayNames( std::map<int, wxString>& aTarget ) const
+void LIB_SYMBOL::CopyUnitDisplayNames( std::map<int, QString>& aTarget ) const
 {
     for( const auto& it : m_unitDisplayNames )
         aTarget[it.first] = it.second;
 }
 
 
-void LIB_SYMBOL::SetUnitDisplayName( int aUnit, const wxString& aName )
+void LIB_SYMBOL::SetUnitDisplayName( int aUnit, const QString& aName )
 {
     if( aUnit <= GetUnitCount() )
     {
-        if( aName.Length() > 0 )
+        if( aName.length() > 0 )
             m_unitDisplayNames[aUnit] = aName;
         else
             m_unitDisplayNames.erase( aUnit );
@@ -321,7 +323,7 @@ void LIB_SYMBOL::SetUnitDisplayName( int aUnit, const wxString& aName )
 }
 
 
-void LIB_SYMBOL::SetName( const wxString& aName )
+void LIB_SYMBOL::SetName( const QString& aName )
 {
     m_name = aName;
     m_libId.SetLibItemName( aName );
@@ -345,8 +347,8 @@ std::unique_ptr< LIB_SYMBOL > LIB_SYMBOL::Flatten() const
     {
         LIB_SYMBOL_SPTR parent = m_parent.lock();
 
-        wxCHECK_MSG( parent, retv,
-                     wxString::Format( "Parent of derived symbol '%s' undefined", m_name ) );
+        Q_ASSERT_X( parent, "LIB_SYMBOL::Flatten", QString::asprintf( "Parent of derived symbol '%s' undefined", m_name.toStdString().c_str() ).toStdString().c_str() );
+        if( !parent ) return retv;
 
         // Copy the parent.
         if( parent->IsAlias() )
@@ -360,10 +362,10 @@ std::unique_ptr< LIB_SYMBOL > LIB_SYMBOL::Flatten() const
         // Now add the inherited part mandatory field (this) information.
         for( int fieldId : MANDATORY_FIELDS )
         {
-            wxString tmp = GetFieldById( fieldId )->GetText();
+            QString tmp = GetFieldById( fieldId )->GetText();
 
             // If the field isn't defined then inherit the parent field value.
-            if( tmp.IsEmpty() )
+            if( tmp.isEmpty() )
                 retv->GetFieldById( fieldId )->SetText( retv->GetFieldById( fieldId )->GetText() );
             else
                 *retv->GetFieldById( fieldId ) = *GetFieldById( fieldId );
@@ -394,8 +396,8 @@ std::unique_ptr< LIB_SYMBOL > LIB_SYMBOL::Flatten() const
             }
         }
 
-        retv->SetKeyWords( m_keyWords.IsEmpty() ? parent->GetKeyWords() : m_keyWords );
-        retv->SetFPFilters( m_fpFilters.IsEmpty() ? parent->GetFPFilters() : m_fpFilters );
+        retv->SetKeyWords( m_keyWords.isEmpty() ? parent->GetKeyWords() : m_keyWords );
+        retv->SetFPFilters( m_fpFilters.isEmpty() ? parent->GetFPFilters() : m_fpFilters );
 
         retv->SetExcludedFromSim( parent->GetExcludedFromSim() );
         retv->SetExcludedFromBOM( parent->GetExcludedFromBOM() );
@@ -413,7 +415,7 @@ std::unique_ptr< LIB_SYMBOL > LIB_SYMBOL::Flatten() const
 }
 
 
-const wxString LIB_SYMBOL::GetLibraryName() const
+const QString LIB_SYMBOL::GetLibraryName() const
 {
     if( m_library )
         return m_library->GetName();
@@ -480,18 +482,18 @@ void LIB_SYMBOL::SetNormal()
 }
 
 
-wxString LIB_SYMBOL::LetterSubReference( int aUnit, int aFirstId )
+QString LIB_SYMBOL::LetterSubReference( int aUnit, int aFirstId )
 {
     // use letters as notation. To allow more than 26 units, the sub ref
     // use one letter if letter = A .. Z or a ... z, and 2 letters otherwise
     // first letter is expected to be 'A' or 'a' (i.e. 26 letters are available)
     int      u;
-    wxString suffix;
+    QString suffix;
 
     do
     {
         u = ( aUnit - 1 ) % 26;
-        suffix = wxChar( aFirstId + u ) + suffix;
+        suffix = QChar( aFirstId + u ) + suffix;
         aUnit = ( aUnit - u ) / 26;
     } while( aUnit > 0 );
 
@@ -499,9 +501,9 @@ wxString LIB_SYMBOL::LetterSubReference( int aUnit, int aFirstId )
 }
 
 
-bool LIB_SYMBOL::ResolveTextVar( wxString* token, int aDepth ) const
+bool LIB_SYMBOL::ResolveTextVar( QString* token, int aDepth ) const
 {
-    wxString footprint;
+    QString footprint;
 
     for( const SCH_ITEM& item : m_drawings )
     {
@@ -512,8 +514,8 @@ bool LIB_SYMBOL::ResolveTextVar( wxString* token, int aDepth ) const
             if( field.GetId() == FOOTPRINT_FIELD )
                 footprint = field.GetShownText( nullptr, false, aDepth + 1 );
 
-            if( token->IsSameAs( field.GetCanonicalName().Upper() )
-               || token->IsSameAs( field.GetName(), false ) )
+            if( token->compare( field.GetCanonicalName().toUpper(), Qt::CaseInsensitive ) == 0
+               || token->compare( field.GetName(), Qt::CaseSensitive ) == 0 )
             {
                 *token = field.GetShownText( nullptr, false, aDepth + 1 );
                 return true;
@@ -522,77 +524,77 @@ bool LIB_SYMBOL::ResolveTextVar( wxString* token, int aDepth ) const
     }
 
     // Consider missing simulation fields as empty, not un-resolved
-    if( token->IsSameAs( wxT( "SIM.DEVICE" ) )
-            || token->IsSameAs( wxT( "SIM.TYPE" ) )
-            || token->IsSameAs( wxT( "SIM.PINS" ) )
-            || token->IsSameAs( wxT( "SIM.PARAMS" ) )
-            || token->IsSameAs( wxT( "SIM.LIBRARY" ) )
-            || token->IsSameAs( wxT( "SIM.NAME" ) ) )
+    if( token->compare( QStringLiteral( "SIM.DEVICE" ), Qt::CaseInsensitive ) == 0
+            || token->compare( QStringLiteral( "SIM.TYPE" ), Qt::CaseInsensitive ) == 0
+            || token->compare( QStringLiteral( "SIM.PINS" ), Qt::CaseInsensitive ) == 0
+            || token->compare( QStringLiteral( "SIM.PARAMS" ), Qt::CaseInsensitive ) == 0
+            || token->compare( QStringLiteral( "SIM.LIBRARY" ), Qt::CaseInsensitive ) == 0
+            || token->compare( QStringLiteral( "SIM.NAME" ), Qt::CaseInsensitive ) == 0 )
     {
-        *token = wxEmptyString;
+        *token = QString();
         return true;
     }
 
-    if( token->IsSameAs( wxT( "FOOTPRINT_LIBRARY" ) ) )
+    if( token->compare( QStringLiteral( "FOOTPRINT_LIBRARY" ), Qt::CaseInsensitive ) == 0 )
     {
-        wxArrayString parts = wxSplit( footprint, ':' );
+        QStringList parts = footprint.split( ':' );
 
-        if( parts.Count() > 0 )
+        if( parts.count() > 0 )
             *token = parts[ 0 ];
         else
-            *token = wxEmptyString;
+            *token = QString();
 
         return true;
     }
-    else if( token->IsSameAs( wxT( "FOOTPRINT_NAME" ) ) )
+    else if( token->compare( QStringLiteral( "FOOTPRINT_NAME" ), Qt::CaseInsensitive ) == 0 )
     {
-        wxArrayString parts = wxSplit( footprint, ':' );
+        QStringList parts = footprint.split( ':' );
 
-        if( parts.Count() > 1 )
+        if( parts.count() > 1 )
             *token = parts[ std::min( 1, (int) parts.size() - 1 ) ];
         else
-            *token = wxEmptyString;
+            *token = QString();
 
         return true;
     }
-    else if( token->IsSameAs( wxT( "SYMBOL_LIBRARY" ) ) )
+    else if( token->compare( QStringLiteral( "SYMBOL_LIBRARY" ), Qt::CaseInsensitive ) == 0 )
     {
         *token = m_libId.GetUniStringLibNickname();
         return true;
     }
-    else if( token->IsSameAs( wxT( "SYMBOL_NAME" ) ) )
+    else if( token->compare( QStringLiteral( "SYMBOL_NAME" ), Qt::CaseInsensitive ) == 0 )
     {
         *token = m_libId.GetUniStringLibItemName();
         return true;
     }
-    else if( token->IsSameAs( wxT( "SYMBOL_DESCRIPTION" ) ) )
+    else if( token->compare( QStringLiteral( "SYMBOL_DESCRIPTION" ), Qt::CaseInsensitive ) == 0 )
     {
         *token = GetDescription();
         return true;
     }
-    else if( token->IsSameAs( wxT( "SYMBOL_KEYWORDS" ) ) )
+    else if( token->compare( QStringLiteral( "SYMBOL_KEYWORDS" ), Qt::CaseInsensitive ) == 0 )
     {
         *token = GetKeyWords();
         return true;
     }
-    else if( token->IsSameAs( wxT( "EXCLUDE_FROM_BOM" ) ) )
+    else if( token->compare( QStringLiteral( "EXCLUDE_FROM_BOM" ), Qt::CaseInsensitive ) == 0 )
     {
-        *token = this->GetExcludedFromBOM() ? _( "Excluded from BOM" ) : wxString( "" );
+        *token = this->GetExcludedFromBOM() ? _( "Excluded from BOM" ) : QString( "" );
         return true;
     }
-    else if( token->IsSameAs( wxT( "EXCLUDE_FROM_BOARD" ) ) )
+    else if( token->compare( QStringLiteral( "EXCLUDE_FROM_BOARD" ), Qt::CaseInsensitive ) == 0 )
     {
-        *token = this->GetExcludedFromBoard() ? _( "Excluded from board" ) : wxString( "" );
+        *token = this->GetExcludedFromBoard() ? _( "Excluded from board" ) : QString( "" );
         return true;
     }
-    else if( token->IsSameAs( wxT( "EXCLUDE_FROM_SIM" ) ) )
+    else if( token->compare( QStringLiteral( "EXCLUDE_FROM_SIM" ), Qt::CaseInsensitive ) == 0 )
     {
-        *token = this->GetExcludedFromSim() ? _( "Excluded from simulation" ) : wxString( "" );
+        *token = this->GetExcludedFromSim() ? _( "Excluded from simulation" ) : QString( "" );
         return true;
     }
-    else if( token->IsSameAs( wxT( "DNP" ) ) )
+    else if( token->compare( QStringLiteral( "DNP" ), Qt::CaseInsensitive ) == 0 )
     {
-        *token = this->GetDNP() ? _( "DNP" ) : wxString( "" );
+        *token = this->GetDNP() ? _( "DNP" ) : QString( "" );
         return true;
     }
 
@@ -697,7 +699,7 @@ void LIB_SYMBOL::PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUni
 void LIB_SYMBOL::Plot( PLOTTER *aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                        int aUnit, int aBodyStyle, const VECTOR2I &aOffset, bool aDimmed )
 {
-    wxASSERT( aPlotter != nullptr );
+    Q_ASSERT( aPlotter != nullptr );
 
     SCH_RENDER_SETTINGS* renderSettings = getRenderSettings( aPlotter );
     COLOR4D              color = renderSettings->GetLayerColor( LAYER_DEVICE );
@@ -739,7 +741,7 @@ void LIB_SYMBOL::Plot( PLOTTER *aPlotter, bool aBackground, const SCH_PLOT_OPTS&
 void LIB_SYMBOL::PlotFields( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                              int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
 {
-    wxASSERT( aPlotter != nullptr );
+    Q_ASSERT( aPlotter != nullptr );
 
     SCH_RENDER_SETTINGS* renderSettings = getRenderSettings( aPlotter );
     COLOR4D              color = renderSettings->GetLayerColor( LAYER_FIELDS );
@@ -765,7 +767,7 @@ void LIB_SYMBOL::PlotFields( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT
 
         // The reference is a special case: we should change the basic text
         // to add '?' and the part id
-        wxString tmp = field.GetText();
+        QString tmp = field.GetText();
 
         field.SetText( field.GetFullText( aUnit ) );
         item.Plot( aPlotter, aBackground, aPlotOpts, aUnit, aBodyStyle, aOffset, aDimmed );
@@ -819,7 +821,7 @@ void LIB_SYMBOL::FixupDrawItems()
 
 void LIB_SYMBOL::RemoveDrawItem( SCH_ITEM* aItem )
 {
-    wxASSERT( aItem != nullptr );
+    Q_ASSERT( aItem != nullptr );
 
     // none of the MANDATORY_FIELDS may be removed in RAM, but they may be
     // omitted when saving to disk.
@@ -900,7 +902,7 @@ int LIB_SYMBOL::GetPinCount()
 }
 
 
-SCH_PIN* LIB_SYMBOL::GetPin( const wxString& aNumber, int aUnit, int aBodyStyle ) const
+SCH_PIN* LIB_SYMBOL::GetPin( const QString& aNumber, int aUnit, int aBodyStyle ) const
 {
     for( SCH_PIN* pin : GetPins( aUnit, aBodyStyle ) )
     {
@@ -917,12 +919,12 @@ bool LIB_SYMBOL::PinsConflictWith( const LIB_SYMBOL& aOtherPart, bool aTestNums,
 {
     for( const SCH_PIN* pin : GetPins() )
     {
-        wxASSERT( pin );
+        Q_ASSERT( pin );
         bool foundMatch = false;
 
         for( const SCH_PIN* otherPin : aOtherPart.GetPins() )
         {
-            wxASSERT( otherPin );
+            Q_ASSERT( otherPin );
 
             // Same unit?
             if( pin->GetUnit() != otherPin->GetUnit() )
@@ -1082,7 +1084,7 @@ void LIB_SYMBOL::GetFields( std::vector<SCH_FIELD*>& aList, bool aVisibleOnly )
 
         if( aVisibleOnly )
         {
-            if( !field->IsVisible() || field->GetText().IsEmpty() )
+            if( !field->IsVisible() || field->GetText().isEmpty() )
                 continue;
         }
 
@@ -1096,7 +1098,7 @@ void LIB_SYMBOL::GetFields( std::vector<SCH_FIELD*>& aList, bool aVisibleOnly )
 
         if( aVisibleOnly )
         {
-            if( !field->IsVisible() || field->GetText().IsEmpty() )
+            if( !field->IsVisible() || field->GetText().isEmpty() )
                 continue;
         }
 
@@ -1137,13 +1139,13 @@ SCH_FIELD* LIB_SYMBOL::GetFieldById( int aId ) const
 }
 
 
-SCH_FIELD* LIB_SYMBOL::FindField( const wxString& aFieldName, bool aCaseInsensitive )
+SCH_FIELD* LIB_SYMBOL::FindField( const QString& aFieldName, bool aCaseInsensitive )
 {
     for( SCH_ITEM& item : m_drawings[ SCH_FIELD_T ] )
     {
         if( aCaseInsensitive )
         {
-            if( static_cast<SCH_FIELD*>( &item )->GetCanonicalName().Upper() == aFieldName.Upper() )
+            if( static_cast<SCH_FIELD*>( &item )->GetCanonicalName().toUpper() == aFieldName.toUpper() )
                 return static_cast<SCH_FIELD*>( &item );
         }
         else
@@ -1157,7 +1159,7 @@ SCH_FIELD* LIB_SYMBOL::FindField( const wxString& aFieldName, bool aCaseInsensit
 }
 
 
-const SCH_FIELD* LIB_SYMBOL::FindField( const wxString& aFieldName,
+const SCH_FIELD* LIB_SYMBOL::FindField( const QString& aFieldName,
                                         bool aCaseInsensitive ) const
 {
     for( const SCH_ITEM& item : m_drawings[ SCH_FIELD_T ] )
@@ -1166,7 +1168,7 @@ const SCH_FIELD* LIB_SYMBOL::FindField( const wxString& aFieldName,
 
         if( aCaseInsensitive )
         {
-            if( field.GetCanonicalName().Upper() == aFieldName.Upper() )
+            if( field.GetCanonicalName().toUpper() == aFieldName.toUpper() )
                 return &field;
         }
         else
@@ -1183,7 +1185,7 @@ const SCH_FIELD* LIB_SYMBOL::FindField( const wxString& aFieldName,
 SCH_FIELD& LIB_SYMBOL::GetValueField() const
 {
     SCH_FIELD* field = GetFieldById( VALUE_FIELD );
-    wxASSERT( field != nullptr );
+    Q_ASSERT( field != nullptr );
     return *field;
 }
 
@@ -1191,7 +1193,7 @@ SCH_FIELD& LIB_SYMBOL::GetValueField() const
 SCH_FIELD& LIB_SYMBOL::GetReferenceField() const
 {
     SCH_FIELD* field = GetFieldById( REFERENCE_FIELD );
-    wxASSERT( field != nullptr );
+    Q_ASSERT( field != nullptr );
     return *field;
 }
 
@@ -1199,7 +1201,7 @@ SCH_FIELD& LIB_SYMBOL::GetReferenceField() const
 SCH_FIELD& LIB_SYMBOL::GetFootprintField() const
 {
     SCH_FIELD* field = GetFieldById( FOOTPRINT_FIELD );
-    wxASSERT( field != nullptr );
+    Q_ASSERT( field != nullptr );
     return *field;
 }
 
@@ -1207,7 +1209,7 @@ SCH_FIELD& LIB_SYMBOL::GetFootprintField() const
 SCH_FIELD& LIB_SYMBOL::GetDatasheetField() const
 {
     SCH_FIELD* field = GetFieldById( DATASHEET_FIELD );
-    wxASSERT( field != nullptr );
+    Q_ASSERT( field != nullptr );
     return *field;
 }
 
@@ -1215,32 +1217,31 @@ SCH_FIELD& LIB_SYMBOL::GetDatasheetField() const
 SCH_FIELD& LIB_SYMBOL::GetDescriptionField() const
 {
     SCH_FIELD* field = GetFieldById( DESCRIPTION_FIELD );
-    wxASSERT( field != nullptr );
+    Q_ASSERT( field != nullptr );
     return *field;
 }
 
 
-wxString LIB_SYMBOL::GetPrefix()
+QString LIB_SYMBOL::GetPrefix()
 {
-    wxString refDesignator = GetFieldById( REFERENCE_FIELD )->GetText();
+    QString refDesignator = GetFieldById( REFERENCE_FIELD )->GetText();
 
-    refDesignator.Replace( wxS( "~" ), wxS( " " ) );
+    refDesignator.replace( QStringLiteral( "~" ), QStringLiteral( " " ) );
 
-    wxString prefix = refDesignator;
+    QString prefix = refDesignator;
 
-    while( prefix.Length() )
+    while( prefix.length() )
     {
-        wxUniCharRef last = prefix.Last();
+        QChar last = prefix.at(prefix.length() - 1);
 
         if( ( last >= '0' && last <= '9' ) || last == '?' || last == '*' )
-            prefix.RemoveLast();
+            prefix.chop(1);
         else
             break;
     }
 
     // Avoid a prefix containing trailing/leading spaces
-    prefix.Trim( true );
-    prefix.Trim( false );
+    prefix = prefix.trimmed();
 
     return prefix;
 }
@@ -1585,7 +1586,7 @@ int LIB_SYMBOL::Compare( const LIB_SYMBOL& aRhs, int aCompareFlags, REPORTER* aR
 
     if( !aReporter && ( aCompareFlags & SCH_ITEM::COMPARE_FLAGS::ERC ) == 0 )
     {
-        if( int tmp = m_name.Cmp( aRhs.m_name ) )
+        if( int tmp = m_name.compare( aRhs.m_name ) )
             return tmp;
 
         if( int tmp = m_libId.compare( aRhs.m_libId ) )
@@ -1664,7 +1665,7 @@ int LIB_SYMBOL::Compare( const LIB_SYMBOL& aRhs, int aCompareFlags, REPORTER* aR
             if( int tmp2 = (*aIt)->compare( *(*bIt), aCompareFlags ) )
             {
                 retv = tmp2;
-                REPORT( wxString::Format( _( "%s differs." ), ITEM_DESC( *aIt ) ) );
+                REPORT( QString::asprintf( _( "%s differs." ), ITEM_DESC( *aIt ).toStdString().c_str() ) );
 
                 if( !aReporter )
                     return retv;
@@ -1691,7 +1692,7 @@ int LIB_SYMBOL::Compare( const LIB_SYMBOL& aRhs, int aCompareFlags, REPORTER* aR
             if( !bPin )
             {
                 retv = 1;
-                REPORT( wxString::Format( _( "Pin %s not found." ), aPin->GetNumber() ) );
+                REPORT( QString::asprintf( _( "Pin %s not found." ), aPin->GetNumber().toStdString().c_str() ) );
 
                 if( !aReporter )
                     return retv;
@@ -1699,7 +1700,7 @@ int LIB_SYMBOL::Compare( const LIB_SYMBOL& aRhs, int aCompareFlags, REPORTER* aR
             else if( int tmp2 = aPinItem->compare( *bPin, aCompareFlags ) )
             {
                 retv = tmp2;
-                REPORT( wxString::Format( _( "Pin %s differs." ), aPin->GetNumber() ) );
+                REPORT( QString::asprintf( _( "Pin %s differs." ), aPin->GetNumber().toStdString().c_str() ) );
 
                 if( !aReporter )
                     return retv;
@@ -1726,7 +1727,7 @@ int LIB_SYMBOL::Compare( const LIB_SYMBOL& aRhs, int aCompareFlags, REPORTER* aR
         if( tmp )
         {
             retv = tmp;
-            REPORT( wxString::Format( _( "%s field differs." ), aField->GetName( false ) ) );
+            REPORT( QString::asprintf( _( "%s field differs." ), aField->GetName( false ).toStdString().c_str() ) );
 
             if( !aReporter )
                 return retv;
@@ -1742,7 +1743,7 @@ int LIB_SYMBOL::Compare( const LIB_SYMBOL& aRhs, int aCompareFlags, REPORTER* aR
             return retv;
     }
 
-    if( int tmp = static_cast<int>( m_fpFilters.GetCount() - aRhs.m_fpFilters.GetCount() ) )
+    if( int tmp = static_cast<int>( m_fpFilters.count() - aRhs.m_fpFilters.count() ) )
     {
         retv = tmp;
         REPORT( _( "Footprint filters differs." ) );
@@ -1752,9 +1753,9 @@ int LIB_SYMBOL::Compare( const LIB_SYMBOL& aRhs, int aCompareFlags, REPORTER* aR
     }
     else
     {
-        for( size_t i = 0; i < m_fpFilters.GetCount(); i++ )
+        for( size_t i = 0; i < m_fpFilters.count(); i++ )
         {
-            if( int tmp2 = m_fpFilters[i].Cmp( aRhs.m_fpFilters[i] ) )
+            if( int tmp2 = m_fpFilters[i].compare( aRhs.m_fpFilters[i] ) )
             {
                 retv = tmp2;
                 REPORT( _( "Footprint filters differ." ) );
@@ -1765,7 +1766,7 @@ int LIB_SYMBOL::Compare( const LIB_SYMBOL& aRhs, int aCompareFlags, REPORTER* aR
         }
     }
 
-    if( int tmp = m_keyWords.Cmp( aRhs.m_keyWords ) )
+    if( int tmp = m_keyWords.compare( aRhs.m_keyWords ) )
     {
         retv = tmp;
         REPORT( _( "Symbol keywords differ." ) );
@@ -1860,7 +1861,7 @@ int LIB_SYMBOL::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
 
 double LIB_SYMBOL::Similarity( const SCH_ITEM& aOther ) const
 {
-    wxCHECK( aOther.Type() == LIB_SYMBOL_T, 0.0 );
+    Q_ASSERT( aOther.Type() == LIB_SYMBOL_T ); if( aOther.Type() != LIB_SYMBOL_T ) return 0.0;
 
     const LIB_SYMBOL& other = static_cast<const LIB_SYMBOL&>( aOther );
     double            similarity = 0.0;

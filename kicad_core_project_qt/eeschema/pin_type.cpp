@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <bitmaps.h>
 #include <cstddef>
@@ -27,28 +5,31 @@
 #include <sch_pin.h>
 #include "pgm_base.h"
 
+#include <QString>
+#include <QStringList>
+
 
 // These are true singletons so it's OK for them to be globals.
 
 static std::vector<BITMAPS> g_typeIcons;
-static wxArrayString        g_typeNames;
+static QStringList          g_typeNames;
 
 static std::vector<BITMAPS> g_shapeIcons;
-static wxArrayString        g_shapeNames;
+static QStringList          g_shapeNames;
 
 static std::vector<BITMAPS> g_orientationIcons;
-static wxArrayString        g_orientationNames;
+static QStringList          g_orientationNames;
 
 
 struct pinTypeStruct
 {
-    wxString name;
+    QString name;
     BITMAPS  bitmap;
 };
 
 struct pinShapeStruct
 {
-    wxString name;
+    QString name;
     BITMAPS  bitmap;
 };
 
@@ -57,12 +38,12 @@ static std::map<GRAPHIC_PINSHAPE,   struct pinShapeStruct> g_pinShapes;
 static std::map<PIN_ORIENTATION,    struct pinShapeStruct> g_pinOrientations;
 
 
-static int g_language = wxLANGUAGE_UNKNOWN;
+static int g_language = -1;
 
 
 PIN_ORIENTATION PinOrientationCode( size_t index )
 {
-    wxASSERT( index < magic_enum::enum_count<PIN_ORIENTATION>() );
+    Q_ASSERT( index < magic_enum::enum_count<PIN_ORIENTATION>() );
     return magic_enum::enum_value<PIN_ORIENTATION>( index );
 }
 
@@ -74,7 +55,7 @@ int PinOrientationIndex( PIN_ORIENTATION code )
     if( index.has_value() )
         return index.value();
 
-    return wxNOT_FOUND;
+    return -1;
 }
 
 
@@ -155,7 +136,7 @@ void InitTables()
 }
 
 
-const wxArrayString& PinTypeNames()
+const QStringList& PinTypeNames()
 {
     if( g_typeNames.empty() || g_language != Pgm().GetSelectedLanguageIdentifier() )
         InitTables();
@@ -173,7 +154,7 @@ const std::vector<BITMAPS>& PinTypeIcons()
 }
 
 
-const wxArrayString& PinShapeNames()
+const QStringList& PinShapeNames()
 {
     if( g_shapeNames.empty() || g_language != Pgm().GetSelectedLanguageIdentifier() )
         InitTables();
@@ -191,7 +172,7 @@ const std::vector<BITMAPS>& PinShapeIcons()
 }
 
 
-const wxArrayString& PinOrientationNames()
+const QStringList& PinOrientationNames()
 {
     if( g_orientationNames.empty() || g_language != Pgm().GetSelectedLanguageIdentifier() )
         InitTables();
@@ -209,15 +190,17 @@ const std::vector<BITMAPS>& PinOrientationIcons()
 }
 
 
-wxString ElectricalPinTypeGetText( ELECTRICAL_PINTYPE aType )
+QString ElectricalPinTypeGetText( ELECTRICAL_PINTYPE aType )
 {
     if( g_pinElectricalTypes.empty() || g_language != Pgm().GetSelectedLanguageIdentifier() )
         InitTables();
 
     auto it = g_pinElectricalTypes.find( aType );
 
-    wxCHECK_MSG( it != g_pinElectricalTypes.end(), wxT( "???" ),
-                 wxString::Format( "Pin type not found for type %d!", (int) aType ) );
+    Q_ASSERT_X( it != g_pinElectricalTypes.end(), "ElectricalPinTypeGetText",
+                QString::asprintf( "Pin type not found for type %d!", (int) aType ).toStdString().c_str() );
+    if( it == g_pinElectricalTypes.end() )
+        return QStringLiteral( "???" );
 
     return it->second.name;
 }
@@ -230,22 +213,26 @@ BITMAPS ElectricalPinTypeGetBitmap( ELECTRICAL_PINTYPE aType )
 
     auto it = g_pinElectricalTypes.find( aType );
 
-    wxCHECK_MSG( it != g_pinElectricalTypes.end(), BITMAPS::INVALID_BITMAP,
-                 wxString::Format( "Pin type not found for type %d!", (int) aType ) );
+    Q_ASSERT_X( it != g_pinElectricalTypes.end(), "ElectricalPinTypeGetBitmap",
+                QString::asprintf( "Pin type not found for type %d!", (int) aType ).toStdString().c_str() );
+    if( it == g_pinElectricalTypes.end() )
+        return BITMAPS::INVALID_BITMAP;
 
     return it->second.bitmap;
 }
 
 
-wxString PinShapeGetText( GRAPHIC_PINSHAPE aShape )
+QString PinShapeGetText( GRAPHIC_PINSHAPE aShape )
 {
     if( g_pinShapes.empty() || g_language != Pgm().GetSelectedLanguageIdentifier() )
         InitTables();
 
     auto it = g_pinShapes.find( aShape );
 
-    wxCHECK_MSG( it != g_pinShapes.end(), wxT( "?" ),
-                 wxString::Format( "Pin shape not found for type %d!", (int) aShape ) );
+    Q_ASSERT_X( it != g_pinShapes.end(), "PinShapeGetText",
+                QString::asprintf( "Pin shape not found for type %d!", (int) aShape ).toStdString().c_str() );
+    if( it == g_pinShapes.end() )
+        return QStringLiteral( "?" );
 
     return it->second.name;
 }
@@ -258,22 +245,26 @@ BITMAPS PinShapeGetBitmap( GRAPHIC_PINSHAPE aShape )
 
     auto it = g_pinShapes.find( aShape );
 
-    wxCHECK_MSG( it != g_pinShapes.end(), BITMAPS::INVALID_BITMAP,
-                 wxString::Format( "Pin shape not found for type %d!", (int) aShape ) );
+    Q_ASSERT_X( it != g_pinShapes.end(), "PinShapeGetBitmap",
+                QString::asprintf( "Pin shape not found for type %d!", (int) aShape ).toStdString().c_str() );
+    if( it == g_pinShapes.end() )
+        return BITMAPS::INVALID_BITMAP;
 
     return it->second.bitmap;
 }
 
 
-wxString PinOrientationName( PIN_ORIENTATION aOrientation )
+QString PinOrientationName( PIN_ORIENTATION aOrientation )
 {
     if( g_pinOrientations.empty() || g_language != Pgm().GetSelectedLanguageIdentifier() )
         InitTables();
 
     auto it = g_pinOrientations.find( aOrientation );
 
-    wxCHECK_MSG( it != g_pinOrientations.end(), wxT( "?" ),
-                 wxString::Format( "Pin orientation not found for type %d!", (int) aOrientation ) );
+    Q_ASSERT_X( it != g_pinOrientations.end(), "PinOrientationName",
+                QString::asprintf( "Pin orientation not found for type %d!", (int) aOrientation ).toStdString().c_str() );
+    if( it == g_pinOrientations.end() )
+        return QStringLiteral( "?" );
 
     return it->second.name;
 }
@@ -286,8 +277,10 @@ BITMAPS PinOrientationGetBitmap( PIN_ORIENTATION aOrientation )
 
     auto it = g_pinOrientations.find( aOrientation );
 
-    wxCHECK_MSG( it != g_pinOrientations.end(), BITMAPS::INVALID_BITMAP,
-                 wxString::Format( "Pin orientation not found for type %d!", (int) aOrientation ) );
+    Q_ASSERT_X( it != g_pinOrientations.end(), "PinOrientationGetBitmap",
+                QString::asprintf( "Pin orientation not found for type %d!", (int) aOrientation ).toStdString().c_str() );
+    if( it == g_pinOrientations.end() )
+        return BITMAPS::INVALID_BITMAP;
 
     return it->second.bitmap;
 }

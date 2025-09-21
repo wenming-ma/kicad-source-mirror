@@ -1,35 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * Handle special data (items attributes) during plot.
- *
- * Used in Gerber plotter to generate auxiliary data during plot (for instance info associated
- * to apertures and flashed pads)
- *
- * @file gbr_metadata.h
- */
+// Handle special data (items attributes) during plot.
+// Used in Gerber plotter to generate auxiliary data during plot
 
 #ifndef GBR_METADATA_H
 #define GBR_METADATA_H
@@ -64,21 +35,11 @@ enum GBR_NC_STRING_FORMAT       // Options for string format in some attribute s
     GBR_NC_STRING_FORMAT_NCDRILL
 };
 
-wxString GbrMakeCreationDateAttributeString( GBR_NC_STRING_FORMAT aFormat );
+QString GbrMakeCreationDateAttributeString( GBR_NC_STRING_FORMAT aFormat );
 
 
-/**
- * Build a project GUID using format RFC4122 Version 1 or 4 from the project name, because
- * a KiCad project has no specific GUID.
- *
- * RFC4122 is used mainly for its syntax, because fields have no meaning for Gerber files
- * and therefore the GUID generated has no meaning because it do not use any time and time
- * stamp specific to the project, just a random pattern (random is here a pattern specific
- * to a project).
- *
- * See en.wikipedia.org/wiki/Universally_unique_identifier
- */
-wxString GbrMakeProjectGUIDfromString( const wxString& aText );
+// Build a project GUID using format RFC4122 Version 1 or 4 from the project name
+QString GbrMakeProjectGUIDfromString( const QString& aText );
 
 
 // this class handle info which can be added in a gerber file as attribute
@@ -227,101 +188,51 @@ public:
         return m_NetlistMetadata.m_NetAttribType;
     }
 
-    void SetNetName( const wxString& aNetname ) { m_NetlistMetadata.m_Netname = aNetname; }
+    void SetNetName( const QString& aNetname ) { m_NetlistMetadata.m_Netname = aNetname; }
 
-    void SetPadName( const wxString& aPadname, bool aUseUTF8 = false, bool aEscapeString = false )
+    void SetPadName( const QString& aPadname, bool aUseUTF8 = false, bool aEscapeString = false )
     {
         m_NetlistMetadata.m_Padname.SetField( aPadname, aUseUTF8, aEscapeString );
     }
 
-    void SetPadPinFunction( const wxString& aPadPinFunction, bool aUseUTF8, bool aEscapeString )
+    void SetPadPinFunction( const QString& aPadPinFunction, bool aUseUTF8, bool aEscapeString )
     {
         m_NetlistMetadata.m_PadPinFunction.SetField( aPadPinFunction, aUseUTF8, aEscapeString );
     }
 
-    void SetCmpReference( const wxString& aComponentRef )
+    void SetCmpReference( const QString& aComponentRef )
     {
         m_NetlistMetadata.m_Cmpref = aComponentRef;
     }
 
-    /**
-     * Allowed attributes are not the same on board copper layers and on other layers.
-     *
-     * A flag can be set or reset when attributes can be depending on layers
-     */
+    // Allowed attributes are not the same on board copper layers and on other layers
     bool IsCopper() { return m_isCopper; }
     void SetCopper( bool aValue ) { m_isCopper = aValue; }
 
-    /**
-     * An item to handle aperture attribute.
-     */
+    // An item to handle aperture attribute
     GBR_APERTURE_METADATA m_ApertureMetadata;
 
-    /**
-     * An item to handle object attribute.
-     */
+    // An item to handle object attribute
     GBR_NETLIST_METADATA m_NetlistMetadata;
 
 private:
-    /**
-     * If the metadata is relative to a copper layer or not, this flag which can be set/reset
-     * when an attribute for a given item depends on whether a copper layer or a non copper
-     * layer is plotted.  The initial state i false.
-     */
+    // If the metadata is relative to a copper layer or not
     bool m_isCopper;
 };
 
 
-/**
- * Normalize \a aString and convert it to a Gerber std::string.
- *
- * Normalization means convert any code > 0x7F and unauthorized code to a hexadecimal
- * 16 bit sequence Unicode.  Illegal characters are ',' '*' '%' '\'.
- *
- * @param aString the string to convert.
- * @return an ASCII7 coded compliant gerber string.
- */
-std::string FormatStringToGerber( const wxString& aString );
+// Normalize aString and convert it to a Gerber std::string
+std::string FormatStringToGerber( const QString& aString );
 
 
-/**
- * Normalize \a aString and convert it to a Gerber compatible wxString.
- *
- * Normalization means convert to a hexadecimal 16 bit sequence Unicode and on request
- * convert any code > 0x7F.  Illegal characters are ',' '*' '%' '\'.
- *
- * @param aString the string to convert.
- * @param aAllowUtf8Chars false to convert non ASCII7 values to Unicode sequence.
- * @param aQuoteString  true to double quote the returned string.
- * @return a without illegal chars (and converted non ASCII7 chars on request)
- */
-wxString ConvertNotAllowedCharsInGerber( const wxString& aString, bool aAllowUtf8Chars,
+// Normalize aString and convert it to a Gerber compatible QString
+QString ConvertNotAllowedCharsInGerber( const QString& aString, bool aAllowUtf8Chars,
                                          bool aQuoteString );
 
-/**
- * Convert a gerber string into a 16 bit Unicode string.
- *
- * @param aString the gerber string to format.
- * @return a 16 bit Unicode string.
- */
-wxString FormatStringFromGerber( const wxString& aString );
+// Convert a gerber string into a 16 bit Unicode string
+QString FormatStringFromGerber( const QString& aString );
 
-/**
- * Generate the string to set a net attribute for a graphic object to print to a gerber file.
- *
- * @param aPrintedText is the string to print.
- * @param aLastNetAttributes is the current full set of attributes.
- * @param aData is the #GBR_NETLIST_METADATA associated to the graphic object (can be NULL
- *              if no associated metadata, and aClearPreviousAttributes will be set to false)
- * @param aClearPreviousAttributes returns true if the full set of attributes must be deleted
- *                                 from file before adding new attribute (happens when a previous
- *                                 attribute no longer exists).
- * @param aUseX1StructuredComment false in X2 mode and true in X1 mode to add the net attribute
- *                                in compatible X1 structured comment (i.e. prefixed by "G04 #@! ")
- * @return false if nothing can be done (GBR_NETLIST_METADATA has GBR_APERTURE_ATTRIB_NONE,
- *         and true if OK. If the new attribute(s) is the same as current attribute(s),
- *         \a aPrintedText will be empty.
- */
+// Generate the string to set a net attribute for a graphic object to print to a gerber file
 bool FormatNetAttribute( std::string& aPrintedText, std::string& aLastNetAttributes,
                          const GBR_NETLIST_METADATA* aData, bool& aClearPreviousAttributes,
                          bool aUseX1StructuredComment );

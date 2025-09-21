@@ -51,7 +51,7 @@ public:
 
     virtual ~FOOTPRINT_EDITOR_SETTINGS() {}
 
-    virtual bool MigrateFromLegacy( wxConfigBase* aLegacyConfig ) override;
+    virtual bool MigrateFromLegacy( QSettings* aLegacyConfig ) override;
 
     /// Only some of these settings are actually used for footprint editing
     // TODO: factor out the relevant stuff so the whole BDS doesn't have to be here
@@ -80,15 +80,15 @@ public:
 
     int m_LibWidth;
 
-    wxString m_LastExportPath;
+    QString m_LastExportPath;
 
-    wxString m_FootprintTextShownColumns;
+    QString m_FootprintTextShownColumns;
 
     PCB_SELECTION_FILTER_OPTIONS m_SelectionFilter;
 
     std::vector<LAYER_PRESET> m_LayerPresets;
 
-    wxString m_ActiveLayerPreset;
+    QString m_ActiveLayerPreset;
 
 protected:
 

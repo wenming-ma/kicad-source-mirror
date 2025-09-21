@@ -71,7 +71,7 @@ GERBER_LAYER::~GERBER_LAYER()
 
 void GERBER_LAYER::ResetDefaultValues()
 {
-    m_LayerName     = wxT( "no name" );             // Layer name from the LN command
+    m_LayerName     = "no name";             // Layer name from the LN command
     m_LayerNegative = false;                        // true = Negative Layer
     m_StepForRepeat.x     = m_StepForRepeat.y = 0;  // X and Y offsets for Step and Repeat command
     m_XRepeatCount        = 1;                      // The repeat count on X axis
@@ -112,7 +112,7 @@ GERBER_FILE_IMAGE::~GERBER_FILE_IMAGE()
 }
 
 
-void GERBER_FILE_IMAGE::AddMessageToList( const wxString& aMessage )
+void GERBER_FILE_IMAGE::AddMessageToList( const QString& aMessage )
 {
     /* Add a message to the message list, but only if there are less than max_messages
      * to avoid very long list (can happens if trying to read a non gerber file)
@@ -188,14 +188,14 @@ void GERBER_FILE_IMAGE::ResetDefaultValues()
 {
     m_InUse         = false;
     m_GBRLayerParams.ResetDefaultValues();
-    m_FileName.Empty();
-    m_ImageName     = wxEmptyString;                // Image name from the IN command (deprecated)
+    m_FileName.clear();
+    m_ImageName     = QString();                // Image name from the IN command (deprecated)
     m_ImageNegative = false;                        // true = Negative image
     m_IsX2_file     = false;                        // true only if a %TF, %TA or %TD command
     delete m_FileFunction;                          // file function parameters
     m_FileFunction = nullptr;
-    m_MD5_value.Empty();                            // MD5 value found in a %TF.MD5 command
-    m_PartString.Empty();                           // string found in a %TF.Part command
+    m_MD5_value.clear();                            // MD5 value found in a %TF.MD5 command
+    m_PartString.clear();                           // string found in a %TF.Part command
     m_hasNegativeItems    = -1;                     // set to uninitialized
     m_ImageJustifyOffset = VECTOR2I( 0, 0 );        // Image justify Offset
     m_ImageJustifyXCenter = false;                  // Image Justify Center on X axis (default = false)
@@ -346,25 +346,25 @@ void GERBER_FILE_IMAGE::StepAndRepeatItem( const GERBER_DRAW_ITEM& aItem )
  */
 void GERBER_FILE_IMAGE::DisplayImageInfo(  GERBVIEW_FRAME* aMainFrame  )
 {
-    wxString msg;
+    QString msg;
 
     aMainFrame->ClearMsgPanel();
 
     // Display the Gerber variant (X1 / X2
-    aMainFrame->AppendMsgPanel( _( "Format" ), m_IsX2_file ? wxT( "X2" ) : wxT( "X1" ) );
+    aMainFrame->AppendMsgPanel( _( "Format" ), m_IsX2_file ? "X2" : "X1" );
 
     // Display Image name (Image specific). IM command (Image Name) is deprecated
     // So non empty image name is very rare, probably never found
-    if( !m_ImageName.IsEmpty() )
+    if( !m_ImageName.isEmpty() )
         aMainFrame->AppendMsgPanel( _( "Image name" ), m_ImageName );
 
     // Display graphic layer number used to draw this Image
     // (not a Gerber parameter but is also image specific)
-    msg.Printf( wxT( "%d" ), m_GraphicLayer + 1 );
+    msg = QString::asprintf( "%d", m_GraphicLayer + 1 );
     aMainFrame->AppendMsgPanel( _( "Graphic layer" ), msg );
 
     // Display Image rotation (Image specific)
-    msg.Printf( wxT( "%d" ), m_ImageRotation );
+    msg = QString::asprintf( "%d", m_ImageRotation );
     aMainFrame->AppendMsgPanel( _( "Img Rot." ), msg );
 
     // Display Image polarity (Image specific)
@@ -378,7 +378,7 @@ void GERBER_FILE_IMAGE::DisplayImageInfo(  GERBVIEW_FRAME* aMainFrame  )
     msg = m_ImageJustifyYCenter ? _("Center") : _("Normal");
     aMainFrame->AppendMsgPanel( _( "Y Justify" ), msg );
 
-    msg.Printf( wxT( "X=%s Y=%s" ),
+    msg = QString::asprintf( "X=%s Y=%s",
                 aMainFrame->MessageTextFromValue( m_ImageJustifyOffset.x ),
                 aMainFrame->MessageTextFromValue( m_ImageJustifyOffset.y ) );
 
@@ -395,10 +395,10 @@ void GERBER_FILE_IMAGE::RemoveAttribute( X2_ATTRIBUTE& aAttribute )
      * if a attribute name is specified (for instance %TD.CN*%) is specified,
      * only this attribute is cleared
      */
-    wxString cmd = aAttribute.GetPrm( 0 );
+    QString cmd = aAttribute.GetPrm( 0 );
     m_NetAttributeDict.ClearAttribute( &cmd );
 
-    if( cmd.IsEmpty() || cmd == wxT( ".AperFunction" ) )
+    if( cmd.isEmpty() || cmd == ".AperFunction" )
         m_AperFunction.Clear();
 }
 

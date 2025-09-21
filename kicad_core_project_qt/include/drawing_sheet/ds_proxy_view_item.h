@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2013 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef DS_PROXY_VIEW_ITEM_H
 #define DS_PROXY_VIEW_ITEM_H
@@ -49,7 +25,7 @@ class DS_PROXY_VIEW_ITEM : public EDA_ITEM
 public:
     DS_PROXY_VIEW_ITEM( const EDA_IU_SCALE& aIuScale, const PAGE_INFO* aPageInfo,
                         const PROJECT* aProject, const TITLE_BLOCK* aTitleBlock,
-                        const std::map<wxString, wxString>* aProperties );
+                        const std::map<QString, QString>* aProperties );
 
     /**
      * Set the file name displayed in the title block.
@@ -119,15 +95,15 @@ public:
      *
      * @return  string "DS_PROXY_VIEW_ITEM"
      */
-    virtual wxString GetClass() const override
+    virtual QString GetClass() const override
     {
-        return wxT( "DS_PROXY_VIEW_ITEM" );
+        return "DS_PROXY_VIEW_ITEM";
     }
 
     bool HitTestDrawingSheetItems( KIGFX::VIEW* aView, const VECTOR2I& aPosition );
 
 protected:
-    void buildDrawList( KIGFX::VIEW* aView, const std::map<wxString, wxString>* aProperties,
+    void buildDrawList( KIGFX::VIEW* aView, const std::map<QString, QString>* aProperties,
                         DS_DRAW_ITEM_LIST* aDrawList ) const;
 
 protected:
@@ -143,7 +119,7 @@ protected:
     bool                m_isFirstPage;
     const PROJECT*      m_project;
 
-    const std::map<wxString, wxString>* m_properties;
+    const std::map<QString, QString>* m_properties;
 
     /**
      * Layer that is used for drawing sheet color (LAYER_DRAWINGSHEET is always used

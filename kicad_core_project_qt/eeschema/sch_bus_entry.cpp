@@ -1,29 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2004 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <sch_draw_panel.h>
 #include <bitmaps.h>
+#include <QString>
+#include <QPainter>
 #include <core/mirror.h>
 #include <schematic.h>
 #include <geometry/shape_segment.h>
@@ -85,7 +64,7 @@ SCH_BUS_WIRE_ENTRY::SCH_BUS_WIRE_ENTRY( const VECTOR2I& pos, int aQuadrant ) :
     case 2: m_size.x *=  1; m_size.y *=  1; break;
     case 3: m_size.x *= -1; m_size.y *=  1; break;
     case 4: m_size.x *= -1; m_size.y *= -1; break;
-    default: wxFAIL_MSG( wxS( "SCH_BUS_WIRE_ENTRY ctor: unexpected quadrant" ) );
+    default: Q_ASSERT_X( false, "SCH_BUS_WIRE_ENTRY ctor", "unexpected quadrant" );
     }
 
     m_layer  = LAYER_WIRE;
@@ -139,7 +118,8 @@ void SCH_BUS_ENTRY_BASE::SwapData( SCH_ITEM* aItem )
     SCH_ITEM::SwapFlags( aItem );
 
     SCH_BUS_ENTRY_BASE* item = dynamic_cast<SCH_BUS_ENTRY_BASE*>( aItem );
-    wxCHECK_RET( item, wxT( "Cannot swap bus entry data with invalid item." ) );
+    Q_ASSERT_X( item, "SwapData", "Cannot swap bus entry data with invalid item." );
+    if( !item ) return;
 
     std::swap( m_pos, item->m_pos );
     std::swap( m_size, item->m_size );
@@ -266,7 +246,7 @@ void SCH_BUS_BUS_ENTRY::GetEndPoints( std::vector< DANGLING_END_ITEM >& aItemLis
 void SCH_BUS_ENTRY_BASE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
                                 const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
 {
-    wxDC*   DC = aSettings->GetPrintDC();
+    QPainter*   DC = aSettings->GetPrintDC();
     COLOR4D color = ( GetBusEntryColor() == COLOR4D::UNSPECIFIED )
                                                             ? aSettings->GetLayerColor( m_layer )
                                                             : GetBusEntryColor();
@@ -435,7 +415,8 @@ bool SCH_BUS_ENTRY_BASE::HasConnectivityChanges( const SCH_ITEM* aItem,
     const SCH_BUS_ENTRY_BASE* busEntry = dynamic_cast<const SCH_BUS_ENTRY_BASE*>( aItem );
 
     // Don't compare against a different SCH_ITEM.
-    wxCHECK( busEntry, false );
+    Q_ASSERT( busEntry );
+    if( !busEntry ) return false;
 
     if( GetPosition() != busEntry->GetPosition() )
         return true;
@@ -444,15 +425,15 @@ bool SCH_BUS_ENTRY_BASE::HasConnectivityChanges( const SCH_ITEM* aItem,
 }
 
 
-wxString SCH_BUS_WIRE_ENTRY::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_BUS_WIRE_ENTRY::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString( _( "Bus to Wire Entry" ) );
+    return QString( "Bus to Wire Entry" );
 }
 
 
-wxString SCH_BUS_BUS_ENTRY::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_BUS_BUS_ENTRY::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString( _( "Bus to Bus Entry" ) );
+    return QString( "Bus to Bus Entry" );
 }
 
 
@@ -519,16 +500,16 @@ void SCH_BUS_ENTRY_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PL
 void SCH_BUS_ENTRY_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
                                           std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString msg;
+    QString msg;
 
     switch( GetLayer() )
     {
     default:
-    case LAYER_WIRE: msg = _( "Wire" ); break;
-    case LAYER_BUS:  msg = _( "Bus" );  break;
+    case LAYER_WIRE: msg = "Wire"; break;
+    case LAYER_BUS:  msg = "Bus";  break;
     }
 
-    aList.emplace_back( _( "Bus Entry Type" ), msg );
+    aList.emplace_back( "Bus Entry Type", msg );
 
     SCH_CONNECTION* conn = nullptr;
 
@@ -540,7 +521,7 @@ void SCH_BUS_ENTRY_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
         conn->AppendInfoToMsgPanel( aList );
 
         if( !conn->IsBus() )
-            aList.emplace_back( _( "Resolved Netclass" ),
+            aList.emplace_back( "Resolved Netclass",
                                 GetEffectiveNetClass()->GetHumanReadableName() );
     }
 }

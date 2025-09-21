@@ -1,34 +1,15 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2021 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <thread>
 
-#include <core/wx_stl_compat.h>
+#include <QtCore/QDebug>
 #include <symbol_async_loader.h>
 #include <symbol_lib_table.h>
 #include <progress_reporter.h>
 
 
-SYMBOL_ASYNC_LOADER::SYMBOL_ASYNC_LOADER( const std::vector<wxString>& aNicknames,
+SYMBOL_ASYNC_LOADER::SYMBOL_ASYNC_LOADER( const std::vector<QString>& aNicknames,
                                           SYMBOL_LIB_TABLE* aTable, bool aOnlyPowerSymbols,
-                                          std::unordered_map<wxString, std::vector<LIB_SYMBOL*>>* aOutput,
+                                          std::unordered_map<QString, std::vector<LIB_SYMBOL*>>* aOutput,
                                           PROGRESS_REPORTER* aReporter ) :
         m_nicknames( aNicknames ),
         m_table( aTable ),
@@ -37,7 +18,7 @@ SYMBOL_ASYNC_LOADER::SYMBOL_ASYNC_LOADER( const std::vector<wxString>& aNickname
         m_reporter( aReporter ),
         m_nextLibrary( 0 )
 {
-    wxASSERT( m_table );
+    Q_ASSERT( m_table );
     m_threadCount = std::max<size_t>( 1, std::thread::hardware_concurrency() );
 
     m_returns.resize( m_threadCount );
@@ -102,10 +83,10 @@ std::vector<SYMBOL_ASYNC_LOADER::LOADED_PAIR> SYMBOL_ASYNC_LOADER::worker()
     for( size_t libraryIndex = m_nextLibrary++; libraryIndex < m_nicknames.size();
          libraryIndex = m_nextLibrary++ )
     {
-        const wxString& nickname = m_nicknames[libraryIndex];
+        const QString& nickname = m_nicknames[libraryIndex];
 
         if( m_reporter )
-            m_reporter->AdvancePhase( wxString::Format( _( "Loading library %s..." ), nickname ) );
+            m_reporter->AdvancePhase( QString::asprintf( _( "Loading library %s..." ), qPrintable(nickname) ) );
 
         if( m_reporter && m_reporter->IsCancelled() )
             break;
@@ -119,16 +100,16 @@ std::vector<SYMBOL_ASYNC_LOADER::LOADED_PAIR> SYMBOL_ASYNC_LOADER::worker()
         }
         catch( const IO_ERROR& ioe )
         {
-            wxString msg = wxString::Format( _( "Error loading symbol library %s.\n\n%s\n" ),
-                                             nickname, ioe.What() );
+            QString msg = QString::asprintf( _( "Error loading symbol library %s.\n\n%s\n" ),
+                                             qPrintable(nickname), qPrintable(ioe.What()) );
 
             std::lock_guard<std::mutex> lock( m_errorMutex );
             m_errors += msg;
         }
         catch( std::exception& e )
         {
-            wxString msg = wxString::Format( _( "Error loading symbol library %s.\n\n%s\n" ),
-                                             nickname, e.what() );
+            QString msg = QString::asprintf( _( "Error loading symbol library %s.\n\n%s\n" ),
+                                             qPrintable(nickname), e.what() );
 
             std::lock_guard<std::mutex> lock( m_errorMutex );
             m_errors += msg;

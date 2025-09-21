@@ -1,32 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jean_Pierre Charras <jp.charras at wanadoo.fr>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @file gendrill_gerber_writer.cpp
- * @brief Functions to create drill files in gerber X2 format.
- */
+// Functions to create drill files in gerber X2 format.
 
+#include <QString>
+#include <QFileInfo>
+#include <QDir>
 #include <plotters/plotter_gerber.h>
 #include <string_utils.h>
 #include <locale_io.h>
@@ -52,20 +29,20 @@ GERBER_WRITER::GERBER_WRITER( BOARD* aPcb )
     m_zeroFormat      = SUPPRESS_LEADING;
     m_conversionUnits = 1.0;
     m_unitsMetric    = true;
-    m_drillFileExtension = wxT( "gbr" );
+    m_drillFileExtension = "gbr";
     m_merge_PTH_NPTH = false;
 }
 
 
-bool GERBER_WRITER::CreateDrillandMapFilesSet( const wxString& aPlotDirectory, bool aGenDrill,
+bool GERBER_WRITER::CreateDrillandMapFilesSet( const QString& aPlotDirectory, bool aGenDrill,
                                                bool aGenMap, REPORTER* aReporter )
 {
     bool success = true;
     // Note: In Gerber drill files, NPTH and PTH are always separate files
     m_merge_PTH_NPTH = false;
 
-    wxFileName  fn;
-    wxString    msg;
+    QFileInfo  fn;
+    QString    msg;
 
     std::vector<DRILL_LAYER_PAIR> hole_sets = getUniqueLayerPairs();
 
@@ -89,12 +66,12 @@ bool GERBER_WRITER::CreateDrillandMapFilesSet( const wxString& aPlotDirectory, b
         // generator).
         if( getHolesCount() > 0 || doing_npth || pair == DRILL_LAYER_PAIR( F_Cu, B_Cu ) )
         {
-            fn = getDrillFileName( pair, doing_npth, false );
-            fn.SetPath( aPlotDirectory );
+            QString drillFileName = getDrillFileName( pair, doing_npth, false );
+            fn = QFileInfo( QDir( aPlotDirectory ), QFileInfo( drillFileName ).fileName() );
 
             if( aGenDrill )
             {
-                wxString fullFilename = fn.GetFullPath();
+                QString fullFilename = fn.absoluteFilePath();
 
                 int result = createDrillFile( fullFilename, doing_npth, pair );
 
@@ -102,7 +79,7 @@ bool GERBER_WRITER::CreateDrillandMapFilesSet( const wxString& aPlotDirectory, b
                 {
                     if( aReporter )
                     {
-                        msg.Printf( _( "Failed to create file '%s'." ), fullFilename );
+                        msg = QString( "Failed to create file '%1'." ).arg( fullFilename );
                         aReporter->Report( msg, RPT_SEVERITY_ERROR );
                         success = false;
                     }
@@ -113,7 +90,7 @@ bool GERBER_WRITER::CreateDrillandMapFilesSet( const wxString& aPlotDirectory, b
                 {
                     if( aReporter )
                     {
-                        msg.Printf( _( "Created file '%s'." ), fullFilename );
+                        msg = QString( "Created file '%1'." ).arg( fullFilename );
                         aReporter->Report( msg, RPT_SEVERITY_ACTION );
                     }
                 }
@@ -126,7 +103,7 @@ bool GERBER_WRITER::CreateDrillandMapFilesSet( const wxString& aPlotDirectory, b
         success &= CreateMapFilesSet( aPlotDirectory, aReporter );
 
     if( aReporter )
-        aReporter->ReportTail( _( "Done." ), RPT_SEVERITY_INFO );
+        aReporter->ReportTail( "Done.", RPT_SEVERITY_INFO );
 
     return success;
 }
@@ -138,7 +115,7 @@ static void convertOblong2Segment( const VECTOR2I& aSize, const EDA_ANGLE& aOrie
 #endif
 
 
-int GERBER_WRITER::createDrillFile( wxString& aFullFilename, bool aIsNpth,
+int GERBER_WRITER::createDrillFile( QString& aFullFilename, bool aIsNpth,
                                     DRILL_LAYER_PAIR aLayerPair )
 {
     int    holes_count;
@@ -158,23 +135,23 @@ int GERBER_WRITER::createDrillFile( wxString& aFullFilename, bool aIsNpth,
 
     // has meaning only for gerber plotter. Must be called only after SetViewport
     plotter.SetGerberCoordinatesFormat( 6 );
-    plotter.SetCreator( wxT( "PCBNEW" ) );
+    plotter.SetCreator( "PCBNEW" );
 
     // Add the standard X2 FileFunction for drill files
     // %TF.FileFunction,Plated[NonPlated],layer1num,layer2num,PTH[NPTH][Blind][Buried],Drill[Rout][Mixed]*%
-    wxString text = BuildFileFunctionAttributeString( aLayerPair,
+    QString text = BuildFileFunctionAttributeString( aLayerPair,
                                                       aIsNpth ? TYPE_FILE::NPTH_FILE
                                                               : TYPE_FILE::PTH_FILE );
     plotter.AddLineToHeader( text );
 
     // Add file polarity (positive)
-    text = wxT( "%TF.FilePolarity,Positive*%" );
+    text = "%TF.FilePolarity,Positive*%";
     plotter.AddLineToHeader( text );
 
     if( !plotter.OpenFile( aFullFilename ) )
         return -1;
 
-    plotter.StartPlot( wxT( "1" ) );
+    plotter.StartPlot( "1" );
 
     holes_count = 0;
 
@@ -231,7 +208,7 @@ int GERBER_WRITER::createDrillFile( wxString& aFullFilename, bool aIsNpth,
             }
 
             // Add object attribute: component reference to pads (mainly useful for users)
-            wxString ref = pad->GetParentFootprint()->GetReference();
+            QString ref = pad->GetParentFootprint()->GetReference();
 
             gbr_metadata.SetCmpReference( ref );
             gbr_metadata.SetNetAttribType( GBR_NETLIST_METADATA::GBR_NETINFO_CMP );
@@ -307,13 +284,15 @@ void GERBER_WRITER::SetFormat( int aRightDigits )
 }
 
 
-const wxString GERBER_WRITER::getDrillFileName( DRILL_LAYER_PAIR aPair, bool aNPTH,
+const QString GERBER_WRITER::getDrillFileName( DRILL_LAYER_PAIR aPair, bool aNPTH,
                                                 bool aMerge_PTH_NPTH ) const
 {
     // Gerber files extension is always .gbr.
     // Therefore, to mark drill files, add "-drl" to the filename.
-    wxFileName fname( GENDRILL_WRITER_BASE::getDrillFileName( aPair, aNPTH, aMerge_PTH_NPTH ) );
-    fname.SetName( fname.GetName() + wxT( "-drl" ) );
+    QFileInfo fname( GENDRILL_WRITER_BASE::getDrillFileName( aPair, aNPTH, aMerge_PTH_NPTH ) );
+    QString baseName = fname.completeBaseName() + "-drl";
+    QString newFileName = baseName + "." + fname.suffix();
+    QFileInfo result( fname.dir(), newFileName );
 
-    return fname.GetFullPath();
+    return result.absoluteFilePath();
 }

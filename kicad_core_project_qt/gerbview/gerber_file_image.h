@@ -1,32 +1,13 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2010-2019 Jean-Pierre Charras  jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef GERBER_FILE_IMAGE_H
 #define GERBER_FILE_IMAGE_H
 
 #include <vector>
 #include <set>
+#include <QString>
+#include <QStringList>
+#include <QPointF>
+#include <QSize>
 
 #include <dcode.h>
 #include <gerber_draw_item.h>
@@ -87,9 +68,9 @@ private:
 
 public:
    // These parameters are layer specific:
-    wxString    m_LayerName;            // Layer name, from LN <name>* command
+    QString    m_LayerName;            // Layer name, from LN <name>* command
     bool        m_LayerNegative;        // true = Negative Layer: command LP
-    wxRealPoint m_StepForRepeat;        // X and Y offsets for Step and Repeat command
+    QPointF m_StepForRepeat;        // X and Y offsets for Step and Repeat command
     int         m_XRepeatCount;         // The repeat count on X axis
     int         m_YRepeatCount;         // The repeat count on Y axis
     bool        m_StepForRepeatMetric;  // false = Inches, true = metric
@@ -118,9 +99,9 @@ public:
     GERBER_FILE_IMAGE( int layer );
     virtual ~GERBER_FILE_IMAGE();
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "GERBER_FILE_IMAGE" );
+        return "GERBER_FILE_IMAGE";
     }
 
     /**
@@ -131,7 +112,7 @@ public:
      * @param aFullFileName aFullFileName is the full filename of the gerber file.
      * @return True if RS274 file, false otherwise
      */
-    static bool TestFileIsRS274( const wxString& aFullFileName );
+    static bool TestFileIsRS274( const QString& aFullFileName );
 
     /**
      * Read and load a gerber file.
@@ -141,9 +122,9 @@ public:
      * @param aFullFileName The full filename of the Gerber file.
      * @return true if file loaded successfully, false if the gerber file was not loaded.
      */
-    bool LoadGerberFile( const wxString& aFullFileName );
+    bool LoadGerberFile( const QString& aFullFileName );
 
-    const wxArrayString& GetMessages() const { return m_messagesList; }
+    const QStringList& GetMessages() const { return m_messagesList; }
 
     /**
      * @return the count of Dcode tools in use in the image
@@ -212,7 +193,7 @@ public:
     /**
      * Add a message to the message list
      */
-    void AddMessageToList( const wxString& aMessage );
+    void AddMessageToList( const QString& aMessage );
 
     /**
      * Return the current coordinate type pointed to by XnnYnn Text (XnnnnYmmmm).
@@ -377,14 +358,14 @@ public:
                                                ///<   is loaded in it)
                                                ///< false if it must be not drawn
     COLOR4D            m_PositiveDrawColor;    ///< The color used to draw positive items
-    wxString           m_FileName;             ///< Full File Name for this layer
-    wxString           m_ImageName;            ///< Image name, from IN <name>* command
+    QString           m_FileName;             ///< Full File Name for this layer
+    QString           m_ImageName;            ///< Image name, from IN <name>* command
 
     bool               m_IsX2_file;            ///< True if a X2 gerber attribute was found in file
     X2_ATTRIBUTE_FILEFUNCTION* m_FileFunction; ///< file function parameters, found in a %TF
                                                ///<   command or a G04
-    wxString           m_MD5_value;            ///< MD5 value found in a %TF.MD5 command
-    wxString           m_PartString;           ///< string found in a %TF.Part command
+    QString           m_MD5_value;            ///< MD5 value found in a %TF.MD5 command
+    QString           m_PartString;           ///< string found in a %TF.Part command
     int                m_GraphicLayer;         ///< Graphic layer Number
     bool               m_ImageNegative;        ///< true = Negative image
 
@@ -396,8 +377,8 @@ public:
     bool               m_Relative;             ///< false = absolute Coord, true = relative Coord.
     bool               m_NoTrailingZeros;      ///< true: remove tailing zeros.
     VECTOR2I           m_ImageOffset;          ///< Coord Offset, from IO command
-    wxSize             m_FmtScale;             ///< Fmt 2.3: m_FmtScale = 3, fmt 3.4: m_FmtScale = 4
-    wxSize             m_FmtLen;               ///< Nb chars per coord. ex fmt 2.3, m_FmtLen = 5
+    QSize             m_FmtScale;             ///< Fmt 2.3: m_FmtScale = 3, fmt 3.4: m_FmtScale = 4
+    QSize             m_FmtLen;               ///< Nb chars per coord. ex fmt 2.3, m_FmtLen = 5
 
     int                m_ImageRotation;        ///< Image rotation (0, 90, 180, 270 only) in degrees
     double             m_LocalRotation;        ///< Local rotation added to m_ImageRotation
@@ -455,10 +436,10 @@ public:
     GBR_NETLIST_METADATA m_NetAttributeDict;
 
     // the aperture function set by a %TA.AperFunction, xxx (stores the xxx value).
-    wxString            m_AperFunction;
+    QString            m_AperFunction;
 
-    std::map<wxString, int> m_ComponentsList;            // list of components
-    std::map<wxString, int> m_NetnamesList;              // list of net names
+    std::map<QString, int> m_ComponentsList;            // list of components
+    std::map<QString, int> m_NetnamesList;              // list of net names
 
     ///< Dcode (Aperture) List for this layer (max TOOLS_MAX_COUNT: see dcode.h)
     D_CODE*             m_Aperture_List[TOOLS_MAX_COUNT];
@@ -478,7 +459,7 @@ public:
     static char m_LineBuffer[GERBER_BUFZ+1];
 
 private:
-    wxArrayString      m_messagesList;         // A list of messages created when reading a file
+    QStringList      m_messagesList;         // A list of messages created when reading a file
 
     /**
      * True if the image is negative or has some negative items.

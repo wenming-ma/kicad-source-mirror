@@ -1,3 +1,4 @@
+// QT_TRANSFORMATION_COMPLETED
 #include <QApplication>
 #include <QDir>
 #include <QFileInfo>

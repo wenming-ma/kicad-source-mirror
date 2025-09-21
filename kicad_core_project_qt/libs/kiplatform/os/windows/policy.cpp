@@ -1,69 +1,72 @@
-/*
-* This program source code file is part of KiCad, a free EDA CAD application.
-*
-* Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
-* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
-*
-* This program is free software: you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation, either version 3 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
 
 #include <kiplatform/policy.h>
 
-#include <wx/string.h>
-#include <wx/tokenzr.h>
-#include <wx/msw/registry.h>
+#include <QString>
+#include <QStringList>
+#include <QSettings>
+#include <windows.h>
 
 #include <memory>
 
 #define POLICY_KEY_ROOT "Software\\Policies\\KiCad\\KiCad"
 
 
-static wxRegKey* GetPolicyRegKey( wxString& aKey )
+static HKEY GetPolicyRegKey( QString& aKey )
 {
-    wxString  key = aKey;
-    wxRegKey* keyToUse = nullptr;
+    QString  key = aKey;
+    HKEY keyToUse = nullptr;
 
-    wxString keyPath = POLICY_KEY_ROOT;
+    QString keyPath = POLICY_KEY_ROOT;
 
-    wxStringTokenizer tokenizer( aKey, "\\" );
-    while( tokenizer.HasMoreTokens() )
+    QStringList tokens = aKey.split( "\\" );
+    for( int i = 0; i < tokens.size(); i++ )
     {
-        wxString token = tokenizer.GetNextToken();
+        QString token = tokens[i];
 
-        if( tokenizer.HasMoreTokens() )
+        if( i < tokens.size() - 1 )
         {
-            keyPath.Append( "\\" );
-            keyPath.Append( token );
+            keyPath.append( "\\" );
+            keyPath.append( token );
         }
         else
             key = token;
     }
 
-    std::unique_ptr<wxRegKey> userKey = std::make_unique<wxRegKey>( wxRegKey::HKCU, keyPath );
+    HKEY userKey;
+    LONG result = RegOpenKeyExA( HKEY_CURRENT_USER, keyPath.toStdString().c_str(), 0, KEY_READ, &userKey );
 
     // we have user level policies take precedence over computer level policies
-    if( userKey->Exists() && userKey->HasValue( key ) )
+    if( result == ERROR_SUCCESS )
     {
-        keyToUse = userKey.release();
-    }
-    else
-    {
-        std::unique_ptr<wxRegKey> compKey = std::make_unique<wxRegKey>( wxRegKey::HKLM, keyPath );
-
-        if( compKey->Exists() && compKey->HasValue( key ) )
+        DWORD type;
+        DWORD size = 0;
+        if( RegQueryValueExA( userKey, key.toStdString().c_str(), nullptr, &type, nullptr, &size ) == ERROR_SUCCESS )
         {
-            keyToUse = compKey.release();
+            keyToUse = userKey;
+        }
+        else
+        {
+            RegCloseKey( userKey );
+        }
+    }
+
+    if( keyToUse == nullptr )
+    {
+        HKEY compKey;
+        result = RegOpenKeyExA( HKEY_LOCAL_MACHINE, keyPath.toStdString().c_str(), 0, KEY_READ, &compKey );
+
+        if( result == ERROR_SUCCESS )
+        {
+            DWORD type;
+            DWORD size = 0;
+            if( RegQueryValueExA( compKey, key.toStdString().c_str(), nullptr, &type, nullptr, &size ) == ERROR_SUCCESS )
+            {
+                keyToUse = compKey;
+            }
+            else
+            {
+                RegCloseKey( compKey );
+            }
         }
     }
 
@@ -72,39 +75,47 @@ static wxRegKey* GetPolicyRegKey( wxString& aKey )
 }
 
 
-KIPLATFORM::POLICY::PBOOL KIPLATFORM::POLICY::GetPolicyBool( const wxString& aKey )
+KIPLATFORM::POLICY::PBOOL KIPLATFORM::POLICY::GetPolicyBool( const QString& aKey )
 {
-    wxString  key = aKey;
-    std::unique_ptr<wxRegKey> keyToUse( GetPolicyRegKey( key ) );
+    QString  key = aKey;
+    HKEY keyToUse = GetPolicyRegKey( key );
 
     if( keyToUse != nullptr )
     {
-        long value;
-        if( keyToUse->QueryValue( key, &value ) )
+        DWORD value;
+        DWORD size = sizeof(DWORD);
+        DWORD type;
+        if( RegQueryValueExA( keyToUse, key.toStdString().c_str(), nullptr, &type, (LPBYTE)&value, &size ) == ERROR_SUCCESS )
         {
+            RegCloseKey( keyToUse );
             if( value == 1 )
                 return POLICY::PBOOL::ENABLED;
             else
                 return POLICY::PBOOL::DISABLED;
         }
+        RegCloseKey( keyToUse );
     }
 
     return PBOOL::NOT_CONFIGURED;
 }
 
 
-std::uint32_t KIPLATFORM::POLICY::GetPolicyEnumUInt( const wxString& aKey )
+std::uint32_t KIPLATFORM::POLICY::GetPolicyEnumUInt( const QString& aKey )
 {
-    wxString  key = aKey;
-    std::unique_ptr<wxRegKey> keyToUse( GetPolicyRegKey( key ) );
+    QString  key = aKey;
+    HKEY keyToUse = GetPolicyRegKey( key );
 
     if( keyToUse != nullptr )
     {
-        long value;
-        if( keyToUse->QueryValue( key, &value ) )
+        DWORD value;
+        DWORD size = sizeof(DWORD);
+        DWORD type;
+        if( RegQueryValueExA( keyToUse, key.toStdString().c_str(), nullptr, &type, (LPBYTE)&value, &size ) == ERROR_SUCCESS )
         {
+            RegCloseKey( keyToUse );
             return value;
         }
+        RegCloseKey( keyToUse );
     }
 
     return 0;

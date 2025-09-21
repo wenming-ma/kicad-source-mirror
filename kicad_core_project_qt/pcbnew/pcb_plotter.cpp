@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <pcb_plotter.h>
 #include <plotters/plotter.h>
@@ -27,7 +5,9 @@
 #include <board.h>
 #include <reporter.h>
 #include <pcbplot.h>
-#include <wx/filename.h>
+#include <QFileInfo>
+#include <QDir>
+#include <QCoreApplication>
 #include <gerber_jobfile_writer.h>
 #include <jobs/job_export_pcb_gerbers.h>
 #include <jobs/job_export_pcb_dxf.h>
@@ -46,16 +26,16 @@ PCB_PLOTTER::PCB_PLOTTER( BOARD* aBoard, REPORTER* aReporter, PCB_PLOT_PARAMS& a
 }
 
 
-bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
+bool PCB_PLOTTER::Plot( const QString& aOutputPath,
                         const LSEQ& aLayersToPlot,
                         const LSEQ& aCommonLayers,
                         bool aUseGerberFileExtensions,
                         bool aOutputPathIsSingle,
-                        std::optional<wxString> aLayerName,
-                        std::optional<wxString> aSheetName,
-                        std::optional<wxString> aSheetPath )
+                        std::optional<QString> aLayerName,
+                        std::optional<QString> aSheetName,
+                        std::optional<QString> aSheetPath )
 {
-    std::function<bool( wxString* )> textResolver = [&]( wxString* token ) -> bool
+    std::function<bool( QString* )> textResolver = [&]( QString* token ) -> bool
     {
         // Handles board->GetTitleBlock() *and* board->GetProject()
         return m_board->ResolveTextVar( token, 0 );
@@ -121,9 +101,9 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
     if( m_plotOpts.GetFormat() == PLOT_FORMAT::GERBER && !aOutputPathIsSingle )
         jobfile_writer = std::make_unique<GERBER_JOBFILE_WRITER>( m_board, m_reporter );
 
-    wxString fileExt( GetDefaultPlotExtension( m_plotOpts.GetFormat() ) );
-    wxString sheetPath;
-    wxString msg;
+    QString fileExt( GetDefaultPlotExtension( m_plotOpts.GetFormat() ) );
+    QString sheetPath;
+    QString msg;
     bool     success = true;
     PLOTTER* plotter = nullptr;
     int      pageNum = 1;
@@ -135,18 +115,18 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
         if( copperLayerShouldBeSkipped( layer ) )
             continue;
 
-        LSEQ       plotSequence = getPlotSequence( layer, commonLayers );
-        wxString   layerName = m_board->GetLayerName( layer );
-        wxFileName fn;
+        LSEQ     plotSequence = getPlotSequence( layer, commonLayers );
+        QString  layerName = m_board->GetLayerName( layer );
+        QFileInfo fn;
 
         if( aOutputPathIsSingle )
         {
-            fn = wxFileName( aOutputPath );
+            fn = QFileInfo( aOutputPath );
         }
         else
         {
-            wxFileName brdFn = m_board->GetFileName();
-            fn.Assign( aOutputPath, brdFn.GetName(), fileExt );
+            QFileInfo brdFn = QFileInfo( m_board->GetFileName() );
+            fn = QFileInfo( QDir( aOutputPath ).filePath( brdFn.baseName() + "." + fileExt ) );
 
             // Use Gerber Extensions based on layer number
             // (See http://en.wikipedia.org/wiki/Gerber_File)
@@ -154,14 +134,14 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
                 fileExt = GetGerberProtelExtension( layer );
 
             if( m_plotOpts.GetFormat() == PLOT_FORMAT::PDF && m_plotOpts.m_PDFSingle )
-                fn.SetExt( GetDefaultPlotExtension( PLOT_FORMAT::PDF ) );
+                fn = QFileInfo( fn.absolutePath() + "/" + fn.baseName() + "." + GetDefaultPlotExtension( PLOT_FORMAT::PDF ) );
             else
                 BuildPlotFileName( &fn, aOutputPath, layerName, fileExt );
         }
 
         if( jobfile_writer )
         {
-            wxString fullname = fn.GetFullName();
+            QString fullname = fn.fileName();
             jobfile_writer->AddGbrFile( layer, fullname );
         }
 
@@ -171,9 +151,9 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
                     && m_plotOpts.m_PDFSingle ) )
         {
             // this will only be used by pdf
-            wxString pageNumber = wxString::Format( "%d", pageNum );
-            wxString pageName = layerName;
-            wxString sheetName = layerName;
+            QString pageNumber = QString::asprintf( "%d", pageNum );
+            QString pageName = layerName;
+            QString sheetName = layerName;
 
             if( aLayerName.has_value() )
             {
@@ -187,7 +167,7 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
             if( aSheetPath.has_value() )
                 sheetPath = aSheetPath.value();
 
-            plotter = StartPlotBoard( m_board, &m_plotOpts, layer, layerName, fn.GetFullPath(),
+            plotter = StartPlotBoard( m_board, &m_plotOpts, layer, layerName, fn.absoluteFilePath(),
                                       sheetName, sheetPath, pageName, pageNumber, finalPageCount );
         }
 
@@ -197,12 +177,12 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
 
             if( m_plotOpts.m_PDFMetadata )
             {
-                msg = wxS( "AUTHOR" );
+                msg = "AUTHOR";
 
                 if( m_board->ResolveTextVar( &msg, 0 ) )
                     plotter->SetAuthor( msg );
 
-                msg = wxS( "SUBJECT" );
+                msg = "SUBJECT";
 
                 if( m_board->ResolveTextVar( &msg, 0 ) )
                     plotter->SetSubject( msg );
@@ -215,7 +195,7 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
             if( m_plotOpts.GetFormat() == PLOT_FORMAT::PDF && m_plotOpts.m_PDFSingle
                 && i != layersToPlot.size() - 1 )
             {
-                wxString     pageNumber = wxString::Format( "%d", pageNum + 1 );
+                QString     pageNumber = QString::asprintf( "%d", pageNum + 1 );
                 size_t       nextI = i + 1;
                 PCB_LAYER_ID nextLayer = layersToPlot[nextI];
 
@@ -227,8 +207,8 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
 
                 layerName = m_board->GetLayerName( nextLayer );
 
-                wxString pageName = layerName;
-                wxString sheetName = layerName;
+                QString pageName = layerName;
+                QString sheetName = layerName;
 
                 static_cast<PDF_PLOTTER*>( plotter )->ClosePage();
                 static_cast<PDF_PLOTTER*>( plotter )->StartPage( pageNumber, pageName );
@@ -247,13 +227,13 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
                 delete plotter;
                 plotter = nullptr;
 
-                msg.Printf( _( "Plotted to '%s'." ), fn.GetFullPath() );
+                msg = QString::asprintf( _( "Plotted to '%s'." ), qPrintable( fn.absoluteFilePath() ) );
                 m_reporter->Report( msg, RPT_SEVERITY_ACTION );
             }
         }
         else
         {
-            msg.Printf( _( "Failed to create file '%s'." ), fn.GetFullPath() );
+            msg = QString::asprintf( _( "Failed to create file '%s'." ), qPrintable( fn.absoluteFilePath() ) );
             m_reporter->Report( msg, RPT_SEVERITY_ERROR );
 
             success = false;
@@ -261,17 +241,18 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
 
         pageNum++;
 
-        wxSafeYield(); // displays report message.
+        // Qt equivalent of wxSafeYield - process pending events
+        QCoreApplication::processEvents();
     }
 
     if( jobfile_writer && m_plotOpts.GetCreateGerberJobFile() )
     {
         // Pick the basename from the board file
-        wxFileName fn( m_board->GetFileName() );
+        QFileInfo fn( m_board->GetFileName() );
 
         // Build gerber job file from basename
-        BuildPlotFileName( &fn, aOutputPath, wxT( "job" ), FILEEXT::GerberJobFileExtension );
-        jobfile_writer->CreateJobFile( fn.GetFullPath() );
+        BuildPlotFileName( &fn, aOutputPath, "job", FILEEXT::GerberJobFileExtension );
+        jobfile_writer->CreateJobFile( fn.absoluteFilePath() );
     }
 
     m_reporter->ReportTail( _( "Done." ), RPT_SEVERITY_INFO );
@@ -293,16 +274,16 @@ bool PCB_PLOTTER::copperLayerShouldBeSkipped( PCB_LAYER_ID aLayerToPlot )
 }
 
 
-void PCB_PLOTTER::BuildPlotFileName( wxFileName* aFilename, const wxString& aOutputDir,
-                                     const wxString& aSuffix, const wxString& aExtension )
+void PCB_PLOTTER::BuildPlotFileName( QFileInfo* aFilename, const QString& aOutputDir,
+                                     const QString& aSuffix, const QString& aExtension )
 {
     // aFilename contains the base filename only (without path and extension)
     // when calling this function.
     // It is expected to be a valid filename (this is usually the board filename)
-    aFilename->SetPath( aOutputDir );
+    QString baseName = aFilename->baseName();
 
-    // Set the file extension
-    aFilename->SetExt( aExtension );
+    // Build new path with extension
+    QString newPath = QDir( aOutputDir ).filePath( baseName + "." + aExtension );
 
     // remove leading and trailing spaces if any from the suffix, if
     // something survives add it to the name;
@@ -310,18 +291,21 @@ void PCB_PLOTTER::BuildPlotFileName( wxFileName* aFilename, const wxString& aOut
     // so change them to underscore
     // Remember it can be called from a python script, so the illegal chars
     // have to be filtered here.
-    wxString suffix = aSuffix;
-    suffix.Trim( true );
-    suffix.Trim( false );
+    QString suffix = aSuffix;
+    suffix = suffix.trimmed();
 
-    wxString badchars = wxFileName::GetForbiddenChars( wxPATH_DOS );
-    badchars.Append( "%." );
+    QString badchars = "<>:\"/|?*%.";
 
-    for( unsigned ii = 0; ii < badchars.Len(); ii++ )
-        suffix.Replace( badchars[ii], wxT( "_" ) );
+    for( int ii = 0; ii < badchars.length(); ii++ )
+        suffix.replace( badchars[ii], "_" );
 
-    if( !suffix.IsEmpty() )
-        aFilename->SetName( aFilename->GetName() + wxT( "-" ) + suffix );
+    if( !suffix.isEmpty() )
+    {
+        baseName = baseName + "-" + suffix;
+        newPath = QDir( aOutputDir ).filePath( baseName + "." + aExtension );
+    }
+
+    *aFilename = QFileInfo( newPath );
 }
 
 
@@ -431,10 +415,10 @@ void PCB_PLOTTER::PlotJobToPlotOpts( PCB_PLOT_PARAMS& aOpts, JOB_EXPORT_PCB_PLOT
     }
 
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    wxString          theme = aJob->m_colorTheme;
+    QString          theme = aJob->m_colorTheme;
 
     // Theme may be empty when running from a job in GUI context, so use the GUI settings.
-    if( theme.IsEmpty() )
+    if( theme.isEmpty() )
     {
         PCBNEW_SETTINGS* pcbSettings = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
         theme = pcbSettings->m_ColorTheme;
@@ -444,9 +428,9 @@ void PCB_PLOTTER::PlotJobToPlotOpts( PCB_PLOT_PARAMS& aOpts, JOB_EXPORT_PCB_PLOT
 
     if( colors->GetFilename() != theme && !aOpts.GetBlackAndWhite() )
     {
-        aReporter.Report( wxString::Format( _( "Color theme '%s' not found, will use theme from "
+        aReporter.Report( QString::asprintf( _( "Color theme '%s' not found, will use theme from "
                                                "PCB Editor settings.\n" ),
-                                            theme ),
+                                            qPrintable( theme ) ),
                           RPT_SEVERITY_WARNING );
     }
 

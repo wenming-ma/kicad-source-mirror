@@ -1,27 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <vector>
+#include <QString>
 #include <eda_draw_frame.h>
 #include <lib_symbol.h>
 #include <sch_shape.h>
@@ -31,14 +10,14 @@
 static bool sort_by_pin_number( const SCH_PIN* ref, const SCH_PIN* tst );
 
 
-static void CheckLibSymbolGraphics( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
+static void CheckLibSymbolGraphics( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
                                     UNITS_PROVIDER* aUnitsProvider );
 
 
-void CheckDuplicatePins( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
+void CheckDuplicatePins( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
                          UNITS_PROVIDER* aUnitsProvider )
 {
-    wxString              msg;
+    QString              msg;
     std::vector<SCH_PIN*> pinList = aSymbol->GetPins();
 
     // Test for duplicates:
@@ -62,84 +41,84 @@ void CheckDuplicatePins( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
                 continue;
         }
 
-        wxString pinName;
-        wxString nextName;
+        QString pinName;
+        QString nextName;
 
-        if( pin->GetName() != "~"  && !pin->GetName().IsEmpty() )
+        if( pin->GetName() != "~"  && !pin->GetName().isEmpty() )
             pinName = " '" + pin->GetName() + "'";
 
-        if( next->GetName() != "~"  && !next->GetName().IsEmpty() )
+        if( next->GetName() != "~"  && !next->GetName().isEmpty() )
             nextName = " '" + next->GetName() + "'";
 
         if( aSymbol->HasAlternateBodyStyle() && next->GetBodyStyle() )
         {
             if( pin->GetUnit() == 0 || next->GetUnit() == 0 )
             {
-                msg.Printf( _( "<b>Duplicate pin %s</b> %s at location <b>(%s, %s)</b>"
+                msg = QString::asprintf( _( "<b>Duplicate pin %s</b> %s at location <b>(%s, %s)</b>"
                                " conflicts with pin %s%s at location <b>(%s, %s)</b>"
                                " in %s body style." ),
-                            next->GetNumber(),
-                            nextName,
-                            aUnitsProvider->MessageTextFromValue( next->GetPosition().x ),
-                            aUnitsProvider->MessageTextFromValue( -next->GetPosition().y ),
-                            pin->GetNumber(),
-                            pin->GetName(),
-                            aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
-                            aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
-                            SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
+                            next->GetNumber().toStdString().c_str(),
+                            nextName.toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( next->GetPosition().x ).toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( -next->GetPosition().y ).toStdString().c_str(),
+                            pin->GetNumber().toStdString().c_str(),
+                            pin->GetName().toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ).toStdString().c_str(),
+                            SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).toLower().toStdString().c_str() );
             }
             else
             {
-                msg.Printf( _( "<b>Duplicate pin %s</b> %s at location <b>(%s, %s)</b>"
+                msg = QString::asprintf( _( "<b>Duplicate pin %s</b> %s at location <b>(%s, %s)</b>"
                                " conflicts with pin %s%s at location <b>(%s, %s)</b>"
                                " in units %s and %s of %s body style." ),
-                            next->GetNumber(),
-                            nextName,
-                            aUnitsProvider->MessageTextFromValue( next->GetPosition().x ),
-                            aUnitsProvider->MessageTextFromValue( -next->GetPosition().y ),
-                            pin->GetNumber(),
-                            pinName,
-                            aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
-                            aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
-                            aSymbol->GetUnitReference( next->GetUnit() ),
-                            aSymbol->GetUnitReference( pin->GetUnit() ),
-                            SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
+                            next->GetNumber().toStdString().c_str(),
+                            nextName.toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( next->GetPosition().x ).toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( -next->GetPosition().y ).toStdString().c_str(),
+                            pin->GetNumber().toStdString().c_str(),
+                            pinName.toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ).toStdString().c_str(),
+                            aSymbol->GetUnitReference( next->GetUnit() ).toStdString().c_str(),
+                            aSymbol->GetUnitReference( pin->GetUnit() ).toStdString().c_str(),
+                            SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).toLower().toStdString().c_str() );
             }
         }
         else
         {
             if( pin->GetUnit() == 0 || next->GetUnit() == 0 )
             {
-                msg.Printf( _( "<b>Duplicate pin %s</b> %s at location <b>(%s, %s)</b>"
+                msg = QString::asprintf( _( "<b>Duplicate pin %s</b> %s at location <b>(%s, %s)</b>"
                                " conflicts with pin %s%s at location <b>(%s, %s)</b>." ),
-                            next->GetNumber(),
-                            nextName,
-                            aUnitsProvider->MessageTextFromValue( next->GetPosition().x ),
-                            aUnitsProvider->MessageTextFromValue( -next->GetPosition().y ),
-                            pin->GetNumber(),
-                            pinName,
-                            aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
-                            aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ) );
+                            next->GetNumber().toStdString().c_str(),
+                            nextName.toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( next->GetPosition().x ).toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( -next->GetPosition().y ).toStdString().c_str(),
+                            pin->GetNumber().toStdString().c_str(),
+                            pinName.toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ).toStdString().c_str() );
             }
             else
             {
-                msg.Printf( _( "<b>Duplicate pin %s</b> %s at location <b>(%s, %s)</b>"
+                msg = QString::asprintf( _( "<b>Duplicate pin %s</b> %s at location <b>(%s, %s)</b>"
                                " conflicts with pin %s%s at location <b>(%s, %s)</b>"
                                " in units %s and %s." ),
-                            next->GetNumber(),
-                            nextName,
-                            aUnitsProvider->MessageTextFromValue( next->GetPosition().x ),
-                            aUnitsProvider->MessageTextFromValue( -next->GetPosition().y ),
-                            pin->GetNumber(),
-                            pinName,
-                            aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
-                            aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
-                            aSymbol->GetUnitReference( next->GetUnit() ),
-                            aSymbol->GetUnitReference( pin->GetUnit() ) );
+                            next->GetNumber().toStdString().c_str(),
+                            nextName.toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( next->GetPosition().x ).toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( -next->GetPosition().y ).toStdString().c_str(),
+                            pin->GetNumber().toStdString().c_str(),
+                            pinName.toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ).toStdString().c_str(),
+                            aSymbol->GetUnitReference( next->GetUnit() ).toStdString().c_str(),
+                            aSymbol->GetUnitReference( pin->GetUnit() ).toStdString().c_str() );
             }
         }
 
-        msg += wxT( "<br><br>" );
+        msg += "<br><br>";
         aMessages.push_back( msg );
     }
 }
@@ -160,34 +139,34 @@ void CheckDuplicatePins( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
  * should be 25, 50 or 100 mils (converted to IUs).
  * @param aUnitsProvider a frame to format coordinates in messages.
  */
-void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
+void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
                      int aGridForPins, UNITS_PROVIDER* aUnitsProvider )
 {
     if( !aSymbol )
         return;
 
-    wxString msg;
+    QString msg;
 
     // Test reference prefix validity:
     // if the symbol is saved in a library, the prefix should not ends by a digit or a '?'
     // but it is acceptable if the symbol is saved to a schematic.
-    wxString reference_base = aSymbol->GetReferenceField().GetText();
+    QString reference_base = aSymbol->GetReferenceField().GetText();
 
-    if( reference_base.IsEmpty() )
+    if( reference_base.isEmpty() )
     {
         aMessages.push_back( _( "<b>Warning: reference is empty</b><br><br>" ) );
     }
     else
     {
-        wxString illegal_end( wxT( "0123456789?" ) );
-        wxUniChar last_char = reference_base.Last();
+        QString illegal_end( "0123456789?" );
+        QChar last_char = reference_base.at(reference_base.length() - 1);
 
-        if( illegal_end.Find( last_char ) != wxNOT_FOUND )
+        if( illegal_end.indexOf( last_char ) != -1 )
         {
-            msg.Printf( _( "<b>Warning: reference prefix</b><br>prefix ending by '%s' can create"
+            msg = QString::asprintf( _( "<b>Warning: reference prefix</b><br>prefix ending by '%s' can create"
                            " issues if saved in a symbol library" ),
-                        illegal_end );
-            msg += wxT( "<br><br>" );
+                        illegal_end.toStdString().c_str() );
+            msg += "<br><br>";
             aMessages.push_back( msg );
         }
     }
@@ -213,19 +192,19 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
     {
         if( aSymbol->GetUnitCount() != 1 )
         {
-            msg.Printf( _( "<b>A Power Symbol should have only one unit</b><br><br>" ) );
+            msg = QString::fromUtf8( _( "<b>A Power Symbol should have only one unit</b><br><br>" ) );
             aMessages.push_back( msg );
         }
 
         if( aSymbol->HasAlternateBodyStyle() )
         {
-            msg.Printf( _( "<b>A Power Symbol should not have DeMorgan variants</b><br><br>" ) );
+            msg = QString::fromUtf8( _( "<b>A Power Symbol should not have DeMorgan variants</b><br><br>" ) );
             aMessages.push_back( msg );
         }
 
         if( pinList.size() != 1 )
         {
-            msg.Printf( _( "<b>A Power Symbol should have only one pin</b><br><br>" ) );
+            msg = QString::fromUtf8( _( "<b>A Power Symbol should have only one pin</b><br><br>" ) );
             aMessages.push_back( msg );
         }
 
@@ -234,14 +213,14 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
         if( pin->GetType() != ELECTRICAL_PINTYPE::PT_POWER_IN
                 && pin->GetType() != ELECTRICAL_PINTYPE::PT_POWER_OUT )
         {
-            msg.Printf( _( "<b>Suspicious Power Symbol</b><br>"
+            msg = QString::fromUtf8( _( "<b>Suspicious Power Symbol</b><br>"
                            "Only an input or output power pin has meaning<br><br>" ) );
             aMessages.push_back( msg );
         }
 
         if( pin->GetType() == ELECTRICAL_PINTYPE::PT_POWER_IN && !pin->IsVisible() )
         {
-            msg.Printf( _( "<b>Suspicious Power Symbol</b><br>"
+            msg = QString::fromUtf8( _( "<b>Suspicious Power Symbol</b><br>"
                            "Invisible input power pins are no longer required<br><br>" ) );
             aMessages.push_back( msg );
         }
@@ -250,9 +229,9 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
 
     for( SCH_PIN* pin : pinList )
     {
-        wxString pinName = pin->GetName();
+        QString pinName = pin->GetName();
 
-        if( pinName.IsEmpty() || pinName == "~" )
+        if( pinName.isEmpty() || pinName == "~" )
             pinName = "";
         else
             pinName = "'" + pinName + "'";
@@ -266,52 +245,52 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
             {
                 if( aSymbol->GetUnitCount() <= 1 )
                 {
-                    msg.Printf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>(%s, %s)</b>"
+                    msg = QString::asprintf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>(%s, %s)</b>"
                                    " in %s body style." ),
-                                pin->GetNumber(),
-                                pinName,
-                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
-                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
-                                SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
+                                pin->GetNumber().toStdString().c_str(),
+                                pinName.toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ).toStdString().c_str(),
+                                SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).toLower().toStdString().c_str() );
                 }
                 else
                 {
-                    msg.Printf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>(%s, %s)</b>"
+                    msg = QString::asprintf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>(%s, %s)</b>"
                                    " in unit %c of %s body style." ),
-                                pin->GetNumber(),
-                                pinName,
-                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
-                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
+                                pin->GetNumber().toStdString().c_str(),
+                                pinName.toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ).toStdString().c_str(),
                                 'A' + pin->GetUnit() - 1,
-                                SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
+                                SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).toLower().toStdString().c_str() );
                 }
             }
             else
             {
                 if( aSymbol->GetUnitCount() <= 1 )
                 {
-                    msg.Printf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>"
+                    msg = QString::asprintf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>"
                                    "(%s, %s)</b>." ),
-                                pin->GetNumber(),
-                                pinName,
-                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
-                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ) );
+                                pin->GetNumber().toStdString().c_str(),
+                                pinName.toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ).toStdString().c_str() );
                 }
                 else
                 {
-                    msg.Printf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>(%s, %s)</b>"
+                    msg = QString::asprintf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>(%s, %s)</b>"
                                    " in unit %c." ),
-                                pin->GetNumber(),
-                                pinName,
-                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
-                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
+                                pin->GetNumber().toStdString().c_str(),
+                                pinName.toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ).toStdString().c_str(),
                                 'A' + pin->GetUnit() - 1 );
                 }
             }
 
-            msg += wxT( "<br>" );
+            msg += "<br>";
             msg += _( "(Hidden power pins will drive their pin names on to any connected nets.)" );
-            msg += wxT( "<br><br>" );
+            msg += "<br><br>";
             aMessages.push_back( msg );
         }
 
@@ -319,55 +298,55 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
                 || ( (pin->GetPosition().y % clamped_grid_size) != 0 ) )
         {
             // pin is off grid
-            msg.Empty();
+            msg.clear();
 
             if( aSymbol->HasAlternateBodyStyle() && pin->GetBodyStyle() )
             {
                 if( aSymbol->GetUnitCount() <= 1 )
                 {
-                    msg.Printf( _( "<b>Off grid pin %s</b> %s at location <b>(%s, %s)</b>"
+                    msg = QString::asprintf( _( "<b>Off grid pin %s</b> %s at location <b>(%s, %s)</b>"
                                    " of %s body style." ),
-                                pin->GetNumber(),
-                                pinName,
-                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
-                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
-                                SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
+                                pin->GetNumber().toStdString().c_str(),
+                                pinName.toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ).toStdString().c_str(),
+                                SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).toLower().toStdString().c_str() );
                 }
                 else
                 {
-                    msg.Printf( _( "<b>Off grid pin %s</b> %s at location <b>(%s, %s)</b>"
+                    msg = QString::asprintf( _( "<b>Off grid pin %s</b> %s at location <b>(%s, %s)</b>"
                                    " in unit %c of %s body style." ),
-                                pin->GetNumber(),
-                                pinName,
-                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
-                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
+                                pin->GetNumber().toStdString().c_str(),
+                                pinName.toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ).toStdString().c_str(),
                                 'A' + pin->GetUnit() - 1,
-                                SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).Lower() );
+                                SCH_ITEM::GetBodyStyleDescription( pin->GetBodyStyle() ).toLower().toStdString().c_str() );
                  }
             }
             else
             {
                 if( aSymbol->GetUnitCount() <= 1 )
                 {
-                    msg.Printf( _( "<b>Off grid pin %s</b> %s at location <b>(%s, %s)</b>." ),
-                                pin->GetNumber(),
-                                pinName,
-                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
-                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ) );
+                    msg = QString::asprintf( _( "<b>Off grid pin %s</b> %s at location <b>(%s, %s)</b>." ),
+                                pin->GetNumber().toStdString().c_str(),
+                                pinName.toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ).toStdString().c_str() );
                 }
                 else
                 {
-                    msg.Printf( _( "<b>Off grid pin %s</b> %s at location <b>(%s, %s)</b>"
+                    msg = QString::asprintf( _( "<b>Off grid pin %s</b> %s at location <b>(%s, %s)</b>"
                                    " in unit %c." ),
-                                pin->GetNumber(),
-                                pinName,
-                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ),
-                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ),
+                                pin->GetNumber().toStdString().c_str(),
+                                pinName.toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
+                                aUnitsProvider->MessageTextFromValue( -pin->GetPosition().y ).toStdString().c_str(),
                                 'A' + pin->GetUnit() - 1 );
                 }
             }
 
-            msg += wxT( "<br><br>" );
+            msg += "<br><br>";
             aMessages.push_back( msg );
         }
     }
@@ -376,13 +355,13 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
 }
 
 
-void CheckLibSymbolGraphics( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessages,
+void CheckLibSymbolGraphics( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
                              UNITS_PROVIDER* aUnitsProvider )
 {
     if( !aSymbol )
         return;
 
-    wxString msg;
+    QString msg;
 
     for( const SCH_ITEM& item : aSymbol->GetDrawItems() )
     {
@@ -399,11 +378,11 @@ void CheckLibSymbolGraphics( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessag
         case SHAPE_T::CIRCLE:
             if( shape->GetRadius() <= 0 )
             {
-                msg.Printf( _( "<b>Graphic circle has radius = 0</b> at location "
+                msg = QString::asprintf( _( "<b>Graphic circle has radius = 0</b> at location "
                              "<b>(%s, %s)</b>." ),
-                            aUnitsProvider->MessageTextFromValue(shape->GetPosition().x ),
-                            aUnitsProvider->MessageTextFromValue( -shape->GetPosition().y ) );
-                msg += wxT( "<br>" );
+                            aUnitsProvider->MessageTextFromValue(shape->GetPosition().x ).toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( -shape->GetPosition().y ).toStdString().c_str() );
+                msg += "<br>";
                 aMessages.push_back( msg );
             }
             break;
@@ -411,10 +390,10 @@ void CheckLibSymbolGraphics( LIB_SYMBOL* aSymbol, std::vector<wxString>& aMessag
         case SHAPE_T::RECTANGLE:
             if( shape->GetPosition() == shape->GetEnd() )
             {
-                msg.Printf( _( "<b>Graphic rectangle has size 0</b> at location <b>(%s, %s)</b>." ),
-                            aUnitsProvider->MessageTextFromValue(shape->GetPosition().x ),
-                            aUnitsProvider->MessageTextFromValue( -shape->GetPosition().y ) );
-                msg += wxT( "<br>" );
+                msg = QString::asprintf( _( "<b>Graphic rectangle has size 0</b> at location <b>(%s, %s)</b>." ),
+                            aUnitsProvider->MessageTextFromValue(shape->GetPosition().x ).toStdString().c_str(),
+                            aUnitsProvider->MessageTextFromValue( -shape->GetPosition().y ).toStdString().c_str() );
+                msg += "<br>";
                 aMessages.push_back( msg );
             }
             break;

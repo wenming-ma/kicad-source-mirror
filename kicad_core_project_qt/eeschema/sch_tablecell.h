@@ -1,30 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SCH_TABLECELL_H
 #define SCH_TABLECELL_H
 
-
+#include <QString>
 #include <sch_textbox.h>
 
 
@@ -38,12 +16,12 @@ public:
         return aItem && SCH_TABLECELL_T == aItem->Type();
     }
 
-    virtual wxString GetClass() const override
+    virtual QString GetClass() const override
     {
-        return wxT( "SCH_TABLECELL" );
+        return "SCH_TABLECELL";
     }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     EDA_ITEM* Clone() const override
     {
@@ -56,7 +34,7 @@ public:
     int GetColumn() const;
 
     /// @return the spreadsheet nomenclature for the cell (ie: B3 for 2nd column, 3rd row)
-    wxString GetAddr() const;
+    QString GetAddr() const;
 
     int  GetColSpan() const { return m_colSpan; }
     void SetColSpan( int aSpan ) { m_colSpan = aSpan; }

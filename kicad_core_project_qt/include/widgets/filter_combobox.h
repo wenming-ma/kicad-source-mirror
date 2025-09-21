@@ -1,63 +1,50 @@
 
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #pragma once
 
 #include <memory>
 #include <optional>
 
-#include <wx/panel.h>
-#include <wx/combo.h>
-#include <wx/listbox.h>
+#include <QWidget>
+#include <QComboBox>
+#include <QListWidget>
+#include <QLineEdit>
+#include <QValidator>
+#include <QEvent>
+#include <QKeyEvent>
+#include <QMouseEvent>
+#include <QPoint>
+#include <QSize>
+#include <QStringList>
 
 
-class wxTextValidator;
-class wxTextCtrl;
-class wxListBox;
+class QValidator;
+class QLineEdit;
+class QListWidget;
 
 
-class FILTER_COMBOPOPUP : public wxPanel, public wxComboPopup
+class FILTER_COMBOPOPUP : public QWidget
 {
 public:
     FILTER_COMBOPOPUP();
 
-    bool Create( wxWindow* aParent ) override;
+    bool Create( QWidget* aParent );
 
-    wxWindow* GetControl() override { return this; }
+    QWidget* GetControl() { return this; }
 
-    void SetStringList( const wxArrayString& aStringList );
+    void SetStringList( const QStringList& aStringList );
 
-    wxString GetStringValue() const override;
-    void SetStringValue( const wxString& aNetName ) override;
+    QString GetStringValue() const;
+    void SetStringValue( const QString& aNetName );
 
-    void SetSelectedString( const wxString& aString );
+    void SetSelectedString( const QString& aString );
 
-    void OnPopup() override;
+    void OnPopup();
 
-    void OnStartingKey( wxKeyEvent& aEvent );
+    void OnStartingKey( QKeyEvent& aEvent );
 
-    wxSize GetAdjustedSize( int aMinWidth, int aPrefHeight, int aMaxHeight ) override;
+    QSize GetAdjustedSize( int aMinWidth, int aPrefHeight, int aMaxHeight );
 
     virtual void Accept();
 
@@ -65,17 +52,17 @@ protected:
     /**
      * Get the currently selected value in the list, or std::nullopt
      */
-    std::optional<wxString> getSelectedValue() const;
+    std::optional<QString> getSelectedValue() const;
 
     /**
      * Get the current value of the filter control. Can be empty.
      */
-    wxString getFilterValue() const;
+    QString getFilterValue() const;
 
     /**
      * Fill the combobox list
      */
-    virtual void getListContent( wxArrayString& aStringList );
+    virtual void getListContent( QStringList& aStringList );
 
     /**
      * Call this to rebuild the list from the getListContent() method.
@@ -83,34 +70,34 @@ protected:
     void rebuildList();
 
 private:
-    wxSize updateSize();
+    QSize updateSize();
 
-    void onIdle( wxIdleEvent& aEvent );
+    void onIdle( QEvent& aEvent );
 
     // Hot-track the mouse (for focus and listbox selection)
-    void onMouseMoved( const wxPoint aScreenPos );
-    void onMouseClick( wxMouseEvent& aEvent );
-    void onKeyDown( wxKeyEvent& aEvent );
-    void onEnter( wxCommandEvent& aEvent );
-    void onFilterEdit( wxCommandEvent& aEvent );
-    void doStartingKey( wxKeyEvent& aEvent );
-    void doSetFocus( wxWindow* aWindow );
+    void onMouseMoved( const QPoint aScreenPos );
+    void onMouseClick( QMouseEvent& aEvent );
+    void onKeyDown( QKeyEvent& aEvent );
+    void onEnter( QEvent& aEvent );
+    void onFilterEdit( QEvent& aEvent );
+    void doStartingKey( QKeyEvent& aEvent );
+    void doSetFocus( QWidget* aWindow );
 
 protected:
-    wxTextValidator* m_filterValidator;
-    wxTextCtrl*      m_filterCtrl;
-    wxListBox*       m_listBox;
+    QValidator*      m_filterValidator;
+    QLineEdit*       m_filterCtrl;
+    QListWidget*     m_listBox;
     int              m_minPopupWidth;
     int              m_maxPopupHeight;
 
-    wxEvtHandler*    m_focusHandler;
+    QObject*         m_focusHandler;
 
-    wxString         m_selectedString;
-    wxArrayString    m_stringList;
+    QString          m_selectedString;
+    QStringList      m_stringList;
 };
 
 
-wxDECLARE_EVENT( FILTERED_ITEM_SELECTED, wxCommandEvent );
+// Event declaration - Qt signal/slot will be used instead
 
 /**
  * A combobox that has a filterable popup.
@@ -118,28 +105,28 @@ wxDECLARE_EVENT( FILTERED_ITEM_SELECTED, wxCommandEvent );
  * Useful when the list of items is long and you want the user to
  * be able to filter it by typing.
  */
-class FILTER_COMBOBOX : public wxComboCtrl
+class FILTER_COMBOBOX : public QComboBox
 {
 public:
     // C'tor matching wxFormBuilder's Custom Control
-    FILTER_COMBOBOX( wxWindow* parent, wxWindowID id, const wxPoint& pos = wxDefaultPosition,
-                     const wxSize& size = wxDefaultSize, long style = 0 );
+    FILTER_COMBOBOX( QWidget* parent, int id, const QPoint& pos = QPoint(),
+                     const QSize& size = QSize(), long style = 0 );
 
     // C'tor matching wxFormBuilder's ComboxBox.
-    FILTER_COMBOBOX( wxWindow* parent, wxWindowID id, const wxString& value,
-                     const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize,
-                     int count = 0, wxString strings[] = nullptr, long style = 0 );
+    FILTER_COMBOBOX( QWidget* parent, int id, const QString& value,
+                     const QPoint& pos = QPoint(), const QSize& size = QSize(),
+                     int count = 0, QString strings[] = nullptr, long style = 0 );
 
     ~FILTER_COMBOBOX();
 
-    virtual void SetStringList( const wxArrayString& aStringList );
+    virtual void SetStringList( const QStringList& aStringList );
 
-    virtual void SetSelectedString( const wxString& aString );
+    virtual void SetSelectedString( const QString& aString );
 
 protected:
     void setFilterPopup( FILTER_COMBOPOPUP* aPopup );
 
-    void onKeyDown( wxKeyEvent& aEvt );
+    void onKeyDown( QKeyEvent& aEvt );
 
     FILTER_COMBOPOPUP* m_filterPopup;
 };

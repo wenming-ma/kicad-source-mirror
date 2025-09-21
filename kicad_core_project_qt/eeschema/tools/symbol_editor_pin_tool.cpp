@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "symbol_editor_pin_tool.h"
 
@@ -34,7 +11,7 @@
 #include <settings/settings_manager.h>
 #include <symbol_editor/symbol_editor_settings.h>
 #include <pgm_base.h>
-#include <wx/debug.h>
+#include <QtCore/QtDebug>
 
 
 static ELECTRICAL_PINTYPE g_LastPinType            = ELECTRICAL_PINTYPE::PT_INPUT;
@@ -103,7 +80,8 @@ bool SYMBOL_EDITOR_PIN_TOOL::Init()
             [&]( const SELECTION& sel )
             {
                 SYMBOL_EDIT_FRAME* editor = static_cast<SYMBOL_EDIT_FRAME*>( m_frame );
-                wxCHECK( editor, false );
+                Q_ASSERT( editor );
+                if( !editor ) return false;
 
                 return editor->IsSymbolEditable() && !editor->IsSymbolAlias();
             };
@@ -133,7 +111,7 @@ bool SYMBOL_EDITOR_PIN_TOOL::EditPinProperties( SCH_PIN* aPin, bool aFocusPinNum
     if( aPin->GetEditFlags() == 0 )
         commit.Modify( parentSymbol, m_frame->GetScreen() );
 
-    if( dlg.ShowModal() == wxID_CANCEL )
+    if( dlg.ShowModal() == QDialog::Rejected )
         return false;
 
     if( !aPin->IsNew() && m_frame->SynchronizePins() && parentSymbol )
@@ -235,16 +213,16 @@ bool SYMBOL_EDITOR_PIN_TOOL::PlacePin( SCH_PIN* aPin )
 
         if( ask_for_pin && m_frame->SynchronizePins() )
         {
-            wxString msg;
-            msg.Printf( _( "This position is already occupied by another pin, in unit %d." ),
+            QString msg;
+            msg = QString::asprintf( _( "This position is already occupied by another pin, in unit %d." ),
                         test->GetUnit() );
 
-            KIDIALOG dlg( m_frame, msg, _( "Confirmation" ), wxOK | wxCANCEL | wxICON_WARNING );
+            KIDIALOG dlg( m_frame, msg, _( "Confirmation" ), QMessageBox::Ok | QMessageBox::Cancel | QMessageBox::Warning );
             dlg.SetExtendedMessage( _( "Disable the 'Synchronized Pins Mode' option to avoid this message." ) );
             dlg.SetOKLabel( _( "Place Pin Anyway" ) );
             dlg.DoNotShowCheckbox( __FILE__, __LINE__ );
 
-            bool status = dlg.ShowModal() == wxID_OK;
+            bool status = dlg.ShowModal() == QDialog::Accepted;
 
             if( !status )
             {
@@ -354,8 +332,8 @@ void SYMBOL_EDITOR_PIN_TOOL::CreateImagePins( SCH_PIN* aPin )
         // To avoid mistakes, gives this pin a new pin number because
         // it does no have the save pin number as the master pin
         // Because we do not know the actual number, give it a temporary number
-        wxString unknownNum;
-        unknownNum.Printf( "%s-U%c", aPin->GetNumber(), wxChar( 'A' + ii - 1 ) );
+        QString unknownNum;
+        unknownNum = QString::asprintf( "%s-U%c", aPin->GetNumber(), QChar( 'A' + ii - 1 ) );
         newPin->SetNumber( unknownNum );
 
         newPin->SetUnit( ii );
@@ -367,8 +345,8 @@ void SYMBOL_EDITOR_PIN_TOOL::CreateImagePins( SCH_PIN* aPin )
         }
         catch( const boost::bad_pointer& e )
         {
-            wxFAIL_MSG( wxString::Format( wxT( "Boost pointer exception occurred: %s" ),
-                                          e.what() ));
+            qDebug() << QString::asprintf( "Boost pointer exception occurred: %s",
+                                          e.what() );
             delete newPin;
             return;
         }
@@ -444,11 +422,11 @@ SCH_PIN* SYMBOL_EDITOR_PIN_TOOL::RepeatPin( const SCH_PIN* aSourcePin )
 
     pin->Move( step );
 
-    wxString nextName = pin->GetName();
+    QString nextName = pin->GetName();
     IncrementString( nextName, cfg->m_Repeat.label_delta );
     pin->SetName( nextName );
 
-    wxString nextNumber = pin->GetNumber();
+    QString nextNumber = pin->GetNumber();
     IncrementString( nextNumber, cfg->m_Repeat.label_delta );
     pin->SetNumber( nextNumber );
 

@@ -1,38 +1,13 @@
-/**
- * @file gerber_file_image.cpp
- * a GERBER class handle for a given layer info about used D_CODES and how the layer is drawn
- */
-
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2016 Jean-Pierre Charras  jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// GERBER class handle for a given layer info about used D_CODES and how the layer is drawn
 
 #include <gerbview.h>
 #include <gerbview_frame.h>
 #include <gerber_file_image.h>
 #include <gerber_file_image_list.h>
 #include <X2_gerber_attributes.h>
-#include <wx/filename.h>
+#include <QString>
+#include <QFileInfo>
+#include <QRegExp>
 
 #include <map>
 
@@ -124,9 +99,9 @@ void GERBER_FILE_IMAGE_LIST::DeleteImage( unsigned int aIdx )
 }
 
 
-const wxString GERBER_FILE_IMAGE_LIST::GetDisplayName( int aIdx, bool aNameOnly, bool aFullName )
+const QString GERBER_FILE_IMAGE_LIST::GetDisplayName( int aIdx, bool aNameOnly, bool aFullName )
 {
-    wxString name;
+    QString name;
 
     GERBER_FILE_IMAGE* gerber = nullptr;
 
@@ -139,15 +114,15 @@ const wxString GERBER_FILE_IMAGE_LIST::GetDisplayName( int aIdx, bool aNameOnly,
     // <id> <short filename> *
     if( gerber )
     {
-        wxFileName fn( gerber->m_FileName );
-        wxString filename = fn.GetFullName();
+        QFileInfo fn( gerber->m_FileName );
+        QString filename = fn.fileName();
 
         // If the filename is too long, display a shortened name if requested
         const int maxlen = 30;
 
-        if( !aFullName && filename.Length() > maxlen )
+        if( !aFullName && filename.length() > maxlen )
         {
-            wxString shortenedfn = filename.Left(2) + wxT( "..." ) + filename.Right(maxlen-5);
+            QString shortenedfn = filename.left(2) + "..." + filename.right(maxlen-5);
             filename = shortenedfn;
         }
 
@@ -155,16 +130,16 @@ const wxString GERBER_FILE_IMAGE_LIST::GetDisplayName( int aIdx, bool aNameOnly,
         {
             if( gerber->m_FileFunction->IsCopper() )
             {
-                name.Printf( wxT( "%s (%s, %s, %s)" ),
-                             filename.GetData(),
+                name = QString::asprintf( "%s (%s, %s, %s)",
+                             qPrintable(filename),
                              gerber->m_FileFunction->GetFileType(),
                              gerber->m_FileFunction->GetBrdLayerId(),
                              gerber->m_FileFunction->GetBrdLayerSide() );
             }
             if( gerber->m_FileFunction->IsDrillFile() )
             {
-                name.Printf( wxT( "%s (%s,%s,%s,%s)" ),
-                             filename.GetData(),
+                name = QString::asprintf( "%s (%s,%s,%s,%s)",
+                             qPrintable(filename),
                              gerber->m_FileFunction->GetFileType(),
                              gerber->m_FileFunction->GetDrillLayerPair(),
                              gerber->m_FileFunction->GetLPType(),
@@ -172,8 +147,8 @@ const wxString GERBER_FILE_IMAGE_LIST::GetDisplayName( int aIdx, bool aNameOnly,
             }
             else
             {
-                name.Printf( wxT( "%s (%s, %s)" ),
-                             filename.GetData(),
+                name = QString::asprintf( "%s (%s, %s)",
+                             qPrintable(filename),
                              gerber->m_FileFunction->GetFileType(),
                              gerber->m_FileFunction->GetBrdLayerId() );
             }
@@ -186,15 +161,15 @@ const wxString GERBER_FILE_IMAGE_LIST::GetDisplayName( int aIdx, bool aNameOnly,
         if( aNameOnly )
             return name;
 
-        wxString fullname;
+        QString fullname;
 
-        fullname.Printf( wxT( "%d " ), aIdx + 1 );
-        fullname << name;
+        fullname = QString::asprintf( "%d ", aIdx + 1 );
+        fullname += name;
         return fullname;
     }
     else
     {
-        name.Printf( _( "Graphic layer %d" ), aIdx + 1 );
+        name = QString::asprintf( "Graphic layer %d", aIdx + 1 );
     }
 
     return name;
@@ -305,18 +280,19 @@ static struct GERBER_ORDER gerberFileExtensionOrder[] =
 // clang-format on
 
 
-void GERBER_FILE_IMAGE_LIST::GetGerberLayerFromFilename( const wxString&         filename,
+void GERBER_FILE_IMAGE_LIST::GetGerberLayerFromFilename( const QString&         filename,
                                                          enum GERBER_ORDER_ENUM& order,
-                                                         wxString&               matchedExtension )
+                                                         QString&               matchedExtension )
 {
     order = GERBER_ORDER_ENUM::GERBER_LAYER_UNKNOWN;
     matchedExtension = "";
 
     for( struct GERBER_ORDER o : gerberFileExtensionOrder )
     {
-        wxString ext = filename.Right( o.m_FilenameMask.length() ).Upper();
+        QString ext = filename.right( o.m_FilenameMask.length() ).toUpper();
+        QString mask = QString::fromStdString( o.m_FilenameMask );
 
-        if( ext.Matches( o.m_FilenameMask ) )
+        if( ext.contains( QRegExp( mask.replace( "?", "." ) ) ) )
         {
             order = o.m_Order;
             matchedExtension = ext;
@@ -343,8 +319,8 @@ static bool sortFileExtension( const GERBER_FILE_IMAGE* const& ref,
 
     enum GERBER_ORDER_ENUM ref_layer;
     enum GERBER_ORDER_ENUM test_layer;
-    wxString               ref_extension;
-    wxString               test_extension;
+    QString               ref_extension;
+    QString               test_extension;
 
     GERBER_FILE_IMAGE_LIST::GetGerberLayerFromFilename( ref->m_FileName, ref_layer,
                                                                ref_extension );
@@ -360,20 +336,20 @@ static bool sortFileExtension( const GERBER_FILE_IMAGE* const& ref,
 
         // Strip extensions down to only the numbers in it. Later conversion to int will
         // automatically skip the spaces
-        for( wxString::iterator it = ref_extension.begin(); it != ref_extension.end(); ++it )
+        for( int i = 0; i < ref_extension.length(); ++i )
         {
-            if( !isdigit( *it ) )
-                *it = ' ';
+            if( !isdigit( ref_extension.at(i).toLatin1() ) )
+                ref_extension[i] = ' ';
         }
 
-        for( wxString::iterator it = test_extension.begin(); it != test_extension.end(); ++it )
+        for( int i = 0; i < test_extension.length(); ++i )
         {
-            if( !isdigit( *it ) )
-                *it = ' ';
+            if( !isdigit( test_extension.at(i).toLatin1() ) )
+                test_extension[i] = ' ';
         }
 
-        ref_extension.ToULong( &ref_layer_number );
-        test_extension.ToULong( &test_layer_number );
+        ref_layer_number = ref_extension.toULong();
+        test_layer_number = test_extension.toULong();
 
         return ref_layer_number < test_layer_number;
     }

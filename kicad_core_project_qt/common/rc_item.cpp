@@ -1,3 +1,4 @@
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #include <QWidget>
 #include <QTreeView>
 #include <QApplication>

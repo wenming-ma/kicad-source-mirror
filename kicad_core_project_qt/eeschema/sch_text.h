@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SCH_TEXT_H
 #define SCH_TEXT_H
@@ -38,7 +15,7 @@
 class SCH_TEXT : public SCH_ITEM, public EDA_TEXT
 {
 public:
-    SCH_TEXT( const VECTOR2I& aPos = { 0, 0 }, const wxString& aText = wxEmptyString,
+    SCH_TEXT( const VECTOR2I& aPos = { 0, 0 }, const QString& aText = QString(),
               SCH_LAYER_ID aLayer = LAYER_NOTES, KICAD_T aType = SCH_TEXT_T );
 
     SCH_TEXT( const SCH_TEXT& aText );
@@ -50,22 +27,22 @@ public:
         return aItem && SCH_TEXT_T == aItem->Type();
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "SCH_TEXT" );
+        return "SCH_TEXT";
     }
 
-    wxString GetFriendlyName() const override
+    QString GetFriendlyName() const override
     {
-        return _( "Text" );
+        return "Text";
     }
 
     KIFONT::FONT* GetDrawFont( const RENDER_SETTINGS* aSettings ) const override;
 
-    virtual wxString GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
-                                   int aDepth = 0 ) const;
+    virtual QString GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
+                                  int aDepth = 0 ) const;
 
-    wxString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override
+    QString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override
     {
         SCHEMATIC* schematic = Schematic();
 
@@ -137,7 +114,7 @@ public:
 
     std::vector<int> ViewGetLayers() const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -175,8 +152,8 @@ public:
 #endif
 
     // UNUSED_SYMBOL: HTML_MESSAGE_BOX destructor - Method signature commented out since return type is unused
-    // static HTML_MESSAGE_BOX* ShowSyntaxHelp( wxWindow* aParentWindow );
-    static void* ShowSyntaxHelp( wxWindow* aParentWindow );
+    // static HTML_MESSAGE_BOX* ShowSyntaxHelp( QWidget* aParentWindow );
+    static void* ShowSyntaxHelp( QWidget* aParentWindow );
 
 protected:
     const KIFONT::METRICS& getFontMetrics() const override { return GetFontMetrics(); }

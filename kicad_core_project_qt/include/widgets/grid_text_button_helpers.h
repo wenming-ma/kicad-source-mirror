@@ -1,72 +1,53 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2021 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #ifndef GRID_TEXT_BUTTON_HELPERS_H
 #define GRID_TEXT_BUTTON_HELPERS_H
 
 #include <memory>
 
-#include <wx/combo.h>
-#include <wx/generic/gridctrl.h>
-#include <wx/generic/grideditors.h>
+#include <QtWidgets/QComboBox>
+#include <QtWidgets/QAbstractItemDelegate>
+#include <QtWidgets/QStyledItemDelegate>
+#include <QtCore/QString>
+#include <QtCore/QRect>
+#include <QtWidgets/QWidget>
+#include <QtGui/QValidator>
+#include <QtGui/QKeyEvent>
 
 
-class wxGrid;
-class WX_GRID;
+class QTableWidget;
 class DIALOG_SHIM;
 class EMBEDDED_FILES;
+class SEARCH_STACK;
 
 
-class GRID_CELL_TEXT_BUTTON : public wxGridCellEditor
+class GRID_CELL_TEXT_BUTTON : public QStyledItemDelegate
 {
 public:
     GRID_CELL_TEXT_BUTTON() {};
 
-    wxString GetValue() const override;
+    QString GetValue() const;
 
-    void SetSize( const wxRect& aRect ) override;
+    void SetSize( const QRect& aRect );
 
-    void StartingKey( wxKeyEvent& event ) override;
-    void BeginEdit( int aRow, int aCol, wxGrid* aGrid ) override;
-    bool EndEdit( int , int , const wxGrid* , const wxString& , wxString *aNewVal ) override;
-    void ApplyEdit( int aRow, int aCol, wxGrid* aGrid ) override;
-    void Reset() override;
+    void StartingKey( QKeyEvent& event );
+    void BeginEdit( int aRow, int aCol, QTableWidget* aGrid );
+    bool EndEdit( int , int , const QTableWidget* , const QString& , QString *aNewVal );
+    void ApplyEdit( int aRow, int aCol, QTableWidget* aGrid );
+    void Reset();
 
-#if wxUSE_VALIDATORS
-    void SetValidator( const wxValidator& validator );
-#endif
+    void SetValidator( const QValidator& validator );
 
 protected:
-    wxComboCtrl* Combo() const { return static_cast<wxComboCtrl*>( m_control ); }
+    QComboBox* Combo() const { return static_cast<QComboBox*>( m_control ); }
 
-#if wxUSE_VALIDATORS
-    std::unique_ptr< wxValidator > m_validator;
-#endif
+    std::unique_ptr< QValidator > m_validator;
 
-    wxString     m_value;
+    QString     m_value;
+    QWidget*    m_control;
 
-    wxDECLARE_NO_COPY_CLASS( GRID_CELL_TEXT_BUTTON );
+    Q_DISABLE_COPY( GRID_CELL_TEXT_BUTTON );
 };
 
 
@@ -74,45 +55,45 @@ class GRID_CELL_SYMBOL_ID_EDITOR : public GRID_CELL_TEXT_BUTTON
 {
 public:
     GRID_CELL_SYMBOL_ID_EDITOR( DIALOG_SHIM* aParent,
-                                const wxString& aPreselect = wxEmptyString ) :
+                                const QString& aPreselect = QString() ) :
             m_dlg( aParent ),
             m_preselect( aPreselect )
     { }
 
-    wxGridCellEditor* Clone() const override
+    GRID_CELL_SYMBOL_ID_EDITOR* Clone() const
     {
         return new GRID_CELL_SYMBOL_ID_EDITOR( m_dlg, m_preselect );
     }
 
-    void Create( wxWindow* aParent, wxWindowID aId, wxEvtHandler* aEventHandler ) override;
+    void Create( QWidget* aParent, int aId, QObject* aEventHandler );
 
 protected:
     DIALOG_SHIM* m_dlg;
-    wxString     m_preselect;
+    QString     m_preselect;
 };
 
 
 class GRID_CELL_FPID_EDITOR : public GRID_CELL_TEXT_BUTTON
 {
 public:
-    GRID_CELL_FPID_EDITOR( DIALOG_SHIM* aParent, const wxString& aSymbolNetlist,
-                           const wxString& aPreselect = wxEmptyString ) :
+    GRID_CELL_FPID_EDITOR( DIALOG_SHIM* aParent, const QString& aSymbolNetlist,
+                           const QString& aPreselect = QString() ) :
             m_dlg( aParent ),
             m_preselect( aPreselect ),
             m_symbolNetlist( aSymbolNetlist )
     { }
 
-    wxGridCellEditor* Clone() const override
+    GRID_CELL_FPID_EDITOR* Clone() const
     {
         return new GRID_CELL_FPID_EDITOR( m_dlg, m_symbolNetlist );
     }
 
-    void Create( wxWindow* aParent, wxWindowID aId, wxEvtHandler* aEventHandler ) override;
+    void Create( QWidget* aParent, int aId, QObject* aEventHandler );
 
 protected:
     DIALOG_SHIM* m_dlg;
-    wxString     m_preselect;
-    wxString     m_symbolNetlist;
+    QString     m_preselect;
+    QString     m_symbolNetlist;
 };
 
 
@@ -126,12 +107,12 @@ public:
             m_filesStack( aFilesStack )
     { }
 
-    wxGridCellEditor* Clone() const override
+    GRID_CELL_URL_EDITOR* Clone() const
     {
         return new GRID_CELL_URL_EDITOR( m_dlg );
     }
 
-    void Create( wxWindow* aParent, wxWindowID aId, wxEvtHandler* aEventHandler ) override;
+    void Create( QWidget* aParent, int aId, QObject* aEventHandler );
 
 protected:
     DIALOG_SHIM*                 m_dlg;
@@ -140,9 +121,7 @@ protected:
 };
 
 
-/**
- *  Editor for wxGrid cells that adds a file/folder browser to the grid input field
- */
+// Editor for QTableWidget cells that adds a file/folder browser to the grid input field
 class GRID_CELL_PATH_EDITOR : public GRID_CELL_TEXT_BUTTON
 {
 public:
@@ -156,9 +135,9 @@ public:
      *                           current project path)
      * @param aFileFilterFn a callback which provides a file extension(s) filter.
      */
-    GRID_CELL_PATH_EDITOR( DIALOG_SHIM* aParentDialog, WX_GRID* aGrid, wxString* aCurrentDir,
-                           bool aNormalize, const wxString& aNormalizeBasePath,
-                           std::function<wxString( WX_GRID* grid, int row )> aFileFilterFn ) :
+    GRID_CELL_PATH_EDITOR( DIALOG_SHIM* aParentDialog, QTableWidget* aGrid, QString* aCurrentDir,
+                           bool aNormalize, const QString& aNormalizeBasePath,
+                           std::function<QString( QTableWidget* grid, int row )> aFileFilterFn ) :
             m_dlg( aParentDialog ),
             m_grid( aGrid ),
             m_currentDir( aCurrentDir ),
@@ -178,9 +157,9 @@ public:
      * @param aNormalizeBasePath is the path to use when trying to base variables (generally
      *                           current project path)
      */
-    GRID_CELL_PATH_EDITOR( DIALOG_SHIM* aParentDialog, WX_GRID* aGrid, wxString* aCurrentDir,
-                           const wxString& aFileFilter, bool aNormalize = false,
-                           const wxString& aNormalizeBasePath = wxEmptyString ) :
+    GRID_CELL_PATH_EDITOR( DIALOG_SHIM* aParentDialog, QTableWidget* aGrid, QString* aCurrentDir,
+                           const QString& aFileFilter, bool aNormalize = false,
+                           const QString& aNormalizeBasePath = QString() ) :
             m_dlg( aParentDialog ),
             m_grid( aGrid ),
             m_currentDir( aCurrentDir ),
@@ -189,7 +168,7 @@ public:
             m_fileFilter( aFileFilter )
     { }
 
-    wxGridCellEditor* Clone() const override
+    GRID_CELL_PATH_EDITOR* Clone() const
     {
         if( m_fileFilterFn )
         {
@@ -203,17 +182,17 @@ public:
         }
     }
 
-    void Create( wxWindow* aParent, wxWindowID aId, wxEvtHandler* aEventHandler ) override;
+    void Create( QWidget* aParent, int aId, QObject* aEventHandler );
 
 protected:
-    DIALOG_SHIM* m_dlg;
-    WX_GRID*     m_grid;
-    wxString*    m_currentDir;
+    DIALOG_SHIM*    m_dlg;
+    QTableWidget*   m_grid;
+    QString*    m_currentDir;
     bool         m_normalize;
-    wxString     m_normalizeBasePath;
+    QString     m_normalizeBasePath;
 
-    wxString                                            m_fileFilter;
-    std::function<wxString( WX_GRID* aGrid, int aRow )> m_fileFilterFn;
+    QString                                            m_fileFilter;
+    std::function<QString( QTableWidget* aGrid, int aRow )> m_fileFilterFn;
 };
 
 

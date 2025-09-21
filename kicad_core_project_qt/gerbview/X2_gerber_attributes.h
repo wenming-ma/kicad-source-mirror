@@ -1,26 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2010-2018 Jean-Pierre Charras  jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// KiCad Qt header file
 
 /**
  * @file X2_gerber_attributes.h
@@ -44,7 +22,8 @@
  * .MD5 Sets the MD5 file signature or checksum.
  */
 
-#include <wx/arrstr.h>
+#include <QStringList>
+#include <QString>
 
 /**
  * The attribute value consists of a number of substrings separated by a comma
@@ -59,7 +38,7 @@ public:
     /**
      * @return the parameters list read in TF command.
      */
-    wxArrayString& GetPrms() { return m_Prms; }
+    QStringList& GetPrms() { return m_Prms; }
 
     /**
      * @return a parameter read in TF command.
@@ -67,19 +46,19 @@ public:
      * aIdx = 0 is the parameter read after the TF function
      * (the same as GetAttribute())
      */
-    const wxString& GetPrm( int aIdx );
+    const QString& GetPrm( int aIdx );
 
     /**
      * @return the attribute name (for instance .FileFunction)
      * which is given by TF command (i.e. the first parameter read).
      */
-    const wxString& GetAttribute();
+    const QString& GetAttribute();
 
     /**
      * @return the number of parameters read in %TF
      * (or similar like %TA %TO ...) command.
      */
-    int GetPrmCount() { return int( m_Prms.GetCount() ); }
+    int GetPrmCount() { return int( m_Prms.count() ); }
 
     /**
      * Parse a TF command terminated with a % and fill m_Prms by the parameters found.
@@ -96,7 +75,7 @@ public:
     bool ParseAttribCmd( FILE* aFile, char *aBuffer, int aBuffSize, char* &aText, int& aLineNum );
 
     /**
-     * Debug function: print using wxLogMessage le list of parameters
+     * Debug function: print the list of parameters
      */
     void DbgListPrms();
 
@@ -105,7 +84,7 @@ public:
      */
     bool IsFileFunction()
     {
-        return GetAttribute().IsSameAs( wxT(".FileFunction"), false );
+        return GetAttribute().compare( ".FileFunction", Qt::CaseInsensitive ) == 0;
     }
 
     /**
@@ -113,7 +92,7 @@ public:
      */
     bool IsFileMD5()
     {
-        return GetAttribute().IsSameAs( wxT(".MD5"), false );
+        return GetAttribute().compare( ".MD5", Qt::CaseInsensitive ) == 0;
     }
 
     /**
@@ -121,13 +100,13 @@ public:
      */
     bool IsFilePart()
     {
-        return GetAttribute().IsSameAs( wxT(".Part"), false );
+        return GetAttribute().compare( ".Part", Qt::CaseInsensitive ) == 0;
     }
 
 protected:
-    wxArrayString m_Prms;   ///< the list of parameters (after TF) in gbr file
-                            ///< the first one is the attribute name,
-                            ///< if starting by '.'
+    QStringList m_Prms;   // the list of parameters (after TF) in gbr file
+                          // the first one is the attribute name,
+                          // if starting by '.'
 };
 
 /**
@@ -159,35 +138,35 @@ public:
      */
     bool IsDrillFile();
 
-    const wxString& GetFileType();      ///< the type of layer (Copper, Soldermask ... )
-    const wxString& GetBrdLayerId();    ///< the brd layer identifier: Ln, only for Copper type
-                                        ///< or Top, Bot for other types
+    const QString& GetFileType();      // the type of layer (Copper, Soldermask ... )
+    const QString& GetBrdLayerId();    // the brd layer identifier: Ln, only for Copper type
+                                       // or Top, Bot for other types
     /**
      * @return the brd layer pair identifier: n,m for drill files
      * (files with m_Prms.Item( 1 ) = "Plated" or "NotPlated")
      */
-    const wxString GetDrillLayerPair();
+    const QString GetDrillLayerPair();
 
     /**
      * @return the Layer Pair type for drill files
      * (PTH, NPTH, Blind or Buried)
      */
-    const wxString& GetLPType();
+    const QString& GetLPType();
 
     /**
      * @return the drill/routing type for drill files
      * (Drill, Route, Mixed)
      */
-    const wxString& GetRouteType();
+    const QString& GetRouteType();
 
-    const wxString& GetBrdLayerSide();  ///< the brd layer Pos: Top, Bot, Inr
-                                        ///< same as GetBrdLayerId() for non copper type
-    const wxString& GetLabel();         ///< the filefunction label, if any
+    const QString& GetBrdLayerSide();  // the brd layer Pos: Top, Bot, Inr
+                                       // same as GetBrdLayerId() for non copper type
+    const QString& GetLabel();         // the filefunction label, if any
 
-    int GetZOrder() { return m_z_order; }           ///< the Order of the board layer,
-                                                    ///< from front (Top) side to back (Bot) side
-    int GetZSubOrder() { return m_z_sub_order; }    ///< the Order of the bdr copper layer,
-                                                    ///< from front (Top) side to back (Bot) side
+    int GetZOrder() { return m_z_order; }           // the Order of the board layer,
+                                                    // from front (Top) side to back (Bot) side
+    int GetZSubOrder() { return m_z_sub_order; }    // the Order of the bdr copper layer,
+                                                    // from front (Top) side to back (Bot) side
 
 private:
 

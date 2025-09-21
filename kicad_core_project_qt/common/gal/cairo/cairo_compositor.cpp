@@ -1,37 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http:O//www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @file cairo_compositor.cpp
- * @brief Class that handles multitarget rendering (ie. to different textures/surfaces) and
- * later compositing into a single image (Cairo flavour).
- */
 
 #include <gal/cairo/cairo_compositor.h>
-#include <wx/log.h>
+#include <QtCore/QDebug>
 
 using namespace KIGFX;
 
@@ -97,7 +67,7 @@ unsigned int CAIRO_COMPOSITOR::CreateBuffer()
 
 #ifdef DEBUG
     cairo_status_t status = cairo_status( context );
-    wxASSERT_MSG( status == CAIRO_STATUS_SUCCESS, wxT( "Cairo context creation error" ) );
+    Q_ASSERT_X( status == CAIRO_STATUS_SUCCESS, "CAIRO_COMPOSITOR", "Cairo context creation error" );
 #endif /* DEBUG */
 
     // Set default settings for the buffer
@@ -117,7 +87,7 @@ unsigned int CAIRO_COMPOSITOR::CreateBuffer()
 
 void CAIRO_COMPOSITOR::SetBuffer( unsigned int aBufferHandle )
 {
-    wxASSERT_MSG( aBufferHandle <= usedBuffers(), wxT( "Tried to use a not existing buffer" ) );
+    Q_ASSERT_X( aBufferHandle <= usedBuffers(), "CAIRO_COMPOSITOR", "Tried to use a not existing buffer" );
 
     // Get currently used transformation matrix, so it can be applied to the new buffer
     cairo_get_matrix( *m_currentContext, &m_matrix );
@@ -145,8 +115,8 @@ void CAIRO_COMPOSITOR::ClearBuffer( const COLOR4D& aColor )
 void CAIRO_COMPOSITOR::DrawBuffer( unsigned int aSourceHandle, unsigned int aDestHandle,
                                    cairo_operator_t op )
 {
-    wxASSERT_MSG( aSourceHandle <= usedBuffers() && aDestHandle <= usedBuffers(),
-                  wxT( "Tried to use a not existing buffer" ) );
+    Q_ASSERT_X( aSourceHandle <= usedBuffers() && aDestHandle <= usedBuffers(),
+                  "CAIRO_COMPOSITOR", "Tried to use a not existing buffer" );
 
     // Reset the transformation matrix, so it is possible to composite images using
     // screen coordinates instead of world coordinates
@@ -167,7 +137,7 @@ void CAIRO_COMPOSITOR::DrawBuffer( unsigned int aSourceHandle, unsigned int aDes
 
 void CAIRO_COMPOSITOR::DrawBuffer( unsigned int aBufferHandle )
 {
-    wxASSERT_MSG( aBufferHandle <= usedBuffers(), wxT( "Tried to use a not existing buffer" ) );
+    Q_ASSERT_X( aBufferHandle <= usedBuffers(), "CAIRO_COMPOSITOR", "Tried to use a not existing buffer" );
 
     // Reset the transformation matrix, so it is possible to composite images using
     // screen coordinates instead of world coordinates

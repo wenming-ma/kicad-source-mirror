@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <eda_item.h>
 #include <font/font.h>
@@ -31,10 +8,10 @@
 #include <drawing_sheet/ds_data_item.h>
 #include <drawing_sheet/ds_draw_item.h>
 #include <title_block.h>
-#include <wx/filename.h>
+#include <QFileInfo>
 
 
-wxString GetDefaultPlotExtension( PLOT_FORMAT aFormat )
+QString GetDefaultPlotExtension( PLOT_FORMAT aFormat )
 {
     switch( aFormat )
     {
@@ -44,15 +21,15 @@ wxString GetDefaultPlotExtension( PLOT_FORMAT aFormat )
     case PLOT_FORMAT::HPGL:   return HPGL_PLOTTER::GetDefaultFileExtension();
     case PLOT_FORMAT::GERBER: return GERBER_PLOTTER::GetDefaultFileExtension();
     case PLOT_FORMAT::SVG:    return SVG_PLOTTER::GetDefaultFileExtension();
-    default:    wxFAIL;       return wxEmptyString;
+    default:    Q_ASSERT(false);       return QString();
     }
 }
 
 
 void PlotDrawingSheet( PLOTTER* plotter, const PROJECT* aProject, const TITLE_BLOCK& aTitleBlock,
-                       const PAGE_INFO& aPageInfo, const std::map<wxString, wxString>* aProperties,
-                       const wxString& aSheetNumber, int aSheetCount, const wxString& aSheetName,
-                       const wxString& aSheetPath, const wxString& aFilename, COLOR4D aColor,
+                       const PAGE_INFO& aPageInfo, const std::map<QString, QString>* aProperties,
+                       const QString& aSheetNumber, int aSheetCount, const QString& aSheetName,
+                       const QString& aSheetPath, const QString& aFilename, COLOR4D aColor,
                        bool aIsFirstPage )
 {
     /* Note: Page sizes values are given in mils
@@ -68,14 +45,14 @@ void PlotDrawingSheet( PLOTTER* plotter, const PROJECT* aProject, const TITLE_BL
     DS_DRAW_ITEM_LIST drawList( unityScale );
 
     // Print only a short filename, if aFilename is the full filename
-    wxFileName fn( aFilename );
+    QFileInfo fn( aFilename );
 
     // Prepare plot parameters
     drawList.SetDefaultPenSize( PLOTTER::USE_DEFAULT_LINE_WIDTH );
     drawList.SetPlotterMilsToIUfactor( iusPerMil );
     drawList.SetPageNumber( aSheetNumber );
     drawList.SetSheetCount( aSheetCount );
-    drawList.SetFileName( fn.GetFullPath() );
+    drawList.SetFileName( fn.absoluteFilePath() );
     drawList.SetSheetName( aSheetName );
     drawList.SetSheetPath( aSheetPath );
     drawList.SetSheetLayer( settings->GetLayerName() );
@@ -171,7 +148,7 @@ void PlotDrawingSheet( PLOTTER* plotter, const PROJECT* aProject, const TITLE_BL
             break;
 
         default:
-            wxFAIL_MSG( wxT( "PlotDrawingSheet(): Unknown drawing sheet item." ) );
+            Q_ASSERT_X(false, "PlotDrawingSheet", "Unknown drawing sheet item.");
             break;
         }
     }

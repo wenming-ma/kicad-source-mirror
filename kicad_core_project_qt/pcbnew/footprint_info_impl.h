@@ -1,21 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef FOOTPRINT_INFO_IMPL_H
 #define FOOTPRINT_INFO_IMPL_H
@@ -34,7 +16,7 @@ class LOCALE_IO;
 class FOOTPRINT_INFO_IMPL : public FOOTPRINT_INFO
 {
 public:
-    FOOTPRINT_INFO_IMPL( FOOTPRINT_LIST* aOwner, const wxString& aNickname, const wxString& aFootprintName,
+    FOOTPRINT_INFO_IMPL( FOOTPRINT_LIST* aOwner, const QString& aNickname, const QString& aFootprintName,
                          const LOCALE_IO* aLocale )
     {
         m_nickname = aNickname;
@@ -49,8 +31,8 @@ public:
     }
 
     // A constructor for cached items
-    FOOTPRINT_INFO_IMPL( const wxString& aNickname, const wxString& aFootprintName,
-                         const wxString& aDescription, const wxString& aKeywords,
+    FOOTPRINT_INFO_IMPL( const QString& aNickname, const QString& aFootprintName,
+                         const QString& aDescription, const QString& aKeywords,
                          int aOrderNum, unsigned int aPadCount, unsigned int aUniquePadCount )
     {
         m_nickname = aNickname;
@@ -67,7 +49,7 @@ public:
 
 
     // A dummy constructor for use as a target in a binary search
-    FOOTPRINT_INFO_IMPL( const wxString& aNickname, const wxString& aFootprintName )
+    FOOTPRINT_INFO_IMPL( const QString& aNickname, const QString& aFootprintName )
     {
         m_nickname = aNickname;
         m_fpname = aFootprintName;
@@ -87,10 +69,10 @@ public:
     FOOTPRINT_LIST_IMPL();
     virtual ~FOOTPRINT_LIST_IMPL() {};
 
-    void WriteCacheToFile( const wxString& aFilePath ) override;
-    void ReadCacheFromFile( const wxString& aFilePath ) override;
+    void WriteCacheToFile( const QString& aFilePath ) override;
+    void ReadCacheFromFile( const QString& aFilePath ) override;
 
-    bool ReadFootprintFiles( FP_LIB_TABLE* aTable, const wxString* aNickname = nullptr,
+    bool ReadFootprintFiles( FP_LIB_TABLE* aTable, const QString* aNickname = nullptr,
                              PROGRESS_REPORTER* aProgressReporter = nullptr ) override;
 
     void Clear() override;
@@ -106,7 +88,7 @@ private:
      */
     bool CatchErrors( const std::function<void()>& aFunc );
 
-    SYNC_QUEUE<wxString>     m_queue;
+    SYNC_QUEUE<QString>     m_queue;
     long long                m_list_timestamp;
     PROGRESS_REPORTER*       m_progress_reporter;
     std::atomic_bool         m_cancelled;

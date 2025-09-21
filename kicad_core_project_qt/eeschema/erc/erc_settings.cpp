@@ -127,13 +127,13 @@ ERC_SETTINGS::ERC_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
 
                 for( const RC_ITEM& item : ERC_ITEM::GetItemsWithSeverities() )
                 {
-                    wxString name = item.GetSettingsKey();
+                    QString name = item.GetSettingsKey();
                     int      code = item.GetErrorCode();
 
-                    if( name.IsEmpty() || m_ERCSeverities.count( code ) == 0 )
+                    if( name.isEmpty() || m_ERCSeverities.count( code ) == 0 )
                         continue;
 
-                    ret[std::string( name.ToUTF8() )] = SeverityToString( m_ERCSeverities[code] );
+                    ret[std::string( name.toStdString() )] = SeverityToString( m_ERCSeverities[code] );
                 }
 
                 return ret;
@@ -146,9 +146,9 @@ ERC_SETTINGS::ERC_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
                 for( const RC_ITEM& item : ERC_ITEM::GetItemsWithSeverities() )
                 {
                     int      code = item.GetErrorCode();
-                    wxString name = item.GetSettingsKey();
+                    QString name = item.GetSettingsKey();
 
-                    std::string key( name.ToUTF8() );
+                    std::string key( name.toStdString() );
 
                     if( aJson.contains( key ) )
                         m_ERCSeverities[code] = SeverityFromString( aJson[key] );
@@ -161,7 +161,7 @@ ERC_SETTINGS::ERC_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
             {
                 nlohmann::json js = nlohmann::json::array();
 
-                for( const wxString& entry : m_ErcExclusions )
+                for( const QString& entry : m_ErcExclusions )
                     js.push_back( { entry, m_ErcExclusionComments[ entry ] } );
 
                 return js;
@@ -177,13 +177,13 @@ ERC_SETTINGS::ERC_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
                 {
                     if( entry.is_array() )
                     {
-                        wxString serialized = entry[0].get<wxString>();
+                        QString serialized = entry[0].get<QString>();
                         m_ErcExclusions.insert( serialized );
-                        m_ErcExclusionComments[ serialized ] = entry[1].get<wxString>();
+                        m_ErcExclusionComments[ serialized ] = entry[1].get<QString>();
                     }
                     else if( entry.is_string() )
                     {
-                        m_ErcExclusions.insert( entry.get<wxString>() );
+                        m_ErcExclusions.insert( entry.get<QString>() );
                     }
                 }
             },
@@ -276,7 +276,7 @@ SEVERITY ERC_SETTINGS::GetSeverity( int aErrorCode ) const
     // Warning-or-error is controlled by which errorCode it is
     else if( aErrorCode == ERCE_PIN_TO_PIN_ERROR )
     {
-        wxASSERT( m_ERCSeverities.count( ERCE_PIN_TO_PIN_WARNING ) );
+        Q_ASSERT( m_ERCSeverities.count( ERCE_PIN_TO_PIN_WARNING ) );
 
         if( m_ERCSeverities.at( ERCE_PIN_TO_PIN_WARNING ) == RPT_SEVERITY_IGNORE )
             return RPT_SEVERITY_IGNORE;
@@ -285,7 +285,7 @@ SEVERITY ERC_SETTINGS::GetSeverity( int aErrorCode ) const
     }
     else if( aErrorCode == ERCE_PIN_TO_PIN_WARNING )
     {
-        wxASSERT( m_ERCSeverities.count( ERCE_PIN_TO_PIN_WARNING ) );
+        Q_ASSERT( m_ERCSeverities.count( ERCE_PIN_TO_PIN_WARNING ) );
 
         if( m_ERCSeverities.at( ERCE_PIN_TO_PIN_WARNING ) == RPT_SEVERITY_IGNORE )
             return RPT_SEVERITY_IGNORE;
@@ -301,8 +301,9 @@ SEVERITY ERC_SETTINGS::GetSeverity( int aErrorCode ) const
         return RPT_SEVERITY_ERROR;
     }
 
-    wxCHECK_MSG( m_ERCSeverities.count( aErrorCode ), RPT_SEVERITY_IGNORE,
-            wxS( "Missing severity from map in ERC_SETTINGS!" ) );
+    Q_ASSERT_X( m_ERCSeverities.count( aErrorCode ), "ERC_SETTINGS::GetSeverity", "Missing severity from map in ERC_SETTINGS!" );
+    if( !m_ERCSeverities.count( aErrorCode ) )
+        return RPT_SEVERITY_IGNORE;
 
     return m_ERCSeverities.at( aErrorCode );
 }
@@ -324,7 +325,9 @@ struct CompareMarkers
 {
     bool operator()( const SCH_MARKER* item1, const SCH_MARKER* item2 ) const
     {
-        wxCHECK( item1 && item2, false );
+        Q_ASSERT( item1 && item2 );
+        if( !item1 || !item2 )
+            return false;
 
         if( item1->GetPosition() == item2->GetPosition() )
             return item1->SerializeToString() < item2->SerializeToString();

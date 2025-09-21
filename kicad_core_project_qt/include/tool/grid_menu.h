@@ -30,6 +30,8 @@
 
 class EDA_DRAW_FRAME;
 class APP_SETTINGS_BASE;
+class QAction;
+class QStringList;
 
 class GRID_MENU : public ACTION_MENU
 {
@@ -38,7 +40,7 @@ public:
 
     void UpdateTitle() override;
 
-    static void BuildChoiceList( wxArrayString* aGridsList, APP_SETTINGS_BASE* aCfg,
+    static void BuildChoiceList( QStringList* aGridsList, APP_SETTINGS_BASE* aCfg,
                                  EDA_DRAW_FRAME* aParent );
 
 private:
@@ -47,7 +49,7 @@ private:
         return new GRID_MENU( m_parent );
     }
 
-    OPT_TOOL_EVENT eventHandler( const wxMenuEvent& aEvent ) override;
+    OPT_TOOL_EVENT eventHandler( const QAction* aAction ) override;
     void update() override;
 
     EDA_DRAW_FRAME* m_parent;

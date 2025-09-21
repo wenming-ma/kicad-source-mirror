@@ -1,27 +1,4 @@
-﻿/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
+﻿
 // The DXF reader lib (libdxfrw) comes from dxflib project used in QCAD
 // See http://www.ribbonsoft.com
 // Each time a dxf entity is read, a "call back" function is called
@@ -30,8 +7,12 @@
 
 
 #include "dxf_import_plugin.h"
-#include <wx/arrstr.h>
-#include <wx/regex.h>
+#include <QString>
+#include <QStringList>
+#include <QRegularExpression>
+#include <QTextStream>
+#include <QByteArray>
+#include <QDebug>
 #include <geometry/ellipse.h>
 #include <bezier_curves.h>
 
@@ -117,7 +98,7 @@ DXF_IMPORT_PLUGIN::~DXF_IMPORT_PLUGIN()
 }
 
 
-bool DXF_IMPORT_PLUGIN::Load( const wxString& aFileName )
+bool DXF_IMPORT_PLUGIN::Load( const QString& aFileName )
 {
     try
     {
@@ -137,7 +118,7 @@ bool DXF_IMPORT_PLUGIN::Load( const wxString& aFileName )
 }
 
 
-bool DXF_IMPORT_PLUGIN::LoadFromMemory( const wxMemoryBuffer& aMemBuffer )
+bool DXF_IMPORT_PLUGIN::LoadFromMemory( const QByteArray& aMemBuffer )
 {
     try
     {
@@ -159,7 +140,8 @@ bool DXF_IMPORT_PLUGIN::LoadFromMemory( const wxMemoryBuffer& aMemBuffer )
 
 bool DXF_IMPORT_PLUGIN::Import()
 {
-    wxCHECK( m_importer, false );
+    Q_ASSERT( m_importer );
+    if( !m_importer ) return false;
     m_internalImporter.ImportTo( *m_importer );
 
     return true;
@@ -215,12 +197,12 @@ double DXF_IMPORT_PLUGIN::mapDim( double aDxfValue )
 }
 
 
-bool DXF_IMPORT_PLUGIN::ImportDxfFile( const wxString& aFile )
+bool DXF_IMPORT_PLUGIN::ImportDxfFile( const QString& aFile )
 {
     DL_Dxf dxf_reader;
 
-    // wxFopen takes care of unicode filenames across platforms
-    FILE* fp = wxFopen( aFile, wxT( "rt" ) );
+    // QFile takes care of unicode filenames across platforms
+    FILE* fp = fopen( aFile.toLocal8Bit().constData(), "rt" );
 
     if( fp == nullptr )
         return false;
@@ -233,11 +215,11 @@ bool DXF_IMPORT_PLUGIN::ImportDxfFile( const wxString& aFile )
 }
 
 
-bool DXF_IMPORT_PLUGIN::ImportDxfFile( const wxMemoryBuffer& aMemBuffer )
+bool DXF_IMPORT_PLUGIN::ImportDxfFile( const QByteArray& aMemBuffer )
 {
     DL_Dxf dxf_reader;
 
-    std::string str( reinterpret_cast<char*>( aMemBuffer.GetData() ), aMemBuffer.GetDataLen() );
+    std::string str( aMemBuffer.constData(), aMemBuffer.size() );
 
     // Note the dxf reader takes care of switching to "C" locale before reading the file
     // and will close the file after reading
@@ -247,7 +229,7 @@ bool DXF_IMPORT_PLUGIN::ImportDxfFile( const wxMemoryBuffer& aMemBuffer )
 }
 
 
-void DXF_IMPORT_PLUGIN::ReportMsg( const wxString& aMessage )
+void DXF_IMPORT_PLUGIN::ReportMsg( const QString& aMessage )
 {
     // Add message to keep trace of not handled dxf entities
     m_messages += aMessage;
@@ -297,7 +279,7 @@ void DXF_IMPORT_PLUGIN::addKnot( const DL_KnotData& aData)
 
 void DXF_IMPORT_PLUGIN::addLayer( const DL_LayerData& aData )
 {
-    wxString name = wxString::FromUTF8( aData.name.c_str() );
+    QString name = QString::fromUtf8( aData.name.c_str() );
 
     int lw = attributes.getWidth();
 
@@ -313,8 +295,8 @@ void DXF_IMPORT_PLUGIN::addLayer( const DL_LayerData& aData )
 void DXF_IMPORT_PLUGIN::addLinetype( const DL_LinetypeData& data )
 {
 #if 0
-    wxString name = From_UTF8( data.name.c_str() );
-    wxString description = From_UTF8( data.description.c_str() );
+    QString name = QString::fromUtf8( data.name.c_str() );
+    QString description = QString::fromUtf8( data.description.c_str() );
 #endif
 }
 
@@ -337,9 +319,9 @@ double DXF_IMPORT_PLUGIN::lineWeightToWidth( int lw, DXF_IMPORT_LAYER* aLayer )
 DXF_IMPORT_LAYER* DXF_IMPORT_PLUGIN::getImportLayer( const std::string& aLayerName )
 {
     DXF_IMPORT_LAYER* layer     = m_layers.front().get();
-    wxString          layerName = wxString::FromUTF8( aLayerName.c_str() );
+    QString          layerName = QString::fromUtf8( aLayerName.c_str() );
 
-    if( !layerName.IsEmpty() )
+    if( !layerName.isEmpty() )
     {
         auto resultIt = std::find_if( m_layers.begin(), m_layers.end(),
                 [layerName]( const auto& it )
@@ -358,9 +340,9 @@ DXF_IMPORT_LAYER* DXF_IMPORT_PLUGIN::getImportLayer( const std::string& aLayerNa
 DXF_IMPORT_BLOCK* DXF_IMPORT_PLUGIN::getImportBlock( const std::string& aBlockName )
 {
     DXF_IMPORT_BLOCK* block     = nullptr;
-    wxString          blockName = wxString::FromUTF8( aBlockName.c_str() );
+    QString          blockName = QString::fromUtf8( aBlockName.c_str() );
 
-    if( !blockName.IsEmpty() )
+    if( !blockName.isEmpty() )
     {
         auto resultIt = std::find_if( m_blocks.begin(), m_blocks.end(),
                 [blockName]( const auto& it )
@@ -379,9 +361,9 @@ DXF_IMPORT_BLOCK* DXF_IMPORT_PLUGIN::getImportBlock( const std::string& aBlockNa
 DXF_IMPORT_STYLE* DXF_IMPORT_PLUGIN::getImportStyle( const std::string& aStyleName )
 {
     DXF_IMPORT_STYLE* style     = nullptr;
-    wxString          styleName = wxString::FromUTF8( aStyleName.c_str() );
+    QString          styleName = QString::fromUtf8( aStyleName.c_str() );
 
-    if( !styleName.IsEmpty() )
+    if( !styleName.isEmpty() )
     {
         auto resultIt = std::find_if( m_styles.begin(), m_styles.end(),
                 [styleName]( const auto& it )
@@ -505,7 +487,7 @@ void DXF_IMPORT_PLUGIN::endEntity()
 
 void DXF_IMPORT_PLUGIN::addBlock( const DL_BlockData& aData )
 {
-    wxString name = wxString::FromUTF8( aData.name.c_str() );
+    QString name = QString::fromUtf8( aData.name.c_str() );
 
     std::unique_ptr<DXF_IMPORT_BLOCK> block = std::make_unique<DXF_IMPORT_BLOCK>( name, aData.bpx,
                                                                                   aData.bpy );
@@ -710,7 +692,7 @@ void DXF_IMPORT_PLUGIN::addText( const DL_TextData& aData )
         }
     }
 
-    wxString text = toNativeString( wxString::FromUTF8( aData.text.c_str() ) );
+    QString text = toNativeString( QString::fromUtf8( aData.text.c_str() ) );
 
     DXF_IMPORT_STYLE* style = getImportStyle( aData.style.c_str() );
 
@@ -790,8 +772,8 @@ void DXF_IMPORT_PLUGIN::addText( const DL_TextData& aData )
     }
 
 #if 0
-    wxString sty = wxString::FromUTF8( aData.style.c_str() );
-    sty = sty.ToLower();
+    QString sty = QString::fromUtf8( aData.style.c_str() );
+    sty = sty.toLower();
 
     if( aData.textgen == 2 )
     {
@@ -859,7 +841,7 @@ void DXF_IMPORT_PLUGIN::addMText( const DL_MTextData& aData )
     m_mtextContent.append( aData.text );
 
     // TODO: determine control codes applied to the whole text?
-    wxString text = toNativeString( wxString::FromUTF8( m_mtextContent.c_str() ) );
+    QString text = toNativeString( QString::fromUtf8( m_mtextContent.c_str() ) );
 
     DXF_IMPORT_STYLE* style = getImportStyle( aData.style.c_str() );
     double            textHeight = mapDim( aData.height );
@@ -1104,24 +1086,24 @@ void DXF_IMPORT_PLUGIN::setVariableString( const std::string& key, const std::st
 }
 
 
-wxString DXF_IMPORT_PLUGIN::toDxfString( const wxString& aStr )
+QString DXF_IMPORT_PLUGIN::toDxfString( const QString& aStr )
 {
-    wxString    res;
+    QString    res;
     int         j = 0;
 
-    for( unsigned i = 0; i<aStr.length(); ++i )
+    for( int i = 0; i < aStr.length(); ++i )
     {
         int c = aStr[i];
 
         if( c > 175 || c < 11 )
         {
-            res.append( aStr.Mid( j, i - j ) );
+            res.append( aStr.mid( j, i - j ) );
             j = i;
 
             switch( c )
             {
             case 0x0A:
-                res += wxT( "\\P" );
+                res += "\\P";
                 break;
 
                 // diameter:
@@ -1131,17 +1113,17 @@ wxString DXF_IMPORT_PLUGIN::toDxfString( const wxString& aStr )
 #else
             case 0x2205:
 #endif
-                res += wxT( "%%C" );
+                res += "%%C";
                 break;
 
             // degree:
             case 0x00B0:
-                res += wxT( "%%D" );
+                res += "%%D";
                 break;
 
             // plus/minus
             case 0x00B1:
-                res += wxT( "%%P" );
+                res += "%%P";
                 break;
 
             default:
@@ -1153,15 +1135,15 @@ wxString DXF_IMPORT_PLUGIN::toDxfString( const wxString& aStr )
         }
     }
 
-    res.append( aStr.Mid( j ) );
+    res.append( aStr.mid( j ) );
     return res;
 }
 
 
-wxString DXF_IMPORT_PLUGIN::toNativeString( const wxString& aData )
+QString DXF_IMPORT_PLUGIN::toNativeString( const QString& aData )
 {
-    wxString res;
-    size_t   i = 0;
+    QString res;
+    int   i = 0;
     int      braces = 0;
     int      overbarLevel = -1;
 
@@ -1180,7 +1162,7 @@ wxString DXF_IMPORT_PLUGIN::toNativeString( const wxString& aData )
         case '}':
             if( overbarLevel == braces )
             {
-                res << '}';
+                res += '}';
                 overbarLevel = -1;
             }
             braces--;
@@ -1192,9 +1174,9 @@ wxString DXF_IMPORT_PLUGIN::toNativeString( const wxString& aData )
 
             switch( (wchar_t) aData[i] )
             {
-            case 'I': res << '\t'; break;
-            case 'J': res << '\b'; break;
-            case ' ': res << '^'; break;
+            case 'I': res += '\t'; break;
+            case 'J': res += '\b'; break;
+            case ' ': res += '^'; break;
             default: break;
             }
             break;
@@ -1208,25 +1190,26 @@ wxString DXF_IMPORT_PLUGIN::toNativeString( const wxString& aData )
             {
             case 'P': // New paragraph (new line)
             case 'X': // Paragraph wrap on the dimension line (only in dimensions)
-                res << '\n';
+                res += '\n';
                 break;
 
             case '~': // Non-wrapping space, hard space
-                res << L'\u00A0';
+                res += QChar(0x00A0);
                 break;
 
             case 'U': // Unicode character, e.g. \U+ff08
             {
                 i += 2;
-                wxString codeHex;
+                QString codeHex;
 
                 for( ; codeHex.length() < 4 && i < aData.length(); i++ )
-                    codeHex << aData[i];
+                    codeHex += aData[i];
 
-                unsigned long codeVal = 0;
+                bool ok;
+                unsigned long codeVal = codeHex.toULong( &ok, 16 );
 
-                if( codeHex.ToCULong( &codeVal, 16 ) && codeVal != 0 )
-                    res << wxUniChar( codeVal );
+                if( ok && codeVal != 0 )
+                    res += QChar( codeVal );
 
                 i--;
             }
@@ -1235,28 +1218,32 @@ wxString DXF_IMPORT_PLUGIN::toNativeString( const wxString& aData )
             case 'S': // Stacking
             {
                 i++;
-                wxString stacked;
+                QString stacked;
 
                 for( ; i < aData.length(); i++ )
                 {
                     if( aData[i] == ';' )
                         break;
                     else
-                        stacked << aData[i];
+                        stacked += aData[i];
                 }
 
-                if( stacked.Contains( wxS( "#" ) ) )
+                if( stacked.contains( "#" ) )
                 {
-                    res << '^' << '{';
-                    res << stacked.BeforeFirst( '#' );
-                    res << '}' << '/' << '_' << '{';
-                    res << stacked.AfterFirst( '#' );
-                    res << '}';
+                    res += '^';
+                    res += '{';
+                    res += stacked.section( '#', 0, 0 );
+                    res += '}';
+                    res += '/';
+                    res += '_';
+                    res += '{';
+                    res += stacked.section( '#', 1, 1 );
+                    res += '}';
                 }
                 else
                 {
-                    stacked.Replace( wxS( "^ " ), wxS( "/" ) );
-                    res << stacked;
+                    stacked.replace( "^ ", "/" );
+                    res += stacked;
                 }
             }
             break;
@@ -1264,14 +1251,15 @@ wxString DXF_IMPORT_PLUGIN::toNativeString( const wxString& aData )
             case 'O': // Start overstrike
                 if( overbarLevel == -1 )
                 {
-                    res << '~' << '{';
+                    res += '~';
+                    res += '{';
                     overbarLevel = braces;
                 }
                 break;
             case 'o': // Stop overstrike
                 if( overbarLevel == braces )
                 {
-                    res << '}';
+                    res += '}';
                     overbarLevel = -1;
                 }
                 break;
@@ -1306,42 +1294,42 @@ wxString DXF_IMPORT_PLUGIN::toNativeString( const wxString& aData )
                 if( ++i >= aData.length() )
                     break;
 
-                res << aData[i];
+                res += aData[i];
                 break;
             }
         }
         break;
 
-        default: res << aData[i];
+        default: res += aData[i];
         }
     }
 
     if( overbarLevel != -1 )
     {
-        res << '}';
+        res += '}';
         overbarLevel = -1;
     }
 
 #if 1
-    wxRegEx regexp;
+    QRegularExpression regexp;
 
     // diameter:
-    regexp.Compile( wxT( "%%[cC]" ) );
+    regexp.setPattern( "%%[cC]" );
 #ifdef __WINDOWS__
     // windows, as always, is special.
-    regexp.Replace( &res, wxChar( 0xD8 ) );
+    res.replace( regexp, QChar( 0xD8 ) );
 #else
     // Empty_set, diameter is 0x2300
-    regexp.Replace( &res, wxChar( 0x2205 ) );
+    res.replace( regexp, QChar( 0x2205 ) );
 #endif
 
     // degree:
-    regexp.Compile( wxT( "%%[dD]" ) );
-    regexp.Replace( &res, wxChar( 0x00B0 ) );
+    regexp.setPattern( "%%[dD]" );
+    res.replace( regexp, QChar( 0x00B0 ) );
 
     // plus/minus
-    regexp.Compile( wxT( "%%[pP]" ) );
-    regexp.Replace( &res, wxChar( 0x00B1 ) );
+    regexp.setPattern( "%%[pP]" );
+    res.replace( regexp, QChar( 0x00B1 ) );
 #endif
 
     return res;
@@ -1350,7 +1338,7 @@ wxString DXF_IMPORT_PLUGIN::toNativeString( const wxString& aData )
 
 void DXF_IMPORT_PLUGIN::addTextStyle( const DL_StyleData& aData )
 {
-    wxString name = wxString::FromUTF8( aData.name.c_str() );
+    QString name = QString::fromUtf8( aData.name.c_str() );
 
     auto style = std::make_unique<DXF_IMPORT_STYLE>( name, aData.fixedTextHeight, aData.widthFactor,
                                                      aData.bold, aData.italic );
@@ -1485,7 +1473,7 @@ void DXF_IMPORT_PLUGIN::insertArc( const VECTOR2D& aSegStart, const VECTOR2D& aS
 void DXF_IMPORT_PLUGIN::insertSpline( double aWidth )
 {
 #if 0   // Debug only
-    wxLogMessage( "spl deg %d kn %d ctr %d fit %d",
+    qDebug( "spl deg %d kn %d ctr %d fit %d",
                   m_curr_entity.m_SplineDegree,
                   m_curr_entity.m_SplineKnotsList.size(),
                   m_curr_entity.m_SplineControlPointList.size(),

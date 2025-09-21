@@ -3,34 +3,12 @@
  * @brief Classes used to generate a Gerber job file in JSON
  */
 
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2018 Jean_Pierre Charras <jp.charras at wanadoo.fr>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef GERBER_JOBFILE_WRITER_H
 #define GERBER_JOBFILE_WRITER_H
 
 #include <json_common.h>
+#include <QStringList>
 
 
 // A helper enum to handle sides of some layers (silk, mask)
@@ -51,7 +29,7 @@ class BOARD;
 class JOBFILE_PARAMS
 {
 public:
-    wxArrayString m_GerberFileList;         // the list of gerber filenames (without path)
+    QStringList m_GerberFileList;         // the list of gerber filenames (without path)
     std::vector<PCB_LAYER_ID> m_LayerId;    // the list of corresponding layer id
 };
 
@@ -82,9 +60,9 @@ public:
      * @param aLayer is the PCB_LAYER_ID corresponding to the gerber file
      * @param aFilename is the filename (without path) of the gerber file
      */
-    void AddGbrFile( PCB_LAYER_ID aLayer, wxString& aFilename )
+    void AddGbrFile( PCB_LAYER_ID aLayer, QString& aFilename )
     {
-        m_params.m_GerberFileList.Add( aFilename );
+        m_params.m_GerberFileList.append( aFilename );
         m_params.m_LayerId.push_back( aLayer );
     }
 
@@ -93,7 +71,7 @@ public:
      * @param aFullFilename = the full filename
      * @return true, or false if the file cannot be created
      */
-    bool  CreateJobFile( const wxString& aFullFilename );
+    bool  CreateJobFile( const QString& aFullFilename );
 
     /**
      * Creates an Gerber job file in JSON format
@@ -101,7 +79,7 @@ public:
      * @param aParams = true for a NPTH file, false for a PTH file
      * @return true, or false if the file cannot be created
      */
-    bool  WriteJSONJobFile( const wxString& aFullFilename );
+    bool  WriteJSONJobFile( const QString& aFullFilename );
 
 private:
     /** @return SIDE_NONE if no silk screen layer is in list
@@ -150,10 +128,10 @@ private:
      */
     void addJSONDesignRules();
 
-    /** A helper function to convert a wxString ( therefore a Unicode text ) to
+    /** A helper function to convert a QString ( therefore a Unicode text ) to
      * a JSON compatible string (a escaped unicode sequence of 4 hexa).
      */
-    std::string formatStringFromUTF32( const wxString& aText );
+    std::string formatStringFromUTF32( const QString& aText );
 
     /** A helper function to convert a double in Pcbnew internal units to
      * a JSON double value (in mm), with only 4 digits in mantissa for a better readability

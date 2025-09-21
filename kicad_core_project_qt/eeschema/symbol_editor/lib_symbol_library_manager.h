@@ -22,6 +22,8 @@
 
 #include <symbol_library_manager.h>
 #include <symbol_tree_synchronizing_adapter.h>
+#include <QString>
+#include <memory>
 
 
 /**
@@ -37,13 +39,13 @@ public:
     /**
      * Updates the #SYMBOL_LIBRARY_MANAGER data to synchronize with Symbol Library Table.
      */
-    void Sync( const wxString& aForceRefresh,
-               std::function<void( int, int, const wxString& )> aProgressCallback );
+    void Sync( const QString& aForceRefresh,
+               std::function<void( int, int, const QString& )> aProgressCallback );
 
     /**
      * Return the adapter object that provides the stored data.
      */
-    wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER>& GetAdapter() { return m_adapter; }
+    std::shared_ptr<LIB_TREE_MODEL_ADAPTER>& GetAdapter() { return m_adapter; }
 
 protected:
     void OnDataChanged() const override;
@@ -54,7 +56,7 @@ private:
         return static_cast<SYMBOL_TREE_SYNCHRONIZING_ADAPTER*>( m_adapter.get() );
     }
 
-    wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER> m_adapter;
+    std::shared_ptr<LIB_TREE_MODEL_ADAPTER> m_adapter;
 
     int m_syncHash;     ///< Symbol lib table hash value from last synchronization
 };

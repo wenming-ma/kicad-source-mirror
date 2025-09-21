@@ -21,6 +21,7 @@
 #include <lib_symbol_library_manager.h>
 #include <symbol_edit_frame.h>
 #include <symbol_lib_table.h>
+#include <QString>
 
 
 LIB_SYMBOL_LIBRARY_MANAGER::LIB_SYMBOL_LIBRARY_MANAGER( SYMBOL_EDIT_FRAME& aFrame ) :
@@ -32,9 +33,9 @@ LIB_SYMBOL_LIBRARY_MANAGER::LIB_SYMBOL_LIBRARY_MANAGER( SYMBOL_EDIT_FRAME& aFram
 }
 
 
-void LIB_SYMBOL_LIBRARY_MANAGER::Sync( const wxString& aForceRefresh,
+void LIB_SYMBOL_LIBRARY_MANAGER::Sync( const QString& aForceRefresh,
                                        std::function<void( int, int,
-                                                           const wxString& )> aProgressCallback )
+                                                           const QString& )> aProgressCallback )
 {
     m_logger->Activate();
     {

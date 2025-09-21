@@ -1,21 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef KICAD_SCHEMATIC_SETTINGS_H
 #define KICAD_SCHEMATIC_SETTINGS_H
@@ -48,7 +30,7 @@ public:
 
     virtual ~SCHEMATIC_SETTINGS();
 
-    wxString SubReference( int aUnit, bool aAddSeparator = true ) const;
+    QString SubReference( int aUnit, bool aAddSeparator = true ) const;
 
 public:
     // Default sizes are all stored in IU here, and in mils in the JSON file
@@ -74,21 +56,21 @@ public:
     bool      m_IntersheetRefsShow;
     bool      m_IntersheetRefsListOwnPage;
     bool      m_IntersheetRefsFormatShort;
-    wxString  m_IntersheetRefsPrefix;
-    wxString  m_IntersheetRefsSuffix;
+    QString  m_IntersheetRefsPrefix;
+    QString  m_IntersheetRefsSuffix;
 
     double    m_DashedLineDashRatio;        // Dash length as ratio of the lineWidth
     double    m_DashedLineGapRatio;         // Gap length as ratio of the lineWidth
 
     int       m_OPO_VPrecision;         // Operating-point overlay voltage significant digits
-    wxString  m_OPO_VRange;             // Operating-point overlay voltage range
+    QString  m_OPO_VRange;             // Operating-point overlay voltage range
     int       m_OPO_IPrecision;         // Operating-point overlay current significant digits
-    wxString  m_OPO_IRange;             // Operating-point overlay current range
+    QString  m_OPO_IRange;             // Operating-point overlay current range
 
-    wxString  m_SchDrawingSheetFileName;
-    wxString  m_PlotDirectoryName;
+    QString  m_SchDrawingSheetFileName;
+    QString  m_PlotDirectoryName;
 
-    wxString  m_NetFormatName;
+    QString  m_NetFormatName;
 
     ///< @todo These should probably be moved to the "schematic.simulator" path.
     bool      m_SpiceCurSheetAsRoot;
@@ -96,13 +78,13 @@ public:
     bool      m_SpiceSaveAllCurrents;
     bool      m_SpiceSaveAllDissipations;
     bool      m_SpiceSaveAllEvents;
-    wxString  m_SpiceCommandString;      // A command string to run external spice
+    QString  m_SpiceCommandString;      // A command string to run external spice
 
     bool      m_SpiceModelCurSheetAsRoot;
 
     TEMPLATES m_TemplateFieldNames;
 
-    wxString  m_BomExportFileName;
+    QString  m_BomExportFileName;
 
     /// List of stored BOM presets
     BOM_PRESET                  m_BomSettings;

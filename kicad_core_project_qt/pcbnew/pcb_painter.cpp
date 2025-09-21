@@ -815,7 +815,7 @@ void PCB_PAINTER::draw( const PCB_TRACK* aTrack, int aLayer )
 
 
 void PCB_PAINTER::renderNetNameForSegment( const SHAPE_SEGMENT& aSeg, const COLOR4D& aColor,
-                                           const wxString& aNetName ) const
+                                           const QString& aNetName ) const
 {
     // When drawing netnames, clip the track to the viewport
     BOX2D             viewport;
@@ -1041,7 +1041,7 @@ void PCB_PAINTER::draw( const PCB_VIA* aVia, int aLayer )
         // the netname
         VECTOR2D textpos( 0.0, 0.0 );
 
-        wxString netname = aVia->GetDisplayNetname();
+        QString netname = aVia->GetDisplayNetname();
 
         PCB_LAYER_ID topLayerId = aVia->TopLayer();
         PCB_LAYER_ID bottomLayerId = aVia->BottomLayer();
@@ -1062,12 +1062,7 @@ void PCB_PAINTER::draw( const PCB_VIA* aVia, int aLayer )
         default: bottomLayer = (bottomLayerId - B_Cu)/2 + 1; break;
         }
 
-        wxString layerIds;
-#if wxUSE_UNICODE_WCHAR
-        layerIds << std::to_wstring( topLayer ) << L'-' << std::to_wstring( bottomLayer );
-#else
-        layerIds << std::to_string( topLayer ) << '-' << std::to_string( bottomLayer );
-#endif
+        QString layerIds = QString::number( topLayer ) + "-" + QString::number( bottomLayer );
 
         // a good size is set room for at least 6 chars, to be able to print 2 lines of text,
         // or at least 3 chars for only the netname
@@ -1239,8 +1234,8 @@ void PCB_PAINTER::draw( const PAD* aPad, int aLayer )
     if( IsNetnameLayer( aLayer ) )
     {
         PCBNEW_SETTINGS::DISPLAY_OPTIONS* displayOpts = pcbconfig() ? &pcbconfig()->m_Display : nullptr;
-        wxString                          netname;
-        wxString                          padNumber;
+        QString                          netname;
+        QString                          padNumber;
 
         if( viewer_settings()->m_ViewersDisplay.m_DisplayPadNumbers )
         {
@@ -1256,12 +1251,12 @@ void PCB_PAINTER::draw( const PAD* aPad, int aLayer )
                 netname = aPad->GetDisplayNetname();
 
             if( aPad->IsNoConnectPad() )
-                netname = wxT( "x" );
+                netname = "x";
             else if( aPad->IsFreePad() )
-                netname = wxT( "*" );
+                netname = "*";
         }
 
-        if( netname.IsEmpty() && padNumber.IsEmpty() )
+        if( netname.isEmpty() && padNumber.isEmpty() )
             return;
 
         BOX2I    padBBox = aPad->GetBoundingBox();
@@ -1368,7 +1363,7 @@ void PCB_PAINTER::draw( const PAD* aPad, int aLayer )
         int Y_offset_numpad = 0;
         int Y_offset_netname = 0;
 
-        if( !netname.IsEmpty() && !padNumber.IsEmpty() )
+        if( !netname.isEmpty() && !padNumber.isEmpty() )
         {
             // The magic numbers are defined experimentally for a better look.
             size = size / 2.5;
@@ -1382,7 +1377,7 @@ void PCB_PAINTER::draw( const PAD* aPad, int aLayer )
         // Xscale_for_stroked_font adjust the text X size for cairo (stroke fonts) engine
         const double Xscale_for_stroked_font = 0.9;
 
-        if( !netname.IsEmpty() )
+        if( !netname.isEmpty() )
         {
             // approximate the size of net name text:
             // We use a size for at least 5 chars, to give a good look even for short names
@@ -1410,7 +1405,7 @@ void PCB_PAINTER::draw( const PAD* aPad, int aLayer )
             m_gal->BitmapText( netname, textpos, ANGLE_HORIZONTAL );
         }
 
-        if( !padNumber.IsEmpty() )
+        if( !padNumber.isEmpty() )
         {
             // approximate the size of the pad number text:
             // We use a size for at least 3 chars, to give a good look even for short numbers
@@ -1834,9 +1829,9 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
         if( aShape->GetNetCode() <= NETINFO_LIST::UNCONNECTED )
             return;
 
-        const wxString& netname = aShape->GetDisplayNetname();
+        const QString& netname = aShape->GetDisplayNetname();
 
-        if( netname.IsEmpty() )
+        if( netname.isEmpty() )
             return;
 
         if( aShape->GetShape() == SHAPE_T::SEGMENT )
@@ -2136,13 +2131,13 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
 }
 
 
-void PCB_PAINTER::strokeText( const wxString& aText, const VECTOR2I& aPosition,
+void PCB_PAINTER::strokeText( const QString& aText, const VECTOR2I& aPosition,
                               const TEXT_ATTRIBUTES& aAttrs, const KIFONT::METRICS& aFontMetrics )
 {
     KIFONT::FONT* font = aAttrs.m_Font;
 
     if( !font )
-        font = KIFONT::FONT::GetFont( wxEmptyString, aAttrs.m_Bold, aAttrs.m_Italic );
+        font = KIFONT::FONT::GetFont( QString(), aAttrs.m_Bold, aAttrs.m_Italic );
 
     m_gal->SetIsFill( font->IsOutline() );
     m_gal->SetIsStroke( font->IsStroke() );
@@ -2223,9 +2218,9 @@ void PCB_PAINTER::draw( const PCB_FIELD* aField, int aLayer )
 
 void PCB_PAINTER::draw( const PCB_TEXT* aText, int aLayer )
 {
-    wxString resolvedText( aText->GetShownText( true ) );
+    QString resolvedText( aText->GetShownText( true ) );
 
-    if( resolvedText.Length() == 0 )
+    if( resolvedText.length() == 0 )
         return;
 
     if( aLayer == LAYER_LOCKED_ITEM_SHADOW )    // happens only if locked
@@ -2339,7 +2334,7 @@ void PCB_PAINTER::draw( const PCB_TEXTBOX* aTextBox, int aLayer )
     COLOR4D       color = m_pcbSettings.GetColor( aTextBox, aLayer );
     int           thickness = getLineThickness( aTextBox->GetWidth() );
     LINE_STYLE    lineStyle = aTextBox->GetStroke().GetLineStyle();
-    wxString      resolvedText( aTextBox->GetShownText( true ) );
+    QString      resolvedText( aTextBox->GetShownText( true ) );
     KIFONT::FONT* font = aTextBox->GetDrawFont( &m_pcbSettings );
 
     if( aLayer == LAYER_LOCKED_ITEM_SHADOW )    // happens only if locked
@@ -2419,7 +2414,7 @@ void PCB_PAINTER::draw( const PCB_TEXTBOX* aTextBox, int aLayer )
 #endif
     }
 
-    if( resolvedText.Length() == 0 )
+    if( resolvedText.length() == 0 )
         return;
 
     const KIFONT::METRICS& metrics = aTextBox->GetFontMetrics();
@@ -2614,9 +2609,9 @@ void PCB_PAINTER::draw( const PCB_GROUP* aGroup, int aLayer )
         m_gal->DrawLine( topLeft + width + height, topLeft + height );
         m_gal->DrawLine( topLeft + height, topLeft );
 
-        wxString name = aGroup->GetName();
+        QString name = aGroup->GetName();
 
-        if( name.IsEmpty() )
+        if( name.isEmpty() )
             return;
 
         int ptSize = 12;
@@ -2804,7 +2799,7 @@ void PCB_PAINTER::draw( const PCB_DIMENSION_BASE* aDimension, int aLayer )
     }
 
     // Draw text
-    wxString        resolvedText = aDimension->GetShownText( true );
+    QString        resolvedText = aDimension->GetShownText( true );
     TEXT_ATTRIBUTES attrs = aDimension->GetAttributes();
 
     if( m_gal->IsFlippedX() && !aDimension->IsSideSpecific() )

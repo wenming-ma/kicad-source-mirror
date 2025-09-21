@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <algorithm>                          // for min
 #include <bitset>                             // for bitset, operator&, __bi...
@@ -60,7 +38,9 @@
 #include <pcb_table.h>
 #include <zone.h>
 
-#include <wx/debug.h>                         // for wxASSERT_MSG
+#include <QtGlobal>                            // for Q_ASSERT
+#include <QString>                             // for QString
+#include <QStringList>                         // for QStringList
 
 
 COLOR4D BRDITEMS_PLOTTER::getColor( int aLayer ) const
@@ -77,9 +57,9 @@ COLOR4D BRDITEMS_PLOTTER::getColor( int aLayer ) const
 
 void BRDITEMS_PLOTTER::PlotPadNumber( const PAD* aPad, const COLOR4D& aColor )
 {
-    wxString padNumber = UnescapeString( aPad->GetNumber() );
+    QString padNumber = UnescapeString( aPad->GetNumber() );
 
-    if( padNumber.IsEmpty() )
+    if( padNumber.isEmpty() )
         return;
 
     BOX2I    padBBox = aPad->GetBoundingBox();
@@ -419,7 +399,7 @@ void BRDITEMS_PLOTTER::PlotFootprintTextItems( const FOOTPRINT* aFootprint )
         if( !m_layerMask[textLayer] || aFootprint->GetPrivateLayers().test( textLayer ) )
             continue;
 
-        if( text->GetText() == wxT( "${REFERENCE}" ) )
+        if( text->GetText() == "${REFERENCE}" )
         {
             if( !GetPlotReference() )
                 continue;
@@ -427,7 +407,7 @@ void BRDITEMS_PLOTTER::PlotFootprintTextItems( const FOOTPRINT* aFootprint )
             strikeout = aFootprint->IsDNP() && crossoutDNPItems( textLayer );
         }
 
-        if( text->GetText() == wxT( "${VALUE}" ) )
+        if( text->GetText() == "${VALUE}" )
         {
             if( !GetPlotValue() )
                 continue;
@@ -692,9 +672,9 @@ void BRDITEMS_PLOTTER::PlotText( const EDA_TEXT* aText, PCB_LAYER_ID aLayer, boo
                                  const KIFONT::METRICS& aFontMetrics, bool aStrikeout )
 {
     KIFONT::FONT* font = aText->GetDrawFont( m_plotter->RenderSettings() );
-    wxString      shownText( aText->GetShownText( true ) );
+    QString       shownText( aText->GetShownText( true ) );
 
-    if( shownText.IsEmpty() )
+    if( shownText.isEmpty() )
         return;
 
     if( !m_layerMask[aLayer] )
@@ -772,20 +752,20 @@ void BRDITEMS_PLOTTER::PlotText( const EDA_TEXT* aText, PCB_LAYER_ID aLayer, boo
         else if( aText->IsMultilineAllowed() )
         {
             std::vector<VECTOR2I> positions;
-            wxArrayString strings_list;
-            wxStringSplit( shownText, strings_list, '\n' );
-            positions.reserve(  strings_list.Count() );
+            QStringList strings_list;
+            strings_list = shownText.split( '\n' );
+            positions.reserve( strings_list.size() );
 
-            aText->GetLinePositions( m_plotter->RenderSettings(), positions, (int) strings_list.Count() );
+            aText->GetLinePositions( m_plotter->RenderSettings(), positions, (int) strings_list.size() );
 
-            for( unsigned ii = 0; ii < strings_list.Count(); ii++ )
+            for( int ii = 0; ii < strings_list.size(); ii++ )
             {
-                wxString& txt =  strings_list.Item( ii );
+                QString txt = strings_list.at( ii );
                 m_plotter->PlotText( positions[ii], color, txt, attrs, font, aFontMetrics,
                                      &gbr_metadata );
             }
 
-            if( aStrikeout && strings_list.Count() == 1 )
+            if( aStrikeout && strings_list.size() == 1 )
                 strikeoutText( static_cast<const PCB_TEXT*>( aText ) );
         }
         else

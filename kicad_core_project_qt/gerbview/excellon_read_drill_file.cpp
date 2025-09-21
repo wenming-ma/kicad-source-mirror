@@ -82,6 +82,10 @@
 #include <cmath>
 #include <charconv>
 
+#include <QFile>
+#include <QIODevice>
+#include <QString>
+
 #include <dialogs/html_message_box.h>
 
 // A helper function to calculate the arc center of an arc
@@ -246,9 +250,9 @@ static EXCELLON_CMD excellon_G_CmdList[] =
 };
 
 
-bool GERBVIEW_FRAME::Read_EXCELLON_File( const wxString& aFullFileName )
+bool GERBVIEW_FRAME::Read_EXCELLON_File( const QString& aFullFileName )
 {
-    wxString msg;
+    QString msg;
     int layerId = GetActiveLayer();      // current layer used in GerbView
     GERBER_FILE_IMAGE_LIST* images = GetGerberLayout()->GetImagesList();
     GERBER_FILE_IMAGE* gerber_layer = images->GetGbrImage( layerId );
@@ -269,7 +273,7 @@ bool GERBVIEW_FRAME::Read_EXCELLON_File( const wxString& aFullFileName )
     if( !success )
     {
         drill_layer_uptr.reset();
-        msg.Printf( _( "File %s not found." ), aFullFileName );
+        msg = QString( "File %1 not found." ).arg( aFullFileName );
         ShowInfoBarError( msg );
         return false;
     }
@@ -343,7 +347,7 @@ void EXCELLON_IMAGE::ResetDefaultValues()
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-bool EXCELLON_IMAGE::TestFileIsExcellon( const wxString& aFullFileName )
+bool EXCELLON_IMAGE::TestFileIsExcellon( const QString& aFullFileName )
 {
     char* letter;
     bool  foundM48 = false;
@@ -353,12 +357,15 @@ bool EXCELLON_IMAGE::TestFileIsExcellon( const wxString& aFullFileName )
     bool  foundX = false;
     bool  foundY = false;
 
-    FILE* file = wxFopen( aFullFileName, "rb" );
-
-    if( file == nullptr )
+    QFile file( aFullFileName );
+    if( !file.open( QIODevice::ReadOnly ) )
         return false;
 
-    FILE_LINE_READER excellonReader( file, aFullFileName );
+    FILE* cFile = fdopen( file.handle(), "rb" );
+    if( cFile == nullptr )
+        return false;
+
+    FILE_LINE_READER excellonReader( cFile, aFullFileName );
 
     try
     {
@@ -410,7 +417,9 @@ bool EXCELLON_IMAGE::TestFileIsExcellon( const wxString& aFullFileName )
                 {
                     double x_val;
 
-                    if( wxString( letter + 1 ).ToCDouble( &x_val ) )
+                    bool ok;
+                    x_val = QString( letter + 1 ).toDouble( &ok );
+                    if( ok )
                         foundT = true;
                 }
             }
@@ -419,16 +428,20 @@ bool EXCELLON_IMAGE::TestFileIsExcellon( const wxString& aFullFileName )
             if( ( letter = strstr( line, "X" ) ) != nullptr )
             {
                 double x_val;
+                bool ok;
 
-                if( wxString( letter + 1 ).ToCDouble( &x_val ) )
+                x_val = QString( letter + 1 ).toDouble( &ok );
+                if( ok )
                     foundX = true;
             }
 
             if( ( letter = strstr( line, "Y" ) ) != nullptr )
             {
                 double x_val;
+                bool ok;
 
-                if( wxString( letter + 1 ).ToCDouble( &x_val ) )
+                x_val = QString( letter + 1 ).toDouble( &ok );
+                if( ok )
                     foundY = true;
             }
         }
@@ -463,14 +476,17 @@ bool EXCELLON_IMAGE::TestFileIsExcellon( const wxString& aFullFileName )
  *   integer 2.4 format in imperial units,
  *   integer 3.2 or 3.3 format (metric units).
  */
-bool EXCELLON_IMAGE::LoadFile( const wxString & aFullFileName, EXCELLON_DEFAULTS* aDefaults )
+bool EXCELLON_IMAGE::LoadFile( const QString & aFullFileName, EXCELLON_DEFAULTS* aDefaults )
 {
     // Set the default parameter values:
     ResetDefaultValues();
     ClearMessageList();
 
-    m_Current_File = wxFopen( aFullFileName, wxT( "rt" ) );
+    QFile fileHandle( aFullFileName );
+    if( !fileHandle.open( QIODevice::ReadOnly | QIODevice::Text ) )
+        return false;
 
+    m_Current_File = fdopen( fileHandle.handle(), "rt" );
     if( m_Current_File == nullptr )
         return false;
 
@@ -478,7 +494,7 @@ bool EXCELLON_IMAGE::LoadFile( const wxString & aFullFileName, EXCELLON_DEFAULTS
     m_NoTrailingZeros = aDefaults->m_LeadingZero;
     m_GerbMetric = aDefaults->m_UnitsMM;
 
-    wxString msg;
+    QString msg;
     m_FileName = aFullFileName;
 
     LOCALE_IO toggleIo;
@@ -540,7 +556,7 @@ bool EXCELLON_IMAGE::LoadFile( const wxString & aFullFileName, EXCELLON_DEFAULTS
                 break;
 
             default:
-                msg.Printf( wxT( "Unexpected symbol 0x%2.2X &lt;%c&gt;" ), *text, *text );
+                msg = QString( "Unexpected symbol 0x%1 <%2>" ).arg( QString::number( (unsigned char)*text, 16 ).toUpper(), 2, '0' ).arg( QChar( *text ) );
                 AddMessageToList( msg );
                 break;
             }   // End switch
@@ -564,7 +580,7 @@ bool EXCELLON_IMAGE::LoadFile( const wxString & aFullFileName, EXCELLON_DEFAULTS
 bool EXCELLON_IMAGE::Execute_HEADER_And_M_Command( char*& text )
 {
     EXCELLON_CMD* cmd = nullptr;
-    wxString      msg;
+    QString      msg;
 
     // Search command in list
     for( unsigned ii = 0; ; ii++ )
@@ -585,7 +601,7 @@ bool EXCELLON_IMAGE::Execute_HEADER_And_M_Command( char*& text )
 
     if( !cmd )
     {
-        msg.Printf( _( "Unknown Excellon command &lt;%s&gt;" ), text );
+        msg = QString( "Unknown Excellon command <%1>" ).arg( QString::fromUtf8( text ) );
         AddMessageToList( msg );
         while( *text )
             text++;
@@ -674,7 +690,7 @@ bool EXCELLON_IMAGE::Execute_HEADER_And_M_Command( char*& text )
     case DRILL_INCREMENTALHEADER:
         if( *text != ',' )
         {
-            AddMessageToList( wxT( "ICI command has no parameter" ) );
+            AddMessageToList( "ICI command has no parameter" );
             break;
         }
         text++;     // skip separator
@@ -684,7 +700,7 @@ bool EXCELLON_IMAGE::Execute_HEADER_And_M_Command( char*& text )
         else if( strncasecmp( text, "ON", 2 ) == 0 )
             m_Relative = true;
         else
-            AddMessageToList( wxT( "ICI command has incorrect parameter" ) );
+            AddMessageToList( "ICI command has incorrect parameter" );
         break;
 
     case DRILL_TOOL_CHANGE_STOP:
@@ -784,11 +800,9 @@ bool EXCELLON_IMAGE::readToolInformation( char*& aText )
 
     // Read tool shape
     if( ! *aText )
-        AddMessageToList( wxString:: Format(
-                       _( "Tool definition shape not found" ) ) );
+        AddMessageToList( QString( "Tool definition shape not found" ) );
     else if( *aText != 'C' )
-        AddMessageToList( wxString:: Format(
-                       _( "Tool definition '%c' not supported" ), *aText ) );
+        AddMessageToList( QString( "Tool definition '%1' not supported" ).arg( QChar( *aText ) ) );
     if( *aText )
         aText++;
 
@@ -868,8 +882,8 @@ bool EXCELLON_IMAGE::Execute_Drill_Command( char*& text )
                 tool = GetDCODE( m_Current_Tool );
                 if( !tool )
                 {
-                    wxString msg;
-                    msg.Printf( _( "Tool %d not defined" ), m_Current_Tool );
+                    QString msg;
+                    msg = QString( "Tool %1 not defined" ).arg( m_Current_Tool );
                     AddMessageToList( msg );
                     return false;
                 }
@@ -1055,7 +1069,7 @@ bool EXCELLON_IMAGE::Execute_EXCELLON_G_Command( char*& text )
 
     case DRILL_G_UNKNOWN:
     default:
-        AddMessageToList( wxString::Format( _( "Unknown Excellon G Code: &lt;%s&gt;" ), From_UTF8(gcmd) ) );
+        AddMessageToList( QString( "Unknown Excellon G Code: <%1>" ).arg( QString::fromUtf8( gcmd ) ) );
         while( *text )
             text++;
         return false;
@@ -1135,7 +1149,7 @@ void EXCELLON_IMAGE::FinishRouteCommand()
 
     if( !tool )
     {
-        AddMessageToList( wxString::Format( wxT( "Unknown tool code %d" ), m_Current_Tool ) );
+        AddMessageToList( QString( "Unknown tool code %1" ).arg( m_Current_Tool ) );
         return;
     }
 

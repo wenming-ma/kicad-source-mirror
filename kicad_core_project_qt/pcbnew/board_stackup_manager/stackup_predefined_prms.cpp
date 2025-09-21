@@ -1,29 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 
-#include <wx/string.h>
+#include <QString>
+#include <QStringList>
+#include <QColor>
+#include <QCoreApplication>
 #include <core/arraydim.h>
 #include <board_design_settings.h>
 #include <i18n_utility.h>       // _HKI definition
@@ -32,7 +12,7 @@
 // A list of copper finish standard type names.
 // They are standard names in .gbdjob files, so avoid changing them or ensure they are
 // compatible with .gbrjob file spec.
-static wxString copperFinishType[] =
+static QString copperFinishType[] =
 {
     NotSpecifiedPrm(),            // Not specified, not in .gbrjob file
     _HKI( "ENIG" ),               // used in .gbrjob file
@@ -58,15 +38,15 @@ static wxString copperFinishType[] =
 // and R<integer>G<integer>B<integer> in .gbrjob file.
 static std::vector<FAB_LAYER_COLOR> gbrjobColors  =
 {
-    { NotSpecifiedPrm(),      wxColor(  80,  80,  80 ) },  // Not specified, not in .gbrjob file
-    { _HKI( "Green" ),        wxColor(  60, 150,  80 ) },  // used in .gbrjob file
-    { _HKI( "Red" ),          wxColor( 128,   0,   0 ) },  // used in .gbrjob file
-    { _HKI( "Blue" ),         wxColor(   0,   0, 128 ) },  // used in .gbrjob file
-    { _HKI( "Purple" ),       wxColor(  80,   0,  80 ) },  // used in .gbrjob file
-    { _HKI( "Black" ),        wxColor(  20,  20,  20 ) },  // used in .gbrjob file
-    { _HKI( "White" ),        wxColor( 200, 200, 200 ) },  // used in .gbrjob file
-    { _HKI( "Yellow" ),       wxColor( 128, 128,   0 ) },  // used in .gbrjob file
-    { _HKI( "User defined" ), wxColor( 128, 128, 128 ) }   // Free; the name is a dummy name here
+    { NotSpecifiedPrm(),      QColor(  80,  80,  80 ) },  // Not specified, not in .gbrjob file
+    { _HKI( "Green" ),        QColor(  60, 150,  80 ) },  // used in .gbrjob file
+    { _HKI( "Red" ),          QColor( 128,   0,   0 ) },  // used in .gbrjob file
+    { _HKI( "Blue" ),         QColor(   0,   0, 128 ) },  // used in .gbrjob file
+    { _HKI( "Purple" ),       QColor(  80,   0,  80 ) },  // used in .gbrjob file
+    { _HKI( "Black" ),        QColor(  20,  20,  20 ) },  // used in .gbrjob file
+    { _HKI( "White" ),        QColor( 200, 200, 200 ) },  // used in .gbrjob file
+    { _HKI( "Yellow" ),       QColor( 128, 128,   0 ) },  // used in .gbrjob file
+    { _HKI( "User defined" ), QColor( 128, 128, 128 ) }   // Free; the name is a dummy name here
 };
 
 
@@ -74,22 +54,22 @@ static std::vector<FAB_LAYER_COLOR> gbrjobColors  =
 // as R<integer>G<integer>B<integer>  to the .gbrjob file.
 static std::vector<FAB_LAYER_COLOR> dielectricColors =
 {
-    { NotSpecifiedPrm(),          wxColor(  80,  80,  80, 255 ) },
-    { _HKI( "FR4 natural" ),      wxColor( 109, 116,  75, 212 ) },
-    { _HKI( "PTFE natural" ),     wxColor( 252, 252, 250, 230 ) },
-    { _HKI( "Polyimide" ),        wxColor( 205, 130,   0, 170 ) },
-    { _HKI( "Phenolic natural" ), wxColor(  92,  17,   6, 230 ) },
-    { _HKI( "Aluminum" ),         wxColor( 213, 213, 213, 255 ) },
-    { _HKI( "User defined" ),     wxColor( 128, 128, 128, 212 ) }
+    { NotSpecifiedPrm(),          QColor(  80,  80,  80, 255 ) },
+    { _HKI( "FR4 natural" ),      QColor( 109, 116,  75, 212 ) },
+    { _HKI( "PTFE natural" ),     QColor( 252, 252, 250, 230 ) },
+    { _HKI( "Polyimide" ),        QColor( 205, 130,   0, 170 ) },
+    { _HKI( "Phenolic natural" ), QColor(  92,  17,   6, 230 ) },
+    { _HKI( "Aluminum" ),         QColor( 213, 213, 213, 255 ) },
+    { _HKI( "User defined" ),     QColor( 128, 128, 128, 212 ) }
 };
 
 
-wxArrayString GetStandardCopperFinishes( bool aTranslate )
+QStringList GetStandardCopperFinishes( bool aTranslate )
 {
-    wxArrayString list;
+    QStringList list;
 
     for( unsigned ii = 0; ii < arrayDim( copperFinishType ); ii++ )
-        list.Add( aTranslate ? wxGetTranslation( copperFinishType[ii] ) : copperFinishType[ii] );
+        list.append( aTranslate ? QCoreApplication::translate("", copperFinishType[ii].toStdString().c_str()) : copperFinishType[ii] );
 
     return list;
 }
@@ -114,17 +94,17 @@ int GetColorUserDefinedListIdx( BOARD_STACKUP_ITEM_TYPE aType )
 }
 
 
-bool IsColorNameNormalized( const wxString& aName )
+bool IsColorNameNormalized( const QString& aName )
 {
-    static std::vector<wxString> list =
+    static std::vector<QString> list =
     {
-        wxT( "Green" ), wxT( "Red" ), wxT( "Blue" ),
-        wxT( "Black" ), wxT( "White" ), wxT( "Yellow" )
+        "Green", "Red", "Blue",
+        "Black", "White", "Yellow"
     };
 
-   for( wxString& candidate : list )
+   for( QString& candidate : list )
    {
-       if( candidate.CmpNoCase( aName ) == 0 )
+       if( candidate.compare( aName, Qt::CaseInsensitive ) == 0 )
            return true;
    }
 
@@ -132,11 +112,11 @@ bool IsColorNameNormalized( const wxString& aName )
 }
 
 
-const wxString FAB_LAYER_COLOR::GetColorAsString() const
+const QString FAB_LAYER_COLOR::GetColorAsString() const
 {
     if( IsColorNameNormalized( m_colorName ) )
         return m_colorName;
 
-    return wxString::Format( wxT( "R%dG%dB%d" ),
-                             int( m_color.r*255 ), int( m_color.g*255 ), int( m_color.b*255 ) );
+    return QString::asprintf( "R%dG%dB%d",
+                             int( m_color.red() ), int( m_color.green() ), int( m_color.blue() ) );
 }

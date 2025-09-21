@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2012 Lorenzo Marcantonio, <l.marcantonio@logossrl.com>
- * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 /**
  * @file pcbnew/pcbplot.h
@@ -32,6 +8,7 @@
 
 #include <pcb_plot_params.h>
 #include <layer_ids.h>
+#include <QFileInfo>
 
 class PLOTTER;
 class BOARD;
@@ -80,9 +57,9 @@ public:
      * @param aSheetName is the text to be displayed in the title block that replaces ${SHEETNAME}
      * @param aSheetPath is the text to be displayed in the title block that replaces ${SHEETPATH}
      */
-    bool OpenPlotfile( const wxString& aSuffix, PLOT_FORMAT aFormat,
-                       const wxString& aSheetName = wxEmptyString,
-                       const wxString& aSheetPath = wxEmptyString );
+    bool OpenPlotfile( const QString& aSuffix, PLOT_FORMAT aFormat,
+                       const QString& aSheetName = QString(),
+                       const QString& aSheetPath = QString() );
 
     /**
      * Plot a single layer on the current plotfile m_plotLayer is the layer to plot.
@@ -101,12 +78,12 @@ public:
     /**
      * @return the current plot full filename, set by OpenPlotfile
      */
-    const wxString GetPlotFileName() { return m_plotFile.GetFullPath(); }
+    const QString GetPlotFileName() { return m_plotFile.absoluteFilePath(); }
 
     /**
      * @return the current plot full filename, set by OpenPlotfile
      */
-    const wxString GetPlotDirName() { return m_plotFile.GetPathWithSep(); }
+    const QString GetPlotDirName() { return m_plotFile.absolutePath() + "/"; }
 
     /**
      * Choose color or bland and white plot mode.
@@ -132,7 +109,7 @@ private:
     PLOTTER*        m_plotter;
 
     BOARD*          m_board;
-    wxFileName      m_plotFile;
+    QFileInfo       m_plotFile;
 };
 
 #endif

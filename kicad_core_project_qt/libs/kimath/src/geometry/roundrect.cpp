@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "geometry/roundrect.h"
 
@@ -29,7 +5,7 @@
 
 #include <geometry/shape_poly_set.h>
 #include <geometry/shape_utils.h>
-#include <wx/intl.h>
+#include <QtGlobal>
 
 
 namespace
@@ -58,12 +34,12 @@ ROUNDRECT::ROUNDRECT( SHAPE_RECT aRect, int aRadius ) :
     if( m_radius > m_rect.MajorDimension() )
     {
         throw KI_PARAM_ERROR(
-                _( "Roundrect radius is larger than the rectangle's major dimension" ) );
+                "Roundrect radius is larger than the rectangle's major dimension" );
     }
 
     if( m_radius < 0 )
     {
-        throw KI_PARAM_ERROR( _( "Roundrect radius must be non-negative" ) );
+        throw KI_PARAM_ERROR( "Roundrect radius must be non-negative" );
     }
 }
 
@@ -91,9 +67,9 @@ void ROUNDRECT::TransformToPolygon( SHAPE_POLY_SET& aBuffer ) const
     const int y_edge = m_rect.GetHeight() - 2 * m_radius;
 
     // This is a class invariant
-    wxASSERT( x_edge >= 0 );
-    wxASSERT( y_edge >= 0 );
-    wxASSERT( m_radius >= 0 );
+    Q_ASSERT( x_edge >= 0 );
+    Q_ASSERT( y_edge >= 0 );
+    Q_ASSERT( m_radius >= 0 );
 
     const VECTOR2I& m_p0 = m_rect.GetPosition();
 

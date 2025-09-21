@@ -1,33 +1,12 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 /**
  * @file dcode.cpp
  * @brief D_CODE class implementation
  */
 
+#include <QString>
+#include <QPainter>
+#include <QColor>
 #include <trigo.h>
 #include <gerbview_frame.h>
 #include <gerber_file_image.h>
@@ -83,29 +62,29 @@ void D_CODE::Clear_D_CODE_Data()
 }
 
 
-const wxChar* D_CODE::ShowApertureType( APERTURE_T aType )
+const QString D_CODE::ShowApertureType( APERTURE_T aType )
 {
-    const wxChar* ret;
+    QString ret;
 
     switch( aType )
     {
     case APT_CIRCLE:
-        ret = wxT( "Round" );   break;
+        ret = "Round";   break;
 
     case APT_RECT:
-        ret = wxT( "Rect" );    break;
+        ret = "Rect";    break;
 
     case APT_OVAL:
-        ret = wxT( "Oval" );    break;
+        ret = "Oval";    break;
 
     case APT_POLYGON:
-        ret = wxT( "Poly" );    break;
+        ret = "Poly";    break;
 
     case APT_MACRO:
-        ret = wxT( "Macro" );   break;
+        ret = "Macro";   break;
 
     default:
-        ret = wxT( "???" );     break;
+        ret = "???";     break;
     }
 
     return ret;
@@ -150,7 +129,7 @@ int D_CODE::GetShapeDim( GERBER_DRAW_ITEM* aParent )
 }
 
 
-void D_CODE::DrawFlashedShape( const GERBER_DRAW_ITEM* aParent, wxDC* aDC, const COLOR4D& aColor,
+void D_CODE::DrawFlashedShape( const GERBER_DRAW_ITEM* aParent, QPainter* aPainter, const QColor& aColor,
                                const VECTOR2I& aShapePos, bool aFilledShape )
 {
     int radius;
@@ -162,23 +141,23 @@ void D_CODE::DrawFlashedShape( const GERBER_DRAW_ITEM* aParent, wxDC* aDC, const
 
         if( !aFilledShape )
         {
-            GRCircle( aDC, aParent->GetABPosition(aShapePos), radius, 0, aColor );
+            GRCircle( aPainter, aParent->GetABPosition(aShapePos), radius, 0, aColor );
         }
         else if( m_DrillShape == APT_DEF_NO_HOLE )
         {
-            GRFilledCircle( aDC, aParent->GetABPosition(aShapePos), radius, 0, aColor, aColor );
+            GRFilledCircle( aPainter, aParent->GetABPosition(aShapePos), radius, 0, aColor, aColor );
         }
         else if( m_DrillShape == APT_DEF_ROUND_HOLE )    // round hole in shape
         {
             int width = (m_Size.x - m_Drill.x ) / 2;
-            GRCircle( aDC,  aParent->GetABPosition(aShapePos), radius - (width / 2), width, aColor );
+            GRCircle( aPainter,  aParent->GetABPosition(aShapePos), radius - (width / 2), width, aColor );
         }
         else                            // rectangular hole
         {
             if( m_Polygon.OutlineCount() == 0 )
                 ConvertShapeToPolygon( aParent );
 
-            DrawFlashedPolygon( aParent, aDC, aColor, aFilledShape, aShapePos );
+            DrawFlashedPolygon( aParent, aPainter, aColor, aFilledShape, aShapePos );
         }
 
         break;
@@ -194,18 +173,18 @@ void D_CODE::DrawFlashedShape( const GERBER_DRAW_ITEM* aParent, wxDC* aDC, const
 
         if( !aFilledShape )
         {
-            GRRect( aDC, start, end, 0, aColor );
+            GRRect( aPainter, start, end, 0, aColor );
         }
         else if( m_DrillShape == APT_DEF_NO_HOLE )
         {
-            GRFilledRect( aDC, start, end, 0, aColor, aColor );
+            GRFilledRect( aPainter, start, end, 0, aColor, aColor );
         }
         else
         {
             if( m_Polygon.OutlineCount() == 0 )
                 ConvertShapeToPolygon( aParent );
 
-            DrawFlashedPolygon( aParent, aDC, aColor, aFilledShape, aShapePos );
+            DrawFlashedPolygon( aParent, aPainter, aColor, aFilledShape, aShapePos );
         }
     }
     break;
@@ -235,18 +214,18 @@ void D_CODE::DrawFlashedShape( const GERBER_DRAW_ITEM* aParent, wxDC* aDC, const
 
         if( !aFilledShape )
         {
-            GRCSegm( aDC, start, end, radius, aColor );
+            GRCSegm( aPainter, start, end, radius, aColor );
         }
         else if( m_DrillShape == APT_DEF_NO_HOLE )
         {
-            GRFilledSegment( aDC, start, end, radius, aColor );
+            GRFilledSegment( aPainter, start, end, radius, aColor );
         }
         else
         {
             if( m_Polygon.OutlineCount() == 0 )
                 ConvertShapeToPolygon( aParent );
 
-            DrawFlashedPolygon( aParent, aDC, aColor, aFilledShape, aShapePos );
+            DrawFlashedPolygon( aParent, aPainter, aColor, aFilledShape, aShapePos );
         }
     }
 
@@ -257,14 +236,14 @@ void D_CODE::DrawFlashedShape( const GERBER_DRAW_ITEM* aParent, wxDC* aDC, const
         if( m_Polygon.OutlineCount() == 0 )
             ConvertShapeToPolygon( aParent );
 
-        DrawFlashedPolygon( aParent, aDC, aColor, aFilledShape, aShapePos );
+        DrawFlashedPolygon( aParent, aPainter, aColor, aFilledShape, aShapePos );
         break;
     }
 }
 
 
-void D_CODE::DrawFlashedPolygon( const GERBER_DRAW_ITEM* aParent, wxDC* aDC,
-                                 const COLOR4D& aColor,
+void D_CODE::DrawFlashedPolygon( const GERBER_DRAW_ITEM* aParent, QPainter* aPainter,
+                                 const QColor& aColor,
                                  bool aFilled, const VECTOR2I& aPosition )
 {
     if( m_Polygon.OutlineCount() == 0 )
@@ -281,7 +260,7 @@ void D_CODE::DrawFlashedPolygon( const GERBER_DRAW_ITEM* aParent, wxDC* aDC,
         points[ii] = aParent->GetABPosition( points[ii] );
     }
 
-    GRClosedPoly( aDC, pointCount, &points[0], aFilled, aColor );
+    GRClosedPoly( aPainter, pointCount, &points[0], aFilled, aColor );
 }
 
 

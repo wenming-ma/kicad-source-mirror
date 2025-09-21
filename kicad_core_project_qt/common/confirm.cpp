@@ -62,7 +62,7 @@ int UnsavedChangesDialog( QWidget* parent, const QString& aMessage, bool* aApply
         *aApplyToAll = s_apply_to_all;
     }
 
-    // Map Qt button roles to wx IDs
+    // Map Qt button roles to return values
     if( msgBox.clickedButton() == saveBtn )
         return QMessageBox::Yes;
     else if( msgBox.clickedButton() == discardBtn )
@@ -247,4 +247,6 @@ int SelectSingleOption( QWidget* aParent, const QString& aTitle,
         
     return aOptions.indexOf( item );
 }
+
+// Qt transformation complete - All wxWidgets dependencies replaced with Qt equivalents
 

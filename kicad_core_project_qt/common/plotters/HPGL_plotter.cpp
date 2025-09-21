@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 /**
  * @file HPGL_plotter.cpp
@@ -255,9 +232,9 @@ void HPGL_PLOTTER::SetTargetChordLength( double chord_len )
 }
 
 
-bool HPGL_PLOTTER::StartPlot( const wxString& aPageNumber )
+bool HPGL_PLOTTER::StartPlot( const QString& aPageNumber )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
     fprintf( m_outputFile, "IN;VS%d;PU;PA;SP%d;\n", m_penSpeed, m_penNumber );
 
     // Set HPGL Pen Thickness (in mm) (useful in polygon fill command)
@@ -270,7 +247,7 @@ bool HPGL_PLOTTER::StartPlot( const wxString& aPageNumber )
 
 bool HPGL_PLOTTER::EndPlot()
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     fputs( "PU;\n", m_outputFile );
 
@@ -352,7 +329,7 @@ bool HPGL_PLOTTER::EndPlot()
                 pen_up = true;
             }
 
-            fputs( static_cast<const char*>( item.content.utf8_str() ), m_outputFile );
+            fputs( qPrintable( item.content ), m_outputFile );
 
             if( !item.pen_returns )
             {
@@ -389,7 +366,7 @@ void HPGL_PLOTTER::SetPenDiameter( double diameter )
 
 void HPGL_PLOTTER::Rect( const VECTOR2I& p1, const VECTOR2I& p2, FILL_T aFill, int aWidth )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     // EA command seems to always fill the rectangle, so plot as a polygon instead
     std::vector<VECTOR2I> cornerList;
@@ -406,7 +383,7 @@ void HPGL_PLOTTER::Rect( const VECTOR2I& p1, const VECTOR2I& p2, FILL_T aFill, i
 
 void HPGL_PLOTTER::Circle( const VECTOR2I& aCenter, int aDiameter, FILL_T aFill, int aWidth )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
     double   radius = userToDeviceSize( aDiameter / 2 );
     VECTOR2D center_dev = userToDeviceCoordinates( aCenter );
     SetCurrentLineWidth( aWidth );
@@ -421,7 +398,7 @@ void HPGL_PLOTTER::Circle( const VECTOR2I& aCenter, int aDiameter, FILL_T aFill,
     {
         // Draw the filled area
         MoveTo( aCenter );
-        startOrAppendItem( center_dev, wxString::Format( "PM 0;CI %g,%g;%s",
+        startOrAppendItem( center_dev, QString::asprintf( "PM 0;CI %g,%g;%s",
                                                          radius,
                                                          chord_angle.AsDegrees(),
                                                          hpgl_end_polygon_cmd ) );
@@ -434,7 +411,7 @@ void HPGL_PLOTTER::Circle( const VECTOR2I& aCenter, int aDiameter, FILL_T aFill,
     if( radius > 0 )
     {
         MoveTo( aCenter );
-        startOrAppendItem( center_dev, wxString::Format( "CI %g,%g;",
+        startOrAppendItem( center_dev, QString::asprintf( "CI %g,%g;",
                                                          radius,
                                                          chord_angle.AsDegrees() ) );
         m_current_item->lift_before = true;
@@ -470,7 +447,7 @@ void HPGL_PLOTTER::PlotPoly( const std::vector<VECTOR2I>& aCornerList, FILL_T aF
         // Draw the filled area
         SetCurrentLineWidth( USE_DEFAULT_LINE_WIDTH );
 
-        m_current_item->content << wxString( "PM 0;\n" ); // Start polygon
+        m_current_item->content << QString( "PM 0;\n" ); // Start polygon
 
         for( unsigned ii = 1; ii < aCornerList.size(); ++ii )
             LineTo( aCornerList[ii] );
@@ -505,7 +482,7 @@ void HPGL_PLOTTER::PlotPoly( const std::vector<VECTOR2I>& aCornerList, FILL_T aF
 
 void HPGL_PLOTTER::PenTo( const VECTOR2I& pos, char plume )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     if( plume == 'Z' )
     {
@@ -525,7 +502,7 @@ void HPGL_PLOTTER::PenTo( const VECTOR2I& pos, char plume )
     else if( plume == 'D' )
     {
         m_penState = 'D';
-        startOrAppendItem( lastpos_dev, wxString::Format( "PA %.0f,%.0f;", pos_dev.x, pos_dev.y ) );
+        startOrAppendItem( lastpos_dev, QString::asprintf( "PA %.0f,%.0f;", pos_dev.x, pos_dev.y ) );
         m_current_item->loc_end = pos_dev;
         m_current_item->bbox.Merge( pos_dev );
     }
@@ -544,7 +521,7 @@ void HPGL_PLOTTER::SetDash( int aLineWidth, LINE_STYLE aLineStyle )
 void HPGL_PLOTTER::ThickSegment( const VECTOR2I& start, const VECTOR2I& end,
                                  int width, OUTLINE_MODE tracemode, void* aData )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     // Suppress overlap if pen is too big
     if( m_penDiameter >= width )
@@ -592,7 +569,7 @@ void HPGL_PLOTTER::Arc( const VECTOR2D& aCenter, const EDA_ANGLE& aStartAngle,
                    KiROUND( aCenter.y - aRadius * startAngle.Sin() ) );
     VECTOR2D cmap_dev = userToDeviceCoordinates( cmap );
 
-    startOrAppendItem( cmap_dev, wxString::Format( "AA %.0f,%.0f,%g,%g",
+    startOrAppendItem( cmap_dev, QString::asprintf( "AA %.0f,%.0f,%g,%g",
                                                    centre_device.x,
                                                    centre_device.y,
                                                    angle.AsDegrees(),
@@ -609,7 +586,7 @@ void HPGL_PLOTTER::Arc( const VECTOR2D& aCenter, const EDA_ANGLE& aStartAngle,
 void HPGL_PLOTTER::FlashPadOval( const VECTOR2I& aPos, const VECTOR2I& aSize,
                                  const EDA_ANGLE& aOrient, OUTLINE_MODE aTraceMode, void* aData )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     VECTOR2I size( aSize );
     EDA_ANGLE orient( aOrient );
@@ -646,7 +623,7 @@ void HPGL_PLOTTER::FlashPadOval( const VECTOR2I& aPos, const VECTOR2I& aSize,
 void HPGL_PLOTTER::FlashPadCircle( const VECTOR2I& pos, int diametre,
                                    OUTLINE_MODE trace_mode, void* aData )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
     VECTOR2D pos_dev = userToDeviceCoordinates( pos );
     int      radius  = diametre / 2;
 
@@ -670,7 +647,7 @@ void HPGL_PLOTTER::FlashPadCircle( const VECTOR2I& pos, int diametre,
 
         // Plot filled area and its outline
         startOrAppendItem( userToDeviceCoordinates( VECTOR2I( pos.x + radius, pos.y ) ),
-                           wxString::Format( "PM 0; PA %.0f,%.0f;CI %.0f;%s",
+                           QString::asprintf( "PM 0; PA %.0f,%.0f;CI %.0f;%s",
                                              pos_dev.x, pos_dev.y, rsize, hpgl_end_polygon_cmd ) );
         m_current_item->lift_before = true;
         m_current_item->pen_returns = true;
@@ -678,7 +655,7 @@ void HPGL_PLOTTER::FlashPadCircle( const VECTOR2I& pos, int diametre,
     else
     {
         // Draw outline only:
-        startOrAppendItem( pos_dev, wxString::Format( "CI %.0f;", rsize ) );
+        startOrAppendItem( pos_dev, QString::asprintf( "CI %.0f;", rsize ) );
         m_current_item->lift_before = true;
         m_current_item->pen_returns = true;
     }
@@ -814,13 +791,13 @@ void HPGL_PLOTTER::FlashRegularPolygon( const VECTOR2I& aShapePos, int aRadius, 
                                         void* aData )
 {
     // Do nothing
-    wxASSERT( 0 );
+    Q_ASSERT( 0 );
 }
 
 
 bool HPGL_PLOTTER::startItem( const VECTOR2D& location )
 {
-    return startOrAppendItem( location, wxEmptyString );
+    return startOrAppendItem( location, QString() );
 }
 
 
@@ -830,7 +807,7 @@ void HPGL_PLOTTER::flushItem()
 }
 
 
-bool HPGL_PLOTTER::startOrAppendItem( const VECTOR2D& location, wxString const& content )
+bool HPGL_PLOTTER::startOrAppendItem( const VECTOR2D& location, QString const& content )
 {
     if( m_current_item == nullptr )
     {

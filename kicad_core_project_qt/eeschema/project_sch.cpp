@@ -1,21 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <symbol_library.h>
 #include <confirm.h>
@@ -23,7 +5,11 @@
 // #include <dialogs/html_message_box.h>
 #include <kiface_base.h>
 #include <pgm_base.h>
-#include <wx/app.h>
+#include <QApplication>
+#include <QWidget>
+#include <QDir>
+#include <QStringList>
+#include <QDebug>
 #include <core/utf8.h>
 #include <symbol_lib_table.h>
 #include <project_sch.h>
@@ -43,7 +29,7 @@ SEARCH_STACK* PROJECT_SCH::SchSearchS( PROJECT* aProject )
 {
     SEARCH_STACK* ss = (SEARCH_STACK*) aProject->GetElem( PROJECT::ELEM::SCH_SEARCH_STACK );
 
-    wxASSERT( !ss || dynamic_cast<SEARCH_STACK*>( ss ) );
+    Q_ASSERT( !ss || dynamic_cast<SEARCH_STACK*>( ss ) );
 
     if( !ss )
     {
@@ -56,7 +42,7 @@ SEARCH_STACK* PROJECT_SCH::SchSearchS( PROJECT* aProject )
         ss->AddPaths( aProject->GetProjectDirectory() );
 
         // next add the paths found in *.pro, variable "LibDir"
-        wxString        libDir;
+        QString        libDir;
 
         try
         {
@@ -66,15 +52,15 @@ SEARCH_STACK* PROJECT_SCH::SchSearchS( PROJECT* aProject )
         {
         }
 
-        if( !!libDir )
+        if( !libDir.isEmpty() )
         {
-            wxArrayString   paths;
+            QStringList   paths;
 
             SEARCH_STACK::Split( &paths, libDir );
 
-            for( unsigned i =0; i<paths.GetCount();  ++i )
+            for( unsigned i =0; i<paths.size();  ++i )
             {
-                wxString path = aProject->AbsolutePath( paths[i] );
+                QString path = aProject->AbsolutePath( paths[i] );
 
                 ss->AddPaths( path );     // at the end
             }
@@ -92,7 +78,7 @@ SYMBOL_LIBS* PROJECT_SCH::SchLibs( PROJECT* aProject )
 {
     SYMBOL_LIBS* libs = (SYMBOL_LIBS*) aProject->GetElem( PROJECT::ELEM::SCH_SYMBOL_LIBS );
 
-    wxASSERT( !libs || libs->ProjectElementType() == PROJECT::ELEM::SCH_SYMBOL_LIBS );
+    Q_ASSERT( !libs || libs->ProjectElementType() == PROJECT::ELEM::SCH_SYMBOL_LIBS );
 
     if( !libs )
     {
@@ -109,8 +95,8 @@ SYMBOL_LIBS* PROJECT_SCH::SchLibs( PROJECT* aProject )
         {
             // UNUSED_SYMBOL: HTML_MESSAGE_BOX constructor - Constructor and related methods not compiled in minimal set
             /*
-            wxString    lib_list = UTF8( pe.inputLine );
-            wxWindow*   parent = Pgm().App().GetTopWindow();
+            QString    lib_list = UTF8( pe.inputLine );
+            QWidget*   parent = Pgm().App().GetTopWindow();
 
             // parent of this dialog cannot be NULL since that breaks the Kiway() chain.
             HTML_MESSAGE_BOX dlg( parent, _( "Not Found" ) );
@@ -124,7 +110,7 @@ SYMBOL_LIBS* PROJECT_SCH::SchLibs( PROJECT* aProject )
         }
         catch( const IO_ERROR& ioe )
         {
-            wxWindow* parent = Pgm().App().GetTopWindow();
+            QWidget* parent = Pgm().App().GetTopWindow();
 
             DisplayError( parent, ioe.What() );
         }
@@ -144,7 +130,7 @@ SYMBOL_LIB_TABLE* PROJECT_SCH::SchSymbolLibTable( PROJECT* aProject )
             (SYMBOL_LIB_TABLE*) aProject->GetElem( PROJECT::ELEM::SYMBOL_LIB_TABLE );
 
     // its gotta be NULL or a SYMBOL_LIB_TABLE, or a bug.
-    wxASSERT( !tbl || tbl->ProjectElementType() == PROJECT::ELEM::SYMBOL_LIB_TABLE );
+    Q_ASSERT( !tbl || tbl->ProjectElementType() == PROJECT::ELEM::SYMBOL_LIB_TABLE );
 
     if( !tbl )
     {
@@ -155,22 +141,23 @@ SYMBOL_LIB_TABLE* PROJECT_SCH::SchSymbolLibTable( PROJECT* aProject )
 
         aProject->SetElem( PROJECT::ELEM::SYMBOL_LIB_TABLE, tbl );
 
-        wxString prjPath;
+        QString prjPath;
 
-        wxGetEnv( PROJECT_VAR_NAME, &prjPath );
+        prjPath = qgetenv( PROJECT_VAR_NAME );
 
-        if( !prjPath.IsEmpty() )
+        if( !prjPath.isEmpty() )
         {
-            wxFileName fn( prjPath, SYMBOL_LIB_TABLE::GetSymbolLibTableFileName() );
+            QDir dir( prjPath );
+            QString fn = dir.filePath( SYMBOL_LIB_TABLE::GetSymbolLibTableFileName() );
 
             try
             {
-                tbl->Load( fn.GetFullPath() );
+                tbl->Load( fn );
             }
             catch( const IO_ERROR& ioe )
             {
-                wxString msg;
-                msg.Printf( _( "Error loading the symbol library table '%s'." ), fn.GetFullPath() );
+                QString msg;
+                msg = QString::asprintf( "Error loading the symbol library table '%s'.", fn.toStdString().c_str() );
                 DisplayErrorMessage( nullptr, msg, ioe.What() );
             }
         }

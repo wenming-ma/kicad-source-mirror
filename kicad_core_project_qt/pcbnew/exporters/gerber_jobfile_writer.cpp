@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean_Pierre Charras <jp.charras at wanadoo.fr>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 /**
  * @file gendrill_gerber_writer.cpp
@@ -30,6 +7,10 @@
 #include <fstream>
 #include <iomanip>
 #include <vector>
+
+#include <QString>
+#include <QFileInfo>
+#include <QColor>
 
 #include <build_version.h>
 #include <locale_io.h>
@@ -58,10 +39,10 @@ GERBER_JOBFILE_WRITER::GERBER_JOBFILE_WRITER( BOARD* aPcb, REPORTER* aReporter )
     m_conversionUnits = 1.0 / pcbIUScale.IU_PER_MM; // Gerber units = mm
 }
 
-std::string GERBER_JOBFILE_WRITER::formatStringFromUTF32( const wxString& aText )
+std::string GERBER_JOBFILE_WRITER::formatStringFromUTF32( const QString& aText )
 {
     std::string fmt_text; // the text after UTF32 to UTF8 conversion
-    fmt_text = aText.utf8_string();
+    fmt_text = aText.toStdString();
 
     return fmt_text;
 }
@@ -118,10 +99,10 @@ const char* GERBER_JOBFILE_WRITER::sideKeyValue( enum ONSIDE aValue )
 }
 
 
-bool GERBER_JOBFILE_WRITER::CreateJobFile( const wxString& aFullFilename )
+bool GERBER_JOBFILE_WRITER::CreateJobFile( const QString& aFullFilename )
 {
     bool     success;
-    wxString msg;
+    QString msg;
 
     success = WriteJSONJobFile( aFullFilename );
 
@@ -129,13 +110,13 @@ bool GERBER_JOBFILE_WRITER::CreateJobFile( const wxString& aFullFilename )
     {
         if( m_reporter )
         {
-            msg.Printf( _( "Failed to create file '%s'." ), aFullFilename );
+            msg = QString( "Failed to create file '%1'." ).arg( aFullFilename );
             m_reporter->Report( msg, RPT_SEVERITY_ERROR );
         }
     }
     else if( m_reporter )
     {
-        msg.Printf( _( "Created Gerber job file '%s'." ), aFullFilename );
+        msg = QString( "Created Gerber job file '%1'." ).arg( aFullFilename );
         m_reporter->Report( msg, RPT_SEVERITY_ACTION );
     }
 
@@ -163,10 +144,10 @@ void GERBER_JOBFILE_WRITER::addJSONHeader()
 }
 
 
-bool GERBER_JOBFILE_WRITER::WriteJSONJobFile( const wxString& aFullFilename )
+bool GERBER_JOBFILE_WRITER::WriteJSONJobFile( const QString& aFullFilename )
 {
     // Note: in Gerber job file, dimensions are in mm, and are floating numbers
-    std::ofstream file( aFullFilename.ToUTF8() );
+    std::ofstream file( aFullFilename.toStdString() );
 
     LOCALE_IO dummy;
 
@@ -224,25 +205,25 @@ void GERBER_JOBFILE_WRITER::addJSONGeneralSpecs()
     //
     // <project GUID> is a string which is an unique id of a project.
     // However Kicad does not handle such a project GUID, so it is built from the board name
-    wxFileName fn = m_pcb->GetFileName();
-    wxString   msg = fn.GetFullName();
+    QFileInfo fn( m_pcb->GetFileName() );
+    QString   msg = fn.fileName();
 
     // Build a <project GUID>, from the board name
-    wxString guid = GbrMakeProjectGUIDfromString( msg );
+    QString guid = GbrMakeProjectGUIDfromString( msg );
 
     // build the <project id> string: this is the board short filename (without ext)
     // and in UTF8 format.
-    msg = fn.GetName();
+    msg = fn.baseName();
 
     // build the <rev> string. All non ASCII chars are in UTF8 form
-    wxString rev = ExpandTextVars( m_pcb->GetTitleBlock().GetRevision(), m_pcb->GetProject() );
+    QString rev = ExpandTextVars( m_pcb->GetTitleBlock().GetRevision(), m_pcb->GetProject() );
 
-    if( rev.IsEmpty() )
-        rev = wxT( "rev?" );
+    if( rev.isEmpty() )
+        rev = "rev?";
 
-    m_json["GeneralSpecs"]["ProjectId"]["Name"] = msg.utf8_string().c_str();
+    m_json["GeneralSpecs"]["ProjectId"]["Name"] = msg.toStdString().c_str();
     m_json["GeneralSpecs"]["ProjectId"]["GUID"] = guid;
-    m_json["GeneralSpecs"]["ProjectId"]["Revision"] = rev.utf8_string().c_str();
+    m_json["GeneralSpecs"]["ProjectId"]["Revision"] = rev.toStdString().c_str();
 
     // output the board size in mm:
     BOX2I brect = m_pcb->GetBoardEdgesBoundingBox();
@@ -262,7 +243,7 @@ void GERBER_JOBFILE_WRITER::addJSONGeneralSpecs()
     // Copper finish
     const BOARD_STACKUP brd_stackup = m_pcb->GetDesignSettings().GetStackupDescriptor();
 
-    if( !brd_stackup.m_FinishType.IsEmpty() )
+    if( !brd_stackup.m_FinishType.isEmpty() )
         m_json["GeneralSpecs"]["Finish"] = brd_stackup.m_FinishType;
 
     if( brd_stackup.m_HasDielectricConstrains )
@@ -317,11 +298,11 @@ void GERBER_JOBFILE_WRITER::addJSONFilesAttributes()
     // Add the Files Attributes section in JSON format to m_JSONbuffer
     m_json["FilesAttributes"] = nlohmann::ordered_json::array();
 
-    for( unsigned ii = 0; ii < m_params.m_GerberFileList.GetCount(); ii++ )
+    for( unsigned ii = 0; ii < m_params.m_GerberFileList.size(); ii++ )
     {
-        wxString&    name = m_params.m_GerberFileList[ii];
+        QString&    name = m_params.m_GerberFileList[ii];
         PCB_LAYER_ID layer = m_params.m_LayerId[ii];
-        wxString     gbr_layer_id;
+        QString     gbr_layer_id;
         bool         skip_file = false; // true to skip files which should not be in job file
         const char*  polarity = "Positive";
 
@@ -329,24 +310,24 @@ void GERBER_JOBFILE_WRITER::addJSONFilesAttributes()
 
         if( IsCopperLayer( layer ) )
         {
-            gbr_layer_id = wxT( "Copper,L" );
+            gbr_layer_id = "Copper,L";
 
             if( layer == B_Cu )
-                gbr_layer_id << m_pcb->GetCopperLayerCount();
+                gbr_layer_id += QString::number( m_pcb->GetCopperLayerCount() );
             else if( layer == F_Cu )
-                gbr_layer_id << 1;
+                gbr_layer_id += "1";
             else    // Copper layers are numbered B_Cu + n*2 for inner layer n (n = 1 ... val max)
                     // and gbr_layer_id = 2 ... val max
-                gbr_layer_id << (layer-B_Cu) / 2 + 1;
+                gbr_layer_id += QString::number( (layer-B_Cu) / 2 + 1 );
 
-            gbr_layer_id << wxT( "," );
+            gbr_layer_id += ",";
 
             if( layer == B_Cu )
-                gbr_layer_id << wxT( "Bot" );
+                gbr_layer_id += "Bot";
             else if( layer == F_Cu )
-                gbr_layer_id << wxT( "Top" );
+                gbr_layer_id += "Top";
             else
-                gbr_layer_id << wxT( "Inr" );
+                gbr_layer_id += "Inr";
         }
 
         else
@@ -354,44 +335,44 @@ void GERBER_JOBFILE_WRITER::addJSONFilesAttributes()
             switch( layer )
             {
             case B_Adhes:
-                gbr_layer_id = wxT( "Glue,Bot" );
+                gbr_layer_id = "Glue,Bot";
                 break;
             case F_Adhes:
-                gbr_layer_id = wxT( "Glue,Top" );
+                gbr_layer_id = "Glue,Top";
                 break;
 
             case B_Paste:
-                gbr_layer_id = wxT( "SolderPaste,Bot" );
+                gbr_layer_id = "SolderPaste,Bot";
                 break;
             case F_Paste:
-                gbr_layer_id = wxT( "SolderPaste,Top" );
+                gbr_layer_id = "SolderPaste,Top";
                 break;
 
             case B_SilkS:
-                gbr_layer_id = wxT( "Legend,Bot" );
+                gbr_layer_id = "Legend,Bot";
                 break;
             case F_SilkS:
-                gbr_layer_id = wxT( "Legend,Top" );
+                gbr_layer_id = "Legend,Top";
                 break;
 
             case B_Mask:
-                gbr_layer_id = wxT( "SolderMask,Bot" );
+                gbr_layer_id = "SolderMask,Bot";
                 polarity = "Negative";
                 break;
             case F_Mask:
-                gbr_layer_id = wxT( "SolderMask,Top" );
+                gbr_layer_id = "SolderMask,Top";
                 polarity = "Negative";
                 break;
 
             case Edge_Cuts:
-                gbr_layer_id = wxT( "Profile" );
+                gbr_layer_id = "Profile";
                 break;
 
             case B_Fab:
-                gbr_layer_id = wxT( "AssemblyDrawing,Bot" );
+                gbr_layer_id = "AssemblyDrawing,Bot";
                 break;
             case F_Fab:
-                gbr_layer_id = wxT( "AssemblyDrawing,Top" );
+                gbr_layer_id = "AssemblyDrawing,Top";
                 break;
 
             case Margin:
@@ -413,14 +394,14 @@ void GERBER_JOBFILE_WRITER::addJSONFilesAttributes()
             case User_7:
             case User_8:
             case User_9:
-                gbr_layer_id = wxT( "Other,User" );
+                gbr_layer_id = "Other,User";
                 break;
 
             default:
                 skip_file = true;
 
                 if( m_reporter )
-                    m_reporter->Report( wxT( "Unexpected layer id in job file" ), RPT_SEVERITY_ERROR );
+                    m_reporter->Report( "Unexpected layer id in job file", RPT_SEVERITY_ERROR );
 
                 break;
             }
@@ -571,7 +552,7 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
     bool uptodate = not brd_stackup.SynchronizeWithBoard( &m_pcb->GetDesignSettings() );
 
     if( m_reporter && !uptodate && m_pcb->GetDesignSettings().m_HasStackup )
-        m_reporter->Report( _( "Board stackup settings not up to date." ), RPT_SEVERITY_ERROR );
+        m_reporter->Report( "Board stackup settings not up to date.", RPT_SEVERITY_ERROR );
 
     PCB_LAYER_ID last_copper_layer = F_Cu;
 
@@ -587,7 +568,7 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
         {
             // layer thickness is always in mm
             double      thickness = mapValue( item->GetThickness( sub_idx ) );
-            wxString    layer_type;
+            QString    layer_type;
             std::string layer_name; // for comment
 
             nlohmann::ordered_json layer_json;
@@ -595,39 +576,41 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
             switch( item->GetType() )
             {
             case BS_ITEM_TYPE_COPPER:
-                layer_type = wxT( "Copper" );
+                layer_type = "Copper";
                 layer_name = formatStringFromUTF32( m_pcb->GetLayerName( item->GetBrdLayerId() ) );
                 last_copper_layer = item->GetBrdLayerId();
                 break;
 
             case BS_ITEM_TYPE_SILKSCREEN:
-                layer_type = wxT( "Legend" );
+                layer_type = "Legend";
                 layer_name = formatStringFromUTF32( item->GetTypeName() );
                 break;
 
             case BS_ITEM_TYPE_SOLDERMASK:
-                layer_type = wxT( "SolderMask" );
+                layer_type = "SolderMask";
                 layer_name = formatStringFromUTF32( item->GetTypeName() );
                 break;
 
             case BS_ITEM_TYPE_SOLDERPASTE:
-                layer_type = wxT( "SolderPaste" );
+                layer_type = "SolderPaste";
                 layer_name = formatStringFromUTF32( item->GetTypeName() );
                 break;
 
             case BS_ITEM_TYPE_DIELECTRIC:
-                layer_type = wxT( "Dielectric" );
+                layer_type = "Dielectric";
                 // The option core or prepreg is not added here, as it creates constraints
                 // in build process, not necessary wanted.
                 if( sub_layer_count > 1 )
                 {
                     layer_name =
-                            formatStringFromUTF32( wxString::Format( wxT( "dielectric layer %d - %d/%d" ),
-                                    item->GetDielectricLayerId(), sub_idx + 1, sub_layer_count ) );
+                            formatStringFromUTF32( QString( "dielectric layer %1 - %2/%3" )
+                                    .arg( item->GetDielectricLayerId() )
+                                    .arg( sub_idx + 1 )
+                                    .arg( sub_layer_count ) );
                 }
                 else
-                    layer_name = formatStringFromUTF32( wxString::Format(
-                            wxT( "dielectric layer %d" ), item->GetDielectricLayerId() ) );
+                    layer_name = formatStringFromUTF32( QString( "dielectric layer %1" )
+                            .arg( item->GetDielectricLayerId() ) );
                 break;
 
             default:
@@ -640,18 +623,18 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
             {
                 if( IsPrmSpecified( item->GetColor( sub_idx ) ) )
                 {
-                    wxString colorName = item->GetColor( sub_idx );
+                    QString colorName = item->GetColor( sub_idx );
 
-                    if( colorName.StartsWith( wxT( "#" ) ) )    // This is a user defined color,
+                    if( colorName.startsWith( "#" ) )    // This is a user defined color,
                                                                 // not in standard color list.
                     {
                         // In job file a color can be given by its RGB values (0...255)
                         // like R<number><G<number>B<number> notation
-                        wxColor color( COLOR4D( colorName ).ToColour() );
-                        colorName.Printf( wxT( "R%dG%dB%d" ),
-                                          color.Red(),
-                                          color.Green(),
-                                          color.Blue() );
+                        QColor color( COLOR4D( colorName ).ToColour() );
+                        colorName = QString( "R%1G%2B%3" )
+                                          .arg( color.red() )
+                                          .arg( color.green() )
+                                          .arg( color.blue() );
                     }
                     else
                     {
@@ -717,26 +700,26 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
                 if( next_copper_layer/2 >= m_pcb->GetCopperLayerCount() )
                     next_copper_layer = B_Cu;
 
-                wxString subLayerName;
+                QString subLayerName;
 
                 if( sub_layer_count > 1 )
-                    subLayerName.Printf( wxT( " (%d/%d)" ), sub_idx + 1, sub_layer_count );
+                    subLayerName = QString( " (%1/%2)" ).arg( sub_idx + 1 ).arg( sub_layer_count );
 
-                wxString name = wxString::Format( wxT( "%s/%s%s" ),
-                                                  formatStringFromUTF32( m_pcb->GetLayerName( last_copper_layer ) ),
-                                                  formatStringFromUTF32( m_pcb->GetLayerName( next_copper_layer ) ),
-                                                  subLayerName );
+                QString name = QString( "%1/%2%3" )
+                                                  .arg( formatStringFromUTF32( m_pcb->GetLayerName( last_copper_layer ) ).c_str() )
+                                                  .arg( formatStringFromUTF32( m_pcb->GetLayerName( next_copper_layer ) ).c_str() )
+                                                  .arg( subLayerName );
 
                 layer_json["Name"] = name;
 
                 // Add a comment ("Notes"):
-                wxString note;
+                QString note;
 
-                note << wxString::Format( wxT( "Type: %s" ), layer_name.c_str() );
+                note += QString( "Type: %1" ).arg( layer_name.c_str() );
 
-                note << wxString::Format( wxT( " (from %s to %s)" ),
-                                          formatStringFromUTF32( m_pcb->GetLayerName( last_copper_layer ) ),
-                                          formatStringFromUTF32( m_pcb->GetLayerName( next_copper_layer ) ) );
+                note += QString( " (from %1 to %2)" )
+                                          .arg( formatStringFromUTF32( m_pcb->GetLayerName( last_copper_layer ) ).c_str() )
+                                          .arg( formatStringFromUTF32( m_pcb->GetLayerName( next_copper_layer ) ).c_str() );
 
                 layer_json["Notes"] = note;
             }

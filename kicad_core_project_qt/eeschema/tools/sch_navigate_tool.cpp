@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #include <schematic.h>
 #include <eeschema_id.h>
@@ -30,7 +9,7 @@
 #include "eda_doc.h"
 
 
-wxString SCH_NAVIGATE_TOOL::g_BackLink = wxT( "HYPERTEXT_BACK" );
+QString SCH_NAVIGATE_TOOL::g_BackLink = QStringLiteral( "HYPERTEXT_BACK" );
 
 
 void SCH_NAVIGATE_TOOL::ResetHistory()
@@ -44,13 +23,17 @@ void SCH_NAVIGATE_TOOL::ResetHistory()
 
 void SCH_NAVIGATE_TOOL::CleanHistory()
 {
-    wxCHECK( m_frame, /* void */ );
+    Q_ASSERT( m_frame );
+    if( !m_frame )
+        return;
 
     // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
     // SCH_SHEET_LIST sheets = m_frame->Schematic().Hierarchy();
     SCH_SHEET_LIST sheets;
 
-    wxCHECK( !sheets.empty(), /* void */ );
+    Q_ASSERT( !sheets.empty() );
+    if( sheets.empty() )
+        return;
 
     // Search through our history, and removing any entries
     // that the no longer point to a sheet on the schematic
@@ -78,17 +61,17 @@ void SCH_NAVIGATE_TOOL::CleanHistory()
 }
 
 
-void SCH_NAVIGATE_TOOL::HypertextCommand( const wxString& aHref )
+void SCH_NAVIGATE_TOOL::HypertextCommand( const QString& aHref )
 {
-    wxString destPage;
-    wxString href = ResolveUriByEnvVars( aHref, &m_frame->Prj() );
+    QString destPage;
+    QString href = ResolveUriByEnvVars( aHref, &m_frame->Prj() );
 
     if( href == SCH_NAVIGATE_TOOL::g_BackLink )
     {
         TOOL_EVENT dummy;
         Back( dummy );
     }
-    else if( EDA_TEXT::IsGotoPageHref( href, &destPage ) && !destPage.IsEmpty() )
+    else if( EDA_TEXT::IsGotoPageHref( href, &destPage ) && !destPage.isEmpty() )
     {
         // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
         // for( const SCH_SHEET_PATH& sheet : m_frame->Schematic().Hierarchy() )
@@ -102,15 +85,15 @@ void SCH_NAVIGATE_TOOL::HypertextCommand( const wxString& aHref )
         }
 
         // UNUSED_SYMBOL: ShowInfoBarError - Method call commented out as symbol is unused
-        // m_frame->ShowInfoBarError( wxString::Format( _( "Page '%s' not found." ), destPage ) );
+        // m_frame->ShowInfoBarError( QString::asprintf( _( "Page '%s' not found." ), destPage.toStdString().c_str() ) );
     }
     else
     {
-        wxMenu menu;
+        QMenu menu;
 
-        menu.Append( 1, wxString::Format( _( "Open %s" ), href ) );
+        menu.addAction( QString::asprintf( _( "Open %s" ), href.toStdString().c_str() ) );
 
-        if( m_frame->GetPopupMenuSelectionFromUser( menu ) == 1 )
+        if( m_frame->GetPopupMenuSelectionFromUser( menu ) )
         {
             // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
             // GetAssociatedDocument( m_frame, href, &m_frame->Prj(), nullptr, { &m_frame->Schematic() } );
@@ -144,7 +127,7 @@ int SCH_NAVIGATE_TOOL::Forward( const TOOL_EVENT& aEvent )
     }
     else
     {
-        wxBell();
+        QApplication::beep();
     }
 
     return 0;
@@ -167,7 +150,7 @@ int SCH_NAVIGATE_TOOL::Back( const TOOL_EVENT& aEvent )
     }
     else
     {
-        wxBell();
+        QApplication::beep();
     }
 
     return 0;
@@ -186,7 +169,7 @@ int SCH_NAVIGATE_TOOL::Previous( const TOOL_EVENT& aEvent )
     }
     else
     {
-        wxBell();
+        QApplication::beep();
     }
 
     return 0;
@@ -205,7 +188,7 @@ int SCH_NAVIGATE_TOOL::Next( const TOOL_EVENT& aEvent )
     }
     else
     {
-        wxBell();
+        QApplication::beep();
     }
 
     return 0;
@@ -257,7 +240,9 @@ bool SCH_NAVIGATE_TOOL::CanGoNext()
 int SCH_NAVIGATE_TOOL::ChangeSheet( const TOOL_EVENT& aEvent )
 {
     SCH_SHEET_PATH* path = aEvent.Parameter<SCH_SHEET_PATH*>();
-    wxCHECK( path, 0 );
+    Q_ASSERT( path );
+    if( !path )
+        return 0;
 
     changeSheet( *path );
 
@@ -301,7 +286,7 @@ int SCH_NAVIGATE_TOOL::LeaveSheet( const TOOL_EVENT& aEvent )
     }
     else
     {
-        wxBell();
+        QApplication::beep();
     }
 
     return 0;

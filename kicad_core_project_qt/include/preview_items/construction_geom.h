@@ -48,7 +48,7 @@ public:
 
     CONSTRUCTION_GEOM();
 
-    wxString GetClass() const override { return wxT( "CONSTRUCTION_GEOM" ); }
+    QString GetClass() const override { return QStringLiteral( "CONSTRUCTION_GEOM" ); }
 
     const BOX2I ViewBBox() const override;
 

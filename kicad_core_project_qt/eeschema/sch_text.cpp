@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2015 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <advanced_config.h>
 #include <base_units.h>
@@ -36,8 +12,8 @@
 #include <settings/color_settings.h>
 #include <sch_painter.h>
 #include <default_values.h>
-#include <wx/debug.h>
-#include <wx/log.h>
+#include <QtCore/QDebug>
+#include <QtCore/QLoggingCategory>
 // UNUSED_SYMBOL: HTML_MESSAGE_BOX - Header not needed since class is unused
 // #include <dialogs/html_message_box.h>
 #include <project/project_file.h>
@@ -48,7 +24,7 @@
 #include <trigo.h>
 
 
-SCH_TEXT::SCH_TEXT( const VECTOR2I& aPos, const wxString& aText, SCH_LAYER_ID aLayer,
+SCH_TEXT::SCH_TEXT( const VECTOR2I& aPos, const QString& aText, SCH_LAYER_ID aLayer,
                     KICAD_T aType ) :
         SCH_ITEM( nullptr, aType ),
         EDA_TEXT( schIUScale, aText )
@@ -326,7 +302,7 @@ void SCH_TEXT::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBody
 
     if( m_layer == LAYER_DEVICE )
     {
-        wxDC* DC = aSettings->GetPrintDC();
+        QPainter* DC = aSettings->GetPrintDC();
         int   penWidth = std::max( GetEffectiveTextPenWidth(), aSettings->GetDefaultPenWidth() );
 
         // Calculate the text orientation, according to the symbol orientation/mirror (needed when
@@ -404,8 +380,8 @@ const BOX2I SCH_TEXT::GetBoundingBox() const
 }
 
 
-wxString SCH_TEXT::GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
-                                 int aDepth ) const
+QString SCH_TEXT::GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
+                                int aDepth ) const
 {
     SCH_SHEET* sheet = nullptr;
 
@@ -414,8 +390,8 @@ wxString SCH_TEXT::GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraTe
     else if( SCHEMATIC* schematic = Schematic() )
         sheet = schematic->CurrentSheet().Last();
 
-    std::function<bool( wxString* )> textResolver =
-            [&]( wxString* token ) -> bool
+    std::function<bool( QString* )> textResolver =
+            [&]( QString* token ) -> bool
             {
                 if( SCH_SYMBOL* sch_symbol = dynamic_cast<SCH_SYMBOL*>( m_parent ) )
                 {
@@ -437,11 +413,11 @@ wxString SCH_TEXT::GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraTe
                 return false;
             };
 
-    wxString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
+    QString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
 
-    if( text == wxS( "~" ) ) // Legacy placeholder for empty string
+    if( text == QStringLiteral( "~" ) ) // Legacy placeholder for empty string
     {
-        text = wxS( "" );
+        text = QStringLiteral( "" );
     }
     else if( HasTextVars() )
     {
@@ -455,18 +431,18 @@ wxString SCH_TEXT::GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraTe
 
 void SCH_TEXT::DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const
 {
-    wxCHECK_MSG( IsHypertext(), /* void */,
-                 wxT( "Calling a hypertext menu on a SCH_TEXT with no hyperlink?" ) );
+    Q_ASSERT_X( IsHypertext(), "SCH_TEXT::DoHypertextAction",
+                "Calling a hypertext menu on a SCH_TEXT with no hyperlink?" );
 
     SCH_NAVIGATE_TOOL* navTool = aFrame->GetToolManager()->GetTool<SCH_NAVIGATE_TOOL>();
     navTool->HypertextCommand( m_hyperlink );
 }
 
 
-wxString SCH_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Graphic Text '%s'" ),
-                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
+    return QString::asprintf( _( "Graphic Text '%s'" ).toStdString().c_str(),
+                              (aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() )).toStdString().c_str() );
 }
 
 
@@ -609,18 +585,18 @@ void SCH_TEXT::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& a
         }
 
         std::vector<VECTOR2I> positions;
-        wxArrayString strings_list;
-        wxStringSplit( GetShownText( sheet, true ), strings_list, '\n' );
-        positions.reserve( strings_list.Count() );
+        QStringList strings_list;
+        strings_list = GetShownText( sheet, true ).split( '\n' );
+        positions.reserve( strings_list.count() );
 
-        GetLinePositions( renderSettings, positions, (int) strings_list.Count() );
+        GetLinePositions( renderSettings, positions, (int) strings_list.count() );
 
         attrs.m_Multiline = false;
 
-        for( unsigned ii = 0; ii < strings_list.Count(); ii++ )
+        for( int ii = 0; ii < strings_list.count(); ii++ )
         {
             VECTOR2I  textpos = positions[ii] + text_offset;
-            wxString& txt = strings_list.Item( ii );
+            QString& txt = strings_list[ii];
             aPlotter->PlotText( textpos, color, txt, attrs, font, GetFontMetrics() );
         }
 
@@ -632,7 +608,7 @@ void SCH_TEXT::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& a
 
 void SCH_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString msg;
+    QString msg;
 
     // Don't use GetShownText() here; we want to show the user the variable references
     aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
@@ -642,7 +618,7 @@ void SCH_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
 
     aList.emplace_back( _( "Font" ), GetFont() ? GetFont()->GetName() : _( "Default" ) );
 
-    wxString textStyle[] = { _( "Normal" ), _( "Italic" ), _( "Bold" ), _( "Bold Italic" ) };
+    QString textStyle[] = { _( "Normal" ), _( "Italic" ), _( "Bold" ), _( "Bold Italic" ) };
     int style = IsBold() && IsItalic() ? 3 : IsBold() ? 2 : IsItalic() ? 1 : 0;
     aList.emplace_back( _( "Style" ), textStyle[style] );
 
@@ -720,7 +696,7 @@ double SCH_TEXT::Similarity( const SCH_ITEM& aOther ) const
 
 int SCH_TEXT::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
 {
-    wxASSERT( aOther.Type() == SCH_TEXT_T );
+    Q_ASSERT( aOther.Type() == SCH_TEXT_T );
 
     int retv = SCH_ITEM::compare( aOther, aCompareFlags );
 
@@ -729,7 +705,7 @@ int SCH_TEXT::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
 
     const SCH_TEXT& tmp = static_cast<const SCH_TEXT&>( aOther );
 
-    int result = GetText().CmpNoCase( tmp.GetText() );
+    int result = GetText().compare( tmp.GetText(), Qt::CaseInsensitive );
 
     if( result != 0 )
         return result;
@@ -755,13 +731,13 @@ int SCH_TEXT::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
 void SCH_TEXT::Show( int nestLevel, std::ostream& os ) const
 {
     // XML output:
-    wxString s = GetClass();
+    QString s = GetClass();
 
-    NestedSpace( nestLevel, os ) << '<' << s.Lower().mb_str()
+    NestedSpace( nestLevel, os ) << '<' << s.toLower().toStdString().c_str()
                                  << " layer=\"" << m_layer << '"'
                                  << '>'
                                  << TO_UTF8( GetText() )
-                                 << "</" << s.Lower().mb_str() << ">\n";
+                                 << "</" << s.toLower().toStdString().c_str() << ">\n";
 }
 
 #endif

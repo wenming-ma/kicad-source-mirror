@@ -1,27 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-#include <wx/log.h>
+#include <QLoggingCategory>
+#include <QDebug>
 #include <eda_item.h>
 #include <layer_ids.h>
 #include <lset.h>
@@ -157,19 +136,19 @@ void PlotInteractiveLayer( BOARD* aBoard, PLOTTER* aPlotter, const PCB_PLOT_PARA
         if( fp->GetLayer() == B_Cu && !aPlotOpt.m_PDFBackFPPropertyPopups )
             continue;
 
-        std::vector<wxString> properties;
+        std::vector<QString> properties;
 
-        properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
-                                                   _( "Reference designator" ),
-                                                   fp->Reference().GetShownText( false ) ) );
+        properties.emplace_back( QString::asprintf( "!%s = %s",
+                                                    ( "Reference designator" ),
+                                                    fp->Reference().GetShownText( false ).toStdString().c_str() ) );
 
-        properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
-                                                   _( "Value" ),
-                                                   fp->Value().GetShownText( false ) ) );
+        properties.emplace_back( QString::asprintf( "!%s = %s",
+                                                    ( "Value" ),
+                                                    fp->Value().GetShownText( false ).toStdString().c_str() ) );
 
-        properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
-                                                   _( "Footprint" ),
-                                                   fp->GetFPID().GetUniStringLibItemName() ) );
+        properties.emplace_back( QString::asprintf( "!%s = %s",
+                                                    ( "Footprint" ),
+                                                    fp->GetFPID().GetUniStringLibItemName().toStdString().c_str() ) );
 
         for( const PCB_FIELD* field : fp->GetFields() )
         {
@@ -179,18 +158,18 @@ void PlotInteractiveLayer( BOARD* aBoard, PLOTTER* aPlotter, const PCB_PLOT_PARA
             if( field->GetText().IsEmpty() )
                 continue;
 
-            properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
-                                                       field->GetName(),
-                                                       field->GetText() ) );
+            properties.emplace_back( QString::asprintf( "!%s = %s",
+                                                        field->GetName().toStdString().c_str(),
+                                                        field->GetText().toStdString().c_str() ) );
         }
 
         // These 2 properties are not very useful in a plot file (like a PDF)
 #if 0
-        properties.emplace_back( wxString::Format( wxT( "!%s = %s" ), _( "Library Description" ),
-                                                   fp->GetLibDescription() ) );
+        properties.emplace_back( QString::asprintf( "!%s = %s", ( "Library Description" ),
+                                                    fp->GetLibDescription().toStdString().c_str() ) );
 
-        properties.emplace_back( wxString::Format( wxT( "!%s = %s" ), _( "Keywords" ),
-                                                   fp->GetKeywords() ) );
+        properties.emplace_back( QString::asprintf( "!%s = %s", ( "Keywords" ),
+                                                    fp->GetKeywords().toStdString().c_str() ) );
 #endif
         // Draw items are plotted with a position offset. So we need to move
         // our boxes (which are not plotted) by the same offset.
@@ -207,7 +186,7 @@ void PlotInteractiveLayer( BOARD* aBoard, PLOTTER* aPlotter, const PCB_PLOT_PARA
         bbox = fp->GetBoundingBox( true );
         bbox.Move( offset );
         bbox.Inflate( bbox.GetWidth() /2, bbox.GetHeight() /2 );
-        aPlotter->Bookmark( bbox, fp->GetReference(), _( "Footprints" ) );
+        aPlotter->Bookmark( bbox, fp->GetReference(), ( "Footprints" ) );
     }
 }
 
@@ -955,10 +934,10 @@ void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PCB_LAYER_ID aLa
                 if( !aText.IsVisible() )
                     return;
 
-                if( aText.GetText() == wxT( "${REFERENCE}" ) && !aPlotReferences )
+                if( aText.GetText() == "${REFERENCE}" && !aPlotReferences )
                     return;
 
-                if( aText.GetText() == wxT( "${VALUE}" ) && !aPlotValues )
+                if( aText.GetText() == "${VALUE}" && !aPlotValues )
                     return;
 
                 if( inflate != 0 )
@@ -1086,7 +1065,7 @@ void GenerateLayerPoly( SHAPE_POLY_SET* aResult, BOARD *aBoard, PCB_LAYER_ID aLa
  */
 static void initializePlotter( PLOTTER* aPlotter, const BOARD* aBoard, const PCB_PLOT_PARAMS* aPlotOpts )
 {
-    PAGE_INFO pageA4( wxT( "A4" ) );
+    PAGE_INFO pageA4( "A4" );
     const PAGE_INFO& pageInfo = aBoard->GetPageSettings();
     const PAGE_INFO* sheet_info;
     double paperscale; // Page-to-paper ratio
@@ -1161,7 +1140,7 @@ static void initializePlotter( PLOTTER* aPlotter, const BOARD* aBoard, const PCB
     // Has meaning only for SVG plotter. Must be called only after SetViewport
     aPlotter->SetSvgCoordinatesFormat( aPlotOpts->GetSvgPrecision() );
 
-    aPlotter->SetCreator( wxT( "PCBNEW" ) );
+    aPlotter->SetCreator( "PCBNEW" );
     aPlotter->SetColorMode( !aPlotOpts->GetBlackAndWhite() );        // default is plot in Black and White.
     aPlotter->SetTextMode( aPlotOpts->GetTextMode() );
 }
@@ -1206,12 +1185,13 @@ static void ConfigureHPGLPenSizes( HPGL_PLOTTER *aPlotter, const PCB_PLOT_PARAMS
  * @return the plotter object if OK, NULL if the file is not created (or has a problem).
  */
 PLOTTER* StartPlotBoard( BOARD *aBoard, const PCB_PLOT_PARAMS *aPlotOpts, int aLayer,
-                         const wxString& aLayerName, const wxString& aFullFileName,
-                         const wxString& aSheetName, const wxString& aSheetPath,
-                         const wxString& aPageName, const wxString& aPageNumber,
+                         const QString& aLayerName, const QString& aFullFileName,
+                         const QString& aSheetName, const QString& aSheetPath,
+                         const QString& aPageName, const QString& aPageNumber,
                          const int aPageCount )
 {
-    wxCHECK( aBoard && aPlotOpts, nullptr );
+    Q_ASSERT( aBoard && aPlotOpts );
+    if( !aBoard || !aPlotOpts ) return nullptr;
 
     // Create the plotter driver and set the few plotter specific options
     PLOTTER*    plotter = nullptr;
@@ -1252,9 +1232,9 @@ PLOTTER* StartPlotBoard( BOARD *aBoard, const PCB_PLOT_PARAMS *aPlotOpts, int aL
         // Gerber header, especially the TF.FileFunction and .FilePolarity data
         if( aLayer < PCBNEW_LAYER_ID_START || aLayer >= PCB_LAYER_ID_COUNT )
         {
-            wxLogError( wxString::Format(
+            qCritical() << QString::asprintf(
                         "Invalid board layer %d, cannot build a valid Gerber file header",
-                        aLayer ) );
+                        aLayer );
         }
 
         plotter = new GERBER_PLOTTER();
@@ -1265,7 +1245,7 @@ PLOTTER* StartPlotBoard( BOARD *aBoard, const PCB_PLOT_PARAMS *aPlotOpts, int aL
         break;
 
     default:
-        wxASSERT( false );
+        Q_ASSERT( false );
         return nullptr;
     }
 
@@ -1350,8 +1330,8 @@ PLOTTER* StartPlotBoard( BOARD *aBoard, const PCB_PLOT_PARAMS *aPlotOpts, int aL
 
 
 void setupPlotterNewPDFPage( PLOTTER* aPlotter, BOARD* aBoard, const PCB_PLOT_PARAMS* aPlotOpts,
-                             const wxString& aLayerName, const wxString& aSheetName,
-                             const wxString& aSheetPath, const wxString& aPageNumber,
+                             const QString& aLayerName, const QString& aSheetName,
+                             const QString& aSheetPath, const QString& aPageNumber,
                              int aPageCount )
 {
     aPlotter->RenderSettings()->SetLayerName( aLayerName );

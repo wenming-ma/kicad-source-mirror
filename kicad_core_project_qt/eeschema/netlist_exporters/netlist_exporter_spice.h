@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2013 jp.charras at wanadoo.fr
- * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef NETLIST_EXPORTER_SPICE_H
 #define NETLIST_EXPORTER_SPICE_H
@@ -33,7 +9,7 @@
 #include <sim/spice_generator.h>
 
 
-class wxWindow;
+class QWidget;
 
 
 class NAME_GENERATOR
@@ -72,13 +48,13 @@ public:
     /**
      * Write to specified output file.
      */
-    bool WriteNetlist( const wxString& aOutFileName, unsigned aNetlistOptions,
+    bool WriteNetlist( const QString& aOutFileName, unsigned aNetlistOptions,
                        REPORTER& aReporter ) override;
 
     /**
      * Write the netlist in aFormatter.
      */
-    bool DoWriteNetlist( const wxString& aSimCommand, unsigned aSimOptions,
+    bool DoWriteNetlist( const QString& aSimCommand, unsigned aSimOptions,
                          OUTPUTFORMATTER& aFormatter, REPORTER& aReporter );
 
     /**
@@ -102,12 +78,12 @@ public:
     /**
      * Remove formatting wrappers and replace illegal spice net name characters with underscores.
      */
-    static void ConvertToSpiceMarkup( wxString* aNetName );
+    static void ConvertToSpiceMarkup( QString* aNetName );
 
     /**
      * Return the list of nets.
      */
-    std::set<wxString> GetNets() const { return m_nets; }
+    std::set<QString> GetNets() const { return m_nets; }
 
     /**
      * Return name of Spice device corresponding to a schematic symbol.
@@ -118,7 +94,7 @@ public:
      * corresponds to the assigned device model type or a reference prefixed with a character
      * defining the device model type.
      */
-    wxString GetItemName( const wxString& aRefName ) const;
+    QString GetItemName( const QString& aRefName ) const;
 
     /**
      * Return the list of items representing schematic symbols in the Spice world.
@@ -128,16 +104,16 @@ public:
     /**
      * Find and return the item corresponding to \a aRefName.
      */
-    const SPICE_ITEM* FindItem( const wxString& aRefName ) const;
+    const SPICE_ITEM* FindItem( const QString& aRefName ) const;
 
-    const std::vector<wxString>& GetDirectives() { return m_directives; }
+    const std::vector<QString>& GetDirectives() { return m_directives; }
 
 protected:
     void ReadDirectives( unsigned aNetlistOptions );
-    virtual void WriteDirectives( const wxString& aSimCommand, unsigned aSimOptions,
+    virtual void WriteDirectives( const QString& aSimCommand, unsigned aSimOptions,
                                   OUTPUTFORMATTER& candidate ) const;
 
-    virtual wxString GenerateItemPinNetName( const wxString& aNetName, int& aNcCounter ) const;
+    virtual QString GenerateItemPinNetName( const QString& aNetName, int& aNcCounter ) const;
 
     /**
      * Return the paths of exported sheets (either all or the current one).
@@ -157,7 +133,7 @@ private:
     void readNodePattern( SPICE_ITEM& aItem );
 
     void writeInclude( OUTPUTFORMATTER& aFormatter, unsigned aNetlistOptions,
-                       const wxString& aPath );
+                       const QString& aPath );
 
     void writeIncludes( OUTPUTFORMATTER& aFormatter, unsigned aNetlistOptions );
     void writeModels( OUTPUTFORMATTER& aFormatter );
@@ -166,9 +142,9 @@ private:
     SIM_LIB_MGR             m_libMgr;             ///< Holds libraries and models
     NAME_GENERATOR          m_modelNameGenerator; ///< Generates unique model names
 
-    std::vector<wxString>   m_directives;         ///< Spice directives found in the schematic sheet
-    std::set<wxString>      m_rawIncludes;        ///< include directives found in symbols
-    std::set<wxString>      m_nets;
+    std::vector<QString>   m_directives;         ///< Spice directives found in the schematic sheet
+    std::set<QString>      m_rawIncludes;        ///< include directives found in symbols
+    std::set<QString>      m_nets;
 
     ///< Items representing schematic symbols in Spice world.
     std::list<SPICE_ITEM>   m_items;

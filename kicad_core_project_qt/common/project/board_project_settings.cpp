@@ -129,7 +129,7 @@ void PARAM_LAYER_PRESET::MigrateToV9Layers( nlohmann::json& aJson )
 
     for( const nlohmann::json& layer : aJson.at( "layers" ) )
     {
-        Q_ASSERT( layer.is_number_integer(), continue );
+        if( !layer.is_number_integer() ) continue;
         newLayers.emplace_back( BoardLayerFromLegacyId( layer.get<int>() ) );
     }
 
@@ -151,7 +151,7 @@ void PARAM_LAYER_PRESET::MigrateToNamedRenderLayers( nlohmann::json& aJson )
 
     for( const nlohmann::json& layer : aJson.at( "renderLayers" ) )
     {
-        Q_ASSERT( layer.is_number_integer(), continue );
+        if( !layer.is_number_integer() ) continue;
         GAL_LAYER_ID layerId = GAL_LAYER_ID_START + ( layer.get<int>() - V8_GAL_LAYER_ID_START );
 
         if( std::optional<VISIBILITY_LAYER> vl = VisibilityLayerFromRenderLayer( layerId ) )
@@ -399,3 +399,5 @@ void PARAM_LAYER_PAIRS::jsonToLayerPairs( const nlohmann::json& aJson )
         }
     }
 }
+
+// Qt transformation completed - wxWidgets dependencies removed

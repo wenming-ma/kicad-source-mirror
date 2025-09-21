@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 /**
  * @file sch_sheet_path.h
@@ -35,7 +11,7 @@
 #include <optional>
 
 #include <kiid.h>
-#include <wx/string.h>
+#include <QString>
 
 /**
  * A simple container for schematic symbol instance information.
@@ -45,16 +21,16 @@ struct SCH_SYMBOL_INSTANCE
     KIID_PATH m_Path;
 
     // Things that can be annotated:
-    wxString  m_Reference;
+    QString  m_Reference;
     int       m_Unit = 1;
 
     // Do not use.  This is left over from the dubious decision to instantiate symbol value
     // and footprint fields.
-    wxString  m_Value;
-    wxString  m_Footprint;
+    QString  m_Value;
+    QString  m_Footprint;
 
     // The project name associated with this instance.
-    wxString  m_ProjectName;
+    QString  m_ProjectName;
 };
 
 
@@ -65,10 +41,10 @@ struct SCH_SHEET_INSTANCE
 {
     KIID_PATH m_Path;
 
-    wxString  m_PageNumber;
+    QString  m_PageNumber;
 
     // The project name associated with this instance.
-    wxString  m_ProjectName;
+    QString  m_ProjectName;
 };
 
 
@@ -118,7 +94,7 @@ class SCH_REFERENCE_LIST;
 /**
  * Container to map reference designators for multi-unit parts.
  */
-typedef std::map<wxString, SCH_REFERENCE_LIST> SCH_MULTI_UNIT_REFERENCE_MAP;
+typedef std::map<QString, SCH_REFERENCE_LIST> SCH_MULTI_UNIT_REFERENCE_MAP;
 
 /**
  * Handle access to a stack of flattened #SCH_SHEET objects by way of a path for
@@ -199,9 +175,9 @@ public:
      *
      * @note User definable page numbers can be any string devoid of white space characters.
      */
-    void SetPageNumber( const wxString& aPageNumber );
+    void SetPageNumber( const QString& aPageNumber );
 
-    wxString GetPageNumber() const;
+    QString GetPageNumber() const;
 
     const SCH_SHEET* GetSheet( unsigned aIndex ) const
     {
@@ -226,7 +202,7 @@ public:
     int Cmp( const SCH_SHEET_PATH& aSheetPathToTest ) const;
 
     void CachePageNumber() const { m_cached_page_number = GetPageNumber(); }
-    wxString GetCachedPageNumber() const { return m_cached_page_number; }
+    QString GetCachedPageNumber() const { return m_cached_page_number; }
 
     /**
      * Compare sheets by their page number. If the actual page number is equal, use virtual page
@@ -277,7 +253,7 @@ public:
      *
      * A path is something like / (root) or /34005677 or /34005677/00AE4523.
      */
-    wxString PathAsString() const;
+    QString PathAsString() const;
 
     /**
      * Get the sheet path as an #KIID_PATH.
@@ -292,7 +268,7 @@ public:
      * The "normal" path instead uses the #KIID objects in the path that do not change
      * even when editing sheet parameters.
      */
-    wxString PathHumanReadable( bool aUseShortRootName = true,
+    QString PathHumanReadable( bool aUseShortRootName = true,
                                 bool aStripTrailingSeparator = false ) const;
 
     /**
@@ -363,7 +339,7 @@ public:
      * @param aDestFileName is the file name of the destination sheet for \a aSrcFileName.
      * @return true if \a aFileName will cause recursion in the sheet path.  Otherwise false.
      */
-    bool TestForRecursion( const wxString& aSrcFileName, const wxString& aDestFileName );
+    bool TestForRecursion( const QString& aSrcFileName, const QString& aDestFileName );
 
     /**
      * Make the sheet file name relative to its parent sheet.
@@ -401,11 +377,11 @@ public:
      * @param aProjectName is the name of the project for the new symbol instance data.
      */
     void AddNewSymbolInstances( const SCH_SHEET_PATH& aPrefixSheetPath,
-                                const wxString& aProjectName );
+                                const QString& aProjectName );
 
     void RemoveSymbolInstances( const SCH_SHEET_PATH& aPrefixSheetPath );
 
-    void CheckForMissingSymbolInstances( const wxString& aProjectName );
+    void CheckForMissingSymbolInstances( const QString& aProjectName );
 
     bool operator==( const SCH_SHEET_PATH& d1 ) const;
 
@@ -420,11 +396,11 @@ protected:
     std::vector<SCH_SHEET*> m_sheets;
 
     size_t                  m_current_hash;
-    mutable wxString        m_cached_page_number;
+    mutable QString        m_cached_page_number;
 
     int m_virtualPageNumber;           ///< Page numbers are maintained by the sheet load order.
 
-    std::map<std::pair<wxString, wxString>, bool> m_recursion_test_cache;
+    std::map<std::pair<QString, QString>, bool> m_recursion_test_cache;
 };
 
 
@@ -571,7 +547,7 @@ public:
      * @return true if \a aFileName will cause recursion in the sheet path.  Otherwise false.
      */
     bool TestForRecursion( const SCH_SHEET_LIST& aSrcSheetHierarchy,
-                           const wxString& aDestFileName );
+                           const QString& aDestFileName );
 
     /**
      * Return a pointer to the first #SCH_SHEET_PATH object (not necessarily the only one)
@@ -624,16 +600,16 @@ public:
      */
     void SortByHierarchicalPageNumbers( bool aUpdateVirtualPageNums = true );
 
-    bool NameExists( const wxString& aSheetName ) const;
+    bool NameExists( const QString& aSheetName ) const;
 
-    bool PageNumberExists( const wxString& aPageNumber ) const;
+    bool PageNumberExists( const QString& aPageNumber ) const;
 
     /**
      * Truncates the list by removing sheet's with page numbers not in the given list
      *
      * @param aPageInclusions List of Page Numbers (non-virtual) to keep
      */
-    void TrimToPageNumbers( const std::vector<wxString>& aPageInclusions );
+    void TrimToPageNumbers( const std::vector<QString>& aPageInclusions );
 
     /**
      * Update all of the symbol instance information using \a aSymbolInstances.
@@ -688,7 +664,7 @@ public:
      * @param aProjectName is the name of the project for the new symbol instance data.
      */
     void AddNewSymbolInstances( const SCH_SHEET_PATH& aPrefixSheetPath,
-                                const wxString& aProjectName );
+                                const QString& aProjectName );
 
     void AddNewSheetInstances( const SCH_SHEET_PATH& aPrefixSheetPath,
                                int aLastVirtualPageNumber );
@@ -697,7 +673,7 @@ public:
 
     void RemoveSymbolInstances( const SCH_SHEET_PATH& aPrefixSheetPath );
 
-    void CheckForMissingSymbolInstances( const wxString& aProjectName );
+    void CheckForMissingSymbolInstances( const QString& aProjectName );
 
     bool HasPath( const KIID_PATH& aPath ) const;
 

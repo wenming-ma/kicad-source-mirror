@@ -1,33 +1,10 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef DXF2BRD_ITEMS_H
 #define DXF2BRD_ITEMS_H
 
 #include "graphics_import_plugin.h"
 #include "graphics_importer_buffer.h"
-#include "wx/translation.h"
+#include <QString>
 
 #include <dl_creationadapter.h>
 #include <dl_dxf.h>
@@ -123,10 +100,10 @@ public:
 class DXF_IMPORT_LAYER
 {
 public:
-    wxString m_layerName;
+    QString m_layerName;
     int      m_lineWeight;
 
-    DXF_IMPORT_LAYER( const wxString& aName, int aLineWeight )
+    DXF_IMPORT_LAYER( const QString& aName, int aLineWeight )
     {
         m_layerName  = aName;
         m_lineWeight = aLineWeight;
@@ -139,12 +116,12 @@ public:
 class DXF_IMPORT_BLOCK
 {
 public:
-    wxString m_name;
+    QString m_name;
     double m_baseX, m_baseY;
 
     GRAPHICS_IMPORTER_BUFFER m_buffer;
 
-    DXF_IMPORT_BLOCK( const wxString& aName, double aX, double aY )
+    DXF_IMPORT_BLOCK( const QString& aName, double aX, double aY )
     {
         m_name = aName;
         m_baseX = aX;
@@ -158,13 +135,13 @@ public:
 class DXF_IMPORT_STYLE
 {
 public:
-    wxString m_name;
+    QString m_name;
     double m_textHeight;
     double m_widthFactor;
     bool m_bold;
     bool m_italic;
 
-    DXF_IMPORT_STYLE( const wxString& aName, double aTextHeight, double aWidthFactor, bool aBold,
+    DXF_IMPORT_STYLE( const QString& aName, double aTextHeight, double aWidthFactor, bool aBold,
                       bool aItalic )
     {
         m_name = aName;
@@ -207,8 +184,7 @@ enum class DXF_IMPORT_UNITS
  * This class import DXF ASCII files and convert basic entities to board entities.
  * It depends on the dxflib library.
  */
-#define ON_UNSUPPORTED( error_msg ) reportMessage( wxString::Format( _( "%s is not supported." ), \
-                                                                     error_msg ) )
+#define ON_UNSUPPORTED( error_msg ) reportMessage( QString("%1 is not supported.").arg( error_msg ) )
 
 class DXF_IMPORT_PLUGIN : public GRAPHICS_IMPORT_PLUGIN, public DL_CreationAdapter
 {
@@ -216,7 +192,7 @@ public:
     DXF_IMPORT_PLUGIN();
     ~DXF_IMPORT_PLUGIN();
 
-    const wxString GetName() const override
+    const QString GetName() const override
     {
         return "AutoCAD DXF";
     }
@@ -227,8 +203,8 @@ public:
         return exts;
     }
 
-    bool Load( const wxString& aFileName ) override;
-    bool LoadFromMemory( const wxMemoryBuffer& aMemBuffer ) override;
+    bool Load( const QString& aFileName ) override;
+    bool LoadFromMemory( const QByteArray& aMemBuffer ) override;
     bool Import() override;
 
     double GetImageWidth() const override;
@@ -304,24 +280,24 @@ public:
      *
      * @param aFile is the full filename.
      */
-    bool ImportDxfFile( const wxString& aFile );
+    bool ImportDxfFile( const QString& aFile );
 
     /**
      * Implementation of the method used for communicate with this filter.
      *
      * @param aMemBuffer is the memory bufferr.
      */
-    bool ImportDxfFile( const wxMemoryBuffer& aMemBuffer );
+    bool ImportDxfFile( const QByteArray& aMemBuffer );
 
     /**
      * @return the list of messages in one string. Each message ends by '\n'
      */
-    const wxString& GetMessages() const override
+    const QString& GetMessages() const override
     {
         return m_messages;
     }
     // report message to keep trace of not supported dxf entities:
-    void ReportMsg( const wxString& aMessage ) override;
+    void ReportMsg( const QString& aMessage ) override;
 
 private:
 
@@ -457,63 +433,63 @@ private:
     // Not yet handled DXF entities:
     virtual void addXLine( const DL_XLineData& ) override
     {
-        ReportMsg( _( "DXF construction lines not currently supported." ) );
+        ReportMsg( "DXF construction lines not currently supported." );
     }
 
     virtual void addRay( const DL_RayData& ) override
     {
-        ReportMsg( _( "DXF construction lines not currently supported." ) );
+        ReportMsg( "DXF construction lines not currently supported." );
     }
 
     virtual void addArcAlignedText( const DL_ArcAlignedTextData& ) override
     {
-        ReportMsg( _( "DXF arc-aligned text not currently supported." ) );
+        ReportMsg( "DXF arc-aligned text not currently supported." );
     }
 
     virtual void addDimAlign( const DL_DimensionData&, const DL_DimAlignedData& ) override
     {
-        ReportMsg( _( "DXF dimensions not currently supported." ) );
+        ReportMsg( "DXF dimensions not currently supported." );
     }
 
     virtual void addDimLinear( const DL_DimensionData&, const DL_DimLinearData& ) override
     {
-        ReportMsg( _( "DXF dimensions not currently supported." ) );
+        ReportMsg( "DXF dimensions not currently supported." );
     }
 
     virtual void addDimRadial( const DL_DimensionData&, const DL_DimRadialData& ) override
     {
-        ReportMsg( _( "DXF dimensions not currently supported." ) );
+        ReportMsg( "DXF dimensions not currently supported." );
     }
 
     virtual void addDimDiametric( const DL_DimensionData&, const DL_DimDiametricData& ) override
     {
-        ReportMsg( _( "DXF dimensions not currently supported." ) );
+        ReportMsg( "DXF dimensions not currently supported." );
     }
 
     virtual void addDimAngular( const DL_DimensionData&, const DL_DimAngular2LData& ) override
     {
-        ReportMsg( _( "DXF dimensions not currently supported." ) );
+        ReportMsg( "DXF dimensions not currently supported." );
     }
 
     virtual void addDimAngular3P( const DL_DimensionData&, const DL_DimAngular3PData& ) override
     {
-        ReportMsg( _( "DXF dimensions not currently supported." ) );
+        ReportMsg( "DXF dimensions not currently supported." );
     }
 
     virtual void addDimOrdinate( const DL_DimensionData&, const DL_DimOrdinateData& ) override
     {
-        ReportMsg( _( "DXF dimensions not currently supported." ) );
+        ReportMsg( "DXF dimensions not currently supported." );
     }
 
     virtual void addLeader( const DL_LeaderData& ) override
     {
-        ReportMsg( _( "DXF dimensions not currently supported." ) );
+        ReportMsg( "DXF dimensions not currently supported." );
     }
     virtual void addLeaderVertex( const DL_LeaderVertexData& ) override { }
 
     virtual void addHatch( const DL_HatchData& ) override
     {
-        ReportMsg( _( "DXF hatches not currently supported." ) );
+        ReportMsg( "DXF hatches not currently supported." );
     }
 
     virtual void addHatchLoop( const DL_HatchLoopData& ) override { }
@@ -521,22 +497,22 @@ private:
 
     virtual void addTrace( const DL_TraceData& ) override
     {
-        ReportMsg( _( "DXF traces not currently supported." ) );
+        ReportMsg( "DXF traces not currently supported." );
     }
 
     virtual void add3dFace( const DL_3dFaceData& ) override
     {
-        ReportMsg( _( "DXF 3dfaces not currently supported." ) );
+        ReportMsg( "DXF 3dfaces not currently supported." );
     }
 
     virtual void addSolid( const DL_SolidData& ) override
     {
-        ReportMsg( _( "DXF solids not currently supported." ) );
+        ReportMsg( "DXF solids not currently supported." );
     }
 
     virtual void addImage( const DL_ImageData& ) override
     {
-        ReportMsg( _( "DXF images not currently supported." ) );
+        ReportMsg( "DXF images not currently supported." );
     }
     virtual void linkImage( const DL_ImageDefData& ) override {}
 
@@ -560,12 +536,12 @@ private:
      * - %%%d for a degree sign
      * - %%%p for a plus/minus sign
      */
-    static wxString toDxfString( const wxString& aStr );
+    static QString toDxfString( const QString& aStr );
 
     /**
      * Convert a DXF encoded string into a native Unicode string.
      */
-    static wxString toNativeString( const wxString& aData );
+    static QString toNativeString( const QString& aData );
 
     void writeLine();
     void writeMtext();
@@ -579,7 +555,7 @@ private:
     std::string m_codePage;          // The code page, not used here
     bool        m_importAsFPShapes;  // Use footprint items instead of board items when true.
                                      // true when the items are imported in the footprint editor
-    wxString    m_messages;          // messages generated during dxf file parsing.
+    QString    m_messages;          // messages generated during dxf file parsing.
                                      // Each message ends by '\n'
     DXF2BRD_ENTITY_DATA m_curr_entity;  // the current entity parameters when parsing a DXF entity
 

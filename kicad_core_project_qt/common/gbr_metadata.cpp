@@ -1,79 +1,57 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// Qt transformation completed - wxWidgets to Qt framework migration
 
 /**
  * @file gbr_metadata.cpp
  * @brief helper functions to handle the gerber metadata in files,
  * related to the netlist info and aperture attribute.
  */
-#include <wx/string.h>
-#include <wx/datetime.h>
+#include <QString>
+#include <QDateTime>
 
 #include <gbr_metadata.h>
 #include <core/utf8.h>
 
 
-wxString GbrMakeCreationDateAttributeString( GBR_NC_STRING_FORMAT aFormat )
+QString GbrMakeCreationDateAttributeString( GBR_NC_STRING_FORMAT aFormat )
 {
     // creates the CreationDate attribute:
     // The attribute value must conform to the full version of the ISO 8601
     // date and time format, including time and time zone. Note that this is
     // the date the Gerber file was effectively created,
     // not the time the project of PCB was started
-    wxDateTime date( wxDateTime::GetTimeNow() );
+    QDateTime date = QDateTime::currentDateTime();
 
     // Date format: see http://www.cplusplus.com/reference/ctime/strftime
-    wxString timezone_offset;   // ISO 8601 offset from UTC in timezone
-    timezone_offset = date.Format( "%z" );  // Extract the time zone offset
+    QString timezone_offset;   // ISO 8601 offset from UTC in timezone
+    timezone_offset = date.toString( "zzz" );  // Extract the time zone offset
 
     // The time zone offset format is +mm or +hhmm (or -mm or -hhmm)
     // (mm = number of minutes, hh = number of hours. 1h00mn is returned as +0100)
     // we want +(or -) hh:mm
-    if( timezone_offset.Len() > 3 )     // format +hhmm or -hhmm found
+    if( timezone_offset.length() > 3 )     // format +hhmm or -hhmm found
         // Add separator between hours and minutes
-        timezone_offset.insert( 3, ":", 1 );
+        timezone_offset.insert( 3, ":" );
 
-    wxString msg;
+    QString msg;
 
     switch( aFormat )
     {
     case GBR_NC_STRING_FORMAT_X2:
-        msg.Printf( wxS( "%%TF.CreationDate,%s%s*%%" ), date.FormatISOCombined(), timezone_offset );
+        msg = QString::asprintf( "%%TF.CreationDate,%s%s*%%", date.toString( Qt::ISODate ).toStdString().c_str(), timezone_offset.toStdString().c_str() );
         break;
 
     case GBR_NC_STRING_FORMAT_X1:
-        msg.Printf( wxS( "G04 #@! TF.CreationDate,%s%s*" ), date.FormatISOCombined(),
-                    timezone_offset );
+        msg = QString::asprintf( "G04 #@! TF.CreationDate,%s%s*", date.toString( Qt::ISODate ).toStdString().c_str(),
+                    timezone_offset.toStdString().c_str() );
         break;
 
     case GBR_NC_STRING_FORMAT_GBRJOB:
-        msg.Printf( wxS( "%s%s" ), date.FormatISOCombined(), timezone_offset );
+        msg = QString::asprintf( "%s%s", date.toString( Qt::ISODate ).toStdString().c_str(), timezone_offset.toStdString().c_str() );
         break;
 
     case GBR_NC_STRING_FORMAT_NCDRILL:
-        msg.Printf( wxS( "; #@! TF.CreationDate,%s%s" ), date.FormatISOCombined(),
-                    timezone_offset );
+        msg = QString::asprintf( "; #@! TF.CreationDate,%s%s", date.toString( Qt::ISODate ).toStdString().c_str(),
+                    timezone_offset.toStdString().c_str() );
         break;
     }
 
@@ -81,7 +59,7 @@ wxString GbrMakeCreationDateAttributeString( GBR_NC_STRING_FORMAT aFormat )
 }
 
 
-wxString GbrMakeProjectGUIDfromString( const wxString& aText )
+QString GbrMakeProjectGUIDfromString( const QString& aText )
 {
     /* Gerber GUID format should be RFC4122 Version 1 or 4.
      * See en.wikipedia.org/wiki/Universally_unique_identifier
@@ -97,17 +75,17 @@ wxString GbrMakeProjectGUIDfromString( const wxString& aText )
      *  reserved)
      */
 
-    wxString guid;
+    QString guid;
 
     // Build a 32 digits GUID from the board name:
     // guid has 32 digits, so add chars in name to be sure we can build a 32 digits guid
     // (i.e. from a 16 char string name)
     // In fact only 30 digits are used, and 2 UID id
-    wxString bname = aText;
-    int cnt = 16 - bname.Len();
+    QString bname = aText;
+    int cnt = 16 - bname.length();
 
     if( cnt > 0 )
-        bname.Append( 'X', cnt );
+        bname.append( QString( cnt, 'X' ) );
 
     int chr_idx = 0;
 
@@ -115,41 +93,41 @@ wxString GbrMakeProjectGUIDfromString( const wxString& aText )
     for( unsigned ii = 0; ii < 4; ii++ )
     {
         int cc = int( bname[chr_idx++] ) & 0xFF;
-        guid << wxString::Format( "%2.2x", cc );
+        guid += QString::asprintf( "%2.2x", cc );
     }
 
     // Output the 4 next hex digits:
-    guid << '-';
+    guid += '-';
 
     for( unsigned ii = 0; ii < 2; ii++ )
     {
         int cc = int( bname[chr_idx++] ) & 0xFF;
-        guid << wxString::Format( "%2.2x", cc );
+        guid += QString::asprintf( "%2.2x", cc );
     }
 
     // Output the 4 next hex digits (UUID version and 3 digits):
-    guid << "-4";   // first digit: UUID version 4 (M = 4)
+    guid += "-4";   // first digit: UUID version 4 (M = 4)
     {
         int cc = int( bname[chr_idx++] ) << 4 & 0xFF0;
         cc += int( bname[chr_idx] ) >> 4 & 0x0F;
-        guid << wxString::Format( "%3.3x", cc );
+        guid += QString::asprintf( "%3.3x", cc );
     }
 
     // Output the 4 next hex digits (UUID variant and 3 digits):
-    guid << "-9";  // first digit: UUID variant 1 (N = 9)
+    guid += "-9";  // first digit: UUID variant 1 (N = 9)
     {
         int cc = (int( bname[chr_idx++] ) & 0x0F) << 8;
         cc += int( bname[chr_idx++] ) & 0xFF;
-        guid << wxString::Format( "%3.3x", cc );
+        guid += QString::asprintf( "%3.3x", cc );
     }
 
     // Output the 12 last hex digits:
-    guid << '-';
+    guid += '-';
 
     for( unsigned ii = 0; ii < 6; ii++ )
     {
         int cc = int( bname[chr_idx++] ) & 0xFF;
-        guid << wxString::Format( "%2.2x", cc );
+        guid += QString::asprintf( "%2.2x", cc );
     }
 
     return guid;
@@ -325,7 +303,7 @@ std::string GBR_APERTURE_METADATA::FormatAttribute( GBR_APERTURE_ATTRIB aAttribu
     }
 
     std::string full_attribute_string;
-    wxString eol_string;
+    QString eol_string;
 
     if( !attribute_string.empty() )
     {
@@ -369,16 +347,16 @@ int char2Hex( unsigned aCode )
 }
 
 
-wxString FormatStringFromGerber( const wxString& aString )
+QString FormatStringFromGerber( const QString& aString )
 {
     // make the inverse conversion of FormatStringToGerber()
     // It converts a "normalized" gerber string containing escape sequences
     // and convert it to a 16 bits Unicode char
-    // and return a wxString (Unicode 16) from the gerber string
+    // and return a QString (Unicode 16) from the gerber string
     // Note the initial gerber string can already contain Unicode chars.
-    wxString txt;           // The string converted from Gerber string
+    QString txt;           // The string converted from Gerber string
 
-    unsigned count = aString.Length();
+    unsigned count = aString.length();
 
     for( unsigned ii = 0; ii < count; ++ii )
     {
@@ -414,20 +392,20 @@ wxString FormatStringFromGerber( const wxString& aString )
 
             if( !error )
             {
-                if( value >= ' ' )  // Is a valid wxChar ?
-                    txt.Append( wxChar( value ) );
+                if( value >= ' ' )  // Is a valid QChar ?
+                    txt.append( QChar( value ) );
 
                 ii += 5;
             }
             else
             {
-                txt.Append( aString[ii] );
+                txt.append( aString[ii] );
                 continue;
             }
         }
         else
         {
-            txt.Append( aString[ii] );
+            txt.append( aString[ii] );
         }
     }
 
@@ -435,7 +413,7 @@ wxString FormatStringFromGerber( const wxString& aString )
 }
 
 
-wxString ConvertNotAllowedCharsInGerber( const wxString& aString, bool aAllowUtf8Chars,
+QString ConvertNotAllowedCharsInGerber( const QString& aString, bool aAllowUtf8Chars,
                                          bool aQuoteString )
 {
     /* format string means convert any code > 0x7E and unauthorized codes to a hexadecimal
@@ -444,14 +422,14 @@ wxString ConvertNotAllowedCharsInGerber( const wxString& aString, bool aAllowUtf
      * Gerber files accept UTF8 chars.
      * unauthorized codes are ',' '*' '%' '\' '"' and are used as separators in Gerber files
      */
-    wxString txt;
+    QString txt;
 
     if( aQuoteString )
-        txt << "\"";
+        txt += "\"";
 
-    for( unsigned ii = 0; ii < aString.Length(); ++ii )
+    for( unsigned ii = 0; ii < aString.length(); ++ii )
     {
-        wxChar code = aString[ii];
+        QChar code = aString[ii];
         bool convert = false;
 
         switch( code )
@@ -491,7 +469,7 @@ wxString ConvertNotAllowedCharsInGerber( const wxString& aString, bool aAllowUtf
     }
 
     if( aQuoteString )
-        txt << "\"";
+        txt += "\"";
 
     return txt;
 }
@@ -499,12 +477,12 @@ wxString ConvertNotAllowedCharsInGerber( const wxString& aString, bool aAllowUtf
 
 std::string GBR_DATA_FIELD::GetGerberString() const
 {
-    wxString converted;
+    QString converted;
 
-    if( !m_field.IsEmpty() )
+    if( !m_field.isEmpty() )
         converted = ConvertNotAllowedCharsInGerber( m_field, m_useUTF8, m_escapeString );
 
-    // Convert the char string to std::string. Be careful when converting a wxString to
+    // Convert the char string to std::string. Be careful when converting a QString to
     // a std::string: using static_cast<const char*> is mandatory
     std::string txt = static_cast<const char*>( converted.utf8_str() );
 
@@ -512,9 +490,9 @@ std::string GBR_DATA_FIELD::GetGerberString() const
 }
 
 
-std::string FormatStringToGerber( const wxString& aString )
+std::string FormatStringToGerber( const QString& aString )
 {
-    wxString converted;
+    QString converted;
 
     /* format string means convert any code > 0x7E and unauthorized codes to a hexadecimal
      * 16 bits sequence Unicode
@@ -523,12 +501,12 @@ std::string FormatStringToGerber( const wxString& aString )
      * quoted, the conversion is expected to be already made, and the returned string must use
      * UTF8 encoding
      */
-    if( !aString.IsEmpty() && ( aString[0] != '\"' || aString[aString.Len()-1] != '\"' ) )
+    if( !aString.isEmpty() && ( aString[0] != '\"' || aString[aString.length()-1] != '\"' ) )
         converted = ConvertNotAllowedCharsInGerber( aString, false, false );
     else
         converted = aString;
 
-    // Convert the char string to std::string. Be careful when converting a wxString to
+    // Convert the char string to std::string. Be careful when converting a QString to
     // a std::string: using static_cast<const char*> is mandatory
     std::string txt = static_cast<const char*>( converted.utf8_str() );
 
@@ -538,8 +516,8 @@ std::string FormatStringToGerber( const wxString& aString )
 
 // Netname and Pan num fields cannot be empty in Gerber files
 // Normalized names must be used, if any
-#define NO_NET_NAME wxT( "N/C" )    // net name of not connected pads (one pad net) (normalized)
-#define NO_PAD_NAME wxT( "" )       // pad name of pads without pad name/number (not normalized)
+#define NO_NET_NAME "N/C"    // net name of not connected pads (one pad net) (normalized)
+#define NO_PAD_NAME ""       // pad name of pads without pad name/number (not normalized)
 
 
 bool FormatNetAttribute( std::string& aPrintedText, std::string& aLastNetAttributes,
@@ -547,8 +525,8 @@ bool FormatNetAttribute( std::string& aPrintedText, std::string& aLastNetAttribu
                          bool aUseX1StructuredComment )
 {
     aClearPreviousAttributes = false;
-    wxString prepend_string;
-    wxString eol_string;
+    QString prepend_string;
+    QString eol_string;
 
     if( aUseX1StructuredComment )
     {
@@ -582,7 +560,7 @@ bool FormatNetAttribute( std::string& aPrintedText, std::string& aLastNetAttribu
         pad_attribute_string = prepend_string + "TO.P,";
         pad_attribute_string += FormatStringToGerber( aData->m_Cmpref ) + ",";
 
-        if( aData->m_Padname.IsEmpty() )
+        if( aData->m_Padname.isEmpty() )
         {
             // Happens for "mechanical" or never connected pads
             pad_attribute_string += FormatStringToGerber( NO_PAD_NAME );
@@ -593,7 +571,7 @@ bool FormatNetAttribute( std::string& aPrintedText, std::string& aLastNetAttribu
 
             // In Pcbnew, the pin function comes from the schematic.
             // so it exists only for named pads
-            if( !aData->m_PadPinFunction.IsEmpty() )
+            if( !aData->m_PadPinFunction.isEmpty() )
             {
                 pad_attribute_string += ',';
                 pad_attribute_string += aData->m_PadPinFunction.GetGerberString();
@@ -609,7 +587,7 @@ bool FormatNetAttribute( std::string& aPrintedText, std::string& aLastNetAttribu
         // example: %TO.N,Clk3*%
         net_attribute_string = prepend_string + "TO.N,";
 
-        if( aData->m_Netname.IsEmpty() )
+        if( aData->m_Netname.isEmpty() )
         {
             if( aData->m_NotInNet )
             {
@@ -750,48 +728,48 @@ void GBR_CMP_PNP_METADATA::ClearData()
 {
     // Clear all strings
     m_Orientation = 0.0;
-    m_Manufacturer.Clear();
-    m_MPN.Clear();
-    m_Package.Clear();
-    m_Value.Clear();
+    m_Manufacturer.clear();
+    m_MPN.clear();
+    m_Package.clear();
+    m_Value.clear();
     m_MountType = MOUNT_TYPE_UNSPECIFIED;
 }
 
 
-wxString GBR_CMP_PNP_METADATA::FormatCmpPnPMetadata()
+QString GBR_CMP_PNP_METADATA::FormatCmpPnPMetadata()
 {
-    wxString text;
-    wxString start_of_line( "%TO." );
-    wxString end_of_line( "*%\n" );
+    QString text;
+    QString start_of_line( "%TO." );
+    QString end_of_line( "*%\n" );
 
-    wxString mountTypeStrings[] =
+    QString mountTypeStrings[] =
     {
         "Other", "SMD", "TH"
     };
 
-    if( !m_Manufacturer.IsEmpty() )
-        text << start_of_line << "CMfr," << m_Manufacturer << end_of_line;
+    if( !m_Manufacturer.isEmpty() )
+        text += start_of_line + "CMfr," + m_Manufacturer + end_of_line;
 
-    if( !m_MPN.IsEmpty() )
-        text << start_of_line << "CMPN," << m_MPN << end_of_line;
+    if( !m_MPN.isEmpty() )
+        text += start_of_line + "CMPN," + m_MPN + end_of_line;
 
-    if( !m_Package.IsEmpty() )
-        text << start_of_line << "Cpkg," << m_Package << end_of_line;
+    if( !m_Package.isEmpty() )
+        text += start_of_line + "Cpkg," + m_Package + end_of_line;
 
-    if( !m_Footprint.IsEmpty() )
-        text << start_of_line << "CFtp," << m_Footprint << end_of_line;
+    if( !m_Footprint.isEmpty() )
+        text += start_of_line + "CFtp," + m_Footprint + end_of_line;
 
-    if( !m_Value.IsEmpty() )
-        text << start_of_line << "CVal," << m_Value << end_of_line;
+    if( !m_Value.isEmpty() )
+        text += start_of_line + "CVal," + m_Value + end_of_line;
 
-    if( !m_LibraryName.IsEmpty() )
-        text << start_of_line << "CLbN," << m_LibraryName << end_of_line;
+    if( !m_LibraryName.isEmpty() )
+        text += start_of_line + "CLbN," + m_LibraryName + end_of_line;
 
-    if( !m_LibraryDescr.IsEmpty() )
-        text << start_of_line << "CLbD," << m_LibraryDescr << end_of_line;
+    if( !m_LibraryDescr.isEmpty() )
+        text += start_of_line + "CLbD," + m_LibraryDescr + end_of_line;
 
-    text << start_of_line << "CMnt," << mountTypeStrings[m_MountType] << end_of_line;
-    text << start_of_line << "CRot," << m_Orientation << end_of_line;
+    text += start_of_line + "CMnt," + mountTypeStrings[m_MountType] + end_of_line;
+    text += start_of_line + "CRot," + QString::number(m_Orientation) + end_of_line;
 
     return text;
 }

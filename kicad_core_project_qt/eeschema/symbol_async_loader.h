@@ -1,22 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2021 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef KICAD_SYMBOL_ASYNC_LOADER_H
 #define KICAD_SYMBOL_ASYNC_LOADER_H
@@ -27,7 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <wx/string.h>
+#include <QString>
 
 class LIB_SYMBOL;
 class PROGRESS_REPORTER;
@@ -46,9 +27,9 @@ public:
      * @param aOutput will be filled with the loaded parts.
      * @param aReporter will be used to report progress, of not null.
      */
-    SYMBOL_ASYNC_LOADER( const std::vector<wxString>& aNicknames,
+    SYMBOL_ASYNC_LOADER( const std::vector<QString>& aNicknames,
                          SYMBOL_LIB_TABLE* aTable, bool aOnlyPowerSymbols = false,
-                         std::unordered_map<wxString, std::vector<LIB_SYMBOL*>>* aOutput = nullptr,
+                         std::unordered_map<QString, std::vector<LIB_SYMBOL*>>* aOutput = nullptr,
                          PROGRESS_REPORTER* aReporter = nullptr );
 
     ~SYMBOL_ASYNC_LOADER();
@@ -67,17 +48,17 @@ public:
     bool Done();
 
     /// @return a string containing any errors generated during the load.
-    const wxString& GetErrors() const { return m_errors; }
+    const QString& GetErrors() const { return m_errors; }
 
     /// Represent a pair of <nickname, loaded parts list>.
-    typedef std::pair<wxString, std::vector<LIB_SYMBOL*>> LOADED_PAIR;
+    typedef std::pair<QString, std::vector<LIB_SYMBOL*>> LOADED_PAIR;
 
 private:
     /// Worker job that loads libraries and returns a list of pairs of <nickname, loaded parts>.
     std::vector<LOADED_PAIR> worker();
 
     /// List of libraries to load.
-    std::vector<wxString> m_nicknames;
+    std::vector<QString> m_nicknames;
 
     /// Handle to the symbol library table being loaded into.
     SYMBOL_LIB_TABLE* m_table;
@@ -86,14 +67,14 @@ private:
     bool m_onlyPowerSymbols;
 
     /// Handle to map that will be filled with the loaded parts per library.
-    std::unordered_map<wxString, std::vector<LIB_SYMBOL*>>* m_output;
+    std::unordered_map<QString, std::vector<LIB_SYMBOL*>>* m_output;
 
     /// Progress reporter (may be null).
     PROGRESS_REPORTER* m_reporter;
 
     size_t              m_threadCount;
     std::atomic<size_t> m_nextLibrary;
-    wxString            m_errors;
+    QString             m_errors;
     std::mutex          m_errorMutex;
 
     std::vector<std::future<std::vector<LOADED_PAIR>>> m_returns;

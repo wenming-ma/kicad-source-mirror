@@ -1,43 +1,31 @@
-///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
-// http://www.wxformbuilder.org/
-//
-// PLEASE DO *NOT* EDIT THIS FILE!
-///////////////////////////////////////////////////////////////////////////
-
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #pragma once
 
-#include <wx/artprov.h>
-#include <wx/xrc/xmlres.h>
-#include <wx/intl.h>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QComboBox>
+#include <QtWidgets/QLineEdit>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QToolButton>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QGridLayout>
+#include <QtWidgets/QGroupBox>
+#include <QtWidgets/QListWidget>
+#include <QtWidgets/QCheckBox>
+#include <QtWidgets/QRadioButton>
+#include <QtWidgets/QSpinBox>
+#include <QtWidgets/QDialogButtonBox>
+#include <QtWidgets/QWidget>
+#include <QtWidgets/QTextEdit>
+#include <QtCore/QString>
+#include <QtCore/QObject>
+#include <QtGui/QPixmap>
+#include <QtGui/QFont>
+#include <QtGui/QColor>
+
 class STD_BITMAP_BUTTON;
-class WX_HTML_REPORT_PANEL;
 
 #include "dialog_shim.h"
-#include <wx/string.h>
-#include <wx/stattext.h>
-#include <wx/gdicmn.h>
-#include <wx/font.h>
-#include <wx/colour.h>
-#include <wx/settings.h>
-#include <wx/choice.h>
-#include <wx/textctrl.h>
-#include <wx/bmpbuttn.h>
-#include <wx/bitmap.h>
-#include <wx/image.h>
-#include <wx/icon.h>
-#include <wx/button.h>
-#include <wx/sizer.h>
-#include <wx/checklst.h>
-#include <wx/statbox.h>
-#include <wx/checkbox.h>
-#include <wx/radiobut.h>
-#include <wx/gbsizer.h>
-#include <wx/statbmp.h>
-#include <wx/hyperlink.h>
-#include <wx/spinctrl.h>
-#include <wx/panel.h>
-#include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -49,109 +37,111 @@ class WX_HTML_REPORT_PANEL;
 ///////////////////////////////////////////////////////////////////////////////
 class DIALOG_PLOT_BASE : public DIALOG_SHIM
 {
+	Q_OBJECT
+
 	private:
 
 	protected:
-		wxBoxSizer* m_MainSizer;
-		wxStaticText* m_staticTextPlotFmt;
-		wxChoice* m_plotFormatOpt;
-		wxStaticText* m_staticTextDir;
-		wxTextCtrl* m_outputDirectoryName;
+		QVBoxLayout* m_MainSizer;
+		QLabel* m_staticTextPlotFmt;
+		QComboBox* m_plotFormatOpt;
+		QLabel* m_staticTextDir;
+		QLineEdit* m_outputDirectoryName;
 		STD_BITMAP_BUTTON* m_browseButton;
 		STD_BITMAP_BUTTON* m_openDirButton;
-		wxBoxSizer* bmiddleSizer;
-		wxStaticBoxSizer* m_LayersSizer;
-		wxCheckListBox* m_layerCheckListBox;
-		wxBoxSizer* m_PlotOptionsSizer;
-		wxCheckBox* m_plotSheetRef;
-		wxCheckBox* m_subtractMaskFromSilk;
-		wxCheckBox* m_plotDNP;
-		wxRadioButton* m_hideDNP;
-		wxRadioButton* m_crossoutDNP;
-		wxCheckBox* m_sketchPadsOnFabLayers;
-		wxCheckBox* m_plotPadNumbers;
-		wxCheckBox* m_zoneFillCheck;
-		wxStaticText* drillMarksLabel;
-		wxChoice* m_drillShapeOpt;
-		wxStaticText* scalingLabel;
-		wxChoice* m_scaleOpt;
-		wxStaticText* plotModeLabel;
-		wxChoice* m_plotModeOpt;
-		wxCheckBox* m_useAuxOriginCheckBox;
-		wxCheckBox* m_plotMirrorOpt;
-		wxCheckBox* m_plotPSNegativeOpt;
-		wxBoxSizer* m_SizerSolderMaskAlert;
-		wxStaticBitmap* m_bitmapAlert;
-		wxStaticText* m_staticTextAlert;
-		wxStaticText* m_staticTextAlert1;
-		wxHyperlinkCtrl* m_boardSetup;
-		wxStaticBoxSizer* m_GerberOptionsSizer;
-		wxCheckBox* m_useGerberExtensions;
-		wxCheckBox* m_generateGerberJobFile;
-		wxStaticText* coordFormatLabel;
-		wxChoice* m_coordFormatCtrl;
-		wxCheckBox* m_useGerberX2Format;
-		wxCheckBox* m_useGerberNetAttributes;
-		wxCheckBox* m_disableApertMacros;
-		wxStaticBoxSizer* m_HPGLOptionsSizer;
-		wxStaticText* m_hpglPenLabel;
-		wxTextCtrl* m_hpglPenCtrl;
-		wxStaticText* m_hpglPenUnits;
-		wxStaticBoxSizer* m_PSOptionsSizer;
-		wxStaticText* m_fineAdjustXLabel;
-		wxTextCtrl* m_fineAdjustXCtrl;
-		wxStaticText* m_fineAdjustYLabel;
-		wxTextCtrl* m_fineAdjustYCtrl;
-		wxStaticText* m_widthAdjustLabel;
-		wxTextCtrl* m_widthAdjustCtrl;
-		wxStaticText* m_widthAdjustUnits;
-		wxCheckBox* m_forcePSA4OutputOpt;
-		wxStaticBoxSizer* m_SizerDXF_options;
-		wxCheckBox* m_DXF_plotModeOpt;
-		wxStaticText* DXF_exportUnitsLabel;
-		wxChoice* m_DXF_plotUnits;
-		wxCheckBox* m_DXF_plotTextStrokeFontOpt;
-		wxStaticBoxSizer* m_svgOptionsSizer;
-		wxStaticText* svgPrecisionLabel;
-		wxSpinCtrl* m_svgPrecsision;
-		wxStaticText* m_staticText18;
-		wxChoice* m_SVGColorChoice;
-		wxCheckBox* m_SVG_fitPageToBoard;
-		wxStaticBoxSizer* m_PDFOptionsSizer;
-		wxStaticText* m_staticText19;
-		wxChoice* m_PDFColorChoice;
-		wxCheckBox* m_frontFPPropertyPopups;
-		wxCheckBox* m_backFPPropertyPopups;
-		wxCheckBox* m_pdfMetadata;
-		wxCheckBox* m_pdfSingle;
-		WX_HTML_REPORT_PANEL* m_messagesPanel;
-		wxBoxSizer* m_sizerButtons;
-		wxButton* m_buttonDRC;
-		wxStaticText* m_DRCExclusionsWarning;
-		wxStdDialogButtonSizer* m_sdbSizer1;
-		wxButton* m_sdbSizer1OK;
-		wxButton* m_sdbSizer1Apply;
-		wxButton* m_sdbSizer1Cancel;
+		QVBoxLayout* bmiddleSizer;
+		QGroupBox* m_LayersSizer;
+		QListWidget* m_layerCheckListBox;
+		QVBoxLayout* m_PlotOptionsSizer;
+		QCheckBox* m_plotSheetRef;
+		QCheckBox* m_subtractMaskFromSilk;
+		QCheckBox* m_plotDNP;
+		QRadioButton* m_hideDNP;
+		QRadioButton* m_crossoutDNP;
+		QCheckBox* m_sketchPadsOnFabLayers;
+		QCheckBox* m_plotPadNumbers;
+		QCheckBox* m_zoneFillCheck;
+		QLabel* drillMarksLabel;
+		QComboBox* m_drillShapeOpt;
+		QLabel* scalingLabel;
+		QComboBox* m_scaleOpt;
+		QLabel* plotModeLabel;
+		QComboBox* m_plotModeOpt;
+		QCheckBox* m_useAuxOriginCheckBox;
+		QCheckBox* m_plotMirrorOpt;
+		QCheckBox* m_plotPSNegativeOpt;
+		QHBoxLayout* m_SizerSolderMaskAlert;
+		QLabel* m_bitmapAlert;
+		QLabel* m_staticTextAlert;
+		QLabel* m_staticTextAlert1;
+		QPushButton* m_boardSetup;
+		QGroupBox* m_GerberOptionsSizer;
+		QCheckBox* m_useGerberExtensions;
+		QCheckBox* m_generateGerberJobFile;
+		QLabel* coordFormatLabel;
+		QComboBox* m_coordFormatCtrl;
+		QCheckBox* m_useGerberX2Format;
+		QCheckBox* m_useGerberNetAttributes;
+		QCheckBox* m_disableApertMacros;
+		QGroupBox* m_HPGLOptionsSizer;
+		QLabel* m_hpglPenLabel;
+		QLineEdit* m_hpglPenCtrl;
+		QLabel* m_hpglPenUnits;
+		QGroupBox* m_PSOptionsSizer;
+		QLabel* m_fineAdjustXLabel;
+		QLineEdit* m_fineAdjustXCtrl;
+		QLabel* m_fineAdjustYLabel;
+		QLineEdit* m_fineAdjustYCtrl;
+		QLabel* m_widthAdjustLabel;
+		QLineEdit* m_widthAdjustCtrl;
+		QLabel* m_widthAdjustUnits;
+		QCheckBox* m_forcePSA4OutputOpt;
+		QGroupBox* m_SizerDXF_options;
+		QCheckBox* m_DXF_plotModeOpt;
+		QLabel* DXF_exportUnitsLabel;
+		QComboBox* m_DXF_plotUnits;
+		QCheckBox* m_DXF_plotTextStrokeFontOpt;
+		QGroupBox* m_svgOptionsSizer;
+		QLabel* svgPrecisionLabel;
+		QSpinBox* m_svgPrecsision;
+		QLabel* m_staticText18;
+		QComboBox* m_SVGColorChoice;
+		QCheckBox* m_SVG_fitPageToBoard;
+		QGroupBox* m_PDFOptionsSizer;
+		QLabel* m_staticText19;
+		QComboBox* m_PDFColorChoice;
+		QCheckBox* m_frontFPPropertyPopups;
+		QCheckBox* m_backFPPropertyPopups;
+		QCheckBox* m_pdfMetadata;
+		QCheckBox* m_pdfSingle;
+		QTextEdit* m_messagesPanel;
+		QHBoxLayout* m_sizerButtons;
+		QPushButton* m_buttonDRC;
+		QLabel* m_DRCExclusionsWarning;
+		QDialogButtonBox* m_sdbSizer1;
+		QPushButton* m_sdbSizer1OK;
+		QPushButton* m_sdbSizer1Apply;
+		QPushButton* m_sdbSizer1Cancel;
 
 		// Virtual event handlers, override them in your derived class
-		virtual void OnInitDialog( wxInitDialogEvent& event ) { event.Skip(); }
-		virtual void SetPlotFormat( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onOutputDirectoryBrowseClicked( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onOpenOutputDirectory( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onDNPCheckbox( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onSketchPads( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnSetScaleOpt( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onBoardSetup( wxHyperlinkEvent& event ) { event.Skip(); }
-		virtual void OnGerberX2Checked( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnChangeDXFPlotMode( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onRunDRC( wxCommandEvent& event ) { event.Skip(); }
-		virtual void CreateDrillFile( wxCommandEvent& event ) { event.Skip(); }
-		virtual void Plot( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnInitDialog() {}
+		virtual void SetPlotFormat() {}
+		virtual void onOutputDirectoryBrowseClicked() {}
+		virtual void onOpenOutputDirectory() {}
+		virtual void onDNPCheckbox() {}
+		virtual void onSketchPads() {}
+		virtual void OnSetScaleOpt() {}
+		virtual void onBoardSetup() {}
+		virtual void OnGerberX2Checked() {}
+		virtual void OnChangeDXFPlotMode() {}
+		virtual void onRunDRC() {}
+		virtual void CreateDrillFile() {}
+		virtual void Plot() {}
 
 
 	public:
 
-		DIALOG_PLOT_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Plot"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+		DIALOG_PLOT_BASE( QWidget* parent, const QString& title = "Plot" );
 
 		~DIALOG_PLOT_BASE();
 

@@ -28,7 +28,11 @@
 #include <macros.h>
 #include <math/util.h>      // for KiROUND
 #include <trigo.h>
-#include <wx/log.h>
+#include <QDebug>
+#include <QDateTime>
+#include <QFile>
+#include <QDir>
+#include <QString>
 #include <cstdio>
 
 #include <build_version.h>
@@ -122,10 +126,10 @@ GERBER_PLOTTER::GERBER_PLOTTER()
 void GERBER_PLOTTER::SetViewport( const VECTOR2I& aOffset, double aIusPerDecimil,
                                   double aScale, bool aMirror )
 {
-    wxASSERT( aMirror == false );
+    Q_ASSERT( aMirror == false );
     m_plotMirror = false;
     m_plotOffset = aOffset;
-    wxASSERT( aScale == 1 );              // aScale parameter is not used in Gerber
+    Q_ASSERT( aScale == 1 );              // aScale parameter is not used in Gerber
     m_plotScale = 1;                      // Plot scale is *always* 1.0
 
     m_IUsPerDecimil = aIusPerDecimil;
@@ -235,7 +239,7 @@ void GERBER_PLOTTER::formatNetAttribute( GBR_NETLIST_METADATA* aData )
 }
 
 
-bool GERBER_PLOTTER::StartPlot( const wxString& aPageNumber )
+bool GERBER_PLOTTER::StartPlot( const QString& aPageNumber )
 {
     m_hasApertureRoundRect = false;     // true is at least one round rect aperture is in use
     m_hasApertureRotOval = false;       // true is at least one oval rotated aperture is in use
@@ -245,24 +249,24 @@ bool GERBER_PLOTTER::StartPlot( const wxString& aPageNumber )
     m_hasApertureChamferedRect = false; // true is at least one chamfered rect is in use
     m_am_freepoly_list.ClearList();
 
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     finalFile = m_outputFile;     // the actual gerber file will be created later
 
     // Create a temp file in system temp to avoid potential network share buffer issues for
     // the final read and save.
-    m_workFilename = wxFileName::CreateTempFileName( "" );
-    workFile = wxFopen( m_workFilename, wxT( "wt" ) );
+    m_workFilename = QDir::temp().absoluteFilePath(QString("gerber_temp_%1.tmp").arg(QDateTime::currentMSecsSinceEpoch()));
+    workFile = fopen( m_workFilename.toStdString().c_str(), "wt" );
     m_outputFile = workFile;
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     if( m_outputFile == nullptr )
         return false;
 
-    for( unsigned ii = 0; ii < m_headerExtraLines.GetCount(); ii++ )
+    for( int ii = 0; ii < m_headerExtraLines.size(); ii++ )
     {
-        if( ! m_headerExtraLines[ii].IsEmpty() )
-            fprintf( m_outputFile, "%s\n", TO_UTF8( m_headerExtraLines[ii] ) );
+        if( !m_headerExtraLines[ii].empty() )
+            fprintf( m_outputFile, "%s\n", m_headerExtraLines[ii].c_str() );
     }
 
     // Set coordinate format to 3.6 or 4.5 absolute, leading zero omitted
@@ -279,14 +283,14 @@ bool GERBER_PLOTTER::StartPlot( const wxString& aPageNumber )
              leadingDigitCount, m_gerberUnitFmt,
              m_gerberUnitInch ? "inch" : "mm" );
 
-    wxString Title = m_creator + wxT( " " ) + GetBuildVersion();
+    QString Title = m_creator + " " + GetBuildVersion();
 
     // In gerber files, ASCII7 chars only are allowed.
     // So use a ISO date format (using a space as separator between date and time),
     // not a localized date format
-    wxDateTime date = wxDateTime::Now();
+    QDateTime date = QDateTime::currentDateTime();
     fprintf( m_outputFile, "G04 Created by KiCad (%s) date %s*\n",
-             TO_UTF8( Title ), TO_UTF8( date.FormatISOCombined( ' ') ) );
+             TO_UTF8( Title ), TO_UTF8( date.toString("yyyy-MM-dd hh:mm:ss") ) );
 
     /* Mass parameter: unit = IN/MM */
     if( m_gerberUnitInch )
@@ -319,15 +323,15 @@ bool GERBER_PLOTTER::EndPlot()
 {
     char     line[1024];
 
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     /* Outfile is actually a temporary file i.e. workFile */
     fputs( "M02*\n", m_outputFile );
     fflush( m_outputFile );
 
     fclose( workFile );
-    workFile   = wxFopen( m_workFilename, wxT( "rt" ));
-    wxASSERT( workFile );
+    workFile   = fopen( m_workFilename.toStdString().c_str(), "rt" );
+    Q_ASSERT( workFile );
     m_outputFile = finalFile;
 
     // Placement of apertures in RS274X
@@ -388,7 +392,7 @@ bool GERBER_PLOTTER::EndPlot()
 
     fclose( workFile );
     fclose( finalFile );
-    ::wxRemoveFile( m_workFilename );
+    QFile::remove( m_workFilename );
     m_outputFile = nullptr;
 
     return true;
@@ -402,7 +406,7 @@ void GERBER_PLOTTER::SetCurrentLineWidth( int aWidth, void* aData )
     else if( aWidth == USE_DEFAULT_LINE_WIDTH )
         aWidth =  m_renderSettings->GetDefaultPenWidth();
 
-    wxASSERT_MSG( aWidth >= 0, "Plotter called to set negative pen width" );
+    Q_ASSERT_X( aWidth >= 0, "SetCurrentLineWidth", "Plotter called to set negative pen width" );
 
     GBR_METADATA* gbr_metadata = static_cast<GBR_METADATA*>( aData );
     int aperture_attribute = gbr_metadata ? gbr_metadata->GetApertureAttrib() : 0;
@@ -563,7 +567,7 @@ void GERBER_PLOTTER::selectAperture( int aDiameter, const EDA_ANGLE& aPolygonRot
     // aDiameter, aPolygonRotation, type and attributes for type =
     // AT_REGULAR_POLY3 to AT_REGULAR_POLY12
 
-    wxASSERT( aType>= APERTURE::APERTURE_TYPE::AT_REGULAR_POLY3 &&
+    Q_ASSERT( aType>= APERTURE::APERTURE_TYPE::AT_REGULAR_POLY3 &&
               aType <= APERTURE::APERTURE_TYPE::AT_REGULAR_POLY12 );
 
     VECTOR2I size( aDiameter, (int) ( aPolygonRotation.AsDegrees() * 1000.0 ) );
@@ -573,7 +577,7 @@ void GERBER_PLOTTER::selectAperture( int aDiameter, const EDA_ANGLE& aPolygonRot
 
 void GERBER_PLOTTER::writeApertureList()
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     bool useX1StructuredComment = false;
 
@@ -792,7 +796,7 @@ void GERBER_PLOTTER::writeApertureList()
 
 void GERBER_PLOTTER::PenTo( const VECTOR2I& aPos, char plume )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
     VECTOR2D pos_dev = userToDeviceCoordinates( aPos );
 
     switch( plume )
@@ -1309,7 +1313,7 @@ void GERBER_PLOTTER::FlashPadCircle( const VECTOR2I& pos, int diametre, OUTLINE_
 void GERBER_PLOTTER::FlashPadOval( const VECTOR2I& aPos, const VECTOR2I& aSize,
                                    const EDA_ANGLE& aOrient, OUTLINE_MODE aTraceMode, void* aData )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     VECTOR2I      size( aSize );
     EDA_ANGLE     orient( aOrient );
@@ -1392,7 +1396,7 @@ void GERBER_PLOTTER::FlashPadRect( const VECTOR2I& pos, const VECTOR2I& aSize,
                                    const EDA_ANGLE& aOrient, OUTLINE_MODE aTraceMode, void* aData )
 
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     VECTOR2I      size( aSize );
     GBR_METADATA* gbr_metadata = static_cast<GBR_METADATA*>( aData );
@@ -1651,8 +1655,8 @@ void GERBER_PLOTTER::plotRoundRectAsRegion( const VECTOR2I& aRectCenter, const V
 
 #if 0    // For test only:
     if( last_pt != first_pt )
-        wxLogMessage( wxS( "first pt %d %d last pt %d %d" ),
-                      first_pt.x, first_pt.y, last_pt.x, last_pt.y );
+        qDebug() << QString("first pt %1 %2 last pt %3 %4")
+                   .arg(first_pt.x).arg(first_pt.y).arg(last_pt.x).arg(last_pt.y);
 #endif
 
     fputs( "G36*\n", m_outputFile );  // Start region
@@ -1862,8 +1866,8 @@ void GERBER_PLOTTER::FlashPadChamferRoundRect( const VECTOR2I& aShapePos, const 
         break;
 
     default:
-        wxLogMessage( wxS( "FlashPadChamferRoundRect(): Unexpected number of corners (%d)" ),
-                      (int)cornerList.size() );
+        qDebug() << QString("FlashPadChamferRoundRect(): Unexpected number of corners (%1)")
+                   .arg((int)cornerList.size());
         break;
     }
 
@@ -1978,7 +1982,7 @@ void GERBER_PLOTTER::FlashRegularPolygon( const VECTOR2I& aShapePos, int aDiamet
 
 void GERBER_PLOTTER::Text( const VECTOR2I&        aPos,
                            const COLOR4D&         aColor,
-                           const wxString&        aText,
+                           const QString&         aText,
                            const EDA_ANGLE&       aOrient,
                            const VECTOR2I&        aSize,
                            enum GR_TEXT_H_ALIGN_T aH_justify,
@@ -2003,7 +2007,7 @@ void GERBER_PLOTTER::Text( const VECTOR2I&        aPos,
 
 void GERBER_PLOTTER::PlotText( const VECTOR2I&        aPos,
                                const COLOR4D&         aColor,
-                               const wxString&        aText,
+                               const QString&         aText,
                                const TEXT_ATTRIBUTES& aAttributes,
                                KIFONT::FONT*          aFont,
                                const KIFONT::METRICS& aFontMetrics,

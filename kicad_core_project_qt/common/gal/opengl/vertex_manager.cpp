@@ -1,34 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2016 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @file vertex_manager.cpp
- * @brief Class to control vertex container and GPU with possibility of emulating old-style OpenGL
- * 1.0 state machine using modern OpenGL methods.
- */
 
 #include <gal/opengl/vertex_manager.h>
 #include <gal/opengl/cached_container.h>
@@ -36,15 +6,11 @@
 #include <gal/opengl/gpu_manager.h>
 #include <gal/opengl/vertex_item.h>
 #include <confirm.h>
-#include <wx/log.h>
+#include <QDebug>
 
 
-/**
- * Flag to enable #VERTEX_MANAGER debugging output.
- *
- * @ingroup trace_env_vars
- */
-static const wxChar traceVertexManager[] = wxT( "KICAD_VERTEX_MANAGER" );
+// Flag to enable VERTEX_MANAGER debugging output
+static const char traceVertexManager[] = "KICAD_VERTEX_MANAGER";
 
 
 using namespace KIGFX;
@@ -89,7 +55,7 @@ bool VERTEX_MANAGER::Reserve( unsigned int aSize )
     {
         if( show_err_reserve )
         {
-            DisplayError( nullptr, wxT( "VERTEX_MANAGER::Reserve: Did not use all previous vertices allocated" ) );
+            DisplayError( nullptr, "VERTEX_MANAGER::Reserve: Did not use all previous vertices allocated" );
             show_err_reserve = false;
         }
     }
@@ -100,7 +66,7 @@ bool VERTEX_MANAGER::Reserve( unsigned int aSize )
     {
         if( show_err_alloc )
         {
-            DisplayError( nullptr, wxT( "VERTEX_MANAGER::Reserve: Vertex allocation error" ) );
+            DisplayError( nullptr, "VERTEX_MANAGER::Reserve: Vertex allocation error" );
             show_err_alloc = false;
         }
 
@@ -137,7 +103,7 @@ bool VERTEX_MANAGER::Vertex( GLfloat aX, GLfloat aY, GLfloat aZ )
         {
             if( show_err )
             {
-                DisplayError( nullptr, wxT( "VERTEX_MANAGER::Vertex: Vertex allocation error" ) );
+                DisplayError( nullptr, "VERTEX_MANAGER::Vertex: Vertex allocation error" );
                 show_err = false;
             }
 
@@ -163,7 +129,7 @@ bool VERTEX_MANAGER::Vertices( const VERTEX aVertices[], unsigned int aSize )
     {
         if( show_err )
         {
-            DisplayError( nullptr, wxT( "VERTEX_MANAGER::Vertices: Vertex allocation error" ) );
+            DisplayError( nullptr, "VERTEX_MANAGER::Vertices: Vertex allocation error" );
             show_err = false;
         }
 
@@ -189,7 +155,7 @@ void VERTEX_MANAGER::SetItem( VERTEX_ITEM& aItem ) const
 void VERTEX_MANAGER::FinishItem() const
 {
     if( m_reservedSpace != 0 || m_reserved )
-        wxLogTrace( traceVertexManager, wxS( "Did not use all previous vertices allocated" ) );
+        qDebug() << traceVertexManager << "Did not use all previous vertices allocated";
 
     m_container->FinishItem();
 }

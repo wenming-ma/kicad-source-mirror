@@ -26,6 +26,7 @@
 #include <map>
 #include <vector>
 
+#include <QString>
 #include <eda_draw_frame.h>
 #include <erc/erc_item.h>
 #include <erc/erc_settings.h>
@@ -40,15 +41,15 @@
 #include <geometry/shape_rect.h>
 
 
-wxString SCH_RULE_AREA::GetClass() const
+QString SCH_RULE_AREA::GetClass() const
 {
-    return wxT( "SCH_RULE_AREA" );
+    return "SCH_RULE_AREA";
 }
 
 
-wxString SCH_RULE_AREA::GetFriendlyName() const
+QString SCH_RULE_AREA::GetFriendlyName() const
 {
-    return _( "Rule Area" );
+    return "Rule Area";
 }
 
 
@@ -193,9 +194,9 @@ void SCH_RULE_AREA::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OP
 }
 
 
-wxString SCH_RULE_AREA::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_RULE_AREA::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return _( "Schematic rule area" );
+    return "Schematic rule area";
 }
 
 
@@ -332,9 +333,9 @@ const std::unordered_set<SCH_DIRECTIVE_LABEL*>& SCH_RULE_AREA::GetDirectives() c
 }
 
 
-const std::vector<std::pair<wxString, SCH_ITEM*>> SCH_RULE_AREA::GetResolvedNetclasses() const
+const std::vector<std::pair<QString, SCH_ITEM*>> SCH_RULE_AREA::GetResolvedNetclasses() const
 {
-    std::vector<std::pair<wxString, SCH_ITEM*>> resolvedNetclasses;
+    std::vector<std::pair<QString, SCH_ITEM*>> resolvedNetclasses;
 
     for( SCH_DIRECTIVE_LABEL* directive : m_directives )
     {
@@ -345,11 +346,11 @@ const std::vector<std::pair<wxString, SCH_ITEM*>> SCH_RULE_AREA::GetResolvedNetc
                     {
                         SCH_FIELD* field = static_cast<SCH_FIELD*>( aChild );
 
-                        if( field->GetCanonicalName() == wxT( "Netclass" ) )
+                        if( field->GetCanonicalName() == "Netclass" )
                         {
-                            wxString netclass = field->GetText();
+                            QString netclass = field->GetText();
 
-                            if( netclass != wxEmptyString )
+                            if( !netclass.isEmpty() )
                                 resolvedNetclasses.push_back( { netclass, directive } );
                         }
                     }
@@ -377,22 +378,22 @@ void SCH_RULE_AREA::ResetDirectivesAndItems( KIGFX::SCH_VIEW* view )
 
 void SCH_RULE_AREA::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    aList.emplace_back( _( "Rule Area" ), wxEmptyString );
+    aList.emplace_back( "Rule Area", QString() );
 
-    wxString msg;
-    msg.Printf( wxS( "%d" ), GetPolyShape().Outline( 0 ).PointCount() );
-    aList.emplace_back( _( "Points" ), msg );
+    QString msg;
+    msg = QString::asprintf( "%d", GetPolyShape().Outline( 0 ).PointCount() );
+    aList.emplace_back( "Points", msg );
 
     m_stroke.GetMsgPanelInfo( aFrame, aList );
 
-    const std::vector<std::pair<wxString, SCH_ITEM*>> netclasses =
+    const std::vector<std::pair<QString, SCH_ITEM*>> netclasses =
             SCH_RULE_AREA::GetResolvedNetclasses();
-    wxString resolvedNetclass = _( "<None>" );
+    QString resolvedNetclass = "<None>";
 
     if( netclasses.size() > 0 )
         resolvedNetclass = netclasses[0].first;
 
-    aList.emplace_back( _( "Resolved netclass" ), resolvedNetclass );
+    aList.emplace_back( "Resolved netclass", resolvedNetclass );
 }
 
 

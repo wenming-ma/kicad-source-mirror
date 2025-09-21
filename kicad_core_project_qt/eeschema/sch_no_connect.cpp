@@ -1,32 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanoadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @file sch_no_connect.cpp
- * @brief Class SCH_NO_CONNECT implementation.
- */
+// Class SCH_NO_CONNECT implementation.
 
+#include <QtCore/QtGlobal>
+#include <QtGui/QPainter>
 #include <sch_draw_panel.h>
 #include <plotters/plotter.h>
 #include <bitmaps.h>
@@ -59,8 +35,9 @@ void SCH_NO_CONNECT::SwapData( SCH_ITEM* aItem )
 {
     SCH_ITEM::SwapFlags( aItem );
 
-    wxCHECK_RET( ( aItem != nullptr ) && ( aItem->Type() == SCH_NO_CONNECT_T ),
-                 wxT( "Cannot swap no connect data with invalid item." ) );
+    Q_ASSERT( ( aItem != nullptr ) && ( aItem->Type() == SCH_NO_CONNECT_T ) );
+    if( !( ( aItem != nullptr ) && ( aItem->Type() == SCH_NO_CONNECT_T ) ) )
+        return;
 
     SCH_NO_CONNECT* item = (SCH_NO_CONNECT*)aItem;
     std::swap( m_pos, item->m_pos );
@@ -104,7 +81,7 @@ int SCH_NO_CONNECT::GetPenWidth() const
 void SCH_NO_CONNECT::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
                             const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
 {
-    wxDC*   DC = aSettings->GetPrintDC();
+    QPainter*   DC = aSettings->GetPrintDC();
     int     half = GetSize() / 2;
     int     penWidth = GetEffectivePenWidth( aSettings );
     int     pX = m_pos.x + aOffset.x;
@@ -144,7 +121,9 @@ bool SCH_NO_CONNECT::HasConnectivityChanges( const SCH_ITEM* aItem,
     const SCH_NO_CONNECT* noConnect = dynamic_cast<const SCH_NO_CONNECT*>( aItem );
 
     // Don't compare against a different SCH_ITEM.
-    wxCHECK( noConnect, false );
+    Q_ASSERT( noConnect );
+    if( !noConnect )
+        return false;
 
     return GetPosition() != noConnect->GetPosition();
 }

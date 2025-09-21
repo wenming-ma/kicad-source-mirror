@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SCH_ITEM_H
 #define SCH_ITEM_H
@@ -174,9 +151,9 @@ public:
 
     virtual ~SCH_ITEM();
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "SCH_ITEM" );
+        return "SCH_ITEM";
     }
 
     bool IsType( const std::vector<KICAD_T>& aScanTypes ) const override
@@ -226,8 +203,8 @@ public:
      */
     SCH_ITEM* Duplicate( bool doClone = false ) const;
 
-    static wxString GetUnitDescription( int aUnit );
-    static wxString GetBodyStyleDescription( int aBodyStyle );
+    static QString GetUnitDescription( int aUnit );
+    static QString GetBodyStyleDescription( int aBodyStyle );
 
     virtual void SetUnit( int aUnit ) { m_unit = aUnit; }
     int GetUnit() const { return m_unit; }
@@ -302,7 +279,7 @@ public:
 
     int GetEffectivePenWidth( const SCH_RENDER_SETTINGS* aSettings ) const;
 
-    const wxString& GetDefaultFont( const RENDER_SETTINGS* aSettings ) const;
+    const QString& GetDefaultFont( const RENDER_SETTINGS* aSettings ) const;
 
     const KIFONT::METRICS& GetFontMetrics() const;
 
@@ -316,7 +293,8 @@ public:
      */
     virtual double Similarity( const SCH_ITEM& aItem ) const
     {
-        wxCHECK_MSG( false, 0.0, wxT( "Similarity not implemented in " ) + GetClass() );
+        Q_ASSERT_X( false, "SCH_ITEM::Similarity", ("Similarity not implemented in " + GetClass()).toStdString().c_str() );
+        return 0.0;
     }
 
     /**
@@ -345,7 +323,7 @@ public:
      */
     virtual void Move( const VECTOR2I& aMoveVector )
     {
-        wxCHECK_MSG( false, /*void*/, wxT( "Move not implemented in " ) + GetClass() );
+        Q_ASSERT_X( false, "SCH_ITEM::Move", ("Move not implemented in " + GetClass()).toStdString().c_str() );
     }
 
     /**
@@ -353,8 +331,7 @@ public:
      */
     virtual void MirrorHorizontally( int aCenter )
     {
-        wxCHECK_MSG( false, /*void*/,
-                     wxT( "MirrorHorizontally not implemented in " ) + GetClass() );
+        Q_ASSERT_X( false, "SCH_ITEM::MirrorHorizontally", ("MirrorHorizontally not implemented in " + GetClass()).toStdString().c_str() );
     }
 
     /**
@@ -362,7 +339,7 @@ public:
      */
     virtual void MirrorVertically( int aCenter )
     {
-        wxCHECK_MSG( false, /*void*/, wxT( "MirrorVertically not implemented in " ) + GetClass() );
+        Q_ASSERT_X( false, "SCH_ITEM::MirrorVertically", ("MirrorVertically not implemented in " + GetClass()).toStdString().c_str() );
     }
 
     /**
@@ -370,7 +347,7 @@ public:
      */
     virtual void Rotate( const VECTOR2I& aCenter, bool aRotateCCW )
     {
-        wxCHECK_MSG( false, /*void*/, wxT( "Rotate not implemented in " ) + GetClass() );
+        Q_ASSERT_X( false, "SCH_ITEM::Rotate", ("Rotate not implemented in " + GetClass()).toStdString().c_str() );
     }
 
     /**
@@ -562,7 +539,7 @@ public:
     void SetConnectionGraph( CONNECTION_GRAPH* aGraph );
 
     virtual bool HasCachedDriverName() const { return false; }
-    virtual const wxString& GetCachedDriverName() const;
+    virtual const QString& GetCachedDriverName() const;
 
     virtual void SetLastResolvedState( const SCH_ITEM* aItem ) { }
 
@@ -589,9 +566,9 @@ public:
      */
     virtual bool HasLineStroke() const { return false; }
 
-    virtual STROKE_PARAMS GetStroke() const { wxCHECK( false, STROKE_PARAMS() ); }
+    virtual STROKE_PARAMS GetStroke() const { Q_ASSERT( false ); return STROKE_PARAMS(); }
 
-    virtual void SetStroke( const STROKE_PARAMS& aStroke ) { wxCHECK( false, /* void */ ); }
+    virtual void SetStroke( const STROKE_PARAMS& aStroke ) { Q_ASSERT( false ); }
 
     /**
      * Print an item.
@@ -605,7 +582,7 @@ public:
     virtual void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
                         const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
     {
-        wxCHECK_MSG( false, /*void*/, wxT( "Print not implemented in " ) + GetClass() );
+        Q_ASSERT_X( false, "SCH_ITEM::Print", ("Print not implemented in " + GetClass()).toStdString().c_str() );
     }
 
     /**
@@ -614,7 +591,7 @@ public:
     virtual void PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
                                   const VECTOR2I& aOffset, bool aDimmed )
     {
-        wxCHECK_MSG( false, /*void*/, wxT( "PrintBackground not implemented in " ) + GetClass() );
+        Q_ASSERT_X( false, "SCH_ITEM::PrintBackground", ("PrintBackground not implemented in " + GetClass()).toStdString().c_str() );
     }
 
     /**
@@ -630,7 +607,7 @@ public:
     virtual void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                        int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed)
     {
-        wxCHECK_MSG( false, /*void*/, wxT( "Plot not implemented in " ) + GetClass() );
+        Q_ASSERT_X( false, "SCH_ITEM::Plot", ("Plot not implemented in " + GetClass()).toStdString().c_str() );
     }
 
     /**
@@ -755,7 +732,7 @@ private:
 };
 
 #ifndef SWIG
-DECLARE_ENUM_TO_WXANY( SCH_LAYER_ID );
+// Qt equivalent for enum declaration (placeholder)
 #endif
 
 #endif /* SCH_ITEM_H */

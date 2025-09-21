@@ -1,21 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 /**
  * Plotting engine (HPGL)
@@ -40,9 +22,9 @@ public:
         return PLOT_FORMAT::HPGL;
     }
 
-    static wxString GetDefaultFileExtension()
+    static QString GetDefaultFileExtension()
     {
-        return wxString( wxT( "plt" ) );
+        return QString( "plt" );
     }
 
     /**
@@ -61,7 +43,7 @@ public:
     /**
      * At the start of the HPGL plot pen speed and number are requested.
      */
-    virtual bool StartPlot( const wxString& aPageNumber ) override;
+    virtual bool StartPlot( const QString& aPageNumber ) override;
 
     /**
      * HPGL end of plot: sort and emit graphics, pen return and release.
@@ -168,7 +150,7 @@ protected:
      * @param content is the content substring.
      * @return whether a new item was made.
      */
-    bool startOrAppendItem( const VECTOR2D& location, const wxString& content );
+    bool startOrAppendItem( const VECTOR2D& location, const QString& content );
 
     struct HPGL_ITEM
     {
@@ -203,7 +185,7 @@ protected:
 
         int        pen;            /// Pen number for this command
         LINE_STYLE dashType;       /// Line style for this command
-        wxString   content;        /// Text of the command
+        QString   content;        /// Text of the command
     };
 
     /// Sort a list of HPGL items to improve plotting speed on mechanical plotters.

@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SCH_BASE_FRAME_H_
 #define SCH_BASE_FRAME_H_
@@ -34,11 +11,14 @@
 #include <stddef.h>
 #include <utility>
 #include <vector>
-#include <wx/event.h>
-#include <wx/datetime.h>
-#include <wx/gdicmn.h>
-#include <wx/string.h>
-#include <wx/timer.h>
+#include <QEvent>
+#include <QDateTime>
+#include <QRect>
+#include <QPoint>
+#include <QSize>
+#include <QString>
+#include <QTimer>
+#include <QFileSystemWatcher>
 
 #include <template_fieldnames.h>
 
@@ -58,20 +38,7 @@ class SYMBOL_EDITOR_SETTINGS;
 class NL_SCHEMATIC_PLUGIN;
 class PANEL_SCH_SELECTION_FILTER;
 
-#ifdef wxHAS_INOTIFY
-#define wxFileSystemWatcher wxInotifyFileSystemWatcher
-#elif defined( wxHAS_KQUEUE ) && defined( wxHAVE_FSEVENTS_FILE_NOTIFICATIONS )
-#define wxFileSystemWatcher wxFsEventsFileSystemWatcher
-#elif defined( wxHAS_KQUEUE )
-#define wxFileSystemWatcher wxKqueueFileSystemWatcher
-#elif defined( __WINDOWS__ )
-#define wxFileSystemWatcher wxMSWFileSystemWatcher
-#else
-#define wxFileSystemWatcher wxPollingFileSystemWatcher
-#endif
-
-class wxFileSystemWatcher;
-class wxFileSystemWatcherEvent;
+class QFileSystemWatcher;
 
 /**
  * Load symbol from symbol library table.
@@ -88,7 +55,7 @@ class wxFileSystemWatcherEvent;
  * @return The symbol found in the library or NULL if the symbol was not found.
  */
 LIB_SYMBOL* SchGetLibSymbol( const LIB_ID& aLibId, SYMBOL_LIB_TABLE* aLibTable,
-                             SYMBOL_LIB* aCacheLib = nullptr, wxWindow* aParent = nullptr,
+                             SYMBOL_LIB* aCacheLib = nullptr, QWidget* aParent = nullptr,
                              bool aShowErrorMsg = false );
 
 /**
@@ -103,9 +70,9 @@ LIB_SYMBOL* SchGetLibSymbol( const LIB_ID& aLibId, SYMBOL_LIB_TABLE* aLibTable,
 class SCH_BASE_FRAME : public EDA_DRAW_FRAME, public SCHEMATIC_HOLDER
 {
 public:
-    SCH_BASE_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aWindowType, const wxString& aTitle,
-                    const wxPoint& aPosition, const wxSize& aSize, long aStyle,
-                    const wxString & aFrameName );
+    SCH_BASE_FRAME( KIWAY* aKiway, QWidget* aParent, FRAME_T aWindowType, const QString& aTitle,
+                    const QPoint& aPosition, const QSize& aSize, long aStyle,
+                    const QString & aFrameName );
 
     virtual ~SCH_BASE_FRAME();
 
@@ -192,7 +159,7 @@ public:
      *
      * @return the library nickname used in the symbol library table.
      */
-    wxString SelectLibraryFromList();
+    QString SelectLibraryFromList();
 
     /**
      * Display a dialog asking the user to select a symbol library table.
@@ -248,12 +215,12 @@ public:
     /**
      * Handler for Symbol change events.  Responds to the filesystem watcher set in #setSymWatcher.
     */
-    void OnSymChange( wxFileSystemWatcherEvent& aEvent );
+    void OnSymChange( const QString& aPath );
 
     /**
      * Handler for the filesystem watcher debounce timer.
      */
-    void OnSymChangeDebounceTimer( wxTimerEvent& aEvent );
+    void OnSymChangeDebounceTimer();
 
     /**
      * Set the modification time of the symbol library table file.
@@ -262,7 +229,7 @@ public:
      *
      * @param aTime is the modification time of the symbol library table file.
      */
-    void SetSymModificationTime( const wxDateTime& aTime )
+    void SetSymModificationTime( const QDateTime& aTime )
     {
         m_watcherLastModified = aTime;
     }
@@ -270,9 +237,9 @@ public:
     SCH_SELECTION_TOOL* GetSelectionTool() override;
 
 protected:
-    void handleActivateEvent( wxActivateEvent& aEvent ) override;
+    void handleActivateEvent( QEvent* aEvent ) override;
 
-    void handleIconizeEvent( wxIconizeEvent& aEvent ) override;
+    void handleIconizeEvent( QEvent* aEvent ) override;
 
     /**
      * Save Symbol Library Tables to disk.
@@ -304,10 +271,10 @@ protected:
 private:
 
     /// These are file watchers for the symbol library tables.
-    std::unique_ptr<wxFileSystemWatcher>    m_watcher;
-    wxFileName                              m_watcherFileName;
-    wxDateTime                              m_watcherLastModified;
-    wxTimer                                 m_watcherDebounceTimer;
+    std::unique_ptr<QFileSystemWatcher>     m_watcher;
+    QString                                 m_watcherFileName;
+    QDateTime                               m_watcherLastModified;
+    QTimer                                  m_watcherDebounceTimer;
     bool                                    m_inSymChangeTimerEvent;
 
     std::unique_ptr<NL_SCHEMATIC_PLUGIN>    m_spaceMouse;

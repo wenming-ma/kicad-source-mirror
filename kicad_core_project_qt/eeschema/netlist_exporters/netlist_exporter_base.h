@@ -1,39 +1,17 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2013 jp.charras at wanadoo.fr
- * Copyright (C) 2013 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef NETLIST_EXPORTER_H
 #define NETLIST_EXPORTER_H
 
 #include <schematic.h>
+#include <QString>
+#include <QtGlobal>
 
 class SCH_SYMBOL;
 class LIB_SYMBOL;
 class REPORTER;
 
 /**
- * Track unique wxStrings and is useful in telling if a string has been seen before.
+ * Track unique strings and is useful in telling if a string has been seen before.
  */
 class UNIQUE_STRINGS
 {
@@ -47,16 +25,16 @@ public:
      * @return true if \a aString already exists in the set, otherwise return false and
      *         add \a aString to the set for next time.
      */
-    bool Lookup( const wxString& aString )
+    bool Lookup( const QString& aString )
     {
         std::pair<us_iterator, bool> pair = m_set.insert( aString );
 
         return !pair.second;
     }
 
-    std::set<wxString>      m_set;    ///< set of wxStrings already found
+    std::set<QString>      m_set;    ///< set of strings already found
 
-    typedef std::set<wxString>::iterator us_iterator;
+    typedef std::set<QString>::iterator us_iterator;
 };
 
 /**
@@ -64,20 +42,20 @@ public:
  */
 struct LIB_SYMBOL_LESS_THAN
 {
-    // a "less than" test on two LIB_SYMBOLs (.m_name wxStrings)
+    // a "less than" test on two LIB_SYMBOLs (.m_name strings)
     bool operator()( LIB_SYMBOL* const& libsymbol1, LIB_SYMBOL* const& libsymbol2 ) const;
 };
 
 
 struct PIN_INFO
 {
-    PIN_INFO( const wxString& aPinNumber, const wxString& aNetName ) :
+    PIN_INFO( const QString& aPinNumber, const QString& aNetName ) :
             num( aPinNumber ),
             netName( aNetName )
     {}
 
-    wxString num;
-    wxString netName;
+    QString num;
+    QString netName;
 };
 
 
@@ -90,7 +68,7 @@ public:
     NETLIST_EXPORTER_BASE( SCHEMATIC* aSchematic ) :
         m_schematic( aSchematic )
     {
-        wxASSERT( aSchematic );
+        Q_ASSERT( aSchematic );
     }
 
     virtual ~NETLIST_EXPORTER_BASE() = default;
@@ -98,7 +76,7 @@ public:
     /**
      * Write to specified output file.
      */
-    virtual bool WriteNetlist( const wxString& aOutFileName, unsigned aNetlistOptions,
+    virtual bool WriteNetlist( const QString& aOutFileName, unsigned aNetlistOptions,
                                REPORTER& aReporter )
     {
         return false;
@@ -133,9 +111,9 @@ public:
      *  <li> %P => project directory, without name and without trailing '/'
      *  </ul>
      */
-    static wxString MakeCommandLine( const wxString& aFormatString, const wxString& aNetlistFile,
-                                     const wxString& aFinalFile,
-                                     const wxString& aProjectDirectory );
+    static QString MakeCommandLine( const QString& aFormatString, const QString& aNetlistFile,
+                                     const QString& aFinalFile,
+                                     const QString& aProjectDirectory );
 
 protected:
     /**

@@ -1,35 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2018 Jean-Pierre Charras jp.charras at wanadoo.fr
- * Copyright (C) 1992-2010 Lorenzo Marcantonio
- * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SCH_PLOTTER_H
 #define SCH_PLOTTER_H
 
-#include <wx/filename.h>
-#include <wx/string.h>
-#include <wx/gdicmn.h>
+#include <QString>
+#include <QFileInfo>
 #include <page_info.h>
 #include <sch_render_settings.h>
 #include <sch_sheet_path.h>
@@ -81,7 +55,7 @@ struct SCH_PLOT_OPTS
 {
     bool                  m_plotAll;
     bool                  m_plotDrawingSheet;
-    std::vector<wxString> m_plotPages;
+    std::vector<QString> m_plotPages;
 
     bool           m_blackAndWhite;
     int            m_pageSizeSelect;
@@ -91,10 +65,10 @@ struct SCH_PLOT_OPTS
     bool           m_PDFPropertyPopups;
     bool           m_PDFHierarchicalLinks;
     bool           m_PDFMetadata;
-    wxString       m_theme;
+    QString       m_theme;
 
-    wxString       m_outputDirectory;
-    wxString       m_outputFile;
+    QString       m_outputDirectory;
+    QString       m_outputFile;
 
     HPGL_PLOT_ORIGIN_AND_UNITS m_HPGLPlotOrigin;
 
@@ -150,14 +124,14 @@ public:
      * Get the last output file path, this is mainly intended for PDFs with the open after
      * plot GUI option.
      */
-    wxString GetLastOutputFilePath() const { return m_lastOutputFilePath; }
+    QString GetLastOutputFilePath() const { return m_lastOutputFilePath; }
 
 protected:
     /**
      * Return the output filename for formats where the output is a single file.
      */
-    wxFileName getOutputFilenameSingle( const SCH_PLOT_OPTS& aPlotOpts, REPORTER* aReporter,
-                                        const wxString& ext );
+    QFileInfo getOutputFilenameSingle( const SCH_PLOT_OPTS& aPlotOpts, REPORTER* aReporter,
+                                        const QString& ext );
 
     // PDF
     void createPDFFile( const SCH_PLOT_OPTS& aPlotOpts, SCH_RENDER_SETTINGS* aRenderSettings,
@@ -168,7 +142,7 @@ protected:
     // DXF
     void createDXFFiles( const SCH_PLOT_OPTS& aPlotOpts, SCH_RENDER_SETTINGS* aRenderSettings,
                          REPORTER* aReporter );
-    bool plotOneSheetDXF( const wxString& aFileName, SCH_SCREEN* aScreen,
+    bool plotOneSheetDXF( const QString& aFileName, SCH_SCREEN* aScreen,
                           RENDER_SETTINGS* aRenderSettings, const VECTOR2I& aPlotOffset,
                           double aScale, const SCH_PLOT_OPTS& aPlotOpts );
 
@@ -176,7 +150,7 @@ protected:
     // HPGL
     void createHPGLFiles( const SCH_PLOT_OPTS& aPlotOpts, SCH_RENDER_SETTINGS* aRenderSettings,
                           REPORTER* aReporter );
-    bool plotOneSheetHpgl( const wxString& aFileName, SCH_SCREEN* aScreen,
+    bool plotOneSheetHpgl( const QString& aFileName, SCH_SCREEN* aScreen,
                            const PAGE_INFO& aPageInfo, RENDER_SETTINGS* aRenderSettings,
                            const VECTOR2I& aPlot0ffset, double aScale,
                            const SCH_PLOT_OPTS& aPlotOpts );
@@ -184,7 +158,7 @@ protected:
     // PS
     void createPSFiles( const SCH_PLOT_OPTS& aPlotOpts, SCH_RENDER_SETTINGS* aRenderSettings,
                         REPORTER* aReporter );
-    bool plotOneSheetPS( const wxString& aFileName, SCH_SCREEN* aScreen,
+    bool plotOneSheetPS( const QString& aFileName, SCH_SCREEN* aScreen,
                          RENDER_SETTINGS* aRenderSettings, const PAGE_INFO& aPageInfo,
                          const VECTOR2I& aPlot0ffset, double aScale,
                          const SCH_PLOT_OPTS& aPlotOpts );
@@ -192,7 +166,7 @@ protected:
     // SVG
     void createSVGFiles( const SCH_PLOT_OPTS& aPlotOpts, SCH_RENDER_SETTINGS* aRenderSettings,
                          REPORTER* aReporter );
-    bool plotOneSheetSVG( const wxString& aFileName, SCH_SCREEN* aScreen,
+    bool plotOneSheetSVG( const QString& aFileName, SCH_SCREEN* aScreen,
                           RENDER_SETTINGS* aRenderSettings, const SCH_PLOT_OPTS& aPlotOpts );
 
     /**
@@ -213,13 +187,13 @@ protected:
      * @return the created file name.
      * @throw IO_ERROR on file I/O errors.
      */
-    wxFileName createPlotFileName( const SCH_PLOT_OPTS& aPlotOpts, const wxString& aPlotFileName,
-                                   const wxString& aExtension, REPORTER* aReporter = nullptr );
+    QFileInfo createPlotFileName( const SCH_PLOT_OPTS& aPlotOpts, const QString& aPlotFileName,
+                                   const QString& aExtension, REPORTER* aReporter = nullptr );
 
 private:
     SCHEMATIC*      m_schematic;
     COLOR_SETTINGS* m_colorSettings;
-    wxString        m_lastOutputFilePath;
+    QString        m_lastOutputFilePath;
 };
 
 #endif

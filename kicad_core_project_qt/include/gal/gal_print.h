@@ -1,28 +1,10 @@
-/*
- * Copyright (C) 2018 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef GAL_PRINT_H
 #define GAL_PRINT_H
 
 #include <gal/gal.h>
 
-class wxDC;
+class QPaintDevice;
 
 namespace KIGFX {
 class GAL;
@@ -44,7 +26,7 @@ public:
 class GAL_API GAL_PRINT
 {
 public:
-    static std::unique_ptr<GAL_PRINT> Create( GAL_DISPLAY_OPTIONS& aOptions, wxDC* aDC );
+    static std::unique_ptr<GAL_PRINT> Create( GAL_DISPLAY_OPTIONS& aOptions, QPaintDevice* aDC );
 
     virtual ~GAL_PRINT() {}
 

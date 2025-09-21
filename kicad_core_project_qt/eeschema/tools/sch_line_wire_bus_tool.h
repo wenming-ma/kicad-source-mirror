@@ -1,31 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SCH_LINE_WIRE_BUS_TOOL_H
 #define SCH_LINE_WIRE_BUS_TOOL_H
 
-#include <wx/string.h>
+#include <QString>
 #include <string>
 #include <vector>
 
@@ -52,7 +29,7 @@ struct BUS_UNFOLDING_T
     bool label_placed;  ///< True if user has placed the net label
 
     VECTOR2I origin;   ///< Origin (on the bus) of the unfold
-    wxString net_name;  ///< Net label for the unfolding operation
+    QString net_name;  ///< Net label for the unfolding operation
 
     SCH_BUS_WIRE_ENTRY* entry;
     SCH_LABEL* label;
@@ -112,7 +89,7 @@ private:
      * @param aPos The position to unfold the bus from, which will be the cursor if
      *            not provided, and will then be snapped to the selected bus segment.
     */
-    SCH_LINE* doUnfoldBus( const wxString&                aNet,
+    SCH_LINE* doUnfoldBus( const QString&                aNet,
                            const std::optional<VECTOR2I>& aPos = std::nullopt );
 
     void finishSegments();
@@ -140,7 +117,7 @@ private:
      *
      * @param aSegments A pair of pointers to a #SCH_LINE objects containing the first line
      *                  break point to compute.
-     * @param aPosition A reference to a wxPoint object containing the coordinates of the
+     * @param aPosition A reference to a VECTOR2I object containing the coordinates of the
      *                  position used to calculate the line break point.
      * @param mode      LINE_MODE specifying the way to break the line
      * @param posture   Toggles the posture of the line

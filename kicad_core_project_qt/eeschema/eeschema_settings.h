@@ -1,30 +1,11 @@
-/*
-* This program source code file is part of KiCad, a free EDA CAD application.
-*
-* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, you may find one here:
-* http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
-* or you may search the http://www.gnu.org website for the version 2 license,
-* or you may write to the Free Software Foundation, Inc.,
-* 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
-*/
 
 #ifndef _EESCHEMA_SETTINGS_H
 #define _EESCHEMA_SETTINGS_H
 
-#include <wx/aui/framemanager.h>
+#include <QtWidgets/QWidget>
+#include <QtCore/QSize>
+#include <QtCore/QPoint>
+#include <QtCore/QSettings>
 
 #include <settings/app_settings.h>
 // #include <sim/sim_preferences.h> // UNUSED_SYMBOL: SIM functionality disabled
@@ -32,10 +13,10 @@
 using KIGFX::COLOR4D;
 
 
-extern const wxAuiPaneInfo& defaultNetNavigatorPaneInfo();
-extern const wxAuiPaneInfo& defaultPropertiesPaneInfo( wxWindow* aWindow );
-extern const wxAuiPaneInfo& defaultSchSelectionFilterPaneInfo( wxWindow* aWindow );
-extern const wxAuiPaneInfo& defaultDesignBlocksPaneInfo( wxWindow* aWindow );
+extern const QWidget& defaultNetNavigatorPaneInfo();
+extern const QWidget& defaultPropertiesPaneInfo( QWidget* aWindow );
+extern const QWidget& defaultSchSelectionFilterPaneInfo( QWidget* aWindow );
+extern const QWidget& defaultDesignBlocksPaneInfo( QWidget* aWindow );
 
 
 
@@ -54,20 +35,20 @@ class EESCHEMA_SETTINGS : public APP_SETTINGS_BASE
 public:
     struct APPEARANCE
     {
-        wxString edit_symbol_visible_columns;
+        QString edit_symbol_visible_columns;
         int edit_symbol_width;
         int edit_symbol_height;
-        wxString edit_sheet_visible_columns;
+        QString edit_sheet_visible_columns;
         int edit_sheet_width;
         int edit_sheet_height;
-        wxString edit_label_visible_columns;
+        QString edit_label_visible_columns;
         int edit_label_width;
         int edit_label_height;
         bool edit_label_multiple;
         int  erc_severities;
         bool footprint_preview;
         bool print_sheet_reference;
-        wxString default_font;
+        QString default_font;
         bool show_hidden_pins;
         bool show_hidden_fields;
         bool show_directive_labels;
@@ -96,9 +77,9 @@ public:
         bool schematic_hierarchy_float;     // show hierarchy tree panel as floating
         bool show_schematic_hierarchy;      // show hierarchy tree pane
         bool show_search;                   // show the search panel
-        wxSize net_nav_panel_docked_size;
-        wxPoint net_nav_panel_float_pos;
-        wxSize net_nav_panel_float_size;
+        QSize net_nav_panel_docked_size;
+        QPoint net_nav_panel_float_pos;
+        QSize net_nav_panel_float_size;
         bool float_net_nav_panel;
         bool show_net_nav_panel;
         int  properties_panel_width;
@@ -121,28 +102,28 @@ public:
     {
         BOM_PLUGIN_SETTINGS() = default;
 
-        BOM_PLUGIN_SETTINGS( const wxString& aName, const wxString& aPath ) :
+        BOM_PLUGIN_SETTINGS( const QString& aName, const QString& aPath ) :
                 name( aName ),
                 path( aPath )
         {}
 
-        wxString name;
-        wxString path;
-        wxString command;
+        QString name;
+        QString path;
+        QString command;
     };
 
     struct NETLIST_PLUGIN_SETTINGS
     {
         NETLIST_PLUGIN_SETTINGS() = default;
 
-        NETLIST_PLUGIN_SETTINGS( const wxString& aName, const wxString& aPath ) :
+        NETLIST_PLUGIN_SETTINGS( const QString& aName, const QString& aPath ) :
                 name( aName ),
                 path( aPath )
         {}
 
-        wxString name;
-        wxString path;
-        wxString command;
+        QString name;
+        QString path;
+        QString command;
     };
 
     struct DRAWING
@@ -158,14 +139,14 @@ public:
         double   text_offset_ratio;
         COLOR4D  default_sheet_border_color;
         COLOR4D  default_sheet_background_color;
-        wxString field_names;
+        QString field_names;
         int      line_mode;
         int      repeat_label_increment;
         bool     intersheets_ref_show;
         bool     intersheets_ref_own_page;
         bool     intersheets_ref_short;
-        wxString intersheets_ref_prefix;
-        wxString intersheets_ref_suffix;
+        QString intersheets_ref_prefix;
+        QString intersheets_ref_suffix;
         bool     auto_start_wires;
         std::vector<double> junction_size_mult_list;
 
@@ -221,7 +202,7 @@ public:
 
     struct PANEL_BOM
     {
-        wxString selected_plugin;
+        QString selected_plugin;
         std::vector<BOM_PLUGIN_SETTINGS> plugins;
     };
 
@@ -231,7 +212,7 @@ public:
         int                        width;
         int                        height;
         int                        page;
-        wxString                   export_filename;
+        QString                   export_filename;
         int                        selection_mode;
         int                        scope;
     };
@@ -254,7 +235,7 @@ public:
     {
         bool     background_color;
         bool     color;
-        wxString color_theme;
+        QString color_theme;
         int      format;
         bool     frame_reference;
         int      hpgl_paper_size;
@@ -295,7 +276,7 @@ public:
     struct DIALOG_IMPORT_GRAPHICS
     {
         bool     interactive_placement;
-        wxString last_file;
+        QString last_file;
         double   dxf_line_width;
         int      dxf_line_width_units;
         int      origin_units;
@@ -335,7 +316,7 @@ public:
 
     virtual ~EESCHEMA_SETTINGS() {}
 
-    virtual bool MigrateFromLegacy( wxConfigBase* aLegacyConfig ) override;
+    virtual bool MigrateFromLegacy( QSettings* aLegacyConfig ) override;
 
     static std::vector<BOM_PLUGIN_SETTINGS> DefaultBomPlugins();
 
@@ -392,7 +373,7 @@ public:
 
     bool m_RescueNeverShow;
 
-    wxString m_lastSymbolLibDir;
+    QString m_lastSymbolLibDir;
 };
 
 

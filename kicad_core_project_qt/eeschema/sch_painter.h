@@ -27,6 +27,8 @@
 #ifndef SCH_PAINTER_H
 #define SCH_PAINTER_H
 
+#include <QString>
+
 #include <sch_render_settings.h>
 #include <sch_symbol.h>
 
@@ -134,7 +136,7 @@ private:
 
     void triLine( const VECTOR2D& a, const VECTOR2D& b, const VECTOR2D& c );
 
-    wxString expandLibItemTextVars( const wxString& aSourceText, const SCH_SYMBOL* aSymbolContext );
+    QString expandLibItemTextVars( const QString& aSourceText, const SCH_SYMBOL* aSymbolContext );
 
 public:
     static std::vector<KICAD_T> g_ScaledSelectionTypes;

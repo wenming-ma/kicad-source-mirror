@@ -1,21 +1,3 @@
-/*
-* This program source code file is part of KiCad, a free EDA CAD application.
-*
-* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
-*
-* This program is free software: you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation, either version 3 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
 
 #include <kiplatform/secrets.h>
 
@@ -35,19 +17,19 @@ namespace KIPLATFORM
             }
         };
 
-        bool StoreSecret( const wxString& aService, const wxString& aKey, const wxString& aSecret )
+        bool StoreSecret( const QString& aService, const QString& aKey, const QString& aSecret )
         {
             GError* error = nullptr;
-            wxString display = aService + ":" + aKey;
+            QString display = aService + ":" + aKey;
 
             secret_password_store_sync( &schema,
                                         SECRET_COLLECTION_DEFAULT,
-                                        display.mb_str(),   // Display name
-                                        aSecret.mb_str(),   // Secret value
+                                        display.toLocal8Bit().constData(),   // Display name
+                                        aSecret.toLocal8Bit().constData(),   // Secret value
                                         nullptr,
                                         &error,
-                                        "service", aService.ToStdString().c_str(),
-                                        "key", aKey.ToStdString().c_str(),
+                                        "service", aService.toStdString().c_str(),
+                                        "key", aKey.toStdString().c_str(),
                                         nullptr );
 
             if( error )
@@ -59,14 +41,14 @@ namespace KIPLATFORM
             return true;
         }
 
-        bool GetSecret( const wxString& aService, const wxString& aKey, wxString& aSecret )
+        bool GetSecret( const QString& aService, const QString& aKey, QString& aSecret )
         {
             GError* error = nullptr;
             gchar* secret = secret_password_lookup_sync( &schema,
                                                          nullptr,
                                                          &error,
-                                                         "service", aService.ToStdString().c_str(),
-                                                         "key", aKey.ToStdString().c_str(),
+                                                         "service", aService.toStdString().c_str(),
+                                                         "key", aKey.toStdString().c_str(),
                                                          nullptr );
 
             if( error )
@@ -75,7 +57,7 @@ namespace KIPLATFORM
                 return false;
             }
 
-            aSecret = secret;
+            aSecret = QString::fromLocal8Bit(secret);
             g_free( secret );
 
             return true;

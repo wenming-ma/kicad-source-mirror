@@ -28,6 +28,7 @@
 #include <eda_text.h>
 #include <sch_shape.h>
 #include <schematic.h>
+#include <QString>
 
 
 // UNUSED_SYMBOL: HTML_MESSAGE_BOX destructor - Forward declaration not needed since class is unused
@@ -37,7 +38,7 @@ class SCH_TEXTBOX : public SCH_SHAPE, public EDA_TEXT
 {
 public:
     SCH_TEXTBOX( SCH_LAYER_ID aLayer = LAYER_NOTES, int aLineWidth = 0,
-                 FILL_T aFillType = FILL_T::NO_FILL, const wxString& aText = wxEmptyString,
+                 FILL_T aFillType = FILL_T::NO_FILL, const QString& aText = QString(),
                  KICAD_T aType = SCH_TEXTBOX_T );
 
     SCH_TEXTBOX( const SCH_TEXTBOX& aText );
@@ -49,9 +50,9 @@ public:
         return aItem && SCH_TEXTBOX_T == aItem->Type();
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "SCH_TEXTBOX" );
+        return QStringLiteral( "SCH_TEXTBOX" );
     }
 
     int GetLegacyTextMargin() const;
@@ -73,10 +74,10 @@ public:
 
     KIFONT::FONT* GetDrawFont( const RENDER_SETTINGS* aSettings ) const override;
 
-    virtual wxString GetShownText( const RENDER_SETTINGS* aSettings, const SCH_SHEET_PATH* aPath,
-                                   bool aAllowExtraText, int aDepth = 0 ) const;
+    virtual QString GetShownText( const RENDER_SETTINGS* aSettings, const SCH_SHEET_PATH* aPath,
+                                  bool aAllowExtraText, int aDepth = 0 ) const;
 
-    wxString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override
+    QString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override
     {
         SCH_SHEET_PATH* sheetPath = nullptr;
 
@@ -124,7 +125,7 @@ public:
 
     virtual bool IsReplaceable() const override { return true; }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 

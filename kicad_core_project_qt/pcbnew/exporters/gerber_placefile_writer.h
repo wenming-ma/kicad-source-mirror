@@ -28,6 +28,7 @@
 
 #include <layer_ids.h>
 #include <math/vector2d.h>
+#include <QString>
 
 class BOARD;
 class FOOTPRINT;
@@ -66,7 +67,7 @@ public:
      * @param aIncludeBrdEdges use true to include board outlines.
      * @return component count, or -1 if the file cannot be created.
      */
-    int CreatePlaceFile( const wxString& aFullFilename, PCB_LAYER_ID aLayer, bool aIncludeBrdEdges,
+    int CreatePlaceFile( const QString& aFullFilename, PCB_LAYER_ID aLayer, bool aIncludeBrdEdges,
                          bool aExcludeDNP );
 
     /**
@@ -75,7 +76,7 @@ public:
      * @param aLayer = layer (F_Cu or B_Cu) to generate
      * @return a filename which identify the drill file function.
      */
-    const wxString GetPlaceFileName( const wxString& aFullBaseFilename,
+    const QString GetPlaceFileName( const QString& aFullBaseFilename,
                                      PCB_LAYER_ID aLayer ) const;
 
 private:

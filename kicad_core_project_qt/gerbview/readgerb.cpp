@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2007-2016 Jean-Pierre Charras  jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "ki_exception.h"
 #include <string_utils.h>
@@ -35,13 +12,15 @@
 #include <dialogs/html_message_box.h>
 #include <macros.h>
 
-#include <wx/msgdlg.h>
+#include <QString>
+#include <QMessageBox>
+#include <QtGlobal>
 
 /* Read a gerber file, RS274D, RS274X or RS274X2 format.
  */
-bool GERBVIEW_FRAME::Read_GERBER_File( const wxString& GERBER_FullFileName )
+bool GERBVIEW_FRAME::Read_GERBER_File( const QString& GERBER_FullFileName )
 {
-    wxString msg;
+    QString msg;
 
     int layer = GetActiveLayer();
     GERBER_FILE_IMAGE_LIST* images = GetImagesList();
@@ -62,13 +41,13 @@ bool GERBVIEW_FRAME::Read_GERBER_File( const wxString& GERBER_FullFileName )
     if( !success )
     {
         gerber_uptr.reset();
-        msg.Printf( _( "File '%s' not found" ), GERBER_FullFileName );
+        msg = QString::asprintf( _( "File '%s' not found" ), GERBER_FullFileName.toStdString().c_str() );
         ShowInfoBarError( msg );
         return false;
     }
 
     gerber = gerber_uptr.release();
-    wxASSERT( gerber != nullptr );
+    Q_ASSERT( gerber != nullptr );
     images->AddGbrImage( gerber, layer );
 
     // Display errors list
@@ -93,7 +72,7 @@ bool GERBVIEW_FRAME::Read_GERBER_File( const wxString& GERBER_FullFileName )
             msg = _("Warning: this file has some missing D-Code definitions\n"
                     "Therefore the size of some items is undefined");
 
-        wxMessageBox( msg );
+        QMessageBox::information( nullptr, "Warning", msg );
     }
 
     if( GetCanvas() )
@@ -137,7 +116,7 @@ bool GERBVIEW_FRAME::Read_GERBER_File( const wxString& GERBER_FullFileName )
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA
  */
-bool GERBER_FILE_IMAGE::TestFileIsRS274( const wxString& aFullFileName )
+bool GERBER_FILE_IMAGE::TestFileIsRS274( const QString& aFullFileName )
 {
     char* letter    = nullptr;
     bool  foundADD  = false;
@@ -228,7 +207,7 @@ bool GERBER_FILE_IMAGE::TestFileIsRS274( const wxString& aFullFileName )
 // A large buffer to store one line
 char GERBER_FILE_IMAGE::m_LineBuffer[GERBER_BUFZ+1];
 
-bool GERBER_FILE_IMAGE::LoadGerberFile( const wxString& aFullFileName )
+bool GERBER_FILE_IMAGE::LoadGerberFile( const QString& aFullFileName )
 {
     int      G_command = 0;        // command number for G commands like G04
     int      D_commande = 0;       // command number for D commands like D02
@@ -238,7 +217,7 @@ bool GERBER_FILE_IMAGE::LoadGerberFile( const wxString& aFullFileName )
     ResetDefaultValues();
 
     // Read the gerber file */
-    m_Current_File = wxFopen( aFullFileName, wxT( "rt" ) );
+    m_Current_File = fopen( aFullFileName.toStdString().c_str(), "rt" );
 
     if( m_Current_File == nullptr )
         return false;
@@ -247,7 +226,7 @@ bool GERBER_FILE_IMAGE::LoadGerberFile( const wxString& aFullFileName )
 
     LOCALE_IO toggleIo;
 
-    wxString msg;
+    QString msg;
 
     while( true )
     {
@@ -316,14 +295,14 @@ bool GERBER_FILE_IMAGE::LoadGerberFile( const wxString& aFullFileName )
                 }
                 else        //Error
                 {
-                    AddMessageToList( wxT( "Expected RS274X Command" ) );
+                    AddMessageToList( "Expected RS274X Command" );
                     m_CommandState = CMD_IDLE;
                     text++;
                 }
                 break;
 
             default:
-                msg.Printf( wxT( "Unexpected char 0x%2.2X (%c)" ), *text, *text );
+                msg = QString::asprintf( "Unexpected char 0x%2.2X (%c)", *text, *text );
                 AddMessageToList( msg );
                 text++;
                 break;

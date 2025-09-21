@@ -1,25 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Chris Pavlina <pavlina.chris@gmail.com>
- * Copyright (C) 2014 Henner Zeller <h.zeller@acm.org>
- * Copyright (C) 2023 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #include <eda_base_frame.h>
 #include <eda_pattern_match.h>
 #include <kiface_base.h>
@@ -28,105 +7,75 @@
 #include <project/project_file.h>
 #include <settings/app_settings.h>
 #include <widgets/tepui_common.h>
-#include <wx/tokenzr.h>
-#include <wx/wupdlock.h>
-#include <wx/settings.h>
-#include <wx/dc.h>
+#include <QStringList>
+#include <QRegularExpression>
+#include <QApplication>
+#include <QPainter>
+#include <QTreeView>
+#include <QHeaderView>
+#include <QStyledItemDelegate>
+#include <QFontMetrics>
+#include <QItemSelectionModel>
+#include <QAbstractItemModel>
 #include <string_utils.h>
 
 
 static const int kDataViewIndent = 20;
 
 
-class LIB_TREE_RENDERER : public wxDataViewCustomRenderer
+class LIB_TREE_RENDERER : public QStyledItemDelegate
 {
 public:
     LIB_TREE_RENDERER() :
             m_canvasItem( false )
     {}
 
-    wxSize GetSize() const override
+    QSize sizeHint( const QStyleOptionViewItem& option, const QModelIndex& index ) const override
     {
-        return wxSize( GetOwner()->GetWidth(), GetTextExtent( m_text ).y + 2 );
+        QFontMetrics fm( option.font );
+        return QSize( option.rect.width(), fm.height() + 2 );
     }
 
-    bool GetValue( wxVariant& aValue ) const override
+    void paint( QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index ) const override
     {
-        aValue = m_text;
-        return true;
-    }
-
-    bool SetValue( const wxVariant& aValue ) override
-    {
-        m_text = aValue.GetString();
-        return true;
-    }
-
-    void SetAttr( const wxDataViewItemAttr& aAttr ) override
-    {
-        // Use strikethrough as a proxy for is-canvas-item
-        m_canvasItem = aAttr.GetStrikethrough();
-
-        wxDataViewItemAttr realAttr = aAttr;
-        realAttr.SetStrikethrough( false );
-
-        wxDataViewCustomRenderer::SetAttr( realAttr );
-    }
-
-    bool Render( wxRect aRect, wxDC *dc, int aState ) override
-    {
-        RenderBackground( dc, aRect );
+        QStyledItemDelegate::paint( painter, option, index );
 
         if( m_canvasItem )
         {
-            wxPoint points[6];
-            points[0] = aRect.GetTopLeft();
-            points[1] = aRect.GetTopRight() + wxPoint( -4, 0 );
-            points[2] = aRect.GetTopRight() + wxPoint( 0, aRect.GetHeight() / 2 );
-            points[3] = aRect.GetBottomRight() + wxPoint( -4, 1 );
-            points[4] = aRect.GetBottomLeft() + wxPoint( 0, 1 );
-            points[5] = aRect.GetTopLeft();
+            QPoint points[6];
+            points[0] = option.rect.topLeft();
+            points[1] = option.rect.topRight() + QPoint( -4, 0 );
+            points[2] = option.rect.topRight() + QPoint( 0, option.rect.height() / 2 );
+            points[3] = option.rect.bottomRight() + QPoint( -4, 1 );
+            points[4] = option.rect.bottomLeft() + QPoint( 0, 1 );
+            points[5] = option.rect.topLeft();
 
-            dc->SetPen( KIPLATFORM::UI::IsDarkTheme() ? *wxWHITE_PEN : *wxBLACK_PEN );
-            dc->DrawLines( 6, points );
+            QPen pen( KIPLATFORM::UI::IsDarkTheme() ? Qt::white : Qt::black );
+            painter->setPen( pen );
+            painter->drawPolyline( points, 6 );
         }
-
-        aRect.Deflate( 1 );
-
-#ifdef __WXOSX__
-        // We should be able to pass wxDATAVIEW_CELL_SELECTED into RenderText() and have it do
-        // the right thing -- but it picks wxSYS_COLOUR_HIGHLIGHTTEXT on MacOS (instead
-        // of wxSYS_COLOUR_LISTBOXHIGHLIGHTTEXT).
-        if( aState & wxDATAVIEW_CELL_SELECTED )
-            dc->SetTextForeground( wxSystemSettings::GetColour( wxSYS_COLOUR_LISTBOXHIGHLIGHTTEXT ) );
-
-        RenderText( m_text, 0, aRect, dc, 0 );
-#else
-        RenderText( m_text, 0, aRect, dc, aState );
-#endif
-        return true;
     }
 
 private:
-    bool     m_canvasItem;
-    wxString m_text;
+    bool    m_canvasItem;
+    QString m_text;
 };
 
 
-wxDataViewItem LIB_TREE_MODEL_ADAPTER::ToItem( const LIB_TREE_NODE* aNode )
+QModelIndex LIB_TREE_MODEL_ADAPTER::ToItem( const LIB_TREE_NODE* aNode )
 {
-    return wxDataViewItem( const_cast<void*>( static_cast<void const*>( aNode ) ) );
+    return createIndex( 0, 0, const_cast<void*>( static_cast<void const*>( aNode ) ) );
 }
 
 
-LIB_TREE_NODE* LIB_TREE_MODEL_ADAPTER::ToNode( wxDataViewItem aItem )
+LIB_TREE_NODE* LIB_TREE_MODEL_ADAPTER::ToNode( const QModelIndex& aItem )
 {
-    return static_cast<LIB_TREE_NODE*>( aItem.GetID() );
+    return static_cast<LIB_TREE_NODE*>( aItem.internalPointer() );
 }
 
 
 LIB_TREE_MODEL_ADAPTER::LIB_TREE_MODEL_ADAPTER( EDA_BASE_FRAME* aParent,
-                                                const wxString& aPinnedKey,
+                                                const QString& aPinnedKey,
                                                 APP_SETTINGS_BASE::LIB_TREE& aSettingsStruct ) :
         m_widget( nullptr ),
         m_parent( aParent ),
@@ -143,7 +92,7 @@ LIB_TREE_MODEL_ADAPTER::LIB_TREE_MODEL_ADAPTER( EDA_BASE_FRAME* aParent,
 
     m_availableColumns = { _HKI( "Item" ), _HKI( "Description" ) };
 
-    for( const std::pair<const wxString, int>& pair : m_cfg.column_widths )
+    for( const std::pair<const QString, int>& pair : m_cfg.column_widths )
         m_colWidths[pair.first] = pair.second;
 
     m_shownColumns = m_cfg.columns;
@@ -160,35 +109,37 @@ LIB_TREE_MODEL_ADAPTER::~LIB_TREE_MODEL_ADAPTER()
 {}
 
 
-std::vector<wxString> LIB_TREE_MODEL_ADAPTER::GetOpenLibs() const
+std::vector<QString> LIB_TREE_MODEL_ADAPTER::GetOpenLibs() const
 {
-    std::vector<wxString> openLibs;
-    wxDataViewItem        rootItem( nullptr );
-    wxDataViewItemArray   children;
+    std::vector<QString> openLibs;
+    QModelIndex          rootItem;
+    QModelIndexList      children;
 
     GetChildren( rootItem, children );
 
-    for( const wxDataViewItem& child : children )
+    for( const QModelIndex& child : children )
     {
-        if( m_widget->IsExpanded( child ) )
-            openLibs.emplace_back( ToNode( child )->m_LibId.GetLibNickname().wx_str() );
+        if( m_widget->isExpanded( child ) )
+            openLibs.emplace_back( QString::fromStdString( ToNode( child )->m_LibId.GetLibNickname() ) );
     }
 
     return openLibs;
 }
 
 
-void LIB_TREE_MODEL_ADAPTER::OpenLibs( const std::vector<wxString>& aLibs )
+void LIB_TREE_MODEL_ADAPTER::OpenLibs( const std::vector<QString>& aLibs )
 {
-    wxWindowUpdateLocker updateLock( m_widget );
+    m_widget->setUpdatesEnabled( false );
 
-    for( const wxString& lib : aLibs )
+    for( const QString& lib : aLibs )
     {
-        wxDataViewItem item = FindItem( LIB_ID( lib, wxEmptyString ) );
+        QModelIndex item = FindItem( LIB_ID( lib.toStdString(), "" ) );
 
-        if( item.IsOk() )
-            m_widget->Expand( item );
+        if( item.isValid() )
+            m_widget->expand( item );
     }
+
+    m_widget->setUpdatesEnabled( true );
 }
 
 
@@ -199,8 +150,8 @@ void LIB_TREE_MODEL_ADAPTER::SaveSettings()
         m_cfg.columns = GetShownColumns();
         m_cfg.column_widths.clear();
 
-        for( const std::pair<const wxString, wxDataViewColumn*>& pair : m_colNameMap )
-            m_cfg.column_widths[pair.first] = pair.second->GetWidth();
+        for( const std::pair<const QString, QHeaderView*>& pair : m_colNameMap )
+            m_cfg.column_widths[pair.first] = pair.second->sectionSize( 0 );
 
         m_cfg.open_libs = GetOpenLibs();
     }
@@ -220,11 +171,11 @@ void LIB_TREE_MODEL_ADAPTER::SetPreselectNode( const LIB_ID& aLibId, int aUnit )
 }
 
 
-LIB_TREE_NODE_LIBRARY& LIB_TREE_MODEL_ADAPTER::DoAddLibraryNode( const wxString& aNodeName,
-                                                                 const wxString& aDesc,
+LIB_TREE_NODE_LIBRARY& LIB_TREE_MODEL_ADAPTER::DoAddLibraryNode( const QString& aNodeName,
+                                                                 const QString& aDesc,
                                                                  bool pinned )
 {
-    LIB_TREE_NODE_LIBRARY& lib_node = m_tree.AddLib( aNodeName, aDesc );
+    LIB_TREE_NODE_LIBRARY& lib_node = m_tree.AddLib( aNodeName.toStdString(), aDesc.toStdString() );
 
     lib_node.m_Pinned = pinned;
 
@@ -232,8 +183,8 @@ LIB_TREE_NODE_LIBRARY& LIB_TREE_MODEL_ADAPTER::DoAddLibraryNode( const wxString&
 }
 
 
-LIB_TREE_NODE_LIBRARY& LIB_TREE_MODEL_ADAPTER::DoAddLibrary( const wxString& aNodeName,
-                                                             const wxString& aDesc,
+LIB_TREE_NODE_LIBRARY& LIB_TREE_MODEL_ADAPTER::DoAddLibrary( const QString& aNodeName,
+                                                             const QString& aDesc,
                                                              const std::vector<LIB_TREE_ITEM*>& aItemList,
                                                              bool pinned, bool presorted )
 {
@@ -254,29 +205,19 @@ void LIB_TREE_MODEL_ADAPTER::RemoveGroup( bool aRecentGroup, bool aPlacedGroup )
 }
 
 
-void LIB_TREE_MODEL_ADAPTER::UpdateSearchString( const wxString& aSearch, bool aState )
+void LIB_TREE_MODEL_ADAPTER::UpdateSearchString( const QString& aSearch, bool aState )
 {
     {
-        wxWindowUpdateLocker updateLock( m_widget );
+        m_widget->setUpdatesEnabled( false );
 
-        // Even with the updateLock, wxWidgets sometimes ties its knickers in a knot trying to
-        // run a wxdataview_selection_changed_callback() on a row that has been deleted.
-        // https://bugs.launchpad.net/kicad/+bug/1756255
-        m_widget->UnselectAll();
+        // Clear selection to avoid issues with deleted rows
+        m_widget->clearSelection();
 
-        // This collapse is required before the call to "Freeze()" below.  Once Freeze()
-        // is called, GetParent() will return nullptr.  While this works for some calls, it
-        // segfaults when we have any expanded elements b/c the sub units in the tree don't
-        // have explicit references that are maintained over a search
-        // The tree will be expanded again below when we get our matches
-        //
-        // Also note that this cannot happen when we have deleted a symbol as GTK will also
-        // iterate over the tree in this case and find a symbol that has an invalid link
-        // and crash https://gitlab.com/kicad/code/kicad/-/issues/6910
-        if( !aState && !aSearch.IsNull() && m_tree.m_Children.size() )
+        // Collapse tree before search to avoid issues with expanded elements
+        if( !aState && !aSearch.isNull() && m_tree.m_Children.size() )
         {
             for( std::unique_ptr<LIB_TREE_NODE>& child: m_tree.m_Children )
-                m_widget->Collapse( wxDataViewItem( &*child ) );
+                m_widget->collapse( ToItem( &*child ) );
         }
 
         // DO NOT REMOVE THE FREEZE/THAW. This freeze/thaw is a flag for this model adapter
@@ -284,90 +225,94 @@ void LIB_TREE_MODEL_ADAPTER::UpdateSearchString( const wxString& aSearch, bool a
         // not return invalid data to the UI, since this invalid data can cause crashes.
         // This is different than the update locker, which locks the UI aspects only.
         Freeze();
-        BeforeReset();
+        beginResetModel();
 
         // Don't cause KiCad to hang if someone accidentally pastes the PCB or schematic into
         // the search box.
         constexpr int MAX_TERMS = 100;
 
-        wxStringTokenizer                                  tokenizer( aSearch );
+        QStringList                                        tokens = aSearch.split( QRegularExpression( "\\s+" ), Qt::SkipEmptyParts );
         std::vector<std::unique_ptr<EDA_COMBINED_MATCHER>> termMatchers;
 
-        while( tokenizer.HasMoreTokens() && termMatchers.size() < MAX_TERMS )
+        for( const QString& token : tokens )
         {
-            wxString term = tokenizer.GetNextToken().Lower();
-            termMatchers.emplace_back( std::make_unique<EDA_COMBINED_MATCHER>( term, CTX_LIBITEM ) );
+            if( termMatchers.size() >= MAX_TERMS )
+                break;
+            QString term = token.toLower();
+            termMatchers.emplace_back( std::make_unique<EDA_COMBINED_MATCHER>( term.toStdString(), CTX_LIBITEM ) );
         }
 
         m_tree.UpdateScore( termMatchers, m_filter );
 
         m_tree.SortNodes( m_sort_mode == BEST_MATCH );
-        AfterReset();
+        endResetModel();
         Thaw();
+
+        m_widget->setUpdatesEnabled( true );
     }
 
     const LIB_TREE_NODE* firstMatch = ShowResults();
 
     if( firstMatch )
     {
-        wxDataViewItem item = ToItem( firstMatch );
-        m_widget->Select( item );
+        QModelIndex item = ToItem( firstMatch );
+        m_widget->selectionModel()->select( item, QItemSelectionModel::ClearAndSelect );
 
         // Make sure the *parent* item is visible. The selected item is the first (shown) child
         // of the parent. So it's always right below the parent, and this way the user can also
         // see what library the selected part belongs to, without having a case where the selection
         // is off the screen (unless the window is a single row high, which is unlikely).
-        //
-        // This also happens to circumvent https://bugs.launchpad.net/kicad/+bug/1804400 which
-        // appears to be a GTK+3 bug.
         {
-            wxDataViewItem parent = GetParent( item );
+            QModelIndex parent = item.parent();
 
-            if( parent.IsOk() )
-                m_widget->EnsureVisible( parent );
+            if( parent.isValid() )
+                m_widget->scrollTo( parent );
         }
 
-        m_widget->EnsureVisible( item );
+        m_widget->scrollTo( item );
     }
 }
 
 
-void LIB_TREE_MODEL_ADAPTER::AttachTo( wxDataViewCtrl* aDataViewCtrl )
+void LIB_TREE_MODEL_ADAPTER::AttachTo( QTreeView* aTreeView )
 {
-    m_widget = aDataViewCtrl;
-    aDataViewCtrl->SetIndent( kDataViewIndent );
-    aDataViewCtrl->AssociateModel( this );
+    m_widget = aTreeView;
+    aTreeView->setIndentation( kDataViewIndent );
+    aTreeView->setModel( this );
     recreateColumns();
 }
 
 
 void LIB_TREE_MODEL_ADAPTER::recreateColumns()
 {
-    m_widget->ClearColumns();
+    // Clear existing columns in header
+    m_widget->header()->hide();
 
     m_columns.clear();
     m_colIdxMap.clear();
     m_colNameMap.clear();
 
     // The Item column is always shown
-    doAddColumn( wxT( "Item" ) );
+    doAddColumn( "Item" );
 
-    for( const wxString& colName : m_shownColumns )
+    for( const QString& colName : m_shownColumns )
     {
         if( !m_colNameMap.count( colName ) )
-            doAddColumn( colName, colName == wxT( "Description" ) );
+            doAddColumn( colName, colName == "Description" );
     }
+
+    m_widget->header()->show();
 }
 
 
 void LIB_TREE_MODEL_ADAPTER::resortTree()
 {
     Freeze();
-    BeforeReset();
+    beginResetModel();
 
     m_tree.SortNodes( m_sort_mode == BEST_MATCH );
 
-    AfterReset();
+    endResetModel();
     Thaw();
 }
 
@@ -378,7 +323,7 @@ void LIB_TREE_MODEL_ADAPTER::PinLibrary( LIB_TREE_NODE* aTreeNode )
     aTreeNode->m_Pinned = true;
 
     resortTree();
-    m_widget->EnsureVisible( ToItem( aTreeNode ) );
+    m_widget->scrollTo( ToItem( aTreeNode ) );
 }
 
 
@@ -399,42 +344,44 @@ void LIB_TREE_MODEL_ADAPTER::ShowChangedLanguage()
     for( const std::unique_ptr<LIB_TREE_NODE>& lib: m_tree.m_Children )
     {
         if( lib->m_IsRecentlyUsedGroup )
-            lib->m_Name = wxT( "-- " ) + _( "Recently Used" ) + wxT( " --" );
+            lib->m_Name = "-- " + _( "Recently Used" ).toStdString() + " --";
         else if( lib->m_IsAlreadyPlacedGroup )
-            lib->m_Name = wxT( "-- " ) + _( "Already Placed" ) + wxT( " --" );
+            lib->m_Name = "-- " + _( "Already Placed" ).toStdString() + " --";
     }
 }
 
 
-wxDataViewColumn* LIB_TREE_MODEL_ADAPTER::doAddColumn( const wxString& aHeader, bool aTranslate )
+QHeaderView* LIB_TREE_MODEL_ADAPTER::doAddColumn( const QString& aHeader, bool aTranslate )
 {
-    wxString translatedHeader = aTranslate ? wxGetTranslation( aHeader ) : aHeader;
+    QString translatedHeader = aTranslate ? QObject::tr( aHeader.toUtf8() ) : aHeader;
 
     // The extent of the text doesn't take into account the space on either side
     // in the header, so artificially pad it
-    wxSize headerMinWidth = KIUI::GetTextSize( translatedHeader + wxT( "MMM" ), m_widget );
+    QFontMetrics fm( m_widget->font() );
+    QSize headerMinWidth = fm.size( Qt::TextSingleLine, translatedHeader + "MMM" );
 
-    if( !m_colWidths.count( aHeader ) || m_colWidths[aHeader] < headerMinWidth.x )
-        m_colWidths[aHeader] = headerMinWidth.x;
+    if( !m_colWidths.count( aHeader ) || m_colWidths[aHeader] < headerMinWidth.width() )
+        m_colWidths[aHeader] = headerMinWidth.width();
 
     int index = (int) m_columns.size();
 
-    wxDataViewColumn* col = new wxDataViewColumn(
-            translatedHeader, new LIB_TREE_RENDERER(), index, m_colWidths[aHeader], wxALIGN_NOT,
-            wxDATAVIEW_CELL_INERT | static_cast<int>( wxDATAVIEW_COL_RESIZABLE ) );
-    m_widget->AppendColumn( col );
+    // Set header data for the model
+    setHeaderData( index, Qt::Horizontal, translatedHeader, Qt::DisplayRole );
 
-    col->SetMinWidth( headerMinWidth.x );
+    QHeaderView* header = m_widget->header();
+    header->setSectionResizeMode( index, QHeaderView::Interactive );
+    header->resizeSection( index, m_colWidths[aHeader] );
+    header->setMinimumSectionSize( headerMinWidth.width() );
 
-    m_columns.emplace_back( col );
-    m_colNameMap[aHeader] = col;
+    m_columns.emplace_back( header );
+    m_colNameMap[aHeader] = header;
     m_colIdxMap[m_columns.size() - 1] = aHeader;
 
-    return col;
+    return header;
 }
 
 
-void LIB_TREE_MODEL_ADAPTER::addColumnIfNecessary( const wxString& aHeader )
+void LIB_TREE_MODEL_ADAPTER::addColumnIfNecessary( const QString& aHeader )
 {
     if( m_colNameMap.count( aHeader ) )
         return;
@@ -445,7 +392,7 @@ void LIB_TREE_MODEL_ADAPTER::addColumnIfNecessary( const wxString& aHeader )
 }
 
 
-void LIB_TREE_MODEL_ADAPTER::SetShownColumns( const std::vector<wxString>& aColumnNames )
+void LIB_TREE_MODEL_ADAPTER::SetShownColumns( const std::vector<QString>& aColumnNames )
 {
     bool recreate = m_shownColumns != aColumnNames;
 
@@ -456,28 +403,28 @@ void LIB_TREE_MODEL_ADAPTER::SetShownColumns( const std::vector<wxString>& aColu
 }
 
 
-LIB_ID LIB_TREE_MODEL_ADAPTER::GetAliasFor( const wxDataViewItem& aSelection ) const
+LIB_ID LIB_TREE_MODEL_ADAPTER::GetAliasFor( const QModelIndex& aSelection ) const
 {
     const LIB_TREE_NODE* node = ToNode( aSelection );
     return node ? node->m_LibId : LIB_ID();
 }
 
 
-int LIB_TREE_MODEL_ADAPTER::GetUnitFor( const wxDataViewItem& aSelection ) const
+int LIB_TREE_MODEL_ADAPTER::GetUnitFor( const QModelIndex& aSelection ) const
 {
     const LIB_TREE_NODE* node = ToNode( aSelection );
     return node ? node->m_Unit : 0;
 }
 
 
-LIB_TREE_NODE::TYPE LIB_TREE_MODEL_ADAPTER::GetTypeFor( const wxDataViewItem& aSelection ) const
+LIB_TREE_NODE::TYPE LIB_TREE_MODEL_ADAPTER::GetTypeFor( const QModelIndex& aSelection ) const
 {
     const LIB_TREE_NODE* node = ToNode( aSelection );
     return node ? node->m_Type : LIB_TREE_NODE::TYPE::INVALID;
 }
 
 
-LIB_TREE_NODE* LIB_TREE_MODEL_ADAPTER::GetTreeNodeFor( const wxDataViewItem& aSelection ) const
+LIB_TREE_NODE* LIB_TREE_MODEL_ADAPTER::GetTreeNodeFor( const QModelIndex& aSelection ) const
 {
     return ToNode( aSelection );
 }
@@ -494,11 +441,11 @@ int LIB_TREE_MODEL_ADAPTER::GetItemCount() const
 }
 
 
-wxDataViewItem LIB_TREE_MODEL_ADAPTER::FindItem( const LIB_ID& aLibId )
+QModelIndex LIB_TREE_MODEL_ADAPTER::FindItem( const LIB_ID& aLibId )
 {
     for( std::unique_ptr<LIB_TREE_NODE>& lib: m_tree.m_Children )
     {
-        if( lib->m_Name != aLibId.GetLibNickname().wx_str() )
+        if( lib->m_Name != aLibId.GetLibNickname() )
             continue;
 
         // if part name is not specified, return the library node
@@ -507,27 +454,27 @@ wxDataViewItem LIB_TREE_MODEL_ADAPTER::FindItem( const LIB_ID& aLibId )
 
         for( std::unique_ptr<LIB_TREE_NODE>& alias: lib->m_Children )
         {
-            if( alias->m_Name == aLibId.GetLibItemName().wx_str() )
+            if( alias->m_Name == aLibId.GetLibItemName() )
                 return ToItem( alias.get() );
         }
 
         break;  // could not find the part in the requested library
     }
 
-    return wxDataViewItem();
+    return QModelIndex();
 }
 
 
-wxDataViewItem LIB_TREE_MODEL_ADAPTER::GetCurrentDataViewItem()
+QModelIndex LIB_TREE_MODEL_ADAPTER::GetCurrentDataViewItem()
 {
     return FindItem( m_preselect_lib_id );
 }
 
 
-unsigned int LIB_TREE_MODEL_ADAPTER::GetChildren( const wxDataViewItem&   aItem,
-                                                  wxDataViewItemArray&    aChildren ) const
+unsigned int LIB_TREE_MODEL_ADAPTER::GetChildren( const QModelIndex&  aItem,
+                                                  QModelIndexList&    aChildren ) const
 {
-    const LIB_TREE_NODE* node = ( aItem.IsOk() ? ToNode( aItem ) : &m_tree );
+    const LIB_TREE_NODE* node = ( aItem.isValid() ? ToNode( aItem ) : &m_tree );
     unsigned int         count = 0;
 
     if( node->m_Type == LIB_TREE_NODE::TYPE::ROOT
@@ -538,7 +485,7 @@ unsigned int LIB_TREE_MODEL_ADAPTER::GetChildren( const wxDataViewItem&   aItem,
         {
             if( child->m_Score > 0 )
             {
-                aChildren.Add( ToItem( &*child ) );
+                aChildren.append( ToItem( &*child ) );
                 ++count;
             }
         }
@@ -550,28 +497,27 @@ unsigned int LIB_TREE_MODEL_ADAPTER::GetChildren( const wxDataViewItem&   aItem,
 
 void LIB_TREE_MODEL_ADAPTER::FinishTreeInitialization()
 {
-    wxDataViewColumn* col        = nullptr;
-    size_t            idx        = 0;
-    int               totalWidth = 0;
-    wxString          header;
+    QHeaderView* header_view     = m_widget->header();
+    size_t       idx             = 0;
+    int          totalWidth      = 0;
+    QString      header;
 
     for( ; idx < m_columns.size() - 1; idx++ )
     {
-        wxASSERT( m_colIdxMap.count( idx ) );
+        Q_ASSERT( m_colIdxMap.count( idx ) );
 
-        col    = m_columns[idx];
         header = m_colIdxMap[idx];
 
-        wxASSERT( m_colWidths.count( header ) );
+        Q_ASSERT( m_colWidths.count( header ) );
 
-        col->SetWidth( m_colWidths[header] );
-        totalWidth += col->GetWidth();
+        header_view->resizeSection( idx, m_colWidths[header] );
+        totalWidth += header_view->sectionSize( idx );
     }
 
-    int remainingWidth = m_widget->GetSize().x - totalWidth;
-    header = m_columns[idx]->GetTitle();
+    int remainingWidth = m_widget->size().width() - totalWidth;
+    header = m_colIdxMap[idx];
 
-    m_columns[idx]->SetWidth( std::max( m_colWidths[header], remainingWidth ) );
+    header_view->resizeSection( idx, std::max( m_colWidths[header], remainingWidth ) );
 }
 
 
@@ -584,10 +530,11 @@ void LIB_TREE_MODEL_ADAPTER::RefreshTree()
 
     std::vector<int> widths;
 
-    for( const wxDataViewColumn* col : m_columns )
-        widths.emplace_back( col->GetWidth() );
+    QHeaderView* header_view = m_widget->header();
+    for( int i = 0; i < m_columns.size(); ++i )
+        widths.emplace_back( header_view->sectionSize( i ) );
 
-    wxASSERT( widths.size() );
+    Q_ASSERT( widths.size() );
 
     // Only use the widths read back if they are non-zero.
     // GTK returns the displayed width of the column, which is not calculated immediately
@@ -607,116 +554,156 @@ void LIB_TREE_MODEL_ADAPTER::RefreshTree()
     if( colIt != m_colWidths.end() )
         colIt->second -= walk;
 
+    QHeaderView* header_view2 = m_widget->header();
     for( const auto& [ colName, colPtr ] : m_colNameMap )
     {
         if( colPtr == m_columns[0] )
             continue;
 
-        wxASSERT( m_colWidths.count( colName ) );
-        colPtr->SetWidth( m_colWidths[ colName ] );
+        Q_ASSERT( m_colWidths.count( colName ) );
+        // Find the column index for this column name
+        for( const auto& [ idx, name ] : m_colIdxMap )
+        {
+            if( name == colName )
+            {
+                header_view2->resizeSection( idx, m_colWidths[colName] );
+                break;
+            }
+        }
     }
 
     walk = -walk;
 }
 
 
-bool LIB_TREE_MODEL_ADAPTER::HasContainerColumns( const wxDataViewItem& aItem ) const
+bool LIB_TREE_MODEL_ADAPTER::hasChildren( const QModelIndex& parent ) const
 {
-    return IsContainer( aItem );
+    LIB_TREE_NODE* node = ToNode( parent );
+    return node ? node->m_Children.size() > 0 : true;
 }
 
 
-bool LIB_TREE_MODEL_ADAPTER::IsContainer( const wxDataViewItem& aItem ) const
+int LIB_TREE_MODEL_ADAPTER::rowCount( const QModelIndex& parent ) const
 {
-    LIB_TREE_NODE* node = ToNode( aItem );
-    return node ? node->m_Children.size() : true;
+    const LIB_TREE_NODE* node = ( parent.isValid() ? ToNode( parent ) : &m_tree );
+
+    if( node->m_Type == LIB_TREE_NODE::TYPE::ROOT
+            || node->m_Type == LIB_TREE_NODE::TYPE::LIBRARY
+            || ( m_show_units && node->m_Type == LIB_TREE_NODE::TYPE::ITEM ) )
+    {
+        int count = 0;
+        for( const std::unique_ptr<LIB_TREE_NODE>& child: node->m_Children )
+        {
+            if( child->m_Score > 0 )
+                ++count;
+        }
+        return count;
+    }
+
+    return 0;
 }
 
 
-wxDataViewItem LIB_TREE_MODEL_ADAPTER::GetParent( const wxDataViewItem& aItem ) const
+int LIB_TREE_MODEL_ADAPTER::columnCount( const QModelIndex& parent ) const
 {
-    if( m_freeze )
-        return ToItem( nullptr );
+    return m_columns.size();
+}
 
-    LIB_TREE_NODE* node   = ToNode( aItem );
-    LIB_TREE_NODE* parent = node ? node->m_Parent : nullptr;
 
-    // wxDataViewModel has no root node, but rather top-level elements have
+QModelIndex LIB_TREE_MODEL_ADAPTER::parent( const QModelIndex& child ) const
+{
+    if( m_freeze || !child.isValid() )
+        return QModelIndex();
+
+    LIB_TREE_NODE* node   = ToNode( child );
+    LIB_TREE_NODE* parent_node = node ? node->m_Parent : nullptr;
+
+    // QAbstractItemModel has no root node, but rather top-level elements have
     // an invalid (null) parent.
-    if( !node || !parent || parent->m_Type == LIB_TREE_NODE::TYPE::ROOT )
-        return ToItem( nullptr );
+    if( !node || !parent_node || parent_node->m_Type == LIB_TREE_NODE::TYPE::ROOT )
+        return QModelIndex();
     else
-        return ToItem( parent );
+        return ToItem( parent_node );
 }
 
 
-void LIB_TREE_MODEL_ADAPTER::GetValue( wxVariant&              aVariant,
-                                       const wxDataViewItem&   aItem,
-                                       unsigned int            aCol ) const
+QModelIndex LIB_TREE_MODEL_ADAPTER::index( int row, int column, const QModelIndex& parent ) const
 {
-    if( IsFrozen() )
+    if( !hasIndex( row, column, parent ) )
+        return QModelIndex();
+
+    const LIB_TREE_NODE* parent_node = ( parent.isValid() ? ToNode( parent ) : &m_tree );
+
+    int current_row = 0;
+    for( const std::unique_ptr<LIB_TREE_NODE>& child: parent_node->m_Children )
     {
-        aVariant = wxEmptyString;
-        return;
+        if( child->m_Score > 0 )
+        {
+            if( current_row == row )
+                return createIndex( row, column, child.get() );
+            ++current_row;
+        }
     }
 
-    LIB_TREE_NODE* node = ToNode( aItem );
-    wxCHECK( node, /* void */ );
-    wxString valueStr;
+    return QModelIndex();
+}
 
-    switch( aCol )
+
+QVariant LIB_TREE_MODEL_ADAPTER::data( const QModelIndex& index, int role ) const
+{
+    if( !index.isValid() || IsFrozen() )
+        return QVariant();
+
+    LIB_TREE_NODE* node = ToNode( index );
+    if( !node )
+        return QVariant();
+
+    if( role == Qt::DisplayRole )
     {
-    case NAME_COL:
-        if( node->m_Pinned )
-            valueStr = GetPinningSymbol() + UnescapeString( node->m_Name );
-        else
-            valueStr = UnescapeString( node->m_Name );
+        QString valueStr;
+        int aCol = index.column();
 
-        break;
-
-    default:
-        if( m_colIdxMap.count( aCol ) )
+        switch( aCol )
         {
-            const wxString& key = m_colIdxMap.at( aCol );
-
-            if( key == wxT( "Description" ) )
-                valueStr = UnescapeString( node->m_Desc );
-            else if( node->m_Fields.count( key ) )
-                valueStr = UnescapeString( node->m_Fields.at( key ) );
+        case NAME_COL:
+            if( node->m_Pinned )
+                valueStr = QString::fromStdString( GetPinningSymbol() + UnescapeString( node->m_Name ) );
             else
-                valueStr = wxEmptyString;
+                valueStr = QString::fromStdString( UnescapeString( node->m_Name ) );
+
+            break;
+
+        default:
+            if( m_colIdxMap.count( aCol ) )
+            {
+                const QString& key = m_colIdxMap.at( aCol );
+
+                if( key == "Description" )
+                    valueStr = QString::fromStdString( UnescapeString( node->m_Desc ) );
+                else if( node->m_Fields.count( key.toStdString() ) )
+                    valueStr = QString::fromStdString( UnescapeString( node->m_Fields.at( key.toStdString() ) ) );
+                else
+                    valueStr = QString();
+            }
+
+            break;
         }
 
-        break;
+        valueStr.replace( "\n", " " ); // Clear line breaks
+
+        return valueStr;
     }
-
-    valueStr.Replace( wxS( "\n" ), wxS( " " ) ); // Clear line breaks
-
-    aVariant = valueStr;
-}
-
-
-bool LIB_TREE_MODEL_ADAPTER::GetAttr( const wxDataViewItem&   aItem,
-                                      unsigned int            aCol,
-                                      wxDataViewItemAttr&     aAttr ) const
-{
-    if( IsFrozen() )
-        return false;
-
-    LIB_TREE_NODE* node = ToNode( aItem );
-    wxCHECK( node, false );
-
-    if( node->m_Type == LIB_TREE_NODE::TYPE::ITEM )
+    else if( role == Qt::FontRole )
     {
-        if( !node->m_IsRoot && aCol == 0 )
+        if( node->m_Type == LIB_TREE_NODE::TYPE::ITEM && !node->m_IsRoot && index.column() == 0 )
         {
-            // Names of non-root aliases are italicized
-            aAttr.SetItalic( true );
-            return true;
+            QFont font;
+            font.setItalic( true );
+            return font;
         }
     }
 
-    return false;
+    return QVariant();
 }
 
 
@@ -736,6 +723,17 @@ void recursiveDescent( LIB_TREE_NODE& aNode, const std::function<int( const LIB_
 }
 
 
+void LIB_TREE_MODEL_ADAPTER::expandAncestors( const QModelIndex& index )
+{
+    QModelIndex parent = index.parent();
+    while( parent.isValid() )
+    {
+        m_widget->expand( parent );
+        parent = parent.parent();
+    }
+}
+
+
 const LIB_TREE_NODE* LIB_TREE_MODEL_ADAPTER::ShowResults()
 {
     const LIB_TREE_NODE* firstMatch = nullptr;
@@ -751,7 +749,7 @@ const LIB_TREE_NODE* LIB_TREE_MODEL_ADAPTER::ShowResults()
                     else if( n->m_Score > firstMatch->m_Score )
                         firstMatch = n;
 
-                    m_widget->ExpandAncestors( ToItem( n ) );
+                    expandAncestors( ToItem( n ) );
                 }
 
                 return 1; // keep going to expand ancestors of all found items
@@ -764,7 +762,7 @@ const LIB_TREE_NODE* LIB_TREE_MODEL_ADAPTER::ShowResults()
                 [&]( const LIB_TREE_NODE* n )
                 {
                     // Don't match the recent and already placed libraries
-                    if( n->m_Name.StartsWith( "-- " ) )
+                    if( QString::fromStdString( n->m_Name ).startsWith( "-- " ) )
                         return -1; // Skip this node and its children
 
                     if( n->m_Type == LIB_TREE_NODE::TYPE::ITEM
@@ -772,7 +770,7 @@ const LIB_TREE_NODE* LIB_TREE_MODEL_ADAPTER::ShowResults()
                               && m_preselect_lib_id == n->m_LibId )
                     {
                         firstMatch = n;
-                        m_widget->ExpandAncestors( ToItem( n ) );
+                        expandAncestors( ToItem( n ) );
                         return 0;
                     }
                     else if( n->m_Type == LIB_TREE_NODE::TYPE::UNIT
@@ -780,7 +778,7 @@ const LIB_TREE_NODE* LIB_TREE_MODEL_ADAPTER::ShowResults()
                               && m_preselect_lib_id == n->m_Parent->m_LibId )
                     {
                         firstMatch = n;
-                        m_widget->ExpandAncestors( ToItem( n ) );
+                        expandAncestors( ToItem( n ) );
                         return 0;
                     }
 
@@ -795,7 +793,7 @@ const LIB_TREE_NODE* LIB_TREE_MODEL_ADAPTER::ShowResults()
 
         for( const std::unique_ptr<LIB_TREE_NODE>& child : m_tree.m_Children )
         {
-            if( !child->m_Name.StartsWith( "-- " ) )
+            if( !QString::fromStdString( child->m_Name ).startsWith( "-- " ) )
                  libraries++;
         }
 
@@ -808,7 +806,7 @@ const LIB_TREE_NODE* LIB_TREE_MODEL_ADAPTER::ShowResults()
                     if( n->m_Type == LIB_TREE_NODE::TYPE::ITEM )
                     {
                         firstMatch = n;
-                        m_widget->ExpandAncestors( ToItem( n ) );
+                        expandAncestors( ToItem( n ) );
                         return 0;
                     }
 

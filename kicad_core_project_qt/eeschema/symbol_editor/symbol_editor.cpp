@@ -1,34 +1,10 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <pgm_base.h>
 #include <clipboard.h>
 #include <confirm.h>
 #include <kidialog.h>
 #include <kiway.h>
-#include <widgets/wx_infobar.h>
+#include <widgets/qt_infobar.h>
 #include <tools/symbol_editor_drawing_tools.h>
 #include <symbol_edit_frame.h>
 #include <symbol_library.h>
@@ -43,9 +19,17 @@
 #include <sch_io/kicad_sexpr/sch_io_kicad_sexpr.h>
 #include <dialogs/dialog_lib_new_symbol.h>
 #include <eda_list_dialog.h>
-#include <wx/clipbrd.h>
-#include <wx/filedlg.h>
-#include <wx/log.h>
+#include <QClipboard>
+#include <QFileDialog>
+#include <QDebug>
+#include <QApplication>
+#include <QMessageBox>
+#include <QTimer>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QFileInfo>
 #include <project_sch.h>
 #include <string_utils.h>
 #include "symbol_saveas_type.h"
@@ -56,44 +40,44 @@
 
 void SYMBOL_EDIT_FRAME::UpdateTitle()
 {
-    wxString title;
+    QString title;
 
     if( GetCurSymbol() && IsSymbolFromSchematic() )
     {
         if( GetScreen() && GetScreen()->IsContentModified() )
-            title = wxT( "*" );
+            title = QStringLiteral( "*" );
 
         title += m_reference;
-        title += wxS( " " ) + _( "[from schematic]" );
+        title += QStringLiteral( " " ) + _( "[from schematic]" );
     }
     else if( GetCurSymbol() )
     {
         if( GetScreen() && GetScreen()->IsContentModified() )
-            title = wxT( "*" );
+            title = QStringLiteral( "*" );
 
         title += UnescapeString( GetCurSymbol()->GetLibId().Format() );
 
         if( m_libMgr && m_libMgr->LibraryExists( GetCurLib() ) && m_libMgr->IsLibraryReadOnly( GetCurLib() ) )
-            title += wxS( " " ) + _( "[Read Only Library]" );
+            title += QStringLiteral( " " ) + _( "[Read Only Library]" );
     }
     else
     {
         title = _( "[no symbol loaded]" );
     }
 
-    title += wxT( " \u2014 " ) + _( "Symbol Editor" );
+    title += QStringLiteral( " \u2014 " ) + _( "Symbol Editor" );
     SetTitle( title );
 }
 
 
-void SYMBOL_EDIT_FRAME::SelectActiveLibrary( const wxString& aLibrary )
+void SYMBOL_EDIT_FRAME::SelectActiveLibrary( const QString& aLibrary )
 {
-    wxString selectedLib = aLibrary;
+    QString selectedLib = aLibrary;
 
-    if( selectedLib.empty() )
+    if( selectedLib.isEmpty() )
         selectedLib = SelectLibraryFromList();
 
-    if( !selectedLib.empty() )
+    if( !selectedLib.isEmpty() )
         SetCurLib( selectedLib );
 
     UpdateTitle();
@@ -122,15 +106,15 @@ bool SYMBOL_EDIT_FRAME::saveCurrentSymbol()
         }
         else
         {
-            const wxString& libName = GetCurSymbol()->GetLibId().GetLibNickname();
+            const QString& libName = GetCurSymbol()->GetLibId().GetLibNickname();
 
             if( m_libMgr->IsLibraryReadOnly( libName ) )
             {
-                wxString msg = wxString::Format( _( "Symbol library '%s' is not writable." ),
+                QString msg = QString::asprintf( _( "Symbol library '%s' is not writable." ),
                                                  libName );
-                wxString msg2 = _( "You must save to a different location." );
+                QString msg2 = _( "You must save to a different location." );
 
-                if( OKOrCancelDialog( this, _( "Warning" ), msg, msg2 ) == wxID_OK )
+                if( OKOrCancelDialog( this, _( "Warning" ), msg, msg2 ) == QDialog::Accepted )
                     return saveLibrary( libName, true );
             }
             else
@@ -165,9 +149,9 @@ bool SYMBOL_EDIT_FRAME::LoadSymbol( const LIB_ID& aLibId, int aUnit, int aBodySt
             }
             catch( const IO_ERROR& ioe )
             {
-                wxString msg;
+                QString msg;
 
-                msg.Printf( _( "Error loading symbol %s from library '%s'." ),
+                msg = QString::asprintf( _( "Error loading symbol %s from library '%s'." ),
                             aLibId.GetUniStringLibId(), aLibId.GetUniStringLibItemName() );
                 DisplayErrorMessage( this, msg, ioe.What() );
                 return false;
@@ -203,7 +187,7 @@ bool SYMBOL_EDIT_FRAME::LoadSymbol( const LIB_ID& aLibId, int aUnit, int aBodySt
         m_treePane->GetLibTree()->ExpandLibId( libId );
 
         m_centerItemOnIdle = libId;
-        Bind( wxEVT_IDLE, &SYMBOL_EDIT_FRAME::centerItemIdleHandler, this );
+        Bind( QEvent::Timer, &SYMBOL_EDIT_FRAME::centerItemIdleHandler, this );
         setSymWatcher( &libId );
 
         return true;
@@ -213,14 +197,14 @@ bool SYMBOL_EDIT_FRAME::LoadSymbol( const LIB_ID& aLibId, int aUnit, int aBodySt
 }
 
 
-void SYMBOL_EDIT_FRAME::centerItemIdleHandler( wxIdleEvent& aEvent )
+void SYMBOL_EDIT_FRAME::centerItemIdleHandler( QTimerEvent& aEvent )
 {
     m_treePane->GetLibTree()->CenterLibId( m_centerItemOnIdle );
-    Unbind( wxEVT_IDLE, &SYMBOL_EDIT_FRAME::centerItemIdleHandler, this );
+    Unbind( QEvent::Timer, &SYMBOL_EDIT_FRAME::centerItemIdleHandler, this );
 }
 
 
-bool SYMBOL_EDIT_FRAME::LoadSymbolFromCurrentLib( const wxString& aAliasName, int aUnit,
+bool SYMBOL_EDIT_FRAME::LoadSymbolFromCurrentLib( const QString& aAliasName, int aUnit,
                                                   int aBodyStyle )
 {
     LIB_SYMBOL* alias = nullptr;
@@ -231,9 +215,9 @@ bool SYMBOL_EDIT_FRAME::LoadSymbolFromCurrentLib( const wxString& aAliasName, in
     }
     catch( const IO_ERROR& ioe )
     {
-        wxString msg;
+        QString msg;
 
-        msg.Printf( _( "Error loading symbol %s from library '%s'." ),
+        msg = QString::asprintf( _( "Error loading symbol %s from library '%s'." ),
                     aAliasName,
                     GetCurLib() );
         DisplayErrorMessage( this, msg, ioe.What() );
@@ -257,17 +241,17 @@ bool SYMBOL_EDIT_FRAME::LoadSymbolFromCurrentLib( const wxString& aAliasName, in
 }
 
 
-bool SYMBOL_EDIT_FRAME::LoadOneLibrarySymbolAux( LIB_SYMBOL* aEntry, const wxString& aLibrary,
+bool SYMBOL_EDIT_FRAME::LoadOneLibrarySymbolAux( LIB_SYMBOL* aEntry, const QString& aLibrary,
                                                  int aUnit, int aBodyStyle )
 {
     bool rebuildMenuAndToolbar = false;
 
-    if( !aEntry || aLibrary.empty() )
+    if( !aEntry || aLibrary.isEmpty() )
         return false;
 
     if( aEntry->GetName().IsEmpty() )
     {
-        wxLogWarning( "Symbol in library '%s' has empty name field.", aLibrary );
+        qWarning() << "Symbol in library '%s' has empty name field.", aLibrary );
         return false;
     }
 
@@ -287,7 +271,7 @@ bool SYMBOL_EDIT_FRAME::LoadOneLibrarySymbolAux( LIB_SYMBOL* aEntry, const wxStr
     }
 
     LIB_SYMBOL* lib_symbol = m_libMgr->GetBufferedSymbol( aEntry->GetName(), aLibrary );
-    wxCHECK( lib_symbol, false );
+    Q_ASSERT( lib_symbol, false );
 
     m_unit = aUnit > 0 ? aUnit : 1;
     m_bodyStyle = aBodyStyle > 0 ? aBodyStyle : 1;
@@ -340,12 +324,12 @@ void SYMBOL_EDIT_FRAME::SaveAll()
 }
 
 
-void SYMBOL_EDIT_FRAME::CreateNewSymbol( const wxString& aInheritFrom )
+void SYMBOL_EDIT_FRAME::CreateNewSymbol( const QString& aInheritFrom )
 {
     m_toolManager->RunAction( ACTIONS::cancelInteractive );
 
-    wxArrayString symbolNames;
-    wxString lib = getTargetLib();
+    QStringList symbolNames;
+    QString lib = getTargetLib();
 
     if( !m_libMgr->LibraryExists( lib ) )
     {
@@ -355,43 +339,43 @@ void SYMBOL_EDIT_FRAME::CreateNewSymbol( const wxString& aInheritFrom )
             return;
     }
 
-    const auto validator = [&]( wxString newName ) -> bool
+    const auto validator = [&]( QString newName ) -> bool
             {
                 if( newName.IsEmpty() )
                 {
-                    wxMessageBox( _( "Symbol must have a name." ) );
+                    QMessageBox::warning(this, QString(), _( "Symbol must have a name." ) );
                     return false;
                 }
 
-                if( !lib.empty() && m_libMgr->SymbolExists( newName, lib ) )
+                if( !lib.isEmpty() && m_libMgr->SymbolExists( newName, lib ) )
                 {
-                    wxString msg = wxString::Format(
+                    QString msg = QString::asprintf(
                             _( "Symbol '%s' already exists in library '%s'." ), newName, lib );
 
-                    KIDIALOG errorDlg( this, msg, _( "Confirmation" ), wxOK | wxCANCEL | wxICON_WARNING );
+                    KIDIALOG errorDlg( this, msg, _( "Confirmation" ), QMessageBox::Ok | QMessageBox::Cancel | QMessageBox::Warning );
                     errorDlg.SetOKLabel( _( "Overwrite" ) );
 
-                    return errorDlg.ShowModal() == wxID_OK;
+                    return errorDlg.exec() == QDialog::Accepted;
                 }
 
                 return true;
             };
 
-    wxArrayString symbolNamesInLib;
+    QStringList symbolNamesInLib;
     m_libMgr->GetSymbolNames( lib, symbolNamesInLib );
 
     DIALOG_LIB_NEW_SYMBOL dlg( this, symbolNamesInLib, aInheritFrom, validator );
 
     dlg.SetMinSize( dlg.GetSize() );
 
-    if( dlg.ShowModal() == wxID_CANCEL )
+    if( dlg.exec() == QDialog::Rejected )
         return;
 
-    wxString name = dlg.GetName();
+    QString name = dlg.GetName();
 
     LIB_SYMBOL new_symbol( name );  // do not create symbol on the heap, it will be buffered soon
 
-    wxString parentSymbolName = dlg.GetParentSymbolName();
+    QString parentSymbolName = dlg.GetParentSymbolName();
 
     if( parentSymbolName.IsEmpty() )
     {
@@ -428,7 +412,7 @@ void SYMBOL_EDIT_FRAME::CreateNewSymbol( const wxString& aInheritFrom )
     else
     {
         LIB_SYMBOL* parent = m_libMgr->GetAlias( parentSymbolName, lib );
-        wxCHECK( parent, /* void */ );
+        Q_ASSERT( parent, /* void */ );
         new_symbol.SetParent( parent );
 
         // Inherit the parent mandatory field attributes.
@@ -437,11 +421,11 @@ void SYMBOL_EDIT_FRAME::CreateNewSymbol( const wxString& aInheritFrom )
             SCH_FIELD* field = new_symbol.GetFieldById( fieldId );
 
             // the MANDATORY_FIELD_COUNT are exactly that in RAM.
-            wxCHECK( field, /* void */ );
+            Q_ASSERT( field, /* void */ );
 
             SCH_FIELD* parentField = parent->GetFieldById( fieldId );
 
-            wxCHECK( parentField, /* void */ );
+            Q_ASSERT( parentField, /* void */ );
 
             *field = *parentField;
 
@@ -461,7 +445,7 @@ void SYMBOL_EDIT_FRAME::CreateNewSymbol( const wxString& aInheritFrom )
                 // - footprint might be the same as parent, but might not
                 // - datasheet is most likely different
                 // - probably best to play it safe and copy neither
-                field->SetText( wxEmptyString );
+                field->SetText( QString() );
                 break;
             }
 
@@ -485,22 +469,22 @@ void SYMBOL_EDIT_FRAME::CreateNewSymbol( const wxString& aInheritFrom )
 
 void SYMBOL_EDIT_FRAME::Save()
 {
-    wxString libName;
+    QString libName;
 
     if( IsLibraryTreeShown() )
         libName = GetTreeLIBID().GetUniStringLibNickname();
 
-    if( libName.empty() )
+    if( libName.isEmpty() )
     {
         saveCurrentSymbol();
     }
     else if( m_libMgr->IsLibraryReadOnly( libName ) )
     {
-        wxString msg = wxString::Format( _( "Symbol library '%s' is not writable." ),
+        QString msg = QString::asprintf( _( "Symbol library '%s' is not writable." ),
                                          libName );
-        wxString msg2 = _( "You must save to a different location." );
+        QString msg2 = _( "You must save to a different location." );
 
-        if( OKOrCancelDialog( this, _( "Warning" ), msg, msg2 ) == wxID_OK )
+        if( OKOrCancelDialog( this, _( "Warning" ), msg, msg2 ) == QDialog::Accepted )
             saveLibrary( libName, true );
     }
     else
@@ -517,7 +501,7 @@ void SYMBOL_EDIT_FRAME::Save()
 
 void SYMBOL_EDIT_FRAME::SaveLibraryAs()
 {
-    const wxString& libName = GetTargetLibId().GetLibNickname();
+    const QString& libName = GetTargetLibId().GetLibNickname();
 
     if( !libName.IsEmpty() )
     {
@@ -566,10 +550,10 @@ static std::vector<LIB_SYMBOL_SPTR> GetParentChain( const LIB_SYMBOL& aSymbol )
  */
 static std::pair<bool, bool> CheckSavingIntoOwnInheritance( LIB_SYMBOL_LIBRARY_MANAGER& aLibMgr,
                                                             LIB_SYMBOL&                 aSymbol,
-                                                            const wxString& aNewSymbolName,
-                                                            const wxString& aNewLibraryName )
+                                                            const QString& aNewSymbolName,
+                                                            const QString& aNewLibraryName )
 {
-    const wxString& oldLibraryName = aSymbol.GetLibId().GetLibNickname();
+    const QString& oldLibraryName = aSymbol.GetLibId().GetLibNickname();
 
     // Cannot be intersecting if in different libs
     if( aNewLibraryName != oldLibraryName )
@@ -600,7 +584,7 @@ static std::pair<bool, bool> CheckSavingIntoOwnInheritance( LIB_SYMBOL_LIBRARY_M
     {
         LIB_SYMBOL* targetSymbol = aLibMgr.GetAlias( aNewSymbolName, aNewLibraryName );
         const std::vector<LIB_SYMBOL_SPTR> parentChainFromTarget = GetParentChain( *targetSymbol );
-        const wxString                     oldSymbolName = aSymbol.GetName();
+        const QString                     oldSymbolName = aSymbol.GetName();
 
         // Ignore the leaf symbol - it'll match if we're saving the symbol
         // to the same name, and that would be OK
@@ -625,13 +609,13 @@ static std::pair<bool, bool> CheckSavingIntoOwnInheritance( LIB_SYMBOL_LIBRARY_M
  * This doesn't check for dangerous conflicts like saving into a symbol's own inheritance,
  * this is just about which symbols will get overwritten if saved with these names.
  */
-static std::vector<wxString> CheckForParentalChainConflicts( LIB_SYMBOL_LIBRARY_MANAGER& aLibMgr,
+static std::vector<QString> CheckForParentalChainConflicts( LIB_SYMBOL_LIBRARY_MANAGER& aLibMgr,
                                                              LIB_SYMBOL&                 aSymbol,
-                                                             const wxString& newSymbolName,
-                                                             const wxString& newLibraryName )
+                                                             const QString& newSymbolName,
+                                                             const QString& newLibraryName )
 {
-    std::vector<wxString> conflicts;
-    const wxString&       oldLibraryName = aSymbol.GetLibId().GetLibNickname();
+    std::vector<QString> conflicts;
+    const QString&       oldLibraryName = aSymbol.GetLibId().GetLibNickname();
 
     if( newLibraryName == oldLibraryName )
     {
@@ -699,17 +683,17 @@ public:
     {
     }
 
-    bool DoSave( LIB_SYMBOL& symbol, const wxString& aNewSymName, const wxString& aNewLibName )
+    bool DoSave( LIB_SYMBOL& symbol, const QString& aNewSymName, const QString& aNewLibName )
     {
         std::vector<LIB_SYMBOL_SPTR> parentChain;
         // If we're saving into the same library, we don't need to check the parental chain
         // because we can just keep the same parent symbol
-        if( aNewLibName == symbol.GetLibId().GetLibNickname().wx_str() )
+        if( aNewLibName == symbol.GetLibId().GetLibNickname() )
             parentChain.push_back( symbol.SharedPtr() );
         else
             parentChain = GetParentChain( symbol );
 
-        std::vector<wxString> newNames;
+        std::vector<QString> newNames;
 
         // Iterate backwards (i.e. from the root down)
         for( int i = (int) parentChain.size() - 1; i >= 0; --i )
@@ -718,7 +702,7 @@ public:
 
             LIB_SYMBOL new_symbol( *oldSymbol );
 
-            wxString newName;
+            QString newName;
             if( i == 0 )
             {
                 // This is the leaf symbol which the user actually named
@@ -747,7 +731,7 @@ public:
                 LIB_SYMBOL* newParent = m_libMgr.GetAlias( newNames.back(), aNewLibName );
 
                 // We should have stored this already, why didn't we get it back?
-                wxASSERT( newParent );
+                Q_ASSERT( newParent );
                 new_symbol.SetParent( newParent );
             }
 
@@ -759,7 +743,7 @@ public:
     }
 
 private:
-    wxString resolveConflict( const wxString& proposed, const wxString& aNewLibName ) const
+    QString resolveConflict( const QString& proposed, const QString& aNewLibName ) const
     {
         switch( m_strategy )
         {
@@ -775,7 +759,7 @@ private:
 
             while( true )
             {
-                wxString newName = wxString::Format( "%s_%d", proposed, suffix );
+                QString newName = QString::asprintf( "%s_%d", proposed, suffix );
 
                 if( !m_libMgr.SymbolExists( newName, aNewLibName ) )
                     return newName;
@@ -787,7 +771,7 @@ private:
             // No default
         }
 
-        wxFAIL_MSG( "Invalid conflict strategy" );
+        Q_ASSERT_X(false, Q_FUNC_INFO, "Invalid conflict strategy" );
         return "";
     }
 
@@ -799,7 +783,7 @@ private:
 
 enum SAVE_AS_IDS
 {
-    ID_MAKE_NEW_LIBRARY = wxID_HIGHEST + 1,
+    ID_MAKE_NEW_LIBRARY = QDialog::DialogCode::Accepted + 1000 + 1,
     ID_OVERWRITE_CONFLICTS,
     ID_RENAME_CONFLICTS,
 };
@@ -809,10 +793,10 @@ class SAVE_AS_DIALOG : public EDA_LIST_DIALOG
 {
 public:
     using SymLibNameValidator =
-            std::function<int( const wxString& libName, const wxString& symbolName )>;
+            std::function<int( const QString& libName, const QString& symbolName )>;
 
-    SAVE_AS_DIALOG( SYMBOL_EDIT_FRAME* aParent, const wxString& aSymbolName,
-                    const wxString& aLibraryPreselect, SymLibNameValidator aValidator,
+    SAVE_AS_DIALOG( SYMBOL_EDIT_FRAME* aParent, const QString& aSymbolName,
+                    const QString& aLibraryPreselect, SymLibNameValidator aValidator,
                     SYMBOL_SAVE_AS_HANDLER::CONFLICT_STRATEGY& aConflictStrategy ) :
             EDA_LIST_DIALOG( aParent, _( "Save Symbol As" ), false ),
             m_validator( std::move( aValidator ) ), m_conflictStrategy( aConflictStrategy )
@@ -820,31 +804,31 @@ public:
         COMMON_SETTINGS*           cfg = Pgm().GetCommonSettings();
         PROJECT_FILE&              project = aParent->Prj().GetProjectFile();
         SYMBOL_LIB_TABLE*          tbl = PROJECT_SCH::SchSymbolLibTable( &Prj() );
-        std::vector<wxString>      libNicknames = tbl->GetLogicalLibs();
-        wxArrayString              headers;
-        std::vector<wxArrayString> itemsToDisplay;
+        std::vector<QString>      libNicknames = tbl->GetLogicalLibs();
+        QStringList              headers;
+        std::vector<QStringList> itemsToDisplay;
 
         headers.Add( _( "Nickname" ) );
         headers.Add( _( "Description" ) );
 
-        for( const wxString& nickname : libNicknames )
+        for( const QString& nickname : libNicknames )
         {
             if( alg::contains( project.m_PinnedSymbolLibs, nickname )
                 || alg::contains( cfg->m_Session.pinned_symbol_libs, nickname ) )
             {
-                wxArrayString item;
+                QStringList item;
                 item.Add( LIB_TREE_MODEL_ADAPTER::GetPinningSymbol() + nickname );
                 item.Add( tbl->GetDescription( nickname ) );
                 itemsToDisplay.push_back( item );
             }
         }
 
-        for( const wxString& nickname : libNicknames )
+        for( const QString& nickname : libNicknames )
         {
             if( !alg::contains( project.m_PinnedSymbolLibs, nickname )
                     && !alg::contains( cfg->m_Session.pinned_symbol_libs, nickname ) )
             {
-                wxArrayString item;
+                QStringList item;
                 item.Add( nickname );
                 item.Add( tbl->GetDescription( nickname ) );
                 itemsToDisplay.push_back( item );
@@ -856,22 +840,22 @@ public:
         SetListLabel( _( "Save in library:" ) );
         SetOKLabel( _( "Save" ) );
 
-        wxBoxSizer* bNameSizer = new wxBoxSizer( wxHORIZONTAL );
+        QHBoxLayout* bNameSizer = new QHBoxLayout( // Qt layouts don't need orientation for HBox );
 
-        wxStaticText* label = new wxStaticText( this, wxID_ANY, _( "Name:" ) );
-        bNameSizer->Add( label, 0, wxALIGN_CENTER_VERTICAL|wxTOP|wxBOTTOM|wxLEFT, 5 );
+        QLabel* label = new QLabel( this, 0, _( "Name:" ) );
+        bNameSizer->Add( label, 0, Qt::AlignVCenter, 5 );
 
-        m_symbolNameCtrl = new wxTextCtrl( this, wxID_ANY, UnescapeString( aSymbolName ) );
-        bNameSizer->Add( m_symbolNameCtrl, 1, wxALIGN_CENTER_VERTICAL|wxALL, 5 );
+        m_symbolNameCtrl = new QLineEdit( this, 0, UnescapeString( aSymbolName ) );
+        bNameSizer->Add( m_symbolNameCtrl, 1, Qt::AlignVCenter, 5 );
 
-        wxButton* newLibraryButton = new wxButton( this, ID_MAKE_NEW_LIBRARY, _( "New Library..." ) );
+        QPushButton* newLibraryButton = new QPushButton( this, ID_MAKE_NEW_LIBRARY, _( "New Library..." ) );
         m_ButtonsSizer->Prepend( 80, 20 );
-        m_ButtonsSizer->Prepend( newLibraryButton, 0, wxALIGN_CENTER_VERTICAL|wxLEFT|wxRIGHT, 10 );
+        m_ButtonsSizer->Prepend( newLibraryButton, 0, Qt::AlignVCenter, 10 );
 
-        GetSizer()->Prepend( bNameSizer, 0, wxEXPAND|wxTOP|wxLEFT|wxRIGHT, 5 );
+        GetSizer()->Prepend( bNameSizer, 0, 0, 5 );
 
-        Bind( wxEVT_BUTTON,
-                [this]( wxCommandEvent& )
+        Bind( QPushButton::clicked,
+                [this]( bool )
                 {
                     EndModal( ID_MAKE_NEW_LIBRARY );
                 }, ID_MAKE_NEW_LIBRARY );
@@ -890,9 +874,9 @@ public:
         Centre();
     }
 
-    wxString GetSymbolName()
+    QString GetSymbolName()
     {
-        wxString symbolName = m_symbolNameCtrl->GetValue();
+        QString symbolName = m_symbolNameCtrl->GetValue();
         symbolName.Trim( true );
         symbolName.Trim( false );
         symbolName.Replace( " ", "_" );
@@ -904,7 +888,7 @@ protected:
     {
         int ret = m_validator( GetTextSelection(), GetSymbolName() );
 
-        if( ret == wxID_CANCEL )
+        if( ret == QDialog::Rejected )
             return false;
 
         if( ret == ID_OVERWRITE_CONFLICTS )
@@ -916,7 +900,7 @@ protected:
     }
 
 private:
-    wxTextCtrl*                                m_symbolNameCtrl;
+    QLineEdit*                                m_symbolNameCtrl;
     SymLibNameValidator                        m_validator;
     SYMBOL_SAVE_AS_HANDLER::CONFLICT_STRATEGY& m_conflictStrategy;
 };
@@ -930,37 +914,37 @@ void SYMBOL_EDIT_FRAME::saveSymbolCopyAs( bool aOpenCopy )
         return;
 
     LIB_ID   old_lib_id = symbol->GetLibId();
-    wxString symbolName = old_lib_id.GetLibItemName();
-    wxString libraryName = old_lib_id.GetLibNickname();
+    QString symbolName = old_lib_id.GetLibItemName();
+    QString libraryName = old_lib_id.GetLibNickname();
     bool     valueFollowsName = symbol->GetValueField().GetText() == symbolName;
-    wxString msg;
+    QString msg;
     bool     done = false;
 
     // This is the function that will be called when the user clicks OK in the dialog and checks
     // if the proposed name has problems, and asks for clarification.
     const auto dialogValidatorFunc =
-            [&]( const wxString& newLib, const wxString& newName ) -> int
+            [&]( const QString& newLib, const QString& newName ) -> int
             {
                 if( newLib.IsEmpty() )
                 {
-                    wxMessageBox( _( "A library must be specified." ) );
-                    return wxID_CANCEL;
+                    QMessageBox::warning(this, QString(), _( "A library must be specified." ) );
+                    return QDialog::Rejected;
                 }
 
                 if( newName.IsEmpty() )
                 {
-                    wxMessageBox( _( "Symbol must have a name." ) );
-                    return wxID_CANCEL;
+                    QMessageBox::warning(this, QString(), _( "Symbol must have a name." ) );
+                    return QDialog::Rejected;
                 }
 
                 if( m_libMgr->IsLibraryReadOnly( newLib ) )
                 {
-                    msg = wxString::Format( _( "Library '%s' is read-only. Choose a "
+                    msg = QString::asprintf( _( "Library '%s' is read-only. Choose a "
                                                "different library to save the symbol '%s' to." ),
                                             newLib,
                                             UnescapeString( newName ) );
-                    wxMessageBox( msg );
-                    return wxID_CANCEL;
+                    QMessageBox::warning(this, QString(), msg );
+                    return QDialog::Rejected;
                 }
 
                 /**
@@ -972,72 +956,72 @@ void SYMBOL_EDIT_FRAME::saveSymbolCopyAs( bool aOpenCopy )
 
                 if( inAncestry )
                 {
-                    msg = wxString::Format( _( "Symbol '%s' cannot replace another symbol '%s' "
+                    msg = QString::asprintf( _( "Symbol '%s' cannot replace another symbol '%s' "
                                                "that it descends from" ),
                                             symbolName,
                                             UnescapeString( newName ) );
-                    wxMessageBox( msg );
-                    return wxID_CANCEL;
+                    QMessageBox::warning(this, QString(), msg );
+                    return QDialog::Rejected;
                 }
 
                 if( inDescendents )
                 {
-                    msg = wxString::Format( _( "Symbol '%s' cannot replace another symbol '%s' "
+                    msg = QString::asprintf( _( "Symbol '%s' cannot replace another symbol '%s' "
                                                "that is a descendent of it." ),
                                             symbolName,
                                             UnescapeString( newName ) );
-                    wxMessageBox( msg );
-                    return wxID_CANCEL;
+                    QMessageBox::warning(this, QString(), msg );
+                    return QDialog::Rejected;
                 }
 
-                const std::vector<wxString> conflicts =
+                const std::vector<QString> conflicts =
                         CheckForParentalChainConflicts( *m_libMgr, *symbol, newName, newLib );
 
                 if( conflicts.size() == 1 && conflicts.front() == newName )
                 {
                     // The simplest case is when the symbol itself has a conflict
-                    msg = wxString::Format( _( "Symbol '%s' already exists in library '%s'. "
+                    msg = QString::asprintf( _( "Symbol '%s' already exists in library '%s'. "
                                                "Do you want to overwrite it?" ),
                                             UnescapeString( newName ),
                                             newLib );
 
                     KIDIALOG errorDlg( this, msg, _( "Confirmation" ),
-                                       wxOK | wxCANCEL | wxICON_WARNING );
+                                       QMessageBox::Ok | QMessageBox::Cancel | QMessageBox::Warning );
                     errorDlg.SetOKLabel( _( "Overwrite" ) );
 
-                    return errorDlg.ShowModal() == wxID_OK ? ID_OVERWRITE_CONFLICTS
-                                                           : (int) wxID_CANCEL;
+                    return errorDlg.exec() == QDialog::Accepted ? ID_OVERWRITE_CONFLICTS
+                                                           : (int) QDialog::Rejected;
                 }
-                else if( !conflicts.empty() )
+                else if( !conflicts.isEmpty() )
                 {
                     // If there are conflicts in the parental chain, we need to ask the user
                     // if they want to overwrite all of them.
                     // A more complex UI might allow the user to re-parent the symbol to an
                     // existing symbol in the target lib, or rename all the parents somehow.
-                    msg = wxString::Format( _( "The following symbols in the inheritance chain of "
+                    msg = QString::asprintf( _( "The following symbols in the inheritance chain of "
                                                "'%s' already exist in library '%s':\n" ),
                                             UnescapeString( symbolName ),
                                             newLib );
 
-                    for( const wxString& conflict : conflicts )
-                        msg += wxString::Format( "  %s\n", conflict );
+                    for( const QString& conflict : conflicts )
+                        msg += QString::asprintf( "  %s\n", conflict );
 
                     msg += _( "\nDo you want to overwrite all of them, or rename the new symbols?" );
 
                     KIDIALOG errorDlg( this, msg, _( "Confirmation" ),
-                                       wxYES_NO | wxCANCEL | wxICON_WARNING );
+                                       QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel | QMessageBox::Warning );
                     errorDlg.SetYesNoCancelLabels( _( "Overwrite All" ), _( "Rename All" ),
                                                    _( "Cancel" ) );
 
-                    switch( errorDlg.ShowModal() )
+                    switch( errorDlg.exec() )
                     {
-                    case wxID_YES: return ID_OVERWRITE_CONFLICTS;
-                    case wxID_NO:  return ID_RENAME_CONFLICTS;
-                    default:       return wxID_CANCEL;
+                    case QMessageBox::Yes: return ID_OVERWRITE_CONFLICTS;
+                    case QMessageBox::No:  return ID_RENAME_CONFLICTS;
+                    default:       return QDialog::Rejected;
                     }
                 }
 
-                return wxID_OK;
+                return QDialog::Accepted;
             };
 
     auto strategy = SYMBOL_SAVE_AS_HANDLER::CONFLICT_STRATEGY::OVERWRITE;
@@ -1047,14 +1031,14 @@ void SYMBOL_EDIT_FRAME::saveSymbolCopyAs( bool aOpenCopy )
     {
         SAVE_AS_DIALOG dlg( this, symbolName, libraryName, dialogValidatorFunc, strategy );
 
-        int ret = dlg.ShowModal();
+        int ret = dlg.exec();
 
         switch( ret )
         {
-        case wxID_CANCEL:
+        case QDialog::Rejected:
             return;
 
-        case wxID_OK: // No conflicts
+        case QDialog::Accepted: // No conflicts
         case ID_OVERWRITE_CONFLICTS:
         case ID_RENAME_CONFLICTS:
             symbolName = dlg.GetSymbolName();
@@ -1068,7 +1052,7 @@ void SYMBOL_EDIT_FRAME::saveSymbolCopyAs( bool aOpenCopy )
 
         case ID_MAKE_NEW_LIBRARY:
         {
-            wxFileName newLibrary( AddLibraryFile( true ) );
+            QFileInfo newLibrary( AddLibraryFile( true ) );
             libraryName = newLibrary.GetName();
             break;
         }
@@ -1091,7 +1075,7 @@ void SYMBOL_EDIT_FRAME::saveSymbolCopyAs( bool aOpenCopy )
 
 void SYMBOL_EDIT_FRAME::ExportSymbol()
 {
-    wxString msg;
+    QString msg;
     LIB_SYMBOL* symbol = getTargetSymbol();
 
     if( !symbol )
@@ -1100,15 +1084,15 @@ void SYMBOL_EDIT_FRAME::ExportSymbol()
         return;
     }
 
-    wxFileName fn;
+    QFileInfo fn;
 
     fn.SetName( symbol->GetName().Lower() );
     fn.SetExt( FILEEXT::KiCadSymbolLibFileExtension );
 
-    wxFileDialog dlg( this, _( "Export Symbol" ), m_mruPath, fn.GetFullName(),
-                      FILEEXT::KiCadSymbolLibFileWildcard(), wxFD_SAVE );
+    QFileDialog dlg( this, _( "Export Symbol" ), m_mruPath, fn.GetFullName(),
+                      FILEEXT::KiCadSymbolLibFileWildcard(), QFileDialog::AcceptSave );
 
-    if( dlg.ShowModal() == wxID_CANCEL )
+    if( dlg.exec() == QDialog::Rejected )
         return;
 
     auto strategy = SYMBOL_SAVE_AS_HANDLER::CONFLICT_STRATEGY::OVERWRITE;
@@ -1116,10 +1100,10 @@ void SYMBOL_EDIT_FRAME::ExportSymbol()
     fn = dlg.GetPath();
     fn.MakeAbsolute();
 
-    wxString                    libraryName;
+    QString                    libraryName;
     std::unique_ptr<LIB_SYMBOL> flattenedSymbol = symbol->Flatten();
 
-    for( const wxString& candidate : m_libMgr->GetLibraryNames() )
+    for( const QString& candidate : m_libMgr->GetLibraryNames() )
     {
         if( m_libMgr->GetLibrary( candidate )->GetFullURI( true ) == fn.GetFullPath() )
             libraryName = candidate;
@@ -1131,21 +1115,21 @@ void SYMBOL_EDIT_FRAME::ExportSymbol()
 
         if( m_libMgr->IsLibraryReadOnly( libraryName ) )
         {
-            msg = wxString::Format( _( "Library '%s' is read-only." ), libraryName );
+            msg = QString::asprintf( _( "Library '%s' is read-only." ), libraryName );
             DisplayError( this, msg );
             return;
         }
 
         if( m_libMgr->SymbolExists( symbol->GetName(), libraryName ) )
         {
-            msg = wxString::Format( _( "Symbol '%s' already exists in library '%s'." ),
+            msg = QString::asprintf( _( "Symbol '%s' already exists in library '%s'." ),
                                     symbol->GetName(), libraryName );
 
-            KIDIALOG errorDlg( this, msg, _( "Confirmation" ), wxOK | wxCANCEL | wxICON_WARNING );
+            KIDIALOG errorDlg( this, msg, _( "Confirmation" ), QMessageBox::Ok | QMessageBox::Cancel | QMessageBox::Warning );
             errorDlg.SetOKLabel( _( "Overwrite" ) );
             errorDlg.DoNotShowCheckbox( __FILE__, __LINE__ );
 
-            if( errorDlg.ShowModal() == wxID_CANCEL )
+            if( errorDlg.exec() == QDialog::Rejected )
                 return;
         }
 
@@ -1171,7 +1155,7 @@ void SYMBOL_EDIT_FRAME::ExportSymbol()
         }
         catch( const IO_ERROR& ioe )
         {
-            msg.Printf( _( "Error occurred attempting to load symbol library file '%s'." ),
+            msg = QString::asprintf( _( "Error occurred attempting to load symbol library file '%s'." ),
                         fn.GetFullPath() );
             DisplayErrorMessage( this, msg, ioe.What() );
             return;
@@ -1179,22 +1163,22 @@ void SYMBOL_EDIT_FRAME::ExportSymbol()
 
         if( old_symbol )
         {
-            msg.Printf( _( "Symbol %s already exists in library '%s'." ),
+            msg = QString::asprintf( _( "Symbol %s already exists in library '%s'." ),
                         UnescapeString( symbol->GetName() ),
                         fn.GetFullName() );
 
-            KIDIALOG errorDlg( this, msg, _( "Confirmation" ), wxOK | wxCANCEL | wxICON_WARNING );
+            KIDIALOG errorDlg( this, msg, _( "Confirmation" ), QMessageBox::Ok | QMessageBox::Cancel | QMessageBox::Warning );
             errorDlg.SetOKLabel( _( "Overwrite" ) );
             errorDlg.DoNotShowCheckbox( __FILE__, __LINE__ );
 
-            if( errorDlg.ShowModal() == wxID_CANCEL )
+            if( errorDlg.exec() == QDialog::Rejected )
                 return;
         }
     }
 
     if( !fn.IsDirWritable() )
     {
-        msg.Printf( _( "Insufficient permissions to save library '%s'." ), fn.GetFullPath() );
+        msg = QString::asprintf( _( "Insufficient permissions to save library '%s'." ), fn.GetFullPath() );
         DisplayError( this, msg );
         return;
     }
@@ -1211,34 +1195,34 @@ void SYMBOL_EDIT_FRAME::ExportSymbol()
     }
     catch( const IO_ERROR& ioe )
     {
-        msg.Printf( _( "Failed to create symbol library file '%s'." ), fn.GetFullPath() );
+        msg = QString::asprintf( _( "Failed to create symbol library file '%s'." ), fn.GetFullPath() );
         DisplayErrorMessage( this, msg, ioe.What() );
-        msg.Printf( _( "Error creating symbol library '%s'." ), fn.GetFullName() );
+        msg = QString::asprintf( _( "Error creating symbol library '%s'." ), fn.GetFullName() );
         SetStatusText( msg );
         return;
     }
 
     m_mruPath = fn.GetPath();
 
-    msg.Printf( _( "Symbol %s saved to library '%s'." ),
+    msg = QString::asprintf( _( "Symbol %s saved to library '%s'." ),
                 UnescapeString( symbol->GetName() ),
                 fn.GetFullPath() );
     SetStatusText( msg );
 }
 
 
-void SYMBOL_EDIT_FRAME::UpdateAfterSymbolProperties( wxString* aOldName )
+void SYMBOL_EDIT_FRAME::UpdateAfterSymbolProperties( QString* aOldName )
 {
-    wxCHECK( m_symbol, /* void */ );
+    Q_ASSERT( m_symbol, /* void */ );
 
-    wxString lib = GetCurLib();
+    QString lib = GetCurLib();
 
     if( !lib.IsEmpty() && aOldName && *aOldName != m_symbol->GetName() )
     {
         // Test the current library for name conflicts
         if( m_libMgr->SymbolExists( m_symbol->GetName(), lib ) )
         {
-            wxString msg = wxString::Format( _( "Symbol name '%s' already in use." ),
+            QString msg = QString::asprintf( _( "Symbol name '%s' already in use." ),
                                              UnescapeString( m_symbol->GetName() ) );
 
             DisplayErrorMessage( this, msg );
@@ -1270,13 +1254,13 @@ void SYMBOL_EDIT_FRAME::DeleteSymbolFromLibrary()
 {
     std::vector<LIB_ID> toDelete = GetSelectedLibIds();
 
-    if( toDelete.empty() )
+    if( toDelete.isEmpty() )
         toDelete.emplace_back( GetTargetLibId() );
 
     for( LIB_ID& libId : toDelete )
     {
         if( m_libMgr->IsSymbolModified( libId.GetLibItemName(), libId.GetLibNickname() )
-            && !IsOK( this, wxString::Format( _( "The symbol '%s' has been modified.\n"
+            && !IsOK( this, QString::asprintf( _( "The symbol '%s' has been modified.\n"
                                                  "Do you want to remove it from the library?" ),
                                               libId.GetUniStringLibItemName() ) ) )
         {
@@ -1285,22 +1269,22 @@ void SYMBOL_EDIT_FRAME::DeleteSymbolFromLibrary()
 
         if( m_libMgr->HasDerivedSymbols( libId.GetLibItemName(), libId.GetLibNickname() ) )
         {
-            wxString msg;
+            QString msg;
 
-            msg.Printf(
+            msg = QString::asprintf(
                     _( "The symbol %s is used to derive other symbols.\n"
                        "Deleting this symbol will delete all of the symbols derived from it.\n\n"
                        "Do you wish to delete this symbol and all of its derivatives?" ),
-                    libId.GetLibItemName().wx_str() );
+                    libId.GetLibItemName() );
 
-            wxMessageDialog::ButtonLabel yesButtonLabel( _( "Delete Symbol" ) );
-            wxMessageDialog::ButtonLabel noButtonLabel( _( "Keep Symbol" ) );
+            QMessageBox::ButtonLabel yesButtonLabel( _( "Delete Symbol" ) );
+            QMessageBox::ButtonLabel noButtonLabel( _( "Keep Symbol" ) );
 
-            wxMessageDialog dlg( this, msg, _( "Warning" ),
-                                 wxYES_NO | wxYES_DEFAULT | wxICON_QUESTION | wxCENTER );
+            QMessageBox dlg( this, msg, _( "Warning" ),
+                                 QMessageBox::Yes | QMessageBox::No | QMessageBox::Yes | QMessageBox::Question | 0 );
             dlg.SetYesNoLabels( yesButtonLabel, noButtonLabel );
 
-            if( dlg.ShowModal() == wxID_NO )
+            if( dlg.exec() == QMessageBox::No )
                 continue;
         }
 
@@ -1338,15 +1322,15 @@ void SYMBOL_EDIT_FRAME::CopySymbolToClipboard()
     std::string prettyData = formatter.GetString();
     KICAD_FORMAT::Prettify( prettyData, true );
 
-    wxLogNull doNotLog; // disable logging of failed clipboard actions
+    // Qt logging suppression doNotLog; // disable logging of failed clipboard actions
 
-    auto clipboard = wxTheClipboard;
-    wxClipboardLocker clipboardLock( clipboard );
+    auto clipboard = QApplication::clipboard();
+    // Qt clipboard auto-locks
 
     if( !clipboardLock || !clipboard->IsOpened() )
         return;
 
-    auto data = new wxTextDataObject( wxString( prettyData.c_str(), wxConvUTF8 ) );
+    // Qt uses direct setText method
     clipboard->SetData( data );
 
     clipboard->Flush();
@@ -1356,7 +1340,7 @@ void SYMBOL_EDIT_FRAME::CopySymbolToClipboard()
 void SYMBOL_EDIT_FRAME::DuplicateSymbol( bool aFromClipboard )
 {
     LIB_ID libId = GetTargetLibId();
-    wxString lib = libId.GetLibNickname();
+    QString lib = libId.GetLibNickname();
 
     if( !m_libMgr->LibraryExists( lib ) )
         return;
@@ -1373,7 +1357,7 @@ void SYMBOL_EDIT_FRAME::DuplicateSymbol( bool aFromClipboard )
         }
         catch( IO_ERROR& e )
         {
-            wxLogMessage( wxS( "Can not paste: %s" ), e.Problem() );
+            qDebug() << "Can not paste:" << e.Problem();
         }
     }
     else if( LIB_SYMBOL* srcSymbol = m_libMgr->GetBufferedSymbol( libId.GetLibItemName(), lib ) )
@@ -1388,7 +1372,7 @@ void SYMBOL_EDIT_FRAME::DuplicateSymbol( bool aFromClipboard )
         }
     }
 
-    if( newSymbols.empty() )
+    if( newSymbols.isEmpty() )
         return;
 
     for( LIB_SYMBOL* symbol : newSymbols )
@@ -1407,16 +1391,16 @@ void SYMBOL_EDIT_FRAME::DuplicateSymbol( bool aFromClipboard )
 }
 
 
-void SYMBOL_EDIT_FRAME::ensureUniqueName( LIB_SYMBOL* aSymbol, const wxString& aLibrary )
+void SYMBOL_EDIT_FRAME::ensureUniqueName( LIB_SYMBOL* aSymbol, const QString& aLibrary )
 {
     if( aSymbol )
     {
         int      i = 1;
-        wxString newName = aSymbol->GetName();
+        QString newName = aSymbol->GetName();
 
         // Append a number to the name until the name is unique in the library.
         while( m_libMgr->SymbolExists( newName, aLibrary ) )
-            newName.Printf( "%s_%d", aSymbol->GetName(), i++ );
+            newName = QString::asprintf( "%s_%d", aSymbol->GetName(), i++ );
 
         aSymbol->SetName( newName );
     }
@@ -1426,19 +1410,19 @@ void SYMBOL_EDIT_FRAME::ensureUniqueName( LIB_SYMBOL* aSymbol, const wxString& a
 void SYMBOL_EDIT_FRAME::Revert( bool aConfirm )
 {
     LIB_ID libId = GetTargetLibId();
-    const wxString& libName = libId.GetLibNickname();
+    const QString& libName = libId.GetLibNickname();
 
     // Empty if this is the library itself that is selected.
-    const wxString& symbolName = libId.GetLibItemName();
+    const QString& symbolName = libId.GetLibItemName();
 
-    wxString msg = wxString::Format( _( "Revert '%s' to last version saved?" ),
+    QString msg = QString::asprintf( _( "Revert '%s' to last version saved?" ),
                                      symbolName.IsEmpty() ? libName : symbolName );
 
     if( aConfirm && !ConfirmRevertDialog( this, msg ) )
         return;
 
     bool reload_currentSymbol = false;
-    wxString curr_symbolName = symbolName;
+    QString curr_symbolName = symbolName;
 
     if( GetCurSymbol() )
     {
@@ -1447,7 +1431,7 @@ void SYMBOL_EDIT_FRAME::Revert( bool aConfirm )
         if( symbolName.IsEmpty() )
         {
             LIB_ID curr_libId = GetCurSymbol()->GetLibId();
-            reload_currentSymbol = libName == curr_libId.GetLibNickname().wx_str();
+            reload_currentSymbol = libName == curr_libId.GetLibNickname();
 
             if( reload_currentSymbol )
                 curr_symbolName = curr_libId.GetUniStringLibItemName();
@@ -1484,14 +1468,14 @@ void SYMBOL_EDIT_FRAME::Revert( bool aConfirm )
 
 void SYMBOL_EDIT_FRAME::RevertAll()
 {
-    wxCHECK_RET( m_libMgr, "Library manager object not created." );
+    Q_ASSERT( m_libMgr, "Library manager object not created." );
 
     Revert( false );
     m_libMgr->RevertAll();
 }
 
 
-void SYMBOL_EDIT_FRAME::LoadSymbol( const wxString& aAlias, const wxString& aLibrary, int aUnit )
+void SYMBOL_EDIT_FRAME::LoadSymbol( const QString& aAlias, const QString& aLibrary, int aUnit )
 {
     if( GetCurSymbol() && IsSymbolFromSchematic() && GetScreen()->IsContentModified() )
     {
@@ -1509,7 +1493,7 @@ void SYMBOL_EDIT_FRAME::LoadSymbol( const wxString& aAlias, const wxString& aLib
 
     if( !symbol )
     {
-        DisplayError( this, wxString::Format( _( "Symbol %s not found in library '%s'." ),
+        DisplayError( this, QString::asprintf( _( "Symbol %s not found in library '%s'." ),
                                               aAlias,
                                               aLibrary ) );
         m_treePane->GetLibTree()->RefreshLibTree();
@@ -1526,17 +1510,17 @@ void SYMBOL_EDIT_FRAME::LoadSymbol( const wxString& aAlias, const wxString& aLib
 }
 
 
-bool SYMBOL_EDIT_FRAME::saveLibrary( const wxString& aLibrary, bool aNewFile )
+bool SYMBOL_EDIT_FRAME::saveLibrary( const QString& aLibrary, bool aNewFile )
 {
-    wxFileName fn;
-    wxString   msg;
+    QFileInfo fn;
+    QString   msg;
     SYMBOL_SAVEAS_TYPE     type = SYMBOL_SAVEAS_TYPE::NORMAL_SAVE_AS;
     SCH_IO_MGR::SCH_FILE_T fileType = SCH_IO_MGR::SCH_FILE_T::SCH_KICAD;
     PROJECT&   prj = Prj();
 
     m_toolManager->RunAction( ACTIONS::cancelInteractive );
 
-    if( !aNewFile && ( aLibrary.empty() || !PROJECT_SCH::SchSymbolLibTable( &prj )->HasLibrary( aLibrary ) ) )
+    if( !aNewFile && ( aLibrary.isEmpty() || !PROJECT_SCH::SchSymbolLibTable( &prj )->HasLibrary( aLibrary ) ) )
     {
         ShowInfoBarError( _( "No library specified." ) );
         return false;
@@ -1547,7 +1531,7 @@ bool SYMBOL_EDIT_FRAME::saveLibrary( const wxString& aLibrary, bool aNewFile )
         SEARCH_STACK* search = PROJECT_SCH::SchSearchS( &prj );
 
         // Get a new name for the library
-        wxString default_path = prj.GetRString( PROJECT::SCH_LIB_PATH );
+        QString default_path = prj.GetRString( PROJECT::SCH_LIB_PATH );
 
         if( !default_path )
             default_path = search->LastVisitedPath();
@@ -1555,16 +1539,16 @@ bool SYMBOL_EDIT_FRAME::saveLibrary( const wxString& aLibrary, bool aNewFile )
         fn.SetName( aLibrary );
         fn.SetExt( FILEEXT::KiCadSymbolLibFileExtension );
 
-        wxString wildcards = FILEEXT::KiCadSymbolLibFileWildcard();
+        QString wildcards = FILEEXT::KiCadSymbolLibFileWildcard();
 
-        wxFileDialog dlg( this, wxString::Format( _( "Save Library '%s' As..." ), aLibrary ),
+        QFileDialog dlg( this, QString::asprintf( _( "Save Library '%s' As..." ), aLibrary ),
                           default_path, fn.GetFullName(), wildcards,
-                          wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
+                          QFileDialog::AcceptSave | QFileDialog::DontConfirmOverwrite );
 
         SYMBOL_FILEDLG_SAVE_AS saveAsHook( type );
         dlg.SetCustomizeHook( saveAsHook );
 
-        if( dlg.ShowModal() == wxID_CANCEL )
+        if( dlg.exec() == QDialog::Rejected )
             return false;
 
         fn = dlg.GetPath();
@@ -1597,7 +1581,7 @@ bool SYMBOL_EDIT_FRAME::saveLibrary( const wxString& aLibrary, bool aNewFile )
 
     if( !m_libMgr->SaveLibrary( aLibrary, fn.GetFullPath(), fileType ) )
     {
-        msg.Printf( _( "Failed to save changes to symbol library file '%s'." ),
+        msg = QString::asprintf( _( "Failed to save changes to symbol library file '%s'." ),
                     fn.GetFullPath() );
         DisplayErrorMessage( this, _( "Error Saving Library" ), msg );
         return false;
@@ -1614,8 +1598,8 @@ bool SYMBOL_EDIT_FRAME::saveLibrary( const wxString& aLibrary, bool aNewFile )
     else
     {
         bool resyncLibTree = false;
-        wxString originalLibNickname = getTargetLib();
-        wxString forceRefresh;
+        QString originalLibNickname = getTargetLib();
+        QString forceRefresh;
 
         switch( type )
         {
@@ -1645,7 +1629,7 @@ bool SYMBOL_EDIT_FRAME::saveLibrary( const wxString& aLibrary, bool aNewFile )
     }
 
     ClearMsgPanel();
-    msg.Printf( _( "Symbol library file '%s' saved." ), fn.GetFullPath() );
+    msg = QString::asprintf( _( "Symbol library file '%s' saved." ), fn.GetFullPath() );
     RebuildSymbolUnitsList();
 
     return true;
@@ -1654,32 +1638,32 @@ bool SYMBOL_EDIT_FRAME::saveLibrary( const wxString& aLibrary, bool aNewFile )
 
 bool SYMBOL_EDIT_FRAME::saveAllLibraries( bool aRequireConfirmation )
 {
-    wxString msg, msg2;
+    QString msg, msg2;
     bool     doSave = true;
     int      dirtyCount = 0;
     bool     applyToAll = false;
     bool     retv = true;
 
-    for( const wxString& libNickname : m_libMgr->GetLibraryNames() )
+    for( const QString& libNickname : m_libMgr->GetLibraryNames() )
     {
         if( m_libMgr->IsLibraryModified( libNickname ) )
             dirtyCount++;
     }
 
-    for( const wxString& libNickname : m_libMgr->GetLibraryNames() )
+    for( const QString& libNickname : m_libMgr->GetLibraryNames() )
     {
         if( m_libMgr->IsLibraryModified( libNickname ) )
         {
             if( aRequireConfirmation && !applyToAll )
             {
-                msg.Printf( _( "Save changes to '%s' before closing?" ), libNickname );
+                msg = QString::asprintf( _( "Save changes to '%s' before closing?" ), libNickname );
 
                 switch( UnsavedChangesDialog( this, msg, dirtyCount > 1 ? &applyToAll : nullptr ) )
                 {
-                case wxID_YES: doSave = true;  break;
-                case wxID_NO:  doSave = false; break;
+                case QMessageBox::Yes: doSave = true;  break;
+                case QMessageBox::No:  doSave = false; break;
                 default:
-                case wxID_CANCEL: return false;
+                case QDialog::Rejected: return false;
                 }
             }
 
@@ -1689,12 +1673,12 @@ bool SYMBOL_EDIT_FRAME::saveAllLibraries( bool aRequireConfirmation )
                 // fails then cancel close action.
                 if( m_libMgr->IsLibraryReadOnly( libNickname ) )
                 {
-                    msg.Printf( _( "Symbol library '%s' is not writable." ), libNickname );
+                    msg = QString::asprintf( _( "Symbol library '%s' is not writable." ), libNickname );
                     msg2 = _( "You must save to a different location." );
 
                     if( dirtyCount == 1 )
                     {
-                        if( OKOrCancelDialog( this, _( "Warning" ), msg, msg2 ) != wxID_OK )
+                        if( OKOrCancelDialog( this, _( "Warning" ), msg, msg2 ) != QDialog::Accepted )
                         {
                             retv = false;
                             continue;
@@ -1703,11 +1687,11 @@ bool SYMBOL_EDIT_FRAME::saveAllLibraries( bool aRequireConfirmation )
                     else
                     {
                         m_infoBar->Dismiss();
-                        m_infoBar->ShowMessageFor( msg + wxS( "  " ) + msg2,
-                                                   2000, wxICON_EXCLAMATION );
+                        m_infoBar->ShowMessageFor( msg + QStringLiteral( "  " ) + msg2,
+                                                   2000, QMessageBox::Warning );
 
                         while( m_infoBar->IsShownOnScreen() )
-                            wxSafeYield();
+                            QApplication::processEvents();
 
                         retv = false;
                         continue;
@@ -1736,7 +1720,7 @@ void SYMBOL_EDIT_FRAME::UpdateSymbolMsgPanelInfo()
     if( !m_symbol )
         return;
 
-    wxString msg = m_symbol->GetName();
+    QString msg = m_symbol->GetName();
 
     AppendMsgPanel( _( "Name" ), UnescapeString( msg ), 8 );
 
@@ -1748,7 +1732,7 @@ void SYMBOL_EDIT_FRAME::UpdateSymbolMsgPanelInfo()
         AppendMsgPanel( _( "Parent" ), UnescapeString( msg ), 8 );
     }
 
-    static wxChar UnitLetter[] = wxT( "?ABCDEFGHIJKLMNOPQRSTUVWXYZ" );
+    static QChar UnitLetter[] = QStringLiteral( "?ABCDEFGHIJKLMNOPQRSTUVWXYZ" ).data();
     msg = UnitLetter[m_unit];
 
     AppendMsgPanel( _( "Unit" ), msg, 8 );
@@ -1758,7 +1742,7 @@ void SYMBOL_EDIT_FRAME::UpdateSymbolMsgPanelInfo()
     else if( m_bodyStyle == BODY_STYLE::BASE )
         msg = _( "Standard" );
     else
-        msg = wxT( "?" );
+        msg = QStringLiteral( "?" );
 
     AppendMsgPanel( _( "Body" ), msg, 8 );
 

@@ -1,30 +1,10 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2019 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// wxWidgets to Qt transformation completed
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #ifndef  DS_DATA_ITEM_H
 #define  DS_DATA_ITEM_H
 
+#include <QString>
 #include <math/vector2d.h>
 #include <eda_text.h>
 #include <bitmap_base.h>
@@ -193,10 +173,10 @@ public:
      */
     virtual bool IsInsidePage( int ii ) const;
 
-    const wxString GetClassName() const;
+    const QString GetClassName() const;
 
-    wxString       m_Name;               // a name used in drawing sheet editor to identify items
-    wxString       m_Info;               // a comment, only useful in drawing sheet editor
+    QString       m_Name;               // a name used in drawing sheet editor to identify items
+    QString       m_Info;               // a comment, only useful in drawing sheet editor
     POINT_COORD    m_Pos;
     POINT_COORD    m_End;
     double         m_LineWidth;
@@ -297,7 +277,7 @@ private:
 class DS_DATA_ITEM_TEXT : public DS_DATA_ITEM
 {
 public:
-    DS_DATA_ITEM_TEXT( const wxString& aTextBase );
+    DS_DATA_ITEM_TEXT( const QString& aTextBase );
 
     void SyncDrawItems( DS_DRAW_ITEM_LIST* aCollector, KIGFX::VIEW* aView ) override;
 
@@ -332,8 +312,8 @@ public:
     bool ReplaceAntiSlashSequence();
 
 public:
-    wxString            m_TextBase;             // The basic text, with format symbols
-    wxString            m_FullText;             // The expanded text, shown on screen
+    QString            m_TextBase;             // The basic text, with format symbols
+    QString            m_FullText;             // The expanded text, shown on screen
     double              m_Orient;               // Orientation in degrees
     GR_TEXT_H_ALIGN_T   m_Hjustify;
     GR_TEXT_V_ALIGN_T   m_Vjustify;

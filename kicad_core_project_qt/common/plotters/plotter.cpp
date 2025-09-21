@@ -1,41 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @file plotter.cpp
- * @brief KiCad: Base of all the specialized plotters
- * the class PLOTTER handle basic functions to plot schematic and boards
- * with different plot formats.
- *
- * There are currently engines for:
- * HPGL
- * POSTSCRIPT
- * GERBER
- * DXF
- * an SVG 'plot' is also provided along with the 'print' function by wx, but
- * is not handled here.
- */
+#include <QtCore/QString>
+#include <QtGui/QImage>
+#include <QtCore/QDebug>
 
 #include <trigo.h>
 #include <plotters/plotter.h>
@@ -72,14 +38,15 @@ PLOTTER::~PLOTTER()
 }
 
 
-bool PLOTTER::OpenFile( const wxString& aFullFilename )
+bool PLOTTER::OpenFile( const QString& aFullFilename )
 {
     m_filename = aFullFilename;
 
-    wxASSERT( !m_outputFile );
+    Q_ASSERT( !m_outputFile );
 
     // Open the file in text mode (not suitable for all plotters but only for most of them.
-    m_outputFile = wxFopen( m_filename, wxT( "wt" ) );
+    std::string filename_std = m_filename.toStdString();
+    m_outputFile = fopen( filename_std.c_str(), "wt" );
 
     if( m_outputFile == nullptr )
         return false ;
@@ -255,9 +222,9 @@ void PLOTTER::BezierCurve( const VECTOR2I& aStart, const VECTOR2I& aControl1,
 }
 
 
-void PLOTTER::PlotImage( const wxImage& aImage, const VECTOR2I& aPos, double aScaleFactor )
+void PLOTTER::PlotImage( const QImage& aImage, const VECTOR2I& aPos, double aScaleFactor )
 {
-    VECTOR2I size( aImage.GetWidth() * aScaleFactor, aImage.GetHeight() * aScaleFactor );
+    VECTOR2I size( aImage.width() * aScaleFactor, aImage.height() * aScaleFactor );
 
     VECTOR2I start = aPos;
     start.x -= size.x / 2;
@@ -690,7 +657,7 @@ void PLOTTER::PlotPoly( const SHAPE_LINE_CHAIN& aCornerList, FILL_T aFill, int a
 
 void PLOTTER::Text( const VECTOR2I&        aPos,
                     const COLOR4D&         aColor,
-                    const wxString&        aText,
+                    const QString&         aText,
                     const EDA_ANGLE&       aOrient,
                     const VECTOR2I&        aSize,
                     enum GR_TEXT_H_ALIGN_T aH_justify,
@@ -753,7 +720,7 @@ void PLOTTER::Text( const VECTOR2I&        aPos,
 
 void PLOTTER::PlotText( const VECTOR2I&        aPos,
                         const COLOR4D&         aColor,
-                        const wxString&        aText,
+                        const QString&         aText,
                         const TEXT_ATTRIBUTES& aAttributes,
                         KIFONT::FONT*          aFont,
                         const KIFONT::METRICS& aFontMetrics,

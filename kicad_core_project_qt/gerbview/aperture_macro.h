@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2010 Jean-Pierre Charras <jp.charras at wanadoo.fr>
- * Copyright (C) 2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 /**
  * @file aperture_macro.h
@@ -33,6 +9,8 @@
 
 #include <vector>
 #include <set>
+
+#include <QString>
 
 #include <am_param.h>
 #include <am_primitive.h>
@@ -123,7 +101,7 @@ public:
     /**
      * The name of the aperture macro as defined like %AMVB_RECTANGLE* (name is VB_RECTANGLE)
      */
-     wxString      m_AmName;
+     QString      m_AmName;
 
     /**
      * Add a new ptimitive (  AMP_CIRCLE, AMP_LINE2 ...) to the list of primitives
@@ -174,10 +152,10 @@ private:
  */
 struct APERTURE_MACRO_less_than
 {
-    // a "less than" test on two APERTURE_MACROs (.name wxStrings)
+    // a "less than" test on two APERTURE_MACROs (.name QStrings)
     bool operator()( const APERTURE_MACRO& am1, const APERTURE_MACRO& am2 ) const
     {
-        return am1.m_AmName.Cmp( am2.m_AmName ) < 0;  // case specific wxString compare
+        return am1.m_AmName.compare( am2.m_AmName ) < 0;  // case specific QString compare
     }
 };
 

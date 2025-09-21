@@ -1,26 +1,4 @@
-﻿/*
-* This program source code file is part of KiCad, a free EDA CAD application.
-*
-* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, you may find one here:
-* http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
-* or you may search the http://www.gnu.org website for the version 2 license,
-* or you may write to the Free Software Foundation, Inc.,
-* 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
-*/
-
+﻿
 #include <Wbemidl.h>
 #include <cstdio>
 #define _WIN32_DCOM
@@ -37,8 +15,8 @@
 #include <sstream>
 #include <vector>
 
-#include <wx/string.h>
-#include <wx/msw/registry.h>
+#include <QString>
+#include <QSettings>
 
 #include "d3d9.h"
 #include "dxgi.h"
@@ -110,7 +88,7 @@ HRESULT SYSINFO::openWmi()
 {
     HRESULT hres;
 
-    // We assume wxwidgets is handling calling of CoInitializeEx and CoInitializeSecurity
+    // We assume Qt is handling calling of CoInitializeEx and CoInitializeSecurity
     hres = CoCreateInstance( CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER, IID_IWbemLocator,
                              (LPVOID*) &m_pLoc );
 
@@ -314,22 +292,20 @@ bool SYSINFO::GetCPUInfo( std::vector<CPU_INFO>& aCpuInfos )
 
 bool SYSINFO::getVersionFromDXRegistry( int64_t aAdapterLuid, std::string& aDriverVersion )
 {
-    wxString baseKeyName = "SOFTWARE\\Microsoft\\DirectX";
-    wxRegKey key( wxRegKey::HKLM, baseKeyName );
+    QString baseKeyName = "SOFTWARE\\Microsoft\\DirectX";
+    QSettings settings( "HKEY_LOCAL_MACHINE\\" + baseKeyName, QSettings::NativeFormat );
     HKEY    tmpKey;
 
-    if( key.HasSubkeys() )
+    QStringList subKeys = settings.childGroups();
+    if( !subKeys.isEmpty() )
     {
-        wxString adapterGuid;
-        long     index = 0;
-        for( bool cont = key.GetFirstKey( adapterGuid, index ); cont;
-                cont   = key.GetNextKey( adapterGuid, index ) )
+        for( const QString& adapterGuid : subKeys )
         {
-            wxString subKeyName = baseKeyName + "\\" + adapterGuid;
+            QString subKeyName = baseKeyName + "\\" + adapterGuid;
 
             LSTATUS status;
             status = ::RegOpenKeyEx(
-                    (HKEY) HKEY_LOCAL_MACHINE, subKeyName.t_str(), 0, KEY_READ, &tmpKey );
+                    (HKEY) HKEY_LOCAL_MACHINE, subKeyName.toStdString().c_str(), 0, KEY_READ, &tmpKey );
 
             ULONGLONG adapterLuid;
             DWORD dwType, dwSize = sizeof(ULONGLONG);

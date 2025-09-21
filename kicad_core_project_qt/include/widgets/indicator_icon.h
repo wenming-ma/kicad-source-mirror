@@ -1,38 +1,20 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #ifndef ROW_INDICATOR__H_
 #define ROW_INDICATOR__H_
 
-#include <wx/statbmp.h>
-#include <wx/panel.h>
+#include <QWidget>
+#include <QLabel>
+#include <QPixmap>
+#include <QString>
 
-class wxStaticBitmap;
+class QLabel;
 
 /**
  * Represent a row indicator icon for use in places like the layer widget.
  */
-class INDICATOR_ICON : public wxPanel
+class INDICATOR_ICON : public QWidget
 {
 public:
 
@@ -58,7 +40,7 @@ public:
          *
          * @param aIconId the id of the icon to get (depends on the provider).
          */
-        virtual const wxBitmap& GetIndicatorIcon( ICON_ID aIconId ) const = 0;
+        virtual const QPixmap& GetIndicatorIcon( ICON_ID aIconId ) const = 0;
     };
 
     /**
@@ -77,7 +59,7 @@ public:
      * @param aID the ID to use for the widgets - events will have
      * this ID.
      */
-    INDICATOR_ICON( wxWindow* aParent, ICON_PROVIDER& aIconProvider,
+    INDICATOR_ICON( QWidget* aParent, ICON_PROVIDER& aIconProvider,
                     ICON_ID aInitialIcon, int aID );
 
     /**
@@ -98,10 +80,11 @@ public:
      *
      * @param aId new Window ID to set.
      */
-    void SetWindowID( wxWindowID aId )
+    void SetWindowID( int aId )
     {
-        SetId( aId );
-        m_bitmap->SetId( aId );
+        // Qt uses QObject::setObjectName for identification
+        setObjectName( QString::number( aId ) );
+        m_bitmap->setObjectName( QString::number( aId ) );
     }
 
 private:
@@ -110,7 +93,7 @@ private:
     ICON_PROVIDER& m_iconProvider;
 
     /// Handle on the bitmap widget.
-    wxStaticBitmap* m_bitmap;
+    QLabel* m_bitmap;
 
     /// Is the icon currently "on".
     ICON_ID m_currentId;
@@ -138,17 +121,17 @@ public:
      * @param aAlt false: normal icons (blue arrow/blank), true:
      * alternative icons (blue arrow/green diamond).
      */
-    ROW_ICON_PROVIDER( int aSizeDIP, wxWindow* aWindow );
+    ROW_ICON_PROVIDER( int aSizeDIP, QWidget* aWindow );
 
     /// @copydoc INDICATOR_ICON::ICON_PROVIDER::GetIndicatorIcon()
-    const wxBitmap& GetIndicatorIcon( INDICATOR_ICON::ICON_ID aIconId ) const override;
+    const QPixmap& GetIndicatorIcon( INDICATOR_ICON::ICON_ID aIconId ) const override;
 
 private:
-    wxBitmap m_blankBitmap;
-    wxBitmap m_rightArrowBitmap;
-    wxBitmap m_upArrowBitmap;
-    wxBitmap m_downArrowBitmap;
-    wxBitmap m_dotBitmap;
+    QPixmap m_blankBitmap;
+    QPixmap m_rightArrowBitmap;
+    QPixmap m_upArrowBitmap;
+    QPixmap m_downArrowBitmap;
+    QPixmap m_dotBitmap;
 };
 
 

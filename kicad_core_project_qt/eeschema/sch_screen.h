@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2009 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SCREEN_H
 #define SCREEN_H
@@ -29,10 +6,8 @@
 #include <stddef.h>
 #include <unordered_set>
 #include <vector>
-#include <wx/arrstr.h>
-#include <wx/chartype.h>
-#include <wx/gdicmn.h>
-#include <wx/string.h>
+#include <QString>
+#include <QStringList>
 
 #include <base_screen.h>
 #include <core/typeinfo.h>
@@ -80,7 +55,7 @@ struct PICKED_SYMBOL
     int    Unit;
     int    Convert;
 
-    std::vector<std::pair<int, wxString>> Fields;
+    std::vector<std::pair<int, QString>> Fields;
 
     PICKED_SYMBOL() : Unit( 1 ), Convert( 1 )
     {
@@ -120,9 +95,9 @@ public:
 
     static bool ClassOf( const EDA_ITEM* aItem );
 
-    virtual wxString GetClass() const override
+    virtual QString GetClass() const override
     {
-        return wxT( "SCH_SCREEN" );
+        return "SCH_SCREEN";
     }
 
     void SetFileFormatVersionAtLoad( int aVersion ) { m_fileFormatVersionAtLoad = aVersion; }
@@ -139,9 +114,9 @@ public:
      *
      * @param aFileName is the absolute file name and path of the screen.
      */
-    void SetFileName( const wxString& aFileName );
+    void SetFileName( const QString& aFileName );
 
-    const wxString& GetFileName() const                     { return m_fileName; }
+    const QString& GetFileName() const                     { return m_fileName; }
 
     void SetFileReadOnly( bool aIsReadOnly )                { m_isReadOnly = aIsReadOnly; }
     bool IsReadOnly() const                                 { return m_isReadOnly; }
@@ -485,7 +460,7 @@ public:
      *
      * @return The list of unique #LIB_SYMBOL object pointers.
      */
-    const std::map<wxString, LIB_SYMBOL*>& GetLibSymbols() const { return m_libSymbols; }
+    const std::map<QString, LIB_SYMBOL*>& GetLibSymbols() const { return m_libSymbols; }
 
     /**
      * Add \a aLibSymbol to the library symbol map.
@@ -579,7 +554,7 @@ public:
      * @param aValidSheetPaths is the list of valid #SCH_SHEET_PATH objects for the current
      *                         project.
      */
-    void PruneOrphanedSymbolInstances( const wxString& aProjectName,
+    void PruneOrphanedSymbolInstances( const QString& aProjectName,
                                        const SCH_SHEET_LIST& aValidSheetPaths );
 
     /**
@@ -594,13 +569,13 @@ public:
      * @param aValidSheetPaths is the list of valid #SCH_SHEET_PATH objects for the current
      *                         project.
      */
-    void PruneOrphanedSheetInstances( const wxString& aProjectName,
+    void PruneOrphanedSheetInstances( const QString& aProjectName,
                                       const SCH_SHEET_LIST& aValidSheetPaths );
 
     /**
      * @return a list of names of all of the sheets in this schematic file.
      */
-    std::set<wxString> GetSheetNames() const;
+    std::set<QString> GetSheetNames() const;
 
 private:
     friend SCH_EDIT_FRAME;     // Only to populate m_symbolInstances.
@@ -626,7 +601,7 @@ private:
      *
      * @return the number of potential matches found for \a aSymbol.
      */
-    size_t getLibSymbolNameMatches( const SCH_SYMBOL& aSymbol, std::vector<wxString>& aMatches );
+    size_t getLibSymbolNameMatches( const SCH_SYMBOL& aSymbol, std::vector<QString>& aMatches );
 
 
     /**
@@ -649,7 +624,7 @@ public:
     double m_LastZoomLevel;
 
 private:
-    wxString    m_fileName;                 // File used to load the screen.
+    QString    m_fileName;                 // File used to load the screen.
     int         m_fileFormatVersionAtLoad;
     int         m_refCount;                 // Number of sheets referencing this screen.
                                             // Delete when it goes to zero.
@@ -683,7 +658,7 @@ private:
     std::set< std::shared_ptr< BUS_ALIAS >, BusAliasCmp > m_aliases;
 
     /// Library symbols required for this schematic.
-    std::map<wxString, LIB_SYMBOL*> m_libSymbols;
+    std::map<QString, LIB_SYMBOL*> m_libSymbols;
 
     /**
      * The list of symbol instances loaded from the schematic file.
@@ -806,7 +781,7 @@ public:
      * @param[out] aLibNicknames is the array to populate with all of the unique library nicknames.
      * @return the number of symbol library nicknames found.
      */
-    size_t GetLibNicknames( wxArrayString& aLibNicknames );
+    size_t GetLibNicknames( QStringList& aLibNicknames );
 
     /**
      * Change all of the symbol library nicknames.
@@ -815,7 +790,7 @@ public:
      * @param[in] aTo the new symbol library name.
      * @return the number of symbol library nicknames that were changed.
      */
-    int ChangeSymbolLibNickname( const wxString& aFrom, const wxString& aTo );
+    int ChangeSymbolLibNickname( const QString& aFrom, const QString& aTo );
 
     /**
      * Check if one of the schematics in the list of screens is \a aSchematicFileName.
@@ -826,7 +801,7 @@ public:
      * @param[in] aSchematicFileName is the schematic file name to search.
      * @return true if the a schematic matching the file name has been found.
      */
-    bool HasSchematic( const wxString& aSchematicFileName );
+    bool HasSchematic( const QString& aSchematicFileName );
 
     /**
      * Build the list of sheet paths sharing a screen for each screen in use.
@@ -844,10 +819,10 @@ public:
      */
     void FixLegacyPowerSymbolMismatches();
 
-    void PruneOrphanedSymbolInstances( const wxString& aProjectName,
+    void PruneOrphanedSymbolInstances( const QString& aProjectName,
                                        const SCH_SHEET_LIST& aValidSheetPaths );
 
-    void PruneOrphanedSheetInstances( const wxString& aProjectName,
+    void PruneOrphanedSheetInstances( const QString& aProjectName,
                                       const SCH_SHEET_LIST& aValidSheetPaths );
 
     bool HasSymbolFieldNamesWithWhiteSpace() const;

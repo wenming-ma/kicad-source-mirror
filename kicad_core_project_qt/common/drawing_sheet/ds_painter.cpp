@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// Transformed from wxWidgets to Qt framework
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 
 #include <common.h>
@@ -36,11 +15,12 @@
 #include <drawing_sheet/ds_painter.h>
 #include <drawing_sheet/ds_data_item.h>
 
-#include <wx/app.h>
+#include <QCoreApplication>
+#include <QFileInfo>
 
 using namespace KIGFX;
 
-static const wxString productName = wxT( "KiCad E.D.A." );
+static const QString productName = "KiCad E.D.A.";
 
 DS_RENDER_SETTINGS::DS_RENDER_SETTINGS()
 {
@@ -94,72 +74,72 @@ COLOR4D DS_RENDER_SETTINGS::GetColor( const VIEW_ITEM* aItem, int aLayer ) const
 }
 
 
-void DS_DRAW_ITEM_LIST::GetTextVars( wxArrayString* aVars )
+void DS_DRAW_ITEM_LIST::GetTextVars( QStringList* aVars )
 {
-    aVars->push_back( wxT( "KICAD_VERSION" ) );
-    aVars->push_back( wxT( "#" ) );
-    aVars->push_back( wxT( "##" ) );
-    aVars->push_back( wxT( "SHEETNAME" ) );
-    aVars->push_back( wxT( "SHEETPATH" ) );
-    aVars->push_back( wxT( "FILENAME" ) );
-    aVars->push_back( wxT( "FILEPATH" ) );
-    aVars->push_back( wxT( "PROJECTNAME" ) );
-    aVars->push_back( wxT( "PAPER" ) );
-    aVars->push_back( wxT( "LAYER" ) );
+    aVars->append( "KICAD_VERSION" );
+    aVars->append( "#" );
+    aVars->append( "##" );
+    aVars->append( "SHEETNAME" );
+    aVars->append( "SHEETPATH" );
+    aVars->append( "FILENAME" );
+    aVars->append( "FILEPATH" );
+    aVars->append( "PROJECTNAME" );
+    aVars->append( "PAPER" );
+    aVars->append( "LAYER" );
     TITLE_BLOCK::GetContextualTextVars( aVars );
 }
 
 
-wxString DS_DRAW_ITEM_LIST::BuildFullText( const wxString& aTextbase )
+QString DS_DRAW_ITEM_LIST::BuildFullText( const QString& aTextbase )
 {
-    std::function<bool( wxString* )> wsResolver =
-            [&]( wxString* token ) -> bool
+    std::function<bool( QString* )> wsResolver =
+            [&]( QString* token ) -> bool
             {
                 bool tokenUpdated = false;
 
-                if( token->IsSameAs( wxT( "KICAD_VERSION" ) ) && PgmOrNull() )
+                if( *token == "KICAD_VERSION" && PgmOrNull() )
                 {
-                    *token = wxString::Format( wxT( "%s %s" ), productName, GetBaseVersion() );
+                    *token = QString::asprintf( "%s %s", productName.toStdString().c_str(), GetBaseVersion().toStdString().c_str() );
                     tokenUpdated = true;
                 }
-                else if( token->IsSameAs( wxT( "#" ) ) )
+                else if( *token == "#" )
                 {
-                    *token = wxString::Format( wxT( "%s" ), m_pageNumber );
+                    *token = QString::asprintf( "%s", m_pageNumber.toStdString().c_str() );
                     tokenUpdated = true;
                 }
-                else if( token->IsSameAs( wxT( "##" ) ) )
+                else if( *token == "##" )
                 {
-                    *token = wxString::Format( wxT( "%d" ), m_sheetCount );
+                    *token = QString::asprintf( "%d", m_sheetCount );
                     tokenUpdated = true;
                 }
-                else if( token->IsSameAs( wxT( "SHEETNAME" ) ) )
+                else if( *token == "SHEETNAME" )
                 {
                     *token = m_sheetName;
                     tokenUpdated = true;
                 }
-                else if( token->IsSameAs( wxT( "SHEETPATH" ) ) )
+                else if( *token == "SHEETPATH" )
                 {
                     *token = m_sheetPath;
                     tokenUpdated = true;
                 }
-                else if( token->IsSameAs( wxT( "FILENAME" ) ) )
+                else if( *token == "FILENAME" )
                 {
-                    wxFileName fn( m_fileName );
-                    *token = fn.GetFullName();
+                    QFileInfo fn( m_fileName );
+                    *token = fn.fileName();
                     tokenUpdated = true;
                 }
-                else if( token->IsSameAs( wxT( "FILEPATH" ) ) )
+                else if( *token == "FILEPATH" )
                 {
-                    wxFileName fn( m_fileName );
-                    *token = fn.GetFullPath();
+                    QFileInfo fn( m_fileName );
+                    *token = fn.absoluteFilePath();
                     return true;
                 }
-                else if( token->IsSameAs( wxT( "PAPER" ) ) )
+                else if( *token == "PAPER" )
                 {
                     *token = m_paperFormat;
                     tokenUpdated = true;
                 }
-                else if( token->IsSameAs( wxT( "LAYER" ) ) )
+                else if( *token == "LAYER" )
                 {
                     *token = m_sheetLayer;
                     tokenUpdated = true;

@@ -1,24 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Wayne Stambaugh <stambaughw@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef _SCH_IO_MGR_H_
 #define _SCH_IO_MGR_H_
@@ -30,7 +9,7 @@
 #include <i18n_utility.h>
 #include <io/io_base.h>
 #include <io/io_mgr.h>
-#include <wx/arrstr.h>
+#include <QString>
 
 
 class SCH_SHEET;
@@ -89,28 +68,28 @@ public:
     /**
      * Return a brief name for a plugin, given aFileType enum.
      */
-    static const wxString ShowType( SCH_FILE_T aFileType );
+    static const QString ShowType( SCH_FILE_T aFileType );
 
     /**
      * Return the #SCH_FILE_T from the corresponding plugin type name: "kicad", "legacy", etc.
      */
-    static SCH_FILE_T EnumFromStr( const wxString& aFileType );
+    static SCH_FILE_T EnumFromStr( const QString& aFileType );
 
     /**
      * Return a plugin type given a symbol library using the file extension of \a aLibPath.
      */
-    static SCH_FILE_T GuessPluginTypeFromLibPath( const wxString& aLibPath, int aCtl = 0 );
+    static SCH_FILE_T GuessPluginTypeFromLibPath( const QString& aLibPath, int aCtl = 0 );
 
     /**
      * Return a plugin type given a schematic using the file extension of \a aSchematicPath.
      */
-    static SCH_FILE_T GuessPluginTypeFromSchPath( const wxString& aSchematicPath, int aCtl = 0 );
+    static SCH_FILE_T GuessPluginTypeFromSchPath( const QString& aSchematicPath, int aCtl = 0 );
 
     /**
      * Convert a schematic symbol library to the latest KiCad format
      */
-    static bool ConvertLibrary( std::map<std::string, UTF8>* aOldFileProps, const wxString& aOldFilePath,
-                                const wxString& aNewFilepath );
+    static bool ConvertLibrary( std::map<std::string, UTF8>* aOldFileProps, const QString& aOldFilePath,
+                                const QString& aNewFilepath );
 };
 
 #endif // _SCH_IO_MGR_H_

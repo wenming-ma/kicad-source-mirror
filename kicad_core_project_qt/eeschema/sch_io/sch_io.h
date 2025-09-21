@@ -1,25 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Wayne Stambaugh <stambaughw@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #ifndef SCH_IO_H_
 #define SCH_IO_H_
 
@@ -30,7 +10,8 @@
 #include <enum_vector.h>
 #include <reporter.h>
 #include <i18n_utility.h>
-#include <wx/arrstr.h>
+#include <QString>
+#include <QStringList>
 
 /**
  * Base class that schematic file and library loading and saving plugins should derive from.
@@ -68,7 +49,7 @@ public:
      * Checks if this SCH_IO can read the specified schematic file.
      * If not overriden, extension check is used.
      */
-    virtual bool CanReadSchematicFile( const wxString& aFileName ) const;
+    virtual bool CanReadSchematicFile( const QString& aFileName ) const;
 
     /**
      * Return the modification hash from the library cache.
@@ -81,7 +62,7 @@ public:
      */
     virtual int GetModifyHash() const = 0;
 
-    virtual void SaveLibrary( const wxString& aFileName,
+    virtual void SaveLibrary( const QString& aFileName,
                               const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
@@ -112,7 +93,7 @@ public:
      *                 wrong, using line number and character offsets of the input file if
      *                 possible.
      */
-    virtual SCH_SHEET* LoadSchematicFile( const wxString& aFileName, SCHEMATIC* aSchematic,
+    virtual SCH_SHEET* LoadSchematicFile( const QString& aFileName, SCHEMATIC* aSchematic,
                                           SCH_SHEET*             aAppendToMe = nullptr,
                                           const std::map<std::string, UTF8>* aProperties = nullptr );
 
@@ -141,7 +122,7 @@ public:
      *
      * @throw IO_ERROR if there is a problem saving or exporting.
      */
-    virtual void SaveSchematicFile( const wxString& aFileName, SCH_SHEET* aSheet,
+    virtual void SaveSchematicFile( const QString& aFileName, SCH_SHEET* aSheet,
                                     SCHEMATIC*             aSchematic,
                                     const std::map<std::string, UTF8>* aProperties = nullptr );
 
@@ -161,7 +142,7 @@ public:
      *
      * @throw IO_ERROR if the library cannot be found, the part library cannot be loaded.
      */
-    virtual void EnumerateSymbolLib( wxArrayString& aSymbolNameList, const wxString& aLibraryPath,
+    virtual void EnumerateSymbolLib( QStringList& aSymbolNameList, const QString& aLibraryPath,
                                      const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
@@ -184,7 +165,7 @@ public:
      * @throw IO_ERROR if the library cannot be found, the part library cannot be loaded.
      */
     virtual void EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
-                                     const wxString& aLibraryPath,
+                                     const QString& aLibraryPath,
                                      const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
@@ -208,7 +189,7 @@ public:
      * @throw IO_ERROR if the library cannot be found or read.  No exception
      *                 is thrown in the case where aAliasName cannot be found.
      */
-    virtual LIB_SYMBOL* LoadSymbol( const wxString& aLibraryPath, const wxString& aPartName,
+    virtual LIB_SYMBOL* LoadSymbol( const QString& aLibraryPath, const QString& aPartName,
                                     const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
@@ -232,7 +213,7 @@ public:
      *
      * @throw IO_ERROR if there is a problem saving.
      */
-    virtual void SaveSymbol( const wxString& aLibraryPath, const LIB_SYMBOL* aSymbol,
+    virtual void SaveSymbol( const QString& aLibraryPath, const LIB_SYMBOL* aSymbol,
                              const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
@@ -253,7 +234,7 @@ public:
      *
      * @throw IO_ERROR if there is a problem finding the alias or the library or deleting it.
      */
-    virtual void DeleteSymbol( const wxString& aLibraryPath, const wxString& aSymbolName,
+    virtual void DeleteSymbol( const QString& aLibraryPath, const QString& aSymbolName,
                                const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
@@ -275,9 +256,8 @@ public:
      *  </dl>
      * <br>
      *  In the future perhaps \a aListToAppendTo evolves to something capable of also
-     *  holding a wxValidator for the cells in said dialog:
-     *  http://forums.wxwidgets.org/viewtopic.php?t=23277&p=104180.
-     *   This would require a 3 column list, and introducing wx GUI knowledge to
+     *  holding a QValidator for the cells in said dialog.
+     *   This would require a 3 column list, and introducing Qt GUI knowledge to
      *   #SCH_IO, which has been avoided to date.
      */
     virtual void GetLibraryOptions( std::map<std::string, UTF8>* aListToAppendTo ) const override;
@@ -299,7 +279,7 @@ public:
      *
      * @param aNames will be filled with a list of sub-libraries within this symbol library
      */
-    virtual void GetSubLibraryNames( std::vector<wxString>& aNames ) {}
+    virtual void GetSubLibraryNames( std::vector<QString>& aNames ) {}
 
     /**
      * Gets a description of a sublibrary.
@@ -310,7 +290,7 @@ public:
      *
      * @return the description of the sublibrary
      */
-    virtual wxString GetSubLibraryDescription( const wxString& aName ) { return wxEmptyString; }
+    virtual QString GetSubLibraryDescription( const QString& aName ) { return QString(); }
 
     /**
      * Retrieves a list of (custom) field names that are present on symbols in this library.
@@ -321,7 +301,7 @@ public:
      *
      * @param aNames will be filled with any custom fields present in this library.
      */
-    virtual void GetAvailableSymbolFields( std::vector<wxString>& aNames ) {}
+    virtual void GetAvailableSymbolFields( std::vector<QString>& aNames ) {}
 
     /**
      * Retrieves a list of (custom) field names that should be shown by default for this library
@@ -335,7 +315,7 @@ public:
      *
      * @param aNames will be filled with the custom field names that should be shown by default
      */
-    virtual void GetDefaultSymbolFields( std::vector<wxString>& aNames )
+    virtual void GetDefaultSymbolFields( std::vector<QString>& aNames )
     {
         return GetAvailableSymbolFields( aNames );
     }
@@ -348,7 +328,7 @@ public:
      *
      * @return an unformatted string containing errors if any.
      */
-    virtual const wxString& GetError() const;
+    virtual const QString& GetError() const;
 
     /**
      * Some library plugins need to have access to their parent library table.
@@ -370,7 +350,7 @@ public:
 
 protected:
 
-    SCH_IO( const wxString& aName ) : IO_BASE( aName )
+    SCH_IO( const QString& aName ) : IO_BASE( aName )
     {}
 };
 

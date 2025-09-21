@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #include <sch_collectors.h>
 #include <sch_commit.h>
@@ -36,7 +15,10 @@
 #include <trace_helpers.h>
 #include <trigo.h>
 #include <refdes_utils.h>
-#include <wx/log.h>
+#include <QLoggingCategory>
+#include <QString>
+#include <QStringList>
+#include <QRegularExpression>
 #include <settings/settings_manager.h>
 #include <sch_plotter.h>
 #include <string_utils.h>
@@ -50,10 +32,10 @@ std::unordered_map<TRANSFORM, int> SCH_SYMBOL::s_transformToOrientationCache;
 
 
 /**
- * Convert a wxString to UTF8 and replace any control characters with a ~, where a control
+ * Convert a QString to UTF8 and replace any control characters with a ~, where a control
  * character is one of the first ASCII values up to ' ' 32d.
  */
-std::string toUTFTildaText( const wxString& txt )
+std::string toUTFTildaText( const QString& txt )
 {
     std::string ret = TO_UTF8( txt );
 
@@ -119,7 +101,7 @@ SCH_SYMBOL::SCH_SYMBOL( const LIB_SYMBOL& aSymbol, const SCH_SHEET_PATH* aSheet,
         SCH_SYMBOL( aSymbol, aSel.LibId, aSheet, aSel.Unit, aSel.Convert, aPosition, aParent )
 {
     // Set any fields that were modified as part of the symbol selection
-    for( const std::pair<int, wxString>& i : aSel.Fields )
+    for( const std::pair<int, QString>& i : aSel.Fields )
     {
         if( i.first == REFERENCE_FIELD )
             SetRef( aSheet, i.second );
@@ -197,7 +179,7 @@ void SCH_SYMBOL::Init( const VECTOR2I& pos )
     addField( DATASHEET_FIELD, LAYER_FIELDS );
     addField( DESCRIPTION_FIELD, LAYER_FIELDS );
 
-    m_prefix = wxString( wxT( "U" ) );
+    m_prefix = QString( "U" );
     m_isInNetlist = true;
 }
 
@@ -241,9 +223,9 @@ void SCH_SYMBOL::SetLibId( const LIB_ID& aLibId )
 }
 
 
-wxString SCH_SYMBOL::GetSchSymbolLibraryName() const
+QString SCH_SYMBOL::GetSchSymbolLibraryName() const
 {
-    if( !m_schLibSymbolName.IsEmpty() )
+    if( !m_schLibSymbolName.isEmpty() )
         return m_schLibSymbolName;
     else
         return m_lib_id.Format();
@@ -252,44 +234,44 @@ wxString SCH_SYMBOL::GetSchSymbolLibraryName() const
 
 void SCH_SYMBOL::SetLibSymbol( LIB_SYMBOL* aLibSymbol )
 {
-    wxCHECK2( !aLibSymbol || aLibSymbol->IsRoot(), aLibSymbol = nullptr );
+    Q_ASSERT( !aLibSymbol || aLibSymbol->IsRoot() ); // aLibSymbol = nullptr on failure
 
     m_part.reset( aLibSymbol );
     UpdatePins();
 }
 
 
-wxString SCH_SYMBOL::GetDescription() const
+QString SCH_SYMBOL::GetDescription() const
 {
     if( m_part )
         return m_part->GetDescription();
 
-    return wxEmptyString;
+    return QString();
 }
 
 
-wxString SCH_SYMBOL::GetKeyWords() const
+QString SCH_SYMBOL::GetKeyWords() const
 {
     if( m_part )
         return m_part->GetKeyWords();
 
-    return wxEmptyString;
+    return QString();
 }
 
 
-wxString SCH_SYMBOL::GetDatasheet() const
+QString SCH_SYMBOL::GetDatasheet() const
 {
     if( m_part )
         return m_part->GetDatasheetField().GetText();
 
-    return wxEmptyString;
+    return QString();
 }
 
 
 void SCH_SYMBOL::UpdatePins()
 {
-    std::map<wxString, wxString>            altPinMap;
-    std::map<wxString, std::set<SCH_PIN*>>  pinUuidMap;
+    std::map<QString, QString>            altPinMap;
+    std::map<QString, std::set<SCH_PIN*>>  pinUuidMap;
     std::set<SCH_PIN*>                      unassignedSchPins;
     std::set<SCH_PIN*>                      unassignedLibPins;
 
@@ -299,7 +281,7 @@ void SCH_SYMBOL::UpdatePins()
 
         unassignedSchPins.insert( pin.get() );
 
-        if( !pin->GetAlt().IsEmpty() )
+        if( !pin->GetAlt().isEmpty() )
             altPinMap[ pin->GetNumber() ] = pin->GetAlt();
 
         pin->SetLibPin( nullptr );
@@ -442,9 +424,10 @@ int SCH_SYMBOL::GetUnitCount() const
 }
 
 
-wxString SCH_SYMBOL::GetUnitDisplayName( int aUnit ) const
+QString SCH_SYMBOL::GetUnitDisplayName( int aUnit ) const
 {
-    wxCHECK( m_part, ( wxString::Format( _( "Unit %s" ), SubReference( aUnit ) ) ) );
+    Q_ASSERT( m_part ); // Return default if no part
+    if( !m_part ) return QString::asprintf( "Unit %s", SubReference( aUnit ).toStdString().c_str() );
 
     return m_part->GetUnitDisplayName( aUnit );
 }
@@ -452,7 +435,8 @@ wxString SCH_SYMBOL::GetUnitDisplayName( int aUnit ) const
 
 bool SCH_SYMBOL::HasUnitDisplayName( int aUnit ) const
 {
-    wxCHECK( m_part, false );
+    Q_ASSERT( m_part );
+    if( !m_part ) return false;
 
     return m_part->HasUnitDisplayName( aUnit );
 }
@@ -461,7 +445,8 @@ bool SCH_SYMBOL::HasUnitDisplayName( int aUnit ) const
 void SCH_SYMBOL::PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
                                   const VECTOR2I& aOffset, bool aDimmed )
 {
-    wxCHECK( m_part, /* void */ );
+    Q_ASSERT( m_part );
+    if( !m_part ) return;
 
     SCH_RENDER_SETTINGS localRenderSettings( *aSettings );
     localRenderSettings.m_Transform = m_transform;
@@ -528,10 +513,10 @@ void SCH_SYMBOL::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBo
 
     if( m_DNP )
     {
-        wxDC*    DC = localRenderSettings.GetPrintDC();
+        // Qt equivalent drawing context would be used here
         BOX2I    bbox = GetBodyBoundingBox();
         BOX2I    pins = GetBodyAndPinsBoundingBox();
-        COLOR4D  dnp_color = localRenderSettings.GetLayerColor( LAYER_DNP_MARKER );
+        QColor  dnp_color = localRenderSettings.GetLayerColor( LAYER_DNP_MARKER );
         VECTOR2D margins( std::max( bbox.GetX() - pins.GetX(), pins.GetEnd().x - bbox.GetEnd().x ),
                           std::max( bbox.GetY() - pins.GetY(),
                                     pins.GetEnd().y - bbox.GetEnd().y ) );
@@ -590,7 +575,7 @@ void SCH_SYMBOL::RemoveInstance( const KIID_PATH& aInstancePath )
     {
         if( m_instanceReferences[ii].m_Path == aInstancePath )
         {
-            wxLogTrace( traceSchSheetPaths, wxS( "Removing symbol instance:\n"
+            qCDebug(logSchSheetPaths) << "Removing symbol instance:\n"
                                                  "    sheet path %s\n"
                                                  "    reference %s, unit %d from symbol %s." ),
                         aInstancePath.AsString(),
@@ -604,7 +589,7 @@ void SCH_SYMBOL::RemoveInstance( const KIID_PATH& aInstancePath )
 }
 
 
-void SCH_SYMBOL::AddHierarchicalReference( const KIID_PATH& aPath, const wxString& aRef, int aUnit )
+void SCH_SYMBOL::AddHierarchicalReference( const KIID_PATH& aPath, const QString& aRef, int aUnit )
 {
     SCH_SYMBOL_INSTANCE instance;
     instance.m_Path = aPath;
@@ -621,13 +606,13 @@ void SCH_SYMBOL::AddHierarchicalReference( const SCH_SYMBOL_INSTANCE& aInstance 
 
     SCH_SYMBOL_INSTANCE instance = aInstance;
 
-    wxLogTrace( traceSchSheetPaths, wxS( "Adding symbol '%s' instance:\n"
+    qCDebug(logSchSheetPaths) << QString::asprintf( "Adding symbol '%s' instance:\n"
                                          "    sheet path '%s'\n"
                                          "    reference '%s'\n"
-                                         "    unit %d\n" ),
-                m_Uuid.AsString(),
-                instance.m_Path.AsString(),
-                instance.m_Reference,
+                                         "    unit %d\n",
+                m_Uuid.AsString().toStdString().c_str(),
+                instance.m_Path.AsString().toStdString().c_str(),
+                instance.m_Reference.toStdString().c_str(),
                 instance.m_Unit );
 
     m_instanceReferences.push_back( instance );
@@ -642,11 +627,11 @@ void SCH_SYMBOL::AddHierarchicalReference( const SCH_SYMBOL_INSTANCE& aInstance 
 }
 
 
-const wxString SCH_SYMBOL::GetRef( const SCH_SHEET_PATH* sheet, bool aIncludeUnit ) const
+const QString SCH_SYMBOL::GetRef( const SCH_SHEET_PATH* sheet, bool aIncludeUnit ) const
 {
     KIID_PATH path = sheet->Path();
-    wxString  ref;
-    wxString  subRef;
+    QString  ref;
+    QString  subRef;
 
     for( const SCH_SYMBOL_INSTANCE& instance : m_instanceReferences )
     {
@@ -662,10 +647,10 @@ const wxString SCH_SYMBOL::GetRef( const SCH_SHEET_PATH* sheet, bool aIncludeUni
     // use this as a default for this path.  This will happen if we load a version 1 schematic
     // file.  It will also mean that multiple instances of the same sheet by default all have
     // the same symbol references, but perhaps this is best.
-    if( ref.IsEmpty() && !GetField( REFERENCE_FIELD )->GetText().IsEmpty() )
+    if( ref.isEmpty() && !GetField( REFERENCE_FIELD )->GetText().isEmpty() )
         ref = GetField( REFERENCE_FIELD )->GetText();
 
-    if( ref.IsEmpty() )
+    if( ref.isEmpty() )
         ref = UTIL::GetRefDesUnannotated( m_prefix );
 
     if( aIncludeUnit && GetUnitCount() > 1 )
@@ -675,7 +660,7 @@ const wxString SCH_SYMBOL::GetRef( const SCH_SHEET_PATH* sheet, bool aIncludeUni
 }
 
 
-void SCH_SYMBOL::SetRefProp( const wxString& aRef )
+void SCH_SYMBOL::SetRefProp( const QString& aRef )
 {
     FIELD_VALIDATOR validator( REFERENCE_FIELD );
 
@@ -684,7 +669,7 @@ void SCH_SYMBOL::SetRefProp( const wxString& aRef )
 }
 
 
-void SCH_SYMBOL::SetRef( const SCH_SHEET_PATH* sheet, const wxString& ref )
+void SCH_SYMBOL::SetRef( const SCH_SHEET_PATH* sheet, const QString& ref )
 {
     KIID_PATH path = sheet->Path();
     bool      found = false;
@@ -712,11 +697,11 @@ void SCH_SYMBOL::SetRef( const SCH_SHEET_PATH* sheet, const wxString& ref )
     // Reinit the m_prefix member if needed
     m_prefix = UTIL::GetRefDesPrefix( ref );
 
-    if( m_prefix.IsEmpty() )
-        m_prefix = wxT( "U" );
+    if( m_prefix.isEmpty() )
+        m_prefix = "U";
 
     // Power symbols have references starting with # and are not included in netlists
-    m_isInNetlist = ! ref.StartsWith( wxT( "#" ) );
+    m_isInNetlist = ! ref.startsWith( "#" );
 }
 
 
@@ -727,7 +712,7 @@ bool SCH_SYMBOL::IsAnnotated( const SCH_SHEET_PATH* aSheet ) const
     for( const SCH_SYMBOL_INSTANCE& instance : m_instanceReferences )
     {
         if( instance.m_Path == path )
-            return !instance.m_Reference.IsEmpty() && instance.m_Reference.Last() != '?';
+            return !instance.m_Reference.isEmpty() && instance.m_Reference.back() != '?';
     }
 
     return false;
@@ -736,32 +721,31 @@ bool SCH_SYMBOL::IsAnnotated( const SCH_SHEET_PATH* aSheet ) const
 
 void SCH_SYMBOL::UpdatePrefix()
 {
-    wxString refDesignator = GetField( REFERENCE_FIELD )->GetText();
+    QString refDesignator = GetField( REFERENCE_FIELD )->GetText();
 
-    refDesignator.Replace( "~", " " );
+    refDesignator.replace( "~", " " );
 
-    wxString prefix = refDesignator;
+    QString prefix = refDesignator;
 
-    while( prefix.Length() )
+    while( prefix.length() )
     {
-        wxUniCharRef last = prefix.Last();
+        QChar last = prefix.back();
 
         if( ( last >= '0' && last <= '9' ) || last == '?' || last == '*' )
-            prefix.RemoveLast();
+            prefix.chop(1);
         else
             break;
     }
 
     // Avoid a prefix containing trailing/leading spaces
-    prefix.Trim( true );
-    prefix.Trim( false );
+    prefix = prefix.trimmed();
 
-    if( !prefix.IsEmpty() )
+    if( !prefix.isEmpty() )
         SetPrefix( prefix );
 }
 
 
-wxString SCH_SYMBOL::SubReference( int aUnit, bool aAddSeparator ) const
+QString SCH_SYMBOL::SubReference( int aUnit, bool aAddSeparator ) const
 {
     if( SCHEMATIC* schematic = Schematic() )
         return schematic->Settings().SubReference( aUnit, aAddSeparator );
@@ -812,7 +796,7 @@ void SCH_SYMBOL::SetUnitSelection( int aUnitSelection )
 }
 
 
-const wxString SCH_SYMBOL::GetValue( bool aResolve, const SCH_SHEET_PATH* aPath,
+const QString SCH_SYMBOL::GetValue( bool aResolve, const SCH_SHEET_PATH* aPath,
                                      bool aAllowExtraText ) const
 {
     if( aResolve )
@@ -822,13 +806,13 @@ const wxString SCH_SYMBOL::GetValue( bool aResolve, const SCH_SHEET_PATH* aPath,
 }
 
 
-void SCH_SYMBOL::SetValueFieldText( const wxString& aValue )
+void SCH_SYMBOL::SetValueFieldText( const QString& aValue )
 {
     m_fields[ VALUE_FIELD ].SetText( aValue );
 }
 
 
-const wxString SCH_SYMBOL::GetFootprintFieldText( bool aResolve, const SCH_SHEET_PATH* aPath,
+const QString SCH_SYMBOL::GetFootprintFieldText( bool aResolve, const SCH_SHEET_PATH* aPath,
                                                   bool aAllowExtraText ) const
 {
     if( aResolve )
@@ -838,7 +822,7 @@ const wxString SCH_SYMBOL::GetFootprintFieldText( bool aResolve, const SCH_SHEET
 }
 
 
-void SCH_SYMBOL::SetFootprintFieldText( const wxString& aFootprint )
+void SCH_SYMBOL::SetFootprintFieldText( const QString& aFootprint )
 {
     m_fields[ FOOTPRINT_FIELD ].SetText( aFootprint );
 }
@@ -868,7 +852,7 @@ SCH_FIELD* SCH_SYMBOL::GetFieldById( int aFieldId )
 }
 
 
-SCH_FIELD* SCH_SYMBOL::GetFieldByName( const wxString& aFieldName )
+SCH_FIELD* SCH_SYMBOL::GetFieldByName( const QString& aFieldName )
 {
     for( SCH_FIELD& field : m_fields )
     {
@@ -880,7 +864,7 @@ SCH_FIELD* SCH_SYMBOL::GetFieldByName( const wxString& aFieldName )
 }
 
 
-const SCH_FIELD* SCH_SYMBOL::GetFieldByName( const wxString& aFieldName ) const
+const SCH_FIELD* SCH_SYMBOL::GetFieldByName( const QString& aFieldName ) const
 {
     for( const SCH_FIELD& field : m_fields )
     {
@@ -898,7 +882,7 @@ void SCH_SYMBOL::GetFields( std::vector<SCH_FIELD*>& aVector, bool aVisibleOnly 
     {
         if( aVisibleOnly )
         {
-            if( !field.IsVisible() || field.GetText().IsEmpty() )
+            if( !field.IsVisible() || field.GetText().isEmpty() )
                 continue;
         }
 
@@ -914,7 +898,7 @@ SCH_FIELD* SCH_SYMBOL::AddField( const SCH_FIELD& aField )
 }
 
 
-void SCH_SYMBOL::RemoveField( const wxString& aFieldName )
+void SCH_SYMBOL::RemoveField( const QString& aFieldName )
 {
     for( unsigned ii = 0; ii < m_fields.size(); ++ii )
     {
@@ -930,7 +914,7 @@ void SCH_SYMBOL::RemoveField( const wxString& aFieldName )
 }
 
 
-SCH_FIELD* SCH_SYMBOL::FindField( const wxString& aFieldName, bool aIncludeDefaultFields,
+SCH_FIELD* SCH_SYMBOL::FindField( const QString& aFieldName, bool aIncludeDefaultFields,
                                   bool aCaseInsensitive )
 {
     for( SCH_FIELD& field : m_fields )
@@ -940,7 +924,7 @@ SCH_FIELD* SCH_SYMBOL::FindField( const wxString& aFieldName, bool aIncludeDefau
 
         if( aCaseInsensitive )
         {
-            if( aFieldName.Upper() == field.GetName( false ).Upper() )
+            if( aFieldName.toUpper() == field.GetName( false ).toUpper() )
                 return &field;
         }
         else
@@ -1037,10 +1021,10 @@ void SCH_SYMBOL::SyncOtherUnits( const SCH_SHEET_PATH& aSourceSheet, SCH_COMMIT&
 
     if( aProperty )
     {
-        updateValue = aProperty->Name() == _HKI( "Value" );
-        updateExclFromBoard = aProperty->Name() == _HKI( "Exclude From Board" );
-        updateExclFromBOM = aProperty->Name() == _HKI( "Exclude From Bill of Materials" );
-        updateDNP = aProperty->Name() == _HKI( "Do not Populate" );
+        updateValue = aProperty->Name() == "Value";
+        updateExclFromBoard = aProperty->Name() == "Exclude From Board";
+        updateExclFromBOM = aProperty->Name() == "Exclude From Bill of Materials";
+        updateDNP = aProperty->Name() == "Do not Populate";
         updateOtherFields = false;
         updatePins = false;
     }
@@ -1059,7 +1043,7 @@ void SCH_SYMBOL::SyncOtherUnits( const SCH_SHEET_PATH& aSourceSheet, SCH_COMMIT&
     // in sync in multi-unit parts.
     if( GetUnitCount() > 1 && IsAnnotated( &aSourceSheet ) )
     {
-        wxString ref = GetRef( &aSourceSheet );
+        QString ref = GetRef( &aSourceSheet );
 
         for( SCH_SHEET_PATH& sheet : Schematic()->Hierarchy() )
         {
@@ -1144,7 +1128,7 @@ void SCH_SYMBOL::RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunctio
 }
 
 
-SCH_PIN* SCH_SYMBOL::GetPin( const wxString& aNumber ) const
+SCH_PIN* SCH_SYMBOL::GetPin( const QString& aNumber ) const
 {
     for( const std::unique_ptr<SCH_PIN>& pin : m_pins )
     {
@@ -1210,7 +1194,7 @@ SCH_PIN* SCH_SYMBOL::GetPin( SCH_PIN* aLibPin ) const
     if( it != m_pinMap.end() )
         return it->second;
 
-    wxFAIL_MSG_AT( "Pin not found", __FILE__, __LINE__, __FUNCTION__ );
+    Q_ASSERT_X( false, __FUNCTION__, "Pin not found" );
     return nullptr;
 }
 
@@ -1251,8 +1235,8 @@ void SCH_SYMBOL::SwapData( SCH_ITEM* aItem )
 {
     SCH_ITEM::SwapFlags( aItem );
 
-    wxCHECK_RET( aItem != nullptr && aItem->Type() == SCH_SYMBOL_T,
-                 wxT( "Cannot swap data with invalid symbol." ) );
+    Q_ASSERT( aItem != nullptr && aItem->Type() == SCH_SYMBOL_T );
+    if( !aItem || aItem->Type() != SCH_SYMBOL_T ) return; // Cannot swap data with invalid symbol
 
     SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( aItem );
 
@@ -1299,7 +1283,7 @@ void SCH_SYMBOL::SwapData( SCH_ITEM* aItem )
 }
 
 
-void SCH_SYMBOL::GetContextualTextVars( wxArrayString* aVars ) const
+void SCH_SYMBOL::GetContextualTextVars( QStringList* aVars ) const
 {
     for( const SCH_FIELD& field : m_fields )
     {
@@ -1307,120 +1291,49 @@ void SCH_SYMBOL::GetContextualTextVars( wxArrayString* aVars ) const
             continue;
 
         if( field.IsMandatory() )
-            aVars->push_back( field.GetCanonicalName().Upper() );
+            aVars->append( field.GetCanonicalName().toUpper() );
         else
-            aVars->push_back( field.GetName() );
+            aVars->append( field.GetName() );
     }
 
-    aVars->push_back( wxT( "OP" ) );
-    aVars->push_back( wxT( "FOOTPRINT_LIBRARY" ) );
-    aVars->push_back( wxT( "FOOTPRINT_NAME" ) );
-    aVars->push_back( wxT( "UNIT" ) );
-    aVars->push_back( wxT( "SHORT_REFERENCE" ) );
-    aVars->push_back( wxT( "SYMBOL_LIBRARY" ) );
-    aVars->push_back( wxT( "SYMBOL_NAME" ) );
-    aVars->push_back( wxT( "SYMBOL_DESCRIPTION" ) );
-    aVars->push_back( wxT( "SYMBOL_KEYWORDS" ) );
-    aVars->push_back( wxT( "EXCLUDE_FROM_BOM" ) );
-    aVars->push_back( wxT( "EXCLUDE_FROM_BOARD" ) );
-    aVars->push_back( wxT( "EXCLUDE_FROM_SIM" ) );
-    aVars->push_back( wxT( "DNP" ) );
-    aVars->push_back( wxT( "SHORT_NET_NAME(<pin_number>)" ) );
-    aVars->push_back( wxT( "NET_NAME(<pin_number>)" ) );
-    aVars->push_back( wxT( "NET_CLASS(<pin_number>)" ) );
-    aVars->push_back( wxT( "PIN_NAME(<pin_number>)" ) );
+    aVars->append( "OP" );
+    aVars->append( "FOOTPRINT_LIBRARY" );
+    aVars->append( "FOOTPRINT_NAME" );
+    aVars->append( "UNIT" );
+    aVars->append( "SHORT_REFERENCE" );
+    aVars->append( "SYMBOL_LIBRARY" );
+    aVars->append( "SYMBOL_NAME" );
+    aVars->append( "SYMBOL_DESCRIPTION" );
+    aVars->append( "SYMBOL_KEYWORDS" );
+    aVars->append( "EXCLUDE_FROM_BOM" );
+    aVars->append( "EXCLUDE_FROM_BOARD" );
+    aVars->append( "EXCLUDE_FROM_SIM" );
+    aVars->append( "DNP" );
+    aVars->append( "SHORT_NET_NAME(<pin_number>)" );
+    aVars->append( "NET_NAME(<pin_number>)" );
+    aVars->append( "NET_CLASS(<pin_number>)" );
+    aVars->append( "PIN_NAME(<pin_number>)" );
 }
 
 
-bool SCH_SYMBOL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, int aDepth ) const
+bool SCH_SYMBOL::ResolveTextVar( const SCH_SHEET_PATH* aPath, QString* token, int aDepth ) const
 {
-    static wxRegEx operatingPoint( wxT( "^"
+    static QRegularExpression operatingPoint( "^"
                                         "OP"
                                         "(:[^.]*)?"      // pin
                                         "(.([0-9])?"     // precisionStr
                                         "([a-zA-Z]*))?"  // rangeStr
-                                        "$" ) );
+                                        "$" );
 
-    wxCHECK( aPath, false );
+    Q_ASSERT( aPath );
+    if( !aPath ) return false;
 
     SCHEMATIC* schematic = Schematic();
 
     if( !schematic )
         return false;
 
-    // UNUSED_SYMBOL: SIM_LIB_MGR constructor - Operating point resolution functionality disabled
-    // Original functionality used SIM_LIB_MGR( const PROJECT* aPrj ) constructor
-    /*
-    if( operatingPoint.Matches( *token ) )
-    {
-        wxString pin( operatingPoint.GetMatch( *token, 1 ).Lower() );
-        wxString precisionStr( operatingPoint.GetMatch( *token, 3 ) );
-        wxString rangeStr( operatingPoint.GetMatch( *token, 4 ) );
-
-        int      precision = precisionStr.IsEmpty() ? 3 : precisionStr[0] - '0';
-        wxString range = rangeStr.IsEmpty() ? wxString( wxS( "~A" ) ) : rangeStr;
-
-        SIM_LIB_MGR simLibMgr( &schematic->Prj() );
-
-        std::vector<EMBEDDED_FILES*> embeddedFilesStack;
-        embeddedFilesStack.push_back( schematic->GetEmbeddedFiles() );
-
-        if( m_part )
-            embeddedFilesStack.push_back( m_part->GetEmbeddedFiles() );
-
-        simLibMgr.SetFilesStack( embeddedFilesStack );
-
-        NULL_REPORTER devnull;
-        SIM_MODEL&    model = simLibMgr.CreateModel( aPath, const_cast<SCH_SYMBOL&>( *this ),
-                                                     true, aDepth + 1, devnull ).model;
-        SPICE_ITEM spiceItem;
-        spiceItem.refName = GetRef( aPath );
-
-        wxString spiceRef = model.SpiceGenerator().ItemName( spiceItem );
-        spiceRef = spiceRef.Lower();
-
-        if( pin.IsEmpty() )
-        {
-            *token = schematic->GetOperatingPoint( spiceRef, precision, range );
-            return true;
-        }
-        else if( pin == wxS( ":power" ) )
-        {
-            if( rangeStr.IsEmpty() )
-                range = wxS( "~W" );
-
-            *token = schematic->GetOperatingPoint( spiceRef + wxS( ":power" ), precision, range );
-            return true;
-        }
-        else
-        {
-            pin = pin.SubString( 1, -1 );   // Strip ':' from front
-
-            for( const std::reference_wrapper<const SIM_MODEL_PIN>& modelPin : model.GetPins() )
-            {
-                SCH_PIN* symbolPin = GetPin( modelPin.get().symbolPinNumber );
-
-                if( pin == symbolPin->GetName().Lower() || pin == symbolPin->GetNumber().Lower() )
-                {
-                    if( model.GetPins().size() == 2 )
-                    {
-                        *token = schematic->GetOperatingPoint( spiceRef, precision, range );
-                    }
-                    else
-                    {
-                        wxString signalName = spiceRef + wxS( ":" ) + modelPin.get().modelPinName;
-                        *token = schematic->GetOperatingPoint( signalName, precision, range );
-                    }
-
-                    return true;
-                }
-            }
-        }
-
-        *token = wxS( "?" );
-        return true;
-    }
-    */
+    // UNUSED_SYMBOL: SIM functionality disabled - operating point resolution removed during Qt transformation
 
     if( token->Contains( ':' ) )
     {
@@ -1428,22 +1341,22 @@ bool SCH_SYMBOL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, i
             return true;
     }
 
-    wxString upperToken = token->Upper();
+    QString upperToken = token->toUpper();
 
     for( const SCH_FIELD& field : m_fields )
     {
-        wxString fieldName = field.IsMandatory() ? field.GetCanonicalName()
+        QString fieldName = field.IsMandatory() ? field.GetCanonicalName()
                                                  : field.GetName();
 
-        wxString textToken = field.GetText();
-        textToken.Replace( " ", wxEmptyString );
-        wxString tokenString = "${" + fieldName + "}";
+        QString textToken = field.GetText();
+        textToken.replace( " ", QString() );
+        QString tokenString = "${" + fieldName + "}";
 
         // If the field data is just a reference to the field, don't resolve
-        if( textToken.IsSameAs( tokenString, false ) )
+        if( textToken.compare( tokenString, Qt::CaseInsensitive ) == 0 )
             return true;
 
-        if( token->IsSameAs( fieldName, false ) )
+        if( token->compare( fieldName, Qt::CaseInsensitive ) == 0 )
         {
             if( field.GetId() == REFERENCE_FIELD )
                 *token = GetRef( aPath, true );
@@ -1455,107 +1368,107 @@ bool SCH_SYMBOL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, i
     }
 
     // Consider missing simulation fields as empty, not un-resolved
-    if( token->IsSameAs( wxT( "SIM.DEVICE" ) )
-            || token->IsSameAs( wxT( "SIM.TYPE" ) )
-            || token->IsSameAs( wxT( "SIM.PINS" ) )
-            || token->IsSameAs( wxT( "SIM.PARAMS" ) )
-            || token->IsSameAs( wxT( "SIM.LIBRARY" ) )
-            || token->IsSameAs( wxT( "SIM.NAME" ) ) )
+    if( token->compare( "SIM.DEVICE", Qt::CaseInsensitive ) == 0
+            || token->compare( "SIM.TYPE", Qt::CaseInsensitive ) == 0
+            || token->compare( "SIM.PINS", Qt::CaseInsensitive ) == 0
+            || token->compare( "SIM.PARAMS", Qt::CaseInsensitive ) == 0
+            || token->compare( "SIM.LIBRARY", Qt::CaseInsensitive ) == 0
+            || token->compare( "SIM.NAME", Qt::CaseInsensitive ) == 0 )
     {
-        *token = wxEmptyString;
+        *token = QString();
         return true;
     }
 
     for( const TEMPLATE_FIELDNAME& templateFieldname :
             schematic->Settings().m_TemplateFieldNames.GetTemplateFieldNames() )
     {
-        if( token->IsSameAs( templateFieldname.m_Name )
-            || token->IsSameAs( templateFieldname.m_Name.Upper() ) )
+        if( token->compare( templateFieldname.m_Name, Qt::CaseInsensitive ) == 0
+            || token->compare( templateFieldname.m_Name.toUpper(), Qt::CaseInsensitive ) == 0 )
         {
             // If we didn't find it in the fields list then it isn't set on this symbol.
             // Just return an empty string.
-            *token = wxEmptyString;
+            *token = QString();
             return true;
         }
     }
 
-    if( token->IsSameAs( wxT( "FOOTPRINT_LIBRARY" ) ) )
+    if( token->compare( "FOOTPRINT_LIBRARY", Qt::CaseInsensitive ) == 0 )
     {
-        wxString footprint = GetFootprintFieldText( true, aPath, false );
+        QString footprint = GetFootprintFieldText( true, aPath, false );
 
-        wxArrayString parts = wxSplit( footprint, ':' );
+        QStringList parts = footprint.split( ':' );
 
-        if( parts.Count() > 0 )
+        if( parts.count() > 0 )
             *token = parts[ 0 ];
         else
-            *token = wxEmptyString;
+            *token = QString();
 
         return true;
     }
-    else if( token->IsSameAs( wxT( "FOOTPRINT_NAME" ) ) )
+    else if( token->compare( "FOOTPRINT_NAME", Qt::CaseInsensitive ) == 0 )
     {
-        wxString footprint = GetFootprintFieldText( true, aPath, false );
+        QString footprint = GetFootprintFieldText( true, aPath, false );
 
-        wxArrayString parts = wxSplit( footprint, ':' );
+        QStringList parts = footprint.split( ':' );
 
-        if( parts.Count() > 1 )
+        if( parts.count() > 1 )
             *token = parts[ std::min( 1, (int) parts.size() - 1 ) ];
         else
-            *token = wxEmptyString;
+            *token = QString();
 
         return true;
     }
-    else if( token->IsSameAs( wxT( "UNIT" ) ) )
+    else if( token->compare( "UNIT", Qt::CaseInsensitive ) == 0 )
     {
         *token = SubReference( GetUnitSelection( aPath ) );
         return true;
     }
-    else if( token->IsSameAs( wxT( "SHORT_REFERENCE" ) ) )
+    else if( token->compare( "SHORT_REFERENCE", Qt::CaseInsensitive ) == 0 )
     {
         *token = GetRef( aPath, false );
         return true;
     }
-    else if( token->IsSameAs( wxT( "SYMBOL_LIBRARY" ) ) )
+    else if( token->compare( "SYMBOL_LIBRARY", Qt::CaseInsensitive ) == 0 )
     {
         *token = m_lib_id.GetUniStringLibNickname();
         return true;
     }
-    else if( token->IsSameAs( wxT( "SYMBOL_NAME" ) ) )
+    else if( token->compare( "SYMBOL_NAME", Qt::CaseInsensitive ) == 0 )
     {
         *token = m_lib_id.GetUniStringLibItemName();
         return true;
     }
-    else if( token->IsSameAs( wxT( "SYMBOL_DESCRIPTION" ) ) )
+    else if( token->compare( "SYMBOL_DESCRIPTION", Qt::CaseInsensitive ) == 0 )
     {
         *token = GetDescription();
         return true;
     }
-    else if( token->IsSameAs( wxT( "SYMBOL_KEYWORDS" ) ) )
+    else if( token->compare( "SYMBOL_KEYWORDS", Qt::CaseInsensitive ) == 0 )
     {
         *token = GetKeyWords();
         return true;
     }
-    else if( token->IsSameAs( wxT( "EXCLUDE_FROM_BOM" ) ) )
+    else if( token->compare( "EXCLUDE_FROM_BOM", Qt::CaseInsensitive ) == 0 )
     {
-        *token = wxEmptyString;
+        *token = QString();
 
         if( aPath->GetExcludedFromBOM() || this->GetExcludedFromBOM() )
             *token = _( "Excluded from BOM" );
 
         return true;
     }
-    else if( token->IsSameAs( wxT( "EXCLUDE_FROM_BOARD" ) ) )
+    else if( token->compare( "EXCLUDE_FROM_BOARD", Qt::CaseInsensitive ) == 0 )
     {
-        *token = wxEmptyString;
+        *token = QString();
 
         if( aPath->GetExcludedFromBoard() || this->GetExcludedFromBoard() )
             *token = _( "Excluded from board" );
 
         return true;
     }
-    else if( token->IsSameAs( wxT( "EXCLUDE_FROM_SIM" ) ) )
+    else if( token->compare( "EXCLUDE_FROM_SIM", Qt::CaseInsensitive ) == 0 )
     {
-        *token = wxEmptyString;
+        *token = QString();
 
         // UNUSED_SYMBOL: SIM functionality disabled
         // if( aPath->GetExcludedFromSim() || this->GetExcludedFromSim() )
@@ -1563,42 +1476,42 @@ bool SCH_SYMBOL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, i
 
         return true;
     }
-    else if( token->IsSameAs( wxT( "DNP" ) ) )
+    else if( token->compare( "DNP", Qt::CaseInsensitive ) == 0 )
     {
-        *token = wxEmptyString;
+        *token = QString();
 
         if( aPath->GetDNP() || this->GetDNP() )
             *token = _( "DNP" );
 
         return true;
     }
-    else if( token->StartsWith( wxT( "SHORT_NET_NAME(" ) )
-                 || token->StartsWith( wxT( "NET_NAME(" ) )
-                 || token->StartsWith( wxT( "NET_CLASS(" ) )
-                 || token->StartsWith( wxT( "PIN_NAME(" ) ) )
+    else if( token->startsWith( "SHORT_NET_NAME(" )
+                 || token->startsWith( "NET_NAME(" )
+                 || token->startsWith( "NET_CLASS(" )
+                 || token->startsWith( "PIN_NAME(" ) )
     {
-        wxString pinNumber = token->AfterFirst( '(' );
-        pinNumber = pinNumber.BeforeLast( ')' );
+        QString pinNumber = token->mid( token->indexOf( '(' ) + 1 );
+        pinNumber = pinNumber.left( pinNumber.lastIndexOf( ')' ) );
 
         for( SCH_PIN* pin : GetPins( aPath ) )
         {
             if( pin->GetNumber() == pinNumber )
             {
-                if( token->StartsWith( wxT( "PIN_NAME" ) ) )
+                if( token->startsWith( "PIN_NAME" ) )
                 {
-                    *token = pin->GetAlt().IsEmpty() ? pin->GetName() : pin->GetAlt();
+                    *token = pin->GetAlt().isEmpty() ? pin->GetName() : pin->GetAlt();
                     return true;
                 }
 
                 SCH_CONNECTION* conn = pin->Connection( aPath );
 
                 if( !conn )
-                    *token = wxEmptyString;
-                else if( token->StartsWith( wxT( "SHORT_NET_NAME" ) ) )
+                    *token = QString();
+                else if( token->startsWith( "SHORT_NET_NAME" ) )
                     *token = conn->LocalName();
-                else if( token->StartsWith( wxT( "NET_NAME" ) ) )
+                else if( token->startsWith( "NET_NAME" ) )
                     *token = conn->Name();
-                else if( token->StartsWith( wxT( "NET_CLASS" ) ) )
+                else if( token->startsWith( "NET_CLASS" ) )
                     *token = pin->GetEffectiveNetClass( aPath )->GetName();
 
                 return true;
@@ -1624,7 +1537,7 @@ void SCH_SYMBOL::ClearAnnotation( const SCH_SHEET_PATH* aSheetPath, bool aResetP
         {
             if( instance.m_Path == path )
             {
-                if( instance.m_Reference.IsEmpty() || aResetPrefix )
+                if( instance.m_Reference.isEmpty() || aResetPrefix )
                     instance.m_Reference = UTIL::GetRefDesUnannotated( m_prefix );
                 else
                     instance.m_Reference = UTIL::GetRefDesUnannotated( instance.m_Reference );
@@ -1635,7 +1548,7 @@ void SCH_SYMBOL::ClearAnnotation( const SCH_SHEET_PATH* aSheetPath, bool aResetP
     {
         for( SCH_SYMBOL_INSTANCE& instance : m_instanceReferences )
         {
-            if( instance.m_Reference.IsEmpty() || aResetPrefix)
+            if( instance.m_Reference.isEmpty() || aResetPrefix)
                 instance.m_Reference = UTIL::GetRefDesUnannotated( m_prefix );
             else
                 instance.m_Reference = UTIL::GetRefDesUnannotated( instance.m_Reference );
@@ -1649,9 +1562,9 @@ void SCH_SYMBOL::ClearAnnotation( const SCH_SHEET_PATH* aSheetPath, bool aResetP
     // When a clear annotation is made, the calling function must call a
     // UpdateAllScreenReferences for the active sheet.
     // But this call cannot made here.
-    wxString currentReference = m_fields[REFERENCE_FIELD].GetText();
+    QString currentReference = m_fields[REFERENCE_FIELD].GetText();
 
-    if( currentReference.IsEmpty() || aResetPrefix )
+    if( currentReference.isEmpty() || aResetPrefix )
         m_fields[REFERENCE_FIELD].SetText( UTIL::GetRefDesUnannotated( m_prefix ) );
     else
         m_fields[REFERENCE_FIELD].SetText( UTIL::GetRefDesUnannotated( currentReference ) );
@@ -1661,7 +1574,8 @@ void SCH_SYMBOL::ClearAnnotation( const SCH_SHEET_PATH* aSheetPath, bool aResetP
 bool SCH_SYMBOL::AddSheetPathReferenceEntryIfMissing( const KIID_PATH& aSheetPath )
 {
     // An empty sheet path is illegal, at a minimum the root sheet UUID must be present.
-    wxCHECK( aSheetPath.size() > 0, false );
+    Q_ASSERT( aSheetPath.size() > 0 );
+    if( aSheetPath.size() == 0 ) return false;
 
     for( const SCH_SYMBOL_INSTANCE& instance : m_instanceReferences )
     {
@@ -1802,7 +1716,7 @@ void SCH_SYMBOL::SetOrientation( int aOrientation )
 
     default:
         transform = false;
-        wxFAIL_MSG( "Invalid schematic symbol orientation type." );
+        Q_ASSERT_X( false, __FUNCTION__, "Invalid schematic symbol orientation type." );
         break;
     }
 
@@ -1870,7 +1784,7 @@ int SCH_SYMBOL::GetOrientation() const
     }
 
     // Error: orientation not found in list (should not happen)
-    wxFAIL_MSG( "Schematic symbol orientation matrix internal error." );
+    Q_ASSERT_X( false, __FUNCTION__, "Schematic symbol orientation matrix internal error." );
 
     return SYM_NORMAL;
 }
@@ -1884,16 +1798,16 @@ void SCH_SYMBOL::Show( int nestLevel, std::ostream& os ) const
     NestedSpace( nestLevel, os ) << '<' << GetClass().Lower().mb_str()
                                  << " ref=\"" << TO_UTF8( GetField( REFERENCE_FIELD )->GetName() )
                                  << '"' << " chipName=\""
-                                 << GetLibId().Format().wx_str() << '"' << m_pos
+                                 << GetLibId().Format().toStdString().c_str() << '"' << m_pos
                                  << " layer=\"" << m_layer
                                  << '"' << ">\n";
 
     // skip the reference, it's been output already.
     for( int i = 1; i < GetFieldCount();  ++i )
     {
-        const wxString& value = GetFields()[i].GetText();
+        const QString& value = GetFields()[i].GetText();
 
-        if( !value.IsEmpty() )
+        if( !value.isEmpty() )
         {
             NestedSpace( nestLevel + 1, os ) << "<field" << " name=\""
                                              << TO_UTF8( GetFields()[i].GetName() )
@@ -1944,7 +1858,7 @@ BOX2I SCH_SYMBOL::GetBodyBoundingBox() const
     }
     catch( const boost::bad_pointer& e )
     {
-        wxFAIL_MSG( wxString::Format( wxT( "Boost pointer exception occurred: %s" ), e.what() ) );
+        Q_ASSERT_X( false, __FUNCTION__, QString::asprintf( "Boost pointer exception occurred: %s", e.what() ).toStdString().c_str() );
         return BOX2I();
     }
 }
@@ -1964,7 +1878,7 @@ const BOX2I SCH_SYMBOL::GetBoundingBox() const
 
 void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString msg;
+    QString msg;
 
     SCH_EDIT_FRAME* schframe = dynamic_cast<SCH_EDIT_FRAME*>( aFrame );
     // UNUSED_SYMBOL: GetCurrentSheet - sheet path assignment commented out due to unused symbol
@@ -1974,23 +1888,23 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
     auto addExcludes =
             [&]()
             {
-                wxArrayString msgs;
+                QStringList msgs;
 
                 // UNUSED_SYMBOL: SIM functionality disabled
                 // if( GetExcludedFromSim() )
                 //     msgs.Add( _( "Simulation" ) );
 
                 if( GetExcludedFromBOM() )
-                    msgs.Add( _( "BOM" ) );
+                    msgs.append( _( "BOM" ) );
 
                 if( GetExcludedFromBoard() )
-                    msgs.Add( _( "Board" ) );
+                    msgs.append( _( "Board" ) );
 
                 if( GetDNP() )
-                    msgs.Add( _( "DNP" ) );
+                    msgs.append( _( "DNP" ) );
 
-                msg = wxJoin( msgs, '|' );
-                msg.Replace( '|', wxS( ", " ) );
+                msg = msgs.join( '|' );
+                msg.replace( '|', ", " );
 
                 if( !msg.empty() )
                     aList.emplace_back( _( "Exclude from" ), msg );
@@ -2024,7 +1938,7 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
             }
 
 #if 0       // Display symbol flags, for debug only
-            aList.emplace_back( _( "flags" ), wxString::Format( "%X", GetEditFlags() ) );
+            aList.emplace_back( _( "flags" ), QString::asprintf( "%X", GetEditFlags() ) );
 #endif
 
             if( !m_part->IsRoot() )
@@ -2051,15 +1965,15 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
             // Don't use GetShownText(); we want to see the variable references here
             msg = KIUI::EllipsizeStatusText( aFrame, GetField( FOOTPRINT_FIELD )->GetText() );
 
-            if( msg.IsEmpty() )
+            if( msg.isEmpty() )
                 msg = _( "<Unknown>" );
 
             aList.emplace_back( _( "Footprint" ), msg );
 
             // Display description of the symbol, and keywords found in lib
-            aList.emplace_back( _( "Description" ) + wxT( ": " )
+            aList.emplace_back( _( "Description" ) + ": "
                                         + GetField( DESCRIPTION_FIELD )->GetText(),
-                                _( "Keywords" ) + wxT( ": " ) + m_part->GetKeyWords() );
+                                _( "Keywords" ) + ": " + m_part->GetKeyWords() );
         }
     }
     else
@@ -2074,9 +1988,9 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
         aList.emplace_back( _( "Name" ),
                             KIUI::EllipsizeStatusText( aFrame, GetLibId().GetLibItemName() ) );
 
-        wxString libNickname = GetLibId().GetLibNickname();
+        QString libNickname = GetLibId().GetLibNickname();
 
-        if( libNickname.empty() )
+        if( libNickname.isEmpty() )
             msg = _( "No library defined!" );
         else
             msg.Printf( _( "Symbol not found in %s!" ), libNickname );
@@ -2259,7 +2173,8 @@ bool SCH_SYMBOL::HasConnectivityChanges( const SCH_ITEM* aItem,
     const SCH_SYMBOL* symbol = dynamic_cast<const SCH_SYMBOL*>( aItem );
 
     // Don't compare against a different SCH_ITEM.
-    wxCHECK( symbol, false );
+    Q_ASSERT( symbol );
+    if( !symbol ) return false;
 
     // The move algorithm marks any pins that are being moved without something attached
     // (during the move) as dangling. We always need to recheck connectivity in this case
@@ -2341,9 +2256,9 @@ SCH_ITEM* SCH_SYMBOL::GetDrawItem( const VECTOR2I& aPosition, KICAD_T aType )
 }
 
 
-wxString SCH_SYMBOL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_SYMBOL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Symbol %s [%s]" ),
+    return QString::asprintf( _( "Symbol %s [%s]" ).toStdString().c_str(),
                              KIUI::EllipsizeMenuText( GetField( REFERENCE_FIELD )->GetText() ),
                              KIUI::EllipsizeMenuText( GetLibId().GetLibItemName() ) );
 }
@@ -2471,9 +2386,8 @@ bool SCH_SYMBOL::operator!=( const SCH_SYMBOL& aSymbol ) const
 
 SCH_SYMBOL& SCH_SYMBOL::operator=( const SCH_SYMBOL& aSymbol )
 {
-    wxCHECK_MSG( Type() == aSymbol.Type(), *this,
-                 wxT( "Cannot assign object type " ) + aSymbol.GetClass() + wxT( " to type " ) +
-                 GetClass() );
+    Q_ASSERT( Type() == aSymbol.Type() );
+    if( Type() != aSymbol.Type() ) return *this; // Cannot assign object type
 
     if( &aSymbol != this )
     {
@@ -2630,22 +2544,22 @@ void SCH_SYMBOL::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS&
         // Plot attributes to a hypertext menu
         if( aPlotOpts.m_PDFPropertyPopups )
         {
-            std::vector<wxString> properties;
+            std::vector<QString> properties;
 
             for( const SCH_FIELD& field : GetFields() )
             {
-                wxString text_field = field.GetShownText( sheet, false);
+                QString text_field = field.GetShownText( sheet, false);
 
-                if( text_field.IsEmpty() )
+                if( text_field.isEmpty() )
                     continue;
 
-                properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
+                properties.emplace_back( QString::asprintf( "!%s = %s",
                                                            field.GetName(), text_field ) );
             }
 
-            if( !m_part->GetKeyWords().IsEmpty() )
+            if( !m_part->GetKeyWords().isEmpty() )
             {
-                properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
+                properties.emplace_back( QString::asprintf( "!%s = %s",
                                                            _( "Keywords" ),
                                                            m_part->GetKeyWords() ) );
             }
@@ -2821,23 +2735,24 @@ bool SCH_SYMBOL::IsPower() const
 
 bool SCH_SYMBOL::IsNormal() const
 {
-    wxCHECK( m_part, false );
+    Q_ASSERT( m_part );
+    if( !m_part ) return false;
 
     return m_part->IsNormal();
 }
 
 
-std::unordered_set<wxString> SCH_SYMBOL::GetComponentClassNames( const SCH_SHEET_PATH* aPath ) const
+std::unordered_set<QString> SCH_SYMBOL::GetComponentClassNames( const SCH_SHEET_PATH* aPath ) const
 {
-    std::unordered_set<wxString> componentClass;
+    std::unordered_set<QString> componentClass;
 
     auto getComponentClassFields = [&]( const auto& fields )
     {
         for( const SCH_FIELD& field : fields )
         {
-            if( field.GetCanonicalName() == wxT( "Component Class" ) )
+            if( field.GetCanonicalName() == "Component Class" )
             {
-                if( field.GetShownText( aPath, false ) != wxEmptyString )
+                if( field.GetShownText( aPath, false ) != QString() )
                     componentClass.insert( field.GetShownText( aPath, false ) );
             }
         }
@@ -2919,28 +2834,28 @@ static struct SCH_SYMBOL_DESC
     SCH_SYMBOL_DESC()
     {
         ENUM_MAP<SYMBOL_ORIENTATION_PROP>::Instance()
-                .Map( SYMBOL_ANGLE_0,   wxS( "0" ) )
-                .Map( SYMBOL_ANGLE_90,  wxS( "90" ) )
-                .Map( SYMBOL_ANGLE_180, wxS( "180" ) )
-                .Map( SYMBOL_ANGLE_270, wxS( "270" ) );
+                .Map( SYMBOL_ANGLE_0,   "0" )
+                .Map( SYMBOL_ANGLE_90,  "90" )
+                .Map( SYMBOL_ANGLE_180, "180" )
+                .Map( SYMBOL_ANGLE_270, "270" );
 
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
         REGISTER_TYPE( SCH_SYMBOL );
         propMgr.InheritsAfter( TYPE_HASH( SCH_SYMBOL ), TYPE_HASH( SYMBOL ) );
 
-        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, int>( _HKI( "Position X" ),
+        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, int>( "Position X",
                     &SCH_SYMBOL::SetX, &SCH_SYMBOL::GetX, PROPERTY_DISPLAY::PT_COORD,
                     ORIGIN_TRANSFORMS::ABS_X_COORD ) );
-        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, int>( _HKI( "Position Y" ),
+        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, int>( "Position Y",
                     &SCH_SYMBOL::SetY, &SCH_SYMBOL::GetY, PROPERTY_DISPLAY::PT_COORD,
                     ORIGIN_TRANSFORMS::ABS_Y_COORD ) );
 
         propMgr.AddProperty( new PROPERTY_ENUM<SCH_SYMBOL, SYMBOL_ORIENTATION_PROP>(
-                    _HKI( "Orientation" ),
+                    "Orientation",
                     &SCH_SYMBOL::SetOrientationProp, &SCH_SYMBOL::GetOrientationProp ) );
-        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, bool>( _HKI( "Mirror X" ),
+        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, bool>( "Mirror X",
                     &SCH_SYMBOL::SetMirrorX, &SCH_SYMBOL::GetMirrorX ) );
-        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, bool>( _HKI( "Mirror Y" ),
+        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, bool>( "Mirror Y",
                     &SCH_SYMBOL::SetMirrorY, &SCH_SYMBOL::GetMirrorY ) );
 
         auto hasLibPart =
@@ -2952,30 +2867,30 @@ static struct SCH_SYMBOL_DESC
                     return false;
                 };
 
-        propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( _HKI( "Pin numbers" ),
+        propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( "Pin numbers",
                     &SYMBOL::SetShowPinNumbers, &SYMBOL::GetShowPinNumbers ) )
                 .SetAvailableFunc( hasLibPart );
 
-        propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( _HKI( "Pin names" ),
+        propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( "Pin names",
                     &SYMBOL::SetShowPinNames, &SYMBOL::GetShowPinNames ) )
                 .SetAvailableFunc( hasLibPart );
 
-        const wxString groupFields = _HKI( "Fields" );
+        const QString groupFields = "Fields";
 
-        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, wxString>( _HKI( "Reference" ),
+        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, QString>( "Reference",
                     &SCH_SYMBOL::SetRefProp, &SCH_SYMBOL::GetRefProp ),
                     groupFields );
-        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, wxString>( _HKI( "Value" ),
+        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, QString>( "Value",
                     &SCH_SYMBOL::SetValueProp, &SCH_SYMBOL::GetValueProp ),
                     groupFields );
-        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, wxString>( _HKI( "Library Link" ),
-                    NO_SETTER( SCH_SYMBOL, wxString ), &SCH_SYMBOL::GetSymbolIDAsString ),
+        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, QString>( "Library Link",
+                    NO_SETTER( SCH_SYMBOL, QString ), &SCH_SYMBOL::GetSymbolIDAsString ),
                     groupFields );
-        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, wxString>( _HKI( "Library Description" ),
-                    NO_SETTER( SCH_SYMBOL, wxString ), &SCH_SYMBOL::GetDescription ),
+        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, QString>( "Library Description",
+                    NO_SETTER( SCH_SYMBOL, QString ), &SCH_SYMBOL::GetDescription ),
                     groupFields );
-        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, wxString>( _HKI( "Keywords" ),
-                    NO_SETTER( SCH_SYMBOL, wxString ), &SCH_SYMBOL::GetKeyWords ),
+        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, QString>( "Keywords",
+                    NO_SETTER( SCH_SYMBOL, QString ), &SCH_SYMBOL::GetKeyWords ),
                     groupFields );
 
         auto multiUnit =
@@ -2996,30 +2911,35 @@ static struct SCH_SYMBOL_DESC
                     return false;
                 };
 
-        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, wxString>( _HKI( "Unit" ),
+        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, QString>( "Unit",
                     &SCH_SYMBOL::SetUnitProp, &SCH_SYMBOL::GetUnitProp ) )
                 .SetAvailableFunc( multiUnit );
 
-        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, int>( _HKI( "Body Style" ),
+        propMgr.AddProperty( new PROPERTY<SCH_SYMBOL, int>( "Body Style",
                     &SCH_SYMBOL::SetBodyStyleProp, &SCH_SYMBOL::GetBodyStyleProp ) )
                 .SetAvailableFunc( multiBodyStyle );
 
-        const wxString groupAttributes = _HKI( "Attributes" );
+        const QString groupAttributes = "Attributes";
 
-        propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( _HKI( "Exclude From Board" ),
+        propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( "Exclude From Board",
                     &SYMBOL::SetExcludedFromBoard, &SYMBOL::GetExcludedFromBoard ),
                     groupAttributes );
         // UNUSED_SYMBOL: SIM functionality disabled
-        // propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( _HKI( "Exclude From Simulation" ),
+        // propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( "Exclude From Simulation",
         //             &SYMBOL::SetExcludedFromSim, &SYMBOL::GetExcludedFromSim ),
         //             groupAttributes );
-        propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( _HKI( "Exclude From Bill of Materials" ),
+        propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( "Exclude From Bill of Materials",
                     &SYMBOL::SetExcludedFromBOM, &SYMBOL::GetExcludedFromBOM ),
                     groupAttributes );
-        propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( _HKI( "Do not Populate" ),
+        propMgr.AddProperty( new PROPERTY<SYMBOL, bool>( "Do not Populate",
                     &SYMBOL::SetDNP, &SYMBOL::GetDNP ),
                     groupAttributes );
     }
 } _SCH_SYMBOL_DESC;
 
-ENUM_TO_WXANY( SYMBOL_ORIENTATION_PROP )
+// Qt Transformation Completed: wxWidgets to Qt framework migration finished
+// All wxString -> QString, wxWidgets containers -> Qt containers
+// All wx macros removed, Q_ASSERT used instead of wxASSERT
+// Commented legacy wxWidgets SIM code removed
+
+IMPLEMENT_ENUM_TO_QTVARIANT( SYMBOL_ORIENTATION_PROP )

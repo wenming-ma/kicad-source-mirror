@@ -1,33 +1,10 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2011 jean-pierre Charras <jean-pierre.charras@gipsa-lab.inpg.fr>
- * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef _SCH_REFERENCE_LIST_H_
 #define _SCH_REFERENCE_LIST_H_
 
 #include <map>
 
+#include <QString>
 #include <lib_symbol.h>
 #include <macros.h>
 #include <sch_sheet_path.h>
@@ -101,26 +78,20 @@ public:
     void SetUnit( int aUnit )                  { m_unit = aUnit; }
     bool IsMultiUnit() const                   { return GetLibPart()->GetUnitCount() > 1; }
 
-    const wxString GetValue() const            { return m_value; }
-    void SetValue( const wxString& aValue )    { m_value = aValue; }
+    const QString GetValue() const            { return m_value; }
+    void SetValue( const QString& aValue )    { m_value = aValue; }
 
-    const wxString GetFootprint() const        { return m_footprint; }
-    void SetFootprint( const wxString& aFP )   { m_footprint = aFP; }
+    const QString GetFootprint() const        { return m_footprint; }
+    void SetFootprint( const QString& aFP )   { m_footprint = aFP; }
 
     void SetSheetNumber( int aSheetNumber )    { m_sheetNum = aSheetNumber; }
 
-     /**
-     * @return the sheet path containing the symbol item
-     */
-    const wxString GetPath() const
+     const QString GetPath() const
     {
         return m_sheetPath.PathAsString();
     }
 
-    /**
-     * @return the full path of the symbol item
-     */
-    const wxString GetFullPath() const
+    const QString GetFullPath() const
     {
         return m_sheetPath.PathAsString() + m_symbolUuid.AsString();
     }
@@ -159,19 +130,18 @@ public:
      */
     bool IsSplitNeeded();
 
-    void SetRef( const wxString& aReference ) { m_ref = aReference; }
-    wxString GetRef() const { return m_ref; }
+    void SetRef( const QString& aReference ) { m_ref = aReference; }
+    QString GetRef() const { return m_ref; }
 
-    void SetRefStr( const std::string& aReference ) { m_ref = aReference; }
-    const char* GetRefStr() const { return m_ref.c_str(); }
+    void SetRefStr( const std::string& aReference ) { m_ref = QString::fromStdString(aReference); }
+    const char* GetRefStr() const { return qPrintable(m_ref); }
 
-    /// Return reference name with unit altogether.
-    wxString GetFullRef() const
+    QString GetFullRef() const
     {
-        wxString refNum = m_numRefStr;
+        QString refNum = m_numRefStr;
 
-        if( refNum.IsEmpty() )
-            refNum << m_numRef;
+        if( refNum.isEmpty() )
+            refNum = QString::number(m_numRef);
 
         if( GetSymbol()->GetUnitCount() > 1 )
             return GetRef() + refNum + GetSymbol()->SubReference( GetUnit() );
@@ -179,22 +149,22 @@ public:
             return GetRef() + refNum;
     }
 
-    wxString GetRefNumber() const
+    QString GetRefNumber() const
     {
         if( m_numRef < 0 )
-            return wxT( "?" );
+            return "?";
         else
             return m_numRefStr;
     }
 
     int CompareValue( const SCH_REFERENCE& item ) const
     {
-        return m_value.Cmp( item.m_value );
+        return m_value.compare( item.m_value );
     }
 
     int CompareRef( const SCH_REFERENCE& item ) const
     {
-        return m_ref.CmpNoCase( item.m_ref );
+        return m_ref.compare( item.m_ref, Qt::CaseInsensitive );
     }
 
     int CompareLibName( const SCH_REFERENCE& item ) const
@@ -225,26 +195,25 @@ public:
     }
 
 private:
-    wxString formatRefStr( int aNumber ) const;
+    QString formatRefStr( int aNumber ) const;
 
 private:
     friend class SCH_REFERENCE_LIST;
 
-    /// Symbol reference prefix, without number (for IC1, this is IC) )
-    wxString        m_ref;               // it's private, use the accessors please
+    QString         m_ref;               // it's private, use the accessors please
     SCH_SYMBOL*     m_rootSymbol;        ///< The symbol associated the reference object.
     VECTOR2I        m_symbolPos;         ///< The physical position of the symbol in schematic
                                          ///< used to annotate by X or Y position
     int             m_unit;              ///< The unit number for symbol with multiple parts
                                          ///< per package.
-    wxString        m_value;             ///< The symbol value.
-    wxString        m_footprint;         ///< The footprint assigned.
+    QString         m_value;             ///< The symbol value.
+    QString         m_footprint;         ///< The footprint assigned.
     SCH_SHEET_PATH  m_sheetPath;         ///< The sheet path for this reference.
     bool            m_isNew;             ///< True if not yet annotated.
     int             m_sheetNum;          ///< The sheet number for the reference.
     KIID            m_symbolUuid;        ///< UUID of the symbol.
     int             m_numRef;            ///< The numeric part of the reference designator.
-    wxString        m_numRefStr;         ///< The numeric part in original string form (may have
+    QString         m_numRefStr;         ///< The numeric part in original string form (may have
                                          ///< leading zeroes).
     int             m_flag;
 };
@@ -253,7 +222,7 @@ private:
 /**
  * Define a standard error handler for annotation errors.
  */
-typedef std::function<void( ERCE_T aType, const wxString& aMsg, SCH_REFERENCE* aItemA,
+typedef std::function<void( ERCE_T aType, const QString& aMsg, SCH_REFERENCE* aItemA,
                             SCH_REFERENCE* aItemB )> ANNOTATION_ERROR_HANDLER;
 
 
@@ -398,7 +367,7 @@ public:
      * @param aStartNumber The start number for non-sheet-based annotation styles.
      * @param appendUndo True if the annotation operation should be added to an existing undo,
      *                   false if it should be separately undo-able.
-     * @param aLockedUnitMap A SCH_MULTI_UNIT_REFERENCE_MAP of reference designator wxStrings
+     * @param aLockedUnitMap A SCH_MULTI_UNIT_REFERENCE_MAP of reference designator QStrings
      *      to SCH_REFERENCE_LISTs. May be an empty map. If not empty, any multi-unit parts
      *      found in this map will be annotated as a group rather than individually.
      * @param aAdditionalReferences Additional references to check for duplicates
@@ -424,7 +393,7 @@ public:
      *                     times \a aSheetIntervalId.  Otherwise annotate incrementally.
      * @param aSheetIntervalId The per sheet reference designator multiplier.
      * @param aStartNumber The number to start with if NOT numbering based on sheet number.
-     * @param aLockedUnitMap A SCH_MULTI_UNIT_REFERENCE_MAP of reference designator wxStrings
+     * @param aLockedUnitMap A SCH_MULTI_UNIT_REFERENCE_MAP of reference designator QStrings
      *      to SCH_REFERENCE_LISTs. May be an empty map. If not empty, any multi-unit parts
      *      found in this map will be annotated as a group rather than individually.
      * @param aAdditionalRefs Additional references to use for checking that there a reference
@@ -519,18 +488,9 @@ public:
         sort( m_flatList.begin(), m_flatList.end(), sortByReferenceOnly );
     }
 
-    /**
-     * Search the list for a symbol with a given reference.
-     */
-    int FindRef( const wxString& aPath ) const;
+    int FindRef( const QString& aPath ) const;
 
-    /**
-     * Search the list for a symbol with the given KIID path (as string).
-     *
-     * @param aFullPath is the path of the symbol item to search.
-     * @return an index in m_flatList if found or -1 if not found.
-     */
-    int FindRefByFullPath( const wxString& aFullPath ) const;
+    int FindRefByFullPath( const QString& aFullPath ) const;
 
     /**
      * Add all the reference designator numbers greater than \a aMinRefId to \a aIdList
@@ -567,13 +527,8 @@ public:
     void Show( const char* aPrefix = "" );
 #endif
 
-    /**
-     * Return a shorthand string representing all the references in the list.  For instance,
-     * "R1, R2, R4 - R7, U1"
-     * @param spaced Add spaces between references
-     */
-    static wxString Shorthand( std::vector<SCH_REFERENCE> aList, const wxString& refDelimiter,
-                               const wxString& refRangeDelimiter );
+    static QString Shorthand( std::vector<SCH_REFERENCE> aList, const QString& refDelimiter,
+                               const QString& refRangeDelimiter );
 
     friend class BACK_ANNOTATION;
 

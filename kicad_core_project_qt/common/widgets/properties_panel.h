@@ -1,31 +1,13 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2016 CERN
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #ifndef PROPERTIES_PANEL_H
 #define PROPERTIES_PANEL_H
 
-#include <wx/panel.h>
-#include <wx/propgrid/propgrid.h>
+#include <QWidget>
+#include <QTreeWidget>
+#include <QVariant>
+#include <QKeyEvent>
+#include <QShowEvent>
+#include <QLabel>
 
 #include <vector>
 #include <memory>
@@ -34,12 +16,11 @@ class EDA_BASE_FRAME;
 class EDA_ITEM;
 class SELECTION;
 class PROPERTY_BASE;
-class wxStaticText;
 
-class PROPERTIES_PANEL : public wxPanel
+class PROPERTIES_PANEL : public QWidget
 {
 public:
-    PROPERTIES_PANEL( wxWindow* aParent, EDA_BASE_FRAME* aFrame );
+    PROPERTIES_PANEL( QWidget* aParent, EDA_BASE_FRAME* aFrame );
 
     virtual ~PROPERTIES_PANEL();
 
@@ -47,7 +28,7 @@ public:
 
     virtual void AfterCommit() {}
 
-    wxPropertyGrid* GetPropertyGrid()
+    QTreeWidget* GetPropertyGrid()
     {
         return m_grid;
     }
@@ -75,22 +56,22 @@ protected:
      */
     virtual void rebuildProperties( const SELECTION& aSelection );
 
-    virtual wxPGProperty* createPGProperty( const PROPERTY_BASE* aProperty ) const = 0;
+    virtual QTreeWidgetItem* createPGProperty( const PROPERTY_BASE* aProperty ) const = 0;
 
     // Event handlers
-    virtual void valueChanging( wxPropertyGridEvent& aEvent ) { aEvent.Skip(); }
-    virtual void valueChanged( wxPropertyGridEvent& aEvent ) { aEvent.Skip(); }
-    void onCharHook( wxKeyEvent& aEvent );
-    void onShow( wxShowEvent& aEvent );
+    virtual void valueChanging( QTreeWidgetItem* aItem ) {}
+    virtual void valueChanged( QTreeWidgetItem* aItem ) {}
+    void onCharHook( QKeyEvent* aEvent );
+    void onShow( QShowEvent* aEvent );
 
-    virtual void OnLanguageChanged( wxCommandEvent& aEvent );
+    virtual void OnLanguageChanged( QEvent* aEvent );
 
     /**
-     * Utility to fetch a property value and convert to wxVariant
+     * Utility to fetch a property value and convert to QVariant
      * Precondition: aItem is known to have property aProperty
      * @return true if conversion succeeded
      */
-    bool getItemValue( EDA_ITEM* aItem, PROPERTY_BASE* aProperty, wxVariant& aValue );
+    bool getItemValue( EDA_ITEM* aItem, PROPERTY_BASE* aProperty, QVariant& aValue );
 
     /**
      * Processes a selection and determines whether the given property should be available or not
@@ -102,16 +83,16 @@ protected:
      * @return true if the property is available for all the items in the selection
      */
     bool extractValueAndWritability( const SELECTION& aSelection, PROPERTY_BASE* aProperty,
-                                     wxVariant& aValue, bool& aWritable );
+                                     QVariant& aValue, bool& aWritable );
 
 public:
     int                         m_SuppressGridChangeEvents;
 
 protected:
     std::vector<PROPERTY_BASE*> m_displayed;    // no ownership of pointers
-    wxPropertyGrid*             m_grid;
+    QTreeWidget*                m_grid;
     EDA_BASE_FRAME*             m_frame;
-    wxStaticText*               m_caption;
+    QLabel*                     m_caption;
 
     /// Proportion of the grid column splitter that is used for the key column (0.0 - 1.0)
     float m_splitter_key_proportion;

@@ -1,27 +1,11 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// QT_TRANSFORMATION_COMPLETED
 
 #include <base_units.h>
 #include <macros.h>
 #include <schematic_lexer.h>
 #include "sch_io_kicad_sexpr_common.h"
 #include <string_utils.h>
+#include <QDebug>
 
 
 using namespace TSCHEMATIC_T;
@@ -101,7 +85,7 @@ const char* getPinElectricalTypeToken( ELECTRICAL_PINTYPE aType )
         return SCHEMATIC_LEXER::TokenName( T_no_connect );
 
     default:
-        wxFAIL_MSG( "Missing symbol library pin connection type" );
+        Q_ASSERT_X( false, __FUNCTION__, "Missing symbol library pin connection type" );
     }
 
     return emptyString;
@@ -140,7 +124,7 @@ const char* getPinShapeToken( GRAPHIC_PINSHAPE aShape )
         return SCHEMATIC_LEXER::TokenName( T_non_logic );
 
     default:
-        wxFAIL_MSG( "Missing symbol library pin shape type" );
+        Q_ASSERT_X( false, __FUNCTION__, "Missing symbol library pin shape type" );
     }
 
     return emptyString;
@@ -155,7 +139,7 @@ EDA_ANGLE getPinAngle( PIN_ORIENTATION aOrientation )
     case PIN_ORIENTATION::PIN_LEFT:  return ANGLE_180;
     case PIN_ORIENTATION::PIN_UP:    return ANGLE_90;
     case PIN_ORIENTATION::PIN_DOWN:  return ANGLE_270;
-    default:        wxFAIL_MSG( "Missing symbol library pin orientation type" ); return ANGLE_0;
+    default:        Q_ASSERT_X( false, __FUNCTION__, "Missing symbol library pin orientation type" ); return ANGLE_0;
     }
 }
 
@@ -173,7 +157,7 @@ const char* getSheetPinShapeToken( LABEL_FLAG_SHAPE aShape )
     case LABEL_FLAG_SHAPE::F_ROUND:       return SCHEMATIC_LEXER::TokenName( T_round );
     case LABEL_FLAG_SHAPE::F_DIAMOND:     return SCHEMATIC_LEXER::TokenName( T_diamond );
     case LABEL_FLAG_SHAPE::F_RECTANGLE:   return SCHEMATIC_LEXER::TokenName( T_rectangle );
-    default:         wxFAIL;              return SCHEMATIC_LEXER::TokenName( T_passive );
+    default:         Q_ASSERT( false );              return SCHEMATIC_LEXER::TokenName( T_passive );
     }
 }
 
@@ -187,7 +171,7 @@ EDA_ANGLE getSheetPinAngle( SHEET_SIDE aSide )
     case SHEET_SIDE::RIGHT:    return ANGLE_0;
     case SHEET_SIDE::TOP:      return ANGLE_90;
     case SHEET_SIDE::BOTTOM:   return ANGLE_270;
-    default:   wxFAIL;         return ANGLE_0;
+    default:   Q_ASSERT( false );         return ANGLE_0;
     }
 }
 
@@ -201,7 +185,7 @@ const char* getTextTypeToken( KICAD_T aType )
     case SCH_GLOBAL_LABEL_T:    return SCHEMATIC_LEXER::TokenName( T_global_label );
     case SCH_HIER_LABEL_T:      return SCHEMATIC_LEXER::TokenName( T_hierarchical_label );
     case SCH_DIRECTIVE_LABEL_T: return SCHEMATIC_LEXER::TokenName( T_netclass_flag );
-    default:      wxFAIL;       return SCHEMATIC_LEXER::TokenName( T_text );
+    default:      Q_ASSERT( false );       return SCHEMATIC_LEXER::TokenName( T_text );
     }
 }
 
@@ -314,7 +298,7 @@ void formatPoly( OUTPUTFORMATTER* aFormatter, EDA_SHAPE* aPolyLine, bool aIsPriv
     {
         // If we've managed to get a polyline with no points, that's probably a bad thing,
         // but at least don't dereference it and crash.
-        wxFAIL_MSG( "Polyline has no outlines" );
+        Q_ASSERT_X( false, __FUNCTION__, "Polyline has no outlines" );
     }
     else
     {

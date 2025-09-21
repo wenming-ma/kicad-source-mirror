@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2017 Jean_Pierre Charras <jp.charras at wanadoo.fr>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 /**
  * @file gendrill_file_writer_base.h
@@ -36,6 +13,7 @@
 #define USE_ATTRIB_FOR_HOLES 1
 
 #include <vector>
+#include <QtCore/QString>
 
 class BOARD_ITEM;
 
@@ -129,11 +107,11 @@ public:
     }
 
 
-    wxString GetPrecisionString()
+    QString GetPrecisionString()
     {
-        wxString text;
+        QString text;
 
-        text << m_Lhs << wxT( ":" ) << m_Rhs;
+        text += QString::number( m_Lhs ) + ":" + QString::number( m_Rhs );
         return text;
     }
 
@@ -212,7 +190,7 @@ public:
      * @param aPlotDirectory is the output folder.
      * @param aReporter is a REPORTER to return activity or any message (can be NULL)
      */
-    bool CreateMapFilesSet( const wxString& aPlotDirectory, REPORTER* aReporter = nullptr );
+    bool CreateMapFilesSet( const QString& aPlotDirectory, REPORTER* aReporter = nullptr );
 
     /**
      * Create a plain text report file giving a list of drill values and drill count for through
@@ -262,12 +240,12 @@ public:
      * @param aFullFileName is the name of the file to create.
      * @return true if the file is created.
      */
-    bool GenDrillReportFile( const wxString& aFullFileName );
+    bool GenDrillReportFile( const QString& aFullFileName );
 
     /**
      * Returns the file extension of the drill writer format
      */
-    wxString GetDrillFileExt() const { return m_drillFileExtension; }
+    QString GetDrillFileExt() const { return m_drillFileExtension; }
 
 protected:
     /**
@@ -281,7 +259,7 @@ protected:
      * @param aFullFileName is the full filename of the map file to create.
      * @param aFormat is one of the supported plot formats (see enum PlotFormat ).
      */
-    bool genDrillMapFile( const wxString& aFullFileName, PLOT_FORMAT aFormat );
+    bool genDrillMapFile( const QString& aFullFileName, PLOT_FORMAT aFormat );
 
     /**
      * Create the list of holes and tools for a given board.
@@ -343,7 +321,7 @@ protected:
      * it is the board name with the layer pair names added, and for separate
      * (PTH and NPTH) files, "-NPH" or "-NPTH" added
      */
-    virtual const wxString getDrillFileName( DRILL_LAYER_PAIR aPair, bool aNPTH,
+    virtual const QString getDrillFileName( DRILL_LAYER_PAIR aPair, bool aNPTH,
                                              bool aMerge_PTH_NPTH ) const;
 
 
@@ -351,14 +329,14 @@ protected:
      * @param aLayerPair is the layer pair (Drill from rom first layer to second layer)
      * @param aHoleType is type of drill file (PTH, NPTH, mixed)
      * @param aCompatNCdrill is true when generating NC (Excellon) compatible drill file
-     * @return a wxString containing the .FileFunction attribute.
+     * @return a QString containing the .FileFunction attribute.
      * the standard X2 FileFunction for drill files is
      * %TF.FileFunction,Plated[NonPlated],layer1num,layer2num,PTH[NPTH][Blind][Buried],
      * Drill[Route][Mixed]*%
      * There is no X1 version, as the Gerber drill files uses only X2 format
      * There is a compatible NC drill version.
      */
-    const wxString BuildFileFunctionAttributeString( DRILL_LAYER_PAIR aLayerPair,
+    const QString BuildFileFunctionAttributeString( DRILL_LAYER_PAIR aLayerPair,
                                                      TYPE_FILE aHoleType,
                                                      bool aCompatNCdrill = false ) const;
 
@@ -377,7 +355,7 @@ protected:
     }
 
     BOARD*                   m_pcb;
-    wxString                 m_drillFileExtension;      // .drl or .gbr, depending on format
+    QString                  m_drillFileExtension;      // .drl or .gbr, depending on format
     bool                     m_unitsMetric;             // true = mm, false = inches
     ZEROS_FMT                m_zeroFormat;              // the zero format option for output file
     DRILL_PRECISION          m_precision;               // The current coordinate precision (not

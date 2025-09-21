@@ -28,6 +28,7 @@
 #include <erc/erc_item.h>
 #include <sch_item.h>
 #include <marker_base.h>
+#include <QString>
 
 
 class SCH_MARKER : public SCH_ITEM, public MARKER_BASE
@@ -44,18 +45,18 @@ public:
         return aItem && SCH_MARKER_T == aItem->Type();
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "SCH_MARKER" );
+        return "SCH_MARKER";
     }
 
     const KIID GetUUID() const override { return m_Uuid; }
 
     void SwapData( SCH_ITEM* aItem ) override;
 
-    wxString SerializeToString() const;
+    QString SerializeToString() const;
     static SCH_MARKER* DeserializeFromString( const SCH_SHEET_LIST& aSheetList,
-                                              const wxString& data );
+                                              const QString& data );
 
     std::vector<int> ViewGetLayers() const override;
 
@@ -97,9 +98,9 @@ public:
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
     {
-        return wxString( _( "ERC Marker" ) );
+        return QString( "ERC Marker" );
     }
 
     BITMAPS GetMenuImage() const override;

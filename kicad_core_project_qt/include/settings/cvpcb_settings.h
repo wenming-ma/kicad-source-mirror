@@ -35,7 +35,7 @@ public:
 
     virtual ~CVPCB_SETTINGS() {}
 
-    virtual bool MigrateFromLegacy( wxConfigBase* aLegacyConfig ) override;
+    virtual bool MigrateFromLegacy( QSettings* aLegacyConfig ) override;
 
     WINDOW_SETTINGS     m_FootprintViewer;
 
@@ -47,7 +47,7 @@ public:
     bool                m_FootprintViewerAutoZoomOnSelect;
 
     int                 m_FilterFlags;
-    wxString            m_FilterString;
+    QString            m_FilterString;
     int                 m_LibrariesWidth;
     int                 m_FootprintsWidth;
 

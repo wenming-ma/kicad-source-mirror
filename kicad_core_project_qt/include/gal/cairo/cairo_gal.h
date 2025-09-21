@@ -1,30 +1,4 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Copyright (C) 2017-2018 CERN
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * CairoGal - Graphics Abstraction Layer for Cairo
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// CairoGal - Graphics Abstraction Layer for Cairo
 
 #ifndef CAIROGAL_H_
 #define CAIROGAL_H_
@@ -36,7 +10,12 @@
 
 #include <gal/gal.h>
 #include <gal/graphics_abstraction_layer.h>
-#include <wx/dcbuffer.h>
+#include <QtCore/QString>
+#include <QtGui/QWidget>
+#include <QtGui/QPaintEvent>
+#include <QtGui/QMouseEvent>
+#include <QtGui/QCursor>
+#include <QtCore/QObject>
 
 #include <memory>
 
@@ -289,7 +268,7 @@ protected:
     /**
      * Blit cursor into the current screen.
      */
-    void blitCursor( wxMemoryDC& clientDC );
+    void blitCursor( QPaintDevice& clientDC );
 
     /// Drawing polygons & polylines is the same in Cairo, so here is the common code
     void drawPoly( const std::deque<VECTOR2D>& aPointList );
@@ -373,30 +352,30 @@ protected:
 };
 
 
-class GAL_API CAIRO_GAL : public CAIRO_GAL_BASE, public wxWindow
+class GAL_API CAIRO_GAL : public CAIRO_GAL_BASE, public QWidget
 {
 public:
     /**
-     * @param aParent is the wxWidgets immediate wxWindow parent of this object.
-     * @param aMouseListener is the wxEvtHandler that should receive the mouse events, this
-     *                       can be can be any wxWindow, but is often a wxFrame container.
-     * @param aPaintListener is the wxEvtHandler that should receive the paint event.  This
-     *                       can be any wxWindow, but is often a derived instance of this
-     *                       class or a containing wxFrame.  The "paint event" here is a
-     *                       wxCommandEvent holding EVT_GAL_REDRAW, as sent by PostPaint().
+     * @param aParent is the Qt immediate QWidget parent of this object.
+     * @param aMouseListener is the QObject that should receive the mouse events, this
+     *                       can be can be any QWidget, but is often a QMainWindow container.
+     * @param aPaintListener is the QObject that should receive the paint event.  This
+     *                       can be any QWidget, but is often a derived instance of this
+     *                       class or a containing QMainWindow.  The "paint event" here is a
+     *                       custom event holding GAL_REDRAW, as sent by PostPaint().
      *
-     * @param aName is the name of this window for use by wxWindow::FindWindowByName().
+     * @param aName is the name of this window for use by QWidget::findChild().
      */
-    CAIRO_GAL( GAL_DISPLAY_OPTIONS& aDisplayOptions, wxWindow* aParent,
-               wxEvtHandler* aMouseListener = nullptr, wxEvtHandler* aPaintListener = nullptr,
-               const wxString& aName = wxT( "CairoCanvas" ) );
+    CAIRO_GAL( GAL_DISPLAY_OPTIONS& aDisplayOptions, QWidget* aParent,
+               QObject* aMouseListener = nullptr, QObject* aPaintListener = nullptr,
+               const QString& aName = QStringLiteral( "CairoCanvas" ) );
 
     ~CAIRO_GAL();
 
     ///< @copydoc GAL::IsVisible()
     bool IsVisible() const override
     {
-        return IsShownOnScreen() && !GetClientRect().IsEmpty();
+        return isVisible() && !rect().isEmpty();
     }
 
     void ResizeScreen( int aWidth, int aHeight ) override;
@@ -429,16 +408,16 @@ public:
      * Post an event to m_paint_listener.
      *
      * A post is used so that the actual drawing function can use a device context type that
-     * is not specific to the wxEVT_PAINT event, just by changing the PostPaint code.
+     * is not specific to the paint event, just by changing the PostPaint code.
      */
-    void PostPaint( wxPaintEvent& aEvent );
+    void PostPaint( QPaintEvent& aEvent );
 
-    void SetMouseListener( wxEvtHandler* aMouseListener )
+    void SetMouseListener( QObject* aMouseListener )
     {
         m_mouseListener = aMouseListener;
     }
 
-    void SetPaintListener( wxEvtHandler* aPaintListener )
+    void SetPaintListener( QObject* aPaintListener )
     {
         m_paintListener = aPaintListener;
     }
@@ -473,28 +452,28 @@ public:
      *
      * @param aEvent is the paint event.
      */
-    void onPaint( wxPaintEvent& aEvent );
+    void onPaint( QPaintEvent& aEvent );
 
     /**
      * Mouse event handler, forwards the event to the child.
      *
      * @param aEvent is the mouse event to be forwarded.
      */
-    void skipMouseEvent( wxMouseEvent& aEvent );
+    void skipMouseEvent( QMouseEvent& aEvent );
 
     /**
      * Skip the gesture event to the parent.
      *
      * @param aEvent is the gesture event.
      */
-    void skipGestureEvent( wxGestureEvent& aEvent );
+    void skipGestureEvent( QGestureEvent& aEvent );
 
     /**
      * Give the correct cursor image when the native widget asks for it.
      *
-     * @param aEvent is the cursor event to plac the cursor into.
+     * @param aEvent is the cursor event to place the cursor into.
      */
-    void onSetNativeCursor( wxSetCursorEvent& aEvent );
+    void onSetNativeCursor( QEvent& aEvent );
 
     ///< Cairo-specific update handlers
     bool updatedGalDisplayOptions( const GAL_DISPLAY_OPTIONS& aOptions ) override;
@@ -509,20 +488,20 @@ protected:
     RENDER_TARGET       m_currentTarget;       ///< Current rendering target
     bool                m_validCompositor;     ///< Compositor initialization flag
 
-    // Variables related to wxWidgets
-    wxWindow*           m_parentWindow;        ///< Parent window
-    wxEvtHandler*       m_mouseListener;       ///< Mouse listener
-    wxEvtHandler*       m_paintListener;       ///< Paint listener
+    // Variables related to Qt
+    QWidget*            m_parentWindow;        ///< Parent window
+    QObject*            m_mouseListener;       ///< Mouse listener
+    QObject*            m_paintListener;       ///< Paint listener
     unsigned int        m_bufferSize;          ///< Size of buffers cairoOutput, bitmapBuffers
-    unsigned char*      m_wxOutput;            ///< wxImage compatible buffer
+    unsigned char*      m_qtOutput;            ///< QImage compatible buffer
 
-    // Variables related to Cairo <-> wxWidgets
+    // Variables related to Cairo <-> Qt
     unsigned char*      m_bitmapBuffer;        ///< Storage of the Cairo image
     int                 m_stride;              ///< Stride value for Cairo
-    int                 m_wxBufferWidth;
+    int                 m_qtBufferWidth;
     bool                m_isInitialized;       ///< Are Cairo image & surface ready to use
     COLOR4D             m_backgroundColor;     ///< Background color
-    wxCursor            m_currentwxCursor;     ///< wxCursor showing the current native cursor
+    QCursor             m_currentQtCursor;     ///< QCursor showing the current native cursor
 };
 
 } // namespace KIGFX

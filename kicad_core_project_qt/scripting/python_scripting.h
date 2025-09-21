@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef __PYTHON_SCRIPTING_H
 #define __PYTHON_SCRIPTING_H
@@ -41,9 +19,9 @@
 #include <Python.h>
 #undef HAVE_CLOCK_GETTIME
 
-#include <wx/window.h>
-#include <wx/string.h>
-#include <wx/arrstr.h>
+#include <QWidget>
+#include <QString>
+#include <QStringList>
 
 #include <kicommon.h>
 
@@ -68,8 +46,8 @@ public:
         THIRDPARTY
     };
 
-    static wxString PyScriptingPath( PATH_TYPE aPathType = STOCK );
-    static wxString PyPluginsPath( PATH_TYPE aPathType = STOCK );
+    static QString PyScriptingPath( PATH_TYPE aPathType = STOCK );
+    static QString PyPluginsPath( PATH_TYPE aPathType = STOCK );
 
 private:
 
@@ -84,10 +62,10 @@ private:
  * @param aVar is the variable to set
  * @param aValue is the value to give it
  */
-KICOMMON_API void UpdatePythonEnvVar( const wxString& aVar, const wxString& aValue );
+KICOMMON_API void UpdatePythonEnvVar( const QString& aVar, const QString& aValue );
 
 KICOMMON_API void RedirectStdio();
-KICOMMON_API wxWindow* CreatePythonShellWindow( wxWindow* parent, const wxString& aFramenameId );
+KICOMMON_API QWidget* CreatePythonShellWindow( QWidget* parent, const QString& aFramenameId );
 KICOMMON_API bool       InitPythonScripting( const char* aStockScriptingPath,
                                             const char* aUserScriptingPath );
 KICOMMON_API bool       IsWxPythonLoaded();
@@ -100,8 +78,8 @@ public:
     ~PyLOCK()     { PyGILState_Release( gil_state ); }
 };
 
-KICOMMON_API wxString PyStringToWx( PyObject* str );
-KICOMMON_API wxArrayString PyArrayStringToWx( PyObject* arr );
-KICOMMON_API wxString       PyErrStringWithTraceback();
+KICOMMON_API QString PyStringToWx( PyObject* str );
+KICOMMON_API QStringList PyArrayStringToWx( PyObject* arr );
+KICOMMON_API QString       PyErrStringWithTraceback();
 
 #endif    // __PYTHON_SCRIPTING_H

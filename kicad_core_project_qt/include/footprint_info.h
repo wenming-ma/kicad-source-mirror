@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2011 Jean-Pierre Charras, <jp.charras@wanadoo.fr>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 /*
  * @file footprint_info.h
@@ -38,16 +15,17 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <QString>
 
 
 class FP_LIB_TABLE;
 class FOOTPRINT_LIST;
 class FOOTPRINT_LIST_IMPL;
 class PROGRESS_REPORTER;
-class wxTopLevelWindow;
+class QMainWindow;
 class KIWAY;
 class LOCALE_IO;
-class wxTextFile;
+class QTextStream;
 
 
 /*
@@ -67,11 +45,11 @@ public:
     // These two accessors do not have to call ensure_loaded(), because constructor
     // fills in these fields:
 
-    const wxString& GetFootprintName() const { return m_fpname; }
+    const QString& GetFootprintName() const { return m_fpname; }
 
-    wxString GetLibNickname() const override { return m_nickname; }
+    QString GetLibNickname() const override { return m_nickname; }
 
-    wxString GetName() const override { return m_fpname; }
+    QString GetName() const override { return m_fpname; }
 
     int GetPinCount() override { return GetUniquePadCount(); }
 
@@ -80,13 +58,13 @@ public:
         return LIB_ID( m_nickname, m_fpname );
     }
 
-    wxString GetDesc() override
+    QString GetDesc() override
     {
         ensure_loaded();
         return m_doc;
     }
 
-    wxString GetKeywords()
+    QString GetKeywords()
     {
         ensure_loaded();
         return m_keywords;
@@ -120,7 +98,7 @@ public:
      * @return true if the #FOOTPRINT_INFO object was loaded from \a aLibrary.  Otherwise
      *         false.
      */
-    bool InLibrary( const wxString& aLibrary ) const;
+    bool InLibrary( const QString& aLibrary ) const;
 
     /**
      * Less than comparison operator, intended for sorting FOOTPRINT_INFO objects
@@ -141,13 +119,13 @@ protected:
 
     bool            m_loaded;
 
-    wxString        m_nickname;         ///< library as known in FP_LIB_TABLE
-    wxString        m_fpname;           ///< Module name.
+    QString         m_nickname;         ///< library as known in FP_LIB_TABLE
+    QString         m_fpname;           ///< Module name.
     int             m_num;              ///< Order number in the display list.
     unsigned        m_pad_count;        ///< Number of pads
     unsigned        m_unique_pad_count; ///< Number of unique pads
-    wxString        m_doc;              ///< Footprint description.
-    wxString        m_keywords;         ///< Footprint keywords.
+    QString         m_doc;              ///< Footprint description.
+    QString         m_keywords;         ///< Footprint keywords.
 };
 
 
@@ -170,8 +148,8 @@ public:
     {
     }
 
-    virtual void WriteCacheToFile( const wxString& aFilePath ) {};
-    virtual void ReadCacheFromFile( const wxString& aFilePath ){};
+    virtual void WriteCacheToFile( const QString& aFilePath ) {};
+    virtual void ReadCacheFromFile( const QString& aFilePath ) {};
 
     /**
      * @return the number of items stored in list
@@ -195,13 +173,13 @@ public:
     /**
      * Get info for a footprint by id.
      */
-    FOOTPRINT_INFO* GetFootprintInfo( const wxString& aFootprintName );
+    FOOTPRINT_INFO* GetFootprintInfo( const QString& aFootprintName );
 
     /**
      * Get info for a footprint by libNickname/footprintName
      */
-    FOOTPRINT_INFO* GetFootprintInfo( const wxString& aLibNickname,
-                                      const wxString& aFootprintName );
+    FOOTPRINT_INFO* GetFootprintInfo( const QString& aLibNickname,
+                                      const QString& aFootprintName );
 
     /**
      * Get info for a footprint by index.
@@ -239,10 +217,10 @@ public:
      *         errors.  If true, it does not mean there were no errors, check GetErrorCount()
      *         for that, should be zero to indicate success.
      */
-    virtual bool ReadFootprintFiles( FP_LIB_TABLE* aTable, const wxString* aNickname = nullptr,
+    virtual bool ReadFootprintFiles( FP_LIB_TABLE* aTable, const QString* aNickname = nullptr,
                                      PROGRESS_REPORTER* aProgressReporter = nullptr ) = 0;
 
-    void DisplayErrors( wxTopLevelWindow* aCaller = nullptr );
+    void DisplayErrors( QMainWindow* aCaller = nullptr );
 
     FP_LIB_TABLE* GetTable() const
     {

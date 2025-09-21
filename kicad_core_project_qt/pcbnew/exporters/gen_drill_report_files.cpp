@@ -1,27 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2017 Jean_Pierre Charras <jp.charras at wanadoo.fr>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+#include <QString>
+#include <QFileInfo>
 #include <plotters/plotter_dxf.h>
 #include <plotters/plotter_gerber.h>
 #include <plotters/plotters_pslike.h>
@@ -85,7 +64,7 @@ inline int getDefaultPenSize()
 }
 
 
-bool GENDRILL_WRITER_BASE::genDrillMapFile( const wxString& aFullFileName, PLOT_FORMAT aFormat )
+bool GENDRILL_WRITER_BASE::genDrillMapFile( const QString& aFullFileName, PLOT_FORMAT aFormat )
 {
     // Remark:
     // Hole list must be created before calling this function, by buildHolesList(),
@@ -127,7 +106,7 @@ bool GENDRILL_WRITER_BASE::genDrillMapFile( const wxString& aFullFileName, PLOT_
         break;
 
     default:
-        wxASSERT( false );
+        Q_ASSERT( false );
         KI_FALLTHROUGH;
 
     case PLOT_FORMAT::PDF:
@@ -187,7 +166,7 @@ bool GENDRILL_WRITER_BASE::genDrillMapFile( const wxString& aFullFileName, PLOT_
     }
     }
 
-    plotter->SetCreator( wxT( "PCBNEW" ) );
+    plotter->SetCreator( "PCBNEW" );
     plotter->SetColorMode( false );
 
     KIGFX::PCB_RENDER_SETTINGS renderSettings;
@@ -215,18 +194,18 @@ bool GENDRILL_WRITER_BASE::genDrillMapFile( const wxString& aFullFileName, PLOT_
         // Attributes are added using X2 format
         AddGerberX2Header( gbrplotter, m_pcb, false );
 
-        wxString text;
+        QString text;
 
         // Add the TF.FileFunction
         text = "%TF.FileFunction,Drillmap*%";
         gbrplotter->AddLineToHeader( text );
 
         // Add the TF.FilePolarity
-        text = wxT( "%TF.FilePolarity,Positive*%" );
+        text = "%TF.FilePolarity,Positive*%";
         gbrplotter->AddLineToHeader( text );
     }
 
-    plotter->StartPlot( wxT( "1" ) );
+    plotter->StartPlot( "1" );
 
     // Draw items on edge layer.
     // Not all, only items useful for drill map, i.e. board outlines.
@@ -284,7 +263,7 @@ bool GENDRILL_WRITER_BASE::genDrillMapFile( const wxString& aFullFileName, PLOT_
     int      plotX, plotY, TextWidth;
     int      intervalle = 0;
     char     line[1024];
-    wxString msg;
+    QString msg;
     int      textmarginaftersymbol = pcbIUScale.mmToIU( 2 );
 
     // Set Drill Symbols width
@@ -311,7 +290,7 @@ bool GENDRILL_WRITER_BASE::genDrillMapFile( const wxString& aFullFileName, PLOT_
     plotY = bbbox.GetBottom() + intervalle;
 
     // Plot title  "Info"
-    wxString Text = wxT( "Drill Map:" );
+    QString Text = "Drill Map:";
 
     TEXT_ATTRIBUTES attrs;
     attrs.m_StrokeWidth = TextWidth;
@@ -379,7 +358,7 @@ bool GENDRILL_WRITER_BASE::genDrillMapFile( const wxString& aFullFileName, PLOT_
         msg += From_UTF8( line );
 
         if( tool.m_Hole_NotPlated )
-            msg += wxT( " (not plated)" );
+            msg += " (not plated)";
 
         plotter->PlotText( VECTOR2I( plotX, y ), COLOR4D::UNSPECIFIED, msg, attrs,
                            nullptr /* stroke font */, KIFONT::METRICS::Default() );
@@ -391,7 +370,7 @@ bool GENDRILL_WRITER_BASE::genDrillMapFile( const wxString& aFullFileName, PLOT_
 
         // Evaluate the text horizontal size, to know the maximal column size
         // This is a rough value, but ok to create a new column to plot next texts
-        int text_len = msg.Len() * ( ( charSize * charScale ) + TextWidth );
+        int text_len = msg.length() * ( ( charSize * charScale ) + TextWidth );
         max_line_len = std::max( max_line_len, text_len + plot_diam );
     }
 
@@ -402,21 +381,21 @@ bool GENDRILL_WRITER_BASE::genDrillMapFile( const wxString& aFullFileName, PLOT_
 }
 
 
-bool GENDRILL_WRITER_BASE::GenDrillReportFile( const wxString& aFullFileName )
+bool GENDRILL_WRITER_BASE::GenDrillReportFile( const QString& aFullFileName )
 {
     FILE_OUTPUTFORMATTER    out( aFullFileName );
 
     static const char separator[] =
         "    =============================================================\n";
 
-    wxASSERT( m_pcb );
+    Q_ASSERT( m_pcb );
 
     unsigned    totalHoleCount;
-    wxFileName  brdFilename( m_pcb->GetFileName() );
+    QFileInfo   brdFilename( m_pcb->GetFileName() );
 
     std::vector<DRILL_LAYER_PAIR> hole_sets = getUniqueLayerPairs();
 
-    out.Print( 0, "Drill report for %s\n", TO_UTF8( brdFilename.GetFullName() ) );
+    out.Print( 0, "Drill report for %s\n", TO_UTF8( brdFilename.fileName() ) );
     out.Print( 0, "Created on %s\n\n", TO_UTF8( GetISO8601CurrentDateTime() ) );
 
     // Output the cu layer stackup, so layer name references make sense.

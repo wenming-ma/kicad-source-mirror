@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2022 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef CLASS_SCH_FIELD_H
 #define CLASS_SCH_FIELD_H
@@ -33,6 +9,8 @@
 #include <general.h>
 #include <string_utils.h>
 #include "scintilla_tricks.h"
+#include <QString>
+#include <QEvent>
 
 class SCH_EDIT_FRAME;
 class SCH_TEXT;
@@ -53,10 +31,10 @@ class SCH_FIELD : public SCH_ITEM, public EDA_TEXT
 {
 public:
     SCH_FIELD( const VECTOR2I& aPos, int aFieldId, SCH_ITEM* aParent,
-               const wxString& aName = wxEmptyString );
+               const QString& aName = QString() );
 
     SCH_FIELD( SCH_ITEM* aParent, int aFieldId = INVALID_FIELD,
-               const wxString& aName = wxEmptyString );
+               const QString& aName = QString() );
 
     SCH_FIELD( SCH_TEXT* aText );
 
@@ -72,9 +50,9 @@ public:
         return aItem && SCH_FIELD_T == aItem->Type();
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "SCH_FIELD" );
+        return "SCH_FIELD";
     }
 
     bool IsType( const std::vector<KICAD_T>& aScanTypes ) const override
@@ -97,9 +75,9 @@ public:
         return false;
     }
 
-    wxString GetFriendlyName() const override
+    QString GetFriendlyName() const override
     {
-        return _( "Field" );
+        return "Field";
     }
 
     bool IsHypertext() const override;
@@ -113,24 +91,24 @@ public:
      *                        empty.  Otherwise the default field name is returned.
      * @return the name of the field.
      */
-    wxString GetName( bool aUseDefaultName = true ) const;
+    QString GetName( bool aUseDefaultName = true ) const;
 
     /**
      * Get a non-language-specific name for a field which can be used for storage, variable
      * look-up, etc.
      */
-    wxString GetCanonicalName() const;
+    QString GetCanonicalName() const;
 
-    void SetName( const wxString& aName );
+    void SetName( const QString& aName );
 
-    void SetText( const wxString& aText ) override;
+    void SetText( const QString& aText ) override;
 
     /**
      * Get the initial name of the field set at creation (or set by SetName()).
      *
      * This is the raw field name with no translation and no change.
      */
-    const wxString& GetInternalName() { return m_name; }
+    const QString& GetInternalName() { return m_name; }
 
     int GetId() const { return m_id; }
 
@@ -143,11 +121,11 @@ public:
      * This is either the same as GetName() or if the field has a variable for name, the
      * variable name with the ${} stripped.
      */
-    wxString GetShownName() const;
-    wxString GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
+    QString GetShownName() const;
+    QString GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
                            int aDepth = 0 ) const;
 
-    wxString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override;
+    QString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override;
 
     /**
      * Return the text of a field.
@@ -158,7 +136,7 @@ public:
      * @param unit - The package unit number.  Only effects reference field.
      * @return Field text.
      */
-    wxString GetFullText( int unit = 1 ) const;
+    QString GetFullText( int unit = 1 ) const;
 
     /**
      * Return true if both the name and value of the field are empty.
@@ -167,10 +145,10 @@ public:
      */
     bool IsEmpty()
     {
-        wxString name( m_name );
-        wxString value( GetText() );
+        QString name( m_name );
+        QString value( GetText() );
 
-        return name.Trim().empty() && value.Trim().empty();
+        return name.trimmed().isEmpty() && value.trimmed().isEmpty();
     }
 
     int GetSchTextSize() const { return GetTextWidth(); }
@@ -240,7 +218,7 @@ public:
     void ClearRenderCache() override;
 
     std::vector<std::unique_ptr<KIFONT::GLYPH>>*
-    GetRenderCache( const wxString& forResolvedText, const VECTOR2I& forPosition,
+    GetRenderCache( const QString& forResolvedText, const VECTOR2I& forPosition,
                     TEXT_ATTRIBUTES& aAttrs ) const;
 
     void Move( const VECTOR2I& aMoveVector ) override
@@ -257,13 +235,13 @@ public:
     void CalcEdit( const VECTOR2I& aPosition ) override;
 
     void OnScintillaCharAdded( SCINTILLA_TRICKS* aScintillaTricks,
-                               wxStyledTextEvent &aEvent ) const;
+                               QEvent &aEvent ) const;
 
     bool Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const override;
 
     bool Replace( const EDA_SEARCH_DATA& aSearchData, void* aAuxData = nullptr ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
     BITMAPS GetMenuImage() const override;
@@ -350,7 +328,7 @@ protected:
 private:
     int      m_id;         ///< Field index, @see enum MANDATORY_FIELD_T
 
-    wxString m_name;
+    QString m_name;
 
     bool     m_showName;         ///< Render the field name in addition to its value
     bool     m_allowAutoPlace;   ///< This field can be autoplaced

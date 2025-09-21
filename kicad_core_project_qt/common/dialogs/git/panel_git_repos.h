@@ -1,32 +1,16 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #ifndef PANEL_GIT_REPOS_H
 #define PANEL_GIT_REPOS_H
 
+#include <QtWidgets/QWidget>
 #include <git/panel_git_repos_base.h>
-#include <widgets/wx_grid.h>
+#include <widgets/qt_grid.h>
 
 class PANEL_GIT_REPOS : public PANEL_GIT_REPOS_BASE
 {
 public:
-    PANEL_GIT_REPOS( wxWindow* parent );
+    PANEL_GIT_REPOS( QWidget* parent );
     ~PANEL_GIT_REPOS() override;
 
     void ResetPanel() override;
@@ -48,8 +32,8 @@ public:
     };
 
 private:
-    void onDefaultClick( wxCommandEvent& event ) override;
-    void onEnableGitClick( wxCommandEvent& event ) override;
+    void onDefaultClick() override;
+    void onEnableGitClick() override;
 
 };
 

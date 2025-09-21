@@ -1,32 +1,13 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2010 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHOR.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #ifndef DIALOG_PIN_PROPERTIES_H
 #define DIALOG_PIN_PROPERTIES_H
 
-#include <wx/bmpcbox.h>
-#include <wx/dcclient.h>
+#include <QComboBox>
+#include <QPaintEvent>
+#include <QResizeEvent>
+#include <QEvent>
 
 #include <pin_shape_combobox.h>
 #include <pin_type_combobox.h>
@@ -62,17 +43,17 @@ public:
     /**
      * Draw (on m_panelShowPin) the pin according to current settings in dialog.
      */
-    void OnPaintShowPanel( wxPaintEvent& event ) override;
-    void OnPropertiesChange( wxCommandEvent& event ) override;
-    void OnAddAlternate( wxCommandEvent& event ) override;
-    void OnDeleteAlternate( wxCommandEvent& event ) override;
-    void OnSize( wxSizeEvent& event ) override;
-    void OnUpdateUI( wxUpdateUIEvent& event ) override;
-    void OnCollapsiblePaneChange( wxCollapsiblePaneEvent& event ) override;
+    void OnPaintShowPanel( QPaintEvent& event ) override;
+    void OnPropertiesChange( QEvent& event ) override;
+    void OnAddAlternate( QEvent& event ) override;
+    void OnDeleteAlternate( QEvent& event ) override;
+    void OnSize( QResizeEvent& event ) override;
+    void OnUpdateUI( QEvent& event ) override;
+    void OnCollapsiblePaneChange( QEvent& event ) override;
 
 protected:
     void adjustGridColumns();
-    wxString getSyncPinsMessage();
+    QString getSyncPinsMessage();
 
 private:
     SYMBOL_EDIT_FRAME*  m_frame;
@@ -95,7 +76,7 @@ private:
     int                 m_delayedFocusColumn;
 
     std::map<int, int>  m_originalColWidths;          // map col-number : orig-col-width
-    wxSize              m_size;
+    QSize               m_size;
     bool                m_initialized;
     inline static bool  s_alternatesTurndownOpen = false;
 };

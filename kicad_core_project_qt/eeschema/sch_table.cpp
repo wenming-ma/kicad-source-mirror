@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+// Qt transformation completed - wxWidgets to Qt framework migration
 #include <pgm_base.h>
 #include <sch_edit_frame.h>
 #include <plotters/plotter.h>
@@ -31,7 +10,6 @@
 #include <schematic.h>
 #include <settings/color_settings.h>
 #include <sch_painter.h>
-#include <wx/log.h>
 #include <sch_table.h>
 
 
@@ -80,8 +58,7 @@ void SCH_TABLE::SwapData( SCH_ITEM* aItem )
 {
     SCH_ITEM::SwapFlags( aItem );
 
-    wxCHECK_RET( aItem != nullptr && aItem->Type() == SCH_TABLE_T,
-                 wxT( "Cannot swap data with invalid table." ) );
+    Q_ASSERT( aItem != nullptr && aItem->Type() == SCH_TABLE_T );
 
     SCH_TABLE* table = static_cast<SCH_TABLE*>( aItem );
 
@@ -266,7 +243,7 @@ void SCH_TABLE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
     for( SCH_TABLECELL* cell : m_cells )
         cell->Print( aSettings, aUnit, aBodyStyle, aOffset, aForceNoFill, aDimmed );
 
-    wxDC*      DC = aSettings->GetPrintDC();
+    QPainter*  painter = aSettings->GetPainter();
     VECTOR2I   pos = GetPosition();
     VECTOR2I   end = GetEnd();
     int        lineWidth;
@@ -296,7 +273,7 @@ void SCH_TABLE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
                 STROKE_PARAMS::Stroke( &shape, lineStyle, lineWidth, aSettings,
                         [&]( const VECTOR2I& a, const VECTOR2I& b )
                         {
-                            GRLine( DC, a.x, a.y, b.x, b.y, lineWidth, color );
+                            GRLine( painter, a.x, a.y, b.x, b.y, lineWidth, color );
                         } );
             };
 
@@ -305,7 +282,7 @@ void SCH_TABLE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
             {
                 if( lineStyle <= LINE_STYLE::FIRST_TYPE )
                 {
-                    GRLine( DC, ptA.x, ptA.y, ptB.x, ptB.y, lineWidth, color );
+                    GRLine( painter, ptA.x, ptA.y, ptB.x, ptB.y, lineWidth, color );
                 }
                 else
                 {
@@ -319,7 +296,7 @@ void SCH_TABLE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
             {
                 if( lineStyle <= LINE_STYLE::FIRST_TYPE )
                 {
-                    GRRect( DC, ptA, ptB, lineWidth, color );
+                    GRRect( painter, ptA, ptB, lineWidth, color );
                 }
                 else
                 {
@@ -419,9 +396,9 @@ INSPECT_RESULT SCH_TABLE::Visit( INSPECTOR aInspector, void* aTestData,
 }
 
 
-wxString SCH_TABLE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_TABLE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "%d Column Table" ), m_colCount );
+    return QString::asprintf( _( "%d Column Table" ), m_colCount );
 }
 
 
@@ -579,7 +556,7 @@ void SCH_TABLE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
 void SCH_TABLE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     // Don't use GetShownText() here; we want to show the user the variable references
-    aList.emplace_back( _( "Table" ), wxString::Format( _( "%d Columns" ), m_colCount ) );
+    aList.emplace_back( _( "Table" ), QString::asprintf( _( "%d Columns" ), m_colCount ) );
 }
 
 
@@ -664,7 +641,7 @@ static struct SCH_TABLE_DESC
                     &SCH_TABLE::SetPositionY, &SCH_TABLE::GetPositionY, PROPERTY_DISPLAY::PT_COORD,
                     ORIGIN_TRANSFORMS::ABS_Y_COORD ) );
 
-        const wxString tableProps = _( "Table Properties" );
+        const QString tableProps = _( "Table Properties" );
 
         propMgr.AddProperty( new PROPERTY<SCH_TABLE, bool>( _HKI( "External Border" ),
                     &SCH_TABLE::SetStrokeExternal, &SCH_TABLE::StrokeExternal ),

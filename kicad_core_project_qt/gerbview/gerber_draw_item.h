@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2016 <Jean-Pierre Charras>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef GERBER_DRAW_ITEM_H
 #define GERBER_DRAW_ITEM_H
@@ -152,7 +129,7 @@ public:
 
     const BOX2I GetBoundingBox() const override;
 
-    void Print( wxDC* aDC, const VECTOR2I& aOffset, GBR_DISPLAY_OPTIONS* aOptions );
+    void Print( QPainter* aPainter, const VECTOR2I& aOffset, GBR_DISPLAY_OPTIONS* aOptions );
 
     /**
      * Convert a line to an equivalent polygon.
@@ -168,29 +145,29 @@ public:
     /**
      * Print the polygon stored in m_PolyCorners.
      */
-    void PrintGerberPoly( wxDC* aDC, const COLOR4D& aColor, const VECTOR2I& aOffset,
+    void PrintGerberPoly( QPainter* aPainter, const COLOR4D& aColor, const VECTOR2I& aOffset,
                           bool aFilledShape );
 
     GBR_BASIC_SHAPE_TYPE ShapeType() const { return m_ShapeType; }
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
-    wxString ShowGBRShape() const;
+    QString ShowGBRShape() const;
 
     /**
-     * Test if the given wxPoint is within the bounds of this object.
+     * Test if the given point is within the bounds of this object.
      *
-     * @param aRefPos a wxPoint to test
+     * @param aRefPos a point to test
      * @return bool - true if a hit, else false
      */
     bool HitTest( const VECTOR2I& aRefPos, int aAccuracy = 0 ) const override;
 
     /**
-     * Test if the given wxRect intersect this object.
+     * Test if the given rectangle intersect this object.
      *
      * For now, an ending point must be inside this rect.
      *
-     * @param aRefArea a wxPoint to test
+     * @param aRefArea a rectangle to test
      * @return true if a hit, else false
      */
     bool HitTest( const BOX2I& aRefArea, bool aContained, int aAccuracy = 0 ) const override;
@@ -198,9 +175,9 @@ public:
     /**
      * @return the class name string.
      */
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "GERBER_DRAW_ITEM" );
+        return "GERBER_DRAW_ITEM";
     }
 
 #if defined(DEBUG)
@@ -221,7 +198,7 @@ public:
                           const std::vector<KICAD_T>& aScanTypes ) override;
 
     ///< @copydoc EDA_ITEM::GetItemDescription()
-    virtual wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    virtual QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     ///< @copydoc EDA_ITEM::GetMenuImage()
     BITMAPS GetMenuImage() const override;
@@ -244,7 +221,7 @@ public:
                                             // values 0 to 9 can be used for special purposes
                                             // Regions (polygons) do not use DCode,
                                             // so it is set to 0
-    wxString           m_AperFunction;      // the aperture function set by a %TA.AperFunction, xxx
+    QString            m_AperFunction;      // the aperture function set by a %TA.AperFunction, xxx
                                             // (stores the xxx value). Used for regions that do
                                             // not have a attached DCode, but
                                             // have a TA.AperFunction defined

@@ -19,7 +19,7 @@
 
 #include "gerbview_draw_panel_gal.h"
 #include <view/view.h>
-#include <view/wx_view_controls.h>
+#include <view/qt_view_controls.h>
 #include <gerbview_painter.h>
 #include <drawing_sheet/ds_proxy_view_item.h>
 #include <zoom_defines.h>
@@ -38,8 +38,8 @@
 using namespace std::placeholders;
 
 
-GERBVIEW_DRAW_PANEL_GAL::GERBVIEW_DRAW_PANEL_GAL( wxWindow* aParentWindow, wxWindowID aWindowId,
-                                                  const wxPoint& aPosition, const wxSize& aSize,
+GERBVIEW_DRAW_PANEL_GAL::GERBVIEW_DRAW_PANEL_GAL( QWidget* aParentWindow, int aWindowId,
+                                                  const QPoint& aPosition, const QSize& aSize,
                                                   KIGFX::GAL_DISPLAY_OPTIONS& aOptions,
                                                   GAL_TYPE aGalType ) :
 EDA_DRAW_PANEL_GAL( aParentWindow, aWindowId, aPosition, aSize, aOptions, aGalType )
@@ -54,7 +54,7 @@ EDA_DRAW_PANEL_GAL( aParentWindow, aWindowId, aPosition, aSize, aOptions, aGalTy
     // This fixes the zoom in and zoom out limits:
     m_view->SetScaleLimits( ZOOM_MAX_LIMIT_GERBVIEW, ZOOM_MIN_LIMIT_GERBVIEW );
 
-    m_viewControls = new KIGFX::WX_VIEW_CONTROLS( m_view, this );
+    m_viewControls = new KIGFX::QT_VIEW_CONTROLS( m_view, this );
 
     setDefaultLayerDeps();
 
@@ -65,7 +65,7 @@ EDA_DRAW_PANEL_GAL( aParentWindow, aWindowId, aPosition, aSize, aOptions, aGalTy
     else
         color_settings = Pgm().GetSettingsManager().GetColorSettings();
 
-    wxASSERT( color_settings );
+    Q_ASSERT( color_settings );
     auto renderSettings = static_cast<KIGFX::GERBVIEW_RENDER_SETTINGS*>( m_painter->GetSettings() );
     renderSettings->LoadColors( color_settings );
 }

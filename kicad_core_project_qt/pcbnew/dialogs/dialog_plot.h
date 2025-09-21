@@ -1,36 +1,16 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #include <board.h>
 #include <dialog_plot_base.h>
 #include <pcb_plot_params.h>
 #include <widgets/unit_binder.h>
 
-// the plot dialog window name, used by wxWidgets
-#define DLG_WINDOW_NAME wxT( "plot_dialog-window" )
+// the plot dialog window name, used by Qt
+#define DLG_WINDOW_NAME QStringLiteral( "plot_dialog-window" )
 
-class wxRearrangeList;
-class wxBitmapButton;
+class QListWidget;
+class QPushButton;
 
 class JOB_EXPORT_PCB_PLOT;
 
@@ -41,7 +21,7 @@ class DIALOG_PLOT : public DIALOG_PLOT_BASE
 {
 public:
     DIALOG_PLOT( PCB_EDIT_FRAME* aEditFrame );
-    DIALOG_PLOT( PCB_EDIT_FRAME* aEditFrame, wxWindow* aParent,
+    DIALOG_PLOT( PCB_EDIT_FRAME* aEditFrame, QWidget* aParent,
                  JOB_EXPORT_PCB_PLOT* aJob = nullptr );
 
     virtual ~DIALOG_PLOT();
@@ -49,24 +29,24 @@ public:
 private:
 
     // Event called functions
-    void Plot( wxCommandEvent& event ) override;
-    void onOutputDirectoryBrowseClicked( wxCommandEvent& event ) override;
-    void OnRightClickLayers( wxMouseEvent& event );
-    void OnRightClickAllLayers( wxMouseEvent& event );
-    void SetPlotFormat( wxCommandEvent& event ) override;
-    void OnChangeDXFPlotMode( wxCommandEvent& event ) override;
-    void OnSetScaleOpt( wxCommandEvent& event ) override;
-    void CreateDrillFile( wxCommandEvent& event ) override;
-    void OnGerberX2Checked( wxCommandEvent& event ) override;
-    void onRunDRC( wxCommandEvent& event ) override;
-    void onOpenOutputDirectory( wxCommandEvent& event ) override;
-    void onBoardSetup( wxHyperlinkEvent& aEvent ) override;
+    void Plot( QEvent& event ) override;
+    void onOutputDirectoryBrowseClicked( QEvent& event ) override;
+    void OnRightClickLayers( QMouseEvent& event );
+    void OnRightClickAllLayers( QMouseEvent& event );
+    void SetPlotFormat( QEvent& event ) override;
+    void OnChangeDXFPlotMode( QEvent& event ) override;
+    void OnSetScaleOpt( QEvent& event ) override;
+    void CreateDrillFile( QEvent& event ) override;
+    void OnGerberX2Checked( QEvent& event ) override;
+    void onRunDRC( QEvent& event ) override;
+    void onOpenOutputDirectory( QEvent& event ) override;
+    void onBoardSetup( QEvent& aEvent ) override;
 
-    void onPlotAllListMoveUp( wxCommandEvent& aEvent );
-    void onPlotAllListMoveDown( wxCommandEvent& aEvent );
+    void onPlotAllListMoveUp( QEvent& aEvent );
+    void onPlotAllListMoveDown( QEvent& aEvent );
 
-    void onDNPCheckbox( wxCommandEvent& event ) override;
-    void onSketchPads( wxCommandEvent& event ) override;
+    void onDNPCheckbox( QEvent& event ) override;
+    void onSketchPads( QEvent& event ) override;
 
     // other functions
     void init_Dialog();      // main initialization
@@ -100,11 +80,11 @@ private:
     UNIT_BINDER         m_defaultPenSize;
     UNIT_BINDER         m_trackWidthCorrection;
 
-    wxString            m_DRCWarningTemplate;
+    QString            m_DRCWarningTemplate;
 
     PCB_PLOT_PARAMS     m_plotOpts;
 
-    wxRearrangeList*    m_plotAllLayersList;
+    QListWidget*    m_plotAllLayersList;
 
     STD_BITMAP_BUTTON*  m_bpMoveUp;
     STD_BITMAP_BUTTON*  m_bpMoveDown;

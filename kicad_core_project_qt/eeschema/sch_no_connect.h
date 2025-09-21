@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2009 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 /**
  * @file sch_no_connect.h
@@ -29,6 +6,7 @@
 #ifndef _SCH_NO_CONNECT_H_
 #define _SCH_NO_CONNECT_H_
 
+#include <QString>
 
 #include <sch_item.h>
 
@@ -49,9 +27,9 @@ public:
         return aItem && SCH_NO_CONNECT_T == aItem->Type();
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "SCH_NO_CONNECT" );
+        return QStringLiteral( "SCH_NO_CONNECT" );
     }
 
     int GetSize() const
@@ -93,9 +71,9 @@ public:
 
     std::vector<VECTOR2I> GetConnectionPoints() const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
     {
-        return wxString( _( "No Connect" ) );
+        return QString( _( "No Connect" ) );
     }
 
     BITMAPS GetMenuImage() const override;

@@ -1,22 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <kiface_base.h>
 #include <base_units.h>
@@ -51,7 +32,12 @@
 #include <view/view_controls.h>
 #include <base_screen.h>
 #include <gerbview_painter.h>
-#include <wx/wupdlock.h>
+// Qt Transformation Completed - File converted from wxWidgets to Qt framework
+#include <QtWidgets/QWidget>
+#include <QtGui/QIcon>
+#include <QtCore/QFileInfo>
+#include <QtCore/QString>
+#include <QtCore/QTimer>
 
 #include "widgets/gbr_layer_box_selector.h"
 #include "widgets/gerbview_layer_widget.h"
@@ -59,19 +45,18 @@
 #include <dialog_draw_layers_settings.h>
 
 #include <navlib/nl_gerbview_plugin.h>
-#include <wx/log.h>
 
-GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
-        EDA_DRAW_FRAME( aKiway, aParent, FRAME_GERBER, wxT( "GerbView" ), wxDefaultPosition,
-                        wxDefaultSize, KICAD_DEFAULT_DRAWFRAME_STYLE, GERBVIEW_FRAME_NAME,
+GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, QWidget* aParent ) :
+        EDA_DRAW_FRAME( aKiway, aParent, FRAME_GERBER, "GerbView", QPoint(),
+                        QSize(), KICAD_DEFAULT_DRAWFRAME_STYLE, GERBVIEW_FRAME_NAME,
                         gerbIUScale ),
         m_TextInfo( nullptr ),
         m_zipFileHistory( DEFAULT_FILE_HISTORY_SIZE, ID_GERBVIEW_ZIP_FILE1,
-                          ID_GERBVIEW_ZIP_FILE_LIST_CLEAR, _( "Clear Recent Zip Files" ) ),
+                          ID_GERBVIEW_ZIP_FILE_LIST_CLEAR, "Clear Recent Zip Files" ),
         m_drillFileHistory( DEFAULT_FILE_HISTORY_SIZE, ID_GERBVIEW_DRILL_FILE1,
-                            ID_GERBVIEW_DRILL_FILE_LIST_CLEAR, _( "Clear Recent Drill Files" ) ),
+                            ID_GERBVIEW_DRILL_FILE_LIST_CLEAR, "Clear Recent Drill Files" ),
         m_jobFileHistory( DEFAULT_FILE_HISTORY_SIZE, ID_GERBVIEW_JOB_FILE1,
-                          ID_GERBVIEW_JOB_FILE_LIST_CLEAR, _( "Clear Recent Job Files" ) ),
+                          ID_GERBVIEW_JOB_FILE_LIST_CLEAR, "Clear Recent Job Files" ),
         m_activeLayer( 0 )
 {
     m_maximizeByDefault = true;
@@ -87,7 +72,7 @@ GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_netText = nullptr;
     m_apertText = nullptr;
     m_dcodeText = nullptr;
-    m_aboutTitle = _HKI( "KiCad Gerber Viewer" );
+    m_aboutTitle = "KiCad Gerber Viewer";
 
     SHAPE_POLY_SET dummy;   // A ugly trick to force the linker to include
                             // some methods in code and avoid link errors
@@ -97,7 +82,7 @@ GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_zipFileHistory.SetMaxFiles( fileHistorySize );
     m_jobFileHistory.SetMaxFiles( fileHistorySize );
 
-    auto* galCanvas = new GERBVIEW_DRAW_PANEL_GAL( this, -1, wxPoint( 0, 0 ), m_frameSize,
+    auto* galCanvas = new GERBVIEW_DRAW_PANEL_GAL( this, -1, QPoint( 0, 0 ), m_frameSize,
                                                    GetGalDisplayOptions(),
                                                    EDA_DRAW_PANEL_GAL::GAL_TYPE_NONE );
 
@@ -107,24 +92,17 @@ GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     galCanvas->GetView()->UseDrawPriority( true );
 
     // Give an icon
-    wxIcon icon;
-    wxIconBundle icon_bundle;
+    QIcon icon;
+    icon.addPixmap( KiBitmap( BITMAPS::icon_gerbview, 48 ) );
+    icon.addPixmap( KiBitmap( BITMAPS::icon_gerbview, 128 ) );
+    icon.addPixmap( KiBitmap( BITMAPS::icon_gerbview, 256 ) );
+    icon.addPixmap( KiBitmap( BITMAPS::icon_gerbview_32 ) );
+    icon.addPixmap( KiBitmap( BITMAPS::icon_gerbview_16 ) );
 
-    icon.CopyFromBitmap( KiBitmap( BITMAPS::icon_gerbview, 48 ) );
-    icon_bundle.AddIcon( icon );
-    icon.CopyFromBitmap( KiBitmap( BITMAPS::icon_gerbview, 128 ) );
-    icon_bundle.AddIcon( icon );
-    icon.CopyFromBitmap( KiBitmap( BITMAPS::icon_gerbview, 256 ) );
-    icon_bundle.AddIcon( icon );
-    icon.CopyFromBitmap( KiBitmap( BITMAPS::icon_gerbview_32 ) );
-    icon_bundle.AddIcon( icon );
-    icon.CopyFromBitmap( KiBitmap( BITMAPS::icon_gerbview_16 ) );
-    icon_bundle.AddIcon( icon );
-
-    SetIcons( icon_bundle );
+    setWindowIcon( icon );
 
     // Be sure a page info is set. this default value will be overwritten later.
-    PAGE_INFO pageInfo( wxT( "GERBER" ) );
+    PAGE_INFO pageInfo( "GERBER" );
     SetLayout( new GBR_LAYOUT() );
     SetPageSettings( pageInfo );
 
@@ -136,7 +114,7 @@ GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_LayersManager = new GERBER_LAYER_WIDGET( this, GetCanvas() );
 
     // Update the minimum string length in the layer panel with the length of the last default layer
-    wxString lyrName = GetImagesList()->GetDisplayName( GetImagesList()->ImagesMaxCount(),
+    QString lyrName = GetImagesList()->GetDisplayName( GetImagesList()->ImagesMaxCount(),
                                                         false, true );
     m_LayersManager->SetSmallestLayerString( lyrName );
 
@@ -161,8 +139,8 @@ GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_auimgr.AddPane( m_optionsToolBar, EDA_PANE().VToolbar().Name( "OptToolbar" ).Left()
                       .Layer( 3 ) );
     m_auimgr.AddPane( m_LayersManager, EDA_PANE().Palette().Name( "LayersManager" ).Right()
-                      .Layer( 3 ).Caption( _( "Layers Manager" ) ).PaneBorder( false )
-                      .MinSize( 80, -1 ).BestSize( m_LayersManager->GetBestSize() ) );
+                      .Layer( 3 ).Caption( "Layers Manager" ).PaneBorder( false )
+                      .MinSize( 80, -1 ).BestSize( m_LayersManager->sizeHint() ) );
 
     m_auimgr.AddPane( GetCanvas(), EDA_PANE().Canvas().Name( "DrawFrame" ).Center() );
 
@@ -200,7 +178,7 @@ GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
 
     // Register a call to update the toolbar sizes. It can't be done immediately because
     // it seems to require some sizes calculated that aren't yet (at least on GTK).
-    CallAfter( [this]()
+    QTimer::singleShot(0, this, [this]()
                {
                    // Ensure the controls on the toolbars all are correctly sized
                     UpdateToolbarControlSizes();
@@ -240,7 +218,7 @@ void GERBVIEW_FRAME::doCloseWindow()
 }
 
 
-bool GERBVIEW_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, int aCtl )
+bool GERBVIEW_FRAME::OpenProjectFiles( const std::vector<QString>& aFileSet, int aCtl )
 {
     // Ensure the frame is shown when opening the file(s), to avoid issues (crash) on GAL
     // when trying to change the view if it is not fully initialized.
@@ -252,16 +230,16 @@ bool GERBVIEW_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
     // rather than a file name was passed to GerbView and use it as the initial MRU path.
     if( aFileSet.size() > 0 )
     {
-        wxString path = aFileSet[0];
+        QString path = aFileSet[0];
 
-        // For some reason wxApp appears to leave the trailing double quote on quoted
+        // For some reason QApplication appears to leave the trailing double quote on quoted
         // parameters which are required for paths with spaces.  Maybe this should be
         // pushed back into PGM_SINGLE_TOP::OnPgmInit() but that may cause other issues.
         // We can't buy a break!
-        if( path.Last() ==  wxChar( '\"' ) )
-            path.RemoveLast();
+        if( path.right(1) == "\"" )
+            path.chop(1);
 
-        if( !wxFileExists( path ) && wxDirExists( path ) )
+        if( !QFileInfo::exists( path ) && QFileInfo( path ).isDir() )
         {
             m_mruPath = path;
             return true;
@@ -272,7 +250,7 @@ bool GERBVIEW_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 
         for( unsigned i = 0; i < limit; ++i )
         {
-            wxString ext = wxFileName( aFileSet[i] ).GetExt().Lower();
+            QString ext = QFileInfo( aFileSet[i] ).suffix().toLower();
 
             if( ext == FILEEXT::ArchiveFileExtension )
                 LoadZipArchiveFile( aFileSet[i] );
@@ -281,7 +259,7 @@ bool GERBVIEW_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
             else
             {
                 GERBER_ORDER_ENUM fnameLayer;
-                wxString          fnameExtensionMatched;
+                QString          fnameExtensionMatched;
 
                 GERBER_FILE_IMAGE_LIST::GetGerberLayerFromFilename( aFileSet[i], fnameLayer,
                                                                     fnameExtensionMatched );
@@ -318,12 +296,12 @@ void GERBVIEW_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
     EDA_DRAW_FRAME::LoadSettings( aCfg );
 
     GERBVIEW_SETTINGS* cfg = dynamic_cast<GERBVIEW_SETTINGS*>( aCfg );
-    wxCHECK( cfg, /*void*/ );
+    Q_ASSERT( cfg );
 
     SetElementVisibility( LAYER_GERBVIEW_DRAWINGSHEET, cfg->m_Appearance.show_border_and_titleblock );
     SetElementVisibility( LAYER_GERBVIEW_PAGE_LIMITS, cfg->m_Display.m_DisplayPageLimits );
 
-    PAGE_INFO pageInfo( wxT( "GERBER" ) );
+    PAGE_INFO pageInfo( "GERBER" );
     pageInfo.SetType( cfg->m_Appearance.page_type );
     SetPageSettings( pageInfo );
 
@@ -341,7 +319,7 @@ void GERBVIEW_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
     EDA_DRAW_FRAME::SaveSettings( aCfg );
 
     GERBVIEW_SETTINGS* cfg = dynamic_cast<GERBVIEW_SETTINGS*>( aCfg );
-    wxCHECK( cfg, /*void*/ );
+    Q_ASSERT( cfg );
 
     cfg->m_Appearance.page_type = GetPageSettings().GetType();
 
@@ -358,22 +336,22 @@ COLOR_SETTINGS* GERBVIEW_FRAME::GetColorSettings( bool aForceRefresh ) const
 {
     SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
     GERBVIEW_SETTINGS* cfg = mgr.GetAppSettings<GERBVIEW_SETTINGS>( "gerbview" );
-    wxString currentTheme = cfg->m_ColorTheme;
+    QString currentTheme = cfg->m_ColorTheme;
     return mgr.GetColorSettings( currentTheme );
 }
 
 
 void GERBVIEW_FRAME::ReFillLayerWidget()
 {
-    wxWindowUpdateLocker no_update( m_LayersManager );
+    m_LayersManager->setUpdatesEnabled( false );
 
     m_LayersManager->ReFill();
     m_SelLayerBox->Resync();
     ReCreateAuxiliaryToolbar();
 
-    wxAuiPaneInfo&  lyrs = m_auimgr.GetPane( m_LayersManager );
-    wxSize          bestz = m_LayersManager->GetBestSize();
-    bestz.x += 5;   // gives a little margin
+    QAuiPaneInfo&  lyrs = m_auimgr.GetPane( m_LayersManager );
+    QSize          bestz = m_LayersManager->sizeHint();
+    bestz.setWidth( bestz.width() + 5 );   // gives a little margin
 
     lyrs.MinSize( bestz );
     lyrs.BestSize( bestz );
@@ -382,7 +360,9 @@ void GERBVIEW_FRAME::ReFillLayerWidget()
     if( lyrs.IsDocked() )
         m_auimgr.Update();
     else
-        m_LayersManager->SetSize( bestz );
+        m_LayersManager->resize( bestz );
+
+    m_LayersManager->setUpdatesEnabled( true );
 
     syncLayerWidget();
 }
@@ -442,8 +422,8 @@ void GERBVIEW_FRAME::SetElementVisibility( int aLayerID, bool aNewState )
         break;
 
     default:
-        wxFAIL_MSG( wxString::Format( wxT( "GERBVIEW_FRAME::SetElementVisibility(): bad arg %d" ),
-                                      aLayerID ) );
+        Q_ASSERT_X( false, "GERBVIEW_FRAME::SetElementVisibility",
+                   QString::asprintf( "bad arg %d", aLayerID ).toStdString().c_str() );
     }
 
     ApplyDisplaySettingsToGAL();
@@ -588,7 +568,7 @@ void GERBVIEW_FRAME::SetLayerDrawPrms()
 
     DIALOG_DRAW_LAYERS_SETTINGS dlg( this );
 
-    if( dlg.ShowModal() != wxID_OK )
+    if( dlg.exec() != QDialog::Accepted )
         return;
 
     KIGFX::VIEW* view = GetCanvas()->GetView();
@@ -649,11 +629,11 @@ void GERBVIEW_FRAME::UpdateTitleAndInfo()
     // Display the gerber filename
     if( gerber == nullptr )
     {
-        SetTitle( _("Gerber Viewer") );
+        setWindowTitle( "Gerber Viewer" );
 
-        SetStatusText( wxEmptyString, 0 );
+        SetStatusText( QString(), 0 );
 
-        wxString info = _( "Drawing layer not in use" );
+        QString info = "Drawing layer not in use";
         m_TextInfo->SetValue( info );
 
         if( KIUI::EnsureTextCtrlWidth( m_TextInfo, &info ) ) // Resized
@@ -664,38 +644,38 @@ void GERBVIEW_FRAME::UpdateTitleAndInfo()
     }
     else
     {
-        wxString   title;
-        wxFileName filename( gerber->m_FileName );
+        QString   title;
+        QFileInfo filename( gerber->m_FileName );
 
-        title = filename.GetFullName();
+        title = filename.fileName();
 
         if( gerber->m_IsX2_file )
-            title += wxS( " " ) + _( "(with X2 attributes)" );
+            title += " " + QString( "(with X2 attributes)" );
 
-        title += wxT( " \u2014 " ) + _( "Gerber Viewer" );
-        SetTitle( title );
+        title += " \u2014 " + QString( "Gerber Viewer" );
+        setWindowTitle( title );
 
         gerber->DisplayImageInfo( this );
 
         // Display Image Name and Layer Name (from the current gerber data):
-        wxString status;
-        status.Printf( _( "Image name: \"%s\"  Layer name: \"%s\"" ),
-                       gerber->m_ImageName,
-                       gerber->GetLayerParams().m_LayerName );
+        QString status;
+        status = QString::asprintf( "Image name: \"%s\"  Layer name: \"%s\"",
+                                   gerber->m_ImageName.toStdString().c_str(),
+                                   gerber->GetLayerParams().m_LayerName.toStdString().c_str() );
         SetStatusText( status, 0 );
 
         // Display data format like fmt in X3.4Y3.4 no LZ or fmt mm X2.3 Y3.5 no TZ in main toolbar
-        wxString info;
-        info.Printf( wxT( "fmt: %s X%d.%d Y%d.%d no %cZ" ),
-                     gerber->m_GerbMetric ? wxT( "mm" ) : wxT( "in" ),
-                     gerber->m_FmtLen.x - gerber->m_FmtScale.x,
-                     gerber->m_FmtScale.x,
-                     gerber->m_FmtLen.y - gerber->m_FmtScale.y,
-                     gerber->m_FmtScale.y,
-                     gerber->m_NoTrailingZeros ? 'T' : 'L' );
+        QString info;
+        info = QString::asprintf( "fmt: %s X%d.%d Y%d.%d no %cZ",
+                                 gerber->m_GerbMetric ? "mm" : "in",
+                                 gerber->m_FmtLen.x - gerber->m_FmtScale.x,
+                                 gerber->m_FmtScale.x,
+                                 gerber->m_FmtLen.y - gerber->m_FmtScale.y,
+                                 gerber->m_FmtScale.y,
+                                 gerber->m_NoTrailingZeros ? 'T' : 'L' );
 
         if( gerber->m_IsX2_file )
-            info << wxT(" ") << _( "X2 attr" );
+            info += " " + QString( "X2 attr" );
 
         m_TextInfo->SetValue( info );
 
@@ -717,8 +697,8 @@ bool GERBVIEW_FRAME::IsElementVisible( int aLayerID ) const
     case LAYER_GERBVIEW_BACKGROUND:   return true;
 
     default:
-        wxFAIL_MSG( wxString::Format( wxT( "GERBVIEW_FRAME::IsElementVisible(): bad arg %d" ),
-                                      aLayerID ) );
+        Q_ASSERT_X( false, "GERBVIEW_FRAME::IsElementVisible",
+                   QString::asprintf( "bad arg %d", aLayerID ).toStdString().c_str() );
     }
 
     return true;
@@ -781,8 +761,8 @@ COLOR4D GERBVIEW_FRAME::GetVisibleElementColor( int aLayerID )
         break;
 
     default:
-        wxFAIL_MSG( wxString::Format( wxT( "GERBVIEW_FRAME::GetVisibleElementColor(): bad arg %d" ),
-                                      aLayerID ) );
+        Q_ASSERT_X( false, "GERBVIEW_FRAME::GetVisibleElementColor",
+                   QString::asprintf( "bad arg %d", aLayerID ).toStdString().c_str() );
     }
 
     return color;
@@ -903,14 +883,14 @@ const VECTOR2I GERBVIEW_FRAME::GetPageSizeIU() const
 
 const TITLE_BLOCK& GERBVIEW_FRAME::GetTitleBlock() const
 {
-    wxASSERT( m_gerberLayout );
+    Q_ASSERT( m_gerberLayout );
     return m_gerberLayout->GetTitleBlock();
 }
 
 
 void GERBVIEW_FRAME::SetTitleBlock( const TITLE_BLOCK& aTitleBlock )
 {
-    wxASSERT( m_gerberLayout );
+    Q_ASSERT( m_gerberLayout );
     m_gerberLayout->SetTitleBlock( aTitleBlock );
 }
 
@@ -932,11 +912,11 @@ void GERBVIEW_FRAME::SetGridColor( const COLOR4D& aColor )
 void GERBVIEW_FRAME::DisplayGridMsg()
 {
     VECTOR2D gridSize = GetCanvas()->GetGAL()->GetGridSize();
-    wxString line;
+    QString line;
 
-    line.Printf( wxT( "grid X %s  Y %s" ),
-                 MessageTextFromValue( gridSize.x, false ),
-                 MessageTextFromValue( gridSize.y, false ) );
+    line = QString::asprintf( "grid X %s  Y %s",
+                             MessageTextFromValue( gridSize.x, false ).toStdString().c_str(),
+                             MessageTextFromValue( gridSize.y, false ).toStdString().c_str() );
 
     SetStatusText( line, 4 );
     SetStatusText( line, 4 );
@@ -950,7 +930,7 @@ void GERBVIEW_FRAME::UpdateStatusBar()
     if( !GetScreen() )
         return;
 
-    wxString line;
+    QString line;
     VECTOR2D cursorPos = GetCanvas()->GetViewControls()->GetCursorPosition();
 
     if( GetShowPolarCoords() )  // display relative polar coordinates
@@ -959,17 +939,17 @@ void GERBVIEW_FRAME::UpdateStatusBar()
         EDA_ANGLE theta( VECTOR2D( v.x, -v.y ) );
         double    ro = hypot( v.x, v.y );
 
-        line.Printf( wxT( "r %s  theta %s" ),
-                     MessageTextFromValue( ro, false ),
-                     MessageTextFromValue( theta, false ) );
+        line = QString::asprintf( "r %s  theta %s",
+                                 MessageTextFromValue( ro, false ).toStdString().c_str(),
+                                 MessageTextFromValue( theta, false ).toStdString().c_str() );
 
         SetStatusText( line, 3 );
     }
 
     // Display absolute coordinates:
-    line.Printf( wxT( "X %s  Y %s" ),
-                 MessageTextFromValue( cursorPos.x, false ),
-                 MessageTextFromValue( cursorPos.y, false ) );
+    line = QString::asprintf( "X %s  Y %s",
+                             MessageTextFromValue( cursorPos.x, false ).toStdString().c_str(),
+                             MessageTextFromValue( cursorPos.y, false ).toStdString().c_str() );
     SetStatusText( line, 2 );
 
     if( !GetShowPolarCoords() )
@@ -978,10 +958,10 @@ void GERBVIEW_FRAME::UpdateStatusBar()
         double dXpos = cursorPos.x - GetScreen()->m_LocalOrigin.x;
         double dYpos = cursorPos.y - GetScreen()->m_LocalOrigin.y;
 
-        line.Printf( wxT( "dx %s  dy %s  dist %s" ),
-                     MessageTextFromValue( dXpos, false ),
-                     MessageTextFromValue( dYpos,false ),
-                     MessageTextFromValue( hypot( dXpos, dYpos ), false ) );
+        line = QString::asprintf( "dx %s  dy %s  dist %s",
+                                 MessageTextFromValue( dXpos, false ).toStdString().c_str(),
+                                 MessageTextFromValue( dYpos, false ).toStdString().c_str(),
+                                 MessageTextFromValue( hypot( dXpos, dYpos ), false ).toStdString().c_str() );
         SetStatusText( line, 3 );
     }
 
@@ -1046,7 +1026,7 @@ void GERBVIEW_FRAME::ActivateGalCanvas()
     }
     catch( const std::system_error& e )
     {
-        wxLogTrace( wxT( "KI_TRACE_NAVLIB" ), e.what() );
+        // Log trace message for navigation library error
     }
 }
 
@@ -1081,7 +1061,7 @@ void GERBVIEW_FRAME::setupUIConditions()
     ACTION_MANAGER*   mgr = m_toolManager->GetActionManager();
     EDITOR_CONDITIONS cond( this );
 
-    wxASSERT( mgr );
+    Q_ASSERT( mgr );
 
 #define ENABLE( x ) ACTION_CONDITIONS().Enable( x )
 #define CHECK( x )  ACTION_CONDITIONS().Check( x )
@@ -1218,15 +1198,15 @@ void GERBVIEW_FRAME::ToggleLayerManager()
     m_auimgr.Update();
 }
 
-void GERBVIEW_FRAME::handleActivateEvent( wxActivateEvent& aEvent )
+void GERBVIEW_FRAME::handleActivateEvent( QEvent& aEvent )
 {
     EDA_DRAW_FRAME::handleActivateEvent(aEvent);
 
     if( m_spaceMouse )
-        m_spaceMouse->SetFocus( aEvent.GetActive() );
+        m_spaceMouse->SetFocus( true );
 }
 
-void GERBVIEW_FRAME::handleIconizeEvent( wxIconizeEvent& aEvent )
+void GERBVIEW_FRAME::handleIconizeEvent( QEvent& aEvent )
 {
     EDA_DRAW_FRAME::handleIconizeEvent(aEvent);
 

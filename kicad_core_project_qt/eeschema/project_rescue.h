@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Chris Pavlina <pavlina.chris@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef _LIB_CACHE_RESCUE_H_
 #define _LIB_CACHE_RESCUE_H_
@@ -37,7 +14,7 @@
  * (if aSilentIfNone is true, the notification is silenced).
  */
 
-#include <wx/string.h>
+#include <QString>
 
 #include <lib_symbol.h>
 #include <sch_io/kicad_legacy/sch_io_kicad_legacy.h>
@@ -68,12 +45,12 @@ public:
     /**
      * Get the name that was originally requested in the schematic
      */
-    virtual wxString GetRequestedName() const { return m_requested_name; }
+    virtual QString GetRequestedName() const { return m_requested_name; }
 
     /**
      * Get the name we're proposing changing it to
      */
-    virtual wxString GetNewName() const { return m_new_name; }
+    virtual QString GetNewName() const { return m_new_name; }
 
     /**
      * Get the part that can be loaded from the project cache, if possible, or
@@ -94,7 +71,7 @@ public:
     /**
      * Get a description of the action proposed, for displaying in the UI.
      */
-    virtual wxString GetActionDescription() const = 0;
+    virtual QString GetActionDescription() const = 0;
 
     /**
      * Perform the actual rescue action. If successful, this must log the rescue using
@@ -104,8 +81,8 @@ public:
     virtual bool PerformAction( RESCUER* aRescuer ) = 0;
 
 protected:
-    wxString    m_requested_name;
-    wxString    m_new_name;
+    QString    m_requested_name;
+    QString    m_new_name;
     LIB_SYMBOL* m_lib_candidate;
     int         m_unit;
     int         m_convert;
@@ -132,12 +109,12 @@ public:
      * @param aUnit is the unit of the rescued symbol.
      * @param aConvert is the body style of the rescued symbol.
      */
-    RESCUE_CASE_CANDIDATE( const wxString& aRequestedName, const wxString& aNewName,
+    RESCUE_CASE_CANDIDATE( const QString& aRequestedName, const QString& aNewName,
                            LIB_SYMBOL* aLibCandidate, int aUnit = 0, int aConvert = 0 );
 
     RESCUE_CASE_CANDIDATE() { m_lib_candidate = nullptr; }
 
-    virtual wxString GetActionDescription() const override;
+    virtual QString GetActionDescription() const override;
 
     virtual bool PerformAction( RESCUER* aRescuer ) override;
 };
@@ -166,7 +143,7 @@ public:
      * @param aUnit is the unit of the rescued symbol.
      * @param aConvert is the body style of the rescued symbol.
      */
-    RESCUE_CACHE_CANDIDATE( const wxString& aRequestedName, const wxString& aNewName,
+    RESCUE_CACHE_CANDIDATE( const QString& aRequestedName, const QString& aNewName,
                             LIB_SYMBOL* aCacheCandidate, LIB_SYMBOL* aLibCandidate,
                             int aUnit = 0, int aConvert = 0 );
 
@@ -174,7 +151,7 @@ public:
 
     virtual LIB_SYMBOL* GetCacheCandidate() const override { return m_cache_candidate; }
 
-    virtual wxString GetActionDescription() const override;
+    virtual QString GetActionDescription() const override;
 
     virtual bool PerformAction( RESCUER* aRescuer ) override;
 };
@@ -209,7 +186,7 @@ public:
 
     virtual LIB_SYMBOL* GetCacheCandidate() const override { return m_cache_candidate; }
 
-    virtual wxString GetActionDescription() const override;
+    virtual QString GetActionDescription() const override;
 
     virtual bool PerformAction( RESCUER* aRescuer ) override;
 
@@ -224,8 +201,8 @@ class RESCUE_LOG
 {
 public:
     SCH_SYMBOL*  symbol;
-    wxString     old_name;
-    wxString     new_name;
+    QString     old_name;
+    QString     new_name;
 };
 
 
@@ -246,7 +223,7 @@ public:
      *
      * @return True on success.
      */
-    virtual bool WriteRescueLibrary( wxWindow *aParent ) = 0;
+    virtual bool WriteRescueLibrary( QWidget *aParent ) = 0;
 
     virtual void OpenRescueLibrary() = 0;
 
@@ -262,7 +239,7 @@ public:
      *
      * @param aAskShowAgain - whether the "Never Show Again" button should be visible
      */
-    virtual void InvokeDialog( wxWindow* aParent, bool aAskShowAgain ) = 0;
+    virtual void InvokeDialog( QWidget* aParent, bool aAskShowAgain ) = 0;
 
     /**
      * Filter out duplicately named rescue candidates.
@@ -294,7 +271,7 @@ public:
     /**
      * Used by individual #RESCUE_CANDIDATE objects to log a rescue for undoing.
      */
-    void LogRescue( SCH_SYMBOL *aSymbol, const wxString& aOldName, const wxString& aNewName );
+    void LogRescue( SCH_SYMBOL *aSymbol, const QString& aOldName, const QString& aNewName );
 
     /**
      * Perform all chosen rescue actions, logging them to be undone if necessary.
@@ -308,7 +285,7 @@ public:
      */
     void UndoRescues();
 
-    static bool RescueProject( wxWindow* aParent, RESCUER& aRescuer, bool aRunningOnDemand );
+    static bool RescueProject( QWidget* aParent, RESCUER& aRescuer, bool aRunningOnDemand );
 
 protected:
     friend class DIALOG_RESCUE_EACH;
@@ -341,11 +318,11 @@ public:
 
     virtual void FindCandidates() override;
 
-    virtual void InvokeDialog( wxWindow* aParent, bool aAskShowAgain ) override;
+    virtual void InvokeDialog( QWidget* aParent, bool aAskShowAgain ) override;
 
     virtual void OpenRescueLibrary() override;
 
-    virtual bool WriteRescueLibrary( wxWindow *aParent ) override;
+    virtual bool WriteRescueLibrary( QWidget *aParent ) override;
 
     virtual void AddSymbol( LIB_SYMBOL* aNewSymbol ) override;
 
@@ -367,11 +344,11 @@ public:
 
     virtual void FindCandidates() override;
 
-    virtual void InvokeDialog( wxWindow* aParent, bool aAskShowAgain ) override;
+    virtual void InvokeDialog( QWidget* aParent, bool aAskShowAgain ) override;
 
     virtual void OpenRescueLibrary() override;
 
-    virtual bool WriteRescueLibrary( wxWindow* aParent ) override;
+    virtual bool WriteRescueLibrary( QWidget* aParent ) override;
 
     virtual void AddSymbol( LIB_SYMBOL* aNewSymbol ) override;
 

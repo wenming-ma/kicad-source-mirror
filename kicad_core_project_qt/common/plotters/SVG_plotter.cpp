@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 /* Some info on basic items SVG format, used here:
  *  The root element of all SVG files is the <svg> element.
@@ -94,7 +71,9 @@
 #include <trigo.h>
 
 #include <cstdint>
-#include <wx/mstream.h>
+#include <QBuffer>
+#include <QFileInfo>
+#include <QImage>
 
 #include <plotters/plotters_pslike.h>
 
@@ -109,43 +88,43 @@
  * http://www.w3.org/TR/2000/WD-xml-c14n-20000119.html#charescaping
  * May be moved to a library if needed generally, but not expecting that.
  */
-static wxString XmlEsc( const wxString& aStr, bool isAttribute = false )
+static QString XmlEsc( const QString& aStr, bool isAttribute = false )
 {
-    wxString    escaped;
+    QString    escaped;
 
     escaped.reserve( aStr.length() );
 
-    for( wxString::const_iterator it = aStr.begin();  it != aStr.end();  ++it )
+    for( QString::const_iterator it = aStr.begin();  it != aStr.end();  ++it )
     {
-        const wxChar c = *it;
+        const QChar c = *it;
 
         switch( c )
         {
-        case wxS( '<' ):
-            escaped.append( wxS( "&lt;" ) );
+        case '<':
+            escaped.append( "&lt;" );
             break;
-        case wxS( '>' ):
-            escaped.append( wxS( "&gt;" ) );
+        case '>':
+            escaped.append( "&gt;" );
             break;
-        case wxS( '&' ):
-            escaped.append( wxS( "&amp;" ) );
+        case '&':
+            escaped.append( "&amp;" );
             break;
-        case wxS( '\r' ):
-            escaped.append( wxS( "&#xD;" ) );
+        case '\r':
+            escaped.append( "&#xD;" );
             break;
         default:
             if( isAttribute )
             {
                 switch( c )
                 {
-                case wxS( '"' ):
-                    escaped.append( wxS( "&quot;" ) );
+                case '"':
+                    escaped.append( "&quot;" );
                     break;
-                case wxS( '\t' ):
-                    escaped.append( wxS( "&#x9;" ) );
+                case '\t':
+                    escaped.append( "&#x9;" );
                     break;
-                case wxS( '\n' ):
-                    escaped.append( wxS( "&#xA;" ));
+                case '\n':
+                    escaped.append( "&#xA;" );
                     break;
                 default:
                     escaped.append(c);
@@ -317,7 +296,7 @@ void SVG_PLOTTER::SetCurrentLineWidth( int aWidth, void* aData )
         aWidth = m_renderSettings->GetDefaultPenWidth();
 
     // Note: aWidth == 0 is fine: used for filled shapes with no outline thickness
-    wxASSERT_MSG( aWidth >= 0, "Plotter called to set negative pen width" );
+    Q_ASSERT_X( aWidth >= 0, "SetCurrentLineWidth", "Plotter called to set negative pen width" );
 
     if( aWidth != m_currentPenWidth )
     {
@@ -646,9 +625,9 @@ void SVG_PLOTTER::PlotPoly( const std::vector<VECTOR2I>& aCornerList, FILL_T aFi
 }
 
 
-void SVG_PLOTTER::PlotImage( const wxImage& aImage, const VECTOR2I& aPos, double aScaleFactor )
+void SVG_PLOTTER::PlotImage( const QImage& aImage, const VECTOR2I& aPos, double aScaleFactor )
 {
-    VECTOR2I pix_size( aImage.GetWidth(), aImage.GetHeight() );
+    VECTOR2I pix_size( aImage.width(), aImage.height() );
 
     // Requested size (in IUs)
     VECTOR2D drawsize( aScaleFactor * pix_size.x, aScaleFactor * pix_size.y );
@@ -664,23 +643,25 @@ void SVG_PLOTTER::PlotImage( const wxImage& aImage, const VECTOR2I& aPos, double
     }
     else
     {
-        wxMemoryOutputStream img_stream;
+        QBuffer img_buffer;
+        img_buffer.open( QIODevice::WriteOnly );
 
         if( m_colorMode )
         {
-            aImage.SaveFile( img_stream, wxBITMAP_TYPE_PNG );
+            aImage.save( &img_buffer, "PNG" );
         }
         else    // Plot in B&W
         {
-            wxImage image = aImage.ConvertToGreyscale();
-            image.SaveFile( img_stream, wxBITMAP_TYPE_PNG );
+            QImage image = aImage.convertToFormat( QImage::Format_Grayscale8 );
+            image.save( &img_buffer, "PNG" );
         }
 
-        size_t input_len = img_stream.GetOutputStreamBuffer()->GetBufferSize();
+        QByteArray img_data = img_buffer.data();
+        size_t input_len = img_data.size();
         std::vector<uint8_t> buffer( input_len );
         std::vector<uint8_t> encoded;
 
-        img_stream.CopyTo( buffer.data(), buffer.size() );
+        memcpy( buffer.data(), img_data.constData(), input_len );
         base64::encode( buffer, encoded );
 
         fprintf( m_outputFile,
@@ -754,9 +735,9 @@ void SVG_PLOTTER::PenTo( const VECTOR2I& pos, char plume )
 }
 
 
-bool SVG_PLOTTER::StartPlot( const wxString& aPageNumber )
+bool SVG_PLOTTER::StartPlot( const QString& aPageNumber )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     static const char*  header[] =
     {
@@ -794,7 +775,7 @@ bool SVG_PLOTTER::StartPlot( const wxString& aPageNumber )
 
     fprintf( m_outputFile,
              "<title>SVG Image created as %s date %s </title>\n",
-             TO_UTF8( XmlEsc( wxFileName( m_filename ).GetFullName() ) ),
+             TO_UTF8( XmlEsc( QFileInfo( m_filename ).baseName() ) ),
              date_buf );
 
     // End of header
@@ -832,7 +813,7 @@ bool SVG_PLOTTER::EndPlot()
 
 void SVG_PLOTTER::Text( const VECTOR2I&        aPos,
                         const COLOR4D&         aColor,
-                        const wxString&        aText,
+                        const QString&        aText,
                         const EDA_ANGLE&       aOrient,
                         const VECTOR2I&        aSize,
                         enum GR_TEXT_H_ALIGN_T aH_justify,
@@ -861,7 +842,7 @@ void SVG_PLOTTER::Text( const VECTOR2I&        aPos,
     case GR_TEXT_H_ALIGN_RIGHT:  hjust = "end";    break;
     case GR_TEXT_H_ALIGN_LEFT:   hjust = "start";  break;
     case GR_TEXT_H_ALIGN_INDETERMINATE:
-        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        Q_ASSERT_X( false, "Text", "Indeterminate state legal only in dialogs." );
         break;
     }
 
@@ -871,7 +852,7 @@ void SVG_PLOTTER::Text( const VECTOR2I&        aPos,
     case GR_TEXT_V_ALIGN_TOP:    text_pos.y += aSize.y;     break;
     case GR_TEXT_V_ALIGN_BOTTOM:                            break;
     case GR_TEXT_V_ALIGN_INDETERMINATE:
-        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        Q_ASSERT_X( false, "Text", "Indeterminate state legal only in dialogs." );
         break;
     }
 
@@ -945,7 +926,7 @@ void SVG_PLOTTER::Text( const VECTOR2I&        aPos,
 
 void SVG_PLOTTER::PlotText( const VECTOR2I&        aPos,
                             const COLOR4D&         aColor,
-                            const wxString&        aText,
+                            const QString&        aText,
                             const TEXT_ATTRIBUTES& aAttributes,
                             KIFONT::FONT*          aFont,
                             const KIFONT::METRICS& aFontMetrics,

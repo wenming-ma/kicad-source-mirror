@@ -65,33 +65,33 @@ private:
                 ( net_attr.m_NetAttribType & GBR_NETLIST_METADATA::GBR_NETINFO_CMP ) )
             {
                 auto menuEntry = Add( GERBVIEW_ACTIONS::highlightComponent );
-                menuEntry->SetItemLabel( wxString::Format( _( "Highlight Items of Component '%s'" ),
-                                                           net_attr.m_Cmpref ) );
+                menuEntry->SetItemLabel( QString::asprintf( _( "Highlight Items of Component '%s'" ),
+                                                           net_attr.m_Cmpref.toStdString().c_str() ) );
                 addSeparator = true;
             }
 
             if( ( net_attr.m_NetAttribType & GBR_NETLIST_METADATA::GBR_NETINFO_NET ) )
             {
                 auto menuEntry = Add( GERBVIEW_ACTIONS::highlightNet );
-                menuEntry->SetItemLabel( wxString::Format( _( "Highlight Items of Net '%s'" ),
-                                                           UnescapeString( net_attr.m_Netname ) ) );
+                menuEntry->SetItemLabel( QString::asprintf( _( "Highlight Items of Net '%s'" ),
+                                                           UnescapeString( net_attr.m_Netname ).toStdString().c_str() ) );
                 addSeparator = true;
             }
 
             D_CODE* apertDescr = item->GetDcodeDescr();
 
-            if( apertDescr && !apertDescr->m_AperFunction.IsEmpty() )
+            if( apertDescr && !apertDescr->m_AperFunction.isEmpty() )
             {
                 auto menuEntry = Add( GERBVIEW_ACTIONS::highlightAttribute );
-                menuEntry->SetItemLabel( wxString::Format( _( "Highlight Aperture Type '%s'" ),
-                                                           apertDescr->m_AperFunction ) );
+                menuEntry->SetItemLabel( QString::asprintf( _( "Highlight Aperture Type '%s'" ),
+                                                           apertDescr->m_AperFunction.toStdString().c_str() ) );
                 addSeparator = true;
             }
 
             if( apertDescr )
             {
                 auto menuEntry = Add( GERBVIEW_ACTIONS::highlightDCode );
-                menuEntry->SetItemLabel( wxString::Format( _( "Highlight DCode D%d" ),
+                menuEntry->SetItemLabel( QString::asprintf( _( "Highlight DCode D%d" ),
                                                            apertDescr->m_Num_Dcode ) );
                 addSeparator = true;
             }

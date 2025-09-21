@@ -1,33 +1,10 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2007-2019 Jean-Pierre Charras  jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @file job_file_reader.cpp
- */
 
 #include <json_common.h>
-#include <wx/filename.h>
+#include <QFileInfo>
+#include <QDir>
+#include <QFileDialog>
+#include <QCoreApplication>
 
 #include <wildcards_and_files_ext.h>
 #include <gerbview.h>
@@ -41,7 +18,6 @@
 #include <gbr_metadata.h>
 #include <dialogs/html_message_box.h>
 #include <view/view.h>
-#include <wx/filedlg.h>
 
 
 using json = nlohmann::json;
@@ -80,42 +56,42 @@ using json = nlohmann::json;
 class GERBER_JOBFILE_READER
 {
 public:
-    GERBER_JOBFILE_READER( const wxString& aFileName, REPORTER* aReporter )
+    GERBER_JOBFILE_READER( const QString& aFileName, REPORTER* aReporter )
     {
-        m_filename = aFileName;
+        m_filename = QFileInfo(aFileName);
         m_reporter = aReporter;
     }
 
     ~GERBER_JOBFILE_READER() {}
 
     bool ReadGerberJobFile();       /// read a .gbrjob file
-    wxArrayString& GetGerberFiles() { return m_GerberFiles; }
+    QStringList& GetGerberFiles() { return m_GerberFiles; }
 
 private:
     REPORTER* m_reporter;
-    wxFileName m_filename;
-    wxArrayString m_GerberFiles;    // List of gerber files in job
+    QFileInfo m_filename;
+    QStringList m_GerberFiles;    // List of gerber files in job
 
     // Convert a JSON string, that uses escaped sequence of 4 hexadecimal digits
     // to encode unicode chars when not ASCII7 codes
     // json11 converts this sequence to UTF8 string
-    wxString formatStringFromJSON( const std::string& name );
+    QString formatStringFromJSON( const std::string& name );
 };
 
 
 bool GERBER_JOBFILE_READER::ReadGerberJobFile()
 {
     // Read the gerber file */
-   FILE* jobFile = wxFopen( m_filename.GetFullPath(), wxT( "rt" ) );
+   FILE* jobFile = fopen( m_filename.absoluteFilePath().toStdString().c_str(), "rt" );
 
     if( jobFile == nullptr )
         return false;
 
     LOCALE_IO toggleIo;
 
-    FILE_LINE_READER jobfileReader( jobFile, m_filename.GetFullPath() );  // Will close jobFile
+    FILE_LINE_READER jobfileReader( jobFile, m_filename.absoluteFilePath() );  // Will close jobFile
 
-    wxString data;
+    QString data;
 
     // detect the file format: old (deprecated) gerber format of official JSON format
     bool json_format = false;
@@ -127,13 +103,13 @@ bool GERBER_JOBFILE_READER::ReadGerberJobFile()
 
     data = line;
 
-    if( data.Contains( wxT( "{" ) ) )
+    if( data.contains( "{" ) )
         json_format = true;
 
     if( json_format )
     {
         while( ( line = jobfileReader.ReadLine() ) != nullptr )
-            data << '\n' << line;
+            data += '\n' + QString(line);
 
         try
         {
@@ -142,7 +118,7 @@ bool GERBER_JOBFILE_READER::ReadGerberJobFile()
             for( json& entry : js["FilesAttributes"] )
             {
                 std::string name = entry["Path"].get<std::string>();
-                m_GerberFiles.Add( formatStringFromJSON( name ) );
+                m_GerberFiles.append( formatStringFromJSON( name ) );
             }
         }
         catch( ... )
@@ -163,69 +139,69 @@ bool GERBER_JOBFILE_READER::ReadGerberJobFile()
 }
 
 
-wxString GERBER_JOBFILE_READER::formatStringFromJSON( const std::string& name )
+QString GERBER_JOBFILE_READER::formatStringFromJSON( const std::string& name )
 {
     // Convert a JSON string, that uses a escaped sequence of 4 hexadecimal digits
     // to encode unicode chars
     // Our json11 library returns in this case a UTF8 sequence. Just convert it to
-    // a wxString.
-    wxString wstr = From_UTF8( name.c_str() );
+    // a QString.
+    QString wstr = From_UTF8( name.c_str() );
     return wstr;
 }
 
 
 
-bool GERBVIEW_FRAME::LoadGerberJobFile( const wxString& aFullFileName )
+bool GERBVIEW_FRAME::LoadGerberJobFile( const QString& aFullFileName )
 {
-    wxFileName filename = aFullFileName;
-    wxString currentPath;
+    QFileInfo filename = QFileInfo(aFullFileName);
+    QString currentPath;
     bool success = true;
 
-    if( !filename.IsOk() )
+    if( !filename.exists() )
     {
         // Use the current working directory if the file name path does not exist.
-        if( filename.DirExists() )
-            currentPath = filename.GetPath();
+        if( QDir(filename.path()).exists() )
+            currentPath = filename.path();
         else
             currentPath = m_mruPath;
 
-        wxFileDialog dlg( this, _( "Open Gerber Job File" ),
+        QFileDialog dlg( this, _("Open Gerber Job File"),
                           currentPath,
-                          filename.GetFullName(),
-                          FILEEXT::GerberJobFileWildcard(),
-                          wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_CHANGE_DIR );
+                          FILEEXT::GerberJobFileWildcard() );
+        dlg.setFileMode(QFileDialog::ExistingFile);
+        dlg.setAcceptMode(QFileDialog::AcceptOpen);
 
-        if( dlg.ShowModal() == wxID_CANCEL )
+        if( dlg.exec() == QDialog::Rejected )
             return false;
 
-        filename = dlg.GetPath();
-        currentPath = filename.GetPath();
+        filename = QFileInfo(dlg.selectedFiles().first());
+        currentPath = filename.path();
         m_mruPath = currentPath;
     }
     else
     {
-        currentPath = filename.GetPath();
+        currentPath = filename.path();
         m_mruPath = currentPath;
     }
 
     WX_STRING_REPORTER reporter;
 
-    if( filename.IsOk() )
+    if( filename.exists() )
     {
-        GERBER_JOBFILE_READER gbjReader( filename.GetFullPath(), &reporter );
+        GERBER_JOBFILE_READER gbjReader( filename.absoluteFilePath(), &reporter );
 
         if( gbjReader.ReadGerberJobFile() )
         {
             // Update the list of recent drill files.
-            UpdateFileHistory( filename.GetFullPath(), &m_jobFileHistory );
+            UpdateFileHistory( filename.absoluteFilePath(), &m_jobFileHistory );
 
             Clear_DrawLayers( false );
             ClearMsgPanel();
 
-            wxArrayString& gbrfiles = gbjReader.GetGerberFiles();
+            QStringList& gbrfiles = gbjReader.GetGerberFiles();
 
             // 0 = Gerber file type
-            std::vector<int> fileTypesVec( gbrfiles.Count(), 0 );
+            std::vector<int> fileTypesVec( gbrfiles.count(), 0 );
             success = LoadListOfGerberAndDrillFiles( currentPath, gbrfiles, &fileTypesVec );
 
             Zoom_Automatique( false );
@@ -236,7 +212,7 @@ bool GERBVIEW_FRAME::LoadGerberJobFile( const wxString& aFullFileName )
 
     if( reporter.HasMessage() )
     {
-        wxSafeYield();  // Allows slice of time to redraw the screen
+        QCoreApplication::processEvents();  // Allows slice of time to redraw the screen
                         // to refresh widgets, before displaying messages
         HTML_MESSAGE_BOX mbox( this, _( "Messages" ) );
         mbox.ListSet( reporter.GetMessages() );

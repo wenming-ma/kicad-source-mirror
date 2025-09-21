@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2015 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <advanced_config.h>
 #include <base_units.h>
@@ -36,8 +12,12 @@
 #include <settings/color_settings.h>
 #include <sch_painter.h>
 #include <default_values.h>
-#include <wx/debug.h>
-#include <wx/log.h>
+#include <QDebug>
+#include <QString>
+#include <QStringList>
+#include <QRegularExpression>
+#include <QSize>
+#include <QWidget>
 // UNUSED_SYMBOL: HTML_MESSAGE_BOX - Header not needed since class is unused
 // #include <dialogs/html_message_box.h>
 #include <project/project_file.h>
@@ -91,7 +71,7 @@ static int* TemplateShape[5][4] =
 };
 
 
-wxString getElectricalTypeLabel( LABEL_FLAG_SHAPE aType )
+QString getElectricalTypeLabel( LABEL_FLAG_SHAPE aType )
 {
     switch( aType )
     {
@@ -100,7 +80,7 @@ wxString getElectricalTypeLabel( LABEL_FLAG_SHAPE aType )
     case LABEL_FLAG_SHAPE::L_BIDI:        return _( "Bidirectional" );
     case LABEL_FLAG_SHAPE::L_TRISTATE:    return _( "Tri-State" );
     case LABEL_FLAG_SHAPE::L_UNSPECIFIED: return _( "Passive" );
-    default:                              return wxT( "???" );
+    default:                              return QStringLiteral( "???" );
     }
 }
 
@@ -159,7 +139,7 @@ unsigned SPIN_STYLE::CCWRotationsTo( const SPIN_STYLE& aOther ) const
 }
 
 
-SCH_LABEL_BASE::SCH_LABEL_BASE( const VECTOR2I& aPos, const wxString& aText, KICAD_T aType ) :
+SCH_LABEL_BASE::SCH_LABEL_BASE( const VECTOR2I& aPos, const QString& aText, KICAD_T aType ) :
         SCH_TEXT( aPos, aText, LAYER_NOTES, aType ),
         m_shape( L_UNSPECIFIED ),
         m_connectionType( CONNECTION_TYPE::NONE ),
@@ -212,11 +192,11 @@ SCH_LABEL_BASE& SCH_LABEL_BASE::operator=( const SCH_LABEL_BASE& aLabel )
 }
 
 
-const wxString SCH_LABEL_BASE::GetDefaultFieldName( const wxString& aName, bool aUseDefaultName )
+const QString SCH_LABEL_BASE::GetDefaultFieldName( const QString& aName, bool aUseDefaultName )
 {
-    if( aName == wxT( "Intersheetrefs" ) )
+    if( aName == QStringLiteral( "Intersheetrefs" ) )
         return _( "Sheet References" );
-    else if( aName == wxT( "Netclass" ) )
+    else if( aName == QStringLiteral( "Netclass" ) )
         return _( "Net Class" );
     else if( aName.IsEmpty() && aUseDefaultName )
         return _( "Field" );
@@ -239,7 +219,7 @@ bool SCH_LABEL_BASE::IsType( const std::vector<KICAD_T>& aScanTypes ) const
             return true;
     }
 
-    wxCHECK_MSG( Schematic(), false, wxT( "No parent SCHEMATIC set for SCH_LABEL!" ) );
+    Q_ASSERT_X( Schematic(), "SCH_LABEL_BASE", "No parent SCHEMATIC set for SCH_LABEL!" ); if( !Schematic() ) return false;
 
     // Ensure m_connected_items for Schematic()->CurrentSheet() exists.
     // Can be not the case when "this" is living in clipboard
@@ -313,7 +293,7 @@ void SCH_LABEL_BASE::SetSpinStyle( SPIN_STYLE aSpinStyle )
     switch( aSpinStyle )
     {
     default:
-        wxFAIL_MSG( "Bad spin style" );
+        Q_ASSERT_X( false, "SCH_LABEL_BASE", "Bad spin style" );
         KI_FALLTHROUGH;
 
     case SPIN_STYLE::RIGHT:            // Horiz Normal Orientation
@@ -495,7 +475,7 @@ void SCH_LABEL_BASE::MirrorVertically( int aCenter )
 
 bool SCH_LABEL_BASE::IncrementLabel( int aIncrement )
 {
-    wxString text = GetText();
+    QString text = GetText();
 
     // if( IncrementString( text, aIncrement ) ) // UNUSED_SYMBOL: IncrementString function not in minset
     // {
@@ -590,7 +570,7 @@ void SCH_LABEL_BASE::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo 
             field.SetTextAngle( ANGLE_HORIZONTAL );
             field.SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
 
-            if( field.GetCanonicalName() == wxT( "Intersheetrefs" ) )
+            if( field.GetCanonicalName() == QStringLiteral( "Intersheetrefs" ) )
                 offset.x = - ( labelLen + margin );
             else
                 offset.y = accumulated + field.GetTextHeight() / 2;
@@ -601,7 +581,7 @@ void SCH_LABEL_BASE::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo 
             field.SetTextAngle( ANGLE_VERTICAL );
             field.SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
 
-            if( field.GetCanonicalName() == wxT( "Intersheetrefs" ) )
+            if( field.GetCanonicalName() == QStringLiteral( "Intersheetrefs" ) )
                 offset.y = - ( labelLen + margin );
             else
                 offset.x = accumulated + field.GetTextHeight() / 2;
@@ -612,7 +592,7 @@ void SCH_LABEL_BASE::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo 
             field.SetTextAngle( ANGLE_HORIZONTAL );
             field.SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
 
-            if( field.GetCanonicalName() == wxT( "Intersheetrefs" ) )
+            if( field.GetCanonicalName() == QStringLiteral( "Intersheetrefs" ) )
                 offset.x = labelLen + margin;
             else
                 offset.y = accumulated + field.GetTextHeight() / 2;
@@ -623,7 +603,7 @@ void SCH_LABEL_BASE::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo 
             field.SetTextAngle( ANGLE_VERTICAL );
             field.SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
 
-            if( field.GetCanonicalName() == wxT( "Intersheetrefs" ) )
+            if( field.GetCanonicalName() == QStringLiteral( "Intersheetrefs" ) )
                 offset.y = labelLen + margin;
             else
                 offset.x = accumulated + field.GetTextHeight() / 2;
@@ -633,7 +613,7 @@ void SCH_LABEL_BASE::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo 
 
         field.SetTextPos( GetTextPos() + offset );
 
-        if( field.GetCanonicalName() != wxT( "Intersheetrefs" ) )
+        if( field.GetCanonicalName() != QStringLiteral( "Intersheetrefs" ) )
             accumulated += field.GetTextHeight() + margin;
     }
 
@@ -643,13 +623,13 @@ void SCH_LABEL_BASE::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo 
 
 
 void SCH_LABEL_BASE::GetIntersheetRefs( const SCH_SHEET_PATH* aPath,
-                                        std::vector<std::pair<wxString, wxString>>* pages )
+                                        std::vector<std::pair<QString, QString>>* pages )
 {
-    wxCHECK( pages, /* void */ );
+    Q_ASSERT( pages );
 
     if( Schematic() )
     {
-        wxString resolvedLabel = GetShownText( &Schematic()->CurrentSheet(), false );
+        QString resolvedLabel = GetShownText( &Schematic()->CurrentSheet(), false );
         auto     it = Schematic()->GetPageRefsMap().find( resolvedLabel );
 
         if( it != Schematic()->GetPageRefsMap().end() )
@@ -669,8 +649,8 @@ void SCH_LABEL_BASE::GetIntersheetRefs( const SCH_SHEET_PATH* aPath,
 
             std::sort( pageListCopy.begin(), pageListCopy.end() );
 
-            std::map<int, wxString> sheetPages = Schematic()->GetVirtualPageToSheetPagesMap();
-            std::map<int, wxString> sheetNames = Schematic()->GetVirtualPageToSheetNamesMap();
+            std::map<int, QString> sheetPages = Schematic()->GetVirtualPageToSheetPagesMap();
+            std::map<int, QString> sheetNames = Schematic()->GetVirtualPageToSheetNamesMap();
 
             for( int pageNum : pageListCopy )
                 pages->push_back( { sheetPages[ pageNum ], sheetNames[ pageNum ] } );
@@ -679,7 +659,7 @@ void SCH_LABEL_BASE::GetIntersheetRefs( const SCH_SHEET_PATH* aPath,
 }
 
 
-void SCH_LABEL_BASE::GetContextualTextVars( wxArrayString* aVars ) const
+void SCH_LABEL_BASE::GetContextualTextVars( QStringList* aVars ) const
 {
     for( const SCH_FIELD& field : m_fields )
     {
@@ -689,23 +669,23 @@ void SCH_LABEL_BASE::GetContextualTextVars( wxArrayString* aVars ) const
             aVars->push_back( field.GetName() );
     }
 
-    aVars->push_back( wxT( "OP" ) );
-    aVars->push_back( wxT( "CONNECTION_TYPE" ) );
-    aVars->push_back( wxT( "SHORT_NET_NAME" ) );
-    aVars->push_back( wxT( "NET_NAME" ) );
-    aVars->push_back( wxT( "NET_CLASS" ) );
+    aVars->append( QStringLiteral( "OP" ) );
+    aVars->append( QStringLiteral( "CONNECTION_TYPE" ) );
+    aVars->append( QStringLiteral( "SHORT_NET_NAME" ) );
+    aVars->append( QStringLiteral( "NET_NAME" ) );
+    aVars->append( QStringLiteral( "NET_CLASS" ) );
 }
 
 
-bool SCH_LABEL_BASE::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token,
+bool SCH_LABEL_BASE::ResolveTextVar( const SCH_SHEET_PATH* aPath, QString* token,
                                      int aDepth ) const
 {
-    static wxRegEx operatingPoint( wxT( "^"
+    static QRegularExpression operatingPoint( QStringLiteral( "^"
                                         "OP"
                                         "(.([0-9])?([a-zA-Z]*))?"
                                         "$" ) );
 
-    wxCHECK( aPath, false );
+    Q_ASSERT( aPath ); if( !aPath ) return false;
 
     SCHEMATIC* schematic = Schematic();
 
@@ -715,17 +695,17 @@ bool SCH_LABEL_BASE::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* toke
     if( operatingPoint.Matches( *token ) )
     {
         int      precision = 3;
-        wxString precisionStr( operatingPoint.GetMatch( *token, 2 ) );
-        wxString range( operatingPoint.GetMatch( *token, 3 ) );
+        QString precisionStr( operatingPoint.match( *token ).captured( 2 ) );
+        QString range( operatingPoint.match( *token ).captured( 3 ) );
 
         if( !precisionStr.IsEmpty() )
             precision = precisionStr[0] - '0';
 
         if( range.IsEmpty() )
-            range = wxS( "~V" );
+            range = QStringLiteral( "~V" );
 
         const SCH_CONNECTION* connection = Connection();
-        *token = wxS( "?" );
+        *token = QStringLiteral( "?" );
 
         if( connection )
             *token = schematic->GetOperatingPoint( connection->Name( false ), precision, range );
@@ -740,36 +720,36 @@ bool SCH_LABEL_BASE::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* toke
     }
 
     if( ( Type() == SCH_GLOBAL_LABEL_T || Type() == SCH_HIER_LABEL_T || Type() == SCH_SHEET_PIN_T )
-         && token->IsSameAs( wxT( "CONNECTION_TYPE" ) ) )
+         && *token == QStringLiteral( "CONNECTION_TYPE" ) )
     {
         const SCH_LABEL_BASE* label = static_cast<const SCH_LABEL_BASE*>( this );
         *token = getElectricalTypeLabel( label->GetShape() );
         return true;
     }
-    else if( token->IsSameAs( wxT( "SHORT_NET_NAME" ) ) )
+    else if( *token == QStringLiteral( "SHORT_NET_NAME" ) )
     {
         const SCH_CONNECTION* connection = Connection();
-        *token = wxEmptyString;
+        *token = QString();
 
         if( connection )
             *token = connection->LocalName();
 
         return true;
     }
-    else if( token->IsSameAs( wxT( "NET_NAME" ) ) )
+    else if( *token == QStringLiteral( "NET_NAME" ) )
     {
         const SCH_CONNECTION* connection = Connection();
-        *token = wxEmptyString;
+        *token = QString();
 
         if( connection )
             *token = connection->Name();
 
         return true;
     }
-    else if( token->IsSameAs( wxT( "NET_CLASS" ) ) )
+    else if( *token == QStringLiteral( "NET_CLASS" ) )
     {
         const SCH_CONNECTION* connection = Connection();
-        *token = wxEmptyString;
+        *token = QString();
 
         if( connection )
             *token = GetEffectiveNetClass()->GetName();
@@ -814,7 +794,7 @@ bool SCH_LABEL_BASE::HasCachedDriverName() const
 }
 
 
-const wxString& SCH_LABEL_BASE::GetCachedDriverName() const
+const QString& SCH_LABEL_BASE::GetCachedDriverName() const
 {
     return m_cached_driver_name;
 }
@@ -829,20 +809,20 @@ void SCH_LABEL_BASE::cacheShownText()
 }
 
 
-wxString SCH_LABEL_BASE::GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
+QString SCH_LABEL_BASE::GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
                                        int aDepth ) const
 {
-    std::function<bool( wxString* )> textResolver =
-            [&]( wxString* token ) -> bool
+    std::function<bool( QString* )> textResolver =
+            [&]( QString* token ) -> bool
             {
                 return ResolveTextVar( aPath, token, aDepth + 1 );
             };
 
-    wxString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
+    QString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
 
-    if( text == wxS( "~" ) ) // Legacy placeholder for empty string
+    if( text == QStringLiteral( "~" ) ) // Legacy placeholder for empty string
     {
-        text = wxS( "" );
+        text = QString();
     }
     else if( HasTextVars() )
     {
@@ -879,12 +859,12 @@ bool SCH_LABEL_BASE::Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData
         {
             auto allMembers = connection->AllMembers();
 
-            std::set<wxString> netNames;
+            std::set<QString> netNames;
 
             for( std::shared_ptr<SCH_CONNECTION> member : allMembers )
                 netNames.insert( member->GetNetName() );
 
-            for( const wxString& netName : netNames )
+            for( const QString& netName : netNames )
             {
                 if( EDA_ITEM::Matches( netName, aSearchData ) )
                     return true;
@@ -893,7 +873,7 @@ bool SCH_LABEL_BASE::Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData
             return false;
         }
 
-        wxString netName = connection->GetNetName();
+        QString netName = connection->GetNetName();
 
         if( EDA_ITEM::Matches( netName, aSearchData ) )
             return true;
@@ -999,7 +979,7 @@ const BOX2I SCH_LABEL_BASE::GetBoundingBox() const
 
     for( const SCH_FIELD& field : m_fields )
     {
-        if( field.IsVisible() && field.GetText() != wxEmptyString )
+        if( field.IsVisible() && !field.GetText().isEmpty() )
         {
             BOX2I fieldBBox = field.GetBoundingBox();
 
@@ -1195,7 +1175,7 @@ bool SCH_LABEL_BASE::HasConnectivityChanges( const SCH_ITEM* aItem,
     const SCH_LABEL_BASE* label = dynamic_cast<const SCH_LABEL_BASE*>( aItem );
 
     // Don't compare against a different SCH_ITEM.
-    wxCHECK( label, false );
+    Q_ASSERT( label ); if( !label ) return false;
 
     if( GetPosition() != label->GetPosition() )
         return true;
@@ -1203,18 +1183,18 @@ bool SCH_LABEL_BASE::HasConnectivityChanges( const SCH_ITEM* aItem,
     if( GetShownText( aInstance ) != label->GetShownText( aInstance ) )
         return true;
 
-    std::vector<wxString> netclasses;
-    std::vector<wxString> otherNetclasses;
+    std::vector<QString> netclasses;
+    std::vector<QString> otherNetclasses;
 
     for( const SCH_FIELD& field : m_fields )
     {
-        if( field.GetCanonicalName() == wxT( "Netclass" ) )
+        if( field.GetCanonicalName() == QStringLiteral( "Netclass" ) )
             netclasses.push_back( field.GetText() );
     }
 
     for( const SCH_FIELD& field : label->m_fields )
     {
-        if( field.GetCanonicalName() == wxT( "Netclass" ) )
+        if( field.GetCanonicalName() == QStringLiteral( "Netclass" ) )
             otherNetclasses.push_back( field.GetText() );
     }
 
@@ -1224,7 +1204,7 @@ bool SCH_LABEL_BASE::HasConnectivityChanges( const SCH_ITEM* aItem,
 
 void SCH_LABEL_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString msg;
+    QString msg;
 
     switch( Type() )
     {
@@ -1245,7 +1225,7 @@ void SCH_LABEL_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PA
 
     aList.emplace_back( _( "Font" ), GetFont() ? GetFont()->GetName() : _( "Default" ) );
 
-    wxString textStyle[] = { _( "Normal" ), _( "Italic" ), _( "Bold" ), _( "Bold Italic" ) };
+    QString textStyle[] = { _("Normal"), _("Italic"), _("Bold"), _("Bold Italic") };
     int style = IsBold() && IsItalic() ? 3 : IsBold() ? 2 : IsItalic() ? 1 : 0;
     aList.emplace_back( _( "Style" ), textStyle[style] );
 
@@ -1257,7 +1237,7 @@ void SCH_LABEL_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PA
     case SPIN_STYLE::UP:     msg = _( "Align bottom" );  break;
     case SPIN_STYLE::RIGHT:  msg = _( "Align left" );    break;
     case SPIN_STYLE::BOTTOM: msg = _( "Align top" );     break;
-    default:                 msg = wxT( "???" );         break;
+    default:                 msg = QStringLiteral( "???" );         break;
     }
 
     aList.emplace_back( _( "Justification" ), msg );
@@ -1378,22 +1358,22 @@ void SCH_LABEL_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_O
         // Plot attributes to a hypertext menu
         if( aPlotOpts.m_PDFPropertyPopups && !linkAlreadyPlotted )
         {
-            std::vector<wxString> properties;
+            std::vector<QString> properties;
 
             if( connection )
             {
-                properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
+                properties.emplace_back( QString::asprintf( "!%s = %s",
                                                            _( "Net" ),
                                                            connection->Name() ) );
 
-                properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
+                properties.emplace_back( QString::asprintf( "!%s = %s",
                                                            _( "Resolved netclass" ),
                                                            GetEffectiveNetClass()->GetHumanReadableName() ) );
             }
 
             for( const SCH_FIELD& field : GetFields() )
             {
-                properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
+                properties.emplace_back( QString::asprintf( "!%s = %s",
                                                            field.GetName(),
                                                            field.GetShownText( false ) ) );
             }
@@ -1418,7 +1398,7 @@ void SCH_LABEL_BASE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int
 
     SCH_CONNECTION* connection = Connection();
     int             layer = ( connection && connection->IsBus() ) ? LAYER_BUS : m_layer;
-    wxDC*           DC = aSettings->GetPrintDC();
+    QPaintDevice*   DC = aSettings->GetPrintDC();
     COLOR4D         color = aSettings->GetLayerColor( layer );
     bool            blackAndWhiteMode = GetGRForceBlackPenState();
     int             penWidth = GetEffectivePenWidth( aSettings );
@@ -1469,7 +1449,7 @@ void SCH_LABEL_BASE::SetAutoRotateOnPlacement( bool autoRotate )
 }
 
 
-SCH_LABEL::SCH_LABEL( const VECTOR2I& pos, const wxString& text ) :
+SCH_LABEL::SCH_LABEL( const VECTOR2I& pos, const QString& text ) :
         SCH_LABEL_BASE( pos, text, SCH_LABEL_T )
 {
     m_layer      = LAYER_LOCLABEL;
@@ -1532,9 +1512,9 @@ const BOX2I SCH_LABEL::GetBodyBoundingBox( const RENDER_SETTINGS* aSettings ) co
 }
 
 
-wxString SCH_LABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_LABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Label '%s'" ),
+    return QString::asprintf( _("Label '%s'").toStdString().c_str(),
                              aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
 }
 
@@ -1546,7 +1526,7 @@ BITMAPS SCH_LABEL::GetMenuImage() const
 
 
 SCH_DIRECTIVE_LABEL::SCH_DIRECTIVE_LABEL( const VECTOR2I& pos ) :
-        SCH_LABEL_BASE( pos, wxEmptyString, SCH_DIRECTIVE_LABEL_T )
+        SCH_LABEL_BASE( pos, QString(), SCH_DIRECTIVE_LABEL_T )
 {
     m_layer      = LAYER_NETCLASS_REFS;
     m_shape      = LABEL_FLAG_SHAPE::F_ROUND;
@@ -1766,7 +1746,7 @@ void SCH_DIRECTIVE_LABEL::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO a
 
     for( SCH_FIELD& field : m_fields )
     {
-        if( field.GetText() == wxEmptyString )
+        if( field.GetText().isEmpty() )
             continue;
 
         switch( GetSpinStyle() )
@@ -1804,7 +1784,7 @@ void SCH_DIRECTIVE_LABEL::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO a
 }
 
 
-wxString SCH_DIRECTIVE_LABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_DIRECTIVE_LABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     if( m_fields.empty() )
     {
@@ -1812,7 +1792,7 @@ wxString SCH_DIRECTIVE_LABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider
     }
     else
     {
-        return wxString::Format( _( "Directive Label [%s %s]" ),
+        return QString::asprintf( _("Directive Label [%s %s]").toStdString().c_str(),
                                  UnescapeString( m_fields[0].GetName() ),
                                  aFull ? m_fields[0].GetShownText( false )
                                        : KIUI::EllipsizeMenuText( m_fields[0].GetText() ) );
@@ -1844,7 +1824,7 @@ bool SCH_DIRECTIVE_LABEL::IsDangling() const
 }
 
 
-SCH_GLOBALLABEL::SCH_GLOBALLABEL( const VECTOR2I& pos, const wxString& text ) :
+SCH_GLOBALLABEL::SCH_GLOBALLABEL( const VECTOR2I& pos, const QString& text ) :
         SCH_LABEL_BASE( pos, text, SCH_GLOBAL_LABEL_T )
 {
     m_layer      = LAYER_GLOBLABEL;
@@ -1853,8 +1833,8 @@ SCH_GLOBALLABEL::SCH_GLOBALLABEL( const VECTOR2I& pos, const wxString& text ) :
 
     SetVertJustify( GR_TEXT_V_ALIGN_CENTER );
 
-    m_fields.emplace_back( SCH_FIELD( pos, INTERSHEET_REFS, this, wxT( "Sheet References" ) ) );
-    m_fields[0].SetText( wxT( "${INTERSHEET_REFS}" ) );
+    m_fields.emplace_back( SCH_FIELD( pos, INTERSHEET_REFS, this, QStringLiteral( "Sheet References" ) ) );
+    m_fields[0].SetText( QStringLiteral( "${INTERSHEET_REFS}" ) );
     m_fields[0].SetVisible( false );
     m_fields[0].SetLayer( LAYER_INTERSHEET_REFS );
     m_fields[0].SetVertJustify( GR_TEXT_V_ALIGN_CENTER );
@@ -1919,20 +1899,20 @@ void SCH_GLOBALLABEL::SetSpinStyle( SPIN_STYLE aSpinStyle )
 }
 
 
-bool SCH_GLOBALLABEL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token,
+bool SCH_GLOBALLABEL::ResolveTextVar( const SCH_SHEET_PATH* aPath, QString* token,
                                       int aDepth ) const
 {
-    wxCHECK( aPath, false );
+    Q_ASSERT( aPath ); if( !aPath ) return false;
 
     SCHEMATIC* schematic = Schematic();
 
     if( !schematic )
         return false;
 
-    if( token->IsSameAs( wxT( "INTERSHEET_REFS" ) ) )
+    if( *token == QStringLiteral( "INTERSHEET_REFS" ) )
     {
         SCHEMATIC_SETTINGS& settings = schematic->Settings();
-        wxString            ref;
+        QString            ref;
         auto                it = schematic->GetPageRefsMap().find( GetShownText( aPath ) );
 
         if( it == schematic->GetPageRefsMap().end() )
@@ -1952,18 +1932,18 @@ bool SCH_GLOBALLABEL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* tok
                 alg::delete_matching( pageListCopy, currentPage );
             }
 
-            std::map<int, wxString> sheetPages = schematic->GetVirtualPageToSheetPagesMap();
+            std::map<int, QString> sheetPages = schematic->GetVirtualPageToSheetPagesMap();
 
             if( ( settings.m_IntersheetRefsFormatShort ) && ( pageListCopy.size() > 2 ) )
             {
-                ref.Append( wxString::Format( wxT( "%s..%s" ),
+                ref.append( QString::asprintf( "%s..%s",
                                               sheetPages[pageListCopy.front()],
                                               sheetPages[pageListCopy.back()] ) );
             }
             else
             {
                 for( const int& pageNo : pageListCopy )
-                    ref.Append( wxString::Format( wxT( "%s," ), sheetPages[pageNo] ) );
+                    ref.append( QString::asprintf( "%s,", sheetPages[pageNo].toStdString().c_str() ) );
 
                 if( !ref.IsEmpty() && ref.Last() == ',' )
                     ref.RemoveLast();
@@ -2053,9 +2033,9 @@ void SCH_GLOBALLABEL::CreateGraphicShape( const RENDER_SETTINGS* aRenderSettings
 }
 
 
-wxString SCH_GLOBALLABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_GLOBALLABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Global Label '%s'" ),
+    return QString::asprintf( _("Global Label '%s'").toStdString().c_str(),
                              aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
 }
 
@@ -2066,7 +2046,7 @@ BITMAPS SCH_GLOBALLABEL::GetMenuImage() const
 }
 
 
-SCH_HIERLABEL::SCH_HIERLABEL( const VECTOR2I& pos, const wxString& text, KICAD_T aType ) :
+SCH_HIERLABEL::SCH_HIERLABEL( const VECTOR2I& pos, const QString& text, KICAD_T aType ) :
         SCH_LABEL_BASE( pos, text, aType )
 {
     m_layer      = LAYER_HIERLABEL;
@@ -2200,9 +2180,9 @@ VECTOR2I SCH_HIERLABEL::GetSchematicTextOffset( const RENDER_SETTINGS* aSettings
 }
 
 
-wxString SCH_HIERLABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_HIERLABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Hierarchical Label '%s'" ),
+    return QString::asprintf( _("Hierarchical Label '%s'").toStdString().c_str(),
                              aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
 }
 
@@ -2215,20 +2195,20 @@ BITMAPS SCH_HIERLABEL::GetMenuImage() const
 
 // UNUSED_SYMBOL: HTML_MESSAGE_BOX constructor - Constructor and related methods not compiled in minimal set
 /*
-HTML_MESSAGE_BOX* SCH_TEXT::ShowSyntaxHelp( wxWindow* aParentWindow )
+HTML_MESSAGE_BOX* SCH_TEXT::ShowSyntaxHelp( QWidget* aParentWindow )
 {
-    wxString msg =
+    QString msg =
 #include "sch_text_help_md.h"
      ;
 
     HTML_MESSAGE_BOX* dlg = new HTML_MESSAGE_BOX( nullptr, _( "Syntax Help" ) );
-    wxSize            sz( 320, 320 );
+    QSize            sz( 320, 320 );
 
     dlg->SetMinSize( dlg->ConvertDialogToPixels( sz ) );
     dlg->SetDialogSizeInDU( sz.x, sz.y );
 
-    wxString html_txt;
-    ConvertMarkdown2Html( wxGetTranslation( msg ), html_txt );
+    QString html_txt;
+    ConvertMarkdown2Html( msg, html_txt );
     dlg->AddHTML_Text( html_txt );
     dlg->ShowModeless();
 
@@ -2238,7 +2218,7 @@ HTML_MESSAGE_BOX* SCH_TEXT::ShowSyntaxHelp( wxWindow* aParentWindow )
 
 // UNUSED_SYMBOL: HTML_MESSAGE_BOX destructor - Updated stub implementation with generic return type
 // Stub implementation to maintain function signature for compilation
-void* SCH_TEXT::ShowSyntaxHelp( wxWindow* aParentWindow )
+void* SCH_TEXT::ShowSyntaxHelp( QWidget* aParentWindow )
 {
     return nullptr;
 }

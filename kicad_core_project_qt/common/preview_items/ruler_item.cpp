@@ -1,25 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// Qt transformation completed for ruler_item.cpp
 
 #include <preview_items/ruler_item.h>
 #include <preview_items/preview_utils.h>
@@ -28,6 +7,9 @@
 #include <gal/painter.h>
 #include <view/view.h>
 #include <trigo.h>
+
+#include <QString>
+#include <QStringList>
 
 using namespace KIGFX::PREVIEW;
 
@@ -220,7 +202,7 @@ void drawTicksAlongLine( KIGFX::VIEW* aView, const VECTOR2D& aOrigin, const VECT
 
         if( drawLabel )
         {
-            wxString label = DimensionLabel( "", tickSpace * i, aIuScale, aUnits, false );
+            QString label = DimensionLabel( "", tickSpace * i, aIuScale, aUnits, false );
             font->Draw( gal, label, tickPos + labelOffset, labelAttrs, KIFONT::METRICS::Default() );
         }
     }
@@ -334,7 +316,7 @@ void RULER_ITEM::ViewDraw( int aLayer, KIGFX::VIEW* aView ) const
 
     VECTOR2D rulerVec( end - origin );
 
-    wxArrayString cursorStrings = GetDimensionStrings();
+    QStringList cursorStrings = GetDimensionStrings();
     DrawTextNextToCursor( aView, end, -rulerVec, cursorStrings, drawingDropShadows );
 
     // basic tick size
@@ -373,7 +355,7 @@ void RULER_ITEM::ViewDraw( int aLayer, KIGFX::VIEW* aView ) const
 }
 
 
-wxArrayString RULER_ITEM::GetDimensionStrings() const
+QStringList RULER_ITEM::GetDimensionStrings() const
 {
     const VECTOR2D rulerVec = m_geomMgr.GetEnd() - m_geomMgr.GetOrigin();
     VECTOR2D       temp = rulerVec;
@@ -384,15 +366,15 @@ wxArrayString RULER_ITEM::GetDimensionStrings() const
     if( m_flipY )
         temp.y = -temp.y;
 
-    wxArrayString cursorStrings;
+    QStringList cursorStrings;
 
-    cursorStrings.push_back( DimensionLabel( "x", temp.x, m_iuScale, m_userUnits ) );
-    cursorStrings.push_back( DimensionLabel( "y", temp.y, m_iuScale, m_userUnits ) );
+    cursorStrings.append( DimensionLabel( "x", temp.x, m_iuScale, m_userUnits ) );
+    cursorStrings.append( DimensionLabel( "y", temp.y, m_iuScale, m_userUnits ) );
 
-    cursorStrings.push_back( DimensionLabel( "r", rulerVec.EuclideanNorm(), m_iuScale, m_userUnits ) );
+    cursorStrings.append( DimensionLabel( "r", rulerVec.EuclideanNorm(), m_iuScale, m_userUnits ) );
 
     EDA_ANGLE angle = -EDA_ANGLE( rulerVec );
-    cursorStrings.push_back( DimensionLabel( wxString::FromUTF8( "θ" ), angle.AsDegrees(), m_iuScale,
+    cursorStrings.append( DimensionLabel( QString::fromUtf8( "θ" ), angle.AsDegrees(), m_iuScale,
                                              EDA_UNITS::DEGREES ) );
     return cursorStrings;
 }

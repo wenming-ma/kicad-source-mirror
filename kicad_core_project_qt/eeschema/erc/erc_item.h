@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef ERC_ITEM_H
 #define ERC_ITEM_H
@@ -37,7 +15,7 @@
 class ERC_TREE_MODEL : public RC_TREE_MODEL
 {
 public:
-    ERC_TREE_MODEL( EDA_DRAW_FRAME* aParentFrame, wxDataViewCtrl* aView ) :
+    ERC_TREE_MODEL( EDA_DRAW_FRAME* aParentFrame, QTreeView* aView ) :
             RC_TREE_MODEL( aParentFrame, aView )
     {
     }
@@ -49,7 +27,7 @@ public:
      * SCH_SHEET_PATH context, if a context is available on the given SCH_MARKER or ERC_ITEM
      * targets.
      */
-    void GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
+    void GetValue( QVariant& aVariant, QModelIndex const& aItem,
                    unsigned int aCol ) const override;
 };
 
@@ -62,7 +40,7 @@ public:
      */
     static std::shared_ptr<ERC_ITEM> Create( int aErrorCode );
 
-    static std::shared_ptr<ERC_ITEM> Create( const wxString& aErrorKey )
+    static std::shared_ptr<ERC_ITEM> Create( const QString& aErrorKey )
     {
         for( const RC_ITEM& item : allItemTypes )
         {
@@ -115,7 +93,7 @@ public:
      */
     const SCH_SHEET_PATH& GetSpecificSheetPath() const
     {
-        wxASSERT( m_sheetSpecificPath.has_value() );
+        Q_ASSERT( m_sheetSpecificPath.has_value() );
         return m_sheetSpecificPath.value();
     }
 
@@ -150,7 +128,7 @@ public:
      */
     SCH_SHEET_PATH& GetMainItemSheetPath()
     {
-        wxASSERT( MainItemHasSheetPath() );
+        Q_ASSERT( MainItemHasSheetPath() );
         return m_mainItemSheet.value();
     }
 
@@ -160,7 +138,7 @@ public:
      */
     SCH_SHEET_PATH& GetAuxItemSheetPath()
     {
-        wxASSERT( AuxItemHasSheetPath() );
+        Q_ASSERT( AuxItemHasSheetPath() );
         return m_auxItemSheet.value();
     }
 
@@ -179,7 +157,7 @@ public:
     bool AuxItemHasSheetPath() { return m_auxItemSheet.has_value(); }
 
 private:
-    ERC_ITEM( int aErrorCode = 0, const wxString& aTitle = "", const wxString& aSettingsKey = "" )
+    ERC_ITEM( int aErrorCode = 0, const QString& aTitle = "", const QString& aSettingsKey = "" )
     {
         m_errorCode     = aErrorCode;
         m_errorTitle    = aTitle;

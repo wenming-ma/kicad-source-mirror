@@ -1,28 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2004-2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2022 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <algorithm>
 #include <kiface_base.h>
@@ -39,26 +14,28 @@
 #include <symbol_library.h>
 #include <sch_io/kicad_legacy/sch_io_kicad_legacy.h>
 
-#include <wx/log.h>
-#include <wx/progdlg.h>
-#include <wx/tokenzr.h>
+#include <QtCore/QDateTime>
+#include <QtCore/QFileInfo>
+#include <QtCore/QStringList>
+#include <QtCore/QDebug>
+#include <QtCore/QtGlobal>
 // UNUSED_SYMBOL: MigrateSimModel<LIB_SYMBOL> - Template specialization not available in minimal project
 // #include "sim/sim_model.h"
 
-SYMBOL_LIB::SYMBOL_LIB( SCH_LIB_TYPE aType, const wxString& aFileName,
+SYMBOL_LIB::SYMBOL_LIB( SCH_LIB_TYPE aType, const QString& aFileName,
                         SCH_IO_MGR::SCH_FILE_T aPluginType ) :
     m_pluginType( aPluginType )
 {
     type = aType;
     isModified = false;
     timeStamp = 0;
-    timeStamp = wxDateTime::Now();
+    timeStamp = QDateTime::currentDateTime();
     versionMajor = 0;       // Will be updated after reading the lib file
     versionMinor = 0;       // Will be updated after reading the lib file
 
     fileName = aFileName;
 
-    if( !fileName.IsOk() )
+    if( fileName.isEmpty() )
         fileName = "unnamed.lib";
 
     // UNUSED_SYMBOL: ?FindPlugin@SCH_IO_MGR@@SAPEAVSCH_IO@@W4SCH_FILE_T - Implementation not available in minimal project
@@ -75,9 +52,10 @@ SYMBOL_LIB::~SYMBOL_LIB()
 
 void SYMBOL_LIB::Save( bool aSaveDocFile )
 {
-    wxCHECK_RET( m_plugin != nullptr,
-                 wxString::Format( wxT( "no plugin defined for library `%s`." ),
-                                   fileName.GetFullPath() ) );
+    Q_ASSERT_X( m_plugin != nullptr, "SYMBOL_LIB::Save",
+                QString( "no plugin defined for library `%1`." )
+                .arg( fileName ).toLocal8Bit().constData() );
+    if( m_plugin == nullptr ) return;
 
     std::map<std::string, UTF8> props;
 
@@ -85,16 +63,16 @@ void SYMBOL_LIB::Save( bool aSaveDocFile )
     // if( !aSaveDocFile )
     //     props[ SCH_IO_KICAD_LEGACY::PropNoDocFile ] = "";
 
-    m_plugin->SaveLibrary( fileName.GetFullPath(), &props );
+    m_plugin->SaveLibrary( fileName, &props );
     isModified = false;
 }
 
 
-void SYMBOL_LIB::Create( const wxString& aFileName )
+void SYMBOL_LIB::Create( const QString& aFileName )
 {
-    wxString tmpFileName = fileName.GetFullPath();
+    QString tmpFileName = fileName;
 
-    if( !aFileName.IsEmpty() )
+    if( !aFileName.isEmpty() )
         tmpFileName = aFileName;
 
     m_plugin->CreateLibrary( tmpFileName, m_properties.get() );
@@ -148,11 +126,11 @@ void SYMBOL_LIB::EnableBuffering( bool aEnable )
 */
 
 
-void SYMBOL_LIB::GetSymbolNames( wxArrayString& aNames ) const
+void SYMBOL_LIB::GetSymbolNames( QStringList& aNames ) const
 {
-    m_plugin->EnumerateSymbolLib( aNames, fileName.GetFullPath(), m_properties.get() );
+    m_plugin->EnumerateSymbolLib( aNames, fileName, m_properties.get() );
 
-    aNames.Sort();
+    aNames.sort();
 }
 
 
@@ -168,9 +146,9 @@ void SYMBOL_LIB::GetSymbols( std::vector<LIB_SYMBOL*>& aSymbols ) const
 }
 
 
-LIB_SYMBOL* SYMBOL_LIB::FindSymbol( const wxString& aName ) const
+LIB_SYMBOL* SYMBOL_LIB::FindSymbol( const QString& aName ) const
 {
-    LIB_SYMBOL* symbol = m_plugin->LoadSymbol( fileName.GetFullPath(), aName, m_properties.get() );
+    LIB_SYMBOL* symbol = m_plugin->LoadSymbol( fileName, aName, m_properties.get() );
 
     if( symbol )
     {
@@ -190,14 +168,14 @@ LIB_SYMBOL* SYMBOL_LIB::FindSymbol( const wxString& aName ) const
 
 LIB_SYMBOL* SYMBOL_LIB::FindSymbol( const LIB_ID& aLibId ) const
 {
-    return FindSymbol( aLibId.Format().wx_str() );
+    return FindSymbol( QString::fromStdString( aLibId.Format() ) );
 }
 
 
 void SYMBOL_LIB::AddSymbol( LIB_SYMBOL* aSymbol )
 {
     // add a clone, not the caller's copy, the plugin take ownership of the new symbol.
-    m_plugin->SaveSymbol( fileName.GetFullPath(),
+    m_plugin->SaveSymbol( fileName,
                           new LIB_SYMBOL( *aSymbol->SharedPtr().get(), this ),
                           m_properties.get() );
 
@@ -213,9 +191,10 @@ void SYMBOL_LIB::AddSymbol( LIB_SYMBOL* aSymbol )
 
 LIB_SYMBOL* SYMBOL_LIB::RemoveSymbol( LIB_SYMBOL* aEntry )
 {
-    wxCHECK_MSG( aEntry != nullptr, nullptr, "NULL pointer cannot be removed from library." );
+    Q_ASSERT_X( aEntry != nullptr, "SYMBOL_LIB::RemoveSymbol", "NULL pointer cannot be removed from library." );
+    if( aEntry == nullptr ) return nullptr;
 
-    m_plugin->DeleteSymbol( fileName.GetFullPath(), aEntry->GetName(), m_properties.get() );
+    m_plugin->DeleteSymbol( fileName, aEntry->GetName(), m_properties.get() );
 
     // If we are not buffering, the library file is updated immediately when the plugin
     // SaveSymbol() function is called.
@@ -230,14 +209,14 @@ LIB_SYMBOL* SYMBOL_LIB::RemoveSymbol( LIB_SYMBOL* aEntry )
 
 LIB_SYMBOL* SYMBOL_LIB::ReplaceSymbol( LIB_SYMBOL* aOldSymbol, LIB_SYMBOL* aNewSymbol )
 {
-    wxASSERT( aOldSymbol != nullptr );
-    wxASSERT( aNewSymbol != nullptr );
+    Q_ASSERT( aOldSymbol != nullptr );
+    Q_ASSERT( aNewSymbol != nullptr );
 
-    m_plugin->DeleteSymbol( fileName.GetFullPath(), aOldSymbol->GetName(), m_properties.get() );
+    m_plugin->DeleteSymbol( fileName, aOldSymbol->GetName(), m_properties.get() );
 
     LIB_SYMBOL* my_part = new LIB_SYMBOL( *aNewSymbol, this );
 
-    m_plugin->SaveSymbol( fileName.GetFullPath(), my_part, m_properties.get() );
+    m_plugin->SaveSymbol( fileName, my_part, m_properties.get() );
 
     // If we are not buffering, the library file is updated immediately when the plugin
     // SaveSymbol() function is called.
@@ -250,7 +229,7 @@ LIB_SYMBOL* SYMBOL_LIB::ReplaceSymbol( LIB_SYMBOL* aOldSymbol, LIB_SYMBOL* aNewS
 }
 
 
-SYMBOL_LIB* SYMBOL_LIB::LoadSymbolLibrary( const wxString& aFileName )
+SYMBOL_LIB* SYMBOL_LIB::LoadSymbolLibrary( const QString& aFileName )
 {
     std::unique_ptr<SYMBOL_LIB> lib = std::make_unique<SYMBOL_LIB>( SCH_LIB_TYPE::LT_EESCHEMA,
                                                                     aFileName );
@@ -274,13 +253,13 @@ SYMBOL_LIB* SYMBOL_LIB::LoadSymbolLibrary( const wxString& aFileName )
 }
 
 
-SYMBOL_LIB* SYMBOL_LIBS::AddLibrary( const wxString& aFileName )
+SYMBOL_LIB* SYMBOL_LIBS::AddLibrary( const QString& aFileName )
 {
     SYMBOL_LIB* lib;
 
-    wxFileName fn = aFileName;
+    QFileInfo fn( aFileName );
     // Don't reload the library if it is already loaded.
-    lib = FindLibrary( fn.GetName() );
+    lib = FindLibrary( fn.baseName() );
 
     if( lib )
         return lib;
@@ -299,11 +278,11 @@ SYMBOL_LIB* SYMBOL_LIBS::AddLibrary( const wxString& aFileName )
 }
 
 
-SYMBOL_LIB* SYMBOL_LIBS::AddLibrary( const wxString& aFileName, SYMBOL_LIBS::iterator& aIterator )
+SYMBOL_LIB* SYMBOL_LIBS::AddLibrary( const QString& aFileName, SYMBOL_LIBS::iterator& aIterator )
 {
     // Don't reload the library if it is already loaded.
-    wxFileName fn( aFileName );
-    SYMBOL_LIB* lib = FindLibrary( fn.GetName() );
+    QFileInfo fn( aFileName );
+    SYMBOL_LIB* lib = FindLibrary( fn.baseName() );
 
     if( lib )
         return lib;
@@ -326,10 +305,10 @@ SYMBOL_LIB* SYMBOL_LIBS::AddLibrary( const wxString& aFileName, SYMBOL_LIBS::ite
 }
 
 
-bool SYMBOL_LIBS::ReloadLibrary( const wxString &aFileName )
+bool SYMBOL_LIBS::ReloadLibrary( const QString &aFileName )
 {
-    wxFileName  fn = aFileName;
-    SYMBOL_LIB* lib = FindLibrary( fn.GetName() );
+    QFileInfo  fn( aFileName );
+    SYMBOL_LIB* lib = FindLibrary( fn.baseName() );
 
     // Check if the library already exists.
     if( !lib )
@@ -341,7 +320,7 @@ bool SYMBOL_LIBS::ReloadLibrary( const wxString &aFileName )
     // Try to find the iterator of the library
     for( auto it = begin(); it != end(); ++it )
     {
-        if( it->GetName() == fn.GetName() )
+        if( it->GetName() == fn.baseName() )
         {
             // Remove the old library and keep the pointer
             lib = &*it;
@@ -369,7 +348,7 @@ bool SYMBOL_LIBS::ReloadLibrary( const wxString &aFileName )
 }
 
 
-SYMBOL_LIB* SYMBOL_LIBS::FindLibrary( const wxString& aName )
+SYMBOL_LIB* SYMBOL_LIBS::FindLibrary( const QString& aName )
 {
     for( SYMBOL_LIBS::iterator it = begin();  it!=end();  ++it )
     {
@@ -393,7 +372,7 @@ SYMBOL_LIB* SYMBOL_LIBS::GetCacheLibrary()
 }
 
 
-SYMBOL_LIB* SYMBOL_LIBS::FindLibraryByFullFileName( const wxString& aFullFileName )
+SYMBOL_LIB* SYMBOL_LIBS::FindLibraryByFullFileName( const QString& aFullFileName )
 {
     for( SYMBOL_LIBS::iterator it = begin();  it!=end();  ++it )
     {
@@ -405,40 +384,40 @@ SYMBOL_LIB* SYMBOL_LIBS::FindLibraryByFullFileName( const wxString& aFullFileNam
 }
 
 
-wxArrayString SYMBOL_LIBS::GetLibraryNames( bool aSorted )
+QStringList SYMBOL_LIBS::GetLibraryNames( bool aSorted )
 {
-    wxArrayString cacheNames;
-    wxArrayString names;
+    QStringList cacheNames;
+    QStringList names;
 
     for( SYMBOL_LIB& lib : *this )
     {
         if( lib.IsCache() && aSorted )
-            cacheNames.Add( lib.GetName() );
+            cacheNames.append( lib.GetName() );
         else
-            names.Add( lib.GetName() );
+            names.append( lib.GetName() );
     }
 
     // Even sorted, the cache library is always at the end of the list.
     if( aSorted )
-        names.Sort();
+        names.sort();
 
-    for( unsigned int i = 0; i<cacheNames.Count(); i++ )
-        names.Add( cacheNames.Item( i ) );
+    for( int i = 0; i < cacheNames.size(); i++ )
+        names.append( cacheNames.at( i ) );
 
     return names;
 }
 
 
-LIB_SYMBOL* SYMBOL_LIBS::FindLibSymbol( const LIB_ID& aLibId, const wxString& aLibraryName )
+LIB_SYMBOL* SYMBOL_LIBS::FindLibSymbol( const LIB_ID& aLibId, const QString& aLibraryName )
 {
     LIB_SYMBOL* part = nullptr;
 
     for( SYMBOL_LIB& lib : *this )
     {
-        if( !aLibraryName.IsEmpty() && lib.GetName() != aLibraryName )
+        if( !aLibraryName.isEmpty() && lib.GetName() != aLibraryName )
             continue;
 
-        part = lib.FindSymbol( aLibId.GetLibItemName().wx_str() );
+        part = lib.FindSymbol( QString::fromStdString( aLibId.GetLibItemName() ) );
 
         if( part )
             break;
@@ -449,33 +428,34 @@ LIB_SYMBOL* SYMBOL_LIBS::FindLibSymbol( const LIB_ID& aLibId, const wxString& aL
 
 
 void SYMBOL_LIBS::FindLibraryNearEntries( std::vector<LIB_SYMBOL*>& aCandidates,
-                                          const wxString& aEntryName,
-                                          const wxString& aLibraryName )
+                                          const QString& aEntryName,
+                                          const QString& aLibraryName )
 {
     for( SYMBOL_LIB& lib : *this )
     {
-        if( !aLibraryName.IsEmpty() && lib.GetName() != aLibraryName )
+        if( !aLibraryName.isEmpty() && lib.GetName() != aLibraryName )
             continue;
 
-        wxArrayString partNames;
+        QStringList partNames;
 
         lib.GetSymbolNames( partNames );
 
-        if( partNames.IsEmpty() )
+        if( partNames.isEmpty() )
             continue;
 
         for( size_t i = 0;  i < partNames.size();  i++ )
         {
-            if( partNames[i].CmpNoCase( aEntryName ) == 0 )
+            if( partNames[i].compare( aEntryName, Qt::CaseInsensitive ) == 0 )
                 aCandidates.push_back( lib.FindSymbol( partNames[i] ) );
         }
     }
 }
 
 
-void SYMBOL_LIBS::GetLibNamesAndPaths( PROJECT* aProject, wxString* aPaths, wxArrayString* aNames )
+void SYMBOL_LIBS::GetLibNamesAndPaths( PROJECT* aProject, QString* aPaths, QStringList* aNames )
 {
-    wxCHECK_RET( aProject, "Null PROJECT in GetLibNamesAndPaths" );
+    Q_ASSERT_X( aProject != nullptr, "SYMBOL_LIBS::GetLibNamesAndPaths", "Null PROJECT in GetLibNamesAndPaths" );
+    if( aProject == nullptr ) return;
 
     PROJECT_FILE& project = aProject->GetProjectFile();
 
@@ -487,10 +467,11 @@ void SYMBOL_LIBS::GetLibNamesAndPaths( PROJECT* aProject, wxString* aPaths, wxAr
 }
 
 
-void SYMBOL_LIBS::SetLibNamesAndPaths( PROJECT* aProject, const wxString& aPaths,
-                                       const wxArrayString& aNames )
+void SYMBOL_LIBS::SetLibNamesAndPaths( PROJECT* aProject, const QString& aPaths,
+                                       const QStringList& aNames )
 {
-    wxCHECK_RET( aProject, "Null PROJECT in SetLibNamesAndPaths" );
+    Q_ASSERT_X( aProject != nullptr, "SYMBOL_LIBS::SetLibNamesAndPaths", "Null PROJECT in SetLibNamesAndPaths" );
+    if( aProject == nullptr ) return;
 
     PROJECT_FILE& project = aProject->GetProjectFile();
 
@@ -499,95 +480,95 @@ void SYMBOL_LIBS::SetLibNamesAndPaths( PROJECT* aProject, const wxString& aPaths
 }
 
 
-const wxString SYMBOL_LIBS::CacheName( const wxString& aFullProjectFilename )
+const QString SYMBOL_LIBS::CacheName( const QString& aFullProjectFilename )
 {
-    wxFileName filename( aFullProjectFilename );
-    wxString   name = filename.GetName();
+    QFileInfo fileinfo( aFullProjectFilename );
+    QString   name = fileinfo.baseName();
+    QString   dir = fileinfo.absolutePath();
 
-    filename.SetName( name + "-cache" );
-    filename.SetExt( FILEEXT::LegacySymbolLibFileExtension );
+    QFileInfo filename( dir + "/" + name + "-cache." + FILEEXT::LegacySymbolLibFileExtension );
 
-    if( filename.FileExists() )
-        return filename.GetFullPath();
+    if( filename.exists() )
+        return filename.absoluteFilePath();
 
     // Try the old (2007) cache name
-    filename.SetName( name + ".cache" );
+    QFileInfo oldFilename( dir + "/" + name + ".cache." + FILEEXT::LegacySymbolLibFileExtension );
 
-    if( filename.FileExists() )
-        return filename.GetFullPath();
+    if( oldFilename.exists() )
+        return oldFilename.absoluteFilePath();
 
-    return wxEmptyString;
+    return QString();
 }
 
 
 void SYMBOL_LIBS::LoadAllLibraries( PROJECT* aProject, bool aShowProgress )
 {
-    wxString        filename;
-    wxString        libs_not_found;
+    QString        filename;
+    QString        libs_not_found;
     SEARCH_STACK*   lib_search = PROJECT_SCH::SchSearchS( aProject );
 
 #if defined(DEBUG) && 0
     lib_search->Show( __func__ );
 #endif
 
-    wxArrayString   lib_names;
+    QStringList   lib_names;
 
     GetLibNamesAndPaths( aProject, nullptr, &lib_names );
 
     // Post symbol library table, this should be empty.  Only the cache library should get loaded.
-    if( !lib_names.empty() )
+    if( !lib_names.isEmpty() )
     {
-        APP_PROGRESS_DIALOG lib_dialog( _( "Loading Symbol Libraries" ),
-                                        wxEmptyString,
-                                        lib_names.GetCount(),
+        APP_PROGRESS_DIALOG lib_dialog( "Loading Symbol Libraries",
+                                        QString(),
+                                        lib_names.size(),
                                         nullptr,
                                         false,
-                                        wxPD_APP_MODAL );
+                                        true );
 
         if( aShowProgress )
         {
             lib_dialog.Show();
         }
 
-        for( unsigned i = 0; i < lib_names.GetCount();  ++i )
+        for( int i = 0; i < lib_names.size();  ++i )
         {
             if( aShowProgress )
             {
-                lib_dialog.Update( i, wxString::Format( _( "Loading %s..." ), lib_names[i] ) );
+                lib_dialog.Update( i, QString( "Loading %1..." ).arg( lib_names[i] ) );
             }
 
             // lib_names[] does not store the file extension. Set it.
-            // Remember lib_names[i] can contain a '.' in name, so using a wxFileName
+            // Remember lib_names[i] can contain a '.' in name, so using a QFileInfo
             // before adding the extension can create incorrect full filename
-            wxString fullname = lib_names[i] + "." + FILEEXT::LegacySymbolLibFileExtension;
+            QString fullname = lib_names[i] + "." + FILEEXT::LegacySymbolLibFileExtension;
 
-            // Now the full name is set, we can use a wxFileName.
-            wxFileName fn( fullname );
+            // Now the full name is set, we can use a QFileInfo.
+            QFileInfo fn( fullname );
 
             // Skip if the file name is not valid..
-            if( !fn.IsOk() )
+            if( fullname.isEmpty() )
                 continue;
 
-            if( !fn.FileExists() )
+            if( !fn.exists() )
             {
-                filename = lib_search->FindValidPath( fn.GetFullPath() );
+                filename = lib_search->FindValidPath( fn.absoluteFilePath() );
 
-                if( !filename )
+                if( filename.isEmpty() )
                 {
-                    libs_not_found += fn.GetFullPath();
+                    libs_not_found += fn.absoluteFilePath();
                     libs_not_found += '\n';
                     continue;
                 }
             }
             else
             {   // ensure the lib filename has a absolute path.
-                // If the lib has no absolute path, and is found in the cwd by fn.FileExists(),
+                // If the lib has no absolute path, and is found in the cwd by fn.exists(),
                 // make a full absolute path, to avoid issues with load library functions which
                 // expects an absolute path.
-                if( !fn.IsAbsolute() )
-                    fn.MakeAbsolute();
-
-                filename = fn.GetFullPath();
+                if( !fn.isAbsolute() )
+                    filename = fn.absoluteFilePath();
+                else
+                    filename = fn.absoluteFilePath();
             }
 
             try
@@ -596,19 +577,18 @@ void SYMBOL_LIBS::LoadAllLibraries( PROJECT* aProject, bool aShowProgress )
             }
             catch( const IO_ERROR& ioe )
             {
-                wxString msg;
-                msg.Printf( _( "Symbol library '%s' failed to load." ), filename );
+                QString msg = QString( "Symbol library '%1' failed to load." ).arg( filename );
 
-                wxLogError( msg + wxS( "\n" ) + ioe.What() );
+                qDebug() << msg << "\n" << ioe.What();
             }
         }
     }
 
     // add the special cache library.
-    wxString cache_name = CacheName( aProject->GetProjectFullName() );
+    QString cache_name = CacheName( aProject->GetProjectFullName() );
     SYMBOL_LIB* cache_lib;
 
-    if( !aProject->IsNullProject() && !cache_name.IsEmpty() )
+    if( !aProject->IsNullProject() && !cache_name.isEmpty() )
     {
         try
         {
@@ -619,20 +599,19 @@ void SYMBOL_LIBS::LoadAllLibraries( PROJECT* aProject, bool aShowProgress )
         }
         catch( const IO_ERROR& ioe )
         {
-            wxString msg = wxString::Format( _( "Error loading symbol library '%s'." )
-                                             + wxS( "\n%s" ),
-                                             cache_name,
-                                             ioe.What() );
+            QString msg = QString( "Error loading symbol library '%1'.\n%2" )
+                                             .arg( cache_name )
+                                             .arg( ioe.What() );
 
             THROW_IO_ERROR( msg );
         }
     }
 
     // Print the libraries not found
-    if( !libs_not_found.IsEmpty() )
+    if( !libs_not_found.isEmpty() )
     {
         // Use a different exception type so catch()er can route to proper use
         // of the HTML_MESSAGE_BOX.
-        THROW_PARSE_ERROR( wxEmptyString, __func__, TO_UTF8( libs_not_found ), 0, 0 );
+        THROW_PARSE_ERROR( QString(), __func__, TO_UTF8( libs_not_found ), 0, 0 );
     }
 }

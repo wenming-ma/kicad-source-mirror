@@ -32,7 +32,7 @@
 #include <tool/selection.h>
 
 #include <functional>
-#include <wx/debug.h>
+#include <QtCore/QDebug>
 
 using namespace std::placeholders;
 
@@ -78,7 +78,7 @@ SELECTION_CONDITION EDITOR_CONDITIONS::GridVisible()
     // The grid visibility check requires a draw frame
     EDA_DRAW_FRAME* drwFrame = dynamic_cast<EDA_DRAW_FRAME*>( m_frame );
 
-    wxASSERT( drwFrame );
+    Q_ASSERT( drwFrame );
 
     return std::bind( &EDITOR_CONDITIONS::gridFunc, _1, drwFrame );
 }
@@ -89,7 +89,7 @@ SELECTION_CONDITION EDITOR_CONDITIONS::GridOverrides()
     // The grid lock check requires a draw frame
     EDA_DRAW_FRAME* drwFrame = dynamic_cast<EDA_DRAW_FRAME*>( m_frame );
 
-    wxASSERT( drwFrame );
+    Q_ASSERT( drwFrame );
 
     return std::bind( &EDITOR_CONDITIONS::gridOverridesFunc, _1, drwFrame );
 }
@@ -100,7 +100,7 @@ SELECTION_CONDITION EDITOR_CONDITIONS::PolarCoordinates()
     // The polar coordinates require a draw frame
     EDA_DRAW_FRAME* drwFrame = dynamic_cast<EDA_DRAW_FRAME*>( m_frame );
 
-    wxASSERT( drwFrame );
+    Q_ASSERT( drwFrame );
 
     return std::bind( &EDITOR_CONDITIONS::polarCoordFunc, _1, drwFrame );
 }
@@ -111,7 +111,7 @@ SELECTION_CONDITION EDITOR_CONDITIONS::FullscreenCursor()
     // The fullscreen cursor requires a draw frame
     EDA_DRAW_FRAME* drwFrame = dynamic_cast<EDA_DRAW_FRAME*>( m_frame );
 
-    wxASSERT( drwFrame );
+    Q_ASSERT( drwFrame );
 
     return std::bind( &EDITOR_CONDITIONS::cursorFunc, _1, drwFrame );
 }
@@ -121,7 +121,7 @@ SELECTION_CONDITION EDITOR_CONDITIONS::BoundingBoxes()
 {
     EDA_DRAW_FRAME* drwFrame = dynamic_cast<EDA_DRAW_FRAME*>( m_frame );
 
-    wxASSERT( drwFrame );
+    Q_ASSERT( drwFrame );
 
     return std::bind( &EDITOR_CONDITIONS::bboxesFunc, _1, drwFrame );
 }
@@ -131,7 +131,7 @@ SELECTION_CONDITION EDITOR_CONDITIONS::ScriptingConsoleVisible()
 {
     EDA_DRAW_FRAME* drwFrame = dynamic_cast<EDA_DRAW_FRAME*>( m_frame );
 
-    wxASSERT( drwFrame );
+    Q_ASSERT( drwFrame );
 
     return std::bind( &EDITOR_CONDITIONS::consoleVisibleFunc, _1, drwFrame );
 }

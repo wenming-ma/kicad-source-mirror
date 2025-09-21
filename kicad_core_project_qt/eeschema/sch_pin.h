@@ -24,6 +24,7 @@
 #pragma once
 
 #include <memory>
+#include <QString>
 
 #include <pin_type.h>
 #include <sch_item.h>
@@ -41,14 +42,14 @@ class SCH_PIN : public SCH_ITEM
 public:
     struct ALT
     {
-        wxString            m_Name;
+        QString            m_Name;
         GRAPHIC_PINSHAPE    m_Shape;         // Shape drawn around pin
         ELECTRICAL_PINTYPE  m_Type;          // Electrical type of the pin.
     };
 
     SCH_PIN( LIB_SYMBOL* aParentSymbol );
 
-    SCH_PIN( LIB_SYMBOL* aParentSymbol, const wxString& aName, const wxString& aNumber,
+    SCH_PIN( LIB_SYMBOL* aParentSymbol, const QString& aName, const QString& aNumber,
              PIN_ORIENTATION aOrientation, ELECTRICAL_PINTYPE aPinType, int aLength,
              int aNameTextSize, int aNumTextSize, int aBodyStyle, const VECTOR2I& aPos, int aUnit );
 
@@ -61,7 +62,7 @@ public:
      *
      * @see SCH_SYMBOL::UpdatePins().
      */
-    SCH_PIN( SCH_SYMBOL* aParentSymbol, const wxString& aNumber, const wxString& aAlt,
+    SCH_PIN( SCH_SYMBOL* aParentSymbol, const QString& aNumber, const QString& aAlt,
              const KIID& aUuid );
 
     SCH_PIN( const SCH_PIN& aPin );
@@ -70,9 +71,9 @@ public:
 
     SCH_PIN& operator=( const SCH_PIN& aPin );
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "SCH_PIN" );
+        return "SCH_PIN";
     }
 
     static bool ClassOf( const EDA_ITEM* aItem )
@@ -80,9 +81,9 @@ public:
         return aItem && aItem->Type() == SCH_PIN_T;
     }
 
-    wxString GetFriendlyName() const override
+    QString GetFriendlyName() const override
     {
-        return _( "Pin" );
+        return "Pin";
     }
 
     SCH_PIN* GetLibPin() const { return m_libPin; }
@@ -106,23 +107,23 @@ public:
 
     ELECTRICAL_PINTYPE GetType() const;
     void SetType( ELECTRICAL_PINTYPE aType );
-    wxString GetCanonicalElectricalTypeName() const;
-    wxString GetElectricalTypeName() const;
+    QString GetCanonicalElectricalTypeName() const;
+    QString GetElectricalTypeName() const;
 
     bool IsVisible() const;
     void SetVisible( bool aVisible ) { m_hidden = !aVisible; }
 
-    const wxString& GetName() const;
-    wxString GetShownName() const;
-    void SetName( const wxString& aName );
+    const QString& GetName() const;
+    QString GetShownName() const;
+    void SetName( const QString& aName );
     /**
      * Get the name without any alternates
      */
-    const wxString& GetBaseName() const;
+    const QString& GetBaseName() const;
 
-    const wxString& GetNumber() const { return m_number; }
-    wxString GetShownNumber() const;
-    void SetNumber( const wxString& aNumber );
+    const QString& GetNumber() const { return m_number; }
+    QString GetShownNumber() const;
+    void SetNumber( const QString& aNumber );
 
     int GetNameTextSize() const;
     void SetNameTextSize( int aSize );
@@ -130,7 +131,7 @@ public:
     int GetNumberTextSize() const;
     void SetNumberTextSize( int aSize );
 
-    const std::map<wxString, ALT>& GetAlternates() const
+    const std::map<QString, ALT>& GetAlternates() const
     {
         if( m_libPin )
             return m_libPin->GetAlternates();
@@ -138,18 +139,18 @@ public:
         return m_alternates;
     }
 
-    std::map<wxString, ALT>& GetAlternates()
+    std::map<QString, ALT>& GetAlternates()
     {
-        return const_cast<std::map<wxString, ALT>&>(
+        return const_cast<std::map<QString, ALT>&>(
                 static_cast<const SCH_PIN*>( this )->GetAlternates() );
     }
 
-    ALT GetAlt( const wxString& aAlt )
+    ALT GetAlt( const QString& aAlt )
     {
         return GetAlternates()[ aAlt ];
     }
 
-    wxString GetAlt() const { return m_alt; }
+    QString GetAlt() const { return m_alt; }
 
     /**
      * Set the name of the alternate pin.
@@ -160,7 +161,7 @@ public:
      *
      * @param is the name of the pin alternate in #m_alternates.
      */
-    void SetAlt( const wxString& aAlt );
+    void SetAlt( const QString& aAlt );
 
     void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
                 const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
@@ -253,8 +254,8 @@ public:
 
     BITMAPS GetMenuImage() const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, ALT* aAlt ) const;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, ALT* aAlt ) const;
 
     EDA_ITEM* Clone() const override;
 
@@ -272,7 +273,7 @@ public:
      * @param aType is the electrical type (see enum ELECTRICAL_PINTYPE )
      * @return The electrical name for a pin type (see enun MsgPinElectricType for names).
      */
-    static wxString GetCanonicalElectricalTypeName( ELECTRICAL_PINTYPE aType );
+    static QString GetCanonicalElectricalTypeName( ELECTRICAL_PINTYPE aType );
 
     bool IsConnectable() const override { return true; }
 
@@ -280,7 +281,7 @@ public:
                                  const SCH_SHEET_PATH* aInstance = nullptr ) const override;
 
     void ClearDefaultNetName( const SCH_SHEET_PATH* aPath );
-    wxString GetDefaultNetName( const SCH_SHEET_PATH& aPath, bool aForceNoConnect = false );
+    QString GetDefaultNetName( const SCH_SHEET_PATH& aPath, bool aForceNoConnect = false );
 
     bool IsDangling() const override;
     void SetIsDangling( bool aIsDangling );
@@ -298,8 +299,8 @@ public:
 
     bool ConnectionPropagatesTo( const EDA_ITEM* aItem ) const override;
 
-    const wxString& GetOperatingPoint() const { return m_operatingPoint; }
-    void SetOperatingPoint( const wxString& aText ) { m_operatingPoint = aText; }
+    const QString& GetOperatingPoint() const { return m_operatingPoint; }
+    void SetOperatingPoint( const QString& aText ) { m_operatingPoint = aText; }
 
     double Similarity( const SCH_ITEM& aOther ) const override;
 
@@ -315,7 +316,7 @@ public:
     PIN_LAYOUT_CACHE& GetLayoutCache() const { return *m_layoutCache; }
 
 protected:
-    wxString getItemDescription( ALT* aAlt ) const;
+    QString getItemDescription( ALT* aAlt ) const;
 
     struct EXTENTS_CACHE
     {
@@ -324,7 +325,7 @@ protected:
         VECTOR2I      m_Extents;
     };
 
-    void validateExtentsCache( KIFONT::FONT* aFont, int aSize, const wxString& aText,
+    void validateExtentsCache( KIFONT::FONT* aFont, int aSize, const QString& aText,
                                EXTENTS_CACHE* aCache ) const;
 
     /**
@@ -378,7 +379,7 @@ protected:
     SCH_PIN*                m_libPin;          // The corresponding pin in the LIB_SYMBOL
                                                //   (nullptr for a pin *in* the LIB_SYMBOL)
 
-    std::map<wxString, ALT> m_alternates;      // Map of alternate name to ALT structure
+    std::map<QString, ALT> m_alternates;      // Map of alternate name to ALT structure
                                                //   (only valid for pins in LIB_SYMBOLS)
 
     VECTOR2I                m_position;        // Position of the pin.
@@ -387,13 +388,13 @@ protected:
     GRAPHIC_PINSHAPE        m_shape;           // Shape drawn around pin
     ELECTRICAL_PINTYPE      m_type;            // Electrical type of the pin.
     std::optional<bool>     m_hidden;
-    wxString                m_name;
-    wxString                m_number;
+    QString                m_name;
+    QString                m_number;
     std::optional<int>      m_numTextSize;     // Pin num and Pin name sizes
     std::optional<int>      m_nameTextSize;
-    wxString                m_alt;             // The current alternate for an instance
+    QString                m_alt;             // The current alternate for an instance
 
-    wxString                m_operatingPoint;
+    QString                m_operatingPoint;
 
     bool                    m_isDangling;
 
@@ -406,5 +407,5 @@ protected:
 
     /// The name that this pin connection will drive onto a net.
     std::recursive_mutex                                      m_netmap_mutex;
-    std::map<const SCH_SHEET_PATH, std::pair<wxString, bool>> m_net_name_map;
+    std::map<const SCH_SHEET_PATH, std::pair<QString, bool>> m_net_name_map;
 };

@@ -1,30 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef PIN_TYPE_H_
 #define PIN_TYPE_H_
 
-#include <wx/arrstr.h>
+#include <QStringList>
 #include <vector>
 
 enum class BITMAPS : unsigned int;
@@ -114,24 +92,24 @@ enum class PIN_ORIENTATION
 
 // UI
 
-wxString PinShapeGetText( GRAPHIC_PINSHAPE shape );
+QString PinShapeGetText( GRAPHIC_PINSHAPE shape );
 BITMAPS PinShapeGetBitmap( GRAPHIC_PINSHAPE shape );
 
-wxString ElectricalPinTypeGetText( ELECTRICAL_PINTYPE );
+QString ElectricalPinTypeGetText( ELECTRICAL_PINTYPE );
 BITMAPS ElectricalPinTypeGetBitmap( ELECTRICAL_PINTYPE );
 
-wxString PinOrientationName( PIN_ORIENTATION aOrientation );
+QString PinOrientationName( PIN_ORIENTATION aOrientation );
 BITMAPS PinOrientationGetBitmap( PIN_ORIENTATION aOrientation );
 PIN_ORIENTATION PinOrientationCode( size_t index );
 int PinOrientationIndex( PIN_ORIENTATION code );
 
-const wxArrayString& PinTypeNames();
+const QStringList& PinTypeNames();
 const std::vector<BITMAPS>& PinTypeIcons();
 
-const wxArrayString& PinShapeNames();
+const QStringList& PinShapeNames();
 const std::vector<BITMAPS>& PinShapeIcons();
 
-const wxArrayString& PinOrientationNames();
+const QStringList& PinOrientationNames();
 const std::vector<BITMAPS>& PinOrientationIcons();
 
 #endif

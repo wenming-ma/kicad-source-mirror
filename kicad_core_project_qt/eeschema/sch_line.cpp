@@ -1,27 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+#include <QString>
+#include <QDebug>
+#include <QPainter>
 #include <base_units.h>
 #include <bitmaps.h>
 #include <string_utils.h>
@@ -136,7 +116,7 @@ SCH_LINE::SCH_LINE( const SCH_LINE& aLine ) :
 // }
 
 
-wxString SCH_LINE::GetFriendlyName() const
+QString SCH_LINE::GetFriendlyName() const
 {
     switch( GetLayer() )
     {
@@ -176,14 +156,14 @@ void SCH_LINE::MoveEnd( const VECTOR2I& aOffset )
 
 void SCH_LINE::Show( int nestLevel, std::ostream& os ) const
 {
-    NestedSpace( nestLevel, os ) << '<' << GetClass().Lower().mb_str()
+    NestedSpace( nestLevel, os ) << '<' << GetClass().toLower().toStdString().c_str()
                                  << " layer=\"" << m_layer << '"'
                                  << " startIsDangling=\"" << m_startIsDangling
                                  << '"' << " endIsDangling=\""
                                  << m_endIsDangling << '"' << ">"
                                  << " <start" << m_start << "/>"
                                  << " <end" << m_end << "/>" << "</"
-                                 << GetClass().Lower().mb_str() << ">\n";
+                                 << GetClass().toLower().toStdString().c_str() << ">\n";
 }
 
 #endif
@@ -350,7 +330,7 @@ int SCH_LINE::GetPenWidth() const
 void SCH_LINE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
                       const VECTOR2I& offset, bool aForceNoFill, bool aDimmed )
 {
-    wxDC*   DC = aSettings->GetPrintDC();
+    QPainter*   DC = aSettings->GetPrintDC();
     COLOR4D color = GetLineColor();
 
     if( color == COLOR4D::UNSPECIFIED )
@@ -436,8 +416,8 @@ int SCH_LINE::GetReverseAngleFrom( const VECTOR2I& aPoint ) const
 
 bool SCH_LINE::IsParallel( const SCH_LINE* aLine ) const
 {
-    wxCHECK_MSG( aLine != nullptr && aLine->Type() == SCH_LINE_T, false,
-                 wxT( "Cannot test line segment for overlap." ) );
+    Q_ASSERT_X( aLine != nullptr && aLine->Type() == SCH_LINE_T, "SCH_LINE::IsParallel",
+                "Cannot test line segment for overlap." );
 
     VECTOR2I firstSeg = m_end - m_start;
     VECTOR2I secondSeg = aLine->m_end - aLine->m_start;
@@ -458,8 +438,10 @@ SCH_LINE* SCH_LINE::MergeOverlap( SCH_SCREEN* aScreen, SCH_LINE* aLine, bool aCh
                 return lhs.x < rhs.x;
             };
 
-    wxCHECK_MSG( aLine != nullptr && aLine->Type() == SCH_LINE_T, nullptr,
-                 wxT( "Cannot test line segment for overlap." ) );
+    Q_ASSERT_X( aLine != nullptr && aLine->Type() == SCH_LINE_T, "SCH_LINE::MergeOverlap",
+                "Cannot test line segment for overlap." );
+    if( !(aLine != nullptr && aLine->Type() == SCH_LINE_T) )
+        return nullptr;
 
     if( this == aLine || GetLayer() != aLine->GetLayer() )
         return nullptr;
@@ -686,7 +668,9 @@ bool SCH_LINE::HasConnectivityChanges( const SCH_ITEM* aItem,
     const SCH_LINE* line = dynamic_cast<const SCH_LINE*>( aItem );
 
     // Don't compare against a different SCH_ITEM.
-    wxCHECK( line, false );
+    Q_ASSERT_X( line, "SCH_LINE::HasConnectivityChanges", "Line cannot be null" );
+    if( !line )
+        return false;
 
     if( GetStartPoint() != line->GetStartPoint() )
         return true;
@@ -724,9 +708,9 @@ void SCH_LINE::GetSelectedPoints( std::vector<VECTOR2I>& aPoints ) const
 }
 
 
-wxString SCH_LINE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_LINE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    wxString txtfmt;
+    QString txtfmt;
 
     if( m_start.x == m_end.x )
     {
@@ -756,8 +740,8 @@ wxString SCH_LINE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFul
         }
     }
 
-    return wxString::Format( txtfmt,
-                             aUnitsProvider->MessageTextFromValue( m_start.Distance( m_end ) ) );
+    return QString::asprintf( txtfmt.toStdString().c_str(),
+                              aUnitsProvider->MessageTextFromValue( m_start.Distance( m_end ) ).toStdString().c_str() );
 }
 
 
@@ -876,7 +860,7 @@ void SCH_LINE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& a
     aPlotter->SetDash( penWidth, LINE_STYLE::SOLID );
 
     // Plot attributes to a hypertext menu
-    std::vector<wxString> properties;
+    std::vector<QString> properties;
     BOX2I                 bbox = GetBoundingBox();
     bbox.Inflate( penWidth * 3 );
 
@@ -886,13 +870,13 @@ void SCH_LINE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& a
         {
             if( SCH_CONNECTION* connection = Connection() )
             {
-                properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
-                                                           _( "Net" ),
-                                                           connection->Name() ) );
+                properties.emplace_back( QString::asprintf( "!%s = %s",
+                                                            _( "Net" ).toStdString().c_str(),
+                                                            connection->Name().toStdString().c_str() ) );
 
-                properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
-                                                           _( "Resolved netclass" ),
-                                                           GetEffectiveNetClass()->GetHumanReadableName() ) );
+                properties.emplace_back( QString::asprintf( "!%s = %s",
+                                                            _( "Resolved netclass" ).toStdString().c_str(),
+                                                            GetEffectiveNetClass()->GetHumanReadableName().toStdString().c_str() ) );
             }
         }
         else if( GetLayer() == LAYER_BUS )
@@ -900,7 +884,7 @@ void SCH_LINE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& a
             if( SCH_CONNECTION* connection = Connection() )
             {
                 for( const std::shared_ptr<SCH_CONNECTION>& member : connection->Members() )
-                    properties.emplace_back( wxT( "!" ) + member->Name() );
+                    properties.emplace_back( "!" + member->Name() );
             }
         }
 
@@ -919,7 +903,7 @@ void SCH_LINE::SetPosition( const VECTOR2I& aPosition )
 
 void SCH_LINE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString msg;
+    QString msg;
 
     switch( GetLayer() )
     {
@@ -1101,4 +1085,4 @@ static struct SCH_LINE_DESC
     }
 } _SCH_LINE_DESC;
 
-IMPLEMENT_ENUM_TO_WXANY( WIRE_STYLE )
+IMPLEMENT_ENUM_TO_QTVARIANT( WIRE_STYLE )

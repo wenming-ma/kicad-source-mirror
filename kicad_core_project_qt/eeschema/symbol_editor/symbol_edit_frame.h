@@ -33,6 +33,14 @@
 #include <symbol_tree_pane.h>
 #include <optional>
 
+#include <QString>
+#include <QWidget>
+#include <QComboBox>
+#include <QEvent>
+#include <QCloseEvent>
+#include <QModelIndex>
+#include <QFileInfo>
+
 class SCH_EDIT_FRAME;
 class SYMBOL_LIB_TABLE;
 class LIB_SYMBOL;
@@ -49,7 +57,7 @@ class EDA_LIST_DIALOG;
 class SYMBOL_EDIT_FRAME : public SCH_BASE_FRAME
 {
 public:
-    SYMBOL_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent );
+    SYMBOL_EDIT_FRAME( KIWAY* aKiway, QWidget* aParent );
 
     ~SYMBOL_EDIT_FRAME() override;
 
@@ -82,12 +90,12 @@ public:
     /**
      * The nickname of the current library being edited and empty string if none.
      */
-    wxString GetCurLib() const;
+    QString GetCurLib() const;
 
     /**
      * Set the current library nickname and returns the old library nickname.
      */
-    wxString SetCurLib( const wxString& aLibNickname );
+    QString SetCurLib( const QString& aLibNickname );
 
     LIB_TREE* GetLibTree() const override { return m_treePane->GetLibTree(); }
 
@@ -122,12 +130,12 @@ public:
     /**
      * Create or add an existing library to the symbol library table.
      */
-    wxString AddLibraryFile( bool aCreateNew );
+    QString AddLibraryFile( bool aCreateNew );
 
     /**
      * Add a library dropped file to the symbol library table.
      */
-    void DdAddLibrary( wxString aLibFile );
+    void DdAddLibrary( QString aLibFile );
 
     /**
      * Create a new symbol in the selected library.
@@ -135,7 +143,7 @@ public:
      * @param newName is the name of the symbol to derive the new symbol from or empty
      *                     to create a new root symbol.
      */
-    void CreateNewSymbol( const wxString& newName = wxEmptyString );
+    void CreateNewSymbol( const QString& newName = QString() );
 
     void ImportSymbol();
     void ExportSymbol();
@@ -170,7 +178,7 @@ public:
 
     void CopySymbolToClipboard();
 
-    void LoadSymbol( const wxString& aLibrary, const wxString& aSymbol, int Unit );
+    void LoadSymbol( const QString& aLibrary, const QString& aSymbol, int Unit );
 
     /**
      * Insert a duplicate symbol.
@@ -179,7 +187,7 @@ public:
      */
     void DuplicateSymbol( bool aFromClipboard );
 
-    void OnSelectUnit( wxCommandEvent& event );
+    void OnSelectUnit( QEvent& event );
 
     void ToggleProperties() override;
 
@@ -189,14 +197,14 @@ public:
     void FreezeLibraryTree();
     void ThawLibraryTree();
 
-    void OnUpdateUnitNumber( wxUpdateUIEvent& event );
+    void OnUpdateUnitNumber( QEvent& event );
 
-    void UpdateAfterSymbolProperties( wxString* aOldName = nullptr );
+    void UpdateAfterSymbolProperties( QString* aOldName = nullptr );
     void RebuildSymbolUnitsList();
 
-    bool canCloseWindow( wxCloseEvent& aCloseEvent ) override;
+    bool canCloseWindow( QCloseEvent& aCloseEvent ) override;
     void doCloseWindow() override;
-    void OnExitKiCad( wxCommandEvent& event );
+    void OnExitKiCad( QEvent& event );
     void ReCreateHToolbar() override;
     void ReCreateVToolbar() override;
     void ReCreateOptToolbar() override;
@@ -214,14 +222,14 @@ public:
     COLOR_SETTINGS* GetColorSettings( bool aForceRefresh = false ) const override;
 
     /**
-     * Trigger the wxCloseEvent, which is handled by the function given to EVT_CLOSE() macro:
+     * Trigger the QCloseEvent, which is handled by the function given to close event handling:
      * <p>
      * EVT_CLOSE( SYMBOL_EDIT_FRAME::OnCloseWindow )
      * </p>
      */
-    void CloseWindow( wxCommandEvent& event )
+    void CloseWindow( QEvent& event )
     {
-        // Generate a wxCloseEvent
+        // Generate a QCloseEvent
         Close( false );
     }
 
@@ -282,10 +290,10 @@ public:
      * Because a symbol in library editor does not have a lot of primitives, the full data is
      * duplicated. It is not worth to try to optimize this save function.
      */
-    void SaveCopyInUndoList( const wxString& aDescription, LIB_SYMBOL* aSymbol,
+    void SaveCopyInUndoList( const QString& aDescription, LIB_SYMBOL* aSymbol,
                              UNDO_REDO aUndoType = UNDO_REDO::LIBEDIT );
 
-    void PushSymbolToUndoList( const wxString& aDescription, LIB_SYMBOL* aSymbolCopy,
+    void PushSymbolToUndoList( const QString& aDescription, LIB_SYMBOL* aSymbolCopy,
                                UNDO_REDO aUndoType = UNDO_REDO::LIBEDIT );
 
     void GetSymbolFromUndoList();
@@ -325,14 +333,14 @@ public:
      * @param aFullFileName is the full filename
      * @param aOffset is a plot offset, in iu
      */
-    void SVGPlotSymbol( const wxString& aFullFileName, const VECTOR2I& aOffset );
+    void SVGPlotSymbol( const QString& aFullFileName, const VECTOR2I& aOffset );
 
     /**
      * Synchronize the library manager to the symbol library table, and then the symbol tree
      * to the library manager.  Optionally displays a progress dialog.
      */
     void SyncLibraries( bool aShowProgress, bool aPreloadCancelled = false,
-                        const wxString& aForceRefresh = wxEmptyString );
+                        const QString& aForceRefresh = QString() );
 
     /**
      * Redisplay the library tree.  Used after changing modified states, descriptions, etc.
@@ -342,7 +350,7 @@ public:
     /**
      * Update a symbol node in the library tree.
      */
-    void UpdateLibraryTree( const wxDataViewItem& aTreeItem, LIB_SYMBOL* aSymbol );
+    void UpdateLibraryTree( const QModelIndex& aTreeItem, LIB_SYMBOL* aSymbol );
 
     /**
      * Return either the symbol selected in the symbol tree (if context menu is active) or the
@@ -432,7 +440,7 @@ private:
      * @param aNewFile Ask for a new file name to save the library.
      * @return True if the library was successfully saved.
      */
-    bool saveLibrary( const wxString& aLibrary, bool aNewFile );
+    bool saveLibrary( const QString& aLibrary, bool aNewFile );
 
     /**
      * Set the current active library to \a aLibrary.
@@ -440,7 +448,7 @@ private:
      * @param aLibrary the nickname of the library in the symbol library table.  If empty,
      *                 display list of available libraries to select from.
      */
-    void SelectActiveLibrary( const wxString& aLibrary = wxEmptyString );
+    void SelectActiveLibrary( const QString& aLibrary = QString() );
 
     /**
      * Load a symbol from the current active library, optionally setting the selected unit
@@ -451,7 +459,7 @@ private:
      * @param aBodyStyle Convert to be selected
      * @return true if the symbol loaded correctly.
      */
-    bool LoadSymbolFromCurrentLib( const wxString& aAliasName, int aUnit = 0, int aBodyStyle = 0 );
+    bool LoadSymbolFromCurrentLib( const QString& aAliasName, int aUnit = 0, int aBodyStyle = 0 );
 
     /**
      * Create a copy of \a aLibEntry into memory.
@@ -463,20 +471,20 @@ private:
      * @param aBodyStyle the initial DeMorgan variant to show.
      * @return True if a copy of \a aLibEntry was successfully copied.
      */
-    bool LoadOneLibrarySymbolAux( LIB_SYMBOL* aLibEntry, const wxString& aLibrary, int aUnit,
+    bool LoadOneLibrarySymbolAux( LIB_SYMBOL* aLibEntry, const QString& aLibrary, int aUnit,
                                   int aBodyStyle );
 
     ///< Create a backup copy of a file with requested extension.
-    bool backupFile( const wxFileName& aOriginalFile, const wxString& aBackupExt );
+    bool backupFile( const QFileInfo& aOriginalFile, const QString& aBackupExt );
 
     ///< Return currently edited symbol.
     LIB_SYMBOL* getTargetSymbol() const;
 
     ///< Return either the library selected in the symbol tree, if context menu is active or
     ///< the library that is currently modified.
-    wxString getTargetLib() const;
+    QString getTargetLib() const;
 
-    void centerItemIdleHandler( wxIdleEvent& aEvent );
+    void centerItemIdleHandler( QEvent& aEvent );
 
     /*
      * Return true when the operation has succeeded (all requested libraries have been saved
@@ -493,7 +501,7 @@ private:
     void storeCurrentSymbol();
 
     ///< Rename LIB_SYMBOL aliases to avoid conflicts before adding a symbol to a library.
-    void ensureUniqueName( LIB_SYMBOL* aSymbol, const wxString& aLibrary );
+    void ensureUniqueName( LIB_SYMBOL* aSymbol, const QString& aLibrary );
 
     enum TABLE_SCOPE
     {
@@ -510,7 +518,7 @@ private:
      * @param aScope defines if \a aLibFile is added to the global or project library table.
      * @return true if successful or false if a failure occurs.
      */
-    bool addLibTableEntry( const wxString& aLibFile, TABLE_SCOPE aScope = GLOBAL_LIB_TABLE );
+    bool addLibTableEntry( const QString& aLibFile, TABLE_SCOPE aScope = GLOBAL_LIB_TABLE );
 
     /**
      * Replace the file path of the symbol library table entry \a aLibNickname with \a aLibFile.
@@ -522,7 +530,7 @@ private:
      *                 table.
      * @return true if successful or false if a failure occurs.
      */
-    bool replaceLibTableEntry( const wxString& aLibNickname, const wxString& aLibFile );
+    bool replaceLibTableEntry( const QString& aLibNickname, const QString& aLibFile );
 
     DECLARE_EVENT_TABLE()
 
@@ -556,7 +564,7 @@ private:
 
     LIB_SYMBOL*             m_symbol;            // a symbol I own, it is not in any library, but a
                                                  // copy could be.
-    wxComboBox*             m_unitSelectBox;     // a ComboBox to select a unit to edit (if the
+    QComboBox*              m_unitSelectBox;     // a ComboBox to select a unit to edit (if the
                                                  // symbol has multiple units)
     SYMBOL_TREE_PANE*       m_treePane;          // symbol search tree widget
     LIB_SYMBOL_LIBRARY_MANAGER* m_libMgr;        // manager taking care of temporary modifications
@@ -575,7 +583,7 @@ private:
     KIID        m_schematicSymbolUUID;
 
      ///< RefDes of the symbol (only valid if symbol was loaded from schematic)
-    wxString    m_reference;
+    QString     m_reference;
 
     // True to force DeMorgan/normal tools selection enabled.
     // They are enabled when the loaded symbol has graphic items for converted shape

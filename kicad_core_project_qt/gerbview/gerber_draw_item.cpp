@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2017 <Jean-Pierre Charras>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <base_units.h>
 #include <trigo.h>
@@ -36,7 +13,8 @@
 #include <math/util.h>      // for KiROUND
 #include <widgets/msgpanel.h>
 
-#include <wx/msgdlg.h>
+#include <QMessageBox>
+#include <QString>
 
 GERBER_DRAW_ITEM::GERBER_DRAW_ITEM( GERBER_FILE_IMAGE* aGerberImageFile ) :
     EDA_ITEM( nullptr, GERBER_DRAW_ITEM_T )
@@ -222,31 +200,31 @@ void GERBER_DRAW_ITEM::SetLayerParameters()
 }
 
 
-wxString GERBER_DRAW_ITEM::ShowGBRShape() const
+QString GERBER_DRAW_ITEM::ShowGBRShape() const
 {
     switch( m_ShapeType )
     {
-    case GBR_SEGMENT:     return _( "Line" );
-    case GBR_ARC:         return _( "Arc" );
-    case GBR_CIRCLE:      return _( "Circle" );
-    case GBR_SPOT_OVAL:   return wxT( "spot_oval" );
-    case GBR_SPOT_CIRCLE: return wxT( "spot_circle" );
-    case GBR_SPOT_RECT:   return wxT( "spot_rect" );
-    case GBR_SPOT_POLY:   return wxT( "spot_poly" );
-    case GBR_POLYGON:     return wxT( "polygon" );
+    case GBR_SEGMENT:     return "Line";
+    case GBR_ARC:         return "Arc";
+    case GBR_CIRCLE:      return "Circle";
+    case GBR_SPOT_OVAL:   return "spot_oval";
+    case GBR_SPOT_CIRCLE: return "spot_circle";
+    case GBR_SPOT_RECT:   return "spot_rect";
+    case GBR_SPOT_POLY:   return "spot_poly";
+    case GBR_POLYGON:     return "polygon";
 
     case GBR_SPOT_MACRO:
     {
-        wxString name = wxT( "apt_macro" );
+        QString name = "apt_macro";
         D_CODE* dcode = GetDcodeDescr();
 
         if( dcode && dcode->GetMacro() )
-            name << wxT(" ") << dcode->GetMacro()->m_AmName;
+            name += " " + dcode->GetMacro()->m_AmName;
 
         return name;
     }
 
-    default:              return wxT( "??" );
+    default:              return "??";
     }
 }
 
@@ -382,7 +360,7 @@ const BOX2I GERBER_DRAW_ITEM::GetBoundingBox() const
         break;
     }
     default:
-        wxASSERT_MSG( false, wxT( "GERBER_DRAW_ITEM shape is unknown!" ) );
+        Q_ASSERT_X( false, "GetBoundingBox", "GERBER_DRAW_ITEM shape is unknown!" );
         break;
     }
 
@@ -449,7 +427,7 @@ bool GERBER_DRAW_ITEM::HasNegativeItems()
 }
 
 
-void GERBER_DRAW_ITEM::Print( wxDC* aDC, const VECTOR2I& aOffset, GBR_DISPLAY_OPTIONS* aOptions )
+void GERBER_DRAW_ITEM::Print( QPainter* aPainter, const VECTOR2I& aOffset, GBR_DISPLAY_OPTIONS* aOptions )
 {
     // used when a D_CODE is not found. default D_CODE to draw a flashed item
     static D_CODE dummyD_CODE( 0 );
@@ -486,7 +464,7 @@ void GERBER_DRAW_ITEM::Print( wxDC* aDC, const VECTOR2I& aOffset, GBR_DISPLAY_OP
         if( !isDark )
             isFilled = true;
 
-        PrintGerberPoly( aDC, color, aOffset, isFilled );
+        PrintGerberPoly( aPainter, color, aOffset, isFilled );
         break;
 
     case GBR_CIRCLE:
@@ -497,12 +475,12 @@ void GERBER_DRAW_ITEM::Print( wxDC* aDC, const VECTOR2I& aOffset, GBR_DISPLAY_OP
         if( !isFilled )
         {
             // draw the border of the pen's path using two circles, each as narrow as possible
-            GRCircle( aDC, GetABPosition( m_Start ), radius - halfPenWidth, 0, color );
-            GRCircle( aDC, GetABPosition( m_Start ), radius + halfPenWidth, 0, color );
+            GRCircle( aPainter, GetABPosition( m_Start ), radius - halfPenWidth, 0, color );
+            GRCircle( aPainter, GetABPosition( m_Start ), radius + halfPenWidth, 0, color );
         }
         else    // Filled mode
         {
-            GRCircle( aDC, GetABPosition( m_Start ), radius, m_Size.x, color );
+            GRCircle( aPainter, GetABPosition( m_Start ), radius, m_Size.x, color );
         }
 
         break;
@@ -512,12 +490,12 @@ void GERBER_DRAW_ITEM::Print( wxDC* aDC, const VECTOR2I& aOffset, GBR_DISPLAY_OP
         // a round pen only is expected.
         if( !isFilled )
         {
-            GRArc( aDC, GetABPosition( m_Start ), GetABPosition( m_End ),
+            GRArc( aPainter, GetABPosition( m_Start ), GetABPosition( m_End ),
                    GetABPosition( m_ArcCentre ), 0, color );
         }
         else
         {
-            GRArc( aDC, GetABPosition( m_Start ), GetABPosition( m_End ),
+            GRArc( aPainter, GetABPosition( m_Start ), GetABPosition( m_End ),
                    GetABPosition( m_ArcCentre ), m_Size.x, color );
         }
 
@@ -529,7 +507,7 @@ void GERBER_DRAW_ITEM::Print( wxDC* aDC, const VECTOR2I& aOffset, GBR_DISPLAY_OP
     case GBR_SPOT_POLY:
     case GBR_SPOT_MACRO:
         isFilled = aOptions->m_DisplayFlashedItemsFill;
-        d_codeDescr->DrawFlashedShape( this, aDC, color, m_Start, isFilled );
+        d_codeDescr->DrawFlashedShape( this, aPainter, color, m_Start, isFilled );
         break;
 
     case GBR_SEGMENT:
@@ -543,15 +521,15 @@ void GERBER_DRAW_ITEM::Print( wxDC* aDC, const VECTOR2I& aOffset, GBR_DISPLAY_OP
             if( m_ShapeAsPolygon.OutlineCount() == 0 )
                 ConvertSegmentToPolygon();
 
-            PrintGerberPoly( aDC, color, aOffset, isFilled );
+            PrintGerberPoly( aPainter, color, aOffset, isFilled );
         }
         else if( !isFilled )
         {
-            GRCSegm( aDC, GetABPosition( m_Start ), GetABPosition( m_End ), m_Size.x, color );
+            GRCSegm( aPainter, GetABPosition( m_Start ), GetABPosition( m_End ), m_Size.x, color );
         }
         else
         {
-            GRFilledSegment( aDC, GetABPosition( m_Start ), GetABPosition( m_End ), m_Size.x,
+            GRFilledSegment( aPainter, GetABPosition( m_Start ), GetABPosition( m_End ), m_Size.x,
                              color );
         }
 
@@ -560,7 +538,7 @@ void GERBER_DRAW_ITEM::Print( wxDC* aDC, const VECTOR2I& aOffset, GBR_DISPLAY_OP
     default:
         if( !show_err )
         {
-            wxMessageBox( wxT( "Trace_Segment() type error" ) );
+            QMessageBox::warning( nullptr, "Error", "Trace_Segment() type error" );
             show_err = true;
         }
 
@@ -639,7 +617,7 @@ void GERBER_DRAW_ITEM::ConvertSegmentToPolygon()
 }
 
 
-void GERBER_DRAW_ITEM::PrintGerberPoly( wxDC* aDC, const COLOR4D& aColor, const VECTOR2I& aOffset,
+void GERBER_DRAW_ITEM::PrintGerberPoly( QPainter* aPainter, const COLOR4D& aColor, const VECTOR2I& aOffset,
                                         bool aFilledShape )
 {
     std::vector<VECTOR2I> points;
@@ -655,35 +633,35 @@ void GERBER_DRAW_ITEM::PrintGerberPoly( wxDC* aDC, const COLOR4D& aColor, const 
         points[ii] = GetABPosition( points[ii] );
     }
 
-    GRClosedPoly( aDC, pointCount, &points[0], aFilledShape, aColor );
+    GRClosedPoly( aPainter, pointCount, &points[0], aFilledShape, aColor );
 }
 
 
 void GERBER_DRAW_ITEM::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString msg;
-    wxString text;
+    QString msg;
+    QString text;
 
     msg = ShowGBRShape();
-    aList.emplace_back( _( "Type" ), msg );
+    aList.emplace_back( "Type", msg );
 
     // Display D_Code value with its attributes for items using a DCode:
     if( m_ShapeType == GBR_POLYGON )    // Has no DCode, but can have an attribute
     {
-        msg = _( "Attribute" );
+        msg = "Attribute";
 
-        if( m_AperFunction.IsEmpty() )
-            text = _( "No attribute" );
+        if( m_AperFunction.isEmpty() )
+            text = "No attribute";
         else
             text = m_AperFunction;
     }
     else
     {
-        msg.Printf( _( "D Code %d" ), m_DCode );
+        msg = QString::asprintf( "D Code %d", m_DCode );
         D_CODE* apertDescr = GetDcodeDescr();
 
-        if( !apertDescr || apertDescr->m_AperFunction.IsEmpty() )
-            text = _( "No attribute" );
+        if( !apertDescr || apertDescr->m_AperFunction.isEmpty() )
+            text = "No attribute";
         else
             text = apertDescr->m_AperFunction;
     }
@@ -692,7 +670,7 @@ void GERBER_DRAW_ITEM::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_
 
     // Display graphic layer name
     msg = GERBER_FILE_IMAGE_LIST::GetImagesList().GetDisplayName( GetLayer(), true );
-    aList.emplace_back( _( "Graphic Layer" ), msg );
+    aList.emplace_back( "Graphic Layer", msg );
 
     // Display item position
     auto xStart = EDA_UNIT_UTILS::UI::ToUserUnit( gerbIUScale, aFrame->GetUserUnits(), m_Start.x );
@@ -702,78 +680,78 @@ void GERBER_DRAW_ITEM::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_
 
     if( m_Flashed )
     {
-        msg.Printf( wxT( "(%.4f, %.4f)" ), xStart, yStart );
-        aList.emplace_back( _( "Position" ), msg );
+        msg = QString::asprintf( "(%.4f, %.4f)", xStart, yStart );
+        aList.emplace_back( "Position", msg );
     }
     else
     {
-        msg.Printf( wxT( "(%.4f, %.4f)" ), xStart, yStart );
-        aList.emplace_back( _( "Start" ), msg );
+        msg = QString::asprintf( "(%.4f, %.4f)", xStart, yStart );
+        aList.emplace_back( "Start", msg );
 
-        msg.Printf( wxT( "(%.4f, %.4f)" ), xEnd, yEnd );
-        aList.emplace_back( _( "End" ), msg );
+        msg = QString::asprintf( "(%.4f, %.4f)", xEnd, yEnd );
+        aList.emplace_back( "End", msg );
     }
 
     // Display item rotation
     // The full rotation is Image rotation + m_lyrRotation
     // but m_lyrRotation is specific to this object
     // so we display only this parameter
-    msg.Printf( wxT( "%f" ), m_lyrRotation );
-    aList.emplace_back( _( "Rotation" ), msg );
+    msg = QString::asprintf( "%f", m_lyrRotation );
+    aList.emplace_back( "Rotation", msg );
 
     // Display item polarity (item specific)
-    msg = m_LayerNegative ? _("Clear") : _("Dark");
-    aList.emplace_back( _( "Polarity" ), msg );
+    msg = m_LayerNegative ? "Clear" : "Dark";
+    aList.emplace_back( "Polarity", msg );
 
     // Display mirroring (item specific)
-    msg.Printf( wxT( "A:%s B:%s" ), m_mirrorA ? _( "Yes" ) : _( "No" ),
-                m_mirrorB ? _( "Yes" ) : _( "No" ) );
-    aList.emplace_back( _( "Mirror" ), msg );
+    msg = QString::asprintf( "A:%s B:%s", m_mirrorA ? "Yes" : "No",
+                m_mirrorB ? "Yes" : "No" );
+    aList.emplace_back( "Mirror", msg );
 
     // Display AB axis swap (item specific)
-    msg = m_swapAxis ? wxT( "A=Y B=X" ) : wxT( "A=X B=Y" );
-    aList.emplace_back( _( "AB axis" ), msg );
+    msg = m_swapAxis ? "A=Y B=X" : "A=X B=Y";
+    aList.emplace_back( "AB axis", msg );
 
     // Display net info, if exists
     if( m_netAttributes.m_NetAttribType == GBR_NETLIST_METADATA::GBR_NETINFO_UNSPECIFIED )
         return;
 
     // Build full net info:
-    wxString net_msg;
-    wxString cmp_pad_msg;
+    QString net_msg;
+    QString cmp_pad_msg;
 
     if( ( m_netAttributes.m_NetAttribType & GBR_NETLIST_METADATA::GBR_NETINFO_NET ) )
     {
-        net_msg = _( "Net:" );
-        net_msg << wxS( " " );
+        net_msg = "Net:";
+        net_msg += " ";
 
-        if( m_netAttributes.m_Netname.IsEmpty() )
-            net_msg << _( "<no net>" );
+        if( m_netAttributes.m_Netname.isEmpty() )
+            net_msg += "<no net>";
         else
-            net_msg << UnescapeString( m_netAttributes.m_Netname );
+            net_msg += UnescapeString( m_netAttributes.m_Netname );
     }
 
     if( ( m_netAttributes.m_NetAttribType & GBR_NETLIST_METADATA::GBR_NETINFO_PAD ) )
     {
-        if( m_netAttributes.m_PadPinFunction.IsEmpty() )
+        if( m_netAttributes.m_PadPinFunction.isEmpty() )
         {
-            cmp_pad_msg.Printf( _( "Cmp: %s  Pad: %s" ),
-                                m_netAttributes.m_Cmpref,
-                                m_netAttributes.m_Padname.GetValue() );
+            cmp_pad_msg = QString::asprintf( "Cmp: %s  Pad: %s",
+                                qPrintable(m_netAttributes.m_Cmpref),
+                                qPrintable(m_netAttributes.m_Padname.GetValue()) );
         }
         else
         {
-            cmp_pad_msg.Printf( _( "Cmp: %s  Pad: %s  Fct %s" ),
-                                m_netAttributes.m_Cmpref,
-                                m_netAttributes.m_Padname.GetValue(),
-                                m_netAttributes.m_PadPinFunction.GetValue() );
+            cmp_pad_msg = QString::asprintf( "Cmp: %s  Pad: %s  Fct %s",
+                                qPrintable(m_netAttributes.m_Cmpref),
+                                qPrintable(m_netAttributes.m_Padname.GetValue()),
+                                qPrintable(m_netAttributes.m_PadPinFunction.GetValue()) );
         }
     }
 
     else if( ( m_netAttributes.m_NetAttribType & GBR_NETLIST_METADATA::GBR_NETINFO_CMP ) )
     {
-        cmp_pad_msg = _( "Cmp:" );
-        cmp_pad_msg << wxS( " " ) << m_netAttributes.m_Cmpref;
+        cmp_pad_msg = "Cmp:";
+        cmp_pad_msg += " " + m_netAttributes.m_Cmpref;
     }
 
     aList.emplace_back( net_msg, cmp_pad_msg );
@@ -1029,13 +1007,13 @@ INSPECT_RESULT GERBER_DRAW_ITEM::Visit( INSPECTOR inspector, void* testData,
 }
 
 
-wxString GERBER_DRAW_ITEM::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString GERBER_DRAW_ITEM::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    wxString layerName = GERBER_FILE_IMAGE_LIST::GetImagesList().GetDisplayName( GetLayer(), true );
+    QString layerName = GERBER_FILE_IMAGE_LIST::GetImagesList().GetDisplayName( GetLayer(), true );
 
-    return wxString::Format( _( "%s (D%d) on layer %d: %s" ),
-                             ShowGBRShape(),
+    return QString::asprintf( "%s (D%d) on layer %d: %s",
+                             qPrintable(ShowGBRShape()),
                              m_DCode,
                              GetLayer() + 1,
-                             layerName );
+                             qPrintable(layerName) );
 }

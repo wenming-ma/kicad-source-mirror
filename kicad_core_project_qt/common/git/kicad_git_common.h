@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.TXT for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/gpl-3.0.html
- * or you may search the http://www.gnu.org website for the version 3 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef _GIT_COMMON_H_
 #define _GIT_COMMON_H_
@@ -30,7 +8,8 @@
 #include <mutex>
 #include <set>
 
-#include <wx/string.h>
+#include <QString>
+#include <QStringList>
 
 class KIGIT_COMMON
 {
@@ -47,24 +26,24 @@ public:
         m_repo = aRepo;
     }
 
-    wxString GetCurrentBranchName() const;
+    QString GetCurrentBranchName() const;
 
-    std::vector<wxString> GetBranchNames() const;
+    std::vector<QString> GetBranchNames() const;
 
     /**
      * Return a vector of project files in the repository.  Sorted by the depth of
      * the project file in the directory tree
      *
-     * @return std::vector<wxString> of project files
+     * @return std::vector<QString> of project files
      */
-    std::vector<wxString> GetProjectDirs();
+    std::vector<QString> GetProjectDirs();
 
     /**
      * Return a pair of sets of files that differ locally from the remote repository
      * The first set is files that have been committed locally but not pushed
      * The second set is files that have been committed remotely but not pulled
      */
-    std::pair<std::set<wxString>,std::set<wxString>> GetDifferentFiles() const;
+    std::pair<std::set<QString>,std::set<QString>> GetDifferentFiles() const;
 
     enum class GIT_STATUS
     {
@@ -88,13 +67,13 @@ public:
         GIT_CONN_LAST
     };
 
-    wxString GetUsername() const { return m_username; }
-    wxString GetPassword() const { return m_password; }
+    QString GetUsername() const { return m_username; }
+    QString GetPassword() const { return m_password; }
     GIT_CONN_TYPE GetConnType() const;
 
-    void SetUsername( const wxString& aUsername ) { m_username = aUsername; }
-    void SetPassword( const wxString& aPassword ) { m_password = aPassword; }
-    void SetSSHKey( const wxString& aSSHKey );
+    void SetUsername( const QString& aUsername ) { m_username = aUsername; }
+    void SetPassword( const QString& aPassword ) { m_password = aPassword; }
+    void SetSSHKey( const QString& aSSHKey );
 
     // Holds a temporary variable that can be used by the authentication callback
     // to remember which types of authentication have been tested so that we
@@ -110,50 +89,50 @@ public:
     // Updates the password and remote information for the repository given the current branch
     void UpdateCurrentBranchInfo();
 
-    wxString GetGitRootDirectory() const;
+    QString GetGitRootDirectory() const;
 
-    wxString GetRemotename() const;
+    QString GetRemotename() const;
 
     void ResetNextKey() { m_nextPublicKey = 0; }
 
-    wxString GetNextPublicKey()
+    QString GetNextPublicKey()
     {
         if( m_nextPublicKey >= static_cast<int>( m_publicKeys.size() ) )
-            return wxEmptyString;
+            return QString();
 
         return m_publicKeys[m_nextPublicKey++];
     }
 
-    void SetRemote( const wxString& aRemote )
+    void SetRemote( const QString& aRemote )
     {
         m_remote = aRemote;
         updateConnectionType();
     }
 
-    int HandleSSHKeyAuthentication( git_cred** aOut, const wxString& aUsername );
+    int HandleSSHKeyAuthentication( git_cred** aOut, const QString& aUsername );
 
-    int HandlePlaintextAuthentication( git_cred** aOut, const wxString& aUsername );
+    int HandlePlaintextAuthentication( git_cred** aOut, const QString& aUsername );
 
-    int HandleSSHAgentAuthentication( git_cred** aOut, const wxString& aUsername );
+    int HandleSSHAgentAuthentication( git_cred** aOut, const QString& aUsername );
 
-    static wxString GetLastGitError()
+    static QString GetLastGitError()
     {
         const git_error* error = git_error_last();
 
         if( error == nullptr )
-            return wxString( "No error" );
+            return QString( "No error" );
 
-        return wxString( error->message );
+        return QString( error->message );
     }
 
 protected:
     git_repository* m_repo;
 
     GIT_CONN_TYPE m_connType;
-    wxString m_remote;      // This is the full connection string
-    wxString m_hostname;    // This is just the hostname without the protocol, username, or password
-    wxString m_username;
-    wxString m_password;
+    QString m_remote;      // This is the full connection string
+    QString m_hostname;    // This is just the hostname without the protocol, username, or password
+    QString m_username;
+    QString m_password;
 
     unsigned m_testedTypes;
 
@@ -168,7 +147,7 @@ private:
     void updatePublicKeys();
     void updateConnectionType();
 
-    std::vector<wxString> m_publicKeys;
+    std::vector<QString> m_publicKeys;
     int m_nextPublicKey;
 
     // Create a dummy flag to tell if we have tested ssh agent credentials separately

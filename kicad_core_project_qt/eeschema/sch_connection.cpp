@@ -1,27 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Jon Evans <jon@craftyjon.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <regex>
-#include <wx/tokenzr.h>
+#include <QString>
+#include <QStringList>
 
 #include <connection_graph.h>
 #include <sch_symbol.h>
@@ -137,7 +117,7 @@ bool SCH_CONNECTION::operator!=( const SCH_CONNECTION& aOther ) const
 }
 
 
-void SCH_CONNECTION::ConfigureFromLabel( const wxString& aLabel )
+void SCH_CONNECTION::ConfigureFromLabel( const QString& aLabel )
 {
     m_members.clear();
 
@@ -145,10 +125,10 @@ void SCH_CONNECTION::ConfigureFromLabel( const wxString& aLabel )
     m_local_name   = aLabel;
     m_local_prefix = m_prefix;
 
-    wxString prefix;
-    std::vector<wxString> members;
+    QString prefix;
+    std::vector<QString> members;
 
-    wxString unescaped = UnescapeString( aLabel );
+    QString unescaped = UnescapeString( aLabel );
 
     if( NET_SETTINGS::ParseBusVector( unescaped, &prefix, &members ) )
     {
@@ -157,7 +137,7 @@ void SCH_CONNECTION::ConfigureFromLabel( const wxString& aLabel )
 
         long i = 0;
 
-        for( const wxString& vector_member : members )
+        for( const QString& vector_member : members )
         {
             auto member            = std::make_shared<SCH_CONNECTION>( m_parent, m_sheet );
             member->m_type         = CONNECTION_TYPE::NET;
@@ -176,15 +156,15 @@ void SCH_CONNECTION::ConfigureFromLabel( const wxString& aLabel )
         m_bus_prefix = prefix;
 
         // Named bus groups generate a net prefix, unnamed ones don't
-        if( !prefix.IsEmpty() )
-            prefix += wxT( "." );
+        if( !prefix.isEmpty() )
+            prefix += ".";
 
-        for( const wxString& group_member : members )
+        for( const QString& group_member : members )
         {
             // Handle alias inside bus group member list
             if( auto alias = m_graph->GetBusAlias( group_member ) )
             {
-                for( const wxString& alias_member : alias->Members() )
+                for( const QString& alias_member : alias->Members() )
                 {
                     auto member = std::make_shared< SCH_CONNECTION >( m_parent, m_sheet );
                     member->SetPrefix( prefix );
@@ -215,14 +195,14 @@ void SCH_CONNECTION::ConfigureFromLabel( const wxString& aLabel )
 void SCH_CONNECTION::Reset()
 {
     m_type = CONNECTION_TYPE::NONE;
-    m_name.Empty();
-    m_local_name.Empty();
-    m_local_prefix.Empty();
-    m_cached_name.Empty();
-    m_cached_name_with_path.Empty();
-    m_prefix.Empty();
-    m_bus_prefix.Empty();
-    m_suffix .Empty();
+    m_name.clear();
+    m_local_name.clear();
+    m_local_prefix.clear();
+    m_cached_name.clear();
+    m_cached_name_with_path.clear();
+    m_prefix.clear();
+    m_bus_prefix.clear();
+    m_suffix.clear();
     m_lastDriver = m_driver;
     m_driver = nullptr;
     m_members.clear();
@@ -233,7 +213,7 @@ void SCH_CONNECTION::Reset()
     m_vector_start = 0;
     m_vector_end = 0;
     m_vector_index = 0;
-    m_vector_prefix.Empty();
+    m_vector_prefix.clear();
 }
 
 
@@ -250,7 +230,7 @@ void SCH_CONNECTION::Clone( const SCH_CONNECTION& aOther )
     m_type   = aOther.m_type;
 
     // Note: m_local_name is not cloned if not set yet
-    if( m_local_name.IsEmpty() )
+    if( m_local_name.isEmpty() )
     {
         m_local_name   = aOther.LocalName();
         m_local_prefix = aOther.Prefix();
@@ -318,7 +298,7 @@ void SCH_CONNECTION::Clone( const SCH_CONNECTION& aOther )
 
 bool SCH_CONNECTION::IsDriver() const
 {
-    wxASSERT( Parent() );
+    Q_ASSERT( Parent() );
 
     switch( Parent()->Type() )
     {
@@ -361,16 +341,16 @@ void SCH_CONNECTION::ClearDriverChanged()
 
 
 
-wxString SCH_CONNECTION::Name( bool aIgnoreSheet ) const
+QString SCH_CONNECTION::Name( bool aIgnoreSheet ) const
 {
-    wxASSERT( !m_cached_name.IsEmpty() );
+    Q_ASSERT( !m_cached_name.isEmpty() );
     return aIgnoreSheet ? m_cached_name : m_cached_name_with_path;
 }
 
 
-wxString SCH_CONNECTION::GetNetName() const
+QString SCH_CONNECTION::GetNetName() const
 {
-    wxString retv;
+    QString retv;
 
     if( m_graph )
     {
@@ -386,8 +366,8 @@ wxString SCH_CONNECTION::GetNetName() const
 
 void SCH_CONNECTION::recacheName()
 {
-    m_cached_name = m_name.IsEmpty() ? wxString( wxT( "<NO NET>" ) )
-                                     : wxString( m_prefix ) << m_name << m_suffix;
+    m_cached_name = m_name.isEmpty() ? QString( "<NO NET>" )
+                                     : QString( m_prefix ) + m_name + m_suffix;
 
     bool prepend_path = true;
 
@@ -410,12 +390,12 @@ void SCH_CONNECTION::recacheName()
         }
     }
 
-    m_cached_name_with_path = prepend_path ? m_sheet.PathHumanReadable() << m_cached_name
+    m_cached_name_with_path = prepend_path ? m_sheet.PathHumanReadable() + m_cached_name
                                            : m_cached_name;
 }
 
 
-void SCH_CONNECTION::SetPrefix( const wxString& aPrefix )
+void SCH_CONNECTION::SetPrefix( const QString& aPrefix )
 {
     m_prefix = aPrefix;
 
@@ -426,7 +406,7 @@ void SCH_CONNECTION::SetPrefix( const wxString& aPrefix )
 }
 
 
-void SCH_CONNECTION::SetSuffix( const wxString& aSuffix )
+void SCH_CONNECTION::SetSuffix( const QString& aSuffix )
 {
     m_suffix = aSuffix;
 
@@ -439,23 +419,23 @@ void SCH_CONNECTION::SetSuffix( const wxString& aSuffix )
 
 void SCH_CONNECTION::AppendInfoToMsgPanel( std::vector<MSG_PANEL_ITEM>& aList ) const
 {
-    wxString msg, group_name, members;
-    std::vector<wxString> group_members;
+    QString msg, group_name, members;
+    std::vector<QString> group_members;
 
-    aList.emplace_back( _( "Connection Name" ), UnescapeString( Name() ) );
+    aList.emplace_back( "Connection Name", UnescapeString( Name() ) );
 
     if( std::shared_ptr<BUS_ALIAS> alias = m_graph->GetBusAlias( m_name ) )
     {
-        msg.Printf( _( "Bus Alias %s Members" ), m_name );
+        msg = QString( "Bus Alias %1 Members" ).arg( m_name );
         aList.emplace_back( msg, boost::algorithm::join( alias->Members(), " " ) );
     }
     else if( NET_SETTINGS::ParseBusGroup( m_name, &group_name, &group_members ) )
     {
-        for( const wxString& group_member : group_members )
+        for( const QString& group_member : group_members )
         {
             if( std::shared_ptr<BUS_ALIAS> group_alias = m_graph->GetBusAlias( group_member ) )
             {
-                msg.Printf( _( "Bus Alias %s Members" ), group_alias->GetName() );
+                msg = QString( "Bus Alias %1 Members" ).arg( group_alias->GetName() );
                 aList.emplace_back( msg, boost::algorithm::join( group_alias->Members(), " " ) );
             }
         }
@@ -465,38 +445,38 @@ void SCH_CONNECTION::AppendInfoToMsgPanel( std::vector<MSG_PANEL_ITEM>& aList ) 
     // These messages are not flagged as translatable, because they are only debug messages
 
     if( IsBus() )
-        aList.emplace_back( wxT( "Bus Code" ), wxString::Format( "%d", m_bus_code ) );
+        aList.emplace_back( "Bus Code", QString::asprintf( "%d", m_bus_code ) );
 
-    aList.emplace_back( wxT( "Subgraph Code" ), wxString::Format( "%d", m_subgraph_code ) );
+    aList.emplace_back( "Subgraph Code", QString::asprintf( "%d", m_subgraph_code ) );
 
     if( SCH_ITEM* driver = Driver() )
     {
         UNITS_PROVIDER unitsProvider( schIUScale, EDA_UNITS::MM );
 
-        msg.Printf( wxS( "%s at %p" ),
-                    driver->GetItemDescription( &unitsProvider, false ),
+        msg = QString::asprintf( "%s at %p",
+                    driver->GetItemDescription( &unitsProvider, false ).toStdString().c_str(),
                     driver );
-        aList.emplace_back( wxT( "Connection Source" ), msg );
+        aList.emplace_back( "Connection Source", msg );
     }
 #endif
 }
 
 
-bool SCH_CONNECTION::IsBusLabel( const wxString& aLabel )
+bool SCH_CONNECTION::IsBusLabel( const QString& aLabel )
 {
-    const wxString& unescaped = UnescapeString( aLabel );
+    const QString& unescaped = UnescapeString( aLabel );
 
     return NET_SETTINGS::ParseBusVector( unescaped, nullptr, nullptr )
                 || NET_SETTINGS::ParseBusGroup( unescaped, nullptr, nullptr );
 }
 
 
-bool SCH_CONNECTION::MightBeBusLabel( const wxString& aLabel )
+bool SCH_CONNECTION::MightBeBusLabel( const QString& aLabel )
 {
     // Weak heuristic for performance reasons.  Stronger test will be used for connectivity
-    wxString label = UnescapeString( aLabel );
+    QString label = UnescapeString( aLabel );
 
-    return label.Contains( wxT( "[" ) ) || label.Contains( wxT( "{" ) );
+    return label.contains( "[" ) || label.contains( "{" );
 }
 
 
@@ -514,17 +494,17 @@ const std::vector< std::shared_ptr< SCH_CONNECTION > > SCH_CONNECTION::AllMember
 }
 
 
-static bool isSuperSubOverbar( wxChar c )
+static bool isSuperSubOverbar( QChar c )
 {
     return c == '_' || c == '^' || c == '~';
 };
 
 
-wxString SCH_CONNECTION::PrintBusForUI( const wxString& aGroup )
+QString SCH_CONNECTION::PrintBusForUI( const QString& aGroup )
 {
     size_t   groupLen = aGroup.length();
     size_t   i = 0;
-    wxString ret;
+    QString ret;
 
     // Parse prefix
     //
@@ -592,7 +572,7 @@ bool SCH_CONNECTION::IsMemberOfBus( SCH_CONNECTION* aOther ) const
     if( !aOther->IsBus() )
         return false;
 
-    wxString me = Name( true );
+    QString me = Name( true );
 
     for( const std::shared_ptr<SCH_CONNECTION>& m : aOther->Members() )
     {

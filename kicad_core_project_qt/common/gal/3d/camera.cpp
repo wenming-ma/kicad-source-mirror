@@ -1,33 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @file camera.cpp
- */
 
 #include <gal/3d/camera.h>
-#include <wx/log.h>
+#include <QDebug>
 #include <algorithm>
 #include <3d_enums.h>
 
@@ -45,7 +19,7 @@ inline void normalise2PI( float& aAngle )
 /**
  * @ingroup trace_env_vars
  */
-const wxChar *CAMERA::m_logTrace = wxT( "KI_TRACE_CAMERA" );
+const QString CAMERA::m_logTrace = QStringLiteral( "KI_TRACE_CAMERA" );
 
 const float CAMERA::DEFAULT_MIN_ZOOM = 0.020f;
 const float CAMERA::DEFAULT_MAX_ZOOM = 2.0f;
@@ -60,7 +34,7 @@ CAMERA::CAMERA( float aInitialDistance ) :
 
 CAMERA::CAMERA( SFVEC3F aInitPos, SFVEC3F aLookat, PROJECTION_TYPE aProjectionType )
 {
-    wxLogTrace( m_logTrace, wxT( "CAMERA::CAMERA" ) );
+    qDebug() << m_logTrace << "CAMERA::CAMERA";
 
     m_camera_pos_init = aInitPos;
     m_board_lookat_pos_init = aLookat;
@@ -82,7 +56,7 @@ void CAMERA::Reset()
     m_projectionMatrixInv  = glm::mat4( 1.0f );
     m_rotationMatrix       = glm::mat4( 1.0f );
     m_rotationMatrixAux    = glm::mat4( 1.0f );
-    m_lastPosition         = wxPoint( 0, 0 );
+    m_lastPosition         = QPoint( 0, 0 );
 
     m_zoom                 = 1.0f;
     m_zoom_t0              = 1.0f;
@@ -408,8 +382,8 @@ void CAMERA::updateFrustum()
 void CAMERA::MakeRay( const SFVEC2I& aWindowPos, SFVEC3F& aOutOrigin,
                        SFVEC3F& aOutDirection ) const
 {
-    wxASSERT( aWindowPos.x < m_windowSize.x );
-    wxASSERT( aWindowPos.y < m_windowSize.y );
+    Q_ASSERT( aWindowPos.x < m_windowSize.x );
+    Q_ASSERT( aWindowPos.y < m_windowSize.y );
 
     aOutOrigin = m_frustum.nc + m_up_nY[aWindowPos.y] + m_right_nX[aWindowPos.x];
 
@@ -430,8 +404,8 @@ void CAMERA::MakeRay( const SFVEC2I& aWindowPos, SFVEC3F& aOutOrigin,
 void CAMERA::MakeRay( const SFVEC2F& aWindowPos, SFVEC3F& aOutOrigin,
                        SFVEC3F& aOutDirection ) const
 {
-    wxASSERT( aWindowPos.x < (float)m_windowSize.x );
-    wxASSERT( aWindowPos.y < (float)m_windowSize.y );
+    Q_ASSERT( aWindowPos.x < (float)m_windowSize.x );
+    Q_ASSERT( aWindowPos.y < (float)m_windowSize.y );
 
     const SFVEC2F floorWinPos_f = glm::floor( aWindowPos );
     const SFVEC2I floorWinPos_i = (SFVEC2I)floorWinPos_f;
@@ -520,10 +494,10 @@ void CAMERA::SetViewMatrix( glm::mat4 aViewMatrix )
     // The look at position in the view frame.
     glm::vec4 lookat = aViewMatrix * glm::vec4( m_lookat_pos, 1.0f );
 
-    wxLogTrace( m_logTrace,
-                wxT( "CAMERA::SetViewMatrix   aViewMatrix[3].z =%f, old_zoom=%f, new_zoom=%f, "
-                     "m[3].z=%f" ),
-                aViewMatrix[3].z, m_zoom, lookat.z / m_camera_pos_init.z, lookat.z );
+    qDebug() << m_logTrace
+             << QString::asprintf( "CAMERA::SetViewMatrix   aViewMatrix[3].z =%f, old_zoom=%f, new_zoom=%f, "
+                                   "m[3].z=%f",
+                                   aViewMatrix[3].z, m_zoom, lookat.z / m_camera_pos_init.z, lookat.z );
 
     m_zoom = lookat.z / m_camera_pos_init.z;
 
@@ -551,7 +525,7 @@ const glm::mat4& CAMERA::GetViewMatrix_Inv() const
 }
 
 
-void CAMERA::SetCurMousePosition( const wxPoint& aNewMousePosition )
+void CAMERA::SetCurMousePosition( const QPoint& aNewMousePosition )
 {
     m_lastPosition = aNewMousePosition;
 }
@@ -568,7 +542,7 @@ void CAMERA::ToggleProjection()
 }
 
 
-bool CAMERA::SetCurWindowSize( const wxSize& aSize )
+bool CAMERA::SetCurWindowSize( const QSize& aSize )
 {
     const SFVEC2I newSize = SFVEC2I( aSize.x, aSize.y );
 
@@ -711,7 +685,7 @@ void CAMERA::SetT0_and_T1_current_T()
 
 void CAMERA::Interpolate( float t )
 {
-    wxASSERT( t >= 0.0f );
+    Q_ASSERT( t >= 0.0f );
 
     const float t0 = 1.0f - t;
 

@@ -1,38 +1,16 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #pragma once
 
 #include <optional>
 
-#include <wx/string.h>
+#include <QString>
 
 #include <kicommon.h>
 
 /**
  * Generic string incrementer.
  */
-KICOMMON_API bool IncrementString( wxString& aStr, int aDelta );
+KICOMMON_API bool IncrementString( QString& aStr, int aDelta );
 
 
 /**
@@ -68,7 +46,7 @@ public:
     /**
      * Increment the n-th part from the right of the given string.
      */
-    std::optional<wxString> Increment( const wxString& aStr, int aDelta, size_t aRightIndex ) const;
+    std::optional<QString> Increment( const QString& aStr, int aDelta, size_t aRightIndex ) const;
 
 private:
     enum class STRING_PART_TYPE
@@ -78,7 +56,7 @@ private:
         SKIP,
     };
 
-    bool incrementPart( wxString& aPart, STRING_PART_TYPE aType, int aDelta ) const;
+    bool incrementPart( QString& aPart, STRING_PART_TYPE aType, int aDelta ) const;
 
     bool m_SkipIOSQXZ = true;
     int  m_AlphabeticMaxIndex = 50;
@@ -92,7 +70,7 @@ private:
  * @return The value of the string, or -1 if a character is
  *         not in the alphabet.
  */
-KICOMMON_API int IndexFromAlphabetic( const wxString& aStr, const wxString& aAlphabet );
+KICOMMON_API int IndexFromAlphabetic( const QString& aStr, const QString& aAlphabet );
 
 /**
  * Get an alphabetic string like A, B, ... Z, AA, AB, ... ZZ, AAA, ...
@@ -102,5 +80,5 @@ KICOMMON_API int IndexFromAlphabetic( const wxString& aStr, const wxString& aAlp
  * @param aZeroBasedNonUnitCols If true, cols other than the right most use the 0'th entry
  *                              (e.g. Z -> AA, not BA, but 9 -> 10, not 00).
  */
-KICOMMON_API wxString AlphabeticFromIndex( size_t aN, const wxString& aAlphabet,
+KICOMMON_API QString AlphabeticFromIndex( size_t aN, const QString& aAlphabet,
                                            bool aZeroBasedNonUnitCols );

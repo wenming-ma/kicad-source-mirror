@@ -1,29 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef GBR_NETLIST_METADATA_H
 #define GBR_NETLIST_METADATA_H
+
+#include <QString>
 
 /**
  * Information which can be added in a gerber P&P file as attribute of a component.
@@ -77,17 +56,17 @@ public:
      *
      * @return a string containing the formatted metadata in X2 syntax.
      */
-    wxString FormatCmpPnPMetadata();
+    QString FormatCmpPnPMetadata();
 
 
     double m_Orientation;       // orientation in degree
-    wxString m_Manufacturer;    // Manufacturer name
-    wxString m_MPN;             // Manufacturer part number
-    wxString m_Package;         // Package, as per IPC-7351
-    wxString m_Footprint;       // Footprint name, from library
-    wxString m_LibraryName;     // Library name, containing the footprint
-    wxString m_LibraryDescr;    // Library description
-    wxString m_Value;           // Component value
+    QString m_Manufacturer;    // Manufacturer name
+    QString m_MPN;             // Manufacturer part number
+    QString m_Package;         // Package, as per IPC-7351
+    QString m_Footprint;       // Footprint name, from library
+    QString m_LibraryName;     // Library name, containing the footprint
+    QString m_LibraryDescr;    // Library description
+    QString m_Value;           // Component value
     MOUNT_TYPE m_MountType;     // SMD|TH|Other
 };
 
@@ -114,21 +93,21 @@ public:
 
     void Clear() { clear(); }
 
-    const wxString& GetValue() const { return m_field; }
+    const QString& GetValue() const { return m_field; }
 
-    void SetField( const wxString& aField, bool aUseUTF8, bool aEscapeString )
+    void SetField( const QString& aField, bool aUseUTF8, bool aEscapeString )
     {
         m_field = aField;
         m_useUTF8 = aUseUTF8;
         m_escapeString = aEscapeString;
     }
 
-    bool IsEmpty() const { return m_field.IsEmpty(); }
+    bool IsEmpty() const { return m_field.isEmpty(); }
 
     std::string GetGerberString() const;
 
 private:
-    wxString m_field;       ///< the Unicode text to print in Gbr file
+    QString m_field;       ///< the Unicode text to print in Gbr file
                             ///< (after escape and quoting)
     bool m_useUTF8;         ///< true to use UTF8, false to escape non ASCII7 chars
     bool m_escapeString;    ///< true to quote the field in gbr file
@@ -172,13 +151,13 @@ public:
      */
     void ClearExtraData()
     {
-        m_ExtraData.Clear();
+        m_ExtraData.clear();
     }
 
     /**
      * Set the extra data string printed at end of net attributes
      */
-    void SetExtraData( const wxString& aExtraData)
+    void SetExtraData( const QString& aExtraData)
     {
         m_ExtraData = aExtraData;
     }
@@ -190,7 +169,7 @@ public:
      *
      * @param aName is the name (.CN, .P .N or .C) of the attribute to remove.
      */
-    void ClearAttribute( const wxString* aName )
+    void ClearAttribute( const QString* aName )
     {
         if( m_NetAttribType == GBR_NETINFO_UNSPECIFIED )
         {
@@ -201,7 +180,7 @@ public:
             return;
         }
 
-        if( !aName || aName->IsEmpty() || *aName == wxT( ".CN" ) )
+        if( !aName || aName->isEmpty() || *aName == ".CN" )
         {
             m_NetAttribType = GBR_NETINFO_UNSPECIFIED;
             m_Padname.clear();
@@ -211,21 +190,21 @@ public:
             return;
         }
 
-        if( *aName == wxT( ".C" ) )
+        if( *aName == ".C" )
         {
             m_NetAttribType &= ~GBR_NETINFO_CMP;
             m_Cmpref.clear();
             return;
         }
 
-        if( *aName == wxT( ".N" ) )
+        if( *aName == ".N" )
         {
             m_NetAttribType &= ~GBR_NETINFO_NET;
             m_Netname.clear();
             return;
         }
 
-        if( *aName == wxT( ".P" ) )
+        if( *aName == ".P" )
         {
             m_NetAttribType &= ~GBR_NETINFO_PAD;
             m_Padname.clear();
@@ -242,10 +221,10 @@ public:
                                 ///< in this case the pad net name is empty in gerber file
     GBR_DATA_FIELD m_Padname;   ///< for a flashed pad: the pad name ((TO.P attribute)
     GBR_DATA_FIELD m_PadPinFunction;  ///< for a pad: the pin function (defined in schematic)
-    wxString m_Cmpref;    ///< the component reference parent of the data
-    wxString m_Netname;   ///< for items associated to a net: the netname
+    QString m_Cmpref;    ///< the component reference parent of the data
+    QString m_Netname;   ///< for items associated to a net: the netname
 
-    wxString m_ExtraData;       ///< a string to print after %TO object attributes, if not empty
+    QString m_ExtraData;       ///< a string to print after %TO object attributes, if not empty
                                 ///< it is printed "as this"
     /**
      * If true, do not clear all attributes when a attribute has changed.  This is useful

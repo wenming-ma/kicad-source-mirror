@@ -5,9 +5,9 @@
 
 #include <iostream>
 #include <string>
-#include <wx/string.h>
-#include <wx/filename.h>
-#include <wx/app.h>
+#include <QString>
+#include <QFileInfo>
+#include <QCoreApplication>
 
 // Include necessary KiCad headers
 #include <sch_sheet.h>
@@ -29,18 +29,15 @@
 #include <settings/settings_manager.h>
 #include <settings/app_settings.h>
 
-// Simple wxApp implementation for minimal initialization
-class SCH_TEST_APP : public wxApp
+// Simple QCoreApplication implementation for minimal initialization
+class SCH_TEST_APP : public QCoreApplication
 {
 public:
-    bool OnInit() override
+    SCH_TEST_APP(int& argc, char** argv) : QCoreApplication(argc, argv)
     {
         // Minimal initialization
-        return true;
     }
 };
-
-wxIMPLEMENT_APP_NO_MAIN(SCH_TEST_APP);
 
 // Minimal mock for SYMBOL_EDITOR_SETTINGS to avoid linker issues
 class MOCK_SYMBOL_EDITOR_SETTINGS : public APP_SETTINGS_BASE
@@ -76,18 +73,18 @@ public:
     }
 
     // Required abstract method
-    void MacOpenFile( const wxString& aFileName ) override {}
+    void MacOpenFile( const QString& aFileName ) override {}
 
     // Override virtual methods with correct signatures
-    const wxString& GetKicadEnvVariable() const override
+    const QString& GetKicadEnvVariable() const override
     {
-        static wxString dummy;
+        static QString dummy;
         return dummy;
     }
 
-    const wxString& GetExecutablePath() const override
+    const QString& GetExecutablePath() const override
     {
-        static wxString dummy;
+        static QString dummy;
         return dummy;
     }
 };
@@ -159,8 +156,8 @@ void PrintSchematicStatistics(SCH_SHEET* sheet)
     std::cout << "\n=== SYMBOL DETAILS ===" << std::endl;
     for (size_t i = 0; i < symbols.size() && i < 10; ++i) {
         SCH_SYMBOL* symbol = symbols[i];
-        std::cout << "  [" << (i + 1) << "] Reference: " << symbol->GetRef(nullptr).utf8_str()
-                  << ", Value: " << symbol->GetValue(false, nullptr, false).utf8_str()
+        std::cout << "  [" << (i + 1) << "] Reference: " << symbol->GetRef(nullptr).toStdString().c_str()
+                  << ", Value: " << symbol->GetValue(false, nullptr, false).toStdString().c_str()
                   << ", Library ID: " << symbol->GetLibId().Format().c_str()
                   << ", Position: (" << symbol->GetPosition().x << ", " << symbol->GetPosition().y << ")"
                   << ", Pins: " << symbol->GetPins().size()
@@ -193,7 +190,7 @@ void PrintSchematicStatistics(SCH_SHEET* sheet)
         if (label->Type() == SCH_GLOBAL_LABEL_T) type_str = "Global Label";
         else if (label->Type() == SCH_HIER_LABEL_T) type_str = "Hierarchical Label";
 
-        std::cout << "  [" << (i + 1) << "] " << type_str << ": \"" << label->GetText().utf8_str() << "\""
+        std::cout << "  [" << (i + 1) << "] " << type_str << ": \"" << label->GetText().toStdString().c_str() << "\""
                   << " at (" << label->GetPosition().x << ", " << label->GetPosition().y << ")"
                   << std::endl;
     }
@@ -208,51 +205,48 @@ int main(int argc, char* argv[])
 {
     std::cout << "=== KiCad Schematic Parser Test ===" << std::endl;
 
-    // Initialize wxWidgets
-    wxInitialize();
+    // Initialize Qt application
+    SCH_TEST_APP app(argc, argv);
 
     SCH_SHEET* sheet = nullptr;
 
     try {
         // Path to the schematic file
-        wxString schPath = wxT("test/complex_hierarchy/complex_hierarchy.kicad_sch");
+        QString schPath = "test/complex_hierarchy/complex_hierarchy.kicad_sch";
 
         // Check for file existence and make absolute
-        wxFileName schFile(schPath);
-        if (!schFile.FileExists()) {
-            schFile.Assign(wxT("complex_hierarchy.kicad_sch"));
-            if (!schFile.FileExists()) {
+        QFileInfo schFile(schPath);
+        if (!schFile.exists()) {
+            schFile.setFile("complex_hierarchy.kicad_sch");
+            if (!schFile.exists()) {
                 // Try looking in complex_hierarchy folder
-                schFile.Assign(wxT("complex_hierarchy/complex_hierarchy.kicad_sch"));
-                if (!schFile.FileExists()) {
+                schFile.setFile("complex_hierarchy/complex_hierarchy.kicad_sch");
+                if (!schFile.exists()) {
                     std::cout << "ERROR: Cannot find schematic file!" << std::endl;
                     std::cout << "Tried: test/complex_hierarchy/complex_hierarchy.kicad_sch," << std::endl;
                     std::cout << "       complex_hierarchy.kicad_sch," << std::endl;
                     std::cout << "       complex_hierarchy/complex_hierarchy.kicad_sch" << std::endl;
-                    wxUninitialize();
                     return 1;
                 }
             }
         }
 
         // Make the path absolute (required by LoadSchematicFile)
-        schFile.MakeAbsolute();
-        schPath = schFile.GetFullPath();
+        schPath = schFile.absoluteFilePath();
 
-        std::cout << "Loading schematic file: " << schPath.utf8_str() << std::endl;
+        std::cout << "Loading schematic file: " << schPath.toStdString().c_str() << std::endl;
 
         // Check for project file
-        wxString projPath = schPath;
-        projPath.Replace(wxT(".kicad_sch"), wxT(".kicad_pro"));
+        QString projPath = schPath;
+        projPath.replace(".kicad_sch", ".kicad_pro");
 
-        if (!wxFileName::FileExists(projPath)) {
+        if (!QFileInfo::exists(projPath)) {
             // Try in the same directory as the schematic
-            wxFileName projFile(schPath);
-            projFile.SetExt(wxT("kicad_pro"));
-            projPath = projFile.GetFullPath();
+            QFileInfo projFile(schPath);
+            projPath = projFile.absolutePath() + "/" + projFile.baseName() + ".kicad_pro";
         }
 
-        std::cout << "Project file: " << projPath.utf8_str() << std::endl;
+        std::cout << "Project file: " << projPath.toStdString().c_str() << std::endl;
 
         // Set PGM to avoid assertions
         SCH_TEST_PGM pgm;
@@ -271,7 +265,7 @@ int main(int argc, char* argv[])
 
         // Use the simplest approach: directly call ParseSchematic
         try {
-            FILE_LINE_READER reader(schPath.ToStdString());
+            FILE_LINE_READER reader(schPath.toStdString());
 
             // Create parser with minimal parameters
             // Parameters: reader, progress reporter, line count, root sheet, appending
@@ -289,7 +283,6 @@ int main(int argc, char* argv[])
 
         if (!sheet) {
             std::cout << "ERROR: Failed to load schematic file!" << std::endl;
-            wxUninitialize();
             return 1;
         }
 
@@ -310,7 +303,6 @@ int main(int argc, char* argv[])
                 std::cout << "Error during cleanup - ignored" << std::endl;
             }
         }
-        wxUninitialize();
         return 1;
     }
     catch (...) {
@@ -323,11 +315,10 @@ int main(int argc, char* argv[])
                 std::cout << "Error during cleanup - ignored" << std::endl;
             }
         }
-        wxUninitialize();
         return 1;
     }
 
-    // Safe cleanup: Delete sheet before wxUninitialize()
+    // Safe cleanup: Delete sheet before exit
     if (sheet) {
         try {
             delete sheet;
@@ -342,7 +333,5 @@ int main(int argc, char* argv[])
     // Clean up PGM
     SetPgm(nullptr);
 
-    // Uninitialize wxWidgets after sheet cleanup
-    wxUninitialize();
     return 0;
 }

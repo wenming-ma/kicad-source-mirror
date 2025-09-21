@@ -98,7 +98,7 @@ protected:
      * has to modify the CTM. Lots of parameters, both in and out.
      */
     void computeTextParameters( const VECTOR2I&          aPos,
-                                const wxString&          aText,
+                                const QString&          aText,
                                 const EDA_ANGLE&         aOrient,
                                 const VECTOR2I&          aSize,
                                 bool                     aMirror,
@@ -116,9 +116,9 @@ protected:
                                 double                   *ctm_f,
                                 double                   *heightFactor );
 
-    /// convert a wxString unicode string to a char string compatible with the accepted
+    /// convert a QString unicode string to a char string compatible with the accepted
     /// string plotter format (convert special chars and non ascii7 chars)
-    virtual std::string encodeStringForPlotter( const wxString& aUnicode );
+    virtual std::string encodeStringForPlotter( const QString& aUnicode );
 
     /// Virtual primitive for emitting the setrgbcolor operator
     virtual void emitSetRGBColor( double r, double g, double b, double a ) = 0;
@@ -131,7 +131,7 @@ protected:
      * Does the same processing (i.e. calculates a text string width) but using postscript metrics
      * for the Helvetica font (optionally used for PS and PDF plotting
      */
-    int returnPostscriptTextWidth( const wxString& aText, int aXSize, bool aItalic, bool aBold );
+    int returnPostscriptTextWidth( const QString& aText, int aXSize, bool aItalic, bool aBold );
 
     /// Fine user scale adjust ( = 1.0 if no correction)
     double plotScaleAdjX, plotScaleAdjY;
@@ -152,9 +152,9 @@ public:
         m_textMode = PLOT_TEXT_MODE::STROKE;
     }
 
-    static wxString GetDefaultFileExtension()
+    static QString GetDefaultFileExtension()
     {
-        return wxString( wxT( "ps" ) );
+        return QString( "ps" );
     }
 
     virtual PLOT_FORMAT GetPlotterType() const override
@@ -175,7 +175,7 @@ public:
      * BBox is the boundary box (position and size of the "client rectangle"
      * for drawings (page - margins) in mils (0.001 inch)
      */
-    virtual bool StartPlot( const wxString& aPageNumber ) override;
+    virtual bool StartPlot( const QString& aPageNumber ) override;
     virtual bool EndPlot() override;
 
     /**
@@ -204,13 +204,13 @@ public:
     /**
      * PostScript-likes at the moment are the only plot engines supporting bitmaps.
      */
-    virtual void PlotImage( const wxImage& aImage, const VECTOR2I& aPos,
+    virtual void PlotImage( const QImage& aImage, const VECTOR2I& aPos,
                             double aScaleFactor ) override;
 
     virtual void PenTo( const VECTOR2I& pos, char plume ) override;
     virtual void Text( const VECTOR2I&        aPos,
                        const COLOR4D&         aColor,
-                       const wxString&        aText,
+                       const QString&        aText,
                        const EDA_ANGLE&       aOrient,
                        const VECTOR2I&        aSize,
                        enum GR_TEXT_H_ALIGN_T aH_justify,
@@ -225,7 +225,7 @@ public:
 
     virtual void PlotText( const VECTOR2I&        aPos,
                            const COLOR4D&         aColor,
-                           const wxString&        aText,
+                           const QString&        aText,
                            const TEXT_ATTRIBUTES& aAttributes,
                            KIFONT::FONT*          aFont,
                            const KIFONT::METRICS& aFontMetrics,
@@ -258,9 +258,9 @@ public:
         return PLOT_FORMAT::PDF;
     }
 
-    static wxString GetDefaultFileExtension()
+    static QString GetDefaultFileExtension()
     {
-        return wxString( wxT( "pdf" ) );
+        return QString( "pdf" );
     }
 
     /**
@@ -272,26 +272,26 @@ public:
      * @param aFullFilename is the full file name of the file to create.
      * @return true if success, false if the file cannot be created/opened.
      */
-    virtual bool OpenFile( const wxString& aFullFilename ) override;
+    virtual bool OpenFile( const QString& aFullFilename ) override;
 
     /**
      * The PDF engine supports multiple pages; the first one is opened 'for free' the following
      * are to be closed and reopened. Between each page parameters can be set.
      */
-    virtual bool StartPlot( const wxString& aPageNumber ) override;
+    virtual bool StartPlot( const QString& aPageNumber ) override;
 
-    virtual bool StartPlot( const wxString& aPageNumber,
-                            const wxString& aPageName = wxEmptyString );
+    virtual bool StartPlot( const QString& aPageNumber,
+                            const QString& aPageName = QString() );
 
     virtual bool EndPlot() override;
 
     /**
      * Start a new page in the PDF document.
      */
-    virtual void StartPage( const wxString& aPageNumber,
-                            const wxString& aPageName = wxEmptyString,
-                            const wxString& aParentPageNumber = wxEmptyString,
-                            const wxString& aParentPageName = wxEmptyString );
+    virtual void StartPage( const QString& aPageNumber,
+                            const QString& aPageName = QString(),
+                            const QString& aParentPageNumber = QString(),
+                            const QString& aParentPageName = QString() );
 
     /**
      * Close the current page in the PDF document (and emit its compressed stream).
@@ -349,7 +349,7 @@ public:
 
     virtual void Text( const VECTOR2I&        aPos,
                        const COLOR4D&         aColor,
-                       const wxString&        aText,
+                       const QString&        aText,
                        const EDA_ANGLE&       aOrient,
                        const VECTOR2I&        aSize,
                        enum GR_TEXT_H_ALIGN_T aH_justify,
@@ -364,30 +364,30 @@ public:
 
     virtual void PlotText( const VECTOR2I&        aPos,
                            const COLOR4D&         aColor,
-                           const wxString&        aText,
+                           const QString&        aText,
                            const TEXT_ATTRIBUTES& aAttributes,
                            KIFONT::FONT*          aFont,
                            const KIFONT::METRICS& aFontMetrics,
                            void*                  aData = nullptr ) override;
 
-    void HyperlinkBox( const BOX2I& aBox, const wxString& aDestinationURL ) override;
+    void HyperlinkBox( const BOX2I& aBox, const QString& aDestinationURL ) override;
 
-    void HyperlinkMenu( const BOX2I& aBox, const std::vector<wxString>& aDestURLs ) override;
+    void HyperlinkMenu( const BOX2I& aBox, const std::vector<QString>& aDestURLs ) override;
 
-    void Bookmark( const BOX2I& aBox, const wxString& aName,
-                   const wxString& aGroupName = wxEmptyString ) override;
+    void Bookmark( const BOX2I& aBox, const QString& aName,
+                   const QString& aGroupName = QString() ) override;
 
     /**
      * PDF images are handles as inline, not XObject streams...
      */
-    void PlotImage( const wxImage& aImage, const VECTOR2I& aPos, double aScaleFactor ) override;
+    void PlotImage( const QImage& aImage, const VECTOR2I& aPos, double aScaleFactor ) override;
 
 
 protected:
     struct OUTLINE_NODE
     {
         int      actionHandle;  ///< Handle to action
-        wxString title;         ///< Title of outline node
+        QString title;         ///< Title of outline node
         int      entryHandle;   ///< Allocated handle for this outline entry
 
         std::vector<OUTLINE_NODE*> children;    ///< Ordered list of children
@@ -401,7 +401,7 @@ protected:
                            } );
         }
 
-        OUTLINE_NODE* AddChild( int aActionHandle, const wxString& aTitle, int aEntryHandle )
+        OUTLINE_NODE* AddChild( int aActionHandle, const QString& aTitle, int aEntryHandle )
         {
             OUTLINE_NODE* child = new OUTLINE_NODE
             {
@@ -425,11 +425,11 @@ protected:
      * @param aTitle Title of node to display
      */
     OUTLINE_NODE* addOutlineNode( OUTLINE_NODE* aParent, int aActionHandle,
-                                  const wxString& aTitle );
+                                  const QString& aTitle );
 
-    /// convert a wxString unicode string to a char string compatible with the accepted
+    /// convert a QString unicode string to a char string compatible with the accepted
     /// string PDF format (convert special chars and non ascii7 chars)
-    std::string encodeStringForPlotter( const wxString& aUnicode ) override;
+    std::string encodeStringForPlotter( const QString& aUnicode ) override;
 
     /**
      * PDF supports colors fully. It actually has distinct fill and pen colors,
@@ -501,27 +501,27 @@ protected:
     int m_pageStreamHandle;         ///< Handle of the page content object.
     int m_streamLengthHandle;       ///< Handle to the deferred stream length.
 
-    wxString m_workFilename;
-    wxString m_pageName;
-    wxString m_parentPageName;
+    QString m_workFilename;
+    QString m_pageName;
+    QString m_parentPageName;
 
     FILE* m_workFile;               ///< Temporary file to construct the stream before zipping.
     std::vector<long> m_xrefTable;  ///< The PDF xref offset table.
 
     /// List of user-space page numbers for resolving internal hyperlinks.
-    std::vector<wxString>                                  m_pageNumbers;
+    std::vector<QString>                                  m_pageNumbers;
 
     /// List of loaded hyperlinks in current page.
-    std::vector<std::pair<BOX2I, wxString>>                m_hyperlinksInPage;
-    std::vector<std::pair<BOX2I, std::vector<wxString>>>   m_hyperlinkMenusInPage;
+    std::vector<std::pair<BOX2I, QString>>                m_hyperlinksInPage;
+    std::vector<std::pair<BOX2I, std::vector<QString>>>   m_hyperlinkMenusInPage;
 
     /// Handles for all the hyperlink objects that will be deferred.
-    std::map<int, std::pair<BOX2D, wxString>>              m_hyperlinkHandles;
-    std::map<int, std::pair<BOX2D, std::vector<wxString>>> m_hyperlinkMenuHandles;
+    std::map<int, std::pair<BOX2D, QString>>              m_hyperlinkHandles;
+    std::map<int, std::pair<BOX2D, std::vector<QString>>> m_hyperlinkMenuHandles;
 
-    std::map<wxString, std::vector<std::pair<BOX2I, wxString>>>      m_bookmarksInPage;
+    std::map<QString, std::vector<std::pair<BOX2I, QString>>>      m_bookmarksInPage;
 
-    std::map<int, wxImage> m_imageHandles;
+    std::map<int, QImage> m_imageHandles;
 
     std::unique_ptr<OUTLINE_NODE> m_outlineRoot;        ///< Root outline node.
     int                           m_totalOutlineNodes;  ///< Total number of outline nodes.
@@ -533,9 +533,9 @@ class SVG_PLOTTER : public PSLIKE_PLOTTER
 public:
     SVG_PLOTTER( const PROJECT* aProject = nullptr );
 
-    static wxString GetDefaultFileExtension()
+    static QString GetDefaultFileExtension()
     {
-        return wxString( wxT( "svg" ) );
+        return QString( "svg" );
     }
 
     virtual PLOT_FORMAT GetPlotterType() const override
@@ -546,7 +546,7 @@ public:
     /**
      * Create SVG file header.
      */
-    virtual bool StartPlot( const wxString& aPageNumber ) override;
+    virtual bool StartPlot( const QString& aPageNumber ) override;
     virtual bool EndPlot() override;
 
     /**
@@ -580,7 +580,7 @@ public:
     /**
      * PostScript-likes at the moment are the only plot engines supporting bitmaps.
      */
-    virtual void PlotImage( const wxImage& aImage, const VECTOR2I& aPos,
+    virtual void PlotImage( const QImage& aImage, const VECTOR2I& aPos,
                             double aScaleFactor ) override;
 
     virtual void PenTo( const VECTOR2I& pos, char plume ) override;
@@ -613,7 +613,7 @@ public:
 
     virtual void Text( const VECTOR2I&        aPos,
                        const COLOR4D&         aColor,
-                       const wxString&        aText,
+                       const QString&        aText,
                        const EDA_ANGLE&       aOrient,
                        const VECTOR2I&        aSize,
                        enum GR_TEXT_H_ALIGN_T aH_justify,
@@ -629,7 +629,7 @@ public:
 
     virtual void PlotText( const VECTOR2I&        aPos,
                            const COLOR4D&         aColor,
-                           const wxString&        aText,
+                           const QString&        aText,
                            const TEXT_ATTRIBUTES& aAttributes,
                            KIFONT::FONT*          aFont,
                            const KIFONT::METRICS& aFontMetrics,

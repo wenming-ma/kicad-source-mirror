@@ -1,27 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #ifndef SCH_TOOL_BASE_H
 #define SCH_TOOL_BASE_H
 
@@ -143,7 +121,7 @@ protected:
     void saveCopyInUndoList( EDA_ITEM* aItem, UNDO_REDO aType, bool aAppend = false,
                              bool aDirtyConnectivity = true )
     {
-        wxASSERT( aItem );
+        Q_ASSERT( aItem );
 
         KICAD_T itemType = aItem->Type();
         bool    selected = aItem->IsSelected();
@@ -156,14 +134,14 @@ protected:
         if( m_isSymbolEditor )
         {
             SYMBOL_EDIT_FRAME* editFrame = dynamic_cast<SYMBOL_EDIT_FRAME*>( m_frame );
-            wxCHECK_RET( editFrame, wxT( "editFrame is null" ) );
+            Q_ASSERT_X( editFrame, "saveCopyInUndoList", "editFrame is null" );
 
-            editFrame->SaveCopyInUndoList( wxEmptyString, dynamic_cast<LIB_SYMBOL*>( aItem ) );
+            editFrame->SaveCopyInUndoList( QString(), dynamic_cast<LIB_SYMBOL*>( aItem ) );
         }
         else
         {
             SCH_EDIT_FRAME* editFrame = dynamic_cast<SCH_EDIT_FRAME*>( m_frame );
-            wxASSERT( editFrame );
+            Q_ASSERT( editFrame );
 
             if( editFrame )
             {

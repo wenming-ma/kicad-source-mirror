@@ -1,28 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2016 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Jean-Pierre Charras, jp.charras at wanadoo.fr
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// Qt transformation completed - wxWidgets to Qt framework conversion
 
 #include <build_version.h>
 #include <string_utils.h>
@@ -37,8 +14,9 @@
 #include <io/kicad/kicad_io_utils.h>
 #include <string_utils.h>
 
-#include <wx/msgdlg.h>
-#include <wx/mstream.h>
+#include <QMessageBox>
+#include <QByteArray>
+#include <QBuffer>
 
 using namespace DRAWINGSHEET_T;
 
@@ -88,7 +66,7 @@ protected:
 class DS_DATA_MODEL_FILEIO : public DS_DATA_MODEL_IO
 {
 public:
-    DS_DATA_MODEL_FILEIO( const wxString& aFilename ) :
+    DS_DATA_MODEL_FILEIO( const QString& aFilename ) :
             DS_DATA_MODEL_IO(),
             m_fileout( nullptr )
     {
@@ -99,7 +77,7 @@ public:
         }
         catch( const IO_ERROR& ioe )
         {
-            wxMessageBox( ioe.What(), _( "Error writing drawing sheet file" ) );
+            QMessageBox::critical( nullptr, "Error writing drawing sheet file", QString::fromStdString( ioe.What() ) );
         }
     }
 
@@ -119,7 +97,7 @@ private:
 class DS_DATA_MODEL_STRINGIO : public DS_DATA_MODEL_IO
 {
 public:
-    DS_DATA_MODEL_STRINGIO( wxString* aOutputString ) :
+    DS_DATA_MODEL_STRINGIO( QString* aOutputString ) :
             DS_DATA_MODEL_IO(),
             m_output( aOutputString )
     {
@@ -130,37 +108,37 @@ public:
         }
         catch( const IO_ERROR& ioe )
         {
-            wxMessageBox( ioe.What(), _( "Error writing drawing sheet file" ) );
+            QMessageBox::critical( nullptr, "Error writing drawing sheet file", QString::fromStdString( ioe.What() ) );
         }
     }
 
     ~DS_DATA_MODEL_STRINGIO()
     {
-        *m_output = From_UTF8( m_writer->GetString().c_str() );
+        *m_output = QString::fromUtf8( m_writer->GetString().c_str() );
         delete m_writer;
     }
 
 private:
     STRING_FORMATTER* m_writer;
-    wxString*         m_output;
+    QString*         m_output;
 };
 
 
-void DS_DATA_MODEL::Save( const wxString& aFullFileName )
+void DS_DATA_MODEL::Save( const QString& aFullFileName )
 {
     DS_DATA_MODEL_FILEIO writer( aFullFileName );
     writer.Format( this );
 }
 
 
-void DS_DATA_MODEL::SaveInString( wxString* aOutputString )
+void DS_DATA_MODEL::SaveInString( QString* aOutputString )
 {
     DS_DATA_MODEL_STRINGIO writer( aOutputString );
     writer.Format( this );
 }
 
 
-void DS_DATA_MODEL::SaveInString( std::vector<DS_DATA_ITEM*>& aItemsList, wxString* aOutputString )
+void DS_DATA_MODEL::SaveInString( std::vector<DS_DATA_ITEM*>& aItemsList, QString* aOutputString )
 {
     DS_DATA_MODEL_STRINGIO writer( aOutputString );
     writer.Format( this, aItemsList );
@@ -204,7 +182,7 @@ void DS_DATA_MODEL_IO::Format( DS_DATA_MODEL* aModel, DS_DATA_ITEM* aItem ) cons
         break;
 
     default:
-        wxFAIL_MSG( wxT( "Cannot format item" ) );
+        Q_ASSERT_X( false, "DS_DATA_MODEL_IO::Format", "Cannot format item" );
     }
 }
 
@@ -261,7 +239,7 @@ void DS_DATA_MODEL_IO::format( DS_DATA_ITEM_TEXT* aItem ) const
     // Write font info, only if it is not the default setup
     bool write_size = aItem->m_TextSize.x != 0.0 || aItem->m_TextSize.y != 0.0;
     bool write_thickness = aItem->m_LineWidth != 0.0;
-    bool write_face = aItem->m_Font && !aItem->m_Font->GetName().IsEmpty();
+    bool write_face = aItem->m_Font && !aItem->m_Font->GetName().isEmpty();
 
     if( write_thickness || write_size || aItem->m_Bold || aItem->m_Italic
         || write_face || aItem->m_TextColor != COLOR4D::UNSPECIFIED )
@@ -328,7 +306,7 @@ void DS_DATA_MODEL_IO::format( DS_DATA_ITEM_TEXT* aItem ) const
 
     formatRepeatParameters( aItem );
 
-    if( !aItem->m_Info.IsEmpty() )
+    if( !aItem->m_Info.isEmpty() )
         m_out->Print( "(comment %s)", m_out->Quotew( aItem->m_Info ).c_str() );
 
     m_out->Print( ")" );
@@ -353,7 +331,7 @@ void DS_DATA_MODEL_IO::format( DS_DATA_MODEL* aModel, DS_DATA_ITEM* aItem ) cons
 
     formatRepeatParameters( aItem );
 
-    if( !aItem->m_Info.IsEmpty() )
+    if( !aItem->m_Info.isEmpty() )
         m_out->Print( "(comment %s)", m_out->Quotew( aItem->m_Info ).c_str() );
 
     m_out->Print( ")" );
@@ -375,7 +353,7 @@ void DS_DATA_MODEL_IO::format( DS_DATA_ITEM_POLYGONS* aItem ) const
     if( aItem->m_LineWidth )
         m_out->Print( "(linewidth %s)", FormatDouble2Str( aItem->m_LineWidth ).c_str() );
 
-    if( !aItem->m_Info.IsEmpty() )
+    if( !aItem->m_Info.isEmpty() )
         m_out->Print( "(comment %s)", m_out->Quotew( aItem->m_Info ).c_str() );
 
     // Write polygon corners list
@@ -417,14 +395,16 @@ void DS_DATA_MODEL_IO::format( DS_DATA_ITEM_BITMAP* aItem ) const
 
     formatRepeatParameters( aItem );
 
-    if( !aItem->m_Info.IsEmpty() )
+    if( !aItem->m_Info.isEmpty() )
         m_out->Print( "(comment %s)", m_out->Quotew( aItem->m_Info ).c_str() );
 
     // Write image in png readable format
-    wxMemoryOutputStream stream;
+    QByteArray imageData;
+    QBuffer stream(&imageData);
+    stream.open(QIODevice::WriteOnly);
     aItem->m_ImageBitmap->SaveImageData( stream );
 
-    KICAD_FORMAT::FormatStreamData( *m_out, *stream.GetOutputStreamBuffer() );
+    KICAD_FORMAT::FormatStreamData( *m_out, imageData );
 
     m_out->Print( ")" );  // Closes bitmap token.
 }

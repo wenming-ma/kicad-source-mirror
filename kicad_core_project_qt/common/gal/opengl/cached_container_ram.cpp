@@ -1,28 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright 2013-2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <gal/opengl/cached_container_ram.h>
 #include <gal/opengl/vertex_manager.h>
@@ -34,7 +9,8 @@
 #include <list>
 #include <cassert>
 
-#include <wx/log.h>
+#include <QLoggingCategory>
+#include <QDebug>
 #ifdef KICAD_GAL_PROFILE
 #include <core/profile.h>
 #endif /* KICAD_GAL_PROFILE */
@@ -42,14 +18,9 @@
 using namespace KIGFX;
 
 
-/**
- * Flag to enable debug output of the GAL OpenGL cached container.
- *
- * Use "KICAD_GAL_CACHED_CONTAINER" to enable GAL OpenGL cached container tracing.
- *
- * @ingroup trace_env_vars
- */
-static const wxChar* const traceGalCachedContainer = wxT( "KICAD_GAL_CACHED_CONTAINER" );
+// Flag to enable debug output of the GAL OpenGL cached container.
+// Use "KICAD_GAL_CACHED_CONTAINER" to enable GAL OpenGL cached container tracing.
+Q_LOGGING_CATEGORY(traceGalCachedContainer, "KICAD_GAL_CACHED_CONTAINER")
 
 
 CACHED_CONTAINER_RAM::CACHED_CONTAINER_RAM( unsigned int aSize ) :
@@ -92,9 +63,7 @@ void CACHED_CONTAINER_RAM::Unmap()
 
 bool CACHED_CONTAINER_RAM::defragmentResize( unsigned int aNewSize )
 {
-    wxLogTrace( traceGalCachedContainer,
-                wxT( "Resizing & defragmenting container (memcpy) from %d to %d" ), m_currentSize,
-                aNewSize );
+    qCDebug(traceGalCachedContainer) << "Resizing & defragmenting container (memcpy) from" << m_currentSize << "to" << aNewSize;
 
     // No shrinking if we cannot fit all the data
     if( usedSpace() > aNewSize )
@@ -118,8 +87,7 @@ bool CACHED_CONTAINER_RAM::defragmentResize( unsigned int aNewSize )
 #ifdef KICAD_GAL_PROFILE
     totalTime.Stop();
 
-    wxLogTrace( traceGalCachedContainer, "Defragmented container storing %d vertices / %.1f ms",
-                m_currentSize - m_freeSpace, totalTime.msecs() );
+    qCDebug(traceGalCachedContainer) << "Defragmented container storing" << (m_currentSize - m_freeSpace) << "vertices /" << totalTime.msecs() << "ms";
 #endif /* KICAD_GAL_PROFILE */
 
     m_freeSpace += ( aNewSize - m_currentSize );

@@ -1,28 +1,11 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef _SYMBOL_LIBRARY_COMMON_H_
 #define _SYMBOL_LIBRARY_COMMON_H_
 
 #include <map>
 
-#include <wx/arrstr.h>
+#include <QStringList>
+#include <QString>
 
 
 class LIB_SYMBOL;
@@ -42,7 +25,7 @@ enum class SCH_LIB_TYPE
  */
 struct LibSymbolMapSort
 {
-    bool operator() ( const wxString& aItem1, const wxString& aItem2 ) const
+    bool operator() ( const QString& aItem1, const QString& aItem2 ) const
     {
         return aItem1 < aItem2;
     }
@@ -50,7 +33,7 @@ struct LibSymbolMapSort
 
 
 ///< Symbol library map sorted by the symbol name.
-typedef std::map< wxString, LIB_SYMBOL*, LibSymbolMapSort > LIB_SYMBOL_MAP;
+typedef std::map< QString, LIB_SYMBOL*, LibSymbolMapSort > LIB_SYMBOL_MAP;
 
 
 /**
@@ -68,9 +51,9 @@ public:
     /**
      * Add \a aLibName to the allowed libraries list.
      */
-    void AddLib( const wxString& aLibName )
+    void AddLib( const QString& aLibName )
     {
-        m_allowedLibs.Add( aLibName );
+        m_allowedLibs.append( aLibName );
         m_forceLoad = false;
     }
 
@@ -78,10 +61,10 @@ public:
     /**
      * Add \a aLibName to the allowed libraries list.
      */
-    void LoadFrom( const wxString& aLibName )
+    void LoadFrom( const QString& aLibName )
     {
-        m_allowedLibs.Clear();
-        m_allowedLibs.Add( aLibName );
+        m_allowedLibs.clear();
+        m_allowedLibs.append( aLibName );
         m_forceLoad = true;
     }
 
@@ -90,7 +73,7 @@ public:
      */
     void ClearLibList()
     {
-        m_allowedLibs.Clear();
+        m_allowedLibs.clear();
         m_forceLoad = false;
     }
 
@@ -111,24 +94,24 @@ public:
     /**
      * @return the list of the names of allowed libraries.
      */
-    const wxArrayString& GetAllowedLibList() const { return m_allowedLibs; }
+    const QStringList& GetAllowedLibList() const { return m_allowedLibs; }
 
     /**
      * @return the name of the library to use to load a symbol or an a empty string if no
      *         library source available.
      */
-    const wxString& GetLibSource() const
+    const QString& GetLibSource() const
     {
-        static wxString dummy;
+        static QString dummy;
 
-        if( m_forceLoad && m_allowedLibs.GetCount() > 0 )
+        if( m_forceLoad && m_allowedLibs.count() > 0 )
             return m_allowedLibs[0];
         else
             return dummy;
     }
 
 private:
-    wxArrayString m_allowedLibs;        ///< List of filtered library names.
+    QStringList m_allowedLibs;        ///< List of filtered library names.
     bool          m_filterPowerSymbols; ///< Enable or disable power symbol filtering.
     bool          m_forceLoad;          ///< Force loading symbol from library m_allowedLibs[0].
 };

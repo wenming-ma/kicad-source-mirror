@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2011 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <refdes_utils.h>
 #include <hash.h>
@@ -38,8 +14,10 @@
 #include <template_fieldnames.h>
 #include <trace_helpers.h>
 
-#include <wx/filename.h>
-#include <wx/log.h>
+#include <QString>
+#include <QDir>
+#include <QFileInfo>
+#include <QDebug>
 
 
 /**
@@ -54,14 +32,14 @@ public:
         SCH_ITEM( nullptr, NOT_USED )
     {}
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
     {
-        return _( "(Deleted Item)" );
+        return "(Deleted Item)";
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "DELETED_SHEET_ITEM" );
+        return "DELETED_SHEET_ITEM";
     }
 
     static DELETED_SHEET_ITEM* GetInstance()
@@ -192,8 +170,8 @@ int SCH_SHEET_PATH::Cmp( const SCH_SHEET_PATH& aSheetPathToTest ) const
 
 int SCH_SHEET_PATH::ComparePageNum( const SCH_SHEET_PATH& aSheetPathToTest ) const
 {
-    wxString pageA = this->GetPageNumber();
-    wxString pageB = aSheetPathToTest.GetPageNumber();
+    QString pageA = this->GetPageNumber();
+    QString pageB = aSheetPathToTest.GetPageNumber();
 
     int pageNumComp = SCH_SHEET::ComparePageNum( pageA, pageB );
 
@@ -221,15 +199,13 @@ bool SCH_SHEET_PATH::IsContainedWithin( const SCH_SHEET_PATH& aSheetPathToTest )
     {
         if( at( i )->m_Uuid != aSheetPathToTest.at( i )->m_Uuid )
         {
-            wxLogTrace( traceSchSheetPaths, "Sheet path '%s' is not within path '%s'.",
-                        aSheetPathToTest.Path().AsString(), Path().AsString() );
+            qDebug() << "Sheet path" << aSheetPathToTest.Path().AsString() << "is not within path" << Path().AsString();
 
             return false;
         }
     }
 
-    wxLogTrace( traceSchSheetPaths, "Sheet path '%s' is within path '%s'.",
-                aSheetPathToTest.Path().AsString(), Path().AsString() );
+    qDebug() << "Sheet path" << aSheetPathToTest.Path().AsString() << "is within path" << Path().AsString();
 
     return true;
 }
@@ -314,11 +290,11 @@ bool SCH_SHEET_PATH::GetDNP() const
 }
 
 
-wxString SCH_SHEET_PATH::PathAsString() const
+QString SCH_SHEET_PATH::PathAsString() const
 {
-    wxString s;
+    QString s;
 
-    s = wxT( "/" );     // This is the root path
+    s = "/";     // This is the root path
 
     // Start at 1 to avoid the root sheet, which does not need to be added to the path.
     // Its timestamp changes anyway.
@@ -341,33 +317,33 @@ KIID_PATH SCH_SHEET_PATH::Path() const
 }
 
 
-wxString SCH_SHEET_PATH::PathHumanReadable( bool aUseShortRootName,
+QString SCH_SHEET_PATH::PathHumanReadable( bool aUseShortRootName,
                                             bool aStripTrailingSeparator ) const
 {
-    wxString s;
+    QString s;
 
     if( aUseShortRootName )
     {
-        s = wxS( "/" ); // Use only the short name in netlists
+        s = "/"; // Use only the short name in netlists
     }
     else
     {
-        wxString fileName;
+        QString fileName;
 
         if( !empty() && at( 0 )->GetScreen() )
             fileName = at( 0 )->GetScreen()->GetFileName();
 
-        wxFileName fn = fileName;
+        QFileInfo fn = QFileInfo(fileName);
 
-        s = fn.GetName() + wxS( "/" );
+        s = fn.baseName() + "/";
     }
 
     // Start at 1 since we've already processed the root sheet.
     for( unsigned i = 1; i < size(); i++ )
-        s << at( i )->GetFields()[SHEETNAME].GetShownText( false ) << wxS( "/" );
+        s += at( i )->GetFields()[SHEETNAME].GetShownText( false ) + "/";
 
-    if( aStripTrailingSeparator && s.EndsWith( "/" ) )
-        s = s.Left( s.length() - 1 );
+    if( aStripTrailingSeparator && s.endsWith( "/" ) )
+        s = s.left( s.length() - 1 );
 
     return s;
 }
@@ -405,7 +381,7 @@ void SCH_SHEET_PATH::UpdateAllScreenReferences() const
                 // Fixup for legacy files which didn't store a position for the intersheet refs
                 // unless they were shown.
                 if( label->GetFields().size() == 1
-                        && intersheetRefs.GetInternalName() == wxT( "Intersheet References" )
+                        && intersheetRefs.GetInternalName() == "Intersheet References"
                         && intersheetRefs.GetPosition() == VECTOR2I( 0, 0 )
                         && !intersheetRefs.IsVisible() )
                 {
@@ -439,7 +415,7 @@ void SCH_SHEET_PATH::AppendSymbol( SCH_REFERENCE_LIST& aReferences, SCH_SYMBOL* 
 {
     // Skip pseudo-symbols, which have a reference starting with #.  This mainly
     // affects power symbols.
-    if( aIncludePowerSymbols || aSymbol->GetRef( this )[0] != wxT( '#' ) )
+    if( aIncludePowerSymbols || aSymbol->GetRef( this )[0] != '#' )
     {
         if( aSymbol->GetLibSymbolRef() || aForceIncludeOrphanSymbols )
         {
@@ -469,7 +445,7 @@ void SCH_SHEET_PATH::AppendMultiUnitSymbol( SCH_MULTI_UNIT_REFERENCE_MAP& aRefLi
 {
     // Skip pseudo-symbols, which have a reference starting with #.  This mainly
     // affects power symbols.
-    if( !aIncludePowerSymbols && aSymbol->GetRef( this )[0] == wxT( '#' ) )
+    if( !aIncludePowerSymbols && aSymbol->GetRef( this )[0] == '#' )
         return;
 
     LIB_SYMBOL* symbol = aSymbol->GetLibSymbolRef().get();
@@ -478,10 +454,10 @@ void SCH_SHEET_PATH::AppendMultiUnitSymbol( SCH_MULTI_UNIT_REFERENCE_MAP& aRefLi
     {
         SCH_REFERENCE schReference = SCH_REFERENCE( aSymbol, *this );
         schReference.SetSheetNumber( m_virtualPageNumber );
-        wxString reference_str = schReference.GetRef();
+        QString reference_str = schReference.GetRef();
 
         // Never lock unassigned references
-        if( reference_str[reference_str.Len() - 1] == '?' )
+        if( reference_str[reference_str.length() - 1] == '?' )
             return;
 
         aRefList[reference_str].AddItem( schReference );
@@ -495,7 +471,7 @@ bool SCH_SHEET_PATH::operator==( const SCH_SHEET_PATH& d1 ) const
 }
 
 
-bool SCH_SHEET_PATH::TestForRecursion( const wxString& aSrcFileName, const wxString& aDestFileName )
+bool SCH_SHEET_PATH::TestForRecursion( const QString& aSrcFileName, const QString& aDestFileName )
 {
     auto pair = std::make_pair( aSrcFileName, aDestFileName );
 
@@ -506,20 +482,20 @@ bool SCH_SHEET_PATH::TestForRecursion( const wxString& aSrcFileName, const wxStr
     // SCHEMATIC* sch = LastScreen()->Schematic();
     SCHEMATIC* sch = nullptr;
 
-    wxCHECK_MSG( sch, false, "No SCHEMATIC found in SCH_SHEET_PATH::TestForRecursion!" );
+    Q_ASSERT_X( sch, "SCH_SHEET_PATH::TestForRecursion", "No SCHEMATIC found in SCH_SHEET_PATH::TestForRecursion!" );
 
-    wxFileName rootFn = sch->GetFileName();
-    wxFileName srcFn = aSrcFileName;
-    wxFileName destFn = aDestFileName;
+    QFileInfo rootFn = QFileInfo(sch->GetFileName());
+    QFileInfo srcFn = QFileInfo(aSrcFileName);
+    QFileInfo destFn = QFileInfo(aDestFileName);
 
-    if( srcFn.IsRelative() )
-        srcFn.MakeAbsolute( rootFn.GetPath() );
+    if( srcFn.isRelative() )
+        srcFn = QFileInfo(QDir(rootFn.path()).absoluteFilePath(aSrcFileName));
 
-    if( destFn.IsRelative() )
-        destFn.MakeAbsolute( rootFn.GetPath() );
+    if( destFn.isRelative() )
+        destFn = QFileInfo(QDir(rootFn.path()).absoluteFilePath(aDestFileName));
 
     // The source and destination sheet file names cannot be the same.
-    if( srcFn == destFn )
+    if( srcFn.absoluteFilePath() == destFn.absoluteFilePath() )
     {
         m_recursion_test_cache[pair] = true;
         return true;
@@ -532,13 +508,13 @@ bool SCH_SHEET_PATH::TestForRecursion( const wxString& aSrcFileName, const wxStr
 
     while( i < size() )
     {
-        wxFileName cmpFn = at( i )->GetFileName();
+        QFileInfo cmpFn = QFileInfo(at( i )->GetFileName());
 
-        if( cmpFn.IsRelative() )
-            cmpFn.MakeAbsolute( rootFn.GetPath() );
+        if( cmpFn.isRelative() )
+            cmpFn = QFileInfo(QDir(rootFn.path()).absoluteFilePath(at( i )->GetFileName()));
 
         // Test if the file name of the destination sheet is in anywhere in this sheet path.
-        if( cmpFn == destFn )
+        if( cmpFn.absoluteFilePath() == destFn.absoluteFilePath() )
             break;
 
         i++;
@@ -558,12 +534,12 @@ bool SCH_SHEET_PATH::TestForRecursion( const wxString& aSrcFileName, const wxStr
     {
         i -= 1;
 
-        wxFileName cmpFn = at( i )->GetFileName();
+        QFileInfo cmpFn = QFileInfo(at( i )->GetFileName());
 
-        if( cmpFn.IsRelative() )
-            cmpFn.MakeAbsolute( rootFn.GetPath() );
+        if( cmpFn.isRelative() )
+            cmpFn = QFileInfo(QDir(rootFn.path()).absoluteFilePath(at( i )->GetFileName()));
 
-        if( cmpFn == srcFn )
+        if( cmpFn.absoluteFilePath() == srcFn.absoluteFilePath() )
         {
             m_recursion_test_cache[pair] = true;
             return true;
@@ -577,11 +553,12 @@ bool SCH_SHEET_PATH::TestForRecursion( const wxString& aSrcFileName, const wxStr
 }
 
 
-wxString SCH_SHEET_PATH::GetPageNumber() const
+QString SCH_SHEET_PATH::GetPageNumber() const
 {
     SCH_SHEET* sheet = Last();
 
-    wxCHECK( sheet, wxEmptyString );
+    Q_ASSERT( sheet );
+    if( !sheet ) return QString();
 
     KIID_PATH tmpPath = Path();
     tmpPath.pop_back();
@@ -590,11 +567,12 @@ wxString SCH_SHEET_PATH::GetPageNumber() const
 }
 
 
-void SCH_SHEET_PATH::SetPageNumber( const wxString& aPageNumber )
+void SCH_SHEET_PATH::SetPageNumber( const QString& aPageNumber )
 {
     SCH_SHEET* sheet = Last();
 
-    wxCHECK( sheet, /* void */ );
+    Q_ASSERT( sheet );
+    if( !sheet ) return;
 
     KIID_PATH tmpPath = Path();
 
@@ -606,9 +584,10 @@ void SCH_SHEET_PATH::SetPageNumber( const wxString& aPageNumber )
 
 
 void SCH_SHEET_PATH::AddNewSymbolInstances( const SCH_SHEET_PATH& aPrefixSheetPath,
-                                            const wxString& aProjectName )
+                                            const QString& aProjectName )
 {
-    wxCHECK( !aProjectName.IsEmpty(), /* void */ );
+    Q_ASSERT( !aProjectName.isEmpty() );
+    if( aProjectName.isEmpty() ) return;
 
     SCH_SHEET_PATH newSheetPath( aPrefixSheetPath );
     SCH_SHEET_PATH currentSheetPath( *this );
@@ -620,7 +599,8 @@ void SCH_SHEET_PATH::AddNewSymbolInstances( const SCH_SHEET_PATH& aPrefixSheetPa
     {
         SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
 
-        wxCHECK2( symbol, continue );
+        Q_ASSERT( symbol );
+        if( !symbol ) continue;
 
         SCH_SYMBOL_INSTANCE newSymbolInstance;
 
@@ -662,7 +642,8 @@ void SCH_SHEET_PATH::RemoveSymbolInstances( const SCH_SHEET_PATH& aPrefixSheetPa
     {
         SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
 
-        wxCHECK2( symbol, continue );
+        Q_ASSERT( symbol );
+        if( !symbol ) continue;
 
         SCH_SHEET_PATH fullSheetPath( aPrefixSheetPath );
         SCH_SHEET_PATH currentSheetPath( *this );
@@ -674,23 +655,23 @@ void SCH_SHEET_PATH::RemoveSymbolInstances( const SCH_SHEET_PATH& aPrefixSheetPa
 }
 
 
-void SCH_SHEET_PATH::CheckForMissingSymbolInstances( const wxString& aProjectName )
+void SCH_SHEET_PATH::CheckForMissingSymbolInstances( const QString& aProjectName )
 {
-    wxCHECK( !aProjectName.IsEmpty() && LastScreen(), /* void */ );
+    Q_ASSERT( !aProjectName.isEmpty() && LastScreen() );
+    if( aProjectName.isEmpty() || !LastScreen() ) return;
 
     for( SCH_ITEM* item : LastScreen()->Items().OfType( SCH_SYMBOL_T ) )
     {
         SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
 
-        wxCHECK2( symbol, continue );
+        Q_ASSERT( symbol );
+        if( !symbol ) continue;
 
         SCH_SYMBOL_INSTANCE symbolInstance;
 
         if( !symbol->GetInstance( symbolInstance, Path() ) )
         {
-            wxLogTrace( traceSchSheetPaths, "Adding missing symbol \"%s\" instance data for "
-                        "sheet path '%s'.",
-                        symbol->m_Uuid.AsString(), PathHumanReadable( false ) );
+            qDebug() << "Adding missing symbol" << symbol->m_Uuid.AsString() << "instance data for sheet path" << PathHumanReadable( false );
 
             // Legacy schematics that are not shared do not contain separate instance data.
             // The symbol reference and unit are saved in the reference field and unit entries.
@@ -719,45 +700,51 @@ void SCH_SHEET_PATH::CheckForMissingSymbolInstances( const wxString& aProjectNam
 
 void SCH_SHEET_PATH::MakeFilePathRelativeToParentSheet()
 {
-    wxCHECK( m_sheets.size() > 1, /* void */  );
+    Q_ASSERT( m_sheets.size() > 1 );
+    if( m_sheets.size() <= 1 ) return;
 
-    wxFileName sheetFileName = Last()->GetFileName();
+    QFileInfo sheetFileName = QFileInfo(Last()->GetFileName());
 
     // If the sheet file name is absolute, then the user requested is so don't make it relative.
-    if( sheetFileName.IsAbsolute() )
+    if( sheetFileName.isAbsolute() )
         return;
 
     SCH_SCREEN* screen = LastScreen();
     SCH_SCREEN* parentScreen = m_sheets[ m_sheets.size() - 2 ]->GetScreen();
 
-    wxCHECK( screen && parentScreen, /* void */ );
+    Q_ASSERT( screen && parentScreen );
+    if( !screen || !parentScreen ) return;
 
-    wxFileName fileName = screen->GetFileName();
-    wxFileName parentFileName = parentScreen->GetFileName();
+    QFileInfo fileName = QFileInfo(screen->GetFileName());
+    QFileInfo parentFileName = QFileInfo(parentScreen->GetFileName());
 
     // SCH_SCREEN file names must be absolute.  If they are not, someone set them incorrectly
     // on load or on creation.
-    wxCHECK( fileName.IsAbsolute() && parentFileName.IsAbsolute(), /* void */ );
+    Q_ASSERT( fileName.isAbsolute() && parentFileName.isAbsolute() );
+    if( !fileName.isAbsolute() || !parentFileName.isAbsolute() ) return;
 
-    if( fileName.GetPath() == parentFileName.GetPath() )
+    if( fileName.path() == parentFileName.path() )
     {
-        Last()->SetFileName( fileName.GetFullName() );
-    }
-    else if( fileName.MakeRelativeTo( parentFileName.GetPath() ) )
-    {
-        Last()->SetFileName( fileName.GetFullPath() );
+        Last()->SetFileName( fileName.fileName() );
     }
     else
     {
-        Last()->SetFileName( screen->GetFileName() );
+        QDir parentDir(parentFileName.path());
+        QString relativePath = parentDir.relativeFilePath(fileName.absoluteFilePath());
+        if( !relativePath.startsWith("../") )
+        {
+            Last()->SetFileName( relativePath );
+        }
+        else
+        {
+            Last()->SetFileName( screen->GetFileName() );
+        }
     }
 
-    wxLogTrace( tracePathsAndFiles,
-                wxT( "\n    File name: '%s'"
-                     "\n    parent file name '%s',"
-                     "\n    sheet '%s' file name '%s'." ),
-                screen->GetFileName(), parentScreen->GetFileName(), PathHumanReadable(),
-                Last()->GetFileName() );
+    qDebug() << "File name:" << screen->GetFileName()
+             << "parent file name:" << parentScreen->GetFileName()
+             << "sheet:" << PathHumanReadable()
+             << "file name:" << Last()->GetFileName();
 }
 
 
@@ -781,7 +768,7 @@ void SCH_SHEET_LIST::BuildSheetList( SCH_SHEET* aSheet, bool aCheckIntegrity )
 
     if( m_currentSheetPath.LastScreen() )
     {
-        wxString               parentFileName = aSheet->GetFileName();
+        QString               parentFileName = aSheet->GetFileName();
         std::vector<SCH_ITEM*> childSheets;
         m_currentSheetPath.LastScreen()->GetSheets( &childSheets );
 
@@ -800,8 +787,8 @@ void SCH_SHEET_LIST::BuildSheetList( SCH_SHEET* aSheet, bool aCheckIntegrity )
             {
                 // If we are not performing a full recursion test, at least check if we are in
                 // a simple recursion scenario to prevent stack overflow crashes
-                wxCHECK2_MSG( sheet->GetFileName() != aSheet->GetFileName(), continue,
-                              wxT( "Recursion prevented in SCH_SHEET_LIST::BuildSheetList" ) );
+                Q_ASSERT_X( sheet->GetFileName() != aSheet->GetFileName(), "SCH_SHEET_LIST::BuildSheetList", "Recursion prevented in SCH_SHEET_LIST::BuildSheetList" );
+                if( sheet->GetFileName() == aSheet->GetFileName() ) continue;
 
                 BuildSheetList( sheet, false );
             }
@@ -855,8 +842,8 @@ void SCH_SHEET_LIST::SortByHierarchicalPageNumbers( bool aUpdateVirtualPageNums 
                 ancestor.push_back( a.at( i )->m_Uuid );
 
             // Compare page numbers - use the last sheet's page number
-            wxString page_a = sheet_a->getPageNumber( ancestor );
-            wxString page_b = sheet_b->getPageNumber( ancestor );
+            QString page_a = sheet_a->getPageNumber( ancestor );
+            QString page_b = sheet_b->getPageNumber( ancestor );
 
             int retval = SCH_SHEET::ComparePageNum( page_a, page_b );
 
@@ -918,7 +905,7 @@ void SCH_SHEET_LIST::SortByPageNumbers( bool aUpdateVirtualPageNums )
 }
 
 
-bool SCH_SHEET_LIST::NameExists( const wxString& aSheetName ) const
+bool SCH_SHEET_LIST::NameExists( const QString& aSheetName ) const
 {
     for( const SCH_SHEET_PATH& sheet : *this )
     {
@@ -930,7 +917,7 @@ bool SCH_SHEET_LIST::NameExists( const wxString& aSheetName ) const
 }
 
 
-bool SCH_SHEET_LIST::PageNumberExists( const wxString& aPageNumber ) const
+bool SCH_SHEET_LIST::PageNumberExists( const QString& aPageNumber ) const
 {
     for( const SCH_SHEET_PATH& sheet : *this )
     {
@@ -942,7 +929,7 @@ bool SCH_SHEET_LIST::PageNumberExists( const wxString& aPageNumber ) const
 }
 
 
-void SCH_SHEET_LIST::TrimToPageNumbers( const std::vector<wxString>& aPageInclusions )
+void SCH_SHEET_LIST::TrimToPageNumbers( const std::vector<QString>& aPageInclusions )
 {
     auto it = std::remove_if( begin(), end(),
                               [&]( const SCH_SHEET_PATH& sheet )
@@ -1069,13 +1056,13 @@ void SCH_SHEET_LIST::AnnotatePowerSymbols()
     }
 
     // Find duplicate, and silently clear annotation of duplicate
-    std::map<wxString, int> ref_list;   // stores the existing references
+    std::map<QString, int> ref_list;   // stores the existing references
 
     for( unsigned ii = 0; ii< references.GetCount(); ++ii )
     {
-        wxString curr_ref = references[ii].GetRef();
+        QString curr_ref = references[ii].GetRef();
 
-        if( curr_ref.IsEmpty() )
+        if( curr_ref.isEmpty() )
             continue;
 
         if( ref_list.find( curr_ref ) == ref_list.end() )
@@ -1085,12 +1072,12 @@ void SCH_SHEET_LIST::AnnotatePowerSymbols()
         }
 
         // Possible duplicate, if the ref ends by a number:
-        if( curr_ref.Last() < '0' && curr_ref.Last() > '9' )
+        if( curr_ref.right(1).at(0) < '0' && curr_ref.right(1).at(0) > '9' )
             continue;   // not annotated
 
         // Duplicate: clear annotation by removing the number ending the ref
-        while( !curr_ref.IsEmpty() && curr_ref.Last() >= '0' && curr_ref.Last() <= '9' )
-            curr_ref.RemoveLast();
+        while( !curr_ref.isEmpty() && curr_ref.right(1).at(0) >= '0' && curr_ref.right(1).at(0) <= '9' )
+            curr_ref = curr_ref.left(curr_ref.length() - 1);
 
         references[ii].SetRef( curr_ref );
     }
@@ -1105,7 +1092,7 @@ void SCH_SHEET_LIST::AnnotatePowerSymbols()
     {
         if( references[ii].GetRef()[0] != '#' )
         {
-            wxString new_ref = "#" + references[ii].GetRef();
+            QString new_ref = "#" + references[ii].GetRef();
             references[ii].SetRef( new_ref );
         }
     }
@@ -1187,7 +1174,7 @@ void SCH_SHEET_LIST::GetMultiUnitSymbols( SCH_MULTI_UNIT_REFERENCE_MAP &aRefList
 
 
 bool SCH_SHEET_LIST::TestForRecursion( const SCH_SHEET_LIST& aSrcSheetHierarchy,
-                                       const wxString& aDestFileName )
+                                       const QString& aDestFileName )
 {
     if( empty() )
         return false;
@@ -1196,13 +1183,13 @@ bool SCH_SHEET_LIST::TestForRecursion( const SCH_SHEET_LIST& aSrcSheetHierarchy,
     // SCHEMATIC* sch = at( 0 ).LastScreen()->Schematic();
     SCHEMATIC* sch = nullptr;
 
-    wxCHECK_MSG( sch, false, "No SCHEMATIC found in SCH_SHEET_LIST::TestForRecursion!" );
+    Q_ASSERT_X( sch, "SCH_SHEET_LIST::TestForRecursion", "No SCHEMATIC found in SCH_SHEET_LIST::TestForRecursion!" );
 
-    wxFileName rootFn = sch->GetFileName();
-    wxFileName destFn = aDestFileName;
+    QFileInfo rootFn = QFileInfo(sch->GetFileName());
+    QFileInfo destFn = QFileInfo(aDestFileName);
 
-    if( destFn.IsRelative() )
-        destFn.MakeAbsolute( rootFn.GetPath() );
+    if( destFn.isRelative() )
+        destFn = QFileInfo(QDir(rootFn.path()).absoluteFilePath(aDestFileName));
 
     // Test each SCH_SHEET_PATH in this SCH_SHEET_LIST for potential recursion.
     for( unsigned i = 0; i < size(); i++ )
@@ -1275,7 +1262,8 @@ void SCH_SHEET_LIST::UpdateSymbolInstanceData(
         {
             SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
 
-            wxCHECK2( symbol, continue );
+            Q_ASSERT( symbol );
+        if( !symbol ) continue;
 
             KIID_PATH sheetPathWithSymbolUuid = sheetPath.Path();
             sheetPathWithSymbolUuid.push_back( symbol->m_Uuid );
@@ -1288,8 +1276,7 @@ void SCH_SHEET_LIST::UpdateSymbolInstanceData(
 
             if( it == aSymbolInstances.end() )
             {
-                wxLogTrace( traceSchSheetPaths, "No symbol instance found for symbol '%s'",
-                            sheetPathWithSymbolUuid.AsString() );
+                qDebug() << "No symbol instance found for symbol" << sheetPathWithSymbolUuid.AsString();
                 continue;
             }
 
@@ -1298,10 +1285,10 @@ void SCH_SHEET_LIST::UpdateSymbolInstanceData(
             symbol->AddHierarchicalReference( sheetPath.Path(), it->m_Reference, it->m_Unit );
             symbol->GetField( REFERENCE_FIELD )->SetText( it->m_Reference );
 
-            if( !it->m_Value.IsEmpty() )
+            if( !it->m_Value.isEmpty() )
                 symbol->SetValueFieldText( it->m_Value );
 
-            if( !it->m_Footprint.IsEmpty() )
+            if( !it->m_Footprint.isEmpty() )
                 symbol->SetFootprintFieldText( it->m_Footprint );
 
             symbol->UpdatePrefix();
@@ -1317,7 +1304,8 @@ void SCH_SHEET_LIST::UpdateSheetInstanceData( const std::vector<SCH_SHEET_INSTAN
     {
         SCH_SHEET* sheet = path.Last();
 
-        wxCHECK2( sheet && path.Last(), continue );
+        Q_ASSERT( sheet && path.Last() );
+        if( !sheet || !path.Last() ) continue;
 
         auto it = std::find_if( aSheetInstances.begin(), aSheetInstances.end(),
                                 [&path]( const SCH_SHEET_INSTANCE& r ) -> bool
@@ -1327,14 +1315,12 @@ void SCH_SHEET_LIST::UpdateSheetInstanceData( const std::vector<SCH_SHEET_INSTAN
 
         if( it == aSheetInstances.end() )
         {
-            wxLogTrace( traceSchSheetPaths, "No sheet instance found for path '%s'",
-                        path.Path().AsString() );
+            qDebug() << "No sheet instance found for path" << path.Path().AsString();
             continue;
         }
 
-        wxLogTrace( traceSchSheetPaths, "Setting sheet '%s' instance '%s' page number '%s'",
-                    ( sheet->GetName().IsEmpty() ) ? wxString( wxT( "root" ) ) : sheet->GetName(),
-                    path.Path().AsString(), it->m_PageNumber );
+        qDebug() << "Setting sheet" << (sheet->GetName().isEmpty() ? QString("root") : sheet->GetName())
+                 << "instance" << path.Path().AsString() << "page number" << it->m_PageNumber;
         path.SetPageNumber( it->m_PageNumber );
     }
 }
@@ -1359,7 +1345,8 @@ std::vector<SCH_SHEET_INSTANCE> SCH_SHEET_LIST::GetSheetInstances() const
     {
         const SCH_SHEET* sheet = path.Last();
 
-        wxCHECK2( sheet, continue );
+        Q_ASSERT( sheet );
+        if( !sheet ) continue;
 
         SCH_SHEET_INSTANCE instance;
         SCH_SHEET_PATH tmpPath = path;
@@ -1379,7 +1366,7 @@ bool SCH_SHEET_LIST::AllSheetPageNumbersEmpty() const
 {
     for( const SCH_SHEET_PATH& instance : *this )
     {
-        if( !instance.GetPageNumber().IsEmpty() )
+        if( !instance.GetPageNumber().isEmpty() )
             return false;
     }
 
@@ -1390,14 +1377,15 @@ bool SCH_SHEET_LIST::AllSheetPageNumbersEmpty() const
 void SCH_SHEET_LIST::SetInitialPageNumbers()
 {
     // Don't accidentally renumber existing sheets.
-    wxCHECK( AllSheetPageNumbersEmpty(), /* void */ );
+    Q_ASSERT( AllSheetPageNumbersEmpty() );
+    if( !AllSheetPageNumbersEmpty() ) return;
 
-    wxString tmp;
+    QString tmp;
     int pageNumber = 1;
 
     for( SCH_SHEET_PATH& instance : *this )
     {
-        tmp.Printf( "%d", pageNumber );
+        tmp = QString::number( pageNumber );
         instance.SetPageNumber( tmp );
         pageNumber += 1;
     }
@@ -1405,7 +1393,7 @@ void SCH_SHEET_LIST::SetInitialPageNumbers()
 
 
 void SCH_SHEET_LIST::AddNewSymbolInstances( const SCH_SHEET_PATH& aPrefixSheetPath,
-                                            const wxString& aProjectName )
+                                            const QString& aProjectName )
 {
     for( SCH_SHEET_PATH& sheetPath : *this )
         sheetPath.AddNewSymbolInstances( aPrefixSheetPath, aProjectName );
@@ -1422,12 +1410,12 @@ void SCH_SHEET_LIST::RemoveSymbolInstances( const SCH_SHEET_PATH& aPrefixSheetPa
 void SCH_SHEET_LIST::AddNewSheetInstances( const SCH_SHEET_PATH& aPrefixSheetPath,
                                            int aLastVirtualPageNumber )
 {
-    wxString pageNumber;
+    QString pageNumber;
     int lastUsedPageNumber = 1;
     int nextVirtualPageNumber = aLastVirtualPageNumber;
 
     // Fetch the list of page numbers already in use.
-    std::vector< wxString > usedPageNumbers;
+    std::vector< QString > usedPageNumbers;
 
     if( aPrefixSheetPath.size() )
     {
@@ -1437,7 +1425,7 @@ void SCH_SHEET_LIST::AddNewSheetInstances( const SCH_SHEET_PATH& aPrefixSheetPat
         {
             pageNumber = path.GetPageNumber();
 
-            if( !pageNumber.IsEmpty() )
+            if( !pageNumber.isEmpty() )
                 usedPageNumbers.emplace_back( pageNumber );
         }
     }
@@ -1455,7 +1443,8 @@ void SCH_SHEET_LIST::AddNewSheetInstances( const SCH_SHEET_PATH& aPrefixSheetPat
 
         SCH_SHEET* sheet = sheetPath.Last();
 
-        wxCHECK2( sheet, continue );
+        Q_ASSERT( sheet );
+        if( !sheet ) continue;
 
         nextVirtualPageNumber += 1;
 
@@ -1469,12 +1458,12 @@ void SCH_SHEET_LIST::AddNewSheetInstances( const SCH_SHEET_PATH& aPrefixSheetPat
         }
 
         // Get a new page number if we don't have one
-        if( instance.m_PageNumber.IsEmpty() )
+        if( instance.m_PageNumber.isEmpty() )
         {
             // Generate the next available page number.
             do
             {
-                pageNumber.Printf( wxT( "%d" ), lastUsedPageNumber );
+                pageNumber = QString::number( lastUsedPageNumber );
                 lastUsedPageNumber += 1;
             } while( std::find( usedPageNumbers.begin(), usedPageNumbers.end(), pageNumber ) !=
                      usedPageNumbers.end() );
@@ -1489,7 +1478,7 @@ void SCH_SHEET_LIST::AddNewSheetInstances( const SCH_SHEET_PATH& aPrefixSheetPat
 }
 
 
-void SCH_SHEET_LIST::CheckForMissingSymbolInstances( const wxString& aProjectName )
+void SCH_SHEET_LIST::CheckForMissingSymbolInstances( const QString& aProjectName )
 {
     for( SCH_SHEET_PATH& sheetPath : *this )
         sheetPath.CheckForMissingSymbolInstances( aProjectName );

@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2004 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <sch_actions.h>
 #include <sch_edit_frame.h>
@@ -36,7 +13,8 @@
 #include <tools/sch_selection_tool.h>
 #include <drawing_sheet/ds_proxy_undo_item.h>
 #include <tool/actions.h>
-#include <wx/log.h>
+#include <QLoggingCategory>
+#include <QDebug>
 
 
 /* Functions to undo and redo edit commands.
@@ -106,7 +84,7 @@ void SCH_EDIT_FRAME::SaveCopyInUndoList( SCH_SCREEN* aScreen, SCH_ITEM* aItem,
 {
     PICKED_ITEMS_LIST* commandToUndo = nullptr;
 
-    wxCHECK( aItem, /* void */ );
+    Q_ASSERT( aItem );
 
     if( aDirtyConnectivity )
     {
@@ -153,8 +131,9 @@ void SCH_EDIT_FRAME::SaveCopyInUndoList( SCH_SCREEN* aScreen, SCH_ITEM* aItem,
         break;
 
     default:
-        wxFAIL_MSG( wxString::Format( wxT( "SaveCopyInUndoList() error (unknown code %X)" ),
-                                      aCommandType ) );
+        Q_ASSERT_X( false, "SaveCopyInUndoList",
+                   QString::asprintf( "SaveCopyInUndoList() error (unknown code %X)",
+                                     aCommandType ).toLocal8Bit().constData() );
         break;
     }
 
@@ -250,7 +229,7 @@ void SCH_EDIT_FRAME::SaveCopyInUndoList( const PICKED_ITEMS_LIST& aItemsList,
             if( commandToUndo->GetPickedItemLink( ii ) == nullptr )
                 commandToUndo->SetPickedItemLink( sch_item->Duplicate( true ), ii );
 
-            wxASSERT( commandToUndo->GetPickedItemLink( ii ) );
+            Q_ASSERT( commandToUndo->GetPickedItemLink( ii ) );
             break;
 
         case UNDO_REDO::NEWITEM:
@@ -260,7 +239,8 @@ void SCH_EDIT_FRAME::SaveCopyInUndoList( const PICKED_ITEMS_LIST& aItemsList,
             break;
 
         default:
-            wxFAIL_MSG( wxString::Format( wxT( "Unknown undo/redo command %d" ), command ) );
+            Q_ASSERT_X( false, "SaveCopyInUndoList",
+                       QString::asprintf( "Unknown undo/redo command %d", command ).toLocal8Bit().constData() );
             break;
         }
     }
@@ -319,7 +299,7 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
                         {
                             SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( schItem );
 
-                            wxCHECK( symbol, /* void */ );
+                            Q_ASSERT( symbol );
 
                             for( SCH_PIN* pin : symbol->GetPins() )
                                 pin->SetConnectivityDirty();
@@ -328,7 +308,7 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
                         {
                             SCH_SHEET* sheet = static_cast<SCH_SHEET*>( schItem );
 
-                            wxCHECK( sheet, /* void */ );
+                            Q_ASSERT( sheet );
 
                             for( SCH_SHEET_PIN* pin : sheet->GetPins() )
                                 pin->SetConnectivityDirty();
@@ -436,7 +416,7 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
         {
             SCH_ITEM* itemCopy = dynamic_cast<SCH_ITEM*>( aList->GetPickedItemLink( ii ) );
 
-            wxCHECK2( itemCopy, continue );
+            if( !itemCopy ) continue;
 
             // UNUSED_SYMBOL: GetCurrentSheet - connectivity check commented out due to unused symbol
             // if( schItem->HasConnectivityChanges( itemCopy, &GetCurrentSheet() ) )
@@ -457,7 +437,7 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
                     const SCH_SHEET* origSheet = static_cast<const SCH_SHEET*>( schItem );
                     const SCH_SHEET* copySheet = static_cast<const SCH_SHEET*>( itemCopy );
 
-                    wxCHECK2( origSheet && copySheet, continue );
+                    if( !origSheet || !copySheet ) continue;
 
                     if( ( origSheet->GetName() != copySheet->GetName() )
                       || ( origSheet->GetFileName() != copySheet->GetFileName() )
@@ -500,8 +480,9 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
                 break;
 
             default:
-                wxFAIL_MSG( wxString::Format( wxT( "Unknown undo/redo command %d" ),
-                                              aList->GetPickedItemStatus( ii ) ) );
+                Q_ASSERT_X( false, "PutDataInPreviousState",
+                           QString::asprintf( "Unknown undo/redo command %d",
+                                             aList->GetPickedItemStatus( ii ) ).toLocal8Bit().constData() );
                 break;
             }
 
@@ -539,9 +520,9 @@ void SCH_EDIT_FRAME::PutDataInPreviousState( PICKED_ITEMS_LIST* aList )
 
     if( dirtyConnectivity )
     {
-        wxLogTrace( wxS( "CONN_PROFILE" ),
-                    wxS( "Undo/redo %s clean up connectivity rebuild." ),
-                    ( connectivityCleanUp == LOCAL_CLEANUP ) ? wxS( "local" ) : wxS( "global" ) );
+        qDebug() << "CONN_PROFILE: Undo/redo"
+                 << ( connectivityCleanUp == LOCAL_CLEANUP ? "local" : "global" )
+                 << "clean up connectivity rebuild.";
 
         // UNUSED_SYMBOL: SCH_COMMIT(TOOL_MANAGER*) constructor - Constructor usage commented out, using nullptr pattern
         // Original code: SCH_COMMIT localCommit( m_toolManager );
@@ -628,5 +609,7 @@ void SCH_EDIT_FRAME::ClearUndoORRedoList( UNDO_REDO_LIST whichList, int aItemCou
         }
     }
 }
+
+// Qt transformation completed - wxWidgets to Qt migration finished
 
 

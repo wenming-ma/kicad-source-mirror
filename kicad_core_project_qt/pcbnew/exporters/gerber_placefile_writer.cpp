@@ -26,6 +26,8 @@
 #include "gerber_placefile_writer.h"
 
 #include <vector>
+#include <QString>
+#include <QFileInfo>
 
 #include <plotters/plotter_gerber.h>
 #include <string_utils.h>
@@ -48,7 +50,7 @@ PLACEFILE_GERBER_WRITER::PLACEFILE_GERBER_WRITER( BOARD* aPcb )
 }
 
 
-int PLACEFILE_GERBER_WRITER::CreatePlaceFile( const wxString& aFullFilename, PCB_LAYER_ID aLayer,
+int PLACEFILE_GERBER_WRITER::CreatePlaceFile( const QString& aFullFilename, PCB_LAYER_ID aLayer,
                                               bool aIncludeBrdEdges, bool aExcludeDNP )
 {
     m_layer = aLayer;
@@ -87,18 +89,18 @@ int PLACEFILE_GERBER_WRITER::CreatePlaceFile( const wxString& aFullFilename, PCB
 
     // has meaning only for gerber plotter. Must be called only after SetViewport
     plotter.SetGerberCoordinatesFormat( 6 );
-    plotter.SetCreator( wxT( "PCBNEW" ) );
+    plotter.SetCreator( "PCBNEW" );
 
     // Add the standard X2 FileFunction for P&P files
     // %TF.FileFunction,Component,Ln,[top][bottom]*%
-    wxString text;
-    text.Printf( wxT( "%%TF.FileFunction,Component,L%d,%s*%%" ),
+    QString text;
+    text = QString::asprintf( "%%TF.FileFunction,Component,L%d,%s*%%",
                  aLayer == B_Cu ? m_pcb->GetCopperLayerCount() : 1,
-                 aLayer == B_Cu ? wxT( "Bot" ) : wxT( "Top" ) );
+                 aLayer == B_Cu ? "Bot" : "Top" );
     plotter.AddLineToHeader( text );
 
     // Add file polarity (positive)
-    text = wxT( "%TF.FilePolarity,Positive*%" );
+    text = "%TF.FilePolarity,Positive*%";
     plotter.AddLineToHeader( text );
 
     if( !plotter.OpenFile( aFullFilename ) )
@@ -107,7 +109,7 @@ int PLACEFILE_GERBER_WRITER::CreatePlaceFile( const wxString& aFullFilename, PCB
     // We need a BRDITEMS_PLOTTER to plot pads
     BRDITEMS_PLOTTER brd_plotter( &plotter, m_pcb, plotOpts );
 
-    plotter.StartPlot( wxT( "1" ) );
+    plotter.StartPlot( "1" );
 
     // Some tools in P&P files have the type and size defined.
     // they are position flash (round), pad1 flash (diamond), other pads flash (round)
@@ -141,7 +143,7 @@ int PLACEFILE_GERBER_WRITER::CreatePlaceFile( const wxString& aFullFilename, PCB
 
         // Add object attribute: component reference to flash (mainly useful for users)
         // using not quoted UTF8 string
-        wxString ref = ConvertNotAllowedCharsInGerber( footprint->Reference().GetShownText( false ),
+        QString ref = ConvertNotAllowedCharsInGerber( footprint->Reference().GetShownText( false ),
                                                        allowUtf8, quoteOption );
 
         metadata.SetCmpReference( ref );
@@ -166,7 +168,7 @@ int PLACEFILE_GERBER_WRITER::CreatePlaceFile( const wxString& aFullFilename, PCB
                                                             allowUtf8, quoteOption );
 
         // Add component footprint info:
-        wxString fp_info = From_UTF8( footprint->GetFPID().GetLibItemName().c_str() );
+        QString fp_info = From_UTF8( footprint->GetFPID().GetLibItemName().c_str() );
         pnpAttrib.m_Footprint = ConvertNotAllowedCharsInGerber( fp_info, allowUtf8, quoteOption );
 
         // Add footprint lib name:
@@ -355,23 +357,24 @@ void PLACEFILE_GERBER_WRITER::findPads1( std::vector<PAD*>& aPadList, FOOTPRINT*
         if( !pad->IsOnLayer( m_layer ) )
             continue;
 
-        if( pad->GetNumber() == wxT( "1" )  || pad->GetNumber() == wxT( "A1" ) )
+        if( pad->GetNumber() == "1"  || pad->GetNumber() == "A1" )
             aPadList.push_back( pad );
     }
 }
 
 
-const wxString PLACEFILE_GERBER_WRITER::GetPlaceFileName( const wxString& aFullBaseFilename,
+const QString PLACEFILE_GERBER_WRITER::GetPlaceFileName( const QString& aFullBaseFilename,
                                                           PCB_LAYER_ID aLayer ) const
 {
     // Gerber files extension is always .gbr.
     // Therefore, to mark pnp files, add "-pnp" to the filename, and a layer id.
-    wxFileName  fn = aFullBaseFilename;
+    QFileInfo  fn( aFullBaseFilename );
 
-    wxString post_id = wxT( "-pnp_" );
-    post_id += aLayer == B_Cu ? wxT( "bottom" ) : wxT( "top" );
-    fn.SetName( fn.GetName() + post_id );
-    fn.SetExt( FILEEXT::GerberFileExtension );
+    QString post_id = "-pnp_";
+    post_id += aLayer == B_Cu ? "bottom" : "top";
+    QString baseName = fn.completeBaseName() + post_id;
+    QString dir = fn.absolutePath();
+    QString ext = FILEEXT::GerberFileExtension;
 
-    return fn.GetFullPath();
+    return dir + "/" + baseName + "." + ext;
 }

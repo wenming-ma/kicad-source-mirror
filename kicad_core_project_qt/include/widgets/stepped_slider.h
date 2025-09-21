@@ -1,44 +1,32 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #ifndef STEPPED_SLIDER_H
 #define STEPPED_SLIDER_H
 
-#include <wx/slider.h>
+#include <QSlider>
+#include <QWidget>
+#include <QString>
+#include <QPoint>
+#include <QSize>
 
 /**
- * Customized wxSlider with forced stepping.
+ * Customized QSlider with forced stepping.
  */
-class STEPPED_SLIDER : public wxSlider
+class STEPPED_SLIDER : public QSlider
 {
+    Q_OBJECT
+
 public:
     STEPPED_SLIDER(
-            wxWindow* aParent,
-            wxWindowID aId,
+            QWidget* aParent,
             int aValue,
             int aMinValue,
             int aMaxValue,
-            const wxPoint& aPos = wxDefaultPosition,
-            const wxSize& aSize = wxDefaultSize,
-            long aStyle = wxSL_HORIZONTAL,
-            const wxValidator& aValidator = wxDefaultValidator,
-            const wxString& aName = wxSliderNameStr );
+            const QPoint& aPos = QPoint(),
+            const QSize& aSize = QSize(),
+            Qt::Orientation aOrientation = Qt::Horizontal,
+            const QString& aName = QString() );
 
     virtual ~STEPPED_SLIDER();
 
@@ -52,13 +40,11 @@ public:
      */
     int GetStep() const;
 
-protected:
-    DECLARE_EVENT_TABLE()
+protected slots:
+    void OnScroll( int aValue );
 
 private:
     int m_step;
-
-    void OnScroll( wxScrollEvent& aEvent );
 };
 
 

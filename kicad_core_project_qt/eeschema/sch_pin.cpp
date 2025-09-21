@@ -1,29 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2015 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2018 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Jon Evans <jon@craftyjon.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "sch_pin.h"
 
@@ -43,26 +17,26 @@
 // small margin in internal units between the pin text and the pin line
 #define PIN_TEXT_MARGIN 4
 
-wxString SCH_PIN::GetCanonicalElectricalTypeName( ELECTRICAL_PINTYPE aType )
+QString SCH_PIN::GetCanonicalElectricalTypeName( ELECTRICAL_PINTYPE aType )
 {
     // These strings are the canonical name of the electrictal type
     // Not translated, no space in name, only ASCII chars.
     // to use when the string name must be known and well defined
     // must have same order than enum ELECTRICAL_PINTYPE (see sch_pin.h)
-    static const wxChar* msgPinElectricType[] =
+    static const QString msgPinElectricType[] =
     {
-        wxT( "input" ),
-        wxT( "output" ),
-        wxT( "bidirectional" ),
-        wxT( "tri_state" ),
-        wxT( "passive" ),
-        wxT( "free" ),
-        wxT( "unspecified" ),
-        wxT( "power_in" ),
-        wxT( "power_out" ),
-        wxT( "open_collector" ),
-        wxT( "open_emitter" ),
-        wxT( "no_connect" )
+        "input",
+        "output",
+        "bidirectional",
+        "tri_state",
+        "passive",
+        "free",
+        "unspecified",
+        "power_in",
+        "power_out",
+        "open_collector",
+        "open_emitter",
+        "no_connect"
     };
 
     return msgPinElectricType[static_cast<int>( aType )];
@@ -132,7 +106,7 @@ SCH_PIN::SCH_PIN( LIB_SYMBOL* aParentSymbol ) :
 }
 
 
-SCH_PIN::SCH_PIN( LIB_SYMBOL* aParentSymbol, const wxString& aName, const wxString& aNumber,
+SCH_PIN::SCH_PIN( LIB_SYMBOL* aParentSymbol, const QString& aName, const QString& aNumber,
                   PIN_ORIENTATION aOrientation, ELECTRICAL_PINTYPE aPinType, int aLength,
                   int aNameTextSize, int aNumTextSize, int aBodyStyle, const VECTOR2I& aPos,
                   int aUnit ) :
@@ -165,7 +139,7 @@ SCH_PIN::SCH_PIN( SCH_SYMBOL* aParentSymbol, SCH_PIN* aLibPin ) :
         m_isDangling( true ),
         m_layoutCache( std::make_unique<PIN_LAYOUT_CACHE>( *this ) )
 {
-    wxASSERT( aParentSymbol );
+    Q_ASSERT( aParentSymbol );
 
     SetName( m_libPin->GetName() );
     SetNumber( m_libPin->GetNumber() );
@@ -175,7 +149,7 @@ SCH_PIN::SCH_PIN( SCH_SYMBOL* aParentSymbol, SCH_PIN* aLibPin ) :
 }
 
 
-SCH_PIN::SCH_PIN( SCH_SYMBOL* aParentSymbol, const wxString& aNumber, const wxString& aAlt,
+SCH_PIN::SCH_PIN( SCH_SYMBOL* aParentSymbol, const QString& aNumber, const QString& aAlt,
                   const KIID& aUuid ) :
         SCH_ITEM( aParentSymbol, SCH_PIN_T ),
         m_libPin( nullptr ),
@@ -187,7 +161,7 @@ SCH_PIN::SCH_PIN( SCH_SYMBOL* aParentSymbol, const wxString& aNumber, const wxSt
         m_isDangling( true ),
         m_layoutCache( std::make_unique<PIN_LAYOUT_CACHE>( *this ) )
 {
-    wxASSERT( aParentSymbol );
+    Q_ASSERT( aParentSymbol );
 
     const_cast<KIID&>( m_Uuid ) = aUuid;
     m_layer = LAYER_PIN;
@@ -269,7 +243,7 @@ PIN_ORIENTATION SCH_PIN::GetOrientation() const
 
 GRAPHIC_PINSHAPE SCH_PIN::GetShape() const
 {
-    if( !m_alt.IsEmpty() )
+    if( !m_alt.isEmpty() )
     {
         if( !m_libPin )
             return GRAPHIC_PINSHAPE::LINE;
@@ -304,7 +278,7 @@ int SCH_PIN::GetLength() const
 
 ELECTRICAL_PINTYPE SCH_PIN::GetType() const
 {
-    if( !m_alt.IsEmpty() )
+    if( !m_alt.isEmpty() )
     {
         if( !m_libPin )
             return ELECTRICAL_PINTYPE::PT_UNSPECIFIED;
@@ -332,7 +306,7 @@ void SCH_PIN::SetType( ELECTRICAL_PINTYPE aType )
 }
 
 
-wxString SCH_PIN::GetCanonicalElectricalTypeName() const
+QString SCH_PIN::GetCanonicalElectricalTypeName() const
 {
     if( m_type == ELECTRICAL_PINTYPE::PT_INHERIT )
     {
@@ -346,7 +320,7 @@ wxString SCH_PIN::GetCanonicalElectricalTypeName() const
 }
 
 
-wxString SCH_PIN::GetElectricalTypeName() const
+QString SCH_PIN::GetElectricalTypeName() const
 {
     if( m_type == ELECTRICAL_PINTYPE::PT_INHERIT )
     {
@@ -381,16 +355,16 @@ bool SCH_PIN::IsVisible() const
 }
 
 
-const wxString& SCH_PIN::GetName() const
+const QString& SCH_PIN::GetName() const
 {
-    if( !m_alt.IsEmpty() )
+    if( !m_alt.isEmpty() )
         return m_alt;
 
     return GetBaseName();
 }
 
 
-const wxString& SCH_PIN::GetBaseName() const
+const QString& SCH_PIN::GetBaseName() const
 {
     if( m_libPin )
         return m_libPin->GetBaseName();
@@ -399,7 +373,7 @@ const wxString& SCH_PIN::GetBaseName() const
 }
 
 
-void SCH_PIN::SetName( const wxString& aName )
+void SCH_PIN::SetName( const QString& aName )
 {
     if( m_name == aName )
         return;
@@ -407,34 +381,34 @@ void SCH_PIN::SetName( const wxString& aName )
     m_name = aName;
 
     // pin name string does not support spaces
-    m_name.Replace( wxT( " " ), wxT( "_" ) );
+    m_name.replace( " ", "_" );
 
     m_layoutCache->MarkDirty( PIN_LAYOUT_CACHE::DIRTY_FLAGS::NAME );
 }
 
 
-void SCH_PIN::SetAlt( const wxString& aAlt )
+void SCH_PIN::SetAlt( const QString& aAlt )
 {
     // Do not set the alternate pin definition to the default pin name.  This breaks the library
     // symbol comparison for the ERC and the library diff tool.  It also incorrectly causes the
     // schematic symbol pin alternate to be set.
-    if( aAlt.IsEmpty() || aAlt == GetBaseName() )
+    if( aAlt.isEmpty() || aAlt == GetBaseName() )
     {
-        m_alt = wxEmptyString;
+        m_alt = QString();
         return;
     }
 
     if( !m_libPin )
     {
-        wxFAIL_MSG( wxString::Format( wxS( "Pin '%s' has no corresponding lib_pin" ), m_number ) );
-        m_alt = wxEmptyString;
+        Q_ASSERT_X( false, "SCH_PIN::SetAlt", QString::asprintf( "Pin '%s' has no corresponding lib_pin", qPrintable(m_number) ).toStdString().c_str() );
+        m_alt = QString();
         return;
     }
 
     if( !m_libPin->GetAlternates().contains( aAlt ) )
     {
-        wxFAIL_MSG( wxString::Format( wxS( "Pin '%s' has no alterate '%s'" ), m_number, aAlt ) );
-        m_alt = wxEmptyString;
+        Q_ASSERT_X( false, "SCH_PIN::SetAlt", QString::asprintf( "Pin '%s' has no alterate '%s'", qPrintable(m_number), qPrintable(aAlt) ).toStdString().c_str() );
+        m_alt = QString();
         return;
     }
 
@@ -487,7 +461,7 @@ bool SCH_PIN::Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) cons
 
     if( schSearchData.searchNetNames && sheetPath && ( connection = Connection( sheetPath ) ) )
     {
-        wxString netName = connection->GetNetName();
+        QString netName = connection->GetNetName();
 
         if( EDA_ITEM::Matches( netName, aSearchData ) )
             return true;
@@ -540,37 +514,37 @@ bool SCH_PIN::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) cons
 }
 
 
-wxString SCH_PIN::GetShownName() const
+QString SCH_PIN::GetShownName() const
 {
-    if( !m_alt.IsEmpty() )
+    if( !m_alt.isEmpty() )
         return m_alt;
     else if( m_libPin )
         return m_libPin->GetShownName();
 
-    if( m_name == wxS( "~" ) )
-        return wxEmptyString;
+    if( m_name == "~" )
+        return QString();
     else
         return m_name;
 }
 
 
-wxString SCH_PIN::GetShownNumber() const
+QString SCH_PIN::GetShownNumber() const
 {
-    if( m_number == wxS( "~" ) )
-        return wxEmptyString;
+    if( m_number == "~" )
+        return QString();
     else
         return m_number;
 }
 
 
-void SCH_PIN::SetNumber( const wxString& aNumber )
+void SCH_PIN::SetNumber( const QString& aNumber )
 {
     if( m_number == aNumber )
         return;
 
     m_number = aNumber;
     // pin number string does not support spaces
-    m_number.Replace( wxT( " " ), wxT( "_" ) );
+    m_number.replace( " ", "_" );
 
     m_layoutCache->MarkDirty( PIN_LAYOUT_CACHE::DIRTY_FLAGS::NUMBER );
 }
@@ -652,7 +626,7 @@ void SCH_PIN::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyS
 {
     LIB_SYMBOL* part = dynamic_cast<LIB_SYMBOL*>( GetParentSymbol() );
 
-    wxCHECK( part && aSettings, /* void */ );
+    Q_ASSERT( part && aSettings );
 
     /* Calculate pin orient taking in account the symbol orientation. */
     PIN_ORIENTATION orient = PinDrawOrient( aSettings->m_Transform );
@@ -676,7 +650,7 @@ void SCH_PIN::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyS
                 && m_type != ELECTRICAL_PINTYPE::PT_NC
                 && m_type != ELECTRICAL_PINTYPE::PT_NIC )
         {
-            wxDC* DC = aSettings->GetPrintDC();
+            QPainter* painter = aSettings->GetPrintDC();
             COLOR4D color = aSettings->GetLayerColor( IsVisible() ? LAYER_PIN : LAYER_HIDDEN );
 
             COLOR4D bg = aSettings->GetBackgroundColor();
@@ -690,7 +664,7 @@ void SCH_PIN::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyS
                 color = color.Mix( bg, 0.5f );
             }
 
-            GRCircle( DC, pos1, TARGET_PIN_RADIUS, 0, color );
+            GRCircle( painter, pos1, TARGET_PIN_RADIUS, 0, color );
         }
     }
 }
@@ -699,7 +673,7 @@ void SCH_PIN::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyS
 void SCH_PIN::printPinSymbol( const SCH_RENDER_SETTINGS* aSettings, const VECTOR2I& aPos,
                               PIN_ORIENTATION aOrientation, bool aDimmed )
 {
-    wxDC*   DC = aSettings->GetPrintDC();
+    QPainter*   painter = aSettings->GetPrintDC();
     int     MapX1, MapY1, x1, y1;
     int     width = GetEffectivePenWidth( aSettings );
     int     posX = aPos.x;
@@ -730,21 +704,21 @@ void SCH_PIN::printPinSymbol( const SCH_RENDER_SETTINGS* aSettings, const VECTOR
     case PIN_ORIENTATION::PIN_DOWN:  y1 = posY + len;  MapY1 = -1;                          break;
     case PIN_ORIENTATION::PIN_LEFT:  x1 = posX - len;  MapX1 = 1;                           break;
     case PIN_ORIENTATION::PIN_RIGHT: x1 = posX + len;  MapX1 = -1;                          break;
-    case PIN_ORIENTATION::INHERIT:   wxFAIL_MSG( wxS( "aOrientation must be resolved!" ) ); break;
+    case PIN_ORIENTATION::INHERIT:   Q_ASSERT_X( false, "SCH_PIN::Print", "aOrientation must be resolved!" ); break;
     }
 
     if( m_shape == GRAPHIC_PINSHAPE::INVERTED || m_shape == GRAPHIC_PINSHAPE::INVERTED_CLOCK )
     {
         const int radius = externalPinDecoSize( aSettings, *this );
-        GRCircle( DC, VECTOR2I( MapX1 * radius + x1, MapY1 * radius + y1 ), radius, width, color );
+        GRCircle( painter, VECTOR2I( MapX1 * radius + x1, MapY1 * radius + y1 ), radius, width, color );
 
         GRMoveTo( MapX1 * radius * 2 + x1, MapY1 * radius * 2 + y1 );
-        GRLineTo( DC, posX, posY, width, color );
+        GRLineTo( painter, posX, posY, width, color );
     }
     else
     {
         GRMoveTo( x1, y1 );
-        GRLineTo( DC, posX, posY, width, color );
+        GRLineTo( painter, posX, posY, width, color );
     }
 
     // Draw the clock shape (>)inside the symbol
@@ -757,14 +731,14 @@ void SCH_PIN::printPinSymbol( const SCH_RENDER_SETTINGS* aSettings, const VECTOR
         if( MapY1 == 0 ) /* MapX1 = +- 1 */
         {
             GRMoveTo( x1, y1 + clock_size );
-            GRLineTo( DC, x1 - MapX1 * clock_size * 2, y1, width, color );
-            GRLineTo( DC, x1, y1 - clock_size, width, color );
+            GRLineTo( painter, x1 - MapX1 * clock_size * 2, y1, width, color );
+            GRLineTo( painter, x1, y1 - clock_size, width, color );
         }
         else    /* MapX1 = 0 */
         {
             GRMoveTo( x1 + clock_size, y1 );
-            GRLineTo( DC, x1, y1 - MapY1 * clock_size * 2, width, color );
-            GRLineTo( DC, x1 - clock_size, y1, width, color );
+            GRLineTo( painter, x1, y1 - MapY1 * clock_size * 2, width, color );
+            GRLineTo( painter, x1 - clock_size, y1, width, color );
         }
     }
 
@@ -777,14 +751,14 @@ void SCH_PIN::printPinSymbol( const SCH_RENDER_SETTINGS* aSettings, const VECTOR
         if( MapY1 == 0 )            /* MapX1 = +- 1 */
         {
             GRMoveTo( x1 + MapX1 * deco_size * 2, y1 );
-            GRLineTo( DC, x1 + MapX1 * deco_size * 2, y1 - deco_size * 2, width, color );
-            GRLineTo( DC, x1, y1, width, color );
+            GRLineTo( painter, x1 + MapX1 * deco_size * 2, y1 - deco_size * 2, width, color );
+            GRLineTo( painter, x1, y1, width, color );
         }
         else    /* MapX1 = 0 */
         {
             GRMoveTo( x1, y1 + MapY1 * deco_size * 2 );
-            GRLineTo( DC, x1 - deco_size * 2, y1 + MapY1 * deco_size * 2, width, color );
-            GRLineTo( DC, x1, y1, width, color );
+            GRLineTo( painter, x1 - deco_size * 2, y1 + MapY1 * deco_size * 2, width, color );
+            GRLineTo( painter, x1, y1, width, color );
         }
     }
 
@@ -794,31 +768,31 @@ void SCH_PIN::printPinSymbol( const SCH_RENDER_SETTINGS* aSettings, const VECTOR
         if( MapY1 == 0 )            /* MapX1 = +- 1 */
         {
             GRMoveTo( x1, y1 - deco_size * 2 );
-            GRLineTo( DC, x1 + MapX1 * deco_size * 2, y1, width, color );
+            GRLineTo( painter, x1 + MapX1 * deco_size * 2, y1, width, color );
         }
         else    /* MapX1 = 0 */
         {
             GRMoveTo( x1 - deco_size * 2, y1 );
-            GRLineTo( DC, x1, y1 + MapY1 * deco_size * 2, width, color );
+            GRLineTo( painter, x1, y1 + MapY1 * deco_size * 2, width, color );
         }
     }
     else if( m_shape == GRAPHIC_PINSHAPE::NONLOGIC ) /* NonLogic pin symbol */
     {
         const int deco_size = externalPinDecoSize( aSettings, *this );
         GRMoveTo( x1 - (MapX1 + MapY1) * deco_size, y1 - (MapY1 - MapX1) * deco_size );
-        GRLineTo( DC, x1 + (MapX1 + MapY1) * deco_size, y1 + ( MapY1 - MapX1 ) * deco_size, width,
+        GRLineTo( painter, x1 + (MapX1 + MapY1) * deco_size, y1 + ( MapY1 - MapX1 ) * deco_size, width,
                   color );
         GRMoveTo( x1 - (MapX1 - MapY1) * deco_size, y1 - (MapY1 + MapX1) * deco_size );
-        GRLineTo( DC, x1 + (MapX1 - MapY1) * deco_size, y1 + ( MapY1 + MapX1 ) * deco_size, width,
+        GRLineTo( painter, x1 + (MapX1 - MapY1) * deco_size, y1 + ( MapY1 + MapX1 ) * deco_size, width,
                   color );
     }
 
     if( m_type == ELECTRICAL_PINTYPE::PT_NC ) // Draw a N.C. symbol
     {
         const int deco_size = TARGET_PIN_RADIUS;
-        GRLine( DC, posX - deco_size, posY - deco_size, posX + deco_size, posY + deco_size, width,
+        GRLine( painter, posX - deco_size, posY - deco_size, posX + deco_size, posY + deco_size, width,
                 color );
-        GRLine( DC, posX + deco_size, posY - deco_size, posX - deco_size, posY + deco_size, width,
+        GRLine( painter, posX + deco_size, posY - deco_size, posX - deco_size, posY + deco_size, width,
                 color );
     }
 }
@@ -832,8 +806,8 @@ void SCH_PIN::printPinTexts( const RENDER_SETTINGS* aSettings, const VECTOR2I& a
         return;
 
     KIFONT::FONT* font = KIFONT::FONT::GetFont( aSettings->GetDefaultFont(), false, false );
-    wxString      name = GetShownName();
-    wxString      number = GetShownNumber();
+    QString      name = GetShownName();
+    QString      number = GetShownNumber();
     VECTOR2I      nameSize( GetNameTextSize(), GetNameTextSize() );
     VECTOR2I      numSize( GetNumberTextSize(), GetNumberTextSize() );
     int           name_offset = schIUScale.MilsToIU( PIN_TEXT_MARGIN );
@@ -867,13 +841,13 @@ void SCH_PIN::printPinTexts( const RENDER_SETTINGS* aSettings, const VECTOR2I& a
     case PIN_ORIENTATION::PIN_DOWN:  y1 += GetLength();                                   break;
     case PIN_ORIENTATION::PIN_LEFT:  x1 -= GetLength();                                   break;
     case PIN_ORIENTATION::PIN_RIGHT: x1 += GetLength();                                   break;
-    case PIN_ORIENTATION::INHERIT:   wxFAIL_MSG( wxT( "aPinOrient must be resolved!" ) ); break;
+    case PIN_ORIENTATION::INHERIT:   Q_ASSERT_X( false, "SCH_PIN::PrintPinTexts", "aPinOrient must be resolved!" ); break;
     }
 
-    if( name.IsEmpty() || m_nameTextSize == 0 )
+    if( name.isEmpty() || m_nameTextSize == 0 )
         aDrawPinName = false;
 
-    if( number.IsEmpty() || m_numTextSize == 0 )
+    if( number.isEmpty() || m_numTextSize == 0 )
         aDrawPinNum = false;
 
     auto printName =
@@ -1005,8 +979,8 @@ void SCH_PIN::printPinElectricalTypeName( const RENDER_SETTINGS* aSettings,
                                           const VECTOR2I& aPosition, PIN_ORIENTATION aOrientation,
                                           bool aDimmed )
 {
-    wxDC*       DC = aSettings->GetPrintDC();
-    wxString    typeName = GetElectricalTypeName();
+    QPainter*       painter = aSettings->GetPrintDC();
+    QString    typeName = GetElectricalTypeName();
 
     // Use a reasonable (small) size to draw the text
     int         textSize = ( GetNameTextSize() * 3 ) / 4;
@@ -1064,11 +1038,11 @@ void SCH_PIN::printPinElectricalTypeName( const RENDER_SETTINGS* aSettings,
         break;
 
     case PIN_ORIENTATION::INHERIT:
-        wxFAIL_MSG( wxS( "aOrientation must be resolved!" ) );
+        Q_ASSERT_X( false, "SCH_PIN::PrintPinElectricalTypeName", "aOrientation must be resolved!" );
         break;
     }
 
-    GRPrintText( DC, txtpos, color, typeName, orient, VECTOR2I( textSize, textSize ), hjustify,
+    GRPrintText( painter, txtpos, color, typeName, orient, VECTOR2I( textSize, textSize ), hjustify,
                  GR_TEXT_V_ALIGN_CENTER, pensize, false, false, font, GetFontMetrics() );
 }
 
@@ -1104,7 +1078,7 @@ void SCH_PIN::PlotPinType( PLOTTER *aPlotter, const VECTOR2I &aPosition,
     case PIN_ORIENTATION::PIN_DOWN:   y1 = aPosition.y + pinLength;  MapY1 = -1;             break;
     case PIN_ORIENTATION::PIN_LEFT:   x1 = aPosition.x - pinLength;  MapX1 = 1;              break;
     case PIN_ORIENTATION::PIN_RIGHT:  x1 = aPosition.x + pinLength;  MapX1 = -1;             break;
-    case PIN_ORIENTATION::INHERIT:    wxFAIL_MSG( wxS( "aOrientation must be resolved!" ) ); break;
+    case PIN_ORIENTATION::INHERIT:    Q_ASSERT_X( false, "SCH_PIN::PlotSymbol", "aOrientation must be resolved!" ); break;
     }
 
     if( m_shape == GRAPHIC_PINSHAPE::INVERTED || m_shape == GRAPHIC_PINSHAPE::INVERTED_CLOCK )
@@ -1226,13 +1200,13 @@ void SCH_PIN::PlotPinTexts( PLOTTER *aPlotter, const VECTOR2I &aPinPos, PIN_ORIE
 {
     RENDER_SETTINGS* settings = aPlotter->RenderSettings();
     KIFONT::FONT*    font = KIFONT::FONT::GetFont( settings->GetDefaultFont(), false, false );
-    wxString         name = GetShownName();
-    wxString         number = GetShownNumber();
+    QString         name = GetShownName();
+    QString         number = GetShownNumber();
 
-    if( name.IsEmpty() || m_nameTextSize == 0 )
+    if( name.isEmpty() || m_nameTextSize == 0 )
         aDrawPinName = false;
 
-    if( number.IsEmpty() || m_numTextSize == 0 )
+    if( number.isEmpty() || m_numTextSize == 0 )
         aDrawPinNum = false;
 
     if( !aDrawPinNum && !aDrawPinName )
@@ -1268,7 +1242,7 @@ void SCH_PIN::PlotPinTexts( PLOTTER *aPlotter, const VECTOR2I &aPinPos, PIN_ORIE
     case PIN_ORIENTATION::PIN_DOWN:  y1 += GetLength();                                   break;
     case PIN_ORIENTATION::PIN_LEFT:  x1 -= GetLength();                                   break;
     case PIN_ORIENTATION::PIN_RIGHT: x1 += GetLength();                                   break;
-    case PIN_ORIENTATION::INHERIT:   wxFAIL_MSG( wxS( "aPinOrient must be resolved!" ) ); break;
+    case PIN_ORIENTATION::INHERIT:   Q_ASSERT_X( false, "SCH_PIN::PlotPinTexts", "aPinOrient must be resolved!" ); break;
     }
 
     auto plotName =
@@ -1451,7 +1425,7 @@ EDA_ITEM* SCH_PIN::Clone() const
 {
     //return new SCH_PIN( *this );
     SCH_ITEM* newPin = new SCH_PIN( *this );
-    wxASSERT( newPin->GetUnit() == m_unit && newPin->GetBodyStyle() == m_bodyStyle );
+    Q_ASSERT( newPin->GetUnit() == m_unit && newPin->GetBodyStyle() == m_bodyStyle );
     return newPin;
 }
 
@@ -1591,7 +1565,7 @@ void SCH_PIN::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aP
 
 void SCH_PIN::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString msg;
+    QString msg;
     SYMBOL*  symbol = GetParentSymbol();
 
     if( dynamic_cast<LIB_SYMBOL*>( symbol ) )
@@ -1600,39 +1574,39 @@ void SCH_PIN::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITE
     }
     else
     {
-        aList.emplace_back( _( "Type" ), _( "Pin" ) );
+        aList.emplace_back( "Type", "Pin" );
 
         if( symbol->GetUnitCount() )
         {
             msg = m_libPin ? GetUnitDescription( m_libPin->GetUnit() ) :
-                             wxString( "Undefined library pin." );
-            aList.emplace_back( _( "Unit" ), msg );
+                             QString( "Undefined library pin." );
+            aList.emplace_back( "Unit", msg );
         }
 
         if( symbol->HasAlternateBodyStyle() )
         {
             msg = m_libPin ? GetBodyStyleDescription( m_libPin->GetBodyStyle() ) :
-                             wxString( "Undefined library pin." );
-            aList.emplace_back( _( "Body Style" ), msg );
+                             QString( "Undefined library pin." );
+            aList.emplace_back( "Body Style", msg );
         }
     }
 
-    aList.emplace_back( _( "Name" ), UnescapeString( GetShownName() ) );
-    aList.emplace_back( _( "Number" ), GetShownNumber() );
-    aList.emplace_back( _( "Type" ), ElectricalPinTypeGetText( GetType() ) );
-    aList.emplace_back( _( "Style" ), PinShapeGetText( GetShape() ) );
+    aList.emplace_back( "Name", UnescapeString( GetShownName() ) );
+    aList.emplace_back( "Number", GetShownNumber() );
+    aList.emplace_back( "Type", ElectricalPinTypeGetText( GetType() ) );
+    aList.emplace_back( "Style", PinShapeGetText( GetShape() ) );
 
-    aList.emplace_back( _( "Visible" ), IsVisible() ? _( "Yes" ) : _( "No" ) );
+    aList.emplace_back( "Visible", IsVisible() ? "Yes" : "No" );
 
     // Display pin length
-    aList.emplace_back( _( "Length" ), aFrame->MessageTextFromValue( GetLength(), true ) );
+    aList.emplace_back( "Length", aFrame->MessageTextFromValue( GetLength(), true ) );
 
-    aList.emplace_back( _( "Orientation" ), PinOrientationName( GetOrientation() ) );
+    aList.emplace_back( "Orientation", PinOrientationName( GetOrientation() ) );
 
     if( dynamic_cast<LIB_SYMBOL*>( symbol ) )
     {
-        aList.emplace_back( _( "Pos X" ), aFrame->MessageTextFromValue( GetPosition().x, true ) );
-        aList.emplace_back( _( "Pos Y" ), aFrame->MessageTextFromValue( GetPosition().y, true ) );
+        aList.emplace_back( "Pos X", aFrame->MessageTextFromValue( GetPosition().x, true ) );
+        aList.emplace_back( "Pos Y", aFrame->MessageTextFromValue( GetPosition().y, true ) );
     }
     else
     {
@@ -1670,7 +1644,7 @@ void SCH_PIN::ClearDefaultNetName( const SCH_SHEET_PATH* aPath )
 }
 
 
-wxString SCH_PIN::GetDefaultNetName( const SCH_SHEET_PATH& aPath, bool aForceNoConnect )
+QString SCH_PIN::GetDefaultNetName( const SCH_SHEET_PATH& aPath, bool aForceNoConnect )
 {
     const SCH_SYMBOL* symbol = static_cast<const SCH_SYMBOL*>( GetParentSymbol() );
 
@@ -1684,7 +1658,7 @@ wxString SCH_PIN::GetDefaultNetName( const SCH_SHEET_PATH& aPath, bool aForceNoC
         }
         else
         {
-            wxString tmp = m_libPin ? m_libPin->GetName() : wxString( "??" );
+            QString tmp = m_libPin ? m_libPin->GetName() : QString( "??" );
 
             return EscapeString( tmp, CTX_NETNAME );
         }
@@ -1700,7 +1674,7 @@ wxString SCH_PIN::GetDefaultNetName( const SCH_SHEET_PATH& aPath, bool aForceNoC
             return it->second.first;
     }
 
-    wxString name = "Net-(";
+    QString name = "Net-(";
     bool unconnected = false;
 
     if( aForceNoConnect || GetType() == ELECTRICAL_PINTYPE::PT_NC )
@@ -1725,19 +1699,19 @@ wxString SCH_PIN::GetDefaultNetName( const SCH_SHEET_PATH& aPath, bool aForceNoC
         }
     }
 
-    wxString libPinShownName = m_libPin ? m_libPin->GetShownName() : wxString( "??" );
-    wxString libPinShownNumber = m_libPin ? m_libPin->GetShownNumber() : wxString( "??" );
+    QString libPinShownName = m_libPin ? m_libPin->GetShownName() : QString( "??" );
+    QString libPinShownNumber = m_libPin ? m_libPin->GetShownNumber() : QString( "??" );
 
     // Use timestamp for unannotated symbols
     if( symbol->GetRef( &aPath, false ).Last() == '?' )
     {
         name << GetParentSymbol()->m_Uuid.AsString();
 
-        wxString libPinNumber = m_libPin ? m_libPin->GetNumber() : wxString( "??" );
+        QString libPinNumber = m_libPin ? m_libPin->GetNumber() : QString( "??" );
         name << "-Pad" << libPinNumber << ")";
         annotated = false;
     }
-    else if( !libPinShownName.IsEmpty() && ( libPinShownName != libPinShownNumber ) )
+    else if( !libPinShownName.isEmpty() && ( libPinShownName != libPinShownNumber ) )
     {
         // Pin names might not be unique between different units so we must have the
         // unit token in the reference designator
@@ -1776,7 +1750,7 @@ std::vector<int> SCH_PIN::ViewGetLayers() const
 }
 
 
-void SCH_PIN::validateExtentsCache( KIFONT::FONT* aFont, int aSize, const wxString& aText,
+void SCH_PIN::validateExtentsCache( KIFONT::FONT* aFont, int aSize, const QString& aText,
                                     EXTENTS_CACHE* aCache ) const
 {
     if( aCache->m_Font == aFont
@@ -1816,7 +1790,7 @@ bool SCH_PIN::HasConnectivityChanges( const SCH_ITEM* aItem,
     const SCH_PIN* pin = dynamic_cast<const SCH_PIN*>( aItem );
 
     // Don't compare against a different SCH_ITEM.
-    wxCHECK( pin, false );
+    Q_ASSERT( pin );\n    if( !pin ) return false;
 
     if( GetPosition() != pin->GetPosition() )
         return true;
@@ -1847,84 +1821,84 @@ BITMAPS SCH_PIN::GetMenuImage() const
 }
 
 
-wxString SCH_PIN::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, ALT* aAlt ) const
+QString SCH_PIN::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, ALT* aAlt ) const
 {
     return getItemDescription( aAlt );
 }
 
 
-wxString SCH_PIN::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_PIN::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
     if( m_libPin )
     {
         SCH_PIN::ALT  localStorage;
         SCH_PIN::ALT* alt = nullptr;
 
-        if( !m_alt.IsEmpty() )
+        if( !m_alt.isEmpty() )
         {
             localStorage = m_libPin->GetAlt( m_alt );
             alt = &localStorage;
         }
 
-        wxString itemDesc = m_libPin ? m_libPin->GetItemDescription( aUnitsProvider, alt )
-                                     : wxString( wxS( "Undefined library pin." ) );
+        QString itemDesc = m_libPin ? m_libPin->GetItemDescription( aUnitsProvider, alt )
+                                     : QString( "Undefined library pin." );
 
         const SCH_SYMBOL* symbol = static_cast<const SCH_SYMBOL*>( GetParentSymbol() );
 
-        return wxString::Format( "Symbol %s %s",
-                                 UnescapeString( symbol->GetField( REFERENCE_FIELD )->GetText() ),
-                                 itemDesc );
+        return QString::asprintf( "Symbol %s %s",
+                                 qPrintable(UnescapeString( symbol->GetField( REFERENCE_FIELD )->GetText() )),
+                                 qPrintable(itemDesc) );
     }
 
     return getItemDescription( nullptr );
 }
 
 
-wxString SCH_PIN::getItemDescription( ALT* aAlt ) const
+QString SCH_PIN::getItemDescription( ALT* aAlt ) const
 {
     // This code previously checked "m_name.IsEmpty()" to choose the correct
     // formatting path, but that check fails if the pin is called "~" which is
     // the default for an empty pin name.  Instead we get the final display string
     // that will be shown and check if it's empty.
 
-    wxString name = UnescapeString( aAlt ? aAlt->m_Name : GetShownName() );
-    wxString electricalTypeName = ElectricalPinTypeGetText( aAlt ? aAlt->m_Type : m_type );
-    wxString pinShapeName = PinShapeGetText( aAlt ? aAlt->m_Shape : m_shape );
+    QString name = UnescapeString( aAlt ? aAlt->m_Name : GetShownName() );
+    QString electricalTypeName = ElectricalPinTypeGetText( aAlt ? aAlt->m_Type : m_type );
+    QString pinShapeName = PinShapeGetText( aAlt ? aAlt->m_Shape : m_shape );
 
     if( IsVisible() )
     {
-        if ( !name.IsEmpty() )
+        if ( !name.isEmpty() )
         {
-            return wxString::Format( _( "Pin %s [%s, %s, %s]" ),
-                                     GetShownNumber(),
-                                     name,
-                                     electricalTypeName,
-                                     pinShapeName );
+            return QString::asprintf( "Pin %s [%s, %s, %s]",
+                                     qPrintable(GetShownNumber()),
+                                     qPrintable(name),
+                                     qPrintable(electricalTypeName),
+                                     qPrintable(pinShapeName) );
         }
         else
         {
-            return wxString::Format( _( "Pin %s [%s, %s]" ),
-                                     GetShownNumber(),
-                                     electricalTypeName,
-                                     pinShapeName );
+            return QString::asprintf( "Pin %s [%s, %s]",
+                                     qPrintable(GetShownNumber()),
+                                     qPrintable(electricalTypeName),
+                                     qPrintable(pinShapeName) );
         }
     }
     else
     {
-        if( !name.IsEmpty() )
+        if( !name.isEmpty() )
         {
-            return wxString::Format( _( "Hidden pin %s [%s, %s, %s]" ),
-                                     GetShownNumber(),
-                                     name,
-                                     electricalTypeName,
-                                     pinShapeName );
+            return QString::asprintf( "Hidden pin %s [%s, %s, %s]",
+                                     qPrintable(GetShownNumber()),
+                                     qPrintable(name),
+                                     qPrintable(electricalTypeName),
+                                     qPrintable(pinShapeName) );
         }
         else
         {
-            return wxString::Format( _( "Hidden pin %s [%s, %s]" ),
-                                     GetShownNumber(),
-                                     electricalTypeName,
-                                     pinShapeName );
+            return QString::asprintf( "Hidden pin %s [%s, %s]",
+                                     qPrintable(GetShownNumber()),
+                                     qPrintable(electricalTypeName),
+                                     qPrintable(pinShapeName) );
         }
     }
 }
@@ -1940,7 +1914,8 @@ int SCH_PIN::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
 
     const SCH_PIN* tmp = static_cast<const SCH_PIN*>( &aOther );
 
-    wxCHECK( tmp, -1 );
+    Q_ASSERT( tmp );
+    if( !tmp ) return -1;
 
     if( m_number != tmp->m_number )
         return m_number.Cmp( tmp->m_number );
@@ -2125,43 +2100,43 @@ static struct SCH_PIN_DESC
 
         if( pinTypeEnum.Choices().GetCount() == 0 )
         {
-            pinTypeEnum.Map( ELECTRICAL_PINTYPE::PT_INPUT,         _HKI( "Input" ) )
-                       .Map( ELECTRICAL_PINTYPE::PT_OUTPUT,        _HKI( "Output" ) )
-                       .Map( ELECTRICAL_PINTYPE::PT_BIDI,          _HKI( "Bidirectional" ) )
-                       .Map( ELECTRICAL_PINTYPE::PT_TRISTATE,      _HKI( "Tri-state" ) )
-                       .Map( ELECTRICAL_PINTYPE::PT_PASSIVE,       _HKI( "Passive" ) )
-                       .Map( ELECTRICAL_PINTYPE::PT_NIC,           _HKI( "Free" ) )
-                       .Map( ELECTRICAL_PINTYPE::PT_UNSPECIFIED,   _HKI( "Unspecified" ) )
-                       .Map( ELECTRICAL_PINTYPE::PT_POWER_IN,      _HKI( "Power input" ) )
-                       .Map( ELECTRICAL_PINTYPE::PT_POWER_OUT,     _HKI( "Power output" ) )
-                       .Map( ELECTRICAL_PINTYPE::PT_OPENCOLLECTOR, _HKI( "Open collector" ) )
-                       .Map( ELECTRICAL_PINTYPE::PT_OPENEMITTER,   _HKI( "Open emitter" ) )
-                       .Map( ELECTRICAL_PINTYPE::PT_NC,            _HKI( "Unconnected" ) );
+            pinTypeEnum.Map( ELECTRICAL_PINTYPE::PT_INPUT,         "Input" )
+                       .Map( ELECTRICAL_PINTYPE::PT_OUTPUT,        ( "Output" ) )
+                       .Map( ELECTRICAL_PINTYPE::PT_BIDI,          ( "Bidirectional" ) )
+                       .Map( ELECTRICAL_PINTYPE::PT_TRISTATE,      ( "Tri-state" ) )
+                       .Map( ELECTRICAL_PINTYPE::PT_PASSIVE,       ( "Passive" ) )
+                       .Map( ELECTRICAL_PINTYPE::PT_NIC,           ( "Free" ) )
+                       .Map( ELECTRICAL_PINTYPE::PT_UNSPECIFIED,   ( "Unspecified" ) )
+                       .Map( ELECTRICAL_PINTYPE::PT_POWER_IN,      ( "Power input" ) )
+                       .Map( ELECTRICAL_PINTYPE::PT_POWER_OUT,     ( "Power output" ) )
+                       .Map( ELECTRICAL_PINTYPE::PT_OPENCOLLECTOR, ( "Open collector" ) )
+                       .Map( ELECTRICAL_PINTYPE::PT_OPENEMITTER,   ( "Open emitter" ) )
+                       .Map( ELECTRICAL_PINTYPE::PT_NC,            ( "Unconnected" ) );
         }
 
         auto& pinShapeEnum = ENUM_MAP<GRAPHIC_PINSHAPE>::Instance();
 
         if( pinShapeEnum.Choices().GetCount() == 0 )
         {
-            pinShapeEnum.Map( GRAPHIC_PINSHAPE::LINE,               _HKI( "Line" ) )
-                        .Map( GRAPHIC_PINSHAPE::INVERTED,           _HKI( "Inverted" ) )
-                        .Map( GRAPHIC_PINSHAPE::CLOCK,              _HKI( "Clock" ) )
-                        .Map( GRAPHIC_PINSHAPE::INVERTED_CLOCK,     _HKI( "Inverted clock" ) )
-                        .Map( GRAPHIC_PINSHAPE::INPUT_LOW,          _HKI( "Input low" ) )
-                        .Map( GRAPHIC_PINSHAPE::CLOCK_LOW,          _HKI( "Clock low" ) )
-                        .Map( GRAPHIC_PINSHAPE::OUTPUT_LOW,         _HKI( "Output low" ) )
-                        .Map( GRAPHIC_PINSHAPE::FALLING_EDGE_CLOCK, _HKI( "Falling edge clock" ) )
-                        .Map( GRAPHIC_PINSHAPE::NONLOGIC,           _HKI( "NonLogic" ) );
+            pinShapeEnum.Map( GRAPHIC_PINSHAPE::LINE,               ( "Line" ) )
+                        .Map( GRAPHIC_PINSHAPE::INVERTED,           ( "Inverted" ) )
+                        .Map( GRAPHIC_PINSHAPE::CLOCK,              ( "Clock" ) )
+                        .Map( GRAPHIC_PINSHAPE::INVERTED_CLOCK,     ( "Inverted clock" ) )
+                        .Map( GRAPHIC_PINSHAPE::INPUT_LOW,          ( "Input low" ) )
+                        .Map( GRAPHIC_PINSHAPE::CLOCK_LOW,          ( "Clock low" ) )
+                        .Map( GRAPHIC_PINSHAPE::OUTPUT_LOW,         ( "Output low" ) )
+                        .Map( GRAPHIC_PINSHAPE::FALLING_EDGE_CLOCK, ( "Falling edge clock" ) )
+                        .Map( GRAPHIC_PINSHAPE::NONLOGIC,           ( "NonLogic" ) );
         }
 
         auto& orientationEnum = ENUM_MAP<PIN_ORIENTATION>::Instance();
 
         if( orientationEnum.Choices().GetCount() == 0 )
         {
-            orientationEnum.Map( PIN_ORIENTATION::PIN_RIGHT, _( "Right" ) )
-                           .Map( PIN_ORIENTATION::PIN_LEFT,  _( "Left" ) )
-                           .Map( PIN_ORIENTATION::PIN_UP,    _( "Up" ) )
-                           .Map( PIN_ORIENTATION::PIN_DOWN,  _( "Down" ) );
+            orientationEnum.Map( PIN_ORIENTATION::PIN_RIGHT, "Right" )
+                           .Map( PIN_ORIENTATION::PIN_LEFT,  "Left" )
+                           .Map( PIN_ORIENTATION::PIN_UP,    "Up" )
+                           .Map( PIN_ORIENTATION::PIN_DOWN,  "Down" );
         }
 
         auto isSymbolEditor =
@@ -2178,52 +2153,52 @@ static struct SCH_PIN_DESC
         propMgr.AddTypeCast( new TYPE_CAST<SCH_PIN, SCH_ITEM> );
         propMgr.InheritsAfter( TYPE_HASH( SCH_PIN ), TYPE_HASH( SCH_ITEM ) );
 
-        propMgr.AddProperty( new PROPERTY<SCH_PIN, wxString>( _HKI( "Pin Name" ),
+        propMgr.AddProperty( new PROPERTY<SCH_PIN, QString>( "Pin Name",
                     &SCH_PIN::SetName, &SCH_PIN::GetName ) )
                 .SetWriteableFunc( isSymbolEditor );
 
-        propMgr.AddProperty( new PROPERTY<SCH_PIN, wxString>( _HKI( "Pin Number" ),
+        propMgr.AddProperty( new PROPERTY<SCH_PIN, QString>( "Pin Number",
                     &SCH_PIN::SetNumber, &SCH_PIN::GetNumber ) )
                 .SetWriteableFunc( isSymbolEditor );
 
         propMgr.AddProperty( new PROPERTY_ENUM<SCH_PIN, ELECTRICAL_PINTYPE>(
-                    _HKI( "Electrical Type" ),
+                    ( "Electrical Type" ),
                     &SCH_PIN::SetType, &SCH_PIN::GetType ) )
                 .SetWriteableFunc( isSymbolEditor );
 
         propMgr.AddProperty( new PROPERTY_ENUM<SCH_PIN, GRAPHIC_PINSHAPE>(
-                    _HKI( "Graphic Style" ),
+                    ( "Graphic Style" ),
                     &SCH_PIN::SetShape, &SCH_PIN::GetShape ) )
                 .SetWriteableFunc( isSymbolEditor );
 
-        propMgr.AddProperty( new PROPERTY<SCH_PIN, int>( _HKI( "Position X" ),
+        propMgr.AddProperty( new PROPERTY<SCH_PIN, int>( ( "Position X" ),
                     &SCH_PIN::SetX, &SCH_PIN::GetX, PROPERTY_DISPLAY::PT_COORD ) )
                 .SetAvailableFunc( isSymbolEditor );
 
-        propMgr.AddProperty( new PROPERTY<SCH_PIN, int>( _HKI( "Position Y" ),
+        propMgr.AddProperty( new PROPERTY<SCH_PIN, int>( ( "Position Y" ),
                     &SCH_PIN::SetY, &SCH_PIN::GetY, PROPERTY_DISPLAY::PT_COORD ) )
                 .SetAvailableFunc( isSymbolEditor );
 
-        propMgr.AddProperty( new PROPERTY_ENUM<SCH_PIN, PIN_ORIENTATION>( _HKI( "Orientation" ),
+        propMgr.AddProperty( new PROPERTY_ENUM<SCH_PIN, PIN_ORIENTATION>( ( "Orientation" ),
                     &SCH_PIN::SetOrientation, &SCH_PIN::GetOrientation ) )
                 .SetWriteableFunc( isSymbolEditor );
 
-        propMgr.AddProperty( new PROPERTY<SCH_PIN, int>( _HKI( "Length" ),
+        propMgr.AddProperty( new PROPERTY<SCH_PIN, int>( ( "Length" ),
                     &SCH_PIN::SetLength, &SCH_PIN::GetLength,
                     PROPERTY_DISPLAY::PT_SIZE ) )
                 .SetWriteableFunc( isSymbolEditor );
 
-        propMgr.AddProperty( new PROPERTY<SCH_PIN, int>( _HKI( "Name Text Size" ),
+        propMgr.AddProperty( new PROPERTY<SCH_PIN, int>( ( "Name Text Size" ),
                     &SCH_PIN::SetNameTextSize, &SCH_PIN::GetNameTextSize,
                     PROPERTY_DISPLAY::PT_SIZE ) )
                 .SetAvailableFunc( isSymbolEditor );
 
-        propMgr.AddProperty( new PROPERTY<SCH_PIN, int>( _HKI( "Number Text Size" ),
+        propMgr.AddProperty( new PROPERTY<SCH_PIN, int>( ( "Number Text Size" ),
                     &SCH_PIN::SetNumberTextSize, &SCH_PIN::GetNumberTextSize,
                     PROPERTY_DISPLAY::PT_SIZE ) )
                 .SetAvailableFunc( isSymbolEditor );
 
-        propMgr.AddProperty( new PROPERTY<SCH_PIN, bool>( _HKI( "Visible" ),
+        propMgr.AddProperty( new PROPERTY<SCH_PIN, bool>( ( "Visible" ),
                     &SCH_PIN::SetVisible, &SCH_PIN::IsVisible ) )
                 .SetAvailableFunc( isSymbolEditor );
 

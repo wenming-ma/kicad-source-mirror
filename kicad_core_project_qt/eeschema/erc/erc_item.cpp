@@ -1,29 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 
-#include "wx/html/m_templ.h"
-#include "wx/html/styleparams.h"
+#include <QString>
+#include <QVariant>
 #include <erc/erc.h>
 #include <eda_draw_frame.h>
 #include <marker_base.h>
@@ -43,191 +21,191 @@ ERC_ITEM ERC_ITEM::heading_internal( 0, "", "" );
 
 ERC_ITEM ERC_ITEM::duplicateSheetName( ERCE_DUPLICATE_SHEET_NAME,
         _HKI( "Duplicate sheet names within a given sheet" ),
-        wxT( "duplicate_sheet_names" ) );
+        "duplicate_sheet_names" );
 
 ERC_ITEM ERC_ITEM::endpointOffGrid( ERCE_ENDPOINT_OFF_GRID,
         _HKI( "Symbol pin or wire end off connection grid" ),
-        wxT( "endpoint_off_grid" ) );
+        "endpoint_off_grid" );
 
 ERC_ITEM ERC_ITEM::pinNotConnected( ERCE_PIN_NOT_CONNECTED,
         _HKI( "Pin not connected" ),
-        wxT( "pin_not_connected" ) );
+        "pin_not_connected" );
 
 ERC_ITEM ERC_ITEM::pinNotDriven( ERCE_PIN_NOT_DRIVEN,
         _HKI( "Input pin not driven by any Output pins" ),
-        wxT( "pin_not_driven" ) );
+        "pin_not_driven" );
 
 ERC_ITEM ERC_ITEM::powerpinNotDriven( ERCE_POWERPIN_NOT_DRIVEN,
         _HKI( "Input Power pin not driven by any Output Power pins" ),
-        wxT( "power_pin_not_driven" ) );
+        "power_pin_not_driven" );
 
 ERC_ITEM ERC_ITEM::duplicatePinError( ERCE_DUPLICATE_PIN_ERROR,
         _HKI( "Multiple pins with the same pin number" ),
-        wxT( "duplicate_pins" ) );
+        "duplicate_pins" );
 
 ERC_ITEM ERC_ITEM::pinTableWarning( ERCE_PIN_TO_PIN_WARNING,
         _HKI( "Conflict problem between pins" ),
-        wxT( "pin_to_pin" ) );
+        "pin_to_pin" );
 
 ERC_ITEM ERC_ITEM::pinTableError( ERCE_PIN_TO_PIN_ERROR,
         _HKI( "Conflict problem between pins" ),
-        wxT( "pin_to_pin" ) );
+        "pin_to_pin" );
 
 ERC_ITEM ERC_ITEM::genericWarning( ERCE_GENERIC_WARNING,
         _HKI( "Warning" ),
-        wxT( "generic-warning" ) );
+        "generic-warning" );
 
 ERC_ITEM ERC_ITEM::genericError( ERCE_GENERIC_ERROR,
         _HKI( "Error" ),
-        wxT( "generic-error" ) );
+        "generic-error" );
 
 ERC_ITEM ERC_ITEM::hierLabelMismatch( ERCE_HIERACHICAL_LABEL,
         _HKI( "Mismatch between hierarchical labels and sheet pins" ),
-        wxT( "hier_label_mismatch" ) );
+        "hier_label_mismatch" );
 
 ERC_ITEM ERC_ITEM::fourWayJunction( ERCE_FOUR_WAY_JUNCTION,
         _HKI( "Four connection points are joined together" ),
-        wxT( "four_way_junction" ) );
+        "four_way_junction" );
 
 ERC_ITEM ERC_ITEM::labelMultipleWires( ERCE_LABEL_MULTIPLE_WIRES,
         _HKI( "Label connects more than one wire" ),
-        wxT( "label_multiple_wires" ) );
+        "label_multiple_wires" );
 
 ERC_ITEM ERC_ITEM::noConnectConnected( ERCE_NOCONNECT_CONNECTED,
         _HKI( "A pin with a \"no connection\" flag is connected" ),
-        wxT( "no_connect_connected" ) );
+        "no_connect_connected" );
 
 ERC_ITEM ERC_ITEM::noConnectDangling( ERCE_NOCONNECT_NOT_CONNECTED,
         _HKI( "Unconnected \"no connection\" flag" ),
-        wxT( "no_connect_dangling" ) );
+        "no_connect_dangling" );
 
 ERC_ITEM ERC_ITEM::labelDangling( ERCE_LABEL_NOT_CONNECTED,
         _HKI( "Label not connected to anything" ),
-        wxT( "label_dangling" ) );
+        "label_dangling" );
 
 ERC_ITEM ERC_ITEM::globalLabelDangling( ERCE_GLOBLABEL_DANGLING,
         _HKI( "Global label not connected anywhere else in the schematic" ),
-        wxT( "global_label_dangling" ) );
+        "global_label_dangling" );
 
 ERC_ITEM ERC_ITEM::similarLabels( ERCE_SIMILAR_LABELS,
         _HKI( "Labels are similar (lower/upper case difference only)"),
-        wxT( "similar_labels" ) );
+        "similar_labels" );
 
 ERC_ITEM ERC_ITEM::similarPower( ERCE_SIMILAR_POWER,
         _HKI( "Power pins are similar (lower/upper case difference only)"),
-        wxT( "similar_power" ) );
+        "similar_power" );
 
 ERC_ITEM ERC_ITEM::similarLabelAndPower( ERCE_SIMILAR_LABEL_AND_POWER,
         _HKI( "Power pin and label are similar (lower/upper case difference only)"),
-        wxT( "similar_label_and_power" ) );
+        "similar_label_and_power" );
 
 ERC_ITEM ERC_ITEM::singleGlobalLabel( ERCE_SINGLE_GLOBAL_LABEL,
         _HKI( "Global label only appears once in the schematic"),
-        wxT( "single_global_label" ) );
+        "single_global_label" );
 
 ERC_ITEM ERC_ITEM::sameLocalGlobalLabel( ERCE_SAME_LOCAL_GLOBAL_LABEL,
         _HKI( "Local and global labels have same name" ),
-        wxT( "same_local_global_label" ) );
+        "same_local_global_label" );
 
 ERC_ITEM ERC_ITEM::differentUnitFootprint( ERCE_DIFFERENT_UNIT_FP,
         _HKI( "Different footprint assigned in another unit of the symbol" ),
-        wxT( "different_unit_footprint" ) );
+        "different_unit_footprint" );
 
 ERC_ITEM ERC_ITEM::differentUnitNet( ERCE_DIFFERENT_UNIT_NET,
         _HKI( "Different net assigned to a shared pin in another unit of the symbol" ),
-        wxT( "different_unit_net" ) );
+        "different_unit_net" );
 
 ERC_ITEM ERC_ITEM::busDefinitionConflict( ERCE_BUS_ALIAS_CONFLICT,
         _HKI( "Conflict between bus alias definitions across schematic sheets" ),
-        wxT( "bus_definition_conflict" ) );
+        "bus_definition_conflict" );
 
 ERC_ITEM ERC_ITEM::multipleNetNames( ERCE_DRIVER_CONFLICT,
         _HKI( "More than one name given to this bus or net" ),
-        wxT( "multiple_net_names" ) );
+        "multiple_net_names" );
 
 ERC_ITEM ERC_ITEM::netNotBusMember( ERCE_BUS_ENTRY_CONFLICT,
         _HKI( "Net is graphically connected to a bus but not a bus member" ),
-        wxT( "net_not_bus_member" ) );
+        "net_not_bus_member" );
 
 ERC_ITEM ERC_ITEM::busToBusConflict( ERCE_BUS_TO_BUS_CONFLICT,
         _HKI( "Buses are graphically connected but share no bus members" ),
-        wxT( "bus_to_bus_conflict" ) );
+        "bus_to_bus_conflict" );
 
 ERC_ITEM ERC_ITEM::busToNetConflict( ERCE_BUS_TO_NET_CONFLICT,
         _HKI( "Invalid connection between bus and net items" ),
-        wxT( "bus_to_net_conflict" ) );
+        "bus_to_net_conflict" );
 
 ERC_ITEM ERC_ITEM::unresolvedVariable( ERCE_UNRESOLVED_VARIABLE,
         _HKI( "Unresolved text variable" ),
-        wxT( "unresolved_variable" ) );
+        "unresolved_variable" );
 
 ERC_ITEM ERC_ITEM::undefinedNetclass( ERCE_UNDEFINED_NETCLASS,
         _HKI( "Undefined netclass" ),
-        wxT( "undefined_netclass" ) );
+        "undefined_netclass" );
 
 ERC_ITEM ERC_ITEM::simulationModelIssues( ERCE_SIMULATION_MODEL,
         _HKI( "SPICE model issue" ),
-        wxT( "simulation_model_issue" ) );
+        "simulation_model_issue" );
 
 ERC_ITEM ERC_ITEM::wireDangling( ERCE_WIRE_DANGLING,
         _HKI( "Wires not connected to anything" ),
-        wxT( "wire_dangling" ) );
+        "wire_dangling" );
 
 ERC_ITEM ERC_ITEM::libSymbolIssues( ERCE_LIB_SYMBOL_ISSUES,
         _HKI( "Library symbol issue" ),
-        wxT( "lib_symbol_issues" ) );
+        "lib_symbol_issues" );
 
 ERC_ITEM ERC_ITEM::libSymbolMismatch( ERCE_LIB_SYMBOL_MISMATCH,
         _HKI( "Symbol doesn't match copy in library" ),
-        wxT( "lib_symbol_mismatch" ) );
+        "lib_symbol_mismatch" );
 
 ERC_ITEM ERC_ITEM::footprintLinkIssues( ERCE_FOOTPRINT_LINK_ISSUES,
         _HKI( "Footprint link issue" ),
-        wxT( "footprint_link_issues" ) );
+        "footprint_link_issues" );
 
 ERC_ITEM ERC_ITEM::footprintFilters( ERCE_FOOTPRINT_FILTERS,
         _HKI( "Assigned footprint doesn't match footprint filters" ),
-        wxT( "footprint_filter" ) );
+        "footprint_filter" );
 
 ERC_ITEM ERC_ITEM::unannotated( ERCE_UNANNOTATED,
         _HKI( "Symbol is not annotated" ),
-        wxT( "unannotated" ) );
+        "unannotated" );
 
 ERC_ITEM ERC_ITEM::extraUnits( ERCE_EXTRA_UNITS,
         _HKI( "Symbol has more units than are defined" ),
-        wxT( "extra_units" ) );
+        "extra_units" );
 
 ERC_ITEM ERC_ITEM::missingUnits( ERCE_MISSING_UNIT,
         _HKI( "Symbol has units that are not placed" ),
-        wxT( "missing_unit" ) );
+        "missing_unit" );
 
 ERC_ITEM ERC_ITEM::missingInputPin( ERCE_MISSING_INPUT_PIN,
         _HKI( "Symbol has input pins that are not placed" ),
-        wxT( "missing_input_pin" ) );
+        "missing_input_pin" );
 
 ERC_ITEM ERC_ITEM::missingBidiPin( ERCE_MISSING_BIDI_PIN,
         _HKI( "Symbol has bidirectional pins that are not placed" ),
-        wxT( "missing_bidi_pin" ) );
+        "missing_bidi_pin" );
 
 ERC_ITEM ERC_ITEM::missingPowerInputPin( ERCE_MISSING_POWER_INPUT_PIN,
         _HKI( "Symbol has power input pins that are not placed" ),
-        wxT( "missing_power_pin" ) );
+        "missing_power_pin" );
 
 ERC_ITEM ERC_ITEM::differentUnitValue( ERCE_DIFFERENT_UNIT_VALUE,
         _HKI( "Units of same symbol have different values" ),
-        wxT( "unit_value_mismatch" ) );
+        "unit_value_mismatch" );
 
 ERC_ITEM ERC_ITEM::duplicateReference( ERCE_DUPLICATE_REFERENCE,
         _HKI( "Duplicate reference designators" ),
-        wxT( "duplicate_reference" ) );
+        "duplicate_reference" );
 
 ERC_ITEM ERC_ITEM::busEntryNeeded( ERCE_BUS_ENTRY_NEEDED,
         _HKI( "Bus Entry needed" ),
-        wxT( "bus_entry_needed" ) );
+        "bus_entry_needed" );
 
 ERC_ITEM ERC_ITEM::unconnectedWireEndpoint( ERCE_UNCONNECTED_WIRE_ENDPOINT,
         _HKI( "Unconnected wire endpoint" ),
-        wxT( "unconnected_wire_endpoint" ) );
+        "unconnected_wire_endpoint" );
 
 std::vector<std::reference_wrapper<RC_ITEM>> ERC_ITEM::allItemTypes(
         {
@@ -347,7 +325,7 @@ std::shared_ptr<ERC_ITEM> ERC_ITEM::Create( int aErrorCode )
     case ERCE_UNCONNECTED_WIRE_ENDPOINT: return std::make_shared<ERC_ITEM>( unconnectedWireEndpoint );
     case ERCE_UNSPECIFIED:
     default:
-        wxFAIL_MSG( wxS( "Unknown ERC error code" ) );
+        Q_ASSERT_X(false, "ERC_ITEM::Create", "Unknown ERC error code");
         break;
     }
 
@@ -359,14 +337,14 @@ std::shared_ptr<ERC_ITEM> ERC_ITEM::Create( int aErrorCode )
  * SCH_SHEET_PATH context, if a context is available on the given SCH_MARKER or ERC_ITEM
  * targets.
  */
-void ERC_TREE_MODEL::GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
+void ERC_TREE_MODEL::GetValue( QVariant& aVariant, QModelIndex const& aItem,
                                unsigned int aCol ) const
 {
     SCH_EDIT_FRAME*           schEditFrame = static_cast<SCH_EDIT_FRAME*>( m_editFrame );
     const RC_TREE_NODE*       node = ToNode( aItem );
     std::shared_ptr<ERC_ITEM> ercItem = std::static_pointer_cast<ERC_ITEM>( node->m_RcItem );
     MARKER_BASE*              marker = ercItem->GetParent();
-    wxString                  msg;
+    QString                   msg;
 
     auto getItemDesc =
             [&]( EDA_ITEM* aCurrItem, SCH_SHEET_PATH& aSheet )
@@ -374,7 +352,7 @@ void ERC_TREE_MODEL::GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
                 // UNUSED_SYMBOL: GetCurrentSheet - sheet path assignment commented out due to unused symbol
                 // SCH_SHEET_PATH curSheet = schEditFrame->GetCurrentSheet();
                 SCH_SHEET_PATH curSheet;
-                wxString       desc;
+                QString        desc;
 
                 if( aSheet != curSheet )
                 {
@@ -484,6 +462,6 @@ void ERC_TREE_MODEL::GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
         break;
     }
 
-    msg.Replace( wxS( "\n" ), wxS( " " ) );
+    msg.replace( "\n", " " );
     aVariant = msg;
 }

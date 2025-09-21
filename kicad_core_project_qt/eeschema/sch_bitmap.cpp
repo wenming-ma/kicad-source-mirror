@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2011 jean-pierre.charras
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
 /**
  * @file sch_bitmap.cpp
  */
@@ -39,7 +15,7 @@
 #include <settings/color_settings.h>
 #include <trigo.h>
 
-#include <wx/mstream.h>
+#include <QDataStream>
 
 
 SCH_BITMAP::SCH_BITMAP( const VECTOR2I& pos ) :
@@ -61,9 +37,10 @@ SCH_BITMAP::SCH_BITMAP( const SCH_BITMAP& aSchBitmap ) :
 
 SCH_BITMAP& SCH_BITMAP::operator=( const SCH_ITEM& aItem )
 {
-    wxCHECK_MSG( Type() == aItem.Type(), *this,
-                 wxT( "Cannot assign object type " ) + aItem.GetClass() + wxT( " to type " ) +
-                 GetClass() );
+    Q_ASSERT_X( Type() == aItem.Type(), "SCH_BITMAP::operator=",
+                QString( "Cannot assign object type %1 to type %2" )
+                .arg( aItem.GetClass(), GetClass() ).toStdString().c_str() );
+    if( Type() != aItem.Type() ) return *this;
 
     if( &aItem != this )
     {
@@ -87,9 +64,10 @@ void SCH_BITMAP::SwapData( SCH_ITEM* aItem )
 {
     SCH_ITEM::SwapFlags( aItem );
 
-    wxCHECK_RET( aItem->Type() == SCH_BITMAP_T,
-                 wxString::Format( wxT( "SCH_BITMAP object cannot swap data with %s object." ),
-                                   aItem->GetClass() ) );
+    Q_ASSERT_X( aItem->Type() == SCH_BITMAP_T, "SCH_BITMAP::SwapData",
+                QString( "SCH_BITMAP object cannot swap data with %1 object." )
+                .arg( aItem->GetClass() ).toStdString().c_str() );
+    if( aItem->Type() != SCH_BITMAP_T ) return;
 
     SCH_BITMAP* item = (SCH_BITMAP*) aItem;
     m_referenceImage.SwapData( item->m_referenceImage );
@@ -152,9 +130,9 @@ void SCH_BITMAP::Rotate( const VECTOR2I& aCenter, bool aRotateCCW )
 void SCH_BITMAP::Show( int nestLevel, std::ostream& os ) const
 {
     // XML output:
-    wxString s = GetClass();
+    QString s = GetClass();
 
-    NestedSpace( nestLevel, os ) << '<' << s.Lower().mb_str() << GetPosition() << "/>\n";
+    NestedSpace( nestLevel, os ) << '<' << s.toLower().toStdString().c_str() << GetPosition() << "/>\n";
 }
 #endif
 
@@ -191,12 +169,12 @@ BITMAPS SCH_BITMAP::GetMenuImage() const
 
 void SCH_BITMAP::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
-    aList.emplace_back( _( "Bitmap" ), wxEmptyString );
+    aList.emplace_back( _( "Bitmap" ), QString() );
 
     aList.emplace_back( _( "PPI" ),
-                        wxString::Format( wxT( "%d " ), m_referenceImage.GetImage().GetPPI() ) );
+                        QString::asprintf( "%d ", m_referenceImage.GetImage().GetPPI() ) );
     aList.emplace_back( _( "Scale" ),
-                        wxString::Format( wxT( "%f " ), m_referenceImage.GetImageScale() ) );
+                        QString::asprintf( "%f ", m_referenceImage.GetImageScale() ) );
 
     aList.emplace_back( _( "Width" ),
                         aFrame->MessageTextFromValue( m_referenceImage.GetSize().x ) );
@@ -315,7 +293,7 @@ static struct SCH_BITMAP_DESC
                                                             &SCH_BITMAP::GetY,
                                                             PROPERTY_DISPLAY::PT_COORD ) );
 
-        const wxString groupImage = _HKI( "Image Properties" );
+        const QString groupImage = _HKI( "Image Properties" );
 
         propMgr.AddProperty( new PROPERTY<SCH_BITMAP, double>( _HKI( "Scale" ),
                                                                &SCH_BITMAP::SetImageScale,

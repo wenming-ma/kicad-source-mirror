@@ -1,3 +1,5 @@
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
@@ -33,7 +35,7 @@
 #include <eda_draw_frame.h>
 #include <gal/graphics_abstraction_layer.h>
 #include <id.h>
-#include <math/vector2wx.h>
+#include <math/vector2wx.h>  // Qt-compatible vector conversion functions
 #include <core/kicad_algo.h>
 #include <kiface_base.h>
 #include <settings/app_settings.h>
@@ -45,6 +47,10 @@
 #include <view/view.h>
 #include <view/view_controls.h>
 #include "macros.h"
+
+#include <QApplication>
+#include <QDialog>
+#include <QEvent>
 
 
 COMMON_TOOLS::COMMON_TOOLS() :
@@ -86,7 +92,7 @@ void COMMON_TOOLS::SetLastUnits( EDA_UNITS aUnit )
     else if( EDA_UNIT_UTILS::IsMetricUnit( aUnit ) )
         m_metricUnit = aUnit;
     else
-        wxASSERT_MSG( false, wxS( "Invalid unit" ) );
+        Q_ASSERT_X(false, "SetLastUnits", "Invalid unit");
 }
 
 
@@ -152,9 +158,10 @@ int COMMON_TOOLS::CursorControl( const TOOL_EVENT& aEvent )
         TOOL_MOUSE_BUTTONS button = BUT_LEFT;
         int                modifiers = 0;
 
-        modifiers |= wxGetKeyState( WXK_SHIFT ) ? MD_SHIFT : 0;
-        modifiers |= wxGetKeyState( WXK_CONTROL ) ? MD_CTRL : 0;
-        modifiers |= wxGetKeyState( WXK_ALT ) ? MD_ALT : 0;
+        Qt::KeyboardModifiers qtMods = QApplication::keyboardModifiers();
+        modifiers |= (qtMods & Qt::ShiftModifier) ? MD_SHIFT : 0;
+        modifiers |= (qtMods & Qt::ControlModifier) ? MD_CTRL : 0;
+        modifiers |= (qtMods & Qt::AltModifier) ? MD_ALT : 0;
 
         if( type == ACTIONS::CURSOR_DBL_CLICK )
             action = TA_MOUSE_DBLCLICK;
@@ -169,7 +176,7 @@ int COMMON_TOOLS::CursorControl( const TOOL_EVENT& aEvent )
         return 0;
     }
     default:
-        wxFAIL_MSG( wxS( "CursorControl(): unexpected request" ) );
+        Q_ASSERT_X(false, "CursorControl", "unexpected request");
     }
 
     getViewControls()->SetCursorPosition( cursor, true, true, type );
@@ -206,7 +213,7 @@ int COMMON_TOOLS::PanControl( const TOOL_EVENT& aEvent )
         break;
 
     default:
-        wxFAIL;
+        Q_ASSERT(false);
         break;
     }
 
@@ -536,7 +543,7 @@ int COMMON_TOOLS::OnGridChanged( bool aFromHotkey )
     currentGrid = std::max( 0, std::min( currentGrid, static_cast<int>( m_grids.size() ) - 1 ) );
 
     // Update the combobox (if any)
-    wxUpdateUIEvent dummy;
+    QEvent dummy(QEvent::User);
     m_frame->OnUpdateSelectGrid( dummy );
 
     // Update GAL canvas from screen
@@ -597,24 +604,24 @@ int COMMON_TOOLS::ToggleGridOverrides( const TOOL_EVENT& aEvent )
 int COMMON_TOOLS::GridProperties( const TOOL_EVENT& aEvent )
 {
     auto showGridPrefs =
-            [this]( const wxString& aParentName )
+            [this]( const QString& aParentName )
             {
                 m_frame->CallAfter(
                         [this, aParentName]()
                         {
-                            m_frame->ShowPreferences( _( "Grids" ), aParentName );
+                            m_frame->ShowPreferences( "Grids", aParentName );
                         } );
             };
 
     switch( m_frame->GetFrameType() )
     {
-    case FRAME_SCH:               showGridPrefs( _( "Schematic Editor" ) );     break;
-    case FRAME_SCH_SYMBOL_EDITOR: showGridPrefs( _( "Symbol Editor" ) );        break;
-    case FRAME_PCB_EDITOR:        showGridPrefs( _( "PCB Editor" ) );           break;
-    case FRAME_FOOTPRINT_EDITOR:  showGridPrefs( _( "Footprint Editor" ) );     break;
-    case FRAME_PL_EDITOR:         showGridPrefs( _( "Drawing Sheet Editor" ) ); break;
-    case FRAME_GERBER:            showGridPrefs( _( "Gerber Viewer" ) );        break;
-    default:                      wxFAIL_MSG( "Unknown frame: " + GetName() );  break;
+    case FRAME_SCH:               showGridPrefs( "Schematic Editor" );     break;
+    case FRAME_SCH_SYMBOL_EDITOR: showGridPrefs( "Symbol Editor" );        break;
+    case FRAME_PCB_EDITOR:        showGridPrefs( "PCB Editor" );           break;
+    case FRAME_FOOTPRINT_EDITOR:  showGridPrefs( "Footprint Editor" );     break;
+    case FRAME_PL_EDITOR:         showGridPrefs( "Drawing Sheet Editor" ); break;
+    case FRAME_GERBER:            showGridPrefs( "Gerber Viewer" );        break;
+    default:                      Q_ASSERT_X(false, "GridProperties", QString("Unknown frame: " + GetName()).toStdString().c_str());  break;
     }
 
     return 0;
@@ -624,9 +631,9 @@ int COMMON_TOOLS::GridProperties( const TOOL_EVENT& aEvent )
 int COMMON_TOOLS::GridOrigin( const TOOL_EVENT& aEvent )
 {
     VECTOR2I           origin = m_frame->GetGridOrigin();
-    WX_PT_ENTRY_DIALOG dlg( m_frame, _( "Grid Origin" ), _( "X:" ), _( "Y:" ), origin, true );
+    DIALOG_UNIT_ENTRY dlg( m_frame, "Grid Origin", "X:", "Y:", origin, true );
 
-    if( dlg.ShowModal() == wxID_OK )
+    if( dlg.ShowModal() == QDialog::Accepted )
     {
         m_frame->SetGridOrigin( dlg.GetValue() );
 
@@ -648,7 +655,7 @@ int COMMON_TOOLS::SwitchUnits( const TOOL_EVENT& aEvent )
     else if( EDA_UNIT_UTILS::IsImperialUnit( newUnit ) )
         m_imperialUnit = newUnit;
     else
-        wxASSERT_MSG( false, wxS( "Invalid unit for the frame" ) );
+        Q_ASSERT_X(false, "SwitchUnits", "Invalid unit for the frame");
 
     m_frame->ChangeUserUnits( newUnit );
     return 0;
@@ -666,7 +673,7 @@ int COMMON_TOOLS::ToggleUnits( const TOOL_EVENT& aEvent )
 
 int COMMON_TOOLS::TogglePolarCoords( const TOOL_EVENT& aEvent )
 {
-    m_frame->SetStatusText( wxEmptyString );
+    m_frame->SetStatusText( QString() );
     m_frame->SetShowPolarCoords( !m_frame->GetShowPolarCoords() );
     m_frame->UpdateStatusBar();
 

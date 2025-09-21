@@ -1,35 +1,23 @@
-/*
- * Copyright (C) 2018 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Author: Maciej Suminski <maciej.suminski@cern.ch>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #ifndef DIALOG_PRINT_GENERIC_H
 #define DIALOG_PRINT_GENERIC_H
 
 #include <dialogs/dialog_print_generic_base.h>
-#include <wx/valnum.h>
+#include <QtWidgets/QDoubleValidator>
+#include <QtWidgets/QLayout>
+#include <QtWidgets/QGridLayout>
+#include <QtWidgets/QGroupBox>
+#include <QtGui/QCloseEvent>
 #include <widgets/unit_binder.h>
 
 class EDA_DRAW_FRAME;
 class APP_SETTINGS_BASE;
 struct PRINTOUT_SETTINGS;
-class wxPageSetupDialogData;
-class wxPrintout;
-class wxPrintData;
+class QPageSetupDialog;
+class QPrintPreviewWidget;
+class QPrinter;
 
 class DIALOG_PRINT_GENERIC : public DIALOG_PRINT_GENERIC_BASE
 {
@@ -47,23 +35,23 @@ protected:
     /**
      * Create a printout with a requested title.
      */
-    virtual wxPrintout* createPrintout( const wxString& aTitle ) = 0;
+    virtual QPrintPreviewWidget* createPrintout( const QString& aTitle ) = 0;
 
     virtual void saveSettings();
 
-    wxSizer* getMainSizer()
+    QLayout* getMainSizer()
     {
         return m_bUpperSizer;
     }
 
-    wxGridBagSizer* getOptionsSizer()
+    QGridLayout* getOptionsSizer()
     {
         return m_gbOptionsSizer;
     }
 
-    wxStaticBox* getOptionsBox()
+    QGroupBox* getOptionsBox()
     {
-        return m_sbOptionsSizer->GetStaticBox();
+        return m_sbOptionsSizer->groupBox();
     }
 
     /**
@@ -85,16 +73,16 @@ protected:
     bool TransferDataToWindow() override;
 
 private:
-    void onPageSetup( wxCommandEvent& event ) override;
-    void onPrintPreview( wxCommandEvent& event ) override;
-    void onPrintButtonClick( wxCommandEvent& event ) override;
-    void onCancelButtonClick( wxCommandEvent& aEvent ) override;
+    void onPageSetup() override;
+    void onPrintPreview() override;
+    void onPrintButtonClick() override;
+    void onCancelButtonClick() override;
 
     // Needed to save the dialogs settings as TransferDataFromWindow()
     // is not called for 'Cancel' button that closes the window.
-    void onClose( wxCloseEvent& event ) override;
+    void closeEvent( QCloseEvent* event ) override;
 
-    void onSetCustomScale( wxCommandEvent& event ) override;
+    void onSetCustomScale() override;
 
     void initPrintData();
 
@@ -104,10 +92,10 @@ protected:
     PRINTOUT_SETTINGS* m_settings;
 
 private:
-    wxFloatingPointValidator<double> m_scaleValidator;
+    QDoubleValidator* m_scaleValidator;
 
-    static wxPrintData* s_PrintData;
-    static wxPageSetupDialogData* s_pageSetupData;
+    static QPrinter* s_PrintData;
+    static QPageSetupDialog* s_pageSetupData;
 };
 
 #endif // DIALOG_PRINT_GENERIC_H

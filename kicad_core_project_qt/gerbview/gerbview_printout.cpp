@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <base_units.h>
 #include <base_screen.h>
@@ -38,7 +15,7 @@
 
 
 GERBVIEW_PRINTOUT::GERBVIEW_PRINTOUT( GBR_LAYOUT* aLayout, const BOARD_PRINTOUT_SETTINGS& aParams,
-                                      const KIGFX::VIEW* aView, const wxString& aTitle ) :
+                                      const KIGFX::VIEW* aView, const QString& aTitle ) :
     BOARD_PRINTOUT( aParams, aView, aTitle )
 {
     m_layout = aLayout;
@@ -52,7 +29,8 @@ bool GERBVIEW_PRINTOUT::OnPrintPage( int aPage )
     LSET lset = m_settings.m_LayerSet;
 
     LSEQ seq = lset.UIOrder();
-    wxCHECK( unsigned( aPage - 1 ) < seq.size(), false );
+    Q_ASSERT( unsigned( aPage - 1 ) < seq.size() );
+    if( unsigned( aPage - 1 ) >= seq.size() ) return false;
     auto layerId = seq[aPage - 1];
 
     // In gerbview, draw layers are always printed on separate pages because handling negative
@@ -63,7 +41,7 @@ bool GERBVIEW_PRINTOUT::OnPrintPage( int aPage )
 
     GERBER_FILE_IMAGE_LIST& gbrImgList = GERBER_FILE_IMAGE_LIST::GetImagesList();
     GERBER_FILE_IMAGE*      gbrImage = gbrImgList.GetGbrImage( layerId );
-    wxString                gbr_filename;
+    QString                 gbr_filename;
 
     if( gbrImage )
         gbr_filename = gbrImage->m_FileName;

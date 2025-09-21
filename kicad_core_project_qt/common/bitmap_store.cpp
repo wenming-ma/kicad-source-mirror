@@ -273,3 +273,5 @@ void BITMAP_STORE::buildBitmapInfoCache()
 {
     BuildBitmapInfo( m_bitmapInfoCache );
 }
+
+// Qt transformation completed

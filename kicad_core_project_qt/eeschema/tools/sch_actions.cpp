@@ -539,7 +539,7 @@ TOOL_ACTION SCH_ACTIONS::drawSheetFromFile( TOOL_ACTION_ARGS()
         .Tooltip( _( "Copy sheet into project and draw on current sheet" ) )
         .Icon( BITMAPS::add_hierarchical_subsheet )
         .Flags( AF_ACTIVATE )
-        .Parameter<wxString*> ( nullptr ) );
+        .Parameter<QString*> ( nullptr ) );
 
 TOOL_ACTION SCH_ACTIONS::drawSheetFromDesignBlock( TOOL_ACTION_ARGS()
         .Name( "eeschema.InteractiveDrawing.drawSheetFromDesignBlock" )
@@ -580,7 +580,7 @@ TOOL_ACTION SCH_ACTIONS::importSheet( TOOL_ACTION_ARGS()
         .Tooltip( _( "Import sheet into project" ) )
         .Icon( BITMAPS::add_hierarchical_subsheet )
         .Flags( AF_ACTIVATE )
-        .Parameter<wxString*> ( nullptr ) );
+        .Parameter<QString*> ( nullptr ) );
 
 TOOL_ACTION SCH_ACTIONS::placeGlobalLabel( TOOL_ACTION_ARGS()
         .Name( "eeschema.InteractiveDrawing.placeGlobalLabel" )
@@ -683,10 +683,10 @@ TOOL_ACTION SCH_ACTIONS::closeOutline( TOOL_ACTION_ARGS()
 TOOL_ACTION SCH_ACTIONS::repeatDrawItem( TOOL_ACTION_ARGS()
         .Name( "eeschema.InteractiveEdit.repeatDrawItem" )
         .Scope( AS_GLOBAL )
-#ifdef __WXMAC__
-        .DefaultHotkey( WXK_F1 )
+#ifdef Q_OS_MAC
+        .DefaultHotkey( Qt::Key_F1 )
 #else
-        .DefaultHotkey( WXK_INSERT )
+        .DefaultHotkey( Qt::Key_Insert )
 #endif
         .LegacyHotkeyName( "Repeat Last Item" )
         .FriendlyName( _( "Repeat Last Item" ) )
@@ -1076,14 +1076,14 @@ TOOL_ACTION SCH_ACTIONS::remapSymbols( TOOL_ACTION_ARGS()
 TOOL_ACTION SCH_ACTIONS::nextNetItem( TOOL_ACTION_ARGS()
         .Name( "eeschema.EditorControl.nextNetItem" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_TAB )
+        .DefaultHotkey( Qt::Key_Tab )
         .FriendlyName( _( "Next Net Item" ) )
         .Tooltip( _( "Select next item on the current net" ) ) );
 
 TOOL_ACTION SCH_ACTIONS::previousNetItem( TOOL_ACTION_ARGS()
         .Name( "eeschema.EditorControl.previousNetItem" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_SHIFT + static_cast<int>( WXK_TAB ) )
+        .DefaultHotkey( MD_SHIFT + static_cast<int>( Qt::Key_Tab ) )
         .FriendlyName( _( "Previous Net Item" ) )
         .Tooltip( _( "Select previous item on the current net" ) ) );
 
@@ -1251,7 +1251,7 @@ TOOL_ACTION SCH_ACTIONS::lineMode45( TOOL_ACTION_ARGS()
 TOOL_ACTION SCH_ACTIONS::lineModeNext( TOOL_ACTION_ARGS()
         .Name( "eeschema.EditorControl.lineModeNext" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_SHIFT + static_cast<int>( WXK_SPACE ) )
+        .DefaultHotkey( MD_SHIFT + static_cast<int>( Qt::Key_Space ) )
         .FriendlyName( _( "Line Mode for Wires and Buses" ) )
         .Tooltip( _( "Switch to next line mode" ) ) );
 
@@ -1302,7 +1302,7 @@ TOOL_ACTION SCH_ACTIONS::enterSheet( TOOL_ACTION_ARGS()
 TOOL_ACTION SCH_ACTIONS::leaveSheet( TOOL_ACTION_ARGS()
         .Name( "eeschema.NavigateTool.leaveSheet" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_ALT + static_cast<int>( WXK_BACK ) )
+        .DefaultHotkey( MD_ALT + static_cast<int>( Qt::Key_Backspace ) )
         .LegacyHotkeyName( "Leave Sheet" )
         .FriendlyName( _( "Leave Sheet" ) )
         .Tooltip( _( "Display the parent sheet in the schematic editor" ) )
@@ -1311,7 +1311,7 @@ TOOL_ACTION SCH_ACTIONS::leaveSheet( TOOL_ACTION_ARGS()
 TOOL_ACTION SCH_ACTIONS::navigateUp( TOOL_ACTION_ARGS()
         .Name( "eeschema.NavigateTool.up" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_ALT + static_cast<int>( WXK_UP ) )
+        .DefaultHotkey( MD_ALT + static_cast<int>( Qt::Key_Up ) )
         .FriendlyName( _( "Navigate Up" ) )
         .Tooltip( _( "Navigate up one sheet in the hierarchy" ) )
         .Icon( BITMAPS::up ) );
@@ -1319,7 +1319,7 @@ TOOL_ACTION SCH_ACTIONS::navigateUp( TOOL_ACTION_ARGS()
 TOOL_ACTION SCH_ACTIONS::navigateBack( TOOL_ACTION_ARGS()
         .Name( "eeschema.NavigateTool.back" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_ALT + static_cast<int>( WXK_LEFT ) )
+        .DefaultHotkey( MD_ALT + static_cast<int>( Qt::Key_Left ) )
         .FriendlyName( _( "Navigate Back" ) )
         .Tooltip( _( "Move backward in sheet navigation history" ) )
         .Icon( BITMAPS::left ) );
@@ -1327,7 +1327,7 @@ TOOL_ACTION SCH_ACTIONS::navigateBack( TOOL_ACTION_ARGS()
 TOOL_ACTION SCH_ACTIONS::navigateForward( TOOL_ACTION_ARGS()
         .Name( "eeschema.NavigateTool.forward" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_ALT + static_cast<int>( WXK_RIGHT ) )
+        .DefaultHotkey( MD_ALT + static_cast<int>( Qt::Key_Right ) )
         .FriendlyName( _( "Navigate Forward" ) )
         .Tooltip( _( "Move forward in sheet navigation history" ) )
         .Icon( BITMAPS::right ) );
@@ -1335,7 +1335,7 @@ TOOL_ACTION SCH_ACTIONS::navigateForward( TOOL_ACTION_ARGS()
 TOOL_ACTION SCH_ACTIONS::navigatePrevious( TOOL_ACTION_ARGS()
         .Name( "eeschema.NavigateTool.previous" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_PAGEUP )
+        .DefaultHotkey( Qt::Key_PageUp )
         .FriendlyName( _( "Previous Sheet" ) )
         .Tooltip( _( "Move to previous sheet by number" ) )
         .Icon( BITMAPS::left ) );
@@ -1343,7 +1343,7 @@ TOOL_ACTION SCH_ACTIONS::navigatePrevious( TOOL_ACTION_ARGS()
 TOOL_ACTION SCH_ACTIONS::navigateNext( TOOL_ACTION_ARGS()
         .Name( "eeschema.NavigateTool.next" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_PAGEDOWN )
+        .DefaultHotkey( Qt::Key_PageDown )
         .FriendlyName( _( "Next Sheet" ) )
         .Tooltip( _( "Move to next sheet by number" ) )
         .Icon( BITMAPS::right ) );
@@ -1390,7 +1390,7 @@ TOOL_ACTION SCH_ACTIONS::unfoldBus( TOOL_ACTION_ARGS()
         .Tooltip( _( "Break a wire out of a bus" ) )
         .Icon( BITMAPS::INVALID_BITMAP )
         .Flags( AF_ACTIVATE )
-        .Parameter<wxString*>( nullptr ) );
+        .Parameter<QString*>( nullptr ) );
 
 const DRAW_SEGMENT_EVENT_PARAMS drawLinesActionParam = { LAYER_NOTES, false, nullptr };
 TOOL_ACTION SCH_ACTIONS::drawLines( TOOL_ACTION_ARGS()
@@ -1406,7 +1406,7 @@ TOOL_ACTION SCH_ACTIONS::drawLines( TOOL_ACTION_ARGS()
 TOOL_ACTION SCH_ACTIONS::undoLastSegment( TOOL_ACTION_ARGS()
         .Name( "eeschema.InteractiveDrawingLineWireBus.undoLastSegment")
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_BACK )
+        .DefaultHotkey( Qt::Key_Backspace )
         .FriendlyName( _( "Undo Last Segment" ) )
         .Tooltip( _( "Walks the current line back one segment." ) )
         .Icon( BITMAPS::undo ) );

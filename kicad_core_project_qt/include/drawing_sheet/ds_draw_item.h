@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef  DS_DRAW_ITEM_H
 #define  DS_DRAW_ITEM_H
@@ -139,7 +116,7 @@ public:
         m_penWidth  = aPenWidth;
     }
 
-    virtual wxString GetClass() const override { return wxT( "DS_DRAW_ITEM_LINE" ); }
+    virtual QString GetClass() const override { return "DS_DRAW_ITEM_LINE"; }
 
     const VECTOR2I& GetStart() const { return m_start; }
     void            SetStart( const VECTOR2I& aPos ) { m_start = aPos; }
@@ -155,7 +132,7 @@ public:
 
     void PrintWsItem( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -177,7 +154,7 @@ public:
         m_pos = aPos;
     }
 
-    virtual wxString GetClass() const override { return wxT( "DS_DRAW_ITEM_POLYPOLYGONS" ); }
+    virtual QString GetClass() const override { return "DS_DRAW_ITEM_POLYPOLYGONS"; }
 
     SHAPE_POLY_SET& GetPolygons() { return m_Polygons; }
     VECTOR2I        GetPosition() const override { return m_pos; }
@@ -190,7 +167,7 @@ public:
 
     void PrintWsItem( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -226,7 +203,7 @@ public:
         m_penWidth  = aPenWidth;
     }
 
-    virtual wxString GetClass() const override { return wxT( "DS_DRAW_ITEM_RECT" ); }
+    virtual QString GetClass() const override { return "DS_DRAW_ITEM_RECT"; }
 
     const VECTOR2I& GetStart() const { return m_start; }
     void            SetStart( const VECTOR2I& aPos ) { m_start = aPos; }
@@ -243,7 +220,7 @@ public:
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -272,7 +249,7 @@ public:
         m_markerSize = aMarkerSize;
     }
 
-    virtual wxString GetClass() const override { return wxT( "DS_DRAW_ITEM_PAGE" ); }
+    virtual QString GetClass() const override { return "DS_DRAW_ITEM_PAGE"; }
 
     void            SetPageSize( const VECTOR2I& aSize ) { m_pageSize = aSize; }
     VECTOR2I        GetPageSize() const { return m_pageSize; }
@@ -290,7 +267,7 @@ public:
     const BOX2I GetBoundingBox() const override;
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override { return false; }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -313,7 +290,7 @@ class DS_DRAW_ITEM_TEXT : public DS_DRAW_ITEM_BASE, public EDA_TEXT
 {
 public:
     DS_DRAW_ITEM_TEXT( const EDA_IU_SCALE& aIuScale, DS_DATA_ITEM* aPeer, int aIndex,
-                       const wxString& aText, const VECTOR2I& aPos, const VECTOR2I& aSize,
+                       const QString& aText, const VECTOR2I& aPos, const VECTOR2I& aSize,
                        int aPenWidth, KIFONT::FONT* aFont,
                        bool aItalic = false, bool aBold = false,
                        const KIGFX::COLOR4D& aColor = KIGFX::COLOR4D::UNSPECIFIED ) :
@@ -329,7 +306,7 @@ public:
         SetTextColor( aColor );
     }
 
-    virtual wxString GetClass() const override { return wxT( "DS_DRAW_ITEM_TEXT" ); }
+    virtual QString GetClass() const override { return "DS_DRAW_ITEM_TEXT"; }
 
     void PrintWsItem( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset ) override;
 
@@ -343,7 +320,7 @@ public:
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -368,7 +345,7 @@ public:
 
     ~DS_DRAW_ITEM_BITMAP() {}
 
-    virtual wxString GetClass() const override { return wxT( "DS_DRAW_ITEM_BITMAP" ); }
+    virtual QString GetClass() const override { return "DS_DRAW_ITEM_BITMAP"; }
 
     VECTOR2I GetPosition() const override { return m_pos; }
     void     SetPosition( const VECTOR2I& aPos ) override { m_pos = aPos; }
@@ -380,7 +357,7 @@ public:
 
     const BOX2I GetBoundingBox() const override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
@@ -432,32 +409,32 @@ public:
     /**
      * Set properties used for text variable resolution.
      */
-    void SetProperties( const std::map<wxString, wxString>* aProps ) { m_properties = aProps; }
+    void SetProperties( const std::map<QString, QString>* aProps ) { m_properties = aProps; }
 
     /**
      * Set the paper format name (mainly for drawing sheet editor)
      */
-    void SetPaperFormat( const wxString& aFormatName ) { m_paperFormat = aFormatName; }
+    void SetPaperFormat( const QString& aFormatName ) { m_paperFormat = aFormatName; }
 
     /**
      * Set the filename to draw/plot
      */
-    void SetFileName( const wxString& aFileName ) { m_fileName = aFileName; }
+    void SetFileName( const QString& aFileName ) { m_fileName = aFileName; }
 
     /**
      * Set the sheet name to draw/plot
      */
-    void SetSheetName( const wxString& aSheetName ) { m_sheetName = aSheetName; }
+    void SetSheetName( const QString& aSheetName ) { m_sheetName = aSheetName; }
 
     /**
      * Set the sheet path to draw/plot
      */
-    void SetSheetPath( const wxString& aSheetPath ) { m_sheetPath = aSheetPath; }
+    void SetSheetPath( const QString& aSheetPath ) { m_sheetPath = aSheetPath; }
 
     /**
      * Set the sheet layer to draw/plot
      */
-    void SetSheetLayer( const wxString& aSheetLayer ) { m_sheetLayer = aSheetLayer;  }
+    void SetSheetLayer( const QString& aSheetLayer ) { m_sheetLayer = aSheetLayer;  }
 
     void SetDefaultPenSize( int aPenSize ) { m_penSize = aPenSize; }
     int GetDefaultPenSize() const { return m_penSize; }
@@ -486,7 +463,7 @@ public:
     /**
      * Set the value of the sheet number.
      */
-    void SetPageNumber( const wxString& aPageNumber ) { m_pageNumber = aPageNumber; }
+    void SetPageNumber( const QString& aPageNumber ) { m_pageNumber = aPageNumber; }
 
     /**
      * Set if the page is the first page.
@@ -552,13 +529,13 @@ public:
      */
     void BuildDrawItemsList( const PAGE_INFO& aPageInfo, const TITLE_BLOCK& aTitleBlock );
 
-    static void GetTextVars( wxArrayString* aVars );
+    static void GetTextVars( QStringList* aVars );
 
     /**
      * @return the full text corresponding to the aTextbase, after replacing any text variable
      *         references.
      */
-    wxString BuildFullText( const wxString& aTextbase );
+    QString BuildFullText( const QString& aTextbase );
 
 protected:
     std::vector <DS_DRAW_ITEM_BASE*> m_graphicList;     // Items to draw/plot
@@ -572,16 +549,16 @@ protected:
     int                m_sheetCount;      ///< The number of sheets
                                           // for text variable references, in schematic
     const TITLE_BLOCK* m_titleBlock;      // for text variable references
-    wxString           m_paperFormat;     // for text variable references
-    wxString           m_fileName;        // for text variable references
-    wxString           m_sheetName;       // for text variable references
-    wxString           m_sheetPath;       // for text variable references
-    wxString           m_pageNumber;      ///< The actual page number displayed in the title block.
-    wxString           m_sheetLayer;      // for text variable references
+    QString           m_paperFormat;     // for text variable references
+    QString           m_fileName;        // for text variable references
+    QString           m_sheetName;       // for text variable references
+    QString           m_sheetPath;       // for text variable references
+    QString           m_pageNumber;      ///< The actual page number displayed in the title block.
+    QString           m_sheetLayer;      // for text variable references
     const PROJECT*     m_project;         // for project-based text variable references
     int                m_flags;
 
-    const std::map<wxString, wxString>* m_properties;    // for text variable references
+    const std::map<QString, QString>* m_properties;    // for text variable references
 };
 
 

@@ -1,25 +1,7 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Wayne Stambaugh <stambaughw@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
-#include <wx/log.h>
+#include <QtCore/QDebug>
+#include <QtCore/QFileInfo>
+#include <QtCore/QDateTime>
 #include <base_units.h>
 #include <build_version.h>
 #include <sch_shape.h>
@@ -36,7 +18,7 @@
 #include <io/kicad/kicad_io_utils.h>
 
 
-SCH_IO_KICAD_SEXPR_LIB_CACHE::SCH_IO_KICAD_SEXPR_LIB_CACHE( const wxString& aFullPathAndFileName ) :
+SCH_IO_KICAD_SEXPR_LIB_CACHE::SCH_IO_KICAD_SEXPR_LIB_CACHE( const QString& aFullPathAndFileName ) :
     SCH_IO_LIB_CACHE( aFullPathAndFileName )
 {
     m_fileFormatVersionAtLoad = 0;
@@ -50,24 +32,21 @@ SCH_IO_KICAD_SEXPR_LIB_CACHE::~SCH_IO_KICAD_SEXPR_LIB_CACHE()
 
 void SCH_IO_KICAD_SEXPR_LIB_CACHE::Load()
 {
-    if( !m_libFileName.FileExists() )
+    if( !QFileInfo(m_libFileName).exists() )
     {
-        THROW_IO_ERROR( wxString::Format( _( "Library file '%s' not found." ),
-                                          m_libFileName.GetFullPath() ) );
+        THROW_IO_ERROR( QString( "Library file '%1' not found." ).arg(
+                                          QFileInfo(m_libFileName).absoluteFilePath() ) );
     }
 
-    wxCHECK_RET( m_libFileName.IsAbsolute(),
-                 wxString::Format( "Cannot use relative file paths in sexpr plugin to "
-                                   "open library '%s'.", m_libFileName.GetFullPath() ) );
+    Q_ASSERT( QFileInfo(m_libFileName).isAbsolute() );
 
     // The current locale must use period as the decimal point.
     // Yes, we did this earlier, but it's sadly not thread-safe.
     LOCALE_IO toggle;
 
-    wxLogTrace( traceSchLegacyPlugin, "Loading sexpr symbol library file '%s'",
-                m_libFileName.GetFullPath() );
+    qDebug() << "Loading sexpr symbol library file" << QFileInfo(m_libFileName).absoluteFilePath();
 
-    FILE_LINE_READER reader( m_libFileName.GetFullPath() );
+    FILE_LINE_READER reader( QFileInfo(m_libFileName).absoluteFilePath() );
 
     SCH_IO_KICAD_SEXPR_PARSER parser( &reader );
 
@@ -89,14 +68,14 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::Save( const std::optional<bool>& aOpt )
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
 
     // Write through symlinks, don't replace them.
-    wxFileName fn = GetRealFile();
+    QFileInfo fn = GetRealFile();
 
-    auto formatter = std::make_unique<PRETTIFIED_FILE_OUTPUTFORMATTER>( fn.GetFullPath() );
+    auto formatter = std::make_unique<PRETTIFIED_FILE_OUTPUTFORMATTER>( fn.absoluteFilePath() );
 
     formatter->Print( "(kicad_symbol_lib (version %d) (generator \"kicad_symbol_editor\") "
                       "(generator_version \"%s\")",
                       SEXPR_SYMBOL_LIB_FILE_VERSION,
-                      GetMajorMinorVersion().c_str().AsChar() );
+                      GetMajorMinorVersion().toStdString().c_str() );
 
     std::vector<LIB_SYMBOL*> orderedSymbols;
 
@@ -126,19 +105,18 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::Save( const std::optional<bool>& aOpt )
 
     formatter.reset();
 
-    m_fileModTime = fn.GetModificationTime();
+    m_fileModTime = QDateTime::fromSecsSinceEpoch(QFileInfo(fn.absoluteFilePath()).lastModified().toSecsSinceEpoch());
     m_isModified = false;
 }
 
 
 void SCH_IO_KICAD_SEXPR_LIB_CACHE::SaveSymbol( LIB_SYMBOL* aSymbol, OUTPUTFORMATTER& aFormatter,
-                                               const wxString& aLibName, bool aIncludeData )
+                                               const QString& aLibName, bool aIncludeData )
 {
-    wxCHECK_RET( aSymbol, "Invalid LIB_SYMBOL pointer." );
+    Q_ASSERT( aSymbol );
 
     // The current locale must use period as the decimal point.
-    wxCHECK2( wxLocale::GetInfo( wxLOCALE_DECIMAL_POINT, wxLOCALE_CAT_NUMBER ) == ".",
-              LOCALE_IO toggle );
+    LOCALE_IO toggle;
 
 
     // If we've requested to embed the fonts in the symbol, do so.
@@ -151,16 +129,16 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::SaveSymbol( LIB_SYMBOL* aSymbol, OUTPUTFORMAT
 
     int nextFreeFieldId = MANDATORY_FIELD_COUNT;
     std::vector<SCH_FIELD*> fields;
-    std::string name = aFormatter.Quotew( aSymbol->GetLibId().GetLibItemName().wx_str() );
+    std::string name = aFormatter.Quotew( aSymbol->GetLibId().GetLibItemName().toStdString().c_str() );
     std::string unitName = aSymbol->GetLibId().GetLibItemName();
 
-    if( !aLibName.IsEmpty() )
+    if( !aLibName.isEmpty() )
     {
         name = aFormatter.Quotew( aLibName );
 
         LIB_ID unitId;
 
-        wxCHECK2( unitId.Parse( aLibName ) < 0, /* do nothing */ );
+        Q_ASSERT( unitId.Parse( aLibName.toStdString() ) < 0 );
 
         unitName = unitId.GetLibItemName();
     }
@@ -280,11 +258,11 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::SaveSymbol( LIB_SYMBOL* aSymbol, OUTPUTFORMAT
     {
         std::shared_ptr<LIB_SYMBOL> parent = aSymbol->GetParent().lock();
 
-        wxASSERT( parent );
+        Q_ASSERT( parent );
 
         aFormatter.Print( "(symbol %s (extends %s)",
                           name.c_str(),
-                          aFormatter.Quotew( parent->GetName() ).c_str() );
+                          aFormatter.Quotew( parent->GetName().toStdString().c_str() ).c_str() );
 
         aSymbol->GetFields( fields );
 
@@ -304,35 +282,35 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::saveDcmInfoAsFields( LIB_SYMBOL* aSymbol,
                                                         OUTPUTFORMATTER& aFormatter,
                                                         int& aNextFreeFieldId )
 {
-    wxCHECK_RET( aSymbol, "Invalid LIB_SYMBOL pointer." );
+    Q_ASSERT( aSymbol );
 
-    if( !aSymbol->GetKeyWords().IsEmpty() )
+    if( !aSymbol->GetKeyWords().isEmpty() )
     {
-        SCH_FIELD keywords( nullptr, aNextFreeFieldId, wxString( "ki_keywords" ) );
+        SCH_FIELD keywords( nullptr, aNextFreeFieldId, QString( "ki_keywords" ) );
         keywords.SetVisible( false );
         keywords.SetText( aSymbol->GetKeyWords() );
         saveField( &keywords, aFormatter );
         aNextFreeFieldId += 1;
     }
 
-    wxArrayString fpFilters = aSymbol->GetFPFilters();
+    QStringList fpFilters = aSymbol->GetFPFilters();
 
-    if( !fpFilters.IsEmpty() )
+    if( !fpFilters.isEmpty() )
     {
-        wxString tmp;
+        QString tmp;
 
-        for( const wxString& filter : fpFilters )
+        for( const QString& filter : fpFilters )
         {
             // Spaces are not handled in fp filter names so escape spaces if any
-            wxString curr_filter = EscapeString( filter, ESCAPE_CONTEXT::CTX_NO_SPACE );
+            QString curr_filter = EscapeString( filter, ESCAPE_CONTEXT::CTX_NO_SPACE );
 
-            if( tmp.IsEmpty() )
+            if( tmp.isEmpty() )
                 tmp = curr_filter;
             else
                 tmp += " " + curr_filter;
         }
 
-        SCH_FIELD description( nullptr, aNextFreeFieldId, wxString( "ki_fp_filters" ) );
+        SCH_FIELD description( nullptr, aNextFreeFieldId, QString( "ki_fp_filters" ) );
         description.SetVisible( false );
         description.SetText( tmp );
         saveField( &description, aFormatter );
@@ -343,7 +321,7 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::saveDcmInfoAsFields( LIB_SYMBOL* aSymbol,
 
 void SCH_IO_KICAD_SEXPR_LIB_CACHE::saveSymbolDrawItem( SCH_ITEM* aItem, OUTPUTFORMATTER& aFormatter )
 {
-    wxCHECK_RET( aItem, "Invalid SCH_ITEM pointer." );
+    Q_ASSERT( aItem );
 
     switch( aItem->Type() )
     {
@@ -404,9 +382,9 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::saveSymbolDrawItem( SCH_ITEM* aItem, OUTPUTFO
 
 void SCH_IO_KICAD_SEXPR_LIB_CACHE::saveField( SCH_FIELD* aField, OUTPUTFORMATTER& aFormatter )
 {
-    wxCHECK_RET( aField && aField->Type() == SCH_FIELD_T, "Invalid SCH_FIELD object." );
+    Q_ASSERT( aField && aField->Type() == SCH_FIELD_T );
 
-    wxString fieldName = aField->GetName();
+    QString fieldName = aField->GetName();
 
     if( aField->IsMandatory() )
         fieldName = GetCanonicalFieldName( aField->GetId() );
@@ -434,7 +412,7 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::saveField( SCH_FIELD* aField, OUTPUTFORMATTER
 
 void SCH_IO_KICAD_SEXPR_LIB_CACHE::savePin( SCH_PIN* aPin, OUTPUTFORMATTER& aFormatter )
 {
-    wxCHECK_RET( aPin && aPin->Type() == SCH_PIN_T, "Invalid SCH_PIN object." );
+    Q_ASSERT( aPin && aPin->Type() == SCH_PIN_T );
 
     aPin->ClearFlags( IS_CHANGED );
 
@@ -468,12 +446,12 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::savePin( SCH_PIN* aPin, OUTPUTFORMATTER& aFor
                                                            aPin->GetNumberTextSize() ).c_str() );
 
 
-    for( const std::pair<const wxString, SCH_PIN::ALT>& alt : aPin->GetAlternates() )
+    for( const std::pair<const QString, SCH_PIN::ALT>& alt : aPin->GetAlternates() )
     {
         // There was a bug somewhere in the alternate pin code that allowed pin alternates with no
         // name to be saved in library symbols.  This strips any invalid alternates just in case
         // that code resurfaces.
-        if( alt.second.m_Name.IsEmpty() )
+        if( alt.second.m_Name.isEmpty() )
             continue;
 
         aFormatter.Print( "(alternate %s %s %s)",
@@ -488,7 +466,7 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::savePin( SCH_PIN* aPin, OUTPUTFORMATTER& aFor
 
 void SCH_IO_KICAD_SEXPR_LIB_CACHE::saveText( SCH_TEXT* aText, OUTPUTFORMATTER& aFormatter )
 {
-    wxCHECK_RET( aText && aText->Type() == SCH_TEXT_T, "Invalid SCH_TEXT object." );
+    Q_ASSERT( aText && aText->Type() == SCH_TEXT_T );
 
     aFormatter.Print( "(text %s %s (at %s %s %g)",
                       aText->IsPrivate() ? "private" : "",
@@ -506,7 +484,7 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::saveText( SCH_TEXT* aText, OUTPUTFORMATTER& a
 
 void SCH_IO_KICAD_SEXPR_LIB_CACHE::saveTextBox( SCH_TEXTBOX* aTextBox, OUTPUTFORMATTER& aFormatter )
 {
-    wxCHECK_RET( aTextBox && aTextBox->Type() == SCH_TEXTBOX_T, "Invalid SCH_TEXTBOX object." );
+    Q_ASSERT( aTextBox && aTextBox->Type() == SCH_TEXTBOX_T );
 
     aFormatter.Print( "(text_box %s %s",
                       aTextBox->IsPrivate() ? "private" : "",
@@ -533,13 +511,13 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::saveTextBox( SCH_TEXTBOX* aTextBox, OUTPUTFOR
 }
 
 
-void SCH_IO_KICAD_SEXPR_LIB_CACHE::DeleteSymbol( const wxString& aSymbolName )
+void SCH_IO_KICAD_SEXPR_LIB_CACHE::DeleteSymbol( const QString& aSymbolName )
 {
     LIB_SYMBOL_MAP::iterator it = m_symbols.find( aSymbolName );
 
     if( it == m_symbols.end() )
-        THROW_IO_ERROR( wxString::Format( _( "library %s does not contain a symbol named %s" ),
-                                          m_libFileName.GetFullName(), aSymbolName ) );
+        THROW_IO_ERROR( QString( "library %1 does not contain a symbol named %2" ).arg(
+                                          QFileInfo(m_libFileName).baseName(), aSymbolName ) );
 
     LIB_SYMBOL* symbol = it->second;
 

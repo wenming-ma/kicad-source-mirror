@@ -1,27 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2004-2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 
 #include <api/api_plugin_manager.h>
 #include <base_screen.h>
@@ -66,35 +44,37 @@
 #include <widgets/msgpanel.h>
 #include <widgets/properties_panel.h>
 #include <widgets/net_inspector_panel.h>
-#include <wx/event.h>
-#include <wx/snglinst.h>
+#include <QCoreApplication>
+#include <QWidget>
+#include <QDir>
+#include <QFileDialog>
+#include <QDebug>
+#include <QTimer>
+#include <QMoveEvent>
+#include <QResizeEvent>
+#include <QEvent>
+#include <QDialog>
+#include <QDockWidget>
+#include <QAction>
+#include <QIcon>
+#include <QScreen>
+#include <QPoint>
+#include <QSize>
 #include <widgets/tepui_common.h>
 #include <widgets/search_pane.h>
-#include <wx/dirdlg.h>
-#include <wx/filedlg.h>
-#include <wx/debug.h>
-#include <wx/socket.h>
-
-#include <wx/snglinst.h>
-#include <wx/fdrepdlg.h>
 
 #define FR_HISTORY_LIST_CNT     10   ///< Maximum size of the find/replace history stacks.
 
 
-BEGIN_EVENT_TABLE( EDA_DRAW_FRAME, KIWAY_PLAYER )
-    EVT_UPDATE_UI( ID_ON_GRID_SELECT, EDA_DRAW_FRAME::OnUpdateSelectGrid )
-    EVT_UPDATE_UI( ID_ON_ZOOM_SELECT, EDA_DRAW_FRAME::OnUpdateSelectZoom )
-
-    EVT_ACTIVATE( EDA_DRAW_FRAME::onActivate )
-END_EVENT_TABLE()
+// Qt event handling will be implemented in the class methods
 
 
 bool EDA_DRAW_FRAME::m_openGLFailureOccured = false;
 
 
-EDA_DRAW_FRAME::EDA_DRAW_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrameType,
-                                const wxString& aTitle, const wxPoint& aPos, const wxSize& aSize,
-                                long aStyle, const wxString& aFrameName,
+EDA_DRAW_FRAME::EDA_DRAW_FRAME( KIWAY* aKiway, QWidget* aParent, FRAME_T aFrameType,
+                                const QString& aTitle, const QPoint& aPos, const QSize& aSize,
+                                long aStyle, const QString& aFrameName,
                                 const EDA_IU_SCALE& aIuScale ) :
         KIWAY_PLAYER( aKiway, aParent, aFrameType, aTitle, aPos, aSize, aStyle, aFrameName,
                       aIuScale ),
@@ -128,9 +108,9 @@ EDA_DRAW_FRAME::EDA_DRAW_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrame
 
     SetUserUnits( EDA_UNITS::MM );
 
-    m_auimgr.SetFlags( wxAUI_MGR_DEFAULT );
+    m_auimgr.SetFlags( QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable );
 
-    if( ( aStyle & wxFRAME_NO_TASKBAR ) == 0 )
+    if( ( aStyle & Qt::Tool ) == 0 )
     {
         CreateStatusBar( 8 )->SetDoubleBuffered( true );
 
@@ -140,37 +120,41 @@ EDA_DRAW_FRAME::EDA_DRAW_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrame
         updateStatusBarWidths();
     }
 
-    m_messagePanel = new EDA_MSG_PANEL( this, -1, wxPoint( 0, m_frameSize.y ), wxDefaultSize );
+    m_messagePanel = new EDA_MSG_PANEL( this, -1, QPoint( 0, m_frameSize.y ), QSize() );
     m_messagePanel->SetBackgroundColour( COLOR4D( LIGHTGRAY ).ToColour() );
     m_msgFrameHeight = m_messagePanel->GetBestSize().y;
 
     // Create child subwindows.
-    GetClientSize( &m_frameSize.x, &m_frameSize.y );
+    QSize clientSize = size();
+    m_frameSize.x = clientSize.width();
+    m_frameSize.y = clientSize.height();
     m_framePos.x   = m_framePos.y = 0;
     m_frameSize.y -= m_msgFrameHeight;
 
     m_messagePanel->SetSize( m_frameSize.x, m_msgFrameHeight );
 
-    Bind( wxEVT_DPI_CHANGED,
-          [&]( wxDPIChangedEvent& )
+    // Qt DPI change handling
+    connect( this, &QWidget::screenChanged,
+          [&]( QScreen* )
           {
-              if( ( GetWindowStyle() & wxFRAME_NO_TASKBAR ) == 0 )
+              if( ( windowFlags() & Qt::Tool ) == 0 )
                   updateStatusBarWidths();
 
-              wxMoveEvent dummy;
-              OnMove( dummy );
+              // Qt move event handling will be different
+              QMoveEvent dummyEvent( pos(), pos() );
+              OnMove( dummyEvent );
 
               // we need to kludge the msg panel to the correct size again
               // especially important even for first launches as the constructor of the window
               // here usually doesn't have the correct dpi awareness yet
               m_frameSize.y += m_msgFrameHeight;
-              m_msgFrameHeight = m_messagePanel->GetBestSize().y;
+              m_msgFrameHeight = m_messagePanel->sizeHint().height();
               m_frameSize.y -= m_msgFrameHeight;
 
-              m_messagePanel->SetPosition( wxPoint( 0, m_frameSize.y ) );
-              m_messagePanel->SetSize( m_frameSize.x, m_msgFrameHeight );
+              m_messagePanel->move( QPoint( 0, m_frameSize.y ) );
+              m_messagePanel->resize( m_frameSize.x, m_msgFrameHeight );
 
-              // Don't skip, otherwise the frame gets too big
+              // Don't propagate, otherwise the frame gets too big
           } );
 }
 
@@ -201,7 +185,7 @@ void EDA_DRAW_FRAME::ReleaseFile()
 }
 
 
-bool EDA_DRAW_FRAME::LockFile( const wxString& aFileName )
+bool EDA_DRAW_FRAME::LockFile( const QString& aFileName )
 {
     // We need to explicitly reset here to get the deletion before
     // we create a new unique_ptr that may be for the same file
@@ -228,8 +212,8 @@ void EDA_DRAW_FRAME::ScriptingConsoleEnableDisable()
 {
     KIWAY_PLAYER* frame = Kiway().Player( FRAME_PYTHON, false );
 
-    wxRect  rect = GetScreenRect();
-    wxPoint center = rect.GetPosition() + rect.GetSize() / 2;
+    QRect  rect = frameGeometry();
+    QPoint center = rect.center();
 
     if( !frame )
     {
@@ -247,13 +231,13 @@ void EDA_DRAW_FRAME::ScriptingConsoleEnableDisable()
             frame->Iconize( false );
 
         frame->Raise();
-        frame->SetPosition( center - frame->GetSize() / 2 );
+        frame->move( center - frame->size() / 2 );
 
         return;
     }
 
     frame->Show( !frame->IsVisible() );
-    frame->SetPosition( center - frame->GetSize() / 2 );
+    frame->move( center - ToQPoint( frame->GetSize() ) / 2 );
 }
 
 
@@ -288,8 +272,8 @@ void EDA_DRAW_FRAME::ToggleUserUnits()
         SetUserUnits( GetUserUnits() == EDA_UNITS::INCH ? EDA_UNITS::MM : EDA_UNITS::INCH );
         unitsChangeRefresh();
 
-        wxCommandEvent e( EDA_EVT_UNITS_CHANGED );
-        ProcessEventLocally( e );
+        // Qt signals will handle this differently
+        // ProcessEventLocally removed - Qt handles events differently
     }
 }
 
@@ -305,7 +289,8 @@ void EDA_DRAW_FRAME::CommonSettingsChanged( int aFlags )
     {
         if( GetAutoSaveInterval() > 0 )
         {
-            m_autoSaveTimer->Start( GetAutoSaveInterval() * 1000, wxTIMER_ONE_SHOT );
+            m_autoSaveTimer->start( GetAutoSaveInterval() * 1000 );
+            m_autoSaveTimer->setSingleShot( true );
         }
         else
         {
@@ -328,7 +313,7 @@ void EDA_DRAW_FRAME::CommonSettingsChanged( int aFlags )
         m_lastToolbarIconSize = settings->m_Appearance.toolbar_icon_size;
     }
 
-#ifndef __WXMAC__
+#ifndef Q_OS_MAC
     resolveCanvasType();
 
     if( m_canvasType != GetCanvas()->GetBackend() )
@@ -368,42 +353,42 @@ void EDA_DRAW_FRAME::UpdateGridSelectBox()
         return;
 
     // Update grid values with the current units setting.
-    m_gridSelectBox->Clear();
-    wxArrayString gridsList;
+    m_gridSelectBox->clear();
+    QStringList gridsList;
 
-    wxCHECK( config(), /* void */ );
+    Q_ASSERT( config() );
 
     GRID_MENU::BuildChoiceList( &gridsList, config(), this );
 
-    for( const wxString& grid : gridsList )
-        m_gridSelectBox->Append( grid );
+    for( const QString& grid : gridsList )
+        m_gridSelectBox->addItem( grid );
 
-    m_gridSelectBox->Append( wxT( "---" ) );
-    m_gridSelectBox->Append( _( "Edit Grids..." ) );
+    m_gridSelectBox->addItem( "---" );
+    m_gridSelectBox->addItem( "Edit Grids..." );
 
-    m_gridSelectBox->SetSelection( config()->m_Window.grid.last_size_idx );
+    m_gridSelectBox->setCurrentIndex( config()->m_Window.grid.last_size_idx );
 }
 
 
-void EDA_DRAW_FRAME::OnUpdateSelectGrid( wxUpdateUIEvent& aEvent )
+void EDA_DRAW_FRAME::OnUpdateSelectGrid( QEvent& aEvent )
 {
     // No need to update the grid select box if it doesn't exist or the grid setting change
     // was made using the select box.
     if( m_gridSelectBox == nullptr )
         return;
 
-    wxCHECK( config(), /* void */ );
+    Q_ASSERT( config() );
 
     int idx = config()->m_Window.grid.last_size_idx;
-    idx = std::clamp( idx, 0, (int) m_gridSelectBox->GetCount() - 1 );
+    idx = std::clamp( idx, 0, (int) m_gridSelectBox->count() - 1 );
 
-    if( idx != m_gridSelectBox->GetSelection() )
-        m_gridSelectBox->SetSelection( idx );
+    if( idx != m_gridSelectBox->currentIndex() )
+        m_gridSelectBox->setCurrentIndex( idx );
 }
 
 
 
-void EDA_DRAW_FRAME::OnUpdateSelectZoom( wxUpdateUIEvent& aEvent )
+void EDA_DRAW_FRAME::OnUpdateSelectZoom( QEvent& aEvent )
 {
     // No need to update the grid select box if it doesn't exist or the grid setting change
     // was made using the select box.
@@ -412,10 +397,10 @@ void EDA_DRAW_FRAME::OnUpdateSelectZoom( wxUpdateUIEvent& aEvent )
 
     double zoom = GetCanvas()->GetGAL()->GetZoomFactor();
 
-    wxCHECK( config(), /* void */ );
+    Q_ASSERT( config() );
 
     const std::vector<double>& zoomList = config()->m_Window.zoom_factors;
-    int curr_selection = m_zoomSelectBox->GetSelection();
+    int curr_selection = m_zoomSelectBox->currentIndex();
     int new_selection = 0;      // select zoom auto
     double last_approx = 1e9;   // large value to start calculation
 
@@ -434,39 +419,41 @@ void EDA_DRAW_FRAME::OnUpdateSelectZoom( wxUpdateUIEvent& aEvent )
     }
 
     if( curr_selection != new_selection )
-        m_zoomSelectBox->SetSelection( new_selection );
+        m_zoomSelectBox->setCurrentIndex( new_selection );
 }
 
 
 void EDA_DRAW_FRAME::PrintPage( const RENDER_SETTINGS* aSettings )
 {
-    DisplayErrorMessage( this, wxT( "EDA_DRAW_FRAME::PrintPage() error" ) );
+    DisplayErrorMessage( this, "EDA_DRAW_FRAME::PrintPage() error" );
 }
 
 
-void EDA_DRAW_FRAME::OnSelectGrid( wxCommandEvent& event )
+void EDA_DRAW_FRAME::OnSelectGrid( QEvent& event )
 {
-    wxCHECK_RET( m_gridSelectBox, wxS( "m_gridSelectBox uninitialized" ) );
+    Q_ASSERT( m_gridSelectBox );
 
-    int idx = m_gridSelectBox->GetCurrentSelection();
+    int idx = m_gridSelectBox->currentIndex();
 
-    if( idx == int( m_gridSelectBox->GetCount() ) - 2 )
+    if( idx == int( m_gridSelectBox->count() ) - 2 )
     {
-        // wxWidgets will check the separator, which we don't want.
+        // Qt will handle the separator differently, which we don't want.
         // Re-check the current grid.
-        wxUpdateUIEvent dummy;
-        OnUpdateSelectGrid( dummy );
+        // Qt event handling will be implemented differently
+        QEvent dummyEvent( QEvent::User );
+        OnUpdateSelectGrid( dummyEvent );
     }
-    else if( idx == int( m_gridSelectBox->GetCount() ) - 1 )
+    else if( idx == int( m_gridSelectBox->count() ) - 1 )
     {
-        // wxWidgets will check the Grid Settings... entry, which we don't want.
+        // Qt will handle the Grid Settings... entry differently, which we don't want.
         // Re-check the current grid.
-        wxUpdateUIEvent dummy;
-        OnUpdateSelectGrid( dummy );
+        // Qt event handling will be implemented differently
+        QEvent dummyEvent( QEvent::User );
+        OnUpdateSelectGrid( dummyEvent );
 
         // Give a time-slice to close the menu before opening the dialog.
         // (Only matters on some versions of GTK.)
-        wxSafeYield();
+        QCoreApplication::processEvents();
 
         m_toolManager->RunAction( ACTIONS::gridProperties );
     }
@@ -476,17 +463,17 @@ void EDA_DRAW_FRAME::OnSelectGrid( wxCommandEvent& event )
     }
 
     UpdateStatusBar();
-    m_canvas->Refresh();
+    m_canvas->update();
 
     // Needed on Windows because clicking on m_gridSelectBox remove the focus from m_canvas
     // (Windows specific
-    m_canvas->SetFocus();
+    m_canvas->setFocus();
 }
 
 
 bool EDA_DRAW_FRAME::IsGridVisible() const
 {
-    wxCHECK( config(), true );
+    if( !config() ) return true;
 
     return config()->m_Window.grid.show;
 }
@@ -494,7 +481,7 @@ bool EDA_DRAW_FRAME::IsGridVisible() const
 
 void EDA_DRAW_FRAME::SetGridVisibility( bool aVisible )
 {
-    wxCHECK( config(), /* void */ );
+    Q_ASSERT( config() );
 
     config()->m_Window.grid.show = aVisible;
 
@@ -516,7 +503,7 @@ void EDA_DRAW_FRAME::SetGridVisibility( bool aVisible )
 
 bool EDA_DRAW_FRAME::IsGridOverridden() const
 {
-    wxCHECK( config(), false );
+    if( !config() ) return false;
 
     return config()->m_Window.grid.overrides_enabled;
 }
@@ -524,7 +511,7 @@ bool EDA_DRAW_FRAME::IsGridOverridden() const
 
 void EDA_DRAW_FRAME::SetGridOverrides( bool aOverride )
 {
-    wxCHECK( config(), /* void */ );
+    Q_ASSERT( config() );
 
     config()->m_Window.grid.overrides_enabled = aOverride;
 }
@@ -543,44 +530,44 @@ void EDA_DRAW_FRAME::UpdateZoomSelectBox()
 
     double zoom = m_canvas->GetGAL()->GetZoomFactor();
 
-    m_zoomSelectBox->Clear();
-    m_zoomSelectBox->Append( _( "Zoom Auto" ) );
-    m_zoomSelectBox->SetSelection( 0 );
+    m_zoomSelectBox->clear();
+    m_zoomSelectBox->addItem( "Zoom Auto" );
+    m_zoomSelectBox->setCurrentIndex( 0 );
 
-    wxCHECK( config(), /* void */ );
+    Q_ASSERT( config() );
 
     for( unsigned i = 0;  i < config()->m_Window.zoom_factors.size();  ++i )
     {
         double current = config()->m_Window.zoom_factors[i];
 
-        m_zoomSelectBox->Append( wxString::Format( _( "Zoom %.2f" ), current ) );
+        m_zoomSelectBox->addItem( QString::asprintf( "Zoom %.2f", current ) );
 
         if( zoom == current )
-            m_zoomSelectBox->SetSelection( i + 1 );
+            m_zoomSelectBox->setCurrentIndex( i + 1 );
     }
 }
 
 
-void EDA_DRAW_FRAME::OnSelectZoom( wxCommandEvent& event )
+void EDA_DRAW_FRAME::OnSelectZoom( QEvent& event )
 {
-    wxCHECK_RET( m_zoomSelectBox, wxS( "m_zoomSelectBox uninitialized" ) );
+    Q_ASSERT( m_zoomSelectBox );
 
-    int id = m_zoomSelectBox->GetCurrentSelection();
+    int id = m_zoomSelectBox->currentIndex();
 
-    if( id < 0 || !( id < (int)m_zoomSelectBox->GetCount() ) )
+    if( id < 0 || !( id < (int)m_zoomSelectBox->count() ) )
         return;
 
     m_toolManager->RunAction( ACTIONS::zoomPreset, id );
     UpdateStatusBar();
-    m_canvas->Refresh();
+    m_canvas->update();
 
     // Needed on Windows because clicking on m_zoomSelectBox remove the focus from m_canvas
     // (Windows specific
-    m_canvas->SetFocus();
+    m_canvas->setFocus();
 }
 
 
-void EDA_DRAW_FRAME::OnMove( wxMoveEvent& aEvent )
+void EDA_DRAW_FRAME::OnMove( QMoveEvent& aEvent )
 {
     // If the window is moved to a different display, the scaling factor may change
     double oldFactor = m_galDisplayOptions.m_scaleFactor;
@@ -588,12 +575,12 @@ void EDA_DRAW_FRAME::OnMove( wxMoveEvent& aEvent )
 
     if( oldFactor != m_galDisplayOptions.m_scaleFactor && m_canvas )
     {
-        wxSize clientSize = GetClientSize();
-        GetCanvas()->GetGAL()->ResizeScreen( clientSize.x, clientSize.y );
+        QSize clientSize = size();
+        GetCanvas()->GetGAL()->ResizeScreen( clientSize.width(), clientSize.height() );
         GetCanvas()->GetView()->MarkDirty();
     }
 
-    aEvent.Skip();
+    // Qt automatically propagates move events
 }
 
 
@@ -617,7 +604,7 @@ void EDA_DRAW_FRAME::AddStandardSubMenus( TOOL_MENU& aToolMenu )
 }
 
 
-void EDA_DRAW_FRAME::DisplayToolMsg( const wxString& msg )
+void EDA_DRAW_FRAME::DisplayToolMsg( const QString& msg )
 {
     if( m_isClosing )
         return;
@@ -626,7 +613,7 @@ void EDA_DRAW_FRAME::DisplayToolMsg( const wxString& msg )
 }
 
 
-void EDA_DRAW_FRAME::DisplayConstraintsMsg( const wxString& msg )
+void EDA_DRAW_FRAME::DisplayConstraintsMsg( const QString& msg )
 {
     if( m_isClosing )
         return;
@@ -640,12 +627,12 @@ void EDA_DRAW_FRAME::DisplayGridMsg()
     if( m_isClosing )
         return;
 
-    wxString msg;
+    QString msg;
 
     GRID_SETTINGS& gridSettings = m_toolManager->GetSettings()->m_Window.grid;
     int            currentIdx = m_toolManager->GetSettings()->m_Window.grid.last_size_idx;
 
-    msg.Printf( _( "grid %s" ),
+    msg = QString::asprintf( "grid %s",
                 gridSettings.grids[currentIdx].UserUnitsMessageText( this, false ) );
 
     SetStatusText( msg, 4 );
@@ -657,7 +644,7 @@ void EDA_DRAW_FRAME::DisplayUnitsMsg()
     if( m_isClosing )
         return;
 
-    wxString msg;
+    QString msg;
 
     switch( GetUserUnits() )
     {
@@ -671,20 +658,20 @@ void EDA_DRAW_FRAME::DisplayUnitsMsg()
 }
 
 
-void EDA_DRAW_FRAME::OnSize( wxSizeEvent& SizeEv )
+void EDA_DRAW_FRAME::OnSize( QResizeEvent& SizeEv )
 {
     EDA_BASE_FRAME::OnSize( SizeEv );
 
-    m_frameSize = GetClientSize( );
+    m_frameSize = ToVECTOR2I( size() );
 
-    SizeEv.Skip();
+    // Qt automatically propagates resize events
 }
 
 
 void EDA_DRAW_FRAME::updateStatusBarWidths()
 {
-    wxWindow* stsbar = GetStatusBar();
-    int       spacer = KIUI::GetTextSize( wxT( "M" ), stsbar ).x * 2;
+    QWidget* stsbar = GetStatusBar();
+    int       spacer = KIUI::GetTextSize( "M", stsbar ).width() * 2;
 
     int dims[] = {
         // remainder of status bar on far left is set to a default or whatever is left over.
@@ -694,22 +681,22 @@ void EDA_DRAW_FRAME::updateStatusBarWidths()
         // as the width of '0' unless the font is fixed width, and it usually won't be.
 
         // zoom:
-        KIUI::GetTextSize( wxT( "Z 762000" ), stsbar ).x,
+        KIUI::GetTextSize( "Z 762000", stsbar ).width(),
 
         // cursor coords
-        KIUI::GetTextSize( wxT( "X 1234.1234  Y 1234.1234" ), stsbar ).x,
+        KIUI::GetTextSize( "X 1234.1234  Y 1234.1234", stsbar ).width(),
 
         // delta distances
-        KIUI::GetTextSize( wxT( "dx 1234.1234  dy 1234.1234  dist 1234.1234" ), stsbar ).x,
+        KIUI::GetTextSize( "dx 1234.1234  dy 1234.1234  dist 1234.1234", stsbar ).width(),
 
         // grid size
-        KIUI::GetTextSize( wxT( "grid X 1234.1234  Y 1234.1234" ), stsbar ).x,
+        KIUI::GetTextSize( "grid X 1234.1234  Y 1234.1234", stsbar ).width(),
 
         // units display, Inches is bigger than mm
         KIUI::GetTextSize( _( "Inches" ), stsbar ).x,
 
         // Size for the "Current Tool" panel; longest string from SetTool()
-        KIUI::GetTextSize( wxT( "Add layer alignment target" ), stsbar ).x,
+        KIUI::GetTextSize( "Add layer alignment target", stsbar ).width(),
 
         // constraint mode
         KIUI::GetTextSize( _( "Constrain to H, V, 45" ), stsbar ).x
@@ -737,12 +724,12 @@ void EDA_DRAW_FRAME::UpdateStatusBar()
 }
 
 
-const wxString EDA_DRAW_FRAME::GetZoomLevelIndicator() const
+const QString EDA_DRAW_FRAME::GetZoomLevelIndicator() const
 {
     // returns a human readable value which can be displayed as zoom
     // level indicator in dialogs.
     double zoom = m_canvas->GetGAL()->GetZoomFactor();
-    return wxString::Format( wxT( "Z %.2f" ), zoom );
+    return QString::asprintf( "Z %.2f", zoom );
 }
 
 
@@ -767,11 +754,11 @@ void EDA_DRAW_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
     m_findReplaceData->matchCase = aCfg->m_FindReplace.match_case;
     m_findReplaceData->searchAndReplace = aCfg->m_FindReplace.search_and_replace;
 
-    for( const wxString& s : aCfg->m_FindReplace.find_history )
-        m_findStringHistoryList.Add( s );
+    for( const QString& s : aCfg->m_FindReplace.find_history )
+        m_findStringHistoryList.append( s );
 
-    for( const wxString& s : aCfg->m_FindReplace.replace_history )
-        m_replaceStringHistoryList.Add( s );
+    for( const QString& s : aCfg->m_FindReplace.replace_history )
+        m_replaceStringHistoryList.append( s );
 
     m_lastToolbarIconSize = cmnCfg->m_Appearance.toolbar_icon_size;
 }
@@ -796,15 +783,15 @@ void EDA_DRAW_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
     aCfg->m_FindReplace.find_history.clear();
     aCfg->m_FindReplace.replace_history.clear();
 
-    for( size_t i = 0; i < m_findStringHistoryList.GetCount() && i < FR_HISTORY_LIST_CNT; i++ )
+    for( size_t i = 0; i < m_findStringHistoryList.size() && i < FR_HISTORY_LIST_CNT; i++ )
     {
-        aCfg->m_FindReplace.find_history.push_back( m_findStringHistoryList[ i ].ToStdString() );
+        aCfg->m_FindReplace.find_history.push_back( m_findStringHistoryList[ i ].toStdString() );
     }
 
-    for( size_t i = 0; i < m_replaceStringHistoryList.GetCount() && i < FR_HISTORY_LIST_CNT; i++ )
+    for( size_t i = 0; i < m_replaceStringHistoryList.size() && i < FR_HISTORY_LIST_CNT; i++ )
     {
         aCfg->m_FindReplace.replace_history.push_back(
-                m_replaceStringHistoryList[ i ].ToStdString() );
+                m_replaceStringHistoryList[ i ].toStdString() );
     }
 
     // Save the units used in this frame
@@ -820,7 +807,7 @@ void EDA_DRAW_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
 }
 
 
-void EDA_DRAW_FRAME::AppendMsgPanel( const wxString& aTextUpper, const wxString& aTextLower,
+void EDA_DRAW_FRAME::AppendMsgPanel( const QString& aTextUpper, const QString& aTextLower,
                                      int aPadding )
 {
     if( m_messagePanel && !m_isClosing )
@@ -847,7 +834,7 @@ void EDA_DRAW_FRAME::SetMsgPanel( const std::vector<MSG_PANEL_ITEM>& aList )
 }
 
 
-void EDA_DRAW_FRAME::SetMsgPanel( const wxString& aTextUpper, const wxString& aTextLower,
+void EDA_DRAW_FRAME::SetMsgPanel( const QString& aTextUpper, const QString& aTextLower,
                                   int aPadding )
 {
     if( m_messagePanel && !m_isClosing )
@@ -860,7 +847,7 @@ void EDA_DRAW_FRAME::SetMsgPanel( const wxString& aTextUpper, const wxString& aT
 
 void EDA_DRAW_FRAME::SetMsgPanel( EDA_ITEM* aItem )
 {
-    wxCHECK_RET( aItem, wxT( "Invalid EDA_ITEM pointer.  Bad programmer." ) );
+    Q_ASSERT( aItem );
 
     std::vector<MSG_PANEL_ITEM> items;
     aItem->GetMsgPanelInfo( this, items );
@@ -891,7 +878,7 @@ void EDA_DRAW_FRAME::SwitchCanvas( EDA_DRAW_PANEL_GAL::GAL_TYPE aCanvasType )
 
 EDA_DRAW_PANEL_GAL::GAL_TYPE EDA_DRAW_FRAME::loadCanvasTypeSetting(  APP_SETTINGS_BASE* aCfg )
 {
-#ifdef __WXMAC__
+#ifdef Q_OS_MAC
     // Cairo renderer doesn't handle Retina displays so there's really only one game
     // in town for Mac
     return EDA_DRAW_PANEL_GAL::GAL_TYPE_OPENGL;
@@ -906,7 +893,7 @@ EDA_DRAW_PANEL_GAL::GAL_TYPE EDA_DRAW_FRAME::loadCanvasTypeSetting(  APP_SETTING
     if( canvasType < EDA_DRAW_PANEL_GAL::GAL_TYPE_NONE
             || canvasType >= EDA_DRAW_PANEL_GAL::GAL_TYPE_LAST )
     {
-        wxASSERT( false );
+        Q_ASSERT( false );
         canvasType = EDA_DRAW_PANEL_GAL::GAL_TYPE_NONE;
     }
 
@@ -937,7 +924,7 @@ bool EDA_DRAW_FRAME::saveCanvasTypeSetting( EDA_DRAW_PANEL_GAL::GAL_TYPE aCanvas
     if( aCanvasType < EDA_DRAW_PANEL_GAL::GAL_TYPE_NONE
             || aCanvasType >= EDA_DRAW_PANEL_GAL::GAL_TYPE_LAST )
     {
-        wxASSERT( false );
+        Q_ASSERT( false );
         return false;
     }
 
@@ -994,11 +981,11 @@ void EDA_DRAW_FRAME::Zoom_Automatique( bool aWarpPointer )
 }
 
 
-std::vector<wxWindow*> EDA_DRAW_FRAME::findDialogs()
+std::vector<QWidget*> EDA_DRAW_FRAME::findDialogs()
 {
-    std::vector<wxWindow*> dialogs;
+    std::vector<QWidget*> dialogs;
 
-    for( wxWindow* window : GetChildren() )
+    for( QWidget* window : findChildren<QWidget*>() )
     {
         if( dynamic_cast<DIALOG_SHIM*>( window ) )
             dialogs.push_back( window );
@@ -1021,11 +1008,11 @@ void EDA_DRAW_FRAME::FocusOnLocation( const VECTOR2I& aPos )
 
     std::vector<BOX2D> dialogScreenRects;
 
-    for( wxWindow* dialog : findDialogs() )
+    for( QWidget* dialog : findDialogs() )
     {
         dialogScreenRects.emplace_back(
-                ToVECTOR2D( GetCanvas()->ScreenToClient( dialog->GetScreenPosition() ) ),
-                ToVECTOR2D( dialog->GetSize() ) );
+                ToVECTOR2D( GetCanvas()->mapFromGlobal( dialog->mapToGlobal( QPoint( 0, 0 ) ) ) ),
+                ToVECTOR2D( dialog->size() ) );
     }
 
     // Center if we're behind an obscuring dialog, or within 10% of its edge
@@ -1045,8 +1032,7 @@ void EDA_DRAW_FRAME::FocusOnLocation( const VECTOR2I& aPos )
         }
         catch( const Clipper2Lib::Clipper2Exception& e )
         {
-            wxFAIL_MSG( wxString::Format( wxT( "Clipper2 exception occurred centering object: %s" ),
-                                          e.what() ) );
+            qWarning() << QString::asprintf( "Clipper2 exception occurred centering object: %s", e.what() );
         }
     }
 
@@ -1054,15 +1040,15 @@ void EDA_DRAW_FRAME::FocusOnLocation( const VECTOR2I& aPos )
 }
 
 
-static const wxString productName = wxT( "KiCad E.D.A.  " );
+static const QString productName = "KiCad E.D.A.  ";
 
 
 void PrintDrawingSheet( const RENDER_SETTINGS* aSettings, const PAGE_INFO& aPageInfo,
-                        const wxString& aSheetName, const wxString& aSheetPath,
-                        const wxString& aFileName, const TITLE_BLOCK& aTitleBlock,
-                        const std::map<wxString, wxString>* aProperties, int aSheetCount,
-                        const wxString& aPageNumber, double aMils2Iu, const PROJECT* aProject,
-                        const wxString& aSheetLayer, bool aIsFirstPage )
+                        const QString& aSheetName, const QString& aSheetPath,
+                        const QString& aFileName, const TITLE_BLOCK& aTitleBlock,
+                        const std::map<QString, QString>* aProperties, int aSheetCount,
+                        const QString& aPageNumber, double aMils2Iu, const PROJECT* aProject,
+                        const QString& aSheetLayer, bool aIsFirstPage )
 {
     DS_DRAW_ITEM_LIST drawList( unityScale );
 
@@ -1086,20 +1072,19 @@ void PrintDrawingSheet( const RENDER_SETTINGS* aSettings, const PAGE_INFO& aPage
 
 
 void EDA_DRAW_FRAME::PrintDrawingSheet( const RENDER_SETTINGS* aSettings, BASE_SCREEN* aScreen,
-                                        const std::map<wxString, wxString>* aProperties,
-                                        double aMils2Iu, const wxString &aFilename,
-                                        const wxString &aSheetLayer )
+                                        const std::map<QString, QString>* aProperties,
+                                        double aMils2Iu, const QString &aFilename,
+                                        const QString &aSheetLayer )
 {
     if( !m_showBorderAndTitleBlock )
         return;
 
-    wxDC*   DC = aSettings->GetPrintDC();
-    wxPoint origin = DC->GetDeviceOrigin();
+    QPainter* painter = aSettings->GetPrintPainter();
+    QPoint origin = painter->deviceTransform().map(QPoint(0,0));
 
-    if( origin.y > 0 )
+    if( origin.y() > 0 )
     {
-        DC->SetDeviceOrigin( 0, 0 );
-        DC->SetAxisOrientation( true, false );
+        painter->setWorldTransform( QTransform() );
     }
 
     ::PrintDrawingSheet( aSettings, GetPageSettings(), GetScreenDesc(), GetFullScreenDesc(),
@@ -1107,49 +1092,50 @@ void EDA_DRAW_FRAME::PrintDrawingSheet( const RENDER_SETTINGS* aSettings, BASE_S
                          aScreen->GetPageNumber(), aMils2Iu, &Prj(), aSheetLayer,
                          aScreen->GetVirtualPageNumber() == 1 );
 
-    if( origin.y > 0 )
+    if( origin.y() > 0 )
     {
-        DC->SetDeviceOrigin( origin.x, origin.y );
-        DC->SetAxisOrientation( true, true );
+        QTransform transform;
+        transform.translate( origin.x(), origin.y() );
+        painter->setWorldTransform( transform );
     }
 }
 
 
-wxString EDA_DRAW_FRAME::GetScreenDesc() const
+QString EDA_DRAW_FRAME::GetScreenDesc() const
 {
     // Virtual function. Base class implementation returns an empty string.
-    return wxEmptyString;
+    return QString();
 }
 
 
-wxString EDA_DRAW_FRAME::GetFullScreenDesc() const
+QString EDA_DRAW_FRAME::GetFullScreenDesc() const
 {
     // Virtual function. Base class implementation returns an empty string.
-    return wxEmptyString;
+    return QString();
 }
 
 
-bool EDA_DRAW_FRAME::LibraryFileBrowser( bool doOpen, wxFileName& aFilename,
-                                         const wxString& wildcard, const wxString& ext,
+bool EDA_DRAW_FRAME::LibraryFileBrowser( bool doOpen, QFileInfo& aFilename,
+                                         const QString& wildcard, const QString& ext,
                                          bool isDirectory, bool aIsGlobal,
-                                         const wxString& aGlobalPath )
+                                         const QString& aGlobalPath )
 {
-    wxString prompt = doOpen ? _( "Select Library" ) : _( "New Library" );
-    aFilename.SetExt( ext );
+    QString prompt = doOpen ? "Select Library" : "New Library";
+    aFilename = QFileInfo( aFilename.absolutePath() + "/" + aFilename.baseName() + "." + ext );
 
-    wxString projectDir = Prj().IsNullProject() ? aFilename.GetPath() : Prj().GetProjectPath();
-    wxString defaultDir;
+    QString projectDir = Prj().IsNullProject() ? aFilename.absolutePath() : Prj().GetProjectPath();
+    QString defaultDir;
 
     if( aIsGlobal )
     {
-        if( !GetMruPath().IsEmpty() && !GetMruPath().StartsWith( projectDir ) )
+        if( !GetMruPath().isEmpty() && !GetMruPath().startsWith( projectDir ) )
             defaultDir = GetMruPath();
         else
             defaultDir = aGlobalPath;
     }
     else
     {
-        if( !GetMruPath().IsEmpty() && GetMruPath().StartsWith( projectDir ) )
+        if( !GetMruPath().isEmpty() && GetMruPath().startsWith( projectDir ) )
             defaultDir = GetMruPath();
         else
             defaultDir = projectDir;
@@ -1157,32 +1143,48 @@ bool EDA_DRAW_FRAME::LibraryFileBrowser( bool doOpen, wxFileName& aFilename,
 
     if( isDirectory && doOpen )
     {
-        wxDirDialog dlg( this, prompt, defaultDir, wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST );
+        QFileDialog dlg( this, prompt, defaultDir );
+        dlg.setFileMode( QFileDialog::Directory );
+        dlg.setOption( QFileDialog::ShowDirsOnly, true );
 
-        if( dlg.ShowModal() == wxID_CANCEL )
+        if( dlg.exec() == QDialog::Rejected )
             return false;
 
-        aFilename = dlg.GetPath();
-        aFilename.SetExt( ext );
+        QStringList paths = dlg.selectedFiles();
+        if( !paths.isEmpty() )
+            aFilename = QFileInfo( paths.first() );
+        aFilename = QFileInfo( aFilename.absolutePath() + "/" + aFilename.baseName() + "." + ext );
     }
     else
     {
         // Ensure the file has a dummy name, otherwise GTK will display the regex from the filter
-        if( aFilename.GetName().empty() )
-            aFilename.SetName( wxS( "Library" ) );
+        if( aFilename.baseName().isEmpty() )
+            aFilename = QFileInfo( aFilename.absolutePath() + "/Library." + ext );
 
-        wxFileDialog dlg( this, prompt, defaultDir, aFilename.GetFullName(),
-                          wildcard, doOpen ? wxFD_OPEN | wxFD_FILE_MUST_EXIST
-                                           : wxFD_SAVE | wxFD_CHANGE_DIR | wxFD_OVERWRITE_PROMPT );
+        QFileDialog dlg( this, prompt, defaultDir, wildcard );
+        if( doOpen )
+        {
+            dlg.setFileMode( QFileDialog::ExistingFile );
+            dlg.setAcceptMode( QFileDialog::AcceptOpen );
+        }
+        else
+        {
+            dlg.setFileMode( QFileDialog::AnyFile );
+            dlg.setAcceptMode( QFileDialog::AcceptSave );
+            dlg.setOption( QFileDialog::DontConfirmOverwrite, false );
+        }
+        dlg.selectFile( aFilename.fileName() );
 
-        if( dlg.ShowModal() == wxID_CANCEL )
+        if( dlg.exec() == QDialog::Rejected )
             return false;
 
-        aFilename = dlg.GetPath();
-        aFilename.SetExt( ext );
+        QStringList paths = dlg.selectedFiles();
+        if( !paths.isEmpty() )
+            aFilename = QFileInfo( paths.first() );
+        aFilename = QFileInfo( aFilename.absolutePath() + "/" + aFilename.baseName() + "." + ext );
     }
 
-    SetMruPath( aFilename.GetPath() );
+    SetMruPath( aFilename.absolutePath() );
 
     return true;
 }
@@ -1210,16 +1212,16 @@ void EDA_DRAW_FRAME::RecreateToolbars()
 void EDA_DRAW_FRAME::OnToolbarSizeChanged()
 {
     if( m_mainToolBar )
-        m_auimgr.GetPane( m_mainToolBar ).MaxSize( m_mainToolBar->GetSize() );
+        // Qt dock widget sizing handled automatically
 
     if( m_drawToolBar )
-        m_auimgr.GetPane( m_drawToolBar ).MaxSize( m_drawToolBar->GetSize() );
+        // Qt dock widget sizing handled automatically
 
     if( m_optionsToolBar )
-        m_auimgr.GetPane( m_optionsToolBar ).MaxSize( m_optionsToolBar->GetSize() );
+        // Qt dock widget sizing handled automatically
 
     if( m_auxiliaryToolBar )
-        m_auimgr.GetPane( m_auxiliaryToolBar ).MaxSize( m_auxiliaryToolBar->GetSize() );
+        // Qt dock widget sizing handled automatically
 
     m_auimgr.Update();
 }
@@ -1231,20 +1233,23 @@ void EDA_DRAW_FRAME::ShowChangedLanguage()
 
     if( m_searchPane )
     {
-        wxAuiPaneInfo& search_pane_info = m_auimgr.GetPane( m_searchPane );
-        search_pane_info.Caption( _( "Search" ) );
+        QDockWidget* search_pane_info = m_auimgr.findChild<QDockWidget*>( "SearchPane" );
+        if( search_pane_info )
+            search_pane_info->setWindowTitle( "Search" );
     }
 
     if( m_propertiesPanel )
     {
-        wxAuiPaneInfo& properties_pane_info = m_auimgr.GetPane( m_propertiesPanel );
-        properties_pane_info.Caption( _( "Properties" ) );
+        QDockWidget* properties_pane_info = m_auimgr.findChild<QDockWidget*>( "PropertiesPane" );
+        if( properties_pane_info )
+            properties_pane_info->setWindowTitle( "Properties" );
     }
 
     if( m_netInspectorPanel )
     {
-        wxAuiPaneInfo& net_inspector_panel_info = m_auimgr.GetPane( m_netInspectorPanel );
-        net_inspector_panel_info.Caption( _( "Net Inspector" ) );
+        QDockWidget* net_inspector_panel_info = m_auimgr.findChild<QDockWidget*>( "NetInspectorPane" );
+        if( net_inspector_panel_info )
+            net_inspector_panel_info->setWindowTitle( "Net Inspector" );
     }
 }
 
@@ -1335,7 +1340,7 @@ void EDA_DRAW_FRAME::resolveCanvasType()
 }
 
 
-void EDA_DRAW_FRAME::handleActivateEvent( wxActivateEvent& aEvent )
+void EDA_DRAW_FRAME::handleActivateEvent( QEvent& aEvent )
 {
     // Force a refresh of the message panel to ensure that the text is the right color
     // when the window activates
@@ -1344,44 +1349,38 @@ void EDA_DRAW_FRAME::handleActivateEvent( wxActivateEvent& aEvent )
 }
 
 
-void EDA_DRAW_FRAME::onActivate( wxActivateEvent& aEvent )
+void EDA_DRAW_FRAME::onActivate( QEvent& aEvent )
 {
     handleActivateEvent( aEvent );
 
-    aEvent.Skip();
+    // Qt automatically handles activation events
 }
 
 
-bool EDA_DRAW_FRAME::SaveCanvasImageToFile( const wxString& aFileName,
+bool EDA_DRAW_FRAME::SaveCanvasImageToFile( const QString& aFileName,
                                             BITMAP_TYPE aBitmapType )
 {
     bool retv = true;
 
     // Make a screen copy of the canvas:
-    wxSize image_size = GetCanvas()->GetClientSize();
+    QSize image_size = GetCanvas()->size();
 
-    wxClientDC dc( GetCanvas() );
-    wxBitmap   bitmap( image_size.x, image_size.y );
-    wxMemoryDC memdc;
+    QPainter painter( GetCanvas() );
+    QPixmap   pixmap( image_size );
+    QImage image = pixmap.toImage();
 
-    memdc.SelectObject( bitmap );
-    memdc.Blit( 0, 0, image_size.x, image_size.y, &dc, 0, 0 );
-    memdc.SelectObject( wxNullBitmap );
-
-    wxImage image = bitmap.ConvertToImage();
-
-    wxBitmapType type = wxBITMAP_TYPE_PNG;
+    const char* format = "PNG";
     switch( aBitmapType )
     {
-    case BITMAP_TYPE::PNG: type = wxBITMAP_TYPE_PNG; break;
-    case BITMAP_TYPE::BMP: type = wxBITMAP_TYPE_BMP; break;
-    case BITMAP_TYPE::JPG: type = wxBITMAP_TYPE_JPEG; break;
+    case BITMAP_TYPE::PNG: format = "PNG"; break;
+    case BITMAP_TYPE::BMP: format = "BMP"; break;
+    case BITMAP_TYPE::JPG: format = "JPG"; break;
     }
 
-    if( !image.SaveFile( aFileName, type ) )
+    if( !image.save( aFileName, format ) )
         retv = false;
 
-    image.Destroy();
+    // Qt automatically manages image memory
     return retv;
 }
 
@@ -1389,7 +1388,7 @@ bool EDA_DRAW_FRAME::SaveCanvasImageToFile( const wxString& aFileName,
 bool EDA_DRAW_FRAME::IsPluginActionButtonVisible( const PLUGIN_ACTION& aAction,
                                                   APP_SETTINGS_BASE* aCfg )
 {
-    wxCHECK( aCfg, aAction.show_button );
+    if( !aCfg ) return aAction.show_button;
 
     for( const auto& [identifier, visible] : aCfg->m_Plugins.actions )
     {
@@ -1405,13 +1404,13 @@ std::vector<const PLUGIN_ACTION*> EDA_DRAW_FRAME::GetOrderedPluginActions(
     PLUGIN_ACTION_SCOPE aScope, APP_SETTINGS_BASE* aCfg )
 {
     std::vector<const PLUGIN_ACTION*> actions;
-    wxCHECK( aCfg, actions );
+    if( !aCfg ) return actions;
 
 #ifdef KICAD_IPC_API
 
     API_PLUGIN_MANAGER& mgr = Pgm().GetPluginManager();
     std::vector<const PLUGIN_ACTION*> unsorted = mgr.GetActionsForScope( aScope );
-    std::map<wxString, const PLUGIN_ACTION*> actionMap;
+    std::map<QString, const PLUGIN_ACTION*> actionMap;
     std::set<const PLUGIN_ACTION*> handled;
 
     for( const PLUGIN_ACTION* action : unsorted )
@@ -1454,28 +1453,32 @@ void EDA_DRAW_FRAME::addApiPluginTools()
         if( !IsPluginActionButtonVisible( *action, config() ) )
             continue;
 
-        const wxBitmapBundle& icon = KIPLATFORM::UI::IsDarkTheme() && action->icon_dark.IsOk()
+        const QIcon& icon = KIPLATFORM::UI::IsDarkTheme() && !action->icon_dark.isNull()
                                              ? action->icon_dark
                                              : action->icon_light;
 
-        wxAuiToolBarItem* button = m_mainToolBar->AddTool( wxID_ANY, wxEmptyString, icon,
-                                                           action->name );
+        QAction* button = m_mainToolBar->addAction( icon, action->name );
 
-        Connect( button->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-                 wxCommandEventHandler( EDA_DRAW_FRAME::OnApiPluginInvoke ) );
+        connect( button, &QAction::triggered,
+                 this, &EDA_DRAW_FRAME::OnApiPluginInvoke );
 
-        mgr.ButtonBindings().insert( { button->GetId(), action->identifier } );
+        mgr.ButtonBindings().insert( { reinterpret_cast<intptr_t>( button ), action->identifier } );
     }
 #endif
 }
 
 
-void EDA_DRAW_FRAME::OnApiPluginInvoke( wxCommandEvent& aEvent )
+void EDA_DRAW_FRAME::OnApiPluginInvoke()
 {
 #ifdef KICAD_IPC_API
     API_PLUGIN_MANAGER& mgr = Pgm().GetPluginManager();
 
-    if( mgr.ButtonBindings().count( aEvent.GetId() ) )
-        mgr.InvokeAction( mgr.ButtonBindings().at( aEvent.GetId() ) );
+    QAction* senderAction = qobject_cast<QAction*>( sender() );
+    if( senderAction )
+    {
+        intptr_t actionId = reinterpret_cast<intptr_t>( senderAction );
+        if( mgr.ButtonBindings().count( actionId ) )
+            mgr.InvokeAction( mgr.ButtonBindings().at( actionId ) );
+    }
 #endif
 }

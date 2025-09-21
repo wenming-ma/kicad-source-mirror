@@ -1,39 +1,14 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Wayne Stambaugh <stambaughw@gmail.com>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// Schematic and symbol library s-expression file format parser implementations.
+// TRANSFORMED: wxWidgets → Qt (Q_ASSERT, QString, qPrintable)
 
-/**
- * @brief Schematic and symbol library s-expression file format parser implementations.
- */
-
-// For some reason wxWidgets is built with wxUSE_BASE64 unset so expose the wxWidgets
-// base64 code.
 #include <charconv>
 
 #include <fmt/format.h>
-#define wxUSE_BASE64 1
-#include <wx/base64.h>
-#include <wx/log.h>
-#include <wx/mstream.h>
-#include <wx/tokenzr.h>
+#include <QtCore/QByteArray>
+#include <QtCore/QString>
+#include <QtCore/QStringList>
+#include <QtCore/QRegularExpression>
+#include <QtCore/QDebug>
 
 #include <base_units.h>
 #include <bitmap_base.h>
@@ -276,7 +251,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::ParseSymbol( LIB_SYMBOL_MAP& aSymbolLibMa
             m_requiredVersion = aFileVersion;
             newSymbol         = parseLibSymbol( aSymbolLibMap );
 
-            const std::vector<wxString>* embeddedFonts =
+            const std::vector<QString>* embeddedFonts =
                     newSymbol->GetEmbeddedFiles()->UpdateFontFiles();
 
             newSymbol->RunOnChildren(
@@ -288,7 +263,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::ParseSymbol( LIB_SYMBOL_MAP& aSymbolLibMa
         }
         else
         {
-            wxString msg = wxString::Format( _( "Cannot parse %s as a symbol" ),
+            QString msg = QString::Format( _( "Cannot parse %s as a symbol" ),
                                              GetTokenString( CurTok() ) );
             THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
         }
@@ -300,16 +275,17 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::ParseSymbol( LIB_SYMBOL_MAP& aSymbolLibMa
 
 LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLibMap )
 {
-    wxCHECK_MSG( CurTok() == T_symbol, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a symbol." ) );
+    Q_ASSERT( CurTok() == T_symbol );
+    if( CurTok() != T_symbol )
+        return nullptr;
 
     T token;
     long tmp;
-    wxString name;
-    wxString error;
-    wxString unitDisplayName;
+    QString name;
+    QString error;
+    QString unitDisplayName;
     SCH_ITEM* item;
-    std::unique_ptr<LIB_SYMBOL> symbol = std::make_unique<LIB_SYMBOL>( wxEmptyString );
+    std::unique_ptr<LIB_SYMBOL> symbol = std::make_unique<LIB_SYMBOL>( QString() );
 
     symbol->SetUnitCount( 1 );
 
@@ -334,7 +310,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
     // Some symbol LIB_IDs have the '/' character escaped which can break derived symbol links.
     // The '/' character is no longer an illegal LIB_ID character so it doesn't need to be
     // escaped.
-    name.Replace( wxS( "{slash}" ), wxT( "/" ) );
+    name.replace( "{slash}", "/" );
 
     LIB_ID id;
     int    bad_pos = id.Parse( name );
@@ -343,7 +319,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
     {
         if( static_cast<int>( name.size() ) > bad_pos )
         {
-            wxString msg = wxString::Format( _( "Symbol %s contains invalid character '%c'" ),
+            QString msg = QString::Format( _( "Symbol %s contains invalid character '%c'" ),
                                              name,
                                              name[bad_pos] );
 
@@ -355,7 +331,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
                            CurLineNumber(), CurOffset() );
     }
 
-    m_symbolName = id.GetLibItemName().wx_str();
+    m_symbolName = qPrintable( id.GetLibItemName() );
     symbol->SetName( m_symbolName );
     symbol->SetLibId( id );
 
@@ -415,13 +391,13 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
             // Some symbol LIB_IDs have the '/' character escaped which can break derived
             // symbol links.  The '/' character is no longer an illegal LIB_ID character so
             // it doesn't need to be escaped.
-            name.Replace( wxS( "{slash}" ), wxT( "/" ) );
+            name.replace( "{slash}", "/" );
 
             auto it = aSymbolLibMap.find( name );
 
             if( it == aSymbolLibMap.end() )
             {
-                error.Printf( _( "No parent for extended symbol %s" ), name.c_str() );
+                error = QString::asprintf( "No parent for extended symbol %s", qPrintable( name ) );
                 THROW_PARSE_ERROR( error, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
             }
 
@@ -445,35 +421,38 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
             // Some symbol LIB_IDs have the '/' character escaped which can break derived
             // symbol links.  The '/' character is no longer an illegal LIB_ID character so
             // it doesn't need to be escaped.
-            name.Replace( wxS( "{slash}" ), wxT( "/" ) );
+            name.replace( "{slash}", "/" );
 
             if( !name.StartsWith( m_symbolName ) )
             {
-                error.Printf( _( "Invalid symbol unit name prefix %s" ), name.c_str() );
+                error = QString::asprintf( "Invalid symbol unit name prefix %s", qPrintable( name ) );
                 THROW_PARSE_ERROR( error, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
             }
 
-            name = name.Right( name.Length() - m_symbolName.Length() - 1 );
+            name = name.right( name.length() - m_symbolName.length() - 1 );
 
-            wxStringTokenizer tokenizer( name, "_" );
+            QStringList tokens = name.split("_");
 
-            if( tokenizer.CountTokens() != 2 )
+            if( tokens.size() != 2 )
             {
-                error.Printf( _( "Invalid symbol unit name suffix %s" ), name.c_str() );
+                error = QString::asprintf( "Invalid symbol unit name suffix %s", qPrintable( name ) );
                 THROW_PARSE_ERROR( error, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
             }
 
-            if( !tokenizer.GetNextToken().ToLong( &tmp ) )
+            bool ok;
+            tmp = tokens[0].toLong(&ok);
+            if( !ok )
             {
-                error.Printf( _( "Invalid symbol unit number %s" ), name.c_str() );
+                error = QString::asprintf( "Invalid symbol unit number %s", qPrintable( name ) );
                 THROW_PARSE_ERROR( error, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
             }
 
             m_unit = static_cast<int>( tmp );
 
-            if( !tokenizer.GetNextToken().ToLong( &tmp ) )
+            tmp = tokens[1].toLong(&ok);
+            if( !ok )
             {
-                error.Printf( _( "Invalid symbol convert number %s" ), name.c_str() );
+                error = QString::asprintf( "Invalid symbol convert number %s", qPrintable( name ) );
                 THROW_PARSE_ERROR( error, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
             }
 
@@ -516,7 +495,9 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
                 case T_text_box:
                     item = ParseSymbolDrawItem();
 
-                    wxCHECK_MSG( item, nullptr, "Invalid draw item pointer." );
+                    Q_ASSERT( item );
+                    if( !item )
+                        return nullptr;
 
                     item->SetParent( symbol.get() );
                     symbol->AddDrawItem( item, false );
@@ -542,7 +523,9 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
         case T_text_box:
             item = ParseSymbolDrawItem();
 
-            wxCHECK_MSG( item, nullptr, "Invalid draw item pointer." );
+            Q_ASSERT( item );
+                    if( !item )
+                        return nullptr;
 
             item->SetParent( symbol.get() );
             symbol->AddDrawItem( item, false );
@@ -566,7 +549,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
             }
             catch( const IO_ERROR& e )
             {
-                wxLogError( e.What() );
+                qDebug() << e.What();
             }
 
             SyncLineReaderWith( embeddedFilesParser );
@@ -582,7 +565,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
     symbol->GetDrawItems().sort();
     m_symbolName.clear();
 
-    const std::vector<wxString>* embeddedFonts =
+    const std::vector<QString>* embeddedFonts =
             symbol->GetEmbeddedFiles()->UpdateFontFiles();
 
     symbol->RunOnChildren(
@@ -650,7 +633,9 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseStroke( STROKE_PARAMS& aStroke )
 
 void SCH_IO_KICAD_SEXPR_PARSER::parseFill( FILL_PARAMS& aFill )
 {
-    wxCHECK_RET( CurTok() == T_fill, "Cannot parse " + GetTokenString( CurTok() ) + " as a fill." );
+    Q_ASSERT( CurTok() == T_fill );
+    if( CurTok() != T_fill )
+        return;
 
     aFill.m_FillType = FILL_T::NO_FILL;
     aFill.m_Color = COLOR4D::UNSPECIFIED;
@@ -706,7 +691,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseFill( FILL_PARAMS& aFill )
 void SCH_IO_KICAD_SEXPR_PARSER::parseEDA_TEXT( EDA_TEXT* aText, bool aConvertOverbarSyntax,
                                                bool aEnforceMinTextSize )
 {
-    wxCHECK_RET( aText && ( CurTok() == T_effects || CurTok() == T_href ),
+    Q_ASSERT( aText && ( CurTok() == T_effects || CurTok() == T_href ),
                  "Cannot parse " + GetTokenString( CurTok() ) + " as an EDA_TEXT." );
 
     // In version 20210606 the notation for overbars was changed from `~...~` to `~{...}`.
@@ -811,11 +796,11 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseEDA_TEXT( EDA_TEXT* aText, bool aConvertOve
         case T_href:
         {
             NeedSYMBOL();
-            wxString hyperlink = FromUTF8();
+            QString hyperlink = FromUTF8();
 
             if( !EDA_TEXT::ValidateHyperlink( hyperlink ) )
             {
-                THROW_PARSE_ERROR( wxString::Format( _( "Invalid hyperlink url '%s'" ), hyperlink ),
+                THROW_PARSE_ERROR( QString::Format( _( "Invalid hyperlink url '%s'" ), hyperlink ),
                                    CurSource(), CurLine(), CurLineNumber(), CurOffset() );
             }
             else
@@ -843,8 +828,8 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseEDA_TEXT( EDA_TEXT* aText, bool aConvertOve
 
 void SCH_IO_KICAD_SEXPR_PARSER::parseHeader( TSCHEMATIC_T::T aHeaderType, int aFileVersion )
 {
-    wxCHECK_RET( CurTok() == aHeaderType,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a header." ) );
+    Q_ASSERT( CurTok() == aHeaderType,
+                 "Cannot parse " + GetTokenString( CurTok() ) + " as a header." );
 
     NeedLEFT();
 
@@ -852,7 +837,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseHeader( TSCHEMATIC_T::T aHeaderType, int aF
 
     if( tok == T_version )
     {
-        m_requiredVersion = parseInt( FromUTF8().mb_str( wxConvUTF8 ) );
+        m_requiredVersion = parseInt( qPrintable( FromUTF8() ) );
         NeedRIGHT();
     }
     else
@@ -864,7 +849,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseHeader( TSCHEMATIC_T::T aHeaderType, int aF
 
 void SCH_IO_KICAD_SEXPR_PARSER::parsePinNames( std::unique_ptr<LIB_SYMBOL>& aSymbol )
 {
-    wxCHECK_RET( CurTok() == T_pin_names,
+    Q_ASSERT( CurTok() == T_pin_names,
                  "Cannot parse " + GetTokenString( CurTok() ) + " as a pin_name token." );
 
     /**
@@ -912,7 +897,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::parsePinNames( std::unique_ptr<LIB_SYMBOL>& aSym
 
 void SCH_IO_KICAD_SEXPR_PARSER::parsePinNumbers( std::unique_ptr<LIB_SYMBOL>& aSymbol )
 {
-    wxCHECK_RET( CurTok() == T_pin_numbers,
+    Q_ASSERT( CurTok() == T_pin_numbers,
                  "Cannot parse " + GetTokenString( CurTok() ) + " as a pin_number token." );
 
     /**
@@ -955,12 +940,13 @@ void SCH_IO_KICAD_SEXPR_PARSER::parsePinNumbers( std::unique_ptr<LIB_SYMBOL>& aS
 
 SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>& aSymbol )
 {
-    wxCHECK_MSG( CurTok() == T_property, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a property." ) );
-    wxCHECK( aSymbol, nullptr );
+    Q_ASSERT( CurTok() == T_property );
+    if( CurTok() != T_property )
+        return nullptr;
+    Q_ASSERT( aSymbol, nullptr );
 
-    wxString name;
-    wxString value;
+    QString name;
+    QString value;
     auto field = std::make_unique<SCH_FIELD>( aSymbol.get(), aSymbol->GetNextAvailableFieldId() );
 
     // By default, fieds are visible.
@@ -983,7 +969,7 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
 
     name = FromUTF8();
 
-    if( name.IsEmpty() )
+    if( name.isEmpty() )
     {
         THROW_PARSE_ERROR( _( "Empty property name" ), CurSource(), CurLine(), CurLineNumber(),
                            CurOffset() );
@@ -995,7 +981,7 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
     // If ID is stored in the file (old versions), it will overwrite this
     for( int fieldId : MANDATORY_FIELDS )
     {
-        if( name.CmpNoCase( GetCanonicalFieldName( fieldId ) ) == 0 )
+        if( name.compare( GetCanonicalFieldName( fieldId ) ) == 0 )
         {
             field->SetId( fieldId );
             break;
@@ -1108,13 +1094,13 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
     else if( name == "ki_fp_filters" )
     {
         // Not a SCH_FIELD object yet.
-        wxArrayString filters;
-        wxStringTokenizer tokenizer( value );
+        QStringList filters;
+        QStringList tokens = value.split(" ", Qt::SkipEmptyParts);
 
-        while( tokenizer.HasMoreTokens() )
+        for( const QString& token : tokens )
         {
-            wxString curr_token = UnescapeString( tokenizer.GetNextToken() );
-            filters.Add( curr_token );
+            QString curr_token = UnescapeString( token );
+            filters.append( curr_token );
         }
 
         aSymbol->SetFPFilters( filters );
@@ -1138,12 +1124,12 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
         {
             // We cannot handle 2 fields with the same name, so because the field name
             // is already in use, try to build a new name (oldname_x)
-            wxString base_name = field->GetCanonicalName();
+            QString base_name = field->GetCanonicalName();
 
             // Arbitrary limit 10 attempts to find a new name
             for( int ii = 1; ii < 10 && existingField; ii++ )
             {
-                wxString newname = base_name;
+                QString newname = base_name;
                 newname << '_' << ii;
 
                 existingField = aSymbol->FindField( newname );
@@ -1170,8 +1156,9 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
 
 SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolArc()
 {
-    wxCHECK_MSG( CurTok() == T_arc, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as an arc." ) );
+    Q_ASSERT( CurTok() == T_arc );
+    if( CurTok() != T_arc )
+        return nullptr;
 
     T             token;
     VECTOR2I      startPoint( 1, 0 ); // Initialize to a non-degenerate arc just for safety
@@ -1354,7 +1341,7 @@ SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolArc()
     }
     else
     {
-        wxFAIL_MSG( "Setting arc without either midpoint or angles not implemented." );
+        Q_ASSERT_X(false, "arc", "Setting arc without either midpoint or angles not implemented.");
     }
 
     return arc.release();
@@ -1363,8 +1350,9 @@ SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolArc()
 
 SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolBezier()
 {
-    wxCHECK_MSG( CurTok() == T_bezier, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a bezier." ) );
+    Q_ASSERT( CurTok() == T_bezier );
+    if( CurTok() != T_bezier )
+        return nullptr;
 
     T             token;
     STROKE_PARAMS stroke( schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ), LINE_STYLE::DEFAULT );
@@ -1444,8 +1432,9 @@ SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolBezier()
 
 SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolCircle()
 {
-    wxCHECK_MSG( CurTok() == T_circle, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a circle." ) );
+    Q_ASSERT( CurTok() == T_circle );
+    if( CurTok() != T_circle )
+        return nullptr;
 
     T             token;
     VECTOR2I      center( 0, 0 );
@@ -1559,12 +1548,13 @@ SCH_PIN* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolPin()
                 }
             };
 
-    wxCHECK_MSG( CurTok() == T_pin, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a pin token." ) );
+    Q_ASSERT( CurTok() == T_pin );
+    if( CurTok() != T_pin )
+        return nullptr;
 
     T                        token;
-    wxString                 tmp;
-    wxString                 error;
+    QString                 tmp;
+    QString                 error;
     std::unique_ptr<SCH_PIN> pin = std::make_unique<SCH_PIN>( nullptr );
 
     pin->SetUnit( m_unit );
@@ -1728,8 +1718,9 @@ SCH_PIN* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolPin()
 
 SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolPolyLine()
 {
-    wxCHECK_MSG( CurTok() == T_polyline, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a poly." ) );
+    Q_ASSERT( CurTok() == T_polyline );
+    if( CurTok() != T_polyline )
+        return nullptr;
 
     T token;
     STROKE_PARAMS stroke( schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ), LINE_STYLE::DEFAULT );
@@ -1796,8 +1787,9 @@ SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolPolyLine()
 
 SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolRectangle()
 {
-    wxCHECK_MSG( CurTok() == T_rectangle, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a rectangle." ) );
+    Q_ASSERT( CurTok() == T_rectangle );
+    if( CurTok() != T_rectangle )
+        return nullptr;
 
     T token;
     STROKE_PARAMS stroke( schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ), LINE_STYLE::DEFAULT );
@@ -1856,8 +1848,9 @@ SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolRectangle()
 
 SCH_ITEM* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolText()
 {
-    wxCHECK_MSG( CurTok() == T_text, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a text token." ) );
+    Q_ASSERT( CurTok() == T_text );
+    if( CurTok() != T_text )
+        return nullptr;
 
     T token;
     std::unique_ptr<SCH_TEXT> text = std::make_unique<SCH_TEXT>();
@@ -1916,8 +1909,9 @@ SCH_ITEM* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolText()
 
 SCH_TEXTBOX* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolTextBox()
 {
-    wxCHECK_MSG( CurTok() == T_text_box, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a text box." ) );
+    Q_ASSERT( CurTok() == T_text_box );
+    if( CurTok() != T_text_box )
+        return nullptr;
 
     T             token;
     VECTOR2I      pos;
@@ -2039,14 +2033,14 @@ SCH_TEXTBOX* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolTextBox()
 
 void SCH_IO_KICAD_SEXPR_PARSER::parsePAGE_INFO( PAGE_INFO& aPageInfo )
 {
-    wxCHECK_RET( ( CurTok() == T_page && m_requiredVersion <= 20200506 ) || CurTok() == T_paper,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a PAGE_INFO." ) );
+    Q_ASSERT( ( CurTok() == T_page && m_requiredVersion <= 20200506 ) || CurTok() == T_paper,
+                 "Cannot parse " + GetTokenString( CurTok() ) + " as a PAGE_INFO." );
 
     T token;
 
     NeedSYMBOL();
 
-    wxString pageType = FromUTF8();
+    QString pageType = FromUTF8();
 
     if( !aPageInfo.SetType( pageType ) )
     {
@@ -2091,7 +2085,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::parsePAGE_INFO( PAGE_INFO& aPageInfo )
 
 void SCH_IO_KICAD_SEXPR_PARSER::parseTITLE_BLOCK( TITLE_BLOCK& aTitleBlock )
 {
-    wxCHECK_RET( CurTok() == T_title_block,
+    Q_ASSERT( CurTok() == T_title_block,
                  "Cannot parse " + GetTokenString( CurTok() ) + " as a TITLE_BLOCK." );
 
     T token;
@@ -2195,7 +2189,8 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseTITLE_BLOCK( TITLE_BLOCK& aTitleBlock )
 
 SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseSchField( SCH_ITEM* aParent )
 {
-    wxCHECK_MSG( CurTok() == T_property, nullptr,
+    Q_ASSERT( CurTok() == T_property );
+    if( CurTok() != T_property )
                  "Cannot parse " + GetTokenString( CurTok() ) + " as a property token." );
 
     bool is_private = false;
@@ -2214,9 +2209,9 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseSchField( SCH_ITEM* aParent )
                            CurOffset() );
     }
 
-    wxString name = FromUTF8();
+    QString name = FromUTF8();
 
-    if( name.IsEmpty() )
+    if( name.isEmpty() )
     {
         THROW_PARSE_ERROR( _( "Empty property name" ), CurSource(), CurLine(), CurLineNumber(),
                            CurOffset() );
@@ -2231,7 +2226,7 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseSchField( SCH_ITEM* aParent )
     }
 
     // Empty property values are valid.
-    wxString value = FromUTF8();
+    QString value = FromUTF8();
 
     int nextFieldId = 0;
 
@@ -2273,9 +2268,9 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseSchField( SCH_ITEM* aParent )
         }
 
         // Legacy support for old field names
-        if( name.CmpNoCase( wxT( "Sheet name" ) ) == 0 )
+        if( name.compare( "Sheet name" ) == 0 )
             field->SetId( SHEETNAME );
-        else if( name.CmpNoCase( wxT( "Sheet file" ) ) == 0 )
+        else if( name.compare( "Sheet file" ) == 0 )
             field->SetId( SHEETFILENAME );
     }
 
@@ -2341,8 +2336,11 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseSchField( SCH_ITEM* aParent )
 
 SCH_SHEET_PIN* SCH_IO_KICAD_SEXPR_PARSER::parseSchSheetPin( SCH_SHEET* aSheet )
 {
-    wxCHECK_MSG( aSheet != nullptr, nullptr, "" );
-    wxCHECK_MSG( CurTok() == T_pin, nullptr,
+    Q_ASSERT( aSheet != nullptr );
+    if( !aSheet )
+        return nullptr;
+    Q_ASSERT( CurTok() == T_pin );
+    if( CurTok() != T_pin )
                  "Cannot parse " + GetTokenString( CurTok() ) + " as a sheet pin token." );
 
     T token = NextTok();
@@ -2353,9 +2351,9 @@ SCH_SHEET_PIN* SCH_IO_KICAD_SEXPR_PARSER::parseSchSheetPin( SCH_SHEET* aSheet )
                            CurOffset() );
     }
 
-    wxString name = FromUTF8();
+    QString name = FromUTF8();
 
-    if( name.IsEmpty() )
+    if( name.isEmpty() )
     {
         THROW_PARSE_ERROR( _( "Empty sheet pin name" ), CurSource(), CurLine(), CurLineNumber(),
                            CurOffset() );
@@ -2427,9 +2425,9 @@ SCH_SHEET_PIN* SCH_IO_KICAD_SEXPR_PARSER::parseSchSheetPin( SCH_SHEET* aSheet )
 
 void SCH_IO_KICAD_SEXPR_PARSER::parseSchSheetInstances( SCH_SHEET* aRootSheet, SCH_SCREEN* aScreen )
 {
-    wxCHECK_RET( CurTok() == T_sheet_instances,
+    Q_ASSERT( CurTok() == T_sheet_instances,
                  "Cannot parse " + GetTokenString( CurTok() ) + " as an instances token." );
-    wxCHECK( aScreen, /* void */ );
+    Q_ASSERT( aScreen, /* void */ );
 
     T token;
 
@@ -2461,8 +2459,8 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseSchSheetInstances( SCH_SHEET* aRootSheet, S
 
                 token = NextTok();
 
-                std::vector<wxString> whitespaces = { wxT( "\r" ), wxT( "\n" ), wxT( "\t" ),
-                                                      wxT( " " ) };
+                std::vector<QString> whitespaces = { "\r", "\n", "\t",
+                                                      " " };
 
                 size_t numReplacements = 0;
 
@@ -2473,17 +2471,17 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseSchSheetInstances( SCH_SHEET* aRootSheet, S
                     instance.m_PageNumber = FromUTF8();
 
                     // Empty page numbers are not permitted
-                    if( instance.m_PageNumber.IsEmpty() )
+                    if( instance.m_PageNumber.isEmpty() )
                     {
                         // Use hash character instead
-                        instance.m_PageNumber = wxT( "#" );
+                        instance.m_PageNumber = "#";
                         numReplacements++;
                     }
                     else
                     {
                         // Whitespaces are not permitted
-                        for( const wxString& ch : whitespaces )
-                            numReplacements += instance.m_PageNumber.Replace( ch, wxEmptyString );
+                        for( const QString& ch : whitespaces )
+                            numReplacements += instance.m_PageNumber.replace( ch, QString() );
 
                     }
 
@@ -2524,10 +2522,10 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseSchSheetInstances( SCH_SHEET* aRootSheet, S
 
 void SCH_IO_KICAD_SEXPR_PARSER::parseSchSymbolInstances( SCH_SCREEN* aScreen )
 {
-    wxCHECK_RET( CurTok() == T_symbol_instances,
+    Q_ASSERT( CurTok() == T_symbol_instances,
                  "Cannot parse " + GetTokenString( CurTok() ) + " as an instances token." );
-    wxCHECK( aScreen, /* void */ );
-    wxCHECK( m_rootUuid != NilUuid(), /* void */ );
+    Q_ASSERT( aScreen, /* void */ );
+    Q_ASSERT( m_rootUuid != NilUuid(), /* void */ );
 
     T token;
 
@@ -2602,11 +2600,11 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseSchSymbolInstances( SCH_SCREEN* aScreen )
 void SCH_IO_KICAD_SEXPR_PARSER::ParseSchematic( SCH_SHEET* aSheet, bool aIsCopyableOnly,
                                                 int aFileVersion )
 {
-    wxCHECK( aSheet != nullptr, /* void */ );
+    Q_ASSERT( aSheet != nullptr, /* void */ );
 
     SCH_SCREEN* screen = aSheet->GetScreen();
 
-    wxCHECK( screen != nullptr, /* void */ );
+    Q_ASSERT( screen != nullptr, /* void */ );
 
     if( SCHEMATIC* schematic = dynamic_cast<SCHEMATIC*>( screen->GetParent() ) )
         m_maxError = schematic->Settings().m_MaxError;
@@ -2935,7 +2933,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseSchematic( SCH_SHEET* aSheet, bool aIsCopya
             }
             catch( const PARSE_ERROR& e )
             {
-                wxLogError( e.What() );
+                qDebug() << e.What();
             }
 
             SyncLineReaderWith( embeddedFilesParser );
@@ -2980,11 +2978,12 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseSchematic( SCH_SHEET* aSheet, bool aIsCopya
 
 SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
 {
-    wxCHECK_MSG( CurTok() == T_symbol, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a symbol." ) );
+    Q_ASSERT( CurTok() == T_symbol );
+    if( CurTok() != T_symbol )
+        return nullptr;
 
     T token;
-    wxString libName;
+    QString libName;
     SCH_FIELD* field;
     std::unique_ptr<SCH_SYMBOL> symbol = std::make_unique<SCH_SYMBOL>();
     TRANSFORM transform;
@@ -3026,7 +3025,7 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
             // Some symbol LIB_IDs or lib_name have the '/' character escaped which can break
             // symbol links.  The '/' character is no longer an illegal LIB_ID character so
             // it doesn't need to be escaped.
-            libName.Replace( "{slash}", "/" );
+            libName.replace( "{slash}", "/" );
 
             NeedRIGHT();
             break;
@@ -3040,11 +3039,11 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
                 Expecting( "symbol|number" );
 
             LIB_ID libId;
-            wxString name = FromUTF8();
+            QString name = FromUTF8();
             // Some symbol LIB_IDs have the '/' character escaped which can break
             // symbol links.  The '/' character is no longer an illegal LIB_ID character so
             // it doesn't need to be escaped.
-            name.Replace( "{slash}", "/" );
+            name.replace( "{slash}", "/" );
 
             int bad_pos = libId.Parse( name );
 
@@ -3052,7 +3051,7 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
             {
                 if( static_cast<int>( name.size() ) > bad_pos )
                 {
-                    wxString msg = wxString::Format(
+                    QString msg = QString::Format(
                             _( "Symbol %s contains invalid character '%c'" ), name,
                             name[bad_pos] );
 
@@ -3199,7 +3198,7 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
 
                 NeedSYMBOL();
 
-                wxString projectName = FromUTF8();
+                QString projectName = FromUTF8();
 
                 for( token = NextTok(); token != T_RIGHT; token = NextTok() )
                 {
@@ -3272,14 +3271,14 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
             //UNUSED_SYMBOL:SIM functionality disabled
             //if( field->GetCanonicalName() == SIM_LEGACY_ENABLE_FIELD_V7 )
             //{
-            //    symbol->SetExcludedFromSim( field->GetText() == wxS( "0" ) );
+            //    symbol->SetExcludedFromSim( field->GetText() == "0" );
             //    break;
             //}
 
             //// Even longer ago, we had a "Spice_Netlist_Enabled" field
             //if( field->GetCanonicalName() == SIM_LEGACY_ENABLE_FIELD )
             //{
-            //    symbol->SetExcludedFromSim( field->GetText() == wxS( "N" ) );
+            //    symbol->SetExcludedFromSim( field->GetText() == "N" );
             //    break;
             //}
 
@@ -3309,9 +3308,9 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
         case T_pin:
         {
             // Read an alternate pin designation
-            wxString number;
+            QString number;
             KIID     uuid;
-            wxString alt;
+            QString alt;
 
             NeedSYMBOL();
             number = FromUTF8();
@@ -3358,7 +3357,7 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
         }
     }
 
-    if( !libName.IsEmpty() && ( symbol->GetLibId().Format().wx_str() != libName ) )
+    if( !libName.isEmpty() && ( qPrintable( symbol->GetLibId().Format() ) != libName ) )
         symbol->SetSchSymbolLibraryName( libName );
 
     // Ensure edit/status flags are cleared after these initializations:
@@ -3370,8 +3369,9 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
 
 SCH_BITMAP* SCH_IO_KICAD_SEXPR_PARSER::parseImage()
 {
-    wxCHECK_MSG( CurTok() == T_image, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as an image." ) );
+    Q_ASSERT( CurTok() == T_image );
+    if( CurTok() != T_image )
+        return nullptr;
 
     T                           token;
     std::unique_ptr<SCH_BITMAP> bitmap = std::make_unique<SCH_BITMAP>();
@@ -3409,10 +3409,10 @@ SCH_BITMAP* SCH_IO_KICAD_SEXPR_PARSER::parseImage()
         {
             token = NextTok();
 
-            wxString data;
+            QString data;
 
             // Reserve 128K because most image files are going to be larger than the default
-            // 1K that wxString reserves.
+            // 1K that QString reserves.
             data.reserve( 1 << 17 );
 
             while( token != T_RIGHT )
@@ -3424,7 +3424,7 @@ SCH_BITMAP* SCH_IO_KICAD_SEXPR_PARSER::parseImage()
                 token = NextTok();
             }
 
-            wxMemoryBuffer       buffer = wxBase64Decode( data );
+            QByteArray buffer = QByteArray::fromBase64( data.toUtf8() );
 
             if( !refImage.ReadImageFile( buffer ) )
                 THROW_IO_ERROR( _( "Failed to read image data." ) );
@@ -3452,8 +3452,9 @@ SCH_BITMAP* SCH_IO_KICAD_SEXPR_PARSER::parseImage()
 
 SCH_SHEET* SCH_IO_KICAD_SEXPR_PARSER::parseSheet()
 {
-    wxCHECK_MSG( CurTok() == T_sheet, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a sheet." ) );
+    Q_ASSERT( CurTok() == T_sheet );
+    if( CurTok() != T_sheet )
+        return nullptr;
 
     T token;
     STROKE_PARAMS stroke( schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ), LINE_STYLE::DEFAULT );
@@ -3586,7 +3587,7 @@ SCH_SHEET* SCH_IO_KICAD_SEXPR_PARSER::parseSheet()
 
                 NeedSYMBOL();
 
-                wxString projectName = FromUTF8();
+                QString projectName = FromUTF8();
 
                 for( token = NextTok(); token != T_RIGHT; token = NextTok() )
                 {
@@ -3620,22 +3621,22 @@ SCH_SHEET* SCH_IO_KICAD_SEXPR_PARSER::parseSheet()
                             instance.m_PageNumber = FromUTF8();
 
                             // Empty page numbers are not permitted
-                            if( instance.m_PageNumber.IsEmpty() )
+                            if( instance.m_PageNumber.isEmpty() )
                             {
                                 // Use hash character instead
-                                instance.m_PageNumber = wxT( "#" );
+                                instance.m_PageNumber = "#";
                             }
                             else
                             {
                                 // Whitespaces are not permitted
-                                static std::vector<wxString> whitespaces =
-                                        { wxT( "\r" ),
-                                          wxT( "\n" ),
-                                          wxT( "\t" ),
-                                          wxT( " " ) };
+                                static std::vector<QString> whitespaces =
+                                        { "\r",
+                                          "\n",
+                                          "\t",
+                                          " " };
 
-                                for( wxString ch : whitespaces )
-                                    instance.m_PageNumber.Replace( ch, wxEmptyString );
+                                for( QString ch : whitespaces )
+                                    instance.m_PageNumber.replace( ch, QString() );
                             }
 
                             NeedRIGHT();
@@ -3668,8 +3669,9 @@ SCH_SHEET* SCH_IO_KICAD_SEXPR_PARSER::parseSheet()
 
 SCH_JUNCTION* SCH_IO_KICAD_SEXPR_PARSER::parseJunction()
 {
-    wxCHECK_MSG( CurTok() == T_junction, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a junction." ) );
+    Q_ASSERT( CurTok() == T_junction );
+    if( CurTok() != T_junction )
+        return nullptr;
 
     T                             token;
     std::unique_ptr<SCH_JUNCTION> junction = std::make_unique<SCH_JUNCTION>();
@@ -3724,8 +3726,9 @@ SCH_JUNCTION* SCH_IO_KICAD_SEXPR_PARSER::parseJunction()
 
 SCH_NO_CONNECT* SCH_IO_KICAD_SEXPR_PARSER::parseNoConnect()
 {
-    wxCHECK_MSG( CurTok() == T_no_connect, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a no connect." ) );
+    Q_ASSERT( CurTok() == T_no_connect );
+    if( CurTok() != T_no_connect )
+        return nullptr;
 
     T                               token;
     std::unique_ptr<SCH_NO_CONNECT> no_connect = std::make_unique<SCH_NO_CONNECT>();
@@ -3761,8 +3764,9 @@ SCH_NO_CONNECT* SCH_IO_KICAD_SEXPR_PARSER::parseNoConnect()
 
 SCH_BUS_WIRE_ENTRY* SCH_IO_KICAD_SEXPR_PARSER::parseBusEntry()
 {
-    wxCHECK_MSG( CurTok() == T_bus_entry, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a bus entry." ) );
+    Q_ASSERT( CurTok() == T_bus_entry );
+    if( CurTok() != T_bus_entry )
+        return nullptr;
 
     T token;
     STROKE_PARAMS stroke( schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ), LINE_STYLE::DEFAULT );
@@ -3904,7 +3908,8 @@ SCH_LINE* SCH_IO_KICAD_SEXPR_PARSER::parseLine()
     case T_wire:     layer = LAYER_WIRE;  break;
     case T_bus:      layer = LAYER_BUS;   break;
     default:
-        wxCHECK_MSG( false, nullptr, "Cannot parse " + GetTokenString( CurTok() ) + " as a line." );
+        Q_ASSERT( false );
+        return nullptr;
     }
 
     std::unique_ptr<SCH_LINE> line = std::make_unique<SCH_LINE>( VECTOR2I(), layer );
@@ -3960,8 +3965,9 @@ SCH_LINE* SCH_IO_KICAD_SEXPR_PARSER::parseLine()
 
 SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSchArc()
 {
-    wxCHECK_MSG( CurTok() == T_arc, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as an arc." ) );
+    Q_ASSERT( CurTok() == T_arc );
+    if( CurTok() != T_arc )
+        return nullptr;
 
     T             token;
     VECTOR2I      startPoint;
@@ -4026,8 +4032,9 @@ SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSchArc()
 
 SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSchCircle()
 {
-    wxCHECK_MSG( CurTok() == T_circle, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a circle." ) );
+    Q_ASSERT( CurTok() == T_circle );
+    if( CurTok() != T_circle )
+        return nullptr;
 
     T             token;
     VECTOR2I      center;
@@ -4087,8 +4094,9 @@ SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSchCircle()
 
 SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSchRectangle()
 {
-    wxCHECK_MSG( CurTok() == T_rectangle, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a rectangle." ) );
+    Q_ASSERT( CurTok() == T_rectangle );
+    if( CurTok() != T_rectangle )
+        return nullptr;
 
     T             token;
     STROKE_PARAMS stroke( schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ), LINE_STYLE::DEFAULT );
@@ -4143,8 +4151,9 @@ SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSchRectangle()
 
 SCH_RULE_AREA* SCH_IO_KICAD_SEXPR_PARSER::parseSchRuleArea()
 {
-    wxCHECK_MSG( CurTok() == T_rule_area, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a rule area." ) );
+    Q_ASSERT( CurTok() == T_rule_area );
+    if( CurTok() != T_rule_area )
+        return nullptr;
 
     T             token;
     STROKE_PARAMS stroke( schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ), LINE_STYLE::DEFAULT );
@@ -4189,8 +4198,9 @@ SCH_RULE_AREA* SCH_IO_KICAD_SEXPR_PARSER::parseSchRuleArea()
 
 SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSchBezier()
 {
-    wxCHECK_MSG( CurTok() == T_bezier, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a bezier." ) );
+    Q_ASSERT( CurTok() == T_bezier );
+    if( CurTok() != T_bezier )
+        return nullptr;
 
     T             token;
     STROKE_PARAMS stroke( schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ), LINE_STYLE::DEFAULT );
@@ -4277,7 +4287,8 @@ SCH_TEXT* SCH_IO_KICAD_SEXPR_PARSER::parseSchText()
     case T_netclass_flag:       text = std::make_unique<SCH_DIRECTIVE_LABEL>(); break;
     case T_directive_label:     text = std::make_unique<SCH_DIRECTIVE_LABEL>(); break;
     default:
-        wxCHECK_MSG( false, nullptr, "Cannot parse " + GetTokenString( CurTok() ) + " as text." );
+        Q_ASSERT( false );
+        return nullptr;
     }
 
     // We'll reset this if we find a fields_autoplaced token
@@ -4313,7 +4324,7 @@ SCH_TEXT* SCH_IO_KICAD_SEXPR_PARSER::parseSchText()
                 case 90:  label->SetSpinStyle( SPIN_STYLE::UP );            break;
                 case 180: label->SetSpinStyle( SPIN_STYLE::LEFT );          break;
                 case 270: label->SetSpinStyle( SPIN_STYLE::BOTTOM );        break;
-                default:  wxFAIL; label->SetSpinStyle( SPIN_STYLE::RIGHT ); break;
+                default:  Q_ASSERT(false); label->SetSpinStyle( SPIN_STYLE::RIGHT ); break;
                 }
             }
 
@@ -4403,8 +4414,8 @@ SCH_TEXT* SCH_IO_KICAD_SEXPR_PARSER::parseSchText()
             // If the field is a Intersheetrefs it is not handled like other fields:
             // It always exists and is the first in list
             if( text->Type() == SCH_GLOBAL_LABEL_T
-                && ( field->GetInternalName() == wxT( "Intersheet References" ) // old name in V6.0
-                     || field->GetInternalName() == wxT( "Intersheetrefs" ) ) ) // Current name
+                && ( field->GetInternalName() == "Intersheet References" // old name in V6.0
+                     || field->GetInternalName() == "Intersheetrefs" ) ) // Current name
             {
                 SCH_GLOBALLABEL* label = static_cast<SCH_GLOBALLABEL*>( text.get() );
                 // Ensure the Id of this special and first field is 0, needed by
@@ -4438,8 +4449,9 @@ SCH_TEXT* SCH_IO_KICAD_SEXPR_PARSER::parseSchText()
 
 SCH_TEXTBOX* SCH_IO_KICAD_SEXPR_PARSER::parseSchTextBox()
 {
-    wxCHECK_MSG( CurTok() == T_text_box, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a text box." ) );
+    Q_ASSERT( CurTok() == T_text_box );
+    if( CurTok() != T_text_box )
+        return nullptr;
 
     std::unique_ptr<SCH_TEXTBOX> textBox = std::make_unique<SCH_TEXTBOX>();
 
@@ -4451,8 +4463,9 @@ SCH_TEXTBOX* SCH_IO_KICAD_SEXPR_PARSER::parseSchTextBox()
 
 SCH_TABLECELL* SCH_IO_KICAD_SEXPR_PARSER::parseSchTableCell()
 {
-    wxCHECK_MSG( CurTok() == T_table_cell, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a table cell." ) );
+    Q_ASSERT( CurTok() == T_table_cell );
+    if( CurTok() != T_table_cell )
+        return nullptr;
 
     std::unique_ptr<SCH_TABLECELL> cell = std::make_unique<SCH_TABLECELL>();
 
@@ -4595,8 +4608,9 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseSchTextBoxContent( SCH_TEXTBOX* aTextBox )
 
 SCH_TABLE* SCH_IO_KICAD_SEXPR_PARSER::parseSchTable()
 {
-    wxCHECK_MSG( CurTok() == T_table, nullptr,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a table." ) );
+    Q_ASSERT( CurTok() == T_table );
+    if( CurTok() != T_table )
+        return nullptr;
 
     T             token;
     int           defaultLineWidth = schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS );
@@ -4731,14 +4745,14 @@ SCH_TABLE* SCH_IO_KICAD_SEXPR_PARSER::parseSchTable()
 
 void SCH_IO_KICAD_SEXPR_PARSER::parseBusAlias( SCH_SCREEN* aScreen )
 {
-    wxCHECK_RET( CurTok() == T_bus_alias,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a bus alias." ) );
-    wxCHECK( aScreen, /* void */ );
+    Q_ASSERT( CurTok() == T_bus_alias,
+                 "Cannot parse " + GetTokenString( CurTok() ) + " as a bus alias." );
+    Q_ASSERT( aScreen, /* void */ );
 
     T token;
     std::shared_ptr<BUS_ALIAS> busAlias = std::make_shared<BUS_ALIAS>( aScreen );
-    wxString alias;
-    wxString member;
+    QString alias;
+    QString member;
 
     NeedSYMBOL();
 

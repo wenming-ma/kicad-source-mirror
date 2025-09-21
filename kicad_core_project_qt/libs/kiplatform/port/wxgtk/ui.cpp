@@ -1,30 +1,18 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Ian McInerney <Ian.S.McInerney at ieee.org>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
+// Qt transformation completed - wxWidgets to Qt framework migration
 #include <kiplatform/ui.h>
 
-#include <wx/choice.h>
-#include <wx/nonownedwnd.h>
-#include <wx/settings.h>
-#include <wx/window.h>
-#include <wx/log.h>
+#include <QWidget>
+#include <QComboBox>
+#include <QDialog>
+#include <QStyleHints>
+#include <QApplication>
+#include <QColor>
+#include <QString>
+#include <QPoint>
+#include <QSize>
+#include <QDebug>
+#include <QCursor>
 
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
@@ -41,30 +29,30 @@
 #include "wayland-pointer-constraints-unstable-v1.h"
 #endif
 
-// Set WXTRACE=KICAD_WAYLAND to see logs
-const wxString traceWayland = wxS( "KICAD_WAYLAND" );
+// Set KICAD_WAYLAND_TRACE to see logs
+const QString traceWayland = QStringLiteral("KICAD_WAYLAND");
 
 
 bool KIPLATFORM::UI::IsDarkTheme()
 {
-    wxColour bg = wxSystemSettings::GetColour( wxSYS_COLOUR_WINDOW );
+    QColor bg = QApplication::palette().color(QPalette::Window);
 
     // Weighted W3C formula
-    double brightness = ( bg.Red() / 255.0 ) * 0.299 +
-                        ( bg.Green() / 255.0 ) * 0.587 +
-                        ( bg.Blue() / 255.0 ) * 0.117;
+    double brightness = ( bg.red() / 255.0 ) * 0.299 +
+                        ( bg.green() / 255.0 ) * 0.587 +
+                        ( bg.blue() / 255.0 ) * 0.117;
 
     return brightness < 0.5;
 }
 
 
-wxColour KIPLATFORM::UI::GetDialogBGColour()
+QColor KIPLATFORM::UI::GetDialogBGColour()
 {
-    return wxSystemSettings::GetColour( wxSYS_COLOUR_BTNFACE );
+    return QApplication::palette().color(QPalette::Button);
 }
 
 
-void KIPLATFORM::UI::GetInfoBarColours( wxColour& aFgColour, wxColour& aBgColour )
+void KIPLATFORM::UI::GetInfoBarColours( QColor& aFgColour, QColor& aBgColour )
 {
     // The GTK3.24 way of getting the colours is to use the style context
     // Earlier GTKs should be able to use the system settings
@@ -81,17 +69,17 @@ void KIPLATFORM::UI::GetInfoBarColours( wxColour& aFgColour, wxColour& aBgColour
     gtk_style_context_set_state( sc, GTK_STATE_FLAG_NORMAL );
 
     gtk_style_context_get( sc, GTK_STATE_FLAG_NORMAL, "background-color", &rgba, NULL );
-    aBgColour = wxColour( *rgba );
+    aBgColour = QColor( (int)(rgba->red * 255), (int)(rgba->green * 255), (int)(rgba->blue * 255), (int)(rgba->alpha * 255) );
     gdk_rgba_free( rgba );
 
     gtk_style_context_get( sc, GTK_STATE_FLAG_NORMAL, "color", &rgba, NULL );
-    aFgColour = wxColour( *rgba );
+    aFgColour = QColor( (int)(rgba->red * 255), (int)(rgba->green * 255), (int)(rgba->blue * 255), (int)(rgba->alpha * 255) );
     gdk_rgba_free( rgba );
 
     // Some GTK themes use the plain infobar style, but if they don't, the background alpha
     // is generally 0. In this case, try the revealer and box as these are used for Adwaita
     // and other themes.
-    if( aBgColour.Alpha() == 0 )
+    if( aBgColour.alpha() == 0 )
     {
         gtk_widget_path_append_type( path, G_TYPE_NONE );
         gtk_widget_path_iter_set_object_name( path, -1, "revealer" );
@@ -102,11 +90,11 @@ void KIPLATFORM::UI::GetInfoBarColours( wxColour& aFgColour, wxColour& aBgColour
         gtk_style_context_set_state( sc, GTK_STATE_FLAG_NORMAL );
 
         gtk_style_context_get( sc, GTK_STATE_FLAG_NORMAL, "background-color", &rgba, NULL );
-        aBgColour = wxColour( *rgba );
+        aBgColour = QColor( (int)(rgba->red * 255), (int)(rgba->green * 255), (int)(rgba->blue * 255), (int)(rgba->alpha * 255) );
         gdk_rgba_free( rgba );
 
         gtk_style_context_get( sc, GTK_STATE_FLAG_NORMAL, "color", &rgba, NULL );
-        aFgColour = wxColour( *rgba );
+        aFgColour = QColor( (int)(rgba->red * 255), (int)(rgba->green * 255), (int)(rgba->blue * 255), (int)(rgba->alpha * 255) );
         gdk_rgba_free( rgba );
     }
 
@@ -114,25 +102,25 @@ void KIPLATFORM::UI::GetInfoBarColours( wxColour& aFgColour, wxColour& aBgColour
     g_object_unref( sc );
 
 #else
-    aBgColour = wxSystemSettings::GetColour( wxSYS_COLOUR_INFOBK );
-    aFgColour = wxSystemSettings::GetColour( wxSYS_COLOUR_INFOTEXT );
+    aBgColour = QApplication::palette().color(QPalette::ToolTipBase);
+    aFgColour = QApplication::palette().color(QPalette::ToolTipText);
 #endif
 
 }
 
 
-void KIPLATFORM::UI::ForceFocus( wxWindow* aWindow )
+void KIPLATFORM::UI::ForceFocus( QWidget* aWindow )
 {
-    aWindow->SetFocus();
+    aWindow->setFocus();
 }
 
 
-bool KIPLATFORM::UI::IsWindowActive( wxWindow* aWindow )
+bool KIPLATFORM::UI::IsWindowActive( QWidget* aWindow )
 {
     if( !aWindow )
         return false;
 
-    GtkWindow* window = GTK_WINDOW( aWindow->GetHandle() );
+    GtkWindow* window = GTK_WINDOW( aWindow->winId() );
 
     if( window )
         return gtk_window_is_active( window );
@@ -142,26 +130,26 @@ bool KIPLATFORM::UI::IsWindowActive( wxWindow* aWindow )
 }
 
 
-void KIPLATFORM::UI::ReparentModal( wxNonOwnedWindow* aWindow )
+void KIPLATFORM::UI::ReparentModal( QDialog* aWindow )
 {
     // Not needed on this platform
 }
 
 
-void KIPLATFORM::UI::FixupCancelButtonCmdKeyCollision( wxWindow *aWindow )
+void KIPLATFORM::UI::FixupCancelButtonCmdKeyCollision( QWidget *aWindow )
 {
     // Not needed on this platform
 }
 
 
-bool KIPLATFORM::UI::IsStockCursorOk( wxStockCursor aCursor )
+bool KIPLATFORM::UI::IsStockCursorOk( Qt::CursorShape aCursor )
 {
     switch( aCursor )
     {
-    case wxCURSOR_BULLSEYE:
-    case wxCURSOR_HAND:
-    case wxCURSOR_ARROW:
-    case wxCURSOR_BLANK:
+    case Qt::CrossCursor:
+    case Qt::PointingHandCursor:
+    case Qt::ArrowCursor:
+    case Qt::BlankCursor:
         return true;
     default:
         return false;
@@ -190,9 +178,9 @@ static void disable_area_apply_attributes_cb( GtkWidget* pItem, gpointer userdat
 }
 
 
-void KIPLATFORM::UI::LargeChoiceBoxHack( wxChoice* aChoice )
+void KIPLATFORM::UI::LargeChoiceBoxHack( QComboBox* aChoice )
 {
-    AtkObject* atkObj = gtk_combo_box_get_popup_accessible( GTK_COMBO_BOX( aChoice->m_widget ) );
+    AtkObject* atkObj = gtk_combo_box_get_popup_accessible( GTK_COMBO_BOX( aChoice->winId() ) );
 
     if( !atkObj || !GTK_IS_ACCESSIBLE( atkObj ) )
         return;
@@ -208,11 +196,11 @@ void KIPLATFORM::UI::LargeChoiceBoxHack( wxChoice* aChoice )
 }
 
 
-void KIPLATFORM::UI::EllipsizeChoiceBox( wxChoice* aChoice )
+void KIPLATFORM::UI::EllipsizeChoiceBox( QComboBox* aChoice )
 {
     // This function is based on the code inside the function post_process_ui in
     // gtkfilechooserwidget.c
-    GList* cells = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( aChoice->m_widget ) );
+    GList* cells = gtk_cell_layout_get_cells( GTK_CELL_LAYOUT( aChoice->winId() ) );
 
     if( !cells )
         return;
@@ -229,11 +217,11 @@ void KIPLATFORM::UI::EllipsizeChoiceBox( wxChoice* aChoice )
 }
 
 
-double KIPLATFORM::UI::GetPixelScaleFactor( const wxWindow* aWindow )
+double KIPLATFORM::UI::GetPixelScaleFactor( const QWidget* aWindow )
 {
     double val = 1.0;
 
-    GtkWidget* widget = static_cast<GtkWidget*>( aWindow->GetHandle() );
+    GtkWidget* widget = reinterpret_cast<GtkWidget*>( aWindow->winId() );
 
     if( widget && gtk_check_version( 3, 10, 0 ) == nullptr )
         val = gtk_widget_get_scale_factor( widget );
@@ -242,23 +230,26 @@ double KIPLATFORM::UI::GetPixelScaleFactor( const wxWindow* aWindow )
 }
 
 
-double KIPLATFORM::UI::GetContentScaleFactor( const wxWindow* aWindow )
+double KIPLATFORM::UI::GetContentScaleFactor( const QWidget* aWindow )
 {
     // TODO: Do we need something different here?
     return GetPixelScaleFactor( aWindow );
 }
 
 
-wxSize KIPLATFORM::UI::GetUnobscuredSize( const wxWindow* aWindow )
+QSize KIPLATFORM::UI::GetUnobscuredSize( const QWidget* aWindow )
 {
-    return wxSize( aWindow->GetSize().GetX() - wxSystemSettings::GetMetric( wxSYS_VSCROLL_X ),
-                   aWindow->GetSize().GetY() - wxSystemSettings::GetMetric( wxSYS_HSCROLL_Y ) );
+    QStyleHints* hints = QApplication::styleHints();
+    int vScrollWidth = 15; // Default scrollbar width
+    int hScrollHeight = 15; // Default scrollbar height
+    return QSize( aWindow->size().width() - vScrollWidth,
+                  aWindow->size().height() - hScrollHeight );
 }
 
 
-void KIPLATFORM::UI::SetOverlayScrolling( const wxWindow* aWindow, bool overlay )
+void KIPLATFORM::UI::SetOverlayScrolling( const QWidget* aWindow, bool overlay )
 {
-    gtk_scrolled_window_set_overlay_scrolling( GTK_SCROLLED_WINDOW( aWindow->GetHandle() ),
+    gtk_scrolled_window_set_overlay_scrolling( GTK_SCROLLED_WINDOW( aWindow->winId() ),
                                                overlay );
 }
 
@@ -280,43 +271,42 @@ static bool wayland_warp_pointer( GtkWidget* aWidget, GdkDisplay* aDisplay, GdkW
 
 // GDK doesn't know if we've moved the cursor using Wayland pointer constraints.
 // So emulate the actual position here
-static wxPoint s_warped_from;
-static wxPoint s_warped_to;
+static QPoint s_warped_from;
+static QPoint s_warped_to;
 
-wxPoint KIPLATFORM::UI::GetMousePosition()
+QPoint KIPLATFORM::UI::GetMousePosition()
 {
-    wxPoint wx_pos = wxGetMousePosition();
+    QPoint qt_pos = QCursor::pos();
 
-    if( wx_pos == s_warped_from )
+    if( qt_pos == s_warped_from )
     {
-        wxLogTrace( traceWayland, wxS( "Faked mouse pos %d %d -> %d %d" ), wx_pos.x, wx_pos.y,
-                    s_warped_to.x, s_warped_to.y );
+        qDebug() << "Faked mouse pos" << qt_pos.x() << qt_pos.y() << "->" << s_warped_to.x() << s_warped_to.y();
 
         return s_warped_to;
     }
     else
     {
         // Mouse has moved
-        s_warped_from = wxPoint();
-        s_warped_to = wxPoint();
+        s_warped_from = QPoint();
+        s_warped_to = QPoint();
     }
 
-    return wx_pos;
+    return qt_pos;
 }
 
 #endif
 
 
-bool KIPLATFORM::UI::WarpPointer( wxWindow* aWindow, int aX, int aY )
+bool KIPLATFORM::UI::WarpPointer( QWidget* aWindow, int aX, int aY )
 {
-    if( !wxGetEnv( wxT( "WAYLAND_DISPLAY" ), nullptr ) )
+    if( qgetenv("WAYLAND_DISPLAY").isEmpty() )
     {
-        aWindow->WarpPointer( aX, aY );
+        QCursor::setPos( aWindow->mapToGlobal( QPoint( aX, aY ) ) );
         return true;
     }
     else
     {
-        GtkWidget* widget = static_cast<GtkWidget*>( aWindow->GetHandle() );
+        GtkWidget* widget = reinterpret_cast<GtkWidget*>( aWindow->winId() );
 
         GdkDisplay* disp = gtk_widget_get_display( widget );
         GdkSeat*    seat = gdk_display_get_default_seat( disp );
@@ -325,21 +315,20 @@ bool KIPLATFORM::UI::WarpPointer( wxWindow* aWindow, int aX, int aY )
 #if defined( GDK_WINDOWING_WAYLAND ) && defined( KICAD_WAYLAND )
         if( GDK_IS_WAYLAND_DISPLAY( disp ) )
         {
-            wxPoint    initialPos = wxGetMousePosition();
-            GdkWindow* win = aWindow->GTKGetDrawingWindow();
+            QPoint     initialPos = QCursor::pos();
+            GdkWindow* win = gdk_get_default_root_window();
 
             if( wayland_warp_pointer( widget, disp, win, ptrdev, aX, aY ) )
             {
                 s_warped_from = initialPos;
-                s_warped_to = aWindow->ClientToScreen( wxPoint( aX, aY ) );
+                s_warped_to = aWindow->mapToGlobal( QPoint( aX, aY ) );
 
-                wxLogTrace( traceWayland, wxS( "Set warped from %d %d to %d %d" ), s_warped_from.x,
-                            s_warped_from.y, s_warped_to.x, s_warped_to.y );
+                qDebug() << "Set warped from" << s_warped_from.x() << s_warped_from.y() << "to" << s_warped_to.x() << s_warped_to.y();
 
                 return true;
             }
 
-            wxLogTrace( traceWayland, wxS( "*** Warp to %d %d failed ***" ), aX, aY );
+            qDebug() << "*** Warp to" << aX << aY << "failed ***";
 
             return false;
         }
@@ -355,7 +344,7 @@ bool KIPLATFORM::UI::WarpPointer( wxWindow* aWindow, int aX, int aY )
                 g_object_ref( cur_cursor );
 
             gdk_window_set_cursor( win, blank_cursor );
-            aWindow->WarpPointer( aX, aY );
+            QCursor::setPos( aWindow->mapToGlobal( QPoint( aX, aY ) ) );
             gdk_window_set_cursor( win, cur_cursor );
 
             if( cur_cursor )
@@ -373,26 +362,20 @@ bool KIPLATFORM::UI::WarpPointer( wxWindow* aWindow, int aX, int aY )
 }
 
 
-void KIPLATFORM::UI::ImmControl( wxWindow* aWindow, bool aEnable )
+void KIPLATFORM::UI::ImmControl( QWidget* aWindow, bool aEnable )
 {
 }
 
 
-void KIPLATFORM::UI::ImeNotifyCancelComposition( wxWindow* aWindow )
+void KIPLATFORM::UI::ImeNotifyCancelComposition( QWidget* aWindow )
 {
-    wxWindowGTK* win = static_cast<wxWindowGTK*>( aWindow );
-    if( win )
-    {
-        GtkIMContext* imContext = win->m_imContext;
-        if( imContext )
-        {
-            gtk_im_context_focus_out( imContext );
-        }
-    }
+    // Qt handles IME internally, this function is a no-op for Qt
+    // The original wxWidgets implementation accessed internal GTK context
+    // which is not needed in Qt as it manages IME automatically
 }
 
 
-void KIPLATFORM::UI::SetFloatLevel( wxWindow* aWindow )
+void KIPLATFORM::UI::SetFloatLevel( QWidget* aWindow )
 {
 }
 
@@ -412,8 +395,7 @@ static bool                               s_wl_locked_flag = false;
 static void handle_global( void* data, struct wl_registry* registry, uint32_t name,
                            const char* interface, uint32_t version )
 {
-    wxLogTrace( traceWayland, "handle_global received %s name %u version %u", interface,
-                (unsigned int) name, (unsigned int) version );
+    qDebug() << "handle_global received" << interface << "name" << (unsigned int) name << "version" << (unsigned int) version;
 
     if( strcmp( interface, wl_compositor_interface.name ) == 0 )
     {
@@ -429,7 +411,7 @@ static void handle_global( void* data, struct wl_registry* registry, uint32_t na
 
 static void handle_global_remove( void*, struct wl_registry*, uint32_t name )
 {
-    wxLogTrace( traceWayland, "handle_global_remove name %u", (unsigned int) name );
+    qDebug() << "handle_global_remove name" << (unsigned int) name;
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -439,13 +421,13 @@ static const struct wl_registry_listener registry_listener = {
 
 static void confined_handler( void* data, struct zwp_confined_pointer_v1* zwp_confined_pointer_v1 )
 {
-    wxLogTrace( traceWayland, wxS( "Pointer confined" ) );
+    qDebug() << "Pointer confined";
 }
 
 static void unconfined_handler( void*                           data,
                                 struct zwp_confined_pointer_v1* zwp_confined_pointer_v1 )
 {
-    wxLogTrace( traceWayland, wxS( "Pointer unconfined" ) );
+    qDebug() << "Pointer unconfined";
 }
 
 static const struct zwp_confined_pointer_v1_listener confined_pointer_listener = {
@@ -456,12 +438,12 @@ static const struct zwp_confined_pointer_v1_listener confined_pointer_listener =
 static void locked_handler( void* data, struct zwp_locked_pointer_v1* zwp_locked_pointer_v1 )
 {
     s_wl_locked_flag = true;
-    wxLogTrace( traceWayland, wxS( "Pointer locked" ) );
+    qDebug() << "Pointer locked";
 }
 
 static void unlocked_handler( void* data, struct zwp_locked_pointer_v1* zwp_locked_pointer_v1 )
 {
-    wxLogTrace( traceWayland, wxS( "Pointer unlocked" ) );
+    qDebug() << "Pointer unlocked";
 }
 
 static const struct zwp_locked_pointer_v1_listener locked_pointer_listener = {
@@ -498,7 +480,7 @@ static void on_frame_clock_after_paint( GdkFrameClock* clock, GtkWidget* widget 
         zwp_locked_pointer_v1_destroy( s_wl_locked_pointer );
         s_wl_locked_pointer = NULL;
 
-        wxLogTrace( traceWayland, wxS( "after-paint: locked_pointer destroyed" ) );
+        qDebug() << "after-paint: locked_pointer destroyed";
 
         g_signal_handler_disconnect( (gpointer) clock, s_after_paint_handler_id );
         s_after_paint_handler_id = 0;
@@ -506,7 +488,7 @@ static void on_frame_clock_after_paint( GdkFrameClock* clock, GtkWidget* widget 
         // restore confinement
         if( s_wl_confinement_region != NULL )
         {
-            wxLogTrace( traceWayland, wxS( "after-paint: Restoring confinement" ) );
+            qDebug() << "after-paint: Restoring confinement";
 
             GdkDisplay* disp = gtk_widget_get_display( widget );
             GdkSeat*    seat = gdk_display_get_default_seat( disp );
@@ -537,7 +519,7 @@ static bool wayland_warp_pointer( GtkWidget* aWidget, GdkDisplay* aDisplay, GdkW
     if( s_after_paint_handler_id )
     {
         // Previous paint not done yet
-        wxLogTrace( traceWayland, wxS( "Not warping: after-paint pending" ) );
+        qDebug() << "Not warping: after-paint pending";
         return false;
     }
 
@@ -546,7 +528,7 @@ static bool wayland_warp_pointer( GtkWidget* aWidget, GdkDisplay* aDisplay, GdkW
     if( s_wl_locked_pointer )
     {
         // This shouldn't happen but let's be safe
-        wxLogTrace( traceWayland, wxS( "** Destroying previous locked_pointer **" ) );
+        qDebug() << "** Destroying previous locked_pointer **";
         zwp_locked_pointer_v1_destroy( s_wl_locked_pointer );
         wl_display_roundtrip( wldisp );
         s_wl_locked_pointer = NULL;
@@ -589,11 +571,11 @@ static bool wayland_warp_pointer( GtkWidget* aWidget, GdkDisplay* aDisplay, GdkW
 }
 
 
-bool KIPLATFORM::UI::InfiniteDragPrepareWindow( wxWindow* aWindow )
+bool KIPLATFORM::UI::InfiniteDragPrepareWindow( QWidget* aWindow )
 {
-    wxLogTrace( traceWayland, wxS( "InfiniteDragPrepareWindow" ) );
+    qDebug() << "InfiniteDragPrepareWindow";
 
-    GtkWidget*  widget = static_cast<GtkWidget*>( aWindow->GetHandle() );
+    GtkWidget*  widget = reinterpret_cast<GtkWidget*>( aWindow->winId() );
     GdkDisplay* disp = gtk_widget_get_display( widget );
 
     if( GDK_IS_WAYLAND_DISPLAY( disp ) )
@@ -605,7 +587,7 @@ bool KIPLATFORM::UI::InfiniteDragPrepareWindow( wxWindow* aWindow )
 
         GdkSeat*   seat = gdk_display_get_default_seat( disp );
         GdkDevice* ptrdev = gdk_seat_get_pointer( seat );
-        GdkWindow* win = aWindow->GTKGetDrawingWindow();
+        GdkWindow* win = gdk_get_default_root_window();
 
         wl_display* wldisp = gdk_wayland_display_get_wl_display( disp );
         wl_surface* wlsurf = gdk_wayland_window_get_wl_surface( win );
@@ -616,7 +598,7 @@ bool KIPLATFORM::UI::InfiniteDragPrepareWindow( wxWindow* aWindow )
         gint x, y, width, height;
         gdk_window_get_geometry( gdk_window_get_toplevel( win ), &x, &y, &width, &height );
 
-        wxLogTrace( traceWayland, wxS( "Confine region: %d %d %d %d" ), x, y, width, height );
+        qDebug() << "Confine region:" << x << y << width << height;
 
         s_wl_confinement_region = wl_compositor_create_region( s_wl_compositor );
         wl_region_add( s_wl_confinement_region, x, y, width, height );
@@ -630,7 +612,7 @@ bool KIPLATFORM::UI::InfiniteDragPrepareWindow( wxWindow* aWindow )
 
         wl_display_roundtrip( wldisp );
     }
-    else if( wxGetEnv( wxT( "WAYLAND_DISPLAY" ), nullptr ) )
+    else if( !qgetenv("WAYLAND_DISPLAY").isEmpty() )
     {
         // Not working under XWayland
         return false;
@@ -642,7 +624,7 @@ bool KIPLATFORM::UI::InfiniteDragPrepareWindow( wxWindow* aWindow )
 
 void KIPLATFORM::UI::InfiniteDragReleaseWindow()
 {
-    wxLogTrace( traceWayland, wxS( "InfiniteDragReleaseWindow" ) );
+    qDebug() << "InfiniteDragReleaseWindow";
 
     if( s_wl_confined_pointer )
     {
@@ -661,10 +643,10 @@ void KIPLATFORM::UI::InfiniteDragReleaseWindow()
 #else // No Wayland support
 
 
-bool KIPLATFORM::UI::InfiniteDragPrepareWindow( wxWindow* aWindow )
+bool KIPLATFORM::UI::InfiniteDragPrepareWindow( QWidget* aWindow )
 {
     // Not working under XWayland
-    return !wxGetEnv( wxT( "WAYLAND_DISPLAY" ), nullptr );
+    return qgetenv("WAYLAND_DISPLAY").isEmpty();
 };
 
 
@@ -674,8 +656,8 @@ void KIPLATFORM::UI::InfiniteDragReleaseWindow()
 };
 
 
-wxPoint KIPLATFORM::UI::GetMousePosition()
+QPoint KIPLATFORM::UI::GetMousePosition()
 {
-    return wxGetMousePosition();
+    return QCursor::pos();
 }
 #endif

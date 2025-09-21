@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef PCBPLOT_H_
 #define PCBPLOT_H_
@@ -44,7 +22,7 @@ class FOOTPRINT;
 class PCB_TARGET;
 class ZONE;
 class REPORTER;
-class wxFileName;
+class QFileInfo;
 
 namespace KIFONT
 {
@@ -156,15 +134,15 @@ private:
 
 
 PLOTTER* StartPlotBoard( BOARD* aBoard, const PCB_PLOT_PARAMS* aPlotOpts, int aLayer,
-                         const wxString& aLayerName, const wxString& aFullFileName,
-                         const wxString& aSheetName, const wxString& aSheetPath,
-                         const wxString& aPageName = wxT( "1" ),
-                         const wxString& aPageNumber = wxEmptyString,
+                         const QString& aLayerName, const QString& aFullFileName,
+                         const QString& aSheetName, const QString& aSheetPath,
+                         const QString& aPageName = "1",
+                         const QString& aPageNumber = QString(),
                          const int aPageCount = 1);
 
 void setupPlotterNewPDFPage( PLOTTER* aPlotter, BOARD* aBoard, const PCB_PLOT_PARAMS* aPlotOpts,
-                             const wxString& aLayerName, const wxString& aSheetName,
-                             const wxString& aSheetPath, const wxString& aPageNumber,
+                             const QString& aLayerName, const QString& aSheetName,
+                             const QString& aSheetPath, const QString& aPageNumber,
                              int aPageCount );
         /**
  * Plot a sequence of board layer IDs.
@@ -241,14 +219,14 @@ void PlotLayerOutlines( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
  * @param aSuffix is the suffix to add to the base filename.
  * @param aExtension is the file extension.
  */
-void BuildPlotFileName( wxFileName* aFilename, const wxString& aOutputDir, const wxString& aSuffix,
-                        const wxString& aExtension );
+void BuildPlotFileName( QFileInfo* aFilename, const QString& aOutputDir, const QString& aSuffix,
+                        const QString& aExtension );
 
 
 /**
  * @return the appropriate Gerber file extension for \a aLayer
  */
-const wxString GetGerberProtelExtension( int aLayer );
+const QString GetGerberProtelExtension( int aLayer );
 
 /**
  * Return the "file function" attribute for \a aLayer, as defined in the
@@ -260,7 +238,7 @@ const wxString GetGerberProtelExtension( int aLayer );
  * @param aLayer is the layer number to create the attribute for.
  * @return The attribute, as a text string
  */
-const wxString GetGerberFileFunctionAttribute( const BOARD* aBoard, int aLayer );
+const QString GetGerberFileFunctionAttribute( const BOARD* aBoard, int aLayer );
 
 /**
  * Calculate some X2 attributes as defined in the Gerber file format specification J4

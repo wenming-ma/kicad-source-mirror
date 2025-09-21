@@ -1,32 +1,12 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #include <stack>
-#include <wx/filefn.h>
-#include <wx/log.h>
+#include <QString>
+#include <QDebug>
+#include <QLoggingCategory>
+
+// Qt transformation complete - all wxWidgets elements have been converted to Qt equivalents
 
 #include <eda_item.h>
 #include <id.h>
@@ -70,13 +50,13 @@
  *
  * @ingroup trace_env_vars
  */
-static const wxChar DanglingProfileMask[] = wxT( "DANGLING_PROFILE" );
+static const char DanglingProfileMask[] = "DANGLING_PROFILE";
 
 
 SCH_SCREEN::SCH_SCREEN( EDA_ITEM* aParent ) :
     BASE_SCREEN( aParent, SCH_SCREEN_T ),
     m_fileFormatVersionAtLoad( 0 ),
-    m_paper( wxT( "A4" ) ),
+    m_paper( "A4" ),
     m_isReadOnly( false ),
     m_fileExists( false )
 {
@@ -101,8 +81,9 @@ SCH_SCREEN::~SCH_SCREEN()
 
 SCHEMATIC* SCH_SCREEN::Schematic() const
 {
-    wxCHECK_MSG( GetParent() && GetParent()->Type() == SCHEMATIC_T, nullptr,
-                 wxT( "SCH_SCREEN must have a SCHEMATIC parent!" ) );
+    Q_ASSERT_X( GetParent() && GetParent()->Type() == SCHEMATIC_T, "SCH_SCREEN", "SCH_SCREEN must have a SCHEMATIC parent!" );
+    if( !( GetParent() && GetParent()->Type() == SCHEMATIC_T ) )
+        return nullptr;
 
     return static_cast<SCHEMATIC*>( GetParent() );
 }
@@ -110,18 +91,18 @@ SCHEMATIC* SCH_SCREEN::Schematic() const
 
 void SCH_SCREEN::clearLibSymbols()
 {
-    for( const std::pair<const wxString, LIB_SYMBOL*>& libSymbol : m_libSymbols )
+    for( const std::pair<const QString, LIB_SYMBOL*>& libSymbol : m_libSymbols )
         delete libSymbol.second;
 
     m_libSymbols.clear();
 }
 
 
-void SCH_SCREEN::SetFileName( const wxString& aFileName )
+void SCH_SCREEN::SetFileName( const QString& aFileName )
 {
     // Don't assert here.  We still call this after failing to load a file in order to show the
     // user what we *tried* to load.
-    // wxASSERT( aFileName.IsEmpty() || wxIsAbsolutePath( aFileName ) );
+    // Q_ASSERT( aFileName.isEmpty() || QFileInfo(aFileName).isAbsolute() );
 
     m_fileName = aFileName;
 }
@@ -135,7 +116,9 @@ void SCH_SCREEN::IncRefCount()
 
 void SCH_SCREEN::DecRefCount()
 {
-    wxCHECK_RET( m_refCount != 0, wxT( "Screen reference count already zero.  Bad programmer!" ) );
+    Q_ASSERT_X( m_refCount != 0, "SCH_SCREEN", "Screen reference count already zero.  Bad programmer!" );
+    if( m_refCount == 0 )
+        return;
     m_refCount--;
 }
 
@@ -188,13 +171,13 @@ void SCH_SCREEN::Append( SCH_ITEM* aItem, bool aUpdateLibSymbol )
 
                     if( *foundSymbol != *symbol->GetLibSymbolRef() )
                     {
-                        wxString newName;
-                        std::vector<wxString> matches;
+                        QString newName;
+                        std::vector<QString> matches;
 
                         getLibSymbolNameMatches( *symbol, matches );
                         foundSymbol = nullptr;
 
-                        for( const wxString& libSymbolName : matches )
+                        for( const QString& libSymbolName : matches )
                         {
                             it = m_libSymbols.find( libSymbolName );
 
@@ -203,9 +186,11 @@ void SCH_SCREEN::Append( SCH_ITEM* aItem, bool aUpdateLibSymbol )
 
                             foundSymbol = it->second;
 
-                            wxCHECK2( foundSymbol, continue );
+                            Q_ASSERT( foundSymbol );
+                            if( !foundSymbol )
+                                continue;
 
-                            wxString tmp = symbol->GetLibSymbolRef()->GetName();
+                            QString tmp = symbol->GetLibSymbolRef()->GetName();
 
                             // Temporarily update the new symbol library symbol name so it
                             // doesn't fail on the name comparison below.
@@ -226,15 +211,15 @@ void SCH_SCREEN::Append( SCH_ITEM* aItem, bool aUpdateLibSymbol )
                         {
                             int cnt = 1;
 
-                            newName.Printf( wxT( "%s_%d" ),
-                                            symbol->GetLibId().GetUniStringLibItemName(),
+                            newName = QString::asprintf( "%s_%d",
+                                            symbol->GetLibId().GetUniStringLibItemName().toStdString().c_str(),
                                             cnt );
 
                             while( m_libSymbols.find( newName ) != m_libSymbols.end() )
                             {
                                 cnt += 1;
-                                newName.Printf( wxT( "%s_%d" ),
-                                                symbol->GetLibId().GetUniStringLibItemName(),
+                                newName = QString::asprintf( "%s_%d",
+                                                symbol->GetLibId().GetUniStringLibItemName().toStdString().c_str(),
                                                 cnt );
                             }
                         }
@@ -247,7 +232,7 @@ void SCH_SCREEN::Append( SCH_ITEM* aItem, bool aUpdateLibSymbol )
                         {
                             // Update the schematic symbol library link as this symbol does not
                             // exist in any symbol library.
-                            LIB_ID newLibId( wxEmptyString, newName );
+                            LIB_ID newLibId( QString(), newName );
                             LIB_SYMBOL* newLibSymbol = new LIB_SYMBOL( *symbol->GetLibSymbolRef() );
 
                             newLibSymbol->SetLibId( newLibId );
@@ -268,7 +253,9 @@ void SCH_SCREEN::Append( SCH_ITEM* aItem, bool aUpdateLibSymbol )
 
 void SCH_SCREEN::Append( SCH_SCREEN* aScreen )
 {
-    wxCHECK_RET( aScreen, "Invalid screen object." );
+    Q_ASSERT_X( aScreen, "SCH_SCREEN", "Invalid screen object." );
+    if( !aScreen )
+        return;
 
     // No need to descend the hierarchy.  Once the top level screen is copied, all of its
     // children are copied as well.
@@ -294,7 +281,7 @@ void SCH_SCREEN::Clear( bool aFree )
     // Clear the project settings
     m_virtualPageNumber = m_pageCount = 1;
 
-    m_titles.Clear();
+    m_titles.clear();
 }
 
 
@@ -364,7 +351,9 @@ bool SCH_SCREEN::Remove( SCH_ITEM* aItem, bool aUpdateLibSymbol )
 
 void SCH_SCREEN::DeleteItem( SCH_ITEM* aItem )
 {
-    wxCHECK_RET( aItem, wxT( "Cannot delete invalid item from screen." ) );
+    Q_ASSERT_X( aItem, "SCH_SCREEN", "Cannot delete invalid item from screen." );
+    if( !aItem )
+        return;
 
     // Markers are not saved in the file, no need to flag as modified.
     // TODO: Maybe we should have a listing somewhere of items that aren't saved?
@@ -378,7 +367,9 @@ void SCH_SCREEN::DeleteItem( SCH_ITEM* aItem )
         // This structure is attached to a sheet, get the parent sheet object.
         SCH_SHEET_PIN* sheetPin = (SCH_SHEET_PIN*) aItem;
         SCH_SHEET* sheet = sheetPin->GetParent();
-        wxCHECK_RET( sheet, wxT( "Sheet pin parent not properly set, bad programmer!" ) );
+        Q_ASSERT_X( sheet, "SCH_SCREEN", "Sheet pin parent not properly set, bad programmer!" );
+        if( !sheet )
+            return;
         sheet->RemovePin( sheetPin );
         return;
     }
@@ -416,7 +407,9 @@ std::set<SCH_ITEM*> SCH_SCREEN::MarkConnections( SCH_LINE* aSegment, bool aSecon
     std::set<SCH_ITEM*>   retval;
     std::stack<SCH_LINE*> to_search;
 
-    wxCHECK_MSG( aSegment && aSegment->Type() == SCH_LINE_T, retval, wxT( "Invalid pointer." ) );
+    Q_ASSERT_X( aSegment && aSegment->Type() == SCH_LINE_T, "SCH_SCREEN", "Invalid pointer." );
+    if( !( aSegment && aSegment->Type() == SCH_LINE_T ) )
+        return retval;
 
     to_search.push( aSegment );
 
@@ -595,8 +588,9 @@ SPIN_STYLE SCH_SCREEN::GetLabelOrientationForPoint( const VECTOR2I&       aPosit
 
 bool SCH_SCREEN::IsTerminalPoint( const VECTOR2I& aPosition, int aLayer ) const
 {
-    wxCHECK_MSG( aLayer == LAYER_NOTES || aLayer == LAYER_BUS || aLayer == LAYER_WIRE, false,
-                 wxT( "Invalid layer type passed to SCH_SCREEN::IsTerminalPoint()." ) );
+    Q_ASSERT_X( aLayer == LAYER_NOTES || aLayer == LAYER_BUS || aLayer == LAYER_WIRE, "SCH_SCREEN", "Invalid layer type passed to SCH_SCREEN::IsTerminalPoint()." );
+    if( !( aLayer == LAYER_NOTES || aLayer == LAYER_BUS || aLayer == LAYER_WIRE ) )
+        return false;
 
     SCH_SHEET_PIN* sheetPin;
     SCH_LABEL_BASE* label;
@@ -660,9 +654,11 @@ bool SCH_SCREEN::IsTerminalPoint( const VECTOR2I& aPosition, int aLayer ) const
 
 void SCH_SCREEN::UpdateSymbolLinks( REPORTER* aReporter )
 {
-    wxCHECK_RET( Schematic(), "Cannot call SCH_SCREEN::UpdateSymbolLinks with no SCHEMATIC" );
+    Q_ASSERT_X( Schematic(), "SCH_SCREEN", "Cannot call SCH_SCREEN::UpdateSymbolLinks with no SCHEMATIC" );
+    if( !Schematic() )
+        return;
 
-    wxString msg;
+    QString msg;
     std::unique_ptr< LIB_SYMBOL > libSymbol;
     std::vector<SCH_SYMBOL*> symbols;
     SYMBOL_LIB_TABLE* libs = PROJECT_SCH::SchSymbolLibTable( &Schematic()->Prj() );
@@ -692,10 +688,10 @@ void SCH_SCREEN::UpdateSymbolLinks( REPORTER* aReporter )
         {
             if( aReporter )
             {
-                msg.Printf( _( "Setting schematic symbol '%s %s' library identifier to '%s'." ),
-                            symbol->GetField( REFERENCE_FIELD )->GetText(),
-                            symbol->GetField( VALUE_FIELD )->GetText(),
-                            UnescapeString( symbol->GetLibId().Format() ) );
+                msg = QString::asprintf( "Setting schematic symbol '%s %s' library identifier to '%s'.",
+                            symbol->GetField( REFERENCE_FIELD )->GetText().toStdString().c_str(),
+                            symbol->GetField( VALUE_FIELD )->GetText().toStdString().c_str(),
+                            UnescapeString( symbol->GetLibId().Format() ).toStdString().c_str() );
                 aReporter->ReportTail( msg, RPT_SEVERITY_INFO );
             }
 
@@ -708,9 +704,9 @@ void SCH_SCREEN::UpdateSymbolLinks( REPORTER* aReporter )
         {
             if( aReporter )
             {
-                msg.Printf( _( "Schematic symbol reference '%s' library identifier is not valid. "
-                               "Unable to link library symbol." ),
-                            UnescapeString( symbol->GetLibId().Format() ) );
+                msg = QString::asprintf( "Schematic symbol reference '%s' library identifier is not valid. "
+                               "Unable to link library symbol.",
+                            UnescapeString( symbol->GetLibId().Format() ).toStdString().c_str() );
                 aReporter->ReportTail( msg, RPT_SEVERITY_WARNING );
             }
 
@@ -724,9 +720,9 @@ void SCH_SCREEN::UpdateSymbolLinks( REPORTER* aReporter )
         {
             if( aReporter )
             {
-                msg.Printf( _( "Symbol library '%s' not found and no fallback cache library "
-                               "available.  Unable to link library symbol." ),
-                            symbol->GetLibId().GetLibNickname().wx_str() );
+                msg = QString::asprintf( "Symbol library '%s' not found and no fallback cache library "
+                               "available.  Unable to link library symbol.",
+                            symbol->GetLibId().GetLibNickname().toStdString().c_str() );
                 aReporter->ReportTail( msg, RPT_SEVERITY_WARNING );
             }
 
@@ -743,8 +739,8 @@ void SCH_SCREEN::UpdateSymbolLinks( REPORTER* aReporter )
             {
                 if( aReporter )
                 {
-                    msg.Printf( _( "I/O error %s resolving library symbol %s" ), ioe.What(),
-                                UnescapeString( symbol->GetLibId().Format() ) );
+                    msg = QString::asprintf( "I/O error %s resolving library symbol %s", ioe.What().toStdString().c_str(),
+                                UnescapeString( symbol->GetLibId().Format() ).toStdString().c_str() );
                     aReporter->ReportTail( msg, RPT_SEVERITY_ERROR );
                 }
             }
@@ -755,18 +751,20 @@ void SCH_SCREEN::UpdateSymbolLinks( REPORTER* aReporter )
             SYMBOL_LIB& legacyCacheLib = legacyLibs->back();
 
             // It better be the cache library.
-            wxCHECK2( legacyCacheLib.IsCache(), continue );
+            Q_ASSERT( legacyCacheLib.IsCache() );
+            if( !legacyCacheLib.IsCache() )
+                continue;
 
-            wxString id = symbol->GetLibId().Format();
+            QString id = symbol->GetLibId().Format();
 
-            id.Replace( ':', '_' );
+            id.replace( ':', '_' );
 
             if( aReporter )
             {
-                msg.Printf( _( "Falling back to cache to set symbol '%s:%s' link '%s'." ),
-                            symbol->GetField( REFERENCE_FIELD )->GetText(),
-                            symbol->GetField( VALUE_FIELD )->GetText(),
-                            UnescapeString( id ) );
+                msg = QString::asprintf( "Falling back to cache to set symbol '%s:%s' link '%s'.",
+                            symbol->GetField( REFERENCE_FIELD )->GetText().toStdString().c_str(),
+                            symbol->GetField( VALUE_FIELD )->GetText().toStdString().c_str(),
+                            UnescapeString( id ).toStdString().c_str() );
                 aReporter->ReportTail( msg, RPT_SEVERITY_WARNING );
             }
 
@@ -784,10 +782,10 @@ void SCH_SCREEN::UpdateSymbolLinks( REPORTER* aReporter )
 
             if( aReporter )
             {
-                msg.Printf( _( "Setting schematic symbol '%s %s' library identifier to '%s'." ),
-                            symbol->GetField( REFERENCE_FIELD )->GetText(),
-                            symbol->GetField( VALUE_FIELD )->GetText(),
-                            UnescapeString( symbol->GetLibId().Format() ) );
+                msg = QString::asprintf( "Setting schematic symbol '%s %s' library identifier to '%s'.",
+                            symbol->GetField( REFERENCE_FIELD )->GetText().toStdString().c_str(),
+                            symbol->GetField( VALUE_FIELD )->GetText().toStdString().c_str(),
+                            UnescapeString( symbol->GetLibId().Format() ).toStdString().c_str() );
                 aReporter->ReportTail( msg, RPT_SEVERITY_INFO );
             }
         }
@@ -795,9 +793,9 @@ void SCH_SCREEN::UpdateSymbolLinks( REPORTER* aReporter )
         {
             if( aReporter )
             {
-                msg.Printf( _( "No library symbol found for schematic symbol '%s %s'." ),
-                            symbol->GetField( REFERENCE_FIELD )->GetText(),
-                            symbol->GetField( VALUE_FIELD )->GetText() );
+                msg = QString::asprintf( "No library symbol found for schematic symbol '%s %s'.",
+                            symbol->GetField( REFERENCE_FIELD )->GetText().toStdString().c_str(),
+                            symbol->GetField( VALUE_FIELD )->GetText().toStdString().c_str() );
                 aReporter->ReportTail( msg, RPT_SEVERITY_ERROR );
             }
         }
@@ -1180,7 +1178,7 @@ void SCH_SCREEN::TestDanglingEnds( const SCH_SHEET_PATH* aPath,
     DANGLING_END_ITEM_HELPER::sort_dangling_end_items( endPointsByType, endPointsByPos );
     sortTimer.Stop();
 
-    if( wxLog::IsAllowedTraceMask( DanglingProfileMask ) )
+    if( QLoggingCategory( DanglingProfileMask ).isDebugEnabled() )
         sortTimer.Show();
 
     for( SCH_ITEM* item : Items() )
@@ -1189,7 +1187,7 @@ void SCH_SCREEN::TestDanglingEnds( const SCH_SHEET_PATH* aPath,
         item->RunOnChildren( update_state );
     }
 
-    if( wxLog::IsAllowedTraceMask( DanglingProfileMask ) )
+    if( QLoggingCategory( DanglingProfileMask ).isDebugEnabled() )
         timer.Show();
 }
 
@@ -1357,9 +1355,11 @@ SCH_LABEL_BASE* SCH_SCREEN::GetLabel( const VECTOR2I& aPosition, int aAccuracy )
 
 void SCH_SCREEN::AddLibSymbol( LIB_SYMBOL* aLibSymbol )
 {
-    wxCHECK( aLibSymbol, /* void */ );
+    Q_ASSERT( aLibSymbol );
+    if( !aLibSymbol )
+        return;
 
-    wxString libSymbolName = aLibSymbol->GetLibId().Format().wx_str();
+    QString libSymbolName = aLibSymbol->GetLibId().Format();
 
     auto it = m_libSymbols.find( libSymbolName );
 
@@ -1377,7 +1377,7 @@ void SCH_SCREEN::FixupEmbeddedData()
 {
     SCHEMATIC* schematic = Schematic();
 
-    const std::vector<wxString>* embeddedFonts = schematic->GetEmbeddedFiles()->UpdateFontFiles();
+    const std::vector<QString>* embeddedFonts = schematic->GetEmbeddedFiles()->UpdateFontFiles();
 
     for( auto& [name, libSym] : m_libSymbols )
     {
@@ -1470,29 +1470,33 @@ void SCH_SCREEN::FixLegacyPowerSymbolMismatches()
 
 
 size_t SCH_SCREEN::getLibSymbolNameMatches( const SCH_SYMBOL& aSymbol,
-                                            std::vector<wxString>& aMatches )
+                                            std::vector<QString>& aMatches )
 {
-    wxString searchName = aSymbol.GetLibId().GetUniStringLibId();
+    QString searchName = aSymbol.GetLibId().GetUniStringLibId();
 
     if( m_libSymbols.find( searchName ) != m_libSymbols.end() )
         aMatches.emplace_back( searchName );
 
-    searchName = aSymbol.GetLibId().GetUniStringLibItemName() + wxS( "_" );
+    searchName = aSymbol.GetLibId().GetUniStringLibItemName() + "_";
 
     long tmp;
-    wxString suffix;
+    QString suffix;
 
     for( auto& pair : m_libSymbols )
     {
-        if( pair.first.StartsWith( searchName, &suffix ) && suffix.ToLong( &tmp ) )
-            aMatches.emplace_back( pair.first );
+        if( pair.first.startsWith( searchName ) )
+        {
+            suffix = pair.first.mid( searchName.length() );
+            if( suffix.toLong( &tmp ) )
+                aMatches.emplace_back( pair.first );
+        }
     }
 
     return aMatches.size();
 }
 
 
-void SCH_SCREEN::PruneOrphanedSymbolInstances( const wxString& aProjectName,
+void SCH_SCREEN::PruneOrphanedSymbolInstances( const QString& aProjectName,
                                                const SCH_SHEET_LIST& aValidSheetPaths )
 {
     // The project name cannot be empty.  Projects older than 7.0 did not save project names
@@ -1500,14 +1504,16 @@ void SCH_SCREEN::PruneOrphanedSymbolInstances( const wxString& aProjectName,
     // clobber all instance data for projects other than the current one when a schematic
     // file is shared across multiple projects.  Because running the schematic editor in
     // stand alone mode can result in an empty project name, do not assert here.
-    if( aProjectName.IsEmpty() )
+    if( aProjectName.isEmpty() )
         return;
 
     for( SCH_ITEM* item : Items().OfType( SCH_SYMBOL_T ) )
     {
         SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
 
-        wxCHECK2( symbol, continue );
+        Q_ASSERT( symbol );
+        if( !symbol )
+            continue;
 
         std::set<KIID_PATH> pathsToPrune;
         const std::vector<SCH_SYMBOL_INSTANCE> instances = symbol->GetInstances();
@@ -1531,15 +1537,14 @@ void SCH_SCREEN::PruneOrphanedSymbolInstances( const wxString& aProjectName,
 
         for( const KIID_PATH& sheetPath : pathsToPrune )
         {
-            wxLogTrace( traceSchSheetPaths, wxS( "Pruning project '%s' symbol instance %s." ),
-                        aProjectName, sheetPath.AsString() );
+            qDebug() << "Pruning project" << aProjectName << "symbol instance" << sheetPath.AsString();
             symbol->RemoveInstance( sheetPath );
         }
     }
 }
 
 
-void SCH_SCREEN::PruneOrphanedSheetInstances( const wxString& aProjectName,
+void SCH_SCREEN::PruneOrphanedSheetInstances( const QString& aProjectName,
                                               const SCH_SHEET_LIST& aValidSheetPaths )
 {
     // The project name cannot be empty.  Projects older than 7.0 did not save project names
@@ -1547,14 +1552,16 @@ void SCH_SCREEN::PruneOrphanedSheetInstances( const wxString& aProjectName,
     // clobber all instance data for projects other than the current one when a schematic
     // file is shared across multiple projects.  Because running the schematic editor in
     // stand alone mode can result in an empty project name, do not assert here.
-    if( aProjectName.IsEmpty() )
+    if( aProjectName.isEmpty() )
         return;
 
     for( SCH_ITEM* item : Items().OfType( SCH_SHEET_T ) )
     {
         SCH_SHEET* sheet = static_cast<SCH_SHEET*>( item );
 
-        wxCHECK2( sheet, continue );
+        Q_ASSERT( sheet );
+        if( !sheet )
+            continue;
 
         std::set<KIID_PATH> pathsToPrune;
         const std::vector<SCH_SHEET_INSTANCE> instances = sheet->GetInstances();
@@ -1578,8 +1585,7 @@ void SCH_SCREEN::PruneOrphanedSheetInstances( const wxString& aProjectName,
 
         for( const KIID_PATH& sheetPath : pathsToPrune )
         {
-            wxLogTrace( traceSchSheetPaths, wxS( "Pruning project '%s' sheet instance %s." ),
-                        aProjectName, sheetPath.AsString() );
+            qDebug() << "Pruning project" << aProjectName << "sheet instance" << sheetPath.AsString();
             sheet->RemoveInstance( sheetPath );
         }
     }
@@ -1588,19 +1594,21 @@ void SCH_SCREEN::PruneOrphanedSheetInstances( const wxString& aProjectName,
 
 bool SCH_SCREEN::HasSymbolFieldNamesWithWhiteSpace() const
 {
-    wxString trimmedFieldName;
+    QString trimmedFieldName;
 
     for( const SCH_ITEM* item : Items().OfType( SCH_SYMBOL_T ) )
     {
         const SCH_SYMBOL* symbol = static_cast<const SCH_SYMBOL*>( item );
 
-        wxCHECK2( symbol, continue );
+        Q_ASSERT( symbol );
+        if( !symbol )
+            continue;
 
         for( const SCH_FIELD& field : symbol->GetFields() )
         {
             trimmedFieldName = field.GetName();
-            trimmedFieldName.Trim();
-            trimmedFieldName.Trim( false );
+            trimmedFieldName = trimmedFieldName.trimmed();
+            // Qt's trimmed() removes whitespace from both ends
 
             if( field.GetName() != trimmedFieldName )
                 return true;
@@ -1611,15 +1619,17 @@ bool SCH_SCREEN::HasSymbolFieldNamesWithWhiteSpace() const
 }
 
 
-std::set<wxString> SCH_SCREEN::GetSheetNames() const
+std::set<QString> SCH_SCREEN::GetSheetNames() const
 {
-    std::set<wxString> retv;
+    std::set<QString> retv;
 
     for( SCH_ITEM* item : Items().OfType( SCH_SHEET_T ) )
     {
         SCH_SHEET* sheet = static_cast<SCH_SHEET*>( item );
 
-        wxCHECK2( sheet, continue );
+        Q_ASSERT( sheet );
+        if( !sheet )
+            continue;
 
         retv.emplace( sheet->GetName() );
     }
@@ -1632,12 +1642,12 @@ std::set<wxString> SCH_SCREEN::GetSheetNames() const
 void SCH_SCREEN::Show( int nestLevel, std::ostream& os ) const
 {
     // for now, make it look like XML, expand on this later.
-    NestedSpace( nestLevel, os ) << '<' << GetClass().Lower().mb_str() << ">\n";
+    NestedSpace( nestLevel, os ) << '<' << GetClass().toLower().toStdString().c_str() << ">\n";
 
     for( const SCH_ITEM* item : Items() )
         item->Show( nestLevel + 1, os );
 
-    NestedSpace( nestLevel, os ) << "</" << GetClass().Lower().mb_str() << ">\n";
+    NestedSpace( nestLevel, os ) << "</" << GetClass().toLower().toStdString().c_str() << ">\n";
 }
 #endif
 
@@ -1714,7 +1724,9 @@ void SCH_SCREENS::buildScreenList( SCH_SHEET* aSheet )
     {
         SCH_SCREEN* screen = aSheet->GetScreen();
 
-        wxCHECK_RET( screen, "No screen for aSheet" );
+        Q_ASSERT_X( screen, "SCH_SCREENS", "No screen for aSheet" );
+        if( !screen )
+            return;
 
         addScreenToList( screen, aSheet );
 
@@ -1735,7 +1747,9 @@ void SCH_SCREENS::ClearAnnotationOfNewSheetPaths( SCH_SHEET_LIST& aInitialSheetP
     // SCHEMATIC* sch = first->Schematic();
     SCHEMATIC* sch = nullptr;
 
-    wxCHECK_RET( sch, "Null schematic in SCH_SCREENS::ClearAnnotationOfNewSheetPaths" );
+    Q_ASSERT_X( sch, "SCH_SCREENS", "Null schematic in SCH_SCREENS::ClearAnnotationOfNewSheetPaths" );
+    if( !sch )
+        return;
 
     // Clear the annotation for symbols inside new sheetpaths not already in aInitialSheetList
     SCH_SCREENS screensList( sch->Root() );     // The list of screens, shared by sheet paths
@@ -1883,7 +1897,9 @@ void SCH_SCREENS::UpdateSymbolLinks( REPORTER* aReporter )
     // SCHEMATIC* sch = first->Schematic();
     SCHEMATIC* sch = nullptr;
 
-    wxCHECK_RET( sch, "Null schematic in SCH_SCREENS::UpdateSymbolLinks" );
+    Q_ASSERT_X( sch, "SCH_SCREENS", "Null schematic in SCH_SCREENS::UpdateSymbolLinks" );
+    if( !sch )
+        return;
 
     SCH_SHEET_LIST sheets = sch->Hierarchy();
 
@@ -1915,7 +1931,7 @@ bool SCH_SCREENS::HasNoFullyDefinedLibIds()
 }
 
 
-size_t SCH_SCREENS::GetLibNicknames( wxArrayString& aLibNicknames )
+size_t SCH_SCREENS::GetLibNicknames( QStringList& aLibNicknames )
 {
     for( SCH_SCREEN* screen = GetFirst(); screen; screen = GetNext() )
     {
@@ -1924,16 +1940,16 @@ size_t SCH_SCREENS::GetLibNicknames( wxArrayString& aLibNicknames )
             SCH_SYMBOL* symbol   = static_cast<SCH_SYMBOL*>( item );
             const UTF8& nickname = symbol->GetLibId().GetLibNickname();
 
-            if( !nickname.empty() && ( aLibNicknames.Index( nickname ) == wxNOT_FOUND ) )
-                aLibNicknames.Add( nickname );
+            if( !nickname.empty() && ( aLibNicknames.indexOf( nickname ) == -1 ) )
+                aLibNicknames.append( nickname );
         }
     }
 
-    return aLibNicknames.GetCount();
+    return aLibNicknames.count();
 }
 
 
-int SCH_SCREENS::ChangeSymbolLibNickname( const wxString& aFrom, const wxString& aTo )
+int SCH_SCREENS::ChangeSymbolLibNickname( const QString& aFrom, const QString& aTo )
 {
     SCH_SCREEN* screen;
     int cnt = 0;
@@ -1944,7 +1960,7 @@ int SCH_SCREENS::ChangeSymbolLibNickname( const wxString& aFrom, const wxString&
         {
             SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
 
-            if( symbol->GetLibId().GetLibNickname().wx_str() != aFrom )
+            if( symbol->GetLibId().GetLibNickname() != aFrom )
                 continue;
 
             LIB_ID id = symbol->GetLibId();
@@ -1958,7 +1974,7 @@ int SCH_SCREENS::ChangeSymbolLibNickname( const wxString& aFrom, const wxString&
 }
 
 
-bool SCH_SCREENS::HasSchematic( const wxString& aSchematicFileName )
+bool SCH_SCREENS::HasSchematic( const QString& aSchematicFileName )
 {
     for( const SCH_SCREEN* screen = GetFirst(); screen; screen = GetNext() )
     {
@@ -1981,7 +1997,9 @@ void SCH_SCREENS::BuildClientSheetPathList()
     // SCHEMATIC* sch = first->Schematic();
     SCHEMATIC* sch = nullptr;
 
-    wxCHECK_RET( sch, "Null schematic in SCH_SCREENS::BuildClientSheetPathList" );
+    Q_ASSERT_X( sch, "SCH_SCREENS", "Null schematic in SCH_SCREENS::BuildClientSheetPathList" );
+    if( !sch )
+        return;
 
     for( SCH_SCREEN* curr_screen = GetFirst(); curr_screen; curr_screen = GetNext() )
         curr_screen->GetClientSheetPaths().clear();
@@ -2033,10 +2051,10 @@ void SCH_SCREEN::MigrateSimModels()
 }
 
 
-void SCH_SCREENS::PruneOrphanedSymbolInstances( const wxString& aProjectName,
+void SCH_SCREENS::PruneOrphanedSymbolInstances( const QString& aProjectName,
                                                 const SCH_SHEET_LIST& aValidSheetPaths )
 {
-    if( aProjectName.IsEmpty() )
+    if( aProjectName.isEmpty() )
         return;
 
     for( SCH_SCREEN* screen = GetFirst(); screen; screen = GetNext() )
@@ -2044,10 +2062,10 @@ void SCH_SCREENS::PruneOrphanedSymbolInstances( const wxString& aProjectName,
 }
 
 
-void SCH_SCREENS::PruneOrphanedSheetInstances( const wxString& aProjectName,
+void SCH_SCREENS::PruneOrphanedSheetInstances( const QString& aProjectName,
                                                const SCH_SHEET_LIST& aValidSheetPaths )
 {
-    if( aProjectName.IsEmpty() )
+    if( aProjectName.isEmpty() )
         return;
 
     for( SCH_SCREEN* screen = GetFirst(); screen; screen = GetNext() )

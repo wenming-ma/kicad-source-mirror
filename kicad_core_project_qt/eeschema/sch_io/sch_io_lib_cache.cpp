@@ -1,31 +1,14 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Wayne Stambaugh <stambaughw@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include "sch_io_lib_cache.h"
 
 #include <lib_symbol.h>
-#include <wx_filename.h>
+#include <QString>
+#include <QFileInfo>
+#include <QDateTime>
+#include <QtGlobal>
 
 
-SCH_IO_LIB_CACHE::SCH_IO_LIB_CACHE( const wxString& aFullPathAndFileName ) :
+SCH_IO_LIB_CACHE::SCH_IO_LIB_CACHE( const QString& aFullPathAndFileName ) :
     m_modHash( 1 ),
     m_fileName( aFullPathAndFileName ),
     m_libFileName( aFullPathAndFileName ),
@@ -48,33 +31,34 @@ SCH_IO_LIB_CACHE::~SCH_IO_LIB_CACHE()
 
 void SCH_IO_LIB_CACHE::Save( const std::optional<bool>& aOpt )
 {
-    wxCHECK( false, /* void */ );
+    Q_ASSERT( false );
 }
 
 
-wxFileName SCH_IO_LIB_CACHE::GetRealFile() const
+QFileInfo SCH_IO_LIB_CACHE::GetRealFile() const
 {
-    wxFileName fn( m_libFileName );
+    QFileInfo fn( m_libFileName );
 
     // If m_libFileName is a symlink follow it to the real source file
-    WX_FILENAME::ResolvePossibleSymlinks( fn );
+    if( fn.isSymLink() )
+        fn = QFileInfo( fn.symLinkTarget() );
     return fn;
 }
 
 
-wxDateTime SCH_IO_LIB_CACHE::GetLibModificationTime()
+QDateTime SCH_IO_LIB_CACHE::GetLibModificationTime()
 {
-    wxFileName fn = GetRealFile();
+    QFileInfo fn = GetRealFile();
 
-    // update the writable flag while we have a wxFileName, in a network this
+    // update the writable flag while we have a QFileInfo, in a network this
     // is possibly quite dynamic anyway.
-    m_isWritable = fn.IsFileWritable();
+    m_isWritable = fn.isWritable();
 
-    return fn.GetModificationTime();
+    return fn.lastModified();
 }
 
 
-bool SCH_IO_LIB_CACHE::IsFile( const wxString& aFullPathAndFileName ) const
+bool SCH_IO_LIB_CACHE::IsFile( const QString& aFullPathAndFileName ) const
 {
     return m_fileName == aFullPathAndFileName;
 }
@@ -82,10 +66,10 @@ bool SCH_IO_LIB_CACHE::IsFile( const wxString& aFullPathAndFileName ) const
 
 bool SCH_IO_LIB_CACHE::IsFileChanged() const
 {
-    wxFileName fn = GetRealFile();
+    QFileInfo fn = GetRealFile();
 
-    if( m_fileModTime.IsValid() && fn.IsOk() && fn.FileExists() )
-        return fn.GetModificationTime() != m_fileModTime;
+    if( m_fileModTime.isValid() && fn.exists() && fn.isFile() )
+        return fn.lastModified() != m_fileModTime;
 
     return false;
 }
@@ -93,7 +77,8 @@ bool SCH_IO_LIB_CACHE::IsFileChanged() const
 
 LIB_SYMBOL* SCH_IO_LIB_CACHE::removeSymbol( LIB_SYMBOL* aSymbol )
 {
-    wxCHECK_MSG( aSymbol != nullptr, nullptr, "NULL pointer cannot be removed from library." );
+    if( aSymbol == nullptr )
+        return nullptr;
 
     LIB_SYMBOL* firstChild = nullptr;
     LIB_SYMBOL_MAP::iterator it = m_symbols.find( aSymbol->GetName() );
@@ -103,15 +88,14 @@ LIB_SYMBOL* SCH_IO_LIB_CACHE::removeSymbol( LIB_SYMBOL* aSymbol )
 
     // If the entry pointer doesn't match the name it is mapped to in the library, we
     // have done something terribly wrong.
-    wxCHECK_MSG( &*it->second == aSymbol, nullptr,
-                 "Pointer mismatch while attempting to remove alias entry <" + aSymbol->GetName() +
-                 "> from library cache <" + m_libFileName.GetName() + ">." );
+    if( &*it->second != aSymbol )
+        return nullptr;
 
     // If the symbol is a root symbol used by other symbols find the first alias that uses
     // the root symbol and make it the new root.
     if( aSymbol->IsRoot() )
     {
-        for( const std::pair<const wxString, LIB_SYMBOL*>& entry : m_symbols )
+        for( const std::pair<const QString, LIB_SYMBOL*>& entry : m_symbols )
         {
             if( entry.second->IsAlias()
               && entry.second->GetParent().lock() == aSymbol->SharedPtr() )
@@ -139,7 +123,7 @@ LIB_SYMBOL* SCH_IO_LIB_CACHE::removeSymbol( LIB_SYMBOL* aSymbol )
             }
 
             // Reparent the remaining aliases.
-            for( const std::pair<const wxString, LIB_SYMBOL*>& entry : m_symbols )
+            for( const std::pair<const QString, LIB_SYMBOL*>& entry : m_symbols )
             {
                 if( entry.second->IsAlias()
                       && entry.second->GetParent().lock() == aSymbol->SharedPtr() )
@@ -161,7 +145,7 @@ LIB_SYMBOL* SCH_IO_LIB_CACHE::removeSymbol( LIB_SYMBOL* aSymbol )
 void SCH_IO_LIB_CACHE::AddSymbol( const LIB_SYMBOL* aSymbol )
 {
     // aSymbol is cloned in SYMBOL_LIB::AddSymbol().  The cache takes ownership of aSymbol.
-    wxString name = aSymbol->GetName();
+    QString name = aSymbol->GetName();
     LIB_SYMBOL_MAP::iterator it = m_symbols.find( name );
 
     if( it != m_symbols.end() )
@@ -175,7 +159,7 @@ void SCH_IO_LIB_CACHE::AddSymbol( const LIB_SYMBOL* aSymbol )
 }
 
 
-LIB_SYMBOL* SCH_IO_LIB_CACHE::GetSymbol( const wxString& aName )
+LIB_SYMBOL* SCH_IO_LIB_CACHE::GetSymbol( const QString& aName )
 {
     LIB_SYMBOL_MAP::iterator it = m_symbols.find( aName );
 

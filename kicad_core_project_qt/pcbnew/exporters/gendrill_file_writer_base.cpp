@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jean_Pierre Charras <jp.charras at wanadoo.fr>
- * Copyright (C) 2015 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <board.h>
 #include <footprint.h>
@@ -30,6 +6,10 @@
 #include <collectors.h>
 #include <reporter.h>
 #include <richio.h>
+#include <QtCore/QString>
+#include <QtCore/QFileInfo>
+#include <QtCore/QDir>
+#include <QtCore/QDebug>
 
 #include <gendrill_file_writer_base.h>
 
@@ -72,7 +52,7 @@ void GENDRILL_WRITER_BASE::buildHolesList( DRILL_LAYER_PAIR aLayerPair,
     m_holeListBuffer.clear();
     m_toolListBuffer.clear();
 
-    wxASSERT( aLayerPair.first < aLayerPair.second );  // fix the caller
+    Q_ASSERT( aLayerPair.first < aLayerPair.second );  // fix the caller
 
     // build hole list for vias
     if( ! aGenerateNPTH_list )  // vias are always plated !
@@ -210,7 +190,7 @@ void GENDRILL_WRITER_BASE::buildHolesList( DRILL_LAYER_PAIR aLayerPair,
 
 std::vector<DRILL_LAYER_PAIR> GENDRILL_WRITER_BASE::getUniqueLayerPairs() const
 {
-    wxASSERT( m_pcb );
+    Q_ASSERT( m_pcb );
 
     PCB_TYPE_COLLECTOR  vias;
 
@@ -271,42 +251,40 @@ const std::string GENDRILL_WRITER_BASE::layerPairName( DRILL_LAYER_PAIR aPair ) 
 }
 
 
-const wxString GENDRILL_WRITER_BASE::getDrillFileName( DRILL_LAYER_PAIR aPair, bool aNPTH,
+const QString GENDRILL_WRITER_BASE::getDrillFileName( DRILL_LAYER_PAIR aPair, bool aNPTH,
                                                        bool aMerge_PTH_NPTH ) const
 {
-    wxASSERT( m_pcb );
+    Q_ASSERT( m_pcb );
 
-    wxString    extend;
+    QString extend;
 
     if( aNPTH )
-        extend = wxT( "-NPTH" );
+        extend = "-NPTH";
     else if( aPair == DRILL_LAYER_PAIR( F_Cu, B_Cu ) )
     {
         if( !aMerge_PTH_NPTH )
-            extend = wxT( "-PTH" );
+            extend = "-PTH";
         // if merged, extend with nothing
     }
     else
     {
         extend += '-';
-        extend += layerPairName( aPair );
+        extend += QString::fromStdString( layerPairName( aPair ) );
     }
 
-    wxFileName  fn = m_pcb->GetFileName();
+    QFileInfo fn( QString::fromStdString( m_pcb->GetFileName() ) );
 
-    fn.SetName( fn.GetName() + extend );
-    fn.SetExt( m_drillFileExtension );
-
-    wxString ret = fn.GetFullName();
+    QString baseName = fn.baseName() + extend;
+    QString ret = baseName + "." + QString::fromStdString( m_drillFileExtension );
 
     return ret;
 }
 
-bool GENDRILL_WRITER_BASE::CreateMapFilesSet( const wxString& aPlotDirectory,
+bool GENDRILL_WRITER_BASE::CreateMapFilesSet( const QString& aPlotDirectory,
                                               REPORTER * aReporter )
 {
-    wxFileName  fn;
-    wxString    msg;
+    QFileInfo fn;
+    QString msg;
 
     std::vector<DRILL_LAYER_PAIR> hole_sets = getUniqueLayerPairs();
 
@@ -329,12 +307,12 @@ bool GENDRILL_WRITER_BASE::CreateMapFilesSet( const wxString& aPlotDirectory,
         // is created (do not create any PTH drill file can be seen as not working drill generator).
         if( getHolesCount() > 0 || doing_npth || pair == DRILL_LAYER_PAIR( F_Cu, B_Cu ) )
         {
-            fn = GENDRILL_WRITER_BASE::getDrillFileName( pair, doing_npth, m_merge_PTH_NPTH );
-            fn.SetPath( aPlotDirectory );
+            QString drillFileName = getDrillFileName( pair, doing_npth, m_merge_PTH_NPTH );
+            QFileInfo fileInfo( drillFileName );
+            QString baseName = fileInfo.baseName();
 
-            fn.SetExt( wxEmptyString ); // Will be added by GenDrillMap
-            wxString fullfilename = fn.GetFullPath() + wxT( "-drl_map" );
-            fullfilename << wxT(".") << GetDefaultPlotExtension( m_mapFileFmt );
+            QString fullfilename = QDir( aPlotDirectory ).filePath( baseName + "-drl_map" );
+            fullfilename += "." + QString::fromStdString( GetDefaultPlotExtension( m_mapFileFmt ) );
 
             bool success = genDrillMapFile( fullfilename, m_mapFileFmt );
 
@@ -342,7 +320,7 @@ bool GENDRILL_WRITER_BASE::CreateMapFilesSet( const wxString& aPlotDirectory,
             {
                 if( aReporter )
                 {
-                    msg.Printf( _( "Failed to create file '%s'." ), fullfilename );
+                    msg = QString( "Failed to create file '%1'." ).arg( fullfilename );
                     aReporter->Report( msg, RPT_SEVERITY_ERROR );
                 }
 
@@ -352,7 +330,7 @@ bool GENDRILL_WRITER_BASE::CreateMapFilesSet( const wxString& aPlotDirectory,
             {
                 if( aReporter )
                 {
-                    msg.Printf( _( "Created file '%s'." ), fullfilename );
+                    msg = QString( "Created file '%1'." ).arg( fullfilename );
                     aReporter->Report( msg, RPT_SEVERITY_ACTION );
                 }
             }
@@ -363,27 +341,27 @@ bool GENDRILL_WRITER_BASE::CreateMapFilesSet( const wxString& aPlotDirectory,
 }
 
 
-const wxString GENDRILL_WRITER_BASE::BuildFileFunctionAttributeString(
+const QString GENDRILL_WRITER_BASE::BuildFileFunctionAttributeString(
                         DRILL_LAYER_PAIR aLayerPair, TYPE_FILE aHoleType,
                         bool aCompatNCdrill ) const
 {
-// Build a wxString containing the .FileFunction attribute for drill files.
+// Build a QString containing the .FileFunction attribute for drill files.
 // %TF.FileFunction,Plated[NonPlated],layer1num,layer2num,PTH[NPTH][Blind][Buried],Drill[Route][Mixed]*%
-    wxString text;
+    QString text;
 
     if( aCompatNCdrill )
-        text = wxT( "; #@! " );
+        text = "; #@! ";
     else
-        text = wxT( "%" );
+        text = "%";
 
-    text << wxT( "TF.FileFunction," );
+    text += "TF.FileFunction,";
 
     if( aHoleType == NPTH_FILE )
-        text << wxT( "NonPlated," );
+        text += "NonPlated,";
     else if( aHoleType == MIXED_FILE )  // only for Excellon format
-        text << wxT( "MixedPlating," );
+        text += "MixedPlating,";
     else
-        text << wxT( "Plated," );
+        text += "Plated,";
 
     int layer1 = aLayerPair.first;
     int layer2 = aLayerPair.second;
@@ -403,24 +381,24 @@ const wxString GENDRILL_WRITER_BASE::BuildFileFunctionAttributeString(
     else
         layer2 = ( ( layer2 - B_Cu ) / 2) + 1;
 
-    text << layer1 << wxT( "," ) << layer2;
+    text += QString::number( layer1 ) + "," + QString::number( layer2 );
 
     // Now add PTH or NPTH or Blind or Buried attribute
     int toplayer = 1;
     int bottomlayer = m_pcb->GetCopperLayerCount();
 
     if( aHoleType == NPTH_FILE )
-        text << wxT( ",NPTH" );
+        text += ",NPTH";
     else if( aHoleType == MIXED_FILE )      // only for Excellon format
     {
         // write nothing
     }
     else if( layer1 == toplayer && layer2 == bottomlayer )
-        text << wxT( ",PTH" );
+        text += ",PTH";
     else if( layer1 == toplayer || layer2 == bottomlayer )
-        text << wxT( ",Blind" );
+        text += ",Blind";
     else
-        text << wxT( ",Buried" );
+        text += ",Buried";
 
     // In NC drill file, these previous parameters should be enough:
     if( aCompatNCdrill )
@@ -445,16 +423,16 @@ const wxString GENDRILL_WRITER_BASE::BuildFileFunctionAttributeString(
     }
 
     if( hasOblong && hasDrill )
-        text << wxT( ",Mixed" );
+        text += ",Mixed";
     else if( hasDrill )
-        text << wxT( ",Drill" );
+        text += ",Drill";
     else if( hasOblong )
-        text << wxT( ",Rout" );
+        text += ",Rout";
 
     // else: empty file.
 
     // End of .FileFunction attribute:
-    text << wxT( "*%" );
+    text += "*%";
 
     return text;
 }

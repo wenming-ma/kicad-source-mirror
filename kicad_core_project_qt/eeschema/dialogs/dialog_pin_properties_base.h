@@ -1,107 +1,95 @@
-///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
-// http://www.wxformbuilder.org/
-//
-// PLEASE DO *NOT* EDIT THIS FILE!
-///////////////////////////////////////////////////////////////////////////
+// Pin Properties Dialog Base Class
+// Transformed from wxWidgets to Qt framework
 
 #pragma once
 
-#include <wx/artprov.h>
-#include <wx/xrc/xmlres.h>
-#include <wx/intl.h>
+#include <QDialog>
+#include <QWidget>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QGridLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QCheckBox>
+#include <QPushButton>
+#include <QSizePolicy>
+#include <QGroupBox>
+#include <QCollapsibleGroupBox>
+#include <QTableWidget>
+#include <QDialogButtonBox>
+#include <QPaintEvent>
+#include <QResizeEvent>
+#include <QEvent>
+#include <QString>
 class PinShapeComboBox;
 class PinTypeComboBox;
 class STD_BITMAP_BUTTON;
-class WX_GRID;
-class WX_INFOBAR;
-class wxBitmapComboBox;
+class QTableWidget;
+class QLabel;
 
 #include "dialog_shim.h"
-#include <wx/infobar.h>
-#include <wx/gdicmn.h>
-#include <wx/font.h>
-#include <wx/colour.h>
-#include <wx/settings.h>
-#include <wx/string.h>
-#include <wx/stattext.h>
-#include <wx/textctrl.h>
-#include <wx/combobox.h>
-#include <wx/gbsizer.h>
-#include <wx/sizer.h>
-#include <wx/checkbox.h>
-#include <wx/panel.h>
-#include <wx/grid.h>
-#include <wx/bmpbuttn.h>
-#include <wx/bitmap.h>
-#include <wx/image.h>
-#include <wx/icon.h>
-#include <wx/button.h>
-#include <wx/collpane.h>
-#include <wx/dialog.h>
 
-///////////////////////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////////////////////////
-/// Class DIALOG_PIN_PROPERTIES_BASE
-///////////////////////////////////////////////////////////////////////////////
+// Pin Properties Dialog Base Class
 class DIALOG_PIN_PROPERTIES_BASE : public DIALOG_SHIM
 {
-	private:
+	Q_OBJECT
 
-	protected:
-		WX_INFOBAR* m_infoBar;
-		wxStaticText* m_pinNameLabel;
-		wxTextCtrl* m_textPinName;
-		wxStaticText* m_pinNumberLabel;
-		wxTextCtrl* m_textPinNumber;
-		wxStaticText* m_posXLabel;
-		wxTextCtrl* m_posXCtrl;
-		wxStaticText* m_posYLabel;
-		wxTextCtrl* m_posYCtrl;
-		wxStaticText* m_pinLengthLabel;
-		wxTextCtrl* m_pinLengthCtrl;
-		wxStaticText* m_nameSizeLabel;
-		wxTextCtrl* m_nameSizeCtrl;
-		wxStaticText* m_numberSizeLabel;
-		wxTextCtrl* m_numberSizeCtrl;
-		wxStaticText* m_staticTextEType;
+private:
+
+protected:
+		QLabel* m_infoBar;
+		QLabel* m_pinNameLabel;
+		QLineEdit* m_textPinName;
+		QLabel* m_pinNumberLabel;
+		QLineEdit* m_textPinNumber;
+		QLabel* m_posXLabel;
+		QLineEdit* m_posXCtrl;
+		QLabel* m_posYLabel;
+		QLineEdit* m_posYCtrl;
+		QLabel* m_pinLengthLabel;
+		QLineEdit* m_pinLengthCtrl;
+		QLabel* m_nameSizeLabel;
+		QLineEdit* m_nameSizeCtrl;
+		QLabel* m_numberSizeLabel;
+		QLineEdit* m_numberSizeCtrl;
+		QLabel* m_staticTextEType;
 		PinTypeComboBox* m_choiceElectricalType;
-		wxStaticText* m_staticTextGstyle;
+		QLabel* m_staticTextGstyle;
 		PinShapeComboBox* m_choiceStyle;
-		wxStaticText* m_staticTextOrient;
-		wxBitmapComboBox* m_choiceOrientation;
-		wxStaticText* m_posXUnits;
-		wxStaticText* m_posYUnits;
-		wxStaticText* m_pinLengthUnits;
-		wxStaticText* m_nameSizeUnits;
-		wxStaticText* m_numberSizeUnits;
-		wxCheckBox* m_checkApplyToAllParts;
-		wxCheckBox* m_checkApplyToAllBodyStyles;
-		wxCheckBox* m_checkShow;
-		wxStaticText* m_staticText16;
-		wxPanel* m_panelShowPin;
-		wxCollapsiblePane* m_alternatesTurndown;
-		WX_GRID* m_alternatesGrid;
+		QLabel* m_staticTextOrient;
+		QComboBox* m_choiceOrientation;
+		QLabel* m_posXUnits;
+		QLabel* m_posYUnits;
+		QLabel* m_pinLengthUnits;
+		QLabel* m_nameSizeUnits;
+		QLabel* m_numberSizeUnits;
+		QCheckBox* m_checkApplyToAllParts;
+		QCheckBox* m_checkApplyToAllBodyStyles;
+		QCheckBox* m_checkShow;
+		QLabel* m_staticText16;
+		QWidget* m_panelShowPin;
+		QGroupBox* m_alternatesTurndown;
+		QTableWidget* m_alternatesGrid;
 		STD_BITMAP_BUTTON* m_addAlternate;
 		STD_BITMAP_BUTTON* m_deleteAlternate;
-		wxStdDialogButtonSizer* m_sdbSizerButtons;
-		wxButton* m_sdbSizerButtonsOK;
-		wxButton* m_sdbSizerButtonsCancel;
+		QDialogButtonBox* m_sdbSizerButtons;
+		QPushButton* m_sdbSizerButtonsOK;
+		QPushButton* m_sdbSizerButtonsCancel;
 
 		// Virtual event handlers, override them in your derived class
-		virtual void OnSize( wxSizeEvent& event ) { event.Skip(); }
-		virtual void OnUpdateUI( wxUpdateUIEvent& event ) { event.Skip(); }
-		virtual void OnPropertiesChange( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnPaintShowPanel( wxPaintEvent& event ) { event.Skip(); }
-		virtual void OnCollapsiblePaneChange( wxCollapsiblePaneEvent& event ) { event.Skip(); }
-		virtual void OnAddAlternate( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnDeleteAlternate( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnSize( QResizeEvent* event ) { event->accept(); }
+		virtual void OnUpdateUI( QEvent* event ) { event->accept(); }
+		virtual void OnPropertiesChange() { }
+		virtual void OnPaintShowPanel( QPaintEvent* event ) { event->accept(); }
+		virtual void OnCollapsiblePaneChange() { }
+		virtual void OnAddAlternate() { }
+		virtual void OnDeleteAlternate() { }
 
 
-	public:
+public:
 
-		DIALOG_PIN_PROPERTIES_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Pin Properties"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+		DIALOG_PIN_PROPERTIES_BASE( QWidget* parent = nullptr, const QString& title = "Pin Properties" );
 
 		~DIALOG_PIN_PROPERTIES_BASE();
 

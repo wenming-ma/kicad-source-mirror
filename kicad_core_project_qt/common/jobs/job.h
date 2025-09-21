@@ -1,28 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2022 Mark Roszko <mark.roszko@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #pragma once
 
 #include <kicommon.h>
 #include <map>
-#include <wx/string.h>
+#include <QString>
 #include <settings/json_settings.h>
 #include <lseq.h>
 #include <lset.h>
@@ -136,7 +117,7 @@ public:
                 {
                     if( layer.is_string() )
                     {
-                        wxString name = layer.get<wxString>();
+                        QString name = layer.get<QString>();
                         int      layerId = LSET::NameToLayer( name );
                         if( layerId != UNDEFINED_LAYER )
                             layers.push_back( static_cast<PCB_LAYER_ID>( layerId ) );
@@ -170,9 +151,9 @@ struct KICOMMON_API JOB_OUTPUT
 {
     JOB_OUTPUT(){};
 
-    JOB_OUTPUT( wxString outputPath ) { m_outputPath = outputPath; }
+    JOB_OUTPUT( QString outputPath ) { m_outputPath = outputPath; }
 
-    wxString m_outputPath;
+    QString m_outputPath;
 };
 
 /**
@@ -192,9 +173,9 @@ public:
 
     const std::string& GetType() const { return m_type; };
 
-    const std::map<wxString, wxString>& GetVarOverrides() const { return m_varOverrides; }
+    const std::map<QString, QString>& GetVarOverrides() const { return m_varOverrides; }
 
-    void SetVarOverrides( const std::map<wxString, wxString>& aVarOverrides )
+    void SetVarOverrides( const std::map<QString, QString>& aVarOverrides )
     {
         m_varOverrides = aVarOverrides;
     }
@@ -204,42 +185,42 @@ public:
     virtual void FromJson( const nlohmann::json& j );
     virtual void ToJson( nlohmann::json& j ) const;
 
-    virtual wxString GetDefaultDescription() const;
-    virtual wxString GetSettingsDialogTitle() const;
+    virtual QString GetDefaultDescription() const;
+    virtual QString GetSettingsDialogTitle() const;
 
     const std::vector<JOB_PARAM_BASE*>& GetParams() { return m_params; }
 
     void ClearExistingOutputs()                 { m_outputs.clear(); }
     const std::vector<JOB_OUTPUT>& GetOutputs() { return m_outputs; }
-    void AddOutput( wxString aOutputPath )      { m_outputs.emplace_back( aOutputPath ); }
+    void AddOutput( QString aOutputPath )      { m_outputs.emplace_back( aOutputPath ); }
 
     /**
      * Sets the temporary output directory for the job, this is used to prefix with a given
      * output path when GetFullOutputPath is called. This is intended for use with running jobsets
      * and otherwise has no impact on individual job runs outside jobsets.
      */
-    void SetTempOutputDirectory( const wxString& aBase );
+    void SetTempOutputDirectory( const QString& aBase );
 
     /**
      * Sets the configured output path for the job, this path is always saved to file
      */
-    void SetConfiguredOutputPath( const wxString& aPath );
+    void SetConfiguredOutputPath( const QString& aPath );
 
     /**
      * Returns the configured output path for the job
      */
-    wxString GetConfiguredOutputPath() const { return m_outputPath; }
+    QString GetConfiguredOutputPath() const { return m_outputPath; }
 
     /**
      * Sets a transient output path for the job, it takes priority over the configured output path
      * when GetFullOutputPath is called.
      */
-    void     SetWorkingOutputPath( const wxString& aPath ) { m_workingOutputPath = aPath; }
+    void     SetWorkingOutputPath( const QString& aPath ) { m_workingOutputPath = aPath; }
 
     /**
      * Returns the working output path for the job, if one has been set
      */
-    wxString GetWorkingOutputPath() const { return m_workingOutputPath; }
+    QString GetWorkingOutputPath() const { return m_workingOutputPath; }
 
     /**
      * Returns the full output path for the job, taking into account the configured output path,
@@ -247,21 +228,21 @@ public:
      *
      * Additionally variable resolution will take place
      */
-    wxString GetFullOutputPath( PROJECT* aProject ) const;
+    QString GetFullOutputPath( PROJECT* aProject ) const;
 
     bool GetOutputPathIsDirectory() const { return m_outputPathIsDirectory; }
 
 protected:
     std::string                  m_type;
-    std::map<wxString, wxString> m_varOverrides;
+    std::map<QString, QString> m_varOverrides;
     TITLE_BLOCK                  m_titleBlock;
 
-    wxString m_tempOutputDirectory;
+    QString m_tempOutputDirectory;
 
-    wxString m_outputPath;
+    QString m_outputPath;
     bool     m_outputPathIsDirectory;
-    wxString m_description;
-    wxString m_workingOutputPath;
+    QString m_description;
+    QString m_workingOutputPath;
 
     std::vector<JOB_PARAM_BASE*> m_params;
 

@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2006 Jean-Pierre Charras, jaen-pierre.charras@gipsa-lab.inpg.com
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "font/kicad_font_name.h"
 #include <pgm_base.h>
@@ -50,7 +27,7 @@
 #define BITMAP_FONT_SIZE_THRESHOLD 3
 
 
-wxString SCH_ITEM::GetUnitDescription( int aUnit )
+QString SCH_ITEM::GetUnitDescription( int aUnit )
 {
     if( aUnit == 0 )
         return _( "All" );
@@ -59,7 +36,7 @@ wxString SCH_ITEM::GetUnitDescription( int aUnit )
 }
 
 
-wxString SCH_ITEM::GetBodyStyleDescription( int aBodyStyle )
+QString SCH_ITEM::GetBodyStyleDescription( int aBodyStyle )
 {
     if( aBodyStyle == 0 )
         return _( "All" );
@@ -68,7 +45,7 @@ wxString SCH_ITEM::GetBodyStyleDescription( int aBodyStyle )
     else if( aBodyStyle == BODY_STYLE::BASE )
         return _( "Standard" );
     else
-        return wxT( "?" );
+        return "?";
 }
 
 
@@ -269,7 +246,7 @@ void SCH_ITEM::SetConnectionGraph( CONNECTION_GRAPH* aGraph )
 
 std::shared_ptr<NETCLASS> SCH_ITEM::GetEffectiveNetClass( const SCH_SHEET_PATH* aSheet ) const
 {
-    static std::shared_ptr<NETCLASS> nullNetclass = std::make_shared<NETCLASS>( wxEmptyString );
+    static std::shared_ptr<NETCLASS> nullNetclass = std::make_shared<NETCLASS>( QString() );
 
     SCHEMATIC* schematic = Schematic();
 
@@ -359,9 +336,9 @@ SCH_CONNECTION* SCH_ITEM::GetOrInitConnection( const SCH_SHEET_PATH& aSheet,
 }
 
 
-const wxString& SCH_ITEM::GetCachedDriverName() const
+const QString& SCH_ITEM::GetCachedDriverName() const
 {
-    static wxString s_empty;
+    static QString s_empty;
     return s_empty;
 }
 
@@ -476,9 +453,9 @@ int SCH_ITEM::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
 }
 
 
-const wxString& SCH_ITEM::GetDefaultFont( const RENDER_SETTINGS* aSettings ) const
+const QString& SCH_ITEM::GetDefaultFont( const RENDER_SETTINGS* aSettings ) const
 {
-    static wxString defaultName = KICAD_FONT_NAME;
+    static QString defaultName = KICAD_FONT_NAME;
 
     SETTINGS_MANAGER&  mgr = Pgm().GetSettingsManager();
 
@@ -538,7 +515,7 @@ bool SCH_ITEM::RenderAsBitmap( double aWorldScale ) const
 void SCH_ITEM::getSymbolEditorMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
                                             std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString msg;
+    QString msg;
 
     aList.emplace_back( _( "Type" ), GetFriendlyName() );
 
@@ -552,7 +529,7 @@ void SCH_ITEM::getSymbolEditorMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
     }
 
     if( IsPrivate() )
-        aList.emplace_back( _( "Private" ), wxEmptyString );
+        aList.emplace_back( _( "Private" ), QString() );
 }
 
 
@@ -610,7 +587,7 @@ static struct SCH_ITEM_DESC
     }
 } _SCH_ITEM_DESC;
 
-IMPLEMENT_ENUM_TO_WXANY( SCH_LAYER_ID )
+Q_DECLARE_METATYPE( SCH_LAYER_ID )
 
 
 static bool lessYX( const DANGLING_END_ITEM& a, const DANGLING_END_ITEM& b )

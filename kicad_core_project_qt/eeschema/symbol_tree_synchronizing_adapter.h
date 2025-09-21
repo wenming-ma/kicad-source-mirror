@@ -29,6 +29,12 @@
 
 #include <lib_tree_model_adapter.h>
 #include <map>
+#include <QString>
+#include <QModelIndex>
+#include <QVariant>
+#include <QTextCharFormat>
+#include <QWidget>
+#include <memory>
 
 class SYMBOL_EDIT_FRAME;
 class SYMBOL_LIBRARY_MANAGER;
@@ -36,33 +42,33 @@ class SYMBOL_LIBRARY_MANAGER;
 class SYMBOL_TREE_SYNCHRONIZING_ADAPTER : public LIB_TREE_MODEL_ADAPTER
 {
 public:
-    static wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER> Create( SYMBOL_EDIT_FRAME* aParent,
+    static std::shared_ptr<LIB_TREE_MODEL_ADAPTER> Create( SYMBOL_EDIT_FRAME* aParent,
                                                            SYMBOL_LIBRARY_MANAGER* aLibs );
 
-    bool IsContainer( const wxDataViewItem& aItem ) const override;
+    bool IsContainer( const QModelIndex& aItem ) const override;
 
-    void Sync( const wxString& aForceRefresh,
-               std::function<void( int, int, const wxString&)> aProgressCallback );
+    void Sync( const QString& aForceRefresh,
+               std::function<void( int, int, const QString&)> aProgressCallback );
 
     int GetLibrariesCount() const override;
 
     TOOL_INTERACTIVE* GetContextMenuTool() override;
 
-    wxDataViewItem GetCurrentDataViewItem() override;
+    QModelIndex GetCurrentDataViewItem() override;
 
-    bool HasPreview( const wxDataViewItem& aItem ) override;
-    void ShowPreview( wxWindow* aParent, const wxDataViewItem& aItem ) override;
-    void ShutdownPreview( wxWindow* aParent ) override;
+    bool HasPreview( const QModelIndex& aItem ) override;
+    void ShowPreview( QWidget* aParent, const QModelIndex& aItem ) override;
+    void ShutdownPreview( QWidget* aParent ) override;
 
 protected:
     void updateLibrary( LIB_TREE_NODE_LIBRARY& aLibNode );
 
     LIB_TREE_NODE::PTR_VECTOR::iterator deleteLibrary( LIB_TREE_NODE::PTR_VECTOR::iterator& aLibNodeIt );
 
-    void GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
+    void GetValue( QVariant& aVariant, QModelIndex const& aItem,
                    unsigned int aCol ) const override;
-    bool GetAttr( wxDataViewItem const& aItem, unsigned int aCol,
-                  wxDataViewItemAttr& aAttr ) const override;
+    bool GetAttr( QModelIndex const& aItem, unsigned int aCol,
+                  QTextCharFormat& aAttr ) const override;
 
     SYMBOL_TREE_SYNCHRONIZING_ADAPTER( SYMBOL_EDIT_FRAME* aParent,
                                        SYMBOL_LIBRARY_MANAGER* aLibMgr );
@@ -74,7 +80,7 @@ protected:
     SYMBOL_LIBRARY_MANAGER* m_libMgr;
 
     /// Hashes to decide whether a library needs an update.
-    std::map<wxString, int> m_libHashes;
+    std::map<QString, int> m_libHashes;
 
     /// #SYMBOL_LIBRARY_MANAGER hash value returned in the last synchronization.
     int                     m_lastSyncHash;

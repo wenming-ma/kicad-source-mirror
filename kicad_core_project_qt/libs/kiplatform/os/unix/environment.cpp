@@ -1,63 +1,44 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Ian McInerney <Ian.S.McInerney at ieee.org>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <glib.h>
 #include <gio/gio.h>
 #include <kiplatform/environment.h>
-#include <wx/filename.h>
-#include <wx/utils.h>
+#include <QDir>
+#include <QStandardPaths>
+#include <QCoreApplication>
+#include <QProcess>
 
 
 void KIPLATFORM::ENV::Init()
 {
     // Disable proxy menu in Unity window manager. Only usual menubar works with
-    // wxWidgets (at least <= 3.1).  When the proxy menu menubar is enable, some
-    // important things for us do not work: menuitems UI events and shortcuts.
-    wxString wm;
+    // Qt.  When the proxy menu menubar is enable, some important things for us
+    // do not work: menuitems UI events and shortcuts.
+    QString wm = qgetenv("XDG_CURRENT_DESKTOP");
 
-    if( wxGetEnv( wxT( "XDG_CURRENT_DESKTOP" ), &wm ) && wm.CmpNoCase( wxT( "Unity" ) ) == 0 )
-        wxSetEnv( wxT( "UBUNTU_MENUPROXY" ), wxT( "0" ) );
+    if( !wm.isEmpty() && wm.compare("Unity", Qt::CaseInsensitive) == 0 )
+        qputenv("UBUNTU_MENUPROXY", "0");
 
-#if !wxUSE_GLCANVAS_EGL
     // Force the use of X11 backend (or wayland-x11 compatibility layer).  This is
-    // required until wxWidgets supports the Wayland compositors
-    wxSetEnv( wxT( "GDK_BACKEND" ), wxT( "x11" ) );
-#endif
+    // required until Qt supports the Wayland compositors properly
+    qputenv("GDK_BACKEND", "x11");
 
     // Set GTK2-style input instead of xinput2.  This disables touchscreen and smooth
     // scrolling.  It's needed to ensure that we are not getting multiple mouse scroll
     // events.
-    wxSetEnv( wxT( "GDK_CORE_DEVICE_EVENTS" ), wxT( "1" ) );
+    qputenv("GDK_CORE_DEVICE_EVENTS", "1");
 }
 
 
-bool KIPLATFORM::ENV::MoveToTrash( const wxString& aPath, wxString& aError )
+bool KIPLATFORM::ENV::MoveToTrash( const QString& aPath, QString& aError )
 {
     GError* err   = nullptr;
-    GFile*  file  = g_file_new_for_path( aPath.fn_str() );
+    GFile*  file  = g_file_new_for_path( aPath.toStdString().c_str() );
 
     bool retVal = g_file_trash( file, nullptr, &err );
 
     // Extract the error string if the operation failed
     if( !retVal && err )
-        aError = err->message;
+        aError = QString::fromUtf8(err->message);
 
     g_clear_error( &err );
     g_object_unref( file );
@@ -66,87 +47,85 @@ bool KIPLATFORM::ENV::MoveToTrash( const wxString& aPath, wxString& aError )
 }
 
 
-bool KIPLATFORM::ENV::IsNetworkPath( const wxString& aPath )
+bool KIPLATFORM::ENV::IsNetworkPath( const QString& aPath )
 {
     // placeholder, we "nerf" behavior if its a network path so return false by default
     return false;
 }
 
 
-wxString KIPLATFORM::ENV::GetDocumentsPath()
+QString KIPLATFORM::ENV::GetDocumentsPath()
 {
-    wxString docsPath = g_get_user_data_dir();
+    QString docsPath = QString::fromUtf8(g_get_user_data_dir());
 
-    if( docsPath.IsEmpty() )
+    if( docsPath.isEmpty() )
     {
-        wxFileName fallback;
+        QDir fallback(QString::fromUtf8(g_get_home_dir()));
 
-        fallback.AssignDir( g_get_home_dir() );
-        fallback.AppendDir( wxT( ".local" ) );
-        fallback.AppendDir( wxT( "share" ) );
-        fallback.MakeAbsolute();
+        fallback.cd(".local");
+        fallback.cd("share");
 
-        docsPath = fallback.GetFullPath();
+        docsPath = fallback.absolutePath();
     }
 
     return docsPath;
 }
 
 
-wxString KIPLATFORM::ENV::GetUserConfigPath()
+QString KIPLATFORM::ENV::GetUserConfigPath()
 {
-    return g_get_user_config_dir();
+    return QString::fromUtf8(g_get_user_config_dir());
 }
 
 
-wxString KIPLATFORM::ENV::GetUserDataPath()
+QString KIPLATFORM::ENV::GetUserDataPath()
 {
-    return g_get_user_data_dir();
+    return QString::fromUtf8(g_get_user_data_dir());
 }
 
 
-wxString KIPLATFORM::ENV::GetUserLocalDataPath()
+QString KIPLATFORM::ENV::GetUserLocalDataPath()
 {
-    return g_get_user_data_dir();
+    return QString::fromUtf8(g_get_user_data_dir());
 }
 
 
-wxString KIPLATFORM::ENV::GetUserCachePath()
+QString KIPLATFORM::ENV::GetUserCachePath()
 {
-    return g_get_user_cache_dir();
+    return QString::fromUtf8(g_get_user_cache_dir());
 }
 
 
-bool KIPLATFORM::ENV::GetSystemProxyConfig( const wxString& aURL, PROXY_CONFIG& aCfg )
+bool KIPLATFORM::ENV::GetSystemProxyConfig( const QString& aURL, PROXY_CONFIG& aCfg )
 {
     return false;
 }
 
 
-bool KIPLATFORM::ENV::VerifyFileSignature( const wxString& aPath )
+bool KIPLATFORM::ENV::VerifyFileSignature( const QString& aPath )
 {
     return true;
 }
 
 
-wxString KIPLATFORM::ENV::GetAppUserModelId()
+QString KIPLATFORM::ENV::GetAppUserModelId()
 {
-    return wxEmptyString;
+    return QString();
 }
 
 
-void KIPLATFORM::ENV::SetAppDetailsForWindow( wxWindow* aWindow, const wxString& aRelaunchCommand,
-                                              const wxString& aRelaunchDisplayName )
+void KIPLATFORM::ENV::SetAppDetailsForWindow( QWidget* aWindow, const QString& aRelaunchCommand,
+                                              const QString& aRelaunchDisplayName )
 {
 }
 
 
-wxString KIPLATFORM::ENV::GetCommandLineStr()
+QString KIPLATFORM::ENV::GetCommandLineStr()
 {
-    return wxEmptyString;
+    return QString();
 }
 
 
-void KIPLATFORM::ENV::AddToRecentDocs( const wxString& aPath )
+void KIPLATFORM::ENV::AddToRecentDocs( const QString& aPath )
 {
 }

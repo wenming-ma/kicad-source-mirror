@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2010-2012 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright (C) 2012 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 
 #include <kiface_base.h>
@@ -38,8 +14,12 @@
 #include <fp_lib_table.h>
 #include <footprint.h>
 
-#include <wx/dir.h>
-#include <wx/hash.h>
+#include <QDir>
+#include <QHash>
+#include <QFileInfo>
+#include <QStringList>
+#include <QFile>
+#include <QDirIterator>
 #include <locale_io.h>
 
 #define OPT_SEP     '|'         ///< options separator character
@@ -53,7 +33,7 @@ bool FP_LIB_TABLE_ROW::operator==( const FP_LIB_TABLE_ROW& aRow ) const
 }
 
 
-void FP_LIB_TABLE_ROW::SetType( const wxString& aType )
+void FP_LIB_TABLE_ROW::SetType( const QString& aType )
 {
     type = PCB_IO_MGR::EnumFromStr( aType );
 
@@ -84,7 +64,7 @@ FP_LIB_TABLE::FP_LIB_TABLE( FP_LIB_TABLE* aFallBackTable ) :
 void FP_LIB_TABLE::Parse( LIB_TABLE_LEXER* in )
 {
     T        tok;
-    wxString errMsg;    // to collect error messages
+    QString errMsg;    // to collect error messages
 
     // This table may be nested within a larger s-expression, or not.
     // Allow for parser of that optional containing s-expression to have looked ahead.
@@ -220,7 +200,7 @@ void FP_LIB_TABLE::Parse( LIB_TABLE_LEXER* in )
         // All nickNames within this table fragment must be unique, so we do not use doReplace
         // in doInsertRow().  (However a fallBack table can have a conflicting nickName and ours
         // will supersede that one since in FindLib() we search this table before any fall back.)
-        wxString       nickname = row->GetNickName();   // store it to be able to used it
+        QString       nickname = row->GetNickName();   // store it to be able to used it
                                                         // after row deletion if an error occurs
         bool           doReplace = false;
         LIB_TABLE_ROW* tmp = row.release();
@@ -229,19 +209,19 @@ void FP_LIB_TABLE::Parse( LIB_TABLE_LEXER* in )
         {
             delete tmp;     // The table did not take ownership of the row.
 
-            wxString msg = wxString::Format( _( "Duplicate library nickname '%s' found in "
+            QString msg = QString::asprintf( _( "Duplicate library nickname '%s' found in "
                                                 "footprint library table file line %d." ),
-                                             nickname,
+                                             nickname.toStdString().c_str(),
                                              lineNum );
 
-            if( !errMsg.IsEmpty() )
-                errMsg << '\n';
+            if( !errMsg.isEmpty() )
+                errMsg += "\n";
 
-            errMsg << msg;
+            errMsg += msg;
         }
     }
 
-    if( !errMsg.IsEmpty() )
+    if( !errMsg.isEmpty() )
         THROW_IO_ERROR( errMsg );
 }
 
@@ -275,7 +255,7 @@ void FP_LIB_TABLE::Format( OUTPUTFORMATTER* aOutput, int aIndentLevel ) const
 }
 
 
-long long FP_LIB_TABLE::GenerateTimestamp( const wxString* aNickname )
+long long FP_LIB_TABLE::GenerateTimestamp( const QString* aNickname )
 {
     long long hash = 0;
 
@@ -283,13 +263,14 @@ long long FP_LIB_TABLE::GenerateTimestamp( const wxString* aNickname )
     {
         const FP_LIB_TABLE_ROW* row = FindRow( *aNickname, true );
 
-        wxCHECK( row && row->plugin, hash );
+        Q_ASSERT( row && row->plugin );
+        if( !row || !row->plugin ) return hash;
 
         return row->plugin->GetLibraryTimestamp( row->GetFullURI( true ) ) +
-                wxHashTable::MakeKey( *aNickname );
+                qHash( *aNickname );
     }
 
-    for( const wxString& nickname : GetLogicalLibs() )
+    for( const QString& nickname : GetLogicalLibs() )
     {
         const FP_LIB_TABLE_ROW* row = nullptr;
 
@@ -302,21 +283,22 @@ long long FP_LIB_TABLE::GenerateTimestamp( const wxString* aNickname )
             // Do nothing if not found: just skip.
         }
 
-        wxCHECK2( row && row->plugin, continue );
+        Q_ASSERT( row && row->plugin );
+        if( !row || !row->plugin ) continue;
 
         hash += row->plugin->GetLibraryTimestamp( row->GetFullURI( true ) ) +
-                wxHashTable::MakeKey( nickname );
+                qHash( nickname );
     }
 
     return hash;
 }
 
 
-void FP_LIB_TABLE::FootprintEnumerate( wxArrayString& aFootprintNames, const wxString& aNickname,
+void FP_LIB_TABLE::FootprintEnumerate( QStringList& aFootprintNames, const QString& aNickname,
                                        bool aBestEfforts, const LOCALE_IO* aLocale )
 {
     const FP_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
 
     if( !aLocale )
     {
@@ -333,7 +315,7 @@ void FP_LIB_TABLE::FootprintEnumerate( wxArrayString& aFootprintNames, const wxS
 }
 
 
-const FP_LIB_TABLE_ROW* FP_LIB_TABLE::FindRow( const wxString& aNickname, bool aCheckIfEnabled )
+const FP_LIB_TABLE_ROW* FP_LIB_TABLE::FindRow( const QString& aNickname, bool aCheckIfEnabled )
 {
     FP_LIB_TABLE_ROW* row = static_cast<FP_LIB_TABLE_ROW*>( findRow( aNickname, aCheckIfEnabled ) );
 
@@ -341,7 +323,7 @@ const FP_LIB_TABLE_ROW* FP_LIB_TABLE::FindRow( const wxString& aNickname, bool a
     {
         // We don't generally show this string to the user (who is unlikely to know what
         // "fp-lib-table" means), and translating it may produce Sentry KICAD-YP.
-        wxString msg = wxString::Format( wxS( "'%s' not found in fp-lib-table." ), aNickname );
+        QString msg = QString::asprintf( "'%s' not found in fp-lib-table.", aNickname.toStdString().c_str() );
         THROW_IO_ERROR( msg );
     }
 
@@ -354,8 +336,8 @@ const FP_LIB_TABLE_ROW* FP_LIB_TABLE::FindRow( const wxString& aNickname, bool a
 }
 
 
-static void setLibNickname( FOOTPRINT* aModule, const wxString& aNickname,
-                            const wxString& aFootprintName )
+static void setLibNickname( FOOTPRINT* aModule, const QString& aNickname,
+                            const QString& aFootprintName )
 {
     // The library cannot know its own name, because it might have been renamed or moved.
     // Therefore footprints cannot know their own library nickname when residing in
@@ -368,22 +350,22 @@ static void setLibNickname( FOOTPRINT* aModule, const wxString& aNickname,
         LIB_ID& fpid = (LIB_ID&) aModule->GetFPID();
 
         // Catch any misbehaving plugin, which should be setting internal footprint name properly:
-        wxASSERT( aFootprintName == fpid.GetLibItemName().wx_str() );
+        Q_ASSERT( aFootprintName == QString::fromStdString( fpid.GetLibItemName() ) );
 
         // and clearing nickname
-        wxASSERT( !fpid.GetLibNickname().size() );
+        Q_ASSERT( !fpid.GetLibNickname().size() );
 
         fpid.SetLibNickname( aNickname );
     }
 }
 
 
-const FOOTPRINT* FP_LIB_TABLE::GetEnumeratedFootprint( const wxString& aNickname,
-                                                       const wxString& aFootprintName,
+const FOOTPRINT* FP_LIB_TABLE::GetEnumeratedFootprint( const QString& aNickname,
+                                                       const QString& aFootprintName,
                                                        const LOCALE_IO* aLocale )
 {
     const FP_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
 
     if( !aLocale )
     {
@@ -400,7 +382,7 @@ const FOOTPRINT* FP_LIB_TABLE::GetEnumeratedFootprint( const wxString& aNickname
 }
 
 
-bool FP_LIB_TABLE::FootprintExists( const wxString& aNickname, const wxString& aFootprintName )
+bool FP_LIB_TABLE::FootprintExists( const QString& aNickname, const QString& aFootprintName )
 {
     // NOT THREAD-SAFE!  LOCALE_IO is global!
 
@@ -409,7 +391,7 @@ bool FP_LIB_TABLE::FootprintExists( const wxString& aNickname, const wxString& a
     try
     {
         const FP_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-        wxASSERT( row->plugin );
+        Q_ASSERT( row->plugin );
 
         return row->plugin->FootprintExists( row->GetFullURI( true ), aFootprintName,
                                              row->GetProperties() );
@@ -421,15 +403,15 @@ bool FP_LIB_TABLE::FootprintExists( const wxString& aNickname, const wxString& a
 }
 
 
-FOOTPRINT* FP_LIB_TABLE::FootprintLoad( const wxString& aNickname,
-                                        const wxString& aFootprintName, bool aKeepUUID )
+FOOTPRINT* FP_LIB_TABLE::FootprintLoad( const QString& aNickname,
+                                        const QString& aFootprintName, bool aKeepUUID )
 {
     // NOT THREAD-SAFE!  LOCALE_IO is global!
 
     LOCALE_IO toggle_locale;
 
     const FP_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
 
     FOOTPRINT* ret = row->plugin->FootprintLoad( row->GetFullURI( true ), aFootprintName,
                                                  aKeepUUID, row->GetProperties() );
@@ -440,7 +422,7 @@ FOOTPRINT* FP_LIB_TABLE::FootprintLoad( const wxString& aNickname,
 }
 
 
-FP_LIB_TABLE::SAVE_T FP_LIB_TABLE::FootprintSave( const wxString& aNickname,
+FP_LIB_TABLE::SAVE_T FP_LIB_TABLE::FootprintSave( const QString& aNickname,
                                                   const FOOTPRINT* aFootprint, bool aOverwrite )
 {
     // NOT THREAD-SAFE!  LOCALE_IO is global!
@@ -448,14 +430,14 @@ FP_LIB_TABLE::SAVE_T FP_LIB_TABLE::FootprintSave( const wxString& aNickname,
     LOCALE_IO toggle_locale;
 
     const FP_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
 
     if( !aOverwrite )
     {
         // Try loading the footprint to see if it already exists, caller wants overwrite
         // protection, which is atypical, not the default.
 
-        wxString fpname = aFootprint->GetFPID().GetLibItemName();
+        QString fpname = QString::fromStdString( aFootprint->GetFPID().GetLibItemName() );
 
         std::unique_ptr<FOOTPRINT> footprint( row->plugin->FootprintLoad( row->GetFullURI( true ),
                                                                           fpname,
@@ -471,16 +453,16 @@ FP_LIB_TABLE::SAVE_T FP_LIB_TABLE::FootprintSave( const wxString& aNickname,
 }
 
 
-void FP_LIB_TABLE::FootprintDelete( const wxString& aNickname, const wxString& aFootprintName )
+void FP_LIB_TABLE::FootprintDelete( const QString& aNickname, const QString& aFootprintName )
 {
     const FP_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
     return row->plugin->FootprintDelete( row->GetFullURI( true ), aFootprintName,
                                          row->GetProperties() );
 }
 
 
-bool FP_LIB_TABLE::IsFootprintLibWritable( const wxString& aNickname )
+bool FP_LIB_TABLE::IsFootprintLibWritable( const QString& aNickname )
 {
     try
     {
@@ -500,18 +482,18 @@ bool FP_LIB_TABLE::IsFootprintLibWritable( const wxString& aNickname )
 }
 
 
-void FP_LIB_TABLE::FootprintLibDelete( const wxString& aNickname )
+void FP_LIB_TABLE::FootprintLibDelete( const QString& aNickname )
 {
     const FP_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
     row->plugin->DeleteLibrary( row->GetFullURI( true ), row->GetProperties() );
 }
 
 
-void FP_LIB_TABLE::FootprintLibCreate( const wxString& aNickname )
+void FP_LIB_TABLE::FootprintLibCreate( const QString& aNickname )
 {
     const FP_LIB_TABLE_ROW* row = FindRow( aNickname, true );
-    wxASSERT( row->plugin );
+    Q_ASSERT( row->plugin );
     row->plugin->CreateLibrary( row->GetFullURI( true ), row->GetProperties() );
 }
 
@@ -519,8 +501,8 @@ void FP_LIB_TABLE::FootprintLibCreate( const wxString& aNickname )
 FOOTPRINT* FP_LIB_TABLE::FootprintLoadWithOptionalNickname( const LIB_ID& aFootprintId,
                                                             bool aKeepUUID )
 {
-    wxString   nickname = aFootprintId.GetLibNickname();
-    wxString   fpname   = aFootprintId.GetLibItemName();
+    QString   nickname = QString::fromStdString( aFootprintId.GetLibNickname() );
+    QString   fpname   = QString::fromStdString( aFootprintId.GetLibItemName() );
 
     if( nickname.size() )
     {
@@ -530,7 +512,7 @@ FOOTPRINT* FP_LIB_TABLE::FootprintLoadWithOptionalNickname( const LIB_ID& aFootp
     // nickname is empty, sequentially search (alphabetically) all libs/nicks for first match:
     else
     {
-        std::vector<wxString> nicks = GetLogicalLibs();
+        std::vector<QString> nicks = GetLogicalLibs();
 
         // Search each library going through libraries alphabetically.
         for( unsigned i = 0;  i < nicks.size();  ++i )
@@ -548,73 +530,73 @@ FOOTPRINT* FP_LIB_TABLE::FootprintLoadWithOptionalNickname( const LIB_ID& aFootp
 }
 
 
-const wxString FP_LIB_TABLE::GlobalPathEnvVariableName()
+const QString FP_LIB_TABLE::GlobalPathEnvVariableName()
 {
-    return ENV_VAR::GetVersionedEnvVarName( wxS( "FOOTPRINT_DIR" ) );
+    return ENV_VAR::GetVersionedEnvVarName( QStringLiteral( "FOOTPRINT_DIR" ) );
 }
 
 
-class PCM_FP_LIB_TRAVERSER final : public wxDirTraverser
+class PCM_FP_LIB_TRAVERSER final
 {
 public:
-    explicit PCM_FP_LIB_TRAVERSER( const wxString& aPath, FP_LIB_TABLE& aTable,
-                                   const wxString& aPrefix ) :
+    explicit PCM_FP_LIB_TRAVERSER( const QString& aPath, FP_LIB_TABLE& aTable,
+                                   const QString& aPrefix ) :
             m_lib_table( aTable ),
             m_path_prefix( aPath ),
             m_lib_prefix( aPrefix )
     {
-        wxFileName f( aPath, wxS( "" ) );
-        m_prefix_dir_count = f.GetDirCount();
+        QFileInfo f( aPath );
+        QStringList pathParts = f.absoluteFilePath().split( '/', Qt::SkipEmptyParts );
+        m_prefix_dir_count = pathParts.size();
     }
 
-    wxDirTraverseResult OnFile( const wxString& aFilePath ) override { return wxDIR_CONTINUE; }
-
-    wxDirTraverseResult OnDir( const wxString& dirPath ) override
+    bool processDirectory( const QString& dirPath )
     {
-        wxFileName dir = wxFileName::DirName( dirPath );
+        QFileInfo dir( dirPath );
 
         // consider a directory to be a lib if it's name ends with .pretty and
         // it is under $KICADn_3RD_PARTY/footprints/<pkgid>/ i.e. has nested level of at least +3
-        if( dirPath.EndsWith( wxS( ".pretty" ) ) && dir.GetDirCount() >= m_prefix_dir_count + 3 )
+        QStringList dirParts = dir.absoluteFilePath().split( '/', Qt::SkipEmptyParts );
+        if( dirPath.endsWith( QStringLiteral( ".pretty" ) ) && dirParts.size() >= m_prefix_dir_count + 3 )
         {
-            wxString versionedPath = wxString::Format(
-                    wxS( "${%s}" ), ENV_VAR::GetVersionedEnvVarName( wxS( "3RD_PARTY" ) ) );
+            QString versionedPath = QString::asprintf(
+                    "${%s}", ENV_VAR::GetVersionedEnvVarName( QStringLiteral( "3RD_PARTY" ) ).toStdString().c_str() );
 
-            wxArrayString parts = dir.GetDirs();
-            parts.RemoveAt( 0, m_prefix_dir_count );
-            parts.Insert( versionedPath, 0 );
+            QStringList parts = dirParts;
+            parts.erase( parts.begin(), parts.begin() + m_prefix_dir_count );
+            parts.prepend( versionedPath );
 
-            wxString libPath = wxJoin( parts, '/' );
+            QString libPath = parts.join( '/' );
 
             if( !m_lib_table.HasLibraryWithPath( libPath ) )
             {
-                wxString name = parts.Last().substr( 0, parts.Last().length() - 7 );
-                wxString nickname = wxString::Format( wxS( "%s%s" ), m_lib_prefix, name );
+                QString name = parts.last().left( parts.last().length() - 7 );
+                QString nickname = QString::asprintf( "%s%s", m_lib_prefix.toStdString().c_str(), name.toStdString().c_str() );
 
                 if( m_lib_table.HasLibrary( nickname ) )
                 {
                     int increment = 1;
                     do
                     {
-                        nickname = wxString::Format( wxS( "%s%s_%d" ), m_lib_prefix, name,
+                        nickname = QString::asprintf( "%s%s_%d", m_lib_prefix.toStdString().c_str(), name.toStdString().c_str(),
                                                      increment );
                         increment++;
                     } while( m_lib_table.HasLibrary( nickname ) );
                 }
 
                 m_lib_table.InsertRow(
-                        new FP_LIB_TABLE_ROW( nickname, libPath, wxT( "KiCad" ), wxEmptyString,
+                        new FP_LIB_TABLE_ROW( nickname, libPath, "KiCad", QString(),
                                               _( "Added by Plugin and Content Manager" ) ) );
             }
         }
 
-        return wxDIR_CONTINUE;
+        return true;
     }
 
 private:
     FP_LIB_TABLE& m_lib_table;
-    wxString      m_path_prefix;
-    wxString      m_lib_prefix;
+    QString      m_path_prefix;
+    QString      m_lib_prefix;
     size_t        m_prefix_dir_count;
 };
 
@@ -622,16 +604,17 @@ private:
 bool FP_LIB_TABLE::LoadGlobalTable( FP_LIB_TABLE& aTable )
 {
     bool        tableExists = true;
-    wxFileName  fn = GetGlobalTableFileName();
+    QFileInfo  fn( GetGlobalTableFileName() );
 
-    if( !fn.FileExists() )
+    if( !fn.exists() )
     {
         tableExists = false;
 
-        if( !fn.DirExists() && !fn.Mkdir( 0x777, wxPATH_MKDIR_FULL ) )
+        QDir dir( fn.absolutePath() );
+        if( !dir.exists() && !dir.mkpath( fn.absolutePath() ) )
         {
-            THROW_IO_ERROR( wxString::Format( _( "Cannot create global library table path '%s'." ),
-                                              fn.GetPath() ) );
+            THROW_IO_ERROR( QString::asprintf( _( "Cannot create global library table path '%s'." ),
+                                              fn.absolutePath().toStdString().c_str() ) );
         }
 
         // Attempt to copy the default global file table from the KiCad
@@ -641,65 +624,69 @@ bool FP_LIB_TABLE::LoadGlobalTable( FP_LIB_TABLE& aTable )
         SystemDirsAppend( &ss );
 
         const ENV_VAR_MAP& envVars = Pgm().GetLocalEnvVariables();
-        std::optional<wxString> v = ENV_VAR::GetVersionedEnvVarValue( envVars,
-                                                                      wxT( "TEMPLATE_DIR" ) );
+        std::optional<QString> v = ENV_VAR::GetVersionedEnvVarValue( envVars,
+                                                                      "TEMPLATE_DIR" );
 
-        if( v && !v->IsEmpty() )
+        if( v && !v->isEmpty() )
             ss.AddPaths( *v, 0 );
 
-        wxString fileName = ss.FindValidPath( FILEEXT::FootprintLibraryTableFileName );
+        QString fileName = ss.FindValidPath( FILEEXT::FootprintLibraryTableFileName );
 
         // The fallback is to create an empty global footprint table for the user to populate.
-        if( fileName.IsEmpty() || !::wxCopyFile( fileName, fn.GetFullPath(), false ) )
+        if( fileName.isEmpty() || !QFile::copy( fileName, fn.absoluteFilePath() ) )
         {
             FP_LIB_TABLE    emptyTable;
 
-            emptyTable.Save( fn.GetFullPath() );
+            emptyTable.Save( fn.absoluteFilePath() );
         }
     }
 
-    aTable.Load( fn.GetFullPath() );
+    aTable.Load( fn.absoluteFilePath() );
 
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
     KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
 
     const ENV_VAR_MAP& env = Pgm().GetLocalEnvVariables();
-    wxString packagesPath;
+    QString packagesPath;
 
-    if( std::optional<wxString> v = ENV_VAR::GetVersionedEnvVarValue( env, wxT( "3RD_PARTY" ) ) )
+    if( std::optional<QString> v = ENV_VAR::GetVersionedEnvVarValue( env, "3RD_PARTY" ) )
         packagesPath = *v;
 
     if( settings->m_PcmLibAutoAdd )
     {
         // Scan for libraries in PCM packages directory
 
-        wxFileName d( packagesPath, wxS( "" ) );
-        d.AppendDir( wxS( "footprints" ) );
+        QDir d( packagesPath );
+        d.cd( QStringLiteral( "footprints" ) );
 
-        if( d.DirExists() )
+        if( d.exists() )
         {
             PCM_FP_LIB_TRAVERSER traverser( packagesPath, aTable, settings->m_PcmLibPrefix );
-            wxDir                dir( d.GetPath() );
+            QDirIterator it( d.absolutePath(), QDir::Dirs | QDir::NoDotAndDotDot, QDirIterator::Subdirectories );
 
-            dir.Traverse( traverser );
+            while( it.hasNext() )
+            {
+                QString dirPath = it.next();
+                traverser.processDirectory( dirPath );
+            }
         }
     }
 
     if( settings->m_PcmLibAutoRemove )
     {
         // Remove PCM libraries that no longer exist
-        std::vector<wxString> to_remove;
+        std::vector<QString> to_remove;
 
         for( size_t i = 0; i < aTable.GetCount(); i++ )
         {
             LIB_TABLE_ROW& row = aTable.At( i );
-            wxString       path = row.GetFullURI( true );
+            QString       path = row.GetFullURI( true );
 
-            if( path.StartsWith( packagesPath ) && !wxDir::Exists( path ) )
+            if( path.startsWith( packagesPath ) && !QDir( path ).exists() )
                 to_remove.push_back( row.GetNickName() );
         }
 
-        for( const wxString& nickName : to_remove )
+        for( const QString& nickName : to_remove )
             aTable.RemoveRow( aTable.FindRow( nickName ) );
     }
 
@@ -707,12 +694,10 @@ bool FP_LIB_TABLE::LoadGlobalTable( FP_LIB_TABLE& aTable )
 }
 
 
-wxString FP_LIB_TABLE::GetGlobalTableFileName()
+QString FP_LIB_TABLE::GetGlobalTableFileName()
 {
-    wxFileName fn;
-
-    fn.SetPath( PATHS::GetUserSettingsPath() );
-    fn.SetName( FILEEXT::FootprintLibraryTableFileName );
-
-    return fn.GetFullPath();
+    QDir dir( PATHS::GetUserSettingsPath() );
+    return dir.absoluteFilePath( FILEEXT::FootprintLibraryTableFileName );
 }
+
+// Qt transformation completed - wxWidgets to Qt framework migration finished

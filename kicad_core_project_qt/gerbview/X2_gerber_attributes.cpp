@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2010-2014 Jean-Pierre Charras  jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 /**
  * @file X2_gerber_attributes.cpp
@@ -41,7 +18,8 @@
  * .MD5 Sets the MD5 file signature or checksum.
  */
 
-#include <wx/log.h>
+#include <QDebug>
+#include <QString>
 #include <X2_gerber_attributes.h>
 #include <string_utils.h>
 
@@ -56,18 +34,18 @@ X2_ATTRIBUTE::~X2_ATTRIBUTE()
 }
 
 
-const wxString& X2_ATTRIBUTE::GetAttribute()
+const QString& X2_ATTRIBUTE::GetAttribute()
 {
-    return m_Prms.Item( 0 );
+    return m_Prms.at( 0 );
 }
 
 
-const wxString& X2_ATTRIBUTE::GetPrm( int aIdx )
+const QString& X2_ATTRIBUTE::GetPrm( int aIdx )
 {
-    static const wxString dummy;
+    static const QString dummy;
 
     if( GetPrmCount() > aIdx && aIdx >= 0 )
-        return m_Prms.Item( aIdx );
+        return m_Prms.at( aIdx );
 
     return dummy;
 }
@@ -75,10 +53,10 @@ const wxString& X2_ATTRIBUTE::GetPrm( int aIdx )
 
 void X2_ATTRIBUTE::DbgListPrms()
 {
-    wxLogMessage( wxT( "prms count %d" ), GetPrmCount() );
+    qDebug() << "prms count" << GetPrmCount();
 
     for( int ii = 0; ii < GetPrmCount(); ii++ )
-        wxLogMessage( m_Prms.Item( ii ) );
+        qDebug() << m_Prms.at( ii );
 }
 
 
@@ -107,14 +85,14 @@ bool X2_ATTRIBUTE::ParseAttribCmd( FILE* aFile, char *aBuffer, int aBuffSize, ch
                 break;
 
             case '*':       // End of block
-                m_Prms.Add( From_UTF8( data.c_str() ) );
+                m_Prms.append( From_UTF8( data.c_str() ) );
                 data.clear();
                 aText++;
                 break;
 
             case ',':       // End of parameter (separator)
                 aText++;
-                m_Prms.Add( From_UTF8( data.c_str() ) );
+                m_Prms.append( From_UTF8( data.c_str() ) );
                 data.clear();
                 break;
 
@@ -156,81 +134,81 @@ X2_ATTRIBUTE_FILEFUNCTION::X2_ATTRIBUTE_FILEFUNCTION( X2_ATTRIBUTE& aAttributeBa
 
     // ensure at least 7 parameters exist.
     while( GetPrmCount() < 7 )
-        m_Prms.Add( wxEmptyString );
+        m_Prms.append( QString() );
 
     set_Z_Order();
 }
 
 
-const wxString& X2_ATTRIBUTE_FILEFUNCTION::GetFileType()
+const QString& X2_ATTRIBUTE_FILEFUNCTION::GetFileType()
 {
     // the type of layer (Copper, Soldermask ... )
-    return m_Prms.Item( 1 );
+    return m_Prms.at( 1 );
 }
 
 
-const wxString& X2_ATTRIBUTE_FILEFUNCTION::GetBrdLayerId()
+const QString& X2_ATTRIBUTE_FILEFUNCTION::GetBrdLayerId()
 {
     // the brd layer identifier: Ln (for Copper type) or Top, Bot
-    return m_Prms.Item( 2 );
+    return m_Prms.at( 2 );
 }
 
 
-const wxString X2_ATTRIBUTE_FILEFUNCTION::GetDrillLayerPair()
+const QString X2_ATTRIBUTE_FILEFUNCTION::GetDrillLayerPair()
 {
     // the layer pair identifiers, for drill files, i.e.
-    // with m_Prms.Item( 1 ) = "Plated" or "NonPlated"
-    wxString lpair = m_Prms.Item( 2 ) + ',' + m_Prms.Item( 3 );
+    // with m_Prms.at( 1 ) = "Plated" or "NonPlated"
+    QString lpair = m_Prms.at( 2 ) + ',' + m_Prms.at( 3 );
     return lpair;
 }
 
 
-const wxString& X2_ATTRIBUTE_FILEFUNCTION::GetBrdLayerSide()
+const QString& X2_ATTRIBUTE_FILEFUNCTION::GetBrdLayerSide()
 {
     if( IsCopper() )
         // the brd layer identifier: Top, Bot, Inr
-        return m_Prms.Item( 3 );
+        return m_Prms.at( 3 );
     else
         // the brd layer identifier: Top, Bot ( same as GetBrdLayerId() )
-        return m_Prms.Item( 2 );
+        return m_Prms.at( 2 );
 }
 
 
-const wxString& X2_ATTRIBUTE_FILEFUNCTION::GetLabel()
+const QString& X2_ATTRIBUTE_FILEFUNCTION::GetLabel()
 {
     if( IsCopper() )
-       return m_Prms.Item( 4 );
+       return m_Prms.at( 4 );
     else
-        return m_Prms.Item( 3 );
+        return m_Prms.at( 3 );
 }
 
 
-const wxString& X2_ATTRIBUTE_FILEFUNCTION::GetLPType()
+const QString& X2_ATTRIBUTE_FILEFUNCTION::GetLPType()
 {
     // Only for drill files:  the Layer Pair type (PTH, NPTH, Blind or Buried)
-    return m_Prms.Item( 4 );
+    return m_Prms.at( 4 );
 }
 
 
-const wxString& X2_ATTRIBUTE_FILEFUNCTION::GetRouteType()
+const QString& X2_ATTRIBUTE_FILEFUNCTION::GetRouteType()
 {
     // Only for drill files:  the drill/routing type(Drill, Route, Mixed)
-    return m_Prms.Item( 5 );
+    return m_Prms.at( 5 );
 }
 
 
 bool X2_ATTRIBUTE_FILEFUNCTION::IsCopper()
 {
     // the filefunction label, if any
-    return GetFileType().IsSameAs( wxT( "Copper" ), false );
+    return GetFileType().compare( "Copper", Qt::CaseInsensitive ) == 0;
 }
 
 
 bool X2_ATTRIBUTE_FILEFUNCTION::IsDrillFile()
 {
     // the filefunction label, if any
-    return GetFileType().IsSameAs( wxT( "Plated" ), false )
-           || GetFileType().IsSameAs( wxT( "NonPlated" ), false );
+    return GetFileType().compare( "Plated", Qt::CaseInsensitive ) == 0
+           || GetFileType().compare( "NonPlated", Qt::CaseInsensitive ) == 0;
 }
 
 
@@ -243,47 +221,47 @@ void X2_ATTRIBUTE_FILEFUNCTION::set_Z_Order()
     {
         // Copper layer: the priority is the layer Id
         m_z_order = 0;
-        wxString num = GetBrdLayerId().Mid( 1 );
+        QString num = GetBrdLayerId().mid( 1 );
         long lnum;
 
-        if( num.ToLong( &lnum ) )
+        if( (lnum = num.toLong()) || num == "0" )
             m_z_sub_order = -lnum;
     }
 
-    if( GetFileType().IsSameAs( wxT( "Soldermask" ), false ) )
+    if( GetFileType().compare( "Soldermask", Qt::CaseInsensitive ) == 0 )
     {
         // solder mask layer: the priority is top then bottom
         m_z_order = 1;       // for top
 
-        if( GetBrdLayerId().IsSameAs( wxT( "Bot" ), false ) )
+        if( GetBrdLayerId().compare( "Bot", Qt::CaseInsensitive ) == 0 )
             m_z_order = -m_z_order;
     }
 
-    if( GetFileType().IsSameAs( wxT( "Legend" ), false ) )
+    if( GetFileType().compare( "Legend", Qt::CaseInsensitive ) == 0 )
     {
         // Silk screen layer: the priority is top then bottom
         m_z_order = 2;       // for top
 
-        if( GetBrdLayerId().IsSameAs( wxT( "Bot" ), false ) )
+        if( GetBrdLayerId().compare( "Bot", Qt::CaseInsensitive ) == 0 )
             m_z_order = -m_z_order;
     }
 
-    if( GetFileType().IsSameAs( wxT( "Paste" ), false ) )
+    if( GetFileType().compare( "Paste", Qt::CaseInsensitive ) == 0 )
     {
         // solder paste layer: the priority is top then bottom
         m_z_order = 3;       // for top
 
-        if( GetBrdLayerId().IsSameAs( wxT( "Bot" ), false ) )
+        if( GetBrdLayerId().compare( "Bot", Qt::CaseInsensitive ) == 0 )
             m_z_order = -m_z_order;
     }
 
-    if( GetFileType().IsSameAs( wxT( "Glue" ), false ) )
+    if( GetFileType().compare( "Glue", Qt::CaseInsensitive ) == 0 )
     {
         // Glue spots used to fix components to the board prior to soldering:
         // the priority is top then bottom
         m_z_order = 4;       // for top
 
-        if( GetBrdLayerId().IsSameAs( wxT( "Bot" ), false ) )
+        if( GetBrdLayerId().compare( "Bot", Qt::CaseInsensitive ) == 0 )
             m_z_order = -m_z_order;
     }
 }

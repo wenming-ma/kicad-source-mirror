@@ -62,9 +62,9 @@ public:
         return aItem && SCH_BITMAP_T == aItem->Type();
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "SCH_BITMAP" );
+        return "SCH_BITMAP";
     }
 
     const BOX2I GetBoundingBox() const override;
@@ -88,9 +88,9 @@ public:
     void MirrorVertically( int aCenter ) override;
     void Rotate( const VECTOR2I& aCenter, bool aRotateCCW ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
     {
-        return wxString( _( "Image" ) );
+        return QString( _( "Image" ) );
     }
 
     BITMAPS GetMenuImage() const override;

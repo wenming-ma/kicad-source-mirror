@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Ethan Chien <liangtie.qian@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SHEET_SYNCHRONIZATION_MODEL_H
 #define SHEET_SYNCHRONIZATION_MODEL_H
@@ -29,8 +6,11 @@
 #include <memory>
 #include <optional>
 #include <list>
-#include <wx/dataview.h>
-#include <wx/string.h>
+#include <QAbstractListModel>
+#include <QString>
+#include <QVariant>
+#include <QModelIndex>
+#include <QList>
 
 class SHEET_SYNCHRONIZATION_ITEM;
 using SHEET_SYNCHRONIZATION_ITE_PTR = std::shared_ptr<SHEET_SYNCHRONIZATION_ITEM>;
@@ -41,7 +21,7 @@ class SHEET_SYNCHRONIZATION_AGENT;
 class SCH_SHEET;
 class SCH_SHEET_PATH;
 
-class SHEET_SYNCHRONIZATION_MODEL : public wxDataViewVirtualListModel
+class SHEET_SYNCHRONIZATION_MODEL : public QAbstractListModel
 {
 public:
     enum SHEET_SYNCHRONIZATION_COL
@@ -59,12 +39,12 @@ public:
         MODEL_COUNT
     };
 
-    static wxString GetColName( int col )
+    static QString GetColName( int col )
     {
         switch( col )
         {
-        case NAME: return _( "Name" );
-        case SHAPE: return _( "Shape" );
+        case NAME: return "Name";
+        case SHAPE: return "Shape";
         default: return {};
         }
     }
@@ -74,13 +54,13 @@ public:
                                  SCH_SHEET_PATH& aPath );
     ~SHEET_SYNCHRONIZATION_MODEL() override;
 
-    void GetValueByRow( wxVariant& variant, unsigned row, unsigned col ) const override;
+    QVariant data( const QModelIndex& index, int role = Qt::DisplayRole ) const override;
 
-    bool SetValueByRow( const wxVariant& variant, unsigned row, unsigned col ) override;
+    bool setData( const QModelIndex& index, const QVariant& value, int role = Qt::EditRole ) override;
 
-    bool GetAttrByRow( unsigned row, unsigned int col, wxDataViewItemAttr& attr ) const override;
+    // Attribute handling moved to data() method with custom roles
 
-    void RemoveItems( wxDataViewItemArray const& aItems );
+    void RemoveItems( QList<QModelIndex> const& aItems );
 
     /**
      * Add a new item, the notifiers are notified.
@@ -92,13 +72,13 @@ public:
      */
     bool AppendItem( std::shared_ptr<SHEET_SYNCHRONIZATION_ITEM> aItem );
 
-    SHEET_SYNCHRONIZATION_ITEM_LIST TakeItems( wxDataViewItemArray const& aItems );
+    SHEET_SYNCHRONIZATION_ITEM_LIST TakeItems( QList<QModelIndex> const& aItems );
 
-    SHEET_SYNCHRONIZATION_ITE_PTR TakeItem( wxDataViewItem const& aItem );
+    SHEET_SYNCHRONIZATION_ITE_PTR TakeItem( QModelIndex const& aItem );
 
     SHEET_SYNCHRONIZATION_ITE_PTR GetSynchronizationItem( unsigned aIndex ) const;
 
-    SHEET_SYNCHRONIZATION_ITE_PTR GetSynchronizationItem( wxDataViewItem const& aItem ) const;
+    SHEET_SYNCHRONIZATION_ITE_PTR GetSynchronizationItem( QModelIndex const& aItem ) const;
 
     void OnRowSelected( std::optional<unsigned> aRow );
 
@@ -112,7 +92,8 @@ public:
 
     std::optional<unsigned int> GetSelectedIndex() const { return m_selectedIndex; }
 
-    unsigned int GetCount() const override;
+    int rowCount( const QModelIndex& parent = QModelIndex() ) const override;
+    int columnCount( const QModelIndex& parent = QModelIndex() ) const override;
 
 
 private:

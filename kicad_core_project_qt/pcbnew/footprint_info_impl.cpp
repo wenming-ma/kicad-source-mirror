@@ -1,23 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2011 Jean-Pierre Charras, <jp.charras@wanadoo.fr>
- * Copyright (C) 2013-2016 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 
 #include <footprint_info_impl.h>
@@ -36,16 +16,17 @@
 
 #include <kiplatform/io.h>
 
-#include <wx/textfile.h>
-#include <wx/txtstrm.h>
-#include <wx/wfstream.h>
+#include <QTextStream>
+#include <QFile>
+#include <QFileInfo>
+#include <QTemporaryFile>
 
 
 void FOOTPRINT_INFO_IMPL::load( const LOCALE_IO* aLocale )
 {
     FP_LIB_TABLE* fptable = m_owner->GetTable();
 
-    wxASSERT( fptable );
+    Q_ASSERT( fptable );
 
     const FOOTPRINT* footprint = fptable->GetEnumeratedFootprint( m_nickname, m_fpname, aLocale );
 
@@ -104,7 +85,7 @@ bool FOOTPRINT_LIST_IMPL::CatchErrors( const std::function<void()>& aFunc )
 }
 
 
-bool FOOTPRINT_LIST_IMPL::ReadFootprintFiles( FP_LIB_TABLE* aTable, const wxString* aNickname,
+bool FOOTPRINT_LIST_IMPL::ReadFootprintFiles( FP_LIB_TABLE* aTable, const QString* aNickname,
                                               PROGRESS_REPORTER* aProgressReporter )
 {
     long long int generatedTimestamp = 0;
@@ -139,7 +120,7 @@ bool FOOTPRINT_LIST_IMPL::ReadFootprintFiles( FP_LIB_TABLE* aTable, const wxStri
     }
     else
     {
-        for( const wxString& nickname : aTable->GetLogicalLibs() )
+        for( const QString& nickname : aTable->GetLogicalLibs() )
             m_queue.push( nickname );
     }
 
@@ -182,12 +163,12 @@ void FOOTPRINT_LIST_IMPL::loadFootprints()
     auto fp_thread =
             [ this, &queue_parsed, &toggle_locale ]() -> size_t
             {
-                wxString nickname;
+                QString nickname;
 
                 if( m_cancelled || !m_queue.pop( nickname ) )
                     return 0;
 
-                wxArrayString fpnames;
+                QStringList fpnames;
 
                 CatchErrors(
                         [&]()
@@ -195,7 +176,7 @@ void FOOTPRINT_LIST_IMPL::loadFootprints()
                             m_lib_table->FootprintEnumerate( fpnames, nickname, false, &toggle_locale );
                         } );
 
-                for( wxString fpname : fpnames )
+                for( QString fpname : fpnames )
                 {
                     CatchErrors(
                             [&]()
@@ -252,67 +233,76 @@ FOOTPRINT_LIST_IMPL::FOOTPRINT_LIST_IMPL() :
 }
 
 
-void FOOTPRINT_LIST_IMPL::WriteCacheToFile( const wxString& aFilePath )
+void FOOTPRINT_LIST_IMPL::WriteCacheToFile( const QString& aFilePath )
 {
-    wxFileName          tmpFileName = wxFileName::CreateTempFileName( aFilePath );
-    wxFFileOutputStream outStream( tmpFileName.GetFullPath() );
-    wxTextOutputStream  txtStream( outStream );
+    QTemporaryFile      tmpFile;
+    tmpFile.setFileTemplate( aFilePath + ".XXXXXX" );
+    tmpFile.open();
+    QTextStream         txtStream( &tmpFile );
 
-    if( !outStream.IsOk() )
+    if( !tmpFile.isOpen() )
     {
         return;
     }
 
-    txtStream << wxString::Format( wxT( "%lld" ), m_list_timestamp ) << endl;
+    txtStream << QString::asprintf( "%lld", m_list_timestamp ) << Qt::endl;
 
     for( std::unique_ptr<FOOTPRINT_INFO>& fpinfo : m_list )
     {
-        txtStream << fpinfo->GetLibNickname() << endl;
-        txtStream << fpinfo->GetName() << endl;
-        txtStream << EscapeString( fpinfo->GetDesc(), CTX_LINE ) << endl;
-        txtStream << EscapeString( fpinfo->GetKeywords(), CTX_LINE ) << endl;
-        txtStream << wxString::Format( wxT( "%d" ), fpinfo->GetOrderNum() ) << endl;
-        txtStream << wxString::Format( wxT( "%u" ), fpinfo->GetPadCount() ) << endl;
-        txtStream << wxString::Format( wxT( "%u" ), fpinfo->GetUniquePadCount() ) << endl;
+        txtStream << fpinfo->GetLibNickname() << Qt::endl;
+        txtStream << fpinfo->GetName() << Qt::endl;
+        txtStream << EscapeString( fpinfo->GetDesc(), CTX_LINE ) << Qt::endl;
+        txtStream << EscapeString( fpinfo->GetKeywords(), CTX_LINE ) << Qt::endl;
+        txtStream << QString::asprintf( "%d", fpinfo->GetOrderNum() ) << Qt::endl;
+        txtStream << QString::asprintf( "%u", fpinfo->GetPadCount() ) << Qt::endl;
+        txtStream << QString::asprintf( "%u", fpinfo->GetUniquePadCount() ) << Qt::endl;
     }
 
-    txtStream.Flush();
-    outStream.Close();
+    txtStream.flush();
+    tmpFile.close();
 
     // Preserve the permissions of the current file
-    KIPLATFORM::IO::DuplicatePermissions( aFilePath, tmpFileName.GetFullPath() );
+    KIPLATFORM::IO::DuplicatePermissions( aFilePath, tmpFile.fileName() );
 
-    if( !wxRenameFile( tmpFileName.GetFullPath(), aFilePath, true ) )
+    if( !QFile::rename( tmpFile.fileName(), aFilePath ) )
     {
         // cleanup in case rename failed
         // its also not the end of the world since this is just a cache file
-        wxRemoveFile( tmpFileName.GetFullPath() );
+        QFile::remove( tmpFile.fileName() );
     }
 }
 
 
-void FOOTPRINT_LIST_IMPL::ReadCacheFromFile( const wxString& aFilePath )
+void FOOTPRINT_LIST_IMPL::ReadCacheFromFile( const QString& aFilePath )
 {
-    wxTextFile cacheFile( aFilePath );
+    QFile cacheFile( aFilePath );
 
     m_list_timestamp = 0;
     m_list.clear();
 
     try
     {
-        if( cacheFile.Exists() && cacheFile.Open() )
+        if( cacheFile.exists() && cacheFile.open( QIODevice::ReadOnly | QIODevice::Text ) )
         {
-            cacheFile.GetFirstLine().ToLongLong( &m_list_timestamp );
+            QTextStream stream( &cacheFile );
+            QStringList lines;
 
-            while( cacheFile.GetCurrentLine() + 6 < cacheFile.GetLineCount() )
+            while( !stream.atEnd() )
+                lines.append( stream.readLine() );
+
+            if( lines.size() > 0 )
+                m_list_timestamp = lines[0].toLongLong();
+
+            int lineIndex = 1;
+            while( lineIndex + 6 < lines.size() )
             {
-                wxString             libNickname    = cacheFile.GetNextLine();
-                wxString             name           = cacheFile.GetNextLine();
-                wxString             desc           = UnescapeString( cacheFile.GetNextLine() );
-                wxString             keywords       = UnescapeString( cacheFile.GetNextLine() );
-                int                  orderNum       = wxAtoi( cacheFile.GetNextLine() );
-                unsigned int         padCount       = (unsigned) wxAtoi( cacheFile.GetNextLine() );
-                unsigned int         uniquePadCount = (unsigned) wxAtoi( cacheFile.GetNextLine() );
+                QString              libNickname    = lines[lineIndex++];
+                QString              name           = lines[lineIndex++];
+                QString              desc           = UnescapeString( lines[lineIndex++] );
+                QString              keywords       = UnescapeString( lines[lineIndex++] );
+                int                  orderNum       = lines[lineIndex++].toInt();
+                unsigned int         padCount       = (unsigned) lines[lineIndex++].toInt();
+                unsigned int         uniquePadCount = (unsigned) lines[lineIndex++].toInt();
 
                 FOOTPRINT_INFO_IMPL* fpinfo = new FOOTPRINT_INFO_IMPL( libNickname, name, desc,
                                                                        keywords, orderNum,
@@ -332,6 +322,6 @@ void FOOTPRINT_LIST_IMPL::ReadCacheFromFile( const wxString& aFilePath )
     if( m_list.size() == 0 )
         m_list_timestamp = 0;
 
-    if( cacheFile.IsOpened() )
-        cacheFile.Close();
+    if( cacheFile.isOpen() )
+        cacheFile.close();
 }

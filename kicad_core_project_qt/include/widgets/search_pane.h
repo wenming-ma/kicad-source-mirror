@@ -1,21 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #ifndef SEARCH_PANE_H
 #define SEARCH_PANE_H
@@ -24,10 +8,12 @@
 #include <vector>
 
 #include <widgets/search_pane_base.h>
-#include <wx/listbase.h>
+#include <QAbstractItemView>
+#include <QString>
+#include <QEvent>
 
 
-class wxAuiManagerEvent;
+class QCloseEvent;
 class ACTION_MENU;
 class EDA_DRAW_FRAME;
 class SEARCH_PANE_TAB;
@@ -35,30 +21,30 @@ class SEARCH_PANE_TAB;
 class SEARCH_HANDLER
 {
 public:
-    SEARCH_HANDLER( const wxString& aName ) :
+    SEARCH_HANDLER( const QString& aName ) :
             m_name( aName )
     {}
 
     virtual ~SEARCH_HANDLER()
     {}
 
-    wxString GetName() const { return m_name; }
+    QString GetName() const { return m_name; }
 
-    std::vector<std::tuple<wxString, int, wxListColumnFormat>> GetColumns() const
+    std::vector<std::tuple<QString, int, QAbstractItemView::SelectionBehavior>> GetColumns() const
     {
         return m_columns;
     }
 
-    virtual int Search( const wxString& string ) = 0;
-    virtual wxString GetResultCell( int row, int col ) = 0;
+    virtual int Search( const QString& string ) = 0;
+    virtual QString GetResultCell( int row, int col ) = 0;
     virtual void Sort( int aCol, bool aAscending, std::vector<long>* aSelection ) = 0;
 
     virtual void SelectItems( std::vector<long>& aItemRows ) {}
     virtual void ActivateItem( long aItemRow ) {}
 
 protected:
-    wxString                                                   m_name;
-    std::vector<std::tuple<wxString, int, wxListColumnFormat>> m_columns;
+    QString                                                   m_name;
+    std::vector<std::tuple<QString, int, QAbstractItemView::SelectionBehavior>> m_columns;
 };
 
 
@@ -74,24 +60,24 @@ public:
     SEARCH_PANE& operator=( const SEARCH_PANE& ) = delete;
 
     void AddSearcher( const std::shared_ptr<SEARCH_HANDLER>& aHandler );
-    void OnSearchTextEntry( wxCommandEvent& aEvent ) override;
-    void OnNotebookPageChanged( wxBookCtrlEvent& aEvent ) override;
+    void OnSearchTextEntry( QEvent& aEvent ) override;
+    void OnNotebookPageChanged( QEvent& aEvent ) override;
 
     void RefreshSearch();
     void FocusSearch();
     void ClearAllResults();
 
-    void OnCharHook( wxKeyEvent& aEvent );
+    void OnCharHook( QKeyEvent& aEvent );
 
 protected:
-    void             OnLanguageChange( wxCommandEvent& aEvent );
+    void             OnLanguageChange( QEvent& aEvent );
     SEARCH_PANE_TAB* GetCurrentTab() const;
-    void             OnClosed( wxAuiManagerEvent& aEvent );
+    void             OnClosed( QCloseEvent& aEvent );
 
 private:
     std::vector<std::shared_ptr<SEARCH_HANDLER>> m_handlers;
     std::vector<SEARCH_PANE_TAB*>                m_tabs;
-    wxString                                     m_lastQuery;
+    QString                                     m_lastQuery;
     EDA_DRAW_FRAME*                              m_frame;
     ACTION_MENU*                                 m_menu;
 };

@@ -1,21 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <bus_alias.h>
 #include <commit.h>
@@ -48,7 +30,9 @@
 #include <tool/tool_manager.h>
 #include <undo_redo_container.h>
 
-#include <wx/log.h>
+#include <QDebug>
+#include <QLoggingCategory>
+#include <QFileInfo>
 
 bool SCHEMATIC::m_IsSchematicExists = false;
 
@@ -83,7 +67,7 @@ SCHEMATIC::SCHEMATIC( PROJECT* aPrj ) :
                 // TODO(JE) This will need to get smarter to enable API access
                 SCH_SHEET_PATH sheetPath = CurrentSheet();
 
-                wxString newValue = aItem->Get<wxString>( aProperty );
+                QString newValue = aItem->Get<QString>( aProperty );
 
                 if( field->GetId() == REFERENCE_FIELD )
                 {
@@ -95,7 +79,7 @@ SCHEMATIC::SCHEMATIC( PROJECT* aPrj ) :
                     return;
                 }
 
-                wxString ref = symbol->GetRef( &sheetPath );
+                QString ref = symbol->GetRef( &sheetPath );
                 int      unit = symbol->GetUnit();
                 LIB_ID   libId = symbol->GetLibId();
 
@@ -215,7 +199,7 @@ void SCHEMATIC::SetProject( PROJECT* aPrj )
 
 void SCHEMATIC::SetRoot( SCH_SHEET* aRootSheet )
 {
-    wxCHECK_RET( aRootSheet, wxS( "Call to SetRoot with null SCH_SHEET!" ) );
+    Q_ASSERT( aRootSheet && "Call to SetRoot with null SCH_SHEET!" );
 
     m_rootSheet = aRootSheet;
 
@@ -235,7 +219,7 @@ SCH_SCREEN* SCHEMATIC::RootScreen() const
 
 SCH_SHEET_LIST SCHEMATIC::Hierarchy() const
 {
-    wxCHECK( !m_hierarchy.empty(), m_hierarchy );
+    Q_ASSERT( !m_hierarchy.empty() );
 
     return m_hierarchy;
 }
@@ -247,69 +231,70 @@ void SCHEMATIC::RefreshHierarchy()
 }
 
 
-void SCHEMATIC::GetContextualTextVars( wxArrayString* aVars ) const
+void SCHEMATIC::GetContextualTextVars( QStringList* aVars ) const
 {
     auto add =
-            [&]( const wxString& aVar )
+            [&]( const QString& aVar )
             {
                 if( !alg::contains( *aVars, aVar ) )
-                    aVars->push_back( aVar );
+                    aVars->append( aVar );
             };
 
-    add( wxT( "#" ) );
-    add( wxT( "##" ) );
-    add( wxT( "SHEETPATH" ) );
-    add( wxT( "SHEETNAME" ) );
-    add( wxT( "FILENAME" ) );
-    add( wxT( "FILEPATH" ) );
-    add( wxT( "PROJECTNAME" ) );
+    add( "#" );
+    add( "##" );
+    add( "SHEETPATH" );
+    add( "SHEETNAME" );
+    add( "FILENAME" );
+    add( "FILEPATH" );
+    add( "PROJECTNAME" );
 
     if( !CurrentSheet().empty() )
         CurrentSheet().LastScreen()->GetTitleBlock().GetContextualTextVars( aVars );
 
-    for( std::pair<wxString, wxString> entry : m_project->GetTextVars() )
+    for( std::pair<QString, QString> entry : m_project->GetTextVars() )
         add( entry.first );
 }
 
 
-bool SCHEMATIC::ResolveTextVar( const SCH_SHEET_PATH* aSheetPath, wxString* token,
+bool SCHEMATIC::ResolveTextVar( const SCH_SHEET_PATH* aSheetPath, QString* token,
                                 int aDepth ) const
 {
-    wxCHECK( aSheetPath, false );
+    Q_ASSERT( aSheetPath );
+    if( !aSheetPath ) return false;
 
-    if( token->IsSameAs( wxT( "#" ) ) )
+    if( *token == "#" )
     {
         *token = aSheetPath->GetPageNumber();
         return true;
     }
-    else if( token->IsSameAs( wxT( "##" ) ) )
+    else if( *token == "##" )
     {
-        *token = wxString::Format( "%i", Root().CountSheets() );
+        *token = QString::asprintf( "%i", Root().CountSheets() );
         return true;
     }
-    else if( token->IsSameAs( wxT( "SHEETPATH" ) ) )
+    else if( *token == "SHEETPATH" )
     {
         *token = aSheetPath->PathHumanReadable();
         return true;
     }
-    else if( token->IsSameAs( wxT( "SHEETNAME" ) ) )
+    else if( *token == "SHEETNAME" )
     {
         *token = aSheetPath->Last()->GetName();
         return true;
     }
-    else if( token->IsSameAs( wxT( "FILENAME" ) ) )
+    else if( *token == "FILENAME" )
     {
-        wxFileName fn( GetFileName() );
-        *token = fn.GetFullName();
+        QFileInfo fn( GetFileName() );
+        *token = fn.fileName();
         return true;
     }
-    else if( token->IsSameAs( wxT( "FILEPATH" ) ) )
+    else if( *token == "FILEPATH" )
     {
-        wxFileName fn( GetFileName() );
-        *token = fn.GetFullPath();
+        QFileInfo fn( GetFileName() );
+        *token = fn.absoluteFilePath();
         return true;
     }
-    else if( token->IsSameAs( wxT( "PROJECTNAME" ) ) )
+    else if( *token == "PROJECTNAME" )
     {
         *token = m_project->GetProjectName();
         return true;
@@ -325,22 +310,22 @@ bool SCHEMATIC::ResolveTextVar( const SCH_SHEET_PATH* aSheetPath, wxString* toke
 }
 
 
-wxString SCHEMATIC::GetFileName() const
+QString SCHEMATIC::GetFileName() const
 {
-    return IsValid() ? m_rootSheet->GetScreen()->GetFileName() : wxString( wxEmptyString );
+    return IsValid() ? m_rootSheet->GetScreen()->GetFileName() : QString();
 }
 
 
 SCHEMATIC_SETTINGS& SCHEMATIC::Settings() const
 {
-    wxASSERT( m_project );
+    Q_ASSERT( m_project );
     return *m_project->GetProjectFile().m_SchematicSettings;
 }
 
 
 ERC_SETTINGS& SCHEMATIC::ErcSettings() const
 {
-    wxASSERT( m_project );
+    Q_ASSERT( m_project );
     return *m_project->GetProjectFile().m_ErcSettings;
 }
 
@@ -355,7 +340,7 @@ std::vector<SCH_MARKER*> SCHEMATIC::ResolveERCExclusions()
     // without risking an incorrect exclusion - this is preferable to silently dropping
     // new ERC errors / warnings due to an incorrect match between a legacy and new
     // marker serialization format
-    std::set<wxString> migratedExclusions;
+    std::set<QString> migratedExclusions;
 
     for( auto it = settings.m_ErcExclusions.begin(); it != settings.m_ErcExclusions.end(); )
     {
@@ -369,11 +354,11 @@ std::vector<SCH_MARKER*> SCHEMATIC::ResolveERCExclusions()
 
         if( testMarker->IsLegacyMarker() )
         {
-            const wxString settingsKey = testMarker->GetRCItem()->GetSettingsKey();
+            const QString settingsKey = testMarker->GetRCItem()->GetSettingsKey();
 
-            if(    settingsKey != wxT( "pin_to_pin" )
-                && settingsKey != wxT( "hier_label_mismatch" )
-                && settingsKey != wxT( "different_unit_net" ) )
+            if(    settingsKey != "pin_to_pin"
+                && settingsKey != "hier_label_mismatch"
+                && settingsKey != "different_unit_net" )
             {
                 migratedExclusions.insert( testMarker->SerializeToString() );
             }
@@ -397,8 +382,8 @@ std::vector<SCH_MARKER*> SCHEMATIC::ResolveERCExclusions()
         for( SCH_ITEM* item : sheet.LastScreen()->Items().OfType( SCH_MARKER_T ) )
         {
             SCH_MARKER*                  marker = static_cast<SCH_MARKER*>( item );
-            wxString                     serialized = marker->SerializeToString();
-            std::set<wxString>::iterator it = settings.m_ErcExclusions.find( serialized );
+            QString                     serialized = marker->SerializeToString();
+            std::set<QString>::iterator it = settings.m_ErcExclusions.find( serialized );
 
             if( it != settings.m_ErcExclusions.end() )
             {
@@ -410,7 +395,7 @@ std::vector<SCH_MARKER*> SCHEMATIC::ResolveERCExclusions()
 
     std::vector<SCH_MARKER*> newMarkers;
 
-    for( const wxString& serialized : settings.m_ErcExclusions )
+    for( const QString& serialized : settings.m_ErcExclusions )
     {
         SCH_MARKER* marker = SCH_MARKER::DeserializeFromString( sheetList, serialized );
 
@@ -427,7 +412,7 @@ std::vector<SCH_MARKER*> SCHEMATIC::ResolveERCExclusions()
 }
 
 
-std::shared_ptr<BUS_ALIAS> SCHEMATIC::GetBusAlias( const wxString& aLabel ) const
+std::shared_ptr<BUS_ALIAS> SCHEMATIC::GetBusAlias( const QString& aLabel ) const
 {
     for( const SCH_SHEET_PATH& sheet : Hierarchy() )
     {
@@ -442,9 +427,9 @@ std::shared_ptr<BUS_ALIAS> SCHEMATIC::GetBusAlias( const wxString& aLabel ) cons
 }
 
 
-std::set<wxString> SCHEMATIC::GetNetClassAssignmentCandidates()
+std::set<QString> SCHEMATIC::GetNetClassAssignmentCandidates()
 {
-    std::set<wxString> names;
+    std::set<QString> names;
 
     for( const auto& [ key, subgraphList ] : m_connectionGraph->GetNetMap() )
     {
@@ -461,10 +446,11 @@ std::set<wxString> SCHEMATIC::GetNetClassAssignmentCandidates()
 }
 
 
-bool SCHEMATIC::ResolveCrossReference( wxString* token, int aDepth ) const
+bool SCHEMATIC::ResolveCrossReference( QString* token, int aDepth ) const
 {
-    wxString       remainder;
-    wxString       ref = token->BeforeFirst( ':', &remainder );
+    QString       remainder;
+    QString       ref = token->section( ':', 0, 0 );
+    remainder = token->section( ':', 1 );
     KIID_PATH      path( ref );
     KIID           uuid = path.back();
     SCH_SHEET_PATH sheetPath;
@@ -483,7 +469,7 @@ bool SCHEMATIC::ResolveCrossReference( wxString* token, int aDepth ) const
         if( refSymbol->ResolveTextVar( &sheetPath, &remainder, aDepth + 1 ) )
             *token = remainder;
         else
-            *token = refSymbol->GetRef( &sheetPath, true ) + wxS( ":" ) + remainder;
+            *token = refSymbol->GetRef( &sheetPath, true ) + ":" + remainder;
 
         return true;    // Cross-reference is resolved whether or not the actual textvar was
     }
@@ -503,9 +489,9 @@ bool SCHEMATIC::ResolveCrossReference( wxString* token, int aDepth ) const
 }
 
 
-std::map<int, wxString> SCHEMATIC::GetVirtualPageToSheetNamesMap() const
+std::map<int, QString> SCHEMATIC::GetVirtualPageToSheetNamesMap() const
 {
-    std::map<int, wxString> namesMap;
+    std::map<int, QString> namesMap;
 
     for( const SCH_SHEET_PATH& sheet : Hierarchy() )
     {
@@ -519,9 +505,9 @@ std::map<int, wxString> SCHEMATIC::GetVirtualPageToSheetNamesMap() const
 }
 
 
-std::map<int, wxString> SCHEMATIC::GetVirtualPageToSheetPagesMap() const
+std::map<int, QString> SCHEMATIC::GetVirtualPageToSheetPagesMap() const
 {
-    std::map<int, wxString> pagesMap;
+    std::map<int, QString> pagesMap;
 
     for( const SCH_SHEET_PATH& sheet : Hierarchy() )
         pagesMap[sheet.GetVirtualPageNumber()] = sheet.GetPageNumber();
@@ -530,16 +516,16 @@ std::map<int, wxString> SCHEMATIC::GetVirtualPageToSheetPagesMap() const
 }
 
 
-wxString SCHEMATIC::ConvertRefsToKIIDs( const wxString& aSource ) const
+QString SCHEMATIC::ConvertRefsToKIIDs( const QString& aSource ) const
 {
-    wxString newbuf;
+    QString newbuf;
     size_t   sourceLen = aSource.length();
 
     for( size_t i = 0; i < sourceLen; ++i )
     {
         if( aSource[i] == '$' && i + 1 < sourceLen && aSource[i+1] == '{' )
         {
-            wxString token;
+            QString token;
             bool     isCrossRef = false;
             int      nesting = 0;
 
@@ -567,8 +553,9 @@ wxString SCHEMATIC::ConvertRefsToKIIDs( const wxString& aSource ) const
 
             if( isCrossRef )
             {
-                wxString           remainder;
-                wxString           ref = token.BeforeFirst( ':', &remainder );
+                QString           remainder;
+                QString           ref = token.section( ':', 0, 0 );
+                remainder = token.section( ':', 1 );
                 SCH_REFERENCE_LIST references;
 
                 Hierarchy().GetSymbols( references );
@@ -582,13 +569,13 @@ wxString SCHEMATIC::ConvertRefsToKIIDs( const wxString& aSource ) const
                         KIID_PATH path = references[ jj ].GetSheetPath().Path();
                         path.push_back( refSymbol->m_Uuid );
 
-                        token = path.AsString() + wxS( ":" ) + remainder;
+                        token = path.AsString() + ":" + remainder;
                         break;
                     }
                 }
             }
 
-            newbuf.append( wxS( "${" ) + token + wxS( "}" ) );
+            newbuf.append( "${" + token + "}" );
         }
         else
         {
@@ -600,16 +587,16 @@ wxString SCHEMATIC::ConvertRefsToKIIDs( const wxString& aSource ) const
 }
 
 
-wxString SCHEMATIC::ConvertKIIDsToRefs( const wxString& aSource ) const
+QString SCHEMATIC::ConvertKIIDsToRefs( const QString& aSource ) const
 {
-    wxString newbuf;
+    QString newbuf;
     size_t   sourceLen = aSource.length();
 
     for( size_t i = 0; i < sourceLen; ++i )
     {
         if( aSource[i] == '$' && i + 1 < sourceLen && aSource[i+1] == '{' )
         {
-            wxString token;
+            QString token;
             bool     isCrossRef = false;
 
             for( i = i + 2; i < sourceLen; ++i )
@@ -625,8 +612,9 @@ wxString SCHEMATIC::ConvertKIIDsToRefs( const wxString& aSource ) const
 
             if( isCrossRef )
             {
-                wxString       remainder;
-                wxString       ref = token.BeforeFirst( ':', &remainder );
+                QString       remainder;
+                QString       ref = token.section( ':', 0, 0 );
+                remainder = token.section( ':', 1 );
                 KIID_PATH      path( ref );
                 KIID           uuid = path.back();
                 SCH_SHEET_PATH sheetPath;
@@ -641,11 +629,11 @@ wxString SCHEMATIC::ConvertKIIDsToRefs( const wxString& aSource ) const
                 if( refItem && refItem->Type() == SCH_SYMBOL_T )
                 {
                     SCH_SYMBOL* refSymbol = static_cast<SCH_SYMBOL*>( refItem );
-                    token = refSymbol->GetRef( &sheetPath, true ) + wxS( ":" ) + remainder;
+                    token = refSymbol->GetRef( &sheetPath, true ) + ":" + remainder;
                 }
             }
 
-            newbuf.append( wxS( "${" ) + token + wxS( "}" ) );
+            newbuf.append( "${" + token + "}" );
         }
         else
         {
@@ -665,17 +653,17 @@ void SCHEMATIC::SetLegacySymbolInstanceData()
 }
 
 
-wxString SCHEMATIC::GetUniqueFilenameForCurrentSheet()
+QString SCHEMATIC::GetUniqueFilenameForCurrentSheet()
 {
     // Filename is rootSheetName-sheetName-...-sheetName
     // Note that we need to fetch the rootSheetName out of its filename, as the root SCH_SHEET's
     // name is just a timestamp.
 
-    wxFileName rootFn( CurrentSheet().at( 0 )->GetFileName() );
-    wxString   filename = rootFn.GetName();
+    QFileInfo rootFn( CurrentSheet().at( 0 )->GetFileName() );
+    QString   filename = rootFn.baseName();
 
     for( unsigned i = 1; i < CurrentSheet().size(); i++ )
-        filename += wxT( "-" ) + CurrentSheet().at( i )->GetName();
+        filename += "-" + CurrentSheet().at( i )->GetName();
 
     return filename;
 }
@@ -712,7 +700,7 @@ void SCHEMATIC::SetSheetNumberAndCount()
 
 void SCHEMATIC::RecomputeIntersheetRefs()
 {
-    std::map<wxString, std::set<int>>& pageRefsMap = GetPageRefsMap();
+    std::map<QString, std::set<int>>& pageRefsMap = GetPageRefsMap();
 
     pageRefsMap.clear();
 
@@ -721,7 +709,7 @@ void SCHEMATIC::RecomputeIntersheetRefs()
         for( SCH_ITEM* item : sheet.LastScreen()->Items().OfType( SCH_GLOBAL_LABEL_T ) )
         {
             SCH_GLOBALLABEL* global = static_cast<SCH_GLOBALLABEL*>( item );
-            wxString         resolvedLabel = global->GetShownText( &sheet, false );
+            QString         resolvedLabel = global->GetShownText( &sheet, false );
 
             pageRefsMap[ resolvedLabel ].insert( sheet.GetVirtualPageNumber() );
         }
@@ -762,26 +750,26 @@ void SCHEMATIC::RecomputeIntersheetRefs()
 }
 
 
-wxString SCHEMATIC::GetOperatingPoint( const wxString& aNetName, int aPrecision,
-                                       const wxString& aRange )
+QString SCHEMATIC::GetOperatingPoint( const QString& aNetName, int aPrecision,
+                                       const QString& aRange )
 {
-    wxString spiceNetName( aNetName.Lower() );
+    QString spiceNetName( aNetName.toLower() );
     // UNUSED_SYMBOL: ConvertToSpiceMarkup - Method implementation not available in minimal set
     // NETLIST_EXPORTER_SPICE::ConvertToSpiceMarkup( &spiceNetName );
 
-    if( spiceNetName == wxS( "gnd" ) || spiceNetName == wxS( "0" ) )
-        return wxEmptyString;
+    if( spiceNetName == "gnd" || spiceNetName == "0" )
+        return QString();
 
     auto it = m_operatingPoints.find( spiceNetName );
 
     if( it != m_operatingPoints.end() )
         // UNUSED_SYMBOL: SPICE_VALUE constructor with Normalize() - Implementation missing
         // return SPICE_VALUE( it->second ).ToString( { aPrecision, aRange } );
-        return wxString::Format( wxT("%g"), it->second );  // Simple fallback without normalization
+        return QString::asprintf( "%g", it->second );  // Simple fallback without normalization
     else if( m_operatingPoints.empty() )
-        return wxS( "--" );
+        return "--";
     else
-        return wxS( "?" );
+        return "?";
 }
 
 
@@ -879,7 +867,7 @@ void SCHEMATIC::RecordERCExclusions()
 
             if( marker->IsExcluded() )
             {
-                wxString serialized = marker->SerializeToString();
+                QString serialized = marker->SerializeToString();
                 ercSettings.m_ErcExclusions.insert( serialized );
                 ercSettings.m_ErcExclusionComments[ serialized ] = marker->GetComment();
             }
@@ -972,7 +960,7 @@ void SCHEMATIC::EmbedFonts()
 
         if( !file )
         {
-            wxLogTrace( "EMBED", "Failed to add font file: %s", font->GetFileName() );
+            qDebug() << "Failed to add font file:" << font->GetFileName();
             continue;
         }
 
@@ -985,7 +973,7 @@ std::set<const SCH_SCREEN*> SCHEMATIC::GetSchematicsSharedByMultipleProjects() c
 {
     std::set<const SCH_SCREEN*> retv;
 
-    wxCHECK( m_rootSheet, retv );
+    if( !m_rootSheet ) return retv;
 
     SCH_SHEET_LIST hierarchy( m_rootSheet );
     SCH_SCREENS screens( m_rootSheet );
@@ -1018,13 +1006,13 @@ std::set<const SCH_SCREEN*> SCHEMATIC::GetSchematicsSharedByMultipleProjects() c
 
 bool SCHEMATIC::IsComplexHierarchy() const
 {
-    wxCHECK( m_rootSheet, false );
+    if( !m_rootSheet ) return false;
 
     SCH_SCREENS screens( m_rootSheet );
 
     for( const SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
     {
-        wxCHECK2( screen, continue );
+        if( !screen ) continue;
 
         if( screen->GetRefCount() > 1 )
             return true;
@@ -1316,7 +1304,7 @@ void SCHEMATIC::RecalculateConnections( SCH_COMMIT* aCommit, SCH_CLEANUP_FLAGS a
     }
 
     timer.Stop();
-    wxLogTrace( "CONN_PROFILE", "SchematicCleanUp() %0.4f ms", timer.msecs() );
+    qDebug() << "SchematicCleanUp()" << timer.msecs() << "ms";
 
     if( settings.m_IntersheetRefsShow )
         RecomputeIntersheetRefs();
@@ -1502,7 +1490,7 @@ void SCHEMATIC::RecalculateConnections( SCH_COMMIT* aCommit, SCH_CLEANUP_FLAGS a
                 {
                     SCH_SHEET* sheet = static_cast<SCH_SHEET*>( item );
 
-                    wxCHECK2( sheet, continue );
+                    if( !sheet ) continue;
 
                     std::vector<SCH_SHEET_PIN*> sheetPins = sheet->GetPins();
                     changed_items.insert( sheetPins.begin(), sheetPins.end() );
@@ -1526,11 +1514,11 @@ void SCHEMATIC::RecalculateConnections( SCH_COMMIT* aCommit, SCH_CLEANUP_FLAGS a
 
         std::shared_ptr<NET_SETTINGS> netSettings = m_project->GetProjectFile().NetSettings();
 
-        std::set<wxString> affectedNets;
+        std::set<QString> affectedNets;
 
         for( auto&[ path, item ] : all_items )
         {
-            wxCHECK2( item, continue );
+            if( !item ) continue;
             item->SetConnectivityDirty();
             SCH_CONNECTION* conn = item->Connection();
 
@@ -1539,7 +1527,7 @@ void SCHEMATIC::RecalculateConnections( SCH_COMMIT* aCommit, SCH_CLEANUP_FLAGS a
         }
 
         // Reset resolved netclass cache for this connection
-        for( const wxString& netName : affectedNets )
+        for( const QString& netName : affectedNets )
             netSettings->ClearCacheForNet( netName );
 
         new_graph.Recalculate( list, false, aChangedItemHandler );

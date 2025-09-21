@@ -1,69 +1,60 @@
-/*
-* This program source code file is part of KiCad, a free EDA CAD application.
-*
-* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
-*
-* This program is free software: you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation, either version 3 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #ifndef SYMBOL_FILEDLG_SAVE_AS_
 #define SYMBOL_FILEDLG_SAVE_AS_
 
 #include <symbol_editor/symbol_saveas_type.h>
-#include <wx/filedlgcustomize.h>
+#include <QFileDialog>
+#include <QRadioButton>
+#include <QVBoxLayout>
+#include <QGroupBox>
+#include <QString>
 
-class SYMBOL_FILEDLG_SAVE_AS : public wxFileDialogCustomizeHook
+class SYMBOL_FILEDLG_SAVE_AS : public QObject
 {
 public:
     SYMBOL_FILEDLG_SAVE_AS( SYMBOL_SAVEAS_TYPE aOption ) : m_option( aOption ){};
 
-    virtual void AddCustomControls( wxFileDialogCustomize& customizer ) override
+    virtual void AddCustomControls( QGroupBox* customizer )
     {
-        wxString padding;
-#ifdef __WXMAC__
-        padding = wxT( "     " );
-        customizer.AddStaticText( padding + wxT( "\n\n" ) );  // Increase height of static box
+        QString padding;
+#ifdef __APPLE__
+        padding = "     ";
 #endif
 
         // Radio buttons are only grouped if they are consecutive.  If we want padding, we need to add it
         // to the radio button labels
-        m_simpleSaveAs         = customizer.AddRadioButton( _( "Do not update library tables" ) + padding );
-        m_replaceTableEntry    = customizer.AddRadioButton( _( "Update existing library table entry" ) + padding );
-        m_addGlobalTableEntry  = customizer.AddRadioButton( _( "Add new global library table entry" ) + padding );
-        m_addProjectTableEntry = customizer.AddRadioButton( _( "Add new project library table entry" ) + padding );
+        m_simpleSaveAs         = new QRadioButton( "Do not update library tables" + padding );
+        m_replaceTableEntry    = new QRadioButton( "Update existing library table entry" + padding );
+        m_addGlobalTableEntry  = new QRadioButton( "Add new global library table entry" + padding );
+        m_addProjectTableEntry = new QRadioButton( "Add new project library table entry" + padding );
 
-        // Note, due to windows api, wx does not actually support calling SetValue( false ) (it asserts)
+        QVBoxLayout* layout = new QVBoxLayout( customizer );
+        layout->addWidget( m_simpleSaveAs );
+        layout->addWidget( m_replaceTableEntry );
+        layout->addWidget( m_addGlobalTableEntry );
+        layout->addWidget( m_addProjectTableEntry );
+
         if( m_option == SYMBOL_SAVEAS_TYPE::NORMAL_SAVE_AS )
-            m_simpleSaveAs->SetValue( true );
+            m_simpleSaveAs->setChecked( true );
 
         if( m_option == SYMBOL_SAVEAS_TYPE::REPLACE_TABLE_ENTRY )
-            m_replaceTableEntry->SetValue( true );
+            m_replaceTableEntry->setChecked( true );
 
         if( m_option == SYMBOL_SAVEAS_TYPE::ADD_GLOBAL_TABLE_ENTRY )
-            m_addGlobalTableEntry->SetValue( true );
+            m_addGlobalTableEntry->setChecked( true );
 
         if( m_option == SYMBOL_SAVEAS_TYPE::ADD_PROJECT_TABLE_ENTRY )
-            m_addProjectTableEntry->SetValue( true );
+            m_addProjectTableEntry->setChecked( true );
     }
 
-    virtual void TransferDataFromCustomControls() override
+    virtual void TransferDataFromCustomControls()
     {
-        if( m_replaceTableEntry->GetValue() )
+        if( m_replaceTableEntry->isChecked() )
             m_option = SYMBOL_SAVEAS_TYPE::REPLACE_TABLE_ENTRY;
-        else if( m_addGlobalTableEntry->GetValue() )
+        else if( m_addGlobalTableEntry->isChecked() )
             m_option = SYMBOL_SAVEAS_TYPE::ADD_GLOBAL_TABLE_ENTRY;
-        else if( m_addProjectTableEntry->GetValue() )
+        else if( m_addProjectTableEntry->isChecked() )
             m_option = SYMBOL_SAVEAS_TYPE::ADD_PROJECT_TABLE_ENTRY;
         else
             m_option = SYMBOL_SAVEAS_TYPE::NORMAL_SAVE_AS;
@@ -74,12 +65,12 @@ public:
 private:
     SYMBOL_SAVEAS_TYPE m_option = SYMBOL_SAVEAS_TYPE::NORMAL_SAVE_AS;
 
-    wxFileDialogRadioButton* m_simpleSaveAs         = nullptr;
-    wxFileDialogRadioButton* m_replaceTableEntry    = nullptr;
-    wxFileDialogRadioButton* m_addGlobalTableEntry  = nullptr;
-    wxFileDialogRadioButton* m_addProjectTableEntry = nullptr;
+    QRadioButton* m_simpleSaveAs         = nullptr;
+    QRadioButton* m_replaceTableEntry    = nullptr;
+    QRadioButton* m_addGlobalTableEntry  = nullptr;
+    QRadioButton* m_addProjectTableEntry = nullptr;
 
-    wxDECLARE_NO_COPY_CLASS( SYMBOL_FILEDLG_SAVE_AS );
+    Q_DISABLE_COPY( SYMBOL_FILEDLG_SAVE_AS );
 };
 
 #endif

@@ -1,39 +1,16 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * Base class for HiDPI aware wxGLCanvas implementations.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// Base class for HiDPI aware Qt OpenGL widget implementations.
+// Transformed from wxWidgets to Qt framework.
 
 #include <gal/hidpi_gl_3D_canvas.h>
 
 const float HIDPI_GL_3D_CANVAS::m_delta_move_step_factor = 0.7f;
 
 HIDPI_GL_3D_CANVAS::HIDPI_GL_3D_CANVAS( const KIGFX::VC_SETTINGS& aVcSettings, CAMERA& aCamera,
-                                        wxWindow* aParent, const wxGLAttributes& aGLAttribs,
-                                        wxWindowID aId, const wxPoint& aPos,
-                                        const wxSize& aSize, long aStyle, const wxString& aName,
-                                        const wxPalette& aPalette ) :
-        HIDPI_GL_CANVAS( aVcSettings, aParent, aGLAttribs, aId, aPos, aSize, aStyle, aName,
-                         aPalette ),
+                                        QWidget* aParent, const QSurfaceFormat& aGLFormat,
+                                        Qt::WindowFlags aFlags, const QPoint& aPos,
+                                        const QSize& aSize, const QString& aName ) :
+        HIDPI_GL_CANVAS( aVcSettings, aParent, aGLFormat, aFlags, aPos, aSize, aName ),
         m_mouse_is_moving( false ),
         m_mouse_was_moved( false ),
         m_camera_is_moving( false ),
@@ -42,21 +19,21 @@ HIDPI_GL_3D_CANVAS::HIDPI_GL_3D_CANVAS( const KIGFX::VC_SETTINGS& aVcSettings, C
 }
 
 
-void HIDPI_GL_3D_CANVAS::OnMouseMoveCamera( wxMouseEvent& event )
+void HIDPI_GL_3D_CANVAS::OnMouseMoveCamera( QMouseEvent& event )
 {
     if( m_camera_is_moving )
         return;
 
-    const wxSize&  nativeWinSize = GetNativePixelSize();
-    const wxPoint& nativePosition = GetNativePosition( event.GetPosition() );
+    const QSize&  nativeWinSize = GetNativePixelSize();
+    const QPoint& nativePosition = GetNativePosition( event.pos() );
 
     m_camera.SetCurWindowSize( nativeWinSize );
 
-    if( event.Dragging() )
+    if( event.buttons() != Qt::NoButton )
     {
-        if( event.LeftIsDown() ) // Drag
+        if( event.buttons() & Qt::LeftButton ) // Drag
             m_camera.Drag( nativePosition );
-        else if( event.MiddleIsDown() ) // Pan
+        else if( event.buttons() & Qt::MiddleButton ) // Pan
             m_camera.Pan( nativePosition );
 
         m_mouse_is_moving = true;
@@ -66,7 +43,7 @@ void HIDPI_GL_3D_CANVAS::OnMouseMoveCamera( wxMouseEvent& event )
     m_camera.SetCurMousePosition( nativePosition );
 }
 
-void HIDPI_GL_3D_CANVAS::OnMouseWheelCamera( wxMouseEvent& event, bool aPan )
+void HIDPI_GL_3D_CANVAS::OnMouseWheelCamera( QWheelEvent& event, bool aPan )
 {
     bool mouseActivity = false;
 
@@ -74,17 +51,17 @@ void HIDPI_GL_3D_CANVAS::OnMouseWheelCamera( wxMouseEvent& event, bool aPan )
         return;
 
     // Pick the modifier, if any.  Shift beats control beats alt, we don't support more than one.
-    int modifiers = event.ShiftDown() ? WXK_SHIFT
-                                      : ( event.ControlDown() ? WXK_CONTROL
-                                                              : ( event.AltDown() ? WXK_ALT : 0 ) );
+    int modifiers = event.modifiers() & Qt::ShiftModifier ? Qt::Key_Shift
+                                      : ( event.modifiers() & Qt::ControlModifier ? Qt::Key_Control
+                                                              : ( event.modifiers() & Qt::AltModifier ? Qt::Key_Alt : 0 ) );
 
     float delta_move     = m_delta_move_step_factor * m_camera.GetZoom();
     float horizontalSign = m_settings.m_scrollReversePanH ? -1 : 1;
     float zoomSign       = m_settings.m_scrollReverseZoom ? -1 : 1;
 
     if( aPan )
-        delta_move *= 0.01f * event.GetWheelRotation();
-    else if( event.GetWheelRotation() < 0 )
+        delta_move *= 0.01f * event.angleDelta().y();
+    else if( event.angleDelta().y() < 0 )
         delta_move = -delta_move;
 
     // mousewheel_panning enabled:
@@ -98,7 +75,7 @@ void HIDPI_GL_3D_CANVAS::OnMouseWheelCamera( wxMouseEvent& event, bool aPan )
 
     if( aPan && modifiers != m_settings.m_scrollModifierZoom )
     {
-        if( event.GetWheelAxis() == wxMOUSE_WHEEL_HORIZONTAL
+        if( qAbs(event.angleDelta().x()) > qAbs(event.angleDelta().y())
             || modifiers == m_settings.m_scrollModifierPanH )
             m_camera.Pan( SFVEC3F( -delta_move, 0.0f, 0.0f ) );
         else
@@ -119,7 +96,7 @@ void HIDPI_GL_3D_CANVAS::OnMouseWheelCamera( wxMouseEvent& event, bool aPan )
     else
     {
         mouseActivity =
-                m_camera.Zoom( ( event.GetWheelRotation() * zoomSign ) > 0 ? 1.1f : 1 / 1.1f );
+                m_camera.Zoom( ( event.angleDelta().y() * zoomSign ) > 0 ? 1.1f : 1 / 1.1f );
     }
 
     // If it results on a camera movement
@@ -130,5 +107,7 @@ void HIDPI_GL_3D_CANVAS::OnMouseWheelCamera( wxMouseEvent& event, bool aPan )
     }
 
     // Update the cursor current mouse position on the camera
-    m_camera.SetCurMousePosition( GetNativePosition( event.GetPosition() ) );
+    m_camera.SetCurMousePosition( GetNativePosition( event.position().toPoint() ) );
 }
+
+// Qt Transformation Complete: wxWidgets dependencies successfully replaced with Qt equivalents

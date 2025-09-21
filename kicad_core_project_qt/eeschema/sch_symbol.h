@@ -1,29 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2014 Dick Hollenbeck, dick@softplc.com
- * Copyright (C) 2015 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2022 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SCH_SYMBOL_H
 #define SCH_SYMBOL_H
@@ -37,9 +11,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <wx/arrstr.h>
-#include <wx/chartype.h>
-#include <wx/string.h>
+#include <QString>
+#include <QStringList>
 
 #include <schematic.h>
 #include <symbol.h>
@@ -65,7 +38,7 @@ typedef std::vector<SCH_FIELD>    SCH_FIELDS;
 typedef std::weak_ptr<LIB_SYMBOL> PART_REF;
 
 
-extern std::string toUTFTildaText( const wxString& txt );
+extern std::string toUTFTildaText( const QString& txt );
 
 
 /**
@@ -111,9 +84,9 @@ public:
         return aItem && SCH_SYMBOL_T == aItem->Type();
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "SCH_SYMBOL" );
+        return "SCH_SYMBOL";
     }
 
     /**
@@ -163,7 +136,7 @@ public:
 
     const LIB_ID& GetLibId() const override { return m_lib_id; }
 
-    wxString GetSymbolIDAsString() const { return m_lib_id.Format(); }
+    QString GetSymbolIDAsString() const { return m_lib_id.Format(); }
 
     /**
      * The name of the symbol in the schematic library symbol list.
@@ -176,9 +149,9 @@ public:
      * the library at some point in the future.  If this name is empty, then the library item
      * name from #LIB_ID is used.
      */
-    void SetSchSymbolLibraryName( const wxString& aName ) { m_schLibSymbolName = aName; }
-    wxString GetSchSymbolLibraryName() const;
-    bool UseLibIdLookup() const { return m_schLibSymbolName.IsEmpty(); }
+    void SetSchSymbolLibraryName( const QString& aName ) { m_schLibSymbolName = aName; }
+    QString GetSchSymbolLibraryName() const;
+    bool UseLibIdLookup() const { return m_schLibSymbolName.isEmpty(); }
 
     std::unique_ptr< LIB_SYMBOL >& GetLibSymbolRef() { return m_part; }
     const std::unique_ptr< LIB_SYMBOL >& GetLibSymbolRef() const { return m_part; }
@@ -202,19 +175,19 @@ public:
     void SetLibSymbol( LIB_SYMBOL* aLibSymbol );
 
     /**
-     * @return the associated LIB_SYMBOL's description field (or wxEmptyString).
+     * @return the associated LIB_SYMBOL's description field (or empty QString).
      */
-    wxString GetDescription() const override;
+    QString GetDescription() const override;
 
     /**
-     * @return the associated LIB_SYMBOL's keywords field (or wxEmptyString).
+     * @return the associated LIB_SYMBOL's keywords field (or empty QString).
      */
-    wxString GetKeyWords() const override;
+    QString GetKeyWords() const override;
 
     /**
      * Return the documentation text for the given part alias
      */
-    wxString GetDatasheet() const;
+    QString GetDatasheet() const;
 
     /**
      * Updates the cache of SCH_PIN objects for each pin
@@ -233,7 +206,7 @@ public:
      *
      * @return the display name of a unit if set, or the ordinal name of the unit otherwise.
      */
-    wxString GetUnitDisplayName( int aUnit ) const;
+    QString GetUnitDisplayName( int aUnit ) const;
 
     void SetBodyStyle( int aBodyStyle ) override;
 
@@ -246,15 +219,15 @@ public:
 
     bool HasAlternateBodyStyle() const override;
 
-    wxString GetPrefix() const { return m_prefix; }
-    void SetPrefix( const wxString& aPrefix ) { m_prefix = aPrefix; }
+    QString GetPrefix() const { return m_prefix; }
+    void SetPrefix( const QString& aPrefix ) { m_prefix = aPrefix; }
 
     /**
      * Set the prefix based on the current reference designator.
      */
     void UpdatePrefix();
 
-    wxString SubReference( int aUnit, bool aAddSeparator = true ) const;
+    QString SubReference( int aUnit, bool aAddSeparator = true ) const;
 
     /**
      * Return the number of units per package of the symbol.
@@ -356,14 +329,14 @@ public:
     /**
      * Return the list of system text vars & fields for this symbol.
      */
-    void GetContextualTextVars( wxArrayString* aVars ) const;
+    void GetContextualTextVars( QStringList* aVars ) const;
 
     /**
      * Resolve any references to system tokens supported by the symbol.
      *
      * @param aDepth a counter to limit recursion and circular references.
      */
-    bool ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, int aDepth = 0 ) const;
+    bool ResolveTextVar( const SCH_SHEET_PATH* aPath, QString* token, int aDepth = 0 ) const;
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
@@ -435,9 +408,9 @@ public:
      *
      * @return is the field with \a aFieldName or NULL if the field does not exist.
      */
-    SCH_FIELD* GetFieldByName( const wxString& aFieldName );
+    SCH_FIELD* GetFieldByName( const QString& aFieldName );
 
-    const SCH_FIELD* GetFieldByName( const wxString& aFieldName ) const;
+    const SCH_FIELD* GetFieldByName( const QString& aFieldName ) const;
 
     /**
      * Populate a std::vector with SCH_FIELDs.
@@ -467,7 +440,7 @@ public:
      * @param aFieldName is the user fieldName to remove.  Attempts to remove a mandatory
      *                   field or a non-existant field are silently ignored.
      */
-    void RemoveField( const wxString& aFieldName );
+    void RemoveField( const QString& aFieldName );
 
     void RemoveField( SCH_FIELD* aField ) { RemoveField( aField->GetName() ); }
 
@@ -480,47 +453,47 @@ public:
      *
      * @return the field if found or NULL if the field was not found.
      */
-    SCH_FIELD* FindField( const wxString& aFieldName, bool aIncludeDefaultFields = true,
+    SCH_FIELD* FindField( const QString& aFieldName, bool aIncludeDefaultFields = true,
                           bool aCaseInsensitive = false );
 
     /**
      * @return the reference for the instance on the given sheet.
      */
-    const wxString GetRef( const SCH_SHEET_PATH* aSheet,
+    const QString GetRef( const SCH_SHEET_PATH* aSheet,
                            bool aIncludeUnit = false ) const override;
 
     /**
      * @return the value for the instance on the given sheet.
      */
-    const wxString GetValue( bool aResolve, const SCH_SHEET_PATH* aPath,
+    const QString GetValue( bool aResolve, const SCH_SHEET_PATH* aPath,
                              bool aAllowExtraText ) const override;
 
-    void SetValueFieldText( const wxString& aValue );
+    void SetValueFieldText( const QString& aValue );
 
-    const wxString GetFootprintFieldText( bool aResolve, const SCH_SHEET_PATH* aPath,
+    const QString GetFootprintFieldText( bool aResolve, const SCH_SHEET_PATH* aPath,
                                           bool aAllowExtraText ) const;
-    void SetFootprintFieldText( const wxString& aFootprint );
+    void SetFootprintFieldText( const QString& aFootprint );
 
     /*
      * Field access for property manager
      */
-    wxString GetRefProp() const
+    QString GetRefProp() const
     {
         return GetRef( &Schematic()->CurrentSheet() );
     }
 
-    void SetRefProp( const wxString& aRef );
-    wxString GetValueProp() const
+    void SetRefProp( const QString& aRef );
+    QString GetValueProp() const
     {
         return GetValue( false, &Schematic()->CurrentSheet(), false );
     }
 
-    void SetValueProp( const wxString& aRef )
+    void SetValueProp( const QString& aRef )
     {
         SetValueFieldText( aRef );
     }
 
-    wxString GetUnitProp() const
+    QString GetUnitProp() const
     {
         int unit = GetUnitSelection( &Schematic()->CurrentSheet() );
 
@@ -530,7 +503,7 @@ public:
             return SubReference( unit, false );
     }
 
-    void SetUnitProp( const wxString& aUnit )
+    void SetUnitProp( const QString& aUnit )
     {
         for( int unit = 1; unit <= GetUnitCount(); unit++ )
         {
@@ -615,7 +588,7 @@ public:
      * @param number is the number of the pin to find.
      * @return Pin object if found, otherwise NULL.
      */
-    SCH_PIN* GetPin( const wxString& number ) const;
+    SCH_PIN* GetPin( const QString& number ) const;
 
     /**
      * Populate a vector with all the pins from the library object that match the current unit
@@ -673,7 +646,7 @@ public:
      * @param aSheet is the hierarchical path of the reference.
      * @param aReference is the new reference for the symbol.
      */
-    void SetRef( const SCH_SHEET_PATH* aSheet, const wxString& aReference );
+    void SetRef( const SCH_SHEET_PATH* aSheet, const QString& aReference );
 
     /**
      * Check if the symbol has a valid annotation (reference) for the given sheet path.
@@ -695,7 +668,7 @@ public:
      *                   hole spacing or other board-specific changes from other instances).
      */
     void AddHierarchicalReference( const KIID_PATH& aPath,
-                                   const wxString&  aRef,
+                                   const QString&  aRef,
                                    int              aUnit );
 
     void AddHierarchicalReference( const SCH_SYMBOL_INSTANCE& aInstance );
@@ -786,7 +759,7 @@ public:
      */
     SCH_ITEM* GetDrawItem( const VECTOR2I& aPosition, KICAD_T aType = TYPE_NOT_INIT );
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -882,7 +855,7 @@ public:
     double Similarity( const SCH_ITEM& aOther ) const override;
 
     /// Return the component classes this symbol belongs in.
-    std::unordered_set<wxString> GetComponentClassNames( const SCH_SHEET_PATH* aPath ) const;
+    std::unordered_set<QString> GetComponentClassNames( const SCH_SHEET_PATH* aPath ) const;
 
     bool operator==( const SCH_ITEM& aOther ) const override;
 
@@ -896,7 +869,7 @@ private:
 private:
     VECTOR2I    m_pos;
     LIB_ID      m_lib_id;       ///< Name and library the symbol was loaded from, i.e. 74xx:74LS00.
-    wxString    m_prefix;       ///< C, R, U, Q etc - the first character(s) which typically
+    QString    m_prefix;       ///< C, R, U, Q etc - the first character(s) which typically
                                 ///<   indicate what the symbol is. Determined, upon placement,
                                 ///<   from the library symbol.  Created upon file load, by the
                                 ///<   first non-digits in the reference fields.
@@ -908,7 +881,7 @@ private:
      * multiple variants of the same library symbol.  Set this member in order to preserve the
      * link to the original symbol library.  If empty, #LIB_ID::GetLibItemName() should be used.
      */
-    wxString                    m_schLibSymbolName;
+    QString                    m_schLibSymbolName;
 
     std::vector<SCH_FIELD>      m_fields;        ///< Variable length list of fields.
 

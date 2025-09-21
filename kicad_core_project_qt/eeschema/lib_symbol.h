@@ -1,28 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2004-2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2022 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef LIB_SYMBOL_H
 #define LIB_SYMBOL_H
@@ -34,6 +9,8 @@
 #include <lib_tree_item.h>
 #include <vector>
 #include <core/multivector.h>
+#include <QString>
+#include <QStringList>
 
 class LINE_READER;
 class OUTPUTFORMATTER;
@@ -83,7 +60,7 @@ struct LIB_SYMBOL_UNIT
 class LIB_SYMBOL : public SYMBOL, public LIB_TREE_ITEM, public EMBEDDED_FILES
 {
 public:
-    LIB_SYMBOL( const wxString& aName, LIB_SYMBOL* aParent = nullptr,
+    LIB_SYMBOL( const QString& aName, LIB_SYMBOL* aParent = nullptr,
                 SYMBOL_LIB* aLibrary = nullptr );
 
     LIB_SYMBOL( const LIB_SYMBOL& aSymbol, SYMBOL_LIB* aLibrary = nullptr );
@@ -134,9 +111,9 @@ public:
      */
     LIB_SYMBOL_SPTR GetRootSymbol() const;
 
-    virtual wxString GetClass() const override
+    virtual QString GetClass() const override
     {
-        return wxT( "LIB_SYMBOL" );
+        return "LIB_SYMBOL";
     }
 
     static inline bool ClassOf( const EDA_ITEM* aItem )
@@ -144,11 +121,11 @@ public:
         return aItem && aItem->Type() == LIB_SYMBOL_T;
     }
 
-    virtual void SetName( const wxString& aName );
-    wxString GetName() const override { return m_name; }
+    virtual void SetName( const QString& aName );
+    QString GetName() const override { return m_name; }
 
     LIB_ID GetLIB_ID() const override { return m_libId; }
-    wxString GetDesc() override { return GetDescription(); }
+    QString GetDesc() override { return GetDescription(); }
     int GetSubUnitCount() const override { return GetUnitCount(); }
 
     const LIB_ID& GetLibId() const override { return m_libId; }
@@ -157,18 +134,18 @@ public:
     LIB_ID GetSourceLibId() const { return m_sourceLibId; }
     void SetSourceLibId( const LIB_ID& aLibId ) { m_sourceLibId = aLibId; }
 
-    wxString GetLibNickname() const override { return GetLibraryName(); }
+    QString GetLibNickname() const override { return GetLibraryName(); }
 
     ///< Sets the Description field text value
-    void SetDescription( const wxString& aDescription )
+    void SetDescription( const QString& aDescription )
     {
         GetDescriptionField().SetText( aDescription );
     }
 
     ///< Gets the Description field text value */
-    wxString GetDescription() const override
+    QString GetDescription() const override
     {
-        if( GetDescriptionField().GetText().IsEmpty() && IsAlias() )
+        if( GetDescriptionField().GetText().isEmpty() && IsAlias() )
         {
             if( LIB_SYMBOL_SPTR parent = m_parent.lock() )
                 return parent->GetDescription();
@@ -177,11 +154,11 @@ public:
         return GetDescriptionField().GetText();
     }
 
-    void SetKeyWords( const wxString& aKeyWords ) { m_keyWords = aKeyWords; }
+    void SetKeyWords( const QString& aKeyWords ) { m_keyWords = aKeyWords; }
 
-    wxString GetKeyWords() const override
+    QString GetKeyWords() const override
     {
-        if( m_keyWords.IsEmpty() && IsAlias() )
+        if( m_keyWords.isEmpty() && IsAlias() )
         {
             if( LIB_SYMBOL_SPTR parent = m_parent.lock() )
                 return parent->GetKeyWords();
@@ -192,12 +169,12 @@ public:
 
     std::vector<SEARCH_TERM> GetSearchTerms() override;
 
-    wxString GetFootprint() override
+    QString GetFootprint() override
     {
         return GetFootprintField().GetText();
     }
 
-    void GetChooserFields( std::map<wxString , wxString>& aColumnMap ) override;
+    void GetChooserFields( std::map<QString , QString>& aColumnMap ) override;
 
     /**
      * For symbols derived from other symbols, IsRoot() indicates no derivation.
@@ -205,18 +182,18 @@ public:
     bool IsRoot() const override { return m_parent.use_count() == 0; }
     bool IsAlias() const { return !m_parent.expired() && m_parent.use_count() > 0; }
 
-    const wxString GetLibraryName() const;
+    const QString GetLibraryName() const;
 
     SYMBOL_LIB* GetLib() const          { return m_library; }
     void SetLib( SYMBOL_LIB* aLibrary ) { m_library = aLibrary; }
 
     timestamp_t GetLastModDate() const { return m_lastModDate; }
 
-    void SetFPFilters( const wxArrayString& aFilters ) { m_fpFilters = aFilters; }
+    void SetFPFilters( const QStringList& aFilters ) { m_fpFilters = aFilters; }
 
-    wxArrayString GetFPFilters() const
+    QStringList GetFPFilters() const
     {
-        if( m_fpFilters.IsEmpty() && IsAlias() )
+        if( m_fpFilters.isEmpty() && IsAlias() )
         {
             if( LIB_SYMBOL_SPTR parent = m_parent.lock() )
                 return parent->GetFPFilters();
@@ -315,9 +292,9 @@ public:
      *
      * @return the field if found or NULL if the field was not found.
      */
-    SCH_FIELD* FindField( const wxString& aFieldName, bool aCaseInsensitive = false );
+    SCH_FIELD* FindField( const QString& aFieldName, bool aCaseInsensitive = false );
 
-    const SCH_FIELD* FindField( const wxString& aFieldName,
+    const SCH_FIELD* FindField( const QString& aFieldName,
                                 bool aCaseInsensitive = false ) const;
 
     /**
@@ -343,14 +320,14 @@ public:
     /** Return reference to the description field. */
     SCH_FIELD& GetDescriptionField() const;
 
-    wxString GetPrefix();
+    QString GetPrefix();
 
-    const wxString GetRef( const SCH_SHEET_PATH* aSheet, bool aIncludeUnit = false ) const override
+    const QString GetRef( const SCH_SHEET_PATH* aSheet, bool aIncludeUnit = false ) const override
     {
         return GetReferenceField().GetText();
     }
 
-    const wxString GetValue( bool aResolve, const SCH_SHEET_PATH* aPath,
+    const QString GetValue( bool aResolve, const SCH_SHEET_PATH* aPath,
                              bool aAllowExtraText ) const override
     {
         return GetValueField().GetText();
@@ -389,7 +366,7 @@ public:
      *
      * @param aDepth a counter to limit recursion and circular references.
      */
-    bool ResolveTextVar( wxString* token, int aDepth = 0 ) const;
+    bool ResolveTextVar( QString* token, int aDepth = 0 ) const;
 
     void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
                 const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
@@ -457,7 +434,7 @@ public:
      *                   required.
      * @return The pin object if found.  Otherwise NULL.
      */
-    SCH_PIN* GetPin( const wxString& aNumber, int aUnit = 0, int aBodyStyle = 0 ) const;
+    SCH_PIN* GetPin( const QString& aNumber, int aUnit = 0, int aBodyStyle = 0 ) const;
 
     /**
      * Return true if this symbol's pins do not match another symbol's pins. This is used to
@@ -557,7 +534,7 @@ public:
     /**
      * Return an identifier for \a aUnit for symbols with units.
      */
-    wxString GetUnitReference( int aUnit ) override;
+    QString GetUnitReference( int aUnit ) override;
 
     /**
      * Return true if the given unit \a aUnit has a display name defined
@@ -567,17 +544,17 @@ public:
     /**
      * Return the user-defined display name for \a aUnit for symbols with units.
      */
-    wxString GetUnitDisplayName( int aUnit ) override;
+    QString GetUnitDisplayName( int aUnit ) override;
 
     /**
      * Copy all unit display names into the given map \a aTarget
      */
-    void CopyUnitDisplayNames( std::map<int, wxString>& aTarget ) const;
+    void CopyUnitDisplayNames( std::map<int, QString>& aTarget ) const;
 
     /**
      * Set the user-defined display name for \a aUnit to \a aName for symbols with units.
      */
-    void SetUnitDisplayName( int aUnit, const wxString& aName );
+    void SetUnitDisplayName( int aUnit, const QString& aName );
 
     /**
      * @return true if the symbol has multiple units per symbol.
@@ -585,7 +562,7 @@ public:
      */
     bool IsMulti() const override { return m_unitCount > 1; }
 
-    static wxString LetterSubReference( int aUnit, int aFirstId );
+    static QString LetterSubReference( int aUnit, int aFirstId );
 
     /**
      * Set or clear the alternate body style (DeMorgan) for the symbol.
@@ -684,12 +661,12 @@ private:
     LIB_ITEMS_CONTAINER m_drawings;
 
     SYMBOL_LIB*         m_library;
-    wxString            m_name;
-    wxString            m_keyWords;         ///< Search keywords
-    wxArrayString       m_fpFilters;        ///< List of suitable footprint names for the
+    QString            m_name;
+    QString            m_keyWords;         ///< Search keywords
+    QStringList       m_fpFilters;        ///< List of suitable footprint names for the
                                             ///<  symbol (wild card names accepted).
 
-    std::map<int, wxString> m_unitDisplayNames;
+    std::map<int, QString> m_unitDisplayNames;
 };
 
 #endif  //  CLASS_LIBENTRY_H

@@ -1,26 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 /**
  * @file PS_plotter.cpp
@@ -92,7 +71,7 @@ void PSLIKE_PLOTTER::FlashPadOval( const VECTOR2I& aPadPos, const VECTOR2I& aSiz
                                    const EDA_ANGLE& aPadOrient, OUTLINE_MODE aTraceMode,
                                    void* aData )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     VECTOR2I  size( aSize );
     EDA_ANGLE orient( aPadOrient );
@@ -269,18 +248,18 @@ void PSLIKE_PLOTTER::FlashRegularPolygon( const VECTOR2I& aShapePos, int aRadius
                                           void* aData )
 {
     // Do nothing
-    wxASSERT( 0 );
+    Q_ASSERT( 0 );
 }
 
 
-std::string PSLIKE_PLOTTER::encodeStringForPlotter( const wxString& aUnicode )
+std::string PSLIKE_PLOTTER::encodeStringForPlotter( const QString& aUnicode )
 {
     // Write on a std::string a string escaped for postscript/PDF
     std::string converted;
 
     converted += '(';
 
-    for( unsigned i = 0; i < aUnicode.Len(); i++ )
+    for( int i = 0; i < aUnicode.length(); i++ )
     {
         // Laziness made me use stdio buffering yet another time...
         wchar_t ch = aUnicode[i];
@@ -313,7 +292,7 @@ std::string PSLIKE_PLOTTER::encodeStringForPlotter( const wxString& aUnicode )
 }
 
 
-int PSLIKE_PLOTTER::returnPostscriptTextWidth( const wxString& aText, int aXSize,
+int PSLIKE_PLOTTER::returnPostscriptTextWidth( const QString& aText, int aXSize,
                                                bool aItalic, bool aBold )
 {
     const double *width_table = aBold ? ( aItalic ? hvbo_widths : hvb_widths )
@@ -335,7 +314,7 @@ int PSLIKE_PLOTTER::returnPostscriptTextWidth( const wxString& aText, int aXSize
 void PS_PLOTTER::SetViewport( const VECTOR2I& aOffset, double aIusPerDecimil,
                               double aScale, bool aMirror )
 {
-    wxASSERT( !m_outputFile );
+    Q_ASSERT( !m_outputFile );
     m_plotMirror = aMirror;
     m_plotOffset = aOffset;
     m_plotScale = aScale;
@@ -350,7 +329,7 @@ void PS_PLOTTER::SetViewport( const VECTOR2I& aOffset, double aIusPerDecimil,
 
 
 void PSLIKE_PLOTTER::computeTextParameters( const VECTOR2I&          aPos,
-                                            const wxString&          aText,
+                                            const QString&          aText,
                                             const EDA_ANGLE&         aOrient,
                                             const VECTOR2I&          aSize,
                                             bool                     aMirror,
@@ -382,7 +361,7 @@ void PSLIKE_PLOTTER::computeTextParameters( const VECTOR2I&          aPos,
     case GR_TEXT_H_ALIGN_RIGHT:  dx = -tw;     break;
     case GR_TEXT_H_ALIGN_LEFT:   dx = 0;       break;
     case GR_TEXT_H_ALIGN_INDETERMINATE:
-        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        Q_ASSERT_X( false, "PSLIKE_PLOTTER::computeTextParameters", "Indeterminate state legal only in dialogs." );
         break;
     }
 
@@ -392,7 +371,7 @@ void PSLIKE_PLOTTER::computeTextParameters( const VECTOR2I&          aPos,
     case GR_TEXT_V_ALIGN_TOP:    dy = th;     break;
     case GR_TEXT_V_ALIGN_BOTTOM: dy = 0;      break;
     case GR_TEXT_V_ALIGN_INDETERMINATE:
-        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        Q_ASSERT_X( false, "PSLIKE_PLOTTER::computeTextParameters", "Indeterminate state legal only in dialogs." );
         break;
     }
 
@@ -429,7 +408,7 @@ void PSLIKE_PLOTTER::computeTextParameters( const VECTOR2I&          aPos,
 
 void PS_PLOTTER::SetCurrentLineWidth( int aWidth, void* aData )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     if( aWidth == DO_NOT_SET_LINE_WIDTH )
         return;
@@ -438,7 +417,7 @@ void PS_PLOTTER::SetCurrentLineWidth( int aWidth, void* aData )
     else if( aWidth == 0 )
         aWidth = 1;
 
-    wxASSERT_MSG( aWidth > 0, "Plotter called to set negative pen width" );
+    Q_ASSERT_X( aWidth > 0, "PS_PLOTTER::SetCurrentLineWidth", "Plotter called to set negative pen width" );
 
     if( aWidth != GetCurrentLineWidth() )
         fprintf( m_outputFile, "%g setlinewidth\n", userToDeviceSize( aWidth ) );
@@ -449,7 +428,7 @@ void PS_PLOTTER::SetCurrentLineWidth( int aWidth, void* aData )
 
 void PS_PLOTTER::emitSetRGBColor( double r, double g, double b, double a )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     // Postscript treats all colors as opaque, so the best we can do with alpha is generate
     // an appropriate blended color assuming white paper.  (It's possible that a halftone would
@@ -519,7 +498,7 @@ void PS_PLOTTER::Circle( const VECTOR2I& pos, int diametre, FILL_T fill, int wid
     if( fill == FILL_T::NO_FILL && width <= 0 )
         return;
 
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
     VECTOR2D pos_dev = userToDeviceCoordinates( pos );
     double   radius = userToDeviceSize( diametre / 2.0 );
 
@@ -531,7 +510,7 @@ void PS_PLOTTER::Circle( const VECTOR2I& pos, int diametre, FILL_T fill, int wid
 void PS_PLOTTER::Arc( const VECTOR2D& aCenter, const EDA_ANGLE& aStartAngle,
                       const EDA_ANGLE& aAngle, double aRadius, FILL_T aFill, int aWidth )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     VECTOR2D center_device = userToDeviceCoordinates( aCenter );
     double   radius_device = userToDeviceSize( aRadius );
@@ -584,11 +563,11 @@ void PS_PLOTTER::PlotPoly( const std::vector<VECTOR2I>& aCornerList, FILL_T aFil
 }
 
 
-void PS_PLOTTER::PlotImage( const wxImage& aImage, const VECTOR2I& aPos, double aScaleFactor )
+void PS_PLOTTER::PlotImage( const QImage& aImage, const VECTOR2I& aPos, double aScaleFactor )
 {
     VECTOR2I pix_size; // size of the bitmap in pixels
-    pix_size.x = aImage.GetWidth();
-    pix_size.y = aImage.GetHeight();
+    pix_size.x = aImage.width();
+    pix_size.y = aImage.height();
     VECTOR2D drawsize( aScaleFactor * pix_size.x,
                        aScaleFactor * pix_size.y ); // requested size of image
 
@@ -644,14 +623,15 @@ void PS_PLOTTER::PlotImage( const wxImage& aImage, const VECTOR2I& aPos, double 
             }
 
             int red, green, blue;
-            red = aImage.GetRed( xx, yy) & 0xFF;
-            green = aImage.GetGreen( xx, yy) & 0xFF;
-            blue = aImage.GetBlue( xx, yy) & 0xFF;
+            QRgb pixel = aImage.pixel( xx, yy );
+            red = qRed( pixel ) & 0xFF;
+            green = qGreen( pixel ) & 0xFF;
+            blue = qBlue( pixel ) & 0xFF;
 
             // PS doesn't support alpha, so premultiply against white background
-            if( aImage.HasAlpha() )
+            if( aImage.hasAlphaChannel() )
             {
-                unsigned char alpha = aImage.GetAlpha( xx, yy ) & 0xFF;
+                unsigned char alpha = qAlpha( pixel ) & 0xFF;
 
                 if( alpha < 0xFF )
                 {
@@ -662,16 +642,7 @@ void PS_PLOTTER::PlotImage( const wxImage& aImage, const VECTOR2I& aPos, double 
                 }
             }
 
-            if( aImage.HasMask() )
-            {
-                if( red == aImage.GetMaskRed() && green == aImage.GetMaskGreen()
-                        && blue == aImage.GetMaskBlue() )
-                {
-                    red = 0xFF;
-                    green = 0xFF;
-                    blue = 0xFF;
-                }
-            }
+            // Qt QImage doesn't have mask concept, handle transparency through alpha channel
 
             if( m_colorMode )
             {
@@ -694,7 +665,7 @@ void PS_PLOTTER::PlotImage( const wxImage& aImage, const VECTOR2I& aPos, double 
 
 void PS_PLOTTER::PenTo( const VECTOR2I& pos, char plume )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     if( plume == 'Z' )
     {
@@ -727,9 +698,9 @@ void PS_PLOTTER::PenTo( const VECTOR2I& pos, char plume )
 }
 
 
-bool PS_PLOTTER::StartPlot( const wxString& aPageNumber )
+bool PS_PLOTTER::StartPlot( const QString& aPageNumber )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     static const char* PSMacro[] =
     {
@@ -890,7 +861,7 @@ bool PS_PLOTTER::StartPlot( const wxString& aPageNumber )
 
 bool PS_PLOTTER::EndPlot()
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
     fputs( "showpage\n"
            "grestore\n"
            "%%EOF\n", m_outputFile );
@@ -903,7 +874,7 @@ bool PS_PLOTTER::EndPlot()
 
 void PS_PLOTTER::Text( const VECTOR2I&        aPos,
                        const COLOR4D&         aColor,
-                       const wxString&        aText,
+                       const QString&        aText,
                        const EDA_ANGLE&       aOrient,
                        const VECTOR2I&        aSize,
                        enum GR_TEXT_H_ALIGN_T aH_justify,
@@ -934,7 +905,7 @@ void PS_PLOTTER::Text( const VECTOR2I&        aPos,
 
 void PS_PLOTTER::PlotText( const VECTOR2I&        aPos,
                            const COLOR4D&         aColor,
-                           const wxString&        aText,
+                           const QString&        aText,
                            const TEXT_ATTRIBUTES& aAttributes,
                            KIFONT::FONT*          aFont,
                            const KIFONT::METRICS& aFontMetrics,

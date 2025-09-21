@@ -1,26 +1,6 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2013 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
-#ifndef  WX_GERBER_STRUCT_H
-#define  WX_GERBER_STRUCT_H
+#ifndef  GERBER_STRUCT_H
+#define  GERBER_STRUCT_H
 
 #include <file_history.h>
 #include <eda_draw_frame.h>
@@ -44,7 +24,7 @@ class GERBVIEW_SETTINGS;
 class LSET;
 class REPORTER;
 class SELECTION;
-class wxStaticText;
+class QLabel;
 class NL_GERBVIEW_PLUGIN;
 
 
@@ -52,17 +32,17 @@ class NL_GERBVIEW_PLUGIN;
  * The main window used in GerbView.
  */
 
-#define GERBVIEW_FRAME_NAME wxT( "GerberFrame" )
+#define GERBVIEW_FRAME_NAME QStringLiteral( "GerberFrame" )
 
 class GERBVIEW_FRAME : public EDA_DRAW_FRAME
 {
 public:
-    GERBVIEW_FRAME( KIWAY* aKiway, wxWindow* aParent );
+    GERBVIEW_FRAME( KIWAY* aKiway, QWidget* aParent );
     ~GERBVIEW_FRAME();
 
     void doCloseWindow() override;
 
-    bool OpenProjectFiles( const std::vector<wxString>& aFileSet, int aCtl ) override;
+    bool OpenProjectFiles( const std::vector<QString>& aFileSet, int aCtl ) override;
 
     /**
      * Load a list of Gerber and NC drill files and updates the view based on them.
@@ -73,7 +53,7 @@ public:
      *        Successfully autodetected files will have their type changed
      * @return true if every file loaded successfully
      */
-    bool LoadListOfGerberAndDrillFiles( const wxString& aPath, const wxArrayString& aFilenameList,
+    bool LoadListOfGerberAndDrillFiles( const QString& aPath, const QStringList& aFilenameList,
                                         std::vector<int>* aFileType );
 
     // Virtual basic functions:
@@ -218,50 +198,50 @@ public:
     void ShowChangedLanguage() override;
 
     /// Handles the changing of the highlighted component/net/attribute
-    void OnSelectHighlightChoice( wxCommandEvent& event );
+    void OnSelectHighlightChoice( QEvent& event );
 
     /**
      * Select the active DCode for the current active layer.
      * Items using this DCode are highlighted.
      */
-    void OnSelectActiveDCode( wxCommandEvent& event );
+    void OnSelectActiveDCode( QEvent& event );
 
     /**
      * Select the active layer:
      *  - if a file is loaded, it is loaded in this layer
      *  - this layer is displayed on top of other layers
      */
-    void OnSelectActiveLayer( wxCommandEvent& event );
+    void OnSelectActiveLayer( QEvent& event );
 
     /**
      * Called on request of application quit.
      */
-    void OnQuit( wxCommandEvent& event );
+    void OnQuit( QEvent& event );
 
-    void OnUpdateSelectDCode( wxUpdateUIEvent& aEvent );
-    void OnUpdateLayerSelectBox( wxUpdateUIEvent& aEvent );
+    void OnUpdateSelectDCode( QEvent& aEvent );
+    void OnUpdateLayerSelectBox( QEvent& aEvent );
 
     /**
      * Delete the current data and loads a Gerber file selected from history list on current layer.
      */
-    void OnGbrFileHistory( wxCommandEvent& event );
+    void OnGbrFileHistory( QEvent& event );
 
     /**
      * Delete the current data and load a drill file in Excellon format selected from
      * history list on current layer.
      */
-    void OnDrlFileHistory( wxCommandEvent& event );
+    void OnDrlFileHistory( QEvent& event );
 
     /**
      * Delete the current data and load a zip archive file selected from the
      * history list. The archive is expected containing a set of gerber and drill file
      */
-    void OnZipFileHistory( wxCommandEvent& event );
+    void OnZipFileHistory( QEvent& event );
 
     /**
      * Delete the current data and load a gerber job file selected from the history list.
      */
-    void OnJobFileHistory( wxCommandEvent& event );
+    void OnJobFileHistory( QEvent& event );
 
     /**
      * Extract gerber and drill files from the zip archive, and load them.
@@ -270,7 +250,7 @@ public:
      * @param aReporter a REPORTER to collect warning and error messages
      * @return true if OK, false if a file cannot be readable
      */
-    bool unarchiveFiles( const wxString& aFullFileName, REPORTER* aReporter = nullptr );
+    bool unarchiveFiles( const QString& aFullFileName, REPORTER* aReporter = nullptr );
 
     /**
      * Load a given file or selected file(s), if the filename is empty.
@@ -280,7 +260,7 @@ public:
      *                    a set of files
      * @return true if file was opened successfully.
      */
-    bool LoadAutodetectedFiles( const wxString& aFileName );
+    bool LoadAutodetectedFiles( const QString& aFileName );
 
     /**
      * Load a given Gerber file or selected file(s), if the filename is empty.
@@ -290,8 +270,8 @@ public:
      *                    a set of files
      * @return true if file was opened successfully.
      */
-    bool LoadGerberFiles( const wxString& aFileName );
-    bool Read_GERBER_File( const wxString& GERBER_FullFileName );
+    bool LoadGerberFiles( const QString& aFileName );
+    bool Read_GERBER_File( const QString& GERBER_FullFileName );
 
     /**
      * Load a drill (EXCELLON) file or many files.
@@ -301,8 +281,8 @@ public:
      *                    if empty string: user will be prompted for filename(s)
      * @return true if file was opened successfully.
      */
-    bool LoadExcellonFiles( const wxString& aFileName );
-    bool Read_EXCELLON_File( const wxString& aFullFileName );
+    bool LoadExcellonFiles( const QString& aFileName );
+    bool Read_EXCELLON_File( const QString& aFullFileName );
 
     /**
      * Load a zipped archive file.
@@ -312,7 +292,7 @@ public:
      *                    if empty string: user will be prompted for filename(s)
      * @return true if file was opened successfully.
      */
-    bool LoadZipArchiveFile( const wxString& aFileName );
+    bool LoadZipArchiveFile( const QString& aFileName );
 
 
     /**
@@ -323,7 +303,7 @@ public:
      *                    if empty string: user will be prompted for filename(s)
      * @return true if file(s) was opened successfully.
      */
-    bool LoadGerberJobFile( const wxString& aFileName );
+    bool LoadGerberJobFile( const QString& aFileName );
 
     // PCB handling
     bool Clear_DrawLayers( bool query );
@@ -393,7 +373,7 @@ public:
 
     GBR_LAYOUT* GetGerberLayout() const
     {
-        wxASSERT( m_gerberLayout );
+        Q_ASSERT( m_gerberLayout );
         return m_gerberLayout;
     }
 
@@ -437,7 +417,7 @@ public:
      * @return new layer value (NB_PCB_LAYERS when "(Deselect)" radiobutton selected),
      *                         or -1 if canceled
      */
-    int SelectPCBLayer( int aDefaultLayer, int aCopperLayerCount, const wxString& aGerberName );
+    int SelectPCBLayer( int aDefaultLayer, int aCopperLayerCount, const QString& aGerberName );
 
     /**
      * @return the color of the grid
@@ -449,7 +429,7 @@ public:
 
     const BOX2I GetDocumentExtents( bool aIncludeAllVisible = true ) const override
     {
-        wxASSERT( m_gerberLayout );
+        Q_ASSERT( m_gerberLayout );
         return m_gerberLayout->ViewBBox();
     }
 
@@ -459,8 +439,8 @@ protected:
     void setupUIConditions() override;
     void doReCreateMenuBar() override;
 
-    void handleActivateEvent( wxActivateEvent& aEvent ) override;
-    void handleIconizeEvent( wxIconizeEvent& aEvent ) override;
+    void handleActivateEvent( QEvent& aEvent ) override;
+    void handleIconizeEvent( QEvent& aEvent ) override;
 
 private:
     void updateComponentListSelectBox();
@@ -469,10 +449,10 @@ private:
     void updateDCodeSelectBox();
     void unitsChangeRefresh() override;      // See class EDA_DRAW_FRAME
 
-    void OnClearJobFileHistory( wxCommandEvent& aEvent );
-    void OnClearZipFileHistory( wxCommandEvent& aEvent );
-    void OnClearDrlFileHistory( wxCommandEvent& aEvent );
-    void OnClearGbrFileHistory( wxCommandEvent& aEvent );
+    void OnClearJobFileHistory( QEvent& aEvent );
+    void OnClearZipFileHistory( QEvent& aEvent );
+    void OnClearDrlFileHistory( QEvent& aEvent );
+    void OnClearGbrFileHistory( QEvent& aEvent );
 
     void DoWithAcceptedFiles() override;
 
@@ -486,24 +466,24 @@ private:
      *
      * @return true if success opening all files, false otherwise
      */
-    bool LoadFileOrShowDialog( const wxString& aFileName, const wxString& dialogFiletypes,
-                               const wxString& dialogTitle, const int filetype );
+    bool LoadFileOrShowDialog( const QString& aFileName, const QString& dialogFiletypes,
+                               const QString& dialogTitle, const int filetype );
 
     // The Tool Framework initialization
     void setupTools();
 
 public:
-    wxChoice* m_SelComponentBox;                // a choice box to display and highlight component
+    QComboBox* m_SelComponentBox;                // a choice box to display and highlight component
                                                 // graphic items
-    wxChoice* m_SelNetnameBox;                  // a choice box to display and highlight netlist
+    QComboBox* m_SelNetnameBox;                  // a choice box to display and highlight netlist
                                                 // graphic items
-    wxChoice* m_SelAperAttributesBox;           // a choice box to display aperture attributes and
+    QComboBox* m_SelAperAttributesBox;           // a choice box to display aperture attributes and
                                                 // highlight items
     GBR_LAYER_BOX_SELECTOR* m_SelLayerBox;      // The combobox to select the current active
                                                 // graphic layer
                                                 // (which is drawn on top on the other layers
     DCODE_SELECTION_BOX*    m_DCodeSelector;    // a list box to select the dcode Id to highlight.
-    wxTextCtrl*             m_TextInfo;         // a wxTextCtrl used to display some info about
+    QLineEdit*             m_TextInfo;         // a QLineEdit used to display some info about
                                                 // gerber data (format..)
 
     GERBER_LAYER_WIDGET*    m_LayersManager;
@@ -513,7 +493,7 @@ protected:
     FILE_HISTORY            m_drillFileHistory;
     FILE_HISTORY            m_jobFileHistory;
 
-    wxString                m_lastFileName;     // The last filename chosen to be proposed to the
+    QString                m_lastFileName;     // The last filename chosen to be proposed to the
                                                 // user.
 
 private:
@@ -523,16 +503,16 @@ private:
     int                 m_activeLayer;
     VECTOR2I            m_grid_origin;
     PAGE_INFO           m_paper;            // used only to show paper limits to screen
-    wxStaticText*       m_cmpText;          // a message on the auxiliary toolbar,
+    QLabel*       m_cmpText;          // a message on the auxiliary toolbar,
                                             // relative to the m_SelComponentBox
-    wxStaticText*       m_netText;          // a message on the auxiliary toolbar,
+    QLabel*       m_netText;          // a message on the auxiliary toolbar,
                                             // relative to the m_SelNetnameBox
-    wxStaticText*       m_apertText;        // a message on the auxiliary toolbar,
+    QLabel*       m_apertText;        // a message on the auxiliary toolbar,
                                             // relative to the m_SelAperAttributesBox
-    wxStaticText*       m_dcodeText;        // a message on the auxiliary toolbar,
+    QLabel*       m_dcodeText;        // a message on the auxiliary toolbar,
                                             // relative to the m_DCodeSelector
 
     std::unique_ptr<NL_GERBVIEW_PLUGIN> m_spaceMouse;
 };
 
-#endif /* WX_GERBER_STRUCT_H */
+#endif /* GERBER_STRUCT_H */

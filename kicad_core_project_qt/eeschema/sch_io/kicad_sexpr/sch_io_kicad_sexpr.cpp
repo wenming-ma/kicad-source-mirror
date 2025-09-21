@@ -1,29 +1,13 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Wayne Stambaugh <stambaughw@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <algorithm>
 
-#include <wx/log.h>
-#include <wx/mstream.h>
+#include <QtCore/QString>
+#include <QtCore/QStringList>
+#include <QtCore/QFileInfo>
+#include <QtCore/QDir>
+#include <QtCore/QFile>
+#include <QtCore/QBuffer>
+#include <QtCore/QDebug>
 
 #include <base_units.h>
 #include <bitmap_base.h>
@@ -68,7 +52,7 @@ using namespace TSCHEMATIC_T;
                        reader.LineNumber(), pos - reader.Line() )
 
 
-SCH_IO_KICAD_SEXPR::SCH_IO_KICAD_SEXPR() : SCH_IO( wxS( "Eeschema s-expression" ) )
+SCH_IO_KICAD_SEXPR::SCH_IO_KICAD_SEXPR() : SCH_IO( QStringLiteral( "Eeschema s-expression" ) )
 {
     init( nullptr );
 }
@@ -92,16 +76,16 @@ void SCH_IO_KICAD_SEXPR::init( SCHEMATIC* aSchematic, const std::map<std::string
 }
 
 
-SCH_SHEET* SCH_IO_KICAD_SEXPR::LoadSchematicFile( const wxString& aFileName, SCHEMATIC* aSchematic,
+SCH_SHEET* SCH_IO_KICAD_SEXPR::LoadSchematicFile( const QString& aFileName, SCHEMATIC* aSchematic,
                                                   SCH_SHEET*             aAppendToMe,
                                                   const std::map<std::string, UTF8>* aProperties )
 {
-    wxASSERT( !aFileName || aSchematic != nullptr );
+    Q_ASSERT( !aFileName.isEmpty() || aSchematic != nullptr );
 
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
     SCH_SHEET*  sheet;
 
-    wxFileName fn = aFileName;
+    QFileInfo fn( aFileName );
 
     // Show the font substitution warnings
     fontconfig::FONTCONFIG::SetReporter( &WXLOG_REPORTER::GetInstance() );
@@ -109,26 +93,25 @@ SCH_SHEET* SCH_IO_KICAD_SEXPR::LoadSchematicFile( const wxString& aFileName, SCH
     // Unfortunately child sheet file names the legacy schematic file format are not fully
     // qualified and are always appended to the project path.  The aFileName attribute must
     // always be an absolute path so the project path can be used for load child sheet files.
-    wxASSERT( fn.IsAbsolute() );
+    Q_ASSERT( fn.isAbsolute() );
 
     if( aAppendToMe )
     {
         m_appending = true;
-        wxLogTrace( traceSchPlugin, "Append \"%s\" to sheet \"%s\".",
-                    aFileName, aAppendToMe->GetFileName() );
+        qDebug() << "Append" << aFileName << "to sheet" << aAppendToMe->GetFileName();
 
-        wxFileName normedFn = aAppendToMe->GetFileName();
+        QFileInfo normedFn( aAppendToMe->GetFileName() );
 
-        if( !normedFn.IsAbsolute() )
+        if( !normedFn.isAbsolute() )
         {
-            if( aFileName.Right( normedFn.GetFullPath().Length() ) == normedFn.GetFullPath() )
-                m_path = aFileName.Left( aFileName.Length() - normedFn.GetFullPath().Length() );
+            if( aFileName.right( normedFn.filePath().length() ) == normedFn.filePath() )
+                m_path = aFileName.left( aFileName.length() - normedFn.filePath().length() );
         }
 
-        if( m_path.IsEmpty() )
+        if( m_path.isEmpty() )
             m_path = aSchematic->Prj().GetProjectPath();
 
-        wxLogTrace( traceSchPlugin, "Normalized append path \"%s\".", m_path );
+        qDebug() << "Normalized append path" << m_path;
     }
     else
     {
@@ -143,13 +126,13 @@ SCH_SHEET* SCH_IO_KICAD_SEXPR::LoadSchematicFile( const wxString& aFileName, SCH
         // Clean up any allocated memory if an exception occurs loading the schematic.
         std::unique_ptr<SCH_SHEET> newSheet = std::make_unique<SCH_SHEET>( aSchematic );
 
-        wxFileName relPath( aFileName );
+        QFileInfo relPath( aFileName );
 
-        // Do not use wxPATH_UNIX as option in MakeRelativeTo(). It can create incorrect
-        // relative paths on Windows, because paths have a disk identifier (C:, D: ...)
-        relPath.MakeRelativeTo( aSchematic->Prj().GetProjectPath() );
+        // Do not use absolute paths where relative paths suffice. Qt automatically handles
+        // relative paths correctly on Windows and other platforms.
+        QString relativePath = QDir( aSchematic->Prj().GetProjectPath() ).relativeFilePath( aFileName );
 
-        newSheet->SetFileName( relPath.GetFullPath() );
+        newSheet->SetFileName( relativePath );
         m_rootSheet = newSheet.get();
         loadHierarchy( SCH_SHEET_PATH(), newSheet.get() );
 
@@ -159,13 +142,13 @@ SCH_SHEET* SCH_IO_KICAD_SEXPR::LoadSchematicFile( const wxString& aFileName, SCH
     }
     else
     {
-        wxCHECK_MSG( aSchematic->IsValid(), nullptr, "Can't append to a schematic with no root!" );
+        Q_ASSERT_X( aSchematic->IsValid(), "LoadSchematicFile", "Can't append to a schematic with no root!" );
         m_rootSheet = &aSchematic->Root();
         sheet = aAppendToMe;
         loadHierarchy( SCH_SHEET_PATH(), sheet );
     }
 
-    wxASSERT( m_currentPath.size() == 1 );  // only the project path should remain
+    Q_ASSERT( m_currentPath.size() == 1 );  // only the project path should remain
 
     m_currentPath.pop(); // Clear the path stack for next call to Load
 
@@ -186,34 +169,36 @@ void SCH_IO_KICAD_SEXPR::loadHierarchy( const SCH_SHEET_PATH& aParentSheetPath, 
         // SCH_SCREEN objects store the full path and file name where the SCH_SHEET object only
         // stores the file name and extension.  Add the project path to the file name and
         // extension to compare when calling SCH_SHEET::SearchHierarchy().
-        wxFileName fileName = aSheet->GetFileName();
+        QFileInfo fileName( aSheet->GetFileName() );
 
-        if( !fileName.IsAbsolute() )
-            fileName.MakeAbsolute( m_currentPath.top() );
+        QString absolutePath;
+        if( !fileName.isAbsolute() )
+            absolutePath = QDir( m_currentPath.top() ).absoluteFilePath( aSheet->GetFileName() );
+        else
+            absolutePath = fileName.absoluteFilePath();
 
         // Save the current path so that it gets restored when descending and ascending the
         // sheet hierarchy which allows for sheet schematic files to be nested in folders
         // relative to the last path a schematic was loaded from.
-        wxLogTrace( traceSchPlugin, "Saving path    '%s'", m_currentPath.top() );
-        m_currentPath.push( fileName.GetPath() );
-        wxLogTrace( traceSchPlugin, "Current path   '%s'", m_currentPath.top() );
-        wxLogTrace( traceSchPlugin, "Loading        '%s'", fileName.GetFullPath() );
+        qDebug() << "Saving path" << m_currentPath.top();
+        m_currentPath.push( fileName.path() );
+        qDebug() << "Current path" << m_currentPath.top();
+        qDebug() << "Loading" << absolutePath;
 
         SCH_SHEET_PATH ancestorSheetPath = aParentSheetPath;
 
         while( !ancestorSheetPath.empty() )
         {
-            if( ancestorSheetPath.LastScreen()->GetFileName() == fileName.GetFullPath() )
+            if( ancestorSheetPath.LastScreen()->GetFileName() == absolutePath )
             {
-                if( !m_error.IsEmpty() )
+                if( !m_error.isEmpty() )
                     m_error += "\n";
 
-                m_error += wxString::Format( _( "Could not load sheet '%s' because it already "
-                                                "appears as a direct ancestor in the schematic "
-                                                "hierarchy." ),
-                                             fileName.GetFullPath() );
+                m_error += QString( "Could not load sheet '%1' because it already "
+                                   "appears as a direct ancestor in the schematic "
+                                   "hierarchy." ).arg( absolutePath );
 
-                fileName = wxEmptyString;
+                absolutePath = QString();
 
                 break;
             }
@@ -225,8 +210,8 @@ void SCH_IO_KICAD_SEXPR::loadHierarchy( const SCH_SHEET_PATH& aParentSheetPath, 
         {
             // Existing schematics could be either in the root sheet path or the current sheet
             // load path so we have to check both.
-            if( !m_rootSheet->SearchHierarchy( fileName.GetFullPath(), &screen ) )
-                m_currentSheetPath.at( 0 )->SearchHierarchy( fileName.GetFullPath(), &screen );
+            if( !m_rootSheet->SearchHierarchy( absolutePath, &screen ) )
+                m_currentSheetPath.at( 0 )->SearchHierarchy( absolutePath, &screen );
         }
 
         if( screen )
@@ -238,11 +223,11 @@ void SCH_IO_KICAD_SEXPR::loadHierarchy( const SCH_SHEET_PATH& aParentSheetPath, 
         else
         {
             aSheet->SetScreen( new SCH_SCREEN( m_schematic ) );
-            aSheet->GetScreen()->SetFileName( fileName.GetFullPath() );
+            aSheet->GetScreen()->SetFileName( absolutePath );
 
             try
             {
-                loadFile( fileName.GetFullPath(), aSheet );
+                loadFile( absolutePath, aSheet );
             }
             catch( const IO_ERROR& ioe )
             {
@@ -251,20 +236,21 @@ void SCH_IO_KICAD_SEXPR::loadHierarchy( const SCH_SHEET_PATH& aParentSheetPath, 
                     throw;
 
                 // For all subsheets, queue up the error message for the caller.
-                if( !m_error.IsEmpty() )
+                if( !m_error.isEmpty() )
                     m_error += "\n";
 
                 m_error += ioe.What();
             }
 
-            if( fileName.FileExists() )
+            QFileInfo fileInfo( absolutePath );
+            if( fileInfo.exists() )
             {
-                aSheet->GetScreen()->SetFileReadOnly( !fileName.IsFileWritable() );
+                aSheet->GetScreen()->SetFileReadOnly( !fileInfo.isWritable() );
                 aSheet->GetScreen()->SetFileExists( true );
             }
             else
             {
-                aSheet->GetScreen()->SetFileReadOnly( !fileName.IsDirWritable() );
+                aSheet->GetScreen()->SetFileReadOnly( !fileInfo.dir().isReadable() );
                 aSheet->GetScreen()->SetFileExists( false );
             }
 
@@ -275,7 +261,7 @@ void SCH_IO_KICAD_SEXPR::loadHierarchy( const SCH_SHEET_PATH& aParentSheetPath, 
             // the plugin fully parsed before the exception was raised will be loaded.
             for( SCH_ITEM* aItem : aSheet->GetScreen()->Items().OfType( SCH_SHEET_T ) )
             {
-                wxCHECK2( aItem->Type() == SCH_SHEET_T, /* do nothing */ );
+                Q_ASSERT( aItem->Type() == SCH_SHEET_T );
                 SCH_SHEET* sheet = static_cast<SCH_SHEET*>( aItem );
 
                 // Recursion starts here.
@@ -284,14 +270,14 @@ void SCH_IO_KICAD_SEXPR::loadHierarchy( const SCH_SHEET_PATH& aParentSheetPath, 
         }
 
         m_currentPath.pop();
-        wxLogTrace( traceSchPlugin, "Restoring path \"%s\"", m_currentPath.top() );
+        qDebug() << "Restoring path" << m_currentPath.top();
     }
 
     m_currentSheetPath.pop_back();
 }
 
 
-void SCH_IO_KICAD_SEXPR::loadFile( const wxString& aFileName, SCH_SHEET* aSheet )
+void SCH_IO_KICAD_SEXPR::loadFile( const QString& aFileName, SCH_SHEET* aSheet )
 {
     FILE_LINE_READER reader( aFileName );
 
@@ -299,10 +285,10 @@ void SCH_IO_KICAD_SEXPR::loadFile( const wxString& aFileName, SCH_SHEET* aSheet 
 
     if( m_progressReporter )
     {
-        m_progressReporter->Report( wxString::Format( _( "Loading %s..." ), aFileName ) );
+        m_progressReporter->Report( QString( "Loading %1..." ).arg( aFileName ) );
 
         if( !m_progressReporter->KeepRefreshing() )
-            THROW_IO_ERROR( _( "Open cancelled by user." ) );
+            THROW_IO_ERROR( "Open cancelled by user." );
 
         while( reader.ReadLine() )
             lineCount++;
@@ -319,7 +305,7 @@ void SCH_IO_KICAD_SEXPR::loadFile( const wxString& aFileName, SCH_SHEET* aSheet 
 
 void SCH_IO_KICAD_SEXPR::LoadContent( LINE_READER& aReader, SCH_SHEET* aSheet, int aFileVersion )
 {
-    wxCHECK( aSheet, /* void */ );
+    Q_ASSERT( aSheet != nullptr );
 
     LOCALE_IO toggle;
     SCH_IO_KICAD_SEXPR_PARSER parser( &aReader );
@@ -328,24 +314,24 @@ void SCH_IO_KICAD_SEXPR::LoadContent( LINE_READER& aReader, SCH_SHEET* aSheet, i
 }
 
 
-void SCH_IO_KICAD_SEXPR::SaveSchematicFile( const wxString& aFileName, SCH_SHEET* aSheet,
+void SCH_IO_KICAD_SEXPR::SaveSchematicFile( const QString& aFileName, SCH_SHEET* aSheet,
                                             SCHEMATIC*             aSchematic,
                                             const std::map<std::string, UTF8>* aProperties )
 {
-    wxCHECK_RET( aSheet != nullptr, "NULL SCH_SHEET object." );
-    wxCHECK_RET( !aFileName.IsEmpty(), "No schematic file name defined." );
+    Q_ASSERT_X( aSheet != nullptr, "SaveSchematicFile", "NULL SCH_SHEET object." );
+    Q_ASSERT_X( !aFileName.isEmpty(), "SaveSchematicFile", "No schematic file name defined." );
 
     LOCALE_IO   toggle;     // toggles on, then off, the C locale, to write floating point values.
 
     init( aSchematic, aProperties );
 
-    wxFileName fn = aFileName;
+    QFileInfo fn( aFileName );
 
     // File names should be absolute.  Don't assume everything relative to the project path
     // works properly.
-    wxASSERT( fn.IsAbsolute() );
+    Q_ASSERT( fn.isAbsolute() );
 
-    PRETTIFIED_FILE_OUTPUTFORMATTER formatter( fn.GetFullPath() );
+    PRETTIFIED_FILE_OUTPUTFORMATTER formatter( fn.absoluteFilePath() );
 
     m_out = &formatter;     // no ownership
 
@@ -358,13 +344,13 @@ void SCH_IO_KICAD_SEXPR::SaveSchematicFile( const wxString& aFileName, SCH_SHEET
 
 void SCH_IO_KICAD_SEXPR::Format( SCH_SHEET* aSheet )
 {
-    wxCHECK_RET( aSheet != nullptr, "NULL SCH_SHEET* object." );
-    wxCHECK_RET( m_schematic != nullptr, "NULL SCHEMATIC* object." );
+    Q_ASSERT_X( aSheet != nullptr, "Format", "NULL SCH_SHEET* object." );
+    Q_ASSERT_X( m_schematic != nullptr, "Format", "NULL SCHEMATIC* object." );
 
     SCH_SHEET_LIST sheets = m_schematic->Hierarchy();
     SCH_SCREEN* screen = aSheet->GetScreen();
 
-    wxCHECK( screen, /* void */ );
+    Q_ASSERT( screen != nullptr );
 
     // If we've requested to embed the fonts in the schematic, do so.
     // Otherwise, clear the embedded fonts from the schematic.  Embedded
@@ -480,7 +466,7 @@ void SCH_IO_KICAD_SEXPR::Format( SCH_SHEET* aSheet )
             break;
 
         default:
-            wxASSERT( "Unexpected schematic object type in SCH_IO_KICAD_SEXPR::Format()" );
+            Q_ASSERT_X( false, "Format", "Unexpected schematic object type in SCH_IO_KICAD_SEXPR::Format()" );
         }
     }
 
@@ -506,7 +492,7 @@ void SCH_IO_KICAD_SEXPR::Format( SCH_SELECTION* aSelection, SCH_SHEET_PATH* aSel
                                  SCHEMATIC& aSchematic, OUTPUTFORMATTER* aFormatter,
                                  bool aForClipboard )
 {
-    wxCHECK( aSelection && aSelectionPath && aFormatter, /* void */ );
+    Q_ASSERT( aSelection && aSelectionPath && aFormatter );
 
     LOCALE_IO toggle;
     SCH_SHEET_LIST sheets = aSchematic.Hierarchy();
@@ -514,7 +500,7 @@ void SCH_IO_KICAD_SEXPR::Format( SCH_SELECTION* aSelection, SCH_SHEET_PATH* aSel
     m_schematic = &aSchematic;
     m_out = aFormatter;
 
-    std::map<wxString, LIB_SYMBOL*> libSymbols;
+    std::map<QString, LIB_SYMBOL*> libSymbols;
     SCH_SCREEN*                     screen = aSelection->GetScreen();
     std::set<SCH_TABLE*>            promotedTables;
 
@@ -525,7 +511,7 @@ void SCH_IO_KICAD_SEXPR::Format( SCH_SELECTION* aSelection, SCH_SHEET_PATH* aSel
 
         SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
 
-        wxString libSymbolLookup = symbol->GetLibId().Format().wx_str();
+        QString libSymbolLookup = QString::fromStdString( symbol->GetLibId().Format() );
 
         if( !symbol->UseLibIdLookup() )
             libSymbolLookup = symbol->GetSchSymbolLibraryName();
@@ -624,7 +610,7 @@ void SCH_IO_KICAD_SEXPR::Format( SCH_SELECTION* aSelection, SCH_SHEET_PATH* aSel
             break;
 
         default:
-            wxASSERT( "Unexpected schematic object type in SCH_IO_KICAD_SEXPR::Format()" );
+            Q_ASSERT_X( false, "Format", "Unexpected schematic object type in SCH_IO_KICAD_SEXPR::Format()" );
         }
     }
 }
@@ -634,15 +620,15 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
                                      const SCH_SHEET_LIST& aSheetList, bool aForClipboard,
                                      const SCH_SHEET_PATH* aRelativePath )
 {
-    wxCHECK_RET( aSymbol != nullptr && m_out != nullptr, "" );
+    Q_ASSERT_X( aSymbol != nullptr && m_out != nullptr, "saveSymbol", "Invalid parameters" );
 
     std::string     libName;
 
-    wxString symbol_name = aSymbol->GetLibId().Format();
+    QString symbol_name = QString::fromStdString( aSymbol->GetLibId().Format() );
 
     if( symbol_name.size() )
     {
-        libName = toUTFTildaText( symbol_name );
+        libName = toUTFTildaText( symbol_name.toStdString() );
     }
     else
     {
@@ -670,7 +656,7 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
     }
 
     m_out->Print( "(lib_id %s) (at %s %s %s)",
-                  m_out->Quotew( aSymbol->GetLibId().Format().wx_str() ).c_str(),
+                  m_out->Quotew( QString::fromStdString( aSymbol->GetLibId().Format() ) ).c_str(),
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
                                                        aSymbol->GetPosition().x ).c_str(),
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
@@ -695,7 +681,7 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
 
     const SCH_SCREEN* parentScreen = static_cast<const SCH_SCREEN*>( aSymbol->GetParent() );
 
-    wxASSERT( parentScreen );
+    Q_ASSERT( parentScreen );
 
     if( parentScreen && m_schematic )
     {
@@ -704,7 +690,7 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
 
         // Design blocks are saved from a temporary sheet & screen which will not be found in
         // the schematic, and will therefore have no ordinal path.
-        // wxASSERT( ordinalPath );
+        // Q_ASSERT( ordinalPath );
 
         if( ordinalPath )
             aSymbol->GetInstance( ordinalInstance, ordinalPath->Path() );
@@ -744,7 +730,7 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
     for( SCH_FIELD& field : aSymbol->GetFields() )
     {
         int id = field.GetId();
-        wxString value = field.GetText();
+        QString value = field.GetText();
 
         if( !aForClipboard && aSymbol->GetInstances().size() )
         {
@@ -814,13 +800,13 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
 
         m_out->Print( "(instances" );
 
-        wxString projectName;
+        QString projectName;
         KIID     rootSheetUuid = aSchematic.Root().m_Uuid;
 
         for( const SCH_SYMBOL_INSTANCE& inst : aSymbol->GetInstances() )
         {
             // Zero length KIID_PATH objects are not valid and will cause a crash below.
-            wxCHECK2( inst.m_Path.size(), continue );
+            if( !inst.m_Path.size() ) continue;
 
             // If the instance data is part of this design but no longer has an associated sheet
             // path, don't save it.  This prevents large amounts of orphaned instance data for the
@@ -842,7 +828,7 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
 
         for( auto& [uuid, instances] : projectInstances )
         {
-            wxCHECK2( instances.size(), continue );
+            Q_ASSERT( instances.size() > 0 );
 
             // Sort project instances by KIID_PATH.
             std::sort( instances.begin(), instances.end(),
@@ -857,13 +843,13 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
 
             for( const SCH_SYMBOL_INSTANCE& instance : instances )
             {
-                wxString path;
+                QString path;
                 KIID_PATH tmp = instance.m_Path;
 
                 if( aForClipboard && aRelativePath )
                     tmp.MakeRelativeTo( aRelativePath->Path() );
 
-                path = tmp.AsString();
+                path = QString::fromStdString( tmp.AsString() );
 
                 m_out->Print( "(path %s (reference %s) (unit %d))",
                               m_out->Quotew( path ).c_str(),
@@ -883,9 +869,9 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
 
 void SCH_IO_KICAD_SEXPR::saveField( SCH_FIELD* aField )
 {
-    wxCHECK_RET( aField != nullptr && m_out != nullptr, "" );
+    Q_ASSERT_X( aField != nullptr && m_out != nullptr, "saveField", "Invalid parameters" );
 
-    wxString fieldName = aField->GetCanonicalName();
+    QString fieldName = aField->GetCanonicalName();
     // For some reason (bug in legacy parser?) the field ID for non-mandatory fields is -1 so
     // check for this in order to correctly use the field name.
 
@@ -893,7 +879,7 @@ void SCH_IO_KICAD_SEXPR::saveField( SCH_FIELD* aField )
     {
         // Replace the default name built by GetCanonicalName() by
         // the field name if exists
-        if( !aField->GetName().IsEmpty() )
+        if( !aField->GetName().isEmpty() )
             fieldName = aField->GetName();
 
         aField->SetId( m_nextFreeFieldId );
@@ -932,14 +918,14 @@ void SCH_IO_KICAD_SEXPR::saveField( SCH_FIELD* aField )
 
 void SCH_IO_KICAD_SEXPR::saveBitmap( const SCH_BITMAP& aBitmap )
 {
-    wxCHECK_RET( m_out != nullptr, "" );
+    Q_ASSERT_X( m_out != nullptr, "saveBitmap", "Invalid output formatter" );
 
     const REFERENCE_IMAGE& refImage = aBitmap.GetReferenceImage();
     const BITMAP_BASE&     bitmapBase = refImage.GetImage();
 
-    const wxImage* image = bitmapBase.GetImageData();
+    const QImage* image = bitmapBase.GetImageData();
 
-    wxCHECK_RET( image != nullptr, "wxImage* is NULL" );
+    Q_ASSERT_X( image != nullptr, "saveBitmap", "QImage* is NULL" );
 
     m_out->Print( "(image (at %s %s)",
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
@@ -959,10 +945,11 @@ void SCH_IO_KICAD_SEXPR::saveBitmap( const SCH_BITMAP& aBitmap )
 
     KICAD_FORMAT::FormatUuid( m_out, aBitmap.m_Uuid );
 
-    wxMemoryOutputStream stream;
-    bitmapBase.SaveImageData( stream );
+    QBuffer buffer;
+    buffer.open( QIODevice::WriteOnly );
+    bitmapBase.SaveImageData( buffer );
 
-    KICAD_FORMAT::FormatStreamData( *m_out, *stream.GetOutputStreamBuffer() );
+    KICAD_FORMAT::FormatStreamData( *m_out, *buffer.buffer().data() );
 
     m_out->Print( ")" );        // Closes image token.
 }
@@ -970,7 +957,7 @@ void SCH_IO_KICAD_SEXPR::saveBitmap( const SCH_BITMAP& aBitmap )
 
 void SCH_IO_KICAD_SEXPR::saveSheet( SCH_SHEET* aSheet, const SCH_SHEET_LIST& aSheetList )
 {
-    wxCHECK_RET( aSheet != nullptr && m_out != nullptr, "" );
+    Q_ASSERT_X( aSheet != nullptr && m_out != nullptr, "saveSheet", "Invalid parameters" );
 
     m_out->Print( "(sheet (at %s %s) (size %s %s)",
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
@@ -1071,7 +1058,7 @@ void SCH_IO_KICAD_SEXPR::saveSheet( SCH_SHEET* aSheet, const SCH_SHEET_LIST& aSh
 
             if( lastProjectUuid != sheetInstances[i].m_Path[0] )
             {
-                wxString projectName;
+                QString projectName;
 
                 if( sheetInstances[i].m_Path[0] == rootSheetUuid )
                     projectName = m_schematic->Prj().GetProjectName();
@@ -1083,7 +1070,7 @@ void SCH_IO_KICAD_SEXPR::saveSheet( SCH_SHEET* aSheet, const SCH_SHEET_LIST& aSh
                 inProjectClause = true;
             }
 
-            wxString path = sheetInstances[i].m_Path.AsString();
+            QString path = QString::fromStdString( sheetInstances[i].m_Path.AsString() );
 
             m_out->Print( "(path %s (page %s))",
                           m_out->Quotew( path ).c_str(),
@@ -1106,7 +1093,7 @@ void SCH_IO_KICAD_SEXPR::saveSheet( SCH_SHEET* aSheet, const SCH_SHEET_LIST& aSh
 
 void SCH_IO_KICAD_SEXPR::saveJunction( SCH_JUNCTION* aJunction )
 {
-    wxCHECK_RET( aJunction != nullptr && m_out != nullptr, "" );
+    Q_ASSERT_X( aJunction != nullptr && m_out != nullptr, "saveJunction", "Invalid parameters" );
 
     m_out->Print( "(junction (at %s %s) (diameter %s) (color %d %d %d %s)",
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
@@ -1127,7 +1114,7 @@ void SCH_IO_KICAD_SEXPR::saveJunction( SCH_JUNCTION* aJunction )
 
 void SCH_IO_KICAD_SEXPR::saveNoConnect( SCH_NO_CONNECT* aNoConnect )
 {
-    wxCHECK_RET( aNoConnect != nullptr && m_out != nullptr, "" );
+    Q_ASSERT_X( aNoConnect != nullptr && m_out != nullptr, "saveNoConnect", "Invalid parameters" );
 
     m_out->Print( "(no_connect (at %s %s)",
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
@@ -1142,7 +1129,7 @@ void SCH_IO_KICAD_SEXPR::saveNoConnect( SCH_NO_CONNECT* aNoConnect )
 
 void SCH_IO_KICAD_SEXPR::saveBusEntry( SCH_BUS_ENTRY_BASE* aBusEntry )
 {
-    wxCHECK_RET( aBusEntry != nullptr && m_out != nullptr, "" );
+    Q_ASSERT_X( aBusEntry != nullptr && m_out != nullptr, "saveBusEntry", "Invalid parameters" );
 
     // Bus to bus entries are converted to bus line segments.
     if( aBusEntry->GetClass() == "SCH_BUS_BUS_ENTRY" )
@@ -1172,7 +1159,7 @@ void SCH_IO_KICAD_SEXPR::saveBusEntry( SCH_BUS_ENTRY_BASE* aBusEntry )
 
 void SCH_IO_KICAD_SEXPR::saveShape( SCH_SHAPE* aShape )
 {
-    wxCHECK_RET( aShape != nullptr && m_out != nullptr, "" );
+    Q_ASSERT_X( aShape != nullptr && m_out != nullptr, "saveShape", "Invalid parameters" );
 
     switch( aShape->GetShape() )
     {
@@ -1209,7 +1196,7 @@ void SCH_IO_KICAD_SEXPR::saveShape( SCH_SHAPE* aShape )
 
 void SCH_IO_KICAD_SEXPR::saveRuleArea( SCH_RULE_AREA* aRuleArea )
 {
-    wxCHECK_RET( aRuleArea != nullptr && m_out != nullptr, "" );
+    Q_ASSERT_X( aRuleArea != nullptr && m_out != nullptr, "saveRuleArea", "Invalid parameters" );
 
     m_out->Print( "(rule_area " );
     saveShape( aRuleArea );
@@ -1219,9 +1206,9 @@ void SCH_IO_KICAD_SEXPR::saveRuleArea( SCH_RULE_AREA* aRuleArea )
 
 void SCH_IO_KICAD_SEXPR::saveLine( SCH_LINE* aLine )
 {
-    wxCHECK_RET( aLine != nullptr && m_out != nullptr, "" );
+    Q_ASSERT_X( aLine != nullptr && m_out != nullptr, "saveLine", "Invalid parameters" );
 
-    wxString lineType;
+    QString lineType;
 
     STROKE_PARAMS line_stroke = aLine->GetStroke();
 
@@ -1235,7 +1222,7 @@ void SCH_IO_KICAD_SEXPR::saveLine( SCH_LINE* aLine )
     }
 
     m_out->Print( "(%s (pts (xy %s %s) (xy %s %s))",
-                  TO_UTF8( lineType ),
+                  lineType.toUtf8().constData(),
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
                                                        aLine->GetStartPoint().x ).c_str(),
                   EDA_UNIT_UTILS::FormatInternalUnits( schIUScale,
@@ -1253,7 +1240,7 @@ void SCH_IO_KICAD_SEXPR::saveLine( SCH_LINE* aLine )
 
 void SCH_IO_KICAD_SEXPR::saveText( SCH_TEXT* aText )
 {
-    wxCHECK_RET( aText != nullptr && m_out != nullptr, "" );
+    Q_ASSERT_X( aText != nullptr && m_out != nullptr, "saveText", "Invalid parameters" );
 
     // Note: label is nullptr SCH_TEXT, but not for SCH_LABEL_XXX,
     SCH_LABEL_BASE* label = dynamic_cast<SCH_LABEL_BASE*>( aText );
@@ -1332,7 +1319,7 @@ void SCH_IO_KICAD_SEXPR::saveText( SCH_TEXT* aText )
 
 void SCH_IO_KICAD_SEXPR::saveTextBox( SCH_TEXTBOX* aTextBox )
 {
-    wxCHECK_RET( aTextBox != nullptr && m_out != nullptr, "" );
+    Q_ASSERT_X( aTextBox != nullptr && m_out != nullptr, "saveTextBox", "Invalid parameters" );
 
     m_out->Print( "(%s %s",
                   aTextBox->Type() == SCH_TABLECELL_T ? "table_cell" : "text_box",
@@ -1398,7 +1385,7 @@ void SCH_IO_KICAD_SEXPR::saveTable( SCH_TABLE* aTable )
             }
         }
 
-        wxCHECK_MSG( maxCol >= minCol && maxRow >= minRow, /*void*/, wxT( "No selected cells!" ) );
+        Q_ASSERT_X( maxCol >= minCol && maxRow >= minRow, "saveTable", "No selected cells!" );
 
         int destRow = 0;
 
@@ -1414,7 +1401,7 @@ void SCH_IO_KICAD_SEXPR::saveTable( SCH_TABLE* aTable )
         aTable->SetColCount( ( maxCol - minCol ) + 1 );
     }
 
-    wxCHECK_RET( aTable != nullptr && m_out != nullptr, "" );
+    Q_ASSERT_X( aTable != nullptr && m_out != nullptr, "saveTable", "Invalid parameters" );
 
     m_out->Print( "(table (column_count %d)", aTable->GetColCount() );
 
@@ -1473,21 +1460,21 @@ void SCH_IO_KICAD_SEXPR::saveTable( SCH_TABLE* aTable )
 
 void SCH_IO_KICAD_SEXPR::saveBusAlias( std::shared_ptr<BUS_ALIAS> aAlias )
 {
-    wxCHECK_RET( aAlias != nullptr, "BUS_ALIAS* is NULL" );
+    Q_ASSERT_X( aAlias != nullptr, "saveBusAlias", "BUS_ALIAS* is NULL" );
 
-    wxString members;
+    QString members;
 
-    for( const wxString& member : aAlias->Members() )
+    for( const QString& member : aAlias->Members() )
     {
-        if( !members.IsEmpty() )
-            members += wxS( " " );
+        if( !members.isEmpty() )
+            members += QStringLiteral( " " );
 
         members += m_out->Quotew( member );
     }
 
     m_out->Print( "(bus_alias %s (members %s))",
                   m_out->Quotew( aAlias->GetName() ).c_str(),
-                  TO_UTF8( members ) );
+                  members.toUtf8().constData() );
 }
 
 
@@ -1499,10 +1486,10 @@ void SCH_IO_KICAD_SEXPR::saveInstances( const std::vector<SCH_SHEET_INSTANCE>& a
 
         for( const SCH_SHEET_INSTANCE& instance : aInstances )
         {
-            wxString path = instance.m_Path.AsString();
+            QString path = QString::fromStdString( instance.m_Path.AsString() );
 
-            if( path.IsEmpty() )
-                path = wxT( "/" ); // Root path
+            if( path.isEmpty() )
+                path = QStringLiteral( "/" ); // Root path
 
             m_out->Print( "(path %s (page %s))",
                           m_out->Quotew( path ).c_str(),
@@ -1514,7 +1501,7 @@ void SCH_IO_KICAD_SEXPR::saveInstances( const std::vector<SCH_SHEET_INSTANCE>& a
 }
 
 
-void SCH_IO_KICAD_SEXPR::cacheLib( const wxString& aLibraryFileName,
+void SCH_IO_KICAD_SEXPR::cacheLib( const QString& aLibraryFileName,
                                    const std::map<std::string, UTF8>* aProperties )
 {
     // Suppress font substitution warnings
@@ -1548,8 +1535,8 @@ int SCH_IO_KICAD_SEXPR::GetModifyHash() const
 }
 
 
-void SCH_IO_KICAD_SEXPR::EnumerateSymbolLib( wxArrayString&    aSymbolNameList,
-                                             const wxString&   aLibraryPath,
+void SCH_IO_KICAD_SEXPR::EnumerateSymbolLib( QStringList&    aSymbolNameList,
+                                             const QString&   aLibraryPath,
                                              const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
@@ -1564,13 +1551,13 @@ void SCH_IO_KICAD_SEXPR::EnumerateSymbolLib( wxArrayString&    aSymbolNameList,
     for( LIB_SYMBOL_MAP::const_iterator it = symbols.begin();  it != symbols.end();  ++it )
     {
         if( !powerSymbolsOnly || it->second->IsPower() )
-            aSymbolNameList.Add( it->first );
+            aSymbolNameList.append( QString::fromStdString( it->first ) );
     }
 }
 
 
 void SCH_IO_KICAD_SEXPR::EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
-                                             const wxString&   aLibraryPath,
+                                             const QString&   aLibraryPath,
                                              const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
@@ -1590,25 +1577,25 @@ void SCH_IO_KICAD_SEXPR::EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolLi
 }
 
 
-LIB_SYMBOL* SCH_IO_KICAD_SEXPR::LoadSymbol( const wxString& aLibraryPath,
-                                            const wxString& aSymbolName,
+LIB_SYMBOL* SCH_IO_KICAD_SEXPR::LoadSymbol( const QString& aLibraryPath,
+                                            const QString& aSymbolName,
                                             const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO toggle;     // toggles on, then off, the C locale.
 
     cacheLib( aLibraryPath, aProperties );
 
-    LIB_SYMBOL_MAP::const_iterator it = m_cache->m_symbols.find( aSymbolName );
+    LIB_SYMBOL_MAP::const_iterator it = m_cache->m_symbols.find( aSymbolName.toStdString() );
 
     // We no longer escape '/' in symbol names, but we used to.
-    if( it == m_cache->m_symbols.end() && aSymbolName.Contains( '/' ) )
-        it = m_cache->m_symbols.find( EscapeString( aSymbolName, CTX_LEGACY_LIBID ) );
+    if( it == m_cache->m_symbols.end() && aSymbolName.contains( '/' ) )
+        it = m_cache->m_symbols.find( EscapeString( aSymbolName.toStdString(), CTX_LEGACY_LIBID ) );
 
-    if( it == m_cache->m_symbols.end() && aSymbolName.Contains( wxT( "{slash}" ) ) )
+    if( it == m_cache->m_symbols.end() && aSymbolName.contains( QStringLiteral( "{slash}" ) ) )
     {
-        wxString unescaped = aSymbolName;
-        unescaped.Replace( wxT( "{slash}" ), wxT( "/" ) );
-        it = m_cache->m_symbols.find( unescaped );
+        QString unescaped = aSymbolName;
+        unescaped.replace( QStringLiteral( "{slash}" ), QStringLiteral( "/" ) );
+        it = m_cache->m_symbols.find( unescaped.toStdString() );
     }
 
     if( it == m_cache->m_symbols.end() )
@@ -1618,7 +1605,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR::LoadSymbol( const wxString& aLibraryPath,
 }
 
 
-void SCH_IO_KICAD_SEXPR::SaveSymbol( const wxString& aLibraryPath, const LIB_SYMBOL* aSymbol,
+void SCH_IO_KICAD_SEXPR::SaveSymbol( const QString& aLibraryPath, const LIB_SYMBOL* aSymbol,
                                      const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO toggle;     // toggles on, then off, the C locale.
@@ -1632,27 +1619,26 @@ void SCH_IO_KICAD_SEXPR::SaveSymbol( const wxString& aLibraryPath, const LIB_SYM
 }
 
 
-void SCH_IO_KICAD_SEXPR::DeleteSymbol( const wxString& aLibraryPath, const wxString& aSymbolName,
+void SCH_IO_KICAD_SEXPR::DeleteSymbol( const QString& aLibraryPath, const QString& aSymbolName,
                                        const std::map<std::string, UTF8>* aProperties )
 {
     LOCALE_IO toggle;     // toggles on, then off, the C locale.
 
     cacheLib( aLibraryPath, aProperties );
 
-    m_cache->DeleteSymbol( aSymbolName );
+    m_cache->DeleteSymbol( aSymbolName.toStdString() );
 
     if( !isBuffering( aProperties ) )
         m_cache->Save();
 }
 
 
-void SCH_IO_KICAD_SEXPR::CreateLibrary( const wxString& aLibraryPath,
+void SCH_IO_KICAD_SEXPR::CreateLibrary( const QString& aLibraryPath,
                                         const std::map<std::string, UTF8>* aProperties )
 {
-    if( wxFileExists( aLibraryPath ) )
+    if( QFileInfo::exists( aLibraryPath ) )
     {
-        THROW_IO_ERROR( wxString::Format( _( "Symbol library '%s' already exists." ),
-                                          aLibraryPath.GetData() ) );
+        THROW_IO_ERROR( QString( "Symbol library '%1' already exists." ).arg( aLibraryPath ).toStdString() );
     }
 
     LOCALE_IO toggle;
@@ -1665,20 +1651,18 @@ void SCH_IO_KICAD_SEXPR::CreateLibrary( const wxString& aLibraryPath,
 }
 
 
-bool SCH_IO_KICAD_SEXPR::DeleteLibrary( const wxString& aLibraryPath,
+bool SCH_IO_KICAD_SEXPR::DeleteLibrary( const QString& aLibraryPath,
                                         const std::map<std::string, UTF8>* aProperties )
 {
-    wxFileName fn = aLibraryPath;
+    QFileInfo fn( aLibraryPath );
 
-    if( !fn.FileExists() )
+    if( !fn.exists() )
         return false;
 
-    // Some of the more elaborate wxRemoveFile() crap puts up its own wxLog dialog
-    // we don't want that.  we want bare metal portability with no UI here.
-    if( wxRemove( aLibraryPath ) )
+    // Use Qt's QFile::remove for cross-platform file deletion
+    if( !QFile::remove( aLibraryPath ) )
     {
-        THROW_IO_ERROR( wxString::Format( _( "Symbol library '%s' cannot be deleted." ),
-                                          aLibraryPath.GetData() ) );
+        THROW_IO_ERROR( QString( "Symbol library '%1' cannot be deleted." ).arg( aLibraryPath ).toStdString() );
     }
 
     if( m_cache && m_cache->IsFile( aLibraryPath ) )
@@ -1691,13 +1675,13 @@ bool SCH_IO_KICAD_SEXPR::DeleteLibrary( const wxString& aLibraryPath,
 }
 
 
-void SCH_IO_KICAD_SEXPR::SaveLibrary( const wxString& aLibraryPath,
+void SCH_IO_KICAD_SEXPR::SaveLibrary( const QString& aLibraryPath,
                                       const std::map<std::string, UTF8>* aProperties )
 {
     if( !m_cache )
         m_cache = new SCH_IO_KICAD_SEXPR_LIB_CACHE( aLibraryPath );
 
-    wxString oldFileName = m_cache->GetFileName();
+    QString oldFileName = m_cache->GetFileName();
 
     if( !m_cache->IsFile( aLibraryPath ) )
         m_cache->SetFileName( aLibraryPath );
@@ -1709,37 +1693,37 @@ void SCH_IO_KICAD_SEXPR::SaveLibrary( const wxString& aLibraryPath,
 }
 
 
-bool SCH_IO_KICAD_SEXPR::CanReadLibrary( const wxString& aLibraryPath ) const
+bool SCH_IO_KICAD_SEXPR::CanReadLibrary( const QString& aLibraryPath ) const
 {
     if( !SCH_IO::CanReadLibrary( aLibraryPath ) )
         return false;
 
     // Above just checks for proper extension; now check that it actually exists
 
-    wxFileName fn( aLibraryPath );
-    return fn.IsOk() && fn.FileExists();
+    QFileInfo fn( aLibraryPath );
+    return fn.exists();
 }
 
 
-bool SCH_IO_KICAD_SEXPR::IsLibraryWritable( const wxString& aLibraryPath )
+bool SCH_IO_KICAD_SEXPR::IsLibraryWritable( const QString& aLibraryPath )
 {
-    wxFileName fn( aLibraryPath );
+    QFileInfo fn( aLibraryPath );
 
-    if( fn.FileExists() )
-        return fn.IsFileWritable();
+    if( fn.exists() )
+        return fn.isWritable();
 
-    return fn.IsDirWritable();
+    return fn.dir().isReadable();
 }
 
 
-void SCH_IO_KICAD_SEXPR::GetAvailableSymbolFields( std::vector<wxString>& aNames )
+void SCH_IO_KICAD_SEXPR::GetAvailableSymbolFields( std::vector<QString>& aNames )
 {
     if( !m_cache )
         return;
 
     const LIB_SYMBOL_MAP& symbols = m_cache->m_symbols;
 
-    std::set<wxString> fieldNames;
+    std::set<QString> fieldNames;
 
     for( LIB_SYMBOL_MAP::const_iterator it = symbols.begin();  it != symbols.end();  ++it )
     {
@@ -1761,7 +1745,7 @@ void SCH_IO_KICAD_SEXPR::GetAvailableSymbolFields( std::vector<wxString>& aNames
 }
 
 
-void SCH_IO_KICAD_SEXPR::GetDefaultSymbolFields( std::vector<wxString>& aNames )
+void SCH_IO_KICAD_SEXPR::GetDefaultSymbolFields( std::vector<QString>& aNames )
 {
     GetAvailableSymbolFields( aNames );
 }
@@ -1804,3 +1788,5 @@ void SCH_IO_KICAD_SEXPR::FormatLibSymbol( LIB_SYMBOL* symbol, OUTPUTFORMATTER & 
 
 
 const char* SCH_IO_KICAD_SEXPR::PropBuffering = "buffering";
+
+// Qt Transformation completed: wxWidgets -> Qt migration finished

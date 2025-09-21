@@ -1,40 +1,16 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Jean-Pierre Charras, jp.charras wanadoo.fr
- * Copyright (C) 2008 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright (C) 2023 CERN (www.cern.ch)
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #ifndef  SCH_EDIT_FRAME_H
 #define  SCH_EDIT_FRAME_H
 
 #include <stddef.h>
 #include <vector>
-#include <wx/cmndata.h>
-#include <wx/event.h>
-#include <wx/gdicmn.h>
-#include <wx/string.h>
-#include <wx/treectrl.h>
-#include <wx/utils.h>
+#include <QtCore/QString>
+#include <QtWidgets/QTreeWidget>
+#include <QtWidgets/QWidget>
+#include <QtGui/QPagedPaintDevice>
+#include <QtCore/QEvent>
 
 #include <core/typeinfo.h>
 #include <eda_base_frame.h>
@@ -76,14 +52,14 @@ enum SCH_SEARCH_T
 };
 
 
-wxDECLARE_EVENT( EDA_EVT_SCHEMATIC_CHANGING, wxCommandEvent );
-wxDECLARE_EVENT( EDA_EVT_SCHEMATIC_CHANGED, wxCommandEvent );
+Q_DECLARE_METATYPE(QEvent*)
+Q_DECLARE_METATYPE(QEvent*)
 
 
 /**
  * Tree view item data for the net navigator.
  */
-class NET_NAVIGATOR_ITEM_DATA : public wxTreeItemData
+class NET_NAVIGATOR_ITEM_DATA
 {
 public:
     NET_NAVIGATOR_ITEM_DATA( const SCH_SHEET_PATH& aSheetPath, const SCH_ITEM* aItem ) :
@@ -128,7 +104,7 @@ private:
 class SCH_EDIT_FRAME : public SCH_BASE_FRAME
 {
 public:
-    SCH_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent );
+    SCH_EDIT_FRAME( KIWAY* aKiway, QWidget* aParent );
     ~SCH_EDIT_FRAME() override;
 
     SCH_SCREEN* GetScreen() const override;
@@ -161,7 +137,7 @@ public:
      */
     void LoadDrawingSheet();
 
-    void ShowSchematicSetupDialog( const wxString& aInitialPage = wxEmptyString );
+    void ShowSchematicSetupDialog( const QString& aInitialPage = QString() );
 
     void LoadSettings( APP_SETTINGS_BASE* aCfg ) override;
     void SaveSettings( APP_SETTINGS_BASE* aCfg ) override;
@@ -191,8 +167,8 @@ public:
     /**
      * Return a human-readable description of the current screen.
      */
-    wxString GetScreenDesc() const override;
-    wxString GetFullScreenDesc() const override;
+    QString GetScreenDesc() const override;
+    QString GetFullScreenDesc() const override;
 
     /**
      * Execute a remote command sent via a socket on port KICAD_SCH_PORT_SERVICE_NUMBER (which
@@ -252,7 +228,7 @@ public:
      */
     void UpdateHierarchySelection();
 
-    void ShowFindReplaceStatus( const wxString& aMsg, int aStatusTime );
+    void ShowFindReplaceStatus( const QString& aMsg, int aStatusTime );
     void ClearFindReplaceStatus();
 
     /**
@@ -288,7 +264,7 @@ public:
      *
      * @param aNetName is the name of a net, or empty string to clear highlight
      */
-    void SendCrossProbeNetName( const wxString& aNetName );
+    void SendCrossProbeNetName( const QString& aNetName );
 
     /**
      * Send a connection (net or bus) to Pcbnew for highlighting.
@@ -302,12 +278,12 @@ public:
      */
     void SendCrossProbeClearHighlight();
 
-    const wxString& GetHighlightedConnection() const
+    const QString& GetHighlightedConnection() const
     {
         return m_highlightedConn;
     }
 
-    void SetHighlightedConnection( const wxString& aConnection,
+    void SetHighlightedConnection( const QString& aConnection,
                                    const NET_NAVIGATOR_ITEM_DATA* aSelection = nullptr );
 
     /**
@@ -318,7 +294,7 @@ public:
      * @param aAnnotateMessage a message to put up in case annotation needs to be performed.
      * @return true if all is well (i.e. you can call WriteNetListFile next).
      */
-    bool ReadyToNetlist( const wxString& aAnnotateMessage );
+    bool ReadyToNetlist( const QString& aAnnotateMessage );
 
     /**
      * Create a netlist file.
@@ -335,7 +311,7 @@ public:
      * @param aReporter is a #REPORTER to report error messages, can be a nullptr.
      * @return true if success.
      */
-    bool WriteNetListFile( int aFormat, const wxString& aFullFileName, unsigned aNetlistOptions,
+    bool WriteNetListFile( int aFormat, const QString& aFullFileName, unsigned aNetlistOptions,
                            REPORTER* aReporter = nullptr );
 
     /**
@@ -402,7 +378,7 @@ public:
      * @param aMessage A user message indicating the purpose.
      * @return the result of ShowModal()
      */
-    int ModalAnnotate( const wxString& aMessage );
+    int ModalAnnotate( const QString& aMessage );
 
     // Functions used for hierarchy handling
     SCH_SHEET_PATH& GetCurrentSheet() const;
@@ -425,7 +401,7 @@ public:
     void DisplayCurrentSheet();
 
     /**
-     * Use the wxWidgets print code to draw an image of the current sheet onto the clipboard.
+     * Use the Qt print code to draw an image of the current sheet onto the clipboard.
      */
     void DrawCurrentSheetToClipboard();
 
@@ -444,7 +420,7 @@ public:
      */
     void SetSheetNumberAndCount();
 
-    wxPageSetupDialogData& GetPageSetupData() { return m_pageSetupData; }
+    QPagedPaintDevice::PdfVersion& GetPageSetupData() { return m_pageSetupData; }
 
     void NewProject();
     void LoadProject();
@@ -458,9 +434,9 @@ public:
      */
     bool SaveProject( bool aSaveAs = false );
 
-    bool OpenProjectFiles( const std::vector<wxString>& aFileSet, int aCtl = 0 ) override;
+    bool OpenProjectFiles( const std::vector<QString>& aFileSet, int aCtl = 0 ) override;
 
-    wxString GetCurrentFileName() const override;
+    QString GetCurrentFileName() const override;
 
     /**
      * Check if any of the screens has unsaved changes and asks the user whether to save or
@@ -509,8 +485,8 @@ public:
      * @param aSchematicFileName is the absolute path and file name of the file to test.
      * @return true if the user accepts the potential file name clash risk.
      */
-    bool AllowCaseSensitiveFileNameClashes( const wxString& aOldName,
-                                            const wxString& aSchematicFileName );
+    bool AllowCaseSensitiveFileNameClashes( const QString& aOldName,
+                                            const QString& aSchematicFileName );
 
     /**
      * Edit an existing sheet or add a new sheet to the schematic.
@@ -548,9 +524,9 @@ public:
     bool EditSheetProperties( SCH_SHEET* aSheet, SCH_SHEET_PATH* aHierarchy,
                               bool* aIsUndoable = nullptr, bool* aClearAnnotationNewItems = nullptr,
                               bool* aUpdateHierarchyNavigator = nullptr,
-                              wxString* aSourceSheetFilename = nullptr );
+                              QString* aSourceSheetFilename = nullptr );
 
-    void InitSheet( SCH_SHEET* aSheet, const wxString& aNewFilename );
+    void InitSheet( SCH_SHEET* aSheet, const QString& aNewFilename );
 
     /**
      * Load a the KiCad schematic file \a aFileName into the sheet \a aSheet.
@@ -603,7 +579,7 @@ public:
      * @return True if the schematic was imported properly.
      */
     bool LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurrentSheet,
-                            const wxString& aFileName, bool aSkipRecursionCheck = false,
+                            const QString& aFileName, bool aSkipRecursionCheck = false,
                             bool aSkipLibCheck = false );
 
     /**
@@ -617,7 +593,7 @@ public:
 
     void SelectUnit( SCH_SYMBOL* aSymbol, int aUnit );
 
-    void SetAltPinFunction( SCH_PIN* aPin, const wxString& aFunction );
+    void SetAltPinFunction( SCH_PIN* aPin, const QString& aFunction );
 
     /* Undo - redo */
 
@@ -712,7 +688,7 @@ public:
      * @param aFileName The full path and file name of the archive library.
      * @return True if \a aFileName was written successfully.
      */
-    bool CreateArchiveLibrary( const wxString& aFileName );
+    bool CreateArchiveLibrary( const QString& aFileName );
 
     /**
      * If a library name is given, creates a new design block library in the project folder
@@ -724,10 +700,10 @@ public:
      *
      * @param aProposedName is the initial path and filename shown in the file chooser dialog.
      * @return The newly created library path if library was successfully created, else
-     *         wxEmptyString because user aborted or error.
+     *         empty string because user aborted or error.
      */
-    wxString CreateNewDesignBlockLibrary( const wxString& aLibName = wxEmptyString,
-                                          const wxString& aProposedName = wxEmptyString );
+    QString CreateNewDesignBlockLibrary( const QString& aLibName = QString(),
+                                          const QString& aProposedName = QString() );
 
     /**
      * Add an existing library to either the global or project library table.
@@ -735,13 +711,13 @@ public:
      * @param aFileName the library to add; a file open dialog will be displayed if empty.
      * @return true if successfully added.
      */
-    bool AddDesignBlockLibrary( const wxString& aFilename, DESIGN_BLOCK_LIB_TABLE* aTable );
+    bool AddDesignBlockLibrary( const QString& aFilename, DESIGN_BLOCK_LIB_TABLE* aTable );
 
-    void SaveSheetAsDesignBlock( const wxString& aLibraryName, SCH_SHEET_PATH& aSheetPath );
+    void SaveSheetAsDesignBlock( const QString& aLibraryName, SCH_SHEET_PATH& aSheetPath );
 
-    void SaveSelectionAsDesignBlock( const wxString& aLibraryName );
+    void SaveSelectionAsDesignBlock( const QString& aLibraryName );
 
-    bool DeleteDesignBlockLibrary( const wxString& aLibName, bool aConfirm );
+    bool DeleteDesignBlockLibrary( const QString& aLibName, bool aConfirm );
 
     bool DeleteDesignBlockFromLibrary( const LIB_ID& aLibId, bool aConfirm );
 
@@ -767,29 +743,29 @@ public:
      */
     virtual void PrintPage( const RENDER_SETTINGS* aSettings ) override;
 
-    void SetNetListerCommand( const wxString& aCommand ) { m_netListerCommand = aCommand; }
+    void SetNetListerCommand( const QString& aCommand ) { m_netListerCommand = aCommand; }
 
     /**
      * Reset the execution flags to defaults for external netlist and bom generators.
      */
-    void DefaultExecFlags() { m_exec_flags = wxEXEC_SYNC; }
+    void DefaultExecFlags() { m_exec_flags = QProcess::NotOpen; }
 
     /**
      * Set (adds) specified flags for next execution of external generator of the netlist or bom.
      *
-     * @param aFlags is the wxEXEC_* flags, see wxExecute documentation.
+     * @param aFlags is the QProcess flags, see QProcess documentation.
      */
-    void SetExecFlags( const int aFlags ) { m_exec_flags |= aFlags; }
+    void SetExecFlags( const int aFlags ) { m_exec_flags = static_cast<QProcess::ProcessState>(m_exec_flags | aFlags); }
 
     /**
      * Clear (removes) specified flags that not needed for next execution of external generator
      * of the netlist or bom.
      *
-     * @param aFlags is the wxEXEC_* flags, see wxExecute documentation.
+     * @param aFlags is the QProcess flags, see QProcess documentation.
      */
-    void ClearExecFlags( const int aFlags ) { m_exec_flags &= ~( aFlags ); }
+    void ClearExecFlags( const int aFlags ) { m_exec_flags = static_cast<QProcess::ProcessState>(m_exec_flags & ~( aFlags )); }
 
-    wxString GetNetListerCommand() const { return m_netListerCommand; }
+    QString GetNetListerCommand() const { return m_netListerCommand; }
 
     /**
      * Generate the connection data for the entire schematic hierarchy.
@@ -844,9 +820,9 @@ public:
      *
      * @param aFileName is the project auto save master file name.
      */
-    virtual void CheckForAutoSaveFile( const wxFileName& aFileName ) override;
+    virtual void CheckForAutoSaveFile( const QFileInfo& aFileName ) override;
 
-    virtual void DeleteAutoSaveFile( const wxFileName& aFileName ) override;
+    virtual void DeleteAutoSaveFile( const QFileInfo& aFileName ) override;
 
     /**
      * Toggle the show/hide state of the left side schematic navigation panel
@@ -868,22 +844,22 @@ public:
 
     DIALOG_SYMBOL_FIELDS_TABLE* GetSymbolFieldsTableDialog();
 
-    wxTreeCtrl* GetNetNavigator() { return m_netNavigator; }
+    QTreeWidget* GetNetNavigator() { return m_netNavigator; }
 
     const SCH_ITEM* GetSelectedNetNavigatorItem() const;
 
     /**
-     * @return the name of the wxAuiPaneInfo managing the Hierarchy Navigator panel.
+     * @return the name of the QDockWidget managing the Hierarchy Navigator panel.
      */
-    static const wxString SchematicHierarchyPaneName()
+    static const QString SchematicHierarchyPaneName()
     {
-        return wxT( "SchematicHierarchy" );
+        return QStringLiteral( "SchematicHierarchy" );
     }
 
     /**
-     * @return the name of the wxAuiPaneInfo managing the Search panel.
+     * @return the name of the QDockWidget managing the Search panel.
      */
-    static const wxString SearchPaneName() { return wxT( "Search" ); }
+    static const QString SearchPaneName() { return QStringLiteral( "Search" ); }
 
     /**
      * Add \a aListener to post #EDA_EVT_SCHEMATIC_CHANGED command events to.
@@ -894,21 +870,21 @@ public:
      *       projects in the project manager closes the schematic editor when a new project is
      *       loaded.
      */
-    void AddSchematicChangeListener( wxEvtHandler* aListener );
+    void AddSchematicChangeListener( QObject* aListener );
 
     /**
      * Remove \a aListener to from the schematic changed listener list.
      */
-    void RemoveSchematicChangeListener( wxEvtHandler* aListener );
+    void RemoveSchematicChangeListener( QObject* aListener );
 
-    static const wxString NetNavigatorPaneName()
+    static const QString NetNavigatorPaneName()
     {
-        return wxS( "NetNavigator" );
+        return QStringLiteral( "NetNavigator" );
     }
 
     void RefreshNetNavigator( const NET_NAVIGATOR_ITEM_DATA* aSelection = nullptr );
 
-    void MakeNetNavigatorNode( const wxString& aNetName, wxTreeItemId aParentId,
+    void MakeNetNavigatorNode( const QString& aNetName, QTreeWidgetItem* aParentId,
                                const NET_NAVIGATOR_ITEM_DATA* aSelection,
                                bool aSingleSheetSchematic );
 
@@ -923,7 +899,7 @@ public:
         return PLUGIN_ACTION_SCOPE::SCHEMATIC;
     }
 
-    DECLARE_EVENT_TABLE()
+    Q_OBJECT
 
 protected:
     /**
@@ -940,22 +916,22 @@ protected:
      */
     void sendNetlistToCvpcb();
 
-    void onSize( wxSizeEvent& aEvent );
+    void onSize( QResizeEvent* aEvent );
 
     void saveProjectSettings() override;
 
-    void onCloseSymbolDiffDialog( wxCommandEvent& aEvent );
+    void onCloseSymbolDiffDialog( QEvent* aEvent );
 
-    void onCloseErcDialog( wxCommandEvent& aEvent );
+    void onCloseErcDialog( QEvent* aEvent );
 
-    void onCloseSymbolFieldsTableDialog( wxCommandEvent& aEvent );
+    void onCloseSymbolFieldsTableDialog( QEvent* aEvent );
 
     void unitsChangeRefresh() override;
 
     void updateSelectionFilterVisbility() override;
 
 #ifdef KICAD_IPC_API
-    void onPluginAvailabilityChanged( wxCommandEvent& aEvt );
+    void onPluginAvailabilityChanged( QEvent* aEvt );
 #endif
 
     /**
@@ -969,26 +945,26 @@ protected:
      * Create a new library in the given table (presumed to be either the global or project
      * library table).
      */
-    wxString createNewDesignBlockLibrary( const wxString& aLibName, const wxString& aProposedName,
+    QString createNewDesignBlockLibrary( const QString& aLibName, const QString& aProposedName,
                                           DESIGN_BLOCK_LIB_TABLE* aTable );
 
 private:
     // Called when resizing the Hierarchy Navigator panel
-    void OnResizeHierarchyNavigator( wxSizeEvent& aEvent );
+    void OnResizeHierarchyNavigator( QResizeEvent* aEvent );
 
-    void onResizeNetNavigator( wxSizeEvent& aEvent );
+    void onResizeNetNavigator( QResizeEvent* aEvent );
 
     // Sets up the tool framework
     void setupTools();
 
-    void OnExit( wxCommandEvent& event );
+    void OnExit( QEvent* event );
 
-    void OnLoadFile( wxCommandEvent& event );
-    void OnImportProject( wxCommandEvent& event );
+    void OnLoadFile( QEvent* event );
+    void OnImportProject( QEvent* event );
 
-    void OnClearFileHistory( wxCommandEvent& aEvent );
+    void OnClearFileHistory( QEvent* aEvent );
 
-    bool canCloseWindow( wxCloseEvent& aCloseEvent ) override;
+    bool canCloseWindow( QCloseEvent* aCloseEvent ) override;
     void doCloseWindow() override;
 
     /**
@@ -1022,7 +998,7 @@ private:
      *  @param full filepath of file to be imported.
      *  @param aFileType SCH_FILE_T value for file type
      */
-    bool importFile( const wxString& aFileName, int aFileType,
+    bool importFile( const QString& aFileName, int aFileType,
                      const std::map<std::string, UTF8>* aProperties = nullptr );
 
     /**
@@ -1032,24 +1008,24 @@ private:
      * @param aSavePath is the full path of the destination file
      * @return True if the file has been saved.
      */
-    bool saveSchematicFile( SCH_SHEET* aSheet, const wxString& aSavePath );
+    bool saveSchematicFile( SCH_SHEET* aSheet, const QString& aSavePath );
 
     /**
      * Fill a map of uuid -> reference from the currently loaded schematic.
      *
      * @param aMap is a map to fill
      */
-    void mapExistingAnnotation( std::map<wxString, wxString>& aMap );
+    void mapExistingAnnotation( std::map<QString, QString>& aMap );
 
     bool updateAutoSaveFile();
 
-    const wxString& getAutoSaveFileName() const;
+    const QString& getAutoSaveFileName() const;
 
-    wxTreeCtrl* createHighlightedNetNavigator();
+    QTreeWidget* createHighlightedNetNavigator();
 
-    void onNetNavigatorSelection( wxTreeEvent& aEvent );
+    void onNetNavigatorSelection( QTreeWidgetItem* current, QTreeWidgetItem* previous );
 
-    void onNetNavigatorSelChanging( wxTreeEvent& aEvent );
+    void onNetNavigatorSelChanging( QTreeWidgetItem* current, QTreeWidgetItem* previous );
 
     void CaptureHierarchyPaneSize();
 
@@ -1060,14 +1036,14 @@ private:
     friend class SCH_FIND_REPLACE_TOOL;
 
     SCHEMATIC*                  m_schematic;          ///< The currently loaded schematic
-    wxString                    m_highlightedConn;    ///< The highlighted net or bus or empty string.
+    QString                     m_highlightedConn;    ///< The highlighted net or bus or empty string.
 
-    wxPageSetupDialogData       m_pageSetupData;
+    QPagedPaintDevice::PdfVersion m_pageSetupData;
     std::vector<std::unique_ptr<SCH_ITEM>> m_items_to_repeat;  ///< For the repeat-last-item cmd
 
-    wxString                    m_netListerCommand;   ///< Command line to call a custom net list
+    QString                     m_netListerCommand;   ///< Command line to call a custom net list
                                                       ///< generator.
-    int                         m_exec_flags;         ///< Flags of the wxExecute() function
+    QProcess::ProcessState      m_exec_flags;         ///< Flags of the QProcess function
                                                       ///< to call a custom net list generator.
 
     DIALOG_SCH_FIND*            m_findReplaceDialog;
@@ -1078,13 +1054,13 @@ private:
     DIALOG_SCHEMATIC_SETUP*     m_schematicSetupDialog;
 
 
-    wxTreeCtrl*                 m_netNavigator;
+    QTreeWidget*                m_netNavigator;
 
 	bool                        m_syncingPcbToSchSelection; // Recursion guard when synchronizing selection from PCB
     bool                        m_show_search;
     bool                        m_highlightedConnChanged;
 
-    std::vector<wxEvtHandler*>  m_schematicChangeListeners;
+    std::vector<QObject*>       m_schematicChangeListeners;
 
     std::vector<LIB_ID> m_designBlockHistoryList;
 

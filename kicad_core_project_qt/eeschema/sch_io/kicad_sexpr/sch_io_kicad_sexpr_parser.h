@@ -1,32 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Wayne Stambaugh <stambaughw@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @brief Schematic and symbol library s-expression file format parser definitions.
- */
 
 #ifndef SCH_IO_KICAD_SEXPR_PARSER_H_
 #define SCH_IO_KICAD_SEXPR_PARSER_H_
@@ -34,7 +6,8 @@
 #include <symbol_library.h>
 #include <schematic_lexer.h>
 #include <sch_file_versions.h>
-#include <default_values.h>    // For some default values
+#include <default_values.h>
+#include <QString>
 
 
 class SCH_PIN;
@@ -234,10 +207,10 @@ private:
 
 private:
     int      m_requiredVersion;   ///< Set to the symbol library file version required.
-    wxString m_generatorVersion;
+    QString m_generatorVersion;
     int      m_unit;              ///< The current unit being parsed.
     int      m_bodyStyle;         ///< The current body style being parsed.
-    wxString m_symbolName;        ///< The current symbol name.
+    QString m_symbolName;        ///< The current symbol name.
     bool     m_appending;         ///< Appending load status.
 
     /// Field IDs that have been read so far for the current symbol.

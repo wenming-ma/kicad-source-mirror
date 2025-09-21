@@ -1,23 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Jon Evans <jon@craftyjon.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef _SCH_CONNECTION_H
 #define _SCH_CONNECTION_H
@@ -25,7 +5,7 @@
 #include <memory>
 #include <unordered_set>
 
-#include <wx/regex.h>
+#include <QRegularExpression>
 #include <bus_alias.h>
 #include <sch_sheet_path.h>
 #include <widgets/msgpanel.h>
@@ -88,7 +68,7 @@ public:
      * For CONNECTION_BUS, this will deduce the correct BUS_TYPE and also
      * generate a correct list of members.
      */
-    void ConfigureFromLabel( const wxString& aLabel );
+    void ConfigureFromLabel( const QString& aLabel );
 
     /**
      * Clears connectivity information
@@ -140,30 +120,30 @@ public:
     void ClearDriverChanged();
     void* GetLastDriver() const { return m_lastDriver; }
 
-    wxString Name( bool aIgnoreSheet = false ) const;
+    QString Name( bool aIgnoreSheet = false ) const;
 
-    wxString LocalName() const { return m_local_name; }
+    QString LocalName() const { return m_local_name; }
 
-    wxString FullLocalName() const
+    QString FullLocalName() const
     {
         return m_local_prefix + m_local_name + m_suffix;
     }
 
-    void SetName( const wxString& aName )
+    void SetName( const QString& aName )
     {
         m_name = aName;
         recacheName();
     }
 
-    wxString GetNetName() const;
+    QString GetNetName() const;
 
-    wxString Prefix() const { return m_prefix; }
-    void SetPrefix( const wxString& aPrefix );
+    QString Prefix() const { return m_prefix; }
+    void SetPrefix( const QString& aPrefix );
 
-    wxString BusPrefix() const { return m_bus_prefix; }
+    QString BusPrefix() const { return m_bus_prefix; }
 
-    wxString Suffix() const { return m_suffix; }
-    void SetSuffix( const wxString& aSuffix );
+    QString Suffix() const { return m_suffix; }
+    void SetSuffix( const QString& aSuffix );
 
     CONNECTION_TYPE Type() const { return m_type; }
 
@@ -187,7 +167,7 @@ public:
 
     long VectorIndex() const { return m_vector_index; }
 
-    wxString VectorPrefix() const { return m_vector_prefix; }
+    QString VectorPrefix() const { return m_vector_prefix; }
 
     const std::vector< std::shared_ptr< SCH_CONNECTION > >& Members() const
     {
@@ -196,7 +176,7 @@ public:
 
     const std::vector< std::shared_ptr< SCH_CONNECTION > > AllMembers() const;
 
-    static wxString PrintBusForUI( const wxString& aString );
+    static QString PrintBusForUI( const QString& aString );
 
     /**
      * Returns true if this connection is contained within aOther (but not the same as aOther)
@@ -219,19 +199,19 @@ public:
     /**
      * Test if \a aLabel has a bus notation.
      *
-     * @param aLabel A wxString object containing the label to test.
+     * @param aLabel A QString object containing the label to test.
      * @return true if text is a bus notation format otherwise false is returned.
      */
-    static bool IsBusLabel( const wxString& aLabel );
+    static bool IsBusLabel( const QString& aLabel );
 
     /**
      * Test if \a aLabel looks like a bus notation.
      * This check is much less expensive than IsBusLabel.
      *
-     * @param aLabel A wxString object containing the label to test.
+     * @param aLabel A QString object containing the label to test.
      * @return true if text might be a bus label
      */
-    static bool MightBeBusLabel( const wxString& aLabel );
+    static bool MightBeBusLabel( const QString& aLabel );
 
 private:
     void recacheName();
@@ -257,11 +237,11 @@ private:
 
     CONNECTION_TYPE m_type; ///< @see enum CONNECTION_TYPE
 
-    wxString m_name;        ///< Name of the connection.
+    QString m_name;        ///< Name of the connection.
 
-    wxString m_cached_name; ///< Full name, including prefix and suffix
+    QString m_cached_name; ///< Full name, including prefix and suffix
 
-    wxString m_cached_name_with_path; ///< Full name including sheet path (if not global)
+    QString m_cached_name_with_path; ///< Full name including sheet path (if not global)
 
     /**
      * For bus members, we want to keep track of the "local" name of a member, that is,
@@ -270,18 +250,18 @@ private:
      * of this bus member might change, for example if it's connected elsewhere to some other
      * item with higher priority.
      */
-    wxString m_local_name;
+    QString m_local_name;
 
     /// Prefix if connection is member of a labeled bus group (or "" if not)
-    wxString m_prefix;
+    QString m_prefix;
 
     /// Local prefix for group bus members (used with m_local_name)
-    wxString m_local_prefix;
+    QString m_local_prefix;
 
     /// Optional prefix of a bus group (always empty for nets and vector buses)
-    wxString m_bus_prefix;
+    QString m_bus_prefix;
 
-    wxString m_suffix;      ///< Name suffix (used only for disambiguation)
+    QString m_suffix;      ///< Name suffix (used only for disambiguation)
 
     int m_net_code;         // TODO(JE) remove if unused
 
@@ -296,7 +276,7 @@ private:
     long m_vector_end;      ///< Lowest member of a vector bus
 
     /// Prefix name of the vector, if m_type == CONNECTION_BUS (or "" if not).
-    wxString m_vector_prefix;
+    QString m_vector_prefix;
 
     /**
      * For bus connections, store a list of member connections

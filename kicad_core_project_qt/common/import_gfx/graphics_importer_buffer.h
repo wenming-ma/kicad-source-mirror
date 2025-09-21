@@ -1,28 +1,3 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2017 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Janito Vaqueiro Ferreira Filho <janito.vff@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef GRAPHICS_IMPORTER_BUFFER_H
 #define GRAPHICS_IMPORTER_BUFFER_H
@@ -254,7 +229,7 @@ private:
 class IMPORTED_TEXT : public IMPORTED_SHAPE
 {
 public:
-    IMPORTED_TEXT( const VECTOR2D& aOrigin, const wxString& aText, double aHeight, double aWidth,
+    IMPORTED_TEXT( const VECTOR2D& aOrigin, const QString& aText, double aHeight, double aWidth,
                    double aThickness, double aOrientation, GR_TEXT_H_ALIGN_T aHJustify,
                    GR_TEXT_V_ALIGN_T aVJustify, const COLOR4D& aColor ) :
             m_origin( aOrigin ),
@@ -295,7 +270,7 @@ public:
 
 private:
     VECTOR2D          m_origin;
-    const wxString    m_text;
+    const QString     m_text;
     double            m_height;
     double            m_width;
     double            m_thickness;
@@ -368,7 +343,7 @@ public:
     void AddPolygon( const std::vector<VECTOR2D>& aVertices, const IMPORTED_STROKE& aStroke,
                      bool aFilled, const COLOR4D& aFillColor = COLOR4D::UNSPECIFIED ) override;
 
-    void AddText( const VECTOR2D& aOrigin, const wxString& aText, double aHeight, double aWidth,
+    void AddText( const VECTOR2D& aOrigin, const QString& aText, double aHeight, double aWidth,
                   double aThickness, double aOrientation, GR_TEXT_H_ALIGN_T aHJustify,
                   GR_TEXT_V_ALIGN_T aVJustify,
                   const COLOR4D&    aColor = COLOR4D::UNSPECIFIED ) override;

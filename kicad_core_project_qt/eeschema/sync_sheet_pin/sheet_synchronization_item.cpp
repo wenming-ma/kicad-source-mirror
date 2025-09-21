@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2023 Ethan Chien <liangtie.qian@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "sheet_synchronization_item.h"
 #include "bitmaps/bitmap_types.h"
@@ -31,8 +8,9 @@
 #include <bitmaps/bitmaps_list.h>
 #include <sch_sheet.h>
 #include <sch_screen.h>
-#include <wx/bitmap.h>
-#include <wx/image.h>
+#include <QPixmap>
+#include <QImage>
+#include <QSize>
 
 
 SCH_HIERLABEL_SYNCHRONIZATION_ITEM::SCH_HIERLABEL_SYNCHRONIZATION_ITEM( SCH_HIERLABEL* aLabel,
@@ -43,7 +21,7 @@ SCH_HIERLABEL_SYNCHRONIZATION_ITEM::SCH_HIERLABEL_SYNCHRONIZATION_ITEM( SCH_HIER
 }
 
 
-wxString SCH_HIERLABEL_SYNCHRONIZATION_ITEM::GetName() const
+QString SCH_HIERLABEL_SYNCHRONIZATION_ITEM::GetName() const
 {
     return m_label->GetShownText( true );
 }
@@ -55,9 +33,9 @@ int SCH_HIERLABEL_SYNCHRONIZATION_ITEM::GetShape() const
 }
 
 
-wxBitmap& SCH_HIERLABEL_SYNCHRONIZATION_ITEM::GetBitmap() const
+QPixmap& SCH_HIERLABEL_SYNCHRONIZATION_ITEM::GetBitmap() const
 {
-    static wxBitmap bitMap =
+    static QPixmap bitMap =
             KiBitmap( BITMAPS::add_hierarchical_label, SYNC_SHEET_PIN_PREFERENCE::NORMAL_HEIGHT );
     return bitMap;
 }
@@ -83,7 +61,7 @@ SCH_SHEET_PIN_SYNCHRONIZATION_ITEM::SCH_SHEET_PIN_SYNCHRONIZATION_ITEM( SCH_SHEE
 }
 
 
-wxString SCH_SHEET_PIN_SYNCHRONIZATION_ITEM::GetName() const
+QString SCH_SHEET_PIN_SYNCHRONIZATION_ITEM::GetName() const
 {
     return m_pin->GetShownText( true );
 }
@@ -95,9 +73,9 @@ int SCH_SHEET_PIN_SYNCHRONIZATION_ITEM::GetShape() const
 }
 
 
-wxBitmap& SCH_SHEET_PIN_SYNCHRONIZATION_ITEM::GetBitmap() const
+QPixmap& SCH_SHEET_PIN_SYNCHRONIZATION_ITEM::GetBitmap() const
 {
-    static wxBitmap bitMap =
+    static QPixmap bitMap =
             KiBitmap( BITMAPS::add_hierar_pin, SYNC_SHEET_PIN_PREFERENCE::NORMAL_HEIGHT );
     return bitMap;
 }
@@ -128,7 +106,7 @@ ASSOCIATED_SCH_LABEL_PIN::ASSOCIATED_SCH_LABEL_PIN( SCH_HIERLABEL_SYNCHRONIZATIO
 }
 
 
-wxString ASSOCIATED_SCH_LABEL_PIN::GetName() const
+QString ASSOCIATED_SCH_LABEL_PIN::GetName() const
 {
     return m_label->GetShownText( true );
 }
@@ -140,19 +118,19 @@ int ASSOCIATED_SCH_LABEL_PIN::GetShape() const
 }
 
 
-wxBitmap& ASSOCIATED_SCH_LABEL_PIN::GetBitmap() const
+QPixmap& ASSOCIATED_SCH_LABEL_PIN::GetBitmap() const
 {
     static auto label_and_pin_icon = ( []{
-        wxBitmap left =  KiBitmap( BITMAPS::add_hierar_pin,
+        QPixmap left =  KiBitmap( BITMAPS::add_hierar_pin,
                                    SYNC_SHEET_PIN_PREFERENCE::NORMAL_HEIGHT );
-        wxBitmap right =
+        QPixmap right =
                 KiBitmap( BITMAPS::add_hierarchical_label,
                           SYNC_SHEET_PIN_PREFERENCE::NORMAL_HEIGHT );
-        wxImage img( wxSize{ SYNC_SHEET_PIN_PREFERENCE::NORMAL_WIDTH * 2,
+        QImage img( QSize{ SYNC_SHEET_PIN_PREFERENCE::NORMAL_WIDTH * 2,
                              SYNC_SHEET_PIN_PREFERENCE::NORMAL_HEIGHT } );
-        img.Paste( left.ConvertToImage(), 0, 0 );
-        img.Paste( right.ConvertToImage(), SYNC_SHEET_PIN_PREFERENCE::NORMAL_WIDTH, 0 );
-        return wxBitmap( img );
+        img.paste( left.toImage(), 0, 0 );
+        img.paste( right.toImage(), SYNC_SHEET_PIN_PREFERENCE::NORMAL_WIDTH, 0 );
+        return QPixmap::fromImage( img );
     } )();
 
     return label_and_pin_icon;

@@ -1,30 +1,17 @@
-///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b)
-// http://www.wxformbuilder.org/
-//
-// PLEASE DO *NOT* EDIT THIS FILE!
-///////////////////////////////////////////////////////////////////////////
-
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #pragma once
 
-#include <wx/artprov.h>
-#include <wx/xrc/xmlres.h>
-#include <wx/intl.h>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QGridLayout>
+#include <QtWidgets/QFrame>
+#include <QtWidgets/QComboBox>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QDialogButtonBox>
+#include <QtWidgets/QDialog>
+#include <QtCore/QString>
 #include "dialog_shim.h"
-#include <wx/string.h>
-#include <wx/stattext.h>
-#include <wx/gdicmn.h>
-#include <wx/font.h>
-#include <wx/colour.h>
-#include <wx/settings.h>
-#include <wx/sizer.h>
-#include <wx/statline.h>
-#include <wx/combobox.h>
-#include <wx/button.h>
-#include <wx/bitmap.h>
-#include <wx/image.h>
-#include <wx/icon.h>
-#include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -41,41 +28,41 @@
 ///////////////////////////////////////////////////////////////////////////////
 class LAYERS_MAP_DIALOG_BASE : public DIALOG_SHIM
 {
-	DECLARE_EVENT_TABLE()
+	Q_OBJECT
 	private:
 
 		// Private event handlers
-		void _wxFB_OnBrdLayersCountSelection( wxCommandEvent& event ){ OnBrdLayersCountSelection( event ); }
-		void _wxFB_OnStoreSetup( wxCommandEvent& event ){ OnStoreSetup( event ); }
-		void _wxFB_OnGetSetup( wxCommandEvent& event ){ OnGetSetup( event ); }
-		void _wxFB_OnResetClick( wxCommandEvent& event ){ OnResetClick( event ); }
+		void _qt_OnBrdLayersCountSelection();
+		void _qt_OnStoreSetup();
+		void _qt_OnGetSetup();
+		void _qt_OnResetClick();
 
 
 	protected:
-		wxStaticText* m_staticTextLayerSel;
-		wxBoxSizer* m_bSizerLayerList;
-		wxFlexGridSizer* m_flexLeftColumnBoxSizer;
-		wxStaticLine* m_staticlineSep;
-		wxFlexGridSizer* m_flexRightColumnBoxSizer;
-		wxStaticText* m_staticTextCopperlayerCount;
-		wxComboBox* m_comboCopperLayersCount;
-		wxButton* m_buttonStore;
-		wxButton* m_buttonRetrieve;
-		wxButton* m_buttonReset;
-		wxStdDialogButtonSizer* m_sdbSizerButtons;
-		wxButton* m_sdbSizerButtonsOK;
-		wxButton* m_sdbSizerButtonsCancel;
+		QLabel* m_staticTextLayerSel;
+		QVBoxLayout* m_bSizerLayerList;
+		QGridLayout* m_flexLeftColumnBoxSizer;
+		QFrame* m_staticlineSep;
+		QGridLayout* m_flexRightColumnBoxSizer;
+		QLabel* m_staticTextCopperlayerCount;
+		QComboBox* m_comboCopperLayersCount;
+		QPushButton* m_buttonStore;
+		QPushButton* m_buttonRetrieve;
+		QPushButton* m_buttonReset;
+		QDialogButtonBox* m_sdbSizerButtons;
+		QPushButton* m_sdbSizerButtonsOK;
+		QPushButton* m_sdbSizerButtonsCancel;
 
 		// Virtual event handlers, override them in your derived class
-		virtual void OnBrdLayersCountSelection( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnStoreSetup( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnGetSetup( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnResetClick( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnBrdLayersCountSelection() {}
+		virtual void OnStoreSetup() {}
+		virtual void OnGetSetup() {}
+		virtual void OnResetClick() {}
 
 
 	public:
 
-		LAYERS_MAP_DIALOG_BASE( wxWindow* parent, wxWindowID id = ID_LAYERS_MAP_DIALOG_BASE, const wxString& title = _("Layer Selection"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+		LAYERS_MAP_DIALOG_BASE( QWidget* parent = nullptr, int id = ID_LAYERS_MAP_DIALOG_BASE, const QString& title = "Layer Selection" );
 
 		~LAYERS_MAP_DIALOG_BASE();
 

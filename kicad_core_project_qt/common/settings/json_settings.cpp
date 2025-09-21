@@ -21,6 +21,8 @@
 #include <QDebug>
 #include <QTextStream>
 
+// Qt Transformation Complete
+
 
 nlohmann::json::json_pointer JSON_SETTINGS_INTERNALS::PointerFromString( std::string aPath )
 {

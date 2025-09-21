@@ -1,43 +1,17 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2010 Jean-Pierre Charras <jean-pierre.charras@gipsa-lab.inpg.fr>
- * Copyright (C) 2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
-/**
- * @file dcode.h
- */
 
 #ifndef _DCODE_H_
 #define _DCODE_H_
 
 #include <vector>
+#include <QString>
+#include <QtGlobal>
 
 #include <gal/color4d.h>
 #include <geometry/shape_poly_set.h>
 
 using KIGFX::COLOR4D;
 
-class wxDC;
+class QPainter;
 class GERBER_DRAW_ITEM;
 
 
@@ -109,7 +83,7 @@ public:
      */
     double GetParam( unsigned aIdx ) const
     {
-        wxASSERT( aIdx <= m_am_params.size() );
+        Q_ASSERT( aIdx <= m_am_params.size() );
 
         if( aIdx <= m_am_params.size() )
             return  m_am_params[aIdx - 1];
@@ -129,7 +103,7 @@ public:
      *
      * @param aType is the aperture type to show.
      */
-    static const wxChar* ShowApertureType( APERTURE_T aType );
+    static const char* ShowApertureType( APERTURE_T aType );
 
     /**
      * Draw the dcode shape for flashed items.
@@ -137,12 +111,12 @@ public:
      * When an item is flashed, the DCode shape is the shape of the item.
      *
      * @param aParent is the #GERBER_DRAW_ITEM being drawn.
-     * @param aDC is the device context.
+     * @param aPainter is the painter context.
      * @param aColor is the normal color to use.
      * @param aShapePos is the actual shape position
      * @param aFilledShape set to true to draw in filled mode, false to draw in sketch mode
      */
-    void DrawFlashedShape( const GERBER_DRAW_ITEM* aParent, wxDC* aDC,
+    void DrawFlashedShape( const GERBER_DRAW_ITEM* aParent, QPainter* aPainter,
                            const COLOR4D& aColor,
                            const VECTOR2I& aShapePos, bool aFilledShape );
 
@@ -154,12 +128,12 @@ public:
      * holes, some rotated shapes).
      *
      * @param aParent is the #GERBER_DRAW_ITEM being drawn.
-     * @param aDC is the device context.
+     * @param aPainter is the painter context.
      * @param aColor is the normal color to use.
      * @param aFilled set to true to draw in filled mode, false to draw in sketch mode.
      * @param aPosition is the actual shape position.
      */
-    void DrawFlashedPolygon( const GERBER_DRAW_ITEM* aParent, wxDC* aDC,
+    void DrawFlashedPolygon( const GERBER_DRAW_ITEM* aParent, QPainter* aPainter,
                              const COLOR4D& aColor,
                              bool aFilled, const VECTOR2I& aPosition );
 
@@ -200,7 +174,7 @@ public:
     bool                  m_InUse;          ///< false if the aperture (previously defined)
                                             ///< is not used to draw something
     bool                  m_Defined;        ///< false if the aperture is not defined in the header
-    wxString              m_AperFunction;   ///< the aperture attribute (created by a
+    QString               m_AperFunction;   ///< the aperture attribute (created by a
                                             ///< %TA.AperFunction command).
                                             ///< attached to the D_CODE
     SHAPE_POLY_SET        m_Polygon;        /* Polygon used to draw APT_POLYGON shape and some other

@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2019 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <sch_actions.h>
 #include <optional>
@@ -38,7 +15,7 @@
 #include <symbol_editor/symbol_editor_settings.h>
 #include <settings/settings_manager.h>
 #include <string_utils.h>
-#include <wx/msgdlg.h>
+#include <QMessageBox>
 #include <import_gfx/dialog_import_gfx_sch.h>
 
 
@@ -227,7 +204,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
                 }
                 case SCH_TEXT_T:
                 {
-                    SCH_TEXT* text = new SCH_TEXT( cursorPos, wxEmptyString, LAYER_DEVICE );
+                    SCH_TEXT* text = new SCH_TEXT( cursorPos, QString(), LAYER_DEVICE );
 
                     text->SetParent( symbol );
 
@@ -243,7 +220,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
 
                     DIALOG_TEXT_PROPERTIES dlg( m_frame, text );
 
-                    if( dlg.ShowModal() != wxID_OK || NoPrintableChars( text->GetText() ) )
+                    if( dlg.ShowModal() != QDialog::Accepted || NoPrintableChars( text->GetText() ) )
                         delete text;
                     else
                         item = text;
@@ -251,7 +228,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
                     break;
                 }
                 default:
-                    wxFAIL_MSG( "TwoClickPlace(): unknown type" );
+                    Q_ASSERT_X( false, "TwoClickPlace", "unknown type" );
                 }
 
                 // If we started with a hotkey which has a position then warp back to that.
@@ -303,7 +280,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
                     break;
 
                 default:
-                    wxFAIL_MSG( "TwoClickPlace(): unknown type" );
+                    Q_ASSERT_X( false, "TwoClickPlace", "unknown type" );
                 }
 
                 item = nullptr;
@@ -375,7 +352,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::doDrawShape( const TOOL_EVENT& aEvent, std::opt
     SHAPE_T                 shapeType = toolType == SHAPE_T::SEGMENT ? SHAPE_T::POLY : toolType;
     LIB_SYMBOL*             symbol = m_frame->GetCurSymbol();
     SCH_SHAPE*              item = nullptr;
-    wxString                description;
+    QString                 description;
 
     if( m_inDrawShape )
         return 0;
@@ -494,7 +471,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::doDrawShape( const TOOL_EVENT& aEvent, std::opt
             {
                 item = new SCH_SHAPE( shapeType, LAYER_DEVICE, lineWidth, m_lastFillStyle );
                 item->SetParent( symbol );
-                description = wxString::Format( _( "Add %s" ), item->GetFriendlyName() );
+                description = QString::asprintf( _( "Add %s" ), item->GetFriendlyName().toStdString().c_str() );
             }
 
             item->SetStroke( m_lastStroke );
@@ -543,7 +520,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::doDrawShape( const TOOL_EVENT& aEvent, std::opt
                     DIALOG_TEXT_PROPERTIES dlg( m_frame, static_cast<SCH_TEXTBOX*>( item ) );
 
                     // QuasiModal required for syntax help and Scintilla auto-complete
-                    if( dlg.ShowQuasiModal() != wxID_OK )
+                    if( dlg.ShowQuasiModal() != QDialog::Accepted )
                     {
                         cleanup();
                         continue;
@@ -688,13 +665,13 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::ImportGraphics( const TOOL_EVENT& aEvent )
 
     std::list<std::unique_ptr<EDA_ITEM>>& list = dlg.GetImportedItems();
 
-    if( dlgResult != wxID_OK )
+    if( dlgResult != QDialog::Accepted )
         return 0;
 
     // Ensure the list is not empty:
     if( list.empty() )
     {
-        wxMessageBox( _( "No graphic items found in file." ) );
+        QMessageBox::information( nullptr, "Information", _( "No graphic items found in file." ) );
         return 0;
     }
 
@@ -709,7 +686,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::ImportGraphics( const TOOL_EVENT& aEvent )
     for( std::unique_ptr<EDA_ITEM>& ptr : list )
     {
         SCH_ITEM* item = dynamic_cast<SCH_ITEM*>( ptr.get() );
-        wxCHECK2( item, continue );
+        if( !item ) continue;
 
         newItems.push_back( item );
         selectedItems.push_back( item );

@@ -1,33 +1,22 @@
-///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.1.0-0-g733bf3d)
-// http://www.wxformbuilder.org/
-//
-// PLEASE DO *NOT* EDIT THIS FILE!
-///////////////////////////////////////////////////////////////////////////
-
 #pragma once
 
-#include <wx/artprov.h>
-#include <wx/xrc/xmlres.h>
-#include <wx/intl.h>
+#include <QtWidgets/QDialog>
+#include <QtWidgets/QGridLayout>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QTableWidget>
+#include <QtWidgets/QDialogButtonBox>
+#include <QtCore/QString>
+#include <QtGui/QColor>
+#include <QtGui/QFont>
+#include <QtCore/QSize>
+#include <QtCore/QPoint>
+
 class STD_BITMAP_BUTTON;
 class WX_GRID;
 
 #include "dialog_shim.h"
-#include <wx/colour.h>
-#include <wx/settings.h>
-#include <wx/string.h>
-#include <wx/font.h>
-#include <wx/grid.h>
-#include <wx/gdicmn.h>
-#include <wx/bmpbuttn.h>
-#include <wx/bitmap.h>
-#include <wx/image.h>
-#include <wx/icon.h>
-#include <wx/button.h>
-#include <wx/sizer.h>
-#include <wx/statbox.h>
-#include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -37,27 +26,34 @@ class WX_GRID;
 ///////////////////////////////////////////////////////////////////////////////
 class DIALOG_CONFIGURE_PATHS_BASE : public DIALOG_SHIM
 {
+	Q_OBJECT
+
 	private:
 
 	protected:
 		WX_GRID* m_EnvVars;
 		STD_BITMAP_BUTTON* m_btnAddEnvVar;
 		STD_BITMAP_BUTTON* m_btnDeleteEnvVar;
-		wxStdDialogButtonSizer* m_sdbSizer;
-		wxButton* m_sdbSizerOK;
-		wxButton* m_sdbSizerCancel;
-		wxButton* m_sdbSizerHelp;
+		QDialogButtonBox* m_sdbSizer;
+		QPushButton* m_sdbSizerOK;
+		QPushButton* m_sdbSizerCancel;
+		QPushButton* m_sdbSizerHelp;
 
 		// Virtual event handlers, override them in your derived class
-		virtual void OnUpdateUI( wxUpdateUIEvent& event ) { event.Skip(); }
-		virtual void OnAddEnvVar( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnRemoveEnvVar( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnHelp( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnUpdateUI() {}
+		virtual void OnAddEnvVar() {}
+		virtual void OnRemoveEnvVar() {}
+		virtual void OnHelp() {}
 
+	protected slots:
+		virtual void onUpdateUI();
+		virtual void onAddEnvVar();
+		virtual void onRemoveEnvVar();
+		virtual void onHelp();
 
 	public:
 
-		DIALOG_CONFIGURE_PATHS_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Configure Paths"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+		DIALOG_CONFIGURE_PATHS_BASE( QWidget* parent, int id = -1, const QString& title = "Configure Paths", const QPoint& pos = QPoint(), const QSize& size = QSize( -1,-1 ), long style = 0 );
 
 		~DIALOG_CONFIGURE_PATHS_BASE();
 

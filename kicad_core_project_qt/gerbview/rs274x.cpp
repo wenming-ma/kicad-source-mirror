@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2007-2018 Jean-Pierre Charras  jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 
 #include <base_units.h>
@@ -33,7 +10,7 @@
 #include <string_utils.h>
 #include <X2_gerber_attributes.h>
 #include <gbr_metadata.h>
-#include <wx/log.h>
+#include <QString>
 
 extern int ReadInt( char*& text, bool aSkipSeparator = true );
 extern double ReadDouble( char*& text, bool aSkipSeparator = true );
@@ -202,7 +179,7 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
     int      seq_len;    // not used, just provided
     int      seq_char;
     bool     ok = true;
-    wxString msg;
+    QString msg;
     double   fcoord;
     bool     x_fmt_known = false;
     bool     y_fmt_known = false;
@@ -229,11 +206,11 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
                 break;
 
             case 'D':       // Non-standard option for all zeros (leading + tailing)
-                msg.Printf( _( "RS274X: Invalid GERBER format command '%c' at line %d: \"%s\"" ),
+                msg = QString::asprintf( "RS274X: Invalid GERBER format command '%c' at line %d: \"%s\"",
                         'D', m_LineNum, aBuff );
                 AddMessageToList( msg );
-                msg.Printf( _("GERBER file \"%s\" may not display as intended." ),
-                        m_FileName.ToAscii() );
+                msg = QString::asprintf( "GERBER file \"%s\" may not display as intended.",
+                        m_FileName.toStdString().c_str() );
                 AddMessageToList( msg );
                 KI_FALLTHROUGH;
 
@@ -322,7 +299,7 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
                 break;
 
             default:
-                msg.Printf( wxT( "Unknown id (%c) in FS command" ), *aText );
+                msg = QString::asprintf( "Unknown id (%c) in FS command", *aText );
                 AddMessageToList( msg );
                 GetEndOfBlock( aBuff, aBuffSize, aText, m_Current_File );
                 ok = false;
@@ -331,7 +308,7 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
         }
 
         if( !x_fmt_known || !y_fmt_known )
-            AddMessageToList( wxT( "RS274X: Format Statement (FS) without X or Y format" ) );
+            AddMessageToList( "RS274X: Format Statement (FS) without X or Y format" );
 
         break;
 
@@ -410,13 +387,13 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
     case APERTURE_ATTRIBUTE:    // Command %TA
         dummy.ParseAttribCmd( m_Current_File, aBuff, aBuffSize, aText, m_LineNum );
 
-        if( dummy.GetAttribute() == wxT( ".AperFunction" ) )
+        if( dummy.GetAttribute() == ".AperFunction" )
         {
             m_AperFunction = dummy.GetPrm( 1 );
 
             // A few function values can have other parameters. Add them
             for( int ii = 2; ii < dummy.GetPrmCount(); ii++ )
-                m_AperFunction << wxT( "," ) << dummy.GetPrm( ii );
+                m_AperFunction << "," << dummy.GetPrm( ii );
         }
 
         break;
@@ -424,17 +401,17 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
     case NET_ATTRIBUTE:    // Command %TO currently %TO.P %TO.N and %TO.C
         dummy.ParseAttribCmd( m_Current_File, aBuff, aBuffSize, aText, m_LineNum );
 
-        if( dummy.GetAttribute() == wxT( ".N" ) )
+        if( dummy.GetAttribute() == ".N" )
         {
             m_NetAttributeDict.m_NetAttribType |= GBR_NETLIST_METADATA::GBR_NETINFO_NET;
             m_NetAttributeDict.m_Netname = FormatStringFromGerber( dummy.GetPrm( 1 ) );
         }
-        else if( dummy.GetAttribute() == wxT( ".C" ) )
+        else if( dummy.GetAttribute() == ".C" )
         {
             m_NetAttributeDict.m_NetAttribType |= GBR_NETLIST_METADATA::GBR_NETINFO_CMP;
             m_NetAttributeDict.m_Cmpref = FormatStringFromGerber( dummy.GetPrm( 1 ) );
         }
-        else if( dummy.GetAttribute() == wxT( ".P" ) )
+        else if( dummy.GetAttribute() == ".P" )
         {
             m_NetAttributeDict.m_NetAttribType |= GBR_NETLIST_METADATA::GBR_NETINFO_PAD;
             m_NetAttributeDict.m_Cmpref = FormatStringFromGerber( dummy.GetPrm( 1 ) );
@@ -536,7 +513,7 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
         else if( strncasecmp( aText, "270*", 4 ) == 0 )
             m_ImageRotation = 270;
         else
-            AddMessageToList( _( "RS274X: Command \"IR\" rotation value not allowed" ) );
+            AddMessageToList( "RS274X: Command \"IR\" rotation value not allowed" );
 
         break;
 
@@ -646,7 +623,7 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
 
     case KNOCKOUT:
         m_Iterpolation = GERB_INTERPOL_LINEAR_1X;       // Start a new Gerber layer
-        msg = _( "RS274X: Command KNOCKOUT ignored by GerbView" ) ;
+        msg = "RS274X: Command KNOCKOUT ignored by GerbView";
         AddMessageToList( msg );
         break;
 
@@ -656,10 +633,10 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
         break;
 
     case IMAGE_NAME:
-        m_ImageName.Empty();
+        m_ImageName.clear();
 
         while( *aText != '*' )
-            m_ImageName.Append( *aText++ );
+            m_ImageName.append( *aText++ );
 
         break;
 
@@ -678,7 +655,7 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
             m_ImageNegative = true;
             // IPPOS Gerber command is deprecated since 2012.
             // in Gerber doc 2024, the advice is: warn user and skip it.
-            AddMessageToList( _( "IPNEG Gerber command is deprecated since 2012. Skip it" ) );
+            AddMessageToList( "IPNEG Gerber command is deprecated since 2012. Skip it" );
         }
         else
         {
@@ -881,9 +858,9 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
 
                     if( !( isspace( *aText ) || *aText == 'X' || *aText == 'x' || *aText == '*' ) )
                     {
-                        msg.Printf( wxT( "RS274X: aperture macro %s has invalid template "
-                                         "parameters\n" ),
-                                    TO_UTF8( am_lookup.m_AmName ) );
+                        msg = QString::asprintf( "RS274X: aperture macro %s has invalid template "
+                                         "parameters\n",
+                                    qPrintable( am_lookup.m_AmName ) );
                         AddMessageToList( msg );
                         ok = false;
                         break;
@@ -903,8 +880,8 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
 
             if( !pam )
             {
-                msg.Printf( wxT( "RS274X: aperture macro %s not found\n" ),
-                           TO_UTF8( am_lookup.m_AmName ) );
+                msg = QString::asprintf( "RS274X: aperture macro %s not found\n",
+                           qPrintable( am_lookup.m_AmName ) );
                 AddMessageToList( msg );
                 ok = false;
                 break;
@@ -987,7 +964,7 @@ char* GERBER_FILE_IMAGE::GetNextLine( char *aBuff, unsigned int aBuffSize, char*
 bool GERBER_FILE_IMAGE::ReadApertureMacro( char *aBuff, unsigned int aBuffSize, char*& aText,
                                            FILE* gerber_file )
 {
-    wxString       msg;
+    QString       msg;
     APERTURE_MACRO am;
 
     // read macro name
@@ -999,7 +976,7 @@ bool GERBER_FILE_IMAGE::ReadApertureMacro( char *aBuff, unsigned int aBuffSize, 
             break;
         }
 
-        am.m_AmName.Append( *aText++ );
+        am.m_AmName.append( *aText++ );
     }
 
     // Read aperture macro parameters
@@ -1044,8 +1021,8 @@ bool GERBER_FILE_IMAGE::ReadApertureMacro( char *aBuff, unsigned int aBuffSize, 
         }
         else if( !isdigit(*aText)  )     // Ill. symbol
         {
-            msg.Printf( wxT( "RS274X: Aperture Macro \"%s\": ill. symbol, line: \"%s\"" ),
-                        am.m_AmName, From_UTF8( aBuff ) );
+            msg = QString::asprintf( "RS274X: Aperture Macro \"%s\": ill. symbol, line: \"%s\"",
+                        qPrintable( am.m_AmName ), aBuff );
             AddMessageToList( msg );
             primitive_type = AMP_COMMENT;
         }
@@ -1099,8 +1076,8 @@ bool GERBER_FILE_IMAGE::ReadApertureMacro( char *aBuff, unsigned int aBuffSize, 
             break;
 
         default:
-            msg.Printf( wxT( "RS274X: Aperture Macro \"%s\": Invalid primitive id code %d, line %d: \"%s\"" ),
-                        am.m_AmName, primitive_type, m_LineNum, From_UTF8( aBuff ) );
+            msg = QString::asprintf( "RS274X: Aperture Macro \"%s\": Invalid primitive id code %d, line %d: \"%s\"",
+                        qPrintable( am.m_AmName ), primitive_type, m_LineNum, aBuff );
             AddMessageToList( msg );
             return false;
         }
@@ -1129,8 +1106,8 @@ bool GERBER_FILE_IMAGE::ReadApertureMacro( char *aBuff, unsigned int aBuffSize, 
         if( ii < paramCount )
         {
             // maybe some day we can throw an exception and track a line number
-            msg.Printf( wxT( "RS274X: read macro descr type %d: read %d parameters, insufficient "
-                             "parameters\n" ),
+            msg = QString::asprintf( "RS274X: read macro descr type %d: read %d parameters, insufficient "
+                             "parameters\n",
                         prim.m_Primitive_id, ii );
             AddMessageToList( msg );
         }
@@ -1143,7 +1120,7 @@ bool GERBER_FILE_IMAGE::ReadApertureMacro( char *aBuff, unsigned int aBuffSize, 
 
             // m_Params[1] is a count of polygon points, so it must be given
             // in advance, i.e. be immediate.
-            wxASSERT( prim.m_Params[1].IsImmediate() );
+            Q_ASSERT( prim.m_Params[1].IsImmediate() );
 
             paramCount = (int) prim.m_Params[1].GetValueFromMacro( nullptr ) * 2 + 1;
 

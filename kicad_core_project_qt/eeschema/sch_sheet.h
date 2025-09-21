@@ -1,31 +1,10 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SCH_SHEEET_H
 #define SCH_SHEEET_H
 
 #include <sch_field.h>
+#include <QString>
+#include <QStringList>
 
 class KIID_PATH;
 class SCH_SCREEN;
@@ -77,9 +56,9 @@ public:
         return aItem && SCH_SHEET_T == aItem->Type();
     }
 
-    wxString GetClass() const override
+    QString GetClass() const override
     {
-        return wxT( "SCH_SHEET" );
+        return "SCH_SHEET";
     }
 
     /**
@@ -103,12 +82,12 @@ public:
      */
     void SetFields( const std::vector<SCH_FIELD>& aFields );
 
-    wxString GetShownName( bool aAllowExtraText ) const
+    QString GetShownName( bool aAllowExtraText ) const
     {
         return m_fields[SHEETNAME].GetShownText( aAllowExtraText );
     }
-    wxString GetName() const { return m_fields[ SHEETNAME ].GetText(); }
-    void SetName( const wxString& aName ) { m_fields[ SHEETNAME ].SetText( aName ); }
+    QString GetName() const { return m_fields[ SHEETNAME ].GetText(); }
+    void SetName( const QString& aName ) { m_fields[ SHEETNAME ].SetText( aName ); }
 
     SCH_SCREEN* GetScreen() const { return m_screen; }
 
@@ -152,14 +131,14 @@ public:
     /**
      * Return the list of system text vars & fields for this sheet.
      */
-    void GetContextualTextVars( wxArrayString* aVars ) const;
+    void GetContextualTextVars( QStringList* aVars ) const;
 
     /**
      * Resolve any references to system tokens supported by the sheet.
      *
      * @param aDepth is a counter to limit recursion and circular references.
      */
-    bool ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, int aDepth = 0 ) const;
+    bool ResolveTextVar( const SCH_SHEET_PATH* aPath, QString* token, int aDepth = 0 ) const;
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
@@ -214,7 +193,7 @@ public:
      * @param aName Name of the sheet pin to search for.
      * @return  True if sheet pin with \a aName is found, otherwise false.
      */
-    bool HasPin( const wxString& aName ) const;
+    bool HasPin( const QString& aName ) const;
 
     bool HasPins() const { return !m_pins.empty(); }
 
@@ -277,11 +256,11 @@ public:
     /**
      * Search the existing hierarchy for an instance of screen loaded from \a aFileName.
      *
-     * @param aFilename The filename to find (MUST be absolute, and in wxPATH_NATIVE encoding).
+     * @param aFilename The filename to find (MUST be absolute, and in native path encoding).
      * @param aScreen A location to return a pointer to the screen (if found).
      * @return true if found, and a pointer to the screen
      */
-    bool SearchHierarchy( const wxString& aFilename, SCH_SCREEN** aScreen );
+    bool SearchHierarchy( const QString& aFilename, SCH_SCREEN** aScreen );
 
     /**
      * Search the existing hierarchy for an instance of screen loaded from \a aFileName.
@@ -308,24 +287,24 @@ public:
      * @param aFileName The filename to search for.
      * @return the full count of sheets+subsheets that refer to aFileName
      */
-    int CountSheets( const wxString& aFileName ) const;
+    int CountSheets( const QString& aFileName ) const;
 
     /**
      * Return the filename corresponding to this sheet.
      *
-     * @return a wxString containing the filename
+     * @return a QString containing the filename
      */
-    wxString GetFileName() const
+    QString GetFileName() const
     {
         return m_fields[ SHEETFILENAME ].GetText();
     }
 
     // Set a new filename without changing anything else
-    void SetFileName( const wxString& aFilename )
+    void SetFileName( const QString& aFilename )
     {
         // Filenames are stored using unix notation
-        wxString tmp = aFilename;
-        tmp.Replace( wxT( "\\" ), wxT( "/" ) );
+        QString tmp = aFilename;
+        tmp.replace( "\\", "/" );
         m_fields[ SHEETFILENAME ].SetText( tmp );
     }
 
@@ -399,7 +378,7 @@ public:
     bool GetDNP() const { return m_DNP; }
     void SetDNP( bool aDNP ) { m_DNP = aDNP; }
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -469,7 +448,7 @@ public:
      *
      * @return 0 if the page numbers are equal, -1 if aPageNumberA < aPageNumberB, 1 otherwise
      */
-    static int ComparePageNum( const wxString& aPageNumberA, const wxString& aPageNumberB );
+    static int ComparePageNum( const QString& aPageNumberA, const QString& aPageNumberB );
 
     double Similarity( const SCH_ITEM& aOther ) const override;
 
@@ -479,7 +458,7 @@ public:
     void Show( int nestLevel, std::ostream& os ) const override;
 #endif
 
-    static const wxString GetDefaultFieldName( int aFieldNdx, bool aTranslated );
+    static const QString GetDefaultFieldName( int aFieldNdx, bool aTranslated );
 
 protected:
     friend SCH_SHEET_PATH;
@@ -513,7 +492,7 @@ protected:
      *
      * @return the page number for the requested sheet instance.
      */
-    wxString getPageNumber( const KIID_PATH& aInstance ) const;
+    QString getPageNumber( const KIID_PATH& aInstance ) const;
 
     /**
      * Set the page number for the sheet instance \a aInstance.
@@ -524,7 +503,7 @@ protected:
      * @param[in] aInstance is the hierarchical path of the sheet.
      * @param[in] aReference is the new page number for the sheet.
      */
-    void setPageNumber( const KIID_PATH& aInstance, const wxString& aPageNumber );
+    void setPageNumber( const KIID_PATH& aInstance, const QString& aPageNumber );
 
     bool getInstance( SCH_SHEET_INSTANCE& aInstance, const KIID_PATH& aSheetPath,
                       bool aTestFromEnd = false ) const;

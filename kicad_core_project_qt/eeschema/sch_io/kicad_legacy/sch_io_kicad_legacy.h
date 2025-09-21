@@ -24,6 +24,8 @@
 #define SCH_IO_KICAD_LEGACY_H_
 
 #include <memory>
+#include <QtCore/QString>
+#include <QtCore/QStringList>
 #include <sch_io/sch_io.h>
 #include <sch_io/sch_io_mgr.h>
 #include <stack>
@@ -81,9 +83,9 @@ public:
                                       { FILEEXT::LegacySymbolLibFileExtension } );
     }
 
-    bool CanReadSchematicFile( const wxString& aFileName ) const override;
+    bool CanReadSchematicFile( const QString& aFileName ) const override;
 
-    bool CanReadLibrary( const wxString& aFileName ) const override;
+    bool CanReadLibrary( const QString& aFileName ) const override;
 
     /**
      * The property used internally by the plugin to enable cache buffering which prevents
@@ -100,42 +102,42 @@ public:
 
     int GetModifyHash() const override;
 
-    SCH_SHEET* LoadSchematicFile( const wxString& aFileName, SCHEMATIC* aSchematic,
+    SCH_SHEET* LoadSchematicFile( const QString& aFileName, SCHEMATIC* aSchematic,
                                   SCH_SHEET*             aAppendToMe = nullptr,
                                   const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     void LoadContent( LINE_READER& aReader, SCH_SCREEN* aScreen,
                       int version = EESCHEMA_VERSION );
 
-    void SaveSchematicFile( const wxString& aFileName, SCH_SHEET* aScreen, SCHEMATIC* aSchematic,
+    void SaveSchematicFile( const QString& aFileName, SCH_SHEET* aScreen, SCHEMATIC* aSchematic,
                             const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
     void Format( SCH_SHEET* aSheet );
 
     void Format( SELECTION* aSelection, OUTPUTFORMATTER* aFormatter );
 
-    void EnumerateSymbolLib( wxArrayString&    aSymbolNameList,
-                             const wxString&   aLibraryPath,
+    void EnumerateSymbolLib( QStringList&    aSymbolNameList,
+                             const QString&   aLibraryPath,
                              const std::map<std::string, UTF8>* aProperties = nullptr ) override;
     void EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
-                             const wxString&   aLibraryPath,
+                             const QString&   aLibraryPath,
                              const std::map<std::string, UTF8>* aProperties = nullptr ) override;
-    LIB_SYMBOL* LoadSymbol( const wxString& aLibraryPath, const wxString& aAliasName,
+    LIB_SYMBOL* LoadSymbol( const QString& aLibraryPath, const QString& aAliasName,
                             const std::map<std::string, UTF8>* aProperties = nullptr ) override;
-    void SaveSymbol( const wxString& aLibraryPath, const LIB_SYMBOL* aSymbol,
+    void SaveSymbol( const QString& aLibraryPath, const LIB_SYMBOL* aSymbol,
                      const std::map<std::string, UTF8>* aProperties = nullptr ) override;
-    void DeleteSymbol( const wxString& aLibraryPath, const wxString& aSymbolName,
+    void DeleteSymbol( const QString& aLibraryPath, const QString& aSymbolName,
                        const std::map<std::string, UTF8>* aProperties = nullptr ) override;
-    void CreateLibrary( const wxString& aLibraryPath,
+    void CreateLibrary( const QString& aLibraryPath,
                         const std::map<std::string, UTF8>* aProperties = nullptr ) override;
-    bool DeleteLibrary( const wxString& aLibraryPath,
+    bool DeleteLibrary( const QString& aLibraryPath,
                         const std::map<std::string, UTF8>* aProperties = nullptr ) override;
-    void SaveLibrary( const wxString& aLibraryPath,
+    void SaveLibrary( const QString& aLibraryPath,
                       const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
-    bool IsLibraryWritable( const wxString& aLibraryPath ) override;
+    bool IsLibraryWritable( const QString& aLibraryPath ) override;
 
-    const wxString& GetError() const override { return m_error; }
+    const QString& GetError() const override { return m_error; }
 
     static LIB_SYMBOL* ParsePart( LINE_READER& aReader, int majorVersion = 0,
                                   int minorVersion = 0 );
@@ -146,7 +148,7 @@ private:
     void loadHierarchy( SCH_SHEET* aSheet );
     void loadHeader( LINE_READER& aReader, SCH_SCREEN* aScreen );
     void loadPageSettings( LINE_READER& aReader, SCH_SCREEN* aScreen );
-    void loadFile( const wxString& aFileName, SCH_SCREEN* aScreen );
+    void loadFile( const QString& aFileName, SCH_SCREEN* aScreen );
     SCH_SHEET* loadSheet( LINE_READER& aReader );
     SCH_BITMAP* loadBitmap( LINE_READER& aReader );
     SCH_JUNCTION* loadJunction( LINE_READER& aReader );
@@ -168,7 +170,7 @@ private:
     void saveText( SCH_TEXT* aText );
     void saveBusAlias( std::shared_ptr<BUS_ALIAS> aAlias );
 
-    void cacheLib( const wxString& aLibraryFileName, const std::map<std::string, UTF8>* aProperties );
+    void cacheLib( const QString& aLibraryFileName, const std::map<std::string, UTF8>* aProperties );
     bool writeDocFile( const std::map<std::string, UTF8>* aProperties );
     bool isBuffering( const std::map<std::string, UTF8>* aProperties );
 
@@ -178,14 +180,14 @@ protected:
     ///< Indicate if we are appending the loaded schemitic or loading a full project.
     bool                     m_appending;
 
-    wxString                 m_error;            ///< For throwing exceptions or errors on partial
+    QString                 m_error;            ///< For throwing exceptions or errors on partial
                                                  ///<  schematic loads.
     LINE_READER*             m_lineReader;       ///< for progress reporting
     unsigned                 m_lastProgressLine;
     unsigned                 m_lineCount;        ///< for progress reporting
 
-    wxString                 m_path;             ///< Root project path for loading child sheets.
-    std::stack<wxString>     m_currentPath;      ///< Stack to maintain nested sheet paths
+    QString                 m_path;             ///< Root project path for loading child sheets.
+    std::stack<QString>     m_currentPath;      ///< Stack to maintain nested sheet paths
     SCH_SHEET*               m_rootSheet;        ///< The root sheet of the schematic being loaded.
     SCH_SHEET*               m_currentSheet;     ///< The sheet currently being loaded.
     OUTPUTFORMATTER*         m_out;              ///< The formatter for saving SCH_SCREEN objects.

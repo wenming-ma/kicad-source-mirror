@@ -32,15 +32,24 @@
 #include <project_sch.h>
 #include <string_utils.h>
 #include <symbol_preview_widget.h>
-#include <widgets/wx_panel.h>
+#include <QString>
+#include <QModelIndex>
+#include <QVariant>
+#include <QTextCharFormat>
+#include <QWidget>
+#include <QVBoxLayout>
+#include <QApplication>
+#include <QPalette>
+#include <QFont>
+#include <QDateTime>
 
 
-wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER>
+std::shared_ptr<LIB_TREE_MODEL_ADAPTER>
 SYMBOL_TREE_SYNCHRONIZING_ADAPTER::Create( SYMBOL_EDIT_FRAME* aParent,
                                            SYMBOL_LIBRARY_MANAGER* aLibMgr )
 {
     auto* adapter = new SYMBOL_TREE_SYNCHRONIZING_ADAPTER( aParent, aLibMgr );
-    return wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER>( adapter );
+    return std::shared_ptr<LIB_TREE_MODEL_ADAPTER>( adapter );
 }
 
 
@@ -61,7 +70,7 @@ TOOL_INTERACTIVE* SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetContextMenuTool()
 }
 
 
-bool SYMBOL_TREE_SYNCHRONIZING_ADAPTER::IsContainer( const wxDataViewItem& aItem ) const
+bool SYMBOL_TREE_SYNCHRONIZING_ADAPTER::IsContainer( const QModelIndex& aItem ) const
 {
     const LIB_TREE_NODE* node = ToNode( aItem );
     return node ? node->m_Type == LIB_TREE_NODE::TYPE::LIBRARY : true;
@@ -70,10 +79,10 @@ bool SYMBOL_TREE_SYNCHRONIZING_ADAPTER::IsContainer( const wxDataViewItem& aItem
 
 #define PROGRESS_INTERVAL_MILLIS 120
 
-void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::Sync( const wxString& aForceRefresh,
-                                              std::function<void( int, int, const wxString& )> aProgressCallback )
+void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::Sync( const QString& aForceRefresh,
+                                              std::function<void( int, int, const QString& )> aProgressCallback )
 {
-    wxLongLong nextUpdate = wxGetUTCTimeMillis() + (PROGRESS_INTERVAL_MILLIS / 2);
+    qint64 nextUpdate = QDateTime::currentMSecsSinceEpoch() + (PROGRESS_INTERVAL_MILLIS / 2);
 
     m_lastSyncHash = m_libMgr->GetHash();
     int i = 0, max = GetLibrariesCount();
@@ -81,12 +90,12 @@ void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::Sync( const wxString& aForceRefresh,
     // Process already stored libraries
     for( auto it = m_tree.m_Children.begin(); it != m_tree.m_Children.end(); )
     {
-        const wxString& name = it->get()->m_Name;
+        const QString& name = it->get()->m_Name;
 
-        if( wxGetUTCTimeMillis() > nextUpdate )
+        if( QDateTime::currentMSecsSinceEpoch() > nextUpdate )
         {
             aProgressCallback( i, max, name );
-            nextUpdate = wxGetUTCTimeMillis() + PROGRESS_INTERVAL_MILLIS;
+            nextUpdate = QDateTime::currentMSecsSinceEpoch() + PROGRESS_INTERVAL_MILLIS;
         }
 
         // There is a bug in SYMBOL_LIBRARY_MANAGER::LibraryExists() that uses the buffered
@@ -115,14 +124,14 @@ void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::Sync( const wxString& aForceRefresh,
     COMMON_SETTINGS* cfg = Pgm().GetCommonSettings();
     PROJECT_FILE&    project = m_frame->Prj().GetProjectFile();
 
-    for( const wxString& libName : m_libMgr->GetLibraryNames() )
+    for( const QString& libName : m_libMgr->GetLibraryNames() )
     {
         if( m_libHashes.count( libName ) == 0 )
         {
-            if( wxGetUTCTimeMillis() > nextUpdate )
+            if( QDateTime::currentMSecsSinceEpoch() > nextUpdate )
             {
                 aProgressCallback( i++, max, libName );
-                nextUpdate = wxGetUTCTimeMillis() + PROGRESS_INTERVAL_MILLIS;
+                nextUpdate = QDateTime::currentMSecsSinceEpoch() + PROGRESS_INTERVAL_MILLIS;
             }
 
             SYMBOL_LIB_TABLE_ROW* library = m_libMgr->GetLibrary( libName );
@@ -144,7 +153,7 @@ int SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetLibrariesCount() const
 {
     int count = LIB_TREE_MODEL_ADAPTER::GetLibrariesCount();
 
-    for( const wxString& libName : m_libMgr->GetLibraryNames() )
+    for( const QString& libName : m_libMgr->GetLibraryNames() )
     {
         if( m_libHashes.count( libName ) == 0 )
             ++count;
@@ -175,7 +184,7 @@ void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::updateLibrary( LIB_TREE_NODE_LIBRARY& aL
             auto aliasIt = std::find_if( aliases.begin(), aliases.end(),
                     [&] ( const LIB_SYMBOL* a )
                     {
-                        return a->GetName() == (*nodeIt)->m_LibId.GetLibItemName().wx_str();
+                        return a->GetName() == (*nodeIt)->m_LibId.GetLibItemName();
                     } );
 
             if( aliasIt != aliases.end() )
@@ -212,26 +221,26 @@ SYMBOL_TREE_SYNCHRONIZING_ADAPTER::deleteLibrary( LIB_TREE_NODE::PTR_VECTOR::ite
 }
 
 
-wxDataViewItem SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetCurrentDataViewItem()
+QModelIndex SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetCurrentDataViewItem()
 {
     if( m_frame->GetCurSymbol() )
         return FindItem( m_frame->GetCurSymbol()->GetLibId() );
 
-    return wxDataViewItem();
+    return QModelIndex();
 }
 
 
-void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
+void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetValue( QVariant& aVariant, QModelIndex const& aItem,
                                                   unsigned int aCol ) const
 {
     if( IsFrozen() )
     {
-        aVariant = wxEmptyString;
+        aVariant = QString();
         return;
     }
 
     LIB_TREE_NODE* node = ToNode( aItem );
-    wxASSERT( node );
+    Q_ASSERT( node );
 
     switch( aCol )
     {
@@ -270,33 +279,33 @@ void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetValue( wxVariant& aVariant, wxDataVie
                     node->m_Desc = lib->GetDescr();
 
                 if( !m_libMgr->IsLibraryLoaded( node->m_Name ) )
-                    aVariant = _( "(failed to load)" ) + wxS( " " ) + aVariant.GetString();
+                    aVariant = "(failed to load) " + aVariant.toString();
                 else if( m_libMgr->IsLibraryReadOnly( node->m_Name ) )
-                    aVariant = _( "(read-only)" ) + wxS( " " ) + aVariant.GetString();
+                    aVariant = "(read-only) " + aVariant.toString();
             }
 
-            const wxString& key = m_colIdxMap.at( aCol );
+            const QString& key = m_colIdxMap.at( aCol );
 
             if( m_frame->GetCurSymbol() && m_frame->GetCurSymbol()->GetLibId() == node->m_LibId )
             {
                 node->m_Desc = m_frame->GetCurSymbol()->GetDescription();
             }
 
-            wxString valueStr;
+            QString valueStr;
 
-            if( key == wxT( "Description" ) )
+            if( key == "Description" )
                 valueStr = node->m_Desc;
             else if( node->m_Fields.count( key ) )
                 valueStr = node->m_Fields.at( key );
             else
-                valueStr = wxEmptyString;
+                valueStr = QString();
 
-            valueStr.Replace( wxS( "\n" ), wxS( " " ) ); // Clear line breaks
+            valueStr.replace( "\n", " " ); // Clear line breaks
 
-            if( !aVariant.GetString().IsEmpty() )
+            if( !aVariant.toString().isEmpty() )
             {
                 if( !valueStr.IsEmpty() )
-                    aVariant = valueStr + wxS( " - " ) + aVariant.GetString();
+                    aVariant = valueStr + " - " + aVariant.toString();
             }
             else
             {
@@ -308,19 +317,19 @@ void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetValue( wxVariant& aVariant, wxDataVie
 }
 
 
-bool SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetAttr( wxDataViewItem const& aItem, unsigned int aCol,
-                                                 wxDataViewItemAttr& aAttr ) const
+bool SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetAttr( QModelIndex const& aItem, unsigned int aCol,
+                                                 QTextCharFormat& aAttr ) const
 {
     if( IsFrozen() )
         return false;
 
     LIB_TREE_NODE* node = ToNode( aItem );
-    wxCHECK( node, false );
+    Q_ASSERT( node ); if( !node ) return false;
 
     // Mark both columns of unloaded libraries using grey text color (to look disabled)
     if( node->m_Type == LIB_TREE_NODE::TYPE::LIBRARY && !m_libMgr->IsLibraryLoaded( node->m_Name ) )
     {
-        aAttr.SetColour( wxSystemSettings::GetColour( wxSYS_COLOUR_GRAYTEXT  ) );
+        aAttr.setForeground( QApplication::palette().color( QPalette::Disabled, QPalette::Text ) );
         return true;
     }
 
@@ -334,15 +343,19 @@ bool SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetAttr( wxDataViewItem const& aItem, un
     {
     case LIB_TREE_NODE::TYPE::LIBRARY:
         // mark modified libs with bold font
-        aAttr.SetBold( m_libMgr->IsLibraryModified( node->m_Name ) );
+        QFont font = aAttr.font();
+        font.setBold( m_libMgr->IsLibraryModified( node->m_Name ) );
+        aAttr.setFont( font );
 
         // mark the current library if it's collapsed
         if( curSymbol && curSymbol->GetLibId().GetLibNickname() == node->m_LibId.GetLibNickname() )
         {
             if( !m_widget->IsExpanded( ToItem( node ) ) )
             {
-                aAttr.SetStrikethrough( true );   // LIB_TREE_RENDERER uses strikethrough as a
-                                                  // proxy for "is canvas item"
+                QFont font = aAttr.font();
+                font.setStrikeOut( true );   // LIB_TREE_RENDERER uses strikethrough as a
+                                             // proxy for "is canvas item"
+                aAttr.setFont( font );
             }
         }
 
@@ -350,16 +363,18 @@ bool SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetAttr( wxDataViewItem const& aItem, un
 
     case LIB_TREE_NODE::TYPE::ITEM:
         // mark modified part with bold font
-        aAttr.SetBold( m_libMgr->IsSymbolModified( node->m_Name, node->m_Parent->m_Name ) );
-
-        // mark aliases with italic font
-        aAttr.SetItalic( !node->m_IsRoot );
+        QFont font = aAttr.font();
+        font.setBold( m_libMgr->IsSymbolModified( node->m_Name, node->m_Parent->m_Name ) );
+        font.setItalic( !node->m_IsRoot );  // mark aliases with italic font
+        aAttr.setFont( font );
 
         // mark the current (on-canvas) part
         if( curSymbol && curSymbol->GetLibId() == node->m_LibId )
         {
-            aAttr.SetStrikethrough( true );   // LIB_TREE_RENDERER uses strikethrough as a
-                                              // proxy for "is canvas item"
+            QFont font = aAttr.font();
+            font.setStrikeOut( true );   // LIB_TREE_RENDERER uses strikethrough as a
+                                        // proxy for "is canvas item"
+            aAttr.setFont( font );
         }
 
         break;
@@ -372,56 +387,51 @@ bool SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetAttr( wxDataViewItem const& aItem, un
 }
 
 
-bool SYMBOL_TREE_SYNCHRONIZING_ADAPTER::HasPreview( const wxDataViewItem& aItem )
+bool SYMBOL_TREE_SYNCHRONIZING_ADAPTER::HasPreview( const QModelIndex& aItem )
 {
     LIB_TREE_NODE* node = ToNode( aItem );
-    wxCHECK( node, false );
+    Q_ASSERT( node ); if( !node ) return false;
 
     return node->m_Type == LIB_TREE_NODE::TYPE::ITEM && node->m_LibId != m_frame->GetTargetLibId();
 }
 
 
-static const wxString c_previewName = wxS( "symHoverPreview" );
+static const QString c_previewName = "symHoverPreview";
 
 
-void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::ShowPreview( wxWindow*             aParent,
-                                                     const wxDataViewItem& aItem )
+void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::ShowPreview( QWidget*             aParent,
+                                                     const QModelIndex& aItem )
 {
     LIB_TREE_NODE* node = ToNode( aItem );
-    wxCHECK( node, /* void */ );
+    Q_ASSERT( node );
 
-    SYMBOL_PREVIEW_WIDGET* preview = dynamic_cast<SYMBOL_PREVIEW_WIDGET*>(
-            wxWindow::FindWindowByName( c_previewName, aParent ) );
+    SYMBOL_PREVIEW_WIDGET* preview = aParent->findChild<SYMBOL_PREVIEW_WIDGET*>( c_previewName );
 
     if( !preview )
     {
-        wxBoxSizer* mainSizer = new wxBoxSizer( wxVERTICAL );
-        aParent->SetSizer( mainSizer );
+        QVBoxLayout* mainLayout = new QVBoxLayout( aParent );
 
-        WX_PANEL* panel = new WX_PANEL( aParent );
-        panel->SetBorders( true, true, true, true );
-        panel->SetBorderColor( KIGFX::COLOR4D::BLACK );
+        QWidget* panel = new QWidget( aParent );
+        panel->setStyleSheet( "border: 1px solid black" );
 
-        wxBoxSizer* panelSizer = new wxBoxSizer( wxVERTICAL );
-        panel->SetSizer( panelSizer );
+        QVBoxLayout* panelLayout = new QVBoxLayout( panel );
 
         EDA_DRAW_PANEL_GAL::GAL_TYPE backend = m_frame->GetCanvas()->GetBackend();
         preview = new SYMBOL_PREVIEW_WIDGET( panel, &m_frame->Kiway(), false, backend );
-        preview->SetName( c_previewName );
-        preview->SetLayoutDirection( wxLayout_LeftToRight );
+        preview->setObjectName( c_previewName );
+        preview->setLayoutDirection( Qt::LeftToRight );
 
-        panelSizer->Add( preview, 1, wxEXPAND | wxALL, 1 );
-        mainSizer->Add( panel, 1, wxEXPAND, 0 );
-        aParent->Layout();
+        panelLayout->addWidget( preview );
+        mainLayout->addWidget( panel );
     }
 
     preview->DisplaySymbol( node->m_LibId, node->m_Unit );
 }
 
 
-void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::ShutdownPreview( wxWindow* aParent )
+void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::ShutdownPreview( QWidget* aParent )
 {
-    wxWindow* previewWindow = wxWindow::FindWindowByName( c_previewName, aParent );
+    QWidget* previewWindow = aParent->findChild<QWidget*>( c_previewName );
 
     if( SYMBOL_PREVIEW_WIDGET* preview = dynamic_cast<SYMBOL_PREVIEW_WIDGET*>( previewWindow ) )
     {

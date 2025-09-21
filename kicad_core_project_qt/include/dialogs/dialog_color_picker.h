@@ -1,21 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef DIALOG_COLOR_PICKER_H
 #define DIALOG_COLOR_PICKER_H
@@ -23,6 +5,14 @@
 
 #include <gal/color4d.h>
 #include "../../common/dialogs/dialog_color_picker_base.h"
+
+#include <QtCore/QString>
+#include <QtCore/QPoint>
+#include <QtGui/QPixmap>
+#include <QtWidgets/QWidget>
+#include <QtWidgets/QLabel>
+#include <QtGui/QMouseEvent>
+#include <QtGui/QResizeEvent>
 
 class COLOR_SWATCH;
 
@@ -33,9 +23,9 @@ class COLOR_SWATCH;
 struct CUSTOM_COLOR_ITEM
 {
     KIGFX::COLOR4D m_Color;
-    wxString m_ColorName;
+    QString m_ColorName;
 
-    CUSTOM_COLOR_ITEM( double red, double green, double blue, const wxString& aName )
+    CUSTOM_COLOR_ITEM( double red, double green, double blue, const QString& aName )
     {
         m_Color.r = red;
         m_Color.g = green;
@@ -43,7 +33,7 @@ struct CUSTOM_COLOR_ITEM
         m_ColorName = aName;
     }
 
-    CUSTOM_COLOR_ITEM( double red, double green, double blue, double alpha, const wxString& aName )
+    CUSTOM_COLOR_ITEM( double red, double green, double blue, double alpha, const QString& aName )
     {
         m_Color.r = red;
         m_Color.g = green;
@@ -52,7 +42,7 @@ struct CUSTOM_COLOR_ITEM
         m_ColorName = aName;
     }
 
-    CUSTOM_COLOR_ITEM( const KIGFX::COLOR4D& aColor, const wxString& aName )
+    CUSTOM_COLOR_ITEM( const KIGFX::COLOR4D& aColor, const QString& aName )
         : m_Color( aColor ), m_ColorName( aName)
     {}
 };
@@ -86,7 +76,7 @@ public:
      * @param aUserColors if not null is a list of defined colors replacing the dialog
      *                    predefined colors
      */
-	DIALOG_COLOR_PICKER( wxWindow* aParent, const KIGFX::COLOR4D& aCurrentColor,
+	DIALOG_COLOR_PICKER( QWidget* aParent, const KIGFX::COLOR4D& aCurrentColor,
                          bool aAllowOpacityControl, CUSTOM_COLORS_LIST* aUserColors = nullptr,
                          const KIGFX::COLOR4D& aDefaultColor = KIGFX::COLOR4D::UNSPECIFIED );
 	~DIALOG_COLOR_PICKER();
@@ -111,20 +101,20 @@ private:
     std::vector<KIGFX::COLOR4D> m_Color4DList;
     int m_cursorsSize;
 
-    wxPoint m_cursorBitmapRed;          ///< the red cursor on the RGB bitmap palette.
-    wxPoint m_cursorBitmapGreen;        ///< the green cursor on the RGB bitmap palette.
-    wxPoint m_cursorBitmapBlue;         ///< the blue cursor on the RGB bitmap palette.
-    wxPoint m_cursorBitmapHSV;          ///< the cursor on the HSV bitmap palette.
-    wxPoint* m_selectedCursor;          ///< the ref cursor to the selected cursor, if any, or null.
+    QPoint m_cursorBitmapRed;          ///< the red cursor on the RGB bitmap palette.
+    QPoint m_cursorBitmapGreen;        ///< the green cursor on the RGB bitmap palette.
+    QPoint m_cursorBitmapBlue;         ///< the blue cursor on the RGB bitmap palette.
+    QPoint m_cursorBitmapHSV;          ///< the cursor on the HSV bitmap palette.
+    QPoint* m_selectedCursor;          ///< the ref cursor to the selected cursor, if any, or null.
 
     double m_hue;                       ///< the current hue, in degrees (0 ... 360)
     double m_sat;                       ///< the current saturation (0 ... 1.0)
     double m_val;                       ///< the current value (0 ... 1.0)
 
-    wxBitmap* m_bitmapRGB;              ///< the basic RGB palette
-    wxBitmap* m_bitmapHSV;              ///< the basic HUV palette
+    QPixmap* m_bitmapRGB;              ///< the basic RGB palette
+    QPixmap* m_bitmapHSV;              ///< the basic HUV palette
 
-    std::vector<wxStaticBitmap*> m_colorSwatches;    ///< list of defined colors buttons
+    std::vector<QLabel*> m_colorSwatches;    ///< list of defined colors buttons
 
     void SetEditVals( CHANGED_COLOR aChanged, bool aCheckTransparency );
 	void drawAll();
@@ -135,33 +125,33 @@ private:
     void drawRGBPalette();              ///< draws the RVB color space
 
     ///< repaint a static bitmap with the aColor4D color
-    void updatePreview( wxStaticBitmap* aStaticBitmap, KIGFX::COLOR4D& aColor4D );
+    void updatePreview( QLabel* aStaticBitmap, KIGFX::COLOR4D& aColor4D );
 
-    ///< Event handler from wxSlider: brightness (value) control
-	void OnChangeBrightness( wxScrollEvent& event ) override;
+    ///< Event handler from QSlider: brightness (value) control
+	void OnChangeBrightness( int value );
 
-    ///< Event handler from wxSlider: alpha (transparency) control
-    void OnChangeAlpha( wxScrollEvent& event ) override;
+    ///< Event handler from QSlider: alpha (transparency) control
+    void OnChangeAlpha( int value );
 
-    ///< Event handlers from wxSpinControl
-    void OnChangeEditRed( wxSpinEvent& event ) override;
-    void OnChangeEditGreen( wxSpinEvent& event ) override;
-    void OnChangeEditBlue( wxSpinEvent& event ) override;
-    void OnChangeEditHue( wxSpinEvent& event ) override;
-    void OnChangeEditSat( wxSpinEvent& event ) override;
+    ///< Event handlers from QSpinBox
+    void OnChangeEditRed( int value );
+    void OnChangeEditGreen( int value );
+    void OnChangeEditBlue( int value );
+    void OnChangeEditHue( int value );
+    void OnChangeEditSat( int value );
 
     ///< mouse handlers, when clicking on a palette bitmap
-	void onRGBMouseClick( wxMouseEvent& event ) override;
-	void onRGBMouseDrag( wxMouseEvent& event ) override;
-	void onHSVMouseClick( wxMouseEvent& event ) override;
-	void onHSVMouseDrag( wxMouseEvent& event ) override;
+	void onRGBMouseClick( QMouseEvent* event );
+	void onRGBMouseDrag( QMouseEvent* event );
+	void onHSVMouseClick( QMouseEvent* event );
+	void onHSVMouseDrag( QMouseEvent* event );
 
-    void onSize( wxSizeEvent& event ) override;
+    void onSize( QResizeEvent* event );
 
-    void OnColorValueText( wxCommandEvent& event ) override;
+    void OnColorValueText();
 
     ///< Event handler for the reset button press
-    void OnResetButton( wxCommandEvent& aEvent ) override;
+    void OnResetButton();
 
     /**
      * Manage the Hue and Saturation settings when the mouse cursor is at aMouseCursor.
@@ -171,13 +161,13 @@ private:
      * if Saturation value computed from aMouseCursor is <= 1.0,
      * and false if aMouseCursor is outside this area.
      */
-	bool setHSvaluesFromCursor( const wxPoint& aMouseCursor );
+	bool setHSvaluesFromCursor( const QPoint& aMouseCursor );
 
     ///< Event handler for defined color buttons
-    void buttColorClick( wxMouseEvent& event );
+    void buttColorClick( QMouseEvent* event );
 
     ///< Event handler for double click on color buttons
-    void colorDClick( wxMouseEvent& event );
+    void colorDClick( QMouseEvent* event );
 
     ///< called when creating the dialog
     bool TransferDataToWindow() override;

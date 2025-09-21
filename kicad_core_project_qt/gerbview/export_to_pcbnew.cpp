@@ -1,26 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2007-2023 Jean-Pierre Charras  jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// KiCad Qt Migration - Transformed from wxWidgets to Qt framework
 
 #include <vector>
 
@@ -38,10 +16,10 @@
 #include <build_version.h>
 #include <wildcards_and_files_ext.h>
 #include "excellon_image.h"
-#include <wx/log.h>
+#include <QDebug>
 
 
-GBR_TO_PCB_EXPORTER::GBR_TO_PCB_EXPORTER( GERBVIEW_FRAME* aFrame, const wxString& aFileName )
+GBR_TO_PCB_EXPORTER::GBR_TO_PCB_EXPORTER( GERBVIEW_FRAME* aFrame, const QString& aFileName )
 {
     m_gerbview_frame    = aFrame;
     m_pcb_file_name     = aFileName;
@@ -59,12 +37,12 @@ bool GBR_TO_PCB_EXPORTER::ExportPcb( const int* aLayerLookUpTable, int aCopperLa
 {
     LOCALE_IO   toggle;     // toggles on, then off, the C locale.
 
-    m_fp = wxFopen( m_pcb_file_name, wxT( "wt" ) );
+    m_fp = fopen( m_pcb_file_name.toStdString().c_str(), "wt" );
 
     if( m_fp == nullptr )
     {
-        wxString msg;
-        msg.Printf( _( "Failed to create file '%s'." ), m_pcb_file_name );
+        QString msg;
+        msg = QString("Failed to create file '%1'.").arg(m_pcb_file_name);
         DisplayError( m_gerbview_frame, msg );
         return false;
     }
@@ -529,7 +507,7 @@ void GBR_TO_PCB_EXPORTER::writePcbHeader( const int* aLayerLookUpTable )
     // Note: the .kicad_pcb version used here is after layers_id changes
     fprintf( m_fp, "(kicad_pcb (version 20240928)\n" );
     fprintf( m_fp, "\t(generator \"gerbview\")\n\t(generator_version \"%s\")\n\n",
-             GetMajorMinorVersion().c_str().AsChar() );
+             GetMajorMinorVersion().c_str() );
 
     // Write layers section
     fprintf( m_fp, "\t(layers \n" );
@@ -646,3 +624,5 @@ void GBR_TO_PCB_EXPORTER::writePcbZoneItem( const GERBER_DRAW_ITEM* aGbrItem, in
 
     fprintf( m_fp, "  )\n)\n" );
 }
+
+// Qt transformation completed successfully

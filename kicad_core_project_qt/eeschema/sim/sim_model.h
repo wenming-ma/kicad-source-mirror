@@ -1,32 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2022 Mikolaj Wielgus
- * Copyright (C) 2022 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * https://www.gnu.org/licenses/gpl-3.0.html
- * or you may search the http://www.gnu.org website for the version 3 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SIM_MODEL_H
 #define SIM_MODEL_H
 
-#include <wx/string.h>
+#include <QString>
 #include <map>
 #include <utility>
 
@@ -46,29 +22,29 @@ class PROJECT;
 class REPORTER;
 
 
-#define SIM_REFERENCE_FIELD wxT( "Reference" )
-#define SIM_VALUE_FIELD wxT( "Value" )
+#define SIM_REFERENCE_FIELD "Reference"
+#define SIM_VALUE_FIELD "Value"
 
-#define SIM_DEVICE_FIELD wxT( "Sim.Device" )
-#define SIM_DEVICE_SUBTYPE_FIELD wxT( "Sim.Type" )
-#define SIM_PINS_FIELD wxT( "Sim.Pins" )
-#define SIM_PARAMS_FIELD wxT( "Sim.Params" )
-#define SIM_LIBRARY_FIELD wxT( "Sim.Library" )
-#define SIM_NAME_FIELD wxT( "Sim.Name" )
-#define SIM_NODES_FORMAT_FIELD wxT( "Sim.NodesFormat" )
+#define SIM_DEVICE_FIELD "Sim.Device"
+#define SIM_DEVICE_SUBTYPE_FIELD "Sim.Type"
+#define SIM_PINS_FIELD "Sim.Pins"
+#define SIM_PARAMS_FIELD "Sim.Params"
+#define SIM_LIBRARY_FIELD "Sim.Library"
+#define SIM_NAME_FIELD "Sim.Name"
+#define SIM_NODES_FORMAT_FIELD "Sim.NodesFormat"
 
-#define SIM_LEGACY_ENABLE_FIELD_V7 wxT( "Sim.Enable" )
-#define SIM_LEGACY_PRIMITIVE_FIELD wxS( "Spice_Primitive" )
-#define SIM_LEGACY_MODEL_FIELD wxS( "Spice_Model" )
-#define SIM_LEGACY_PINS_FIELD wxS( "Spice_Node_Sequence" )
-#define SIM_LEGACY_ENABLE_FIELD wxS( "Spice_Netlist_Enabled" )
-#define SIM_LEGACY_LIBRARY_FIELD wxS( "Spice_Lib_File" )
+#define SIM_LEGACY_ENABLE_FIELD_V7 "Sim.Enable"
+#define SIM_LEGACY_PRIMITIVE_FIELD "Spice_Primitive"
+#define SIM_LEGACY_MODEL_FIELD "Spice_Model"
+#define SIM_LEGACY_PINS_FIELD "Spice_Node_Sequence"
+#define SIM_LEGACY_ENABLE_FIELD "Spice_Netlist_Enabled"
+#define SIM_LEGACY_LIBRARY_FIELD "Spice_Lib_File"
 
 
 struct SIM_MODEL_PIN
 {
     const std::string modelPinName;
-    wxString          symbolPinNumber;
+    QString          symbolPinNumber;
 
     static constexpr auto NOT_CONNECTED = -1;
 };
@@ -427,10 +403,10 @@ public:
                                               bool aResolve, int aDepth, REPORTER& aReporter );
 
     static std::string GetFieldValue( const std::vector<SCH_FIELD>* aFields,
-                                      const wxString& aFieldName,
+                                      const QString& aFieldName,
                                       bool aResolve = false, int aDepth = 0 );
 
-    static void SetFieldValue( std::vector<SCH_FIELD>& aFields, const wxString& aFieldName,
+    static void SetFieldValue( std::vector<SCH_FIELD>& aFields, const QString& aFieldName,
                                const std::string& aValue, bool aIsVisible = true );
 
     const SPICE_GENERATOR& SpiceGenerator() const { return *m_spiceGenerator; }
@@ -474,9 +450,9 @@ public:
 
     std::vector<std::reference_wrapper<const SIM_MODEL_PIN>> GetPins() const;
 
-    void AssignSymbolPinNumberToModelPin( int aPinIndex, const wxString& aSymbolPinNumber );
+    void AssignSymbolPinNumberToModelPin( int aPinIndex, const QString& aSymbolPinNumber );
     virtual void AssignSymbolPinNumberToModelPin( const std::string& aPinName,
-                                                  const wxString& aSymbolPinNumber );
+                                                  const QString& aSymbolPinNumber );
 
 
     int GetParamCount() const { return static_cast<int>( m_params.size() ); }
@@ -513,8 +489,8 @@ public:
 
     template <class T>
     static bool InferSimModel( T& aSymbol, std::vector<SCH_FIELD>* aFields, bool aResolve, int aDepth,
-                               SIM_VALUE_GRAMMAR::NOTATION aNotation, wxString* aDeviceType,
-                               wxString* aModelType, wxString* aModelParams, wxString* aPinMap );
+                               SIM_VALUE_GRAMMAR::NOTATION aNotation, QString* aDeviceType,
+                               QString* aModelType, QString* aModelParams, QString* aPinMap );
 
     template <class T>
     static void MigrateSimModel( T& aSymbol, const PROJECT* aProject );

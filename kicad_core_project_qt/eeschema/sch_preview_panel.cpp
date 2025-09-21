@@ -1,28 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 
-#include <view/wx_view_controls.h>
+#include <view/qt_view_controls.h>
+#include <QtWidgets/QWidget>
+#include <QtCore/QDebug>
+#include <QtGui/QPaintEvent>
 #include <drawing_sheet/ds_proxy_view_item.h>
 
 #include <gal/graphics_abstraction_layer.h>
@@ -42,8 +23,8 @@
 
 using namespace std::placeholders;
 
-SCH_PREVIEW_PANEL::SCH_PREVIEW_PANEL( wxWindow* aParentWindow, wxWindowID aWindowId,
-                                      const wxPoint& aPosition, const wxSize& aSize,
+SCH_PREVIEW_PANEL::SCH_PREVIEW_PANEL( QWidget* aParentWindow, int aWindowId,
+                                      const QPoint& aPosition, const QSize& aSize,
                                       KIGFX::GAL_DISPLAY_OPTIONS& aOptions, GAL_TYPE aGalType ) :
     EDA_DRAW_PANEL_GAL( aParentWindow, aWindowId, aPosition, aSize, aOptions, aGalType )
 {
@@ -71,16 +52,16 @@ SCH_PREVIEW_PANEL::SCH_PREVIEW_PANEL( wxWindow* aParentWindow, wxWindowID aWindo
     view()->UpdateAllLayersOrder();
     // View controls is the first in the event handler chain, so the Tool Framework operates
     // on updated viewport data.
-    m_viewControls = new KIGFX::WX_VIEW_CONTROLS( m_view, this );
+    m_viewControls = new KIGFX::QT_VIEW_CONTROLS( m_view, this );
 
     m_gal->SetGridColor( m_painter->GetSettings()->GetLayerColor( LAYER_SCHEMATIC_GRID ) );
     m_gal->SetCursorEnabled( false );
     m_gal->SetGridSize( VECTOR2D( schIUScale.MilsToIU( 100.0 ), schIUScale.MilsToIU( 100.0 ) ) );
 
-    SetEvtHandlerEnabled( true );
-    SetFocus();
-    Show( true );
-    Raise();
+    setEnabled( true );
+    setFocus();
+    show();
+    raise();
     StartDrawing();
 }
 
@@ -107,7 +88,7 @@ void SCH_PREVIEW_PANEL::setDefaultLayerOrder()
     for( int i = 0; (unsigned) i < sizeof( SCH_LAYER_ORDER ) / sizeof( int ); ++i )
     {
         int layer = SCH_LAYER_ORDER[i];
-        wxASSERT( layer < KIGFX::VIEW::VIEW_MAX_LAYERS );
+        Q_ASSERT( layer < KIGFX::VIEW::VIEW_MAX_LAYERS );
 
         m_view->SetLayerOrder( layer, i );
     }
@@ -140,14 +121,14 @@ KIGFX::SCH_VIEW* SCH_PREVIEW_PANEL::view() const
 }
 
 
-void SCH_PREVIEW_PANEL::Refresh( bool aEraseBackground, const wxRect* aRect )
+void SCH_PREVIEW_PANEL::Refresh( bool aEraseBackground, const QRect* aRect )
 {
     EDA_DRAW_PANEL_GAL::Refresh( aEraseBackground, aRect );
 }
 
 
-void SCH_PREVIEW_PANEL::onPaint( wxPaintEvent& aEvent )
+void SCH_PREVIEW_PANEL::onPaint( QPaintEvent& aEvent )
 {
-    if( IsShownOnScreen() )
+    if( isVisible() )
         EDA_DRAW_PANEL_GAL::onPaint( aEvent );
 }

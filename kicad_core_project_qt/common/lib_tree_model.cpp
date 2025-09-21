@@ -1,24 +1,4 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Chris Pavlina <pavlina.chris@gmail.com>
- * Copyright (C) 2014 Henner Zeller <h.zeller@acm.org>
- * Copyright (C) 2023 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// Transformed from wxWidgets to Qt by KiCad Qt Transformer
 
 #include <lib_tree_model.h>
 
@@ -97,7 +77,7 @@ bool LIB_TREE_NODE::Compare( LIB_TREE_NODE const& aNode1, LIB_TREE_NODE const& a
             return true;
         }
     }
-    else if( aNode2.m_Name.StartsWith( wxT( "-- " ) ) )
+    else if( aNode2.m_Name.startsWith( "-- " ) )
     {
         return false;
     }
@@ -135,7 +115,7 @@ LIB_TREE_NODE::LIB_TREE_NODE()
 LIB_TREE_NODE_UNIT::LIB_TREE_NODE_UNIT( LIB_TREE_NODE* aParent, LIB_TREE_ITEM* aItem, int aUnit )
 {
     static void* locale = nullptr;
-    static wxString namePrefix;
+    static QString namePrefix;
 
     // Fetching translations can take a surprising amount of time when loading libraries,
     // so only do it when necessary.
@@ -156,7 +136,7 @@ LIB_TREE_NODE_UNIT::LIB_TREE_NODE_UNIT( LIB_TREE_NODE* aParent, LIB_TREE_ITEM* a
     if( aItem->HasUnitDisplayName( aUnit ) )
         m_Desc = aItem->GetUnitDisplayName( aUnit );
     else
-        m_Desc = wxEmptyString;
+        m_Desc = QString();
 
     m_IntrinsicRank = -aUnit;
 }
@@ -257,8 +237,8 @@ void LIB_TREE_NODE_ITEM::UpdateScore( const std::vector<std::unique_ptr<EDA_COMB
 }
 
 
-LIB_TREE_NODE_LIBRARY::LIB_TREE_NODE_LIBRARY( LIB_TREE_NODE* aParent, wxString const& aName,
-                                              wxString const& aDesc )
+LIB_TREE_NODE_LIBRARY::LIB_TREE_NODE_LIBRARY( LIB_TREE_NODE* aParent, QString const& aName,
+                                              QString const& aDesc )
 {
     m_Type = TYPE::LIBRARY;
     m_Name = aName;
@@ -317,7 +297,7 @@ LIB_TREE_NODE_ROOT::LIB_TREE_NODE_ROOT()
 }
 
 
-LIB_TREE_NODE_LIBRARY& LIB_TREE_NODE_ROOT::AddLib( wxString const& aName, wxString const& aDesc )
+LIB_TREE_NODE_LIBRARY& LIB_TREE_NODE_ROOT::AddLib( QString const& aName, QString const& aDesc )
 {
     LIB_TREE_NODE_LIBRARY* lib = new LIB_TREE_NODE_LIBRARY( this, aName, aDesc );
     m_Children.push_back( std::unique_ptr<LIB_TREE_NODE>( lib ) );

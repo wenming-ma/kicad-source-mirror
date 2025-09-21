@@ -1,22 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include <confirm.h>
 #include <common.h>
@@ -33,7 +14,10 @@
 #include <project.h>
 #include <view/view.h>
 #include <wildcards_and_files_ext.h>
-#include <wx/filedlg.h>
+#include <QFileDialog>
+#include <QApplication>
+#include <QDir>
+#include <QFileInfo>
 
 #include "gerbview_actions.h"
 #include "gerbview_control.h"
@@ -53,7 +37,7 @@ void GERBVIEW_CONTROL::Reset( RESET_REASON aReason )
 
 int GERBVIEW_CONTROL::OpenAutodetected( const TOOL_EVENT& aEvent )
 {
-    m_frame->LoadAutodetectedFiles( wxEmptyString );
+    m_frame->LoadAutodetectedFiles( QString() );
 
     return 0;
 }
@@ -61,7 +45,7 @@ int GERBVIEW_CONTROL::OpenAutodetected( const TOOL_EVENT& aEvent )
 
 int GERBVIEW_CONTROL::OpenGerber( const TOOL_EVENT& aEvent )
 {
-    m_frame->LoadGerberFiles( wxEmptyString );
+    m_frame->LoadGerberFiles( QString() );
 
     return 0;
 }
@@ -69,7 +53,7 @@ int GERBVIEW_CONTROL::OpenGerber( const TOOL_EVENT& aEvent )
 
 int GERBVIEW_CONTROL::OpenDrillFile( const TOOL_EVENT& aEvent )
 {
-    m_frame->LoadExcellonFiles( wxEmptyString );
+    m_frame->LoadExcellonFiles( QString() );
 
     return 0;
 }
@@ -77,7 +61,7 @@ int GERBVIEW_CONTROL::OpenDrillFile( const TOOL_EVENT& aEvent )
 
 int GERBVIEW_CONTROL::OpenJobFile( const TOOL_EVENT& aEvent )
 {
-    m_frame->LoadGerberJobFile( wxEmptyString );
+    m_frame->LoadGerberJobFile( QString() );
     canvas()->Refresh();
 
     return 0;
@@ -86,7 +70,7 @@ int GERBVIEW_CONTROL::OpenJobFile( const TOOL_EVENT& aEvent )
 
 int GERBVIEW_CONTROL::OpenZipFile( const TOOL_EVENT& aEvent )
 {
-    m_frame->LoadZipArchiveFile( wxEmptyString );
+    m_frame->LoadZipArchiveFile( QString() );
     canvas()->Refresh();
 
     return 0;
@@ -120,16 +104,17 @@ int GERBVIEW_CONTROL::ExportToPcbnew( const TOOL_EVENT& aEvent )
         return 0;
     }
 
-    wxString fileDialogName( NAMELESS_PROJECT + wxT( "." ) + FILEEXT::KiCadPcbFileExtension );
-    wxString     path = m_frame->GetMruPath();
+    QString fileDialogName( NAMELESS_PROJECT + "." + FILEEXT::KiCadPcbFileExtension );
+    QString     path = m_frame->GetMruPath();
 
-    wxFileDialog filedlg( m_frame, _( "Export as KiCad Board File" ), path, fileDialogName,
-                          FILEEXT::PcbFileWildcard(), wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
+    QString selectedFile = QFileDialog::getSaveFileName( m_frame, "Export as KiCad Board File",
+                                                         QDir(path).filePath(fileDialogName),
+                                                         FILEEXT::PcbFileWildcard() );
 
-    if( filedlg.ShowModal() == wxID_CANCEL )
+    if( selectedFile.isEmpty() )
         return 0;
 
-    wxFileName fileName = EnsureFileExtension( filedlg.GetPath(), FILEEXT::KiCadPcbFileExtension );
+    QFileInfo fileName = QFileInfo( EnsureFileExtension( selectedFile, FILEEXT::KiCadPcbFileExtension ) );
 
     /* Install a dialog frame to choose the mapping
      * between gerber layers and Pcbnew layers
@@ -138,12 +123,12 @@ int GERBVIEW_CONTROL::ExportToPcbnew( const TOOL_EVENT& aEvent )
     int ok = layerdlg->ShowModal();
     layerdlg->Destroy();
 
-    if( ok != wxID_OK )
+    if( ok != QDialog::Accepted )
         return 0;
 
-    m_frame->SetMruPath( fileName.GetPath() );
+    m_frame->SetMruPath( fileName.path() );
 
-    GBR_TO_PCB_EXPORTER gbr_exporter( m_frame, fileName.GetFullPath() );
+    GBR_TO_PCB_EXPORTER gbr_exporter( m_frame, fileName.absoluteFilePath() );
 
     gbr_exporter.ExportPcb( layerdlg->GetLayersLookUpTable(), layerdlg->GetCopperLayersCount() );
 
@@ -177,13 +162,13 @@ int GERBVIEW_CONTROL::HighlightControl( const TOOL_EVENT& aEvent )
     }
     else if( item && aEvent.IsAction( &GERBVIEW_ACTIONS::highlightNet ) )
     {
-        wxString net_name = item->GetNetAttributes().m_Netname;
+        QString net_name = item->GetNetAttributes().m_Netname;
         settings->m_netHighlightString = net_name;
         m_frame->m_SelNetnameBox->SetStringSelection( UnescapeString( net_name ) );
     }
     else if( item && aEvent.IsAction( &GERBVIEW_ACTIONS::highlightComponent ) )
     {
-        wxString net_attr = item->GetNetAttributes().m_Cmpref;
+        QString net_attr = item->GetNetAttributes().m_Cmpref;
         settings->m_componentHighlightString = net_attr;
         m_frame->m_SelComponentBox->SetStringSelection( net_attr );
     }
@@ -193,7 +178,7 @@ int GERBVIEW_CONTROL::HighlightControl( const TOOL_EVENT& aEvent )
 
         if( apertDescr )
         {
-            wxString ap_name = apertDescr->m_AperFunction;
+            QString ap_name = apertDescr->m_AperFunction;
             settings->m_attributeHighlightString = ap_name;
             m_frame->m_SelAperAttributesBox->SetStringSelection( ap_name );
         }
@@ -413,7 +398,7 @@ int GERBVIEW_CONTROL::ClearAllLayers( const TOOL_EVENT& aEvent )
 int GERBVIEW_CONTROL::ReloadAllLayers( const TOOL_EVENT& aEvent )
 {
     // Store filenames
-    wxArrayString           listOfGerberFiles;
+    QStringList           listOfGerberFiles;
     std::vector<int>        fileType;
     GERBER_FILE_IMAGE_LIST* list = m_frame->GetImagesList();
 
@@ -432,7 +417,7 @@ int GERBVIEW_CONTROL::ReloadAllLayers( const TOOL_EVENT& aEvent )
         else
             fileType.push_back( 0 );
 
-        listOfGerberFiles.Add( list->GetGbrImage( i )->m_FileName );
+        listOfGerberFiles.append( list->GetGbrImage( i )->m_FileName );
     }
 
     // Clear all layers
@@ -440,8 +425,9 @@ int GERBVIEW_CONTROL::ReloadAllLayers( const TOOL_EVENT& aEvent )
     m_frame->ClearMsgPanel();
 
     // Load the layers from stored paths
-    wxBusyCursor wait;
-    m_frame->LoadListOfGerberAndDrillFiles( wxEmptyString, listOfGerberFiles, &fileType );
+    QApplication::setOverrideCursor( Qt::WaitCursor );
+    m_frame->LoadListOfGerberAndDrillFiles( QString(), listOfGerberFiles, &fileType );
+    QApplication::restoreOverrideCursor();
 
     return 0;
 }
@@ -471,7 +457,7 @@ int GERBVIEW_CONTROL::UpdateMessagePanel( const TOOL_EVENT& aEvent )
 
 int GERBVIEW_CONTROL::LoadZipfile( const TOOL_EVENT& aEvent )
 {
-    m_frame->LoadZipArchiveFile( *aEvent.Parameter<wxString*>() );
+    m_frame->LoadZipArchiveFile( *aEvent.Parameter<QString*>() );
     canvas()->Refresh();
 
     return 0;
@@ -482,24 +468,33 @@ int GERBVIEW_CONTROL::LoadGerbFiles( const TOOL_EVENT& aEvent )
 {
     // The event parameter is a string containing names of dropped files.
     // Each file name has been enclosed with "", so file names with space character are allowed.
-    wxString files = *aEvent.Parameter<wxString*>();
+    QString files = *aEvent.Parameter<QString*>();
     // ie : files = "file1""another file""file3"...
 
-    std::vector<wxString> aFileNameList;
+    std::vector<QString> aFileNameList;
 
     // Isolate each file name, deletting ""
-    files = files.AfterFirst( '"' );
+    int firstQuote = files.indexOf( '"' );
+    if( firstQuote >= 0 )
+        files = files.mid( firstQuote + 1 );
 
     // Gerber files are enclosed with "".
     // Load files names in array.
-    while( !files.empty() )
+    while( !files.isEmpty() )
     {
-        wxString fileName = files.BeforeFirst( '"' );
+        int nextQuote = files.indexOf( '"' );
+        if( nextQuote < 0 )
+            break;
+        QString fileName = files.left( nextQuote );
         // Check if file exists. If not, keep on and ignore fileName
-        if( wxFileName( fileName ).Exists() )
+        if( QFileInfo( fileName ).exists() )
             aFileNameList.push_back( fileName );
-        files = files.AfterFirst( '"' );
-        files = files.AfterFirst( '"' );
+        files = files.mid( nextQuote + 1 );
+        int nextStart = files.indexOf( '"' );
+        if( nextStart >= 0 )
+            files = files.mid( nextStart + 1 );
+        else
+            break;
     }
 
     if( !aFileNameList.empty() )

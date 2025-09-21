@@ -1,29 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
-/**
- * @brief functions to read the rs274d commands from a rs274d/rs274x file
- */
+// functions to read the rs274d commands from a rs274d/rs274x file
 
 #include <cmath>
 
@@ -414,7 +390,9 @@ int GERBER_FILE_IMAGE::CodeNumber( char*& aText )
     if( endptr == aText || errno != 0 )
         return 0;
 
-    wxCHECK_MSG( retval < std::numeric_limits<int>::max(), 0, _( "Invalid Code Number" ) );
+    Q_ASSERT( retval < std::numeric_limits<int>::max() );
+    if( retval >= std::numeric_limits<int>::max() )
+        return 0;
 
     aText = endptr;
 
@@ -545,8 +523,7 @@ bool GERBER_FILE_IMAGE::Execute_G_Command( char*& text, int G_command )
     case GC_MOVE:       // Non existent
     default:
     {
-        wxString msg;
-        msg.Printf( wxT( "G%0.2d command not handled" ), G_command );
+        QString msg = QString::asprintf( "G%0.2d command not handled", G_command );
         AddMessageToList( msg );
         return false;
     }
@@ -566,7 +543,7 @@ bool GERBER_FILE_IMAGE::Execute_DCODE_Command( char*& text, int D_commande )
 
     int      dcode = 0;
     D_CODE*  tool  = nullptr;
-    wxString msg;
+    QString msg;
 
     if( D_commande >= FIRST_DCODE )  // This is a "Set tool" command
     {
@@ -621,7 +598,7 @@ bool GERBER_FILE_IMAGE::Execute_DCODE_Command( char*& text, int D_commande )
                 // Otherwise the Gerber file is invalid
                 if( !m_AsArcG74G75Cmd )
                 {
-                    AddMessageToList( _( "Invalid Gerber file: missing G74 or G75 arc command" ) );
+                    AddMessageToList( "Invalid Gerber file: missing G74 or G75 arc command" );
 
                     // Disable further warning messages:
                     m_AsArcG74G75Cmd = true;
@@ -723,7 +700,7 @@ bool GERBER_FILE_IMAGE::Execute_DCODE_Command( char*& text, int D_commande )
                 break;
 
             default:
-                msg.Printf( wxT( "RS274D: DCODE Command: interpol error (type %X)" ),
+                msg = QString::asprintf( "RS274D: DCODE Command: interpol error (type %X)",
                             m_Iterpolation );
                 AddMessageToList( msg );
                 break;

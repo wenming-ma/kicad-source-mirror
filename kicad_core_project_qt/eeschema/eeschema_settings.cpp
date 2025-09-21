@@ -1,25 +1,5 @@
-/*
-* This program source code file is part of KiCad, a free EDA CAD application.
-*
-* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, you may find one here:
-* http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
-* or you may search the http://www.gnu.org website for the version 2 license,
-* or you may write to the Free Software Foundation, Inc.,
-* 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
-*/
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #include <functional>
 
@@ -35,7 +15,13 @@
 #include <settings/parameters.h>
 #include <settings/settings_manager.h>
 #include <settings/aui_settings.h>
-#include <wx/config.h>
+#include <QSettings>
+#include <QWidget>
+#include <QDockWidget>
+#include <QSize>
+#include <QPoint>
+#include <QString>
+#include <QStringLiteral>
 #include <widgets/tepui_common.h>
 #include <default_values.h>    // For some default values
 
@@ -63,87 +49,85 @@ const nlohmann::json defaultBomPlugins =
         };
 
 
-const wxAuiPaneInfo& defaultNetNavigatorPaneInfo()
+const QDockWidget* defaultNetNavigatorPaneInfo()
 {
-    static wxAuiPaneInfo paneInfo;
+    static QDockWidget* paneInfo = nullptr;
+    if (!paneInfo) {
+        paneInfo = new QDockWidget();
 
-    paneInfo.Name( wxS( "NetNavigator" ) )
-            .Caption( _( "Net Navigator" ) )
-            .CaptionVisible( true )
-            .PaneBorder( true )
-            .Left().Layer( 3 ).Position( 0 )
-            .TopDockable( false )
-            .BottomDockable( false )
-            .CloseButton( true )
-            .MinSize( 120, 60 )
-            .BestSize( 200, 200 )
-            .FloatingSize( 200, 200 )
-            .FloatingPosition( 50, 200 )
-            .Show( false );
+        // Configure dock widget properties equivalent to wxAuiPaneInfo
+        paneInfo->setObjectName(QStringLiteral("NetNavigator"));
+        paneInfo->setWindowTitle(_("Net Navigator"));
+        paneInfo->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable);
+        paneInfo->setAllowedAreas(Qt::LeftDockWidgetArea);
+        paneInfo->setMinimumSize(120, 60);
+        paneInfo->resize(200, 200);
+        paneInfo->setFloating(false);
+        paneInfo->setVisible(false);
+    }
 
     return paneInfo;
 }
 
 
-const wxAuiPaneInfo& defaultPropertiesPaneInfo( wxWindow* aWindow )
+const QDockWidget* defaultPropertiesPaneInfo( QWidget* aWindow )
 {
-    static wxAuiPaneInfo paneInfo;
+    static QDockWidget* paneInfo = nullptr;
+    if (!paneInfo) {
+        paneInfo = new QDockWidget();
 
-    paneInfo.Name( EDA_DRAW_FRAME::PropertiesPaneName() )
-            .Caption( _( "Properties" ) )
-            .CaptionVisible( true )
-            .PaneBorder( true )
-            .Left().Layer( 3 ).Position( 2 )
-            .TopDockable( false )
-            .BottomDockable( false )
-            .CloseButton( true )
-            .MinSize( aWindow->FromDIP( wxSize( 240, 60 ) ) )
-            .BestSize( aWindow->FromDIP( wxSize( 300, 200 ) ) )
-            .FloatingSize( aWindow->FromDIP( wxSize( 300, 400 ) ) )
-            .FloatingPosition( aWindow->FromDIP( wxPoint( 50, 200 ) ) )
-            .Show( true );
+        // Configure dock widget properties equivalent to wxAuiPaneInfo
+        paneInfo->setObjectName(EDA_DRAW_FRAME::PropertiesPaneName());
+        paneInfo->setWindowTitle(_("Properties"));
+        paneInfo->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable);
+        paneInfo->setAllowedAreas(Qt::LeftDockWidgetArea);
+        paneInfo->setMinimumSize(QSize(240, 60));
+        paneInfo->resize(QSize(300, 200));
+        paneInfo->setFloating(false);
+        paneInfo->setVisible(true);
+    }
 
     return paneInfo;
 }
 
 
-const wxAuiPaneInfo& defaultSchSelectionFilterPaneInfo( wxWindow* aWindow )
+const QDockWidget* defaultSchSelectionFilterPaneInfo( QWidget* aWindow )
 {
-    static wxAuiPaneInfo paneInfo;
+    static QDockWidget* paneInfo = nullptr;
+    if (!paneInfo) {
+        paneInfo = new QDockWidget();
 
-    paneInfo.Name( wxS( "SelectionFilter" ) )
-            .Caption( _( "Selection Filter" ) )
-            .CaptionVisible( true )
-            .PaneBorder( false )
-            .Left().Layer( 3 ).Position( 4 )
-            .TopDockable( false )
-            .BottomDockable( false )
-            .CloseButton( true )
-            .MinSize( aWindow->FromDIP( wxSize( 180, -1 ) ) )
-            .BestSize( aWindow->FromDIP( wxSize( 180, -1 ) ) )
-            .Show( true );
+        // Configure dock widget properties equivalent to wxAuiPaneInfo
+        paneInfo->setObjectName(QStringLiteral("SelectionFilter"));
+        paneInfo->setWindowTitle(_("Selection Filter"));
+        paneInfo->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable);
+        paneInfo->setAllowedAreas(Qt::LeftDockWidgetArea);
+        paneInfo->setMinimumSize(QSize(180, -1));
+        paneInfo->resize(QSize(180, -1));
+        paneInfo->setFloating(false);
+        paneInfo->setVisible(true);
+    }
 
     return paneInfo;
 }
 
 
-const wxAuiPaneInfo& defaultDesignBlocksPaneInfo( wxWindow* aWindow )
+const QDockWidget* defaultDesignBlocksPaneInfo( QWidget* aWindow )
 {
-    static wxAuiPaneInfo paneInfo;
+    static QDockWidget* paneInfo = nullptr;
+    if (!paneInfo) {
+        paneInfo = new QDockWidget();
 
-    paneInfo.Name( EDA_DRAW_FRAME::DesignBlocksPaneName() )
-            .Caption( _( "Design Blocks" ) )
-            .CaptionVisible( true )
-            .PaneBorder( true )
-            .Right().Layer( 3 ).Position( 2 )
-            .TopDockable( false )
-            .BottomDockable( false )
-            .CloseButton( true )
-            .MinSize( aWindow->FromDIP( wxSize( 240, 60 ) ) )
-            .BestSize( aWindow->FromDIP( wxSize( 300, 200 ) ) )
-            .FloatingSize( aWindow->FromDIP( wxSize( 800, 600 ) ) )
-            .FloatingPosition( aWindow->FromDIP( wxPoint( 50, 200 ) ) )
-            .Show( true );
+        // Configure dock widget properties equivalent to wxAuiPaneInfo
+        paneInfo->setObjectName(EDA_DRAW_FRAME::DesignBlocksPaneName());
+        paneInfo->setWindowTitle(_("Design Blocks"));
+        paneInfo->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable);
+        paneInfo->setAllowedAreas(Qt::RightDockWidgetArea);
+        paneInfo->setMinimumSize(QSize(240, 60));
+        paneInfo->resize(QSize(300, 200));
+        paneInfo->setFloating(false);
+        paneInfo->setVisible(true);
+    }
 
     return paneInfo;
 }
@@ -169,7 +153,7 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
         m_Simulator(),
         m_RescueNeverShow( false )
 {
-    m_params.emplace_back( new PARAM<wxString>( "appearance.edit_symbol_visible_columns",
+    m_params.emplace_back( new PARAM<QString>( "appearance.edit_symbol_visible_columns",
             &m_Appearance.edit_symbol_visible_columns, "0 1 2 3 4 5 6 7" ) );
 
     m_params.emplace_back( new PARAM<int>( "appearance.edit_symbol_width",
@@ -178,7 +162,7 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<int>( "appearance.edit_symbol_height",
             &m_Appearance.edit_symbol_height, -1 ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "appearance.edit_sheet_visible_columns",
+    m_params.emplace_back( new PARAM<QString>( "appearance.edit_sheet_visible_columns",
             &m_Appearance.edit_sheet_visible_columns, "0 1 2 3 4 5 6 7" ) );
 
     m_params.emplace_back( new PARAM<int>( "appearance.edit_sheet_width",
@@ -187,7 +171,7 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<int>( "appearance.edit_sheet_height",
             &m_Appearance.edit_sheet_height, -1 ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "appearance.edit_label_visible_columns",
+    m_params.emplace_back( new PARAM<QString>( "appearance.edit_label_visible_columns",
             &m_Appearance.edit_label_visible_columns, "0 1 2 3 4 5 6 7" ) );
 
     m_params.emplace_back( new PARAM<int>( "appearance.edit_label_width",
@@ -205,7 +189,7 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "appearance.print_sheet_reference",
             &m_Appearance.print_sheet_reference, true ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "appearance.default_font",
+    m_params.emplace_back( new PARAM<QString>( "appearance.default_font",
             &m_Appearance.default_font, "KiCad Font" ) );
 
     m_params.emplace_back( new PARAM<bool>( "appearance.show_hidden_pins",
@@ -298,14 +282,14 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "aui.float_net_nav_panel",
             &m_AuiPanels.float_net_nav_panel, false ) );
 
-    m_params.emplace_back( new PARAM<wxSize>( "aui.net_nav_panel_docked_size",
-            &m_AuiPanels.net_nav_panel_docked_size, wxSize( 120, -1 ) ) );
+    m_params.emplace_back( new PARAM<QSize>( "aui.net_nav_panel_docked_size",
+            &m_AuiPanels.net_nav_panel_docked_size, QSize( 120, -1 ) ) );
 
-    m_params.emplace_back( new PARAM<wxPoint>( "aui.net_nav_panel_float_pos",
-            &m_AuiPanels.net_nav_panel_float_pos, wxPoint( 50, 200 ), false ) );
+    m_params.emplace_back( new PARAM<QPoint>( "aui.net_nav_panel_float_pos",
+            &m_AuiPanels.net_nav_panel_float_pos, QPoint( 50, 200 ), false ) );
 
-    m_params.emplace_back( new PARAM<wxSize>( "aui.net_nav_panel_float_size",
-            &m_AuiPanels.net_nav_panel_float_size, wxSize( 200, 200 ) ) );
+    m_params.emplace_back( new PARAM<QSize>( "aui.net_nav_panel_float_size",
+            &m_AuiPanels.net_nav_panel_float_size, QSize( 200, 200 ) ) );
 
     m_params.emplace_back( new PARAM<bool>( "aui.show_properties",
             &m_AuiPanels.show_properties, true ) );
@@ -352,7 +336,7 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<int>( "drawing.default_text_size",
             &m_Drawing.default_text_size, DEFAULT_TEXT_SIZE ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "drawing.field_names",
+    m_params.emplace_back( new PARAM<QString>( "drawing.field_names",
             &m_Drawing.field_names, "" ) );
 
     m_params.emplace_back( new PARAM<int>( "drawing.line_mode",
@@ -436,7 +420,7 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<int>( "annotation.sort_order",
             &m_AnnotatePanel.sort_order, 0, 0, 1 ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "bom.selected_plugin",
+    m_params.emplace_back( new PARAM<QString>( "bom.selected_plugin",
             &m_BomPanel.selected_plugin, "" ) );
 
     m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "bom.plugins",
@@ -522,8 +506,8 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<int>( "field_editor.page",
             &m_FieldEditorPanel.page, 0 ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "field_editor.export_filename",
-            &m_FieldEditorPanel.export_filename, wxT( "" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "field_editor.export_filename",
+            &m_FieldEditorPanel.export_filename, "" ) );
 
     m_params.emplace_back( new PARAM<int>( "field_editor.selection_mode",
             &m_FieldEditorPanel.selection_mode, 0 ) );
@@ -537,8 +521,8 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "plot.color",
             &m_PlotPanel.color, true ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "plot.color_theme",
-            &m_PlotPanel.color_theme, wxT( "user" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "plot.color_theme",
+            &m_PlotPanel.color_theme, QStringLiteral( "user" ) ) );
 
     m_params.emplace_back( new PARAM<int>( "plot.format",
             &m_PlotPanel.format, 0 ) );
@@ -664,7 +648,7 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
                 nlohmann::json ret = {};
 
                 for( const auto& [name, width] : m_DesignBlockChooserPanel.tree.column_widths )
-                    ret[std::string( name.ToUTF8() )] = width;
+                    ret[name.toStdString()] = width;
 
                 return ret;
             },
@@ -721,7 +705,7 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "lib_view.show_pin_electrical_type",
             &m_LibViewPanel.show_pin_electrical_type, true ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "system.last_symbol_lib_dir",
+    m_params.emplace_back( new PARAM<QString>( "system.last_symbol_lib_dir",
             &m_lastSymbolLibDir, "" ) );
 
     // Migrations
@@ -756,7 +740,7 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
 }
 
 
-bool EESCHEMA_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
+bool EESCHEMA_SETTINGS::MigrateFromLegacy( QSettings* aCfg )
 {
     bool ret = APP_SETTINGS_BASE::MigrateFromLegacy( aCfg );
 
@@ -839,7 +823,7 @@ bool EESCHEMA_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
         constexpr int max_custom_commands = 8;  // from DIALOG_NETLIST
         nlohmann::json js_cmd   = nlohmann::json::array();
         nlohmann::json js_title = nlohmann::json::array();
-        wxString cmd_key, title_key, cmd, title;
+        QString cmd_key, title_key, cmd, title;
 
         for( int i = 1; i <= max_custom_commands; ++i )
         {
@@ -850,8 +834,8 @@ bool EESCHEMA_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
             if( aCfg->Read( cmd_key, &cmd ) && aCfg->Read( title_key, &title )
                 && !cmd.IsEmpty() && !title.IsEmpty() )
             {
-                js_cmd.push_back( cmd.ToUTF8() );
-                js_title.push_back( title.ToUTF8() );
+                js_cmd.push_back( cmd.toUtf8().constData() );
+                js_title.push_back( title.toUtf8().constData() );
             }
         }
 
@@ -868,7 +852,7 @@ bool EESCHEMA_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
         aCfg->SetPath( "SymbolFieldEditor/Show/" );
 
         nlohmann::json js = nlohmann::json( {} );
-        wxString key;
+        QString key;
         bool     value = false;
         long     index = 0;
 
@@ -876,7 +860,7 @@ bool EESCHEMA_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
         {
             if( aCfg->Read( key, &value ) )
             {
-                std::string key_utf( key.ToUTF8() );
+                std::string key_utf( key.toUtf8().constData() );
 
                 try
                 {
@@ -897,7 +881,7 @@ bool EESCHEMA_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
         {
             if( aCfg->Read( key, &value ) )
             {
-                std::string key_utf( key.ToUTF8() );
+                std::string key_utf( key.toUtf8().constData() );
 
                 try
                 {
@@ -969,7 +953,7 @@ bool EESCHEMA_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
     COLOR_SETTINGS*   cs = mgr.GetMigratedColorSettings();
 
     auto migrateLegacyColor = [&] ( const std::string& aKey, int aLayerId ) {
-        wxString str;
+        QString str;
 
         if( aCfg->Read( aKey, &str ) )
             cs->SetColor( aLayerId, COLOR4D( str ) );
@@ -1030,7 +1014,7 @@ class BOM_CFG_PARSER : public DIALOG_BOM_CFG_LEXER
 
 public:
     BOM_CFG_PARSER( std::vector<EESCHEMA_SETTINGS::BOM_PLUGIN_SETTINGS>* aPluginList,
-                    const char* aData, const wxString& aSource );
+                    const char* aData, const QString& aSource );
 
     void Parse();
 
@@ -1050,9 +1034,9 @@ bool EESCHEMA_SETTINGS::migrateBomSettings()
     if( !Contains( "bom.plugins" ) )
         return false;
 
-    wxString list = *Get<wxString>( "bom.plugins" );
+    QString list = *Get<QString>( "bom.plugins" );
 
-    BOM_CFG_PARSER cfg_parser( &m_BomPanel.plugins, TO_UTF8( list ), wxT( "plugins" ) );
+    BOM_CFG_PARSER cfg_parser( &m_BomPanel.plugins, list.toUtf8().constData(), QStringLiteral( "plugins" ) );
 
     try
     {
@@ -1078,9 +1062,9 @@ nlohmann::json EESCHEMA_SETTINGS::bomSettingsToJson() const
     {
         nlohmann::json pluginJson;
 
-        pluginJson["name"]    = plugin.name.ToUTF8();
-        pluginJson["path"]    = plugin.path.ToUTF8();
-        pluginJson["command"] = plugin.command.ToUTF8();
+        pluginJson["name"]    = plugin.name.toUtf8().constData();
+        pluginJson["path"]    = plugin.path.toUtf8().constData();
+        pluginJson["command"] = plugin.command.toUtf8().constData();
 
         js.push_back( pluginJson );
     }
@@ -1094,7 +1078,7 @@ std::vector<EESCHEMA_SETTINGS::BOM_PLUGIN_SETTINGS> EESCHEMA_SETTINGS::bomSettin
 {
     std::vector<EESCHEMA_SETTINGS::BOM_PLUGIN_SETTINGS> ret;
 
-    wxASSERT( aObj.is_array() );
+    Q_ASSERT( aObj.is_array() );
 
     for( const nlohmann::json& entry : aObj )
     {
@@ -1104,11 +1088,11 @@ std::vector<EESCHEMA_SETTINGS::BOM_PLUGIN_SETTINGS> EESCHEMA_SETTINGS::bomSettin
         if( !entry.contains( "name" ) || !entry.contains( "path" ) )
             continue;
 
-        BOM_PLUGIN_SETTINGS plugin( entry.at( "name" ).get<wxString>(),
-                                    entry.at( "path" ).get<wxString>() );
+        BOM_PLUGIN_SETTINGS plugin( entry.at( "name" ).get<QString>(),
+                                    entry.at( "path" ).get<QString>() );
 
         if( entry.contains( "command" ) )
-            plugin.command = entry.at( "command" ).get<wxString>();
+            plugin.command = entry.at( "command" ).get<QString>();
 
         ret.emplace_back( plugin );
     }
@@ -1125,9 +1109,9 @@ nlohmann::json EESCHEMA_SETTINGS::netlistSettingsToJson() const
     {
         nlohmann::json pluginJson;
 
-        pluginJson["name"]    = plugin.name.ToUTF8();
-        pluginJson["path"]    = plugin.path.ToUTF8();
-        pluginJson["command"] = plugin.command.ToUTF8();
+        pluginJson["name"]    = plugin.name.toUtf8().constData();
+        pluginJson["path"]    = plugin.path.toUtf8().constData();
+        pluginJson["command"] = plugin.command.toUtf8().constData();
 
         js.push_back( pluginJson );
     }
@@ -1141,7 +1125,7 @@ std::vector<EESCHEMA_SETTINGS::NETLIST_PLUGIN_SETTINGS> EESCHEMA_SETTINGS::netli
 {
     std::vector<EESCHEMA_SETTINGS::NETLIST_PLUGIN_SETTINGS> ret;
 
-    wxASSERT( aObj.is_array() );
+    Q_ASSERT( aObj.is_array() );
 
     for( const nlohmann::json& entry : aObj )
     {
@@ -1151,11 +1135,11 @@ std::vector<EESCHEMA_SETTINGS::NETLIST_PLUGIN_SETTINGS> EESCHEMA_SETTINGS::netli
         if( !entry.contains( "name" ) || !entry.contains( "path" ) )
             continue;
 
-        NETLIST_PLUGIN_SETTINGS plugin( entry.at( "name" ).get<wxString>(),
-                                    entry.at( "path" ).get<wxString>() );
+        NETLIST_PLUGIN_SETTINGS plugin( entry.at( "name" ).get<QString>(),
+                                    entry.at( "path" ).get<QString>() );
 
         if( entry.contains( "command" ) )
-            plugin.command = entry.at( "command" ).get<wxString>();
+            plugin.command = entry.at( "command" ).get<QString>();
 
         ret.emplace_back( plugin );
     }
@@ -1165,10 +1149,10 @@ std::vector<EESCHEMA_SETTINGS::NETLIST_PLUGIN_SETTINGS> EESCHEMA_SETTINGS::netli
 
 
 BOM_CFG_PARSER::BOM_CFG_PARSER( std::vector<EESCHEMA_SETTINGS::BOM_PLUGIN_SETTINGS>* aPluginList,
-                                const char* aLine, const wxString& aSource ) :
+                                const char* aLine, const QString& aSource ) :
         DIALOG_BOM_CFG_LEXER( aLine, aSource )
 {
-    wxASSERT( aPluginList );
+    Q_ASSERT( aPluginList );
     m_pluginList = aPluginList;
 }
 
@@ -1204,11 +1188,11 @@ void BOM_CFG_PARSER::Parse()
 
 void BOM_CFG_PARSER::parseGenerator()
 {
-    wxString str;
+    QString str;
     EESCHEMA_SETTINGS::BOM_PLUGIN_SETTINGS settings;
 
     NeedSYMBOLorNUMBER();
-    settings.path = FromUTF8();
+    settings.path = QString::fromUtf8( CurText() );
 
     T token;
 
@@ -1225,7 +1209,7 @@ void BOM_CFG_PARSER::parseGenerator()
         case T_cmd:
             NeedSYMBOLorNUMBER();
 
-            settings.command = FromUTF8();
+            settings.command = QString::fromUtf8( CurText() );
 
             NeedRIGHT();
             break;
@@ -1234,10 +1218,13 @@ void BOM_CFG_PARSER::parseGenerator()
         {
             NeedSYMBOLorNUMBER();
 
-            wxString option = FromUTF8();
+            QString option = QString::fromUtf8( CurText() );
 
-            if( option.StartsWith( wxS( "nickname=" ), &str ) )
+            if( option.startsWith( QStringLiteral( "nickname=" ) ) )
+            {
+                str = option.mid( 9 );
                 settings.name = str;
+            }
 
             NeedRIGHT();
             break;

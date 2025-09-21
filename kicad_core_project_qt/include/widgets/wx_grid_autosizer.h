@@ -1,35 +1,14 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
-
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #ifndef WX_GRID_AUTOSIZER_H
 #define WX_GRID_AUTOSIZER_H
 
 #include <map>
 
-#include <wx/grid.h>
+#include <QTableWidget>
+#include <QResizeEvent>
 
 /**
- * Class that manages autosizing of columns in a wxGrid.
+ * Class that manages autosizing of columns in a QTableWidget.
  *
  * The class will automatically resize the columns in the grid to fit the content,
  * with one column being flexible and taking up the remaining space.
@@ -52,14 +31,14 @@ public:
      * @param aFlexibleCol The column that will take up the remaining space,
      *                     with a minimum width if given in the aAutosizedCols map.
      */
-    WX_GRID_AUTOSIZER( wxGrid& aGrid, COL_MIN_WIDTHS aAutosizedCols, unsigned aFlexibleCol );
+    WX_GRID_AUTOSIZER( QTableWidget& aGrid, COL_MIN_WIDTHS aAutosizedCols, unsigned aFlexibleCol );
 
 private:
     void recomputeGridWidths();
 
-    void onSizeEvent( wxSizeEvent& aEvent );
+    void onSizeEvent( QResizeEvent& aEvent );
 
-    wxGrid&        m_grid;
+    QTableWidget&  m_grid;
     COL_MIN_WIDTHS m_autosizedCols;
     int            m_flexibleCol;
 

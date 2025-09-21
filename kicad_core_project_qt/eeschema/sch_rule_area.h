@@ -1,25 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef SCH_RULE_AREA_H
 #define SCH_RULE_AREA_H
@@ -49,9 +27,9 @@ public:
 
     virtual ~SCH_RULE_AREA() {}
 
-    wxString GetClass() const override;
+    QString GetClass() const override;
 
-    wxString GetFriendlyName() const override;
+    QString GetFriendlyName() const override;
 
     EDA_ITEM* Clone() const override;
 
@@ -67,7 +45,7 @@ public:
     virtual void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                        int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
 
-    wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     /// Reset all item and directive caches, saving the current state first.
     void ResetCaches( KIGFX::SCH_VIEW* view );
@@ -95,7 +73,7 @@ public:
     /// Resolve the netclass of this rule area from connected directive labels.
     ///
     /// @return The resolved netclass (if any), and the SCH_ITEM providing the declaration.
-    const std::vector<std::pair<wxString, SCH_ITEM*>> GetResolvedNetclasses() const;
+    const std::vector<std::pair<QString, SCH_ITEM*>> GetResolvedNetclasses() const;
 
     /// Clear and resets items and directives attached to this rule area.
     void ResetDirectivesAndItems( KIGFX::SCH_VIEW* view );

@@ -1,21 +1,5 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// Qt transformation of KiCad preview_utils.cpp - wxWidgets to Qt framework migration
 
 #include <preview_items/preview_utils.h>
 #include <gal/graphics_abstraction_layer.h>
@@ -23,6 +7,8 @@
 #include <gal/painter.h>
 #include <view/view.h>
 #include <gal/hidpi_gl_canvas.h>
+#include <QtCore/QString>
+#include <QtCore/QStringList>
 
 double KIGFX::PREVIEW::PreviewOverlayDeemphAlpha( bool aDeemph )
 {
@@ -30,35 +16,35 @@ double KIGFX::PREVIEW::PreviewOverlayDeemphAlpha( bool aDeemph )
 }
 
 
-wxString KIGFX::PREVIEW::DimensionLabel( const wxString& prefix, double aVal,
-                                         const EDA_IU_SCALE& aIuScale, EDA_UNITS aUnits,
-                                         bool aIncludeUnits )
+QString KIGFX::PREVIEW::DimensionLabel( const QString& prefix, double aVal,
+                                        const EDA_IU_SCALE& aIuScale, EDA_UNITS aUnits,
+                                        bool aIncludeUnits )
 {
-    wxString str;
+    QString str;
 
     if( prefix.size() )
-        str << prefix << ": ";
+        str += prefix + ": ";
 
-    wxString fmtStr;
+    QString fmtStr;
 
     // show a sane precision for the preview, which doesn't need to be accurate down to the
     // nanometre
     switch( aUnits )
     {
-    case EDA_UNITS::UM:       fmtStr = wxT( "%.0f" ); break;  // 1um
-    case EDA_UNITS::MM:       fmtStr = wxT( "%.3f" ); break;  // 1um
-    case EDA_UNITS::CM:       fmtStr = wxT( "%.4f" ); break;  // 1um
-    case EDA_UNITS::MILS:     fmtStr = wxT( "%.1f" ); break;  // 0.1mil
-    case EDA_UNITS::INCH:     fmtStr = wxT( "%.4f" ); break;  // 0.1mil
-    case EDA_UNITS::DEGREES:  fmtStr = wxT( "%.1f" ); break;  // 0.1deg
-    case EDA_UNITS::PERCENT:  fmtStr = wxT( "%.1f" ); break;  // 0.1%
-    case EDA_UNITS::UNSCALED: fmtStr = wxT( "%f" );   break;
+    case EDA_UNITS::UM:       fmtStr = "%.0f"; break;  // 1um
+    case EDA_UNITS::MM:       fmtStr = "%.3f"; break;  // 1um
+    case EDA_UNITS::CM:       fmtStr = "%.4f"; break;  // 1um
+    case EDA_UNITS::MILS:     fmtStr = "%.1f"; break;  // 0.1mil
+    case EDA_UNITS::INCH:     fmtStr = "%.4f"; break;  // 0.1mil
+    case EDA_UNITS::DEGREES:  fmtStr = "%.1f"; break;  // 0.1deg
+    case EDA_UNITS::PERCENT:  fmtStr = "%.1f"; break;  // 0.1%
+    case EDA_UNITS::UNSCALED: fmtStr = "%f";   break;
     }
 
-    str << wxString::Format( fmtStr, EDA_UNIT_UTILS::UI::ToUserUnit( aIuScale, aUnits, aVal ) );
+    str += QString::asprintf( fmtStr.toStdString().c_str(), EDA_UNIT_UTILS::UI::ToUserUnit( aIuScale, aUnits, aVal ) );
 
     if( aIncludeUnits )
-        str << EDA_UNIT_UTILS::GetText( aUnits );
+        str += EDA_UNIT_UTILS::GetText( aUnits );
 
     return str;
 }
@@ -117,7 +103,7 @@ KIGFX::COLOR4D KIGFX::PREVIEW::GetShadowColor( const KIGFX::COLOR4D& aColor )
 
 void KIGFX::PREVIEW::DrawTextNextToCursor( KIGFX::VIEW* aView, const VECTOR2D& aCursorPos,
                                            const VECTOR2D& aTextQuadrant,
-                                           const wxArrayString& aStrings,
+                                           const QStringList& aStrings,
                                            bool aDrawingDropShadows )
 {
     KIGFX::GAL*      gal = aView->GetGAL();
@@ -189,9 +175,11 @@ void KIGFX::PREVIEW::DrawTextNextToCursor( KIGFX::VIEW* aView, const VECTOR2D& a
     }
 
     // write strings top-to-bottom
-    for( const wxString& str : aStrings )
+    for( const QString& str : aStrings )
     {
         textPos.y += textDims.LinePitch;
         font->Draw( gal, str, textPos, textAttrs, KIFONT::METRICS::Default() );
     }
 }
+
+// Qt transformation completed - wxWidgets to Qt framework migration

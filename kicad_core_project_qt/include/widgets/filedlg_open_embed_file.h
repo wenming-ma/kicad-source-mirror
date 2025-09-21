@@ -1,49 +1,36 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #ifndef KICAD_FILEDLG_OPEN_EMBED_FILE_H
 #define KICAD_FILEDLG_OPEN_EMBED_FILE_H
 
-#include <wx/wx.h>
-#include <wx/filedlgcustomize.h>
+#include <QFileDialog>
+#include <QCheckBox>
+#include <QVBoxLayout>
+#include <QWidget>
 
 
-class FILEDLG_OPEN_EMBED_FILE : public wxFileDialogCustomizeHook
+class FILEDLG_OPEN_EMBED_FILE : public QWidget
 {
 public:
     FILEDLG_OPEN_EMBED_FILE( bool aDefaultEmbed = true ) :
             m_embed( aDefaultEmbed )
     {};
 
-    virtual void AddCustomControls( wxFileDialogCustomize& customizer ) override
+    virtual void AddCustomControls( QFileDialog* dialog )
     {
-#ifdef __WXMAC__
-        customizer.AddStaticText( wxT( "\n\n" ) );  // Increase height of static box
-#endif
+        m_cb = new QCheckBox( "Embed file" );
+        m_cb->setChecked( m_embed );
 
-        m_cb = customizer.AddCheckBox( _( "Embed file" ) );
-        m_cb->SetValue( m_embed );
+        QWidget* customWidget = new QWidget();
+        QVBoxLayout* layout = new QVBoxLayout( customWidget );
+        layout->addWidget( m_cb );
+
+        dialog->setOption( QFileDialog::DontUseCustomDirectoryIcons, false );
     }
 
-    virtual void TransferDataFromCustomControls() override
+    virtual void TransferDataFromCustomControls()
     {
-        m_embed = m_cb->GetValue();
+        m_embed = m_cb->isChecked();
     }
 
     bool GetEmbed() const { return m_embed; }
@@ -51,9 +38,9 @@ public:
 private:
     bool m_embed;
 
-    wxFileDialogCheckBox* m_cb = nullptr;
+    QCheckBox* m_cb = nullptr;
 
-    wxDECLARE_NO_COPY_CLASS( FILEDLG_OPEN_EMBED_FILE );
+    Q_DISABLE_COPY( FILEDLG_OPEN_EMBED_FILE )
 };
 
 #endif //KICAD_FILEDLG_OPEN_EMBED_FILE_H

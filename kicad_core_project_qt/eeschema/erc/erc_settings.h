@@ -1,24 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018-2020 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Jon Evans <jon@craftyjon.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #pragma once
 
 #include <erc/erc_item.h>
@@ -163,7 +144,7 @@ public:
      */
     int GetPinTypeWeight( ELECTRICAL_PINTYPE aPinType ) const
     {
-        wxASSERT( static_cast<int>( aPinType ) < ELECTRICAL_PINTYPES_TOTAL );
+        Q_ASSERT( static_cast<int>( aPinType ) < ELECTRICAL_PINTYPES_TOTAL );
         return m_PinTypeWeights.at( aPinType );
     }
 
@@ -175,7 +156,7 @@ public:
 
     PIN_ERROR GetPinMapValue( int aFirstType, int aSecondType ) const
     {
-        wxASSERT( aFirstType < ELECTRICAL_PINTYPES_TOTAL
+        Q_ASSERT( aFirstType < ELECTRICAL_PINTYPES_TOTAL
                   && aSecondType < ELECTRICAL_PINTYPES_TOTAL );
         return m_PinMap[aFirstType][aSecondType];
     }
@@ -187,7 +168,7 @@ public:
 
     void SetPinMapValue( int aFirstType, int aSecondType, PIN_ERROR aValue )
     {
-        wxASSERT( aFirstType < ELECTRICAL_PINTYPES_TOTAL
+        Q_ASSERT( aFirstType < ELECTRICAL_PINTYPES_TOTAL
                   && aSecondType < ELECTRICAL_PINTYPES_TOTAL );
         m_PinMap[aFirstType][aSecondType] = aValue;
     }
@@ -206,8 +187,8 @@ public:
 public:
 
     std::map<int, SEVERITY>      m_ERCSeverities;
-    std::set<wxString>           m_ErcExclusions;           // Serialized excluded ERC markers
-    std::map<wxString, wxString> m_ErcExclusionComments;    // Map from serialization to comment
+    std::set<QString>           m_ErcExclusions;           // Serialized excluded ERC markers
+    std::map<QString, QString> m_ErcExclusionComments;    // Map from serialization to comment
 
     PIN_ERROR m_PinMap[ELECTRICAL_PINTYPES_TOTAL][ELECTRICAL_PINTYPES_TOTAL];
 

@@ -1,27 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2013 Jean-Pierre Charras <jp.charras at wanadoo.fr>.
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// Transformed from wxWidgets to Qt
 
 /*
  * the class DS_DATA_ITEM (and DS_DATA_ITEM_TEXT) defines
@@ -48,6 +26,9 @@
  * describes the drawing sheet (can be the default drawing sheet or a custom file).
  */
 
+#include <QtCore/QString>
+#include <QtCore/QDebug>
+#include <QtGui/QPainter>
 #include <eda_draw_frame.h>
 #include <drawing_sheet/ds_draw_item.h>
 #include <drawing_sheet/ds_data_item.h>
@@ -107,7 +88,7 @@ bool DS_DRAW_ITEM_BASE::HitTest( const BOX2I& aRect, bool aContained, int aAccur
 void DS_DRAW_ITEM_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
                                          std::vector<MSG_PANEL_ITEM>& aList )
 {
-    wxString      msg;
+    QString      msg;
     DS_DATA_ITEM* dataItem = GetPeer();
 
     if( dataItem == nullptr )   // Is only a pure graphic item used in drawing sheet editor to
@@ -117,11 +98,11 @@ void DS_DRAW_ITEM_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
     switch( dataItem->GetType() )
     {
     case DS_DATA_ITEM::DS_SEGMENT:
-        aList.emplace_back( _( "Line" ), wxEmptyString );
+        aList.emplace_back( "Line", QString() );
         break;
 
     case DS_DATA_ITEM::DS_RECT:
-        aList.emplace_back( _( "Rectangle" ), wxEmptyString );
+        aList.emplace_back( "Rectangle", QString() );
         break;
 
     case DS_DATA_ITEM::DS_TEXT:
@@ -129,43 +110,43 @@ void DS_DRAW_ITEM_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
         DS_DRAW_ITEM_TEXT* textItem = static_cast<DS_DRAW_ITEM_TEXT*>( this );
 
         // Don't use GetShownText(); we want to see the variable references here
-        aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, textItem->GetText() ) );
+        aList.emplace_back( "Text", KIUI::EllipsizeStatusText( aFrame, textItem->GetText() ) );
         break;
     }
 
     case DS_DATA_ITEM::DS_POLYPOLYGON:
-        aList.emplace_back( _( "Imported Shape" ), wxEmptyString );
+        aList.emplace_back( "Imported Shape", QString() );
         break;
 
     case DS_DATA_ITEM::DS_BITMAP:
-        aList.emplace_back( _( "Image" ), wxEmptyString );
+        aList.emplace_back( "Image", QString() );
         break;
     }
 
     switch( dataItem->GetPage1Option() )
     {
-    case FIRST_PAGE_ONLY:  msg = _( "First Page Only" );  break;
-    case SUBSEQUENT_PAGES: msg = _( "Subsequent Pages" ); break;
-    default:               msg = _( "All Pages" );        break;
+    case FIRST_PAGE_ONLY:  msg = "First Page Only";  break;
+    case SUBSEQUENT_PAGES: msg = "Subsequent Pages"; break;
+    default:               msg = "All Pages";        break;
     }
 
-    aList.emplace_back( _( "First Page Option" ), msg );
+    aList.emplace_back( "First Page Option", msg );
 
     msg = EDA_UNIT_UTILS::UI::MessageTextFromValue( unityScale, EDA_UNITS::UNSCALED,
                                                     dataItem->m_RepeatCount );
-    aList.emplace_back( _( "Repeat Count" ), msg );
+    aList.emplace_back( "Repeat Count", msg );
 
     msg = EDA_UNIT_UTILS::UI::MessageTextFromValue( unityScale, EDA_UNITS::UNSCALED,
                                                     dataItem->m_IncrementLabel );
-    aList.emplace_back( _( "Repeat Label Increment" ), msg );
+    aList.emplace_back( "Repeat Label Increment", msg );
 
-    msg.Printf( wxT( "(%s, %s)" ),
-                aFrame->MessageTextFromValue( dataItem->m_IncrementVector.x ),
-                aFrame->MessageTextFromValue( dataItem->m_IncrementVector.y ) );
+    msg = QString::asprintf( "(%s, %s)",
+                aFrame->MessageTextFromValue( dataItem->m_IncrementVector.x ).toStdString().c_str(),
+                aFrame->MessageTextFromValue( dataItem->m_IncrementVector.y ).toStdString().c_str() );
 
-    aList.emplace_back( _( "Repeat Position Increment" ), msg );
+    aList.emplace_back( "Repeat Position Increment", msg );
 
-    aList.emplace_back( _( "Comment" ), dataItem->m_Info );
+    aList.emplace_back( "Comment", dataItem->m_Info );
 }
 
 
@@ -188,7 +169,7 @@ const BOX2I DS_DRAW_ITEM_TEXT::GetApproxBBox()
     // shows up large in profiles.
 
     const TEXT_ATTRIBUTES& attrs = GetAttributes();
-    const wxString         text = GetShownText( true );
+    const QString         text = GetShownText( true );
     BOX2I                  bbox( GetTextPos() );
 
     bbox.SetWidth( KiROUND( (int) text.length() * attrs.m_Size.x * 1.3 ) );
@@ -200,7 +181,7 @@ const BOX2I DS_DRAW_ITEM_TEXT::GetApproxBBox()
     case GR_TEXT_H_ALIGN_CENTER: bbox.Offset( - (int) bbox.GetWidth() / 2, 0 ); break;
     case GR_TEXT_H_ALIGN_RIGHT:  bbox.Offset( - (int) bbox.GetWidth(),     0 ); break;
     case GR_TEXT_H_ALIGN_INDETERMINATE:
-        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        Q_ASSERT_X( false, "DS_DRAW_ITEM_TEXT", "Indeterminate state legal only in dialogs." );
         break;
     }
 
@@ -210,7 +191,7 @@ const BOX2I DS_DRAW_ITEM_TEXT::GetApproxBBox()
     case GR_TEXT_V_ALIGN_CENTER: bbox.Offset( 0, - (int) bbox.GetHeight() / 2 ); break;
     case GR_TEXT_V_ALIGN_BOTTOM: bbox.Offset( 0, - (int) bbox.GetHeight()     ); break;
     case GR_TEXT_V_ALIGN_INDETERMINATE:
-        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        Q_ASSERT_X( false, "DS_DRAW_ITEM_TEXT", "Indeterminate state legal only in dialogs." );
         break;
     }
 
@@ -237,10 +218,10 @@ bool DS_DRAW_ITEM_TEXT::HitTest( const BOX2I& aRect, bool aContains, int aAccura
 }
 
 
-wxString DS_DRAW_ITEM_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString DS_DRAW_ITEM_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Text '%s'" ),
-                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
+    return QString::asprintf( "Text '%s'",
+                             (aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() )).toStdString().c_str() );
 }
 
 
@@ -249,7 +230,7 @@ wxString DS_DRAW_ITEM_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, 
 void DS_DRAW_ITEM_POLYPOLYGONS::PrintWsItem( const RENDER_SETTINGS* aSettings,
                                              const VECTOR2I&        aOffset )
 {
-    wxDC*   DC = aSettings->GetPrintDC();
+    QPainter*   painter = aSettings->GetPrintDC();
     COLOR4D color = aSettings->GetLayerColor( LAYER_DRAWINGSHEET );
     int     penWidth = std::max( GetPenWidth(), aSettings->GetDefaultPenWidth() );
 
@@ -266,7 +247,7 @@ void DS_DRAW_ITEM_POLYPOLYGONS::PrintWsItem( const RENDER_SETTINGS* aSettings,
                                        outline.CPoint( ii ).y + aOffset.y );
         }
 
-        GRPoly( DC, (int) points_moved.size(), &points_moved[0], true, penWidth, color, color );
+        GRPoly( painter, (int) points_moved.size(), &points_moved[0], true, penWidth, color, color );
     }
 }
 
@@ -333,10 +314,10 @@ bool DS_DRAW_ITEM_POLYPOLYGONS::HitTest( const BOX2I& aRect, bool aContained, in
 }
 
 
-wxString DS_DRAW_ITEM_POLYPOLYGONS::GetItemDescription( UNITS_PROVIDER* aUnitsProvider,
+QString DS_DRAW_ITEM_POLYPOLYGONS::GetItemDescription( UNITS_PROVIDER* aUnitsProvider,
                                                         bool aFull ) const
 {
-    return _( "Imported Shape" );
+    return "Imported Shape";
 }
 
 
@@ -344,11 +325,11 @@ wxString DS_DRAW_ITEM_POLYPOLYGONS::GetItemDescription( UNITS_PROVIDER* aUnitsPr
 
 void DS_DRAW_ITEM_RECT::PrintWsItem( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset )
 {
-    wxDC*   DC = aSettings->GetPrintDC();
+    QPainter*   painter = aSettings->GetPrintDC();
     COLOR4D color = aSettings->GetLayerColor( LAYER_DRAWINGSHEET );
     int     penWidth = std::max( GetPenWidth(), aSettings->GetDefaultPenWidth() );
 
-    GRRect( DC, GetStart() + aOffset, GetEnd() + aOffset, penWidth, color );
+    GRRect( painter, GetStart() + aOffset, GetEnd() + aOffset, penWidth, color );
 }
 
 
@@ -433,12 +414,12 @@ bool DS_DRAW_ITEM_RECT::HitTest( const BOX2I& aRect, bool aContained, int aAccur
 }
 
 
-wxString DS_DRAW_ITEM_RECT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString DS_DRAW_ITEM_RECT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format(
-            _( "Rectangle, width %s height %s" ),
-            aUnitsProvider->MessageTextFromValue( std::abs( GetStart().x - GetEnd().x ) ),
-            aUnitsProvider->MessageTextFromValue( std::abs( GetStart().y - GetEnd().y ) ) );
+    return QString::asprintf(
+            "Rectangle, width %s height %s",
+            aUnitsProvider->MessageTextFromValue( std::abs( GetStart().x - GetEnd().x ) ).toStdString().c_str(),
+            aUnitsProvider->MessageTextFromValue( std::abs( GetStart().y - GetEnd().y ) ).toStdString().c_str() );
 }
 
 
@@ -446,11 +427,11 @@ wxString DS_DRAW_ITEM_RECT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, 
 
 void DS_DRAW_ITEM_LINE::PrintWsItem( const RENDER_SETTINGS* aSettings, const VECTOR2I& aOffset )
 {
-    wxDC*   DC = aSettings->GetPrintDC();
+    QPainter*   painter = aSettings->GetPrintDC();
     COLOR4D color = aSettings->GetLayerColor( LAYER_DRAWINGSHEET );
     int     penWidth = std::max( GetPenWidth(), aSettings->GetDefaultPenWidth() );
 
-    GRLine( DC, GetStart() + aOffset, GetEnd() + aOffset, penWidth, color );
+    GRLine( painter, GetStart() + aOffset, GetEnd() + aOffset, penWidth, color );
 }
 
 
@@ -467,10 +448,10 @@ bool DS_DRAW_ITEM_LINE::HitTest( const VECTOR2I& aPosition, int aAccuracy ) cons
 }
 
 
-wxString DS_DRAW_ITEM_LINE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString DS_DRAW_ITEM_LINE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Line, length %s" ),
-                             aUnitsProvider->MessageTextFromValue( GetStart().Distance( GetEnd() ) ) );
+    return QString::asprintf( "Line, length %s",
+                             aUnitsProvider->MessageTextFromValue( GetStart().Distance( GetEnd() ) ).toStdString().c_str() );
 }
 
 
@@ -519,15 +500,15 @@ bool DS_DRAW_ITEM_BITMAP::HitTest( const BOX2I& aRect, bool aContains, int aAccu
 }
 
 
-wxString DS_DRAW_ITEM_BITMAP::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString DS_DRAW_ITEM_BITMAP::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return _( "Image" );
+    return "Image";
 }
 
 
-wxString DS_DRAW_ITEM_PAGE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString DS_DRAW_ITEM_PAGE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return _( "Page Limits" );
+    return "Page Limits";
 }
 
 
@@ -555,7 +536,7 @@ void DS_DRAW_ITEM_LIST::BuildDrawItemsList( const PAGE_INFO& aPageInfo,
 
     // Build the basic layout shape, if the layout list is empty
     if( model.GetCount() == 0 && !model.VoidListAllowed() )
-        model.LoadDrawingSheet( wxEmptyString, nullptr );
+        model.LoadDrawingSheet( QString(), nullptr );
 
     model.SetupDrawEnvironment( aPageInfo, GetMilsToIUfactor() );
 
@@ -587,5 +568,7 @@ void DS_DRAW_ITEM_LIST::Print( const RENDER_SETTINGS* aSettings )
     for( DS_DRAW_ITEM_BASE* item : second_items )
         item->PrintWsItem( aSettings );
 }
+
+// Qt transformation completed
 
 

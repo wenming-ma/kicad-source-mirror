@@ -1,25 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef __GERBVIEW_PAINTER_H
 #define __GERBVIEW_PAINTER_H
+
+#include <QString>
 
 #include <layer_ids.h>
 #include <gal/painter.h>
@@ -100,13 +83,13 @@ public:
     void ClearHighlightSelections();
 
     /// If set to anything but an empty string, will highlight items with matching component
-    wxString m_componentHighlightString;
+    QString m_componentHighlightString;
 
     /// If set to anything but an empty string, will highlight items with matching net
-    wxString m_netHighlightString;
+    QString m_netHighlightString;
 
     /// If set to anything but an empty string, will highlight items with matching attribute
-    wxString m_attributeHighlightString;
+    QString m_attributeHighlightString;
 
     /// If set to anything but >0 (in fact 10 the min dcode value),
     /// will highlight items with matching dcode

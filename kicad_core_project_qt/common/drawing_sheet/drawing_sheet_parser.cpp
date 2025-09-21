@@ -1,33 +1,13 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 1992-2013 Jean-Pierre Charras <jp.charras at wanadoo.fr>.
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <charconv>
+#include <cstring>
 #include <fmt/format.h>
-#include <wx/base64.h>
-#include <wx/ffile.h>
-#include <wx/log.h>
+#include <QByteArray>
+#include <QFile>
+#include <QFileInfo>
+#include <QIODevice>
+#include <QString>
+#include <QDebug>
 
 #include <eda_item.h>
 #include <locale_io.h>
@@ -47,7 +27,7 @@ using namespace DRAWINGSHEET_T;
 class DRAWING_SHEET_PARSER : public DRAWING_SHEET_LEXER
 {
 public:
-    DRAWING_SHEET_PARSER( const char* aLine, const wxString& aSource );
+    DRAWING_SHEET_PARSER( const char* aLine, const QString& aSource );
     void Parse( DS_DATA_MODEL* aLayout );
 
 private:
@@ -113,21 +93,21 @@ private:
 
 private:
     int      m_requiredVersion;
-    wxString m_generatorVersion;
+    QString m_generatorVersion;
 };
 
 
 DRAWING_SHEET_PARSER::DRAWING_SHEET_PARSER( const char* aLine,
-                                            const wxString& aSource ) :
+                                            const QString& aSource ) :
         DRAWING_SHEET_LEXER( aLine, aSource ),
         m_requiredVersion( 0 )
 {
 }
 
 
-wxString convertLegacyVariableRefs( const wxString& aTextbase )
+QString convertLegacyVariableRefs( const QString& aTextbase )
 {
-    wxString msg;
+    QString msg;
 
     /*
      * Legacy formats
@@ -146,7 +126,7 @@ wxString convertLegacyVariableRefs( const wxString& aTextbase )
      * %T = title
      */
 
-    for( unsigned ii = 0; ii < aTextbase.Len(); ii++ )
+    for( unsigned ii = 0; ii < aTextbase.length(); ii++ )
     {
         if( aTextbase[ii] != '%' )
         {
@@ -154,39 +134,39 @@ wxString convertLegacyVariableRefs( const wxString& aTextbase )
             continue;
         }
 
-        if( ++ii >= aTextbase.Len() )
+        if( ++ii >= aTextbase.length() )
             break;
 
-        wxChar format = aTextbase[ii];
+        QChar format = aTextbase[ii];
 
         switch( format )
         {
-            case '%': msg += '%';                       break;
-            case 'D': msg += wxT( "${ISSUE_DATE}" );    break;
-            case 'R': msg += wxT( "${REVISION}" );      break;
-            case 'K': msg += wxT( "${KICAD_VERSION}" ); break;
-            case 'Z': msg += wxT( "${PAPER}" );         break;
-            case 'S': msg += wxT( "${#}" );             break;
-            case 'N': msg += wxT( "${##}" );            break;
-            case 'F': msg += wxT( "${FILENAME}" );      break;
-            case 'L': msg += wxT( "${LAYER}" );         break;
-            case 'P': msg += wxT( "${SHEETPATH}" );     break;
-            case 'Y': msg += wxT( "${COMPANY}" );       break;
-            case 'T': msg += wxT( "${TITLE}" );         break;
+            case '%': msg += '%';                        break;
+            case 'D': msg += "${ISSUE_DATE}";           break;
+            case 'R': msg += "${REVISION}";             break;
+            case 'K': msg += "${KICAD_VERSION}";        break;
+            case 'Z': msg += "${PAPER}";                break;
+            case 'S': msg += "${#}";                    break;
+            case 'N': msg += "${##}";                   break;
+            case 'F': msg += "${FILENAME}";             break;
+            case 'L': msg += "${LAYER}";                break;
+            case 'P': msg += "${SHEETPATH}";            break;
+            case 'Y': msg += "${COMPANY}";              break;
+            case 'T': msg += "${TITLE}";                break;
             case 'C':
                 format = aTextbase[++ii];
 
                 switch( format )
                 {
-                case '0': msg += wxT( "${COMMENT1}" );  break;
-                case '1': msg += wxT( "${COMMENT2}" );  break;
-                case '2': msg += wxT( "${COMMENT3}" );  break;
-                case '3': msg += wxT( "${COMMENT4}" );  break;
-                case '4': msg += wxT( "${COMMENT5}" );  break;
-                case '5': msg += wxT( "${COMMENT6}" );  break;
-                case '6': msg += wxT( "${COMMENT7}" );  break;
-                case '7': msg += wxT( "${COMMENT8}" );  break;
-                case '8': msg += wxT( "${COMMENT9}" );  break;
+                case '0': msg += "${COMMENT1}";   break;
+                case '1': msg += "${COMMENT2}";   break;
+                case '2': msg += "${COMMENT3}";   break;
+                case '3': msg += "${COMMENT4}";   break;
+                case '4': msg += "${COMMENT5}";   break;
+                case '5': msg += "${COMMENT6}";   break;
+                case '6': msg += "${COMMENT7}";   break;
+                case '7': msg += "${COMMENT8}";   break;
+                case '8': msg += "${COMMENT9}";   break;
                 }
                 break;
 
@@ -538,10 +518,10 @@ void DRAWING_SHEET_PARSER::parseBitmap( DS_DATA_ITEM_BITMAP * aItem )
         {
             token = NextTok();
 
-            wxString data;
+            QString data;
 
             // Reserve 512K because most image files are going to be larger than the default
-            // 1K that wxString reserves.
+            // 1K that QString reserves.
             data.reserve( 1 << 19 );
 
             while( token != T_RIGHT )
@@ -553,7 +533,7 @@ void DRAWING_SHEET_PARSER::parseBitmap( DS_DATA_ITEM_BITMAP * aItem )
                 token = NextTok();
             }
 
-            wxMemoryBuffer buffer = wxBase64Decode( data );
+            QByteArray buffer = QByteArray::fromBase64( data.toUtf8() );
 
             if( !aItem->m_ImageBitmap->ReadImageFile( buffer ) )
                 THROW_IO_ERROR( _( "Failed to read image data." ) );
@@ -603,8 +583,8 @@ void DRAWING_SHEET_PARSER::readPngdata( DS_DATA_ITEM_BITMAP * aItem )
 
     tmp += "EndData";
 
-    wxString msg;
-    STRING_LINE_READER str_reader( tmp, wxT("Png kicad_wks data") );
+    QString msg;
+    STRING_LINE_READER str_reader( tmp, "Png kicad_wks data" );
 
     aItem->m_ImageBitmap->LoadLegacyData( str_reader, msg );
 }
@@ -760,7 +740,7 @@ void DRAWING_SHEET_PARSER::parseText( DS_DATA_ITEM_TEXT* aItem )
 
         case T_font:
         {
-            wxString faceName;
+            QString faceName;
 
             aItem->m_TextColor = COLOR4D::UNSPECIFIED;
 
@@ -810,7 +790,7 @@ void DRAWING_SHEET_PARSER::parseText( DS_DATA_ITEM_TEXT* aItem )
                 }
             }
 
-            if( !faceName.IsEmpty() )
+            if( !faceName.isEmpty() )
                 aItem->m_Font = KIFONT::FONT::GetFont( faceName, aItem->m_Bold, aItem->m_Italic );
 
             break;
@@ -923,13 +903,13 @@ extern const char defaultDrawingSheet[];
 
 void DS_DATA_MODEL::SetDefaultLayout()
 {
-    SetPageLayout( defaultDrawingSheet, false, wxT( "default page" ) );
+    SetPageLayout( defaultDrawingSheet, false, "default page" );
 }
 
 
-wxString DS_DATA_MODEL::DefaultLayout()
+QString DS_DATA_MODEL::DefaultLayout()
 {
-    return wxString( defaultDrawingSheet );
+    return QString( defaultDrawingSheet );
 }
 
 
@@ -940,22 +920,22 @@ extern const char emptyDrawingSheet[];
 
 void DS_DATA_MODEL::SetEmptyLayout()
 {
-    SetPageLayout( emptyDrawingSheet, false, wxT( "empty page" ) );
+    SetPageLayout( emptyDrawingSheet, false, "empty page" );
 }
 
 
-wxString DS_DATA_MODEL::EmptyLayout()
+QString DS_DATA_MODEL::EmptyLayout()
 {
-    return wxString( emptyDrawingSheet );
+    return QString( emptyDrawingSheet );
 }
 
 
-void DS_DATA_MODEL::SetPageLayout( const char* aPageLayout, bool Append, const wxString& aSource )
+void DS_DATA_MODEL::SetPageLayout( const char* aPageLayout, bool Append, const QString& aSource )
 {
     if( ! Append )
         ClearList();
 
-    DRAWING_SHEET_PARSER parser( aPageLayout, wxT( "Sexpr_string" ) );
+    DRAWING_SHEET_PARSER parser( aPageLayout, "Sexpr_string" );
 
     try
     {
@@ -968,17 +948,17 @@ void DS_DATA_MODEL::SetPageLayout( const char* aPageLayout, bool Append, const w
 }
 
 
-bool DS_DATA_MODEL::LoadDrawingSheet( const wxString& aFullFileName, wxString* aMsg, bool aAppend )
+bool DS_DATA_MODEL::LoadDrawingSheet( const QString& aFullFileName, QString* aMsg, bool aAppend )
 {
     if( !aAppend )
     {
-        if( aFullFileName.IsEmpty() )
+        if( aFullFileName.isEmpty() )
         {
             SetDefaultLayout();
             return true; // we assume its fine / default init
         }
 
-        if( !wxFileExists( aFullFileName ) )
+        if( !QFileInfo::exists( aFullFileName ) )
         {
             if( aMsg )
                 *aMsg = _( "File not found." );
@@ -988,9 +968,9 @@ bool DS_DATA_MODEL::LoadDrawingSheet( const wxString& aFullFileName, wxString* a
         }
     }
 
-    wxFFile wksFile( aFullFileName, wxS( "rb" ) );
+    QFile wksFile( aFullFileName );
 
-    if( ! wksFile.IsOpened() )
+    if( !wksFile.open( QIODevice::ReadOnly ) )
     {
         if( aMsg )
             *aMsg = _( "File could not be opened." );
@@ -1001,10 +981,13 @@ bool DS_DATA_MODEL::LoadDrawingSheet( const wxString& aFullFileName, wxString* a
         return false;
     }
 
-    size_t filelen = wksFile.Length();
+    QByteArray fileData = wksFile.readAll();
+    size_t filelen = fileData.size();
     std::unique_ptr<char[]> buffer = std::make_unique<char[]>(filelen+10);
 
-    if( wksFile.Read( buffer.get(), filelen ) != filelen )
+    std::memcpy( buffer.get(), fileData.constData(), filelen );
+
+    if( fileData.size() != filelen )
     {
         if( aMsg )
             *aMsg = _( "Drawing sheet was not fully read." );

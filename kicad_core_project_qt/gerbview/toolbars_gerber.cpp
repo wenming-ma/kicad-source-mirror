@@ -1,26 +1,8 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2013 Wayne Stambaugh <stambaughw@gmail.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
-#include <wx/wupdlock.h>
-#include <wx/stattext.h>
+#include <QWidget>
+#include <QLabel>
+#include <QComboBox>
+#include <QLineEdit>
 
 #include <gerbview.h>
 #include <gerbview_frame.h>
@@ -51,9 +33,8 @@ void GERBVIEW_FRAME::ReCreateHToolbar()
     }
     else
     {
-        m_mainToolBar = new ACTION_TOOLBAR( this, ID_H_TOOLBAR, wxDefaultPosition, wxDefaultSize,
-                                            KICAD_AUI_TB_STYLE | wxAUI_TB_HORZ_LAYOUT |
-                                            wxAUI_TB_HORIZONTAL );
+        m_mainToolBar = new ACTION_TOOLBAR( this, ID_H_TOOLBAR, QPoint(), QSize(),
+                                            KICAD_AUI_TB_STYLE | Qt::Horizontal );
         m_mainToolBar->SetAuiManager( &m_auimgr );
     }
 
@@ -81,7 +62,7 @@ void GERBVIEW_FRAME::ReCreateHToolbar()
     {
         m_SelLayerBox = new GBR_LAYER_BOX_SELECTOR( m_mainToolBar,
                                                     ID_TOOLBARH_GERBVIEW_SELECT_ACTIVE_LAYER,
-                                                    wxDefaultPosition, wxDefaultSize, 0, nullptr );
+                                                    QPoint(), QSize(), 0, nullptr );
     }
 
     m_SelLayerBox->Resync();
@@ -89,8 +70,8 @@ void GERBVIEW_FRAME::ReCreateHToolbar()
 
     if( !m_TextInfo )
     {
-        m_TextInfo = new wxTextCtrl( m_mainToolBar, ID_TOOLBARH_GERBER_DATA_TEXT_BOX, wxEmptyString,
-                                     wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+        m_TextInfo = new QLineEdit( m_mainToolBar );
+        m_TextInfo->setReadOnly( true );
     }
 
     m_mainToolBar->AddControl( m_TextInfo );
@@ -105,7 +86,7 @@ void GERBVIEW_FRAME::ReCreateHToolbar()
 
 void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
 {
-    wxWindowUpdateLocker dummy( this );
+    setUpdatesEnabled( false );
 
     if( m_auxiliaryToolBar )
     {
@@ -113,9 +94,9 @@ void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
     }
     else
     {
-        m_auxiliaryToolBar = new ACTION_TOOLBAR( this, ID_AUX_TOOLBAR, wxDefaultPosition,
-                                                 wxDefaultSize,
-                                                 KICAD_AUI_TB_STYLE | wxAUI_TB_HORZ_LAYOUT );
+        m_auxiliaryToolBar = new ACTION_TOOLBAR( this, ID_AUX_TOOLBAR, QPoint(),
+                                                 QSize(),
+                                                 KICAD_AUI_TB_STYLE | Qt::Horizontal );
         m_auxiliaryToolBar->SetAuiManager( &m_auimgr );
     }
 
@@ -123,26 +104,26 @@ void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
     // (note, when the m_auxiliaryToolBar is recreated, tools are deleted, but controls
     // are not deleted: they are just no longer managed by the toolbar
     if( !m_SelComponentBox )
-        m_SelComponentBox = new wxChoice( m_auxiliaryToolBar, ID_GBR_AUX_TOOLBAR_PCB_CMP_CHOICE );
+        m_SelComponentBox = new QComboBox( m_auxiliaryToolBar );
 
     if( !m_cmpText )
-        m_cmpText = new wxStaticText( m_auxiliaryToolBar, wxID_ANY, _( "Cmp:" ) + wxS( " " ) );
+        m_cmpText = new QLabel( "Cmp: ", m_auxiliaryToolBar );
 
-    m_SelComponentBox->SetToolTip( _("Highlight items belonging to this component") );
-    m_cmpText->SetLabel( _( "Cmp:" ) + wxS( " " ) );     // can change when changing the language
+    m_SelComponentBox->setToolTip( "Highlight items belonging to this component" );
+    m_cmpText->setText( "Cmp: " );     // can change when changing the language
     m_auxiliaryToolBar->AddControl( m_cmpText );
     m_auxiliaryToolBar->AddControl( m_SelComponentBox );
     m_auxiliaryToolBar->AddSpacer( 5 );
 
     // Creates choice box to display net names and highlight selected:
     if( !m_SelNetnameBox )
-        m_SelNetnameBox = new wxChoice( m_auxiliaryToolBar, ID_GBR_AUX_TOOLBAR_PCB_NET_CHOICE );
+        m_SelNetnameBox = new QComboBox( m_auxiliaryToolBar );
 
     if( !m_netText )
-        m_netText = new wxStaticText( m_auxiliaryToolBar, wxID_ANY, _( "Net:" ) );
+        m_netText = new QLabel( "Net:", m_auxiliaryToolBar );
 
-    m_SelNetnameBox->SetToolTip( _("Highlight items belonging to this net") );
-    m_netText->SetLabel( _( "Net:" ) );     // can change when changing the language
+    m_SelNetnameBox->setToolTip( "Highlight items belonging to this net" );
+    m_netText->setText( "Net:" );     // can change when changing the language
     m_auxiliaryToolBar->AddControl( m_netText );
     m_auxiliaryToolBar->AddControl( m_SelNetnameBox );
     m_auxiliaryToolBar->AddSpacer( 5 );
@@ -150,15 +131,14 @@ void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
     // Creates choice box to display aperture attributes and highlight selected:
     if( !m_SelAperAttributesBox )
     {
-        m_SelAperAttributesBox = new wxChoice( m_auxiliaryToolBar,
-                                               ID_GBR_AUX_TOOLBAR_PCB_APERATTRIBUTES_CHOICE );
+        m_SelAperAttributesBox = new QComboBox( m_auxiliaryToolBar );
     }
 
     if( !m_apertText )
-        m_apertText = new wxStaticText( m_auxiliaryToolBar, wxID_ANY, _( "Attr:" ) );
+        m_apertText = new QLabel( "Attr:", m_auxiliaryToolBar );
 
-    m_SelAperAttributesBox->SetToolTip( _( "Highlight items with this aperture attribute" ) );
-    m_apertText->SetLabel( _( "Attr:" ) ); // can change when changing the language
+    m_SelAperAttributesBox->setToolTip( "Highlight items with this aperture attribute" );
+    m_apertText->setText( "Attr:" ); // can change when changing the language
     m_auxiliaryToolBar->AddControl( m_apertText );
     m_auxiliaryToolBar->AddControl( m_SelAperAttributesBox );
     m_auxiliaryToolBar->AddSpacer( 5 );
@@ -167,20 +147,19 @@ void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
     {
         m_DCodeSelector = new DCODE_SELECTION_BOX( m_auxiliaryToolBar,
                                                    ID_TOOLBARH_GERBER_SELECT_ACTIVE_DCODE,
-                                                   wxDefaultPosition, wxSize( 150, -1 ) );
+                                                   QPoint(), QSize( 150, -1 ) );
     }
 
     if( !m_dcodeText )
-        m_dcodeText = new wxStaticText( m_auxiliaryToolBar, wxID_ANY, _( "DCode:" ) );
+        m_dcodeText = new QLabel( "DCode:", m_auxiliaryToolBar );
 
-    m_dcodeText->SetLabel( _( "DCode:" ) );
+    m_dcodeText->setText( "DCode:" );
     m_auxiliaryToolBar->AddControl( m_dcodeText );
     m_auxiliaryToolBar->AddControl( m_DCodeSelector );
 
     if( !m_gridSelectBox )
     {
-        m_gridSelectBox = new wxChoice( m_auxiliaryToolBar, ID_ON_GRID_SELECT, wxDefaultPosition,
-                                        wxDefaultSize, 0, nullptr );
+        m_gridSelectBox = new QComboBox( m_auxiliaryToolBar );
     }
 
     m_auxiliaryToolBar->AddScaledSeparator( this );
@@ -188,8 +167,7 @@ void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
 
     if( !m_zoomSelectBox )
     {
-        m_zoomSelectBox = new wxChoice( m_auxiliaryToolBar, ID_ON_ZOOM_SELECT, wxDefaultPosition,
-                                        wxDefaultSize, 0, nullptr );
+        m_zoomSelectBox = new QComboBox( m_auxiliaryToolBar );
     }
 
     m_auxiliaryToolBar->AddScaledSeparator( this );
@@ -212,6 +190,7 @@ void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
 
     // after adding the buttons to the toolbar, must call Realize()
     m_auxiliaryToolBar->KiRealize();
+    setUpdatesEnabled( true );
 }
 
 
@@ -229,9 +208,9 @@ void GERBVIEW_FRAME::ReCreateOptToolbar()
     }
     else
     {
-        m_optionsToolBar = new ACTION_TOOLBAR( this, ID_OPT_TOOLBAR, wxDefaultPosition,
-                                               wxDefaultSize,
-                                               KICAD_AUI_TB_STYLE | wxAUI_TB_VERTICAL );
+        m_optionsToolBar = new ACTION_TOOLBAR( this, ID_OPT_TOOLBAR, QPoint(),
+                                               QSize(),
+                                               KICAD_AUI_TB_STYLE | Qt::Vertical );
         m_optionsToolBar->SetAuiManager( &m_auimgr );
     }
 
@@ -294,48 +273,48 @@ void GERBVIEW_FRAME::UpdateToolbarControlSizes()
 
 void GERBVIEW_FRAME::updateDCodeSelectBox()
 {
-    m_DCodeSelector->Clear();
+    m_DCodeSelector->clear();
 
     // Add an empty string to deselect net highlight
-    m_DCodeSelector->Append( NO_SELECTION_STRING );
+    m_DCodeSelector->addItem( NO_SELECTION_STRING );
 
     int layer = GetActiveLayer();
     GERBER_FILE_IMAGE* gerber = GetGbrImage( layer );
 
     if( !gerber || gerber->GetDcodesCount() == 0 )
     {
-        if( m_DCodeSelector->GetSelection() != 0 )
-            m_DCodeSelector->SetSelection( 0 );
+        if( m_DCodeSelector->currentIndex() != 0 )
+            m_DCodeSelector->setCurrentIndex( 0 );
 
         return;
     }
 
     // Build the aperture list of the current layer, and add it to the combo box:
-    wxArrayString dcode_list;
-    wxString msg;
+    QStringList dcode_list;
+    QString msg;
 
     double   scale = 1.0;
-    wxString units;
+    QString units;
 
     switch( GetUserUnits() )
     {
     case EDA_UNITS::MM:
         scale = gerbIUScale.IU_PER_MM;
-        units = wxT( "mm" );
+        units = "mm";
         break;
 
     case EDA_UNITS::INCH:
         scale = gerbIUScale.IU_PER_MILS * 1000;
-        units = wxT( "in" );
+        units = "in";
         break;
 
     case EDA_UNITS::MILS:
         scale = gerbIUScale.IU_PER_MILS;
-        units = wxT( "mil" );
+        units = "mil";
         break;
 
     default:
-        wxASSERT_MSG( false, wxT( "Invalid units" ) );
+        Q_ASSERT_X( false, "updateDCodeSelectBox", "Invalid units" );
     }
 
     for( int ii = 0; ii < TOOLS_MAX_COUNT; ii++ )
@@ -348,25 +327,25 @@ void GERBVIEW_FRAME::updateDCodeSelectBox()
         if( !dcode->m_InUse && !dcode->m_Defined )
             continue;
 
-        msg.Printf( wxT( "tool %d [%.3fx%.3f %s] %s" ),
+        msg = QString::asprintf( "tool %d [%.3fx%.3f %s] %s",
                     dcode->m_Num_Dcode,
                     dcode->m_Size.x / scale, dcode->m_Size.y / scale,
-                    units,
-                    D_CODE::ShowApertureType( dcode->m_ApertType ) );
+                    qPrintable(units),
+                    qPrintable(D_CODE::ShowApertureType( dcode->m_ApertType )) );
 
-        if( !dcode->m_AperFunction.IsEmpty() )
-            msg << wxT( ", " ) << dcode->m_AperFunction;
+        if( !dcode->m_AperFunction.isEmpty() )
+            msg += ", " + dcode->m_AperFunction;
 
-        dcode_list.Add( msg );
+        dcode_list.append( msg );
     }
 
     m_DCodeSelector->AppendDCodeList( dcode_list );
 
     if( dcode_list.size() > 1 )
     {
-        wxSize size = m_DCodeSelector->GetBestSize();
-        size.x = std::max( size.x, 100 );
-        m_DCodeSelector->SetMinSize( size );
+        QSize size = m_DCodeSelector->sizeHint();
+        size.setWidth( std::max( size.width(), 100 ) );
+        m_DCodeSelector->setMinimumSize( size );
         m_auimgr.Update();
     }
 }
@@ -374,10 +353,10 @@ void GERBVIEW_FRAME::updateDCodeSelectBox()
 
 void GERBVIEW_FRAME::updateComponentListSelectBox()
 {
-    m_SelComponentBox->Clear();
+    m_SelComponentBox->clear();
 
     // Build the full list of component names from the partial lists stored in each file image
-    std::map<wxString, int> full_list;
+    std::map<QString, int> full_list;
 
     for( unsigned layer = 0; layer < GetImagesList()->ImagesMaxCount(); ++layer )
     {
@@ -390,22 +369,22 @@ void GERBVIEW_FRAME::updateComponentListSelectBox()
     }
 
     // Add an empty string to deselect net highlight
-    m_SelComponentBox->Append( NO_SELECTION_STRING );
+    m_SelComponentBox->addItem( NO_SELECTION_STRING );
 
     // Now copy the list to the choice box
-    for( const std::pair<const wxString, int>& entry : full_list )
-        m_SelComponentBox->Append( entry.first );
+    for( const std::pair<const QString, int>& entry : full_list )
+        m_SelComponentBox->addItem( entry.first );
 
-    m_SelComponentBox->SetSelection( 0 );
+    m_SelComponentBox->setCurrentIndex( 0 );
 }
 
 
 void GERBVIEW_FRAME::updateNetnameListSelectBox()
 {
-    m_SelNetnameBox->Clear();
+    m_SelNetnameBox->clear();
 
     // Build the full list of netnames from the partial lists stored in each file image
-    std::map<wxString, int> full_list;
+    std::map<QString, int> full_list;
 
     for( unsigned layer = 0; layer < GetImagesList()->ImagesMaxCount(); ++layer )
     {
@@ -418,22 +397,22 @@ void GERBVIEW_FRAME::updateNetnameListSelectBox()
     }
 
     // Add an empty string to deselect net highlight
-    m_SelNetnameBox->Append( NO_SELECTION_STRING );
+    m_SelNetnameBox->addItem( NO_SELECTION_STRING );
 
     // Now copy the list to the choice box
-    for( const std::pair<const wxString, int>& entry : full_list )
-        m_SelNetnameBox->Append( UnescapeString( entry.first ) );
+    for( const std::pair<const QString, int>& entry : full_list )
+        m_SelNetnameBox->addItem( UnescapeString( entry.first ) );
 
-    m_SelNetnameBox->SetSelection( 0 );
+    m_SelNetnameBox->setCurrentIndex( 0 );
 }
 
 
 void GERBVIEW_FRAME::updateAperAttributesSelectBox()
 {
-    m_SelAperAttributesBox->Clear();
+    m_SelAperAttributesBox->clear();
 
     // Build the full list of netnames from the partial lists stored in each file image
-    std::map<wxString, int> full_list;
+    std::map<QString, int> full_list;
 
     for( unsigned layer = 0; layer < GetImagesList()->ImagesMaxCount(); ++layer )
     {
@@ -455,23 +434,23 @@ void GERBVIEW_FRAME::updateAperAttributesSelectBox()
             if( !aperture->m_InUse && !aperture->m_Defined )
                 continue;
 
-            if( !aperture->m_AperFunction.IsEmpty() )
+            if( !aperture->m_AperFunction.isEmpty() )
                 full_list.insert( std::make_pair( aperture->m_AperFunction, 0 ) );
         }
     }
 
     // Add an empty string to deselect net highlight
-    m_SelAperAttributesBox->Append( NO_SELECTION_STRING );
+    m_SelAperAttributesBox->addItem( NO_SELECTION_STRING );
 
     // Now copy the list to the choice box
-    for( const std::pair<const wxString, int>& entry : full_list )
-        m_SelAperAttributesBox->Append( entry.first );
+    for( const std::pair<const QString, int>& entry : full_list )
+        m_SelAperAttributesBox->addItem( entry.first );
 
-    m_SelAperAttributesBox->SetSelection( 0 );
+    m_SelAperAttributesBox->setCurrentIndex( 0 );
 }
 
 
-void GERBVIEW_FRAME::OnUpdateSelectDCode( wxUpdateUIEvent& aEvent )
+void GERBVIEW_FRAME::OnUpdateSelectDCode( QEvent& aEvent )
 {
     if( !m_DCodeSelector )
         return;
@@ -480,7 +459,7 @@ void GERBVIEW_FRAME::OnUpdateSelectDCode( wxUpdateUIEvent& aEvent )
     GERBER_FILE_IMAGE* gerber = GetGbrImage( layer );
     int                selected = gerber ? gerber->m_Selected_Tool : 0;
 
-    aEvent.Enable( gerber != nullptr );
+    // Qt equivalent - enabled state is handled differently
 
     if( m_DCodeSelector->GetSelectedDCodeId() != selected )
     {
@@ -493,12 +472,12 @@ void GERBVIEW_FRAME::OnUpdateSelectDCode( wxUpdateUIEvent& aEvent )
 }
 
 
-void GERBVIEW_FRAME::OnUpdateLayerSelectBox( wxUpdateUIEvent& aEvent )
+void GERBVIEW_FRAME::OnUpdateLayerSelectBox( QEvent& aEvent )
 {
-    if( m_SelLayerBox->GetCount() )
+    if( m_SelLayerBox->count() )
     {
-        if( m_SelLayerBox->GetSelection() != GetActiveLayer() )
-            m_SelLayerBox->SetSelection( GetActiveLayer() );
+        if( m_SelLayerBox->currentIndex() != GetActiveLayer() )
+            m_SelLayerBox->setCurrentIndex( GetActiveLayer() );
     }
 }
 

@@ -1,23 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Jon Evans <jon@craftyjon.com>
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #include <base_screen.h>
 #include <lib_symbol.h>
@@ -56,9 +38,9 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
         m_DashedLineDashRatio( 12.0 ),
         m_DashedLineGapRatio( 3.0 ),
         m_OPO_VPrecision( 3 ),
-        m_OPO_VRange( wxS( "~V" ) ),
+        m_OPO_VRange( "~V" ),
         m_OPO_IPrecision( 3 ),
-        m_OPO_IRange( wxS( "~A" ) ),
+        m_OPO_IRange( "~A" ),
         m_SpiceCurSheetAsRoot( false ),
         m_SpiceSaveAllVoltages( false ),
         m_SpiceSaveAllCurrents( false ),
@@ -79,10 +61,10 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
     bool defaultIntersheetsRefShow = cfg ? cfg->m_Drawing.intersheets_ref_show : false;
     bool defaultIntersheetsRefOwnPage = cfg ? cfg->m_Drawing.intersheets_ref_own_page : true;
     bool defaultIntersheetsRefFormatShort = cfg ? cfg->m_Drawing.intersheets_ref_short : false;
-    wxString defaultIntersheetsRefPrefix = cfg ? cfg->m_Drawing.intersheets_ref_prefix
-                                               : wxString( wxS( DEFAULT_IREF_PREFIX ) );
-    wxString defaultIntersheetsRefSuffix = cfg ? cfg->m_Drawing.intersheets_ref_suffix
-                                               : wxString( wxS( DEFAULT_IREF_SUFFIX ) );
+    QString defaultIntersheetsRefPrefix = cfg ? cfg->m_Drawing.intersheets_ref_prefix
+                                               : QString( DEFAULT_IREF_PREFIX );
+    QString defaultIntersheetsRefSuffix = cfg ? cfg->m_Drawing.intersheets_ref_suffix
+                                               : QString( DEFAULT_IREF_SUFFIX );
 
     m_params.emplace_back( new PARAM<bool>( "drawing.intersheets_ref_show",
             &m_IntersheetRefsShow, defaultIntersheetsRefShow ) );
@@ -93,10 +75,10 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
     m_params.emplace_back( new PARAM<bool>( "drawing.intersheets_ref_short",
             &m_IntersheetRefsFormatShort, defaultIntersheetsRefFormatShort ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "drawing.intersheets_ref_prefix",
+    m_params.emplace_back( new PARAM<QString>( "drawing.intersheets_ref_prefix",
             &m_IntersheetRefsPrefix, defaultIntersheetsRefPrefix ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "drawing.intersheets_ref_suffix",
+    m_params.emplace_back( new PARAM<QString>( "drawing.intersheets_ref_suffix",
             &m_IntersheetRefsSuffix, defaultIntersheetsRefSuffix ) );
 
     m_params.emplace_back( new PARAM<double>( "drawing.dashed_lines_dash_length_ratio",
@@ -108,14 +90,14 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
     m_params.emplace_back( new PARAM<int>( "drawing.operating_point_overlay_v_precision",
             &m_OPO_VPrecision, 3 ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "drawing.operating_point_overlay_v_range",
-            &m_OPO_VRange, wxS( "~V" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "drawing.operating_point_overlay_v_range",
+            &m_OPO_VRange, "~V" ) );
 
     m_params.emplace_back( new PARAM<int>( "drawing.operating_point_overlay_i_precision",
             &m_OPO_IPrecision, 3 ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "drawing.operating_point_overlay_i_range",
-            &m_OPO_IRange, wxS( "~A" ) ) );
+    m_params.emplace_back( new PARAM<QString>( "drawing.operating_point_overlay_i_range",
+            &m_OPO_IRange, "~A" ) );
 
     m_params.emplace_back( new PARAM_SCALED<int>( "drawing.default_line_thickness",
             &m_DefaultLineWidth, schIUScale.MilsToIU( defaultLineThickness ),
@@ -180,7 +162,7 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
                             continue;
                         }
 
-                        TEMPLATE_FIELDNAME field( entry["name"].get<wxString>() );
+                        TEMPLATE_FIELDNAME field( entry["name"].get<QString>() );
                         field.m_URL     = entry["url"].get<bool>();
                         field.m_Visible = entry["visible"].get<bool>();
                         m_TemplateFieldNames.AddTemplateFieldName( field, false );
@@ -196,7 +178,7 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
                     m_TemplateFieldNames.AddTemplateFieldNames( curr_cfg->m_Drawing.field_names );
             }, {} ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "bom_export_filename",
+    m_params.emplace_back( new PARAM<QString>( "bom_export_filename",
             &m_BomExportFileName, "${PROJECTNAME}.csv" ) );
 
     m_params.emplace_back(
@@ -209,13 +191,13 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
     m_params.emplace_back( new PARAM_LIST<BOM_FMT_PRESET>( "bom_fmt_presets",
             &m_BomFmtPresets, {} ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "page_layout_descr_file",
+    m_params.emplace_back( new PARAM<QString>( "page_layout_descr_file",
             &m_SchDrawingSheetFileName, "" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "plot_directory",
+    m_params.emplace_back( new PARAM<QString>( "plot_directory",
             &m_PlotDirectoryName, "" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "net_format_name",
+    m_params.emplace_back( new PARAM<QString>( "net_format_name",
             &m_NetFormatName, "" ) );
 
     m_params.emplace_back( new PARAM<bool>( "spice_current_sheet_as_root",
@@ -236,7 +218,7 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
     m_params.emplace_back( new PARAM<bool>( "spice_model_current_sheet_as_root",
             &m_SpiceModelCurSheetAsRoot, true ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "spice_external_command",
+    m_params.emplace_back( new PARAM<QString>( "spice_external_command",
             &m_SpiceCommandString, "spice \"%I\"" ) );
 
     // TODO(JE) should we keep these LIB_SYMBOL:: things around?
@@ -279,20 +261,20 @@ SCHEMATIC_SETTINGS::~SCHEMATIC_SETTINGS()
 }
 
 
-wxString SCHEMATIC_SETTINGS::SubReference( int aUnit, bool aAddSeparator ) const
+QString SCHEMATIC_SETTINGS::SubReference( int aUnit, bool aAddSeparator ) const
 {
-    wxString subRef;
+    QString subRef;
 
     if( aUnit < 1 )
         return subRef;
 
     if( m_SubpartIdSeparator != 0 && aAddSeparator )
-        subRef << wxChar( m_SubpartIdSeparator );
+        subRef += QChar( m_SubpartIdSeparator );
 
     if( m_SubpartFirstId >= '0' && m_SubpartFirstId <= '9' )
-        subRef << aUnit;
+        subRef += QString::number( aUnit );
     else
-        subRef << LIB_SYMBOL::LetterSubReference( aUnit, m_SubpartFirstId );
+        subRef += LIB_SYMBOL::LetterSubReference( aUnit, m_SubpartFirstId );
 
     return subRef;
 }

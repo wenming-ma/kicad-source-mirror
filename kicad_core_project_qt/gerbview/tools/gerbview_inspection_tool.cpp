@@ -1,22 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2017 Jon Evans <jon@craftyjon.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 
 #include <eda_item.h>
@@ -37,9 +18,14 @@
 #include <view/view.h>
 #include <view/view_controls.h>
 #include <view/view_group.h>
-#include <wx/msgdlg.h>
-#include <wx/textdlg.h>
-#include <wx/choicdlg.h>
+#include <QMessageBox>
+#include <QInputDialog>
+#include <QDialog>
+#include <QListWidget>
+#include <QVBoxLayout>
+#include <QPushButton>
+#include <QDialogButtonBox>
+#include <QFileInfo>
 
 
 GERBVIEW_INSPECTION_TOOL::GERBVIEW_INSPECTION_TOOL() :
@@ -69,32 +55,32 @@ void GERBVIEW_INSPECTION_TOOL::Reset( RESET_REASON aReason )
 int GERBVIEW_INSPECTION_TOOL::ShowDCodes( const TOOL_EVENT& aEvent )
 {
     int             ii, jj;
-    wxString        Line;
-    wxArrayString   list;
+    QString        Line;
+    QStringList   list;
     int             curr_layer = m_frame->GetActiveLayer();
 
     double   scale = 1.0;
-    wxString units;
+    QString units;
 
     switch( m_frame->GetUserUnits() )
     {
     case EDA_UNITS::MM:
         scale = gerbIUScale.IU_PER_MM;
-        units = wxT( "mm" );
+        units = "mm";
         break;
 
     case EDA_UNITS::INCH:
         scale = gerbIUScale.IU_PER_MILS * 1000;
-        units = wxT( "in" );
+        units = "in";
         break;
 
     case EDA_UNITS::MILS:
         scale = gerbIUScale.IU_PER_MILS;
-        units = wxT( "mil" );
+        units = "mil";
         break;
 
     default:
-        wxASSERT_MSG( false, wxT( "Invalid units" ) );
+        Q_ASSERT_X( false, Q_FUNC_INFO, "Invalid units" );
     }
 
     for( unsigned int layer = 0; layer < m_frame->ImagesMaxCount(); ++layer )
@@ -108,11 +94,11 @@ int GERBVIEW_INSPECTION_TOOL::ShowDCodes( const TOOL_EVENT& aEvent )
             continue;
 
         if( curr_layer == static_cast<int>( layer ) )
-            Line.Printf( wxT( "*** Active layer (%2.2d) ***" ), layer + 1 );
+            Line = QString::asprintf( "*** Active layer (%2.2d) ***", layer + 1 );
         else
-            Line.Printf( wxT( "*** layer %2.2d  ***" ), layer + 1 );
+            Line = QString::asprintf( "*** layer %2.2d  ***", layer + 1 );
 
-        list.Add( Line );
+        list.append( Line );
 
         for( ii = 0, jj = 1; ii < TOOLS_MAX_COUNT; ii++ )
         {
@@ -124,30 +110,47 @@ int GERBVIEW_INSPECTION_TOOL::ShowDCodes( const TOOL_EVENT& aEvent )
             if( !pt_D_code->m_InUse && !pt_D_code->m_Defined )
                 continue;
 
-            Line.Printf( wxT( "tool %2.2d:   D%2.2d   V %.4f %s  H %.4f %s   %s  attribute '%s'" ),
+            Line = QString::asprintf( "tool %2.2d:   D%2.2d   V %.4f %s  H %.4f %s   %s  attribute '%s'",
                          jj,
                          pt_D_code->m_Num_Dcode,
-                         pt_D_code->m_Size.y / scale, units,
-                         pt_D_code->m_Size.x / scale, units,
-                         D_CODE::ShowApertureType( pt_D_code->m_ApertType ),
-                         pt_D_code->m_AperFunction.IsEmpty()? wxString( wxT( "none" ) ) : pt_D_code->m_AperFunction
+                         pt_D_code->m_Size.y / scale, qPrintable(units),
+                         pt_D_code->m_Size.x / scale, qPrintable(units),
+                         qPrintable(D_CODE::ShowApertureType( pt_D_code->m_ApertType )),
+                         pt_D_code->m_AperFunction.isEmpty()? "none" : qPrintable(pt_D_code->m_AperFunction)
                          );
 
             if( !pt_D_code->m_Defined )
-                Line += wxT( " (not defined)" );
+                Line += " (not defined)";
 
             if( pt_D_code->m_InUse )
-                Line += wxT( " (in use)" );
+                Line += " (in use)";
 
-            list.Add( Line );
+            list.append( Line );
             jj++;
         }
     }
 
-    wxSingleChoiceDialog dlg( m_frame, wxEmptyString, _( "D Codes" ), list, (void**) nullptr,
-                              wxCHOICEDLG_STYLE & ~wxCANCEL );
+    // Create a simple dialog to display D Codes
+    QDialog dlg( m_frame );
+    dlg.setWindowTitle( "D Codes" );
+    dlg.setModal( true );
 
-    dlg.ShowModal();
+    QVBoxLayout* layout = new QVBoxLayout( &dlg );
+    QListWidget* listWidget = new QListWidget( &dlg );
+
+    for( const QString& item : list )
+    {
+        listWidget->addItem( item );
+    }
+
+    layout->addWidget( listWidget );
+
+    QDialogButtonBox* buttonBox = new QDialogButtonBox( QDialogButtonBox::Ok, &dlg );
+    layout->addWidget( buttonBox );
+
+    QObject::connect( buttonBox, &QDialogButtonBox::accepted, &dlg, &QDialog::accept );
+
+    dlg.exec();
 
     return 0;
 }
@@ -160,36 +163,34 @@ int GERBVIEW_INSPECTION_TOOL::ShowSource( const TOOL_EVENT& aEvent )
 
     if( gerber_layer )
     {
-        wxString editorname = Pgm().GetTextEditor();
+        QString editorname = Pgm().GetTextEditor();
 
-        if( !editorname.IsEmpty() )
+        if( !editorname.isEmpty() )
         {
-            wxFileName fn( gerber_layer->m_FileName );
+            QFileInfo fn( gerber_layer->m_FileName );
 
             // Call the editor only if the Gerber/drill source file is available.
             // This is not always the case, because it can be a temporary file
             // if it comes from a zip archive.
-            if( !fn.FileExists() )
+            if( !fn.exists() )
             {
-                wxString msg;
-                msg.Printf( _( "Source file '%s' not found." ), fn.GetFullPath() );
-                wxMessageBox( msg );
+                QString msg = QString( "Source file '%1' not found." ).arg( fn.absoluteFilePath() );
+                QMessageBox::information( m_frame, "Information", msg );
             }
             else
             {
-                ExecuteFile( editorname, fn.GetFullPath() );
+                ExecuteFile( editorname, fn.absoluteFilePath() );
             }
         }
         else
         {
-            wxMessageBox( _( "No text editor selected in KiCad.  Please choose one." ) );
+            QMessageBox::information( m_frame, "Information", "No text editor selected in KiCad.  Please choose one." );
         }
     }
     else
     {
-        wxString msg;
-        msg.Printf( _( "No file loaded on the active layer %d." ), layer + 1 );
-        wxMessageBox( msg );
+        QString msg = QString( "No file loaded on the active layer %1." ).arg( layer + 1 );
+        QMessageBox::information( m_frame, "Information", msg );
     }
 
     return 0;

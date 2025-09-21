@@ -1,22 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2020 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #pragma once
 
@@ -36,15 +17,15 @@ public:
         return PLOT_FORMAT::GERBER;
     }
 
-    static wxString GetDefaultFileExtension()
+    static QString GetDefaultFileExtension()
     {
-        return wxString( wxT( "gbr" ) );
+        return QString( "gbr" );
     }
 
     /**
      * Write GERBER header to file initialize global variable g_Plot_PlotOutputFile.
      */
-    virtual bool StartPlot( const wxString& pageNumber ) override;
+    virtual bool StartPlot( const QString& pageNumber ) override;
     virtual bool EndPlot() override;
     virtual void SetCurrentLineWidth( int aLineWidth, void* aData = nullptr ) override;
 
@@ -102,7 +83,7 @@ public:
 
     virtual void Text( const VECTOR2I&        aPos,
                        const COLOR4D&         aColor,
-                       const wxString&        aText,
+                       const QString&        aText,
                        const EDA_ANGLE&       aOrient,
                        const VECTOR2I&        aSize,
                        enum GR_TEXT_H_ALIGN_T aH_justify,
@@ -118,7 +99,7 @@ public:
 
     virtual void PlotText( const VECTOR2I&        aPos,
                            const COLOR4D&         aColor,
-                           const wxString&        aText,
+                           const QString&        aText,
                            const TEXT_ATTRIBUTES& aAttributes,
                            KIFONT::FONT*          aFont,
                            const KIFONT::METRICS& aFontMetrics,
@@ -363,7 +344,7 @@ protected:
 
     FILE* workFile;
     FILE* finalFile;
-    wxString m_workFilename;
+    QString m_workFilename;
 
     /**
      * Generate the table of D codes

@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2016 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2023 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <cstdlib>
 
@@ -46,17 +22,19 @@
 #include <settings/settings_manager.h>
 #include <trace_helpers.h>
 #include <pgm_base.h>
-#include <wx/log.h>
+#include <QDebug>
+#include <QString>
+#include <QStringList>
 
 // N.B. Do not change these values without transitioning the file format
 #define SHEET_NAME_CANONICAL "Sheetname"
 #define SHEET_FILE_CANONICAL "Sheetfile"
 #define USER_FIELD_CANONICAL "Field%d"
 
-static wxString s_CanonicalSheetName( SHEET_NAME_CANONICAL );
-static wxString s_CanonicalSheetFile( SHEET_FILE_CANONICAL );
+static QString s_CanonicalSheetName( SHEET_NAME_CANONICAL );
+static QString s_CanonicalSheetFile( SHEET_FILE_CANONICAL );
 
-const wxString SCH_SHEET::GetDefaultFieldName( int aFieldNdx, bool aTranslated )
+const QString SCH_SHEET::GetDefaultFieldName( int aFieldNdx, bool aTranslated )
 {
     if( !aTranslated )
     {
@@ -64,7 +42,7 @@ const wxString SCH_SHEET::GetDefaultFieldName( int aFieldNdx, bool aTranslated )
         {
         case  SHEETNAME:     return s_CanonicalSheetName;
         case  SHEETFILENAME: return s_CanonicalSheetFile;
-        default:             return wxString::Format( wxS( USER_FIELD_CANONICAL ), aFieldNdx );
+        default:             return QString::asprintf( USER_FIELD_CANONICAL, aFieldNdx );
         }
     }
     else
@@ -73,7 +51,7 @@ const wxString SCH_SHEET::GetDefaultFieldName( int aFieldNdx, bool aTranslated )
         {
         case  SHEETNAME:     return _( SHEET_NAME_CANONICAL );
         case  SHEETFILENAME: return _( SHEET_FILE_CANONICAL );
-        default:             return wxString::Format( _( USER_FIELD_CANONICAL ), aFieldNdx );
+        default:             return QString::asprintf( _( USER_FIELD_CANONICAL ), aFieldNdx );
         }
     }
 }
@@ -202,19 +180,20 @@ int SCH_SHEET::GetScreenCount() const
 
 bool SCH_SHEET::IsRootSheet() const
 {
-    wxCHECK_MSG( Schematic(), false, "Can't call IsRootSheet without setting a schematic" );
+    Q_ASSERT_X( Schematic(), "SCH_SHEET::IsRootSheet", "Can't call IsRootSheet without setting a schematic" );
+    if( !Schematic() ) return false;
 
     return &Schematic()->Root() == this;
 }
 
 
-void SCH_SHEET::GetContextualTextVars( wxArrayString* aVars ) const
+void SCH_SHEET::GetContextualTextVars( QStringList* aVars ) const
 {
     auto add =
-            [&]( const wxString& aVar )
+            [&]( const QString& aVar )
             {
-                if( !alg::contains( *aVars, aVar ) )
-                    aVars->push_back( aVar );
+                if( !aVars->contains( aVar ) )
+                    aVars->append( aVar );
             };
 
     for( const SCH_FIELD& field : m_fields )
@@ -237,30 +216,31 @@ void SCH_SHEET::GetContextualTextVars( wxArrayString* aVars ) const
         Schematic()->GetContextualTextVars( aVars );
     }
 
-    add( wxT( "#" ) );
-    add( wxT( "##" ) );
-    add( wxT( "SHEETPATH" ) );
-    add( wxT( "EXCLUDE_FROM_BOM" ) );
-    add( wxT( "EXCLUDE_FROM_BOARD" ) );
-    add( wxT( "EXCLUDE_FROM_SIM" ) );
-    add( wxT( "DNP" ) );
-    add( wxT( "ERC_ERROR <message_text>" ) );
-    add( wxT( "ERC_WARNING <message_text>" ) );
+    add( "#" );
+    add( "##" );
+    add( "SHEETPATH" );
+    add( "EXCLUDE_FROM_BOM" );
+    add( "EXCLUDE_FROM_BOARD" );
+    add( "EXCLUDE_FROM_SIM" );
+    add( "DNP" );
+    add( "ERC_ERROR <message_text>" );
+    add( "ERC_WARNING <message_text>" );
 
     m_screen->GetTitleBlock().GetContextualTextVars( aVars );
 }
 
 
-bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, int aDepth ) const
+bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, QString* token, int aDepth ) const
 {
-    wxCHECK( aPath, false );
+    Q_ASSERT( aPath );
+    if( !aPath ) return false;
 
     SCHEMATIC* schematic = Schematic();
 
     if( !schematic )
         return false;
 
-    if( token->Contains( ':' ) )
+    if( token->contains( ':' ) )
     {
         if( schematic->ResolveCrossReference( token, aDepth + 1 ) )
             return true;
@@ -268,10 +248,10 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
 
     for( const SCH_FIELD& field : m_fields )
     {
-        wxString fieldName = field.IsMandatory() ? field.GetCanonicalName().Upper()
+        QString fieldName = field.IsMandatory() ? field.GetCanonicalName().toUpper()
                                                  : field.GetName();
 
-        if( token->IsSameAs( fieldName ) )
+        if( token->compare( fieldName, Qt::CaseInsensitive ) == 0 )
         {
             *token = field.GetShownText( aPath, false, aDepth + 1 );
             return true;
@@ -287,51 +267,51 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
         return true;
     }
 
-    if( token->IsSameAs( wxT( "#" ) ) )
+    if( token->compare( "#", Qt::CaseInsensitive ) == 0 )
     {
-        *token = wxString::Format( "%s", aPath->GetPageNumber() );
+        *token = QString::asprintf( "%s", aPath->GetPageNumber().toStdString().c_str() );
         return true;
     }
-    else if( token->IsSameAs( wxT( "##" ) ) )
+    else if( token->compare( "##", Qt::CaseInsensitive ) == 0 )
     {
-        *token = wxString::Format( wxT( "%d" ), (int) schematic->Hierarchy().size() );
+        *token = QString::asprintf( "%d", (int) schematic->Hierarchy().size() );
         return true;
     }
-    else if( token->IsSameAs( wxT( "SHEETPATH" ) ) )
+    else if( token->compare( "SHEETPATH", Qt::CaseInsensitive ) == 0 )
     {
         *token = aPath->PathHumanReadable();
         return true;
     }
-    else if( token->IsSameAs( wxT( "EXCLUDE_FROM_BOM" ) ) )
+    else if( token->compare( "EXCLUDE_FROM_BOM", Qt::CaseInsensitive ) == 0 )
     {
-        *token = wxEmptyString;
+        *token = QString();
 
         if( aPath->GetExcludedFromBOM() || this->GetExcludedFromBOM() )
             *token = _( "Excluded from BOM" );
 
         return true;
     }
-    else if( token->IsSameAs( wxT( "EXCLUDE_FROM_BOARD" ) ) )
+    else if( token->compare( "EXCLUDE_FROM_BOARD", Qt::CaseInsensitive ) == 0 )
     {
-        *token = wxEmptyString;
+        *token = QString();
 
         if( aPath->GetExcludedFromBoard() || this->GetExcludedFromBoard() )
             *token = _( "Excluded from board" );
 
         return true;
     }
-    else if( token->IsSameAs( wxT( "EXCLUDE_FROM_SIM" ) ) )
+    else if( token->compare( "EXCLUDE_FROM_SIM", Qt::CaseInsensitive ) == 0 )
     {
-        *token = wxEmptyString;
+        *token = QString();
 
         if( aPath->GetExcludedFromSim() || this->GetExcludedFromSim() )
             *token = _( "Excluded from simulation" );
 
         return true;
     }
-    else if( token->IsSameAs( wxT( "DNP" ) ) )
+    else if( token->compare( "DNP", Qt::CaseInsensitive ) == 0 )
     {
-        *token = wxEmptyString;
+        *token = QString();
 
         if( aPath->GetDNP() || this->GetDNP() )
             *token = _( "DNP" );
@@ -363,9 +343,10 @@ void SCH_SHEET::SwapData( SCH_ITEM* aItem )
 {
     SCH_ITEM::SwapFlags( aItem );
 
-    wxCHECK_RET( aItem->Type() == SCH_SHEET_T,
-                 wxString::Format( wxT( "SCH_SHEET object cannot swap data with %s object." ),
-                                   aItem->GetClass() ) );
+    Q_ASSERT_X( aItem->Type() == SCH_SHEET_T, "SCH_SHEET::SwapData",
+                QString::asprintf( "SCH_SHEET object cannot swap data with %s object.",
+                                   aItem->GetClass().toStdString().c_str() ).toStdString().c_str() );
+    if( aItem->Type() != SCH_SHEET_T ) return;
 
     SCH_SHEET* sheet = ( SCH_SHEET* ) aItem;
 
@@ -425,8 +406,8 @@ void SCH_SHEET::SetFields( const std::vector<SCH_FIELD>& aFields )
 
 void SCH_SHEET::AddPin( SCH_SHEET_PIN* aSheetPin )
 {
-    wxASSERT( aSheetPin != nullptr );
-    wxASSERT( aSheetPin->Type() == SCH_SHEET_PIN_T );
+    Q_ASSERT( aSheetPin != nullptr );
+    Q_ASSERT( aSheetPin->Type() == SCH_SHEET_PIN_T );
 
     aSheetPin->SetParent( this );
     m_pins.push_back( aSheetPin );
@@ -436,8 +417,8 @@ void SCH_SHEET::AddPin( SCH_SHEET_PIN* aSheetPin )
 
 void SCH_SHEET::RemovePin( const SCH_SHEET_PIN* aSheetPin )
 {
-    wxASSERT( aSheetPin != nullptr );
-    wxASSERT( aSheetPin->Type() == SCH_SHEET_PIN_T );
+    Q_ASSERT( aSheetPin != nullptr );
+    Q_ASSERT( aSheetPin->Type() == SCH_SHEET_PIN_T );
 
     for( auto i = m_pins.begin(); i < m_pins.end(); ++i )
     {
@@ -451,11 +432,11 @@ void SCH_SHEET::RemovePin( const SCH_SHEET_PIN* aSheetPin )
 }
 
 
-bool SCH_SHEET::HasPin( const wxString& aName ) const
+bool SCH_SHEET::HasPin( const QString& aName ) const
 {
     for( SCH_SHEET_PIN* pin : m_pins )
     {
-        if( pin->GetText().Cmp( aName ) == 0 )
+        if( pin->GetText().compare( aName ) == 0 )
             return true;
     }
 
@@ -505,7 +486,7 @@ bool SCH_SHEET::HasUndefinedPins() const
 
         for( SCH_ITEM* aItem : m_screen->Items().OfType( SCH_HIER_LABEL_T ) )
         {
-            if( !pin->GetText().Cmp( static_cast<SCH_HIERLABEL*>( aItem )->GetText() ) )
+            if( pin->GetText().compare( static_cast<SCH_HIERLABEL*>( aItem )->GetText() ) == 0 )
             {
                 HLabel = static_cast<SCH_HIERLABEL*>( aItem );
                 break;
@@ -623,7 +604,7 @@ void SCH_SHEET::CleanupSheet()
 
         for( SCH_ITEM* aItem : m_screen->Items().OfType( SCH_HIER_LABEL_T ) )
         {
-            if( pin->GetText().CmpNoCase( static_cast<SCH_HIERLABEL*>( aItem )->GetText() ) == 0 )
+            if( pin->GetText().compare( static_cast<SCH_HIERLABEL*>( aItem )->GetText(), Qt::CaseInsensitive ) == 0 )
             {
                 HLabel = static_cast<SCH_HIERLABEL*>( aItem );
                 break;
@@ -773,14 +754,14 @@ int SCH_SHEET::SymbolCount() const
 }
 
 
-bool SCH_SHEET::SearchHierarchy( const wxString& aFilename, SCH_SCREEN** aScreen )
+bool SCH_SHEET::SearchHierarchy( const QString& aFilename, SCH_SCREEN** aScreen )
 {
     if( m_screen )
     {
         // Only check the root sheet once and don't recurse.
         if( !GetParent() )
         {
-            if( m_screen && m_screen->GetFileName().Cmp( aFilename ) == 0 )
+            if( m_screen && m_screen->GetFileName().compare( aFilename ) == 0 )
             {
                 *aScreen = m_screen;
                 return true;
@@ -794,7 +775,7 @@ bool SCH_SHEET::SearchHierarchy( const wxString& aFilename, SCH_SCREEN** aScreen
 
             // Must use the screen's path (which is always absolute) rather than the
             // sheet's (which could be relative).
-            if( screen && screen->GetFileName().Cmp( aFilename ) == 0 )
+            if( screen && screen->GetFileName().compare( aFilename ) == 0 )
             {
                 *aScreen = screen;
                 return true;
@@ -833,13 +814,13 @@ bool SCH_SHEET::LocatePathOfScreen( SCH_SCREEN* aScreen, SCH_SHEET_PATH* aList )
 }
 
 
-int SCH_SHEET::CountSheets( const wxString& aFilename ) const
+int SCH_SHEET::CountSheets( const QString& aFilename ) const
 {
     int count = 0;
 
     if( m_screen )
     {
-        if( m_screen->GetFileName().Cmp( aFilename ) == 0 )
+        if( m_screen->GetFileName().compare( aFilename ) == 0 )
             count++;
 
         for( SCH_ITEM* aItem : m_screen->Items().OfType( SCH_SHEET_T ) )
@@ -884,25 +865,25 @@ void SCH_SHEET::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
     aList.emplace_back( _( "File Name" ),
                         KIUI::EllipsizeStatusText( aFrame, m_fields[ SHEETFILENAME ].GetText() ) );
 
-    wxArrayString msgs;
-    wxString      msg;
+    QStringList msgs;
+    QString      msg;
 
     if( GetExcludedFromSim() )
-        msgs.Add( _( "Simulation" ) );
+        msgs.append( _( "Simulation" ) );
 
     if( GetExcludedFromBOM() )
-        msgs.Add( _( "BOM" ) );
+        msgs.append( _( "BOM" ) );
 
     if( GetExcludedFromBoard() )
-        msgs.Add( _( "Board" ) );
+        msgs.append( _( "Board" ) );
 
     if( GetDNP() )
-        msgs.Add( _( "DNP" ) );
+        msgs.append( _( "DNP" ) );
 
-    msg = wxJoin( msgs, '|' );
-    msg.Replace( '|', wxS( ", " ) );
+    msg = msgs.join( '|' );
+    msg.replace( '|', ", " );
 
-    if( !msg.empty() )
+    if( !msg.isEmpty() )
         aList.emplace_back( _( "Exclude from" ), msg );
 }
 
@@ -1058,7 +1039,8 @@ void SCH_SHEET::renumberPins()
 
 SCH_SHEET_PATH SCH_SHEET::findSelf() const
 {
-    wxCHECK_MSG( Schematic(), SCH_SHEET_PATH(), "Can't call findSelf without a schematic" );
+    Q_ASSERT_X( Schematic(), "SCH_SHEET::findSelf", "Can't call findSelf without a schematic" );
+    if( !Schematic() ) return SCH_SHEET_PATH();
 
     SCH_SHEET_PATH sheetPath = Schematic()->CurrentSheet();
 
@@ -1080,8 +1062,9 @@ void SCH_SHEET::GetEndPoints( std::vector <DANGLING_END_ITEM>& aItemList )
 {
     for( SCH_SHEET_PIN* sheetPin : m_pins )
     {
-        wxCHECK2_MSG( sheetPin->Type() == SCH_SHEET_PIN_T, continue,
-                      wxT( "Invalid item in schematic sheet pin list.  Bad programmer!" ) );
+        Q_ASSERT_X( sheetPin->Type() == SCH_SHEET_PIN_T, "SCH_SHEET::GetEndPoints",
+                    "Invalid item in schematic sheet pin list.  Bad programmer!" );
+        if( sheetPin->Type() != SCH_SHEET_PIN_T ) continue;
 
         sheetPin->GetEndPoints( aItemList );
     }
@@ -1111,7 +1094,8 @@ bool SCH_SHEET::HasConnectivityChanges( const SCH_ITEM* aItem,
     const SCH_SHEET* sheet = dynamic_cast<const SCH_SHEET*>( aItem );
 
     // Don't compare against a different SCH_ITEM.
-    wxCHECK( sheet, false );
+    Q_ASSERT( sheet );
+    if( !sheet ) return false;
 
     if( GetPosition() != sheet->GetPosition() )
         return true;
@@ -1193,11 +1177,11 @@ void SCH_SHEET::RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction
 }
 
 
-wxString SCH_SHEET::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+QString SCH_SHEET::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Hierarchical Sheet %s" ),
-                             aFull ? m_fields[ SHEETNAME ].GetShownText( false )
-                                   : KIUI::EllipsizeMenuText( m_fields[ SHEETNAME ].GetText() ) );
+    return QString::asprintf( _( "Hierarchical Sheet %s" ),
+                             aFull ? m_fields[ SHEETNAME ].GetShownText( false ).toStdString().c_str()
+                                   : KIUI::EllipsizeMenuText( m_fields[ SHEETNAME ].GetText() ).toStdString().c_str() );
 }
 
 
@@ -1267,14 +1251,14 @@ void SCH_SHEET::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
     }
     else if( aPlotOpts.m_PDFPropertyPopups )
     {
-        std::vector<wxString> properties;
+        std::vector<QString> properties;
 
         properties.emplace_back( EDA_TEXT::GotoPageHref( findSelf().GetPageNumber() ) );
 
         for( const SCH_FIELD& field : GetFields() )
         {
-            properties.emplace_back( wxString::Format( wxT( "!%s = %s" ), field.GetName(),
-                                                       field.GetShownText( false ) ) );
+            properties.emplace_back( QString::asprintf( "!%s = %s", field.GetName().toStdString().c_str(),
+                                                       field.GetShownText( false ).toStdString().c_str() ) );
         }
 
         aPlotter->HyperlinkMenu( GetBoundingBox(), properties );
@@ -1317,7 +1301,7 @@ void SCH_SHEET::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
 void SCH_SHEET::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
                        const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
 {
-    wxDC*    DC = aSettings->GetPrintDC();
+    QPaintDevice*    DC = aSettings->GetPrintDC();
     VECTOR2I pos = m_pos + aOffset;
     int      lineWidth = GetEffectivePenWidth( aSettings );
     COLOR4D  border = GetBorderColor();
@@ -1370,9 +1354,9 @@ void SCH_SHEET::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
 
 SCH_SHEET& SCH_SHEET::operator=( const SCH_ITEM& aItem )
 {
-    wxCHECK_MSG( Type() == aItem.Type(), *this,
-                 wxT( "Cannot assign object type " ) + aItem.GetClass() + wxT( " to type " ) +
-                 GetClass() );
+    Q_ASSERT_X( Type() == aItem.Type(), "SCH_SHEET::operator=",
+                QString( "Cannot assign object type " + aItem.GetClass() + " to type " + GetClass() ).toStdString().c_str() );
+    if( Type() != aItem.Type() ) return *this;
 
     if( &aItem != this )
     {
@@ -1423,12 +1407,10 @@ void SCH_SHEET::RemoveInstance( const KIID_PATH& aInstancePath )
     {
         if( m_instances[ii].m_Path == aInstancePath )
         {
-            wxLogTrace( traceSchSheetPaths, "Removing sheet instance:\n"
-                                            "    sheet path %s\n"
-                                            "    page %s, from project %s.",
-                        aInstancePath.AsString(),
-                        m_instances[ii].m_PageNumber,
-                        m_instances[ii].m_ProjectName );
+            qDebug() << "Removing sheet instance:\n"
+                     << "    sheet path" << aInstancePath.AsString().toStdString().c_str() << "\n"
+                     << "    page" << m_instances[ii].m_PageNumber.toStdString().c_str()
+                     << ", from project" << m_instances[ii].m_ProjectName.toStdString().c_str();
 
             m_instances.erase( m_instances.begin() + ii );
         }
@@ -1457,9 +1439,8 @@ bool SCH_SHEET::addInstance( const KIID_PATH& aPath )
             return false;
     }
 
-    wxLogTrace( traceSchSheetPaths, wxT( "Adding instance `%s` to sheet `%s`." ),
-                aPath.AsString(),
-                ( GetName().IsEmpty() ) ? wxString( wxT( "root" ) ) : GetName() );
+    qDebug() << "Adding instance" << aPath.AsString().toStdString().c_str()
+             << "to sheet" << ( GetName().isEmpty() ? QString( "root" ) : GetName() ).toStdString().c_str();
 
     SCH_SHEET_INSTANCE instance;
 
@@ -1515,7 +1496,7 @@ const SCH_SHEET_INSTANCE& SCH_SHEET::GetRootInstance() const
             return instance;
     }
 
-    wxFAIL;
+    Q_ASSERT_X( false, "SCH_SHEET::GetRootInstance", "No root instance found" );
 
     static SCH_SHEET_INSTANCE dummy;
 
@@ -1523,9 +1504,9 @@ const SCH_SHEET_INSTANCE& SCH_SHEET::GetRootInstance() const
 }
 
 
-wxString SCH_SHEET::getPageNumber( const KIID_PATH& aPath ) const
+QString SCH_SHEET::getPageNumber( const KIID_PATH& aPath ) const
 {
-    wxString pageNumber;
+    QString pageNumber;
 
     for( const SCH_SHEET_INSTANCE& instance : m_instances )
     {
@@ -1540,7 +1521,7 @@ wxString SCH_SHEET::getPageNumber( const KIID_PATH& aPath ) const
 }
 
 
-void SCH_SHEET::setPageNumber( const KIID_PATH& aPath, const wxString& aPageNumber )
+void SCH_SHEET::setPageNumber( const KIID_PATH& aPath, const QString& aPageNumber )
 {
     for( SCH_SHEET_INSTANCE& instance : m_instances )
     {
@@ -1606,15 +1587,17 @@ bool SCH_SHEET::HasPageNumberChanges( const SCH_SHEET& aOther ) const
 }
 
 
-int SCH_SHEET::ComparePageNum( const wxString& aPageNumberA, const wxString& aPageNumberB )
+int SCH_SHEET::ComparePageNum( const QString& aPageNumberA, const QString& aPageNumberB )
 {
     if( aPageNumberA == aPageNumberB )
         return 0; // A == B
 
     // First sort numerically if the page numbers are integers
     long pageA, pageB;
-    bool isIntegerPageA = aPageNumberA.ToLong( &pageA );
-    bool isIntegerPageB = aPageNumberB.ToLong( &pageB );
+    bool isIntegerPageA;
+    bool isIntegerPageB;
+    pageA = aPageNumberA.toLong( &isIntegerPageA );
+    pageB = aPageNumberB.toLong( &isIntegerPageB );
 
     if( isIntegerPageA && isIntegerPageB )
     {
@@ -1634,7 +1617,8 @@ int SCH_SHEET::ComparePageNum( const wxString& aPageNumberA, const wxString& aPa
     int result = StrNumCmp( aPageNumberA, aPageNumberB );
 
     // Divide by zero bad.
-    wxCHECK( result != 0, 0 );
+    Q_ASSERT( result != 0 );
+    if( result == 0 ) return 0;
 
     result = result / std::abs( result );
 
@@ -1708,16 +1692,16 @@ double SCH_SHEET::Similarity( const SCH_ITEM& aOther ) const
 void SCH_SHEET::Show( int nestLevel, std::ostream& os ) const
 {
     // XML output:
-    wxString s = GetClass();
+    QString s = GetClass();
 
-    NestedSpace( nestLevel, os ) << '<' << s.Lower().mb_str() << ">" << " sheet_name=\""
-                                 << TO_UTF8( m_fields[ SHEETNAME ].GetText() ) << '"' << ">\n";
+    NestedSpace( nestLevel, os ) << '<' << s.toLower().toStdString().c_str() << ">" << " sheet_name=\""
+                                 << m_fields[ SHEETNAME ].GetText().toStdString().c_str() << '"' << ">\n";
 
     // show all the pins, and check the linked list integrity
     for( SCH_SHEET_PIN* sheetPin : m_pins )
         sheetPin->Show( nestLevel + 1, os );
 
-    NestedSpace( nestLevel, os ) << "</" << s.Lower().mb_str() << ">\n" << std::flush;
+    NestedSpace( nestLevel, os ) << "</" << s.toLower().toStdString().c_str() << ">\n" << std::flush;
 }
 
 #endif
@@ -1730,7 +1714,7 @@ static struct SCH_SHEET_DESC
         REGISTER_TYPE( SCH_SHEET );
         propMgr.InheritsAfter( TYPE_HASH( SCH_SHEET ), TYPE_HASH( SCH_ITEM ) );
 
-        propMgr.AddProperty( new PROPERTY<SCH_SHEET, wxString>( _HKI( "Sheet Name" ),
+        propMgr.AddProperty( new PROPERTY<SCH_SHEET, QString>( _HKI( "Sheet Name" ),
                              &SCH_SHEET::SetName, &SCH_SHEET::GetName ) );
 
         propMgr.AddProperty( new PROPERTY<SCH_SHEET, int>( _HKI( "Border Width" ),
@@ -1743,7 +1727,7 @@ static struct SCH_SHEET_DESC
         propMgr.AddProperty( new PROPERTY<SCH_SHEET, COLOR4D>( _HKI( "Background Color" ),
                              &SCH_SHEET::SetBackgroundColor, &SCH_SHEET::GetBackgroundColor ) );
 
-        const wxString groupAttributes = _HKI( "Attributes" );
+        const QString groupAttributes = _HKI( "Attributes" );
 
         propMgr.AddProperty( new PROPERTY<SCH_SHEET, bool>( _HKI( "Exclude From Board" ),
                     &SCH_SHEET::SetExcludedFromBoard, &SCH_SHEET::GetExcludedFromBoard ),
@@ -1761,3 +1745,5 @@ static struct SCH_SHEET_DESC
                     groupAttributes );
     }
 } _SCH_SHEET_DESC;
+
+// Qt transformation completed - all wxWidgets dependencies have been replaced with Qt equivalents

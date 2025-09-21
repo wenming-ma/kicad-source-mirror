@@ -1,22 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2024 3Dconnexion
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include "nl_gerbview_plugin_impl.h"
 
@@ -26,7 +7,7 @@
 #include <bitmaps.h>
 #include <class_draw_panel_gal.h>
 #include <view/view.h>
-#include <view/wx_view_controls.h>
+#include <view/qt_view_controls.h>
 #include <tool/action_manager.h>
 #include <tool/tool_action.h>
 #include <tool/tool_manager.h>
@@ -39,8 +20,11 @@
 #include <vector>
 #include <cfloat>
 
-#include <wx/log.h>
-#include <wx/mstream.h>
+#include <QDebug>
+#include <QBuffer>
+#include <QIODevice>
+#include <QWidget>
+#include <QImage>
 
 
 /**
@@ -50,7 +34,7 @@
  *
  * @ingroup trace_env_vars
  */
-const wxChar* NL_GERBVIEW_PLUGIN_IMPL::m_logTrace = wxT( "KI_TRACE_NL_GERBVIEW_PLUGIN" );
+const QString NL_GERBVIEW_PLUGIN_IMPL::m_logTrace = "KI_TRACE_NL_GERBVIEW_PLUGIN";
 
 
 NL_GERBVIEW_PLUGIN_IMPL::NL_GERBVIEW_PLUGIN_IMPL() : CNavigation3D( false, false )
@@ -65,9 +49,7 @@ NL_GERBVIEW_PLUGIN_IMPL::~NL_GERBVIEW_PLUGIN_IMPL()
     EnableNavigation( false, m_errCode );
     if( m_errCode.value() != 0 )
     {
-        wxLogTrace( wxT( "KI_TRACE_NAVLIB" ),
-                    wxT( "Error occured when calling EnableNavigation. Error code: %d" ),
-                    m_errCode.value() );
+        qDebug() << "KI_TRACE_NAVLIB" << "Error occured when calling EnableNavigation. Error code:" << m_errCode.value();
     }
 }
 
@@ -106,7 +88,7 @@ void NL_GERBVIEW_PLUGIN_IMPL::SetCanvas( EDA_DRAW_PANEL_GAL* aViewport )
 
 void NL_GERBVIEW_PLUGIN_IMPL::SetFocus( bool aFocus )
 {
-    wxLogTrace( m_logTrace, wxT( "NL_GERBVIEW_PLUGIN_IMPL::SetFocus %d" ), aFocus );
+    qDebug() << m_logTrace << "NL_GERBVIEW_PLUGIN_IMPL::SetFocus" << aFocus;
     NAV_3D::Write( navlib::focus_k, aFocus );
 }
 
@@ -168,7 +150,7 @@ static void try_add_category( const std::string& aCategoryPath, CATEGORY_STORE& 
 
 void NL_GERBVIEW_PLUGIN_IMPL::exportCommandsAndImages()
 {
-    wxLogTrace( m_logTrace, wxT( "NL_GERBVIEW_PLUGIN_IMPL::exportCommandsAndImages" ) );
+    qDebug() << m_logTrace << "NL_GERBVIEW_PLUGIN_IMPL::exportCommandsAndImages";
 
     std::list<TOOL_ACTION*> actions = ACTION_MANAGER::GetActionList();
 
@@ -191,7 +173,7 @@ void NL_GERBVIEW_PLUGIN_IMPL::exportCommandsAndImages()
 
     for( const auto action : actions )
     {
-        std::string label = action->GetMenuLabel().ToStdString();
+        std::string label = action->GetMenuLabel().toStdString();
 
         if( label.empty() )
             continue;
@@ -204,36 +186,34 @@ void NL_GERBVIEW_PLUGIN_IMPL::exportCommandsAndImages()
             continue;
 
         std::string strCategory = action->GetToolName();
-        std::string description = action->GetDescription().ToStdString();
+        std::string description = action->GetDescription().toStdString();
 
         try_add_category( strCategory, categoryStore );
         CATEGORY_STORE::iterator iter = categoryStore.find( strCategory );
 
         // Arbitrary 8-bit data stream
-        wxMemoryOutputStream imageStream;
+        QBuffer imageStream;
+        imageStream.open(QIODevice::WriteOnly);
 
         if( action->GetIcon() != BITMAPS::INVALID_BITMAP )
         {
-            wxImage image = KiBitmap( action->GetIcon() ).ConvertToImage();
-            image.SaveFile( imageStream, wxBitmapType::wxBITMAP_TYPE_PNG );
-            image.Destroy();
+            QImage image = KiBitmap( action->GetIcon() ).toImage();
+            image.save( &imageStream, "PNG" );
 
-            if( imageStream.GetSize() )
+            if( imageStream.size() )
             {
-                const wxStreamBuffer* streamBuffer = imageStream.GetOutputStreamBuffer();
+                const QByteArray& imageData = imageStream.data();
                 TDx::CImage tdxImage = TDx::CImage::FromData( "", 0, name.c_str() );
                 tdxImage.AssignImage(
-                        std::string( std::bit_cast<const char*>( streamBuffer->GetBufferStart() ),
-                                     streamBuffer->GetBufferSize() ),
+                        std::string( imageData.constData(), imageData.size() ),
                         0 );
 
-                wxLogTrace( m_logTrace, wxT( "Adding image for : %s" ), name );
+                qDebug() << m_logTrace << "Adding image for :" << QString::fromStdString(name);
                 vImages.push_back( std::move( tdxImage ) );
             }
         }
 
-        wxLogTrace( m_logTrace, wxT( "Inserting command: %s,  description: %s,  in category:  %s" ),
-                    name, description, iter->first );
+        qDebug() << m_logTrace << "Inserting command:" << QString::fromStdString(name) << "description:" << QString::fromStdString(description) << "in category:" << QString::fromStdString(iter->first);
 
         iter->second->push_back(
                 CCommand( std::move( name ), std::move( label ), std::move( description ) ) );
@@ -431,7 +411,7 @@ long NL_GERBVIEW_PLUGIN_IMPL::SetActiveCommand( std::string commandId )
         return navlib::make_result_code( navlib::navlib_errc::invalid_operation );
     }
 
-    wxWindow* parent = m_viewport2D->GetParent();
+    QWidget* parent = m_viewport2D->GetParent();
 
     // Only allow command execution if the window is enabled. i.e. there is not a modal dialog
     // currently active.

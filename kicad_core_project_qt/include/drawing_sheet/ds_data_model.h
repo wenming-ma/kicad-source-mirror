@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2013-2014 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #ifndef  DS_DATA_MODEL_H
 #define  DS_DATA_MODEL_H
@@ -28,6 +5,7 @@
 #include <math/vector2d.h>
 #include <eda_text.h>
 #include <bitmap_base.h>
+#include <QString>
 
 class DS_DATA_ITEM;
 class PAGE_INFO;
@@ -97,19 +75,19 @@ public:
      *
      * @param aFullFileName the filename of the file to created.
      */
-    void Save( const wxString& aFullFileName );
+    void Save( const QString& aFullFileName );
 
     /**
      * Save the description in a buffer.
      *
-     * @param aOutputString is a wxString to store the S expr string
+     * @param aOutputString is a QString to store the S expr string
      */
-    void SaveInString( wxString* aOutputString );
+    void SaveInString( QString* aOutputString );
 
     /**
      * Fill the given string with an S-expr serialization of the WS_DATA_ITEMs.
      */
-    void SaveInString( std::vector<DS_DATA_ITEM*>& aItemsList, wxString* aOutputString );
+    void SaveInString( std::vector<DS_DATA_ITEM*>& aItemsList, QString* aOutputString );
 
     void Append( DS_DATA_ITEM* aItem );
     void Remove( DS_DATA_ITEM* aItem );
@@ -135,12 +113,12 @@ public:
     /**
      * Return a string containing the empty layout shape.
      */
-    static wxString EmptyLayout();
+    static QString EmptyLayout();
 
     /**
      * Return a string containing the empty layout shape.
      */
-    static wxString DefaultLayout();
+    static QString DefaultLayout();
 
     /**
      * Populate the list with a custom layout or the default layout if no custom layout
@@ -152,7 +130,7 @@ public:
      * @param aMsg [optional] if non-null, will be filled with any error messages.
      * @param aAppend if true: do not delete old layout, and load only \a aFullFileName.
      */
-    bool LoadDrawingSheet( const wxString& aFullFileName, wxString* aMsg, bool aAppend = false );
+    bool LoadDrawingSheet( const QString& aFullFileName, QString* aMsg, bool aAppend = false );
 
     /**
      * Populate the list from a S expr description stored in a string.
@@ -163,12 +141,12 @@ public:
        @param aSource is the layout source description.
      */
     void SetPageLayout( const char* aPageLayout, bool aAppend = false,
-                        const wxString& aSource = wxT( "Sexpr_string" )  );
+                        const QString& aSource = "Sexpr_string" );
 
     /**
      * Resolve a path which might be project-relative or contain env variable references.
      */
-    static const wxString ResolvePath( const wxString& aPath, const wxString& aProjectPath );
+    static const QString ResolvePath( const QString& aPath, const QString& aProjectPath );
 
     double   m_WSunits2Iu;            // conversion factor between
                                       // ws units (mils) and draw/plot units

@@ -1,23 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Jon Evans <jon@craftyjon.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef _CONNECTION_GRAPH_H
 #define _CONNECTION_GRAPH_H
@@ -29,7 +9,8 @@
 #include <erc/erc_settings.h>
 #include <sch_connection.h>
 #include <sch_item.h>
-#include <wx/treectrl.h>
+#include <QString>
+#include <QHash>
 #include <advanced_config.h>
 
 
@@ -113,7 +94,7 @@ public:
     /**
      * Return the fully-qualified net name for this subgraph (if one exists)
      */
-    wxString GetNetName() const;
+    QString GetNetName() const;
 
     /// Return all the vector-based bus labels attached to this subgraph (if any).
     std::vector<SCH_ITEM*> GetVectorBusLabels() const;
@@ -122,11 +103,11 @@ public:
     std::vector<SCH_ITEM*> GetAllBusLabels() const;
 
     /// Return the candidate net name for a driver.
-    const wxString& GetNameForDriver( SCH_ITEM* aItem ) const;
+    const QString& GetNameForDriver( SCH_ITEM* aItem ) const;
 
     /// Return the resolved netclasses for the item, and the source item providing the netclass
     /// @param aItem the item to query for netclass assignments
-    const std::vector<std::pair<wxString, SCH_ITEM*>>
+    const std::vector<std::pair<QString, SCH_ITEM*>>
     GetNetclassesForDriver( SCH_ITEM* aItem ) const;
 
     /// Combine another subgraph on the same sheet into this one.
@@ -223,7 +204,7 @@ public:
     }
 
 private:
-    wxString driverName( SCH_ITEM* aItem ) const;
+    QString driverName( SCH_ITEM* aItem ) const;
 
     CONNECTION_GRAPH* m_graph;
 
@@ -297,7 +278,7 @@ private:
     std::unordered_set<CONNECTION_SUBGRAPH*> m_hier_children;
 
     /// A cache of escaped netnames from schematic items.
-    mutable std::unordered_map<SCH_ITEM*, wxString> m_driver_name_cache;
+    mutable std::unordered_map<SCH_ITEM*, QString> m_driver_name_cache;
 
     /// Fully-resolved driver for the subgraph (might not exist in this subgraph).
     SCH_ITEM* m_driver;
@@ -323,7 +304,7 @@ private:
 
 struct NET_NAME_CODE_CACHE_KEY
 {
-    wxString  Name;
+    QString  Name;
     int       Netcode;
 
     bool operator==(const NET_NAME_CODE_CACHE_KEY& other) const
@@ -341,7 +322,7 @@ namespace std
         {
             const std::size_t prime = 19937;
 
-            return hash<wxString>()( k.Name ) ^ ( hash<int>()( k.Netcode ) * prime );
+            return qHash( k.Name ) ^ ( hash<int>()( k.Netcode ) * prime );
         }
     };
 }
@@ -402,7 +383,7 @@ public:
      * CONNECTION_GRAPH caches these, they are owned by the SCH_SCREEN that
      * the alias was defined on.  The cache is only used to update the graph.
      */
-    std::shared_ptr<BUS_ALIAS> GetBusAlias( const wxString& aName );
+    std::shared_ptr<BUS_ALIAS> GetBusAlias( const QString& aName );
 
     /**
      * Determine which subgraphs have more than one conflicting bus label.
@@ -431,7 +412,7 @@ public:
      * @param aPath is a sheet path to look on.
      * @return the subgraph matching the query, or nullptr if none is found.
      */
-    CONNECTION_SUBGRAPH* FindSubgraphByName( const wxString& aNetName,
+    CONNECTION_SUBGRAPH* FindSubgraphByName( const QString& aNetName,
                                              const SCH_SHEET_PATH& aPath );
 
     /**
@@ -442,11 +423,11 @@ public:
      * @param aNetName is the full net name to search for.
      * @return the subgraph matching the query, or nullptr if none is found.
      */
-    CONNECTION_SUBGRAPH* FindFirstSubgraphByName( const wxString& aNetName );
+    CONNECTION_SUBGRAPH* FindFirstSubgraphByName( const QString& aNetName );
 
     CONNECTION_SUBGRAPH* GetSubgraphForItem( SCH_ITEM* aItem ) const;
 
-    const std::vector<CONNECTION_SUBGRAPH*>& GetAllSubgraphs( const wxString& aNetName ) const;
+    const std::vector<CONNECTION_SUBGRAPH*>& GetAllSubgraphs( const QString& aNetName ) const;
 
     /**
      * Return the fully-resolved netname for a given subgraph.
@@ -454,7 +435,7 @@ public:
      * @param aSubGraph Reference to the subgraph.
      * @return Netname string usable with m_net_name_to_subgraphs_map.
      */
-    wxString GetResolvedSubgraphName( const CONNECTION_SUBGRAPH* aSubGraph ) const;
+    QString GetResolvedSubgraphName( const CONNECTION_SUBGRAPH* aSubGraph ) const;
 
     /**
      * For a set of items, this will remove the connected items and their
@@ -588,7 +569,7 @@ private:
      * @param aNetName string with the netname for coding
      * @return existing netcode (if it exists) or newly created one
      */
-    int getOrCreateNetCode( const wxString& aNetName );
+    int getOrCreateNetCode( const QString& aNetName );
 
     /**
      * Ensure all members of the bus connection have a valid net code assigned.
@@ -640,7 +621,7 @@ private:
     std::shared_ptr<SCH_CONNECTION> getDefaultConnection( SCH_ITEM* aItem,
                                                           CONNECTION_SUBGRAPH* aSubgraph );
 
-    void recacheSubgraphName( CONNECTION_SUBGRAPH* aSubgraph, const wxString& aOldName );
+    void recacheSubgraphName( CONNECTION_SUBGRAPH* aSubgraph, const QString& aOldName );
 
     /**
      * If the subgraph has multiple drivers of equal priority that are graphically connected,
@@ -778,18 +759,18 @@ private:
 
     std::vector<std::pair<SCH_SHEET_PATH, SCH_PIN*>> m_global_power_pins;
 
-    std::unordered_map<wxString, std::shared_ptr<BUS_ALIAS>> m_bus_alias_cache;
+    std::unordered_map<QString, std::shared_ptr<BUS_ALIAS>> m_bus_alias_cache;
 
-    std::unordered_map<wxString, int> m_net_name_to_code_map;
+    std::unordered_map<QString, int> m_net_name_to_code_map;
 
-    std::unordered_map<wxString, int> m_bus_name_to_code_map;
+    std::unordered_map<QString, int> m_bus_name_to_code_map;
 
-    std::unordered_map<wxString, std::vector<const CONNECTION_SUBGRAPH*>> m_global_label_cache;
+    std::unordered_map<QString, std::vector<const CONNECTION_SUBGRAPH*>> m_global_label_cache;
 
-    std::map< std::pair<SCH_SHEET_PATH, wxString>,
+    std::map< std::pair<SCH_SHEET_PATH, QString>,
               std::vector<const CONNECTION_SUBGRAPH*> > m_local_label_cache;
 
-    std::unordered_map<wxString, std::vector<CONNECTION_SUBGRAPH*>> m_net_name_to_subgraphs_map;
+    std::unordered_map<QString, std::vector<CONNECTION_SUBGRAPH*>> m_net_name_to_subgraphs_map;
 
     std::unordered_map<SCH_ITEM*, CONNECTION_SUBGRAPH*> m_item_to_subgraph_map;
 

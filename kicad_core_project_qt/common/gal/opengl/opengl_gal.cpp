@@ -1,30 +1,4 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2012 Torsten Hueter, torstenhtr <at> gmx.de
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * Copyright (C) 2013-2017 CERN
- * @author Maciej Suminski <maciej.suminski@cern.ch>
- *
- * Graphics Abstraction Layer (GAL) for OpenGL
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// Graphics Abstraction Layer (GAL) for OpenGL - Qt implementation
 
 // Apple, in their infinite wisdom, has decided to mark OpenGL as deprecated.
 // Luckily we can silence warnings about its deprecation.
@@ -39,14 +13,27 @@
 #include <gal/definitions.h>
 #include <gal/opengl/gl_context_mgr.h>
 #include <geometry/shape_poly_set.h>
-#include <math/vector2wx.h>
+#include <math/vector2qt.h>
 #include <bitmap_base.h>
 #include <bezier_curves.h>
 #include <math/util.h> // for KiROUND
 #include <pgm_base.h>
 #include <trace_helpers.h>
 
-#include <wx/frame.h>
+#include <QtOpenGL/QOpenGLWidget>
+#include <QtOpenGL/QOpenGLContext>
+#include <QtWidgets/QApplication>
+#include <QtCore/QTimer>
+#include <QtCore/QString>
+#include <QtCore/QDateTime>
+#include <QtCore/QDebug>
+#include <QtCore/QCoreApplication>
+#include <QtGui/QCursor>
+#include <QtGui/QPaintEvent>
+#include <QtGui/QMouseEvent>
+#include <QtGui/QGestureEvent>
+#include <QtGui/QSurfaceFormat>
+#include <QtWidgets/QWidget>
 
 #include <macros.h>
 #include <geometry/geometry_utils.h>
@@ -75,15 +62,23 @@ using namespace KIGFX::BUILTIN_FONT;
 
 static void InitTesselatorCallbacks( GLUtesselator* aTesselator );
 
-static wxGLAttributes getGLAttribs()
+static QSurfaceFormat getGLFormat()
 {
-    wxGLAttributes attribs;
-    attribs.RGBA().DoubleBuffer().Depth( 8 ).EndList();
+    QSurfaceFormat format;
+    format.setRenderableType(QSurfaceFormat::OpenGL);
+    format.setProfile(QSurfaceFormat::CoreProfile);
+    format.setVersion(2, 1);
+    format.setDoubleBuffer(true);
+    format.setDepthBufferSize(8);
+    format.setRedBufferSize(8);
+    format.setGreenBufferSize(8);
+    format.setBlueBufferSize(8);
+    format.setAlphaBufferSize(8);
 
-    return attribs;
+    return format;
 }
 
-wxGLContext* OPENGL_GAL::m_glMainContext = nullptr;
+QOpenGLContext* OPENGL_GAL::m_glMainContext = nullptr;
 int          OPENGL_GAL::m_instanceCounter = 0;
 GLuint       OPENGL_GAL::g_fontTexture = 0;
 bool         OPENGL_GAL::m_isBitmapFontLoaded = false;
@@ -141,7 +136,7 @@ GLuint GL_BITMAP_CACHE::RequestBitmap( const BITMAP_BASE* aBitmap )
         // A bitmap is found in cache bitmap. Ensure the associated texture is still valid.
         if( glIsTexture( it->second.id ) )
         {
-            it->second.accessTime = wxGetUTCTimeMillis().GetValue();
+            it->second.accessTime = QDateTime::currentMSecsSinceEpoch();
             return it->second.id;
         }
         else
@@ -172,12 +167,12 @@ GLuint GL_BITMAP_CACHE::cacheBitmap( const BITMAP_BASE* aBitmap )
 {
     CACHED_BITMAP bmp;
 
-    const wxImage* imgPtr = aBitmap->GetOriginalImageData();
+    const QImage* imgPtr = aBitmap->GetOriginalImageData();
 
     if( !imgPtr )
         return std::numeric_limits< GLuint >::max();
 
-    const wxImage& imgData = *imgPtr;
+    const QImage& imgData = *imgPtr;
 
     bmp.w = imgData.GetSize().x;
     bmp.h = imgData.GetSize().y;
@@ -231,9 +226,9 @@ GLuint GL_BITMAP_CACHE::cacheBitmap( const BITMAP_BASE* aBitmap )
                 memcpy( dstP, srcP, 3 );
 
                 if( srcP[0] == maskRed && srcP[1] == maskGreen && srcP[2] == maskBlue )
-                    dstP[3] = wxALPHA_TRANSPARENT;
+                    dstP[3] = 0;
                 else
-                    dstP[3] = wxALPHA_OPAQUE;
+                    dstP[3] = 255;
 
                 srcP += 3;
                 dstP += 4;
@@ -257,7 +252,7 @@ GLuint GL_BITMAP_CACHE::cacheBitmap( const BITMAP_BASE* aBitmap )
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
 
-    long long currentTime = wxGetUTCTimeMillis().GetValue();
+    long long currentTime = QDateTime::currentMSecsSinceEpoch();
 
     bmp.id = textureID;
     bmp.accessTime = currentTime;
@@ -311,13 +306,11 @@ GLuint GL_BITMAP_CACHE::cacheBitmap( const BITMAP_BASE* aBitmap )
 
 
 OPENGL_GAL::OPENGL_GAL( const KIGFX::VC_SETTINGS& aVcSettings, GAL_DISPLAY_OPTIONS& aDisplayOptions,
-                        wxWindow* aParent,
-                        wxEvtHandler* aMouseListener, wxEvtHandler* aPaintListener,
-                        const wxString& aName ) :
+                        QWidget* aParent,
+                        QObject* aMouseListener, QObject* aPaintListener,
+                        const QString& aName ) :
         GAL( aDisplayOptions ),
-        HIDPI_GL_CANVAS( aVcSettings, aParent, getGLAttribs(), wxID_ANY, wxDefaultPosition,
-                         wxDefaultSize,
-                         wxEXPAND, aName ),
+        HIDPI_GL_CANVAS( aVcSettings, aParent, getGLFormat(), aName ),
         m_mouseListener( aMouseListener ),
         m_paintListener( aPaintListener ),
         m_currentManager( nullptr ),
@@ -363,39 +356,8 @@ OPENGL_GAL::OPENGL_GAL( const KIGFX::VC_SETTINGS& aVcSettings, GAL_DISPLAY_OPTIO
     m_isGrouping = false;
     m_groupCounter = 0;
 
-    // Connect the native cursor handler
-    Connect( wxEVT_SET_CURSOR, wxSetCursorEventHandler( OPENGL_GAL::onSetNativeCursor ), nullptr,
-             this );
-
-    // Connecting the event handlers
-    Connect( wxEVT_PAINT, wxPaintEventHandler( OPENGL_GAL::onPaint ) );
-
-    // Mouse events are skipped to the parent
-    Connect( wxEVT_MOTION, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_LEFT_UP, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_MIDDLE_DOWN, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_MIDDLE_UP, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_MIDDLE_DCLICK, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_RIGHT_DOWN, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_RIGHT_UP, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_RIGHT_DCLICK, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_AUX1_DOWN, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_AUX1_UP, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_AUX1_DCLICK, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_AUX2_DOWN, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_AUX2_UP, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_AUX2_DCLICK, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_MOUSEWHEEL, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-    Connect( wxEVT_MAGNIFY, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-
-#if defined _WIN32 || defined _WIN64
-    Connect( wxEVT_ENTER_WINDOW, wxMouseEventHandler( OPENGL_GAL::skipMouseEvent ) );
-#endif
-
-    Bind( wxEVT_GESTURE_ZOOM, &OPENGL_GAL::skipGestureEvent, this );
-    Bind( wxEVT_GESTURE_PAN, &OPENGL_GAL::skipGestureEvent, this );
+    // Qt event handling will be implemented in derived classes
+    // Mouse events, paint events, and gestures are handled through Qt's event system
 
     SetSize( aParent->GetClientSize() );
     m_screenSize = ToVECTOR2I( GetNativePixelSize() );
@@ -469,12 +431,13 @@ OPENGL_GAL::~OPENGL_GAL()
 }
 
 
-wxString OPENGL_GAL::CheckFeatures( GAL_DISPLAY_OPTIONS& aOptions )
+QString OPENGL_GAL::CheckFeatures( GAL_DISPLAY_OPTIONS& aOptions )
 {
-    wxString retVal = wxEmptyString;
+    QString retVal = QString();
 
-    wxFrame* testFrame = new wxFrame( nullptr, wxID_ANY, wxT( "" ), wxDefaultPosition,
-                                      wxSize( 1, 1 ), wxFRAME_TOOL_WINDOW | wxNO_BORDER );
+    QWidget* testFrame = new QWidget( nullptr );
+    testFrame->resize( 1, 1 );
+    testFrame->setWindowFlags( Qt::Tool | Qt::FramelessWindowHint );
 
     KIGFX::OPENGL_GAL* opengl_gal = nullptr;
 
@@ -483,8 +446,8 @@ wxString OPENGL_GAL::CheckFeatures( GAL_DISPLAY_OPTIONS& aOptions )
         KIGFX::VC_SETTINGS dummy;
         opengl_gal = new KIGFX::OPENGL_GAL( dummy, aOptions, testFrame );
 
-        testFrame->Raise();
-        testFrame->Show();
+        testFrame->raise();
+        testFrame->show();
 
         GAL_CONTEXT_LOCKER lock( opengl_gal );
         opengl_gal->init();
@@ -492,7 +455,7 @@ wxString OPENGL_GAL::CheckFeatures( GAL_DISPLAY_OPTIONS& aOptions )
     catch( std::runtime_error& err )
     {
         //Test failed
-        retVal = wxString( err.what() );
+        retVal = QString( err.what() );
     }
 
     delete opengl_gal;
@@ -502,11 +465,11 @@ wxString OPENGL_GAL::CheckFeatures( GAL_DISPLAY_OPTIONS& aOptions )
 }
 
 
-void OPENGL_GAL::PostPaint( wxPaintEvent& aEvent )
+void OPENGL_GAL::PostPaint( QPaintEvent& aEvent )
 {
     // posts an event to m_paint_listener to ask for redraw the canvas.
     if( m_paintListener )
-        wxPostEvent( m_paintListener, aEvent );
+        QCoreApplication::postEvent( m_paintListener, new QPaintEvent( aEvent ) );
 }
 
 
@@ -554,10 +517,10 @@ void OPENGL_GAL::BeginDrawing()
     PROF_TIMER totalRealTime( "OPENGL_GAL::beginDrawing()", true );
 #endif /* KICAD_GAL_PROFILE */
 
-    wxASSERT_MSG( m_isContextLocked, "GAL_DRAWING_CONTEXT RAII object should have locked context. "
+    Q_ASSERT_X( m_isContextLocked, "OPENGL_GAL::beginDrawing", "GAL_DRAWING_CONTEXT RAII object should have locked context."
                                      "Calling GAL::beginDrawing() directly is not allowed." );
 
-    wxASSERT_MSG( IsVisible(), "GAL::beginDrawing() must not be entered when GAL is not visible. "
+    Q_ASSERT_X( IsVisible(), "OPENGL_GAL::beginDrawing", "GAL::beginDrawing() must not be entered when GAL is not visible."
                                "Other drawing routines will expect everything to be initialized "
                                "which will not be the case." );
 
@@ -583,7 +546,7 @@ void OPENGL_GAL::BeginDrawing()
         }
         catch( const std::runtime_error& )
         {
-            wxLogVerbose( "Could not create a framebuffer for diff mode blending.\n" );
+            qDebug() << "Could not create a framebuffer for diff mode blending.";
             m_tempBuffer = 0;
         }
         try
@@ -592,7 +555,7 @@ void OPENGL_GAL::BeginDrawing()
         }
         catch( const std::runtime_error& )
         {
-            wxLogVerbose( "Could not create a framebuffer for overlays.\n" );
+            qDebug() << "Could not create a framebuffer for overlays.";
             m_overlayBuffer = 0;
         }
 
@@ -711,15 +674,14 @@ void OPENGL_GAL::BeginDrawing()
 
 #ifdef KICAD_GAL_PROFILE
     totalRealTime.Stop();
-    wxLogTrace( traceGalProfile, wxT( "OPENGL_GAL::beginDrawing(): %.1f ms" ),
-                totalRealTime.msecs() );
+    qDebug() << QString( "OPENGL_GAL::beginDrawing(): %1 ms" ).arg( totalRealTime.msecs() );
 #endif /* KICAD_GAL_PROFILE */
 }
 
 
 void OPENGL_GAL::EndDrawing()
 {
-    wxASSERT_MSG( m_isContextLocked, "What happened to the context lock?" );
+    Q_ASSERT_X( m_isContextLocked, "OPENGL_GAL::endDrawing", "What happened to the context lock?" );
 
     PROF_TIMER cntTotal( "gl-end-total" );
     PROF_TIMER cntEndCached( "gl-end-cached" );
@@ -779,7 +741,7 @@ void OPENGL_GAL::EndDrawing()
 
 void OPENGL_GAL::LockContext( int aClientCookie )
 {
-    wxASSERT_MSG( !m_isContextLocked, "Context already locked." );
+    Q_ASSERT_X( !m_isContextLocked, "OPENGL_GAL::lockContext", "Context already locked." );
     m_isContextLocked = true;
     m_lockClientCookie = aClientCookie;
 
@@ -789,10 +751,10 @@ void OPENGL_GAL::LockContext( int aClientCookie )
 
 void OPENGL_GAL::UnlockContext( int aClientCookie )
 {
-    wxASSERT_MSG( m_isContextLocked, "Context not locked.  A GAL_CONTEXT_LOCKER RAII object must "
+    Q_ASSERT_X( m_isContextLocked, "OPENGL_GAL::unlockContext", "Context not locked.  A GAL_CONTEXT_LOCKER RAII object must"
                                      "be stacked rather than making separate lock/unlock calls." );
 
-    wxASSERT_MSG( m_lockClientCookie == aClientCookie,
+    Q_ASSERT_X( m_lockClientCookie == aClientCookie, "OPENGL_GAL::unlockContext",
                   "Context was locked by a different client. "
                   "Should not be possible with RAII objects." );
 
@@ -804,10 +766,10 @@ void OPENGL_GAL::UnlockContext( int aClientCookie )
 
 void OPENGL_GAL::beginUpdate()
 {
-    wxASSERT_MSG( m_isContextLocked, "GAL_UPDATE_CONTEXT RAII object should have locked context. "
+    Q_ASSERT_X( m_isContextLocked, "OPENGL_GAL::beginUpdate", "GAL_UPDATE_CONTEXT RAII object should have locked context."
                                      "Calling this from anywhere else is not allowed." );
 
-    wxASSERT_MSG( IsVisible(), "GAL::beginUpdate() must not be entered when GAL is not visible. "
+    Q_ASSERT_X( IsVisible(), "OPENGL_GAL::beginUpdate", "GAL::beginUpdate() must not be entered when GAL is not visible."
                                "Other update routines will expect everything to be initialized "
                                "which will not be the case." );
 
@@ -1339,7 +1301,7 @@ void OPENGL_GAL::DrawPolylines( const std::vector<std::vector<VECTOR2D>>& aPoint
 
 void OPENGL_GAL::DrawPolygon( const std::deque<VECTOR2D>& aPointList )
 {
-    wxCHECK( aPointList.size() >= 2, /* void */ );
+    Q_ASSERT( aPointList.size() >= 2 );
     auto      points = std::unique_ptr<GLdouble[]>( new GLdouble[3 * aPointList.size()] );
     GLdouble* ptr = points.get();
 
@@ -1356,7 +1318,7 @@ void OPENGL_GAL::DrawPolygon( const std::deque<VECTOR2D>& aPointList )
 
 void OPENGL_GAL::DrawPolygon( const VECTOR2D aPointList[], int aListSize )
 {
-    wxCHECK( aListSize >= 2, /* void */ );
+    Q_ASSERT( aListSize >= 2 );
     auto            points = std::unique_ptr<GLdouble[]>( new GLdouble[3 * aListSize] );
     GLdouble*       target = points.get();
     const VECTOR2D* src = aPointList;
@@ -1585,14 +1547,14 @@ void OPENGL_GAL::DrawBitmap( const BITMAP_BASE& aBitmap, double alphaBlend )
 }
 
 
-void OPENGL_GAL::BitmapText( const wxString& aText, const VECTOR2I& aPosition,
+void OPENGL_GAL::BitmapText( const QString& aText, const VECTOR2I& aPosition,
                              const EDA_ANGLE& aAngle )
 {
     // Fallback to generic impl (which uses the stroke font) on cases we don't handle
     if( IsTextMirrored()
-            || aText.Contains( wxT( "^{" ) )
-            || aText.Contains( wxT( "_{" ) )
-            || aText.Contains( wxT( "\n" ) ) )
+            || aText.contains( "^{" )
+            || aText.contains( "_{" )
+            || aText.contains( "\n" ) )
     {
         return GAL::BitmapText( aText, aPosition, aAngle );
     }
@@ -1634,7 +1596,7 @@ void OPENGL_GAL::BitmapText( const wxString& aText, const VECTOR2I& aPosition,
         break;
 
     case GR_TEXT_H_ALIGN_INDETERMINATE:
-        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        Q_ASSERT_X( false, "OPENGL_GAL::BitmapText", "Indeterminate state legal only in dialogs." );
         break;
     }
 
@@ -1654,7 +1616,7 @@ void OPENGL_GAL::BitmapText( const wxString& aText, const VECTOR2I& aPosition,
         break;
 
     case GR_TEXT_V_ALIGN_INDETERMINATE:
-        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        Q_ASSERT_X( false, "OPENGL_GAL::BitmapText", "Indeterminate state legal only in dialogs." );
         break;
     }
 
@@ -1668,8 +1630,8 @@ void OPENGL_GAL::BitmapText( const wxString& aText, const VECTOR2I& aPosition,
             {
                 for( UTF8::uni_iter chIt = text.ubegin(), end = text.uend(); chIt < end; ++chIt )
                 {
-                    wxASSERT_MSG( *chIt != '\n' && *chIt != '\r',
-                                  "No support for multiline bitmap text yet" );
+                    Q_ASSERT_X( *chIt != '\n' && *chIt != '\r', "OPENGL_GAL::BitmapText",
+                                "No support for multiline bitmap text yet" );
 
                     if( *chIt == '~' && overbarDepth == -1 )
                     {
@@ -1910,16 +1872,17 @@ void OPENGL_GAL::ResizeScreen( int aWidth, int aHeight )
     m_compositor->Resize( aWidth * scaleFactor, aHeight * scaleFactor );
     m_isFramebufferInitialized = false;
 
-    wxGLCanvas::SetSize( aWidth, aHeight );
+    resize( aWidth, aHeight );
 }
 
 
 bool OPENGL_GAL::Show( bool aShow )
 {
-    bool s = wxGLCanvas::Show( aShow );
+    bool s = isVisible();
+    setVisible( aShow );
 
     if( aShow )
-        wxGLCanvas::Raise();
+        raise();
 
     return s;
 }
@@ -2157,25 +2120,26 @@ void OPENGL_GAL::EndDiffLayer()
 
 bool OPENGL_GAL::SetNativeCursorStyle( KICURSOR aCursor, bool aHiDPI )
 {
-    // Store the current cursor type and get the wxCursor for it
+    // Store the current cursor type and get the QCursor for it
     if( !GAL::SetNativeCursorStyle( aCursor, aHiDPI ) )
         return false;
 
     if( aHiDPI )
-        m_currentwxCursor = CURSOR_STORE::GetHiDPICursor( m_currentNativeCursor );
+        m_currentQtCursor = CURSOR_STORE::GetHiDPICursor( m_currentNativeCursor );
     else
-        m_currentwxCursor = CURSOR_STORE::GetCursor( m_currentNativeCursor );
+        m_currentQtCursor = CURSOR_STORE::GetCursor( m_currentNativeCursor );
 
-    // Update the cursor in the wx control
-    HIDPI_GL_CANVAS::SetCursor( m_currentwxCursor );
+    // Update the cursor in the Qt control
+    setCursor( m_currentQtCursor );
 
     return true;
 }
 
 
-void OPENGL_GAL::onSetNativeCursor( wxSetCursorEvent& aEvent )
+void OPENGL_GAL::onSetNativeCursor( QEvent& aEvent )
 {
-    aEvent.SetCursor( m_currentwxCursor );
+    // Qt handles cursor setting automatically
+    Q_UNUSED( aEvent );
 }
 
 
@@ -2370,7 +2334,7 @@ void OPENGL_GAL::drawPolygon( GLdouble* aPoints, int aPointCount )
 void OPENGL_GAL::drawPolyline( const std::function<VECTOR2D( int )>& aPointGetter, int aPointCount,
                                bool aReserve )
 {
-    wxCHECK( aPointCount > 0, /* return */ );
+    Q_ASSERT( aPointCount > 0 );
 
     m_currentManager->Color( m_strokeColor.r, m_strokeColor.g, m_strokeColor.b, m_strokeColor.a );
 
@@ -2398,7 +2362,7 @@ void OPENGL_GAL::drawPolyline( const std::function<VECTOR2D( int )>& aPointGette
 void OPENGL_GAL::drawSegmentChain( const std::function<VECTOR2D( int )>& aPointGetter,
                                    int aPointCount, double aWidth, bool aReserve )
 {
-    wxCHECK( aPointCount >= 2, /* return */ );
+    Q_ASSERT( aPointCount >= 2 );
 
     m_currentManager->Color( m_strokeColor.r, m_strokeColor.g, m_strokeColor.b, m_strokeColor.a );
 
@@ -2456,7 +2420,7 @@ int OPENGL_GAL::drawBitmapChar( unsigned long aChar, bool aReserve )
     if( aChar == ' ' )
     {
         const FONT_GLYPH_TYPE* g = LookupGlyph( 'x' );
-        wxCHECK( g, 0 );
+        Q_ASSERT( g );
 
         // Match stroke font as well as possible
         double spaceWidth = g->advance * 0.74;
@@ -2530,7 +2494,7 @@ void OPENGL_GAL::drawBitmapOverbar( double aLength, double aHeight, bool aReserv
 {
     // To draw an overbar, simply draw an overbar
     const FONT_GLYPH_TYPE* glyph = LookupGlyph( '_' );
-    wxCHECK( glyph, /* void */ );
+    Q_ASSERT( glyph );
 
     const float H = glyph->maxy - glyph->miny;
 
@@ -2617,25 +2581,25 @@ std::pair<VECTOR2D, float> OPENGL_GAL::computeBitmapTextSize( const UTF8& aText 
 }
 
 
-void OPENGL_GAL::onPaint( wxPaintEvent& aEvent )
+void OPENGL_GAL::onPaint( QPaintEvent& aEvent )
 {
     PostPaint( aEvent );
 }
 
 
-void OPENGL_GAL::skipMouseEvent( wxMouseEvent& aEvent )
+void OPENGL_GAL::skipMouseEvent( QMouseEvent& aEvent )
 {
     // Post the mouse event to the event listener registered in constructor, if any
     if( m_mouseListener )
-        wxPostEvent( m_mouseListener, aEvent );
+        QCoreApplication::postEvent( m_mouseListener, new QMouseEvent( aEvent ) );
 }
 
 
-void OPENGL_GAL::skipGestureEvent( wxGestureEvent& aEvent )
+void OPENGL_GAL::skipGestureEvent( QGestureEvent& aEvent )
 {
     // Post the gesture event to the event listener registered in constructor, if any
     if( m_mouseListener )
-        wxPostEvent( m_mouseListener, aEvent );
+        QCoreApplication::postEvent( m_mouseListener, new QGestureEvent( aEvent ) );
 }
 
 
@@ -2674,8 +2638,8 @@ void OPENGL_GAL::blitCursor()
 
 unsigned int OPENGL_GAL::getNewGroupNumber()
 {
-    wxASSERT_MSG( m_groups.size() < std::numeric_limits<unsigned int>::max(),
-                  wxT( "There are no free slots to store a group" ) );
+    Q_ASSERT_X( m_groups.size() < std::numeric_limits<unsigned int>::max(),
+                "OPENGL_GAL::BeginGroup", "There are no free slots to store a group" );
 
     while( m_groups.find( m_groupCounter ) != m_groups.end() )
         m_groupCounter++;
@@ -2687,10 +2651,10 @@ unsigned int OPENGL_GAL::getNewGroupNumber()
 void OPENGL_GAL::init()
 {
 #ifndef KICAD_USE_EGL
-    wxASSERT( IsShownOnScreen() );
+    Q_ASSERT( isVisible() );
 #endif // KICAD_USE_EGL
 
-    wxASSERT_MSG( m_isContextLocked, "This should only be called from within a locked context." );
+    Q_ASSERT_X( m_isContextLocked, "OPENGL_GAL::runThroughFontTexture", "This should only be called from within a locked context." );
 
     // Check correct initialization from the constructor
     if( m_tesselator == nullptr )

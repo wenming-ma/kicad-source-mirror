@@ -1,31 +1,9 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "tool/construction_manager.h"
 
 #include <chrono>
 
-#include <wx/timer.h>
+#include <QTimer>
 
 #include <advanced_config.h>
 #include <hash.h>
@@ -52,7 +30,7 @@ public:
             m_timeout( aTimeout ),
             m_callback( std::move( aCallback ) )
     {
-        m_timer.Bind( wxEVT_TIMER, &ACTIVATION_HELPER::onTimerExpiry, this );
+        QObject::connect( &m_timer, &QTimer::timeout, [this]() { onTimerExpiry(); } );
     }
 
     ~ACTIVATION_HELPER()
@@ -60,8 +38,8 @@ public:
         // Hold the lock while shutting down to prevent a propoal being accepted
         // while state is being destroyed.
         std::unique_lock<std::mutex> lock( m_mutex );
-        m_timer.Stop();
-        m_timer.Unbind( wxEVT_TIMER, &ACTIVATION_HELPER::onTimerExpiry, this );
+        m_timer.stop();
+        QObject::disconnect( &m_timer, &QTimer::timeout, nullptr, nullptr );
 
         // Should be redundant to inhibiting timer callbacks, but make it explicit.
         m_pendingProposalTag.reset();
@@ -95,7 +73,8 @@ public:
         }
         else
         {
-            m_timer.Start( m_timeout.count(), wxTIMER_ONE_SHOT );
+            m_timer.setSingleShot( true );
+            m_timer.start( m_timeout.count() );
         }
     }
 
@@ -103,14 +82,14 @@ public:
     {
         std::lock_guard<std::mutex> lock( m_mutex );
         m_pendingProposalTag.reset();
-        m_timer.Stop();
+        m_timer.stop();
     }
 
 private:
     /**
      * Timer expiry callback in the UI thread.
      */
-    void onTimerExpiry( wxTimerEvent& aEvent )
+    void onTimerExpiry()
     {
         acceptPendingProposal();
     }
@@ -151,7 +130,7 @@ private:
     /// Callback to call when the proposal is accepted.
     ACTIVATION_CALLBACK m_callback;
 
-    wxTimer m_timer;
+    QTimer m_timer;
 };
 
 
@@ -174,7 +153,8 @@ CONSTRUCTION_MANAGER::CONSTRUCTION_MANAGER( CONSTRUCTION_VIEW_HANDLER& aHelper )
             {
                 // This shouldn't be possible (probably indicates a race in destruction of something)
                 // but at least avoid blowing up acceptConstructionItems.
-                wxCHECK_MSG( aAccepted != nullptr, void(), "Null proposal accepted" );
+                Q_ASSERT_X( aAccepted != nullptr, "CONSTRUCTION_MANAGER", "Null proposal accepted" );
+                if( aAccepted == nullptr ) return;
 
                 acceptConstructionItems( std::move( aAccepted ) );
             } );

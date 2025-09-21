@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2018 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include "dialog_import_gfx_sch.h"
 
@@ -41,8 +18,8 @@
 #include <symbol_editor_settings.h>
 #include <symbol_edit_frame.h>
 
-#include <wx/filedlg.h>
-#include <wx/msgdlg.h>
+#include <QFileDialog>
+#include <QMessageBox>
 
 #include <dialogs/html_message_box.h>
 #include <widgets/std_bitmap_button.h>
@@ -54,12 +31,12 @@ bool   DIALOG_IMPORT_GFX_SCH::m_placementInteractive = true;
 double DIALOG_IMPORT_GFX_SCH::m_importScale          = 1.0;   // Do not change the imported items size
 
 
-const std::map<DXF_IMPORT_UNITS, wxString> dxfUnitsMap = {
-    { DXF_IMPORT_UNITS::INCH, _( "Inches" ) },
-    { DXF_IMPORT_UNITS::MM,   _( "Millimeters" ) },
-    { DXF_IMPORT_UNITS::MILS, _( "Mils" ) },
-    { DXF_IMPORT_UNITS::CM,   _( "Centimeter" ) },
-    { DXF_IMPORT_UNITS::FEET, _( "Feet" ) },
+const std::map<DXF_IMPORT_UNITS, QString> dxfUnitsMap = {
+    { DXF_IMPORT_UNITS::INCH, "Inches" },
+    { DXF_IMPORT_UNITS::MM,   "Millimeters" },
+    { DXF_IMPORT_UNITS::MILS, "Mils" },
+    { DXF_IMPORT_UNITS::CM,   "Centimeter" },
+    { DXF_IMPORT_UNITS::FEET, "Feet" },
 };
 
 
@@ -84,9 +61,9 @@ DIALOG_IMPORT_GFX_SCH::DIALOG_IMPORT_GFX_SCH( SCH_BASE_FRAME* aParent ) :
         m_rbInteractivePlacement->SetValue( m_placementInteractive );
         m_rbAbsolutePlacement->SetValue( !m_placementInteractive );
 
-        m_importScaleCtrl->SetValue( wxString::Format( wxT( "%f" ), m_importScale ) );
+        m_importScaleCtrl->SetValue( QString::asprintf( "%f", m_importScale ) );
 
-        for( const std::pair<const DXF_IMPORT_UNITS, wxString>& unitEntry : dxfUnitsMap )
+        for( const std::pair<const DXF_IMPORT_UNITS, QString>& unitEntry : dxfUnitsMap )
             m_choiceDxfUnits->Append( unitEntry.second );
 
         m_choiceDxfUnits->SetSelection( aCfg->m_ImportGraphics.dxf_units );
@@ -110,7 +87,7 @@ DIALOG_IMPORT_GFX_SCH::DIALOG_IMPORT_GFX_SCH( SCH_BASE_FRAME* aParent ) :
 
     m_gfxImportMgr = std::make_unique<GRAPHICS_IMPORT_MGR>();
 
-    wxCommandEvent dummy;
+    QString dummy;
     onFilename( dummy );
 
     SetInitialFocus( m_textCtrlFileName );
@@ -120,9 +97,8 @@ DIALOG_IMPORT_GFX_SCH::DIALOG_IMPORT_GFX_SCH( SCH_BASE_FRAME* aParent ) :
     GetSizer()->SetSizeHints( this );
     Centre();
 
-    m_textCtrlFileName->Connect( wxEVT_COMMAND_TEXT_UPDATED,
-                                 wxCommandEventHandler( DIALOG_IMPORT_GFX_SCH::onFilename ),
-                                 nullptr, this );
+    connect( m_textCtrlFileName, &QLineEdit::textChanged,
+             this, &DIALOG_IMPORT_GFX_SCH::onFilename );
 }
 
 
@@ -151,16 +127,15 @@ DIALOG_IMPORT_GFX_SCH::~DIALOG_IMPORT_GFX_SCH()
         saveToSettings( cfg );
     }
 
-    m_textCtrlFileName->Disconnect( wxEVT_COMMAND_TEXT_UPDATED,
-                                    wxCommandEventHandler( DIALOG_IMPORT_GFX_SCH::onFilename ),
-                                    nullptr, this );
+    disconnect( m_textCtrlFileName, &QLineEdit::textChanged,
+                this, &DIALOG_IMPORT_GFX_SCH::onFilename );
 }
 
 
-void DIALOG_IMPORT_GFX_SCH::onFilename( wxCommandEvent& event )
+void DIALOG_IMPORT_GFX_SCH::onFilename( const QString& text )
 {
     bool     enableDXFControls = true;
-    wxString ext = wxFileName( m_textCtrlFileName->GetValue() ).GetExt();
+    QString ext = QFileInfo( m_textCtrlFileName->text() ).suffix();
 
     if( std::unique_ptr<GRAPHICS_IMPORT_PLUGIN> plugin = m_gfxImportMgr->GetPluginByExt( ext ) )
         enableDXFControls = dynamic_cast<DXF_IMPORT_PLUGIN*>( plugin.get() ) != nullptr;
@@ -172,53 +147,54 @@ void DIALOG_IMPORT_GFX_SCH::onFilename( wxCommandEvent& event )
 }
 
 
-void DIALOG_IMPORT_GFX_SCH::onBrowseFiles( wxCommandEvent& event )
+void DIALOG_IMPORT_GFX_SCH::onBrowseFiles()
 {
-    wxString path;
-    wxString filename = m_textCtrlFileName->GetValue();
+    QString path;
+    QString filename = m_textCtrlFileName->text();
 
-    if( !filename.IsEmpty() )
+    if( !filename.isEmpty() )
     {
-        wxFileName fn( filename );
-        path = fn.GetPath();
-        filename = fn.GetFullName();
+        QFileInfo fn( filename );
+        path = fn.path();
+        filename = fn.fileName();
     }
 
     // Generate the list of handled file formats
-    wxString wildcardsDesc;
-    wxString allWildcards;
+    QString wildcardsDesc;
+    QString allWildcards;
 
     for( GRAPHICS_IMPORT_MGR::GFX_FILE_T pluginType : m_gfxImportMgr->GetImportableFileTypes() )
     {
         std::unique_ptr<GRAPHICS_IMPORT_PLUGIN> plugin = m_gfxImportMgr->GetPlugin( pluginType );
         const std::vector<std::string>          extensions = plugin->GetFileExtensions();
 
-        wildcardsDesc += wxT( "|" ) + plugin->GetName() + AddFileExtListToFilter( extensions );
-        allWildcards += plugin->GetWildcards() + wxT( ";" );
+        wildcardsDesc += "|" + plugin->GetName() + AddFileExtListToFilter( extensions );
+        allWildcards += plugin->GetWildcards() + ";";
     }
 
-    wildcardsDesc = _( "All supported formats" ) + wxT( "|" ) + allWildcards + wildcardsDesc;
+    wildcardsDesc = "All supported formats" + "|" + allWildcards + wildcardsDesc;
 
-    wxFileDialog dlg( m_parent, _( "Import Graphics" ), path, filename, wildcardsDesc,
-                      wxFD_OPEN | wxFD_FILE_MUST_EXIST );
+    QString selectedFile = QFileDialog::getOpenFileName( this, "Import Graphics",
+                                                        path + "/" + filename,
+                                                        wildcardsDesc );
 
-    if( dlg.ShowModal() == wxID_OK && !dlg.GetPath().IsEmpty() )
-        m_textCtrlFileName->SetValue( dlg.GetPath() );
+    if( !selectedFile.isEmpty() )
+        m_textCtrlFileName->setText( selectedFile );
 }
 
 
 bool DIALOG_IMPORT_GFX_SCH::TransferDataFromWindow()
 {
-    if( !wxDialog::TransferDataFromWindow() )
+    if( !QDialog::accept() )
         return false;
 
-    if( m_textCtrlFileName->GetValue().IsEmpty() )
+    if( m_textCtrlFileName->text().isEmpty() )
     {
-        wxMessageBox( _( "No file selected!" ) );
+        QMessageBox::warning( this, "Warning", "No file selected!" );
         return false;
     }
 
-    wxString ext = wxFileName( m_textCtrlFileName->GetValue() ).GetExt();
+    QString ext = QFileInfo( m_textCtrlFileName->text() ).suffix();
     double   scale = EDA_UNIT_UTILS::UI::DoubleValueFromString( m_importScaleCtrl->GetValue() );
     double           xscale = scale;
     double           yscale = scale;
@@ -249,33 +225,33 @@ bool DIALOG_IMPORT_GFX_SCH::TransferDataFromWindow()
 
         LOCALE_IO dummy;    // Ensure floats can be read.
 
-        if( m_importer->Load( m_textCtrlFileName->GetValue() ) )
+        if( m_importer->Load( m_textCtrlFileName->text() ) )
             m_importer->Import( VECTOR2D( xscale, yscale ) );
 
         // Get warning messages:
-        wxString warnings = m_importer->GetMessages();
+        QString warnings = m_importer->GetMessages();
 
-        // This isn't a fatal error so allow the dialog to close with wxID_OK.
-        if( !warnings.empty() )
+        // This isn't a fatal error so allow the dialog to close with accept.
+        if( !warnings.isEmpty() )
         {
-            HTML_MESSAGE_BOX dlg( this, _( "Warning" ) );
-            dlg.MessageSet( _( "Items in the imported file could not be handled properly." ) );
-            warnings.Replace( wxT( "\n" ), wxT( "<br/>" ) );
+            HTML_MESSAGE_BOX dlg( this, "Warning" );
+            dlg.MessageSet( "Items in the imported file could not be handled properly." );
+            warnings.replace( "\n", "<br/>" );
             dlg.AddHTML_Text( warnings );
-            dlg.ShowModal();
+            dlg.exec();
         }
 
         return true;
     }
     else
     {
-        wxMessageBox( _( "There is no plugin to handle this file type." ) );
+        QMessageBox::warning( this, "Warning", "There is no plugin to handle this file type." );
         return false;
     }
 }
 
 
-void DIALOG_IMPORT_GFX_SCH::originOptionOnUpdateUI( wxUpdateUIEvent& event )
+void DIALOG_IMPORT_GFX_SCH::originOptionOnUpdateUI()
 {
     if( m_rbInteractivePlacement->GetValue() != m_placementInteractive )
         m_rbInteractivePlacement->SetValue( m_placementInteractive );

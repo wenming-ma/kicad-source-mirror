@@ -59,7 +59,7 @@ public:
      *
      * @return string "ANCHOR_DEBUG"
      */
-    wxString GetClass() const override { return wxT( "ANCHOR_DEBUG" ); }
+    QString GetClass() const override { return QStringLiteral( "ANCHOR_DEBUG" ); }
 
     void ClearAnchors();
 

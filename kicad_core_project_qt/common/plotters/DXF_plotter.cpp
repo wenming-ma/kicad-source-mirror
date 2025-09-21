@@ -2,28 +2,6 @@
  * @file DXF_plotter.cpp
  * @brief Kicad: specialized plotter for DXF files format
  */
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 #include <plotters/plotter_dxf.h>
 #include <macros.h>
@@ -31,6 +9,8 @@
 #include <convert_basic_shapes_to_polygon.h>
 #include <trigo.h>
 #include <fmt/core.h>
+#include <QString>
+#include <QChar>
 
 /**
  * Oblique angle for DXF native text
@@ -114,7 +94,7 @@ static const char* getDXFLineType( LINE_STYLE aType )
     case LINE_STYLE::DASHDOTDOT:
         return "DIVIDE";
     default:
-        wxFAIL_MSG( "Unhandled LINE_STYLE" );
+        Q_ASSERT_X( false, "getDXFLineType", "Unhandled LINE_STYLE" );
         return "CONTINUOUS";
     }
 }
@@ -122,12 +102,12 @@ static const char* getDXFLineType( LINE_STYLE aType )
 
 // A helper function to create a color name acceptable in DXF files
 // DXF files do not use a RGB definition
-static wxString getDXFColorName( const COLOR4D& aColor )
+static QString getDXFColorName( const COLOR4D& aColor )
 {
     EDA_COLOR_T color = COLOR4D::FindNearestLegacyColor( int( aColor.r * 255 ),
                                                          int( aColor.g * 255 ),
                                                          int( aColor.b * 255 ) );
-    wxString cname( dxf_layer[color].name );
+    QString cname( dxf_layer[color].name );
     return cname;
 }
 
@@ -195,9 +175,9 @@ void DXF_PLOTTER::SetViewport( const VECTOR2I& aOffset, double aIusPerDecimil,
 }
 
 
-bool DXF_PLOTTER::StartPlot( const wxString& aPageNumber )
+bool DXF_PLOTTER::StartPlot( const QString& aPageNumber )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     // DXF HEADER - Boilerplate
     // Defines the minimum for drawing i.e. the angle system and the
@@ -377,7 +357,7 @@ bool DXF_PLOTTER::StartPlot( const wxString& aPageNumber )
        - Greys (251 - 255)
      */
 
-    wxASSERT( numLayers <= NBCOLORS );
+    Q_ASSERT( numLayers <= NBCOLORS );
 
     for( EDA_COLOR_T i = BLACK; i < numLayers; i = static_cast<EDA_COLOR_T>( int( i ) + 1 )  )
     {
@@ -411,7 +391,7 @@ bool DXF_PLOTTER::StartPlot( const wxString& aPageNumber )
 
 bool DXF_PLOTTER::EndPlot()
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     // DXF FOOTER
     fputs( "  0\n"
@@ -442,7 +422,7 @@ void DXF_PLOTTER::SetColor( const COLOR4D& color )
 
 void DXF_PLOTTER::Rect( const VECTOR2I& p1, const VECTOR2I& p2, FILL_T fill, int width )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     if( p1 != p2 )
     {
@@ -455,11 +435,11 @@ void DXF_PLOTTER::Rect( const VECTOR2I& p1, const VECTOR2I& p2, FILL_T fill, int
     else
     {
         // Draw as a point
-        wxString cname = getDXFColorName( m_currentColor );
+        QString cname = getDXFColorName( m_currentColor );
         VECTOR2D point_dev = userToDeviceCoordinates( p1 );
 
         fprintf( m_outputFile, "0\nPOINT\n8\n%s\n10\n%s\n20\n%s\n",
-                 TO_UTF8( cname ),
+                 cname.toStdString().c_str(),
                  formatCoord( point_dev.x ).c_str(),
                  formatCoord( point_dev.y ).c_str() );
     }
@@ -468,18 +448,18 @@ void DXF_PLOTTER::Rect( const VECTOR2I& p1, const VECTOR2I& p2, FILL_T fill, int
 
 void DXF_PLOTTER::Circle( const VECTOR2I& centre, int diameter, FILL_T fill, int width )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
     double   radius = userToDeviceSize( diameter / 2 );
     VECTOR2D centre_dev = userToDeviceCoordinates( centre );
 
-    wxString cname = getDXFColorName( m_currentColor );
+    QString cname = getDXFColorName( m_currentColor );
 
     if( radius > 0 )
     {
         if( fill == FILL_T::NO_FILL )
         {
             fprintf( m_outputFile, "0\nCIRCLE\n8\n%s\n10\n%s\n20\n%s\n40\n%s\n",
-                     TO_UTF8( cname ),
+                     cname.toStdString().c_str(),
                      formatCoord( centre_dev.x ).c_str(),
                      formatCoord( centre_dev.y ).c_str(),
                      formatCoord( radius ).c_str() );
@@ -488,15 +468,15 @@ void DXF_PLOTTER::Circle( const VECTOR2I& centre, int diameter, FILL_T fill, int
         {
             double r = radius * 0.5;
             fprintf( m_outputFile, "0\nPOLYLINE\n" );
-            fprintf( m_outputFile, "8\n%s\n66\n1\n70\n1\n", TO_UTF8( cname ) );
+            fprintf( m_outputFile, "8\n%s\n66\n1\n70\n1\n", cname.toStdString().c_str() );
             fprintf( m_outputFile, "40\n%s\n41\n%s\n",
                                     formatCoord( radius ).c_str(),
                                     formatCoord( radius ).c_str() );
-            fprintf( m_outputFile, "0\nVERTEX\n8\n%s\n", TO_UTF8( cname ) );
+            fprintf( m_outputFile, "0\nVERTEX\n8\n%s\n", cname.toStdString().c_str() );
             fprintf( m_outputFile, "10\n%s\n 20\n%s\n42\n1.0\n",
                                     formatCoord( centre_dev.x-r ).c_str(),
                                     formatCoord( centre_dev.y ).c_str() );
-            fprintf( m_outputFile, "0\nVERTEX\n8\n%s\n", TO_UTF8( cname ) );
+            fprintf( m_outputFile, "0\nVERTEX\n8\n%s\n", cname.toStdString().c_str() );
             fprintf( m_outputFile, "10\n%s\n 20\n%s\n42\n1.0\n",
                                     formatCoord( centre_dev.x+r ).c_str(),
                                     formatCoord( centre_dev.y ).c_str() );
@@ -507,7 +487,7 @@ void DXF_PLOTTER::Circle( const VECTOR2I& centre, int diameter, FILL_T fill, int
     {
         // Draw as a point
         fprintf( m_outputFile, "0\nPOINT\n8\n%s\n10\n%s\n20\n%s\n",
-                 TO_UTF8( cname ),
+                 cname.toStdString().c_str(),
                  formatCoord( centre_dev.x ).c_str(),
                  formatCoord( centre_dev.y ).c_str() );
     }
@@ -616,7 +596,7 @@ void DXF_PLOTTER::PlotPoly( const std::vector<VECTOR2I>& aCornerList, FILL_T aFi
 
 void DXF_PLOTTER::PenTo( const VECTOR2I& pos, char plume )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     if( plume == 'Z' )
     {
@@ -628,14 +608,14 @@ void DXF_PLOTTER::PenTo( const VECTOR2I& pos, char plume )
 
     if( m_penLastpos != pos && plume == 'D' )
     {
-        wxASSERT( m_currentLineType >= LINE_STYLE::FIRST_TYPE
+        Q_ASSERT( m_currentLineType >= LINE_STYLE::FIRST_TYPE
                   && m_currentLineType <= LINE_STYLE::LAST_TYPE );
 
         // DXF LINE
-        wxString    cname = getDXFColorName( m_currentColor );
+        QString cname = getDXFColorName( m_currentColor );
         const char* lname = getDXFLineType( static_cast<LINE_STYLE>( m_currentLineType ) );
         fprintf( m_outputFile, "0\nLINE\n8\n%s\n6\n%s\n10\n%s\n20\n%s\n11\n%s\n21\n%s\n",
-                 TO_UTF8( cname ), lname,
+                 cname.toStdString().c_str(), lname,
                  formatCoord( pen_lastpos_dev.x ).c_str(),
                  formatCoord( pen_lastpos_dev.y ).c_str(),
                  formatCoord( pos_dev.x ).c_str(),
@@ -648,7 +628,7 @@ void DXF_PLOTTER::PenTo( const VECTOR2I& pos, char plume )
 
 void DXF_PLOTTER::SetDash( int aLineWidth, LINE_STYLE aLineStyle )
 {
-    wxASSERT( aLineStyle >= LINE_STYLE::FIRST_TYPE
+    Q_ASSERT( aLineStyle >= LINE_STYLE::FIRST_TYPE
                 && aLineStyle <= LINE_STYLE::LAST_TYPE );
 
     m_currentLineType = aLineStyle;
@@ -688,7 +668,7 @@ void DXF_PLOTTER::ThickSegment( const VECTOR2I& aStart, const VECTOR2I& aEnd, in
 void DXF_PLOTTER::Arc( const VECTOR2D& aCenter, const EDA_ANGLE& aStartAngle,
                        const EDA_ANGLE& aAngle, double aRadius, FILL_T aFill, int aWidth )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     if( aRadius <= 0 )
         return;
@@ -705,10 +685,10 @@ void DXF_PLOTTER::Arc( const VECTOR2D& aCenter, const EDA_ANGLE& aStartAngle,
     double   radius_device = userToDeviceSize( aRadius );
 
     // Emit a DXF ARC entity
-    wxString cname = getDXFColorName( m_currentColor );
+    QString cname = getDXFColorName( m_currentColor );
     fprintf( m_outputFile,
              "0\nARC\n8\n%s\n10\n%s\n20\n%s\n40\n%s\n50\n%.8f\n51\n%.8f\n",
-             TO_UTF8( cname ),
+             cname.toStdString().c_str(),
              formatCoord( centre_device.x ).c_str(),
              formatCoord( centre_device.y ).c_str(),
              formatCoord( radius_device ).c_str(),
@@ -719,7 +699,7 @@ void DXF_PLOTTER::Arc( const VECTOR2D& aCenter, const EDA_ANGLE& aStartAngle,
 void DXF_PLOTTER::FlashPadOval( const VECTOR2I& aPos, const VECTOR2I& aSize,
                                 const EDA_ANGLE& aOrient, OUTLINE_MODE aTraceMode, void* aData )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     VECTOR2I  size( aSize );
     EDA_ANGLE orient( aOrient );
@@ -739,7 +719,7 @@ void DXF_PLOTTER::FlashPadOval( const VECTOR2I& aPos, const VECTOR2I& aSize,
 void DXF_PLOTTER::FlashPadCircle( const VECTOR2I& pos, int diametre,
                                   OUTLINE_MODE trace_mode, void* aData )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
     Circle( pos, diametre, FILL_T::NO_FILL );
 }
 
@@ -747,7 +727,7 @@ void DXF_PLOTTER::FlashPadCircle( const VECTOR2I& pos, int diametre,
 void DXF_PLOTTER::FlashPadRect( const VECTOR2I& aPos, const VECTOR2I& aPadSize,
                                 const EDA_ANGLE& aOrient, OUTLINE_MODE aTraceMode, void* aData )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
 
     VECTOR2I size, start, end;
 
@@ -845,7 +825,7 @@ void DXF_PLOTTER::FlashPadTrapez( const VECTOR2I& aPadPos, const VECTOR2I* aCorn
                                   const EDA_ANGLE& aPadOrient, OUTLINE_MODE aTraceMode,
                                   void* aData )
 {
-    wxASSERT( m_outputFile );
+    Q_ASSERT( m_outputFile );
     VECTOR2I coord[4]; /* coord actual corners of a trapezoidal trace */
 
     for( int ii = 0; ii < 4; ii++ )
@@ -869,7 +849,7 @@ void DXF_PLOTTER::FlashRegularPolygon( const VECTOR2I& aShapePos, int aRadius, i
                                        void* aData )
 {
     // Do nothing
-    wxASSERT( 0 );
+    Q_ASSERT( 0 );
 }
 
 
@@ -880,13 +860,13 @@ void DXF_PLOTTER::FlashRegularPolygon( const VECTOR2I& aShapePos, int aRadius, i
  * @return true if it contains some non-ASCII character, false if all characters are
  *         inside ASCII range (<=255).
  */
-bool containsNonAsciiChars( const wxString& string )
+bool containsNonAsciiChars( const QString& string )
 {
-    for( unsigned i = 0; i < string.length(); i++ )
+    for( int i = 0; i < string.length(); i++ )
     {
-        wchar_t ch = string[i];
+        QChar ch = string[i];
 
-        if( ch > 255 )
+        if( ch.unicode() > 255 )
             return true;
     }
     return false;
@@ -895,7 +875,7 @@ bool containsNonAsciiChars( const wxString& string )
 
 void DXF_PLOTTER::Text( const VECTOR2I&        aPos,
                         const COLOR4D&         aColor,
-                        const wxString&        aText,
+                        const QString&        aText,
                         const EDA_ANGLE&       aOrient,
                         const VECTOR2I&        aSize,
                         enum GR_TEXT_H_ALIGN_T aH_justify,
@@ -909,10 +889,10 @@ void DXF_PLOTTER::Text( const VECTOR2I&        aPos,
                         void*                  aData )
 {
     // Fix me: see how to use DXF text mode for multiline texts
-    if( aMultilineAllowed && !aText.Contains( wxT( "\n" ) ) )
+    if( aMultilineAllowed && !aText.contains( "\n" ) )
         aMultilineAllowed = false;  // the text has only one line.
 
-    bool processSuperSub = aText.Contains( wxT( "^{" ) ) || aText.Contains( wxT( "_{" ) );
+    bool processSuperSub = aText.contains( "^{" ) || aText.contains( "_{" );
 
     if( m_textAsLines || containsNonAsciiChars( aText ) || aMultilineAllowed || processSuperSub )
     {
@@ -940,7 +920,7 @@ void DXF_PLOTTER::Text( const VECTOR2I&        aPos,
 
 void DXF_PLOTTER::PlotText( const VECTOR2I&        aPos,
                             const COLOR4D&         aColor,
-                            const wxString&        aText,
+                            const QString&        aText,
                             const TEXT_ATTRIBUTES& aAttributes,
                             KIFONT::FONT*          aFont,
                             const KIFONT::METRICS& aFontMetrics,
@@ -949,10 +929,10 @@ void DXF_PLOTTER::PlotText( const VECTOR2I&        aPos,
     TEXT_ATTRIBUTES attrs = aAttributes;
 
     // Fix me: see how to use DXF text mode for multiline texts
-    if( attrs.m_Multiline && !aText.Contains( wxT( "\n" ) ) )
+    if( attrs.m_Multiline && !aText.contains( "\n" ) )
         attrs.m_Multiline = false;  // the text has only one line.
 
-    bool processSuperSub = aText.Contains( wxT( "^{" ) ) || aText.Contains( wxT( "_{" ) );
+    bool processSuperSub = aText.contains( "^{" ) || aText.contains( "_{" );
 
     if( m_textAsLines || containsNonAsciiChars( aText ) || attrs.m_Multiline || processSuperSub )
     {
@@ -969,13 +949,13 @@ void DXF_PLOTTER::PlotText( const VECTOR2I&        aPos,
 
 
 void DXF_PLOTTER::plotOneLineOfText( const VECTOR2I& aPos, const COLOR4D& aColor,
-                                     const wxString& aText, const TEXT_ATTRIBUTES& aAttributes )
+                                     const QString& aText, const TEXT_ATTRIBUTES& aAttributes )
 {
     /* Emit text as a text entity. This loses formatting and shape but it's
        more useful as a CAD object */
     VECTOR2D origin_dev = userToDeviceCoordinates( aPos );
     SetColor( aColor );
-    wxString cname = getDXFColorName( m_currentColor );
+    QString cname = getDXFColorName( m_currentColor );
     VECTOR2D size_dev = userToDeviceSize( aAttributes.m_Size );
     int h_code = 0, v_code = 0;
 
@@ -985,7 +965,7 @@ void DXF_PLOTTER::plotOneLineOfText( const VECTOR2I& aPos, const COLOR4D& aColor
     case GR_TEXT_H_ALIGN_CENTER: h_code = 1; break;
     case GR_TEXT_H_ALIGN_RIGHT:  h_code = 2; break;
     case GR_TEXT_H_ALIGN_INDETERMINATE:
-        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        Q_ASSERT_X( false, "plotOneLineOfText", "Indeterminate state legal only in dialogs." );
         break;
     }
 
@@ -995,7 +975,7 @@ void DXF_PLOTTER::plotOneLineOfText( const VECTOR2I& aPos, const COLOR4D& aColor
     case GR_TEXT_V_ALIGN_CENTER: v_code = 2; break;
     case GR_TEXT_V_ALIGN_BOTTOM: v_code = 1; break;
     case GR_TEXT_V_ALIGN_INDETERMINATE:
-        wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
+        Q_ASSERT_X( false, "plotOneLineOfText", "Indeterminate state legal only in dialogs." );
         break;
     }
 
@@ -1033,7 +1013,7 @@ void DXF_PLOTTER::plotOneLineOfText( const VECTOR2I& aPos, const COLOR4D& aColor
              "%d\n",         // V alignment
              aAttributes.m_Bold ? ( aAttributes.m_Italic ? "KICADBI" : "KICADB" )
                                 : ( aAttributes.m_Italic ? "KICADI" : "KICAD" ),
-             TO_UTF8( cname ),
+             cname.toStdString().c_str(),
              formatCoord( origin_dev.x ).c_str(), formatCoord( origin_dev.x ).c_str(),
              formatCoord( origin_dev.y ).c_str(), formatCoord( origin_dev.y ).c_str(),
              formatCoord( size_dev.y ).c_str(),
@@ -1074,13 +1054,13 @@ void DXF_PLOTTER::plotOneLineOfText( const VECTOR2I& aPos, const COLOR4D& aColor
     {
         /* Here I do a bad thing: writing the output one byte at a time!
            but today I'm lazy and I have no idea on how to coerce a Unicode
-           wxString to spit out latin1 encoded text ...
+           QString to spit out latin1 encoded text ...
 
            At least stdio is *supposed* to do output buffering, so there is
            hope is not too slow */
-        wchar_t ch = aText[i];
+        QChar ch = aText[i];
 
-        if( ch > 255 )
+        if( ch.unicode() > 255 )
         {
             // I can't encode this...
             putc( '?', m_outputFile );
@@ -1113,7 +1093,7 @@ void DXF_PLOTTER::plotOneLineOfText( const VECTOR2I& aPos, const COLOR4D& aColor
                 }
             }
 
-            putc( ch, m_outputFile );
+            putc( ch.unicode(), m_outputFile );
         }
     }
 

@@ -1,27 +1,7 @@
-/*
-* This program source code file is part of KiCad, a free EDA CAD application.
-*
-* Copyright The KiCad Developers, see AUTHORS.txt for contributors.
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, you may find one here:
-* http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
-* or you may search the http://www.gnu.org website for the version 2 license,
-* or you may write to the Free Software Foundation, Inc.,
-* 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
-*/
 
 #include <json_common.h>
+#include <QString>
+#include <QSettings>
 
 #include <settings/common_settings.h>
 #include <settings/parameters.h>
@@ -47,7 +27,7 @@ SYMBOL_EDITOR_SETTINGS::SYMBOL_EDITOR_SETTINGS() :
     m_UseEeschemaColorSettings = true;;
 
     // Init settings:
-    SetLegacyFilename( wxS( "eeschema" ) );
+    SetLegacyFilename( "eeschema" );
 
     m_params.emplace_back( new PARAM<bool>( "aui.show_properties",
             &m_AuiPanels.show_properties, true ) );
@@ -121,10 +101,10 @@ SYMBOL_EDITOR_SETTINGS::SYMBOL_EDITOR_SETTINGS() :
     m_params.emplace_back( new PARAM<int>( "library.sort_mode",
                                            &m_LibrarySortMode, 0 ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "edit_symbol_visible_columns",
+    m_params.emplace_back( new PARAM<QString>( "edit_symbol_visible_columns",
                                                 &m_EditSymbolVisibleColumns, "0 1 2 3 4 5 6 7" ) );
 
-    m_params.emplace_back( new PARAM<wxString>( "pin_table_visible_columns",
+    m_params.emplace_back( new PARAM<QString>( "pin_table_visible_columns",
                                                 &m_PinTableVisibleColumns, "0 1 2 3 4 5 9 10" ) );
 
     m_params.emplace_back( new PARAM<bool>( "use_eeschema_color_settings",
@@ -183,7 +163,7 @@ SYMBOL_EDITOR_SETTINGS::SYMBOL_EDITOR_SETTINGS() :
 }
 
 
-bool SYMBOL_EDITOR_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
+bool SYMBOL_EDITOR_SETTINGS::MigrateFromLegacy( QSettings* aCfg )
 {
     bool ret = APP_SETTINGS_BASE::MigrateFromLegacy( aCfg );
 

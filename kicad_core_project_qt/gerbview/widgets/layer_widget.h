@@ -1,45 +1,23 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 #ifndef LAYERWIDGET_H_
 #define LAYERWIDGET_H_
 
-#include <wx/intl.h>
-#include <wx/statbmp.h>
-#include <wx/string.h>
-#include <wx/aui/auibook.h>
-#include <wx/notebook.h>
-#include <wx/sizer.h>
-#include <wx/gdicmn.h>
-#include <wx/scrolwin.h>
-#include <wx/font.h>
-#include <wx/colour.h>
-#include <wx/settings.h>
-#include <wx/panel.h>
-#include <wx/bitmap.h>
-#include <wx/image.h>
-#include <wx/icon.h>
+#include <QtWidgets/QWidget>
+#include <QtWidgets/QTabWidget>
+#include <QtWidgets/QScrollArea>
+#include <QtWidgets/QGridLayout>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QHBoxLayout>
+#include <QtCore/QString>
+#include <QtGui/QColor>
+#include <QtGui/QFont>
+#include <QtGui/QPixmap>
+#include <QtCore/QSize>
+#include <QtCore/QPoint>
+#include <QtCore/QRect>
+#include <QtWidgets/QMenu>
 #include <layer_ids.h>
 #include <gal/color4d.h>
 #include <widgets/color_swatch.h>
@@ -74,7 +52,7 @@ using KIGFX::COLOR4D;
  * @note Even if designed toward layers, it is used to contain other stuff, too (the second page
  * in pcbnew contains render items, for example).
  */
-class LAYER_WIDGET : public wxPanel
+class LAYER_WIDGET : public QWidget
 {
 public:
     /**
@@ -83,17 +61,17 @@ public:
      */
     struct ROW
     {
-        wxString    rowName;      ///< the prompt or layername
+        QString     rowName;      ///< the prompt or layername
         int         id;           ///< either a layer or "visible element" id
         COLOR4D     color;        ///< COLOR4D::UNSPECIFIED if none.
-        bool        state;        ///< initial wxCheckBox state
-        wxString    tooltip;      ///< if not empty, use this tooltip on row
+        bool        state;        ///< initial QCheckBox state
+        QString     tooltip;      ///< if not empty, use this tooltip on row
         bool        changeable;   ///< if true, the state can be changed
         bool        spacer;       ///< if true, this row is a spacer
         COLOR4D     defaultColor; ///< The default color for the row
 
-        ROW( const wxString& aRowName, int aId, const COLOR4D& aColor = COLOR4D::UNSPECIFIED,
-             const wxString& aTooltip = wxEmptyString, bool aState = true,
+        ROW( const QString& aRowName, int aId, const COLOR4D& aColor = COLOR4D::UNSPECIFIED,
+             const QString& aTooltip = QString(), bool aState = true,
              bool aChangeable = true, const COLOR4D& aDefaultColor = COLOR4D::UNSPECIFIED )
         {
             rowName = aRowName;
@@ -117,28 +95,22 @@ public:
         }
     };
 
-    static const wxEventType EVT_LAYER_COLOR_CHANGE;
+    // Qt signal/slot mechanism replaces wxEventType
 
 public:
 
     /**
      * @param aParent is the parent window.
      * @param aFocusOwner is the window that should be sent the focus after.
-     * @param id is the wxWindow id ( default = wxID_ANY).
-     * @param pos is the window position.
-     * @param size is the window size.
-     * @param style is the window style.
      */
-    LAYER_WIDGET( wxWindow* aParent, wxWindow* aFocusOwner, wxWindowID id = wxID_ANY,
-                  const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize,
-                  long style = wxTAB_TRAVERSAL );
+    LAYER_WIDGET( QWidget* aParent, QWidget* aFocusOwner );
 
     virtual ~LAYER_WIDGET();
 
     /**
      * Set the string that is used for determining the smallest string displayed in the layer's tab.
      */
-    void SetSmallestLayerString( const wxString& aString )
+    void SetSmallestLayerString( const QString& aString )
     {
         m_smallestLayerString = aString;
     }
@@ -148,7 +120,7 @@ public:
      *
      * Nothing in wxWidgets was reliable enough so this overrides one of their functions.
      */
-    wxSize GetBestSize() const;
+    QSize GetBestSize() const;
 
     /**
      * Return the number of rows in the layer tab.
@@ -331,7 +303,7 @@ public:
      *
      * @param aMenu is the right-click menu containing layer-scoped options.
      */
-    virtual void OnLayerRightClick( wxMenu& aMenu ) = 0;
+    virtual void OnLayerRightClick( QMenu& aMenu ) = 0;
 
     /**
      * Notify client code whenever the user changes a rendering color.
@@ -386,39 +358,39 @@ protected:
      */
     static int getDecodedId( int aControlId );
 
-    void OnLeftDownLayers( wxMouseEvent& event );
+    void OnLeftDownLayers( QMouseEvent* event );
 
     /**
      * Called when user right-clicks a layer.
      */
-    void OnRightDownLayer( wxMouseEvent& event, COLOR_SWATCH* aColorSwatch,
-                           const wxString& aLayerName );
+    void OnRightDownLayer( QMouseEvent* event, COLOR_SWATCH* aColorSwatch,
+                           const QString& aLayerName );
 
     /**
      * Called when a user changes a swatch color.
      */
-    void OnLayerSwatchChanged( wxCommandEvent& aEvent );
+    void OnLayerSwatchChanged();
 
     /**
      * Handle the "is layer visible" checkbox and propagates the event to the client's
      * notification function.
      */
-    void OnLayerCheckBox( wxCommandEvent& event );
+    void OnLayerCheckBox( bool checked );
 
     /**
      * Notify when user right-clicks a render option.
      */
-    void OnRightDownRender( wxMouseEvent& aEvent, COLOR_SWATCH* aColorSwatch,
-                            const wxString& aRenderName );
+    void OnRightDownRender( QMouseEvent* aEvent, COLOR_SWATCH* aColorSwatch,
+                            const QString& aRenderName );
 
     /**
      * Called when user has changed the swatch color of a render entry.
      */
-    void OnRenderSwatchChanged( wxCommandEvent& aEvent );
+    void OnRenderSwatchChanged();
 
-    void OnRenderCheckBox( wxCommandEvent& event );
+    void OnRenderCheckBox( bool checked );
 
-    void OnTabChange( wxNotebookEvent& event );
+    void OnTabChange( int index );
 
 
     /**
@@ -429,8 +401,8 @@ protected:
      * @param aColumn is the column
      * @return the component installed within the sizer at given grid coordinate.
      */
-    wxWindow* getLayerComp( int aRow, int aColumn ) const;
-    wxWindow* getRenderComp( int aRow, int aColumn ) const;
+    QWidget* getLayerComp( int aRow, int aColumn ) const;
+    QWidget* getRenderComp( int aRow, int aColumn ) const;
 
     /**
      * Return the row index that \a aLayer resides in, or -1 if not found.
@@ -447,7 +419,7 @@ protected:
 
     void setLayerCheckbox( int aLayer, bool isVisible );
 
-    void updateLayerRow( int aRow, const wxString& aName );
+    void updateLayerRow( int aRow, const QString& aName );
 
     /**
      * Give away the keyboard focus up to the main parent window.
@@ -457,26 +429,26 @@ protected:
     // popup menu ids.
     enum POPUP_ID
     {
-        ID_CHANGE_LAYER_COLOR = wxID_HIGHEST,
+        ID_CHANGE_LAYER_COLOR = 1000,
         ID_CHANGE_RENDER_COLOR,
         ID_LAST_VALUE
     };
 
-    wxNotebook*         m_notebook;
-    wxPanel*            m_LayerPanel;
-    wxScrolledWindow*   m_LayerScrolledWindow;
-    wxFlexGridSizer*    m_LayersFlexGridSizer;
-    wxPanel*            m_RenderingPanel;
-    wxScrolledWindow*   m_RenderScrolledWindow;
-    wxFlexGridSizer*    m_RenderFlexGridSizer;
+    QTabWidget*         m_notebook;
+    QWidget*            m_LayerPanel;
+    QScrollArea*        m_LayerScrolledWindow;
+    QGridLayout*        m_LayersFlexGridSizer;
+    QWidget*            m_RenderingPanel;
+    QScrollArea*        m_RenderScrolledWindow;
+    QGridLayout*        m_RenderFlexGridSizer;
 
-    wxWindow*           m_FocusOwner;
+    QWidget*            m_FocusOwner;
     int                 m_CurrentRow;           ///< selected row of layer list
     int                 m_PointSize;
 
     ROW_ICON_PROVIDER*  m_IconProvider;
 
-    wxString            m_smallestLayerString;
+    QString             m_smallestLayerString;
 };
 
 #endif // LAYERWIDGET_H_

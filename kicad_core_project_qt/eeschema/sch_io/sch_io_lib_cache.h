@@ -1,23 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * @author Wayne Stambaugh <stambaughw@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #ifndef _SCH_IO_LIB_CACHE_H_
 #define _SCH_IO_LIB_CACHE_H_
@@ -25,7 +5,10 @@
 #include <mutex>
 #include <optional>
 
-#include <wx/filename.h>
+#include <QString>
+#include <QDateTime>
+#include <QFileInfo>
+#include <QDir>
 
 #include <symbol_library_common.h>
 
@@ -40,7 +23,7 @@ class OUTPUTFORMATTER;
 class SCH_IO_LIB_CACHE
 {
 public:
-    SCH_IO_LIB_CACHE( const wxString& aLibraryPath );
+    SCH_IO_LIB_CACHE( const QString& aLibraryPath );
     virtual ~SCH_IO_LIB_CACHE();
 
     void IncrementModifyHash()
@@ -66,26 +49,26 @@ public:
 
     virtual void AddSymbol( const LIB_SYMBOL* aSymbol );
 
-    virtual void DeleteSymbol( const wxString& aName ) = 0;
+    virtual void DeleteSymbol( const QString& aName ) = 0;
 
-    virtual LIB_SYMBOL* GetSymbol( const wxString& aName );
+    virtual LIB_SYMBOL* GetSymbol( const QString& aName );
 
     // If m_libFileName is a symlink follow it to the real source file
-    wxFileName GetRealFile() const;
+    QFileInfo GetRealFile() const;
 
-    wxDateTime GetLibModificationTime();
+    QDateTime GetLibModificationTime();
 
-    bool IsFile( const wxString& aFullPathAndFileName ) const;
+    bool IsFile( const QString& aFullPathAndFileName ) const;
 
     bool IsFileChanged() const;
 
     void SetModified( bool aModified = true ) { m_isModified = aModified; }
 
-    wxString GetLogicalName() const { return m_libFileName.GetName(); }
+    QString GetLogicalName() const { return m_libFileName.baseName(); }
 
-    void SetFileName( const wxString& aFileName ) { m_libFileName = aFileName; }
+    void SetFileName( const QString& aFileName ) { m_libFileName = QFileInfo(aFileName); }
 
-    wxString GetFileName() const { return m_libFileName.GetFullPath(); }
+    QString GetFileName() const { return m_libFileName.absoluteFilePath(); }
 
     const LIB_SYMBOL_MAP& GetSymbolMap() const { return m_symbols; }
 
@@ -95,9 +78,9 @@ protected:
     int               m_modHash;      // Keep track of the modification status of the library.
     std::mutex        m_modHashMutex;
 
-    wxString          m_fileName;     // Absolute path and file name.
-    wxFileName        m_libFileName;  // Absolute path and file name is required here.
-    wxDateTime        m_fileModTime;
+    QString           m_fileName;     // Absolute path and file name.
+    QFileInfo         m_libFileName;  // Absolute path and file name is required here.
+    QDateTime         m_fileModTime;
     LIB_SYMBOL_MAP    m_symbols;      // Map of names of #LIB_SYMBOL pointers.
     bool              m_isWritable;
     bool              m_isModified;

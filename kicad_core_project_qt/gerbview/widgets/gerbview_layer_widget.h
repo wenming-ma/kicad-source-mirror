@@ -1,27 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2004-2010 Jean-Pierre Charras, jp.charras at wanadoo.fr
- * Copyright (C) 2010 SoftPLC Corporation, Dick Hollenbeck <dick@softplc.com>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 
 #ifndef GERBER_LAYER_WIDGET_H
@@ -40,7 +16,7 @@ public:
      * @param aParent is the parent frame.
      * @param aFocusOwner is the window that has the keyboard focus.
      */
-    GERBER_LAYER_WIDGET( GERBVIEW_FRAME* aParent, wxWindow* aFocusOwner );
+    GERBER_LAYER_WIDGET( GERBVIEW_FRAME* aParent, QWidget* aFocusOwner );
 
     /**
      * Collect the current color settings and put it in aColorSettings
@@ -58,7 +34,7 @@ public:
     void ReFillRender();
 
     //-----<implement LAYER_WIDGET abstract callback functions>-----------
-    void OnLayerRightClick( wxMenu& aMenu ) override;
+    void OnLayerRightClick( QMenu& aMenu ) override;
     void OnLayerColorChange( int aLayer, const COLOR4D& aColor ) override;
     bool OnLayerSelect( int aLayer ) override;
     void OnLayerVisible( int aLayer, bool isVisible, bool isFinal ) override;
@@ -89,7 +65,7 @@ public:
      *
      * @param aMenu is the menu to modify: menuitems will be added to aMenu.
      */
-    void AddRightClickMenuItems( wxMenu* aMenu );
+    void AddRightClickMenuItems( QMenu* aMenu );
 
 protected:
     // popup menu ids. in layer manager
@@ -113,9 +89,9 @@ private:
     /**
      * Put up a popup menu for the layer panel.
      */
-    void onRightDownLayers( wxMouseEvent& event );
+    void onRightDownLayers( QMouseEvent& event );
 
-    void onPopupSelection( wxCommandEvent& event );
+    void onPopupSelection( QActionEvent& event );
 
     /// this is for the popup menu, the right click handler has to be installed
     /// on every child control within the layer panel.

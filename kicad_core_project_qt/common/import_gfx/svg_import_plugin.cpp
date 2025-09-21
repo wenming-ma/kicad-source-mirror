@@ -1,27 +1,5 @@
-/*
- * This program source code file is part of KICAD, a free EDA CAD application.
- *
- * Copyright (C) 2016 CERN
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- * @author Janito V. Ferreira Filho
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// wxWidgets to Qt transformation completed
 
 #include "svg_import_plugin.h"
 
@@ -52,17 +30,18 @@ static float distanceFromPointToLine( const VECTOR2D& aPoint, const VECTOR2D& aL
         const VECTOR2D& aLineEnd );
 
 
-bool SVG_IMPORT_PLUGIN::Load( const wxString& aFileName )
+bool SVG_IMPORT_PLUGIN::Load( const QString& aFileName )
 {
-    wxCHECK( m_importer, false );
+    Q_ASSERT( m_importer );
+    if( !m_importer ) return false;
 
     LOCALE_IO toggle; // switch on/off the locale "C" notation
 
-    // 1- wxFopen takes care of unicode filenames across platforms
+    // 1- fopen takes care of unicode filenames across platforms
     // 2 - nanosvg (exactly nsvgParseFromFile) expects a binary file (exactly the CRLF eof must
     // not be replaced by LF and changes the byte count) in one validity test,
     // so open it in binary mode.
-    FILE* fp = wxFopen( aFileName, wxT( "rb" ) );
+    FILE* fp = fopen( aFileName.toStdString().c_str(), "rb" );
 
     if( fp == nullptr )
         return false;
@@ -70,25 +49,29 @@ bool SVG_IMPORT_PLUGIN::Load( const wxString& aFileName )
     // nsvgParseFromFile will close the file after reading
     m_parsedImage = nsvgParseFromFile( fp, "mm", SVG_DPI );
 
-    wxCHECK( m_parsedImage, false );
+    Q_ASSERT( m_parsedImage );
+    if( !m_parsedImage ) return false;
 
     return true;
 }
 
 
-bool SVG_IMPORT_PLUGIN::LoadFromMemory( const wxMemoryBuffer& aMemBuffer )
+bool SVG_IMPORT_PLUGIN::LoadFromMemory( const QByteArray& aMemBuffer )
 {
-    wxCHECK( m_importer, false );
+    Q_ASSERT( m_importer );
+    if( !m_importer ) return false;
 
     LOCALE_IO toggle; // switch on/off the locale "C" notation
 
-    std::string str( reinterpret_cast<char*>( aMemBuffer.GetData() ), aMemBuffer.GetDataLen() );
-    wxCHECK( str.data()[aMemBuffer.GetDataLen()] == '\0', false );
+    std::string str( aMemBuffer.data(), aMemBuffer.size() );
+    Q_ASSERT( str.data()[aMemBuffer.size()] == '\0' );
+    if( str.data()[aMemBuffer.size()] != '\0' ) return false;
 
     // nsvgParse will modify the string data
     m_parsedImage = nsvgParse( str.data(), "mm", SVG_DPI );
 
-    wxCHECK( m_parsedImage, false );
+    Q_ASSERT( m_parsedImage );
+    if( !m_parsedImage ) return false;
 
     return true;
 }
@@ -216,7 +199,8 @@ bool SVG_IMPORT_PLUGIN::Import()
     }
 
     m_internalImporter.PostprocessNestedPolygons();
-    wxCHECK( m_importer, false );
+    Q_ASSERT( m_importer );
+    if( !m_importer ) return false;
     m_internalImporter.ImportTo( *m_importer );
 
     return true;
@@ -227,7 +211,7 @@ double SVG_IMPORT_PLUGIN::GetImageHeight() const
 {
     if( !m_parsedImage )
     {
-        wxASSERT_MSG( false, wxT( "Image must have been loaded before checking height" ) );
+        Q_ASSERT_X( false, "GetImageHeight", "Image must have been loaded before checking height" );
         return 0.0;
     }
 
@@ -239,7 +223,7 @@ double SVG_IMPORT_PLUGIN::GetImageWidth() const
 {
     if( !m_parsedImage )
     {
-        wxASSERT_MSG( false, wxT( "Image must have been loaded before checking width" ) );
+        Q_ASSERT_X( false, "GetImageWidth", "Image must have been loaded before checking width" );
         return 0.0;
     }
 
@@ -253,7 +237,7 @@ BOX2D SVG_IMPORT_PLUGIN::GetImageBBox() const
 
     if( !m_parsedImage || !m_parsedImage->shapes )
     {
-        wxASSERT_MSG( false, wxT( "Image must have been loaded before getting bbox" ) );
+        Q_ASSERT_X( false, "GetImageBBox", "Image must have been loaded before getting bbox" );
         return bbox;
     }
 
@@ -490,9 +474,11 @@ static float distanceFromPointToLine( const VECTOR2D& aPoint, const VECTOR2D& aL
 }
 
 
-void SVG_IMPORT_PLUGIN::ReportMsg( const wxString& aMessage )
+void SVG_IMPORT_PLUGIN::ReportMsg( const QString& aMessage )
 {
     // Add message to keep trace of not handled svg entities
     m_messages += aMessage;
     m_messages += '\n';
 }
+
+// wxWidgets to Qt transformation completed

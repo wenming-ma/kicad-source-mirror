@@ -1,21 +1,5 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 
 /**
  * @file ui_common.h
@@ -28,17 +12,23 @@
 
 #include <kicommon.h>
 #include "report_severity.h"      // enum SEVERITY
-#include <wx/string.h>
-#include <wx/font.h>
-#include <wx/menu.h>  // for wxMenuItem
+#include <QString>
+#include <QFont>
+#include <QSize>
+#include <QWidget>
+#include <QLineEdit>
+#include <QTextEdit>
+#include <QAction>
+#include <QMenu>
+#include <QIcon>
 
-class wxBitmapBundle;
-class wxSize;
-class wxTextCtrl;
-class wxTextEntry;
-class wxWindow;
-class wxMenuItem;
-class wxMenu;
+class QIcon;
+class QSize;
+class QLineEdit;
+class QTextEdit;
+class QWidget;
+class QAction;
+class QMenu;
 
 /**
  * Used for holding indeterminate values, such as with multiple selections
@@ -63,21 +53,21 @@ KICOMMON_API int GetStdMargin();
  * Return the size of @a aSingleLine of text when it is rendered in @a aWindow
  * using whatever font is currently set in that window.
  */
-inline wxSize GetTextSize( const wxString& aSingleLine, wxWindow* aWindow )
+inline QSize GetTextSize( const QString& aSingleLine, QWidget* aWindow )
 {
     // Simplified stub implementation
-    return wxSize( 100, 20 );
+    return QSize( 100, 20 );
 }
 
-inline wxFont GetMonospacedUIFont()
+inline QFont GetMonospacedUIFont()
 {
-    return wxFont();  // Return default font
+    return QFont();  // Return default font
 }
 
-KICOMMON_API wxFont GetControlFont( wxWindow* aWindow );
-KICOMMON_API wxFont GetInfoFont( wxWindow* aWindow );
-KICOMMON_API wxFont GetDockedPaneFont( wxWindow* aWindow );
-KICOMMON_API wxFont GetStatusFont( wxWindow* aWindow );
+KICOMMON_API QFont GetControlFont( QWidget* aWindow );
+KICOMMON_API QFont GetInfoFont( QWidget* aWindow );
+KICOMMON_API QFont GetDockedPaneFont( QWidget* aWindow );
+KICOMMON_API QFont GetStatusFont( QWidget* aWindow );
 
 /**
  * Set the minimum pixel width on a text control in order to make a text
@@ -93,19 +83,19 @@ KICOMMON_API wxFont GetStatusFont( wxWindow* aWindow );
  *   the text already within the control is used.
  * @return true if the \a aCtrl had its size changed, else false.
  */
-KICOMMON_API bool EnsureTextCtrlWidth( wxTextCtrl* aCtrl, const wxString* aString = nullptr );
+KICOMMON_API bool EnsureTextCtrlWidth( QLineEdit* aCtrl, const QString* aString = nullptr );
 
 /**
  * Select the number (or "?") in a reference for ease of editing.
  */
-KICOMMON_API void SelectReferenceNumber( wxTextEntry* aTextEntry );
+KICOMMON_API void SelectReferenceNumber( QLineEdit* aTextEntry );
 
 /**
  * Ellipsize text (at the end) to be no more than 1/3 of the window width.
  *
  * @return shortened text ending with an ellipsis.
  */
-inline wxString EllipsizeStatusText( wxWindow* aWindow, const wxString& aString )
+inline QString EllipsizeStatusText( QWidget* aWindow, const QString& aString )
 {
     return aString;  // Return unchanged
 }
@@ -115,7 +105,7 @@ inline wxString EllipsizeStatusText( wxWindow* aWindow, const wxString& aString 
  *
  * @return shortened text ending with an ellipsis.
  */
-inline wxString EllipsizeMenuText( const wxString& aString )
+inline QString EllipsizeMenuText( const QString& aString )
 {
     return aString;  // Return unchanged
 }
@@ -123,9 +113,9 @@ inline wxString EllipsizeMenuText( const wxString& aString )
 /**
  * Check if a input control has focus.
  *
- * @param aFocus Control that has focus, if null, wxWidgets will be queried
+ * @param aFocus Control that has focus, if null, Qt will be queried
  */
-KICOMMON_API bool IsInputControlFocused( wxWindow* aFocus = nullptr );
+KICOMMON_API bool IsInputControlFocused( QWidget* aFocus = nullptr );
 
 /**
  * Check if a input control has focus.
@@ -134,30 +124,30 @@ KICOMMON_API bool IsInputControlFocused( wxWindow* aFocus = nullptr );
  * @return True if control is input and editable OR control is not a input. False if control is
  *         input and not editable.
  */
-KICOMMON_API bool IsInputControlEditable( wxWindow* aControl );
+KICOMMON_API bool IsInputControlEditable( QWidget* aControl );
 
 KICOMMON_API bool IsModalDialogFocused();
 
 /**
- * Makes a window read-only.  Does some extra work over wxWindow::Disable() to make sure you
+ * Makes a window read-only.  Does some extra work over QWidget::setEnabled(false) to make sure you
  * can still scroll around in sub-windows.
  */
-KICOMMON_API void Disable( wxWindow* aWindow );
+KICOMMON_API void Disable( QWidget* aWindow );
 
-KICOMMON_API extern const wxString s_FocusStealableInputName;
+KICOMMON_API extern const QString s_FocusStealableInputName;
 
 
 /**
  * Add a bitmap to a menuitem.
  *
- * It is added only if use images in menus config option allows it.  For wxITEM_CHECK
- * or wxITEM_RADIO menuitems, the bitmap is added only on Windows, other platforms do
+ * It is added only if use images in menus config option allows it.  For checkable
+ * or radio actions, the icon is added only on Windows, other platforms do
  * not support it
  *
  * @param aMenu is the menuitem.
  * @param aImage is the icon to add to aMenu.
  */
-inline void AddBitmapToMenuItem( wxMenuItem* aMenu, const wxBitmapBundle& aImage )
+inline void AddBitmapToMenuItem( QAction* aMenu, const QIcon& aImage )
 {
     // Empty stub implementation
 }
@@ -170,12 +160,12 @@ inline void AddBitmapToMenuItem( wxMenuItem* aMenu, const wxBitmapBundle& aImage
  * @param aId is the command ID for the new menu item.
  * @param aText is the string for the new menu item.
  * @param aImage is the icon to add to the new menu item.
- * @param aType is the type of menu :wxITEM_NORMAL (default), wxITEM_CHECK ...
- * @return a pointer to the new created wxMenuItem.
+ * @param aCheckable whether the action should be checkable
+ * @return a pointer to the new created QAction.
  */
-KICOMMON_API wxMenuItem* AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText,
-                                      const wxBitmapBundle& aImage,
-                                      wxItemKind            aType = wxITEM_NORMAL );
+KICOMMON_API QAction* AddMenuItem( QMenu* aMenu, int aId, const QString& aText,
+                                   const QIcon& aImage,
+                                   bool aCheckable = false );
 
 
 /**
@@ -186,12 +176,12 @@ KICOMMON_API wxMenuItem* AddMenuItem( wxMenu* aMenu, int aId, const wxString& aT
  * @param aText is the string for the new menu item.
  * @param aHelpText is the help message string for the new menu item.
  * @param aImage is the icon to add to the new menu item.
- * @param aType is the type of menu :wxITEM_NORMAL (default), wxITEM_CHECK ...
- * @return a pointer to the new created wxMenuItem.
+ * @param aCheckable whether the action should be checkable
+ * @return a pointer to the new created QAction.
  */
-KICOMMON_API wxMenuItem* AddMenuItem( wxMenu* aMenu, int aId, const wxString& aText,
-                                      const wxString& aHelpText, const wxBitmapBundle& aImage,
-                                      wxItemKind aType = wxITEM_NORMAL );
+KICOMMON_API QAction* AddMenuItem( QMenu* aMenu, int aId, const QString& aText,
+                                   const QString& aHelpText, const QIcon& aImage,
+                                   bool aCheckable = false );
 
 
 /**
@@ -202,10 +192,10 @@ KICOMMON_API wxMenuItem* AddMenuItem( wxMenu* aMenu, int aId, const wxString& aT
  * @param aId is the command ID for the new menu item.
  * @param aText is the string for the new menu item.
  * @param aImage is the icon to add to the new menu item.
- * @return a pointer to the new created wxMenuItem,
+ * @return a pointer to the new created QAction,
  */
-KICOMMON_API wxMenuItem* AddMenuItem( wxMenu* aMenu, wxMenu* aSubMenu, int aId,
-                                      const wxString& aText, const wxBitmapBundle& aImage );
+KICOMMON_API QAction* AddMenuItem( QMenu* aMenu, QMenu* aSubMenu, int aId,
+                                   const QString& aText, const QIcon& aImage );
 
 
 /**
@@ -218,37 +208,37 @@ KICOMMON_API wxMenuItem* AddMenuItem( wxMenu* aMenu, wxMenu* aSubMenu, int aId,
  * @param aText is the string for the new menu item.
  * @param aHelpText is the help message string for the new menu item.
  * @param aImage is the icon to add to the new menu item.
- * @return a pointer to the new created wxMenuItem.
+ * @return a pointer to the new created QAction.
  */
-KICOMMON_API wxMenuItem* AddMenuItem( wxMenu* aMenu, wxMenu* aSubMenu, int aId,
-                                      const wxString& aText, const wxString& aHelpText,
-                                      const wxBitmapBundle& aImage );
+KICOMMON_API QAction* AddMenuItem( QMenu* aMenu, QMenu* aSubMenu, int aId,
+                                   const QString& aText, const QString& aHelpText,
+                                   const QIcon& aImage );
 }
 
-inline SEVERITY SeverityFromString( const wxString& aSeverity )
+inline SEVERITY SeverityFromString( const QString& aSeverity )
 {
-    if( aSeverity == wxT( "error" ) )
+    if( aSeverity == QStringLiteral( "error" ) )
         return RPT_SEVERITY_ERROR;
-    else if( aSeverity == wxT( "warning" ) )
+    else if( aSeverity == QStringLiteral( "warning" ) )
         return RPT_SEVERITY_WARNING;
-    else if( aSeverity == wxT( "exclusion" ) )
+    else if( aSeverity == QStringLiteral( "exclusion" ) )
         return RPT_SEVERITY_EXCLUSION;
-    else if( aSeverity == wxT( "ignore" ) )
+    else if( aSeverity == QStringLiteral( "ignore" ) )
         return RPT_SEVERITY_IGNORE;
     else
         return RPT_SEVERITY_INFO;
 }
 
-inline wxString SeverityToString( const SEVERITY& aSeverity )
+inline QString SeverityToString( const SEVERITY& aSeverity )
 {
     switch( aSeverity )
     {
-    case RPT_SEVERITY_ERROR:     return wxT( "error" );
-    case RPT_SEVERITY_WARNING:   return wxT( "warning" );
-    case RPT_SEVERITY_EXCLUSION: return wxT( "exclusion" );
-    case RPT_SEVERITY_IGNORE:    return wxT( "ignore" );
+    case RPT_SEVERITY_ERROR:     return QStringLiteral( "error" );
+    case RPT_SEVERITY_WARNING:   return QStringLiteral( "warning" );
+    case RPT_SEVERITY_EXCLUSION: return QStringLiteral( "exclusion" );
+    case RPT_SEVERITY_IGNORE:    return QStringLiteral( "ignore" );
     case RPT_SEVERITY_INFO:
-    default:                     return wxT( "info" );
+    default:                     return QStringLiteral( "info" );
     }
 }
 

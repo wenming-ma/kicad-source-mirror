@@ -1,26 +1,3 @@
-/*
- * This program source code file is part of KiCad, a free EDA CAD application.
- *
- * Copyright (C) 2015-2016 Mario Luzeiro <mrluzeiro@ua.pt>
- * Copyright The KiCad Developers, see AUTHORS.txt for contributors.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you may find one here:
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * or you may search the http://www.gnu.org website for the version 2 license,
- * or you may write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 
 /**
  * @file camera.h
@@ -32,7 +9,8 @@
 
 #include <gal/gal.h>
 #include <plugins/3dapi/xv3d_types.h>
-#include <wx/gdicmn.h>  // for wxSize
+#include <QSize>
+#include <QPoint>
 #include <vector>
 #include <3d_enums.h>
 
@@ -174,9 +152,9 @@ public:
     /**
      *  Calculate a new mouse drag position
      */
-    virtual void Drag( const wxPoint& aNewMousePosition )  = 0;
+    virtual void Drag( const QPoint& aNewMousePosition )  = 0;
 
-    virtual void Pan( const wxPoint& aNewMousePosition )  = 0;
+    virtual void Pan( const QPoint& aNewMousePosition )  = 0;
 
     virtual void Pan( const SFVEC3F& aDeltaOffsetInc )  = 0;
 
@@ -194,12 +172,12 @@ public:
     /**
      *  Get the current mouse position.
      */
-    const wxPoint& GetCurMousePosition() { return m_lastPosition; }
+    const QPoint& GetCurMousePosition() { return m_lastPosition; }
 
     /**
      *  Update the current mouse position without make any new calculations on camera.
      */
-    void SetCurMousePosition( const wxPoint& aPosition );
+    void SetCurMousePosition( const QPoint& aPosition );
 
     void ToggleProjection();
     PROJECTION_TYPE GetProjection() { return m_projectionType; }
@@ -210,7 +188,7 @@ public:
      *
      * @return true if the windows size changed since last time.
      */
-    bool SetCurWindowSize( const wxSize& aSize );
+    bool SetCurWindowSize( const QSize& aSize );
 
     void ZoomReset();
 
@@ -337,7 +315,7 @@ protected:
     /**
      * The last mouse position in the screen
      */
-    wxPoint m_lastPosition;
+    QPoint m_lastPosition;
 
     glm::mat4 m_rotationMatrix;
     glm::mat4 m_rotationMatrixAux;
@@ -394,10 +372,9 @@ protected:
      * Trace mask used to enable or disable the trace output of this class.
      *
      * The debug output can be turned on by setting the WXTRACE environment variable to
-     * "KI_TRACE_CAMERA".  See the wxWidgets documentation on wxLogTrace for
-     * more information.
+     * "KI_TRACE_CAMERA".
      */
-    static const wxChar* m_logTrace;
+    static const QString m_logTrace;
 };
 
 #endif // CAMERA_H
