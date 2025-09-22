@@ -129,7 +129,7 @@ set( EESCHEMA_SRCS
 )
 
 # Build static library
-add_library( eeschema_lib STATIC
+add_library( eeschema STATIC
     ${EESCHEMA_SCH_IO}
     ${EESCHEMA_ERC_SRCS}
     ${SYNC_SHEET_PIN_SRCS}
@@ -141,7 +141,7 @@ add_library( eeschema_lib STATIC
     ${EESCHEMA_SRCS}
 )
 
-target_include_directories( eeschema_lib PUBLIC
+target_include_directories( eeschema PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/generated/eeschema

@@ -241,7 +241,7 @@ target_link_libraries( kicad_core_project_wx
     # Core KiCad libraries - commented out for minimal build
     common
     pcbnew
-    eeschema_lib
+    eeschema
     
     # Libraries from libs directory
     kimath

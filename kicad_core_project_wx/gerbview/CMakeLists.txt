@@ -73,42 +73,22 @@ set( TOOLS_SRCS
 add_subdirectory( navlib )
 
 # Create gerbview library
-add_library( gerbview_kiface_objects STATIC
+add_library( gerbview STATIC
     ${GERBVIEW_SRCS}
     ${DIALOGS_SRCS}
     ${WIDGET_SRCS}
     ${TOOLS_SRCS}
     )
 
-target_link_libraries( gerbview_kiface_objects
+target_link_libraries( gerbview
     PUBLIC
         common
         gal
         core
-    )
-
-target_link_libraries( gerbview_kiface_objects PUBLIC gerbview_navlib)
-add_dependencies( gerbview_kiface_objects gerbview_navlib )
-
-# Main gerbview kiface module
-add_library( gerbview_kiface STATIC )
-
-set_target_properties( gerbview_kiface PROPERTIES
-    OUTPUT_NAME     gerbview
-    PREFIX          ${KIFACE_PREFIX}
-    SUFFIX          ${KIFACE_SUFFIX}
-    )
-
-target_link_libraries( gerbview_kiface
-    PRIVATE
+        gerbview_navlib
         nlohmann_json
-        gal
-        common
-        core
-        gerbview_kiface_objects
         ${wxWidgets_LIBRARIES}
     )
 
-set_source_files_properties( gerbview.cpp PROPERTIES
-    COMPILE_DEFINITIONS     "BUILD_KIWAY_DLL;COMPILING_DLL"
-    )
+add_dependencies( gerbview gerbview_navlib )
+
