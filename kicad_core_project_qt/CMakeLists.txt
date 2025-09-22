@@ -19,15 +19,27 @@ endif()
 
 project( kicad_core_project_qt LANGUAGES C CXX )
 
+# Configure platform-specific settings including assembly language support
+include( ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ConfigurePlatform.cmake )
+
+# Set ASM_MASM specific compile rules to avoid C++ flag inheritance
+if( MSVC )
+    # Override ASM_MASM compile command to exclude problematic C++ flags
+    if( CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" )
+        set(CMAKE_ASM_MASM_COMPILE_OBJECT
+            "<CMAKE_ASM_MASM_COMPILER> <DEFINES> <INCLUDES> /c /Zi /Fo<OBJECT> <SOURCE>")
+    else()
+        set(CMAKE_ASM_MASM_COMPILE_OBJECT
+            "<CMAKE_ASM_MASM_COMPILER> <DEFINES> <INCLUDES> /c /Fo<OBJECT> <SOURCE>")
+    endif()
+endif()
+
 # Configure Qt6 early for MOC/UIC/RCC
 if( Qt6_ROOT AND EXISTS "${Qt6_ROOT}" )
     set( Qt6_DIR "${Qt6_ROOT}/lib/cmake/Qt6" )
     list( APPEND CMAKE_PREFIX_PATH "${Qt6_ROOT}" )
     message( STATUS "Qt6_ROOT configured: ${Qt6_ROOT}" )
 endif()
-
-# Configure platform-specific settings including assembly language support
-include( ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ConfigurePlatform.cmake )
 
 # Auto-detect and configure ccache if available
 include( ${CMAKE_CURRENT_SOURCE_DIR}/AutoCCache.cmake )
@@ -69,13 +81,19 @@ if( WIN32 )
     # Add UTF-8 support for fmt library and Unicode
     if( MSVC )
         add_compile_options( /utf-8 /wd4273 )
-        # Qt requires this for proper C++ standard detection
+        # /Zc:__cplusplus: define this macro according to C++ standard version - required for Qt
         add_compile_options( /Zc:__cplusplus )
-        # Also ensure C++17 inline variables are handled correctly
+        # /Zc:inline: enforces C++11 requirement that inline functions must have a definition in the same unit
         add_compile_options( /Zc:inline )
-        # Enable permissive mode for better standards compliance (required by Qt)
+        # /permissive-: This puts MSVC into compliance mode, required for Qt
         add_compile_options( /permissive- )
     endif()
+    # Disable verbose include output (showIncludes)
+    string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+    string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL}")
+    set(CMAKE_CXX_DEPENDS_USE_COMPILER FALSE)
     # Set wxWidgets port for KIPLATFORM
     set( KICAD_WX_PORT "msw" )
 endif()
@@ -107,12 +125,6 @@ if( Qt6_FOUND )
     set( CMAKE_AUTOUIC ON )
     message( STATUS "Qt6 support enabled for future transformation" )
 
-    # IMPORTANT: Re-enable ASM_MASM after Qt6 configuration to fix libcontext assembly compilation
-    # Qt6's CMake modules can interfere with ASM language settings, so we restore them here
-    if( MSVC AND NOT KICAD_BUILD_ARCH_ARM AND NOT KICAD_BUILD_ARCH_ARM64 )
-        enable_language(ASM_MASM)
-        message( STATUS "Re-enabled ASM_MASM language support after Qt6 configuration" )
-    endif()
 endif()
 
 set( wxWidgets_USE_STATIC ON )
@@ -263,6 +275,7 @@ add_custom_target(
     DEPENDS ${KICAD_CMAKE_MODULE_PATH}/BuildSteps/WriteVersionHeader.cmake
     COMMENT "Generating version string header"
     )
+
 
 # Add subdirectories for minimal PCB functionality
 add_subdirectory( thirdparty )

@@ -10,7 +10,7 @@
 #include <settings/color_settings.h>
 #include <settings/settings_manager.h>
 #include <geometry/shape_null.h>
-#include <widgets/kitepui_common.h>
+#include <widgets/kiui_common.h>
 #include <pgm_base.h>
 #include <drc/drc_item.h>
 #include <trigo.h>

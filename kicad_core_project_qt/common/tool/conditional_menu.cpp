@@ -4,7 +4,7 @@
 #include <tool/action_menu.h>
 #include <tool/selection.h>
 #include <kiface_base.h>
-#include <widgets/kitepui_common.h>
+#include <widgets/kiui_common.h>
 #include <QCoreApplication>
 
 

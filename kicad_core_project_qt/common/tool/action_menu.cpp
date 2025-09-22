@@ -20,7 +20,7 @@
 #include <QKeySequence>
 #include <QtGlobal>
 #include <QDialog>
-#include <widgets/kitepui_common.h>
+#include <widgets/kiui_common.h>
 
 using namespace std::placeholders;
 
