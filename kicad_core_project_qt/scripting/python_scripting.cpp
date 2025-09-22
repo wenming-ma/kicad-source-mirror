@@ -107,11 +107,11 @@ except Exception as e:
 
     // e.g. "4.0.7 gtk3 (phoenix) wxWidgets 3.0.4"
     QString version = getLocal( "wx_version" );
-    int     idx = version.indexOf( "wxWidgets " );
+    int     idx = version.indexOf( "Qt " );
 
     if( idx == -1 || version.isEmpty() )
     {
-        QString msg = QString( "Could not determine wxWidgets version. "
+        QString msg = QString( "Could not determine Qt version. "
                               "Python plugins will not be available." );
 
         msg += QString( "\n\nsys.version: '%1'" ).arg( getLocal( "sys_version" ) );
@@ -126,14 +126,14 @@ except Exception as e:
     }
     else
     {
-        // Note: This is a placeholder for Qt version info - original used wxWidgets version
-        QString wxVersion = "0.0.0"; // Placeholder for Qt version equivalent
+        // Qt version information
+        QString qtVersion = QT_VERSION_STR;
         version = version.mid( idx + 10 );
 
-        long wxPy_major = 0;
-        long wxPy_minor = 0;
-        long wxPy_micro = 0;
-        long wxPy_rev   = 0;
+        long qtPy_major = 0;
+        long qtPy_minor = 0;
+        long qtPy_micro = 0;
+        long qtPy_rev   = 0;
 
         // Compile a regex to extract the wxPython version
         QRegularExpression re( "([0-9]+)\\.([0-9]+)\\.?([0-9]+)?\\.?([0-9]+)?" );
@@ -145,31 +145,31 @@ except Exception as e:
             QString v = match.captured( 1 );
 
             if( !v.isEmpty() )
-                wxPy_major = v.toLong();
+                qtPy_major = v.toLong();
 
             v = match.captured( 2 );
 
             if( !v.isEmpty() )
-                wxPy_minor = v.toLong();
+                qtPy_minor = v.toLong();
 
             v = match.captured( 3 );
 
             if( !v.isEmpty() )
-                wxPy_micro = v.toLong();
+                qtPy_micro = v.toLong();
 
             v = match.captured( 4 );
 
             if( !v.isEmpty() )
-                wxPy_rev = v.toLong();
+                qtPy_rev = v.toLong();
         }
 
         // Note: Version check logic preserved but using placeholder values
         // Original checked wxWidgets version compatibility
         if( false ) // Placeholder - original version check logic
         {
-            QString msg = "The wxPython library was compiled against wxWidgets %1 but KiCad is "
+            QString msg = "The Python library was compiled against Qt %1 but KiCad is "
                          "using %2.  Python plugins will not be available.";
-            qCritical() << msg.arg( version, wxVersion );
+            qCritical() << msg.arg( version, qtVersion );
             available = false;
         }
     }

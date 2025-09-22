@@ -7,6 +7,7 @@
 #define EMBEDDED_FILES_LEXER_H_
 
 #include <dsnlexer.h>
+#include <QString>
 
 #include <kicommon.h>
 
@@ -74,12 +75,12 @@ class KICOMMON_API EMBEDDED_FILES_LEXER : public DSNLEXER
 
 public:
     /**
-     * Constructor ( const std::string&, const wxString& )
+     * Constructor ( const std::string&, const QString& )
      * @param aSExpression is (utf8) text possibly from the clipboard that you want to parse.
      * @param aSource is a description of the origin of @a aSExpression, such as a filename.
      *   If left empty, then _("clipboard") is used.
      */
-    EMBEDDED_FILES_LEXER( const std::string& aSExpression, const wxString& aSource = wxEmptyString ) :
+    EMBEDDED_FILES_LEXER( const std::string& aSExpression, const QString& aSource = QString() ) :
         DSNLEXER( keywords, keyword_count, &keywords_hash, aSExpression, aSource )
     {
     }
@@ -93,7 +94,7 @@ public:
      * @param aFile is a FILE already opened for reading.
      * @param aFilename is the name of the opened file, needed for error reporting.
      */
-    EMBEDDED_FILES_LEXER( FILE* aFile, const wxString& aFilename ) :
+    EMBEDDED_FILES_LEXER( FILE* aFile, const QString& aFilename ) :
         DSNLEXER( keywords, keyword_count, &keywords_hash, aFile, aFilename )
     {
     }

@@ -40,9 +40,9 @@
 void GERBVIEW_FRAME::doReCreateMenuBar()
 {
     GERBVIEW_SELECTION_TOOL* selTool = m_toolManager->GetTool<GERBVIEW_SELECTION_TOOL>();
-    // wxWidgets handles the Mac Application menu behind the scenes, but that means
-    // we always have to start from scratch with a new wxMenuBar.
-    wxMenuBar*  oldMenuBar = GetMenuBar();
+    // Qt handles the Mac Application menu behind the scenes, but that means
+    // we always have to start from scratch with a new QMenuBar.
+    QMenuBar*  oldMenuBar = GetMenuBar();
     WX_MENUBAR* menuBar    = new WX_MENUBAR();
 
     //-- File menu -------------------------------------------------------
@@ -76,8 +76,8 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
 
     fileMenu->Add( GERBVIEW_ACTIONS::openAutodetected );
     fileMenu->Add( GERBVIEW_ACTIONS::openGerber );
-    wxMenuItem* gbrItem = fileMenu->Add( openRecentGbrMenu->Clone() );
-    RegisterUIUpdateHandler( gbrItem->GetId(), FileHistoryCond( recentGbrFiles) );
+    QAction* gbrItem = fileMenu->Add( openRecentGbrMenu->Clone() );
+    RegisterUIUpdateHandler( gbrItem, FileHistoryCond( recentGbrFiles) );
 
 
     // Create the drill file menu if it does not exist. Adding a file to/from the history
@@ -98,8 +98,8 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
     m_drillFileHistory.UpdateClearText( openRecentDrlMenu, _( "Clear Recent Drill Files" ) );
 
     fileMenu->Add( GERBVIEW_ACTIONS::openDrillFile );
-    wxMenuItem* drillItem = fileMenu->Add( openRecentDrlMenu->Clone() );
-    RegisterUIUpdateHandler( drillItem->GetId(), FileHistoryCond( m_drillFileHistory ) );
+    QAction* drillItem = fileMenu->Add( openRecentDrlMenu->Clone() );
+    RegisterUIUpdateHandler( drillItem, FileHistoryCond( m_drillFileHistory ) );
 
 
     // Create the job file menu if it does not exist. Adding a file to/from the history
@@ -119,8 +119,8 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
     m_jobFileHistory.UpdateClearText( openRecentJobMenu, _( "Clear Recent Job Files" ) );
 
     fileMenu->Add( GERBVIEW_ACTIONS::openJobFile );
-    wxMenuItem* jobItem = fileMenu->Add( openRecentJobMenu->Clone() );
-    RegisterUIUpdateHandler( jobItem->GetId(), FileHistoryCond( m_jobFileHistory ) );
+    QAction* jobItem = fileMenu->Add( openRecentJobMenu->Clone() );
+    RegisterUIUpdateHandler( jobItem, FileHistoryCond( m_jobFileHistory ) );
 
 
     // Create the zip file menu if it does not exist. Adding a file to/from the history
@@ -140,8 +140,8 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
     m_zipFileHistory.UpdateClearText( openRecentZipMenu, _( "Clear Recent Zip Files" ) );
 
     fileMenu->Add( GERBVIEW_ACTIONS::openZipFile );
-    wxMenuItem* zipItem = fileMenu->Add( openRecentZipMenu->Clone() );
-    RegisterUIUpdateHandler( zipItem->GetId(), FileHistoryCond( m_zipFileHistory ) );
+    QAction* zipItem = fileMenu->Add( openRecentZipMenu->Clone() );
+    RegisterUIUpdateHandler( zipItem, FileHistoryCond( m_zipFileHistory ) );
 
 #undef FileHistoryCond
 

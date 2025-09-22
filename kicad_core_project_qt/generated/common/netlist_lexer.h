@@ -107,7 +107,7 @@ class KICOMMON_API NETLIST_LEXER : public DSNLEXER
 
 public:
     /**
-     * Constructor ( const std::string&, const wxString& )
+     * Constructor ( const std::string&, const QString& )
      * @param aSExpression is (utf8) text possibly from the clipboard that you want to parse.
      * @param aSource is a description of the origin of @a aSExpression, such as a filename.
      *   If left empty, then _("clipboard") is used.
