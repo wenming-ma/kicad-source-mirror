@@ -106,6 +106,13 @@ if( Qt6_FOUND )
     set( CMAKE_AUTORCC ON )
     set( CMAKE_AUTOUIC ON )
     message( STATUS "Qt6 support enabled for future transformation" )
+
+    # IMPORTANT: Re-enable ASM_MASM after Qt6 configuration to fix libcontext assembly compilation
+    # Qt6's CMake modules can interfere with ASM language settings, so we restore them here
+    if( MSVC AND NOT KICAD_BUILD_ARCH_ARM AND NOT KICAD_BUILD_ARCH_ARM64 )
+        enable_language(ASM_MASM)
+        message( STATUS "Re-enabled ASM_MASM language support after Qt6 configuration" )
+    endif()
 endif()
 
 set( wxWidgets_USE_STATIC ON )
