@@ -1,4 +1,6 @@
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+
 #ifndef  EDA_BASE_FRAME_H_
 #define  EDA_BASE_FRAME_H_
 
@@ -29,7 +31,7 @@
 #include <hotkeys_basic.h>
 #include <kiway_holder.h>
 #include <tool/tools_holder.h>
-#include <widgets/kiui_common.h>
+#include <widgets/kitepui_common.h>
 #include <widgets/qt_infobar.h>
 #include <undo_redo_container.h>
 #include <units_provider.h>

@@ -1,5 +1,33 @@
 # Common library for minimum PCB set
 
+# Create minimal kicommon library first (needed by gal)
+add_library( kicommon STATIC
+    # Minimal files needed by gal and other components
+    build_version.cpp
+    string_utils.cpp
+    exceptions.cpp
+    richio.cpp
+    config_params.cpp
+    common.cpp
+    eda_units.cpp
+)
+
+target_link_libraries( kicommon
+    kimath
+    kiplatform
+    nlohmann_json
+    ${wxWidgets_LIBRARIES}
+)
+
+target_include_directories( kicommon PUBLIC
+    .
+    ${CMAKE_BINARY_DIR}
+    ../include
+)
+
+# Add subdirectories
+add_subdirectory( gal )
+
 # Generated files from kicad_core_project_wx generated directory
 set( KICAD_GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../generated" )
 set( COMMON_GENERATED_SRCS
@@ -35,40 +63,43 @@ add_library( common STATIC
     design_block_info_impl.cpp
     design_block_io.cpp
     design_block_lib_table.cpp
-    # dialog_shim.cpp
 
     # New common files
+    board_printout.cpp
     clipboard.cpp
     eda_draw_frame.cpp
     gal_display_options_common.cpp
+    gbr_metadata.cpp
     lib_tree_model.cpp
     lib_tree_model_adapter.cpp
     origin_viewitem.cpp
+    printout.cpp
 
     # Dialog files
-    dialogs/dialog_unit_entry.cpp
-    dialogs/dialog_unit_entry_base.cpp
-    dialogs/eda_list_dialog.cpp
-    dialogs/eda_list_dialog_base.cpp
-    dialogs/eda_reorderable_list_dialog.cpp
-    dialogs/eda_reorderable_list_dialog_base.cpp
-    dialogs/eda_view_switcher_base.cpp
-    dialogs/hotkey_cycle_popup.cpp
-    dialogs/git/panel_git_repos.cpp
-    dialogs/git/panel_git_repos_base.cpp
-    dialogs/panel_common_settings.cpp
-    dialogs/panel_common_settings_base.cpp
-    dialogs/panel_hotkeys_editor.cpp
-    dialogs/panel_mouse_settings.cpp
-    dialogs/panel_mouse_settings_base.cpp
-    dialogs/panel_packages_and_updates.cpp
-    dialogs/panel_packages_and_updates_base.cpp
-    dialogs/panel_plugin_settings.cpp
-    dialogs/panel_plugin_settings_base.cpp
+    # dialogs/dialog_print_generic.cpp
+    # dialogs/dialog_print_generic_base.cpp
+    # dialogs/dialog_unit_entry.cpp
+    # dialogs/dialog_unit_entry_base.cpp
+    # dialogs/eda_list_dialog.cpp
+    # dialogs/eda_list_dialog_base.cpp
+    # dialogs/eda_reorderable_list_dialog.cpp
+    # dialogs/eda_reorderable_list_dialog_base.cpp
+    # dialogs/eda_view_switcher_base.cpp
+    # dialogs/hotkey_cycle_popup.cpp
+    # dialogs/git/panel_git_repos.cpp
+    # dialogs/git/panel_git_repos_base.cpp
+    # dialogs/panel_common_settings.cpp
+    # dialogs/panel_common_settings_base.cpp
+    # dialogs/panel_hotkeys_editor.cpp
+    # dialogs/panel_mouse_settings.cpp
+    # dialogs/panel_mouse_settings_base.cpp
+    # dialogs/panel_packages_and_updates.cpp
+    # dialogs/panel_packages_and_updates_base.cpp
+    # dialogs/panel_plugin_settings.cpp
+    # dialogs/panel_plugin_settings_base.cpp
     dpi_scaling.cpp
     dpi_scaling_common.cpp
     dsnlexer.cpp
-    # UI component - re-enabled for compilation
     eda_base_frame.cpp
     eda_dde.cpp
     eda_doc.cpp
@@ -178,6 +209,8 @@ add_library( common STATIC
     # IO files
     io/io_base.cpp
     io/kicad/kicad_io_utils.cpp
+
+    # Job files (only headers copied, no .cpp files)
     
     # Kicad curl
     kicad_curl/kicad_curl.cpp
@@ -185,10 +218,24 @@ add_library( common STATIC
     # Libeval compiler
     libeval_compiler/libeval_compiler.cpp
 
+    # Plotters
+    plotters/DXF_plotter.cpp
+    plotters/GERBER_plotter.cpp
+    plotters/HPGL_plotter.cpp
+    plotters/PDF_plotter.cpp
+    plotters/PS_plotter.cpp
+    plotters/SVG_plotter.cpp
+    plotters/common_plot_functions.cpp
+    plotters/plotter.cpp
+
     # Preview items
     preview_items/anchor_debug.cpp
     preview_items/construction_geom.cpp
     preview_items/item_drawing_utils.cpp
+    preview_items/preview_utils.cpp
+    preview_items/ruler_item.cpp
+    preview_items/selection_area.cpp
+    preview_items/simple_overlay_item.cpp
     preview_items/snap_indicator.cpp
 
     # Project files
@@ -224,6 +271,7 @@ add_library( common STATIC
     tool/common_tools.cpp
     tool/conditional_menu.cpp
     tool/construction_manager.cpp
+    tool/editor_conditions.cpp
     tool/grid_helper.cpp
     tool/grid_menu.cpp
     tool/selection.cpp
@@ -237,6 +285,7 @@ add_library( common STATIC
     tool/tool_menu.cpp
     tool/tools_holder.cpp
     tool/zoom_menu.cpp
+    tool/zoom_tool.cpp
 
     # View files
     view/view.cpp
@@ -248,29 +297,34 @@ add_library( common STATIC
     # view/wx_view_controls.cpp
     view/zoom_controller.cpp
     
-    # Widget files
-    widgets/app_progress_dialog.cpp
-    widgets/button_row_panel.cpp
-    widgets/filter_combobox.cpp
-    widgets/font_choice.cpp
-    widgets/grid_icon_text_helpers.cpp
-    widgets/html_window.cpp
-    widgets/lib_tree.cpp
-    widgets/msgpanel.cpp
-    widgets/paged_dialog.cpp
-    widgets/progress_reporter_base.cpp
-    widgets/std_bitmap_button.cpp
-    widgets/ui_common.cpp
-    widgets/unit_binder.cpp
-    widgets/widget_hotkey_list.cpp
-    widgets/wx_combobox.cpp
-    widgets/wx_dataviewctrl.cpp
-    widgets/wx_grid.cpp
-    widgets/wx_aui_art_providers.cpp
-    widgets/wx_busy_indicator.cpp
-    widgets/wx_infobar.cpp
-    widgets/wx_panel.cpp
-    widgets/wx_treebook.cpp
+    # Widget files - commented out as files were removed
+    # widgets/app_progress_dialog.cpp
+    # widgets/button_row_panel.cpp
+    # widgets/filter_combobox.cpp
+    # widgets/font_choice.cpp
+    # widgets/grid_icon_text_helpers.cpp
+    # widgets/html_window.cpp
+    # widgets/indicator_icon.cpp
+    # widgets/layer_box_selector.cpp
+    # widgets/layer_presentation.cpp
+    # widgets/lib_tree.cpp
+    # widgets/msgpanel.cpp
+    # widgets/paged_dialog.cpp
+    # widgets/progress_reporter_base.cpp
+    # widgets/std_bitmap_button.cpp
+    # widgets/ui_common.cpp
+    # widgets/unit_binder.cpp
+    # widgets/widget_hotkey_list.cpp
+    # widgets/wx_aui_art_providers.cpp
+    # widgets/wx_busy_indicator.cpp
+    # widgets/wx_combobox.cpp
+    # widgets/wx_dataviewctrl.cpp
+    # widgets/wx_ellipsized_static_text.cpp
+    # widgets/wx_grid.cpp
+    # widgets/wx_infobar.cpp
+    # widgets/wx_panel.cpp
+    # widgets/wx_progress_reporters.cpp
+    # widgets/wx_treebook.cpp
     
     # Generated files
     ${COMMON_GENERATED_SRCS}

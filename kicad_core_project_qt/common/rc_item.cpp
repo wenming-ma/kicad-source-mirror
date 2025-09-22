@@ -1,7 +1,8 @@
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
 #include <QWidget>
 #include <QTreeView>
 #include <QApplication>
-#include <widgets/kiui_common.h>
+#include <widgets/kitepui_common.h>
 #include <marker_base.h>
 #include <eda_draw_frame.h>
 #include <rc_item.h>

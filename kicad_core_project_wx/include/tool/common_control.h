@@ -35,19 +35,17 @@ class EDA_BASE_FRAME;
 class COMMON_CONTROL : public TOOL_INTERACTIVE
 {
 public:
-    // UNUSED_SYMBOL: COMMON_CONTROL constructor - Constructor using TOOL_INTERACTIVE(string)
-    // COMMON_CONTROL() :
-    //     TOOL_INTERACTIVE( "common.SuiteControl" ),
-    //     m_frame( nullptr )
-    // { }
+    COMMON_CONTROL() :
+        TOOL_INTERACTIVE( "common.SuiteControl" ),
+        m_frame( nullptr )
+    { }
 
     ~COMMON_CONTROL() override { }
 
     /// @copydoc TOOL_BASE::Reset()
     void Reset( RESET_REASON aReason ) override;
 
-    // UNUSED_SYMBOL: ShowPreferences - OpenPreferences method declaration commented out since ShowPreferences is unused
-    // int OpenPreferences( const TOOL_EVENT& aEvent );
+    int OpenPreferences( const TOOL_EVENT& aEvent );
     int ConfigurePaths( const TOOL_EVENT& aEvent );
     int ShowLibraryTable( const TOOL_EVENT& aEvent );
 

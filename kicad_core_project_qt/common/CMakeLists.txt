@@ -1,7 +1,37 @@
 # Common library for minimum PCB set
 
+# Create minimal kicommon library first (needed by gal)
+add_library( kicommon STATIC
+    # Minimal files needed by gal and other components
+    build_version.cpp
+    string_utils.cpp
+    exceptions.cpp
+    richio.cpp
+    config_params.cpp
+    common.cpp
+    eda_units.cpp
+)
+
+target_link_libraries( kicommon
+    kimath
+    kiplatform
+    nlohmann_json
+    ${wxWidgets_LIBRARIES}
+)
+
+target_include_directories( kicommon PUBLIC
+    .
+    ${CMAKE_BINARY_DIR}
+    ../include
+)
+
+# Add subdirectories
+add_subdirectory( gal )
+
+# Generated files from kicad_core_project_wx generated directory
 set( KICAD_GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../generated" )
 set( COMMON_GENERATED_SRCS
+    # ${KICAD_GENERATED_DIR}/api/cpp/api/common/envelope.pb.cc  # DISABLED FOR MINIMAL BUILD
     ${KICAD_GENERATED_DIR}/common/drc_rules_keywords.cpp
     ${KICAD_GENERATED_DIR}/common/embedded_files_keywords.cpp
     ${KICAD_GENERATED_DIR}/common/lib_table_keywords.cpp
@@ -10,21 +40,7 @@ set( COMMON_GENERATED_SRCS
     ${KICAD_GENERATED_DIR}/common/pcb_plot_params_keywords.cpp
     ${KICAD_GENERATED_DIR}/common/stroke_params_keywords.cpp
     ${KICAD_GENERATED_DIR}/common/drawing_sheet/drawing_sheet_keywords.cpp
-    ${KICAD_GENERATED_DIR}/common/template_fieldnames_keywords.cpp
-
 )
-
-# Headers that need MOC processing (contain Q_OBJECT macro)
-set( MOC_HEADERS
-    ../include/rc_item.h
-    ../include/widgets/wx_splash.h
-    ../include/widgets/std_bitmap_button.h
-    ../include/widgets/bitmap_button.h
-    ../include/widgets/html_window.h
-)
-
-# Generate MOC files for headers with Q_OBJECT
-qt6_wrap_cpp( MOC_SOURCES ${MOC_HEADERS} )
 
 add_library( common STATIC
     # Core common files
@@ -47,12 +63,44 @@ add_library( common STATIC
     design_block_info_impl.cpp
     design_block_io.cpp
     design_block_lib_table.cpp
-    dialog_shim.cpp
+
+    # New common files
+    board_printout.cpp
+    clipboard.cpp
+    eda_draw_frame.cpp
+    gal_display_options_common.cpp
+    gbr_metadata.cpp
+    lib_tree_model.cpp
+    lib_tree_model_adapter.cpp
+    origin_viewitem.cpp
+    printout.cpp
+
+    # Dialog files
+    # dialogs/dialog_print_generic.cpp
+    # dialogs/dialog_print_generic_base.cpp
+    # dialogs/dialog_unit_entry.cpp
+    # dialogs/dialog_unit_entry_base.cpp
+    # dialogs/eda_list_dialog.cpp
+    # dialogs/eda_list_dialog_base.cpp
+    # dialogs/eda_reorderable_list_dialog.cpp
+    # dialogs/eda_reorderable_list_dialog_base.cpp
+    # dialogs/eda_view_switcher_base.cpp
+    # dialogs/hotkey_cycle_popup.cpp
+    # dialogs/git/panel_git_repos.cpp
+    # dialogs/git/panel_git_repos_base.cpp
+    # dialogs/panel_common_settings.cpp
+    # dialogs/panel_common_settings_base.cpp
+    # dialogs/panel_hotkeys_editor.cpp
+    # dialogs/panel_mouse_settings.cpp
+    # dialogs/panel_mouse_settings_base.cpp
+    # dialogs/panel_packages_and_updates.cpp
+    # dialogs/panel_packages_and_updates_base.cpp
+    # dialogs/panel_plugin_settings.cpp
+    # dialogs/panel_plugin_settings_base.cpp
     dpi_scaling.cpp
     dpi_scaling_common.cpp
     dsnlexer.cpp
-    # UI component - commented out for minimal build
-    # eda_base_frame.cpp
+    eda_base_frame.cpp
     eda_dde.cpp
     eda_doc.cpp
     eda_item.cpp
@@ -151,16 +199,45 @@ add_library( common STATIC
     # UI component - commented out for minimal build (OpenGL UI context)
     # gal/opengl/gl_context_mgr.cpp
     
+    # Import/Export GFX files
+    import_gfx/dxf_import_plugin.cpp
+    import_gfx/graphics_import_mgr.cpp
+    import_gfx/graphics_importer.cpp
+    import_gfx/graphics_importer_buffer.cpp
+    import_gfx/svg_import_plugin.cpp
+
     # IO files
     io/io_base.cpp
     io/kicad/kicad_io_utils.cpp
+
+    # Job files (only headers copied, no .cpp files)
     
     # Kicad curl
     kicad_curl/kicad_curl.cpp
     
     # Libeval compiler
     libeval_compiler/libeval_compiler.cpp
-    
+
+    # Plotters
+    plotters/DXF_plotter.cpp
+    plotters/GERBER_plotter.cpp
+    plotters/HPGL_plotter.cpp
+    plotters/PDF_plotter.cpp
+    plotters/PS_plotter.cpp
+    plotters/SVG_plotter.cpp
+    plotters/common_plot_functions.cpp
+    plotters/plotter.cpp
+
+    # Preview items
+    preview_items/anchor_debug.cpp
+    preview_items/construction_geom.cpp
+    preview_items/item_drawing_utils.cpp
+    preview_items/preview_utils.cpp
+    preview_items/ruler_item.cpp
+    preview_items/selection_area.cpp
+    preview_items/simple_overlay_item.cpp
+    preview_items/snap_indicator.cpp
+
     # Project files
     project/board_project_settings.cpp
     project/net_settings.cpp
@@ -191,8 +268,14 @@ add_library( common STATIC
     tool/action_toolbar.cpp
     tool/actions.cpp
     tool/common_control.cpp
+    tool/common_tools.cpp
     tool/conditional_menu.cpp
+    tool/construction_manager.cpp
+    tool/editor_conditions.cpp
+    tool/grid_helper.cpp
+    tool/grid_menu.cpp
     tool/selection.cpp
+    tool/selection_conditions.cpp
     tool/tool_action.cpp
     tool/tool_base.cpp
     tool/tool_dispatcher.cpp
@@ -201,7 +284,9 @@ add_library( common STATIC
     tool/tool_manager.cpp
     tool/tool_menu.cpp
     tool/tools_holder.cpp
-    
+    tool/zoom_menu.cpp
+    tool/zoom_tool.cpp
+
     # View files
     view/view.cpp
     view/view_controls.cpp
@@ -212,35 +297,51 @@ add_library( common STATIC
     # view/wx_view_controls.cpp
     view/zoom_controller.cpp
     
-    # Widget files
-    widgets/bitmap_button.cpp
-    widgets/html_window.cpp
-    widgets/progress_reporter_base.cpp
-    widgets/std_bitmap_button.cpp
-    widgets/ui_common.cpp
-    widgets/wx_splash.cpp
+    # Widget files - commented out as files were removed
+    # widgets/app_progress_dialog.cpp
+    # widgets/button_row_panel.cpp
+    # widgets/filter_combobox.cpp
+    # widgets/font_choice.cpp
+    # widgets/grid_icon_text_helpers.cpp
+    # widgets/html_window.cpp
+    # widgets/indicator_icon.cpp
+    # widgets/layer_box_selector.cpp
+    # widgets/layer_presentation.cpp
+    # widgets/lib_tree.cpp
+    # widgets/msgpanel.cpp
+    # widgets/paged_dialog.cpp
+    # widgets/progress_reporter_base.cpp
+    # widgets/std_bitmap_button.cpp
+    # widgets/ui_common.cpp
+    # widgets/unit_binder.cpp
+    # widgets/widget_hotkey_list.cpp
+    # widgets/wx_aui_art_providers.cpp
+    # widgets/wx_busy_indicator.cpp
+    # widgets/wx_combobox.cpp
+    # widgets/wx_dataviewctrl.cpp
+    # widgets/wx_ellipsized_static_text.cpp
+    # widgets/wx_grid.cpp
+    # widgets/wx_infobar.cpp
+    # widgets/wx_panel.cpp
+    # widgets/wx_progress_reporters.cpp
+    # widgets/wx_treebook.cpp
     
     # Generated files
     ${COMMON_GENERATED_SRCS}
-    
-    # MOC generated files
-    ${MOC_SOURCES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../generated/common/template_fieldnames_keywords.cpp
 )
 
 target_include_directories( common PUBLIC
     .
+    ./dialogs
     ../include
+    # ../generated/api/cpp  # DISABLED FOR MINIMAL BUILD
+    # ../generated/api/cpp/api  # DISABLED FOR MINIMAL BUILD
     ../scripting
     ../thirdparty/magic_enum
+    ../thirdparty/nanosvg
     ${wxWidgets_INCLUDE_DIRS}
 )
-
-# Configure Qt MOC, UIC, and RCC processing
-set_target_properties( common PROPERTIES AUTOMOC ON )
-set_target_properties( common PROPERTIES AUTORCC ON )
-# Skip AutoUIC processing for widgets/ui_common.h (it's a hand-written header, not generated from .ui)
-set_property( TARGET common PROPERTY AUTOUIC_SKIP_QTDIR ON )
-set_target_properties( common PROPERTIES AUTOUIC OFF )
 
 target_compile_definitions( common PUBLIC
     ${wxWidgets_DEFINITIONS}
@@ -250,25 +351,43 @@ target_compile_definitions( common PUBLIC
     GAL_DLL  # Define GAL_DLL to export GAL symbols instead of importing them
 )
 
+# Qt MOC support for future transformation
+if( Qt6_FOUND )
+    # Headers that will need MOC processing when migrated to Qt
+    set( MOC_HEADERS
+        ../include/rc_item.h
+        ../include/widgets/wx_splash.h
+        ../include/widgets/std_bitmap_button.h
+        ../include/widgets/bitmap_button.h
+        ../include/widgets/html_window.h
+    )
+
+    # Generate MOC files for headers with Q_OBJECT
+    qt6_wrap_cpp( MOC_SOURCES ${MOC_HEADERS} )
+
+    # Add MOC sources to common library
+    target_sources( common PRIVATE ${MOC_SOURCES} )
+
+    # Configure Qt MOC, UIC, and RCC processing
+    set_target_properties( common PROPERTIES AUTOMOC ON )
+    set_target_properties( common PROPERTIES AUTORCC ON )
+    set_target_properties( common PROPERTIES AUTOUIC OFF )
+endif()
+
 target_link_libraries( common PUBLIC
     core
     kimath
     kiplatform
     sexpr
-    json_schema_validator
+    nlohmann_json_schema_validator
     ${wxWidgets_LIBRARIES}
     ${Boost_LIBRARIES}
-    # Qt libraries - these provide include directories automatically
-    Qt6::Core
-    Qt6::Widgets
-    Qt6::Gui
-    Qt6::Network
     # Third-party libraries (local)
     fmt
     libcontext
     clipper2
     delaunator
-    other_math
+    othermath
     potrace
     # Third-party libraries from vcpkg
     Fontconfig::Fontconfig
@@ -277,4 +396,10 @@ target_link_libraries( common PUBLIC
     Freetype::Freetype
     harfbuzz::harfbuzz
     # protobuf::libprotobuf
+
+    # Qt libraries (for future transformation)
+    $<$<BOOL:${Qt6_FOUND}>:Qt6::Core>
+    $<$<BOOL:${Qt6_FOUND}>:Qt6::Widgets>
+    $<$<BOOL:${Qt6_FOUND}>:Qt6::Gui>
+    $<$<BOOL:${Qt6_FOUND}>:Qt6::Network>
 )

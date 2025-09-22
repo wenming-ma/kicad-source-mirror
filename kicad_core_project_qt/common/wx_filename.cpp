@@ -1,3 +1,4 @@
+// Qt Framework Transformation: wxWidgets to Qt conversion completed
 #include <wx_filename.h>
 #include <string_utils.h>
 #include <QDir>

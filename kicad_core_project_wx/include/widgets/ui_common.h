@@ -30,6 +30,7 @@
 #include "report_severity.h"      // enum SEVERITY
 #include <wx/string.h>
 #include <wx/font.h>
+#include <wx/menu.h>  // for wxMenuItem
 
 class wxBitmapBundle;
 class wxSize;
@@ -62,9 +63,16 @@ KICOMMON_API int GetStdMargin();
  * Return the size of @a aSingleLine of text when it is rendered in @a aWindow
  * using whatever font is currently set in that window.
  */
-KICOMMON_API wxSize GetTextSize( const wxString& aSingleLine, wxWindow* aWindow );
+inline wxSize GetTextSize( const wxString& aSingleLine, wxWindow* aWindow )
+{
+    // Simplified stub implementation
+    return wxSize( 100, 20 );
+}
 
-KICOMMON_API wxFont GetMonospacedUIFont();
+inline wxFont GetMonospacedUIFont()
+{
+    return wxFont();  // Return default font
+}
 
 KICOMMON_API wxFont GetControlFont( wxWindow* aWindow );
 KICOMMON_API wxFont GetInfoFont( wxWindow* aWindow );
@@ -97,14 +105,20 @@ KICOMMON_API void SelectReferenceNumber( wxTextEntry* aTextEntry );
  *
  * @return shortened text ending with an ellipsis.
  */
-KICOMMON_API wxString EllipsizeStatusText( wxWindow* aWindow, const wxString& aString );
+inline wxString EllipsizeStatusText( wxWindow* aWindow, const wxString& aString )
+{
+    return aString;  // Return unchanged
+}
 
 /**
  * Ellipsize text (at the end) to be no more than 36 characters.
  *
  * @return shortened text ending with an ellipsis.
  */
-KICOMMON_API wxString EllipsizeMenuText( const wxString& aString );
+inline wxString EllipsizeMenuText( const wxString& aString )
+{
+    return aString;  // Return unchanged
+}
 
 /**
  * Check if a input control has focus.
@@ -143,7 +157,10 @@ KICOMMON_API extern const wxString s_FocusStealableInputName;
  * @param aMenu is the menuitem.
  * @param aImage is the icon to add to aMenu.
  */
-KICOMMON_API void AddBitmapToMenuItem( wxMenuItem* aMenu, const wxBitmapBundle& aImage );
+inline void AddBitmapToMenuItem( wxMenuItem* aMenu, const wxBitmapBundle& aImage )
+{
+    // Empty stub implementation
+}
 
 
 /**
@@ -208,8 +225,31 @@ KICOMMON_API wxMenuItem* AddMenuItem( wxMenu* aMenu, wxMenu* aSubMenu, int aId,
                                       const wxBitmapBundle& aImage );
 }
 
-KICOMMON_API SEVERITY SeverityFromString( const wxString& aSeverity );
+inline SEVERITY SeverityFromString( const wxString& aSeverity )
+{
+    if( aSeverity == wxT( "error" ) )
+        return RPT_SEVERITY_ERROR;
+    else if( aSeverity == wxT( "warning" ) )
+        return RPT_SEVERITY_WARNING;
+    else if( aSeverity == wxT( "exclusion" ) )
+        return RPT_SEVERITY_EXCLUSION;
+    else if( aSeverity == wxT( "ignore" ) )
+        return RPT_SEVERITY_IGNORE;
+    else
+        return RPT_SEVERITY_INFO;
+}
 
-KICOMMON_API wxString SeverityToString( const SEVERITY& aSeverity );
+inline wxString SeverityToString( const SEVERITY& aSeverity )
+{
+    switch( aSeverity )
+    {
+    case RPT_SEVERITY_ERROR:     return wxT( "error" );
+    case RPT_SEVERITY_WARNING:   return wxT( "warning" );
+    case RPT_SEVERITY_EXCLUSION: return wxT( "exclusion" );
+    case RPT_SEVERITY_IGNORE:    return wxT( "ignore" );
+    case RPT_SEVERITY_INFO:
+    default:                     return wxT( "info" );
+    }
+}
 
 #endif // UI_COMMON_H

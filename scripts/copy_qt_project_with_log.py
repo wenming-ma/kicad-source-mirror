@@ -191,7 +191,7 @@ def main():
     qt_project_root = kicad_root / "kicad_core_project_wx"
 
     # Actual build directory path (mapped from original)
-    actual_build_path = Path(r"Y:\wenming\kicad\build\x64-Debug")
+    actual_build_path = Path(r"C:\Users\wenming\source\repos\kicad\build\x64-debug")
 
     print(f"KiCad root: {kicad_root}")
     print(f"KiCad core project root: {qt_project_root}")

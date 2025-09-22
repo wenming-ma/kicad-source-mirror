@@ -7,7 +7,7 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build",
         "environment": {
-            "VCPKG_ROOT": "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\kicad_core_project_qt\\vcpkg_installed"
+            "VCPKG_ROOT": "D:\\Tools\\vcpkg"
         },
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "condition": {
@@ -20,7 +20,7 @@
         "KICAD_BUILD_I18N": "OFF",
         "KICAD_SCRIPTING_WXPYTHON": "OFF",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "VCPKG_INSTALLED_DIR": "$env{VCPKG_ROOT}",
+        "VCPKG_INSTALLED_DIR": "$env{VCPKG_ROOT}/installed",
         "Qt6_ROOT": "C:/Qt/6.9.1/msvc2022_64"
       }
     },

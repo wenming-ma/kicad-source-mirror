@@ -19,7 +19,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / r"scripts\tu_index.json"
-SEEDS = ROOT / r"scripts\seeds-gerber.txt"
+SEEDS = ROOT / r"scripts\seeds-pcb.txt"
 COMMON_SYMBOLS = ROOT / r"scripts\common_symbols.txt"
 OUT = ROOT / r"scripts\tem\minset_sources.json"
 UNRES = ROOT / r"scripts\tem\unresolved_symbols.json"
@@ -167,7 +167,6 @@ EXTERNAL_HINTS = [
 # 按模块和层次结构组织，便于维护和理解
 BLACKLISTED_FILES = [
     # === Core Framework Files ===
-    # "common/eda_base_frame.cpp",           # Base frame class
     "common/dialog_shim.cpp",  # Dialog base class
     # === Common Dialogs ===
     "common/dialogs/html_message_box.cpp",
@@ -177,7 +176,6 @@ BLACKLISTED_FILES = [
     "common/dialog_about/AboutDialog_main.cpp",
     # === Tool Framework ===
     "common/tool/selection_tool.cpp",
-    # "common/tool/tool_manager.cpp",
     # === API & Plugin System ===
     "common/api/api_plugin_manager.cpp",
     # === Eeschema Core Frames ===
@@ -206,6 +204,13 @@ BLACKLISTED_FILES = [
     "eeschema/netlist_exporters/netlist_exporter_spice.cpp",
     # === PCB IO System ===
     "pcbnew/pcb_io/pcb_io_mgr.cpp",
+    
+     # === Gerber System ===
+    # "gerbview/tools/gerbview_control.cpp",
+    # "gerbview/toolbars_gerber.cpp",
+    # "common/eda_base_frame.cpp",
+    # "common/background_jobs_monitor.cpp"
+    
     # 可以在这里添加更多不想引入的文件路径
     # 支持相对路径或者绝对路径模式
 ]

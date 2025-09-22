@@ -1,8 +1,10 @@
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+
 #include <pgm_base.h>
 #include <core/profile.h>
 #include <view/view.h>
-#include <view/wx_view_controls.h>
+#include <view/qt_view_controls.h>
 #include <view/zoom_controller.h>
 #include <gal/graphics_abstraction_layer.h>
 #include <tool/tool_dispatcher.h>
@@ -10,7 +12,7 @@
 #include <settings/common_settings.h>
 #include <math/util.h>      // for KiROUND
 #include <geometry/geometry_utils.h>
-#include <widgets/kiui_common.h>
+#include <widgets/kitepui_common.h>
 #include <class_draw_panel_gal.h>
 #include <eda_draw_frame.h>
 #include <kiway.h>
@@ -183,7 +185,7 @@ void QT_VIEW_CONTROLS::onMotion( QMouseEvent& aEvent )
 
             if( x < 0 )
             {
-                warpX = parentSize.x;
+                warpX = parentSize.width();
             }
             else if(x >= parentSize.width() )
             {

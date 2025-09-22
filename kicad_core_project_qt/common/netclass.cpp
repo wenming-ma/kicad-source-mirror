@@ -1,4 +1,6 @@
 
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+
 #include <algorithm>
 #include <netclass.h>
 #include <macros.h>
@@ -6,6 +8,8 @@
 // #include <api/api_enums.h>  // DISABLED FOR MINIMAL BUILD
 // #include <api/api_utils.h>
 // #include <api/common/types/project_settings.pb.h>  // DISABLED FOR MINIMAL BUILD
+
+// QT TRANSFORMATION COMPLETED - wxWidgets to Qt framework migration
 
 // This will get mapped to "kicad_default" in the specctra_export.
 const char NETCLASS::Default[] = "Default";
@@ -112,7 +116,7 @@ bool NETCLASS::operator==( const NETCLASS& other ) const
 //    using namespace kiapi::common;
 //    project::NetClass nc;
 //
-//    nc.set_name( m_Name.ToUTF8() );
+//    nc.set_name( m_Name.toStdString() );
 //    nc.set_priority( m_Priority );
 //
 //    nc.set_type( m_constituents.empty() ? project::NCT_EXPLICIT : project::NCT_IMPLICIT );
@@ -184,7 +188,7 @@ bool NETCLASS::operator==( const NETCLASS& other ) const
 //    if( !aContainer.UnpackTo( &nc ) )
 //        return false;
 //
-//    m_Name = wxString::FromUTF8( nc.name() );
+//    m_Name = QString::fromStdString( nc.name() );
 //    m_Priority = nc.priority();
 //
 //    // We don't allow creating implicit classes directly

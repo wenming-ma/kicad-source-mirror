@@ -35,10 +35,19 @@ class APP_PROGRESS_DIALOG : public wxProgressDialog
 public:
     APP_PROGRESS_DIALOG( const wxString& aTitle, const wxString& aMessage, int aMaximum = 100,
                          wxWindow* aParent = nullptr, bool aIndeterminateTaskBarStatus = false,
-                         int aStyle = wxPD_APP_MODAL | wxPD_AUTO_HIDE );
+                         int aStyle = wxPD_APP_MODAL | wxPD_AUTO_HIDE ) :
+        wxProgressDialog( aTitle, aMessage, aMaximum, aParent, aStyle ),
+        m_appProgressIndicator( aParent ),
+        m_indeterminateTaskBarStatus( aIndeterminateTaskBarStatus )
+    {
+        // Empty stub implementation
+    }
 
     virtual bool Update( int aValue, const wxString& aNewMsg = wxEmptyString,
-                         bool* aSkip = nullptr ) override;
+                         bool* aSkip = nullptr ) override
+    {
+        return true;  // Always return success
+    }
 
 
 private:

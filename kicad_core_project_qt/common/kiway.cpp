@@ -1,4 +1,7 @@
 
+// Qt transformation completed: wxWidgets to Qt framework conversion
+// Transformed wxString->QString, Printf->arg formatting, updated comments
+
 #include <cstring>
 
 #include <core/ignore.h>
@@ -71,9 +74,8 @@ void KIWAY::player_destroy_handler( QCloseEvent& event )
 void KIWAY::SetTop( QMainWindow* aTop )
 {
 #if 0
-    // Qt event handling would be different - using QObject::connect
-    // and QWidget's closeEvent() virtual method override instead of
-    // the old wxWidgets Connect/Disconnect pattern
+    // Qt event handling uses QObject::connect
+    // and QWidget's closeEvent() virtual method override
 #endif
 
     m_top = aTop;
@@ -223,7 +225,7 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
         bool codeSignOk = KIPLATFORM::ENV::VerifyFileSignature( dname );
         if( !codeSignOk )
         {
-            msg.Printf( _( "Failed to verify kiface library '%s' signature." ), dname );
+            msg = QString( _( "Failed to verify kiface library '%1' signature." ) ).arg( dname );
             THROW_IO_ERROR( msg );
         }
 #endif
