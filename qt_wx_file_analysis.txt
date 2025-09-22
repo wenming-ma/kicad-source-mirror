@@ -3,11 +3,11 @@ KiCad Qt vs wx Version File Analysis Report
 
 EXECUTIVE SUMMARY
 --------------------
-Total Qt files: 31193
-Total wx files: 30864
-Shared files: 30733
-Qt-only files: 460
-wx-only files: 131
+Total Qt files: 31178
+Total wx files: 30842
+Shared files: 30719
+Qt-only files: 459
+wx-only files: 123
 Shared percentage: 98.53%
 
 FILE EXTENSION ANALYSIS
@@ -15,14 +15,14 @@ FILE EXTENSION ANALYSIS
 Qt version top extensions:
   .hpp: 7729
   .hxx: 6860
-  .h: 4070
-  .py: 3393
+  .h: 4068
+  .py: 3394
   .pyc: 1408
-  .cpp: 873
+  .cpp: 871
   .cc: 784
-  .cmake: 581
-  [no extension]: 468
-  .txt: 418
+  .cmake: 577
+  [no extension]: 470
+  .txt: 417
   .lxx: 407
   .json: 340
   .dll: 311
@@ -32,15 +32,15 @@ Qt version top extensions:
 wx version top extensions:
   .hpp: 7729
   .hxx: 6860
-  .h: 4064
+  .h: 4063
   .py: 3394
   .pyc: 1408
-  .cpp: 859
+  .cpp: 858
   .cc: 784
-  .cmake: 537
+  .cmake: 532
   [no extension]: 444
   .lxx: 407
-  .txt: 398
+  .txt: 396
   .dll: 311
   .lib: 305
   .pyi: 284
@@ -49,15 +49,15 @@ wx version top extensions:
 Shared files extensions:
   .hpp: 7729
   .hxx: 6860
-  .h: 4062
-  .py: 3393
+  .h: 4061
+  .py: 3394
   .pyc: 1408
-  .cpp: 855
+  .cpp: 856
   .cc: 784
-  .cmake: 527
-  [no extension]: 441
+  .cmake: 522
+  [no extension]: 443
   .lxx: 407
-  .txt: 392
+  .txt: 391
   .dll: 311
   .lib: 305
   .pyi: 284
@@ -84,9 +84,9 @@ Qt version top directories:
   vcpkg_installed\x64-windows\share\boost-config\checks\std: 149
   vcpkg_installed\x64-windows\include\openssl: 145
   vcpkg_installed\x64-windows\tools\python3\Lib\test\decimaltestdata: 143
-  vcpkg_installed\x64-windows\debug\lib: 142
   build\.cmake\api\v1\reply: 142
-  vcpkg_installed\x64-windows\include\ngspice: 141
+  vcpkg_installed\x64-windows\debug\lib: 142
+  vcpkg_installed\x64-windows\lib: 141
 
 wx version top directories:
   vcpkg_installed\x64-windows\include\opencascade: 7273
@@ -107,8 +107,8 @@ wx version top directories:
   vcpkg_installed\x64-windows\include\openssl: 145
   vcpkg_installed\x64-windows\tools\python3\Lib\test\decimaltestdata: 143
   vcpkg_installed\x64-windows\debug\lib: 142
-  vcpkg_installed\x64-windows\include\ngspice: 141
   vcpkg_installed\x64-windows\lib: 141
+  vcpkg_installed\x64-windows\include\ngspice: 141
 
 
 QT-ONLY FILES (First 50)
@@ -116,27 +116,30 @@ QT-ONLY FILES (First 50)
   .vs\kicad_core_project_qt\CopilotIndices\17.13.444.19527\CodeChunks.db
   .vs\kicad_core_project_qt\CopilotIndices\17.13.444.19527\SemanticSymbols.db
   .vs\kicad_core_project_qt\FileContentIndex\0acad1c5-4c7d-4043-837d-0e0f5add483b.vsidx
-  .vs\kicad_core_project_qt\FileContentIndex\0bbfe370-2f0c-4301-9ed0-017b5efbe417.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\190e74fc-370a-40e8-ab8b-d686f943e1e8.vsidx
   .vs\kicad_core_project_qt\FileContentIndex\1c1f06c9-a8d6-451d-8b57-74df8e99b672.vsidx
   .vs\kicad_core_project_qt\FileContentIndex\2c1742d0-113d-4783-9e60-7a72b304bed5.vsidx
   .vs\kicad_core_project_qt\FileContentIndex\2fefb491-c63d-4261-a2aa-fb597e6809f4.vsidx
   .vs\kicad_core_project_qt\FileContentIndex\410a7ad6-5422-4c5f-b3ca-a11d156371be.vsidx
   .vs\kicad_core_project_qt\FileContentIndex\45d4c8c3-cb5a-4b52-b7af-5cf48273371e.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\485e6fc1-13cf-43c4-bf04-7d500d91b84c.vsidx
   .vs\kicad_core_project_qt\FileContentIndex\82b3e3a0-e1ba-4ee3-8262-87bb11366ae0.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\87b008f6-a16c-4d46-a32d-c212c3b6bc33.vsidx
   .vs\kicad_core_project_qt\FileContentIndex\b5b88240-8d69-4805-919d-f94b6b0cbb10.vsidx
-  .vs\kicad_core_project_qt\FileContentIndex\bd4b274f-13bf-41b0-8cc8-00fd1b54e0fa.vsidx
   .vs\kicad_core_project_qt\FileContentIndex\c475be2f-dc5d-4d1c-83a4-00d14021404d.vsidx
   .vs\kicad_core_project_qt\FileContentIndex\cd9ba52c-6684-4441-8ed1-28866968ea7d.vsidx
   .vs\kicad_core_project_qt\FileContentIndex\dae37b5e-c8de-4580-ab9b-34056a6d3528.vsidx
   .vs\kicad_core_project_qt\FileContentIndex\e75f008b-fd40-43fc-90de-55cac6e02fe3.vsidx
-  .vs\kicad_core_project_qt\FileContentIndex\f638fe31-4cd2-46c3-867b-364fa65a888d.vsidx
   .vs\kicad_core_project_qt\v17\.wsuo
   .vs\kicad_core_project_qt\v17\Browse.VC.db
   .vs\kicad_core_project_qt\v17\DocumentLayout.backup.json
   .vs\kicad_core_project_qt\v17\DocumentLayout.json
+  .vs\kicad_core_project_qt\v17\Solution.VC.db
+  .vs\kicad_core_project_qt\v17\ipch\AutoPCH\57a6463b27579a1d\SYSINFO.ipch
   .vs\kicad_core_project_qt\v17\ipch\AutoPCH\e98bf3bdb1e3218c\SYSINFO.ipch
   .vs\kicad_core_project_qt\v17\workspaceFileList.bin
   CMakeLists.txt.backup_20250921_005655
+  build\.cmake\api\v1\query\client-MicrosoftVS\query.json
   build\.cmake\api\v1\reply\cache-v2-4bfa4f91a6d091071c59.json
   build\.cmake\api\v1\reply\cmakeFiles-v1-7091965c6964b9d532f2.json
   build\.cmake\api\v1\reply\codemodel-v2-d23a1447e6282c05f3c5.json
@@ -160,10 +163,7 @@ QT-ONLY FILES (First 50)
   build\.cmake\api\v1\reply\directory-thirdparty.clipper2-Debug-df64a7f5acd7271348bd.json
   build\.cmake\api\v1\reply\directory-thirdparty.compoundfilereader-Debug-f274798026a4a86d6c58.json
   build\.cmake\api\v1\reply\directory-thirdparty.delaunator-Debug-60823b782f33d942bfde.json
-  build\.cmake\api\v1\reply\directory-thirdparty.dxflib_qcad-Debug-00d2d706815908a77593.json
-  build\.cmake\api\v1\reply\directory-thirdparty.dynamic_bitset-Debug-a4c5d999dd912b9b6189.json
-  build\.cmake\api\v1\reply\directory-thirdparty.expected-Debug-114bff996ef942db0c8e.json
-  ... and 410 more files
+  ... and 409 more files
 
 
 WX-ONLY FILES (First 50)
@@ -185,19 +185,19 @@ WX-ONLY FILES (First 50)
   .vs\kicad_core_project_wx\CopilotIndices\17.13.444.19527\SemanticSymbols.db-shm
   .vs\kicad_core_project_wx\CopilotIndices\17.13.444.19527\SemanticSymbols.db-wal
   .vs\kicad_core_project_wx\FileContentIndex\048df64b-64dd-4a6d-9fa4-0ef9a2de5aa8.vsidx
-  .vs\kicad_core_project_wx\FileContentIndex\22ec27f9-8f69-46d4-bb37-65ccf71e732c.vsidx
-  .vs\kicad_core_project_wx\FileContentIndex\5aa1ea68-bb6a-4a0e-baed-2d97c5906341.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\1543578d-5cec-472a-a3bf-67b6e55d4f1b.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\3775bd20-1196-4f72-a0c8-e76da83d546a.vsidx
   .vs\kicad_core_project_wx\FileContentIndex\6a71922f-1e76-4c26-9aca-fa09cee36aa5.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\6bdf9cc6-66c6-4e38-a3e0-07ffd1f5b61f.vsidx
   .vs\kicad_core_project_wx\FileContentIndex\76f6095e-07c5-469e-bf7f-18394ebe0553.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\7a3981b9-178a-4957-987d-166646607bb7.vsidx
   .vs\kicad_core_project_wx\FileContentIndex\7a9ec0b7-ce62-4ff9-b658-678098c733c2.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\7c1e3a53-5a4f-4415-904f-f2ac066ae9b4.vsidx
   .vs\kicad_core_project_wx\FileContentIndex\82ccd01d-2afe-4677-89ff-596a81f6b446.vsidx
-  .vs\kicad_core_project_wx\FileContentIndex\9b84d59c-fb2c-44ce-aed8-2fb0315a8a37.vsidx
-  .vs\kicad_core_project_wx\FileContentIndex\b0b982de-f7ae-4956-b630-d996c765a43e.vsidx
-  .vs\kicad_core_project_wx\FileContentIndex\b71789fe-0b7c-4dcd-b73b-a52d3c29dacb.vsidx
-  .vs\kicad_core_project_wx\FileContentIndex\cbdd125e-f205-4e71-ad30-125ac03e0056.vsidx
-  .vs\kicad_core_project_wx\FileContentIndex\d03abc20-ccc3-4d92-8c21-1a620be1a6ce.vsidx
-  .vs\kicad_core_project_wx\FileContentIndex\ea762f6d-c0b0-4450-bbb2-05c4382d9696.vsidx
-  .vs\kicad_core_project_wx\FileContentIndex\f9d1e15a-6978-4c38-8827-ddbd5afe1268.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\8b69e852-bfc8-4bdd-9af2-ec17fa51281c.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\ae31a47a-3bd8-4612-b938-6efa00c14894.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\c4135f6c-cc76-439a-9fad-14c2c82c59c9.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\daf32baf-56f3-4f6d-a108-7d96d868e83f.vsidx
   .vs\kicad_core_project_wx\FileContentIndex\fa78b7bf-e4f5-4745-910a-db3e02af9d44.vsidx
   .vs\kicad_core_project_wx\v17\.wsuo
   .vs\kicad_core_project_wx\v17\Browse.VC.db
@@ -210,7 +210,6 @@ WX-ONLY FILES (First 50)
   .vs\kicad_core_project_wx\v17\ipch\AutoPCH\2d926690b74d6cb3\DIALOG_TEXT_PROPERTIES.ipch
   .vs\kicad_core_project_wx\v17\ipch\AutoPCH\9741a2a2b1afbefa\SVG_IMPORT_PLUGIN.ipch
   .vs\kicad_core_project_wx\v17\workspaceFileList.bin
-  .vs\slnx.sqlite-journal
   CMakeFiles\3.31.0-rc1\CMakeASM_MASMCompiler.cmake
   CMakeFiles\3.31.0-rc1\CMakeCCompiler.cmake
   CMakeFiles\3.31.0-rc1\CMakeCXXCompiler.cmake
@@ -218,7 +217,8 @@ WX-ONLY FILES (First 50)
   CMakeFiles\3.31.0-rc1\CMakeDetermineCompilerABI_CXX.bin
   CMakeFiles\3.31.0-rc1\CMakeRCCompiler.cmake
   CMakeFiles\3.31.0-rc1\CMakeSystem.cmake
-  ... and 81 more files
+  CMakeFiles\3.31.0-rc1\CompilerIdCXX\CMakeCXXCompilerId.cpp
+  ... and 73 more files
 
 
 SHARED FILES (First 100)
@@ -233,25 +233,6 @@ SHARED FILES (First 100)
   CMakePresets.json
   CMakeSettings.jsonbk
   CMakeUserPresets.json
-  build\.cmake\api\v1\query\client-MicrosoftVS\query.json
-  build\CMakeFiles\3.30.5-msvc23\CMakeASM_MASMCompiler.cmake
-  build\CMakeFiles\3.30.5-msvc23\CMakeCCompiler.cmake
-  build\CMakeFiles\3.30.5-msvc23\CMakeCXXCompiler.cmake
-  build\CMakeFiles\3.30.5-msvc23\CMakeDetermineCompilerABI_C.bin
-  build\CMakeFiles\3.30.5-msvc23\CMakeDetermineCompilerABI_CXX.bin
-  build\CMakeFiles\3.30.5-msvc23\CMakeRCCompiler.cmake
-  build\CMakeFiles\3.30.5-msvc23\CMakeSystem.cmake
-  build\CMakeFiles\3.30.5-msvc23\CompilerIdCXX\CMakeCXXCompilerId.cpp
-  build\CMakeFiles\3.30.5-msvc23\CompilerIdCXX\CMakeCXXCompilerId.exe
-  build\CMakeFiles\3.30.5-msvc23\CompilerIdCXX\CMakeCXXCompilerId.obj
-  build\CMakeFiles\3.30.5-msvc23\CompilerIdC\CMakeCCompilerId.c
-  build\CMakeFiles\3.30.5-msvc23\CompilerIdC\CMakeCCompilerId.exe
-  build\CMakeFiles\3.30.5-msvc23\CompilerIdC\CMakeCCompilerId.obj
-  build\CMakeFiles\CMakeConfigureLog.yaml
-  build\CMakeFiles\ShowIncludes\foo.h
-  build\CMakeFiles\ShowIncludes\main.c
-  build\CMakeFiles\ShowIncludes\main.obj
-  build\VSInheritEnvironments.txt
   cmake\BuildSteps\CreateDocsetDoxyfile.cmake
   cmake\BuildSteps\CreateShaderCpp.cmake
   cmake\BuildSteps\Html2C.cmake
@@ -323,4 +304,23 @@ SHARED FILES (First 100)
   common\clipboard.cpp
   common\common.cpp
   common\config_params.cpp
-  ... and 30633 more files
+  common\confirm.cpp
+  common\database\database_lib_settings.cpp
+  common\design_block.h
+  common\design_block_info.cpp
+  common\design_block_info.h
+  common\design_block_info_impl.cpp
+  common\design_block_info_impl.h
+  common\design_block_io.cpp
+  common\design_block_io.h
+  common\design_block_lib_table.cpp
+  common\dialog_about\aboutinfo.h
+  common\dialog_about\dialog_about.h
+  common\dialog_about\dialog_about_base.h
+  common\dialogs\dialog_color_picker_base.h
+  common\dialogs\dialog_configure_paths_base.h
+  common\dialogs\dialog_display_html_text_base.h
+  common\dialogs\dialog_migrate_settings_base.h
+  common\dialogs\dialog_print_generic_base.h
+  common\dialogs\dialog_unit_entry_base.h
+  ... and 30619 more files
