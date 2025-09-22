@@ -9,7 +9,7 @@
 #include <erc/erc_settings.h>
 #include <sch_marker.h>
 #include <schematic.h>
-#include <widgets/tepui_common.h>
+#include <widgets/kiui_common.h>
 #include <pgm_base.h>
 #include <settings/settings_manager.h>
 #include <settings/color_settings.h>

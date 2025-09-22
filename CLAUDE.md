@@ -7,7 +7,7 @@ Orchestrate multiple qt-compatibility-fixer agents (up to 10 in parallel) to fix
 ## CRITICAL RULES
 
 1. **NEVER MODIFY WXWIDGETS**: Leave all wx* configurations in CMakeLists.txt unchanged
-2. **NO COMPILATION**: Only compile when user explicitly requests it
+2. **NO COMPILATION**: Never compile the code, your role is just fix the bug 
 3. **VERBATIM ERRORS**: Pass user error messages to agents exactly as provided (preserve original language/format)
 
 ## Parallel Dispatch Strategy

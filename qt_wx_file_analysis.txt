@@ -1,0 +1,326 @@
+KiCad Qt vs wx Version File Analysis Report
+==================================================
+
+EXECUTIVE SUMMARY
+--------------------
+Total Qt files: 31193
+Total wx files: 30864
+Shared files: 30733
+Qt-only files: 460
+wx-only files: 131
+Shared percentage: 98.53%
+
+FILE EXTENSION ANALYSIS
+-------------------------
+Qt version top extensions:
+  .hpp: 7729
+  .hxx: 6860
+  .h: 4070
+  .py: 3393
+  .pyc: 1408
+  .cpp: 873
+  .cc: 784
+  .cmake: 581
+  [no extension]: 468
+  .txt: 418
+  .lxx: 407
+  .json: 340
+  .dll: 311
+  .lib: 310
+  .pyi: 284
+
+wx version top extensions:
+  .hpp: 7729
+  .hxx: 6860
+  .h: 4064
+  .py: 3394
+  .pyc: 1408
+  .cpp: 859
+  .cc: 784
+  .cmake: 537
+  [no extension]: 444
+  .lxx: 407
+  .txt: 398
+  .dll: 311
+  .lib: 305
+  .pyi: 284
+  .pdb: 262
+
+Shared files extensions:
+  .hpp: 7729
+  .hxx: 6860
+  .h: 4062
+  .py: 3393
+  .pyc: 1408
+  .cpp: 855
+  .cc: 784
+  .cmake: 527
+  [no extension]: 441
+  .lxx: 407
+  .txt: 392
+  .dll: 311
+  .lib: 305
+  .pyi: 284
+  .pdb: 262
+
+
+DIRECTORY STRUCTURE ANALYSIS
+------------------------------
+Qt version top directories:
+  vcpkg_installed\x64-windows\include\opencascade: 7273
+  vcpkg_installed\x64-windows\tools\python3\Lib\test: 570
+  vcpkg_installed\x64-windows\include\wx: 407
+  vcpkg_installed\x64-windows\include\boost\spirit\include: 317
+  vcpkg_installed\x64-windows\bin: 289
+  vcpkg_installed\x64-windows\debug\bin: 288
+  vcpkg_installed\x64-windows\include\unicode: 197
+  vcpkg_installed\x64-windows\include\boost\fusion\include: 187
+  vcpkg_installed\x64-windows\include\boost\mpl: 186
+  vcpkg_installed\x64-windows\include\boost\type_traits: 168
+  vcpkg_installed\x64-windows\tools\python3\Lib: 167
+  vcpkg_installed\x64-windows\include\glm\ext: 163
+  vcpkg_installed\x64-windows\include\wx\msw: 157
+  include: 151
+  vcpkg_installed\x64-windows\share\boost-config\checks\std: 149
+  vcpkg_installed\x64-windows\include\openssl: 145
+  vcpkg_installed\x64-windows\tools\python3\Lib\test\decimaltestdata: 143
+  vcpkg_installed\x64-windows\debug\lib: 142
+  build\.cmake\api\v1\reply: 142
+  vcpkg_installed\x64-windows\include\ngspice: 141
+
+wx version top directories:
+  vcpkg_installed\x64-windows\include\opencascade: 7273
+  vcpkg_installed\x64-windows\tools\python3\Lib\test: 570
+  vcpkg_installed\x64-windows\include\wx: 407
+  vcpkg_installed\x64-windows\include\boost\spirit\include: 317
+  vcpkg_installed\x64-windows\bin: 289
+  vcpkg_installed\x64-windows\debug\bin: 288
+  vcpkg_installed\x64-windows\include\unicode: 197
+  vcpkg_installed\x64-windows\include\boost\fusion\include: 187
+  vcpkg_installed\x64-windows\include\boost\mpl: 186
+  vcpkg_installed\x64-windows\include\boost\type_traits: 168
+  vcpkg_installed\x64-windows\tools\python3\Lib: 167
+  vcpkg_installed\x64-windows\include\glm\ext: 163
+  vcpkg_installed\x64-windows\include\wx\msw: 157
+  include: 150
+  vcpkg_installed\x64-windows\share\boost-config\checks\std: 149
+  vcpkg_installed\x64-windows\include\openssl: 145
+  vcpkg_installed\x64-windows\tools\python3\Lib\test\decimaltestdata: 143
+  vcpkg_installed\x64-windows\debug\lib: 142
+  vcpkg_installed\x64-windows\include\ngspice: 141
+  vcpkg_installed\x64-windows\lib: 141
+
+
+QT-ONLY FILES (First 50)
+-------------------------
+  .vs\kicad_core_project_qt\CopilotIndices\17.13.444.19527\CodeChunks.db
+  .vs\kicad_core_project_qt\CopilotIndices\17.13.444.19527\SemanticSymbols.db
+  .vs\kicad_core_project_qt\FileContentIndex\0acad1c5-4c7d-4043-837d-0e0f5add483b.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\0bbfe370-2f0c-4301-9ed0-017b5efbe417.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\1c1f06c9-a8d6-451d-8b57-74df8e99b672.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\2c1742d0-113d-4783-9e60-7a72b304bed5.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\2fefb491-c63d-4261-a2aa-fb597e6809f4.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\410a7ad6-5422-4c5f-b3ca-a11d156371be.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\45d4c8c3-cb5a-4b52-b7af-5cf48273371e.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\82b3e3a0-e1ba-4ee3-8262-87bb11366ae0.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\b5b88240-8d69-4805-919d-f94b6b0cbb10.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\bd4b274f-13bf-41b0-8cc8-00fd1b54e0fa.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\c475be2f-dc5d-4d1c-83a4-00d14021404d.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\cd9ba52c-6684-4441-8ed1-28866968ea7d.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\dae37b5e-c8de-4580-ab9b-34056a6d3528.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\e75f008b-fd40-43fc-90de-55cac6e02fe3.vsidx
+  .vs\kicad_core_project_qt\FileContentIndex\f638fe31-4cd2-46c3-867b-364fa65a888d.vsidx
+  .vs\kicad_core_project_qt\v17\.wsuo
+  .vs\kicad_core_project_qt\v17\Browse.VC.db
+  .vs\kicad_core_project_qt\v17\DocumentLayout.backup.json
+  .vs\kicad_core_project_qt\v17\DocumentLayout.json
+  .vs\kicad_core_project_qt\v17\ipch\AutoPCH\e98bf3bdb1e3218c\SYSINFO.ipch
+  .vs\kicad_core_project_qt\v17\workspaceFileList.bin
+  CMakeLists.txt.backup_20250921_005655
+  build\.cmake\api\v1\reply\cache-v2-4bfa4f91a6d091071c59.json
+  build\.cmake\api\v1\reply\cmakeFiles-v1-7091965c6964b9d532f2.json
+  build\.cmake\api\v1\reply\codemodel-v2-d23a1447e6282c05f3c5.json
+  build\.cmake\api\v1\reply\directory-.-Debug-d0094a50bb2071803777.json
+  build\.cmake\api\v1\reply\directory-common-Debug-df8a23303754f0cfc2e1.json
+  build\.cmake\api\v1\reply\directory-common.gal-Debug-84257e7c882af580be65.json
+  build\.cmake\api\v1\reply\directory-eeschema-Debug-4f99a252fb3a8f7c6cbe.json
+  build\.cmake\api\v1\reply\directory-gerbview-Debug-16a0291eee6f0f4c9d8e.json
+  build\.cmake\api\v1\reply\directory-gerbview.navlib-Debug-bc21c6e4cf2cb7f49f6e.json
+  build\.cmake\api\v1\reply\directory-libs-Debug-dd7a5ca29a7a50124f40.json
+  build\.cmake\api\v1\reply\directory-libs.core-Debug-5ca4ee3a765e1deb66c1.json
+  build\.cmake\api\v1\reply\directory-libs.kimath-Debug-e41b2e3f96a774820aa6.json
+  build\.cmake\api\v1\reply\directory-libs.kiplatform-Debug-1cc95cc25605c1d7c29f.json
+  build\.cmake\api\v1\reply\directory-libs.sexpr-Debug-457000f9b3d4d33f2f13.json
+  build\.cmake\api\v1\reply\directory-pcbnew-Debug-d9697dffa6bf3017d3bc.json
+  build\.cmake\api\v1\reply\directory-pcbnew.router-Debug-983f5b4e3dda5c74e0c5.json
+  build\.cmake\api\v1\reply\directory-test-Debug-f18be1977b403cfd1a50.json
+  build\.cmake\api\v1\reply\directory-thirdparty-Debug-0f2e859fab11afaedcba.json
+  build\.cmake\api\v1\reply\directory-thirdparty.3dxware_sdk-Debug-ac0de590440521e21f5e.json
+  build\.cmake\api\v1\reply\directory-thirdparty.argparse-Debug-46a0ecd674eb066211ef.json
+  build\.cmake\api\v1\reply\directory-thirdparty.clipper2-Debug-df64a7f5acd7271348bd.json
+  build\.cmake\api\v1\reply\directory-thirdparty.compoundfilereader-Debug-f274798026a4a86d6c58.json
+  build\.cmake\api\v1\reply\directory-thirdparty.delaunator-Debug-60823b782f33d942bfde.json
+  build\.cmake\api\v1\reply\directory-thirdparty.dxflib_qcad-Debug-00d2d706815908a77593.json
+  build\.cmake\api\v1\reply\directory-thirdparty.dynamic_bitset-Debug-a4c5d999dd912b9b6189.json
+  build\.cmake\api\v1\reply\directory-thirdparty.expected-Debug-114bff996ef942db0c8e.json
+  ... and 410 more files
+
+
+WX-ONLY FILES (First 50)
+-------------------------
+  .cache\agents\cmake-config-fixer.md
+  .cache\agents\kicad-wx-to-qt-transformer.md
+  .cache\agents\qt-compatibility-fixer.md
+  .cache\agents\qt-container-collector.mdc
+  .cache\agents\qt-container-reverter.md
+  .cache\agents\qt-container-reverter.mdc
+  .cache\agents\qt-to-std-container-converter.md
+  .cache\agents\qt-transformation-verifier.md
+  .cache\agents\symbol-dependency-analyzer.md
+  .cache\settings.local.json
+  .vs\kicad_core_project_wx\CopilotIndices\17.13.444.19527\CodeChunks.db
+  .vs\kicad_core_project_wx\CopilotIndices\17.13.444.19527\CodeChunks.db-shm
+  .vs\kicad_core_project_wx\CopilotIndices\17.13.444.19527\CodeChunks.db-wal
+  .vs\kicad_core_project_wx\CopilotIndices\17.13.444.19527\SemanticSymbols.db
+  .vs\kicad_core_project_wx\CopilotIndices\17.13.444.19527\SemanticSymbols.db-shm
+  .vs\kicad_core_project_wx\CopilotIndices\17.13.444.19527\SemanticSymbols.db-wal
+  .vs\kicad_core_project_wx\FileContentIndex\048df64b-64dd-4a6d-9fa4-0ef9a2de5aa8.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\22ec27f9-8f69-46d4-bb37-65ccf71e732c.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\5aa1ea68-bb6a-4a0e-baed-2d97c5906341.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\6a71922f-1e76-4c26-9aca-fa09cee36aa5.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\76f6095e-07c5-469e-bf7f-18394ebe0553.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\7a9ec0b7-ce62-4ff9-b658-678098c733c2.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\82ccd01d-2afe-4677-89ff-596a81f6b446.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\9b84d59c-fb2c-44ce-aed8-2fb0315a8a37.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\b0b982de-f7ae-4956-b630-d996c765a43e.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\b71789fe-0b7c-4dcd-b73b-a52d3c29dacb.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\cbdd125e-f205-4e71-ad30-125ac03e0056.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\d03abc20-ccc3-4d92-8c21-1a620be1a6ce.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\ea762f6d-c0b0-4450-bbb2-05c4382d9696.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\f9d1e15a-6978-4c38-8827-ddbd5afe1268.vsidx
+  .vs\kicad_core_project_wx\FileContentIndex\fa78b7bf-e4f5-4745-910a-db3e02af9d44.vsidx
+  .vs\kicad_core_project_wx\v17\.wsuo
+  .vs\kicad_core_project_wx\v17\Browse.VC.db
+  .vs\kicad_core_project_wx\v17\Browse.VC.db-shm
+  .vs\kicad_core_project_wx\v17\Browse.VC.db-wal
+  .vs\kicad_core_project_wx\v17\Browse.VC.opendb
+  .vs\kicad_core_project_wx\v17\DocumentLayout.backup.json
+  .vs\kicad_core_project_wx\v17\DocumentLayout.json
+  .vs\kicad_core_project_wx\v17\Solution.VC.db
+  .vs\kicad_core_project_wx\v17\ipch\AutoPCH\2d926690b74d6cb3\DIALOG_TEXT_PROPERTIES.ipch
+  .vs\kicad_core_project_wx\v17\ipch\AutoPCH\9741a2a2b1afbefa\SVG_IMPORT_PLUGIN.ipch
+  .vs\kicad_core_project_wx\v17\workspaceFileList.bin
+  .vs\slnx.sqlite-journal
+  CMakeFiles\3.31.0-rc1\CMakeASM_MASMCompiler.cmake
+  CMakeFiles\3.31.0-rc1\CMakeCCompiler.cmake
+  CMakeFiles\3.31.0-rc1\CMakeCXXCompiler.cmake
+  CMakeFiles\3.31.0-rc1\CMakeDetermineCompilerABI_C.bin
+  CMakeFiles\3.31.0-rc1\CMakeDetermineCompilerABI_CXX.bin
+  CMakeFiles\3.31.0-rc1\CMakeRCCompiler.cmake
+  CMakeFiles\3.31.0-rc1\CMakeSystem.cmake
+  ... and 81 more files
+
+
+SHARED FILES (First 100)
+--------------------
+  .vs\CMake Overview
+  .vs\ProjectSettings.json
+  .vs\VSWorkspaceState.json
+  .vs\cmake.db
+  .vs\slnx.sqlite
+  AutoCCache.cmake
+  CMakeLists.txt
+  CMakePresets.json
+  CMakeSettings.jsonbk
+  CMakeUserPresets.json
+  build\.cmake\api\v1\query\client-MicrosoftVS\query.json
+  build\CMakeFiles\3.30.5-msvc23\CMakeASM_MASMCompiler.cmake
+  build\CMakeFiles\3.30.5-msvc23\CMakeCCompiler.cmake
+  build\CMakeFiles\3.30.5-msvc23\CMakeCXXCompiler.cmake
+  build\CMakeFiles\3.30.5-msvc23\CMakeDetermineCompilerABI_C.bin
+  build\CMakeFiles\3.30.5-msvc23\CMakeDetermineCompilerABI_CXX.bin
+  build\CMakeFiles\3.30.5-msvc23\CMakeRCCompiler.cmake
+  build\CMakeFiles\3.30.5-msvc23\CMakeSystem.cmake
+  build\CMakeFiles\3.30.5-msvc23\CompilerIdCXX\CMakeCXXCompilerId.cpp
+  build\CMakeFiles\3.30.5-msvc23\CompilerIdCXX\CMakeCXXCompilerId.exe
+  build\CMakeFiles\3.30.5-msvc23\CompilerIdCXX\CMakeCXXCompilerId.obj
+  build\CMakeFiles\3.30.5-msvc23\CompilerIdC\CMakeCCompilerId.c
+  build\CMakeFiles\3.30.5-msvc23\CompilerIdC\CMakeCCompilerId.exe
+  build\CMakeFiles\3.30.5-msvc23\CompilerIdC\CMakeCCompilerId.obj
+  build\CMakeFiles\CMakeConfigureLog.yaml
+  build\CMakeFiles\ShowIncludes\foo.h
+  build\CMakeFiles\ShowIncludes\main.c
+  build\CMakeFiles\ShowIncludes\main.obj
+  build\VSInheritEnvironments.txt
+  cmake\BuildSteps\CreateDocsetDoxyfile.cmake
+  cmake\BuildSteps\CreateShaderCpp.cmake
+  cmake\BuildSteps\Html2C.cmake
+  cmake\BuildSteps\LemonParserGenerator.cmake
+  cmake\BuildSteps\TokenList2DsnLexer.cmake
+  cmake\BuildSteps\TranslatePlatformMetadata_linux.cmake
+  cmake\BuildSteps\Txt2C.cmake
+  cmake\BuildSteps\WritePlatformMetadata_linux.cmake
+  cmake\BuildSteps\WriteVersionHeader.cmake
+  cmake\BuildSteps\markdown2C.cmake
+  cmake\CMakeFindFrameworks.cmake
+  cmake\CheckFindPackageResult.cmake
+  cmake\ConfigurePlatform.cmake
+  cmake\CreateGitVersionHeader.cmake
+  cmake\FindCairo.cmake
+  cmake\FindFontconfig.cmake
+  cmake\FindGLEW.cmake
+  cmake\FindGLM.cmake
+  cmake\FindHarfBuzz.cmake
+  cmake\FindKicadCli.cmake
+  cmake\FindOCC.cmake
+  cmake\FindPackageMessage.cmake
+  cmake\FindPixman.cmake
+  cmake\FindPythonInterp.cmake
+  cmake\FindPythonLibs.cmake
+  cmake\FindSWIG.cmake
+  cmake\FindWayland.cmake
+  cmake\FindZSTD.cmake
+  cmake\Findlibgit2.cmake
+  cmake\Findngspice.cmake
+  cmake\Findnng.cmake
+  cmake\FindwxPython.cmake
+  cmake\FindwxWidgets.cmake
+  cmake\Functions.cmake
+  cmake\InstallSteps\InstallMacOS.cmake
+  cmake\InstallSteps\RefixupMacOS.cmake
+  cmake\InstallSteps\SignMacOS.cmake
+  cmake\KiCadFullVersion.cmake
+  cmake\KiCadQABuildUtils.cmake
+  cmake\KiCadVersion.cmake
+  cmake\MSVCAssemblyHelper.cmake
+  cmake\MinGWResourceCompiler.cmake
+  cmake\PerformFeatureChecks.cmake
+  cmake\SelectLibraryConfigurations.cmake
+  cmake\UsewxWidgets.cmake
+  cmake\Warnings.cmake
+  cmake\WritePlatformMetadata_macos.cmake
+  cmake\cmake_uninstall.cmake.in
+  cmake\config.h.cmake
+  common\CMakeLists.txt
+  common\advanced_config.cpp
+  common\api\api_enums.cpp
+  common\api\api_handler.cpp
+  common\api\api_plugin.cpp
+  common\api\api_server.cpp
+  common\api\api_utils.cpp
+  common\api\serializable.cpp
+  common\asset_archive.cpp
+  common\background_jobs_monitor.cpp
+  common\base_screen.cpp
+  common\bin_mod.cpp
+  common\bitmap.cpp
+  common\bitmap_base.cpp
+  common\bitmap_info.cpp
+  common\bitmap_store.cpp
+  common\board_printout.cpp
+  common\build_version.cpp
+  common\callback_gal.cpp
+  common\clipboard.cpp
+  common\common.cpp
+  common\config_params.cpp
+  ... and 30633 more files

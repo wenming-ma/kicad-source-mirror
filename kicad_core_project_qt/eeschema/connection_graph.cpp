@@ -26,7 +26,7 @@
 #include <connection_graph.h>
 #include <project/project_file.h>
 #include <project/net_settings.h>
-#include <widgets/tepui_common.h>
+#include <widgets/kiui_common.h>
 #include <string_utils.h>
 #include <thread_pool.h>
 #include <QDebug>

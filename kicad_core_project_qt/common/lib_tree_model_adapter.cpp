@@ -6,7 +6,7 @@
 #include <lib_tree_model_adapter.h>
 #include <project/project_file.h>
 #include <settings/app_settings.h>
-#include <widgets/tepui_common.h>
+#include <widgets/kiui_common.h>
 #include <QStringList>
 #include <QRegularExpression>
 #include <QApplication>

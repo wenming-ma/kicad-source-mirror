@@ -60,7 +60,7 @@
 #include <QScreen>
 #include <QPoint>
 #include <QSize>
-#include <widgets/tepui_common.h>
+#include <widgets/kiui_common.h>
 #include <widgets/search_pane.h>
 
 #define FR_HISTORY_LIST_CNT     10   ///< Maximum size of the find/replace history stacks.

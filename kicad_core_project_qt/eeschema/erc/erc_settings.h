@@ -5,7 +5,7 @@
 #include <erc/erc_item.h>
 #include <pin_type.h>
 #include <settings/nested_settings.h>
-#include <widgets/tepui_common.h>
+#include <widgets/kiui_common.h>
 
 
 class SCH_MARKER;

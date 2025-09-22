@@ -1,0 +1,51 @@
+KiCad Qt vs wx Source Code Differences Summary
+==================================================
+
+FOCUSED ANALYSIS (Source Files Only)
+----------------------------------------
+Qt-only source files: 11
+wx-only source files: 9
+Shared source files: 4181
+Total source files in Qt: 4192
+Total source files in wx: 4190
+
+QT-ONLY SOURCE FILES
+-------------------------
+  build_test\CMakeCache.txt
+  common\api\api_plugin_manager.cpp
+  common\dialog_shim.cpp
+  common\tool\picker_tool.cpp
+  include\qt_compat_fix.h
+  include\widgets\kiui_common.h
+  include\widgets\qt_grid.h
+  include\widgets\qt_infobar.h
+  include\widgets\tepui_common.h
+  pcbnew\zone_filler.cpp
+  test\test_pcb_renderer.cpp
+
+WX-ONLY SOURCE FILES
+-------------------------
+  copy_summary.json
+  file_copy_log.txt
+  include\widgets\ui_common.h
+  link-error.txt
+  thirdparty\pybind11\tests\test_cmake_build\embed.cpp
+  thirdparty\pybind11\tests\test_cmake_build\main.cpp
+  thirdparty\pybind11\tests\test_cmake_build\test.py
+  thirdparty\sentry-native\external\breakpad\INSTALL
+  thirdparty\sentry-native\external\crashpad\.github\CODEOWNERS
+
+FILE TYPE BREAKDOWN
+--------------------
+Qt-only by extension:
+  .h: 5
+  .cpp: 5
+  .txt: 1
+
+wx-only by extension:
+  [no extension]: 2
+  .txt: 2
+  .cpp: 2
+  .json: 1
+  .h: 1
+  .py: 1

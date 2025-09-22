@@ -22,7 +22,7 @@
 #include <QPoint>
 #include <QString>
 #include <QStringLiteral>
-#include <widgets/tepui_common.h>
+#include <widgets/kiui_common.h>
 #include <default_values.h>    // For some default values
 
 using namespace T_BOMCFG_T;     // for the BOM_CFG_PARSER parser and its keywords

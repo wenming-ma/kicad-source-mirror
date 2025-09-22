@@ -304,8 +304,8 @@ bool SYSINFO::getVersionFromDXRegistry( int64_t aAdapterLuid, std::string& aDriv
             QString subKeyName = baseKeyName + "\\" + adapterGuid;
 
             LSTATUS status;
-            status = ::RegOpenKeyEx(
-                    (HKEY) HKEY_LOCAL_MACHINE, subKeyName.toStdString().c_str(), 0, KEY_READ, &tmpKey );
+            status = ::RegOpenKeyExW(
+                    (HKEY) HKEY_LOCAL_MACHINE, reinterpret_cast<LPCWSTR>(subKeyName.utf16()), 0, KEY_READ, &tmpKey );
 
             ULONGLONG adapterLuid;
             DWORD dwType, dwSize = sizeof(ULONGLONG);
