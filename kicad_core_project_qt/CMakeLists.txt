@@ -94,8 +94,14 @@ if( WIN32 )
     # string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
     # string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL}")
     # set(CMAKE_CXX_DEPENDS_USE_COMPILER FALSE)
-    # Set wxWidgets port for KIPLATFORM - COMMENTED OUT
-    # set( KICAD_WX_PORT "msw" )
+    # Set wxWidgets port for KIPLATFORM
+    set( KICAD_WX_PORT "msw" )
+elseif( APPLE )
+    # Set wxWidgets port for macOS
+    set( KICAD_WX_PORT "osx" )
+elseif( UNIX )
+    # Set wxWidgets port for Linux/GTK
+    set( KICAD_WX_PORT "gtk" )
 endif()
 
 # Enable KICAD API support - DISABLED FOR MINIMAL BUILD
