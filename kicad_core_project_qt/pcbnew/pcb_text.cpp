@@ -252,9 +252,13 @@ void PCB_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
 
     // Don't use GetShownText() here; we want to show the user the variable references
     if( parentFP )
-        aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+        // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+         //aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+        aList.emplace_back( _( "Text" ), GetText() ); // Direct text without ellipsis
     else
-        aList.emplace_back( _( "PCB Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+        // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+        // aList.emplace_back( _( "PCB Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+        aList.emplace_back( _( "PCB Text" ), GetText() ); // Direct text without ellipsis
 
     if( parentFP )
         aList.emplace_back( _( "Type" ), GetTextTypeDescription() );
@@ -416,7 +420,9 @@ QString PCB_TEXT::GetTextTypeDescription() const
 
 QString PCB_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    QString content = aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() );
+    // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
+    // QString content = aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() );
+    QString content = aFull ? GetShownText( false ) : GetText(); // Direct text without ellipsis
 
     if( FOOTPRINT* parentFP = GetParentFootprint() )
     {

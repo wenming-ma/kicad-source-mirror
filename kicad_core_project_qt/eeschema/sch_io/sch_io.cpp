@@ -11,7 +11,7 @@
 #define FMT_UNIMPLEMENTED "Plugin \"%s\" does not implement the \"%s\" function."
 #define NOT_IMPLEMENTED( aCaller )                                                   \
     THROW_IO_ERROR( QString::asprintf( FMT_UNIMPLEMENTED,                           \
-                                      GetName().GetData(),                           \
+                                      GetName().toStdString().c_str(),                           \
                                       QString::fromUtf8( aCaller ).toStdString().c_str() ) );
 
 

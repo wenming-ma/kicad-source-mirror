@@ -94,7 +94,7 @@ void ANCHOR_DEBUG::ViewDraw( int, VIEW* aView ) const
 
         gal.DrawCircle( anchor, markerRad );
 
-        const std::string countStr = std::to_string( count );
+        const QString countStr = QString::number( count );
         font.Draw( &gal, countStr, anchor + textOffset, attributes, fontMetrics );
 
         total += count;

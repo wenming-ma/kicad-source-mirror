@@ -256,7 +256,7 @@ void SCH_TEXTBOX::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aB
     if( IsPrivate() )
         return;
 
-    QPainter*  painter = aSettings->GetPaintDevice();
+    QPainter*  painter = aSettings->GetPrintDC();
     int        penWidth = GetEffectivePenWidth( aSettings );
     bool       blackAndWhiteMode = GetGRForceBlackPenState();
     VECTOR2I   pt1 = GetStart();
@@ -509,7 +509,9 @@ void SCH_TEXTBOX::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS
 void SCH_TEXTBOX::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     // Don't use GetShownText() here; we want to show the user the variable references
-    aList.emplace_back( _( "Text Box" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+    // aList.emplace_back( _( "Text Box" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    aList.emplace_back( _( "Text Box" ), GetText() ); // Direct text without ellipsis
 
     if( m_excludedFromSim )
         aList.emplace_back( _( "Exclude from" ), _( "Simulation" ) );

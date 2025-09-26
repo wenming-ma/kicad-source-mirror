@@ -234,8 +234,10 @@ public:
     void BeginEdit( const VECTOR2I& aStartPoint ) override;
     void CalcEdit( const VECTOR2I& aPosition ) override;
 
+#ifdef HAVE_QSCINTILLA
     void OnScintillaCharAdded( SCINTILLA_TRICKS* aScintillaTricks,
                                QEvent &aEvent ) const;
+#endif
 
     bool Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const override;
 

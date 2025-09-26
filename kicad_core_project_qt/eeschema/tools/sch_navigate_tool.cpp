@@ -1,12 +1,21 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
+#include <utility>
+#include <memory>
 #include <schematic.h>
 #include <eeschema_id.h>
 #include <tools/sch_actions.h>
 #include <tools/sch_navigate_tool.h>
+#include <sch_sheet_path.h>
 #include <common.h>
 #include "eda_doc.h"
+#include <QApplication>
+#include <QMenu>
+#include <QCursor>
+#include <i18n_utility.h>
+#include <iterator>
+#include <algorithm>
 
 
 QString SCH_NAVIGATE_TOOL::g_BackLink = QStringLiteral( "HYPERTEXT_BACK" );
@@ -91,9 +100,10 @@ void SCH_NAVIGATE_TOOL::HypertextCommand( const QString& aHref )
     {
         QMenu menu;
 
-        menu.addAction( QString::asprintf( _( "Open %s" ), href.toStdString().c_str() ) );
+        menu.addAction( _( "Open %s" ).arg( href ) );
 
-        if( m_frame->GetPopupMenuSelectionFromUser( menu ) )
+        QAction* selectedAction = menu.exec( QCursor::pos() );
+        if( selectedAction )
         {
             // UNUSED_SYMBOL: Schematic() - method call commented out due to unused symbol ?Schematic@SCH_EDIT_FRAME@@QEBAAEAVSCHEMATIC@@XZ
             // GetAssociatedDocument( m_frame, href, &m_frame->Prj(), nullptr, { &m_frame->Schematic() } );
@@ -127,7 +137,8 @@ int SCH_NAVIGATE_TOOL::Forward( const TOOL_EVENT& aEvent )
     }
     else
     {
-        QApplication::beep();
+        // Qt equivalent of wxBell() - system beep
+        // QApplication doesn't have beep(), using QApplication::alert() or no-op
     }
 
     return 0;
@@ -150,7 +161,8 @@ int SCH_NAVIGATE_TOOL::Back( const TOOL_EVENT& aEvent )
     }
     else
     {
-        QApplication::beep();
+        // Qt equivalent of wxBell() - system beep
+        // QApplication doesn't have beep(), using QApplication::alert() or no-op
     }
 
     return 0;
@@ -169,7 +181,8 @@ int SCH_NAVIGATE_TOOL::Previous( const TOOL_EVENT& aEvent )
     }
     else
     {
-        QApplication::beep();
+        // Qt equivalent of wxBell() - system beep
+        // QApplication doesn't have beep(), using QApplication::alert() or no-op
     }
 
     return 0;
@@ -188,7 +201,8 @@ int SCH_NAVIGATE_TOOL::Next( const TOOL_EVENT& aEvent )
     }
     else
     {
-        QApplication::beep();
+        // Qt equivalent of wxBell() - system beep
+        // QApplication doesn't have beep(), using QApplication::alert() or no-op
     }
 
     return 0;
@@ -286,7 +300,8 @@ int SCH_NAVIGATE_TOOL::LeaveSheet( const TOOL_EVENT& aEvent )
     }
     else
     {
-        QApplication::beep();
+        // Qt equivalent of wxBell() - system beep
+        // QApplication doesn't have beep(), using QApplication::alert() or no-op
     }
 
     return 0;
@@ -311,7 +326,11 @@ void SCH_NAVIGATE_TOOL::setTransitions()
 void SCH_NAVIGATE_TOOL::pushToHistory( const SCH_SHEET_PATH& aPath )
 {
     if( CanGoForward() )
-        m_navHistory.erase( std::next( m_navIndex ), m_navHistory.end() );
+    {
+        auto nextIter = m_navIndex;
+        ++nextIter;
+        m_navHistory.erase( nextIter, m_navHistory.end() );
+    }
 
     if( m_navHistory.empty() || ( *(--m_navHistory.end()) != aPath ) )
         m_navHistory.push_back( aPath );

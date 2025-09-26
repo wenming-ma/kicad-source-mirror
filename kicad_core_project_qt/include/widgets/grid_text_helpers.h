@@ -19,7 +19,9 @@
 
 class QTableWidget;
 class QTextEdit;
+#ifdef HAVE_QSCINTILLA
 class SCINTILLA_TRICKS;
+#endif
 
 class GRID_CELL_TEXT_EDITOR : public QItemDelegate
 {
@@ -51,6 +53,7 @@ public:
     QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override;
 };
 
+#ifdef HAVE_QSCINTILLA
 class GRID_CELL_STC_EDITOR : public QItemDelegate
 {
     Q_OBJECT
@@ -88,5 +91,6 @@ protected:
 
     std::function<void(QKeyEvent&, SCINTILLA_TRICKS*)> m_onCharFn;
 };
+#endif // HAVE_QSCINTILLA
 
 #endif // KICAD_GRID_TEXT_HELPERS_H

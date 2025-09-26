@@ -30,13 +30,13 @@ public:
     void ResetPanel() override;
 
 protected:
-    bool TransferDataFromWindow() override;
+    bool TransferDataFromWindow();
 
-    bool TransferDataToWindow() override;
+    bool TransferDataToWindow();
 
-    void OnScrollRadioButton( QEvent& event ) override;
-    void onMouseDefaults( QEvent& event ) override;
-    void onTrackpadDefaults( QEvent& event ) override;
+    void OnScrollRadioButton() override;
+    void onMouseDefaults() override;
+    void onTrackpadDefaults() override;
 
 private:
     void applySettingsToPanel( const COMMON_SETTINGS& aSettings );

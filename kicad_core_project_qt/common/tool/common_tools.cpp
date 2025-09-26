@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
@@ -51,6 +51,7 @@
 #include <QApplication>
 #include <QDialog>
 #include <QEvent>
+#include <QTimer>
 
 
 COMMON_TOOLS::COMMON_TOOLS() :
@@ -326,7 +327,7 @@ int COMMON_TOOLS::doZoomFit( ZOOM_FIT_TYPE_T aFitType )
     view->SetScale( 1.0 );  // The best scale will be determined later, but this initial
                             // value ensures all view parameters are up to date (especially
                             // at init time)
-    VECTOR2D screenSize = view->ToWorld( ToVECTOR2I( canvas->GetClientSize() ), false );
+    VECTOR2D screenSize = view->ToWorld( ToVECTOR2I( canvas->viewport()->size() ), false );
 
     // Currently "Zoom to Objects" is only supported in Eeschema & Pcbnew.  Support for other
     // programs in the suite can be added as needed.
@@ -377,7 +378,7 @@ int COMMON_TOOLS::doZoomFit( ZOOM_FIT_TYPE_T aFitType )
     // infobar.
     double margin_scale_factor = 1.04;
 
-    if( canvas->GetClientSize().y < 768 )
+    if( canvas->viewport()->size().height() < 768 )
         margin_scale_factor = 1.10;
 
     if( aFitType == ZOOM_FIT_ALL )
@@ -443,7 +444,7 @@ int COMMON_TOOLS::doCenter( CENTER_TYPE aCenterType )
     getView()->SetCenter( bBox.Centre() );
 
     // Take scrollbars into account
-    VECTOR2D scrollbarSize = VECTOR2D( ToVECTOR2D( canvas->GetSize() - canvas->GetClientSize() ) );
+    VECTOR2D scrollbarSize = VECTOR2D( ToVECTOR2D( canvas->size() - canvas->viewport()->size() ) );
     VECTOR2D worldScrollbarSize = getView()->ToWorld( scrollbarSize, false );
     getView()->SetCenter( getView()->GetCenter() + worldScrollbarSize / 2.0 );
     canvas->Refresh();
@@ -606,11 +607,9 @@ int COMMON_TOOLS::GridProperties( const TOOL_EVENT& aEvent )
     auto showGridPrefs =
             [this]( const QString& aParentName )
             {
-                m_frame->CallAfter(
-                        [this, aParentName]()
-                        {
-                            m_frame->ShowPreferences( "Grids", aParentName );
-                        } );
+                QTimer::singleShot(0, [this, aParentName]() {
+                    m_frame->ShowPreferences( "Grids", aParentName );
+                });
             };
 
     switch( m_frame->GetFrameType() )
@@ -621,7 +620,7 @@ int COMMON_TOOLS::GridProperties( const TOOL_EVENT& aEvent )
     case FRAME_FOOTPRINT_EDITOR:  showGridPrefs( "Footprint Editor" );     break;
     case FRAME_PL_EDITOR:         showGridPrefs( "Drawing Sheet Editor" ); break;
     case FRAME_GERBER:            showGridPrefs( "Gerber Viewer" );        break;
-    default:                      Q_ASSERT_X(false, "GridProperties", QString("Unknown frame: " + GetName()).toStdString().c_str());  break;
+    default:                      Q_ASSERT_X(false, "GridProperties", QString("Unknown frame: " + m_frame->objectName()).toUtf8().constData());  break;
     }
 
     return 0;
@@ -631,7 +630,7 @@ int COMMON_TOOLS::GridProperties( const TOOL_EVENT& aEvent )
 int COMMON_TOOLS::GridOrigin( const TOOL_EVENT& aEvent )
 {
     VECTOR2I           origin = m_frame->GetGridOrigin();
-    DIALOG_UNIT_ENTRY dlg( m_frame, "Grid Origin", "X:", "Y:", origin, true );
+    WX_PT_ENTRY_DIALOG dlg( m_frame, "Grid Origin", "X:", "Y:", origin, true );
 
     if( dlg.ShowModal() == QDialog::Accepted )
     {
@@ -673,7 +672,7 @@ int COMMON_TOOLS::ToggleUnits( const TOOL_EVENT& aEvent )
 
 int COMMON_TOOLS::TogglePolarCoords( const TOOL_EVENT& aEvent )
 {
-    m_frame->SetStatusText( QString() );
+    m_frame->statusBar()->clearMessage();
     m_frame->SetShowPolarCoords( !m_frame->GetShowPolarCoords() );
     m_frame->UpdateStatusBar();
 

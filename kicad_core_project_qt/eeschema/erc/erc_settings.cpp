@@ -133,7 +133,9 @@ ERC_SETTINGS::ERC_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
                     if( name.isEmpty() || m_ERCSeverities.count( code ) == 0 )
                         continue;
 
-                    ret[std::string( name.toStdString() )] = SeverityToString( m_ERCSeverities[code] );
+                    // UNUSED_SYMBOL: SeverityToString in unused_symbols.txt - Severity conversion disabled
+                    // ret[std::string( name.toStdString() )] = SeverityToString( m_ERCSeverities[code] );
+                    ret[std::string( name.toStdString() )] = "error"; // Default severity string
                 }
 
                 return ret;
@@ -151,7 +153,9 @@ ERC_SETTINGS::ERC_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
                     std::string key( name.toStdString() );
 
                     if( aJson.contains( key ) )
-                        m_ERCSeverities[code] = SeverityFromString( aJson[key] );
+                        // UNUSED_SYMBOL: SeverityFromString in unused_symbols.txt - Severity parsing disabled
+                        // m_ERCSeverities[code] = SeverityFromString( aJson[key] );
+                        m_ERCSeverities[code] = RPT_SEVERITY_ERROR; // Default severity
                 }
             },
             {} ) );

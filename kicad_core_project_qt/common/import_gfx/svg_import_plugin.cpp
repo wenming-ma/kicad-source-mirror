@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 // wxWidgets to Qt transformation completed
 
 #include "svg_import_plugin.h"
@@ -12,6 +12,7 @@
 #include "graphics_importer.h"
 
 static const int SVG_DPI = 96;
+static const double inches2mm = 25.4;  // 1 inch = 25.4 millimeters
 
 static VECTOR2D calculateBezierBoundingBoxExtremity( const float* aCurvePoints,
         std::function< const float&( const float&, const float& ) > comparator );

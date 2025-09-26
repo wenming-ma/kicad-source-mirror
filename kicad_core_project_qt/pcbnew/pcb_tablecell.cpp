@@ -113,7 +113,9 @@ void PCB_TABLECELL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PAN
     aList.emplace_back( _( "Table Cell" ), GetAddr() );
 
     // Don't use GetShownText() here; we want to show the user the variable references
-    aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+    // aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    aList.emplace_back( _( "Text" ), GetText() ); // Direct text without ellipsis
 
     if( aFrame->objectName() == PCB_EDIT_FRAME_NAME && IsLocked() )
         aList.emplace_back( _( "Status" ), _( "Locked" ) );

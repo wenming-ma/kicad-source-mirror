@@ -184,7 +184,7 @@ bool GERBVIEW_FRAME::LoadGerberJobFile( const QString& aFullFileName )
         m_mruPath = currentPath;
     }
 
-    WX_STRING_REPORTER reporter;
+    QT_STRING_REPORTER reporter;
 
     if( filename.exists() )
     {

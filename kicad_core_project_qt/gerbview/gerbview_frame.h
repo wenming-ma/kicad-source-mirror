@@ -36,6 +36,8 @@ class NL_GERBVIEW_PLUGIN;
 
 class GERBVIEW_FRAME : public EDA_DRAW_FRAME
 {
+    Q_OBJECT
+
 public:
     GERBVIEW_FRAME( KIWAY* aKiway, QWidget* aParent );
     ~GERBVIEW_FRAME();
@@ -432,8 +434,6 @@ public:
         Q_ASSERT( m_gerberLayout );
         return m_gerberLayout->ViewBBox();
     }
-
-    DECLARE_EVENT_TABLE()
 
 protected:
     void setupUIConditions() override;

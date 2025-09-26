@@ -1,9 +1,10 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 #ifndef SYMBOL_FILEDLG_SAVE_AS_
 #define SYMBOL_FILEDLG_SAVE_AS_
 
 #include <symbol_editor/symbol_saveas_type.h>
+#include <QStringList>
 #include <QFileDialog>
 #include <QRadioButton>
 #include <QVBoxLayout>

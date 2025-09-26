@@ -21,8 +21,6 @@
 #include <QStringLiteral>
 
 // Forward declarations for Qt types
-class QCommandEvent;
-class QUpdateUIEvent;
 
 class ACTION_PLUGIN;
 class PCB_SCREEN;
@@ -87,7 +85,7 @@ public:
      */
     void LoadFootprints( NETLIST& aNetlist, REPORTER& aReporter );
 
-    void OnQuit( QCommandEvent& event );
+    void OnQuit();
 
     /**
      * Get if the current board has been modified but not saved.
@@ -157,15 +155,15 @@ public:
     void ToPlotter( int aID );
 
     // User interface update command event handlers.
-    void OnUpdateLayerSelectBox( QUpdateUIEvent& aEvent );
+    void OnUpdateLayerSelectBox();
 
     bool LayerManagerShown();
     bool PropertiesShown();
     bool NetInspectorShown();
 
-    void OnUpdateSelectViaSize( QUpdateUIEvent& aEvent );
-    void OnUpdateSelectTrackWidth( QUpdateUIEvent& aEvent );
-    void OnUpdateSelectAutoWidth( QUpdateUIEvent& aEvent );
+    void OnUpdateSelectViaSize();
+    void OnUpdateSelectTrackWidth();
+    void OnUpdateSelectAutoWidth();
 
     void RunEeschema();
 
@@ -245,8 +243,8 @@ public:
      */
     void ResolveDRCExclusions( bool aCreateMarkers );
 
-    void Process_Special_Functions( QCommandEvent& event );
-    void Tracks_and_Vias_Size_Event( QCommandEvent& event );
+    void Process_Special_Functions();
+    void Tracks_and_Vias_Size_Event();
 
     void ReCreateHToolbar() override;
     void ReCreateAuxiliaryToolbar() override;
@@ -345,17 +343,17 @@ public:
     /**
      * Call #DoGenFootprintsReport to create a footprint report file
      */
-    void GenFootprintsReport( QCommandEvent& event );
+    void GenFootprintsReport();
 
     /**
      * Create and IPC2581 output file
     */
-    void GenIPC2581File( QCommandEvent& event );
+    void GenIPC2581File();
 
     /**
      * Create and Generate ODB++ output files
     */
-    void GenODBPPFiles( QCommandEvent& event );
+    void GenODBPPFiles();
 
     /**
      * Create an ASCII footprint report file giving some infos on footprints and board outlines.
@@ -366,17 +364,15 @@ public:
      */
     bool DoGenFootprintsReport( const QString& aFullFilename, bool aUnitsMM );
 
-    void GenD356File( QCommandEvent& event );
+    void GenD356File();
 
-    void OnFileHistory( QCommandEvent& event );
-    void OnClearFileHistory( QCommandEvent& aEvent );
+    void OnFileHistory();
+    void OnClearFileHistory();
 
     /**
-     * Call #Files_io_from_id with the QCommandEvent id.
-     *
-     * @param event is the command event handler.
+     * Call #Files_io_from_id with a command ID.
      */
-    void Files_io( QCommandEvent& event );
+    void Files_io();
 
     /**
      * Read and write board files according to \a aId.
@@ -466,7 +462,7 @@ public:
      *
      * This is the same as created by CvPcb and can be used if this file is lost.
      */
-    void RecreateCmpFileFromBoard( QCommandEvent& aEvent );
+    void RecreateCmpFileFromBoard();
 
     /**
      * Save footprints in a library:
@@ -485,17 +481,17 @@ public:
     /**
      * Create a BOM file from the current loaded board.
      */
-    void RecreateBOMFileFromBoard( QCommandEvent& aEvent );
+    void RecreateBOMFileFromBoard();
 
     /**
      * Create a file in  GenCAD 1.4 format from the current board.
      */
-    void ExportToGenCAD( QCommandEvent& event );
+    void ExportToGenCAD();
 
     /**
      * Export the current BOARD to a VRML file.
      */
-    void OnExportVRML( QCommandEvent& event );
+    void OnExportVRML();
 
     /**
      * Create the file(s) exporting current BOARD to a VRML file.
@@ -529,12 +525,12 @@ public:
     /**
      * Export the current BOARD to a IDFv3 board and lib files.
      */
-    void OnExportIDF3( QCommandEvent& event );
+    void OnExportIDF3();
 
     /**
      * Export the current BOARD to a Hyperlynx HYP file.
      */
-    void OnExportHyperlynx( QCommandEvent& event );
+    void OnExportHyperlynx();
 
     /**
      * Create an IDF3 compliant BOARD (*.emn) and LIBRARY (*.emp) file.
@@ -555,7 +551,7 @@ public:
     /**
      * Export the current BOARD to a STEP assembly.
      */
-    void OnExportSTEP( QCommandEvent& event );
+    void OnExportSTEP();
 
     /**
      * Export the current BOARD to a specctra dsn file.
@@ -794,17 +790,13 @@ protected:
 
     /**
      * Launched by the menu when an action is called.
-     *
-     * @param aEvent sent by Qt
      */
-    void OnActionPluginMenu( QCommandEvent& aEvent);
+    void OnActionPluginMenu();
 
     /**
      * Launched by the button when an action is called.
-     *
-     * @param aEvent sent by Qt
      */
-    void OnActionPluginButton( QCommandEvent& aEvent );
+    void OnActionPluginButton();
 
     PLUGIN_ACTION_SCOPE PluginActionScope() const override { return PLUGIN_ACTION_SCOPE::PCB; }
 
@@ -844,10 +836,10 @@ protected:
 
     void saveProjectSettings() override;
 
-    void onCloseModelessBookReporterDialogs( QCommandEvent& aEvent );
+    void onCloseModelessBookReporterDialogs();
 
 #ifdef KICAD_IPC_API
-    void onPluginAvailabilityChanged( QCommandEvent& aEvt );
+    void onPluginAvailabilityChanged();
 #endif
 
 public:

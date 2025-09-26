@@ -21,6 +21,7 @@
 #include <cmath>    // isnan
 #include <board.h>
 #include "common.h"
+#include <i18n_utility.h>  // For _() translation macro
 
 
 /*
@@ -1093,7 +1094,7 @@ QString DXF_IMPORT_PLUGIN::toDxfString( const QString& aStr )
 
     for( int i = 0; i < aStr.length(); ++i )
     {
-        int c = aStr[i];
+        int c = aStr[i].unicode();
 
         if( c > 175 || c < 11 )
         {
@@ -1153,7 +1154,7 @@ QString DXF_IMPORT_PLUGIN::toNativeString( const QString& aData )
 
     for( i = 0; i < aData.length(); i++ )
     {
-        switch( (wchar_t) aData[i] )
+        switch( aData[i].unicode() )
         {
         case '{': // Text area influenced by the code
             braces++;
@@ -1172,7 +1173,7 @@ QString DXF_IMPORT_PLUGIN::toNativeString( const QString& aData )
             if( ++i >= aData.length() )
                 break;
 
-            switch( (wchar_t) aData[i] )
+            switch( aData[i].unicode() )
             {
             case 'I': res += '\t'; break;
             case 'J': res += '\b'; break;
@@ -1186,7 +1187,7 @@ QString DXF_IMPORT_PLUGIN::toNativeString( const QString& aData )
             if( ++i >= aData.length() )
                 break;
 
-            switch( (wchar_t) aData[i] )
+            switch( aData[i].unicode() )
             {
             case 'P': // New paragraph (new line)
             case 'X': // Paragraph wrap on the dimension line (only in dimensions)
@@ -1209,7 +1210,7 @@ QString DXF_IMPORT_PLUGIN::toNativeString( const QString& aData )
                 unsigned long codeVal = codeHex.toULong( &ok, 16 );
 
                 if( ok && codeVal != 0 )
-                    res += QChar( codeVal );
+                    res += QChar( static_cast<char16_t>( codeVal ) );
 
                 i--;
             }

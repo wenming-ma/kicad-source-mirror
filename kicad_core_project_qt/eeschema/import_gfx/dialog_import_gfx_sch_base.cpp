@@ -38,7 +38,7 @@ DIALOG_IMPORT_GFX_SCH_BASE::DIALOG_IMPORT_GFX_SCH_BASE( QWidget* parent, const Q
 	bSizerFile->addWidget( m_textCtrlFileName, 1, Qt::AlignVCenter );
 	bSizerFile->addSpacing( 5 );
 
-	m_browseButton = new STD_BITMAP_BUTTON( this );
+	m_browseButton = new STD_BITMAP_BUTTON( this, -1, QPixmap(), QPoint(), QSize(), 0 );
 	bSizerFile->addWidget( m_browseButton, 0 );
 
 
@@ -167,7 +167,7 @@ DIALOG_IMPORT_GFX_SCH_BASE::DIALOG_IMPORT_GFX_SCH_BASE( QWidget* parent, const Q
 	adjustSize();
 
 	// Connect Events
-	connect( m_browseButton, &QPushButton::clicked, this, &DIALOG_IMPORT_GFX_SCH_BASE::onBrowseFiles );
+	connect( m_browseButton, &STD_BITMAP_BUTTON::clicked, this, &DIALOG_IMPORT_GFX_SCH_BASE::onBrowseFiles );
 	connect( m_rbInteractivePlacement, &QRadioButton::clicked, this, &DIALOG_IMPORT_GFX_SCH_BASE::onInteractivePlacement );
 	connect( m_rbAbsolutePlacement, &QRadioButton::clicked, this, &DIALOG_IMPORT_GFX_SCH_BASE::onAbsolutePlacement );
 	connect( m_sdbSizer, &QDialogButtonBox::accepted, this, &QDialog::accept );

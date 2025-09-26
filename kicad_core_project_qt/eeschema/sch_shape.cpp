@@ -276,7 +276,7 @@ void SCH_SHAPE::PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit
     if( IsPrivate() )
         return;
 
-    QPainter* painter = aSettings->GetPainter();
+    QPainter* painter = aSettings->GetPrintPainter();
     COLOR4D  color;
 
     static std::vector<VECTOR2I> ptList;
@@ -339,7 +339,7 @@ void SCH_SHAPE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
         return;
 
     int      penWidth = GetEffectivePenWidth( aSettings );
-    QPainter* painter = aSettings->GetPainter();
+    QPainter* painter = aSettings->GetPrintPainter();
     COLOR4D  color = GetStroke().GetColor();
     COLOR4D  bg = aSettings->GetBackgroundColor();
 
@@ -432,11 +432,11 @@ void SCH_SHAPE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
             break;
 
         case SHAPE_T::POLY:
-            GRPoly( DC, (int) ptList.size(), ptList.data(), true, 0, fillColor, fillColor );
+            GRPoly( painter, (int) ptList.size(), ptList.data(), true, 0, fillColor, fillColor );
             break;
 
         case SHAPE_T::BEZIER:
-            GRPoly( DC, (int) ptList.size(), ptList.data(), true, 0, fillColor, fillColor );
+            GRPoly( painter, (int) ptList.size(), ptList.data(), true, 0, fillColor, fillColor );
             break;
 
         default:
@@ -672,7 +672,7 @@ static struct SCH_SHAPE_DESC
     {
         ENUM_MAP<FILL_T>& fillEnum = ENUM_MAP<FILL_T>::Instance();
 
-        if( fillEnum.Choices().GetCount() == 0 )
+        if( fillEnum.Choices().count() == 0 )
         {
             fillEnum.Map( FILL_T::NO_FILL, "None" )
                     .Map( FILL_T::FILLED_SHAPE, "Body outline color" )
@@ -751,4 +751,4 @@ static struct SCH_SHAPE_DESC
     }
 } _SCH_SHAPE_DESC;
 
-ENUM_TO_WXANY( FILL_T );
+// ENUM_TO_WXANY( FILL_T ); // wxWidgets-specific macro, not needed in Qt version

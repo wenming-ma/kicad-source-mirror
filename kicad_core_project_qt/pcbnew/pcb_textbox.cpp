@@ -354,7 +354,9 @@ bool PCB_TEXTBOX::Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) 
 void PCB_TEXTBOX::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     // Don't use GetShownText() here; we want to show the user the variable references
-    aList.emplace_back( _( "Text Box" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+    // aList.emplace_back( _( "Text Box" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    aList.emplace_back( _( "Text Box" ), GetText() ); // Direct text without ellipsis
 
     if( aFrame->objectName() == PCB_EDIT_FRAME_NAME && IsLocked() )
         aList.emplace_back( _( "Status" ), _( "Locked" ) );
@@ -466,8 +468,9 @@ bool PCB_TEXTBOX::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) 
 
 QString PCB_TEXTBOX::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
+    // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
     return QString( _( "PCB Text Box '%1' on %2" ) ).arg(
-                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) ).arg(
+                             aFull ? GetShownText( false ) : GetText() ).arg( // Direct text without ellipsis
                              GetLayerName() );
 }
 

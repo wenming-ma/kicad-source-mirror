@@ -28,8 +28,8 @@ public:
 
     std::vector<TOOL_ACTION*>& ActionsList() { return m_actions; }
 
-    bool TransferDataToWindow() override;
-    bool TransferDataFromWindow() override;
+    virtual bool TransferDataToWindow();
+    virtual bool TransferDataFromWindow();
 
     void ResetPanel() override;
 

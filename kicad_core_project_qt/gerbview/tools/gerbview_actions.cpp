@@ -23,6 +23,7 @@
 #include <tool/tool_action.h>
 #include <tool/tool_manager.h>
 #include <tools/gerbview_actions.h>
+#include <QKeySequence>
 
 
 // Actions, being statically-defined, require specialized I18N handling.  We continue to
@@ -153,14 +154,14 @@ TOOL_ACTION GERBVIEW_ACTIONS::highlightDCode( TOOL_ACTION_ARGS()
 TOOL_ACTION GERBVIEW_ACTIONS::layerNext( TOOL_ACTION_ARGS()
         .Name( "gerbview.Control.layerNext" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_PAGEDOWN )
+        .DefaultHotkey( Qt::Key_PageDown )
         .LegacyHotkeyName( "Switch to Next Layer" )
         .FriendlyName( _( "Next Layer" ) ) );
 
 TOOL_ACTION GERBVIEW_ACTIONS::layerPrev( TOOL_ACTION_ARGS()
         .Name( "gerbview.Control.layerPrev" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( WXK_PAGEUP )
+        .DefaultHotkey( Qt::Key_PageUp )
         .LegacyHotkeyName( "Switch to Previous Layer" )
         .FriendlyName( _( "Previous Layer" ) ) );
 

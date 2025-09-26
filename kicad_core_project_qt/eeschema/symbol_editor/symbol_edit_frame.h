@@ -40,6 +40,7 @@
 #include <QCloseEvent>
 #include <QModelIndex>
 #include <QFileInfo>
+#include <QTimer>
 
 class SCH_EDIT_FRAME;
 class SYMBOL_LIB_TABLE;
@@ -230,7 +231,7 @@ public:
     void CloseWindow( QEvent& event )
     {
         // Generate a QCloseEvent
-        Close( false );
+        close();
     }
 
     /**
@@ -484,7 +485,8 @@ private:
     ///< the library that is currently modified.
     QString getTargetLib() const;
 
-    void centerItemIdleHandler( QEvent& aEvent );
+private slots:
+    void centerItemIdleHandler();
 
     /*
      * Return true when the operation has succeeded (all requested libraries have been saved
@@ -532,7 +534,6 @@ private:
      */
     bool replaceLibTableEntry( const QString& aLibNickname, const QString& aLibFile );
 
-    DECLARE_EVENT_TABLE()
 
 public:
     /**
@@ -571,6 +572,7 @@ private:
     SYMBOL_EDITOR_SETTINGS* m_settings;          // Handle to the settings
 
     LIB_ID                  m_centerItemOnIdle;
+    QTimer*                 m_centerTimer;         // Timer for centering item on idle
 
     // The unit number to edit and show
     int         m_unit;

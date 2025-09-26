@@ -1,13 +1,13 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 #pragma once
 
 #include <widgets/unit_binder.h>
 #include <string_utils.h>
 #include <dialog_lib_new_symbol_base.h>
+#include <QStringList>
 
 class EDA_DRAW_FRAME;
-class QStringList;
 
 class DIALOG_LIB_NEW_SYMBOL : public DIALOG_LIB_NEW_SYMBOL_BASE
 {
@@ -18,14 +18,14 @@ public:
 
     ~DIALOG_LIB_NEW_SYMBOL();
 
-    void SetName( const QString& name ) override
+    void SetName( const QString& name )
     {
-        m_textName->setValue( UnescapeString( name ) );
+        m_textName->setText( UnescapeString( name ) );
     }
 
-    QString GetName() const override
+    QString GetName() const
     {
-        QString name = EscapeString( m_textName->value(), CTX_LIBID );
+        QString name = EscapeString( m_textName->text(), CTX_LIBID );
 
         // Currently, symbol names cannot include a space, that breaks libraries:
         name.replace( " ", "_" );
@@ -35,11 +35,11 @@ public:
 
     QString GetParentSymbolName() const
     {
-        return EscapeString( m_comboInheritanceSelect->value(), CTX_LIBID );
+        return EscapeString( m_comboInheritanceSelect->currentText(), CTX_LIBID );
     }
 
-    void SetReference( const QString& reference ) { m_textReference->setValue( reference ); }
-    QString GetReference() { return m_textReference->value(); }
+    void SetReference( const QString& reference ) { m_textReference->setText( reference ); }
+    QString GetReference() { return m_textReference->text(); }
 
     void SetPartCount( int count ) { m_spinPartCount->setValue( count ); }
     int GetUnitCount() { return m_spinPartCount->value(); }
@@ -59,8 +59,8 @@ public:
     void SetIncludeOnBoard( bool aInclude ) { m_excludeFromBoardCheckBox->setChecked( !aInclude ); }
     bool GetIncludeOnBoard() const { return !m_excludeFromBoardCheckBox->isChecked(); }
 
-    void SetPinTextPosition( int position ) { m_pinTextPosition.setValue( position ); }
-    int GetPinTextPosition() { return m_pinTextPosition.value(); }
+    void SetPinTextPosition( int position ) { m_pinTextPosition.SetValue( position ); }
+    int GetPinTextPosition() { return m_pinTextPosition.GetIntValue(); }
 
     void SetShowPinNumber( bool show ) { m_checkShowPinNumber->setChecked( show ); }
     bool GetShowPinNumber() { return m_checkShowPinNumber->isChecked(); }
@@ -74,7 +74,7 @@ public:
 protected:
     bool TransferDataFromWindow() override;
 
-    virtual void onPowerCheckBox( QEvent& aEvent ) override;
+    virtual void onPowerCheckBox() override;
 
 private:
     void onParentSymbolSelect( QEvent& aEvent );

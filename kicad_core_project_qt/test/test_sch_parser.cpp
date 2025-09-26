@@ -265,7 +265,7 @@ int main(int argc, char* argv[])
 
         // Use the simplest approach: directly call ParseSchematic
         try {
-            FILE_LINE_READER reader(schPath.toStdString());
+            FILE_LINE_READER reader(schPath);
 
             // Create parser with minimal parameters
             // Parameters: reader, progress reporter, line count, root sheet, appending

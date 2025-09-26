@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #ifndef SEARCH_PANE_H
 #define SEARCH_PANE_H
@@ -60,8 +60,8 @@ public:
     SEARCH_PANE& operator=( const SEARCH_PANE& ) = delete;
 
     void AddSearcher( const std::shared_ptr<SEARCH_HANDLER>& aHandler );
-    void OnSearchTextEntry( QEvent& aEvent ) override;
-    void OnNotebookPageChanged( QEvent& aEvent ) override;
+    void OnSearchTextEntry( QEvent& aEvent );
+    void OnNotebookPageChanged( QEvent& aEvent );
 
     void RefreshSearch();
     void FocusSearch();

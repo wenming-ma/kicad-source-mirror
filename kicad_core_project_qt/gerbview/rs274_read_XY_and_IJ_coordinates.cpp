@@ -84,7 +84,7 @@ VECTOR2I GERBER_FILE_IMAGE::ReadXYCoord( char*& aText, bool aExcellonMode )
     std::string line;
 
     // Reserve the anticipated length plus an optional sign and decimal
-    line.reserve( std::max( m_FmtLen.x, m_FmtLen.y ) + 3 );
+    line.reserve( std::max( m_FmtLen.x(), m_FmtLen.y() ) + 3 );
 
     // Set up return value for case where aText == nullptr
     if( !m_Relative )
@@ -122,12 +122,12 @@ VECTOR2I GERBER_FILE_IMAGE::ReadXYCoord( char*& aText, bool aExcellonMode )
         }
         else
         {
-            int fmt_scale = (type_coord == 'X') ? m_FmtScale.x : m_FmtScale.y;
+            int fmt_scale = (type_coord == 'X') ? m_FmtScale.x() : m_FmtScale.y();
 
             if( m_NoTrailingZeros )
             {
                 // no trailing zero format, we need to add missing zeros.
-                int digit_count = (type_coord == 'X') ? m_FmtLen.x : m_FmtLen.y;
+                int digit_count = (type_coord == 'X') ? m_FmtLen.x() : m_FmtLen.y();
 
                 // Truncate the extra digits if the len is more than expected
                 // because the conversion to internal units expect exactly
@@ -176,7 +176,7 @@ VECTOR2I GERBER_FILE_IMAGE::ReadIJCoord( char*& aText )
     std::string line;
 
     // Reserve the anticipated length plus an optional sign and decimal
-    line.reserve( std::max( m_FmtLen.x, m_FmtLen.y ) + 3 );
+    line.reserve( std::max( m_FmtLen.x(), m_FmtLen.y() ) + 3 );
 
     if( aText == nullptr )
         return pos;
@@ -210,12 +210,12 @@ VECTOR2I GERBER_FILE_IMAGE::ReadIJCoord( char*& aText )
         }
         else
         {
-            int fmt_scale = ( type_coord == 'I' ) ? m_FmtScale.x : m_FmtScale.y;
+            int fmt_scale = ( type_coord == 'I' ) ? m_FmtScale.x() : m_FmtScale.y();
 
             if( m_NoTrailingZeros )
             {
                 // no trailing zero format, we need to add missing zeros.
-                int digit_count = ( type_coord == 'I' ) ? m_FmtLen.x : m_FmtLen.y;
+                int digit_count = ( type_coord == 'I' ) ? m_FmtLen.x() : m_FmtLen.y();
 
                 // Truncate the extra digits if the len is more than expected
                 // because the conversion to internal units expect exactly

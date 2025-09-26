@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #ifndef DIALOG_TEXT_PROPERTIES_H
 #define DIALOG_TEXT_PROPERTIES_H
@@ -11,7 +11,9 @@
 
 class SCH_EDIT_FRAME;
 class SCH_TEXT;
+#ifdef HAVE_QSCINTILLA
 class SCINTILLA_TRICKS;
+#endif
 class HTML_MESSAGE_BOX;
 
 
@@ -27,16 +29,16 @@ private:
     void onHAlignButton( QEvent &aEvent );
     void onVAlignButton( QEvent &aEvent );
     void onTextAngleButton( QEvent &aEvent );
-    void onBorderChecked( QEvent& aEvent ) override;
-    void onFillChecked( QEvent& aEvent ) override;
-    void onHyperlinkChecked( QEvent& aEvent ) override;
-    void onHyperlinkText( QEvent& aEvent ) override;
-    void onHyperlinkCombo( QEvent& aEvent ) override;
+    void onBorderChecked() override;
+    void onFillChecked() override;
+    void onHyperlinkChecked() override;
+    void onHyperlinkText() override;
+    void onHyperlinkCombo() override;
 
-    void OnFormattingHelp( QEvent& aEvent ) override;
-    void onMultiLineTCLostFocus( QFocusEvent& event ) override;
+    void OnFormattingHelp() override;
+    void onMultiLineTCLostFocus( QFocusEvent* event ) override;
 
-    bool TransferDataToWindow() override;
+    bool TransferDataToWindow();
     bool TransferDataFromWindow() override;
 
     SCH_BASE_FRAME*       m_frame;
@@ -45,7 +47,9 @@ private:
     EDA_TEXT*             m_currentText;
     UNIT_BINDER           m_textSize;
     UNIT_BINDER           m_borderWidth;
+#ifdef HAVE_QSCINTILLA
     SCINTILLA_TRICKS*     m_scintillaTricks;
+#endif
     std::vector<QString> m_pageNumbers;
 
     HTML_MESSAGE_BOX*     m_helpWindow;

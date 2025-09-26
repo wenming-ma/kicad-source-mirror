@@ -157,7 +157,7 @@ void BRDITEMS_PLOTTER::PlotPad( const PAD* aPad, PCB_LAYER_ID aLayer, const COLO
         const bool useQuoting = false;
         metadata.SetPadName( aPad->GetNumber(), useUTF8, useQuoting );
 
-        if( !aPad->GetNumber().IsEmpty() )
+        if( !aPad->GetNumber().isEmpty() )
             metadata.SetPadPinFunction( aPad->GetPinFunction(), useUTF8, useQuoting );
 
         metadata.SetNetName( aPad->GetNetname() );
@@ -165,7 +165,7 @@ void BRDITEMS_PLOTTER::PlotPad( const PAD* aPad, PCB_LAYER_ID aLayer, const COLO
         // Some pads are mechanical pads ( through hole or smd )
         // when this is the case, they have no pad name and/or are not plated.
         // In this case gerber files have slightly different attributes.
-        if( aPad->GetAttribute() == PAD_ATTRIB::NPTH || aPad->GetNumber().IsEmpty() )
+        if( aPad->GetAttribute() == PAD_ATTRIB::NPTH || aPad->GetNumber().isEmpty() )
             metadata.m_NetlistMetadata.m_NotInNet = true;
 
         if( !plotOnExternalCopperLayer )
@@ -795,7 +795,7 @@ void BRDITEMS_PLOTTER::PlotZone( const ZONE* aZone, PCB_LAYER_ID aLayer,
         // Zones with no net name can exist.
         // they are not used to connect items, so the aperture attribute cannot
         // be set as conductor
-        if( aZone->GetNetname().IsEmpty() )
+        if( aZone->GetNetname().isEmpty() )
         {
             gbr_metadata.SetApertureAttrib( GBR_APERTURE_METADATA::GBR_APERTURE_ATTRIB_NONCONDUCTOR );
         }

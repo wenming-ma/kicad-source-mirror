@@ -21,6 +21,7 @@
 #include <widgets/wx_progress_reporters.h>
 #include "widgets/gerbview_layer_widget.h"
 #include <tool/tool_manager.h>
+#include <i18n_utility.h>
 
 // HTML Messages used more than one time:
 #define MSG_NO_MORE_LAYER _("<b>No more available layers</b> in GerbView to load files")
@@ -32,7 +33,7 @@ void GERBVIEW_FRAME::OnGbrFileHistory( QCommandEvent& event )
 {
     QString fn;
 
-    fn = GetFileFromHistory( event.GetId(), _("Gerber files") );
+    fn = GetFileFromHistory( event.type(), _("Gerber files") );
 
     if( !fn.isEmpty() )
     {
@@ -50,7 +51,7 @@ void GERBVIEW_FRAME::OnDrlFileHistory( QCommandEvent& event )
 {
     QString fn;
 
-    fn = GetFileFromHistory( event.GetId(), _("Drill files"), &m_drillFileHistory );
+    fn = GetFileFromHistory( event.type(), _("Drill files"), &m_drillFileHistory );
 
     if( !fn.isEmpty() )
     {
@@ -68,7 +69,7 @@ void GERBVIEW_FRAME::OnClearDrlFileHistory( QCommandEvent& aEvent )
 void GERBVIEW_FRAME::OnZipFileHistory( QCommandEvent& event )
 {
     QString filename;
-    filename = GetFileFromHistory( event.GetId(), _("Zip files"), &m_zipFileHistory );
+    filename = GetFileFromHistory( event.type(), _("Zip files"), &m_zipFileHistory );
 
     if( !filename.isEmpty() )
     {
@@ -85,7 +86,7 @@ void GERBVIEW_FRAME::OnClearZipFileHistory( QCommandEvent& aEvent )
 
 void GERBVIEW_FRAME::OnJobFileHistory( QCommandEvent& event )
 {
-    QString filename = GetFileFromHistory( event.GetId(), _("Job files"), &m_jobFileHistory );
+    QString filename = GetFileFromHistory( event.type(), _("Job files"), &m_jobFileHistory );
 
     if( !filename.isEmpty() )
         LoadGerberJobFile( filename );
@@ -104,7 +105,7 @@ bool GERBVIEW_FRAME::LoadFileOrShowDialog( const QString& aFileName,
 {
     static int lastGerberFileWildcard = 0;
     QStringList filenamesList;
-    QFileInfo   filename = aFileName;
+    QFileInfo   filename = QFileInfo(aFileName);
     QString currentPath;
 
     if( !filename.exists() )
@@ -172,7 +173,7 @@ bool GERBVIEW_FRAME::LoadFileOrShowDialog( const QString& aFileName,
 bool GERBVIEW_FRAME::LoadAutodetectedFiles( const QString& aFileName )
 {
     // 2 = autodetect files
-    return LoadFileOrShowDialog( aFileName, FILEEXT::AllFilesWildcard(), _(\"Open Autodetected File(s)\"),
+    return LoadFileOrShowDialog( aFileName, FILEEXT::AllFilesWildcard(), _("Open Autodetected File(s)"),
                                  2 );
 }
 
@@ -180,7 +181,7 @@ bool GERBVIEW_FRAME::LoadAutodetectedFiles( const QString& aFileName )
 bool GERBVIEW_FRAME::LoadGerberFiles( const QString& aFileName )
 {
     QString   filetypes;
-    QFileInfo filename = aFileName;
+    QFileInfo filename = QFileInfo(aFileName);
 
     /* Standard gerber filetypes
      * (See http://en.wikipedia.org/wiki/Gerber_File)
@@ -248,14 +249,14 @@ bool GERBVIEW_FRAME::LoadListOfGerberAndDrillFiles( const QString&      aPath,
     LSET visibility = GetVisibleLayers();
 
     // Manage errors when loading files
-    WX_STRING_REPORTER reporter;
+    QT_STRING_REPORTER reporter;
 
     // Create progress dialog (only used if more than 1 file to load
     std::unique_ptr<WX_PROGRESS_REPORTER> progress = nullptr;
 
     for( int ii = 0; ii < aFilenameList.count(); ii++ )
     {
-        filename = aFilenameList[ii];
+        filename = QFileInfo(aFilenameList[ii]);
 
         if( !filename.isAbsolute() )
             filename = QFileInfo( QDir(aPath), filename.fileName() );
@@ -276,7 +277,7 @@ bool GERBVIEW_FRAME::LoadListOfGerberAndDrillFiles( const QString&      aPath,
         {
             //We cannot read a gerber job file as a gerber plot file: skip it
             QString txt = QString::asprintf( _("<b>A gerber job file cannot be loaded as a plot file</b> "
-                           "<i>%s</i>"),
+                           "<i>%s</i>").toUtf8().constData(),
                         filename.fileName().toStdString().c_str() );
             success = false;
             reporter.Report( txt, RPT_SEVERITY_ERROR );
@@ -291,14 +292,14 @@ bool GERBVIEW_FRAME::LoadListOfGerberAndDrillFiles( const QString&      aPath,
             progress = std::make_unique<WX_PROGRESS_REPORTER>( this, _("Loading files..."), 1,
                                                                false );
             progress->SetMaxProgress( aFilenameList.count() - 1 );
-            progress->Report( QString::asprintf( _("Loading %u/%zu %s..."),
+            progress->Report( QString::asprintf( _("Loading %u/%zu %s...").toUtf8().constData(),
                                                 ii+1,
                                                 aFilenameList.count(),
                                                 m_lastFileName.toStdString().c_str() ) );
         }
         else if( progress )
         {
-            progress->Report( QString::asprintf( _("Loading %u/%zu %s..."),
+            progress->Report( QString::asprintf( _("Loading %u/%zu %s...").toUtf8().constData(),
                                                 ii+1,
                                                 aFilenameList.count(),
                                                 m_lastFileName.toStdString().c_str() ) );
@@ -317,8 +318,8 @@ bool GERBVIEW_FRAME::LoadListOfGerberAndDrillFiles( const QString&      aPath,
             // Report the name of not loaded files:
             while( ii < aFilenameList.count() )
             {
-                filename = aFilenameList[ii++];
-                QString txt = QString::asprintf( MSG_NOT_LOADED, filename.fileName().toStdString().c_str() );
+                filename = QFileInfo(aFilenameList[ii++]);
+                QString txt = QString::asprintf( MSG_NOT_LOADED.toUtf8().constData(), filename.fileName().toStdString().c_str() );
                 reporter.Report( txt, RPT_SEVERITY_ERROR );
             }
             break;
@@ -369,13 +370,13 @@ bool GERBVIEW_FRAME::LoadListOfGerberAndDrillFiles( const QString&      aPath,
 
                 break;
             default:
-                QString txt = QString::asprintf( MSG_NOT_LOADED, filename.fileName().toStdString().c_str() );
+                QString txt = QString::asprintf( MSG_NOT_LOADED.toUtf8().constData(), filename.fileName().toStdString().c_str() );
                 reporter.Report( txt, RPT_SEVERITY_ERROR );
             }
         }
         catch( const std::bad_alloc& )
         {
-            QString txt = QString::asprintf( MSG_OOM, filename.fileName().toStdString().c_str() );
+            QString txt = QString::asprintf( MSG_OOM.toUtf8().constData(), filename.fileName().toStdString().c_str() );
             reporter.Report( txt, RPT_SEVERITY_ERROR );
             success = false;
             continue;
@@ -428,7 +429,7 @@ bool GERBVIEW_FRAME::unarchiveFiles( const QString& aFullFileName, REPORTER* aRe
     {
         if( aReporter )
         {
-            msg = QString::asprintf( _("Zip file '%s' cannot be opened."), aFullFileName.toStdString().c_str() );
+            msg = QString::asprintf( _("Zip file '%s' cannot be opened.").toUtf8().constData(), aFullFileName.toStdString().c_str() );
             aReporter->Report( msg, RPT_SEVERITY_ERROR );
         }
 
@@ -446,163 +447,15 @@ bool GERBVIEW_FRAME::unarchiveFiles( const QString& aFullFileName, REPORTER* aRe
     QString unzipped_tempfile = temp_fn.absoluteFilePath();
 
 
-    bool             success = true;
-    // Note: Qt doesn't have direct zip stream equivalent, need alternative implementation
-    // For full Qt implementation, use QZipReader or similar
-    // wxZipInputStream zipArchive( zipFile );
-    // wxZipEntry*      entry;
-    void*            entry = nullptr; // Placeholder for zip entry
-    bool             reported_no_more_layer = false;
-    KIGFX::VIEW*     view = GetCanvas()->GetView();
+    // Note: Qt zip functionality requires additional library (e.g., QuaZip)
+    // For now, disable zip archive support in Qt transformation
+    bool success = false;
 
-    // Note: This section needs proper Qt zip implementation
-    // while( ( entry = zipArchive.GetNextEntry() ) != nullptr )
+    if( aReporter )
     {
-        if( entry->IsDir() )
-            continue;
-
-        QString   fname = entry->GetName();
-        QFileInfo uzfn = fname;
-        QString   curr_ext = uzfn.suffix().toLower();
-
-        // The archive contains Gerber and/or Excellon drill files. Use the right loader.
-        // However it can contain a few other files (reports, pdf files...),
-        // which will be skipped.
-        if( curr_ext == FILEEXT::GerberJobFileExtension.c_str() )
-        {
-            //We cannot read a gerber job file as a gerber plot file: skip it
-            if( aReporter )
-            {
-                msg = QString::asprintf( _("Skipped file '%s' (gerber job file)."), entry->GetName() );
-                aReporter->Report( msg, RPT_SEVERITY_WARNING );
-            }
-
-            continue;
-        }
-
-        QString               matchedExt;
-        enum GERBER_ORDER_ENUM order;
-        GERBER_FILE_IMAGE_LIST::GetGerberLayerFromFilename( fname, order, matchedExt );
-
-        int layer = getNextAvailableLayer();
-
-        if( layer == NO_AVAILABLE_LAYERS )
-        {
-            success = false;
-
-            if( aReporter )
-            {
-                if( !reported_no_more_layer )
-                    aReporter->Report( MSG_NO_MORE_LAYER,  RPT_SEVERITY_ERROR );
-
-                reported_no_more_layer = true;
-
-                // Report the name of not loaded files:
-                msg = QString::asprintf( MSG_NOT_LOADED, entry->GetName() );
-                aReporter->Report( msg, RPT_SEVERITY_ERROR );
-            }
-
-            delete entry;
-            continue;
-        }
-
-        SetActiveLayer( layer, false );
-
-        // Create the unzipped temporary file:
-        {
-            QFile temporary_ofile( unzipped_tempfile );
-
-            if( temporary_ofile.open(QIODevice::WriteOnly) )
-                temporary_ofile.write( zipArchive );
-            else
-            {
-                success = false;
-
-                if( aReporter )
-                {
-                    msg = QString::asprintf( _("<b>Unable to create temporary file '%s'.</b>"),
-                                unzipped_tempfile.toStdString().c_str() );
-                    aReporter->Report( msg, RPT_SEVERITY_ERROR );
-                }
-            }
-        }
-
-        bool read_ok = true;
-
-        // Try to parse files if we can't tell from file extension
-        if( order == GERBER_ORDER_ENUM::GERBER_LAYER_UNKNOWN )
-        {
-            if( EXCELLON_IMAGE::TestFileIsExcellon( unzipped_tempfile ) )
-            {
-                order = GERBER_ORDER_ENUM::GERBER_DRILL;
-            }
-            else if( GERBER_FILE_IMAGE::TestFileIsRS274( unzipped_tempfile ) )
-            {
-                // If we have no way to know what layer it is, just guess
-                order = GERBER_ORDER_ENUM::GERBER_TOP_COPPER;
-            }
-            else
-            {
-                if( aReporter )
-                {
-                    msg = QString::asprintf( _("Skipped file '%s' (unknown type)."), entry->GetName() );
-                    aReporter->Report( msg, RPT_SEVERITY_WARNING );
-                }
-            }
-        }
-
-        if( order == GERBER_ORDER_ENUM::GERBER_DRILL )
-        {
-            read_ok = Read_EXCELLON_File( unzipped_tempfile );
-        }
-        else if( order != GERBER_ORDER_ENUM::GERBER_LAYER_UNKNOWN )
-        {
-            // Read gerber files: each file is loaded on a new GerbView layer
-            read_ok = Read_GERBER_File( unzipped_tempfile );
-
-            if( read_ok )
-            {
-                if( GERBER_FILE_IMAGE* gbrImage = GetGbrImage( layer ) )
-                    view->SetLayerHasNegatives( GERBER_DRAW_LAYER( layer ), gbrImage->HasNegativeItems() );
-            }
-        }
-
-        // Select the first added layer by default when done loading
-        if( read_ok && firstLoadedLayer == NO_AVAILABLE_LAYERS )
-        {
-            firstLoadedLayer = layer;
-        }
-
-        delete entry;
-
-        // The unzipped file is only a temporary file, delete it.
-        QFile::remove( unzipped_tempfile );
-
-        if( !read_ok )
-        {
-            success = false;
-
-            if( aReporter )
-            {
-                msg = QString::asprintf( _("<b>unzipped file %s read error</b>"), unzipped_tempfile.toStdString().c_str() );
-                aReporter->Report( msg, RPT_SEVERITY_ERROR );
-            }
-        }
-        else
-        {
-            GERBER_FILE_IMAGE* gerber_image = GetGbrImage( layer );
-            visibility[ layer ] = true;
-
-            if( gerber_image )
-            {
-                gerber_image->m_FileName = fname;
-                if( gerber_image->m_IsX2_file )
-                    foundX2Gerbers = true;
-            }
-
-            layer = getNextAvailableLayer();
-            SetActiveLayer( layer, false );
-        }
+        msg = QString::asprintf( _("<b>Zip file support not implemented in Qt version.</b><br>File: %s").toUtf8().constData(),
+                                aFullFileName.toStdString().c_str() );
+        aReporter->Report( msg, RPT_SEVERITY_ERROR );
     }
 
     if( foundX2Gerbers )
@@ -624,7 +477,7 @@ bool GERBVIEW_FRAME::LoadZipArchiveFile( const QString& aFullFileName )
 {
 #define ZipFileExtension "zip"
 
-    QFileInfo filename = aFullFileName;
+    QFileInfo filename = QFileInfo(aFullFileName);
     QString currentPath;
 
     if( !filename.exists() )
@@ -653,7 +506,7 @@ bool GERBVIEW_FRAME::LoadZipArchiveFile( const QString& aFullFileName )
         m_mruPath = currentPath;
     }
 
-    WX_STRING_REPORTER reporter;
+    QT_STRING_REPORTER reporter;
 
     if( filename.exists() )
         unarchiveFiles( filename.absoluteFilePath(), &reporter );
@@ -684,11 +537,11 @@ void GERBVIEW_FRAME::DoWithAcceptedFiles()
 
     for( const QFileInfo& file : m_AcceptedFiles )
     {
-        if( file.suffix() == FILEEXT::ArchiveFileExtension )
+        if( file.suffix() == QString::fromStdString( FILEEXT::ArchiveFileExtension ) )
         {
             QString fn = file.absoluteFilePath();
             // Open zip archive in editor
-            m_toolManager->RunAction<QString*>( *m_acceptedExts.at( FILEEXT::ArchiveFileExtension ), &fn );
+            m_toolManager->RunAction<QString*>( *m_acceptedExts.at( QString::fromStdString( FILEEXT::ArchiveFileExtension ) ), &fn );
         }
         else
         {
@@ -699,5 +552,5 @@ void GERBVIEW_FRAME::DoWithAcceptedFiles()
 
     // Open files in editor
     if( !gerbFn.isEmpty() )
-        m_toolManager->RunAction<QString*>( *m_acceptedExts.at( FILEEXT::GerberFileExtension ), &gerbFn );
+        m_toolManager->RunAction<QString*>( *m_acceptedExts.at( QString::fromStdString( FILEEXT::GerberFileExtension ) ), &gerbFn );
 }

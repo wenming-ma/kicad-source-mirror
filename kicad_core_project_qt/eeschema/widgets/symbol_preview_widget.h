@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #ifndef SYMBOL_PREVIEW_WIDGET_H
 #define SYMBOL_PREVIEW_WIDGET_H
@@ -23,6 +23,8 @@ class QLayout;
 
 class SYMBOL_PREVIEW_WIDGET: public QWidget
 {
+    Q_OBJECT
+
 public:
 
     /**

@@ -9,6 +9,7 @@
 #include <board_design_settings.h>
 #include <plotcontroller.h>
 #include <pcb_plot_params.h>
+#include <project.h>
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
@@ -411,27 +412,23 @@ bool PLOT_CONTROLLER::OpenPlotfile( const QString& aSuffix, PLOT_FORMAT aFormat,
     // Now compute the full filename for the output and start the plot (after ensuring the
     // output directory is OK).
 
-    std::function<bool( QString* )> textResolver =
-            [&]( QString* token ) -> bool
-            {
-                // Handles m_board->GetTitleBlock() *and* m_board->GetProject()
-                return m_board->ResolveTextVar( token, 0 );
-            };
-
     QString outputDirName = GetPlotOptions().GetOutputDirectory();
-    outputDirName = ExpandTextVars( outputDirName, &textResolver );
+
+    // Use direct project-based expansion instead of lambda to avoid std::move issues
+    outputDirName = ExpandTextVars( outputDirName, m_board->GetProject() );
     outputDirName = ExpandEnvVarSubstitutions( outputDirName, nullptr );
 
-    QDir         outputDir( outputDirName );
+    QString      outputDirPath = outputDirName;
     QString      boardFilename = m_board->GetFileName();
     PCB_LAYER_ID layer = ToLAYER_ID( GetLayer() );
     QString      layerName = m_board->GetLayerName( layer );
 
-    if( EnsureFileDirectoryExists( &outputDir, boardFilename ) )
+    if( EnsureFileDirectoryExists( &outputDirPath, boardFilename ) )
     {
-        // outputDir contains now the full path of plot files
-        m_plotFile = QFileInfo( boardFilename );
-        m_plotFile = QFileInfo( outputDir.absolutePath() + "/" + m_plotFile.fileName() );
+        // outputDirPath contains now the full path of plot files
+        QFileInfo tempFile( boardFilename );
+        QString fullPath = outputDirPath + "/" + tempFile.fileName();
+        m_plotFile = QFileInfo( fullPath );
         QString fileExt = GetDefaultPlotExtension( aFormat );
 
         // Gerber format *can* use layer-specific file extensions (this is no longer best
@@ -443,7 +440,7 @@ bool PLOT_CONTROLLER::OpenPlotfile( const QString& aSuffix, PLOT_FORMAT aFormat,
         }
 
         // Build plot filenames from the board name and layer names:
-        BuildPlotFileName( &m_plotFile, outputDir.absolutePath(), aSuffix, fileExt );
+        BuildPlotFileName( &m_plotFile, outputDirPath, aSuffix, fileExt );
 
         m_plotter = StartPlotBoard( m_board, &GetPlotOptions(), layer, layerName,
                                     m_plotFile.absoluteFilePath(), aSheetName, aSheetPath );

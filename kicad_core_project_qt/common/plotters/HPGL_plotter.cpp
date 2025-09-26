@@ -447,7 +447,7 @@ void HPGL_PLOTTER::PlotPoly( const std::vector<VECTOR2I>& aCornerList, FILL_T aF
         // Draw the filled area
         SetCurrentLineWidth( USE_DEFAULT_LINE_WIDTH );
 
-        m_current_item->content << QString( "PM 0;\n" ); // Start polygon
+        m_current_item->content += QString( "PM 0;\n" ); // Start polygon
 
         for( unsigned ii = 1; ii < aCornerList.size(); ++ii )
             LineTo( aCornerList[ii] );
@@ -457,7 +457,7 @@ void HPGL_PLOTTER::PlotPoly( const std::vector<VECTOR2I>& aCornerList, FILL_T aF
         if( aCornerList[ii] != aCornerList[0] )
             LineTo( aCornerList[0] );
 
-        m_current_item->content << hpgl_end_polygon_cmd; // Close, fill polygon and draw outlines
+        m_current_item->content += QString( hpgl_end_polygon_cmd ); // Close, fill polygon and draw outlines
         m_current_item->pen_returns = true;
     }
     else if( aWidth != 0 )
@@ -824,7 +824,7 @@ bool HPGL_PLOTTER::startOrAppendItem( const VECTOR2D& location, QString const& c
     }
     else
     {
-        m_current_item->content << content;
+        m_current_item->content += content;
         return false;
     }
 }

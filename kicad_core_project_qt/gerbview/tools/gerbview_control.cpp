@@ -104,7 +104,7 @@ int GERBVIEW_CONTROL::ExportToPcbnew( const TOOL_EVENT& aEvent )
         return 0;
     }
 
-    QString fileDialogName( NAMELESS_PROJECT + "." + FILEEXT::KiCadPcbFileExtension );
+    QString fileDialogName( NAMELESS_PROJECT + "." + QString::fromStdString(FILEEXT::KiCadPcbFileExtension) );
     QString     path = m_frame->GetMruPath();
 
     QString selectedFile = QFileDialog::getSaveFileName( m_frame, "Export as KiCad Board File",
@@ -114,14 +114,14 @@ int GERBVIEW_CONTROL::ExportToPcbnew( const TOOL_EVENT& aEvent )
     if( selectedFile.isEmpty() )
         return 0;
 
-    QFileInfo fileName = QFileInfo( EnsureFileExtension( selectedFile, FILEEXT::KiCadPcbFileExtension ) );
+    QFileInfo fileName = QFileInfo( EnsureFileExtension( selectedFile, QString::fromStdString(FILEEXT::KiCadPcbFileExtension) ) );
 
     /* Install a dialog frame to choose the mapping
      * between gerber layers and Pcbnew layers
      */
     LAYERS_MAP_DIALOG* layerdlg = new LAYERS_MAP_DIALOG( m_frame );
     int ok = layerdlg->ShowModal();
-    layerdlg->Destroy();
+    layerdlg->deleteLater();
 
     if( ok != QDialog::Accepted )
         return 0;
@@ -149,9 +149,9 @@ int GERBVIEW_CONTROL::HighlightControl( const TOOL_EVENT& aEvent )
 
     if( aEvent.IsAction( &GERBVIEW_ACTIONS::highlightClear ) )
     {
-        m_frame->m_SelComponentBox->SetSelection( 0 );
-        m_frame->m_SelNetnameBox->SetSelection( 0 );
-        m_frame->m_SelAperAttributesBox->SetSelection( 0 );
+        m_frame->m_SelComponentBox->setCurrentIndex( 0 );
+        m_frame->m_SelNetnameBox->setCurrentIndex( 0 );
+        m_frame->m_SelAperAttributesBox->setCurrentIndex( 0 );
 
         settings->ClearHighlightSelections();
 
@@ -164,13 +164,13 @@ int GERBVIEW_CONTROL::HighlightControl( const TOOL_EVENT& aEvent )
     {
         QString net_name = item->GetNetAttributes().m_Netname;
         settings->m_netHighlightString = net_name;
-        m_frame->m_SelNetnameBox->SetStringSelection( UnescapeString( net_name ) );
+        m_frame->m_SelNetnameBox->setCurrentText( UnescapeString( net_name ) );
     }
     else if( item && aEvent.IsAction( &GERBVIEW_ACTIONS::highlightComponent ) )
     {
         QString net_attr = item->GetNetAttributes().m_Cmpref;
         settings->m_componentHighlightString = net_attr;
-        m_frame->m_SelComponentBox->SetStringSelection( net_attr );
+        m_frame->m_SelComponentBox->setCurrentText( net_attr );
     }
     else if( item && aEvent.IsAction( &GERBVIEW_ACTIONS::highlightAttribute ) )
     {
@@ -180,7 +180,7 @@ int GERBVIEW_CONTROL::HighlightControl( const TOOL_EVENT& aEvent )
         {
             QString ap_name = apertDescr->m_AperFunction;
             settings->m_attributeHighlightString = ap_name;
-            m_frame->m_SelAperAttributesBox->SetStringSelection( ap_name );
+            m_frame->m_SelAperAttributesBox->setCurrentText( ap_name );
         }
     }
     else if( item && aEvent.IsAction( &GERBVIEW_ACTIONS::highlightDCode ) )

@@ -1,7 +1,8 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 #include <gal/hidpi_gl_canvas.h>
 
 #include <dpi_scaling.h>
+#include <kiplatform/ui.h>
 
 
 HIDPI_GL_CANVAS::HIDPI_GL_CANVAS( const KIGFX::VC_SETTINGS& aSettings, QWidget* aParent,
@@ -47,5 +48,5 @@ QPoint HIDPI_GL_CANVAS::GetNativePosition( const QPoint& aPoint ) const
 
 double HIDPI_GL_CANVAS::GetScaleFactor() const
 {
-    return GetContentScaleFactor();
+    return KIPLATFORM::UI::GetContentScaleFactor( this );
 }

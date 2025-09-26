@@ -11,6 +11,7 @@
 #include <view/view.h>
 #include <base_screen.h>
 #include "widgets/gerbview_layer_widget.h"
+#include <i18n_utility.h>
 
 #include <tool/tool_manager.h>
 
@@ -52,7 +53,7 @@ void GERBVIEW_FRAME::Erase_Current_DrawLayer( bool query )
     int layer = GetActiveLayer();
     QString msg;
 
-    msg = QString::asprintf( _( "Clear layer %d?" ), layer + 1 );
+    msg = _( "Clear layer %d?" ).arg( layer + 1 );
 
     if( query && !IsOK( this, msg ) )
         return;

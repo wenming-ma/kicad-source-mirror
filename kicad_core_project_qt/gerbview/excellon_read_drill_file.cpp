@@ -775,8 +775,10 @@ void EXCELLON_IMAGE::readFileFormat( char*& aText )
     mantissaDigits = *aText - '0';
 
     m_hasFormat = true;
-    m_FmtLen.x = m_FmtLen.y = characteristicDigits + mantissaDigits;
-    m_FmtScale.x = m_FmtScale.y = mantissaDigits;
+    m_FmtLen.setX(characteristicDigits + mantissaDigits);
+    m_FmtLen.setY(characteristicDigits + mantissaDigits);
+    m_FmtScale.setX(mantissaDigits);
+    m_FmtScale.setY(mantissaDigits);
 }
 
 
@@ -1103,15 +1105,18 @@ void EXCELLON_IMAGE::SelectUnits( bool aMetric, EXCELLON_DEFAULTS* aDefaults )
             if( aDefaults )
             {
                 // number of digits in mantissa
-                m_FmtScale.x = m_FmtScale.y = aDefaults->m_MmMantissaLen;
+                m_FmtScale.setX(aDefaults->m_MmMantissaLen);
+                m_FmtScale.setY(aDefaults->m_MmMantissaLen);
                 // number of digits (mantissa+integer)
-                m_FmtLen.x = m_FmtLen.y = aDefaults->m_MmIntegerLen
-                                          + aDefaults->m_MmMantissaLen;
+                m_FmtLen.setX(aDefaults->m_MmIntegerLen + aDefaults->m_MmMantissaLen);
+                m_FmtLen.setY(aDefaults->m_MmIntegerLen + aDefaults->m_MmMantissaLen);
             }
             else
             {
-                m_FmtScale.x = m_FmtScale.y = FMT_MANTISSA_MM;
-                m_FmtLen.x = m_FmtLen.y = FMT_INTEGER_MM + FMT_MANTISSA_MM;
+                m_FmtScale.setX(FMT_MANTISSA_MM);
+                m_FmtScale.setY(FMT_MANTISSA_MM);
+                m_FmtLen.setX(FMT_INTEGER_MM + FMT_MANTISSA_MM);
+                m_FmtLen.setY(FMT_INTEGER_MM + FMT_MANTISSA_MM);
             }
         }
     }
@@ -1123,14 +1128,17 @@ void EXCELLON_IMAGE::SelectUnits( bool aMetric, EXCELLON_DEFAULTS* aDefaults )
         {
             if( aDefaults )
             {
-                m_FmtScale.x = m_FmtScale.y = aDefaults->m_InchMantissaLen;
-                m_FmtLen.x = m_FmtLen.y = aDefaults->m_InchIntegerLen
-                                          + aDefaults->m_InchMantissaLen;
+                m_FmtScale.setX(aDefaults->m_InchMantissaLen);
+                m_FmtScale.setY(aDefaults->m_InchMantissaLen);
+                m_FmtLen.setX(aDefaults->m_InchIntegerLen + aDefaults->m_InchMantissaLen);
+                m_FmtLen.setY(aDefaults->m_InchIntegerLen + aDefaults->m_InchMantissaLen);
             }
             else
             {
-                m_FmtScale.x = m_FmtScale.y = FMT_MANTISSA_INCH;
-                m_FmtLen.x = m_FmtLen.y = FMT_INTEGER_INCH + FMT_MANTISSA_INCH;
+                m_FmtScale.setX(FMT_MANTISSA_INCH);
+                m_FmtScale.setY(FMT_MANTISSA_INCH);
+                m_FmtLen.setX(FMT_INTEGER_INCH + FMT_MANTISSA_INCH);
+                m_FmtLen.setY(FMT_INTEGER_INCH + FMT_MANTISSA_INCH);
             }
         }
     }

@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #include <stack>
 #include <QString>
@@ -281,7 +281,7 @@ void SCH_SCREEN::Clear( bool aFree )
     // Clear the project settings
     m_virtualPageNumber = m_pageCount = 1;
 
-    m_titles.clear();
+    m_titles.Clear();
 }
 
 
@@ -722,7 +722,7 @@ void SCH_SCREEN::UpdateSymbolLinks( REPORTER* aReporter )
             {
                 msg = QString::asprintf( "Symbol library '%s' not found and no fallback cache library "
                                "available.  Unable to link library symbol.",
-                            symbol->GetLibId().GetLibNickname().toStdString().c_str() );
+                            QString(symbol->GetLibId().GetLibNickname()).toStdString().c_str() );
                 aReporter->ReportTail( msg, RPT_SEVERITY_WARNING );
             }
 
@@ -1487,7 +1487,9 @@ size_t SCH_SCREEN::getLibSymbolNameMatches( const SCH_SYMBOL& aSymbol,
         if( pair.first.startsWith( searchName ) )
         {
             suffix = pair.first.mid( searchName.length() );
-            if( suffix.toLong( &tmp ) )
+            bool ok;
+            suffix.toLong( &ok );
+            if( ok )
                 aMatches.emplace_back( pair.first );
         }
     }
@@ -1960,7 +1962,7 @@ int SCH_SCREENS::ChangeSymbolLibNickname( const QString& aFrom, const QString& a
         {
             SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
 
-            if( symbol->GetLibId().GetLibNickname() != aFrom )
+            if( QString(symbol->GetLibId().GetLibNickname()) != aFrom )
                 continue;
 
             LIB_ID id = symbol->GetLibId();

@@ -165,7 +165,7 @@ public:
 
     void Create( const QString& aFileName = QString() );
 
-    void SetFileName( const QString& aFileName ) { fileName = aFileName; }
+    void SetFileName( const QString& aFileName ) { fileName = QFileInfo(aFileName); }
 
     bool IsModified() const
     {

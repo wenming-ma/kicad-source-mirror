@@ -132,13 +132,13 @@ void GERBER_JOBFILE_WRITER::addJSONHeader()
             {
                 { "Vendor", "KiCad" },
                 { "Application", "Pcbnew" },
-                { "Version", GetBuildVersion() }
+                { "Version", GetBuildVersion().toStdString() }
             }
         },
         {
             // The attribute value must conform to the full version of the ISO 8601
             // date and time format, including time and time zone.
-            "CreationDate", GbrMakeCreationDateAttributeString( GBR_NC_STRING_FORMAT_GBRJOB )
+            "CreationDate", GbrMakeCreationDateAttributeString( GBR_NC_STRING_FORMAT_GBRJOB ).toStdString()
         }
     };
 }
@@ -222,7 +222,7 @@ void GERBER_JOBFILE_WRITER::addJSONGeneralSpecs()
         rev = "rev?";
 
     m_json["GeneralSpecs"]["ProjectId"]["Name"] = msg.toStdString().c_str();
-    m_json["GeneralSpecs"]["ProjectId"]["GUID"] = guid;
+    m_json["GeneralSpecs"]["ProjectId"]["GUID"] = guid.toStdString();
     m_json["GeneralSpecs"]["ProjectId"]["Revision"] = rev.toStdString().c_str();
 
     // output the board size in mm:
@@ -244,7 +244,7 @@ void GERBER_JOBFILE_WRITER::addJSONGeneralSpecs()
     const BOARD_STACKUP brd_stackup = m_pcb->GetDesignSettings().GetStackupDescriptor();
 
     if( !brd_stackup.m_FinishType.isEmpty() )
-        m_json["GeneralSpecs"]["Finish"] = brd_stackup.m_FinishType;
+        m_json["GeneralSpecs"]["Finish"] = brd_stackup.m_FinishType.toStdString();
 
     if( brd_stackup.m_HasDielectricConstrains )
         m_json["GeneralSpecs"]["ImpedanceControlled"] = true;
@@ -414,7 +414,7 @@ void GERBER_JOBFILE_WRITER::addJSONFilesAttributes()
             std::string strname = formatStringFromUTF32( name );
 
             file_json["Path"] = strname.c_str();
-            file_json["FileFunction"] = gbr_layer_id;
+            file_json["FileFunction"] = gbr_layer_id.toStdString();
             file_json["FilePolarity"] = polarity;
 
             m_json["FilesAttributes"] += file_json;
@@ -617,7 +617,7 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
                 break;
             }
 
-            layer_json["Type"] = layer_type;
+            layer_json["Type"] = layer_type.toStdString();
 
             if( item->IsColorEditable() && uptodate )
             {
@@ -630,7 +630,7 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
                     {
                         // In job file a color can be given by its RGB values (0...255)
                         // like R<number><G<number>B<number> notation
-                        QColor color( COLOR4D( colorName ).ToColour() );
+                        QColor color( COLOR4D( colorName ).ToColor() );
                         colorName = QString( "R%1G%2B%3" )
                                           .arg( color.red() )
                                           .arg( color.green() )
@@ -657,7 +657,7 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
                         }
                     }
 
-                    layer_json["Color"] = colorName;
+                    layer_json["Color"] = colorName.toStdString();
                 }
             }
 
@@ -668,7 +668,7 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
             {
                 if( item->HasMaterialValue() )
                 {
-                    layer_json["Material"] = item->GetMaterial( sub_idx );
+                    layer_json["Material"] = item->GetMaterial( sub_idx ).toStdString();
 
                     // These constrains are only written if the board has impedance controlled tracks.
                     // If the board is not impedance controlled,  they are useless.
@@ -679,12 +679,12 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
                         // Generate Epsilon R if > 1.0 (value <= 1.0 means not specified: it is not
                         // a possible value
                         if( item->GetEpsilonR() > 1.0 )
-                            layer_json["DielectricConstant"] = item->FormatEpsilonR( sub_idx );
+                            layer_json["DielectricConstant"] = item->FormatEpsilonR( sub_idx ).toStdString();
 
                         // Generate LossTangent > 0.0 (value <= 0.0 means not specified: it is not
                         // a possible value
                         if( item->GetLossTangent() > 0.0 )
-                            layer_json["LossTangent"] = item->FormatLossTangent( sub_idx );
+                            layer_json["LossTangent"] = item->FormatLossTangent( sub_idx ).toStdString();
                     }
                 }
 
@@ -710,7 +710,7 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
                                                   .arg( formatStringFromUTF32( m_pcb->GetLayerName( next_copper_layer ) ).c_str() )
                                                   .arg( subLayerName );
 
-                layer_json["Name"] = name;
+                layer_json["Name"] = name.toStdString();
 
                 // Add a comment ("Notes"):
                 QString note;
@@ -721,14 +721,14 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
                                           .arg( formatStringFromUTF32( m_pcb->GetLayerName( last_copper_layer ) ).c_str() )
                                           .arg( formatStringFromUTF32( m_pcb->GetLayerName( next_copper_layer ) ).c_str() );
 
-                layer_json["Notes"] = note;
+                layer_json["Notes"] = note.toStdString();
             }
             else if( item->GetType() == BS_ITEM_TYPE_SOLDERMASK
                      || item->GetType() == BS_ITEM_TYPE_SILKSCREEN )
             {
                 if( item->HasMaterialValue() )
                 {
-                    layer_json["Material"] = item->GetMaterial();
+                    layer_json["Material"] = item->GetMaterial().toStdString();
 
                     // These constrains are only written if the board has impedance controlled tracks.
                     // If the board is not impedance controlled,  they are useless.
@@ -738,12 +738,12 @@ void GERBER_JOBFILE_WRITER::addJSONMaterialStackup()
                         // Generate Epsilon R if > 1.0 (value <= 1.0 means not specified: it is not
                         // a possible value
                         if( item->GetEpsilonR() > 1.0 )
-                            layer_json["DielectricConstant"] = item->FormatEpsilonR();
+                            layer_json["DielectricConstant"] = item->FormatEpsilonR().toStdString();
 
                         // Generate LossTangent > 0.0 (value <= 0.0 means not specified: it is not
                         // a possible value
                         if( item->GetLossTangent() > 0.0 )
-                            layer_json["LossTangent"] = item->FormatLossTangent();
+                            layer_json["LossTangent"] = item->FormatLossTangent().toStdString();
                     }
                 }
 

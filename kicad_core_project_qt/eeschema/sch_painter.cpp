@@ -903,7 +903,7 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
     const VECTOR2I dir( sign( pos.x - p0.x ), sign( pos.y - p0.y ) );
     const int      len = aPin->GetLength();
 
-    if( drawingOP && !aPin->GetOperatingPoint().IsEmpty() )
+    if( drawingOP && !aPin->GetOperatingPoint().isEmpty() )
     {
         int             textSize = getOperatingPointTextSize();
         VECTOR2I        mid = ( p0 + pos ) / 2;
@@ -1365,7 +1365,7 @@ void SCH_PAINTER::draw( const SCH_LINE* aLine, int aLayer )
     if( drawingDangling )
         return;
 
-    if( drawingOP && !aLine->GetOperatingPoint().IsEmpty() )
+    if( drawingOP && !aLine->GetOperatingPoint().isEmpty() )
     {
         int             textSize = getOperatingPointTextSize();
         VECTOR2I        pos = aLine->GetMidPoint();
@@ -2273,7 +2273,7 @@ void SCH_PAINTER::draw( const SCH_FIELD* aField, int aLayer, bool aDimmed )
 
     QString shownText = aField->GetShownText( true );
 
-    if( shownText.IsEmpty() )
+    if( shownText.isEmpty() )
         return;
 
     // Calculate the text orientation according to the parent orientation.

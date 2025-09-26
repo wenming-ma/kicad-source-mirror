@@ -41,11 +41,13 @@ class SYMBOL_LIBRARY_MANAGER;
 
 class SYMBOL_TREE_SYNCHRONIZING_ADAPTER : public LIB_TREE_MODEL_ADAPTER
 {
+    Q_OBJECT
+
 public:
     static std::shared_ptr<LIB_TREE_MODEL_ADAPTER> Create( SYMBOL_EDIT_FRAME* aParent,
                                                            SYMBOL_LIBRARY_MANAGER* aLibs );
 
-    bool IsContainer( const QModelIndex& aItem ) const override;
+    bool IsContainer( const QModelIndex& aItem ) const;
 
     void Sync( const QString& aForceRefresh,
                std::function<void( int, int, const QString&)> aProgressCallback );
@@ -66,9 +68,9 @@ protected:
     LIB_TREE_NODE::PTR_VECTOR::iterator deleteLibrary( LIB_TREE_NODE::PTR_VECTOR::iterator& aLibNodeIt );
 
     void GetValue( QVariant& aVariant, QModelIndex const& aItem,
-                   unsigned int aCol ) const override;
+                   unsigned int aCol ) const;
     bool GetAttr( QModelIndex const& aItem, unsigned int aCol,
-                  QTextCharFormat& aAttr ) const override;
+                  QTextCharFormat& aAttr ) const;
 
     SYMBOL_TREE_SYNCHRONIZING_ADAPTER( SYMBOL_EDIT_FRAME* aParent,
                                        SYMBOL_LIBRARY_MANAGER* aLibMgr );

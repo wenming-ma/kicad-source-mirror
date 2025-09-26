@@ -129,7 +129,7 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::SaveSymbol( LIB_SYMBOL* aSymbol, OUTPUTFORMAT
 
     int nextFreeFieldId = MANDATORY_FIELD_COUNT;
     std::vector<SCH_FIELD*> fields;
-    std::string name = aFormatter.Quotew( aSymbol->GetLibId().GetLibItemName().toStdString().c_str() );
+    std::string name = aFormatter.Quotew( std::string(aSymbol->GetLibId().GetLibItemName()).c_str() );
     std::string unitName = aSymbol->GetLibId().GetLibItemName();
 
     if( !aLibName.isEmpty() )
@@ -227,7 +227,7 @@ void SCH_IO_KICAD_SEXPR_LIB_CACHE::SaveSymbol( LIB_SYMBOL* aSymbol, OUTPUTFORMAT
             // if the unit has a display name, write that
             if( aSymbol->HasUnitDisplayName( unit.m_unit ) )
             {
-                name = aSymbol->GetUnitDisplayName( unit.m_unit );
+                name = aSymbol->GetUnitDisplayName( unit.m_unit ).toStdString();
                 aFormatter.Print( "(unit_name %s)", aFormatter.Quotes( name ).c_str() );
             }
 

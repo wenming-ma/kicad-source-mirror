@@ -115,7 +115,7 @@ const BOX2I SCH_JUNCTION::GetBoundingBox() const
 void SCH_JUNCTION::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
                           const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
 {
-    QPaintDevice*   DC    = aSettings->GetPrintDC();
+    QPainter*   DC    = aSettings->GetPrintDC();
     COLOR4D color = GetJunctionColor();
 
     if( color == COLOR4D::UNSPECIFIED )

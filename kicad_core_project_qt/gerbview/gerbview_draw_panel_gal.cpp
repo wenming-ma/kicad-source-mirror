@@ -19,7 +19,7 @@
 
 #include "gerbview_draw_panel_gal.h"
 #include <view/view.h>
-#include <view/qt_view_controls.h>
+#include <view/wx_view_controls.h>
 #include <gerbview_painter.h>
 #include <drawing_sheet/ds_proxy_view_item.h>
 #include <zoom_defines.h>

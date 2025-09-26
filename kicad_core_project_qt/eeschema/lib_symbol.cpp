@@ -36,6 +36,8 @@
 #include <sch_shape.h>
 #include <QString>
 #include <QStringList>
+#include <QFileInfo>
+#include <i18n_utility.h>
 
 #include <memory>
 
@@ -300,7 +302,7 @@ QString LIB_SYMBOL::GetUnitDisplayName( int aUnit )
     if( HasUnitDisplayName( aUnit ) )
         return m_unitDisplayNames[aUnit];
     else
-        return QString::asprintf( _( "Unit %s" ), GetUnitReference( aUnit ).toStdString().c_str() );
+        return QString::asprintf( _( "Unit %s" ).toUtf8().constData(), GetUnitReference( aUnit ).toUtf8().constData() );
 }
 
 
@@ -1330,7 +1332,9 @@ int LIB_SYMBOL::GetMaxPinNumber() const
         const SCH_PIN* pin = static_cast<const SCH_PIN*>( &item );
         long           currentPinNumber = 0;
 
-        if( pin->GetNumber().ToLong( &currentPinNumber ) )
+        bool ok;
+        currentPinNumber = pin->GetNumber().toLong( &ok );
+        if( ok )
             maxPinNumber = std::max( maxPinNumber, (int) currentPinNumber );
     }
 
@@ -1665,7 +1669,7 @@ int LIB_SYMBOL::Compare( const LIB_SYMBOL& aRhs, int aCompareFlags, REPORTER* aR
             if( int tmp2 = (*aIt)->compare( *(*bIt), aCompareFlags ) )
             {
                 retv = tmp2;
-                REPORT( QString::asprintf( _( "%s differs." ), ITEM_DESC( *aIt ).toStdString().c_str() ) );
+                REPORT( QString::asprintf( _( "%s differs." ).toUtf8().constData(), ITEM_DESC( *aIt ).toUtf8().constData() ) );
 
                 if( !aReporter )
                     return retv;
@@ -1692,7 +1696,7 @@ int LIB_SYMBOL::Compare( const LIB_SYMBOL& aRhs, int aCompareFlags, REPORTER* aR
             if( !bPin )
             {
                 retv = 1;
-                REPORT( QString::asprintf( _( "Pin %s not found." ), aPin->GetNumber().toStdString().c_str() ) );
+                REPORT( QString::asprintf( _( "Pin %s not found." ).toUtf8().constData(), aPin->GetNumber().toUtf8().constData() ) );
 
                 if( !aReporter )
                     return retv;
@@ -1700,7 +1704,7 @@ int LIB_SYMBOL::Compare( const LIB_SYMBOL& aRhs, int aCompareFlags, REPORTER* aR
             else if( int tmp2 = aPinItem->compare( *bPin, aCompareFlags ) )
             {
                 retv = tmp2;
-                REPORT( QString::asprintf( _( "Pin %s differs." ), aPin->GetNumber().toStdString().c_str() ) );
+                REPORT( QString::asprintf( _( "Pin %s differs." ).toUtf8().constData(), aPin->GetNumber().toUtf8().constData() ) );
 
                 if( !aReporter )
                     return retv;
@@ -1727,7 +1731,7 @@ int LIB_SYMBOL::Compare( const LIB_SYMBOL& aRhs, int aCompareFlags, REPORTER* aR
         if( tmp )
         {
             retv = tmp;
-            REPORT( QString::asprintf( _( "%s field differs." ), aField->GetName( false ).toStdString().c_str() ) );
+            REPORT( QString::asprintf( _( "%s field differs." ).toUtf8().constData(), aField->GetName( false ).toUtf8().constData() ) );
 
             if( !aReporter )
                 return retv;
@@ -1985,7 +1989,7 @@ void LIB_SYMBOL::EmbedFonts()
 
     for( KIFONT::OUTLINE_FONT* font : fonts )
     {
-        auto file = GetEmbeddedFiles()->AddFile( font->GetFileName(), false );
+        auto file = GetEmbeddedFiles()->AddFile( QFileInfo( font->GetFileName() ), false );
         file->type = EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::FONT;
     }
 }

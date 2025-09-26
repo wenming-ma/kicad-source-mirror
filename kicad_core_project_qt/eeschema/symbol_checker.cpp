@@ -5,6 +5,7 @@
 #include <lib_symbol.h>
 #include <sch_shape.h>
 #include <macros.h>
+#include <i18n_utility.h>
 
 // helper function to sort pins by pin num
 static bool sort_by_pin_number( const SCH_PIN* ref, const SCH_PIN* tst );
@@ -56,7 +57,7 @@ void CheckDuplicatePins( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
             {
                 msg = QString::asprintf( _( "<b>Duplicate pin %s</b> %s at location <b>(%s, %s)</b>"
                                " conflicts with pin %s%s at location <b>(%s, %s)</b>"
-                               " in %s body style." ),
+                               " in %s body style." ).toUtf8().constData(),
                             next->GetNumber().toStdString().c_str(),
                             nextName.toStdString().c_str(),
                             aUnitsProvider->MessageTextFromValue( next->GetPosition().x ).toStdString().c_str(),
@@ -71,7 +72,7 @@ void CheckDuplicatePins( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
             {
                 msg = QString::asprintf( _( "<b>Duplicate pin %s</b> %s at location <b>(%s, %s)</b>"
                                " conflicts with pin %s%s at location <b>(%s, %s)</b>"
-                               " in units %s and %s of %s body style." ),
+                               " in units %s and %s of %s body style." ).toUtf8().constData(),
                             next->GetNumber().toStdString().c_str(),
                             nextName.toStdString().c_str(),
                             aUnitsProvider->MessageTextFromValue( next->GetPosition().x ).toStdString().c_str(),
@@ -90,7 +91,7 @@ void CheckDuplicatePins( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
             if( pin->GetUnit() == 0 || next->GetUnit() == 0 )
             {
                 msg = QString::asprintf( _( "<b>Duplicate pin %s</b> %s at location <b>(%s, %s)</b>"
-                               " conflicts with pin %s%s at location <b>(%s, %s)</b>." ),
+                               " conflicts with pin %s%s at location <b>(%s, %s)</b>." ).toUtf8().constData(),
                             next->GetNumber().toStdString().c_str(),
                             nextName.toStdString().c_str(),
                             aUnitsProvider->MessageTextFromValue( next->GetPosition().x ).toStdString().c_str(),
@@ -104,7 +105,7 @@ void CheckDuplicatePins( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
             {
                 msg = QString::asprintf( _( "<b>Duplicate pin %s</b> %s at location <b>(%s, %s)</b>"
                                " conflicts with pin %s%s at location <b>(%s, %s)</b>"
-                               " in units %s and %s." ),
+                               " in units %s and %s." ).toUtf8().constData(),
                             next->GetNumber().toStdString().c_str(),
                             nextName.toStdString().c_str(),
                             aUnitsProvider->MessageTextFromValue( next->GetPosition().x ).toStdString().c_str(),
@@ -164,7 +165,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
         if( illegal_end.indexOf( last_char ) != -1 )
         {
             msg = QString::asprintf( _( "<b>Warning: reference prefix</b><br>prefix ending by '%s' can create"
-                           " issues if saved in a symbol library" ),
+                           " issues if saved in a symbol library" ).toUtf8().constData(),
                         illegal_end.toStdString().c_str() );
             msg += "<br><br>";
             aMessages.push_back( msg );
@@ -192,19 +193,19 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
     {
         if( aSymbol->GetUnitCount() != 1 )
         {
-            msg = QString::fromUtf8( _( "<b>A Power Symbol should have only one unit</b><br><br>" ) );
+            msg = _( "<b>A Power Symbol should have only one unit</b><br><br>" );
             aMessages.push_back( msg );
         }
 
         if( aSymbol->HasAlternateBodyStyle() )
         {
-            msg = QString::fromUtf8( _( "<b>A Power Symbol should not have DeMorgan variants</b><br><br>" ) );
+            msg = _( "<b>A Power Symbol should not have DeMorgan variants</b><br><br>" );
             aMessages.push_back( msg );
         }
 
         if( pinList.size() != 1 )
         {
-            msg = QString::fromUtf8( _( "<b>A Power Symbol should have only one pin</b><br><br>" ) );
+            msg = _( "<b>A Power Symbol should have only one pin</b><br><br>" );
             aMessages.push_back( msg );
         }
 
@@ -213,15 +214,15 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
         if( pin->GetType() != ELECTRICAL_PINTYPE::PT_POWER_IN
                 && pin->GetType() != ELECTRICAL_PINTYPE::PT_POWER_OUT )
         {
-            msg = QString::fromUtf8( _( "<b>Suspicious Power Symbol</b><br>"
-                           "Only an input or output power pin has meaning<br><br>" ) );
+            msg = _( "<b>Suspicious Power Symbol</b><br>"
+                           "Only an input or output power pin has meaning<br><br>" );
             aMessages.push_back( msg );
         }
 
         if( pin->GetType() == ELECTRICAL_PINTYPE::PT_POWER_IN && !pin->IsVisible() )
         {
-            msg = QString::fromUtf8( _( "<b>Suspicious Power Symbol</b><br>"
-                           "Invisible input power pins are no longer required<br><br>" ) );
+            msg = _( "<b>Suspicious Power Symbol</b><br>"
+                           "Invisible input power pins are no longer required<br><br>" );
             aMessages.push_back( msg );
         }
     }
@@ -246,7 +247,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
                 if( aSymbol->GetUnitCount() <= 1 )
                 {
                     msg = QString::asprintf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>(%s, %s)</b>"
-                                   " in %s body style." ),
+                                   " in %s body style." ).toUtf8().constData(),
                                 pin->GetNumber().toStdString().c_str(),
                                 pinName.toStdString().c_str(),
                                 aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
@@ -256,7 +257,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
                 else
                 {
                     msg = QString::asprintf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>(%s, %s)</b>"
-                                   " in unit %c of %s body style." ),
+                                   " in unit %c of %s body style." ).toUtf8().constData(),
                                 pin->GetNumber().toStdString().c_str(),
                                 pinName.toStdString().c_str(),
                                 aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
@@ -270,7 +271,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
                 if( aSymbol->GetUnitCount() <= 1 )
                 {
                     msg = QString::asprintf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>"
-                                   "(%s, %s)</b>." ),
+                                   "(%s, %s)</b>." ).toUtf8().constData(),
                                 pin->GetNumber().toStdString().c_str(),
                                 pinName.toStdString().c_str(),
                                 aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
@@ -279,7 +280,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
                 else
                 {
                     msg = QString::asprintf( _( "Info: <b>Hidden power pin %s</b> %s at location <b>(%s, %s)</b>"
-                                   " in unit %c." ),
+                                   " in unit %c." ).toUtf8().constData(),
                                 pin->GetNumber().toStdString().c_str(),
                                 pinName.toStdString().c_str(),
                                 aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
@@ -305,7 +306,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
                 if( aSymbol->GetUnitCount() <= 1 )
                 {
                     msg = QString::asprintf( _( "<b>Off grid pin %s</b> %s at location <b>(%s, %s)</b>"
-                                   " of %s body style." ),
+                                   " of %s body style." ).toUtf8().constData(),
                                 pin->GetNumber().toStdString().c_str(),
                                 pinName.toStdString().c_str(),
                                 aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
@@ -315,7 +316,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
                 else
                 {
                     msg = QString::asprintf( _( "<b>Off grid pin %s</b> %s at location <b>(%s, %s)</b>"
-                                   " in unit %c of %s body style." ),
+                                   " in unit %c of %s body style." ).toUtf8().constData(),
                                 pin->GetNumber().toStdString().c_str(),
                                 pinName.toStdString().c_str(),
                                 aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
@@ -328,7 +329,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
             {
                 if( aSymbol->GetUnitCount() <= 1 )
                 {
-                    msg = QString::asprintf( _( "<b>Off grid pin %s</b> %s at location <b>(%s, %s)</b>." ),
+                    msg = QString::asprintf( _( "<b>Off grid pin %s</b> %s at location <b>(%s, %s)</b>." ).toUtf8().constData(),
                                 pin->GetNumber().toStdString().c_str(),
                                 pinName.toStdString().c_str(),
                                 aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
@@ -337,7 +338,7 @@ void CheckLibSymbol( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessages,
                 else
                 {
                     msg = QString::asprintf( _( "<b>Off grid pin %s</b> %s at location <b>(%s, %s)</b>"
-                                   " in unit %c." ),
+                                   " in unit %c." ).toUtf8().constData(),
                                 pin->GetNumber().toStdString().c_str(),
                                 pinName.toStdString().c_str(),
                                 aUnitsProvider->MessageTextFromValue( pin->GetPosition().x ).toStdString().c_str(),
@@ -379,7 +380,7 @@ void CheckLibSymbolGraphics( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessage
             if( shape->GetRadius() <= 0 )
             {
                 msg = QString::asprintf( _( "<b>Graphic circle has radius = 0</b> at location "
-                             "<b>(%s, %s)</b>." ),
+                             "<b>(%s, %s)</b>." ).toUtf8().constData(),
                             aUnitsProvider->MessageTextFromValue(shape->GetPosition().x ).toStdString().c_str(),
                             aUnitsProvider->MessageTextFromValue( -shape->GetPosition().y ).toStdString().c_str() );
                 msg += "<br>";
@@ -390,7 +391,7 @@ void CheckLibSymbolGraphics( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessage
         case SHAPE_T::RECTANGLE:
             if( shape->GetPosition() == shape->GetEnd() )
             {
-                msg = QString::asprintf( _( "<b>Graphic rectangle has size 0</b> at location <b>(%s, %s)</b>." ),
+                msg = QString::asprintf( _( "<b>Graphic rectangle has size 0</b> at location <b>(%s, %s)</b>." ).toUtf8().constData(),
                             aUnitsProvider->MessageTextFromValue(shape->GetPosition().x ).toStdString().c_str(),
                             aUnitsProvider->MessageTextFromValue( -shape->GetPosition().y ).toStdString().c_str() );
                 msg += "<br>";
@@ -414,7 +415,7 @@ void CheckLibSymbolGraphics( LIB_SYMBOL* aSymbol, std::vector<QString>& aMessage
 bool sort_by_pin_number( const SCH_PIN* ref, const SCH_PIN* tst )
 {
     // Use number as primary key
-    int test = ref->GetNumber().Cmp( tst->GetNumber() );
+    int test = ref->GetNumber().compare( tst->GetNumber() );
 
     // Use DeMorgan variant as secondary key
     if( test == 0 )

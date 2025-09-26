@@ -7,6 +7,7 @@
 #include <lib_tree_item.h>
 #include <pgm_base.h>
 #include <string_utils.h>
+#include <i18n_utility.h>
 
 
 
@@ -246,7 +247,7 @@ LIB_TREE_NODE_LIBRARY::LIB_TREE_NODE_LIBRARY( LIB_TREE_NODE* aParent, QString co
     m_Parent = aParent;
     m_LibId.SetLibNickname( aName );
 
-    m_SearchTerms.emplace_back( SEARCH_TERM( aName, 8 ) );
+    m_SearchTerms.emplace_back( aName, 8 );
 }
 
 
@@ -289,6 +290,7 @@ void LIB_TREE_NODE_LIBRARY::UpdateScore( const std::vector<std::unique_ptr<EDA_C
         }
     }
 }
+
 
 
 LIB_TREE_NODE_ROOT::LIB_TREE_NODE_ROOT()

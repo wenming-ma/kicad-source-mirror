@@ -374,7 +374,7 @@ const QString PLACEFILE_GERBER_WRITER::GetPlaceFileName( const QString& aFullBas
     post_id += aLayer == B_Cu ? "bottom" : "top";
     QString baseName = fn.completeBaseName() + post_id;
     QString dir = fn.absolutePath();
-    QString ext = FILEEXT::GerberFileExtension;
+    QString ext = QString::fromStdString( FILEEXT::GerberFileExtension );
 
     return dir + "/" + baseName + "." + ext;
 }

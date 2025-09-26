@@ -56,6 +56,7 @@ public:
     void paintEvent( QPaintEvent* event );
 
     virtual bool Validate() { return true; }
+    virtual bool TransferDataToWindow() { return true; }
     virtual bool TransferDataFromWindow() { return true; }
 
     void OnModify();

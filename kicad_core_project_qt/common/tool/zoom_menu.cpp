@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 // Qt transformation completed - wxWidgets to Qt framework conversion
 
 #include <tool/zoom_menu.h>
@@ -9,6 +9,7 @@
 #include <gal/graphics_abstraction_layer.h>
 #include <bitmaps.h>
 #include <functional>
+#include <vector>
 
 using namespace std::placeholders;
 
@@ -40,9 +41,15 @@ void ZOOM_MENU::update()
     Clear();
 
     int ii = ID_POPUP_ZOOM_LEVEL_START + 1;  // 0 reserved for menus which support auto-zoom
+    std::vector<QAction*> zoomActions;
 
     for( double factor : m_parent->config()->m_Window.zoom_factors )
-        Append( ii++, QString::asprintf( "Zoom: %.2f", factor ), "", true );
+    {
+        QAction* action = Add( QString::asprintf( "Zoom: %.2f", factor ), "", ii, BITMAPS::INVALID_BITMAP, true );
+        action->setData( ii );
+        zoomActions.push_back( action );
+        ii++;
+    }
 
     double zoom = m_parent->GetCanvas()->GetGAL()->GetZoomFactor();
 
@@ -54,6 +61,7 @@ void ZOOM_MENU::update()
         double rel_error = std::fabs( zoomList[jj] - zoom ) / zoom;
 
         // IDs start with 1 (leaving 0 for auto-zoom)
-        Check( ID_POPUP_ZOOM_LEVEL_START + jj + 1, rel_error < 0.1 );
+        if( jj < zoomActions.size() )
+            zoomActions[jj]->setChecked( rel_error < 0.1 );
     }
 }

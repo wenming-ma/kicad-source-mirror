@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 // Dialog base class for displaying HTML text content
 // Transformed from wxWidgets to Qt framework
 

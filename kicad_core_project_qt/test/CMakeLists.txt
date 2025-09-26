@@ -44,7 +44,7 @@ target_link_libraries(test_pcb_parser
 
 # Link required libraries for Schematic parser
 target_link_libraries(test_sch_parser
-    eeschema_lib
+    eeschema
     common
     kimath
     sexpr

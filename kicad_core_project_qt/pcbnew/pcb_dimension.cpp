@@ -585,7 +585,9 @@ void PCB_DIMENSION_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
     if( m_parent == nullptr ) return;
 
     // Don't use GetShownText(); we want to see the variable references here
-    aList.emplace_back( _( "Dimension" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+    // aList.emplace_back( _( "Dimension" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    aList.emplace_back( _( "Dimension" ), GetText() ); // Direct text without ellipsis
 
     aList.emplace_back( _( "Prefix" ), GetPrefix() );
 
@@ -739,8 +741,12 @@ const BOX2I PCB_DIMENSION_BASE::GetBoundingBox() const
 
 QString PCB_DIMENSION_BASE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
+    // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
+    // return QString::asprintf( _( "Dimension '%s' on %s" ).toStdString().c_str(),
+    //                          (aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() )).toStdString().c_str(),
+    //                          GetLayerName().toStdString().c_str() );
     return QString::asprintf( _( "Dimension '%s' on %s" ).toStdString().c_str(),
-                             (aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() )).toStdString().c_str(),
+                             (aFull ? GetShownText( false ) : GetText()).toStdString().c_str(), // Direct text without ellipsis
                              GetLayerName().toStdString().c_str() );
 }
 
@@ -1466,7 +1472,9 @@ void PCB_DIM_LEADER::updateGeometry()
 void PCB_DIM_LEADER::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     // Don't use GetShownText(); we want to see the variable references here
-    aList.emplace_back( _( "Leader" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+    // aList.emplace_back( _( "Leader" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    aList.emplace_back( _( "Leader" ), GetText() ); // Direct text without ellipsis
 
     ORIGIN_TRANSFORMS& originTransforms = aFrame->GetOriginTransforms();
 

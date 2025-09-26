@@ -733,7 +733,7 @@ void GERBER_DRAW_ITEM::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_
 
     if( ( m_netAttributes.m_NetAttribType & GBR_NETLIST_METADATA::GBR_NETINFO_PAD ) )
     {
-        if( m_netAttributes.m_PadPinFunction.isEmpty() )
+        if( m_netAttributes.m_PadPinFunction.IsEmpty() )
         {
             cmp_pad_msg = QString::asprintf( "Cmp: %s  Pad: %s",
                                 qPrintable(m_netAttributes.m_Cmpref),

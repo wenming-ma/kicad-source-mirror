@@ -88,7 +88,8 @@ SCH_SHEET* SCH_IO_KICAD_SEXPR::LoadSchematicFile( const QString& aFileName, SCHE
     QFileInfo fn( aFileName );
 
     // Show the font substitution warnings
-    fontconfig::FONTCONFIG::SetReporter( &WXLOG_REPORTER::GetInstance() );
+    // TODO: Replace with Qt logging mechanism when available
+    fontconfig::FONTCONFIG::SetReporter( nullptr );
 
     // Unfortunately child sheet file names the legacy schematic file format are not fully
     // qualified and are always appended to the project path.  The aFileName attribute must
@@ -628,7 +629,7 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
 
     if( symbol_name.size() )
     {
-        libName = toUTFTildaText( symbol_name.toStdString() );
+        libName = symbol_name.toStdString();
     }
     else
     {
@@ -780,7 +781,7 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
         // There was a bug introduced somewhere in the original alternated pin code that would
         // set the alternate pin to the default pin name which caused a number of library symbol
         // comparison issues.  Clearing the alternate pin resolves this issue.
-        if( pin->GetAlt().IsEmpty() || ( pin->GetAlt() == pin->GetBaseName() ) )
+        if( pin->GetAlt().isEmpty() || ( pin->GetAlt() == pin->GetBaseName() ) )
         {
             m_out->Print( "(pin %s", m_out->Quotew( pin->GetNumber() ).c_str() );
             KICAD_FORMAT::FormatUuid( m_out, pin->m_Uuid );
@@ -849,7 +850,7 @@ void SCH_IO_KICAD_SEXPR::saveSymbol( SCH_SYMBOL* aSymbol, const SCHEMATIC& aSche
                 if( aForClipboard && aRelativePath )
                     tmp.MakeRelativeTo( aRelativePath->Path() );
 
-                path = QString::fromStdString( tmp.AsString() );
+                path = tmp.AsString();
 
                 m_out->Print( "(path %s (reference %s) (unit %d))",
                               m_out->Quotew( path ).c_str(),
@@ -949,7 +950,7 @@ void SCH_IO_KICAD_SEXPR::saveBitmap( const SCH_BITMAP& aBitmap )
     buffer.open( QIODevice::WriteOnly );
     bitmapBase.SaveImageData( buffer );
 
-    KICAD_FORMAT::FormatStreamData( *m_out, *buffer.buffer().data() );
+    KICAD_FORMAT::FormatStreamData( *m_out, buffer );
 
     m_out->Print( ")" );        // Closes image token.
 }
@@ -1070,7 +1071,7 @@ void SCH_IO_KICAD_SEXPR::saveSheet( SCH_SHEET* aSheet, const SCH_SHEET_LIST& aSh
                 inProjectClause = true;
             }
 
-            QString path = QString::fromStdString( sheetInstances[i].m_Path.AsString() );
+            QString path = sheetInstances[i].m_Path.AsString();
 
             m_out->Print( "(path %s (page %s))",
                           m_out->Quotew( path ).c_str(),
@@ -1486,7 +1487,7 @@ void SCH_IO_KICAD_SEXPR::saveInstances( const std::vector<SCH_SHEET_INSTANCE>& a
 
         for( const SCH_SHEET_INSTANCE& instance : aInstances )
         {
-            QString path = QString::fromStdString( instance.m_Path.AsString() );
+            QString path = instance.m_Path.AsString();
 
             if( path.isEmpty() )
                 path = QStringLiteral( "/" ); // Root path
@@ -1551,7 +1552,7 @@ void SCH_IO_KICAD_SEXPR::EnumerateSymbolLib( QStringList&    aSymbolNameList,
     for( LIB_SYMBOL_MAP::const_iterator it = symbols.begin();  it != symbols.end();  ++it )
     {
         if( !powerSymbolsOnly || it->second->IsPower() )
-            aSymbolNameList.append( QString::fromStdString( it->first ) );
+            aSymbolNameList.append( it->first );
     }
 }
 
@@ -1585,17 +1586,17 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR::LoadSymbol( const QString& aLibraryPath,
 
     cacheLib( aLibraryPath, aProperties );
 
-    LIB_SYMBOL_MAP::const_iterator it = m_cache->m_symbols.find( aSymbolName.toStdString() );
+    LIB_SYMBOL_MAP::const_iterator it = m_cache->m_symbols.find( aSymbolName );
 
     // We no longer escape '/' in symbol names, but we used to.
     if( it == m_cache->m_symbols.end() && aSymbolName.contains( '/' ) )
-        it = m_cache->m_symbols.find( EscapeString( aSymbolName.toStdString(), CTX_LEGACY_LIBID ) );
+        it = m_cache->m_symbols.find( EscapeString( aSymbolName, CTX_LEGACY_LIBID ) );
 
     if( it == m_cache->m_symbols.end() && aSymbolName.contains( QStringLiteral( "{slash}" ) ) )
     {
         QString unescaped = aSymbolName;
         unescaped.replace( QStringLiteral( "{slash}" ), QStringLiteral( "/" ) );
-        it = m_cache->m_symbols.find( unescaped.toStdString() );
+        it = m_cache->m_symbols.find( unescaped );
     }
 
     if( it == m_cache->m_symbols.end() )
@@ -1626,7 +1627,7 @@ void SCH_IO_KICAD_SEXPR::DeleteSymbol( const QString& aLibraryPath, const QStrin
 
     cacheLib( aLibraryPath, aProperties );
 
-    m_cache->DeleteSymbol( aSymbolName.toStdString() );
+    m_cache->DeleteSymbol( aSymbolName );
 
     if( !isBuffering( aProperties ) )
         m_cache->Save();
@@ -1638,7 +1639,7 @@ void SCH_IO_KICAD_SEXPR::CreateLibrary( const QString& aLibraryPath,
 {
     if( QFileInfo::exists( aLibraryPath ) )
     {
-        THROW_IO_ERROR( QString( "Symbol library '%1' already exists." ).arg( aLibraryPath ).toStdString() );
+        THROW_IO_ERROR( QString( "Symbol library '%1' already exists." ).arg( aLibraryPath ) );
     }
 
     LOCALE_IO toggle;
@@ -1662,7 +1663,7 @@ bool SCH_IO_KICAD_SEXPR::DeleteLibrary( const QString& aLibraryPath,
     // Use Qt's QFile::remove for cross-platform file deletion
     if( !QFile::remove( aLibraryPath ) )
     {
-        THROW_IO_ERROR( QString( "Symbol library '%1' cannot be deleted." ).arg( aLibraryPath ).toStdString() );
+        THROW_IO_ERROR( QString( "Symbol library '%1' cannot be deleted." ).arg( aLibraryPath ) );
     }
 
     if( m_cache && m_cache->IsFile( aLibraryPath ) )
@@ -1761,7 +1762,7 @@ std::vector<LIB_SYMBOL*> SCH_IO_KICAD_SEXPR::ParseLibSymbols( std::string& aSymb
 
     std::vector<LIB_SYMBOL*>            newSymbols;
     std::unique_ptr<STRING_LINE_READER> reader = std::make_unique<STRING_LINE_READER>( aSymbolText,
-                                                                                       aSource );
+                                                                                       QString::fromStdString( aSource ) );
 
     do
     {

@@ -3,7 +3,8 @@
 #define PAGED_DIALOG_H
 
 #include <dialog_shim.h>
-#include <widgets/qt_treebook.h>
+#include <widgets/wx_treebook.h>
+#include <widgets/qt_infobar.h>
 #include <QWidget>
 #include <QString>
 #include <QSize>
@@ -13,8 +14,7 @@
 #include <vector>
 
 
-class QT_INFOBAR;
-class QT_TREEBOOK;
+class WX_TREEBOOK;
 
 class PAGED_DIALOG : public DIALOG_SHIM
 {
@@ -26,7 +26,7 @@ public:
                   const QSize&   aInitialSize = QSize() );
     ~PAGED_DIALOG() override;
 
-    QT_TREEBOOK* GetTreebook() { return m_treebook; }
+    WX_TREEBOOK* GetTreebook() { return m_treebook; }
 
     void SetInitialPage( const QString& aPage, const QString& aParentPage = QString() );
 
@@ -45,7 +45,6 @@ public:
 protected:
     void finishInitialization();
 
-    bool TransferDataToWindow() override;
     bool TransferDataFromWindow() override;
 
     virtual void onAuxiliaryAction();
@@ -55,7 +54,7 @@ protected:
     virtual void onPageChanging( int aEvent );
     virtual void onCharHook( QKeyEvent* aEvent );
 
-    QT_TREEBOOK* m_treebook;
+    WX_TREEBOOK* m_treebook;
     QPushButton* m_auxiliaryButton;
     QPushButton* m_resetButton;
     QPushButton* m_openPrefsDirButton;
@@ -63,6 +62,7 @@ protected:
 
 private:
     QString     m_title;
+    bool        m_modified;
 
     QVBoxLayout* m_buttonsSizer;
 

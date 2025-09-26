@@ -23,12 +23,11 @@ public:
     ~ERC_TREE_MODEL() {}
 
     /**
-     * Override of RC_TREE_MODEL::GetValue which returns item descriptions in a specific
+     * Override of RC_TREE_MODEL::data which returns item descriptions in a specific
      * SCH_SHEET_PATH context, if a context is available on the given SCH_MARKER or ERC_ITEM
      * targets.
      */
-    void GetValue( QVariant& aVariant, QModelIndex const& aItem,
-                   unsigned int aCol ) const override;
+    QVariant data( const QModelIndex& aIndex, int aRole = Qt::DisplayRole ) const override;
 };
 
 class ERC_ITEM : public RC_ITEM

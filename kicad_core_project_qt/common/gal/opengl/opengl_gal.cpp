@@ -20,7 +20,7 @@
 #include <pgm_base.h>
 #include <trace_helpers.h>
 
-#include <QtOpenGL/QOpenGLWidget>
+#include <QtOpenGLWidgets/QOpenGLWidget>
 #include <QtOpenGL/QOpenGLContext>
 #include <QtWidgets/QApplication>
 #include <QtCore/QTimer>
@@ -359,7 +359,7 @@ OPENGL_GAL::OPENGL_GAL( const KIGFX::VC_SETTINGS& aVcSettings, GAL_DISPLAY_OPTIO
     // Qt event handling will be implemented in derived classes
     // Mouse events, paint events, and gestures are handled through Qt's event system
 
-    SetSize( aParent->GetClientSize() );
+    SetSize( aParent->size() );
     m_screenSize = ToVECTOR2I( GetNativePixelSize() );
 
     // Grid color settings are different in Cairo and OpenGL

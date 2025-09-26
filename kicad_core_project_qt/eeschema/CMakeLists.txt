@@ -53,11 +53,7 @@ set( TOOLS_SRCS
 )
 
 set( EESCHEMA_DIALOGS
-    # dialogs/dialog_lib_new_symbol.cpp
-    # dialogs/dialog_lib_new_symbol_base.cpp
-    # dialogs/dialog_pin_properties.cpp
-    # dialogs/dialog_pin_properties_base.cpp
-    # dialogs/dialog_text_properties.cpp
+
 )
 
 set( EESCHEMA_IMPORT_GFX
@@ -68,10 +64,7 @@ set( EESCHEMA_IMPORT_GFX
 )
 
 set( EESCHEMA_WIDGETS
-    # widgets/pin_shape_combobox.cpp
-    # widgets/pin_type_combobox.cpp
-    # widgets/symbol_filter_combobox.cpp
-    # widgets/symbol_preview_widget.cpp
+
 )
 
 set( EESCHEMA_SRCS

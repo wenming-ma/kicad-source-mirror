@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 /**
  * @file PDF_plotter.cpp
@@ -66,7 +66,7 @@ std::string PDF_PLOTTER::encodeStringForPlotter( const QString& aText )
 
     for( size_t ii = 0; ii < aText.length(); ii++ )
     {
-        if( aText[ii] >= 0x7F )
+        if( aText[ii].unicode() >= 0x7F )
         {
             is_ascii7 = false;
             break;
@@ -79,7 +79,7 @@ std::string PDF_PLOTTER::encodeStringForPlotter( const QString& aText )
 
         for( unsigned ii = 0; ii < aText.length(); ii++ )
         {
-            unsigned int code = aText[ii];
+            unsigned int code = aText[ii].unicode();
 
             // These characters must be escaped
             switch( code )
@@ -105,7 +105,7 @@ std::string PDF_PLOTTER::encodeStringForPlotter( const QString& aText )
 
         for( size_t ii = 0; ii < aText.length(); ii++ )
         {
-            unsigned int code = aText[ii];
+            unsigned int code = aText[ii].unicode();
             char buffer[16];
             std::snprintf( buffer, sizeof( buffer ), "%4.4X", code );
             result += buffer;
@@ -1242,16 +1242,17 @@ bool PDF_PLOTTER::EndPlot()
 
         long imgStreamStart = ftell( m_outputFile );
 
+        QByteArray compressedImageData;
         {
             QByteArray imageData;
             QBuffer imageBuffer(&imageData);
             imageBuffer.open(QIODevice::WriteOnly);
             QDataStream dos(&imageBuffer);
 
-            WriteImageStream( image, dos, m_renderSettings->GetBackgroundColor().ToQColor(),
+            WriteImageStream( image, dos, m_renderSettings->GetBackgroundColor().ToColor(),
                               m_colorMode );
             imageBuffer.close();
-            QByteArray compressedImageData = qCompress(imageData, 9);
+            compressedImageData = qCompress(imageData, 9);
             fwrite( compressedImageData.constData(), 1, compressedImageData.size(), m_outputFile );
         }
 
@@ -1287,6 +1288,7 @@ bool PDF_PLOTTER::EndPlot()
 
             long smaskStreamStart = ftell( m_outputFile );
 
+            QByteArray compressedSMaskData;
             {
                 QByteArray smaskData;
                 QBuffer smaskBuffer(&smaskData);
@@ -1295,7 +1297,7 @@ bool PDF_PLOTTER::EndPlot()
 
                 WriteImageSMaskStream( image, dos );
                 smaskBuffer.close();
-                QByteArray compressedSMaskData = qCompress(smaskData, 9);
+                compressedSMaskData = qCompress(smaskData, 9);
                 fwrite( compressedSMaskData.constData(), 1, compressedSMaskData.size(), m_outputFile );
             }
 

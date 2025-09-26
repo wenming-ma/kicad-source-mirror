@@ -19,6 +19,8 @@ public:
 
     void Flush();
 
+    void SetHasMessages( bool hasMessages ) { m_bHasMessages = hasMessages; }
+
 private:
     QtMessageHandler m_previousLogger;
     bool   m_activated;

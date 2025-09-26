@@ -3,20 +3,22 @@
 #define _EESCHEMA_SETTINGS_H
 
 #include <QtWidgets/QWidget>
+#include <QtWidgets/QDockWidget>
 #include <QtCore/QSize>
 #include <QtCore/QPoint>
 #include <QtCore/QSettings>
 
 #include <settings/app_settings.h>
 // #include <sim/sim_preferences.h> // UNUSED_SYMBOL: SIM functionality disabled
+#include <nlohmann/json_fwd.hpp>
 
 using KIGFX::COLOR4D;
 
 
-extern const QWidget& defaultNetNavigatorPaneInfo();
-extern const QWidget& defaultPropertiesPaneInfo( QWidget* aWindow );
-extern const QWidget& defaultSchSelectionFilterPaneInfo( QWidget* aWindow );
-extern const QWidget& defaultDesignBlocksPaneInfo( QWidget* aWindow );
+extern const QDockWidget* defaultNetNavigatorPaneInfo();
+extern const QDockWidget* defaultPropertiesPaneInfo( QWidget* aWindow );
+extern const QDockWidget* defaultSchSelectionFilterPaneInfo( QWidget* aWindow );
+extern const QDockWidget* defaultDesignBlocksPaneInfo( QWidget* aWindow );
 
 
 

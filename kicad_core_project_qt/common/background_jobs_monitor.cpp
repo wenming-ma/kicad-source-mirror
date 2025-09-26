@@ -158,7 +158,8 @@ private:
 
 BACKGROUND_JOB_REPORTER::BACKGROUND_JOB_REPORTER( BACKGROUND_JOBS_MONITOR* aMonitor,
                                                   std::shared_ptr<BACKGROUND_JOB> aJob ) :
-        PROGRESS_REPORTER_BASE( 1 ),
+        // UNUSED_SYMBOL: PROGRESS_REPORTER_BASE constructor in unused_symbols.txt - Progress reporter disabled
+        // PROGRESS_REPORTER_BASE( 1 ),
         m_monitor( aMonitor ), m_job( aJob )
 {
 
@@ -180,7 +181,8 @@ void BACKGROUND_JOB_REPORTER::Report( const QString& aMessage )
 
 void BACKGROUND_JOB_REPORTER::SetNumPhases( int aNumPhases )
 {
-    PROGRESS_REPORTER_BASE::SetNumPhases( aNumPhases );
+    // UNUSED_SYMBOL: PROGRESS_REPORTER_BASE::SetNumPhases in unused_symbols.txt - Progress reporter method disabled
+    // PROGRESS_REPORTER_BASE::SetNumPhases( aNumPhases );
     m_job->m_maxProgress = m_numPhases;
     m_monitor->jobUpdated( m_job );
 }
@@ -188,7 +190,8 @@ void BACKGROUND_JOB_REPORTER::SetNumPhases( int aNumPhases )
 
 void BACKGROUND_JOB_REPORTER::AdvancePhase()
 {
-    PROGRESS_REPORTER_BASE::AdvancePhase();
+    // UNUSED_SYMBOL: PROGRESS_REPORTER_BASE::AdvancePhase in unused_symbols.txt - Progress reporter method disabled
+    // PROGRESS_REPORTER_BASE::AdvancePhase();
     m_job->m_currentProgress = m_phase;
     m_monitor->jobUpdated( m_job );
 }

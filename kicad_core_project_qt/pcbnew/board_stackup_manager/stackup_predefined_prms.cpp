@@ -118,5 +118,5 @@ const QString FAB_LAYER_COLOR::GetColorAsString() const
         return m_colorName;
 
     return QString::asprintf( "R%dG%dB%d",
-                             int( m_color.red() ), int( m_color.green() ), int( m_color.blue() ) );
+                             int( m_color.r * 255 ), int( m_color.g * 255 ), int( m_color.b * 255 ) );
 }

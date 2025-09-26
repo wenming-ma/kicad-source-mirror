@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #ifndef  SCH_EDIT_FRAME_H
 #define  SCH_EDIT_FRAME_H
@@ -11,6 +11,8 @@
 #include <QtWidgets/QWidget>
 #include <QtGui/QPagedPaintDevice>
 #include <QtCore/QEvent>
+#include <QtCore/QProcess>
+#include <QtCore/QIODevice>
 
 #include <core/typeinfo.h>
 #include <eda_base_frame.h>
@@ -52,7 +54,6 @@ enum SCH_SEARCH_T
 };
 
 
-Q_DECLARE_METATYPE(QEvent*)
 Q_DECLARE_METATYPE(QEvent*)
 
 
@@ -748,14 +749,14 @@ public:
     /**
      * Reset the execution flags to defaults for external netlist and bom generators.
      */
-    void DefaultExecFlags() { m_exec_flags = QProcess::NotOpen; }
+    void DefaultExecFlags() { m_exec_flags = QIODevice::NotOpen; }
 
     /**
      * Set (adds) specified flags for next execution of external generator of the netlist or bom.
      *
      * @param aFlags is the QProcess flags, see QProcess documentation.
      */
-    void SetExecFlags( const int aFlags ) { m_exec_flags = static_cast<QProcess::ProcessState>(m_exec_flags | aFlags); }
+    void SetExecFlags( const int aFlags ) { m_exec_flags = static_cast<QIODevice::OpenMode>(m_exec_flags | aFlags); }
 
     /**
      * Clear (removes) specified flags that not needed for next execution of external generator
@@ -763,7 +764,7 @@ public:
      *
      * @param aFlags is the QProcess flags, see QProcess documentation.
      */
-    void ClearExecFlags( const int aFlags ) { m_exec_flags = static_cast<QProcess::ProcessState>(m_exec_flags & ~( aFlags )); }
+    void ClearExecFlags( const int aFlags ) { m_exec_flags = static_cast<QIODevice::OpenMode>(m_exec_flags & ~( aFlags )); }
 
     QString GetNetListerCommand() const { return m_netListerCommand; }
 
@@ -964,7 +965,7 @@ private:
 
     void OnClearFileHistory( QEvent* aEvent );
 
-    bool canCloseWindow( QCloseEvent* aCloseEvent ) override;
+    bool canCloseWindow( QCloseEvent* aCloseEvent );
     void doCloseWindow() override;
 
     /**
@@ -1043,7 +1044,7 @@ private:
 
     QString                     m_netListerCommand;   ///< Command line to call a custom net list
                                                       ///< generator.
-    QProcess::ProcessState      m_exec_flags;         ///< Flags of the QProcess function
+    QIODevice::OpenMode         m_exec_flags;         ///< Flags of the QProcess function
                                                       ///< to call a custom net list generator.
 
     DIALOG_SCH_FIND*            m_findReplaceDialog;

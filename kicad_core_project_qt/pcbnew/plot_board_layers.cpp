@@ -155,7 +155,7 @@ void PlotInteractiveLayer( BOARD* aBoard, PLOTTER* aPlotter, const PCB_PLOT_PARA
             if( field->IsReference() || field->IsValue() )
                 continue;
 
-            if( field->GetText().IsEmpty() )
+            if( field->GetText().isEmpty() )
                 continue;
 
             properties.emplace_back( QString::asprintf( "!%s = %s",
@@ -678,7 +678,7 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
 
         // Some vias can be not connected (no net).
         // Set the m_NotInNet for these vias to force a empty net name in gerber file
-        gbr_metadata.m_NetlistMetadata.m_NotInNet = via->GetNetname().IsEmpty();
+        gbr_metadata.m_NetlistMetadata.m_NotInNet = via->GetNetname().isEmpty();
 
         gbr_metadata.SetNetName( via->GetNetname() );
 
@@ -730,7 +730,7 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
 
         // Some track segments can be not connected (no net).
         // Set the m_NotInNet for these segments to force a empty net name in gerber file
-        gbr_metadata.m_NetlistMetadata.m_NotInNet = track->GetNetname().IsEmpty();
+        gbr_metadata.m_NetlistMetadata.m_NotInNet = track->GetNetname().isEmpty();
 
         gbr_metadata.SetNetName( track->GetNetname() );
 

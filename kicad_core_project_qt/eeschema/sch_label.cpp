@@ -198,7 +198,7 @@ const QString SCH_LABEL_BASE::GetDefaultFieldName( const QString& aName, bool aU
         return _( "Sheet References" );
     else if( aName == QStringLiteral( "Netclass" ) )
         return _( "Net Class" );
-    else if( aName.IsEmpty() && aUseDefaultName )
+    else if( aName.isEmpty() && aUseDefaultName )
         return _( "Field" );
     else
         return aName;
@@ -664,7 +664,7 @@ void SCH_LABEL_BASE::GetContextualTextVars( QStringList* aVars ) const
     for( const SCH_FIELD& field : m_fields )
     {
         if( field.IsMandatory() )
-            aVars->push_back( field.GetCanonicalName().Upper() );
+            aVars->push_back( field.GetCanonicalName().toUpper() );
         else
             aVars->push_back( field.GetName() );
     }
@@ -692,16 +692,16 @@ bool SCH_LABEL_BASE::ResolveTextVar( const SCH_SHEET_PATH* aPath, QString* token
     if( !schematic )
         return false;
 
-    if( operatingPoint.Matches( *token ) )
+    if( operatingPoint.match( *token ).hasMatch() )
     {
         int      precision = 3;
         QString precisionStr( operatingPoint.match( *token ).captured( 2 ) );
         QString range( operatingPoint.match( *token ).captured( 3 ) );
 
-        if( !precisionStr.IsEmpty() )
-            precision = precisionStr[0] - '0';
+        if( !precisionStr.isEmpty() )
+            precision = precisionStr[0].digitValue();
 
-        if( range.IsEmpty() )
+        if( range.isEmpty() )
             range = QStringLiteral( "~V" );
 
         const SCH_CONNECTION* connection = Connection();
@@ -713,7 +713,7 @@ bool SCH_LABEL_BASE::ResolveTextVar( const SCH_SHEET_PATH* aPath, QString* token
         return true;
     }
 
-    if( token->Contains( ':' ) )
+    if( token->contains( ':' ) )
     {
         if( schematic->ResolveCrossReference( token, aDepth + 1 ) )
             return true;
@@ -759,7 +759,7 @@ bool SCH_LABEL_BASE::ResolveTextVar( const SCH_SHEET_PATH* aPath, QString* token
 
     for( const SCH_FIELD& field : m_fields)
     {
-        if( token->IsSameAs( field.GetName() ) )
+        if( *token == field.GetName() )
         {
             *token = field.GetShownText( false, aDepth + 1 );
             return true;
@@ -1398,7 +1398,7 @@ void SCH_LABEL_BASE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int
 
     SCH_CONNECTION* connection = Connection();
     int             layer = ( connection && connection->IsBus() ) ? LAYER_BUS : m_layer;
-    QPaintDevice*   DC = aSettings->GetPrintDC();
+    QPainter*       DC = aSettings->GetPrintDC();
     COLOR4D         color = aSettings->GetLayerColor( layer );
     bool            blackAndWhiteMode = GetGRForceBlackPenState();
     int             penWidth = GetEffectivePenWidth( aSettings );
@@ -1514,8 +1514,11 @@ const BOX2I SCH_LABEL::GetBodyBoundingBox( const RENDER_SETTINGS* aSettings ) co
 
 QString SCH_LABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
+    // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
+    // return QString::asprintf( _("Label '%s'").toStdString().c_str(),
+    //                          aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
     return QString::asprintf( _("Label '%s'").toStdString().c_str(),
-                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
+                             aFull ? GetShownText( false ) : GetText() ); // Direct text without ellipsis
 }
 
 
@@ -1794,8 +1797,9 @@ QString SCH_DIRECTIVE_LABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider,
     {
         return QString::asprintf( _("Directive Label [%s %s]").toStdString().c_str(),
                                  UnescapeString( m_fields[0].GetName() ),
+                                 // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
                                  aFull ? m_fields[0].GetShownText( false )
-                                       : KIUI::EllipsizeMenuText( m_fields[0].GetText() ) );
+                                       : m_fields[0].GetText() ); // Direct text without ellipsis
     }
 }
 
@@ -1945,8 +1949,8 @@ bool SCH_GLOBALLABEL::ResolveTextVar( const SCH_SHEET_PATH* aPath, QString* toke
                 for( const int& pageNo : pageListCopy )
                     ref.append( QString::asprintf( "%s,", sheetPages[pageNo].toStdString().c_str() ) );
 
-                if( !ref.IsEmpty() && ref.Last() == ',' )
-                    ref.RemoveLast();
+                if( !ref.isEmpty() && ref.back() == ',' )
+                    ref.chop(1);
             }
         }
 
@@ -2035,8 +2039,11 @@ void SCH_GLOBALLABEL::CreateGraphicShape( const RENDER_SETTINGS* aRenderSettings
 
 QString SCH_GLOBALLABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
+    // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
+    // return QString::asprintf( _("Global Label '%s'").toStdString().c_str(),
+    //                          aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
     return QString::asprintf( _("Global Label '%s'").toStdString().c_str(),
-                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
+                             aFull ? GetShownText( false ) : GetText() ); // Direct text without ellipsis
 }
 
 
@@ -2182,8 +2189,11 @@ VECTOR2I SCH_HIERLABEL::GetSchematicTextOffset( const RENDER_SETTINGS* aSettings
 
 QString SCH_HIERLABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
+    // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
+    // return QString::asprintf( _("Hierarchical Label '%s'").toStdString().c_str(),
+    //                          aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
     return QString::asprintf( _("Hierarchical Label '%s'").toStdString().c_str(),
-                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
+                             aFull ? GetShownText( false ) : GetText() ); // Direct text without ellipsis
 }
 
 
@@ -2230,7 +2240,7 @@ static struct SCH_LABEL_DESC
     {
         auto& labelShapeEnum = ENUM_MAP<LABEL_SHAPE>::Instance();
 
-        if( labelShapeEnum.Choices().GetCount() == 0 )
+        if( labelShapeEnum.Choices().count() == 0 )
         {
             labelShapeEnum.Map( LABEL_SHAPE::LABEL_INPUT, _HKI( "Input" ) )
                           .Map( LABEL_SHAPE::LABEL_OUTPUT, _HKI( "Output" ) )
@@ -2285,7 +2295,7 @@ static struct SCH_DIRECTIVE_LABEL_DESC
     {
         auto& flagShapeEnum = ENUM_MAP<FLAG_SHAPE>::Instance();
 
-        if( flagShapeEnum.Choices().GetCount() == 0 )
+        if( flagShapeEnum.Choices().count() == 0 )
         {
             flagShapeEnum.Map( FLAG_SHAPE::FLAG_DOT, _HKI( "Dot" ) )
                          .Map( FLAG_SHAPE::FLAG_CIRCLE, _HKI( "Circle" ) )
@@ -2321,5 +2331,7 @@ static struct SCH_DIRECTIVE_LABEL_DESC
 } _SCH_DIRECTIVE_LABEL_DESC;
 
 
-ENUM_TO_WXANY( LABEL_SHAPE )
-ENUM_TO_WXANY( FLAG_SHAPE )
+// Qt Note: The wxWidgets ENUM_TO_WXANY macros have been removed.
+// If Qt variant support is needed for these enums in the future, use:
+// Q_DECLARE_METATYPE(LABEL_SHAPE)
+// Q_DECLARE_METATYPE(FLAG_SHAPE)

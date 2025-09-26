@@ -1,7 +1,8 @@
 // Qt transformation completed - wxWidgets framework replaced with Qt
 
-#include <QtWidgets/QPrintPreviewWidget>
+#include <QtCore/QObject>
 #include <QtGui/QPainter>
+#include <QtPrintSupport/QPrinter>
 #include <QtCore/QString>
 #include <QtCore/QRect>
 
@@ -49,7 +50,7 @@ void BOARD_PRINTOUT_SETTINGS::Save( APP_SETTINGS_BASE* aConfig )
 
 BOARD_PRINTOUT::BOARD_PRINTOUT( const BOARD_PRINTOUT_SETTINGS& aParams,
                                 const KIGFX::VIEW* aView, const QString& aTitle ) :
-    QPrintPreviewWidget( nullptr ),
+    QObject( nullptr ),
     m_settings( aParams ),
     m_title( aTitle )
 {
@@ -68,20 +69,22 @@ void BOARD_PRINTOUT::GetPageInfo( int* minPage, int* maxPage, int* selPageFrom, 
 }
 
 
-void BOARD_PRINTOUT::DrawPage( const QString& aLayerName, int aPageNum, int aPageCount )
+void BOARD_PRINTOUT::DrawPage( QPainter* aPainter, QPrinter* aPrinter,
+                                const QString& aLayerName, int aPageNum, int aPageCount )
 {
-    QPainter* dc = getPainter();
+    QPainter* dc = aPainter;
     KIGFX::GAL_DISPLAY_OPTIONS options;
-    std::unique_ptr<KIGFX::GAL_PRINT> galPrint = KIGFX::GAL_PRINT::Create( options, dc );
+    // Pass QPrinter (which is a QPaintDevice) instead of QPainter
+    std::unique_ptr<KIGFX::GAL_PRINT> galPrint = KIGFX::GAL_PRINT::Create( options, aPrinter );
     KIGFX::GAL* gal = galPrint->GetGAL();
     KIGFX::PRINT_CONTEXT* printCtx = galPrint->GetPrintCtx();
     std::unique_ptr<KIGFX::PAINTER> painter = getPainter( gal );
     std::unique_ptr<KIGFX::VIEW> view( m_view->DataReference() );
 
-    // Target paper size
-    QRect         pageSizePx = getLogicalPageRect();
-    const VECTOR2D pageSizeIn( (double) pageSizePx.width() / getPPI().x(),
-                               (double) pageSizePx.height() / getPPI().y() );
+    // Target paper size - pageRect() requires a unit parameter in Qt
+    QRectF         pageSizePx = aPrinter->pageRect(QPrinter::DevicePixel);
+    const VECTOR2D pageSizeIn( (double) pageSizePx.width() / aPrinter->logicalDpiX(),
+                               (double) pageSizePx.height() / aPrinter->logicalDpiY() );
     const VECTOR2D pageSizeIU( milsToIU( pageSizeIn.x * 1000 ), milsToIU( pageSizeIn.y * 1000 ) );
 
     galPrint->SetSheetSize( pageSizeIn );
@@ -162,7 +165,7 @@ void BOARD_PRINTOUT::DrawPage( const QString& aLayerName, int aPageNum, int aPag
     // in pixels.  This can ?somehow? prevent some but not all foreground elements from being printed
     // TODO: figure out what's going on here and fix printing.  See also sch_printout
     VECTOR2I size = gal->GetScreenPixelSize();
-    gal->ResizeScreen( pageSizePx.width(), pageSizePx.height() );
+    gal->ResizeScreen( static_cast<int>( pageSizePx.width() ), static_cast<int>( pageSizePx.height() ) );
     gal->ClearScreen();
     gal->ResizeScreen( size.x, size.y );
 

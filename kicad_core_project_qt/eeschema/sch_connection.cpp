@@ -12,7 +12,6 @@
 #include <string_utils.h>
 
 #include <sch_connection.h>
-#include <boost/algorithm/string/join.hpp>
 
 /**
  *
@@ -427,7 +426,7 @@ void SCH_CONNECTION::AppendInfoToMsgPanel( std::vector<MSG_PANEL_ITEM>& aList ) 
     if( std::shared_ptr<BUS_ALIAS> alias = m_graph->GetBusAlias( m_name ) )
     {
         msg = QString( "Bus Alias %1 Members" ).arg( m_name );
-        aList.emplace_back( msg, boost::algorithm::join( alias->Members(), " " ) );
+        aList.emplace_back( msg, QStringList( alias->Members().begin(), alias->Members().end() ).join( " " ) );
     }
     else if( NET_SETTINGS::ParseBusGroup( m_name, &group_name, &group_members ) )
     {
@@ -436,7 +435,7 @@ void SCH_CONNECTION::AppendInfoToMsgPanel( std::vector<MSG_PANEL_ITEM>& aList ) 
             if( std::shared_ptr<BUS_ALIAS> group_alias = m_graph->GetBusAlias( group_member ) )
             {
                 msg = QString( "Bus Alias %1 Members" ).arg( group_alias->GetName() );
-                aList.emplace_back( msg, boost::algorithm::join( group_alias->Members(), " " ) );
+                aList.emplace_back( msg, QStringList( group_alias->Members().begin(), group_alias->Members().end() ).join( " " ) );
             }
         }
     }

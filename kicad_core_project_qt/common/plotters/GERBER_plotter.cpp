@@ -231,7 +231,7 @@ void GERBER_PLOTTER::formatNetAttribute( GBR_NETLIST_METADATA* aData )
     if( !short_attribute_string.empty() )
         fputs( short_attribute_string.c_str(), m_outputFile );
 
-    if( m_useX2format && !aData->m_ExtraData.IsEmpty() )
+    if( m_useX2format && !aData->m_ExtraData.isEmpty() )
     {
         std::string extra_data = TO_UTF8( aData->m_ExtraData );
         fputs( extra_data.c_str(), m_outputFile );

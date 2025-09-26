@@ -37,7 +37,7 @@ public:
 
 protected:
 
-    void onPaint( QPaintEvent& aEvent ) override;
+    void paintEvent( QPaintEvent* aEvent ) override;
 
     KIGFX::SCH_VIEW* view() const;
 

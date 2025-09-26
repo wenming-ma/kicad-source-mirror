@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #include <tool/grid_menu.h>
 #include <id.h>
@@ -8,6 +8,7 @@
 #include <tool/actions.h>
 #include <bitmaps.h>
 #include <base_units.h>
+#include <i18n_utility.h>
 #include <QAction>
 #include <QStringList>
 
@@ -23,7 +24,7 @@ GRID_MENU::GRID_MENU( EDA_DRAW_FRAME* aParent ) :
 }
 
 
-OPT_TOOL_EVENT GRID_MENU::eventHandler( const QAction* aAction )
+OPT_TOOL_EVENT GRID_MENU::eventHandler( QAction* aAction )
 {
     OPT_TOOL_EVENT event( ACTIONS::gridPreset.MakeEvent() );
     event->SetParameter<int>( aAction->data().toInt() - ID_POPUP_GRID_START );
@@ -33,7 +34,7 @@ OPT_TOOL_EVENT GRID_MENU::eventHandler( const QAction* aAction )
 
 void GRID_MENU::UpdateTitle()
 {
-    SetTitle( "Grid" );
+    SetTitle( _( "Grid" ) );
 }
 
 
@@ -46,16 +47,16 @@ void GRID_MENU::update()
 
     GRID_MENU::BuildChoiceList( &gridsList, settings, m_parent );
 
-    while( GetMenuItemCount() > 0 )
-        Delete( FindItemByPosition( 0 ) );
+    while( actions().count() > 0 )
+        removeAction( actions().at( 0 ) );
 
     Add( ACTIONS::gridOrigin );
-    AppendSeparator();
+    addSeparator();
 
     for( const QString& grid : gridsList )
     {
         int idx = i++;
-        Append( idx, grid, QString(), true )->Check( idx == (int) current );
+        Add( grid, QString(), idx, BITMAPS::INVALID_BITMAP, true )->setChecked( idx == (int) current );
     }
 }
 

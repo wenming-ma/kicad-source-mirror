@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 #pragma once
 
 #include <widgets/filter_combobox.h>
@@ -20,7 +20,7 @@ public:
     SYMBOL_FILTER_COMBOBOX( QWidget* parent, int id, const QPoint& pos = QPoint(),
                             const QSize& size = QSize(), long style = 0 );
 
-    QString GetValue() const override;
+    QString GetValue() const { return currentText(); }
 
 protected:
     SYMBOL_FILTER_COMBOPOPUP* m_selectorPopup;

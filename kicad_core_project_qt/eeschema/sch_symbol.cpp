@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #include <sch_collectors.h>
 #include <sch_commit.h>
@@ -16,17 +16,21 @@
 #include <trigo.h>
 #include <refdes_utils.h>
 #include <QLoggingCategory>
+#include <QDebug>
 #include <QString>
 #include <QStringList>
 #include <QRegularExpression>
+#include <QColor>
 #include <settings/settings_manager.h>
 #include <sch_plotter.h>
 #include <string_utils.h>
 #include <sch_rule_area.h>
 
 #include <utility>
+#include <memory>
 #include <validators.h>
 
+Q_LOGGING_CATEGORY(logSchSheetPaths, "kicad.sch.sheetpaths")
 
 std::unordered_map<TRANSFORM, int> SCH_SYMBOL::s_transformToOrientationCache;
 
@@ -513,10 +517,10 @@ void SCH_SYMBOL::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBo
 
     if( m_DNP )
     {
-        // Qt equivalent drawing context would be used here
+        QPainter* DC = localRenderSettings.GetPrintDC();
         BOX2I    bbox = GetBodyBoundingBox();
         BOX2I    pins = GetBodyAndPinsBoundingBox();
-        QColor  dnp_color = localRenderSettings.GetLayerColor( LAYER_DNP_MARKER );
+        QColor  dnp_color = localRenderSettings.GetLayerColor( LAYER_DNP_MARKER ).ToColor();
         VECTOR2D margins( std::max( bbox.GetX() - pins.GetX(), pins.GetEnd().x - bbox.GetEnd().x ),
                           std::max( bbox.GetY() - pins.GetY(),
                                     pins.GetEnd().y - bbox.GetEnd().y ) );
@@ -575,13 +579,13 @@ void SCH_SYMBOL::RemoveInstance( const KIID_PATH& aInstancePath )
     {
         if( m_instanceReferences[ii].m_Path == aInstancePath )
         {
-            qCDebug(logSchSheetPaths) << "Removing symbol instance:\n"
+            qCDebug(logSchSheetPaths) << QString::asprintf( "Removing symbol instance:\n"
                                                  "    sheet path %s\n"
-                                                 "    reference %s, unit %d from symbol %s." ),
-                        aInstancePath.AsString(),
-                        m_instanceReferences[ii].m_Reference,
+                                                 "    reference %s, unit %d from symbol %s.",
+                        aInstancePath.AsString().toStdString().c_str(),
+                        m_instanceReferences[ii].m_Reference.toStdString().c_str(),
                         m_instanceReferences[ii].m_Unit,
-                        m_Uuid.AsString() );
+                        m_Uuid.AsString().toStdString().c_str() );
 
             m_instanceReferences.erase( m_instanceReferences.begin() + ii );
         }
@@ -1335,7 +1339,7 @@ bool SCH_SYMBOL::ResolveTextVar( const SCH_SHEET_PATH* aPath, QString* token, in
 
     // UNUSED_SYMBOL: SIM functionality disabled - operating point resolution removed during Qt transformation
 
-    if( token->Contains( ':' ) )
+    if( token->contains( ':' ) )
     {
         if( schematic->ResolveCrossReference( token, aDepth + 1 ) )
             return true;
@@ -1906,7 +1910,7 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
                 msg = msgs.join( '|' );
                 msg.replace( '|', ", " );
 
-                if( !msg.empty() )
+                if( !msg.isEmpty() )
                     aList.emplace_back( _( "Exclude from" ), msg );
             };
 
@@ -1918,9 +1922,11 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
             if( m_part->IsPower() )
             {
                 // Don't use GetShownText(); we want to see the variable references here
-                aList.emplace_back( _( "Power symbol" ),
-                                    KIUI::EllipsizeStatusText( aFrame,
-                                                               GetField( VALUE_FIELD )->GetText() ) );
+                // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+                // aList.emplace_back( _( "Power symbol" ),
+                //                     KIUI::EllipsizeStatusText( aFrame,
+                //                                                GetField( VALUE_FIELD )->GetText() ) );
+                aList.emplace_back( _( "Power symbol" ), GetField( VALUE_FIELD )->GetText() ); // Direct text without ellipsis
             }
             else
             {
@@ -1928,13 +1934,17 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
                                     UnescapeString( GetRef( currentSheet ) ) );
 
                 // Don't use GetShownText(); we want to see the variable references here
-                aList.emplace_back( _( "Value" ),
-                                    KIUI::EllipsizeStatusText( aFrame,
-                                                               GetField( VALUE_FIELD )->GetText() ) );
+                // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+                // aList.emplace_back( _( "Value" ),
+                //                     KIUI::EllipsizeStatusText( aFrame,
+                //                                                GetField( VALUE_FIELD )->GetText() ) );
+                aList.emplace_back( _( "Value" ), GetField( VALUE_FIELD )->GetText() ); // Direct text without ellipsis
                 addExcludes();
-                aList.emplace_back( _( "Name" ),
-                                    KIUI::EllipsizeStatusText( aFrame,
-                                                               GetLibId().GetLibItemName() ) );
+                // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+                // aList.emplace_back( _( "Name" ),
+                //                     KIUI::EllipsizeStatusText( aFrame,
+                //                                                GetLibId().GetLibItemName() ) );
+                aList.emplace_back( _( "Name" ), GetLibId().GetLibItemName() ); // Direct text without ellipsis
             }
 
 #if 0       // Display symbol flags, for debug only
@@ -1963,7 +1973,9 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
 
             // Display the current associated footprint, if exists.
             // Don't use GetShownText(); we want to see the variable references here
-            msg = KIUI::EllipsizeStatusText( aFrame, GetField( FOOTPRINT_FIELD )->GetText() );
+            // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+            // msg = KIUI::EllipsizeStatusText( aFrame, GetField( FOOTPRINT_FIELD )->GetText() );
+            msg = GetField( FOOTPRINT_FIELD )->GetText(); // Direct text without ellipsis
 
             if( msg.isEmpty() )
                 msg = _( "<Unknown>" );
@@ -1981,19 +1993,23 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
         aList.emplace_back( _( "Reference" ), GetRef( currentSheet ) );
 
         // Don't use GetShownText(); we want to see the variable references here
-        aList.emplace_back( _( "Value" ),
-                            KIUI::EllipsizeStatusText( aFrame,
-                                                       GetField( VALUE_FIELD )->GetText() ) );
+        // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+        // aList.emplace_back( _( "Value" ),
+        //                     KIUI::EllipsizeStatusText( aFrame,
+        //                                                GetField( VALUE_FIELD )->GetText() ) );
+        aList.emplace_back( _( "Value" ), GetField( VALUE_FIELD )->GetText() ); // Direct text without ellipsis
         addExcludes();
-        aList.emplace_back( _( "Name" ),
-                            KIUI::EllipsizeStatusText( aFrame, GetLibId().GetLibItemName() ) );
+        // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+        // aList.emplace_back( _( "Name" ),
+        //                     KIUI::EllipsizeStatusText( aFrame, GetLibId().GetLibItemName() ) );
+        aList.emplace_back( _( "Name" ), GetLibId().GetLibItemName() ); // Direct text without ellipsis
 
         QString libNickname = GetLibId().GetLibNickname();
 
         if( libNickname.isEmpty() )
             msg = _( "No library defined!" );
         else
-            msg.Printf( _( "Symbol not found in %s!" ), libNickname );
+            msg = QString( _( "Symbol not found in %1!" ) ).arg( libNickname );
 
         aList.emplace_back( _( "Library" ), msg );
     }
@@ -2258,9 +2274,13 @@ SCH_ITEM* SCH_SYMBOL::GetDrawItem( const VECTOR2I& aPosition, KICAD_T aType )
 
 QString SCH_SYMBOL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
+    // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
+    // return QString::asprintf( _( "Symbol %s [%s]" ).toStdString().c_str(),
+    //                          KIUI::EllipsizeMenuText( GetField( REFERENCE_FIELD )->GetText() ),
+    //                          KIUI::EllipsizeMenuText( GetLibId().GetLibItemName() ) );
     return QString::asprintf( _( "Symbol %s [%s]" ).toStdString().c_str(),
-                             KIUI::EllipsizeMenuText( GetField( REFERENCE_FIELD )->GetText() ),
-                             KIUI::EllipsizeMenuText( GetLibId().GetLibItemName() ) );
+                             GetField( REFERENCE_FIELD )->GetText().toStdString().c_str(),
+                             GetLibId().GetLibItemName().c_str() ); // Direct text without ellipsis
 }
 
 
@@ -2370,7 +2390,7 @@ bool SCH_SYMBOL::operator==( const SCH_SYMBOL& aSymbol ) const
         if( ii == REFERENCE_FIELD )
             continue;
 
-        if( GetFields()[ii].GetText().Cmp( aSymbol.GetFields()[ii].GetText() ) != 0 )
+        if( GetFields()[ii].GetText().compare( aSymbol.GetFields()[ii].GetText() ) != 0 )
             return false;
     }
 
@@ -2942,4 +2962,4 @@ static struct SCH_SYMBOL_DESC
 // All wx macros removed, Q_ASSERT used instead of wxASSERT
 // Commented legacy wxWidgets SIM code removed
 
-IMPLEMENT_ENUM_TO_QTVARIANT( SYMBOL_ORIENTATION_PROP )
+IMPLEMENT_ENUM_TO_QVARIANT( SYMBOL_ORIENTATION_PROP )

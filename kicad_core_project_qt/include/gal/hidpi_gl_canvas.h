@@ -3,8 +3,8 @@
 #define HIDPI_GL_CANVAS_H
 
 #include <view/view_controls.h>
-#include <QtOpenGL/QOpenGLWidget>
-#include <QtOpenGL/QSurfaceFormat>
+#include <QtOpenGLWidgets/QOpenGLWidget>
+#include <QtGui/QSurfaceFormat>
 #include <QtCore/QString>
 #include <QtCore/QPoint>
 #include <QtCore/QSize>

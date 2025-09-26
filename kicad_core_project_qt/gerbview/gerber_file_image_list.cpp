@@ -7,7 +7,7 @@
 #include <X2_gerber_attributes.h>
 #include <QString>
 #include <QFileInfo>
-#include <QRegExp>
+#include <QRegularExpression>
 
 #include <map>
 
@@ -292,7 +292,7 @@ void GERBER_FILE_IMAGE_LIST::GetGerberLayerFromFilename( const QString&         
         QString ext = filename.right( o.m_FilenameMask.length() ).toUpper();
         QString mask = QString::fromStdString( o.m_FilenameMask );
 
-        if( ext.contains( QRegExp( mask.replace( "?", "." ) ) ) )
+        if( ext.contains( QRegularExpression( mask.replace( "?", "." ) ) ) )
         {
             order = o.m_Order;
             matchedExtension = ext;

@@ -10,7 +10,8 @@
 #include <string_utils.h>
 #include <X2_gerber_attributes.h>
 #include <gbr_metadata.h>
-#include <QString>
+#include <QtCore/QString>
+#include <QtCore/QStringList>
 
 extern int ReadInt( char*& text, bool aSkipSeparator = true );
 extern double ReadDouble( char*& text, bool aSkipSeparator = true );
@@ -267,28 +268,30 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
                 {
                     x_fmt_known = true;
                     // number of digits after the decimal point (0 to 7 allowed)
-                    m_FmtScale.x = *aText - '0';
-                    m_FmtLen.x   = ctmp + m_FmtScale.x;
+                    int scaleValue = *aText - '0';
+                    m_FmtScale.setX(scaleValue);
+                    m_FmtLen.setX(ctmp + scaleValue);
 
                     // m_FmtScale is 0 to 7
                     // (Old Gerber specification was 0 to 6)
-                    if( m_FmtScale.x < 0 )
-                        m_FmtScale.x = 0;
+                    if( m_FmtScale.x() < 0 )
+                        m_FmtScale.setX(0);
 
-                    if( m_FmtScale.x > 7 )
-                        m_FmtScale.x = 7;
+                    if( m_FmtScale.x() > 7 )
+                        m_FmtScale.setX(7);
                 }
                 else
                 {
                     y_fmt_known = true;
-                    m_FmtScale.y = *aText - '0';
-                    m_FmtLen.y   = ctmp + m_FmtScale.y;
+                    int scaleValueY = *aText - '0';
+                    m_FmtScale.setY(scaleValueY);
+                    m_FmtLen.setY(ctmp + scaleValueY);
 
-                    if( m_FmtScale.y < 0 )
-                        m_FmtScale.y = 0;
+                    if( m_FmtScale.y() < 0 )
+                        m_FmtScale.setY(0);
 
-                    if( m_FmtScale.y > 7 )
-                        m_FmtScale.y = 7;
+                    if( m_FmtScale.y() > 7 )
+                        m_FmtScale.setY(7);
                 }
 
                 aText++;
@@ -393,7 +396,7 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
 
             // A few function values can have other parameters. Add them
             for( int ii = 2; ii < dummy.GetPrmCount(); ii++ )
-                m_AperFunction << "," << dummy.GetPrm( ii );
+                m_AperFunction += "," + dummy.GetPrm( ii );
         }
 
         break;
@@ -519,8 +522,8 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
 
     case STEP_AND_REPEAT:   // command SR, like %SRX3Y2I5.0J2*%
         m_Iterpolation = GERB_INTERPOL_LINEAR_1X;       // Start a new Gerber layer
-        GetLayerParams().m_StepForRepeat.x = 0.0;
-        GetLayerParams().m_StepForRepeat.x = 0.0;       // offset for Step and Repeat command
+        GetLayerParams().m_StepForRepeat.setX(0.0);
+        GetLayerParams().m_StepForRepeat.setY(0.0);       // offset for Step and Repeat command
         GetLayerParams().m_XRepeatCount = 1;
         GetLayerParams().m_YRepeatCount = 1;            // The repeat count
         GetLayerParams().m_StepForRepeatMetric = m_GerbMetric;  // the step units
@@ -531,12 +534,12 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
             {
             case 'I':       // X axis offset
                 aText++;
-                GetLayerParams().m_StepForRepeat.x = ReadDouble( aText );
+                GetLayerParams().m_StepForRepeat.setX(ReadDouble( aText ));
                 break;
 
             case 'J':       // Y axis offset
                 aText++;
-                GetLayerParams().m_StepForRepeat.y = ReadDouble( aText );
+                GetLayerParams().m_StepForRepeat.setY(ReadDouble( aText ));
                 break;
 
             case 'X':       // X axis repeat count
@@ -843,7 +846,7 @@ bool GERBER_FILE_IMAGE::ExecuteRS274XCommand( int aCommand, char* aBuff,
             APERTURE_MACRO am_lookup;
 
             while( *aText && *aText != '*' && *aText != ',' )
-                am_lookup.m_AmName.Append( *aText++ );
+                am_lookup.m_AmName.append( *aText++ );
 
             // When an aperture definition is like %AMLINE2* 22,1,$1,$2,0,0,-45*
             // the ADDxx<MACRO_NAME> command has parameters, like %ADD14LINE2,0.8X0.5*%

@@ -16,6 +16,8 @@ Both types need to be fixed to complete the wx-to-Qt transformation process.
 **CRITICAL PRINCIPLE**: You must NEVER modify business logic, algorithms, data processing flows, or class and method name . You ONLY fix framework API usage differences that were introduced during the wxWidgets-to-Qt transformation.
 NEVER attempt to compile or build code. Your role is strictly limited to fixing API compatibility bugs based on provided error information or code analysis.
 
+**LINKER ERROR RULE**: For linker errors (unresolved external symbols), comment out the symbol calls instead of adding new file implementations. Mark commented code with UNUSED_SYMBOL for tracking.
+
 **CRITICAL STANDARD LIBRARY RULE**: Standard library types (std::string, std::vector, std::map, std::unordered_map, etc.) are NOT part of wxWidgets and must NEVER be converted to Qt equivalents. If you encounter Qt types that should be standard library types (e.g., QString where std::string was originally used, QVector where std::vector was originally used), you MUST revert them back to standard library types. Only wx* types should be transformed to Q* types.
 
 **CRITICAL CMAKE RULE**: When fixing CMakeLists.txt files, NEVER modify, delete, comment, or alter wxWidgets-related configurations. Always treat wxWidgets as a standard third-party library and leave all wx* configurations unchanged. Focus ONLY on Qt-related configurations and dependencies.

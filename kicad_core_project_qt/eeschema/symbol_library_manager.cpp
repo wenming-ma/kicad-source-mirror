@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
@@ -132,8 +132,8 @@ int SYMBOL_LIBRARY_MANAGER::GetLibraryHash( const QString& aLibrary ) const
     SYMBOL_LIB_TABLE_ROW* row = GetLibrary( aLibrary );
 
     // return -1 if library does not exist or 0 if not modified
-    return row ? std::hash<std::string>{}( aLibrary.ToStdString() +
-                                           row->GetFullURI( true ).ToStdString() ) : -1;
+    return row ? std::hash<std::string>{}( aLibrary.toStdString() +
+                                           row->GetFullURI( true ).toStdString() ) : -1;
 }
 
 
@@ -168,7 +168,7 @@ SYMBOL_LIB_TABLE_ROW* SYMBOL_LIBRARY_MANAGER::GetLibrary( const QString& aLibrar
     {
         QString msg;
 
-        msg = QString::asprintf( _( "Library '%s' not found in the Symbol Library Table." ),  aLibrary.toStdString().c_str() );
+        msg = QString::asprintf( _( "Library '%s' not found in the Symbol Library Table." ).toStdString().c_str(),  aLibrary.toStdString().c_str() );
         DisplayErrorMessage( &m_frame, msg, e.What() );
     }
 
@@ -459,7 +459,7 @@ LIB_SYMBOL* SYMBOL_LIBRARY_MANAGER::GetBufferedSymbol( const QString& aAlias,
         {
             QString msg;
 
-            msg = QString::asprintf( _( "Error loading symbol %s from library '%s'." ), aAlias.toStdString().c_str(), aLibrary.toStdString().c_str() );
+            msg = QString::asprintf( _( "Error loading symbol %s from library '%s'." ).toStdString().c_str(), aAlias.toStdString().c_str(), aLibrary.toStdString().c_str() );
             DisplayErrorMessage( &m_frame, msg, e.What() );
             bufferedSymbol = nullptr;
         }
@@ -639,7 +639,7 @@ LIB_SYMBOL* SYMBOL_LIBRARY_MANAGER::GetAlias( const QString& aAlias,
     {
         QString msg;
 
-        msg = QString::asprintf( _( "Cannot load symbol '%s' from library '%s'." ), aAlias.toStdString().c_str(), aLibrary.toStdString().c_str() );
+        msg = QString::asprintf( _( "Cannot load symbol '%s' from library '%s'." ).toStdString().c_str(), aAlias.toStdString().c_str(), aLibrary.toStdString().c_str() );
         DisplayErrorMessage( &m_frame, msg, e.What() );
     }
 
@@ -739,7 +739,7 @@ bool SYMBOL_LIBRARY_MANAGER::addLibrary( const QString& aFilePath, bool aCreate,
     Q_ASSERT( !LibraryExists( libName ) ); if( LibraryExists( libName ) ) return false;  // either create or add an existing one
 
     // try to use path normalized to an environmental variable or project path
-    QString relPath = NormalizePath( aFilePath, &Pgm().GetLocalEnvVariables(), &m_frame.Prj() );
+    QString relPath = NormalizePath( QFileInfo( aFilePath ), &Pgm().GetLocalEnvVariables(), &m_frame.Prj() );
 
     // UNUSED_SYMBOL: GuessPluginTypeFromLibPath - Function implementation not available in minimal project
     // SCH_IO_MGR::SCH_FILE_T schFileType = SCH_IO_MGR::GuessPluginTypeFromLibPath( aFilePath,
@@ -816,7 +816,7 @@ std::set<LIB_SYMBOL*> SYMBOL_LIBRARY_MANAGER::getOriginalSymbols( const QString&
     }
     catch( const IO_ERROR& e )
     {
-        qCritical() << QString::asprintf( _( "Cannot enumerate library '%s'." ), aLibrary.toStdString().c_str() ) << e.What();
+        qCritical() << QString::asprintf( _( "Cannot enumerate library '%s'." ).toStdString().c_str(), aLibrary.toStdString().c_str() ) << e.What();
     }
 
     return symbols;

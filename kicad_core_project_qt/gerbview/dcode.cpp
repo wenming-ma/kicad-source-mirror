@@ -4,14 +4,19 @@
  * @brief D_CODE class implementation
  */
 
+#include <dcode.h>
+#include <gerber_draw_item.h>
+#include <aperture_macro.h>
 #include <QString>
 #include <QPainter>
-#include <QColor>
+#include <algorithm>
+#include <vector>
 #include <trigo.h>
 #include <gerbview_frame.h>
 #include <gerber_file_image.h>
 #include <eda_units.h>
 #include <convert_basic_shapes_to_polygon.h>
+#include <gr_basic.h>
 
 #define DCODE_DEFAULT_SIZE gerbIUScale.mmToIU( 0.1 )
 
@@ -62,32 +67,28 @@ void D_CODE::Clear_D_CODE_Data()
 }
 
 
-const QString D_CODE::ShowApertureType( APERTURE_T aType )
+const char* D_CODE::ShowApertureType( APERTURE_T aType )
 {
-    QString ret;
-
     switch( aType )
     {
     case APT_CIRCLE:
-        ret = "Round";   break;
+        return "Round";
 
     case APT_RECT:
-        ret = "Rect";    break;
+        return "Rect";
 
     case APT_OVAL:
-        ret = "Oval";    break;
+        return "Oval";
 
     case APT_POLYGON:
-        ret = "Poly";    break;
+        return "Poly";
 
     case APT_MACRO:
-        ret = "Macro";   break;
+        return "Macro";
 
     default:
-        ret = "???";     break;
+        return "???";
     }
-
-    return ret;
 }
 
 
@@ -129,7 +130,7 @@ int D_CODE::GetShapeDim( GERBER_DRAW_ITEM* aParent )
 }
 
 
-void D_CODE::DrawFlashedShape( const GERBER_DRAW_ITEM* aParent, QPainter* aPainter, const QColor& aColor,
+void D_CODE::DrawFlashedShape( const GERBER_DRAW_ITEM* aParent, QPainter* aPainter, const COLOR4D& aColor,
                                const VECTOR2I& aShapePos, bool aFilledShape )
 {
     int radius;
@@ -243,7 +244,7 @@ void D_CODE::DrawFlashedShape( const GERBER_DRAW_ITEM* aParent, QPainter* aPaint
 
 
 void D_CODE::DrawFlashedPolygon( const GERBER_DRAW_ITEM* aParent, QPainter* aPainter,
-                                 const QColor& aColor,
+                                 const COLOR4D& aColor,
                                  bool aFilled, const VECTOR2I& aPosition )
 {
     if( m_Polygon.OutlineCount() == 0 )

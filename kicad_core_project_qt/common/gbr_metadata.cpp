@@ -92,7 +92,7 @@ QString GbrMakeProjectGUIDfromString( const QString& aText )
     // Output the 8 first hex digits:
     for( unsigned ii = 0; ii < 4; ii++ )
     {
-        int cc = int( bname[chr_idx++] ) & 0xFF;
+        int cc = bname[chr_idx++].unicode() & 0xFF;
         guid += QString::asprintf( "%2.2x", cc );
     }
 
@@ -101,23 +101,23 @@ QString GbrMakeProjectGUIDfromString( const QString& aText )
 
     for( unsigned ii = 0; ii < 2; ii++ )
     {
-        int cc = int( bname[chr_idx++] ) & 0xFF;
+        int cc = bname[chr_idx++].unicode() & 0xFF;
         guid += QString::asprintf( "%2.2x", cc );
     }
 
     // Output the 4 next hex digits (UUID version and 3 digits):
     guid += "-4";   // first digit: UUID version 4 (M = 4)
     {
-        int cc = int( bname[chr_idx++] ) << 4 & 0xFF0;
-        cc += int( bname[chr_idx] ) >> 4 & 0x0F;
+        int cc = bname[chr_idx++].unicode() << 4 & 0xFF0;
+        cc += bname[chr_idx].unicode() >> 4 & 0x0F;
         guid += QString::asprintf( "%3.3x", cc );
     }
 
     // Output the 4 next hex digits (UUID variant and 3 digits):
     guid += "-9";  // first digit: UUID variant 1 (N = 9)
     {
-        int cc = (int( bname[chr_idx++] ) & 0x0F) << 8;
-        cc += int( bname[chr_idx++] ) & 0xFF;
+        int cc = (bname[chr_idx++].unicode() & 0x0F) << 8;
+        cc += bname[chr_idx++].unicode() & 0xFF;
         guid += QString::asprintf( "%3.3x", cc );
     }
 
@@ -126,7 +126,7 @@ QString GbrMakeProjectGUIDfromString( const QString& aText )
 
     for( unsigned ii = 0; ii < 6; ii++ )
     {
-        int cc = int( bname[chr_idx++] ) & 0xFF;
+        int cc = bname[chr_idx++].unicode() & 0xFF;
         guid += QString::asprintf( "%2.2x", cc );
     }
 
@@ -324,7 +324,7 @@ std::string GBR_APERTURE_METADATA::FormatAttribute( GBR_APERTURE_ATTRIB aAttribu
         }
     }
 
-    full_attribute_string += attribute_string + eol_string;
+    full_attribute_string += attribute_string + eol_string.toStdString();
 
     return full_attribute_string;
 }
@@ -360,7 +360,7 @@ QString FormatStringFromGerber( const QString& aString )
 
     for( unsigned ii = 0; ii < count; ++ii )
     {
-        unsigned code = aString[ii];
+        unsigned code = aString[ii].unicode();
 
         if( code == '\\' && ii < count-5 && aString[ii+1] == 'u' )
         {
@@ -377,7 +377,7 @@ QString FormatStringFromGerber( const QString& aString )
             for( int jj = 0; jj < 4; jj++ )
             {
                 value <<= 4;
-                code = aString[ii+jj+2];
+                code = aString[ii+jj+2].unicode();
 
                 int hexa = char2Hex( code );
 
@@ -393,7 +393,7 @@ QString FormatStringFromGerber( const QString& aString )
             if( !error )
             {
                 if( value >= ' ' )  // Is a valid QChar ?
-                    txt.append( QChar( value ) );
+                    txt.append( QChar( static_cast<ushort>( value ) ) );
 
                 ii += 5;
             }
@@ -432,7 +432,7 @@ QString ConvertNotAllowedCharsInGerber( const QString& aString, bool aAllowUtf8C
         QChar code = aString[ii];
         bool convert = false;
 
-        switch( code )
+        switch( code.unicode() )
         {
         case '\\':
         case '%':
@@ -450,7 +450,7 @@ QString ConvertNotAllowedCharsInGerber( const QString& aString, bool aAllowUtf8C
             break;
         }
 
-        if( !aAllowUtf8Chars && code > 0x7F )
+        if( !aAllowUtf8Chars && code.unicode() > 0x7F )
             convert = true;
 
         if( convert )
@@ -459,7 +459,7 @@ QString ConvertNotAllowedCharsInGerber( const QString& aString, bool aAllowUtf8C
             // (Gerber allows only 4 hexadecimal digit) in escape seq:
             // "\uXXXX", XXXX is the Unicode 16 bits hexa value
             char hexa[32];
-            std::snprintf( hexa, sizeof( hexa ), "\\u%4.4X", code & 0xFFFF );
+            std::snprintf( hexa, sizeof( hexa ), "\\u%4.4X", code.unicode() & 0xFFFF );
             txt += hexa;
         }
         else
@@ -484,7 +484,7 @@ std::string GBR_DATA_FIELD::GetGerberString() const
 
     // Convert the char string to std::string. Be careful when converting a QString to
     // a std::string: using static_cast<const char*> is mandatory
-    std::string txt = static_cast<const char*>( converted.utf8_str() );
+    std::string txt = converted.toUtf8().constData();
 
     return txt;
 }
@@ -508,7 +508,7 @@ std::string FormatStringToGerber( const QString& aString )
 
     // Convert the char string to std::string. Be careful when converting a QString to
     // a std::string: using static_cast<const char*> is mandatory
-    std::string txt = static_cast<const char*>( converted.utf8_str() );
+    std::string txt = converted.toUtf8().constData();
 
     return txt;
 }
@@ -557,10 +557,10 @@ bool FormatNetAttribute( std::string& aPrintedText, std::string& aLastNetAttribu
         // print info associated to a flashed pad (cmpref, pad name, and optionally pin function)
         // example1: %TO.P,R5,3*%
         // example2: %TO.P,R5,3,reset*%
-        pad_attribute_string = prepend_string + "TO.P,";
+        pad_attribute_string = (prepend_string + "TO.P,").toStdString();
         pad_attribute_string += FormatStringToGerber( aData->m_Cmpref ) + ",";
 
-        if( aData->m_Padname.isEmpty() )
+        if( aData->m_Padname.IsEmpty() )
         {
             // Happens for "mechanical" or never connected pads
             pad_attribute_string += FormatStringToGerber( NO_PAD_NAME );
@@ -571,21 +571,21 @@ bool FormatNetAttribute( std::string& aPrintedText, std::string& aLastNetAttribu
 
             // In Pcbnew, the pin function comes from the schematic.
             // so it exists only for named pads
-            if( !aData->m_PadPinFunction.isEmpty() )
+            if( !aData->m_PadPinFunction.IsEmpty() )
             {
                 pad_attribute_string += ',';
                 pad_attribute_string += aData->m_PadPinFunction.GetGerberString();
             }
         }
 
-        pad_attribute_string += eol_string;
+        pad_attribute_string += eol_string.toStdString();
     }
 
     if( ( aData->m_NetAttribType & GBR_NETLIST_METADATA::GBR_NETINFO_NET ) )
     {
         // print info associated to a net
         // example: %TO.N,Clk3*%
-        net_attribute_string = prepend_string + "TO.N,";
+        net_attribute_string = (prepend_string + "TO.N,").toStdString();
 
         if( aData->m_Netname.isEmpty() )
         {
@@ -607,7 +607,7 @@ bool FormatNetAttribute( std::string& aPrintedText, std::string& aLastNetAttribu
             net_attribute_string += FormatStringToGerber( aData->m_Netname );
         }
 
-        net_attribute_string += eol_string;
+        net_attribute_string += eol_string.toStdString();
     }
 
     if( ( aData->m_NetAttribType & GBR_NETLIST_METADATA::GBR_NETINFO_CMP ) &&
@@ -617,8 +617,8 @@ bool FormatNetAttribute( std::string& aPrintedText, std::string& aLastNetAttribu
         // example: %TO.C,R2*%
         // Because GBR_NETINFO_PAD option already contains this info, it is not
         // created here for a GBR_NETINFO_PAD attribute
-        cmp_attribute_string = prepend_string + "TO.C,";
-        cmp_attribute_string += FormatStringToGerber( aData->m_Cmpref ) + eol_string;
+        cmp_attribute_string = (prepend_string + "TO.C,").toStdString();
+        cmp_attribute_string += FormatStringToGerber( aData->m_Cmpref ) + eol_string.toStdString();
     }
 
     // the full list of requested attributes:
@@ -646,7 +646,7 @@ bool FormatNetAttribute( std::string& aPrintedText, std::string& aLastNetAttribu
             if( pad_attribute_string.empty() )  // No more this attribute
             {
                 if( aData->m_TryKeepPreviousAttributes )    // Clear only this attribute
-                    short_attribute_string.insert( 0, prepend_string + "TO.P" + eol_string );
+                    short_attribute_string.insert( 0, (prepend_string + "TO.P" + eol_string).toStdString() );
                 else
                     clearDict = true;
             }
@@ -666,7 +666,7 @@ bool FormatNetAttribute( std::string& aPrintedText, std::string& aLastNetAttribu
             if( net_attribute_string.empty() )  // No more this attribute
             {
                 if( aData->m_TryKeepPreviousAttributes )    // Clear only this attribute
-                    short_attribute_string.insert( 0, prepend_string + "TO.N" + eol_string );
+                    short_attribute_string.insert( 0, (prepend_string + "TO.N" + eol_string).toStdString() );
                 else
                     clearDict = true;
             }
@@ -692,7 +692,7 @@ bool FormatNetAttribute( std::string& aPrintedText, std::string& aLastNetAttribu
                     // If a pad attribute exists, the component name exists so the old
                     // TO.C value will be updated, therefore no need to clear it before updating
                     if( pad_attribute_string.empty() )
-                        short_attribute_string.insert( 0, prepend_string + "TO.C" + eol_string );
+                        short_attribute_string.insert( 0, (prepend_string + "TO.C" + eol_string).toStdString() );
                 }
                 else
                 {

@@ -28,7 +28,7 @@ public:
     bool DoNotShowAgain() const;
     void ForceShowAgain();
 
-    void show() override;
+    void show();
     int exec() override;
 
 protected:

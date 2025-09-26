@@ -65,7 +65,7 @@ private:
                 ( net_attr.m_NetAttribType & GBR_NETLIST_METADATA::GBR_NETINFO_CMP ) )
             {
                 auto menuEntry = Add( GERBVIEW_ACTIONS::highlightComponent );
-                menuEntry->SetItemLabel( QString::asprintf( _( "Highlight Items of Component '%s'" ),
+                menuEntry->setText( QString::asprintf( _( "Highlight Items of Component '%s'" ).toUtf8().constData(),
                                                            net_attr.m_Cmpref.toStdString().c_str() ) );
                 addSeparator = true;
             }
@@ -73,7 +73,7 @@ private:
             if( ( net_attr.m_NetAttribType & GBR_NETLIST_METADATA::GBR_NETINFO_NET ) )
             {
                 auto menuEntry = Add( GERBVIEW_ACTIONS::highlightNet );
-                menuEntry->SetItemLabel( QString::asprintf( _( "Highlight Items of Net '%s'" ),
+                menuEntry->setText( QString::asprintf( _( "Highlight Items of Net '%s'" ).toUtf8().constData(),
                                                            UnescapeString( net_attr.m_Netname ).toStdString().c_str() ) );
                 addSeparator = true;
             }
@@ -83,7 +83,7 @@ private:
             if( apertDescr && !apertDescr->m_AperFunction.isEmpty() )
             {
                 auto menuEntry = Add( GERBVIEW_ACTIONS::highlightAttribute );
-                menuEntry->SetItemLabel( QString::asprintf( _( "Highlight Aperture Type '%s'" ),
+                menuEntry->setText( QString::asprintf( _( "Highlight Aperture Type '%s'" ).toUtf8().constData(),
                                                            apertDescr->m_AperFunction.toStdString().c_str() ) );
                 addSeparator = true;
             }
@@ -91,14 +91,14 @@ private:
             if( apertDescr )
             {
                 auto menuEntry = Add( GERBVIEW_ACTIONS::highlightDCode );
-                menuEntry->SetItemLabel( QString::asprintf( _( "Highlight DCode D%d" ),
+                menuEntry->setText( QString::asprintf( _( "Highlight DCode D%d" ).toUtf8().constData(),
                                                            apertDescr->m_Num_Dcode ) );
                 addSeparator = true;
             }
         }
 
         if( addSeparator )
-            AppendSeparator();
+            QMenu::addSeparator();
 
         Add( GERBVIEW_ACTIONS::highlightClear );
     }

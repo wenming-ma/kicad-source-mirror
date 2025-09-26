@@ -50,6 +50,12 @@ public:
     size_t GetCount() const;
     QString GetHistoryFile( size_t index ) const;
     void RemoveFileFromHistory( size_t index );
+
+    // Getter for base ID
+    int GetBaseId() const { return m_baseFileId; }
+
+    // For compatibility with old code using size() method
+    size_t size() const { return GetCount(); }
     void AddFileMenu( QMenu* aMenu );
     void RemoveFileMenu( QMenu* aMenu );
 

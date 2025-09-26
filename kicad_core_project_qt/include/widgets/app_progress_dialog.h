@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 #ifndef __APP_PROGRESS_REPORTER
 #define __APP_PROGRESS_REPORTER
 
@@ -15,7 +15,7 @@ public:
     APP_PROGRESS_DIALOG( const QString& aTitle, const QString& aMessage, int aMaximum = 100,
                          QWidget* aParent = nullptr, bool aIndeterminateTaskBarStatus = false,
                          Qt::WindowFlags aFlags = Qt::WindowFlags() ) :
-        QProgressDialog( aTitle, QString(), aMaximum, aParent, aFlags ),
+        QProgressDialog( aMessage, QString(), 0, aMaximum, aParent, aFlags ),
         m_appProgressIndicator( aParent ),
         m_indeterminateTaskBarStatus( aIndeterminateTaskBarStatus )
     {
@@ -23,9 +23,24 @@ public:
     }
 
     virtual bool Update( int aValue, const QString& aNewMsg = QString(),
-                         bool* aSkip = nullptr ) override
+                         bool* aSkip = nullptr )
     {
+        setValue( aValue );
+        if( !aNewMsg.isEmpty() )
+            setLabelText( aNewMsg );
         return true;  // Always return success
+    }
+
+    // Override Qt's show() method to ensure proper visibility
+    void show()
+    {
+        QProgressDialog::show();
+    }
+
+    // Compatibility method for wxWidgets Show() -> Qt show()
+    void Show( bool show = true )
+    {
+        setVisible( show );
     }
 
 

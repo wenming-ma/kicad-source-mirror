@@ -423,7 +423,7 @@ OPT_BOX2I PIN_LAYOUT_CACHE::getUntransformedPinNumberBox() const
     int textPos = -m_numExtentsCache.m_Extents.y / 2 - getPinTextOffset();
 
     // The number goes below, if there is a name outside
-    if( pinNameOffset == 0 && !m_pin.GetShownName().empty()
+    if( pinNameOffset == 0 && !m_pin.GetShownName().isEmpty()
         && m_pin.GetParentSymbol()->GetShowPinNames() )
         textPos *= -1;
 
@@ -656,7 +656,7 @@ std::optional<PIN_LAYOUT_CACHE::TEXT_INFO> PIN_LAYOUT_CACHE::GetPinNumberInfo( i
     // The pin number is above the pin if there's no name, or the name is inside
     const bool numAbove =
             m_pin.GetParentSymbol()->GetPinNameOffset() > 0
-            || ( m_pin.GetShownName().empty() || !m_pin.GetParentSymbol()->GetShowPinNames() );
+            || ( m_pin.GetShownName().isEmpty() || !m_pin.GetParentSymbol()->GetShowPinNames() );
 
     if( numAbove )
     {

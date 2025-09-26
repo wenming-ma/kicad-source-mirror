@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 // Qt transformation of KiCad preview_utils.cpp - wxWidgets to Qt framework migration
 
 #include <preview_items/preview_utils.h>

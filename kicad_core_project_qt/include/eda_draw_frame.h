@@ -23,6 +23,7 @@
 #include <QtWidgets/QComboBox>
 #include <QtNetwork/QTcpServer>
 #include <QtCore/QEvent>
+#include <QtGui/QResizeEvent>
 
 class EDA_ITEM;
 class QTcpServer;
@@ -33,9 +34,9 @@ class LOCKFILE;
 class TOOL_MENU;
 class APP_SETTINGS_BASE;
 class QFindReplaceDialog;
-class QCommandEvent;
-class QUpdateUIEvent;
-class QSizeEvent;
+// Map wxWidgets event types to Qt equivalents
+using QCommandEvent = QEvent;      // For general command events (wxCommandEvent)
+using QUpdateUIEvent = QEvent;     // For UI update events (wxUpdateUIEvent)
 class QMoveEvent;
 // Note: QActivateEvent doesn't exist in Qt, using QEvent for activation events
 class SEARCH_PANE;
@@ -204,7 +205,7 @@ public:
     virtual void OnSelectZoom( QCommandEvent& event );
 
     // Recalculate the size of toolbars and display panel when the frame size changes.
-    virtual void OnSize( QSizeEvent& event );
+    virtual void OnSize( QResizeEvent& event ) override;
 
     void OnMove( QMoveEvent& aEvent ) override;
 

@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 #include <eda_base_frame.h>
 #include <eda_pattern_match.h>
 #include <kiface_base.h>
@@ -18,6 +18,7 @@
 #include <QItemSelectionModel>
 #include <QAbstractItemModel>
 #include <string_utils.h>
+#include <i18n_utility.h>
 
 
 static const int kDataViewIndent = 20;
@@ -62,7 +63,7 @@ private:
 };
 
 
-QModelIndex LIB_TREE_MODEL_ADAPTER::ToItem( const LIB_TREE_NODE* aNode )
+QModelIndex LIB_TREE_MODEL_ADAPTER::ToItem( const LIB_TREE_NODE* aNode ) const
 {
     return createIndex( 0, 0, const_cast<void*>( static_cast<void const*>( aNode ) ) );
 }
@@ -87,21 +88,27 @@ LIB_TREE_MODEL_ADAPTER::LIB_TREE_MODEL_ADAPTER( EDA_BASE_FRAME* aParent,
         m_filter( nullptr )
 {
     // Default column widths.  Do not translate these names.
-    m_colWidths[ _HKI( "Item" ) ] = 300;
-    m_colWidths[ _HKI( "Description" ) ] = 600;
+    m_colWidths[ QString(_HKI( "Item" )) ] = 300;
+    m_colWidths[ QString(_HKI( "Description" )) ] = 600;
 
-    m_availableColumns = { _HKI( "Item" ), _HKI( "Description" ) };
+    m_availableColumns = { QString(_HKI( "Item" )), QString(_HKI( "Description" )) };
 
-    for( const std::pair<const QString, int>& pair : m_cfg.column_widths )
-        m_colWidths[pair.first] = pair.second;
+    for( const auto& pair : m_cfg.column_widths )
+    {
+        const QString& key = pair.first;
+        int value = pair.second;
+        m_colWidths[key] = value;
+    }
 
-    m_shownColumns = m_cfg.columns;
+    m_shownColumns.clear();
+    for( const QString& col : m_cfg.columns )
+        m_shownColumns.push_back( col );
 
     if( m_shownColumns.empty() )
-        m_shownColumns = {  _HKI( "Item" ), _HKI( "Description" ) };
+        m_shownColumns = { QString(_HKI( "Item" )), QString(_HKI( "Description" )) };
 
-    if( m_shownColumns[0] != _HKI( "Item" ) )
-        m_shownColumns.insert( m_shownColumns.begin(), _HKI( "Item" ) );
+    if( m_shownColumns[0] != QString(_HKI( "Item" )) )
+        m_shownColumns.insert( m_shownColumns.begin(), QString(_HKI( "Item" )) );
 }
 
 
@@ -120,7 +127,7 @@ std::vector<QString> LIB_TREE_MODEL_ADAPTER::GetOpenLibs() const
     for( const QModelIndex& child : children )
     {
         if( m_widget->isExpanded( child ) )
-            openLibs.emplace_back( QString::fromStdString( ToNode( child )->m_LibId.GetLibNickname() ) );
+            openLibs.emplace_back( ToNode( child )->m_LibId.GetUniStringLibNickname() );
     }
 
     return openLibs;
@@ -133,7 +140,7 @@ void LIB_TREE_MODEL_ADAPTER::OpenLibs( const std::vector<QString>& aLibs )
 
     for( const QString& lib : aLibs )
     {
-        QModelIndex item = FindItem( LIB_ID( lib.toStdString(), "" ) );
+        QModelIndex item = FindItem( LIB_ID( lib, QString() ) );
 
         if( item.isValid() )
             m_widget->expand( item );
@@ -147,13 +154,22 @@ void LIB_TREE_MODEL_ADAPTER::SaveSettings()
 {
     if( m_widget )
     {
-        m_cfg.columns = GetShownColumns();
+        m_cfg.columns.clear();
+        for( const QString& col : GetShownColumns() )
+            m_cfg.columns.push_back( col );
         m_cfg.column_widths.clear();
 
-        for( const std::pair<const QString, QHeaderView*>& pair : m_colNameMap )
-            m_cfg.column_widths[pair.first] = pair.second->sectionSize( 0 );
+        for( const auto& pair : m_colNameMap )
+        {
+            const QString& colName = pair.first;
+            QHeaderView* headerView = pair.second;
+            if( headerView )
+                m_cfg.column_widths[colName] = headerView->sectionSize( 0 );
+        }
 
-        m_cfg.open_libs = GetOpenLibs();
+        m_cfg.open_libs.clear();
+        for( const QString& lib : GetOpenLibs() )
+            m_cfg.open_libs.push_back( lib );
     }
 }
 
@@ -175,7 +191,7 @@ LIB_TREE_NODE_LIBRARY& LIB_TREE_MODEL_ADAPTER::DoAddLibraryNode( const QString& 
                                                                  const QString& aDesc,
                                                                  bool pinned )
 {
-    LIB_TREE_NODE_LIBRARY& lib_node = m_tree.AddLib( aNodeName.toStdString(), aDesc.toStdString() );
+    LIB_TREE_NODE_LIBRARY& lib_node = m_tree.AddLib( aNodeName, aDesc );
 
     lib_node.m_Pinned = pinned;
 
@@ -239,7 +255,7 @@ void LIB_TREE_MODEL_ADAPTER::UpdateSearchString( const QString& aSearch, bool aS
             if( termMatchers.size() >= MAX_TERMS )
                 break;
             QString term = token.toLower();
-            termMatchers.emplace_back( std::make_unique<EDA_COMBINED_MATCHER>( term.toStdString(), CTX_LIBITEM ) );
+            termMatchers.emplace_back( std::make_unique<EDA_COMBINED_MATCHER>( term, CTX_LIBITEM ) );
         }
 
         m_tree.UpdateScore( termMatchers, m_filter );
@@ -293,12 +309,12 @@ void LIB_TREE_MODEL_ADAPTER::recreateColumns()
     m_colNameMap.clear();
 
     // The Item column is always shown
-    doAddColumn( "Item" );
+    doAddColumn( QString("Item") );
 
     for( const QString& colName : m_shownColumns )
     {
         if( !m_colNameMap.count( colName ) )
-            doAddColumn( colName, colName == "Description" );
+            doAddColumn( colName, colName == QString("Description") );
     }
 
     m_widget->header()->show();
@@ -344,9 +360,9 @@ void LIB_TREE_MODEL_ADAPTER::ShowChangedLanguage()
     for( const std::unique_ptr<LIB_TREE_NODE>& lib: m_tree.m_Children )
     {
         if( lib->m_IsRecentlyUsedGroup )
-            lib->m_Name = "-- " + _( "Recently Used" ).toStdString() + " --";
+            lib->m_Name = QString( "-- " + _( "Recently Used" ) + " --" );
         else if( lib->m_IsAlreadyPlacedGroup )
-            lib->m_Name = "-- " + _( "Already Placed" ).toStdString() + " --";
+            lib->m_Name = QString( "-- " + _( "Already Placed" ) + " --" );
     }
 }
 
@@ -358,7 +374,7 @@ QHeaderView* LIB_TREE_MODEL_ADAPTER::doAddColumn( const QString& aHeader, bool a
     // The extent of the text doesn't take into account the space on either side
     // in the header, so artificially pad it
     QFontMetrics fm( m_widget->font() );
-    QSize headerMinWidth = fm.size( Qt::TextSingleLine, translatedHeader + "MMM" );
+    QSize headerMinWidth = QSize( fm.horizontalAdvance( translatedHeader + "MMM" ), fm.height() );
 
     if( !m_colWidths.count( aHeader ) || m_colWidths[aHeader] < headerMinWidth.width() )
         m_colWidths[aHeader] = headerMinWidth.width();
@@ -375,7 +391,7 @@ QHeaderView* LIB_TREE_MODEL_ADAPTER::doAddColumn( const QString& aHeader, bool a
 
     m_columns.emplace_back( header );
     m_colNameMap[aHeader] = header;
-    m_colIdxMap[m_columns.size() - 1] = aHeader;
+    m_colIdxMap[index] = aHeader;
 
     return header;
 }
@@ -445,16 +461,16 @@ QModelIndex LIB_TREE_MODEL_ADAPTER::FindItem( const LIB_ID& aLibId )
 {
     for( std::unique_ptr<LIB_TREE_NODE>& lib: m_tree.m_Children )
     {
-        if( lib->m_Name != aLibId.GetLibNickname() )
+        if( lib->m_Name != aLibId.GetUniStringLibNickname() )
             continue;
 
         // if part name is not specified, return the library node
-        if( aLibId.GetLibItemName() == "" )
+        if( aLibId.GetLibItemName().empty() )
             return ToItem( lib.get() );
 
         for( std::unique_ptr<LIB_TREE_NODE>& alias: lib->m_Children )
         {
-            if( alias->m_Name == aLibId.GetLibItemName() )
+            if( alias->m_Name == aLibId.GetUniStringLibItemName() )
                 return ToItem( alias.get() );
         }
 
@@ -542,8 +558,11 @@ void LIB_TREE_MODEL_ADAPTER::RefreshTree()
     {
         size_t i = 0;
 
-        for( const auto& [ colName, colPtr ] : m_colNameMap )
+        for( const auto& pair : m_colNameMap )
+        {
+            const QString& colName = pair.first;
             m_colWidths[ colName ] = widths[i++];
+        }
     }
 
     auto colIt = m_colWidths.begin();
@@ -555,15 +574,21 @@ void LIB_TREE_MODEL_ADAPTER::RefreshTree()
         colIt->second -= walk;
 
     QHeaderView* header_view2 = m_widget->header();
-    for( const auto& [ colName, colPtr ] : m_colNameMap )
+    for( const auto& colPair : m_colNameMap )
     {
+        const QString& colName = colPair.first;
+        QHeaderView* colPtr = colPair.second;
+
         if( colPtr == m_columns[0] )
             continue;
 
         Q_ASSERT( m_colWidths.count( colName ) );
         // Find the column index for this column name
-        for( const auto& [ idx, name ] : m_colIdxMap )
+        for( const auto& idxPair : m_colIdxMap )
         {
+            unsigned idx = idxPair.first;
+            const QString& name = idxPair.second;
+
             if( name == colName )
             {
                 header_view2->resizeSection( idx, m_colWidths[colName] );
@@ -667,9 +692,9 @@ QVariant LIB_TREE_MODEL_ADAPTER::data( const QModelIndex& index, int role ) cons
         {
         case NAME_COL:
             if( node->m_Pinned )
-                valueStr = QString::fromStdString( GetPinningSymbol() + UnescapeString( node->m_Name ) );
+                valueStr = GetPinningSymbol() + UnescapeString( node->m_Name );
             else
-                valueStr = QString::fromStdString( UnescapeString( node->m_Name ) );
+                valueStr = UnescapeString( node->m_Name );
 
             break;
 
@@ -679,9 +704,9 @@ QVariant LIB_TREE_MODEL_ADAPTER::data( const QModelIndex& index, int role ) cons
                 const QString& key = m_colIdxMap.at( aCol );
 
                 if( key == "Description" )
-                    valueStr = QString::fromStdString( UnescapeString( node->m_Desc ) );
-                else if( node->m_Fields.count( key.toStdString() ) )
-                    valueStr = QString::fromStdString( UnescapeString( node->m_Fields.at( key.toStdString() ) ) );
+                    valueStr = UnescapeString( node->m_Desc );
+                else if( node->m_Fields.count( key ) )
+                    valueStr = UnescapeString( node->m_Fields.at( key ) );
                 else
                     valueStr = QString();
             }
@@ -762,7 +787,7 @@ const LIB_TREE_NODE* LIB_TREE_MODEL_ADAPTER::ShowResults()
                 [&]( const LIB_TREE_NODE* n )
                 {
                     // Don't match the recent and already placed libraries
-                    if( QString::fromStdString( n->m_Name ).startsWith( "-- " ) )
+                    if( n->m_Name.startsWith( "-- " ) )
                         return -1; // Skip this node and its children
 
                     if( n->m_Type == LIB_TREE_NODE::TYPE::ITEM
@@ -793,7 +818,7 @@ const LIB_TREE_NODE* LIB_TREE_MODEL_ADAPTER::ShowResults()
 
         for( const std::unique_ptr<LIB_TREE_NODE>& child : m_tree.m_Children )
         {
-            if( !QString::fromStdString( child->m_Name ).startsWith( "-- " ) )
+            if( !child->m_Name.startsWith( "-- " ) )
                  libraries++;
         }
 

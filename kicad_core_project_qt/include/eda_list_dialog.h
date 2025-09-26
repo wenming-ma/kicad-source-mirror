@@ -50,16 +50,16 @@ public:
 
     long GetSelection();
 
-    bool Show( bool show ) override;
+    void show();
 
 protected:
     void initDialog( const QStringList& aItemHeaders, const std::vector<QStringList>& aItemList,
                      const QString& aPreselectText);
 
 private:
-    virtual void onSize( QResizeEvent& event ) override;
-    void onListItemActivated( QItemSelection& event ) override;
-    void textChangeInFilterBox(const QString& text) override;
+    virtual void onSize( QResizeEvent* event ) override;
+    void onListItemActivated( ) override;
+    void textChangeInFilterBox() override;
 
     void sortList();
 

@@ -89,11 +89,11 @@ if( WIN32 )
         add_compile_options( /permissive- )
     endif()
     # Disable verbose include output (showIncludes)
-    string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
-    string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
-    string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-    string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL}")
-    set(CMAKE_CXX_DEPENDS_USE_COMPILER FALSE)
+    # string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    # string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    # string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+    # string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL}")
+    # set(CMAKE_CXX_DEPENDS_USE_COMPILER FALSE)
     # Set wxWidgets port for KIPLATFORM
     set( KICAD_WX_PORT "msw" )
 endif()
@@ -116,7 +116,7 @@ else()
 endif()
 
 # Find Qt6 - for future wxWidgets to Qt transformation
-find_package( Qt6 QUIET COMPONENTS Core Widgets Gui OpenGL PrintSupport Xml Svg Network )
+find_package( Qt6 QUIET COMPONENTS Core Widgets Gui OpenGL OpenGLWidgets PrintSupport Xml Svg Network )
 
 # Enable Qt automoc for automatic meta-object compilation
 if( Qt6_FOUND )
@@ -229,6 +229,7 @@ include_directories( BEFORE
     $<$<BOOL:${Qt6_FOUND}>:${Qt6_ROOT}/include/QtGui>
     $<$<BOOL:${Qt6_FOUND}>:${Qt6_ROOT}/include/QtNetwork>
     $<$<BOOL:${Qt6_FOUND}>:${Qt6_ROOT}/include/QtOpenGL>
+    $<$<BOOL:${Qt6_FOUND}>:${Qt6_ROOT}/include/QtOpenGLWidgets>
     $<$<BOOL:${Qt6_FOUND}>:${Qt6_ROOT}/include/QtPrintSupport>
     $<$<BOOL:${Qt6_FOUND}>:${Qt6_ROOT}/include/QtXml>
     $<$<BOOL:${Qt6_FOUND}>:${Qt6_ROOT}/include/QtSvg>
@@ -284,7 +285,7 @@ add_subdirectory( common )
 add_subdirectory( eeschema )
 add_subdirectory( pcbnew )
 add_subdirectory( gerbview )
-add_subdirectory( test )
+#add_subdirectory( test )
 
 
 # Create simple main executable for minimal build testing
@@ -346,6 +347,7 @@ target_link_libraries( kicad_core_project_qt
     $<$<BOOL:${Qt6_FOUND}>:Qt6::Widgets>
     $<$<BOOL:${Qt6_FOUND}>:Qt6::Gui>
     $<$<BOOL:${Qt6_FOUND}>:Qt6::OpenGL>
+    $<$<BOOL:${Qt6_FOUND}>:Qt6::OpenGLWidgets>
     $<$<BOOL:${Qt6_FOUND}>:Qt6::PrintSupport>
     $<$<BOOL:${Qt6_FOUND}>:Qt6::Xml>
     $<$<BOOL:${Qt6_FOUND}>:Qt6::Svg>

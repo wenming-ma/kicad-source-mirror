@@ -1,8 +1,9 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 #ifndef KICAD_FILEDLG_OPEN_EMBED_FILE_H
 #define KICAD_FILEDLG_OPEN_EMBED_FILE_H
 
+#include <QStringList>
 #include <QFileDialog>
 #include <QCheckBox>
 #include <QVBoxLayout>

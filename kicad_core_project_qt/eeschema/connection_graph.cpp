@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #include <list>
 #include <future>
@@ -144,8 +144,8 @@ bool CONNECTION_SUBGRAPH::ResolveDrivers( bool aCheckMultipleDrivers )
 
             const QString& a_name = GetNameForDriver( a );
             const QString& b_name = GetNameForDriver( b );
-            bool     a_lowQualityName = a_name.Contains( "-Pad" );
-            bool     b_lowQualityName = b_name.Contains( "-Pad" );
+            bool     a_lowQualityName = a_name.contains( "-Pad" );
+            bool     b_lowQualityName = b_name.contains( "-Pad" );
 
             if( a_lowQualityName && !b_lowQualityName )
                 return false;
@@ -559,7 +559,7 @@ CONNECTION_SUBGRAPH::PRIORITY CONNECTION_SUBGRAPH::GetDriverPriority( SCH_ITEM* 
         if( sch_pin->IsGlobalPower() )
             return PRIORITY::POWER_PIN;
         else if( !sym || sym->GetExcludedFromBoard()
-               || sym->GetLibSymbolRef()->GetReferenceField().GetText().StartsWith( '#' ) )
+               || sym->GetLibSymbolRef()->GetReferenceField().GetText().startsWith( '#' ) )
             return PRIORITY::NONE;
         else
             return PRIORITY::PIN;
@@ -1724,7 +1724,7 @@ void CONNECTION_GRAPH::processSubGraphs()
                     {
                         QString prefix = aConn->BusPrefix();
 
-                        if( prefix.empty() )
+                        if( prefix.isEmpty() )
                             prefix = "BUS"; // So result will be "BUS_1{...}"
 
                         QString oldName = aConn->Name().mid( aConn->Name().indexOf( '{' ) + 1 );
@@ -4113,8 +4113,8 @@ int CONNECTION_GRAPH::ercCheckHierSheets()
 
                 Q_ASSERT( label );
 
-                msg.Printf( _( "Hierarchical label \"%s\" in root sheet cannot be connected to non-existent parent sheet" ),
-                            label->GetShownText( &sheet, true ) );
+                msg = QString::asprintf( _( "Hierarchical label \"%s\" in root sheet cannot be connected to non-existent parent sheet" ).toLocal8Bit().data(),
+                            label->GetShownText( &sheet, true ).toLocal8Bit().data() );
                 std::shared_ptr<ERC_ITEM> ercItem = ERC_ITEM::Create( ERCE_PIN_NOT_CONNECTED );
                 ercItem->SetItems( item );
                 ercItem->SetErrorMessage( msg );
@@ -4178,8 +4178,8 @@ int CONNECTION_GRAPH::ercCheckHierSheets()
 
                 for( const std::pair<const QString, SCH_SHEET_PIN*>& unmatched : pins )
                 {
-                    msg.Printf( _( "Sheet pin %s has no matching hierarchical label inside the sheet" ),
-                                UnescapeString( unmatched.first ) );
+                    msg = QString::asprintf( _( "Sheet pin %s has no matching hierarchical label inside the sheet" ).toLocal8Bit().data(),
+                                UnescapeString( unmatched.first ).toLocal8Bit().data() );
 
                     std::shared_ptr<ERC_ITEM> ercItem = ERC_ITEM::Create( ERCE_HIERACHICAL_LABEL );
                     ercItem->SetItems( unmatched.second );
@@ -4195,8 +4195,8 @@ int CONNECTION_GRAPH::ercCheckHierSheets()
 
                 for( const std::pair<const QString, SCH_HIERLABEL*>& unmatched : labels )
                 {
-                    msg.Printf( _( "Hierarchical label %s has no matching sheet pin in the parent sheet" ),
-                                UnescapeString( unmatched.first ) );
+                    msg = QString::asprintf( _( "Hierarchical label %s has no matching sheet pin in the parent sheet" ).toLocal8Bit().data(),
+                                UnescapeString( unmatched.first ).toLocal8Bit().data() );
 
                     std::shared_ptr<ERC_ITEM> ercItem = ERC_ITEM::Create( ERCE_HIERACHICAL_LABEL );
                     ercItem->SetItems( unmatched.second );

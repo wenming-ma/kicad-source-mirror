@@ -10,6 +10,8 @@
 #include <QVariant>
 #include <QString>
 #include <QIcon>
+#include <QFont>
+#include "i18n_utility.h"
 
 
 // sch_label.cpp
@@ -22,7 +24,7 @@ SHEET_SYNCHRONIZATION_MODEL::SHEET_SYNCHRONIZATION_MODEL( SHEET_SYNCHRONIZATION_
         m_selectedIndex( std::optional<unsigned>() ),
         m_agent( aAgent ),
         m_sheet( aSheet ),
-        m_path( std::move( aPath ) )
+        m_path( aPath )
 {
 }
 
@@ -30,49 +32,65 @@ SHEET_SYNCHRONIZATION_MODEL::SHEET_SYNCHRONIZATION_MODEL( SHEET_SYNCHRONIZATION_
 SHEET_SYNCHRONIZATION_MODEL::~SHEET_SYNCHRONIZATION_MODEL() = default;
 
 
-void SHEET_SYNCHRONIZATION_MODEL::GetValueByRow( QVariant& aVariant, unsigned row,
-                                                 unsigned col ) const
+QVariant SHEET_SYNCHRONIZATION_MODEL::data( const QModelIndex& index, int role ) const
 {
-    const std::shared_ptr<SHEET_SYNCHRONIZATION_ITEM>& item = m_items[row];
+    if( !index.isValid() || index.row() >= static_cast<int>(m_items.size()) )
+        return QVariant();
 
-    switch( col )
+    const std::shared_ptr<SHEET_SYNCHRONIZATION_ITEM>& item = m_items[index.row()];
+
+    if( role == Qt::DisplayRole )
     {
-    case NAME:
-        aVariant = QVariant::fromValue(QPair<QString, QIcon>(item->GetName(), item->GetBitmap()));
-        break;
-    case SHAPE:
-        aVariant = getElectricalTypeLabel( static_cast<LABEL_FLAG_SHAPE>( item->GetShape() ) );
-        break;
+        switch( index.column() )
+        {
+        case NAME:
+            return item->GetName();
+        case SHAPE:
+            return getElectricalTypeLabel( static_cast<LABEL_FLAG_SHAPE>( item->GetShape() ) );
+        }
     }
+    else if( role == Qt::DecorationRole && index.column() == NAME )
+    {
+        return item->GetBitmap();
+    }
+    else if( role == Qt::FontRole )
+    {
+        if( m_selectedIndex.has_value() && static_cast<unsigned>(index.row()) == m_selectedIndex )
+        {
+            QFont font;
+            font.setBold( true );
+            return font;
+        }
+    }
+
+    return QVariant();
 }
 
 
-bool SHEET_SYNCHRONIZATION_MODEL::SetValueByRow( const QVariant& aVariant, unsigned row,
-                                                 unsigned col )
+bool SHEET_SYNCHRONIZATION_MODEL::setData( const QModelIndex& index, const QVariant& value, int role )
 {
-    Q_UNUSED( aVariant )
-    Q_UNUSED( row )
-    Q_UNUSED( col )
-
-    return {};
-}
-
-
-bool SHEET_SYNCHRONIZATION_MODEL::GetAttrByRow( unsigned row, unsigned int col,
-                                                QModelIndex& attr ) const
-{
-    if( m_selectedIndex.has_value() && row == m_selectedIndex )
-    {
-        // Note: In Qt, font attributes are typically handled through QStandardItemModel or custom delegate
-        // This functionality needs to be handled in the view layer
-        return true;
-    }
+    Q_UNUSED( index )
+    Q_UNUSED( value )
+    Q_UNUSED( role )
 
     return false;
 }
 
 
-void SHEET_SYNCHRONIZATION_MODEL::RemoveItems( QModelIndexList const& aItems )
+int SHEET_SYNCHRONIZATION_MODEL::rowCount( const QModelIndex& parent ) const
+{
+    Q_UNUSED( parent )
+    return static_cast<int>(m_items.size());
+}
+
+int SHEET_SYNCHRONIZATION_MODEL::columnCount( const QModelIndex& parent ) const
+{
+    Q_UNUSED( parent )
+    return COL_COUNT;
+}
+
+
+void SHEET_SYNCHRONIZATION_MODEL::RemoveItems( QList<QModelIndex> const& aItems )
 {
     if( aItems.empty() )
         return;
@@ -87,7 +105,8 @@ void SHEET_SYNCHRONIZATION_MODEL::RemoveItems( QModelIndexList const& aItems )
 bool SHEET_SYNCHRONIZATION_MODEL::AppendNewItem( std::shared_ptr<SHEET_SYNCHRONIZATION_ITEM> aItem )
 {
     m_items.push_back( std::move( aItem ) );
-    Reset( GetCount() );
+    beginResetModel();
+    endResetModel();
     DoNotify();
     return true;
 }
@@ -96,13 +115,14 @@ bool SHEET_SYNCHRONIZATION_MODEL::AppendNewItem( std::shared_ptr<SHEET_SYNCHRONI
 bool SHEET_SYNCHRONIZATION_MODEL::AppendItem( std::shared_ptr<SHEET_SYNCHRONIZATION_ITEM> aItem )
 {
     m_items.push_back( std::move( aItem ) );
-    Reset( GetCount() );
+    beginResetModel();
+    endResetModel();
     return true;
 }
 
 
 SHEET_SYNCHRONIZATION_ITEM_LIST
-SHEET_SYNCHRONIZATION_MODEL::TakeItems( QModelIndexList const& aItems )
+SHEET_SYNCHRONIZATION_MODEL::TakeItems( QList<QModelIndex> const& aItems )
 {
     if( aItems.size() == 1 )
         return { TakeItem( aItems[0] ) };
@@ -115,7 +135,7 @@ SHEET_SYNCHRONIZATION_MODEL::TakeItems( QModelIndexList const& aItems )
     {
         if( item.isValid() )
         {
-            unsigned int idx = item.row();
+            unsigned int idx = static_cast<unsigned int>(item.row());
             rowsToBeRemove.insert( idx );
         }
     }
@@ -140,7 +160,7 @@ SHEET_SYNCHRONIZATION_MODEL::TakeItems( QModelIndexList const& aItems )
 
 SHEET_SYNCHRONIZATION_ITE_PTR SHEET_SYNCHRONIZATION_MODEL::TakeItem( QModelIndex const& aItem )
 {
-    const unsigned int row = aItem.row();
+    const unsigned int row = static_cast<unsigned int>(aItem.row());
 
     if( row + 1 > m_items.size() )
         return {};
@@ -148,7 +168,8 @@ SHEET_SYNCHRONIZATION_ITE_PTR SHEET_SYNCHRONIZATION_MODEL::TakeItem( QModelIndex
     std::shared_ptr<SHEET_SYNCHRONIZATION_ITEM> item = m_items[row];
     m_items.erase( m_items.begin() + row );
     OnRowSelected( {} );
-    Reset( GetCount() );
+    beginResetModel();
+    endResetModel();
     return item;
 }
 
@@ -166,7 +187,7 @@ SHEET_SYNCHRONIZATION_MODEL::GetSynchronizationItem( unsigned aIndex ) const
 SHEET_SYNCHRONIZATION_ITE_PTR
 SHEET_SYNCHRONIZATION_MODEL::GetSynchronizationItem( QModelIndex const& aItem ) const
 {
-    return GetSynchronizationItem( aItem.row() );
+    return GetSynchronizationItem( static_cast<unsigned>(aItem.row()) );
 }
 
 
@@ -185,7 +206,8 @@ void SHEET_SYNCHRONIZATION_MODEL::OnRowSelected( std::optional<unsigned> aRow )
 void SHEET_SYNCHRONIZATION_MODEL::UpdateItems( SHEET_SYNCHRONIZATION_ITEM_LIST aItems )
 {
     m_items = std::move( aItems );
-    Reset( GetCount() );
+    beginResetModel();
+    endResetModel();
 }
 
 
@@ -202,7 +224,3 @@ void SHEET_SYNCHRONIZATION_MODEL::DoNotify()
         notifier->Notify();
 }
 
-unsigned int SHEET_SYNCHRONIZATION_MODEL::GetCount() const
-{
-    return m_items.size();
-}

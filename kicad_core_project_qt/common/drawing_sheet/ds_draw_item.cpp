@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 // Transformed from wxWidgets to Qt
 
 /*
@@ -110,7 +110,9 @@ void DS_DRAW_ITEM_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame,
         DS_DRAW_ITEM_TEXT* textItem = static_cast<DS_DRAW_ITEM_TEXT*>( this );
 
         // Don't use GetShownText(); we want to see the variable references here
-        aList.emplace_back( "Text", KIUI::EllipsizeStatusText( aFrame, textItem->GetText() ) );
+        // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+        // aList.emplace_back( "Text", KIUI::EllipsizeStatusText( aFrame, textItem->GetText() ) );
+        aList.emplace_back( "Text", textItem->GetText() ); // Direct text without ellipsis
         break;
     }
 
@@ -220,8 +222,11 @@ bool DS_DRAW_ITEM_TEXT::HitTest( const BOX2I& aRect, bool aContains, int aAccura
 
 QString DS_DRAW_ITEM_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
+    // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
+    // return QString::asprintf( "Text '%s'",
+    //                          (aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() )).toStdString().c_str() );
     return QString::asprintf( "Text '%s'",
-                             (aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() )).toStdString().c_str() );
+                             (aFull ? GetShownText( false ) : GetText()).toStdString().c_str() ); // Direct text without ellipsis
 }
 
 

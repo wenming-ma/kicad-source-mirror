@@ -98,7 +98,7 @@ static QString XmlEsc( const QString& aStr, bool isAttribute = false )
     {
         const QChar c = *it;
 
-        switch( c )
+        switch( c.unicode() )
         {
         case '<':
             escaped.append( "&lt;" );
@@ -115,7 +115,7 @@ static QString XmlEsc( const QString& aStr, bool isAttribute = false )
         default:
             if( isAttribute )
             {
-                switch( c )
+                switch( c.unicode() )
                 {
                 case '"':
                     escaped.append( "&quot;" );

@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 
 #include <class_draw_panel_gal.h>
@@ -126,7 +126,7 @@ bool ZOOM_TOOL::selectRegion()
             }
             else
             {
-                VECTOR2D sSize = view->ToWorld( ToVECTOR2I( canvas->GetClientSize() ), false );
+                VECTOR2D sSize = view->ToWorld( ToVECTOR2I( canvas->viewport()->size() ), false );
                 VECTOR2D vSize = selectionBox.GetSize();
                 double scale;
                 double ratio = std::max( fabs( vSize.x / sSize.x ), fabs( vSize.y / sSize.y ) );

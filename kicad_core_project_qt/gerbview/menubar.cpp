@@ -35,6 +35,7 @@
 #include <tools/gerbview_actions.h>
 #include <tools/gerbview_selection_tool.h>
 #include <widgets/wx_menubar.h>
+#include <i18n_utility.h>
 
 
 void GERBVIEW_FRAME::doReCreateMenuBar()
@@ -42,7 +43,7 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
     GERBVIEW_SELECTION_TOOL* selTool = m_toolManager->GetTool<GERBVIEW_SELECTION_TOOL>();
     // Qt handles the Mac Application menu behind the scenes, but that means
     // we always have to start from scratch with a new QMenuBar.
-    QMenuBar*  oldMenuBar = GetMenuBar();
+    QMenuBar*  oldMenuBar = menuBar();
     WX_MENUBAR* menuBar    = new WX_MENUBAR();
 
     //-- File menu -------------------------------------------------------
@@ -66,7 +67,7 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
         openRecentGbrMenu->SetIcon( BITMAPS::recent );
 
         recentGbrFiles.SetClearText( _( "Clear Recent Gerber Files" ) );
-        recentGbrFiles.UseMenu( openRecentGbrMenu );
+        recentGbrFiles.AddFileMenu( openRecentGbrMenu );
         recentGbrFiles.AddFilesToMenu();
     }
 
@@ -77,7 +78,7 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
     fileMenu->Add( GERBVIEW_ACTIONS::openAutodetected );
     fileMenu->Add( GERBVIEW_ACTIONS::openGerber );
     QAction* gbrItem = fileMenu->Add( openRecentGbrMenu->Clone() );
-    RegisterUIUpdateHandler( gbrItem, FileHistoryCond( recentGbrFiles) );
+    RegisterUIUpdateHandler( recentGbrFiles.GetBaseId(), FileHistoryCond( recentGbrFiles) );
 
 
     // Create the drill file menu if it does not exist. Adding a file to/from the history
@@ -88,7 +89,7 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
         openRecentDrlMenu->SetTitle( _( "Open Recent Drill File" ) );
         openRecentDrlMenu->SetIcon( BITMAPS::recent );
 
-        m_drillFileHistory.UseMenu( openRecentDrlMenu );
+        m_drillFileHistory.AddFileMenu( openRecentDrlMenu );
         m_drillFileHistory.SetClearText( _( "Clear Recent Drill Files" ) );
         m_drillFileHistory.AddFilesToMenu();
     }
@@ -99,7 +100,7 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
 
     fileMenu->Add( GERBVIEW_ACTIONS::openDrillFile );
     QAction* drillItem = fileMenu->Add( openRecentDrlMenu->Clone() );
-    RegisterUIUpdateHandler( drillItem, FileHistoryCond( m_drillFileHistory ) );
+    RegisterUIUpdateHandler( m_drillFileHistory.GetBaseId(), FileHistoryCond( m_drillFileHistory ) );
 
 
     // Create the job file menu if it does not exist. Adding a file to/from the history
@@ -110,7 +111,7 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
         openRecentJobMenu->SetIcon( BITMAPS::recent );
 
         m_jobFileHistory.SetClearText( _( "Clear Recent Job Files" ) );
-        m_jobFileHistory.UseMenu( openRecentJobMenu );
+        m_jobFileHistory.AddFileMenu( openRecentJobMenu );
         m_jobFileHistory.AddFilesToMenu();
     }
 
@@ -120,7 +121,7 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
 
     fileMenu->Add( GERBVIEW_ACTIONS::openJobFile );
     QAction* jobItem = fileMenu->Add( openRecentJobMenu->Clone() );
-    RegisterUIUpdateHandler( jobItem, FileHistoryCond( m_jobFileHistory ) );
+    RegisterUIUpdateHandler( m_jobFileHistory.GetBaseId(), FileHistoryCond( m_jobFileHistory ) );
 
 
     // Create the zip file menu if it does not exist. Adding a file to/from the history
@@ -130,7 +131,7 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
         openRecentZipMenu = new ACTION_MENU( false, selTool );
         openRecentZipMenu->SetIcon( BITMAPS::recent );
 
-        m_zipFileHistory.UseMenu( openRecentZipMenu );
+        m_zipFileHistory.AddFileMenu( openRecentZipMenu );
         m_zipFileHistory.SetClearText( _( "Clear Recent Zip Files" ) );
         m_zipFileHistory.AddFilesToMenu();
     }
@@ -141,21 +142,21 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
 
     fileMenu->Add( GERBVIEW_ACTIONS::openZipFile );
     QAction* zipItem = fileMenu->Add( openRecentZipMenu->Clone() );
-    RegisterUIUpdateHandler( zipItem, FileHistoryCond( m_zipFileHistory ) );
+    RegisterUIUpdateHandler( m_zipFileHistory.GetBaseId(), FileHistoryCond( m_zipFileHistory ) );
 
 #undef FileHistoryCond
 
-    fileMenu->AppendSeparator();
+    fileMenu->addSeparator();
     fileMenu->Add( GERBVIEW_ACTIONS::clearAllLayers );
     fileMenu->Add( GERBVIEW_ACTIONS::reloadAllLayers );
 
-    fileMenu->AppendSeparator();
+    fileMenu->addSeparator();
     fileMenu->Add( GERBVIEW_ACTIONS::exportToPcbnew );
 
-    fileMenu->AppendSeparator();
+    fileMenu->addSeparator();
     fileMenu->Add( ACTIONS::print );
 
-    fileMenu->AppendSeparator();
+    fileMenu->addSeparator();
     fileMenu->AddQuitOrClose( &Kiface(), _( "Gerber Viewer" ) );
 
 
@@ -169,7 +170,7 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
     viewMenu->Add( ACTIONS::zoomTool );
     viewMenu->Add( ACTIONS::zoomRedraw );
 
-    viewMenu->AppendSeparator();
+    viewMenu->addSeparator();
     viewMenu->Add( ACTIONS::toggleGrid,                       ACTION_MENU::CHECK );
     viewMenu->Add( ACTIONS::togglePolarCoords,                ACTION_MENU::CHECK );
 
@@ -189,7 +190,7 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
 
     viewMenu->Add( unitsSubMenu );
 
-    viewMenu->AppendSeparator();
+    viewMenu->addSeparator();
     viewMenu->Add( GERBVIEW_ACTIONS::flashedDisplayOutlines,  ACTION_MENU::CHECK );
     viewMenu->Add( GERBVIEW_ACTIONS::linesDisplayOutlines,    ACTION_MENU::CHECK );
     viewMenu->Add( GERBVIEW_ACTIONS::polygonsDisplayOutlines, ACTION_MENU::CHECK );
@@ -200,7 +201,7 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
     viewMenu->Add( ACTIONS::highContrastMode,                 ACTION_MENU::CHECK );
     viewMenu->Add( GERBVIEW_ACTIONS::flipGerberView,          ACTION_MENU::CHECK );
 
-    viewMenu->AppendSeparator();
+    viewMenu->addSeparator();
     viewMenu->Add( GERBVIEW_ACTIONS::toggleLayerManager,      ACTION_MENU::CHECK );
 
     //-- Tools menu -------------------------------------------------------
@@ -212,7 +213,7 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
 
     toolsMenu->Add( ACTIONS::measureTool );
 
-    toolsMenu->AppendSeparator();
+    toolsMenu->addSeparator();
     toolsMenu->Add( GERBVIEW_ACTIONS::clearLayer );
 
 
@@ -222,19 +223,19 @@ void GERBVIEW_FRAME::doReCreateMenuBar()
 
     preferencesMenu->Add( ACTIONS::openPreferences );
 
-    preferencesMenu->AppendSeparator();
+    preferencesMenu->addSeparator();
     AddMenuLanguageList( preferencesMenu, selTool );
 
 
     //-- Menubar -------------------------------------------------------------
     //
-    menuBar->Append( fileMenu,        _( "&File" ) );
-    menuBar->Append( viewMenu,        _( "&View" ) );
-    menuBar->Append( toolsMenu,       _( "&Tools" ) );
-    menuBar->Append( preferencesMenu, _( "&Preferences" ) );
+    menuBar->addMenu( fileMenu )->setText( _( "&File" ) );
+    menuBar->addMenu( viewMenu )->setText( _( "&View" ) );
+    menuBar->addMenu( toolsMenu )->setText( _( "&Tools" ) );
+    menuBar->addMenu( preferencesMenu )->setText( _( "&Preferences" ) );
     AddStandardHelpMenu( menuBar );
 
     // Associate the menu bar with the frame, if no previous menubar
-    SetMenuBar( menuBar );
+    setMenuBar( menuBar );
     delete oldMenuBar;
 }

@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #include <base_screen.h>
 #include <lib_symbol.h>
@@ -174,7 +174,7 @@ SCHEMATIC_SETTINGS::SCHEMATIC_SETTINGS( JSON_SETTINGS* aParent, const std::strin
                 EESCHEMA_SETTINGS* curr_cfg =
                         curr_mgr.GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" );
 
-                if( curr_cfg && !curr_cfg->m_Drawing.field_names.IsEmpty() )
+                if( curr_cfg && !curr_cfg->m_Drawing.field_names.isEmpty() )
                     m_TemplateFieldNames.AddTemplateFieldNames( curr_cfg->m_Drawing.field_names );
             }, {} ) );
 

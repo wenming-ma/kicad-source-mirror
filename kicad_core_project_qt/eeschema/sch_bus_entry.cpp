@@ -636,7 +636,7 @@ static struct SCH_BUS_ENTRY_DESC
 
         ENUM_MAP<WIRE_STYLE>& wireLineStyleEnum = ENUM_MAP<WIRE_STYLE>::Instance();
 
-        if( wireLineStyleEnum.Choices().GetCount() == 0 )
+        if( wireLineStyleEnum.Choices().count() == 0 )
         {
             wireLineStyleEnum.Map( WIRE_STYLE::DEFAULT, _HKI( "Default" ) )
                              .Map( WIRE_STYLE::SOLID, _HKI( "Solid" ) )

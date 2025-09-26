@@ -251,8 +251,8 @@ void SCHEMATIC::GetContextualTextVars( QStringList* aVars ) const
     if( !CurrentSheet().empty() )
         CurrentSheet().LastScreen()->GetTitleBlock().GetContextualTextVars( aVars );
 
-    for( std::pair<QString, QString> entry : m_project->GetTextVars() )
-        add( entry.first );
+    for( const std::pair<const std::string, std::string>& entry : m_project->GetTextVars() )
+        add( QString::fromStdString( entry.first ) );
 }
 
 
@@ -956,7 +956,7 @@ void SCHEMATIC::EmbedFonts()
 
     for( KIFONT::OUTLINE_FONT* font : fonts )
     {
-        auto file = GetEmbeddedFiles()->AddFile( font->GetFileName(), false );
+        auto file = GetEmbeddedFiles()->AddFile( QFileInfo( font->GetFileName() ), false );
 
         if( !file )
         {

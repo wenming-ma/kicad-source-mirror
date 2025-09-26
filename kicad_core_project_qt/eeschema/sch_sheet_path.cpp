@@ -1,4 +1,5 @@
 
+#include <utility>
 #include <refdes_utils.h>
 #include <hash.h>
 #include <sch_screen.h>
@@ -97,9 +98,45 @@ SCH_SHEET_PATH::SCH_SHEET_PATH( const SCH_SHEET_PATH& aOther )
 }
 
 
+SCH_SHEET_PATH::SCH_SHEET_PATH( SCH_SHEET_PATH&& aOther )
+{
+    m_sheets = std::move( aOther.m_sheets );
+    m_virtualPageNumber = aOther.m_virtualPageNumber;
+    m_current_hash = aOther.m_current_hash;
+    m_cached_page_number = std::move( aOther.m_cached_page_number );
+    // Note: don't move m_recursion_test_cache as it is slow and we want
+    // std::vector<SCH_SHEET_PATH> to be very fast to construct for use in
+    // the connectivity algorithm. Leave it empty in both objects.
+
+    // Reset the moved-from object to a valid state
+    aOther.m_virtualPageNumber = 1;
+    aOther.m_current_hash = 0;
+}
+
+
 SCH_SHEET_PATH& SCH_SHEET_PATH::operator=( const SCH_SHEET_PATH& aOther )
 {
     initFromOther( aOther );
+    return *this;
+}
+
+
+SCH_SHEET_PATH& SCH_SHEET_PATH::operator=( SCH_SHEET_PATH&& aOther )
+{
+    if( this != &aOther )
+    {
+        m_sheets = std::move( aOther.m_sheets );
+        m_virtualPageNumber = aOther.m_virtualPageNumber;
+        m_current_hash = aOther.m_current_hash;
+        m_cached_page_number = std::move( aOther.m_cached_page_number );
+        // Note: don't move m_recursion_test_cache as it is slow and we want
+        // std::vector<SCH_SHEET_PATH> to be very fast to construct for use in
+        // the connectivity algorithm. Leave existing cache intact.
+
+        // Reset the moved-from object to a valid state
+        aOther.m_virtualPageNumber = 1;
+        aOther.m_current_hash = 0;
+    }
     return *this;
 }
 

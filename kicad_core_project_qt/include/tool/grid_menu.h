@@ -27,11 +27,11 @@
 #define GRID_MENU_H
 
 #include <tool/action_menu.h>
+#include <QStringList>
 
 class EDA_DRAW_FRAME;
 class APP_SETTINGS_BASE;
 class QAction;
-class QStringList;
 
 class GRID_MENU : public ACTION_MENU
 {
@@ -49,7 +49,7 @@ private:
         return new GRID_MENU( m_parent );
     }
 
-    OPT_TOOL_EVENT eventHandler( const QAction* aAction ) override;
+    OPT_TOOL_EVENT eventHandler( QAction* aAction ) override;
     void update() override;
 
     EDA_DRAW_FRAME* m_parent;

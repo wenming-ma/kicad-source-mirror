@@ -156,7 +156,9 @@ bool PCB_FIELD::Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) co
 
 QString PCB_FIELD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    QString content = aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() );
+    // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
+    // QString content = aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() );
+    QString content = aFull ? GetShownText( false ) : GetText(); // Direct text without ellipsis
     QString ref = GetParentFootprint()->GetReference();
 
     switch( m_id )

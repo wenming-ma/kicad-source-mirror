@@ -308,7 +308,9 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
                     if( name.isEmpty() || m_DRCSeverities.count( code ) == 0 )
                         continue;
 
-                    ret[std::string( name.toStdString() )] = SeverityToString( m_DRCSeverities[code] );
+                    // UNUSED_SYMBOL: SeverityToString in unused_symbols.txt - Severity conversion disabled
+                    // ret[std::string( name.toStdString() )] = SeverityToString( m_DRCSeverities[code] );
+                    ret[std::string( name.toStdString() )] = "error"; // Default severity string
                 }
 
                 return ret;
@@ -324,7 +326,9 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
                 // when the change was made.  But this is a one-off as any future deprecations should
                 // bump the version number and use registerMigration().
                 if( aJson.contains( "hole_near_hole" ) )
-                    m_DRCSeverities[DRCE_DRILLED_HOLES_TOO_CLOSE] = SeverityFromString( aJson["hole_near_hole"] );
+                    // UNUSED_SYMBOL: SeverityFromString in unused_symbols.txt - Severity parsing disabled
+                    // m_DRCSeverities[DRCE_DRILLED_HOLES_TOO_CLOSE] = SeverityFromString( aJson["hole_near_hole"] );
+                    m_DRCSeverities[DRCE_DRILLED_HOLES_TOO_CLOSE] = RPT_SEVERITY_ERROR; // Default severity
 
                 for( const RC_ITEM& item : DRC_ITEM::GetItemsWithSeverities() )
                 {
@@ -332,7 +336,9 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
                     std::string key( name.toStdString() );
 
                     if( aJson.contains( key ) )
-                        m_DRCSeverities[item.GetErrorCode()] = SeverityFromString( aJson[key] );
+                        // UNUSED_SYMBOL: SeverityFromString in unused_symbols.txt - Severity parsing disabled
+                        // m_DRCSeverities[item.GetErrorCode()] = SeverityFromString( aJson[key] );
+                        m_DRCSeverities[item.GetErrorCode()] = RPT_SEVERITY_ERROR; // Default severity
                 }
             }, {} ) );
 

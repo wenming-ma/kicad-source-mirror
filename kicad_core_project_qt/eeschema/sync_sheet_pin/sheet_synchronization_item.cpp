@@ -11,6 +11,7 @@
 #include <QPixmap>
 #include <QImage>
 #include <QSize>
+#include <QPainter>
 
 
 SCH_HIERLABEL_SYNCHRONIZATION_ITEM::SCH_HIERLABEL_SYNCHRONIZATION_ITEM( SCH_HIERLABEL* aLabel,
@@ -126,10 +127,12 @@ QPixmap& ASSOCIATED_SCH_LABEL_PIN::GetBitmap() const
         QPixmap right =
                 KiBitmap( BITMAPS::add_hierarchical_label,
                           SYNC_SHEET_PIN_PREFERENCE::NORMAL_HEIGHT );
-        QImage img( QSize{ SYNC_SHEET_PIN_PREFERENCE::NORMAL_WIDTH * 2,
-                             SYNC_SHEET_PIN_PREFERENCE::NORMAL_HEIGHT } );
-        img.paste( left.toImage(), 0, 0 );
-        img.paste( right.toImage(), SYNC_SHEET_PIN_PREFERENCE::NORMAL_WIDTH, 0 );
+        QImage img( SYNC_SHEET_PIN_PREFERENCE::NORMAL_WIDTH * 2,
+                    SYNC_SHEET_PIN_PREFERENCE::NORMAL_HEIGHT,
+                    QImage::Format_ARGB32 );
+        QPainter painter( &img );
+        painter.drawImage( 0, 0, left.toImage() );
+        painter.drawImage( SYNC_SHEET_PIN_PREFERENCE::NORMAL_WIDTH, 0, right.toImage() );
         return QPixmap::fromImage( img );
     } )();
 

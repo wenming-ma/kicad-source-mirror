@@ -4,6 +4,7 @@
 #include <magic_enum.hpp>
 #include <sch_pin.h>
 #include "pgm_base.h"
+#include "i18n_utility.h"
 
 #include <QString>
 #include <QStringList>

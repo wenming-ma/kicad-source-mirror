@@ -90,7 +90,7 @@ public:
 
     QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override
     {
-        return QString( _( "Image" ) );
+        return "Image";
     }
 
     BITMAPS GetMenuImage() const override;

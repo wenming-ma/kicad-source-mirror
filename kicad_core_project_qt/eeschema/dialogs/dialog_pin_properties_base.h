@@ -15,7 +15,6 @@
 #include <QPushButton>
 #include <QSizePolicy>
 #include <QGroupBox>
-#include <QCollapsibleGroupBox>
 #include <QTableWidget>
 #include <QDialogButtonBox>
 #include <QPaintEvent>

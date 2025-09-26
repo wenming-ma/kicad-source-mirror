@@ -33,6 +33,7 @@ namespace KIGFX
 class GAL;
 class VIEW;
 class WX_VIEW_CONTROLS;
+class QT_VIEW_CONTROLS;
 class VIEW_CONTROLS;
 class PAINTER;
 class GAL_DISPLAY_OPTIONS;
@@ -281,7 +282,7 @@ protected:
     std::unique_ptr<KIGFX::PAINTER> m_painter;
 
     /// Control for VIEW (moving, zooming, etc.)
-    KIGFX::WX_VIEW_CONTROLS* m_viewControls;
+    KIGFX::QT_VIEW_CONTROLS* m_viewControls;
 
     /// Currently used GAL
     GAL_TYPE                    m_backend;

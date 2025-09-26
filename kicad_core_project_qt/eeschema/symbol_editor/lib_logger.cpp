@@ -13,13 +13,20 @@ LIB_LOGGER::~LIB_LOGGER()
     Deactivate();
 }
 
+// Static pointer to current active instance for message handler
+static LIB_LOGGER* s_activeInstance = nullptr;
+
 void LIB_LOGGER::Activate()
 {
     if( !m_activated )
     {
         m_previousLogger = qInstallMessageHandler( nullptr );
-        qInstallMessageHandler( [this]( QtMsgType type, const QMessageLogContext& context, const QString& msg ) {
-            this->m_bHasMessages = true;
+        s_activeInstance = this;
+        qInstallMessageHandler( []( QtMsgType type, const QMessageLogContext& context, const QString& msg ) {
+            if( s_activeInstance )
+            {
+                s_activeInstance->SetHasMessages( true );
+            }
         });
         m_activated = true;
     }
@@ -32,6 +39,7 @@ void LIB_LOGGER::Deactivate()
         Flush();
         m_activated = false;
         qInstallMessageHandler( m_previousLogger );
+        s_activeInstance = nullptr;
     }
 }
 

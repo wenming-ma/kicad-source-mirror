@@ -243,7 +243,7 @@ void SCH_TABLE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBod
     for( SCH_TABLECELL* cell : m_cells )
         cell->Print( aSettings, aUnit, aBodyStyle, aOffset, aForceNoFill, aDimmed );
 
-    QPainter*  painter = aSettings->GetPainter();
+    QPainter*  painter = aSettings->GetPrintDC();
     VECTOR2I   pos = GetPosition();
     VECTOR2I   end = GetEnd();
     int        lineWidth;
@@ -398,7 +398,7 @@ INSPECT_RESULT SCH_TABLE::Visit( INSPECTOR aInspector, void* aTestData,
 
 QString SCH_TABLE::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return QString::asprintf( _( "%d Column Table" ), m_colCount );
+    return QString::asprintf( _( "%d Column Table" ).toLocal8Bit().data(), m_colCount );
 }
 
 
@@ -556,7 +556,7 @@ void SCH_TABLE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
 void SCH_TABLE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     // Don't use GetShownText() here; we want to show the user the variable references
-    aList.emplace_back( _( "Table" ), QString::asprintf( _( "%d Columns" ), m_colCount ) );
+    aList.emplace_back( _( "Table" ), QString::asprintf( _( "%d Columns" ).toLocal8Bit().data(), m_colCount ) );
 }
 
 

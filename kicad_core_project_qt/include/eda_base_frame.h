@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #ifndef  EDA_BASE_FRAME_H_
 #define  EDA_BASE_FRAME_H_
@@ -33,6 +33,7 @@
 #include <tool/tools_holder.h>
 #include <widgets/kiui_common.h>
 #include <widgets/qt_infobar.h>
+#include <widgets/qt_aui_manager.h>
 #include <undo_redo_container.h>
 #include <units_provider.h>
 #include <origin_transforms.h>
@@ -85,6 +86,8 @@ typedef std::function< void( QEvent& ) > UIUpdateHandler;
 class EDA_BASE_FRAME : public QMainWindow, public TOOLS_HOLDER, public KIWAY_HOLDER,
                        public UNITS_PROVIDER
 {
+    Q_OBJECT
+
 public:
     enum UNDO_REDO_LIST
     {
@@ -153,6 +156,9 @@ public:
     void CreateInfoBar();
 
     void FinishLayoutInitialization();
+
+    // For backward compatibility with the missing method
+    void FinishAUIInitialization() { FinishLayoutInitialization(); }
 
     QT_INFOBAR* GetInfoBar() { return m_infoBar; }
 
@@ -338,6 +344,7 @@ private:
     QString                 m_aboutTitle;        // Name of program displayed in About.
 
     // Custom layout management system (replacing wxAuiManager)
+    QAuiManager             m_auimgr;            // Qt AUI manager for compatibility
     QString                 m_perspective;       // Layout perspective.
     QT_INFOBAR*             m_infoBar;           // Infobar for the frame
     APPEARANCE_CONTROLS_3D* m_appearancePanel;
@@ -448,6 +455,73 @@ public:
         return *this;
     }
 
+    EDA_PANE& Name( const QString& aName )
+    {
+        m_name = aName;
+        return *this;
+    }
+
+    EDA_PANE& Top()
+    {
+        m_topDockable = true;
+        return *this;
+    }
+
+    EDA_PANE& Bottom()
+    {
+        m_bottomDockable = true;
+        return *this;
+    }
+
+    EDA_PANE& Left()
+    {
+        m_leftDockable = true;
+        return *this;
+    }
+
+    EDA_PANE& Right()
+    {
+        m_rightDockable = true;
+        return *this;
+    }
+
+    EDA_PANE& Center()
+    {
+        m_centerDockable = true;
+        return *this;
+    }
+
+    EDA_PANE& Layer( int aLayer )
+    {
+        m_layer = aLayer;
+        return *this;
+    }
+
+    EDA_PANE& Caption( const QString& aCaption )
+    {
+        m_caption = aCaption;
+        m_captionVisible = true;
+        return *this;
+    }
+
+    EDA_PANE& PaneBorder( bool aBorder )
+    {
+        m_hasBorder = aBorder;
+        return *this;
+    }
+
+    EDA_PANE& MinSize( int aWidth, int aHeight )
+    {
+        m_minSize = QSize( aWidth, aHeight );
+        return *this;
+    }
+
+    EDA_PANE& BestSize( const QSize& aSize )
+    {
+        m_bestSize = aSize;
+        return *this;
+    }
+
 private:
     bool m_hasGripper = true;
     bool m_hasCloseButton = true;
@@ -458,10 +532,15 @@ private:
     bool m_bottomDockable = false;
     bool m_leftDockable = false;
     bool m_rightDockable = false;
+    bool m_centerDockable = false;
     bool m_dockFixed = false;
     bool m_movable = true;
     bool m_resizable = false;
     int m_layer = 1;
+    QString m_name;
+    QString m_caption;
+    QSize m_minSize;
+    QSize m_bestSize;
 };
 
 #endif  // EDA_BASE_FRAME_H_

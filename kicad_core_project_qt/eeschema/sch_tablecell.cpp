@@ -49,7 +49,7 @@ void SCH_TABLECELL::SwapData( SCH_ITEM* aItem )
 
 QString SCH_TABLECELL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return QString::asprintf( _( "Table Cell %s" ), GetAddr().toStdString().c_str() );
+    return QString( _( "Table Cell %1" ) ).arg( GetAddr() );
 }
 
 
@@ -147,7 +147,9 @@ void SCH_TABLECELL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PAN
     aList.emplace_back( _( "Table Cell" ), GetAddr() );
 
     // Don't use GetShownText() here; we want to show the user the variable references
-    aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+    // aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    aList.emplace_back( _( "Text" ), GetText() ); // Direct text without ellipsis
 
     aList.emplace_back( _( "Cell Width" ),
                         aFrame->MessageTextFromValue( std::abs( GetEnd().x - GetStart().x ) ) );

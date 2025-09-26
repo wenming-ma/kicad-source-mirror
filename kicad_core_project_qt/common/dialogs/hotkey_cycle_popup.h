@@ -22,7 +22,7 @@ public:
     void Popup( const QString& aTitle, const QStringList& aItems, int aSelection );
 
 protected:
-    bool TryBefore( QEvent& aEvent ) override;
+    bool TryBefore( QEvent& aEvent );
 
 private:
     QTimer* m_showTimer;

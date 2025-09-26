@@ -1,6 +1,6 @@
 
 
-#include <view/qt_view_controls.h>
+#include <view/wx_view_controls.h>
 #include <QtWidgets/QWidget>
 #include <QtCore/QDebug>
 #include <QtGui/QPaintEvent>
@@ -127,8 +127,8 @@ void SCH_PREVIEW_PANEL::Refresh( bool aEraseBackground, const QRect* aRect )
 }
 
 
-void SCH_PREVIEW_PANEL::onPaint( QPaintEvent& aEvent )
+void SCH_PREVIEW_PANEL::paintEvent( QPaintEvent* aEvent )
 {
     if( isVisible() )
-        EDA_DRAW_PANEL_GAL::onPaint( aEvent );
+        EDA_DRAW_PANEL_GAL::paintEvent( aEvent );
 }

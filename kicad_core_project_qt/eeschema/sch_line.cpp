@@ -1026,7 +1026,7 @@ static struct SCH_LINE_DESC
     {
         ENUM_MAP<LINE_STYLE>& lineStyleEnum = ENUM_MAP<LINE_STYLE>::Instance();
 
-        if( lineStyleEnum.Choices().GetCount() == 0 )
+        if( lineStyleEnum.Choices().count() == 0 )
         {
             lineStyleEnum.Map( LINE_STYLE::SOLID, _HKI( "Solid" ) )
                          .Map( LINE_STYLE::DASH, _HKI( "Dashed" ) )
@@ -1037,7 +1037,7 @@ static struct SCH_LINE_DESC
 
         ENUM_MAP<WIRE_STYLE>& wireLineStyleEnum = ENUM_MAP<WIRE_STYLE>::Instance();
 
-        if( wireLineStyleEnum.Choices().GetCount() == 0 )
+        if( wireLineStyleEnum.Choices().count() == 0 )
         {
             wireLineStyleEnum.Map( WIRE_STYLE::DEFAULT, _HKI( "Default" ) )
                              .Map( WIRE_STYLE::SOLID, _HKI( "Solid" ) )
@@ -1085,4 +1085,4 @@ static struct SCH_LINE_DESC
     }
 } _SCH_LINE_DESC;
 
-IMPLEMENT_ENUM_TO_QTVARIANT( WIRE_STYLE )
+IMPLEMENT_ENUM_TO_QVARIANT( WIRE_STYLE )

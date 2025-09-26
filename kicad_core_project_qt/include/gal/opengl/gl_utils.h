@@ -3,7 +3,7 @@
 #define GL_UTILS_H
 
 #include <gal/opengl/kiglew.h> // Must be included first
-#include <QOpenGLWidget>
+#include <QtOpenGLWidgets/QOpenGLWidget>
 #include <QOpenGLContext>
 #include <QString>
 #include <QStringList>

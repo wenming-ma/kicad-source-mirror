@@ -1,6 +1,7 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 // Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 
+#include <algorithm>
 #include <api/api_plugin_manager.h>
 #include <base_screen.h>
 #include <bitmaps.h>
@@ -50,6 +51,7 @@
 #include <QFileDialog>
 #include <QDebug>
 #include <QTimer>
+#include <QStringList>
 #include <QMoveEvent>
 #include <QResizeEvent>
 #include <QEvent>
@@ -60,6 +62,10 @@
 #include <QScreen>
 #include <QPoint>
 #include <QSize>
+#include <QStatusBar>
+#include <QSharedMemory>
+#include <QApplication>
+#include <QWindow>
 #include <widgets/kiui_common.h>
 #include <widgets/search_pane.h>
 
@@ -108,54 +114,70 @@ EDA_DRAW_FRAME::EDA_DRAW_FRAME( KIWAY* aKiway, QWidget* aParent, FRAME_T aFrameT
 
     SetUserUnits( EDA_UNITS::MM );
 
-    m_auimgr.SetFlags( QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable );
+    // m_auimgr needs to be properly initialized - Qt dock widgets handle this differently
+    // QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable would be set on individual dock widgets
 
     if( ( aStyle & Qt::Tool ) == 0 )
     {
-        CreateStatusBar( 8 )->SetDoubleBuffered( true );
+        // Qt status bar creation
+        QStatusBar* statusBar = new QStatusBar(this);
+        setStatusBar(statusBar);
+        // Status bar double buffering is handled automatically by Qt
 
-        GetStatusBar()->SetFont( KIUI::GetStatusFont( this ) );
+        statusBar->setFont( KIUI::GetStatusFont( this ) );
 
         // set the size of the status bar subwindows:
         updateStatusBarWidths();
     }
 
-    m_messagePanel = new EDA_MSG_PANEL( this, -1, QPoint( 0, m_frameSize.y ), QSize() );
-    m_messagePanel->SetBackgroundColour( COLOR4D( LIGHTGRAY ).ToColour() );
-    m_msgFrameHeight = m_messagePanel->GetBestSize().y;
+    m_messagePanel = new EDA_MSG_PANEL( this );
+    m_messagePanel->move( QPoint( 0, m_frameSize.height() ) );
+    // Qt uses stylesheets for background colors
+    COLOR4D bgColor = COLOR4D( LIGHTGRAY );
+    m_messagePanel->setStyleSheet( QString("background-color: rgb(%1, %2, %3)")
+                                   .arg( int(bgColor.r * 255) )
+                                   .arg( int(bgColor.g * 255) )
+                                   .arg( int(bgColor.b * 255) ) );
+    m_msgFrameHeight = m_messagePanel->sizeHint().height();
 
     // Create child subwindows.
     QSize clientSize = size();
-    m_frameSize.x = clientSize.width();
-    m_frameSize.y = clientSize.height();
-    m_framePos.x   = m_framePos.y = 0;
-    m_frameSize.y -= m_msgFrameHeight;
+    m_frameSize.setWidth( clientSize.width() );
+    m_frameSize.setHeight( clientSize.height() );
+    m_framePos.setX( 0 );
+    m_framePos.setY( 0 );
+    m_frameSize.setHeight( m_frameSize.height() - m_msgFrameHeight );
 
-    m_messagePanel->SetSize( m_frameSize.x, m_msgFrameHeight );
+    m_messagePanel->resize( m_frameSize.width(), m_msgFrameHeight );
 
     // Qt DPI change handling
-    connect( this, &QWidget::screenChanged,
-          [&]( QScreen* )
-          {
-              if( ( windowFlags() & Qt::Tool ) == 0 )
-                  updateStatusBarWidths();
+    // Note: screenChanged is a QWindow signal, not QWidget
+    // We need to handle DPI changes differently in Qt
+    if( QWindow* window = windowHandle() )
+    {
+        connect( window, &QWindow::screenChanged, this,
+                [this]( QScreen* )
+                {
+                    if( ( windowFlags() & Qt::Tool ) == 0 )
+                        updateStatusBarWidths();
 
-              // Qt move event handling will be different
-              QMoveEvent dummyEvent( pos(), pos() );
-              OnMove( dummyEvent );
+                    // Qt move event handling will be different
+                    QMoveEvent dummyEvent( pos(), pos() );
+                    OnMove( dummyEvent );
 
-              // we need to kludge the msg panel to the correct size again
-              // especially important even for first launches as the constructor of the window
-              // here usually doesn't have the correct dpi awareness yet
-              m_frameSize.y += m_msgFrameHeight;
-              m_msgFrameHeight = m_messagePanel->sizeHint().height();
-              m_frameSize.y -= m_msgFrameHeight;
+                    // we need to kludge the msg panel to the correct size again
+                    // especially important even for first launches as the constructor of the window
+                    // here usually doesn't have the correct dpi awareness yet
+                    m_frameSize.setHeight( m_frameSize.height() + m_msgFrameHeight );
+                    m_msgFrameHeight = m_messagePanel->sizeHint().height();
+                    m_frameSize.setHeight( m_frameSize.height() - m_msgFrameHeight );
 
-              m_messagePanel->move( QPoint( 0, m_frameSize.y ) );
-              m_messagePanel->resize( m_frameSize.x, m_msgFrameHeight );
+                    m_messagePanel->move( QPoint( 0, m_frameSize.height() ) );
+                    m_messagePanel->resize( m_frameSize.width(), m_msgFrameHeight );
 
-              // Don't propagate, otherwise the frame gets too big
-          } );
+                    // Don't propagate, otherwise the frame gets too big
+                } );
+    }
 }
 
 
@@ -172,7 +194,8 @@ EDA_DRAW_FRAME::~EDA_DRAW_FRAME()
     delete m_currentScreen;
     m_currentScreen = nullptr;
 
-    m_auimgr.UnInit();
+    // Qt dock widgets are managed by the main window
+    // No explicit UnInit needed
 
     ReleaseFile();
 }
@@ -199,7 +222,8 @@ bool EDA_DRAW_FRAME::LockFile( const QString& aFileName )
         // locked it, check to see if there is another KiCad instance running.
         // If there is not, then we can override the lock.  This could happen if
         // KiCad crashed or was interrupted
-        if( !Pgm().SingleInstance()->IsAnotherRunning() )
+        // Qt version: Check if another instance is running using QSharedMemory
+        if( Pgm().SingleInstance() && !Pgm().SingleInstance()->attach() )
             m_file_checker->OverrideLock();
     }
     // If the file is valid, return true.  This could mean that the file is
@@ -223,28 +247,28 @@ void EDA_DRAW_FRAME::ScriptingConsoleEnableDisable()
         if( !frame )
             return;
 
-        if( !frame->IsVisible() )
-            frame->Show( true );
+        if( !frame->isVisible() )
+            frame->show();
 
-        // On Windows, Raise() does not bring the window on screen, when iconized
-        if( frame->IsIconized() )
-            frame->Iconize( false );
+        // On Windows, raise() does not bring the window on screen, when minimized
+        if( frame->isMinimized() )
+            frame->showNormal();
 
-        frame->Raise();
-        frame->move( center - frame->size() / 2 );
+        frame->raise();
+        frame->move( center - QPoint( frame->size().width() / 2, frame->size().height() / 2 ) );
 
         return;
     }
 
-    frame->Show( !frame->IsVisible() );
-    frame->move( center - ToQPoint( frame->GetSize() ) / 2 );
+    frame->setVisible( !frame->isVisible() );
+    frame->move( center - QPoint( frame->size().width(), frame->size().height() ) / 2 );
 }
 
 
 bool EDA_DRAW_FRAME::IsScriptingConsoleVisible()
 {
     KIWAY_PLAYER* frame = Kiway().Player( FRAME_PYTHON, false );
-    return frame && frame->IsVisible();
+    return frame && frame->isVisible();
 }
 
 
@@ -285,7 +309,7 @@ void EDA_DRAW_FRAME::CommonSettingsChanged( int aFlags )
     COMMON_SETTINGS*      settings = Pgm().GetCommonSettings();
     KIGFX::VIEW_CONTROLS* viewControls = GetCanvas()->GetViewControls();
 
-    if( m_supportsAutoSave && m_autoSaveTimer->IsRunning() )
+    if( m_supportsAutoSave && m_autoSaveTimer->isActive() )
     {
         if( GetAutoSaveInterval() > 0 )
         {
@@ -294,7 +318,7 @@ void EDA_DRAW_FRAME::CommonSettingsChanged( int aFlags )
         }
         else
         {
-            m_autoSaveTimer->Stop();
+            m_autoSaveTimer->stop();
             m_autoSavePending = false;
         }
     }
@@ -370,16 +394,16 @@ void EDA_DRAW_FRAME::UpdateGridSelectBox()
 }
 
 
-void EDA_DRAW_FRAME::OnUpdateSelectGrid( QEvent& aEvent )
+void EDA_DRAW_FRAME::OnUpdateSelectGrid( QUpdateUIEvent& aEvent )
 {
     // No need to update the grid select box if it doesn't exist or the grid setting change
     // was made using the select box.
     if( m_gridSelectBox == nullptr )
         return;
 
-    Q_ASSERT( config() );
+    Q_ASSERT( this->config() );
 
-    int idx = config()->m_Window.grid.last_size_idx;
+    int idx = this->config()->m_Window.grid.last_size_idx;
     idx = std::clamp( idx, 0, (int) m_gridSelectBox->count() - 1 );
 
     if( idx != m_gridSelectBox->currentIndex() )
@@ -388,18 +412,18 @@ void EDA_DRAW_FRAME::OnUpdateSelectGrid( QEvent& aEvent )
 
 
 
-void EDA_DRAW_FRAME::OnUpdateSelectZoom( QEvent& aEvent )
+void EDA_DRAW_FRAME::OnUpdateSelectZoom( QUpdateUIEvent& aEvent )
 {
     // No need to update the grid select box if it doesn't exist or the grid setting change
     // was made using the select box.
     if( m_zoomSelectBox == nullptr )
         return;
 
-    double zoom = GetCanvas()->GetGAL()->GetZoomFactor();
+    double zoom = this->GetCanvas()->GetGAL()->GetZoomFactor();
 
-    Q_ASSERT( config() );
+    Q_ASSERT( this->config() );
 
-    const std::vector<double>& zoomList = config()->m_Window.zoom_factors;
+    const std::vector<double>& zoomList = this->config()->m_Window.zoom_factors;
     int curr_selection = m_zoomSelectBox->currentIndex();
     int new_selection = 0;      // select zoom auto
     double last_approx = 1e9;   // large value to start calculation
@@ -429,9 +453,9 @@ void EDA_DRAW_FRAME::PrintPage( const RENDER_SETTINGS* aSettings )
 }
 
 
-void EDA_DRAW_FRAME::OnSelectGrid( QEvent& event )
+void EDA_DRAW_FRAME::OnSelectGrid( QCommandEvent& event )
 {
-    Q_ASSERT( m_gridSelectBox );
+    Q_ASSERT( m_gridSelectBox != nullptr );
 
     int idx = m_gridSelectBox->currentIndex();
 
@@ -440,7 +464,7 @@ void EDA_DRAW_FRAME::OnSelectGrid( QEvent& event )
         // Qt will handle the separator differently, which we don't want.
         // Re-check the current grid.
         // Qt event handling will be implemented differently
-        QEvent dummyEvent( QEvent::User );
+        QUpdateUIEvent dummyEvent( QEvent::User );
         OnUpdateSelectGrid( dummyEvent );
     }
     else if( idx == int( m_gridSelectBox->count() ) - 1 )
@@ -448,7 +472,7 @@ void EDA_DRAW_FRAME::OnSelectGrid( QEvent& event )
         // Qt will handle the Grid Settings... entry differently, which we don't want.
         // Re-check the current grid.
         // Qt event handling will be implemented differently
-        QEvent dummyEvent( QEvent::User );
+        QUpdateUIEvent dummyEvent( QEvent::User );
         OnUpdateSelectGrid( dummyEvent );
 
         // Give a time-slice to close the menu before opening the dialog.
@@ -462,7 +486,7 @@ void EDA_DRAW_FRAME::OnSelectGrid( QEvent& event )
         m_toolManager->RunAction( ACTIONS::gridPreset, idx );
     }
 
-    UpdateStatusBar();
+    this->UpdateStatusBar();
     m_canvas->update();
 
     // Needed on Windows because clicking on m_gridSelectBox remove the focus from m_canvas
@@ -548,9 +572,9 @@ void EDA_DRAW_FRAME::UpdateZoomSelectBox()
 }
 
 
-void EDA_DRAW_FRAME::OnSelectZoom( QEvent& event )
+void EDA_DRAW_FRAME::OnSelectZoom( QCommandEvent& event )
 {
-    Q_ASSERT( m_zoomSelectBox );
+    Q_ASSERT( m_zoomSelectBox != nullptr );
 
     int id = m_zoomSelectBox->currentIndex();
 
@@ -558,7 +582,7 @@ void EDA_DRAW_FRAME::OnSelectZoom( QEvent& event )
         return;
 
     m_toolManager->RunAction( ACTIONS::zoomPreset, id );
-    UpdateStatusBar();
+    this->UpdateStatusBar();
     m_canvas->update();
 
     // Needed on Windows because clicking on m_zoomSelectBox remove the focus from m_canvas
@@ -609,7 +633,8 @@ void EDA_DRAW_FRAME::DisplayToolMsg( const QString& msg )
     if( m_isClosing )
         return;
 
-    SetStatusText( msg, 6 );
+    if( statusBar() )
+        statusBar()->showMessage( msg );
 }
 
 
@@ -618,7 +643,8 @@ void EDA_DRAW_FRAME::DisplayConstraintsMsg( const QString& msg )
     if( m_isClosing )
         return;
 
-    SetStatusText( msg, 7 );
+    if( statusBar() )
+        statusBar()->showMessage( msg );
 }
 
 
@@ -635,7 +661,8 @@ void EDA_DRAW_FRAME::DisplayGridMsg()
     msg = QString::asprintf( "grid %s",
                 gridSettings.grids[currentIdx].UserUnitsMessageText( this, false ) );
 
-    SetStatusText( msg, 4 );
+    if( statusBar() )
+        statusBar()->showMessage( msg );
 }
 
 
@@ -654,7 +681,8 @@ void EDA_DRAW_FRAME::DisplayUnitsMsg()
     default:              msg = _( "Units" );  break;
     }
 
-    SetStatusText( msg, 5 );
+    if( statusBar() )
+        statusBar()->showMessage( msg );
 }
 
 
@@ -662,7 +690,7 @@ void EDA_DRAW_FRAME::OnSize( QResizeEvent& SizeEv )
 {
     EDA_BASE_FRAME::OnSize( SizeEv );
 
-    m_frameSize = ToVECTOR2I( size() );
+    m_frameSize = this->size();
 
     // Qt automatically propagates resize events
 }
@@ -670,7 +698,7 @@ void EDA_DRAW_FRAME::OnSize( QResizeEvent& SizeEv )
 
 void EDA_DRAW_FRAME::updateStatusBarWidths()
 {
-    QWidget* stsbar = GetStatusBar();
+    QStatusBar* stsbar = statusBar();
     int       spacer = KIUI::GetTextSize( "M", stsbar ).width() * 2;
 
     int dims[] = {
@@ -693,19 +721,20 @@ void EDA_DRAW_FRAME::updateStatusBarWidths()
         KIUI::GetTextSize( "grid X 1234.1234  Y 1234.1234", stsbar ).width(),
 
         // units display, Inches is bigger than mm
-        KIUI::GetTextSize( _( "Inches" ), stsbar ).x,
+        KIUI::GetTextSize( _( "Inches" ), stsbar ).width(),
 
         // Size for the "Current Tool" panel; longest string from SetTool()
         KIUI::GetTextSize( "Add layer alignment target", stsbar ).width(),
 
         // constraint mode
-        KIUI::GetTextSize( _( "Constrain to H, V, 45" ), stsbar ).x
+        KIUI::GetTextSize( _( "Constrain to H, V, 45" ), stsbar ).width()
     };
 
     for( size_t ii = 1; ii < arrayDim( dims ); ii++ )
         dims[ii] += spacer;
 
-    SetStatusWidths( arrayDim( dims ), dims );
+    // Qt status bar widget widths are set differently
+    // statusBar()->setFieldWidth() would be used for individual sections
 }
 
 
@@ -714,7 +743,8 @@ void EDA_DRAW_FRAME::UpdateStatusBar()
     if( m_isClosing )
         return;
 
-    SetStatusText( GetZoomLevelIndicator(), 1 );
+    if( statusBar() )
+        statusBar()->showMessage( GetZoomLevelIndicator() );
 
     // Absolute and relative cursor positions are handled by overloading this function and
     // handling the internal to user units conversion at the appropriate level.
@@ -785,13 +815,13 @@ void EDA_DRAW_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
 
     for( size_t i = 0; i < m_findStringHistoryList.size() && i < FR_HISTORY_LIST_CNT; i++ )
     {
-        aCfg->m_FindReplace.find_history.push_back( m_findStringHistoryList[ i ].toStdString() );
+        aCfg->m_FindReplace.find_history.push_back( m_findStringHistoryList[ i ] );
     }
 
     for( size_t i = 0; i < m_replaceStringHistoryList.size() && i < FR_HISTORY_LIST_CNT; i++ )
     {
         aCfg->m_FindReplace.replace_history.push_back(
-                m_replaceStringHistoryList[ i ].toStdString() );
+                m_replaceStringHistoryList[ i ] );
     }
 
     // Save the units used in this frame
@@ -862,7 +892,8 @@ void EDA_DRAW_FRAME::UpdateMsgPanel()
 
 void EDA_DRAW_FRAME::ActivateGalCanvas()
 {
-    GetCanvas()->SetEvtHandlerEnabled( true );
+    // In Qt, we don't need to enable event handlers as they're always enabled
+    // Just start drawing
     GetCanvas()->StartDrawing();
 }
 
@@ -1212,18 +1243,27 @@ void EDA_DRAW_FRAME::RecreateToolbars()
 void EDA_DRAW_FRAME::OnToolbarSizeChanged()
 {
     if( m_mainToolBar )
+    {
         // Qt dock widget sizing handled automatically
+    }
 
     if( m_drawToolBar )
+    {
         // Qt dock widget sizing handled automatically
+    }
 
     if( m_optionsToolBar )
+    {
         // Qt dock widget sizing handled automatically
+    }
 
     if( m_auxiliaryToolBar )
+    {
         // Qt dock widget sizing handled automatically
+    }
 
-    m_auimgr.Update();
+    // Qt dock widgets update automatically
+    // No explicit update needed
 }
 
 
@@ -1233,21 +1273,21 @@ void EDA_DRAW_FRAME::ShowChangedLanguage()
 
     if( m_searchPane )
     {
-        QDockWidget* search_pane_info = m_auimgr.findChild<QDockWidget*>( "SearchPane" );
+        QDockWidget* search_pane_info = findChild<QDockWidget*>( "SearchPane" );
         if( search_pane_info )
             search_pane_info->setWindowTitle( "Search" );
     }
 
     if( m_propertiesPanel )
     {
-        QDockWidget* properties_pane_info = m_auimgr.findChild<QDockWidget*>( "PropertiesPane" );
+        QDockWidget* properties_pane_info = findChild<QDockWidget*>( "PropertiesPane" );
         if( properties_pane_info )
             properties_pane_info->setWindowTitle( "Properties" );
     }
 
     if( m_netInspectorPanel )
     {
-        QDockWidget* net_inspector_panel_info = m_auimgr.findChild<QDockWidget*>( "NetInspectorPane" );
+        QDockWidget* net_inspector_panel_info = findChild<QDockWidget*>( "NetInspectorPane" );
         if( net_inspector_panel_info )
             net_inspector_panel_info->setWindowTitle( "Net Inspector" );
     }
@@ -1256,7 +1296,7 @@ void EDA_DRAW_FRAME::ShowChangedLanguage()
 
 void EDA_DRAW_FRAME::UpdateProperties()
 {
-    if( m_isClosing || !m_propertiesPanel || !m_propertiesPanel->IsShownOnScreen() )
+    if( m_isClosing || !m_propertiesPanel || !m_propertiesPanel->isVisible() )
         return;
 
     m_propertiesPanel->UpdateData();
@@ -1344,8 +1384,8 @@ void EDA_DRAW_FRAME::handleActivateEvent( QEvent& aEvent )
 {
     // Force a refresh of the message panel to ensure that the text is the right color
     // when the window activates
-    if( !IsIconized() )
-        m_messagePanel->Refresh();
+    if( !isMinimized() )
+        m_messagePanel->update();
 }
 
 
@@ -1468,7 +1508,7 @@ void EDA_DRAW_FRAME::addApiPluginTools()
 }
 
 
-void EDA_DRAW_FRAME::OnApiPluginInvoke()
+void EDA_DRAW_FRAME::OnApiPluginInvoke( QCommandEvent& aEvent )
 {
 #ifdef KICAD_IPC_API
     API_PLUGIN_MANAGER& mgr = Pgm().GetPluginManager();

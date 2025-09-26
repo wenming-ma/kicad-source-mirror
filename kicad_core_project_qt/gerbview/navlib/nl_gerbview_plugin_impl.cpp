@@ -7,7 +7,7 @@
 #include <bitmaps.h>
 #include <class_draw_panel_gal.h>
 #include <view/view.h>
-#include <view/qt_view_controls.h>
+#include <view/wx_view_controls.h>
 #include <tool/action_manager.h>
 #include <tool/tool_action.h>
 #include <tool/tool_manager.h>
@@ -353,7 +353,11 @@ long NL_GERBVIEW_PLUGIN_IMPL::GetModelExtents( navlib::box_t& extents ) const
     if( m_view == nullptr )
         return navlib::make_result_code( navlib::navlib_errc::no_data_available );
 
-    BOX2I box = static_cast<GERBVIEW_FRAME*>( m_viewport2D->GetParent() )->GetDocumentExtents();
+    GERBVIEW_FRAME* frame = qobject_cast<GERBVIEW_FRAME*>( m_viewport2D->parent() );
+    if( frame == nullptr )
+        return navlib::make_result_code( navlib::navlib_errc::no_data_available );
+
+    BOX2I box = frame->GetDocumentExtents();
     box.Normalize();
 
     double half_depth = 0.1 / m_viewport2D->GetGAL()->GetWorldScale();
@@ -411,11 +415,11 @@ long NL_GERBVIEW_PLUGIN_IMPL::SetActiveCommand( std::string commandId )
         return navlib::make_result_code( navlib::navlib_errc::invalid_operation );
     }
 
-    QWidget* parent = m_viewport2D->GetParent();
+    QWidget* parent = qobject_cast<QWidget*>(m_viewport2D->parent());
 
     // Only allow command execution if the window is enabled. i.e. there is not a modal dialog
     // currently active.
-    if( parent == nullptr || !parent->IsEnabled() )
+    if( parent == nullptr || !parent->isEnabled() )
     {
         return navlib::make_result_code( navlib::navlib_errc::invalid_operation );
     }

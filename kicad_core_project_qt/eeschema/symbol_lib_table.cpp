@@ -1,6 +1,6 @@
 
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #include <env_vars.h>
 #include <lib_id.h>
@@ -666,9 +666,9 @@ bool SYMBOL_LIB_TABLE::LoadGlobalTable( SYMBOL_LIB_TABLE& aTable )
                                                                       "TEMPLATE_DIR" );
 
         if( v && !v->isEmpty() )
-            ss.AddPaths( *v, 0 );
+            ss.AddPaths( v->toStdString(), 0 );
 
-        QString fileName = ss.FindValidPath( FILEEXT::SymbolLibraryTableFileName );
+        QString fileName = QString::fromStdString( ss.FindValidPath( FILEEXT::SymbolLibraryTableFileName ) );
 
         // The fallback is to create an empty global symbol table for the user to populate.
         if( fileName.isEmpty() || !QFile::copy( fileName, fn.absoluteFilePath() ) )
@@ -715,7 +715,7 @@ bool SYMBOL_LIB_TABLE::LoadGlobalTable( SYMBOL_LIB_TABLE& aTable )
         // Remove PCM libraries that no longer exist
         std::vector<QString> to_remove;
 
-        for( size_t i = 0; i < aTable.count(); i++ )
+        for( size_t i = 0; i < aTable.GetCount(); i++ )
         {
             LIB_TABLE_ROW& row = aTable.At( i );
             QString       path = row.GetFullURI( true );
@@ -764,7 +764,7 @@ QString SYMBOL_LIB_TABLE::GetGlobalTableFileName()
     QString fn;
 
     QDir dir( PATHS::GetUserSettingsPath() );
-    fn = dir.absoluteFilePath( FILEEXT::SymbolLibraryTableFileName );
+    fn = dir.absoluteFilePath( QString::fromStdString( FILEEXT::SymbolLibraryTableFileName ) );
 
     return fn;
 }
@@ -772,7 +772,7 @@ QString SYMBOL_LIB_TABLE::GetGlobalTableFileName()
 
 const QString SYMBOL_LIB_TABLE::GetSymbolLibTableFileName()
 {
-    return FILEEXT::SymbolLibraryTableFileName;
+    return QString::fromStdString( FILEEXT::SymbolLibraryTableFileName );
 }
 
 // Qt transformation completed - wxWidgets dependencies removed and replaced with Qt equivalents

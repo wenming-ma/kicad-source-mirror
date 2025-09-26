@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 /**
  * @file PS_plotter.cpp
@@ -262,7 +262,7 @@ std::string PSLIKE_PLOTTER::encodeStringForPlotter( const QString& aUnicode )
     for( int i = 0; i < aUnicode.length(); i++ )
     {
         // Laziness made me use stdio buffering yet another time...
-        wchar_t ch = aUnicode[i];
+        wchar_t ch = aUnicode[i].unicode();
 
         if( ch < 256 )
         {
@@ -299,8 +299,9 @@ int PSLIKE_PLOTTER::returnPostscriptTextWidth( const QString& aText, int aXSize,
                                       : ( aItalic ? hvo_widths : hv_widths );
     double tally = 0;
 
-    for( wchar_t asciiCode : aText)
+    for( QChar qch : aText )
     {
+        wchar_t asciiCode = qch.unicode();
         // Skip the negation marks and untabled points.
         if( asciiCode != '~' && asciiCode < 256 )
             tally += width_table[asciiCode];

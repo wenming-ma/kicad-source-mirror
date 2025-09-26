@@ -6,6 +6,9 @@
 #include <sch_base_frame.h>
 #include <tools/sch_tool_base.h>
 #include <status_popup.h>
+#include <sch_sheet_path.h>
+#include <list>
+#include <QObject>
 
 class SCH_EDIT_FRAME;
 
@@ -14,6 +17,8 @@ class SCH_EDIT_FRAME;
  */
 class SCH_NAVIGATE_TOOL : public QObject, public SCH_TOOL_BASE<SCH_EDIT_FRAME>
 {
+    Q_OBJECT
+
 public:
     SCH_NAVIGATE_TOOL() : SCH_TOOL_BASE<SCH_EDIT_FRAME>( "eeschema.NavigateTool" ) {}
 

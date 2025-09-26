@@ -39,7 +39,7 @@ SEARCH_STACK* PROJECT_SCH::SchSearchS( PROJECT* aProject )
         aProject->SetElem( PROJECT::ELEM::SCH_SEARCH_STACK, ss );
 
         // to the empty SEARCH_STACK for SchSearchS(), add project dir as first
-        ss->AddPaths( aProject->GetProjectDirectory() );
+        ss->AddPaths( aProject->GetProjectDirectory().toStdString() );
 
         // next add the paths found in *.pro, variable "LibDir"
         QString        libDir;
@@ -54,15 +54,15 @@ SEARCH_STACK* PROJECT_SCH::SchSearchS( PROJECT* aProject )
 
         if( !libDir.isEmpty() )
         {
-            QStringList   paths;
+            std::vector<std::string>   paths;
 
-            SEARCH_STACK::Split( &paths, libDir );
+            SEARCH_STACK::Split( &paths, libDir.toStdString() );
 
             for( unsigned i =0; i<paths.size();  ++i )
             {
-                QString path = aProject->AbsolutePath( paths[i] );
+                QString path = aProject->AbsolutePath( QString::fromStdString( paths[i] ) );
 
-                ss->AddPaths( path );     // at the end
+                ss->AddPaths( path.toStdString() );     // at the end
             }
         }
 
@@ -110,7 +110,7 @@ SYMBOL_LIBS* PROJECT_SCH::SchLibs( PROJECT* aProject )
         }
         catch( const IO_ERROR& ioe )
         {
-            QWidget* parent = Pgm().App().GetTopWindow();
+            QWidget* parent = QApplication::activeWindow();
 
             DisplayError( parent, ioe.What() );
         }
@@ -143,7 +143,7 @@ SYMBOL_LIB_TABLE* PROJECT_SCH::SchSymbolLibTable( PROJECT* aProject )
 
         QString prjPath;
 
-        prjPath = qgetenv( PROJECT_VAR_NAME );
+        prjPath = QString::fromUtf8( qgetenv( PROJECT_VAR_NAME.toUtf8().constData() ) );
 
         if( !prjPath.isEmpty() )
         {

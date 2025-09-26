@@ -34,7 +34,9 @@
 #include <gerbview_painter.h>
 // Qt Transformation Completed - File converted from wxWidgets to Qt framework
 #include <QtWidgets/QWidget>
+#include <QtWidgets/QApplication>
 #include <QtGui/QIcon>
+#include <QtGui/QResizeEvent>
 #include <QtCore/QFileInfo>
 #include <QtCore/QString>
 #include <QtCore/QTimer>
@@ -166,15 +168,16 @@ GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, QWidget* aParent ) :
 
     // Drag and drop
     // Note that all gerber files are aliased as GerberFileExtension
-    m_acceptedExts.emplace( FILEEXT::GerberFileExtension, &GERBVIEW_ACTIONS::loadGerbFiles );
-    m_acceptedExts.emplace( FILEEXT::ArchiveFileExtension, &GERBVIEW_ACTIONS::loadZipFile );
-    m_acceptedExts.emplace( FILEEXT::DrillFileExtension, &GERBVIEW_ACTIONS::loadGerbFiles );
-    DragAcceptFiles( true );
+    m_acceptedExts.emplace( QString::fromStdString(FILEEXT::GerberFileExtension), &GERBVIEW_ACTIONS::loadGerbFiles );
+    m_acceptedExts.emplace( QString::fromStdString(FILEEXT::ArchiveFileExtension), &GERBVIEW_ACTIONS::loadZipFile );
+    m_acceptedExts.emplace( QString::fromStdString(FILEEXT::DrillFileExtension), &GERBVIEW_ACTIONS::loadGerbFiles );
+    setAcceptDrops( true );
 
     GetToolManager()->RunAction( ACTIONS::zoomFitScreen );
 
     // Ensure the window is on top
-    Raise();
+    raise();
+    activateWindow();
 
     // Register a call to update the toolbar sizes. It can't be done immediately because
     // it seems to require some sizes calculated that aren't yet (at least on GTK).
@@ -212,7 +215,7 @@ void GERBVIEW_FRAME::doCloseWindow()
         m_toolManager->DeactivateTool();
 
     // Be sure any OpenGL event cannot be fired after frame deletion:
-    GetCanvas()->SetEvtHandlerEnabled( false );
+    GetCanvas()->setEnabled( false );
 
     Destroy();
 }
@@ -223,8 +226,8 @@ bool GERBVIEW_FRAME::OpenProjectFiles( const std::vector<QString>& aFileSet, int
     // Ensure the frame is shown when opening the file(s), to avoid issues (crash) on GAL
     // when trying to change the view if it is not fully initialized.
     // It happens when starting GerbView with a gerber job file to load
-    if( !IsShownOnScreen() )
-        Show();
+    if( !isVisible() )
+        show();
 
     // The current project path is also a valid command parameter.  Check if a single path
     // rather than a file name was passed to GerbView and use it as the initial MRU path.
@@ -467,7 +470,7 @@ void GERBVIEW_FRAME::syncLayerBox( bool aRebuildLayerBox )
     if( aRebuildLayerBox )
         m_SelLayerBox->Resync();
 
-    m_SelLayerBox->SetSelection( GetActiveLayer() );
+    m_SelLayerBox->SetLayerSelection( GetActiveLayer() );
 
     int dcodeSelected = -1;
     GERBER_FILE_IMAGE*   gerber = GetGbrImage( GetActiveLayer() );
@@ -479,7 +482,7 @@ void GERBVIEW_FRAME::syncLayerBox( bool aRebuildLayerBox )
     {
         updateDCodeSelectBox();
         m_DCodeSelector->SetDCodeSelection( dcodeSelected );
-        m_DCodeSelector->Enable( gerber != nullptr );
+        m_DCodeSelector->setEnabled( gerber != nullptr );
     }
 }
 
@@ -631,10 +634,10 @@ void GERBVIEW_FRAME::UpdateTitleAndInfo()
     {
         setWindowTitle( "Gerber Viewer" );
 
-        SetStatusText( QString(), 0 );
+        statusBar()->showMessage( QString() );
 
         QString info = "Drawing layer not in use";
-        m_TextInfo->SetValue( info );
+        m_TextInfo->setText( info );
 
         if( KIUI::EnsureTextCtrlWidth( m_TextInfo, &info ) ) // Resized
            m_auimgr.Update();
@@ -662,22 +665,22 @@ void GERBVIEW_FRAME::UpdateTitleAndInfo()
         status = QString::asprintf( "Image name: \"%s\"  Layer name: \"%s\"",
                                    gerber->m_ImageName.toStdString().c_str(),
                                    gerber->GetLayerParams().m_LayerName.toStdString().c_str() );
-        SetStatusText( status, 0 );
+        statusBar()->showMessage( status );
 
         // Display data format like fmt in X3.4Y3.4 no LZ or fmt mm X2.3 Y3.5 no TZ in main toolbar
         QString info;
         info = QString::asprintf( "fmt: %s X%d.%d Y%d.%d no %cZ",
                                  gerber->m_GerbMetric ? "mm" : "in",
-                                 gerber->m_FmtLen.x - gerber->m_FmtScale.x,
-                                 gerber->m_FmtScale.x,
-                                 gerber->m_FmtLen.y - gerber->m_FmtScale.y,
-                                 gerber->m_FmtScale.y,
+                                 gerber->m_FmtLen.x() - gerber->m_FmtScale.x(),
+                                 gerber->m_FmtScale.x(),
+                                 gerber->m_FmtLen.y() - gerber->m_FmtScale.y(),
+                                 gerber->m_FmtScale.y(),
                                  gerber->m_NoTrailingZeros ? 'T' : 'L' );
 
         if( gerber->m_IsX2_file )
             info += " " + QString( "X2 attr" );
 
-        m_TextInfo->SetValue( info );
+        m_TextInfo->setText( info );
 
         if( KIUI::EnsureTextCtrlWidth( m_TextInfo, &info ) ) // Resized
             m_auimgr.Update();
@@ -832,7 +835,7 @@ void GERBVIEW_FRAME::SetActiveLayer( int aLayer, bool doLayerWidgetUpdate )
     UpdateTitleAndInfo();
 
     m_toolManager->PostAction( GERBVIEW_ACTIONS::layerChanged );       // notify other tools
-    GetCanvas()->SetFocus();                 // otherwise hotkeys are stuck somewhere
+    GetCanvas()->setFocus();                 // otherwise hotkeys are stuck somewhere
 
     GetCanvas()->SetHighContrastLayer( GERBER_DRAW_LAYER( aLayer ) );
     GetCanvas()->Refresh();
@@ -918,8 +921,7 @@ void GERBVIEW_FRAME::DisplayGridMsg()
                              MessageTextFromValue( gridSize.x, false ).toStdString().c_str(),
                              MessageTextFromValue( gridSize.y, false ).toStdString().c_str() );
 
-    SetStatusText( line, 4 );
-    SetStatusText( line, 4 );
+    statusBar()->showMessage( line );
 }
 
 
@@ -943,14 +945,14 @@ void GERBVIEW_FRAME::UpdateStatusBar()
                                  MessageTextFromValue( ro, false ).toStdString().c_str(),
                                  MessageTextFromValue( theta, false ).toStdString().c_str() );
 
-        SetStatusText( line, 3 );
+        statusBar()->showMessage( line );
     }
 
     // Display absolute coordinates:
     line = QString::asprintf( "X %s  Y %s",
                              MessageTextFromValue( cursorPos.x, false ).toStdString().c_str(),
                              MessageTextFromValue( cursorPos.y, false ).toStdString().c_str() );
-    SetStatusText( line, 2 );
+    statusBar()->showMessage( line );
 
     if( !GetShowPolarCoords() )
     {
@@ -962,7 +964,7 @@ void GERBVIEW_FRAME::UpdateStatusBar()
                                  MessageTextFromValue( dXpos, false ).toStdString().c_str(),
                                  MessageTextFromValue( dYpos, false ).toStdString().c_str(),
                                  MessageTextFromValue( hypot( dXpos, dYpos ), false ).toStdString().c_str() );
-        SetStatusText( line, 3 );
+        statusBar()->showMessage( line );
     }
 
     DisplayGridMsg();
@@ -1178,8 +1180,10 @@ void GERBVIEW_FRAME::CommonSettingsChanged( int aFlags )
     ReFillLayerWidget();                // Update the layers list
     m_LayersManager->ReFillRender();    // Update colors in Render after the config is read
 
-    Layout();
-    SendSizeEvent();
+    updateGeometry();
+    // Send resize event to update widget sizes
+    QResizeEvent resizeEvent( size(), size() );
+    QApplication::sendEvent( this, &resizeEvent );
 }
 
 

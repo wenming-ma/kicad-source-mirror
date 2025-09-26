@@ -28,15 +28,17 @@ SYMBOL_LIB::SYMBOL_LIB( SCH_LIB_TYPE aType, const QString& aFileName,
 {
     type = aType;
     isModified = false;
-    timeStamp = 0;
+    // Fix: timeStamp is QDateTime, not int - set to current time directly
     timeStamp = QDateTime::currentDateTime();
     versionMajor = 0;       // Will be updated after reading the lib file
     versionMinor = 0;       // Will be updated after reading the lib file
 
-    fileName = aFileName;
+    // Fix: fileName is QFileInfo, need to construct from QString
+    fileName = QFileInfo(aFileName);
 
-    if( fileName.isEmpty() )
-        fileName = "unnamed.lib";
+    // Fix: Check if QFileInfo path is empty, then create new QFileInfo
+    if( fileName.filePath().isEmpty() )
+        fileName = QFileInfo("unnamed.lib");
 
     // UNUSED_SYMBOL: ?FindPlugin@SCH_IO_MGR@@SAPEAVSCH_IO@@W4SCH_FILE_T - Implementation not available in minimal project
     // m_plugin.reset( SCH_IO_MGR::FindPlugin( m_pluginType ) );
@@ -54,7 +56,7 @@ void SYMBOL_LIB::Save( bool aSaveDocFile )
 {
     Q_ASSERT_X( m_plugin != nullptr, "SYMBOL_LIB::Save",
                 QString( "no plugin defined for library `%1`." )
-                .arg( fileName ).toLocal8Bit().constData() );
+                .arg( fileName.absoluteFilePath() ).toLocal8Bit().constData() );
     if( m_plugin == nullptr ) return;
 
     std::map<std::string, UTF8> props;
@@ -63,14 +65,16 @@ void SYMBOL_LIB::Save( bool aSaveDocFile )
     // if( !aSaveDocFile )
     //     props[ SCH_IO_KICAD_LEGACY::PropNoDocFile ] = "";
 
-    m_plugin->SaveLibrary( fileName, &props );
+    // Fix: SaveLibrary expects QString, not QFileInfo
+    m_plugin->SaveLibrary( fileName.absoluteFilePath(), &props );
     isModified = false;
 }
 
 
 void SYMBOL_LIB::Create( const QString& aFileName )
 {
-    QString tmpFileName = fileName;
+    // Fix: Convert QFileInfo to QString
+    QString tmpFileName = fileName.absoluteFilePath();
 
     if( !aFileName.isEmpty() )
         tmpFileName = aFileName;
@@ -128,7 +132,8 @@ void SYMBOL_LIB::EnableBuffering( bool aEnable )
 
 void SYMBOL_LIB::GetSymbolNames( QStringList& aNames ) const
 {
-    m_plugin->EnumerateSymbolLib( aNames, fileName, m_properties.get() );
+    // Fix: EnumerateSymbolLib expects QString, not QFileInfo
+    m_plugin->EnumerateSymbolLib( aNames, fileName.absoluteFilePath(), m_properties.get() );
 
     aNames.sort();
 }
@@ -136,7 +141,8 @@ void SYMBOL_LIB::GetSymbolNames( QStringList& aNames ) const
 
 void SYMBOL_LIB::GetSymbols( std::vector<LIB_SYMBOL*>& aSymbols ) const
 {
-    m_plugin->EnumerateSymbolLib( aSymbols, fileName.GetFullPath(), m_properties.get() );
+    // Fix: EnumerateSymbolLib expects QString, and use absoluteFilePath() instead of GetFullPath()
+    m_plugin->EnumerateSymbolLib( aSymbols, fileName.absoluteFilePath(), m_properties.get() );
 
     std::sort( aSymbols.begin(), aSymbols.end(),
             [](LIB_SYMBOL *lhs, LIB_SYMBOL *rhs) -> bool
@@ -148,7 +154,8 @@ void SYMBOL_LIB::GetSymbols( std::vector<LIB_SYMBOL*>& aSymbols ) const
 
 LIB_SYMBOL* SYMBOL_LIB::FindSymbol( const QString& aName ) const
 {
-    LIB_SYMBOL* symbol = m_plugin->LoadSymbol( fileName, aName, m_properties.get() );
+    // Fix: LoadSymbol expects QString, not QFileInfo
+    LIB_SYMBOL* symbol = m_plugin->LoadSymbol( fileName.absoluteFilePath(), aName, m_properties.get() );
 
     if( symbol )
     {
@@ -175,7 +182,8 @@ LIB_SYMBOL* SYMBOL_LIB::FindSymbol( const LIB_ID& aLibId ) const
 void SYMBOL_LIB::AddSymbol( LIB_SYMBOL* aSymbol )
 {
     // add a clone, not the caller's copy, the plugin take ownership of the new symbol.
-    m_plugin->SaveSymbol( fileName,
+    // Fix: SaveSymbol expects QString, not QFileInfo
+    m_plugin->SaveSymbol( fileName.absoluteFilePath(),
                           new LIB_SYMBOL( *aSymbol->SharedPtr().get(), this ),
                           m_properties.get() );
 
@@ -194,7 +202,8 @@ LIB_SYMBOL* SYMBOL_LIB::RemoveSymbol( LIB_SYMBOL* aEntry )
     Q_ASSERT_X( aEntry != nullptr, "SYMBOL_LIB::RemoveSymbol", "NULL pointer cannot be removed from library." );
     if( aEntry == nullptr ) return nullptr;
 
-    m_plugin->DeleteSymbol( fileName, aEntry->GetName(), m_properties.get() );
+    // Fix: DeleteSymbol expects QString, not QFileInfo
+    m_plugin->DeleteSymbol( fileName.absoluteFilePath(), aEntry->GetName(), m_properties.get() );
 
     // If we are not buffering, the library file is updated immediately when the plugin
     // SaveSymbol() function is called.
@@ -212,11 +221,13 @@ LIB_SYMBOL* SYMBOL_LIB::ReplaceSymbol( LIB_SYMBOL* aOldSymbol, LIB_SYMBOL* aNewS
     Q_ASSERT( aOldSymbol != nullptr );
     Q_ASSERT( aNewSymbol != nullptr );
 
-    m_plugin->DeleteSymbol( fileName, aOldSymbol->GetName(), m_properties.get() );
+    // Fix: DeleteSymbol expects QString, not QFileInfo
+    m_plugin->DeleteSymbol( fileName.absoluteFilePath(), aOldSymbol->GetName(), m_properties.get() );
 
     LIB_SYMBOL* my_part = new LIB_SYMBOL( *aNewSymbol, this );
 
-    m_plugin->SaveSymbol( fileName, my_part, m_properties.get() );
+    // Fix: SaveSymbol expects QString, not QFileInfo
+    m_plugin->SaveSymbol( fileName.absoluteFilePath(), my_part, m_properties.get() );
 
     // If we are not buffering, the library file is updated immediately when the plugin
     // SaveSymbol() function is called.
@@ -460,10 +471,14 @@ void SYMBOL_LIBS::GetLibNamesAndPaths( PROJECT* aProject, QString* aPaths, QStri
     PROJECT_FILE& project = aProject->GetProjectFile();
 
     if( aPaths )
-        *aPaths = project.m_LegacyLibDir;
+        *aPaths = QString::fromStdString( project.m_LegacyLibDir );
 
     if( aNames )
-        *aNames = project.m_LegacyLibNames;
+    {
+        aNames->clear();
+        for( const std::string& name : project.m_LegacyLibNames )
+            aNames->append( QString::fromStdString( name ) );
+    }
 }
 
 
@@ -475,8 +490,10 @@ void SYMBOL_LIBS::SetLibNamesAndPaths( PROJECT* aProject, const QString& aPaths,
 
     PROJECT_FILE& project = aProject->GetProjectFile();
 
-    project.m_LegacyLibDir = aPaths;
-    project.m_LegacyLibNames = aNames;
+    project.m_LegacyLibDir = aPaths.toStdString();
+    project.m_LegacyLibNames.clear();
+    for( const QString& name : aNames )
+        project.m_LegacyLibNames.push_back( name.toStdString() );
 }
 
 
@@ -486,13 +503,13 @@ const QString SYMBOL_LIBS::CacheName( const QString& aFullProjectFilename )
     QString   name = fileinfo.baseName();
     QString   dir = fileinfo.absolutePath();
 
-    QFileInfo filename( dir + "/" + name + "-cache." + FILEEXT::LegacySymbolLibFileExtension );
+    QFileInfo filename( dir + "/" + name + "-cache." + QString::fromStdString( FILEEXT::LegacySymbolLibFileExtension ) );
 
     if( filename.exists() )
         return filename.absoluteFilePath();
 
     // Try the old (2007) cache name
-    QFileInfo oldFilename( dir + "/" + name + ".cache." + FILEEXT::LegacySymbolLibFileExtension );
+    QFileInfo oldFilename( dir + "/" + name + ".cache." + QString::fromStdString( FILEEXT::LegacySymbolLibFileExtension ) );
 
     if( oldFilename.exists() )
         return oldFilename.absoluteFilePath();
@@ -522,12 +539,11 @@ void SYMBOL_LIBS::LoadAllLibraries( PROJECT* aProject, bool aShowProgress )
                                         QString(),
                                         lib_names.size(),
                                         nullptr,
-                                        false,
-                                        true );
+                                        false );
 
         if( aShowProgress )
         {
-            lib_dialog.Show();
+            lib_dialog.show();
         }
 
         for( int i = 0; i < lib_names.size();  ++i )
@@ -540,7 +556,7 @@ void SYMBOL_LIBS::LoadAllLibraries( PROJECT* aProject, bool aShowProgress )
             // lib_names[] does not store the file extension. Set it.
             // Remember lib_names[i] can contain a '.' in name, so using a QFileInfo
             // before adding the extension can create incorrect full filename
-            QString fullname = lib_names[i] + "." + FILEEXT::LegacySymbolLibFileExtension;
+            QString fullname = lib_names[i] + "." + QString::fromStdString( FILEEXT::LegacySymbolLibFileExtension );
 
             // Now the full name is set, we can use a QFileInfo.
             QFileInfo fn( fullname );
@@ -551,7 +567,7 @@ void SYMBOL_LIBS::LoadAllLibraries( PROJECT* aProject, bool aShowProgress )
 
             if( !fn.exists() )
             {
-                filename = lib_search->FindValidPath( fn.absoluteFilePath() );
+                filename = QString::fromStdString( lib_search->FindValidPath( fn.absoluteFilePath().toStdString() ) );
 
                 if( filename.isEmpty() )
                 {

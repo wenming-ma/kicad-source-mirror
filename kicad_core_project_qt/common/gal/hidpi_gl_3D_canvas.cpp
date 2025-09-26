@@ -1,8 +1,10 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 // Base class for HiDPI aware Qt OpenGL widget implementations.
 // Transformed from wxWidgets to Qt framework.
 
 #include <gal/hidpi_gl_3D_canvas.h>
+#include <QtOpenGLWidgets/QOpenGLWidget>
+#include <QtCore/QtMath>
 
 const float HIDPI_GL_3D_CANVAS::m_delta_move_step_factor = 0.7f;
 
@@ -10,7 +12,7 @@ HIDPI_GL_3D_CANVAS::HIDPI_GL_3D_CANVAS( const KIGFX::VC_SETTINGS& aVcSettings, C
                                         QWidget* aParent, const QSurfaceFormat& aGLFormat,
                                         Qt::WindowFlags aFlags, const QPoint& aPos,
                                         const QSize& aSize, const QString& aName ) :
-        HIDPI_GL_CANVAS( aVcSettings, aParent, aGLFormat, aFlags, aPos, aSize, aName ),
+        HIDPI_GL_CANVAS( aVcSettings, aParent, aGLFormat, -1, aPos, aSize, aFlags, aName ),
         m_mouse_is_moving( false ),
         m_mouse_was_moved( false ),
         m_camera_is_moving( false ),

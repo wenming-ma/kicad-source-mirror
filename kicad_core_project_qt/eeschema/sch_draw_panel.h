@@ -27,7 +27,7 @@ public:
     KIGFX::SCH_VIEW* GetView() const override;
 
 protected:
-    virtual void onPaint( QPaintEvent& aEvent ) override;
+    virtual void paintEvent( QPaintEvent* aEvent ) override;
 
     void OnShow() override;
 

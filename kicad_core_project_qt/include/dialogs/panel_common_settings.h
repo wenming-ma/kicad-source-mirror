@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #ifndef KICAD_DIALOG_SUITE_OPTIONS_H
 #define KICAD_DIALOG_SUITE_OPTIONS_H
@@ -21,24 +21,24 @@ public:
     void ResetPanel() override;
 
 protected:
-    bool TransferDataFromWindow() override;
-    bool TransferDataToWindow() override;
+    bool TransferDataFromWindow();
+    bool TransferDataToWindow();
 
     void applySettingsToPanel( COMMON_SETTINGS& aSettings );
 
-    void OnTextEditorClick( QEvent& event ) override;
-    void OnPDFViewerClick( QEvent& event ) override;
-    void OnRadioButtonPdfViewer( QEvent& event ) override;
+    void OnTextEditorClick() override;
+    void OnPDFViewerClick() override;
+    void OnRadioButtonPdfViewer() override;
 
     /**
      * Event fired when the canvas scale field is modified
      */
-    void OnCanvasScaleChange( QEvent& aEvent );
+    void OnCanvasScaleChange();
 
     /**
      * Event fired when the canvas auto-scale option is changed
      */
-    void OnCanvasScaleAuto( QEvent& aEvent ) override;
+    void OnCanvasScaleAuto() override;
 
 private:
     void ShowFileManagerWidgets( bool aBool );

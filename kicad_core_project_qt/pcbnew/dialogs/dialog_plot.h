@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #include <board.h>
 #include <dialog_plot_base.h>
@@ -29,24 +29,24 @@ public:
 private:
 
     // Event called functions
-    void Plot( QEvent& event ) override;
-    void onOutputDirectoryBrowseClicked( QEvent& event ) override;
+    void Plot( QEvent& event );
+    void onOutputDirectoryBrowseClicked( QEvent& event );
     void OnRightClickLayers( QMouseEvent& event );
     void OnRightClickAllLayers( QMouseEvent& event );
-    void SetPlotFormat( QEvent& event ) override;
-    void OnChangeDXFPlotMode( QEvent& event ) override;
-    void OnSetScaleOpt( QEvent& event ) override;
-    void CreateDrillFile( QEvent& event ) override;
-    void OnGerberX2Checked( QEvent& event ) override;
-    void onRunDRC( QEvent& event ) override;
-    void onOpenOutputDirectory( QEvent& event ) override;
-    void onBoardSetup( QEvent& aEvent ) override;
+    void SetPlotFormat( QEvent& event );
+    void OnChangeDXFPlotMode( QEvent& event );
+    void OnSetScaleOpt( QEvent& event );
+    void CreateDrillFile( QEvent& event );
+    void OnGerberX2Checked( QEvent& event );
+    void onRunDRC( QEvent& event );
+    void onOpenOutputDirectory( QEvent& event );
+    void onBoardSetup( QEvent& aEvent );
 
     void onPlotAllListMoveUp( QEvent& aEvent );
     void onPlotAllListMoveDown( QEvent& aEvent );
 
-    void onDNPCheckbox( QEvent& event ) override;
-    void onSketchPads( QEvent& event ) override;
+    void onDNPCheckbox( QEvent& event );
+    void onSketchPads( QEvent& event );
 
     // other functions
     void init_Dialog();      // main initialization
@@ -56,7 +56,7 @@ private:
 
     void setPlotModeChoiceSelection( OUTLINE_MODE aPlotMode )
     {
-        m_plotModeOpt->SetSelection( aPlotMode == SKETCH ? 1 : 0 );
+        m_plotModeOpt->setCurrentIndex( aPlotMode == SKETCH ? 1 : 0 );
     }
 
     void arrangeAllLayersList( const LSEQ& aSeq );

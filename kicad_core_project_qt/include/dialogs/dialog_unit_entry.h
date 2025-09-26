@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #pragma once
 
@@ -38,7 +38,7 @@ public:
      */
     VECTOR2I GetValue();
 
-	void ResetValues( QEvent& event ) override;
+	void ResetValues() override;
 
 private:
     UNIT_BINDER m_unit_binder_x;

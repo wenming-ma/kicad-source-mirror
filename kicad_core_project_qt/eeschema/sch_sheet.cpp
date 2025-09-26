@@ -25,6 +25,8 @@
 #include <QDebug>
 #include <QString>
 #include <QStringList>
+#include <i18n_utility.h>
+#include <gr_basic.h>
 
 // N.B. Do not change these values without transitioning the file format
 #define SHEET_NAME_CANONICAL "Sheetname"
@@ -42,7 +44,7 @@ const QString SCH_SHEET::GetDefaultFieldName( int aFieldNdx, bool aTranslated )
         {
         case  SHEETNAME:     return s_CanonicalSheetName;
         case  SHEETFILENAME: return s_CanonicalSheetFile;
-        default:             return QString::asprintf( USER_FIELD_CANONICAL, aFieldNdx );
+        default:             return QString( USER_FIELD_CANONICAL ).arg( aFieldNdx );
         }
     }
     else
@@ -51,7 +53,7 @@ const QString SCH_SHEET::GetDefaultFieldName( int aFieldNdx, bool aTranslated )
         {
         case  SHEETNAME:     return _( SHEET_NAME_CANONICAL );
         case  SHEETFILENAME: return _( SHEET_FILE_CANONICAL );
-        default:             return QString::asprintf( _( USER_FIELD_CANONICAL ), aFieldNdx );
+        default:             return QString( _( USER_FIELD_CANONICAL ) ).arg( aFieldNdx );
         }
     }
 }
@@ -199,7 +201,7 @@ void SCH_SHEET::GetContextualTextVars( QStringList* aVars ) const
     for( const SCH_FIELD& field : m_fields )
     {
         if( field.IsMandatory() )
-            add( field.GetCanonicalName().Upper() );
+            add( field.GetCanonicalName().toUpper() );
         else
             add( field.GetName() );
     }
@@ -742,7 +744,7 @@ int SCH_SHEET::SymbolCount() const
         {
             SCH_SYMBOL* symbol = (SCH_SYMBOL*) aItem;
 
-            if( symbol->GetField( VALUE_FIELD )->GetText().GetChar( 0 ) != '#' )
+            if( symbol->GetField( VALUE_FIELD )->GetText().at( 0 ) != '#' )
                 n++;
         }
 
@@ -848,8 +850,10 @@ int SCH_SHEET::CountSheets() const
 void SCH_SHEET::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     // Don't use GetShownText(); we want to see the variable references here
-    aList.emplace_back( _( "Sheet Name" ),
-                        KIUI::EllipsizeStatusText( aFrame, m_fields[ SHEETNAME ].GetText() ) );
+    // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+    // aList.emplace_back( _( "Sheet Name" ),
+    //                     KIUI::EllipsizeStatusText( aFrame, m_fields[ SHEETNAME ].GetText() ) );
+    aList.emplace_back( _( "Sheet Name" ), m_fields[ SHEETNAME ].GetText() ); // Direct text without ellipsis
 
     if( SCH_EDIT_FRAME* schframe = dynamic_cast<SCH_EDIT_FRAME*>( aFrame ) )
     {
@@ -862,8 +866,10 @@ void SCH_SHEET::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
     }
 
     // Don't use GetShownText(); we want to see the variable references here
-    aList.emplace_back( _( "File Name" ),
-                        KIUI::EllipsizeStatusText( aFrame, m_fields[ SHEETFILENAME ].GetText() ) );
+    // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+    // aList.emplace_back( _( "File Name" ),
+    //                     KIUI::EllipsizeStatusText( aFrame, m_fields[ SHEETFILENAME ].GetText() ) );
+    aList.emplace_back( _( "File Name" ), m_fields[ SHEETFILENAME ].GetText() ); // Direct text without ellipsis
 
     QStringList msgs;
     QString      msg;
@@ -1179,9 +1185,11 @@ void SCH_SHEET::RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction
 
 QString SCH_SHEET::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return QString::asprintf( _( "Hierarchical Sheet %s" ),
-                             aFull ? m_fields[ SHEETNAME ].GetShownText( false ).toStdString().c_str()
-                                   : KIUI::EllipsizeMenuText( m_fields[ SHEETNAME ].GetText() ).toStdString().c_str() );
+    return QString( _( "Hierarchical Sheet %s" ) ).arg(
+                             aFull ? m_fields[ SHEETNAME ].GetShownText( false )
+                                   // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
+                                  // : KIUI::EllipsizeMenuText( m_fields[ SHEETNAME ].GetText() ) );
+                                  : m_fields[ SHEETNAME ].GetText() ); // Direct text without ellipsis
 }
 
 
@@ -1301,7 +1309,7 @@ void SCH_SHEET::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
 void SCH_SHEET::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
                        const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
 {
-    QPaintDevice*    DC = aSettings->GetPrintDC();
+    QPainter*        DC = aSettings->GetPrintDC();
     VECTOR2I pos = m_pos + aOffset;
     int      lineWidth = GetEffectivePenWidth( aSettings );
     COLOR4D  border = GetBorderColor();

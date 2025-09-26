@@ -39,6 +39,12 @@ target_link_libraries( gal
     ${FREETYPE_LIBRARIES}
     ${HarfBuzz_LIBRARIES}
     ${Fontconfig_LIBRARIES}
+
+    # Qt libraries (for Qt OpenGL support)
+    $<$<BOOL:${Qt6_FOUND}>:Qt6::Core>
+    $<$<BOOL:${Qt6_FOUND}>:Qt6::Gui>
+    $<$<BOOL:${Qt6_FOUND}>:Qt6::OpenGL>
+    $<$<BOOL:${Qt6_FOUND}>:Qt6::OpenGLWidgets>
 )
 
 target_compile_definitions( gal PRIVATE GAL_DLL=1 )

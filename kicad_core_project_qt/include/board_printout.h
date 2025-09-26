@@ -3,7 +3,9 @@
 #ifndef BOARD_PRINTOUT_H
 #define BOARD_PRINTOUT_H
 
-#include <QPrinter>
+#include <QtPrintSupport/QPrinter>
+#include <QtPrintSupport/QAbstractPrintDialog>
+#include <QtCore/QObject>
 #include <QString>
 #include <layer_ids.h>
 #include <lset.h>
@@ -11,6 +13,8 @@
 #include <math/box2.h>
 
 #include <memory>
+
+class QPainter;
 
 namespace KIGFX
 {
@@ -37,11 +41,13 @@ struct BOARD_PRINTOUT_SETTINGS : public PRINTOUT_SETTINGS
 
 
 /**
- * An object to handle the necessary information to control a printer
+ * An object derived from QObject to handle the necessary information to control a printer
  * when printing a board.
  */
-class BOARD_PRINTOUT
+class BOARD_PRINTOUT : public QObject
 {
+    Q_OBJECT
+
 public:
     BOARD_PRINTOUT( const BOARD_PRINTOUT_SETTINGS& aParams, const KIGFX::VIEW* aView,
                     const QString& aTitle );
@@ -61,11 +67,14 @@ public:
      * @note This function prepares the print parameters for the function which actually prints
      *       the draw layers.
      *
+     * @param aPainter the QPainter to draw on.
+     * @param aPrinter the QPrinter for page information.
      * @param aLayerName a text which can be printed as layer name.
      * @param aPageNum the number of the current page (only used to print this value).
      * @param aPageCount the number of pages to print (only used to print this value).
      */
-    virtual void DrawPage( const QString& aLayerName = QString(),
+    virtual void DrawPage( QPainter* aPainter, QPrinter* aPrinter,
+                           const QString& aLayerName = QString(),
                            int aPageNum = 1, int aPageCount = 1 );
 
 protected:
@@ -92,6 +101,9 @@ protected:
 
     /// Printout parameters.
     BOARD_PRINTOUT_SETTINGS m_settings;
+
+    /// Title of the printout
+    QString m_title;
 
     /// True if the caller is Gerbview, false for Pcbnew.
     bool  m_gerbviewPrint;

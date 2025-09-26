@@ -13,6 +13,7 @@
 #include <QTreeView>
 #include <QHeaderView>
 #include <QWidget>
+#include <QString>
 #include <vector>
 #include <string>
 #include <functional>
@@ -70,14 +71,14 @@ public:
 
     void RemoveGroup( bool aRecentlyUsedGroup, bool aAlreadyPlacedGroup );
 
-    std::vector<std::string> GetAvailableColumns() const { return m_availableColumns; }
+    std::vector<QString> GetAvailableColumns() const { return m_availableColumns; }
 
-    std::vector<std::string> GetShownColumns() const { return m_shownColumns; }
+    std::vector<QString> GetShownColumns() const { return m_shownColumns; }
 
-    std::vector<std::string> GetOpenLibs() const;
-    void        OpenLibs( const std::vector<std::string>& aLibs );
+    std::vector<QString> GetOpenLibs() const;
+    void        OpenLibs( const std::vector<QString>& aLibs );
 
-    void SetShownColumns( const std::vector<std::string>& aColumnNames );
+    void SetShownColumns( const std::vector<QString>& aColumnNames );
 
     void AssignIntrinsicRanks() { m_tree.AssignIntrinsicRanks(); }
 
@@ -126,6 +127,8 @@ public:
 
     void RefreshTree();
 
+    unsigned int GetChildren( const QModelIndex& aItem, QModelIndexList& aChildren ) const;
+
     virtual TOOL_INTERACTIVE* GetContextMenuTool() { return nullptr; }
 
     void PinLibrary( LIB_TREE_NODE* aTreeNode );
@@ -134,7 +137,7 @@ public:
     void ShowChangedLanguage();
 
 protected:
-    static QModelIndex ToItem( const LIB_TREE_NODE* aNode );
+    QModelIndex ToItem( const LIB_TREE_NODE* aNode ) const;
 
     static LIB_TREE_NODE* ToNode( const QModelIndex& aItem );
 
@@ -153,7 +156,9 @@ protected:
 private:
     const LIB_TREE_NODE* ShowResults();
 
-    void doAddColumn( const QString& aHeader, bool aTranslate = true );
+    void expandAncestors( const QModelIndex& index );
+
+    QHeaderView* doAddColumn( const QString& aHeader, bool aTranslate = true );
 
 protected:
     void addColumnIfNecessary( const QString& aHeader );
@@ -161,8 +166,8 @@ protected:
     void recreateColumns();
 
     LIB_TREE_NODE_ROOT           m_tree;
-    std::map<unsigned, std::string> m_colIdxMap;
-    std::vector<std::string>     m_availableColumns;
+    std::map<unsigned, QString>  m_colIdxMap;
+    std::vector<QString>         m_availableColumns;
 
     QTreeView*                   m_widget;
 
@@ -178,7 +183,10 @@ private:
 
     std::function<bool( LIB_TREE_NODE& aNode )>* m_filter;
 
-    std::vector<std::string>                     m_shownColumns;
+    std::vector<QHeaderView*>                    m_columns;
+    std::map<QString, QHeaderView*>              m_colNameMap;
+    std::map<QString, int>                       m_colWidths;
+    std::vector<QString>                         m_shownColumns;
 };
 
 #endif // LIB_TREE_MODEL_ADAPTER_H

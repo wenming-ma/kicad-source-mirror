@@ -141,6 +141,9 @@ add_library( common STATIC
     trace_helpers.cpp
     ui_events.cpp
     undo_redo_container.cpp
+
+    # Qt widgets
+    widgets/qt_aui_manager.cpp
     validators.cpp
     wildcards_and_files_ext.cpp
     wx_filename.cpp
@@ -311,6 +314,7 @@ if( Qt6_FOUND )
         ../include/widgets/std_bitmap_button.h
         ../include/widgets/bitmap_button.h
         ../include/widgets/html_window.h
+        ../include/widgets/qt_aui_manager.h
     )
 
     # Generate MOC files for headers with Q_OBJECT
@@ -352,5 +356,7 @@ target_link_libraries( common PUBLIC
     $<$<BOOL:${Qt6_FOUND}>:Qt6::Core>
     $<$<BOOL:${Qt6_FOUND}>:Qt6::Widgets>
     $<$<BOOL:${Qt6_FOUND}>:Qt6::Gui>
+    $<$<BOOL:${Qt6_FOUND}>:Qt6::OpenGL>
+    $<$<BOOL:${Qt6_FOUND}>:Qt6::OpenGLWidgets>
     $<$<BOOL:${Qt6_FOUND}>:Qt6::Network>
 )

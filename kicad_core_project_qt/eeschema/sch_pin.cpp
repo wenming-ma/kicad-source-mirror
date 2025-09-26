@@ -1703,31 +1703,31 @@ QString SCH_PIN::GetDefaultNetName( const SCH_SHEET_PATH& aPath, bool aForceNoCo
     QString libPinShownNumber = m_libPin ? m_libPin->GetShownNumber() : QString( "??" );
 
     // Use timestamp for unannotated symbols
-    if( symbol->GetRef( &aPath, false ).Last() == '?' )
+    if( symbol->GetRef( &aPath, false ).right(1) == '?' )
     {
-        name << GetParentSymbol()->m_Uuid.AsString();
+        name += GetParentSymbol()->m_Uuid.AsString();
 
         QString libPinNumber = m_libPin ? m_libPin->GetNumber() : QString( "??" );
-        name << "-Pad" << libPinNumber << ")";
+        name += "-Pad" + libPinNumber + ")";
         annotated = false;
     }
     else if( !libPinShownName.isEmpty() && ( libPinShownName != libPinShownNumber ) )
     {
         // Pin names might not be unique between different units so we must have the
         // unit token in the reference designator
-        name << symbol->GetRef( &aPath, true );
-        name << "-" << EscapeString( libPinShownName, CTX_NETNAME );
+        name += symbol->GetRef( &aPath, true );
+        name += "-" + EscapeString( libPinShownName, CTX_NETNAME );
 
         if( unconnected || has_multiple )
-            name << "-Pad" << EscapeString( libPinShownNumber, CTX_NETNAME );
+            name += "-Pad" + EscapeString( libPinShownNumber, CTX_NETNAME );
 
-        name << ")";
+        name += ")";
     }
     else
     {
         // Pin numbers are unique, so we skip the unit token
-        name << symbol->GetRef( &aPath, false );
-        name << "-Pad" << EscapeString( libPinShownNumber, CTX_NETNAME ) << ")";
+        name += symbol->GetRef( &aPath, false );
+        name += "-Pad" + EscapeString( libPinShownNumber, CTX_NETNAME ) + ")";
     }
 
     if( annotated )
@@ -1790,7 +1790,8 @@ bool SCH_PIN::HasConnectivityChanges( const SCH_ITEM* aItem,
     const SCH_PIN* pin = dynamic_cast<const SCH_PIN*>( aItem );
 
     // Don't compare against a different SCH_ITEM.
-    Q_ASSERT( pin );\n    if( !pin ) return false;
+    Q_ASSERT( pin );
+    if( !pin ) return false;
 
     if( GetPosition() != pin->GetPosition() )
         return true;
@@ -1918,7 +1919,7 @@ int SCH_PIN::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
     if( !tmp ) return -1;
 
     if( m_number != tmp->m_number )
-        return m_number.Cmp( tmp->m_number );
+        return m_number.compare( tmp->m_number );
 
     if( m_position.x != tmp->m_position.x )
         return m_position.x - tmp->m_position.x;
@@ -1936,7 +1937,7 @@ int SCH_PIN::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
         if( retv )
             return retv;
 
-        retv = m_alt.Cmp( tmp->m_alt );
+        retv = m_alt.compare( tmp->m_alt );
 
         if( retv )
             return retv;
@@ -1976,7 +1977,7 @@ int SCH_PIN::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
             const ALT& lhsAlt = lhsItem->second;
             const ALT& rhsAlt = rhsItem->second;
 
-            retv = lhsAlt.m_Name.Cmp( rhsAlt.m_Name );
+            retv = lhsAlt.m_Name.compare( rhsAlt.m_Name );
 
             if( retv )
                 return retv;
@@ -2098,7 +2099,7 @@ static struct SCH_PIN_DESC
     {
         auto& pinTypeEnum = ENUM_MAP<ELECTRICAL_PINTYPE>::Instance();
 
-        if( pinTypeEnum.Choices().GetCount() == 0 )
+        if( pinTypeEnum.Choices().size() == 0 )
         {
             pinTypeEnum.Map( ELECTRICAL_PINTYPE::PT_INPUT,         "Input" )
                        .Map( ELECTRICAL_PINTYPE::PT_OUTPUT,        ( "Output" ) )
@@ -2116,7 +2117,7 @@ static struct SCH_PIN_DESC
 
         auto& pinShapeEnum = ENUM_MAP<GRAPHIC_PINSHAPE>::Instance();
 
-        if( pinShapeEnum.Choices().GetCount() == 0 )
+        if( pinShapeEnum.Choices().size() == 0 )
         {
             pinShapeEnum.Map( GRAPHIC_PINSHAPE::LINE,               ( "Line" ) )
                         .Map( GRAPHIC_PINSHAPE::INVERTED,           ( "Inverted" ) )
@@ -2131,7 +2132,7 @@ static struct SCH_PIN_DESC
 
         auto& orientationEnum = ENUM_MAP<PIN_ORIENTATION>::Instance();
 
-        if( orientationEnum.Choices().GetCount() == 0 )
+        if( orientationEnum.Choices().size() == 0 )
         {
             orientationEnum.Map( PIN_ORIENTATION::PIN_RIGHT, "Right" )
                            .Map( PIN_ORIENTATION::PIN_LEFT,  "Left" )
@@ -2206,6 +2207,4 @@ static struct SCH_PIN_DESC
 } _SCH_PIN_DESC;
 
 
-ENUM_TO_WXANY( PIN_ORIENTATION )
-ENUM_TO_WXANY( GRAPHIC_PINSHAPE )
-ENUM_TO_WXANY( ELECTRICAL_PINTYPE )
+// ENUM_TO_WXANY macros removed - not needed in Qt version

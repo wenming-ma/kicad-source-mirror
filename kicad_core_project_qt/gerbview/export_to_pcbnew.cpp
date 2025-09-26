@@ -182,7 +182,7 @@ void GBR_TO_PCB_EXPORTER::export_non_copper_item( const GERBER_DRAW_ITEM* aGbrIt
                  FormatDouble2Str( MapToPcbUnits( seg_start.y ) ).c_str(),
                  FormatDouble2Str( MapToPcbUnits( seg_end.x ) ).c_str(),
                  FormatDouble2Str( MapToPcbUnits( seg_end.y ) ).c_str(),
-                 LSET::Name( PCB_LAYER_ID( aLayer ) ).ToStdString().c_str() );
+                 LSET::Name( PCB_LAYER_ID( aLayer ) ).toStdString().c_str() );
         export_stroke_info( aGbrItem->m_Size.x );
         fprintf( m_fp, "\t)\n" );
         break;
@@ -210,7 +210,7 @@ void GBR_TO_PCB_EXPORTER::export_non_copper_item( const GERBER_DRAW_ITEM* aGbrIt
                      FormatDouble2Str( MapToPcbUnits( seg_start.y ) ).c_str(),
                      FormatDouble2Str( MapToPcbUnits( seg_end.x ) ).c_str(),
                      FormatDouble2Str( MapToPcbUnits( seg_end.y ) ).c_str(),
-                     LSET::Name( PCB_LAYER_ID( aLayer ) ).ToStdString().c_str() );
+                     LSET::Name( PCB_LAYER_ID( aLayer ) ).toStdString().c_str() );
 
             export_stroke_info( aGbrItem->m_Size.x );
             fprintf( m_fp, "\t)\n" );
@@ -245,7 +245,7 @@ void GBR_TO_PCB_EXPORTER::export_non_copper_arc( const GERBER_DRAW_ITEM* aGbrIte
                  FormatDouble2Str( MapToPcbUnits( arc_center.y ) ).c_str(),
                  FormatDouble2Str( MapToPcbUnits( seg_end.x ) ).c_str(),
                  FormatDouble2Str( MapToPcbUnits( seg_end.y ) ).c_str(),
-                 LSET::Name( PCB_LAYER_ID( aLayer ) ).ToStdString().c_str() );
+                 LSET::Name( PCB_LAYER_ID( aLayer ) ).toStdString().c_str() );
         export_stroke_info( aGbrItem->m_Size.x );
         fprintf( m_fp, "\t)\n" );
     }
@@ -266,7 +266,7 @@ void GBR_TO_PCB_EXPORTER::export_non_copper_arc( const GERBER_DRAW_ITEM* aGbrIte
                  FormatDouble2Str( MapToPcbUnits( seg_middle.y ) ).c_str(),
                  FormatDouble2Str( MapToPcbUnits( seg_end.x ) ).c_str(),
                  FormatDouble2Str( MapToPcbUnits( seg_end.y ) ).c_str(),
-                 LSET::Name( PCB_LAYER_ID( aLayer ) ).ToStdString().c_str() );
+                 LSET::Name( PCB_LAYER_ID( aLayer ) ).toStdString().c_str() );
 
         export_stroke_info( aGbrItem->m_Size.x );
         fprintf( m_fp, "\t)\n" );
@@ -296,8 +296,8 @@ void GBR_TO_PCB_EXPORTER::export_via( const EXPORT_VIA& aVia )
              FormatDouble2Str( MapToPcbUnits( aVia.m_Drill ) ).c_str() );
 
     fprintf( m_fp, " (layers %s %s))\n",
-             LSET::Name( F_Cu ).ToStdString().c_str(),
-             LSET::Name( B_Cu ).ToStdString().c_str() );
+             LSET::Name( F_Cu ).toStdString().c_str(),
+             LSET::Name( B_Cu ).toStdString().c_str() );
 }
 
 
@@ -383,7 +383,7 @@ void GBR_TO_PCB_EXPORTER::writeCopperLineItem( const VECTOR2I& aStart, const VEC
            FormatDouble2Str( MapToPcbUnits(aEnd.x) ).c_str(),
            FormatDouble2Str( MapToPcbUnits(aEnd.y) ).c_str(),
            FormatDouble2Str( MapToPcbUnits( aWidth ) ).c_str(),
-           LSET::Name( PCB_LAYER_ID( aLayer ) ).ToStdString().c_str() );
+           LSET::Name( PCB_LAYER_ID( aLayer ) ).toStdString().c_str() );
 }
 
 
@@ -423,7 +423,7 @@ void GBR_TO_PCB_EXPORTER::export_segarc_copper_item( const GERBER_DRAW_ITEM* aGb
              FormatDouble2Str( MapToPcbUnits( seg_middle.y ) ).c_str(),
              FormatDouble2Str( MapToPcbUnits( seg_end.x ) ).c_str(),
              FormatDouble2Str( MapToPcbUnits( seg_end.y ) ).c_str(),
-             LSET::Name( PCB_LAYER_ID( aLayer ) ).ToStdString().c_str() );
+             LSET::Name( PCB_LAYER_ID( aLayer ) ).toStdString().c_str() );
 
     fprintf( m_fp, "\t\t(width %s) (net 0 )\n",
              FormatDouble2Str( MapToPcbUnits( aGbrItem->m_Size.x ) ).c_str() );
@@ -497,7 +497,7 @@ void GBR_TO_PCB_EXPORTER::writePcbFilledCircle( const VECTOR2I& aCenterPosition,
 
     export_stroke_info( 0 );
     fprintf( m_fp, "\t\t(fill yes) (layer %s)",
-             LSET::Name( PCB_LAYER_ID( aLayer ) ).ToStdString().c_str() );
+             LSET::Name( PCB_LAYER_ID( aLayer ) ).toStdString().c_str() );
     fprintf( m_fp, "\n\t)\n" );
 }
 
@@ -507,7 +507,7 @@ void GBR_TO_PCB_EXPORTER::writePcbHeader( const int* aLayerLookUpTable )
     // Note: the .kicad_pcb version used here is after layers_id changes
     fprintf( m_fp, "(kicad_pcb (version 20240928)\n" );
     fprintf( m_fp, "\t(generator \"gerbview\")\n\t(generator_version \"%s\")\n\n",
-             GetMajorMinorVersion().c_str() );
+             GetMajorMinorVersion().toStdString().c_str() );
 
     // Write layers section
     fprintf( m_fp, "\t(layers \n" );
@@ -517,13 +517,13 @@ void GBR_TO_PCB_EXPORTER::writePcbHeader( const int* aLayerLookUpTable )
     for( auto cu_it = layer_set.copper_layers_begin(); cu_it != layer_set.copper_layers_end(); ++cu_it )
     {
         fprintf( m_fp, "\t\t(%d %s signal)\n",
-                 *cu_it, LSET::Name( *cu_it ).ToStdString().c_str() );
+                 *cu_it, LSET::Name( *cu_it ).toStdString().c_str() );
     }
 
     for( auto non_cu_it = layer_set.non_copper_layers_begin(); non_cu_it != layer_set.non_copper_layers_end(); ++non_cu_it )
     {
         fprintf( m_fp, "\t\t(%d %s user)\n",
-                 *non_cu_it, LSET::Name( *non_cu_it ).ToStdString().c_str() );
+                 *non_cu_it, LSET::Name( *non_cu_it ).toStdString().c_str() );
     }
 
     fprintf( m_fp, "\t)\n\n" );
@@ -569,7 +569,7 @@ void GBR_TO_PCB_EXPORTER::writePcbPolygon( const SHAPE_POLY_SET& aPolys, int aLa
     fprintf( m_fp, "\n" );
     export_stroke_info( 0 );
     fprintf( m_fp, "\t\t(fill yes) (layer %s)",
-             LSET::Name( PCB_LAYER_ID( aLayer ) ).ToStdString().c_str() );
+             LSET::Name( PCB_LAYER_ID( aLayer ) ).toStdString().c_str() );
     fprintf( m_fp, "\n\t)\n" );
 }
 
@@ -583,7 +583,7 @@ void GBR_TO_PCB_EXPORTER::writePcbZoneItem( const GERBER_DRAW_ITEM* aGbrItem, in
         return;
 
     fprintf( m_fp, "\t(zone (net 0) (net_name \"\") (layer %s) (tstamp 0000000) (hatch edge 0.508)\n",
-             LSET::Name( PCB_LAYER_ID( aLayer ) ).ToStdString().c_str() );
+             LSET::Name( PCB_LAYER_ID( aLayer ) ).toStdString().c_str() );
 
     fprintf( m_fp, "  (connect_pads (clearance 0.0))\n" );
 

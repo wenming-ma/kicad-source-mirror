@@ -11,6 +11,7 @@
 
 #include <dialogs/html_message_box.h>
 #include <macros.h>
+#include <i18n_utility.h>
 
 #include <QString>
 #include <QMessageBox>
@@ -41,7 +42,7 @@ bool GERBVIEW_FRAME::Read_GERBER_File( const QString& GERBER_FullFileName )
     if( !success )
     {
         gerber_uptr.reset();
-        msg = QString::asprintf( _( "File '%s' not found" ), GERBER_FullFileName.toStdString().c_str() );
+        msg = _( "File '%s' not found" ).arg( GERBER_FullFileName );
         ShowInfoBarError( msg );
         return false;
     }

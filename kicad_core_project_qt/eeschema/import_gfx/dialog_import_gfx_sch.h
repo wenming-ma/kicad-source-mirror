@@ -37,7 +37,7 @@ public:
 private:
     // Virtual event handlers
     void onBrowseFiles() override;
-    void onFilename();
+    void onFilename( const QString& text );
     void originOptionOnUpdateUI() override;
 
 	void onInteractivePlacement() override

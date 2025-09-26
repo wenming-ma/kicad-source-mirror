@@ -27,6 +27,7 @@
 #include <gerber_file_image.h>
 #include <macros.h>
 #include <X2_gerber_attributes.h>
+#include <i18n_utility.h>
 #include <algorithm>
 #include <map>
 #include <core/arraydim.h>
@@ -73,7 +74,8 @@ void GERBER_LAYER::ResetDefaultValues()
 {
     m_LayerName     = "no name";             // Layer name from the LN command
     m_LayerNegative = false;                        // true = Negative Layer
-    m_StepForRepeat.x     = m_StepForRepeat.y = 0;  // X and Y offsets for Step and Repeat command
+    m_StepForRepeat.setX(0);
+    m_StepForRepeat.setY(0);  // X and Y offsets for Step and Repeat command
     m_XRepeatCount        = 1;                      // The repeat count on X axis
     m_YRepeatCount        = 1;                      // The repeat count on Y axis
     m_StepForRepeatMetric = false;                  // false = Inches, true = metric
@@ -120,9 +122,9 @@ void GERBER_FILE_IMAGE::AddMessageToList( const QString& aMessage )
     const int max_messages = 50;    // Arbitrary but reasonable value.
 
     if( m_messagesList.size() < max_messages )
-        m_messagesList.Add( aMessage );
+        m_messagesList.append( aMessage );
     else if( m_messagesList.size() == max_messages )
-        m_messagesList.Add( _( "Too many messages, some are skipped" ) );
+        m_messagesList.append( _( "Too many messages, some are skipped" ) );
 }
 
 
@@ -217,8 +219,8 @@ void GERBER_FILE_IMAGE::ResetDefaultValues()
                                                     // false = no DCode-> perhaps deprecated RS274D file
     m_Has_MissingDCode = false;                     // true = some D_Codes are used, but not defined
                                                     // perhaps deprecated RS274D file
-    m_FmtScale.x = m_FmtScale.y = 4;                // Initialize default format to 3.4 => 4
-    m_FmtLen.x   = m_FmtLen.y = 3 + 4;              // Initialize default format len = 3+4
+    m_FmtScale.setX(4); m_FmtScale.setY(4);         // Initialize default format to 3.4 => 4
+    m_FmtLen.setX(3 + 4); m_FmtLen.setY(3 + 4);     // Initialize default format len = 3+4
 
     m_Iterpolation = GERB_INTERPOL_LINEAR_1X;       // Linear, 90 arc, Circ.
     m_360Arc_enbl  = true;                          // 360 deg circular mode (G75) selected as default
@@ -324,9 +326,9 @@ void GERBER_FILE_IMAGE::StepAndRepeatItem( const GERBER_DRAW_ITEM& aItem )
 
             GERBER_DRAW_ITEM* dupItem = new GERBER_DRAW_ITEM( aItem );
             VECTOR2I          move_vector;
-            move_vector.x = scaletoIU( ii * GetLayerParams().m_StepForRepeat.x,
+            move_vector.x = scaletoIU( ii * GetLayerParams().m_StepForRepeat.x(),
                                        GetLayerParams().m_StepForRepeatMetric );
-            move_vector.y = scaletoIU( jj * GetLayerParams().m_StepForRepeat.y,
+            move_vector.y = scaletoIU( jj * GetLayerParams().m_StepForRepeat.y(),
                                        GetLayerParams().m_StepForRepeatMetric );
             dupItem->MoveXY( move_vector );
             AddItemToList( dupItem );
@@ -399,7 +401,7 @@ void GERBER_FILE_IMAGE::RemoveAttribute( X2_ATTRIBUTE& aAttribute )
     m_NetAttributeDict.ClearAttribute( &cmd );
 
     if( cmd.isEmpty() || cmd == ".AperFunction" )
-        m_AperFunction.Clear();
+        m_AperFunction.clear();
 }
 
 

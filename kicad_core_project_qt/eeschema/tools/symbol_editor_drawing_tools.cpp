@@ -471,7 +471,7 @@ int SYMBOL_EDITOR_DRAWING_TOOLS::doDrawShape( const TOOL_EVENT& aEvent, std::opt
             {
                 item = new SCH_SHAPE( shapeType, LAYER_DEVICE, lineWidth, m_lastFillStyle );
                 item->SetParent( symbol );
-                description = QString::asprintf( _( "Add %s" ), item->GetFriendlyName().toStdString().c_str() );
+                description = _( "Add %s" ).arg( item->GetFriendlyName() );
             }
 
             item->SetStroke( m_lastStroke );

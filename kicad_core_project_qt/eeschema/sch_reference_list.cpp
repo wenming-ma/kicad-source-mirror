@@ -633,8 +633,8 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
     // count not yet annotated items or annotation error.
     for( unsigned ii = 0; ii < m_flatList.size(); ii++ )
     {
-        msg.Empty();
-        tmp.Empty();
+        msg.clear();
+        tmp.clear();
 
         if( m_flatList[ii].m_isNew )    // Not yet annotated
         {
@@ -706,7 +706,7 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
         if( first.m_unit == second.m_unit )
         {
             if( first.m_numRef >= 0 )
-                tmp << first.m_numRefStr;
+                tmp += first.m_numRefStr;
             else
                 tmp = "?";
 
@@ -726,7 +726,7 @@ int SCH_REFERENCE_LIST::CheckAnnotation( ANNOTATION_ERROR_HANDLER aHandler )
         if( first.GetLibPart()->GetUnitCount() != second.GetLibPart()->GetUnitCount() )
         {
             if( first.m_numRef >= 0 )
-                tmp << first.m_numRefStr;
+                tmp += first.m_numRefStr;
             else
                 tmp = "?";
 
@@ -804,9 +804,9 @@ void SCH_REFERENCE::Annotate()
     if( m_numRef < 0 )
         m_ref += '?';
     else
-        m_ref = TO_UTF8( GetRef() << GetRefNumber() );
+        m_ref = GetRef() + GetRefNumber();
 
-    m_rootSymbol->SetRef( &m_sheetPath, From_UTF8( m_ref.c_str() ) );
+    m_rootSymbol->SetRef( &m_sheetPath, m_ref );
     m_rootSymbol->SetUnit( m_unit );
     m_rootSymbol->SetUnitSelection( &m_sheetPath, m_unit );
 }
@@ -863,7 +863,7 @@ void SCH_REFERENCE::Split()
                     m_numRef = atoi( cp );
                 }
 
-                m_numRefStr = std::string( refText, ll + 1 );
+                m_numRefStr = QString::fromStdString( refText.substr( ll + 1 ) );
                 refText.erase( ll + 1 );
                 break;
             }

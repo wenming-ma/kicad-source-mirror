@@ -168,7 +168,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseLib( LIB_SYMBOL_MAP& aSymbolLibMap )
             {
                 if( !versionChecked && m_requiredVersion > SEXPR_SYMBOL_LIB_FILE_VERSION )
                 {
-                    throw FUTURE_FORMAT_ERROR( fmt::format( "{}", m_requiredVersion ),
+                    throw FUTURE_FORMAT_ERROR( QString::fromStdString( fmt::format( "{}", m_requiredVersion ) ),
                                                m_generatorVersion );
                 }
 
@@ -263,7 +263,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::ParseSymbol( LIB_SYMBOL_MAP& aSymbolLibMa
         }
         else
         {
-            QString msg = QString::Format( _( "Cannot parse %s as a symbol" ),
+            QString msg = QString( _( "Cannot parse %s as a symbol" ) ).arg(
                                              GetTokenString( CurTok() ) );
             THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
         }
@@ -319,9 +319,8 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
     {
         if( static_cast<int>( name.size() ) > bad_pos )
         {
-            QString msg = QString::Format( _( "Symbol %s contains invalid character '%c'" ),
-                                             name,
-                                             name[bad_pos] );
+            QString msg = QString( _( "Symbol %s contains invalid character '%c'" ) ).arg(
+                                             name ).arg( name[bad_pos] );
 
             THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
         }
@@ -423,7 +422,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
             // it doesn't need to be escaped.
             name.replace( "{slash}", "/" );
 
-            if( !name.StartsWith( m_symbolName ) )
+            if( !name.startsWith( m_symbolName ) )
             {
                 error = QString::asprintf( "Invalid symbol unit name prefix %s", qPrintable( name ) );
                 THROW_PARSE_ERROR( error, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
@@ -800,7 +799,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseEDA_TEXT( EDA_TEXT* aText, bool aConvertOve
 
             if( !EDA_TEXT::ValidateHyperlink( hyperlink ) )
             {
-                THROW_PARSE_ERROR( QString::Format( _( "Invalid hyperlink url '%s'" ), hyperlink ),
+                THROW_PARSE_ERROR( QString( _( "Invalid hyperlink url '%s'" ) ).arg( hyperlink ),
                                    CurSource(), CurLine(), CurLineNumber(), CurOffset() );
             }
             else
@@ -1129,8 +1128,7 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
             // Arbitrary limit 10 attempts to find a new name
             for( int ii = 1; ii < 10 && existingField; ii++ )
             {
-                QString newname = base_name;
-                newname << '_' << ii;
+                QString newname = base_name + "_" + QString::number( ii );
 
                 existingField = aSymbol->FindField( newname );
 
@@ -2191,7 +2189,8 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseSchField( SCH_ITEM* aParent )
 {
     Q_ASSERT( CurTok() == T_property );
     if( CurTok() != T_property )
-                 "Cannot parse " + GetTokenString( CurTok() ) + " as a property token." );
+        THROW_PARSE_ERROR( "Cannot parse " + GetTokenString( CurTok() ) + " as a property token.",
+                          CurSource(), CurLine(), CurLineNumber(), CurOffset() );
 
     bool is_private = false;
 
@@ -2341,7 +2340,8 @@ SCH_SHEET_PIN* SCH_IO_KICAD_SEXPR_PARSER::parseSchSheetPin( SCH_SHEET* aSheet )
         return nullptr;
     Q_ASSERT( CurTok() == T_pin );
     if( CurTok() != T_pin )
-                 "Cannot parse " + GetTokenString( CurTok() ) + " as a sheet pin token." );
+        THROW_PARSE_ERROR( "Cannot parse " + GetTokenString( CurTok() ) + " as a sheet pin token.",
+                          CurSource(), CurLine(), CurLineNumber(), CurOffset() );
 
     T token = NextTok();
 
@@ -2481,7 +2481,11 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseSchSheetInstances( SCH_SHEET* aRootSheet, S
                     {
                         // Whitespaces are not permitted
                         for( const QString& ch : whitespaces )
-                            numReplacements += instance.m_PageNumber.replace( ch, QString() );
+                        {
+                            int count = instance.m_PageNumber.count( ch );
+                            instance.m_PageNumber.replace( ch, QString() );
+                            numReplacements += count;
+                        }
 
                     }
 
@@ -2619,7 +2623,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseSchematic( SCH_SHEET* aSheet, bool aIsCopya
             {
                 if( m_requiredVersion > SEXPR_SCHEMATIC_FILE_VERSION )
                 {
-                    throw FUTURE_FORMAT_ERROR( fmt::format( "{}", m_requiredVersion ),
+                    throw FUTURE_FORMAT_ERROR( QString::fromStdString( fmt::format( "{}", m_requiredVersion ) ),
                                                m_generatorVersion );
                 }
             };
@@ -2968,7 +2972,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseSchematic( SCH_SHEET* aSheet, bool aIsCopya
     // When loading the schematic, take a moment to cache the fonts so that the font
     // picker can show the embedded fonts immediately.
     std::vector<std::string> fontNames;
-    Fontconfig()->ListFonts( fontNames, std::string( Pgm().GetLanguageTag().utf8_str() ),
+    Fontconfig()->ListFonts( fontNames, std::string( Pgm().GetLanguageTag().toUtf8().constData() ),
                              schematic->GetEmbeddedFiles()->GetFontFiles(), true );
 
     if( m_requiredVersion < 20200828 )
@@ -3051,9 +3055,9 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
             {
                 if( static_cast<int>( name.size() ) > bad_pos )
                 {
-                    QString msg = QString::Format(
-                            _( "Symbol %s contains invalid character '%c'" ), name,
-                            name[bad_pos] );
+                    QString msg = QString( _( "Symbol %s contains invalid character '%c'" ) )
+                            .arg( name )
+                            .arg( name[bad_pos] );
 
                     THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
                 }

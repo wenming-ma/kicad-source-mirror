@@ -5,6 +5,7 @@
 #include <QTextCursor>
 #include <QStringList>
 #include <QPainter>
+#include <QCursor>
 
 #include <advanced_config.h>
 #include <base_units.h>
@@ -852,7 +853,7 @@ bool SCH_FIELD::Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) co
                 return true;
 
             if( parentSymbol->GetUnitCount() > 1 )
-                text << parentSymbol->SubReference( parentSymbol->GetUnitSelection( sheet ) );
+                text += parentSymbol->SubReference( parentSymbol->GetUnitSelection( sheet ) );
         }
     }
 
@@ -860,6 +861,7 @@ bool SCH_FIELD::Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) co
 }
 
 
+#ifdef HAVE_QSCINTILLA
 void SCH_FIELD::OnScintillaCharAdded( SCINTILLA_TRICKS* aScintillaTricks,
                                       QEvent &aEvent ) const
 {
@@ -989,13 +991,14 @@ void SCH_FIELD::OnScintillaCharAdded( SCINTILLA_TRICKS* aScintillaTricks,
         if( label )
             label->GetContextualTextVars( &autocompleteTokens );
 
-        for( std::pair<QString, QString> entry : schematic->Prj().GetTextVars() )
-            autocompleteTokens.append( entry.first );
+        for( const std::pair<const std::string, std::string>& entry : schematic->Prj().GetTextVars() )
+            autocompleteTokens.append( QString::fromStdString( entry.first ) );
     }
 
     aScintillaTricks->DoAutocomplete( partial, autocompleteTokens );
     scintilla->SetFocus();
 }
+#endif // HAVE_QSCINTILLA
 
 
 bool SCH_FIELD::IsReplaceable() const
@@ -1188,8 +1191,9 @@ void SCH_FIELD::CalcEdit( const VECTOR2I& aPosition )
 
 QString SCH_FIELD::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
+    // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
     return QString( "Field %1 '%2'" ).arg( UnescapeString( GetName() ) )
-                                      .arg( aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
+                                      .arg( aFull ? GetShownText( false ) : GetText() ); // Direct text without ellipsis
 }
 
 
@@ -1200,7 +1204,9 @@ void SCH_FIELD::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
     aList.emplace_back( "Symbol Field", UnescapeString( GetName() ) );
 
     // Don't use GetShownText() here; we want to show the user the variable references
-    aList.emplace_back( "Text", KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+    // aList.emplace_back( "Text", KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    aList.emplace_back( "Text", GetText() ); // Direct text without ellipsis
 
     aList.emplace_back( "Visible", IsVisible() ? "Yes" : "No" );
 
@@ -1272,7 +1278,21 @@ void SCH_FIELD::DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const
             menu.addSeparator();
             menu.addAction( "Back to Previous Selected Sheet" );
 
-            int sel = aFrame->GetPopupMenuSelectionFromUser( menu ) - START_ID;
+            QAction* selectedAction = menu.exec( QCursor::pos() );
+            int sel = -1;
+
+            if( selectedAction )
+            {
+                QList<QAction*> actions = menu.actions();
+                int actionIndex = actions.indexOf( selectedAction );
+
+                // Account for separator: actions before separator are page selections,
+                // action after separator is "Back to Previous Selected Sheet"
+                if( actionIndex < (int) pages.size() )
+                    sel = actionIndex;
+                else if( actionIndex == actions.size() - 1 ) // Last action after separator
+                    sel = 999;
+            }
 
             if( sel >= 0 && sel < (int) pages.size() )
                 href = "#" + pages[ sel ].first;
@@ -1819,7 +1839,7 @@ static struct SCH_FIELD_DESC
         // places leads to duplicate symbols.
         auto& h_inst = ENUM_MAP<GR_TEXT_H_ALIGN_T>::Instance();
 
-        if( h_inst.Choices().GetCount() == 0)
+        if( h_inst.Choices().size() == 0)
         {
             h_inst.Map( GR_TEXT_H_ALIGN_LEFT,   "Left" );
             h_inst.Map( GR_TEXT_H_ALIGN_CENTER, "Center" );
@@ -1828,7 +1848,7 @@ static struct SCH_FIELD_DESC
 
         auto& v_inst = ENUM_MAP<GR_TEXT_V_ALIGN_T>::Instance();
 
-        if( v_inst.Choices().GetCount() == 0)
+        if( v_inst.Choices().size() == 0)
         {
             v_inst.Map( GR_TEXT_V_ALIGN_TOP,    "Top" );
             v_inst.Map( GR_TEXT_V_ALIGN_CENTER, "Center" );
@@ -1905,5 +1925,4 @@ static struct SCH_FIELD_DESC
 } _SCH_FIELD_DESC;
 
 
-DECLARE_ENUM_TO_WXANY( GR_TEXT_H_ALIGN_T )
-DECLARE_ENUM_TO_WXANY( GR_TEXT_V_ALIGN_T )
+// Note: DECLARE_ENUM_TO_WXANY macros removed - not needed in Qt implementation

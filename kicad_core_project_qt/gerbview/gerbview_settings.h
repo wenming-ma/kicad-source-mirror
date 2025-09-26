@@ -23,7 +23,7 @@ public:
 
     virtual ~GERBVIEW_SETTINGS() {}
 
-    virtual bool MigrateFromLegacy( QWidget* aLegacyConfig ) override;
+    virtual bool MigrateFromLegacy( QSettings* aCfg ) override;
 
     /**
      * return the Excellon default values to read a drill file
@@ -42,11 +42,11 @@ public:
 
     int m_BoardLayersCount;
 
-    std::vector<QString> m_DrillFileHistory;
+    std::vector<std::string> m_DrillFileHistory;
 
-    std::vector<QString> m_ZipFileHistory;
+    std::vector<std::string> m_ZipFileHistory;
 
-    std::vector<QString> m_JobFileHistory;
+    std::vector<std::string> m_JobFileHistory;
 
     /**
      * A list of GERBER_DRAWLAYERS_COUNT length containing a mapping of gerber layers

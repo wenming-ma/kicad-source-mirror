@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 ///////////////////////////////////////////////////////////////////////////
 // C++ code generated for Qt framework
 // Transformed from wxWidgets to Qt
@@ -21,9 +21,9 @@
 #include <QtCore/QString>
 #include <QtGui/QFont>
 #include <QtGui/QColor>
-class QT_INFOBAR;
 
 #include "dialog_shim.h"
+#include <widgets/qt_infobar.h>
 #include <widgets/symbol_filter_combobox.h>
 
 ///////////////////////////////////////////////////////////////////////////

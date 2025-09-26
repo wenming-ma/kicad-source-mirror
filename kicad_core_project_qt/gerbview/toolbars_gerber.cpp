@@ -34,8 +34,8 @@ void GERBVIEW_FRAME::ReCreateHToolbar()
     else
     {
         m_mainToolBar = new ACTION_TOOLBAR( this, ID_H_TOOLBAR, QPoint(), QSize(),
-                                            KICAD_AUI_TB_STYLE | Qt::Horizontal );
-        m_mainToolBar->SetAuiManager( &m_auimgr );
+                                            Qt::AllToolBarAreas );
+        // Qt toolbars manage docking automatically - no SetAuiManager needed
     }
 
     // Set up toolbar
@@ -66,7 +66,7 @@ void GERBVIEW_FRAME::ReCreateHToolbar()
     }
 
     m_SelLayerBox->Resync();
-    m_mainToolBar->AddControl( m_SelLayerBox );
+    m_mainToolBar->addWidget( m_SelLayerBox );
 
     if( !m_TextInfo )
     {
@@ -74,7 +74,7 @@ void GERBVIEW_FRAME::ReCreateHToolbar()
         m_TextInfo->setReadOnly( true );
     }
 
-    m_mainToolBar->AddControl( m_TextInfo );
+    m_mainToolBar->addWidget( m_TextInfo );
 
     m_mainToolBar->UpdateControlWidth( ID_TOOLBARH_GERBVIEW_SELECT_ACTIVE_LAYER );
     m_mainToolBar->UpdateControlWidth( ID_TOOLBARH_GERBER_DATA_TEXT_BOX );
@@ -96,8 +96,8 @@ void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
     {
         m_auxiliaryToolBar = new ACTION_TOOLBAR( this, ID_AUX_TOOLBAR, QPoint(),
                                                  QSize(),
-                                                 KICAD_AUI_TB_STYLE | Qt::Horizontal );
-        m_auxiliaryToolBar->SetAuiManager( &m_auimgr );
+                                                 Qt::AllToolBarAreas );
+        // Qt toolbars manage docking automatically - no SetAuiManager needed
     }
 
     // Creates box to display and choose components:
@@ -111,9 +111,9 @@ void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
 
     m_SelComponentBox->setToolTip( "Highlight items belonging to this component" );
     m_cmpText->setText( "Cmp: " );     // can change when changing the language
-    m_auxiliaryToolBar->AddControl( m_cmpText );
-    m_auxiliaryToolBar->AddControl( m_SelComponentBox );
-    m_auxiliaryToolBar->AddSpacer( 5 );
+    m_auxiliaryToolBar->addWidget( m_cmpText );
+    m_auxiliaryToolBar->addWidget( m_SelComponentBox );
+    m_auxiliaryToolBar->addSeparator();
 
     // Creates choice box to display net names and highlight selected:
     if( !m_SelNetnameBox )
@@ -124,9 +124,9 @@ void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
 
     m_SelNetnameBox->setToolTip( "Highlight items belonging to this net" );
     m_netText->setText( "Net:" );     // can change when changing the language
-    m_auxiliaryToolBar->AddControl( m_netText );
-    m_auxiliaryToolBar->AddControl( m_SelNetnameBox );
-    m_auxiliaryToolBar->AddSpacer( 5 );
+    m_auxiliaryToolBar->addWidget( m_netText );
+    m_auxiliaryToolBar->addWidget( m_SelNetnameBox );
+    m_auxiliaryToolBar->addSeparator();
 
     // Creates choice box to display aperture attributes and highlight selected:
     if( !m_SelAperAttributesBox )
@@ -139,9 +139,9 @@ void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
 
     m_SelAperAttributesBox->setToolTip( "Highlight items with this aperture attribute" );
     m_apertText->setText( "Attr:" ); // can change when changing the language
-    m_auxiliaryToolBar->AddControl( m_apertText );
-    m_auxiliaryToolBar->AddControl( m_SelAperAttributesBox );
-    m_auxiliaryToolBar->AddSpacer( 5 );
+    m_auxiliaryToolBar->addWidget( m_apertText );
+    m_auxiliaryToolBar->addWidget( m_SelAperAttributesBox );
+    m_auxiliaryToolBar->addSeparator();
 
     if( !m_DCodeSelector )
     {
@@ -154,8 +154,8 @@ void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
         m_dcodeText = new QLabel( "DCode:", m_auxiliaryToolBar );
 
     m_dcodeText->setText( "DCode:" );
-    m_auxiliaryToolBar->AddControl( m_dcodeText );
-    m_auxiliaryToolBar->AddControl( m_DCodeSelector );
+    m_auxiliaryToolBar->addWidget( m_dcodeText );
+    m_auxiliaryToolBar->addWidget( m_DCodeSelector );
 
     if( !m_gridSelectBox )
     {
@@ -163,7 +163,7 @@ void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
     }
 
     m_auxiliaryToolBar->AddScaledSeparator( this );
-    m_auxiliaryToolBar->AddControl( m_gridSelectBox );
+    m_auxiliaryToolBar->addWidget( m_gridSelectBox );
 
     if( !m_zoomSelectBox )
     {
@@ -171,7 +171,7 @@ void GERBVIEW_FRAME::ReCreateAuxiliaryToolbar()
     }
 
     m_auxiliaryToolBar->AddScaledSeparator( this );
-    m_auxiliaryToolBar->AddControl( m_zoomSelectBox );
+    m_auxiliaryToolBar->addWidget( m_zoomSelectBox );
 
     updateComponentListSelectBox();
     updateNetnameListSelectBox();
@@ -210,8 +210,8 @@ void GERBVIEW_FRAME::ReCreateOptToolbar()
     {
         m_optionsToolBar = new ACTION_TOOLBAR( this, ID_OPT_TOOLBAR, QPoint(),
                                                QSize(),
-                                               KICAD_AUI_TB_STYLE | Qt::Vertical );
-        m_optionsToolBar->SetAuiManager( &m_auimgr );
+                                               Qt::AllToolBarAreas );
+        // Qt toolbars manage docking automatically - no SetAuiManager needed
     }
 
     // TODO: these can be moved to the 'proper' vertical toolbar if and when there are

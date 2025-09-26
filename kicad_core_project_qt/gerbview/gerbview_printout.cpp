@@ -23,36 +23,6 @@ GERBVIEW_PRINTOUT::GERBVIEW_PRINTOUT( GBR_LAYOUT* aLayout, const BOARD_PRINTOUT_
 }
 
 
-bool GERBVIEW_PRINTOUT::OnPrintPage( int aPage )
-{
-    // Store the layerset, as it is going to be modified below and the original settings are needed
-    LSET lset = m_settings.m_LayerSet;
-
-    LSEQ seq = lset.UIOrder();
-    Q_ASSERT( unsigned( aPage - 1 ) < seq.size() );
-    if( unsigned( aPage - 1 ) >= seq.size() ) return false;
-    auto layerId = seq[aPage - 1];
-
-    // In gerbview, draw layers are always printed on separate pages because handling negative
-    // objects when using only one page is tricky
-
-    // Enable only one layer to create a printout
-    m_settings.m_LayerSet = LSET( { layerId } );
-
-    GERBER_FILE_IMAGE_LIST& gbrImgList = GERBER_FILE_IMAGE_LIST::GetImagesList();
-    GERBER_FILE_IMAGE*      gbrImage = gbrImgList.GetGbrImage( layerId );
-    QString                 gbr_filename;
-
-    if( gbrImage )
-        gbr_filename = gbrImage->m_FileName;
-
-    DrawPage( gbr_filename, aPage, m_settings.m_pageCount );
-
-    // Restore the original layer set, so the next page can be printed
-    m_settings.m_LayerSet = lset;
-
-    return true;
-}
 
 
 int GERBVIEW_PRINTOUT::milsToIU( double aMils ) const

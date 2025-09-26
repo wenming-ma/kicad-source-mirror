@@ -5,6 +5,7 @@
 #include <symbol_async_loader.h>
 #include <symbol_lib_table.h>
 #include <progress_reporter.h>
+#include <i18n_utility.h>
 
 
 SYMBOL_ASYNC_LOADER::SYMBOL_ASYNC_LOADER( const std::vector<QString>& aNicknames,
@@ -86,7 +87,7 @@ std::vector<SYMBOL_ASYNC_LOADER::LOADED_PAIR> SYMBOL_ASYNC_LOADER::worker()
         const QString& nickname = m_nicknames[libraryIndex];
 
         if( m_reporter )
-            m_reporter->AdvancePhase( QString::asprintf( _( "Loading library %s..." ), qPrintable(nickname) ) );
+            m_reporter->AdvancePhase( _( "Loading library %s..." ).arg( nickname ) );
 
         if( m_reporter && m_reporter->IsCancelled() )
             break;
@@ -100,16 +101,18 @@ std::vector<SYMBOL_ASYNC_LOADER::LOADED_PAIR> SYMBOL_ASYNC_LOADER::worker()
         }
         catch( const IO_ERROR& ioe )
         {
-            QString msg = QString::asprintf( _( "Error loading symbol library %s.\n\n%s\n" ),
-                                             qPrintable(nickname), qPrintable(ioe.What()) );
+            QString msg = _( "Error loading symbol library %s.\n\n%s\n" )
+                              .arg( nickname )
+                              .arg( ioe.What() );
 
             std::lock_guard<std::mutex> lock( m_errorMutex );
             m_errors += msg;
         }
         catch( std::exception& e )
         {
-            QString msg = QString::asprintf( _( "Error loading symbol library %s.\n\n%s\n" ),
-                                             qPrintable(nickname), e.what() );
+            QString msg = _( "Error loading symbol library %s.\n\n%s\n" )
+                              .arg( nickname )
+                              .arg( QString::fromUtf8( e.what() ) );
 
             std::lock_guard<std::mutex> lock( m_errorMutex );
             m_errors += msg;

@@ -441,8 +441,11 @@ void SCH_TEXT::DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const
 
 QString SCH_TEXT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
+    // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
+    // return QString::asprintf( _( "Graphic Text '%s'" ).toStdString().c_str(),
+    //                           (aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() )).toStdString().c_str() );
     return QString::asprintf( _( "Graphic Text '%s'" ).toStdString().c_str(),
-                              (aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() )).toStdString().c_str() );
+                              (aFull ? GetShownText( false ) : GetText()).toStdString().c_str() ); // Direct text without ellipsis
 }
 
 
@@ -611,7 +614,9 @@ void SCH_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
     QString msg;
 
     // Don't use GetShownText() here; we want to show the user the variable references
-    aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    // UNUSED_SYMBOL: KIUI::EllipsizeStatusText in unused_symbols.txt - Text ellipsis disabled
+    // aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    aList.emplace_back( _( "Text" ), GetText() ); // Direct text without ellipsis
 
     if( m_excludedFromSim )
         aList.emplace_back( _( "Exclude from" ), _( "Simulation" ) );

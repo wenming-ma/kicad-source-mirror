@@ -7,6 +7,7 @@
 #include <QString>
 #include <QStringList>
 #include <QPointF>
+#include <QPoint>
 #include <QSize>
 
 #include <dcode.h>
@@ -187,7 +188,7 @@ public:
      */
     void ClearMessageList()
     {
-        m_messagesList.Clear();
+        m_messagesList.clear();
     }
 
     /**
@@ -377,8 +378,8 @@ public:
     bool               m_Relative;             ///< false = absolute Coord, true = relative Coord.
     bool               m_NoTrailingZeros;      ///< true: remove tailing zeros.
     VECTOR2I           m_ImageOffset;          ///< Coord Offset, from IO command
-    QSize             m_FmtScale;             ///< Fmt 2.3: m_FmtScale = 3, fmt 3.4: m_FmtScale = 4
-    QSize             m_FmtLen;               ///< Nb chars per coord. ex fmt 2.3, m_FmtLen = 5
+    QPoint            m_FmtScale;             ///< Fmt 2.3: m_FmtScale = 3, fmt 3.4: m_FmtScale = 4
+    QPoint            m_FmtLen;               ///< Nb chars per coord. ex fmt 2.3, m_FmtLen = 5
 
     int                m_ImageRotation;        ///< Image rotation (0, 90, 180, 270 only) in degrees
     double             m_LocalRotation;        ///< Local rotation added to m_ImageRotation

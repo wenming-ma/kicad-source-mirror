@@ -184,7 +184,7 @@ void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::updateLibrary( LIB_TREE_NODE_LIBRARY& aL
             auto aliasIt = std::find_if( aliases.begin(), aliases.end(),
                     [&] ( const LIB_SYMBOL* a )
                     {
-                        return a->GetName() == (*nodeIt)->m_LibId.GetLibItemName();
+                        return a->GetName() == (*nodeIt)->m_LibId.GetUniStringLibItemName();
                     } );
 
             if( aliasIt != aliases.end() )
@@ -257,12 +257,12 @@ void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetValue( QVariant& aVariant, QModelInde
         if( node->m_Type == LIB_TREE_NODE::TYPE::LIBRARY )
         {
             if( m_libMgr->IsLibraryModified( node->m_Name ) )
-                aVariant = aVariant.GetString() + " *";
+                aVariant = aVariant.toString() + " *";
         }
         else if( node->m_Type == LIB_TREE_NODE::TYPE::ITEM )
         {
             if( m_libMgr->IsSymbolModified( node->m_Name, node->m_Parent->m_Name ) )
-                aVariant = aVariant.GetString() + " *";
+                aVariant = aVariant.toString() + " *";
         }
 
         break;
@@ -304,7 +304,7 @@ void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetValue( QVariant& aVariant, QModelInde
 
             if( !aVariant.toString().isEmpty() )
             {
-                if( !valueStr.IsEmpty() )
+                if( !valueStr.isEmpty() )
                     aVariant = valueStr + " - " + aVariant.toString();
             }
             else
@@ -342,42 +342,44 @@ bool SYMBOL_TREE_SYNCHRONIZING_ADAPTER::GetAttr( QModelIndex const& aItem, unsig
     switch( node->m_Type )
     {
     case LIB_TREE_NODE::TYPE::LIBRARY:
-        // mark modified libs with bold font
-        QFont font = aAttr.font();
-        font.setBold( m_libMgr->IsLibraryModified( node->m_Name ) );
-        aAttr.setFont( font );
-
-        // mark the current library if it's collapsed
-        if( curSymbol && curSymbol->GetLibId().GetLibNickname() == node->m_LibId.GetLibNickname() )
         {
-            if( !m_widget->IsExpanded( ToItem( node ) ) )
-            {
-                QFont font = aAttr.font();
-                font.setStrikeOut( true );   // LIB_TREE_RENDERER uses strikethrough as a
-                                             // proxy for "is canvas item"
-                aAttr.setFont( font );
-            }
-        }
+            // mark modified libs with bold font
+            QFont font = aAttr.font();
+            font.setBold( m_libMgr->IsLibraryModified( node->m_Name ) );
+            aAttr.setFont( font );
 
-        break;
+            // mark the current library if it's collapsed
+            if( curSymbol && curSymbol->GetLibId().GetLibNickname() == node->m_LibId.GetLibNickname() )
+            {
+                if( !m_widget->isExpanded( ToItem( node ) ) )
+                {
+                    QFont expandedFont = aAttr.font();
+                    expandedFont.setStrikeOut( true );   // LIB_TREE_RENDERER uses strikethrough as a
+                                                 // proxy for "is canvas item"
+                    aAttr.setFont( expandedFont );
+                }
+            }
+            break;
+        }
 
     case LIB_TREE_NODE::TYPE::ITEM:
-        // mark modified part with bold font
-        QFont font = aAttr.font();
-        font.setBold( m_libMgr->IsSymbolModified( node->m_Name, node->m_Parent->m_Name ) );
-        font.setItalic( !node->m_IsRoot );  // mark aliases with italic font
-        aAttr.setFont( font );
-
-        // mark the current (on-canvas) part
-        if( curSymbol && curSymbol->GetLibId() == node->m_LibId )
         {
+            // mark modified part with bold font
             QFont font = aAttr.font();
-            font.setStrikeOut( true );   // LIB_TREE_RENDERER uses strikethrough as a
-                                        // proxy for "is canvas item"
+            font.setBold( m_libMgr->IsSymbolModified( node->m_Name, node->m_Parent->m_Name ) );
+            font.setItalic( !node->m_IsRoot );  // mark aliases with italic font
             aAttr.setFont( font );
-        }
 
-        break;
+            // mark the current (on-canvas) part
+            if( curSymbol && curSymbol->GetLibId() == node->m_LibId )
+            {
+                QFont canvasFont = aAttr.font();
+                canvasFont.setStrikeOut( true );   // LIB_TREE_RENDERER uses strikethrough as a
+                                            // proxy for "is canvas item"
+                aAttr.setFont( canvasFont );
+            }
+            break;
+        }
 
     default:
         return false;
@@ -405,7 +407,8 @@ void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::ShowPreview( QWidget*             aParen
     LIB_TREE_NODE* node = ToNode( aItem );
     Q_ASSERT( node );
 
-    SYMBOL_PREVIEW_WIDGET* preview = aParent->findChild<SYMBOL_PREVIEW_WIDGET*>( c_previewName );
+    QWidget* previewWidget = aParent->findChild<QWidget*>( c_previewName );
+    SYMBOL_PREVIEW_WIDGET* preview = dynamic_cast<SYMBOL_PREVIEW_WIDGET*>( previewWidget );
 
     if( !preview )
     {
@@ -435,7 +438,7 @@ void SYMBOL_TREE_SYNCHRONIZING_ADAPTER::ShutdownPreview( QWidget* aParent )
 
     if( SYMBOL_PREVIEW_WIDGET* preview = dynamic_cast<SYMBOL_PREVIEW_WIDGET*>( previewWindow ) )
     {
-        preview->GetCanvas()->SetEvtHandlerEnabled( false );
+        preview->GetCanvas()->setEnabled( false );
         preview->GetCanvas()->StopDrawing();
     }
 }

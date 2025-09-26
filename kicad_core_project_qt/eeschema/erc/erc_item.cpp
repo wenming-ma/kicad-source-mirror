@@ -333,15 +333,18 @@ std::shared_ptr<ERC_ITEM> ERC_ITEM::Create( int aErrorCode )
 }
 
 /**
- * Override of RC_TREE_MODEL::GetValue which returns item descriptions in a specific
+ * Override of RC_TREE_MODEL::data which returns item descriptions in a specific
  * SCH_SHEET_PATH context, if a context is available on the given SCH_MARKER or ERC_ITEM
  * targets.
  */
-void ERC_TREE_MODEL::GetValue( QVariant& aVariant, QModelIndex const& aItem,
-                               unsigned int aCol ) const
+QVariant ERC_TREE_MODEL::data( const QModelIndex& aIndex, int aRole ) const
 {
+    // Only handle display role for now - delegate other roles to base class
+    if( aRole != Qt::DisplayRole )
+        return RC_TREE_MODEL::data( aIndex, aRole );
+
     SCH_EDIT_FRAME*           schEditFrame = static_cast<SCH_EDIT_FRAME*>( m_editFrame );
-    const RC_TREE_NODE*       node = ToNode( aItem );
+    const RC_TREE_NODE*       node = ToNode( aIndex );
     std::shared_ptr<ERC_ITEM> ercItem = std::static_pointer_cast<ERC_ITEM>( node->m_RcItem );
     MARKER_BASE*              marker = ercItem->GetParent();
     QString                   msg;
@@ -463,5 +466,5 @@ void ERC_TREE_MODEL::GetValue( QVariant& aVariant, QModelIndex const& aItem,
     }
 
     msg.replace( "\n", " " );
-    aVariant = msg;
+    return QVariant( msg );
 }

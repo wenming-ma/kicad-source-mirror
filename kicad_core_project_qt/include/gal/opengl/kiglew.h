@@ -6,7 +6,7 @@
 
 // Pull in Qt platform configuration
 #include <QtGlobal>
-#include <QOpenGLWidget>
+#include <QtOpenGLWidgets/QOpenGLWidget>
 
 // Apple, in their infinite wisdom, has decided to mark OpenGL as deprecated.
 // Luckily we can silence warnings about its deprecation. This is needed on the GLEW

@@ -50,7 +50,7 @@ public:
             else
                 ret += ";";
 
-            ret += "*." + formatWildcardExt( extension );
+            ret += "*." + formatWildcardExt( QString::fromStdString( extension ) );
         }
 
         return ret;

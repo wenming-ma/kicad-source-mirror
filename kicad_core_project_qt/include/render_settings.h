@@ -188,6 +188,9 @@ public:
     QPainter* GetPrintPainter() const { return m_printPainter; }
     void SetPrintPainter( QPainter* aPainter ) { m_printPainter = aPainter; }
 
+    // Qt compatibility method - alias for GetPrintPainter()
+    QPainter* GetPrintDC() const { return GetPrintPainter(); }
+
 protected:
     virtual void update();
 

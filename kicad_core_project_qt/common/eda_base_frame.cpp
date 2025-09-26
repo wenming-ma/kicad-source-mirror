@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 #include <eda_base_frame.h>
 
 #include <advanced_config.h>
@@ -29,6 +29,7 @@
 #include <tool/tool_dispatcher.h>
 #include <trace_helpers.h>
 #include <widgets/paged_dialog.h>
+#include <widgets/qt_infobar.h>
 // Widget includes removed - Qt equivalents would be used:
 // wx_busy_indicator -> QProgressBar or QProgressDialog
 // wx_infobar -> QStatusBar or custom Qt widget
@@ -36,6 +37,7 @@
 // wx_grid -> QTableWidget or QTableView
 // wx_treebook -> QTreeWidget with QStackedWidget
 #include <QApplication>
+#include <QGuiApplication>
 #include <QSettings>
 #include <QScreen>
 #include <QStandardPaths>
@@ -126,10 +128,13 @@ void EDA_BASE_FRAME::commonInit( FRAME_T aFrameType )
 
     // Store dimensions of the user area of the main window.
     QSize clientSize = size();
-    m_frameSize.x = clientSize.width();
-    m_frameSize.y = clientSize.height();
+    m_frameSize.setWidth( clientSize.width() );
+    m_frameSize.setHeight( clientSize.height() );
 
-    connect( m_autoSaveTimer, &QTimer::timeout, this, &EDA_BASE_FRAME::onAutoSaveTimer );
+    connect( m_autoSaveTimer, &QTimer::timeout, this, [this]() {
+        QTimerEvent event(QEvent::Timer);
+        onAutoSaveTimer(event);
+    });
 
     initExitKey();
 }
@@ -296,7 +301,7 @@ int EDA_BASE_FRAME::GetAutoSaveInterval() const
 }
 
 
-void EDA_BASE_FRAME::onAutoSaveTimer()
+void EDA_BASE_FRAME::onAutoSaveTimer( QTimerEvent& aEvent )
 {
     // Qt timer signals are automatically routed correctly
 
@@ -458,7 +463,7 @@ void EDA_BASE_FRAME::AddStandardHelpMenu( QMenuBar* aMenuBar )
     helpMenu->Add( ACTIONS::donate );
     helpMenu->Add( ACTIONS::reportBug );
 
-    helpMenu->AppendSeparator();
+    helpMenu->addSeparator();
     helpMenu->Add( ACTIONS::about );
 
     aMenuBar->addMenu( helpMenu );
@@ -535,7 +540,7 @@ void EDA_BASE_FRAME::OnSize( QResizeEvent& aEvent )
     }
 #endif
 
-    QMainWindow::resizeEvent( aEvent );
+    QMainWindow::resizeEvent( &aEvent );
 }
 
 
@@ -557,27 +562,27 @@ void EDA_BASE_FRAME::LoadWindowState( const WINDOW_STATE& aState )
 {
     bool wasDefault = false;
 
-    m_framePos.x  = aState.pos_x;
-    m_framePos.y  = aState.pos_y;
-    m_frameSize.x = aState.size_x;
-    m_frameSize.y = aState.size_y;
+    m_framePos.setX( aState.pos_x );
+    m_framePos.setY( aState.pos_y );
+    m_frameSize.setWidth( aState.size_x );
+    m_frameSize.setHeight( aState.size_y );
 
-    qDebug() << "Config position (" << m_framePos.x() << "," << m_framePos.y() << ") with size (" << m_frameSize.x << "," << m_frameSize.y << ")";
+    qDebug() << "Config position (" << m_framePos.x() << "," << m_framePos.y() << ") with size (" << m_frameSize.width() << "," << m_frameSize.height() << ")";
 
     // Ensure minimum size is set if the stored config was zero-initialized
     QSize minSize = minSizeLookup( m_ident, this );
 
-    if( m_frameSize.x < minSize.width() || m_frameSize.y < minSize.height() )
+    if( m_frameSize.width() < minSize.width() || m_frameSize.height() < minSize.height() )
     {
         m_frameSize = defaultSize( m_ident, this );
         wasDefault  = true;
 
-        qDebug() << "Using minimum size (" << m_frameSize.x << "," << m_frameSize.y << ")";
+        qDebug() << "Using minimum size (" << m_frameSize.width() << "," << m_frameSize.height() << ")";
     }
 
-    qDebug() << "Number of displays:" << QApplication::desktop()->screenCount();
+    qDebug() << "Number of displays:" << QApplication::screens().count();
 
-    if( aState.display >= QApplication::desktop()->screenCount() )
+    if( aState.display >= QApplication::screens().count() )
     {
         qDebug() << "Previous display not found";
 
@@ -589,15 +594,15 @@ void EDA_BASE_FRAME::LoadWindowState( const WINDOW_STATE& aState )
         m_framePos = QPoint( -1, -1 ); // Qt equivalent of default position
 
         // Ensure the window fits on the display, since the other one could have been larger
-        if( m_frameSize.x > clientSize.width() )
-            m_frameSize.x = clientSize.width();
+        if( m_frameSize.width() > clientSize.width() )
+            m_frameSize.setWidth( clientSize.width() );
 
-        if( m_frameSize.y > clientSize.height() )
-            m_frameSize.y = clientSize.height();
+        if( m_frameSize.height() > clientSize.height() )
+            m_frameSize.setHeight( clientSize.height() );
     }
     else
     {
-        QPoint upperRight( m_framePos.x() + m_frameSize.x, m_framePos.y() );
+        QPoint upperRight( m_framePos.x() + m_frameSize.width(), m_framePos.y() );
         QPoint upperLeft( m_framePos.x(), m_framePos.y() );
 
         QScreen* screen = QApplication::screens().at( aState.display );
@@ -618,15 +623,15 @@ void EDA_BASE_FRAME::LoadWindowState( const WINDOW_STATE& aState )
         }
     }
 
-    qDebug() << "Final window position (" << m_framePos.x() << "," << m_framePos.y() << ") with size (" << m_frameSize.x << "," << m_frameSize.y << ")";
+    qDebug() << "Final window position (" << m_framePos.x() << "," << m_framePos.y() << ") with size (" << m_frameSize.width() << "," << m_frameSize.height() << ")";
 
-    setGeometry( m_framePos.x(), m_framePos.y(), m_frameSize.x, m_frameSize.y );
+    setGeometry( m_framePos.x(), m_framePos.y(), m_frameSize.width(), m_frameSize.height() );
 
     // Center the window if we reset to default
     if( m_framePos.x() == -1 )
     {
         qDebug() << "Centering window";
-        move( QApplication::desktop()->screen()->rect().center() - rect().center() );
+        move( QGuiApplication::primaryScreen()->geometry().center() - rect().center() );
         m_framePos = pos();
     }
 
@@ -641,7 +646,7 @@ void EDA_BASE_FRAME::LoadWindowState( const WINDOW_STATE& aState )
         showMaximized();
     }
 
-    m_displayIndex = QApplication::desktop()->screenNumber( this );
+    m_displayIndex = QApplication::screens().indexOf( screen() );
 }
 
 
@@ -718,17 +723,17 @@ void EDA_BASE_FRAME::SaveWindowSettings( WINDOW_SETTINGS* aCfg )
 
     aCfg->state.pos_x     = m_framePos.x();
     aCfg->state.pos_y     = m_framePos.y();
-    aCfg->state.size_x    = m_frameSize.x;
-    aCfg->state.size_y    = m_frameSize.y;
+    aCfg->state.size_x    = m_frameSize.width();
+    aCfg->state.size_y    = m_frameSize.height();
     aCfg->state.maximized = isMaximized();
-    aCfg->state.display   = QApplication::desktop()->screenNumber( this );
+    aCfg->state.display   = QApplication::screens().indexOf( screen() );
 
     qDebug() << "Saving window maximized:" << (isMaximized() ? "true" : "false");
-    qDebug() << "Saving config position (" << m_framePos.x() << "," << m_framePos.y() << ") with size (" << m_frameSize.x << "," << m_frameSize.y << ")";
+    qDebug() << "Saving config position (" << m_framePos.x() << "," << m_framePos.y() << ") with size (" << m_frameSize.width() << "," << m_frameSize.height() << ")";
 
     // Qt docking system would replace wxAuiManager
     // Save perspective for Qt dock widgets
-    aCfg->perspective = saveState().toStdString();
+    aCfg->perspective = QString::fromUtf8(saveState().toBase64());
 
     aCfg->mru_path = m_mruPath;
 }
@@ -816,7 +821,7 @@ void EDA_BASE_FRAME::CreateInfoBar()
 }
 
 
-void EDA_BASE_FRAME::FinishAUIInitialization()
+void EDA_BASE_FRAME::FinishLayoutInitialization()
 {
     // Qt docking system would replace wxAuiManager functionality
     // TODO: Implement proper Qt dock widget management
@@ -825,11 +830,11 @@ void EDA_BASE_FRAME::FinishAUIInitialization()
 
 
 void EDA_BASE_FRAME::ShowInfoBarError( const QString& aErrorMsg, bool aShowCloseButton,
-                                       int aType )
+                                       QT_INFOBAR::MESSAGE_TYPE aType )
 {
     // UI component - commented out for minimal build
     // InfoBar widget implementation removed, use status bar instead
-    statusBar()->showMessage( aErrorMsg );
+    this->statusBar()->showMessage( aErrorMsg );
 }
 
 
@@ -838,7 +843,7 @@ void EDA_BASE_FRAME::ShowInfoBarError( const QString& aErrorMsg, bool aShowClose
 {
     // UI component - commented out for minimal build
     // InfoBar widget implementation removed, use status bar instead
-    statusBar()->showMessage( aErrorMsg );
+    this->statusBar()->showMessage( aErrorMsg );
 }
 
 
@@ -884,13 +889,15 @@ QString EDA_BASE_FRAME::GetFileFromHistory( int cmdId, const QString& type,
 
     Q_ASSERT( aFileHistory );
 
+    // FILE_HISTORY uses GetCount() method, not size()
+    // Use GetBaseId() method to get the correct base ID
     int baseId = aFileHistory->GetBaseId();
 
-    Q_ASSERT( cmdId >= baseId && cmdId < baseId + (int) aFileHistory->size() );
+    Q_ASSERT( cmdId >= baseId && cmdId < baseId + (int) aFileHistory->GetCount() );
 
     unsigned i = cmdId - baseId;
 
-    if( i < aFileHistory->size() )
+    if( i < aFileHistory->GetCount() )
     {
         QString fn = aFileHistory->GetHistoryFile( i );
 
@@ -934,7 +941,7 @@ void EDA_BASE_FRAME::ClearFileHistory( FILE_HISTORY* aFileHistory )
 }
 
 
-void EDA_BASE_FRAME::OnKicadAbout()
+void EDA_BASE_FRAME::OnKicadAbout( QEvent& event )
 {
     // Minimal implementation - just show a simple message
     QMessageBox::information( this, "About KiCad",
@@ -942,7 +949,7 @@ void EDA_BASE_FRAME::OnKicadAbout()
 }
 
 
-void EDA_BASE_FRAME::OnPreferences()
+void EDA_BASE_FRAME::OnPreferences( QEvent& event )
 {
     ShowPreferences( QString(), QString() );
 }
@@ -973,10 +980,10 @@ void EDA_BASE_FRAME::OnDropFiles( QDropEvent& aEvent )
 
         // Alias all gerber files as GerberFileExtension
         if( FILEEXT::IsGerberFileExtension( ext ) )
-            ext = FILEEXT::GerberFileExtension;
+            ext = QString::fromStdString( FILEEXT::GerberFileExtension );
 
-        if( m_acceptedExts.find( ext.toStdString() ) != m_acceptedExts.end() )
-            m_AcceptedFiles.emplace_back( fn.absoluteFilePath() );
+        if( m_acceptedExts.find( ext ) != m_acceptedExts.end() )
+            m_AcceptedFiles.emplace_back( fn );
     }
 
     DoWithAcceptedFiles();
@@ -986,11 +993,11 @@ void EDA_BASE_FRAME::OnDropFiles( QDropEvent& aEvent )
 
 void EDA_BASE_FRAME::DoWithAcceptedFiles()
 {
-    for( const QString& file : m_AcceptedFiles )
+    for( const QFileInfo& file : m_AcceptedFiles )
     {
         QFileInfo fi( file );
-        QString fn = file;
-        m_toolManager->RunAction<QString*>( *m_acceptedExts.at( fi.suffix().toStdString() ), &fn );
+        QString fn = file.absoluteFilePath();
+        m_toolManager->RunAction<QString*>( *m_acceptedExts.at( fi.suffix() ), &fn );
     }
 }
 
@@ -1043,8 +1050,8 @@ void EDA_BASE_FRAME::CheckForAutoSaveFile( const QFileInfo& aFileName )
     QFileInfo autoSaveFileName = aFileName;
 
     // Check for auto save file.
-    QString autoSavePath = aFileName.absolutePath() + "/" + 
-                           FILEEXT::AutoSaveFilePrefix + aFileName.baseName() + "." + aFileName.completeSuffix();
+    QString autoSavePath = aFileName.absolutePath() + "/" +
+                           QString::fromStdString( FILEEXT::AutoSaveFilePrefix ) + aFileName.baseName() + "." + aFileName.completeSuffix();
     autoSaveFileName = QFileInfo( autoSavePath );
 
     qDebug() << "Checking for auto save file" << autoSaveFileName.absoluteFilePath();
@@ -1060,7 +1067,7 @@ void EDA_BASE_FRAME::CheckForAutoSaveFile( const QFileInfo& aFileName )
                            "Do you wish to open the auto-saved file instead?" )
                   .arg( aFileName.fileName() );
 
-    int response = QMessageBox::question( this, Pgm().App().GetAppDisplayName(), msg,
+    int response = QMessageBox::question( this, QCoreApplication::applicationName(), msg,
                                           QMessageBox::Yes | QMessageBox::No );
 
     // Make a backup of the current file, delete the file, and rename the auto save file to
@@ -1073,7 +1080,7 @@ void EDA_BASE_FRAME::CheckForAutoSaveFile( const QFileInfo& aFileName )
 
         if( !QFile::rename( autoSaveFileName.absoluteFilePath(), aFileName.absoluteFilePath() ) )
         {
-            QMessageBox::warning( this, Pgm().App().GetAppDisplayName(),
+            QMessageBox::warning( this, QCoreApplication::applicationName(),
                                    "The auto save file could not be renamed to the board file name." );
         }
     }
@@ -1091,8 +1098,8 @@ void EDA_BASE_FRAME::DeleteAutoSaveFile( const QFileInfo& aFileName )
 
     Q_ASSERT( !aFileName.fileName().isEmpty() );
 
-    QString autoSavePath = aFileName.absolutePath() + "/" + 
-                           FILEEXT::AutoSaveFilePrefix + aFileName.baseName() + "." + aFileName.completeSuffix();
+    QString autoSavePath = aFileName.absolutePath() + "/" +
+                           QString::fromStdString( FILEEXT::AutoSaveFilePrefix ) + aFileName.baseName() + "." + aFileName.completeSuffix();
     QFileInfo autoSaveFn( autoSavePath );
 
     if( autoSaveFn.exists() )
@@ -1210,7 +1217,7 @@ void EDA_BASE_FRAME::OnMaximize( QEvent& aEvent )
     {
         m_normalFrameSize = GetWindowSize();
         m_normalFramePos  = pos();
-        qDebug() << "Maximizing window - Saving position (" << m_normalFramePos.x() << "," << m_normalFramePos.y() << ") with size (" << m_normalFrameSize.x << "," << m_normalFrameSize.y << ")";
+        qDebug() << "Maximizing window - Saving position (" << m_normalFramePos.x() << "," << m_normalFramePos.y() << ") with size (" << m_normalFrameSize.width() << "," << m_normalFrameSize.height() << ")";
     }
 
     // Qt handles the maximize event automatically
@@ -1240,7 +1247,7 @@ void EDA_BASE_FRAME::HandleSystemColorChange()
 }
 
 
-void EDA_BASE_FRAME::onSystemColorChange()
+void EDA_BASE_FRAME::onSystemColorChange( QEvent& aEvent )
 {
     // Call the handler to update the colors used in the frame
     HandleSystemColorChange();
@@ -1279,7 +1286,7 @@ void EDA_BASE_FRAME::AddMenuLanguageList( ACTION_MENU* aMasterMenu, TOOL_INTERAC
         if( LanguagesList[ii].m_DoNotTranslate )
             label = LanguagesList[ii].m_Lang_Label;
         else
-            label = QCoreApplication::translate( "LanguagesList", LanguagesList[ii].m_Lang_Label );
+            label = LanguagesList[ii].m_Lang_Label;
 
         QAction* item = new QAction( label, langsMenu );
         item->setCheckable( true );

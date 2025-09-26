@@ -14,7 +14,6 @@ public:
     GERBVIEW_PRINTOUT( GBR_LAYOUT* aLayout, const BOARD_PRINTOUT_SETTINGS& aParams,
             const KIGFX::VIEW* aView, const QString& aTitle );
 
-    bool OnPrintPage( int aPage ) override;
 
 protected:
     int milsToIU( double aMils ) const override;

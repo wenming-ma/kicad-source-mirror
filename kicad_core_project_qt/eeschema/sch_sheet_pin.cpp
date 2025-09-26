@@ -339,8 +339,11 @@ void SCH_SHEET_PIN::GetEndPoints( std::vector<DANGLING_END_ITEM>& aItemList )
 
 QString SCH_SHEET_PIN::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
+    // UNUSED_SYMBOL: KIUI::EllipsizeMenuText in unused_symbols.txt - Menu text ellipsis disabled
+    // return QString::asprintf( _( "Hierarchical Sheet Pin %s" ).toStdString().c_str(),
+    //                          (aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() )).toStdString().c_str() );
     return QString::asprintf( _( "Hierarchical Sheet Pin %s" ).toStdString().c_str(),
-                             (aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() )).toStdString().c_str() );
+                             (aFull ? GetShownText( false ) : GetText()).toStdString().c_str() ); // Direct text without ellipsis
 }
 
 

@@ -21,11 +21,11 @@ namespace KIGFX
 
 class ZOOM_CONTROLLER;
 
-class WX_VIEW_CONTROLS : public VIEW_CONTROLS, public QObject
+class QT_VIEW_CONTROLS : public VIEW_CONTROLS, public QObject
 {
 public:
-    WX_VIEW_CONTROLS( VIEW* aView, EDA_DRAW_PANEL_GAL* aParentPanel );
-    virtual ~WX_VIEW_CONTROLS();
+    QT_VIEW_CONTROLS( VIEW* aView, EDA_DRAW_PANEL_GAL* aParentPanel );
+    virtual ~QT_VIEW_CONTROLS();
 
     // Handler functions
     void onWheel( QWheelEvent* aEvent );
@@ -84,7 +84,7 @@ public:
     std::unique_ptr<PROF_COUNTER> m_MotionEventCounter;
 
 private:
-    // Possible states for WX_VIEW_CONTROLS.
+    // Possible states for QT_VIEW_CONTROLS.
     enum STATE
     {
         IDLE = 1,           // Nothing is happening.

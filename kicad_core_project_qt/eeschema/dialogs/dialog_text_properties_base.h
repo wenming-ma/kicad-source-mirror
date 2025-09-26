@@ -1,4 +1,4 @@
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 #pragma once
 
 #include <QtWidgets/QDialog>
@@ -19,12 +19,12 @@
 #include <QtGui/QFont>
 #include <QtGui/QColor>
 #include <QtCore/QEvent>
+#include <widgets/qt_infobar.h>
 
 class BITMAP_BUTTON;
 class COLOR_SWATCH;
 class FONT_CHOICE;
 class QT_COMBOBOX;
-class QT_INFOBAR;
 
 #include "dialog_shim.h"
 

@@ -16,6 +16,7 @@
 #include <jobs/job_export_pcb_svg.h>
 #include <pgm_base.h>
 #include <pcbnew_settings.h>
+#include <i18n_utility.h>
 
 
 PCB_PLOTTER::PCB_PLOTTER( BOARD* aBoard, REPORTER* aReporter, PCB_PLOT_PARAMS& aParams ) :
@@ -227,13 +228,13 @@ bool PCB_PLOTTER::Plot( const QString& aOutputPath,
                 delete plotter;
                 plotter = nullptr;
 
-                msg = QString::asprintf( _( "Plotted to '%s'." ), qPrintable( fn.absoluteFilePath() ) );
+                msg = QString::asprintf( _( "Plotted to '%s'." ).toUtf8().constData(), qPrintable( fn.absoluteFilePath() ) );
                 m_reporter->Report( msg, RPT_SEVERITY_ACTION );
             }
         }
         else
         {
-            msg = QString::asprintf( _( "Failed to create file '%s'." ), qPrintable( fn.absoluteFilePath() ) );
+            msg = QString::asprintf( _( "Failed to create file '%s'." ).toUtf8().constData(), qPrintable( fn.absoluteFilePath() ) );
             m_reporter->Report( msg, RPT_SEVERITY_ERROR );
 
             success = false;
@@ -251,7 +252,7 @@ bool PCB_PLOTTER::Plot( const QString& aOutputPath,
         QFileInfo fn( m_board->GetFileName() );
 
         // Build gerber job file from basename
-        BuildPlotFileName( &fn, aOutputPath, "job", FILEEXT::GerberJobFileExtension );
+        BuildPlotFileName( &fn, aOutputPath, "job", QString::fromStdString( FILEEXT::GerberJobFileExtension ) );
         jobfile_writer->CreateJobFile( fn.absoluteFilePath() );
     }
 
@@ -429,7 +430,7 @@ void PCB_PLOTTER::PlotJobToPlotOpts( PCB_PLOT_PARAMS& aOpts, JOB_EXPORT_PCB_PLOT
     if( colors->GetFilename() != theme && !aOpts.GetBlackAndWhite() )
     {
         aReporter.Report( QString::asprintf( _( "Color theme '%s' not found, will use theme from "
-                                               "PCB Editor settings.\n" ),
+                                               "PCB Editor settings.\n" ).toUtf8().constData(),
                                             qPrintable( theme ) ),
                           RPT_SEVERITY_WARNING );
     }

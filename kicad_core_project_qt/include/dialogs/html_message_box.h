@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #ifndef HTML_MESSAGE_BOX_H
 #define HTML_MESSAGE_BOX_H
@@ -28,7 +28,11 @@ public:
     void SetDialogSizeInDU( int aWidth, int aHeight )
     {
         setSizeInDU( aWidth, aHeight );
-        Center();
+        // Center the dialog on parent - Qt equivalent of wx Center()
+        if( parentWidget() )
+        {
+            move( parentWidget()->geometry().center() - rect().center() );
+        }
     }
 
     /**
@@ -62,14 +66,14 @@ public:
      */
     void ShowModeless();
 
-    void OnHTMLLinkClicked( QMouseEvent& event ) override;
+    void OnHTMLLinkClicked( QEvent& event ) override;
 
 
 protected:
     void reload();
 
     void onThemeChanged( QPaintEvent &aEvent );
-    virtual void OnCharHook( QKeyEvent& aEvt ) override;
+    virtual void keyPressEvent( QKeyEvent* aEvt ) override;
 
 private:
     QString  m_source;

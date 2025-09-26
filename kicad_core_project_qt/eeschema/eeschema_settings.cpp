@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #include <functional>
 
@@ -664,7 +664,7 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
                     if( !entry.value().is_number_integer() )
                         continue;
 
-                    m_DesignBlockChooserPanel.tree.column_widths[ entry.key() ] =
+                    m_DesignBlockChooserPanel.tree.column_widths[ QString::fromStdString(entry.key()) ] =
                             entry.value().get<int>();
                 }
             },
@@ -828,11 +828,13 @@ bool EESCHEMA_SETTINGS::MigrateFromLegacy( QSettings* aCfg )
         for( int i = 1; i <= max_custom_commands; ++i )
         {
             // Only migrate if both title and command are specified
-            cmd_key.Printf( "CustomNetlistCommand%d", i );
-            title_key.Printf( "CustomNetlistTitle%d", i );
+            cmd_key = QString::asprintf( "CustomNetlistCommand%d", i );
+            title_key = QString::asprintf( "CustomNetlistTitle%d", i );
 
-            if( aCfg->Read( cmd_key, &cmd ) && aCfg->Read( title_key, &title )
-                && !cmd.IsEmpty() && !title.IsEmpty() )
+            cmd = aCfg->value( cmd_key ).toString();
+            title = aCfg->value( title_key ).toString();
+
+            if( !cmd.isEmpty() && !title.isEmpty() )
             {
                 js_cmd.push_back( cmd.toUtf8().constData() );
                 js_title.push_back( title.toUtf8().constData() );
@@ -849,54 +851,51 @@ bool EESCHEMA_SETTINGS::MigrateFromLegacy( QSettings* aCfg )
         // migrating them here in order to preserve data.  There is a bug here that is preserved:
         // keys are taken directly from the (translated) UI and stored in the config, so if the user
         // changes languages the keys will no longer work.
-        aCfg->SetPath( "SymbolFieldEditor/Show/" );
+        aCfg->beginGroup( "SymbolFieldEditor/Show/" );
 
         nlohmann::json js = nlohmann::json( {} );
-        QString key;
-        bool     value = false;
-        long     index = 0;
+        QStringList keys = aCfg->childKeys();
 
-        while( aCfg->GetNextEntry( key, index ) )
+        for( const QString& key : keys )
         {
-            if( aCfg->Read( key, &value ) )
-            {
-                std::string key_utf( key.toUtf8().constData() );
+            bool value = aCfg->value( key, false ).toBool();
+            std::string key_utf( key.toUtf8().constData() );
 
-                try
-                {
-                    js[ std::move( key_utf ) ] = value;
-                }
-                catch(...)
-                {
-                    continue;
-                }
+            try
+            {
+                js[ std::move( key_utf ) ] = value;
+            }
+            catch(...)
+            {
+                continue;
             }
         }
 
+        aCfg->endGroup();
+
         Set( "field_editor.fields_show", js );
 
-        aCfg->SetPath( "../GroupBy" );
+        aCfg->beginGroup( "GroupBy" );
 
-        while( aCfg->GetNextEntry( key, index ) )
+        keys = aCfg->childKeys();
+        for( const QString& key : keys )
         {
-            if( aCfg->Read( key, &value ) )
-            {
-                std::string key_utf( key.toUtf8().constData() );
+            bool value = aCfg->value( key, false ).toBool();
+            std::string key_utf( key.toUtf8().constData() );
 
-                try
-                {
-                    js[ std::move( key_utf ) ] = value;
-                }
-                catch(...)
-                {
-                    continue;
-                }
+            try
+            {
+                js[ std::move( key_utf ) ] = value;
+            }
+            catch(...)
+            {
+                continue;
             }
         }
 
         Set( "field_editor.fields_group_by", js );
 
-        aCfg->SetPath( "../.." );
+        aCfg->endGroup();
     }
 
     ret &= fromLegacy<bool>(   aCfg, "PlotModeColor",     "plot.color" );
@@ -946,8 +945,11 @@ bool EESCHEMA_SETTINGS::MigrateFromLegacy( QSettings* aCfg )
     // Legacy version stored this setting in eeschema, so move it to common if it exists
     bool tmp;
 
-    if( aCfg->Read( "MoveWarpsCursor", &tmp ) )
+    if( aCfg->contains( "MoveWarpsCursor" ) )
+    {
+        tmp = aCfg->value( "MoveWarpsCursor" ).toBool();
         Pgm().GetCommonSettings()->m_Input.warp_mouse_on_move = tmp;
+    }
 
     SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
     COLOR_SETTINGS*   cs = mgr.GetMigratedColorSettings();
@@ -955,8 +957,11 @@ bool EESCHEMA_SETTINGS::MigrateFromLegacy( QSettings* aCfg )
     auto migrateLegacyColor = [&] ( const std::string& aKey, int aLayerId ) {
         QString str;
 
-        if( aCfg->Read( aKey, &str ) )
+        if( aCfg->contains( QString::fromStdString( aKey ) ) )
+        {
+            str = aCfg->value( QString::fromStdString( aKey ) ).toString();
             cs->SetColor( aLayerId, COLOR4D( str ) );
+        }
     };
 
     migrateLegacyColor( "Color4DBgCanvasEx",        LAYER_SCHEMATIC_BACKGROUND );

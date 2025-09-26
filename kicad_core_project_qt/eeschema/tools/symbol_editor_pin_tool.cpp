@@ -1,6 +1,8 @@
 
 #include "symbol_editor_pin_tool.h"
 
+#include <utility>
+#include <memory>
 #include <tools/sch_selection_tool.h>
 #include <symbol_edit_frame.h>
 #include <sch_commit.h>
@@ -214,15 +216,14 @@ bool SYMBOL_EDITOR_PIN_TOOL::PlacePin( SCH_PIN* aPin )
         if( ask_for_pin && m_frame->SynchronizePins() )
         {
             QString msg;
-            msg = QString::asprintf( _( "This position is already occupied by another pin, in unit %d." ),
-                        test->GetUnit() );
+            msg = QString( _( "This position is already occupied by another pin, in unit %d." ) ).arg( test->GetUnit() );
 
-            KIDIALOG dlg( m_frame, msg, _( "Confirmation" ), QMessageBox::Ok | QMessageBox::Cancel | QMessageBox::Warning );
-            dlg.SetExtendedMessage( _( "Disable the 'Synchronized Pins Mode' option to avoid this message." ) );
-            dlg.SetOKLabel( _( "Place Pin Anyway" ) );
-            dlg.DoNotShowCheckbox( __FILE__, __LINE__ );
+            KIDIALOG dlg( m_frame, msg, _( "Confirmation" ), QMessageBox::Ok | QMessageBox::Cancel );
+            dlg.setDetailedText( _( "Disable the 'Synchronized Pins Mode' option to avoid this message." ) );
+            dlg.SetOKCancelLabels( _( "Place Pin Anyway" ), _( "Cancel" ) );
+            dlg.DoNotShowCheckbox( QString(__FILE__), __LINE__ );
 
-            bool status = dlg.ShowModal() == QDialog::Accepted;
+            bool status = dlg.exec() == QDialog::Accepted;
 
             if( !status )
             {

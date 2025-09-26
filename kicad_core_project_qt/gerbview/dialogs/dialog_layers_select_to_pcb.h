@@ -1,6 +1,6 @@
 
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #ifndef DIALOG_LAYERS_SELECT_TO_PCB_H_
 #define DIALOG_LAYERS_SELECT_TO_PCB_H_
@@ -27,12 +27,12 @@ protected:
 private:
     void initDialog();
     void normalizeBrdLayersCount();
-    void OnBrdLayersCountSelection( QEvent* event ) override;
+    void OnBrdLayersCountSelection() override;
     void OnSelectLayer( QEvent* event );
 
-    void OnStoreSetup( QEvent* event ) override;
-    void OnGetSetup( QEvent* event ) override;
-    void OnResetClick( QEvent* event ) override;
+    void OnStoreSetup() override;
+    void OnGetSetup() override;
+    void OnResetClick() override;
 
     /**
      * Find number of loaded Gerbers where the matching KiCad layer can be identified.

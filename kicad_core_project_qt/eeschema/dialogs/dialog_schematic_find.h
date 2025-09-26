@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #ifndef DIALOG_SCH_FIND_H
 #define DIALOG_SCH_FIND_H
@@ -27,7 +27,15 @@ public:
     QStringList GetFindEntries() const;
 
     void SetReplaceEntries( const QStringList& aEntries );
-    QStringList GetReplaceEntries() const { return m_comboReplace->GetStrings(); }
+    QStringList GetReplaceEntries() const
+    {
+        // Qt equivalent of wxComboBox GetStrings() method
+        QStringList strings;
+        for (int i = 0; i < m_comboReplace->count(); ++i) {
+            strings.append(m_comboReplace->itemText(i));
+        }
+        return strings;
+    }
 
 protected:
     // Handlers for DIALOG_SCH_FIND_BASE events.

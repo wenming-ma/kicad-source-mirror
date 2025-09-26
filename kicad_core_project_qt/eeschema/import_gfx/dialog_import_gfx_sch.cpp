@@ -20,6 +20,10 @@
 
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QApplication>
+#include <QGuiApplication>
+#include <QScreen>
+#include <QDir>
 
 #include <dialogs/html_message_box.h>
 #include <widgets/std_bitmap_button.h>
@@ -47,7 +51,7 @@ DIALOG_IMPORT_GFX_SCH::DIALOG_IMPORT_GFX_SCH( SCH_BASE_FRAME* aParent ) :
         m_yOrigin( aParent, m_yLabel, m_yCtrl, m_yUnits ),
         m_defaultLineWidth( aParent, m_lineWidthLabel, m_lineWidthCtrl, m_lineWidthUnits )
 {
-    m_browseButton->SetBitmap( KiBitmapBundle( BITMAPS::small_folder ) );
+    m_browseButton->SetBitmap( KiBitmapBundle( BITMAPS::small_folder ).pixmap( 16, 16 ) );
 
     auto initWidgetsFromSettings = [&]( const auto& aCfg )
     {
@@ -57,16 +61,16 @@ DIALOG_IMPORT_GFX_SCH::DIALOG_IMPORT_GFX_SCH( SCH_BASE_FRAME* aParent ) :
         m_yOrigin.SetValue( aCfg->m_ImportGraphics.origin_y * schIUScale.IU_PER_MM );
         m_defaultLineWidth.SetValue( aCfg->m_ImportGraphics.dxf_line_width * schIUScale.IU_PER_MM );
 
-        m_textCtrlFileName->SetValue( aCfg->m_ImportGraphics.last_file );
-        m_rbInteractivePlacement->SetValue( m_placementInteractive );
-        m_rbAbsolutePlacement->SetValue( !m_placementInteractive );
+        m_textCtrlFileName->setText( aCfg->m_ImportGraphics.last_file );
+        m_rbInteractivePlacement->setChecked( m_placementInteractive );
+        m_rbAbsolutePlacement->setChecked( !m_placementInteractive );
 
-        m_importScaleCtrl->SetValue( QString::asprintf( "%f", m_importScale ) );
+        m_importScaleCtrl->setText( QString::asprintf( "%f", m_importScale ) );
 
         for( const std::pair<const DXF_IMPORT_UNITS, QString>& unitEntry : dxfUnitsMap )
-            m_choiceDxfUnits->Append( unitEntry.second );
+            m_choiceDxfUnits->addItem( unitEntry.second );
 
-        m_choiceDxfUnits->SetSelection( aCfg->m_ImportGraphics.dxf_units );
+        m_choiceDxfUnits->setCurrentIndex( aCfg->m_ImportGraphics.dxf_units );
     };
 
     if( SYMBOL_EDIT_FRAME* symFrame = dynamic_cast<SYMBOL_EDIT_FRAME*>( aParent ) )
@@ -93,9 +97,8 @@ DIALOG_IMPORT_GFX_SCH::DIALOG_IMPORT_GFX_SCH( SCH_BASE_FRAME* aParent ) :
     SetInitialFocus( m_textCtrlFileName );
     SetupStandardButtons();
 
-    GetSizer()->Fit( this );
-    GetSizer()->SetSizeHints( this );
-    Centre();
+    adjustSize();
+    move( QGuiApplication::primaryScreen()->geometry().center() - rect().center() );
 
     connect( m_textCtrlFileName, &QLineEdit::textChanged,
              this, &DIALOG_IMPORT_GFX_SCH::onFilename );
@@ -107,13 +110,13 @@ DIALOG_IMPORT_GFX_SCH::~DIALOG_IMPORT_GFX_SCH()
     auto saveToSettings = [&]( const auto& aCfg )
     {
         aCfg->m_ImportGraphics.interactive_placement = m_placementInteractive;
-        aCfg->m_ImportGraphics.last_file = m_textCtrlFileName->GetValue();
+        aCfg->m_ImportGraphics.last_file = m_textCtrlFileName->text();
         aCfg->m_ImportGraphics.dxf_line_width = schIUScale.IUTomm( m_defaultLineWidth.GetValue() );
         aCfg->m_ImportGraphics.origin_x = schIUScale.IUTomm( m_xOrigin.GetValue() );
         aCfg->m_ImportGraphics.origin_y = schIUScale.IUTomm( m_yOrigin.GetValue() );
-        aCfg->m_ImportGraphics.dxf_units = m_choiceDxfUnits->GetSelection();
+        aCfg->m_ImportGraphics.dxf_units = m_choiceDxfUnits->currentIndex();
 
-        m_importScale = EDA_UNIT_UTILS::UI::DoubleValueFromString( m_importScaleCtrl->GetValue() );
+        m_importScale = EDA_UNIT_UTILS::UI::DoubleValueFromString( m_importScaleCtrl->text() );
     };
 
     if( SYMBOL_EDIT_FRAME* symFrame = dynamic_cast<SYMBOL_EDIT_FRAME*>( m_parent ) )
@@ -142,8 +145,8 @@ void DIALOG_IMPORT_GFX_SCH::onFilename( const QString& text )
 
     m_defaultLineWidth.Enable( enableDXFControls );
 
-    m_staticTextLineWidth1->Enable( enableDXFControls );
-    m_choiceDxfUnits->Enable( enableDXFControls );
+    m_staticTextLineWidth1->setEnabled( enableDXFControls );
+    m_choiceDxfUnits->setEnabled( enableDXFControls );
 }
 
 
@@ -172,10 +175,10 @@ void DIALOG_IMPORT_GFX_SCH::onBrowseFiles()
         allWildcards += plugin->GetWildcards() + ";";
     }
 
-    wildcardsDesc = "All supported formats" + "|" + allWildcards + wildcardsDesc;
+    wildcardsDesc = QString("All supported formats") + "|" + allWildcards + wildcardsDesc;
 
     QString selectedFile = QFileDialog::getOpenFileName( this, "Import Graphics",
-                                                        path + "/" + filename,
+                                                        QDir(path).filePath(filename),
                                                         wildcardsDesc );
 
     if( !selectedFile.isEmpty() )
@@ -185,8 +188,7 @@ void DIALOG_IMPORT_GFX_SCH::onBrowseFiles()
 
 bool DIALOG_IMPORT_GFX_SCH::TransferDataFromWindow()
 {
-    if( !QDialog::accept() )
-        return false;
+    // Note: QDialog::accept() is void, validation is done here instead
 
     if( m_textCtrlFileName->text().isEmpty() )
     {
@@ -195,7 +197,7 @@ bool DIALOG_IMPORT_GFX_SCH::TransferDataFromWindow()
     }
 
     QString ext = QFileInfo( m_textCtrlFileName->text() ).suffix();
-    double   scale = EDA_UNIT_UTILS::UI::DoubleValueFromString( m_importScaleCtrl->GetValue() );
+    double   scale = EDA_UNIT_UTILS::UI::DoubleValueFromString( m_importScaleCtrl->text() );
     double           xscale = scale;
     double           yscale = scale;
 
@@ -206,7 +208,7 @@ bool DIALOG_IMPORT_GFX_SCH::TransferDataFromWindow()
         if( DXF_IMPORT_PLUGIN* dxfPlugin = dynamic_cast<DXF_IMPORT_PLUGIN*>( plugin.get() ) )
         {
             auto it = dxfUnitsMap.begin();
-            std::advance( it, m_choiceDxfUnits->GetSelection() );
+            std::advance( it, m_choiceDxfUnits->currentIndex() );
 
             if( it == dxfUnitsMap.end() )
                 dxfPlugin->SetUnit( DXF_IMPORT_UNITS::DEFAULT );
@@ -253,11 +255,11 @@ bool DIALOG_IMPORT_GFX_SCH::TransferDataFromWindow()
 
 void DIALOG_IMPORT_GFX_SCH::originOptionOnUpdateUI()
 {
-    if( m_rbInteractivePlacement->GetValue() != m_placementInteractive )
-        m_rbInteractivePlacement->SetValue( m_placementInteractive );
+    if( m_rbInteractivePlacement->isChecked() != m_placementInteractive )
+        m_rbInteractivePlacement->setChecked( m_placementInteractive );
 
-    if( m_rbAbsolutePlacement->GetValue() == m_placementInteractive )
-        m_rbAbsolutePlacement->SetValue( !m_placementInteractive );
+    if( m_rbAbsolutePlacement->isChecked() == m_placementInteractive )
+        m_rbAbsolutePlacement->setChecked( !m_placementInteractive );
 
     m_xOrigin.Enable( !m_placementInteractive );
     m_yOrigin.Enable( !m_placementInteractive );

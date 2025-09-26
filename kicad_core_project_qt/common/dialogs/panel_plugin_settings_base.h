@@ -6,6 +6,7 @@
 #include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QGroupBox>
 #include <QtWidgets/QPushButton>
+#include <QtCore/QStringList>
 #include <QtWidgets/QFileDialog>
 #include <QtWidgets/QWidget>
 #include <QtCore/QString>

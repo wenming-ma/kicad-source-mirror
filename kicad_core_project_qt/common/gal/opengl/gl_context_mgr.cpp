@@ -1,7 +1,8 @@
 #include <gal/opengl/gl_context_mgr.h>
 #include <QDebug>
 #include <QOpenGLContext>
-#include <QOpenGLWidget>
+#include <QWindow>
+#include <QtOpenGLWidgets/QOpenGLWidget>
 
 
 QOpenGLContext* GL_CONTEXT_MANAGER::CreateCtx( QOpenGLWidget* aCanvas, const QOpenGLContext* aOther )
@@ -69,7 +70,12 @@ void GL_CONTEXT_MANAGER::LockCtx( QOpenGLContext* aContext, QOpenGLWidget* aCanv
     // Make context current on the surface
     if( canvas )
     {
-        aContext->makeCurrent( canvas );
+        // In Qt, QOpenGLWidget provides its surface through the window handle
+        // QOpenGLContext::makeCurrent() expects a QSurface*, not a QOpenGLWidget*
+        if( canvas->windowHandle() )
+        {
+            aContext->makeCurrent( canvas->windowHandle() );
+        }
     }
 
     m_glCtx = aContext;

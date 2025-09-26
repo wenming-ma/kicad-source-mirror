@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #ifndef LAYER_BOX_SELECTOR_H
 #define LAYER_BOX_SELECTOR_H
@@ -55,10 +55,7 @@ public:
     virtual void Resync() = 0;
 
 private:
-#ifdef Q_OS_MAC
     void keyPressEvent( QKeyEvent* aEvent ) override;
-    void paintEvent( QPaintEvent* event ) override;
-#endif
 };
 
 #endif // LAYER_BOX_SELECTOR_H

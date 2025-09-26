@@ -1,5 +1,5 @@
 
-// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-21
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-24
 
 #ifndef DIALOG_PIN_PROPERTIES_H
 #define DIALOG_PIN_PROPERTIES_H
@@ -8,6 +8,7 @@
 #include <QPaintEvent>
 #include <QResizeEvent>
 #include <QEvent>
+#include <utility>
 
 #include <pin_shape_combobox.h>
 #include <pin_type_combobox.h>
@@ -37,19 +38,19 @@ public:
     DIALOG_PIN_PROPERTIES( SYMBOL_EDIT_FRAME* parent, SCH_PIN* aPin, bool aFocusPinNumber );
     ~DIALOG_PIN_PROPERTIES() override;
 
-    bool TransferDataToWindow() override;
-    bool TransferDataFromWindow() override;
+    bool TransferDataToWindow();
+    bool TransferDataFromWindow();
 
     /**
      * Draw (on m_panelShowPin) the pin according to current settings in dialog.
      */
-    void OnPaintShowPanel( QPaintEvent& event ) override;
-    void OnPropertiesChange( QEvent& event ) override;
-    void OnAddAlternate( QEvent& event ) override;
-    void OnDeleteAlternate( QEvent& event ) override;
-    void OnSize( QResizeEvent& event ) override;
-    void OnUpdateUI( QEvent& event ) override;
-    void OnCollapsiblePaneChange( QEvent& event ) override;
+    void OnPaintShowPanel( QPaintEvent* event ) override;
+    void OnPropertiesChange() override;
+    void OnAddAlternate() override;
+    void OnDeleteAlternate() override;
+    void OnSize( QResizeEvent* event ) override;
+    void OnUpdateUI( QEvent* event ) override;
+    void OnCollapsiblePaneChange() override;
 
 protected:
     void adjustGridColumns();

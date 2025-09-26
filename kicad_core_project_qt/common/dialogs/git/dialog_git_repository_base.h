@@ -18,6 +18,7 @@
 #include <QtWidgets/QCheckBox>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QTextEdit>
+#include <QtCore/QStringList>
 #include <QtWidgets/QFileDialog>
 #include <QtCore/QString>
 #include <QtCore/QEvent>

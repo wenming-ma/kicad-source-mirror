@@ -44,20 +44,12 @@ set( GERBVIEW_SRCS
 
 # Dialog files
 set( DIALOGS_SRCS
-    # dialogs/dialog_draw_layers_settings.cpp
-    # dialogs/dialog_draw_layers_settings_base.cpp
-    # dialogs/dialog_layers_select_to_pcb.cpp
-    # dialogs/dialog_layers_select_to_pcb_base.cpp
-    # dialogs/dialog_print_gerbview.cpp
-    # dialogs/dialog_select_one_pcb_layer.cpp
+
     )
 
 # Widget files
 set( WIDGET_SRCS
-    # widgets/dcode_selection_box.cpp
-    # widgets/gbr_layer_box_selector.cpp
-    # widgets/gerbview_layer_widget.cpp
-    # widgets/layer_widget.cpp
+
     )
 
 # Tool files

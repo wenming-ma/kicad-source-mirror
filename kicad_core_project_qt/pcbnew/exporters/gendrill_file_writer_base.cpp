@@ -272,10 +272,10 @@ const QString GENDRILL_WRITER_BASE::getDrillFileName( DRILL_LAYER_PAIR aPair, bo
         extend += QString::fromStdString( layerPairName( aPair ) );
     }
 
-    QFileInfo fn( QString::fromStdString( m_pcb->GetFileName() ) );
+    QFileInfo fn( m_pcb->GetFileName() );
 
     QString baseName = fn.baseName() + extend;
-    QString ret = baseName + "." + QString::fromStdString( m_drillFileExtension );
+    QString ret = baseName + "." + m_drillFileExtension;
 
     return ret;
 }
@@ -312,7 +312,7 @@ bool GENDRILL_WRITER_BASE::CreateMapFilesSet( const QString& aPlotDirectory,
             QString baseName = fileInfo.baseName();
 
             QString fullfilename = QDir( aPlotDirectory ).filePath( baseName + "-drl_map" );
-            fullfilename += "." + QString::fromStdString( GetDefaultPlotExtension( m_mapFileFmt ) );
+            fullfilename += "." + GetDefaultPlotExtension( m_mapFileFmt );
 
             bool success = genDrillMapFile( fullfilename, m_mapFileFmt );
 

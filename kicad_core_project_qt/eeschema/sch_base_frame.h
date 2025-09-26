@@ -237,9 +237,9 @@ public:
     SCH_SELECTION_TOOL* GetSelectionTool() override;
 
 protected:
-    void handleActivateEvent( QEvent* aEvent ) override;
+    void handleActivateEvent( QEvent* aEvent );
 
-    void handleIconizeEvent( QEvent* aEvent ) override;
+    void handleIconizeEvent( QEvent* aEvent );
 
     /**
      * Save Symbol Library Tables to disk.
