@@ -70,9 +70,9 @@ set( CMAKE_CXX_STANDARD_REQUIRED ON )
 # Windows specific settings
 if( WIN32 )
     add_compile_definitions( WIN32_LEAN_AND_MEAN )
-    add_compile_definitions( WXSTATIC )
-    add_compile_definitions( wxUSE_DLL=0 )
-    add_compile_definitions( __WXMSW__ )
+    # add_compile_definitions( WXSTATIC )
+    # add_compile_definitions( wxUSE_DLL=0 )
+    # add_compile_definitions( __WXMSW__ )
     # In fully standards-compliant mode, M_PI et al. are defined only if
     # _USE_MATH_DEFINES is set.
     add_compile_definitions( _USE_MATH_DEFINES )
@@ -94,8 +94,8 @@ if( WIN32 )
     # string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
     # string(REPLACE "/showIncludes" "" CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL}")
     # set(CMAKE_CXX_DEPENDS_USE_COMPILER FALSE)
-    # Set wxWidgets port for KIPLATFORM
-    set( KICAD_WX_PORT "msw" )
+    # Set wxWidgets port for KIPLATFORM - COMMENTED OUT
+    # set( KICAD_WX_PORT "msw" )
 endif()
 
 # Enable KICAD API support - DISABLED FOR MINIMAL BUILD
@@ -127,8 +127,8 @@ if( Qt6_FOUND )
 
 endif()
 
-set( wxWidgets_USE_STATIC ON )
-find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc gl net xml richtext webview )
+# set( wxWidgets_USE_STATIC ON )
+# find_package( wxWidgets REQUIRED COMPONENTS base core adv html aui propgrid stc gl net xml richtext webview )
 
 # Boost configuration for vcpkg
 set( Boost_USE_STATIC_LIBS ON )
@@ -221,7 +221,7 @@ include_directories( BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanodbc
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/markdown2html
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/libcontext
-    ${wxWidgets_INCLUDE_DIRS}
+    # ${wxWidgets_INCLUDE_DIRS}
     # Qt6 include directories (for future transformation)
     $<$<BOOL:${Qt6_FOUND}>:${Qt6_ROOT}/include>
     $<$<BOOL:${Qt6_FOUND}>:${Qt6_ROOT}/include/QtCore>
@@ -243,8 +243,8 @@ include_directories( BEFORE
     ${CAIRO_INCLUDE_DIR}
 )
 
-# Add wxWidgets compile definitions globally
-add_compile_definitions( ${wxWidgets_DEFINITIONS} )
+# Add wxWidgets compile definitions globally - COMMENTED OUT
+# add_compile_definitions( ${wxWidgets_DEFINITIONS} )
 
 # Disable optional features for minimum build
 add_compile_definitions(
@@ -285,13 +285,13 @@ add_subdirectory( common )
 add_subdirectory( eeschema )
 add_subdirectory( pcbnew )
 add_subdirectory( gerbview )
-#add_subdirectory( test )
+add_subdirectory( test )
 
 
 # Create simple main executable for minimal build testing
 add_executable( kicad_core_project_qt
     main.cpp
- "config.h")
+)
 
 target_link_libraries( kicad_core_project_qt
     # Core KiCad libraries - commented out for minimal build
@@ -323,7 +323,7 @@ target_link_libraries( kicad_core_project_qt
     nlohmann_json
     
     # Third-party libraries from vcpkg
-    ${wxWidgets_LIBRARIES}
+    # ${wxWidgets_LIBRARIES}
     ${Boost_LIBRARIES}
     ${CAIRO_LIBRARIES}
     ${FREETYPE_LIBRARIES}

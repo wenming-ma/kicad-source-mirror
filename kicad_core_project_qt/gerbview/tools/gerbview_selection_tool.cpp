@@ -125,7 +125,7 @@ GERBVIEW_SELECTION_TOOL::~GERBVIEW_SELECTION_TOOL()
 
 bool GERBVIEW_SELECTION_TOOL::Init()
 {
-    std::shared_ptr<HIGHLIGHT_MENU> highlightSubMenu = std::make_shared<HIGHLIGHT_MENU>();
+    std::shared_ptr<ACTION_MENU> highlightSubMenu = std::make_shared<HIGHLIGHT_MENU>();
     highlightSubMenu->SetTool( this );
     m_menu->RegisterSubMenu( highlightSubMenu );
 

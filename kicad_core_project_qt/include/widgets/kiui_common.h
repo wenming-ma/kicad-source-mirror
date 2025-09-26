@@ -54,7 +54,15 @@ KICOMMON_API void Disable( QWidget* aWindow );
 KICOMMON_API extern const QString s_FocusStealableInputName;
 
 
-KICOMMON_API void AddBitmapToMenuItem( QAction* aMenu, const QIcon& aImage );
+// LINKER_FIX: Inline implementation to resolve linker error
+// This is a wxWidgets to Qt transformation - original function used wxMenuItem and wxBitmapBundle
+inline void AddBitmapToMenuItem( QAction* aMenu, const QIcon& aImage )
+{
+    // Qt transformation: QAction::setIcon() is the Qt equivalent of wxMenuItem::SetBitmap()
+    // In Qt, icons are always displayed if set, so we directly set the icon
+    if( !aImage.isNull() )
+        aMenu->setIcon( aImage );
+}
 
 
 KICOMMON_API QAction* AddMenuItem( QMenu* aMenu, int aId, const QString& aText,

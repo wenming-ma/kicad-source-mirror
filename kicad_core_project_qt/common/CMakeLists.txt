@@ -144,6 +144,7 @@ add_library( common STATIC
 
     # Qt widgets
     widgets/qt_aui_manager.cpp
+    widgets/progress_reporter_base.cpp
     validators.cpp
     wildcards_and_files_ext.cpp
     wx_filename.cpp
@@ -315,6 +316,7 @@ if( Qt6_FOUND )
         ../include/widgets/bitmap_button.h
         ../include/widgets/html_window.h
         ../include/widgets/qt_aui_manager.h
+        ../include/validators.h
     )
 
     # Generate MOC files for headers with Q_OBJECT
