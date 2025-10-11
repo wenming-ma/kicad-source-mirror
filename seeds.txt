@@ -1,7 +1,0 @@
-pcbnew/board.cpp
-pcbnew/footprint.cpp  
-pcbnew/pad.cpp
-pcbnew/zone.cpp
-pcbnew/track.cpp
-pcbnew/board_item.cpp
-pcbnew/pcb_shape.cpp
