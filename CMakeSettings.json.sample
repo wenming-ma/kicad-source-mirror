@@ -6,7 +6,7 @@
     },
     {
       "environment": "vcpkg",
-      "VcPkgDir": "D:/vcpkg/"
+      "VcPkgDir": "C:/vcpkg/"
     },
     {
       "environment": "mingw_64",
