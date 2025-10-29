@@ -1,3 +1,6 @@
 [submodule "kicad-plugins"]
 	path = kicad-plugins
 	url = https://github.com/wenming-ma/kicad-plugins.git
+[submodule "HierPlace"]
+	path = HierPlace
+	url = https://github.com/wenming-ma/HierPlace.git
