@@ -107,7 +107,13 @@ int AUTOPLACE_TOOL::autoplaceSelected( const TOOL_EVENT& aEvent )
     for( EDA_ITEM* item : selection() )
     {
         if( item->Type() == PCB_FOOTPRINT_T )
-            footprints.push_back( static_cast<FOOTPRINT*>( item ) );
+        {
+            FOOTPRINT* footprint = static_cast<FOOTPRINT*>( item );
+
+            // Skip locked footprints
+            if( !footprint->IsLocked() )
+                footprints.push_back( footprint );
+        }
     }
 
     return autoplace( footprints, false );

@@ -856,7 +856,8 @@ AR_RESULT AR_AUTOPLACER::AutoplaceFootprints( std::vector<FOOTPRINT*>& aFootprin
     {
         for( FOOTPRINT* footprint : m_board->Footprints() )
         {
-            if( !m_matrix.m_BrdBox.Contains( footprint->GetPosition() ) )
+            // Only include footprints that are outside the board and not locked
+            if( !m_matrix.m_BrdBox.Contains( footprint->GetPosition() ) && !footprint->IsLocked() )
                 offboardMods.push_back( footprint );
         }
     }
