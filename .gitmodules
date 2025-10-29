@@ -1,0 +1,3 @@
+[submodule "kicad-plugins"]
+	path = kicad-plugins
+	url = https://github.com/wenming-ma/kicad-plugins.git
