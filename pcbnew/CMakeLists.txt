@@ -362,6 +362,7 @@ set( PCBNEW_CLASS_SRCS
     tools/pcb_point_editor.cpp
     tools/position_relative_tool.cpp
     tools/properties_tool.cpp
+    tools/schematic_layout_tool.cpp
     tools/tool_event_utils.cpp
     tools/zone_create_helper.cpp
     tools/zone_filler_tool.cpp

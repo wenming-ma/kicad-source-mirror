@@ -1421,6 +1421,15 @@ TOOL_ACTION PCB_ACTIONS::autoplaceOffboardComponents( "pcbnew.Autoplacer.autopla
         _( "Performs automatic placement of components outside board area" ) );
 
 
+// SCHEMATIC_LAYOUT_TOOL
+//
+TOOL_ACTION PCB_ACTIONS::layoutFromSchematic( "pcbnew.SchematicLayout.layoutFromSchematic",
+        AS_GLOBAL, 0, "",
+        _( "Layout from Schematic" ),
+        _( "Arrange footprints to match schematic component positions" ),
+        BITMAPS::module_options );
+
+
 // ROUTER_TOOL
 //
 TOOL_ACTION PCB_ACTIONS::routeSingleTrack( "pcbnew.InteractiveRouter.SingleTrack",

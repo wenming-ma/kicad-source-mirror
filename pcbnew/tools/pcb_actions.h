@@ -516,6 +516,9 @@ public:
     static TOOL_ACTION autoplaceOffboardComponents;
     static TOOL_ACTION autoplaceSelectedComponents;
 
+    // schematic layout tool
+    static TOOL_ACTION layoutFromSchematic;
+
     // convert tool
     static TOOL_ACTION convertToPoly;
     static TOOL_ACTION convertToZone;

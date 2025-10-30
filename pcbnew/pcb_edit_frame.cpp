@@ -87,6 +87,7 @@
 #include <router/router_tool.h>
 #include <router/length_tuner_tool.h>
 #include <autorouter/autoplace_tool.h>
+#include <tools/schematic_layout_tool.h>
 #include <python/scripting/pcb_scripting_tool.h>
 #include <gestfich.h>
 #include <executable_names.h>
@@ -652,6 +653,7 @@ void PCB_EDIT_FRAME::setupTools()
     m_toolManager->RegisterTool( new POSITION_RELATIVE_TOOL );
     m_toolManager->RegisterTool( new ZONE_FILLER_TOOL );
     m_toolManager->RegisterTool( new AUTOPLACE_TOOL );
+    m_toolManager->RegisterTool( new SCHEMATIC_LAYOUT_TOOL );
     m_toolManager->RegisterTool( new DRC_TOOL );
     m_toolManager->RegisterTool( new PCB_VIEWER_TOOLS );
     m_toolManager->RegisterTool( new CONVERT_TOOL );

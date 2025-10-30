@@ -358,6 +358,9 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
 
     placeMenu->Add( autoplaceSubmenu );
 
+    placeMenu->AppendSeparator();
+    placeMenu->Add( PCB_ACTIONS::layoutFromSchematic );
+
 
     //-- Route Menu ----------------------------------------------------------
     //
