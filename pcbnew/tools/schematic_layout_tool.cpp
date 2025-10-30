@@ -30,6 +30,7 @@
 #include <widgets/wx_infobar.h>
 
 // Schematic-related includes
+#include <base_units.h>
 #include <sch_io_mgr.h>
 #include <schematic.h>
 #include <sch_sheet.h>
@@ -254,8 +255,9 @@ int SCHEMATIC_LAYOUT_TOOL::layoutFromSchematic( const TOOL_EVENT& aEvent )
 
     BOARD_COMMIT commit( frame() );
 
-    // Coordinate scaling factor (matches Python plugin)
-    const int POS_SCALE = 5000;
+    // Coordinate scaling factor: schematic IU -> PCB IU
+    // SCH_IU_PER_MM = 1e4, PCB_IU_PER_MM = 1e6, so ratio = 100
+    constexpr int POS_SCALE = static_cast<int>( PCB_IU_PER_MM / SCH_IU_PER_MM );
 
     // Check if there are selected footprints
     bool selectionActive = false;

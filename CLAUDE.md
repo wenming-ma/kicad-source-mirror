@@ -68,43 +68,106 @@ Based on the Python plugin `SchematicPositionsToLayout.py` from https://github.c
    - Action registered: `PCB_ACTIONS::layoutFromSchematic`
    - Menu integration: "Place → Layout from Schematic"
 
-3. **Schematic Parsing (Phase 1 - Testing)**
+3. **Schematic Parsing (Phase 1)**
    - Parses .kicad_sch files using `SCH_IO_MGR`
    - Extracts component positions from all hierarchical sheets
    - Builds KIID_PATH → position mapping
    - Matches with PCB footprints using UUID-based paths
    - Comprehensive debug logging for validation
 
-4. **Critical Bug Fixes**
+4. **Footprint Movement (Phase 2 - COMPLETED)**
+   - ✅ Coordinate scaling: `PCB_IU_PER_MM / SCH_IU_PER_MM` (ratio = 100)
+   - ✅ Sheet offset calculation with 1.25x spacing factor
+   - ✅ BOARD_COMMIT integration for full undo/redo support
+   - ✅ Locked footprint detection and skipping
+   - ✅ Selection awareness (moves only selected if selection exists)
+   - ✅ Detailed logging of all movements
+   - ✅ User feedback via info bar
+
+5. **Critical Bug Fixes**
    - **KIID_PATH Format Issue:** Fixed mismatch between schematic and PCB path formats
      - Root sheet UUID handling: Now uses `PathAsString()` to skip root sheet UUID
      - Ensures 100% matching with how netlist updates work
    - **File Structure:** Handles project layout with separate sch/ and pcb/ folders
+   - **Sheet Path Extraction:** Correctly parses hierarchical paths to apply sheet offsets
 
 ### 🚧 In Progress
 
-- **Validation Phase:** Testing schematic parsing and footprint matching
-- Currently outputs detailed logs but does NOT move footprints (safe testing mode)
+- **Testing Phase:** Ready for compilation and real-world testing
+- All core functionality implemented and ready for validation
 
-### 📋 Planned (Not Yet Implemented)
+### 📋 Planned (Future Enhancements)
 
-1. **Phase 2: Footprint Movement**
-   - Calculate PCB positions from schematic positions (coordinate scaling)
-   - Apply sheet offsets for hierarchical designs
-   - Move footprints using `BOARD_COMMIT` for undo support
-   - Respect locked footprints
-   - Handle selection (move only selected footprints if selection exists)
+1. **Phase 3: User Options (Optional)**
+   - Configuration dialog
+   - Adjustable coordinate scaling factor
+   - Custom sheet spacing multiplier
+   - Interactive preview mode
 
-2. **Phase 3: User Options**
-   - Configuration dialog (optional)
-   - Coordinate scaling factor
-   - Sheet spacing multiplier
-   - Move all vs. move selected option
+2. **Phase 4: Polish (Optional)**
+   - Progress reporting for large designs (>100 components)
+   - Enhanced error messages
+   - User documentation
+   - Toolbar button with icon
 
-3. **Phase 4: Polish**
-   - Progress reporting for large designs
-   - Error handling and user feedback
-   - Documentation
+---
+
+## Implementation Details
+
+### Coordinate Transformation Algorithm
+
+**From Schematic to PCB:**
+
+1. **Schematic Coordinates** (internal units)
+   - Read from .kicad_sch file as position values
+   - Already in schematic internal units (SCH_IU)
+   - Example: `(at 50.8 76.2)` → VECTOR2I(508000, 762000) in 0.1nm units
+
+2. **Coordinate Scaling**
+   ```cpp
+   constexpr int POS_SCALE = static_cast<int>(PCB_IU_PER_MM / SCH_IU_PER_MM);
+   // PCB_IU_PER_MM = 1e6 (1nm units)
+   // SCH_IU_PER_MM = 1e4 (100nm units)
+   // POS_SCALE = 100
+   ```
+
+3. **Sheet Offset Application**
+   - Root sheet: Y offset = 0
+   - Sub-sheet N: Y offset = Σ(previous sheet heights × 1.25)
+   - Applied before scaling: `(schematic_y + offset) × scale`
+
+4. **Final Position Calculation**
+   ```cpp
+   VECTOR2I newPos(schPos.x * POS_SCALE,
+                   (schPos.y + yOffset) * POS_SCALE);
+   ```
+
+### Movement Logic Flow
+
+```
+1. Check for active selection
+   ├─ Yes → Only move selected footprints
+   └─ No  → Move all matched footprints
+
+2. For each footprint:
+   ├─ Match by KIID_PATH?
+   │  ├─ No  → Skip (no match)
+   │  └─ Yes → Continue
+   │
+   ├─ Is locked?
+   │  ├─ Yes → Skip (locked)
+   │  └─ No  → Continue
+   │
+   ├─ Is selected? (if selection active)
+   │  ├─ No  → Skip (not selected)
+   │  └─ Yes → Continue
+   │
+   └─ Move footprint
+      ├─ Extract sheet path from KIID_PATH
+      ├─ Lookup sheet Y offset
+      ├─ Calculate new position with scaling
+      └─ Apply via BOARD_COMMIT
+```
 
 ---
 
@@ -271,5 +334,5 @@ For questions about this feature development:
 
 ---
 
-**Last Updated:** 2025-01-XX (adjust as needed)
-**Status:** Phase 1 - Parsing & Validation Complete, Testing in Progress
+**Last Updated:** 2025-01-30
+**Status:** Phase 2 - COMPLETE! Core functionality implemented, ready for testing
