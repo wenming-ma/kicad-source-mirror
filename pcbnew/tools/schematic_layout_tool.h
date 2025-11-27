@@ -19,7 +19,15 @@ private:
 
     bool parseSchematicPositions( const wxString& aSchematicPath,
                                   std::map<KIID_PATH, VECTOR2I>& aPositions,
-                                  std::map<wxString, int>& aSheetOffsets );
+                                  std::map<KIID_PATH, int>& aSheetOffsets );
+
+    /**
+     * Calculate the bounding box of all items on a schematic screen.
+     *
+     * @param aScreen The schematic screen to calculate bounding box for.
+     * @return BOX2I The bounding box in schematic internal units (SCH_IU).
+     */
+    BOX2I getScreenBoundingBox( SCH_SCREEN* aScreen ) const;
 };
 
 

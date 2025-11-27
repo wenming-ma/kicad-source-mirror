@@ -12,6 +12,7 @@
 #include <sch_screen.h>
 #include <sch_symbol.h>
 #include <sch_sheet_path.h>
+#include <algorithm>
 
 
 SCHEMATIC_LAYOUT_TOOL::SCHEMATIC_LAYOUT_TOOL() : PCB_TOOL_BASE( "pcbnew.SchematicLayout" )
@@ -26,7 +27,7 @@ SCHEMATIC_LAYOUT_TOOL::~SCHEMATIC_LAYOUT_TOOL()
 
 bool SCHEMATIC_LAYOUT_TOOL::parseSchematicPositions( const wxString& aSchematicPath,
                                                       std::map<KIID_PATH, VECTOR2I>& aPositions,
-                                                      std::map<wxString, int>& aSheetOffsets )
+                                                      std::map<KIID_PATH, int>& aSheetOffsets )
 {
     try
     {
@@ -48,7 +49,9 @@ bool SCHEMATIC_LAYOUT_TOOL::parseSchematicPositions( const wxString& aSchematicP
         SCH_SHEET_LIST sheetList = schematic->GetSheets();
 
         int currentYOffset = 0;
-        const double OFFSET_FACTOR = 1.25;
+        const double OFFSET_FACTOR = 0.05;  // Reduced from 1.25 to prevent coordinate overflow
+        const int MAX_SHEET_OFFSET = 100 * SCH_IU_PER_MM;  // Max 100mm spacing per sheet
+        const int MAX_TOTAL_OFFSET = 1000 * SCH_IU_PER_MM;  // Max 1000mm total offset
 
         for( const SCH_SHEET_PATH& sheetPath : sheetList )
         {
@@ -57,7 +60,8 @@ bool SCHEMATIC_LAYOUT_TOOL::parseSchematicPositions( const wxString& aSchematicP
                 continue;
 
             wxString pathString = sheetPath.PathAsString();
-            aSheetOffsets[pathString] = currentYOffset;
+            KIID_PATH pathKey( pathString );
+            aSheetOffsets[pathKey] = currentYOffset;
 
             for( SCH_ITEM* item : screen->Items().OfType( SCH_SYMBOL_T ) )
             {
@@ -68,9 +72,17 @@ bool SCHEMATIC_LAYOUT_TOOL::parseSchematicPositions( const wxString& aSchematicP
                 aPositions[fullPath] = pos;
             }
 
-            BOX2I bounds = screen->GetBoundingBox();
+            BOX2I bounds = getScreenBoundingBox( screen );
             if( bounds.GetHeight() > 0 )
-                currentYOffset += static_cast<int>( bounds.GetHeight() * OFFSET_FACTOR );
+            {
+                int sheetSpacing = static_cast<int>( bounds.GetHeight() * OFFSET_FACTOR );
+                // Clamp to maximum allowed spacing to prevent coordinate overflow
+                sheetSpacing = std::min( sheetSpacing, MAX_SHEET_OFFSET );
+
+                // Check total offset doesn't exceed maximum
+                if( currentYOffset + sheetSpacing <= MAX_TOTAL_OFFSET )
+                    currentYOffset += sheetSpacing;
+            }
         }
 
         delete schematic;
@@ -125,7 +137,7 @@ int SCHEMATIC_LAYOUT_TOOL::layoutFromSchematic( const TOOL_EVENT& aEvent )
     }
 
     std::map<KIID_PATH, VECTOR2I> positions;
-    std::map<wxString, int> sheetOffsets;
+    std::map<KIID_PATH, int> sheetOffsets;
 
     if( !parseSchematicPositions( schPath.GetFullPath(), positions, sheetOffsets ) )
     {
@@ -168,9 +180,9 @@ int SCHEMATIC_LAYOUT_TOOL::layoutFromSchematic( const TOOL_EVENT& aEvent )
             continue;
 
         VECTOR2I schPos = positions[fpPath];
-        wxString sheetPath = fpPath.AsString();
-        int lastSlash = sheetPath.Find( '/', true );
-        wxString sheetKey = ( lastSlash == 0 ) ? "" : sheetPath.Mid( 0, lastSlash );
+        KIID_PATH sheetKey = fpPath;
+        if( sheetKey.size() > 0 )
+            sheetKey.pop_back();  // Remove symbol UUID to get sheet path
         int yOffset = sheetOffsets.count( sheetKey ) > 0 ? sheetOffsets[sheetKey] : 0;
 
         VECTOR2I newPos( schPos.x * POS_SCALE, ( schPos.y + yOffset ) * POS_SCALE );
@@ -201,6 +213,20 @@ int SCHEMATIC_LAYOUT_TOOL::layoutFromSchematic( const TOOL_EVENT& aEvent )
     }
 
     return 0;
+}
+
+
+BOX2I SCHEMATIC_LAYOUT_TOOL::getScreenBoundingBox( SCH_SCREEN* aScreen ) const
+{
+    BOX2I bbox;
+
+    if( !aScreen )
+        return bbox;
+
+    for( SCH_ITEM* item : aScreen->Items() )
+        bbox.Merge( item->GetBoundingBox() );
+
+    return bbox;
 }
 
 
