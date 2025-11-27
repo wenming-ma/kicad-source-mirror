@@ -4,3 +4,6 @@
 [submodule "HierPlace"]
 	path = HierPlace
 	url = https://github.com/wenming-ma/HierPlace.git
+[submodule "adaptagrams"]
+	path = adaptagrams
+	url = https://github.com/wenming-ma/adaptagrams.git
