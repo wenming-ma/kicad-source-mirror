@@ -225,6 +225,7 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
     std::vector<BOARD_ITEM*> bulkAddedItems;
     std::vector<BOARD_ITEM*> bulkRemovedItems;
     std::vector<BOARD_ITEM*> itemsChanged;
+    std::vector<BOARD_ITEM*> fpItemsToRemoveFromView;  // Footprint items to batch remove from view
 
     if( m_isBoardEditor
             && !( aCommitFlags & ZONE_FILL_OP )
@@ -390,8 +391,9 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
                         break;
                 }
 
+                // Collect items for batch view removal instead of immediate removal
                 if( view )
-                    view->Remove( boardItem );
+                    fpItemsToRemoveFromView.push_back( boardItem );
 
                 if( !( changeFlags & CHT_DONE ) )
                 {
@@ -532,6 +534,13 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
             wxASSERT( false );
             break;
         }
+    }
+
+    // Batch remove footprint items from view for better performance
+    if( view && !fpItemsToRemoveFromView.empty() )
+    {
+        for( BOARD_ITEM* item : fpItemsToRemoveFromView )
+            view->Remove( item );
     }
 
     if( bulkAddedItems.size() > 0 )

@@ -1855,12 +1855,9 @@ void EDIT_TOOL::DeleteItems( const PCB_SELECTION& aItems, bool aIsCut )
             case FP_TEXT::TEXT_is_REFERENCE:
                 m_commit->Modify( parent );
                 text->SetVisible( false );
-                getView()->Update( text );
                 break;
             case FP_TEXT::TEXT_is_DIVERS:
-                m_commit->Modify( parent );
-                getView()->Remove( text );
-                parent->Remove( text );
+                m_commit->Remove( text );
                 break;
             default:
                 wxFAIL; // Shouldn't get here
@@ -1871,25 +1868,15 @@ void EDIT_TOOL::DeleteItems( const PCB_SELECTION& aItems, bool aIsCut )
         }
 
         case PCB_FP_TEXTBOX_T:
-        {
-            FP_TEXTBOX* textbox = static_cast<FP_TEXTBOX*>( item );
-            FOOTPRINT*  parent = static_cast<FOOTPRINT*>( item->GetParent() );
-
-            m_commit->Modify( parent );
-            getView()->Remove( textbox );
-            parent->Remove( textbox );
+        case PCB_FP_SHAPE_T:
+        case PCB_FP_ZONE_T:
+            m_commit->Remove( item );
             break;
-        }
 
         case PCB_BITMAP_T:
             if( IsFootprintEditor() )
             {
-                PCB_BITMAP* fp_bitmap = static_cast<PCB_BITMAP*>( item );
-                FOOTPRINT*  parent = static_cast<FOOTPRINT*>( item->GetParent() );
-
-                m_commit->Modify( parent );
-                getView()->Remove( fp_bitmap );
-                parent->Remove( fp_bitmap );
+                m_commit->Remove( item );
             }
             else
                 m_commit->Remove( item );
@@ -1899,26 +1886,10 @@ void EDIT_TOOL::DeleteItems( const PCB_SELECTION& aItems, bool aIsCut )
         case PCB_PAD_T:
             if( IsFootprintEditor() || frame()->GetPcbNewSettings()->m_AllowFreePads )
             {
-                PAD*       pad = static_cast<PAD*>( item );
-                FOOTPRINT* parent = static_cast<FOOTPRINT*>( item->GetParent() );
-
-                m_commit->Modify( parent );
-                getView()->Remove( pad );
-                parent->Remove( pad );
+                m_commit->Remove( item );
             }
 
             break;
-
-        case PCB_FP_ZONE_T:
-        {
-            FP_ZONE*   zone = static_cast<FP_ZONE*>( item );
-            FOOTPRINT* parent = static_cast<FOOTPRINT*>( item->GetParent() );
-
-            m_commit->Modify( parent );
-            getView()->Remove( zone );
-            parent->Remove( zone );
-            break;
-        }
 
         case PCB_ZONE_T:
         // We process the zones special so that cutouts can be deleted when the delete tool
@@ -1984,9 +1955,7 @@ void EDIT_TOOL::DeleteItems( const PCB_SELECTION& aItems, bool aIsCut )
                                 }
                             }
 
-                            m_commit->Modify( bItem->GetParent() );
-                            getView()->Remove( bItem );
-                            bItem->GetParent()->Remove( bItem );
+                            m_commit->Remove( bItem );
                         }
                         else
                         {
