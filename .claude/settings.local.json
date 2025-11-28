@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /s /b \"C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror\\*rectpack*\")",
+      "WebSearch",
+      "Bash(find:*)",
+      "Bash(cat:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
