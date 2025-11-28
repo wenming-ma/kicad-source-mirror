@@ -489,8 +489,8 @@ void SCHEMATIC_LAYOUT_TOOL::packSheetGroups(
         return;
 
     // Use rectpack2d to pack the sheets
-    using spaces_type = rectpack2d::empty_spaces<false, rectpack2d::default_empty_spaces>;
-    using rect_type = rectpack2d::output_rect_t<spaces_type>;
+    using spaces_type = rectpack2D::empty_spaces<false, rectpack2D::default_empty_spaces>;
+    using rect_type = rectpack2D::output_rect_t<spaces_type>;
 
     std::vector<rect_type> rectangles;
     for( const auto& sr : sheetRects )
@@ -502,15 +502,15 @@ void SCHEMATIC_LAYOUT_TOOL::packSheetGroups(
     const int SHEET_SPACING_MM = 5;
 
     // Find best packing
-    auto report_successful = [](rect_type&) { return rectpack2d::callback_result::CONTINUE_PACKING; };
-    auto report_failed = [](rect_type&) { return rectpack2d::callback_result::ABORT_PACKING; };
+    auto report_successful = [](rect_type&) { return rectpack2D::callback_result::CONTINUE_PACKING; };
+    auto report_failed = [](rect_type&) { return rectpack2D::callback_result::ABORT_PACKING; };
 
     const auto max_side = 2000;  // Maximum 2000mm canvas
     const auto discard_step = 1;
 
-    const auto result_size = rectpack2d::find_best_packing<spaces_type>(
+    const auto result_size = rectpack2D::find_best_packing<spaces_type>(
         rectangles,
-        make_finder_input( max_side, discard_step, report_successful, report_failed, rectpack2d::flipping_option::DISABLED )
+        make_finder_input( max_side, discard_step, report_successful, report_failed, rectpack2D::flipping_option::DISABLED )
     );
 
     // Apply packing results: move each sheet group to its packed position
