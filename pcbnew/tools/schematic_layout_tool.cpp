@@ -521,9 +521,10 @@ void SCHEMATIC_LAYOUT_TOOL::packSheetGroups(
 
         // Calculate the offset from original position to packed position
         VECTOR2I originalTopLeft( sheetRect.originalBBox.GetX(), sheetRect.originalBBox.GetY() );
+        // Add back the spacing offset that was included in rectpack2D calculation
         VECTOR2I packedTopLeft(
-            packedRect.x * PCB_IU_PER_MM,
-            packedRect.y * PCB_IU_PER_MM
+            packedRect.x * PCB_IU_PER_MM + SHEET_SPACING_MM * PCB_IU_PER_MM,
+            packedRect.y * PCB_IU_PER_MM + SHEET_SPACING_MM * PCB_IU_PER_MM
         );
 
         VECTOR2I offset = packedTopLeft - originalTopLeft;
