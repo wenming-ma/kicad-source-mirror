@@ -325,12 +325,12 @@ bool SCHEMATIC_LAYOUT_TOOL::hasOverlaps(
     for( size_t i = 0; i < aFootprints.size(); ++i )
     {
         BOX2I bbox_i = aFootprints[i]->GetBoundingBox( false, false );
-        bbox_i.Inflate( -CLEARANCE / 2 );  // Shrink by half clearance each side
+        bbox_i.Inflate( CLEARANCE / 2 );  // Expand by half clearance each side
 
         for( size_t j = i + 1; j < aFootprints.size(); ++j )
         {
             BOX2I bbox_j = aFootprints[j]->GetBoundingBox( false, false );
-            bbox_j.Inflate( -CLEARANCE / 2 );
+            bbox_j.Inflate( CLEARANCE / 2 );
 
             if( bbox_i.Intersects( bbox_j ) )
                 return true;
@@ -522,7 +522,7 @@ void SCHEMATIC_LAYOUT_TOOL::packSheetGroups(
         // Calculate the offset from original position to packed position
         VECTOR2I originalTopLeft( sheetRect.originalBBox.GetX(), sheetRect.originalBBox.GetY() );
         VECTOR2I packedTopLeft(
-            packedRect.x * PCB_IU_PER_MM + SHEET_SPACING_MM * PCB_IU_PER_MM * (int)i,
+            packedRect.x * PCB_IU_PER_MM,
             packedRect.y * PCB_IU_PER_MM
         );
 
