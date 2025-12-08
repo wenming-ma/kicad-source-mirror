@@ -3,6 +3,7 @@
 boost_root
 /Build
 /build
+kicad_algorithm_visualizations
 /cmake-build-*
 common/fp_lib_table_keywords.cpp
 common/drc_rules_keywords.cpp
