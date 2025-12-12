@@ -1,0 +1,20 @@
+{
+  "version": 9,
+  "buildPresets": [
+    {
+      "name": "user-kicad",
+      "inherits": "kicad",
+      "jobs": 14
+    },
+    {
+      "name": "user-x64-debug",
+      "inherits": "x64-debug",
+      "jobs": 14
+    },
+    {
+      "name": "user-x64-release",
+      "inherits": "x64-release",
+      "jobs": 14
+    }
+  ]
+}
