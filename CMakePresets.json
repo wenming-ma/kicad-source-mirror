@@ -19,7 +19,9 @@
         "KICAD_SCRIPTING_WXPYTHON": "OFF",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "VCPKG_INSTALLED_DIR": "$env{VCPKG_ROOT}/installed",
-        "PYTHON_EXECUTABLE": "$env{VCPKG_ROOT}/installed/x64-windows/tools/python3/python.exe"
+        "PYTHON_EXECUTABLE": "$env{VCPKG_ROOT}/installed/x64-windows/tools/python3/python.exe",
+        "USE_CCACHE": "ON",
+        "CMAKE_MSVC_DEBUG_INFORMATION_FORMAT": "Embedded"
       }
     },
     {

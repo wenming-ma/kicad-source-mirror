@@ -7,7 +7,8 @@ endif()
 
 find_program(CCACHE_PROGRAM ccache)
 
-if(CCACHE_PROGRAM AND NOT MSVC)
+# ccache 4.0+ supports MSVC, so we no longer exclude it
+if(CCACHE_PROGRAM)
     message(STATUS "Found ccache: ${CCACHE_PROGRAM}")
 
     # Check ccache version
