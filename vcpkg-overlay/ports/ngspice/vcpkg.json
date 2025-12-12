@@ -1,0 +1,25 @@
+{
+  "name": "ngspice",
+  "version": "41",
+  "port-version": 1,
+  "description": "Ngspice is a mixed-level/mixed-signal electronic circuit simulator. (Overlay port with GitHub download fix)",
+  "homepage": "http://ngspice.sourceforge.net/",
+  "license": "CC-BY-SA-4.0",
+  "supports": "!(linux | osx | uwp)",
+  "default-features": [
+    "codemodels"
+  ],
+  "features": {
+    "codemodels": {
+      "description": "Adds optional code models for XSPICE, ADMS (verilog integration) and B-/E-/G- sources."
+    },
+    "fftw": {
+      "description": "Add FFT command support",
+      "dependencies": [
+        {
+          "name": "fftw3"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,3155 @@
+From 21211dd478feac9b8dd74aa12448695229b73399 Mon Sep 17 00:00:00 2001
+From: Marek Roszko <mark.roszko@gmail.com>
+Date: Sat, 4 Mar 2023 08:57:03 -0500
+Subject: [PATCH] Add ARM64 arch to the msbuild projects
+
+---
+ visualc/sharedspice.sln           |  13 +-
+ visualc/sharedspice.vcxproj       | 184 +++++++++++++
+ visualc/vngspice-fftw.sln         | 106 +++++++-
+ visualc/vngspice-fftw.vcxproj     | 357 ++++++++++++++++++++++++-
+ visualc/vngspice.sln              | 106 +++++++-
+ visualc/vngspice.vcxproj          | 418 +++++++++++++++++++++++++++++-
+ visualc/xspice/analog.vcxproj     |  88 ++++++-
+ visualc/xspice/cmpp/cmpp.vcxproj  |  64 +++++
+ visualc/xspice/digital.vcxproj    |  88 ++++++-
+ visualc/xspice/spice2poly.vcxproj |  88 ++++++-
+ visualc/xspice/table.vcxproj      |  88 ++++++-
+ visualc/xspice/xtradev.vcxproj    |  88 ++++++-
+ visualc/xspice/xtraevt.vcxproj    |  88 ++++++-
+ 13 files changed, 1752 insertions(+), 24 deletions(-)
+
+diff --git a/visualc/sharedspice.sln b/visualc/sharedspice.sln
+index 9006b79bf..48b1c280d 100644
+--- a/visualc/sharedspice.sln
++++ b/visualc/sharedspice.sln
+@@ -1,28 +1,37 @@
+ ﻿
+ Microsoft Visual Studio Solution File, Format Version 12.00
+-# Visual Studio Version 16
+-VisualStudioVersion = 16.0.29709.97
++# Visual Studio Version 17
++VisualStudioVersion = 17.5.33414.496
+ MinimumVisualStudioVersion = 10.0.40219.1
+ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sharedspice", "sharedspice.vcxproj", "{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}"
+ EndProject
+ Global
+ 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
++		Debug|ARM64 = Debug|ARM64
+ 		Debug|x64 = Debug|x64
+ 		Debug|x86 = Debug|x86
++		Release|ARM64 = Release|ARM64
+ 		Release|x64 = Release|x64
+ 		Release|x86 = Release|x86
++		ReleaseOMP|ARM64 = ReleaseOMP|ARM64
+ 		ReleaseOMP|x64 = ReleaseOMP|x64
+ 		ReleaseOMP|x86 = ReleaseOMP|x86
+ 	EndGlobalSection
+ 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|x64.ActiveCfg = Debug|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|x64.Build.0 = Debug|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|x86.Build.0 = Debug|Win32
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|ARM64.ActiveCfg = Release|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|ARM64.Build.0 = Release|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|x64.ActiveCfg = Release|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|x64.Build.0 = Release|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|x86.ActiveCfg = Release|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|x86.Build.0 = Release|Win32
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|ARM64.ActiveCfg = ReleaseOMP|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|ARM64.Build.0 = ReleaseOMP|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|x64.ActiveCfg = ReleaseOMP|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|x64.Build.0 = ReleaseOMP|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|x86.ActiveCfg = ReleaseOMP|Win32
+diff --git a/visualc/sharedspice.vcxproj b/visualc/sharedspice.vcxproj
+index 4b54605ce..881876719 100644
+--- a/visualc/sharedspice.vcxproj
++++ b/visualc/sharedspice.vcxproj
+@@ -1,10 +1,22 @@
+ ﻿<?xml version="1.0" encoding="utf-8"?>
+ <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup Label="ProjectConfigurations">
++    <ProjectConfiguration Include="Debug|ARM64">
++      <Configuration>Debug</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Debug|Win32">
+       <Configuration>Debug</Configuration>
+       <Platform>Win32</Platform>
+     </ProjectConfiguration>
++    <ProjectConfiguration Include="ReleaseOMP|ARM64">
++      <Configuration>ReleaseOMP</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
++    <ProjectConfiguration Include="Release|ARM64">
++      <Configuration>Release</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Release|Win32">
+       <Configuration>Release</Configuration>
+       <Platform>Win32</Platform>
+@@ -43,10 +55,18 @@
+     <ConfigurationType>DynamicLibrary</ConfigurationType>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+     <ConfigurationType>DynamicLibrary</ConfigurationType>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|Win32'" Label="Configuration">
+     <ConfigurationType>DynamicLibrary</ConfigurationType>
+     <PlatformToolset>v143</PlatformToolset>
+@@ -55,6 +75,10 @@
+     <ConfigurationType>DynamicLibrary</ConfigurationType>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+   <ImportGroup Label="ExtensionSettings">
+   </ImportGroup>
+@@ -67,15 +91,24 @@
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|Win32'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <PropertyGroup Label="UserMacros" />
+   <PropertyGroup>
+     <_ProjectFileVersion>14.0.23107.0</_ProjectFileVersion>
+@@ -92,15 +125,24 @@
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+     <LinkIncremental />
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <LinkIncremental />
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <LinkIncremental />
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <LinkIncremental />
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|Win32'">
+     <LinkIncremental />
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|x64'">
+     <LinkIncremental />
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|ARM64'">
++    <LinkIncremental />
++  </PropertyGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+     <PreBuildEvent>
+       <Message>force recompilation of conf.c with actual date</Message>
+@@ -233,6 +275,53 @@
+       </DataExecutionPrevention>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <PreBuildEvent>
++      <Message>force recompilation of conf.c with actual date</Message>
++      <Command>if exist $(IntDir)conf.obj del $(IntDir)conf.obj</Command>
++    </PreBuildEvent>
++    <CustomBuildStep>
++      <Message>
++      </Message>
++      <Command>
++      </Command>
++    </CustomBuildStep>
++    <ClCompile>
++      <Optimization>Disabled</Optimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\osdi;..\src\frontend;..\src\spicelib\devices;tmp-bison;..\src\spicelib\parser;src\include;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;SHARED_MODULE;CONFIG64;_MSC_PLATFORM_TOOLSET=$(PlatformToolsetVersion);NGDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <PreprocessToFile>false</PreprocessToFile>
++      <PreprocessSuppressLineNumbers>false</PreprocessSuppressLineNumbers>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <GenerateMapFile>false</GenerateMapFile>
++      <SubSystem>Windows</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <LinkTimeCodeGeneration>
++      </LinkTimeCodeGeneration>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <PreBuildEvent>
+       <Message>force recompilation of conf.c with current date</Message>
+@@ -280,6 +369,52 @@
+       </DataExecutionPrevention>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <PreBuildEvent>
++      <Message>force recompilation of conf.c with actual date</Message>
++      <Command>if exist $(IntDir)conf.obj del $(IntDir)conf.obj</Command>
++    </PreBuildEvent>
++    <CustomBuildStep>
++      <Message>
++      </Message>
++      <Command>
++      </Command>
++    </CustomBuildStep>
++    <ClCompile>
++      <Optimization>Full</Optimization>
++      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
++      <WholeProgramOptimization>true</WholeProgramOptimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\osdi;..\src\frontend;..\src\spicelib\devices;tmp-bison;..\src\spicelib\parser;src\include;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;SHARED_MODULE;CONFIG64;_MSC_PLATFORM_TOOLSET=$(PlatformToolsetVersion);%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Windows</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <OptimizeReferences>true</OptimizeReferences>
++      <EnableCOMDATFolding>true</EnableCOMDATFolding>
++      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|Win32'">
+     <PreBuildEvent>
+       <Message>force recompilation of conf.c with actual date</Message>
+@@ -372,6 +507,55 @@
+       </DataExecutionPrevention>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|ARM64'">
++    <PreBuildEvent>
++      <Message>force recompilation of conf.c with actual date</Message>
++      <Command>if exist $(IntDir)conf.obj del $(IntDir)conf.obj</Command>
++    </PreBuildEvent>
++    <CustomBuildStep>
++      <Message>
++      </Message>
++      <Command>
++      </Command>
++    </CustomBuildStep>
++    <ClCompile>
++      <Optimization>Full</Optimization>
++      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
++      <WholeProgramOptimization>true</WholeProgramOptimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\osdi;..\src\frontend;..\src\spicelib\devices;tmp-bison;..\src\spicelib\parser;src\include;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;SHARED_MODULE;CONFIG64;_MSC_PLATFORM_TOOLSET=$(PlatformToolsetVersion);USE_OMP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <OpenMPSupport>
++      </OpenMPSupport>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Windows</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <OptimizeReferences>true</OptimizeReferences>
++      <EnableCOMDATFolding>true</EnableCOMDATFolding>
++      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
++      <RandomizedBaseAddress>false</RandomizedBaseAddress>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemGroup>
+     <ClInclude Include="..\src\ciderlib\oned\oneddefs.h" />
+     <ClInclude Include="..\src\ciderlib\oned\onedext.h" />
+diff --git a/visualc/vngspice-fftw.sln b/visualc/vngspice-fftw.sln
+index 04c030fbf..66ea46f7d 100644
+--- a/visualc/vngspice-fftw.sln
++++ b/visualc/vngspice-fftw.sln
+@@ -1,7 +1,7 @@
+ ﻿
+ Microsoft Visual Studio Solution File, Format Version 12.00
+-# Visual Studio 15
+-VisualStudioVersion = 15.0.27703.2035
++# Visual Studio Version 17
++VisualStudioVersion = 17.5.33414.496
+ MinimumVisualStudioVersion = 10.0.40219.1
+ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vngspice-fftw", "vngspice-fftw.vcxproj", "{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}"
+ 	ProjectSection(ProjectDependencies) = postProject
+@@ -48,208 +48,310 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "xtraevt", "xspice\xtraevt.v
+ EndProject
+ Global
+ 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
++		console_debug|ARM64 = console_debug|ARM64
+ 		console_debug|x64 = console_debug|x64
+ 		console_debug|x86 = console_debug|x86
++		console_release_omp|ARM64 = console_release_omp|ARM64
+ 		console_release_omp|x64 = console_release_omp|x64
+ 		console_release_omp|x86 = console_release_omp|x86
++		console_release|ARM64 = console_release|ARM64
+ 		console_release|x64 = console_release|x64
+ 		console_release|x86 = console_release|x86
++		Debug|ARM64 = Debug|ARM64
+ 		Debug|x64 = Debug|x64
+ 		Debug|x86 = Debug|x86
++		Release|ARM64 = Release|ARM64
+ 		Release|x64 = Release|x64
+ 		Release|x86 = Release|x86
++		ReleaseOMP|ARM64 = ReleaseOMP|ARM64
+ 		ReleaseOMP|x64 = ReleaseOMP|x64
+ 		ReleaseOMP|x86 = ReleaseOMP|x86
+ 	EndGlobalSection
+ 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_debug|ARM64.ActiveCfg = console_debug|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_debug|ARM64.Build.0 = console_debug|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_debug|x64.ActiveCfg = console_debug|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_debug|x64.Build.0 = console_debug|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_debug|x86.ActiveCfg = console_debug|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_debug|x86.Build.0 = console_debug|Win32
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release_omp|ARM64.ActiveCfg = console_release_omp|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release_omp|ARM64.Build.0 = console_release_omp|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release_omp|x64.ActiveCfg = console_release_omp|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release_omp|x64.Build.0 = console_release_omp|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release_omp|x86.ActiveCfg = console_release_omp|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release_omp|x86.Build.0 = console_release_omp|Win32
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release|ARM64.ActiveCfg = console_release|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release|ARM64.Build.0 = console_release|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release|x64.ActiveCfg = console_release|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release|x64.Build.0 = console_release|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release|x86.ActiveCfg = console_release|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release|x86.Build.0 = console_release|Win32
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|x64.ActiveCfg = Debug|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|x64.Build.0 = Debug|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|x86.Build.0 = Debug|Win32
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|ARM64.ActiveCfg = Release|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|ARM64.Build.0 = Release|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|x64.ActiveCfg = Release|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|x64.Build.0 = Release|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|x86.ActiveCfg = Release|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|x86.Build.0 = Release|Win32
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|ARM64.ActiveCfg = ReleaseOMP|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|ARM64.Build.0 = ReleaseOMP|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|x64.ActiveCfg = ReleaseOMP|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|x64.Build.0 = ReleaseOMP|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|x86.ActiveCfg = ReleaseOMP|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|x86.Build.0 = ReleaseOMP|Win32
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_debug|x64.Build.0 = Debug|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_debug|x86.Build.0 = Debug|Win32
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release_omp|x64.Build.0 = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release_omp|x86.Build.0 = Release|Win32
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release|x64.ActiveCfg = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release|x64.Build.0 = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release|x86.ActiveCfg = Release|Win32
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release|x86.Build.0 = Release|Win32
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Debug|ARM64.ActiveCfg = Debug|x64
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Debug|ARM64.Build.0 = Debug|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Debug|x64.ActiveCfg = Debug|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Debug|x64.Build.0 = Debug|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Debug|x86.Build.0 = Debug|Win32
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Release|ARM64.ActiveCfg = Release|x64
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Release|ARM64.Build.0 = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Release|x64.ActiveCfg = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Release|x64.Build.0 = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Release|x86.ActiveCfg = Release|Win32
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Release|x86.Build.0 = Release|Win32
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.ReleaseOMP|x86.Build.0 = Release|Win32
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_debug|x64.Build.0 = Debug|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_debug|x86.Build.0 = Debug|Win32
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release_omp|x64.Build.0 = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release_omp|x86.Build.0 = Release|Win32
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release|x64.ActiveCfg = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release|x64.Build.0 = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release|x86.ActiveCfg = Release|Win32
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release|x86.Build.0 = Release|Win32
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Debug|x64.ActiveCfg = Debug|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Debug|x64.Build.0 = Debug|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Debug|x86.Build.0 = Debug|Win32
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Release|ARM64.ActiveCfg = Release|ARM64
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Release|ARM64.Build.0 = Release|ARM64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Release|x64.ActiveCfg = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Release|x64.Build.0 = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Release|x86.ActiveCfg = Release|Win32
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Release|x86.Build.0 = Release|Win32
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.ReleaseOMP|x86.Build.0 = Release|Win32
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_debug|x64.Build.0 = Debug|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_debug|x86.Build.0 = Debug|Win32
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release_omp|x64.Build.0 = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release_omp|x86.Build.0 = Release|Win32
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release|x64.ActiveCfg = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release|x64.Build.0 = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release|x86.ActiveCfg = Release|Win32
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release|x86.Build.0 = Release|Win32
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Debug|x64.ActiveCfg = Debug|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Debug|x64.Build.0 = Debug|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Debug|x86.Build.0 = Debug|Win32
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Release|ARM64.ActiveCfg = Release|ARM64
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Release|ARM64.Build.0 = Release|ARM64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Release|x64.ActiveCfg = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Release|x64.Build.0 = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Release|x86.ActiveCfg = Release|Win32
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Release|x86.Build.0 = Release|Win32
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.ReleaseOMP|x86.Build.0 = Release|Win32
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_debug|x64.Build.0 = Debug|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_debug|x86.Build.0 = Debug|Win32
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release_omp|x64.Build.0 = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release_omp|x86.Build.0 = Release|Win32
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release|x64.ActiveCfg = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release|x64.Build.0 = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release|x86.ActiveCfg = Release|Win32
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release|x86.Build.0 = Release|Win32
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Debug|x64.ActiveCfg = Debug|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Debug|x64.Build.0 = Debug|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Debug|x86.Build.0 = Debug|Win32
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Release|ARM64.ActiveCfg = Release|ARM64
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Release|ARM64.Build.0 = Release|ARM64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Release|x64.ActiveCfg = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Release|x64.Build.0 = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Release|x86.ActiveCfg = Release|Win32
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Release|x86.Build.0 = Release|Win32
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.ReleaseOMP|x86.Build.0 = Release|Win32
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_debug|x64.Build.0 = Debug|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_debug|x86.Build.0 = Debug|Win32
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release_omp|x64.Build.0 = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release_omp|x86.Build.0 = Release|Win32
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release|x64.ActiveCfg = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release|x64.Build.0 = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release|x86.ActiveCfg = Release|Win32
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release|x86.Build.0 = Release|Win32
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Debug|x64.ActiveCfg = Debug|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Debug|x64.Build.0 = Debug|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Debug|x86.Build.0 = Debug|Win32
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.Release|ARM64.ActiveCfg = Release|ARM64
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.Release|ARM64.Build.0 = Release|ARM64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Release|x64.ActiveCfg = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Release|x64.Build.0 = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Release|x86.ActiveCfg = Release|Win32
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Release|x86.Build.0 = Release|Win32
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.ReleaseOMP|x86.Build.0 = Release|Win32
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_debug|x64.Build.0 = Debug|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_debug|x86.Build.0 = Debug|Win32
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release_omp|x64.Build.0 = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release_omp|x86.Build.0 = Release|Win32
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release|x64.ActiveCfg = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release|x64.Build.0 = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release|x86.ActiveCfg = Release|Win32
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release|x86.Build.0 = Release|Win32
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Debug|x64.ActiveCfg = Debug|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Debug|x64.Build.0 = Debug|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Debug|x86.Build.0 = Debug|Win32
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Release|ARM64.ActiveCfg = Release|ARM64
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Release|ARM64.Build.0 = Release|ARM64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Release|x64.ActiveCfg = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Release|x64.Build.0 = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Release|x86.ActiveCfg = Release|Win32
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Release|x86.Build.0 = Release|Win32
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.ReleaseOMP|x86.Build.0 = Release|Win32
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_debug|x64.Build.0 = Debug|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_debug|x86.Build.0 = Debug|Win32
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release_omp|x64.Build.0 = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release_omp|x86.Build.0 = Release|Win32
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release|x64.ActiveCfg = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release|x64.Build.0 = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release|x86.ActiveCfg = Release|Win32
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release|x86.Build.0 = Release|Win32
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Debug|x64.ActiveCfg = Debug|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Debug|x64.Build.0 = Debug|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Debug|x86.Build.0 = Debug|Win32
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Release|ARM64.ActiveCfg = Release|ARM64
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Release|ARM64.Build.0 = Release|ARM64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Release|x64.ActiveCfg = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Release|x64.Build.0 = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Release|x86.ActiveCfg = Release|Win32
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Release|x86.Build.0 = Release|Win32
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+diff --git a/visualc/vngspice-fftw.vcxproj b/visualc/vngspice-fftw.vcxproj
+index f8b74d363..95eb3160f 100644
+--- a/visualc/vngspice-fftw.vcxproj
++++ b/visualc/vngspice-fftw.vcxproj
+@@ -1,10 +1,34 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup Label="ProjectConfigurations">
++    <ProjectConfiguration Include="console_debug|ARM64">
++      <Configuration>console_debug</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
++    <ProjectConfiguration Include="console_release_omp|ARM64">
++      <Configuration>console_release_omp</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
++    <ProjectConfiguration Include="console_release|ARM64">
++      <Configuration>console_release</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
++    <ProjectConfiguration Include="Debug|ARM64">
++      <Configuration>Debug</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Debug|Win32">
+       <Configuration>Debug</Configuration>
+       <Platform>Win32</Platform>
+     </ProjectConfiguration>
++    <ProjectConfiguration Include="ReleaseOMP|ARM64">
++      <Configuration>ReleaseOMP</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
++    <ProjectConfiguration Include="Release|ARM64">
++      <Configuration>Release</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Release|Win32">
+       <Configuration>Release</Configuration>
+       <Platform>Win32</Platform>
+@@ -69,11 +93,20 @@
+     <ConfigurationType>Application</ConfigurationType>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+     <ConfigurationType>Application</ConfigurationType>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|Win32'" Label="Configuration">
+     <ConfigurationType>Application</ConfigurationType>
+     <PlatformToolset>v143</PlatformToolset>
+@@ -87,11 +120,20 @@
+     <ConfigurationType>Application</ConfigurationType>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release|x64'" Label="Configuration">
+     <ConfigurationType>Application</ConfigurationType>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|Win32'" Label="Configuration">
+     <ConfigurationType>Application</ConfigurationType>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+@@ -102,6 +144,11 @@
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|Win32'" Label="Configuration">
+     <ConfigurationType>Application</ConfigurationType>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+@@ -112,6 +159,11 @@
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+   <ImportGroup Label="ExtensionSettings">
+   </ImportGroup>
+@@ -124,9 +176,15 @@
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|Win32'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
+@@ -136,21 +194,33 @@
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_release|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_release|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|Win32'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|Win32'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <PropertyGroup Label="UserMacros" />
+   <PropertyGroup>
+     <_ProjectFileVersion>10.0.40219.1</_ProjectFileVersion>
+@@ -169,9 +239,16 @@
+     <LinkIncremental>false</LinkIncremental>
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <LinkIncremental>false</LinkIncremental>
++    <GenerateManifest>false</GenerateManifest>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <LinkIncremental>false</LinkIncremental>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|Win32'">
+     <LinkIncremental>false</LinkIncremental>
+     <GenerateManifest>false</GenerateManifest>
+@@ -183,21 +260,34 @@
+     <LinkIncremental>false</LinkIncremental>
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|ARM64'">
++    <LinkIncremental>false</LinkIncremental>
++    <GenerateManifest>false</GenerateManifest>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release|x64'">
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release|ARM64'">
++    <LinkIncremental>false</LinkIncremental>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|Win32'">
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|x64'">
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|ARM64'">
++    <LinkIncremental>false</LinkIncremental>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|Win32'">
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|x64'">
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|ARM64'">
++    <LinkIncremental>false</LinkIncremental>
++  </PropertyGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+@@ -325,6 +415,44 @@
+       </Command>
+     </PostBuildEvent>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>Disabled</Optimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\frontend;..\src\spicelib\devices;tmp-bison;src\include;..\src\spicelib\parser;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;XSPICE;NGDEBUG;CONFIG64;HAVE_LIBFFTW3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;fftw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Windows</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <LargeAddressAware>true</LargeAddressAware>
++    </Link>
++    <PostBuildEvent>
++      <Command>
++      </Command>
++    </PostBuildEvent>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <PreBuildEvent>
+       <Message>force recompilation of conf.c with current date</Message>
+@@ -379,6 +507,53 @@
+       </Command>
+     </PostBuildEvent>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
++      <WholeProgramOptimization>true</WholeProgramOptimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\frontend;..\src\spicelib\devices;tmp-bison;src\include;..\src\spicelib\parser;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;XSPICE;CONFIG64;HAVE_LIBFFTW3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;fftw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Windows</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <OptimizeReferences>
++      </OptimizeReferences>
++      <EnableCOMDATFolding>
++      </EnableCOMDATFolding>
++      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
++      <RandomizedBaseAddress>true</RandomizedBaseAddress>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <LargeAddressAware>true</LargeAddressAware>
++    </Link>
++    <PostBuildEvent>
++      <Command>
++      </Command>
++    </PostBuildEvent>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|Win32'">
+     <ClCompile>
+       <Optimization>Disabled</Optimization>
+@@ -507,6 +682,45 @@
+       </Command>
+     </PostBuildEvent>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>Disabled</Optimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\frontend;..\src\spicelib\devices;tmp-bison;src\include;..\src\spicelib\parser;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;XSPICE;NGDEBUG;CONSOLE;CONFIG64;HAVE_LIBFFTW3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;fftw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Console</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <RandomizedBaseAddress>false</RandomizedBaseAddress>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <LargeAddressAware>true</LargeAddressAware>
++    </Link>
++    <PostBuildEvent>
++      <Command>
++      </Command>
++    </PostBuildEvent>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='console_release|x64'">
+     <PreBuildEvent>
+       <Message>force recompilation of conf.c with current date</Message>
+@@ -559,6 +773,51 @@
+       </Command>
+     </PostBuildEvent>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='console_release|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
++      <WholeProgramOptimization>true</WholeProgramOptimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\frontend;..\src\spicelib\devices;tmp-bison;src\include;..\src\spicelib\parser;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;XSPICE;CONSOLE;CONFIG64;HAVE_LIBFFTW3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <RuntimeTypeInfo>true</RuntimeTypeInfo>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;fftw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Console</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <OptimizeReferences>true</OptimizeReferences>
++      <EnableCOMDATFolding>true</EnableCOMDATFolding>
++      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
++      <RandomizedBaseAddress>true</RandomizedBaseAddress>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <LargeAddressAware>true</LargeAddressAware>
++    </Link>
++    <PostBuildEvent>
++      <Command>
++      </Command>
++    </PostBuildEvent>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|Win32'">
+     <ClCompile>
+       <Optimization>MaxSpeed</Optimization>
+@@ -660,6 +919,55 @@
+       </Command>
+     </PostBuildEvent>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
++      <WholeProgramOptimization>true</WholeProgramOptimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\frontend;..\src\spicelib\devices;tmp-bison;src\include;..\src\spicelib\parser;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;XSPICE;USE_OMP;CONFIG64;HAVE_LIBFFTW3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <RuntimeTypeInfo>true</RuntimeTypeInfo>
++      <OpenMPSupport>
++      </OpenMPSupport>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;fftw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Windows</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <OptimizeReferences>
++      </OptimizeReferences>
++      <EnableCOMDATFolding>
++      </EnableCOMDATFolding>
++      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
++      <RandomizedBaseAddress>true</RandomizedBaseAddress>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <LargeAddressAware>true</LargeAddressAware>
++    </Link>
++    <PostBuildEvent>
++      <Command>
++      </Command>
++    </PostBuildEvent>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|Win32'">
+     <ClCompile>
+       <Optimization>MaxSpeed</Optimization>
+@@ -759,6 +1067,53 @@
+       </Command>
+     </PostBuildEvent>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
++      <WholeProgramOptimization>true</WholeProgramOptimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\frontend;..\src\spicelib\devices;tmp-bison;src\include;..\src\spicelib\parser;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;XSPICE;CONSOLE;CONFIG64;USE_OMP;HAVE_LIBFFTW3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <RuntimeTypeInfo>true</RuntimeTypeInfo>
++      <OpenMPSupport>
++      </OpenMPSupport>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;fftw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Console</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <OptimizeReferences>true</OptimizeReferences>
++      <EnableCOMDATFolding>true</EnableCOMDATFolding>
++      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
++      <RandomizedBaseAddress>true</RandomizedBaseAddress>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <LargeAddressAware>true</LargeAddressAware>
++    </Link>
++    <PostBuildEvent>
++      <Command>
++      </Command>
++    </PostBuildEvent>
++  </ItemDefinitionGroup>
+   <ItemGroup>
+     <ClInclude Include="..\src\ciderlib\oned\oneddefs.h" />
+     <ClInclude Include="..\src\ciderlib\oned\onedext.h" />
+@@ -2709,4 +3064,4 @@
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+   <ImportGroup Label="ExtensionTargets">
+   </ImportGroup>
+-</Project>
++</Project>
+\ No newline at end of file
+diff --git a/visualc/vngspice.sln b/visualc/vngspice.sln
+index 260d55371..f548768e2 100644
+--- a/visualc/vngspice.sln
++++ b/visualc/vngspice.sln
+@@ -1,7 +1,7 @@
+ ﻿
+ Microsoft Visual Studio Solution File, Format Version 12.00
+-# Visual Studio Version 16
+-VisualStudioVersion = 16.0.29806.167
++# Visual Studio Version 17
++VisualStudioVersion = 17.5.33414.496
+ MinimumVisualStudioVersion = 10.0.40219.1
+ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vngspice", "vngspice.vcxproj", "{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}"
+ 	ProjectSection(ProjectDependencies) = postProject
+@@ -48,208 +48,310 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "xtraevt", "xspice\xtraevt.v
+ EndProject
+ Global
+ 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
++		console_debug|ARM64 = console_debug|ARM64
+ 		console_debug|x64 = console_debug|x64
+ 		console_debug|x86 = console_debug|x86
++		console_release_omp|ARM64 = console_release_omp|ARM64
+ 		console_release_omp|x64 = console_release_omp|x64
+ 		console_release_omp|x86 = console_release_omp|x86
++		console_release|ARM64 = console_release|ARM64
+ 		console_release|x64 = console_release|x64
+ 		console_release|x86 = console_release|x86
++		Debug|ARM64 = Debug|ARM64
+ 		Debug|x64 = Debug|x64
+ 		Debug|x86 = Debug|x86
++		Release|ARM64 = Release|ARM64
+ 		Release|x64 = Release|x64
+ 		Release|x86 = Release|x86
++		ReleaseOMP|ARM64 = ReleaseOMP|ARM64
+ 		ReleaseOMP|x64 = ReleaseOMP|x64
+ 		ReleaseOMP|x86 = ReleaseOMP|x86
+ 	EndGlobalSection
+ 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_debug|ARM64.ActiveCfg = console_debug|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_debug|ARM64.Build.0 = console_debug|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_debug|x64.ActiveCfg = console_debug|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_debug|x64.Build.0 = console_debug|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_debug|x86.ActiveCfg = console_debug|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_debug|x86.Build.0 = console_debug|Win32
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release_omp|ARM64.ActiveCfg = console_release_omp|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release_omp|ARM64.Build.0 = console_release_omp|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release_omp|x64.ActiveCfg = console_release_omp|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release_omp|x64.Build.0 = console_release_omp|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release_omp|x86.ActiveCfg = console_release_omp|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release_omp|x86.Build.0 = console_release_omp|Win32
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release|ARM64.ActiveCfg = console_release|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release|ARM64.Build.0 = console_release|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release|x64.ActiveCfg = console_release|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release|x64.Build.0 = console_release|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release|x86.ActiveCfg = console_release|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.console_release|x86.Build.0 = console_release|Win32
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|x64.ActiveCfg = Debug|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|x64.Build.0 = Debug|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Debug|x86.Build.0 = Debug|Win32
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|ARM64.ActiveCfg = Release|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|ARM64.Build.0 = Release|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|x64.ActiveCfg = Release|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|x64.Build.0 = Release|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|x86.ActiveCfg = Release|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.Release|x86.Build.0 = Release|Win32
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|ARM64.ActiveCfg = ReleaseOMP|ARM64
++		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|ARM64.Build.0 = ReleaseOMP|ARM64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|x64.ActiveCfg = ReleaseOMP|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|x64.Build.0 = ReleaseOMP|x64
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|x86.ActiveCfg = ReleaseOMP|Win32
+ 		{83E315C7-EDD3-4F6B-AF28-87A92A4FA49A}.ReleaseOMP|x86.Build.0 = ReleaseOMP|Win32
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_debug|x64.Build.0 = Debug|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_debug|x86.Build.0 = Debug|Win32
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release_omp|x64.Build.0 = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release_omp|x86.Build.0 = Release|Win32
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release|x64.ActiveCfg = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release|x64.Build.0 = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release|x86.ActiveCfg = Release|Win32
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.console_release|x86.Build.0 = Release|Win32
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Debug|ARM64.ActiveCfg = Debug|x64
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Debug|ARM64.Build.0 = Debug|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Debug|x64.ActiveCfg = Debug|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Debug|x64.Build.0 = Debug|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Debug|x86.Build.0 = Debug|Win32
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Release|ARM64.ActiveCfg = Release|x64
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Release|ARM64.Build.0 = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Release|x64.ActiveCfg = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Release|x64.Build.0 = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Release|x86.ActiveCfg = Release|Win32
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.Release|x86.Build.0 = Release|Win32
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{7C865696-FA10-43AE-A20B-22AE72A165E2}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+ 		{7C865696-FA10-43AE-A20B-22AE72A165E2}.ReleaseOMP|x86.Build.0 = Release|Win32
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_debug|x64.Build.0 = Debug|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_debug|x86.Build.0 = Debug|Win32
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release_omp|x64.Build.0 = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release_omp|x86.Build.0 = Release|Win32
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release|x64.ActiveCfg = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release|x64.Build.0 = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release|x86.ActiveCfg = Release|Win32
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.console_release|x86.Build.0 = Release|Win32
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Debug|x64.ActiveCfg = Debug|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Debug|x64.Build.0 = Debug|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Debug|x86.Build.0 = Debug|Win32
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Release|ARM64.ActiveCfg = Release|ARM64
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Release|ARM64.Build.0 = Release|ARM64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Release|x64.ActiveCfg = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Release|x64.Build.0 = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Release|x86.ActiveCfg = Release|Win32
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.Release|x86.Build.0 = Release|Win32
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+ 		{8271FEA2-8AC0-4B6D-BAEA-A503D37B5DB2}.ReleaseOMP|x86.Build.0 = Release|Win32
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_debug|x64.Build.0 = Debug|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_debug|x86.Build.0 = Debug|Win32
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release_omp|x64.Build.0 = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release_omp|x86.Build.0 = Release|Win32
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release|x64.ActiveCfg = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release|x64.Build.0 = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release|x86.ActiveCfg = Release|Win32
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.console_release|x86.Build.0 = Release|Win32
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Debug|x64.ActiveCfg = Debug|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Debug|x64.Build.0 = Debug|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Debug|x86.Build.0 = Debug|Win32
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Release|ARM64.ActiveCfg = Release|ARM64
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Release|ARM64.Build.0 = Release|ARM64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Release|x64.ActiveCfg = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Release|x64.Build.0 = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Release|x86.ActiveCfg = Release|Win32
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.Release|x86.Build.0 = Release|Win32
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+ 		{9ABEC5F2-F6C6-41DE-88AB-02460A07F46E}.ReleaseOMP|x86.Build.0 = Release|Win32
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_debug|x64.Build.0 = Debug|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_debug|x86.Build.0 = Debug|Win32
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release_omp|x64.Build.0 = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release_omp|x86.Build.0 = Release|Win32
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release|x64.ActiveCfg = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release|x64.Build.0 = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release|x86.ActiveCfg = Release|Win32
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.console_release|x86.Build.0 = Release|Win32
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Debug|x64.ActiveCfg = Debug|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Debug|x64.Build.0 = Debug|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Debug|x86.Build.0 = Debug|Win32
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Release|ARM64.ActiveCfg = Release|ARM64
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Release|ARM64.Build.0 = Release|ARM64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Release|x64.ActiveCfg = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Release|x64.Build.0 = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Release|x86.ActiveCfg = Release|Win32
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.Release|x86.Build.0 = Release|Win32
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+ 		{D701EA0E-B8B0-41D6-A90E-A0D8233F15FB}.ReleaseOMP|x86.Build.0 = Release|Win32
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_debug|x64.Build.0 = Debug|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_debug|x86.Build.0 = Debug|Win32
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release_omp|x64.Build.0 = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release_omp|x86.Build.0 = Release|Win32
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release|x64.ActiveCfg = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release|x64.Build.0 = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release|x86.ActiveCfg = Release|Win32
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.console_release|x86.Build.0 = Release|Win32
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Debug|x64.ActiveCfg = Debug|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Debug|x64.Build.0 = Debug|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Debug|x86.Build.0 = Debug|Win32
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.Release|ARM64.ActiveCfg = Release|ARM64
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.Release|ARM64.Build.0 = Release|ARM64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Release|x64.ActiveCfg = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Release|x64.Build.0 = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Release|x86.ActiveCfg = Release|Win32
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.Release|x86.Build.0 = Release|Win32
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{7A6473F5-AFED-4910-88D2-6204DA829832}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+ 		{7A6473F5-AFED-4910-88D2-6204DA829832}.ReleaseOMP|x86.Build.0 = Release|Win32
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_debug|x64.Build.0 = Debug|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_debug|x86.Build.0 = Debug|Win32
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release_omp|x64.Build.0 = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release_omp|x86.Build.0 = Release|Win32
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release|x64.ActiveCfg = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release|x64.Build.0 = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release|x86.ActiveCfg = Release|Win32
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.console_release|x86.Build.0 = Release|Win32
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Debug|x64.ActiveCfg = Debug|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Debug|x64.Build.0 = Debug|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Debug|x86.Build.0 = Debug|Win32
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Release|ARM64.ActiveCfg = Release|ARM64
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Release|ARM64.Build.0 = Release|ARM64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Release|x64.ActiveCfg = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Release|x64.Build.0 = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Release|x86.ActiveCfg = Release|Win32
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.Release|x86.Build.0 = Release|Win32
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+ 		{4BB60215-9A09-4192-9DB6-1A0CA823AFCA}.ReleaseOMP|x86.Build.0 = Release|Win32
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_debug|ARM64.ActiveCfg = Debug|ARM64
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_debug|ARM64.Build.0 = Debug|ARM64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_debug|x64.ActiveCfg = Debug|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_debug|x64.Build.0 = Debug|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_debug|x86.ActiveCfg = Debug|Win32
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_debug|x86.Build.0 = Debug|Win32
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release_omp|ARM64.ActiveCfg = Debug|ARM64
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release_omp|ARM64.Build.0 = Debug|ARM64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release_omp|x64.ActiveCfg = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release_omp|x64.Build.0 = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release_omp|x86.ActiveCfg = Release|Win32
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release_omp|x86.Build.0 = Release|Win32
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release|ARM64.ActiveCfg = Debug|ARM64
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release|ARM64.Build.0 = Debug|ARM64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release|x64.ActiveCfg = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release|x64.Build.0 = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release|x86.ActiveCfg = Release|Win32
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.console_release|x86.Build.0 = Release|Win32
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Debug|ARM64.ActiveCfg = Debug|ARM64
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Debug|ARM64.Build.0 = Debug|ARM64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Debug|x64.ActiveCfg = Debug|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Debug|x64.Build.0 = Debug|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Debug|x86.ActiveCfg = Debug|Win32
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Debug|x86.Build.0 = Debug|Win32
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Release|ARM64.ActiveCfg = Release|ARM64
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Release|ARM64.Build.0 = Release|ARM64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Release|x64.ActiveCfg = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Release|x64.Build.0 = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Release|x86.ActiveCfg = Release|Win32
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.Release|x86.Build.0 = Release|Win32
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.ReleaseOMP|ARM64.ActiveCfg = Release|ARM64
++		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.ReleaseOMP|ARM64.Build.0 = Release|ARM64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.ReleaseOMP|x64.ActiveCfg = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.ReleaseOMP|x64.Build.0 = Release|x64
+ 		{13500662-AF0B-4AB6-9AF9-BC3E07B5C1C6}.ReleaseOMP|x86.ActiveCfg = Release|Win32
+diff --git a/visualc/vngspice.vcxproj b/visualc/vngspice.vcxproj
+index 2734c6478..c8f3a18d1 100644
+--- a/visualc/vngspice.vcxproj
++++ b/visualc/vngspice.vcxproj
+@@ -1,10 +1,34 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup Label="ProjectConfigurations">
++    <ProjectConfiguration Include="console_debug|ARM64">
++      <Configuration>console_debug</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
++    <ProjectConfiguration Include="console_release_omp|ARM64">
++      <Configuration>console_release_omp</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
++    <ProjectConfiguration Include="console_release|ARM64">
++      <Configuration>console_release</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
++    <ProjectConfiguration Include="Debug|ARM64">
++      <Configuration>Debug</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Debug|Win32">
+       <Configuration>Debug</Configuration>
+       <Platform>Win32</Platform>
+     </ProjectConfiguration>
++    <ProjectConfiguration Include="ReleaseOMP|ARM64">
++      <Configuration>ReleaseOMP</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
++    <ProjectConfiguration Include="Release|ARM64">
++      <Configuration>Release</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Release|Win32">
+       <Configuration>Release</Configuration>
+       <Platform>Win32</Platform>
+@@ -69,11 +93,20 @@
+     <ConfigurationType>Application</ConfigurationType>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+     <ConfigurationType>Application</ConfigurationType>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|Win32'" Label="Configuration">
+     <ConfigurationType>Application</ConfigurationType>
+     <PlatformToolset>v143</PlatformToolset>
+@@ -87,11 +120,20 @@
+     <ConfigurationType>Application</ConfigurationType>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release|x64'" Label="Configuration">
+     <ConfigurationType>Application</ConfigurationType>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|Win32'" Label="Configuration">
+     <ConfigurationType>Application</ConfigurationType>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+@@ -102,6 +144,11 @@
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|Win32'" Label="Configuration">
+     <ConfigurationType>Application</ConfigurationType>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+@@ -112,6 +159,11 @@
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+   <ImportGroup Label="ExtensionSettings">
+   </ImportGroup>
+@@ -124,9 +176,15 @@
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|Win32'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
+@@ -136,21 +194,33 @@
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_release|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_release|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|Win32'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|Win32'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <PropertyGroup Label="UserMacros" />
+   <PropertyGroup>
+     <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+@@ -170,10 +240,19 @@
+     <GenerateManifest>false</GenerateManifest>
+     <EmbedManifest>true</EmbedManifest>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <LinkIncremental>false</LinkIncremental>
++    <GenerateManifest>false</GenerateManifest>
++    <EmbedManifest>true</EmbedManifest>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <LinkIncremental>false</LinkIncremental>
+     <EmbedManifest>true</EmbedManifest>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <LinkIncremental>false</LinkIncremental>
++    <EmbedManifest>true</EmbedManifest>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|Win32'">
+     <LinkIncremental>false</LinkIncremental>
+     <GenerateManifest>false</GenerateManifest>
+@@ -186,10 +265,19 @@
+     <GenerateManifest>false</GenerateManifest>
+     <EmbedManifest>true</EmbedManifest>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|ARM64'">
++    <LinkIncremental>false</LinkIncremental>
++    <GenerateManifest>false</GenerateManifest>
++    <EmbedManifest>true</EmbedManifest>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release|x64'">
+     <LinkIncremental>false</LinkIncremental>
+     <EmbedManifest>true</EmbedManifest>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release|ARM64'">
++    <LinkIncremental>false</LinkIncremental>
++    <EmbedManifest>true</EmbedManifest>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|Win32'">
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
+@@ -197,6 +285,10 @@
+     <LinkIncremental>false</LinkIncremental>
+     <EmbedManifest>true</EmbedManifest>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|ARM64'">
++    <LinkIncremental>false</LinkIncremental>
++    <EmbedManifest>true</EmbedManifest>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|Win32'">
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
+@@ -204,6 +296,10 @@
+     <LinkIncremental>false</LinkIncremental>
+     <EmbedManifest>true</EmbedManifest>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|ARM64'">
++    <LinkIncremental>false</LinkIncremental>
++    <EmbedManifest>true</EmbedManifest>
++  </PropertyGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+     <PreBuildEvent>
+       <Message>force recompilation of conf.c with actual date</Message>
+@@ -242,7 +338,8 @@
+       <LargeAddressAware>true</LargeAddressAware>
+     </Link>
+     <PostBuildEvent>
+-      <Command></Command>
++      <Command>
++      </Command>
+     </PostBuildEvent>
+     <Manifest>
+       <AdditionalManifestFiles>$(ProjectDir)ngspice-x86.exe.manifest</AdditionalManifestFiles>
+@@ -348,6 +445,51 @@
+       <AdditionalManifestFiles>$(ProjectDir)ngspice.exe.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
+     </Manifest>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <PreBuildEvent>
++      <Message>force recompilation of conf.c with actual date</Message>
++      <Command>if exist $(IntDir)conf.obj del $(IntDir)conf.obj</Command>
++    </PreBuildEvent>
++    <Midl />
++    <ClCompile>
++      <Optimization>Disabled</Optimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\osdi;..\src\frontend;..\src\spicelib\devices;tmp-bison;src\include;..\src\spicelib\parser;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;_MSC_PLATFORM_TOOLSET=$(PlatformToolsetVersion);NGDEBUG;CONFIG64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Windows</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <LargeAddressAware>true</LargeAddressAware>
++    </Link>
++    <PostBuildEvent>
++      <Command>
++      </Command>
++    </PostBuildEvent>
++    <Manifest>
++      <AdditionalManifestFiles>$(ProjectDir)ngspice.exe.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
++    </Manifest>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <PreBuildEvent>
+       <Message>force recompilation of conf.c with current date</Message>
+@@ -405,6 +547,60 @@
+       <AdditionalManifestFiles>$(ProjectDir)ngspice.exe.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
+     </Manifest>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <PreBuildEvent>
++      <Message>force recompilation of conf.c with actual date</Message>
++      <Command>if exist $(IntDir)conf.obj del $(IntDir)conf.obj</Command>
++    </PreBuildEvent>
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
++      <WholeProgramOptimization>true</WholeProgramOptimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\frontend;..\src\spicelib\devices;tmp-bison;src\include;..\src\spicelib\parser;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;_MSC_PLATFORM_TOOLSET=$(PlatformToolsetVersion);CONFIG64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Windows</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <OptimizeReferences>
++      </OptimizeReferences>
++      <EnableCOMDATFolding>
++      </EnableCOMDATFolding>
++      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
++      <RandomizedBaseAddress>true</RandomizedBaseAddress>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <LargeAddressAware>true</LargeAddressAware>
++    </Link>
++    <PostBuildEvent>
++      <Command>
++      </Command>
++    </PostBuildEvent>
++    <Manifest>
++      <AdditionalManifestFiles>$(ProjectDir)ngspice.exe.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
++    </Manifest>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|Win32'">
+     <PreBuildEvent>
+       <Message>force recompilation of conf.c with actual date</Message>
+@@ -443,7 +639,8 @@
+       <LargeAddressAware>true</LargeAddressAware>
+     </Link>
+     <PostBuildEvent>
+-      <Command></Command>
++      <Command>
++      </Command>
+     </PostBuildEvent>
+     <Manifest>
+       <AdditionalManifestFiles>$(ProjectDir)ngspice-x86.exe.manifest</AdditionalManifestFiles>
+@@ -493,7 +690,8 @@
+       <LargeAddressAware>true</LargeAddressAware>
+     </Link>
+     <PostBuildEvent>
+-      <Command></Command>
++      <Command>
++      </Command>
+     </PostBuildEvent>
+     <Manifest>
+       <AdditionalManifestFiles>$(ProjectDir)ngspice-x86.exe.manifest</AdditionalManifestFiles>
+@@ -548,6 +746,52 @@
+       <AdditionalManifestFiles>$(ProjectDir)ngspice.exe.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
+     </Manifest>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='console_debug|ARM64'">
++    <PreBuildEvent>
++      <Message>force recompilation of conf.c with actual date</Message>
++      <Command>if exist $(IntDir)conf.obj del $(IntDir)conf.obj</Command>
++    </PreBuildEvent>
++    <Midl />
++    <ClCompile>
++      <Optimization>Disabled</Optimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\frontend;..\src\spicelib\devices;tmp-bison;src\include;..\src\spicelib\parser;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;_MSC_PLATFORM_TOOLSET=$(PlatformToolsetVersion);NGDEBUG;CONSOLE;CONFIG64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Console</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <RandomizedBaseAddress>false</RandomizedBaseAddress>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <LargeAddressAware>true</LargeAddressAware>
++    </Link>
++    <PostBuildEvent>
++      <Command>
++      </Command>
++    </PostBuildEvent>
++    <Manifest>
++      <AdditionalManifestFiles>$(ProjectDir)ngspice.exe.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
++    </Manifest>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='console_release|x64'">
+     <PreBuildEvent>
+       <Message>force recompilation of conf.c with current date</Message>
+@@ -603,6 +847,58 @@
+       <AdditionalManifestFiles>$(ProjectDir)ngspice.exe.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
+     </Manifest>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='console_release|ARM64'">
++    <PreBuildEvent>
++      <Message>force recompilation of conf.c with actual date</Message>
++      <Command>if exist $(IntDir)conf.obj del $(IntDir)conf.obj</Command>
++    </PreBuildEvent>
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
++      <WholeProgramOptimization>true</WholeProgramOptimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\frontend;..\src\spicelib\devices;tmp-bison;src\include;..\src\spicelib\parser;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;_MSC_PLATFORM_TOOLSET=$(PlatformToolsetVersion);CONSOLE;CONFIG64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <RuntimeTypeInfo>true</RuntimeTypeInfo>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Console</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <OptimizeReferences>true</OptimizeReferences>
++      <EnableCOMDATFolding>true</EnableCOMDATFolding>
++      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
++      <RandomizedBaseAddress>true</RandomizedBaseAddress>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <LargeAddressAware>true</LargeAddressAware>
++    </Link>
++    <PostBuildEvent>
++      <Command>
++      </Command>
++    </PostBuildEvent>
++    <Manifest>
++      <AdditionalManifestFiles>$(ProjectDir)ngspice.exe.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
++    </Manifest>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|Win32'">
+     <PreBuildEvent>
+       <Message>force recompilation of conf.c with actual date</Message>
+@@ -648,7 +944,8 @@
+       <LargeAddressAware>true</LargeAddressAware>
+     </Link>
+     <PostBuildEvent>
+-      <Command></Command>
++      <Command>
++      </Command>
+     </PostBuildEvent>
+     <Manifest>
+       <AdditionalManifestFiles>$(ProjectDir)ngspice-x86.exe.manifest</AdditionalManifestFiles>
+@@ -713,6 +1010,62 @@
+       <AdditionalManifestFiles>$(ProjectDir)ngspice.exe.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
+     </Manifest>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseOMP|ARM64'">
++    <PreBuildEvent>
++      <Message>force recompilation of conf.c with actual date</Message>
++      <Command>if exist $(IntDir)conf.obj del $(IntDir)conf.obj</Command>
++    </PreBuildEvent>
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
++      <WholeProgramOptimization>true</WholeProgramOptimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\frontend;..\src\spicelib\devices;tmp-bison;src\include;..\src\spicelib\parser;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;_MSC_PLATFORM_TOOLSET=$(PlatformToolsetVersion);USE_OMP;CONFIG64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <RuntimeTypeInfo>true</RuntimeTypeInfo>
++      <OpenMPSupport>
++      </OpenMPSupport>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Windows</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <OptimizeReferences>
++      </OptimizeReferences>
++      <EnableCOMDATFolding>
++      </EnableCOMDATFolding>
++      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
++      <RandomizedBaseAddress>true</RandomizedBaseAddress>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <LargeAddressAware>true</LargeAddressAware>
++    </Link>
++    <PostBuildEvent>
++      <Command>
++      </Command>
++    </PostBuildEvent>
++    <Manifest>
++      <AdditionalManifestFiles>$(ProjectDir)ngspice.exe.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
++    </Manifest>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|Win32'">
+     <PreBuildEvent>
+       <Message>force recompilation of conf.c with actual date</Message>
+@@ -758,7 +1111,8 @@
+       <LargeAddressAware>true</LargeAddressAware>
+     </Link>
+     <PostBuildEvent>
+-      <Command></Command>
++      <Command>
++      </Command>
+     </PostBuildEvent>
+     <Manifest>
+       <AdditionalManifestFiles>$(ProjectDir)ngspice-x86.exe.manifest</AdditionalManifestFiles>
+@@ -821,6 +1175,60 @@
+       <AdditionalManifestFiles>$(ProjectDir)ngspice.exe.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
+     </Manifest>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='console_release_omp|ARM64'">
++    <PreBuildEvent>
++      <Message>force recompilation of conf.c with actual date</Message>
++      <Command>if exist $(IntDir)conf.obj del $(IntDir)conf.obj</Command>
++    </PreBuildEvent>
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
++      <WholeProgramOptimization>true</WholeProgramOptimization>
++      <AdditionalIncludeDirectories>..\src\maths\poly;..\src\frontend;..\src\spicelib\devices;tmp-bison;src\include;..\src\spicelib\parser;..\src\include;..\src\include\cppduals;.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;__STDC_LIMIT_MACROS;SIMULATOR;XSPICE;_MSC_PLATFORM_TOOLSET=$(PlatformToolsetVersion);CONSOLE;CONFIG64;USE_OMP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <RuntimeTypeInfo>true</RuntimeTypeInfo>
++      <OpenMPSupport>
++      </OpenMPSupport>
++      <PrecompiledHeader>
++      </PrecompiledHeader>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>Default</CompileAs>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
++      <LanguageStandard>stdcpp14</LanguageStandard>
++      <AdditionalOptions>/openmp:llvm %(AdditionalOptions)</AdditionalOptions>
++    </ClCompile>
++    <Link>
++      <AdditionalDependencies>psapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <SubSystem>Console</SubSystem>
++      <HeapReserveSize>0</HeapReserveSize>
++      <HeapCommitSize>0</HeapCommitSize>
++      <StackReserveSize>4194304</StackReserveSize>
++      <StackCommitSize>1048576</StackCommitSize>
++      <OptimizeReferences>true</OptimizeReferences>
++      <EnableCOMDATFolding>true</EnableCOMDATFolding>
++      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
++      <RandomizedBaseAddress>true</RandomizedBaseAddress>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <LargeAddressAware>true</LargeAddressAware>
++    </Link>
++    <PostBuildEvent>
++      <Command>
++      </Command>
++    </PostBuildEvent>
++    <Manifest>
++      <AdditionalManifestFiles>$(ProjectDir)ngspice.exe.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
++    </Manifest>
++  </ItemDefinitionGroup>
+   <ItemGroup>
+     <ClInclude Include="..\src\ciderlib\oned\oneddefs.h" />
+     <ClInclude Include="..\src\ciderlib\oned\onedext.h" />
+diff --git a/visualc/xspice/analog.vcxproj b/visualc/xspice/analog.vcxproj
+index a5443baff..72fde0182 100644
+--- a/visualc/xspice/analog.vcxproj
++++ b/visualc/xspice/analog.vcxproj
+@@ -1,10 +1,18 @@
+ ﻿<?xml version="1.0" encoding="utf-8"?>
+ <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup Label="ProjectConfigurations">
++    <ProjectConfiguration Include="Debug|ARM64">
++      <Configuration>Debug</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Debug|Win32">
+       <Configuration>Debug</Configuration>
+       <Platform>Win32</Platform>
+     </ProjectConfiguration>
++    <ProjectConfiguration Include="Release|ARM64">
++      <Configuration>Release</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Release|Win32">
+       <Configuration>Release</Configuration>
+       <Platform>Win32</Platform>
+@@ -41,12 +49,23 @@
+     <CharacterSet>NotSet</CharacterSet>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <CharacterSet>NotSet</CharacterSet>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+     <ConfigurationType>DynamicLibrary</ConfigurationType>
+     <CharacterSet>MultiByte</CharacterSet>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <CharacterSet>MultiByte</CharacterSet>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+   <ImportGroup Label="ExtensionSettings">
+   </ImportGroup>
+@@ -59,9 +78,15 @@
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <PropertyGroup Label="UserMacros" />
+   <PropertyGroup>
+     <_ProjectFileVersion>10.0.40219.1</_ProjectFileVersion>
+@@ -77,12 +102,21 @@
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <TargetName>$(ProjectName)</TargetName>
++    <TargetName>$(ProjectName)</TargetName>
++    <GenerateManifest>true</GenerateManifest>
++    <LinkIncremental>false</LinkIncremental>
++  </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <TargetName>$(ProjectName)</TargetName>
+     <GenerateManifest>true</GenerateManifest>
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <TargetName>$(ProjectName)</TargetName>
++    <TargetName>$(ProjectName)</TargetName>
++    <GenerateManifest>false</GenerateManifest>
++  </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <TargetName>$(ProjectName)</TargetName>
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
+   <ItemDefinitionGroup>
+@@ -176,6 +210,33 @@
+       <TargetMachine>MachineX64</TargetMachine>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>Disabled</Optimization>
++      <AdditionalIncludeDirectories>icm\$(ProjectName);..\src\include;..\..\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;CIDER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>CompileAsC</CompileAs>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <AssemblyDebug>
++      </AssemblyDebug>
++      <SubSystem>Windows</SubSystem>
++      <NoEntryPoint>false</NoEntryPoint>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <ImportLibrary>$(TargetDir)$(TargetName).lib</ImportLibrary>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <Midl>
+       <TargetEnvironment>X64</TargetEnvironment>
+@@ -202,6 +263,29 @@
+       <TargetMachine>MachineX64</TargetMachine>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <AdditionalIncludeDirectories>icm\$(ProjectName);..\src\include;..\..\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <FunctionLevelLinking>true</FunctionLevelLinking>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>CompileAsC</CompileAs>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <OptimizeReferences>true</OptimizeReferences>
++      <EnableCOMDATFolding>true</EnableCOMDATFolding>
++      <NoEntryPoint>false</NoEntryPoint>
++      <ImportLibrary>$(TargetDir)$(TargetName).lib</ImportLibrary>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemGroup>
+     <ClCompile Include="..\..\src\misc\dstring.c" />
+     <ClCompile Include="icm\analog\climit\climit-cfunc.c" />
+diff --git a/visualc/xspice/cmpp/cmpp.vcxproj b/visualc/xspice/cmpp/cmpp.vcxproj
+index 952621f56..6f46411f7 100644
+--- a/visualc/xspice/cmpp/cmpp.vcxproj
++++ b/visualc/xspice/cmpp/cmpp.vcxproj
+@@ -1,10 +1,18 @@
+ ﻿<?xml version="1.0" encoding="utf-8"?>
+ <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup Label="ProjectConfigurations">
++    <ProjectConfiguration Include="Debug|ARM64">
++      <Configuration>Debug</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Debug|Win32">
+       <Configuration>Debug</Configuration>
+       <Platform>Win32</Platform>
+     </ProjectConfiguration>
++    <ProjectConfiguration Include="Release|ARM64">
++      <Configuration>Release</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Release|Win32">
+       <Configuration>Release</Configuration>
+       <Platform>Win32</Platform>
+@@ -43,6 +51,12 @@
+     <PlatformToolset>v143</PlatformToolset>
+     <CharacterSet>MultiByte</CharacterSet>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <UseDebugLibraries>true</UseDebugLibraries>
++    <PlatformToolset>v143</PlatformToolset>
++    <CharacterSet>MultiByte</CharacterSet>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+     <ConfigurationType>Application</ConfigurationType>
+     <UseDebugLibraries>false</UseDebugLibraries>
+@@ -50,6 +64,13 @@
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <CharacterSet>MultiByte</CharacterSet>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
++    <ConfigurationType>Application</ConfigurationType>
++    <UseDebugLibraries>false</UseDebugLibraries>
++    <PlatformToolset>v143</PlatformToolset>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <CharacterSet>MultiByte</CharacterSet>
++  </PropertyGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+   <ImportGroup Label="ExtensionSettings">
+   </ImportGroup>
+@@ -64,9 +85,15 @@
+   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <PropertyGroup Label="UserMacros" />
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+     <OutDir>..\bin\</OutDir>
+@@ -77,6 +104,7 @@
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+     <OutDir>..\bin\</OutDir>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" />
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <OutDir>..\bin\</OutDir>
+   </PropertyGroup>
+@@ -135,6 +163,23 @@
+       <OutputFile>..\bin\$(TargetName)$(TargetExt)</OutputFile>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <ClCompile>
++      <WarningLevel>Level4</WarningLevel>
++      <Optimization>Disabled</Optimization>
++      <SDLCheck>true</SDLCheck>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;YY_NO_UNISTD_H;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>false</ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
++      <AdditionalIncludeDirectories>$(ProjectDir)..\..\..\src\xspice\cmpp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <OutputFile>..\bin\$(TargetName)$(TargetExt)</OutputFile>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <ClCompile>
+       <WarningLevel>Level4</WarningLevel>
+@@ -154,6 +199,25 @@
+       <OutputFile>..\bin\$(TargetName)$(TargetExt)</OutputFile>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <ClCompile>
++      <WarningLevel>Level4</WarningLevel>
++      <Optimization>MaxSpeed</Optimization>
++      <FunctionLevelLinking>true</FunctionLevelLinking>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <SDLCheck>true</SDLCheck>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;YY_NO_UNISTD_H;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <ExceptionHandling>false</ExceptionHandling>
++      <CompileAs>CompileAsC</CompileAs>
++      <AdditionalIncludeDirectories>$(ProjectDir)..\..\..\src\xspice\cmpp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <EnableCOMDATFolding>true</EnableCOMDATFolding>
++      <OptimizeReferences>true</OptimizeReferences>
++      <OutputFile>..\bin\$(TargetName)$(TargetExt)</OutputFile>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemGroup>
+     <CustomBuild Include="..\..\..\src\xspice\cmpp\ifs_lex.l">
+       <Message>invoke win_flex.exe for %(Identity)</Message>
+diff --git a/visualc/xspice/digital.vcxproj b/visualc/xspice/digital.vcxproj
+index ece101f0c..188735000 100644
+--- a/visualc/xspice/digital.vcxproj
++++ b/visualc/xspice/digital.vcxproj
+@@ -1,10 +1,18 @@
+ ﻿<?xml version="1.0" encoding="utf-8"?>
+ <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup Label="ProjectConfigurations">
++    <ProjectConfiguration Include="Debug|ARM64">
++      <Configuration>Debug</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Debug|Win32">
+       <Configuration>Debug</Configuration>
+       <Platform>Win32</Platform>
+     </ProjectConfiguration>
++    <ProjectConfiguration Include="Release|ARM64">
++      <Configuration>Release</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Release|Win32">
+       <Configuration>Release</Configuration>
+       <Platform>Win32</Platform>
+@@ -41,12 +49,23 @@
+     <CharacterSet>NotSet</CharacterSet>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <CharacterSet>NotSet</CharacterSet>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+     <ConfigurationType>DynamicLibrary</ConfigurationType>
+     <CharacterSet>MultiByte</CharacterSet>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <CharacterSet>MultiByte</CharacterSet>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+   <ImportGroup Label="ExtensionSettings">
+   </ImportGroup>
+@@ -59,9 +78,15 @@
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <PropertyGroup Label="UserMacros" />
+   <PropertyGroup>
+     <_ProjectFileVersion>10.0.40219.1</_ProjectFileVersion>
+@@ -77,12 +102,21 @@
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <TargetName>$(ProjectName)</TargetName>
++    <TargetName>$(ProjectName)</TargetName>
++    <GenerateManifest>true</GenerateManifest>
++    <LinkIncremental>false</LinkIncremental>
++  </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <TargetName>$(ProjectName)</TargetName>
+     <GenerateManifest>true</GenerateManifest>
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <TargetName>$(ProjectName)</TargetName>
++    <TargetName>$(ProjectName)</TargetName>
++    <GenerateManifest>false</GenerateManifest>
++  </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <TargetName>$(ProjectName)</TargetName>
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
+   <ItemDefinitionGroup>
+@@ -176,6 +210,33 @@
+       <TargetMachine>MachineX64</TargetMachine>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>Disabled</Optimization>
++      <AdditionalIncludeDirectories>icm\$(ProjectName);..\src\include;..\..\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;CIDER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>CompileAsC</CompileAs>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <AssemblyDebug>
++      </AssemblyDebug>
++      <SubSystem>Windows</SubSystem>
++      <NoEntryPoint>false</NoEntryPoint>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <ImportLibrary>$(TargetDir)$(TargetName).lib</ImportLibrary>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <Midl>
+       <TargetEnvironment>X64</TargetEnvironment>
+@@ -202,6 +263,29 @@
+       <TargetMachine>MachineX64</TargetMachine>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <AdditionalIncludeDirectories>icm\$(ProjectName);..\src\include;..\..\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <FunctionLevelLinking>true</FunctionLevelLinking>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>CompileAsC</CompileAs>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <OptimizeReferences>true</OptimizeReferences>
++      <EnableCOMDATFolding>true</EnableCOMDATFolding>
++      <NoEntryPoint>false</NoEntryPoint>
++      <ImportLibrary>$(TargetDir)$(TargetName).lib</ImportLibrary>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemGroup>
+     <ClCompile Include="..\..\src\misc\dstring.c" />
+     <ClCompile Include="icm\digital\adc_bridge\adc_bridge-cfunc.c">
+diff --git a/visualc/xspice/spice2poly.vcxproj b/visualc/xspice/spice2poly.vcxproj
+index f59bc9a86..73b818ca0 100644
+--- a/visualc/xspice/spice2poly.vcxproj
++++ b/visualc/xspice/spice2poly.vcxproj
+@@ -1,10 +1,18 @@
+ ﻿<?xml version="1.0" encoding="utf-8"?>
+ <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup Label="ProjectConfigurations">
++    <ProjectConfiguration Include="Debug|ARM64">
++      <Configuration>Debug</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Debug|Win32">
+       <Configuration>Debug</Configuration>
+       <Platform>Win32</Platform>
+     </ProjectConfiguration>
++    <ProjectConfiguration Include="Release|ARM64">
++      <Configuration>Release</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Release|Win32">
+       <Configuration>Release</Configuration>
+       <Platform>Win32</Platform>
+@@ -41,12 +49,23 @@
+     <CharacterSet>NotSet</CharacterSet>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <CharacterSet>NotSet</CharacterSet>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+     <ConfigurationType>DynamicLibrary</ConfigurationType>
+     <CharacterSet>MultiByte</CharacterSet>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <CharacterSet>MultiByte</CharacterSet>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+   <ImportGroup Label="ExtensionSettings">
+   </ImportGroup>
+@@ -59,9 +78,15 @@
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <PropertyGroup Label="UserMacros" />
+   <PropertyGroup>
+     <_ProjectFileVersion>10.0.40219.1</_ProjectFileVersion>
+@@ -77,12 +102,21 @@
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <TargetName>$(ProjectName)</TargetName>
++    <TargetName>$(ProjectName)</TargetName>
++    <GenerateManifest>true</GenerateManifest>
++    <LinkIncremental>false</LinkIncremental>
++  </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <TargetName>$(ProjectName)</TargetName>
+     <GenerateManifest>true</GenerateManifest>
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <TargetName>$(ProjectName)</TargetName>
++    <TargetName>$(ProjectName)</TargetName>
++    <GenerateManifest>false</GenerateManifest>
++  </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <TargetName>$(ProjectName)</TargetName>
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
+   <ItemDefinitionGroup>
+@@ -176,6 +210,33 @@
+       <TargetMachine>MachineX64</TargetMachine>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>Disabled</Optimization>
++      <AdditionalIncludeDirectories>icm\$(ProjectName);..\src\include;..\..\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;CIDER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>CompileAsC</CompileAs>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <AssemblyDebug>
++      </AssemblyDebug>
++      <SubSystem>Windows</SubSystem>
++      <NoEntryPoint>false</NoEntryPoint>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <ImportLibrary>$(TargetDir)$(TargetName).lib</ImportLibrary>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <Midl>
+       <TargetEnvironment>X64</TargetEnvironment>
+@@ -202,6 +263,29 @@
+       <TargetMachine>MachineX64</TargetMachine>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <AdditionalIncludeDirectories>icm\$(ProjectName);..\src\include;..\..\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <FunctionLevelLinking>true</FunctionLevelLinking>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>CompileAsC</CompileAs>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <OptimizeReferences>true</OptimizeReferences>
++      <EnableCOMDATFolding>true</EnableCOMDATFolding>
++      <NoEntryPoint>false</NoEntryPoint>
++      <ImportLibrary>$(TargetDir)$(TargetName).lib</ImportLibrary>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemGroup>
+     <ClCompile Include="..\..\src\misc\dstring.c" />
+     <ClCompile Include="icm\spice2poly\icm_spice2poly\icm_spice2poly-cfunc.c" />
+diff --git a/visualc/xspice/table.vcxproj b/visualc/xspice/table.vcxproj
+index 08a2d0d65..08168957d 100644
+--- a/visualc/xspice/table.vcxproj
++++ b/visualc/xspice/table.vcxproj
+@@ -1,10 +1,18 @@
+ ﻿<?xml version="1.0" encoding="utf-8"?>
+ <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup Label="ProjectConfigurations">
++    <ProjectConfiguration Include="Debug|ARM64">
++      <Configuration>Debug</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Debug|Win32">
+       <Configuration>Debug</Configuration>
+       <Platform>Win32</Platform>
+     </ProjectConfiguration>
++    <ProjectConfiguration Include="Release|ARM64">
++      <Configuration>Release</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Release|Win32">
+       <Configuration>Release</Configuration>
+       <Platform>Win32</Platform>
+@@ -41,12 +49,23 @@
+     <CharacterSet>NotSet</CharacterSet>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <CharacterSet>NotSet</CharacterSet>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+     <ConfigurationType>DynamicLibrary</ConfigurationType>
+     <CharacterSet>MultiByte</CharacterSet>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <CharacterSet>MultiByte</CharacterSet>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+   <ImportGroup Label="ExtensionSettings">
+   </ImportGroup>
+@@ -59,9 +78,15 @@
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <PropertyGroup Label="UserMacros" />
+   <PropertyGroup>
+     <_ProjectFileVersion>10.0.40219.1</_ProjectFileVersion>
+@@ -77,12 +102,21 @@
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <TargetName>$(ProjectName)</TargetName>
++    <TargetName>$(ProjectName)</TargetName>
++    <GenerateManifest>true</GenerateManifest>
++    <LinkIncremental>false</LinkIncremental>
++  </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <TargetName>$(ProjectName)</TargetName>
+     <GenerateManifest>true</GenerateManifest>
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <TargetName>$(ProjectName)</TargetName>
++    <TargetName>$(ProjectName)</TargetName>
++    <GenerateManifest>false</GenerateManifest>
++  </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <TargetName>$(ProjectName)</TargetName>
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
+   <ItemDefinitionGroup>
+@@ -176,6 +210,33 @@
+       <TargetMachine>MachineX64</TargetMachine>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>Disabled</Optimization>
++      <AdditionalIncludeDirectories>icm\$(ProjectName);..\src\include;..\..\src\include;..\mada;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;CIDER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>CompileAsC</CompileAs>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <AssemblyDebug>
++      </AssemblyDebug>
++      <SubSystem>Windows</SubSystem>
++      <NoEntryPoint>false</NoEntryPoint>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <ImportLibrary>$(TargetDir)$(TargetName).lib</ImportLibrary>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <Midl>
+       <TargetEnvironment>X64</TargetEnvironment>
+@@ -202,6 +263,29 @@
+       <TargetMachine>MachineX64</TargetMachine>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <AdditionalIncludeDirectories>icm\$(ProjectName);..\src\include;..\..\src\include;..\mada;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <FunctionLevelLinking>true</FunctionLevelLinking>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>CompileAsC</CompileAs>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <OptimizeReferences>true</OptimizeReferences>
++      <EnableCOMDATFolding>true</EnableCOMDATFolding>
++      <NoEntryPoint>false</NoEntryPoint>
++      <ImportLibrary>$(TargetDir)$(TargetName).lib</ImportLibrary>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemGroup>
+     <ClCompile Include="..\..\src\misc\dstring.c" />
+     <ClCompile Include="icm\table\table2D\table2D-cfunc.c">
+diff --git a/visualc/xspice/xtradev.vcxproj b/visualc/xspice/xtradev.vcxproj
+index d41138082..a6e3fe525 100644
+--- a/visualc/xspice/xtradev.vcxproj
++++ b/visualc/xspice/xtradev.vcxproj
+@@ -1,10 +1,18 @@
+ ﻿<?xml version="1.0" encoding="utf-8"?>
+ <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup Label="ProjectConfigurations">
++    <ProjectConfiguration Include="Debug|ARM64">
++      <Configuration>Debug</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Debug|Win32">
+       <Configuration>Debug</Configuration>
+       <Platform>Win32</Platform>
+     </ProjectConfiguration>
++    <ProjectConfiguration Include="Release|ARM64">
++      <Configuration>Release</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Release|Win32">
+       <Configuration>Release</Configuration>
+       <Platform>Win32</Platform>
+@@ -41,12 +49,23 @@
+     <CharacterSet>NotSet</CharacterSet>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <CharacterSet>NotSet</CharacterSet>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+     <ConfigurationType>DynamicLibrary</ConfigurationType>
+     <CharacterSet>MultiByte</CharacterSet>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <CharacterSet>MultiByte</CharacterSet>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+   <ImportGroup Label="ExtensionSettings">
+   </ImportGroup>
+@@ -59,9 +78,15 @@
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <PropertyGroup Label="UserMacros" />
+   <PropertyGroup>
+     <_ProjectFileVersion>10.0.40219.1</_ProjectFileVersion>
+@@ -77,12 +102,21 @@
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <TargetName>$(ProjectName)</TargetName>
++    <TargetName>$(ProjectName)</TargetName>
++    <GenerateManifest>true</GenerateManifest>
++    <LinkIncremental>false</LinkIncremental>
++  </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <TargetName>$(ProjectName)</TargetName>
+     <GenerateManifest>true</GenerateManifest>
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <TargetName>$(ProjectName)</TargetName>
++    <TargetName>$(ProjectName)</TargetName>
++    <GenerateManifest>false</GenerateManifest>
++  </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <TargetName>$(ProjectName)</TargetName>
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
+   <ItemDefinitionGroup>
+@@ -176,6 +210,33 @@
+       <TargetMachine>MachineX64</TargetMachine>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>Disabled</Optimization>
++      <AdditionalIncludeDirectories>icm\$(ProjectName);..\src\include;..\..\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;CIDER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>CompileAsC</CompileAs>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <AssemblyDebug>
++      </AssemblyDebug>
++      <SubSystem>Windows</SubSystem>
++      <NoEntryPoint>false</NoEntryPoint>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <ImportLibrary>$(TargetDir)$(TargetName).lib</ImportLibrary>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <Midl>
+       <TargetEnvironment>X64</TargetEnvironment>
+@@ -202,6 +263,29 @@
+       <TargetMachine>MachineX64</TargetMachine>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <AdditionalIncludeDirectories>icm\$(ProjectName);..\src\include;..\..\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <FunctionLevelLinking>true</FunctionLevelLinking>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>CompileAsC</CompileAs>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <OptimizeReferences>true</OptimizeReferences>
++      <EnableCOMDATFolding>true</EnableCOMDATFolding>
++      <NoEntryPoint>false</NoEntryPoint>
++      <ImportLibrary>$(TargetDir)$(TargetName).lib</ImportLibrary>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemGroup>
+     <ClCompile Include="..\..\src\misc\dstring.c" />
+     <ClCompile Include="icm\xtradev\aswitch\aswitch-cfunc.c">
+diff --git a/visualc/xspice/xtraevt.vcxproj b/visualc/xspice/xtraevt.vcxproj
+index a31abd849..244bb2e94 100644
+--- a/visualc/xspice/xtraevt.vcxproj
++++ b/visualc/xspice/xtraevt.vcxproj
+@@ -1,10 +1,18 @@
+ ﻿<?xml version="1.0" encoding="utf-8"?>
+ <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup Label="ProjectConfigurations">
++    <ProjectConfiguration Include="Debug|ARM64">
++      <Configuration>Debug</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Debug|Win32">
+       <Configuration>Debug</Configuration>
+       <Platform>Win32</Platform>
+     </ProjectConfiguration>
++    <ProjectConfiguration Include="Release|ARM64">
++      <Configuration>Release</Configuration>
++      <Platform>ARM64</Platform>
++    </ProjectConfiguration>
+     <ProjectConfiguration Include="Release|Win32">
+       <Configuration>Release</Configuration>
+       <Platform>Win32</Platform>
+@@ -41,12 +49,23 @@
+     <CharacterSet>NotSet</CharacterSet>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <CharacterSet>NotSet</CharacterSet>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+     <ConfigurationType>DynamicLibrary</ConfigurationType>
+     <CharacterSet>MultiByte</CharacterSet>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <PlatformToolset>v143</PlatformToolset>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
++    <ConfigurationType>DynamicLibrary</ConfigurationType>
++    <CharacterSet>MultiByte</CharacterSet>
++    <WholeProgramOptimization>true</WholeProgramOptimization>
++    <PlatformToolset>v143</PlatformToolset>
++  </PropertyGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+   <ImportGroup Label="ExtensionSettings">
+   </ImportGroup>
+@@ -59,9 +78,15 @@
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+   </ImportGroup>
++  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="PropertySheets">
++    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
++  </ImportGroup>
+   <PropertyGroup Label="UserMacros" />
+   <PropertyGroup>
+     <_ProjectFileVersion>10.0.40219.1</_ProjectFileVersion>
+@@ -77,12 +102,21 @@
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <TargetName>$(ProjectName)</TargetName>
++    <TargetName>$(ProjectName)</TargetName>
++    <GenerateManifest>true</GenerateManifest>
++    <LinkIncremental>false</LinkIncremental>
++  </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <TargetName>$(ProjectName)</TargetName>
+     <GenerateManifest>true</GenerateManifest>
+     <LinkIncremental>false</LinkIncremental>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <TargetName>$(ProjectName)</TargetName>
++    <TargetName>$(ProjectName)</TargetName>
++    <GenerateManifest>false</GenerateManifest>
++  </PropertyGroup>
++  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <TargetName>$(ProjectName)</TargetName>
+     <GenerateManifest>false</GenerateManifest>
+   </PropertyGroup>
+   <ItemDefinitionGroup>
+@@ -177,6 +211,33 @@ call .\aux-udnfunc.bat $(ProjectName)</Command>
+       <TargetMachine>MachineX64</TargetMachine>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>Disabled</Optimization>
++      <AdditionalIncludeDirectories>icm\$(ProjectName);..\src\include;..\..\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;CIDER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <MinimalRebuild>false</MinimalRebuild>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
++      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
++      <RuntimeTypeInfo>false</RuntimeTypeInfo>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>CompileAsC</CompileAs>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <AssemblyDebug>
++      </AssemblyDebug>
++      <SubSystem>Windows</SubSystem>
++      <NoEntryPoint>false</NoEntryPoint>
++      <DataExecutionPrevention>
++      </DataExecutionPrevention>
++      <ImportLibrary>$(TargetDir)$(TargetName).lib</ImportLibrary>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+     <Midl>
+       <TargetEnvironment>X64</TargetEnvironment>
+@@ -203,6 +264,29 @@ call .\aux-udnfunc.bat $(ProjectName)</Command>
+       <TargetMachine>MachineX64</TargetMachine>
+     </Link>
+   </ItemDefinitionGroup>
++  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
++    <Midl />
++    <ClCompile>
++      <Optimization>MaxSpeed</Optimization>
++      <IntrinsicFunctions>true</IntrinsicFunctions>
++      <AdditionalIncludeDirectories>icm\$(ProjectName);..\src\include;..\..\src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
++      <ExceptionHandling>
++      </ExceptionHandling>
++      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <FunctionLevelLinking>true</FunctionLevelLinking>
++      <WarningLevel>Level4</WarningLevel>
++      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
++      <CompileAs>CompileAsC</CompileAs>
++    </ClCompile>
++    <Link>
++      <GenerateDebugInformation>true</GenerateDebugInformation>
++      <OptimizeReferences>true</OptimizeReferences>
++      <EnableCOMDATFolding>true</EnableCOMDATFolding>
++      <NoEntryPoint>false</NoEntryPoint>
++      <ImportLibrary>$(TargetDir)$(TargetName).lib</ImportLibrary>
++    </Link>
++  </ItemDefinitionGroup>
+   <ItemGroup>
+     <ClCompile Include="..\..\src\misc\dstring.c" />
+     <ClCompile Include="icm\xtraevt\d_to_real\d_to_real-cfunc.c" />
+-- 
+2.42.0.windows.2
+

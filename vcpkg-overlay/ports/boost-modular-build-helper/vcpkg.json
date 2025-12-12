@@ -1,0 +1,22 @@
+{
+  "$comment": "Overlay port to fix MSVC 14.4+ (VS 2022 17.14+) compatibility",
+  "name": "boost-modular-build-helper",
+  "version": "1.83.0",
+  "port-version": 2,
+  "description": "Internal vcpkg port used to build Boost libraries (patched for MSVC 14.4+)",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "boost-uninstall",
+      "version>=": "1.83.0"
+    },
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-get-vars",
+      "host": true
+    }
+  ]
+}
