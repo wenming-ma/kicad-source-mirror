@@ -1,0 +1,216 @@
+Preset CMake variables:
+
+  CMAKE_BUILD_TYPE="Debug"
+  CMAKE_EXPORT_COMPILE_COMMANDS="ON"
+  CMAKE_INSTALL_PREFIX:PATH="C:/Users/wenming/source/repos/kicad/install/x64-debug"
+  CMAKE_TOOLCHAIN_FILE:FILEPATH="D:\Tools\vcpkg/scripts/buildsystems/vcpkg.cmake"
+  KICAD_BUILD_I18N="OFF"
+  KICAD_BUILD_QA_TESTS="OFF"
+  KICAD_SCRIPTING_WXPYTHON="OFF"
+  VCPKG_INSTALLED_DIR="D:\Tools\vcpkg/installed"
+
+CMake Deprecation Warning at CMakeLists.txt:27 (cmake_policy):
+  The OLD behavior for policy CMP0116 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+
+
+CMake Deprecation Warning at CMakeLists.txt:31 (cmake_policy):
+  The OLD behavior for policy CMP0113 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+
+
+-- Running vcpkg install
+Detecting compiler hash for triplet x64-windows...
+Compiler found: C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.50.35717/bin/Hostx64/x64/cl.exe
+The following packages are already installed:
+  * boost-assert:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@058c55df927f8a8180003c576bb4b536a46cf3e8
+  * boost-concept-check:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@ec7a65ff7072399f9a926316cac0b1c6162d4ee5
+  * boost-config:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@26e9082aeb3829b11d9f0ea82de37db9a93b6620
+  * boost-container-hash:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@058bb680534a2375ec78dd366d9969967bd7570e
+  * boost-core:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@736b9319578faba560f1bccd62ae53421c290ac4
+  * boost-describe:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@5287728efcb90f341cbdbf3e40edd2568baa3d98
+  * boost-integer:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@f70c3d065ad54b0b64e16541cfdd86aceec513f3
+  * boost-io:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@f5d84659eada088f612945a42ae940ee7dcc37be
+  * boost-modular-build-helper:x64-windows@1.83.0#1 -- git+https://github.com/microsoft/vcpkg@95d209e069cf1a82d48fa32cef7a7c39edc33c22
+  * boost-move:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@3f4770bf9904c733be328e32d4017a0ed1157d2d
+  * boost-mp11:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@68c2556b43afbb853b5e724eb0fd5269a92088f1
+  * boost-mpl:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@dfcb80d8d1b767426e6714d6ba1b6a1473c0cc23
+  * boost-predef:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@8e76add266584a1177e9a0f2c59c43a78d88e578
+  * boost-preprocessor:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@07609446e5cce5a0d9afed4570e0664708444b54
+  * boost-smart-ptr:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@81506ee1238bf93218cef84de86dca96dd0b3682
+  * boost-static-assert:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@50eac53fdc886f9de87fc06717a4ae3a939b28e9
+  * boost-throw-exception:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@22bf09f8d91024cc1e74b19bb6333baeea262b69
+  * boost-tuple:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@a5a7d3cf0427278418ddc0e91a3858218535c8a9
+  * boost-type-traits:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@6595fdcc50c1d1d5587ade48484a0b074ddb079b
+  * boost-uninstall:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@1dfbff4a218e77e371ebc397f0573859136c7c92
+  * boost-unordered:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@d78bed13cd960d7723ac5b0c82d2223c321ee0a9
+  * boost-utility:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@175e91f86d24ff49330e7f5f95db441ceb85886e
+  * boost-vcpkg-helpers:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@18a50fedd4344db5ce1f82546be1889215381f78
+  * vcpkg-cmake:x64-windows@2023-05-04 -- git+https://github.com/microsoft/vcpkg@88a7058fc7fa73a9c4c99cfcae9d79e2abf87a5a
+  * vcpkg-cmake-get-vars:x64-windows@2023-03-02 -- git+https://github.com/microsoft/vcpkg@2e624c2cf12a97a7a802e31ff1d28b9fa6ba9bde
+The following packages will be built and installed:
+    boost-algorithm:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@064c9bd0deddb764f57008b07c0d42af035c1a50
+  * boost-align:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@6312ca6cedb77e48b123aa19e7ef98f5401b4020
+  * boost-any:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@8995a49c0eb70b1e306323f70d79dc5b6343bd6b
+  * boost-array:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@98d20d502bbd77d5a4312254bd47d83c55b4bbac
+  * boost-atomic:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@c51cf6bc71c21154cca513d51d62a8f31ad3dd81
+  * boost-bind:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@b846d10f5df5d2d6f27bd2fe13170cf3c09d8cbf
+  * boost-build:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@bd9d972c221f9e5bdd839246960791cdcfe80524
+  * boost-chrono:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@b291334ee942d090c037f8ce5cb53874af9f3f8a
+  * boost-circular-buffer:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@4df4c980c22d3b54856d81430343e6ce70a18521
+  * boost-container:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@06dc49b47f365371fd98d0373e46369bb97056c8
+  * boost-conversion:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@45d1d99389896f68454518ac9e7d516c88598fcd
+  * boost-date-time:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@d56b06972d62749f2f7c9c9950b275d4d4668bcb
+  * boost-detail:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@9a596ae27e05912ce6ac9430ad0a2c60b0874517
+  * boost-dynamic-bitset:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@783e8e0c0387114a445ad62dacbbb2f2ce910cd2
+  * boost-endian:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@5321b25b38e55ebe1bbeb54242c104e208b643f8
+  * boost-exception:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@8dce130433b2a5fc44ee576f9b39bb97d916661e
+    boost-filesystem:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@f6419d12dfeb0010846e425acd9e5b27772e1ac9
+  * boost-format:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@8b4697f0c1e3cc49f4bf08c12b748544c132db48
+  * boost-function:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@f066c30c0481a6f75452d3a1372ea3425adea156
+  * boost-function-types:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@77f27d230b3784277075862bba2c282977ea1f0a
+    boost-functional:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@aba27201e0794309bf68a44e8727378345927b38
+  * boost-fusion:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@0475f7220a08b37bfbea03b873211f9ea76fac08
+  * boost-intrusive:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@05886d36db2ae6ecb44cf3b964c2d0a4d486c129
+    boost-iterator:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@8870bee36b1dee543b554c3e0264e6871a6ad6e2
+  * boost-lexical-cast:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@dde0974bedf5d7539835eeadb3183b72d0df75f0
+    boost-locale:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@41e9801248d577c58c9827d2177ec7a88719b116
+  * boost-multi-index:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@7d40ee58c3e54b9c841abc6dd57033366218f064
+  * boost-numeric-conversion:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@c3a65f3521df33b8a76605097a3046795f1107e7
+    boost-optional:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@145809a6e99a8ba579c3c0bef2c48969555a2bd5
+  * boost-phoenix:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@a4c5832e8ebf68cd4f2ee601a10aa7adfc12e6e9
+  * boost-pool:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@e5c81fe62cb0da4fdc940d21d87837678a2e67cf
+    boost-property-tree:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@caa9ef5866c4dcf2869fca47fb3a478f74e07f7a
+  * boost-proto:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@7bb3591b035347ce419b85ae321c0e1b6c71084a
+    boost-ptr-container:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@5b926ddc4f1044a202ed6b5a052fab6d6578f051
+  * boost-random:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@045960cb6d4295d363e1748931ea56fc245f7c09
+    boost-range:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@7d5d869d86b0abdd19022ee0b0c5f24192769291
+  * boost-ratio:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@0fafb812427bea7d49dd318f3e72778149f443ab
+  * boost-rational:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@55ec23b1953b2e44dc43fda4547cf0b96bfe140f
+  * boost-regex:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@423f035001a6e046e2f94dc3ac68201a4a3d0307
+  * boost-serialization:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@7ebe53455e9721a76ebe14c651a2deafbcb758b8
+  * boost-spirit:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@e2ebc2bcf72d8ae953ac54163a7c5b43f17396f0
+  * boost-system:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@0090d008796452ba40264bb11437e0122a325e23
+    boost-test:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@2e21f61b617327941161649451b4a022747fbc1e
+  * boost-thread:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@f2f50fecd4338161565a0425c3e9b55fdbe68424
+  * boost-tokenizer:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@05ada2a1cc63fe9b4f5b4e9ac1d6ec63961e281b
+  * boost-tti:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@06c466d2662d638138c5318e4ad3a165974de862
+  * boost-type-index:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@58d41ff7ca046c8997ddd3f6c8ab801291edd9c4
+  * boost-typeof:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@ec85052de49f1335b474cee0689971b9ad4df92c
+    boost-uuid:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@f87e5dc08c5466a56e32d055878d39dbdbdc18d4
+  * boost-variant:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@60ca10585ea590b82692a0f715cfcc596d4799db
+  * boost-variant2:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@a249f8469b4c3ccb2aee3ece628d69a71d54b35f
+  * boost-winapi:x64-windows@1.83.0 -- git+https://github.com/microsoft/vcpkg@cfd68f543033ed6b8cee9235ef287b7fd4f8709a
+  * brotli:x64-windows@1.1.0 -- git+https://github.com/microsoft/vcpkg@4156ea7744047f9ace2769b857d97d11154de28f
+  * bzip2[core,tool]:x64-windows@1.0.8#5 -- git+https://github.com/microsoft/vcpkg@92e9a8bbf1abbd89872b48ad82fcf75852de1006
+    cairo[core,fontconfig,freetype]:x64-windows@1.17.8#4 -- git+https://github.com/microsoft/vcpkg@127eefeeba4725293adb6ea574b7bad98c845298
+    curl[core,non-http,schannel,ssl,sspi]:x64-windows@8.4.0 -- git+https://github.com/microsoft/vcpkg@6125c796d6e2913a89a2996d7082375ce16b02dd
+  * dirent:x64-windows@1.23.2#3 -- git+https://github.com/microsoft/vcpkg@6df6238f6f97735c39e2e9b19d90f3895c4a636b
+  * egl-registry:x64-windows@2022-09-20 -- git+https://github.com/microsoft/vcpkg@e596b6c29ad16da764aab6f2fef830a3a884f14b
+  * expat:x64-windows@2.5.0#3 -- git+https://github.com/microsoft/vcpkg@9a1bc114edd74892d292c799e7b45b407f2a0b8b
+  * fontconfig:x64-windows@2.14.2 -- git+https://github.com/microsoft/vcpkg@26490bc4c9aa1377da98980ba6e1089525fdaa55
+  * freetype[brotli,bzip2,core,png,zlib]:x64-windows@2.12.1#4 -- git+https://github.com/microsoft/vcpkg@4e52babe5d382c3f9cdb1b8037874d78eceb3512
+  * getopt:x64-windows@0#3 -- git+https://github.com/microsoft/vcpkg@ba541c1ce4012fae6dfdf34021b03d7253235b24
+  * getopt-win32:x64-windows@1.1.0.20220925 -- git+https://github.com/microsoft/vcpkg@d735f424134507a2d87a4ab6d5a8d768ca555dbc
+    gettext[core,tools]:x64-windows@0.21.1#3 -- git+https://github.com/microsoft/vcpkg@20e8e3535959bba6066d8887bb1c95e622d86f5a
+  * gettext-libintl:x64-windows@0.21.1#1 -- git+https://github.com/microsoft/vcpkg@25450f3473f6c62f28af9702a772d8b48a6170b7
+    glew:x64-windows@2.2.0 -- git+https://gitlab.com/kicad/packaging/kicad-vcpkg-registry.git@5962cb12ac4e64bd77dc5325a7a3bd75261f26e8
+    glm:x64-windows@0.9.9.8#2 -- git+https://github.com/microsoft/vcpkg@b940020b1f2958fcc468c615becec6ca5ad3bff5
+  * gperf:x64-windows@3.1#6 -- git+https://github.com/microsoft/vcpkg@590e19515bff5b0abc6d9f73ba20a19a71555a32
+    harfbuzz:x64-windows@8.2.1#1 -- git+https://github.com/microsoft/vcpkg@1f39a3081e7055cbf5e8cc27b5f91fef2a274415
+    icu[core,tools]:x64-windows@73.1 -- git+https://github.com/microsoft/vcpkg@acc3cf9137af5fc8fdd3e8607377026cf88f144d
+  * libffi:x64-windows@3.4.4#2 -- git+https://github.com/microsoft/vcpkg@df29b345dbd3f713c6bad15ca3d5f19ec961d79f
+  * libiconv:x64-windows@1.17#1 -- git+https://github.com/microsoft/vcpkg@4226589d5d658f4d96df83f8539de54dc57a5996
+  * libjpeg-turbo:x64-windows@3.0.0#2 -- git+https://github.com/microsoft/vcpkg@4510832adaa3f5f415a59d26f5520ca250a8ff77
+  * liblzma:x64-windows@5.4.4 -- git+https://github.com/microsoft/vcpkg@f285b7c4ffa2cc065c7c6fec4b61006f7fa2714e
+  * libpng:x64-windows@1.6.39#1 -- git+https://github.com/microsoft/vcpkg@af144fe56e6e4c08cd8089d2e1dd46bae60a5062
+  * lzo:x64-windows@2.10#9 -- git+https://github.com/microsoft/vcpkg@fcd8844a4e80d418bf894cf93a0453f067e404de
+  * nanosvg:x64-windows@2022-12-04 -- git+https://github.com/microsoft/vcpkg@f7dcf8d5f33ca5e4b44960f697c7b1196a658b89
+    ngspice[codemodels,core]:x64-windows@41 -- git+https://gitlab.com/kicad/packaging/kicad-vcpkg-registry.git@27dc35b85d20db68522e3b20154260ee012476fc
+    opencascade:x64-windows@7.7.1 -- git+https://gitlab.com/kicad/packaging/kicad-vcpkg-registry.git@891f91106b3eafdabed60a94c580367c4b1ff585
+    opengl:x64-windows@2022-12-04#3 -- git+https://github.com/microsoft/vcpkg@c3ae71738f88449ebcd781cef60d9a253fa091d4
+  * opengl-registry:x64-windows@2022-09-29#1 -- git+https://github.com/microsoft/vcpkg@367e1502c966f1df0656bdea115989650d01a781
+    openssl:x64-windows@3.1.3 -- git+https://github.com/microsoft/vcpkg@e57c0f392fd8486892a91ca82b7bf2e34c59e374
+  * pcre2[core,jit,platform-default-features]:x64-windows@10.42#1 -- git+https://github.com/microsoft/vcpkg@678c2336c4102c5a8868570c60140fdc2a8d1dcf
+  * pixman:x64-windows@0.42.2#2 -- git+https://github.com/microsoft/vcpkg@a51c895edc5dd8067f51b600d631a5e8b32a65e8
+  * pthread:x64-windows@3.0.0#2 -- git+https://github.com/microsoft/vcpkg@e32a8cb12153277234e7c7e04322bdf90580659a
+  * pthreads:x64-windows@3.0.0#14 -- git+https://github.com/microsoft/vcpkg@2e0a6df2800d3677b941dc6504f083965b7886d9
+    python3:x64-windows@3.9.16 -- git+https://gitlab.com/kicad/packaging/kicad-vcpkg-registry.git@39584b67cdbae164db7071210ec7fa133f8da16c
+    sqlite3[core,fts3,fts4,fts5,json1,rtree,session]:x64-windows@3.43.1 -- git+https://github.com/microsoft/vcpkg@6497ccc9668ca1e0b17a080b01e8585b33660336
+  * tiff[core,jpeg,lzma,zip]:x64-windows@4.6.0 -- git+https://github.com/microsoft/vcpkg@88ab604b58a0473cf643b6f3890c2d0c8174ff62
+  * vcpkg-cmake-config:x64-windows@2022-02-06#1 -- git+https://github.com/microsoft/vcpkg@8d54cc4f487d51b655abec5f9c9c3f86ca83311f
+  * vcpkg-get-python-packages:x64-windows@2023-07-28 -- git+https://github.com/microsoft/vcpkg@80e0cf9d38d72126b34eb1ee9b33f936c778a696
+  * vcpkg-tool-meson:x64-windows@0.63 -- git+https://github.com/microsoft/vcpkg@bee0cb6c5edf45133ebc9643b86c9c775ab36cfe
+  * webview2:x64-windows@1.0.1210.39#1 -- git+https://github.com/microsoft/vcpkg@8f620381c9d12e72ae72e693571bc98ab82510da
+  * wil:x64-windows@2023-08-24 -- git+https://github.com/microsoft/vcpkg@ddb021c58bdc3c24a0440d2e6f808797cd698bf8
+    wxpython:x64-windows@4.2.0#14 -- git+https://gitlab.com/kicad/packaging/kicad-vcpkg-registry.git@e8ee09e9cc0869fdf74d39ad309701ca6abdda4b
+    wxwidgets[core,debug-support,media,sound,webview]:x64-windows@3.2.4#1 -- git+https://gitlab.com/kicad/packaging/kicad-vcpkg-registry.git@ed05c0cdbe2d3bb25b03d97c58b660e8e13677dc
+  * zlib:x64-windows@1.3 -- git+https://github.com/microsoft/vcpkg@5ac18c6e6e3e2bf5a9e3d0bc8a845f198e4c4e05
+Additional packages (*) will be modified to complete this operation.
+Restored 0 package(s) from C:\Users\wenming\AppData\Local\vcpkg\archives in 6.76 ms. Use --debug to see more details.
+Installing 1/97 boost-build:x64-windows@1.83.0...
+Building boost-build:x64-windows@1.83.0...
+C:\Users\wenming\AppData\Local\vcpkg\registries\git-trees\bd9d972c221f9e5bdd839246960791cdcfe80524: info: installing from git registry git+https://github.com/microsoft/vcpkg@bd9d972c221f9e5bdd839246960791cdcfe80524
+-- Using cached boostorg-build-boost-1.83.0.tar.gz
+-- Extracting source D:/Tools/vcpkg/downloads/boostorg-build-boost-1.83.0.tar.gz
+-- Applying patch 0002-fix-get-version.patch
+-- Applying patch 0003-fix-emscripten.patch
+-- Applying patch 0004-workaround-MSVC-codegen-bug-in-17.5-on-ARM64.patch
+-- Using source at D:/Tools/vcpkg/buildtrees/boost-build/src/ost-1.83.0-93738d0a3a.clean
+-- Using cached boost_LICENSE_1_0.txt
+-- Using cached boost-1.83.0-boostcpp.jam
+-- Installing: D:/Tools/vcpkg/packages/boost-build_x64-windows/share/boost-build/copyright
+-- Bootstrapping...
+-- Skipping post-build validation due to VCPKG_POLICY_EMPTY_PACKAGE
+Starting submission of boost-build:x64-windows@1.83.0 to 1 binary cache(s) in the background
+Elapsed time to handle boost-build:x64-windows: 15 s
+boost-build:x64-windows package ABI: 36ee304f245c8119a2be48612688af58f08fcfbfe917994edee84313c0b2d7ee
+Installing 2/97 boost-regex:x64-windows@1.83.0...
+Building boost-regex:x64-windows@1.83.0...
+C:\Users\wenming\AppData\Local\vcpkg\registries\git-trees\423f035001a6e046e2f94dc3ac68201a4a3d0307: info: installing from git registry git+https://github.com/microsoft/vcpkg@423f035001a6e046e2f94dc3ac68201a4a3d0307
+-- Using cached boostorg-regex-boost-1.83.0.tar.gz
+-- Extracting source D:/Tools/vcpkg/downloads/boostorg-regex-boost-1.83.0.tar.gz
+-- Using source at D:/Tools/vcpkg/buildtrees/boost-regex/src/ost-1.83.0-4f302d8536.clean
+CMake Error at C:/Users/wenming/AppData/Local/vcpkg/registries/git-trees/423f035001a6e046e2f94dc3ac68201a4a3d0307/portfile.cmake:11 (include):
+  include could not find requested file:
+
+    D:/Tools/vcpkg/installed/x64-windows/share/boost-build/boost-modular-build.cmake
+Call Stack (most recent call first):
+  scripts/ports.cmake:206 (include)
+
+
+error: building boost-regex:x64-windows failed with: BUILD_FAILED
+See https://learn.microsoft.com/vcpkg/troubleshoot/build-failures?WT.mc_id=vcpkg_inproduct_cli for more information.
+Elapsed time to handle boost-regex:x64-windows: 344 ms
+Please ensure you're using the latest port files with `git pull` and `vcpkg update`.
+Then check for known issues at:
+  https://github.com/microsoft/vcpkg/issues?q=is%3Aissue+is%3Aopen+in%3Atitle+boost-regex
+You can submit a new issue at:
+  https://github.com/microsoft/vcpkg/issues/new?title=%5Bboost-regex%5D%20build%20error%20on%20x64-windows&body=Copy%20issue%20body%20from%20D%3A%2FTools%2Fvcpkg%2Finstalled%2Fvcpkg%2Fissue_body.md
+You can also submit an issue by running (GitHub CLI must be installed):
+  "C:\Program Files\GitHub CLI\gh.exe" issue create -R microsoft/vcpkg --title "[boost-regex] Build failure on x64-windows" --body-file D:/Tools/vcpkg/installed/vcpkg/issue_body.md
+Waiting for 1 remaining binary cache submissions...
+Completed submission of boost-build:x64-windows@1.83.0 to 1 binary cache(s) in 530 ms (1/1)
+-- Running vcpkg install - failed
+CMake Error at D:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake:953 (message):
+  vcpkg install failed.  See logs for more information:
+  C:\Users\wenming\source\repos\kicad\build\x64-debug\vcpkg-manifest-install.log
+Call Stack (most recent call first):
+  D:/Tools/CMake/share/cmake-3.31/Modules/CMakeDetermineSystem.cmake:146 (include)
+  CMakeLists.txt:41 (project)
+
+
+CMake Error: CMake was unable to find a build program corresponding to "Ninja".  CMAKE_MAKE_PROGRAM is not set.  You probably need to select a different build tool.
+CMake Error: CMAKE_C_COMPILER not set, after EnableLanguage
+CMake Error: CMAKE_CXX_COMPILER not set, after EnableLanguage
+-- Configuring incomplete, errors occurred!

@@ -77,7 +77,7 @@ cmake_dependent_option( BUILD_SMALL_DEBUG_FILES "In debug build: create smaller 
 
 option( KICAD_SCRIPTING_WXPYTHON
     "Build wxPython implementation for wx interface building in Python and py.shell (default ON)."
-    ON )
+    OFF )
 mark_as_advanced( KICAD_SCRIPTING_WXPYTHON )
 
 option( KICAD_INSTALL_DEMOS
@@ -333,14 +333,9 @@ endif()
 if (USE_CCACHE)
   find_program(CCACHE_FOUND ccache)
   if(CCACHE_FOUND)
-    get_property(RULE_LAUNCH_COMPILE GLOBAL PROPERTY RULE_LAUNCH_COMPILE)
-    set(RULE_LAUNCH_COMPILE "${RULE_LAUNCH_COMPILE} ${CCACHE_FOUND}")
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ${RULE_LAUNCH_COMPILE})
-
-    get_property(RULE_LAUNCH_LINK GLOBAL PROPERTY RULE_LAUNCH_LINK)
-    set(RULE_LAUNCH_LINK "${RULE_LAUNCH_LINK} ${CCACHE_FOUND}")
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ${RULE_LAUNCH_LINK})
-
+    # Set ccache on the actual lang
+    list(PREPEND CMAKE_C_COMPILER_LAUNCHER ${CCACHE_FOUND})
+    list(PREPEND CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_FOUND})
     message(STATUS "Used ${CCACHE_FOUND} for compilation.")
   else(CCACHE_FOUND)
     message(STATUS "CCache was requested but not found.")
