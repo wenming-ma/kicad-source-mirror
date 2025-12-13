@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2020 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +28,9 @@
 #include "widgets/wx_html_report_panel.h"
 #include <netlist_reader/pcb_netlist.h>
 #include <netlist_reader/board_netlist_updater.h>
+#include <netlist_reader/eco_item.h>
+#include <netlist_reader/eco_items_provider.h>
+#include "eco_tree_model.h"
 #include <tool/tool_manager.h>
 #include <tools/pcb_actions.h>
 #include <kiface_base.h>
@@ -38,7 +41,8 @@ DIALOG_UPDATE_PCB::DIALOG_UPDATE_PCB( PCB_EDIT_FRAME* aParent, NETLIST* aNetlist
     DIALOG_UPDATE_PCB_BASE( aParent ),
     m_frame( aParent ),
     m_netlist( aNetlist ),
-    m_initialized( false )
+    m_initialized( false ),
+    m_ecoTreeModel( nullptr )
 {
     auto cfg = m_frame->GetPcbNewSettings();
 
@@ -46,12 +50,17 @@ DIALOG_UPDATE_PCB::DIALOG_UPDATE_PCB( PCB_EDIT_FRAME* aParent, NETLIST* aNetlist
     m_cbUpdateFootprints->SetValue( cfg->m_NetlistDialog.update_footprints );
     m_cbDeleteExtraFootprints->SetValue( cfg->m_NetlistDialog.delete_extra_footprints );
 
-    m_messagePanel->SetLabel( _("Changes To Be Applied") );
+    m_messagePanel->SetLabel( _("Messages") );
     m_messagePanel->SetFileName( Prj().GetProjectPath() + wxT( "report.txt" ) );
     m_messagePanel->SetLazyUpdate( true );
     m_netlist->SortByReference();
 
     m_messagePanel->SetVisibleSeverities( cfg->m_NetlistDialog.report_filter );
+
+    // Initialize ECO provider and tree model
+    m_ecoProvider = std::make_shared<ECO_ITEMS_PROVIDER>();
+    m_ecoTreeModel = new ECO_TREE_MODEL( m_frame, m_changesView );
+    m_changesView->AssociateModel( m_ecoTreeModel );
 
     m_messagePanel->GetSizer()->SetSizeHints( this );
     m_messagePanel->Layout();
@@ -102,19 +111,31 @@ void DIALOG_UPDATE_PCB::PerformUpdate( bool aDryRun )
     }
 
     BOARD_NETLIST_UPDATER updater( m_frame, m_frame->GetBoard() );
-    updater.SetReporter ( &reporter );
-    updater.SetIsDryRun( aDryRun );
+    updater.SetReporter( &reporter );
     updater.SetLookupByTimestamp( !m_cbRelinkFootprints->GetValue() );
-    updater.SetDeleteUnusedFootprints( m_cbDeleteExtraFootprints->GetValue());
+    updater.SetDeleteUnusedFootprints( m_cbDeleteExtraFootprints->GetValue() );
     updater.SetReplaceFootprints( m_cbUpdateFootprints->GetValue() );
-    updater.UpdateNetlist( *m_netlist );
-
-    m_messagePanel->Flush( true );
 
     if( aDryRun )
-        return;
+    {
+        // Dry run: collect ECO items
+        m_ecoProvider->Clear();
+        updater.SetEcoProvider( m_ecoProvider );
+        updater.SetIsDryRun( true );
+        updater.UpdateNetlist( *m_netlist );
 
-    m_frame->OnNetlistChanged( updater, &m_runDragCommand );
+        // Update the tree view with collected items
+        m_ecoTreeModel->Update( m_ecoProvider );
+    }
+    else
+    {
+        // Execute only enabled ECO items
+        updater.SetIsDryRun( false );
+        updater.ExecuteEcoItems( m_ecoProvider->GetEnabledItems(), *m_netlist );
+        m_frame->OnNetlistChanged( updater, &m_runDragCommand );
+    }
+
+    m_messagePanel->Flush( true );
 }
 
 
@@ -137,4 +158,32 @@ void DIALOG_UPDATE_PCB::OnUpdateClick( wxCommandEvent& event )
     m_sdbSizer1Cancel->SetDefault();
     // Widgets has a tendency to keep both buttons highlighted without the following:
     m_sdbSizer1OK->Enable( false );
+}
+
+
+void DIALOG_UPDATE_PCB::OnEnableAllClick( wxCommandEvent& event )
+{
+    if( m_ecoTreeModel )
+        m_ecoTreeModel->EnableAll();
+}
+
+
+void DIALOG_UPDATE_PCB::OnDisableAllClick( wxCommandEvent& event )
+{
+    if( m_ecoTreeModel )
+        m_ecoTreeModel->DisableAll();
+}
+
+
+void DIALOG_UPDATE_PCB::OnExpandAllClick( wxCommandEvent& event )
+{
+    if( m_ecoTreeModel )
+        m_ecoTreeModel->ExpandAll();
+}
+
+
+void DIALOG_UPDATE_PCB::OnCollapseAllClick( wxCommandEvent& event )
+{
+    if( m_ecoTreeModel )
+        m_ecoTreeModel->CollapseAll();
 }

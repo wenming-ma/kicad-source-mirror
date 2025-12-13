@@ -157,6 +157,7 @@ set( PCBNEW_DIALOGS
     dialogs/dialog_unused_pad_layers_base.cpp
     dialogs/dialog_update_pcb.cpp
     dialogs/dialog_update_pcb_base.cpp
+    dialogs/eco_tree_model.cpp
     dialogs/panel_display_options.cpp
     dialogs/panel_display_options_base.cpp
     dialogs/panel_edit_options.cpp
@@ -271,6 +272,8 @@ set( PCBNEW_DRC_SRCS
 
 set( PCBNEW_NETLIST_SRCS
     netlist_reader/board_netlist_updater.cpp
+    netlist_reader/eco_item.cpp
+    netlist_reader/eco_items_provider.cpp
     netlist_reader/netlist.cpp
     )
 

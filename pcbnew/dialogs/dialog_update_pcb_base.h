@@ -24,6 +24,8 @@ class WX_HTML_REPORT_PANEL;
 #include <wx/panel.h>
 #include <wx/button.h>
 #include <wx/dialog.h>
+#include <wx/dataview.h>
+#include <wx/splitter.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -38,13 +40,30 @@ class DIALOG_UPDATE_PCB_BASE : public DIALOG_SHIM
 		wxCheckBox* m_cbRelinkFootprints;
 		wxCheckBox* m_cbDeleteExtraFootprints;
 		wxCheckBox* m_cbUpdateFootprints;
+
+		// ECO tree view toolbar buttons
+		wxButton* m_btnEnableAll;
+		wxButton* m_btnDisableAll;
+		wxButton* m_btnExpandAll;
+		wxButton* m_btnCollapseAll;
+
+		// Splitter window for ECO tree and message panel
+		wxSplitterWindow* m_splitter;
+		wxPanel* m_panelChanges;
+		wxDataViewCtrl* m_changesView;
+		wxPanel* m_panelMessages;
 		WX_HTML_REPORT_PANEL* m_messagePanel;
+
 		wxStdDialogButtonSizer* m_sdbSizer1;
 		wxButton* m_sdbSizer1OK;
 		wxButton* m_sdbSizer1Cancel;
 
-		// Virtual event handlers, overide them in your derived class
+		// Virtual event handlers, override them in your derived class
 		virtual void OnOptionChanged( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnEnableAllClick( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnDisableAllClick( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnExpandAllClick( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnCollapseAllClick( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnUpdateClick( wxCommandEvent& event ) { event.Skip(); }
 
 

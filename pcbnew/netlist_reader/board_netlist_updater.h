@@ -35,8 +35,11 @@ class NETLIST;
 class COMPONENT;
 class FOOTPRINT;
 class PCB_EDIT_FRAME;
+class ECO_ITEMS_PROVIDER;
+class ECO_ITEM;
 
 #include <board_commit.h>
+#include <memory>
 
 /**
  * Update the #BOARD with a new netlist.
@@ -91,6 +94,23 @@ public:
 
     std::vector<FOOTPRINT*> GetAddedFootprints() const { return m_addedFootprints; }
 
+    /**
+     * Set the ECO items provider for collecting changes during dry run.
+     * When set, the updater will create ECO_ITEM objects for each change.
+     */
+    void SetEcoProvider( std::shared_ptr<ECO_ITEMS_PROVIDER> aProvider )
+    {
+        m_ecoProvider = aProvider;
+    }
+
+    /**
+     * Execute only the enabled ECO items.
+     * @param aItems Vector of ECO items to apply (only enabled items will be processed)
+     * @return true if successful
+     */
+    bool ExecuteEcoItems( const std::vector<std::shared_ptr<ECO_ITEM>>& aItems,
+                          NETLIST& aNetlist );
+
 private:
     void cacheNetname( PAD* aPad, const wxString& aNetname );
     wxString getNetname( PAD* aPad );
@@ -126,6 +146,8 @@ private:
     std::map<PAD*, wxString>           m_padPinFunctions;
     std::vector<FOOTPRINT*>            m_addedFootprints;
     std::map<wxString, NETINFO_ITEM*>  m_addedNets;
+
+    std::shared_ptr<ECO_ITEMS_PROVIDER> m_ecoProvider;   ///< ECO items collector
 
     bool m_deleteUnusedFootprints;
     bool m_isDryRun;

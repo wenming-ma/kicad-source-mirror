@@ -1,7 +1,7 @@
 /*
  * This program source code file is part of KiCad, a free EDA CAD application.
  *
- * Copyright (C) 1992-2021 KiCad Developers, see AUTHORS.txt for contributors.
+ * Copyright (C) 1992-2024 KiCad Developers, see AUTHORS.txt for contributors.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,9 +25,12 @@
 #define _DIALOG_UPDATE_PCB_H_
 
 #include <dialog_update_pcb_base.h>
+#include <memory>
 
 class NETLIST;
 class PCB_EDIT_FRAME;
+class ECO_TREE_MODEL;
+class ECO_ITEMS_PROVIDER;
 
 class DIALOG_UPDATE_PCB : public DIALOG_UPDATE_PCB_BASE
 {
@@ -40,11 +43,19 @@ public:
 private:
     void OnOptionChanged( wxCommandEvent& event ) override;
     void OnUpdateClick( wxCommandEvent& event ) override;
+    void OnEnableAllClick( wxCommandEvent& event ) override;
+    void OnDisableAllClick( wxCommandEvent& event ) override;
+    void OnExpandAllClick( wxCommandEvent& event ) override;
+    void OnCollapseAllClick( wxCommandEvent& event ) override;
 
     PCB_EDIT_FRAME* m_frame;
     NETLIST*        m_netlist;
     bool            m_initialized;
     bool            m_runDragCommand;
+
+    // ECO support
+    std::shared_ptr<ECO_ITEMS_PROVIDER> m_ecoProvider;
+    ECO_TREE_MODEL*                     m_ecoTreeModel;
 };
 
 #endif

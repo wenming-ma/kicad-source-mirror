@@ -40,6 +40,8 @@
 #include <pcbnew_settings.h>
 #include <pcb_edit_frame.h>
 #include <netlist_reader/pcb_netlist.h>
+#include <netlist_reader/eco_item.h>
+#include <netlist_reader/eco_items_provider.h>
 #include <connectivity/connectivity_data.h>
 #include <reporter.h>
 
@@ -162,6 +164,18 @@ FOOTPRINT* BOARD_NETLIST_UPDATER::addNewFootprint( COMPONENT* aComponent )
                     aComponent->GetReference(),
                     aComponent->GetFPID().Format().wx_str() );
 
+        // Create ECO item if provider is set
+        if( m_ecoProvider )
+        {
+            auto ecoItem = std::make_shared<ECO_ITEM>(
+                ECO_ITEM::CHANGE_TYPE::ADD_FOOTPRINT,
+                aComponent->GetReference() );
+            ecoItem->SetDescription( msg );
+            ecoItem->SetNewValue( aComponent->GetFPID().Format() );
+            ecoItem->SetComponent( aComponent );
+            m_ecoProvider->AddItem( ecoItem );
+        }
+
         delete footprint;
         footprint = nullptr;
     }
@@ -233,6 +247,20 @@ FOOTPRINT* BOARD_NETLIST_UPDATER::replaceFootprint( NETLIST& aNetlist, FOOTPRINT
                     aFootprint->GetFPID().Format().wx_str(),
                     aNewComponent->GetFPID().Format().wx_str() );
 
+        // Create ECO item if provider is set
+        if( m_ecoProvider )
+        {
+            auto ecoItem = std::make_shared<ECO_ITEM>(
+                ECO_ITEM::CHANGE_TYPE::REPLACE_FOOTPRINT,
+                aFootprint->GetReference() );
+            ecoItem->SetDescription( msg );
+            ecoItem->SetOldValue( aFootprint->GetFPID().Format() );
+            ecoItem->SetNewValue( aNewComponent->GetFPID().Format() );
+            ecoItem->SetComponent( aNewComponent );
+            ecoItem->SetFootprint( aFootprint );
+            m_ecoProvider->AddItem( ecoItem );
+        }
+
         delete newFootprint;
         newFootprint = nullptr;
     }
@@ -299,6 +327,20 @@ bool BOARD_NETLIST_UPDATER::updateFootprintParameters( FOOTPRINT* aPcbFootprint,
                         aPcbFootprint->GetReference(),
                         aPcbFootprint->GetValue(),
                         aNetlistComponent->GetValue() );
+
+            // Create ECO item if provider is set
+            if( m_ecoProvider )
+            {
+                auto ecoItem = std::make_shared<ECO_ITEM>(
+                    ECO_ITEM::CHANGE_TYPE::UPDATE_VALUE,
+                    aPcbFootprint->GetReference() );
+                ecoItem->SetDescription( msg );
+                ecoItem->SetOldValue( aPcbFootprint->GetValue() );
+                ecoItem->SetNewValue( aNetlistComponent->GetValue() );
+                ecoItem->SetComponent( aNetlistComponent );
+                ecoItem->SetFootprint( aPcbFootprint );
+                m_ecoProvider->AddItem( ecoItem );
+            }
         }
         else
         {
@@ -1008,6 +1050,18 @@ bool BOARD_NETLIST_UPDATER::UpdateNetlist( NETLIST& aNetlist )
             if( m_isDryRun )
             {
                 msg.Printf( _( "Remove unused footprint %s." ), footprint->GetReference() );
+
+                // Create ECO item if provider is set
+                if( m_ecoProvider )
+                {
+                    auto ecoItem = std::make_shared<ECO_ITEM>(
+                        ECO_ITEM::CHANGE_TYPE::DELETE_FOOTPRINT,
+                        footprint->GetReference() );
+                    ecoItem->SetDescription( msg );
+                    ecoItem->SetOldValue( footprint->GetFPID().Format() );
+                    ecoItem->SetFootprint( footprint );
+                    m_ecoProvider->AddItem( ecoItem );
+                }
             }
             else
             {
@@ -1072,6 +1126,147 @@ bool BOARD_NETLIST_UPDATER::UpdateNetlist( NETLIST& aNetlist )
     m_reporter->ReportTail( wxT( "" ), RPT_SEVERITY_ACTION );
     m_reporter->ReportTail( wxT( "" ), RPT_SEVERITY_ACTION );
 
+    msg.Printf( _( "Total warnings: %d, errors: %d." ), m_warningCount, m_errorCount );
+    m_reporter->ReportTail( msg, RPT_SEVERITY_INFO );
+
+    return true;
+}
+
+
+bool BOARD_NETLIST_UPDATER::ExecuteEcoItems(
+        const std::vector<std::shared_ptr<ECO_ITEM>>& aItems,
+        NETLIST& aNetlist )
+{
+    wxString msg;
+
+    m_errorCount = 0;
+    m_warningCount = 0;
+    m_newFootprintsCount = 0;
+
+    std::map<COMPONENT*, FOOTPRINT*> footprintMap;
+
+    cacheCopperZoneConnections();
+
+    // Mark all nets as stale
+    m_board->SetStatus( 0 );
+
+    for( NETINFO_ITEM* net : m_board->GetNetInfo() )
+        net->SetIsCurrent( net->GetNetCode() == 0 );
+
+    // Group items by type for ordered processing
+    std::vector<std::shared_ptr<ECO_ITEM>> addItems;
+    std::vector<std::shared_ptr<ECO_ITEM>> replaceItems;
+    std::vector<std::shared_ptr<ECO_ITEM>> updateItems;
+    std::vector<std::shared_ptr<ECO_ITEM>> deleteItems;
+
+    for( const auto& item : aItems )
+    {
+        if( !item->IsEnabled() )
+            continue;
+
+        switch( item->GetType() )
+        {
+        case ECO_ITEM::CHANGE_TYPE::ADD_FOOTPRINT:
+            addItems.push_back( item );
+            break;
+        case ECO_ITEM::CHANGE_TYPE::DELETE_FOOTPRINT:
+            deleteItems.push_back( item );
+            break;
+        case ECO_ITEM::CHANGE_TYPE::REPLACE_FOOTPRINT:
+            replaceItems.push_back( item );
+            break;
+        default:
+            updateItems.push_back( item );
+            break;
+        }
+    }
+
+    // 1. Add new footprints
+    for( const auto& ecoItem : addItems )
+    {
+        COMPONENT* component = ecoItem->GetComponent();
+
+        if( component )
+        {
+            FOOTPRINT* footprint = addNewFootprint( component );
+
+            if( footprint )
+            {
+                footprintMap[component] = footprint;
+                updateFootprintParameters( footprint, component );
+                updateComponentPadConnections( footprint, component );
+            }
+        }
+    }
+
+    // 2. Replace footprints
+    for( const auto& ecoItem : replaceItems )
+    {
+        COMPONENT* component = ecoItem->GetComponent();
+        FOOTPRINT* footprint = ecoItem->GetFootprint();
+
+        if( component && footprint )
+        {
+            FOOTPRINT* newFootprint = replaceFootprint( aNetlist, footprint, component );
+
+            if( newFootprint )
+            {
+                footprintMap[component] = newFootprint;
+                updateFootprintParameters( newFootprint, component );
+                updateComponentPadConnections( newFootprint, component );
+            }
+        }
+    }
+
+    // 3. Update footprint parameters (value, etc.)
+    for( const auto& ecoItem : updateItems )
+    {
+        COMPONENT* component = ecoItem->GetComponent();
+        FOOTPRINT* footprint = ecoItem->GetFootprint();
+
+        if( component && footprint )
+        {
+            updateFootprintParameters( footprint, component );
+            updateComponentPadConnections( footprint, component );
+        }
+    }
+
+    updateCopperZoneNets( aNetlist );
+
+    // 4. Delete unused footprints (last)
+    for( const auto& ecoItem : deleteItems )
+    {
+        FOOTPRINT* footprint = ecoItem->GetFootprint();
+
+        if( footprint && !footprint->IsLocked() )
+        {
+            m_commit.Remove( footprint );
+            msg.Printf( _( "Removed unused footprint %s." ), footprint->GetReference() );
+            m_reporter->Report( msg, RPT_SEVERITY_ACTION );
+        }
+    }
+
+    // Finalize
+    m_board->BuildConnectivity();
+
+    for( NETINFO_ITEM* net : m_board->GetNetInfo() )
+    {
+        if( !net->IsCurrent() )
+        {
+            msg.Printf( _( "Removed unused net %s." ), net->GetNetname() );
+            m_reporter->Report( msg, RPT_SEVERITY_ACTION );
+            m_commit.Removed( net );
+        }
+    }
+
+    m_board->GetNetInfo().RemoveUnusedNets();
+
+    m_commit.Push( _( "Update netlist (selective)" ), m_newFootprintsCount ? ZONE_FILL_OP : 0 );
+
+    m_board->SynchronizeNetsAndNetClasses( true );
+    m_frame->OnModify();
+
+    m_reporter->ReportTail( wxT( "" ), RPT_SEVERITY_ACTION );
     msg.Printf( _( "Total warnings: %d, errors: %d." ), m_warningCount, m_errorCount );
     m_reporter->ReportTail( msg, RPT_SEVERITY_INFO );
 

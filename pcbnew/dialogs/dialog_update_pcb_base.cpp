@@ -46,12 +46,70 @@ DIALOG_UPDATE_PCB_BASE::DIALOG_UPDATE_PCB_BASE( wxWindow* parent, wxWindowID id,
 
 	bMainSizer->Add( bUpperSizer, 0, wxALL|wxEXPAND, 5 );
 
+	// ECO tree view toolbar
+	wxBoxSizer* bToolbarSizer;
+	bToolbarSizer = new wxBoxSizer( wxHORIZONTAL );
+
+	m_btnEnableAll = new wxButton( this, wxID_ANY, _("Enable All"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_btnEnableAll->SetToolTip( _("Enable all changes") );
+	bToolbarSizer->Add( m_btnEnableAll, 0, wxALL, 5 );
+
+	m_btnDisableAll = new wxButton( this, wxID_ANY, _("Disable All"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_btnDisableAll->SetToolTip( _("Disable all changes") );
+	bToolbarSizer->Add( m_btnDisableAll, 0, wxALL, 5 );
+
+	bToolbarSizer->Add( 20, 0, 0, wxEXPAND, 5 );
+
+	m_btnExpandAll = new wxButton( this, wxID_ANY, _("Expand All"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_btnExpandAll->SetToolTip( _("Expand all categories") );
+	bToolbarSizer->Add( m_btnExpandAll, 0, wxALL, 5 );
+
+	m_btnCollapseAll = new wxButton( this, wxID_ANY, _("Collapse All"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_btnCollapseAll->SetToolTip( _("Collapse all categories") );
+	bToolbarSizer->Add( m_btnCollapseAll, 0, wxALL, 5 );
+
+	bMainSizer->Add( bToolbarSizer, 0, wxEXPAND|wxLEFT|wxRIGHT, 5 );
+
+	// Splitter window for changes tree and messages panel
 	wxBoxSizer* bLowerSizer;
 	bLowerSizer = new wxBoxSizer( wxVERTICAL );
+	bLowerSizer->SetMinSize( wxSize( 660,400 ) );
 
-	bLowerSizer->SetMinSize( wxSize( 660,300 ) );
-	m_messagePanel = new WX_HTML_REPORT_PANEL( this, wxID_ANY, wxDefaultPosition, wxSize( -1,-1 ), wxTAB_TRAVERSAL );
-	bLowerSizer->Add( m_messagePanel, 1, wxEXPAND | wxALL, 5 );
+	m_splitter = new wxSplitterWindow( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxSP_3D | wxSP_LIVE_UPDATE );
+	m_splitter->SetSashGravity( 0.5 );
+	m_splitter->SetMinimumPaneSize( 100 );
+
+	// Top panel: Changes tree view
+	m_panelChanges = new wxPanel( m_splitter, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	wxBoxSizer* bChangesSizer;
+	bChangesSizer = new wxBoxSizer( wxVERTICAL );
+
+	wxStaticBoxSizer* sbChanges;
+	sbChanges = new wxStaticBoxSizer( new wxStaticBox( m_panelChanges, wxID_ANY, _("Changes To Apply") ), wxVERTICAL );
+
+	m_changesView = new wxDataViewCtrl( sbChanges->GetStaticBox(), wxID_ANY, wxDefaultPosition, wxDefaultSize, wxDV_MULTIPLE );
+	sbChanges->Add( m_changesView, 1, wxEXPAND | wxALL, 5 );
+
+	bChangesSizer->Add( sbChanges, 1, wxEXPAND | wxALL, 0 );
+
+	m_panelChanges->SetSizer( bChangesSizer );
+	m_panelChanges->Layout();
+	bChangesSizer->Fit( m_panelChanges );
+
+	// Bottom panel: Messages
+	m_panelMessages = new wxPanel( m_splitter, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	wxBoxSizer* bMessagesSizer;
+	bMessagesSizer = new wxBoxSizer( wxVERTICAL );
+
+	m_messagePanel = new WX_HTML_REPORT_PANEL( m_panelMessages, wxID_ANY, wxDefaultPosition, wxSize( -1,-1 ), wxTAB_TRAVERSAL );
+	bMessagesSizer->Add( m_messagePanel, 1, wxEXPAND | wxALL, 0 );
+
+	m_panelMessages->SetSizer( bMessagesSizer );
+	m_panelMessages->Layout();
+	bMessagesSizer->Fit( m_panelMessages );
+
+	m_splitter->SplitHorizontally( m_panelChanges, m_panelMessages, 200 );
+	bLowerSizer->Add( m_splitter, 1, wxEXPAND | wxALL, 5 );
 
 
 	bMainSizer->Add( bLowerSizer, 1, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 5 );
@@ -74,6 +132,10 @@ DIALOG_UPDATE_PCB_BASE::DIALOG_UPDATE_PCB_BASE( wxWindow* parent, wxWindowID id,
 	m_cbRelinkFootprints->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnOptionChanged ), NULL, this );
 	m_cbDeleteExtraFootprints->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnOptionChanged ), NULL, this );
 	m_cbUpdateFootprints->Connect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnOptionChanged ), NULL, this );
+	m_btnEnableAll->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnEnableAllClick ), NULL, this );
+	m_btnDisableAll->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnDisableAllClick ), NULL, this );
+	m_btnExpandAll->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnExpandAllClick ), NULL, this );
+	m_btnCollapseAll->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnCollapseAllClick ), NULL, this );
 	m_sdbSizer1OK->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnUpdateClick ), NULL, this );
 }
 
@@ -83,6 +145,10 @@ DIALOG_UPDATE_PCB_BASE::~DIALOG_UPDATE_PCB_BASE()
 	m_cbRelinkFootprints->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnOptionChanged ), NULL, this );
 	m_cbDeleteExtraFootprints->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnOptionChanged ), NULL, this );
 	m_cbUpdateFootprints->Disconnect( wxEVT_COMMAND_CHECKBOX_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnOptionChanged ), NULL, this );
+	m_btnEnableAll->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnEnableAllClick ), NULL, this );
+	m_btnDisableAll->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnDisableAllClick ), NULL, this );
+	m_btnExpandAll->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnExpandAllClick ), NULL, this );
+	m_btnCollapseAll->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnCollapseAllClick ), NULL, this );
 	m_sdbSizer1OK->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( DIALOG_UPDATE_PCB_BASE::OnUpdateClick ), NULL, this );
 
 }
