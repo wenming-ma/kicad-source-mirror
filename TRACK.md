@@ -2,6 +2,11 @@
 
 ## 当前状态: ✅ 所有代码实现完成
 
+## 版本记录
+- **v1.0** (2025-12-13): 初始实现
+  - Commit: `d3343a455f88a0a58cb3d9a77d6ae0d824b788bc`
+  - Message: "feat: Implement selective ECO updates in KiCad"
+
 ## 功能概述
 参照 Altium Designer 的 ECO 对话框，为 KiCad "Update PCB from Schematic" 添加选择性更新能力。
 
