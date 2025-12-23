@@ -13,17 +13,11 @@
     "boost-property-tree",
     "boost-ptr-container",
     "boost-range",
-    "boost-test",
     "boost-uuid",
     "cairo",
     "wxwidgets",
     "glew",
     "curl",
-    {
-      "name": "gettext",
-      "features": [ "tools" ],
-      "host": true
-    },
     "harfbuzz",
     "glm",
     "opencascade",
@@ -34,9 +28,7 @@
       "name": "sqlite3",
       "features": [ "fts5", "fts4", "fts3", "rtree", "session" ]
     },
-    "icu",
-    "ngspice",
-    "wxpython"
+    "icu"
   ],
   "overrides": [
     {
@@ -50,14 +42,6 @@
     {
       "name": "wxwidgets",
       "version": "3.2.4#1"
-    },
-    {
-      "name": "wxpython",
-      "version": "4.2.0#14"
-    },
-    {
-      "name": "ngspice",
-      "version": "41"
     },
     {
       "name": "libffi",
