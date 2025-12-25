@@ -377,6 +377,23 @@ void DIALOG_EXCHANGE_FOOTPRINTS::processFootprint( FOOTPRINT* aFootprint, const 
 
     bool updated = !m_updateMode || aFootprint->FootprintNeedsUpdate( newFootprint );
 
+    // Early exit if footprint hasn't changed (update mode only)
+    // IMPORTANT: Only skip if user wants to preserve all board-level customizations.
+    // If any library settings should be applied (text, 3D models, etc.), we must call
+    // ExchangeFootprint even if geometry is unchanged, because FootprintNeedsUpdate()
+    // only checks geometry/pads/shapes and ignores text items, 3D models, etc.
+    if( m_updateMode && !updated
+        && !m_resetTextItemLayers->GetValue()      // Preserve board text layers
+        && !m_resetTextItemEffects->GetValue()     // Preserve board text effects
+        && !m_resetFabricationAttrs->GetValue()    // Preserve board fabrication attrs
+        && !m_reset3DModels->GetValue() )          // Preserve board 3D models
+    {
+        delete newFootprint;  // Clean up the loaded footprint to prevent memory leak
+        msg += _( ": (no changes)" );
+        m_MessageWindow->Report( msg, RPT_SEVERITY_INFO );
+        return;
+    }
+
     m_parent->ExchangeFootprint( aFootprint, newFootprint, m_commit,
                                  m_removeExtraBox->GetValue(),
                                  m_resetTextItemLayers->GetValue(),
