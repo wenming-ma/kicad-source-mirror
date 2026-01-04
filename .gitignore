@@ -1,6 +1,7 @@
 .downloads-by-cmake
 .gdb_history
 boost_root
+nul
 /Build
 /build
 kicad_algorithm_visualizations
