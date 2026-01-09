@@ -105,6 +105,8 @@ set( PCBNEW_DIALOGS
     dialogs/dialog_global_fp_lib_table_config.cpp
     dialogs/dialog_group_properties.cpp
     dialogs/dialog_group_properties_base.cpp
+    dialogs/dialog_group_layout_reuse.cpp
+    dialogs/dialog_group_layout_reuse_base.cpp
     dialogs/dialog_push_pad_properties.cpp
     dialogs/dialog_push_pad_properties_base.cpp
     dialogs/dialog_graphic_item_properties.cpp
@@ -350,6 +352,7 @@ set( PCBNEW_CLASS_SRCS
     tools/edit_tool_move_fct.cpp
     tools/global_edit_tool.cpp
     tools/group_tool.cpp
+    tools/multichannel_tool.cpp
     tools/footprint_editor_control.cpp
     tools/pad_tool.cpp
     tools/pcb_control.cpp

@@ -432,6 +432,16 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
         toolsMenu->Add( PCB_ACTIONS::showPythonConsole );
     }
 
+    // Group Layout Reuse / Multichannel submenu
+    ACTION_MENU* multichannelSubmenu = new ACTION_MENU( false, selTool );
+    multichannelSubmenu->SetTitle( _( "Group Layout Reuse" ) );
+    multichannelSubmenu->SetIcon( BITMAPS::mode_module );
+    multichannelSubmenu->Add( PCB_ACTIONS::generatePlacementRuleAreas );
+    multichannelSubmenu->Add( PCB_ACTIONS::repeatLayout );
+
+    toolsMenu->AppendSeparator();
+    toolsMenu->Add( multichannelSubmenu );
+
     ACTION_MENU* submenuActionPlugins = new ACTION_MENU( false, selTool );
     submenuActionPlugins->SetTitle( _( "External Plugins" ) );
     submenuActionPlugins->SetIcon( BITMAPS::puzzle_piece );

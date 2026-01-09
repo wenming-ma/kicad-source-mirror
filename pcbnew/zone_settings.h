@@ -61,6 +61,14 @@ enum class ISLAND_REMOVAL_MODE
     AREA
 };
 
+/// Source type for placement rule areas (used in multichannel/layout reuse)
+enum class PLACEMENT_SOURCE_T
+{
+    SHEETNAME = 0,       // Reserved: Not implemented in KiCad 7.0
+    COMPONENT_CLASS,     // Reserved: Not implemented in KiCad 7.0
+    GROUP_PLACEMENT      // Group-based placement (implemented)
+};
+
 /**
  * ZONE_SETTINGS
  * handles zones parameters.

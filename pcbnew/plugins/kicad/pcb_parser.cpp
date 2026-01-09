@@ -5867,6 +5867,64 @@ ZONE* PCB_PARSER::parseZONE( BOARD_ITEM_CONTAINER* aParent )
 
             break;
 
+        case T_placement:
+            zone->SetIsRuleArea( true );
+
+            for( token = NextTok(); token != T_RIGHT; token = NextTok() )
+            {
+                if( token == T_LEFT )
+                    token = NextTok();
+
+                switch( token )
+                {
+                case T_sheetname:
+                {
+                    // Reserved: Not implemented in KiCad 7.0
+                    zone->SetPlacementAreaSourceType( PLACEMENT_SOURCE_T::SHEETNAME );
+                    NeedSYMBOL();
+                    zone->SetPlacementAreaSource( FromUTF8() );
+                    break;
+                }
+                case T_component_class:
+                {
+                    // Reserved: Not implemented in KiCad 7.0
+                    zone->SetPlacementAreaSourceType( PLACEMENT_SOURCE_T::COMPONENT_CLASS );
+                    NeedSYMBOL();
+                    zone->SetPlacementAreaSource( FromUTF8() );
+                    break;
+                }
+                case T_group:
+                {
+                    zone->SetPlacementAreaSourceType( PLACEMENT_SOURCE_T::GROUP_PLACEMENT );
+                    NeedSYMBOL();
+                    zone->SetPlacementAreaSource( FromUTF8() );
+                    break;
+                }
+                case T_enabled:
+                {
+                    token = NextTok();
+
+                    if( token == T_yes )
+                        zone->SetPlacementAreaEnabled( true );
+                    else if( token == T_no )
+                        zone->SetPlacementAreaEnabled( false );
+                    else
+                        Expecting( "yes or no" );
+
+                    break;
+                }
+                default:
+                {
+                    Expecting( "enabled, sheetname, component_class, or group" );
+                    break;
+                }
+                }
+
+                NeedRIGHT();
+            }
+
+            break;
+
         case T_polygon:
         {
             SHAPE_LINE_CHAIN outline;

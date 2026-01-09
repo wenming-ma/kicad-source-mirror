@@ -64,6 +64,7 @@ clearance_min
 color
 comment
 company
+component_class
 connect
 connect_pads
 copperpour
@@ -95,6 +96,7 @@ edge_connector
 edge_plating
 edge_width
 effects
+enabled
 end
 epsilon_r
 exclude_from_pos_files
@@ -233,6 +235,7 @@ pcbplotparams
 pinfunction
 pintype
 placed
+placement
 plus
 polygon
 portrait
@@ -257,6 +260,7 @@ scale
 segment
 segment_width
 setup
+sheetname
 silk_line_width
 silk_text_dims
 size

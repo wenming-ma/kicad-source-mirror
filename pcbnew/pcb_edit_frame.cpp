@@ -67,6 +67,7 @@
 #include <tools/pcb_point_editor.h>
 #include <tools/edit_tool.h>
 #include <tools/group_tool.h>
+#include <tools/multichannel_tool.h>
 #include <tools/drc_tool.h>
 #include <tools/global_edit_tool.h>
 #include <tools/convert_tool.h>
@@ -656,6 +657,7 @@ void PCB_EDIT_FRAME::setupTools()
     m_toolManager->RegisterTool( new PCB_VIEWER_TOOLS );
     m_toolManager->RegisterTool( new CONVERT_TOOL );
     m_toolManager->RegisterTool( new GROUP_TOOL );
+    m_toolManager->RegisterTool( new MULTICHANNEL_TOOL );
     m_toolManager->RegisterTool( new SCRIPTING_TOOL );
     m_toolManager->RegisterTool( new PROPERTIES_TOOL );
     m_toolManager->InitTools();

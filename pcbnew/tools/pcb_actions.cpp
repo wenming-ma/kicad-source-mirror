@@ -1173,6 +1173,19 @@ TOOL_ACTION PCB_ACTIONS::inspectConstraints( "pcbnew.InspectionTool.InspectConst
         _( "Show constraints resolution for the selected object" ),
         BITMAPS::mw_add_gap );
 
+// Multichannel / Group Layout Reuse
+TOOL_ACTION PCB_ACTIONS::generatePlacementRuleAreas( "pcbnew.Multichannel.generatePlacementRuleAreas",
+        AS_GLOBAL, 0, "",
+        _( "Generate Placement Rule Areas..." ),
+        _( "Creates best-fit placement rule areas for groups" ),
+        BITMAPS::add_keepout_area );
+
+TOOL_ACTION PCB_ACTIONS::repeatLayout( "pcbnew.Multichannel.repeatLayout",
+        AS_GLOBAL, 0, "",
+        _( "Repeat Layout..." ),
+        _( "Clones placement & routing across multiple identical groups" ),
+        BITMAPS::copy );
+
 //Geographic re-annotation tool
 TOOL_ACTION PCB_ACTIONS::boardReannotate( "pcbnew.ReannotateTool.ShowReannotateDialog",
         AS_GLOBAL, 0, "",
