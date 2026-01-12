@@ -492,6 +492,10 @@ public:
     static TOOL_ACTION inspectClearance;
     static TOOL_ACTION inspectConstraints;
 
+    // Multichannel / Group Layout Reuse
+    static TOOL_ACTION repeatLayout;
+    static TOOL_ACTION generatePlacementRuleAreas;
+
     // Appearance controls
     static TOOL_ACTION clearHighlight;          // Turns off highlight and resets previous highlight
     static TOOL_ACTION highlightNet;            // Highlights a net by code (cross-probe highlight)

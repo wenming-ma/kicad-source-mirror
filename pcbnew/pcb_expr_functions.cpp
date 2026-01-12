@@ -988,7 +988,8 @@ void PCB_EXPR_BUILTIN_FUNCTIONS::RegisterAllFunctions()
     RegisterFunc( wxT( "isMicroVia()" ), isMicroVia );
     RegisterFunc( wxT( "isBlindBuriedVia()" ), isBlindBuriedViaFunc );
 
-    RegisterFunc( wxT( "memberOf('x')" ), memberOfFunc );
+    RegisterFunc( wxT( "memberOf('x') DEPRECATED" ), memberOfFunc );
+    RegisterFunc( wxT( "memberOfGroup('x')" ), memberOfFunc );
 
     RegisterFunc( wxT( "fromTo('x','y')" ), fromToFunc );
     RegisterFunc( wxT( "isCoupledDiffPair()" ), isCoupledDiffPairFunc );

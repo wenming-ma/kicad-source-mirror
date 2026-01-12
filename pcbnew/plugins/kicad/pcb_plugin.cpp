@@ -2278,6 +2278,34 @@ void PCB_PLUGIN::format( const ZONE* aZone, int aNestLevel ) const
                       aZone->GetDoNotAllowPads() ? "not_allowed" : "allowed",
                       aZone->GetDoNotAllowCopperPour() ? "not_allowed" : "allowed",
                       aZone->GetDoNotAllowFootprints() ? "not_allowed" : "allowed" );
+
+        // Write placement area settings for layout reuse / multichannel
+        if( !aZone->GetPlacementAreaSource().IsEmpty() )
+        {
+            m_out->Print( aNestLevel + 1, "(placement (enabled %s)",
+                          aZone->GetPlacementAreaEnabled() ? "yes" : "no" );
+
+            switch( aZone->GetPlacementAreaSourceType() )
+            {
+            case PLACEMENT_SOURCE_T::SHEETNAME:
+                m_out->Print( 0, " (sheetname %s)",
+                              m_out->Quotew( aZone->GetPlacementAreaSource() ).c_str() );
+                break;
+
+            case PLACEMENT_SOURCE_T::COMPONENT_CLASS:
+                m_out->Print( 0, " (component_class %s)",
+                              m_out->Quotew( aZone->GetPlacementAreaSource() ).c_str() );
+                break;
+
+            case PLACEMENT_SOURCE_T::GROUP_PLACEMENT:
+            default:
+                m_out->Print( 0, " (group %s)",
+                              m_out->Quotew( aZone->GetPlacementAreaSource() ).c_str() );
+                break;
+            }
+
+            m_out->Print( 0, ")\n" );
+        }
     }
 
     m_out->Print( aNestLevel + 1, "(fill" );

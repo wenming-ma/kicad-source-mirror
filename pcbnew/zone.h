@@ -739,6 +739,18 @@ public:
     void SetMinIslandArea( long long int aArea ) { m_minIslandArea = aArea; }
 
     /**
+     * Placement Area related methods (for layout reuse / multichannel)
+     */
+    bool GetPlacementAreaEnabled() const { return m_placementAreaEnabled; }
+    void SetPlacementAreaEnabled( bool aEnabled ) { m_placementAreaEnabled = aEnabled; }
+
+    const wxString& GetPlacementAreaSource() const { return m_placementAreaSource; }
+    void SetPlacementAreaSource( const wxString& aSource ) { m_placementAreaSource = aSource; }
+
+    PLACEMENT_SOURCE_T GetPlacementAreaSourceType() const { return m_placementAreaSourceType; }
+    void SetPlacementAreaSourceType( PLACEMENT_SOURCE_T aType ) { m_placementAreaSourceType = aType; }
+
+    /**
      * HatchBorder related methods
      */
 
@@ -844,6 +856,11 @@ protected:
     bool                  m_doNotAllowTracks;
     bool                  m_doNotAllowPads;
     bool                  m_doNotAllowFootprints;
+
+    /* Placement area settings for layout reuse / multichannel */
+    bool                  m_placementAreaEnabled;
+    wxString              m_placementAreaSource;
+    PLACEMENT_SOURCE_T    m_placementAreaSourceType;
 
     ZONE_CONNECTION       m_PadConnection;
     int                   m_ZoneClearance;           // Clearance value in internal units.

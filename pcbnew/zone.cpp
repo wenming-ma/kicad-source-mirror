@@ -54,6 +54,9 @@ ZONE::ZONE( BOARD_ITEM_CONTAINER* aParent, bool aInFP ) :
     m_isFilled = false;                         // fill status : true when the zone is filled
     m_teardropType = TEARDROP_TYPE::TD_NONE;
     m_islandRemovalMode = ISLAND_REMOVAL_MODE::ALWAYS;
+    m_placementAreaEnabled = false;
+    m_placementAreaSource = wxEmptyString;
+    m_placementAreaSourceType = PLACEMENT_SOURCE_T::GROUP_PLACEMENT;
     m_borderStyle = ZONE_BORDER_DISPLAY_STYLE::DIAGONAL_EDGE;
     m_borderHatchPitch = GetDefaultHatchPitch();
     m_priority = 0;
@@ -130,6 +133,10 @@ void ZONE::InitDataFromSrcInCopyCtor( const ZONE& aZone )
     m_doNotAllowTracks        = aZone.m_doNotAllowTracks;
     m_doNotAllowPads          = aZone.m_doNotAllowPads;
     m_doNotAllowFootprints    = aZone.m_doNotAllowFootprints;
+
+    m_placementAreaEnabled    = aZone.m_placementAreaEnabled;
+    m_placementAreaSource     = aZone.m_placementAreaSource;
+    m_placementAreaSourceType = aZone.m_placementAreaSourceType;
 
     m_PadConnection           = aZone.m_PadConnection;
     m_ZoneClearance           = aZone.m_ZoneClearance;     // clearance value
