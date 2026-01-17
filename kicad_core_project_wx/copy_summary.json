@@ -1,0 +1,13 @@
+{
+  "total_headers": 775,
+  "total_sources": 378,
+  "regular_headers": 775,
+  "generated_headers": 0,
+  "regular_sources": 378,
+  "generated_sources": 0,
+  "cmake_directories": 139,
+  "files_copied": 155,
+  "files_skipped": 1028,
+  "files_not_found": 0,
+  "total_files_processed": 1183
+}

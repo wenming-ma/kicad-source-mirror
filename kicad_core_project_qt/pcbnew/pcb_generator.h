@@ -1,0 +1,120 @@
+
+// QT_TRANSFORMATION_COMPLETED - Verified on 2025-09-05
+
+#ifndef GENERATOR_H_
+#define GENERATOR_H_
+
+
+#include <unordered_set>
+#include <string_any_map.h>
+#include <QString>
+#include <QVariant>
+
+#include <lset.h>
+#include <pcb_group.h>
+
+class EDIT_POINTS;
+class BOARD;
+class BOARD_ITEM;
+class PCB_BASE_EDIT_FRAME;
+class GENERATOR_TOOL;
+class STATUS_MIN_MAX_POPUP;
+
+
+class PCB_GENERATOR : public PCB_GROUP
+{
+public:
+
+    PCB_GENERATOR( BOARD_ITEM* aParent, PCB_LAYER_ID aLayer );
+
+    virtual ~PCB_GENERATOR();
+
+    /*
+     * Clone() this and all descendants
+     */
+    PCB_GENERATOR* DeepClone() const;
+
+    virtual void EditStart( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit );
+
+    virtual void EditPush( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit,
+                           const QString& aCommitMsg = QString(), int aCommitFlags = 0 );
+
+    virtual void EditRevert( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit );
+
+    virtual void Remove( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit );
+
+    virtual bool Update( GENERATOR_TOOL* aTool, BOARD* aBoard, BOARD_COMMIT* aCommit );
+
+#define STATUS_ITEMS_ONLY true
+
+    virtual std::vector<EDA_ITEM*> GetPreviewItems( GENERATOR_TOOL* aTool,
+                                                    PCB_BASE_EDIT_FRAME* aFrame,
+                                                    bool aStatusItemsOnly = false );
+
+    virtual bool MakeEditPoints( EDIT_POINTS& aEditPoints ) const;
+
+    virtual bool UpdateFromEditPoints( EDIT_POINTS& aEditPoints );
+
+    virtual bool UpdateEditPoints( EDIT_POINTS& aEditPoints );
+
+    const BOX2I GetBoundingBox() const override;
+
+    VECTOR2I GetPosition() const override { return m_origin; }
+    void SetPosition( const VECTOR2I& aPos ) override { m_origin = aPos; }
+
+    void Move( const VECTOR2I& aMoveVector ) override;
+
+    void Rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle ) override;
+
+    void Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection ) override;
+
+    void Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aMirrorDirection ) override;
+
+    bool AddItem( BOARD_ITEM* aItem ) override;
+
+    LSET GetLayerSet() const override;
+
+    virtual void SetLayer( PCB_LAYER_ID aLayer ) override;
+
+    virtual QString GetGeneratorType() const;
+
+    virtual const STRING_ANY_MAP GetProperties() const;
+
+    virtual void SetProperties( const STRING_ANY_MAP& aProps );
+
+    virtual std::vector<std::pair<QString, QVariant>> GetRowData();
+
+    virtual void ShowPropertiesDialog( PCB_BASE_EDIT_FRAME* aEditFrame ) {};
+
+    QString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+
+    virtual QString GetPluralName() const = 0;
+
+#if defined(DEBUG)
+    void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
+#endif
+
+    QString GetClass() const override;
+
+    static inline bool ClassOf( const EDA_ITEM* aItem );
+
+#ifdef GENERATOR_ORDER
+    int  GetUpdateOrder() const { return m_updateOrder; }
+    void SetUpdateOrder( int aValue ) { m_updateOrder = aValue; }
+#endif
+
+protected:
+    QString m_generatorType;
+
+    VECTOR2I m_origin;
+
+#ifdef GENERATOR_ORDER
+    int m_updateOrder = 0;
+#endif
+
+    friend class GENERATORS_MGR;
+
+    void baseMirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection );
+};
+
+#endif /* GENERATOR_H_ */

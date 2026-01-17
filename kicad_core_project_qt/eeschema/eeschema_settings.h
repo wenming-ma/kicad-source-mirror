@@ -1,0 +1,382 @@
+
+#ifndef _EESCHEMA_SETTINGS_H
+#define _EESCHEMA_SETTINGS_H
+
+#include <QtWidgets/QWidget>
+#include <QtWidgets/QDockWidget>
+#include <QtCore/QSize>
+#include <QtCore/QPoint>
+#include <QtCore/QSettings>
+
+#include <settings/app_settings.h>
+// #include <sim/sim_preferences.h> // UNUSED_SYMBOL: SIM functionality disabled
+#include <nlohmann/json_fwd.hpp>
+
+using KIGFX::COLOR4D;
+
+
+extern const QDockWidget* defaultNetNavigatorPaneInfo();
+extern const QDockWidget* defaultPropertiesPaneInfo( QWidget* aWindow );
+extern const QDockWidget* defaultSchSelectionFilterPaneInfo( QWidget* aWindow );
+extern const QDockWidget* defaultDesignBlocksPaneInfo( QWidget* aWindow );
+
+
+
+enum LINE_MODE
+{
+    LINE_MODE_FREE          = 0,
+    LINE_MODE_90            = 1,
+    LINE_MODE_45            = 2,
+
+    LINE_MODE_COUNT,
+};
+
+
+class EESCHEMA_SETTINGS : public APP_SETTINGS_BASE
+{
+public:
+    struct APPEARANCE
+    {
+        QString edit_symbol_visible_columns;
+        int edit_symbol_width;
+        int edit_symbol_height;
+        QString edit_sheet_visible_columns;
+        int edit_sheet_width;
+        int edit_sheet_height;
+        QString edit_label_visible_columns;
+        int edit_label_width;
+        int edit_label_height;
+        bool edit_label_multiple;
+        int  erc_severities;
+        bool footprint_preview;
+        bool print_sheet_reference;
+        QString default_font;
+        bool show_hidden_pins;
+        bool show_hidden_fields;
+        bool show_directive_labels;
+        bool mark_sim_exclusions;
+        bool show_erc_warnings;
+        bool show_erc_errors;
+        bool show_erc_exclusions;
+        bool show_op_voltages;
+        bool show_op_currents;
+        bool show_pin_alt_icons;
+        bool show_illegal_symbol_lib_dialog;
+        bool show_page_limits;
+        bool show_sexpr_file_convert_warning;
+        bool show_sheet_filename_case_sensitivity_dialog;
+    };
+
+    struct AUI_PANELS
+    {
+        int  hierarchy_panel_docked_width;  // width of hierarchy tree panel and pane when docked
+        int  hierarchy_panel_docked_height; // height of hierarchy tree panel and pane when docked
+        int  hierarchy_panel_float_width;   // width of hierarchy tree panel when floating
+        int  hierarchy_panel_float_height;  // height of hierarchy tree panel when floating
+        int  search_panel_height;           // height of the search panel
+        int  search_panel_width;            // width of the search panel
+        int  search_panel_dock_direction;   // docking direction of the search panel
+        bool schematic_hierarchy_float;     // show hierarchy tree panel as floating
+        bool show_schematic_hierarchy;      // show hierarchy tree pane
+        bool show_search;                   // show the search panel
+        QSize net_nav_panel_docked_size;
+        QPoint net_nav_panel_float_pos;
+        QSize net_nav_panel_float_size;
+        bool float_net_nav_panel;
+        bool show_net_nav_panel;
+        int  properties_panel_width;
+        float properties_splitter;
+        bool show_properties;
+        bool design_blocks_show;
+        int  design_blocks_panel_docked_width;
+        int  design_blocks_panel_float_width;
+        int  design_blocks_panel_float_height;
+    };
+
+    struct AUTOPLACE_FIELDS
+    {
+        bool enable;
+        bool allow_rejustify;
+        bool align_to_grid;
+    };
+
+    struct BOM_PLUGIN_SETTINGS
+    {
+        BOM_PLUGIN_SETTINGS() = default;
+
+        BOM_PLUGIN_SETTINGS( const QString& aName, const QString& aPath ) :
+                name( aName ),
+                path( aPath )
+        {}
+
+        QString name;
+        QString path;
+        QString command;
+    };
+
+    struct NETLIST_PLUGIN_SETTINGS
+    {
+        NETLIST_PLUGIN_SETTINGS() = default;
+
+        NETLIST_PLUGIN_SETTINGS( const QString& aName, const QString& aPath ) :
+                name( aName ),
+                path( aPath )
+        {}
+
+        QString name;
+        QString path;
+        QString command;
+    };
+
+    struct DRAWING
+    {
+        int      default_bus_thickness;
+        int      default_junction_size;
+        int      default_line_thickness;
+        int      default_repeat_offset_x;
+        int      default_repeat_offset_y;
+        int      default_wire_thickness;
+        int      default_text_size;
+        int      pin_symbol_size;
+        double   text_offset_ratio;
+        COLOR4D  default_sheet_border_color;
+        COLOR4D  default_sheet_background_color;
+        QString field_names;
+        int      line_mode;
+        int      repeat_label_increment;
+        bool     intersheets_ref_show;
+        bool     intersheets_ref_own_page;
+        bool     intersheets_ref_short;
+        QString intersheets_ref_prefix;
+        QString intersheets_ref_suffix;
+        bool     auto_start_wires;
+        std::vector<double> junction_size_mult_list;
+
+        // Pulldown index for user default junction dot size (e.g. smallest = 0, small = 1, etc)
+        int      junction_size_choice;
+    };
+
+    struct INPUT
+    {
+        bool drag_is_move;
+        bool esc_clears_net_highlight;
+    };
+
+    struct SELECTION
+    {
+        int  selection_thickness;
+        int  highlight_thickness;
+        bool draw_selected_children;
+        bool fill_shapes;
+        bool highlight_netclass_colors;
+        int    highlight_netclass_colors_thickness;
+        double highlight_netclass_colors_alpha;
+    };
+
+    struct PAGE_SETTINGS
+    {
+        bool export_paper;
+        bool export_revision;
+        bool export_date;
+        bool export_title;
+        bool export_company;
+        bool export_comment1;
+        bool export_comment2;
+        bool export_comment3;
+        bool export_comment4;
+        bool export_comment5;
+        bool export_comment6;
+        bool export_comment7;
+        bool export_comment8;
+        bool export_comment9;
+    };
+
+    struct PANEL_ANNOTATE
+    {
+        bool automatic;
+        bool recursive;
+        int scope;
+        int options;
+        int method;
+        int messages_filter;
+        int sort_order;
+    };
+
+    struct PANEL_BOM
+    {
+        QString selected_plugin;
+        std::vector<BOM_PLUGIN_SETTINGS> plugins;
+    };
+
+    struct PANEL_FIELD_EDITOR
+    {
+        std::map<std::string, int> field_widths;
+        int                        width;
+        int                        height;
+        int                        page;
+        QString                   export_filename;
+        int                        selection_mode;
+        int                        scope;
+    };
+
+    struct PANEL_LIB_VIEW
+    {
+        int lib_list_width;
+        int cmp_list_width;
+        bool show_pin_electrical_type;
+        bool show_pin_numbers;
+        WINDOW_SETTINGS window;
+    };
+
+    struct PANEL_NETLIST
+    {
+        std::vector<NETLIST_PLUGIN_SETTINGS> plugins;
+    };
+
+    struct PANEL_PLOT
+    {
+        bool     background_color;
+        bool     color;
+        QString color_theme;
+        int      format;
+        bool     frame_reference;
+        int      hpgl_paper_size;
+        double   hpgl_pen_size;
+        int      hpgl_origin;
+        bool     pdf_property_popups;
+        bool     pdf_hierarchical_links;
+        bool     pdf_metadata;
+        bool     open_file_after_plot;
+    };
+
+    struct PANEL_SYM_CHOOSER
+    {
+        int  sash_pos_h;
+        int  sash_pos_v;
+        int  width;
+        int  height;
+        int  sort_mode;
+        bool keep_symbol;
+        bool place_all_units;
+    };
+
+    struct PANEL_DESIGN_BLOCK_CHOOSER
+    {
+        int  sash_pos_h;
+        int  sash_pos_v;
+        int  width;
+        int  height;
+        int  sort_mode;
+        bool repeated_placement;
+        bool place_as_sheet;
+        bool keep_annotations;
+
+        // For saving tree columns and widths
+        LIB_TREE tree;
+    };
+
+    struct DIALOG_IMPORT_GRAPHICS
+    {
+        bool     interactive_placement;
+        QString last_file;
+        double   dxf_line_width;
+        int      dxf_line_width_units;
+        int      origin_units;
+        double   origin_x;
+        double   origin_y;
+        int      dxf_units;
+    };
+
+    struct SIMULATOR
+    {
+        struct VIEW
+        {
+            int  plot_panel_width;
+            int  plot_panel_height;
+            int  signal_panel_height;
+            int  cursors_panel_height;
+            int  measurements_panel_height;
+            bool white_background;
+        };
+
+        VIEW            view;
+        WINDOW_SETTINGS window;
+        // SIM_PREFERENCES preferences; // UNUSED_SYMBOL: SIM functionality disabled
+    };
+
+    struct FIND_REPLACE_EXTRA
+    {
+        bool search_all_fields;
+        bool search_all_pins;
+        bool search_current_sheet_only;
+        bool search_selected_only;
+
+        bool replace_references;
+    };
+
+    EESCHEMA_SETTINGS();
+
+    virtual ~EESCHEMA_SETTINGS() {}
+
+    virtual bool MigrateFromLegacy( QSettings* aLegacyConfig ) override;
+
+    static std::vector<BOM_PLUGIN_SETTINGS> DefaultBomPlugins();
+
+
+protected:
+    virtual std::string getLegacyFrameName() const override { return "SchematicFrame"; }
+
+private:
+    bool migrateBomSettings();
+
+    nlohmann::json bomSettingsToJson() const;
+
+    static std::vector<BOM_PLUGIN_SETTINGS> bomSettingsFromJson( const nlohmann::json& aObj );
+
+    nlohmann::json netlistSettingsToJson() const;
+    static std::vector<NETLIST_PLUGIN_SETTINGS> netlistSettingsFromJson( const nlohmann::json& aObj );
+
+public:
+    APPEARANCE m_Appearance;
+
+    AUTOPLACE_FIELDS m_AutoplaceFields;
+
+    AUI_PANELS m_AuiPanels;
+
+    DRAWING m_Drawing;
+
+    FIND_REPLACE_EXTRA m_FindReplaceExtra;
+
+    INPUT m_Input;
+
+    PAGE_SETTINGS m_PageSettings;
+
+    PANEL_ANNOTATE m_AnnotatePanel;
+
+    PANEL_BOM m_BomPanel;
+
+    PANEL_FIELD_EDITOR m_FieldEditorPanel;
+
+    PANEL_LIB_VIEW m_LibViewPanel;
+
+    PANEL_NETLIST m_NetlistPanel;
+
+    PANEL_PLOT m_PlotPanel;
+
+    PANEL_SYM_CHOOSER m_SymChooserPanel;
+
+    PANEL_DESIGN_BLOCK_CHOOSER m_DesignBlockChooserPanel;
+
+    DIALOG_IMPORT_GRAPHICS m_ImportGraphics;
+
+    SELECTION m_Selection;
+
+    SIMULATOR m_Simulator;
+
+    bool m_RescueNeverShow;
+
+    QString m_lastSymbolLibDir;
+};
+
+
+#endif
