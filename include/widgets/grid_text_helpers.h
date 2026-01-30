@@ -20,9 +20,11 @@
 
 #pragma once
 
+#include <kicommon.h>
 #include <functional>
 #include <memory>
 #include <wx/generic/gridctrl.h>
+#include <wx/combo.h>
 
 class wxGrid;
 class wxStyledTextCtrl;
@@ -34,7 +36,7 @@ class SCINTILLA_TRICKS;
  * This class works around a bug in wxGrid where the first keystroke doesn't get sent through
  * the validator if the editor wasn't already open.
  */
-class GRID_CELL_TEXT_EDITOR : public wxGridCellTextEditor
+class KICOMMON_API GRID_CELL_TEXT_EDITOR : public wxGridCellTextEditor
 {
 public:
     GRID_CELL_TEXT_EDITOR();
@@ -53,7 +55,7 @@ protected:
  * A general-purpose text renderer for WX_GRIDs backed by WX_GRID_TABLE_BASE tables that can handle
  * drawing expand/collapse controls.
  */
-class GRID_CELL_TEXT_RENDERER : public wxGridCellStringRenderer
+class KICOMMON_API GRID_CELL_TEXT_RENDERER : public wxGridCellStringRenderer
 {
 public:
     GRID_CELL_TEXT_RENDERER();
@@ -69,7 +71,7 @@ public:
  * A text renderer that can unescape text for display
  * This is useful where it's desired to keep the underlying storage escaped.
  */
-class GRID_CELL_ESCAPED_TEXT_RENDERER : public wxGridCellStringRenderer
+class KICOMMON_API GRID_CELL_ESCAPED_TEXT_RENDERER : public wxGridCellStringRenderer
 {
 public:
     GRID_CELL_ESCAPED_TEXT_RENDERER();
@@ -81,7 +83,7 @@ public:
 };
 
 
-class GRID_CELL_STC_EDITOR : public wxGridCellEditor
+class KICOMMON_API GRID_CELL_STC_EDITOR : public wxGridCellEditor
 {
 public:
     GRID_CELL_STC_EDITOR( bool aIgnoreCase, bool aSingleLine,
@@ -117,3 +119,47 @@ protected:
 
     std::function<void( wxStyledTextEvent&, SCINTILLA_TRICKS* )> m_onCharFn;
 };
+
+
+class KICOMMON_API GRID_CELL_TEXT_BUTTON : public wxGridCellEditor
+{
+public:
+    GRID_CELL_TEXT_BUTTON() :
+            m_grid( nullptr ),
+            m_row( -1 ),
+            m_col( -1 )
+    {};
+
+    wxString GetValue() const override;
+
+    void SetSize( const wxRect& aRect ) override;
+
+    void StartingKey( wxKeyEvent& event ) override;
+    void BeginEdit( int aRow, int aCol, wxGrid* aGrid ) override;
+    bool EndEdit( int , int , const wxGrid* , const wxString& , wxString *aNewVal ) override;
+    void ApplyEdit( int aRow, int aCol, wxGrid* aGrid ) override;
+    void Reset() override;
+
+    void OnTextChange( wxCommandEvent& event );
+
+#if wxUSE_VALIDATORS
+    void SetValidator( const wxValidator& validator );
+#endif
+
+protected:
+    wxComboCtrl* Combo() const { return static_cast<wxComboCtrl*>( m_control ); }
+
+protected:
+#if wxUSE_VALIDATORS
+    std::unique_ptr< wxValidator > m_validator;
+#endif
+
+    wxGrid*  m_grid;
+    int      m_row;
+    int      m_col;
+    wxString m_value;
+
+    wxDECLARE_NO_COPY_CLASS( GRID_CELL_TEXT_BUTTON );
+};
+
+

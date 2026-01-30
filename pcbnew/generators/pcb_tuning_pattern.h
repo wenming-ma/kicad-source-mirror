@@ -231,13 +231,20 @@ public:
     {
         BOX2I sel = aRect;
 
-        if ( aAccuracy )
+        if( aAccuracy )
             sel.Inflate( aAccuracy );
 
-        if( aContained )
-            return sel.Contains( GetBoundingBox() );
+        // Convert selection box to polygon for accurate hit testing against the actual outline
+        SHAPE_LINE_CHAIN selPoly(
+                {
+                    sel.GetOrigin(),
+                    VECTOR2I( sel.GetRight(), sel.GetTop() ),
+                    sel.GetEnd(),
+                    VECTOR2I( sel.GetLeft(), sel.GetBottom() )
+                },
+                true );
 
-        return sel.Intersects( GetBoundingBox() );
+        return KIGEOM::ShapeHitTest( selPoly, getOutline(), aContained );
     }
 
     bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override
@@ -513,6 +520,7 @@ protected:
 
     wxString              m_lastNetName;
     wxString              m_tuningInfo;
+    long long             m_tuningLength;
 
     PNS::MEANDER_PLACER_BASE::TUNING_STATUS m_tuningStatus;
 

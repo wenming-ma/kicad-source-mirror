@@ -29,6 +29,7 @@
 #include <wx/wxcrtvararg.h>     //for wxPrintf
 
 #include <kiway.h>
+#include <libraries/library_manager.h>
 #include <string_utils.h>
 #include <paths.h>
 #include <settings/settings_manager.h>
@@ -36,6 +37,8 @@
 #include <systemdirsappend.h>
 #include <trace_helpers.h>
 
+#include <cctype>
+#include <set>
 #include <stdexcept>
 
 #include "pgm_kicad.h"
@@ -65,6 +68,7 @@
 #include "cli/command_pcb_export_pdf.h"
 #include "cli/command_pcb_export_pos.h"
 #include "cli/command_pcb_export_ps.h"
+#include "cli/command_pcb_export_stats.h"
 #include "cli/command_pcb_export_svg.h"
 #include "cli/command_sch_export_bom.h"
 #include "cli/command_sch_export_pythonbom.h"
@@ -92,6 +96,9 @@
 
 // a dummy to quiet linking with EDA_BASE_FRAME::config();
 #include <kiface_base.h>
+#include <thread_pool.h>
+
+
 KIFACE_BASE& Kiface()
 {
     // This function should never be called.  It is only referenced from
@@ -137,6 +144,7 @@ static CLI::PCB_EXPORT_SVG_COMMAND       exportPcbSvgCmd{};
 static CLI::PCB_EXPORT_PDF_COMMAND       exportPcbPdfCmd{};
 static CLI::PCB_EXPORT_POS_COMMAND       exportPcbPosCmd{};
 static CLI::PCB_EXPORT_PS_COMMAND        exportPcbPsCmd{};
+static CLI::PCB_EXPORT_STATS_COMMAND     exportPcbStatsCmd{};
 static CLI::PCB_EXPORT_GERBER_COMMAND    exportPcbGerberCmd{};
 static CLI::PCB_EXPORT_GERBERS_COMMAND   exportPcbGerbersCmd{};
 static CLI::PCB_EXPORT_HPGL_COMMAND      exportPcbHpglCmd{};
@@ -218,6 +226,7 @@ static std::vector<COMMAND_ENTRY> commandStack = {
                     &exportPcbPdfCmd,
                     &exportPcbPosCmd,
                     &exportPcbPsCmd,
+                    &exportPcbStatsCmd,
                     &exportPcbStepCmd,
                     &exportPcbSvgCmd,
                     &exportPcbVrmlCmd,
@@ -320,6 +329,74 @@ static void printHelp( argparse::ArgumentParser& argParser )
 }
 
 
+/**
+ * Check if a string looks like a numeric vector value that happens to start with a minus sign.
+ *
+ * This handles values like "-45,0,45" or "-3.5,0,1.2" which are valid vector arguments
+ * but get misinterpreted by argparse as unknown options because they start with '-'.
+ */
+static bool looksLikeNegativeVectorValue( const std::string& aValue )
+{
+    if( aValue.empty() || aValue[0] != '-' )
+        return false;
+
+    if( aValue.find( ',' ) == std::string::npos )
+        return false;
+
+    for( size_t i = 1; i < aValue.size(); ++i )
+    {
+        char c = aValue[i];
+
+        if( !std::isdigit( c ) && c != '.' && c != ',' && c != '-' && c != '+' )
+            return false;
+    }
+
+    return true;
+}
+
+
+/**
+ * Pre-process command line arguments to handle negative numeric values.
+ *
+ * The argparse library interprets values starting with '-' as option flags.
+ * For arguments that accept vector values (like --rotate, --pan, --pivot),
+ * we wrap negative values in single quotes to prevent argparse from treating
+ * them as options. The parsing code in command_pcb_render.cpp already strips
+ * these quotes via getToVector3().
+ *
+ * Example: "--rotate -45,0,45" becomes "--rotate='-45,0,45'"
+ */
+static std::vector<std::string> preprocessArgs( int argc, char** argv )
+{
+    std::vector<std::string> result;
+
+    static const std::set<std::string> vectorArgs = {
+        "--rotate", "--pan", "--pivot"
+    };
+
+    for( int i = 0; i < argc; ++i )
+    {
+        std::string current( argv[i] );
+
+        if( vectorArgs.count( current ) && i + 1 < argc )
+        {
+            std::string next( argv[i + 1] );
+
+            if( looksLikeNegativeVectorValue( next ) )
+            {
+                result.push_back( current + "='" + next + "'" );
+                ++i;
+                continue;
+            }
+        }
+
+        result.push_back( current );
+    }
+
+    return result;
+}
+
+
 bool PGM_KICAD::OnPgmInit()
 {
     PGM_BASE::BuildArgvUtf8();
@@ -343,6 +420,8 @@ bool PGM_KICAD::OnPgmInit()
     GetSettingsManager().SetKiway( &Kiway );
     m_bm.Init();
 
+    GetLibraryManager().LoadGlobalTables();
+
     return true;
 }
 
@@ -353,15 +432,13 @@ int PGM_KICAD::OnPgmRun()
                                         argparse::default_arguments::none );
 
     argParser.add_argument( "-v", ARG_VERSION )
-            .default_value( false )
             .help( UTF8STDSTR( _( "prints version information and exits" ) ) )
-            .implicit_value( true )
+            .flag()
             .nargs( 0 );
 
     argParser.add_argument( ARG_HELP_SHORT, ARG_HELP )
-            .default_value( false )
             .help( UTF8STDSTR( ARG_HELP_DESC ) )
-            .implicit_value( true )
+            .flag()
             .nargs( 0 );
 
     for( COMMAND_ENTRY& entry : commandStack )
@@ -374,7 +451,11 @@ int PGM_KICAD::OnPgmRun()
         // Use the C locale to parse arguments
         // Otherwise the decimal separator for the locale will be applied
         LOCALE_IO dummy;
-        argParser.parse_args( m_argcUtf8, m_argvUtf8 );
+
+        // Pre-process arguments to handle negative vector values (e.g., --rotate -45,0,45)
+        // which argparse would otherwise interpret as unknown options
+        std::vector<std::string> args = preprocessArgs( m_argcUtf8, m_argvUtf8 );
+        argParser.parse_args( args );
     }
     // std::runtime_error doesn't seem to be enough for the scan<>()
     catch( const std::exception& err )
@@ -473,6 +554,10 @@ int PGM_KICAD::OnPgmRun()
 
 void PGM_KICAD::OnPgmExit()
 {
+    // Abort and wait on any background jobs
+    GetKiCadThreadPool().purge();
+    GetKiCadThreadPool().wait();
+
     Kiway.OnKiwayEnd();
 
     if( m_settings_manager && m_settings_manager->IsOK() )

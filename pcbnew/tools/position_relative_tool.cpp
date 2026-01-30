@@ -26,7 +26,7 @@
 #include <board_commit.h>
 #include <collectors.h>
 #include <dialogs/dialog_position_relative.h>
-#include <dialogs/dialog_set_offset.h>
+#include <dialogs/dialog_offset_item.h>
 #include <footprint.h>
 #include <footprint_editor_settings.h>
 #include <gal/graphics_abstraction_layer.h>
@@ -149,7 +149,8 @@ int POSITION_RELATIVE_TOOL::PositionRelative( const TOOL_EVENT& aEvent )
     return 0;
 }
 
-int POSITION_RELATIVE_TOOL::PositionRelativeInteractively( const TOOL_EVENT& aEvent )
+
+int POSITION_RELATIVE_TOOL::InteractiveOffset( const TOOL_EVENT& aEvent )
 {
     if( m_inInteractivePosition )
         return false;
@@ -269,9 +270,18 @@ int POSITION_RELATIVE_TOOL::PositionRelativeInteractively( const TOOL_EVENT& aEv
         grid.SetSnap( !evt->Modifier( MD_SHIFT ) );
         grid.SetUseGrid( view.GetGAL()->GetGridSnapping() && !evt->DisableGridSnapping() );
         VECTOR2I cursorPos = evt->HasPosition() ? evt->Position() : controls.GetMousePosition();
-        cursorPos = grid.BestSnapAnchor( cursorPos, nullptr );
-        controls.ForceCursorPosition( true, cursorPos );
         setPopupPosition();
+
+        if( !evt->IsActivate() && !evt->IsCancelInteractive() )
+        {
+            // If we are switching, the canvas may not be valid any more
+            cursorPos = grid.BestSnapAnchor( cursorPos, nullptr );
+            controls.ForceCursorPosition( true, cursorPos );
+        }
+        else
+        {
+            grid.FullReset();
+        }
 
         if( evt->IsCancelInteractive() )
         {
@@ -313,21 +323,20 @@ int POSITION_RELATIVE_TOOL::PositionRelativeInteractively( const TOOL_EVENT& aEv
             statusPopup.Hide();
 
             // This is the forward vector from the ruler item
-            const VECTOR2I    origVector = twoPtMgr.GetEnd() - twoPtMgr.GetOrigin();
-            VECTOR2I          offsetVector = origVector;
+            VECTOR2I       offsetVector = twoPtMgr.GetEnd() - twoPtMgr.GetOrigin();
+            const VECTOR2I toReferencePtVector = twoPtMgr.GetOrigin() - twoPtMgr.GetEnd();
+
             // Start with the value of that vector in the dialog (will match the rule HUD)
-            DIALOG_SET_OFFSET dlg( *frame(), offsetVector, false );
+            DIALOG_OFFSET_ITEM dlg( *frame(), offsetVector );
 
-            int ret = dlg.ShowModal();
-
-            if( ret == wxID_OK )
+            if( dlg.ShowModal() == wxID_OK )
             {
-                const VECTOR2I move = origVector - offsetVector;
+                const VECTOR2I move = toReferencePtVector + offsetVector;
 
                 applyVector( move );
 
                 // Leave the arrow in place but update it
-                twoPtMgr.SetOrigin( twoPtMgr.GetOrigin() + move );
+                twoPtMgr.SetEnd( twoPtMgr.GetOrigin() + offsetVector );
                 view.Update( &ruler, KIGFX::GEOMETRY );
                 canvas()->Refresh();
             }
@@ -347,16 +356,13 @@ int POSITION_RELATIVE_TOOL::PositionRelativeInteractively( const TOOL_EVENT& aEv
             auto snap = LEADER_MODE::DIRECT;
 
             if( frame()->IsType( FRAME_PCB_EDITOR ) )
-            {
                 snap = GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" )->m_AngleSnapMode;
-            }
             else
-            {
                 snap = GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" )->m_AngleSnapMode;
-            }
 
             twoPtMgr.SetAngleSnap( snap );
-            twoPtMgr.SetEnd( cursorPos );
+            // The end is fixed; we must update the origin
+            twoPtMgr.SetOrigin( cursorPos );
 
             view.SetVisible( &ruler, true );
             view.Update( &ruler, KIGFX::GEOMETRY );
@@ -438,8 +444,6 @@ int POSITION_RELATIVE_TOOL::RelativeItemSelectionMove( const VECTOR2I& aPosAncho
 
 void POSITION_RELATIVE_TOOL::setTransitions()
 {
-    // clang-format off
-    Go( &POSITION_RELATIVE_TOOL::PositionRelative,              PCB_ACTIONS::positionRelative.MakeEvent() );
-    Go( &POSITION_RELATIVE_TOOL::PositionRelativeInteractively, PCB_ACTIONS::positionRelativeInteractively.MakeEvent() );
-    // clang-format on
+    Go( &POSITION_RELATIVE_TOOL::PositionRelative,  PCB_ACTIONS::positionRelative.MakeEvent() );
+    Go( &POSITION_RELATIVE_TOOL::InteractiveOffset, PCB_ACTIONS::interactiveOffsetTool.MakeEvent() );
 }

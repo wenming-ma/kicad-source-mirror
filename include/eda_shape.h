@@ -146,6 +146,7 @@ public:
 
     void SetHatchingDirty()                    { m_hatchingDirty = true; }
     const SHAPE_POLY_SET& GetHatching() const  { return m_hatching; }
+    const std::vector<SEG>& GetHatchLines() const { return m_hatchLines; }
 
     bool IsClosed() const;
 
@@ -320,13 +321,12 @@ public:
     const std::vector<VECTOR2I>& GetBezierPoints() const { return m_bezierPoints; }
 
     /**
-     * Duplicate the list of corners in a std::vector<VECTOR2I>.
+     * Duplicate the polygon outlines into a flat list of VECTOR2I points.
      *
-     * It must be used only to convert the SHAPE_POLY_SET internal corner buffer
-     * to a list of VECTOR2Is, and nothing else, because it duplicates the buffer,
-     * that is inefficient to know for instance the corner count.
+     * Outlines (and holes) are appended in order; primarily intended for legacy
+     * callers that expect explicit point buffers rather than SHAPE objects.
      */
-    void DupPolyPointsList( std::vector<VECTOR2I>& aBuffer ) const;
+    std::vector<VECTOR2I> GetPolyPoints() const;
 
     /**
      * @return the number of corners of the polygonal shape.
@@ -497,6 +497,7 @@ protected:
     COLOR4D                m_fillColor;
 
     mutable SHAPE_POLY_SET m_hatching;
+    mutable std::vector<SEG> m_hatchLines;
     mutable bool           m_hatchingDirty;
 
     long long int          m_rectangleHeight;

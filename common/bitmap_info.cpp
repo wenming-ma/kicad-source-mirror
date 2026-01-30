@@ -505,6 +505,7 @@ void BuildBitmapInfo( std::unordered_map<BITMAPS, std::vector<BITMAP_INFO>>& aBi
     aBitmapInfoCache[BITMAPS::fabrication].emplace_back( BITMAPS::fabrication, wxT( "fabrication_24.png" ), 24, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_bom].emplace_back( BITMAPS::file_bom, wxT( "file_bom_24.png" ), 24, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_cir].emplace_back( BITMAPS::file_cir, wxT( "file_cir_24.png" ), 24, wxT( "light" ) );
+    aBitmapInfoCache[BITMAPS::file_csv].emplace_back( BITMAPS::file_csv, wxT( "file_csv_24.png" ), 24, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_drl].emplace_back( BITMAPS::file_drl, wxT( "file_drl_24.png" ), 24, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_dsn].emplace_back( BITMAPS::file_dsn, wxT( "file_dsn_24.png" ), 24, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_gbr].emplace_back( BITMAPS::file_gbr, wxT( "file_gbr_24.png" ), 24, wxT( "light" ) );
@@ -946,6 +947,7 @@ void BuildBitmapInfo( std::unordered_map<BITMAPS, std::vector<BITMAP_INFO>>& aBi
     aBitmapInfoCache[BITMAPS::fabrication].emplace_back( BITMAPS::fabrication, wxT( "fabrication_dark_24.png" ), 24, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_bom].emplace_back( BITMAPS::file_bom, wxT( "file_bom_dark_24.png" ), 24, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_cir].emplace_back( BITMAPS::file_cir, wxT( "file_cir_dark_24.png" ), 24, wxT( "dark" ) );
+    aBitmapInfoCache[BITMAPS::file_csv].emplace_back( BITMAPS::file_csv, wxT( "file_csv_dark_24.png" ), 24, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_drl].emplace_back( BITMAPS::file_drl, wxT( "file_drl_dark_24.png" ), 24, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_dsn].emplace_back( BITMAPS::file_dsn, wxT( "file_dsn_dark_24.png" ), 24, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_gbr].emplace_back( BITMAPS::file_gbr, wxT( "file_gbr_dark_24.png" ), 24, wxT( "dark" ) );
@@ -1387,6 +1389,7 @@ void BuildBitmapInfo( std::unordered_map<BITMAPS, std::vector<BITMAP_INFO>>& aBi
     aBitmapInfoCache[BITMAPS::fabrication].emplace_back( BITMAPS::fabrication, wxT( "fabrication_16.png" ), 16, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_bom].emplace_back( BITMAPS::file_bom, wxT( "file_bom_16.png" ), 16, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_cir].emplace_back( BITMAPS::file_cir, wxT( "file_cir_16.png" ), 16, wxT( "light" ) );
+    aBitmapInfoCache[BITMAPS::file_csv].emplace_back( BITMAPS::file_csv, wxT( "file_csv_16.png" ), 16, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_drl].emplace_back( BITMAPS::file_drl, wxT( "file_drl_16.png" ), 16, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_dsn].emplace_back( BITMAPS::file_dsn, wxT( "file_dsn_16.png" ), 16, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_gbr].emplace_back( BITMAPS::file_gbr, wxT( "file_gbr_16.png" ), 16, wxT( "light" ) );
@@ -1828,6 +1831,7 @@ void BuildBitmapInfo( std::unordered_map<BITMAPS, std::vector<BITMAP_INFO>>& aBi
     aBitmapInfoCache[BITMAPS::fabrication].emplace_back( BITMAPS::fabrication, wxT( "fabrication_dark_16.png" ), 16, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_bom].emplace_back( BITMAPS::file_bom, wxT( "file_bom_dark_16.png" ), 16, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_cir].emplace_back( BITMAPS::file_cir, wxT( "file_cir_dark_16.png" ), 16, wxT( "dark" ) );
+    aBitmapInfoCache[BITMAPS::file_csv].emplace_back( BITMAPS::file_csv, wxT( "file_csv_dark_16.png" ), 16, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_drl].emplace_back( BITMAPS::file_drl, wxT( "file_drl_dark_16.png" ), 16, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_dsn].emplace_back( BITMAPS::file_dsn, wxT( "file_dsn_dark_16.png" ), 16, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_gbr].emplace_back( BITMAPS::file_gbr, wxT( "file_gbr_dark_16.png" ), 16, wxT( "dark" ) );
@@ -2269,6 +2273,7 @@ void BuildBitmapInfo( std::unordered_map<BITMAPS, std::vector<BITMAP_INFO>>& aBi
     aBitmapInfoCache[BITMAPS::fabrication].emplace_back( BITMAPS::fabrication, wxT( "fabrication_32.png" ), 32, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_bom].emplace_back( BITMAPS::file_bom, wxT( "file_bom_32.png" ), 32, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_cir].emplace_back( BITMAPS::file_cir, wxT( "file_cir_32.png" ), 32, wxT( "light" ) );
+    aBitmapInfoCache[BITMAPS::file_csv].emplace_back( BITMAPS::file_csv, wxT( "file_csv_32.png" ), 32, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_drl].emplace_back( BITMAPS::file_drl, wxT( "file_drl_32.png" ), 32, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_dsn].emplace_back( BITMAPS::file_dsn, wxT( "file_dsn_32.png" ), 32, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_gbr].emplace_back( BITMAPS::file_gbr, wxT( "file_gbr_32.png" ), 32, wxT( "light" ) );
@@ -2710,6 +2715,7 @@ void BuildBitmapInfo( std::unordered_map<BITMAPS, std::vector<BITMAP_INFO>>& aBi
     aBitmapInfoCache[BITMAPS::fabrication].emplace_back( BITMAPS::fabrication, wxT( "fabrication_dark_32.png" ), 32, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_bom].emplace_back( BITMAPS::file_bom, wxT( "file_bom_dark_32.png" ), 32, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_cir].emplace_back( BITMAPS::file_cir, wxT( "file_cir_dark_32.png" ), 32, wxT( "dark" ) );
+    aBitmapInfoCache[BITMAPS::file_csv].emplace_back( BITMAPS::file_csv, wxT( "file_csv_dark_32.png" ), 32, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_drl].emplace_back( BITMAPS::file_drl, wxT( "file_drl_dark_32.png" ), 32, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_dsn].emplace_back( BITMAPS::file_dsn, wxT( "file_dsn_dark_32.png" ), 32, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_gbr].emplace_back( BITMAPS::file_gbr, wxT( "file_gbr_dark_32.png" ), 32, wxT( "dark" ) );
@@ -3151,6 +3157,7 @@ void BuildBitmapInfo( std::unordered_map<BITMAPS, std::vector<BITMAP_INFO>>& aBi
     aBitmapInfoCache[BITMAPS::fabrication].emplace_back( BITMAPS::fabrication, wxT( "fabrication_48.png" ), 48, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_bom].emplace_back( BITMAPS::file_bom, wxT( "file_bom_48.png" ), 48, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_cir].emplace_back( BITMAPS::file_cir, wxT( "file_cir_48.png" ), 48, wxT( "light" ) );
+    aBitmapInfoCache[BITMAPS::file_csv].emplace_back( BITMAPS::file_csv, wxT( "file_csv_48.png" ), 48, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_drl].emplace_back( BITMAPS::file_drl, wxT( "file_drl_48.png" ), 48, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_dsn].emplace_back( BITMAPS::file_dsn, wxT( "file_dsn_48.png" ), 48, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_gbr].emplace_back( BITMAPS::file_gbr, wxT( "file_gbr_48.png" ), 48, wxT( "light" ) );
@@ -3592,6 +3599,7 @@ void BuildBitmapInfo( std::unordered_map<BITMAPS, std::vector<BITMAP_INFO>>& aBi
     aBitmapInfoCache[BITMAPS::fabrication].emplace_back( BITMAPS::fabrication, wxT( "fabrication_dark_48.png" ), 48, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_bom].emplace_back( BITMAPS::file_bom, wxT( "file_bom_dark_48.png" ), 48, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_cir].emplace_back( BITMAPS::file_cir, wxT( "file_cir_dark_48.png" ), 48, wxT( "dark" ) );
+    aBitmapInfoCache[BITMAPS::file_csv].emplace_back( BITMAPS::file_csv, wxT( "file_csv_dark_48.png" ), 48, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_drl].emplace_back( BITMAPS::file_drl, wxT( "file_drl_dark_48.png" ), 48, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_dsn].emplace_back( BITMAPS::file_dsn, wxT( "file_dsn_dark_48.png" ), 48, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_gbr].emplace_back( BITMAPS::file_gbr, wxT( "file_gbr_dark_48.png" ), 48, wxT( "dark" ) );
@@ -4033,6 +4041,7 @@ void BuildBitmapInfo( std::unordered_map<BITMAPS, std::vector<BITMAP_INFO>>& aBi
     aBitmapInfoCache[BITMAPS::fabrication].emplace_back( BITMAPS::fabrication, wxT( "fabrication_64.png" ), 64, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_bom].emplace_back( BITMAPS::file_bom, wxT( "file_bom_64.png" ), 64, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_cir].emplace_back( BITMAPS::file_cir, wxT( "file_cir_64.png" ), 64, wxT( "light" ) );
+    aBitmapInfoCache[BITMAPS::file_csv].emplace_back( BITMAPS::file_csv, wxT( "file_csv_64.png" ), 64, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_drl].emplace_back( BITMAPS::file_drl, wxT( "file_drl_64.png" ), 64, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_dsn].emplace_back( BITMAPS::file_dsn, wxT( "file_dsn_64.png" ), 64, wxT( "light" ) );
     aBitmapInfoCache[BITMAPS::file_gbr].emplace_back( BITMAPS::file_gbr, wxT( "file_gbr_64.png" ), 64, wxT( "light" ) );
@@ -4474,6 +4483,7 @@ void BuildBitmapInfo( std::unordered_map<BITMAPS, std::vector<BITMAP_INFO>>& aBi
     aBitmapInfoCache[BITMAPS::fabrication].emplace_back( BITMAPS::fabrication, wxT( "fabrication_dark_64.png" ), 64, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_bom].emplace_back( BITMAPS::file_bom, wxT( "file_bom_dark_64.png" ), 64, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_cir].emplace_back( BITMAPS::file_cir, wxT( "file_cir_dark_64.png" ), 64, wxT( "dark" ) );
+    aBitmapInfoCache[BITMAPS::file_csv].emplace_back( BITMAPS::file_csv, wxT( "file_csv_dark_64.png" ), 64, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_drl].emplace_back( BITMAPS::file_drl, wxT( "file_drl_dark_64.png" ), 64, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_dsn].emplace_back( BITMAPS::file_dsn, wxT( "file_dsn_dark_64.png" ), 64, wxT( "dark" ) );
     aBitmapInfoCache[BITMAPS::file_gbr].emplace_back( BITMAPS::file_gbr, wxT( "file_gbr_dark_64.png" ), 64, wxT( "dark" ) );

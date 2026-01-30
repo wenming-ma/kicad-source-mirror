@@ -36,7 +36,6 @@
 #include <tools/global_edit_tool.h>
 #include <dialogs/dialog_cleanup_graphics.h>
 #include <board_design_settings.h>
-#include <zone_manager/zone_manager_preference.h>
 
 
 GLOBAL_EDIT_TOOL::GLOBAL_EDIT_TOOL() :
@@ -245,12 +244,11 @@ int GLOBAL_EDIT_TOOL::ZonesManager( const TOOL_EVENT& aEvent )
     for( ZONE* zone : board->Zones() )
         commit.Modify( zone );
 
-    ZONE_SETTINGS       zoneInfo = board->GetDesignSettings().GetDefaultZoneSettings();
-    DIALOG_ZONE_MANAGER dlg( editFrame, &zoneInfo );
+    DIALOG_ZONE_MANAGER dlg( editFrame );
 
     int dialogResult = dlg.ShowQuasiModal();
 
-    if( dialogResult == wxID_OK && ZONE_MANAGER_PREFERENCE::GetRepourOnClose() )
+    if( dialogResult == wxID_OK && dlg.GetRepourOnClose() )
         dialogResult = ZONE_MANAGER_REPOUR;
 
     if( dialogResult == wxID_CANCEL )
@@ -263,27 +261,27 @@ int GLOBAL_EDIT_TOOL::ZonesManager( const TOOL_EVENT& aEvent )
 
     wxBusyCursor dummy;
 
-    // Undraw old zone outlines
+    // OnModify must be called first to clear the zone bounding box cache before
+    // we update the VIEW. Otherwise View->Update() will query stale cached values
+    // and the VIEW's R-Tree will be indexed with incorrect bounding boxes, causing
+    // single-click zone selection to fail.
+    editFrame->OnModify();
+
     for( ZONE* zone : board->Zones() )
         editFrame->GetCanvas()->GetView()->Update( zone );
-
-    zoneInfo.m_Netcode = NETINFO_LIST::ORPHANED;
-    board->GetDesignSettings().SetDefaultZoneSettings( zoneInfo );
-    commit.Push( _( "Modify zones properties with zone manager" ), SKIP_CONNECTIVITY );
-    editFrame->OnModify();
 
     //rebuildConnectivity
     board->BuildConnectivity();
 
-    if( TOOL_MANAGER* manger = GetManager() )
-        manger->PostEvent( EVENTS::ConnectivityChangedEvent );
+    if( TOOL_MANAGER* manager = GetManager() )
+        manager->PostEvent( EVENTS::ConnectivityChangedEvent );
 
     editFrame->GetCanvas()->RedrawRatsnest();
 
     if( dialogResult == ZONE_MANAGER_REPOUR )
     {
-        if( TOOL_MANAGER* manger = GetManager() )
-            manger->PostAction( PCB_ACTIONS::zoneFillAll );
+        if( TOOL_MANAGER* manager = GetManager() )
+            manager->PostAction( PCB_ACTIONS::zoneFillAll );
     }
 
     return 0;

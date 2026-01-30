@@ -32,7 +32,6 @@
 #include <sch_validators.h>
 #include <validators.h>
 #include <sch_edit_frame.h>
-#include <symbol_library.h>
 #include <schematic.h>
 #include <template_fieldnames.h>
 #include <widgets/grid_text_button_helpers.h>
@@ -661,7 +660,7 @@ wxGridCellAttr* FIELDS_GRID_TABLE::GetAttr( int aRow, int aCol, wxGridCellAttr::
             const TEMPLATE_FIELDNAME* templateFn =
                     settings ? settings->m_TemplateFieldNames.GetFieldName( fn ) : nullptr;
 
-            if( ( templateFn && templateFn->m_URL ) || field.IsHypertext() )
+            if( ( templateFn && templateFn->m_URL ) || field.HasHypertext() )
             {
                 m_urlAttr->IncRef();
                 attr = m_urlAttr;
@@ -886,11 +885,11 @@ void FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue )
     VECTOR2I   pos;
     wxString   value = aValue;
 
-    switch( aCol )
+    if( aCol != FDC_VALUE )
+        value.Trim( true ).Trim( false );
+
+    if( aCol == FDC_TEXT_SIZE || aCol == FDC_POSX || aCol == FDC_POSY )
     {
-    case FDC_TEXT_SIZE:
-    case FDC_POSX:
-    case FDC_POSY:
         m_eval->SetDefaultUnits( m_frame->GetUserUnits() );
 
         if( m_eval->Process( value ) )
@@ -898,11 +897,6 @@ void FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue )
             m_evalOriginal[ { aRow, aCol } ] = value;
             value = m_eval->Result();
         }
-
-        break;
-
-    default:
-        break;
     }
 
     switch( aCol )
@@ -912,7 +906,6 @@ void FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue )
         break;
 
     case FDC_VALUE:
-    {
         if( m_parentType == SCH_SHEET_T && field.GetId() == FIELD_T::SHEET_FILENAME )
         {
             value = EnsureFileExtension( value, FILEEXT::KiCadSchematicFileExtension );
@@ -924,7 +917,6 @@ void FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue )
 
         field.SetText( UnescapeString( value ) );
         break;
-    }
 
     case FDC_SHOWN:
         field.SetVisible( BoolFromString( value ) );
@@ -987,8 +979,7 @@ void FIELDS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue )
         break;
 
     case FDC_TEXT_SIZE:
-        field.SetTextSize( VECTOR2I( m_frame->ValueFromString( value ),
-                                     m_frame->ValueFromString( value ) ) );
+        field.SetTextSize( VECTOR2I( m_frame->ValueFromString( value ), m_frame->ValueFromString( value ) ) );
         break;
 
     case FDC_ORIENTATION:
@@ -1202,16 +1193,14 @@ void FIELDS_GRID_TRICKS::showPopupMenu( wxMenu& menu, wxGridEvent& aEvent )
         && m_grid->GetGridCursorCol() == FDC_VALUE
         && !m_grid->IsReadOnly( getFieldRow( FIELD_T::FOOTPRINT ), FDC_VALUE ) )
     {
-        menu.Append( MYID_SELECT_FOOTPRINT, _( "Select Footprint..." ),
-                     _( "Browse for footprint" ) );
+        menu.Append( MYID_SELECT_FOOTPRINT, _( "Select Footprint..." ), _( "Browse for footprint" ) );
         menu.AppendSeparator();
     }
     else if( m_grid->GetGridCursorRow() == getFieldRow( FIELD_T::DATASHEET )
            && m_grid->GetGridCursorCol() == FDC_VALUE
            && !m_grid->IsReadOnly( getFieldRow( FIELD_T::DATASHEET ), FDC_VALUE ) )
     {
-        menu.Append( MYID_SHOW_DATASHEET, _( "Show Datasheet" ),
-                     _( "Show datasheet in browser" ) );
+        menu.Append( MYID_SHOW_DATASHEET, _( "Show Datasheet" ), _( "Show datasheet in browser" ) );
         menu.AppendSeparator();
     }
 

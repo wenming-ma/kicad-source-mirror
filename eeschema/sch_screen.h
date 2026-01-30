@@ -54,6 +54,7 @@
 class BUS_ALIAS;
 class EDA_ITEM;
 class LIB_SYMBOL;
+class SCH_COMMIT;
 class SCH_PIN;
 class SCH_SYMBOL;
 class SCH_LINE;
@@ -259,6 +260,16 @@ public:
     void Plot( PLOTTER* aPlotter, const SCH_PLOT_OPTS& aPlotOpts ) const;
 
     /**
+     * Plot selected schematic objects to \a aPlotter.
+     *
+     * @param[in] aPlotter The plotter object to plot to.
+     * @param[in] aPlotOpts The plot options to use.
+     * @param[in] aItems The items to plot.
+     */
+    void Plot( PLOTTER* aPlotter, const SCH_PLOT_OPTS& aPlotOpts,
+               const std::vector<SCH_ITEM*>& aItems ) const;
+
+    /**
      * Remove \a aItem from the schematic associated with this screen.
      *
      * @note The removed item is not deleted.  It is only unlinked from the item list.
@@ -298,16 +309,13 @@ public:
                            std::function<void( SCH_ITEM* )>* aChangedHandler = nullptr ) const;
 
     /**
-     * Return all wires and junctions connected to \a aSegment which are not connected any
-     * symbol pin or all graphical lines connected to \a aSegement.
+     * Return all wires and junctions connected to \a aItem which are not connected any
+     * symbol pin or all graphical segments lines connected to \a aItem.
      *
-     * @note This only works for line segments.  It will need to be modified for connected arcs and/or
-     *       Bezier curves.
-     *
-     * @param aSegment The segment to test for connections.
-     * @return a set of all #SCH_ITEM objects connected to \a aSegment.
+     * @param aItem The item to test for connections.
+     * @return a set of all #SCH_ITEM objects connected to \a aItem.
      */
-    std::set<SCH_ITEM*> MarkConnections( SCH_LINE* aSegment, bool aSecondPass );
+    std::set<SCH_ITEM*> MarkConnections( SCH_ITEM* aItem, bool aSecondPass );
 
     /**
      * Clear the state flags of all the items in the screen.
@@ -621,7 +629,13 @@ public:
 
     std::set<wxString> GetVariantNames() const;
 
-    void DeleteVariant( const wxString& aVariantName );
+    void DeleteVariant( const wxString& aVariantName, SCH_COMMIT* aCommit = nullptr );
+
+    void RenameVariant( const wxString& aOldName, const wxString& aNewName,
+                        SCH_COMMIT* aCommit = nullptr );
+
+    void CopyVariant( const wxString& aSourceVariant, const wxString& aNewVariant,
+                      SCH_COMMIT* aCommit = nullptr );
 
 private:
     friend SCH_EDIT_FRAME;     // Only to populate m_symbolInstances.
@@ -651,6 +665,8 @@ private:
     size_t getLibSymbolNameMatches( const SCH_SYMBOL& aSymbol, std::vector<wxString>& aMatches );
 
 public:
+    bool IsZoomInitialized() const { return m_zoomInitialized; }
+
     /**
      * last value for the zoom level, useful in Eeschema when changing the current displayed
      * sheet to reuse the same zoom level when back to the sheet using this screen
@@ -860,7 +876,13 @@ public:
 
     std::set<wxString> GetVariantNames() const;
 
-    void DeleteVariant( const wxString& aVariantName );
+    void DeleteVariant( const wxString& aVariantName, SCH_COMMIT* aCommit = nullptr );
+
+    void RenameVariant( const wxString& aOldName, const wxString& aNewName,
+                        SCH_COMMIT* aCommit = nullptr );
+
+    void CopyVariant( const wxString& aSourceVariant, const wxString& aNewVariant,
+                      SCH_COMMIT* aCommit = nullptr );
 
 private:
     void addScreenToList( SCH_SCREEN* aScreen, SCH_SHEET* aSheet );

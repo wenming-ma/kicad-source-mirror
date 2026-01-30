@@ -11,6 +11,7 @@ include_directories(
     ./dialogs
     ./widgets
     ./dialog_about
+    ${CMAKE_SOURCE_DIR}/libs/sexpr/include
     ${CMAKE_SOURCE_DIR}/resources/bitmaps_png
     ${CMAKE_SOURCE_DIR}/3d-viewer
     ${CMAKE_SOURCE_DIR}/pcbnew
@@ -20,6 +21,9 @@ include_directories(
 
 # Get the GAL Target
 add_subdirectory( gal )
+
+# Get the netlist reader library
+add_subdirectory( netlist_reader )
 
 # Only for win32 cross compilation using MXE
 add_compile_definitions( $<$<AND:$<BOOL:${WIN32}>,$<BOOL:${MSYS}>>:GLEW_STATIC> )
@@ -106,6 +110,7 @@ set( KICOMMON_SRCS
     jobs/job_export_pcb_ipcd356.cpp
     jobs/job_export_pcb_odb.cpp
     jobs/job_export_pcb_pdf.cpp
+    jobs/job_export_pcb_stats.cpp
     jobs/job_export_pcb_plot.cpp
     jobs/job_export_pcb_pos.cpp
     jobs/job_export_pcb_ps.cpp
@@ -130,8 +135,15 @@ set( KICOMMON_SRCS
     jobs/job_pcb_upgrade.cpp
     jobs/job_sch_upgrade.cpp
 
+    local_history.cpp
+    history_lock.cpp
+
     kicad_curl/kicad_curl.cpp
     kicad_curl/kicad_curl_easy.cpp
+
+    libraries/library_manager.cpp
+    libraries/library_table.cpp
+    libraries/library_table_parser.cpp
 
     settings/app_settings.cpp
     settings/aui_settings.cpp
@@ -152,36 +164,49 @@ set( KICOMMON_SRCS
     project/project_archiver.cpp
     project/project_file.cpp
     project/project_local_settings.cpp
-    project/time_domain_parameters.cpp
+    project/tuning_profiles.cpp
 
     text_eval/text_eval_wrapper.cpp
     text_eval/text_eval_parser.cpp
+    text_eval/text_eval_vcs.cpp
 
     # This is basically a settings object, but for the toolbar
     tool/ui/toolbar_configuration.cpp
+    tool/ui/toolbar_context_menu_registry.cpp
 
-    dialogs/dialog_migrate_settings.cpp
-    dialogs/dialog_migrate_settings_base.cpp
     dialogs/dialog_rc_job.cpp
     dialogs/dialog_rc_job_base.cpp
+    dialogs/dialog_HTML_reporter_base.cpp
+    dialogs/panel_startwizard_libraries_base.cpp
+    dialogs/panel_startwizard_privacy_base.cpp
+    dialogs/panel_startwizard_settings_base.cpp
 
-    widgets/bitmap_button.cpp
+    grid_tricks.cpp
     widgets/aui_json_serializer.cpp
+    widgets/bitmap_button.cpp
+    widgets/grid_combobox.cpp
+    widgets/grid_icon_text_helpers.cpp
+    widgets/grid_text_button_helpers.cpp
+    widgets/grid_text_helpers.cpp
     widgets/html_window.cpp
+    widgets/indicator_icon.cpp
     widgets/kistatusbar.cpp
     widgets/number_badge.cpp
     widgets/progress_reporter_base.cpp
+    widgets/report_severity.cpp
     widgets/std_bitmap_button.cpp
     widgets/ui_common.cpp
+    widgets/up_down_tree.cpp
+    widgets/wx_grid.cpp
     widgets/wx_html_report_panel.cpp
     widgets/wx_html_report_panel_base.cpp
+    widgets/wx_html_report_box.cpp
 
     database/database_lib_settings.cpp
 
-    design_block_lib_table.cpp
+    design_block.cpp
     design_block_io.cpp
-    design_block_info.cpp
-    design_block_info_impl.cpp
+    design_block_library_adapter.cpp
 
     advanced_config.cpp
     app_monitor.cpp
@@ -201,8 +226,11 @@ set( KICOMMON_SRCS
     dpi_scaling.cpp
     dpi_scaling_common.cpp
     dsnlexer.cpp
+    eda_doc.cpp
     eda_pattern_match.cpp
     eda_units.cpp
+    embedded_files.cpp
+    env_paths.cpp
     env_vars.cpp
     exceptions.cpp
     gestfich.cpp
@@ -215,7 +243,6 @@ set( KICOMMON_SRCS
     kiway_express.cpp
     kiway_holder.cpp
     launch_ext.cpp
-    lib_table_base.cpp
     layer_id.cpp
     lib_id.cpp
     locale_io.cpp
@@ -229,6 +256,7 @@ set( KICOMMON_SRCS
     project.cpp
     reporter.cpp
     richio.cpp
+    scintilla_tricks.cpp
     search_stack.cpp
     searchhelpfilefullpath.cpp
     string_utils.cpp
@@ -239,6 +267,7 @@ set( KICOMMON_SRCS
     trace_helpers.cpp
     wildcards_and_files_ext.cpp
     wx_filename.cpp
+    xnode.cpp
 
     singleton.cpp
     pgm_base.cpp
@@ -251,6 +280,11 @@ set( KICOMMON_SRCS
 
     api/serializable.cpp
     api/api_utils.cpp
+
+    startwizard/startwizard.cpp
+    startwizard/startwizard_provider_libraries.cpp
+    startwizard/startwizard_provider_privacy.cpp
+    startwizard/startwizard_provider_settings.cpp
     )
 
 if( UNIX AND NOT APPLE )
@@ -304,6 +338,7 @@ target_link_libraries( kicommon
     CURL::libcurl
     picosha2
     rapidcsv
+    sexpr
     ${ZSTD_LIBRARY}
     ${wxWidgets_LIBRARIES}
     ${LIBGIT2_LIBRARIES}
@@ -421,15 +456,11 @@ set( COMMON_DLG_SRCS
     dialogs/dialog_design_block_properties_base.cpp
     dialogs/dialog_display_html_text_base.cpp
     dialogs/dialog_edit_library_tables.cpp
-    dialogs/dialog_global_lib_table_config.cpp
-    dialogs/dialog_global_lib_table_config_base.cpp
-    dialogs/dialog_global_design_block_lib_table_config.cpp
     dialogs/dialog_grid_settings.cpp
     dialogs/dialog_grid_settings_base.cpp
     dialogs/dialog_group_properties.cpp
     dialogs/dialog_group_properties_base.cpp
     dialogs/dialog_hotkey_list.cpp
-    dialogs/dialog_HTML_reporter_base.cpp
     dialogs/dialog_import_choose_project.cpp
     dialogs/dialog_import_choose_project_base.cpp
     dialogs/dialog_multi_unit_entry.cpp
@@ -461,7 +492,8 @@ set( COMMON_DLG_SRCS
     dialogs/panel_design_block_lib_table.cpp
     dialogs/panel_embedded_files.cpp
     dialogs/panel_embedded_files_base.cpp
-        dialogs/panel_base_display_options.cpp
+    dialogs/panel_base_display_options.cpp
+    dialogs/panel_base_display_options.cpp
     dialogs/panel_hotkeys_editor.cpp
     dialogs/panel_image_editor.cpp
     dialogs/panel_image_editor_base.cpp
@@ -489,12 +521,17 @@ set( COMMON_DLG_SRCS
     dialogs/panel_text_variables_base.cpp
     dialogs/panel_toolbar_customization.cpp
     dialogs/panel_toolbar_customization_base.cpp
+
+    dialogs/rule_editor_dialog_base.cpp
+
+    libraries/lib_table_grid_data_model.cpp
     )
 
 if( KICAD_USE_SENTRY )
     list( APPEND COMMON_DLG_SRCS
     dialogs/panel_data_collection.cpp
-    dialogs/panel_data_collection_base.cpp )
+    dialogs/panel_data_collection_base.cpp
+    )
 endif()
 
 set( COMMON_WIDGET_SRCS
@@ -514,11 +551,6 @@ set( COMMON_WIDGET_SRCS
     widgets/grid_button.cpp
     widgets/grid_checkbox.cpp
     widgets/grid_color_swatch_helpers.cpp
-    widgets/grid_combobox.cpp
-    widgets/grid_icon_text_helpers.cpp
-    widgets/grid_text_button_helpers.cpp
-    widgets/grid_text_helpers.cpp
-    widgets/indicator_icon.cpp
     widgets/wx_infobar.cpp
     widgets/layer_box_selector.cpp
     widgets/layer_presentation.cpp
@@ -535,6 +567,7 @@ set( COMMON_WIDGET_SRCS
     widgets/split_button.cpp
     widgets/stepped_slider.cpp
     widgets/text_ctrl_eval.cpp
+    widgets/margin_offset_binder.cpp
     widgets/unit_binder.cpp
     widgets/widget_save_restore.cpp
     widgets/widget_hotkey_list.cpp
@@ -545,8 +578,6 @@ set( COMMON_WIDGET_SRCS
     widgets/wx_combobox.cpp
     widgets/wx_dataviewctrl.cpp
     widgets/wx_ellipsized_static_text.cpp
-    widgets/wx_grid.cpp
-    widgets/wx_html_report_box.cpp
     widgets/wx_listbox.cpp
     widgets/wx_panel.cpp
     widgets/wx_progress_reporters.cpp
@@ -666,14 +697,11 @@ set( COMMON_SRCS
     gr_text.cpp
     eda_base_frame.cpp
     eda_dde.cpp
-    eda_doc.cpp
     eda_draw_frame.cpp
     eda_group.cpp
     eda_item.cpp
     eda_shape.cpp
     eda_text.cpp
-    embedded_files.cpp
-    env_paths.cpp
     executable_names.cpp
     filename_resolver.cpp
     file_history.cpp
@@ -682,24 +710,25 @@ set( COMMON_SRCS
     footprint_info.cpp
     gbr_metadata.cpp
     gr_basic.cpp
-    grid_tricks.cpp
     hotkey_store.cpp
     hotkeys_basic.cpp
     kiface_base.cpp
     kiway_player.cpp
     lib_table_grid_tricks.cpp
+    lib_table_notebook_panel.cpp
     lib_tree_model.cpp
     lib_tree_model_adapter.cpp
     design_block_tree_model_adapter.cpp
     marker_base.cpp
     origin_transforms.cpp
+    pin_numbers.cpp
     printout.cpp
     ptree.cpp
     rc_item.cpp
     refdes_utils.cpp
     reference_image.cpp
     render_settings.cpp
-    scintilla_tricks.cpp
+    remote_login_server.cpp
     status_popup.cpp
     stroke_params.cpp
     template_fieldnames.cpp
@@ -707,7 +736,6 @@ set( COMMON_SRCS
     undo_redo_container.cpp
     validators.cpp
     drawing_sheet/ds_painter.cpp
-    xnode.cpp
     view/wx_view_controls.cpp
     )
 
@@ -785,6 +813,7 @@ endif()
 
 add_library( common STATIC
     ${COMMON_SRCS}
+    $<TARGET_OBJECTS:netlist_reader_obj>
     )
 
 if( KICAD_USE_PCH )
@@ -864,7 +893,6 @@ target_include_directories( common SYSTEM PUBLIC
     )
 
 set( PCB_COMMON_SRCS
-    fp_lib_table.cpp
     hash_eda.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_base_frame.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcbexpr_evaluator.cpp
@@ -886,6 +914,7 @@ set( PCB_COMMON_SRCS
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_group.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_marker.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/footprint.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/footprint_library_adapter.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/fix_board_shape.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/layer_utils.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/netinfo_item.cpp
@@ -958,9 +987,11 @@ set( PCB_COMMON_SRCS
 
     ${CMAKE_SOURCE_DIR}/pcbnew/length_delay_calculation/length_delay_calculation.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/length_delay_calculation/length_delay_calculation_item.cpp
-    ${CMAKE_SOURCE_DIR}/pcbnew/length_delay_calculation/time_domain_parameters_user_defined.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/length_delay_calculation/tuning_profile_parameters_user_defined.cpp
 
     widgets/net_selector.cpp
+    widgets/netclass_selector.cpp
+    widgets/area_selector.cpp
 )
 
 set( PCB_COMMON_SRCS

@@ -230,6 +230,18 @@ option( KICAD_STDLIB_DEBUG
     "Build KiCad with libstdc++ debug flags enabled."
     OFF )
 
+# KICAD_STDLIB_DEBUG enables _GLIBCXX_DEBUG which changes the ABI of standard library
+# containers. System Boost libraries are typically built without this flag, causing
+# crashes in QA tests that link to Boost::unit_test_framework due to ABI mismatch.
+if( KICAD_STDLIB_DEBUG AND KICAD_BUILD_QA_TESTS )
+    message( WARNING
+        "KICAD_STDLIB_DEBUG is enabled with KICAD_BUILD_QA_TESTS.\n"
+        "_GLIBCXX_DEBUG changes the ABI of standard library containers, which causes "
+        "crashes when linking against system Boost libraries that were built without "
+        "this flag. QA tests will likely crash at runtime.\n"
+        "Either disable KICAD_STDLIB_DEBUG or set KICAD_BUILD_QA_TESTS=OFF." )
+endif()
+
 option( KICAD_STDLIB_LIGHT_DEBUG
     "Build KiCad with libstdc++ with -Wp,-D_GLIBCXX_ASSERTIONS flag enabled. Not as intrusive as KICAD_STDLIB_DEBUG"
     OFF )
@@ -300,6 +312,20 @@ set( CMAKE_POSITION_INDEPENDENT_CODE ON )
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Check if the current generator is multi-config (Ninja Multi-Config, Visual Studio, Xcode)
+get_property(IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+
+# Set KICMAKE_CFG_INTDIR to the appropriate configuration directory
+# This is meant to emulate CMAKE_CFG_INTDIR which is deprecated
+# but it's functionality to default to "." for single-config generators is important
+# and not available with $<CONFIG>
+if(IS_MULTI_CONFIG)
+    set(KICMAKE_CFG_INTDIR "$<CONFIG>")
+else()
+    # For single-config generators (Ninja, Makefiles), default to "." 
+    set(KICMAKE_CFG_INTDIR ".")
+endif()
 
 # Pass defines into KiCad code based on the build options set
 add_compile_definitions( $<$<BOOL:${KICAD_SCRIPTING_WXPYTHON}>:KICAD_SCRIPTING_WXPYTHON> )
@@ -999,6 +1025,8 @@ find_package( PythonLibs 3.6 REQUIRED )
 # USE_CROSSCOMPILING is needed to avoid pybind11 trying to run a non-native intrepreter
 # It also makes no sense it needs a second flag in addition to CMAKE_CROSSCOMPILING
 set( PYBIND11_USE_CROSSCOMPILING TRUE )
+# Disable the findpython integration that pybind has buried in it
+set( PYBIND11_NOPYTHON TRUE )
 add_subdirectory(thirdparty/pybind11)
 
 # Make sure that we get our pybind11 and not the system pybind11 (ours is patched to work with wx)

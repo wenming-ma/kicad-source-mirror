@@ -48,6 +48,7 @@ attr
 autoplace_cost90
 autoplace_cost180
 aux_axis_origin
+backdrill
 back
 barcode
 best_length_ratio
@@ -92,12 +93,15 @@ outline
 convexhull
 copper_line_width
 copper_text_dims
+counterbore
+countersink
 courtyard_line_width
 creepage
 data
 date
 defaults
 descr
+description
 die_delay
 die_length
 dielectric_constraints
@@ -134,6 +138,7 @@ face
 false
 feature1
 feature2
+field
 fill
 fill_segments
 filled_polygon
@@ -286,6 +291,9 @@ plus
 point
 polygon
 portrait
+post_machining
+front_post_machining
+back_post_machining
 precision
 prefix
 primitives
@@ -345,6 +353,7 @@ teardrop
 teardrops
 tedit
 tenting
+tertiary_drill
 covering
 plugging
 filling
@@ -392,6 +401,8 @@ uvia_min_size
 uvia_size
 uvias_allowed
 value
+variant
+variants
 version
 via
 vias
@@ -416,3 +427,4 @@ zone_layer_connections
 zone_type
 zone_defaults
 zones
+depth

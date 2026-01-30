@@ -26,6 +26,7 @@
 #include <geometry/shape_line_chain.h>
 #include <geometry/shape_circle.h>
 #include <math/box2.h>
+#include <optional>
 
 #include "pcb_track.h"
 
@@ -84,9 +85,14 @@ public:
         m_diameters[0] = 2; // Dummy value
         m_drill = 1;        // Dummy value
         m_viaType = VIATYPE::THROUGH;
-        m_unconnectedLayerMode = PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL;
+        m_unconnectedLayerMode = UNCONNECTED_LAYER_MODE::KEEP_ALL;
         m_isFree = false;
         m_isVirtual = false;
+        SetHoleLayers( PNS_LAYER_RANGE() );
+        m_secondaryHoleLayers.reset();
+        m_secondaryDrill.reset();
+        m_primaryPostMachining.reset();
+        m_secondaryPostMachining.reset();
         SetHole( HOLE::MakeCircularHole( m_pos, m_drill / 2, PNS_LAYER_RANGE() ) );
     }
 
@@ -102,9 +108,14 @@ public:
         m_diameters[0] = aDiameter;
         m_drill = aDrill;
         m_shapes[0] = SHAPE_CIRCLE( aPos, aDiameter / 2 );
+        SetHoleLayers( aLayers );
+        m_secondaryHoleLayers.reset();
+        m_secondaryDrill.reset();
+        m_primaryPostMachining.reset();
+        m_secondaryPostMachining.reset();
         SetHole( HOLE::MakeCircularHole( m_pos, aDrill / 2, PNS_LAYER_RANGE() ) );
         m_viaType = aViaType;
-        m_unconnectedLayerMode = PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL;
+        m_unconnectedLayerMode = UNCONNECTED_LAYER_MODE::KEEP_ALL;
         m_isFree = false;
         m_isVirtual = false;
     }
@@ -123,6 +134,11 @@ public:
             m_shapes[layer] = SHAPE_CIRCLE( m_pos, shape.GetRadius() );
 
         m_drill = aB.m_drill;
+        m_holeLayers = aB.m_holeLayers;
+        m_secondaryHoleLayers = aB.m_secondaryHoleLayers;
+        m_secondaryDrill = aB.m_secondaryDrill;
+        m_primaryPostMachining = aB.m_primaryPostMachining;
+        m_secondaryPostMachining = aB.m_secondaryPostMachining;
         SetHole( HOLE::MakeCircularHole( m_pos, m_drill / 2, PNS_LAYER_RANGE() ) );
         m_marker = aB.m_marker;
         m_rank = aB.m_rank;
@@ -154,6 +170,11 @@ public:
             m_shapes[layer] = SHAPE_CIRCLE( m_pos, shape.GetRadius() );
 
         m_drill = aB.m_drill;
+        m_holeLayers = aB.m_holeLayers;
+        m_secondaryHoleLayers = aB.m_secondaryHoleLayers;
+        m_secondaryDrill = aB.m_secondaryDrill;
+        m_primaryPostMachining = aB.m_primaryPostMachining;
+        m_secondaryPostMachining = aB.m_secondaryPostMachining;
         SetHole( HOLE::MakeCircularHole( m_pos, m_drill / 2, PNS_LAYER_RANGE() ) );
         m_marker = aB.m_marker;
         m_rank = aB.m_rank;
@@ -197,11 +218,8 @@ public:
     VIATYPE ViaType() const { return m_viaType; }
     void SetViaType( VIATYPE aViaType ) { m_viaType = aViaType; }
 
-    PADSTACK::UNCONNECTED_LAYER_MODE UnconnectedLayerMode() const { return m_unconnectedLayerMode; }
-    void SetUnconnectedLayerMode( PADSTACK::UNCONNECTED_LAYER_MODE aMode )
-    {
-        m_unconnectedLayerMode = aMode;
-    }
+    UNCONNECTED_LAYER_MODE UnconnectedLayerMode() const { return m_unconnectedLayerMode; }
+    void SetUnconnectedLayerMode( UNCONNECTED_LAYER_MODE aMode ) { m_unconnectedLayerMode = aMode; }
 
     bool ConnectsLayer( int aLayer ) const;
 
@@ -233,6 +251,43 @@ public:
 
         if( m_hole )
             m_hole->SetRadius( m_drill / 2 );
+    }
+
+    void SetHoleLayers( const PNS_LAYER_RANGE& aLayers );
+    const PNS_LAYER_RANGE& HoleLayers() const { return m_holeLayers; }
+
+    void SetHolePostMachining( const std::optional<PAD_DRILL_POST_MACHINING_MODE>& aPostMachining )
+    {
+        m_primaryPostMachining = aPostMachining;
+    }
+
+    std::optional<PAD_DRILL_POST_MACHINING_MODE> HolePostMachining() const { return m_primaryPostMachining; }
+
+    void SetSecondaryDrill( const std::optional<int>& aDrill )
+    {
+        m_secondaryDrill = aDrill;
+    }
+
+    std::optional<int> SecondaryDrill() const { return m_secondaryDrill; }
+
+    void SetSecondaryHoleLayers( const std::optional<PNS_LAYER_RANGE>& aLayers )
+    {
+        m_secondaryHoleLayers = aLayers;
+    }
+
+    std::optional<PNS_LAYER_RANGE> SecondaryHoleLayers() const
+    {
+        return m_secondaryHoleLayers;
+    }
+
+    void SetSecondaryHolePostMachining( const std::optional<PAD_DRILL_POST_MACHINING_MODE>& aPostMachining )
+    {
+        m_secondaryPostMachining = aPostMachining;
+    }
+
+    std::optional<PAD_DRILL_POST_MACHINING_MODE> SecondaryHolePostMachining() const
+    {
+        return m_secondaryPostMachining;
     }
 
     bool IsFree() const { return m_isFree; }
@@ -277,8 +332,7 @@ public:
         m_hole = aHole;
         m_hole->SetParentPadVia( this );
         m_hole->SetOwner( this );
-        m_hole->SetLayers( m_layers ); // fixme: backdrill vias can have hole layer set different
-                                       // than copper layer set
+        m_hole->SetLayers( m_holeLayers );
     }
 
     virtual bool HasHole() const override { return true; }
@@ -287,18 +341,25 @@ public:
     virtual const std::string Format() const override;
 
 private:
-    STACK_MODE   m_stackMode;
+    STACK_MODE                     m_stackMode;
 
     /// May contain 1..n diameters depending on m_stackMode
-    std::map<int, int> m_diameters;
-    std::map<int, SHAPE_CIRCLE> m_shapes;
+    std::map<int, int>             m_diameters;
+    std::map<int, SHAPE_CIRCLE>    m_shapes;
 
-    int          m_drill;
-    VECTOR2I     m_pos;
-    VIATYPE      m_viaType;
-    PADSTACK::UNCONNECTED_LAYER_MODE m_unconnectedLayerMode;
-    bool         m_isFree;
-    HOLE*        m_hole;
+    int                            m_drill;
+    VECTOR2I                       m_pos;
+    VIATYPE                        m_viaType;
+    UNCONNECTED_LAYER_MODE         m_unconnectedLayerMode;
+    bool                           m_isFree;
+    HOLE*                          m_hole;
+    PNS_LAYER_RANGE                m_holeLayers;
+
+    std::optional<PNS_LAYER_RANGE> m_secondaryHoleLayers;
+    std::optional<int>             m_secondaryDrill;
+
+    std::optional<PAD_DRILL_POST_MACHINING_MODE> m_primaryPostMachining;
+    std::optional<PAD_DRILL_POST_MACHINING_MODE> m_secondaryPostMachining;
 };
 
 

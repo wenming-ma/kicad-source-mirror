@@ -35,6 +35,8 @@
 #include <wx/string.h>
 #include <wx/treectrl.h>
 #include <wx/utils.h>
+#include <wx/filename.h>
+#include <wx/generic/treectlg.h>
 
 #include <core/typeinfo.h>
 #include <eda_base_frame.h>
@@ -57,6 +59,7 @@ class SCH_JUNCTION;
 class SCHEMATIC;
 class SCH_COMMIT;
 class SCH_DESIGN_BLOCK_PANE;
+class PANEL_REMOTE_SYMBOL;
 class DIALOG_BOOK_REPORTER;
 class DIALOG_ERC;
 class DIALOG_SYMBOL_FIELDS_TABLE;
@@ -65,6 +68,9 @@ class HIERARCHY_PANE;
 class API_HANDLER_SCH;
 class DIALOG_SCHEMATIC_SETUP;
 class PROGRESS_REPORTER;
+class wxSearchCtrl;
+class wxGenericTreeCtrl;
+class BITMAP_BUTTON;
 
 
 /// Schematic search type used by the socket link with Pcbnew
@@ -248,6 +254,10 @@ public:
      */
     void UpdateDesignBlockOptions();
 
+    void AddVariant();
+
+    void RemoveVariant();
+
     /**
      * Update the variant name control on the main toolbar.
      *
@@ -256,6 +266,17 @@ public:
      *
      */
     void UpdateVariantSelectionCtrl( const wxArrayString& aVariantNames );
+
+    void SetCurrentVariant( const wxString& aVariantName );
+
+    /**
+     * Show a dialog to create a new variant with name and description.
+     *
+     * @return true if a variant was created, false if cancelled or invalid input
+     */
+    bool ShowAddVariantDialog();
+
+    void onVariantSelected( wxCommandEvent& aEvent );
 
     /**
      * Test all of the connectable objects in the schematic for unused connection points.
@@ -368,7 +389,7 @@ public:
     void AnnotateSymbols( SCH_COMMIT* aCommit, ANNOTATE_SCOPE_T aAnnotateScope,
                           ANNOTATE_ORDER_T aSortOption, ANNOTATE_ALGO_T aAlgoOption,
                           bool aRecursive, int aStartNumber, bool aResetAnnotation,
-                          bool aRepairTimestamps, REPORTER& aReporter );
+                          bool aRegroupUnits, bool aRepairTimestamps, REPORTER& aReporter );
 
     /**
      * Check for annotation errors.
@@ -441,6 +462,7 @@ public:
 
     void NewProject();
     void LoadProject();
+    void ProjectChanged() override;
 
     /**
      * Save the currently-open schematic (including its hierarchy) and associated project.
@@ -712,9 +734,9 @@ public:
 
     bool SaveSelectionAsDesignBlock( const wxString& aLibraryName );
 
-    bool SaveSheetToDesignBlock( const LIB_ID& aLibId, SCH_SHEET_PATH& aSheetPath );
+    bool UpdateDesignBlockFromSheet( const LIB_ID& aLibId, SCH_SHEET_PATH& aSheetPath );
 
-    bool SaveSelectionToDesignBlock( const LIB_ID& aLibId );
+    bool UpdateDesignBlockFromSelection( const LIB_ID& aLibId );
 
     SCH_DESIGN_BLOCK_PANE* GetDesignBlockPane() const { return m_designBlocksPane; }
 
@@ -792,16 +814,6 @@ public:
     void ShowAllIntersheetRefs( bool aShow );
 
     /**
-     * This overloaded version checks if the auto save master file "#auto_saved_files#" exists
-     * and recovers all of the schematic files listed in it.
-     *
-     * @param aFileName is the project auto save master file name.
-     */
-    virtual void CheckForAutoSaveFile( const wxFileName& aFileName ) override;
-
-    virtual void DeleteAutoSaveFile( const wxFileName& aFileName ) override;
-
-    /**
      * Toggle the show/hide state of the left side schematic navigation panel
      */
     void ToggleSchematicHierarchy();
@@ -815,13 +827,16 @@ public:
 
     void ToggleLibraryTree() override;
 
+    void ToggleRemoteSymbolPanel();
+
+
     DIALOG_BOOK_REPORTER* GetSymbolDiffDialog();
 
     DIALOG_ERC* GetErcDialog();
 
     DIALOG_SYMBOL_FIELDS_TABLE* GetSymbolFieldsTableDialog();
 
-    wxTreeCtrl* GetNetNavigator() { return m_netNavigator; }
+    wxGenericTreeCtrl* GetNetNavigator();
 
     const SCH_ITEM* GetSelectedNetNavigatorItem() const;
 
@@ -874,11 +889,14 @@ public:
     const SCH_ITEM* SelectNextPrevNetNavigatorItem( bool aNext );
 
     void ToggleNetNavigator();
+    void FindNetInInspector( const wxString& aNetName );
 
     PLUGIN_ACTION_SCOPE PluginActionScope() const override
     {
         return PLUGIN_ACTION_SCOPE::SCHEMATIC;
     }
+
+    void ClearToolbarControl( int aId ) override;
 
     DECLARE_EVENT_TABLE()
 
@@ -990,7 +1008,14 @@ private:
 
     const wxString& getAutoSaveFileName() const;
 
-    wxTreeCtrl* createHighlightedNetNavigator();
+    wxWindow* createHighlightedNetNavigator();
+
+    void onNetNavigatorFilterChanged( wxCommandEvent& aEvent );
+    void onNetNavigatorKey( wxKeyEvent& aEvent );
+    void onNetNavigatorItemMenu( wxTreeEvent& aEvent );
+    void onNetNavigatorContextMenu( wxContextMenuEvent& aEvent );
+    void onNetNavigatorMenuCommand( wxCommandEvent& aEvent );
+    void showNetNavigatorMenu( const wxTreeItemId& aItem );
 
     void onNetNavigatorSelection( wxTreeEvent& aEvent );
 
@@ -1005,6 +1030,15 @@ private:
     // The schematic editor control class should be able to access some internal
     // functions of the editor frame.
     friend class SCH_EDITOR_CONTROL;
+
+    enum
+    {
+        ID_NET_NAVIGATOR_EXPAND_ALL = wxID_HIGHEST + 400,
+        ID_NET_NAVIGATOR_COLLAPSE_ALL,
+        ID_NET_NAVIGATOR_FIND_IN_INSPECTOR,
+        ID_NET_NAVIGATOR_SEARCH_WILDCARD,
+        ID_NET_NAVIGATOR_SEARCH_REGEX
+    };
 
     SCHEMATIC*                  m_schematic;          ///< The currently loaded schematic
     wxString                    m_highlightedConn;    ///< The highlighted net or bus or empty string.
@@ -1024,7 +1058,11 @@ private:
     DIALOG_SCHEMATIC_SETUP*     m_schematicSetupDialog;
 
 
-    wxTreeCtrl*                 m_netNavigator;
+    wxGenericTreeCtrl*          m_netNavigator;
+    wxSearchCtrl*               m_netNavigatorFilter;
+    BITMAP_BUTTON*              m_netNavigatorMenuButton;
+    wxString                    m_netNavigatorFilterValue;
+    wxString                    m_netNavigatorMenuNetName;
 
 	bool                        m_syncingPcbToSchSelection; // Recursion guard when synchronizing selection from PCB
     // Cross-probe flashing support
@@ -1039,6 +1077,7 @@ private:
 
     std::vector<LIB_ID>         m_designBlockHistoryList;
     SCH_DESIGN_BLOCK_PANE*      m_designBlocksPane;
+    PANEL_REMOTE_SYMBOL*        m_remoteSymbolPane;
 
     wxChoice*                   m_currentVariantCtrl;
 

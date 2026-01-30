@@ -486,6 +486,14 @@ BOOST_AUTO_TEST_CASE( Compare )
     BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
     m_part_no_data.SetExcludedFromBoard( false );
 
+    // Include in position files support tests.
+    testPart.SetExcludedFromPosFiles( true );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) > 0 );
+    testPart.SetExcludedFromPosFiles( false );
+    m_part_no_data.SetExcludedFromPosFiles( true );
+    BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
+    m_part_no_data.SetExcludedFromPosFiles( false );
+
     // Show pin names flag comparison tests.
     m_part_no_data.SetShowPinNames( false );
     BOOST_CHECK( m_part_no_data.Compare( testPart, SCH_ITEM::COMPARE_FLAGS::EQUALITY ) < 0 );
@@ -595,12 +603,12 @@ BOOST_AUTO_TEST_CASE( Inheritance )
     BOOST_CHECK( child->GetRootSymbol().get() == parent.get() );
     BOOST_CHECK( grandChild->GetRootSymbol().get() == parent.get() );
 
-    LIB_SYMBOL_SPTR parentRef = child->GetParent().lock();
+    std::shared_ptr<LIB_SYMBOL> parentRef = child->GetParent().lock();
     BOOST_CHECK( parentRef );
     BOOST_CHECK( parentRef == parent->SharedPtr() );
     BOOST_CHECK_EQUAL( parent->SharedPtr().use_count(), 3 );
 
-    LIB_SYMBOL_SPTR childRef = grandChild->GetParent().lock();
+    std::shared_ptr<LIB_SYMBOL> childRef = grandChild->GetParent().lock();
     BOOST_CHECK( childRef );
     BOOST_CHECK( childRef == child->SharedPtr() );
     BOOST_CHECK_EQUAL( child->SharedPtr().use_count(), 3 );

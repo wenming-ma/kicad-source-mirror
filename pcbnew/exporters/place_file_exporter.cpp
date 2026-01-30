@@ -111,6 +111,7 @@ std::string PLACE_FILE_EXPORTER::GenPositionData()
 {
     std::string buffer;
     char line[1024];        // A line to print intermediate data
+    wxString wxLine;        // wxString used for UTF-8 line
 
     // Minimal text lengths:
     m_fpCount = 0;
@@ -138,7 +139,7 @@ std::string PLACE_FILE_EXPORTER::GenPositionData()
                 continue;
         }
 
-        if( footprint->GetAttributes() & FP_EXCLUDE_FROM_POS_FILES )
+        if( footprint->GetExcludedFromPosFilesForVariant( m_variant ) )
             continue;
 
         if( m_onlySMD && !( footprint->GetAttributes() & FP_SMD ) )
@@ -147,10 +148,10 @@ std::string PLACE_FILE_EXPORTER::GenPositionData()
         if( m_excludeAllTH && footprint->HasThroughHolePads() )
             continue;
 
-        if( m_excludeDNP && ( footprint->GetAttributes() & FP_DNP ) )
+        if( m_excludeDNP && footprint->GetDNPForVariant( m_variant ) )
             continue;
 
-        if( m_excludeBOM && ( footprint->GetAttributes() & FP_EXCLUDE_FROM_BOM ) )
+        if( m_excludeBOM && footprint->GetExcludedFromBOMForVariant( m_variant ) )
             continue;
 
         m_fpCount++;
@@ -160,11 +161,12 @@ std::string PLACE_FILE_EXPORTER::GenPositionData()
         item.m_Reference = footprint->Reference().GetShownText( false );
         item.m_Value     = footprint->Value().GetShownText( false );
         item.m_Layer     = footprint->GetLayer();
-        list.push_back( item );
 
         lenRefText = std::max( lenRefText, (int) item.m_Reference.length() );
         lenValText = std::max( lenValText, (int) item.m_Value.length() );
         lenPkgText = std::max( lenPkgText, (int) item.m_Footprint->GetFPID().GetLibItemName().length() );
+
+        list.push_back( std::move( item ) );
     }
 
     if( list.size() > 1 )
@@ -179,7 +181,7 @@ std::string PLACE_FILE_EXPORTER::GenPositionData()
 
         // Set first line:;
         snprintf( line, sizeof(line), "Ref%cVal%cPackage%cPosX%cPosY%cRot%cSide\n",
-                 csv_sep, csv_sep, csv_sep, csv_sep, csv_sep, csv_sep );
+                  csv_sep, csv_sep, csv_sep, csv_sep, csv_sep, csv_sep );
 
         buffer += line;
 
@@ -195,28 +197,28 @@ std::string PLACE_FILE_EXPORTER::GenPositionData()
             if( layer == B_Cu && m_negateBottomX )
                 footprint_pos.x = - footprint_pos.x;
 
-            wxString tmp = wxT( "\"" ) + list[ii].m_Reference;
-            tmp << wxT( "\"" ) << csv_sep;
-            tmp << wxT( "\"" ) << list[ii].m_Value;
-            tmp << wxT( "\"" ) << csv_sep;
-            tmp << wxT( "\"" ) << list[ii].m_Footprint->GetFPID().GetLibItemName().wx_str();
-            tmp << wxT( "\"" ) << csv_sep;
+            wxLine = wxT( "\"" ) + list[ii].m_Reference;
+            wxLine << wxT( "\"" ) << csv_sep;
+            wxLine << wxT( "\"" ) << list[ii].m_Value;
+            wxLine << wxT( "\"" ) << csv_sep;
+            wxLine << wxT( "\"" ) << list[ii].m_Footprint->GetFPID().GetLibItemName().wx_str();
+            wxLine << wxT( "\"" ) << csv_sep;
 
-            tmp << wxString::Format( wxT( "%f%c%f%c%f" ),
-                                     footprint_pos.x * conv_unit,
-                                     csv_sep,
-                                     // Keep the Y axis oriented from bottom to top,
-                                     // ( change y coordinate sign )
-                                     -footprint_pos.y * conv_unit,
-                                     csv_sep,
-                                     list[ii].m_Footprint->GetOrientation().AsDegrees() );
-            tmp << csv_sep;
+            wxLine << wxString::Format( wxT( "%f%c%f%c%f" ),
+                                        footprint_pos.x * conv_unit,
+                                        csv_sep,
+                                        // Keep the Y axis oriented from bottom to top,
+                                        // ( change y coordinate sign )
+                                        -footprint_pos.y * conv_unit,
+                                        csv_sep,
+                                        list[ii].m_Footprint->GetOrientation().AsDegrees() );
+            wxLine << csv_sep;
 
-            tmp << ( (layer == F_Cu ) ? PLACE_FILE_EXPORTER::GetFrontSideName()
-                                      : PLACE_FILE_EXPORTER::GetBackSideName() );
-            tmp << '\n';
+            wxLine << ( (layer == F_Cu ) ? PLACE_FILE_EXPORTER::GetFrontSideName()
+                                         : PLACE_FILE_EXPORTER::GetBackSideName() );
+            wxLine << '\n';
 
-            buffer += TO_UTF8( tmp );
+            buffer += TO_UTF8( wxLine );
         }
     }
     else
@@ -235,9 +237,9 @@ std::string PLACE_FILE_EXPORTER::GenPositionData()
         buffer += "## Side : ";
 
         if( m_side == PCB_BACK_SIDE )
-            buffer += GetBackSideName().c_str();
+            buffer += GetBackSideName();
         else if( m_side == PCB_FRONT_SIDE )
-            buffer += GetFrontSideName().c_str();
+            buffer += GetFrontSideName();
         else if( m_side == PCB_BOTH_SIDES )
             buffer += "All";
         else
@@ -246,9 +248,9 @@ std::string PLACE_FILE_EXPORTER::GenPositionData()
         buffer += "\n";
 
         snprintf( line, sizeof(line), "%-*s  %-*s  %-*s  %9.9s  %9.9s  %8.8s  %s\n",
-                  int(lenRefText), "# Ref",
-                  int(lenValText), "Val",
-                  int(lenPkgText), "Package",
+                  lenRefText, "# Ref",
+                  lenValText, "Val",
+                  lenPkgText, "Package",
                   "PosX", "PosY", "Rot", "Side" );
         buffer += line;
 
@@ -270,17 +272,16 @@ std::string PLACE_FILE_EXPORTER::GenPositionData()
             ref.Replace( wxT( " " ), wxT( "_" ) );
             val.Replace( wxT( " " ), wxT( "_" ) );
             pkg.Replace( wxT( " " ), wxT( "_" ) );
-            snprintf( line, sizeof(line), "%-*s  %-*s  %-*s  %9.4f  %9.4f  %8.4f  %s\n",
-                      lenRefText, TO_UTF8( ref ),
-                      lenValText, TO_UTF8( val ),
-                      lenPkgText, TO_UTF8( pkg ),
-                      footprint_pos.x * conv_unit,
-                      // Keep the coordinates in the first quadrant,
-                      // (i.e. change y sign
-                      -footprint_pos.y * conv_unit,
-                      list[ii].m_Footprint->GetOrientation().AsDegrees(),
-                      (layer == F_Cu ) ? GetFrontSideName().c_str() : GetBackSideName().c_str() );
-            buffer += line;
+            wxLine.Printf( wxT( "%-*s  %-*s  %-*s  %9.4f  %9.4f  %8.4f  %s\n" ),
+                           lenRefText, std::move( ref ),
+                           lenValText, std::move( val ),
+                           lenPkgText, std::move( pkg ),
+                           footprint_pos.x * conv_unit,
+                           // Keep the coordinates in the first quadrant, (i.e. change y sign)
+                           -footprint_pos.y * conv_unit,
+                           list[ii].m_Footprint->GetOrientation().AsDegrees(),
+                           ( layer == F_Cu ) ? GetFrontSideName() : GetBackSideName() );
+            buffer += TO_UTF8( wxLine );
         }
 
         // Write EOF
@@ -400,7 +401,7 @@ std::string PLACE_FILE_EXPORTER::GenReportData()
             // TODO(JE) padstacks
             static const char* layer_name[4] = { "nocopper", "back", "front", "both" };
             buffer += fmt::format( "Shape {} Layer {}\n",
-                      TO_UTF8( pad->ShowPadShape( PADSTACK::ALL_LAYERS ) ),
+                      TO_UTF8( pad->ShowLegacyPadShape( PADSTACK::ALL_LAYERS ) ),
                       layer_name[layer] );
 
             VECTOR2I padPos = pad->GetFPRelativePosition();

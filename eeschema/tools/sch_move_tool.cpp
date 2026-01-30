@@ -30,8 +30,11 @@
 #include <gal/graphics_abstraction_layer.h>
 #include <tool/tool_manager.h>
 #include <tools/ee_grid_helper.h>
+#include <tools/sch_drag_net_collision.h>
 #include <tools/sch_selection_tool.h>
 #include <tools/sch_line_wire_bus_tool.h>
+#include <tools/sch_move_tool.h>
+
 #include <sch_actions.h>
 #include <sch_commit.h>
 #include <eda_item.h>
@@ -52,8 +55,8 @@
 #include <math/box2.h>
 #include <base_units.h>
 #include <sch_screen.h>
-#include "sch_move_tool.h"
-#include "sch_drag_net_collision.h"
+#include <sch_item_alignment.h>
+#include <trace_helpers.h>
 
 
 // For adding to or removing from selections
@@ -106,7 +109,7 @@ SCH_MOVE_TOOL::SCH_MOVE_TOOL() :
         SCH_TOOL_BASE<SCH_EDIT_FRAME>( "eeschema.InteractiveMove" ),
         m_inMoveTool( false ),
         m_moveInProgress( false ),
-        m_isDrag( false ),
+        m_mode( MOVE ),
         m_moveOffset( 0, 0 )
 {
 }
@@ -137,6 +140,40 @@ bool SCH_MOVE_TOOL::Init()
     selToolMenu.AddItem( SCH_ACTIONS::alignToGrid, moveCondition, 150 );
 
     return true;
+}
+
+
+void SCH_MOVE_TOOL::Reset( RESET_REASON aReason )
+{
+    SCH_TOOL_BASE::Reset( aReason );
+
+    if( aReason == MODEL_RELOAD || aReason == SUPERMODEL_RELOAD )
+    {
+        // If we were in the middle of a move/drag operation and the model changes (e.g., sheet
+        // switch), we need to clean up our state to avoid blocking future move/drag operations
+        if( m_moveInProgress )
+        {
+            // Clear the move state
+            m_moveInProgress = false;
+            m_mode = MOVE;
+            m_moveOffset = VECTOR2I( 0, 0 );
+            m_anchorPos.reset();
+            m_breakPos.reset();
+
+            // Clear cached data that references items from the previous sheet
+            m_dragAdditions.clear();
+            m_lineConnectionCache.clear();
+            m_newDragLines.clear();
+            m_changedDragLines.clear();
+            m_specialCaseLabels.clear();
+            m_specialCaseSheetPins.clear();
+            m_hiddenJunctions.clear();
+
+            // Clear any preview
+            if( m_view )
+                m_view->ClearPreview();
+        }
+    }
 }
 
 
@@ -300,13 +337,12 @@ void SCH_MOVE_TOOL::orthoLineDrag( SCH_COMMIT* aCommit, SCH_LINE* line, const VE
 
                 // Update our cache of the connected items.
 
-                // First, re-attach our drag labels to the original line being re-merged.
-                for( EDA_ITEM* candidate : m_lineConnectionCache[bendLine] )
+                // Re-attach drag labels from lines being deleted to the surviving line.
+                // This prevents dangling pointers when bendLine/foundLine are deleted below.
+                for( auto& [label, info] : m_specialCaseLabels )
                 {
-                    SCH_LABEL_BASE* label = dynamic_cast<SCH_LABEL_BASE*>( candidate );
-
-                    if( label && m_specialCaseLabels.count( label ) )
-                        m_specialCaseLabels[label].attachedLine = line;
+                    if( info.attachedLine == bendLine || info.attachedLine == foundLine )
+                        info.attachedLine = line;
                 }
 
                 m_lineConnectionCache[line] = m_lineConnectionCache[bendLine];
@@ -425,19 +461,21 @@ void SCH_MOVE_TOOL::orthoLineDrag( SCH_COMMIT* aCommit, SCH_LINE* line, const VE
 
 int SCH_MOVE_TOOL::Main( const TOOL_EVENT& aEvent )
 {
-    m_isDrag = aEvent.IsAction( &SCH_ACTIONS::drag );
+    if( aEvent.IsAction( &SCH_ACTIONS::drag ) )
+        m_mode = DRAG;
+    else if( aEvent.IsAction( &SCH_ACTIONS::breakWire ) )
+        m_mode = BREAK;
+    else if( aEvent.IsAction( &SCH_ACTIONS::slice ) )
+        m_mode = SLICE;
+    else
+        m_mode = MOVE;
 
     if( SCH_COMMIT* commit = dynamic_cast<SCH_COMMIT*>( aEvent.Commit() ) )
     {
-        bool isSlice = false;
-
-        if( m_isDrag )
-            isSlice = aEvent.Parameter<bool>();
-
         wxCHECK( aEvent.SynchronousState(), 0 );
         aEvent.SynchronousState()->store( STS_RUNNING );
 
-        if( doMoveSelection( aEvent, commit, isSlice ) )
+        if( doMoveSelection( aEvent, commit ) )
             aEvent.SynchronousState()->store( STS_FINISHED );
         else
             aEvent.SynchronousState()->store( STS_CANCELLED );
@@ -446,92 +484,137 @@ int SCH_MOVE_TOOL::Main( const TOOL_EVENT& aEvent )
     {
         SCH_COMMIT localCommit( m_toolMgr );
 
-        if( doMoveSelection( aEvent, &localCommit, false ) )
-            localCommit.Push( m_isDrag ? _( "Drag" ) : _( "Move" ) );
+        if( doMoveSelection( aEvent, &localCommit ) )
+        {
+            switch( m_mode )
+            {
+            case MOVE:  localCommit.Push( _( "Move" ) );       break;
+            case DRAG:  localCommit.Push( _( "Drag" ) );       break;
+            case BREAK: localCommit.Push( _( "Break Wire" ) ); break;
+            case SLICE: localCommit.Push( _( "Slice Wire" ) ); break;
+            }
+        }
         else
+        {
             localCommit.Revert();
+        }
     }
 
     return 0;
 }
 
 
-bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aCommit, bool aIsSlice )
+void SCH_MOVE_TOOL::preprocessBreakOrSliceSelection( SCH_COMMIT* aCommit, const TOOL_EVENT& aEvent )
+{
+    if( m_mode != BREAK && m_mode != SLICE )
+        return;
+
+    if( !aCommit )
+        return;
+
+    SCH_LINE_WIRE_BUS_TOOL* lwbTool = m_toolMgr->GetTool<SCH_LINE_WIRE_BUS_TOOL>();
+
+    if( !lwbTool )
+        return;
+
+    SCH_SELECTION& selection = m_selectionTool->GetSelection();
+
+    if( selection.Empty() )
+        return;
+
+    std::vector<SCH_LINE*> lines;
+
+    for( EDA_ITEM* item : selection )
+    {
+        if( item->Type() == SCH_LINE_T )
+        {
+            // This function gets called every time segments are broken, which can also be for subsequent
+            // breaks in a loop without leaving the current move tool.
+            // Skip already placed segments (segment keeps IS_BROKEN but will have IS_NEW cleared below)
+            // so that only the actively placed tail segment gets split again.
+            if( item->HasFlag( IS_BROKEN ) && !item->HasFlag( IS_NEW ) )
+                continue;
+
+            lines.push_back( static_cast<SCH_LINE*>( item ) );
+        }
+    }
+
+    if( lines.empty() )
+        return;
+
+    KIGFX::VIEW_CONTROLS* controls = getViewControls();
+    SCH_SCREEN*           screen = m_frame->GetScreen();
+    VECTOR2I              cursorPos = controls->GetCursorPosition( !aEvent.DisableGridSnapping() );
+
+    bool useCursorForSingleLine = false;
+
+    if( lines.size() == 1 )
+        useCursorForSingleLine = true;
+
+    m_selectionTool->ClearSelection();
+    m_breakPos.reset();
+
+    for( SCH_LINE* line : lines )
+    {
+        VECTOR2I  breakPos = useCursorForSingleLine ? cursorPos : line->GetMidPoint();
+
+        if( m_mode == BREAK && !m_breakPos )
+            m_breakPos = breakPos;
+
+        SCH_LINE* newLine = nullptr;
+
+        lwbTool->BreakSegment( aCommit, line, breakPos, &newLine, screen );
+
+        if( !newLine )
+            continue;
+
+        // If this is a second+ round break, we need to get rid of the IS_NEW flag since the new segment
+        // is now an existing segment we are breaking from, this will be checked for in the line selection
+        // gathering above
+        line->ClearFlags( STARTPOINT | IS_NEW );
+        line->SetFlags( ENDPOINT );
+        m_selectionTool->AddItemToSel( line );
+
+        newLine->ClearFlags( ENDPOINT | STARTPOINT );
+
+        if( m_mode == BREAK )
+        {
+            m_selectionTool->AddItemToSel( newLine );
+            newLine->SetFlags( STARTPOINT );
+        }
+    }
+}
+
+
+bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aCommit )
 {
     KIGFX::VIEW_CONTROLS* controls = getViewControls();
     EE_GRID_HELPER        grid( m_toolMgr );
-    bool                  wasDragging = m_moveInProgress && m_isDrag;
-    bool                  isLineModeConstrained = false;
-
-    if( EESCHEMA_SETTINGS* cfg = GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" ) )
-        isLineModeConstrained = cfg->m_Drawing.line_mode != LINE_MODE::LINE_MODE_FREE;
+    bool                  currentModeIsDragLike = ( m_mode != MOVE );
+    bool                  wasDragging = m_moveInProgress && currentModeIsDragLike;
+    bool                  didAtLeastOneBreak = false;
 
     m_anchorPos.reset();
 
-    if( m_moveInProgress )
-    {
-        if( m_isDrag != wasDragging )
-        {
-            EDA_ITEM* sel = m_selectionTool->GetSelection().Front();
-
-            if( sel && !sel->IsNew() )
-            {
-                // Reset the selected items so we can start again with the current m_isDrag
-                // state.
-                aCommit->Revert();
-
-                m_selectionTool->RemoveItemsFromSel( &m_dragAdditions, QUIET_MODE );
-                m_anchorPos = m_cursor - m_moveOffset;
-                m_moveInProgress = false;
-                controls->SetAutoPan( false );
-
-                // And give it a kick so it doesn't have to wait for the first mouse movement
-                // to refresh.
-                m_toolMgr->PostAction( SCH_ACTIONS::restartMove );
-            }
-        }
-        else
-        {
-            // The tool hotkey is interpreted as a click when already dragging/moving
-            m_toolMgr->PostAction( ACTIONS::cursorClick );
-        }
-
+    // Check if already in progress and handle state transitions
+    if( checkMoveInProgress( aEvent, aCommit, currentModeIsDragLike, wasDragging ) )
         return false;
-    }
 
     if( m_inMoveTool )      // Must come after m_moveInProgress checks above...
         return false;
 
     REENTRANCY_GUARD guard( &m_inMoveTool );
 
-    SCH_SELECTION& userSelection = m_selectionTool->GetSelection();
+    preprocessBreakOrSliceSelection( aCommit, aEvent );
 
-    // If a single pin is selected, promote the move selection to its parent symbol
-    if( userSelection.GetSize() == 1 )
-    {
-        EDA_ITEM* selItem = userSelection.Front();
-
-        if( selItem->Type() == SCH_PIN_T )
-        {
-            EDA_ITEM* parent = selItem->GetParent();
-
-            if( parent->Type() == SCH_SYMBOL_T )
-            {
-                m_selectionTool->ClearSelection();
-                m_selectionTool->AddItemToSel( parent );
-            }
-        }
-    }
-
-    // Be sure that there is at least one item that we can move. If there's no selection try
-    // looking for the stuff under mouse cursor (i.e. Kicad old-style hover selection).
-    SCH_SELECTION& selection = m_selectionTool->RequestSelection( SCH_COLLECTOR::MovableItems,
-                                                                  true );
-    bool           unselect = selection.IsHover();
+    // Prepare selection (promote pins to symbols, request selection)
+    bool           unselect = false;
+    SCH_SELECTION& selection = prepareSelection( unselect );
 
     // Keep an original copy of the starting points for cleanup after the move
     std::vector<DANGLING_END_ITEM> internalPoints;
 
+    // Track selection characteristics
     bool selectionHasSheetPins = false;
     bool selectionHasGraphicItems = false;
     bool selectionHasNonGraphicItems = false;
@@ -539,31 +622,17 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
 
     std::unique_ptr<SCH_DRAG_NET_COLLISION_MONITOR> netCollisionMonitor;
 
-    auto refreshSelectionTraits = [&]()
-    {
-        selectionHasSheetPins = false;
-        selectionHasGraphicItems = false;
-        selectionHasNonGraphicItems = false;
+    auto refreshTraits =
+            [&]()
+            {
+                refreshSelectionTraits( selection, selectionHasSheetPins, selectionHasGraphicItems,
+                                        selectionHasNonGraphicItems, selectionIsGraphicsOnly );
+            };
 
-        for( EDA_ITEM* edaItem : selection )
-        {
-            SCH_ITEM* schItem = static_cast<SCH_ITEM*>( edaItem );
-
-            if( schItem->Type() == SCH_SHEET_PIN_T )
-                selectionHasSheetPins = true;
-
-            if( isGraphicItemForDrop( schItem ) )
-                selectionHasGraphicItems = true;
-            else if( schItem->Type() != SCH_SHEET_T )
-                selectionHasNonGraphicItems = true;
-        }
-
-        selectionIsGraphicsOnly = selectionHasGraphicItems && !selectionHasNonGraphicItems;
-    };
-
-    refreshSelectionTraits();
+    refreshTraits();
 
     if( !selection.Empty() )
+
     {
         netCollisionMonitor = std::make_unique<SCH_DRAG_NET_COLLISION_MONITOR>( m_frame, m_view );
         netCollisionMonitor->Initialize( selection );
@@ -589,15 +658,26 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
     bool        restore_state = false;
     TOOL_EVENT  copy = aEvent;
     TOOL_EVENT* evt = &copy;
-    VECTOR2I    prevPos;
+    VECTOR2I    prevPos = controls->GetCursorPosition();
     GRID_HELPER_GRIDS snapLayer = GRID_CURRENT;
     SCH_SHEET*  hoverSheet = nullptr;
     KICURSOR    currentCursor = KICURSOR::MOVING;
     m_cursor = controls->GetCursorPosition();
 
+    // Axis locking for arrow key movement
+    enum class AXIS_LOCK { NONE, HORIZONTAL, VERTICAL };
+    AXIS_LOCK axisLock = AXIS_LOCK::NONE;
+    long      lastArrowKeyAction = 0;
+
     // Main loop: keep receiving events
     do
     {
+        wxLogTrace( traceSchMove, "doMoveSelection: event loop iteration, evt=%s, action=%s",
+                    evt->Category() == TC_MOUSE ? "MOUSE" :
+                    evt->Category() == TC_KEYBOARD ? "KEYBOARD" :
+                    evt->Category() == TC_COMMAND ? "COMMAND" : "OTHER",
+                    evt->Format().c_str() );
+
         m_frame->GetCanvas()->SetCurrentCursor( currentCursor );
         grid.SetSnap( !evt->Modifier( MD_SHIFT ) );
         grid.SetUseGrid( getView()->GetGAL()->GetGridSnapping() && !evt->DisableGridSnapping() );
@@ -612,255 +692,13 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
                 || evt->IsDrag( BUT_LEFT )
                 || evt->IsAction( &ACTIONS::refreshPreview ) )
         {
-            refreshSelectionTraits();
+            refreshTraits();
 
             if( !m_moveInProgress )    // Prepare to start moving/dragging
             {
-                SCH_ITEM* sch_item = (SCH_ITEM*) selection.Front();
-                bool      placingNewItems = sch_item && sch_item->IsNew();
-
-                //------------------------------------------------------------------------
-                // Setup a drag or a move
-                //
-                m_dragAdditions.clear();
-                m_specialCaseLabels.clear();
-                m_specialCaseSheetPins.clear();
-                internalPoints.clear();
-                clearNewDragLines();
-
-                for( SCH_ITEM* it : m_frame->GetScreen()->Items() )
-                {
-                    it->ClearFlags( SELECTED_BY_DRAG );
-
-                    if( !it->IsSelected() )
-                        it->ClearFlags( STARTPOINT | ENDPOINT );
-                }
-
-                // Drag of split items start over top of their other segment so
-                // we want to skip grabbing the segments we split from
-                if( m_isDrag && !aIsSlice )
-                {
-                    EDA_ITEMS connectedDragItems;
-
-                    // Add connections to the selection for a drag.
-                    // Do all non-labels/entries first so we don't add junctions to drag
-                    // when the line will eventually be drag selected.
-                    std::vector<SCH_ITEM*> stageTwo;
-
-                    for( EDA_ITEM* edaItem : selection )
-                    {
-                        SCH_ITEM* item = static_cast<SCH_ITEM*>( edaItem );
-                        std::vector<VECTOR2I> connections;
-
-                        switch( item->Type() )
-                        {
-                        case SCH_LABEL_T:
-                        case SCH_HIER_LABEL_T:
-                        case SCH_GLOBAL_LABEL_T:
-                        case SCH_DIRECTIVE_LABEL_T:
-                            stageTwo.emplace_back(item);
-                            break;
-
-                        case SCH_LINE_T:
-                            static_cast<SCH_LINE*>( item )->GetSelectedPoints( connections );
-                            break;
-                        default:
-                            connections = item->GetConnectionPoints();
-                        }
-
-                        for( const VECTOR2I& point : connections )
-                            getConnectedDragItems( aCommit, item, point, connectedDragItems );
-                    }
-
-                    // Go back and get all label connections now that we can test for drag-selected
-                    // lines the labels might be on
-                    for( SCH_ITEM* item : stageTwo )
-                    {
-                        for( const VECTOR2I& point : item->GetConnectionPoints() )
-                            getConnectedDragItems( aCommit, item, point, connectedDragItems );
-                    }
-
-                    for( EDA_ITEM* item : connectedDragItems )
-                    {
-                        m_dragAdditions.push_back( item->m_Uuid );
-                        m_selectionTool->AddItemToSel( item, QUIET_MODE );
-                    }
-
-                    // Pre-cache all connections of our selected objects so we can keep track of
-                    // what they were originally connected to as we drag them around
-                    for( EDA_ITEM* edaItem : selection )
-                    {
-                        SCH_ITEM* schItem = static_cast<SCH_ITEM*>( edaItem );
-
-                        if( schItem->Type() == SCH_LINE_T )
-                        {
-                            SCH_LINE* line = static_cast<SCH_LINE*>( schItem );
-
-                            //Also store the original angle of the line, is needed later to decide
-                            //which segment to extend when they've become zero length
-                            line->StoreAngle();
-
-                            for( const VECTOR2I& point : line->GetConnectionPoints() )
-                                getConnectedItems( line, point, m_lineConnectionCache[line] );
-                        }
-                    }
-                }
-                else
-                {
-                    // Mark the edges of the block with dangling flags for a move.
-                    for( EDA_ITEM* item : selection )
-                        static_cast<SCH_ITEM*>( item )->GetEndPoints( internalPoints );
-
-                    std::vector<DANGLING_END_ITEM> endPointsByType = internalPoints;
-                    std::vector<DANGLING_END_ITEM> endPointsByPos = endPointsByType;
-                    DANGLING_END_ITEM_HELPER::sort_dangling_end_items( endPointsByType, endPointsByPos );
-
-                    for( EDA_ITEM* item : selection )
-                        static_cast<SCH_ITEM*>( item )->UpdateDanglingState( endPointsByType, endPointsByPos );
-                }
-
-                // Hide junctions connected to line endpoints that are not selected
-                m_hiddenJunctions.clear();
-
-                for( EDA_ITEM* edaItem : selection )
-                {
-                    if( edaItem->Type() != SCH_LINE_T )
-                        continue;
-
-                    SCH_LINE* line = static_cast<SCH_LINE*>( edaItem );
-
-                    for( const VECTOR2I& pt : line->GetConnectionPoints() )
-                    {
-                        SCH_JUNCTION* jct = static_cast<SCH_JUNCTION*>( m_frame->GetScreen()->GetItem( pt, 0, SCH_JUNCTION_T ) );
-
-                        if( jct && !jct->IsSelected()
-                            && std::find( m_hiddenJunctions.begin(), m_hiddenJunctions.end(), jct ) == m_hiddenJunctions.end() )
-                        {
-                            jct->SetFlags( STRUCT_DELETED );
-                            m_frame->RemoveFromScreen( jct, m_frame->GetScreen() );
-                            aCommit->Removed( jct, m_frame->GetScreen() );
-                        }
-                    }
-                }
-
-                // Generic setup
-                snapLayer = grid.GetSelectionGrid( selection );
-
-                for( EDA_ITEM* item : selection )
-                {
-                    SCH_ITEM* schItem = static_cast<SCH_ITEM*>( item );
-
-                    if( schItem->IsNew() )
-                    {
-                        // Item was added to commit in a previous command
-
-                        // While SCH_COMMIT::Push() will add any new items to the entered group,
-                        // we need to do it earlier so that the previews while moving are correct.
-                        if( SCH_GROUP* enteredGroup = m_selectionTool->GetEnteredGroup() )
-                        {
-                            if( schItem->IsGroupableType() && !schItem->GetParentGroup() )
-                            {
-                                aCommit->Modify( enteredGroup, m_frame->GetScreen(), RECURSE_MODE::NO_RECURSE );
-                                enteredGroup->AddItem( schItem );
-                            }
-                        }
-                    }
-                    else if( schItem->GetParent() && schItem->GetParent()->IsSelected() )
-                    {
-                        // Item will be (or has been) added to commit by parent
-                    }
-                    else
-                    {
-                        aCommit->Modify( schItem, m_frame->GetScreen(), RECURSE_MODE::RECURSE );
-                    }
-
-                    schItem->SetFlags( IS_MOVING );
-
-                    if( SCH_SHAPE* shape = dynamic_cast<SCH_SHAPE*>( schItem ) )
-                    {
-                        shape->SetHatchingDirty();
-                        shape->UpdateHatching();
-                    }
-
-                    schItem->RunOnChildren(
-                            [&]( SCH_ITEM* schItem )
-                            {
-                                item->SetFlags( IS_MOVING );
-                            },
-                            RECURSE_MODE::RECURSE );
-
-                    schItem->SetStoredPos( schItem->GetPosition() );
-                }
-
-                // Set up the starting position and move/drag offset
-                //
-                m_cursor = controls->GetCursorPosition();
-
-                if( evt->IsAction( &SCH_ACTIONS::restartMove ) )
-                {
-                    wxASSERT_MSG( m_anchorPos, "Should be already set from previous cmd" );
-                }
-                else if( placingNewItems )
-                {
-                    m_anchorPos = selection.GetReferencePoint();
-                }
-
-                if( m_anchorPos )
-                {
-                    VECTOR2I delta = m_cursor - (*m_anchorPos);
-                    bool     isPasted = false;
-
-                    // Drag items to the current cursor position
-                    for( EDA_ITEM* item : selection )
-                    {
-                        // Don't double move pins, fields, etc.
-                        if( item->GetParent() && item->GetParent()->IsSelected() )
-                            continue;
-
-                        moveItem( item, delta );
-                        updateItem( item, false );
-
-                        isPasted |= ( item->GetFlags() & IS_PASTED ) != 0;
-                        item->ClearFlags( IS_PASTED );
-                    }
-
-                    // The first time pasted items are moved we need to store the position of the
-                    // cursor so that rotate while moving works as expected (instead of around the
-                    // original anchor point
-                    if( isPasted )
-                        selection.SetReferencePoint( m_cursor );
-
-                    m_anchorPos = m_cursor;
-                }
-                // For some items, moving the cursor to anchor is not good (for instance large
-                // hierarchical sheets or symbols can have the anchor outside the view)
-                else if( selection.Size() == 1 && !sch_item->IsMovableFromAnchorPoint() )
-                {
-                    m_cursor = getViewControls()->GetCursorPosition( true );
-                    m_anchorPos = m_cursor;
-                }
-                else
-                {
-                    if( m_frame->GetMoveWarpsCursor() )
-                    {
-                        // User wants to warp the mouse
-                        m_cursor = grid.BestDragOrigin( m_cursor, snapLayer, selection );
-                        selection.SetReferencePoint( m_cursor );
-                    }
-                    else
-                    {
-                        // User does not want to warp the mouse
-                        m_cursor = getViewControls()->GetCursorPosition( true );
-                    }
-                }
-
-                controls->SetCursorPosition( m_cursor, false );
-
+                initializeMoveOperation( aEvent, selection, aCommit, internalPoints, snapLayer );
                 prevPos = m_cursor;
-                controls->SetAutoPan( true );
-                m_moveInProgress = true;
-
-                refreshSelectionTraits();
+                refreshTraits();
             }
 
             //------------------------------------------------------------------------
@@ -868,53 +706,67 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
             //
             m_view->ClearPreview();
 
-            m_cursor = grid.BestSnapAnchor( controls->GetCursorPosition( false ),
-                                        snapLayer, selection );
-            // Determine potential target sheet.
-            SCH_SHEET* sheet = dynamic_cast<SCH_SHEET*>( m_frame->GetScreen()->GetItem( m_cursor, 0,
-                                                                                       SCH_SHEET_T ) );
-            if( sheet && sheet->IsSelected() )
-                sheet = nullptr;    // Never target a selected sheet
-
-            if( !sheet )
+            // We need to bypass refreshPreview action here because it is triggered by the move, so we were
+            // getting double-key events that toggled the axis locking if you pressed them in a certain order.
+            if( controls->GetSettings().m_lastKeyboardCursorPositionValid && !evt->IsAction( &ACTIONS::refreshPreview ) )
             {
-                // Build current selection bounding box in its (already moved) position.
-                BOX2I selBBox;
-                for( EDA_ITEM* it : selection )
-                {
-                    if( SCH_ITEM* schIt = dynamic_cast<SCH_ITEM*>( it ) )
-                        selBBox.Merge( schIt->GetBoundingBox() );
-                }
+                VECTOR2I keyboardPos( controls->GetSettings().m_lastKeyboardCursorPosition );
+                long action = controls->GetSettings().m_lastKeyboardCursorCommand;
 
-                if( selBBox.GetWidth() > 0 && selBBox.GetHeight() > 0 )
-                {
-                    VECTOR2I selCenter( selBBox.GetX() + selBBox.GetWidth() / 2,
-                                        selBBox.GetY() + selBBox.GetHeight() / 2 );
+                grid.SetSnap( false );
+                m_cursor = grid.Align( keyboardPos, snapLayer );
 
-                    // Find first non-selected sheet whose body fully contains the selection
-                    // or at least contains its center point.
-                    for( SCH_ITEM* it : m_frame->GetScreen()->Items().OfType( SCH_SHEET_T ) )
+                // Update axis lock based on arrow key press
+                if( action == ACTIONS::CURSOR_LEFT || action == ACTIONS::CURSOR_RIGHT )
+                {
+                    if( axisLock == AXIS_LOCK::HORIZONTAL )
                     {
-                        SCH_SHEET* candidate = static_cast<SCH_SHEET*>( it );
-                        if( candidate->IsSelected() || candidate->IsRootSheet() )
-                            continue;
-
-                        BOX2I body = candidate->GetBodyBoundingBox();
-
-                        if( body.Contains( selBBox ) || body.Contains( selCenter ) )
+                        // Check if opposite horizontal key pressed to unlock
+                        if( ( lastArrowKeyAction == ACTIONS::CURSOR_LEFT && action == ACTIONS::CURSOR_RIGHT ) ||
+                            ( lastArrowKeyAction == ACTIONS::CURSOR_RIGHT && action == ACTIONS::CURSOR_LEFT ) )
                         {
-                            sheet = candidate;
-                            break;
+                            axisLock = AXIS_LOCK::NONE;
                         }
+                        // Same direction axis, keep locked
+                    }
+                    else
+                    {
+                        axisLock = AXIS_LOCK::HORIZONTAL;
                     }
                 }
+                else if( action == ACTIONS::CURSOR_UP || action == ACTIONS::CURSOR_DOWN )
+                {
+                    if( axisLock == AXIS_LOCK::VERTICAL )
+                    {
+                        // Check if opposite vertical key pressed to unlock
+                        if( ( lastArrowKeyAction == ACTIONS::CURSOR_UP && action == ACTIONS::CURSOR_DOWN ) ||
+                            ( lastArrowKeyAction == ACTIONS::CURSOR_DOWN && action == ACTIONS::CURSOR_UP ) )
+                        {
+                            axisLock = AXIS_LOCK::NONE;
+                        }
+                        // Same direction axis, keep locked
+                    }
+                    else
+                    {
+                        axisLock = AXIS_LOCK::VERTICAL;
+                    }
+                }
+
+                lastArrowKeyAction = action;
+            }
+            else
+            {
+                m_cursor = grid.BestSnapAnchor( controls->GetCursorPosition( false ), snapLayer, selection );
             }
 
-            bool dropAllowedBySelection = !selectionHasSheetPins;
-            bool dropAllowedByModifiers = !selectionIsGraphicsOnly || ctrlDown;
+            if( axisLock == AXIS_LOCK::HORIZONTAL )
+                m_cursor.y = prevPos.y;
+            else if( axisLock == AXIS_LOCK::VERTICAL )
+                m_cursor.x = prevPos.x;
 
-            if( sheet && !( dropAllowedBySelection && dropAllowedByModifiers ) )
-                sheet = nullptr;
+            // Find potential target sheet for dropping
+            SCH_SHEET* sheet = findTargetSheet( selection, m_cursor, selectionHasSheetPins,
+                                                selectionIsGraphicsOnly, ctrlDown );
 
             if( sheet != hoverSheet )
             {
@@ -935,85 +787,12 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
             VECTOR2I delta( m_cursor - prevPos );
             m_anchorPos = m_cursor;
 
-            // We need to check if the movement will change the net offset direction on the
-            // X an Y axes. This is because we remerge added bend lines in realtime, and we
-            // also account for the direction of the move when adding bend lines. So, if the
-            // move direction changes, we need to split it into a move that gets us back to
-            // zero, then the rest of the move.
-            std::vector<VECTOR2I> splitMoves;
-
-            if( alg::signbit( m_moveOffset.x ) != alg::signbit( ( m_moveOffset + delta ).x ) )
-            {
-                splitMoves.emplace_back( VECTOR2I( -1 * m_moveOffset.x, 0 ) );
-                splitMoves.emplace_back( VECTOR2I( delta.x + m_moveOffset.x, 0 ) );
-            }
-            else
-            {
-                splitMoves.emplace_back( VECTOR2I( delta.x, 0 ) );
-            }
-
-            if( alg::signbit( m_moveOffset.y ) != alg::signbit( ( m_moveOffset + delta ).y ) )
-            {
-                splitMoves.emplace_back( VECTOR2I( 0, -1 * m_moveOffset.y ) );
-                splitMoves.emplace_back( VECTOR2I( 0, delta.y + m_moveOffset.y ) );
-            }
-            else
-            {
-                splitMoves.emplace_back( VECTOR2I( 0, delta.y ) );
-            }
-
-
-            m_moveOffset += delta;
-            prevPos = m_cursor;
-
             // Used for tracking how far off a drag end should have its 90 degree elbow added
             int xBendCount = 1;
             int yBendCount = 1;
 
-            // Split the move into X and Y moves so we can correctly drag orthogonal lines
-            for( const VECTOR2I& splitDelta : splitMoves )
-            {
-                // Skip non-moves
-                if( splitDelta == VECTOR2I( 0, 0 ) )
-                    continue;
-
-                for( EDA_ITEM* item : selection.GetItemsSortedByTypeAndXY( ( delta.x >= 0 ),
-                                                                           ( delta.y >= 0 ) ) )
-                {
-                    // Don't double move pins, fields, etc.
-                    if( item->GetParent() && item->GetParent()->IsSelected() )
-                        continue;
-
-                    SCH_LINE* line = dynamic_cast<SCH_LINE*>( item );
-
-                    // Only partially selected drag lines in orthogonal line mode need special
-                    // handling
-                    if( m_isDrag && isLineModeConstrained
-                            && line && line->HasFlag( STARTPOINT ) != line->HasFlag( ENDPOINT ) )
-                    {
-                        orthoLineDrag( aCommit, line, splitDelta, xBendCount, yBendCount, grid );
-                    }
-
-                    // Move all other items normally, including the selected end of partially
-                    // selected lines
-                    moveItem( item, splitDelta );
-                    updateItem( item, false );
-
-                    // Update any lines connected to sheet pins to the sheet pin's location
-                    // (which may not exactly follow the splitDelta as the pins are constrained
-                    // along the sheet edges.
-                    for( const auto& [pin, lineEnd] : m_specialCaseSheetPins )
-                    {
-                        if( lineEnd.second && lineEnd.first->HasFlag( STARTPOINT ) )
-                            lineEnd.first->SetStartPoint( pin->GetPosition() );
-                        else if( !lineEnd.second && lineEnd.first->HasFlag( ENDPOINT ) )
-                            lineEnd.first->SetEndPoint( pin->GetPosition() );
-                    }
-                }
-            }
-
-            if( selection.HasReferencePoint() )
-                selection.SetReferencePoint( selection.GetReferencePoint() + delta );
+            performItemMove( selection, delta, aCommit, xBendCount, yBendCount, grid );
+            prevPos = m_cursor;
 
             std::vector<SCH_ITEM*> previewItems;
 
@@ -1033,9 +812,7 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
                 netCollisionMonitor->Update( previewJunctions, selection );
 
             for( SCH_JUNCTION* jct : previewJunctions )
-            {
                 m_view->AddToPreview( jct, true );
-            }
 
             m_toolMgr->PostEvent( EVENTS::SelectedItemsMoved );
         }
@@ -1048,7 +825,14 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
                  || evt->IsAction( &ACTIONS::undo ) )
         {
             if( evt->IsCancelInteractive() )
+            {
                 m_frame->GetInfoBar()->Dismiss();
+
+                // When breaking, the user can cancel after multiple breaks to keep all but the last
+                // break, so exit normally if we have done at least one break
+                if( didAtLeastOneBreak && m_mode == BREAK )
+                    break;
+            }
 
             if( m_moveInProgress )
             {
@@ -1057,10 +841,13 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
                     // Allowing other tools to activate during a move runs the risk of race
                     // conditions in which we try to spool up both event loops at once.
 
-                    if( m_isDrag )
-                        m_frame->ShowInfoBarMsg( _( "Press <ESC> to cancel drag." ) );
-                    else
-                        m_frame->ShowInfoBarMsg( _( "Press <ESC> to cancel move." ) );
+                    switch( m_mode )
+                    {
+                    case MOVE:  m_frame->ShowInfoBarMsg( _( "Press <ESC> to cancel move." ) );  break;
+                    case DRAG:  m_frame->ShowInfoBarMsg( _( "Press <ESC> to cancel drag." ) );  break;
+                    case BREAK: m_frame->ShowInfoBarMsg( _( "Press <ESC> to cancel break." ) ); break;
+                    case SLICE: m_frame->ShowInfoBarMsg( _( "Press <ESC> to cancel slice." ) ); break;
+                    }
 
                     evt->SetPassEvent( false );
                     continue;
@@ -1079,98 +866,10 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
         //------------------------------------------------------------------------
         // Handle TOOL_ACTION special cases
         //
-        else if( evt->IsAction( &ACTIONS::doDelete ) )
+        else if( !handleMoveToolActions( evt, aCommit, selection ) )
         {
-            evt->SetPassEvent();
-            // Exit on a delete; there will no longer be anything to drag.
-            break;
-        }
-        else if( evt->IsAction( &ACTIONS::duplicate )
-                 || evt->IsAction( &SCH_ACTIONS::repeatDrawItem )
-                 || evt->IsAction( &ACTIONS::redo ) )
-        {
-            wxBell();
-        }
-        else if( evt->IsAction( &SCH_ACTIONS::rotateCW ) )
-        {
-            m_toolMgr->RunSynchronousAction( SCH_ACTIONS::rotateCW, aCommit );
-            m_toolMgr->PostAction( ACTIONS::refreshPreview );
-        }
-        else if( evt->IsAction( &SCH_ACTIONS::rotateCCW ) )
-        {
-            m_toolMgr->RunSynchronousAction( SCH_ACTIONS::rotateCCW, aCommit );
-            m_toolMgr->PostAction( ACTIONS::refreshPreview );
-        }
-        else if( evt->IsAction( &ACTIONS::increment ) )
-        {
-            if( evt->HasParameter() )
-                m_toolMgr->RunSynchronousAction( ACTIONS::increment, aCommit, evt->Parameter<ACTIONS::INCREMENT>() );
-            else
-                m_toolMgr->RunSynchronousAction( ACTIONS::increment, aCommit, ACTIONS::INCREMENT { 1, 0 } );
-
-            m_toolMgr->PostAction( ACTIONS::refreshPreview );
-        }
-        else if( evt->IsAction( &SCH_ACTIONS::toDLabel ) )
-        {
-            m_toolMgr->RunSynchronousAction(SCH_ACTIONS::toDLabel, aCommit );
-            m_toolMgr->PostAction( ACTIONS::refreshPreview );
-        }
-        else if( evt->IsAction( &SCH_ACTIONS::toGLabel ) )
-        {
-            m_toolMgr->RunSynchronousAction( SCH_ACTIONS::toGLabel, aCommit );
-            m_toolMgr->PostAction( ACTIONS::refreshPreview );
-        }
-        else if( evt->IsAction( &SCH_ACTIONS::toHLabel ) )
-        {
-            m_toolMgr->RunSynchronousAction( SCH_ACTIONS::toHLabel, aCommit );
-            m_toolMgr->PostAction( ACTIONS::refreshPreview );
-        }
-        else if( evt->IsAction( &SCH_ACTIONS::toLabel ) )
-        {
-            m_toolMgr->RunSynchronousAction( SCH_ACTIONS::toLabel, aCommit );
-            m_toolMgr->PostAction( ACTIONS::refreshPreview );
-        }
-        else if( evt->IsAction( &SCH_ACTIONS::toText ) )
-        {
-            m_toolMgr->RunSynchronousAction( SCH_ACTIONS::toText, aCommit );
-            m_toolMgr->PostAction( ACTIONS::refreshPreview );
-        }
-        else if( evt->IsAction( &SCH_ACTIONS::toTextBox ) )
-        {
-            m_toolMgr->RunSynchronousAction( SCH_ACTIONS::toTextBox, aCommit );
-            m_toolMgr->PostAction( ACTIONS::refreshPreview );
-        }
-        else if( evt->Action() == TA_CHOICE_MENU_CHOICE )
-        {
-            if( *evt->GetCommandId() >= ID_POPUP_SCH_SELECT_UNIT
-                && *evt->GetCommandId() <= ID_POPUP_SCH_SELECT_UNIT_END )
-            {
-                SCH_SYMBOL* symbol = dynamic_cast<SCH_SYMBOL*>( selection.Front() );
-                int unit = *evt->GetCommandId() - ID_POPUP_SCH_SELECT_UNIT;
-
-                if( symbol )
-                {
-                    m_frame->SelectUnit( symbol, unit );
-                    m_toolMgr->PostAction( ACTIONS::refreshPreview );
-                }
-            }
-            else if( *evt->GetCommandId() >= ID_POPUP_SCH_SELECT_BODY_STYLE
-                     && *evt->GetCommandId() <= ID_POPUP_SCH_SELECT_BODY_STYLE_END )
-            {
-                SCH_SYMBOL* symbol = dynamic_cast<SCH_SYMBOL*>( selection.Front() );
-                int bodyStyle = ( *evt->GetCommandId() - ID_POPUP_SCH_SELECT_BODY_STYLE ) + 1;
-
-                if( symbol && symbol->GetBodyStyle() != bodyStyle )
-                {
-                    m_frame->SelectBodyStyle( symbol, bodyStyle );
-                    m_toolMgr->PostAction( ACTIONS::refreshPreview );
-                }
-            }
-        }
-        else if( evt->IsAction( &SCH_ACTIONS::highlightNet )
-                    || evt->IsAction( &SCH_ACTIONS::selectOnPCB ) )
-        {
-            // These don't make any sense during a move.  Eat them.
+            wxLogTrace( traceSchMove, "doMoveSelection: handleMoveToolActions returned false, exiting" );
+            break;  // Exit if told to by handler
         }
         //------------------------------------------------------------------------
         // Handle context menu
@@ -1182,11 +881,52 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
         //------------------------------------------------------------------------
         // Handle drop
         //
-        else if( evt->IsMouseUp( BUT_LEFT )
-                || evt->IsClick( BUT_LEFT )
-                || evt->IsDblClick( BUT_LEFT ) )
+        else if( evt->IsMouseUp( BUT_LEFT ) || evt->IsClick( BUT_LEFT ) )
         {
-            break; // Finish
+            if( m_mode != BREAK )
+                break; // Finish
+            else
+            {
+                didAtLeastOneBreak = true;
+                preprocessBreakOrSliceSelection( aCommit, *evt );
+                selection = m_selectionTool->RequestSelection( SCH_COLLECTOR::MovableItems, true );
+
+                if( m_breakPos )
+                {
+                    m_cursor = *m_breakPos;
+                    m_anchorPos = m_cursor;
+                    selection.SetReferencePoint( m_cursor );
+                    m_moveOffset = VECTOR2I( 0, 0 );
+                    m_breakPos.reset();
+
+                    controls->SetCursorPosition( m_cursor, false );
+                    prevPos = m_cursor;
+                }
+            }
+        }
+        else if( evt->IsDblClick( BUT_LEFT ) )
+        {
+            // Double click always finishes, even breaks
+            break;
+        }
+        // Don't call SetPassEvent() for events we've handled - let them be consumed
+        else if( evt->IsAction( &SCH_ACTIONS::rotateCW )
+                 || evt->IsAction( &SCH_ACTIONS::rotateCCW )
+                 || evt->IsAction( &ACTIONS::increment )
+                 || evt->IsAction( &SCH_ACTIONS::toDLabel )
+                 || evt->IsAction( &SCH_ACTIONS::toGLabel )
+                 || evt->IsAction( &SCH_ACTIONS::toHLabel )
+                 || evt->IsAction( &SCH_ACTIONS::toLabel )
+                 || evt->IsAction( &SCH_ACTIONS::toText )
+                 || evt->IsAction( &SCH_ACTIONS::toTextBox )
+                 || evt->IsAction( &SCH_ACTIONS::highlightNet )
+                 || evt->IsAction( &SCH_ACTIONS::selectOnPCB )
+                 || evt->IsAction( &ACTIONS::duplicate )
+                 || evt->IsAction( &SCH_ACTIONS::repeatDrawItem )
+                 || evt->IsAction( &ACTIONS::redo ) )
+        {
+            // Event was already handled by handleMoveToolActions, don't pass it on
+            wxLogTrace( traceSchMove, "doMoveSelection: event handled, not passing" );
         }
         else
         {
@@ -1208,24 +948,746 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
         m_frame->UpdateItem( hoverSheet, false );
     }
 
-    if( targetSheet )
+    if( restore_state )
     {
-        moveSelectionToSheet( selection, targetSheet, aCommit );
-        m_toolMgr->RunAction( ACTIONS::selectionClear );
-        m_newDragLines.clear();
-        m_changedDragLines.clear();
+        m_selectionTool->RemoveItemsFromSel( &m_dragAdditions, QUIET_MODE );
+    }
+    else
+    {
+        // Only drop into a sheet when the move is committed, not when canceled.
+        if( targetSheet )
+        {
+            moveSelectionToSheet( selection, targetSheet, aCommit );
+            m_toolMgr->RunAction( ACTIONS::selectionClear );
+            m_newDragLines.clear();
+            m_changedDragLines.clear();
+        }
+
+        finalizeMoveOperation( selection, aCommit, unselect, internalPoints );
     }
 
-    // Create a selection of original selection, drag selected/changed items, and new
-    // bend lines for later before we clear them in the aCommit. We'll need these
-    // to check for new junctions needed, etc.
-    SCH_SELECTION selectionCopy( selection );
+    m_dragAdditions.clear();
+    m_lineConnectionCache.clear();
+    m_moveInProgress = false;
+    m_breakPos.reset();
 
-    for( SCH_LINE* line : m_newDragLines )
-        selectionCopy.Add( line );
+    m_hiddenJunctions.clear();
+    m_view->ClearPreview();
+    m_frame->PopTool( aEvent );
 
-    for( SCH_LINE* line : m_changedDragLines )
-        selectionCopy.Add( line );
+    return !restore_state;
+}
+
+
+bool SCH_MOVE_TOOL::checkMoveInProgress( const TOOL_EVENT& aEvent, SCH_COMMIT* aCommit, bool aCurrentModeIsDragLike,
+                                         bool aWasDragging )
+{
+    KIGFX::VIEW_CONTROLS* controls = getViewControls();
+
+    if( !m_moveInProgress )
+        return false;
+
+    if( aCurrentModeIsDragLike != aWasDragging )
+    {
+        EDA_ITEM* sel = m_selectionTool->GetSelection().Front();
+
+        if( sel && !sel->IsNew() )
+        {
+            // Reset the selected items so we can start again with the current drag mode state
+            aCommit->Revert();
+
+            m_selectionTool->RemoveItemsFromSel( &m_dragAdditions, QUIET_MODE );
+            m_anchorPos = m_cursor - m_moveOffset;
+            m_moveInProgress = false;
+            controls->SetAutoPan( false );
+
+            // Give it a kick so it doesn't have to wait for the first mouse movement to refresh
+            m_toolMgr->PostAction( SCH_ACTIONS::restartMove );
+        }
+    }
+    else
+    {
+        // The tool hotkey is interpreted as a click when already dragging/moving
+        m_toolMgr->PostAction( ACTIONS::cursorClick );
+    }
+
+    return true;
+}
+
+
+SCH_SELECTION& SCH_MOVE_TOOL::prepareSelection( bool& aUnselect )
+{
+    SCH_SELECTION& userSelection = m_selectionTool->GetSelection();
+
+    // If a single pin is selected, promote the move selection to its parent symbol
+    if( userSelection.GetSize() == 1 )
+    {
+        EDA_ITEM* selItem = userSelection.Front();
+
+        if( selItem->Type() == SCH_PIN_T )
+        {
+            EDA_ITEM* parent = selItem->GetParent();
+
+            if( parent->Type() == SCH_SYMBOL_T )
+            {
+                m_selectionTool->ClearSelection();
+                m_selectionTool->AddItemToSel( parent );
+            }
+        }
+    }
+
+    // Be sure that there is at least one item that we can move. If there's no selection try
+    // looking for the stuff under mouse cursor (i.e. KiCad old-style hover selection).
+    SCH_SELECTION& selection = m_selectionTool->RequestSelection( SCH_COLLECTOR::MovableItems, true );
+    aUnselect = selection.IsHover();
+
+    return selection;
+}
+
+
+void SCH_MOVE_TOOL::refreshSelectionTraits( const SCH_SELECTION& aSelection, bool& aHasSheetPins,
+                                            bool& aHasGraphicItems, bool& aHasNonGraphicItems,
+                                            bool& aIsGraphicsOnly )
+{
+    aHasSheetPins = false;
+    aHasGraphicItems = false;
+    aHasNonGraphicItems = false;
+
+    for( EDA_ITEM* edaItem : aSelection )
+    {
+        SCH_ITEM* schItem = static_cast<SCH_ITEM*>( edaItem );
+
+        if( schItem->Type() == SCH_SHEET_PIN_T )
+            aHasSheetPins = true;
+
+        if( isGraphicItemForDrop( schItem ) )
+            aHasGraphicItems = true;
+        else if( schItem->Type() != SCH_SHEET_T )
+            aHasNonGraphicItems = true;
+    }
+
+    aIsGraphicsOnly = aHasGraphicItems && !aHasNonGraphicItems;
+}
+
+
+void SCH_MOVE_TOOL::setupItemsForDrag( SCH_SELECTION& aSelection, SCH_COMMIT* aCommit )
+{
+    // Drag of split items start over top of their other segment, so we want to skip grabbing
+    // the segments we split from
+    if( m_mode != DRAG && m_mode != BREAK )
+        return;
+
+    EDA_ITEMS connectedDragItems;
+
+    // Add connections to the selection for a drag.
+    // Do all non-labels/entries first so we don't add junctions to drag when the line will
+    // eventually be drag selected.
+    std::vector<SCH_ITEM*> stageTwo;
+
+    for( EDA_ITEM* edaItem : aSelection )
+    {
+        SCH_ITEM* item = static_cast<SCH_ITEM*>( edaItem );
+        std::vector<VECTOR2I> connections;
+
+        switch( item->Type() )
+        {
+        case SCH_LABEL_T:
+        case SCH_HIER_LABEL_T:
+        case SCH_GLOBAL_LABEL_T:
+        case SCH_DIRECTIVE_LABEL_T:
+            stageTwo.emplace_back( item );
+            break;
+
+        case SCH_LINE_T:
+            static_cast<SCH_LINE*>( item )->GetSelectedPoints( connections );
+            break;
+
+        default:
+            connections = item->GetConnectionPoints();
+        }
+
+        for( const VECTOR2I& point : connections )
+            getConnectedDragItems( aCommit, item, point, connectedDragItems );
+    }
+
+    // Go back and get all label connections now that we can test for drag-selected lines
+    // the labels might be on
+    for( SCH_ITEM* item : stageTwo )
+    {
+        for( const VECTOR2I& point : item->GetConnectionPoints() )
+            getConnectedDragItems( aCommit, item, point, connectedDragItems );
+    }
+
+    for( EDA_ITEM* item : connectedDragItems )
+    {
+        m_dragAdditions.push_back( item->m_Uuid );
+        m_selectionTool->AddItemToSel( item, QUIET_MODE );
+    }
+
+    // Pre-cache all connections of our selected objects so we can keep track of what they
+    // were originally connected to as we drag them around
+    for( EDA_ITEM* edaItem : aSelection )
+    {
+        SCH_ITEM* schItem = static_cast<SCH_ITEM*>( edaItem );
+
+        if( schItem->Type() == SCH_LINE_T )
+        {
+            SCH_LINE* line = static_cast<SCH_LINE*>( schItem );
+
+            // Store the original angle of the line; needed later to decide which segment
+            // to extend when they've become zero length
+            line->StoreAngle();
+
+            for( const VECTOR2I& point : line->GetConnectionPoints() )
+                getConnectedItems( line, point, m_lineConnectionCache[line] );
+        }
+    }
+}
+
+
+void SCH_MOVE_TOOL::setupItemsForMove( SCH_SELECTION& aSelection, std::vector<DANGLING_END_ITEM>& aInternalPoints )
+{
+    // Mark the edges of the block with dangling flags for a move
+    for( EDA_ITEM* item : aSelection )
+        static_cast<SCH_ITEM*>( item )->GetEndPoints( aInternalPoints );
+
+    std::vector<DANGLING_END_ITEM> endPointsByType = aInternalPoints;
+    std::vector<DANGLING_END_ITEM> endPointsByPos = endPointsByType;
+    DANGLING_END_ITEM_HELPER::sort_dangling_end_items( endPointsByType, endPointsByPos );
+
+    for( EDA_ITEM* item : aSelection )
+        static_cast<SCH_ITEM*>( item )->UpdateDanglingState( endPointsByType, endPointsByPos );
+}
+
+
+void SCH_MOVE_TOOL::initializeMoveOperation( const TOOL_EVENT& aEvent, SCH_SELECTION& aSelection, SCH_COMMIT* aCommit,
+                                             std::vector<DANGLING_END_ITEM>& aInternalPoints,
+                                             GRID_HELPER_GRIDS&              aSnapLayer )
+{
+    KIGFX::VIEW_CONTROLS* controls = getViewControls();
+    EE_GRID_HELPER        grid( m_toolMgr );
+    SCH_ITEM*             sch_item = static_cast<SCH_ITEM*>( aSelection.Front() );
+    bool                  placingNewItems = sch_item && sch_item->IsNew();
+
+    //------------------------------------------------------------------------
+    // Setup a drag or a move
+    //
+    m_dragAdditions.clear();
+    m_specialCaseLabels.clear();
+    m_specialCaseSheetPins.clear();
+    aInternalPoints.clear();
+    clearNewDragLines();
+
+    for( SCH_ITEM* it : m_frame->GetScreen()->Items() )
+    {
+        it->ClearFlags( SELECTED_BY_DRAG );
+
+        if( !it->IsSelected() )
+            it->ClearFlags( STARTPOINT | ENDPOINT );
+    }
+
+    setupItemsForDrag( aSelection, aCommit );
+    setupItemsForMove( aSelection, aInternalPoints );
+
+    // Hide junctions connected to line endpoints that are not selected
+    m_hiddenJunctions.clear();
+
+    for( EDA_ITEM* item : aSelection )
+        item->SetFlags( STRUCT_DELETED );
+
+    for( EDA_ITEM* edaItem : aSelection )
+    {
+        if( edaItem->Type() != SCH_LINE_T )
+            continue;
+
+        SCH_LINE* line = static_cast<SCH_LINE*>( edaItem );
+
+        for( const VECTOR2I& pt : line->GetConnectionPoints() )
+        {
+            SCH_JUNCTION* jct = static_cast<SCH_JUNCTION*>( m_frame->GetScreen()->GetItem( pt, 0, SCH_JUNCTION_T ) );
+
+            if( jct && !jct->IsSelected()
+                && std::find( m_hiddenJunctions.begin(), m_hiddenJunctions.end(), jct ) == m_hiddenJunctions.end() )
+            {
+                JUNCTION_HELPERS::POINT_INFO info = JUNCTION_HELPERS::AnalyzePoint( m_frame->GetScreen()->Items(),
+                                                                                    pt, false );
+
+                if( !info.isJunction )
+                {
+                    jct->SetFlags( STRUCT_DELETED );
+                    m_frame->RemoveFromScreen( jct, m_frame->GetScreen() );
+                    aCommit->Removed( jct, m_frame->GetScreen() );
+                }
+            }
+        }
+    }
+
+    for( EDA_ITEM* item : aSelection )
+        item->ClearFlags( STRUCT_DELETED );
+
+    // Generic setup
+    aSnapLayer = grid.GetSelectionGrid( aSelection );
+
+    for( EDA_ITEM* item : aSelection )
+    {
+        SCH_ITEM* schItem = static_cast<SCH_ITEM*>( item );
+
+        if( schItem->IsNew() )
+        {
+            // Item was added to commit in a previous command
+
+            // While SCH_COMMIT::Push() will add any new items to the entered group, we need
+            // to do it earlier so that the previews while moving are correct.
+            if( SCH_GROUP* enteredGroup = m_selectionTool->GetEnteredGroup() )
+            {
+                if( schItem->IsGroupableType() && !schItem->GetParentGroup() )
+                {
+                    aCommit->Modify( enteredGroup, m_frame->GetScreen(), RECURSE_MODE::NO_RECURSE );
+                    enteredGroup->AddItem( schItem );
+                }
+            }
+        }
+        else if( schItem->GetParent() && schItem->GetParent()->IsSelected() )
+        {
+            // Item will be (or has been) added to commit by parent
+        }
+        else
+        {
+            aCommit->Modify( schItem, m_frame->GetScreen(), RECURSE_MODE::RECURSE );
+        }
+
+        schItem->SetFlags( IS_MOVING );
+
+        if( SCH_SHAPE* shape = dynamic_cast<SCH_SHAPE*>( schItem ) )
+        {
+            shape->SetHatchingDirty();
+            shape->UpdateHatching();
+        }
+
+        schItem->RunOnChildren(
+                [&]( SCH_ITEM* aChild )
+                {
+                    aChild->SetFlags( IS_MOVING );
+                },
+                RECURSE_MODE::RECURSE );
+
+        schItem->SetStoredPos( schItem->GetPosition() );
+    }
+
+    // Set up the starting position and move/drag offset
+    m_cursor = controls->GetCursorPosition();
+
+    if( m_mode == BREAK && m_breakPos )
+    {
+        m_cursor = *m_breakPos;
+        m_anchorPos = m_cursor;
+        aSelection.SetReferencePoint( m_cursor );
+        m_moveOffset = VECTOR2I( 0, 0 );
+        m_breakPos.reset();
+    }
+
+    if( aEvent.IsAction( &SCH_ACTIONS::restartMove ) )
+    {
+        wxASSERT_MSG( m_anchorPos, "Should be already set from previous cmd" );
+    }
+    else if( placingNewItems )
+    {
+        m_anchorPos = aSelection.GetReferencePoint();
+    }
+
+    if( m_anchorPos )
+    {
+        VECTOR2I delta = m_cursor - ( *m_anchorPos );
+        bool     isPasted = false;
+
+        // Drag items to the current cursor position
+        for( EDA_ITEM* item : aSelection )
+        {
+            // Don't double move pins, fields, etc.
+            if( item->GetParent() && item->GetParent()->IsSelected() )
+                continue;
+
+            moveItem( item, delta );
+            updateItem( item, false );
+
+            isPasted |= ( item->GetFlags() & IS_PASTED ) != 0;
+        }
+
+        // The first time pasted items are moved we need to store the position of the cursor
+        // so that rotate while moving works as expected (instead of around the original
+        // anchor point)
+        if( isPasted )
+            aSelection.SetReferencePoint( m_cursor );
+
+        m_anchorPos = m_cursor;
+    }
+    // For some items, moving the cursor to anchor is not good (for instance large
+    // hierarchical sheets or symbols can have the anchor outside the view)
+    else if( aSelection.Size() == 1 && !sch_item->IsMovableFromAnchorPoint() )
+    {
+        m_cursor = getViewControls()->GetCursorPosition( true );
+        m_anchorPos = m_cursor;
+    }
+    else
+    {
+        if( m_frame->GetMoveWarpsCursor() )
+        {
+            // User wants to warp the mouse
+            m_cursor = grid.BestDragOrigin( m_cursor, aSnapLayer, aSelection );
+            aSelection.SetReferencePoint( m_cursor );
+        }
+        else
+        {
+            // User does not want to warp the mouse
+            m_cursor = getViewControls()->GetCursorPosition( true );
+        }
+    }
+
+    controls->SetCursorPosition( m_cursor, false );
+    controls->SetAutoPan( true );
+    m_moveInProgress = true;
+}
+
+
+SCH_SHEET* SCH_MOVE_TOOL::findTargetSheet( const SCH_SELECTION& aSelection, const VECTOR2I& aCursorPos,
+                                           bool aHasSheetPins, bool aIsGraphicsOnly, bool aCtrlDown )
+{
+    // Determine potential target sheet
+    SCH_SHEET* sheet = dynamic_cast<SCH_SHEET*>( m_frame->GetScreen()->GetItem( aCursorPos, 0, SCH_SHEET_T ) );
+
+    if( sheet && sheet->IsSelected() )
+        sheet = nullptr;  // Never target a selected sheet
+
+    if( !sheet )
+    {
+        // Build current selection bounding box in its (already moved) position
+        BOX2I selBBox;
+
+        for( EDA_ITEM* it : aSelection )
+        {
+            if( SCH_ITEM* schIt = dynamic_cast<SCH_ITEM*>( it ) )
+                selBBox.Merge( schIt->GetBoundingBox() );
+        }
+
+        if( selBBox.GetWidth() > 0 && selBBox.GetHeight() > 0 )
+        {
+            VECTOR2I selCenter( selBBox.GetX() + selBBox.GetWidth() / 2,
+                                selBBox.GetY() + selBBox.GetHeight() / 2 );
+
+            // Find first non-selected sheet whose body fully contains the selection or at
+            // least contains its center point
+            for( SCH_ITEM* it : m_frame->GetScreen()->Items().OfType( SCH_SHEET_T ) )
+            {
+                SCH_SHEET* candidate = static_cast<SCH_SHEET*>( it );
+
+                if( candidate->IsSelected() || candidate->IsTopLevelSheet() )
+                    continue;
+
+                BOX2I body = candidate->GetBodyBoundingBox();
+
+                if( body.Contains( selBBox ) || body.Contains( selCenter ) )
+                {
+                    sheet = candidate;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Don't drop into a sheet if any connection point of the selection lands on a sheet pin.
+    // This indicates the user is trying to connect to the pin, not drop into the sheet.
+    if( sheet )
+    {
+        for( EDA_ITEM* it : aSelection )
+        {
+            SCH_ITEM* schItem = dynamic_cast<SCH_ITEM*>( it );
+
+            if( !schItem )
+                continue;
+
+            for( const VECTOR2I& pt : schItem->GetConnectionPoints() )
+            {
+                if( sheet->GetPin( pt ) )
+                {
+                    sheet = nullptr;
+                    break;
+                }
+            }
+
+            if( !sheet )
+                break;
+        }
+    }
+
+    bool dropAllowedBySelection = !aHasSheetPins;
+    bool dropAllowedByModifiers = !aIsGraphicsOnly || aCtrlDown;
+
+    if( sheet && !( dropAllowedBySelection && dropAllowedByModifiers ) )
+        sheet = nullptr;
+
+    return sheet;
+}
+
+
+void SCH_MOVE_TOOL::performItemMove( SCH_SELECTION& aSelection, const VECTOR2I& aDelta,
+                                     SCH_COMMIT* aCommit, int& aXBendCount, int& aYBendCount,
+                                     const EE_GRID_HELPER& aGrid )
+{
+    wxLogTrace( traceSchMove, "performItemMove: delta=(%d,%d), moveOffset=(%d,%d), selection size=%u",
+                aDelta.x, aDelta.y, m_moveOffset.x, m_moveOffset.y, aSelection.GetSize() );
+
+    // We need to check if the movement will change the net offset direction on the X and Y
+    // axes. This is because we remerge added bend lines in realtime, and we also account for
+    // the direction of the move when adding bend lines. So, if the move direction changes,
+    // we need to split it into a move that gets us back to zero, then the rest of the move.
+    std::vector<VECTOR2I> splitMoves;
+
+    if( alg::signbit( m_moveOffset.x ) != alg::signbit( ( m_moveOffset + aDelta ).x ) )
+    {
+        splitMoves.emplace_back( VECTOR2I( -1 * m_moveOffset.x, 0 ) );
+        splitMoves.emplace_back( VECTOR2I( aDelta.x + m_moveOffset.x, 0 ) );
+    }
+    else
+    {
+        splitMoves.emplace_back( VECTOR2I( aDelta.x, 0 ) );
+    }
+
+    if( alg::signbit( m_moveOffset.y ) != alg::signbit( ( m_moveOffset + aDelta ).y ) )
+    {
+        splitMoves.emplace_back( VECTOR2I( 0, -1 * m_moveOffset.y ) );
+        splitMoves.emplace_back( VECTOR2I( 0, aDelta.y + m_moveOffset.y ) );
+    }
+    else
+    {
+        splitMoves.emplace_back( VECTOR2I( 0, aDelta.y ) );
+    }
+
+    m_moveOffset += aDelta;
+
+    // Split the move into X and Y moves so we can correctly drag orthogonal lines
+    for( const VECTOR2I& splitDelta : splitMoves )
+    {
+        // Skip non-moves
+        if( splitDelta == VECTOR2I( 0, 0 ) )
+            continue;
+
+        for( EDA_ITEM* item : aSelection.GetItemsSortedByTypeAndXY( ( aDelta.x >= 0 ),
+                                                                    ( aDelta.y >= 0 ) ) )
+        {
+            // Don't double move pins, fields, etc.
+            if( item->GetParent() && item->GetParent()->IsSelected() )
+                continue;
+
+            SCH_LINE* line = dynamic_cast<SCH_LINE*>( item );
+            bool      isLineModeConstrained = false;
+
+            if( EESCHEMA_SETTINGS* cfg = GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" ) )
+                isLineModeConstrained = cfg->m_Drawing.line_mode != LINE_MODE::LINE_MODE_FREE;
+
+            // Only partially selected drag lines in orthogonal line mode need special handling
+            if( ( m_mode == DRAG ) && isLineModeConstrained && line
+                && line->HasFlag( STARTPOINT ) != line->HasFlag( ENDPOINT ) )
+            {
+                orthoLineDrag( aCommit, line, splitDelta, aXBendCount, aYBendCount, aGrid );
+            }
+
+            // Move all other items normally, including the selected end of partially selected
+            // lines
+            moveItem( item, splitDelta );
+            updateItem( item, false );
+
+            // Update any lines connected to sheet pins to the sheet pin's location (which may
+            // not exactly follow the splitDelta as the pins are constrained along the sheet
+            // edges)
+            for( const auto& [pin, lineEnd] : m_specialCaseSheetPins )
+            {
+                if( lineEnd.second && lineEnd.first->HasFlag( STARTPOINT ) )
+                    lineEnd.first->SetStartPoint( pin->GetPosition() );
+                else if( !lineEnd.second && lineEnd.first->HasFlag( ENDPOINT ) )
+                    lineEnd.first->SetEndPoint( pin->GetPosition() );
+            }
+        }
+    }
+
+    if( aSelection.HasReferencePoint() )
+        aSelection.SetReferencePoint( aSelection.GetReferencePoint() + aDelta );
+}
+
+
+bool SCH_MOVE_TOOL::handleMoveToolActions( const TOOL_EVENT* aEvent, SCH_COMMIT* aCommit,
+                                            const SCH_SELECTION& aSelection )
+{
+    wxLogTrace( traceSchMove, "handleMoveToolActions: received event, action=%s",
+                aEvent->Format().c_str() );
+
+    if( aEvent->IsAction( &ACTIONS::doDelete ) )
+    {
+        wxLogTrace( traceSchMove, "handleMoveToolActions: doDelete, exiting move" );
+        const_cast<TOOL_EVENT*>( aEvent )->SetPassEvent();
+        return false;  // Exit on delete; there will no longer be anything to drag
+    }
+    else if( aEvent->IsAction( &ACTIONS::duplicate )
+             || aEvent->IsAction( &SCH_ACTIONS::repeatDrawItem )
+             || aEvent->IsAction( &ACTIONS::redo ) )
+    {
+        wxBell();
+    }
+    else if( aEvent->IsAction( &SCH_ACTIONS::rotateCW ) )
+    {
+        wxLogTrace( traceSchMove, "handleMoveToolActions: rotateCW event received, selection size=%u",
+                    aSelection.GetSize() );
+        m_toolMgr->RunSynchronousAction( SCH_ACTIONS::rotateCW, aCommit );
+        wxLogTrace( traceSchMove, "handleMoveToolActions: rotateCW RunSynchronousAction completed" );
+        updateStoredPositions( aSelection );
+        wxLogTrace( traceSchMove, "handleMoveToolActions: rotateCW updateStoredPositions completed" );
+        // Note: SCH_EDIT_TOOL::Rotate already posts refreshPreview when moving
+    }
+    else if( aEvent->IsAction( &SCH_ACTIONS::rotateCCW ) )
+    {
+        wxLogTrace( traceSchMove, "handleMoveToolActions: rotateCCW event received, selection size=%u",
+                    aSelection.GetSize() );
+        m_toolMgr->RunSynchronousAction( SCH_ACTIONS::rotateCCW, aCommit );
+        wxLogTrace( traceSchMove, "handleMoveToolActions: rotateCCW RunSynchronousAction completed" );
+        updateStoredPositions( aSelection );
+        wxLogTrace( traceSchMove, "handleMoveToolActions: rotateCCW updateStoredPositions completed" );
+        // Note: SCH_EDIT_TOOL::Rotate already posts refreshPreview when moving
+    }
+    else if( aEvent->IsAction( &ACTIONS::increment ) )
+    {
+        if( aEvent->HasParameter() )
+            m_toolMgr->RunSynchronousAction( ACTIONS::increment, aCommit, aEvent->Parameter<ACTIONS::INCREMENT>() );
+        else
+            m_toolMgr->RunSynchronousAction( ACTIONS::increment, aCommit, ACTIONS::INCREMENT{ 1, 0 } );
+
+        updateStoredPositions( aSelection );
+        m_toolMgr->PostAction( ACTIONS::refreshPreview );
+    }
+    else if( aEvent->IsAction( &SCH_ACTIONS::toDLabel ) )
+    {
+        m_toolMgr->RunSynchronousAction( SCH_ACTIONS::toDLabel, aCommit );
+        updateStoredPositions( aSelection );
+        m_toolMgr->PostAction( ACTIONS::refreshPreview );
+    }
+    else if( aEvent->IsAction( &SCH_ACTIONS::toGLabel ) )
+    {
+        m_toolMgr->RunSynchronousAction( SCH_ACTIONS::toGLabel, aCommit );
+        updateStoredPositions( aSelection );
+        m_toolMgr->PostAction( ACTIONS::refreshPreview );
+    }
+    else if( aEvent->IsAction( &SCH_ACTIONS::toHLabel ) )
+    {
+        m_toolMgr->RunSynchronousAction( SCH_ACTIONS::toHLabel, aCommit );
+        updateStoredPositions( aSelection );
+        m_toolMgr->PostAction( ACTIONS::refreshPreview );
+    }
+    else if( aEvent->IsAction( &SCH_ACTIONS::toLabel ) )
+    {
+        m_toolMgr->RunSynchronousAction( SCH_ACTIONS::toLabel, aCommit );
+        updateStoredPositions( aSelection );
+        m_toolMgr->PostAction( ACTIONS::refreshPreview );
+    }
+    else if( aEvent->IsAction( &SCH_ACTIONS::toText ) )
+    {
+        m_toolMgr->RunSynchronousAction( SCH_ACTIONS::toText, aCommit );
+        updateStoredPositions( aSelection );
+        m_toolMgr->PostAction( ACTIONS::refreshPreview );
+    }
+    else if( aEvent->IsAction( &SCH_ACTIONS::toTextBox ) )
+    {
+        m_toolMgr->RunSynchronousAction( SCH_ACTIONS::toTextBox, aCommit );
+        updateStoredPositions( aSelection );
+        m_toolMgr->PostAction( ACTIONS::refreshPreview );
+    }
+    else if( aEvent->Action() == TA_CHOICE_MENU_CHOICE )
+    {
+        if( *aEvent->GetCommandId() >= ID_POPUP_SCH_SELECT_UNIT
+            && *aEvent->GetCommandId() <= ID_POPUP_SCH_SELECT_UNIT_END )
+        {
+            SCH_SYMBOL* symbol = dynamic_cast<SCH_SYMBOL*>( m_selectionTool->GetSelection().Front() );
+            int unit = *aEvent->GetCommandId() - ID_POPUP_SCH_SELECT_UNIT;
+
+            if( symbol )
+            {
+                m_frame->SelectUnit( symbol, unit );
+                m_toolMgr->PostAction( ACTIONS::refreshPreview );
+            }
+        }
+        else if( *aEvent->GetCommandId() >= ID_POPUP_SCH_SELECT_BODY_STYLE
+                 && *aEvent->GetCommandId() <= ID_POPUP_SCH_SELECT_BODY_STYLE_END )
+        {
+            SCH_SYMBOL* symbol = dynamic_cast<SCH_SYMBOL*>( m_selectionTool->GetSelection().Front() );
+            int bodyStyle = ( *aEvent->GetCommandId() - ID_POPUP_SCH_SELECT_BODY_STYLE ) + 1;
+
+            if( symbol && symbol->GetBodyStyle() != bodyStyle )
+            {
+                m_frame->SelectBodyStyle( symbol, bodyStyle );
+                m_toolMgr->PostAction( ACTIONS::refreshPreview );
+            }
+        }
+    }
+    else if( aEvent->IsAction( &SCH_ACTIONS::highlightNet )
+             || aEvent->IsAction( &SCH_ACTIONS::selectOnPCB ) )
+    {
+        // These don't make any sense during a move. Eat them.
+    }
+    else
+    {
+        return true;  // Continue processing
+    }
+
+    return true;  // Continue processing
+}
+
+
+void SCH_MOVE_TOOL::updateStoredPositions( const SCH_SELECTION& aSelection )
+{
+    wxLogTrace( traceSchMove, "updateStoredPositions: start, selection size=%u",
+                aSelection.GetSize() );
+
+    // After transformations like rotation during a move, we need to update the stored
+    // positions that moveItem() uses, particularly for sheet pins which rely on them
+    // for constraint calculations.
+    int itemCount = 0;
+
+    for( EDA_ITEM* item : aSelection )
+    {
+        SCH_ITEM* schItem = dynamic_cast<SCH_ITEM*>( item );
+
+        if( !schItem )
+            continue;
+
+        VECTOR2I oldPos = schItem->GetStoredPos();
+        VECTOR2I newPos = schItem->GetPosition();
+        schItem->SetStoredPos( newPos );
+
+        wxLogTrace( traceSchMove, "  item[%d] type=%d: stored pos updated (%d,%d) -> (%d,%d)",
+                    itemCount++, (int) schItem->Type(), oldPos.x, oldPos.y, newPos.x, newPos.y );
+
+        // Also update stored positions for sheet pins
+        if( schItem->Type() == SCH_SHEET_T )
+        {
+            SCH_SHEET* sheet = static_cast<SCH_SHEET*>( schItem );
+            for( SCH_SHEET_PIN* pin : sheet->GetPins() )
+            {
+                VECTOR2I pinOldPos = pin->GetStoredPos();
+                VECTOR2I pinNewPos = pin->GetPosition();
+                pin->SetStoredPos( pinNewPos );
+                wxLogTrace( traceSchMove, "    sheet pin: stored pos updated (%d,%d) -> (%d,%d)",
+                            pinOldPos.x, pinOldPos.y, pinNewPos.x, pinNewPos.y );
+            }
+        }
+    }
+
+    wxLogTrace( traceSchMove, "updateStoredPositions: complete, updated %d items", itemCount );
+}
+
+
+void SCH_MOVE_TOOL::finalizeMoveOperation( SCH_SELECTION& aSelection, SCH_COMMIT* aCommit, bool aUnselect,
+                                           const std::vector<DANGLING_END_ITEM>& aInternalPoints )
+{
+    KIGFX::VIEW_CONTROLS* controls = getViewControls();
+    const bool            isSlice = ( m_mode == SLICE );
+    const bool            isDragLike = ( m_mode == DRAG || m_mode == BREAK );
 
     // Save whatever new bend lines and changed lines survived the drag
     for( SCH_LINE* newLine : m_newDragLines )
@@ -1234,13 +1696,10 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
         aCommit->Added( newLine, m_frame->GetScreen() );
     }
 
-    // These lines have been changed, but aren't selected. We need
-    // to manually clear these edit flags or they'll stick around.
+    // These lines have been changed, but aren't selected. We need to manually clear these
+    // edit flags or they'll stick around.
     for( SCH_LINE* oldLine : m_changedDragLines )
         oldLine->ClearEditFlags();
-
-    m_newDragLines.clear();
-    m_changedDragLines.clear();
 
     controls->ForceCursorPosition( false );
     controls->ShowCursor( false );
@@ -1249,73 +1708,70 @@ bool SCH_MOVE_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, SCH_COMMIT* aComm
     m_moveOffset = { 0, 0 };
     m_anchorPos.reset();
 
-    if( restore_state )
+    // One last update after exiting loop (for slower stuff, such as updating SCREEN's RTree)
+    for( EDA_ITEM* item : aSelection )
     {
-        m_selectionTool->RemoveItemsFromSel( &m_dragAdditions, QUIET_MODE );
+        updateItem( item, true );
+
+        if( SCH_ITEM* sch_item = dynamic_cast<SCH_ITEM*>( item ) )
+            sch_item->SetConnectivityDirty( true );
     }
-    else
+
+    if( aSelection.GetSize() == 1 && aSelection.Front()->IsNew() )
+        m_frame->SaveCopyForRepeatItem( static_cast<SCH_ITEM*>( aSelection.Front() ) );
+
+    m_selectionTool->RemoveItemsFromSel( &m_dragAdditions, QUIET_MODE );
+
+    SCH_LINE_WIRE_BUS_TOOL* lwbTool = m_toolMgr->GetTool<SCH_LINE_WIRE_BUS_TOOL>();
+
+    // If we move items away from a junction, we _may_ want to add a junction there
+    // to denote the state
+    for( const DANGLING_END_ITEM& it : aInternalPoints )
     {
-        // One last update after exiting loop (for slower stuff, such as updating SCREEN's RTree).
-        for( EDA_ITEM* item : selection )
-        {
-            updateItem( item, true );
-
-            if( SCH_ITEM* sch_item = dynamic_cast<SCH_ITEM*>( item ) )
-                sch_item->SetConnectivityDirty( true );
-        }
-
-        if( selection.GetSize() == 1 && selection.Front()->IsNew() )
-            m_frame->SaveCopyForRepeatItem( static_cast<SCH_ITEM*>( selection.Front() ) );
-
-        m_selectionTool->RemoveItemsFromSel( &m_dragAdditions, QUIET_MODE );
-
-        SCH_LINE_WIRE_BUS_TOOL* lwbTool = m_toolMgr->GetTool<SCH_LINE_WIRE_BUS_TOOL>();
-
-        // If we move items away from a junction, we _may_ want to add a junction there
-        // to denote the state.
-        for( const DANGLING_END_ITEM& it : internalPoints )
-        {
-            if( m_frame->GetScreen()->IsExplicitJunctionNeeded( it.GetPosition()) )
-                lwbTool->AddJunction( aCommit, m_frame->GetScreen(), it.GetPosition() );
-        }
-
-        lwbTool->TrimOverLappingWires( aCommit, &selectionCopy );
-        lwbTool->AddJunctionsIfNeeded( aCommit, &selectionCopy );
-
-        // This needs to run prior to `RecalculateConnections` because we need to identify
-        // the lines that are newly dangling
-        if( m_isDrag && !aIsSlice )
-            trimDanglingLines( aCommit );
-
-        // Auto-rotate any moved labels
-        for( EDA_ITEM* item : selection )
-            m_frame->AutoRotateItem( m_frame->GetScreen(), static_cast<SCH_ITEM*>( item ) );
-
-        m_frame->Schematic().CleanUp( aCommit );
+        if( m_frame->GetScreen()->IsExplicitJunctionNeeded( it.GetPosition() ) )
+            lwbTool->AddJunction( aCommit, m_frame->GetScreen(), it.GetPosition() );
     }
+
+    // Create a selection of original selection, drag selected/changed items, and new bend
+    // lines for later before we clear them in the aCommit. We'll need these to check for new
+    // junctions needed, etc.
+    SCH_SELECTION selectionCopy( aSelection );
+
+    for( SCH_LINE* line : m_newDragLines )
+        selectionCopy.Add( line );
+
+    for( SCH_LINE* line : m_changedDragLines )
+        selectionCopy.Add( line );
+
+    lwbTool->TrimOverLappingWires( aCommit, &selectionCopy );
+    lwbTool->AddJunctionsIfNeeded( aCommit, &selectionCopy );
+
+    // This needs to run prior to `RecalculateConnections` because we need to identify the
+    // lines that are newly dangling
+    if( isDragLike && !isSlice )
+        trimDanglingLines( aCommit );
+
+    // Auto-rotate any moved labels
+    for( EDA_ITEM* item : aSelection )
+        m_frame->AutoRotateItem( m_frame->GetScreen(), static_cast<SCH_ITEM*>( item ) );
+
+    m_frame->Schematic().CleanUp( aCommit );
 
     for( EDA_ITEM* item : m_frame->GetScreen()->Items() )
         item->ClearEditFlags();
 
-    // ensure any selected item not in screen main list (for instance symbol fields)
-    // has its edit flags cleared
+    // Ensure any selected item not in screen main list (for instance symbol fields) has its
+    // edit flags cleared
     for( EDA_ITEM* item : selectionCopy )
         item->ClearEditFlags();
 
-    if( unselect )
+    m_newDragLines.clear();
+    m_changedDragLines.clear();
+
+    if( aUnselect )
         m_toolMgr->RunAction( ACTIONS::selectionClear );
     else
         m_selectionTool->RebuildSelection();  // Schematic cleanup might have merged lines, etc.
-
-    m_dragAdditions.clear();
-    m_lineConnectionCache.clear();
-    m_moveInProgress = false;
-
-    m_hiddenJunctions.clear();
-    m_view->ClearPreview();
-    m_frame->PopTool( aEvent );
-
-    return !restore_state;
 }
 
 
@@ -1407,8 +1863,7 @@ void SCH_MOVE_TOOL::trimDanglingLines( SCH_COMMIT* aCommit )
 }
 
 
-void SCH_MOVE_TOOL::getConnectedItems( SCH_ITEM* aOriginalItem, const VECTOR2I& aPoint,
-                                       EDA_ITEMS& aList )
+void SCH_MOVE_TOOL::getConnectedItems( SCH_ITEM* aOriginalItem, const VECTOR2I& aPoint, EDA_ITEMS& aList )
 {
     EE_RTREE&         items = m_frame->GetScreen()->Items();
     EE_RTREE::EE_TYPE itemsOverlapping = items.Overlapping( aOriginalItem->GetBoundingBox() );
@@ -1541,13 +1996,13 @@ void SCH_MOVE_TOOL::getConnectedItems( SCH_ITEM* aOriginalItem, const VECTOR2I& 
 }
 
 
-void SCH_MOVE_TOOL::getConnectedDragItems( SCH_COMMIT* aCommit, SCH_ITEM* aSelectedItem,
-                                           const VECTOR2I& aPoint, EDA_ITEMS& aList )
+void SCH_MOVE_TOOL::getConnectedDragItems( SCH_COMMIT* aCommit, SCH_ITEM* aSelectedItem, const VECTOR2I& aPoint,
+                                           EDA_ITEMS& aList )
 {
-    EE_RTREE&         items = m_frame->GetScreen()->Items();
-    EE_RTREE::EE_TYPE itemsOverlappingRTree = items.Overlapping( aSelectedItem->GetBoundingBox() );
+    EE_RTREE&              items = m_frame->GetScreen()->Items();
+    EE_RTREE::EE_TYPE      itemsOverlappingRTree = items.Overlapping( aSelectedItem->GetBoundingBox() );
     std::vector<SCH_ITEM*> itemsConnectable;
-    bool              ptHasUnselectedJunction = false;
+    bool                   ptHasUnselectedJunction = false;
 
     auto makeNewWire =
             [this]( SCH_COMMIT* commit, SCH_ITEM* fixed, SCH_ITEM* selected, const VECTOR2I& start,
@@ -1617,7 +2072,7 @@ void SCH_MOVE_TOOL::getConnectedDragItems( SCH_COMMIT* aCommit, SCH_ITEM* aSelec
             for( SCH_SHEET_PIN* pin : sheet->GetPins() )
             {
                 if( !pin->IsSelected()
-                    && pin->GetPosition() == aSelectedItem->GetPosition()
+                    && pin->GetPosition() == aPoint
                     && pin->CanConnect( aSelectedItem ) )
                 {
                     itemsConnectable.push_back( pin );
@@ -1923,20 +2378,25 @@ void SCH_MOVE_TOOL::getConnectedDragItems( SCH_COMMIT* aCommit, SCH_ITEM* aSelec
 
 void SCH_MOVE_TOOL::moveItem( EDA_ITEM* aItem, const VECTOR2I& aDelta )
 {
+    static int moveCallCount = 0;
+    wxLogTrace( traceSchMove, "moveItem[%d]: type=%d, delta=(%d,%d)",
+                ++moveCallCount, aItem->Type(), aDelta.x, aDelta.y );
+
     switch( aItem->Type() )
     {
     case SCH_LINE_T:
-    {
-        SCH_LINE* line = static_cast<SCH_LINE*>( aItem );
-
-        if( aItem->HasFlag( STARTPOINT ) || !m_isDrag )
-            line->MoveStart( aDelta );
-
-        if( aItem->HasFlag( ENDPOINT ) || !m_isDrag )
-            line->MoveEnd( aDelta );
+        if( m_mode == MOVE )
+        {
+            // In MOVE mode, both endpoints always move
+            static_cast<SCH_LINE*>( aItem )->Move( aDelta );
+        }
+        else
+        {
+            // In DRAG mode, only flagged endpoints move - use shared function
+            MoveSchematicItem( aItem, aDelta );
+        }
 
         break;
-    }
 
     case SCH_PIN_T:
     case SCH_FIELD_T:
@@ -1962,13 +2422,9 @@ void SCH_MOVE_TOOL::moveItem( EDA_ITEM* aItem, const VECTOR2I& aDelta )
     }
 
     case SCH_SHEET_PIN_T:
-    {
-        SCH_SHEET_PIN* pin = (SCH_SHEET_PIN*) aItem;
-
-        pin->SetStoredPos( pin->GetStoredPos() + aDelta );
-        pin->ConstrainOnEdge( pin->GetStoredPos(), true );
+        // Use shared function for sheet pin movement
+        MoveSchematicItem( aItem, aDelta );
         break;
-    }
 
     case SCH_LABEL_T:
     case SCH_DIRECTIVE_LABEL_T:
@@ -2014,10 +2470,10 @@ int SCH_MOVE_TOOL::AlignToGrid( const TOOL_EVENT& aEvent )
 
                 // Ensure only one end is moved when calling moveItem
                 // i.e. we are in drag mode
-                bool tmp_isDrag = m_isDrag;
-                m_isDrag = true;
+                MOVE_MODE tmpMode = m_mode;
+                m_mode = DRAG;
                 moveItem( item, delta );
-                m_isDrag = tmp_isDrag;
+                m_mode = tmpMode;
 
                 item->ClearFlags( IS_MOVING );
                 updateItem( item, true );
@@ -2040,130 +2496,24 @@ int SCH_MOVE_TOOL::AlignToGrid( const TOOL_EVENT& aEvent )
         }
     }
 
-    for( EDA_ITEM* item : selection )
-    {
-        if( item->Type() == SCH_LINE_T )
-        {
-            SCH_LINE*             line = static_cast<SCH_LINE*>( item );
-            std::vector<int>      flags{ STARTPOINT, ENDPOINT };
-            std::vector<VECTOR2I> pts{ line->GetStartPoint(), line->GetEndPoint() };
+    SCH_ALIGNMENT_CALLBACKS callbacks;
 
-            for( int ii = 0; ii < 2; ++ii )
+    callbacks.m_doMoveItem = doMoveItem;
+
+    callbacks.m_getConnectedDragItems =
+            [&]( SCH_ITEM* aItem, const VECTOR2I& aPoint, EDA_ITEMS& aList )
             {
-                EDA_ITEMS drag_items{ item };
-                line->ClearFlags();
-                line->SetFlags( SELECTED );
-                line->SetFlags( flags[ii] );
-                getConnectedDragItems( &commit, line, pts[ii], drag_items );
-                std::set<EDA_ITEM*> unique_items( drag_items.begin(), drag_items.end() );
+                getConnectedDragItems( &commit, aItem, aPoint, aList );
+            };
 
-                VECTOR2I delta = grid.AlignGrid( pts[ii], selectionGrid ) - pts[ii];
-
-                if( delta != VECTOR2I( 0, 0 ) )
-                {
-                    for( EDA_ITEM* dragItem : unique_items )
-                    {
-                        if( dragItem->GetParent() && dragItem->GetParent()->IsSelected() )
-                            continue;
-
-                        doMoveItem( dragItem, delta );
-                    }
-                }
-            }
-        }
-        else if( item->Type() == SCH_FIELD_T || item->Type() == SCH_TEXT_T )
-        {
-            VECTOR2I delta = grid.AlignGrid( item->GetPosition(), selectionGrid ) - item->GetPosition();
-
-            if( delta != VECTOR2I( 0, 0 ) )
-                doMoveItem( item, delta );
-        }
-        else if( item->Type() == SCH_SHEET_T )
-        {
-            SCH_SHEET* sheet = static_cast<SCH_SHEET*>( item );
-            VECTOR2I   topLeft = sheet->GetPosition();
-            VECTOR2I   bottomRight = topLeft + sheet->GetSize();
-            VECTOR2I   tl_delta = grid.AlignGrid( topLeft, selectionGrid ) - topLeft;
-            VECTOR2I   br_delta = grid.AlignGrid( bottomRight, selectionGrid ) - bottomRight;
-
-            if( tl_delta != VECTOR2I( 0, 0 ) || br_delta != VECTOR2I( 0, 0 ) )
+    callbacks.m_updateItem =
+            [&]( EDA_ITEM* aItem )
             {
-                doMoveItem( sheet, tl_delta );
+                updateItem( aItem, true );
+            };
 
-                VECTOR2I newSize = (VECTOR2I) sheet->GetSize() - tl_delta + br_delta;
-                sheet->SetSize( VECTOR2I( newSize.x, newSize.y ) );
-                updateItem( sheet, true );
-            }
-
-            for( SCH_SHEET_PIN* pin : sheet->GetPins() )
-            {
-                VECTOR2I newPos;
-
-                if( pin->GetSide() == SHEET_SIDE::TOP || pin->GetSide() == SHEET_SIDE::LEFT )
-                    newPos = pin->GetPosition() + tl_delta;
-                else
-                    newPos = pin->GetPosition() + br_delta;
-
-                VECTOR2I delta = grid.AlignGrid( newPos - pin->GetPosition(), selectionGrid );
-
-                if( delta != VECTOR2I( 0, 0 ) )
-                {
-                    EDA_ITEMS drag_items;
-                    getConnectedDragItems( &commit, pin, pin->GetConnectionPoints()[0],
-                                           drag_items );
-
-                    doMoveItem( pin, delta );
-
-                    for( EDA_ITEM* dragItem : drag_items )
-                    {
-                        if( dragItem->GetParent() && dragItem->GetParent()->IsSelected() )
-                            continue;
-
-                        doMoveItem( dragItem, delta );
-                    }
-                }
-            }
-        }
-        else
-        {
-            SCH_ITEM*             schItem = static_cast<SCH_ITEM*>( item );
-            std::vector<VECTOR2I> connections = schItem->GetConnectionPoints();
-            EDA_ITEMS             drag_items;
-
-            for( const VECTOR2I& point : connections )
-                getConnectedDragItems( &commit, schItem, point, drag_items );
-
-            std::map<VECTOR2I, int> shifts;
-            VECTOR2I                most_common( 0, 0 );
-            int                     max_count = 0;
-
-            for( const VECTOR2I& conn : connections )
-            {
-                VECTOR2I gridpt = grid.AlignGrid( conn, selectionGrid ) - conn;
-
-                shifts[gridpt]++;
-
-                if( shifts[gridpt] > max_count )
-                {
-                    most_common = gridpt;
-                    max_count = shifts[most_common];
-                }
-            }
-
-            if( most_common != VECTOR2I( 0, 0 ) )
-            {
-                doMoveItem( item, most_common );
-
-                for( EDA_ITEM* dragItem : drag_items )
-                {
-                    if( dragItem->GetParent() && dragItem->GetParent()->IsSelected() )
-                        continue;
-
-                    doMoveItem( dragItem, most_common );
-                }
-            }
-        }
-    }
+    std::vector<EDA_ITEM*> items( selection.begin(), selection.end() );
+    AlignSchematicItemsToGrid( m_frame->GetScreen(), items, grid, selectionGrid, callbacks );
 
     SCH_LINE_WIRE_BUS_TOOL* lwbTool = m_toolMgr->GetTool<SCH_LINE_WIRE_BUS_TOOL>();
     lwbTool->TrimOverLappingWires( &commit, &selection );
@@ -2194,7 +2544,7 @@ void SCH_MOVE_TOOL::setTransitions()
 {
     Go( &SCH_MOVE_TOOL::Main,               SCH_ACTIONS::move.MakeEvent() );
     Go( &SCH_MOVE_TOOL::Main,               SCH_ACTIONS::drag.MakeEvent() );
+    Go( &SCH_MOVE_TOOL::Main,               SCH_ACTIONS::breakWire.MakeEvent() );
+    Go( &SCH_MOVE_TOOL::Main,               SCH_ACTIONS::slice.MakeEvent() );
     Go( &SCH_MOVE_TOOL::AlignToGrid,        SCH_ACTIONS::alignToGrid.MakeEvent() );
 }
-
-

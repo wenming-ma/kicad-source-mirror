@@ -110,6 +110,7 @@ public:
     static TOOL_ACTION mergeCells;
     static TOOL_ACTION unmergeCells;
     static TOOL_ACTION editTable;
+    static TOOL_ACTION exportTableCSV;
 
     // Find and Replace
     static TOOL_ACTION showSearch;
@@ -264,8 +265,6 @@ public:
     static TOOL_ACTION updateSchematicFromPcb;
     static TOOL_ACTION showProperties;
     static TOOL_ACTION showDatasheet;
-    static TOOL_ACTION showLibraryFieldsTable;
-    static TOOL_ACTION showRelatedLibraryFieldsTable;
 
     // Internal
     static TOOL_ACTION updateMenu;

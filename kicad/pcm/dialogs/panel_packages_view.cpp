@@ -105,8 +105,7 @@ PANEL_PACKAGES_VIEW::PANEL_PACKAGES_VIEW( wxWindow*                             
 
 PANEL_PACKAGES_VIEW::~PANEL_PACKAGES_VIEW()
 {
-    m_splitter1->Disconnect( wxEVT_IDLE, wxIdleEventHandler( PANEL_PACKAGES_VIEW::SetSashOnIdle ),
-                             NULL, this );
+    m_splitter1->Disconnect( wxEVT_IDLE, wxIdleEventHandler( PANEL_PACKAGES_VIEW::SetSashOnIdle ), nullptr, this );
 
     COMMON_SETTINGS* cfg = Pgm().GetCommonSettings();
     cfg->m_PackageManager.sash_pos = m_splitter1->GetSashPosition();
@@ -435,8 +434,11 @@ bool PANEL_PACKAGES_VIEW::canRunAction() const
     {
     case PPS_PENDING_INSTALL:
     case PPS_PENDING_UNINSTALL:
-    case PPS_PENDING_UPDATE: return false;
-    default: break;
+    case PPS_PENDING_UPDATE:
+        return false;
+
+    default:
+        break;
     }
 
     return m_gridVersions->GetNumberRows() == 1 || m_gridVersions->GetSelectedRows().size() == 1;
@@ -515,6 +517,8 @@ void PANEL_PACKAGES_VIEW::OnDownloadVersionClicked( wxCommandEvent& event )
     wxFileDialog dialog( topLevelParent, _( "Save Package" ), cfg->m_PcmLastDownloadDir,
                          wxString::Format( wxT( "%s_v%s.zip" ), package.identifier, version ),
                          wxT( "ZIP files (*.zip)|*.zip" ), wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
+
+    KIPLATFORM::UI::AllowNetworkFileSystems( &dialog );
 
     if( dialog.ShowModal() == wxID_CANCEL )
         return;

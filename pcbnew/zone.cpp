@@ -126,7 +126,7 @@ ZONE::~ZONE()
 }
 
 
-void ZONE::InitDataFromSrcInCopyCtor( const ZONE& aZone )
+void ZONE::InitDataFromSrcInCopyCtor( const ZONE& aZone, PCB_LAYER_ID aLayer )
 {
     // members are expected non initialize in this.
     // InitDataFromSrcInCopyCtor() is expected to be called only from a copy constructor.
@@ -147,7 +147,11 @@ void ZONE::InitDataFromSrcInCopyCtor( const ZONE& aZone )
     m_placementAreaEnabled    = aZone.m_placementAreaEnabled;
     m_placementAreaSourceType = aZone.m_placementAreaSourceType;
     m_placementAreaSource     = aZone.m_placementAreaSource;
-    SetLayerSet( aZone.GetLayerSet() );
+
+    if( aLayer == UNDEFINED_LAYER )
+        SetLayerSet( aZone.GetLayerSet() );
+    else
+        SetLayerSet( { aLayer } );
 
     m_doNotAllowZoneFills     = aZone.m_doNotAllowZoneFills;
     m_doNotAllowVias          = aZone.m_doNotAllowVias;
@@ -181,6 +185,9 @@ void ZONE::InitDataFromSrcInCopyCtor( const ZONE& aZone )
     aZone.GetLayerSet().RunOnLayers(
             [&]( PCB_LAYER_ID layer )
             {
+                if( aLayer != UNDEFINED_LAYER && aLayer != layer )
+                    return;
+
                 std::shared_ptr<SHAPE_POLY_SET> fill = aZone.m_FilledPolysList.at( layer );
 
                 if( fill )
@@ -192,10 +199,7 @@ void ZONE::InitDataFromSrcInCopyCtor( const ZONE& aZone )
                 m_insulatedIslands[layer] = aZone.m_insulatedIslands.at( layer );
             } );
 
-    m_layerProperties.clear();
-
-    std::ranges::copy( aZone.LayerProperties(),
-                       std::inserter( m_layerProperties, std::end( m_layerProperties ) ) );
+    m_layerProperties         = aZone.m_layerProperties;
 
     m_borderStyle             = aZone.m_borderStyle;
     m_borderHatchPitch        = aZone.m_borderHatchPitch;
@@ -212,6 +216,14 @@ void ZONE::InitDataFromSrcInCopyCtor( const ZONE& aZone )
 EDA_ITEM* ZONE::Clone() const
 {
     return new ZONE( *this );
+}
+
+
+ZONE* ZONE::Clone( PCB_LAYER_ID aLayer ) const
+{
+    ZONE* clone = new ZONE( BOARD_ITEM::GetParent() );
+    clone->InitDataFromSrcInCopyCtor( *this, aLayer );
+    return clone;
 }
 
 
@@ -441,13 +453,25 @@ bool ZONE::SameNet( const ZONE* aOther ) const
 
 bool ZONE::UnFill()
 {
+    std::lock_guard<std::mutex> lock( m_filledPolysListMutex );
+
+    return unFillLocked();
+}
+
+
+bool ZONE::unFillLocked()
+{
     bool change = false;
 
     for( std::pair<const PCB_LAYER_ID, std::shared_ptr<SHAPE_POLY_SET>>& pair : m_FilledPolysList )
     {
         change |= !pair.second->IsEmpty();
         m_insulatedIslands[pair.first].clear();
-        pair.second->RemoveAllContours();
+
+        // Replace the shared_ptr with a new empty object rather than clearing the existing one.
+        // This ensures that any CN_ZONE_LAYERs holding shared_ptr copies still have valid data
+        // (the old, now orphaned SHAPE_POLY_SET) while we get a fresh container.
+        pair.second = std::make_shared<SHAPE_POLY_SET>();
     }
 
     m_isFilled = false;
@@ -471,8 +495,21 @@ VECTOR2I ZONE::GetPosition() const
 
 PCB_LAYER_ID ZONE::GetLayer() const
 {
+    std::lock_guard<std::mutex> lock( m_layerSetMutex );
+
     if( m_layerSet.count() == 1 )
-        return GetFirstLayer();
+    {
+        // GetFirstLayer would try to acquire the mutex again, so inline its logic here
+        if( m_layerSet.count() == 0 )
+            return UNDEFINED_LAYER;
+
+        const LSEQ uiLayers = m_layerSet.UIOrder();
+
+        if( uiLayers.size() )
+            return uiLayers[0];
+
+        return m_layerSet.Seq()[0];
+    }
 
     return UNDEFINED_LAYER;
 }
@@ -480,6 +517,8 @@ PCB_LAYER_ID ZONE::GetLayer() const
 
 PCB_LAYER_ID ZONE::GetFirstLayer() const
 {
+    std::lock_guard<std::mutex> lock( m_layerSetMutex );
+
     if( m_layerSet.count() == 0 )
         return UNDEFINED_LAYER;
 
@@ -498,6 +537,7 @@ PCB_LAYER_ID ZONE::GetFirstLayer() const
 
 bool ZONE::IsOnCopperLayer() const
 {
+    std::lock_guard<std::mutex> lock( m_layerSetMutex );
     return ( m_layerSet & LSET::AllCuMask() ).count() > 0;
 }
 
@@ -513,11 +553,13 @@ void ZONE::SetLayerSet( const LSET& aLayerSet )
     if( aLayerSet.count() == 0 )
         return;
 
+    std::scoped_lock lock( m_layerSetMutex, m_filledPolysListMutex );
+
     if( m_layerSet != aLayerSet )
     {
         SetNeedRefill( true );
 
-        UnFill();
+        unFillLocked();
 
         m_FilledPolysList.clear();
         m_filledPolysHash.clear();
@@ -542,34 +584,16 @@ void ZONE::SetLayerSet( const LSET& aLayerSet )
 }
 
 
-const ZONE_LAYER_PROPERTIES& ZONE::LayerProperties( PCB_LAYER_ID aLayer ) const
-{
-    wxCHECK_MSG( m_layerProperties.contains( aLayer ), m_layerProperties.at( GetFirstLayer() ),
-                 "Zone has no layer " + std::string( magic_enum::enum_name( aLayer ) ) );
-
-    return m_layerProperties.at( aLayer );
-}
-
-
 void ZONE::SetLayerProperties( const std::map<PCB_LAYER_ID, ZONE_LAYER_PROPERTIES>& aOther )
 {
-    m_layerProperties.clear();
-
-    std::ranges::copy( aOther, std::inserter( m_layerProperties, std::end( m_layerProperties ) ) );
-}
-
-
-const std::optional<VECTOR2I>& ZONE::HatchingOffset( PCB_LAYER_ID aLayer ) const
-{
-    wxCHECK_MSG( m_layerProperties.contains( aLayer ), m_layerProperties.at( GetFirstLayer() ).hatching_offset,
-                 "Zone has no layer " + std::string( magic_enum::enum_name( aLayer ) ) );
-
-    return m_layerProperties.at( aLayer ).hatching_offset;
+    m_layerProperties = aOther;
 }
 
 
 std::vector<int> ZONE::ViewGetLayers() const
 {
+    std::lock_guard<std::mutex> lock( m_layerSetMutex );
+
     std::vector<int> layers;
     layers.reserve( 2 * m_layerSet.count() + 1 );
 
@@ -614,6 +638,7 @@ double ZONE::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
 
 bool ZONE::IsOnLayer( PCB_LAYER_ID aLayer ) const
 {
+    std::lock_guard<std::mutex> lock( m_layerSetMutex );
     return m_layerSet.test( aLayer );
 }
 
@@ -693,6 +718,8 @@ HASH_128 ZONE::GetHashValue( PCB_LAYER_ID aLayer )
 
 void ZONE::BuildHashValue( PCB_LAYER_ID aLayer )
 {
+    std::lock_guard<std::mutex> lock( m_filledPolysListMutex );
+
     if( !m_FilledPolysList.count( aLayer ) )
         m_filledPolysHash[aLayer] = g_nullPoly.GetHash();
     else
@@ -824,10 +851,18 @@ bool ZONE::HitTestFilledArea( PCB_LAYER_ID aLayer, const VECTOR2I& aRefPos, int 
     if( GetIsRuleArea() )
         return m_Poly->Contains( aRefPos, -1, aAccuracy );
 
-    if( !m_FilledPolysList.count( aLayer ) )
-        return false;
+    std::shared_ptr<SHAPE_POLY_SET> fillPolys;
 
-    return m_FilledPolysList.at( aLayer )->Contains( aRefPos, -1, aAccuracy );
+    {
+        std::lock_guard<std::mutex> lock( m_filledPolysListMutex );
+
+        if( !m_FilledPolysList.count( aLayer ) )
+            return false;
+
+        fillPolys = m_FilledPolysList.at( aLayer );
+    }
+
+    return fillPolys->Contains( aRefPos, -1, aAccuracy );
 }
 
 
@@ -940,36 +975,48 @@ void ZONE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>&
     if( !m_zoneName.empty() )
         aList.emplace_back( _( "Name" ), m_zoneName );
 
-    switch( m_fillMode )
+    if( !GetIsRuleArea() )      // Show fill mode only for not rule areas
     {
-    case ZONE_FILL_MODE::POLYGONS:      msg = _( "Solid" ); break;
-    case ZONE_FILL_MODE::HATCH_PATTERN: msg = _( "Hatched" ); break;
-    default:                            msg = _( "Unknown" ); break;
+        switch( m_fillMode )
+        {
+        case ZONE_FILL_MODE::POLYGONS:      msg = _( "Solid" ); break;
+        case ZONE_FILL_MODE::HATCH_PATTERN: msg = _( "Hatched" ); break;
+        default:                            msg = _( "Unknown" ); break;
+        }
+
+        aList.emplace_back( _( "Fill Mode" ), msg );
+
+        aList.emplace_back( _( "Filled Area" ),
+                            aFrame->MessageTextFromValue( m_area, true, EDA_DATA_TYPE::AREA ) );
+
+        wxString source;
+        int      clearance = GetOwnClearance( UNDEFINED_LAYER, &source );
+
+        if( !source.IsEmpty() )
+        {
+            aList.emplace_back( wxString::Format( _( "Min Clearance: %s" ), aFrame->MessageTextFromValue( clearance ) ),
+                                wxString::Format( _( "(from %s)" ), source ) );
+        }
     }
 
-    aList.emplace_back( _( "Fill Mode" ), msg );
+    int count = 0;
 
-    aList.emplace_back( _( "Filled Area" ),
-                        aFrame->MessageTextFromValue( m_area, true, EDA_DATA_TYPE::AREA ) );
-
-    wxString source;
-    int      clearance = GetOwnClearance( UNDEFINED_LAYER, &source );
-
-    if( !source.IsEmpty() )
+    if( GetIsRuleArea() )
     {
-        aList.emplace_back( wxString::Format( _( "Min Clearance: %s" ), aFrame->MessageTextFromValue( clearance ) ),
-                            wxString::Format( _( "(from %s)" ), source ) );
+        double outline_area = CalculateOutlineArea();
+        aList.emplace_back( _( "Outline Area" ),
+                            aFrame->MessageTextFromValue( outline_area, true, EDA_DATA_TYPE::AREA ) );
+
+        const SHAPE_POLY_SET* area_outline = Outline();
+        count = area_outline->FullPointCount();
     }
-
-    if( !m_FilledPolysList.empty() )
+    else if( !m_FilledPolysList.empty() )
     {
-        int count = 0;
-
         for( std::pair<const PCB_LAYER_ID, std::shared_ptr<SHAPE_POLY_SET>>& ii: m_FilledPolysList )
             count += ii.second->TotalVertices();
-
-        aList.emplace_back( _( "Corner Count" ), wxString::Format( wxT( "%d" ), count ) );
     }
+
+    aList.emplace_back( _( "Corner Count" ), wxString::Format( wxT( "%d" ), count ) );
 }
 
 
@@ -1048,10 +1095,7 @@ void ZONE::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
     for( auto& [oldLayer, shapePtr] : m_FilledPolysList )
         fillsCopy[oldLayer] = *shapePtr;
 
-    std::map<PCB_LAYER_ID, ZONE_LAYER_PROPERTIES> layerPropertiesCopy;
-
-    std::ranges::copy( m_layerProperties,
-                       std::inserter( layerPropertiesCopy, std::end( layerPropertiesCopy ) ) );
+    std::map<PCB_LAYER_ID, ZONE_LAYER_PROPERTIES> layerPropertiesCopy = m_layerProperties;
 
     LSET flipped;
 
@@ -1252,16 +1296,19 @@ void ZONE::HatchBorder()
         return;
     }
 
-    // Calculate spacing between 2 hatch lines
-    int spacing;
-
-    if( m_borderStyle == ZONE_BORDER_DISPLAY_STYLE::DIAGONAL_EDGE )
-        spacing = m_borderHatchPitch;
-    else
-        spacing = m_borderHatchPitch * 2;
-
     // set the "length" of hatch lines (the length on horizontal axis)
-    int  hatch_line_len = m_borderHatchPitch;
+    int  hatch_line_len = m_borderHatchPitch;   // OK for DIAGONAL_EDGE style
+
+    // Calculate spacing between 2 hatch lines
+    int spacing = m_borderHatchPitch;           // OK for DIAGONAL_EDGE style
+
+    if( m_borderStyle == ZONE_BORDER_DISPLAY_STYLE::DIAGONAL_FULL )
+    {
+        // The spacing is twice the spacing for DIAGONAL_EDGE because one
+        // full diagonal replaces 2 edge diagonal hatch segments in code
+        spacing = m_borderHatchPitch * 2;
+        hatch_line_len = -1;    // Use full diagonal hatch line
+    }
 
     // To have a better look, give a slope depending on the layer
     int                 layer = GetFirstLayer();
@@ -1300,6 +1347,8 @@ void ZONE::swapData( BOARD_ITEM* aImage )
 
 void ZONE::CacheTriangulation( PCB_LAYER_ID aLayer )
 {
+    std::lock_guard<std::mutex> lock( m_filledPolysListMutex );
+
     if( aLayer == UNDEFINED_LAYER )
     {
         for( auto& [ layer, poly ] : m_FilledPolysList )
@@ -1567,6 +1616,8 @@ void ZONE::TransformSmoothedOutlineToPolygon( SHAPE_POLY_SET& aBuffer, int aClea
 
 std::shared_ptr<SHAPE> ZONE::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHING aFlash ) const
 {
+    std::lock_guard<std::mutex> lock( m_filledPolysListMutex );
+
     if( m_FilledPolysList.find( aLayer ) == m_FilledPolysList.end() )
         return std::make_shared<SHAPE_NULL>();
     else
@@ -1579,16 +1630,24 @@ void ZONE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer
 {
     wxASSERT_MSG( !aIgnoreLineWidth, wxT( "IgnoreLineWidth has no meaning for zones." ) );
 
-    if( !m_FilledPolysList.count( aLayer ) )
-        return;
+    std::shared_ptr<SHAPE_POLY_SET> fillPolys;
+
+    {
+        std::lock_guard<std::mutex> lock( m_filledPolysListMutex );
+
+        if( !m_FilledPolysList.count( aLayer ) )
+            return;
+
+        fillPolys = m_FilledPolysList.at( aLayer );
+    }
 
     if( !aClearance )
     {
-        aBuffer.Append( *m_FilledPolysList.at( aLayer ) );
+        aBuffer.Append( *fillPolys );
         return;
     }
 
-    SHAPE_POLY_SET temp_buf = m_FilledPolysList.at( aLayer )->CloneDropTriangulation();
+    SHAPE_POLY_SET temp_buf = fillPolys->CloneDropTriangulation();
 
     // Rebuild filled areas only if clearance is not 0
     if( aClearance > 0 || aErrorLoc == ERROR_OUTSIDE )
@@ -1605,6 +1664,8 @@ void ZONE::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer
 
 void ZONE::TransformSolidAreasShapesToPolygon( PCB_LAYER_ID aLayer, SHAPE_POLY_SET& aBuffer ) const
 {
+    std::lock_guard<std::mutex> lock( m_filledPolysListMutex );
+
     if( m_FilledPolysList.count( aLayer ) && !m_FilledPolysList.at( aLayer )->IsEmpty() )
         aBuffer.Append( *m_FilledPolysList.at( aLayer ) );
 }
@@ -1614,6 +1675,8 @@ void ZONE::SetLayerSetAndRemoveUnusedFills( const LSET& aLayerSet )
 {
     if( aLayerSet.count() == 0 )
         return;
+
+    std::scoped_lock lock( m_layerSetMutex, m_filledPolysListMutex );
 
     if( m_layerSet != aLayerSet )
     {
@@ -1901,18 +1964,13 @@ static struct ZONE_DESC
         // a layer set
         propMgr.ReplaceProperty( TYPE_HASH( BOARD_CONNECTED_ITEM ), _HKI( "Layer" ),
                                  new PROPERTY_ENUM<ZONE, PCB_LAYER_ID>( _HKI( "Layer" ),
-                                                                        &ZONE::SetLayer,
-                                                                        &ZONE::GetLayer ) )
+                                                                        &ZONE::SetLayer, &ZONE::GetLayer ) )
                 .SetIsHiddenFromPropertiesManager();
 
-        propMgr.OverrideAvailability( TYPE_HASH( ZONE ), TYPE_HASH( BOARD_CONNECTED_ITEM ),
-                                      _HKI( "Net" ), isCopperZone );
-        propMgr.OverrideAvailability( TYPE_HASH( ZONE ), TYPE_HASH( BOARD_CONNECTED_ITEM ),
-                                      _HKI( "Net Class" ), isCopperZone );
-
-        propMgr.AddProperty( new PROPERTY<ZONE, unsigned>( _HKI( "Priority" ),
-                    &ZONE::SetAssignedPriority, &ZONE::GetAssignedPriority ) )
-                .SetAvailableFunc( isCopperZone );
+        propMgr.OverrideAvailability( TYPE_HASH( ZONE ), TYPE_HASH( BOARD_CONNECTED_ITEM ), _HKI( "Net" ),
+                                      isCopperZone );
+        propMgr.OverrideAvailability( TYPE_HASH( ZONE ), TYPE_HASH( BOARD_CONNECTED_ITEM ), _HKI( "Net Class" ),
+                                      isCopperZone );
 
         propMgr.AddProperty( new PROPERTY<ZONE, wxString>( _HKI( "Name" ),
                     &ZONE::SetZoneName, &ZONE::GetZoneName ) );
@@ -1920,54 +1978,46 @@ static struct ZONE_DESC
         const wxString groupKeepout = _HKI( "Keepout" );
 
         propMgr.AddProperty( new PROPERTY<ZONE, bool>( _HKI( "Keep Out Tracks" ),
-                                                       &ZONE::SetDoNotAllowTracks,
-                                                       &ZONE::GetDoNotAllowTracks ),
-                             groupKeepout )
+                    &ZONE::SetDoNotAllowTracks, &ZONE::GetDoNotAllowTracks ),
+                    groupKeepout )
                 .SetAvailableFunc( isRuleArea );
 
         propMgr.AddProperty( new PROPERTY<ZONE, bool>( _HKI( "Keep Out Vias" ),
-                                                       &ZONE::SetDoNotAllowVias,
-                                                       &ZONE::GetDoNotAllowVias ),
-                             groupKeepout )
+                    &ZONE::SetDoNotAllowVias, &ZONE::GetDoNotAllowVias ),
+                    groupKeepout )
                 .SetAvailableFunc( isRuleArea );
 
         propMgr.AddProperty( new PROPERTY<ZONE, bool>( _HKI( "Keep Out Pads" ),
-                                                       &ZONE::SetDoNotAllowPads,
-                                                       &ZONE::GetDoNotAllowPads ),
-                             groupKeepout )
+                    &ZONE::SetDoNotAllowPads, &ZONE::GetDoNotAllowPads ),
+                    groupKeepout )
                 .SetAvailableFunc( isRuleArea );
 
         propMgr.AddProperty( new PROPERTY<ZONE, bool>( _HKI( "Keep Out Zone Fills" ),
-                                                       &ZONE::SetDoNotAllowZoneFills,
-                                                       &ZONE::GetDoNotAllowZoneFills ),
-                             groupKeepout )
+                    &ZONE::SetDoNotAllowZoneFills, &ZONE::GetDoNotAllowZoneFills ),
+                    groupKeepout )
                 .SetAvailableFunc( isRuleArea );
 
         propMgr.AddProperty( new PROPERTY<ZONE, bool>( _HKI( "Keep Out Footprints" ),
-                                                       &ZONE::SetDoNotAllowFootprints,
-                                                       &ZONE::GetDoNotAllowFootprints ),
-                             groupKeepout )
+                    &ZONE::SetDoNotAllowFootprints, &ZONE::GetDoNotAllowFootprints ),
+                    groupKeepout )
                 .SetAvailableFunc( isRuleArea );
 
 
         const wxString groupPlacement = _HKI( "Placement" );
 
         propMgr.AddProperty( new PROPERTY<ZONE, bool>( _HKI( "Enable" ),
-                                                       &ZONE::SetPlacementAreaEnabled,
-                                                       &ZONE::GetPlacementAreaEnabled ),
-                             groupPlacement )
+                    &ZONE::SetPlacementAreaEnabled, &ZONE::GetPlacementAreaEnabled ),
+                    groupPlacement )
                 .SetAvailableFunc( isRuleArea );
 
         propMgr.AddProperty( new PROPERTY_ENUM<ZONE, PLACEMENT_SOURCE_T>( _HKI( "Source Type" ),
-                                                                          &ZONE::SetPlacementAreaSourceType,
-                                                                          &ZONE::GetPlacementAreaSourceType ),
-                             groupPlacement )
+                    &ZONE::SetPlacementAreaSourceType, &ZONE::GetPlacementAreaSourceType ),
+                    groupPlacement )
                 .SetAvailableFunc( isRuleArea );
 
         propMgr.AddProperty( new PROPERTY<ZONE, wxString>( _HKI( "Source Name" ),
-                                                           &ZONE::SetPlacementAreaSource,
-                                                           &ZONE::GetPlacementAreaSource ),
-                             groupPlacement )
+                    &ZONE::SetPlacementAreaSource, &ZONE::GetPlacementAreaSource ),
+                    groupPlacement )
                 .SetAvailableFunc( isRuleArea );
 
 
@@ -2046,15 +2096,13 @@ static struct ZONE_DESC
         const wxString groupElectrical = _HKI( "Electrical" );
 
         auto clearance = new PROPERTY<ZONE, std::optional<int>>( _HKI( "Clearance" ),
-                    &ZONE::SetLocalClearance, &ZONE::GetLocalClearance,
-                    PROPERTY_DISPLAY::PT_SIZE );
+                    &ZONE::SetLocalClearance, &ZONE::GetLocalClearance, PROPERTY_DISPLAY::PT_SIZE );
         clearance->SetAvailableFunc( isCopperZone );
         constexpr int maxClearance = pcbIUScale.mmToIU( ZONE_CLEARANCE_MAX_VALUE_MM );
         clearance->SetValidator( PROPERTY_VALIDATORS::RangeIntValidator<0, maxClearance> );
 
         auto minWidth = new PROPERTY<ZONE, int>( _HKI( "Minimum Width" ),
-                    &ZONE::SetMinThickness, &ZONE::GetMinThickness,
-                    PROPERTY_DISPLAY::PT_SIZE );
+                    &ZONE::SetMinThickness, &ZONE::GetMinThickness, PROPERTY_DISPLAY::PT_SIZE );
         minWidth->SetAvailableFunc( isCopperZone );
         constexpr int minMinWidth = pcbIUScale.mmToIU( ZONE_THICKNESS_MIN_VALUE_MM );
         minWidth->SetValidator( PROPERTY_VALIDATORS::RangeIntValidator<minMinWidth, INT_MAX> );
@@ -2064,14 +2112,12 @@ static struct ZONE_DESC
         padConnections->SetAvailableFunc( isCopperZone );
 
         auto thermalGap = new PROPERTY<ZONE, int>( _HKI( "Thermal Relief Gap" ),
-                    &ZONE::SetThermalReliefGap, &ZONE::GetThermalReliefGap,
-                    PROPERTY_DISPLAY::PT_SIZE );
+                    &ZONE::SetThermalReliefGap, &ZONE::GetThermalReliefGap, PROPERTY_DISPLAY::PT_SIZE );
         thermalGap->SetAvailableFunc( isCopperZone );
         thermalGap->SetValidator( PROPERTY_VALIDATORS::PositiveIntValidator );
 
         auto thermalSpokeWidth = new PROPERTY<ZONE, int>( _HKI( "Thermal Relief Spoke Width" ),
-                    &ZONE::SetThermalReliefSpokeWidth, &ZONE::GetThermalReliefSpokeWidth,
-                    PROPERTY_DISPLAY::PT_SIZE );
+                    &ZONE::SetThermalReliefSpokeWidth, &ZONE::GetThermalReliefSpokeWidth, PROPERTY_DISPLAY::PT_SIZE );
         thermalSpokeWidth->SetAvailableFunc( isCopperZone );
         thermalSpokeWidth->SetValidator( atLeastMinWidthValidator );
 

@@ -58,6 +58,7 @@
 #include <widgets/wx_infobar.h>
 #include <widgets/wx_aui_utils.h>
 #include <wildcards_and_files_ext.h>
+#include <kiplatform/ui.h>
 #include <project_pcb.h>
 #include <toolbars_3d.h>
 
@@ -217,6 +218,10 @@ EDA_3D_VIEWER_FRAME::EDA_3D_VIEWER_FRAME( KIWAY* aKiway, PCB_BASE_FRAME* aParent
 
 EDA_3D_VIEWER_FRAME::~EDA_3D_VIEWER_FRAME()
 {
+    // Shutdown all running tools
+    if( m_toolManager )
+        m_toolManager->ShutdownAllTools();
+
     Prj().GetProjectFile().m_Viewports3D = m_appearancePanel->GetUserViewports();
 
     m_canvas->SetEventDispatcher( nullptr );
@@ -270,7 +275,8 @@ void EDA_3D_VIEWER_FRAME::setupUIConditions()
             {
                 return m_boardAdapter.m_Cfg->m_Render.show_model_bbox;
             };
-    auto showNavig = [this]( const SELECTION& aSel )
+    auto showNavig =
+            [this]( const SELECTION& aSel )
             {
                 return m_boardAdapter.m_Cfg->m_Render.show_navigator;
             };
@@ -745,6 +751,8 @@ bool EDA_3D_VIEWER_FRAME::getExportFileName( EDA_3D_VIEWER_EXPORT_FORMAT& aForma
                       m_defaultSaveScreenshotFileName.GetPath(),
                       m_defaultSaveScreenshotFileName.GetFullName(), wildcard,
                       wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
+
+    KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
 
     // Set initial filter index based on current format
     dlg.SetFilterIndex( ( aFormat == EDA_3D_VIEWER_EXPORT_FORMAT::JPEG ) ? 0 : 1 );

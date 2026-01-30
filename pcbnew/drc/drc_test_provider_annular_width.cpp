@@ -94,32 +94,32 @@ bool DRC_TEST_PROVIDER_ANNULAR_WIDTH::Run()
                     size_t effort = 0;
 
                     pad->Padstack().ForEachUniqueLayer(
-                        [&pad, &effort]( PCB_LAYER_ID aLayer )
-                        {
-                            if( pad->GetOffset( aLayer ) == VECTOR2I( 0, 0 ) )
+                            [&pad, &effort]( PCB_LAYER_ID aLayer )
                             {
-                                switch( pad->GetShape( aLayer ) )
+                                if( pad->GetOffset( aLayer ) == VECTOR2I( 0, 0 ) )
                                 {
-                                case PAD_SHAPE::CHAMFERED_RECT:
-                                    if( pad->GetChamferRectRatio( aLayer ) > 0.30 )
+                                    switch( pad->GetShape( aLayer ) )
+                                    {
+                                    case PAD_SHAPE::CHAMFERED_RECT:
+                                        if( pad->GetChamferRectRatio( aLayer ) > 0.30 )
+                                            break;
+
+                                        KI_FALLTHROUGH;
+
+                                    case PAD_SHAPE::CIRCLE:
+                                    case PAD_SHAPE::OVAL:
+                                    case PAD_SHAPE::RECTANGLE:
+                                    case PAD_SHAPE::ROUNDRECT:
+                                        effort += 1;
                                         break;
 
-                                    KI_FALLTHROUGH;
-
-                                case PAD_SHAPE::CIRCLE:
-                                case PAD_SHAPE::OVAL:
-                                case PAD_SHAPE::RECTANGLE:
-                                case PAD_SHAPE::ROUNDRECT:
-                                    effort += 1;
-                                    break;
-
-                                default:
-                                    break;
+                                    default:
+                                        break;
+                                    }
                                 }
-                            }
 
-                            effort += 5;
-                        } );
+                                effort += 5;
+                            } );
 
                     return effort;
                 }
@@ -205,11 +205,10 @@ bool DRC_TEST_PROVIDER_ANNULAR_WIDTH::Run()
                         for( const PAD* sameNumPad : sameNumPads )
                         {
                             // Construct the full pad with outline and hole.
-                            sameNumPad->TransformShapeToPolygon( aggregatePadOutline, aLayer, 0,
-                                                                 pad->GetMaxError(), ERROR_OUTSIDE );
+                            sameNumPad->TransformShapeToPolygon( aggregatePadOutline, aLayer, 0, pad->GetMaxError(),
+                                                                 ERROR_OUTSIDE );
 
-                            sameNumPad->TransformHoleToPolygon( otherPadHoles, 0, pad->GetMaxError(),
-                                                                ERROR_INSIDE );
+                            sameNumPad->TransformHoleToPolygon( otherPadHoles, 0, pad->GetMaxError(), ERROR_INSIDE );
                         }
 
                         aggregatePadOutline.BooleanSubtract( otherPadHoles );
@@ -256,25 +255,23 @@ bool DRC_TEST_PROVIDER_ANNULAR_WIDTH::Run()
                 if( fail_min || fail_max )
                 {
                     std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_ANNULAR_WIDTH );
-                    wxString msg;
 
                     if( fail_min )
                     {
-                        msg = formatMsg( _( "(%s min annular width %s; actual %s)" ),
-                                         constraint.GetName(),
-                                         v_min,
-                                         width );
+                        drcItem->SetErrorDetail( formatMsg( _( "(%s min annular width %s; actual %s)" ),
+                                                            constraint.GetName(),
+                                                            v_min,
+                                                            width ) );
                     }
 
                     if( fail_max )
                     {
-                        msg = formatMsg( _( "(%s max annular width %s; actual %s)" ),
-                                         constraint.GetName(),
-                                         v_max,
-                                         width );
+                        drcItem->SetErrorDetail( formatMsg( _( "(%s max annular width %s; actual %s)" ),
+                                                            constraint.GetName(),
+                                                            v_max,
+                                                            width ) );
                     }
 
-                    drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + msg );
                     drcItem->SetItems( item );
                     drcItem->SetViolatingRule( constraint.GetParentRule() );
                     reportTwoPointGeometry( drcItem, item->GetPosition(), ptA, ptB, aLayer );

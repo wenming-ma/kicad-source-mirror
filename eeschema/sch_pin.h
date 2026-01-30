@@ -114,16 +114,29 @@ public:
     void SetVisible( bool aVisible ) { m_hidden = !aVisible; }
 
     const wxString& GetName() const;
-    wxString GetShownName() const;
-    void SetName( const wxString& aName );
+    const wxString& GetShownName() const;
+    void            SetName( const wxString& aName );
     /**
      * Get the name without any alternates
      */
     const wxString& GetBaseName() const;
 
-    const wxString& GetNumber() const { return m_number; }
-    wxString GetShownNumber() const;
+    const wxString&       GetNumber() const { return m_number; }
+    const wxString&       GetShownNumber() const;
     std::vector<wxString> GetStackedPinNumbers( bool* aValid = nullptr ) const;
+
+    /**
+     * Return the count of logical pins represented by this pin's stacked notation.
+     *
+     * This is a fast alternative to GetStackedPinNumbers().size() that avoids
+     * allocating and populating a vector of strings.
+     *
+     * @param aValid Optional pointer to bool that will be set to indicate if the
+     *               stacked notation is valid (true) or malformed (false).
+     * @return The number of logical pins represented (always >= 1).
+     */
+    int GetStackedPinCount( bool* aValid = nullptr ) const;
+
     /**
      * Return the smallest logical pin number if this pin uses stacked
      * notation and it is valid.  Otherwise returns std::nullopt.

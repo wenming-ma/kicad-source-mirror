@@ -373,3 +373,153 @@ void GRID_CELL_STC_EDITOR::onFocusLoss( wxFocusEvent& aEvent )
 
     aEvent.Skip();
 }
+
+
+//-------- Editor Base Class for GRID_TEXT_BUTTON_HELPERS ------------
+//
+// Note: this implementation is an adaptation of wxGridCellChoiceEditor
+//
+// Note: this class is here instead of in grid_text_button_helpers.h/cpp to
+// keep from dragging a ton of stuff into kicommon.
+
+
+wxString GRID_CELL_TEXT_BUTTON::GetValue() const
+{
+    return Combo()->GetValue();
+}
+
+
+void GRID_CELL_TEXT_BUTTON::SetSize( const wxRect& aRect )
+{
+    wxRect rect( aRect );
+    WX_GRID::CellEditorTransformSizeRect( rect );
+
+    wxGridCellEditor::SetSize( rect );
+}
+
+
+void GRID_CELL_TEXT_BUTTON::StartingKey( wxKeyEvent& event )
+{
+    // Note: this is a copy of wxGridCellTextEditor's StartingKey()
+
+    // Since this is now happening in the EVT_CHAR event EmulateKeyPress is no
+    // longer an appropriate way to get the character into the text control.
+    // Do it ourselves instead.  We know that if we get this far that we have
+    // a valid character, so not a whole lot of testing needs to be done.
+
+    // wxComboCtrl inherits from wxTextEntry, so can statically cast
+    wxTextEntry* textEntry = static_cast<wxTextEntry*>( Combo() );
+    int ch;
+
+    bool isPrintable;
+
+#if wxUSE_UNICODE
+    ch = event.GetUnicodeKey();
+
+    if( ch != WXK_NONE )
+        isPrintable = true;
+    else
+#endif // wxUSE_UNICODE
+    {
+        ch = event.GetKeyCode();
+        isPrintable = ch >= WXK_SPACE && ch < WXK_START;
+    }
+
+    switch( ch )
+    {
+    case WXK_DELETE:
+        // Delete the initial character when starting to edit with DELETE.
+        textEntry->Remove( 0, 1 );
+        break;
+
+    case WXK_BACK:
+        // Delete the last character when starting to edit with BACKSPACE.
+    {
+        const long pos = textEntry->GetLastPosition();
+        textEntry->Remove( pos - 1, pos );
+    }
+        break;
+
+    default:
+        if( isPrintable )
+            textEntry->WriteText( static_cast<wxChar>( ch ) );
+
+        break;
+    }
+}
+
+
+void GRID_CELL_TEXT_BUTTON::BeginEdit( int aRow, int aCol, wxGrid* aGrid )
+{
+    m_grid = aGrid;
+    m_row = aRow;
+    m_col = aCol;
+
+    auto evtHandler = static_cast< wxGridCellEditorEvtHandler* >( m_control->GetEventHandler() );
+
+    // Don't immediately end if we get a kill focus event within BeginEdit
+    evtHandler->SetInSetFocus( true );
+
+    m_value = aGrid->GetTable()->GetValue( aRow, aCol );
+
+    Combo()->SetValue( m_value );
+    Combo()->SetFocus();
+
+    // Bind event to handle text changes
+    Combo()->Bind( wxEVT_TEXT, &GRID_CELL_TEXT_BUTTON::OnTextChange, this );
+}
+
+
+void GRID_CELL_TEXT_BUTTON::OnTextChange( wxCommandEvent& event )
+{
+    if( m_grid && m_row >= 0 && m_row < m_grid->GetNumberRows() && m_col >= 0 && m_col < m_grid->GetNumberCols() )
+    {
+        m_value = Combo()->GetValue();
+        ApplyEdit( m_row, m_col, m_grid );
+    }
+
+    event.Skip(); // Ensure that other handlers can process this event too
+}
+
+
+bool GRID_CELL_TEXT_BUTTON::EndEdit( int, int, const wxGrid*, const wxString&, wxString *aNewVal )
+{
+    Combo()->Unbind( wxEVT_TEXT, &GRID_CELL_TEXT_BUTTON::OnTextChange, this );
+    m_grid = nullptr;
+    m_row = -1;
+    m_col = -1;
+
+    const wxString value = Combo()->GetValue();
+
+    if( value == m_value )
+        return false;
+
+    m_value = value;
+
+    if( aNewVal )
+        *aNewVal = value;
+
+    return true;
+}
+
+
+void GRID_CELL_TEXT_BUTTON::ApplyEdit( int aRow, int aCol, wxGrid* aGrid )
+{
+    aGrid->GetTable()->SetValue( aRow, aCol, m_value );
+}
+
+
+void GRID_CELL_TEXT_BUTTON::Reset()
+{
+    Combo()->SetValue( m_value );
+}
+
+
+#if wxUSE_VALIDATORS
+void GRID_CELL_TEXT_BUTTON::SetValidator( const wxValidator& validator )
+{
+    m_validator.reset( static_cast< wxValidator* >( validator.Clone() ) );
+}
+#endif
+
+

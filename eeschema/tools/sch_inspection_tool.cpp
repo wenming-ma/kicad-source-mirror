@@ -41,7 +41,6 @@
 #include <sch_edit_frame.h>
 #include <symbol_edit_frame.h>
 #include <symbol_viewer_frame.h>
-#include <symbol_lib_table.h>
 #include <eda_doc.h>
 #include <sch_marker.h>
 #include <project.h>
@@ -49,6 +48,7 @@
 #include <dialogs/html_message_box.h>
 #include <dialogs/dialog_erc.h>
 #include <dialogs/dialog_book_reporter.h>
+#include <libraries/symbol_library_adapter.h>
 #include <widgets/wx_html_report_box.h>
 #include <widgets/symbol_diff_widget.h>
 #include <math/util.h>      // for KiROUND
@@ -367,16 +367,15 @@ void SCH_INSPECTION_TOOL::DiffSymbol( SCH_SYMBOL* symbol )
 
     r->Report( "" );
 
-    SYMBOL_LIB_TABLE*    libTable = PROJECT_SCH::SchSymbolLibTable( &m_frame->Prj() );
-    const LIB_TABLE_ROW* libTableRow = libTable->FindRow( libName );
+    SYMBOL_LIBRARY_ADAPTER* libs = PROJECT_SCH::SymbolLibAdapter( &m_frame->Prj() );
 
-    if( !libTableRow )
+    if( !libs->HasLibrary( libName, false ) )
     {
         r->Report( _( "The library is not included in the current configuration." )
                    + wxS( "&nbsp;&nbsp;&nbsp" )
                    + wxS( "<a href='$CONFIG'>" ) + _( "Manage Symbol Libraries" ) + wxS( "</a>" ) );
     }
-    else if( !libTable->HasLibrary( libName, true ) )
+    else if( !libs->HasLibrary( libName, true ) )
     {
         r->Report( _( "The library is not enabled in the current configuration." )
                    + wxS( "&nbsp;&nbsp;&nbsp" )
@@ -389,7 +388,7 @@ void SCH_INSPECTION_TOOL::DiffSymbol( SCH_SYMBOL* symbol )
 
         try
         {
-            if( LIB_SYMBOL* libAlias = libTable->LoadSymbol( libName, symbolName ) )
+            if( LIB_SYMBOL* libAlias = libs->LoadSymbol( libName, symbolName ) )
                 flattenedLibSymbol = libAlias->Flatten();
         }
         catch( const IO_ERROR& )

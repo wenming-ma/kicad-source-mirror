@@ -562,6 +562,15 @@ public:
     bool m_EnableGenerators;
 
     /**
+     * Enable the graphical DRC rule editor.
+     *
+     * Setting name: "EnableDrcRuleEditor"
+     * Valid values: 0 or 1
+     * Default value: 0
+     */
+    bool m_EnableDrcRuleEditor;
+
+    /**
      * Enable option to load lib files with text editor.
      *
      * Setting name: "EnableLibWithText"
@@ -759,6 +768,17 @@ public:
     int m_SnapHysteresis;
 
     /**
+     * Margin multiplier for preferring anchors over construction line snaps.
+     * When an anchor is within (distance * margin) of a construction line snap,
+     * the anchor will be preferred.
+     *
+     * Setting name: "SnapToAnchorMargin"
+     * Default value: 1.1
+     * Valid values: 1.0 to 2.0
+     */
+    double m_SnapToAnchorMargin;
+
+    /**
      * Minimum overlapping angle for which an arc is considered to be parallel
      * to its paired arc.
      *
@@ -822,14 +842,6 @@ public:
     int m_GitIconRefreshInterval;
 
     /**
-     * Enable the UI to configure toolbars.
-     *
-     * Setting name: "ConfigurableToolbars"
-     * Default value: false
-     */
-    bool m_ConfigurableToolbars;
-
-    /**
      * Set the maximum number of characters that can be pasted without warning.  Long
      * text strings can cause the application to freeze for a long time and are probably
      * not what the user intended.
@@ -847,6 +859,18 @@ public:
      * Default value: 100
      */
     int m_PNSProcessClusterTimeout;
+
+    /**
+     * Timeout for the PNS router's followBranch path search, in milliseconds.
+     *
+     * This limits how long the router will spend searching for the longest path
+     * through a complex track topology before returning the best path found so far.
+     *
+     * Setting name: "FollowBranchTimeoutMs"
+     * Valid values: 50 to 5000
+     * Default value: 500
+     */
+    int m_FollowBranchTimeout;
 
     /**
      * Skip importing component bodies when importing some format files, such as Altium.
@@ -873,13 +897,42 @@ public:
     int m_ScreenDPI;
 
     /**
-     * Enable access to the variants user interface.
+     * Enable use Aui Perspective to store/load geometry of main editor frames.
+     * the saved prms are position/size of toolbars and some other widgets
+     * Currently (october 12 2025) use only to test this code, nom sutbale for users
      *
-     * Setting name: "EnableVariantsUI"
+     * Setting name: "EnableUseAuiPerspective"
      * Valid values: 0 or 1
      * Default value: 0
      */
-    bool m_EnableVariantsUI;
+    bool m_EnableUseAuiPerspective;
+
+    /**
+     * Stale lock timeout for local history repository locks, in seconds.
+     *
+     * When a KiCad process crashes while holding a lock on the .history repository,
+     * the lock file remains. This setting controls how old a lock file must be
+     * before it is considered "stale" and can be automatically removed.
+     *
+     * Setting name: "HistoryLockStaleTimeout"
+     * Valid values: 10 to 86400 (10 seconds to 24 hours)
+     * Default value: 300 (5 minutes)
+     */
+    int m_HistoryLockStaleTimeout;
+
+    /**
+     * Enable iterative zone filling to handle isolated islands in higher priority zones.
+     *
+     * When enabled, zones are filled in priority batches. After each batch, isolated islands
+     * are identified and removed, then lower priority zones are refilled to occupy the newly
+     * available space. This fixes issue 21746 where lower priority zones incorrectly knock
+     * out areas that should fill after higher priority zone islands are removed.
+     *
+     * Setting name: "ZoneFillIterativeRefill"
+     * Valid values: true or false
+     * Default value: false
+     */
+    bool m_ZoneFillIterativeRefill;
 
     wxString m_traceMasks; ///< Trace masks for wxLogTrace, loaded from the config file.
     ///@}

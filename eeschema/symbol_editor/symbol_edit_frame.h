@@ -34,7 +34,6 @@
 #include <optional>
 
 class SCH_EDIT_FRAME;
-class SYMBOL_LIB_TABLE;
 class LIB_SYMBOL;
 class LIB_TREE_NODE;
 class LIB_ID;
@@ -406,6 +405,8 @@ public:
     ///< Restore the empty editor screen, without any symbol or library selected.
     void emptyScreen();
 
+    void ClearToolbarControl( int aId ) override;
+
 protected:
     void configureToolbars() override;
     void setupUIConditions() override;
@@ -493,12 +494,6 @@ private:
     ///< Rename LIB_SYMBOL aliases to avoid conflicts before adding a symbol to a library.
     void ensureUniqueName( LIB_SYMBOL* aSymbol, const wxString& aLibrary );
 
-    enum TABLE_SCOPE
-    {
-        GLOBAL_LIB_TABLE,
-        PROJECT_LIB_TABLE
-    };
-
     /**
      * Add \a aLibFile to the symbol library table defined by \a aScope.
      *
@@ -508,7 +503,8 @@ private:
      * @param aScope defines if \a aLibFile is added to the global or project library table.
      * @return true if successful or false if a failure occurs.
      */
-    bool addLibTableEntry( const wxString& aLibFile, TABLE_SCOPE aScope = GLOBAL_LIB_TABLE );
+    bool addLibTableEntry( const wxString& aLibFile,
+                           LIBRARY_TABLE_SCOPE aScope = LIBRARY_TABLE_SCOPE::GLOBAL );
 
     /**
      * Replace the file path of the symbol library table entry \a aLibNickname with \a aLibFile.

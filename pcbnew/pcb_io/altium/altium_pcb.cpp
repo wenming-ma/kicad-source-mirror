@@ -102,11 +102,11 @@ void HelperShapeLineChainFromAltiumVertices( SHAPE_LINE_CHAIN& aLine,
 
             double  startradiant   = DEG2RAD( vertex.startangle );
             double  endradiant     = DEG2RAD( vertex.endangle );
-            VECTOR2I arcStartOffset = VECTOR2I( KiROUND( std::cos( startradiant ) * vertex.radius ),
-                                             -KiROUND( std::sin( startradiant ) * vertex.radius ) );
+            VECTOR2I arcStartOffset = KiROUND( std::cos( startradiant ) * vertex.radius,
+                                               -std::sin( startradiant ) * vertex.radius );
 
-            VECTOR2I arcEndOffset = VECTOR2I( KiROUND( std::cos( endradiant ) * vertex.radius ),
-                                           -KiROUND( std::sin( endradiant ) * vertex.radius ) );
+            VECTOR2I arcEndOffset = KiROUND( std::cos( endradiant ) * vertex.radius,
+                                             -std::sin( endradiant ) * vertex.radius );
 
             VECTOR2I arcStart = vertex.center + arcStartOffset;
             VECTOR2I arcEnd   = vertex.center + arcEndOffset;
@@ -1155,6 +1155,9 @@ void ALTIUM_PCB::remapUnsureLayers( std::vector<ABOARD6_LAYER_STACKUP>& aStackup
         curLayer = aStackup[ii];
         layer_num = static_cast<ALTIUM_LAYER>( ii + 1 );
 
+        if( m_layermap.find( layer_num ) != m_layermap.end() )
+            continue;
+
         if( ii >= m_board->GetCopperLayerCount() && layer_num != ALTIUM_LAYER::BOTTOM_LAYER
             && !( layer_num >= ALTIUM_LAYER::TOP_OVERLAY
                    && layer_num <= ALTIUM_LAYER::BOTTOM_SOLDER )
@@ -1185,13 +1188,21 @@ void ALTIUM_PCB::remapUnsureLayers( std::vector<ABOARD6_LAYER_STACKUP>& aStackup
 
     // Callback:
     std::map<wxString, PCB_LAYER_ID> reMappedLayers = m_layerMappingHandler( inputLayers );
-    m_layermap.clear();
 
     for( std::pair<wxString, PCB_LAYER_ID> layerPair : reMappedLayers )
     {
         if( layerPair.second == PCB_LAYER_ID::UNDEFINED_LAYER )
         {
-            wxFAIL_MSG( wxT( "Unexpected Layer ID" ) );
+            // Layer mapping handler returned UNDEFINED_LAYER - skip this layer
+            // This can happen for layers that don't have a KiCad equivalent
+            if( m_reporter )
+            {
+                m_reporter->Report( wxString::Format( _( "Layer '%s' could not be mapped and "
+                                                         "will be skipped." ),
+                                                      layerPair.first ),
+                                    RPT_SEVERITY_WARNING );
+            }
+
             continue;
         }
 
@@ -1291,6 +1302,21 @@ void ALTIUM_PCB::ParseClasses6Data( const ALTIUM_PCB_COMPOUND_FILE&     aAltiumP
     if( reader.GetRemainingBytes() != 0 )
         THROW_IO_ERROR( wxT( "Classes6 stream is not fully parsed" ) );
 
+    // Now that all netclasses and pattern assignments are set up, resolve the pattern
+    // assignments to direct netclass assignments on each net.
+    std::shared_ptr<NET_SETTINGS> netSettings = m_board->GetDesignSettings().m_NetSettings;
+
+    for( NETINFO_ITEM* net : m_board->GetNetInfo() )
+    {
+        if( net->GetNetCode() > 0 )
+        {
+            std::shared_ptr<NETCLASS> netclass = netSettings->GetEffectiveNetClass( net->GetNetname() );
+
+            if( netclass )
+                net->SetNetClass( netclass );
+        }
+    }
+
     m_board->m_LegacyNetclassesLoaded = true;
 }
 
@@ -1318,7 +1344,18 @@ void ALTIUM_PCB::ParseComponents6Data( const ALTIUM_PCB_COMPOUND_FILE& aAltiumPc
         // here to prevent overly-long LIB_IDs because KiCad doesn't store the full path to the
         // footprint library in the design file, only in a library table.
         wxFileName libName( elem.sourcefootprintlibrary, wxPATH_WIN );
-        LIB_ID fpID = AltiumToKiCadLibID( libName.GetName(), elem.pattern );
+
+        // The pattern field may also contain a path when Altium stores it with a full library path.
+        // Extract just the footprint name portion to avoid creating invalid filenames.
+        wxString fpName = elem.pattern;
+
+        if( fpName.Contains( wxT( "\\" ) ) || fpName.Contains( wxT( "/" ) ) )
+        {
+            wxFileName fpPath( fpName, wxPATH_WIN );
+            fpName = fpPath.GetFullName();
+        }
+
+        LIB_ID fpID = AltiumToKiCadLibID( libName.GetName(), fpName );
 
         footprint->SetFPID( fpID );
 
@@ -1822,7 +1859,7 @@ void ALTIUM_PCB::HelperParseDimensions6Leader( const ADIMENSION6& aElem )
             if( dirVec.x != 0 || dirVec.y != 0 )
             {
                 double   scaling = (double) dirVec.EuclideanNorm() / aElem.arrowsize;
-                VECTOR2I arrVec = VECTOR2I( KiROUND( dirVec.x / scaling ), KiROUND( dirVec.y / scaling ) );
+                VECTOR2I arrVec = KiROUND( dirVec.x / scaling, dirVec.y / scaling );
                 RotatePoint( arrVec, EDA_ANGLE( 20.0, DEGREES_T ) );
 
                 {
@@ -2468,6 +2505,39 @@ void ALTIUM_PCB::ConvertShapeBasedRegions6ToBoardItem( const AREGION6& aElem )
 
         zone->SetBorderDisplayStyle( ZONE_BORDER_DISPLAY_STYLE::DIAGONAL_EDGE,
                                      ZONE::GetDefaultHatchPitch(), true );
+
+        m_board->Add( zone.release(), ADD_MODE::APPEND );
+    }
+    else if( aElem.is_teardrop )
+    {
+        SHAPE_LINE_CHAIN linechain;
+        HelperShapeLineChainFromAltiumVertices( linechain, aElem.outline );
+
+        if( linechain.PointCount() < 3 )
+        {
+            // Polygons with less than 3 points are not supported in KiCad.
+            return;
+        }
+
+        std::unique_ptr<ZONE> zone = std::make_unique<ZONE>( m_board );
+
+        zone->SetPosition( aElem.outline.at( 0 ).position );
+        zone->Outline()->AddOutline( linechain );
+
+        HelperSetZoneLayers( *zone, aElem.layer );
+        zone->SetNetCode( GetNetCode( aElem.net ) );
+        zone->SetTeardropAreaType( TEARDROP_TYPE::TD_UNSPECIFIED );
+        zone->SetHatchStyle( ZONE_BORDER_DISPLAY_STYLE::INVISIBLE_BORDER );
+
+        SHAPE_POLY_SET fill;
+        fill.Append( linechain );
+        fill.Fracture();
+
+        for( PCB_LAYER_ID klayer : GetKicadLayersToIterate( aElem.layer ) )
+            zone->SetFilledPolysList( klayer, fill );
+
+        zone->SetIsFilled( true );
+        zone->SetNeedRefill( false );
 
         m_board->Add( zone.release(), ADD_MODE::APPEND );
     }

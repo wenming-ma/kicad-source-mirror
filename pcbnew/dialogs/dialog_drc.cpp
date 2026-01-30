@@ -119,6 +119,12 @@ DIALOG_DRC::DIALOG_DRC( PCB_EDIT_FRAME* aEditorFrame, wxWindow* aParent ) :
     m_fpWarningsTreeModel = new RC_TREE_MODEL( m_frame, m_footprintsDataView );
     m_footprintsDataView->AssociateModel( m_fpWarningsTreeModel );
 
+    // Prevent RTL locales from mirroring the text in the data views
+    m_markerDataView->SetLayoutDirection( wxLayout_LeftToRight );
+    m_unconnectedDataView->SetLayoutDirection( wxLayout_LeftToRight );
+    m_footprintsDataView->SetLayoutDirection( wxLayout_LeftToRight );
+    m_ignoredList->SetLayoutDirection( wxLayout_LeftToRight );
+
     m_ignoredList->InsertColumn( 0, wxEmptyString, wxLIST_FORMAT_LEFT, DEFAULT_SINGLE_COL_WIDTH );
 
     if( m_currentBoard == g_lastDRCBoard )
@@ -383,7 +389,7 @@ void DIALOG_DRC::OnRunDRCClick( wxCommandEvent& aEvent )
         {
             wxListItem listItem;
             listItem.SetId( m_ignoredList->GetItemCount() );
-            listItem.SetText( wxT( " • " ) + item.get().GetErrorText() );
+            listItem.SetText( wxT( " • " ) + item.get().GetErrorText( true ) );
             listItem.SetData( item.get().GetErrorCode() );
 
             m_ignoredList->InsertItem( listItem );
@@ -725,7 +731,7 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
         menu.Append( ID_EDIT_EXCLUSION_COMMENT,
                      _( "Edit exclusion comment..." ) );
 
-        if( drcItem->GetViolatingRule() && !drcItem->GetViolatingRule()->m_Implicit )
+        if( drcItem->GetViolatingRule() && !drcItem->GetViolatingRule()->IsImplicit() )
         {
             menu.Append( ID_REMOVE_EXCLUSION_ALL,
                          wxString::Format( _( "Remove all exclusions for violations of rule '%s'" ),
@@ -743,7 +749,7 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
                      _( "Exclude with comment..." ),
                      wxString::Format( _( "It will be excluded from the %s list" ), listName ) );
 
-        if( drcItem->GetViolatingRule() && !drcItem->GetViolatingRule()->m_Implicit )
+        if( drcItem->GetViolatingRule() && !drcItem->GetViolatingRule()->IsImplicit() )
         {
             menu.Append( ID_ADD_EXCLUSION_ALL,
                          wxString::Format( _( "Exclude all violations of rule '%s'..." ),
@@ -772,19 +778,19 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
     {
         menu.Append( ID_SET_SEVERITY_TO_ERROR,
                      wxString::Format( _( "Change severity to Error for all '%s' violations" ),
-                                       rcItem->GetErrorText() ),
+                                       rcItem->GetErrorText( true ) ),
                      _( "Violation severities can also be edited in the Board Setup... dialog" ) );
     }
     else
     {
         menu.Append( ID_SET_SEVERITY_TO_WARNING,
                      wxString::Format( _( "Change severity to Warning for all '%s' violations" ),
-                                       rcItem->GetErrorText() ),
+                                       rcItem->GetErrorText( true ) ),
                      _( "Violation severities can also be edited in the Board Setup... dialog" ) );
     }
 
     menu.Append( ID_SET_SEVERITY_TO_IGNORE,
-                 wxString::Format( _( "Ignore all '%s' violations" ), rcItem->GetErrorText() ),
+                 wxString::Format( _( "Ignore all '%s' violations" ), rcItem->GetErrorText( true ) ),
                  _( "Violations will not be checked or reported" ) );
 
     menu.AppendSeparator();
@@ -969,7 +975,7 @@ void DIALOG_DRC::OnDRCItemRClick( wxDataViewEvent& aEvent )
 
         wxListItem listItem;
         listItem.SetId( m_ignoredList->GetItemCount() );
-        listItem.SetText( wxT( " • " ) + rcItem->GetErrorText() );
+        listItem.SetText( wxT( " • " ) + rcItem->GetErrorText( true ) );
         listItem.SetData( rcItem->GetErrorCode() );
 
         m_ignoredList->InsertItem( listItem );
@@ -1068,6 +1074,8 @@ void DIALOG_DRC::OnSaveReport( wxCommandEvent& aEvent )
     wxFileDialog dlg( this, _( "Save Report File" ), Prj().GetProjectPath(), fn.GetFullName(),
                       FILEEXT::ReportFileWildcard() + wxS( "|" ) + FILEEXT::JsonFileWildcard(),
                       wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
+
+    KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
 
     if( dlg.ShowModal() != wxID_OK )
         return;
@@ -1372,7 +1380,8 @@ void DIALOG_DRC::updateDisplayedCounts()
                      || ii == DRCE_EXTRA_FOOTPRINT
                      || ii == DRCE_NET_CONFLICT
                      || ii == DRCE_SCHEMATIC_PARITY
-                     || ii == DRCE_FOOTPRINT_FILTERS )
+                     || ii == DRCE_FOOTPRINT_FILTERS
+                     || ii == DRCE_SCHEMATIC_FIELDS_PARITY )
             {
                 if( m_showWarnings->GetValue() && severity == RPT_SEVERITY_WARNING )
                     footprintsOverflowed = true;

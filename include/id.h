@@ -110,8 +110,9 @@ enum main_id
     ID_LANGUAGE_CHOICE_END,
 
     ID_ON_ZOOM_SELECT,
-
     ID_ON_GRID_SELECT,
+    ID_ON_OVERRIDE_LOCKS,
+    ID_ON_LAYER_SELECT,
 
     // Popup Menu (mouse Right button) (id consecutifs)
 
@@ -160,7 +161,7 @@ enum main_id
     // The extra here need to minimum be larger than MAX_BUS_UNFOLD_MENU_ITEMS +
     // MAX_UNIT_COUNT_PER_PACKAGE.
     // These values are stored in eeschema_id.h
-    ID_POPUP_MENU_END = ID_POPUP_MENU_START + 2048,
+    ID_POPUP_MENU_END = ID_POPUP_MENU_START + 4096,
 
     ID_END_LIST
 };

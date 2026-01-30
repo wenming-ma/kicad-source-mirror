@@ -28,6 +28,7 @@
  */
 #include "pcb_io/geda/pcb_io_geda.h"
 
+#include <kiplatform/io.h>
 #include <wildcards_and_files_ext.h>
 #include <string_utils.h>
 #include <trace_helpers.h>
@@ -300,7 +301,7 @@ long long GPCB_FPL_CACHE::GetTimestamp( const wxString& aLibPath )
 {
     wxString fileSpec = wxT( "*." ) + wxString( FILEEXT::GedaPcbFootprintLibFileExtension );
 
-    return TimestampDir( aLibPath, fileSpec );
+    return KIPLATFORM::IO::TimestampDir( aLibPath, fileSpec );
 }
 
 
@@ -916,7 +917,8 @@ FOOTPRINT* PCB_IO_GEDA::FootprintLoad( const wxString& aLibraryPath,
                                        bool  aKeepUUID,
                                        const std::map<std::string, UTF8>* aProperties )
 {
-    fontconfig::FONTCONFIG::SetReporter( nullptr );
+    // Suppress font substitution warnings (RAII - automatically restored on scope exit)
+    FONTCONFIG_REPORTER_SCOPE fontconfigScope( nullptr );
 
     const FOOTPRINT* footprint = getFootprint( aLibraryPath, aFootprintName, aProperties, true );
 

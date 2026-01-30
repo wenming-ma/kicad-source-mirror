@@ -37,7 +37,6 @@
 #include <sch_view.h>
 #include <sch_painter.h>
 #include <schematic.h>
-#include <symbol_lib_table.h>
 #include <dialogs/dialog_sheet_properties.h>
 #include <tool/actions.h>
 
@@ -48,6 +47,9 @@
 #include <wx/richmsgdlg.h>
 
 #include <advanced_config.h>
+#include <pgm_base.h>
+#include <libraries/symbol_library_adapter.h>
+
 #include "printing/sch_printout.h"
 
 
@@ -216,9 +218,9 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
             msg = _( "The entire schematic could not be loaded.  Errors occurred attempting "
                      "to load hierarchical sheet schematics." );
 
-            wxMessageDialog msgDlg1( this, msg, _( "Schematic Load Error" ),
-                                     wxOK | wxCANCEL | wxCANCEL_DEFAULT |
-                                     wxCENTER | wxICON_QUESTION );
+            KICAD_MESSAGE_DIALOG msgDlg1( this, msg, _( "Schematic Load Error" ),
+                                          wxOK | wxCANCEL | wxCANCEL_DEFAULT |
+                                          wxCENTER | wxICON_QUESTION );
             msgDlg1.SetOKLabel( wxMessageDialog::ButtonLabel( _( "Use partial schematic" ) ) );
             msgDlg1.SetExtendedMessage( pi->GetError() );
 
@@ -282,6 +284,9 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
         }
     }
 
+    SYMBOL_LIBRARY_ADAPTER* adapter = PROJECT_SCH::SymbolLibAdapter( &Prj() );
+    LIBRARY_TABLE* projectTable = adapter->ProjectTable().value_or( nullptr );
+
     SCH_SHEET_LIST loadedSheets( tmpSheet.get() );
     Schematic().RefreshHierarchy();
     SCH_SHEET_LIST schematicSheets = Schematic().Hierarchy();
@@ -302,8 +307,8 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
 
     newScreens.GetLibNicknames( names );
 
-    wxMessageDialog::ButtonLabel okButtonLabel( _( "Continue Load" ) );
-    wxMessageDialog::ButtonLabel cancelButtonLabel( _( "Cancel Load" ) );
+    KICAD_MESSAGE_DIALOG::ButtonLabel okButtonLabel( _( "Continue Load" ) );
+    KICAD_MESSAGE_DIALOG::ButtonLabel cancelButtonLabel( _( "Cancel Load" ) );
 
     // Prior to schematic file format 20221002, all symbol instance data was saved in the root
     // sheet so loading a hierarchical sheet that is not the root sheet will have no symbol
@@ -319,8 +324,8 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
                  "Loading the project that uses this schematic file and saving to the "
                  "latest file version will resolve this issue.\n\n"
                  "Do you wish to continue?" );
-        wxMessageDialog msgDlg7( this, msg, _( "Continue Load Schematic" ),
-                                 wxOK | wxCANCEL | wxCANCEL_DEFAULT | wxCENTER | wxICON_QUESTION );
+        KICAD_MESSAGE_DIALOG msgDlg7( this, msg, _( "Continue Load Schematic" ),
+                                      wxOK | wxCANCEL | wxCANCEL_DEFAULT | wxCENTER | wxICON_QUESTION );
         msgDlg7.SetOKCancelLabels( okButtonLabel, cancelButtonLabel );
 
         if( msgDlg7.ShowModal() == wxID_CANCEL )
@@ -337,7 +342,7 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
             // library links are valid but it's better than nothing.
             for( const wxString& name : names )
             {
-                if( !PROJECT_SCH::SchSymbolLibTable( &Prj() )->HasLibrary( name ) )
+                if( !PROJECT_SCH::SymbolLibAdapter( &Prj() )->HasLibrary( name ) )
                     newLibNames.Add( name );
             }
 
@@ -347,16 +352,16 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
                          "from the current project library table.  This may result in broken "
                          "symbol library references for the loaded schematic.\n\n"
                          "Do you wish to continue?" );
-                wxMessageDialog msgDlg3( this, msg, _( "Continue Load Schematic" ),
-                                         wxOK | wxCANCEL | wxCANCEL_DEFAULT |
-                                         wxCENTER | wxICON_QUESTION );
+                KICAD_MESSAGE_DIALOG msgDlg3( this, msg, _( "Continue Load Schematic" ),
+                                              wxOK | wxCANCEL | wxCANCEL_DEFAULT |
+                                              wxCENTER | wxICON_QUESTION );
                 msgDlg3.SetOKCancelLabels( okButtonLabel, cancelButtonLabel );
 
                 if( msgDlg3.ShowModal() == wxID_CANCEL )
                     return false;
             }
         }
-        else if( fileName.GetPathWithSep() != Prj().GetProjectPath() )
+        else if( fileName.GetPathWithSep() != Prj().GetProjectPath() && projectTable )
         {
             // A schematic loaded from a path other than the current project path.
 
@@ -368,15 +373,14 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
 
             for( const wxString& name : names )
             {
-                if( !PROJECT_SCH::SchSymbolLibTable( &Prj() )->HasLibrary( name ) )
+                if( !PROJECT_SCH::SymbolLibAdapter( &Prj() )->HasLibrary( name ) )
                     newLibNames.Add( name );
                 else
                     duplicateLibNames.Add( name );
             }
 
-            SYMBOL_LIB_TABLE table;
-            wxFileName symLibTableFn( fileName.GetPath(),
-                                      SYMBOL_LIB_TABLE::GetSymbolLibTableFileName() );
+            wxFileName symLibTableFn( fileName.GetPath(), FILEEXT::SymbolLibraryTableFileName );
+            LIBRARY_TABLE table( symLibTableFn, LIBRARY_TABLE_SCOPE::PROJECT );
 
             // If there are any new or duplicate libraries, check to see if it's possible that
             // there could be any missing libraries that would cause broken symbol library links.
@@ -388,8 +392,8 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
                              "Linking the file to this project may result in missing or "
                              "incorrect symbol library references.\n\n"
                              "Do you wish to continue?" );
-                    wxMessageDialog msgDlg4( this, msg, _( "Continue Load Schematic" ),
-                                             wxOK | wxCANCEL | wxCANCEL_DEFAULT | wxCENTER
+                    KICAD_MESSAGE_DIALOG msgDlg4( this, msg, _( "Continue Load Schematic" ),
+                                                  wxOK | wxCANCEL | wxCANCEL_DEFAULT | wxCENTER
                                                      | wxICON_QUESTION );
                     msgDlg4.SetOKCancelLabels( okButtonLabel, cancelButtonLabel );
 
@@ -398,15 +402,11 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
                 }
                 else
                 {
-                    try
-                    {
-                        table.Load( symLibTableFn.GetFullPath() );
-                    }
-                    catch( const IO_ERROR& ioe )
+                    if( !table.IsOk() )
                     {
                         msg.Printf( _( "Error loading the symbol library table '%s'." ),
                                     symLibTableFn.GetFullPath() );
-                        DisplayErrorMessage( nullptr, msg, ioe.What() );
+                        DisplayErrorMessage( nullptr, msg, table.ErrorDescription() );
                         return false;
                     }
                 }
@@ -417,13 +417,13 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
             // library table.
             if( !newLibNames.IsEmpty() )
             {
-                bool missingLibNames = table.IsEmpty();
+                bool missingLibNames = table.Rows().empty();
 
                 if( !missingLibNames )
                 {
                     for( const wxString& newLibName : newLibNames )
                     {
-                        if( !table.HasLibrary( newLibName ) )
+                        if( !table.HasRow( newLibName ) )
                         {
                             missingLibNames = true;
                             break;
@@ -437,9 +437,9 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
                              "are missing from the selected schematic project library table.  "
                              "This may result in broken symbol library references.\n\n"
                              "Do you wish to continue?" );
-                    wxMessageDialog msgDlg5( this, msg, _( "Continue Load Schematic" ),
-                                             wxOK | wxCANCEL | wxCANCEL_DEFAULT |
-                                             wxCENTER | wxICON_QUESTION );
+                    KICAD_MESSAGE_DIALOG msgDlg5( this, msg, _( "Continue Load Schematic" ),
+                                                  wxOK | wxCANCEL | wxCANCEL_DEFAULT |
+                                                  wxCENTER | wxICON_QUESTION );
                     msgDlg5.SetOKCancelLabels( okButtonLabel, cancelButtonLabel );
 
                     if( msgDlg5.ShowModal() == wxID_CANCEL )
@@ -450,20 +450,20 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
             // The library name already exists in the current project.  Check to see if the
             // duplicate name is the same library in the current project.  If it's not, it's
             // most likely that the symbol library links will be broken.
-            if( !duplicateLibNames.IsEmpty() && !table.IsEmpty() )
+            if( !duplicateLibNames.IsEmpty() && !table.Rows().empty() )
             {
                 bool libNameConflict = false;
 
                 for( const wxString& duplicateLibName : duplicateLibNames )
                 {
-                    const SYMBOL_LIB_TABLE_ROW* thisRow = nullptr;
-                    const SYMBOL_LIB_TABLE_ROW* otherRow = nullptr;
+                    const LIBRARY_TABLE_ROW* thisRow = nullptr;
+                    const LIBRARY_TABLE_ROW* otherRow = nullptr;
 
-                    if( PROJECT_SCH::SchSymbolLibTable( &Prj() )->HasLibrary( duplicateLibName ) )
-                        thisRow = PROJECT_SCH::SchSymbolLibTable( &Prj() )->FindRow( duplicateLibName );
+                    if( adapter->HasLibrary( duplicateLibName ) )
+                        thisRow = *adapter->GetRow( duplicateLibName );
 
-                    if( table.HasLibrary( duplicateLibName ) )
-                        otherRow = table.FindRow( duplicateLibName );
+                    if( table.HasRow( duplicateLibName ) )
+                        otherRow = *table.Row( duplicateLibName );
 
                     // It's in the global library table so there is no conflict.
                     if( thisRow && !otherRow )
@@ -473,8 +473,8 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
                         continue;
 
                     wxFileName otherUriFileName;
-                    wxString thisURI = thisRow->GetFullURI( true );
-                    wxString otherURI = otherRow->GetFullURI( false);
+                    wxString thisURI = LIBRARY_MANAGER::GetFullURI( thisRow, true );;
+                    wxString otherURI = LIBRARY_MANAGER::GetFullURI( otherRow, false );
 
                     if( otherURI.Contains( "${KIPRJMOD}" ) || otherURI.Contains( "$(KIPRJMOD)" ) )
                     {
@@ -498,9 +498,9 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
                              "in the current library table.  This conflict cannot be resolved and "
                              "may result in broken symbol library references.\n\n"
                              "Do you wish to continue?" );
-                    wxMessageDialog msgDlg6( this, msg, _( "Continue Load Schematic" ),
-                                             wxOK | wxCANCEL | wxCANCEL_DEFAULT |
-                                             wxCENTER | wxICON_QUESTION );
+                    KICAD_MESSAGE_DIALOG msgDlg6( this, msg, _( "Continue Load Schematic" ),
+                                                  wxOK | wxCANCEL | wxCANCEL_DEFAULT |
+                                                  wxCENTER | wxICON_QUESTION );
                     msgDlg6.SetOKCancelLabels( okButtonLabel, cancelButtonLabel );
 
                     if( msgDlg6.ShowModal() == wxID_CANCEL )
@@ -511,19 +511,20 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
             // All (most?) of the possible broken symbol library link cases are covered.  Map the
             // new appended schematic project symbol library table entries to the current project
             // symbol library table.
-            if( !newLibNames.IsEmpty() && !table.IsEmpty() )
+            if( !newLibNames.IsEmpty() && !table.Rows().empty() )
             {
                 for( const wxString& libName : newLibNames )
                 {
-                    if( !table.HasLibrary( libName )
-                      || PROJECT_SCH::SchSymbolLibTable( &Prj() )->HasLibrary( libName ) )
+                    if( !table.HasRow( libName ) || adapter->HasLibrary( libName ) )
                     {
                         continue;
                     }
 
+                    LIBRARY_TABLE_ROW* row = *table.Row( libName );
+
                     // Don't expand environment variable because KIPRJMOD will not be correct
                     // for a different project.
-                    wxString uri = table.GetFullURI( libName, false );
+                    wxString uri = LIBRARY_MANAGER::GetFullURI( row, false );
                     wxFileName newLib;
 
                     if( uri.Contains( "${KIPRJMOD}" ) || uri.Contains( "$(KIPRJMOD)" ) )
@@ -536,21 +537,20 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
                     }
                     else
                     {
-                        uri = table.GetFullURI( libName );
+                        uri = LIBRARY_MANAGER::GetFullURI( row, true );
                     }
 
                     // Add the library from the imported project to the current project
                     // symbol library table.
-                    const SYMBOL_LIB_TABLE_ROW* row = table.FindRow( libName );
 
-                    wxCHECK( row, false );
+                    LIBRARY_TABLE_ROW& newRow = projectTable->InsertRow();
 
-                    SYMBOL_LIB_TABLE_ROW* newRow = new SYMBOL_LIB_TABLE_ROW( libName, uri,
-                                                                             row->GetType(),
-                                                                             row->GetOptions(),
-                                                                             row->GetDescr() );
+                    newRow.SetNickname( libName );
+                    newRow.SetURI( uri );
+                    newRow.SetType( row->Type() );
+                    newRow.SetDescription( row->Description() );
+                    newRow.SetOptions( row->Options() );
 
-                    PROJECT_SCH::SchSymbolLibTable( &Prj() )->InsertRow( newRow );
                     libTableChanged = true;
                 }
             }
@@ -560,10 +560,16 @@ bool SCH_EDIT_FRAME::LoadSheetFromFile( SCH_SHEET* aSheet, SCH_SHEET_PATH* aCurr
     SCH_SCREEN* newScreen = tmpSheet->GetScreen();
     wxCHECK_MSG( newScreen, false, "No screen defined for sheet." );
 
-    if( libTableChanged )
+    if( libTableChanged && projectTable )
     {
-        PROJECT_SCH::SchSymbolLibTable( &Prj() )->Save( Prj().GetProjectPath() +
-                                         SYMBOL_LIB_TABLE::GetSymbolLibTableFileName() );
+        projectTable->Save().map_error(
+                [&]( const LIBRARY_ERROR& aError )
+                {
+                    KICAD_MESSAGE_DIALOG dlg( this, _( "Error saving library table." ), _( "File Save Error" ),
+                                              wxOK | wxICON_ERROR );
+                    dlg.SetExtendedMessage( aError.message );
+                    dlg.ShowModal();
+                } );
     }
 
     // Make the best attempt to set the symbol instance data for the loaded schematic.

@@ -32,6 +32,7 @@
 #include <wx/grid.h>
 #include <wx/version.h>
 
+#include <kicommon.h>
 #include <libeval/numeric_evaluator.h>
 #include <units_provider.h>
 
@@ -39,7 +40,7 @@ class wxTextEntryBase;
 class ROW_ICON_PROVIDER;
 
 
-enum GROUP_TYPE
+enum KICOMMON_API GROUP_TYPE
 {
     GROUP_SINGLETON,
     GROUP_COLLAPSED,
@@ -49,7 +50,7 @@ enum GROUP_TYPE
 };
 
 
-class WX_GRID_TABLE_BASE : public wxGridTableBase
+class KICOMMON_API WX_GRID_TABLE_BASE : public wxGridTableBase
 {
 public:
     ~WX_GRID_TABLE_BASE() override
@@ -72,11 +73,17 @@ public:
             return enhanceAttr( m_colAttrs[aCol], aRow, aCol, aKind );
         }
 
-        return nullptr;
+        return enhanceAttr( nullptr, aRow, aCol, aKind );
     }
 
     virtual bool IsExpanderColumn( int aCol ) const { return false; }
     virtual GROUP_TYPE GetGroupType( int aRow ) const { return GROUP_SINGLETON; }
+
+    void Clear() override
+    {
+        if( GetNumberRows() )
+            DeleteRows( 0, GetNumberRows() );
+    }
 
 protected:
     wxGridCellAttr* enhanceAttr( wxGridCellAttr* aInputAttr, int aRow, int aCol,
@@ -87,13 +94,13 @@ protected:
 };
 
 
-class WX_GRID : public wxGrid
+class KICOMMON_API WX_GRID : public wxGrid
 {
 public:
     // Constructor has to be wxFormBuilder-compatible
-    WX_GRID( wxWindow *parent, wxWindowID id,
-             const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize,
-             long style = wxWANTS_CHARS, const wxString& name = wxGridNameStr );
+    WX_GRID( wxWindow *parent, wxWindowID id, const wxPoint& pos = wxDefaultPosition,
+             const wxSize& size = wxDefaultSize, long style = wxWANTS_CHARS,
+             const wxString& name = wxGridNameStr );
 
     ~WX_GRID() override;
 
@@ -204,7 +211,6 @@ public:
      */
     int GetUnitValue( int aRow, int aCol );
 
-
     /**
      * Apply standard KiCad unit and eval services to a numeric cell.
      *
@@ -303,6 +309,8 @@ public:
 
     ROW_ICON_PROVIDER* GetRowIconProvider() const { return m_rowIconProvider; }
 
+    void RecomputeGridWidths();
+
 protected:
     /**
      * A re-implementation of wxGrid::DrawColLabel which left-aligns the first column and draws
@@ -341,8 +349,6 @@ protected:
     std::pair<EDA_UNITS, EDA_DATA_TYPE> getColumnUnits( int aCol ) const;
 
 private:
-    void recomputeGridWidths();
-
     void onSizeEvent( wxSizeEvent& aEvent );
 
 protected:
@@ -361,6 +367,10 @@ protected:
 
     bool                       m_gridWidthsDirty = true;
     int                        m_gridWidth = 0;
+
+#ifdef __WXMSW__
+    bool                       m_firstSelectionRefreshDone = false;
+#endif
 
     ROW_ICON_PROVIDER*         m_rowIconProvider;
 };

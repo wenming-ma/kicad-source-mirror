@@ -79,6 +79,15 @@ T isqrt(T x)
 
 SEG::ecoord SEG::SquaredDistance( const SEG& aSeg ) const
 {
+    // Handle zero-length segments (points) specially.
+    // The Intersects() check below doesn't handle this case correctly because
+    // the cross product with a zero vector is always zero, causing false positives.
+    if( A == B )
+        return aSeg.SquaredDistance( A );
+
+    if( aSeg.A == aSeg.B )
+        return SquaredDistance( aSeg.A );
+
     if( Intersects( aSeg ) )
         return 0;
 
@@ -504,10 +513,7 @@ bool SEG::IntersectsLine( double aSlope, double aOffset, VECTOR2I& aIntersection
     // Check if intersection is within segment bounds
     if( t >= 0.0 && t <= 1.0 )
     {
-        const double intersect_x = segA.x + t * segDir.x;
-        const double intersect_y = segA.y + t * segDir.y;
-
-        aIntersection = VECTOR2I( KiROUND( intersect_x ), KiROUND( intersect_y ) );
+        aIntersection = KiROUND( segA.x + t * segDir.x, segA.y + t * segDir.y );
         return true;
     }
 
@@ -542,6 +548,29 @@ bool SEG::Collide( const SEG& aSeg, int aClearance, int* aActual ) const
             *aActual = 0;
 
         return false;
+    }
+
+    // Handle zero-length segments (points) specially.
+    // The intersects() check below doesn't handle this case correctly because
+    // the cross product with a zero vector is always zero, causing false positives.
+    if( A == B )
+    {
+        int dist = aSeg.Distance( A );
+
+        if( aActual )
+            *aActual = dist;
+
+        return dist == 0 || dist < aClearance;
+    }
+
+    if( aSeg.A == aSeg.B )
+    {
+        int dist = Distance( aSeg.A );
+
+        if( aActual )
+            *aActual = dist;
+
+        return dist == 0 || dist < aClearance;
     }
 
     // Check for exact intersection first

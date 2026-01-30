@@ -163,7 +163,6 @@ TOOL_ACTION PCB_ACTIONS::drawBezier( TOOL_ACTION_ARGS()
 TOOL_ACTION PCB_ACTIONS::placeBarcode( TOOL_ACTION_ARGS()
         .Name( "pcbnew.InteractiveDrawing.barcode" )
         .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_SHIFT + MD_CTRL + 'B' )
         .LegacyHotkeyName( "Add Barcode" )
         .FriendlyName( _( "Add Barcode" ) )
         .Tooltip( _( "Add a barcode" ) )
@@ -511,7 +510,7 @@ TOOL_ACTION PCB_ACTIONS::showDesignBlockPanel( TOOL_ACTION_ARGS()
 TOOL_ACTION PCB_ACTIONS::saveBoardAsDesignBlock( TOOL_ACTION_ARGS()
         .Name( "pcbnew.PcbDesignBlockControl.saveBoardAsDesignBlock" )
         .Scope( AS_GLOBAL )
-        .FriendlyName( _( "Save Current Board as Design Block..." ) )
+        .FriendlyName( _( "Save Board as Design Block..." ) )
         .Tooltip( _( "Create a new design block from the current board" ) )
         .Icon( BITMAPS::new_component ) );
 
@@ -522,22 +521,22 @@ TOOL_ACTION PCB_ACTIONS::saveSelectionAsDesignBlock( TOOL_ACTION_ARGS()
         .Tooltip( _( "Create a new design block from the current selection" ) )
         .Icon( BITMAPS::new_component ) );
 
-TOOL_ACTION PCB_ACTIONS::saveBoardToDesignBlock( TOOL_ACTION_ARGS()
-        .Name( "pcbnew.PcbDesignBlockControl.saveBoardToDesignBlock" )
+TOOL_ACTION PCB_ACTIONS::updateDesignBlockFromBoard( TOOL_ACTION_ARGS()
+        .Name( "pcbnew.PcbDesignBlockControl.updateDesignBlockFromBoard" )
         .Scope( AS_GLOBAL )
-        .FriendlyName( _( "Save Current Board to Design Block..." ) )
-        .Tooltip( _( "Add current board to design block" ) )
+        .FriendlyName( _( "Update Design Block from Board" ) )
+        .Tooltip( _( "Set design block layout to current board" ) )
         .Icon( BITMAPS::save ) );
 
-TOOL_ACTION PCB_ACTIONS::saveSelectionToDesignBlock( TOOL_ACTION_ARGS()
-        .Name( "pcbnew.PcbDesignBlockControl.saveSelectionToDesignBlock" )
+TOOL_ACTION PCB_ACTIONS::updateDesignBlockFromSelection( TOOL_ACTION_ARGS()
+        .Name( "pcbnew.PcbDesignBlockControl.updateDesignBlockFromSelection" )
         .Scope( AS_GLOBAL )
-        .FriendlyName( _( "Save Selection to Design Block..." ) )
-        .Tooltip( _( "Add current selection to design block" ) )
+        .FriendlyName( _( "Update Design Block from Selection" ) )
+        .Tooltip( _( "Set design block layout to current selection" ) )
         .Icon( BITMAPS::save ) );
 
 TOOL_ACTION PCB_ACTIONS::deleteDesignBlock( TOOL_ACTION_ARGS()
-        .Name( "pcbnew.PcbDesignBlockControl.saveDeleteDesignBlock" )
+        .Name( "pcbnew.PcbDesignBlockControl.deleteDesignBlock" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Delete Design Block" ) )
         .Tooltip( _( "Remove the selected design block from its library" ) )
@@ -547,7 +546,7 @@ TOOL_ACTION PCB_ACTIONS::editDesignBlockProperties( TOOL_ACTION_ARGS()
         .Name( "pcbnew.PcbDesignBlockControl.editDesignBlockProperties" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Properties..." ) )
-        .Tooltip( _( "Edit properies of design block" ) )
+        .Tooltip( _( "Edit properties of design block" ) )
         .Icon( BITMAPS::edit ) );
 
 // EDIT_TOOL
@@ -600,7 +599,7 @@ TOOL_ACTION PCB_ACTIONS::moveIndividually( TOOL_ACTION_ARGS()
 TOOL_ACTION PCB_ACTIONS::moveWithReference( TOOL_ACTION_ARGS()
         .Name( "pcbnew.InteractiveMove.moveWithReference" )
         .Scope( AS_GLOBAL )
-        .FriendlyName( _( "Move with Reference" ) )
+        .FriendlyName( _( "Move with Reference..." ) )
         .Tooltip( _( "Moves the selected item(s) with a specified starting point" ) )
         .Icon( BITMAPS::move )
         .Flags( AF_ACTIVATE )
@@ -609,7 +608,7 @@ TOOL_ACTION PCB_ACTIONS::moveWithReference( TOOL_ACTION_ARGS()
 TOOL_ACTION PCB_ACTIONS::copyWithReference( TOOL_ACTION_ARGS()
         .Name( "pcbnew.InteractiveMove.copyWithReference" )
         .Scope( AS_GLOBAL )
-        .FriendlyName( _( "Copy with Reference" ) )
+        .FriendlyName( _( "Copy with Reference..." ) )
         .Tooltip( _( "Copy selected item(s) to clipboard with a specified starting point" ) )
         .Icon( BITMAPS::copy )
         .Flags( AF_ACTIVATE ) );
@@ -784,8 +783,8 @@ TOOL_ACTION PCB_ACTIONS::simplifyPolygons( TOOL_ACTION_ARGS()
 TOOL_ACTION PCB_ACTIONS::editVertices( TOOL_ACTION_ARGS()
         .Name( "pcbnew.InteractiveEdit.editVertices" )
         .Scope( AS_GLOBAL )
-        .FriendlyName( _( "Edit Vertices..." ) )
-        .Tooltip( _( "Edit polygon vertices using a table" ) )
+        .FriendlyName( _( "Edit Corners..." ) )
+        .Tooltip( _( "Edit polygon corners using a table" ) )
         .Icon( BITMAPS::edit ) );
 
 TOOL_ACTION PCB_ACTIONS::healShapes( TOOL_ACTION_ARGS()
@@ -1347,7 +1346,8 @@ TOOL_ACTION PCB_ACTIONS::collect3DModels( TOOL_ACTION_ARGS()
         .Name( "pcbnew.EditorControl.collect3DModels" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Collect And Embed 3D Models" ) )
-        .Tooltip( _( "Collect footprint 3D models and embed them into the board" ) ) );
+        .Tooltip( _( "Collect footprint 3D models and embed them into the board" ) )
+        .Icon( BITMAPS::import3d ) );
 
 
 // Track & via size control
@@ -1576,6 +1576,12 @@ TOOL_ACTION PCB_ACTIONS::showEeschema( TOOL_ACTION_ARGS()
         .Tooltip( _( "Open schematic in schematic editor" ) )
         .Icon( BITMAPS::icon_eeschema_24 ) );
 
+// DESIGN RULE EDITOR
+TOOL_ACTION PCB_ACTIONS::drcRuleEditor( TOOL_ACTION_ARGS()
+        .Name( "pcbnew.DRETool.drcRuleEditor" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "DRC Rule Editor" ) )
+        .Tooltip( _( "Open drc rule editor window" ) ) );
 
 // PCB_CONTROL
 //
@@ -1622,11 +1628,12 @@ TOOL_ACTION PCB_ACTIONS::showNetInspector( TOOL_ACTION_ARGS()
         .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::tools ) );
 
-TOOL_ACTION PCB_ACTIONS::zonesManager( "pcbnew.Control.zonesManager",
-        AS_GLOBAL, 0, "",
-        _( "Zone Manager..." ),
-        _( "Show the zone manager dialog" ),
-        BITMAPS::show_zone );
+TOOL_ACTION PCB_ACTIONS::zonesManager( TOOL_ACTION_ARGS()
+        .Name( "pcbnew.Control.zonesManager" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Zone Manager..." ) )
+        .Tooltip( _( "Show the zone manager dialog" ) )
+        .Icon( BITMAPS::show_zone ) );
 
 TOOL_ACTION PCB_ACTIONS::flipBoard( TOOL_ACTION_ARGS()
         .Name( "pcbnew.Control.flipBoard" )
@@ -2313,11 +2320,11 @@ TOOL_ACTION PCB_ACTIONS::positionRelative( TOOL_ACTION_ARGS()
         .Tooltip( _( "Positions the selected item(s) by an exact amount relative to another" ) )
         .Icon( BITMAPS::move_relative ) );
 
-TOOL_ACTION PCB_ACTIONS::positionRelativeInteractively( TOOL_ACTION_ARGS()
-        .Name( "pcbnew.PositionRelative.positionRelativeInteractively" )
+TOOL_ACTION PCB_ACTIONS::interactiveOffsetTool( TOOL_ACTION_ARGS()
+        .Name( "pcbnew.PositionRelative.interactiveOffsetTool" )
         .Scope( AS_GLOBAL )
-        .FriendlyName( _( "Position Interactively..." ) )
-        .Tooltip( _( "Positions the selected item(s) by an exact amount relative to another, interactively" ) )
+        .FriendlyName( _( "Interactive Offset Tool" ) )
+        .Tooltip( _( "Interactive tool for offsetting items by exact amounts" ) )
         .Icon( BITMAPS::move_relative ) );
 
 // PCIKER_TOOL
@@ -2662,6 +2669,12 @@ TOOL_ACTION PCB_ACTIONS::routerAutorouteSelected( TOOL_ACTION_ARGS()
         .Tooltip( _( "Sequentially attempt to automatically route all selected pads." ) )
         .Flags( AF_ACTIVATE )
         .Parameter( PNS::PNS_MODE_ROUTE_SINGLE ) );
+
+TOOL_ACTION PCB_ACTIONS::cancelCurrentItem( TOOL_ACTION_ARGS()
+        .Name( "pcbnew.InteractiveRouter.CancelCurrentItem" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Cancel Current Item" ) )
+        .Tooltip( _( "Skip current item and route next selected item." ) ) );
 
 TOOL_ACTION PCB_ACTIONS::breakTrack( TOOL_ACTION_ARGS()
         .Name( "pcbnew.InteractiveRouter.BreakTrack" )

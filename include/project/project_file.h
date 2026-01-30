@@ -32,7 +32,7 @@ class BOARD_DESIGN_SETTINGS;
 class ERC_SETTINGS;
 class NET_SETTINGS;
 class COMPONENT_CLASS_SETTINGS;
-class TIME_DOMAIN_PARAMETERS;
+class TUNING_PROFILES;
 class LAYER_PAIR_SETTINGS;
 class SCHEMATIC_SETTINGS;
 class TEMPLATES;
@@ -42,6 +42,32 @@ class TEMPLATES;
  * Display name is typically blank for the project root sheet
  */
 typedef std::pair<KIID, wxString> FILE_INFO_PAIR;
+
+/**
+ * Information about a top-level schematic sheet
+ */
+struct TOP_LEVEL_SHEET_INFO
+{
+    KIID     uuid;          ///< Unique identifier for the sheet
+    wxString name;          ///< Display name for the sheet
+    wxString filename;      ///< Relative path to the sheet file
+
+    TOP_LEVEL_SHEET_INFO() = default;
+
+    TOP_LEVEL_SHEET_INFO( const KIID& aUuid, const wxString& aName, const wxString& aFilename )
+        : uuid( aUuid ), name( aName ), filename( aFilename )
+    {}
+
+    bool operator==( const TOP_LEVEL_SHEET_INFO& aOther ) const
+    {
+        return uuid == aOther.uuid && name == aOther.name && filename == aOther.filename;
+    }
+
+    bool operator!=( const TOP_LEVEL_SHEET_INFO& aOther ) const
+    {
+        return !( *this == aOther );
+    }
+};
 
 /**
  * For storing PcbNew MRU paths of various types
@@ -77,6 +103,8 @@ public:
 
     virtual bool MigrateFromLegacy( wxConfigBase* aCfg ) override;
 
+    bool LoadFromFile( const wxString& aDirectory = "" ) override;
+
     bool SaveToFile( const wxString& aDirectory = "", bool aForce = false ) override;
 
     bool SaveAs( const wxString& aDirectory, const wxString& aFile );
@@ -96,6 +124,16 @@ public:
         return m_boards;
     }
 
+    std::vector<TOP_LEVEL_SHEET_INFO>& GetTopLevelSheets()
+    {
+        return m_topLevelSheets;
+    }
+
+    const std::vector<TOP_LEVEL_SHEET_INFO>& GetTopLevelSheets() const
+    {
+        return m_topLevelSheets;
+    }
+
     std::shared_ptr<NET_SETTINGS>& NetSettings()
     {
         return m_NetSettings;
@@ -106,10 +144,7 @@ public:
         return m_ComponentClassSettings;
     }
 
-    std::shared_ptr<TIME_DOMAIN_PARAMETERS>& TimeDomainParameters()
-    {
-        return m_timeDomainParameters;
-    }
+    std::shared_ptr<TUNING_PROFILES>& TuningProfileParameters() { return m_tuningProfileParameters; }
 
     /**
      * @return true if it should be safe to auto-save this file without user action
@@ -199,9 +234,9 @@ public:
     std::shared_ptr<COMPONENT_CLASS_SETTINGS> m_ComponentClassSettings;
 
     /**
-     * Time domain parameters for this project
+     * Tuning profile parameters for this project
      */
-    std::shared_ptr<TIME_DOMAIN_PARAMETERS> m_timeDomainParameters;
+    std::shared_ptr<TUNING_PROFILES> m_tuningProfileParameters;
 
     std::vector<LAYER_PRESET>     m_LayerPresets;   /// List of stored layer presets
     std::vector<VIEWPORT>         m_Viewports;      /// List of stored viewports (pos + zoom)
@@ -226,6 +261,9 @@ private:
     /// An list of schematic sheets in this project
     std::vector<FILE_INFO_PAIR> m_sheets;
 
+    /// A list of top-level schematic sheets in this project
+    std::vector<TOP_LEVEL_SHEET_INFO> m_topLevelSheets;
+
     /// A list of board files in this project
     std::vector<FILE_INFO_PAIR> m_boards;
 
@@ -240,5 +278,11 @@ private:
 void to_json( nlohmann::json& aJson, const FILE_INFO_PAIR& aPair );
 
 void from_json( const nlohmann::json& aJson, FILE_INFO_PAIR& aPair );
+
+// Specializations to allow directly reading/writing TOP_LEVEL_SHEET_INFO from JSON
+
+void to_json( nlohmann::json& aJson, const TOP_LEVEL_SHEET_INFO& aInfo );
+
+void from_json( const nlohmann::json& aJson, TOP_LEVEL_SHEET_INFO& aInfo );
 
 #endif

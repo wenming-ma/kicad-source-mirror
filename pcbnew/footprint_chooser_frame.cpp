@@ -199,6 +199,8 @@ FOOTPRINT_CHOOSER_FRAME::FOOTPRINT_CHOOSER_FRAME( KIWAY* aKiway, wxWindow* aPare
     Layout();
     m_chooserPanel->FinishSetup();
 
+    Bind( wxEVT_CHAR_HOOK, &PANEL_FOOTPRINT_CHOOSER::OnChar, m_chooserPanel );
+
     if( !m_showDescription )
     {
         m_chooserPanel->GetVerticalSpliter()->SetMinimumPaneSize( 0 );
@@ -259,6 +261,12 @@ FOOTPRINT_CHOOSER_FRAME::FOOTPRINT_CHOOSER_FRAME( KIWAY* aKiway, wxWindow* aPare
 
 FOOTPRINT_CHOOSER_FRAME::~FOOTPRINT_CHOOSER_FRAME()
 {
+    Unbind( wxEVT_CHAR_HOOK, &PANEL_FOOTPRINT_CHOOSER::OnChar, m_chooserPanel );
+
+    // Shutdown all running tools
+    if( m_toolManager )
+        m_toolManager->ShutdownAllTools();
+
     // Work around assertion firing when we try to LockCtx on a hidden 3D canvas during dtor
     wxCloseEvent dummy;
     m_preview3DCanvas->Show();
@@ -289,6 +297,7 @@ FOOTPRINT_CHOOSER_FRAME::~FOOTPRINT_CHOOSER_FRAME()
 
     Disconnect( FP_SELECTION_EVENT,
                 wxCommandEventHandler( FOOTPRINT_CHOOSER_FRAME::onFpChanged ), nullptr, this );
+
     // clang-format on
 
     if( PCBNEW_SETTINGS* cfg = dynamic_cast<PCBNEW_SETTINGS*>( Kiface().KifaceSettings() ) )
@@ -469,8 +478,7 @@ void FOOTPRINT_CHOOSER_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
     {
     case MAIL_SYMBOL_NETLIST:
     {
-    wxLogTrace( "FOOTPRINT_CHOOSER", wxS( "MAIL_SYMBOL_NETLIST received: size=%zu" ),
-            payload.size() );
+        wxLogTrace( "FOOTPRINT_CHOOSER", wxS( "MAIL_SYMBOL_NETLIST received: size=%zu" ), payload.size() );
         wxSizer*  filtersSizer = m_chooserPanel->GetFiltersSizer();
         wxWindow* filtersWindow = filtersSizer->GetContainingWindow();
         wxString  msg;
@@ -498,10 +506,12 @@ void FOOTPRINT_CHOOSER_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
             m_pinCount = (int) pinNames.size();
 
             wxString pinList;
+
             for( const auto& kv : pinNames )
             {
                 if( !pinList.IsEmpty() )
                     pinList << wxS( "," );
+
                 pinList << kv.first;
             }
 
@@ -574,9 +584,8 @@ void FOOTPRINT_CHOOSER_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
                 m_filterByPinCount->Hide();
         }
 
-    m_chooserPanel->GetViewerPanel()->SetPinFunctions( pinNames );
-    wxLogTrace( "FOOTPRINT_CHOOSER", wxS( "SetPinFunctions called with %zu entries" ),
-            pinNames.size() );
+        m_chooserPanel->GetViewerPanel()->SetPinFunctions( pinNames );
+        wxLogTrace( "FOOTPRINT_CHOOSER", wxS( "SetPinFunctions called with %zu entries" ), pinNames.size() );
 
         // Save the wxFormBuilder size of the dialog...
         if( s_dialogRect.GetSize().x == 0 || s_dialogRect.GetSize().y == 0 )
@@ -771,6 +780,7 @@ void FOOTPRINT_CHOOSER_FRAME::toggleBottomSplit( wxCommandEvent& event )
     m_chooserPanel->Refresh();
 }
 
+
 void FOOTPRINT_CHOOSER_FRAME::on3DviewReq( wxCommandEvent& event )
 {
     if( m_show3DMode == true )
@@ -792,6 +802,7 @@ void FOOTPRINT_CHOOSER_FRAME::on3DviewReq( wxCommandEvent& event )
         {
             // Close 3D viewer frame, if it is still enabled
             EDA_3D_VIEWER_FRAME* viewer3D = Get3DViewerFrame();
+
             if( viewer3D )
                 viewer3D->Close( true );
         }
@@ -842,6 +853,7 @@ void FOOTPRINT_CHOOSER_FRAME::updateViews()
     m_chooserPanel->m_RightPanel->Refresh();
 }
 
+
 void FOOTPRINT_CHOOSER_FRAME::updatePanelsVisibility()
 {
     FOOTPRINT_PREVIEW_WIDGET* viewFpPanel = m_chooserPanel->GetViewerPanel();
@@ -864,19 +876,15 @@ void FOOTPRINT_CHOOSER_FRAME::setupUIConditions()
     // clang-format off
 #define CHECK( x )  ACTION_CONDITIONS().Check( x )
 
-    mgr->SetConditions( ACTIONS::toggleGrid,           CHECK( cond.GridVisible() ) );
-    mgr->SetConditions( ACTIONS::cursorSmallCrosshairs,    CHECK( cond.CursorSmallCrosshairs() ) );
-    mgr->SetConditions( ACTIONS::cursorFullCrosshairs,     CHECK( cond.CursorFullCrosshairs() ) );
-    mgr->SetConditions( ACTIONS::cursor45Crosshairs,       CHECK( cond.Cursor45Crosshairs() ) );
+    mgr->SetConditions( ACTIONS::toggleGrid,            CHECK( cond.GridVisible() ) );
+    mgr->SetConditions( ACTIONS::cursorSmallCrosshairs, CHECK( cond.CursorSmallCrosshairs() ) );
+    mgr->SetConditions( ACTIONS::cursorFullCrosshairs,  CHECK( cond.CursorFullCrosshairs() ) );
+    mgr->SetConditions( ACTIONS::cursor45Crosshairs,    CHECK( cond.Cursor45Crosshairs() ) );
 
-    mgr->SetConditions( ACTIONS::millimetersUnits,     CHECK( cond.Units( EDA_UNITS::MM ) ) );
-    mgr->SetConditions( ACTIONS::inchesUnits,          CHECK( cond.Units( EDA_UNITS::INCH ) ) );
-    mgr->SetConditions( ACTIONS::milsUnits,            CHECK( cond.Units( EDA_UNITS::MILS ) ) );
-
-    mgr->SetConditions( PCB_ACTIONS::showPadNumbers,   CHECK( cond.PadNumbersDisplay() ) );
-    mgr->SetConditions( PCB_ACTIONS::padDisplayMode,   CHECK( !cond.PadFillDisplay() ) );
-    mgr->SetConditions( PCB_ACTIONS::textOutlines,     CHECK( !cond.TextFillDisplay() ) );
-    mgr->SetConditions( PCB_ACTIONS::graphicsOutlines, CHECK( !cond.GraphicsFillDisplay() ) );
+    mgr->SetConditions( PCB_ACTIONS::showPadNumbers,    CHECK( cond.PadNumbersDisplay() ) );
+    mgr->SetConditions( PCB_ACTIONS::padDisplayMode,    CHECK( !cond.PadFillDisplay() ) );
+    mgr->SetConditions( PCB_ACTIONS::textOutlines,      CHECK( !cond.TextFillDisplay() ) );
+    mgr->SetConditions( PCB_ACTIONS::graphicsOutlines,  CHECK( !cond.GraphicsFillDisplay() ) );
 
 #undef CHECK
     // clang-format on

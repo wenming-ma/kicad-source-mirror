@@ -416,8 +416,12 @@ void SCH_CONNECTION::recacheName()
         }
     }
 
-    m_cached_name_with_path = prepend_path ? m_sheet.PathHumanReadable() << m_cached_name
-                                           : m_cached_name;
+    // Use aEscapeSheetNames=true so that sheets with '/' in their names have the slash
+    // escaped to "{slash}". This ensures pattern matching for net classes works correctly
+    // since '/' is used as the hierarchy separator.
+    m_cached_name_with_path = prepend_path
+            ? m_sheet.PathHumanReadable( true, false, true ) << m_cached_name
+            : m_cached_name;
 }
 
 
@@ -450,19 +454,22 @@ void SCH_CONNECTION::AppendInfoToMsgPanel( std::vector<MSG_PANEL_ITEM>& aList ) 
 
     aList.emplace_back( _( "Connection Name" ), UnescapeString( Name() ) );
 
-    if( std::shared_ptr<BUS_ALIAS> alias = m_graph->GetBusAlias( m_name ) )
+    if( IsBus() )
     {
-        msg.Printf( _( "Bus Alias %s Members" ), m_name );
-        aList.emplace_back( msg, boost::algorithm::join( alias->Members(), " " ) );
-    }
-    else if( NET_SETTINGS::ParseBusGroup( m_name, &group_name, &group_members ) )
-    {
-        for( const wxString& group_member : group_members )
+        if( std::shared_ptr<BUS_ALIAS> alias = m_graph->GetBusAlias( m_name ) )
         {
-            if( std::shared_ptr<BUS_ALIAS> group_alias = m_graph->GetBusAlias( group_member ) )
+            msg.Printf( _( "Bus Alias %s Members" ), m_name );
+            aList.emplace_back( msg, boost::algorithm::join( alias->Members(), " " ) );
+        }
+        else if( NET_SETTINGS::ParseBusGroup( m_name, &group_name, &group_members ) )
+        {
+            for( const wxString& group_member : group_members )
             {
-                msg.Printf( _( "Bus Alias %s Members" ), group_alias->GetName() );
-                aList.emplace_back( msg, boost::algorithm::join( group_alias->Members(), " " ) );
+                if( std::shared_ptr<BUS_ALIAS> group_alias = m_graph->GetBusAlias( group_member ) )
+                {
+                    msg.Printf( _( "Bus Alias %s Members" ), group_alias->GetName() );
+                    aList.emplace_back( msg, boost::algorithm::join( group_alias->Members(), " " ) );
+                }
             }
         }
     }

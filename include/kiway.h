@@ -135,6 +135,8 @@ class TOOL_ACTION;
 class JOB;
 class REPORTER;
 class PROGRESS_REPORTER;
+class STARTWIZARD_PROVIDER;
+class LOCAL_HISTORY;
 
 
 /**
@@ -252,6 +254,12 @@ struct KIFACE
     {
         return 0;
     }
+
+    virtual void PreloadLibraries( KIWAY* aKiway ) {}
+
+    virtual void CancelPreload( bool aBlock = true ) {}
+
+    virtual void ProjectChanged() {}
 };
 
 
@@ -302,7 +310,7 @@ public:
         KIWAY_FACE_COUNT
     };
 
-    ~KIWAY() throw () {}
+    ~KIWAY();
 
     /**
      * A simple mapping function which returns the FACE_T which is known to implement
@@ -377,7 +385,7 @@ public:
      * efficiently switch() based on @a aCommand in there.
      */
     virtual void ExpressMail( FRAME_T aDestination, MAIL_T aCommand, std::string& aPayload,
-                              wxWindow* aSource = nullptr );
+                              wxWindow* aSource = nullptr, bool aFromOtherThread = false );
 
     /**
      * Append all registered actions to the given list.
@@ -391,6 +399,11 @@ public:
      * in a place decided by the implementation, and not known to the caller.
      */
     virtual PROJECT& Prj() const;
+
+    /**
+     * Return the LOCAL_HISTORY associated with this KIWAY.
+     */
+    LOCAL_HISTORY& LocalHistory() { return *m_local_history; }
 
     /**
      * Change the language and then calls ShowChangedLanguage() on all #KIWAY_PLAYERs.
@@ -438,6 +451,8 @@ public:
     void OnKiwayEnd();
 
     bool ProcessEvent( wxEvent& aEvent ) override;
+
+    void QueueEvent( wxEvent* aEvent ) override;
 
     int  ProcessJob( KIWAY::FACE_T aFace, JOB* aJob, REPORTER* aReporter = nullptr,
                      PROGRESS_REPORTER* aProgressReporter = nullptr );
@@ -487,6 +502,8 @@ private:
     // Call: wxWindow::FindWindowById( m_playerFrameId[aFrameType] )
     // to know if still exists (or GetPlayerFrame( FRAME_T aFrameType )
     std::atomic<wxWindowID> m_playerFrameId[KIWAY_PLAYER_COUNT];
+
+    LOCAL_HISTORY*  m_local_history;
 };
 
 

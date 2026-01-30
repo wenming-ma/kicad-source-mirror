@@ -45,9 +45,12 @@
 #include <kiway.h>
 #include <build_version.h>
 #include <pgm_base.h>
+#include <app_monitor.h>
 #include <kiway_player.h>
 #include <macros.h>
 #include <confirm.h>
+#include <design_block_library_adapter.h>
+
 #include <settings/kicad_settings.h>
 #include <settings/settings_manager.h>
 #include <paths.h>
@@ -56,6 +59,10 @@
 #include <kiplatform/environment.h>
 
 #include <git2.h>
+#include <thread_pool.h>
+
+#include <libraries/library_manager.h>
+#include <startwizard/startwizard.h>
 
 #ifdef KICAD_USE_SENTRY
 #include <sentry.h>
@@ -81,6 +88,9 @@ static struct PGM_SINGLE_TOP : public PGM_BASE
 
     void OnPgmExit()
     {
+        // Abort and wait on any background jobs
+        GetKiCadThreadPool().purge();
+        GetKiCadThreadPool().wait();
 
         Kiway.OnKiwayEnd();
 
@@ -269,6 +279,11 @@ struct APP_SINGLE_TOP : public wxApp
         return Event_Skip;
     }
 
+    void OnUnhandledException() override
+    {
+        Pgm().HandleException( std::current_exception(), true );
+    }
+
 #if defined( DEBUG )
     /**
      * Override main loop exception handling on debug builds.
@@ -397,6 +412,18 @@ bool PGM_SINGLE_TOP::OnPgmInit()
     }
 
     Kiway.SetTop( frame );
+
+    STARTWIZARD startWizard;
+    startWizard.CheckAndRun( frame );
+
+    // Load library tables after startup wizard
+    GetLibraryManager().LoadGlobalTables();
+
+    // Preload libraries, since for single-top this won't have been done earlier
+    if( KIFACE* topFrame = Kiway.KiFACE( KIWAY::KifaceType( TOP_FRAME ) ) )
+        topFrame->PreloadLibraries( &Kiway );
+
+    PreloadDesignBlockLibraries( &Kiway );
 
     App().SetTopWindow( frame );      // wxApp gets a face.
     App().SetAppDisplayName( frame->GetAboutTitle() );

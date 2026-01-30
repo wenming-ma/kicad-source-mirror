@@ -3,7 +3,6 @@ add_compile_definitions( PCBNEW )
 
 include_directories(BEFORE ${INC_BEFORE})
 include_directories(
-    ${CMAKE_CURRENT_BINARY_DIR}
     ../pcbnew
     3d_canvas
     3d_cache
@@ -67,6 +66,7 @@ set(3D-VIEWER_SRCS
     ${DIR_RAY_3D}/bbox_3d_ray.cpp
     ${DIR_RAY_3D}/cylinder_3d.cpp
     ${DIR_RAY_3D}/dummy_block_3d.cpp
+    ${DIR_RAY_3D}/frustum_3d.cpp
     ${DIR_RAY_3D}/layer_item_3d.cpp
     ${DIR_RAY_3D}/object_3d.cpp
     ${DIR_RAY_3D}/plane_3d.cpp

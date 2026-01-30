@@ -76,13 +76,18 @@ WX_VIEW_CONTROLS::WX_VIEW_CONTROLS( VIEW* aView, EDA_DRAW_PANEL_GAL* aParentPane
         VIEW_CONTROLS( aView ),
         m_state( IDLE ),
         m_parentPanel( aParentPanel ),
+        m_dragStartPoint( 0, 0 ),
+        m_panDirection( 0, 0 ),
         m_scrollScale( 1.0, 1.0 ),
+        m_scrollPos( 0, 0 ),
+        m_zoomStartPoint( 0, 0 ),
         m_cursorPos( 0, 0 ),
         m_updateCursor( true ),
         m_metaPanning( false ),
         m_metaPanStart( 0, 0 ),
         m_infinitePanWorks( false ),
-        m_gestureLastZoomFactor( 1.0 )
+        m_gestureLastZoomFactor( 1.0 ),
+        m_gestureLastPos( 0, 0 )
 {
     LoadSettings();
 
@@ -221,6 +226,22 @@ void WX_VIEW_CONTROLS::onMotion( wxMouseEvent& aEvent )
     int      x = mouseRel.x;
     int      y = mouseRel.y;
     VECTOR2D mousePos( x, y );
+
+    // Clear keyboard cursor position flag when actual mouse motion is detected
+    // (i.e., not from cursor warping and position has changed)
+    if( !m_cursorWarped && m_settings.m_lastKeyboardCursorPositionValid )
+    {
+        VECTOR2I screenPos( x, y );
+        VECTOR2I keyboardScreenPos = m_view->ToScreen( m_settings.m_lastKeyboardCursorPosition );
+
+        // If mouse has moved to a different position than the keyboard cursor position,
+        // clear the keyboard position flag to allow mouse control
+        if( screenPos != keyboardScreenPos )
+        {
+            m_settings.m_lastKeyboardCursorPositionValid = false;
+            m_settings.m_lastKeyboardCursorPosition = { 0.0, 0.0 };
+        }
+    }
 
     // Automatic focus switching between SCH and PCB windows on canvas mouse motion
     if( m_settings.m_focusFollowSchPcb )

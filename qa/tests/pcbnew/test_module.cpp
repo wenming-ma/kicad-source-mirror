@@ -57,7 +57,9 @@ bool init_unit_test()
         Pgm().InitPgm( true, true, true );
         Pgm().GetSettingsManager().RegisterSettings( new PCBNEW_SETTINGS, false );
         Pgm().GetSettingsManager().Load();
+
         const MOCK_PGM_BASE& program = static_cast<MOCK_PGM_BASE&>( Pgm() );
+        Pgm().GetSettingsManager().LoadProject( "" );
     }
 
     return ok;

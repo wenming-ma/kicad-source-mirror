@@ -24,6 +24,7 @@
 #include <settings/settings_manager.h>
 
 #include <connection_graph.h>
+#include <project.h>
 #include <schematic.h>
 #include <sch_screen.h>
 
@@ -108,9 +109,14 @@ std::unique_ptr<SCHEMATIC> LoadHierarchyFromRoot( const std::string& rootFilenam
     std::unordered_map<std::string, SCH_SCREEN*> parsedScreens;
 
     schematic->SetProject( project );
+    schematic->Reset();
+    SCH_SHEET* defaultSheet = schematic->GetTopLevelSheet( 0 );
+
     SCH_SHEET* rootSheet = new SCH_SHEET( schematic.get() );
-    schematic->SetRoot( rootSheet );
     LoadHierarchy( schematic.get(), rootSheet, rootFilename, parsedScreens );
+    schematic->AddTopLevelSheet( rootSheet );
+    schematic->RemoveTopLevelSheet( defaultSheet );
+    delete defaultSheet;
 
     return schematic;
 }
@@ -140,7 +146,7 @@ void LoadSchematic( SETTINGS_MANAGER& aSettingsManager, const wxString& aRelPath
     else
         aSettingsManager.LoadProject( "" );
 
-    aSettingsManager.Prj().SetElem( PROJECT::ELEM::SCH_SYMBOL_LIBS, nullptr );
+    aSettingsManager.Prj().SetElem( PROJECT::ELEM::LEGACY_SYMBOL_LIBS, nullptr );
 
     aSchematic = LoadHierarchyFromRoot( schematicPath, &aSettingsManager.Prj() );
 

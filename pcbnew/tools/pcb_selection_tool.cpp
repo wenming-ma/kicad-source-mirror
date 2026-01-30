@@ -744,7 +744,7 @@ const GENERAL_COLLECTORS_GUIDE PCB_SELECTION_TOOL::getCollectorsGuide() const
 
 bool PCB_SELECTION_TOOL::ctrlClickHighlights()
 {
-    return m_frame && m_frame->GetPcbNewSettings()->m_CtrlClickHighlight && !m_isFootprintEditor;
+    return m_frame && m_frame->GetPcbNewSettings() && m_frame->GetPcbNewSettings()->m_CtrlClickHighlight && !m_isFootprintEditor;
 }
 
 
@@ -1494,12 +1494,22 @@ int PCB_SELECTION_TOOL::unrouteSelected( const TOOL_EVENT& aEvent )
         }
     }
 
+    // Because selectAllConnectedTracks() use m_filter to collect connected tracks
+    // to pads, enable filter for these items, regardless the curent filter options
+    // via filter is not changed, because it can be useful to keep via filter disabled
+    struct PCB_SELECTION_FILTER_OPTIONS save_filter = m_filter;
+    m_filter.tracks      = true;
+    m_filter.pads        = true;
+
     // Clear selection so we don't delete our footprints/pads
     ClearSelection( true );
 
     // Get the tracks on our list of pads, then delete them
     selectAllConnectedTracks( toUnroute, STOP_CONDITION::STOP_AT_PAD );
     m_toolMgr->RunAction( ACTIONS::doDelete );
+    ClearSelection( true );
+
+    m_filter = save_filter;     // restore current filter options
 
     // Reselect our footprint/pads as they were in our original selection
     for( EDA_ITEM* item : selectedItems )
@@ -2013,10 +2023,13 @@ void PCB_SELECTION_TOOL::selectAllConnectedShapes( const std::vector<PCB_SHAPE*>
         if( shape->HasFlag( SKIP_STRUCT ) )
             continue;
 
-        select( shape );
         shape->SetFlags( SKIP_STRUCT );
         toCleanup.insert( shape );
 
+        if( !itemPassesFilter( shape, true ) )
+            continue;
+
+        select( shape );
         guide.SetLayerVisibleBits( shape->GetLayerSet() );
 
         searchPoint( shape->GetStart() );
@@ -3117,15 +3130,6 @@ bool PCB_SELECTION_TOOL::Selectable( const BOARD_ITEM* aItem, bool checkVisibili
         // In footprint editor, we do not want to select the footprint itself.
         if( m_isFootprintEditor )
             return false;
-
-        // Allow selection of footprints if some part of the footprint is visible.
-        if( footprint->GetSide() != UNDEFINED_LAYER && !m_skip_heuristics )
-        {
-            LSET boardSide = footprint->IsFlipped() ? LSET::BackMask() : LSET::FrontMask();
-
-            if( !( visibleLayers() & boardSide ).any() )
-                return false;
-        }
 
         // If the footprint has no items except the reference and value fields, include the
         // footprint in the selections.

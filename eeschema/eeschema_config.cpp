@@ -20,7 +20,6 @@
 #include <mutex>
 #include <wx/ffile.h>
 
-#include <symbol_library.h>
 #include <confirm.h>
 #include <dialogs/dialog_schematic_setup.h>
 #include <kiway.h>
@@ -37,6 +36,7 @@
 #include <widgets/hierarchy_pane.h>
 #include <widgets/sch_design_block_pane.h>
 #include <widgets/sch_search_pane.h>
+#include <widgets/panel_remote_symbol.h>
 #include <widgets/panel_sch_selection_filter.h>
 #include <widgets/properties_panel.h>
 #include <settings/app_settings.h>
@@ -223,6 +223,41 @@ void SCH_EDIT_FRAME::saveProjectSettings()
         }
     }
 
+    // Update top-level sheets information in the project file
+    const std::vector<SCH_SHEET*>& topLevelSheets = Schematic().GetTopLevelSheets();
+
+    if( !topLevelSheets.empty() )
+    {
+        std::vector<TOP_LEVEL_SHEET_INFO>& projectSheets = Prj().GetProjectFile().GetTopLevelSheets();
+        projectSheets.clear();
+
+        wxString projectPath = Prj().GetProjectPath();
+
+        for( SCH_SHEET* sheet : topLevelSheets )
+        {
+            TOP_LEVEL_SHEET_INFO info;
+            info.uuid = sheet->m_Uuid;
+            info.name = sheet->GetName();
+
+            // For top-level sheets, get the filename from the screen, not from the sheet's
+            // SHEET_FILENAME field (which is only used for sheet instances on parent sheets)
+            wxString filename;
+
+            if( sheet->GetScreen() )
+                filename = sheet->GetScreen()->GetFileName();
+
+            // Make the filename relative to the project path
+            wxFileName sheetFn( filename );
+
+            if( sheetFn.IsAbsolute() )
+                sheetFn.MakeRelativeTo( projectPath );
+
+            info.filename = sheetFn.GetFullPath();
+
+            projectSheets.push_back( std::move( info ) );
+        }
+    }
+
     GetSettingsManager()->SaveProject( fn.GetFullPath() );
 }
 
@@ -334,6 +369,19 @@ void SCH_EDIT_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
         }
 
         m_designBlocksPane->SaveSettings();
+
+        wxAuiPaneInfo& remoteSymbolPane = m_auimgr.GetPane( RemoteSymbolPaneName() );
+        cfg->m_AuiPanels.remote_symbol_show = remoteSymbolPane.IsShown();
+
+        if( remoteSymbolPane.IsDocked() )
+        {
+            cfg->m_AuiPanels.remote_symbol_panel_docked_width = m_remoteSymbolPane->GetSize().x;
+        }
+        else
+        {
+            cfg->m_AuiPanels.remote_symbol_panel_float_height = remoteSymbolPane.floating_size.y;
+            cfg->m_AuiPanels.remote_symbol_panel_float_width = remoteSymbolPane.floating_size.x;
+        }
     }
 }
 

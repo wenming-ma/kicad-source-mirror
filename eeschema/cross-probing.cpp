@@ -23,6 +23,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <fmt.h>
 #include <kiface_base.h>
 #include <kiway.h>
 #include <kiway_express.h>
@@ -37,12 +38,16 @@
 #include <project/net_settings.h>
 #include <project_sch.h>
 #include <richio.h>
-#include <symbol_lib_table.h>
 #include <tools/sch_actions.h>
 #include <tools/sch_editor_control.h>
 #include <advanced_config.h>
+
+#include <pgm_base.h>
+#include <libraries/symbol_library_adapter.h>
 #include <widgets/sch_design_block_pane.h>
+#include <widgets/kistatusbar.h>
 #include <wx/log.h>
+#include <trace_helpers.h>
 
 SCH_ITEM* SCH_EDITOR_CONTROL::FindSymbolAndItem( const wxString* aPath, const wxString* aReference,
                                                  bool aSearchHierarchy, SCH_SEARCH_T aSearchType,
@@ -368,7 +373,7 @@ void SCH_EDIT_FRAME::SendCrossProbeNetName( const wxString& aNetName )
 {
     // The command is a keyword followed by a quoted string.
 
-    std::string packet = StrPrintf( "$NET: \"%s\"", TO_UTF8( aNetName ) );
+    std::string packet = fmt::format( "$NET: \"{}\"", TO_UTF8( aNetName ) );
 
     if( !packet.empty() )
     {
@@ -421,7 +426,7 @@ void SCH_EDIT_FRAME::SetCrossProbeConnection( const SCH_CONNECTION* aConnection 
     for( size_t i = 1; i < all_members.size(); i++ )
         nets << "," << all_members[i]->Name();
 
-    std::string packet = StrPrintf( "$NETS: \"%s\"", TO_UTF8( nets ) );
+    std::string packet = fmt::format( "$NETS: \"{}\"", TO_UTF8( nets ) );
 
     if( !packet.empty() )
     {
@@ -842,9 +847,14 @@ void SCH_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
     {
         std::stringstream ss( payload );
         std::string       file;
-        SYMBOL_LIB_TABLE* symLibTbl = PROJECT_SCH::SchSymbolLibTable( &Prj() );
 
-        wxCHECK_RET( symLibTbl, "Could not load symbol lib table." );
+        LIBRARY_MANAGER&              manager = Pgm().GetLibraryManager();
+        SYMBOL_LIBRARY_ADAPTER*       adapter = PROJECT_SCH::SymbolLibAdapter( &Prj() );
+        std::optional<LIBRARY_TABLE*> optTable = manager.Table( LIBRARY_TABLE_TYPE::SYMBOL,
+                                                                LIBRARY_TABLE_SCOPE::PROJECT );
+
+        wxCHECK_RET( optTable.has_value(), "Could not load symbol lib table." );
+        LIBRARY_TABLE* table = optTable.value();
 
         while( std::getline( ss, file, '\n' ) )
         {
@@ -854,6 +864,7 @@ void SCH_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
             wxFileName             fn( file );
             IO_RELEASER<SCH_IO>    pi;
             SCH_IO_MGR::SCH_FILE_T type = SCH_IO_MGR::GuessPluginTypeFromLibPath( fn.GetFullPath() );
+            bool                   success = true;
 
             if( type == SCH_IO_MGR::SCH_FILE_UNKNOWN )
             {
@@ -863,19 +874,24 @@ void SCH_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
 
             pi.reset( SCH_IO_MGR::FindPlugin( type ) );
 
-            if( !symLibTbl->HasLibrary( fn.GetName() ) )
+            if( !table->HasRow( fn.GetName() ) )
             {
-                symLibTbl->InsertRow( new SYMBOL_LIB_TABLE_ROW( fn.GetName(), fn.GetFullPath(),
-                                                                SCH_IO_MGR::ShowType( type ) ) );
-                wxString tblName = Prj().SymbolLibTableName();
+                LIBRARY_TABLE_ROW& row = table->InsertRow();
+                row.SetNickname( fn.GetName() );
+                row.SetURI( fn.GetFullPath() );
+                row.SetType( SCH_IO_MGR::ShowType( type ) );
 
-                try
+                table->Save().map_error(
+                        [&]( const LIBRARY_ERROR& aError )
+                        {
+                            wxLogError( wxT( "Error saving project library table:\n\n" ) + aError.message );
+                            success = false;
+                        } );
+
+                if( success )
                 {
-                    symLibTbl->Save( tblName );
-                }
-                catch( const IO_ERROR& ioe )
-                {
-                    wxLogError( _( "Error saving project-specific library table:\n\n%s" ), ioe.What() );
+                    manager.LoadProjectTables( { LIBRARY_TABLE_TYPE::SYMBOL } );
+                    adapter->LoadOne( fn.GetName() );
                 }
             }
         }
@@ -934,10 +950,10 @@ void SCH_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
 
             if( eeconfig()->m_CrossProbing.flash_selection )
             {
-                wxLogTrace( "CROSS_PROBE_FLASH", "MAIL_SELECTION(_FORCE): flash enabled, items=%zu", items.size() );
+                wxLogTrace( traceCrossProbeFlash, "MAIL_SELECTION(_FORCE): flash enabled, items=%zu", items.size() );
                 if( items.empty() )
                 {
-                    wxLogTrace( "CROSS_PROBE_FLASH", "MAIL_SELECTION(_FORCE): nothing to flash" );
+                    wxLogTrace( traceCrossProbeFlash, "MAIL_SELECTION(_FORCE): nothing to flash" );
                 }
                 else
                 {
@@ -949,7 +965,7 @@ void SCH_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
             }
             else
             {
-                wxLogTrace( "CROSS_PROBE_FLASH", "MAIL_SELECTION(_FORCE): flash disabled" );
+                wxLogTrace( traceCrossProbeFlash, "MAIL_SELECTION(_FORCE): flash disabled" );
             }
         }
 
@@ -1074,9 +1090,46 @@ void SCH_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
         break;
 
     case MAIL_RELOAD_LIB:
-        m_designBlocksPane->RefreshLibs();
-        SyncView();
+    {
+        if( m_designBlocksPane && m_designBlocksPane->IsShown() )
+        {
+            m_designBlocksPane->RefreshLibs();
+            SyncView();
+        }
+
+        // Show any symbol library load errors in the status bar
+        if( KISTATUSBAR* statusBar = dynamic_cast<KISTATUSBAR*>( GetStatusBar() ) )
+        {
+            SYMBOL_LIBRARY_ADAPTER* adapter = PROJECT_SCH::SymbolLibAdapter( &Prj() );
+            wxString errors = adapter->GetLibraryLoadErrors();
+
+            if( !errors.IsEmpty() )
+                statusBar->SetLoadWarningMessages( errors );
+        }
+
         break;
+    }
+
+    case MAIL_SCH_NAVIGATE_TO_SHEET:
+    {
+        wxString targetFile( payload );
+
+        for( SCH_SHEET_PATH& sheetPath : m_schematic->Hierarchy() )
+        {
+            SCH_SCREEN* screen = sheetPath.LastScreen();
+
+            if( screen && screen->GetFileName() == targetFile )
+            {
+                m_toolManager->RunAction<SCH_SHEET_PATH*>( SCH_ACTIONS::changeSheet, &sheetPath );
+                payload = "success";
+                Raise();
+                return;
+            }
+        }
+
+        payload.clear();
+        break;
+    }
 
     default:;
 

@@ -32,10 +32,11 @@
 #include <eda_pattern_match.h>
 #include <footprint_info.h>
 #include <footprint_viewer_frame.h>
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include <kiway.h>
 #include <kiway_express.h>
 #include <netlist_reader/pcb_netlist.h>
+#include <widgets/kistatusbar.h>
 #include <widgets/msgpanel.h>
 #include <widgets/wx_listbox.h>
 #include <widgets/wx_aui_utils.h>
@@ -352,9 +353,6 @@ void FOOTPRINT_VIEWER_FRAME::setupUIConditions()
     mgr->SetConditions( ACTIONS::cursorSmallCrosshairs, CHECK( cond.CursorSmallCrosshairs() ) );
     mgr->SetConditions( ACTIONS::cursorFullCrosshairs,  CHECK( cond.CursorFullCrosshairs() ) );
     mgr->SetConditions( ACTIONS::cursor45Crosshairs,    CHECK( cond.Cursor45Crosshairs() ) );
-    mgr->SetConditions( ACTIONS::millimetersUnits,  CHECK( cond.Units( EDA_UNITS::MM ) ) );
-    mgr->SetConditions( ACTIONS::inchesUnits,       CHECK( cond.Units( EDA_UNITS::INCH ) ) );
-    mgr->SetConditions( ACTIONS::milsUnits,         CHECK( cond.Units( EDA_UNITS::MILS ) ) );
 
     mgr->SetConditions( PCB_ACTIONS::saveFpToBoard, ENABLE( addToBoardCond ) );
 
@@ -406,7 +404,7 @@ void FOOTPRINT_VIEWER_FRAME::ReCreateLibraryList()
 
     COMMON_SETTINGS*      cfg = Pgm().GetCommonSettings();
     PROJECT_FILE&         project = Kiway().Prj().GetProjectFile();
-    std::vector<wxString> nicknames = PROJECT_PCB::PcbFootprintLibs( &Prj() )->GetLogicalLibs();
+    std::vector<wxString> nicknames = PROJECT_PCB::FootprintLibAdapter( &Prj() )->GetLibraryNames();
     std::vector<wxString> pinnedMatches;
     std::vector<wxString> otherMatches;
 
@@ -487,21 +485,16 @@ void FOOTPRINT_VIEWER_FRAME::ReCreateFootprintList()
     if( !getCurNickname() )
         setCurFootprintName( wxEmptyString );
 
-    auto fp_info_list = FOOTPRINT_LIST::GetInstance( Kiway() );
-
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &Prj() );
     wxString nickname = getCurNickname();
 
-    fp_info_list->ReadFootprintFiles( PROJECT_PCB::PcbFootprintLibs( &Prj() ), !nickname ? nullptr : &nickname );
+    if( !nickname )
+        return;
 
-    if( fp_info_list->GetErrorCount() )
-    {
-        fp_info_list->DisplayErrors( this );
+    std::vector<FOOTPRINT*> footprints = adapter->GetFootprints( nickname, true );
 
-        // For footprint libraries that support one footprint per file, there may have been
-        // valid footprints read so show the footprints that loaded properly.
-        if( fp_info_list->GetList().empty() )
-            return;
-    }
+    if( footprints.empty() )
+        return;
 
     std::set<wxString> excludes;
 
@@ -514,24 +507,26 @@ void FOOTPRINT_VIEWER_FRAME::ReCreateFootprintList()
             const wxString       filterTerm = tokenizer.GetNextToken().Lower();
             EDA_COMBINED_MATCHER matcher( filterTerm, CTX_LIBITEM );
 
-            for( const std::unique_ptr<FOOTPRINT_INFO>& footprint : fp_info_list->GetList() )
+            for( FOOTPRINT* footprint : footprints )
             {
                 std::vector<SEARCH_TERM> searchTerms = footprint->GetSearchTerms();
                 int                      matched = matcher.ScoreTerms( searchTerms );
 
-                if( filterTerm.IsNumber() && wxAtoi( filterTerm ) == (int)footprint->GetPadCount() )
+                if( filterTerm.IsNumber() && wxAtoi( filterTerm ) == (int)footprint->GetPadCount( DO_NOT_INCLUDE_NPTH ) )
                     matched++;
 
                 if( !matched )
-                    excludes.insert( footprint->GetFootprintName() );
+                    excludes.insert( footprint->GetFPID().GetLibItemName() );
             }
         }
     }
 
-    for( const std::unique_ptr<FOOTPRINT_INFO>& footprint : fp_info_list->GetList() )
+    for( FOOTPRINT* footprint : footprints )
     {
-        if( !excludes.count( footprint->GetFootprintName() ) )
-            m_fpList->Append( footprint->GetFootprintName() );
+        wxString fpName = footprint->GetFPID().GetLibItemName();
+
+        if( !excludes.count( fpName ) )
+            m_fpList->Append( fpName );
     }
 
     int index = wxNOT_FOUND;
@@ -909,7 +904,7 @@ void FOOTPRINT_VIEWER_FRAME::OnActivate( wxActivateEvent& event )
     if( event.GetActive() )
     {
         // Ensure we have the right library list:
-        std::vector< wxString > libNicknames = PROJECT_PCB::PcbFootprintLibs( &Prj() )->GetLogicalLibs();
+        std::vector< wxString > libNicknames = PROJECT_PCB::FootprintLibAdapter( &Prj() )->GetLibraryNames();
         bool                    stale = false;
 
         if( libNicknames.size() != m_libList->GetCount() )
@@ -982,20 +977,14 @@ COLOR4D FOOTPRINT_VIEWER_FRAME::GetGridColor()
 void FOOTPRINT_VIEWER_FRAME::UpdateTitle()
 {
     wxString title;
+    LIBRARY_MANAGER& manager = Pgm().GetLibraryManager();
 
     if( !getCurNickname().IsEmpty() )
     {
-        try
-        {
-            FP_LIB_TABLE* libtable = PROJECT_PCB::PcbFootprintLibs( &Prj() );
-            const LIB_TABLE_ROW* row = libtable->FindRow( getCurNickname() );
-
-            title = getCurNickname() + wxT( " \u2014 " ) + row->GetFullURI( true );
-        }
-        catch( ... )
-        {
+        if( std::optional<wxString> optUri = manager.GetFullURI( LIBRARY_TABLE_TYPE::FOOTPRINT, getCurNickname(), true ) )
+            title = getCurNickname() + wxT( " \u2014 " ) + *optUri;
+        else
             title = _( "[no library selected]" );
-        }
     }
     else
     {
@@ -1041,8 +1030,8 @@ void FOOTPRINT_VIEWER_FRAME::SelectAndViewFootprint( FPVIEWER_CONSTANTS aMode )
         GetBoard()->DeleteAllFootprints();
         GetBoard()->RemoveUnusedNets( nullptr );
 
-        FOOTPRINT* footprint = PROJECT_PCB::PcbFootprintLibs( &Prj() )->FootprintLoad( getCurNickname(),
-                                                                                       getCurFootprintName() );
+        FOOTPRINT* footprint = PROJECT_PCB::FootprintLibAdapter( &Prj() )->LoadFootprint( getCurNickname(),
+                                                                                          getCurFootprintName(), false );
 
         if( footprint )
             displayFootprint( footprint );

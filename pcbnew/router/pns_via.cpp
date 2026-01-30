@@ -77,10 +77,19 @@ std::vector<int> VIA::UniqueShapeLayers() const
 
 bool VIA::ConnectsLayer( int aLayer ) const
 {
-    if( m_unconnectedLayerMode == PADSTACK::UNCONNECTED_LAYER_MODE::START_END_ONLY )
+    if( m_unconnectedLayerMode == UNCONNECTED_LAYER_MODE::START_END_ONLY )
         return aLayer == m_layers.Start() || aLayer == m_layers.End();
 
     return m_layers.Overlaps( aLayer );
+}
+
+
+void VIA::SetHoleLayers( const PNS_LAYER_RANGE& aLayers )
+{
+    m_holeLayers = aLayers;
+
+    if( m_hole )
+        m_hole->SetLayers( m_holeLayers );
 }
 
 
@@ -260,7 +269,12 @@ VIA* VIA::Clone() const
     for( const auto& [layer, shape] : m_shapes )
         v->m_shapes[layer] = SHAPE_CIRCLE( m_pos, shape.GetRadius() );
 
-    v->SetHole( HOLE::MakeCircularHole( m_pos, m_drill / 2, m_layers ) );
+    v->SetHoleLayers( m_holeLayers );
+    v->m_secondaryHoleLayers = m_secondaryHoleLayers;
+    v->m_secondaryDrill = m_secondaryDrill;
+    v->m_primaryPostMachining = m_primaryPostMachining;
+    v->m_secondaryPostMachining = m_secondaryPostMachining;
+    v->SetHole( HOLE::MakeCircularHole( m_pos, m_drill / 2, PNS_LAYER_RANGE() ) );
     v->m_rank = m_rank;
     v->m_marker = m_marker;
     v->m_routable = m_routable;

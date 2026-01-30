@@ -368,6 +368,14 @@ enum ViaDrillFillingMode
   VDFM_FROM_DESIGN_RULES = 3;
 }
 
+enum ViaDrillPostMachiningMode
+{
+  VDPM_UNKNOWN = 0;
+  VDPM_NOT_POST_MACHINED = 1;
+  VDPM_COUNTERBORE = 2;
+  VDPM_COUNTERSINK = 3;
+}
+
 message DrillProperties
 {
   // Lowest (closest to F_Cu) layer this drill exists on.
@@ -385,6 +393,15 @@ message DrillProperties
   ViaDrillCappingMode capped = 5;
 
   ViaDrillFillingMode filled = 6;
+
+}
+
+message PostMachiningProperties
+{
+  ViaDrillPostMachiningMode mode = 1;
+  int32 size = 2;
+  int32 depth = 3;
+  int32 angle = 4;
 }
 
 // A pad stack definition for a multilayer pad or via.
@@ -415,6 +432,15 @@ message PadStack
 
   // Controls for how copper zones connect to the padstack
   ZoneConnectionSettings zone_settings = 9;
+
+  // Optional secondary drill hit for backdrilling
+  DrillProperties secondary_drill = 10;
+
+  // Optional tertiary drill hit for backdrilling
+  DrillProperties tertiary_drill = 11;
+
+  PostMachiningProperties front_post_machining = 12;
+  PostMachiningProperties back_post_machining = 13;
 }
 
 enum ViaType
@@ -513,6 +539,18 @@ message ThermalSpokeSettings
   kiapi.common.types.Distance gap = 3;
 }
 
+message SymbolPinInfo
+{
+  // The pin name for the associated symbol pin, if one exists
+  string name = 1;
+
+  // The electrical type of the associated symbol pin, if one exists (EPT_UNKNOWN if not)
+  kiapi.common.types.ElectricalPinType type = 2;
+
+  // True if the pin is attached to a no-connect marker in the schematic
+  bool no_connect = 3;
+}
+
 message Pad
 {
   kiapi.common.types.KIID id = 1;
@@ -531,8 +569,12 @@ message Pad
   // Since: 9.0.4
   kiapi.common.types.Distance pad_to_die_length = 9;
 
+  // Information about the associated symbol pin, if one exists
+  // Since: 9.0.7
+  SymbolPinInfo symbol_pin = 10;
+
   // Since: 10.0.0
-  kiapi.common.types.Time pad_to_die_delay = 10;
+  kiapi.common.types.Time pad_to_die_delay = 11;
 }
 
 enum ZoneType
@@ -896,6 +938,9 @@ message FootprintAttributes
   bool exempt_from_courtyard_requirement = 6;
   bool do_not_populate = 7;
   FootprintMountingStyle mounting_style = 8;
+
+  // Since: 9.0.7
+  bool allow_soldermask_bridges = 9;
 }
 
 message NetTieDefinition
@@ -983,4 +1028,19 @@ message FootprintInstance
 
   // The sheet path to the associated symbol for this footprint instance, if one exists
   kiapi.common.types.SheetPath symbol_path = 13;
+
+  // The name of the hierarchical sheet the associated symbol for this footprint exists on,
+  // or the empty string if there is no associated symbol
+  // Since: 9.0.7
+  string symbol_sheet_name = 14;
+
+  // The filename of the hierarchical sheet the associated symbol for this footprint exists on,
+  // or the empty string if there is no associated symbol
+  // Since: 9.0.7
+  string symbol_sheet_filename = 15;
+
+  // The the footprint filters given by the symbol this footprint is associated with,
+  // or the empty string if there is no associated symbol
+  // Since: 9.0.7
+  string symbol_footprint_filters = 16;
 }

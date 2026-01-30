@@ -34,6 +34,11 @@
 #include <wx/bitmap.h>
 #include <wx/image.h>
 #include <wx/math.h>
+#include <wx/menu.h>
+#include <wx/textdlg.h>
+#include <wx/textfile.h>
+#include <confirm.h>
+#include <project_tree_traverser.h>
 #include "template_default_html.h"
 
 // Welcome / fallback HTML now provided by template_default_html.h
@@ -44,6 +49,7 @@ TEMPLATE_SELECTION_PANEL::TEMPLATE_SELECTION_PANEL( wxNotebookPage* aParent,
 {
     m_parent = aParent;
     m_templatesPath = aPath;
+    m_isUserTemplates = false;
 }
 
 
@@ -86,7 +92,7 @@ void TEMPLATE_SELECTION_PANEL::SortAlphabetically()
     {
                    const wxString* a = aWidgetA->GetTemplate()->GetTitle();
                    const wxString* b = aWidgetB->GetTemplate()->GetTitle();
-                   
+
                    return ( *a ).CmpNoCase( *b ) < 0;
     });
 
@@ -109,6 +115,7 @@ TEMPLATE_WIDGET::TEMPLATE_WIDGET( wxWindow* aParent, DIALOG_TEMPLATE_SELECTOR* a
 {
     m_parent = aParent;
     m_dialog = aDialog;
+    m_isUserTemplate = false;
 
     // wxWidgets_3.xx way of doing the same...
     // Bind(wxEVT_LEFT_DOWN, &TEMPLATE_WIDGET::OnMouse, this );
@@ -117,6 +124,22 @@ TEMPLATE_WIDGET::TEMPLATE_WIDGET( wxWindow* aParent, DIALOG_TEMPLATE_SELECTOR* a
                            nullptr, this );
     m_staticTitle->Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::OnMouse ),
                             nullptr, this );
+
+    // Add right-click handler
+    m_bitmapIcon->Connect( wxEVT_RIGHT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::onRightClick ),
+                           nullptr, this );
+    m_staticTitle->Connect( wxEVT_RIGHT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::onRightClick ),
+                            nullptr, this );
+    Connect( wxEVT_RIGHT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::onRightClick ),
+             nullptr, this );
+
+    // Add double-click handler to activate the template (like OK button)
+    m_bitmapIcon->Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( TEMPLATE_WIDGET::OnDoubleClick ),
+                           nullptr, this );
+    m_staticTitle->Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( TEMPLATE_WIDGET::OnDoubleClick ),
+                            nullptr, this );
+    Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( TEMPLATE_WIDGET::OnDoubleClick ),
+             nullptr, this );
 
     // We're not selected until we're clicked
     Unselect();
@@ -129,7 +152,8 @@ TEMPLATE_WIDGET::TEMPLATE_WIDGET( wxWindow* aParent, DIALOG_TEMPLATE_SELECTOR* a
 void TEMPLATE_WIDGET::Select()
 {
     m_dialog->SetWidget( this );
-    SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNHIGHLIGHT ) );
+    SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHT ) );
+    m_staticTitle->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHTTEXT ) );
     m_selected = true;
     Refresh();
 }
@@ -138,6 +162,7 @@ void TEMPLATE_WIDGET::Select()
 void TEMPLATE_WIDGET::Unselect()
 {
     SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNFACE ) );
+    m_staticTitle->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNTEXT ) );
     m_selected = false;
     Refresh();
 }
@@ -183,6 +208,209 @@ void TEMPLATE_WIDGET::OnMouse( wxMouseEvent& event )
 }
 
 
+void TEMPLATE_WIDGET::OnDoubleClick( wxMouseEvent& event )
+{
+    // Double-click acts like pressing OK button
+    Select();
+    m_dialog->EndModal( wxID_OK );
+    event.Skip();
+}
+
+
+void TEMPLATE_WIDGET::onRightClick( wxMouseEvent& event )
+{
+    // Only show context menu for user templates
+    if( !m_isUserTemplate || !m_currTemplate )
+    {
+        event.Skip();
+        return;
+    }
+
+    wxMenu menu;
+    menu.Append( wxID_EDIT, _( "Edit Template" ) );
+    menu.Append( wxID_COPY, _( "Duplicate Template" ) );
+
+    menu.Bind( wxEVT_COMMAND_MENU_SELECTED,
+               [this]( wxCommandEvent& evt )
+               {
+                   if( evt.GetId() == wxID_EDIT )
+                       onEditTemplate( evt );
+                   else if( evt.GetId() == wxID_COPY )
+                       onDuplicateTemplate( evt );
+               } );
+
+    PopupMenu( &menu );
+}
+
+
+void TEMPLATE_WIDGET::onEditTemplate( wxCommandEvent& event )
+{
+    if( !m_currTemplate )
+        return;
+
+    // Get the template's base path
+    wxFileName templatePath = m_currTemplate->GetHtmlFile();
+    templatePath.RemoveLastDir();  // Remove "meta" dir
+
+    // Find a .kicad_pro file in the template directory
+    wxDir dir( templatePath.GetPath() );
+
+    if( !dir.IsOpened() )
+    {
+        DisplayErrorMessage( m_dialog,
+                            _( "Could not open template directory." ) );
+        return;
+    }
+
+    wxString filename;
+    bool found = dir.GetFirst( &filename, "*.kicad_pro", wxDIR_FILES );
+
+    if( !found )
+    {
+        DisplayErrorMessage( m_dialog,
+                            _( "No project file found in template directory." ) );
+        return;
+    }
+
+    wxFileName projectFile( templatePath.GetPath(), filename );
+
+    // Store the project path in the dialog so the caller can handle it
+    m_dialog->SetProjectToEdit( projectFile.GetFullPath() );
+
+    // Close with wxID_APPLY to indicate we want to edit, not create
+    m_dialog->EndModal( wxID_APPLY );
+}
+
+
+
+void TEMPLATE_WIDGET::onDuplicateTemplate( wxCommandEvent& event )
+{
+    if( !m_currTemplate )
+        return;
+
+    // Get the template's base path
+    wxFileName templatePath = m_currTemplate->GetHtmlFile();
+    templatePath.RemoveLastDir();  // Remove "meta" dir
+    wxString srcTemplatePath = templatePath.GetPath();
+    wxString srcTemplateName = m_currTemplate->GetPrjDirName();
+
+    // Ask for new template name
+    wxTextEntryDialog nameDlg( m_dialog,
+                               _( "Enter name for the new template:" ),
+                               _( "Duplicate Template" ),
+                               srcTemplateName + _( "_copy" ) );
+
+    if( nameDlg.ShowModal() != wxID_OK )
+        return;
+
+    wxString newTemplateName = nameDlg.GetValue();
+
+    if( newTemplateName.IsEmpty() )
+    {
+        DisplayErrorMessage( m_dialog, _( "Template name cannot be empty." ) );
+        return;
+    }
+
+    // Get the user templates directory from the dialog
+    wxString userTemplatesPath = m_dialog->GetUserTemplatesPath();
+
+    if( userTemplatesPath.IsEmpty() )
+    {
+        DisplayErrorMessage( m_dialog, _( "Could not find user templates directory." ) );
+        return;
+    }
+
+    // Create destination directory in user templates folder
+    wxFileName destPath( userTemplatesPath, wxEmptyString );
+    destPath.AppendDir( newTemplateName );
+    wxString newTemplatePath = destPath.GetPath();
+
+    if( destPath.DirExists() )
+    {
+        DisplayErrorMessage( m_dialog,
+                            wxString::Format( _( "Directory '%s' already exists." ),
+                                            newTemplatePath ) );
+        return;
+    }
+
+    if( !destPath.Mkdir( wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL ) )
+    {
+        DisplayErrorMessage( m_dialog,
+                            wxString::Format( _( "Could not create directory '%s'." ),
+                                            newTemplatePath ) );
+        return;
+    }
+
+    // Use shared traverser to copy all files with proper renaming
+    // Pass nullptr for frame to enable simple copy mode (no KIFACE handling)
+    wxDir sourceDir( srcTemplatePath );
+
+    if( !sourceDir.IsOpened() )
+    {
+        DisplayErrorMessage( m_dialog, _( "Could not open source template directory." ) );
+        return;
+    }
+
+    PROJECT_TREE_TRAVERSER traverser( nullptr, srcTemplatePath, srcTemplateName,
+                                     newTemplatePath, newTemplateName );
+
+    sourceDir.Traverse( traverser );
+
+    if( !traverser.GetErrors().empty() )
+    {
+        DisplayErrorMessage( m_dialog, traverser.GetErrors() );
+        return;
+    }
+
+    // Update the title in meta/info.html if it exists
+    wxFileName metaHtmlFile( newTemplatePath, "info.html" );
+    metaHtmlFile.AppendDir( "meta" );
+
+    if( metaHtmlFile.FileExists() )
+    {
+        wxTextFile htmlFile( metaHtmlFile.GetFullPath() );
+
+        if( htmlFile.Open() )
+        {
+            bool modified = false;
+
+            for( size_t i = 0; i < htmlFile.GetLineCount(); i++ )
+            {
+                wxString line = htmlFile.GetLine( i );
+
+                // Update the title tag - replace content between <title> and </title>
+                if( line.Contains( wxT( "<title>" ) ) && line.Contains( wxT( "</title>" ) ) )
+                {
+                    int titleStart = line.Find( wxT( "<title>" ) );
+                    int titleEnd = line.Find( wxT( "</title>" ) );
+
+                    if( titleStart != wxNOT_FOUND && titleEnd != wxNOT_FOUND && titleEnd > titleStart )
+                    {
+                        wxString before = line.Left( titleStart + 7 );  // Include "<title>"
+                        wxString after = line.Mid( titleEnd );          // Include "</title>" onwards
+                        line = before + newTemplateName + after;
+                        htmlFile[i] = line;
+                        modified = true;
+                    }
+                }
+            }
+
+            if( modified )
+                htmlFile.Write();
+
+            htmlFile.Close();
+        }
+    }
+
+    DisplayInfoMessage( m_dialog, wxString::Format( _( "Template duplicated successfully to '%s'." ),
+                                                    newTemplatePath ) );
+
+    // Refresh the widget list to show the new template
+    m_dialog->replaceCurrentPage();
+}
+
+
+
 void DIALOG_TEMPLATE_SELECTOR::OnPageChange( wxNotebookEvent& event )
 {
     int newPage = event.GetSelection();
@@ -216,15 +444,15 @@ void DIALOG_TEMPLATE_SELECTOR::OnPageChange( wxNotebookEvent& event )
 }
 
 
-DIALOG_TEMPLATE_SELECTOR::DIALOG_TEMPLATE_SELECTOR( wxWindow* aParent, const wxPoint& aPos,
-                                                    const wxSize&                  aSize,
+DIALOG_TEMPLATE_SELECTOR::DIALOG_TEMPLATE_SELECTOR( wxWindow* aParent, const wxPoint& aPos, const wxSize& aSize,
                                                     std::vector<std::pair<wxString, wxFileName>> aTitleDirList,
-                                                    const wxFileName&             aDefaultTemplate ) :
-        DIALOG_TEMPLATE_SELECTOR_BASE( aParent, wxID_ANY, _( "Project Template Selector" ), aPos,
-                                       aSize )
+                                                    const wxFileName& aDefaultTemplate ) :
+        DIALOG_TEMPLATE_SELECTOR_BASE( aParent, wxID_ANY, _( "Project Template Selector" ), aPos, aSize )
 {
     m_browseButton->SetBitmap( KiBitmapBundle( BITMAPS::small_folder ) );
     m_reloadButton->SetBitmap( KiBitmapBundle( BITMAPS::small_refresh ) );
+
+    m_webviewPanel->BindLoadedEvent();
 
     m_selectedWidget = nullptr;
     m_defaultTemplatePath = aDefaultTemplate;
@@ -236,6 +464,11 @@ DIALOG_TEMPLATE_SELECTOR::DIALOG_TEMPLATE_SELECTOR( wxWindow* aParent, const wxP
         wxString path = pathFname.GetFullPath(); // caller ensures this ends with file separator.
 
         TEMPLATE_SELECTION_PANEL* tpanel = new TEMPLATE_SELECTION_PANEL( m_notebook, path );
+
+        // Mark the first panel as "User Templates" if the title matches
+        if( title == _( "User Templates" ) )
+            tpanel->SetIsUserTemplates( true );
+
         m_panels.push_back( tpanel );
 
         m_notebook->AddPage( tpanel, title );
@@ -268,28 +501,39 @@ DIALOG_TEMPLATE_SELECTOR::DIALOG_TEMPLATE_SELECTOR( wxWindow* aParent, const wxP
     if( m_defaultWidget )
         m_defaultWidget->Select();
 
+    // Make OK button the default so Enter triggers it
+    m_sdbSizerOK->SetDefault();
+
+    // Handle Enter key in the template path text control to trigger OK
+    m_tcTemplatePath->Bind( wxEVT_TEXT_ENTER,
+                            [this]( wxCommandEvent& )
+                            {
+                                EndModal( wxID_OK );
+                            } );
+
     // Set welcome HTML after dialog is fully constructed
-    CallAfter( [this]()
-    {
-        #if defined (_WIN32)
-        wxSafeYield();
-        m_tcTemplatePath->SelectNone();
-        #endif
+    CallAfter(
+            [this]()
+            {
+                #if defined (_WIN32)
+                wxSafeYield();
+                m_tcTemplatePath->SelectNone();
+                #endif
 
-        if( m_selectedWidget )
-        {
-            wxFileName htmlFile = m_selectedWidget->GetTemplate()->GetHtmlFile();
+                if( m_selectedWidget )
+                {
+                    wxFileName htmlFile = m_selectedWidget->GetTemplate()->GetHtmlFile();
 
-            if( htmlFile.FileExists() && htmlFile.IsFileReadable() && htmlFile.GetSize() > 100 /* Basic HTML */ )
-                m_webviewPanel->LoadURL( wxFileName::FileNameToURL( htmlFile ) );
-            else
-                m_webviewPanel->SetPage( GetWelcomeHtml() );
-        }
-        else
-        {
-            m_webviewPanel->SetPage( GetWelcomeHtml() );
-        }
-    });
+                    if( htmlFile.FileExists() && htmlFile.IsFileReadable() && htmlFile.GetSize() > 100 /* Basic HTML */ )
+                        m_webviewPanel->LoadURL( wxFileName::FileNameToURL( htmlFile ) );
+                    else
+                        m_webviewPanel->SetPage( GetWelcomeHtml() );
+                }
+                else
+                {
+                    m_webviewPanel->SetPage( GetWelcomeHtml() );
+                }
+            } );
 
     // When all widgets have the size fixed, call finishDialogSettings to update sizers
     finishDialogSettings();
@@ -305,13 +549,9 @@ void DIALOG_TEMPLATE_SELECTOR::SetWidget( TEMPLATE_WIDGET* aWidget )
     wxFileName htmlFile = aWidget->GetTemplate()->GetHtmlFile();
 
     if( htmlFile.FileExists() && htmlFile.IsFileReadable() )
-    {
         m_webviewPanel->LoadURL( wxFileName::FileNameToURL( htmlFile ) );
-    }
     else
-    {
-    m_webviewPanel->SetPage( GetTemplateInfoHtml( *aWidget->GetTemplate()->GetTitle() ) );
-    }
+        m_webviewPanel->SetPage( GetTemplateInfoHtml( *aWidget->GetTemplate()->GetTitle() ) );
 }
 
 
@@ -319,6 +559,7 @@ void DIALOG_TEMPLATE_SELECTOR::AddTemplate( int aPage, PROJECT_TEMPLATE* aTempla
 {
     TEMPLATE_WIDGET* w = new TEMPLATE_WIDGET( m_panels[aPage]->m_scrolledWindow, this  );
     w->SetTemplate( aTemplate );
+    w->SetIsUserTemplate( m_panels[aPage]->IsUserTemplates() );
     m_panels[aPage]->AddTemplateWidget( w );
     m_allWidgets.push_back( w );
 
@@ -349,8 +590,25 @@ PROJECT_TEMPLATE* DIALOG_TEMPLATE_SELECTOR::GetDefaultTemplate()
 }
 
 
+wxString DIALOG_TEMPLATE_SELECTOR::GetUserTemplatesPath() const
+{
+    // Find the first panel marked as user templates
+    for( const TEMPLATE_SELECTION_PANEL* panel : m_panels )
+    {
+        if( panel->IsUserTemplates() )
+            return panel->GetPath();
+    }
+
+    // If no user templates panel found, return empty string
+    return wxEmptyString;
+}
+
+
 void DIALOG_TEMPLATE_SELECTOR::buildPageContent( const wxString& aPath, int aPage )
 {
+    // Track initial template count to detect if any templates were added
+    size_t initialTemplateCount = m_panels[aPage]->m_SizerChoice->GetItemCount();
+
     // Get a list of files under the template path to include as choices...
     wxDir dir;
 
@@ -388,8 +646,27 @@ void DIALOG_TEMPLATE_SELECTOR::buildPageContent( const wxString& aPath, int aPag
     }
 
     m_panels[aPage]->SortAlphabetically();
+
+    // Check if any templates were added; if not, display "No templates found" message
+    size_t finalTemplateCount = m_panels[aPage]->m_SizerChoice->GetItemCount();
+
+    if( finalTemplateCount == initialTemplateCount )
+    {
+        // No templates found in this directory - show message in webview
+        if( (unsigned)aPage < m_panels.size() )
+        {
+            // Get the panel's webview if it exists (it may not be directly accessible)
+            // Instead, we'll set the message on the main webview if it's associated with this panel
+            if( m_selectedWidget == nullptr && aPage == m_notebook->GetSelection() )
+            {
+                m_webviewPanel->SetPage( GetNoTemplatesHtml() );
+            }
+        }
+    }
+
     Layout();
 }
+
 
 
 void DIALOG_TEMPLATE_SELECTOR::onDirectoryBrowseClicked( wxCommandEvent& event )
@@ -444,6 +721,12 @@ void DIALOG_TEMPLATE_SELECTOR::replaceCurrentPage()
     wxString title = m_notebook->GetPageText( page );
     wxString currPath = m_tcTemplatePath->GetValue();
 
+    // Save the user template flag before deleting
+    bool wasUserTemplates = false;
+
+    if( (unsigned)page < m_panels.size() )
+        wasUserTemplates = m_panels[page]->IsUserTemplates();
+
     // Block all events to the notebook and its children
     wxEventBlocker blocker( m_notebook );
 
@@ -458,6 +741,7 @@ void DIALOG_TEMPLATE_SELECTOR::replaceCurrentPage()
     m_notebook->DeletePage( page );
 
     TEMPLATE_SELECTION_PANEL* tpanel = new TEMPLATE_SELECTION_PANEL( m_notebook, currPath );
+    tpanel->SetIsUserTemplates( wasUserTemplates );  // Restore the flag
     m_panels[page] = tpanel;
     m_notebook->InsertPage( page, tpanel, title, true );
 

@@ -201,13 +201,22 @@ public:
     virtual void OnSize( wxSizeEvent& aEvent );
 
     /**
-     * Select the given action in the left toolbar group which contains it, if any.
+     * Select the given action in the toolbar group which contains it, if any.
      * This updates the displayed icon/tooltip and UI conditions for that group.
      */
-    void SelectLeftToolbarAction( const TOOL_ACTION& aAction )
+    void SelectToolbarAction( const TOOL_ACTION& aAction )
     {
         if( m_tbLeft )
             m_tbLeft->SelectAction( aAction );
+
+        if( m_tbTopMain )
+            m_tbTopMain->SelectAction( aAction );
+
+        if( m_tbTopAux )
+            m_tbTopAux->SelectAction( aAction );
+
+        if( m_tbRight )
+            m_tbRight->SelectAction( aAction );
     }
 
     void OnMaximize( wxMaximizeEvent& aEvent );
@@ -508,22 +517,6 @@ public:
     bool IsWritable( const wxFileName& aFileName, bool aVerbose = true );
 
     /**
-     * Check if an auto save file exists for \a aFileName and takes the appropriate action
-     * depending on the user input.
-     *
-     * If an auto save file exists for \a aFileName, the user is prompted if they wish to
-     * replace file \a aFileName with the auto saved file.  If the user chooses to replace the
-     * file, the backup file of \a aFileName is removed, \a aFileName is renamed to the backup
-     * file name, and the auto save file is renamed to \a aFileName.  If user chooses to keep
-     * the existing version of \a aFileName, the auto save file is removed.
-     *
-     * @param aFileName A wxFileName object containing the file name to check.
-     */
-    virtual void CheckForAutoSaveFile( const wxFileName& aFileName );
-
-    virtual void DeleteAutoSaveFile( const wxFileName& aFileName );
-
-    /**
      * Update the status bar information.
      *
      * The status bar can draw itself.  This is not a drawing function per se, but rather
@@ -641,6 +634,8 @@ public:
         m_isNonUserClose = true;
         return Close( aForce );
     }
+
+    virtual void ClearToolbarControl( int aId ) { }
 
     /**
      * Update the UI in response to a change in the system colors.

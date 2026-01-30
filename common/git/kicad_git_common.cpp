@@ -46,6 +46,7 @@ KIGIT_COMMON::KIGIT_COMMON( git_repository* aRepo ) :
 KIGIT_COMMON::KIGIT_COMMON( const KIGIT_COMMON& aOther ) :
         // Initialize base class and member variables
         m_repo( aOther.m_repo ),
+        m_projectDir( aOther.m_projectDir ),
         m_connType( aOther.m_connType ),
         m_remote( aOther.m_remote ),
         m_hostname( aOther.m_hostname ),
@@ -68,6 +69,24 @@ git_repository* KIGIT_COMMON::GetRepo() const
 {
     return m_repo;
 }
+
+
+wxString KIGIT_COMMON::GetProjectDir() const
+{
+    if( !m_projectDir.IsEmpty() )
+        return m_projectDir;
+
+    if( m_repo )
+    {
+        const char* workdir = git_repository_workdir( m_repo );
+
+        if( workdir )
+            return wxString( workdir );
+    }
+
+    return wxEmptyString;
+}
+
 
 wxString KIGIT_COMMON::GetCurrentBranchName() const
 {
@@ -258,7 +277,7 @@ std::pair<std::set<wxString>,std::set<wxString>> KIGIT_COMMON::GetDifferentFiles
         std::set<wxString> modified_set;
         git_revwalk* walker = nullptr;
 
-        if( !m_repo || !from_oid )
+        if( !m_repo || !from_oid || IsCancelled() )
             return modified_set;
 
         if( git_revwalk_new( &walker, m_repo ) != GIT_OK )
@@ -286,6 +305,10 @@ std::pair<std::set<wxString>,std::set<wxString>> KIGIT_COMMON::GetDifferentFiles
         // iterate over all local commits not in remote
         while( git_revwalk_next( &oid, walker ) == GIT_OK )
         {
+            // Check for cancellation to allow early exit during shutdown
+            if( IsCancelled() )
+                return modified_set;
+
             if( git_commit_lookup( &commit, m_repo, &oid ) != GIT_OK )
             {
                 wxLogTrace( traceGit, "Failed to lookup commit: %s", KIGIT_COMMON::GetLastGitError() );
@@ -371,7 +394,7 @@ std::pair<std::set<wxString>,std::set<wxString>> KIGIT_COMMON::GetDifferentFiles
 
     std::pair<std::set<wxString>,std::set<wxString>> modified_files;
 
-    if( !m_repo )
+    if( !m_repo || IsCancelled() )
         return modified_files;
 
     git_reference* head = nullptr;

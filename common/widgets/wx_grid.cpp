@@ -33,6 +33,7 @@
 #include <widgets/wx_grid.h>
 #include <widgets/ui_common.h>
 #include <algorithm>
+#include <vector>
 #include <core/kicad_algo.h>
 #include <gal/color4d.h>
 #include <kiplatform/ui.h>
@@ -239,12 +240,42 @@ WX_GRID::~WX_GRID()
 
 void WX_GRID::onDPIChanged(wxDPIChangedEvent& aEvt)
 {
-    CallAfter( [&]()
-               {
-                   wxGrid::SetColLabelSize( wxGRID_AUTOSIZE );
-               } );
+    // Workaround for wxWidgets bug where hidden column widths (stored as negative values)
+    // are not scaled during DPI changes, corrupting the internal m_colRights array.
+    // https://github.com/wxWidgets/wxWidgets/issues/26079
+    // Fix is to re-hide all hidden columns after the DPI change completes, which forces
+    // wxGrid to recalculate the column geometry correctly.
 
-    // Don't skip, otherwise the grid gets too big
+    std::vector<int> hiddenCols;
+
+    for( int col = 0; col < GetNumberCols(); ++col )
+    {
+        if( !IsColShown( col ) )
+            hiddenCols.push_back( col );
+    }
+
+    aEvt.Skip();
+
+    if( !hiddenCols.empty() )
+    {
+        CallAfter(
+                [this, hiddenCols]()
+                {
+                    for( int col : hiddenCols )
+                    {
+                        ShowCol( col );
+                        HideCol( col );
+                    }
+
+                    ForceRefresh();
+                } );
+    }
+
+    CallAfter(
+            [this]()
+            {
+                wxGrid::SetColLabelSize( wxGRID_AUTOSIZE );
+            } );
 }
 
 
@@ -345,6 +376,17 @@ void WX_GRID::onGridCellSelect( wxGridEvent& aEvent )
         {
             SelectBlock( 0, col, GetNumberRows() - 1, col, false );
         }
+
+#ifdef __WXMSW__
+        // On Windows with wxWidgets 3.3+, the selection highlight can be drawn incorrectly
+        // on the first selection if the grid hasn't been fully laid out yet. Force a single
+        // deferred refresh after the first selection to ensure correct rendering.
+        if( !m_firstSelectionRefreshDone )
+        {
+            m_firstSelectionRefreshDone = true;
+            CallAfter( [this]() { ForceRefresh(); } );
+        }
+#endif
     }
 }
 
@@ -386,7 +428,8 @@ void WX_GRID::onCellEditorHidden( wxGridEvent& aEvent )
 
         if( cellEditor )
         {
-            if( GRID_CELL_MARK_AS_NULLABLE* nullable = dynamic_cast<GRID_CELL_MARK_AS_NULLABLE*>( cellEditor ) )
+            if( const GRID_CELL_NULLABLE_INTERFACE* nullable =
+                        dynamic_cast<GRID_CELL_NULLABLE_INTERFACE*>( cellEditor ) )
                 isNullable = nullable->IsNullable();
 
             cellEditor->DecRef();
@@ -897,7 +940,14 @@ void WX_GRID::SetUnitValue( int aRow, int aCol, int aValue )
 
 void WX_GRID::SetOptionalUnitValue( int aRow, int aCol, std::optional<int> aValue )
 {
-    SetCellValue( aRow, aCol, getUnitsProvider( aCol )->StringFromOptionalValue( aValue, true ) );
+    EDA_DATA_TYPE cellDataType;
+
+    if( m_autoEvalColsUnits.contains( aCol ) )
+        cellDataType = m_autoEvalColsUnits[aCol].second;
+    else
+        cellDataType = EDA_DATA_TYPE::DISTANCE;
+
+    SetCellValue( aRow, aCol, getUnitsProvider( aCol )->StringFromOptionalValue( aValue, true, cellDataType ) );
 }
 
 
@@ -1000,7 +1050,7 @@ void WX_GRID::SetupColumnAutosizer( int aFlexibleCol )
     Bind( wxEVT_UPDATE_UI,
           [this]( wxUpdateUIEvent& aEvent )
           {
-              recomputeGridWidths();
+              RecomputeGridWidths();
               aEvent.Skip();
           } );
 
@@ -1021,7 +1071,7 @@ void WX_GRID::SetupColumnAutosizer( int aFlexibleCol )
 }
 
 
-void WX_GRID::recomputeGridWidths()
+void WX_GRID::RecomputeGridWidths()
 {
     if( m_gridWidthsDirty )
     {

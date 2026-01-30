@@ -125,7 +125,6 @@ wxString AddFileExtListToFilter( const std::vector<std::string>& aExts )
 const std::string FILEEXT::BackupFileSuffix( "-bak" );
 const std::string FILEEXT::LockFilePrefix( "~" );
 const std::string FILEEXT::LockFileExtension( "lck" );
-const std::string FILEEXT::AutoSaveFilePrefix( "_autosave-" );
 
 const std::string FILEEXT::KiCadSymbolLibFileExtension( "kicad_sym" );
 const std::string FILEEXT::SchematicSymbolFileExtension( "sym" );
@@ -215,8 +214,7 @@ const std::string FILEEXT::U3DFileExtension( "u3d" );
 
 const std::string FILEEXT::GencadFileExtension( "cad" );
 
-const wxString
-        FILEEXT::GerberFileExtensionsRegex( "(gbr|gko|pho|(g[tb][alops])|(gm?\\d\\d*)|(gp[tb]))" );
+const wxString FILEEXT::GerberFileExtensionsRegex( "(gbr|gko|pho|(g[tb][alops])|(gm?\\d\\d*)|(gp[tb]))" );
 
 const std::string FILEEXT::FootprintLibraryTableFileName( "fp-lib-table" );
 const std::string FILEEXT::SymbolLibraryTableFileName( "sym-lib-table" );
@@ -569,6 +567,12 @@ wxString FILEEXT::PngFileWildcard()
 wxString FILEEXT::JpegFileWildcard()
 {
     return _( "Jpeg file" ) + AddFileExtListToFilter( { "jpg", "jpeg" } );
+}
+
+
+wxString FILEEXT::ImageFileWildcard()
+{
+    return _( "Image files" ) + AddFileExtListToFilter( { "png", "jpg", "jpeg", "bmp", "gif" } );
 }
 
 

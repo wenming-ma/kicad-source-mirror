@@ -80,7 +80,9 @@ def test_sch_export_svg( kitest,
                              ("cli/basic_test/basic_test.kicad_sch", "basic_test.netlist.kicadsexpr", 5, True,["--format=kicadsexpr"]),
                              ("cli/basic_test/basic_test.kicad_sch", "basic_test.netlist.kicadxml", 6, True,["--format=kicadxml"]),
                              ("cli/basic_test/basic_test.kicad_sch", "basic_test.netlist.cadstar", 3, False, ["--format=cadstar"]),
-                             ("cli/basic_test/basic_test.kicad_sch", "basic_test.netlist.orcadpcb2", 1, False, ["--format=orcadpcb2"])
+                             ("cli/basic_test/basic_test.kicad_sch", "basic_test.netlist.orcadpcb2", 1, False, ["--format=orcadpcb2"]),
+                             ("cli/basic_test/basic_test.kicad_sch", "basic_test.netlist.pads", 0, False, ["--format=pads"]),
+                             ("cli/basic_test/basic_test.kicad_sch", "basic_test.netlist.allegro", 3, False, ["--format=allegro"]),
                              ])
 def test_sch_export_netlist( kitest,
                              test_file: str,
@@ -136,6 +138,96 @@ def test_sch_export_pdf( kitest,
     assert stderr == ''
 
     kitest.add_attachment( str( output_filepath ) )
+
+
+@pytest.mark.parametrize("test_file,output_fn,compare_fn,line_skip_count,cli_args",
+                            [("cli/variants/variants.kicad_sch", "variants_default.bom.csv", "cli/variants/variants_default.bom.csv", 0,
+                              ["--exclude-dnp", "--fields", "Reference,Value", "--labels", "Refs,Value"]),
+                             ("cli/variants/variants.kicad_sch", "variants_v1.bom.csv", "cli/variants/variants_v1.bom.csv", 0,
+                              ["--variant", "Variant 1", "--exclude-dnp", "--fields", "Reference,Value", "--labels", "Refs,Value"]),
+                             ("cli/variants/variants.kicad_sch", "variants_v2.bom.csv", "cli/variants/variants_v2.bom.csv", 0,
+                              ["--variant", "Variant2", "--exclude-dnp", "--fields", "Reference,Value", "--labels", "Refs,Value"]),
+                             ])
+def test_sch_export_bom_variants( kitest,
+                         test_file: str,
+                         output_fn: str,
+                         compare_fn: str,
+                         line_skip_count: int,
+                         cli_args: List[str] ):
+    """Test BOM export with variant support and DNP exclusion"""
+    input_file = kitest.get_data_file_path( test_file )
+    compare_filepath = kitest.get_data_file_path( compare_fn )
+
+    output_filepath =  kitest.get_output_path( "cli/" ).joinpath( output_fn )
+
+    command = [utils.kicad_cli(), "sch", "export", "bom"]
+    command.extend( cli_args )
+    command.append( "-o" )
+    command.append( str( output_filepath ) )
+    command.append( input_file )
+
+    stdout, stderr, exitcode = utils.run_and_capture( command )
+
+    assert exitcode == 0
+    assert stderr == ''
+
+    assert utils.textdiff_files( compare_filepath, str( output_filepath ), line_skip_count )
+
+    kitest.add_attachment( str( output_filepath ) )
+
+
+def test_sch_export_bom_multi_variant_requires_placeholder( kitest ):
+    """Test that multiple variants require ${VARIANT} in output path"""
+    input_file = kitest.get_data_file_path( "cli/variants/variants.kicad_sch" )
+
+    output_filepath = kitest.get_output_path( "cli/" ).joinpath( "multi_variant_fail.csv" )
+
+    command = [utils.kicad_cli(), "sch", "export", "bom"]
+    command.extend( ["--variant", "Variant 1", "--variant", "Variant2"] )
+    command.extend( ["--exclude-dnp", "--fields", "Reference,Value", "--labels", "Refs,Value"] )
+    command.append( "-o" )
+    command.append( str( output_filepath ) )
+    command.append( input_file )
+
+    stdout, stderr, exitcode = utils.run_and_capture( command )
+
+    assert exitcode == 1
+    assert "VARIANT" in stderr
+
+
+def test_sch_export_bom_multi_variant_with_placeholder( kitest ):
+    """Test BOM export with multiple variants using ${VARIANT} placeholder"""
+    input_file = kitest.get_data_file_path( "cli/variants/variants.kicad_sch" )
+
+    output_dir = kitest.get_output_path( "cli/" )
+    output_pattern = str( output_dir.joinpath( "bom_${VARIANT}.csv" ) )
+
+    command = [utils.kicad_cli(), "sch", "export", "bom"]
+    command.extend( ["--variant", "Variant 1", "--variant", "Variant2"] )
+    command.extend( ["--exclude-dnp", "--fields", "Reference,Value", "--labels", "Refs,Value"] )
+    command.append( "-o" )
+    command.append( output_pattern )
+    command.append( input_file )
+
+    stdout, stderr, exitcode = utils.run_and_capture( command )
+
+    assert exitcode == 0
+    assert stderr == ''
+
+    v1_path = output_dir.joinpath( "bom_Variant 1.csv" )
+    v2_path = output_dir.joinpath( "bom_Variant2.csv" )
+
+    assert v1_path.exists(), f"Expected output file {v1_path} not found"
+    assert v2_path.exists(), f"Expected output file {v2_path} not found"
+
+    v1_compare = kitest.get_data_file_path( "cli/variants/variants_v1.bom.csv" )
+    v2_compare = kitest.get_data_file_path( "cli/variants/variants_v2.bom.csv" )
+
+    assert utils.textdiff_files( v1_compare, str( v1_path ), 0 )
+    assert utils.textdiff_files( v2_compare, str( v2_path ), 0 )
+
+    kitest.add_attachment( str( v1_path ) )
+    kitest.add_attachment( str( v2_path ) )
 
 
 @pytest.mark.parametrize("test_file,output_fn,line_skip_count,cli_args",
@@ -199,5 +291,53 @@ def test_sch_export_erc( kitest,
     # some of our netlist formats are not cross platform so skip for now
     if not skip_compare:
         assert utils.textdiff_files( compare_filepath, str( output_filepath ), line_skip_count )
+
+    kitest.add_attachment( str( output_filepath ) )
+
+
+@pytest.mark.parametrize("test_file,output_fn,expected_headers,cli_args",
+                            [
+                             # Default fields include ${QUANTITY} and ${DNP}
+                             ("cli/basic_test/basic_test.kicad_sch", "basic_test.bom_default.csv",
+                              ["Refs", "Value", "Footprint", "Qty", "DNP"], []),
+                             # Explicit fields with ${QUANTITY}
+                             ("cli/basic_test/basic_test.kicad_sch", "basic_test.bom_quantity.csv",
+                              ["Refs", "Value", "Qty"],
+                              ["--fields", "Reference,Value,${QUANTITY}", "--labels", "Refs,Value,Qty"]),
+                             # Explicit fields with ${ITEM_NUMBER}
+                             ("cli/basic_test/basic_test.kicad_sch", "basic_test.bom_item_number.csv",
+                              ["#", "Refs", "Value"],
+                              ["--fields", "${ITEM_NUMBER},Reference,Value", "--labels", "#,Refs,Value"]),
+                             ])
+def test_sch_export_bom( kitest,
+                         test_file: str,
+                         output_fn: str,
+                         expected_headers: List[str],
+                         cli_args: List[str] ):
+    """Test BOM export with various field configurations, including virtual fields like ${QUANTITY}."""
+    input_file = kitest.get_data_file_path( test_file )
+
+    output_filepath = kitest.get_output_path( "cli/" ).joinpath( output_fn )
+
+    command = [utils.kicad_cli(), "sch", "export", "bom"]
+    command.extend( cli_args )
+    command.append( "-o" )
+    command.append( str( output_filepath ) )
+    command.append( input_file )
+
+    stdout, stderr, exitcode = utils.run_and_capture( command )
+
+    assert exitcode == 0, f"BOM export failed with exit code {exitcode}: {stderr}"
+    assert output_filepath.exists(), f"Output file not created: {output_filepath}"
+
+    # Read the BOM file and verify headers
+    with open( output_filepath, 'r' ) as f:
+        first_line = f.readline().strip()
+
+    # Parse the CSV header (removing quotes)
+    actual_headers = [h.strip().strip('"') for h in first_line.split(',')]
+
+    for expected in expected_headers:
+        assert expected in actual_headers, f"Expected header '{expected}' not found in BOM output. Got: {actual_headers}"
 
     kitest.add_attachment( str( output_filepath ) )

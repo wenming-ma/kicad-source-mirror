@@ -30,6 +30,7 @@
 
 #include <bitmaps.h>
 #include <embedded_files.h>
+#include <kiplatform/ui.h>
 #include <kiway.h>
 #include <kiway_player.h>
 #include <kiway_express.h>
@@ -47,127 +48,6 @@
 //-------- Renderer ---------------------------------------------------------------------
 // None required; just render as normal text.
 
-
-
-//-------- Editor Base Class ------------------------------------------------------------
-//
-// Note: this implementation is an adaptation of wxGridCellChoiceEditor
-
-
-wxString GRID_CELL_TEXT_BUTTON::GetValue() const
-{
-    return Combo()->GetValue();
-}
-
-
-void GRID_CELL_TEXT_BUTTON::SetSize( const wxRect& aRect )
-{
-    wxRect rect( aRect );
-    WX_GRID::CellEditorTransformSizeRect( rect );
-
-    wxGridCellEditor::SetSize( rect );
-}
-
-
-void GRID_CELL_TEXT_BUTTON::StartingKey( wxKeyEvent& event )
-{
-    // Note: this is a copy of wxGridCellTextEditor's StartingKey()
-
-    // Since this is now happening in the EVT_CHAR event EmulateKeyPress is no
-    // longer an appropriate way to get the character into the text control.
-    // Do it ourselves instead.  We know that if we get this far that we have
-    // a valid character, so not a whole lot of testing needs to be done.
-
-    // wxComboCtrl inherits from wxTextEntry, so can statically cast
-    wxTextEntry* textEntry = static_cast<wxTextEntry*>( Combo() );
-    int ch;
-
-    bool isPrintable;
-
-#if wxUSE_UNICODE
-    ch = event.GetUnicodeKey();
-
-    if( ch != WXK_NONE )
-        isPrintable = true;
-    else
-#endif // wxUSE_UNICODE
-    {
-        ch = event.GetKeyCode();
-        isPrintable = ch >= WXK_SPACE && ch < WXK_START;
-    }
-
-    switch( ch )
-    {
-    case WXK_DELETE:
-        // Delete the initial character when starting to edit with DELETE.
-        textEntry->Remove( 0, 1 );
-        break;
-
-    case WXK_BACK:
-        // Delete the last character when starting to edit with BACKSPACE.
-    {
-        const long pos = textEntry->GetLastPosition();
-        textEntry->Remove( pos - 1, pos );
-    }
-        break;
-
-    default:
-        if( isPrintable )
-            textEntry->WriteText( static_cast<wxChar>( ch ) );
-
-        break;
-    }
-}
-
-
-void GRID_CELL_TEXT_BUTTON::BeginEdit( int aRow, int aCol, wxGrid* aGrid )
-{
-    auto evtHandler = static_cast< wxGridCellEditorEvtHandler* >( m_control->GetEventHandler() );
-
-    // Don't immediately end if we get a kill focus event within BeginEdit
-    evtHandler->SetInSetFocus( true );
-
-    m_value = aGrid->GetTable()->GetValue( aRow, aCol );
-
-    Combo()->SetValue( m_value );
-    Combo()->SetFocus();
-}
-
-
-bool GRID_CELL_TEXT_BUTTON::EndEdit( int, int, const wxGrid*, const wxString&, wxString *aNewVal )
-{
-    const wxString value = Combo()->GetValue();
-
-    if( value == m_value )
-        return false;
-
-    m_value = value;
-
-    if( aNewVal )
-        *aNewVal = value;
-
-    return true;
-}
-
-
-void GRID_CELL_TEXT_BUTTON::ApplyEdit( int aRow, int aCol, wxGrid* aGrid )
-{
-    aGrid->GetTable()->SetValue( aRow, aCol, m_value );
-}
-
-
-void GRID_CELL_TEXT_BUTTON::Reset()
-{
-    Combo()->SetValue( m_value );
-}
-
-
-#if wxUSE_VALIDATORS
-void GRID_CELL_TEXT_BUTTON::SetValidator( const wxValidator& validator )
-{
-    m_validator.reset( static_cast< wxValidator* >( validator.Clone() ) );
-}
-#endif
 
 
 class TEXT_BUTTON_SYMBOL_CHOOSER : public wxComboCtrl
@@ -377,6 +257,8 @@ protected:
 
             openFileDialog.SetCustomizeHook( customize );
 
+            KIPLATFORM::UI::AllowNetworkFileSystems( &openFileDialog );
+
             if( openFileDialog.ShowModal() == wxID_OK )
             {
                 filename = openFileDialog.GetPath();
@@ -513,6 +395,8 @@ protected:
             if( m_embedCallback )
                 dlg.SetCustomizeHook( customize );
 
+            KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
+
             if( dlg.ShowModal() == wxID_OK )
             {
                 wxString filePath = dlg.GetPath();
@@ -575,7 +459,8 @@ protected:
                 if( !m_grid->CommitPendingChanges() )
                 {;} // shouldn't happen, but Coverity doesn't know that
 
-                *m_currentDir = relPath;
+                if( m_currentDir )
+                    *m_currentDir = relPath;
             }
         }
 
@@ -620,4 +505,59 @@ void GRID_CELL_PATH_EDITOR::Create( wxWindow* aParent, wxWindowID aId,
 #endif
 
     wxGridCellEditor::Create( aParent, aId, aEventHandler );
+}
+
+class TEXT_BUTTON_RUN_FUNCTION final : public wxComboCtrl
+{
+public:
+    TEXT_BUTTON_RUN_FUNCTION( wxWindow* aParent, DIALOG_SHIM* aParentDlg, std::function<void( int, int )>& aFunction,
+                              int& aRow, int& aCol ) :
+            wxComboCtrl( aParent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize( 0, 0 ),
+                         wxTE_PROCESS_ENTER | wxBORDER_NONE ),
+            m_dlg( aParentDlg ),
+            m_function( aFunction ),
+            m_row( aRow ),
+            m_col( aCol )
+    {
+        SetButtonBitmaps( KiBitmapBundle( BITMAPS::small_refresh ) );
+
+        // win32 fix, avoids drawing the "native dropdown caret"
+        Customize( wxCC_IFLAG_HAS_NONSTANDARD_BUTTON );
+    }
+
+protected:
+    void DoSetPopupControl( wxComboPopup* popup ) override { m_popup = nullptr; }
+
+    void OnButtonClick() override { m_function( m_row, m_col ); }
+
+    DIALOG_SHIM* m_dlg;
+    std::function<void( int, int )>& m_function;
+    int&                             m_row;
+    int&                             m_col;
+};
+
+
+void GRID_CELL_RUN_FUNCTION_EDITOR::Create( wxWindow* aParent, wxWindowID aId, wxEvtHandler* aEventHandler )
+{
+    m_control = new TEXT_BUTTON_RUN_FUNCTION( aParent, m_dlg, m_function, m_row, m_col );
+    WX_GRID::CellEditorSetMargins( Combo() );
+
+#if wxUSE_VALIDATORS
+    // validate text in textctrl, if validator is set
+    if( m_validator )
+    {
+        Combo()->SetValidator( *m_validator );
+    }
+#endif
+
+    wxGridCellEditor::Create( aParent, aId, aEventHandler );
+}
+
+
+void GRID_CELL_RUN_FUNCTION_EDITOR::BeginEdit( int aRow, int aCol, wxGrid* aGrid )
+{
+    m_row = aRow;
+    m_col = aCol;
+
+    GRID_CELL_TEXT_BUTTON::BeginEdit( aRow, aCol, aGrid );
 }

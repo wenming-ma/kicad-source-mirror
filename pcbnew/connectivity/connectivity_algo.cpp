@@ -206,8 +206,9 @@ bool CN_CONNECTIVITY_ALGO::Add( BOARD_ITEM* aItem )
                     for( CN_ITEM* zitem : m_itemList.Add( zone, layer ) )
                         m_itemMap[zone].Link( zitem );
                 } );
-    }
+
         break;
+    }
 
     default:
         return false;
@@ -270,20 +271,28 @@ void CN_CONNECTIVITY_ALGO::searchConnections()
     {
         std::vector<std::future<size_t>> returns( dirtyItems.size() );
 
+        // Collect deferred net code changes to avoid data races in parallel search.
+        // Free vias connected to zones have their net codes updated after all parallel
+        // work completes.
+        std::vector<std::pair<BOARD_CONNECTED_ITEM*, int>> deferredNetCodes;
+        std::mutex deferredNetCodesMutex;
+
         for( size_t ii = 0; ii < dirtyItems.size(); ++ii )
         {
             returns[ii] = tp.submit_task(
-                [&dirtyItems, ii, this] () ->size_t {
-                    if( m_progressReporter && m_progressReporter->IsCancelled() )
-                        return 0;
+                    [&dirtyItems, ii, this, &deferredNetCodes, &deferredNetCodesMutex] () ->size_t
+                    {
+                        if( m_progressReporter && m_progressReporter->IsCancelled() )
+                            return 0;
 
-                    CN_VISITOR visitor( dirtyItems[ii] );
-                    m_itemList.FindNearby( dirtyItems[ii], visitor );
+                        CN_VISITOR visitor( dirtyItems[ii], &deferredNetCodes, &deferredNetCodesMutex );
+                        m_itemList.FindNearby( dirtyItems[ii], visitor );
 
-                    if( m_progressReporter )
-                        m_progressReporter->AdvanceProgress();
+                        if( m_progressReporter )
+                            m_progressReporter->AdvanceProgress();
 
-                    return 1; } );
+                        return 1;
+                    } );
         }
 
         for( const std::future<size_t>& ret : returns )
@@ -299,6 +308,10 @@ void CN_CONNECTIVITY_ALGO::searchConnections()
                 status = ret.wait_for( std::chrono::milliseconds( 250 ) );
             }
         }
+
+        // Apply deferred net code changes now that parallel search is complete
+        for( const auto& [item, netCode] : deferredNetCodes )
+            item->SetNetCode( netCode );
 
         if( m_progressReporter )
             m_progressReporter->KeepRefreshing();
@@ -641,9 +654,8 @@ void CN_CONNECTIVITY_ALGO::PropagateNets( BOARD_COMMIT* aCommit )
 }
 
 
-void CN_CONNECTIVITY_ALGO::FillIsolatedIslandsMap(
-                                std::map<ZONE*, std::map<PCB_LAYER_ID, ISOLATED_ISLANDS>>& aMap,
-                                bool aConnectivityAlreadyRebuilt )
+void CN_CONNECTIVITY_ALGO::FillIsolatedIslandsMap( std::map<ZONE*, std::map<PCB_LAYER_ID, ISOLATED_ISLANDS>>& aMap,
+                                                   bool aConnectivityAlreadyRebuilt )
 {
     int progressDelta = 50;
     int ii = 0;
@@ -739,8 +751,12 @@ void CN_VISITOR::checkZoneItemConnection( CN_ZONE_LAYER* aZoneLayer, CN_ITEM* aI
             [&]()
             {
                 // We don't propagate nets from zones, so any free-via net changes need to happen now.
+                // Defer the SetNetCode call to avoid data races during parallel connectivity search.
                 if( aItem->Parent()->Type() == PCB_VIA_T && aItem->CanChangeNet() )
-                    aItem->Parent()->SetNetCode( aZoneLayer->Net() );
+                {
+                    std::lock_guard<std::mutex> lock( *m_deferredNetCodesMutex );
+                    m_deferredNetCodes->emplace_back( aItem->Parent(), aZoneLayer->Net() );
+                }
 
                 aZoneLayer->Connect( aItem );
                 aItem->Connect( aZoneLayer );
@@ -756,6 +772,10 @@ void CN_VISITOR::checkZoneItemConnection( CN_ZONE_LAYER* aZoneLayer, CN_ITEM* aI
         {
             return;
         }
+
+        // Don't connect zones to pads on backdrilled or post-machined layers
+        if( pad->IsBackdrilledOrPostMachined( layer ) )
+            return;
     }
     else if( item->Type() == PCB_VIA_T )
     {
@@ -766,6 +786,10 @@ void CN_VISITOR::checkZoneItemConnection( CN_ZONE_LAYER* aZoneLayer, CN_ITEM* aI
         {
             return;
         }
+
+        // Don't connect zones to vias on backdrilled or post-machined layers
+        if( via->IsBackdrilledOrPostMachined( layer ) )
+            return;
     }
 
     for( int i = 0; i < aItem->AnchorCount(); ++i )
@@ -793,8 +817,10 @@ void CN_VISITOR::checkZoneItemConnection( CN_ZONE_LAYER* aZoneLayer, CN_ITEM* aI
 
 void CN_VISITOR::checkZoneZoneConnection( CN_ZONE_LAYER* aZoneLayerA, CN_ZONE_LAYER* aZoneLayerB )
 {
-    const ZONE* zoneA = static_cast<const ZONE*>( aZoneLayerA->Parent() );
-    const ZONE* zoneB = static_cast<const ZONE*>( aZoneLayerB->Parent() );
+    // Zone fill data can be modified (cleared or replaced) while CN_ZONE_LAYERs still reference
+    // it. Check that the outline data is still valid before accessing.
+    if( !aZoneLayerA->HasValidOutline() || !aZoneLayerB->HasValidOutline() )
+        return;
 
     const BOX2I& boxA = aZoneLayerA->BBox();
     const BOX2I& boxB = aZoneLayerB->BBox();
@@ -807,8 +833,7 @@ void CN_VISITOR::checkZoneZoneConnection( CN_ZONE_LAYER* aZoneLayerA, CN_ZONE_LA
     if( !boxA.Intersects( boxB ) )
         return;
 
-    const SHAPE_LINE_CHAIN& outline =
-            zoneA->GetFilledPolysList( layer )->COutline( aZoneLayerA->SubpolyIndex() );
+    const SHAPE_LINE_CHAIN& outline = aZoneLayerA->GetOutline();
 
     for( int i = 0; i < outline.PointCount(); i++ )
     {
@@ -823,8 +848,7 @@ void CN_VISITOR::checkZoneZoneConnection( CN_ZONE_LAYER* aZoneLayerA, CN_ZONE_LA
         }
     }
 
-    const SHAPE_LINE_CHAIN& outline2 =
-            zoneB->GetFilledPolysList( layer )->COutline( aZoneLayerB->SubpolyIndex() );
+    const SHAPE_LINE_CHAIN& outline2 = aZoneLayerB->GetOutline();
 
     for( int i = 0; i < outline2.PointCount(); i++ )
     {

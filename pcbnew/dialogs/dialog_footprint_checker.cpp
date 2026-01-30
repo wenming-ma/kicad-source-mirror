@@ -48,6 +48,7 @@ DIALOG_FOOTPRINT_CHECKER::DIALOG_FOOTPRINT_CHECKER( FOOTPRINT_EDIT_FRAME* aParen
 
     m_markersTreeModel = new RC_TREE_MODEL( m_frame, m_markersDataView );
     m_markersDataView->AssociateModel( m_markersTreeModel );
+    m_markersDataView->SetLayoutDirection( wxLayout_LeftToRight );
 
     if( m_frame->GetBoard()->GetFirstFootprint() == g_lastFootprint )
         m_checksRun = g_lastChecksRun;
@@ -105,7 +106,7 @@ void DIALOG_FOOTPRINT_CHECKER::runChecks()
                 std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( aErrorCode );
 
                 if( !aMsg.IsEmpty() )
-                    drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + aMsg );
+                    drcItem->SetErrorDetail( aMsg );
 
                 drcItem->SetItems( aItemA, aItemB, aItemC );
 

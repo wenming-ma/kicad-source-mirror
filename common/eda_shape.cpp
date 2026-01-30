@@ -575,16 +575,16 @@ void EDA_SHAPE::UpdateHatching() const
     if( !m_hatchingDirty )
         return;
 
-    m_hatching.RemoveAllContours();
-
     std::vector<double> slopes;
     int                 lineWidth = GetHatchLineWidth();
     int                 spacing = GetHatchLineSpacing();
     SHAPE_POLY_SET      shapeBuffer;
 
+    // Validate state before clearing cached hatching. If we can't regenerate, keep existing cache.
     if( isMoving() )
         return;
-    else if( GetFillMode() == FILL_T::CROSS_HATCH )
+
+    if( GetFillMode() == FILL_T::CROSS_HATCH )
         slopes = { 1.0, -1.0 };
     else if( GetFillMode() == FILL_T::HATCH )
         slopes = { -1.0 };
@@ -607,7 +607,7 @@ void EDA_SHAPE::UpdateHatching() const
         {
             ROUNDRECT rr( SHAPE_RECT( getPosition(), GetRectangleWidth(), GetRectangleHeight() ),
                           GetCornerRadius() );
-            rr.TransformToPolygon( shapeBuffer );
+            rr.TransformToPolygon( shapeBuffer, getMaxError() );
         }
         break;
 
@@ -627,9 +627,25 @@ void EDA_SHAPE::UpdateHatching() const
         return;
     }
 
+    // Clear cached hatching only after all validation passes.
+    // This prevents flickering when early returns would otherwise leave empty hatching.
+    m_hatching.RemoveAllContours();
+    m_hatchLines.clear();
+
+    BOX2I extents = shapeBuffer.BBox();
+    int   majorAxis = std::max( extents.GetWidth(), extents.GetHeight() );
+
+    if( majorAxis / spacing > 100 )
+        spacing = majorAxis / 100;
+
+    // Generate hatch lines for stroke-based rendering. All hatch types use line segments.
+    std::vector<SEG> hatchSegs = shapeBuffer.GenerateHatchLines( slopes, spacing, -1 );
+    m_hatchLines = hatchSegs;
+
+    // Also generate polygon representation for exports, 3D viewer, and hit testing
     if( GetFillMode() == FILL_T::HATCH || GetFillMode() == FILL_T::REVERSE_HATCH )
     {
-        for( const SEG& seg : shapeBuffer.GenerateHatchLines( slopes, spacing, -1 ) )
+        for( const SEG& seg : hatchSegs )
         {
             // We don't really need the rounded ends at all, so don't spend any extra time on them
             int maxError = lineWidth;
@@ -638,13 +654,14 @@ void EDA_SHAPE::UpdateHatching() const
         }
 
         m_hatching.Fracture();
+        m_hatchingDirty = false;
     }
     else
     {
-        // Generate a grid of holes for a cross-hatch.  This is about 3X the speed of the above
-        // algorithm, even when modified for the 45-degree fracture problem.
+        // Generate a grid of holes for a cross-hatch polygon representation.
+        // This is used for exports, 3D viewer, and hit testing.
 
-        int gridsize = GetHatchLineSpacing();
+        int gridsize = spacing;
         int hole_size = gridsize - GetHatchLineWidth();
 
         m_hatching = shapeBuffer.CloneDropTriangulation();
@@ -685,6 +702,7 @@ void EDA_SHAPE::UpdateHatching() const
         // Must re-rotate after Fracture().  Clipper struggles mightily with fracturing
         // 45-degree holes.
         m_hatching.Rotate( ANGLE_45 );
+        m_hatchingDirty = false;
     }
 }
 
@@ -734,11 +752,12 @@ void EDA_SHAPE::move( const VECTOR2I& aMoveVector )
 
 void EDA_SHAPE::scale( double aScale )
 {
-    auto scalePt = [&]( VECTOR2I& pt )
-                   {
-                       pt.x = KiROUND( pt.x * aScale );
-                       pt.y = KiROUND( pt.y * aScale );
-                   };
+    auto scalePt =
+            [&]( VECTOR2I& pt )
+            {
+                pt.x = KiROUND( pt.x * aScale );
+                pt.y = KiROUND( pt.y * aScale );
+            };
 
     switch( m_shape )
     {
@@ -818,7 +837,7 @@ void EDA_SHAPE::rotate( const VECTOR2I& aRotCentre, const EDA_ANGLE& aAngle )
             // Convert non-cardinally-rotated rect to a diamond
             ROUNDRECT rr( SHAPE_RECT( GetStart(), GetRectangleWidth(), GetRectangleHeight() ), m_cornerRadius );
             m_shape = SHAPE_T::POLY;
-            rr.TransformToPolygon( m_poly );
+            rr.TransformToPolygon( m_poly, getMaxError() );
             m_poly.Rotate( aAngle, aRotCentre );
         }
 
@@ -1354,7 +1373,7 @@ bool EDA_SHAPE::hitTest( const VECTOR2I& aPosition, int aAccuracy ) const
         {
             ROUNDRECT rr( SHAPE_RECT( GetStart(), GetRectangleWidth(), GetRectangleHeight() ), m_cornerRadius );
             SHAPE_POLY_SET poly;
-            rr.TransformToPolygon( poly );
+            rr.TransformToPolygon( poly, getMaxError() );
 
             if( poly.CollideEdge( aPosition, nullptr, maxdist ) )
                 return true;
@@ -1378,6 +1397,9 @@ bool EDA_SHAPE::hitTest( const VECTOR2I& aPosition, int aAccuracy ) const
         return false;
 
     case SHAPE_T::POLY:
+        if( m_poly.OutlineCount() < 1 )     // empty poly
+            return false;
+
         if( IsFilledForHitTesting() )
         {
             if( !m_poly.COutline( 0 ).IsClosed() )
@@ -1502,7 +1524,7 @@ bool EDA_SHAPE::hitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
         {
             ROUNDRECT rr( SHAPE_RECT( GetStart(), GetRectangleWidth(), GetRectangleHeight() ), m_cornerRadius );
             SHAPE_POLY_SET poly;
-            rr.TransformToPolygon( poly );
+            rr.TransformToPolygon( poly, getMaxError() );
 
             // Account for the width of the line
             arect.Inflate( GetWidth() / 2 );
@@ -1832,7 +1854,7 @@ std::vector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineCh
         {
             ROUNDRECT rr( SHAPE_RECT( GetStart(), GetRectangleWidth(), GetRectangleHeight() ), m_cornerRadius );
             SHAPE_POLY_SET poly;
-            rr.TransformToPolygon( poly );
+            rr.TransformToPolygon( poly, getMaxError() );
             SHAPE_LINE_CHAIN outline = poly.Outline( 0 );
 
             if( solidFill )
@@ -1840,14 +1862,25 @@ std::vector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineCh
 
             if( width > 0 || !solidFill )
             {
-                for( int i = 0; i < outline.PointCount() - 1; ++i )
-                {
-                    effectiveShapes.emplace_back( new SHAPE_SEGMENT( outline.CPoint( i ), outline.CPoint( i + 1 ),
-                                                                     width ) );
-                }
+                std::set<size_t> arcsHandled;
 
-                effectiveShapes.emplace_back( new SHAPE_SEGMENT( outline.CPoint( outline.PointCount() - 1 ),
-                                                                 outline.CPoint( 0 ), width ) );
+                for( int ii = 0; ii < outline.SegmentCount(); ++ii )
+                {
+                    if( outline.IsArcSegment( ii ) )
+                    {
+                        size_t arcIndex = outline.ArcIndex( ii );
+
+                        if( !arcsHandled.contains( arcIndex ) )
+                        {
+                            arcsHandled.insert( arcIndex );
+                            effectiveShapes.emplace_back( new SHAPE_ARC( outline.Arc( arcIndex ), width ) );
+                        }
+                    }
+                    else
+                    {
+                        effectiveShapes.emplace_back( new SHAPE_SEGMENT( outline.Segment( ii ), width ) );
+                    }
+                }
             }
         }
         else
@@ -1929,20 +1962,25 @@ std::vector<SHAPE*> EDA_SHAPE::makeEffectiveShapes( bool aEdgeOnly, bool aLineCh
 }
 
 
-void EDA_SHAPE::DupPolyPointsList( std::vector<VECTOR2I>& aBuffer ) const
+std::vector<VECTOR2I> EDA_SHAPE::GetPolyPoints() const
 {
+    std::vector<VECTOR2I> points;
+
     for( int ii = 0; ii < m_poly.OutlineCount(); ++ii )
     {
-        int pointCount = m_poly.COutline( ii ).PointCount();
+        const SHAPE_LINE_CHAIN& outline = m_poly.COutline( ii );
+        int                     pointCount = outline.PointCount();
 
         if( pointCount )
         {
-            aBuffer.reserve( pointCount );
+            points.reserve( points.size() + pointCount );
 
-            for ( auto iter = m_poly.CIterate(); iter; iter++ )
-                aBuffer.emplace_back( iter->x, iter->y );
+            for( const VECTOR2I& pt : outline.CPoints() )
+                points.emplace_back( pt );
         }
     }
+
+    return points;
 }
 
 
@@ -2754,10 +2792,7 @@ static struct EDA_SHAPE_DESC
                                    EDA_SHAPE* prop_shape = dynamic_cast<EDA_SHAPE*>( aItem );
 
                                    if( !prop_shape )
-                                   {
-                                       wxLogDebug( wxT( "Corner Radius Validator: Not an EDA_SHAPE" ) );
                                        return std::nullopt;
-                                   }
 
                                    int maxRadius = std::min( prop_shape->GetRectangleWidth(),
                                                              prop_shape->GetRectangleHeight() ) / 2;

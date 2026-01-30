@@ -68,6 +68,7 @@ class PAD;
 
 class TDocStd_Document;
 class XCAFApp_Application;
+class XCAFDoc_ColorTool;
 class XCAFDoc_ShapeTool;
 
 typedef std::pair< std::string, TDF_Label > MODEL_DATUM;
@@ -113,14 +114,81 @@ public:
     bool AddBarrel( const SHAPE_SEGMENT& aShape, PCB_LAYER_ID aLayerTop, PCB_LAYER_ID aLayerBot,
                     bool aVia, const VECTOR2D& aOrigin, const wxString& aNetname );
 
+    /**
+     * Add a backdrill hole shape to remove board material and copper plating.
+     *
+     * A backdrill removes board material between the specified layers (inclusive), removes
+     * annular rings on copper layers within that span, and removes the copper barrel plating
+     * through those layers.
+     *
+     * @param aShape The hole shape (position and diameter of the backdrill)
+     * @param aLayerStart The starting copper layer (e.g., F_Cu for top backdrill)
+     * @param aLayerEnd The ending copper layer (inclusive, the layer where backdrill stops)
+     * @param aOrigin The origin offset for coordinate transformation
+     * @return true if successfully added
+     */
+    bool AddBackdrill( const SHAPE_SEGMENT& aShape, PCB_LAYER_ID aLayerStart,
+                       PCB_LAYER_ID aLayerEnd, const VECTOR2D& aOrigin );
+
+    /**
+     * Add a counterbore shape to remove board material from the top or bottom of a hole.
+     *
+     * A counterbore creates a cylindrical recess from the specified side of the board,
+     * removing board material and copper down to the specified depth.
+     *
+     * @param aPosition The center position of the counterbore
+     * @param aDiameter The diameter of the counterbore (in IU)
+     * @param aDepth The depth of the counterbore from the board surface (in IU)
+     * @param aFrontSide True if counterbore is on the front (top) side, false for back (bottom)
+     * @param aOrigin The origin offset for coordinate transformation
+     * @return true if successfully added
+     */
+    bool AddCounterbore( const VECTOR2I& aPosition, int aDiameter, int aDepth,
+                         bool aFrontSide, const VECTOR2D& aOrigin );
+
+    /**
+     * Add a countersink shape to remove board material from the top or bottom of a hole.
+     *
+     * A countersink creates an inverted cone recess from the specified side of the board.
+     * The angle parameter specifies the total cone angle (the angle between opposite sides
+     * of the cone), so the angle between the board surface and the cone slope is half this value.
+     *
+     * @param aPosition The center position of the countersink
+     * @param aDiameter The diameter of the countersink at the board surface (in IU)
+     * @param aDepth The depth of the countersink from the board surface (in IU)
+     * @param aAngle The total cone angle in decidegrees (e.g., 900 = 90�, 820 = 82�)
+     * @param aFrontSide True if countersink is on the front (top) side, false for back (bottom)
+     * @param aOrigin The origin offset for coordinate transformation
+     * @return true if successfully added
+     */
+    bool AddCountersink( const VECTOR2I& aPosition, int aDiameter, int aDepth, int aAngle,
+                         bool aFrontSide, const VECTOR2D& aOrigin );
+
+    /**
+     * Get the knockout diameters for copper layers that a counterbore or countersink crosses.
+     *
+     * For a counterbore, the diameter is constant for all layers within the depth.
+     * For a countersink, the diameter varies based on the cone angle and the Z position
+     * of each layer.
+     *
+     * @param aDiameter The diameter at the board surface (in IU)
+     * @param aDepth The depth of the feature from the board surface (in IU)
+     * @param aAngle The cone angle in decidegrees (0 for counterbore, >0 for countersink)
+     * @param aFrontSide True if feature is on the front (top) side, false for back (bottom)
+     * @return A map of PCB_LAYER_ID to knockout diameter (in IU) for each affected copper layer
+     */
+    std::map<PCB_LAYER_ID, int> GetCopperLayerKnockouts( int aDiameter, int aDepth,
+                                                         int aAngle, bool aFrontSide );
+
     // add a set of polygons (must be in final position)
     bool AddPolygonShapes( const SHAPE_POLY_SET* aPolyShapes, PCB_LAYER_ID aLayer,
                            const VECTOR2D& aOrigin, const wxString& aNetname );
 
     // add a component at the given position and orientation
-    bool AddComponent( const std::string& aFileName, const std::string& aRefDes, bool aBottom,
-                       const VECTOR2D& aPosition, double aRotation, const VECTOR3D& aOffset,
-                       const VECTOR3D& aOrientation, const VECTOR3D& aScale, bool aSubstituteModels = true );
+    bool AddComponent( const wxString& aBaseName, const wxString& aFileName,
+                       const std::vector<wxString>& aAltFilenames, const wxString& aRefDes,
+                       bool aBottom, VECTOR2D aPosition, double aRotation, VECTOR3D aOffset,
+                       VECTOR3D aOrientation, VECTOR3D aScale, bool aSubstituteModels = true );
 
     void SetCopperColor( double r, double g, double b );
     void SetPadColor( double r, double g, double b );
@@ -130,6 +198,7 @@ public:
     void SetSimplifyShapes( bool aValue );
     void SetStackup( const BOARD_STACKUP& aStackup );
     void SetNetFilter( const wxString& aFilter );
+    void SetExtraPadThickness( bool aValue );
 
     // Set the max distance (in mm) to consider 2 points have the same coordinates
     // and can be merged
@@ -234,17 +303,21 @@ private:
     /**
      * Load a 3D model data.
      *
-     * @param aFileNameUTF8 is the filename encoded UTF8 (different formats allowed)
+     * @param aBaseName is the model name to set.
+     * @param aFileName is the filename (different formats allowed)
      * but for WRML files a model data can be loaded instead of the vrml data,
      * not suitable in a step file.
+     * @param aAltFilenames provides additional filenames for WRL substitution.
      * @param aScale is the X,Y,Z scaling factors.
      * @param aLabel is the TDF_Label to store the data.
      * @param aSubstituteModels = true to allows data substitution, false to disallow.
      * @param aErrorMessage (can be nullptr) is an error message to be displayed on error.
      * @return true if successfully loaded, false on error.
      */
-    bool getModelLabel( const std::string& aFileNameUTF8, const VECTOR3D& aScale, TDF_Label& aLabel,
-                        bool aSubstituteModels, wxString* aErrorMessage = nullptr );
+    bool getModelLabel( const wxString& aBaseName, const wxString& aFileName,
+                        const std::vector<wxString>& aAltFilenames, VECTOR3D aScale,
+                        TDF_Label& aLabel, bool aSubstituteModels,
+                        wxString* aErrorMessage = nullptr );
 
     bool getModelLocation( bool aBottom, const VECTOR2D& aPosition, double aRotation, const VECTOR3D& aOffset,
                            const VECTOR3D& aOrientation, TopLoc_Location& aLocation );
@@ -258,6 +331,18 @@ private:
     TDF_Label transferModel( Handle( TDocStd_Document )& source, Handle( TDocStd_Document ) & dest,
                              const VECTOR3D& aScale );
 
+    /**
+     * Transfer color information from source document to destination document.
+     *
+     * This is necessary because TDocStd_XLinkTool::Copy may not properly transfer color
+     * associations which are stored separately in the ColorTool section of XDE documents.
+     * Colors are matched by searching for equivalent shapes in the destination document.
+     */
+    void transferColors( Handle( XCAFDoc_ShapeTool )& aSrcShapeTool,
+                         Handle( XCAFDoc_ColorTool )& aSrcColorTool,
+                         Handle( XCAFDoc_ShapeTool )& aDstShapeTool,
+                         Handle( XCAFDoc_ColorTool )& aDstColorTool );
+
     bool CompressSTEP( wxString& inputFile, wxString& outputFile );
 
     Handle( XCAFApp_Application )   m_app;
@@ -267,6 +352,7 @@ private:
     bool                            m_hasPCB;           // set true if CreatePCB() has been invoked
     bool                            m_simplifyShapes;   // convert parts of outlines to arcs where possible
     bool                            m_fuseShapes;       // fuse geometry together
+    bool                            m_extraPadThickness; // add extra thickness to pads
     std::vector<TDF_Label>          m_pcb_labels;       // labels for the PCB model (one by main outline)
     MODEL_MAP                       m_models;           // map of file names to model labels
     int                             m_components;       // number of successfully loaded components;

@@ -42,7 +42,7 @@
 #include <confirm.h>
 #include <footprint.h>
 #include <footprint_editor_settings.h>
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include <lset.h>
 #include <kiface_base.h>
 #include <pcb_painter.h>
@@ -52,6 +52,7 @@
 #include <pcb_draw_panel_gal.h>
 #include <pgm_base.h>
 #include <project_pcb.h>
+#include <trace_helpers.h>
 #include <wildcards_and_files_ext.h>
 
 #include <math/vector2d.h>
@@ -96,6 +97,9 @@ PCB_BASE_FRAME::~PCB_BASE_FRAME()
     // Ensure m_canvasType is up to date, to save it in config
     if( GetCanvas() )
         m_canvasType = GetCanvas()->GetBackend();
+
+    if( m_toolManager )
+        m_toolManager->ClearModel();
 
     delete m_pcb;
     m_pcb = nullptr;
@@ -1075,41 +1079,41 @@ void PCB_BASE_FRAME::SetDisplayOptions( const PCB_DISPLAY_OPTIONS& aOptions, boo
 
 void PCB_BASE_FRAME::setFPWatcher( FOOTPRINT* aFootprint )
 {
-    wxLogTrace( "KICAD_LIB_WATCH", "setFPWatcher" );
+    wxLogTrace( traceLibWatch, "setFPWatcher" );
 
     Unbind( wxEVT_FSWATCHER, &PCB_BASE_FRAME::OnFPChange, this );
 
     if( m_watcher )
     {
-        wxLogTrace( "KICAD_LIB_WATCH", "Remove watch" );
+    wxLogTrace( traceLibWatch, "Remove watch" );
         m_watcher->RemoveAll();
         m_watcher->SetOwner( nullptr );
         m_watcher.reset();
     }
 
     wxString libfullname;
-    FP_LIB_TABLE* tbl = PROJECT_PCB::PcbFootprintLibs( &Prj() );
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &Prj() );
 
-    if( !aFootprint || !tbl )
+    if( !aFootprint || !adapter )
         return;
 
     try
     {
-        const FP_LIB_TABLE_ROW* row = tbl->FindRow( aFootprint->GetFPID().GetLibNickname() );
+        std::optional<LIBRARY_TABLE_ROW*> row = adapter->GetRow( aFootprint->GetFPID().GetLibNickname() );
 
         if( !row )
             return;
 
-        libfullname = row->GetFullURI( true );
+        libfullname = LIBRARY_MANAGER::GetFullURI( *row, true );
+    }
+    catch( const IO_ERROR& error )
+    {
+        wxLogTrace( traceLibWatch, "Error: %s", error.What() );
+        return;
     }
     catch( const std::exception& e )
     {
         DisplayInfoMessage( this, e.what() );
-        return;
-    }
-    catch( const IO_ERROR& error )
-    {
-        wxLogTrace( "KICAD_LIB_WATCH", "Error: %s", error.What() );
         return;
     }
 
@@ -1129,7 +1133,7 @@ void PCB_BASE_FRAME::setFPWatcher( FOOTPRINT* aFootprint )
     fn.AssignDir( m_watcherFileName.GetPath() );
     fn.DontFollowLink();
 
-    wxLogTrace( "KICAD_LIB_WATCH", "Add watch: %s", fn.GetPath() );
+    wxLogTrace( traceLibWatch, "Add watch: %s", fn.GetPath() );
 
     {
         // Silence OS errors that come from the watcher
@@ -1147,7 +1151,7 @@ void PCB_BASE_FRAME::OnFPChange( wxFileSystemWatcherEvent& aEvent )
     // Start the debounce timer (set to 1 second)
     if( !m_watcherDebounceTimer.StartOnce( 1000 ) )
     {
-        wxLogTrace( "KICAD_LIB_WATCH", "Failed to start the debounce timer" );
+    wxLogTrace( traceLibWatch, "Failed to start the debounce timer" );
         return;
     }
 }
@@ -1163,11 +1167,11 @@ void PCB_BASE_FRAME::OnFpChangeDebounceTimer( wxTimerEvent& aEvent )
 
     if( m_inFpChangeTimerEvent )
     {
-        wxLogTrace( "KICAD_LIB_WATCH", "Restarting debounce timer" );
+    wxLogTrace( traceLibWatch, "Restarting debounce timer" );
         m_watcherDebounceTimer.StartOnce( 3000 );
     }
 
-    wxLogTrace( "KICAD_LIB_WATCH", "OnFpChangeDebounceTimer" );
+    wxLogTrace( traceLibWatch, "OnFpChangeDebounceTimer" );
 
     // Disable logging to avoid spurious messages and check if the file has changed
     wxLog::EnableLogging( false );
@@ -1180,13 +1184,13 @@ void PCB_BASE_FRAME::OnFpChangeDebounceTimer( wxTimerEvent& aEvent )
     m_watcherLastModified = lastModified;
 
     FOOTPRINT* fp = GetBoard()->GetFirstFootprint();
-    FP_LIB_TABLE* tbl = PROJECT_PCB::PcbFootprintLibs( &Prj() );
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &Prj() );
 
     // When loading a footprint from a library in the footprint editor
     // the items UUIDs must be keep and not reinitialized
     bool keepUUID = IsType( FRAME_FOOTPRINT_EDITOR );
 
-    if( !fp || !tbl )
+    if( !fp || !adapter )
         return;
 
     m_inFpChangeTimerEvent = true;
@@ -1200,7 +1204,7 @@ void PCB_BASE_FRAME::OnFpChangeDebounceTimer( wxTimerEvent& aEvent )
 
         try
         {
-            FOOTPRINT* newfp = tbl->FootprintLoad( nickname, fpname, keepUUID );
+            FOOTPRINT* newfp = adapter->LoadFootprint( nickname, fpname, keepUUID );
 
             if( newfp )
             {

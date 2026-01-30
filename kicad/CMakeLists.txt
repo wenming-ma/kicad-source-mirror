@@ -23,8 +23,6 @@ set( KICAD_SRCS
     dialogs/dialog_copyfiles_job_settings_base.cpp
     dialogs/dialog_executecommand_job_settings.cpp
     dialogs/dialog_executecommand_job_settings_base.cpp
-    dialogs/dialog_update_check_prompt_base.cpp
-    dialogs/dialog_update_check_prompt.cpp
     dialogs/dialog_update_notice_base.cpp
     dialogs/dialog_update_notice.cpp
     dialogs/dialog_template_selector_base.cpp
@@ -39,11 +37,13 @@ set( KICAD_SRCS
     import_proj.cpp
     import_project.cpp
     kicad_manager_frame.cpp
+    local_history_pane.cpp
     menubar.cpp
     project_template.cpp
     project_tree_pane.cpp
     project_tree.cpp
     project_tree_item.cpp
+    project_tree_traverser.cpp
     update_manager.cpp
     toolbars_kicad_manager.cpp
     tools/kicad_manager_actions.cpp
@@ -69,6 +69,7 @@ set( KICAD_CLI_SRCS
     cli/command_pcb_export_pdf.cpp
     cli/command_pcb_export_pos.cpp
     cli/command_pcb_export_ps.cpp
+    cli/command_pcb_export_stats.cpp
     cli/command_pcb_export_svg.cpp
     cli/command_pcb_upgrade.cpp
     cli/command_fp_export_svg.cpp
@@ -227,9 +228,9 @@ if( APPLE )
     set_target_properties( kicad PROPERTIES BUILD_RPATH ${PYTHON_FRAMEWORK} )
     set_target_properties( kicad PROPERTIES INSTALL_RPATH
             "@executable_path/../Frameworks;@executable_path/../Frameworks/Python.framework" )
+    set_target_properties( kicad-cli PROPERTIES BUILD_RPATH ${PYTHON_FRAMEWORK} )
     set_target_properties( kicad-cli PROPERTIES INSTALL_RPATH
             "@executable_path/../Frameworks;@executable_path/../Frameworks/Python.framework" )
-    set_target_properties( kicad-cli PROPERTIES BUILD_WITH_INSTALL_RPATH 1 )
 
     install( CODE "
         set( KICAD_CMAKE_MODULE_PATH \"${KICAD_CMAKE_MODULE_PATH}\" )

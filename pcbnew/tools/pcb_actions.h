@@ -270,6 +270,7 @@ public:
     static TOOL_ACTION routerRouteSelected;
     static TOOL_ACTION routerRouteSelectedFromEnd;
     static TOOL_ACTION routerAutorouteSelected;
+    static TOOL_ACTION cancelCurrentItem;
 
     /// Activation of the Push and Shove settings dialogs
     static TOOL_ACTION routerSettingsDialog;
@@ -319,7 +320,7 @@ public:
 
     // Position Relative Tool
     static TOOL_ACTION positionRelative;
-    static TOOL_ACTION positionRelativeInteractively;
+    static TOOL_ACTION interactiveOffsetTool;
 
     /// Selection of reference points/items
     static TOOL_ACTION selectItemInteractively;
@@ -459,6 +460,7 @@ public:
     static TOOL_ACTION removeUnusedPads;
 
     static TOOL_ACTION runDRC;
+    static TOOL_ACTION drcRuleEditor;
 
     static TOOL_ACTION editFpInFpEditor;
     static TOOL_ACTION editLibFpInFpEditor;
@@ -476,8 +478,8 @@ public:
     static TOOL_ACTION showDesignBlockPanel;
     static TOOL_ACTION saveBoardAsDesignBlock;
     static TOOL_ACTION saveSelectionAsDesignBlock;
-    static TOOL_ACTION saveBoardToDesignBlock;
-    static TOOL_ACTION saveSelectionToDesignBlock;
+    static TOOL_ACTION updateDesignBlockFromBoard;
+    static TOOL_ACTION updateDesignBlockFromSelection;
     static TOOL_ACTION deleteDesignBlock;
     static TOOL_ACTION editDesignBlockProperties;
 

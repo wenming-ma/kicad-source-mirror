@@ -34,7 +34,8 @@ class DRC_TEST_PROVIDER;
 class PCB_MARKER;
 class BOARD;
 
-enum PCB_DRC_CODE {
+enum PCB_DRC_CODE
+{
     DRCE_FIRST = 1,
     DRCE_UNCONNECTED_ITEMS = DRCE_FIRST, // items are unconnected
     DRCE_SHORTING_ITEMS,                 // items short two nets but are not a net-tie
@@ -68,37 +69,37 @@ enum PCB_DRC_CODE {
                                          // (not convertible to a closed polygon with holes)
     DRCE_PTH_IN_COURTYARD,
     DRCE_NPTH_IN_COURTYARD,
-    DRCE_DISABLED_LAYER_ITEM,            // item on a disabled layer
-    DRCE_INVALID_OUTLINE,                // invalid board outline
+    DRCE_DISABLED_LAYER_ITEM, // item on a disabled layer
+    DRCE_INVALID_OUTLINE,     // invalid board outline
 
-    DRCE_MISSING_FOOTPRINT,              // footprint not found for netlist item
-    DRCE_DUPLICATE_FOOTPRINT,            // more than one footprints found for netlist item
-    DRCE_EXTRA_FOOTPRINT,                // netlist item not found for footprint
-    DRCE_NET_CONFLICT,                   // pad net doesn't match netlist
-    DRCE_SCHEMATIC_PARITY,               // footprint attributes don't match symbol attributes
-    DRCE_FOOTPRINT_FILTERS,              // footprint doesn't match symbol's footprint filters
+    DRCE_MISSING_FOOTPRINT,   // footprint not found for netlist item
+    DRCE_DUPLICATE_FOOTPRINT, // more than one footprints found for netlist item
+    DRCE_EXTRA_FOOTPRINT,     // netlist item not found for footprint
+    DRCE_NET_CONFLICT,        // pad net doesn't match netlist
+    DRCE_SCHEMATIC_PARITY,    // footprint attributes don't match symbol attributes
+    DRCE_FOOTPRINT_FILTERS,   // footprint doesn't match symbol's footprint filters
 
-    DRCE_FOOTPRINT_TYPE_MISMATCH,        // footprint attribute does not match actual pads
-    DRCE_LIB_FOOTPRINT_ISSUES,           // footprint not found in active libraries
-    DRCE_LIB_FOOTPRINT_MISMATCH,         // footprint does not match the current library
-    DRCE_PAD_TH_WITH_NO_HOLE,            // footprint has Plated Through-Hole with no hole
-    DRCE_FOOTPRINT,                      // error in footprint definition
+    DRCE_FOOTPRINT_TYPE_MISMATCH, // footprint attribute does not match actual pads
+    DRCE_LIB_FOOTPRINT_ISSUES,    // footprint not found in active libraries
+    DRCE_LIB_FOOTPRINT_MISMATCH,  // footprint does not match the current library
+    DRCE_PAD_TH_WITH_NO_HOLE,     // footprint has Plated Through-Hole with no hole
+    DRCE_FOOTPRINT,               // error in footprint definition
 
     DRCE_UNRESOLVED_VARIABLE,
-    DRCE_ASSERTION_FAILURE,              // user-defined (custom rule) assertion
-    DRCE_GENERIC_WARNING,                // generic warning
-    DRCE_GENERIC_ERROR,                  // generic error
+    DRCE_ASSERTION_FAILURE,       // user-defined (custom rule) assertion
+    DRCE_GENERIC_WARNING,         // generic warning
+    DRCE_GENERIC_ERROR,           // generic error
 
     DRCE_COPPER_SLIVER,
-    DRCE_SOLDERMASK_BRIDGE,              // failure to maintain min soldermask web thickness
-                                         //   between copper items with different nets
+    DRCE_SOLDERMASK_BRIDGE,       // failure to maintain min soldermask web thickness
+                                  //   between copper items with different nets
 
-    DRCE_SILK_MASK_CLEARANCE,            // silkscreen clipped by mask (potentially leaving it
-                                         //   over pads, exposed copper, etc.)
+    DRCE_SILK_MASK_CLEARANCE,     // silkscreen clipped by mask (potentially leaving it
+                                  //   over pads, exposed copper, etc.)
     DRCE_SILK_EDGE_CLEARANCE,
+    DRCE_SILK_CLEARANCE,          // silk-to-silk or silk-to-other clearance error
     DRCE_TEXT_HEIGHT,
     DRCE_TEXT_THICKNESS,
-    DRCE_OVERLAPPING_SILK,               // silk-to-silk or silk-to-other clearance error
 
     DRCE_LENGTH_OUT_OF_RANGE,
     DRCE_SKEW_OUT_OF_RANGE,
@@ -109,7 +110,14 @@ enum PCB_DRC_CODE {
     DRCE_MIRRORED_TEXT_ON_FRONT_LAYER,
     DRCE_NONMIRRORED_TEXT_ON_BACK_LAYER,
 
-    DRCE_LAST = DRCE_NONMIRRORED_TEXT_ON_BACK_LAYER
+    DRCE_MISSING_TUNING_PROFILE,        // Tuning profile used in net class is not defined
+    DRCE_TUNING_PROFILE_IMPLICIT_RULES, // Pseudo-code for setting severities
+
+    DRCE_TRACK_ON_POST_MACHINED_LAYER,  // Track connected to pad/via on post-machined/backdrilled layer
+
+    DRCE_SCHEMATIC_FIELDS_PARITY, // Mismatch with schematic fields
+
+    DRCE_LAST = DRCE_SCHEMATIC_FIELDS_PARITY
 };
 
 
@@ -151,7 +159,7 @@ public:
     void SetViolatingRule ( DRC_RULE *aRule ) { m_violatingRule = aRule; }
     DRC_RULE* GetViolatingRule() const { return m_violatingRule; }
 
-    wxString GetViolatingRuleDesc() const override;
+    wxString GetViolatingRuleDesc( bool aTranslate ) const override;
 
     void SetViolatingTest( DRC_TEST_PROVIDER *aProvider ) { m_violatingTest = aProvider; }
     DRC_TEST_PROVIDER* GetViolatingTest() const { return m_violatingTest; }
@@ -229,7 +237,7 @@ private:
     static DRC_ITEM silkMaskClearance;
     static DRC_ITEM silkEdgeClearance;
     static DRC_ITEM solderMaskBridge;
-    static DRC_ITEM silkOverlaps;
+    static DRC_ITEM silkClearance;
     static DRC_ITEM textHeightOutOfRange;
     static DRC_ITEM textThicknessOutOfRange;
     static DRC_ITEM lengthOutOfRange;
@@ -242,6 +250,10 @@ private:
     static DRC_ITEM footprintTHPadhasNoHole;
     static DRC_ITEM mirroredTextOnFrontLayer;
     static DRC_ITEM nonMirroredTextOnBackLayer;
+    static DRC_ITEM missingTuningProfile;
+    static DRC_ITEM tuningProfileImplicitRules;
+    static DRC_ITEM trackOnPostMachinedLayer;
+    static DRC_ITEM schematicFieldsParity;
 
 private:
     DRC_RULE*          m_violatingRule = nullptr;
@@ -269,6 +281,8 @@ public:
     DRC_ITEMS_PROVIDER& operator=( const DRC_ITEMS_PROVIDER& ) = delete;
 
     void SetSeverities( int aSeverities ) override;
+
+    int GetSeverities() const override;
 
     int GetCount( int aSeverity = -1 ) const override;
 

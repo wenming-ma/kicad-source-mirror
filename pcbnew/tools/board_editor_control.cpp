@@ -58,6 +58,7 @@
 #include <project.h>
 #include <project/project_file.h> // LAST_PATH_TYPE
 #include <settings/settings_manager.h>
+#include <kiplatform/ui.h>
 #include <pcbnew_settings.h>
 #include <tool/tool_manager.h>
 #include <tool/tool_event.h>
@@ -181,16 +182,10 @@ int BOARD_EDITOR_CONTROL::OnAngleSnapModeChanged( const TOOL_EVENT& aEvent )
 
     switch( mode )
     {
-    case LEADER_MODE::DIRECT:
-        f->SelectLeftToolbarAction( PCB_ACTIONS::lineModeFree );
-        break;
-    case LEADER_MODE::DEG90:
-        f->SelectLeftToolbarAction( PCB_ACTIONS::lineMode90 );
-        break;
-    case LEADER_MODE::DEG45:
+    case LEADER_MODE::DIRECT: f->SelectToolbarAction( PCB_ACTIONS::lineModeFree ); break;
+    case LEADER_MODE::DEG90:  f->SelectToolbarAction( PCB_ACTIONS::lineMode90 );   break;
     default:
-        f->SelectLeftToolbarAction( PCB_ACTIONS::lineMode45 );
-        break;
+    case LEADER_MODE::DEG45:  f->SelectToolbarAction( PCB_ACTIONS::lineMode45 );   break;
     }
 
     return 0;
@@ -476,6 +471,8 @@ int BOARD_EDITOR_CONTROL::ExportNetlist( const TOOL_EVENT& aEvent )
 
     dlg.SetExtraControlCreator( &LEGACYFILEDLG_NETLIST_OPTIONS::Create );
 
+    KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
+
     if( dlg.ShowModal() == wxID_CANCEL )
         return 0;
 
@@ -511,7 +508,11 @@ int BOARD_EDITOR_CONTROL::ExportNetlist( const TOOL_EVENT& aEvent )
         nlohmann::ordered_map<wxString, wxString> fields;
 
         for( PCB_FIELD* field : footprint->GetFields() )
+        {
+            wxCHECK2( field, continue );
+
             fields[field->GetCanonicalName()] = field->GetText();
+        }
 
         component->SetFields( fields );
 
@@ -1587,7 +1588,7 @@ int BOARD_EDITOR_CONTROL::ZoneDuplicate( const TOOL_EVENT& aEvent )
     if( oldZone->GetIsRuleArea() )
         dialogResult = InvokeRuleAreaEditor( m_frame, &zoneSettings, board() );
     else if( oldZone->IsOnCopperLayer() )
-        dialogResult = InvokeCopperZonesEditor( m_frame, &zoneSettings );
+        dialogResult = InvokeCopperZonesEditor( m_frame, nullptr, &zoneSettings );
     else
         dialogResult = InvokeNonCopperZonesEditor( m_frame, &zoneSettings );
 
@@ -1828,7 +1829,6 @@ void BOARD_EDITOR_CONTROL::setTransitions()
     Go( &BOARD_EDITOR_CONTROL::FindNext,               ACTIONS::findNext.MakeEvent() );
     Go( &BOARD_EDITOR_CONTROL::FindNext,               ACTIONS::findPrevious.MakeEvent() );
 
-    Go( &BOARD_EDITOR_CONTROL::RescueAutosave,         PCB_ACTIONS::rescueAutosave.MakeEvent() );
     Go( &BOARD_EDITOR_CONTROL::OpenNonKicadBoard,      PCB_ACTIONS::openNonKicadBoard.MakeEvent() );
     Go( &BOARD_EDITOR_CONTROL::ExportFootprints,       PCB_ACTIONS::exportFootprints.MakeEvent() );
     Go( &BOARD_EDITOR_CONTROL::BoardSetup,             PCB_ACTIONS::boardSetup.MakeEvent() );

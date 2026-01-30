@@ -39,6 +39,7 @@
 #include <settings/settings_manager.h>
 #include <tool/action_manager.h>
 #include <logging.h>
+#include <local_history.h>
 
 #include <wx/dynlib.h>
 #include <wx/stdpaths.h>
@@ -52,8 +53,9 @@ int     KIWAY::m_kiface_version[KIWAY_FACE_COUNT];
 
 
 KIWAY::KIWAY( int aCtlBits, wxFrame* aTop ):
-     m_ctl( aCtlBits ), m_top( nullptr ), m_blockingDialog( wxID_NONE )
+     m_ctl( aCtlBits ), m_top( nullptr ), m_blockingDialog( wxID_NONE ), m_local_history( nullptr )
 {
+    m_local_history = new LOCAL_HISTORY();
     SetTop( aTop );     // hook player_destroy_handler() into aTop.
 
     // Set the array of all known frame window IDs to empty = wxID_NONE,
@@ -64,6 +66,12 @@ KIWAY::KIWAY( int aCtlBits, wxFrame* aTop ):
     //   to allow a call to wxWindow::FindWindowById() using a FRAME_T frame type
     for( int n = 0; n < KIWAY_PLAYER_COUNT; n++ )
         m_playerFrameId[n] = wxID_NONE;
+}
+
+
+KIWAY::~KIWAY()
+{
+    delete m_local_history;
 }
 
 
@@ -497,11 +505,14 @@ void KIWAY::PlayerDidClose( FRAME_T aFrameType )
 
 
 void KIWAY::ExpressMail( FRAME_T aDestination, MAIL_T aCommand, std::string& aPayload,
-                         wxWindow* aSource )
+                         wxWindow* aSource, bool aFromOtherThread  )
 {
-    KIWAY_EXPRESS   mail( aDestination, aCommand, aPayload, aSource );
+    std::unique_ptr<KIWAY_EXPRESS> mail = std::make_unique<KIWAY_EXPRESS>( aDestination, aCommand, aPayload, aSource );
 
-    ProcessEvent( mail );
+    if( aFromOtherThread )
+        QueueEvent( mail.release() );
+    else
+        ProcessEvent( *mail );
 }
 
 
@@ -634,7 +645,14 @@ void KIWAY::ClearFileHistory()
 
 void KIWAY::ProjectChanged()
 {
+    // Skip project change notifications during application shutdown to avoid
+    // clearing savers and re-registering them unnecessarily
+    if( PgmOrNull() && Pgm().m_Quitting )
+        return;
+
     APP_MONITOR::AddNavigationBreadcrumb( "Changing project", "kiway.projectchanged" );
+
+    LocalHistory().ClearAllSavers();
 
     if( m_ctl & KFCTL_CPP_PROJECT_SUITE )
     {
@@ -646,6 +664,13 @@ void KIWAY::ProjectChanged()
         if( top )
             top->ProjectChanged();
     }
+
+    // Cancel an in-progress load of libraries; handled through the schematic and PCB ifaces
+    if ( KIFACE* schface = KiFACE( KIWAY::FACE_SCH ) )
+        schface->ProjectChanged();
+
+    if ( KIFACE* pcbface = KiFACE( KIWAY::FACE_PCB ) )
+        pcbface->ProjectChanged();
 
     for( unsigned i=0;  i < KIWAY_PLAYER_COUNT;  ++i )
     {
@@ -695,6 +720,25 @@ bool KIWAY::ProcessEvent( wxEvent& aEvent )
     }
 
     return false;
+}
+
+
+void KIWAY::QueueEvent( wxEvent* aEvent )
+{
+    KIWAY_EXPRESS* mail = dynamic_cast<KIWAY_EXPRESS*>( aEvent );
+
+    if( mail )
+    {
+        FRAME_T dest = mail->Dest();
+
+        // see if recipient is alive
+        KIWAY_PLAYER* alive = Player( dest, false );
+
+        if( alive )
+        {
+            alive->GetEventHandler()->QueueEvent( aEvent );
+        }
+    }
 }
 
 

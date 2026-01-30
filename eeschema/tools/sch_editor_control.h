@@ -101,6 +101,7 @@ public:
     int HighlightNetCursor( const TOOL_EVENT& aEvent );
 
     int AssignNetclass( const TOOL_EVENT& aEvent );
+    int FindNetInInspector( const TOOL_EVENT& aEvent );
 
     int Undo( const TOOL_EVENT& aEvent );
     int Redo( const TOOL_EVENT& aEvent );
@@ -132,6 +133,7 @@ public:
     int ShowNetNavigator( const TOOL_EVENT& aEvent );
     int ToggleProperties( const TOOL_EVENT& aEvent );
     int ToggleLibraryTree( const TOOL_EVENT& aEvent );
+    int ToggleRemoteSymbolPanel( const TOOL_EVENT& aEvent );
 
     int ToggleHiddenPins( const TOOL_EVENT& aEvent );
     int ToggleHiddenFields( const TOOL_EVENT& aEvent );
@@ -180,6 +182,9 @@ public:
 
     int PlaceLinkedDesignBlock( const TOOL_EVENT& aEvent );
     int SaveToLinkedDesignBlock( const TOOL_EVENT& aEvent );
+
+    int AddVariant( const TOOL_EVENT& aEvent );
+    int RemoveVariant( const TOOL_EVENT& aEvent );
 
 private:
     ///< copy selection to clipboard or to m_duplicateClipboard

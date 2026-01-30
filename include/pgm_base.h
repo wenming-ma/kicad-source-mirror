@@ -31,10 +31,13 @@
 #ifndef  PGM_BASE_H_
 #define  PGM_BASE_H_
 
+#include <bs_thread_pool.hpp>
 #include <kicommon.h>
 #include <singleton.h>
 #include <exception>
 #include <map>
+#include <future>
+#include <mutex>
 #include <vector>
 #include <memory>
 #include <search_stack.h>
@@ -47,10 +50,14 @@ class wxWindow;
 class wxSplashScreen;
 class wxSingleInstanceChecker;
 
+class KISTATUSBAR;
+struct LOAD_MESSAGE;
+struct BACKGROUND_JOB;
 class BACKGROUND_JOBS_MONITOR;
 class NOTIFICATIONS_MANAGER;
 class COMMON_SETTINGS;
 class SETTINGS_MANAGER;
+class LIBRARY_MANAGER;
 class SCRIPTING;
 
 #ifdef KICAD_IPC_API
@@ -110,7 +117,7 @@ public:
      */
     void BuildArgvUtf8();
 
-    BS::thread_pool<0>& GetThreadPool() { return *m_singleton.m_ThreadPool; }
+    BS::priority_thread_pool& GetThreadPool() { return *m_singleton.m_ThreadPool; }
 
     GL_CONTEXT_MANAGER* GetGLContextManager() { return m_singleton.m_GLContextManager; }
 
@@ -123,6 +130,8 @@ public:
     virtual void MacOpenFile( const wxString& aFileName ) = 0;
 
     virtual SETTINGS_MANAGER& GetSettingsManager() const { return *m_settings_manager; }
+
+    virtual LIBRARY_MANAGER& GetLibraryManager() const { return *m_library_manager; }
 
     virtual COMMON_SETTINGS*  GetCommonSettings() const;
 
@@ -312,7 +321,7 @@ public:
      *
      * @param aPtr Pass the std::current_exception() from within the catch block.
      */
-    void HandleException( std::exception_ptr aPtr );
+    void HandleException( std::exception_ptr aPtr, bool aUnhandled = false );
 
     /**
      * A common assert handler to be used between single_top and kicad.
@@ -348,6 +357,35 @@ public:
     }
 
     /**
+     * Starts a background job to preload the global and project design block libraries.
+     * Design block handling code is not associated with a particular KIFACE so this is
+     * handled here unlike symbol/footprint loading which are taken care of by the KIFACEs.
+     */
+    void PreloadDesignBlockLibraries( KIWAY* aKiway );
+
+    /**
+     * Register a status bar to receive library load warning messages.
+     * Multiple status bars can be registered (one per open frame).
+     */
+    void RegisterLibraryLoadStatusBar( KISTATUSBAR* aStatusBar );
+
+    /**
+     * Unregister a status bar from receiving library load warning messages.
+     */
+    void UnregisterLibraryLoadStatusBar( KISTATUSBAR* aStatusBar );
+
+    /**
+     * Add library load messages to all registered status bars.
+     * Thread-safe - can be called from background threads.
+     */
+    void AddLibraryLoadMessages( const std::vector<LOAD_MESSAGE>& aMessages );
+
+    /**
+     * Clear library load messages from all registered status bars.
+     */
+    void ClearLibraryLoadMessages();
+
+    /**
      * wxWidgets on MSW tends to crash if you spool up more than one print job at a time.
      */
     bool m_Printing;
@@ -367,12 +405,12 @@ protected:
 
 #ifdef KICAD_USE_SENTRY
     void     sentryInit();
-    void     sentryPrompt();
     wxString sentryCreateUid();
 #endif
 
 protected:
     std::unique_ptr<SETTINGS_MANAGER> m_settings_manager;
+    std::unique_ptr<LIBRARY_MANAGER> m_library_manager;
     std::unique_ptr<BACKGROUND_JOBS_MONITOR> m_background_jobs_monitor;
     std::unique_ptr<NOTIFICATIONS_MANAGER> m_notifications_manager;
 
@@ -414,6 +452,14 @@ protected:
     int m_argcUtf8;
 
     wxSplashScreen* m_splash;
+
+    std::shared_ptr<BACKGROUND_JOB> m_libraryPreloadBackgroundJob;
+    std::future<void>               m_libraryPreloadReturn;
+    std::atomic_bool                m_libraryPreloadInProgress;
+    std::atomic_bool                m_libraryPreloadAbort;
+
+    std::vector<KISTATUSBAR*>       m_libraryLoadStatusBars;
+    mutable std::mutex              m_libraryLoadStatusBarsMutex;
 };
 
 

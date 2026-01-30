@@ -40,7 +40,7 @@
 #include <memory>
 
 
-class FP_LIB_TABLE;
+class FOOTPRINT_LIBRARY_ADAPTER;
 class FOOTPRINT_LIST;
 class FOOTPRINT_LIST_IMPL;
 class PROGRESS_REPORTER;
@@ -161,16 +161,13 @@ class APIEXPORT FOOTPRINT_LIST
 {
 public:
     FOOTPRINT_LIST() :
-            m_lib_table( nullptr )
+            m_adapter( nullptr )
     {
     }
 
     virtual ~FOOTPRINT_LIST()
     {
     }
-
-    virtual void WriteCacheToFile( const wxString& aFilePath ) {};
-    virtual void ReadCacheFromFile( const wxString& aFilePath ){};
 
     /**
      * @return the number of items stored in list
@@ -226,10 +223,15 @@ public:
         return error;
     }
 
+    void PushError( std::unique_ptr<IO_ERROR> aError )
+    {
+        m_errors.move_push( std::move( aError ) );
+    }
+
     /**
      * Read all the footprints provided by the combination of aTable and aNickname.
      *
-     * @param aTable defines all the libraries.
+     * @param aAdapter is used to access the libraries.
      * @param aNickname is the library to read from, or if NULL means read all footprints
      *                  from all known libraries in aTable.
      * @param aProgressReporter is an optional progress reporter.  ReadFootprintFiles() will
@@ -238,27 +240,21 @@ public:
      *         errors.  If true, it does not mean there were no errors, check GetErrorCount()
      *         for that, should be zero to indicate success.
      */
-    virtual bool ReadFootprintFiles( FP_LIB_TABLE* aTable, const wxString* aNickname = nullptr,
+    virtual bool ReadFootprintFiles( FOOTPRINT_LIBRARY_ADAPTER* aAdapter, const wxString* aNickname = nullptr,
                                      PROGRESS_REPORTER* aProgressReporter = nullptr ) = 0;
 
     void DisplayErrors( wxTopLevelWindow* aCaller = nullptr );
 
-    FP_LIB_TABLE* GetTable() const
-    {
-        return m_lib_table;
-    }
-
     /**
-     * Factory function to return a #FOOTPRINT_LIST via Kiway.
-     *
-     * This is not guaranteed to succeed and will return null if the kiface is not available.
-     *
-     * @param aKiway active kiway instance.
+     * Returns all accumulated errors as a newline-separated string for display in the
+     * status bar. This consumes the errors (pops them from the queue).
      */
-    static FOOTPRINT_LIST* GetInstance( KIWAY& aKiway );
+    wxString GetErrorMessages();
+
+    FOOTPRINT_LIBRARY_ADAPTER* GetAdapter() const { return m_adapter; }
 
 protected:
-    FP_LIB_TABLE*                                m_lib_table; ///< no ownership
+    FOOTPRINT_LIBRARY_ADAPTER*                   m_adapter; ///< no ownership
 
     std::vector<std::unique_ptr<FOOTPRINT_INFO>> m_list;
     SYNC_QUEUE<std::unique_ptr<IO_ERROR>>        m_errors; ///< some can be PARSE_ERRORs also

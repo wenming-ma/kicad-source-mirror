@@ -33,7 +33,7 @@
 #include "3d_cache/3d_info.h"
 #include "board.h"
 #include "board_design_settings.h"
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include "footprint.h"
 #include "pad.h"
 #include "pcb_text.h"
@@ -776,7 +776,7 @@ void EXPORTER_PCB_VRML::ExportVrmlPolygonSet( VRML_LAYER* aVlayer, const SHAPE_P
 
 void EXPORTER_PCB_VRML::ExportVrmlBoard()
 {
-    if( !m_board->GetBoardPolygonOutlines( m_pcbOutlines ) )
+    if( !m_board->GetBoardPolygonOutlines( m_pcbOutlines, true ) )
     {
         wxLogWarning( _( "Board outline is malformed. Run DRC for a full analysis." ) );
     }
@@ -1000,19 +1000,10 @@ void EXPORTER_PCB_VRML::ExportVrmlFootprint( FOOTPRINT* aFootprint, std::ostream
 
     if( m_board->GetProject() )
     {
-        const FP_LIB_TABLE_ROW* fpRow = nullptr;
-
-        try
-        {
-            fpRow = PROJECT_PCB::PcbFootprintLibs( m_board->GetProject() )->FindRow( libraryName, false );
-        }
-        catch( ... )
-        {
-            // Not found: do nothing
-        }
-
+        std::optional<LIBRARY_TABLE_ROW*> fpRow =
+                            PROJECT_PCB::FootprintLibAdapter( m_board->GetProject() )->GetRow( libraryName );
         if( fpRow )
-            footprintBasePath = fpRow->GetFullURI( true );
+            footprintBasePath = LIBRARY_MANAGER::GetFullURI( *fpRow, true );
     }
 
 
@@ -1026,7 +1017,8 @@ void EXPORTER_PCB_VRML::ExportVrmlFootprint( FOOTPRINT* aFootprint, std::ostream
         return;
     }
 
-    if( !m_includeDNP && aFootprint->IsDNP() )
+    if( !m_includeDNP
+            && aFootprint->GetDNPForVariant( m_board ? m_board->GetCurrentVariant() : wxString() ) )
         return;
 
     std::vector<const EMBEDDED_FILES*> embeddedFilesStack;

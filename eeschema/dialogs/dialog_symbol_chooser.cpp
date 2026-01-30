@@ -21,7 +21,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <symbol_library.h>
 #include <dialog_symbol_chooser.h>
 #include <widgets/panel_symbol_chooser.h>
 #include <eeschema_settings.h>
@@ -69,8 +68,10 @@ DIALOG_SYMBOL_CHOOSER::DIALOG_SYMBOL_CHOOSER( SCH_BASE_FRAME* aParent, const LIB
     if( aFilter && aFilter->GetFilterPowerSymbols() )
         SetTitle( _( "Choose Power Symbol" ) );
 
-    SetTitle( GetTitle() + wxString::Format( _( " (%d items loaded)" ),
-                                             m_chooserPanel->GetItemCount() ) );
+    m_originalTitle = GetTitle();
+    onLazyLoadUpdate();
+    m_chooserPanel->Adapter()->RegisterLazyLoadHandler(
+            std::bind( &DIALOG_SYMBOL_CHOOSER::onLazyLoadUpdate, this ) );
 
     wxBoxSizer* buttonsSizer = new wxBoxSizer( wxHORIZONTAL );
 
@@ -124,3 +125,10 @@ std::vector<std::pair<FIELD_T, wxString>> DIALOG_SYMBOL_CHOOSER::GetFields() con
 }
 
 
+
+void DIALOG_SYMBOL_CHOOSER::onLazyLoadUpdate()
+{
+    SetTitle( m_originalTitle + wxString::Format( _( " (%d items loaded)" ),
+                                                  m_chooserPanel->GetItemCount() ) );
+    m_chooserPanel->Regenerate();
+}

@@ -38,6 +38,7 @@
 #include <widgets/text_ctrl_eval.h>
 #include <pcb_draw_panel_gal.h>
 #include <widgets/unit_binder.h>
+#include <widgets/margin_offset_binder.h>
 
 /**
  * DIALOG_PAD_PROPERTIES, derived from DIALOG_PAD_PROPERTIES_BASE,
@@ -82,6 +83,10 @@ private:
     void OnEditLayerChanged( wxCommandEvent& event ) override;
 
     void OnUpdateUINonCopperWarning( wxUpdateUIEvent& event ) override;
+
+    void onBackDrillChoice( wxCommandEvent& event ) override;
+    void onTopPostMachining( wxCommandEvent& event ) override;
+    void onBottomPostMachining( wxCommandEvent& event ) override;
 
     void OnPadShapeSelection( wxCommandEvent& event ) override;
     void OnDrillShapeSelected( wxCommandEvent& event ) override;
@@ -174,14 +179,21 @@ private:
     UNIT_BINDER m_holeX, m_holeY;
     UNIT_BINDER m_clearance;
     UNIT_BINDER m_maskMargin;
-    UNIT_BINDER m_pasteMargin;
-    UNIT_BINDER m_pasteMarginRatio;
+    MARGIN_OFFSET_BINDER m_pasteMargin;
     UNIT_BINDER m_thermalGap;
     UNIT_BINDER m_spokeWidth;
     UNIT_BINDER m_spokeAngle;
     UNIT_BINDER m_pad_orientation;
     UNIT_BINDER m_teardropMaxLenSetting;
     UNIT_BINDER m_teardropMaxHeightSetting;
+
+    UNIT_BINDER m_topPostMachineSize1Binder;
+    UNIT_BINDER m_topPostMachineSize2Binder;
+    UNIT_BINDER m_bottomPostMachineSize1Binder;
+    UNIT_BINDER m_bottomPostMachineSize2Binder;
+
+    UNIT_BINDER m_backDrillTopSizeBinder;
+    UNIT_BINDER m_backDrillBottomSizeBinder;
 };
 
 

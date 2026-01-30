@@ -30,18 +30,18 @@
 #include <wx/dcmemory.h>
 #include <pcb_edit_frame.h>
 #include <wx/variant.h>
-#include "zone_manager_preference.h"
-#include "managed_zone.h"
 #include "model_zones_overview.h"
+
 
 wxDEFINE_EVENT( EVT_ZONES_OVERVIEW_COUNT_CHANGE, wxCommandEvent );
 
-void MODEL_ZONES_OVERVIEW::SortZoneContainers()
+
+void MODEL_ZONES_OVERVIEW::SortFilteredZones()
 {
     std::sort( m_filteredZones.begin(), m_filteredZones.end(),
-               []( std::shared_ptr<MANAGED_ZONE> const& l, std::shared_ptr<MANAGED_ZONE> const& r )
+               [&]( ZONE* const& l, ZONE* const& r )
                {
-                   return l->GetCurrentPriority() > r->GetCurrentPriority();
+                   return m_zoneSettingsBag.GetZonePriority( l ) > m_zoneSettingsBag.GetZonePriority( r );
                } );
 }
 
@@ -50,12 +50,11 @@ void MODEL_ZONES_OVERVIEW::OnRowCountChange()
 {
     wxCommandEvent rowCountChange( EVT_ZONES_OVERVIEW_COUNT_CHANGE );
     rowCountChange.SetInt( GetCount() );
-    wxPostEvent( m_dialog, rowCountChange );
+    wxPostEvent( m_parent, rowCountChange );
 }
 
 
-static wxBitmap MakeBitmapForLayers( LSEQ const& layers, COLOR_SETTINGS const& settings,
-                                     const wxSize& aSize )
+static wxBitmap MakeBitmapForLayers( LSEQ const& layers, COLOR_SETTINGS const& settings, const wxSize& aSize )
 {
     wxBitmap   bitmap( aSize );
     wxBrush    brush;
@@ -77,7 +76,7 @@ static wxBitmap MakeBitmapForLayers( LSEQ const& layers, COLOR_SETTINGS const& s
         layersToDraw = layers;
     }
 
-    const int step = static_cast<int>( aSize.x / layersToDraw.size() );
+    const int step = static_cast<int>( aSize.y / layersToDraw.size() );
 
     for( size_t i = 0; i < layersToDraw.size(); ++i )
     {
@@ -93,16 +92,15 @@ static wxBitmap MakeBitmapForLayers( LSEQ const& layers, COLOR_SETTINGS const& s
 }
 
 
-MODEL_ZONES_OVERVIEW::MODEL_ZONES_OVERVIEW( std::vector<std::shared_ptr<MANAGED_ZONE>> aZones,
-                                            BOARD* a_pcb, PCB_BASE_FRAME* aPCB_FRAME, wxWindow* a_dialog ) :
-        m_allZones( aZones ),
-        m_filteredZones( std::move( aZones ) ),
-        m_pcb( a_pcb ),
-        m_PCB_FRAME( aPCB_FRAME ),
-        m_dialog( a_dialog ),
+MODEL_ZONES_OVERVIEW::MODEL_ZONES_OVERVIEW( wxWindow* aParent, PCB_BASE_FRAME* aFrame,
+                                            ZONE_SETTINGS_BAG& aZoneSettingsBag ) :
+        m_parent( aParent ),
+        m_frame( aFrame ),
+        m_zoneSettingsBag( aZoneSettingsBag ),
         m_sortByName( true ),
         m_sortByNet( true )
 {
+    m_filteredZones = m_zoneSettingsBag.GetClonedZoneList();
     Reset( m_filteredZones.size() );
 }
 
@@ -112,7 +110,7 @@ void MODEL_ZONES_OVERVIEW::GetValueByRow( wxVariant& aVariant, unsigned aRow, un
     if( static_cast<size_t>( aRow ) + 1 > m_filteredZones.size() )
         return;
 
-    const ZONE& cur = m_filteredZones[aRow]->GetZone();
+    const ZONE& cur = *m_filteredZones[aRow];
 
     switch( aCol )
     {
@@ -127,14 +125,13 @@ void MODEL_ZONES_OVERVIEW::GetValueByRow( wxVariant& aVariant, unsigned aRow, un
     case LAYERS:
     {
         wxArrayString layers;
-        wxSize        bmSize( LAYER_BAR_WIDTH, ZONE_MANAGER_PREFERENCE::LAYER_ICON_SIZE::HEIGHT );
 
         for( PCB_LAYER_ID layer : cur.GetLayerSet().Seq() )
-            layers.Add( m_pcb->GetLayerName( layer ) );
+            layers.Add( m_frame->GetBoard()->GetLayerName( layer ) );
 
-        aVariant << wxDataViewIconText( wxJoin( layers, ',' ), MakeBitmapForLayers( cur.GetLayerSet().UIOrder(),
-                                                                                    *m_PCB_FRAME->GetColorSettings(),
-                                                                                    bmSize ) );
+        aVariant << wxDataViewIconText( wxJoin( layers, ',' ),
+                                        MakeBitmapForLayers( cur.GetLayerSet().UIOrder(), *m_frame->GetColorSettings(),
+                                                             wxSize( LAYER_BAR_WIDTH, LAYER_BAR_HEIGHT ) ) );
         break;
     }
 
@@ -178,7 +175,7 @@ ZONE* MODEL_ZONES_OVERVIEW::GetZone( wxDataViewItem const& aItem ) const
     if( aRow + 1 > GetCount() )
         return nullptr;
 
-    return &m_filteredZones[aRow]->GetZone();
+    return m_filteredZones[aRow];
 }
 
 
@@ -189,7 +186,7 @@ wxDataViewItem MODEL_ZONES_OVERVIEW::GetItemByZone( ZONE* aZone ) const
 
     for( size_t i = 0; i < m_filteredZones.size(); i++ )
     {
-        if( &m_filteredZones[i]->GetZone() == aZone )
+        if( m_filteredZones[i] == aZone )
             return GetItem( i );
     }
 
@@ -229,7 +226,7 @@ std::optional<unsigned> MODEL_ZONES_OVERVIEW::SwapZonePriority( unsigned aDragIn
     if( aDragIndex == aDropIndex )
         return aDragIndex;
 
-    std::swap( m_filteredZones[aDragIndex]->m_currentPriority, m_filteredZones[aDropIndex]->m_currentPriority );
+    m_zoneSettingsBag.SwapPriority( m_filteredZones[aDragIndex], m_filteredZones[aDropIndex] );
     std::swap( m_filteredZones[aDragIndex], m_filteredZones[aDropIndex] );
 
     for( const unsigned int row : { aDragIndex, aDropIndex } )
@@ -241,7 +238,7 @@ std::optional<unsigned> MODEL_ZONES_OVERVIEW::SwapZonePriority( unsigned aDragIn
 
 wxDataViewItem MODEL_ZONES_OVERVIEW::ApplyFilter( wxString const& aFilterText, wxDataViewItem  aSelection )
 {
-    if( !GetAllZonesCount() )
+    if( m_zoneSettingsBag.GetClonedZoneList().empty() )
         return {};
 
     wxString lowerFilterText = aFilterText.Strip( wxString::both ).Lower();
@@ -252,18 +249,16 @@ wxDataViewItem MODEL_ZONES_OVERVIEW::ApplyFilter( wxString const& aFilterText, w
     ZONE* selected_zone = GetZone( aSelection );
     m_filteredZones.clear();
 
-    for( const auto& container : m_allZones )
+    for( ZONE* zone : m_zoneSettingsBag.GetClonedZoneList() )
     {
-        const ZONE zone = container->GetZone();
-
-        if( ( m_sortByName && zone.GetZoneName().Lower().Contains( lowerFilterText ) )
-            || ( m_sortByNet && zone.GetNetname().Lower().Contains( lowerFilterText ) ) )
+        if( ( m_sortByName && zone->GetZoneName().Lower().Contains( lowerFilterText ) )
+            || ( m_sortByNet && zone->GetNetname().Lower().Contains( lowerFilterText ) ) )
         {
-            m_filteredZones.push_back( container );
+            m_filteredZones.push_back( zone );
         }
     }
 
-    SortZoneContainers();
+    SortFilteredZones();
     Reset( GetCount() );
     OnRowCountChange();
     return GetItemByZone( selected_zone );
@@ -272,12 +267,12 @@ wxDataViewItem MODEL_ZONES_OVERVIEW::ApplyFilter( wxString const& aFilterText, w
 
 wxDataViewItem MODEL_ZONES_OVERVIEW::ClearFilter( wxDataViewItem aSelection )
 {
-    if( !GetAllZonesCount() )
+    if( m_zoneSettingsBag.GetClonedZoneList().empty() )
         return {};
 
     ZONE* zone = GetZone( aSelection );
-    m_filteredZones = m_allZones;
-    SortZoneContainers();
+    m_filteredZones = m_zoneSettingsBag.GetClonedZoneList();
+    SortFilteredZones();
     Reset( GetCount() );
     OnRowCountChange();
     return GetItemByZone( zone );

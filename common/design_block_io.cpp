@@ -24,6 +24,7 @@
 
 #include <common.h>
 #include <i18n_utility.h>
+#include <kiplatform/io.h>
 #include <wx/dir.h>
 #include <wx/ffile.h>
 #include <wx/filename.h>
@@ -39,13 +40,16 @@
 #include <ki_exception.h>
 #include <trace_helpers.h>
 #include <fstream>
+#include <libraries/library_table.h>
+#include <libraries/library_table_parser.h>
 
 const wxString DESIGN_BLOCK_IO_MGR::ShowType( DESIGN_BLOCK_FILE_T aFileType )
 {
     switch( aFileType )
     {
-    case KICAD_SEXP: return _( "KiCad" );
-    default: return wxString::Format( _( "UNKNOWN (%d)" ), aFileType );
+    case KICAD_SEXP:   return _( "KiCad" );
+    case NESTED_TABLE: return LIBRARY_TABLE_ROW::TABLE_TYPE_NAME;
+    default:           return wxString::Format( _( "UNKNOWN (%d)" ), aFileType );
     }
 }
 
@@ -54,7 +58,9 @@ DESIGN_BLOCK_IO_MGR::DESIGN_BLOCK_FILE_T
 DESIGN_BLOCK_IO_MGR::EnumFromStr( const wxString& aFileType )
 {
     if( aFileType == _( "KiCad" ) )
-        return DESIGN_BLOCK_FILE_T( KICAD_SEXP );
+        return DESIGN_BLOCK_FILE_T::KICAD_SEXP;
+    else if( aFileType == LIBRARY_TABLE_ROW::TABLE_TYPE_NAME )
+        return DESIGN_BLOCK_FILE_T::NESTED_TABLE;
 
     return DESIGN_BLOCK_FILE_T( DESIGN_BLOCK_FILE_UNKNOWN );
 }
@@ -64,8 +70,8 @@ DESIGN_BLOCK_IO* DESIGN_BLOCK_IO_MGR::FindPlugin( DESIGN_BLOCK_FILE_T aFileType 
 {
     switch( aFileType )
     {
-    case KICAD_SEXP:          return new DESIGN_BLOCK_IO();
-    default:                  return nullptr;
+    case KICAD_SEXP:  return new DESIGN_BLOCK_IO();
+    default:          return nullptr;
     }
 }
 
@@ -73,6 +79,11 @@ DESIGN_BLOCK_IO* DESIGN_BLOCK_IO_MGR::FindPlugin( DESIGN_BLOCK_FILE_T aFileType 
 DESIGN_BLOCK_IO_MGR::DESIGN_BLOCK_FILE_T
 DESIGN_BLOCK_IO_MGR::GuessPluginTypeFromLibPath( const wxString& aLibPath, int aCtl )
 {
+    LIBRARY_TABLE_PARSER parser;
+
+    if( parser.Parse( aLibPath.ToStdString() ).has_value() )
+        return NESTED_TABLE;
+
     if( IO_RELEASER<DESIGN_BLOCK_IO>( FindPlugin( KICAD_SEXP ) )->CanReadLibrary( aLibPath )
             && aCtl != KICTL_NONKICAD_ONLY )
     {
@@ -95,8 +106,7 @@ bool DESIGN_BLOCK_IO_MGR::ConvertLibrary( std::map<std::string, UTF8>* aOldFileP
 
 
     IO_RELEASER<DESIGN_BLOCK_IO> oldFilePI( DESIGN_BLOCK_IO_MGR::FindPlugin( oldFileType ) );
-    IO_RELEASER<DESIGN_BLOCK_IO> kicadPI(
-            DESIGN_BLOCK_IO_MGR::FindPlugin( DESIGN_BLOCK_IO_MGR::KICAD_SEXP ) );
+    IO_RELEASER<DESIGN_BLOCK_IO> kicadPI( DESIGN_BLOCK_IO_MGR::FindPlugin( DESIGN_BLOCK_IO_MGR::KICAD_SEXP ) );
     wxArrayString dbNames;
     wxFileName    newFileName( aNewFilePath );
 
@@ -118,8 +128,8 @@ bool DESIGN_BLOCK_IO_MGR::ConvertLibrary( std::map<std::string, UTF8>* aOldFileP
 
         for( const wxString& dbName : dbNames )
         {
-            std::unique_ptr<const DESIGN_BLOCK> db(
-                    oldFilePI->GetEnumeratedDesignBlock( aOldFilePath, dbName, aOldFileProps ) );
+            std::unique_ptr<const DESIGN_BLOCK> db( oldFilePI->GetEnumeratedDesignBlock( aOldFilePath, dbName,
+                                                                                         aOldFileProps ) );
             kicadPI->DesignBlockSave( aNewFilePath, db.get() );
         }
     }
@@ -157,7 +167,7 @@ long long DESIGN_BLOCK_IO::GetLibraryTimestamp( const wxString& aLibraryPath ) c
 
         // Check if the directory ends with ".kicad_block", if so hash all the files in it.
         if( blockDir.GetFullName().EndsWith( FILEEXT::KiCadDesignBlockPathExtension ) )
-            ts += TimestampDir( blockDir.GetFullPath(), wxT( "*" ) );
+            ts += KIPLATFORM::IO::TimestampDir( blockDir.GetFullPath(), wxT( "*" ) );
 
         hasMoreFiles = libDir.GetNext( &filename );
     }
@@ -227,8 +237,7 @@ bool DESIGN_BLOCK_IO::DeleteLibrary( const wxString&                    aLibrary
 
             if( tmp.GetExt() != FILEEXT::KiCadDesignBlockLibPathExtension )
             {
-                THROW_IO_ERROR( wxString::Format( _( "Unexpected folder '%s' found in library "
-                                                     "path '%s'." ),
+                THROW_IO_ERROR( wxString::Format( _( "Unexpected folder '%s' found in library path '%s'." ),
                                                   dirs[i].GetData(), aLibraryPath.GetData() ) );
             }
         }
@@ -340,8 +349,8 @@ DESIGN_BLOCK* DESIGN_BLOCK_IO::DesignBlockLoad( const wxString& aLibraryPath,
         catch( ... )
         {
             delete newDB;
-            THROW_IO_ERROR( wxString::Format(
-                    _( "Design block metadata file '%s' could not be read." ), dbMetadataPath ) );
+            THROW_IO_ERROR( wxString::Format( _( "Design block metadata file '%s' could not be read." ),
+                                              dbMetadataPath ) );
         }
     }
 

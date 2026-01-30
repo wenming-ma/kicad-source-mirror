@@ -208,6 +208,8 @@ void BOARD_ADAPTER::addFootprintShapes( const FOOTPRINT* aFootprint, CONTAINER_2
         if( !aFlags.test( LAYER_FP_TEXT ) )
             continue;
 
+        wxCHECK2( field, continue );
+
         if( field->IsReference() && !aFlags.test( LAYER_FP_REFERENCES ) )
             continue;
 
@@ -635,7 +637,7 @@ void BOARD_ADAPTER::addShape( const PCB_SHAPE* aShape, CONTAINER_2D_BASE* aConta
 
     float linewidth3DU = TO_3DU( linewidth );
 
-    if( lineStyle <= LINE_STYLE::FIRST_TYPE )
+    if( lineStyle <= LINE_STYLE::FIRST_TYPE || isSolidFill )
     {
         switch( aShape->GetShape() )
         {
@@ -646,7 +648,14 @@ void BOARD_ADAPTER::addShape( const PCB_SHAPE* aShape, CONTAINER_2D_BASE* aConta
             float   outerR3DU = TO_3DU( aShape->GetRadius() ) + linewidth3DU / 2.0;
 
             if( isSolidFill || innerR3DU <= 0.0 )
-                addFILLED_CIRCLE_2D( aContainer, center3DU, outerR3DU, *aOwner );
+            {
+                // For a filled circle with a line style not a simple line, ignore line width
+                // the outline will be drawn later
+                if( lineStyle > LINE_STYLE::FIRST_TYPE )
+                    addFILLED_CIRCLE_2D( aContainer, center3DU, TO_3DU( aShape->GetRadius() ), *aOwner );
+                else
+                    addFILLED_CIRCLE_2D( aContainer, center3DU, outerR3DU, *aOwner );
+            }
             else
                 addRING_2D( aContainer, center3DU, innerR3DU, outerR3DU, *aOwner );
 
@@ -658,8 +667,12 @@ void BOARD_ADAPTER::addShape( const PCB_SHAPE* aShape, CONTAINER_2D_BASE* aConta
             {
                 SHAPE_POLY_SET polyList;
 
-                aShape->TransformShapeToPolySet( polyList, UNDEFINED_LAYER, 0, aShape->GetMaxError(),
-                                                 ERROR_INSIDE );
+                // For a filled rect with a line style not a simple line, ignore line width
+                // the outline will be drawn later
+                bool ignoreLineWidth = lineStyle > LINE_STYLE::FIRST_TYPE;
+
+                aShape->TransformShapeToPolygon( polyList, UNDEFINED_LAYER, 0, aShape->GetMaxError(),
+                                                 ERROR_INSIDE, ignoreLineWidth );
 
                 polyList.Simplify();
 
@@ -677,9 +690,9 @@ void BOARD_ADAPTER::addShape( const PCB_SHAPE* aShape, CONTAINER_2D_BASE* aConta
                     ROUNDRECT rr( SHAPE_RECT( aShape->GetPosition(),
                                               aShape->GetRectangleWidth(),
                                               aShape->GetRectangleHeight() ),
-                                              aShape->GetCornerRadius() );
+                                  aShape->GetCornerRadius() );
                     SHAPE_POLY_SET poly;
-                    rr.TransformToPolygon( poly );
+                    rr.TransformToPolygon( poly, aShape->GetMaxError() );
                     SHAPE_LINE_CHAIN& r_outline = poly.Outline( 0 );
                     r_outline.SetClosed( true );
 
@@ -756,8 +769,12 @@ void BOARD_ADAPTER::addShape( const PCB_SHAPE* aShape, CONTAINER_2D_BASE* aConta
             {
                 SHAPE_POLY_SET polyList;
 
+                // For a filled poly with a line style not a simple line, ignore line width
+                // the outline will be drawn later
+                bool ignoreLineWidth = lineStyle > LINE_STYLE::FIRST_TYPE;
+
                 aShape->TransformShapeToPolygon( polyList, UNDEFINED_LAYER, 0, aShape->GetMaxError(),
-                                                 ERROR_INSIDE );
+                                                 ERROR_INSIDE, ignoreLineWidth );
 
                 // Some polygons can be a bit complex (especially when coming from a
                 // picture of a text converted to a polygon
@@ -799,7 +816,8 @@ void BOARD_ADAPTER::addShape( const PCB_SHAPE* aShape, CONTAINER_2D_BASE* aConta
             break;
         }
     }
-    else
+
+    if( lineStyle > LINE_STYLE::FIRST_TYPE )
     {
         std::vector<SHAPE*> shapes = aShape->MakeEffectiveShapes( true );
         SFVEC2F             a3DU;

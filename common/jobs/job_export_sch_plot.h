@@ -53,6 +53,7 @@ public:
     wxString              m_filename;
     wxString              m_drawingSheet;
     wxString              m_defaultFont;
+    wxString              m_variant;
 
     bool                  m_plotAll;
     bool                  m_plotDrawingSheet;
@@ -67,6 +68,9 @@ public:
     bool                  m_PDFHierarchicalLinks;
     bool                  m_PDFMetadata;
     wxString              m_theme;
+
+    // Variant names to export. Empty vector means default variant only.
+    std::vector<wxString> m_variantNames;
 };
 
 

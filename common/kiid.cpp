@@ -61,8 +61,9 @@ static boost::uuids::nil_generator                          nilGenerator;
 KIID niluuid( 0 );
 
 
-// When true, always create nil uuids for performance, when valid ones aren't needed
-static bool g_createNilUuids = false;
+// When true, always create nil uuids for performance, when valid ones aren't needed.
+// Thread-local to prevent background library loading from affecting other threads.
+static thread_local bool g_createNilUuids = false;
 
 
 // For static initialization
@@ -282,6 +283,17 @@ void KIID::Increment()
         if( m_uuid.data[i] != 0 )
             break;
     }
+}
+
+
+KIID KIID::Combine( const KIID& aFirst, const KIID& aSecond )
+{
+    KIID result( 0 );
+
+    for( int i = 0; i < 16; ++i )
+        result.m_uuid.data[i] = aFirst.m_uuid.data[i] ^ aSecond.m_uuid.data[i];
+
+    return result;
 }
 
 

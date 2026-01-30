@@ -44,7 +44,6 @@ class BOARD_ITEM;
 class FP_CACHE;
 class LSET;
 class PCB_IO_KICAD_SEXPR_PARSER;
-class NETINFO_MAPPING;
 class BOARD_DESIGN_SETTINGS;
 class PCB_DIMENSION_BASE;
 class PCB_POINT;
@@ -195,7 +194,11 @@ class PCB_IO_KICAD_SEXPR;   // forward decl
 //#define SEXPR_BOARD_FILE_VERSION    20250907  // uuids for tables
 //#define SEXPR_BOARD_FILE_VERSION    20250909  // footprint unit metadata (units/pins)
 //#define SEXPR_BOARD_FILE_VERSION    20250914  // Add support for PCB_BARCODE objects
-#define SEXPR_BOARD_FILE_VERSION      20250926  // Split via types into blind/buried/through
+//#define SEXPR_BOARD_FILE_VERSION    20250926  // Split via types into blind/buried/through
+//#define SEXPR_BOARD_FILE_VERSION    20251027  // Store pad-to-die delays with correct scaling
+//#define SEXPR_BOARD_FILE_VERSION    20251028  // Stop writing netcodes; they're an internal implementation detail
+//#define SEXPR_BOARD_FILE_VERSION    20251101  // Backdrill and tertiary drill support
+#define SEXPR_BOARD_FILE_VERSION      20260101  // PCB variants with per-footprint overrides
 
 #define BOARD_FILE_HOST_VERSION       20200825  ///< Earlier files than this include the host tag
 #define LEGACY_ARC_FORMATTING         20210925  ///< These were the last to use old arc formatting
@@ -361,6 +364,8 @@ public:
                                              const std::map<std::string,
                                              UTF8>* aProperties = nullptr ) override;
 
+    bool CachesEnumeratedFootprints() const override { return true; }
+
     bool FootprintExists( const wxString& aLibraryPath, const wxString& aFootprintName,
                           const std::map<std::string, UTF8>* aProperties = nullptr ) override;
 
@@ -376,6 +381,8 @@ public:
 
     void FootprintDelete( const wxString& aLibraryPath, const wxString& aFootprintName,
                           const std::map<std::string, UTF8>* aProperties = nullptr ) override;
+
+    void ClearCachedFootprints( const wxString& aLibraryPath ) override;
 
     long long GetLibraryTimestamp( const wxString& aLibraryPath ) const override;
 
@@ -432,10 +439,10 @@ protected:
     void formatBoardLayers( const BOARD* aBoard ) const;
 
     /// formats the Nets and Netclasses
-    void formatNetInformation( const BOARD* aBoard ) const;
-
-    /// formats the Nets and Netclasses
     void formatProperties( const BOARD* aBoard ) const;
+
+    /// formats the board variant registry
+    void formatVariants( const BOARD* aBoard ) const;
 
     /// writes everything that comes before the board_items, like settings and layers etc
     void formatHeader( const BOARD* aBoard ) const;
@@ -498,8 +505,6 @@ protected:
     STRING_FORMATTER       m_sf;
     OUTPUTFORMATTER*       m_out;        ///< output any Format()s to this, no ownership
     int                    m_ctl;
-    NETINFO_MAPPING*       m_mapping;    ///< mapping for net codes, so only not empty net codes
-                                         ///< are stored with consecutive integers as net codes
 
     std::function<bool( wxString aTitle, int aIcon, wxString aMsg, wxString aAction )> m_queryUserCallback;
 };

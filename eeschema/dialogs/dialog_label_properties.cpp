@@ -55,12 +55,6 @@ DIALOG_LABEL_PROPERTIES::DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_L
 {
     COLOR_SETTINGS* colorSettings = m_Parent->GetColorSettings();
     COLOR4D         schematicBackground = colorSettings->GetColor( LAYER_SCHEMATIC_BACKGROUND );
-    bool            multiLine = false;
-
-    if( EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() ) )
-        multiLine = cfg->m_Appearance.edit_label_multiple;
-
-    m_cbMultiLine->SetValue( multiLine );
 
     m_fields = new FIELDS_GRID_TABLE( this, aParent, m_grid, m_currentLabel );
     m_delayedFocusRow = -1;
@@ -73,20 +67,6 @@ DIALOG_LABEL_PROPERTIES::DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_L
 
         m_labelSingleLine->Show( false );
         m_valueSingleLine->Show( false );
-
-        if( multiLine && aNew )
-        {
-            m_activeTextEntry = m_valueMultiLine;
-            SetInitialFocus( m_valueMultiLine );
-            m_labelCombo->Show( false );
-            m_valueCombo->Show( false );
-        }
-        else
-        {
-            m_labelMultiLine->Show( false );
-            m_valueMultiLine->Show( false );
-            m_valueCombo->SetValidator( m_netNameValidator );
-        }
     }
     else if( m_currentLabel->Type() == SCH_HIER_LABEL_T )
     {
@@ -95,20 +75,6 @@ DIALOG_LABEL_PROPERTIES::DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_L
 
         m_labelCombo->Show( false );
         m_valueCombo->Show( false );
-
-        if( multiLine && aNew )
-        {
-            m_activeTextEntry = m_valueMultiLine;
-            SetInitialFocus( m_valueMultiLine );
-            m_labelSingleLine->Show( false );
-            m_valueSingleLine->Show( false );
-        }
-        else
-        {
-            m_labelMultiLine->Show( false );
-            m_valueMultiLine->Show( false );
-            m_valueSingleLine->SetValidator( m_netNameValidator );
-        }
     }
     else if( m_currentLabel->Type() == SCH_DIRECTIVE_LABEL_T )
     {
@@ -131,6 +97,9 @@ DIALOG_LABEL_PROPERTIES::DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_L
     if( !aNew )
         m_cbMultiLine->Show( false );
 
+    // multiline set of labels can be used only to create new labels
+    m_multilineAllowed = aNew && m_cbMultiLine->IsShown();
+
     switch( m_currentLabel->Type() )
     {
     case SCH_GLOBAL_LABEL_T:    SetTitle( _( "Global Label Properties" ) );           break;
@@ -148,13 +117,8 @@ DIALOG_LABEL_PROPERTIES::DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_L
                                                           OnAddField( aEvent );
                                                       } ) );
     m_grid->SetSelectionMode( wxGrid::wxGridSelectRows );
-
-    // Show/hide columns according to user's preference
-    if( EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() ) )
-    {
-        m_grid->ShowHideColumns( cfg->m_Appearance.edit_label_visible_columns );
-        m_shownColumns = m_grid->GetShownColumns();
-    }
+    m_grid->ShowHideColumns( "0 1 2 3 4 5 6 7" );
+    m_shownColumns = m_grid->GetShownColumns();
 
     // Configure button logos
     m_bpAdd->SetBitmap( KiBitmapBundle( BITMAPS::small_plus ) );
@@ -247,29 +211,24 @@ DIALOG_LABEL_PROPERTIES::DIALOG_LABEL_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_L
     m_spin2->Bind( wxEVT_BUTTON, &DIALOG_LABEL_PROPERTIES::onSpinButton, this );
     m_spin3->Bind( wxEVT_BUTTON, &DIALOG_LABEL_PROPERTIES::onSpinButton, this );
 
+    // wxFormBuilder doesn't include this event...
+    m_grid->Connect( wxEVT_GRID_CELL_CHANGING,
+                     wxGridEventHandler( DIALOG_LABEL_PROPERTIES::OnGridCellChanging ), nullptr,
+                     this );
+
     // Now all widgets have the size fixed, call FinishDialogSettings
     finishDialogSettings();
-
-    if( EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() ) )
-    {
-        if( cfg->m_Appearance.edit_label_width > 0 && cfg->m_Appearance.edit_label_height > 0 )
-            SetSize( cfg->m_Appearance.edit_label_width, cfg->m_Appearance.edit_label_height );
-    }
 }
 
 
 DIALOG_LABEL_PROPERTIES::~DIALOG_LABEL_PROPERTIES()
 {
-    if( EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() ) )
-    {
-        cfg->m_Appearance.edit_label_visible_columns = m_grid->GetShownColumnsAsString();
-        cfg->m_Appearance.edit_label_width = GetSize().x;
-        cfg->m_Appearance.edit_label_height = GetSize().y;
-        cfg->m_Appearance.edit_label_multiple = m_cbMultiLine->IsChecked();
-    }
-
     // Prevents crash bug in wxGrid's d'tor
     m_grid->DestroyTable( m_fields );
+
+    m_grid->Disconnect( wxEVT_GRID_CELL_CHANGING,
+                        wxGridEventHandler( DIALOG_LABEL_PROPERTIES::OnGridCellChanging ), nullptr,
+                        this );
 
     // Delete the GRID_TRICKS.
     m_grid->PopEventHandler( true );
@@ -283,6 +242,10 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataToWindow()
 {
     if( !wxDialog::TransferDataToWindow() )
         return false;
+
+    // Respond to previously-saved state of multilable checkbox
+    wxCommandEvent dummy;
+    onMultiLabelCheck( dummy );
 
     wxString text;
 
@@ -686,6 +649,7 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataFromWindow()
             case SCH_GLOBAL_LABEL_T:
             {
                 SCH_GLOBALLABEL* label = new SCH_GLOBALLABEL( *static_cast<SCH_GLOBALLABEL*>( m_currentLabel ) );
+                const_cast<KIID&>( label->m_Uuid ) = KIID();     // Gives a new UUID to the copy
                 label->SetText( text );
                 m_labelList->push_back( std::unique_ptr<SCH_LABEL_BASE>( label ) );
                 break;
@@ -693,6 +657,7 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataFromWindow()
             case SCH_HIER_LABEL_T:
             {
                 SCH_HIERLABEL* label = new SCH_HIERLABEL( *static_cast<SCH_HIERLABEL*>( m_currentLabel ) );
+                const_cast<KIID&>( label->m_Uuid ) = KIID();
                 label->SetText( text );
                 m_labelList->push_back( std::unique_ptr<SCH_LABEL_BASE>( label ) );
                 break;
@@ -700,6 +665,7 @@ bool DIALOG_LABEL_PROPERTIES::TransferDataFromWindow()
             case SCH_LABEL_T:
             {
                 SCH_LABEL* label = new SCH_LABEL( *static_cast<SCH_LABEL*>( m_currentLabel ) );
+                const_cast<KIID&>( label->m_Uuid ) = KIID();
                 label->SetText( text );
                 m_labelList->push_back( std::unique_ptr<SCH_LABEL_BASE>( label ) );
                 break;
@@ -732,6 +698,42 @@ void DIALOG_LABEL_PROPERTIES::onSpinButton( wxCommandEvent& aEvent )
 void DIALOG_LABEL_PROPERTIES::OnFormattingHelp( wxHyperlinkEvent& aEvent )
 {
     m_helpWindow = SCH_LABEL_BASE::ShowSyntaxHelp( this );
+}
+
+
+void DIALOG_LABEL_PROPERTIES::OnGridCellChanging( wxGridEvent& event )
+{
+    wxGridCellEditor* editor = m_grid->GetCellEditor( event.GetRow(), event.GetCol() );
+    wxControl*        control = editor->GetControl();
+
+    if( control && control->GetValidator() && !control->GetValidator()->Validate( control ) )
+    {
+        event.Veto();
+        m_delayedFocusRow = event.GetRow();
+        m_delayedFocusColumn = event.GetCol();
+    }
+    else if( event.GetCol() == FDC_NAME )
+    {
+        wxString newName = event.GetString();
+
+        for( int i = 0; i < m_grid->GetNumberRows(); ++i )
+        {
+            if( i == event.GetRow() )
+                continue;
+
+            if( newName.CmpNoCase( m_grid->GetCellValue( i, FDC_NAME ) ) == 0 )
+            {
+                DisplayError( this, wxString::Format( _( "Field name '%s' already in use." ),
+                                                      newName ) );
+                event.Veto();
+                m_delayedFocusRow = event.GetRow();
+                m_delayedFocusColumn = event.GetCol();
+                break;
+            }
+        }
+    }
+
+    editor->DecRef();
 }
 
 
@@ -858,14 +860,16 @@ void DIALOG_LABEL_PROPERTIES::OnUpdateUI( wxUpdateUIEvent& event )
 
 void DIALOG_LABEL_PROPERTIES::onMultiLabelCheck( wxCommandEvent& event )
 {
+    bool multiLine = m_multilineAllowed && m_cbMultiLine->IsChecked();
+
     if( m_currentLabel->Type() == SCH_GLOBAL_LABEL_T || m_currentLabel->Type() == SCH_LABEL_T )
     {
-        m_labelCombo->Show( !m_cbMultiLine->IsChecked() );
-        m_valueCombo->Show( !m_cbMultiLine->IsChecked() );
-        m_labelMultiLine->Show( m_cbMultiLine->IsChecked() );
-        m_valueMultiLine->Show( m_cbMultiLine->IsChecked() );
+        m_labelCombo->Show( !multiLine );
+        m_valueCombo->Show( !multiLine );
+        m_labelMultiLine->Show( multiLine );
+        m_valueMultiLine->Show( multiLine );
 
-        if( m_cbMultiLine->IsChecked() )
+        if( multiLine )
         {
             m_valueMultiLine->SetValue( m_valueCombo->GetValue() );
             m_activeTextEntry = m_valueMultiLine;
@@ -876,17 +880,17 @@ void DIALOG_LABEL_PROPERTIES::onMultiLabelCheck( wxCommandEvent& event )
             wxString multiText = m_valueMultiLine->GetValue();
             m_valueCombo->SetValue( multiText.BeforeFirst( '\n' ) );
             m_activeTextEntry = m_valueCombo;
-            SetInitialFocus( m_valueCombo );
+            SetInitialFocus( m_valueCombo->GetTextCtrl() );
         }
     }
     else if( m_currentLabel->Type() == SCH_HIER_LABEL_T )
     {
-        m_labelSingleLine->Show( !m_cbMultiLine->IsChecked() );
-        m_valueSingleLine->Show( !m_cbMultiLine->IsChecked() );
-        m_labelMultiLine->Show( m_cbMultiLine->IsChecked() );
-        m_valueMultiLine->Show( m_cbMultiLine->IsChecked() );
+        m_labelSingleLine->Show( !multiLine );
+        m_valueSingleLine->Show( !multiLine );
+        m_labelMultiLine->Show( multiLine );
+        m_valueMultiLine->Show( multiLine );
 
-        if( m_cbMultiLine->IsChecked() )
+        if( multiLine )
         {
             m_valueMultiLine->SetValue( m_valueSingleLine->GetValue() );
             m_activeTextEntry = m_valueMultiLine;

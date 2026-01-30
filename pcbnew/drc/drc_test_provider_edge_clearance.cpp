@@ -23,6 +23,8 @@
 
 #include <common.h>
 #include <pcb_shape.h>
+#include <pcb_board_outline.h>
+#include <board_design_settings.h>
 #include <footprint.h>
 #include <pcb_track.h>
 #include <geometry/seg.h>
@@ -41,12 +43,21 @@
     - DRCE_SILK_EDGE_CLEARANCE
 */
 
+enum SILK_DISPOSITION {
+    UNKNOWN = 0,
+    ON_BOARD,
+    OFF_BOARD,
+    CROSSES_EDGE
+};
+
+
 class DRC_TEST_PROVIDER_EDGE_CLEARANCE : public DRC_TEST_PROVIDER
 {
 public:
     DRC_TEST_PROVIDER_EDGE_CLEARANCE () :
             DRC_TEST_PROVIDER(),
-            m_largestEdgeClearance( 0 )
+            m_largestEdgeClearance( 0 ),
+            m_epsilon( 0 )
     {}
 
     virtual ~DRC_TEST_PROVIDER_EDGE_CLEARANCE() = default;
@@ -56,19 +67,116 @@ public:
     virtual const wxString GetName() const override { return wxT( "edge_clearance" ); }
 
 private:
-    bool testAgainstEdge( BOARD_ITEM* item, SHAPE* itemShape, BOARD_ITEM* other,
-                          DRC_CONSTRAINT_T aConstraintType, PCB_DRC_CODE aErrorCode );
+    void resolveSilkDisposition( BOARD_ITEM* aItem, const SHAPE* aItemShape, const SHAPE_POLY_SET& aBoardOutline );
+
+    bool testAgainstEdge( BOARD_ITEM* item, SHAPE* itemShape, BOARD_ITEM* other, DRC_CONSTRAINT_T aConstraintType,
+                          PCB_DRC_CODE aErrorCode );
 
 private:
     std::vector<PAD*> m_castellatedPads;
     int               m_largestEdgeClearance;
+    int               m_epsilon;
+    DRC_RTREE         m_edgesTree;
+
+    std::map<BOARD_ITEM*, SILK_DISPOSITION> m_silkDisposition;
 };
 
 
-bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::testAgainstEdge( BOARD_ITEM* item, SHAPE* itemShape,
-                                                        BOARD_ITEM* edge,
-                                                        DRC_CONSTRAINT_T aConstraintType,
-                                                        PCB_DRC_CODE aErrorCode )
+void DRC_TEST_PROVIDER_EDGE_CLEARANCE::resolveSilkDisposition( BOARD_ITEM* aItem, const SHAPE* aItemShape,
+                                                               const SHAPE_POLY_SET& aBoardOutline )
+{
+    SILK_DISPOSITION disposition = UNKNOWN;
+
+    if( aItemShape->Type() == SH_COMPOUND )
+    {
+        const SHAPE_COMPOUND* compound = static_cast<const SHAPE_COMPOUND*>( aItemShape );
+
+        for( const SHAPE* elem : compound->Shapes() )
+        {
+            SILK_DISPOSITION elem_disposition = aBoardOutline.Contains( elem->Centre() ) ? ON_BOARD : OFF_BOARD;
+
+            if( disposition == UNKNOWN )
+            {
+                disposition = elem_disposition;
+            }
+            else if( disposition != elem_disposition )
+            {
+                disposition = CROSSES_EDGE;
+                break;
+            }
+        }
+    }
+    else
+    {
+        disposition = aBoardOutline.Contains( aItemShape->Centre() ) ? ON_BOARD : OFF_BOARD;
+    }
+
+    m_silkDisposition[aItem] = disposition;
+
+    if( disposition == CROSSES_EDGE )
+    {
+        BOARD_ITEM* nearestEdge = nullptr;
+        VECTOR2I    itemPos = aItem->GetCenter();
+        VECTOR2I    nearestEdgePt = aBoardOutline.Outline( 0 ).NearestPoint( itemPos, false );
+
+        for( int outlineIdx = 1; outlineIdx < aBoardOutline.OutlineCount(); ++outlineIdx )
+        {
+            VECTOR2I otherEdgePt = aBoardOutline.Outline( outlineIdx ).NearestPoint( itemPos, false );
+
+            if( otherEdgePt.SquaredDistance( itemPos ) < nearestEdgePt.SquaredDistance( itemPos ) )
+                nearestEdgePt = otherEdgePt;
+        }
+
+        for( BOARD_ITEM* edge : m_edgesTree.GetObjectsAt( nearestEdgePt, Edge_Cuts, m_epsilon ) )
+        {
+            if( edge->HitTest( nearestEdgePt, m_epsilon ) )
+            {
+                nearestEdge = edge;
+                break;
+            }
+        }
+
+        if( !nearestEdge )
+            return;
+
+        auto constraint = m_drcEngine->EvalRules( SILK_CLEARANCE_CONSTRAINT, nearestEdge, aItem, UNDEFINED_LAYER );
+        int  minClearance = constraint.GetValue().Min();
+
+        if( constraint.GetSeverity() != RPT_SEVERITY_IGNORE && minClearance >= 0 )
+        {
+            std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_SILK_EDGE_CLEARANCE );
+
+            // Report clearance info if there is any, even though crossing is just a straight-up collision
+            if( minClearance > 0 )
+            {
+                drcItem->SetErrorDetail( formatMsg( _( "(%s clearance %s; actual %s)" ),
+                                                    constraint.GetName(),
+                                                    minClearance,
+                                                    0 ) );
+            }
+
+            drcItem->SetItems( nearestEdge->m_Uuid, aItem->m_Uuid );
+            drcItem->SetViolatingRule( constraint.GetParentRule() );
+            reportTwoPointGeometry( drcItem, nearestEdgePt, nearestEdgePt, nearestEdgePt, aItem->GetLayer() );
+        }
+    }
+#if 0
+    // If you want "Silk outside board edge" errors:
+    else if( disposition == OFF_BOARD )
+    {
+        std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_SILK_EDGE_CLEARANCE );
+        drcItem->SetErrorMessage( _( "Silkscreen outside board edge" ) );
+
+        drcItem->SetItems( aItem->m_Uuid );
+        reportTwoPointGeometry( drcItem, aItem->GetCenter(), aItem->GetCenter(), aItem->GetCenter(),
+                                aItem->GetLayer() );
+    }
+#endif
+}
+
+
+bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::testAgainstEdge( BOARD_ITEM* item, SHAPE* itemShape, BOARD_ITEM* edge,
+                                                        DRC_CONSTRAINT_T aConstraintType, PCB_DRC_CODE aErrorCode )
 {
     std::shared_ptr<SHAPE> shape;
 
@@ -84,12 +192,8 @@ bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::testAgainstEdge( BOARD_ITEM* item, SHAPE*
 
     if( constraint.GetSeverity() != RPT_SEVERITY_IGNORE && minClearance >= 0 )
     {
-        if( itemShape->Collide( shape.get(), minClearance, &actual, &pos ) )
+        if( itemShape->Collide( shape.get(), std::max( 0, minClearance - m_epsilon ), &actual, &pos ) )
         {
-            // Exact clearance is allowed
-            if( minClearance > 0 && actual == minClearance )
-                return true;
-
             if( item->Type() == PCB_TRACE_T || item->Type() == PCB_ARC_T )
             {
                 // Edge collisions are allowed inside the holes of castellated pads
@@ -105,17 +209,18 @@ bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::testAgainstEdge( BOARD_ITEM* item, SHAPE*
             // Only report clearance info if there is any; otherwise it's just a straight collision
             if( minClearance > 0 )
             {
-                wxString msg = formatMsg( _( "(%s clearance %s; actual %s)" ),
-                                          constraint.GetName(),
-                                          minClearance,
-                                          actual );
-
-                drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + msg );
+                drcItem->SetErrorDetail( formatMsg( _( "(%s clearance %s; actual %s)" ),
+                                                    constraint.GetName(),
+                                                    minClearance,
+                                                    actual ) );
             }
 
             drcItem->SetItems( edge->m_Uuid, item->m_Uuid );
             drcItem->SetViolatingRule( constraint.GetParentRule() );
             reportTwoItemGeometry( drcItem, pos, edge, item, Edge_Cuts, actual );
+
+            if( aErrorCode == DRCE_SILK_EDGE_CLEARANCE )
+                m_silkDisposition[item] = CROSSES_EDGE;
 
             if( item->Type() == PCB_TRACE_T || item->Type() == PCB_ARC_T )
                 return m_drcEngine->GetReportAllTrackErrors();
@@ -148,6 +253,9 @@ bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::Run()
 
     m_board = m_drcEngine->GetBoard();
     m_castellatedPads.clear();
+    m_epsilon = m_board->GetDesignSettings().GetDRCEpsilon();
+    m_edgesTree.clear();
+    m_silkDisposition.clear();
 
     DRC_CONSTRAINT worstClearanceConstraint;
 
@@ -158,7 +266,6 @@ bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::Run()
      * Build an RTree of the various edges (including NPTH holes) and margins found on the board.
      */
     std::vector<std::unique_ptr<PCB_SHAPE>> edges;
-    DRC_RTREE                               edgesTree;
 
     forEachGeometryItem( { PCB_SHAPE_T }, LSET( { Edge_Cuts, Margin } ),
             [&]( BOARD_ITEM *item ) -> bool
@@ -234,7 +341,7 @@ bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::Run()
         for( PCB_LAYER_ID layer : { Edge_Cuts, Margin } )
         {
             if( edge->IsOnLayer( layer ) )
-                edgesTree.Insert( edge.get(), layer, m_largestEdgeClearance );
+                m_edgesTree.Insert( edge.get(), layer, m_largestEdgeClearance );
         }
     }
 
@@ -247,7 +354,7 @@ bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::Run()
                 // edge-clearances are for milling tolerances (drilling tolerances are handled
                 // by hole-clearances)
                 if( pad->GetDrillSizeX() != pad->GetDrillSizeY() )
-                    edgesTree.Insert( pad, Edge_Cuts, m_largestEdgeClearance );
+                    m_edgesTree.Insert( pad, Edge_Cuts, m_largestEdgeClearance );
             }
 
             if( pad->GetProperty() == PAD_PROP::CASTELLATED )
@@ -262,14 +369,14 @@ bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::Run()
     int       count = 0;
     int       ii = 0;
 
-    forEachGeometryItem( s_allBasicItemsButZones, LSET::AllLayersMask(),
+    forEachGeometryItem( s_allBasicItems, LSET::AllLayersMask(),
             [&]( BOARD_ITEM *item ) -> bool
             {
                 count++;
                 return true;
             } );
 
-    forEachGeometryItem( s_allBasicItemsButZones, LSET::AllLayersMask(),
+    forEachGeometryItem( s_allBasicItems, LSET::AllLayersMask(),
             [&]( BOARD_ITEM *item ) -> bool
             {
                 bool testCopper = !m_drcEngine->IsErrorLimitExceeded( DRCE_EDGE_CLEARANCE );
@@ -304,6 +411,12 @@ bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::Run()
                     layersToTest = static_cast<PCB_VIA*>( item )->Padstack().UniqueLayers();
                     break;
 
+                case PCB_ZONE_T:
+                    for( PCB_LAYER_ID layer : item->GetLayerSet() )
+                        layersToTest.push_back( layer );
+
+                    break;
+
                 default:
                     layersToTest = { UNDEFINED_LAYER };
                 }
@@ -316,7 +429,7 @@ bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::Run()
                     {
                         if( testCopper && item->IsOnCopperLayer() )
                         {
-                            edgesTree.QueryColliding( item, shapeLayer, testLayer, nullptr,
+                            m_edgesTree.QueryColliding( item, shapeLayer, testLayer, nullptr,
                                     [&]( BOARD_ITEM* edge ) -> bool
                                     {
                                         return testAgainstEdge( item, itemShape.get(), edge,
@@ -328,22 +441,21 @@ bool DRC_TEST_PROVIDER_EDGE_CLEARANCE::Run()
 
                         if( testSilk && ( item->IsOnLayer( F_SilkS ) || item->IsOnLayer( B_SilkS ) ) )
                         {
-                            if( edgesTree.QueryColliding( item, shapeLayer, testLayer, nullptr,
+                            m_edgesTree.QueryColliding( item, shapeLayer, testLayer, nullptr,
                                     [&]( BOARD_ITEM* edge ) -> bool
                                     {
                                         return testAgainstEdge( item, itemShape.get(), edge,
                                                                 SILK_CLEARANCE_CONSTRAINT,
                                                                 DRCE_SILK_EDGE_CLEARANCE );
                                     },
-                                    m_largestEdgeClearance ) )
-                            {
-                                // violations reported during QueryColliding
-                            }
-                            else
-                            {
-                                // TODO: check postion being outside board boundary
-                            }
+                                    m_largestEdgeClearance );
                         }
+                    }
+
+                    if( testSilk && ( item->IsOnLayer( F_SilkS ) || item->IsOnLayer( B_SilkS ) ) )
+                    {
+                        if( m_silkDisposition[item] == UNKNOWN && m_board->BoardOutline()->HasOutline() )
+                            resolveSilkDisposition( item, itemShape.get(), m_board->BoardOutline()->GetOutline() );
                     }
                 }
 

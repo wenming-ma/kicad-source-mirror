@@ -70,6 +70,8 @@
 #include <geometry/shape_segment.h>
 #include <geometry/shape_simple.h>
 #include <geometry/shape_circle.h>
+#include <geometry/shape_arc.h>
+#include <stroke_params.h>
 #include <bezier_curves.h>
 #include <kiface_base.h>
 #include <gr_text.h>
@@ -250,6 +252,10 @@ COLOR4D PCB_RENDER_SETTINGS::GetColor( const BOARD_ITEM* aItem, int aLayer ) con
         if( IsZoneFillLayer( aLayer ) )
             aLayer = aLayer - LAYER_ZONE_START;
     }
+
+    // Points use the LAYER_POINTS color for their virtual per-layer layers
+    if( IsPointsLayer( aLayer ) )
+        aLayer = LAYER_POINTS;
 
     // Pad and via copper and clearance outlines take their color from the copper layer
     if( IsPadCopperLayer( aLayer ) )
@@ -1012,6 +1018,18 @@ void PCB_PAINTER::draw( const PCB_ARC* aArc, int aLayer )
 #endif
 
 #if 0
+    // Debug only: enable this code only to test the arc geometry.
+    // Draw 3 lines from arc center to arc start, arc middle, arc end to show how the arc is defined
+    SHAPE_ARC arc( aArc->GetStart(), aArc->GetMid(), aArc->GetEnd(), m_pcbSettings.m_outlineWidth );
+    m_gal->SetIsFill( false );
+    m_gal->SetIsStroke( true );
+    m_gal->SetStrokeColor( COLOR4D( 0, 0, 1.0, 1.0 ) );
+    m_gal->DrawSegment( arc.GetStart(), arc.GetCenter(), m_pcbSettings.m_outlineWidth );
+    m_gal->DrawSegment( aArc->GetFocusPosition(), arc.GetCenter(), m_pcbSettings.m_outlineWidth );
+    m_gal->DrawSegment( arc.GetEnd(), arc.GetCenter(), m_pcbSettings.m_outlineWidth );
+#endif
+
+#if 0
     // Debug only: enable this code only to test the SHAPE_ARC::ConvertToPolyline function and display the
     // polyline created by it.
     SHAPE_ARC arc( aArc->GetCenter(), aArc->GetStart(), aArc->GetAngle(), aArc->GetWidth() );
@@ -1203,6 +1221,7 @@ void PCB_PAINTER::draw( const PCB_VIA* aVia, int aLayer )
         {
             m_gal->DrawCircle( center, radius );
         }
+
     }
     else if( ( aLayer == F_Mask && aVia->IsOnLayer( F_Mask ) )
              || ( aLayer == B_Mask && aVia->IsOnLayer( B_Mask ) ) )
@@ -1245,13 +1264,40 @@ void PCB_PAINTER::draw( const PCB_VIA* aVia, int aLayer )
 
         if( draw )
             m_gal->DrawCircle( center, radius );
+
+        // Draw backdrill indicators (semi-circles extending into the hole)
+        // Drawn on copper layer so they appear above the annular ring
+        if( !m_pcbSettings.IsPrinting() && draw )
+        {
+            std::optional<int> secDrill = aVia->GetSecondaryDrillSize();
+            std::optional<int> terDrill = aVia->GetTertiaryDrillSize();
+
+            if( secDrill.value_or( 0 ) > 0 )
+            {
+                drawBackdrillIndicator( aVia, center, *secDrill,
+                                        aVia->GetSecondaryDrillStartLayer(),
+                                        aVia->GetSecondaryDrillEndLayer() );
+            }
+
+            if( terDrill.value_or( 0 ) > 0 )
+            {
+                drawBackdrillIndicator( aVia, center, *terDrill,
+                                        aVia->GetTertiaryDrillStartLayer(),
+                                        aVia->GetTertiaryDrillEndLayer() );
+            }
+        }
+
+        // Draw post-machining indicator if this layer is post-machined
+        if( !m_pcbSettings.IsPrinting() && draw )
+        {
+            drawPostMachiningIndicator( aVia, center, currentLayer );
+        }
     }
     else if( aLayer == LAYER_LOCKED_ITEM_SHADOW )    // draw a ring around the via
     {
         m_gal->SetLineWidth( m_lockedShadowMargin );
 
-        m_gal->DrawCircle( center,
-                           ( aVia->GetWidth( currentLayer ) + m_lockedShadowMargin ) / 2.0 );
+        m_gal->DrawCircle( center, ( aVia->GetWidth( currentLayer ) + m_lockedShadowMargin ) / 2.0 );
     }
 
     // Clearance lines
@@ -1558,9 +1604,10 @@ void PCB_PAINTER::draw( const PAD* aPad, int aLayer )
     if( aLayer == LAYER_PAD_PLATEDHOLES || aLayer == LAYER_NON_PLATEDHOLES )
     {
         SHAPE_SEGMENT slot = getPadHoleShape( aPad );
+        VECTOR2I center = slot.GetSeg().A;
 
         if( slot.GetSeg().A == slot.GetSeg().B )    // Circular hole
-            m_gal->DrawCircle( slot.GetSeg().A, slot.GetWidth() / 2.0 );
+            m_gal->DrawCircle( center, slot.GetWidth() / 2.0 );
         else
             m_gal->DrawSegment( slot.GetSeg().A, slot.GetSeg().B, slot.GetWidth() );
     }
@@ -1692,130 +1739,155 @@ void PCB_PAINTER::draw( const PAD* aPad, int aLayer )
             }
         }
 
-        const auto drawOneSimpleShape = [&]( const SHAPE& aShape )
-        {
-            switch( aShape.Type() )
-            {
-            case SH_SEGMENT:
-            {
-                const SHAPE_SEGMENT& seg = (const SHAPE_SEGMENT&) aShape;
-                int                  effectiveWidth = seg.GetWidth() + 2 * margin.x;
-
-                if( effectiveWidth > 0 )
-                    m_gal->DrawSegment( seg.GetSeg().A, seg.GetSeg().B, effectiveWidth );
-
-                break;
-            }
-
-            case SH_CIRCLE:
-            {
-                const SHAPE_CIRCLE& circle = (const SHAPE_CIRCLE&) aShape;
-                int                 effectiveRadius = circle.GetRadius() + margin.x;
-
-                if( effectiveRadius > 0 )
-                    m_gal->DrawCircle( circle.GetCenter(), effectiveRadius );
-
-                break;
-            }
-
-            case SH_RECT:
-            {
-                const SHAPE_RECT& r = (const SHAPE_RECT&) aShape;
-                VECTOR2I          pos = r.GetPosition();
-                VECTOR2I          effectiveMargin = margin;
-
-                if( effectiveMargin.x < 0 )
+        const auto drawOneSimpleShape =
+                [&]( const SHAPE& aShape )
                 {
-                    // A negative margin just produces a smaller rect.
-                    VECTOR2I effectiveSize = r.GetSize() + effectiveMargin;
-
-                    if( effectiveSize.x > 0 && effectiveSize.y > 0 )
-                        m_gal->DrawRectangle( pos - effectiveMargin, pos + effectiveSize );
-                }
-                else if( effectiveMargin.x > 0 )
-                {
-                    // A positive margin produces a larger rect, but with rounded corners
-                    m_gal->DrawRectangle( r.GetPosition(), r.GetPosition() + r.GetSize() );
-
-                    // Use segments to produce the margin with rounded corners
-                    m_gal->DrawSegment( pos,
-                                        pos + VECTOR2I( r.GetWidth(), 0 ),
-                                        effectiveMargin.x * 2 );
-                    m_gal->DrawSegment( pos + VECTOR2I( r.GetWidth(), 0 ),
-                                        pos + r.GetSize(),
-                                        effectiveMargin.x * 2 );
-                    m_gal->DrawSegment( pos + r.GetSize(),
-                                        pos + VECTOR2I( 0, r.GetHeight() ),
-                                        effectiveMargin.x * 2 );
-                    m_gal->DrawSegment( pos + VECTOR2I( 0, r.GetHeight() ),
-                                        pos,
-                                        effectiveMargin.x * 2 );
-                }
-                else
-                {
-                    m_gal->DrawRectangle( r.GetPosition(), r.GetPosition() + r.GetSize() );
-                }
-
-                break;
-            }
-
-            case SH_SIMPLE:
-            {
-                const SHAPE_SIMPLE& poly = static_cast<const SHAPE_SIMPLE&>( aShape );
-
-                if( poly.PointCount() < 2 ) // Careful of empty pads
-                    break;
-
-                if( margin.x < 0 ) // The poly shape must be deflated
-                {
-                    SHAPE_POLY_SET outline;
-                    outline.NewOutline();
-
-                    for( int ii = 0; ii < poly.PointCount(); ++ii )
-                        outline.Append( poly.CPoint( ii ) );
-
-                    outline.Deflate( -margin.x, CORNER_STRATEGY::CHAMFER_ALL_CORNERS, m_maxError );
-
-                    m_gal->DrawPolygon( outline );
-                }
-                else
-                {
-                    m_gal->DrawPolygon( poly.Vertices() );
-                }
-
-                // Now add on a rounded margin (using segments) if the margin > 0
-                if( margin.x > 0 )
-                {
-                    for( size_t ii = 0; ii < poly.GetSegmentCount(); ++ii )
+                    switch( aShape.Type() )
                     {
-                        SEG seg = poly.GetSegment( ii );
-                        m_gal->DrawSegment( seg.A, seg.B, margin.x * 2 );
+                    case SH_SEGMENT:
+                    {
+                        const SHAPE_SEGMENT& seg = (const SHAPE_SEGMENT&) aShape;
+                        int                  effectiveWidth = seg.GetWidth() + 2 * margin.x;
+
+                        if( effectiveWidth > 0 )
+                            m_gal->DrawSegment( seg.GetSeg().A, seg.GetSeg().B, effectiveWidth );
+
+                        break;
                     }
-                }
 
-                break;
-            }
+                    case SH_CIRCLE:
+                    {
+                        const SHAPE_CIRCLE& circle = (const SHAPE_CIRCLE&) aShape;
+                        int                 effectiveRadius = circle.GetRadius() + margin.x;
 
-            default:
-                // Better not get here; we already pre-flighted the shapes...
-                break;
-            }
-        };
+                        if( effectiveRadius > 0 )
+                            m_gal->DrawCircle( circle.GetCenter(), effectiveRadius );
+
+                        break;
+                    }
+
+                    case SH_RECT:
+                    {
+                        const SHAPE_RECT& r = (const SHAPE_RECT&) aShape;
+                        VECTOR2I          pos = r.GetPosition();
+                        VECTOR2I          effectiveMargin = margin;
+
+                        if( effectiveMargin.x < 0 )
+                        {
+                            // A negative margin just produces a smaller rect.
+                            VECTOR2I effectiveSize = r.GetSize() + effectiveMargin;
+
+                            if( effectiveSize.x > 0 && effectiveSize.y > 0 )
+                                m_gal->DrawRectangle( pos - effectiveMargin, pos + effectiveSize );
+                        }
+                        else if( effectiveMargin.x > 0 )
+                        {
+                            // A positive margin produces a larger rect, but with rounded corners
+                            m_gal->DrawRectangle( r.GetPosition(), r.GetPosition() + r.GetSize() );
+
+                            // Use segments to produce the margin with rounded corners
+                            m_gal->DrawSegment( pos,
+                                                pos + VECTOR2I( r.GetWidth(), 0 ),
+                                                effectiveMargin.x * 2 );
+                            m_gal->DrawSegment( pos + VECTOR2I( r.GetWidth(), 0 ),
+                                                pos + r.GetSize(),
+                                                effectiveMargin.x * 2 );
+                            m_gal->DrawSegment( pos + r.GetSize(),
+                                                pos + VECTOR2I( 0, r.GetHeight() ),
+                                                effectiveMargin.x * 2 );
+                            m_gal->DrawSegment( pos + VECTOR2I( 0, r.GetHeight() ),
+                                                pos,
+                                                effectiveMargin.x * 2 );
+                        }
+                        else
+                        {
+                            m_gal->DrawRectangle( r.GetPosition(), r.GetPosition() + r.GetSize() );
+                        }
+
+                        break;
+                    }
+
+                    case SH_SIMPLE:
+                    {
+                        const SHAPE_SIMPLE& poly = static_cast<const SHAPE_SIMPLE&>( aShape );
+
+                        if( poly.PointCount() < 2 ) // Careful of empty pads
+                            break;
+
+                        if( margin.x < 0 ) // The poly shape must be deflated
+                        {
+                            SHAPE_POLY_SET outline;
+                            outline.NewOutline();
+
+                            for( int ii = 0; ii < poly.PointCount(); ++ii )
+                                outline.Append( poly.CPoint( ii ) );
+
+                            outline.Deflate( -margin.x, CORNER_STRATEGY::CHAMFER_ALL_CORNERS, m_maxError );
+
+                            m_gal->DrawPolygon( outline );
+                        }
+                        else
+                        {
+                            m_gal->DrawPolygon( poly.Vertices() );
+                        }
+
+                        // Now add on a rounded margin (using segments) if the margin > 0
+                        if( margin.x > 0 )
+                        {
+                            for( size_t ii = 0; ii < poly.GetSegmentCount(); ++ii )
+                            {
+                                SEG seg = poly.GetSegment( ii );
+                                m_gal->DrawSegment( seg.A, seg.B, margin.x * 2 );
+                            }
+                        }
+
+                        break;
+                    }
+
+                    default:
+                        // Better not get here; we already pre-flighted the shapes...
+                        break;
+                    }
+                };
 
         if( simpleShapes )
         {
             for( const SHAPE* shape : shapes->Shapes() )
-            {
                 drawOneSimpleShape( *shape );
-            }
         }
         else
         {
             // This is expensive.  Avoid if possible.
             SHAPE_POLY_SET polySet;
-            aPad->TransformShapeToPolygon( polySet, ToLAYER_ID( aLayer ), margin.x, m_maxError,
-                                           ERROR_INSIDE );
+            aPad->TransformShapeToPolygon( polySet, ToLAYER_ID( aLayer ), margin.x, m_maxError, ERROR_INSIDE );
             m_gal->DrawPolygon( polySet );
+        }
+
+        // Draw post-machining indicator if this layer is post-machined
+        if( !m_pcbSettings.IsPrinting() && aPad->GetDrillSizeX() > 0 )
+        {
+            VECTOR2D holePos = aPad->GetPosition() + aPad->GetOffset( pcbLayer );
+
+            // Draw backdrill indicators (semi-circles extending into the hole)
+            // Drawn on copper layer so they appear above the annular ring
+            VECTOR2I secDrill = aPad->GetSecondaryDrillSize();
+            VECTOR2I terDrill = aPad->GetTertiaryDrillSize();
+
+            if( secDrill.x > 0 )
+            {
+                drawBackdrillIndicator( aPad, holePos, secDrill.x,
+                                        aPad->GetSecondaryDrillStartLayer(),
+                                        aPad->GetSecondaryDrillEndLayer() );
+            }
+
+            if( terDrill.x > 0 )
+            {
+                drawBackdrillIndicator( aPad, holePos, terDrill.x,
+                                        aPad->GetTertiaryDrillStartLayer(),
+                                        aPad->GetTertiaryDrillEndLayer() );
+            }
+
+            drawPostMachiningIndicator( aPad, holePos, pcbLayer );
         }
     }
 
@@ -1837,8 +1909,7 @@ void PCB_PAINTER::draw( const PAD* aPad, int aLayer )
 
         if( aPad->FlashLayer( copperLayerForClearance ) && clearance > 0 )
         {
-            auto shape = std::dynamic_pointer_cast<SHAPE_COMPOUND>(
-                    aPad->GetEffectiveShape( pcbLayer ) );
+            auto shape = std::dynamic_pointer_cast<SHAPE_COMPOUND>( aPad->GetEffectiveShape( pcbLayer ) );
 
             if( shape && shape->Size() == 1 && shape->Shapes()[0]->Type() == SH_SEGMENT )
             {
@@ -1998,7 +2069,7 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
                                           aShape->GetRectangleHeight() ),
                               aShape->GetCornerRadius(), true /* normalize */  );
                 SHAPE_POLY_SET poly;
-                rr.TransformToPolygon( poly );
+                rr.TransformToPolygon( poly, aShape->GetMaxError() );
                 SHAPE_LINE_CHAIN outline = poly.Outline( 0 );
 
                 if( aShape->IsProxyItem() )
@@ -2259,9 +2330,13 @@ void PCB_PAINTER::draw( const PCB_SHAPE* aShape, int aLayer )
 
     if( isHatchedFill )
     {
-        m_gal->SetIsStroke( false );
-        m_gal->SetIsFill( true );
-        m_gal->DrawPolygon( aShape->GetHatching() );
+        aShape->UpdateHatching();
+        m_gal->SetIsFill( false );
+        m_gal->SetIsStroke( true );
+        m_gal->SetLineWidth( aShape->GetHatchLineWidth() );
+
+        for( const SEG& seg : aShape->GetHatchLines() )
+            m_gal->DrawLine( seg.A, seg.B );
     }
 }
 
@@ -2322,7 +2397,7 @@ void PCB_PAINTER::draw( const PCB_REFERENCE_IMAGE* aBitmap, int aLayer )
         // Draws a bounding box.
         VECTOR2D bm_size( refImg.GetSize() );
         // bm_size is the actual image size in UI.
-        // but m_gal scale was previously set to img_scale
+        // but m_canvas scale was previously set to img_scale
         // so recalculate size relative to this image size.
         bm_size.x /= img_scale;
         bm_size.y /= img_scale;
@@ -2541,8 +2616,8 @@ void PCB_PAINTER::draw( const PCB_TEXTBOX* aTextBox, int aLayer )
         // initial text, which is not easy, depending on its rotation and justification.
 #if 0
         const COLOR4D sh_color = m_pcbSettings.GetColor( aTextBox, aLayer );
-        m_gal->SetFillColor( sh_color );
-        m_gal->SetStrokeColor( sh_color );
+        m_canvas->SetFillColor( sh_color );
+        m_canvas->SetStrokeColor( sh_color );
         attrs.m_StrokeWidth += m_lockedShadowMargin;
 #else
         return;
@@ -2687,7 +2762,7 @@ void PCB_PAINTER::draw( const FOOTPRINT* aFootprint, int aLayer )
 
 #if 0 // GetBoundingHull() can be very slow, especially for logos imported from graphics
         const SHAPE_POLY_SET& poly = aFootprint->GetBoundingHull();
-        m_gal->DrawPolygon( poly );
+        m_canvas->DrawPolygon( poly );
 #else
         BOX2I    bbox = aFootprint->GetBoundingBox( false );
         VECTOR2I topLeft = bbox.GetPosition();
@@ -2768,8 +2843,8 @@ void PCB_PAINTER::draw( const PCB_GROUP* aGroup, int aLayer )
 
         // Scale by zoom a bit, but not too much
         int      textSize = ( scaledSize + ( unscaledSize * 2 ) ) / 3;
-        VECTOR2I textOffset = VECTOR2I( width.x / 2, -KiROUND( textSize * 0.5 ) );
-        VECTOR2I titleHeight = VECTOR2I( 0, KiROUND( textSize * 2.0 ) );
+        VECTOR2I textOffset = KiROUND( width.x / 2.0, -textSize * 0.5 );
+        VECTOR2I titleHeight = KiROUND( 0.0, textSize * 2.0 );
 
         if( PrintableCharCount( name ) * textSize < bbox.GetWidth() )
         {
@@ -2844,7 +2919,7 @@ void PCB_PAINTER::draw( const ZONE* aZone, int aLayer )
             // Draw each contour (main contour and holes)
 
             /*
-             * m_gal->DrawPolygon( *outline );
+             * m_canvas->DrawPolygon( *outline );
              * should be enough, but currently does not work to draw holes contours in a complex
              * polygon so each contour is draw as a simple polygon
              */
@@ -3034,12 +3109,12 @@ void PCB_PAINTER::draw( const PCB_TARGET* aTarget )
 
 void PCB_PAINTER::draw( const PCB_POINT* aPoint, int aLayer )
 {
-    // aLayer will be the virtual zone layer (LAYER_ZONE_START, ... in GAL_LAYER_ID)
+    // aLayer will be the virtual point layer (LAYER_POINT_START, ... in GAL_LAYER_ID).
     // This is used for draw ordering in the GAL.
-    // The color for the point comes from the associated copper layer ( aLayer - LAYER_POINT_START )
-    // and the visibility comes from the combination of that copper layer and LAYER_POINT
+    // The cross color comes from LAYER_POINTS and the ring color follows the point's board layer.
+    // Visibility comes from the combination of that board layer and LAYER_POINTS.
 
-    double size = aPoint->GetSize() / 2;
+    double size = (double)aPoint->GetSize() / 2;
 
     // Keep the width constant, not related to the scale because the anchor
     // is just a marker on screen, just draw in pixels
@@ -3198,6 +3273,73 @@ void PCB_PAINTER::draw( const PCB_BOARD_OUTLINE* aBoardOutline, int aLayer )
     m_gal->Restore();
 }
 
+
+void PCB_PAINTER::drawBackdrillIndicator( const BOARD_ITEM* aItem, const VECTOR2D& aCenter,
+                                          int aDrillSize, PCB_LAYER_ID aStartLayer,
+                                          PCB_LAYER_ID aEndLayer )
+{
+    double backdrillRadius = aDrillSize / 2.0;
+    double lineWidth = std::max( backdrillRadius / 4.0, m_pcbSettings.m_outlineWidth * 2.0 );
+
+    GAL_SCOPED_ATTRS scopedAttrs( *m_gal, GAL_SCOPED_ATTRS::ALL_ATTRS );
+    m_gal->AdvanceDepth();
+    m_gal->SetIsFill( false );
+    m_gal->SetIsStroke( true );
+    m_gal->SetLineWidth( lineWidth );
+
+    // Draw semi-circle in start layer color (top half, from 90° to 270°)
+    m_gal->SetStrokeColor( m_pcbSettings.GetColor( aItem, aStartLayer ) );
+    m_gal->DrawArc( aCenter, backdrillRadius, EDA_ANGLE( 90, DEGREES_T ),
+                    EDA_ANGLE( 180, DEGREES_T ) );
+
+    // Draw semi-circle in end layer color (bottom half, from 270° to 90°)
+    m_gal->SetStrokeColor( m_pcbSettings.GetColor( aItem, aEndLayer ) );
+    m_gal->DrawArc( aCenter, backdrillRadius, EDA_ANGLE( 270, DEGREES_T ),
+                    EDA_ANGLE( 180, DEGREES_T ) );
+}
+
+
+void PCB_PAINTER::drawPostMachiningIndicator( const BOARD_ITEM* aItem, const VECTOR2D& aCenter, PCB_LAYER_ID aLayer )
+{
+    int size = 0;
+
+    // Check to see if the pad or via has a post-machining operation on this layer
+    if( const PAD* pad = dynamic_cast<const PAD*>( aItem ) )
+    {
+        size = pad->GetPostMachiningKnockout( aLayer );
+    }
+    else if( const PCB_VIA* via = dynamic_cast<const PCB_VIA*>( aItem ) )
+    {
+        size = via->GetPostMachiningKnockout( aLayer );
+    }
+
+    if( size <= 0 )
+        return;
+
+    GAL_SCOPED_ATTRS scopedAttrs( *m_gal, GAL_SCOPED_ATTRS::ALL_ATTRS );
+    m_gal->AdvanceDepth();
+
+    double pmRadius = size / 2.0;
+    // Use a line width proportional to the radius for visibility
+    double lineWidth = std::max( pmRadius / 8.0, m_pcbSettings.m_outlineWidth * 2.0 );
+
+    COLOR4D layerColor = m_pcbSettings.GetColor( aItem, aLayer );
+
+    m_gal->SetIsFill( false );
+    m_gal->SetIsStroke( true );
+    m_gal->SetStrokeColor( layerColor );
+    m_gal->SetLineWidth( lineWidth );
+
+    // Draw dashed circle manually with fixed number of segments for consistent appearance
+    constexpr int NUM_DASHES = 12;  // Number of dashes around the circle
+    EDA_ANGLE dashAngle = ANGLE_360 / ( NUM_DASHES * 2 );  // Dash and gap are equal size
+
+    for( int i = 0; i < NUM_DASHES; ++i )
+    {
+        EDA_ANGLE startAngle = dashAngle * ( i * 2 );
+        m_gal->DrawArc( aCenter, pmRadius, startAngle, dashAngle );
+    }
+}
 
 
 const double PCB_RENDER_SETTINGS::MAX_FONT_SIZE = pcbIUScale.mmToIU( 10.0 );

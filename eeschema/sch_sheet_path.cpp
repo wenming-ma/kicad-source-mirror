@@ -29,11 +29,11 @@
 #include <sch_marker.h>
 #include <sch_label.h>
 #include <sch_shape.h>
-#include <symbol_library.h>
 #include <sch_sheet_path.h>
 #include <sch_symbol.h>
 #include <sch_sheet.h>
 #include <schematic.h>
+#include <string_utils.h>
 #include <template_fieldnames.h>
 #include <trace_helpers.h>
 
@@ -101,6 +101,18 @@ void SCH_SYMBOL_VARIANT::InitializeAttributes( const SCH_SYMBOL& aSymbol )
     m_DNP = aSymbol.GetDNP();
     m_ExcludedFromBOM = aSymbol.GetExcludedFromBOM();
     m_ExcludedFromSim = aSymbol.GetExcludedFromSim();
+    m_ExcludedFromBoard = aSymbol.GetExcludedFromBoard();
+    m_ExcludedFromPosFiles = aSymbol.GetExcludedFromPosFiles();
+}
+
+
+void SCH_SHEET_VARIANT::InitializeAttributes( const SCH_SHEET& aSheet )
+{
+    m_DNP = aSheet.GetDNP();
+    m_ExcludedFromBOM = aSheet.GetExcludedFromBOM();
+    m_ExcludedFromSim = aSheet.GetExcludedFromSim();
+    m_ExcludedFromBoard = aSheet.GetExcludedFromBoard();
+    m_ExcludedFromPosFiles = false;  // Sheets don't have position files exclusion
 }
 
 
@@ -172,14 +184,6 @@ void SCH_SHEET_PATH::initFromOther( const SCH_SHEET_PATH& aOther )
     // to be very fast to construct for use in the connectivity algorithm.
     m_recursion_test_cache.clear();
 }
-
-
-bool SCH_SHEET_PATH::IsFullPath() const
-{
-    // The root sheet path is empty.  All other sheet paths must start with the root sheet path.
-    return ( m_sheets.size() == 0 ) || ( GetSheet( 0 )->IsRootSheet() );
-}
-
 
 void SCH_SHEET_PATH::Rehash()
 {
@@ -300,11 +304,41 @@ bool SCH_SHEET_PATH::GetExcludedFromSim() const
 }
 
 
+bool SCH_SHEET_PATH::GetExcludedFromSim( const wxString& aVariantName ) const
+{
+    if( aVariantName.IsEmpty() )
+        return GetExcludedFromSim();
+
+    for( SCH_SHEET* sheet : m_sheets )
+    {
+        if( sheet->GetExcludedFromSim( this, aVariantName ) )
+            return true;
+    }
+
+    return false;
+}
+
+
 bool SCH_SHEET_PATH::GetExcludedFromBOM() const
 {
     for( SCH_SHEET* sheet : m_sheets )
     {
         if( sheet->GetExcludedFromBOM() )
+            return true;
+    }
+
+    return false;
+}
+
+
+bool SCH_SHEET_PATH::GetExcludedFromBOM( const wxString& aVariantName ) const
+{
+    if( aVariantName.IsEmpty() )
+        return GetExcludedFromBOM();
+
+    for( SCH_SHEET* sheet : m_sheets )
+    {
+        if( sheet->GetExcludedFromBOM( this, aVariantName ) )
             return true;
     }
 
@@ -324,11 +358,41 @@ bool SCH_SHEET_PATH::GetExcludedFromBoard() const
 }
 
 
+bool SCH_SHEET_PATH::GetExcludedFromBoard( const wxString& aVariantName ) const
+{
+    if( aVariantName.IsEmpty() )
+        return GetExcludedFromBoard();
+
+    for( SCH_SHEET* sheet : m_sheets )
+    {
+        if( sheet->GetExcludedFromBoard( this, aVariantName ) )
+            return true;
+    }
+
+    return false;
+}
+
+
 bool SCH_SHEET_PATH::GetDNP() const
 {
     for( SCH_SHEET* sheet : m_sheets )
     {
         if( sheet->GetDNP() )
+            return true;
+    }
+
+    return false;
+}
+
+
+bool SCH_SHEET_PATH::GetDNP( const wxString& aVariantName ) const
+{
+    if( aVariantName.IsEmpty() )
+        return GetDNP();
+
+    for( SCH_SHEET* sheet : m_sheets )
+    {
+        if( sheet->GetDNP( this, aVariantName ) )
             return true;
     }
 
@@ -354,19 +418,40 @@ wxString SCH_SHEET_PATH::PathAsString() const
 KIID_PATH SCH_SHEET_PATH::Path() const
 {
     KIID_PATH path;
-    path.reserve( m_sheets.size() );
+    size_t size = m_sheets.size();
 
-    for( const SCH_SHEET* sheet : m_sheets )
-        path.push_back( sheet->m_Uuid );
+    if( m_sheets.empty() )
+        return path;
+
+    if( m_sheets[0]->m_Uuid != niluuid )
+    {
+        path.reserve( size );
+        path.push_back( m_sheets[0]->m_Uuid );
+    }
+    else
+    {
+        // Skip the virtual root
+        path.reserve( size - 1 );
+    }
+
+    for( size_t i = 1; i < size; i++ )
+        path.push_back( m_sheets[i]->m_Uuid );
 
     return path;
 }
 
 
 wxString SCH_SHEET_PATH::PathHumanReadable( bool aUseShortRootName,
-                                            bool aStripTrailingSeparator ) const
+                                            bool aStripTrailingSeparator,
+                                            bool aEscapeSheetNames ) const
 {
     wxString s;
+
+    // Determine the starting index - skip virtual root if present
+    size_t startIdx = 0;
+
+    if( !empty() && at( 0 )->IsVirtualRootSheet() )
+        startIdx = 1;
 
     if( aUseShortRootName )
     {
@@ -376,17 +461,24 @@ wxString SCH_SHEET_PATH::PathHumanReadable( bool aUseShortRootName,
     {
         wxString fileName;
 
-        if( !empty() && at( 0 )->GetScreen() )
-            fileName = at( 0 )->GetScreen()->GetFileName();
+        if( size() > startIdx && at( startIdx )->GetScreen() )
+            fileName = at( startIdx )->GetScreen()->GetFileName();
 
         wxFileName fn = fileName;
 
         s = fn.GetName() + wxS( "/" );
     }
 
-    // Start at 1 since we've already processed the root sheet.
-    for( unsigned i = 1; i < size(); i++ )
-        s << at( i )->GetField( FIELD_T::SHEET_NAME )->GetShownText( false ) << wxS( "/" );
+    // Start at startIdx + 1 since we've already processed the root sheet.
+    for( unsigned i = startIdx + 1; i < size(); i++ )
+    {
+        wxString sheetName = at( i )->GetField( FIELD_T::SHEET_NAME )->GetShownText( false );
+
+        if( aEscapeSheetNames )
+            sheetName = EscapeString( sheetName, CTX_NETNAME );
+
+        s << sheetName << wxS( "/" );
+    }
 
     if( aStripTrailingSeparator && s.EndsWith( "/" ) )
         s = s.Left( s.length() - 1 );
@@ -610,7 +702,11 @@ wxString SCH_SHEET_PATH::GetPageNumber() const
     wxCHECK( sheet, wxEmptyString );
 
     KIID_PATH tmpPath = Path();
-    tmpPath.pop_back();
+
+    if( !tmpPath.empty() )
+        tmpPath.pop_back();
+    else
+        wxFAIL_MSG( wxS( "Sheet paths must have a least one valid sheet." ) );
 
     return sheet->getPageNumber( tmpPath );
 }
@@ -635,7 +731,14 @@ void SCH_SHEET_PATH::SetPageNumber( const wxString& aPageNumber )
 
     KIID_PATH tmpPath = Path();
 
-    tmpPath.pop_back();
+    if( !tmpPath.empty() )
+    {
+        tmpPath.pop_back();
+    }
+    else
+    {
+        wxCHECK_MSG( false, /* void */, wxS( "Sheet paths must have a least one valid sheet." ) );
+    }
 
     sheet->addInstance( tmpPath );
     sheet->setPageNumber( tmpPath, aPageNumber );
@@ -713,7 +816,14 @@ void SCH_SHEET_PATH::RemoveSymbolInstances( const SCH_SHEET_PATH& aPrefixSheetPa
 
 void SCH_SHEET_PATH::CheckForMissingSymbolInstances( const wxString& aProjectName )
 {
-    wxCHECK( !aProjectName.IsEmpty() && LastScreen(), /* void */ );
+    // Skip sheet paths without screens (e.g., sheets that haven't been loaded yet or virtual root)
+    if( aProjectName.IsEmpty() || !LastScreen() )
+        return;
+
+    wxLogTrace( traceSchSheetPaths, "CheckForMissingSymbolInstances for path: %s (project: %s)",
+                PathHumanReadable( false ), aProjectName );
+    wxLogTrace( traceSchSheetPaths, "  Sheet path size=%zu, Path().AsString()='%s'",
+                size(), Path().AsString() );
 
     for( SCH_ITEM* item : LastScreen()->Items().OfType( SCH_SYMBOL_T ) )
     {
@@ -737,18 +847,51 @@ void SCH_SHEET_PATH::CheckForMissingSymbolInstances( const wxString& aProjectNam
                 SCH_FIELD* refField = symbol->GetField( FIELD_T::REFERENCE );
                 symbolInstance.m_Reference = refField->GetShownText( this, true );
                 symbolInstance.m_Unit = symbol->GetUnit();
+
+                wxLogTrace( traceSchSheetPaths,
+                           "  Legacy format: Using reference '%s' from field, unit %d",
+                           symbolInstance.m_Reference, symbolInstance.m_Unit );
+            }
+            else if( !symbol->GetInstances().empty() )
+            {
+                // When a schematic is opened as a different project (e.g., a subsheet opened
+                // directly from File Browser), use the first available instance data.
+                // This provides better UX than showing unannotated references.
+                const SCH_SYMBOL_INSTANCE& firstInstance = symbol->GetInstances()[0];
+                symbolInstance.m_Reference = firstInstance.m_Reference;
+                symbolInstance.m_Unit = firstInstance.m_Unit;
+
+                wxLogTrace( traceSchSheetPaths,
+                           "  Using first available instance: ref=%s, unit=%d",
+                           symbolInstance.m_Reference, symbolInstance.m_Unit );
             }
             else
             {
-                // When schematics are shared, we cannot know which instance the current symbol
-                // reference field and unit belong to.  In this case, we clear the reference
-                // annotation and set the unit to 1.
-                symbolInstance.m_Reference = UTIL::GetRefDesUnannotated( symbol->GetPrefix() );
+                // Fall back to the symbol's reference field and unit if no instance data exists.
+                SCH_FIELD* refField = symbol->GetField( FIELD_T::REFERENCE );
+                symbolInstance.m_Reference = refField->GetText();
+                symbolInstance.m_Unit = symbol->GetUnit();
+
+                wxLogTrace( traceSchSheetPaths,
+                           "  No instance data: Using reference '%s' from field, unit %d",
+                           symbolInstance.m_Reference, symbolInstance.m_Unit );
             }
 
             symbolInstance.m_ProjectName = aProjectName;
             symbolInstance.m_Path = Path();
             symbol->AddHierarchicalReference( symbolInstance );
+
+            wxLogTrace( traceSchSheetPaths,
+                       "  Created instance: ref=%s, path=%s",
+                       symbolInstance.m_Reference, symbolInstance.m_Path.AsString() );
+        }
+        else
+        {
+            wxLogTrace( traceSchSheetPaths,
+                       "  Symbol %s already has instance: ref=%s, path=%s",
+                       symbol->m_Uuid.AsString(),
+                       symbolInstance.m_Reference,
+                       symbolInstance.m_Path.AsString() );
         }
     }
 }
@@ -809,6 +952,32 @@ void SCH_SHEET_LIST::BuildSheetList( SCH_SHEET* aSheet, bool aCheckIntegrity )
 {
     if( !aSheet )
         return;
+
+    wxLogTrace( traceSchSheetPaths,
+               "BuildSheetList called with sheet '%s' (UUID=%s, isVirtualRoot=%d)",
+               aSheet->GetName(),
+               aSheet->m_Uuid.AsString(),
+               aSheet->m_Uuid == niluuid ? 1 : 0 );
+
+    // Special handling for virtual root: process its children without adding the root itself
+    if( aSheet->IsVirtualRootSheet() )
+    {
+        wxLogTrace( traceSchSheetPaths, "  Skipping virtual root, processing children only" );
+
+        if( aSheet->GetScreen() )
+        {
+            std::vector<SCH_ITEM*> childSheets;
+            aSheet->GetScreen()->GetSheets( &childSheets );
+
+            for( SCH_ITEM* item : childSheets )
+            {
+                SCH_SHEET* sheet = static_cast<SCH_SHEET*>( item );
+                BuildSheetList( sheet, aCheckIntegrity );
+            }
+        }
+
+        return;
+    }
 
     std::vector<SCH_SHEET*> badSheets;
 
@@ -1435,6 +1604,9 @@ void SCH_SHEET_LIST::SetInitialPageNumbers()
 
     for( SCH_SHEET_PATH& instance : *this )
     {
+        if( instance.Last()->IsVirtualRootSheet() )
+            continue;
+
         tmp.Printf( "%d", pageNumber );
         instance.SetPageNumber( tmp );
         pageNumber += 1;
@@ -1529,8 +1701,19 @@ void SCH_SHEET_LIST::AddNewSheetInstances( const SCH_SHEET_PATH& aPrefixSheetPat
 
 void SCH_SHEET_LIST::CheckForMissingSymbolInstances( const wxString& aProjectName )
 {
+    wxLogTrace( traceSchSheetPaths,
+               "SCH_SHEET_LIST::CheckForMissingSymbolInstances: Processing %zu sheet paths",
+               size() );
+
     for( SCH_SHEET_PATH& sheetPath : *this )
+    {
+        wxLogTrace( traceSchSheetPaths,
+                   "  Processing sheet path: '%s' (size=%zu, KIID_PATH='%s')",
+                   sheetPath.PathHumanReadable( false ),
+                   sheetPath.size(),
+                   sheetPath.Path().AsString() );
         sheetPath.CheckForMissingSymbolInstances( aProjectName );
+    }
 }
 
 

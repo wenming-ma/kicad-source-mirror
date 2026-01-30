@@ -443,12 +443,9 @@ private:
                              aLayerPairInfo.IsEnabled() ? wxT( "1" ) : wxT( "0" ) );
 
         // Set the color swatch
-        std::unique_ptr<wxBitmap>& swatch =
-                m_swatches.emplace_back( m_layerPresentation.CreateLayerPairIcon(
-                        layerPair.GetLayerA(), layerPair.GetLayerB(), KiIconScale( &m_grid ) ) );
+        wxBitmapBundle swatch = m_layerPresentation.CreateLayerPairIcon( layerPair.GetLayerA(), layerPair.GetLayerB() );
 
-        m_grid.SetCellRenderer( aRow, (int) COLNUMS::SWATCH,
-                                new GRID_CELL_ICON_RENDERER( *swatch ) );
+        m_grid.SetCellRenderer( aRow, (int) COLNUMS::SWATCH, new GRID_CELL_ICON_RENDERER( swatch ) );
 
         m_grid.SetReadOnly( aRow, (int) COLNUMS::SWATCH );
         m_grid.SetReadOnly( aRow, (int) COLNUMS::LAYERNAMES );
@@ -477,9 +474,6 @@ private:
     PCB_LAYER_PRESENTATION& m_layerPresentation;
     WX_GRID&                m_grid;
     LAYER_PAIR_SETTINGS&    m_layerPairSettings;
-
-    // Lifetime managment of the swatches
-    std::vector<std::unique_ptr<wxBitmap>> m_swatches;
 };
 
 
@@ -611,16 +605,17 @@ private:
      */
     void setCurrentSelection( int aLeftRow, int aRightRow )
     {
-        const auto selectGridRow = []( wxGrid& aGrid, int aRow, bool aSelect )
-        {
-            // At start, there is no old row
-            if( aRow < 0 )
-                return;
+        const auto selectGridRow =
+                []( wxGrid& aGrid, int aRow, bool aSelect )
+                {
+                    // At start, there is no old row
+                    if( aRow < 0 )
+                        return;
 
-            const wxString val = aSelect ? wxT( "1" ) : wxEmptyString;
-            aGrid.SetCellValue( aRow, (int) CU_LAYER_COLNUMS::SELECT, val );
-            aGrid.SetGridCursor( aRow, (int) CU_LAYER_COLNUMS::COLOR );
-        };
+                    const wxString val = aSelect ? wxT( "1" ) : wxEmptyString;
+                    aGrid.SetCellValue( aRow, (int) CU_LAYER_COLNUMS::SELECT, val );
+                    aGrid.SetGridCursor( aRow, (int) CU_LAYER_COLNUMS::COLOR );
+                };
 
         if( m_leftCurrRow != aLeftRow )
         {

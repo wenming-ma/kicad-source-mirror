@@ -26,6 +26,7 @@
 
 
 #include <trigo.h>
+#include <chrono>
 #include <bitmap_base.h>
 #include <connection_graph.h>
 #include <gal/graphics_abstraction_layer.h>
@@ -58,6 +59,7 @@
 #include <sch_table.h>
 #include <schematic.h>
 #include <settings/color_settings.h>
+#include <trace_helpers.h>
 #include <view/view.h>
 #include <kiface_base.h>
 #include <default_values.h>
@@ -133,12 +135,12 @@ void SCH_PAINTER::draw( const EDA_ITEM* aItem, int aLayer, bool aDimmed )
         auto pos = aItem->GetBoundingBox().Centre();
         auto label = conn->Name( true );
 
-        m_gal->SetHorizontalJustify( GR_TEXT_H_ALIGN_CENTER );
-        m_gal->SetVerticalJustify( GR_TEXT_V_ALIGN_CENTER );
-        m_gal->SetStrokeColor( COLOR4D( LIGHTRED ) );
-        m_gal->SetLineWidth( Mils2ui( 2 ) );
-        m_gal->SetGlyphSize( VECTOR2D( Mils2ui( 20 ), Mils2ui( 20 ) ) );
-        m_gal->StrokeText( *m_gal, conn->Name( true ), pos, 0.0, 0 );
+        m_canvas->SetHorizontalJustify( GR_TEXT_H_ALIGN_CENTER );
+        m_canvas->SetVerticalJustify( GR_TEXT_V_ALIGN_CENTER );
+        m_canvas->SetStrokeColor( COLOR4D( LIGHTRED ) );
+        m_canvas->SetLineWidth( Mils2ui( 2 ) );
+        m_canvas->SetGlyphSize( VECTOR2D( Mils2ui( 20 ), Mils2ui( 20 ) ) );
+        m_canvas->StrokeText( *m_canvas, conn->Name( true ), pos, 0.0, 0 );
     }
 
 #endif
@@ -218,8 +220,8 @@ void SCH_PAINTER::draw( const EDA_ITEM* aItem, int aLayer, bool aDimmed )
     case SCH_GROUP_T:
         draw( static_cast<const SCH_GROUP*>( aItem ), aLayer );
         break;
-
-    default: return;
+    default:
+        return;
     }
 
     if( drawBoundingBox )
@@ -349,13 +351,13 @@ COLOR4D SCH_PAINTER::getRenderColor( const SCH_ITEM* aItem, int aLayer, bool aDr
                 case FILL_T::NO_FILL:
                     break;
 
-                case FILL_T::HATCH:
-                case FILL_T::REVERSE_HATCH:
-                case FILL_T::CROSS_HATCH:
                 case FILL_T::FILLED_SHAPE:
                     color = shape->GetStroke().GetColor();
                     break;
 
+                case FILL_T::HATCH:
+                case FILL_T::REVERSE_HATCH:
+                case FILL_T::CROSS_HATCH:
                 case FILL_T::FILLED_WITH_COLOR:
                     color = shape->GetFillColor();
                     break;
@@ -414,6 +416,9 @@ COLOR4D SCH_PAINTER::getRenderColor( const SCH_ITEM* aItem, int aLayer, bool aDr
             if( !isSymbolChild || otherTextItem->GetTextColor() != COLOR4D::UNSPECIFIED )
                 color = otherTextItem->GetTextColor();
         }
+
+        if( color.m_text )
+            color = COLOR4D( aItem->ResolveText( *color.m_text, &m_schematic->CurrentSheet() ) );
     }
     else  /* overrideItemColors */
     {
@@ -508,10 +513,7 @@ float SCH_PAINTER::getLineWidth( const SCH_ITEM* aItem, bool aDrawingShadows,
         EESCHEMA_SETTINGS* eeschemaCfg = eeconfig();
 
         if( eeschemaCfg )
-        {
-            colorHighlightWidth = schIUScale.MilsToIU(
-                    eeschemaCfg->m_Selection.highlight_netclass_colors_thickness );
-        }
+            colorHighlightWidth = schIUScale.MilsToIU( eeschemaCfg->m_Selection.highlight_netclass_colors_thickness );
 
         width += colorHighlightWidth;
     }
@@ -581,24 +583,23 @@ static bool isFieldsLayer( int aLayer )
 static BOX2I GetTextExtents( const wxString& aText, const VECTOR2D& aPosition, KIFONT::FONT& aFont,
                              const TEXT_ATTRIBUTES& aAttrs, const KIFONT::METRICS& aFontMetrics )
 {
-    const VECTOR2I extents =
-            aFont.StringBoundaryLimits( aText, aAttrs.m_Size, aAttrs.m_StrokeWidth, aAttrs.m_Bold,
-                                        aAttrs.m_Italic, aFontMetrics );
+    const VECTOR2I extents = aFont.StringBoundaryLimits( aText, aAttrs.m_Size, aAttrs.m_StrokeWidth,
+                                                         aAttrs.m_Bold, aAttrs.m_Italic, aFontMetrics );
     BOX2I box( aPosition, VECTOR2I( extents.x, aAttrs.m_Size.y ) );
 
     switch( aAttrs.m_Halign )
     {
-    case GR_TEXT_H_ALIGN_LEFT: break;
-    case GR_TEXT_H_ALIGN_CENTER: box.SetX( box.GetX() - box.GetWidth() / 2 ); break;
-    case GR_TEXT_H_ALIGN_RIGHT: box.SetX( box.GetX() - box.GetWidth() ); break;
+    case GR_TEXT_H_ALIGN_LEFT:                                                        break;
+    case GR_TEXT_H_ALIGN_CENTER:        box.SetX( box.GetX() - box.GetWidth() / 2 );  break;
+    case GR_TEXT_H_ALIGN_RIGHT:         box.SetX( box.GetX() - box.GetWidth() );      break;
     case GR_TEXT_H_ALIGN_INDETERMINATE: wxFAIL_MSG( wxT( "Legal only in dialogs" ) ); break;
     }
 
     switch( aAttrs.m_Valign )
     {
-    case GR_TEXT_V_ALIGN_TOP: break;
-    case GR_TEXT_V_ALIGN_CENTER: box.SetY( box.GetY() - box.GetHeight() / 2 ); break;
-    case GR_TEXT_V_ALIGN_BOTTOM: box.SetY( box.GetY() - box.GetHeight() ); break;
+    case GR_TEXT_V_ALIGN_TOP:                                                         break;
+    case GR_TEXT_V_ALIGN_CENTER:        box.SetY( box.GetY() - box.GetHeight() / 2 ); break;
+    case GR_TEXT_V_ALIGN_BOTTOM:        box.SetY( box.GetY() - box.GetHeight() );     break;
     case GR_TEXT_V_ALIGN_INDETERMINATE: wxFAIL_MSG( wxT( "Legal only in dialogs" ) ); break;
     }
 
@@ -610,20 +611,18 @@ static BOX2I GetTextExtents( const wxString& aText, const VECTOR2D& aPosition, K
 
 
 static void strokeText( KIGFX::GAL& aGal, const wxString& aText, const VECTOR2D& aPosition,
-                        const TEXT_ATTRIBUTES& aAttrs, const KIFONT::METRICS& aFontMetrics )
+                        const TEXT_ATTRIBUTES& aAttrs, const KIFONT::METRICS& aFontMetrics,
+                        std::optional<VECTOR2I> aMousePos = std::nullopt, wxString* aActiveUrl = nullptr )
 {
     KIFONT::FONT* font = aAttrs.m_Font;
 
     if( !font )
-    {
-        font = KIFONT::FONT::GetFont( eeconfig()->m_Appearance.default_font, aAttrs.m_Bold,
-                                      aAttrs.m_Italic );
-    }
+        font = KIFONT::FONT::GetFont( eeconfig()->m_Appearance.default_font, aAttrs.m_Bold, aAttrs.m_Italic );
 
     aGal.SetIsFill( font->IsOutline() );
     aGal.SetIsStroke( font->IsStroke() );
 
-    font->Draw( &aGal, aText, aPosition, aAttrs, aFontMetrics );
+    font->Draw( &aGal, aText, aPosition, aAttrs, aFontMetrics, aMousePos, aActiveUrl );
 }
 
 
@@ -694,10 +693,7 @@ static void boxText( KIGFX::GAL& aGal, const wxString& aText, const VECTOR2D& aP
     KIFONT::FONT* font = aAttrs.m_Font;
 
     if( !font )
-    {
-        font = KIFONT::FONT::GetFont( eeconfig()->m_Appearance.default_font, aAttrs.m_Bold,
-                                      aAttrs.m_Italic );
-    }
+        font = KIFONT::FONT::GetFont( eeconfig()->m_Appearance.default_font, aAttrs.m_Bold, aAttrs.m_Italic );
 
     BOX2I box = GetTextExtents( aText, aPosition, *font, aAttrs, aFontMetrics );
 
@@ -810,46 +806,30 @@ void SCH_PAINTER::drawLocalPowerIcon( const VECTOR2D& aPos, double aSize, bool a
                                       const COLOR4D& aColor, bool aDrawingShadows,
                                       bool aBrightened )
 {
-    m_gal->Save();
-
-    m_gal->Translate( aPos );
-
-    if( aRotate )
-        m_gal->Rotate( ANGLE_270.AsRadians() );
-
     double lineWidth = aSize / 10.0;
 
     if( aDrawingShadows )
         lineWidth += getShadowWidth( aBrightened );
 
-    m_gal->SetIsFill( false );
-    m_gal->SetIsStroke( true );
+    std::vector<SCH_SHAPE> shapeList;
+    SCH_SYMBOL::BuildLocalPowerIconShape( shapeList, aPos, aSize, lineWidth, aRotate );
+
     m_gal->SetLineWidth( lineWidth );
+    m_gal->SetIsStroke( true );
     m_gal->SetStrokeColor( aColor );
-
-    double x_right = aSize / 1.6180339887;
-    double x_middle = x_right / 2.0;
-
-    VECTOR2D bottomPt = VECTOR2D{ x_middle, 0 };
-    VECTOR2D leftPt = VECTOR2D{ 0, 2.0 * -aSize / 3.0 };
-    VECTOR2D rightPt = VECTOR2D{ x_right, 2.0 * -aSize / 3.0 };
-
-    VECTOR2D bottomAnchorPt = VECTOR2D{ x_middle, -aSize / 4.0 };
-    VECTOR2D leftSideAnchorPt1 = VECTOR2D{ 0, -aSize / 2.5 };
-    VECTOR2D leftSideAnchorPt2 = VECTOR2D{ 0, -aSize * 1.15 };
-    VECTOR2D rightSideAnchorPt1 = VECTOR2D{ x_right, -aSize / 2.5 };
-    VECTOR2D rightSideAnchorPt2 = VECTOR2D{ x_right, -aSize * 1.15 };
-
-    m_gal->DrawCurve( bottomPt, bottomAnchorPt, leftSideAnchorPt1, leftPt );
-    m_gal->DrawCurve( leftPt, leftSideAnchorPt2, rightSideAnchorPt2, rightPt );
-    m_gal->DrawCurve( rightPt, rightSideAnchorPt1, bottomAnchorPt, bottomPt );
-
-    m_gal->SetIsFill( true );
     m_gal->SetFillColor( aColor );
-    m_gal->DrawCircle( ( leftPt + rightPt ) / 2.0, aSize / 15.0 );
 
-    m_gal->Restore();
-};
+    for( const SCH_SHAPE& shape : shapeList )
+    {
+        // Currently there are only 2 shapes: BEZIER and CIRCLE
+        m_gal->SetIsFill( shape.GetFillMode() != FILL_T::NO_FILL );
+
+        if( shape.GetShape() == SHAPE_T::BEZIER )
+            m_gal->DrawCurve( shape.GetStart(), shape.GetBezierC1(), shape.GetBezierC2(), shape.GetEnd() );
+        else if( shape.GetShape() == SHAPE_T::CIRCLE )
+            m_gal->DrawCircle( shape.getCenter(), shape.GetRadius() );
+    }
+}
 
 
 /**
@@ -869,7 +849,7 @@ static void drawAltPinModesIcon( GAL& aGal, const VECTOR2D& aPos, double aSize, 
 
     aGal.SetIsFill( false );
     aGal.SetIsStroke( true );
-    aGal.SetLineWidth( KiROUND( aSize / 10.0 + aExtraLineWidth ) );
+    aGal.SetLineWidth( aSize / 10.0 + aExtraLineWidth );
     aGal.SetStrokeColor( aColor );
 
     /*
@@ -1166,8 +1146,7 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
     }
 
     PIN_LAYOUT_CACHE& cache = aPin->GetLayoutCache();
-    cache.SetRenderParameters( nameStrokeWidth, numStrokeWidth,
-                               m_schSettings.m_ShowPinsElectricalType,
+    cache.SetRenderParameters( nameStrokeWidth, numStrokeWidth, m_schSettings.m_ShowPinsElectricalType,
                                m_schSettings.m_ShowPinAltIcons );
 
     const auto textRendersAsBitmap =
@@ -1241,6 +1220,7 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
                 // Find the maximum line width to position braces
                 int maxLineWidth = 0;
                 KIFONT::FONT* font = aAttrs.m_Font;
+
                 if( !font )
                     font = KIFONT::FONT::GetFont( eeconfig()->m_Appearance.default_font );
 
@@ -1249,8 +1229,8 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
                     wxString trimmedLine = line;
                     trimmedLine.Trim( true ).Trim( false );
                     VECTOR2I lineExtents = font->StringBoundaryLimits( trimmedLine, aAttrs.m_Size,
-                                                                      aAttrs.m_StrokeWidth, false, false,
-                                                                      KIFONT::METRICS() );
+                                                                       aAttrs.m_StrokeWidth, false, false,
+                                                                       KIFONT::METRICS() );
                     maxLineWidth = std::max( maxLineWidth, lineExtents.x );
                 }
 
@@ -1265,7 +1245,7 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
                 if( aAttrs.m_Angle == ANGLE_VERTICAL )
                 {
                     // For vertical text, lines are spaced horizontally and braces are horizontal
-                    braceEnd.x += ( aLines.size() - 1 ) * aLineSpacing;
+                    braceEnd.x += ( (int) aLines.size() - 1 ) * aLineSpacing;
 
                     // Extend braces horizontally to encompass all lines plus extra space
                     braceStart.x -= 2 * extraHeight;
@@ -1292,7 +1272,7 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
                 else
                 {
                     // For horizontal text, lines are spaced vertically and braces are vertical
-                    braceEnd.y += ( aLines.size() - 1 ) * aLineSpacing;
+                    braceEnd.y += ( (int) aLines.size() - 1 ) * aLineSpacing;
 
                     // Extend braces vertically to encompass all lines plus extra space
                     braceStart.y -= 2 * extraHeight;
@@ -1342,28 +1322,28 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
                 if( aAttrs.m_Angle == ANGLE_VERTICAL )
                 {
                     // For vertical text, lines are spaced horizontally
-                    braceEnd.x += ( aLines.size() - 1 ) * aLineSpacing;
+                    braceEnd.x += ( (int) aLines.size() - 1 ) * aLineSpacing;
 
                     VECTOR2D leftStart = braceStart;
-                    leftStart.y -= maxLineWidth / 2 + braceWidth / 2;
+                    leftStart.y -= maxLineWidth / 2.0 + braceWidth / 2.0;
 
                     VECTOR2D leftEnd = braceEnd;
-                    leftEnd.y -= maxLineWidth / 2 + braceWidth / 2;
+                    leftEnd.y -= maxLineWidth / 2.0 + braceWidth / 2.0;
 
                     drawBrace( aGal, leftStart, leftEnd, braceWidth, true, aAttrs );
 
                     VECTOR2D rightStart = braceStart;
-                    rightStart.y += maxLineWidth / 2 + braceWidth / 2;
+                    rightStart.y += maxLineWidth / 2.0 + braceWidth / 2.0;
 
                     VECTOR2D rightEnd = braceEnd;
-                    rightEnd.y += maxLineWidth / 2 + braceWidth / 2;
+                    rightEnd.y += maxLineWidth / 2.0 + braceWidth / 2.0;
 
                     drawBrace( aGal, rightStart, rightEnd, braceWidth, false, aAttrs );
                 }
                 else
                 {
                     // For horizontal text, lines are spaced vertically
-                    braceEnd.y += ( aLines.size() - 1 ) * aLineSpacing;
+                    braceEnd.y += ( (int) aLines.size() - 1 ) * aLineSpacing;
 
                     VECTOR2D braceTop = braceStart;
                     braceTop.y -= textHalfHeight;
@@ -1372,18 +1352,18 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
                     braceBottom.y += textHalfHeight;
 
                     VECTOR2D leftTop = braceTop;
-                    leftTop.x -= maxLineWidth / 2 + braceWidth / 2;
+                    leftTop.x -= maxLineWidth / 2.0 + braceWidth / 2.0;
 
                     VECTOR2D leftBottom = braceBottom;
-                    leftBottom.x -= maxLineWidth / 2 + braceWidth / 2;
+                    leftBottom.x -= maxLineWidth / 2.0 + braceWidth / 2.0;
 
                     drawBrace( aGal, leftTop, leftBottom, braceWidth, true, aAttrs );
 
                     VECTOR2D rightTop = braceTop;
-                    rightTop.x += maxLineWidth / 2 + braceWidth / 2;
+                    rightTop.x += maxLineWidth / 2.0 + braceWidth / 2.0;
 
                     VECTOR2D rightBottom = braceBottom;
-                    rightBottom.x += maxLineWidth / 2 + braceWidth / 2;
+                    rightBottom.x += maxLineWidth / 2.0 + braceWidth / 2.0;
 
                     drawBrace( aGal, rightTop, rightBottom, braceWidth, false, aAttrs );
                 }
@@ -1416,13 +1396,13 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
                             // Adjust start position based on horizontal alignment
                             if( aAttrs.m_Halign == GR_TEXT_H_ALIGN_RIGHT )
                             {
-                                int totalWidth = ( lines.size() - 1 ) * lineSpacing;
+                                int totalWidth = ( (int) lines.size() - 1 ) * lineSpacing;
                                 startPos.x -= totalWidth;
                             }
                             else if( aAttrs.m_Halign == GR_TEXT_H_ALIGN_CENTER )
                             {
-                                int totalWidth = ( lines.size() - 1 ) * lineSpacing;
-                                startPos.x -= totalWidth / 2;
+                                int totalWidth = ( (int) lines.size() - 1 ) * lineSpacing;
+                                startPos.x -= totalWidth / 2.0;
                             }
 
                             // Draw each line
@@ -1443,20 +1423,20 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
                             // Adjust start position based on vertical alignment
                             if( aAttrs.m_Valign == GR_TEXT_V_ALIGN_BOTTOM )
                             {
-                                int totalHeight = ( lines.size() - 1 ) * lineSpacing;
+                                int totalHeight = ( (int) lines.size() - 1 ) * lineSpacing;
                                 startPos.y -= totalHeight;
                             }
                             else if( aAttrs.m_Valign == GR_TEXT_V_ALIGN_CENTER )
                             {
-                                int totalHeight = ( lines.size() - 1 ) * lineSpacing;
-                                startPos.y -= totalHeight / 2;
+                                int totalHeight = ( (int) lines.size() - 1 ) * lineSpacing;
+                                startPos.y -= totalHeight / 2.0;
                             }
 
                             // Draw each line
                             for( size_t i = 0; i < lines.size(); i++ )
                             {
                                 VECTOR2D linePos = startPos;
-                                linePos.y += i * lineSpacing;
+                                linePos.y += (int) i * lineSpacing;
 
                                 wxString line = lines[i];
                                 line.Trim( true ).Trim( false );
@@ -1496,19 +1476,19 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
                             // For vertical text, lines are spaced horizontally
                             if( aAttrs.m_Halign == GR_TEXT_H_ALIGN_RIGHT )
                             {
-                                int totalWidth = ( lines.size() - 1 ) * lineSpacing;
+                                int totalWidth = ( (int) lines.size() - 1 ) * lineSpacing;
                                 startPos.x -= totalWidth;
                             }
                             else if( aAttrs.m_Halign == GR_TEXT_H_ALIGN_CENTER )
                             {
-                                int totalWidth = ( lines.size() - 1 ) * lineSpacing;
-                                startPos.x -= totalWidth / 2;
+                                int totalWidth = ( (int) lines.size() - 1 ) * lineSpacing;
+                                startPos.x -= totalWidth / 2.0;
                             }
 
                             for( size_t i = 0; i < lines.size(); i++ )
                             {
                                 VECTOR2D linePos = startPos;
-                                linePos.x += i * lineSpacing;
+                                linePos.x += (int) i * lineSpacing;
 
                                 wxString line = lines[i];
                                 line.Trim( true ).Trim( false );
@@ -1521,19 +1501,19 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
                             // For horizontal text, lines are spaced vertically
                             if( aAttrs.m_Valign == GR_TEXT_V_ALIGN_BOTTOM )
                             {
-                                int totalHeight = ( lines.size() - 1 ) * lineSpacing;
+                                int totalHeight = ( (int) lines.size() - 1 ) * lineSpacing;
                                 startPos.y -= totalHeight;
                             }
                             else if( aAttrs.m_Valign == GR_TEXT_V_ALIGN_CENTER )
                             {
-                                int totalHeight = ( lines.size() - 1 ) * lineSpacing;
-                                startPos.y -= totalHeight / 2;
+                                int totalHeight = ( (int) lines.size() - 1 ) * lineSpacing;
+                                startPos.y -= totalHeight / 2.0;
                             }
 
                             for( size_t i = 0; i < lines.size(); i++ )
                             {
                                 VECTOR2D linePos = startPos;
-                                linePos.y += i * lineSpacing;
+                                linePos.y += (int) i * lineSpacing;
 
                                 wxString line = lines[i];
                                 line.Trim( true ).Trim( false );
@@ -1571,19 +1551,19 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
                             // For vertical text, lines are spaced horizontally
                             if( aAttrs.m_Halign == GR_TEXT_H_ALIGN_RIGHT )
                             {
-                                int totalWidth = ( lines.size() - 1 ) * lineSpacing;
+                                int totalWidth = ( (int) lines.size() - 1 ) * lineSpacing;
                                 startPos.x -= totalWidth;
                             }
                             else if( aAttrs.m_Halign == GR_TEXT_H_ALIGN_CENTER )
                             {
-                                int totalWidth = ( lines.size() - 1 ) * lineSpacing;
-                                startPos.x -= totalWidth / 2;
+                                int totalWidth = ( (int) lines.size() - 1 ) * lineSpacing;
+                                startPos.x -= totalWidth / 2.0;
                             }
 
                             for( size_t i = 0; i < lines.size(); i++ )
                             {
                                 VECTOR2D linePos = startPos;
-                                linePos.x += i * lineSpacing;
+                                linePos.x += (int) i * lineSpacing;
 
                                 wxString line = lines[i];
                                 line.Trim( true ).Trim( false );
@@ -1596,19 +1576,19 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
                             // For horizontal text, lines are spaced vertically
                             if( aAttrs.m_Valign == GR_TEXT_V_ALIGN_BOTTOM )
                             {
-                                int totalHeight = ( lines.size() - 1 ) * lineSpacing;
+                                int totalHeight = ( (int) lines.size() - 1 ) * lineSpacing;
                                 startPos.y -= totalHeight;
                             }
                             else if( aAttrs.m_Valign == GR_TEXT_V_ALIGN_CENTER )
                             {
-                                int totalHeight = ( lines.size() - 1 ) * lineSpacing;
-                                startPos.y -= totalHeight / 2;
+                                int totalHeight = ( (int) lines.size() - 1 ) * lineSpacing;
+                                startPos.y -= totalHeight / 2.0;
                             }
 
                             for( size_t i = 0; i < lines.size(); i++ )
                             {
                                 VECTOR2D linePos = startPos;
-                                linePos.y += i * lineSpacing;
+                                linePos.y += (int) i * lineSpacing;
 
                                 wxString line = lines[i];
                                 line.Trim( true ).Trim( false );
@@ -1667,7 +1647,7 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
                 else
                 {
                     drawMultiLineText( *m_gal, aTextInfo.m_Text, aTextInfo.m_TextPosition, attrs,
-                                     aPin->GetFontMetrics() );
+                                       aPin->GetFontMetrics() );
                     const_cast<SCH_PIN*>( aPin )->SetFlags( IS_SHOWN_AS_BITMAP );
                 }
             };
@@ -1684,9 +1664,7 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
     // Request text layout info and draw it
 
     if( std::optional<PIN_LAYOUT_CACHE::TEXT_INFO> numInfo = cache.GetPinNumberInfo( shadowWidth ) )
-    {
         drawTextInfo( *numInfo, getColorForLayer( LAYER_PINNUM ) );
-    }
 
     if( std::optional<PIN_LAYOUT_CACHE::TEXT_INFO> nameInfo = cache.GetPinNameInfo( shadowWidth ) )
     {
@@ -1702,11 +1680,8 @@ void SCH_PAINTER::draw( const SCH_PIN* aPin, int aLayer, bool aDimmed )
         }
     }
 
-    if( std::optional<PIN_LAYOUT_CACHE::TEXT_INFO> elecTypeInfo =
-                cache.GetPinElectricalTypeInfo( shadowWidth ) )
-    {
+    if( std::optional<PIN_LAYOUT_CACHE::TEXT_INFO> elecTypeInfo = cache.GetPinElectricalTypeInfo( shadowWidth ) )
         drawTextInfo( *elecTypeInfo, getColorForLayer( LAYER_PRIVATE_NOTES ) );
-    }
 }
 
 
@@ -2044,9 +2019,9 @@ void SCH_PAINTER::draw( const SCH_SHAPE* aShape, int aLayer, bool aDimmed )
                         ROUNDRECT rr( SHAPE_RECT( shape->GetPosition(),
                                                   shape->GetRectangleWidth(),
                                                   shape->GetRectangleHeight() ),
-                                                  shape->GetCornerRadius(), true /* normalize */ );
+                                      shape->GetCornerRadius(), true /* normalize */ );
                         SHAPE_POLY_SET poly;
-                        rr.TransformToPolygon( poly );
+                        rr.TransformToPolygon( poly, shape->GetMaxError() );
                         m_gal->DrawPolygon( poly );
                     }
                     else
@@ -2066,8 +2041,7 @@ void SCH_PAINTER::draw( const SCH_SHAPE* aShape, int aLayer, bool aDimmed )
                         for( SHAPE* polySegment : polySegments )
                             pts.push_back( static_cast<SHAPE_SEGMENT*>( polySegment )->GetSeg().A );
 
-                        pts.push_back(
-                                static_cast<SHAPE_SEGMENT*>( polySegments.back() )->GetSeg().B );
+                        pts.push_back( static_cast<SHAPE_SEGMENT*>( polySegments.back() )->GetSeg().B );
 
                         for( SHAPE* polySegment : polySegments )
                             delete polySegment;
@@ -2130,15 +2104,15 @@ void SCH_PAINTER::draw( const SCH_SHAPE* aShape, int aLayer, bool aDimmed )
         case FILL_T::HATCH:
         case FILL_T::REVERSE_HATCH:
         case FILL_T::CROSS_HATCH:
-            if( aShape->IsSelected() )
-                color.a = color.a * 0.8;  // selected items already have reduced-alpha backgrounds
-            else
-                color.a = color.a * 0.4;
+            aShape->UpdateHatching();
+            m_gal->SetIsFill( false );
+            m_gal->SetIsStroke( true );
+            m_gal->SetStrokeColor( color );
+            m_gal->SetLineWidth( aShape->GetHatchLineWidth() );
 
-            m_gal->SetIsFill( true );
-            m_gal->SetIsStroke( false );
-            m_gal->SetFillColor( color );
-            m_gal->DrawPolygon( aShape->GetHatching() );
+            for( const SEG& seg : aShape->GetHatchLines() )
+                m_gal->DrawLine( seg.A, seg.B );
+
             break;
 
         case FILL_T::FILLED_WITH_COLOR:
@@ -2260,6 +2234,7 @@ void SCH_PAINTER::draw( const SCH_TEXT* aText, int aLayer, bool aDimmed )
 
     m_gal->SetStrokeColor( color );
     m_gal->SetFillColor( color );
+    m_gal->SetHoverColor( color );
 
     wxString        shownText( aText->GetShownText( true ) );
     VECTOR2I        text_offset = aText->GetSchematicTextOffset( &m_schSettings );
@@ -2268,6 +2243,19 @@ void SCH_PAINTER::draw( const SCH_TEXT* aText, int aLayer, bool aDimmed )
 
     attrs.m_Angle = aText->GetDrawRotation();
     attrs.m_StrokeWidth = KiROUND( getTextThickness( aText ) );
+
+    // Adjust text drawn in an outline font to more closely mimic the positioning of
+    // SCH_FIELD text.
+    if( font->IsOutline() && aText->Type() == SCH_TEXT_T )
+    {
+        BOX2I    firstLineBBox = aText->GetTextBox( nullptr, 0 );
+        int      sizeDiff = firstLineBBox.GetHeight() - aText->GetTextSize().y;
+        int      adjust = KiROUND( sizeDiff * 0.35 );
+        VECTOR2I adjust_offset( 0, adjust );
+
+        RotatePoint( adjust_offset, aText->GetDrawRotation() );
+        text_offset += adjust_offset;
+    }
 
     if( drawingShadows && font->IsOutline() )
     {
@@ -2367,29 +2355,24 @@ void SCH_PAINTER::draw( const SCH_TEXT* aText, int aLayer, bool aDimmed )
     }
     else
     {
-        if( aText->IsHypertext() && aText->IsRollover() && !aText->IsMoving() )
+        wxString activeUrl;
+
+        if( aText->IsRollover() && !aText->IsMoving() )
         {
-            m_gal->SetStrokeColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
-            m_gal->SetFillColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
-            attrs.m_Underlined = true;
+            // Highlight any urls found within the text
+            m_gal->SetHoverColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
+
+            // Highlight the whole text if it has a link definition
+            if( aText->HasHyperlink() )
+            {
+                attrs.m_Hover = true;
+                attrs.m_Underlined = true;
+                activeUrl = aText->GetHyperlink();
+            }
         }
 
-        // Adjust text drawn in an outline font to more closely mimic the positioning of
-        // SCH_FIELD text.
-        if( font->IsOutline() && aText->Type() == SCH_TEXT_T )
-        {
-            BOX2I    firstLineBBox = aText->GetTextBox( nullptr, 0 );
-            int      sizeDiff = firstLineBBox.GetHeight() - aText->GetTextSize().y;
-            int      adjust = KiROUND( sizeDiff * 0.4 );
-            VECTOR2I adjust_offset( 0, - adjust );
-
-            RotatePoint( adjust_offset, aText->GetDrawRotation() );
-            text_offset += adjust_offset;
-        }
-
-        if( nonCached( aText )
-                && aText->RenderAsBitmap( m_gal->GetWorldScale() )
-                && !shownText.Contains( wxT( "\n" ) ) )
+        if( nonCached( aText ) && aText->RenderAsBitmap( m_gal->GetWorldScale() )
+                               && !shownText.Contains( wxT( "\n" ) ) )
         {
             bitmapText( *m_gal, shownText, aText->GetDrawPos() + text_offset, attrs );
             const_cast<SCH_TEXT*>( aText )->SetFlags( IS_SHOWN_AS_BITMAP );
@@ -2398,7 +2381,7 @@ void SCH_PAINTER::draw( const SCH_TEXT* aText, int aLayer, bool aDimmed )
         {
             std::vector<std::unique_ptr<KIFONT::GLYPH>>* cache = nullptr;
 
-            if( !aText->IsHypertext() && font->IsOutline() )
+            if( !aText->IsRollover() && font->IsOutline() )
                 cache = aText->GetRenderCache( font, shownText, text_offset );
 
             if( cache )
@@ -2409,11 +2392,13 @@ void SCH_PAINTER::draw( const SCH_TEXT* aText, int aLayer, bool aDimmed )
             else
             {
                 strokeText( *m_gal, shownText, aText->GetDrawPos() + text_offset, attrs,
-                            aText->GetFontMetrics() );
+                            aText->GetFontMetrics(), aText->GetRolloverPos(), &activeUrl );
             }
 
             const_cast<SCH_TEXT*>( aText )->ClearFlags( IS_SHOWN_AS_BITMAP );
         }
+
+        aText->SetActiveUrl( activeUrl );
     }
 
     // Draw anchor
@@ -2482,20 +2467,28 @@ void SCH_PAINTER::draw( const SCH_TEXTBOX* aTextBox, int aLayer, bool aDimmed )
             {
                 wxString        shownText = aTextBox->GetShownText( true );
                 TEXT_ATTRIBUTES attrs = aTextBox->GetAttributes();
+                wxString        activeUrl;
 
                 attrs.m_Angle = aTextBox->GetDrawRotation();
                 attrs.m_StrokeWidth = KiROUND( getTextThickness( aTextBox ) );
 
-                if( aTextBox->IsHypertext() && aTextBox->IsRollover() && !aTextBox->IsMoving() )
+                if( aTextBox->IsRollover() && !aTextBox->IsMoving() )
                 {
-                    m_gal->SetStrokeColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
-                    m_gal->SetFillColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
-                    attrs.m_Underlined = true;
+                    // Highlight any urls found within the text
+                    m_gal->SetHoverColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
+
+                    // Highlight the whole text if it has a link definition
+                    if( aTextBox->HasHyperlink() )
+                    {
+                        attrs.m_Hover = true;
+                        attrs.m_Underlined = true;
+                        activeUrl = aTextBox->GetHyperlink();
+                    }
                 }
 
                 std::vector<std::unique_ptr<KIFONT::GLYPH>>* cache = nullptr;
 
-                if( !aTextBox->IsHypertext() && font->IsOutline() )
+                if( !aTextBox->IsRollover() && font->IsOutline() )
                     cache = aTextBox->GetRenderCache( font, shownText );
 
                 if( cache )
@@ -2506,8 +2499,10 @@ void SCH_PAINTER::draw( const SCH_TEXTBOX* aTextBox, int aLayer, bool aDimmed )
                 else
                 {
                     strokeText( *m_gal, shownText, aTextBox->GetDrawPos(), attrs,
-                                aTextBox->GetFontMetrics() );
+                                aTextBox->GetFontMetrics(), aTextBox->GetRolloverPos(), &activeUrl );
                 }
+
+                aTextBox->SetActiveUrl( activeUrl );
             };
 
     if( drawingShadows && !( aTextBox->IsBrightened() || aTextBox->IsSelected() ) )
@@ -2515,6 +2510,7 @@ void SCH_PAINTER::draw( const SCH_TEXTBOX* aTextBox, int aLayer, bool aDimmed )
 
     m_gal->SetFillColor( color );
     m_gal->SetStrokeColor( color );
+    m_gal->SetHoverColor( color );
 
     if( aLayer == LAYER_SELECTION_SHADOWS )
     {
@@ -2669,15 +2665,30 @@ wxString SCH_PAINTER::expandLibItemTextVars( const wxString& aSourceText,
 
 void SCH_PAINTER::draw( const SCH_SYMBOL* aSymbol, int aLayer )
 {
+    auto t1 = std::chrono::high_resolution_clock::now();
     bool drawingShadows = aLayer == LAYER_SELECTION_SHADOWS;
 
     std::optional<SCH_SHEET_PATH> optSheetPath;
 
-    if( m_schematic )
-        optSheetPath = m_schematic->CurrentSheet();
+    wxString variantName;
 
-    bool DNP = aSymbol->GetDNP( nullptr );
-    bool markExclusion = eeconfig()->m_Appearance.mark_sim_exclusions && aSymbol->GetExcludedFromSim( nullptr );
+    if( m_schematic )
+    {
+        optSheetPath = m_schematic->CurrentSheet();
+        variantName = m_schematic->GetCurrentVariant();
+        wxLogTrace( traceSchPainter,
+                    "SCH_PAINTER::draw symbol %s: Current sheet path='%s', variant='%s', size=%zu, empty=%d",
+                    aSymbol->m_Uuid.AsString(),
+                    variantName.IsEmpty() ? GetDefaultVariantName() : variantName,
+                    optSheetPath->Path().AsString(),
+                    optSheetPath->size(),
+                    optSheetPath->empty() ? 1 : 0 );
+    }
+
+    SCH_SHEET_PATH* sheetPath = optSheetPath ? &optSheetPath.value() : nullptr;
+    bool DNP = aSymbol->GetDNP( sheetPath, variantName );
+    bool markExclusion = eeconfig()->m_Appearance.mark_sim_exclusions && aSymbol->GetExcludedFromSim( sheetPath,
+                                                                                                      variantName );
 
     if( m_schSettings.IsPrinting() && drawingShadows )
         return;
@@ -2706,7 +2717,16 @@ void SCH_PAINTER::draw( const SCH_SYMBOL* aSymbol, int aLayer )
     std::vector<SCH_PIN*> originalPins = originalSymbol->GetGraphicalPins( unit, bodyStyle );
 
     // Copy the source so we can re-orient and translate it.
-    LIB_SYMBOL            tempSymbol( *originalSymbol );
+    auto       tCopy1 = std::chrono::high_resolution_clock::now();
+    LIB_SYMBOL tempSymbol( *originalSymbol, nullptr, false );
+    auto       tCopy2 = std::chrono::high_resolution_clock::now();
+
+    if( std::chrono::duration_cast<std::chrono::microseconds>( tCopy2 - tCopy1 ).count() > 100 )
+    {
+        wxLogTrace( traceSchPainter, "SCH_PAINTER::draw symbol copy %s: %lld us", aSymbol->m_Uuid.AsString(),
+                    std::chrono::duration_cast<std::chrono::microseconds>( tCopy2 - tCopy1 ).count() );
+    }
+
     std::vector<SCH_PIN*> tempPins = tempSymbol.GetGraphicalPins( unit, bodyStyle );
 
     tempSymbol.SetFlags( aSymbol->GetFlags() );
@@ -2740,6 +2760,9 @@ void SCH_PAINTER::draw( const SCH_SYMBOL* aSymbol, int aLayer )
         SCH_PIN* symbolPin = aSymbol->GetPin( originalPins[ i ] );
         SCH_PIN* tempPin = tempPins[ i ];
 
+        if( !symbolPin )
+            continue;
+
         tempPin->ClearFlags();
         tempPin->SetFlags( symbolPin->GetFlags() );     // SELECTED, HIGHLIGHTED, BRIGHTENED,
                                                         // IS_SHOWN_AS_BITMAP
@@ -2763,6 +2786,9 @@ void SCH_PAINTER::draw( const SCH_SYMBOL* aSymbol, int aLayer )
         SCH_PIN* symbolPin = aSymbol->GetPin( originalPins[ i ] );
         SCH_PIN* tempPin = tempPins[ i ];
 
+        if( !symbolPin )
+            continue;
+
         symbolPin->ClearFlags();
         tempPin->ClearFlags( IS_DANGLING );             // Clear this temporary flag
         symbolPin->SetFlags( tempPin->GetFlags() );     // SELECTED, HIGHLIGHTED, BRIGHTENED,
@@ -2774,7 +2800,7 @@ void SCH_PAINTER::draw( const SCH_SYMBOL* aSymbol, int aLayer )
     // is drawn (to avoid draw artifacts).
     if( DNP && aLayer == LAYER_DEVICE )
     {
-        COLOR4D marker_color = m_schSettings.GetLayerColor( LAYER_DNP_MARKER );
+        COLOR4D  marker_color = m_schSettings.GetLayerColor( LAYER_DNP_MARKER );
         BOX2I    bbox = aSymbol->GetBodyBoundingBox();
         BOX2I    pins = aSymbol->GetBodyAndPinsBoundingBox();
         VECTOR2D margins( std::max( bbox.GetX() - pins.GetX(), pins.GetEnd().x - bbox.GetEnd().x ),
@@ -2834,6 +2860,14 @@ void SCH_PAINTER::draw( const SCH_SYMBOL* aSymbol, int aLayer )
         m_gal->SetFillColor( marker_color );
         m_gal->DrawCurve( left, top, bottom, right, 1 );
     }
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+
+    if( std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count() > 100 )
+    {
+        wxLogTrace( traceSchPainter, "SCH_PAINTER::draw symbol %s: %lld us", aSymbol->m_Uuid.AsString(),
+                    std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count() );
+    }
 }
 
 
@@ -2875,7 +2909,16 @@ void SCH_PAINTER::draw( const SCH_FIELD* aField, int aLayer, bool aDimmed )
             return;
     }
 
-    wxString shownText = aField->GetShownText( true );
+    SCH_SHEET_PATH* sheetPath = nullptr;
+    wxString        variant;
+
+    if( m_schematic )
+    {
+        sheetPath = &m_schematic->CurrentSheet();
+        variant = m_schematic->GetCurrentVariant();
+    }
+
+    wxString shownText = aField->GetShownText( sheetPath, true, 0, variant );
 
     if( shownText.IsEmpty() )
         return;
@@ -2918,6 +2961,7 @@ void SCH_PAINTER::draw( const SCH_FIELD* aField, int aLayer, bool aDimmed )
 
     m_gal->SetStrokeColor( color );
     m_gal->SetFillColor( color );
+    m_gal->SetHoverColor( color );
 
     if( drawingShadows && getFont( aField )->IsOutline() )
     {
@@ -2941,11 +2985,17 @@ void SCH_PAINTER::draw( const SCH_FIELD* aField, int aLayer, bool aDimmed )
         if( drawingShadows )
             attributes.m_StrokeWidth += getShadowWidth( !aField->IsSelected() );
 
-        if( aField->IsHypertext() && aField->IsRollover() && !aField->IsMoving() )
+        if( aField->IsRollover() && !aField->IsMoving() )
         {
-            m_gal->SetStrokeColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
-            m_gal->SetFillColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
-            attributes.m_Underlined = true;
+            // Highlight any urls found within the text
+            m_gal->SetHoverColor( m_schSettings.GetLayerColor( LAYER_HOVERED ) );
+
+            // Highlight the whole text if it has a link definition
+            if( aField->HasHyperlink() )
+            {
+                attributes.m_Hover = true;
+                attributes.m_Underlined = true;
+            }
         }
 
         if( nonCached( aField ) && aField->RenderAsBitmap( m_gal->GetWorldScale() ) )
@@ -2957,7 +3007,7 @@ void SCH_PAINTER::draw( const SCH_FIELD* aField, int aLayer, bool aDimmed )
         {
             std::vector<std::unique_ptr<KIFONT::GLYPH>>* cache = nullptr;
 
-            if( !aField->IsHypertext() )
+            if( !aField->IsRollover() )
                 cache = aField->GetRenderCache( shownText, textpos, attributes );
 
             if( cache )
@@ -2967,7 +3017,8 @@ void SCH_PAINTER::draw( const SCH_FIELD* aField, int aLayer, bool aDimmed )
             }
             else
             {
-                strokeText( *m_gal, shownText, textpos, attributes, aField->GetFontMetrics() );
+                strokeText( *m_gal, shownText, textpos, attributes, aField->GetFontMetrics(),
+                            aField->GetRolloverPos() );
             }
 
             const_cast<SCH_FIELD*>( aField )->ClearFlags( IS_SHOWN_AS_BITMAP );
@@ -2977,7 +3028,7 @@ void SCH_PAINTER::draw( const SCH_FIELD* aField, int aLayer, bool aDimmed )
     if( aField->GetParent() && aField->GetParent()->Type() == SCH_SYMBOL_T )
     {
         SCH_SYMBOL* parent = static_cast<SCH_SYMBOL*>( aField->GetParent() );
-        bool rotated = !orient.IsHorizontal() && !aField->CanAutoplace();
+        bool rotated = !orient.IsHorizontal();
 
         VECTOR2D    pos;
         double      size = bbox.GetHeight() / 1.5;
@@ -2994,7 +3045,7 @@ void SCH_PAINTER::draw( const SCH_FIELD* aField, int aLayer, bool aDimmed )
                             bbox.GetBottom() - bbox.GetHeight() / 6.0 );
         }
 
-        if( parent->IsSymbolLikePowerLocalLabel() )
+        if( parent->IsSymbolLikePowerLocalLabel() && aField->GetId() == FIELD_T::VALUE )
             drawLocalPowerIcon( pos, size, rotated, color, drawingShadows, aField->IsBrightened() );
     }
 
@@ -3240,10 +3291,20 @@ void SCH_PAINTER::draw( const SCH_DIRECTIVE_LABEL* aLabel, int aLayer, bool aDim
 
 void SCH_PAINTER::draw( const SCH_SHEET* aSheet, int aLayer )
 {
+    SCH_SHEET_PATH* sheetPath = nullptr;
+    wxString        variant;
+    bool            DNP = false;
+
+    if( m_schematic )
+    {
+        sheetPath = &m_schematic->CurrentSheet();
+        variant = m_schematic->GetCurrentVariant();
+        DNP = aSheet->GetDNP( sheetPath, variant );
+    }
+
     bool drawingShadows = aLayer == LAYER_SELECTION_SHADOWS;
-    bool DNP = aSheet->GetDNP();
     bool markExclusion = eeconfig()->m_Appearance.mark_sim_exclusions
-                                && aSheet->GetExcludedFromSim();
+                            && aSheet->GetExcludedFromSim( sheetPath, variant );
 
     if( m_schSettings.IsPrinting() && drawingShadows )
         return;
@@ -3269,11 +3330,20 @@ void SCH_PAINTER::draw( const SCH_SHEET* aSheet, int aLayer )
         // inside the shape
         if( !m_schSettings.PrintBlackAndWhiteReq() )
         {
-            m_gal->SetFillColor( getRenderColor( aSheet, LAYER_SHEET_BACKGROUND, true ) );
-            m_gal->SetIsFill( true );
-            m_gal->SetIsStroke( false );
+            COLOR4D backgroundColor = aSheet->GetBackgroundColor();
 
-            m_gal->DrawRectangle( pos, pos + size );
+            if( m_schSettings.m_OverrideItemColors || backgroundColor == COLOR4D::UNSPECIFIED )
+                backgroundColor = m_schSettings.GetLayerColor( LAYER_SHEET_BACKGROUND );
+
+            // Only draw the background if it has a visible alpha value
+            if( backgroundColor.a > 0.0 )
+            {
+                m_gal->SetFillColor( getRenderColor( aSheet, LAYER_SHEET_BACKGROUND, false ) );
+                m_gal->SetIsFill( true );
+                m_gal->SetIsStroke( false );
+
+                m_gal->DrawRectangle( pos, pos + size );
+            }
         }
     }
 
@@ -3287,14 +3357,13 @@ void SCH_PAINTER::draw( const SCH_SHEET* aSheet, int aLayer )
         m_gal->DrawRectangle( pos, pos + size );
     }
 
-    if( DNP )
+    if( DNP && aLayer == LAYER_SHEET )
     {
         int      layer = LAYER_DNP_MARKER;
         BOX2I    bbox = aSheet->GetBodyBoundingBox();
         BOX2I    pins = aSheet->GetBoundingBox();
         VECTOR2D margins( std::max( bbox.GetX() - pins.GetX(), pins.GetEnd().x - bbox.GetEnd().x ),
-                          std::max( bbox.GetY() - pins.GetY(),
-                                    pins.GetEnd().y - bbox.GetEnd().y ) );
+                          std::max( bbox.GetY() - pins.GetY(), pins.GetEnd().y - bbox.GetEnd().y ) );
         int      strokeWidth = 3 * schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS );
 
         margins.x = std::max( margins.x * 0.6, margins.y * 0.3 );
@@ -3305,6 +3374,7 @@ void SCH_PAINTER::draw( const SCH_SHEET* aSheet, int aLayer )
         VECTOR2I pt2 = bbox.GetEnd();
 
         GAL_SCOPED_ATTRS scopedAttrs( *m_gal, GAL_SCOPED_ATTRS::ALL_ATTRS );
+        m_gal->AdvanceDepth();
         m_gal->SetIsStroke( true );
         m_gal->SetIsFill( true );
         m_gal->SetStrokeColor( m_schSettings.GetLayerColor( layer ) );
@@ -3478,6 +3548,7 @@ void SCH_PAINTER::draw( const SCH_BUS_ENTRY_BASE *aEntry, int aLayer )
 
 void SCH_PAINTER::draw( const SCH_BITMAP* aBitmap, int aLayer )
 {
+    auto t1 = std::chrono::high_resolution_clock::now();
     m_gal->Save();
     m_gal->Translate( aBitmap->GetPosition() );
 
@@ -3509,7 +3580,7 @@ void SCH_PAINTER::draw( const SCH_BITMAP* aBitmap, int aLayer )
             VECTOR2D bm_size( refImage.GetSize() );
 
             // bm_size is the actual image size in UI.
-            // but m_gal scale was previously set to img_scale
+            // but m_canvas scale was previously set to img_scale
             // so recalculate size relative to this image size.
             bm_size.x /= img_scale;
             bm_size.y /= img_scale;
@@ -3521,6 +3592,13 @@ void SCH_PAINTER::draw( const SCH_BITMAP* aBitmap, int aLayer )
     }
 
     m_gal->Restore();
+    auto t2 = std::chrono::high_resolution_clock::now();
+
+    if( std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count() > 100 )
+    {
+        wxLogTrace( traceSchPainter, "SCH_PAINTER::draw bitmap %s: %lld us", aBitmap->m_Uuid.AsString(),
+                    std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count() );
+    }
 }
 
 
@@ -3599,8 +3677,8 @@ void SCH_PAINTER::draw( const SCH_GROUP* aGroup, int aLayer )
 
         // Scale by zoom a bit, but not too much
         int      textSize = ( scaledSize + ( unscaledSize * 2 ) ) / 3;
-        VECTOR2I textOffset = VECTOR2I( width.x / 2, -KiROUND( textSize * 0.5 ) );
-        VECTOR2I titleHeight = VECTOR2I( 0, KiROUND( textSize * 2.0 ) );
+        VECTOR2I textOffset = KiROUND( width.x / 2.0, -textSize * 0.5 );
+        VECTOR2I titleHeight = KiROUND( 0.0, textSize * 2.0 );
 
         if( PrintableCharCount( name ) * textSize < bbox.GetWidth() )
         {
@@ -3620,6 +3698,7 @@ void SCH_PAINTER::draw( const SCH_GROUP* aGroup, int aLayer )
         }
     }
 }
+
 
 void SCH_PAINTER::drawLine( const VECTOR2I& aStartPoint, const VECTOR2I& aEndPoint,
                             LINE_STYLE aLineStyle, bool aDrawDirectLine, int aWidth )

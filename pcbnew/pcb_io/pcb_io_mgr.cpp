@@ -28,6 +28,7 @@
 #include <config.h>
 #include <kiway_player.h>
 #include <wildcards_and_files_ext.h>
+#include <libraries/library_table.h>
 #include <pcb_io/pcb_io_mgr.h>
 
 #include <pcb_io/eagle/pcb_io_eagle.h>
@@ -46,7 +47,7 @@
 #include <pcb_io/ipc2581/pcb_io_ipc2581.h>
 #include <pcb_io/odbpp/pcb_io_odbpp.h>
 #include <reporter.h>
-
+#include <libraries/library_table_parser.h>
 
 
 #define FMT_UNIMPLEMENTED   _( "Plugin '%s' does not implement the '%s' function." )
@@ -65,7 +66,7 @@
 // plugins coexisting.
 
 
-PCB_IO* PCB_IO_MGR::PluginFind( PCB_FILE_T aFileType )
+PCB_IO* PCB_IO_MGR::FindPlugin( PCB_FILE_T aFileType )
 {
     // This implementation is subject to change, any magic is allowed here.
     // The public IO_MGR API is the only pertinent public information.
@@ -76,14 +77,15 @@ PCB_IO* PCB_IO_MGR::PluginFind( PCB_FILE_T aFileType )
 
 const wxString PCB_IO_MGR::ShowType( PCB_FILE_T aType )
 {
+    if( aType == PCB_IO_MGR::NESTED_TABLE )
+        return LIBRARY_TABLE_ROW::TABLE_TYPE_NAME;
+
     const auto& plugins = PLUGIN_REGISTRY::Instance()->AllPlugins();
 
     for( const auto& plugin : plugins )
     {
         if ( plugin.m_type == aType )
-        {
             return plugin.m_name;
-        }
     }
 
     return wxString::Format( _( "UNKNOWN (%d)" ), aType );
@@ -92,17 +94,18 @@ const wxString PCB_IO_MGR::ShowType( PCB_FILE_T aType )
 
 PCB_IO_MGR::PCB_FILE_T PCB_IO_MGR::EnumFromStr( const wxString& aType )
 {
+    if( aType == LIBRARY_TABLE_ROW::TABLE_TYPE_NAME )
+        return PCB_IO_MGR::NESTED_TABLE;
+
     const auto& plugins = PLUGIN_REGISTRY::Instance()->AllPlugins();
 
     for( const auto& plugin : plugins )
     {
-        if ( plugin.m_name == aType )
-        {
+        if( plugin.m_name.CmpNoCase( aType ) == 0 )
             return plugin.m_type;
-        }
     }
 
-    return PCB_FILE_T( -1 );
+    return PCB_IO_MGR::PCB_FILE_UNKNOWN;
 }
 
 
@@ -134,6 +137,11 @@ PCB_IO_MGR::PCB_FILE_T PCB_IO_MGR::FindPluginTypeFromBoardPath( const wxString& 
 
 PCB_IO_MGR::PCB_FILE_T PCB_IO_MGR::GuessPluginTypeFromLibPath( const wxString& aLibPath, int aCtl )
 {
+    LIBRARY_TABLE_PARSER parser;
+
+    if( parser.Parse( aLibPath.ToStdString() ).has_value() )
+        return NESTED_TABLE;
+
     const auto& plugins = PCB_IO_MGR::PLUGIN_REGISTRY::Instance()->AllPlugins();
 
     for( const auto& plugin : plugins )
@@ -160,7 +168,7 @@ BOARD* PCB_IO_MGR::Load( PCB_FILE_T aFileType, const wxString& aFileName, BOARD*
                      const std::map<std::string, UTF8>* aProperties, PROJECT* aProject,
                      PROGRESS_REPORTER* aProgressReporter )
 {
-    IO_RELEASER<PCB_IO> pi( PluginFind( aFileType ) );
+    IO_RELEASER<PCB_IO> pi( FindPlugin( aFileType ) );
 
     if( pi )  // test pi->plugin
     {
@@ -175,7 +183,7 @@ BOARD* PCB_IO_MGR::Load( PCB_FILE_T aFileType, const wxString& aFileName, BOARD*
 void PCB_IO_MGR::Save( PCB_FILE_T aFileType, const wxString& aFileName, BOARD* aBoard,
                    const std::map<std::string, UTF8>* aProperties )
 {
-    IO_RELEASER<PCB_IO> pi( PluginFind( aFileType ) );
+    IO_RELEASER<PCB_IO> pi( FindPlugin( aFileType ) );
 
     if( pi )
     {
@@ -187,16 +195,17 @@ void PCB_IO_MGR::Save( PCB_FILE_T aFileType, const wxString& aFileName, BOARD* a
 }
 
 
-bool PCB_IO_MGR::ConvertLibrary( std::map<std::string, UTF8>* aOldFileProps, const wxString& aOldFilePath,
-                                 const wxString& aNewFilePath, REPORTER* aReporter )
+bool PCB_IO_MGR::ConvertLibrary( const std::map<std::string, UTF8>& aOldFileProps,
+                                 const wxString& aOldFilePath, const wxString& aNewFilePath,
+                                 REPORTER* aReporter )
 {
     PCB_IO_MGR::PCB_FILE_T oldFileType = PCB_IO_MGR::GuessPluginTypeFromLibPath( aOldFilePath );
 
     if( oldFileType == PCB_IO_MGR::FILE_TYPE_NONE )
         return false;
 
-    IO_RELEASER<PCB_IO> oldFilePI( PCB_IO_MGR::PluginFind( oldFileType ) );
-    IO_RELEASER<PCB_IO> kicadPI( PCB_IO_MGR::PluginFind( PCB_IO_MGR::KICAD_SEXP ) );
+    IO_RELEASER<PCB_IO> oldFilePI( PCB_IO_MGR::FindPlugin( oldFileType ) );
+    IO_RELEASER<PCB_IO> kicadPI( PCB_IO_MGR::FindPlugin( PCB_IO_MGR::KICAD_SEXP ) );
     wxArrayString fpNames;
     wxFileName newFileName( aNewFilePath );
 
@@ -214,13 +223,13 @@ bool PCB_IO_MGR::ConvertLibrary( std::map<std::string, UTF8>* aOldFileProps, con
     try
     {
         bool bestEfforts = false; // throw on first error
-        oldFilePI->FootprintEnumerate( fpNames, aOldFilePath, bestEfforts, aOldFileProps );
+        oldFilePI->FootprintEnumerate( fpNames, aOldFilePath, bestEfforts, &aOldFileProps );
         std::map<std::string, UTF8> props { { "skip_cache_validation", "" } };
 
         for ( const wxString& fpName : fpNames )
         {
             std::unique_ptr<const FOOTPRINT> fp( oldFilePI->GetEnumeratedFootprint( aOldFilePath, fpName,
-                                                                                    aOldFileProps ) );
+                                                                                    &aOldFileProps ) );
 
             try
             {

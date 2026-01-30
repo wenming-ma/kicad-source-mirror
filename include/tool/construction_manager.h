@@ -119,9 +119,13 @@ public:
      * @param aNearestGrid The nearest grid point to the cursor.
      * @param aDistToNearest The distance to the nearest non-grid snap point, if any.
      * @param snapRange The snap range.
+     * @param aGridSize The grid size (for snapping to grid intersections).
+     * @param aGridOrigin The grid origin (for snapping to grid intersections).
      */
     OPT_VECTOR2I GetNearestSnapLinePoint( const VECTOR2I& aCursor, const VECTOR2I& aNearestGrid,
-                                          std::optional<int> aDistToNearest, int snapRange ) const;
+                                          std::optional<int> aDistToNearest, int snapRange,
+                                          const VECTOR2D& aGridSize = VECTOR2D( 0, 0 ),
+                                          const VECTOR2I& aGridOrigin = VECTOR2I( 0, 0 ) ) const;
 
     void SetDirections( const std::vector<VECTOR2I>& aDirections );
 
@@ -204,6 +208,11 @@ public:
      * Cancel outstanding proposals for new geometry.
      */
     void CancelProposal();
+
+    /**
+     * Clear all construction items.
+     */
+    void Clear();
 
     /**
      * Check if all 'real' (non-null = constructed) the items in the batch are in the list of items
@@ -300,6 +309,8 @@ public:
 
     void SetSnapGuideColors( const KIGFX::COLOR4D& aBase, const KIGFX::COLOR4D& aHighlight );
     void UpdateSnapGuides();
+
+    void Clear();
 
 public:
     void updateView() override;

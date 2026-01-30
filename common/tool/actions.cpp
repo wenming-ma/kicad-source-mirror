@@ -568,6 +568,13 @@ TOOL_ACTION ACTIONS::editTable( TOOL_ACTION_ARGS()
         .FriendlyName( _( "Edit Table..." ) )
         .Icon( BITMAPS::table_edit ) );
 
+TOOL_ACTION ACTIONS::exportTableCSV( TOOL_ACTION_ARGS()
+        .Name( "common.TableEditor.exportTableCSV" )
+        .Scope( AS_GLOBAL )
+        .MenuText( _( "Export Table to CSV..." ) )
+        .Tooltip( _( "Export table contents to CSV file with resolved text variables" ) )
+        .Icon( BITMAPS::export_file ) );
+
 TOOL_ACTION ACTIONS::activatePointEditor( TOOL_ACTION_ARGS()
         .Name( "common.Control.activatePointEditor" )
         .ToolbarState( TOOLBAR_STATE::HIDDEN )
@@ -591,7 +598,7 @@ TOOL_ACTION ACTIONS::pointEditorArcKeepRadius( TOOL_ACTION_ARGS()
         .Name( "pcbnew.PointEditor.arcKeepRadius" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Keep Arc Radius and Center, adjust angle" ) )
-        .Tooltip( _( "Switch arc editing mode to maintainign radius when endpoint are moved" ) )
+        .Tooltip( _( "Switch arc editing mode to maintaining radius when endpoint are moved" ) )
         .Parameter( ARC_EDIT_MODE::KEEP_CENTER_ENDS_ADJUST_ANGLE ) );
 
 TOOL_ACTION ACTIONS::cycleArcEditMode( TOOL_ACTION_ARGS()
@@ -952,19 +959,6 @@ TOOL_ACTION ACTIONS::unpinLibrary( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Unpin Library" ) )
         .Tooltip( _( "No longer keep the library at the top of the list" ) ) );
-
-TOOL_ACTION ACTIONS::showLibraryFieldsTable( TOOL_ACTION_ARGS()
-        .Name( "common.Control.showLibraryFieldsTable" )
-        .Scope( AS_GLOBAL )
-        .FriendlyName( _( "Library Fields Table" ) )
-        .Icon( BITMAPS::table ) );
-
-TOOL_ACTION ACTIONS::showRelatedLibraryFieldsTable( TOOL_ACTION_ARGS()
-        .Name( "common.Control.showRelatedLibraryFieldsTable" )
-        .Scope( AS_GLOBAL )
-        .FriendlyName( _( "Library Fields Table of Related Symbols" ) )
-        .Tooltip( _( "Edit a table of fields of all symbols related to the selected symbol" ) )
-        .Icon( BITMAPS::table ) );
 
 TOOL_ACTION ACTIONS::showLibraryTree( TOOL_ACTION_ARGS()
         .Name( "common.Control.showLibraryTree" )

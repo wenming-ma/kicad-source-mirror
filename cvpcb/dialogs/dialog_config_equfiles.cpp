@@ -29,7 +29,7 @@
 #include <widgets/wx_grid.h>
 #include <bitmaps.h>
 #include <project.h>            // For PROJECT_VAR_NAME definition
-#include <fp_lib_table.h>       // For KICAD7_FOOTPRINT_DIR definition
+#include <footprint_library_adapter.h>       // For KICAD7_FOOTPRINT_DIR definition
 
 #include <dialog_config_equfiles.h>
 #include <project/project_file.h>
@@ -38,6 +38,7 @@
 
 #include <wx/filedlg.h>
 #include <wx/msgdlg.h>
+#include <kiplatform/ui.h>
 
 
 DIALOG_CONFIG_EQUFILES::DIALOG_CONFIG_EQUFILES( wxWindow* aParent ) :
@@ -66,7 +67,7 @@ DIALOG_CONFIG_EQUFILES::DIALOG_CONFIG_EQUFILES( wxWindow* aParent ) :
     m_gridEnvVars->ClearRows();
     m_gridEnvVars->AppendRows( 2 );
     m_gridEnvVars->SetCellValue( 0, 0, PROJECT_VAR_NAME );
-    m_gridEnvVars->SetCellValue( 1, 0, FP_LIB_TABLE::GlobalPathEnvVariableName() );
+    m_gridEnvVars->SetCellValue( 1, 0, FOOTPRINT_LIBRARY_ADAPTER::GlobalPathEnvVariableName() );
 
     for( int row = 0; row < m_gridEnvVars->GetTable()->GetRowsCount(); row++ )
     {
@@ -213,6 +214,8 @@ void DIALOG_CONFIG_EQUFILES::OnAddFiles( wxCommandEvent& event )
 
     wxFileDialog dlg( this, _( "Footprint Association File" ), libpath, wxEmptyString,
                       FILEEXT::EquFileWildcard(), wxFD_DEFAULT_STYLE | wxFD_MULTIPLE );
+
+    KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
 
     if( dlg.ShowModal() != wxID_OK )
         return;

@@ -55,7 +55,6 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
         m_Session(),
         m_System(),
         m_DoNotShowAgain(),
-        m_NetclassPanel(),
         m_PackageManager(),
         m_Api()
 {
@@ -106,26 +105,17 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "appearance.grid_striping",
             &m_Appearance.grid_striping, false ) );
 
+    m_params.emplace_back( new PARAM<bool>( "appearance.use_custom_cursors",
+            &m_Appearance.use_custom_cursors, true ) );
+
     m_Appearance.zoom_correction_factor = 1.0;
     m_params.emplace_back( new PARAM<double>( "appearance.zoom_correction_factor",
             &m_Appearance.zoom_correction_factor, 1.0, 0.1, 10.0 ) );
 
     m_params.emplace_back( new PARAM<bool>( "auto_backup.enabled", &m_Backup.enabled, true ) );
 
-    m_params.emplace_back( new PARAM<bool>( "auto_backup.backup_on_autosave",
-            &m_Backup.backup_on_autosave, false ) );
-
-    m_params.emplace_back( new PARAM<int>( "auto_backup.limit_total_files",
-            &m_Backup.limit_total_files, 25 ) );
-
     m_params.emplace_back( new PARAM<unsigned long long>( "auto_backup.limit_total_size",
             &m_Backup.limit_total_size, 104857600 ) );
-
-    m_params.emplace_back( new PARAM<int>( "auto_backup.limit_daily_files",
-            &m_Backup.limit_daily_files, 5 ) );
-
-    m_params.emplace_back( new PARAM<int>( "auto_backup.min_interval",
-            &m_Backup.min_interval, 300 ) );
 
     auto envVarsParam = m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "environment.vars",
             [&]() -> nlohmann::json
@@ -319,8 +309,10 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     m_params.emplace_back( new PARAM<int>( "graphics.antialiasing_mode",
             &m_Graphics.aa_mode, 2, 0, 2 ) );
 
-    m_params.emplace_back( new PARAM<int>( "system.autosave_interval",
-            &m_System.autosave_interval, 600 ) );
+    m_params.emplace_back( new PARAM<bool>( "system.local_history_enabled",
+            &m_System.local_history_enabled, true ) );
+    m_params.emplace_back( new PARAM<int>( "system.local_history_debounce",
+            &m_System.local_history_debounce, 5, 0, 100000 ) );
 
 #ifdef __WXMAC__
     m_params.emplace_back( new PARAM<wxString>( "system.text_editor",
@@ -382,15 +374,6 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
 
     m_params.emplace_back( new PARAM_LIST<wxString>( "session.pinned_design_block_libs",
             &m_Session.pinned_design_block_libs, {} ) );
-
-    m_params.emplace_back( new PARAM<int>( "netclass_panel.sash_pos",
-            &m_NetclassPanel.sash_pos, 160 ) );
-
-    m_params.emplace_back( new PARAM<wxString>( "netclass_panel.eeschema_shown_columns",
-            &m_NetclassPanel.eeschema_visible_columns, "0 11 12 13 14" ) );
-
-    m_params.emplace_back( new PARAM<wxString>( "netclass_panel.pcbnew_shown_columns",
-            &m_NetclassPanel.pcbnew_visible_columns, "0 1 2 3 4 5 6 7 8 9 10" ) );
 
     m_params.emplace_back( new PARAM<int>( "package_manager.sash_pos",
             &m_PackageManager.sash_pos, 380 ) );
@@ -743,7 +726,7 @@ bool COMMON_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
     ret &= fromLegacy<int>( aCfg, "OpenGLAntialiasingMode", "graphics.opengl_antialiasing_mode" );
     ret &= fromLegacy<int>( aCfg, "CairoAntialiasingMode",  "graphics.cairo_antialiasing_mode" );
 
-    ret &= fromLegacy<int>(  aCfg, "AutoSaveInterval",        "system.autosave_interval" );
+    ret &= fromLegacy<int>(  aCfg, "AutoSaveInterval",        "system.local_history_debounce" );
     ret &= fromLegacyString( aCfg, "Editor",                  "system.editor_name" );
     ret &= fromLegacy<int>(  aCfg, "FileHistorySize",         "system.file_history_size" );
     ret &= fromLegacyString( aCfg, "LanguageID",              "system.language" );

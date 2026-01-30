@@ -56,6 +56,7 @@ public:
     int JobExportIpc2581( JOB* aJob );
     int JobExportOdb( JOB* aJob );
     int JobExportIpcD356( JOB* aJob );
+    int JobExportStats( JOB* aJob );
     int JobUpgrade( JOB* aJob );
 
 private:
@@ -68,6 +69,7 @@ private:
                                            JOB_EXPORT_PCB_GERBERS* aJob );
     int  doFpExportSvg( JOB_FP_EXPORT_SVG* aSvgJob, const FOOTPRINT* aFootprint );
     void loadOverrideDrawingSheet( BOARD* brd, const wxString& aSheetPath );
+    wxString resolveJobOutputPath( JOB* aJob, BOARD* aBoard, const wxString* aDrawingSheet = nullptr );
 
     DS_PROXY_VIEW_ITEM* getDrawingSheetProxyView( BOARD* aBrd );
 

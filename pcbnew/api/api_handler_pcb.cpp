@@ -38,6 +38,9 @@
 #include <pcb_textbox.h>
 #include <pcb_track.h>
 #include <pcbnew_id.h>
+#include <pcb_marker.h>
+#include <drc/drc_item.h>
+#include <layer_ids.h>
 #include <project.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_actions.h>
@@ -46,6 +49,7 @@
 
 #include <api/common/types/base_types.pb.h>
 #include <widgets/appearance_controls.h>
+#include <widgets/report_severity.h>
 
 using namespace kiapi::common::commands;
 using types::CommandStatus;
@@ -112,6 +116,8 @@ API_HANDLER_PCB::API_HANDLER_PCB( PCB_EDIT_FRAME* aFrame ) :
             &API_HANDLER_PCB::handleGetBoardEditorAppearanceSettings );
     registerHandler<SetBoardEditorAppearanceSettings, Empty>(
             &API_HANDLER_PCB::handleSetBoardEditorAppearanceSettings );
+    registerHandler<InjectDrcError, InjectDrcErrorResponse>(
+            &API_HANDLER_PCB::handleInjectDrcError );
 }
 
 
@@ -478,6 +484,18 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_PCB::handleCreateUpdateItemsIntern
 
         if( aCreate )
         {
+            if( item->Type() == PCB_FOOTPRINT_T )
+            {
+                // Ensure children have unique identifiers; in case the API client created this new
+                // footprint by cloning an existing one and only changing the parent UUID.
+                item->RunOnChildren(
+                        []( BOARD_ITEM* aChild )
+                        {
+                            const_cast<KIID&>( aChild->m_Uuid ) = KIID();
+                        },
+                        RECURSE );
+            }
+
             item->Serialize( newItem );
             commit->Add( item.release() );
         }
@@ -493,9 +511,18 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_PCB::handleCreateUpdateItemsIntern
             // can't use CopyFrom on them either.
             if( boardItem->Type() == PCB_FOOTPRINT_T  || boardItem->Type() == PCB_GROUP_T )
             {
+                // Save group membership before removal, since Remove() severs the relationship
+                PCB_GROUP* parentGroup = dynamic_cast<PCB_GROUP*>( boardItem->GetParentGroup() );
+
                 commit->Remove( boardItem );
                 item->Serialize( newItem );
-                commit->Add( item.release() );
+
+                BOARD_ITEM* newBoardItem = item.release();
+                commit->Add( newBoardItem );
+
+                // Restore group membership for the newly added item
+                if( parentGroup )
+                    parentGroup->AddItem( newBoardItem );
             }
             else
             {
@@ -1686,4 +1713,47 @@ HANDLER_RESULT<Empty> API_HANDLER_PCB::handleSetBoardEditorAppearanceSettings(
     frame()->GetCanvas()->Refresh();
 
     return Empty();
+}
+
+
+HANDLER_RESULT<InjectDrcErrorResponse> API_HANDLER_PCB::handleInjectDrcError(
+        const HANDLER_CONTEXT<InjectDrcError>& aCtx )
+{
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.board() );
+
+    if( !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    SEVERITY severity = FromProtoEnum<SEVERITY>( aCtx.Request.severity() );
+    int      layer = severity == RPT_SEVERITY_WARNING ? LAYER_DRC_WARNING : LAYER_DRC_ERROR;
+    int      code = severity == RPT_SEVERITY_WARNING ? DRCE_GENERIC_WARNING : DRCE_GENERIC_ERROR;
+
+    std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( code );
+
+    drcItem->SetErrorMessage( wxString::FromUTF8( aCtx.Request.message() ) );
+
+    RC_ITEM::KIIDS ids;
+
+    for( const auto& id : aCtx.Request.items() )
+        ids.emplace_back( KIID( id.value() ) );
+
+    if( !ids.empty() )
+        drcItem->SetItems( ids );
+
+    const auto& pos = aCtx.Request.position();
+    VECTOR2I    position( static_cast<int>( pos.x_nm() ), static_cast<int>( pos.y_nm() ) );
+
+    PCB_MARKER* marker = new PCB_MARKER( drcItem, position, layer );
+
+    COMMIT* commit = getCurrentCommit( aCtx.ClientName );
+    commit->Add( marker );
+    commit->Push( wxS( "API injected DRC marker" ) );
+
+    InjectDrcErrorResponse response;
+    response.mutable_marker()->set_value( marker->GetUUID().AsStdString() );
+
+    return response;
 }

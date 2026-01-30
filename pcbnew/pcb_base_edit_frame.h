@@ -28,6 +28,7 @@
 #define BASE_EDIT_FRAME_H
 
 #include <pcb_base_frame.h>
+#include <libraries/library_table.h>
 
 class APPEARANCE_CONTROLS;
 class LAYER_PAIR_SETTINGS;
@@ -94,7 +95,7 @@ public:
      * @return true if successfully added.
      */
     bool AddLibrary( const wxString& aDialogTitle, const wxString& aLibName = wxEmptyString,
-                     FP_LIB_TABLE* aTable = nullptr );
+                     std::optional<LIBRARY_TABLE_SCOPE> aScope = std::nullopt );
 
     /**
      * Install the corresponding dialog editor for the given item.
@@ -254,6 +255,8 @@ public:
 
     void HighlightSelectionFilter( const PCB_SELECTION_FILTER_OPTIONS& aOptions );
 
+    void ClearToolbarControl( int aId ) override;
+
 protected:
     void configureToolbars() override;
 
@@ -261,7 +264,7 @@ protected:
      * Create a new library in the given table.  (The user will be consulted if the table is null.)
      */
     wxString createNewLibrary( const wxString& aDialogTitle, const wxString& aLibName,
-                               const wxString& aInitialPath, FP_LIB_TABLE* aTable );
+                               const wxString& aInitialPath, std::optional<LIBRARY_TABLE_SCOPE> aScope = std::nullopt );
 
     void handleActivateEvent( wxActivateEvent& aEvent ) override;
 

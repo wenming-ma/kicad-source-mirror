@@ -22,8 +22,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef DIALOG_ZONE_MANAGER_H
-#define DIALOG_ZONE_MANAGER_H
+#pragma once
 
 #include <memory>
 #include <optional>
@@ -35,6 +34,7 @@
 #include <pcb_edit_frame.h>
 #include <pcbnew_settings.h>
 #include <zones.h>
+#include <zone_settings_bag.h>
 #include <widgets/unit_binder.h>
 #include <zone.h>
 #include <pad.h>
@@ -46,37 +46,30 @@
 
 
 class PANEL_ZONE_PROPERTIES;
-class MODEL_ZONES_PRIORITY_LIST;
 class MODEL_ZONES_OVERVIEW;
-class MODEL_ZONE_LAYERS_LIST;
-class ZONES_CONTAINER;
-class PANE_ZONE_VIEWER;
+class ZONE_PREVIEW_NOTEBOOK;
 class ZONE_FILLER;
 class COMMIT;
-class PANEL_ZONE_GAL;
+class ZONE_PREVIEW_CANVAS;
 enum class ZONE_INDEX_MOVEMENT;
+
 
 class DIALOG_ZONE_MANAGER : public DIALOG_ZONE_MANAGER_BASE
 {
-    /*enum
-    {
-        ZONE_VIEWER = ID_DIALOG_COPPER_ZONE_BASE + 10,
-    };*/
-
 public:
-    DIALOG_ZONE_MANAGER( PCB_BASE_FRAME* aParent, ZONE_SETTINGS* aZoneInfo );
+    DIALOG_ZONE_MANAGER( PCB_BASE_FRAME* aParent );
     ~DIALOG_ZONE_MANAGER() override;
+
+    bool TransferDataToWindow() override;
+
+    bool GetRepourOnClose() { return m_checkRepour->GetValue(); }
 
 protected:
     void OnZoneSelectionChanged( ZONE* aZone );
-
     void OnDataViewCtrlSelectionChanged( wxDataViewEvent& event ) override;
-
     void SelectZoneTableItem( wxDataViewItem const& aItem );
-
     void OnViewZonesOverviewOnLeftUp( wxMouseEvent& aEvent ) override;
 	void onDialogResize( wxSizeEvent& event ) override;
-
     void OnOk( wxCommandEvent& aEvt ) override;
 
 #if wxUSE_DRAG_AND_DROP
@@ -86,6 +79,7 @@ protected:
 #endif // wxUSE_DRAG_AND_DROP
 
     void OnZoneNameUpdate( wxCommandEvent& aEvent );
+    void OnZoneNetUpdate( wxCommandEvent& aEvent );
     void OnZonesTableRowCountChange( wxCommandEvent& aEvent );
     void OnCheckBoxClicked( wxCommandEvent& aEvent );
 
@@ -97,7 +91,6 @@ protected:
     void OnFilterCtrlSearch( wxCommandEvent& aEvent ) override;
     void OnFilterCtrlTextChange( wxCommandEvent& aEvent ) override;
     void OnFilterCtrlEnter( wxCommandEvent& aEvent ) override;
-    void OnRepourCheck( wxCommandEvent& aEvent ) override;
     void OnUpdateDisplayedZonesClick( wxCommandEvent& aEvent ) override;
 
     void PostProcessZoneViewSelChange( wxDataViewItem const& aItem );
@@ -110,20 +103,14 @@ private:
 
     void OnIdle( wxIdleEvent& aEvent );
 
-    void FitCanvasToScreen();
-
 private:
     PCB_BASE_FRAME*                       m_pcbFrame;
-    ZONE_SETTINGS*                        m_zoneInfo;
-    std::unique_ptr<ZONES_CONTAINER>      m_zonesContainer;
+    ZONE_SETTINGS_BAG                     m_zoneSettingsBag;
     PANEL_ZONE_PROPERTIES*                m_panelZoneProperties;
     wxObjectDataPtr<MODEL_ZONES_OVERVIEW> m_modelZonesOverview;
-    PANE_ZONE_VIEWER*                     m_zoneViewer;
+    ZONE_PREVIEW_NOTEBOOK*                m_zonePreviewNotebook;
     std::optional<unsigned>               m_priorityDragIndex;
     std::unique_ptr<ZONE_FILLER>          m_filler;
-    bool                                  m_needZoomGAL;
     bool                                  m_isFillingZones;
     bool                                  m_zoneFillComplete;
 };
-
-#endif

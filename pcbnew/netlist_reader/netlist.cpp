@@ -35,7 +35,7 @@ using namespace std::placeholders;
 #include <netlist_reader/netlist_reader.h>
 #include <reporter.h>
 #include <lib_id.h>
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include <board.h>
 #include <footprint.h>
 #include <spread_footprints.h>
@@ -157,6 +157,8 @@ void PCB_EDIT_FRAME::OnNetlistChanged( BOARD_NETLIST_UPDATER& aUpdater, bool* aR
 
     Compile_Ratsnest( true );
 
+    UpdateVariantSelectionCtrl();
+
     GetCanvas()->Refresh();
 }
 
@@ -169,7 +171,7 @@ void PCB_EDIT_FRAME::LoadFootprints( NETLIST& aNetlist, REPORTER& aReporter )
     FOOTPRINT* footprint = nullptr;
     FOOTPRINT* fpOnBoard = nullptr;
 
-    if( aNetlist.IsEmpty() || PROJECT_PCB::PcbFootprintLibs( &Prj() )->IsEmpty() )
+    if( aNetlist.IsEmpty() || PROJECT_PCB::FootprintLibAdapter( &Prj() )->Rows().empty() )
         return;
 
     aNetlist.SortByFPID();

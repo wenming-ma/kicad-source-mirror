@@ -165,8 +165,30 @@ bool SCH_SHAPE::IsEndPoint( const VECTOR2I& aPt ) const
 {
     SHAPE_T shape = GetShape();
 
-    if( ( shape == SHAPE_T::ARC ) || ( shape == SHAPE_T::BEZIER ) )
+    if( shape == SHAPE_T::ARC || shape == SHAPE_T::BEZIER || shape == SHAPE_T::SEGMENT )
         return ( aPt == GetStart() ) || ( aPt == GetEnd() );
+
+    if( shape == SHAPE_T::RECTANGLE )
+    {
+        for( const VECTOR2I& corner : GetRectCorners() )
+        {
+            if( corner == aPt )
+                return true;
+        }
+
+        return false;
+    }
+
+    if( shape == SHAPE_T::POLY )
+    {
+        for( const VECTOR2I& pt : GetPolyPoints() )
+        {
+            if( pt == aPt )
+                return true;
+        }
+
+        return false;
+    }
 
     return false;
 }
@@ -224,8 +246,8 @@ void SCH_SHAPE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
             break;
 
         case FILL_T::FILLED_WITH_COLOR:
-            // drop fill in B&W mode
-            if( !aPlotter->GetColorMode() )
+            // drop separate fills in B&W mode
+            if( !aPlotter->GetColorMode() && pen_size > 0 )
                 return;
 
             color = GetFillColor();
@@ -268,6 +290,9 @@ void SCH_SHAPE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
 
     if( bg == COLOR4D::UNSPECIFIED || !aPlotter->GetColorMode() )
         bg = COLOR4D::WHITE;
+
+    if( color.m_text && Schematic() )
+        color = COLOR4D( ResolveText( *color.m_text, &Schematic()->CurrentSheet() ) );
 
     if( aDimmed )
     {

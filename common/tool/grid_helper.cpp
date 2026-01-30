@@ -28,6 +28,8 @@
 #include <limits>
 
 #include <advanced_config.h>
+#include <trace_helpers.h>
+#include <wx/log.h>
 #include <gal/graphics_abstraction_layer.h>
 #include <math/util.h>      // for KiROUND
 #include <math/vector2d.h>
@@ -161,13 +163,25 @@ std::optional<VECTOR2I> GRID_HELPER::SnapToConstructionLines( const VECTOR2I& aP
     const SNAP_LINE_MANAGER& snapLineManager = m_snapManager.GetSnapLineManager();
     const OPT_VECTOR2I&      snapOrigin = snapLineManager.GetSnapLineOrigin();
 
+    wxLogTrace( traceSnap, "SnapToConstructionLines: aPoint=(%d, %d), nearestGrid=(%d, %d), snapRange=%.1f",
+                aPoint.x, aPoint.y, aNearestGrid.x, aNearestGrid.y, aSnapRange );
+
     if( !snapOrigin || snapLineManager.GetDirections().empty() )
+    {
+        wxLogTrace( traceSnap, "  No snap origin or no directions, returning nullopt" );
         return std::nullopt;
+    }
 
     const VECTOR2I& origin = *snapOrigin;
 
+    wxLogTrace( traceSnap, "  snapOrigin=(%d, %d), directions count=%zu",
+                origin.x, origin.y, snapLineManager.GetDirections().size() );
+
     const std::vector<VECTOR2I>& directions = snapLineManager.GetDirections();
     const std::optional<int>     activeDirection = snapLineManager.GetActiveDirection();
+
+    if( activeDirection )
+        wxLogTrace( traceSnap, "  activeDirection=%d", *activeDirection );
 
     const VECTOR2D originVec( origin );
     const VECTOR2D cursorVec( aPoint );
@@ -184,7 +198,10 @@ std::optional<VECTOR2I> GRID_HELPER::SnapToConstructionLines( const VECTOR2I& aP
         double          dirLength = dirVector.EuclideanNorm();
 
         if( dirLength == 0.0 )
+        {
+            wxLogTrace( traceSnap, "    Direction %zu: zero length, skipping", ii );
             continue;
+        }
 
         VECTOR2D dirUnit = dirVector / dirLength;
 
@@ -196,10 +213,19 @@ std::optional<VECTOR2I> GRID_HELPER::SnapToConstructionLines( const VECTOR2I& aP
         double snapThreshold = aSnapRange;
 
         if( activeDirection && *activeDirection == static_cast<int>( ii ) )
+        {
             snapThreshold *= 1.5;
+            wxLogTrace( traceSnap, "    Direction %zu: ACTIVE, increased snapThreshold=%.1f", ii, snapThreshold );
+        }
+
+        wxLogTrace( traceSnap, "    Direction %zu: dir=(%d, %d), perpDist=%.1f, threshold=%.1f",
+                    ii, dir.x, dir.y, perpDistance, snapThreshold );
 
         if( perpDistance > snapThreshold )
+        {
+            wxLogTrace( traceSnap, "      perpDistance > threshold, skipping" );
             continue;
+        }
 
         VECTOR2D candidate = projection;
 
@@ -207,41 +233,111 @@ std::optional<VECTOR2I> GRID_HELPER::SnapToConstructionLines( const VECTOR2I& aP
         {
             if( dir.x == 0 && dir.y != 0 )
             {
+                // Vertical construction line: snap to grid intersection
                 candidate.x = origin.x;
                 candidate.y = aNearestGrid.y;
+                wxLogTrace( traceSnap, "      Vertical snap: candidate=(%d, %d)",
+                            (int)candidate.x, (int)candidate.y );
             }
             else if( dir.y == 0 && dir.x != 0 )
             {
+                // Horizontal construction line: snap to grid intersection
                 candidate.x = aNearestGrid.x;
                 candidate.y = origin.y;
+                wxLogTrace( traceSnap, "      Horizontal snap: candidate=(%d, %d)",
+                            (int)candidate.x, (int)candidate.y );
             }
             else
             {
-                double stepDistance = std::sqrt( aGrid.x * aGrid.x + aGrid.y * aGrid.y );
+                // Diagonal construction line: find nearest grid intersection along the line
+                // We need to find grid points near the projection point and pick the closest
+                // one that lies on the construction line
 
-                if( stepDistance == 0.0 )
-                    continue;
+                // Get the grid origin for proper alignment
+                VECTOR2D gridOrigin( GetOrigin() );
 
-                double steps = std::round( distanceAlong / stepDistance );
-                candidate = originVec + dirUnit * ( steps * stepDistance );
+                // Calculate the projection point relative to grid
+                VECTOR2D relProjection = projection - gridOrigin;
+
+                // Find nearby grid points (check 9 points in a 3x3 grid around the projection)
+                std::vector<VECTOR2D> gridPoints;
+                for( int dx = -1; dx <= 1; ++dx )
+                {
+                    for( int dy = -1; dy <= 1; ++dy )
+                    {
+                        double gridX = std::round( relProjection.x / aGrid.x ) * aGrid.x + dx * aGrid.x;
+                        double gridY = std::round( relProjection.y / aGrid.y ) * aGrid.y + dy * aGrid.y;
+                        gridPoints.push_back( VECTOR2D( gridX + gridOrigin.x, gridY + gridOrigin.y ) );
+                    }
+                }
+
+                // Find the grid point closest to the construction line
+                double   bestGridDist = std::numeric_limits<double>::max();
+                VECTOR2D bestGridPt = projection;
+
+                for( const VECTOR2D& gridPt : gridPoints )
+                {
+                    // Calculate perpendicular distance from grid point to construction line
+                    VECTOR2D gridDelta = gridPt - originVec;
+                    double   gridDistAlong = gridDelta.Dot( dirUnit );
+                    VECTOR2D gridProjection = originVec + dirUnit * gridDistAlong;
+                    double   gridPerpDist = ( gridPt - gridProjection ).EuclideanNorm();
+
+                    // Also consider distance from cursor
+                    double distFromCursor = ( gridPt - cursorVec ).EuclideanNorm();
+
+                    // Prefer grid points that are close to the line and close to cursor
+                    double score = gridPerpDist + distFromCursor * 0.1;
+
+                    if( score < bestGridDist )
+                    {
+                        bestGridDist = score;
+                        bestGridPt = gridPt;
+                    }
+                }
+
+                candidate = bestGridPt;
+                wxLogTrace( traceSnap, "      Diagonal snap: candidate=(%.1f, %.1f), perpDist=%.1f",
+                            candidate.x, candidate.y, bestGridDist );
             }
         }
+        else
+        {
+            wxLogTrace( traceSnap, "      Grid disabled, using projection candidate=(%.1f, %.1f)",
+                        candidate.x, candidate.y );
+        }
 
-        VECTOR2I candidateInt( KiROUND( candidate.x ), KiROUND( candidate.y ) );
+        VECTOR2I candidateInt = KiROUND( candidate );
 
         if( candidateInt == m_skipPoint )
+        {
+            wxLogTrace( traceSnap, "      candidateInt matches m_skipPoint, skipping" );
             continue;
+        }
 
         VECTOR2D candidateDelta( candidateInt.x - aPoint.x, candidateInt.y - aPoint.y );
         double    candidateDistance = candidateDelta.EuclideanNorm();
 
+        wxLogTrace( traceSnap, "      candidateInt=(%d, %d), candidateDist=%.1f",
+                    candidateInt.x, candidateInt.y, candidateDistance );
+
         if( perpDistance < bestPerp
                 || ( std::abs( perpDistance - bestPerp ) < 1e-9 && candidateDistance < bestDistance ) )
         {
+            wxLogTrace( traceSnap, "      NEW BEST: perpDist=%.1f, candDist=%.1f", perpDistance, candidateDistance );
             bestPerp = perpDistance;
             bestDistance = candidateDistance;
             bestPoint = candidateInt;
         }
+    }
+
+    if( bestPoint )
+    {
+        wxLogTrace( traceSnap, "  RETURNING bestPoint=(%d, %d)", bestPoint->x, bestPoint->y );
+    }
+    else
+    {
+        wxLogTrace( traceSnap, "  RETURNING nullopt (no valid snap found)" );
     }
 
     return bestPoint;

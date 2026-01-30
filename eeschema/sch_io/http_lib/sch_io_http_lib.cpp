@@ -23,15 +23,16 @@
 
 #include <fmt.h>
 #include <lib_symbol.h>
-#include <symbol_lib_table.h>
 
+#include <libraries/symbol_library_adapter.h>
 #include <http_lib/http_lib_connection.h>
 #include "sch_io_http_lib.h"
+#include <ki_exception.h>
 
 
 SCH_IO_HTTP_LIB::SCH_IO_HTTP_LIB() :
         SCH_IO( wxS( "HTTP library" ) ),
-        m_libTable( nullptr )
+        m_adapter( nullptr )
 {
 }
 
@@ -50,14 +51,14 @@ void SCH_IO_HTTP_LIB::EnumerateSymbolLib( wxArrayString& aSymbolNameList, const 
 void SCH_IO_HTTP_LIB::EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList, const wxString& aLibraryPath,
                                           const std::map<std::string, UTF8>* aProperties )
 {
-    wxCHECK_RET( m_libTable, _( "httplib plugin missing library table handle!" ) );
+    wxCHECK_RET( m_adapter, "HTTP plugin missing library manager adapter handle!" );
     ensureSettings( aLibraryPath );
     ensureConnection();
 
     if( !m_conn )
         THROW_IO_ERROR( m_lastError );
 
-    bool powerSymbolsOnly = ( aProperties && aProperties->contains( SYMBOL_LIB_TABLE::PropPowerSymsOnly ) );
+    bool powerSymbolsOnly = ( aProperties && aProperties->contains( SYMBOL_LIBRARY_ADAPTER::PropPowerSymsOnly ) );
 
     for( const HTTP_LIB_CATEGORY& category : m_conn->getCategories() )
     {
@@ -95,7 +96,7 @@ void SCH_IO_HTTP_LIB::EnumerateSymbolLib( std::vector<LIB_SYMBOL*>& aSymbolList,
 LIB_SYMBOL* SCH_IO_HTTP_LIB::LoadSymbol( const wxString& aLibraryPath, const wxString& aAliasName,
                                          const std::map<std::string, UTF8>* aProperties )
 {
-    wxCHECK( m_libTable, nullptr );
+    wxCHECK_MSG( m_adapter, nullptr, "HTTP plugin missing library manager adapter handle!" );
     ensureSettings( aLibraryPath );
     ensureConnection();
 
@@ -354,7 +355,7 @@ LIB_SYMBOL* SCH_IO_HTTP_LIB::loadSymbolFromPart( const wxString& aSymbolName,
         symbolId.Parse( symbolIdStr );
 
         if( symbolId.IsValid() )
-            originalSymbol = m_libTable->LoadSymbol( symbolId );
+            originalSymbol = m_adapter->LoadSymbol( symbolId );
 
         if( originalSymbol )
         {
@@ -362,6 +363,7 @@ LIB_SYMBOL* SCH_IO_HTTP_LIB::loadSymbolFromPart( const wxString& aSymbolName,
 
             symbol = originalSymbol->Duplicate();
             symbol->SetSourceLibId( symbolId );
+            symbol->SetName( aSymbolName );
 
             LIB_ID libId = symbol->GetLibId();
             libId.SetSubLibraryName( aCategory.name );

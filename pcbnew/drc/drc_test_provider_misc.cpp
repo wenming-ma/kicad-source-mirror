@@ -36,6 +36,8 @@
 #include <drawing_sheet/ds_proxy_view_item.h>
 
 #include <limits>
+#include <project/project_file.h>
+#include <project/tuning_profiles.h>
 
 /*
     Miscellaneous tests:
@@ -46,6 +48,7 @@
     - DRCE_ASSERTION_FAILURE,                 ///< user-defined assertions
     - DRCE_GENERIC_WARNING                    ///< user-defined warnings
     - DRCE_GENERIC_ERROR                      ///< user-defined errors
+    - DRCE_MISSING_TUNING_PROFILES            ///< tuning profile for netc lass not defined
 */
 
 static void findClosestOutlineGap( BOARD* aBoard, PCB_SHAPE*& aItemA, PCB_SHAPE*& aItemB,
@@ -126,6 +129,7 @@ private:
     void testDisabledLayers();
     void testTextVars();
     void testAssertions();
+    void testMissingTuningProfiles();
 
     BOARD* m_board;
 };
@@ -182,14 +186,18 @@ void DRC_TEST_PROVIDER_MISC::testOutline()
                 }
 
                 std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_INVALID_OUTLINE );
-                wxString                  msg2;
 
                 if( itemA && itemB )
-                    msg2.Printf( _( "%s (gap %s)" ), msg, MessageTextFromValue( gap ) );
+                {
+                    drcItem->SetErrorDetail( wxString::Format( _( "%s (gap %s)" ),
+                                                               msg,
+                                                               MessageTextFromValue( gap ) ) );
+                }
                 else
-                    msg2 = msg;
+                {
+                    drcItem->SetErrorDetail( msg );
+                }
 
-                drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + msg2 );
                 drcItem->SetItems( itemA, itemB );
 
                 reportViolation( drcItem, markerPos, Edge_Cuts );
@@ -208,11 +216,7 @@ void DRC_TEST_PROVIDER_MISC::testOutline()
         else
         {
             std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_INVALID_OUTLINE );
-            wxString msg;
-
-            msg.Printf( _( "(Suspicious items found on Edge.Cuts layer)" ) );
-
-            drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + msg );
+            drcItem->SetErrorDetail( _( "(Suspicious items found on Edge.Cuts layer)" ) );
             drcItem->SetItems( m_board );
 
             reportViolation( drcItem, m_board->GetBoundingBox().Centre(), Edge_Cuts );
@@ -227,7 +231,7 @@ void DRC_TEST_PROVIDER_MISC::testOutline()
     // Arc to segment approximation error (not critical here: we do not use the outline shape):
     int maxError = pcbIUScale.mmToIU( 0.05 );
 
-    if( !BuildBoardPolygonOutlines( m_board, dummyOutline, maxError, chainingEpsilon, &errorHandler ) )
+    if( !BuildBoardPolygonOutlines( m_board, dummyOutline, maxError, chainingEpsilon, true, &errorHandler ) )
     {
         if( errorHandled )
         {
@@ -236,11 +240,7 @@ void DRC_TEST_PROVIDER_MISC::testOutline()
         else
         {
             std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_INVALID_OUTLINE );
-            wxString msg;
-
-            msg.Printf( _( "(no edges found on Edge.Cuts layer)" ) );
-
-            drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + msg );
+            drcItem->SetErrorDetail( _( "(no edges found on Edge.Cuts layer)" ) );
             drcItem->SetItems( m_board );
 
             reportViolation( drcItem, m_board->GetBoundingBox().Centre(), Edge_Cuts );
@@ -321,12 +321,8 @@ void DRC_TEST_PROVIDER_MISC::testDisabledLayers()
 
                 if( badLayer != UNDEFINED_LAYER )
                 {
-                    auto drcItem = DRC_ITEM::Create( DRCE_DISABLED_LAYER_ITEM );
-                    wxString msg;
-
-                    msg.Printf( _( "(layer %s)" ), LayerName( badLayer ) );
-
-                    drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + msg );
+                    std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_DISABLED_LAYER_ITEM );
+                    drcItem->SetErrorDetail( wxString::Format( _( "(layer %s)" ), LayerName( badLayer ) ) );
                     drcItem->SetItems( item );
 
                     reportViolation( drcItem, item->GetPosition(), UNDEFINED_LAYER );
@@ -364,9 +360,8 @@ void DRC_TEST_PROVIDER_MISC::testAssertions()
                     m_drcEngine->ProcessAssertions( item,
                             [&]( const DRC_CONSTRAINT* c )
                             {
-                                auto drcItem = DRC_ITEM::Create( DRCE_ASSERTION_FAILURE );
-                                drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " (" )
-                                                            + c->GetName() + wxS( ")" ) );
+                                std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_ASSERTION_FAILURE );
+                                drcItem->SetErrorDetail( wxString::Format( wxS( "(%s)" ), c->GetName() ) );
                                 drcItem->SetItems( item );
                                 drcItem->SetViolatingRule( c->GetParentRule() );
 
@@ -518,6 +513,43 @@ void DRC_TEST_PROVIDER_MISC::testTextVars()
 }
 
 
+void DRC_TEST_PROVIDER_MISC::testMissingTuningProfiles()
+{
+    if( !m_board->GetProject() )
+        return;
+
+    std::shared_ptr<NET_SETTINGS>          netSettings = m_board->GetProject()->GetProjectFile().NetSettings();
+    const std::shared_ptr<TUNING_PROFILES> tuningProfiles =
+            m_board->GetProject()->GetProjectFile().TuningProfileParameters();
+
+    std::set<wxString> profileNames;
+    std::ranges::for_each( tuningProfiles->GetTuningProfiles(),
+                           [&profileNames]( const TUNING_PROFILE& tuningProfile )
+                           {
+                               if( const wxString name = tuningProfile.m_ProfileName; name != wxEmptyString )
+                                   profileNames.insert( name );
+                           } );
+
+    for( const auto& [name, netclass] : netSettings->GetNetclasses() )
+    {
+        if( m_drcEngine->IsErrorLimitExceeded( DRCE_MISSING_TUNING_PROFILE ) )
+            return;
+
+        const wxString profileName = netclass->GetTuningProfile();
+
+        if( netclass->HasTuningProfile() && !profileNames.contains( profileName ) )
+        {
+            std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_MISSING_TUNING_PROFILE );
+            drcItem->SetErrorDetail( wxString::Format( "(Net Class: %s, Tuning Profile: %s)",
+                                                       name,
+                                                       profileName ) );
+
+            reportViolation( drcItem, VECTOR2I(), UNDEFINED_LAYER );
+        }
+    }
+}
+
+
 bool DRC_TEST_PROVIDER_MISC::Run()
 {
     m_board = m_drcEngine->GetBoard();
@@ -554,6 +586,14 @@ bool DRC_TEST_PROVIDER_MISC::Run()
             return false;   // DRC cancelled
 
         testAssertions();
+    }
+
+    if( !m_drcEngine->IsErrorLimitExceeded( DRCE_MISSING_TUNING_PROFILE ) )
+    {
+        if( !reportPhase( _( "Checking for missing tuning profiles..." ) ) )
+            return false; // DRC cancelled
+
+        testMissingTuningProfiles();
     }
 
     return !m_drcEngine->IsCancelled();

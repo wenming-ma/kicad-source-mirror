@@ -339,6 +339,7 @@ std::vector<SCH_ITEM*> CONNECTION_SUBGRAPH::GetAllBusLabels() const
         {
         case SCH_LABEL_T:
         case SCH_GLOBAL_LABEL_T:
+        case SCH_HIER_LABEL_T:
         {
             CONNECTION_TYPE type = item->Connection( &m_sheet )->Type();
 
@@ -368,6 +369,7 @@ std::vector<SCH_ITEM*> CONNECTION_SUBGRAPH::GetVectorBusLabels() const
         {
         case SCH_LABEL_T:
         case SCH_GLOBAL_LABEL_T:
+        case SCH_HIER_LABEL_T:
         {
             SCH_CONNECTION* label_conn = item->Connection( &m_sheet );
 
@@ -454,13 +456,13 @@ CONNECTION_SUBGRAPH::GetNetclassesForDriver( SCH_ITEM* aItem ) const
     // Get netclasses on attached rule areas
     for( SCH_RULE_AREA* ruleArea : ruleAreaCache )
     {
-        const std::vector<std::pair<wxString, SCH_ITEM*>> ruleNetclasses =
-                ruleArea->GetResolvedNetclasses();
+        const std::vector<std::pair<wxString, SCH_ITEM*>> ruleAreaNetclasses =
+                ruleArea->GetResolvedNetclasses( &m_sheet );
 
-        if( ruleNetclasses.size() > 0 )
+        if( ruleAreaNetclasses.size() > 0 )
         {
-            foundNetclasses.insert( foundNetclasses.end(), ruleNetclasses.begin(),
-                                    ruleNetclasses.end() );
+            foundNetclasses.insert( foundNetclasses.end(), ruleAreaNetclasses.begin(),
+                                    ruleAreaNetclasses.end() );
         }
     }
 
@@ -865,8 +867,10 @@ void CONNECTION_GRAPH::Recalculate( const SCH_SHEET_LIST& aSheetList, bool aUnco
 
     // Restore the dangling states of items in the current SCH_SCREEN to match the current
     // SCH_SHEET_PATH.
-    m_schematic->CurrentSheet().LastScreen()->TestDanglingEnds( &m_schematic->CurrentSheet(),
-                                                                aChangedItemHandler );
+    SCH_SCREEN* currentScreen = m_schematic->CurrentSheet().LastScreen();
+
+    if( currentScreen )
+        currentScreen->TestDanglingEnds( &m_schematic->CurrentSheet(), aChangedItemHandler );
 
     for( SCH_ITEM* item : dirty_items )
         item->SetConnectivityDirty( false );
@@ -1731,6 +1735,10 @@ void CONNECTION_GRAPH::generateBusAliasMembers()
 
             for( const auto& conn : dummy.Members() )
             {
+                // Only create subgraphs for NET members, not nested buses
+                if( !conn->IsNet() )
+                    continue;
+
                 wxString name = conn->FullLocalName();
 
                 CONNECTION_SUBGRAPH* new_sg = new CONNECTION_SUBGRAPH( this );
@@ -2396,12 +2404,19 @@ void CONNECTION_GRAPH::buildConnectionGraph( std::function<void( SCH_ITEM* )>* a
                     if( jj == m_net_name_to_subgraphs_map.end() )
                         continue;
 
-                    for( CONNECTION_SUBGRAPH* old_sg : jj->second )
+                    // Copy the vector to avoid iterator invalidation when recaching
+                    std::vector<CONNECTION_SUBGRAPH*> old_subgraphs = jj->second;
+
+                    for( CONNECTION_SUBGRAPH* old_sg : old_subgraphs )
                     {
                         while( old_sg->m_absorbed )
                             old_sg = old_sg->m_absorbed_by;
 
+                        wxString old_sg_name = old_sg->m_driver_connection->Name();
                         old_sg->m_driver_connection->Clone( *conn );
+
+                        if( old_sg_name != old_sg->m_driver_connection->Name() )
+                            recacheSubgraphName( old_sg, old_sg_name );
                     }
                 }
             }
@@ -2761,9 +2776,30 @@ void CONNECTION_GRAPH::propagateToNeighbors( CONNECTION_SUBGRAPH* aSubgraph, boo
 
     auto propagate_bus_neighbors = [&]( CONNECTION_SUBGRAPH* aParentGraph )
     {
+        // Sort bus neighbors by name to ensure deterministic processing order.
+        // When multiple bus members (e.g., A0, A1, A2, A3) all connect to the same
+        // shorted net in a child sheet, the first one processed "wins" and sets
+        // the net name. Sorting ensures the alphabetically-first name is chosen.
+        std::vector<std::shared_ptr<SCH_CONNECTION>> sortedMembers;
+
         for( const auto& kv : aParentGraph->m_bus_neighbors )
+            sortedMembers.push_back( kv.first );
+
+        std::sort( sortedMembers.begin(), sortedMembers.end(),
+                   []( const std::shared_ptr<SCH_CONNECTION>& a,
+                       const std::shared_ptr<SCH_CONNECTION>& b )
+                   {
+                       return a->Name() < b->Name();
+                   } );
+
+        for( const std::shared_ptr<SCH_CONNECTION>& member_conn : sortedMembers )
         {
-            for( CONNECTION_SUBGRAPH* neighbor : kv.second )
+            const auto& kv_it = aParentGraph->m_bus_neighbors.find( member_conn );
+
+            if( kv_it == aParentGraph->m_bus_neighbors.end() )
+                continue;
+
+            for( CONNECTION_SUBGRAPH* neighbor : kv_it->second )
             {
                 // May have been absorbed but won't have been deleted
                 while( neighbor->m_absorbed )
@@ -2774,12 +2810,12 @@ void CONNECTION_GRAPH::propagateToNeighbors( CONNECTION_SUBGRAPH* aSubgraph, boo
                 // Now member may be out of date, since we just cloned the
                 // connection from higher up in the hierarchy.  We need to
                 // figure out what the actual new connection is.
-                SCH_CONNECTION* member = matchBusMember( parent, kv.first.get() );
+                SCH_CONNECTION* member = matchBusMember( parent, member_conn.get() );
 
                 if( !member )
                 {
                     // Try harder: we might match on a secondary driver
-                    for( CONNECTION_SUBGRAPH* sg : kv.second )
+                    for( CONNECTION_SUBGRAPH* sg : kv_it->second )
                     {
                         if( sg->m_multiple_drivers )
                         {
@@ -2804,7 +2840,7 @@ void CONNECTION_GRAPH::propagateToNeighbors( CONNECTION_SUBGRAPH* aSubgraph, boo
                 if( !member )
                 {
                     wxLogTrace( ConnTrace, wxS( "Could not match bus member %s in %s" ),
-                                kv.first->Name(), parent->Name() );
+                                member_conn->Name(), parent->Name() );
                     continue;
                 }
 
@@ -2818,9 +2854,27 @@ void CONNECTION_GRAPH::propagateToNeighbors( CONNECTION_SUBGRAPH* aSubgraph, boo
                 if( neighbor_name == member->Name() )
                     continue;
 
-                // Was this neighbor already updated from a different sheet?  Don't rename it again
+                // Was this neighbor already updated from a different sheet?  Don't rename it again,
+                // unless this same parent bus updated it and the bus member name has since changed
+                // (which can happen when a bus member is renamed via stale member update, issue #18299).
                 if( neighbor_conn->Sheet() != neighbor->m_sheet )
-                    continue;
+                {
+                    // If the neighbor's connection sheet doesn't match this parent bus's sheet,
+                    // it was updated by a different bus entirely. Don't override.
+                    if( neighbor_conn->Sheet() != parent->Sheet() )
+                        continue;
+
+                    // If the neighbor's connection sheet matches this parent bus's sheet but
+                    // the names differ, check if the neighbor's current name still matches
+                    // a member of this bus. If it does, the neighbor was updated by a different
+                    // member of this same bus and we should preserve that (determinism).
+                    // If it doesn't match any member, the bus member was renamed and we should update.
+                    SCH_CONNECTION temp( nullptr, neighbor->m_sheet );
+                    temp.ConfigureFromLabel( neighbor_name );
+
+                    if( matchBusMember( parent, &temp ) )
+                        continue;
+                }
 
                 // Safety check against infinite recursion
                 wxCHECK2_MSG( neighbor_conn->IsNet(), continue,
@@ -2845,6 +2899,17 @@ void CONNECTION_GRAPH::propagateToNeighbors( CONNECTION_SUBGRAPH* aSubgraph, boo
                     // Recurse onto this neighbor in case it needs to re-propagate
                     neighbor->m_dirty = true;
                     propagateToNeighbors( neighbor, aForce );
+
+                    // After hierarchy propagation, the neighbor's connection may have been
+                    // updated to a higher-priority driver (e.g., a power symbol discovered
+                    // through hierarchical sheet pins). If so, update the bus member to match.
+                    // This ensures that net names propagate correctly through bus connections
+                    // that span hierarchical boundaries (issue #18119).
+                    if( neighbor_conn->Name() != member->Name() )
+                    {
+                        member->Clone( *neighbor_conn );
+                        stale_bus_members.insert( member );
+                    }
                 }
             }
         }
@@ -4116,6 +4181,13 @@ bool CONNECTION_GRAPH::ercCheckLabels( const CONNECTION_SUBGRAPH* aSubgraph )
         for( SCH_TEXT* text : label_vec )
         {
             size_t allPins = pinCount;
+            size_t localPins = pinCount;
+
+            // For local labels that are bus members, track local pins separately.
+            // A local label connected to a bus that crosses hierarchy boundaries should
+            // still have a local connection to component pins. Without this check, a label
+            // that only connects to pins through the hierarchical bus would not be flagged.
+            bool isBusMemberLabel = ( type == SCH_LABEL_T ) && !aSubgraph->m_bus_parents.empty();
 
             auto it = m_net_name_to_subgraphs_map.find( netName );
 
@@ -4129,17 +4201,23 @@ bool CONNECTION_GRAPH::ercCheckLabels( const CONNECTION_SUBGRAPH* aSubgraph )
                     if( neighbor->m_no_connect )
                         has_nc = true;
 
-                    allPins += hasPins( neighbor );
+                    size_t neighborPins = hasPins( neighbor );
+                    allPins += neighborPins;
+
+                    if( neighbor->m_sheet == sheet )
+                        localPins += neighborPins;
                 }
             }
 
             if( allPins == 1 && !has_nc )
             {
-                reportError( text,  ERCE_LABEL_SINGLE_PIN );
+                reportError( text, ERCE_LABEL_SINGLE_PIN );
                 ok = false;
             }
 
-            if( allPins == 0 )
+            // For local bus member labels, check that there's at least one local pin connection.
+            // Labels that only connect to pins through a hierarchical bus should be flagged.
+            if( allPins == 0 || ( isBusMemberLabel && localPins == 0 && !has_nc ) )
             {
                 reportError( text, ERCE_LABEL_NOT_CONNECTED );
                 ok = false;
@@ -4238,8 +4316,8 @@ int CONNECTION_GRAPH::ercCheckHierSheets()
 
     for( const SCH_SHEET_PATH& sheet : m_sheetList )
     {
-        // Hierarchical labels in the root sheet cannot be connected to anything.
-        if( sheet.Last()->IsRootSheet() )
+        // Hierarchical labels in the top-level sheets cannot be connected to anything.
+        if( sheet.Last()->IsTopLevelSheet() )
         {
             for( const SCH_ITEM* item : sheet.LastScreen()->Items().OfType( SCH_HIER_LABEL_T ) )
             {

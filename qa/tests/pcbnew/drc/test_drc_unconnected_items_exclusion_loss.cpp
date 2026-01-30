@@ -73,8 +73,7 @@ struct FileCleaner
 
 struct DRC_BASE_FIXTURE
 {
-    DRC_BASE_FIXTURE() :
-            m_settingsManager( true /* headless */ )
+    DRC_BASE_FIXTURE()
     {
     }
 
@@ -247,7 +246,7 @@ bool DRC_BASE_FIXTURE::SaveBoardToFile( BOARD* board, const wxString& filename )
 {
     try
     {
-        IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::PluginFind( PCB_IO_MGR::KICAD_SEXP ) );
+        IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::FindPlugin( PCB_IO_MGR::KICAD_SEXP ) );
         pi->SaveBoard( filename, board, nullptr );
         return true;
     }

@@ -149,6 +149,49 @@ const wxAuiPaneInfo& defaultDesignBlocksPaneInfo( wxWindow* aWindow )
 }
 
 
+const wxAuiPaneInfo& defaultRemoteSymbolPaneInfo( wxWindow* aWindow )
+{
+    static wxAuiPaneInfo paneInfo;
+
+    paneInfo.Name( EDA_DRAW_FRAME::RemoteSymbolPaneName() )
+            .Caption( _( "Remote Symbols" ) )
+            .CaptionVisible( true )
+            .PaneBorder( true )
+            .Right().Layer( 3 ).Position( 3 )
+            .TopDockable( false )
+            .BottomDockable( false )
+            .CloseButton( true )
+            .MinSize( aWindow->FromDIP( wxSize( 240, 60 ) ) )
+            .BestSize( aWindow->FromDIP( wxSize( 300, 200 ) ) )
+            .FloatingSize( aWindow->FromDIP( wxSize( 800, 600 ) ) )
+            .FloatingPosition( aWindow->FromDIP( wxPoint( 80, 220 ) ) )
+            .Show( false );
+
+    return paneInfo;
+}
+
+
+wxString EESCHEMA_SETTINGS::REMOTE_SYMBOL_CONFIG::DefaultDestinationDir()
+{
+        return wxS( "${KIPRJMOD}/RemoteLibrary" );
+}
+
+
+wxString EESCHEMA_SETTINGS::REMOTE_SYMBOL_CONFIG::DefaultLibraryPrefix()
+{
+        return wxS( "remote" );
+}
+
+
+void EESCHEMA_SETTINGS::REMOTE_SYMBOL_CONFIG::ResetToDefaults()
+{
+        destination_dir = DefaultDestinationDir();
+        library_prefix = DefaultLibraryPrefix();
+        add_to_global_table = false;
+        user_ids.clear();
+}
+
+
 EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
         APP_SETTINGS_BASE( "eeschema", eeschemaSchemaVersion ),
         m_Appearance(),
@@ -165,31 +208,9 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
         m_SymChooserPanel(),
         m_FindReplaceExtra(),
         m_ERCDialog(),
-        m_ImportGraphics(),
         m_Simulator(),
         m_RescueNeverShow( false )
 {
-    m_params.emplace_back( new PARAM<wxString>( "appearance.edit_symbol_visible_columns",
-            &m_Appearance.edit_symbol_visible_columns, "0 1 2 3 4 5 6 7" ) );
-
-    m_params.emplace_back( new PARAM<int>( "appearance.edit_symbol_width",
-            &m_Appearance.edit_symbol_width, -1 ) );
-
-    m_params.emplace_back( new PARAM<int>( "appearance.edit_symbol_height",
-            &m_Appearance.edit_symbol_height, -1 ) );
-
-    m_params.emplace_back( new PARAM<wxString>( "appearance.edit_sheet_visible_columns",
-            &m_Appearance.edit_sheet_visible_columns, "0 1 2 3 4 5 6 7" ) );
-
-    m_params.emplace_back( new PARAM<wxString>( "appearance.edit_label_visible_columns",
-            &m_Appearance.edit_label_visible_columns, "0 1 2 3 4 5 6 7" ) );
-
-    m_params.emplace_back( new PARAM<int>( "appearance.edit_label_width",
-            &m_Appearance.edit_label_width, -1 ) );
-
-    m_params.emplace_back( new PARAM<int>( "appearance.edit_label_height",
-            &m_Appearance.edit_label_height, -1 ) );
-
     m_params.emplace_back( new PARAM<bool>( "appearance.footprint_preview",
             &m_Appearance.footprint_preview, true ) );
 
@@ -268,6 +289,18 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<int>( "aui.design_blocks_panel_float_height",
             &m_AuiPanels.design_blocks_panel_float_height, -1 ) );
 
+    m_params.emplace_back( new PARAM<bool>( "aui.remote_symbol_show",
+            &m_AuiPanels.remote_symbol_show, false ) );
+
+    m_params.emplace_back( new PARAM<int>( "aui.remote_symbol_panel_docked_width",
+            &m_AuiPanels.remote_symbol_panel_docked_width, -1 ) );
+
+    m_params.emplace_back( new PARAM<int>( "aui.remote_symbol_panel_float_width",
+            &m_AuiPanels.remote_symbol_panel_float_width, -1 ) );
+
+    m_params.emplace_back( new PARAM<int>( "aui.remote_symbol_panel_float_height",
+            &m_AuiPanels.remote_symbol_panel_float_height, -1 ) );
+
     m_params.emplace_back( new PARAM<bool>( "aui.schematic_hierarchy_float",
             &m_AuiPanels.schematic_hierarchy_float, false ) );
 
@@ -298,6 +331,9 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<wxSize>( "aui.net_nav_panel_float_size",
             &m_AuiPanels.net_nav_panel_float_size, wxSize( 200, 200 ) ) );
 
+    m_params.emplace_back( new PARAM<bool>( "aui.net_nav_search_mode_wildcard",
+            &m_AuiPanels.net_nav_search_mode_wildcard, true ) );
+
     m_params.emplace_back( new PARAM<bool>( "aui.show_properties",
             &m_AuiPanels.show_properties, true ) );
 
@@ -315,6 +351,20 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
 
     m_params.emplace_back( new PARAM<bool>( "autoplace_fields.align_to_grid",
             &m_AutoplaceFields.align_to_grid, true ) );
+
+    m_params.emplace_back( new PARAM<wxString>( "remote_symbols.destination_dir",
+            &m_RemoteSymbol.destination_dir,
+            REMOTE_SYMBOL_CONFIG::DefaultDestinationDir() ) );
+
+    m_params.emplace_back( new PARAM<wxString>( "remote_symbols.library_prefix",
+            &m_RemoteSymbol.library_prefix,
+            REMOTE_SYMBOL_CONFIG::DefaultLibraryPrefix() ) );
+
+    m_params.emplace_back( new PARAM<bool>( "remote_symbols.add_to_global_table",
+            &m_RemoteSymbol.add_to_global_table, false ) );
+
+    m_params.emplace_back( new PARAM_WXSTRING_MAP( "remote_symbols.user_ids",
+            &m_RemoteSymbol.user_ids, {} ) );
 
     m_params.emplace_back( new PARAM<int>( "drawing.default_bus_thickness",
             &m_Drawing.default_bus_thickness, DEFAULT_BUS_WIDTH_MILS ) );
@@ -419,11 +469,17 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<double>( "selection.highlight_netclass_colors_alpha",
             &m_Selection.highlight_netclass_colors_alpha, 0.6, 0, 1 ) );
 
+    m_params.emplace_back( new PARAM<int>( "selection.drag_net_collision_width",
+            &m_Selection.drag_net_collision_width, 4, 1, 50 ) );
+
     m_params.emplace_back( new PARAM<bool>( "annotation.automatic",
             &m_AnnotatePanel.automatic, true ) );
 
     m_params.emplace_back( new PARAM<bool>( "annotation.recursive",
             &m_AnnotatePanel.recursive, true ) );
+
+    m_params.emplace_back( new PARAM<bool>( "annotation.regroup_units",
+            &m_AnnotatePanel.regroup_units, false ) );
 
     m_params.emplace_back( new PARAM<int>( "annotation.scope",
             &m_AnnotatePanel.scope, 0, 0, 2 ) );
@@ -512,23 +568,17 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM_MAP<int>( "field_editor.field_widths",
             &m_FieldEditorPanel.field_widths, {} ) );
 
-    m_params.emplace_back( new PARAM<int>( "field_editor.page",
-            &m_FieldEditorPanel.page, 0 ) );
-
     m_params.emplace_back( new PARAM<wxString>( "field_editor.export_filename",
             &m_FieldEditorPanel.export_filename, wxT( "" ) ) );
 
     m_params.emplace_back( new PARAM<int>( "field_editor.selection_mode",
             &m_FieldEditorPanel.selection_mode, 0 ) );
 
-    m_params.emplace_back( new PARAM<int>( "field_editor.scope",
-            &m_FieldEditorPanel.scope, 0 ) );
-
-    m_params.emplace_back( new PARAM<wxString>( "field_editor.view_controls_visible_columns",
-            &m_FieldEditorPanel.view_controls_visible_columns, "0 1 2 3" ) );
-
     m_params.emplace_back( new PARAM<int>( "field_editor.sash_pos",
             &m_FieldEditorPanel.sash_pos, 400 ) );
+
+    m_params.emplace_back( new PARAM<int>( "field_editor.variant_sash_pos",
+            &m_FieldEditorPanel.variant_sash_pos, 500 ) );
 
     m_params.emplace_back( new PARAM<bool>( "field_editor.sidebar_collapsed",
             &m_FieldEditorPanel.sidebar_collapsed, false ) );
@@ -598,26 +648,8 @@ EESCHEMA_SETTINGS::EESCHEMA_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "ERC.scroll_on_crossprobe",
             &m_ERCDialog.scroll_on_crossprobe, true ) );
 
-    m_params.emplace_back( new PARAM<bool>( "import_graphics.interactive_placement",
-            &m_ImportGraphics.interactive_placement, true ) );
-
-    m_params.emplace_back( new PARAM<int>( "import_graphics.line_width_units",
-            &m_ImportGraphics.dxf_line_width_units, 0 ) );
-
-    m_params.emplace_back( new PARAM<double>( "import_graphics.line_width",
-            &m_ImportGraphics.dxf_line_width, 0.2 ) );
-
-    m_params.emplace_back( new PARAM<int>( "import_graphics.origin_units",
-            &m_ImportGraphics.origin_units, 0 ) );
-
-    m_params.emplace_back( new PARAM<double>( "import_graphics.origin_x",
-            &m_ImportGraphics.origin_x, 0 ) );
-
-    m_params.emplace_back( new PARAM<double>( "import_graphics.origin_y",
-            &m_ImportGraphics.origin_y, 0 ) );
-
-    m_params.emplace_back( new PARAM<int>( "import_graphics.dxf_units",
-            &m_ImportGraphics.dxf_units, 0 ) );
+    m_params.emplace_back( new PARAM<bool>( "ERC.show_all_errors",
+            &m_ERCDialog.show_all_errors, false ) );
 
     m_params.emplace_back( new PARAM<bool>( "change_symbols.update_references",
             &m_ChangeSymbols.updateReferences, false ) );
@@ -693,48 +725,41 @@ bool EESCHEMA_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
         Set( gridSizePtr,  1 );
     }
 
-    ret &= fromLegacy<bool>( aCfg, "FootprintPreview",   "appearance.footprint_preview" );
-    ret &= fromLegacy<bool>( aCfg, "NavigatorStaysOpen", "appearance.navigator_stays_open" );
-    ret &= fromLegacy<bool>( aCfg, "PrintSheetReferenceAndTitleBlock",
-            "appearance.print_sheet_reference" );
-    ret &= fromLegacy<bool>( aCfg, "ShowHiddenPins",     "appearance.show_hidden_pins" );
-    ret &= fromLegacy<bool>( aCfg, "ShowIllegalSymbolLibDialog",
-            "appearance.show_illegal_symbol_lib_dialog" );
-    ret &= fromLegacy<bool>( aCfg, "ShowPageLimits",     "appearance.show_page_limits" );
-    ret &= fromLegacy<bool>( aCfg, "ShowSheetFileNameCaseSensitivityDlg",
-            "appearance.show_sheet_filename_case_sensitivity_dialog" );
+    ret &= fromLegacy<bool>( aCfg, "FootprintPreview",                    "appearance.footprint_preview" );
+    ret &= fromLegacy<bool>( aCfg, "NavigatorStaysOpen",                  "appearance.navigator_stays_open" );
+    ret &= fromLegacy<bool>( aCfg, "PrintSheetReferenceAndTitleBlock",    "appearance.print_sheet_reference" );
+    ret &= fromLegacy<bool>( aCfg, "ShowHiddenPins",                      "appearance.show_hidden_pins" );
+    ret &= fromLegacy<bool>( aCfg, "ShowIllegalSymbolLibDialog",          "appearance.show_illegal_symbol_lib_dialog" );
+    ret &= fromLegacy<bool>( aCfg, "ShowPageLimits",                      "appearance.show_page_limits" );
+    ret &= fromLegacy<bool>( aCfg, "ShowSheetFileNameCaseSensitivityDlg", "appearance.show_sheet_filename_case_sensitivity_dialog" );
 
-    ret &= fromLegacy<bool>( aCfg, "AutoplaceFields",     "autoplace_fields.enable" );
-    ret &= fromLegacy<bool>( aCfg, "AutoplaceJustify",    "autoplace_fields.allow_rejustify" );
-    ret &= fromLegacy<bool>( aCfg, "AutoplaceAlign",      "autoplace_fields.align_to_grid" );
+    ret &= fromLegacy<bool>( aCfg, "AutoplaceFields",          "autoplace_fields.enable" );
+    ret &= fromLegacy<bool>( aCfg, "AutoplaceJustify",         "autoplace_fields.allow_rejustify" );
+    ret &= fromLegacy<bool>( aCfg, "AutoplaceAlign",           "autoplace_fields.align_to_grid" );
 
-    ret &= fromLegacy<int>(  aCfg, "DefaultBusWidth",      "drawing.default_bus_thickness" );
-    ret &= fromLegacy<int>(  aCfg, "DefaultJunctionSize",  "drawing.default_junction_size" );
-    ret &= fromLegacy<int>(  aCfg, "DefaultDrawLineWidth", "drawing.default_line_thickness" );
-    ret &= fromLegacy<int>(  aCfg, "RepeatStepX",          "drawing.default_repeat_offset_x" );
-    ret &= fromLegacy<int>(  aCfg, "RepeatStepY",          "drawing.default_repeat_offset_y" );
-    ret &= fromLegacy<int>(  aCfg, "DefaultWireWidth",     "drawing.default_wire_thickness" );
-    ret &= fromLegacyString( aCfg, "FieldNames",           "drawing.field_names" );
-    ret &= fromLegacy<bool>( aCfg, "HorizVertLinesOnly",   "drawing.line_mode" );
-    ret &= fromLegacy<int>(  aCfg, "RepeatLabelIncrement", "drawing.repeat_label_increment" );
+    ret &= fromLegacy<int>(  aCfg, "DefaultBusWidth",          "drawing.default_bus_thickness" );
+    ret &= fromLegacy<int>(  aCfg, "DefaultJunctionSize",      "drawing.default_junction_size" );
+    ret &= fromLegacy<int>(  aCfg, "DefaultDrawLineWidth",     "drawing.default_line_thickness" );
+    ret &= fromLegacy<int>(  aCfg, "RepeatStepX",              "drawing.default_repeat_offset_x" );
+    ret &= fromLegacy<int>(  aCfg, "RepeatStepY",              "drawing.default_repeat_offset_y" );
+    ret &= fromLegacy<int>(  aCfg, "DefaultWireWidth",         "drawing.default_wire_thickness" );
+    ret &= fromLegacyString( aCfg, "FieldNames",               "drawing.field_names" );
+    ret &= fromLegacy<bool>( aCfg, "HorizVertLinesOnly",       "drawing.line_mode" );
+    ret &= fromLegacy<int>(  aCfg, "RepeatLabelIncrement",     "drawing.repeat_label_increment" );
 
-    ret &= fromLegacy<bool>( aCfg, "DragActionIsMove",     "input.drag_is_move" );
+    ret &= fromLegacy<bool>( aCfg, "DragActionIsMove",         "input.drag_is_move" );
 
-    ret &= fromLegacy<int>(  aCfg, "SelectionThickness",      "selection.thickness" );
-    ret &= fromLegacy<bool>( aCfg, "SelectionDrawChildItems", "selection.draw_selected_children" );
-    ret &= fromLegacy<bool>( aCfg, "SelectionFillShapes",     "selection.fill_shapes" );
-    ret &= fromLegacy<bool>( aCfg, "SelectPinSelectSymbolOpt",
-            "selection.select_pin_selects_symbol" );
+    ret &= fromLegacy<int>(  aCfg, "SelectionThickness",       "selection.thickness" );
+    ret &= fromLegacy<bool>( aCfg, "SelectionDrawChildItems",  "selection.draw_selected_children" );
+    ret &= fromLegacy<bool>( aCfg, "SelectionFillShapes",      "selection.fill_shapes" );
+    ret &= fromLegacy<bool>( aCfg, "SelectPinSelectSymbolOpt", "selection.select_pin_selects_symbol" );
 
-    ret &= fromLegacy<int>(  aCfg, "AnnotateFilterMsg",       "annotation.messages_filter" );
+    ret &= fromLegacy<int>(  aCfg, "AnnotateFilterMsg",        "annotation.messages_filter" );
 
-    ret &= fromLegacyString( aCfg, "bom_plugin_selected",     "bom.selected_plugin" );
-    ret &= fromLegacyString( aCfg, "bom_plugins",             "bom.plugins" );
+    ret &= fromLegacyString( aCfg, "bom_plugin_selected",      "bom.selected_plugin" );
+    ret &= fromLegacyString( aCfg, "bom_plugins",              "bom.plugins" );
 
     migrateBomSettings();
-
-    ret &= fromLegacyString( aCfg, "SymbolFieldsShownColumns",
-            "edit_sch_component.visible_columns" );
 
     ret &= fromLegacy<bool>( aCfg, "PageSettingsExportRevision", "page_settings.export_revision" );
     ret &= fromLegacy<bool>( aCfg, "PageSettingsExportDate",     "page_settings.export_date" );

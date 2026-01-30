@@ -37,6 +37,8 @@
 #include <drc/drc_test_provider.h>
 #include <drc/drc_rtree.h>
 
+#include <set>
+
 /*
     Solder mask tests. Checks for silkscreen which is clipped by mask openings and for bridges
     between mask apertures with different nets.
@@ -97,8 +99,28 @@ private:
     // Shapes used to define solder mask apertures don't have nets, so we assign them the
     // first object+net that bridges their aperture (after which any other nets will generate
     // violations).
+    //
+    // When "report all track errors" is enabled, we store all items per net so we can report
+    // violations for each pair of items from different nets.
     std::mutex                                                           m_netMapMutex;
     std::unordered_map<PTR_LAYER_CACHE_KEY, std::pair<BOARD_ITEM*, int>> m_maskApertureNetMap;
+
+    // Extended storage for "report all track errors" mode: stores all items per net per aperture
+    std::unordered_map<PTR_LAYER_CACHE_KEY, std::vector<std::pair<BOARD_ITEM*, int>>> m_maskApertureNetMapAll;
+
+    // Pending collision info for deferred violation reporting (avoids race condition).
+    // Stores info about each mask aperture that bridges different nets.
+    struct MASK_APERTURE_COLLISION
+    {
+        BOARD_ITEM*  aperture;
+        BOARD_ITEM*  collidingItem;
+        int          collidingNet;
+        VECTOR2I     pos;
+        PCB_LAYER_ID layer;
+    };
+
+    std::mutex                                            m_collisionMutex;
+    std::vector<MASK_APERTURE_COLLISION>                  m_pendingCollisions;
 };
 
 
@@ -256,12 +278,10 @@ void DRC_TEST_PROVIDER_SOLDER_MASK::testSilkToMaskClearance()
 
                         if( clearance > 0 )
                         {
-                            wxString msg = formatMsg( _( "(%s clearance %s; actual %s)" ),
-                                                      constraint.GetName(),
-                                                      clearance,
-                                                      actual );
-
-                            drce->SetErrorMessage( drce->GetErrorText() + wxS( " " ) + msg );
+                            drce->SetErrorDetail( formatMsg( _( "(%s clearance %s; actual %s)" ),
+                                                             constraint.GetName(),
+                                                             clearance,
+                                                             actual ) );
                         }
 
                         drce->SetItems( item );
@@ -340,12 +360,13 @@ bool DRC_TEST_PROVIDER_SOLDER_MASK::checkMaskAperture( BOARD_ITEM* aMaskItem, BO
     int                 encounteredItemNet = -1;
 
     {
-        std::lock_guard<std::mutex> lock( m_checkedPairsMutex );
+        std::lock_guard<std::mutex> lock( m_netMapMutex );
         auto ii = m_maskApertureNetMap.find( key );
 
         if( ii == m_maskApertureNetMap.end() )
         {
             m_maskApertureNetMap[ key ] = { aTestItem, aTestNet };
+            m_maskApertureNetMapAll[ key ].push_back( { aTestItem, aTestNet } );
 
             // First net; no bridge yet....
             return false;
@@ -353,12 +374,17 @@ bool DRC_TEST_PROVIDER_SOLDER_MASK::checkMaskAperture( BOARD_ITEM* aMaskItem, BO
 
         alreadyEncounteredItem = ii->second.first;
         encounteredItemNet = ii->second.second;
-    }
 
-    if( encounteredItemNet == aTestNet && aTestNet >= 0 )
-    {
-        // Same net; still no bridge...
-        return false;
+        // Always store the item in the full list for complete violation reporting.
+        // This ensures all items are available when we generate violations in post-processing,
+        // avoiding race conditions from parallel thread execution.
+        m_maskApertureNetMapAll[ key ].push_back( { aTestItem, aTestNet } );
+
+        if( encounteredItemNet == aTestNet && aTestNet >= 0 )
+        {
+            // Same net; no bridge.
+            return false;
+        }
     }
 
     if( fp && aTestItem->GetParentFootprint() == fp )
@@ -595,24 +621,22 @@ void DRC_TEST_PROVIDER_SOLDER_MASK::testItemAgainstItems( BOARD_ITEM* aItem, con
                     {
                         if( checkMaskAperture( aItem, other, aRefLayer, otherNet, &colliding ) )
                         {
-                            std::shared_ptr<DRC_ITEM> drce = DRC_ITEM::Create( DRCE_SOLDERMASK_BRIDGE );
+                            // Store collision info for deferred reporting after all threads complete.
+                            // This avoids race conditions where some items haven't been added yet.
+                            std::lock_guard<std::mutex> lock( m_collisionMutex );
 
-                            drce->SetErrorMessage( msg );
-                            drce->SetItems( aItem, colliding, other );
-                            drce->SetViolatingRule( &m_bridgeRule );
-                            reportViolation( drce, pos, aTargetLayer );
+                            m_pendingCollisions.push_back( { aItem, other, otherNet, pos, aTargetLayer } );
                         }
                     }
                     else if( isMaskAperture( other ) )
                     {
                         if( checkMaskAperture( other, aItem, aRefLayer, itemNet, &colliding ) )
                         {
-                            std::shared_ptr<DRC_ITEM> drce = DRC_ITEM::Create( DRCE_SOLDERMASK_BRIDGE );
+                            // Store collision info for deferred reporting after all threads complete.
+                            // This avoids race conditions where some items haven't been added yet.
+                            std::lock_guard<std::mutex> lock( m_collisionMutex );
 
-                            drce->SetErrorMessage( msg );
-                            drce->SetItems( other, colliding, aItem );
-                            drce->SetViolatingRule( &m_bridgeRule );
-                            reportViolation( drce, pos, aTargetLayer );
+                            m_pendingCollisions.push_back( { other, aItem, itemNet, pos, aTargetLayer } );
                         }
                     }
                     else if( checkItemMask( other, itemNet ) )
@@ -783,6 +807,81 @@ void DRC_TEST_PROVIDER_SOLDER_MASK::testMaskBridges()
         while( ret.wait_for( std::chrono::milliseconds( 100 ) ) == std::future_status::timeout )
             reportProgress( count, test_items.size() );
     }
+
+    // Process deferred mask aperture violations now that all threads have completed.
+    // This ensures we have the complete list of items for each aperture.
+    std::set<std::tuple<BOARD_ITEM*, BOARD_ITEM*, BOARD_ITEM*>> reportedTriplets;
+
+    for( const MASK_APERTURE_COLLISION& collision : m_pendingCollisions )
+    {
+        if( m_drcEngine->IsErrorLimitExceeded( DRCE_SOLDERMASK_BRIDGE ) )
+            break;
+
+        PCB_LAYER_ID maskLayer = IsFrontLayer( collision.layer ) ? F_Mask : B_Mask;
+        PTR_LAYER_CACHE_KEY key = { collision.aperture, maskLayer };
+
+        std::vector<std::pair<BOARD_ITEM*, int>> itemsInAperture;
+
+        {
+            std::lock_guard<std::mutex> lock( m_netMapMutex );
+            auto it = m_maskApertureNetMapAll.find( key );
+
+            if( it != m_maskApertureNetMapAll.end() )
+                itemsInAperture = it->second;
+        }
+
+        wxString msg;
+
+        if( collision.layer == F_Mask )
+            msg = _( "Front solder mask aperture bridges items with different nets" );
+        else
+            msg = _( "Rear solder mask aperture bridges items with different nets" );
+
+        bool reportedAnyTrack = false;
+
+        for( auto& [firstNetItem, firstNet] : itemsInAperture )
+        {
+            // Only report items from a different net than the colliding item.
+            if( firstNet == collision.collidingNet )
+                continue;
+
+            // Deduplicate: ensure we don't report the same triplet twice.
+            auto tripletKey = std::make_tuple( collision.aperture, firstNetItem, collision.collidingItem );
+
+            if( reportedTriplets.count( tripletKey ) )
+                continue;
+
+            reportedTriplets.insert( tripletKey );
+
+            // Also insert the reverse to avoid reporting (A, B, C) and (A, C, B).
+            reportedTriplets.insert( std::make_tuple( collision.aperture, collision.collidingItem, firstNetItem ) );
+
+            bool firstIsTrack = firstNetItem->Type() == PCB_TRACE_T || firstNetItem->Type() == PCB_ARC_T;
+
+            if( firstIsTrack )
+            {
+                if( m_drcEngine->GetReportAllTrackErrors() || !reportedAnyTrack )
+                {
+                    auto drce = DRC_ITEM::Create( DRCE_SOLDERMASK_BRIDGE );
+
+                    drce->SetErrorMessage( msg );
+                    drce->SetItems( collision.aperture, firstNetItem, collision.collidingItem );
+                    drce->SetViolatingRule( &m_bridgeRule );
+                    reportViolation( drce, collision.pos, collision.layer );
+                    reportedAnyTrack = true;
+                }
+            }
+            else
+            {
+                auto drce = DRC_ITEM::Create( DRCE_SOLDERMASK_BRIDGE );
+
+                drce->SetErrorMessage( msg );
+                drce->SetItems( collision.aperture, firstNetItem, collision.collidingItem );
+                drce->SetViolatingRule( &m_bridgeRule );
+                reportViolation( drce, collision.pos, collision.layer );
+            }
+        }
+    }
 }
 
 
@@ -827,9 +926,15 @@ bool DRC_TEST_PROVIDER_SOLDER_MASK::Run()
             updateLargestClearance( static_cast<PCB_SHAPE*>( item )->GetSolderMaskExpansion() );
     }
 
-    // Order is important here: m_webWidth must be added in before m_largestCourtyardClearance is
-    // maxed with the various SILK_CLEARANCE_CONSTRAINTS.
+    // Order is important here: m_webWidth must be added in before m_largestClearance is
+    // maxed with the various clearance constraints.
     m_largestClearance += m_largestClearance + m_webWidth;
+
+    // Include SolderMaskToCopperClearance so R-tree queries find copper items that are within
+    // the required distance of mask apertures. Without this, tracks passing near pad apertures
+    // from different nets would not be found if SolderMaskToCopperClearance > m_largestClearance.
+    m_largestClearance = std::max( m_largestClearance,
+                                   m_board->GetDesignSettings().m_SolderMaskToCopperClearance );
 
     DRC_CONSTRAINT worstClearanceConstraint;
 
@@ -841,6 +946,8 @@ bool DRC_TEST_PROVIDER_SOLDER_MASK::Run()
 
     m_checkedPairs.clear();
     m_maskApertureNetMap.clear();
+    m_maskApertureNetMapAll.clear();
+    m_pendingCollisions.clear();
 
     buildRTrees();
 

@@ -42,7 +42,9 @@
 #include <sch_sheet.h>
 #include <sch_textbox.h>
 #include <sch_table.h>
+#include <sch_sheet_pin.h>
 #include <symbol_editor/symbol_editor_settings.h>
+#include <sch_no_connect.h>
 
 
 static const std::vector<KICAD_T> pointEditorTypes = { SCH_SHAPE_T,
@@ -741,9 +743,31 @@ private:
 class SHEET_POINT_EDIT_BEHAVIOR : public POINT_EDIT_BEHAVIOR
 {
 public:
-    SHEET_POINT_EDIT_BEHAVIOR( SCH_SHEET& aSheet ) :
-            m_sheet( aSheet )
-    {}
+    SHEET_POINT_EDIT_BEHAVIOR( SCH_SHEET& aSheet, SCH_SCREEN& aScreen ) :
+            m_sheet( aSheet ),
+            m_screen( aScreen )
+    {
+        m_noConnects = m_sheet.GetNoConnects();
+
+        // Find all wires connected to sheet pins and store their connections
+        for( SCH_SHEET_PIN* pin : m_sheet.GetPins() )
+        {
+            VECTOR2I pinPos = pin->GetPosition();
+
+            for( SCH_ITEM* item : m_screen.Items().Overlapping( SCH_LINE_T, pinPos ) )
+            {
+                SCH_LINE* line = static_cast<SCH_LINE*>( item );
+
+                if( !line->IsWire() && !line->IsBus() )
+                    continue;
+
+                if( line->GetStartPoint() == pinPos )
+                    m_connectedWires.push_back( { pin, line, STARTPOINT } );
+                else if( line->GetEndPoint() == pinPos )
+                    m_connectedWires.push_back( { pin, line, ENDPOINT } );
+            }
+        }
+    }
 
     void MakePoints( EDIT_POINTS& aPoints ) override
     {
@@ -841,10 +865,48 @@ public:
 
         if( m_sheet.GetSize() != sheetNewSize )
             m_sheet.Resize( sheetNewSize );
+
+        // Update no-connects to follow their sheet pins
+        for( auto& [sheetPin, noConnect] : m_noConnects )
+        {
+            if( noConnect->GetPosition() != sheetPin->GetTextPos() )
+            {
+                aCommit.Modify( noConnect, &m_screen );
+                noConnect->SetPosition( sheetPin->GetTextPos() );
+                aUpdatedItems.push_back( noConnect );
+            }
+        }
+
+        // Update connected wires to follow their sheet pins
+        for( auto& [pin, line, endpoint] : m_connectedWires )
+        {
+            VECTOR2I newPinPos = pin->GetPosition();
+            bool     needsUpdate = false;
+
+            if( endpoint == STARTPOINT && line->GetStartPoint() != newPinPos )
+                needsUpdate = true;
+            else if( endpoint == ENDPOINT && line->GetEndPoint() != newPinPos )
+                needsUpdate = true;
+
+            if( needsUpdate )
+            {
+                aCommit.Modify( line, &m_screen );
+
+                if( endpoint == STARTPOINT )
+                    line->SetStartPoint( newPinPos );
+                else
+                    line->SetEndPoint( newPinPos );
+
+                aUpdatedItems.push_back( line );
+            }
+        }
     }
 
 private:
-    SCH_SHEET& m_sheet;
+    SCH_SHEET&                                m_sheet;
+    SCH_SCREEN&                               m_screen;
+    std::map<SCH_SHEET_PIN*, SCH_NO_CONNECT*> m_noConnects;
+    std::vector<std::tuple<SCH_SHEET_PIN*, SCH_LINE*, int>> m_connectedWires;
 };
 
 
@@ -916,7 +978,7 @@ void SCH_POINT_EDITOR::makePointsAndBehavior( EDA_ITEM* aItem )
     case SCH_SHEET_T:
     {
         SCH_SHEET& sheet = static_cast<SCH_SHEET&>( *aItem );
-        m_editBehavior = std::make_unique<SHEET_POINT_EDIT_BEHAVIOR>( sheet );
+        m_editBehavior = std::make_unique<SHEET_POINT_EDIT_BEHAVIOR>( sheet, *m_frame->GetScreen() );
         break;
     }
     case SCH_BITMAP_T:
@@ -960,6 +1022,16 @@ void SCH_POINT_EDITOR::Reset( RESET_REASON aReason )
 {
     SCH_TOOL_BASE::Reset( aReason );
 
+    if( KIGFX::VIEW* view = getView() )
+    {
+        if( m_angleItem )
+            view->Remove( m_angleItem.get() );
+
+        if( m_editPoints )
+            view->Remove( m_editPoints.get() );
+    }
+
+    m_angleItem.reset();
     m_editPoints.reset();
     m_editedPoint = nullptr;
 }
@@ -1073,7 +1145,7 @@ int SCH_POINT_EDITOR::Main( const TOOL_EVENT& aEvent )
     controls->ShowCursor( true );
 
     makePointsAndBehavior( item );
-    m_angleItem = std::make_unique<KIGFX::PREVIEW::ANGLE_ITEM>( m_editPoints.get() );
+    m_angleItem = std::make_unique<KIGFX::PREVIEW::ANGLE_ITEM>( m_editPoints );
     view->Add( m_editPoints.get() );
     view->Add( m_angleItem.get() );
     setEditedPoint( nullptr );
@@ -1233,6 +1305,24 @@ void SCH_POINT_EDITOR::updatePoints()
     if( !m_editPoints || !m_editBehavior )
         return;
 
+    // Careful; the unit and/or body style may have changed out from under us, meaning the item is no
+    // longer present on the canvas.
+    if( m_isSymbolEditor )
+    {
+        SYMBOL_EDIT_FRAME* editor = static_cast<SYMBOL_EDIT_FRAME*>( m_frame );
+        SCH_ITEM*          item = dynamic_cast<SCH_ITEM*>( m_editPoints->GetParent() );
+
+        if( ( item && item->GetUnit() != 0 && item->GetUnit() != editor->GetUnit() )
+                || ( item && item->GetBodyStyle() != 0 && item->GetBodyStyle() != editor->GetBodyStyle() ) )
+        {
+            getView()->Remove( m_editPoints.get() );
+            getView()->Remove( m_angleItem.get() );
+            m_editPoints.reset();
+            m_angleItem.reset();
+            return;
+        }
+    }
+
     m_editBehavior->UpdatePoints( *m_editPoints );
     getView()->Update( m_editPoints.get() );
     getView()->Update( m_angleItem.get() );
@@ -1263,16 +1353,8 @@ void SCH_POINT_EDITOR::setEditedPoint( EDIT_POINT* aPoint )
 
 bool SCH_POINT_EDITOR::removeCornerCondition( const SELECTION& )
 {
-    bool isRuleArea = false;
-
-    if( m_editPoints )
-        isRuleArea = m_editPoints->GetParent()->Type() == SCH_RULE_AREA_T;
-
-    if( !m_editPoints || !m_editedPoint
-        || !( m_editPoints->GetParent()->Type() == SCH_SHAPE_T || isRuleArea ) )
-    {
+    if( !m_editPoints || !m_editedPoint || !m_editPoints->GetParent()->IsType( { SCH_SHAPE_T, SCH_RULE_AREA_T } ) )
         return false;
-    }
 
     SCH_SHAPE* shape = static_cast<SCH_SHAPE*>( m_editPoints->GetParent() );
 
@@ -1298,12 +1380,8 @@ bool SCH_POINT_EDITOR::removeCornerCondition( const SELECTION& )
 
 bool SCH_POINT_EDITOR::addCornerCondition( const SELECTION& )
 {
-    if( !m_editPoints
-        || !( m_editPoints->GetParent()->Type() == SCH_SHAPE_T
-              || m_editPoints->GetParent()->Type() == SCH_RULE_AREA_T ) )
-    {
+    if( !m_editPoints || !m_editPoints->GetParent()->IsType( { SCH_SHAPE_T, SCH_RULE_AREA_T } ) )
         return false;
-    }
 
     SCH_SHAPE* shape = static_cast<SCH_SHAPE*>( m_editPoints->GetParent() );
 
@@ -1319,12 +1397,8 @@ bool SCH_POINT_EDITOR::addCornerCondition( const SELECTION& )
 
 int SCH_POINT_EDITOR::addCorner( const TOOL_EVENT& aEvent )
 {
-    if( !m_editPoints
-        || !( m_editPoints->GetParent()->Type() == SCH_SHAPE_T
-              || m_editPoints->GetParent()->Type() == SCH_RULE_AREA_T ) )
-    {
+    if( !m_editPoints || !m_editPoints->GetParent()->IsType( { SCH_SHAPE_T, SCH_RULE_AREA_T } ) )
         return 0;
-    }
 
     SCH_SHAPE*        shape = static_cast<SCH_SHAPE*>( m_editPoints->GetParent() );
     SHAPE_LINE_CHAIN& poly = shape->GetPolyShape().Outline( 0 );
@@ -1364,11 +1438,8 @@ int SCH_POINT_EDITOR::addCorner( const TOOL_EVENT& aEvent )
 
 int SCH_POINT_EDITOR::removeCorner( const TOOL_EVENT& aEvent )
 {
-    if( !m_editPoints || !m_editedPoint
-        || !m_editPoints->GetParent()->IsType( { SCH_SHAPE_T, SCH_RULE_AREA_T } ) )
-    {
+    if( !m_editPoints || !m_editedPoint || !m_editPoints->GetParent()->IsType( { SCH_SHAPE_T, SCH_RULE_AREA_T } ) )
         return 0;
-    }
 
     SCH_SHAPE*        shape = static_cast<SCH_SHAPE*>( m_editPoints->GetParent() );
     SHAPE_LINE_CHAIN& poly = shape->GetPolyShape().Outline( 0 );

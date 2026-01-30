@@ -71,7 +71,7 @@ public:
     {
     }
 
-    ~TEST_NETLIST_EXPORTER_SPICE_FIXTURE()
+    virtual ~TEST_NETLIST_EXPORTER_SPICE_FIXTURE()
     {
         using namespace boost::unit_test;
 
@@ -86,7 +86,7 @@ public:
         }
     }
 
-    wxFileName GetSchematicPath( const wxString& aBaseName ) override
+    wxFileName SchematicQAPath( const wxString& aBaseName ) override
     {
         wxFileName fn( KI_TEST::GetEeschemaTestDataDir() );
         fn.AppendDir( "spice_netlists" );

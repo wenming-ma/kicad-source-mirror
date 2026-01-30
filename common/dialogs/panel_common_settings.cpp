@@ -166,8 +166,6 @@ bool PANEL_COMMON_SETTINGS::TransferDataFromWindow()
     COMMON_SETTINGS* commonSettings = Pgm().GetCommonSettings();
 
     commonSettings->m_System.file_explorer = m_textCtrlFileManager->GetValue();
-
-    commonSettings->m_System.autosave_interval = m_SaveTime->GetValue() * 60;
     commonSettings->m_System.file_history_size = m_fileHistorySize->GetValue();
 
     commonSettings->m_Graphics.aa_mode = m_antialiasing->GetSelection();
@@ -204,6 +202,8 @@ bool PANEL_COMMON_SETTINGS::TransferDataFromWindow()
 
     commonSettings->m_Appearance.grid_striping = m_gridStriping->GetValue();
 
+    commonSettings->m_Appearance.use_custom_cursors = !m_disableCustomCursors->GetValue();
+
     commonSettings->m_Appearance.zoom_correction_factor = m_zoomCorrectionCtrl->GetValue();
 
     double dimmingPercent = 80;
@@ -216,11 +216,7 @@ bool PANEL_COMMON_SETTINGS::TransferDataFromWindow()
     commonSettings->m_Input.warp_mouse_on_move   = m_warpMouseOnMove->GetValue();
 
     commonSettings->m_Backup.enabled             = m_cbBackupEnabled->GetValue();
-    commonSettings->m_Backup.backup_on_autosave  = m_cbBackupAutosave->GetValue();
-    commonSettings->m_Backup.limit_total_files   = m_backupLimitTotalFiles->GetValue();
-    commonSettings->m_Backup.limit_daily_files   = m_backupLimitDailyFiles->GetValue();
-    commonSettings->m_Backup.min_interval        = m_backupMinInterval->GetValue() * 60;
-    commonSettings->m_Backup.limit_total_size    = m_backupLimitTotalSize->GetValue() * 1024 * 1024;
+    commonSettings->m_Backup.limit_total_size    = m_backupLimitTotalSize->GetValue() * 1024ULL * 1024ULL;
 
     commonSettings->m_Session.remember_open_files = m_cbRememberOpenFiles->GetValue();
 
@@ -255,12 +251,6 @@ void PANEL_COMMON_SETTINGS::ResetPanel()
 
 void PANEL_COMMON_SETTINGS::applySettingsToPanel( COMMON_SETTINGS& aSettings )
 {
-    int timevalue = aSettings.m_System.autosave_interval;
-    wxString msg;
-
-    msg << timevalue / 60;
-    m_SaveTime->SetValue( msg );
-
     m_fileHistorySize->SetValue( aSettings.m_System.file_history_size );
 
     m_antialiasing->SetSelection( aSettings.m_Graphics.aa_mode );
@@ -296,6 +286,8 @@ void PANEL_COMMON_SETTINGS::applySettingsToPanel( COMMON_SETTINGS& aSettings )
 
     m_gridStriping->SetValue( aSettings.m_Appearance.grid_striping );
 
+    m_disableCustomCursors->SetValue( !aSettings.m_Appearance.use_custom_cursors );
+
     m_zoomCorrectionCtrl->SetDisplayedValue( aSettings.m_Appearance.zoom_correction_factor );
 
     double dimmingPercent = aSettings.m_Appearance.hicontrast_dimming_factor * 100.0f;
@@ -309,10 +301,6 @@ void PANEL_COMMON_SETTINGS::applySettingsToPanel( COMMON_SETTINGS& aSettings )
     m_cbRememberOpenFiles->SetValue( aSettings.m_Session.remember_open_files );
 
     m_cbBackupEnabled->SetValue( aSettings.m_Backup.enabled );
-    m_cbBackupAutosave->SetValue( aSettings.m_Backup.backup_on_autosave );
-    m_backupLimitTotalFiles->SetValue( aSettings.m_Backup.limit_total_files );
-    m_backupLimitDailyFiles->SetValue( aSettings.m_Backup.limit_daily_files );
-    m_backupMinInterval->SetValue( aSettings.m_Backup.min_interval / 60 );
     m_backupLimitTotalSize->SetValue( aSettings.m_Backup.limit_total_size / ( 1024 * 1024 ) );
 
     m_showScrollbars->SetValue( aSettings.m_Appearance.show_scrollbars );
@@ -392,6 +380,8 @@ void PANEL_COMMON_SETTINGS::OnPDFViewerClick( wxCommandEvent& event )
 
     wxFileDialog dlg( topLevelParent, _( "Select Preferred PDF Viewer" ), fn.GetPath(),
                       fn.GetFullPath(), wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST );
+
+    KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
 
     if( dlg.ShowModal() == wxID_CANCEL )
         return;

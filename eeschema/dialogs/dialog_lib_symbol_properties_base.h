@@ -75,6 +75,7 @@ class DIALOG_LIB_SYMBOL_PROPERTIES_BASE : public DIALOG_SHIM
 		wxCheckBox* m_excludeFromSimCheckBox;
 		wxCheckBox* m_excludeFromBomCheckBox;
 		wxCheckBox* m_excludeFromBoardCheckBox;
+		wxCheckBox* m_excludeFromPosFilesCheckBox;
 		wxPanel* m_PanelUnitsAndBodyStyles;
 		wxStaticText* m_staticTextNbUnits;
 		wxSpinCtrl* m_unitSpinCtrl;
@@ -98,12 +99,10 @@ class DIALOG_LIB_SYMBOL_PROPERTIES_BASE : public DIALOG_SHIM
 		STD_BITMAP_BUTTON* m_deleteFilterButton;
 		wxPanel* m_PanelPinConnections;
 		wxCheckBox* m_cbDuplicatePinsAreJumpers;
-		wxStaticText* stLabelAvailablePins;
-		wxListBox* m_listAvailablePins;
-		wxBitmapButton* m_btnCreateJumperPinGroup;
-		wxBitmapButton* m_btnRemoveJumperPinGroup;
-		wxStaticText* stLabelGroups;
-		wxListBox* m_listJumperPinGroups;
+		wxStaticText* m_jumperGroupsLabel;
+		WX_GRID* m_jumperGroupsGrid;
+		STD_BITMAP_BUTTON* m_bpAddJumperGroup;
+		STD_BITMAP_BUTTON* m_bpRemoveJumperGroup;
 		wxButton* m_spiceFieldsButton;
 		wxStdDialogButtonSizer* m_stdSizerButton;
 		wxButton* m_stdSizerButtonOK;
@@ -134,10 +133,8 @@ class DIALOG_LIB_SYMBOL_PROPERTIES_BASE : public DIALOG_SHIM
 		virtual void OnFpFilterDClick( wxMouseEvent& event ) { event.Skip(); }
 		virtual void OnEditFootprintFilter( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnAddFootprintFilter( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnAvailablePinsClick( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnBtnCreateJumperPinGroup( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnBtnRemoveJumperPinGroup( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnGroupedPinListClick( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnAddJumperGroup( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnRemoveJumperGroup( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnEditSpiceModel( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnCancelButtonClick( wxCommandEvent& event ) { event.Skip(); }
 

@@ -79,15 +79,32 @@ public:
         FOOTPRINT* footprint = reinterpret_cast<FOOTPRINT*>( obj );
         PCB_FIELD* field = footprint->GetField( m_name );
 
-        if( !field )
+        wxString variantName;
+
+        if( footprint->GetBoard() )
+            variantName = footprint->GetBoard()->GetCurrentVariant();
+
+        if( !variantName.IsEmpty() )
         {
-            PCB_FIELD* newField = new PCB_FIELD( footprint, FIELD_T::USER, m_name );
-            newField->SetText( value );
-            footprint->Add( newField );
+            // Store the value as a variant override
+            FOOTPRINT_VARIANT* variant = footprint->AddVariant( variantName );
+
+            if( variant )
+                variant->SetFieldValue( m_name, value );
         }
         else
         {
-            field->SetText( value );
+            // Set the base field value
+            if( !field )
+            {
+                PCB_FIELD* newField = new PCB_FIELD( footprint, FIELD_T::USER, m_name );
+                newField->SetText( value );
+                footprint->Add( newField );
+            }
+            else
+            {
+                field->SetText( value );
+            }
         }
     }
 
@@ -97,9 +114,25 @@ public:
         PCB_FIELD* field = footprint->GetField( m_name );
 
         if( field )
-            return wxAny( field->GetText() );
+        {
+            wxString variantName;
+
+            if( footprint->GetBoard() )
+                variantName = footprint->GetBoard()->GetCurrentVariant();
+
+            wxString text;
+
+            if( !variantName.IsEmpty() )
+                text = footprint->GetFieldValueForVariant( variantName, m_name );
+            else
+                text = field->GetText();
+
+            return wxAny( text );
+        }
         else
+        {
             return wxAny( MISSING_FIELD_SENTINEL );
+        }
     }
 
 private:
@@ -348,7 +381,11 @@ void PCB_PROPERTIES_PANEL::rebuildProperties( const SELECTION& aSelection )
         FOOTPRINT* footprint = static_cast<FOOTPRINT*>( item );
 
         for( PCB_FIELD* field : footprint->GetFields() )
+        {
+            wxCHECK2( field, continue );
+
             m_currentFieldNames.insert( field->GetCanonicalName() );
+        }
     }
 
     const wxString groupFields = _HKI( "Fields" );
@@ -523,6 +560,45 @@ void PCB_PROPERTIES_PANEL::valueChanged( wxPropertyGridEvent& aEvent )
             continue;
         }
 
+        // Handle variant-aware boolean properties for footprints
+        if( item->Type() == PCB_FOOTPRINT_T )
+        {
+            FOOTPRINT* footprint = static_cast<FOOTPRINT*>( item );
+            wxString   variantName;
+
+            if( footprint->GetBoard() )
+                variantName = footprint->GetBoard()->GetCurrentVariant();
+
+            if( !variantName.IsEmpty() )
+            {
+                wxString propName = aEvent.GetPropertyName();
+
+                if( propName == _HKI( "Do not Populate" )
+                    || propName == _HKI( "Exclude From Bill of Materials" )
+                    || propName == _HKI( "Exclude From Position Files" ) )
+                {
+                    FOOTPRINT_VARIANT* variant = footprint->GetVariant( variantName );
+
+                    if( !variant )
+                        variant = footprint->AddVariant( variantName );
+
+                    if( variant )
+                    {
+                        bool boolValue = newValue.GetBool();
+
+                        if( propName == _HKI( "Do not Populate" ) )
+                            variant->SetDNP( boolValue );
+                        else if( propName == _HKI( "Exclude From Bill of Materials" ) )
+                            variant->SetExcludedFromBOM( boolValue );
+                        else if( propName == _HKI( "Exclude From Position Files" ) )
+                            variant->SetExcludedFromPosFiles( boolValue );
+
+                        continue;
+                    }
+                }
+            }
+        }
+
         item->Set( property, newValue );
     }
 
@@ -560,8 +636,12 @@ void PCB_PROPERTIES_PANEL::updateLists( const BOARD* aBoard )
 
     // Copper only properties
     m_propMgr.GetProperty( TYPE_HASH( BOARD_CONNECTED_ITEM ), _HKI( "Layer" ) )->SetChoices( layersCu );
+    m_propMgr.GetProperty( TYPE_HASH( PAD ), _HKI( "Bottom Backdrill Must-Cut" ) )->SetChoices( layersCu );
+    m_propMgr.GetProperty( TYPE_HASH( PAD ), _HKI( "Top Backdrill Must-Cut" ) )->SetChoices( layersCu );
     m_propMgr.GetProperty( TYPE_HASH( PCB_VIA ), _HKI( "Layer Top" ) )->SetChoices( layersCu );
     m_propMgr.GetProperty( TYPE_HASH( PCB_VIA ), _HKI( "Layer Bottom" ) )->SetChoices( layersCu );
+    m_propMgr.GetProperty( TYPE_HASH( PCB_VIA ), _HKI( "Bottom Backdrill Must-Cut" ) )->SetChoices( layersCu );
+    m_propMgr.GetProperty( TYPE_HASH( PCB_VIA ), _HKI( "Top Backdrill Must-Cut" ) )->SetChoices( layersCu );
     m_propMgr.GetProperty( TYPE_HASH( PCB_TUNING_PATTERN ), _HKI( "Layer" ) )->SetChoices( layersCu );
 
     // Regenerate nets
@@ -586,4 +666,41 @@ void PCB_PROPERTIES_PANEL::updateLists( const BOARD* aBoard )
 
     auto tuningNet = m_propMgr.GetProperty( TYPE_HASH( PCB_TUNING_PATTERN ), _HKI( "Net" ) );
     tuningNet->SetChoices( nets );
+}
+
+
+bool PCB_PROPERTIES_PANEL::getItemValue( EDA_ITEM* aItem, PROPERTY_BASE* aProperty, wxVariant& aValue )
+{
+    // For FOOTPRINT variant-aware boolean properties, return variant-specific values
+    if( aItem->Type() == PCB_FOOTPRINT_T )
+    {
+        FOOTPRINT* footprint = static_cast<FOOTPRINT*>( aItem );
+        wxString   variantName;
+
+        if( footprint->GetBoard() )
+            variantName = footprint->GetBoard()->GetCurrentVariant();
+
+        if( !variantName.IsEmpty() )
+        {
+            wxString propName = aProperty->Name();
+
+            if( propName == _HKI( "Do not Populate" ) )
+            {
+                aValue = wxVariant( footprint->GetDNPForVariant( variantName ) );
+                return true;
+            }
+            else if( propName == _HKI( "Exclude From Bill of Materials" ) )
+            {
+                aValue = wxVariant( footprint->GetExcludedFromBOMForVariant( variantName ) );
+                return true;
+            }
+            else if( propName == _HKI( "Exclude From Position Files" ) )
+            {
+                aValue = wxVariant( footprint->GetExcludedFromPosFilesForVariant( variantName ) );
+                return true;
+            }
+        }
+    }
+
+    return PROPERTIES_PANEL::getItemValue( aItem, aProperty, aValue );
 }

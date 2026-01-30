@@ -24,6 +24,7 @@
 
 #include <advanced_config.h>
 #include <base_units.h>
+#include <background_jobs_monitor.h>
 #include <kiway.h>
 #include <lib_tree_model_adapter.h>
 #include <pgm_base.h>
@@ -44,22 +45,26 @@
 #include <confirm.h>
 #include <preview_items/selection_area.h>
 #include <project_sch.h>
-#include <symbol_library.h>
-#include <symbol_lib_table.h>
+#include <libraries/legacy_symbol_library.h>
+#include <libraries/symbol_library_adapter.h>
 #include <sch_base_frame.h>
 #include <dialogs/dialog_sch_find.h>
 #include <design_block.h>
-#include <design_block_lib_table.h>
+#include <thread_pool.h>
 #include <tool/actions.h>
 #include <tool/action_toolbar.h>
 #include <tool/tool_manager.h>
 #include <tool/tool_dispatcher.h>
 #include <tools/sch_selection_tool.h>
+#include <trace_helpers.h>
 #include <view/view_controls.h>
+#include <widgets/kistatusbar.h>
 #include <wx/choicdlg.h>
+#include <wx/evtloop.h>
 #include <wx/fswatcher.h>
 #include <wx/log.h>
 #include <wx/msgdlg.h>
+#include <trace_helpers.h>
 
 #ifndef __linux__
 #include <navlib/nl_schematic_plugin.h>
@@ -69,16 +74,16 @@
 #endif
 
 
-LIB_SYMBOL* SchGetLibSymbol( const LIB_ID& aLibId, SYMBOL_LIB_TABLE* aLibTable,
-                             SYMBOL_LIB* aCacheLib, wxWindow* aParent, bool aShowErrorMsg )
+LIB_SYMBOL* SchGetLibSymbol( const LIB_ID& aLibId, SYMBOL_LIBRARY_ADAPTER* aLibMgr,
+                             LEGACY_SYMBOL_LIB* aCacheLib, wxWindow* aParent, bool aShowErrorMsg )
 {
-    wxCHECK_MSG( aLibTable, nullptr, wxS( "Invalid symbol library table." ) );
+    wxCHECK_MSG( aLibMgr, nullptr, wxS( "Invalid symbol library manager adapter." ) );
 
     LIB_SYMBOL* symbol = nullptr;
 
     try
     {
-        symbol = aLibTable->LoadSymbol( aLibId );
+        symbol = aLibMgr->LoadSymbol( aLibId );
 
         if( !symbol && aCacheLib )
         {
@@ -133,13 +138,17 @@ SCH_BASE_FRAME::SCH_BASE_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aWindo
               }
           } );
 
+    Pgm().GetBackgroundJobMonitor().RegisterStatusBar( static_cast<KISTATUSBAR*>( GetStatusBar() ) );
+
     m_watcherDebounceTimer.Bind( wxEVT_TIMER, &SCH_BASE_FRAME::OnSymChangeDebounceTimer, this );
 }
 
 
 /// Needs to be in the cpp file to encode the sizeof() for std::unique_ptr
 SCH_BASE_FRAME::~SCH_BASE_FRAME()
-{}
+{
+    Pgm().GetBackgroundJobMonitor().UnregisterStatusBar( static_cast<KISTATUSBAR*>( GetStatusBar() ) );
+}
 
 
 void SCH_BASE_FRAME::doCloseWindow()
@@ -265,51 +274,11 @@ void SCH_BASE_FRAME::UpdateStatusBar()
 LIB_SYMBOL* SCH_BASE_FRAME::GetLibSymbol( const LIB_ID& aLibId, bool aUseCacheLib,
                                           bool aShowErrorMsg )
 {
-    SYMBOL_LIB* cache =
-            ( aUseCacheLib ) ? PROJECT_SCH::SchLibs( &Prj() )->GetCacheLibrary() : nullptr;
+    LEGACY_SYMBOL_LIB* cache =
+            ( aUseCacheLib ) ? PROJECT_SCH::LegacySchLibs( &Prj() )->GetCacheLibrary() : nullptr;
 
-    return SchGetLibSymbol( aLibId, PROJECT_SCH::SchSymbolLibTable( &Prj() ), cache, this,
+    return SchGetLibSymbol( aLibId, PROJECT_SCH::SymbolLibAdapter( &Prj() ), cache, this,
                             aShowErrorMsg );
-}
-
-
-bool SCH_BASE_FRAME::saveSymbolLibTables( bool aGlobal, bool aProject )
-{
-    wxString msg;
-    bool success = true;
-
-    if( aGlobal )
-    {
-        try
-        {
-            SYMBOL_LIB_TABLE::GetGlobalLibTable().Save( SYMBOL_LIB_TABLE::GetGlobalTableFileName() );
-        }
-        catch( const IO_ERROR& ioe )
-        {
-            success = false;
-            msg.Printf( _( "Error saving global symbol library table:\n%s" ), ioe.What() );
-            DisplayErrorMessage( this, msg );
-        }
-    }
-
-    if( aProject && !Prj().GetProjectName().IsEmpty() )
-    {
-        wxFileName fn( Prj().GetProjectPath(), SYMBOL_LIB_TABLE::GetSymbolLibTableFileName() );
-
-        try
-        {
-            PROJECT_SCH::SchSymbolLibTable( &Prj() )->Save( fn.GetFullPath() );
-        }
-        catch( const IO_ERROR& ioe )
-        {
-            success = false;
-            msg.Printf( _( "Error saving project-specific symbol library table:\n%s" ),
-                        ioe.What() );
-            DisplayErrorMessage( this, msg );
-        }
-    }
-
-    return success;
 }
 
 
@@ -685,39 +654,36 @@ void SCH_BASE_FRAME::handleIconizeEvent( wxIconizeEvent& aEvent )
 void SCH_BASE_FRAME::GetLibraryItemsForListDialog( wxArrayString& aHeaders,
                                                    std::vector<wxArrayString>& aItemsToDisplay )
 {
-    COMMON_SETTINGS*      cfg = Pgm().GetCommonSettings();
-    PROJECT_FILE&         project = Prj().GetProjectFile();
-    SYMBOL_LIB_TABLE*     tbl = PROJECT_SCH::SchSymbolLibTable( &Prj() );
-    std::vector<wxString> libNicknames = tbl->GetLogicalLibs();
-
     aHeaders.Add( _( "Library" ) );
     aHeaders.Add( _( "Description" ) );
 
+    COMMON_SETTINGS*           cfg = Pgm().GetCommonSettings();
+    PROJECT_FILE&              project = Prj().GetProjectFile();
+    SYMBOL_LIBRARY_ADAPTER*    adapter = PROJECT_SCH::SymbolLibAdapter( &Prj() );
+    std::vector<wxString>      libNicknames = adapter->GetLibraryNames();
+    std::vector<wxArrayString> unpinned;
+
     for( const wxString& nickname : libNicknames )
     {
+        wxArrayString item;
+        wxString description = adapter->GetLibraryDescription( nickname ).value_or( wxEmptyString );
+
         if( alg::contains( project.m_PinnedSymbolLibs, nickname )
             || alg::contains( cfg->m_Session.pinned_symbol_libs, nickname ) )
         {
-            wxArrayString item;
-
             item.Add( LIB_TREE_MODEL_ADAPTER::GetPinningSymbol() + nickname );
-            item.Add( tbl->GetDescription( nickname ) );
+            item.Add( description );
             aItemsToDisplay.push_back( item );
         }
-    }
-
-    for( const wxString& nickname : libNicknames )
-    {
-        if( !alg::contains( project.m_PinnedSymbolLibs, nickname )
-                && !alg::contains( cfg->m_Session.pinned_symbol_libs, nickname ) )
+        else
         {
-            wxArrayString item;
-
             item.Add( nickname );
-            item.Add( tbl->GetDescription( nickname ) );
-            aItemsToDisplay.push_back( item );
+            item.Add( description );
+            unpinned.push_back( item );
         }
     }
+
+    std::ranges::copy( unpinned, std::back_inserter( aItemsToDisplay ) );
 }
 
 
@@ -784,18 +750,17 @@ wxString SCH_BASE_FRAME::SelectLibrary( const wxString& aDialogTitle, const wxSt
             libraryName = fn.GetName();
             Prj().SetRString( PROJECT::SCH_LIB_PATH, fn.GetPath() );
 
-            useGlobalTable = tableChooser.GetUseGlobalTable();
+            LIBRARY_TABLE_SCOPE scope = tableChooser.GetUseGlobalTable() ? LIBRARY_TABLE_SCOPE::GLOBAL
+                                                                         : LIBRARY_TABLE_SCOPE::PROJECT;
+            SYMBOL_LIBRARY_ADAPTER* adapter = PROJECT_SCH::SymbolLibAdapter( &Prj() );
 
-            SYMBOL_LIB_TABLE* libTable = useGlobalTable ? &SYMBOL_LIB_TABLE::GetGlobalLibTable()
-                                                        : PROJECT_SCH::SchSymbolLibTable( &Prj() );
-
-            if( libTable->HasLibrary( libraryName, false ) )
+            if( adapter->HasLibrary( libraryName, false ) )
             {
                 DisplayError( this, wxString::Format( _( "Library '%s' already exists." ), libraryName ) );
                 break;
             }
 
-            if( !mgr.CreateLibrary( fn.GetFullPath(), *libTable ) )
+            if( !mgr.CreateLibrary( fn.GetFullPath(), scope ) )
                 DisplayError( this, wxString::Format( _( "Could not add library '%s'." ), libraryName ) );
 
             break;
@@ -814,40 +779,30 @@ void SCH_BASE_FRAME::setSymWatcher( const LIB_ID* aID )
 
     if( m_watcher )
     {
-        wxLogTrace( "KICAD_LIB_WATCH", "Remove watch" );
+        wxLogTrace( traceLibWatch, "Remove watch" );
         m_watcher->RemoveAll();
         m_watcher->SetOwner( nullptr );
         m_watcher.reset();
     }
 
-    wxString libfullname;
-    SYMBOL_LIB_TABLE* tbl = PROJECT_SCH::SchSymbolLibTable( &Prj() );
-
-    if( !aID || !tbl )
+    if( !aID )
         return;
 
-    try
-    {
-        const SYMBOL_LIB_TABLE_ROW* row = tbl->FindRow( aID->GetLibNickname() );
+    LIBRARY_MANAGER& manager = Pgm().GetLibraryManager();
+    std::optional<wxString> uri = manager.GetFullURI( LIBRARY_TABLE_TYPE::SYMBOL,
+                                                      aID->GetLibNickname() );
 
-        if( !row )
-            return;
-
-        libfullname = row->GetFullURI( true );
-    }
-    catch( const std::exception& e )
+    if( !uri )
     {
-        DisplayInfoMessage( this, e.what() );
-        return;
-    }
-    catch( const IO_ERROR& error )
-    {
-        wxLogTrace( "KICAD_LIB_WATCH", "Error: %s", error.What() );
+        wxLogTrace( traceLibWatch, "Could not get URI for library %s",
+                    wxString( aID->GetLibNickname().c_str() ) );
         return;
     }
 
-    wxLogTrace( "KICAD_LIB_WATCH", "Setting up watcher for %s", libfullname );
-    m_watcherFileName.Assign( libfullname );
+    wxString tmp = ExpandEnvVarSubstitutions( *uri, &Prj() );
+
+    wxLogTrace( traceLibWatch, "Setting up watcher for %s", tmp );
+    m_watcherFileName.Assign( tmp );
 
     if( !m_watcherFileName.FileExists() )
         return;
@@ -855,6 +810,11 @@ void SCH_BASE_FRAME::setSymWatcher( const LIB_ID* aID )
     wxLog::EnableLogging( false );
     m_watcherLastModified = m_watcherFileName.GetModificationTime();
     wxLog::EnableLogging( true );
+
+    // File system watcher requires an active event loop. If we're being called during
+    // library enumeration before the main event loop is running, skip watcher creation.
+    if( !wxEventLoopBase::GetActive() )
+        return;
 
     Bind( wxEVT_FSWATCHER, &SCH_BASE_FRAME::OnSymChange, this );
     m_watcher = std::make_unique<wxFileSystemWatcher>();
@@ -874,9 +834,9 @@ void SCH_BASE_FRAME::setSymWatcher( const LIB_ID* aID )
 
 void SCH_BASE_FRAME::OnSymChange( wxFileSystemWatcherEvent& aEvent )
 {
-    SYMBOL_LIBS* libs = PROJECT_SCH::SchLibs( &Prj() );
+    LEGACY_SYMBOL_LIBS* libs = PROJECT_SCH::LegacySchLibs( &Prj() );
 
-    wxLogTrace( "KICAD_LIB_WATCH", "OnSymChange: %s, watcher file: %s",
+    wxLogTrace( traceLibWatch, "OnSymChange: %s, watcher file: %s",
                 aEvent.GetPath().GetFullPath(), m_watcherFileName.GetFullPath() );
 
     if( !libs || !m_watcher || !m_watcher.get() || m_watcherFileName.GetPath().IsEmpty() )
@@ -888,7 +848,7 @@ void SCH_BASE_FRAME::OnSymChange( wxFileSystemWatcherEvent& aEvent )
     // Start the debounce timer (set to 1 second)
     if( !m_watcherDebounceTimer.StartOnce( 1000 ) )
     {
-        wxLogTrace( "KICAD_LIB_WATCH", "Failed to start the debounce timer" );
+        wxLogTrace( traceLibWatch, "Failed to start the debounce timer" );
         return;
     }
 }
@@ -904,11 +864,11 @@ void SCH_BASE_FRAME::OnSymChangeDebounceTimer( wxTimerEvent& aEvent )
 
     if( m_inSymChangeTimerEvent )
     {
-        wxLogTrace( "KICAD_LIB_WATCH", "Restarting debounce timer" );
+        wxLogTrace( traceLibWatch, "Restarting debounce timer" );
         m_watcherDebounceTimer.StartOnce( 3000 );
     }
 
-    wxLogTrace( "KICAD_LIB_WATCH", "OnSymChangeDebounceTimer" );
+    wxLogTrace( traceLibWatch, "OnSymChangeDebounceTimer" );
 
     // Disable logging to avoid spurious messages and check if the file has changed
     wxLog::EnableLogging( false );
@@ -926,7 +886,7 @@ void SCH_BASE_FRAME::OnSymChangeDebounceTimer( wxTimerEvent& aEvent )
       || IsOK( this, _( "The library containing the current symbol has changed.\n"
                         "Do you want to reload the library?" ) ) )
     {
-        wxLogTrace( "KICAD_LIB_WATCH", "Sending refresh symbol mail" );
+        wxLogTrace( traceLibWatch, "Sending refresh symbol mail" );
         std::string libName = m_watcherFileName.GetFullPath().ToStdString();
         Kiway().ExpressMail( FRAME_SCH_VIEWER, MAIL_REFRESH_SYMBOL, libName );
         Kiway().ExpressMail( FRAME_SCH_SYMBOL_EDITOR, MAIL_REFRESH_SYMBOL, libName );

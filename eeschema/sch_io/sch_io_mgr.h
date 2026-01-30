@@ -37,10 +37,9 @@ class SCH_SHEET;
 class SCH_SCREEN;
 class SCH_IO;
 class SCHEMATIC;
-class SYMBOL_LIB_TABLE;
 class KIWAY;
 class LIB_SYMBOL;
-class SYMBOL_LIB;
+class LEGACY_SYMBOL_LIB;
 class PROGRESS_REPORTER;
 
 
@@ -70,7 +69,8 @@ public:
         SCH_HTTP,             ///< KiCad HTTP library
 
         // Add your schematic type here.
-        SCH_FILE_UNKNOWN
+        SCH_FILE_UNKNOWN,
+        SCH_NESTED_TABLE
     } )
     // clang-format on
 

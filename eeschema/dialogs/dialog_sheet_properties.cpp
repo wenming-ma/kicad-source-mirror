@@ -75,13 +75,8 @@ DIALOG_SHEET_PROPERTIES::DIALOG_SHEET_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_S
                                                           OnAddField( aEvent );
                                                       } ) );
     m_grid->SetSelectionMode( wxGrid::wxGridSelectRows );
-
-    // Show/hide columns according to user's preference
-    if( EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() ) )
-    {
-        m_grid->ShowHideColumns( cfg->m_Appearance.edit_sheet_visible_columns );
-        m_shownColumns = m_grid->GetShownColumns();
-    }
+    m_grid->ShowHideColumns( "0 1 2 3 4 5 6 7" );
+    m_shownColumns = m_grid->GetShownColumns();
 
     if( m_frame->GetColorSettings()->GetOverrideSchItemColors() )
         m_infoBar->ShowMessage( _( "Note: individual item colors overridden in Preferences." ) );
@@ -114,9 +109,6 @@ DIALOG_SHEET_PROPERTIES::DIALOG_SHEET_PROPERTIES( SCH_EDIT_FRAME* aParent, SCH_S
 
 DIALOG_SHEET_PROPERTIES::~DIALOG_SHEET_PROPERTIES()
 {
-    if( EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( Kiface().KifaceSettings() ) )
-        cfg->m_Appearance.edit_sheet_visible_columns = m_grid->GetShownColumnsAsString();
-
     // Prevents crash bug in wxGrid's d'tor
     m_grid->DestroyTable( m_fields );
 
@@ -133,6 +125,9 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataToWindow()
     if( !wxDialog::TransferDataToWindow() )
         return false;
 
+    SCH_SHEET_PATH instance = m_frame->GetCurrentSheet();
+    wxString variantName = m_frame->Schematic().GetCurrentVariant();
+
     // Push a copy of each field into m_updateFields
     for( SCH_FIELD& field : m_sheet->GetFields() )
     {
@@ -147,6 +142,9 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataToWindow()
             field_copy.SetText( filename );
         }
 #endif
+
+        if( !field_copy.IsMandatory() )
+            field_copy.SetText( m_sheet->GetFieldText( field.GetName(), &instance, variantName ) );
 
         // change offset to be symbol-relative
         field_copy.Offset( -m_sheet->GetPosition() );
@@ -175,15 +173,13 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataToWindow()
     m_borderSwatch->SetSwatchBackground( canvas );
     m_backgroundSwatch->SetSwatchBackground( canvas );
 
-    SCH_SHEET_PATH instance = m_frame->GetCurrentSheet();
+    m_cbExcludeFromSim->SetValue( m_sheet->GetExcludedFromSim( &instance, variantName ) );
+    m_cbExcludeFromBom->SetValue( m_sheet->GetExcludedFromBOM( &instance, variantName ) );
+    m_cbExcludeFromBoard->SetValue( m_sheet->GetExcludedFromBoard( &instance, variantName ) );
+    m_cbDNP->SetValue( m_sheet->GetDNP( &instance, variantName ) );
+
     instance.push_back( m_sheet );
-
     m_pageNumberTextCtrl->ChangeValue( instance.GetPageNumber() );
-
-    m_cbExcludeFromSim->SetValue( m_sheet->GetExcludedFromSim() );
-    m_cbExcludeFromBom->SetValue( m_sheet->GetExcludedFromBOM() );
-    m_cbExcludeFromBoard->SetValue( m_sheet->GetExcludedFromBoard() );
-    m_cbDNP->SetValue( m_sheet->GetDNP() );
 
     return true;
 }
@@ -311,14 +307,15 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataFromWindow()
 
         if( fn.IsAbsolute() && fn.MakeRelativeTo( screenFileName.GetPath() ) )
         {
-            wxMessageDialog makeRelDlg( this, _( "Use relative path for sheet file?" ), _( "Sheet File Path" ),
-                                        wxYES_NO | wxYES_DEFAULT | wxICON_QUESTION | wxCENTER );
+            KICAD_MESSAGE_DIALOG makeRelDlg( this, _( "Use relative path for sheet file?" ),
+                                             _( "Sheet File Path" ),
+                                             wxYES_NO | wxYES_DEFAULT | wxICON_QUESTION | wxCENTER );
 
             makeRelDlg.SetExtendedMessage( _( "Using relative hierarchical sheet file name paths improves "
                                               "schematic portability across systems and platforms.  Using "
                                               "absolute paths can result in portability issues." ) );
-            makeRelDlg.SetYesNoLabels( wxMessageDialog::ButtonLabel( _( "Use Relative Path" ) ),
-                                       wxMessageDialog::ButtonLabel( _( "Use Absolute Path" ) ) );
+            makeRelDlg.SetYesNoLabels( KICAD_MESSAGE_DIALOG::ButtonLabel( _( "Use Relative Path" ) ),
+                                       KICAD_MESSAGE_DIALOG::ButtonLabel( _( "Use Absolute Path" ) ) );
 
             if( makeRelDlg.ShowModal() == wxID_YES )
             {
@@ -363,12 +360,18 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataFromWindow()
 
     m_fields->GetField( FIELD_T::SHEET_NAME )->SetText( newSheetname );
 
+    m_sheet->SetName( newSheetname );
+    m_sheet->SetFileName( newRelativeFilename );
+
     // change all field positions from relative to absolute
     for( SCH_FIELD& m_field : *m_fields)
         m_field.Offset( m_sheet->GetPosition() );
 
     if( positioningChanged( m_fields, m_sheet ) )
         m_sheet->SetFieldsAutoplaced( AUTOPLACE_NONE );
+
+    SCH_SHEET_PATH instance = m_frame->GetCurrentSheet();
+    wxString variantName = m_frame->Schematic().GetCurrentVariant();
 
     for( int ii = m_fields->GetNumberRows() - 1; ii >= 0; ii-- )
     {
@@ -383,9 +386,31 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataFromWindow()
             m_fields->erase( m_fields->begin() + ii );
         else if( fieldName.IsEmpty() )
             field.SetName( _( "untitled" ) );
-    }
 
-    m_sheet->SetFields( *m_fields );
+        SCH_FIELD* existingField = m_sheet->GetField( fieldName );
+        SCH_FIELD* tmp;
+
+        if( !existingField )
+        {
+            m_sheet->AddOptionalField( field );
+        }
+        else
+        {
+            wxString defaultText = m_sheet->Schematic()->ConvertRefsToKIIDs( existingField->GetText() );
+            tmp = const_cast<SCH_FIELD*>( existingField );
+
+            *tmp = field;
+
+            if( !variantName.IsEmpty() )
+            {
+                // Restore the default field text for existing fields.
+                tmp->SetText( defaultText, &instance );
+
+                tmp->SetText( m_sheet->Schematic()->ConvertRefsToKIIDs( field.GetText() ),
+                              &instance, variantName );
+            }
+        }
+    }
 
     m_sheet->SetBorderWidth( m_borderWidth.GetIntValue() );
 
@@ -412,12 +437,10 @@ bool DIALOG_SHEET_PROPERTIES::TransferDataFromWindow()
     m_sheet->SetBorderColor( m_borderSwatch->GetSwatchColor() );
     m_sheet->SetBackgroundColor( m_backgroundSwatch->GetSwatchColor() );
 
-    m_sheet->SetExcludedFromSim( m_cbExcludeFromSim->GetValue() );
-    m_sheet->SetExcludedFromBOM( m_cbExcludeFromBom->GetValue() );
+    m_sheet->SetExcludedFromSim( m_cbExcludeFromSim->GetValue(), &instance, variantName );
+    m_sheet->SetExcludedFromBOM( m_cbExcludeFromBom->GetValue(), &instance, variantName );
     m_sheet->SetExcludedFromBoard( m_cbExcludeFromBoard->GetValue() );
-    m_sheet->SetDNP( m_cbDNP->GetValue() );
-
-    SCH_SHEET_PATH instance = m_frame->GetCurrentSheet();
+    m_sheet->SetDNP( m_cbDNP->GetValue(), &instance, variantName );
 
     instance.push_back( m_sheet );
 
@@ -628,7 +651,10 @@ bool DIALOG_SHEET_PROPERTIES::onSheetFilenameChanged( const wxString& aNewFilena
     {
         // Create a temporary sheet for recursion testing to prevent a possible recursion error.
         std::unique_ptr< SCH_SHEET> tmpSheet = std::make_unique<SCH_SHEET>( &schematic );
-        *tmpSheet->GetField( FIELD_T::SHEET_NAME ) = m_fields->GetField( FIELD_T::SHEET_NAME );
+
+        if( SCH_FIELD* srcField = m_fields->GetField( FIELD_T::SHEET_NAME ) )
+            *tmpSheet->GetField( FIELD_T::SHEET_NAME ) = *srcField;
+
         tmpSheet->GetField( FIELD_T::SHEET_FILENAME )->SetText( sheetFileName.GetFullPath() );
         tmpSheet->SetScreen( useScreen );
 
@@ -699,6 +725,26 @@ void DIALOG_SHEET_PROPERTIES::OnGridCellChanging( wxGridEvent& event )
         event.Veto();
         m_delayedFocusRow = event.GetRow();
         m_delayedFocusColumn = event.GetCol();
+    }
+    else if( event.GetCol() == FDC_NAME )
+    {
+        wxString newName = event.GetString();
+
+        for( int i = 0; i < m_grid->GetNumberRows(); ++i )
+        {
+            if( i == event.GetRow() )
+                continue;
+
+            if( newName.CmpNoCase( m_grid->GetCellValue( i, FDC_NAME ) ) == 0 )
+            {
+                DisplayError( this, wxString::Format( _( "Field name '%s' already in use." ),
+                                                      newName ) );
+                event.Veto();
+                m_delayedFocusRow = event.GetRow();
+                m_delayedFocusColumn = event.GetCol();
+                break;
+            }
+        }
     }
 
     editor->DecRef();

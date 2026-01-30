@@ -411,7 +411,6 @@ void GERBVIEW_FRAME::SetElementVisibility( int aLayerID, bool aNewState )
         break;
 
     case LAYER_NEGATIVE_OBJECTS:
-    {
         gvconfig()->m_Appearance.show_negative_objects = aNewState;
 
         view->UpdateAllItemsConditionally( KIGFX::REPAINT,
@@ -424,7 +423,6 @@ void GERBVIEW_FRAME::SetElementVisibility( int aLayerID, bool aNewState )
                 } );
 
         break;
-    }
 
     case LAYER_GERBVIEW_DRAWINGSHEET:
         gvconfig()->m_Appearance.show_border_and_titleblock = aNewState;
@@ -625,11 +623,11 @@ void GERBVIEW_FRAME::UpdateXORLayers()
             view->SetLayerTarget( GERBER_DRAW_LAYER( i ), target );
 
         // We want the last visible layer, but deprioritize the active layer unless it's the
-        // only layer
-        if( ( lastVisibleLayer == -1 )
-            || ( view->IsLayerVisible( GERBER_DRAW_LAYER( i ) ) && i != GetActiveLayer() ) )
+        // only layer.  We must check visibility first to avoid selecting hidden layers.
+        if( view->IsLayerVisible( GERBER_DRAW_LAYER( i ) ) )
         {
-            lastVisibleLayer = i;
+            if( lastVisibleLayer == -1 || i != GetActiveLayer() )
+                lastVisibleLayer = i;
         }
     }
 
@@ -715,14 +713,13 @@ bool GERBVIEW_FRAME::IsElementVisible( int aLayerID ) const
     {
     case LAYER_DCODES:                return gvconfig()->m_Appearance.show_dcodes;
     case LAYER_NEGATIVE_OBJECTS:      return gvconfig()->m_Appearance.show_negative_objects;
-    case LAYER_GERBVIEW_GRID:         return IsGridVisible();
+    case LAYER_GERBVIEW_GRID:         return gvconfig()->m_Window.grid.show;
     case LAYER_GERBVIEW_DRAWINGSHEET: return gvconfig()->m_Appearance.show_border_and_titleblock;
     case LAYER_GERBVIEW_PAGE_LIMITS:  return gvconfig()->m_Display.m_DisplayPageLimits;
     case LAYER_GERBVIEW_BACKGROUND:   return true;
 
     default:
-        wxFAIL_MSG( wxString::Format( wxT( "GERBVIEW_FRAME::IsElementVisible(): bad arg %d" ),
-                                      aLayerID ) );
+        wxFAIL_MSG( wxString::Format( wxT( "GERBVIEW_FRAME::IsElementVisible(): bad arg %d" ), aLayerID ) );
     }
 
     return true;

@@ -24,7 +24,6 @@
  */
 
 #include <pgm_base.h>
-#include <symbol_library.h>
 #include <settings/settings_manager.h>
 #include <project/project_file.h>
 #include <symbol_library_common.h>
@@ -41,7 +40,6 @@
 #include <sch_symbol.h>
 #include <sch_commit.h>
 #include <sch_edit_frame.h>
-#include <symbol_lib_table.h>
 #include <tool/tool_manager.h>
 #include <tools/sch_actions.h>
 #include <project_sch.h>

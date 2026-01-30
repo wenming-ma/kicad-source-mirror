@@ -29,6 +29,7 @@
 #include <picosha2.h>
 #include <wildcards_and_files_ext.h>
 #include <functional>
+#include <kicommon.h>
 
 class OUTPUTFORMATTER;
 
@@ -37,7 +38,7 @@ namespace KIFONT
     class OUTLINE_FONT;
 }
 
-class EMBEDDED_FILES
+class KICOMMON_API EMBEDDED_FILES
 {
 public:
     struct EMBEDDED_FILE
@@ -103,8 +104,9 @@ public:
 
     EMBEDDED_FILES( EMBEDDED_FILES&& other ) noexcept;
     EMBEDDED_FILES( const EMBEDDED_FILES& other );
+    EMBEDDED_FILES( const EMBEDDED_FILES& other, bool aDeepCopy );
 
-    ~EMBEDDED_FILES()
+    virtual ~EMBEDDED_FILES()
     {
         for( auto& file : m_files )
             delete file.second;
@@ -219,6 +221,15 @@ public:
      * This call is used when loading the embedded files using the parsers.
      */
     static RETURN_CODE  DecompressAndDecode( EMBEDDED_FILE& aFile );
+
+    /**
+     * Compute the hash of a file on disk without fully embedding it.
+     *
+     * @param aFileName is the path to the file to hash.
+     * @param aHash is the output string to store the computed hash.
+     * @return OK on success, FILE_NOT_FOUND if file cannot be read.
+     */
+    static RETURN_CODE ComputeFileHash( const wxFileName& aFileName, std::string& aHash );
 
     /**
      * Returns the embedded file with the given name or nullptr if it does not exist.

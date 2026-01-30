@@ -25,6 +25,7 @@
 
 #include <wx/filedlg.h>
 #include <wx/filefn.h>
+#include <kiplatform/ui.h>
 
 #include <board.h>
 #include <footprint.h>
@@ -100,6 +101,8 @@ void DIALOG_EXPORT_2581::onBrowseClicked( wxCommandEvent& event )
     wxFileDialog dlg( this, _( "Export IPC-2581 File" ), fn.GetPath(), fn.GetFullName(),
                       m_cbCompress->IsChecked() ? compressed_files : ipc_files,
                       wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
+
+    KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
 
     if( dlg.ShowModal() == wxID_CANCEL )
         return;
@@ -271,7 +274,7 @@ void DIALOG_EXPORT_2581::onOKClick( wxCommandEvent& event )
 
     try
     {
-        IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::PluginFind( PCB_IO_MGR::IPC2581 ) );
+        IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::FindPlugin( PCB_IO_MGR::IPC2581 ) );
         pi->SetProgressReporter( &progress );
         pi->SetReporter( &reporter );
         pi->SaveBoard( tempFile, m_parent->GetBoard(), &props );
@@ -310,7 +313,11 @@ void DIALOG_EXPORT_2581::init()
     for( FOOTPRINT* fp : m_parent->GetBoard()->Footprints() )
     {
         for( PCB_FIELD* field : fp->GetFields() )
+        {
+            wxCHECK2( field, continue );
+
             options.insert( field->GetName() );
+        }
     }
 
     std::vector<wxString> items( options.begin(), options.end() );

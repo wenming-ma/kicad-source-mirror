@@ -169,16 +169,28 @@ public:
             return stringFromBool( aPin.IsVisible() );
 
         case COL_UNIT:
+            if( const SYMBOL* parent = aPin.GetParentSymbol() )
+            {
+                if( !parent->IsMultiUnit() )
+                    return wxGetTranslation( UNITS_ALL );
+            }
+
             if( aPin.GetUnit() == 0 )
                 return wxGetTranslation( UNITS_ALL );
-
-            return aPin.GetUnitDisplayName( aPin.GetUnit(), true );
+            else
+                return aPin.GetUnitDisplayName( aPin.GetUnit(), true );
 
         case COL_BODY_STYLE:
+            if( const SYMBOL* parent = aPin.GetParentSymbol() )
+            {
+                if( !parent->IsMultiBodyStyle() )
+                    return wxGetTranslation( UNITS_ALL );
+            }
+
             if( aPin.GetBodyStyle() == 0 )
                 return wxGetTranslation( DEMORGAN_ALL );
-
-            return aPin.GetBodyStyleDescription( aPin.GetBodyStyle(), true );
+            else
+                return aPin.GetBodyStyleDescription( aPin.GetBodyStyle(), true );
 
         default:
             wxFAIL_MSG( wxString::Format( "Invalid field id %d", aFieldId ) );
@@ -247,6 +259,12 @@ public:
             break;
 
         case COL_UNIT:
+            if( const SYMBOL* parent = aPin.GetParentSymbol() )
+            {
+                if( !parent->IsMultiUnit() )
+                    break;
+            }
+
             if( MatchTranslationOrNative( aValue, UNITS_ALL, false ) )
             {
                 aPin.SetUnit( 0 );
@@ -255,8 +273,8 @@ public:
 
             for( int i = 1; i <= aSymbol.GetUnitCount(); i++ )
             {
-                if( aValue == aPin.GetBodyStyleDescription( i, true )
-                        || aValue == aPin.GetBodyStyleDescription( i, false ) )
+                if( aValue == aPin.GetUnitDisplayName( i, true )
+                        || aValue == aPin.GetUnitDisplayName( i, false ) )
                 {
                     aPin.SetUnit( i );
                     break;
@@ -266,6 +284,12 @@ public:
             break;
 
         case COL_BODY_STYLE:
+            if( const SYMBOL* parent = aPin.GetParentSymbol() )
+            {
+                if( !parent->IsMultiBodyStyle() )
+                    break;
+            }
+
             if( MatchTranslationOrNative( aValue, DEMORGAN_ALL, false ) )
             {
                 aPin.SetBodyStyle( 0 );
@@ -295,32 +319,27 @@ private:
     {
         switch( m_boolFormat )
         {
-        case BOOL_FORMAT::ZERO_ONE: return aValue ? wxT( "1" ) : wxT( "0" );
+        case BOOL_FORMAT::ZERO_ONE:
+            return aValue ? wxT( "1" ) : wxT( "0" );
         case BOOL_FORMAT::TRUE_FALSE:
             return wxGetTranslation( aValue ? BOOL_TRUE : BOOL_FALSE );
-            // no default
+        default:
+            wxFAIL_MSG( "Invalid BOOL_FORMAT" );
+            return wxEmptyString;
         }
-        wxCHECK_MSG( false, wxEmptyString, "Invalid BOOL_FORMAT" );
+
     }
 
     bool boolFromString( const wxString& aValue, REPORTER& aReporter ) const
     {
         if( aValue == wxS( "1" ) )
-        {
             return true;
-        }
         else if( aValue == wxS( "0" ) )
-        {
             return false;
-        }
         else if( MatchTranslationOrNative( aValue, BOOL_TRUE, false ) )
-        {
             return true;
-        }
         else if( MatchTranslationOrNative( aValue, BOOL_FALSE, false ) )
-        {
             return false;
-        }
 
         aReporter.Report( wxString::Format( _( "The value '%s' can't be converted to boolean correctly, "
                                                "it has been interpreted as 'False'" ),
@@ -422,8 +441,7 @@ public:
     {
         wxGrid*  grid = GetView();
 
-        if( grid->GetGridCursorRow() == aRow && grid->GetGridCursorCol() == aCol
-                && grid->IsCellEditControlShown() )
+        if( grid->GetGridCursorRow() == aRow && grid->GetGridCursorCol() == aCol && grid->IsCellEditControlShown() )
         {
             auto it = m_evalOriginal.find( { m_rows[ aRow ], aCol } );
 
@@ -578,9 +596,7 @@ public:
         PIN_INFO_FORMATTER formatter( *m_frame, true, PIN_INFO_FORMATTER::BOOL_FORMAT::ZERO_ONE, reporter );
 
         for( SCH_PIN* pin : pins )
-        {
             formatter.UpdatePin( *pin, value, aCol, *m_symbol );
-        }
 
         m_edited = true;
     }
@@ -695,38 +711,34 @@ public:
             m_rows.emplace_back( std::vector<SCH_PIN*>() );
 
         std::set<wxString> selectedNumbers;
+
         for( SCH_PIN* pin : m_origSelectedPins )
-        {
             selectedNumbers.insert( pin->GetNumber() );
-        }
 
-        const auto pinIsInEditorSelection = [&]( SCH_PIN* pin )
-        {
-            // Quick check before we iterate the whole thing in N^2 time.
-            // (3000^2 = FPGAs causing issues down the road).
-            if( selectedNumbers.count( pin->GetNumber() ) == 0 )
-            {
-                return false;
-            }
-
-            for( SCH_PIN* selectedPin : m_origSelectedPins )
-            {
-                // The selected pin is in the editor, but the pins in the table
-                // are copies. We will mark the pin as selected if it's a match
-                // on the critical items.
-                if( selectedPin->GetNumber() == pin->GetNumber()
-                    && selectedPin->GetName() == pin->GetName()
-                    && selectedPin->GetUnit() == pin->GetUnit()
-                    && selectedPin->GetBodyStyle() == pin->GetBodyStyle()
-                )
+        const auto pinIsInEditorSelection =
+                [&]( SCH_PIN* pin )
                 {
-                    return true;
-                }
-            }
+                    // Quick check before we iterate the whole thing in N^2 time.
+                    // (3000^2 = FPGAs causing issues down the road).
+                    if( selectedNumbers.count( pin->GetNumber() ) == 0 )
+                        return false;
 
-            return false;
-        };
+                    for( SCH_PIN* selectedPin : m_origSelectedPins )
+                    {
+                        // The selected pin is in the editor, but the pins in the table
+                        // are copies. We will mark the pin as selected if it's a match
+                        // on the critical items.
+                        if( selectedPin->GetNumber() == pin->GetNumber()
+                            && selectedPin->GetName() == pin->GetName()
+                            && selectedPin->GetUnit() == pin->GetUnit()
+                            && selectedPin->GetBodyStyle() == pin->GetBodyStyle() )
+                        {
+                            return true;
+                        }
+                    }
 
+                    return false;
+                };
 
         for( SCH_PIN* pin : aPins )
         {
@@ -1002,6 +1014,8 @@ private:
         wxFileDialog dlg( &m_frame, _( "Select pin data file" ), "", "", FILEEXT::CsvTsvFileWildcard(),
                           wxFD_OPEN | wxFD_FILE_MUST_EXIST );
 
+        KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
+
         if( dlg.ShowModal() == wxID_CANCEL )
             return wxEmptyString;
 
@@ -1056,13 +1070,8 @@ DIALOG_LIB_EDIT_PIN_TABLE::DIALOG_LIB_EDIT_PIN_TABLE( SYMBOL_EDIT_FRAME* parent,
                                                            OnAddRow( aEvent );
                                                        } ) );
     m_grid->SetSelectionMode( wxGrid::wxGridSelectRows );
-
-    // Show/hide columns according to the user's preference
-    if( SYMBOL_EDITOR_SETTINGS* cfg = parent->GetSettings() )
-    {
-        m_grid->ShowHideColumns( cfg->m_PinTableVisibleColumns );
-        m_columnsShown = m_grid->GetShownColumns();
-    }
+    m_grid->ShowHideColumns( "0 1 2 3 4 5 9 10" );
+    m_columnsShown = m_grid->GetShownColumns();
 
     // Set special attributes
     wxGridCellAttr* attr;
@@ -1097,18 +1106,25 @@ DIALOG_LIB_EDIT_PIN_TABLE::DIALOG_LIB_EDIT_PIN_TABLE( SYMBOL_EDIT_FRAME* parent,
     unitNames.push_back( wxGetTranslation( UNITS_ALL ) );
 
     for( int i = 1; i <= aSymbol->GetUnitCount(); i++ )
-        unitNames.push_back( LIB_SYMBOL::LetterSubReference( i, 'A' ) );
+        unitNames.push_back( m_symbol->GetUnitDisplayName( i, true ) );
 
     attr->SetEditor( new GRID_CELL_COMBOBOX( unitNames ) );
     m_grid->SetColAttr( COL_UNIT, attr );
 
     attr = new wxGridCellAttr;
     wxArrayString bodyStyleNames;
-
     bodyStyleNames.push_back( wxGetTranslation( DEMORGAN_ALL ) );
 
-    for( const wxString& body_style_name : aSymbol->GetBodyStyleNames() )
-        bodyStyleNames.push_back( body_style_name );
+    if( aSymbol->HasDeMorganBodyStyles() )
+    {
+        bodyStyleNames.push_back( wxGetTranslation( DEMORGAN_STD ) );
+        bodyStyleNames.push_back( wxGetTranslation( DEMORGAN_ALT ) );
+    }
+    else
+    {
+        for( const wxString& body_style_name : aSymbol->GetBodyStyleNames() )
+            bodyStyleNames.push_back( body_style_name );
+    }
 
     attr->SetEditor( new GRID_CELL_COMBOBOX( bodyStyleNames ) );
     m_grid->SetColAttr( COL_BODY_STYLE, attr );
@@ -1198,9 +1214,6 @@ DIALOG_LIB_EDIT_PIN_TABLE::DIALOG_LIB_EDIT_PIN_TABLE( SYMBOL_EDIT_FRAME* parent,
 
 DIALOG_LIB_EDIT_PIN_TABLE::~DIALOG_LIB_EDIT_PIN_TABLE()
 {
-    if( SYMBOL_EDITOR_SETTINGS* cfg = m_editFrame->GetSettings() )
-        cfg->m_PinTableVisibleColumns = m_grid->GetShownColumnsAsString();
-
     // Disconnect Events
     m_grid->Disconnect( wxEVT_GRID_COL_SORT, wxGridEventHandler( DIALOG_LIB_EDIT_PIN_TABLE::OnColSort ), nullptr,
                         this );
@@ -1232,16 +1245,6 @@ bool DIALOG_LIB_EDIT_PIN_TABLE::TransferDataToWindow()
         m_pins.push_back( new SCH_PIN( *pin ) );
 
     m_dataModel->RebuildRows( m_pins, m_cbGroup->GetValue(), false );
-
-    if( m_symbol->IsMultiUnit() )
-        m_grid->ShowCol( COL_UNIT );
-    else
-        m_grid->HideCol( COL_UNIT );
-
-    if( m_symbol->IsMultiBodyStyle() )
-        m_grid->ShowCol( COL_BODY_STYLE );
-    else
-        m_grid->HideCol( COL_BODY_STYLE );
 
     updateSummary();
 
@@ -1304,6 +1307,7 @@ void DIALOG_LIB_EDIT_PIN_TABLE::OnAddRow( wxCommandEvent& event )
                     newPin->SetType( last->GetType() );
                     newPin->SetShape( last->GetShape() );
                     newPin->SetUnit( last->GetUnit() );
+                    newPin->SetBodyStyle( last->GetBodyStyle() );
 
                     VECTOR2I pos = last->GetPosition();
 
@@ -1543,6 +1547,8 @@ void DIALOG_LIB_EDIT_PIN_TABLE::OnExportButtonClick( wxCommandEvent& event )
         fn.SetExt( FILEEXT::CsvFileExtension );
         wxFileDialog dlg( this, _( "Select pin data file" ), "", fn.GetFullName(), FILEEXT::CsvFileWildcard(),
                           wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
+
+        KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
 
         if( dlg.ShowModal() == wxID_CANCEL )
             return;

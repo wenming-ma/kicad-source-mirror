@@ -105,29 +105,21 @@ public:
 
     const std::map<wxString, wxString>* GetProperties() { return &m_properties; }
 
-    SCH_SHEET_LIST BuildSheetListSortedByPageNumbers() const
-    {
-        SCH_SHEET_LIST hierarchy( m_rootSheet );
+    SCH_SHEET_LIST BuildSheetListSortedByPageNumbers() const;
 
-        hierarchy.SortByPageNumbers();
-
-        return hierarchy;
-    }
-
-    SCH_SHEET_LIST BuildUnorderedSheetList() const
-    {
-        SCH_SHEET_LIST sheets;
-
-        if( m_rootSheet )
-            sheets.BuildSheetList( m_rootSheet, false );
-
-        return sheets;
-    }
+    SCH_SHEET_LIST BuildUnorderedSheetList() const;
 
     /**
      * Return the full schematic flattened hierarchical sheet list.
      */
     SCH_SHEET_LIST Hierarchy() const;
+
+    /**
+     * Check if the hierarchy has been built.
+     *
+     * @return true if RefreshHierarchy() has been called and the hierarchy is populated.
+     */
+    bool HasHierarchy() const { return !m_hierarchy.empty(); }
 
     void RefreshHierarchy();
 
@@ -143,19 +135,43 @@ public:
     }
 
     /**
-     * Initialize the schematic with a new root sheet.
+     * Get the list of top-level sheets.
      *
-     * This is typically done by calling a file loader that returns the new root sheet
-     * As a side-effect, takes care of some post-load initialization.
-     *
-     * @param aRootSheet is the new root sheet for this schematic.
+     * @return vector of pointers to top-level sheets (children of virtual root).
      */
-    void SetRoot( SCH_SHEET* aRootSheet );
+    std::vector<SCH_SHEET*> GetTopLevelSheets() const;
+
+    SCH_SHEET* GetTopLevelSheet( int aIndex = 0 ) const;
+
+    void SetTopLevelSheets( const std::vector<SCH_SHEET*>& aSheets );
+
+    /**
+     * Add a new top-level sheet to the schematic.
+     *
+     * @param aSheet is the sheet to add as a top-level sheet.
+     */
+    void AddTopLevelSheet( SCH_SHEET* aSheet );
+
+    /**
+     * Remove a top-level sheet from the schematic.
+     *
+     * @param aSheet is the sheet to remove.
+     * @return true if the sheet was successfully removed.
+     */
+    bool RemoveTopLevelSheet( SCH_SHEET* aSheet );
+
+    /**
+     * Check if a sheet is a top-level sheet (direct child of virtual root).
+     *
+     * @param aSheet is the sheet to check.
+     * @return true if the sheet is a top-level sheet.
+     */
+    bool IsTopLevelSheet( const SCH_SHEET* aSheet ) const;
 
     /// A simple test if the schematic is loaded, not a complete one
     bool IsValid() const
     {
-        return m_rootSheet != nullptr;
+        return m_project && m_rootSheet != nullptr;
     }
 
     /// Helper to retrieve the screen of the root sheet
@@ -440,12 +456,70 @@ public:
      */
     wxString GetCurrentVariant() const;
 
+    void SetCurrentVariant( const wxString& aVariantName );
+
     /**
      * Delete all information for @a aVariantName.
      *
      * @param aVariantName is the name of the variant to remove.
      */
-    void DeleteVariant( const wxString& aVariantName );
+    void DeleteVariant( const wxString& aVariantName, SCH_COMMIT* aCommit = nullptr );
+
+    void AddVariant( const wxString& aVariantName );
+
+    /**
+     * Rename a variant from @a aOldName to @a aNewName.
+     *
+     * This updates the variant name in all symbols and sheets throughout the schematic.
+     *
+     * @param aOldName is the current name of the variant to rename.
+     * @param aNewName is the new name for the variant.
+     * @param aCommit is an optional SCH_COMMIT for undo/redo support.
+     */
+    void RenameVariant( const wxString& aOldName, const wxString& aNewName,
+                        SCH_COMMIT* aCommit = nullptr );
+
+    /**
+     * Copy a variant from @a aSourceVariant to @a aNewVariant.
+     *
+     * This creates a new variant with data copied from the source variant for all
+     * symbols and sheets throughout the schematic.
+     *
+     * @param aSourceVariant is the name of the variant to copy from.
+     * @param aNewVariant is the name of the new variant to create.
+     * @param aCommit is an optional SCH_COMMIT for undo/redo support.
+     */
+    void CopyVariant( const wxString& aSourceVariant, const wxString& aNewVariant,
+                      SCH_COMMIT* aCommit = nullptr );
+
+    /**
+     * Return the set of variant names (without the default placeholder).
+     */
+    const std::set<wxString>& GetVariantNames() const { return m_variantNames; }
+
+    /**
+     * Return the description for a variant.
+     *
+     * @param aVariantName is the name of the variant.
+     * @return the description or an empty string if the variant has no description.
+     */
+    wxString GetVariantDescription( const wxString& aVariantName ) const;
+
+    /**
+     * Set the description for a variant.
+     *
+     * @param aVariantName is the name of the variant.
+     * @param aDescription is the description to set.
+     */
+    void SetVariantDescription( const wxString& aVariantName, const wxString& aDescription );
+
+    /**
+     * This is a throw away method for variant testing.
+     *
+     * Once the schematic loading is properly fixed due to SetRoot() method breakage, this method should
+     * be removed.
+     */
+    void LoadVariants();
 
     /**
      * True if a SCHEMATIC exists, false if not
@@ -458,6 +532,16 @@ public:
 
     PROJECT::ELEM ProjectElementType() override { return PROJECT::ELEM::SCHEMATIC; }
 
+    /**
+     * Save schematic files to the .history directory.
+     *
+     * This method is used as a saver callback for LOCAL_HISTORY during autosave operations.
+     *
+     * @param aProjectPath The path to check against this schematic's project path
+     * @param aFiles Output vector to append absolute file paths for history inclusion
+     */
+    void SaveToHistory( const wxString& aProjectPath, std::vector<wxString>& aFiles );
+
 private:
     friend class SCH_EDIT_FRAME;
 
@@ -468,10 +552,18 @@ private:
             ( l->*aFunc )( std::forward<Args>( args )... );
     }
 
+    void ensureVirtualRoot();
+    void ensureDefaultTopLevelSheet();
+    void ensureCurrentSheetIsTopLevel();
+    void rebuildHierarchyState( bool aResetConnectionGraph );
+
     PROJECT* m_project;
 
-    /// The top-level sheet in this schematic hierarchy (or potentially the only one)
+    /// The virtual root sheet (has no screen, contains all top-level sheets)
     SCH_SHEET* m_rootSheet;
+
+    /// List of top-level sheets (direct children of virtual root)
+    std::vector<SCH_SHEET*> m_topLevelSheets;
 
     /**
      * The sheet path of the sheet currently being edited or displayed.
@@ -526,6 +618,10 @@ private:
     wxString m_currentVariant;
 
     std::set<wxString> m_variantNames;
+
+    /// Re-entry guard to prevent infinite recursion between ensureDefaultTopLevelSheet and
+    /// RefreshHierarchy when setting up new schematics
+    bool m_settingTopLevelSheets = false;
 };
 
 #endif

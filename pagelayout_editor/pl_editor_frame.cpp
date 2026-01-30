@@ -64,6 +64,7 @@
 #include <wx/treebook.h>
 #include <wx/msgdlg.h>
 #include <wx/log.h>
+#include <kiplatform/ui.h>
 
 #ifndef __linux__
 #include <navlib/nl_pl_editor_plugin.h>
@@ -747,10 +748,8 @@ void PL_EDITOR_FRAME::UpdateStatusBar()
     // Display absolute coordinates:
     VECTOR2D cursorPos = GetCanvas()->GetViewControls()->GetCursorPosition();
     VECTOR2D coord = cursorPos - originCoord;
-    double   dXpos =
-            EDA_UNIT_UTILS::UI::ToUserUnit( drawSheetIUScale, GetUserUnits(), coord.x * Xsign );
-    double dYpos =
-            EDA_UNIT_UTILS::UI::ToUserUnit( drawSheetIUScale, GetUserUnits(), coord.y * Ysign );
+    double   dXpos = EDA_UNIT_UTILS::UI::ToUserUnit( drawSheetIUScale, GetUserUnits(), coord.x * Xsign );
+    double   dYpos = EDA_UNIT_UTILS::UI::ToUserUnit( drawSheetIUScale, GetUserUnits(), coord.y * Ysign );
 
     wxString absformatter = wxT( "X %.4g  Y %.4g" );
     wxString locformatter = wxT( "dx %.4g  dy %.4g" );
@@ -845,8 +844,9 @@ DS_DATA_ITEM* PL_EDITOR_FRAME::AddDrawingSheetItem( int aType )
     case DS_DATA_ITEM::DS_BITMAP:
     {
         wxFileDialog fileDlg( this, _( "Choose Image" ), m_mruImagePath, wxEmptyString,
-                              _( "Image Files" ) + wxS( " " ) + wxImage::GetImageExtWildcard(),
-                              wxFD_OPEN );
+                              FILEEXT::ImageFileWildcard(), wxFD_OPEN );
+
+        KIPLATFORM::UI::AllowNetworkFileSystems( &fileDlg );
 
         if( fileDlg.ShowModal() != wxID_OK )
             return nullptr;
@@ -872,8 +872,8 @@ DS_DATA_ITEM* PL_EDITOR_FRAME::AddDrawingSheetItem( int aType )
         // Set the scale factor for pl_editor (it is set for Eeschema by default)
         image->SetPixelSizeIu( drawSheetIUScale.IU_PER_MILS * 1000.0 / image->GetPPI() );
         item = new DS_DATA_ITEM_BITMAP( image );
+        break;
     }
-    break;
     }
 
     if( item == nullptr )

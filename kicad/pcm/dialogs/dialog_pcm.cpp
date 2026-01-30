@@ -36,6 +36,7 @@
 #include "widgets/wx_grid.h"
 
 #include <fstream>
+#include <kiplatform/ui.h>
 #include <launch_ext.h>
 #include <sstream>
 #include <vector>
@@ -51,6 +52,7 @@ static std::vector<std::pair<PCM_PACKAGE_TYPE, wxString>> PACKAGE_TYPE_LIST = {
     { PT_PLUGIN,     _( "Plugins (%d)" ) },
     { PT_FAB,        _( "Fabrication plugins (%d)" ) },
     { PT_LIBRARY,    _( "Libraries (%d)" ) },
+    { PT_DATASOURCE, _( "Data sources (%d)" ) },
     { PT_COLORTHEME, _( "Color themes (%d)" ) },
 };
 
@@ -201,6 +203,19 @@ DIALOG_PCM::~DIALOG_PCM()
 }
 
 
+void DIALOG_PCM::SetActivePackageType( PCM_PACKAGE_TYPE aType )
+{
+    for( size_t i = 0; i < PACKAGE_TYPE_LIST.size(); ++i )
+    {
+        if( PACKAGE_TYPE_LIST[i].first == aType )
+        {
+            m_contentNotebook->SetSelection( i );
+            break;
+        }
+    }
+}
+
+
 void DIALOG_PCM::OnUpdateEventButtons( wxUpdateUIEvent& event )
 {
     event.Enable( !m_pendingActions.empty() );
@@ -288,6 +303,8 @@ void DIALOG_PCM::OnInstallFromFileClicked( wxCommandEvent& event )
 {
     wxFileDialog open_file_dialog( this, _( "Install Package" ), wxEmptyString, wxEmptyString,
                                    wxT( "Zip files (*.zip)|*.zip" ), wxFD_OPEN | wxFD_FILE_MUST_EXIST );
+
+    KIPLATFORM::UI::AllowNetworkFileSystems( &open_file_dialog );
 
     if( open_file_dialog.ShowModal() == wxID_CANCEL )
         return;

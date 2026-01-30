@@ -29,27 +29,33 @@
 #include <pgm_base.h>
 #include <confirm.h>
 #include <core/kicad_algo.h>
-#include <design_block_lib_table.h>
-#include <fp_lib_table.h>
+#include <design_block_library_adapter.h>
 #include <string_utils.h>
 #include <kiface_ids.h>
 #include <kiway.h>
+#include <libraries/library_manager.h>
+#include <libraries/library_table.h>
 #include <lockfile.h>
 #include <macros.h>
 #include <git/project_git_utils.h>
 #include <git2.h>
 #include <project.h>
+
+#include <footprint_library_adapter.h>
+
 #include <project/project_file.h>
 #include <trace_helpers.h>
 #include <wildcards_and_files_ext.h>
 #include <settings/common_settings.h>
 #include <settings/settings_manager.h>
 #include <title_block.h>
+#include <local_history.h>
 
 
 
 PROJECT::PROJECT() :
         m_readOnly( false ),
+        m_lockOverrideGranted( false ),
         m_textVarsTicker( 0 ),
         m_netclassesTicker( 0 ),
         m_projectFile( nullptr ),
@@ -402,79 +408,38 @@ const wxString PROJECT::AbsolutePath( const wxString& aFileName ) const
 }
 
 
-FP_LIB_TABLE* PROJECT::PcbFootprintLibs( KIWAY& aKiway )
+FOOTPRINT_LIBRARY_ADAPTER* PROJECT::FootprintLibAdapter( KIWAY& aKiway )
 {
-    // This is a lazy loading function, it loads the project specific table when
-    // that table is asked for, not before.
-
-    FP_LIB_TABLE* tbl = (FP_LIB_TABLE*) GetElem( PROJECT::ELEM::FPTBL );
-
-    if( tbl )
-    {
-        wxASSERT( tbl->ProjectElementType() == PROJECT::ELEM::FPTBL );
-    }
-    else
-    {
-        try
-        {
-            // Build a new project specific FP_LIB_TABLE with the global table as a fallback.
-            // ~FP_LIB_TABLE() will not touch the fallback table, so multiple projects may
-            // stack this way, all using the same global fallback table.
-            KIFACE* kiface = aKiway.KiFACE( KIWAY::FACE_PCB );
-
-            tbl = (FP_LIB_TABLE*) kiface->IfaceOrAddress( KIFACE_NEW_FOOTPRINT_TABLE );
-            tbl->Load( FootprintLibTblName() );
-
-            SetElem( PROJECT::ELEM::FPTBL, tbl );
-        }
-        catch( const IO_ERROR& ioe )
-        {
-            DisplayErrorMessage( nullptr, _( "Error loading project footprint library table." ),
-                                 ioe.What() );
-        }
-        catch( ... )
-        {
-            DisplayErrorMessage( nullptr, _( "Error loading project footprint library table." ) );
-        }
-    }
-
-    return tbl;
+    KIFACE* kiface = aKiway.KiFACE( KIWAY::FACE_PCB );
+    return static_cast<FOOTPRINT_LIBRARY_ADAPTER*>( kiface->IfaceOrAddress( KIFACE_FOOTPRINT_LIBRARY_ADAPTER ) );
 }
 
 
-DESIGN_BLOCK_LIB_TABLE* PROJECT::DesignBlockLibs()
+DESIGN_BLOCK_LIBRARY_ADAPTER* PROJECT::DesignBlockLibs()
 {
-    // This is a lazy loading function, it loads the project specific table when
-    // that table is asked for, not before.
+    std::scoped_lock lock( m_designBlockLibsMutex );
 
-    DESIGN_BLOCK_LIB_TABLE* tbl = (DESIGN_BLOCK_LIB_TABLE*) GetElem( ELEM::DESIGN_BLOCK_LIB_TABLE );
+    LIBRARY_MANAGER& mgr = Pgm().GetLibraryManager();
+    std::optional<LIBRARY_MANAGER_ADAPTER*> adapter = mgr.Adapter( LIBRARY_TABLE_TYPE::DESIGN_BLOCK );
 
-    if( tbl )
+    if( !adapter )
     {
-        wxASSERT( tbl->ProjectElementType() == PROJECT::ELEM::DESIGN_BLOCK_LIB_TABLE );
-    }
-    else
-    {
-        try
-        {
-            tbl = new DESIGN_BLOCK_LIB_TABLE( &DESIGN_BLOCK_LIB_TABLE::GetGlobalLibTable() );
-            tbl->Load( DesignBlockLibTblName() );
+        mgr.RegisterAdapter( LIBRARY_TABLE_TYPE::DESIGN_BLOCK,
+                             std::make_unique<DESIGN_BLOCK_LIBRARY_ADAPTER>( mgr ) );
 
-            SetElem( ELEM::DESIGN_BLOCK_LIB_TABLE, tbl );
-        }
-        catch( const IO_ERROR& ioe )
-        {
-            DisplayErrorMessage( nullptr, _( "Error loading project design block library table." ),
-                                 ioe.What() );
-        }
-        catch( ... )
-        {
-            DisplayErrorMessage( nullptr,
-                                 _( "Error loading project design block library table." ) );
-        }
+        std::optional<LIBRARY_MANAGER_ADAPTER*> created = mgr.Adapter( LIBRARY_TABLE_TYPE::DESIGN_BLOCK );
+        wxCHECK( created && ( *created )->Type() == LIBRARY_TABLE_TYPE::DESIGN_BLOCK, nullptr );
+        return static_cast<DESIGN_BLOCK_LIBRARY_ADAPTER*>( *created );
     }
 
-    return tbl;
+    wxCHECK( ( *adapter )->Type() == LIBRARY_TABLE_TYPE::DESIGN_BLOCK, nullptr );
+    return static_cast<DESIGN_BLOCK_LIBRARY_ADAPTER*>( *adapter );
+}
+
+
+LOCKFILE* PROJECT::GetProjectLock() const
+{
+    return m_project_lock.get();
 }
 
 
@@ -484,7 +449,48 @@ void PROJECT::SetProjectLock( LOCKFILE* aLockFile )
 }
 
 
-LOCKFILE* PROJECT::GetProjectLock() const
+void PROJECT::SaveToHistory( const wxString& aProjectPath, std::vector<wxString>& aFiles )
 {
-    return m_project_lock.get();
+    wxString projectFile = GetProjectFullName();
+
+    if( projectFile.IsEmpty() )
+        return;
+
+    wxFileName projectFn( projectFile );
+    wxFileName requestedFn( aProjectPath );
+    // wxPATH_NORM_ALL is now deprecated.
+    // So define a similar option
+    int norm_opt = wxPATH_NORM_ENV_VARS|wxPATH_NORM_DOTS|wxPATH_NORM_TILDE|wxPATH_NORM_ABSOLUTE
+                   |wxPATH_NORM_LONG|wxPATH_NORM_SHORTCUT;
+
+    if( !projectFn.Normalize( norm_opt ) || !requestedFn.Normalize( norm_opt ) )
+        return;
+
+    if( projectFn.GetFullPath() != requestedFn.GetFullPath() )
+        return;
+
+    wxFileName historyDir( projectFn.GetPath(), wxS( ".history" ) );
+
+    if( !historyDir.DirExists() )
+    {
+        if( !historyDir.Mkdir( wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL ) )
+            return;
+    }
+
+    // Save project file (.kicad_pro)
+    wxFileName historyProFile( historyDir.GetFullPath(), projectFn.GetName(),
+                               projectFn.GetExt() );
+    wxCopyFile( projectFile, historyProFile.GetFullPath(), true );
+    aFiles.push_back( historyProFile.GetFullPath() );
+
+    // Save project local settings (.kicad_prl) if it exists
+    wxFileName prlFile( projectFn.GetPath(), projectFn.GetName(), FILEEXT::ProjectLocalSettingsFileExtension );
+
+    if( prlFile.FileExists() )
+    {
+        wxFileName historyPrlFile( historyDir.GetFullPath(), prlFile.GetName(),
+                                   prlFile.GetExt() );
+        wxCopyFile( prlFile.GetFullPath(), historyPrlFile.GetFullPath(), true );
+        aFiles.push_back( historyPrlFile.GetFullPath() );
+    }
 }

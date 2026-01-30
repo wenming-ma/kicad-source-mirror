@@ -445,7 +445,8 @@ void SIM_MODEL::ReadDataFields( const std::vector<SCH_FIELD>* aFields, bool aRes
 }
 
 
-void SIM_MODEL::WriteFields( std::vector<SCH_FIELD>& aFields ) const
+void SIM_MODEL::WriteFields( std::vector<SCH_FIELD>& aFields, const SCH_SHEET_PATH* aSheetPath,
+                             const wxString& aVariantName ) const
 {
     // Remove duplicate fields: they are at the end of list
     for( size_t ii = aFields.size() - 1; ii > 0; ii-- )
@@ -464,6 +465,8 @@ void SIM_MODEL::WriteFields( std::vector<SCH_FIELD>& aFields ) const
         if( fieldIt != end_candidate_list )
             aFields.erase( aFields.begin() + ii );
     }
+
+    // TODO: handle writing to given instance & variant
 
     SetFieldValue( aFields, SIM_DEVICE_FIELD, m_serializer->GenerateDevice(), false );
     SetFieldValue( aFields, SIM_DEVICE_SUBTYPE_FIELD, m_serializer->GenerateDeviceSubtype(),
@@ -1690,7 +1693,20 @@ void SIM_MODEL::MigrateSimModel( T& aSymbol, const PROJECT* aProject )
         }
 
         if( EMBEDDED_FILES* symbolEmbeddedFiles = aSymbol.GetEmbeddedFiles() )
+        {
             embeddedFilesStack.push_back( symbolEmbeddedFiles );
+
+            if constexpr (std::is_same_v<T, SCH_SYMBOL>)
+            {
+                SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( &aSymbol );
+                symbol->GetLibSymbolRef()->AppendParentEmbeddedFiles( embeddedFilesStack );
+            }
+            else if constexpr (std::is_same_v<T, LIB_SYMBOL>)
+            {
+                LIB_SYMBOL* symbol = static_cast<LIB_SYMBOL*>( &aSymbol );
+                symbol->AppendParentEmbeddedFiles( embeddedFilesStack );
+            }
+        }
 
         libMgr.SetFilesStack( std::move( embeddedFilesStack ) );
 

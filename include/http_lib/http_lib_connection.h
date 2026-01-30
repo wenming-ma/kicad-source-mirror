@@ -18,8 +18,7 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KICAD_HTTP_LIB_CONNECTION_H
-#define KICAD_HTTP_LIB_CONNECTION_H
+#pragma once
 
 #include <any>
 #include <boost/algorithm/string.hpp>
@@ -43,8 +42,8 @@ public:
     /**
      * Retrieve a single part with full details from the HTTP library.
      *
-     * @param aPk is the primary key of the part
-     * @param aResult will contain the part if one was found
+     * @param aPartID is the unique ID of the part
+     * @param aFetchedPart will contain the part if one was found
      * @return true if aResult was filled; false otherwise
      */
     bool SelectOne( const std::string& aPartID, HTTP_LIB_PART& aFetchedPart );
@@ -52,8 +51,8 @@ public:
     /**
      * Retrieve all parts from a specific category from the HTTP library.
      *
-     * @param aPk is the primary key of the category
-     * @param aResults will be filled with all parts in that category
+     * @param aCategory is the category to fetch parts from
+     * @param aParts will be filled with all parts in that category
      * @return true if the query succeeded and at least one part was found, false otherwise
      */
     bool SelectAll( const HTTP_LIB_CATEGORY& aCategory, std::vector<HTTP_LIB_PART>& aParts );
@@ -94,8 +93,6 @@ private:
 
     bool checkServerResponse( std::unique_ptr<KICAD_CURL_EASY>& aCurl );
 
-    bool boolFromString( const std::any& aVal, bool aDefaultValue = false );
-
     /**
      * HTTP response status codes indicate whether a specific HTTP request has been
      * successfully completed.
@@ -126,5 +123,3 @@ private:
     //        part.name               part.id     category.id
     std::map<std::string, std::tuple<std::string, std::string>> m_cache;
 };
-
-#endif //KICAD_HTTP_LIB_CONNECTION_H

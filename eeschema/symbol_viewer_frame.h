@@ -35,7 +35,6 @@ class WX_LISTBOX;
 class wxSearchCtrl;
 class SYMBOL_LIBRARY_FILTER;
 class LIB_SYMBOL;
-class SYMBOL_LIB_TABLE_ROW;
 
 
 /**
@@ -117,6 +116,8 @@ public:
 
     void KiwayMailIn( KIWAY_EXPRESS& mail ) override;
 
+    void ClearToolbarControl( int aId ) override;
+
 protected:
     void configureToolbars() override;
 
@@ -136,8 +137,10 @@ private:
 
     void DClickOnSymbolList( wxCommandEvent& event );
 
-    void onUpdateUnitChoice( wxUpdateUIEvent& aEvent );
-    void onUpdateBodyStyleChoice( wxUpdateUIEvent& aEvent );
+    // Rebuild the wxChoice m_unitChoice widget. Must be called after changing the selected symbol
+    void updateUnitChoice();
+    // Rebuild the wxChoice m_bodyStyleChoice widget. Must be called after changing the selected symbol
+    void updateBodyStyleChoice();
 
     void OnLibFilter( wxCommandEvent& aEvent );
     void OnSymFilter( wxCommandEvent& aEvent );
@@ -149,8 +152,6 @@ private:
     void onSelectSymbolBodyStyle( wxCommandEvent& aEvent );
 
     void updatePreviewSymbol();
-
-    void loadAllLibraries();
 
 private:
     wxChoice*           m_unitChoice;
@@ -172,7 +173,6 @@ private:
 
     static int          m_unit;
     static int          m_bodyStyle;
-    static bool         m_show_progress;
 
     /**
      * Updated to `true` if a list rewrite on GUI activation resulted in the symbol

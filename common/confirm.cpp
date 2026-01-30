@@ -126,16 +126,24 @@ bool ConfirmRevertDialog( wxWindow* parent, const wxString& aMessage )
 }
 
 
+static int g_lastUnsavedChangesResult = -1;
+
 bool HandleUnsavedChanges( wxWindow* aParent, const wxString& aMessage,
                            const std::function<bool()>& aSaveFunction )
 {
-    switch( UnsavedChangesDialog( aParent, aMessage ) )
+    g_lastUnsavedChangesResult = UnsavedChangesDialog( aParent, aMessage );
+    switch( g_lastUnsavedChangesResult )
     {
     case wxID_YES:    return aSaveFunction();
-    case wxID_NO:     return true;
+    case wxID_NO:     return true; // proceed without saving
     default:
     case wxID_CANCEL: return false;
     }
+}
+
+int GetLastUnsavedChangesResponse()
+{
+    return g_lastUnsavedChangesResult;
 }
 
 
@@ -263,14 +271,9 @@ bool IsOK( wxWindow* aParent, const wxString& aMessage )
     int icon = wxICON_QUESTION;
 #endif
 
-#if !defined( __WXGTK__ )
-    KICAD_RICH_MESSAGE_DIALOG_BASE dlg( aParent, aMessage, _( "Confirmation" ),
-                                        wxOK | wxCANCEL | wxOK_DEFAULT |
-                                        wxCENTRE | icon | wxSTAY_ON_TOP );
-#else
-    wxMessageDialog dlg( aParent, aMessage, _( "Confirmation" ),
-                         wxOK | wxCANCEL | wxOK_DEFAULT | wxCENTRE | icon | wxSTAY_ON_TOP );
-#endif
+    KICAD_MESSAGE_DIALOG dlg( aParent, aMessage, _( "Confirmation" ),
+                              wxOK | wxCANCEL | wxOK_DEFAULT |
+                              wxCENTRE | icon | wxSTAY_ON_TOP );
 
     dlg.SetOKCancelLabels( _( "&Yes" ), _( "&No" ) );
 

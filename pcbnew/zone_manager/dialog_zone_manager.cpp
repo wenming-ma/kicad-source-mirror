@@ -29,40 +29,29 @@
 #include <wx/event.h>
 #include <wx/gdicmn.h>
 #include <wx/wupdlock.h>
-#include <kiface_base.h>
 #include <pcb_edit_frame.h>
-#include <pcbnew_settings.h>
 #include <wx/string.h>
 #include <board_commit.h>
 #include <widgets/std_bitmap_button.h>
+#include <widgets/wx_progress_reporters.h>
 #include <zone.h>
-#include <pad.h>
+#include <zone_settings_bag.h>
 #include <board.h>
 #include <bitmaps.h>
 #include <string_utils.h>
 #include <zone_filler.h>
 
-#include "dialog_zone_manager_base.h"
-#include "model_zones_overview.h"
-#include "panel_zone_properties.h"
+#include <zone_manager/model_zones_overview.h>
+#include <dialogs/panel_zone_properties.h>
+#include <zone_manager/zone_preview_notebook.h>
 #include "dialog_zone_manager.h"
-#include "widgets/wx_progress_reporters.h"
-#include "zone_management_base.h"
-#include "zone_manager/model_zones_overview.h"
-#include "zone_manager/panel_zone_gal.h"
-#include "zone_manager/zone_manager_preference.h"
-#include "zones_container.h"
-#include "pane_zone_viewer.h"
-#include "zone_manager_preference.h"
 
 
-DIALOG_ZONE_MANAGER::DIALOG_ZONE_MANAGER( PCB_BASE_FRAME* aParent, ZONE_SETTINGS* aZoneInfo ) :
+DIALOG_ZONE_MANAGER::DIALOG_ZONE_MANAGER( PCB_BASE_FRAME* aParent ) :
         DIALOG_ZONE_MANAGER_BASE( aParent ),
         m_pcbFrame( aParent ),
-        m_zoneInfo( aZoneInfo ),
-        m_zonesContainer( std::make_unique<ZONES_CONTAINER>( aParent->GetBoard() ) ),
+        m_zoneSettingsBag( aParent->GetBoard() ),
         m_priorityDragIndex( {} ),
-        m_needZoomGAL( true ),
         m_isFillingZones( false ),
         m_zoneFillComplete( false )
 {
@@ -73,26 +62,23 @@ DIALOG_ZONE_MANAGER::DIALOG_ZONE_MANAGER( PCB_BASE_FRAME* aParent, ZONE_SETTINGS
     m_btnMoveUp->SetBitmap( KiBitmapBundle( BITMAPS::small_up ) );
     m_btnMoveDown->SetBitmap( KiBitmapBundle( BITMAPS::small_down ) );
 
-    m_panelZoneProperties = new PANEL_ZONE_PROPERTIES( this, aParent, *m_zonesContainer );
-    m_sizerProperties->Add( m_panelZoneProperties, 1, wxTOP | wxEXPAND, 5 );
+    m_panelZoneProperties = new PANEL_ZONE_PROPERTIES( m_zonePanel, aParent, m_zoneSettingsBag );
+    m_sizerProperties->Add( m_panelZoneProperties, 0,  wxEXPAND, 5 );
 
-    m_zoneViewer = new PANE_ZONE_VIEWER( this, aParent );
-    m_sizerTop->Add( m_zoneViewer, 1, wxBOTTOM | wxLEFT | wxRIGHT | wxEXPAND, 5 );
-
-    m_checkRepour->SetValue( ZONE_MANAGER_PREFERENCE::GetRepourOnClose() );
-    //m_zoneViewer->SetId( ZONE_VIEWER );
+    m_zonePreviewNotebook = new ZONE_PREVIEW_NOTEBOOK( m_zonePanel, aParent );
+    m_sizerPreview->Add( m_zonePreviewNotebook, 1, wxBOTTOM | wxLEFT | wxRIGHT | wxEXPAND, 5 );
 
     for( const auto& [k, v] : MODEL_ZONES_OVERVIEW::GetColumnNames() )
     {
         if( k == MODEL_ZONES_OVERVIEW::LAYERS )
-            m_viewZonesOverview->AppendIconTextColumn( v, k );
+            m_viewZonesOverview->AppendIconTextColumn( v, k, wxDATAVIEW_CELL_INERT, 140 );
         else
-            m_viewZonesOverview->AppendTextColumn( v, k );
+            m_viewZonesOverview->AppendTextColumn( v, k, wxDATAVIEW_CELL_INERT, 160 );
     }
 
-    m_modelZonesOverview = new MODEL_ZONES_OVERVIEW( m_zonesContainer->GetManagedZones(), aParent->GetBoard(),
-                                                     aParent, this );
+    m_modelZonesOverview = new MODEL_ZONES_OVERVIEW( this, m_pcbFrame, m_zoneSettingsBag );
     m_viewZonesOverview->AssociateModel( m_modelZonesOverview.get() );
+    m_viewZonesOverview->SetLayoutDirection( wxLayout_LeftToRight );
 
 #if wxUSE_DRAG_AND_DROP
     m_viewZonesOverview->EnableDragSource( wxDF_UNICODETEXT );
@@ -105,35 +91,34 @@ DIALOG_ZONE_MANAGER::DIALOG_ZONE_MANAGER( PCB_BASE_FRAME* aParent, ZONE_SETTINGS
 #endif // wxUSE_DRAG_AND_DROP
 
     Bind( EVT_ZONE_NAME_UPDATE, &DIALOG_ZONE_MANAGER::OnZoneNameUpdate, this );
+    Bind( EVT_ZONE_NET_UPDATE, &DIALOG_ZONE_MANAGER::OnZoneNetUpdate, this );
     Bind( EVT_ZONES_OVERVIEW_COUNT_CHANGE, &DIALOG_ZONE_MANAGER::OnZonesTableRowCountChange, this );
     Bind( wxEVT_CHECKBOX, &DIALOG_ZONE_MANAGER::OnCheckBoxClicked, this );
     Bind( wxEVT_IDLE, &DIALOG_ZONE_MANAGER::OnIdle, this );
     Bind( wxEVT_BOOKCTRL_PAGE_CHANGED,
-            [this]( wxNotebookEvent& aEvent )
-            {
-                Layout();
-            },
-            m_zoneViewer->GetId() );
-
-    if( m_modelZonesOverview->GetCount() )
-        SelectZoneTableItem( m_modelZonesOverview->GetItem( 0 ) );
+          [this]( wxNotebookEvent& aEvent )
+          {
+              Layout();
+          },
+          m_zonePreviewNotebook->GetId() );
 
     Layout();
     m_MainBoxSizer->Fit( this );
     finishDialogSettings();
-
-    //NOTE - Works on Windows and MacOS , need further handling in IDLE on Ubuntu
-    FitCanvasToScreen();
 }
 
 
 DIALOG_ZONE_MANAGER::~DIALOG_ZONE_MANAGER() = default;
 
 
-void DIALOG_ZONE_MANAGER::FitCanvasToScreen()
+bool DIALOG_ZONE_MANAGER::TransferDataToWindow()
 {
-    if( PANEL_ZONE_GAL* canvas = m_zoneViewer->GetZoneGAL() )
-        canvas->ZoomFitScreen();
+    m_modelZonesOverview->ApplyFilter( m_filterCtrl->GetValue(), m_viewZonesOverview->GetSelection() );
+
+    if( m_modelZonesOverview->GetCount() )
+        SelectZoneTableItem( m_modelZonesOverview->GetItem( 0 ) );
+
+    return true;
 }
 
 
@@ -154,11 +139,11 @@ void DIALOG_ZONE_MANAGER::PostProcessZoneViewSelChange( wxDataViewItem const& aI
             wxDataViewItem first_item = m_modelZonesOverview->GetItem( 0 );
             m_viewZonesOverview->Select( first_item );
             m_viewZonesOverview->EnsureVisible( first_item );
-            m_zoneViewer->ActivateSelectedZone( m_modelZonesOverview->GetZone( first_item ) );
+            m_zonePreviewNotebook->OnZoneSelectionChanged( m_modelZonesOverview->GetZone( first_item ) );
         }
         else
         {
-            m_zoneViewer->ActivateSelectedZone( nullptr );
+            m_zonePreviewNotebook->OnZoneSelectionChanged( nullptr );
         }
     }
 
@@ -196,19 +181,12 @@ void DIALOG_ZONE_MANAGER::OnIdle( wxIdleEvent& aEvent )
     WXUNUSED( aEvent )
     m_viewZonesOverview->SetFocus();
     Unbind( wxEVT_IDLE, &DIALOG_ZONE_MANAGER::OnIdle, this );
-
-    if( !m_needZoomGAL )
-        return;
-
-    m_needZoomGAL = false;
-    FitCanvasToScreen();
 }
 
 
 void DIALOG_ZONE_MANAGER::onDialogResize( wxSizeEvent& event )
 {
     event.Skip();
-    FitCanvasToScreen();
 }
 
 
@@ -216,8 +194,8 @@ void DIALOG_ZONE_MANAGER::OnZoneSelectionChanged( ZONE* zone )
 {
     wxWindowUpdateLocker updateLock( this );
 
-    m_panelZoneProperties->OnZoneSelectionChanged( zone );
-    m_zoneViewer->OnZoneSelectionChanged( zone );
+    m_panelZoneProperties->SetZone( zone );
+    m_zonePreviewNotebook->OnZoneSelectionChanged( zone );
 
     Layout();
 }
@@ -248,22 +226,31 @@ void DIALOG_ZONE_MANAGER::SelectZoneTableItem( wxDataViewItem const& aItem )
 
 void DIALOG_ZONE_MANAGER::OnOk( wxCommandEvent& aEvt )
 {
-    m_panelZoneProperties->OnUserConfirmChange();
-    m_zonesContainer->OnUserConfirmChange();
+    m_panelZoneProperties->TransferZoneSettingsFromWindow();
 
-    if( m_zoneInfo )
+    m_zoneSettingsBag.UpdateClonedZones();
+
+    for( const auto& [ zone, zoneClone ] : m_zoneSettingsBag.GetZonesCloneMap() )
     {
-        if( std::shared_ptr<ZONE_SETTINGS> zone = m_panelZoneProperties->GetZoneSettings() )
-            m_zoneInfo->CopyFrom( *zone, false );
+        std::map<PCB_LAYER_ID, std::shared_ptr<SHAPE_POLY_SET>> filled_zone_to_restore;
+        ZONE* internal_zone = zone; // Duplicate the zone pointer to allow capture on older MacOS (13)
+
+        zone->GetLayerSet().RunOnLayers(
+                [&]( PCB_LAYER_ID layer )
+                {
+                    std::shared_ptr<SHAPE_POLY_SET> fill = internal_zone->GetFilledPolysList( layer );
+
+                    if( fill )
+                        filled_zone_to_restore[layer] = fill;
+                } );
+
+        *zone = *zoneClone;
+
+        for( const auto& [ layer, fill ] : filled_zone_to_restore )
+            zone->SetFilledPolysList( layer, *fill );
     }
 
     aEvt.Skip();
-}
-
-
-void DIALOG_ZONE_MANAGER::OnRepourCheck( wxCommandEvent& aEvent )
-{
-    ZONE_MANAGER_PREFERENCE::SetRefillOnClose( m_checkRepour->IsChecked() );
 }
 
 
@@ -371,46 +358,42 @@ void DIALOG_ZONE_MANAGER::OnUpdateDisplayedZonesClick( wxCommandEvent& aEvent )
         return;
 
     m_isFillingZones = true;
-    m_panelZoneProperties->TransferZoneSettingsFromWindow();
-    m_zonesContainer->FlushZoneSettingsChange();
-    m_zonesContainer->FlushPriorityChange();
+
+    if( !m_panelZoneProperties->TransferZoneSettingsFromWindow() )
+    {
+        m_isFillingZones = false;
+        return;
+    }
+
+    m_zoneSettingsBag.UpdateClonedZones();
 
     BOARD* board = m_pcbFrame->GetBoard();
     board->IncrementTimeStamp();
 
-    auto commit = std::make_unique<BOARD_COMMIT>( m_pcbFrame );
-    m_filler = std::make_unique<ZONE_FILLER>( board, commit.get() );
+    // Save the original zones before swapping so we can restore them later
+    ZONES originalZones = board->Zones();
+
+    // Do not use a commit here since we're operating on cloned zones that are not owned by the
+    // board. Using a commit would create undo entries pointing to the clones, which would cause
+    // corruption when the commit is destroyed.
+    m_filler = std::make_unique<ZONE_FILLER>( board, nullptr );
     auto reporter = std::make_unique<WX_PROGRESS_REPORTER>( this, _( "Fill All Zones" ), 5, PR_CAN_ABORT );
     m_filler->SetProgressReporter( reporter.get() );
 
     // TODO: replace these const_cast calls with a different solution that avoids mutating the
-    // container of the board.  This is relatively safe as-is because the original zones list is
+    // container of the board. This is relatively safe as-is because the original zones list is
     // swapped back in below, but still should be changed to avoid invalidating the board state
     // in case this code is refactored to be a non-modal dialog in the future.
-    const_cast<ZONES&>( board->Zones() ) = m_zonesContainer->GetClonedZoneList();
+    const_cast<ZONES&>( board->Zones() ) = m_zoneSettingsBag.GetClonedZoneList();
 
-    //NOTE - Nether revert nor commit is needed here , cause the cloned zones are not owned by
-    //       the pcb frame.
     m_zoneFillComplete = m_filler->Fill( board->Zones() );
     board->BuildConnectivity();
 
-    if( PANEL_ZONE_GAL* gal = m_zoneViewer->GetZoneGAL() )
-    {
-        gal->RedrawRatsnest();
-        gal->GetView()->UpdateItems();
-        gal->Refresh();
-        int layer = gal->GetLayer();
+    m_zonePreviewNotebook->OnZoneSelectionChanged( m_panelZoneProperties->GetZone() );
 
-        // rebuild the currently displayed zone and refresh display
-        ZONE* curr_zone = gal->GetZone();
-        gal->ActivateSelectedZone( curr_zone );
-
-        gal->OnLayerSelected( layer );
-    }
-
-    //NOTE - But the connectivity need to be rebuild, otherwise if cancelling, it may
-    //       segfault.
-    const_cast<ZONES&>( board->Zones() ) = m_zonesContainer->GetOriginalZoneList();
+    // Restore the original zones. The connectivity MUST be rebuilt to remove stale pointers to
+    // cloned zones in case of a cancel.
+    const_cast<ZONES&>( board->Zones() ) = originalZones;
     board->BuildConnectivity();
 
     m_isFillingZones = false;
@@ -419,11 +402,15 @@ void DIALOG_ZONE_MANAGER::OnUpdateDisplayedZonesClick( wxCommandEvent& aEvent )
 
 void DIALOG_ZONE_MANAGER::OnZoneNameUpdate( wxCommandEvent& aEvent )
 {
-    if( ZONE* zone = m_panelZoneProperties->GetZone(); zone != nullptr )
-    {
-        zone->SetZoneName( aEvent.GetString() );
+    if( ZONE* zone = m_panelZoneProperties->GetZone() )
         m_modelZonesOverview->RowChanged( m_modelZonesOverview->GetRow( m_modelZonesOverview->GetItemByZone( zone ) ) );
-    }
+}
+
+
+void DIALOG_ZONE_MANAGER::OnZoneNetUpdate( wxCommandEvent& aEvent )
+{
+    if( ZONE* zone = m_panelZoneProperties->GetZone() )
+        m_modelZonesOverview->RowChanged( m_modelZonesOverview->GetRow( m_modelZonesOverview->GetItemByZone( zone ) ) );
 }
 
 
@@ -432,7 +419,7 @@ void DIALOG_ZONE_MANAGER::OnZonesTableRowCountChange( wxCommandEvent& aEvent )
     unsigned count = aEvent.GetInt();
 
     for( STD_BITMAP_BUTTON* btn : { m_btnMoveDown, m_btnMoveUp } )
-        btn->Enable( count == m_modelZonesOverview->GetAllZonesCount() );
+        btn->Enable( count == m_zoneSettingsBag.GetClonedZoneList().size() );
 }
 
 

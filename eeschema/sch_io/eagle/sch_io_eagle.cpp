@@ -31,9 +31,11 @@
 #include <wx/tokenzr.h>
 #include <wx/wfstream.h>
 #include <wx/txtstrm.h>
+#include <wx/mstream.h>
 #include <wx/xml/xml.h>
 
 #include <font/fontconfig.h>
+#include <reporter.h>
 #include <io/eagle/eagle_parser.h>
 #include <lib_id.h>
 #include <progress_reporter.h>
@@ -55,8 +57,8 @@
 #include <sch_symbol.h>
 #include <schematic.h>
 #include <string_utils.h>
-#include <symbol_lib_table.h>
 #include <wildcards_and_files_ext.h>
+#include <libraries/symbol_library_adapter.h>
 
 
 // Eagle schematic axes are aligned with x increasing left to right and Y increasing bottom to top
@@ -350,8 +352,8 @@ SCH_SHEET* SCH_IO_EAGLE::LoadSchematicFile( const wxString& aFileName, SCHEMATIC
 {
     wxASSERT( !aFileName || aSchematic != nullptr );
 
-    // Show the font substitution warnings
-    fontconfig::FONTCONFIG::SetReporter( &WXLOG_REPORTER::GetInstance() );
+    // Collect the font substitution warnings (RAII - automatically reset on scope exit)
+    FONTCONFIG_REPORTER_SCOPE fontconfigScope( &LOAD_INFO_REPORTER::GetInstance() );
 
     m_filename = aFileName;
     m_schematic = aSchematic;
@@ -403,8 +405,9 @@ SCH_SHEET* SCH_IO_EAGLE::LoadSchematicFile( const wxString& aFileName, SCHEMATIC
     else
     {
         m_rootSheet = new SCH_SHEET( aSchematic );
+        const_cast<KIID&>( m_rootSheet->m_Uuid ) = niluuid;
         m_rootSheet->SetFileName( newFilename.GetFullPath() );
-        aSchematic->SetRoot( m_rootSheet );
+        aSchematic->SetTopLevelSheets( { m_rootSheet } );
     }
 
     if( !m_rootSheet->GetScreen() )
@@ -413,45 +416,36 @@ SCH_SHEET* SCH_IO_EAGLE::LoadSchematicFile( const wxString& aFileName, SCHEMATIC
         screen->SetFileName( newFilename.GetFullPath() );
         m_rootSheet->SetScreen( screen );
 
-        // Virtual root sheet UUID must be the same as the schematic file UUID.
-        const_cast<KIID&>( m_rootSheet->m_Uuid ) = screen->GetUuid();
+        // Virtual root sheet UUID must be nil since all Eagle pages are loaded as subsheets.
+        const_cast<KIID&>( m_rootSheet->m_Uuid ) = niluuid;
 
         // There is always at least a root sheet.
         m_sheetPath.push_back( m_rootSheet );
-        m_sheetPath.SetPageNumber( wxT( "1" ) );
     }
 
-    SYMBOL_LIB_TABLE* libTable = PROJECT_SCH::SchSymbolLibTable( &m_schematic->Project() );
-
-    wxCHECK_MSG( libTable, nullptr, wxT( "Could not load symbol lib table." ) );
+    SYMBOL_LIBRARY_ADAPTER* adapter = PROJECT_SCH::SymbolLibAdapter( &aSchematic->Project() );
+    LIBRARY_TABLE* table = adapter->ProjectTable().value_or( nullptr );
+    wxCHECK_MSG( table, nullptr, "Could not load symbol lib table." );
 
     m_pi.reset( SCH_IO_MGR::FindPlugin( SCH_IO_MGR::SCH_KICAD ) );
 
     /// @note No check is being done here to see if the existing symbol library exists so this
     ///       will overwrite the existing one.
-    if( !libTable->HasLibrary( getLibName() ) )
+    if( !table->HasRow( getLibName() ) )
     {
         // Create a new empty symbol library.
         m_pi->CreateLibrary( getLibFileName().GetFullPath() );
         wxString libTableUri = wxT( "${KIPRJMOD}/" ) + getLibFileName().GetFullName();
 
         // Add the new library to the project symbol library table.
-        libTable->InsertRow( new SYMBOL_LIB_TABLE_ROW( getLibName(), libTableUri,
-                                                       wxT( "KiCad" ) ) );
+        LIBRARY_TABLE_ROW& row = table->InsertRow();
+        row.SetNickname( getLibName() );
+        row.SetURI( libTableUri );
+        row.SetType( "KiCad" );
 
-        // Save project symbol library table.
-        wxFileName fn( m_schematic->Project().GetProjectPath(),
-                       SYMBOL_LIB_TABLE::GetSymbolLibTableFileName() );
+        table->Save();
 
-        // So output formatter goes out of scope and closes the file before reloading.
-        {
-            FILE_OUTPUTFORMATTER formatter( fn.GetFullPath() );
-            libTable->Format( &formatter, 0 );
-        }
-
-        // Reload the symbol library table.
-        m_schematic->Project().SetElem( PROJECT::ELEM::SYMBOL_LIB_TABLE, nullptr );
-        PROJECT_SCH::SchSymbolLibTable( &m_schematic->Project() );
+        adapter->LoadOne( getLibName() );
     }
 
     m_eagleDoc = std::make_unique<EAGLE_DOC>( currentNode, this );
@@ -463,10 +457,26 @@ SCH_SHEET* SCH_IO_EAGLE::LoadSchematicFile( const wxString& aFileName, SCHEMATIC
     // Load drawing
     loadDrawing( m_eagleDoc->drawing );
 
+    if( !aAppendToMe )
+    {
+        std::vector<SCH_SHEET*> topLevelSheets;
+
+        for( SCH_SHEET* sheet : aSchematic->GetTopLevelSheets() )
+        {
+            if( sheet && !sheet->IsVirtualRootSheet() )
+                topLevelSheets.push_back( sheet );
+        }
+
+        if( !topLevelSheets.empty() )
+            aSchematic->SetTopLevelSheets( topLevelSheets );
+
+        m_rootSheet = &aSchematic->Root();
+    }
+
     m_pi->SaveLibrary( getLibFileName().GetFullPath() );
 
     SCH_SCREENS allSheets( m_rootSheet );
-    allSheets.UpdateSymbolLinks(); // Update all symbol library links for all sheets.
+    allSheets.UpdateSymbolLinks( &LOAD_INFO_REPORTER::GetInstance() ); // Update all symbol library links for all sheets.
 
     return m_rootSheet;
 }
@@ -545,8 +555,8 @@ long long SCH_IO_EAGLE::getLibraryTimestamp( const wxString& aLibraryPath ) cons
 
 void SCH_IO_EAGLE::ensureLoadedLibrary( const wxString& aLibraryPath )
 {
-    // Suppress font substitution warnings
-    fontconfig::FONTCONFIG::SetReporter( nullptr );
+    // Suppress font substitution warnings (RAII - automatically restored on scope exit)
+    FONTCONFIG_REPORTER_SCOPE fontconfigScope( nullptr );
 
     if( m_eagleLibs.find( m_libName ) != m_eagleLibs.end() )
     {
@@ -597,18 +607,74 @@ wxXmlDocument SCH_IO_EAGLE::loadXmlDocument( const wxString& aFileName )
     wxTextInputStream text( stream );
     wxString          line = text.ReadLine();
 
-    if( !line.StartsWith( wxT( "<?xml" ) ) && !line.StartsWith( wxT( "<!--" ) ) )
+    if( !line.StartsWith( wxT( "<?xml" ) ) && !line.StartsWith( wxT( "<!--" ) )
+        && !line.StartsWith( wxT( "<eagle " ) ) )
     {
         THROW_IO_ERROR( wxString::Format( _( "'%s' is an Eagle binary-format file; "
                                              "only Eagle XML-format files can be imported." ),
                                           m_filename.GetFullPath() ) );
     }
 
+#if wxCHECK_VERSION( 3, 3, 0 )
+    wxXmlParseError err;
+
+    if( !xmlDocument.Load( stream, wxXMLDOC_NONE, &err ) )
+    {
+        if( err.message == wxS( "no element found" ) )
+        {
+            // Some files don't have the correct header, throwing off the xml parser
+            // So prepend the correct header
+            wxMemoryOutputStream memOutput;
+
+            wxString header;
+            header << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
+            header << "<!DOCTYPE eagle SYSTEM \"eagle.dtd\">\n";
+
+            wxScopedCharBuffer headerBuf = header.utf8_str();
+            memOutput.Write( headerBuf.data(), headerBuf.length() );
+
+            wxFFileInputStream stream2( m_filename.GetFullPath() );
+            memOutput.Write( stream2 );
+
+            wxMemoryInputStream memInput( memOutput );
+
+            if( !xmlDocument.Load( memInput, wxXMLDOC_NONE, &err ) )
+            {
+                THROW_IO_ERROR( wxString::Format( _( "Unable to read file '%s'." ), m_filename.GetFullPath() ) );
+            }
+        }
+        else
+        {
+            THROW_IO_ERROR( wxString::Format( _( "Unable to read file '%s'.\n'%s' at line %d, column %d, offset %d" ),
+                                              m_filename.GetFullPath(), err.message, err.line, err.column,
+                                              err.offset ) );
+        }
+    }
+#else
     if( !xmlDocument.Load( stream ) )
     {
-        THROW_IO_ERROR(
-                wxString::Format( _( "Unable to read file '%s'." ), m_filename.GetFullPath() ) );
+        // Some files don't have the correct header, throwing off the xml parser
+        // So prepend the correct header
+        wxMemoryOutputStream memOutput;
+
+        wxString header;
+        header << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
+        header << "<!DOCTYPE eagle SYSTEM \"eagle.dtd\">\n";
+
+        wxScopedCharBuffer headerBuf = header.utf8_str();
+        memOutput.Write( headerBuf.data(), headerBuf.length() );
+
+        wxFFileInputStream stream2( m_filename.GetFullPath() );
+        memOutput.Write( stream2 );
+
+        wxMemoryInputStream memInput( memOutput );
+
+        if( !xmlDocument.Load( memInput ) )
+        {
+            THROW_IO_ERROR( wxString::Format( _( "Unable to read file '%s'." ), m_filename.GetFullPath() ) );
+        }
     }
+#endif
 
     return xmlDocument;
 }
@@ -699,58 +765,35 @@ void SCH_IO_EAGLE::loadSchematic( const ESCHEMATIC& aSchematic )
     // local labels will be used for nets found only on that sheet.
     countNets( aSchematic );
 
-    size_t sheetCount = aSchematic.sheets.size();
+    // Create all Eagle pages as top-level sheets (direct children of the root)
 
-    if( sheetCount > 1 )
+    for( const std::unique_ptr<ESHEET>& esheet : aSchematic.sheets )
     {
-        int x, y;
-        x = 1;
-        y = 1;
+        // Eagle schematics are never more than one sheet deep so the parent sheet is
+        // always the root sheet.
+        std::unique_ptr<SCH_SHEET> sheet = std::make_unique<SCH_SHEET>( m_rootSheet );
+        SCH_SCREEN* screen = new SCH_SCREEN( m_schematic );
+        sheet->SetScreen( screen );
+        screen->SetFileName( sheet->GetFileName() );
 
-        for( const std::unique_ptr<ESHEET>& esheet : aSchematic.sheets )
-        {
-            VECTOR2I pos    = VECTOR2I( x * schIUScale.MilsToIU( 1000 ),
-                                        y * schIUScale.MilsToIU( 1000 ) );
+        wxCHECK2( sheet && screen, continue );
 
-            // Eagle schematics are never more than one sheet deep so the parent sheet is
-            // always the root sheet.
-            std::unique_ptr<SCH_SHEET> sheet = std::make_unique<SCH_SHEET>( m_rootSheet, pos );
-            SCH_SCREEN* screen = new SCH_SCREEN( m_schematic );
-            sheet->SetScreen( screen );
-            screen->SetFileName( sheet->GetFileName() );
+        wxString pageNo = wxString::Format( wxT( "%d" ), m_sheetIndex );
 
-            wxCHECK2( sheet && screen, continue );
+        m_sheetPath.push_back( sheet.get() );
+        loadSheet( esheet );
 
-            wxString pageNo = wxString::Format( wxT( "%d" ), m_sheetIndex );
+        m_sheetPath.SetPageNumber( pageNo );
+        m_sheetPath.pop_back();
 
-            m_sheetPath.push_back( sheet.get() );
-            loadSheet( esheet );
+        SCH_SCREEN* currentScreen = m_rootSheet->GetScreen();
 
-            m_sheetPath.SetPageNumber( pageNo );
-            m_sheetPath.pop_back();
+        wxCHECK2( currentScreen, continue );
 
-            SCH_SCREEN* currentScreen = m_rootSheet->GetScreen();
+        sheet->SetParent( m_sheetPath.Last() );
+        m_schematic->AddTopLevelSheet( sheet.release() );
 
-            wxCHECK2( currentScreen, continue );
-
-            sheet->SetParent( m_sheetPath.Last() );
-            currentScreen->Append( sheet.release() );
-
-            x += 2;
-
-            if( x > 10 ) // Start next row of sheets.
-            {
-                x = 1;
-                y += 2;
-            }
-
-            m_sheetIndex++;
-        }
-    }
-    else
-    {
-        for( const std::unique_ptr<ESHEET>& esheet : aSchematic.sheets )
-            loadSheet( esheet );
+        m_sheetIndex++;
     }
 
     // Handle the missing symbol units that need to be instantiated
@@ -758,13 +801,19 @@ void SCH_IO_EAGLE::loadSchematic( const ESCHEMATIC& aSchematic )
 
     // Calculate the already placed items bounding box and the page size to determine
     // placement for the new symbols
-    VECTOR2I pageSizeIU = m_rootSheet->GetScreen()->GetPageSettings().GetSizeIU( schIUScale.IU_PER_MILS );
-    BOX2I    sheetBbox  = getSheetBbox( m_rootSheet );
-    VECTOR2I newCmpPosition( sheetBbox.GetLeft(), sheetBbox.GetBottom() );
-    int      maxY = sheetBbox.GetY();
+    SCH_SHEET* schematicRoot = &m_schematic->Root();
 
-    SCH_SHEET_PATH sheetpath;
-    m_rootSheet->LocatePathOfScreen( m_rootSheet->GetScreen(), &sheetpath );
+    struct MISSING_UNIT_PLACEMENT
+    {
+        VECTOR2I       pageSizeIU;
+        BOX2I          sheetBbox;
+        VECTOR2I       newCmpPosition;
+        int            maxY;
+        SCH_SHEET_PATH sheetpath;
+        SCH_SCREEN*    screen;
+    };
+
+    std::map<SCH_SCREEN*, MISSING_UNIT_PLACEMENT> placements;
 
     for( auto& cmp : m_missingCmps )
     {
@@ -780,24 +829,59 @@ void SCH_IO_EAGLE::loadSchematic( const ESCHEMATIC& aSchematic )
             const wxString reference = origSymbol->GetField( FIELD_T::REFERENCE )->GetText();
             std::unique_ptr<SCH_SYMBOL> symbol( (SCH_SYMBOL*) origSymbol->Duplicate( IGNORE_PARENT_GROUP ) );
 
-            symbol->SetUnitSelection( &sheetpath, unit );
+            SCH_SCREEN* targetScreen = cmp.second.screen;
+
+            if( !targetScreen )
+            {
+                SCH_SHEET* fallbackSheet = m_schematic->GetTopLevelSheet( 0 );
+
+                if( fallbackSheet )
+                    targetScreen = fallbackSheet->GetScreen();
+                else
+                    targetScreen = schematicRoot->GetScreen();
+            }
+
+            auto placementIt = placements.find( targetScreen );
+
+            if( placementIt == placements.end() )
+            {
+                MISSING_UNIT_PLACEMENT placement;
+                placement.screen = targetScreen;
+                placement.pageSizeIU = targetScreen->GetPageSettings().GetSizeIU( schIUScale.IU_PER_MILS );
+                schematicRoot->LocatePathOfScreen( targetScreen, &placement.sheetpath );
+
+                SCH_SHEET* targetSheet = placement.sheetpath.Last();
+
+                if( targetSheet )
+                    placement.sheetBbox = getSheetBbox( targetSheet );
+
+                placement.newCmpPosition = VECTOR2I( placement.sheetBbox.GetLeft(),
+                                                     placement.sheetBbox.GetBottom() );
+                placement.maxY = placement.sheetBbox.GetY();
+                placementIt = placements.emplace( targetScreen, placement ).first;
+            }
+
+            MISSING_UNIT_PLACEMENT& placement = placementIt->second;
+
+            symbol->SetUnitSelection( &placement.sheetpath, unit );
             symbol->SetUnit( unit );
             symbol->SetOrientation( 0 );
-            symbol->AddHierarchicalReference( sheetpath.Path(), reference, unit );
+            symbol->AddHierarchicalReference( placement.sheetpath.Path(), reference, unit );
 
             // Calculate the placement position
             BOX2I cmpBbox = symbol->GetBoundingBox();
-            int   posY    = newCmpPosition.y + cmpBbox.GetHeight();
-            symbol->SetPosition( VECTOR2I( newCmpPosition.x, posY ) );
-            newCmpPosition.x += cmpBbox.GetWidth();
-            maxY = std::max( maxY, posY );
+            int   posY    = placement.newCmpPosition.y + cmpBbox.GetHeight();
+            symbol->SetPosition( VECTOR2I( placement.newCmpPosition.x, posY ) );
+            placement.newCmpPosition.x += cmpBbox.GetWidth();
+            placement.maxY = std::max( placement.maxY, posY );
 
-            if( newCmpPosition.x >= pageSizeIU.x )            // reached the page boundary?
-                newCmpPosition = VECTOR2I( sheetBbox.GetLeft(), maxY ); // then start a new row
+            if( placement.newCmpPosition.x >= placement.pageSizeIU.x )            // reached the page boundary?
+                placement.newCmpPosition = VECTOR2I( placement.sheetBbox.GetLeft(),
+                                                     placement.maxY ); // then start a new row
 
             // Add the global net labels to recreate the implicit connections
-            addImplicitConnections( symbol.get(), m_rootSheet->GetScreen(), false );
-            m_rootSheet->GetScreen()->Append( symbol.release() );
+            addImplicitConnections( symbol.get(), placement.screen, false );
+            placement.screen->Append( symbol.release() );
         }
     }
 
@@ -826,7 +910,7 @@ void SCH_IO_EAGLE::loadSheet( const std::unique_ptr<ESHEET>& aSheet )
         else
             sheet->SetName( filename );
 
-        ReplaceIllegalFileNameChars( &filename );
+        ReplaceIllegalFileNameChars( filename );
         replace( filename.begin(), filename.end(), ' ', '_' );
 
         fn.SetName( filename );
@@ -1595,8 +1679,7 @@ SCH_TEXT* SCH_IO_EAGLE::loadLabel( const std::unique_ptr<ELABEL>& aLabel,
     bool                            global = m_netCounts[aNetName] > 1;
     std::unique_ptr<SCH_LABEL_BASE> label;
 
-    VECTOR2I textSize = VECTOR2I( KiROUND( aLabel->size.ToSchUnits() * 0.7 ),
-                                  KiROUND( aLabel->size.ToSchUnits() * 0.7 ) );
+    VECTOR2I textSize = KiROUND( aLabel->size.ToSchUnits() * 0.7, aLabel->size.ToSchUnits() * 0.7 );
 
     if( m_modules.size() )
     {
@@ -1988,8 +2071,8 @@ void SCH_IO_EAGLE::loadInstance( const std::unique_ptr<EINSTANCE>& aInstance,
     symbol->AddHierarchicalReference( m_sheetPath.Path(), refPrefix + reference, unit );
 
     // Save the pin positions
-    SYMBOL_LIB_TABLE& schLibTable = *PROJECT_SCH::SchSymbolLibTable( &m_schematic->Project() );
-    LIB_SYMBOL* libSymbol = schLibTable.LoadSymbol( symbol->GetLibId() );
+    LIB_SYMBOL* libSymbol =
+            PROJECT_SCH::SymbolLibAdapter( &m_schematic->Project() )->LoadSymbol( symbol->GetLibId() );
 
     wxCHECK( libSymbol, /*void*/ );
 
@@ -3409,6 +3492,7 @@ void SCH_IO_EAGLE::addImplicitConnections( SCH_SYMBOL* aSymbol, SCH_SCREEN* aScr
         {
             EAGLE_MISSING_CMP& entry = m_missingCmps[reference];
             entry.cmp                = aSymbol;
+            entry.screen             = aScreen;
             entry.units.emplace( unit, false );
         }
         else
@@ -3421,6 +3505,7 @@ void SCH_IO_EAGLE::addImplicitConnections( SCH_SYMBOL* aSymbol, SCH_SCREEN* aScr
         {
             EAGLE_MISSING_CMP& entry = m_missingCmps[reference];
             entry.cmp                = aSymbol;
+            entry.screen             = aScreen;
 
             // Add units that haven't already been processed.
             for( int i : missingUnits )

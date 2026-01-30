@@ -24,6 +24,7 @@
 
 #include "sch_sheet_path.h"
 #include <memory>
+#include <set>
 
 #include <kiplatform/ui.h>
 #include <optional>
@@ -34,7 +35,6 @@
 #include <tools/ee_grid_helper.h>
 #include <tools/rule_area_create_helper.h>
 #include <gal/graphics_abstraction_layer.h>
-#include <design_block_lib_table.h>
 #include <sch_actions.h>
 #include <sch_tool_utils.h>
 #include <sch_edit_frame.h>
@@ -60,7 +60,7 @@
 #include <schematic.h>
 #include <sch_commit.h>
 #include <scoped_set_reset.h>
-#include <symbol_library.h>
+#include <libraries/legacy_symbol_library.h>
 #include <eeschema_settings.h>
 #include <dialogs/dialog_label_properties.h>
 #include <dialogs/dialog_text_properties.h>
@@ -70,7 +70,7 @@
 #include <import_gfx/dialog_import_gfx_sch.h>
 #include <sync_sheet_pin/sheet_synchronization_agent.h>
 #include <string_utils.h>
-//#include <wildcards_and_files_ext.h>
+#include <wildcards_and_files_ext.h>
 #include <wx/filedlg.h>
 #include <wx/msgdlg.h>
 
@@ -343,8 +343,8 @@ int SCH_DRAWING_TOOLS::PlaceSymbol( const TOOL_EVENT& aEvent )
             {
                 m_toolMgr->RunAction( ACTIONS::selectionClear );
 
-                SYMBOL_LIB_TABLE* libs = PROJECT_SCH::SchSymbolLibTable( &m_frame->Prj() );
-                SYMBOL_LIB*       cache = PROJECT_SCH::SchLibs( &m_frame->Prj() )->GetCacheLibrary();
+                SYMBOL_LIBRARY_ADAPTER* libs = PROJECT_SCH::SymbolLibAdapter( &m_frame->Prj() );
+                LEGACY_SYMBOL_LIB*       cache = PROJECT_SCH::LegacySchLibs( &m_frame->Prj() )->GetCacheLibrary();
 
                 std::set<UTF8>             unique_libid;
                 std::vector<PICKED_SYMBOL> alreadyPlaced;
@@ -549,17 +549,16 @@ int SCH_DRAWING_TOOLS::PlaceSymbol( const TOOL_EVENT& aEvent )
             }
         }
         else if( evt->IsAction( &ACTIONS::duplicate )
-                 || evt->IsAction( &SCH_ACTIONS::repeatDrawItem ) )
+                 || evt->IsAction( &SCH_ACTIONS::repeatDrawItem )
+                 || evt->IsAction( &ACTIONS::paste ) )
         {
             if( symbol )
             {
-                // This doesn't really make sense; we'll just end up dragging a stack of
-                // objects so we ignore the duplicate and just carry on.
                 wxBell();
                 continue;
             }
 
-            // Exit.  The duplicate will run in its own loop.
+            // Exit.  The duplicate/repeat/paste will run in its own loop.
             m_frame->PopTool( aEvent );
             evt->SetPassEvent();
             break;
@@ -678,7 +677,10 @@ int SCH_DRAWING_TOOLS::PlaceNextSymbolUnit( const TOOL_EVENT& aEvent )
     std::unique_ptr<SCH_SYMBOL> newSymbol = std::make_unique<SCH_SYMBOL>( *symbol );
     const SCH_SHEET_PATH&       sheetPath = m_frame->GetCurrentSheet();
 
-    newSymbol->SetUnitSelection( &sheetPath, nextMissing );
+    // Use SetUnitSelection(int) to update ALL instance references at once.
+    // This is important for shared sheets where the same screen is used by multiple
+    // sheet instances - we want the new symbol unit to appear correctly on all instances.
+    newSymbol->SetUnitSelection( nextMissing );
     newSymbol->SetUnit( nextMissing );
     newSymbol->SetRefProp( symbol->GetRef( &sheetPath, false ) );
 
@@ -700,6 +702,16 @@ int SCH_DRAWING_TOOLS::ImportSheet( const TOOL_EVENT& aEvent )
     KIGFX::VIEW_CONTROLS* controls = getViewControls();
     EE_GRID_HELPER        grid( m_toolMgr );
     VECTOR2I              cursorPos;
+
+    // Guard to reset forced cursor positioning on exit, regardless of error path
+    struct RESET_FORCED_CURSOR_GUARD
+    {
+        KIGFX::VIEW_CONTROLS* m_controls;
+
+        ~RESET_FORCED_CURSOR_GUARD() { m_controls->ForceCursorPosition( false ); }
+    };
+
+    RESET_FORCED_CURSOR_GUARD forcedCursorGuard{ controls };
 
     if( !cfg || !common_settings )
         return 0;
@@ -723,9 +735,21 @@ int SCH_DRAWING_TOOLS::ImportSheet( const TOOL_EVENT& aEvent )
                                                                 true, true ) );
 
             if( !designBlock )
+            {
+                wxString msg;
+                msg.Printf( _( "Could not find design block %s." ),
+                            designBlockPane->GetSelectedLibId().GetUniStringLibId() );
+                m_frame->ShowInfoBarError( msg, true );
                 return 0;
+            }
 
             sheetFileName = designBlock->GetSchematicFile();
+
+            if( sheetFileName.IsEmpty() || !wxFileExists( sheetFileName ) )
+            {
+                m_frame->ShowInfoBarError( _( "Design block has no schematic to place." ), true );
+                return 0;
+            }
         }
     }
     else
@@ -803,11 +827,15 @@ int SCH_DRAWING_TOOLS::ImportSheet( const TOOL_EVENT& aEvent )
                         if( item->Type() == SCH_LINE_T )
                             item->SetFlags( STARTPOINT | ENDPOINT );
 
-                        if( placeAsGroup )
-                            group->AddItem( item );
+                        if( !item->GetParentGroup() )
+                        {
+                            if( placeAsGroup )
+                                group->AddItem( item );
+
+                            newItems.emplace_back( item );
+                        }
 
                         commit.Added( item, screen );
-                        newItems.emplace_back( item );
                     }
                     else
                     {
@@ -846,7 +874,7 @@ int SCH_DRAWING_TOOLS::ImportSheet( const TOOL_EVENT& aEvent )
                         m_frame->AnnotateSymbols( &commit, ANNOTATE_SELECTION,
                                                   (ANNOTATE_ORDER_T) schSettings.m_AnnotateSortOrder,
                                                   (ANNOTATE_ALGO_T) schSettings.m_AnnotateMethod, true /* recursive */,
-                                                  schSettings.m_AnnotateStartNum, false, false, reporter );
+                                                  schSettings.m_AnnotateStartNum, false, false, false, reporter );
                     }
 
                     // Annotation will clear selection, so we need to restore it
@@ -856,7 +884,10 @@ int SCH_DRAWING_TOOLS::ImportSheet( const TOOL_EVENT& aEvent )
                             item->SetFlags( STARTPOINT | ENDPOINT );
                     }
 
-                    selectionTool->AddItemsToSel( &newItems, true );
+                    if( placeAsGroup )
+                        selectionTool->AddItemToSel( group );
+                    else
+                        selectionTool->AddItemsToSel( &newItems, true );
                 }
 
                 // Start moving selection, cancel undoes the insertion
@@ -875,6 +906,7 @@ int SCH_DRAWING_TOOLS::ImportSheet( const TOOL_EVENT& aEvent )
                     commit.Revert();
                 }
 
+                selectionTool->RebuildSelection();
                 m_frame->UpdateHierarchyNavigator();
 
                 return placed;
@@ -908,6 +940,8 @@ int SCH_DRAWING_TOOLS::ImportSheet( const TOOL_EVENT& aEvent )
             FILEDLG_IMPORT_SHEET_CONTENTS dlgHook( cfg );
             dlg.SetCustomizeHook( dlgHook );
 
+            KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
+
             if( dlg.ShowModal() == wxID_CANCEL )
                 return 0;
 
@@ -924,12 +958,12 @@ int SCH_DRAWING_TOOLS::ImportSheet( const TOOL_EVENT& aEvent )
     // to the canvas and run the move tool
     if( !cfg->m_DesignBlockChooserPanel.place_as_sheet )
     {
-            while( placeSheetContents() && cfg->m_DesignBlockChooserPanel.repeated_placement )
-            {}
+        while( placeSheetContents() && cfg->m_DesignBlockChooserPanel.repeated_placement )
+        {}
 
-            m_toolMgr->RunAction( ACTIONS::selectionClear );
-            m_view->ClearPreview();
-            return 0;
+        m_toolMgr->RunAction( ACTIONS::selectionClear );
+        m_view->ClearPreview();
+        return 0;
     }
 
     // We're placing a sheet as a sheet, we need to run a small tool loop to get the starting
@@ -945,9 +979,7 @@ int SCH_DRAWING_TOOLS::ImportSheet( const TOOL_EVENT& aEvent )
     setCursor();
 
     if( common_settings->m_Input.immediate_actions && !aEvent.IsReactivate() )
-    {
         m_toolMgr->PrimeTool( { 0, 0 } );
-    }
 
     // Main loop: keep receiving events
     while( TOOL_EVENT* evt = Wait() )
@@ -1154,9 +1186,11 @@ int SCH_DRAWING_TOOLS::PlaceImage( const TOOL_EVENT& aEvent )
                 m_toolMgr->RunAction( ACTIONS::selectionClear );
 
                 wxFileDialog dlg( m_frame, _( "Choose Image" ), m_mruPath, wxEmptyString,
-                                  _( "Image Files" ) + wxS( " " ) + wxImage::GetImageExtWildcard(),
-                                  wxFD_OPEN );
-                bool         cancelled;
+                                  FILEEXT::ImageFileWildcard(), wxFD_OPEN );
+
+                KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
+
+                bool cancelled = false;
 
                 RunMainStack(
                         [&]()
@@ -1235,7 +1269,8 @@ int SCH_DRAWING_TOOLS::PlaceImage( const TOOL_EVENT& aEvent )
             m_menu->ShowContextMenu( m_selectionTool->GetSelection() );
         }
         else if( evt->IsAction( &ACTIONS::duplicate )
-                 || evt->IsAction( &SCH_ACTIONS::repeatDrawItem ) )
+                 || evt->IsAction( &SCH_ACTIONS::repeatDrawItem )
+                 || evt->IsAction( &ACTIONS::paste ) )
         {
             if( image )
             {
@@ -1245,7 +1280,7 @@ int SCH_DRAWING_TOOLS::PlaceImage( const TOOL_EVENT& aEvent )
                 continue;
             }
 
-            // Exit.  The duplicate will run in its own loop.
+            // Exit.  The duplicate/repeat/paste will run in its own loop.
             m_frame->PopTool( aEvent );
             evt->SetPassEvent();
             break;
@@ -1943,6 +1978,8 @@ int SCH_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
     SCH_SHEET*            sheet = nullptr;
     wxString              description;
 
+    std::list<std::unique_ptr<SCH_LABEL_BASE>> itemsToPlace;
+
     if( m_inDrawingTool )
         return 0;
 
@@ -2004,6 +2041,12 @@ int SCH_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
                 m_view->ClearPreview();
                 delete item;
                 item = nullptr;
+
+                while( !itemsToPlace.empty() )
+                {
+                    itemsToPlace.front().release();
+                    itemsToPlace.pop_front();
+                }
             };
 
     auto prepItemForPlacement =
@@ -2045,7 +2088,6 @@ int SCH_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
     }
 
     SCH_COMMIT commit( m_toolMgr );
-    std::list<std::unique_ptr<SCH_LABEL_BASE>> itemsToPlace;
 
     // Main loop: keep receiving events
     while( TOOL_EVENT* evt = Wait() )
@@ -2340,17 +2382,17 @@ int SCH_DRAWING_TOOLS::TwoClickPlace( const TOOL_EVENT& aEvent )
             else
                 m_toolMgr->RunSynchronousAction( ACTIONS::increment, &commit, ACTIONS::INCREMENT { 1, 0 } );
         }
-        else if( evt->IsAction( &ACTIONS::duplicate ) || evt->IsAction( &SCH_ACTIONS::repeatDrawItem ) )
+        else if( evt->IsAction( &ACTIONS::duplicate )
+                || evt->IsAction( &SCH_ACTIONS::repeatDrawItem )
+                || evt->IsAction( &ACTIONS::paste ) )
         {
             if( item )
             {
-                // This doesn't really make sense; we'll just end up dragging a stack of
-                // objects so we ignore the duplicate and just carry on.
                 wxBell();
                 continue;
             }
 
-            // Exit.  The duplicate will run in its own loop.
+            // Exit.  The duplicate/repeat/paste will run in its own loop.
             m_frame->PopTool( aEvent );
             evt->SetPassEvent();
             break;
@@ -2628,17 +2670,17 @@ int SCH_DRAWING_TOOLS::DrawShape( const TOOL_EVENT& aEvent )
                 m_toolMgr->PostAction( ACTIONS::activatePointEditor );
             }
         }
-        else if( evt->IsAction( &ACTIONS::duplicate ) || evt->IsAction( &SCH_ACTIONS::repeatDrawItem ) )
+        else if( evt->IsAction( &ACTIONS::duplicate )
+                || evt->IsAction( &SCH_ACTIONS::repeatDrawItem )
+                || evt->IsAction( &ACTIONS::paste ) )
         {
             if( item )
             {
-                // This doesn't really make sense; we'll just end up dragging a stack of
-                // objects so we ignore the duplicate and just carry on.
                 wxBell();
                 continue;
             }
 
-            // Exit.  The duplicate will run in its own loop.
+            // Exit.  The duplicate/repeat/paste will run in its own loop.
             m_frame->PopTool( aEvent );
             evt->SetPassEvent();
             break;
@@ -2842,6 +2884,21 @@ int SCH_DRAWING_TOOLS::DrawRuleArea( const TOOL_EVENT& aEvent )
         else if( started && ( evt->IsMotion() || evt->IsDrag( BUT_LEFT ) ) )
         {
             polyGeomMgr.SetCursorPosition( cursorPos );
+        }
+        else if( evt->IsAction( &ACTIONS::duplicate )
+                || evt->IsAction( &SCH_ACTIONS::repeatDrawItem )
+                || evt->IsAction( &ACTIONS::paste ) )
+        {
+            if( started )
+            {
+                wxBell();
+                continue;
+            }
+
+            // Exit.  The duplicate/repeat/paste will run in its own loop.
+            m_frame->PopTool( aEvent );
+            evt->SetPassEvent();
+            break;
         }
         else
         {
@@ -3061,6 +3118,21 @@ int SCH_DRAWING_TOOLS::DrawTable( const TOOL_EVENT& aEvent )
 
             m_menu->ShowContextMenu( m_selectionTool->GetSelection() );
         }
+        else if( evt->IsAction( &ACTIONS::duplicate )
+                || evt->IsAction( &SCH_ACTIONS::repeatDrawItem )
+                || evt->IsAction( &ACTIONS::paste ) )
+        {
+            if( table )
+            {
+                wxBell();
+                continue;
+            }
+
+            // Exit.  The duplicate/repeat/paste will run in its own loop.
+            m_frame->PopTool( aEvent );
+            evt->SetPassEvent();
+            break;
+        }
         else if( table && evt->IsAction( &ACTIONS::redo ) )
         {
             wxBell();
@@ -3091,6 +3163,7 @@ int SCH_DRAWING_TOOLS::DrawSheet( const TOOL_EVENT& aEvent )
 
     SCH_SHEET* sheet = nullptr;
     wxString   filename;
+    SCH_GROUP* sheetGroup = nullptr;
 
     if( isDrawSheetCopy )
     {
@@ -3294,19 +3367,35 @@ int SCH_DRAWING_TOOLS::DrawSheet( const TOOL_EVENT& aEvent )
             instance.push_back( sheet );
             wxString pageNumber;
 
-            // Don't try to be too clever when assigning the next availabe page number.  Just use
-            // the number of sheets plus one.
-            pageNumber.Printf( wxT( "%d" ), static_cast<int>( hierarchy.size() ) + 1 );
+            // Find the next available page number by checking all existing page numbers
+            std::set<int> usedPageNumbers;
+
+            for( const SCH_SHEET_PATH& path : hierarchy )
+            {
+                wxString existingPageNum = path.GetPageNumber();
+                long pageNum = 0;
+
+                if( existingPageNum.ToLong( &pageNum ) && pageNum > 0 )
+                    usedPageNumbers.insert( static_cast<int>( pageNum ) );
+            }
+
+            // Find the first available number starting from 1
+            int nextAvailable = 1;
+
+            while( usedPageNumbers.count( nextAvailable ) > 0 )
+                nextAvailable++;
+
+            pageNumber.Printf( wxT( "%d" ), nextAvailable );
             instance.SetPageNumber( pageNumber );
 
             m_view->ClearPreview();
             m_view->AddToPreview( sheet->Clone() );
         }
-    else if( sheet && (   evt->IsClick( BUT_LEFT ) || evt->IsDblClick( BUT_LEFT )
-               || isSyntheticClick
-               || evt->IsAction( &ACTIONS::cursorClick ) || evt->IsAction( &ACTIONS::cursorDblClick )
-               || evt->IsAction( &ACTIONS::finishInteractive )
-               || ( startedWithDrag && evt->IsMouseUp( BUT_LEFT ) ) ) )
+        else if( sheet && (   evt->IsClick( BUT_LEFT ) || evt->IsDblClick( BUT_LEFT )
+                           || isSyntheticClick
+                           || evt->IsAction( &ACTIONS::cursorClick ) || evt->IsAction( &ACTIONS::cursorDblClick )
+                           || evt->IsAction( &ACTIONS::finishInteractive )
+                           || ( startedWithDrag && evt->IsMouseUp( BUT_LEFT ) ) ) )
         {
             getViewControls()->SetAutoPan( false );
             getViewControls()->CaptureCursor( false );
@@ -3327,6 +3416,10 @@ int SCH_DRAWING_TOOLS::DrawSheet( const TOOL_EVENT& aEvent )
                 m_frame->AddToScreen( sheet );
                 c.Added( sheet, m_frame->GetScreen() );
 
+                // Refresh the hierarchy so the new sheet and its symbols are found during annotation.
+                // The cached hierarchy was built before this sheet was added.
+                m_frame->Schematic().RefreshHierarchy();
+
                 // This convoluted logic means we always annotate unless we are drawing a copy/design block
                 // and the user has explicitly requested we keep the annotations via checkbox
 
@@ -3345,13 +3438,34 @@ int SCH_DRAWING_TOOLS::DrawSheet( const TOOL_EVENT& aEvent )
                                               true,   /* recursive */
                                               schSettings.m_AnnotateStartNum,
                                               true,   /* reset */
+                                              false,  /* regroup */
                                               false,  /* repair */
                                               reporter );
                 }
 
+                if( isDrawSheetFromDesignBlock && cfg->m_DesignBlockChooserPanel.place_as_group )
+                {
+                    sheetGroup = new SCH_GROUP( m_frame->GetScreen() );
+                    sheetGroup->SetName( designBlock->GetLibId().GetLibItemName() );
+                    sheetGroup->SetDesignBlockLibId( designBlock->GetLibId() );
+                    c.Add( sheetGroup, m_frame->GetScreen() );
+                    c.Modify( sheet, m_frame->GetScreen(), RECURSE_MODE::NO_RECURSE );
+                    sheetGroup->AddItem( sheet );
+                }
+
                 c.Push( isDrawSheetCopy ? "Import Sheet Copy" : "Draw Sheet" );
 
-                m_selectionTool->AddItemToSel( sheet );
+                if( sheetGroup )
+                    m_selectionTool->AddItemToSel( sheetGroup );
+                else
+                    m_selectionTool->AddItemToSel( sheet );
+
+                if( ( isDrawSheetCopy || isDrawSheetFromDesignBlock )
+                    && !cfg->m_DesignBlockChooserPanel.repeated_placement )
+                {
+                    m_frame->PopTool( aEvent );
+                    break;
+                }
             }
             else
             {
@@ -3361,17 +3475,17 @@ int SCH_DRAWING_TOOLS::DrawSheet( const TOOL_EVENT& aEvent )
 
             sheet = nullptr;
         }
-        else if( evt->IsAction( &ACTIONS::duplicate ) || evt->IsAction( &SCH_ACTIONS::repeatDrawItem ) )
+        else if( evt->IsAction( &ACTIONS::duplicate )
+                || evt->IsAction( &SCH_ACTIONS::repeatDrawItem )
+                || evt->IsAction( &ACTIONS::paste ) )
         {
             if( sheet )
             {
-                // This doesn't really make sense; we'll just end up dragging a stack of
-                // objects so we ignore the duplicate and just carry on.
                 wxBell();
                 continue;
             }
 
-            // Exit.  The duplicate will run in its own loop.
+            // Exit.  The duplicate/repeat/paste will run in its own loop.
             m_frame->PopTool( aEvent );
             evt->SetPassEvent();
             break;
@@ -3427,7 +3541,8 @@ void SCH_DRAWING_TOOLS::sizeSheet( SCH_SHEET* aSheet, const VECTOR2I& aPos )
 }
 
 
-int SCH_DRAWING_TOOLS::doSyncSheetsPins( std::list<SCH_SHEET_PATH> sheetPaths )
+int SCH_DRAWING_TOOLS::doSyncSheetsPins( std::list<SCH_SHEET_PATH> sheetPaths,
+                                         SCH_SHEET* aInitialSheet )
 {
     if( !sheetPaths.size() )
         return 0;
@@ -3493,7 +3608,8 @@ int SCH_DRAWING_TOOLS::doSyncSheetsPins( std::list<SCH_SHEET_PATH> sheetPaths )
                         }
                         }
                     },
-                    m_toolMgr, m_frame ) );
+                    m_toolMgr, m_frame ),
+            aInitialSheet );
     m_dialogSyncSheetPin->Show( true );
     return 0;
 }
@@ -3656,9 +3772,19 @@ int SCH_DRAWING_TOOLS::SyncAllSheetsPins( const TOOL_EVENT& aEvent )
 
     std::list<SCH_SHEET_PATH> sheetPaths;
     std::set<SCH_SCREEN*> visited;
-    SCH_SHEET_PATH current;
-    current.push_back( &m_frame->Schematic().Root() );
-    getSheetChildren( sheetPaths, m_frame->Schematic().Root().GetScreen(), visited, current );
+
+    // Build sheet paths for each top-level sheet (don't include virtual root in paths)
+    std::vector<SCH_SHEET*> topLevelSheets = m_frame->Schematic().GetTopLevelSheets();
+
+    for( SCH_SHEET* topSheet : topLevelSheets )
+    {
+        if( topSheet && topSheet->GetScreen() )
+        {
+            SCH_SHEET_PATH current;
+            current.push_back( topSheet );
+            getSheetChildren( sheetPaths, topSheet->GetScreen(), visited, current );
+        }
+    }
 
     if( sheetPaths.size() == 0 )
     {
@@ -3666,8 +3792,10 @@ int SCH_DRAWING_TOOLS::SyncAllSheetsPins( const TOOL_EVENT& aEvent )
         return 0;
     }
 
+    // If a sheet is currently selected, pre-select its tab in the dialog
+    SCH_SHEET* selectedSheet = dynamic_cast<SCH_SHEET*>( m_selectionTool->GetSelection().Front() );
 
-    return doSyncSheetsPins( std::move( sheetPaths ) );
+    return doSyncSheetsPins( std::move( sheetPaths ), selectedSheet );
 }
 
 SCH_HIERLABEL* SCH_DRAWING_TOOLS::importHierLabel( SCH_SHEET* aSheet )

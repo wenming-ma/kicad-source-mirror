@@ -30,6 +30,7 @@
 #include <wx/process.h>
 #include <wx/string.h>
 #include <wx/filedlg.h>
+#include <kiplatform/ui.h>
 
 #include <pgm_base.h>
 #include <board.h>
@@ -228,37 +229,8 @@ int BOARD_EDITOR_CONTROL::ExportSTEP( const TOOL_EVENT& aEvent )
     BOARD*     board = m_frame->GetBoard();
     wxFileName brdFile = board->GetFileName();
 
-    // The project filename (.kicad_pro) of the auto saved board filename, if it is created
-    wxFileName autosaveProjFile;
-
-    if( m_frame->GetScreen()->IsContentModified() || brdFile.GetFullPath().empty() )
-    {
-        if( !m_frame->DoAutoSave() )
-        {
-            DisplayErrorMessage( m_frame, _( "STEP export failed!  Please save the PCB and try again" ) );
-            return 0;
-        }
-
-        wxString autosaveFileName = FILEEXT::AutoSaveFilePrefix + brdFile.GetName();
-
-        // Create a dummy .kicad_pro file for this auto saved board file.
-        // this is useful to use some settings (like project path and name)
-        // Because DoAutoSave() works, the target directory exists and is writable
-        autosaveProjFile = brdFile;
-        autosaveProjFile.SetName( autosaveFileName );
-        autosaveProjFile.SetExt( "kicad_pro" );
-
-        // Use auto-saved board for export
-        m_frame->GetSettingsManager()->SaveProjectCopy( autosaveProjFile.GetFullPath(), board->GetProject() );
-        brdFile.SetName( autosaveFileName );
-    }
-
     DIALOG_EXPORT_STEP dlg( m_frame, brdFile.GetFullPath() );
     dlg.ShowModal();
-
-    // If a dummy .kicad_pro file is created, delete it now it is useless.
-    if( !autosaveProjFile.GetFullPath().IsEmpty() )
-        wxRemoveFile( autosaveProjFile.GetFullPath() );
 
     return 0;
 }
@@ -302,6 +274,8 @@ void DIALOG_EXPORT_STEP::onBrowseClicked( wxCommandEvent& aEvent )
     wxFileName fn( Prj().AbsolutePath( path ) );
 
     wxFileDialog dlg( this, _( "3D Model Output File" ), fn.GetPath(), fn.GetFullName(), filter, wxFD_SAVE );
+
+    KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
 
     if( dlg.ShowModal() == wxID_CANCEL )
         return;
@@ -409,7 +383,7 @@ void DIALOG_EXPORT_STEP::onExportButton( wxCommandEvent& aEvent )
         // Arc to segment approximation error (not critical here: we do not use the outline shape):
         int maxError = pcbIUScale.mmToIU( 0.05 );
 
-        if( !BuildBoardPolygonOutlines( m_editFrame->GetBoard(), outline, maxError, chainingEpsilon ) )
+        if( !BuildBoardPolygonOutlines( m_editFrame->GetBoard(), outline, maxError, chainingEpsilon, false ) )
         {
             DisplayErrorMessage( this, wxString::Format( _( "Board outline is missing or not closed using "
                                                             "%.3f mm tolerance.\n"
@@ -616,15 +590,15 @@ void DIALOG_EXPORT_STEP::onExportButton( wxCommandEvent& aEvent )
         // ensure the main format on the job is populated
         switch( m_job->m_3dparams.m_Format )
         {
-        case EXPORTER_STEP_PARAMS::FORMAT::STEP:  m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::STEP; break;
+        case EXPORTER_STEP_PARAMS::FORMAT::STEP:  m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::STEP;  break;
         case EXPORTER_STEP_PARAMS::FORMAT::STEPZ: m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::STEPZ; break;
-        case EXPORTER_STEP_PARAMS::FORMAT::GLB:   m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::GLB;  break;
-        case EXPORTER_STEP_PARAMS::FORMAT::XAO:   m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::XAO;  break;
-        case EXPORTER_STEP_PARAMS::FORMAT::BREP:  m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::BREP; break;
-        case EXPORTER_STEP_PARAMS::FORMAT::PLY:   m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::PLY;  break;
-        case EXPORTER_STEP_PARAMS::FORMAT::STL:   m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::STL;  break;
-        case EXPORTER_STEP_PARAMS::FORMAT::U3D:   m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::U3D;  break;
-        case EXPORTER_STEP_PARAMS::FORMAT::PDF:   m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::PDF;  break;
+        case EXPORTER_STEP_PARAMS::FORMAT::GLB:   m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::GLB;   break;
+        case EXPORTER_STEP_PARAMS::FORMAT::XAO:   m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::XAO;   break;
+        case EXPORTER_STEP_PARAMS::FORMAT::BREP:  m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::BREP;  break;
+        case EXPORTER_STEP_PARAMS::FORMAT::PLY:   m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::PLY;   break;
+        case EXPORTER_STEP_PARAMS::FORMAT::STL:   m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::STL;   break;
+        case EXPORTER_STEP_PARAMS::FORMAT::U3D:   m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::U3D;   break;
+        case EXPORTER_STEP_PARAMS::FORMAT::PDF:   m_job->m_format = JOB_EXPORT_PCB_3D::FORMAT::PDF;   break;
         }
 
         m_job->m_3dparams.m_UseDrillOrigin = false;

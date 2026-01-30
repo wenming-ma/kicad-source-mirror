@@ -57,6 +57,7 @@ public:
         int        text_editor_zoom;
         int        toolbar_icon_size;
         bool       grid_striping;
+        bool       use_custom_cursors;
         double     zoom_correction_factor;
     };
 
@@ -132,7 +133,8 @@ public:
 
     struct SYSTEM
     {
-        int autosave_interval;
+        bool local_history_enabled;
+        int local_history_debounce;
         wxString text_editor;
         wxString file_explorer;
         int file_history_size;
@@ -150,13 +152,6 @@ public:
         bool scaled_3d_models_warning;
         bool data_collection_prompt;
         bool update_check_prompt;
-    };
-
-    struct NETCLASS_PANEL
-    {
-        int sash_pos;
-        wxString eeschema_visible_columns;
-        wxString pcbnew_visible_columns;
     };
 
     struct PACKAGE_MANAGER
@@ -231,7 +226,6 @@ public:
     SESSION           m_Session;
     SYSTEM            m_System;
     DO_NOT_SHOW_AGAIN m_DoNotShowAgain;
-    NETCLASS_PANEL    m_NetclassPanel;
     PACKAGE_MANAGER   m_PackageManager;
     GIT               m_Git;
     API               m_Api;

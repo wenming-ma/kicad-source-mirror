@@ -44,6 +44,7 @@ class FOOTPRINT;
 class PROGRESS_REPORTER;
 class NETINFO_ITEM;
 class PAD;
+class PADSTACK;
 class PCB_SHAPE;
 class PCB_VIA;
 class PCB_TEXT;
@@ -67,9 +68,12 @@ public:
         m_shape_std_node = nullptr;
         m_line_node = nullptr;
         m_last_padstack = nullptr;
+        m_backdrill_spec_index = 0;
+        m_cad_header_node = nullptr;
         m_progress_reporter = nullptr;
         m_xml_doc = nullptr;
         m_xml_root = nullptr;
+        m_lastAppendedNode = nullptr;
     }
 
     ~PCB_IO_IPC2581() override;
@@ -210,13 +214,19 @@ private:
 
     void addPadStack( wxXmlNode* aContentNode, const PCB_VIA* aVia );
 
+    void ensureBackdrillSpecs( const wxString& aPadstackName, const PADSTACK& aPadstack );
+
+    void addBackdrillSpecRefs( wxXmlNode* aHoleNode, const wxString& aPadstackName );
+
+    void pruneUnusedBackdrillSpecs();
+
     void addLocationNode( wxXmlNode* aContentNode, double aX, double aY );
 
     void addLocationNode( wxXmlNode* aContentNode, const PAD& aPad, bool aRelative );
 
     void addLocationNode( wxXmlNode* aContentNode, const PCB_SHAPE& aShape );
 
-    void addShape( wxXmlNode* aContentNode, const PCB_SHAPE& aShape );
+    void addShape( wxXmlNode* aContentNode, const PCB_SHAPE& aShape, bool aInline = false );
 
     void addShape( wxXmlNode* aContentNode, const PAD& aPad, PCB_LAYER_ID aLayer );
 
@@ -247,6 +257,7 @@ private:
 
     size_t shapeHash( const PCB_SHAPE& aShape );
 
+    wxString sanitizeId( const wxString& aStr ) const;
     wxString genString( const wxString& aStr, const char* aPrefix = nullptr ) const;
     wxString genLayerString( PCB_LAYER_ID aLayer, const char* aPrefix ) const;
     wxString genLayersString( PCB_LAYER_ID aTop, PCB_LAYER_ID aBottom, const char* aPrefix ) const;
@@ -271,6 +282,8 @@ private:
     void insertNode( wxXmlNode* aParent, wxXmlNode* aNode );
 
     void insertNodeAfter( wxXmlNode* aPrev, wxXmlNode* aNode );
+
+    void deleteNode( wxXmlNode*& aNode );
 
     void addLayerAttributes( wxXmlNode* aNode, PCB_LAYER_ID aLayer );
 
@@ -310,6 +323,12 @@ private:
     std::vector<wxXmlNode*>    m_padstacks;         //<! Holding vector for padstacks.  These need to be inserted prior to the components
     wxXmlNode*                 m_last_padstack;     //<! Pointer to padstack list where we can insert the VIA padstacks once we process tracks
 
+    std::map<wxString, std::pair<wxString, wxString>> m_padstack_backdrill_specs;
+    std::map<wxString, wxXmlNode*>                    m_backdrill_spec_nodes;
+    std::set<wxString>                                m_backdrill_spec_used;
+    int                                               m_backdrill_spec_index;
+    wxXmlNode*                                        m_cad_header_node;
+
     std::map<size_t, wxString>
             m_footprint_dict; //<! Map between the footprint hash values and reference id string (<fpid>_##)
 
@@ -346,6 +365,8 @@ private:
 
     wxXmlDocument*          m_xml_doc;
     wxXmlNode*              m_xml_root;
+
+    wxXmlNode*              m_lastAppendedNode;     ///< Optimization for appendNode to avoid O(n) child traversal
 };
 
 #endif // PCB_IO_IPC2581_H_

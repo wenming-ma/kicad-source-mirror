@@ -58,6 +58,8 @@ public:
     static TOOL_ACTION archiveProject;
     static TOOL_ACTION unarchiveProject;
     static TOOL_ACTION openProjectDirectory;
+    static TOOL_ACTION restoreLocalHistory;
+    static TOOL_ACTION showLocalHistory;
 };
 
 

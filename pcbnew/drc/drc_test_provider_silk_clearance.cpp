@@ -23,6 +23,7 @@
 
 #include <common.h>
 #include <board.h>
+#include <pcb_board_outline.h>
 #include <pcb_track.h>
 #include <geometry/shape_segment.h>
 #include <geometry/seg.h>
@@ -36,7 +37,7 @@
 /*
     Silk to silk clearance test. Check all silkscreen features against each other.
     Errors generated:
-    - DRCE_OVERLAPPING_SILK
+    - DRCE_SILK_CLEARANCE
 
 */
 
@@ -73,7 +74,7 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
     // associated exclusions), so we only use that when soldermask min width is > 0.
     bool checkIndividualMaskItems = m_board->GetDesignSettings().m_SolderMaskMinWidth <= 0;
 
-    if( m_drcEngine->IsErrorLimitExceeded( DRCE_OVERLAPPING_SILK )
+    if( m_drcEngine->IsErrorLimitExceeded( DRCE_SILK_CLEARANCE )
             && m_drcEngine->IsErrorLimitExceeded( DRCE_SILK_MASK_CLEARANCE) )
     {
         return true;    // continue with other tests
@@ -111,7 +112,7 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
                 for( PCB_LAYER_ID layer : { F_SilkS, B_SilkS } )
                 {
                     if( item->IsOnLayer( layer ) )
-                        silkTree.Insert( item, layer );
+                        silkTree.Insert( item, layer, 0, ATOMIC_TABLES );
                 }
 
                 return true;
@@ -124,7 +125,7 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
                     return false;
 
                 for( PCB_LAYER_ID layer : LSET( item->GetLayerSet() & targetLayers ) )
-                    targetTree.Insert( item, layer );
+                    targetTree.Insert( item, layer, 0, ATOMIC_TABLES );
 
                 return true;
             };
@@ -172,7 +173,7 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
 
                 std::shared_ptr<SHAPE> hole;
 
-                if( m_drcEngine->IsErrorLimitExceeded( DRCE_OVERLAPPING_SILK )
+                if( m_drcEngine->IsErrorLimitExceeded( DRCE_SILK_CLEARANCE )
                         && m_drcEngine->IsErrorLimitExceeded( DRCE_SILK_MASK_CLEARANCE ) )
                 {
                     return false;
@@ -194,7 +195,16 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
                     }
                 }
 
-                int            errorCode = DRCE_OVERLAPPING_SILK;
+                if( PCB_BOARD_OUTLINE* boardOutline = m_board->BoardOutline() )
+                {
+                    if( !testItem->GetBoundingBox().Intersects( boardOutline->GetOutline().BBoxFromCaches() ) )
+                        return true;
+
+                    if( !testShape->Collide( &boardOutline->GetOutline() ) )
+                        return true;
+                }
+
+                int            errorCode = DRCE_SILK_CLEARANCE;
                 DRC_CONSTRAINT constraint = m_drcEngine->EvalRules( SILK_CLEARANCE_CONSTRAINT,
                                                                     refItem, testItem, aLayers.second );
                 int            minClearance = -1;
@@ -241,12 +251,10 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
 
                     if( minClearance > 0 )
                     {
-                        wxString msg = formatMsg( _( "(%s clearance %s; actual %s)" ),
-                                                  constraint.GetParentRule()->m_Name,
-                                                  minClearance,
-                                                  actual );
-
-                        drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + msg );
+                        drcItem->SetErrorDetail( formatMsg( _( "(%s clearance %s; actual %s)" ),
+                                                            constraint.GetParentRule()->m_Name,
+                                                            minClearance,
+                                                            actual ) );
                     }
 
                     drcItem->SetItems( refItem, testItem );

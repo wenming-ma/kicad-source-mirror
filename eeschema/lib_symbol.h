@@ -24,8 +24,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef LIB_SYMBOL_H
-#define LIB_SYMBOL_H
+#pragma once
 
 #include <base_units.h>
 #include <embedded_files.h>
@@ -40,9 +39,8 @@
 class LINE_READER;
 class OUTPUTFORMATTER;
 class REPORTER;
-class SYMBOL_LIB;
+class LEGACY_SYMBOL_LIB;
 class LIB_SYMBOL;
-class OUTLINE_FONT;
 class TEST_LIB_SYMBOL_FIXTURE;
 
 namespace KIFONT
@@ -51,8 +49,6 @@ namespace KIFONT
 }
 
 
-typedef std::shared_ptr<LIB_SYMBOL>       LIB_SYMBOL_SPTR;      ///< shared pointer to LIB_SYMBOL
-typedef std::weak_ptr<LIB_SYMBOL>         LIB_SYMBOL_REF;       ///< weak pointer to LIB_SYMBOL
 typedef MULTIVECTOR<SCH_ITEM, SCH_SHAPE_T, SCH_PIN_T> LIB_ITEMS_CONTAINER;
 typedef LIB_ITEMS_CONTAINER::ITEM_PTR_VECTOR LIB_ITEMS;
 
@@ -87,14 +83,14 @@ class LIB_SYMBOL : public SYMBOL, public LIB_TREE_ITEM, public EMBEDDED_FILES
 {
 public:
     LIB_SYMBOL( const wxString& aName, LIB_SYMBOL* aParent = nullptr,
-                SYMBOL_LIB* aLibrary = nullptr );
+                LEGACY_SYMBOL_LIB* aLibrary = nullptr );
 
-    LIB_SYMBOL( const LIB_SYMBOL& aSymbol, SYMBOL_LIB* aLibrary = nullptr );
+    LIB_SYMBOL( const LIB_SYMBOL& aSymbol, LEGACY_SYMBOL_LIB* aLibrary = nullptr, bool aCopyEmbeddedFiles = true );
 
     virtual ~LIB_SYMBOL() = default;
 
     /// http://www.boost.org/doc/libs/1_55_0/libs/smart_ptr/sp_techniques.html#weak_without_shared.
-    LIB_SYMBOL_SPTR SharedPtr() const { return m_me; }
+    std::shared_ptr<LIB_SYMBOL> SharedPtr() const { return m_me; }
 
     /**
      * Create a copy of a LIB_SYMBOL and assigns unique KIIDs to the copy and its children.
@@ -116,8 +112,8 @@ public:
     static LIB_SYMBOL* GetDummy();
 
     void SetParent( LIB_SYMBOL* aParent = nullptr );
-    LIB_SYMBOL_REF& GetParent() { return m_parent; }
-    const LIB_SYMBOL_REF& GetParent() const { return m_parent; }
+    std::weak_ptr<LIB_SYMBOL>& GetParent() { return m_parent; }
+    const std::weak_ptr<LIB_SYMBOL>& GetParent() const { return m_parent; }
 
     /**
      * Get the number of parents for this symbol.
@@ -134,7 +130,7 @@ public:
      *
      * @return the weak_ptr to the root symbol of this symbol.
      */
-    LIB_SYMBOL_SPTR GetRootSymbol() const;
+    std::shared_ptr<LIB_SYMBOL> GetRootSymbol() const;
 
     virtual wxString GetClass() const override
     {
@@ -150,7 +146,8 @@ public:
     wxString GetName() const override { return m_name; }
 
     LIB_ID GetLIB_ID() const override { return m_libId; }
-    wxString GetDesc() override { return GetDescription(); }
+    wxString GetDesc() override { return GetShownDescription(); }
+    wxString GetFootprint() override { return GetFootprintField().GetShownText( false ); }
     int GetSubUnitCount() const override { return GetUnitCount(); }
 
     const LIB_ID& GetLibId() const override { return m_libId; }
@@ -172,12 +169,14 @@ public:
     {
         if( GetDescriptionField().GetText().IsEmpty() && IsDerived() )
         {
-            if( LIB_SYMBOL_SPTR parent = m_parent.lock() )
+            if( std::shared_ptr<LIB_SYMBOL> parent = m_parent.lock() )
                 return parent->GetDescription();
         }
 
         return GetDescriptionField().GetText();
     }
+
+    wxString GetShownDescription( int aDepth = 0 ) const override;
 
     void SetKeyWords( const wxString& aKeyWords ) { m_keyWords = aKeyWords; }
 
@@ -185,19 +184,16 @@ public:
     {
         if( m_keyWords.IsEmpty() && IsDerived() )
         {
-            if( LIB_SYMBOL_SPTR parent = m_parent.lock() )
+            if( std::shared_ptr<LIB_SYMBOL> parent = m_parent.lock() )
                 return parent->GetKeyWords();
         }
 
         return m_keyWords;
     }
 
-    std::vector<SEARCH_TERM> GetSearchTerms() override;
+    wxString GetShownKeyWords( int aDepth = 0 ) const override;
 
-    wxString GetFootprint() override
-    {
-        return GetFootprintField().GetText();
-    }
+    std::vector<SEARCH_TERM> GetSearchTerms() override;
 
     void GetChooserFields( std::map<wxString , wxString>& aColumnMap ) override;
 
@@ -209,8 +205,8 @@ public:
 
     const wxString GetLibraryName() const;
 
-    SYMBOL_LIB* GetLib() const          { return m_library; }
-    void SetLib( SYMBOL_LIB* aLibrary ) { m_library = aLibrary; }
+    LEGACY_SYMBOL_LIB* GetLib() const          { return m_library; }
+    void SetLib( LEGACY_SYMBOL_LIB* aLibrary ) { m_library = aLibrary; }
 
     timestamp_t GetLastModDate() const { return m_lastModDate; }
 
@@ -220,7 +216,7 @@ public:
     {
         if( m_fpFilters.IsEmpty() && IsDerived() )
         {
-            if( LIB_SYMBOL_SPTR parent = m_parent.lock() )
+            if( std::shared_ptr<LIB_SYMBOL> parent = m_parent.lock() )
                 return parent->GetFPFilters();
         }
 
@@ -239,8 +235,7 @@ public:
      * @param aIgnoreLabelsOnInvisiblePins default true, ignores pin number and pin name
      * of invisible pins
      **/
-    const BOX2I GetUnitBoundingBox( int aUnit, int aBodyStyle,
-                                    bool aIgnoreHiddenFields = true,
+    const BOX2I GetUnitBoundingBox( int aUnit, int aBodyStyle, bool aIgnoreHiddenFields = true,
                                     bool aIgnoreLabelsOnInvisiblePins = true ) const;
 
     const BOX2I GetBoundingBox() const override
@@ -361,8 +356,8 @@ public:
         return GetReferenceField().GetText();
     }
 
-    const wxString GetValue( bool aResolve, const SCH_SHEET_PATH* aPath,
-                             bool aAllowExtraText ) const override
+    const wxString GetValue( bool aResolve, const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
+                             const wxString& aVariantName = wxEmptyString ) const override
     {
         return GetValueField().GetText();
     }
@@ -512,10 +507,24 @@ public:
         SetExcludedFromBOM( aExclude );
     }
 
+    bool GetExcludedFromBoardProp() const
+    {
+        return GetExcludedFromBoard();
+    }
+
+    void SetExcludedFromBoardProp( bool aExclude )
+    {
+        SetExcludedFromBoard( aExclude );
+    }
+
+    bool GetExcludedFromPosFilesProp() const { return GetExcludedFromPosFiles(); }
+    void SetExcludedFromPosFilesProp( bool aExclude ) { SetExcludedFromPosFiles( aExclude ); }
+
     std::set<KIFONT::OUTLINE_FONT*> GetFonts() const override;
 
     EMBEDDED_FILES* GetEmbeddedFiles() override;
     const EMBEDDED_FILES* GetEmbeddedFiles() const;
+    void AppendParentEmbeddedFiles( std::vector<EMBEDDED_FILES*>& aStack ) const;
 
     void EmbedFonts() override;
 
@@ -616,6 +625,20 @@ public:
      * @return The pin object if found.  Otherwise NULL.
      */
     SCH_PIN* GetPin( const wxString& aNumber, int aUnit = 0, int aBodyStyle = 0 ) const;
+
+    /**
+     * Return all pin objects with the requested pin \a aNumber.
+     *
+     * This is useful for symbols that intentionally have multiple pins with the same number,
+     * such as jumper symbols where duplicate pin numbers are internally connected.
+     *
+     * @param aNumber - Number of the pins to find.
+     * @param aUnit - Unit filter.  Set to 0 if a specific unit number is not required.
+     * @param aBodyStyle - Body style filter.  Set to 0 if no specific body style is not required.
+     * @return Vector of matching pin objects, empty if none found.
+     */
+    std::vector<SCH_PIN*> GetPinsByNumber( const wxString& aNumber, int aUnit = 0,
+                                           int aBodyStyle = 0 ) const;
 
     /**
      * Return true if this symbol's pins do not match another symbol's pins. This is used to
@@ -787,8 +810,7 @@ public:
      *         1 if this symbol is greater than \a aRhs
      *         0 if this symbol is the same as \a aRhs
      */
-    int Compare( const LIB_SYMBOL& aRhs, int aCompareFlags = 0,
-                 REPORTER* aReporter = nullptr ) const;
+    int Compare( const LIB_SYMBOL& aRhs, int aCompareFlags = 0, REPORTER* aReporter = nullptr ) const;
 
     const LIB_SYMBOL& operator=( const LIB_SYMBOL& aSymbol );
 
@@ -828,6 +850,10 @@ public:
      * @return a measure of similarity from 1.0 (identical) to 0.0 (no similarity).
     */
     double Similarity( const SCH_ITEM& aSymbol ) const override;
+
+    void SetParentName( const wxString& aParentName ) { m_parentName = aParentName; }
+    const wxString& GetParentName() const { return m_parentName; }
+
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override { ShowDummy( os ); }
 #endif
@@ -841,14 +867,16 @@ private:
      *
      *   - The result of #SCH_ITEM::compare()
      */
-    int compare( const SCH_ITEM& aOther,
-                 int aCompareFlags = SCH_ITEM::COMPARE_FLAGS::EQUALITY ) const override;
+    int compare( const SCH_ITEM& aOther, int aCompareFlags = SCH_ITEM::COMPARE_FLAGS::EQUALITY ) const override;
 
     void deleteAllFields();
 
 private:
-    LIB_SYMBOL_SPTR     m_me;
-    LIB_SYMBOL_REF      m_parent;           ///< Use for inherited symbols.
+    std::shared_ptr<LIB_SYMBOL> m_me;
+    std::weak_ptr<LIB_SYMBOL>   m_parent;   ///< Use for inherited symbols.
+
+    wxString            m_parentName;       ///< The name of the parent symbol or empty if root symbol.
+
     LIB_ID              m_libId;
     LIB_ID              m_sourceLibId;      ///< For database library symbols; the original symbol
     timestamp_t         m_lastModDate;
@@ -865,7 +893,7 @@ private:
 
     LIB_ITEMS_CONTAINER m_drawings;
 
-    SYMBOL_LIB*         m_library;
+    LEGACY_SYMBOL_LIB*  m_library;
     wxString            m_name;
     wxString            m_keyWords;         ///< Search keywords
     wxArrayString       m_fpFilters;        ///< List of suitable footprint names for the symbol (wild card
@@ -882,5 +910,3 @@ private:
     std::map<int, wxString> m_unitDisplayNames;
     std::vector<wxString>   m_bodyStyleNames;
 };
-
-#endif  //  CLASS_LIBENTRY_H

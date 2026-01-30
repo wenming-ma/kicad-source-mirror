@@ -224,10 +224,10 @@ public:
      *
      * These parameters are saved in KiCad config for each main frame.
      */
-    bool IsGridVisible() const;
+    bool IsGridVisible();
     virtual void SetGridVisibility( bool aVisible );
 
-    bool         IsGridOverridden() const;
+    bool         IsGridOverridden();
     virtual void SetGridOverrides( bool aOverride );
 
     virtual COLOR4D GetGridColor() { return m_gridColor; }
@@ -349,6 +349,13 @@ public:
      */
     virtual void OnPageSettingsChange() {}
 
+    /** Create the status line (like a wxStatusBar). This is actually a KISTATUSBAR status bar.
+     * the specified number of fields is the extra number of fields, not the full field count.
+     * @return a KISTATUSBAR (derived from wxStatusBar)
+     */
+    wxStatusBar* OnCreateStatusBar( int number, long style, wxWindowID id,
+                                    const wxString& name ) override;
+
     /**
      * Update the status bar information.
      *
@@ -431,6 +438,8 @@ public:
 
     static const wxString DesignBlocksPaneName() { return wxS( "DesignBlocks" ); }
 
+    static const wxString RemoteSymbolPaneName() { return wxS( "RemoteSymbol" ); }
+
     static const wxString AppearancePanelName() { return wxS( "LayersManager" ); }
 
     /**
@@ -460,6 +469,8 @@ public:
     void SetCanvas( EDA_DRAW_PANEL_GAL* aPanel ) { m_canvas = aPanel; }
 
     wxWindow* GetToolCanvas() const override { return GetCanvas(); }
+
+    void ClearToolbarControl( int aId ) override;
 
     /**
      * Return a reference to the gal rendering options used by GAL for rendering.
@@ -524,7 +535,7 @@ public:
      * @param aCfg is the settings to read the plugin ordering from.
      */
     static std::vector<const PLUGIN_ACTION*> GetOrderedPluginActions( PLUGIN_ACTION_SCOPE aScope,
-        APP_SETTINGS_BASE* aCfg );
+                                                                      APP_SETTINGS_BASE* aCfg );
 
     /**
      * Append actions from API plugins to the given toolbar.
@@ -541,6 +552,8 @@ protected:
     virtual void SetScreen( BASE_SCREEN* aScreen )  { m_currentScreen = aScreen; }
 
     void unitsChangeRefresh() override;
+
+    void setupUIConditions() override;
 
     void setupUnits( APP_SETTINGS_BASE* aCfg );
 

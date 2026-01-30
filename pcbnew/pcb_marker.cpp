@@ -47,7 +47,8 @@
 
 PCB_MARKER::PCB_MARKER( std::shared_ptr<RC_ITEM> aItem, const VECTOR2I& aPosition, int aLayer ) :
         BOARD_ITEM( nullptr, PCB_MARKER_T, F_Cu ),  // parent set during BOARD::Add()
-        MARKER_BASE( SCALING_FACTOR, aItem )
+        MARKER_BASE( SCALING_FACTOR, aItem ),
+        m_pathLength( 0 )
 {
     if( m_rcItem )
     {
@@ -70,6 +71,7 @@ PCB_MARKER::PCB_MARKER( std::shared_ptr<RC_ITEM> aItem, const VECTOR2I& aPositio
             case DRCE_EXTRA_FOOTPRINT:
             case DRCE_NET_CONFLICT:
             case DRCE_SCHEMATIC_PARITY:
+            case DRCE_SCHEMATIC_FIELDS_PARITY:
             case DRCE_FOOTPRINT_FILTERS:
                 SetMarkerType( MARKER_BASE::MARKER_PARITY );
                 break;
@@ -222,7 +224,7 @@ PCB_MARKER* PCB_MARKER::DeserializeFromString( const wxString& data )
 void PCB_MARKER::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     aList.emplace_back( _( "Type" ), _( "Marker" ) );
-    aList.emplace_back( _( "Violation" ), m_rcItem->GetErrorMessage() );
+    aList.emplace_back( _( "Violation" ), m_rcItem->GetErrorMessage( true ) );
 
     switch( GetSeverity() )
     {
@@ -292,8 +294,8 @@ void PCB_MARKER::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID 
 
 wxString PCB_MARKER::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Marker (%s)" ), aFull ? m_rcItem->GetErrorMessage()
-                                                       : m_rcItem->GetErrorText() );
+    return wxString::Format( _( "Marker (%s)" ), aFull ? m_rcItem->GetErrorMessage( true )
+                                                       : m_rcItem->GetErrorText( true ) );
 }
 
 

@@ -320,16 +320,7 @@ DIALOG_LIB_FIELDS_TABLE::DIALOG_LIB_FIELDS_TABLE( SYMBOL_EDIT_FRAME* parent, DIA
 
     SYMBOL_EDITOR_SETTINGS::PANEL_LIB_FIELDS_TABLE& cfg = m_parent->libeditconfig()->m_LibFieldEditor;
 
-    m_viewControlsGrid->ShowHideColumns( cfg.view_controls_visible_columns );
-    // Ensure at least one column is visible otherwise we cannot add columns
-    // because there is no area to right click to get the menu managing the show/hide columns
-    wxString visible_column = m_viewControlsGrid->GetShownColumnsAsString();;
-
-    if( visible_column.IsEmpty() )
-    {
-        visible_column = wxT( "0" );
-        m_viewControlsGrid->ShowHideColumns( visible_column );
-    }
+    m_viewControlsGrid->ShowHideColumns( "0 2 3" );
 
     CallAfter( [this, cfg]()
                {
@@ -354,8 +345,6 @@ DIALOG_LIB_FIELDS_TABLE::DIALOG_LIB_FIELDS_TABLE( SYMBOL_EDIT_FRAME* parent, DIA
 DIALOG_LIB_FIELDS_TABLE::~DIALOG_LIB_FIELDS_TABLE()
 {
     SYMBOL_EDITOR_SETTINGS::PANEL_LIB_FIELDS_TABLE& cfg = m_parent->libeditconfig()->m_LibFieldEditor;
-
-    cfg.view_controls_visible_columns = m_viewControlsGrid->GetShownColumnsAsString();
 
     if( !cfg.sidebar_collapsed )
         cfg.sash_pos = m_splitterMainWindow->GetSashPosition();
@@ -801,6 +790,7 @@ void DIALOG_LIB_FIELDS_TABLE::OnFilterText( wxCommandEvent& event )
 
 void DIALOG_LIB_FIELDS_TABLE::OnFilterMouseMoved(wxMouseEvent& aEvent)
 {
+#if defined( __WXOSX__ ) // Doesn't work properly on other ports
     wxPoint pos = aEvent.GetPosition();
     wxRect  ctrlRect = m_filter->GetScreenRect();
     int     buttonWidth = ctrlRect.GetHeight();         // Presume buttons are square
@@ -812,6 +802,7 @@ void DIALOG_LIB_FIELDS_TABLE::OnFilterMouseMoved(wxMouseEvent& aEvent)
         SetCursor( wxCURSOR_ARROW );
     else
         SetCursor( wxCURSOR_IBEAM );
+#endif
 }
 
 
@@ -822,14 +813,14 @@ void DIALOG_LIB_FIELDS_TABLE::setScope( SCOPE aScope )
     wxString                    targetSymbol = m_parent->GetTargetLibId().GetLibItemName();
     wxArrayString               symbolNames;
 
-    SetTitle( wxString::Format( _( "Library Fields Table (%s)" ), targetLib ) );
+    SetTitle( wxString::Format( _( "Symbol Fields Table ('%s' Library)" ), targetLib ) );
 
     m_scope = aScope;
 
     if( m_scope == SCOPE::SCOPE_RELATED_SYMBOLS )
     {
-        const LIB_SYMBOL* symbol = libMgr.GetBufferedSymbol( targetSymbol, targetLib );
-        LIB_SYMBOL_SPTR   root = symbol ? symbol->GetRootSymbol() : nullptr;
+        const LIB_SYMBOL*           symbol = libMgr.GetBufferedSymbol( targetSymbol, targetLib );
+        std::shared_ptr<LIB_SYMBOL> root = symbol ? symbol->GetRootSymbol() : nullptr;
 
         if( root )
         {

@@ -23,6 +23,7 @@
 #include <api/board/board_types.pb.h>
 #include <api/board/board_commands.pb.h>
 #include <wx/wx.h>
+#include <widgets/report_severity.h>
 
 #include <board_stackup_manager/board_stackup.h>
 #include <padstack.h>
@@ -35,6 +36,7 @@
 // Adding something new here?  Add it to test_api_enums.cpp!
 
 using namespace kiapi::board;
+using namespace kiapi::board::commands;
 
 template<>
 types::PadType ToProtoEnum( PAD_ATTRIB aValue )
@@ -247,20 +249,20 @@ ZONE_CONNECTION FromProtoEnum( types::ZoneConnectionStyle aValue )
 
 
 template<>
-types::UnconnectedLayerRemoval ToProtoEnum( PADSTACK::UNCONNECTED_LAYER_MODE aValue )
+types::UnconnectedLayerRemoval ToProtoEnum( UNCONNECTED_LAYER_MODE aValue )
 {
     switch( aValue )
     {
-    case PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL:
+    case UNCONNECTED_LAYER_MODE::KEEP_ALL:
         return types::UnconnectedLayerRemoval::ULR_KEEP;
 
-    case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL:
+    case UNCONNECTED_LAYER_MODE::REMOVE_ALL:
         return types::UnconnectedLayerRemoval::ULR_REMOVE;
 
-    case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END:
+    case UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END:
         return types::UnconnectedLayerRemoval::ULR_REMOVE_EXCEPT_START_AND_END;
 
-    case PADSTACK::UNCONNECTED_LAYER_MODE::START_END_ONLY:
+    case UNCONNECTED_LAYER_MODE::START_END_ONLY:
         return types::UnconnectedLayerRemoval::ULR_START_END_ONLY;
 
     default:
@@ -271,25 +273,25 @@ types::UnconnectedLayerRemoval ToProtoEnum( PADSTACK::UNCONNECTED_LAYER_MODE aVa
 
 
 template<>
-PADSTACK::UNCONNECTED_LAYER_MODE FromProtoEnum( types::UnconnectedLayerRemoval aValue )
+UNCONNECTED_LAYER_MODE FromProtoEnum( types::UnconnectedLayerRemoval aValue )
 {
     switch( aValue )
     {
     case types::UnconnectedLayerRemoval::ULR_UNKNOWN:
     case types::UnconnectedLayerRemoval::ULR_KEEP:
-        return PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL;
+        return UNCONNECTED_LAYER_MODE::KEEP_ALL;
 
     case types::UnconnectedLayerRemoval::ULR_REMOVE:
-        return PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL;
+        return UNCONNECTED_LAYER_MODE::REMOVE_ALL;
 
     case types::UnconnectedLayerRemoval::ULR_REMOVE_EXCEPT_START_AND_END:
-        return PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END;
+        return UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END;
 
     case types::UnconnectedLayerRemoval::ULR_START_END_ONLY:
-        return PADSTACK::UNCONNECTED_LAYER_MODE::START_END_ONLY;
+        return UNCONNECTED_LAYER_MODE::START_END_ONLY;
 
     default:
-        wxCHECK_MSG( false, PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL,
+        wxCHECK_MSG( false, UNCONNECTED_LAYER_MODE::KEEP_ALL,
                      "Unhandled case in FromProtoEnum<types::UnconnectedLayerRemoval>");
     }
 }
@@ -823,6 +825,45 @@ BOARD_STACKUP_ITEM_TYPE FromProtoEnum( BoardStackupLayerType aValue )
     default:
         wxCHECK_MSG( false, BS_ITEM_TYPE_UNDEFINED,
                      "Unhandled case in FromProtoEnum<BoardStackupLayerType>" );
+    }
+}
+
+
+template<>
+DrcSeverity ToProtoEnum( SEVERITY aValue )
+{
+    switch( aValue )
+    {
+    case RPT_SEVERITY_WARNING:   return DrcSeverity::DRS_WARNING;
+    case RPT_SEVERITY_ERROR:     return DrcSeverity::DRS_ERROR;
+    case RPT_SEVERITY_EXCLUSION: return DrcSeverity::DRS_EXCLUSION;
+    case RPT_SEVERITY_IGNORE:    return DrcSeverity::DRS_IGNORE;
+    case RPT_SEVERITY_INFO:      return DrcSeverity::DRS_INFO;
+    case RPT_SEVERITY_ACTION:    return DrcSeverity::DRS_ACTION;
+    case RPT_SEVERITY_DEBUG:     return DrcSeverity::DRS_DEBUG;
+    case RPT_SEVERITY_UNDEFINED: return DrcSeverity::DRS_UNDEFINED;
+    default:
+        wxCHECK_MSG( false, DrcSeverity::DRS_UNDEFINED,
+                     "Unhandled case in ToProtoEnum<SEVERITY>");
+    }
+}
+
+
+template<>
+SEVERITY FromProtoEnum( DrcSeverity aValue )
+{
+    switch( aValue )
+    {
+    case DrcSeverity::DRS_WARNING:   return RPT_SEVERITY_WARNING;
+    case DrcSeverity::DRS_ERROR:     return RPT_SEVERITY_ERROR;
+    case DrcSeverity::DRS_EXCLUSION: return RPT_SEVERITY_EXCLUSION;
+    case DrcSeverity::DRS_IGNORE:    return RPT_SEVERITY_IGNORE;
+    case DrcSeverity::DRS_INFO:      return RPT_SEVERITY_INFO;
+    case DrcSeverity::DRS_ACTION:    return RPT_SEVERITY_ACTION;
+    case DrcSeverity::DRS_DEBUG:     return RPT_SEVERITY_DEBUG;
+    case DrcSeverity::DRS_UNKNOWN:
+    default:
+        return RPT_SEVERITY_UNDEFINED;
     }
 }
 

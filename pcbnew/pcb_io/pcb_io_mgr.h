@@ -74,7 +74,8 @@ public:
 
         // etc.
 
-        FILE_TYPE_NONE
+        FILE_TYPE_NONE,
+        NESTED_TABLE
     };
 
     /**
@@ -162,7 +163,7 @@ public:
      * @param aFileType is from #PCB_FILE_T and tells which plugin to find.
      * @return the plug in corresponding to \a aFileType or NULL if not found.
      */
-    static PCB_IO* PluginFind( PCB_FILE_T aFileType );
+    static PCB_IO* FindPlugin( PCB_FILE_T aFileType );
 
     /**
      * Return a brief name for a plugin given \a aFileType enum.
@@ -233,7 +234,8 @@ public:
     /**
      * Convert a schematic symbol library to the latest KiCad format
      */
-    static bool ConvertLibrary( std::map<std::string, UTF8>* aOldFileProps, const wxString& aOldFilePath,
+    static bool ConvertLibrary( const std::map<std::string, UTF8>& aOldFileProps,
+                                const wxString& aOldFilePath,
                                 const wxString& aNewFilePath, REPORTER* aReporter );
 };
 

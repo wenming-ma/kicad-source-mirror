@@ -44,7 +44,9 @@
 #include <richio.h>
 #include <settings/settings_manager.h>
 #include <settings/kicad_settings.h>
+#include <../include/startwizard/startwizard.h>
 #include <systemdirsappend.h>
+#include <thread_pool.h>
 #include <trace_helpers.h>
 #include <wildcards_and_files_ext.h>
 #include <confirm.h>
@@ -65,6 +67,10 @@
 
 // a dummy to quiet linking with EDA_BASE_FRAME::config();
 #include <kiface_base.h>
+
+#include <libraries/library_manager.h>
+
+
 KIFACE_BASE& Kiface()
 {
     // This function should never be called.  It is only referenced from
@@ -180,10 +186,12 @@ bool PGM_KICAD::OnPgmInit()
     if( !InitPgm( false, skipPythonInit ) )
         return false;
 
+
     m_bm.InitSettings( new KICAD_SETTINGS );
     GetSettingsManager().RegisterSettings( PgmSettings() );
     GetSettingsManager().SetKiway( &Kiway );
     m_bm.Init();
+
 
     // Add search paths to feed the PGM_KICAD::SysSearch() function,
     // currently limited in support to only look for project templates
@@ -232,6 +240,9 @@ bool PGM_KICAD::OnPgmInit()
         managerFrame = new KICAD_MANAGER_FRAME( nullptr, wxT( "KiCad" ), wxDefaultPosition,
                                                 wxWindow::FromDIP( wxSize( 775, -1 ), NULL ) );
         frame = managerFrame;
+
+        STARTWIZARD startWizard;
+        startWizard.CheckAndRun( frame );
     }
     else
     {
@@ -258,6 +269,8 @@ bool PGM_KICAD::OnPgmInit()
                                              frame->GetTitle() );
 
     KICAD_SETTINGS* settings = static_cast<KICAD_SETTINGS*>( PgmSettings() );
+
+    GetLibraryManager().LoadGlobalTables();
 
 #ifdef KICAD_IPC_API
     m_api_server = std::make_unique<KICAD_API_SERVER>();
@@ -387,6 +400,10 @@ int PGM_KICAD::OnPgmRun()
 
 void PGM_KICAD::OnPgmExit()
 {
+    // Abort and wait on any background jobs
+    GetKiCadThreadPool().purge();
+    GetKiCadThreadPool().wait();
+
     Kiway.OnKiwayEnd();
 
 #ifdef KICAD_IPC_API
@@ -494,7 +511,7 @@ struct APP_KICAD : public wxApp
         return true;
     }
 
-    int  OnExit()           override
+    int OnExit() override
     {
         program.OnPgmExit();
 
@@ -504,7 +521,8 @@ struct APP_KICAD : public wxApp
         return wxApp::OnExit();
     }
 
-    int OnRun()             override
+
+    int OnRun() override
     {
         try
         {
@@ -517,6 +535,13 @@ struct APP_KICAD : public wxApp
 
         return -1;
     }
+
+
+    void OnUnhandledException() override
+    {
+        Pgm().HandleException( std::current_exception(), true );
+    }
+
 
     int FilterEvent( wxEvent& aEvent ) override
     {

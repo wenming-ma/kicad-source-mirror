@@ -49,8 +49,7 @@ public:
     SCH_SYMBOL_FIELD_PROPERTY( const wxString& aName ) :
             PROPERTY_BASE( aName ),
             m_name( aName )
-    {
-    }
+    { }
 
     size_t OwnerHash() const override { return TYPE_HASH( SCH_SYMBOL ); }
     size_t BaseHash() const override { return TYPE_HASH( SCH_SYMBOL ); }
@@ -71,15 +70,24 @@ public:
         SCH_SYMBOL* symbol = reinterpret_cast<SCH_SYMBOL*>( obj );
         SCH_FIELD*  field = symbol->GetField( m_name );
 
+        wxString variantName;
+        const SCH_SHEET_PATH* sheetPath = nullptr;
+
+        if( symbol->Schematic() )
+        {
+            variantName = symbol->Schematic()->GetCurrentVariant();
+            sheetPath = &symbol->Schematic()->CurrentSheet();
+        }
+
         if( !field )
         {
             SCH_FIELD newField( symbol, FIELD_T::USER, m_name );
-            newField.SetText( value );
+            newField.SetText( value, sheetPath, variantName );
             symbol->AddField( newField );
         }
         else
         {
-            field->SetText( value );
+            field->SetText( value, sheetPath, variantName );
         }
     }
 
@@ -89,9 +97,29 @@ public:
         const SCH_FIELD*  field = symbol->GetField( m_name );
 
         if( field )
-            return wxAny( field->GetText() );
+        {
+            wxString variantName;
+            const SCH_SHEET_PATH* sheetPath = nullptr;
+
+            if( symbol->Schematic() )
+            {
+                variantName = symbol->Schematic()->GetCurrentVariant();
+                sheetPath = &symbol->Schematic()->CurrentSheet();
+            }
+
+            wxString text;
+
+            if( !variantName.IsEmpty() && sheetPath )
+                text = field->GetText( sheetPath, variantName );
+            else
+                text = field->GetText();
+
+            return wxAny( text );
+        }
         else
+        {
             return wxAny( MISSING_FIELD_SENTINEL );
+        }
     }
 
 private:
@@ -103,7 +131,12 @@ std::set<wxString> SCH_PROPERTIES_PANEL::m_currentFieldNames;
 SCH_PROPERTIES_PANEL::SCH_PROPERTIES_PANEL( wxWindow* aParent, SCH_BASE_FRAME* aFrame ) :
         PROPERTIES_PANEL( aParent, aFrame ),
         m_frame( aFrame ),
-        m_propMgr( PROPERTY_MANAGER::Instance() )
+        m_propMgr( PROPERTY_MANAGER::Instance() ),
+        m_unitEditorInstance( nullptr ),
+        m_checkboxEditorInstance( nullptr ),
+        m_colorEditorInstance( nullptr ),
+        m_fpEditorInstance( nullptr ),
+        m_urlEditorInstance( nullptr )
 {
     m_propMgr.Rebuild();
     bool found = false;
@@ -177,7 +210,6 @@ SCH_PROPERTIES_PANEL::SCH_PROPERTIES_PANEL( wxWindow* aParent, SCH_BASE_FRAME* a
         m_urlEditorInstance = static_cast<PG_URL_EDITOR*>( wxPropertyGrid::RegisterEditorClass( urlEditor ) );
     }
 }
-
 
 
 SCH_PROPERTIES_PANEL::~SCH_PROPERTIES_PANEL()
@@ -303,13 +335,10 @@ PROPERTY_BASE* SCH_PROPERTIES_PANEL::getPropertyFromEvent( const wxPropertyGridE
 
     SCH_ITEM* firstItem = static_cast<SCH_ITEM*>( item );
 
-    wxCHECK_MSG( firstItem, nullptr,
-                 wxT( "getPropertyFromEvent for a property with nothing selected!") );
+    wxCHECK_MSG( firstItem, nullptr, wxT( "getPropertyFromEvent for a property with nothing selected!") );
 
-    PROPERTY_BASE* property = m_propMgr.GetProperty( TYPE_HASH( *firstItem ),
-                                                     aEvent.GetPropertyName() );
-    wxCHECK_MSG( property, nullptr,
-                 wxT( "getPropertyFromEvent for a property not found on the selected item!" ) );
+    PROPERTY_BASE* property = m_propMgr.GetProperty( TYPE_HASH( *firstItem ), aEvent.GetPropertyName() );
+    wxCHECK_MSG( property, nullptr, wxT( "getPropertyFromEvent for a property not found on the selected item!" ) );
 
     return property;
 }
@@ -365,9 +394,47 @@ void SCH_PROPERTIES_PANEL::valueChanged( wxPropertyGridEvent& aEvent )
             continue;
 
         SCH_ITEM* item = static_cast<SCH_ITEM*>( edaItem );
-        PROPERTY_BASE* property = m_propMgr.GetProperty( TYPE_HASH( *item ),
-                                                         aEvent.GetPropertyName() );
-        wxCHECK( property, /* void */ );
+        PROPERTY_BASE* property = m_propMgr.GetProperty( TYPE_HASH( *item ), aEvent.GetPropertyName() );
+        wxCHECK2( property, continue );
+
+        // Editing reference text in the schematic must go through the parent symbol in order to handle
+        // symbol instance data properly.
+        if( item->Type() == SCH_FIELD_T && static_cast<SCH_FIELD*>( item )->GetId() == FIELD_T::REFERENCE
+                && m_frame->IsType( FRAME_SCH )
+                && property->Name() == wxT( "Text" ) )
+        {
+            SCH_SYMBOL* symbol = dynamic_cast<SCH_SYMBOL*>( item->GetParentSymbol() );
+            wxCHECK2( symbol, continue );
+
+            changes.Modify( symbol, screen, RECURSE_MODE::NO_RECURSE );
+            symbol->SetRefProp( newValue.GetString() );
+            symbol->SyncOtherUnits( symbol->Schematic()->CurrentSheet(), changes, property );
+            continue;
+        }
+
+        // Editing field text in the schematic when a variant is active must use variant-aware
+        // SetText to properly store the value as a variant override.
+        if( item->Type() == SCH_FIELD_T
+                && m_frame->IsType( FRAME_SCH )
+                && property->Name() == wxT( "Text" ) )
+        {
+            SCH_FIELD* field = static_cast<SCH_FIELD*>( item );
+            SCH_SYMBOL* symbol = dynamic_cast<SCH_SYMBOL*>( item->GetParentSymbol() );
+
+            if( symbol && symbol->Schematic() )
+            {
+                wxString variantName = symbol->Schematic()->GetCurrentVariant();
+
+                if( !variantName.IsEmpty() )
+                {
+                    changes.Modify( symbol, screen, RECURSE_MODE::NO_RECURSE );
+                    field->SetText( newValue.GetString(), &symbol->Schematic()->CurrentSheet(), variantName );
+                    symbol->SyncOtherUnits( symbol->Schematic()->CurrentSheet(), changes, property,
+                                            variantName );
+                    continue;
+                }
+            }
+        }
 
         if( item->Type() == SCH_TABLECELL_T )
             changes.Modify( item->GetParent(), screen, RECURSE_MODE::NO_RECURSE );
@@ -377,11 +444,18 @@ void SCH_PROPERTIES_PANEL::valueChanged( wxPropertyGridEvent& aEvent )
         item->Set( property, newValue );
 
         if( SCH_SYMBOL* symbol = dynamic_cast<SCH_SYMBOL*>( item ) )
-            symbol->SyncOtherUnits( symbol->Schematic()->CurrentSheet(), changes, property );
+        {
+            symbol->SyncOtherUnits( symbol->Schematic()->CurrentSheet(), changes, property,
+                                    symbol->Schematic()->GetCurrentVariant() );
+        }
     }
 
     changes.Push( _( "Edit Properties" ) );
-    m_frame->Refresh();
+
+    // Force a repaint of the items whose properties were changed
+    // This is necessary to update field displays in the schematic view
+    for( EDA_ITEM* edaItem : selection )
+        m_frame->UpdateItem( edaItem );
 
     // Perform grid updates as necessary based on value change
     AfterCommit();
@@ -395,6 +469,33 @@ void SCH_PROPERTIES_PANEL::OnLanguageChanged( wxCommandEvent& aEvent )
     PROPERTIES_PANEL::OnLanguageChanged( aEvent );
 
     aEvent.Skip();
+}
+
+
+bool SCH_PROPERTIES_PANEL::getItemValue( EDA_ITEM* aItem, PROPERTY_BASE* aProperty, wxVariant& aValue )
+{
+    // For SCH_FIELD "Text" property, return the variant-aware value when a variant is active
+    if( aItem->Type() == SCH_FIELD_T
+            && m_frame->IsType( FRAME_SCH )
+            && aProperty->Name() == wxT( "Text" ) )
+    {
+        SCH_FIELD* field = static_cast<SCH_FIELD*>( aItem );
+        SCH_SYMBOL* symbol = dynamic_cast<SCH_SYMBOL*>( field->GetParentSymbol() );
+
+        if( symbol && symbol->Schematic() )
+        {
+            wxString variantName = symbol->Schematic()->GetCurrentVariant();
+
+            if( !variantName.IsEmpty() )
+            {
+                wxString text = field->GetText( &symbol->Schematic()->CurrentSheet(), variantName );
+                aValue = wxVariant( text );
+                return true;
+            }
+        }
+    }
+
+    return PROPERTIES_PANEL::getItemValue( aItem, aProperty, aValue );
 }
 
 

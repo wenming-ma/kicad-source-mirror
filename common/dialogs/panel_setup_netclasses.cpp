@@ -150,12 +150,10 @@ PANEL_SETUP_NETCLASSES::PANEL_SETUP_NETCLASSES( wxWindow* aParentWindow, EDA_DRA
             m_netclassGrid->SetUnitsProvider( m_pcbUnitsProvider.get(), i );
     }
 
-    COMMON_SETTINGS* cfg = Pgm().GetCommonSettings();
-
     if( m_isEEschema )
-        m_netclassGrid->ShowHideColumns( cfg->m_NetclassPanel.eeschema_visible_columns );
+        m_netclassGrid->ShowHideColumns( "0 11 12 13 14" );
     else
-        m_netclassGrid->ShowHideColumns( cfg->m_NetclassPanel.pcbnew_visible_columns );
+        m_netclassGrid->ShowHideColumns( "0 1 2 3 4 5 6 7 8 9 10" );
 
     m_shownColumns = m_netclassGrid->GetShownColumns();
 
@@ -206,8 +204,6 @@ PANEL_SETUP_NETCLASSES::PANEL_SETUP_NETCLASSES( wxWindow* aParentWindow, EDA_DRA
     m_netclassGrid->SetSelectionMode( wxGrid::wxGridSelectRows );
     m_assignmentGrid->SetSelectionMode( wxGrid::wxGridSelectRows );
 
-    m_splitter->SetSashPosition( cfg->m_NetclassPanel.sash_pos );
-
     m_addButton->SetBitmap( KiBitmapBundle( BITMAPS::small_plus ) );
     m_removeButton->SetBitmap( KiBitmapBundle( BITMAPS::small_trash ) );
 
@@ -257,14 +253,6 @@ PANEL_SETUP_NETCLASSES::PANEL_SETUP_NETCLASSES( wxWindow* aParentWindow, EDA_DRA
 
 PANEL_SETUP_NETCLASSES::~PANEL_SETUP_NETCLASSES()
 {
-    COMMON_SETTINGS* cfg = Pgm().GetCommonSettings();
-    cfg->m_NetclassPanel.sash_pos = m_splitter->GetSashPosition();
-
-    if( m_isEEschema )
-        cfg->m_NetclassPanel.eeschema_visible_columns = m_netclassGrid->GetShownColumnsAsString();
-    else
-        cfg->m_NetclassPanel.pcbnew_visible_columns = m_netclassGrid->GetShownColumnsAsString();
-
     // Delete the GRID_TRICKS.
     m_netclassGrid->PopEventHandler( true );
     m_assignmentGrid->PopEventHandler( true );
@@ -287,7 +275,7 @@ void PANEL_SETUP_NETCLASSES::loadNetclasses()
             [&]( int aRow, const NETCLASS* nc )
             {
                 m_netclassGrid->SetCellValue( aRow, GRID_NAME, nc->GetName() );
-                m_netclassGrid->SetCellValue( aRow, GRID_DELAY_PROFILE, nc->GetDelayProfile() );
+                m_netclassGrid->SetCellValue( aRow, GRID_DELAY_PROFILE, nc->GetTuningProfile() );
 
                 m_netclassGrid->SetOptionalUnitValue( aRow, GRID_WIREWIDTH, nc->GetWireWidthOpt() );
                 m_netclassGrid->SetOptionalUnitValue( aRow, GRID_BUSWIDTH, nc->GetBusWidthOpt() );
@@ -486,7 +474,7 @@ bool PANEL_SETUP_NETCLASSES::TransferDataFromWindow()
                     nc->SetPriority( aRow );
 
                 nc->SetName( m_netclassGrid->GetCellValue( aRow, GRID_NAME ) );
-                nc->SetDelayProfile( m_netclassGrid->GetCellValue( aRow, GRID_DELAY_PROFILE ) );
+                nc->SetTuningProfile( m_netclassGrid->GetCellValue( aRow, GRID_DELAY_PROFILE ) );
 
                 nc->SetWireWidth( m_netclassGrid->GetOptionalUnitValue( aRow, GRID_WIREWIDTH ) );
                 nc->SetBusWidth( m_netclassGrid->GetOptionalUnitValue( aRow, GRID_BUSWIDTH ) );

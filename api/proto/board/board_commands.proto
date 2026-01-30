@@ -258,6 +258,40 @@ message PadstackPresenceResponse
   repeated PadstackPresenceEntry entries = 1;
 }
 
+// DRC markers
+
+enum DrcSeverity // Since 10.0
+{
+  DRS_UNKNOWN = 0;
+  DRS_WARNING = 1;
+  DRS_ERROR = 2;
+  DRS_EXCLUSION = 3;
+  DRS_IGNORE = 4;
+  DRS_INFO = 5;
+  DRS_ACTION = 6;
+  DRS_DEBUG = 7;
+  DRS_UNDEFINED = 8;
+}
+
+// Returns InjectDrcErrorResponse
+message InjectDrcError
+{
+  kiapi.common.types.DocumentSpecifier board = 1;
+
+  DrcSeverity severity = 2;
+
+  string message = 3;
+
+  kiapi.common.types.Vector2 position = 4;
+
+  repeated kiapi.common.types.KIID items = 5;
+}
+
+message InjectDrcErrorResponse
+{
+  kiapi.common.types.KIID marker = 1;
+}
+
 // PCB editor commands
 
 // returns BoardLayers

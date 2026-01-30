@@ -54,10 +54,12 @@
 #include <id.h>
 #include <kicad_curl/kicad_curl.h>
 #include <kiplatform/policy.h>
+#include <libraries/library_manager.h>
 #include <macros.h>
 #include <notifications_manager.h>
 #include <paths.h>
 #include <pgm_base.h>
+#include <design_block_library_adapter.h>
 #include <policy_keys.h>
 #include <python_scripting.h>
 #include <settings/common_settings.h>
@@ -67,6 +69,7 @@
 #include <thread_pool.h>
 #include <trace_helpers.h>
 
+#include <widgets/kistatusbar.h>
 #include <widgets/wx_splash.h>
 
 #ifdef KICAD_IPC_API
@@ -184,6 +187,13 @@ void PGM_BASE::Destroy()
 #ifdef _MSC_VER
     winrt::uninit_apartment();
 #endif
+
+    // Shut down the thread pool explicitly here, before static destruction begins.
+    // On macOS, if the thread pool destructor runs during static destruction
+    // (via __cxa_finalize_ranges), the condition variables may be in an invalid state,
+    // causing a crash. By destroying the thread pool here, we ensure it's cleaned up
+    // while the C++ runtime is still in a valid state.
+    m_singleton.Shutdown();
 }
 
 
@@ -256,44 +266,6 @@ const wxString PGM_BASE::AskUserForPreferredEditor( const wxString& aDefaultEdit
     return wxFileSelector( _( "Select Preferred Editor" ), path, name, wxT( "." ) + ext,
                            mask, wxFD_OPEN | wxFD_FILE_MUST_EXIST, nullptr );
 }
-
-
-#ifdef KICAD_USE_SENTRY
-void PGM_BASE::sentryPrompt()
-{
-    if( !IsGUI() )
-        return;
-
-    KIPLATFORM::POLICY::PBOOL policyState = KIPLATFORM::POLICY::GetPolicyBool( POLICY_KEY_DATACOLLECTION );
-
-    if( policyState == KIPLATFORM::POLICY::PBOOL::NOT_CONFIGURED
-            && !m_settings_manager->GetCommonSettings()->m_DoNotShowAgain.data_collection_prompt )
-    {
-        wxMessageDialog optIn = wxMessageDialog(
-                nullptr,
-                _( "KiCad can anonymously report crashes and special event data to developers in order to "
-                   "aid identifying critical bugs and help profile functionality to guide improvements. \n"
-                   "If you choose to voluntarily participate, KiCad will automatically send said reports "
-                   "when crashes or events occur. \n"
-                   "Your design files such as schematic and PCB are not shared in this process." ),
-                _( "Data Collection Opt In" ), wxYES_NO | wxCENTRE );
-
-        optIn.SetYesNoLabels( _( "Opt In" ), _( "Decline" ) );
-        int result = optIn.ShowModal();
-
-        if( result == wxID_YES )
-        {
-            APP_MONITOR::SENTRY::Instance()->SetSentryOptIn( true );
-        }
-        else
-        {
-            APP_MONITOR::SENTRY::Instance()->SetSentryOptIn( false );
-        }
-
-        m_settings_manager->GetCommonSettings()->m_DoNotShowAgain.data_collection_prompt = true;
-    }
-}
-#endif
 
 
 void PGM_BASE::BuildArgvUtf8()
@@ -373,9 +345,11 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
 
     wxInitAllImageHandlers();
 
+#if !wxCHECK_VERSION( 3, 3, 0 )
     // Without this the wxPropertyGridManager segfaults on Windows.
     if( !wxPGGlobalVars )
         wxPGInitResourceModule();
+#endif
 
 #ifndef __WINDOWS__
     if( wxString( wxGetenv( "HOME" ) ).IsEmpty() )
@@ -420,18 +394,6 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
     App().SetVendorName(  wxT( "KiCad" ) );
     App().SetAppName( pgm_name );
 
-    // Install some image handlers, mainly for help
-    if( wxImage::FindHandler( wxBITMAP_TYPE_PNG ) == nullptr )
-        wxImage::AddHandler( new wxPNGHandler );
-
-    if( wxImage::FindHandler( wxBITMAP_TYPE_GIF ) == nullptr )
-        wxImage::AddHandler( new wxGIFHandler );
-
-    if( wxImage::FindHandler( wxBITMAP_TYPE_JPEG ) == nullptr )
-        wxImage::AddHandler( new wxJPEGHandler );
-
-    wxFileSystem::AddHandler( new wxZipFSHandler );
-
     // Analyze the command line & initialize the binary path
     wxString tmp;
     SetLanguagePath();
@@ -452,7 +414,8 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
     winrt::init_apartment(winrt::apartment_type::single_threaded);
 #endif
 
-    m_settings_manager = std::make_unique<SETTINGS_MANAGER>( aHeadless );
+    m_settings_manager = std::make_unique<SETTINGS_MANAGER>();
+    m_library_manager = std::make_unique<LIBRARY_MANAGER>();
     m_background_jobs_monitor = std::make_unique<BACKGROUND_JOBS_MONITOR>();
     m_notifications_manager = std::make_unique<NOTIFICATIONS_MANAGER>();
 
@@ -495,10 +458,6 @@ bool PGM_BASE::InitPgm( bool aHeadless, bool aSkipPyInit, bool aIsUnitTest )
     WarnUserIfOperatingSystemUnsupported();
 
     loadCommonSettings();
-
-#ifdef KICAD_USE_SENTRY
-    sentryPrompt();
-#endif
 
     ReadPdfBrowserInfos();      // needs GetCommonSettings()
 
@@ -834,7 +793,7 @@ bool PGM_BASE::IsGUI()
 }
 
 
-void PGM_BASE::HandleException( std::exception_ptr aPtr )
+void PGM_BASE::HandleException( std::exception_ptr aPtr, bool aUnhandled )
 {
     try
     {
@@ -844,17 +803,29 @@ void PGM_BASE::HandleException( std::exception_ptr aPtr )
     catch( const IO_ERROR& ioe )
     {
         wxLogError( ioe.What() );
+
+        if( aUnhandled )
+        {
+            // Log this IO_ERROR escaped our usual uses (bad)
+            APP_MONITOR::SENTRY::Instance()->LogException( ioe.What(), aUnhandled );
+        }
     }
     catch( const std::exception& e )
     {
-        APP_MONITOR::SENTRY::Instance()->LogException( e.what() );
+        APP_MONITOR::SENTRY::Instance()->LogException( e.what(), aUnhandled );
 
         wxLogError( wxT( "Unhandled exception class: %s  what: %s" ),
                     From_UTF8( typeid( e ).name() ), From_UTF8( e.what() ) );
     }
     catch( ... )
     {
+        // We really shouldn't have these but just in case...
         wxLogError( wxT( "Unhandled exception of unknown type" ) );
+
+        if( aUnhandled )
+        {
+            APP_MONITOR::SENTRY::Instance()->LogException( "Unhandled exception of unknown type", aUnhandled );
+        }
     }
 }
 
@@ -904,6 +875,151 @@ void PGM_BASE::WritePdfBrowserInfos()
 {
     GetCommonSettings()->m_System.pdf_viewer_name = GetPdfBrowserName();
     GetCommonSettings()->m_System.use_system_pdf_viewer = m_use_system_pdf_browser;
+}
+
+
+void PGM_BASE::PreloadDesignBlockLibraries( KIWAY* aKiway )
+{
+    // TODO(JE) much of this code can be shared across the 3 preloads
+    constexpr static int interval = 150;
+    constexpr static int timeLimit = 120000;
+
+    if( m_libraryPreloadInProgress.load() )
+        return;
+
+    m_libraryPreloadBackgroundJob =
+            Pgm().GetBackgroundJobMonitor().Create( _( "Loading Design Block Libraries" ) );
+
+    auto preload =
+        [this, aKiway]() -> void
+        {
+            std::shared_ptr<BACKGROUND_JOB_REPORTER> reporter =
+                    m_libraryPreloadBackgroundJob->m_reporter;
+
+            DESIGN_BLOCK_LIBRARY_ADAPTER* adapter = aKiway->Prj().DesignBlockLibs();
+
+            int elapsed = 0;
+
+            reporter->Report( _( "Loading Design Block Libraries" ) );
+            adapter->AsyncLoad();
+
+            while( true )
+            {
+                if( m_libraryPreloadAbort.load() )
+                {
+                    m_libraryPreloadAbort.store( false );
+                    break;
+                }
+
+                std::this_thread::sleep_for( std::chrono::milliseconds( interval ) );
+
+                if( std::optional<float> loadStatus = adapter->AsyncLoadProgress() )
+                {
+                    float progress = *loadStatus;
+                    reporter->SetCurrentProgress( progress );
+
+                    if( progress >= 1 )
+                        break;
+                }
+                else
+                {
+                    reporter->SetCurrentProgress( 1 );
+                    break;
+                }
+
+                elapsed += interval;
+
+                if( elapsed > timeLimit )
+                    break;
+            }
+
+            adapter->BlockUntilLoaded();
+
+            Pgm().GetBackgroundJobMonitor().Remove( m_libraryPreloadBackgroundJob );
+            m_libraryPreloadBackgroundJob.reset();
+            m_libraryPreloadInProgress.store( false );
+
+            std::string payload = "";
+            aKiway->ExpressMail( FRAME_SCH, MAIL_RELOAD_LIB, payload, nullptr, true );
+            aKiway->ExpressMail( FRAME_PCB_EDITOR, MAIL_RELOAD_LIB, payload, nullptr, true );
+        };
+
+    thread_pool& tp = GetKiCadThreadPool();
+    m_libraryPreloadInProgress.store( true );
+    m_libraryPreloadReturn = tp.submit_task( preload );
+}
+
+
+void PGM_BASE::RegisterLibraryLoadStatusBar( KISTATUSBAR* aStatusBar )
+{
+    std::lock_guard<std::mutex> lock( m_libraryLoadStatusBarsMutex );
+
+    wxLogTrace( traceLibraries, "RegisterLibraryLoadStatusBar: statusBar=%p", aStatusBar );
+
+    if( std::find( m_libraryLoadStatusBars.begin(), m_libraryLoadStatusBars.end(), aStatusBar )
+        == m_libraryLoadStatusBars.end() )
+    {
+        m_libraryLoadStatusBars.push_back( aStatusBar );
+        wxLogTrace( traceLibraries, "  -> registered, total count=%zu",
+                    m_libraryLoadStatusBars.size() );
+    }
+    else
+    {
+        wxLogTrace( traceLibraries, "  -> already registered" );
+    }
+}
+
+
+void PGM_BASE::UnregisterLibraryLoadStatusBar( KISTATUSBAR* aStatusBar )
+{
+    std::lock_guard<std::mutex> lock( m_libraryLoadStatusBarsMutex );
+
+    wxLogTrace( traceLibraries, "UnregisterLibraryLoadStatusBar: statusBar=%p", aStatusBar );
+
+    m_libraryLoadStatusBars.erase(
+            std::remove( m_libraryLoadStatusBars.begin(), m_libraryLoadStatusBars.end(),
+                         aStatusBar ),
+            m_libraryLoadStatusBars.end() );
+
+    wxLogTrace( traceLibraries, "  -> remaining count=%zu", m_libraryLoadStatusBars.size() );
+}
+
+
+void PGM_BASE::AddLibraryLoadMessages( const std::vector<LOAD_MESSAGE>& aMessages )
+{
+    wxLogTrace( traceLibraries, "AddLibraryLoadMessages: message_count=%zu", aMessages.size() );
+
+    if( aMessages.empty() )
+        return;
+
+    std::lock_guard<std::mutex> lock( m_libraryLoadStatusBarsMutex );
+
+    wxLogTrace( traceLibraries, "  -> registered status bars=%zu",
+                m_libraryLoadStatusBars.size() );
+
+    for( KISTATUSBAR* statusBar : m_libraryLoadStatusBars )
+    {
+        if( statusBar )
+        {
+            wxLogTrace( traceLibraries, "  -> forwarding to statusBar=%p", statusBar );
+            statusBar->AddLoadWarningMessages( aMessages );
+        }
+    }
+}
+
+
+void PGM_BASE::ClearLibraryLoadMessages()
+{
+    std::lock_guard<std::mutex> lock( m_libraryLoadStatusBarsMutex );
+
+    wxLogTrace( traceLibraries, "ClearLibraryLoadMessages: status bars=%zu",
+                m_libraryLoadStatusBars.size() );
+
+    for( KISTATUSBAR* statusBar : m_libraryLoadStatusBars )
+    {
+        if( statusBar )
+            statusBar->ClearLoadWarningMessages();
+    }
 }
 
 

@@ -25,7 +25,7 @@
 #include <kiway.h>
 #include <board_commit.h>
 #include <design_block.h>
-#include <design_block_lib_table.h>
+#include <design_block_library_adapter.h>
 #include <footprint.h>
 #include <pad.h>
 #include <pcb_group.h>
@@ -44,6 +44,7 @@
 #include <kidialog.h>
 #include <locale_io.h>
 #include <netinfo.h>
+#include <tool/actions.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_selection_tool.h>
 #include <dialogs/dialog_design_block_properties.h>
@@ -98,7 +99,7 @@ bool PCB_EDIT_FRAME::saveBoardAsFile( BOARD* aBoard, const wxString& aFileName, 
 
     try
     {
-        IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::PluginFind( PCB_IO_MGR::KICAD_SEXP ) );
+        IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::FindPlugin( PCB_IO_MGR::KICAD_SEXP ) );
 
         wxASSERT( pcbFileName.IsAbsolute() );
 
@@ -162,7 +163,8 @@ bool PCB_EDIT_FRAME::SaveBoardAsDesignBlock( const wxString& aLibraryName )
 
     try
     {
-        success = Prj().DesignBlockLibs()->DesignBlockSave( aLibraryName, &blk ) == DESIGN_BLOCK_LIB_TABLE::SAVE_OK;
+        success = Prj().DesignBlockLibs()->SaveDesignBlock( aLibraryName, &blk )
+                == DESIGN_BLOCK_LIBRARY_ADAPTER::SAVE_OK;
     }
     catch( const IO_ERROR& ioe )
     {
@@ -179,7 +181,7 @@ bool PCB_EDIT_FRAME::SaveBoardAsDesignBlock( const wxString& aLibraryName )
 }
 
 
-bool PCB_EDIT_FRAME::SaveBoardToDesignBlock( const LIB_ID& aLibId )
+bool PCB_EDIT_FRAME::UpdateDesignBlockFromBoard( const LIB_ID& aLibId )
 {
     // Make sure the user has selected a library to save into
     if( m_designBlocksPane->GetSelectedLibId().GetLibNickname().empty() )
@@ -192,11 +194,18 @@ bool PCB_EDIT_FRAME::SaveBoardToDesignBlock( const LIB_ID& aLibId )
 
     try
     {
-        blk.reset( Prj().DesignBlockLibs()->DesignBlockLoad( aLibId.GetLibNickname(), aLibId.GetLibItemName() ) );
+        blk.reset( Prj().DesignBlockLibs()->LoadDesignBlock( aLibId.GetLibNickname(), aLibId.GetLibItemName() ) );
     }
     catch( const IO_ERROR& ioe )
     {
         DisplayError( this, ioe.What() );
+        return false;
+    }
+
+    if( !blk )
+    {
+        DisplayErrorMessage(
+                this, wxString::Format( _( "Design block '%s' does not exist." ), aLibId.GetUniStringLibItemName() ) );
         return false;
     }
 
@@ -219,8 +228,8 @@ bool PCB_EDIT_FRAME::SaveBoardToDesignBlock( const LIB_ID& aLibId )
 
     try
     {
-        success = Prj().DesignBlockLibs()->DesignBlockSave( aLibId.GetLibNickname(), blk.get() )
-                  == DESIGN_BLOCK_LIB_TABLE::SAVE_OK;
+        success = Prj().DesignBlockLibs()->SaveDesignBlock( aLibId.GetLibNickname(), blk.get() )
+                  == DESIGN_BLOCK_LIBRARY_ADAPTER::SAVE_OK;
     }
     catch( const IO_ERROR& ioe )
     {
@@ -325,7 +334,8 @@ bool PCB_EDIT_FRAME::saveSelectionToDesignBlock( const wxString& aNickname, PCB_
 
     try
     {
-        success = Prj().DesignBlockLibs()->DesignBlockSave( aNickname, &aBlock ) == DESIGN_BLOCK_LIB_TABLE::SAVE_OK;
+        success = Prj().DesignBlockLibs()->SaveDesignBlock( aNickname, &aBlock )
+                == DESIGN_BLOCK_LIBRARY_ADAPTER::SAVE_OK;
     }
     catch( const IO_ERROR& ioe )
     {
@@ -361,9 +371,20 @@ bool PCB_EDIT_FRAME::SaveSelectionAsDesignBlock( const wxString& aLibraryName )
     }
 
     DESIGN_BLOCK blk;
-    wxFileName   fn = wxFileNameFromPath( GetBoard()->GetFileName() );
+    PCB_GROUP*   group = nullptr;
 
-    blk.SetLibId( LIB_ID( aLibraryName, fn.GetName() ) );
+    if( selection.Size() == 1 && selection.HasType( PCB_GROUP_T ) )
+        group = static_cast<PCB_GROUP*>( selection.Front() );
+
+    if( group && !group->GetName().IsEmpty() )
+        // If the user has selected a single group, they probably want the design block named after the group
+        blk.SetLibId( LIB_ID( aLibraryName, group->GetName() ) );
+    else
+    {
+        // Otherwise, use the current screen name
+        wxFileName fn = wxFileNameFromPath( GetBoard()->GetFileName() );
+        blk.SetLibId( LIB_ID( aLibraryName, fn.GetName() ) );
+    }
 
     DIALOG_DESIGN_BLOCK_PROPERTIES dlg( this, &blk );
 
@@ -378,11 +399,82 @@ bool PCB_EDIT_FRAME::SaveSelectionAsDesignBlock( const wxString& aLibraryName )
         return false;
     }
 
-    return saveSelectionToDesignBlock( libName, selection, blk );
+    // If we have a single group, we want to strip the group and select the children
+    if( group )
+    {
+        selection.Remove( group );
+
+        // Don't recurse; if we have a group of groups the user probably intends the inner groups to be saved
+        group->RunOnChildren(
+                [&]( EDA_ITEM* aItem )
+                {
+                    selection.Add( aItem );
+                },
+                RECURSE_MODE::NO_RECURSE );
+    }
+
+    bool success = saveSelectionToDesignBlock( libName, selection, blk );
+
+    if( success && !group )
+    {
+        BOARD_COMMIT commit( m_toolManager );
+
+        PCB_GROUP* newGroup = new PCB_GROUP( GetBoard() );
+        newGroup->SetName( blk.GetLibId().GetUniStringLibItemName() );
+        newGroup->SetDesignBlockLibId( blk.GetLibId() );
+
+        bool added = false;
+
+        for( EDA_ITEM* edaItem : selection )
+        {
+            if( !edaItem->IsBOARD_ITEM() )
+                continue;
+
+            BOARD_ITEM* item = static_cast<BOARD_ITEM*>( edaItem );
+
+            if( item->GetParentFootprint() )
+                continue;
+
+            if( !item->IsGroupableType() )
+                continue;
+
+            if( EDA_GROUP* existingGroup = item->GetParentGroup() )
+                commit.Modify( existingGroup->AsEdaItem(), nullptr, RECURSE_MODE::NO_RECURSE );
+
+            commit.Modify( item, nullptr, RECURSE_MODE::NO_RECURSE );
+            newGroup->AddItem( item );
+            added = true;
+        }
+
+        if( added )
+        {
+            commit.Add( newGroup );
+            commit.Push( _( "Group Items" ) );
+
+            m_toolManager->RunAction( ACTIONS::selectionClear );
+            m_toolManager->RunAction( ACTIONS::selectItem, newGroup->AsEdaItem() );
+        }
+        else
+        {
+            delete newGroup;
+        }
+    }
+
+    if( success && group && !group->HasDesignBlockLink() )
+    {
+        BOARD_COMMIT commit( m_toolManager );
+
+        commit.Modify( group, nullptr, RECURSE_MODE::NO_RECURSE );
+        group->SetDesignBlockLibId( blk.GetLibId() );
+
+        commit.Push( _( "Set Group Design Block Link" ) );
+    }
+
+    return success;
 }
 
 
-bool PCB_EDIT_FRAME::SaveSelectionToDesignBlock( const LIB_ID& aLibId )
+bool PCB_EDIT_FRAME::UpdateDesignBlockFromSelection( const LIB_ID& aLibId )
 {
     // Make sure the user has selected a library to save into
     if( !aLibId.IsValid() )
@@ -422,11 +514,18 @@ bool PCB_EDIT_FRAME::SaveSelectionToDesignBlock( const LIB_ID& aLibId )
 
     try
     {
-        blk.reset( Prj().DesignBlockLibs()->DesignBlockLoad( aLibId.GetLibNickname(), aLibId.GetLibItemName() ) );
+        blk.reset( Prj().DesignBlockLibs()->LoadDesignBlock( aLibId.GetLibNickname(), aLibId.GetLibItemName() ) );
     }
     catch( const IO_ERROR& ioe )
     {
         DisplayError( this, ioe.What() );
+        return false;
+    }
+
+    if( !blk )
+    {
+        DisplayErrorMessage(
+                this, wxString::Format( _( "Design block '%s' does not exist." ), aLibId.GetUniStringLibItemName() ) );
         return false;
     }
 
@@ -450,7 +549,51 @@ bool PCB_EDIT_FRAME::SaveSelectionToDesignBlock( const LIB_ID& aLibId )
             commit.Modify( group, nullptr, RECURSE_MODE::NO_RECURSE );
             group->SetDesignBlockLibId( aLibId );
 
-            commit.Push( "Set Group Design Block Link" );
+            commit.Push( _( "Set Group Design Block Link" ) );
+        }
+    }
+    else
+    {
+        BOARD_COMMIT commit( m_toolManager );
+
+        PCB_GROUP* newGroup = new PCB_GROUP( GetBoard() );
+        newGroup->SetName( aLibId.GetUniStringLibItemName() );
+        newGroup->SetDesignBlockLibId( aLibId );
+
+        bool added = false;
+
+        for( EDA_ITEM* edaItem : selection )
+        {
+            if( !edaItem->IsBOARD_ITEM() )
+                continue;
+
+            BOARD_ITEM* item = static_cast<BOARD_ITEM*>( edaItem );
+
+            if( item->GetParentFootprint() )
+                continue;
+
+            if( !item->IsGroupableType() )
+                continue;
+
+            if( EDA_GROUP* existingGroup = item->GetParentGroup() )
+                commit.Modify( existingGroup->AsEdaItem(), nullptr, RECURSE_MODE::NO_RECURSE );
+
+            commit.Modify( item, nullptr, RECURSE_MODE::NO_RECURSE );
+            newGroup->AddItem( item );
+            added = true;
+        }
+
+        if( added )
+        {
+            commit.Add( newGroup );
+            commit.Push( _( "Group Items" ) );
+
+            m_toolManager->RunAction( ACTIONS::selectionClear );
+            m_toolManager->RunAction( ACTIONS::selectItem, newGroup->AsEdaItem() );
+        }
+        else
+        {
+            delete newGroup;
         }
     }
 

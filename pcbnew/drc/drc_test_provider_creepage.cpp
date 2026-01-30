@@ -173,10 +173,10 @@ int DRC_TEST_PROVIDER_CREEPAGE::testCreepage( CREEPAGE_GRAPH& aGraph, int aNetCo
     if( !shortestPath.empty() && ( shortestPath.size() >= 4 ) && ( distance - creepageValue < 0 ) )
     {
         std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_CREEPAGE );
-        wxString msg = formatMsg( _( "(%s creepage %s; actual %s)" ),
-                                  constraint.GetName(),
-                                  creepageValue, distance );
-        drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + msg );
+        drcItem->SetErrorDetail( formatMsg( _( "(%s creepage %s; actual %s)" ),
+                                            constraint.GetName(),
+                                            creepageValue,
+                                            distance ) );
         drcItem->SetViolatingRule( constraint.GetParentRule() );
 
         std::shared_ptr<GRAPH_CONNECTION> gc1 = shortestPath[1];
@@ -311,7 +311,7 @@ int DRC_TEST_PROVIDER_CREEPAGE::testCreepage()
 
     SHAPE_POLY_SET outline;
 
-    if( !m_board->GetBoardPolygonOutlines( outline ) )
+    if( !m_board->GetBoardPolygonOutlines( outline, false ) )
         return -1;
 
     const DRAWINGS drawings = m_board->Drawings();

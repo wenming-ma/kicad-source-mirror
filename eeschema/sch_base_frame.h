@@ -27,12 +27,14 @@
 
 #include <eda_draw_frame.h>
 #include <frame_type.h>
+#include <libraries/library_table.h>
 #include <sch_draw_panel.h>
 #include <sch_screen.h>
 #include <schematic_settings.h>
 
 #include <stddef.h>
 #include <utility>
+#include <future>
 #include <vector>
 #include <wx/event.h>
 #include <wx/datetime.h>
@@ -49,10 +51,10 @@ class TITLE_BLOCK;
 class SYMBOL_VIEWER_FRAME;
 class SYMBOL_EDIT_FRAME;
 class LIB_SYMBOL;
-class SYMBOL_LIB;
+class LEGACY_SYMBOL_LIB;
 class SYMBOL_LIBRARY_FILTER;
 class LIB_ID;
-class SYMBOL_LIB_TABLE;
+class SYMBOL_LIBRARY_ADAPTER;
 class EESCHEMA_SETTINGS;
 class SYMBOL_EDITOR_SETTINGS;
 struct SCH_SELECTION_FILTER_OPTIONS;
@@ -65,6 +67,7 @@ class SPNAV_2D_PLUGIN;
 
 class PANEL_SCH_SELECTION_FILTER;
 class DIALOG_SCH_FIND;
+struct BACKGROUND_JOB;
 
 #ifdef wxHAS_INOTIFY
 #define wxFileSystemWatcher wxInotifyFileSystemWatcher
@@ -88,15 +91,15 @@ class wxFileSystemWatcherEvent;
  * check the optional cache library.
  *
  * @param aLibId is the symbol library identifier to load.
- * @param aLibTable is the #SYMBOL_LIBRARY_TABLE to load the alias from.
+ * @param aLibMgr is the #SYMBOL_LIBRARY_MANAGER_ADAPTER to load the alias from.
  * @param aCacheLib is an optional cache library.
  * @param aParent is an optional parent window when displaying an error message.
  * @param aShowErrorMessage set to true to show any error messages.
  *
  * @return The symbol found in the library or NULL if the symbol was not found.
  */
-LIB_SYMBOL* SchGetLibSymbol( const LIB_ID& aLibId, SYMBOL_LIB_TABLE* aLibTable,
-                             SYMBOL_LIB* aCacheLib = nullptr, wxWindow* aParent = nullptr,
+LIB_SYMBOL* SchGetLibSymbol( const LIB_ID& aLibId, SYMBOL_LIBRARY_ADAPTER* aLibMgr,
+                             LEGACY_SYMBOL_LIB* aCacheLib = nullptr, wxWindow* aParent = nullptr,
                              bool aShowErrorMsg = false );
 
 /**
@@ -155,7 +158,6 @@ public:
     void SetTitleBlock( const TITLE_BLOCK& aTitleBlock ) override;
 
     void UpdateStatusBar() override;
-
 
     /**
      * Call the library viewer to select symbol to import into schematic.
@@ -298,15 +300,6 @@ protected:
     void handleIconizeEvent( wxIconizeEvent& aEvent ) override;
 
     void doCloseWindow() override;
-
-    /**
-     * Save Symbol Library Tables to disk.
-     *
-     * @param aGlobal when true, the Global Table is saved.
-     * @param aProject when true, the Project Table is saved.
-     * @return True when all requested actions succeeded.
-     */
-    bool saveSymbolLibTables( bool aGlobal, bool aProject );
 
     /**
      * Creates (or removes) a watcher on the specified symbol library

@@ -29,16 +29,10 @@
  */
 
 #include <footprint_info.h>
-#include <fp_lib_table.h>
 #include <dialogs/html_message_box.h>
 #include <string_utils.h>
-#include <kiface_ids.h>
-#include <kiway.h>
 #include <lib_id.h>
-#include <thread>
-#include <utility>
 #include <wx/tokenzr.h>
-#include <kiface_base.h>
 
 FOOTPRINT_INFO* FOOTPRINT_LIST::GetFootprintInfo( const wxString& aLibNickname,
                                                   const wxString& aFootprintName )
@@ -139,38 +133,17 @@ void FOOTPRINT_LIST::DisplayErrors( wxTopLevelWindow* aWindow )
 }
 
 
-static FOOTPRINT_LIST* get_instance_from_id( KIWAY& aKiway, int aId )
+wxString FOOTPRINT_LIST::GetErrorMessages()
 {
-    void* ptr = nullptr;
+    wxString messages;
 
-    try
+    while( std::unique_ptr<IO_ERROR> error = PopError() )
     {
-        ptr = Kiface().IfaceOrAddress( aId );
+        if( !messages.IsEmpty() )
+            messages += wxS( "\n" );
 
-        if( !ptr )
-        {
-            KIFACE* kiface = aKiway.KiFACE( KIWAY::FACE_PCB );
-            ptr = kiface->IfaceOrAddress( aId );
-        }
-
-        return static_cast<FOOTPRINT_LIST*>( ptr );
+        messages += error->Problem();
     }
-    catch( ... )
-    {
-        return nullptr;
-    }
-}
 
-
-FOOTPRINT_LIST* FOOTPRINT_LIST::GetInstance( KIWAY& aKiway )
-{
-    FOOTPRINT_LIST* footprintInfo = get_instance_from_id( aKiway, KIFACE_FOOTPRINT_LIST );
-
-    if( !footprintInfo )
-        return nullptr;
-
-    if( !footprintInfo->GetCount() )
-        footprintInfo->ReadCacheFromFile( aKiway.Prj().GetProjectPath() + wxS( "fp-info-cache" ) );
-
-    return footprintInfo;
+    return messages;
 }

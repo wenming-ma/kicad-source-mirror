@@ -42,6 +42,13 @@ namespace TMATCH
 class PIN;
 class CONNECTION_GRAPH;
 
+struct TOPOLOGY_MISMATCH_REASON
+{
+    wxString m_reference;
+    wxString m_candidate;
+    wxString m_reason;
+};
+
 class COMPONENT
 {
     friend class PIN;
@@ -54,7 +61,7 @@ public:
     bool               IsSameKind( const COMPONENT& b ) const;
     void               AddPin( PIN* p );
     int                GetPinCount() const { return m_pins.size(); }
-    bool               MatchesWith( COMPONENT* b );
+    bool               MatchesWith( COMPONENT* b, TOPOLOGY_MISMATCH_REASON& aDetail );
     std::vector<PIN*>& Pins() { return m_pins; }
     FOOTPRINT* GetParent() const { return m_parentFootprint; }
 
@@ -64,6 +71,22 @@ public:
 private:
     void sortPinsByName();
 
+    /**
+     * Check if a suffix looks like a channel identifier.
+     *
+     * Channel identifiers contain no letters, only digits and separator symbols
+     * (dots, underscores, hyphens, etc.).
+     */
+    static bool isChannelSuffix( const wxString& aSuffix );
+
+    /**
+     * Check if two prefixes share a common starting sequence.
+     *
+     * The remaining parts after the common prefix must be valid channel suffixes
+     * (no letters). This handles multi-channel designs where components have
+     * hierarchical reference designators like TRIM_1.1 and TRIM_2.1.
+     */
+    static bool prefixesShareCommonBase( const wxString& aPrefixA, const wxString& aPrefixB );
 
     std::optional<VECTOR2I> m_raOffset;
     wxString          m_reference;
@@ -96,7 +119,7 @@ public:
         return m_ref == b.m_ref;
     }
 
-    bool IsIsomorphic( const PIN& b ) const;
+    bool IsIsomorphic( const PIN& b, TOPOLOGY_MISMATCH_REASON& aDetail ) const;
 
     int GetNetCode() const { return m_netcode; }
 
@@ -153,38 +176,24 @@ class CONNECTION_GRAPH
 public:
     const int c_ITER_LIMIT = 10000;
 
-    enum STATUS
-    {
-        ST_TOPOLOGY_MISMATCH = -10,
-        ST_ITERATION_COUNT_EXCEEDED,
-        ST_COMPONENT_COUNT_MISMATCH,
-        ST_EMPTY,
-        ST_OK = 0
-    };
-
     CONNECTION_GRAPH();
     ~CONNECTION_GRAPH();
 
     void   BuildConnectivity();
     void   AddFootprint( FOOTPRINT* aFp, const VECTOR2I& aOffset );
-    STATUS FindIsomorphism( CONNECTION_GRAPH* target, COMPONENT_MATCHES& result );
+    bool   FindIsomorphism( CONNECTION_GRAPH* target, COMPONENT_MATCHES& result,
+                            std::vector<TOPOLOGY_MISMATCH_REASON>& aFailureDetails );
     static std::unique_ptr<CONNECTION_GRAPH> BuildFromFootprintSet( const std::set<FOOTPRINT*>& aFps );
     std::vector<COMPONENT*> &Components() { return m_components; }
 
 private:
-    void sortByPinCount()
-    {
-        std::sort( m_components.begin(), m_components.end(),
-                   []( COMPONENT* a, COMPONENT* b )
-                   {
-                       return a->GetPinCount() > b->GetPinCount();
-                   } );
-    }
+    void sortByPinCount();
 
 
     std::vector<COMPONENT*> findMatchingComponents( CONNECTION_GRAPH* aRefGraph,
                                                     COMPONENT*             ref,
-                                                    const BACKTRACK_STAGE& partialMatches );
+                                                    const BACKTRACK_STAGE& partialMatches,
+                                                    std::vector<TOPOLOGY_MISMATCH_REASON>& aFailureDetails );
 
     std::vector<COMPONENT*> m_components;
 

@@ -401,6 +401,9 @@ void BRDITEMS_PLOTTER::PlotFootprintTextItems( const FOOTPRINT* aFootprint )
     if( !GetPlotFPText() )
         return;
 
+    const wxString variantName = m_board ? m_board->GetCurrentVariant() : wxString();
+    const bool     dnp = aFootprint->GetDNPForVariant( variantName );
+
     const PCB_TEXT* reference = &aFootprint->Reference();
     PCB_LAYER_ID    refLayer = reference->GetLayer();
 
@@ -408,10 +411,10 @@ void BRDITEMS_PLOTTER::PlotFootprintTextItems( const FOOTPRINT* aFootprint )
     if( GetPlotReference()
             && m_layerMask[refLayer]
             && reference->IsVisible()
-            && !( aFootprint->IsDNP() && hideDNPItems( refLayer ) ) )
+            && !( dnp && hideDNPItems( refLayer ) ) )
     {
         PlotText( reference, refLayer, reference->IsKnockout(), reference->GetFontMetrics(),
-                  aFootprint->IsDNP() && crossoutDNPItems( refLayer ) );
+                  dnp && crossoutDNPItems( refLayer ) );
     }
 
     const PCB_TEXT* value  = &aFootprint->Value();
@@ -420,7 +423,7 @@ void BRDITEMS_PLOTTER::PlotFootprintTextItems( const FOOTPRINT* aFootprint )
     if( GetPlotValue()
             && m_layerMask[valueLayer]
             && value->IsVisible()
-            && !( aFootprint->IsDNP() && hideDNPItems( valueLayer ) ) )
+            && !( dnp && hideDNPItems( valueLayer ) ) )
     {
         PlotText( value, valueLayer, value->IsKnockout(), value->GetFontMetrics(), false );
     }
@@ -430,6 +433,8 @@ void BRDITEMS_PLOTTER::PlotFootprintTextItems( const FOOTPRINT* aFootprint )
     // Skip the reference and value texts that are handled specially
     for( PCB_FIELD* field : aFootprint->GetFields() )
     {
+        wxCHECK2( field, continue );
+
         if( field->IsReference() || field->IsValue() )
             continue;
 
@@ -451,7 +456,7 @@ void BRDITEMS_PLOTTER::PlotFootprintTextItems( const FOOTPRINT* aFootprint )
         if( textLayer == Edge_Cuts || textLayer >= PCB_LAYER_ID_COUNT )
             continue;
 
-        if( aFootprint->IsDNP() && hideDNPItems( textLayer ) )
+        if( dnp && hideDNPItems( textLayer ) )
             continue;
 
         if( !m_layerMask[textLayer] || aFootprint->GetPrivateLayers().test( textLayer ) )
@@ -462,7 +467,7 @@ void BRDITEMS_PLOTTER::PlotFootprintTextItems( const FOOTPRINT* aFootprint )
             if( !GetPlotReference() )
                 continue;
 
-            strikeout = aFootprint->IsDNP() && crossoutDNPItems( textLayer );
+            strikeout = dnp && crossoutDNPItems( textLayer );
         }
 
         if( text->GetText() == wxT( "${VALUE}" ) )
@@ -657,6 +662,9 @@ void BRDITEMS_PLOTTER::PlotPcbTarget( const PCB_TARGET* aMire )
 
 void BRDITEMS_PLOTTER::PlotFootprintGraphicItems( const FOOTPRINT* aFootprint )
 {
+    const wxString variantName = m_board ? m_board->GetCurrentVariant() : wxString();
+    const bool     dnp = aFootprint->GetDNPForVariant( variantName );
+
     for( const BOARD_ITEM* item : aFootprint->GraphicalItems() )
     {
         PCB_LAYER_ID itemLayer = item->GetLayer();
@@ -664,7 +672,7 @@ void BRDITEMS_PLOTTER::PlotFootprintGraphicItems( const FOOTPRINT* aFootprint )
         if( aFootprint->GetPrivateLayers().test( itemLayer ) )
             continue;
 
-        if( aFootprint->IsDNP() && hideDNPItems( itemLayer ) )
+        if( dnp && hideDNPItems( itemLayer ) )
             continue;
 
         if( !( m_layerMask & item->GetLayerSet() ).any() )
@@ -941,6 +949,8 @@ void BRDITEMS_PLOTTER::PlotShape( const PCB_SHAPE* aShape )
 
     const FOOTPRINT* parentFP = aShape->GetParentFootprint();
     GBR_METADATA     gbr_metadata;
+    const wxString   variantName = m_board ? m_board->GetCurrentVariant() : wxString();
+    const bool       parentDnp = parentFP ? parentFP->GetDNPForVariant( variantName ) : false;
 
     if( parentFP )
     {
@@ -948,7 +958,7 @@ void BRDITEMS_PLOTTER::PlotShape( const PCB_SHAPE* aShape )
         gbr_metadata.SetNetAttribType( GBR_NETLIST_METADATA::GBR_NETINFO_CMP );
     }
 
-    if( parentFP && parentFP->IsDNP() && GetSketchDNPFPsOnFabLayers() )
+    if( parentFP && parentDnp && GetSketchDNPFPsOnFabLayers() )
     {
         if( aShape->GetLayer() == F_Fab || aShape->GetLayer() == B_Fab )
         {
@@ -1099,18 +1109,18 @@ void BRDITEMS_PLOTTER::PlotShape( const PCB_SHAPE* aShape )
                 BOX2I box( aShape->GetStart(), VECTOR2I( aShape->GetEnd().x - aShape->GetStart().x,
                                                          aShape->GetEnd().y - aShape->GetStart().y ) );
                 box.Normalize();
+
+                if( margin < 0 )
+                {
+                    box.Inflate( margin );
+                    radius += margin;
+                }
+
                 SHAPE_RECT rect( box );
                 rect.SetRadius( radius );
 
                 SHAPE_LINE_CHAIN outline = rect.Outline();
-                SHAPE_POLY_SET  poly;
-                poly.NewOutline();
-
-                for( int ii = 0; ii < outline.PointCount(); ++ii )
-                    poly.Append( outline.CPoint( ii ) );
-
-                if( margin < 0 )
-                    poly.Inflate( margin / 2, CORNER_STRATEGY::ROUND_ALL_CORNERS, aShape->GetMaxError() );
+                SHAPE_POLY_SET  poly( outline );
 
                 FILL_T fill_mode = isSolidFill ? FILL_T::FILLED_SHAPE : FILL_T::NO_FILL;
 
@@ -1119,11 +1129,11 @@ void BRDITEMS_PLOTTER::PlotShape( const PCB_SHAPE* aShape )
                     if( m_plotter->GetPlotterType() == PLOT_FORMAT::GERBER )
                     {
                         GERBER_PLOTTER* gbr_plotter = static_cast<GERBER_PLOTTER*>( m_plotter );
-                        gbr_plotter->PlotPolyAsRegion( poly.COutline( 0 ), fill_mode, thickness,
-                                                       &gbr_metadata );
+                        gbr_plotter->PlotPolyAsRegion( poly.COutline( 0 ), fill_mode, thickness, &gbr_metadata );
                     }
                     else
                     {
+                        // TODO: PlotPoly needs to handle arcs...
                         m_plotter->PlotPoly( poly.COutline( 0 ), fill_mode, thickness, getMetadata() );
                     }
                 }

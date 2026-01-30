@@ -22,7 +22,7 @@
  */
 
 #include <class_draw_panel_gal.h>
-#include <symbol_library.h>
+#include <libraries/legacy_symbol_library.h>
 #include <dialog_rescue_each_base.h>
 #include <eeschema_settings.h>
 #include <invoke_sch_dialog.h>
@@ -32,6 +32,7 @@
 #include <sch_edit_frame.h>
 #include <set>
 #include <symbol_preview_widget.h>
+#include <confirm.h>
 
 #include <wx/msgdlg.h>
 #include <wx/dcclient.h>
@@ -279,12 +280,12 @@ bool DIALOG_RESCUE_EACH::TransferDataFromWindow()
 
 void DIALOG_RESCUE_EACH::OnNeverShowClick( wxCommandEvent& aEvent )
 {
-    wxMessageDialog dlg( GetParent(),
-                         _(  "Stop showing this tool?\n"
-                             "No changes will be made.\n\n"
-                             "This setting can be changed from the \"Preferences\" dialog,\n"
-                             "and the tool can be activated manually from the \"Tools\" menu." ),
-                         _( "Rescue Symbols" ), wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION );
+    KICAD_MESSAGE_DIALOG dlg( GetParent(),
+                              _( "Stop showing this tool?\n"
+                                 "No changes will be made.\n\n"
+                                 "This setting can be changed from the \"Preferences\" dialog,\n"
+                                 "and the tool can be activated manually from the \"Tools\" menu." ),
+                              _( "Rescue Symbols" ), wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION );
     int resp = dlg.ShowModal ();
 
     if( resp == wxID_YES )

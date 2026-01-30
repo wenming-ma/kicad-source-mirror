@@ -29,6 +29,7 @@
  */
 #include <array>
 #include <map>
+#include <mutex>
 #include <vector>
 #include <kiid.h>
 #include <wx_filename.h>
@@ -42,14 +43,13 @@
 /// default name for nameless projects
 #define NAMELESS_PROJECT _( "untitled" )
 
-class DESIGN_BLOCK_LIB_TABLE;
-class FP_LIB_TABLE;
-class SYMBOL_LIBS;
+class DESIGN_BLOCK_LIBRARY_ADAPTER;
+class LEGACY_SYMBOL_LIBS;
 class SEARCH_STACK;
 class S3D_CACHE;
 class KIWAY;
-class SYMBOL_LIB_TABLE;
 class FILENAME_RESOLVER;
+class FOOTPRINT_LIBRARY_ADAPTER;
 class PROJECT_FILE;
 class PROJECT_LOCAL_SETTINGS;
 class LOCKFILE;
@@ -69,15 +69,10 @@ public:
      */
     enum class ELEM
     {
-        FPTBL,
-
-        SCH_SYMBOL_LIBS,
+        LEGACY_SYMBOL_LIBS,
         SCH_SEARCH_STACK,
         S3DCACHE,
-        SYMBOL_LIB_TABLE,
         SEARCH_STACK,
-
-        DESIGN_BLOCK_LIB_TABLE,
 
         SCHEMATIC,
         BOARD,
@@ -166,6 +161,10 @@ public:
     virtual bool IsReadOnly() const { return m_readOnly || IsNullProject(); }
 
     virtual void SetReadOnly( bool aReadOnly = true ) { m_readOnly = aReadOnly; }
+
+    virtual bool IsLockOverrideGranted() const { return m_lockOverrideGranted; }
+
+    virtual void SetLockOverrideGranted( bool aGranted = true ) { m_lockOverrideGranted = aGranted; }
 
     /**
      * Return the name of the sheet identified by the given UUID.
@@ -289,19 +288,28 @@ public:
     virtual const wxString AbsolutePath( const wxString& aFileName ) const;
 
     /**
-     * Return the table of footprint libraries. Requires an active Kiway as this is fetched
-     * from Pcbnew.
+     * Fetches the footprint library adapter from the PCB editor instance
      */
-    virtual FP_LIB_TABLE* PcbFootprintLibs( KIWAY& aKiway );
+    virtual FOOTPRINT_LIBRARY_ADAPTER* FootprintLibAdapter( KIWAY& aKiway );
 
     /**
      * Return the table of design block libraries.
      */
-    virtual DESIGN_BLOCK_LIB_TABLE* DesignBlockLibs();
+    virtual DESIGN_BLOCK_LIBRARY_ADAPTER* DesignBlockLibs();
 
     void SetProjectLock( LOCKFILE* aLockFile );
 
     LOCKFILE* GetProjectLock() const;
+
+    /**
+     * Save project files (.kicad_pro and .kicad_prl) to the .history directory.
+     *
+     * This method is used as a saver callback for LOCAL_HISTORY during autosave operations.
+     *
+     * @param aProjectPath The path to check against this project's path
+     * @param aFiles Output vector to append absolute file paths for history inclusion
+     */
+    void SaveToHistory( const wxString& aProjectPath, std::vector<wxString>& aFiles );
 
 private:
     friend class SETTINGS_MANAGER; // so that SM can set project path
@@ -355,6 +363,7 @@ private:
     wxFileName      m_project_name;         ///< \<fullpath\>/\<basename\>.pro
 
     bool            m_readOnly;             ///< No project files will be written to disk
+    bool            m_lockOverrideGranted;  ///< User granted override at project level
     int             m_textVarsTicker;       ///< Update counter on text vars
     int             m_netclassesTicker;     ///< Update counter on netclasses
 
@@ -374,6 +383,9 @@ private:
 
     /// Lock
     std::unique_ptr<LOCKFILE> m_project_lock;
+
+    /// Synchronise access to DesignBlockLibs()
+    std::mutex m_designBlockLibsMutex;
 };
 
 

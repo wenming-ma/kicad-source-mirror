@@ -187,11 +187,6 @@ public:
         bool filter_on_pin_count;
     };
 
-    struct ZONES
-    {
-        int         net_sort_mode;
-    };
-
     struct DISPLAY_OPTIONS
     {
         // Note: Display options common to  Cvpcb and Pcbnew are stored in
@@ -237,8 +232,6 @@ public:
     DIALOG_DRC         m_DRCDialog;
     FOOTPRINT_CHOOSER  m_FootprintChooser;
 
-    ZONES              m_Zones;
-
     WINDOW_SETTINGS    m_FootprintViewer;
     WINDOW_SETTINGS    m_FootprintWizard;
 
@@ -268,8 +261,6 @@ public:
     bool      m_AllowFreePads;  // True: unlocked pads can be moved freely with respect to the footprint.
                                 // False (default): all pads are treated as locked for the purposes of
                                 // movement and any attempt to move them will move the footprint instead.
-
-    wxString  m_FootprintTextShownColumns;
 
     std::unique_ptr<PNS::ROUTING_SETTINGS> m_PnsSettings;
 

@@ -34,7 +34,8 @@
 CLI::SCH_EXPORT_BOM_COMMAND::SCH_EXPORT_BOM_COMMAND() : COMMAND( "bom" )
 {
     m_argParser.add_description( UTF8STDSTR( _( "Generate a Bill of Materials (BOM)" ) ) );
-    addCommonArgs( true, true, false, false );
+    addCommonArgs( true, true, INPUT_TYPE::FILE, false );
+    addVariantsArg();
 
     // Preset options
     m_argParser.add_argument( ARG_PRESET )
@@ -70,7 +71,6 @@ CLI::SCH_EXPORT_BOM_COMMAND::SCH_EXPORT_BOM_COMMAND() : COMMAND( "bom" )
 
     m_argParser.add_argument( ARG_SORT_ASC )
             .help( UTF8STDSTR( _( ARG_SORT_ASC_DESC ) ) )
-            .implicit_value( true )
             .default_value( true );
 
     m_argParser.add_argument( ARG_FILTER )
@@ -139,6 +139,7 @@ int CLI::SCH_EXPORT_BOM_COMMAND::doPerform( KIWAY& aKiway )
     // Basic options
     bomJob->m_filename = m_argInput;
     bomJob->SetConfiguredOutputPath( m_argOutput );
+    bomJob->m_variantNames = m_argVariantNames;
 
     bomJob->m_bomPresetName = From_UTF8( m_argParser.get<std::string>( ARG_PRESET ).c_str() );
     bomJob->m_bomFmtPresetName = From_UTF8( m_argParser.get<std::string>( ARG_FMT_PRESET ).c_str() );

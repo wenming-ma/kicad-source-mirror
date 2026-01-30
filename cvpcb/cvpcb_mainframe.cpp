@@ -27,7 +27,7 @@
 #include <bitmaps.h>
 #include <confirm.h>
 #include <eda_dde.h>
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include <kiface_base.h>
 #include <kiplatform/app.h>
 #include <kiway_express.h>
@@ -36,12 +36,14 @@
 #include <netlist_reader/netlist_reader.h>
 #include <lib_tree_model_adapter.h>
 #include <numeric>
+#include <richio.h>
 #include <tool/action_manager.h>
 #include <tool/action_toolbar.h>
 #include <tool/common_control.h>
 #include <tool/editor_conditions.h>
 #include <tool/tool_dispatcher.h>
 #include <tool/tool_manager.h>
+#include <widgets/kistatusbar.h>
 #include <widgets/wx_progress_reporters.h>
 
 #include <cvpcb_association.h>
@@ -50,6 +52,7 @@
 #include <settings/settings_manager.h>
 #include <settings/cvpcb_settings.h>
 #include <display_footprints_frame.h>
+#include <footprint_info_impl.h>
 #include <kiplatform/ui.h>
 #include <listboxes.h>
 #include <tools/cvpcb_actions.h>
@@ -79,7 +82,7 @@ CVPCB_MAINFRAME::CVPCB_MAINFRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_cannotClose         = false;
     m_skipComponentSelect = false;
     m_filteringOptions    = FOOTPRINTS_LISTBOX::UNFILTERED_FP_LIST;
-    m_FootprintsList      = FOOTPRINT_LIST::GetInstance( Kiway() );
+    m_FootprintsList      = new FOOTPRINT_LIST_IMPL();
     m_initialized         = false;
     m_aboutTitle          = _( "Assign Footprints" );
 
@@ -141,7 +144,7 @@ CVPCB_MAINFRAME::CVPCB_MAINFRAME( KIWAY* aKiway, wxWindow* aParent ) :
     fgSizerStatus->Add( m_statusLine2, 0, 0, 5 );
 
     m_statusLine3 = new wxStaticText( bottomPanel, wxID_ANY, wxEmptyString );
-    fgSizerStatus->Add( m_statusLine3, 0, wxBOTTOM, 3 );
+    fgSizerStatus->Add( m_statusLine3, 0, 0, 5 );
 
     panelSizer->Add( fgSizerStatus, 1, wxEXPAND|wxLEFT, 2 );
 
@@ -153,8 +156,7 @@ CVPCB_MAINFRAME::CVPCB_MAINFRAME( KIWAY* aKiway, wxWindow* aParent ) :
     auto buttonsSizer = new wxBoxSizer( wxHORIZONTAL );
     auto sdbSizer = new wxStdDialogButtonSizer();
 
-    m_saveAndContinue = new wxButton( bottomPanel, wxID_ANY,
-                                      _( "Apply, Save Schematic && Continue" ) );
+    m_saveAndContinue = new wxButton( bottomPanel, wxID_ANY, _( "Apply, Save Schematic && Continue" ) );
     buttonsSizer->Add( m_saveAndContinue, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT, 20 );
 
     auto sdbSizerOK = new wxButton( bottomPanel, wxID_OK );
@@ -240,6 +242,7 @@ CVPCB_MAINFRAME::~CVPCB_MAINFRAME()
     delete m_actions;
     delete m_toolManager;
     delete m_toolDispatcher;
+    delete m_FootprintsList;
 
     m_auimgr.UnInit();
 }
@@ -882,12 +885,10 @@ void CVPCB_MAINFRAME::DisplayStatus()
     }
 
     // Extract the library information
-    FP_LIB_TABLE* fptbl = PROJECT_PCB::PcbFootprintLibs( &Prj() );
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &Prj() );
 
-    if( fptbl->HasLibrary( lib ) )
-        msg = wxString::Format( _( "Library location: %s" ), fptbl->GetFullURI( lib ) );
-    else
-        msg = wxString::Format( _( "Library location: unknown" ) );
+    if( std::optional<LIBRARY_TABLE_ROW*> optRow = adapter->GetRow( lib ); optRow )
+        msg = wxString::Format( _( "Library location: %s" ), LIBRARY_MANAGER::GetFullURI( *optRow ) );
 
     SetStatusText( msg, 2 );
 }
@@ -895,10 +896,10 @@ void CVPCB_MAINFRAME::DisplayStatus()
 
 bool CVPCB_MAINFRAME::LoadFootprintFiles()
 {
-    FP_LIB_TABLE* fptbl = PROJECT_PCB::PcbFootprintLibs( &Prj() );
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &Prj() );
 
     // Check if there are footprint libraries in the footprint library table.
-    if( !fptbl || !fptbl->GetLogicalLibs().size() )
+    if( !adapter || !adapter->Rows().size() )
     {
         wxMessageBox( _( "No PCB footprint libraries are listed in the current footprint "
                          "library table." ), _( "Configuration Error" ), wxOK | wxICON_ERROR );
@@ -907,10 +908,13 @@ bool CVPCB_MAINFRAME::LoadFootprintFiles()
 
     WX_PROGRESS_REPORTER progressReporter( this, _( "Load Footprint Libraries" ), 1, PR_CAN_ABORT );
 
-    m_FootprintsList->ReadFootprintFiles( fptbl, nullptr, &progressReporter );
+    m_FootprintsList->ReadFootprintFiles( adapter, nullptr, &progressReporter );
 
     if( m_FootprintsList->GetErrorCount() )
-        m_FootprintsList->DisplayErrors( this );
+    {
+        if( KISTATUSBAR* statusBar = dynamic_cast<KISTATUSBAR*>( GetStatusBar() ) )
+            statusBar->SetLoadWarningMessages( m_FootprintsList->GetErrorMessages() );
+    }
 
     return true;
 }
@@ -1008,7 +1012,7 @@ void CVPCB_MAINFRAME::BuildLibrariesList()
 {
     COMMON_SETTINGS*   cfg = Pgm().GetCommonSettings();
     PROJECT_FILE&      project = Kiway().Prj().GetProjectFile();
-    FP_LIB_TABLE*      tbl = PROJECT_PCB::PcbFootprintLibs( &Prj() );
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &Prj() );
 
     // Use same sorting algorithm as LIB_TREE_NODE::AssignIntrinsicRanks
     struct library_sort
@@ -1039,9 +1043,9 @@ void CVPCB_MAINFRAME::BuildLibrariesList()
             };
 
 
-    if( tbl )
+    if( adapter )
     {
-        std::vector<wxString> libNickNames = tbl->GetLogicalLibs();
+        std::vector<wxString> libNickNames = adapter->GetLibraryNames();
 
         for( const wxString& libNickName : libNickNames )
             process( libNickName );

@@ -25,6 +25,8 @@
 
 #include <wx/aui/framemanager.h>
 
+#include <map>
+
 #include <settings/app_settings.h>
 #include <sim/sim_preferences.h>
 
@@ -35,6 +37,7 @@ extern const wxAuiPaneInfo& defaultNetNavigatorPaneInfo();
 extern const wxAuiPaneInfo& defaultPropertiesPaneInfo( wxWindow* aWindow );
 extern const wxAuiPaneInfo& defaultSchSelectionFilterPaneInfo( wxWindow* aWindow );
 extern const wxAuiPaneInfo& defaultDesignBlocksPaneInfo( wxWindow* aWindow );
+extern const wxAuiPaneInfo& defaultRemoteSymbolPaneInfo( wxWindow* aWindow );
 
 
 
@@ -60,14 +63,6 @@ class EESCHEMA_SETTINGS : public APP_SETTINGS_BASE
 public:
     struct APPEARANCE
     {
-        wxString edit_symbol_visible_columns;
-        int edit_symbol_width;
-        int edit_symbol_height;
-        wxString edit_sheet_visible_columns;
-        wxString edit_label_visible_columns;
-        int edit_label_width;
-        int edit_label_height;
-        bool edit_label_multiple;
         bool footprint_preview;
         bool print_sheet_reference;
         wxString default_font;
@@ -104,6 +99,7 @@ public:
         wxSize net_nav_panel_float_size;
         bool float_net_nav_panel;
         bool show_net_nav_panel;
+        bool net_nav_search_mode_wildcard;  // true = wildcard search, false = regex search
         int  properties_panel_width;
         float properties_splitter;
         bool show_properties;
@@ -111,6 +107,27 @@ public:
         int  design_blocks_panel_docked_width;
         int  design_blocks_panel_float_width;
         int  design_blocks_panel_float_height;
+        bool remote_symbol_show;
+        int  remote_symbol_panel_docked_width;
+        int  remote_symbol_panel_float_width;
+        int  remote_symbol_panel_float_height;
+    };
+
+    struct REMOTE_SYMBOL_CONFIG
+    {
+        REMOTE_SYMBOL_CONFIG()
+        {
+            ResetToDefaults();
+        }
+
+        wxString destination_dir;
+        wxString library_prefix;
+        bool     add_to_global_table;
+        std::map<wxString, wxString> user_ids;
+
+        void ResetToDefaults();
+        static wxString DefaultDestinationDir();
+        static wxString DefaultLibraryPrefix();
     };
 
     struct AUTOPLACE_FIELDS
@@ -195,6 +212,7 @@ public:
         bool highlight_netclass_colors;
         int    highlight_netclass_colors_thickness;
         double highlight_netclass_colors_alpha;
+        int  drag_net_collision_width;
     };
 
     struct PAGE_SETTINGS
@@ -219,6 +237,7 @@ public:
     {
         bool automatic;
         bool recursive;
+        bool regroup_units;
         int scope;
         int options;
         int messages_filter;
@@ -233,13 +252,11 @@ public:
     struct PANEL_SYMBOL_FIELDS_TABLE
     {
         std::map<std::string, int> field_widths;
-        int                        page;
         wxString                   export_filename;
         int                        selection_mode;
-        int                        scope;
-        wxString                   view_controls_visible_columns;
         int                        sash_pos;
         bool                       sidebar_collapsed;
+        int                        variant_sash_pos;
     };
 
     struct PANEL_LIB_VIEW
@@ -269,24 +286,13 @@ public:
     {
         bool crossprobe;
         bool scroll_on_crossprobe;
+        bool show_all_errors;
     };
 
     struct DIALOG_CHANGE_SYMBOLS
     {
         bool updateReferences;
         bool updateValues;
-    };
-
-    struct DIALOG_IMPORT_GRAPHICS
-    {
-        bool     interactive_placement;
-        wxString last_file;
-        double   dxf_line_width;
-        int      dxf_line_width_units;
-        int      origin_units;
-        double   origin_x;
-        double   origin_y;
-        int      dxf_units;
     };
 
     struct SIMULATOR
@@ -342,6 +348,7 @@ private:
 public:
     APPEARANCE                m_Appearance;
     AUI_PANELS                m_AuiPanels;
+    REMOTE_SYMBOL_CONFIG      m_RemoteSymbol;
 
     DRAWING                   m_Drawing;
     INPUT                     m_Input;
@@ -359,7 +366,6 @@ public:
 
     FIND_REPLACE_EXTRA        m_FindReplaceExtra;
     DIALOG_ERC                m_ERCDialog;
-    DIALOG_IMPORT_GRAPHICS    m_ImportGraphics;
     DIALOG_CHANGE_SYMBOLS     m_ChangeSymbols;
 
     SIMULATOR                 m_Simulator;
@@ -368,4 +374,3 @@ public:
 
     wxString                  m_lastSymbolLibDir;
 };
-

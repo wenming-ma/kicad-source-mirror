@@ -28,6 +28,8 @@ namespace BS
 {
 template <std::uint8_t>
 class thread_pool;
+
+using priority_thread_pool = thread_pool<1>;
 }
 
 class KICAD_SINGLETON
@@ -40,11 +42,21 @@ public:
 
     ~KICAD_SINGLETON();
 
+    /**
+     * Explicitly shut down and destroy the thread pool and GL context manager.
+     *
+     * This must be called before static destruction begins to avoid crashes on macOS
+     * where the thread pool destructor tries to wait on condition variables during
+     * static destruction, after other statics have already been destroyed.
+     *
+     * After calling Shutdown(), the destructor becomes a no-op.
+     */
+    void Shutdown();
 
     void Init();
 
 public:
-    BS::thread_pool<0>* m_ThreadPool;
+    BS::priority_thread_pool* m_ThreadPool;
     GL_CONTEXT_MANAGER* m_GLContextManager;
 };
 

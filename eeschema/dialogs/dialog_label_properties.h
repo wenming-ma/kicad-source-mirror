@@ -62,6 +62,7 @@ private:
     void OnDeleteField( wxCommandEvent& event ) override;
     void OnMoveUp( wxCommandEvent& event ) override;
     void OnMoveDown( wxCommandEvent& event ) override;
+    void OnGridCellChanging( wxGridEvent& event );
     void onMultiLabelCheck( wxCommandEvent& aEvent ) override;
     void OnUpdateUI( wxUpdateUIEvent& event ) override;
 
@@ -88,4 +89,6 @@ private:
     wxString              m_previousLabelText;
 
     std::list<std::unique_ptr<SCH_LABEL_BASE>>* m_labelList;
+
+    bool m_multilineAllowed;    // set to true when a multine set of labels is in edit
 };

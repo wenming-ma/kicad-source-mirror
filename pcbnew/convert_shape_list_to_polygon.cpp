@@ -197,6 +197,7 @@ static void processClosedShape( PCB_SHAPE* aShape, SHAPE_LINE_CHAIN& aContour,
 
             prevPt = pt;
         }
+
         aContour.SetClosed( true );
         break;
     }
@@ -212,13 +213,11 @@ static void processClosedShape( PCB_SHAPE* aShape, SHAPE_LINE_CHAIN& aContour,
         aContour.SetClosed( true );
 
         for( int ii = 1; ii < aContour.PointCount(); ++ii )
-        {
-            aShapeOwners[ std::make_pair( aContour.CPoint( ii-1 ),
-                                         aContour.CPoint( ii ) ) ] = aShape;
-        }
+            aShapeOwners[ std::make_pair( aContour.CPoint( ii-1 ), aContour.CPoint( ii ) ) ] = aShape;
 
         if( !aAllowUseArcsInPolygons )
             aContour.ClearArcs();
+
         break;
     }
     case SHAPE_T::RECTANGLE:
@@ -226,16 +225,13 @@ static void processClosedShape( PCB_SHAPE* aShape, SHAPE_LINE_CHAIN& aContour,
         if( aShape->GetCornerRadius() > 0 )
         {
             ROUNDRECT rr( SHAPE_RECT( aShape->GetStart(), aShape->GetRectangleWidth(), aShape->GetRectangleHeight() ),
-                          aShape->GetCornerRadius() );
+                          aShape->GetCornerRadius(), true /* normalize */ );
             SHAPE_POLY_SET poly;
-            rr.TransformToPolygon( poly );
+            rr.TransformToPolygon( poly, aShape->GetMaxError() );
             aContour.Append( poly.Outline( 0 ) );
 
             for( int ii = 1; ii < aContour.PointCount(); ++ii )
-            {
-                aShapeOwners[ std::make_pair( aContour.CPoint( ii - 1 ),
-                                             aContour.CPoint( ii ) ) ] = aShape;
-            }
+                aShapeOwners[ std::make_pair( aContour.CPoint( ii - 1 ), aContour.CPoint( ii ) ) ] = aShape;
 
             if( !aAllowUseArcsInPolygons )
                 aContour.ClearArcs();
@@ -377,6 +373,9 @@ static std::map<int, std::vector<int>> buildContourHierarchy( const std::vector<
 
     for( size_t ii = 0; ii < aContours.size(); ++ii )
     {
+        if( aContours[ii].PointCount() < 1 )  // malformed/empty SHAPE_LINE_CHAIN
+            continue;
+
         VECTOR2I         firstPt = aContours[ii].GetPoint( 0 );
         std::vector<int> parents;
 
@@ -766,7 +765,7 @@ bool doConvertOutlineToPolygon( std::vector<PCB_SHAPE*>& aShapeList, SHAPE_POLY_
                         return;
 
                     const double query_pt[2] = { static_cast<double>( pt.x ), static_cast<double>( pt.y ) };
-                    uint32_t    indices[2];
+                    uint32_t    indices[2] = { 0, 0 };      // make gcc quiet
                     double      dists[2];
 
                     // Find the two closest items to the given point using kdtree
@@ -970,8 +969,8 @@ bool TestBoardOutlinesGraphicItems( BOARD* aBoard, int aMinDist,
 
 
 bool BuildBoardPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, int aErrorMax,
-                                int aChainingEpsilon, OUTLINE_ERROR_HANDLER* aErrorHandler,
-                                bool aAllowUseArcsInPolygons )
+                                int aChainingEpsilon, bool aInferOutlineIfNecessary,
+                                OUTLINE_ERROR_HANDLER* aErrorHandler, bool aAllowUseArcsInPolygons )
 {
     PCB_TYPE_COLLECTOR items;
     SHAPE_POLY_SET     fpHoles;
@@ -1005,9 +1004,10 @@ bool BuildBoardPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, int aE
             SHAPE_POLY_SET fpOutlines;
             success = doConvertOutlineToPolygon( fpSegList, fpOutlines, aErrorMax, aChainingEpsilon,
                                                  false,
-                                                 // don't report errors here; the second pass also
-                                                 // gets an opportunity to use these segments
-                                                 nullptr, aAllowUseArcsInPolygons, cleaner );
+                                                 nullptr, // don't report errors here; the second pass also
+                                                          // gets an opportunity to use these segments
+                                                 aAllowUseArcsInPolygons,
+                                                 cleaner );
 
             // Test to see if we should make holes or outlines.  Holes are made if the footprint
             // has copper outside of a single, closed outline.  If there are multiple outlines,
@@ -1049,7 +1049,7 @@ bool BuildBoardPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, int aE
                                              aErrorHandler, aAllowUseArcsInPolygons, cleaner );
     }
 
-    if( !success || !aOutlines.OutlineCount() )
+    if( ( !success || !aOutlines.OutlineCount() ) && aInferOutlineIfNecessary )
     {
         // Couldn't create a valid polygon outline.  Use the board edge cuts bounding box to
         // create a rectangular outline, or, failing that, the bounding box of the items on
@@ -1081,18 +1081,25 @@ bool BuildBoardPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, int aE
         aOutlines.Append( corner );
     }
 
-    for( int ii = 0; ii < fpHoles.OutlineCount(); ++ii )
+    if( aAllowUseArcsInPolygons )
     {
-        const VECTOR2I holePt = fpHoles.Outline( ii ).CPoint( 0 );
-
-        for( int jj = 0; jj < aOutlines.OutlineCount(); ++jj )
+        for( int ii = 0; ii < fpHoles.OutlineCount(); ++ii )
         {
-            if( aOutlines.Outline( jj ).PointInside( holePt ) )
+            const VECTOR2I holePt = fpHoles.Outline( ii ).CPoint( 0 );
+
+            for( int jj = 0; jj < aOutlines.OutlineCount(); ++jj )
             {
-                aOutlines.AddHole( fpHoles.Outline( ii ), jj );
-                break;
+                if( aOutlines.Outline( jj ).PointInside( holePt ) )
+                {
+                    aOutlines.AddHole( fpHoles.Outline( ii ), jj );
+                    break;
+                }
             }
         }
+    }
+    else
+    {
+        aOutlines.BooleanSubtract( fpHoles );
     }
 
     return success;

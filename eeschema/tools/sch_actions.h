@@ -114,6 +114,12 @@ public:
 
     // Interactive Editing
     static TOOL_ACTION alignToGrid;
+    static TOOL_ACTION alignTop;
+    static TOOL_ACTION alignBottom;
+    static TOOL_ACTION alignLeft;
+    static TOOL_ACTION alignRight;
+    static TOOL_ACTION alignCenterX;
+    static TOOL_ACTION alignCenterY;
     static TOOL_ACTION move;
     static TOOL_ACTION drag;
     static TOOL_ACTION repeatDrawItem;
@@ -149,6 +155,8 @@ public:
     static TOOL_ACTION incrementAnnotations;
     static TOOL_ACTION editSymbolFields;
     static TOOL_ACTION editSymbolLibraryLinks;
+    static TOOL_ACTION showLibFieldsTable;
+    static TOOL_ACTION showRelatedLibFieldsTable;
     static TOOL_ACTION symbolProperties;
     static TOOL_ACTION pinTable;
     static TOOL_ACTION convertStackedPins;
@@ -159,6 +167,7 @@ public:
     static TOOL_ACTION updateSymbol;
     static TOOL_ACTION assignFootprints;
     static TOOL_ACTION assignNetclass;
+    static TOOL_ACTION findNetInInspector;
     static TOOL_ACTION schematicSetup;
     static TOOL_ACTION editPageNumber;
     static TOOL_ACTION checkSymbol;
@@ -195,10 +204,11 @@ public:
 
     // Design Block management
     static TOOL_ACTION showDesignBlockPanel;
+    static TOOL_ACTION showRemoteSymbolPanel;
     static TOOL_ACTION saveSheetAsDesignBlock;
     static TOOL_ACTION saveSelectionAsDesignBlock;
-    static TOOL_ACTION saveSheetToDesignBlock;
-    static TOOL_ACTION saveSelectionToDesignBlock;
+    static TOOL_ACTION updateDesignBlockFromSheet;
+    static TOOL_ACTION updateDesignBlockFromSelection;
     static TOOL_ACTION deleteDesignBlock;
     static TOOL_ACTION editDesignBlockProperties;
 

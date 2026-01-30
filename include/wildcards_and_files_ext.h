@@ -116,7 +116,6 @@ public:
     static const std::string BackupFileSuffix;
     static const std::string LockFilePrefix;
     static const std::string LockFileExtension;
-    static const std::string AutoSaveFilePrefix;
 
     static const std::string SchematicSymbolFileExtension;
     static const std::string LegacySymbolLibFileExtension;
@@ -287,6 +286,7 @@ public:
     static wxString WorkbookFileWildcard();
     static wxString PngFileWildcard();
     static wxString JpegFileWildcard();
+    static wxString ImageFileWildcard();
     static wxString HotkeyFileWildcard();
     static wxString JobsetFileWildcard();
 

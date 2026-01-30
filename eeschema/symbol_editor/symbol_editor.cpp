@@ -31,13 +31,12 @@
 #include <widgets/wx_infobar.h>
 #include <tools/symbol_editor_drawing_tools.h>
 #include <symbol_edit_frame.h>
-#include <symbol_library.h>
 #include <template_fieldnames.h>
 #include <wildcards_and_files_ext.h>
-#include <symbol_lib_table.h>
 #include <lib_symbol_library_manager.h>
 #include <symbol_tree_pane.h>
 #include <project/project_file.h>
+#include <richio.h>
 #include <widgets/lib_tree.h>
 #include <sch_io/kicad_legacy/sch_io_kicad_legacy.h>
 #include <sch_io/kicad_sexpr/sch_io_kicad_sexpr.h>
@@ -47,10 +46,12 @@
 #include <wx/filedlg.h>
 #include <wx/log.h>
 #include <project_sch.h>
+#include <kiplatform/ui.h>
 #include <string_utils.h>
 #include "symbol_saveas_type.h"
 #include <widgets/symbol_library_save_as_filedlg_hook.h>
 #include <io/kicad/kicad_io_utils.h>
+#include <libraries/symbol_library_adapter.h>
 
 
 void SYMBOL_EDIT_FRAME::UpdateTitle()
@@ -146,18 +147,23 @@ bool SYMBOL_EDIT_FRAME::saveCurrentSymbol()
 bool SYMBOL_EDIT_FRAME::LoadSymbol( const LIB_ID& aLibId, int aUnit, int aBodyStyle )
 {
     LIB_ID libId = aLibId;
+    LIBRARY_MANAGER& manager = Pgm().GetLibraryManager();
+    SYMBOL_LIBRARY_ADAPTER* adapter = PROJECT_SCH::SymbolLibAdapter( &Prj() );
 
     // Some libraries can't be edited, so load the underlying chosen symbol
-    if( SYMBOL_LIB_TABLE_ROW* lib = m_libMgr->GetLibrary( aLibId.GetLibNickname() ) )
+    if( auto optRow = manager.GetRow( LIBRARY_TABLE_TYPE::SYMBOL, aLibId.GetLibNickname() );
+        optRow.has_value() )
     {
-        if( lib->SchLibType() == SCH_IO_MGR::SCH_DATABASE
-            || lib->SchLibType() == SCH_IO_MGR::SCH_CADSTAR_ARCHIVE
-            || lib->SchLibType() == SCH_IO_MGR::SCH_HTTP )
+        const LIBRARY_TABLE_ROW* row = *optRow;
+        SCH_IO_MGR::SCH_FILE_T type = SCH_IO_MGR::EnumFromStr( row->Type() );
 
+        if( type == SCH_IO_MGR::SCH_DATABASE
+            || type == SCH_IO_MGR::SCH_CADSTAR_ARCHIVE
+            || type == SCH_IO_MGR::SCH_HTTP )
         {
             try
             {
-                LIB_SYMBOL* readOnlySym = PROJECT_SCH::SchSymbolLibTable( &Prj() )->LoadSymbol( aLibId );
+                LIB_SYMBOL* readOnlySym = adapter->LoadSymbol( aLibId );
 
                 if( readOnlySym && readOnlySym->GetSourceLibId().IsValid() )
                     libId = readOnlySym->GetSourceLibId();
@@ -226,7 +232,7 @@ bool SYMBOL_EDIT_FRAME::LoadSymbolFromCurrentLib( const wxString& aSymbolName, i
 
     try
     {
-        symbol = PROJECT_SCH::SchSymbolLibTable( &Prj() )->LoadSymbol( GetCurLib(), aSymbolName );
+        symbol = PROJECT_SCH::SymbolLibAdapter( &Prj() )->LoadSymbol( GetCurLib(), aSymbolName );
     }
     catch( const IO_ERROR& ioe )
     {
@@ -475,17 +481,17 @@ void SYMBOL_EDIT_FRAME::SaveSymbolCopyAs( bool aOpenCopy )
  * If aIncludeLeaf is false, the leaf symbol (the one that was actually named)
  * is not included in the list, so the list may be empty if the symbol is not derived.
  */
-static std::vector<LIB_SYMBOL_SPTR> GetParentChain( const LIB_SYMBOL& aSymbol, bool aIncludeLeaf = true )
+static std::vector<std::shared_ptr<LIB_SYMBOL>> GetParentChain( const LIB_SYMBOL& aSymbol, bool aIncludeLeaf = true )
 {
-    std::vector<LIB_SYMBOL_SPTR> chain;
-    LIB_SYMBOL_SPTR              sym = aSymbol.SharedPtr();
+    std::vector<std::shared_ptr<LIB_SYMBOL>> chain;
+    std::shared_ptr<LIB_SYMBOL>              sym = aSymbol.SharedPtr();
 
     if( aIncludeLeaf )
         chain.push_back( sym );
 
     while( sym->IsDerived() )
     {
-        LIB_SYMBOL_SPTR parent = sym->GetParent().lock();
+        std::shared_ptr<LIB_SYMBOL> parent = sym->GetParent().lock();
         chain.push_back( parent );
         sym = parent;
     }
@@ -522,7 +528,7 @@ static std::pair<bool, bool> CheckSavingIntoOwnInheritance( LIB_SYMBOL_LIBRARY_M
     bool inDescendents = false;
 
     {
-        const std::vector<LIB_SYMBOL_SPTR> parentChainFromUs = GetParentChain( aSymbol, true );
+        const std::vector<std::shared_ptr<LIB_SYMBOL>> parentChainFromUs = GetParentChain( aSymbol, true );
 
         // Ignore the leaf symbol (0) - that must match
         for( size_t i = 1; i < parentChainFromUs.size(); ++i )
@@ -538,8 +544,8 @@ static std::pair<bool, bool> CheckSavingIntoOwnInheritance( LIB_SYMBOL_LIBRARY_M
 
     {
         LIB_SYMBOL* targetSymbol = aLibMgr.GetSymbol( aNewSymbolName, aNewLibraryName );
-        const std::vector<LIB_SYMBOL_SPTR> parentChainFromTarget = GetParentChain( *targetSymbol, true );
-        const wxString                     oldSymbolName = aSymbol.GetName();
+        const std::vector<std::shared_ptr<LIB_SYMBOL>> parentChainFromTarget = GetParentChain( *targetSymbol, true );
+        const wxString                                 oldSymbolName = aSymbol.GetName();
 
         // Ignore the leaf symbol - it'll match if we're saving the symbol
         // to the same name, and that would be OK
@@ -583,7 +589,7 @@ static std::vector<wxString> CheckForParentalChainConflicts( LIB_SYMBOL_LIBRARY_
     else
     {
         // In a different library with parents - check the whole chain
-        const std::vector<LIB_SYMBOL_SPTR> parentChain = GetParentChain( aSymbol, true );
+        const std::vector<std::shared_ptr<LIB_SYMBOL>> parentChain = GetParentChain( aSymbol, true );
 
         for( size_t i = 0; i < parentChain.size(); ++i )
         {
@@ -595,7 +601,7 @@ static std::vector<wxString> CheckForParentalChainConflicts( LIB_SYMBOL_LIBRARY_
             }
             else
             {
-                LIB_SYMBOL_SPTR chainSymbol = parentChain[i];
+                std::shared_ptr<LIB_SYMBOL> chainSymbol = parentChain[i];
 
                 if( aLibMgr.SymbolNameInUse( chainSymbol->GetName(), newLibraryName ) )
                     conflicts.push_back( chainSymbol->GetName() );
@@ -636,8 +642,8 @@ public:
 
     bool DoSave( LIB_SYMBOL& symbol, const wxString& aNewSymName, const wxString& aNewLibName, bool aFlattenSymbol )
     {
-        std::unique_ptr<LIB_SYMBOL>  flattenedSymbol; // for ownership
-        std::vector<LIB_SYMBOL_SPTR> parentChain;
+        std::unique_ptr<LIB_SYMBOL>              flattenedSymbol; // for ownership
+        std::vector<std::shared_ptr<LIB_SYMBOL>> parentChain;
 
         const bool sameLib = aNewLibName == symbol.GetLibId().GetLibNickname().wx_str();
 
@@ -667,9 +673,8 @@ public:
         // Iterate backwards (i.e. from the root down)
         for( int i = (int) parentChain.size() - 1; i >= 0; --i )
         {
-            LIB_SYMBOL_SPTR& oldSymbol = parentChain[i];
-
-            LIB_SYMBOL new_symbol( *oldSymbol );
+            std::shared_ptr<LIB_SYMBOL>& oldSymbol = parentChain[i];
+            LIB_SYMBOL                   new_symbol( *oldSymbol );
 
             wxString newName;
             if( i == 0 )
@@ -779,8 +784,6 @@ public:
             m_validator( std::move( aValidator ) ),
             m_params( aParams )
     {
-        SYMBOL_LIB_TABLE*          tbl = PROJECT_SCH::SchSymbolLibTable( &Prj() );
-        std::vector<wxString>      libNicknames = tbl->GetLogicalLibs();
         wxArrayString              headers;
         std::vector<wxArrayString> itemsToDisplay;
 
@@ -1076,6 +1079,8 @@ void SYMBOL_EDIT_FRAME::ExportSymbol()
     wxFileDialog dlg( this, _( "Export Symbol" ), m_mruPath, fn.GetFullName(),
                       FILEEXT::KiCadSymbolLibFileWildcard(), wxFD_SAVE );
 
+    KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
+
     if( dlg.ShowModal() == wxID_CANCEL )
         return;
 
@@ -1084,13 +1089,18 @@ void SYMBOL_EDIT_FRAME::ExportSymbol()
     fn = dlg.GetPath();
     fn.MakeAbsolute();
 
+    LIBRARY_MANAGER& manager = Pgm().GetLibraryManager();
+
     wxString                    libraryName;
     std::unique_ptr<LIB_SYMBOL> flattenedSymbol = symbol->Flatten();
 
     for( const wxString& candidate : m_libMgr->GetLibraryNames() )
     {
-        if( m_libMgr->GetLibrary( candidate )->GetFullURI( true ) == fn.GetFullPath() )
-            libraryName = candidate;
+        if( auto uri = manager.GetFullURI( LIBRARY_TABLE_TYPE::SYMBOL, candidate, true ); uri )
+        {
+            if( *uri == fn.GetFullPath() )
+                libraryName = candidate;
+        }
     }
 
     if( !libraryName.IsEmpty() )
@@ -1261,7 +1271,7 @@ void SYMBOL_EDIT_FRAME::DeleteSymbolFromLibrary()
             for( const wxString& name : derived )
                 msg += name + wxT( "\n" );
 
-            KICAD_MESSAGE_DIALOG_BASE dlg( this, msg, _( "Warning" ), wxYES_NO | wxICON_WARNING | wxCENTER );
+            KICAD_MESSAGE_DIALOG dlg( this, msg, _( "Warning" ), wxYES_NO | wxICON_WARNING | wxCENTER );
             dlg.SetExtendedMessage( wxT( " " ) );
             dlg.SetYesNoLabels( _( "Delete All Listed Symbols" ), _( "Cancel" ) );
 
@@ -1269,8 +1279,17 @@ void SYMBOL_EDIT_FRAME::DeleteSymbolFromLibrary()
                 continue;
         }
 
-        if( IsCurrentSymbol( libId ) )
-            emptyScreen();
+        if( GetCurSymbol() )
+        {
+            for( const std::shared_ptr<LIB_SYMBOL>& symbol : GetParentChain( *GetCurSymbol() ) )
+            {
+                if( symbol->GetLibId() == libId )
+                {
+                    emptyScreen();
+                    break;
+                }
+            }
+        }
 
         m_libMgr->RemoveSymbol( libId.GetLibItemName(), libId.GetLibNickname() );
     }
@@ -1301,7 +1320,7 @@ void SYMBOL_EDIT_FRAME::CopySymbolToClipboard()
     }
 
     std::string prettyData = formatter.GetString();
-    KICAD_FORMAT::Prettify( prettyData, true );
+    KICAD_FORMAT::Prettify( prettyData, KICAD_FORMAT::FORMAT_MODE::COMPACT_TEXT_PROPERTIES );
 
     wxLogNull doNotLog; // disable logging of failed clipboard actions
 
@@ -1497,11 +1516,13 @@ bool SYMBOL_EDIT_FRAME::saveLibrary( const wxString& aLibrary, bool aNewFile )
     wxString   msg;
     SYMBOL_SAVEAS_TYPE     type = SYMBOL_SAVEAS_TYPE::NORMAL_SAVE_AS;
     SCH_IO_MGR::SCH_FILE_T fileType = SCH_IO_MGR::SCH_FILE_T::SCH_KICAD;
-    PROJECT&   prj = Prj();
+    PROJECT& prj = Prj();
+
+    SYMBOL_LIBRARY_ADAPTER* adapter = PROJECT_SCH::SymbolLibAdapter( &prj );
 
     m_toolManager->RunAction( ACTIONS::cancelInteractive );
 
-    if( !aNewFile && ( aLibrary.empty() || !PROJECT_SCH::SchSymbolLibTable( &prj )->HasLibrary( aLibrary ) ) )
+    if( !aNewFile && ( aLibrary.empty() || !adapter->HasLibrary( aLibrary ) ) )
     {
         ShowInfoBarError( _( "No library specified." ) );
         return false;
@@ -1528,6 +1549,8 @@ bool SYMBOL_EDIT_FRAME::saveLibrary( const wxString& aLibrary, bool aNewFile )
         SYMBOL_LIBRARY_SAVE_AS_FILEDLG_HOOK saveAsHook( type );
         dlg.SetCustomizeHook( saveAsHook );
 
+        KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
+
         if( dlg.ShowModal() == wxID_CANCEL )
             return false;
 
@@ -1542,7 +1565,10 @@ bool SYMBOL_EDIT_FRAME::saveLibrary( const wxString& aLibrary, bool aNewFile )
     }
     else
     {
-        fn = PROJECT_SCH::SchSymbolLibTable( &prj )->GetFullURI( aLibrary );
+        std::optional<LIBRARY_TABLE_ROW*> optRow = adapter->GetRow( aLibrary );
+        wxCHECK( optRow, false );
+
+        fn = LIBRARY_MANAGER::GetFullURI( *optRow, true );
         fileType = SCH_IO_MGR::GuessPluginTypeFromLibPath( fn.GetFullPath() );
 
         if( fileType == SCH_IO_MGR::SCH_FILE_UNKNOWN )
@@ -1593,7 +1619,7 @@ bool SYMBOL_EDIT_FRAME::saveLibrary( const wxString& aLibrary, bool aNewFile )
             break;
 
         case SYMBOL_SAVEAS_TYPE::ADD_PROJECT_TABLE_ENTRY:
-            resyncLibTree = addLibTableEntry( fn.GetFullPath(), PROJECT_LIB_TABLE );
+            resyncLibTree = addLibTableEntry( fn.GetFullPath(), LIBRARY_TABLE_SCOPE::PROJECT );
             break;
 
         default:
@@ -1706,7 +1732,7 @@ void SYMBOL_EDIT_FRAME::UpdateSymbolMsgPanelInfo()
 
     if( m_symbol->IsDerived() )
     {
-        LIB_SYMBOL_SPTR parent = m_symbol->GetParent().lock();
+        std::shared_ptr<LIB_SYMBOL> parent = m_symbol->GetParent().lock();
 
         msg = parent ? parent->GetName() : _( "Undefined!" );
         AppendMsgPanel( _( "Parent" ), UnescapeString( msg ), 8 );

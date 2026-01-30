@@ -19,8 +19,7 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SCH_PROPERTIES_PANEL_H
-#define SCH_PROPERTIES_PANEL_H
+#pragma once
 
 #include <widgets/properties_panel.h>
 #include <set>
@@ -49,6 +48,7 @@ public:
 protected:
     void rebuildProperties( const SELECTION& aSelection ) override;
     wxPGProperty* createPGProperty( const PROPERTY_BASE* aProperty ) const override;
+    bool getItemValue( EDA_ITEM* aItem, PROPERTY_BASE* aProperty, wxVariant& aValue ) override;
 
     PROPERTY_BASE* getPropertyFromEvent( const wxPropertyGridEvent& aEvent ) const;
 
@@ -74,16 +74,15 @@ protected:
      */
     EDA_ITEM* getFrontItem();
 
-    SCH_BASE_FRAME* m_frame;
-    PROPERTY_MANAGER& m_propMgr;
-    PG_UNIT_EDITOR* m_unitEditorInstance;
+protected:
+    SCH_BASE_FRAME*     m_frame;
+    PROPERTY_MANAGER&   m_propMgr;
+    PG_UNIT_EDITOR*     m_unitEditorInstance;
     PG_CHECKBOX_EDITOR* m_checkboxEditorInstance;
-    PG_COLOR_EDITOR* m_colorEditorInstance;
-    PG_FPID_EDITOR* m_fpEditorInstance;
-    PG_URL_EDITOR* m_urlEditorInstance;
+    PG_COLOR_EDITOR*    m_colorEditorInstance;
+    PG_FPID_EDITOR*     m_fpEditorInstance;
+    PG_URL_EDITOR*      m_urlEditorInstance;
 
     static std::set<wxString> m_currentFieldNames;
-    wxPGChoices m_nets;
+    wxPGChoices               m_nets;
 };
-
-#endif /* PCB_PROPERTIES_PANEL_H */

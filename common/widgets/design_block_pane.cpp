@@ -22,7 +22,8 @@
  */
 
 #include <design_block.h>
-#include <design_block_lib_table.h>
+#include <design_block_library_adapter.h>
+#include <design_block_io.h>
 #include <paths.h>
 #include <env_paths.h>
 #include <pgm_base.h>
@@ -107,7 +108,7 @@ void DESIGN_BLOCK_PANE::RefreshLibs()
 
 DESIGN_BLOCK* DESIGN_BLOCK_PANE::GetDesignBlock( const LIB_ID& aLibId, bool aUseCacheLib, bool aShowErrorMsg )
 {
-    DESIGN_BLOCK_LIB_TABLE* prjLibs = m_frame->Prj().DesignBlockLibs();
+    DESIGN_BLOCK_LIBRARY_ADAPTER* prjLibs = m_frame->Prj().DesignBlockLibs();
 
     wxCHECK_MSG( prjLibs, nullptr, wxS( "Invalid design block library table." ) );
 
@@ -149,7 +150,7 @@ wxString DESIGN_BLOCK_PANE::CreateNewDesignBlockLibrary( const wxString& aDialog
 wxString DESIGN_BLOCK_PANE::createNewDesignBlockLibrary( const wxString& aDialogTitle )
 {
     wxFileName               fn;
-    bool                     isGlobal = false;
+    static bool              isGlobal = true;
     FILEDLG_HOOK_NEW_LIBRARY tableChooser( isGlobal );
 
     if( !m_frame->LibraryFileBrowser( aDialogTitle, false, fn, FILEEXT::KiCadDesignBlockLibPathWildcard(),
@@ -159,12 +160,13 @@ wxString DESIGN_BLOCK_PANE::createNewDesignBlockLibrary( const wxString& aDialog
     }
 
     isGlobal = tableChooser.GetUseGlobalTable();
-    DESIGN_BLOCK_LIB_TABLE* libTable = isGlobal ? &DESIGN_BLOCK_LIB_TABLE::GetGlobalLibTable()
-                                                : m_frame->Prj().DesignBlockLibs();
+
+    wxString libPath = fn.GetFullPath();
+
+    LIBRARY_TABLE_SCOPE scope = isGlobal ? LIBRARY_TABLE_SCOPE::GLOBAL : LIBRARY_TABLE_SCOPE::PROJECT;
 
     // We can save libs only using DESIGN_BLOCK_IO_MGR::KICAD_SEXP format (.pretty libraries)
     DESIGN_BLOCK_IO_MGR::DESIGN_BLOCK_FILE_T piType = DESIGN_BLOCK_IO_MGR::KICAD_SEXP;
-    wxString                                 libPath = fn.GetFullPath();
 
     try
     {
@@ -213,16 +215,20 @@ wxString DESIGN_BLOCK_PANE::createNewDesignBlockLibrary( const wxString& aDialog
         return wxEmptyString;
     }
 
-    AddDesignBlockLibrary( aDialogTitle, libPath, libTable );
+    AddDesignBlockLibrary( aDialogTitle, libPath, scope );
 
     return libPath;
 }
 
 
 bool DESIGN_BLOCK_PANE::AddDesignBlockLibrary( const wxString& aDialogTitle, const wxString& aFilename,
-                                               DESIGN_BLOCK_LIB_TABLE* aTable )
+                                               LIBRARY_TABLE_SCOPE aScope )
 {
-    bool       isGlobal = ( aTable == &DESIGN_BLOCK_LIB_TABLE::GetGlobalLibTable() );
+    DESIGN_BLOCK_LIBRARY_ADAPTER* adapter = m_frame->Prj().DesignBlockLibs();
+    LIBRARY_MANAGER&              manager = Pgm().GetLibraryManager();
+
+    // TODO(JE) library tables -- figure out where Jeff's added aDialogTitle should be used?
+
     wxFileName fn( aFilename );
     wxString   libPath = fn.GetFullPath();
     wxString   libName = fn.GetName();
@@ -249,26 +255,34 @@ bool DESIGN_BLOCK_PANE::AddDesignBlockLibrary( const wxString& aDialogTitle, con
     // try to use path normalized to an environmental variable or project path
     wxString normalizedPath = NormalizePath( libPath, &Pgm().GetLocalEnvVariables(), &m_frame->Prj() );
 
-    try
-    {
-        DESIGN_BLOCK_LIB_TABLE_ROW* row = new DESIGN_BLOCK_LIB_TABLE_ROW( libName, normalizedPath, type,
-                                                                          wxEmptyString, description );
-        aTable->InsertRow( row );
+    std::optional<LIBRARY_TABLE*> optTable = manager.Table( LIBRARY_TABLE_TYPE::DESIGN_BLOCK, aScope );
+    wxCHECK( optTable.has_value(), false );
+    LIBRARY_TABLE* table = optTable.value();
 
-        if( isGlobal )
-            aTable->Save( DESIGN_BLOCK_LIB_TABLE::GetGlobalTableFileName() );
-        else
-            aTable->Save( m_frame->Prj().DesignBlockLibTblName() );
-    }
-    catch( const IO_ERROR& ioe )
-    {
-        DisplayError( m_frame, ioe.What() );
-        return false;
-    }
+    bool               success = true;
+    LIBRARY_TABLE_ROW& newRow = table->InsertRow();
 
-    LIB_ID libID( libName, wxEmptyString );
-    RefreshLibs();
-    SelectLibId( libID );
+    newRow.SetNickname( libName );
+    newRow.SetURI( normalizedPath );
+    newRow.SetType( type );
+    newRow.SetDescription( description );
+
+    table->Save().map_error(
+            [&]( const LIBRARY_ERROR& aError )
+            {
+                DisplayError( m_frame, _( "Error saving library table:\n\n" ) + aError.message );
+                success = false;
+            } );
+
+    if( success )
+    {
+        manager.ReloadTables( aScope, { LIBRARY_TABLE_TYPE::DESIGN_BLOCK } );
+        adapter->LoadOne( libName );
+
+        LIB_ID libID( libName, wxEmptyString );
+        RefreshLibs();
+        SelectLibId( libID );
+    }
 
     return true;
 }
@@ -299,7 +313,7 @@ bool DESIGN_BLOCK_PANE::DeleteDesignBlockLibrary( const wxString& aLibName, bool
 
     try
     {
-        m_frame->Prj().DesignBlockLibs()->DesignBlockLibDelete( aLibName );
+        m_frame->Prj().DesignBlockLibs()->DeleteLibrary( aLibName );
     }
     catch( const IO_ERROR& ioe )
     {
@@ -340,7 +354,7 @@ bool DESIGN_BLOCK_PANE::DeleteDesignBlockFromLibrary( const LIB_ID& aLibId, bool
 
     try
     {
-        m_frame->Prj().DesignBlockLibs()->DesignBlockDelete( libname, dbname );
+        m_frame->Prj().DesignBlockLibs()->DeleteDesignBlock( libname, dbname );
     }
     catch( const IO_ERROR& ioe )
     {
@@ -364,7 +378,6 @@ bool DESIGN_BLOCK_PANE::EditDesignBlockProperties( const LIB_ID& aLibId )
         return false;
 
     wxString libname = aLibId.GetLibNickname();
-    wxString dbname = aLibId.GetLibItemName();
 
     if( !m_frame->Prj().DesignBlockLibs()->IsDesignBlockLibWritable( libname ) )
     {
@@ -391,15 +404,17 @@ bool DESIGN_BLOCK_PANE::EditDesignBlockProperties( const LIB_ID& aLibId )
         if( originalName != newName )
         {
             if( m_frame->Prj().DesignBlockLibs()->DesignBlockExists( libname, newName ) )
+            {
                 if( !checkOverwrite( m_frame, libname, newName ) )
                     return false;
+            }
 
-            m_frame->Prj().DesignBlockLibs()->DesignBlockSave( libname, designBlock.get() );
-            m_frame->Prj().DesignBlockLibs()->DesignBlockDelete( libname, originalName );
+            m_frame->Prj().DesignBlockLibs()->SaveDesignBlock( libname, designBlock.get() );
+            m_frame->Prj().DesignBlockLibs()->DeleteDesignBlock( libname, originalName );
         }
         else
         {
-            m_frame->Prj().DesignBlockLibs()->DesignBlockSave( libname, designBlock.get() );
+            m_frame->Prj().DesignBlockLibs()->SaveDesignBlock( libname, designBlock.get() );
         }
     }
     catch( const IO_ERROR& ioe )
@@ -428,4 +443,3 @@ bool DESIGN_BLOCK_PANE::checkOverwrite( wxWindow* aFrame, wxString& libname, wxS
 
     return true;
 }
-

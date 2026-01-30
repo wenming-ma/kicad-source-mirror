@@ -539,7 +539,7 @@ int CONVERT_TOOL::CreatePolys( const TOOL_EVENT& aEvent )
         else
         {
             zoneInfo.SetIsRuleArea( false );
-            ret = InvokeCopperZonesEditor( frame, &zoneInfo, &m_userSettings );
+            ret = InvokeCopperZonesEditor( frame, nullptr, &zoneInfo, &m_userSettings );
         }
 
         if( ret == wxID_CANCEL )
@@ -1190,7 +1190,7 @@ int CONVERT_TOOL::CreateLines( const TOOL_EVENT& aEvent )
                 ROUNDRECT  rrect( rect, graphic->GetCornerRadius(), true );
                 SHAPE_POLY_SET poly;
 
-                rrect.TransformToPolygon( poly );
+                rrect.TransformToPolygon( poly, graphic->GetMaxError() );
                 processPolySet( poly, itemWidth );
                 break;
             }
