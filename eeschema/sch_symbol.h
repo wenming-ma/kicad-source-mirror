@@ -654,7 +654,8 @@ public:
      *
      * @return a vector of pointers (non-owning) to SCH_PINs
      */
-    std::vector<SCH_PIN*> GetPins( const SCH_SHEET_PATH* aSheet ) const;
+    std::vector<const SCH_PIN*> GetPins( const SCH_SHEET_PATH* aSheet ) const;
+    std::vector<SCH_PIN*> GetPins( const SCH_SHEET_PATH* aSheet );
 
     std::vector<SCH_PIN*> GetPins() const override;
 
@@ -886,7 +887,7 @@ public:
      *
      * @param aPlotter is the #PLOTTER object used to plot pins.
      */
-    void PlotPins( PLOTTER* aPlotter ) const;
+    void PlotPins( PLOTTER* aPlotter, bool aDnp ) const;
 
     /**
      * Plot the local power pin indicator icon shape

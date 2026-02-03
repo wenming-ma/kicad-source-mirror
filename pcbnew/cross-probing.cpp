@@ -42,7 +42,7 @@
 #include <collectors.h>
 #include <eda_dde.h>
 #include <kiface_base.h>
-#include <kiway_express.h>
+#include <kiway_mail.h>
 #include <string_utils.h>
 #include <netlist_reader/pcb_netlist.h>
 #include <netlist_reader/board_netlist_updater.h>
@@ -524,7 +524,7 @@ std::vector<BOARD_ITEM*> PCB_EDIT_FRAME::FindItemsFromSyncSelection( std::string
 }
 
 
-void PCB_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
+void PCB_EDIT_FRAME::KiwayMailIn( KIWAY_MAIL_EVENT& mail )
 {
     std::string& payload = mail.GetPayload();
 

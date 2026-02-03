@@ -305,7 +305,13 @@ bool SCH_IO_ALTIUM::CanReadLibrary( const wxString& aFileName ) const
 
 void SCH_IO_ALTIUM::fixupSymbolPinNameNumbers( SYMBOL* aSymbol )
 {
-    std::vector<SCH_PIN*> pins = aSymbol->GetPins();
+    std::vector<SCH_PIN*> pins;
+
+    if( aSymbol->Type() == SCH_SYMBOL_T )
+        pins = static_cast<SCH_SYMBOL*>( aSymbol )->GetPins( nullptr );
+    else if( aSymbol->Type() == LIB_SYMBOL_T )
+        pins = static_cast<LIB_SYMBOL*>( aSymbol )->GetGraphicalPins( 0, 0 );
+
 
     bool names_visible = false;
     bool numbers_visible = false;
@@ -440,6 +446,25 @@ SCH_SHEET* SCH_IO_ALTIUM::LoadSchematicProject( SCHEMATIC* aSchematic, const std
 
         // Parse from the original Altium file location
         ParseAltiumSch( fn.GetFullPath() );
+
+        // Sheets created here won't have names set by ParseSheetName (which only applies
+        // to sheet symbols within a parent). Derive a name from the Altium filename.
+        if( sheet->GetName().Trim().empty() )
+        {
+            wxString baseName = wxFileName( fn ).GetName();
+            baseName.Replace( wxT( "/" ), wxT( "_" ) );
+
+            wxString           sheetName = baseName;
+            std::set<wxString> existingNames;
+
+            for( auto& [path, existing] : sheets )
+                existingNames.insert( existing->GetName() );
+
+            for( int ii = 1; existingNames.count( sheetName ); ++ii )
+                sheetName = baseName + wxString::Format( wxT( "_%d" ), ii );
+
+            sheet->SetName( sheetName );
+        }
 
         m_sheetPath.SetPageNumber( pageNo );
         m_sheetPath.pop_back();
@@ -943,7 +968,25 @@ void SCH_IO_ALTIUM::ParseAltiumSch( const wxString& aFileName )
 
         if( !loadAltiumFileName.IsFileReadable() )
         {
-            // Try case-insensitive search
+            // Altium sheet symbols sometimes store filenames without the .SchDoc extension.
+            // Try appending it before falling through to the directory search.
+            if( !loadAltiumFileName.HasExt() )
+            {
+                wxFileName withExt( loadAltiumFileName );
+                withExt.SetExt( wxT( "SchDoc" ) );
+
+                if( withExt.IsFileReadable() )
+                    loadAltiumFileName = withExt;
+            }
+        }
+
+        if( !loadAltiumFileName.IsFileReadable() )
+        {
+            // Try case-insensitive search, matching by base name so that extensionless
+            // filenames from Altium sheet symbols can resolve to .SchDoc files on disk.
+            wxFileName sheetFn( sheet->GetFileName() );
+            bool       extensionless = !sheetFn.HasExt();
+
             wxArrayString files;
             wxDir::GetAllFiles( parentFileName.GetPath(), &files, wxEmptyString,
                                 wxDIR_FILES | wxDIR_HIDDEN );
@@ -952,7 +995,11 @@ void SCH_IO_ALTIUM::ParseAltiumSch( const wxString& aFileName )
             {
                 wxFileName candidateFname( candidate );
 
-                if( candidateFname.GetFullName().IsSameAs( sheet->GetFileName(), false ) )
+                if( candidateFname.GetFullName().IsSameAs( sheet->GetFileName(), false )
+                    || ( extensionless
+                         && !sheetFn.GetName().empty()
+                         && candidateFname.GetName().IsSameAs( sheetFn.GetName(), false )
+                         && candidateFname.GetExt().IsSameAs( wxT( "SchDoc" ), false ) ) )
                 {
                     loadAltiumFileName = candidateFname;
                     break;
@@ -1021,8 +1068,10 @@ void SCH_IO_ALTIUM::ParseAltiumSch( const wxString& aFileName )
 
             if( sheet->GetName().Trim().empty() )
             {
-                wxString sheetName = loadAltiumFileName.GetName();
+                wxString baseName = loadAltiumFileName.GetName();
+                baseName.Replace( wxT( "/" ), wxT( "_" ) );
 
+                wxString           sheetName = baseName;
                 std::set<wxString> sheetNames;
 
                 for( EDA_ITEM* otherItem : currentScreen->Items().OfType( SCH_SHEET_T ) )
@@ -1036,7 +1085,7 @@ void SCH_IO_ALTIUM::ParseAltiumSch( const wxString& aFileName )
                     if( sheetNames.find( sheetName ) == sheetNames.end() )
                         break;
 
-                    sheetName = loadAltiumFileName.GetName() + wxString::Format( wxT( "_%d" ), ii );
+                    sheetName = baseName + wxString::Format( wxT( "_%d" ), ii );
                 }
 
                 sheet->SetName( sheetName );
@@ -1054,21 +1103,6 @@ void SCH_IO_ALTIUM::ParseAltiumSch( const wxString& aFileName )
             projectFileName.SetExt( FILEEXT::KiCadSchematicFileExtension );
             sheet->SetFileName( projectFileName.GetFullName() );
             screen->SetFileName( projectFileName.GetFullPath() );
-
-            // Update symbol references with sheet name suffix to match Altium's multi-channel
-            // naming convention (e.g., P1 -> P1_Connector1)
-            for( SCH_ITEM* schItem : screen->Items().OfType( SCH_SYMBOL_T ) )
-            {
-                SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( schItem );
-                wxString    ref = symbol->GetRef( &m_sheetPath );
-
-                // Skip power symbols and graphics
-                if( ref.StartsWith( wxT( "#" ) ) )
-                    continue;
-
-                wxString newRef = ref + wxT( "_" ) + sheet->GetName();
-                symbol->SetRef( &m_sheetPath, newRef );
-            }
 
             m_sheetPath.pop_back();
         }
@@ -1775,7 +1809,10 @@ void SCH_IO_ALTIUM::ParsePin( const std::map<wxString, wxString>& aProperties,
     if( !elem.showPinName )
         pin->SetNameTextSize( 0 );
 
-    VECTOR2I pinLocation = elem.location; // the location given is not the connection point!
+    // Altium gives the pin body end location.  Compute the connection point (electrical end)
+    // from the body end and pin length in the pin's orientation direction.
+    VECTOR2I bodyEnd = elem.location;
+    VECTOR2I pinLocation = bodyEnd;
 
     switch( elem.orientation )
     {
@@ -1807,7 +1844,19 @@ void SCH_IO_ALTIUM::ParsePin( const std::map<wxString, wxString>& aProperties,
     // TODO: position can be sometimes off a little bit!
 
     if( schSymbol )
+    {
+        // Both points are in absolute schematic coordinates.  Transform them to library-local
+        // space, then derive the pin orientation from the resulting direction vector.
         pinLocation = GetRelativePosition( pinLocation + m_sheetOffset, schSymbol );
+        bodyEnd = GetRelativePosition( bodyEnd + m_sheetOffset, schSymbol );
+
+        VECTOR2I dir = bodyEnd - pinLocation;
+
+        if( std::abs( dir.x ) >= std::abs( dir.y ) )
+            pin->SetOrientation( dir.x > 0 ? PIN_ORIENTATION::PIN_RIGHT : PIN_ORIENTATION::PIN_LEFT );
+        else
+            pin->SetOrientation( dir.y > 0 ? PIN_ORIENTATION::PIN_DOWN : PIN_ORIENTATION::PIN_UP );
+    }
 
     pin->SetPosition( pinLocation );
 
@@ -2761,7 +2810,13 @@ void SCH_IO_ALTIUM::ParseArc( const std::map<wxString, wxString>& aProperties,
             arc->SetUnit( std::max( 0, elem.ownerpartid ) );
 
             if( schsym )
+            {
                 center = GetRelativePosition( elem.m_Center + m_sheetOffset, schsym );
+                startOffset = GetRelativePosition( elem.m_Center + startOffset + m_sheetOffset, schsym )
+                              - center;
+                endOffset = GetRelativePosition( elem.m_Center + endOffset + m_sheetOffset, schsym )
+                            - center;
+            }
 
             arc->SetCenter( center );
             arc->SetStart( center + startOffset );
@@ -4271,7 +4326,10 @@ void SCH_IO_ALTIUM::ParseSheetName( const std::map<wxString, wxString>& aPropert
         return;
     }
 
-    wxString           sheetName = elem.text;
+    wxString baseName = elem.text;
+    baseName.Replace( wxT( "/" ), wxT( "_" ) );
+
+    wxString           sheetName = baseName;
     std::set<wxString> sheetNames;
 
     for( EDA_ITEM* item : currentScreen->Items().OfType( SCH_SHEET_T ) )
@@ -4285,7 +4343,7 @@ void SCH_IO_ALTIUM::ParseSheetName( const std::map<wxString, wxString>& aPropert
         if( sheetNames.find( sheetName ) == sheetNames.end() )
             break;
 
-        sheetName = elem.text + wxString::Format( wxT( "_%d" ), ii );
+        sheetName = baseName + wxString::Format( wxT( "_%d" ), ii );
     }
 
     SCH_FIELD* sheetNameField = sheetIt->second->GetField( FIELD_T::SHEET_NAME );

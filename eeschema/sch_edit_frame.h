@@ -218,7 +218,7 @@ public:
      */
     void ExecuteRemoteCommand( const char* cmdline ) override;
 
-    void KiwayMailIn( KIWAY_EXPRESS& aEvent ) override;
+    void KiwayMailIn( KIWAY_MAIL_EVENT& aEvent ) override;
 
     /**
      * Refresh the display of any operating points.  Called after a .op simulation completes.
@@ -568,6 +568,28 @@ public:
                               wxString* aSourceSheetFilename = nullptr );
 
     void InitSheet( SCH_SHEET* aSheet, const wxString& aNewFilename );
+
+    /**
+     * Change the file backing a schematic sheet.
+     *
+     * Handles path normalization, case-clash checks, hierarchy search for existing screens,
+     * file-exists checks, user confirmation prompts, file saving/copying, recursion checks,
+     * screen linking, instance creation, LoadSheetFromFile with error recovery, and
+     * RecalculateConnections + BuildSheetList repair.
+     *
+     * @param aSheet the sheet whose backing file is being changed
+     * @param aNewFilename new relative filename (unix separators, extension already ensured)
+     * @param aClearAnnotationNewItems if non-null, set true when loaded content needs
+     *                                 annotation clearing
+     * @param aIsUndoable if non-null, set false when the operation is not reversible
+     * @param aSourceSheetFilename if non-null and non-empty, source file to copy from
+     *                             (design-block import)
+     * @return true on success
+     */
+    bool ChangeSheetFile( SCH_SHEET* aSheet, const wxString& aNewFilename,
+                          bool* aClearAnnotationNewItems = nullptr,
+                          bool* aIsUndoable = nullptr,
+                          const wxString* aSourceSheetFilename = nullptr );
 
     /**
      * Load a the KiCad schematic file \a aFileName into the sheet \a aSheet.

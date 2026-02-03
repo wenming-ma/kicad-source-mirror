@@ -51,6 +51,7 @@ set( QA_PCBNEW_SRCS
     test_pns_basics.cpp
     test_pad_flashing.cpp
     test_pad_numbering.cpp
+    test_pcb_textbox.cpp
     test_prettifier.cpp
     test_pcb_render_settings.cpp
     test_libeval_compiler.cpp
@@ -102,6 +103,8 @@ set( QA_PCBNEW_SRCS
     pcb_io/eagle/test_eagle_lbr_import.cpp
 
     pcb_io/kicad_sexpr/test_kicad_sexpr.cpp
+
+    pcb_io/easyedapro/test_easyedapro_import.cpp
 
     pcb_io/fabmaster/test_fabmaster_import.cpp
 

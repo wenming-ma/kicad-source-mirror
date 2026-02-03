@@ -1669,7 +1669,30 @@ SCH_PIN* SCH_SYMBOL::GetPin( SCH_PIN* aLibPin ) const
 }
 
 
-std::vector<SCH_PIN*> SCH_SYMBOL::GetPins( const SCH_SHEET_PATH* aSheet ) const
+std::vector<const SCH_PIN*> SCH_SYMBOL::GetPins( const SCH_SHEET_PATH* aSheet ) const
+{
+    std::vector<const SCH_PIN*> pins;
+    int                         unit = m_unit;
+
+    if( !aSheet && Schematic() )
+        aSheet = &Schematic()->CurrentSheet();
+
+    if( aSheet )
+        unit = GetUnitSelection( aSheet );
+
+    for( const std::unique_ptr<SCH_PIN>& pin : m_pins )
+    {
+        if( unit && pin->GetUnit() && pin->GetUnit() != unit )
+            continue;
+
+        pins.push_back( pin.get() );
+    }
+
+    return pins;
+}
+
+
+std::vector<SCH_PIN*> SCH_SYMBOL::GetPins( const SCH_SHEET_PATH* aSheet )
 {
     std::vector<SCH_PIN*> pins;
     int                   unit = m_unit;
@@ -1694,7 +1717,8 @@ std::vector<SCH_PIN*> SCH_SYMBOL::GetPins( const SCH_SHEET_PATH* aSheet ) const
 
 std::vector<SCH_PIN*> SCH_SYMBOL::GetPins() const
 {
-    return GetPins( nullptr );
+    // Back-compat shim: return graphical pins for all units/body styles, violating const
+    return const_cast<SCH_SYMBOL*>( this )->GetPins( nullptr );
 }
 
 
@@ -2027,7 +2051,9 @@ bool SCH_SYMBOL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token,
     {
         *token = wxEmptyString;
 
-        if( aPath->GetDNP() || this->ResolveDNP() )
+        wxString variant = aVariantName.IsEmpty() ? schematic->GetCurrentVariant() : aVariantName;
+
+        if( aPath->GetDNP() || this->ResolveDNP( aPath, variant ) )
             *token = _( "DNP" );
 
         return true;
@@ -2047,10 +2073,24 @@ bool SCH_SYMBOL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token,
 
         // First, try to find the pin in the current unit (for backward compatibility)
         // For REFERENCE/SHORT_REFERENCE/UNIT functions, always search all pins to find which unit the pin belongs to
-        std::vector<SCH_PIN*> pinsToSearch = ( isReferenceFunction || isShortReferenceFunction || isUnitFunction )
-                                              ? GetAllLibPins() : GetPins( aPath );
+        std::vector<const SCH_PIN*> pinsToSearch;
+        std::vector<const SCH_PIN*> altPinsToSearch;
 
-        for( SCH_PIN* pin : pinsToSearch )
+        if( isReferenceFunction || isShortReferenceFunction || isUnitFunction )
+        {
+            for( SCH_PIN* pin : GetAllLibPins() )
+                pinsToSearch.push_back( pin );
+        }
+        else
+        {
+            for( const SCH_PIN* pin : GetPins( aPath ) )
+                pinsToSearch.push_back( pin );
+
+            for( SCH_PIN* pin : GetAllLibPins() )
+                altPinsToSearch.push_back( pin );
+        }
+
+        for( const SCH_PIN* pin : pinsToSearch )
         {
             if( pin->GetNumber() == pinNumber )
             {
@@ -2140,127 +2180,123 @@ bool SCH_SYMBOL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token,
         }
 
         // If pin not found in current unit, search all units (auto-resolution)
-        // Skip this for REFERENCE/SHORT_REFERENCE/UNIT functions as they already searched all units
-        if( !isReferenceFunction && !isShortReferenceFunction && !isUnitFunction )
+        for( const SCH_PIN* pin : altPinsToSearch )
         {
-            for( SCH_PIN* pin : GetAllLibPins() )
+            if( pin->GetNumber() == pinNumber )
             {
-                if( pin->GetNumber() == pinNumber )
+                // For PIN_BASE_NAME and PIN_ALT_LIST, we can use library data
+                if( token->StartsWith( wxT( "PIN_BASE_NAME" ) ) )
                 {
-                    // For PIN_BASE_NAME and PIN_ALT_LIST, we can use library data
-                    if( token->StartsWith( wxT( "PIN_BASE_NAME" ) ) )
-                    {
-                        *token = pin->GetBaseName();
-                        return true;
-                    }
-                    else if( token->StartsWith( wxT( "PIN_ALT_LIST" ) ) )
-                    {
-                        // Build list of alternate names only (no base name)
-                        wxString altList;
-
-                        const std::map<wxString, SCH_PIN::ALT>& alts = pin->GetAlternates();
-
-                        for( const auto& [altName, altDef] : alts )
-                        {
-                            if( !altList.IsEmpty() )
-                                altList += wxT( ", " );
-                            altList += altName;
-                        }
-
-                        *token = altList;
-                        return true;
-                    }
-
-                    // For net-related functions, find which sheet path has this pin's unit
-                    int pinUnit = pin->GetUnit();
-
-                    // Search all sheets for a symbol with our reference and the correct unit
-                    // This is needed because each unit of a multi-unit symbol is a separate object
-                    SCH_SHEET_PATH targetPath;
-                    SCH_SYMBOL*    targetSymbol = nullptr;
-
-                    if( Schematic() )
-                    {
-                        for( const SCH_SHEET_PATH& sheetPath : Schematic()->Hierarchy() )
-                        {
-                            for( SCH_ITEM* item : sheetPath.LastScreen()->Items().OfType( SCH_SYMBOL_T ) )
-                            {
-                                SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
-
-                                // Check if this symbol has the same reference designator and the correct unit
-                                if( symbol->GetRef( &sheetPath, false ) == GetRef( aPath, false )
-                                    && symbol->GetUnitSelection( &sheetPath ) == pinUnit )
-                                {
-                                    targetPath = sheetPath; // Copy the sheet path
-                                    targetSymbol = symbol;
-                                    break;
-                                }
-                            }
-
-                            if( targetSymbol )
-                                break;
-                        }
-                    }
-
-                    if( !targetSymbol )
-                    {
-                        // Unit not placed on any sheet
-                        *token = wxString::Format( wxT( "<Unit %s not placed>" ), SubReference( pinUnit, false ) );
-                        return true;
-                    }
-
-                    // Get the pin from the actual instance symbol we found
-                    // Match by pin number, not by pointer, since the library pins are different objects
-                    SCH_PIN* instancePin = nullptr;
-
-                    for( SCH_PIN* candidate : targetSymbol->GetPins( &targetPath ) )
-                    {
-                        if( candidate->GetNumber() == pinNumber )
-                        {
-                            instancePin = candidate;
-                            break;
-                        }
-                    }
-
-                    if( !instancePin )
-                    {
-                        *token = wxEmptyString;
-                        return true;
-                    }
-
-                    // PIN_NAME doesn't need connection data, just instance pin
-                    if( token->StartsWith( wxT( "PIN_NAME" ) ) )
-                    {
-                        *token = instancePin->GetAlt().IsEmpty() ? instancePin->GetName() : instancePin->GetAlt();
-                        return true;
-                    }
-
-                    // Now get the connection from the correct sheet path
-                    SCH_CONNECTION* conn = instancePin->Connection( &targetPath );
-
-                    if( !conn )
-                    {
-                        *token = wxEmptyString;
-                    }
-                    else if( token->StartsWith( wxT( "SHORT_NET_NAME" ) ) )
-                    {
-                        wxString netName = conn->LocalName();
-                        if( netName.Lower().StartsWith( wxT( "unconnected" ) ) )
-                            *token = wxT( "NC" );
-                        else
-                            *token = netName;
-                    }
-                    else if( token->StartsWith( wxT( "NET_NAME" ) ) )
-                    {
-                        *token = conn->Name();
-                    }
-                    else if( token->StartsWith( wxT( "NET_CLASS" ) ) )
-                    {
-                        *token = instancePin->GetEffectiveNetClass( &targetPath )->GetName();
-                    }
-
+                    *token = pin->GetBaseName();
                     return true;
                 }
+                else if( token->StartsWith( wxT( "PIN_ALT_LIST" ) ) )
+                {
+                    // Build list of alternate names only (no base name)
+                    wxString altList;
+
+                    const std::map<wxString, SCH_PIN::ALT>& alts = pin->GetAlternates();
+
+                    for( const auto& [altName, altDef] : alts )
+                    {
+                        if( !altList.IsEmpty() )
+                            altList += wxT( ", " );
+                        altList += altName;
+                    }
+
+                    *token = altList;
+                    return true;
+                }
+
+                // For net-related functions, find which sheet path has this pin's unit
+                int pinUnit = pin->GetUnit();
+
+                // Search all sheets for a symbol with our reference and the correct unit
+                // This is needed because each unit of a multi-unit symbol is a separate object
+                SCH_SHEET_PATH targetPath;
+                SCH_SYMBOL*    targetSymbol = nullptr;
+
+                if( Schematic() )
+                {
+                    for( const SCH_SHEET_PATH& sheetPath : Schematic()->Hierarchy() )
+                    {
+                        for( SCH_ITEM* item : sheetPath.LastScreen()->Items().OfType( SCH_SYMBOL_T ) )
+                        {
+                            SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
+
+                            // Check if this symbol has the same reference designator and the correct unit
+                            if( symbol->GetRef( &sheetPath, false ) == GetRef( aPath, false )
+                                && symbol->GetUnitSelection( &sheetPath ) == pinUnit )
+                            {
+                                targetPath = sheetPath; // Copy the sheet path
+                                targetSymbol = symbol;
+                                break;
+                            }
+                        }
+
+                        if( targetSymbol )
+                            break;
+                    }
+                }
+
+                if( !targetSymbol )
+                {
+                    // Unit not placed on any sheet
+                    *token = wxString::Format( wxT( "<Unit %s not placed>" ), SubReference( pinUnit, false ) );
+                    return true;
+                }
+
+                // Get the pin from the actual instance symbol we found
+                // Match by pin number, not by pointer, since the library pins are different objects
+                SCH_PIN* instancePin = nullptr;
+
+                for( SCH_PIN* candidate : targetSymbol->GetPins( &targetPath ) )
+                {
+                    if( candidate->GetNumber() == pinNumber )
+                    {
+                        instancePin = candidate;
+                        break;
+                    }
+                }
+
+                if( !instancePin )
+                {
+                    *token = wxEmptyString;
+                    return true;
+                }
+
+                // PIN_NAME doesn't need connection data, just instance pin
+                if( token->StartsWith( wxT( "PIN_NAME" ) ) )
+                {
+                    *token = instancePin->GetAlt().IsEmpty() ? instancePin->GetName() : instancePin->GetAlt();
+                    return true;
+                }
+
+                // Now get the connection from the correct sheet path
+                SCH_CONNECTION* conn = instancePin->Connection( &targetPath );
+
+                if( !conn )
+                {
+                    *token = wxEmptyString;
+                }
+                else if( token->StartsWith( wxT( "SHORT_NET_NAME" ) ) )
+                {
+                    wxString netName = conn->LocalName();
+                    if( netName.Lower().StartsWith( wxT( "unconnected" ) ) )
+                        *token = wxT( "NC" );
+                    else
+                        *token = netName;
+                }
+                else if( token->StartsWith( wxT( "NET_NAME" ) ) )
+                {
+                    *token = conn->Name();
+                }
+                else if( token->StartsWith( wxT( "NET_CLASS" ) ) )
+                {
+                    *token = instancePin->GetEffectiveNetClass( &targetPath )->GetName();
+                }
+
+                return true;
             }
         }
 
@@ -2627,6 +2663,7 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
 
     SCH_EDIT_FRAME* schframe = dynamic_cast<SCH_EDIT_FRAME*>( aFrame );
     SCH_SHEET_PATH* currentSheet = schframe ? &schframe->GetCurrentSheet() : nullptr;
+    wxString        currentVariant = Schematic() ? Schematic()->GetCurrentVariant() : wxString();
 
     auto addExcludes = [&]()
     {
@@ -2641,7 +2678,7 @@ void SCH_SYMBOL::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
         if( GetExcludedFromBoard() )
             msgs.Add( _( "Board" ) );
 
-        if( GetDNP( currentSheet ) )
+        if( GetDNP( currentSheet, currentVariant ) )
             msgs.Add( _( "DNP" ) );
 
         msg = wxJoin( msgs, '|' );
@@ -3268,14 +3305,18 @@ void SCH_SYMBOL::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS&
         renderSettings->m_Transform = GetTransform();
         aPlotter->StartBlock( nullptr );
 
+        wxString        variant = Schematic()->GetCurrentVariant();
+        SCH_SHEET_PATH* sheet = &Schematic()->CurrentSheet();
+        bool            dnp = GetDNP( sheet, variant );
+
         for( bool local_background : { true, false } )
         {
-            tempSymbol.Plot( aPlotter, local_background, aPlotOpts, GetUnit(), GetBodyStyle(), m_pos, GetDNP() );
+            tempSymbol.Plot( aPlotter, local_background, aPlotOpts, GetUnit(), GetBodyStyle(), m_pos, dnp );
 
             for( SCH_FIELD field : m_fields )
             {
                 field.ClearRenderCache();
-                field.Plot( aPlotter, local_background, aPlotOpts, GetUnit(), GetBodyStyle(), m_pos, GetDNP() );
+                field.Plot( aPlotter, local_background, aPlotOpts, GetUnit(), GetBodyStyle(), m_pos, dnp );
 
                 if( IsSymbolLikePowerLocalLabel() && field.GetId() == FIELD_T::VALUE
                     && ( field.IsVisible() || field.IsForceVisible() ) )
@@ -3285,10 +3326,7 @@ void SCH_SYMBOL::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS&
             }
         }
 
-        wxString variant = Schematic()->GetCurrentVariant();
-        SCH_SHEET_PATH* sheet = &Schematic()->CurrentSheet();
-
-        if( GetDNP( sheet, variant ) )
+        if( dnp )
             PlotDNP( aPlotter );
 
         // Plot attributes to a hypertext menu
@@ -3410,7 +3448,7 @@ void SCH_SYMBOL::PlotLocalPowerIconShape( PLOTTER* aPlotter ) const
 }
 
 
-void SCH_SYMBOL::PlotPins( PLOTTER* aPlotter ) const
+void SCH_SYMBOL::PlotPins( PLOTTER* aPlotter, bool aDnp ) const
 {
     if( m_part )
     {
@@ -3437,7 +3475,7 @@ void SCH_SYMBOL::PlotPins( PLOTTER* aPlotter ) const
             tempPin->SetName( symbolPin->GetShownName() );
             tempPin->SetType( symbolPin->GetType() );
             tempPin->SetShape( symbolPin->GetShape() );
-            tempPin->Plot( aPlotter, false, plotOpts, GetUnit(), GetBodyStyle(), m_pos, GetDNP() );
+            tempPin->Plot( aPlotter, false, plotOpts, GetUnit(), GetBodyStyle(), m_pos, aDnp );
         }
 
         renderSettings->m_Transform = savedTransform;

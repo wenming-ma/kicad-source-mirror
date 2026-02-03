@@ -32,7 +32,7 @@
 #include <gal/graphics_abstraction_layer.h>
 #include <kiface_base.h>
 #include <kiway.h>
-#include <kiway_express.h>
+#include <kiway_mail.h>
 #include <locale_io.h>
 #include <symbol_viewer_frame.h>
 #include <widgets/msgpanel.h>
@@ -1072,7 +1072,7 @@ SELECTION& SYMBOL_VIEWER_FRAME::GetCurrentSelection()
 }
 
 
-void SYMBOL_VIEWER_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
+void SYMBOL_VIEWER_FRAME::KiwayMailIn( KIWAY_MAIL_EVENT& mail )
 {
 
     switch( mail.Command() )

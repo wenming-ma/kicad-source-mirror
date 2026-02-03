@@ -295,6 +295,36 @@ bool PAD::CanHaveNumber() const
 }
 
 
+bool PAD::IsNPTHWithNoCopper() const
+{
+    if( GetAttribute() != PAD_ATTRIB::NPTH )
+        return false;
+
+    bool hasCopper = false;
+
+    Padstack().ForEachUniqueLayer(
+            [&]( PCB_LAYER_ID layer )
+            {
+                if( GetShape( layer ) == PAD_SHAPE::CIRCLE )
+                {
+                    if( GetSize( layer ).x > GetDrillSize().x )
+                        hasCopper = true;
+                }
+                else if( GetShape( layer ) == PAD_SHAPE::OVAL )
+                {
+                    if( GetSize( layer ).x > GetDrillSize().x || GetSize( layer ).y > GetDrillSize().y )
+                        hasCopper = true;
+                }
+                else
+                {
+                    hasCopper = true;
+                }
+            } );
+
+    return !hasCopper;
+}
+
+
 bool PAD::IsLocked() const
 {
     if( GetParent() && GetParent()->IsLocked() )
@@ -329,8 +359,7 @@ bool PAD::IsNoConnectPad() const
 
 bool PAD::IsFreePad() const
 {
-    return GetShortNetname().StartsWith( wxT( "unconnected-(" ) )
-            && m_pinType == wxT( "free" );
+    return GetShortNetname().StartsWith( wxT( "unconnected-(" ) ) && m_pinType == wxT( "free" );
 }
 
 
@@ -1422,11 +1451,11 @@ void PAD::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
     MIRROR( m_pos, aCentre, aFlipDirection );
 
     m_padStack.ForEachUniqueLayer(
-        [&]( PCB_LAYER_ID aLayer )
-        {
-            MIRROR( m_padStack.Offset( aLayer ), VECTOR2I{ 0, 0 }, aFlipDirection );
-            MIRROR( m_padStack.TrapezoidDeltaSize( aLayer ), VECTOR2I{ 0, 0 }, aFlipDirection );
-        } );
+            [&]( PCB_LAYER_ID aLayer )
+            {
+                MIRROR( m_padStack.Offset( aLayer ), VECTOR2I{ 0, 0 }, aFlipDirection );
+                MIRROR( m_padStack.TrapezoidDeltaSize( aLayer ), VECTOR2I{ 0, 0 }, aFlipDirection );
+            } );
 
     SetFPRelativeOrientation( -GetFPRelativeOrientation() );
 
@@ -1446,28 +1475,25 @@ void PAD::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
                           };
 
     Padstack().ForEachUniqueLayer(
-        [&]( PCB_LAYER_ID aLayer )
-        {
-            if( aFlipDirection == FLIP_DIRECTION::LEFT_RIGHT )
+            [&]( PCB_LAYER_ID aLayer )
             {
-                mirrorBitFlags( m_padStack.ChamferPositions( aLayer ), RECT_CHAMFER_TOP_LEFT,
-                                RECT_CHAMFER_TOP_RIGHT );
-                mirrorBitFlags( m_padStack.ChamferPositions( aLayer ), RECT_CHAMFER_BOTTOM_LEFT,
-                                RECT_CHAMFER_BOTTOM_RIGHT );
-            }
-            else
-            {
-                mirrorBitFlags( m_padStack.ChamferPositions( aLayer ), RECT_CHAMFER_TOP_LEFT,
-                                RECT_CHAMFER_BOTTOM_LEFT );
-                mirrorBitFlags( m_padStack.ChamferPositions( aLayer ), RECT_CHAMFER_TOP_RIGHT,
-                                RECT_CHAMFER_BOTTOM_RIGHT );
-            }
-        } );
+                if( aFlipDirection == FLIP_DIRECTION::LEFT_RIGHT )
+                {
+                    mirrorBitFlags( m_padStack.ChamferPositions( aLayer ), RECT_CHAMFER_TOP_LEFT,
+                                    RECT_CHAMFER_TOP_RIGHT );
+                    mirrorBitFlags( m_padStack.ChamferPositions( aLayer ), RECT_CHAMFER_BOTTOM_LEFT,
+                                    RECT_CHAMFER_BOTTOM_RIGHT );
+                }
+                else
+                {
+                    mirrorBitFlags( m_padStack.ChamferPositions( aLayer ), RECT_CHAMFER_TOP_LEFT,
+                                    RECT_CHAMFER_BOTTOM_LEFT );
+                    mirrorBitFlags( m_padStack.ChamferPositions( aLayer ), RECT_CHAMFER_TOP_RIGHT,
+                                    RECT_CHAMFER_BOTTOM_RIGHT );
+                }
+            } );
 
-    // Flip padstack geometry
-    int copperLayerCount = BoardCopperLayerCount();
-
-    m_padStack.FlipLayers( copperLayerCount );
+    m_padStack.FlipLayers( GetBoard() );
 
     // Flip pads layers after padstack geometry
     LSET flipped;

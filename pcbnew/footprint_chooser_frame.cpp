@@ -25,7 +25,7 @@
 #include <pgm_base.h>
 #include <kiface_base.h>
 #include <kiway.h>
-#include <kiway_express.h>
+#include <kiway_mail.h>
 #include <board.h>
 #include <wx/button.h>
 #include <wx/checkbox.h>
@@ -470,7 +470,7 @@ COLOR_SETTINGS* FOOTPRINT_CHOOSER_FRAME::GetColorSettings( bool aForceRefresh ) 
 static wxRect s_dialogRect( 0, 0, 0, 0 );
 
 
-void FOOTPRINT_CHOOSER_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
+void FOOTPRINT_CHOOSER_FRAME::KiwayMailIn( KIWAY_MAIL_EVENT& mail )
 {
     const std::string& payload = mail.GetPayload();
 

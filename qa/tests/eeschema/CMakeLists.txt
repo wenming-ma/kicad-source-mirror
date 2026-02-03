@@ -103,6 +103,7 @@ set( QA_EESCHEMA_SRCS
     test_pin_numbers.cpp
     test_sch_netclass.cpp
     test_sch_pin.cpp
+    test_sch_rule_area_destruction.cpp
     test_sch_rtree.cpp
     test_sch_reference_list.cpp
     test_sch_screen.cpp
@@ -111,6 +112,7 @@ set( QA_EESCHEMA_SRCS
     test_sch_sheet_list.cpp
     test_sch_symbol.cpp
     test_sch_table.cpp
+    test_sch_textbox.cpp
     test_schematic.cpp
     test_flat_hierarchy.cpp
     test_multi_top_level_sheets.cpp

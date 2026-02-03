@@ -35,7 +35,7 @@
 #include <kidialog.h>
 #include <kiface_base.h>
 #include <kiplatform/app.h>
-#include <kiway_express.h>
+#include <kiway_mail.h>
 #include <symbol_edit_frame.h>
 #include <lib_symbol_library_manager.h>
 #include <symbol_editor/symbol_editor_settings.h>
@@ -1232,7 +1232,6 @@ void SYMBOL_EDIT_FRAME::DdAddLibrary( wxString aLibFile )
         return;
     }
 
-    // TODO(JE) after Jeff's commit removing the select dialog; this is always project? is that correct?
     if( !m_libMgr->AddLibrary( fn.GetFullPath(), LIBRARY_TABLE_SCOPE::PROJECT ) )
     {
         DisplayError( this, _( "Could not open the library file." ) );
@@ -1339,8 +1338,7 @@ void SYMBOL_EDIT_FRAME::SyncLibraries( bool aShowProgress, bool aPreloadCancelle
         m_libMgr->Sync( aForceRefresh,
                 [&]( int progress, int max, const wxString& libName )
                 {
-                    progressDlg.Update( progress, wxString::Format( _( "Loading library '%s'..." ),
-                                                                    libName ) );
+                    progressDlg.Update( progress, wxString::Format( _( "Loading library '%s'..." ), libName ) );
                 } );
     }
     else if( !aPreloadCancelled )
@@ -1606,7 +1604,7 @@ void SYMBOL_EDIT_FRAME::FocusOnItem( EDA_ITEM* aItem, bool aAllowScroll )
 
     if( m_symbol )
     {
-        for( SCH_PIN* pin : m_symbol->GetPins() )
+        for( SCH_PIN* pin : m_symbol->GetGraphicalPins( 0, 0 ) )
         {
             if( pin->m_Uuid == lastBrightenedItemID )
                 lastItem = pin;
@@ -1645,7 +1643,7 @@ void SYMBOL_EDIT_FRAME::FocusOnItem( EDA_ITEM* aItem, bool aAllowScroll )
 }
 
 
-void SYMBOL_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
+void SYMBOL_EDIT_FRAME::KiwayMailIn( KIWAY_MAIL_EVENT& mail )
 {
     const std::string& payload = mail.GetPayload();
 

@@ -30,7 +30,7 @@
 #include <footprint_library_adapter.h>
 #include <kiface_base.h>
 #include <kiplatform/app.h>
-#include <kiway_express.h>
+#include <kiway_mail.h>
 #include <string_utils.h>
 #include <project/project_file.h>
 #include <netlist_reader/netlist_reader.h>
@@ -1212,7 +1212,7 @@ void CVPCB_MAINFRAME::ShowChangedLanguage()
 }
 
 
-void CVPCB_MAINFRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
+void CVPCB_MAINFRAME::KiwayMailIn( KIWAY_MAIL_EVENT& mail )
 {
     const std::string& payload = mail.GetPayload();
 

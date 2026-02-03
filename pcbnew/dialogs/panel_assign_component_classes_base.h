@@ -30,7 +30,6 @@ class STD_BITMAP_BUTTON;
 #include <wx/textctrl.h>
 #include <wx/bmpbuttn.h>
 #include <wx/radiobut.h>
-#include <wx/statbox.h>
 #include <wx/combobox.h>
 
 ///////////////////////////////////////////////////////////////////////////
@@ -55,7 +54,7 @@ class PANEL_ASSIGN_COMPONENT_CLASSES_BASE : public wxPanel
 
 	public:
 
-		PANEL_ASSIGN_COMPONENT_CLASSES_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
+		PANEL_ASSIGN_COMPONENT_CLASSES_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxPoint( -1000,-1000 ), const wxSize& size = wxSize( -1,-1 ), long style = wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
 
 		~PANEL_ASSIGN_COMPONENT_CLASSES_BASE();
 
@@ -86,7 +85,7 @@ class PANEL_COMPONENT_CLASS_ASSIGNMENT_BASE : public wxPanel
 
 	public:
 
-		PANEL_COMPONENT_CLASS_ASSIGNMENT_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_SUNKEN|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
+		PANEL_COMPONENT_CLASS_ASSIGNMENT_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxPoint( -1000,-1000 ), const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_RAISED|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
 
 		~PANEL_COMPONENT_CLASS_ASSIGNMENT_BASE();
 
@@ -113,7 +112,7 @@ class PANEL_COMPONENT_CLASS_CONDITION_REFERENCE_BASE : public wxPanel
 
 	public:
 
-		PANEL_COMPONENT_CLASS_CONDITION_REFERENCE_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_SUNKEN|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
+		PANEL_COMPONENT_CLASS_CONDITION_REFERENCE_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxPoint( -1000,-1000 ), const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_RAISED|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
 
 		~PANEL_COMPONENT_CLASS_CONDITION_REFERENCE_BASE();
 
@@ -137,7 +136,7 @@ class PANEL_COMPONENT_CLASS_CONDITION_SIDE_BASE : public wxPanel
 
 	public:
 
-		PANEL_COMPONENT_CLASS_CONDITION_SIDE_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_SUNKEN|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
+		PANEL_COMPONENT_CLASS_CONDITION_SIDE_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxPoint( -1000,-1000 ), const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_RAISED|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
 
 		~PANEL_COMPONENT_CLASS_CONDITION_SIDE_BASE();
 
@@ -162,7 +161,7 @@ class PANEL_COMPONENT_CLASS_CONDITION_ROTATION_BASE : public wxPanel
 
 	public:
 
-		PANEL_COMPONENT_CLASS_CONDITION_ROTATION_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_SUNKEN|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
+		PANEL_COMPONENT_CLASS_CONDITION_ROTATION_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxPoint( -1000,-1000 ), const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_RAISED|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
 
 		~PANEL_COMPONENT_CLASS_CONDITION_ROTATION_BASE();
 
@@ -188,7 +187,7 @@ class PANEL_COMPONENT_CLASS_CONDITION_FOOTPRINT_BASE : public wxPanel
 
 	public:
 
-		PANEL_COMPONENT_CLASS_CONDITION_FOOTPRINT_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_SUNKEN|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
+		PANEL_COMPONENT_CLASS_CONDITION_FOOTPRINT_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxPoint( -1000,-1000 ), const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_RAISED|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
 
 		~PANEL_COMPONENT_CLASS_CONDITION_FOOTPRINT_BASE();
 
@@ -214,7 +213,7 @@ class PANEL_COMPONENT_CLASS_CONDITION_FIELD_BASE : public wxPanel
 
 	public:
 
-		PANEL_COMPONENT_CLASS_CONDITION_FIELD_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_SUNKEN|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
+		PANEL_COMPONENT_CLASS_CONDITION_FIELD_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxPoint( -1000,-1000 ), const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_RAISED|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
 
 		~PANEL_COMPONENT_CLASS_CONDITION_FIELD_BASE();
 
@@ -238,7 +237,7 @@ class PANEL_COMPONENT_CLASS_CONDITION_CUSTOM_BASE : public wxPanel
 
 	public:
 
-		PANEL_COMPONENT_CLASS_CONDITION_CUSTOM_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_SUNKEN|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
+		PANEL_COMPONENT_CLASS_CONDITION_CUSTOM_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxPoint( -1000,-1000 ), const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_RAISED|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
 
 		~PANEL_COMPONENT_CLASS_CONDITION_CUSTOM_BASE();
 
@@ -262,7 +261,7 @@ class PANEL_COMPONENT_CLASS_CONDITION_SHEET_BASE : public wxPanel
 
 	public:
 
-		PANEL_COMPONENT_CLASS_CONDITION_SHEET_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_SUNKEN|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
+		PANEL_COMPONENT_CLASS_CONDITION_SHEET_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxPoint( -1000,-1000 ), const wxSize& size = wxSize( -1,-1 ), long style = wxBORDER_RAISED|wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
 
 		~PANEL_COMPONENT_CLASS_CONDITION_SHEET_BASE();
 

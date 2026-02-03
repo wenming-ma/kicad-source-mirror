@@ -29,6 +29,8 @@
 #include <qa_utils/wx_utils/unit_test_utils.h>
 
 #include <eeschema/sch_io/altium/altium_parser_sch.h>
+#include <validators.h>
+#include <wx/filename.h>
 
 // Function declarations of private methods to test
 int ReadKiCadUnitFrac( const std::map<wxString, wxString>& aProps,
@@ -103,5 +105,139 @@ BOOST_AUTO_TEST_CASE( PropertiesReadKiCadUnitFracConversation )
     }
 }
 
+
+struct SHEET_NAME_SANITIZE_CASE
+{
+    wxString input;
+    wxString expected;
+};
+
+static const std::vector<SHEET_NAME_SANITIZE_CASE> sheet_name_sanitize_cases = {
+    { wxT( "SimpleSheet" ), wxT( "SimpleSheet" ) },
+    { wxT( "POWER PROTECTION/MONITORING" ), wxT( "POWER PROTECTION_MONITORING" ) },
+    { wxT( "A/B/C" ), wxT( "A_B_C" ) },
+    { wxT( "/" ), wxT( "_" ) },
+    { wxT( "no_slash_here" ), wxT( "no_slash_here" ) },
+    { wxT( "trailing/" ), wxT( "trailing_" ) },
+    { wxT( "/leading" ), wxT( "_leading" ) },
+};
+
+/**
+ * Verify that the slash-to-underscore sanitization used by the Altium importer produces valid
+ * KiCad sheet names.
+ */
+BOOST_AUTO_TEST_CASE( SheetNameSlashSanitization )
+{
+    for( const auto& c : sheet_name_sanitize_cases )
+    {
+        BOOST_TEST_CONTEXT( wxString::Format( wxT( "'%s' -> '%s'" ), c.input, c.expected ) )
+        {
+            wxString sanitized = c.input;
+            sanitized.Replace( wxT( "/" ), wxT( "_" ) );
+
+            BOOST_CHECK_EQUAL( sanitized, c.expected );
+
+            wxString validationError = GetFieldValidationErrorMessage( FIELD_T::SHEET_NAME,
+                                                                       sanitized );
+            BOOST_CHECK_MESSAGE( validationError.empty(),
+                                 wxString::Format( wxT( "Sanitized name '%s' failed validation: %s" ),
+                                                   sanitized, validationError ) );
+        }
+    }
+}
+
+/**
+ * Verify that unsanitized sheet names with slashes are rejected by KiCad validation.
+ */
+BOOST_AUTO_TEST_CASE( SheetNameSlashRejection )
+{
+    wxString invalidName = wxT( "POWER PROTECTION/MONITORING" );
+    wxString validationError = GetFieldValidationErrorMessage( FIELD_T::SHEET_NAME, invalidName );
+
+    BOOST_CHECK_MESSAGE( !validationError.empty(),
+                         wxT( "Sheet name with '/' should fail validation" ) );
+}
+
+/**
+ * Verify that wxFileName::HasExt() correctly distinguishes extensionless Altium filenames
+ * from those with extensions. The Altium importer uses this to decide when to try appending
+ * .SchDoc during the hierarchy descent.
+ */
+BOOST_AUTO_TEST_CASE( ExtensionlessFilenameDetection )
+{
+    // Filenames WITH extensions should be detected
+    BOOST_CHECK( wxFileName( wxT( "6_power.SchDoc" ) ).HasExt() );
+    BOOST_CHECK( wxFileName( wxT( "my_sheet.SCHDOC" ) ).HasExt() );
+
+    // Filenames WITHOUT extensions should not be detected
+    BOOST_CHECK( !wxFileName( wxT( "6_power" ) ).HasExt() );
+    BOOST_CHECK( !wxFileName( wxT( "POWER MANAGEMENT" ) ).HasExt() );
+    BOOST_CHECK( !wxFileName( wxT( "" ) ).HasExt() );
+}
+
+
+/**
+ * Verify that case-insensitive base-name matching works for resolving extensionless Altium
+ * sheet symbol filenames to .SchDoc files on disk.
+ */
+BOOST_AUTO_TEST_CASE( ExtensionlessBaseNameMatching )
+{
+    wxFileName sheetFn( wxT( "6_power" ) );
+    bool       extensionless = !sheetFn.HasExt();
+
+    BOOST_CHECK( extensionless );
+
+    wxFileName candidateA( wxT( "6_power.SchDoc" ) );
+    wxFileName candidateB( wxT( "6_POWER.SCHDOC" ) );
+    wxFileName candidateC( wxT( "7_other.SchDoc" ) );
+    wxFileName candidateD( wxT( "6_power.txt" ) );
+
+    // Should match same base name with .SchDoc extension (case-insensitive on both parts)
+    auto matches = [&]( const wxFileName& candidate )
+    {
+        return candidate.GetFullName().IsSameAs( sheetFn.GetFullName(), false )
+               || ( extensionless
+                    && !sheetFn.GetName().empty()
+                    && candidate.GetName().IsSameAs( sheetFn.GetName(), false )
+                    && candidate.GetExt().IsSameAs( wxT( "SchDoc" ), false ) );
+    };
+
+    BOOST_CHECK( matches( candidateA ) );
+    BOOST_CHECK( matches( candidateB ) );   // Case-insensitive match on both name and ext
+    BOOST_CHECK( !matches( candidateC ) );  // Different base name
+    BOOST_CHECK( !matches( candidateD ) );  // Wrong extension
+}
+
+
+/**
+ * Verify that name derivation from filenames for top-level sheets produces correct
+ * deduplicated names, matching the logic in LoadSchematicProject.
+ */
+BOOST_AUTO_TEST_CASE( SheetNameDerivationFromFilename )
+{
+    auto deriveName = []( const wxString& aFilePath, const std::set<wxString>& aExistingNames )
+    {
+        wxString baseName = wxFileName( aFilePath ).GetName();
+        baseName.Replace( wxT( "/" ), wxT( "_" ) );
+
+        wxString sheetName = baseName;
+
+        for( int ii = 1; aExistingNames.count( sheetName ); ++ii )
+            sheetName = baseName + wxString::Format( wxT( "_%d" ), ii );
+
+        return sheetName;
+    };
+
+    BOOST_CHECK_EQUAL( deriveName( wxT( "6_power.SchDoc" ), {} ), wxT( "6_power" ) );
+    BOOST_CHECK_EQUAL( deriveName( wxT( "POWER.SchDoc" ), {} ), wxT( "POWER" ) );
+
+    // Deduplication when a name already exists
+    std::set<wxString> existing = { wxT( "6_power" ) };
+    BOOST_CHECK_EQUAL( deriveName( wxT( "6_power.SchDoc" ), existing ), wxT( "6_power_1" ) );
+
+    // Multiple duplicates
+    existing.insert( wxT( "6_power_1" ) );
+    BOOST_CHECK_EQUAL( deriveName( wxT( "6_power.SchDoc" ), existing ), wxT( "6_power_2" ) );
+}
 
 BOOST_AUTO_TEST_SUITE_END()

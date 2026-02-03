@@ -30,7 +30,7 @@
 #include <settings/color_settings.h>
 #include <bitmaps.h>
 #include <kiway.h>
-#include <kiway_express.h>
+#include <kiway_mail.h>
 #include <confirm.h>
 #include <common.h>
 #include <string_utils.h>
@@ -181,7 +181,7 @@ DIALOG_FIELD_PROPERTIES::DIALOG_FIELD_PROPERTIES( SCH_BASE_FRAME* aParent, const
         wxString      netlist;
         wxArrayString pins;
 
-        for( SCH_PIN* pin : symbol->GetGraphicalPins( 0 /* all units */, 1 /* single bodyStyle */ ) )
+        for( const SCH_PIN* pin : symbol->GetGraphicalPins( 0 /* all units */, 1 /* single bodyStyle */ ) )
         {
             bool valid = false;
             auto expanded = pin->GetStackedPinNumbers( &valid );
@@ -390,7 +390,7 @@ void DIALOG_FIELD_PROPERTIES::OnTextValueSelectButtonClick( wxCommandEvent& aEve
 
     if( KIWAY_PLAYER* frame = Kiway().Player( FRAME_FOOTPRINT_CHOOSER, true, this ) )
     {
-        KIWAY_EXPRESS event( FRAME_FOOTPRINT_CHOOSER, MAIL_SYMBOL_NETLIST, m_netlist );
+        KIWAY_MAIL_EVENT event( FRAME_FOOTPRINT_CHOOSER, MAIL_SYMBOL_NETLIST, m_netlist );
         frame->KiwayMailIn( event );
 
         if( frame->ShowModal( &fpid, this ) )

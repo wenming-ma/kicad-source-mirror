@@ -2991,10 +2991,10 @@ void PCB_EDIT_FRAME::ProjectChanged()
     if( GetBoard() )
     {
         Kiway().LocalHistory().RegisterSaver( GetBoard(),
-            [this]( const wxString& aProjectPath, std::vector<wxString>& aFiles )
-            {
-                GetBoard()->SaveToHistory( aProjectPath, aFiles );
-            } );
+                [this]( const wxString& aProjectPath, std::vector<wxString>& aFiles )
+                {
+                    GetBoard()->SaveToHistory( aProjectPath, aFiles );
+                } );
     }
 }
 
@@ -3242,8 +3242,7 @@ void PCB_EDIT_FRAME::OnEditItemRequest( BOARD_ITEM* aItem )
     {
         DIALOG_DIMENSION_PROPERTIES dlg( this, static_cast<PCB_DIMENSION_BASE*>( aItem ) );
 
-        // TODO: why is this QuasiModal?
-        dlg.ShowQuasiModal();
+        dlg.ShowModal();
         break;
     }
 

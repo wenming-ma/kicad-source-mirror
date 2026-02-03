@@ -34,7 +34,7 @@
 #include <footprint_viewer_frame.h>
 #include <footprint_library_adapter.h>
 #include <kiway.h>
-#include <kiway_express.h>
+#include <kiway_mail.h>
 #include <netlist_reader/pcb_netlist.h>
 #include <widgets/kistatusbar.h>
 #include <widgets/msgpanel.h>
@@ -947,7 +947,7 @@ void FOOTPRINT_VIEWER_FRAME::HardRedraw()
     ReloadFootprint( GetBoard()->GetFirstFootprint() );
 }
 
-void FOOTPRINT_VIEWER_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
+void FOOTPRINT_VIEWER_FRAME::KiwayMailIn( KIWAY_MAIL_EVENT& mail )
 {
     switch( mail.Command() )
     {

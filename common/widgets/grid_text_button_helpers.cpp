@@ -33,7 +33,7 @@
 #include <kiplatform/ui.h>
 #include <kiway.h>
 #include <kiway_player.h>
-#include <kiway_express.h>
+#include <kiway_mail.h>
 #include <string_utils.h>
 #include <dialog_shim.h>
 #include <common.h>
@@ -157,7 +157,7 @@ protected:
         {
             if( !m_symbolNetlist.empty() )
             {
-                KIWAY_EXPRESS event( FRAME_FOOTPRINT_CHOOSER, MAIL_SYMBOL_NETLIST,
+                KIWAY_MAIL_EVENT event( FRAME_FOOTPRINT_CHOOSER, MAIL_SYMBOL_NETLIST,
                                      m_symbolNetlist );
                 frame->KiwayMailIn( event );
             }

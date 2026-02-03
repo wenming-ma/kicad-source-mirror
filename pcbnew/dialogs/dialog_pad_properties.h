@@ -90,7 +90,7 @@ private:
 
     void OnPadShapeSelection( wxCommandEvent& event ) override;
     void OnDrillShapeSelected( wxCommandEvent& event ) override;
-	void onChangePadMode( wxCommandEvent& event ) override;
+	void onChangePadDrawMode( wxCommandEvent& event ) override;
 	void OnOffsetCheckbox( wxCommandEvent& event ) override;
 	void OnPadToDieCheckbox( wxCommandEvent& event ) override;
     void OnPadToDieDelayCheckbox( wxCommandEvent& event ) override;
@@ -137,6 +137,8 @@ private:
     double getMaxCornerRadius() const;
 
     void updateAllowedPadChamferCorners();
+
+    void onPadShapeSelection( bool aUpdateSpokeAngle );
 
 private:
     PCB_BASE_FRAME* m_parent;
