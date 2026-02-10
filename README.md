@@ -1,58 +1,80 @@
-# KiCad README
+# KiCad 绕行算法可视化
 
-For specific documentation about [building KiCad](https://dev-docs.kicad.org/en/build/), policies
-and guidelines, and source code documentation see the
-[Developer Documentation](https://dev-docs.kicad.org) website.
+## 项目说明
 
-You may also take a look into the [Wiki](https://gitlab.com/kicad/code/kicad/-/wikis/home),
-the [contribution guide](https://dev-docs.kicad.org/en/contribute/).
+这个项目使用 Manim 可视化展示 KiCad PCB 布线器中的绕行算法，特别是"贴合障碍物"的概念。
 
-For general information about KiCad and information about contributing to the documentation and
-libraries, see our [Website](https://kicad.org/) and our [Forum](https://forum.kicad.info/).
+## 什么是"贴合障碍物"？
 
-## Build state
+在 KiCad 的绕行算法中，"贴合障碍物"（Hug Obstacle）是一种路径优化技术：
 
-KiCad uses a host of CI resources.
+### 核心概念
 
-GitLab CI pipeline status can be viewed for Linux and Windows builds of the latest commits.
+1. **基础绕行**：先计算障碍物的凸包，确保走线与障碍物保持安全距离
+2. **双向尝试**：同时尝试顺时针和逆时针绕行
+3. **长度比较**：选择较短的路径
+4. **贴合优化**：在满足设计规则的前提下，尽可能减小与障碍物的距离
 
-## Release status
-[![latest released version(s)](https://repology.org/badge/latest-versions/kicad.svg)](https://repology.org/project/kicad/versions)
-[![Release status](https://repology.org/badge/tiny-repos/kicad.svg)](https://repology.org/metapackage/kicad/versions)
+### 为什么要贴合？
 
-## Files
-* [AUTHORS.txt](AUTHORS.txt) - The authors, contributors, document writers and translators list
-* [CMakeLists.txt](CMakeLists.txt) - Main CMAKE build tool script
-* [copyright.h](copyright.h) - A very short copy of the GNU General Public License to be included in new source files
-* [Doxyfile](Doxyfile) - Doxygen config file for KiCad
-* [INSTALL.txt](INSTALL.txt) - The release (binary) installation instructions
-* [uncrustify.cfg](uncrustify.cfg) - Uncrustify config file for uncrustify sources formatting tool
-* [_clang-format](_clang-format) - clang config file for clang-format sources formatting tool
+- **最小化路径长度**：减少走线长度，节省空间
+- **提高布线密度**：允许更多走线通过狭窄区域
+- **优化信号完整性**：较短的走线有更好的电气特性
 
-## Subdirectories
+### 算法步骤
 
-* [3d-viewer](3d-viewer)         - Sourcecode of the 3D viewer
-* [bitmap2component](bitmap2component)  - Sourcecode of the bitmap to PCB artwork converter
-* [cmake](cmake)      - Modules for the CMAKE build tool
-* [common](common)            - Sourcecode of the common library
-* [cvpcb](cvpcb)             - Sourcecode of the CvPCB tool
-* [demos](demos)             - Some demo examples
-* [doxygen](doxygen)     - Configuration for generating pretty doxygen manual of the codebase
-* [eeschema](eeschema)          - Sourcecode of the schematic editor
-* [gerbview](gerbview)          - Sourcecode of the gerber viewer
-* [include](include)           - Interfaces to the common library
-* [kicad](kicad)             - Sourcecode of the project manager
-* [libs](libs)           - Sourcecode of KiCad utilities (geometry and others)
-* [pagelayout_editor](pagelayout_editor) - Sourcecode of the pagelayout editor
-* [patches](patches)           - Collection of patches for external dependencies
-* [pcbnew](pcbnew)           - Sourcecode of the printed circuit board editor
-* [plugins](plugins)           - Sourcecode for the 3D viewer plugins
-* [qa](qa)                - Unit testing framework for KiCad
-* [resources](resources)         - Packaging resources such as bitmaps and operating system specific files
-    - [bitmaps_png](resources/bitmaps_png)       - Menu and program icons
-    - [project_template](resources/project_template)          - Project template
-* [scripting](scripting)         - Python integration for KiCad
-* [thirdparty](thirdparty)           - Sourcecode of external libraries used in KiCad but not written by the KiCad team
-* [tools](tools)             - Helpers for developing, testing and building
-* [translation](translation) - Translation data files (managed through [Weblate](https://hosted.weblate.org/projects/kicad/master-source/) for most languages)
-* [utils](utils)             - Small utils for KiCad, e.g. IDF, STEP, and OGL tools and converters
+```
+1. 检测碰撞 → 需要绕行
+2. 计算障碍物凸包（考虑间距要求）
+3. 尝试顺时针绕行
+4. 尝试逆时针绕行
+5. 比较路径长度
+6. 选择最短路径
+7. 贴合优化：在安全范围内尽可能靠近障碍物
+```
+
+## 文件结构
+
+```
+项目根目录/
+├── README.md
+└── manimStudio/
+    ├── scenes/
+    │   └── 绕行贴合算法.py
+    └── media/ (渲染后自动生成)
+```
+
+## 渲染命令
+
+```bash
+uv run manim manimStudio/scenes/绕行贴合算法.py 绕行贴合算法 -pql
+```
+
+## 可视化内容
+
+动画展示了以下内容：
+
+1. **初始状态**：起点、终点、障碍物
+2. **碰撞检测**：直线路径与障碍物冲突
+3. **凸包计算**：考虑线宽和间距的安全边界
+4. **双向绕行**：顺时针和逆时针路径
+5. **路径比较**：长度计算和选择
+6. **贴合优化**：最终的紧贴路径
+
+## 技术细节
+
+- 使用 Manim 3D 动画库
+- 模拟真实的 PCB 布线场景
+- 展示算法的每个关键步骤
+- 可视化路径优化过程
+
+## 相关代码
+
+对应的 KiCad 源码位置：
+- `pcbnew/router/pns_walkaround.cpp` - 绕行算法实现
+- `pcbnew/router/pns_line.cpp` - 路径处理
+- `pcbnew/router/pns_optimizer.cpp` - 路径优化
+
+## 日期
+
+创建日期：2026-02-10
