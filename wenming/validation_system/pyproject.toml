@@ -1,0 +1,25 @@
+[project]
+name = "kicad-validation-system"
+version = "1.0.0"
+description = "Multi-agent validation system for KiCad multi-line routing design"
+requires-python = ">=3.10"
+dependencies = [
+    "claude-agent-sdk",
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
+]
+
+[tool.uv.sources]
+claude-agent-sdk = { path = "../submodule/claude-agent-sdk-python", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["agents"]
