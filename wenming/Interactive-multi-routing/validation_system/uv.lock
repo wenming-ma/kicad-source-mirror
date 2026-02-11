@@ -217,7 +217,7 @@ wheels = [
 [[package]]
 name = "claude-agent-sdk"
 version = "0.1.35"
-source = { editable = "../submodule/claude-agent-sdk-python" }
+source = { editable = "../../submodule/claude-agent-sdk-python" }
 dependencies = [
     { name = "anyio" },
     { name = "mcp" },
@@ -439,7 +439,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "claude-agent-sdk", editable = "../submodule/claude-agent-sdk-python" },
+    { name = "claude-agent-sdk", editable = "../../submodule/claude-agent-sdk-python" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "requests", specifier = ">=2.31.0" },
 ]

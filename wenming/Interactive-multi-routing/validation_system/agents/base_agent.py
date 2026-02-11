@@ -2,9 +2,15 @@
 
 import asyncio
 import json
+import time
 from typing import Dict, Any, List
 
-from claude_agent_sdk import query, ClaudeAgentOptions, ClaudeSDKError
+from claude_agent_sdk import (
+    query, ClaudeAgentOptions, ClaudeSDKError,
+    AssistantMessage, UserMessage, SystemMessage, ResultMessage,
+    TextBlock, ThinkingBlock, ToolUseBlock, ToolResultBlock,
+)
+from config import AGENT_CONFIG
 
 MAX_RETRIES = 3
 RETRY_BASE_DELAY = 2  # seconds
@@ -24,25 +30,85 @@ class BaseAgent:
     def __init__(self, name: str, role: str, system_prompt: str):
         self.name = name
         self.role = role
-        self.system_prompt = system_prompt
+        # Store full instructions to prepend to user messages.
+        # Passing long system prompts via --system-prompt CLI arg hits
+        # Windows command line length limits (~8191 chars).
+        self.instructions = system_prompt
+        self.model = AGENT_CONFIG.get(name, {}).get("model")
         self.conversation_history: List[Dict[str, str]] = []
+        self.last_result: dict | None = None
+
+    def _log(self, msg: str):
+        """Print a prefixed log line for this agent."""
+        print(f"  [{self.name}] {msg}")
 
     async def _run_query(self, prompt: str) -> str:
-        """Execute a single query call, collecting all text from the stream."""
+        """Execute a single query call, logging all intermediate events."""
         response_text = ""
+        tool_start: float | None = None
+        pending_tool: str | None = None
         async for msg in query(
             prompt=prompt,
             options=ClaudeAgentOptions(
-                system_prompt=self.system_prompt,
+                model=self.model,
                 tools={"type": "preset", "preset": "claude_code"},
                 permission_mode="bypassPermissions",
                 setting_sources=["user", "project", "local"],
             ),
         ):
-            if hasattr(msg, "content"):
+            if isinstance(msg, AssistantMessage):
                 for block in msg.content:
-                    if hasattr(block, "text"):
+                    if isinstance(block, TextBlock):
                         response_text += block.text
+                    elif isinstance(block, ThinkingBlock):
+                        preview = block.thinking[:120].replace("\n", " ")
+                        self._log(f"Thinking: {preview}...")
+                    elif isinstance(block, ToolUseBlock):
+                        args = json.dumps(block.input, ensure_ascii=False)
+                        if len(args) > 80:
+                            args = args[:80] + "..."
+                        self._log(f"Tool: {block.name} {args}")
+                        tool_start = time.time()
+                        pending_tool = block.name
+            elif isinstance(msg, UserMessage):
+                elapsed = ""
+                if tool_start is not None:
+                    elapsed = f" {time.time() - tool_start:.1f}s"
+                    tool_start = None
+                # tool_use_result dict (SDK-level result)
+                if msg.tool_use_result is not None:
+                    r = msg.tool_use_result
+                    is_err = r.get("is_error", False)
+                    status = "ERROR" if is_err else "OK"
+                    content = str(r.get("content", ""))
+                    self._log(
+                        f"Tool result ({pending_tool}): "
+                        f"{status} ({len(content)} chars){elapsed}"
+                    )
+                # content blocks (may also carry ToolResultBlock)
+                elif isinstance(msg.content, list):
+                    for block in msg.content:
+                        if isinstance(block, ToolResultBlock):
+                            status = "ERROR" if block.is_error else "OK"
+                            content = str(block.content) if block.content else ""
+                            self._log(
+                                f"Tool result ({pending_tool}): "
+                                f"{status} ({len(content)} chars){elapsed}"
+                            )
+                            break
+                pending_tool = None
+            elif isinstance(msg, SystemMessage):
+                self._log(f"System: {msg.subtype}")
+            elif isinstance(msg, ResultMessage):
+                duration = getattr(msg, "duration_ms", 0) / 1000
+                turns = getattr(msg, "num_turns", "?")
+                cost = getattr(msg, "total_cost_usd", 0)
+                self._log(f"Done: {duration:.1f}s | {turns} turns | ${cost:.2f}")
+                self.last_result = {
+                    "duration_ms": getattr(msg, "duration_ms", None),
+                    "num_turns": getattr(msg, "num_turns", None),
+                    "total_cost_usd": getattr(msg, "total_cost_usd", None),
+                }
         return response_text
 
     async def process(self, message: Dict[str, Any]) -> Dict[str, Any]:
@@ -109,8 +175,11 @@ class BaseAgent:
         }
 
     def _build_prompt(self, message: Dict[str, Any]) -> str:
-        """Build prompt string from conversation history and new message."""
+        """Build prompt string from instructions, history, and new message."""
         parts = []
+
+        # Prepend agent instructions (sent via stdin, no length limit)
+        parts.append(f"[INSTRUCTIONS]:\n{self.instructions}")
 
         # Include conversation history for context
         for entry in self.conversation_history:

@@ -1,17 +1,28 @@
 """Algorithm critic agent for challenging algorithmic correctness."""
 
 from .base_agent import BaseAgent
+from config import FIRST_PHASE_SCOPE
 
 
 class AlgorithmCriticAgent(BaseAgent):
     """Agent specialized in critiquing algorithmic correctness and efficiency."""
 
     def __init__(self):
-        system_prompt = """You are an Algorithm Critic Agent specializing in computational geometry.
+        system_prompt = (
+            """You are an Algorithm Critic Agent specializing in computational geometry.
+
+## First-Phase Scope
+
+"""
+            + FIRST_PHASE_SCOPE
+            + """
+
+Prioritize challenges related to first-phase features. Issues about deferred features
+should be flagged as "Low" severity with a note that they are out of first-phase scope.
 
 Your task is to challenge algorithmic correctness and efficiency:
-1. Corner spacing maintenance (miter, arc, bevel)
-2. Obstacle avoidance strategies (WALKAROUND, PUSH_SHOVE)
+1. Corner spacing maintenance: 45-degree diagonal (MITERED_45), miter/chamfer (MITERED_45 + miter ratio), rounded/fillet (ROUNDED_45/ROUNDED_90)
+2. Obstacle avoidance strategies: STRICT, WALKAROUND, PUSH_SHOVE, HIGHLIGHT_ONLY
 3. Time/space complexity analysis
 4. Edge cases and failure modes
 5. Numerical stability
@@ -79,5 +90,6 @@ Verdict meanings:
 
 Focus your review on correctness, edge case handling, complexity, numerical
 stability, and performance. Reference research evidence where applicable."""
+        )
 
         super().__init__("algo_critic", "Algorithm Critic", system_prompt)

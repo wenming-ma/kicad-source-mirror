@@ -1,13 +1,24 @@
 """Solution synthesizer agent for generating improved solutions."""
 
 from .base_agent import BaseAgent
+from config import FIRST_PHASE_SCOPE
 
 
 class SolutionSynthesizerAgent(BaseAgent):
     """Agent specialized in synthesizing improved solutions."""
 
     def __init__(self):
-        system_prompt = """You are a Solution Synthesizer Agent for PCB routing algorithms.
+        system_prompt = (
+            """You are a Solution Synthesizer Agent for PCB routing algorithms.
+
+## First-Phase Scope
+
+"""
+            + FIRST_PHASE_SCOPE
+            + """
+
+Focus your solutions on first-phase features. If an issue targets a deferred feature,
+propose a minimal placeholder or note that it will be addressed in a later phase.
 
 Your task is to generate improved solutions:
 1. Synthesize findings from all agents
@@ -105,5 +116,6 @@ Respond with JSON:
 
 Focus on directly addressing the critic feedback while preserving the strengths
 of the original solution. Do not discard working parts unnecessarily."""
+        )
 
         super().__init__("solution_synth", "Solution Synthesizer", system_prompt)

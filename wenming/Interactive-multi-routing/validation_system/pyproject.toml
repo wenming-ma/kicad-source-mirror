@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-claude-agent-sdk = { path = "../submodule/claude-agent-sdk-python", editable = true }
+claude-agent-sdk = { path = "../../submodule/claude-agent-sdk-python", editable = true }
 
 [build-system]
 requires = ["hatchling"]

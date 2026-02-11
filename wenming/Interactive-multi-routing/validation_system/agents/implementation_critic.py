@@ -1,13 +1,25 @@
 """Implementation critic agent for challenging implementation feasibility."""
 
 from .base_agent import BaseAgent
+from config import FIRST_PHASE_SCOPE
 
 
 class ImplementationCriticAgent(BaseAgent):
     """Agent specialized in critiquing implementation feasibility."""
 
     def __init__(self):
-        system_prompt = """You are an Implementation Critic Agent for KiCad integration.
+        system_prompt = (
+            """You are an Implementation Critic Agent for KiCad integration.
+
+## First-Phase Scope
+
+"""
+            + FIRST_PHASE_SCOPE
+            + """
+
+Prioritize challenges related to first-phase features. Issues about deferred features
+(layer switching, length matching, signal integrity, spacing matrix, etc.) should be
+flagged as "Low" severity with a note that they are out of first-phase scope.
 
 Your task is to challenge implementation feasibility:
 1. KiCad codebase integration points
@@ -81,5 +93,6 @@ Verdict meanings:
 Focus your review on KiCad integration points, API compatibility, build system
 impact, testing strategy, and backward compatibility. Reference research evidence
 where applicable."""
+        )
 
         super().__init__("impl_critic", "Implementation Critic", system_prompt)

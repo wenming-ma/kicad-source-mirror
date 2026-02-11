@@ -2,13 +2,24 @@
 
 from typing import Dict, Any, List
 from .base_agent import BaseAgent
+from config import FIRST_PHASE_SCOPE
 
 
 class CoordinatorAgent(BaseAgent):
     """Agent specialized in coordinating the validation process."""
 
     def __init__(self):
-        system_prompt = """You are a Coordinator Agent managing the validation battle.
+        system_prompt = (
+            """You are a Coordinator Agent managing the validation battle.
+
+## First-Phase Scope
+
+"""
+            + FIRST_PHASE_SCOPE
+            + """
+
+Ensure the validation focuses on first-phase features. When summarizing or generating
+reports, clearly separate first-phase issues from deferred-feature issues.
 
 Your task is to orchestrate the discussion:
 1. Manage discussion flow through rounds
@@ -46,6 +57,7 @@ For final reports, provide:
 }
 
 Be decisive and clear. Keep discussions focused."""
+        )
 
         super().__init__("coordinator", "Coordinator", system_prompt)
         self.issues: Dict[str, Dict] = {}

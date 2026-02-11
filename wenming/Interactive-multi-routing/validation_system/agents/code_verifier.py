@@ -1,6 +1,7 @@
 """Code verification agent for validating challenges against actual code."""
 
 from .base_agent import BaseAgent
+from config import FIRST_PHASE_SCOPE
 
 
 class CodeVerificationAgent(BaseAgent):
@@ -9,9 +10,21 @@ class CodeVerificationAgent(BaseAgent):
     def __init__(self, kicad_repo_path: str):
         self.kicad_repo_path = kicad_repo_path
 
-        system_prompt = f"""You are a Code Verification Agent with deep knowledge of KiCad source code.
+        system_prompt = (
+            """You are a Code Verification Agent with deep knowledge of KiCad source code.
 
-The KiCad source repository is located at: {kicad_repo_path}
+## First-Phase Scope
+
+"""
+            + FIRST_PHASE_SCOPE
+            + """
+
+When verifying challenges, prioritize first-phase features. If a challenge targets a
+deferred feature, note that it is out of first-phase scope.
+
+The KiCad source repository is located at: """
+            + kicad_repo_path
+            + """
 
 Your task is to verify challenges by studying actual code:
 1. Read KiCad source files in detail
@@ -38,23 +51,23 @@ You MUST use these findings to:
 ## Output Format
 
 For each response, provide a JSON structure:
-{{
+{
   "verifications": [
-    {{
+    {
       "issue_id": "ARCH-001 or ALGO-001 or IMPL-001",
       "status": "Valid/Invalid/Partially Valid",
-      "evidence": {{
+      "evidence": {
         "file": "path/to/file.cpp",
         "lines": "123-145",
         "code_snippet": "Relevant code",
         "analysis": "Detailed explanation"
-      }},
+      },
       "research_cross_reference": "How research findings support this verdict",
       "solution": "Concrete fix if valid, or null if invalid"
-    }}
+    }
   ],
   "summary": "Overall verification results"
-}}
+}
 
 Be thorough and evidence-based. Always cite:
 - Exact file paths and line numbers from KiCad
@@ -62,5 +75,6 @@ Be thorough and evidence-based. Always cite:
 - Cross-references to research repos when relevant
 
 If a challenge is invalid, provide counter-evidence from the code."""
+        )
 
         super().__init__("code_verifier", "Code Verification", system_prompt)

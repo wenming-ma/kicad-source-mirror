@@ -1,6 +1,7 @@
 """Research agent for finding and deeply analyzing open-source implementations."""
 
 from .base_agent import BaseAgent
+from config import FIRST_PHASE_SCOPE
 
 # Core topic constraint -- every round must stay within this scope
 TOPIC_SCOPE = (
@@ -65,15 +66,18 @@ ROUND_DIRECTIONS = {
         "CORNER SPACING MAINTENANCE: This is the hardest geometric sub-problem.\n"
         "When N parallel traces turn a corner, inner traces have shorter paths and "
         "outer traces have longer paths. Simple perpendicular offset breaks at corners.\n"
-        "Research these specific corner strategies:\n"
-        "- MITER corners: offset along the angle bisector. How to compute the miter point? "
-        "What happens at acute angles (miter explosion)? How do existing implementations "
-        "handle miter limits?\n"
-        "- ARC corners: replace sharp corners with concentric arcs of different radii. "
-        "How does KiCad's arc trace support work? How do diff pair placers generate "
-        "concentric arcs? What is the minimum inner radius before DRC violation?\n"
-        "- STAGGERED corners: each trace turns at a slightly different point to maintain "
-        "spacing. How is the stagger distance calculated?\n"
+        "Research these specific corner strategies (first-phase scope):\n"
+        "- 45-DEGREE DIAGONAL (MITERED_45): offset along the angle bisector at 45-degree "
+        "turns. How to compute the miter point? What happens at acute angles (miter "
+        "explosion)? How do existing implementations handle miter limits?\n"
+        "- MITER/CHAMFER (MITERED_45 + miter ratio): chamfered corners with configurable "
+        "miter ratio. How does KiCad's existing miter ratio parameter work? How to apply "
+        "it consistently across N parallel traces?\n"
+        "- ROUNDED/FILLET (ROUNDED_45/ROUNDED_90): replace sharp corners with concentric "
+        "arcs of different radii. How does KiCad's arc trace support work? How do diff "
+        "pair placers generate concentric arcs? What is the minimum inner radius before "
+        "DRC violation?\n"
+        "NOTE: 90-degree (MITERED_90) and any-angle corners are deferred to later phases.\n"
         "DOCUMENT TARGETS: search for computational geometry articles on polyline offset "
         "corner handling, Clipper library documentation on JoinType (miter/round/square), "
         "PCB design blog posts discussing corner spacing for bus traces, "
@@ -86,16 +90,19 @@ ROUND_DIRECTIONS = {
     4: (
         "OBSTACLE AVOIDANCE FOR GROUPED TRACES: When routing N traces as a bundle, "
         "obstacles may block some or all traces.\n"
-        "Research these specific avoidance strategies:\n"
-        "- WALKAROUND mode: treat the bundle as a single fat trace and route around obstacles. "
+        "Research these specific avoidance strategies (all 4 are first-phase):\n"
+        "- STRICT mode: stop the entire group if any trace is blocked. "
+        "How does KiCad handle strict collision in single-line routing? "
+        "How to extend this to N traces?\n"
+        "- WALKAROUND mode (default): treat the bundle as a single fat trace and route around obstacles. "
         "How does KiCad's pns_walkaround.cpp work? Can it handle variable-width 'fat' traces? "
         "How is the walkaround hull computed for a group of N traces?\n"
         "- PUSH_SHOVE mode: push movable obstacles (other traces) out of the way. "
         "How does pns_shove.cpp propagate forces? Can it handle pushing for N traces "
         "simultaneously without oscillation?\n"
-        "- SPLIT_MERGE mode: temporarily split blocked traces around an obstacle, "
-        "then merge back. How is the split point and merge point determined? "
-        "Any implementations of this pattern?\n"
+        "- HIGHLIGHT_ONLY mode: highlight collisions without blocking routing, "
+        "allowing the user to see violations and fix them manually. "
+        "How does KiCad's existing DRC violation highlighting work?\n"
         "- Collision detection: how to efficiently detect collisions for N traces "
         "at 60Hz mouse movement? R-tree spatial indexing, incremental collision checks, "
         "AABB pre-filtering.\n"
@@ -117,9 +124,11 @@ ROUND_DIRECTIONS = {
         "- How does pns_router.cpp dispatch between LINE_PLACER, DIFF_PAIR_PLACER, "
         "and MULTI_DRAGGER? What changes are needed to add MULTI_LINE_PLACER?\n"
         "- Performance: how does KiCad handle 60Hz mouse updates for single-line routing? "
-        "What incremental computation techniques are used? Can they scale to N traces?\n"
-        "- Dynamic spacing: how does KiCad query DRC clearance rules between specific "
-        "net pairs? How is the spacing matrix built from design rules?\n"
+        "What incremental computation techniques are used? Can they scale to N traces? "
+        "(First-phase: incremental computation + R-tree. Deferred: parallel computation for N > 8.)\n"
+        "- Dynamic spacing: first-phase uses uniform user-set spacing (Plan B), adjustable "
+        "via hotkey/scroll. How does KiCad's existing spacing infrastructure work? "
+        "Per-net-pair DRC spacing matrix (Plan A) is deferred.\n"
         "- How do commercial tools (Altium Interactive Multi-Routing, Cadence Group Route) "
         "handle the UX: pad selection, visual feedback, mode switching?\n"
         "DOCUMENT TARGETS: search for KiCad developer documentation on the PNS router "
@@ -140,11 +149,14 @@ class ResearchAgent(BaseAgent):
     """Agent that discovers, clones, and deeply analyzes open-source repos and documents."""
 
     def __init__(self):
-        system_prompt = f"""You are an Algorithm Research Agent specializing in interactive multi-line PCB routing.
+        system_prompt = (
+            """You are an Algorithm Research Agent specializing in interactive multi-line PCB routing.
 
 ## Topic Scope (STRICT)
 
-{TOPIC_SCOPE}
+"""
+            + TOPIC_SCOPE
+            + """
 
 Everything you research MUST directly relate to interactive multi-line routing.
 If a repo or document is only tangentially related, note it briefly but do not spend
@@ -156,6 +168,10 @@ If not, move on immediately. Do not get sidetracked by general routing algorithm
 autorouters, or other EDA topics that do not involve routing multiple traces at once.
 
 ## Design Context
+
+"""
+            + FIRST_PHASE_SCOPE
+            + """
 
 You are researching for a KiCad feature: MULTI_LINE_PLACER, which routes N parallel
 traces simultaneously on a single layer. The chosen approach is Leader-Follower:
@@ -169,19 +185,20 @@ The key technical challenges you should focus your research on:
    arcs (different radii), staggered turn points. Need to maintain DRC clearance at
    all points along the corner.
 
-2. OBSTACLE AVOIDANCE: Four modes planned:
-   - WALKAROUND: treat bundle as fat trace, route around obstacles
-   - PUSH_SHOVE: push movable obstacles out of the way
-   - SPLIT_MERGE: temporarily split blocked traces, merge after obstacle
+2. OBSTACLE AVOIDANCE: Four first-phase modes:
    - STRICT: stop entire group if any trace is blocked
+   - WALKAROUND (default): treat bundle as fat trace, route around obstacles
+   - PUSH_SHOVE: push movable obstacles out of the way
+   - HIGHLIGHT_ONLY: highlight collisions without blocking routing
 
-3. DYNAMIC SPACING: Different net pairs may have different clearance rules.
-   Need a spacing matrix built from DRC rules. Center-to-center distance =
-   clearance + half-width of each trace.
+3. DYNAMIC SPACING:
+   - First-phase: Uniform user-set spacing (Plan B), adjustable via hotkey/scroll.
+     Center-to-center distance = user_spacing (uniform for all trace pairs).
+   - Deferred: Per-net-pair DRC spacing matrix (Plan A) built from design rules.
 
-4. REAL-TIME PERFORMANCE: Must respond within ~16ms (60Hz mouse updates) for
-   N traces. Incremental computation, spatial indexing (R-tree), and parallel
-   calculation for N > 8 traces.
+4. REAL-TIME PERFORMANCE:
+   - First-phase: Incremental computation, R-tree spatial indexing.
+   - Deferred: Deferred precise computation, parallel computation for N > 8.
 
 5. KiCad PNS INTEGRATION: Must implement PLACEMENT_ALGO interface (Start, Move,
    FixRoute, Traces). Reference: pns_diff_pair_placer.cpp (2-line version),
@@ -290,32 +307,32 @@ Compile findings into a structured JSON response.
 ## Output Format
 
 Return a JSON response:
-{{
+{
   "round": <round_number>,
   "repos_discovered": [
-    {{
+    {
       "url": "https://github.com/...",
       "name": "repo-name",
       "description": "What this repo does",
       "stars": 1234,
       "relevance": "How this relates to interactive multi-line routing"
-    }}
+    }
   ],
   "documents_found": [
-    {{
+    {
       "url": "https://...",
       "title": "Document title",
       "type": "blog/forum/paper/documentation",
       "key_takeaways": ["Takeaway 1", "Takeaway 2"],
       "relevance": "How this relates to interactive multi-line routing"
-    }}
+    }
   ],
   "repos_analyzed": [
-    {{
+    {
       "name": "repo-name",
       "local_path": "/path/to/cloned/repo",
       "findings": [
-        {{
+        {
           "algorithm": "Algorithm name",
           "file_path": "src/core/offset.cpp",
           "code_snippet": "key code excerpt",
@@ -324,13 +341,14 @@ Return a JSON response:
           "cons": ["disadvantage 1"],
           "applicability": "High/Medium/Low",
           "applicability_reason": "Why this rating for KiCad multi-line routing"
-        }}
+        }
       ]
-    }}
+    }
   ],
   "key_insights": ["Insight about multi-line routing from this round"],
   "recommended_next_directions": ["Direction for next round"],
   "summary": "Overall findings summary for this round"
-}}"""
+}"""
+        )
 
         super().__init__("research_agent", "Algorithm Research", system_prompt)

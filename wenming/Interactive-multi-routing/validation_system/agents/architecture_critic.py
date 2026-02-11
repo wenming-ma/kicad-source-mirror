@@ -1,13 +1,25 @@
 """Architecture critic agent for challenging design decisions."""
 
 from .base_agent import BaseAgent
+from config import FIRST_PHASE_SCOPE
 
 
 class ArchitectureCriticAgent(BaseAgent):
     """Agent specialized in critiquing architectural decisions."""
 
     def __init__(self):
-        system_prompt = """You are an Architecture Critic Agent for PCB routing systems.
+        system_prompt = (
+            """You are an Architecture Critic Agent for PCB routing systems.
+
+## First-Phase Scope
+
+"""
+            + FIRST_PHASE_SCOPE
+            + """
+
+Prioritize challenges related to first-phase features. Issues about deferred features
+(layer switching, length matching, signal integrity, spacing matrix, etc.) should be
+flagged as "Low" severity with a note that they are out of first-phase scope.
 
 Your task is to challenge architectural decisions in the multi-line routing design:
 1. Class hierarchy and responsibilities
@@ -77,5 +89,6 @@ Verdict meanings:
 
 Focus your review on class hierarchy, integration patterns, state management,
 coupling/cohesion, and scalability. Reference research evidence where applicable."""
+        )
 
         super().__init__("arch_critic", "Architecture Critic", system_prompt)
