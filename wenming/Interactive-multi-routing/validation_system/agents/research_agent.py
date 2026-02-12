@@ -370,8 +370,37 @@ Return a JSON response:
         super().__init__("research_agent", "Algorithm Research", system_prompt)
 
     def _build_prompt(self, message: Dict[str, Any]) -> str:
-        """Build prompt with dynamically discovered existing repos."""
+        """Build prompt with file-based context instead of embedded data."""
         prompt = super()._build_prompt(message)
+
+        # Tell the agent where to find previous round outputs
+        output_dir = message.get("output_dir", "")
+        design_doc_path = message.get("design_doc_path", "")
+        repos_dir = message.get("research_repos_dir", str(REPOS_DIR))
+        round_num = message.get("round", 1)
+
+        prompt += "\n\n[FILE I/O INSTRUCTIONS]\n"
+        prompt += (
+            f"Design document path: {design_doc_path}\n"
+            f"Read it with the Read tool to understand the design context.\n\n"
+            f"Research repos directory: {repos_dir}\n"
+            f"Cloned repos are stored here. Check this directory before cloning.\n\n"
+        )
+
+        if round_num > 1 and output_dir:
+            research_dir = f"{output_dir}/research"
+            prompt += (
+                f"Previous round outputs are in: {research_dir}/\n"
+                f"- Read {research_dir}/studied_repos.json to see which repos "
+                f"have already been studied. SKIP those repos.\n"
+                f"- Read {research_dir}/all_findings.json for a summary of all "
+                f"previous findings. Use this to avoid redundant research and "
+                f"to build on prior insights.\n"
+                f"- Individual round files: {research_dir}/research_round_N.json "
+                f"(N = 1..{round_num - 1})\n"
+                f"- If the last round's findings contain "
+                f"'recommended_next_directions', prioritize those.\n"
+            )
 
         # Scan research_repos for already-cloned projects
         existing = []
@@ -383,7 +412,7 @@ Return a JSON response:
         if existing:
             listing = "\n".join(f"- {name}" for name in existing)
             prompt += (
-                f"\n\n[ALREADY CLONED REPOS in {REPOS_DIR}]\n"
+                f"\n[ALREADY CLONED REPOS in {REPOS_DIR}]\n"
                 f"The following repos are already on disk. "
                 f"Do NOT clone them again:\n{listing}"
             )

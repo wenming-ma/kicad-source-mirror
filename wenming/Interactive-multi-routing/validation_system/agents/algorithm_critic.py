@@ -71,6 +71,23 @@ Focus on correctness, edge cases, and performance. Consider:
 
 Be mathematically rigorous. Provide specific test cases backed by research evidence.
 
+## File I/O
+
+Your message will contain file paths instead of inline data. Use the Read tool to
+load the information you need:
+
+**For review_request (Round 1 -- initial challenges):**
+- Read the design document from `design_doc_path`.
+- Read research findings from `{output_dir}/research/all_findings.json`.
+- You may also read individual round files: `{output_dir}/research/research_round_N.json`.
+- You may read cloned repos under `research_repos_dir` for code analysis.
+
+**For review_solution (Round 4 -- solution review):**
+- The solution and original_issue are provided inline in the message.
+- Read research findings from `{output_dir}/research/all_findings.json`.
+- Read solutions from `{output_dir}/round3_solutions.json` for broader context.
+- You may read cloned repos under `research_repos_dir` for code analysis.
+
 ## Solution Review Format
 
 When reviewing a solution (message type "review_solution"), respond with JSON:

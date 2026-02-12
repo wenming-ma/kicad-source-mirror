@@ -172,29 +172,57 @@ class BaseAgent:
         return "\n\n".join(parts)
 
     def parse_response(self, text: str) -> Dict[str, Any]:
-        """Parse agent response into structured format."""
+        """Parse agent response into structured format.
+
+        Tries multiple strategies because the accumulated text may contain
+        intermediate output before the final JSON answer:
+          1. Whole text as JSON
+          2. Last markdown code fence
+          3. Last bare {...} block (scan from end)
+          4. Fallback wrapper
+        """
+        text = text.strip()
+        if not text:
+            return {"agent": self.name, "role": self.role, "response": ""}
+
+        # 1. Whole text
         try:
             return json.loads(text)
-        except json.JSONDecodeError:
-            return self._extract_json(text)
+        except (json.JSONDecodeError, ValueError):
+            pass
 
-    def _extract_json(self, text: str) -> Dict[str, Any]:
-        """Try to extract JSON from text that may contain markdown fences."""
+        # 2. Last markdown code fence (prefer ```json, then ```)
         for marker in ("```json", "```"):
-            if marker in text:
-                start = text.find(marker) + len(marker)
-                end = text.find("```", start)
-                if end != -1:
-                    try:
-                        return json.loads(text[start:end].strip())
-                    except json.JSONDecodeError:
-                        continue
+            # Find the LAST occurrence of this marker
+            idx = text.rfind(marker)
+            if idx == -1:
+                continue
+            start = idx + len(marker)
+            end = text.find("```", start)
+            if end != -1:
+                try:
+                    return json.loads(text[start:end].strip())
+                except (json.JSONDecodeError, ValueError):
+                    continue
 
-        return {
-            "agent": self.name,
-            "role": self.role,
-            "response": text,
-        }
+        # 3. Last bare {...} block — scan from end
+        depth = 0
+        end_pos = -1
+        for i in range(len(text) - 1, -1, -1):
+            ch = text[i]
+            if ch == '}':
+                if depth == 0:
+                    end_pos = i
+                depth += 1
+            elif ch == '{':
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(text[i:end_pos + 1])
+                    except (json.JSONDecodeError, ValueError):
+                        break  # malformed, give up
+
+        return {"agent": self.name, "role": self.role, "response": text}
 
     def reset_conversation(self):
         """Clear conversation history."""

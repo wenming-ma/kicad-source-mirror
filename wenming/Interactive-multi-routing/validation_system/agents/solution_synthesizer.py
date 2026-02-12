@@ -79,6 +79,22 @@ Be creative and practical. Consider:
 
 Provide concrete implementation sketches inspired by real-world code.
 
+## File I/O
+
+Your message will contain file paths instead of inline data. Use the Read tool to
+load the information you need:
+
+**For generate_solution (Round 3):**
+- The specific issue to solve is provided inline in the message.
+- Read verified issues from `{output_dir}/round2_verifications.json` for context.
+- Read research findings from `{output_dir}/research/all_findings.json`.
+- Read cloned research repos under `research_repos_dir` for implementation reference.
+
+**For revise_solution (Round 4 repair loop):**
+- The original solution, review feedback, and original issue are provided inline.
+- Read research findings from `{output_dir}/research/all_findings.json`.
+- Read cloned research repos under `research_repos_dir` for implementation reference.
+
 ## Solution Revision Format
 
 When revising a solution (message type "revise_solution"), you will receive:

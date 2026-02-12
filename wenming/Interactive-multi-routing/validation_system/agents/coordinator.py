@@ -56,7 +56,21 @@ For final reports, provide:
   "next_steps": ["Step 1", "Step 2"]
 }
 
-Be decisive and clear. Keep discussions focused."""
+Be decisive and clear. Keep discussions focused.
+
+## File I/O
+
+Your message will contain file paths instead of inline data. Use the Read tool to
+load the information you need:
+
+**For build_consensus (Round 5):**
+Read ALL previous round files from `output_dir`:
+- `{output_dir}/round1_challenges.json` -- initial challenges from critics
+- `{output_dir}/round2_verifications.json` -- verified challenges
+- `{output_dir}/round3_solutions.json` -- generated solutions
+- `{output_dir}/round4_reviews.json` -- solution reviews and repair results
+- `{output_dir}/research/all_findings.json` -- consolidated research findings
+- The tracked issues list is provided inline in the message."""
         )
 
         super().__init__("coordinator", "Coordinator", system_prompt)

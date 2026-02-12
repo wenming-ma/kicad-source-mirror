@@ -30,16 +30,21 @@ class ValidationBattle:
     """Orchestrates the multi-agent validation process."""
 
     def __init__(self, kicad_repo_path: str, repos_dir: str = None):
-        self.kicad_repo_path = kicad_repo_path
-        self.repos_dir = repos_dir or os.path.join(
-            os.path.dirname(__file__), "research_repos"
+        self.kicad_repo_path = os.path.abspath(kicad_repo_path)
+        self.repos_dir = os.path.abspath(
+            repos_dir or os.path.join(
+                os.path.dirname(__file__), "research_repos"
+            )
         )
+        # Set during execute()
+        self.output_dir: str = ""
+        self.design_doc_path: str = ""
 
         self.research = ResearchAgent()
         self.arch_critic = ArchitectureCriticAgent()
         self.algo_critic = AlgorithmCriticAgent()
         self.impl_critic = ImplementationCriticAgent()
-        self.verifier = CodeVerificationAgent(kicad_repo_path)
+        self.verifier = CodeVerificationAgent(self.kicad_repo_path)
         self.synthesizer = SolutionSynthesizerAgent()
         self.coordinator = CoordinatorAgent()
 
@@ -53,19 +58,28 @@ class ValidationBattle:
             "coordinator": self.coordinator
         }
 
-    async def run_research_phase(self, design_doc: str, output_dir: str) -> List[Dict]:
+    def _file_paths(self) -> Dict[str, str]:
+        """Return the standard path dict that agents use to locate files."""
+        return {
+            "output_dir": self.output_dir,
+            "design_doc_path": self.design_doc_path,
+            "kicad_repo_path": self.kicad_repo_path,
+            "research_repos_dir": self.repos_dir,
+        }
+
+    async def run_research_phase(self) -> None:
         """Run 5 rounds of deep research exploration.
 
         Each round discovers new repos, clones them, and uses Explore
-        subagents to analyze code. Previous findings are passed forward
-        to avoid redundancy and guide new directions.
+        subagents to analyze code.  Previous findings are read from
+        files on disk by the agent (not passed as data).
         """
         print("\n" + "=" * 60)
         print("Research Phase: 5 Exploration Rounds")
         print("=" * 60)
 
         os.makedirs(self.repos_dir, exist_ok=True)
-        research_dir = os.path.join(output_dir, "research")
+        research_dir = os.path.join(self.output_dir, "research")
         os.makedirs(research_dir, exist_ok=True)
 
         all_findings = []
@@ -76,23 +90,15 @@ class ValidationBattle:
 
             directions = ROUND_DIRECTIONS.get(round_num, "")
 
-            # Build message with cumulative context
+            # Message carries only paths + lightweight metadata.
+            # The agent reads previous findings from output_dir/research/.
             message = {
                 "type": "research_request",
                 "round": round_num,
                 "total_rounds": RESEARCH_ROUNDS,
-                "repos_dir": self.repos_dir,
-                "design_context": design_doc[:2000],
                 "search_directions": directions,
-                "already_studied_repos": studied_repos,
-                "previous_findings_summary": self._summarize_findings(all_findings),
+                **self._file_paths(),
             }
-
-            # Add recommended directions from previous round
-            if all_findings:
-                last = all_findings[-1]
-                if isinstance(last, dict) and "recommended_next_directions" in last:
-                    message["agent_recommended_directions"] = last["recommended_next_directions"]
 
             round_result = await self.research.process(message)
 
@@ -110,43 +116,28 @@ class ValidationBattle:
                 round_result,
                 os.path.join(research_dir, f"research_round_{round_num}.json")
             )
+            # Update consolidated files after every round so the next
+            # round (and crash-resume) can read them.
+            self._save_json(
+                all_findings,
+                os.path.join(research_dir, "all_findings.json")
+            )
+            self._save_json(
+                studied_repos,
+                os.path.join(research_dir, "studied_repos.json")
+            )
 
             print(f"Round {round_num} complete. "
                   f"Total repos studied: {len(studied_repos)}")
 
-        # Save consolidated research
-        self._save_json(all_findings, os.path.join(research_dir, "all_findings.json"))
-        self._save_json(studied_repos, os.path.join(research_dir, "studied_repos.json"))
-
         print(f"\nResearch phase complete: {len(studied_repos)} repos analyzed "
               f"across {RESEARCH_ROUNDS} rounds")
 
-        return all_findings
+    async def run_round_1_challenges(self) -> List[Dict]:
+        """Round 1: Critics raise challenges informed by research.
 
-    def _summarize_findings(self, findings: List[Dict]) -> str:
-        """Create a concise summary of findings so far for the next round."""
-        if not findings:
-            return "No previous findings yet."
-
-        parts = []
-        for i, f in enumerate(findings, 1):
-            if isinstance(f, dict):
-                summary = f.get("summary", "")
-                repos = [r.get("name", "?") for r in f.get("repos_analyzed", [])]
-                insights = f.get("key_insights", [])
-                parts.append(
-                    f"Round {i}: Analyzed repos [{', '.join(repos)}]. "
-                    f"Summary: {summary}. "
-                    f"Key insights: {'; '.join(insights[:3]) if insights else 'N/A'}"
-                )
-            else:
-                parts.append(f"Round {i}: {str(f)[:200]}")
-
-        return "\n".join(parts)
-
-    async def run_round_1_challenges(self, design_doc: str,
-                                     research_findings: List[Dict]) -> List[Dict]:
-        """Round 1: Critics raise challenges informed by research."""
+        Each critic reads the design doc and research findings from disk.
+        """
         print("\n=== Round 1: Initial Challenges ===\n")
 
         challenges = []
@@ -162,8 +153,7 @@ class ValidationBattle:
             print(f"{label} critic reviewing design...")
             response = await agent.process({
                 "type": "review_request",
-                "design": design_doc,
-                "research": research_findings
+                **self._file_paths(),
             })
             if response.get("error"):
                 errors.append(response)
@@ -180,10 +170,17 @@ class ValidationBattle:
               f" ({len(errors)} agent errors)")
         return challenges
 
-    async def run_round_2_verification(self, challenges: List[Dict],
-                                       research_findings: List[Dict]) -> List[Dict]:
-        """Round 2: Verify each challenge with research cross-references."""
+    async def run_round_2_verification(self) -> List[Dict]:
+        """Round 2: Verify each challenge with research cross-references.
+
+        The verifier reads round1_challenges.json and research from disk.
+        """
         print("\n=== Round 2: Verification ===\n")
+
+        # Load challenges from the file we saved in round 1
+        challenges_path = os.path.join(self.output_dir, "round1_challenges.json")
+        with open(challenges_path, 'r', encoding='utf-8') as f:
+            challenges = json.load(f)
 
         verifications = []
         errors = []
@@ -192,9 +189,7 @@ class ValidationBattle:
             verification = await self.verifier.process({
                 "type": "verify_challenge",
                 "challenge": challenge,
-                "kicad_repo_path": self.kicad_repo_path,
-                "research_repos_dir": self.repos_dir,
-                "research_findings": research_findings
+                **self._file_paths(),
             })
             if verification.get("error"):
                 errors.append(verification)
@@ -209,10 +204,19 @@ class ValidationBattle:
               f" ({len(errors)} errors)")
         return verifications
 
-    async def run_round_3_solutions(self, verified_issues: List[Dict],
-                                    research_findings: List[Dict]) -> List[Dict]:
-        """Round 3: Generate solutions grounded in research evidence."""
+    async def run_round_3_solutions(self) -> List[Dict]:
+        """Round 3: Generate solutions grounded in research evidence.
+
+        The synthesizer reads round2_verifications.json and research from disk.
+        """
         print("\n=== Round 3: Solution Generation ===\n")
+
+        # Load verifications from the file we saved in round 2
+        verifications_path = os.path.join(
+            self.output_dir, "round2_verifications.json"
+        )
+        with open(verifications_path, 'r', encoding='utf-8') as f:
+            verified_issues = json.load(f)
 
         valid_issues = []
         for verification in verified_issues:
@@ -230,8 +234,7 @@ class ValidationBattle:
             solution = await self.synthesizer.process({
                 "type": "generate_solution",
                 "issue": issue,
-                "research_repos_dir": self.repos_dir,
-                "research_findings": research_findings
+                **self._file_paths(),
             })
             if solution.get("error"):
                 errors.append(solution)
@@ -247,10 +250,17 @@ class ValidationBattle:
               f" ({len(errors)} errors)")
         return solutions
 
-    async def run_round_4_review(self, solutions: List[Dict],
-                                 research_findings: List[Dict]) -> List[Dict]:
-        """Round 4: Review solutions against research evidence."""
+    async def run_round_4_review(self) -> List[Dict]:
+        """Round 4: Review solutions against research evidence.
+
+        Critics read round3_solutions.json and research from disk.
+        """
         print("\n=== Round 4: Solution Review ===\n")
+
+        # Load solutions from the file we saved in round 3
+        solutions_path = os.path.join(self.output_dir, "round3_solutions.json")
+        with open(solutions_path, 'r', encoding='utf-8') as f:
+            solutions = json.load(f)
 
         reviews = []
         for i, solution in enumerate(solutions, 1):
@@ -260,7 +270,7 @@ class ValidationBattle:
                 "type": "review_solution",
                 "solution": solution,
                 "original_issue": solution.get("_source_issue"),
-                "research_findings": research_findings
+                **self._file_paths(),
             }
 
             review_entry = {
@@ -339,15 +349,19 @@ class ValidationBattle:
     async def run_round_4_repair_loop(
         self,
         reviews: List[Dict],
-        solutions: List[Dict],
-        research_findings: List[Dict],
     ) -> List[Dict]:
         """Iteratively revise rejected solutions and re-review them.
 
         Approved solutions are kept as-is. Only rejected/revised solutions
         go through the synthesizer again and get re-reviewed by critics.
+        Solutions and research are read from disk by agents.
         """
         current_reviews = list(reviews)
+
+        # Load solutions from disk for the lookup
+        solutions_path = os.path.join(self.output_dir, "round3_solutions.json")
+        with open(solutions_path, 'r', encoding='utf-8') as f:
+            solutions = json.load(f)
 
         # Build a solution lookup by solution_id
         sol_by_id = {}
@@ -391,7 +405,7 @@ class ValidationBattle:
                         "original_solution": original_solution,
                         "review_feedback": feedback,
                         "original_issue": rev.get("original_issue"),
-                        "research_findings": research_findings,
+                        **self._file_paths(),
                     })
                 except Exception as exc:
                     print(f"  [WARN] Synthesizer revision failed for {sol_id}: {exc}")
@@ -420,7 +434,7 @@ class ValidationBattle:
                     "type": "review_solution",
                     "solution": revised,
                     "original_issue": revised.get("_source_issue"),
-                    "research_findings": research_findings,
+                    **self._file_paths(),
                 }
 
                 new_review = {
@@ -452,16 +466,17 @@ class ValidationBattle:
 
         return current_reviews
 
-    async def run_round_5_consensus(self, reviews: List[Dict],
-                                    research_findings: List[Dict]) -> Dict:
-        """Round 5: Build consensus with full research context."""
+    async def run_round_5_consensus(self) -> Dict:
+        """Round 5: Build consensus with full research context.
+
+        The coordinator reads ALL previous round files from disk.
+        """
         print("\n=== Round 5: Consensus ===\n")
 
         final_plan = await self.coordinator.process({
             "type": "build_consensus",
-            "reviews": reviews,
             "all_issues": self.coordinator.issues,
-            "research_findings": research_findings
+            **self._file_paths(),
         })
 
         if final_plan.get("error"):
@@ -474,20 +489,22 @@ class ValidationBattle:
     async def execute(self, design_doc_path: str,
                       output_dir: str = "./validation_output",
                       resume: bool = False) -> str:
-        """Execute full validation battle with checkpoint/resume support."""
+        """Execute full validation battle with checkpoint/resume support.
+
+        Agents read previous outputs from files on disk.  The checkpoint
+        only stores the name of the last completed stage -- no data blobs.
+        """
         print(f"\n{'='*60}")
         print("KiCad Multi-Line Routing Validation Battle")
         print(f"{'='*60}\n")
 
-        os.makedirs(output_dir, exist_ok=True)
-
-        with open(design_doc_path, 'r', encoding='utf-8') as f:
-            design_doc = f.read()
+        self.output_dir = os.path.abspath(output_dir)
+        self.design_doc_path = os.path.abspath(design_doc_path)
+        os.makedirs(self.output_dir, exist_ok=True)
 
         # Load checkpoint if resuming
-        checkpoint = self._load_checkpoint(output_dir) if resume else None
+        checkpoint = self._load_checkpoint(self.output_dir) if resume else None
         completed = checkpoint["completed_round"] if checkpoint else None
-        state = checkpoint["state"] if checkpoint else {}
 
         if completed:
             print(f"Resuming from checkpoint: {completed} completed\n")
@@ -500,97 +517,69 @@ class ValidationBattle:
 
         # Research phase
         if not _stage_done("research"):
-            research_findings = await self.run_research_phase(
-                design_doc, output_dir
-            )
-            state["research_findings"] = research_findings
-            self._save_checkpoint(output_dir, "research", state)
+            await self.run_research_phase()
+            self._save_checkpoint(self.output_dir, "research")
         else:
-            research_findings = state["research_findings"]
             print("Skipping research phase (already completed)")
-
-        self.coordinator.set_research_findings(research_findings)
 
         # Round 1
         if not _stage_done("round1"):
-            challenges = await self.run_round_1_challenges(
-                design_doc, research_findings
-            )
-            state["challenges"] = challenges
-            self._save_checkpoint(output_dir, "round1", state)
+            challenges = await self.run_round_1_challenges()
             self._save_json(
                 challenges,
-                os.path.join(output_dir, "round1_challenges.json")
+                os.path.join(self.output_dir, "round1_challenges.json")
             )
+            self._save_checkpoint(self.output_dir, "round1")
         else:
-            challenges = state["challenges"]
             print("Skipping round 1 (already completed)")
 
         # Round 2
         if not _stage_done("round2"):
-            verifications = await self.run_round_2_verification(
-                challenges, research_findings
-            )
-            state["verifications"] = verifications
-            self._save_checkpoint(output_dir, "round2", state)
+            verifications = await self.run_round_2_verification()
             self._save_json(
                 verifications,
-                os.path.join(output_dir, "round2_verifications.json")
+                os.path.join(self.output_dir, "round2_verifications.json")
             )
+            self._save_checkpoint(self.output_dir, "round2")
         else:
-            verifications = state["verifications"]
             print("Skipping round 2 (already completed)")
 
         # Round 3
         if not _stage_done("round3"):
-            solutions = await self.run_round_3_solutions(
-                verifications, research_findings
-            )
-            state["solutions"] = solutions
-            self._save_checkpoint(output_dir, "round3", state)
+            solutions = await self.run_round_3_solutions()
             self._save_json(
                 solutions,
-                os.path.join(output_dir, "round3_solutions.json")
+                os.path.join(self.output_dir, "round3_solutions.json")
             )
+            self._save_checkpoint(self.output_dir, "round3")
         else:
-            solutions = state["solutions"]
             print("Skipping round 3 (already completed)")
 
         # Round 4
         if not _stage_done("round4"):
-            reviews = await self.run_round_4_review(
-                solutions, research_findings
-            )
-            reviews = await self.run_round_4_repair_loop(
-                reviews, solutions, research_findings
-            )
-            state["reviews"] = reviews
-            self._save_checkpoint(output_dir, "round4", state)
+            reviews = await self.run_round_4_review()
+            reviews = await self.run_round_4_repair_loop(reviews)
             self._save_json(
                 reviews,
-                os.path.join(output_dir, "round4_reviews.json")
+                os.path.join(self.output_dir, "round4_reviews.json")
             )
+            self._save_checkpoint(self.output_dir, "round4")
         else:
-            reviews = state["reviews"]
             print("Skipping round 4 (already completed)")
 
         # Round 5
         if not _stage_done("round5"):
-            final_plan = await self.run_round_5_consensus(
-                reviews, research_findings
-            )
-            state["final_plan"] = final_plan
-            self._save_checkpoint(output_dir, "round5", state)
+            final_plan = await self.run_round_5_consensus()
             self._save_json(
                 final_plan,
-                os.path.join(output_dir, "round5_consensus.json")
+                os.path.join(self.output_dir, "round5_consensus.json")
             )
+            self._save_checkpoint(self.output_dir, "round5")
         else:
-            final_plan = state["final_plan"]
             print("Skipping round 5 (already completed)")
 
         report = self.coordinator.generate_report()
-        report_path = os.path.join(output_dir, "validation_report.md")
+        report_path = os.path.join(self.output_dir, "validation_report.md")
 
         with open(report_path, 'w', encoding='utf-8') as f:
             f.write(report)
@@ -606,13 +595,12 @@ class ValidationBattle:
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
-    def _save_checkpoint(self, output_dir: str, round_name: str,
-                         state: Dict[str, Any]):
-        """Save pipeline state after a completed round."""
-        checkpoint = {
-            "completed_round": round_name,
-            "state": state
-        }
+    def _save_checkpoint(self, output_dir: str, round_name: str):
+        """Save pipeline progress after a completed round.
+
+        Only stores the stage name -- agents read data from files.
+        """
+        checkpoint = {"completed_round": round_name}
         path = os.path.join(output_dir, CHECKPOINT_FILE)
         self._save_json(checkpoint, path)
         print(f"  [Checkpoint saved: {round_name}]")

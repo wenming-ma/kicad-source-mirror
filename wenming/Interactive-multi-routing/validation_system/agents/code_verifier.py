@@ -74,7 +74,19 @@ Be thorough and evidence-based. Always cite:
 - Actual code snippets
 - Cross-references to research repos when relevant
 
-If a challenge is invalid, provide counter-evidence from the code."""
+If a challenge is invalid, provide counter-evidence from the code.
+
+## File I/O
+
+Your message will contain file paths instead of inline data. Use the Read tool to
+load the information you need:
+
+**For verify_challenge (Round 2):**
+- The specific challenge to verify is provided inline in the message.
+- Read the full challenges list from `{output_dir}/round1_challenges.json` for context.
+- Read research findings from `{output_dir}/research/all_findings.json`.
+- Read KiCad source files under `kicad_repo_path` for code verification.
+- Read cloned research repos under `research_repos_dir` for cross-referencing."""
         )
 
         super().__init__("code_verifier", "Code Verification", system_prompt)
