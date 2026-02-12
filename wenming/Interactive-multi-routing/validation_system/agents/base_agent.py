@@ -2,37 +2,33 @@
 
 import asyncio
 import json
-import time
 from typing import Dict, Any, List
 
 from claude_agent_sdk import (
-    query, ClaudeAgentOptions, ClaudeSDKError,
-    AssistantMessage, UserMessage, SystemMessage, ResultMessage,
-    TextBlock, ThinkingBlock, ToolUseBlock, ToolResultBlock,
+    ClaudeSDKClient, ClaudeAgentOptions, ClaudeSDKError,
+    AssistantMessage, SystemMessage, ResultMessage,
+    TextBlock, ThinkingBlock, ToolUseBlock,
 )
 from config import AGENT_CONFIG
 
 MAX_RETRIES = 3
 RETRY_BASE_DELAY = 2  # seconds
-AGENT_TIMEOUT = 600  # 10 minutes per agent call
 MAX_HISTORY_ENTRIES = 20  # 10 exchanges (user + assistant each)
 
 
 class BaseAgent:
     """Base class for all validation agents.
 
-    Uses claude-agent-sdk's query() function with full Claude Code capabilities.
-    Each agent has a system prompt that defines its behavior and can use all
-    built-in tools (Bash, Read, Write, Edit, Glob, Grep, WebSearch, etc.).
-    No turn limit — agents run until the task is complete.
+    Uses ClaudeSDKClient for stateful conversations.  The SDK manages
+    its own execution (timeouts, tool calls, context).  We only:
+      1. Stream messages for logging + text extraction.
+      2. Catch SDK failures and retry on the same client so
+         conversation context is never lost.
     """
 
     def __init__(self, name: str, role: str, system_prompt: str):
         self.name = name
         self.role = role
-        # Store full instructions to prepend to user messages.
-        # Passing long system prompts via --system-prompt CLI arg hits
-        # Windows command line length limits (~8191 chars).
         self.instructions = system_prompt
         self.model = AGENT_CONFIG.get(name, {}).get("model")
         self.conversation_history: List[Dict[str, str]] = []
@@ -42,136 +38,120 @@ class BaseAgent:
         """Print a prefixed log line for this agent."""
         print(f"  [{self.name}] {msg}")
 
-    async def _run_query(self, prompt: str) -> str:
-        """Execute a single query call, logging all intermediate events."""
-        response_text = ""
-        tool_start: float | None = None
-        pending_tool: str | None = None
-        async for msg in query(
-            prompt=prompt,
-            options=ClaudeAgentOptions(
-                model=self.model,
-                tools={"type": "preset", "preset": "claude_code"},
-                permission_mode="bypassPermissions",
-                setting_sources=["user", "project", "local"],
-            ),
-        ):
-            if isinstance(msg, AssistantMessage):
-                for block in msg.content:
-                    if isinstance(block, TextBlock):
-                        response_text += block.text
-                    elif isinstance(block, ThinkingBlock):
-                        preview = block.thinking[:120].replace("\n", " ")
-                        self._log(f"Thinking: {preview}...")
-                    elif isinstance(block, ToolUseBlock):
-                        args = json.dumps(block.input, ensure_ascii=False)
-                        if len(args) > 80:
-                            args = args[:80] + "..."
-                        self._log(f"Tool: {block.name} {args}")
-                        tool_start = time.time()
-                        pending_tool = block.name
-            elif isinstance(msg, UserMessage):
-                elapsed = ""
-                if tool_start is not None:
-                    elapsed = f" {time.time() - tool_start:.1f}s"
-                    tool_start = None
-                # tool_use_result dict (SDK-level result)
-                if msg.tool_use_result is not None:
-                    r = msg.tool_use_result
-                    is_err = r.get("is_error", False)
-                    status = "ERROR" if is_err else "OK"
-                    content = str(r.get("content", ""))
-                    self._log(
-                        f"Tool result ({pending_tool}): "
-                        f"{status} ({len(content)} chars){elapsed}"
-                    )
-                # content blocks (may also carry ToolResultBlock)
-                elif isinstance(msg.content, list):
-                    for block in msg.content:
-                        if isinstance(block, ToolResultBlock):
-                            status = "ERROR" if block.is_error else "OK"
-                            content = str(block.content) if block.content else ""
-                            self._log(
-                                f"Tool result ({pending_tool}): "
-                                f"{status} ({len(content)} chars){elapsed}"
-                            )
-                            break
-                pending_tool = None
-            elif isinstance(msg, SystemMessage):
-                self._log(f"System: {msg.subtype}")
-            elif isinstance(msg, ResultMessage):
-                duration = getattr(msg, "duration_ms", 0) / 1000
-                turns = getattr(msg, "num_turns", "?")
-                cost = getattr(msg, "total_cost_usd", 0)
-                self._log(f"Done: {duration:.1f}s | {turns} turns | ${cost:.2f}")
-                self.last_result = {
-                    "duration_ms": getattr(msg, "duration_ms", None),
-                    "num_turns": getattr(msg, "num_turns", None),
-                    "total_cost_usd": getattr(msg, "total_cost_usd", None),
-                }
-        return response_text
+    def _process_message(self, msg):
+        """Process a single streamed message, logging and extracting text."""
+        text = ""
+        if isinstance(msg, AssistantMessage):
+            for block in msg.content:
+                if isinstance(block, TextBlock):
+                    text += block.text
+                elif isinstance(block, ThinkingBlock):
+                    preview = block.thinking[:120].replace("\n", " ")
+                    self._log(f"Thinking: {preview}...")
+                elif isinstance(block, ToolUseBlock):
+                    args = json.dumps(block.input, ensure_ascii=False)
+                    self._log(f"Tool: {block.name} {args}")
+        elif isinstance(msg, SystemMessage):
+            self._log(f"System: {msg.subtype}")
+        elif isinstance(msg, ResultMessage):
+            duration = getattr(msg, "duration_ms", 0) / 1000
+            turns = getattr(msg, "num_turns", "?")
+            cost = getattr(msg, "total_cost_usd", 0)
+            self._log(f"Done: {duration:.1f}s | {turns} turns | ${cost:.2f}")
+            self.last_result = {
+                "duration_ms": getattr(msg, "duration_ms", None),
+                "num_turns": getattr(msg, "num_turns", None),
+                "total_cost_usd": getattr(msg, "total_cost_usd", None),
+            }
+        return text
+
+    async def _receive_response(self, client: ClaudeSDKClient) -> str:
+        """Consume the message stream, log progress, return final text.
+
+        Lets the SDK manage its own timeouts.  Any SDK-level failure
+        will propagate as an exception for the caller to handle.
+        """
+        self._partial_response = ""
+        async for msg in client.receive_response():
+            self._partial_response += self._process_message(msg)
+        return self._partial_response
 
     async def process(self, message: Dict[str, Any]) -> Dict[str, Any]:
-        """Process incoming message with retry and timeout.
+        """Run the agent.  Retry on SDK failure, preserving context.
 
-        Never raises. Returns a structured error dict on total failure.
+        On exception the same ClaudeSDKClient is reused, so the full
+        conversation history (tool calls, results, thinking) is kept.
         """
         prompt = self._build_prompt(message)
         last_error = None
+        self._partial_response = ""
 
-        for attempt in range(1, MAX_RETRIES + 1):
-            try:
-                response_text = await asyncio.wait_for(
-                    self._run_query(prompt), timeout=AGENT_TIMEOUT
-                )
+        options = ClaudeAgentOptions(
+            model=self.model,
+            tools={"type": "preset", "preset": "claude_code"},
+            permission_mode="bypassPermissions",
+            setting_sources=["user", "project", "local"],
+        )
 
-                # Track conversation
-                self.conversation_history.append({
-                    "role": "user",
-                    "content": json.dumps(message, indent=2)
-                })
-                self.conversation_history.append({
-                    "role": "assistant",
-                    "content": response_text
-                })
+        try:
+            async with ClaudeSDKClient(options=options) as client:
+                for attempt in range(1, MAX_RETRIES + 1):
+                    try:
+                        if attempt == 1:
+                            await client.query(prompt)
+                        else:
+                            await client.query(
+                                "Your previous response was interrupted. "
+                                "The conversation above contains all your "
+                                "work so far. Continue from where you left "
+                                "off and complete the task. Do NOT repeat "
+                                "work already done."
+                            )
 
-                # Cap history to prevent unbounded growth
-                if len(self.conversation_history) > MAX_HISTORY_ENTRIES:
-                    self.conversation_history = (
-                        self.conversation_history[-MAX_HISTORY_ENTRIES:]
-                    )
+                        response_text = await self._receive_response(client)
 
-                return self.parse_response(response_text)
+                        self.conversation_history.append({
+                            "role": "user",
+                            "content": json.dumps(message, indent=2),
+                        })
+                        self.conversation_history.append({
+                            "role": "assistant",
+                            "content": response_text,
+                        })
+                        if len(self.conversation_history) > MAX_HISTORY_ENTRIES:
+                            self.conversation_history = (
+                                self.conversation_history[-MAX_HISTORY_ENTRIES:]
+                            )
+                        return self.parse_response(response_text)
 
-            except asyncio.TimeoutError:
-                last_error = TimeoutError(
-                    f"Agent {self.name} timed out after {AGENT_TIMEOUT}s"
-                )
-                if attempt < MAX_RETRIES:
-                    delay = RETRY_BASE_DELAY ** attempt
-                    print(f"  [{self.name}] Attempt {attempt} timed out")
-                    print(f"  [{self.name}] Retrying in {delay}s...")
-                    await asyncio.sleep(delay)
-                else:
-                    print(f"  [{self.name}] All {MAX_RETRIES} attempts failed")
+                    except (ClaudeSDKError, Exception) as e:
+                        last_error = e
+                        if attempt < MAX_RETRIES:
+                            delay = RETRY_BASE_DELAY ** attempt
+                            self._log(f"Attempt {attempt} failed: {e}")
+                            self._log(f"Retrying in {delay}s...")
+                            await asyncio.sleep(delay)
+                        else:
+                            self._log(
+                                f"All {MAX_RETRIES} attempts failed"
+                            )
 
-            except (ClaudeSDKError, Exception) as e:
-                last_error = e
-                if attempt < MAX_RETRIES:
-                    delay = RETRY_BASE_DELAY ** attempt
-                    print(f"  [{self.name}] Attempt {attempt} failed: {e}")
-                    print(f"  [{self.name}] Retrying in {delay}s...")
-                    await asyncio.sleep(delay)
-                else:
-                    print(f"  [{self.name}] All {MAX_RETRIES} attempts failed")
+        except (ClaudeSDKError, Exception) as e:
+            last_error = e
+            self._log(f"Client connection failed: {e}")
 
-        # All retries exhausted -- return structured error instead of crashing
+        # All retries exhausted -- return partial response if available
+        partial = self._partial_response
+        if partial:
+            self._log(f"Returning partial response ({len(partial)} chars)")
+            return self.parse_response(partial)
+
         return {
             "agent": self.name,
             "error": True,
-            "error_type": type(last_error).__name__,
-            "error_message": str(last_error),
-            "response": None
+            "error_type": type(last_error).__name__ if last_error else "Unknown",
+            "error_message": str(last_error) if last_error else "All attempts failed",
+            "response": None,
         }
 
     def _build_prompt(self, message: Dict[str, Any]) -> str:
@@ -213,7 +193,7 @@ class BaseAgent:
         return {
             "agent": self.name,
             "role": self.role,
-            "response": text
+            "response": text,
         }
 
     def reset_conversation(self):

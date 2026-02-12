@@ -1,7 +1,12 @@
 """Research agent for finding and deeply analyzing open-source implementations."""
 
+from pathlib import Path
+from typing import Dict, Any
+
 from .base_agent import BaseAgent
 from config import FIRST_PHASE_SCOPE
+
+REPOS_DIR = Path(__file__).resolve().parent.parent / "research_repos"
 
 # Core topic constraint -- every round must stay within this scope
 TOPIC_SCOPE = (
@@ -246,11 +251,22 @@ For each relevant blog/article/post found, use WebFetch to read its content.
 Extract key technical insights, algorithm descriptions, and design decisions.
 
 ### Step 3: Clone and Analyze Repositories
-For each relevant repo, use Bash to clone it:
+BEFORE cloning, check if the repo already exists under the research_repos directory
+(wenming/Interactive-multi-routing/validation_system/research_repos/). List that directory
+first and skip any repo that is already present.
+The KiCad source code is already available locally at the working directory -- NEVER clone it.
+
+For repos that need cloning, use Bash with these safeguards to prevent hangs:
 ```
-git clone --depth 1 <repo_url> <repos_dir>/<repo_name>
+GIT_TERMINAL_PROMPT=0 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30 clone --depth 1 --single-branch --filter=blob:none <repo_url> <repos_dir>/<repo_name>
 ```
-Skip repos that already exist in the directory.
+- GIT_TERMINAL_PROMPT=0 prevents git from hanging on credential prompts (most common cause of indefinite hangs)
+- http.lowSpeedLimit/Time aborts if transfer stalls (< 1KB/s for 30s)
+- --depth 1 --single-branch minimizes download size
+- --filter=blob:none does a blobless clone, reducing initial download
+
+If a clone fails or is aborted by the stall timeout, retry once without --filter=blob:none.
+If it still fails, skip that repo and move on.
 
 ### Step 4: Deep Code Analysis with Explore Subagent
 For EACH cloned repo, launch an Explore subagent using the Task tool:
@@ -352,3 +368,24 @@ Return a JSON response:
         )
 
         super().__init__("research_agent", "Algorithm Research", system_prompt)
+
+    def _build_prompt(self, message: Dict[str, Any]) -> str:
+        """Build prompt with dynamically discovered existing repos."""
+        prompt = super()._build_prompt(message)
+
+        # Scan research_repos for already-cloned projects
+        existing = []
+        if REPOS_DIR.is_dir():
+            existing = sorted(
+                d.name for d in REPOS_DIR.iterdir() if d.is_dir()
+            )
+
+        if existing:
+            listing = "\n".join(f"- {name}" for name in existing)
+            prompt += (
+                f"\n\n[ALREADY CLONED REPOS in {REPOS_DIR}]\n"
+                f"The following repos are already on disk. "
+                f"Do NOT clone them again:\n{listing}"
+            )
+
+        return prompt
