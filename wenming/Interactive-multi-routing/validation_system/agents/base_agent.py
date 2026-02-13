@@ -22,6 +22,7 @@ EMPTY_TOOL_THRESHOLD = 3       # consecutive empty tool calls before interrupt
 MAX_RECOVERY_ATTEMPTS = 2      # max interrupt+re-prompt cycles per process() call
 THINKING_BUDGET_TOKENS = 10000  # extended thinking budget
 DRAIN_TIMEOUT = 30             # seconds to drain messages after interrupt
+DEGRADED_TIMEOUT = 60          # seconds; shorter timeout after empty Write/Edit detected
 
 
 class BaseAgent:
@@ -108,18 +109,28 @@ class BaseAgent:
 
         Returns True if the stream completed normally, False if context
         degradation was detected (consecutive empty tool calls).
+
+        Uses a shorter timeout after empty Write/Edit calls are detected,
+        so a stuck model is caught in ~60s instead of waiting the full 600s.
         """
         response_iter = client.receive_response().__aiter__()
         while True:
+            timeout = (
+                DEGRADED_TIMEOUT
+                if self._consecutive_empty_tools > 0
+                else RESPONSE_TIMEOUT
+            )
             try:
                 msg = await asyncio.wait_for(
-                    response_iter.__anext__(), timeout=RESPONSE_TIMEOUT
+                    response_iter.__anext__(), timeout=timeout
                 )
             except StopAsyncIteration:
                 return True  # normal completion
             except asyncio.TimeoutError:
                 self._log(
-                    f"No message for {RESPONSE_TIMEOUT}s, sending interrupt..."
+                    f"No message for {timeout}s"
+                    f"{' (degraded mode)' if self._consecutive_empty_tools > 0 else ''}"
+                    f", sending interrupt..."
                 )
                 await client.interrupt()
                 await self._drain_messages(client)
