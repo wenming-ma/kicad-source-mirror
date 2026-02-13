@@ -157,10 +157,15 @@ class ValidationBattle:
             f"{critic_content}"
         )
 
-        result = None
-        async for msg in query(prompt=prompt, options=options):
-            if isinstance(msg, ResultMessage):
-                result = msg
+        try:
+            result = None
+            async for msg in query(prompt=prompt, options=options):
+                if isinstance(msg, ResultMessage):
+                    result = msg
+        except Exception as exc:
+            self._log(f"  Convergence agent error: {exc}")
+            self._log("  Falling back to not converged")
+            return False
 
         if not result or result.is_error or not result.structured_output:
             self._log("  Convergence agent failed, assuming not converged")
