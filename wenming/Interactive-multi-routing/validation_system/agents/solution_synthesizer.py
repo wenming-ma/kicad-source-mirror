@@ -1,6 +1,10 @@
 """Solution synthesizer agent for generating improved solutions."""
 
+from pathlib import Path
+from typing import Dict, Any
+
 from .base_agent import BaseAgent
+from .research_agent import TOPIC_SCOPE, REPOS_DIR
 from config import FIRST_PHASE_SCOPE
 
 
@@ -41,6 +45,67 @@ You MUST use these findings to:
 - Reference specific code from research repos in your implementation sketches
 - Cite documents/papers that validate your proposed approach
 - Avoid reinventing solutions that already exist in researched repos
+
+## Active Research Capabilities
+
+You have full access to research tools. Do NOT limit yourself to reading existing files.
+Actively investigate when needed:
+
+### Tools at Your Disposal
+- **WebSearch**: Search for technical articles, forum posts, papers, documentation.
+  Use this when you need proven implementations to base a solution on, or to find
+  evidence that a proposed approach works in practice.
+- **WebFetch**: Read blog posts, documentation, API references, forum threads.
+  Use this to extract concrete technical details from URLs found via WebSearch.
+- **Bash**: Clone repos for analysis. Use these safeguards:
+  ```
+  GIT_TERMINAL_PROMPT=0 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30 clone --depth 1 --single-branch --filter=blob:none <url> <research_repos_dir>/<name>
+  ```
+- **Task tool with subagent_type="Explore"**: Launch Explore subagents to deep-dive
+  into cloned repos or KiCad source. Ask focused questions about specific algorithms,
+  data structures, or integration patterns.
+
+### When to Research
+- Proposing a solution: search for proven implementations to base it on
+- Addressing a critic's challenge: find real-world evidence that the proposed fix works
+- Implementation details unclear: explore KiCad source and research repos for patterns
+- Need reference code: clone additional repos if existing ones don't cover the topic
+
+### Research Output
+- Append any new findings to `research_agent_md` under a section:
+  `## Dynamic Research: Synthesizer (Battle Iteration N)`
+  where N is the current battle iteration number from the message.
+- Always cite sources: URLs for web content, file:line for code
+
+### Topic Constraint
+"""
+            + TOPIC_SCOPE
+            + """
+Stay focused on interactive multi-line routing and its sub-problems.
+
+## Exhaustive Implementation Detail
+
+Your output file (solution_synth_md) must be a COMPLETE implementation blueprint.
+A developer should be able to implement the entire feature from your document alone.
+
+For EACH solution, you MUST provide ALL of the following:
+
+1. **C++ Design**: Exact class/struct definitions with member variables, methods,
+   inheritance hierarchy. Show header file content.
+2. **Algorithm**: Full pseudocode with complexity analysis (time and space).
+   Cover the happy path AND all edge cases.
+3. **KiCad Integration**: Which existing files to modify, which functions to hook into,
+   what the call chain looks like. Cite specific file:line in KiCad source.
+4. **Corner Cases**: Enumerate every edge case (zero-length segments, collinear points,
+   acute angles, N=1, N=100, etc.) and how each is handled.
+5. **Code Snippets**: Reference implementations from research repos with file:line
+   citations. Show how the proposed solution adapts these patterns.
+6. **Build System**: CMake changes needed (new source files, dependencies).
+7. **Testing**: Concrete test cases with input/expected output. Unit test structure.
+8. **Performance**: Profiling expectations, bottleneck analysis, optimization strategy.
+
+Do NOT leave any detail as "TBD" or "to be determined". If you don't know something,
+research it using your tools (WebSearch, WebFetch, Explore subagent) until you do.
 
 ## Output Format
 
@@ -121,3 +186,27 @@ ones, revise as requested, and keep approved ones intact."""
         )
 
         super().__init__("solution_synth", "Solution Synthesizer", system_prompt)
+
+    def _build_prompt(self, message: Dict[str, Any]) -> str:
+        """Build prompt with injected repo listing for active research."""
+        prompt = super()._build_prompt(message)
+
+        repos_dir = message.get("research_repos_dir", str(REPOS_DIR))
+        kicad_repo_path = message.get("kicad_repo_path", "")
+
+        prompt += "\n\n[ENVIRONMENT]\n"
+        prompt += f"KiCad source repository: {kicad_repo_path}\n"
+        prompt += f"Research repos directory: {repos_dir}\n"
+        prompt += "Cloned repos are stored here. You may clone new repos here.\n"
+
+        repos_path = Path(repos_dir) if repos_dir else None
+        if repos_path and repos_path.is_dir():
+            existing = sorted(d.name for d in repos_path.iterdir() if d.is_dir())
+            if existing:
+                listing = "\n".join(f"- {name}" for name in existing)
+                prompt += (
+                    f"\nAlready cloned repos (available for analysis):\n"
+                    f"{listing}\n"
+                )
+
+        return prompt

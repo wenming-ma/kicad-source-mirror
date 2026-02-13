@@ -4,45 +4,41 @@ A multi-agent validation system using Claude SDK to rigorously validate the KiCa
 
 ## Overview
 
-The system orchestrates 7 specialized AI agents to challenge, verify, and refine the design:
+The system orchestrates 4 specialized AI agents to challenge, verify, and refine the design:
 
 | Agent | Role | Model |
 |---|---|---|
 | Research Agent | Analyzes open-source implementations | Sonnet |
-| Architecture Critic | Challenges architectural decisions | Opus |
-| Algorithm Critic | Challenges algorithmic correctness | Opus |
-| Implementation Critic | Challenges implementation feasibility | Opus |
-| Code Verification Agent | Verifies challenges against KiCad source | Opus |
+| Unified Critic | Challenges design (architecture + algorithm + implementation), verifies against KiCad source | Opus |
 | Solution Synthesizer | Generates improved alternatives | Opus |
-| Coordinator Agent | Orchestrates the validation process | Sonnet |
+| Coordinator Agent | Builds final consensus report | Opus |
 
-Validation proceeds through 5 rounds:
-1. **Challenges** - All critics raise concerns
-2. **Verification** - Code verifier investigates each challenge against KiCad source
-3. **Solutions** - Synthesizer proposes fixes for valid issues
-4. **Review + Repair Loop** - Critics review solutions; rejected ones are revised (max 2 iterations)
-5. **Consensus** - Coordinator builds final recommendations
+Validation proceeds through 3 phases:
+
+1. **Research** (once) - 5 rounds of deep exploration across repos and documents
+2. **Battle Loop** (max 3 iterations, exits early on convergence):
+   - **Challenges** - Critic raises/updates challenges grounded in KiCad source code
+   - **Solutions** - Synthesizer generates/updates solutions based on critic challenges
+   - **Review** - Critic reviews all solutions with approve/reject/revise verdicts
+3. **Consensus** (once) - Coordinator builds final recommendations from all md files
 
 ## Directory Structure
 
 ```
 validation_system/
 ├── agents/
-│   ├── base_agent.py               # Base agent class (API integration, history management)
+│   ├── base_agent.py               # Base agent class (SDK integration, retry, history)
 │   ├── research_agent.py           # Open-source implementation analysis
-│   ├── architecture_critic.py      # Architecture challenge agent
-│   ├── algorithm_critic.py         # Algorithm correctness challenge agent
-│   ├── implementation_critic.py    # Implementation feasibility challenge agent
-│   ├── code_verifier.py            # KiCad source code verification
+│   ├── critic.py                   # Unified critic (arch + algo + impl + source verification)
 │   ├── solution_synthesizer.py     # Alternative solution generation
-│   └── coordinator.py              # Workflow orchestration & reporting
+│   └── coordinator.py              # Consensus building & reporting
 ├── config.py                       # Configuration settings
-├── orchestrator.py                 # 5-round validation orchestration
+├── orchestrator.py                 # Battle loop orchestration
 ├── main.py                         # CLI entry point
 ├── test_system.py                  # Test suite
 ├── requirements.txt                # Dependencies
 ├── .env.example                    # Environment template
-└── validation_output/              # Generated reports & JSON
+└── validation_output/              # Generated reports & markdown
 ```
 
 ## Quick Start
@@ -81,8 +77,8 @@ uv run python test_system.py
 # Run full validation
 uv run python main.py --design-doc path/to/design_document.md
 
-# Run specific round only
-uv run python main.py --round 1
+# Resume from checkpoint
+uv run python main.py --design-doc path/to/design_document.md --resume
 
 # Custom output directory
 uv run python main.py --output-dir ./my_results
@@ -94,7 +90,7 @@ uv run python main.py --output-dir ./my_results
 from orchestrator import ValidationBattle
 
 battle = ValidationBattle("/path/to/kicad-source-mirror")
-report_path = battle.execute(
+report_path = await battle.execute(
     design_doc_path="./design_document.md",
     output_dir="./validation_output"
 )
@@ -102,16 +98,16 @@ report_path = battle.execute(
 
 ## Output
 
-The system generates per-round JSON files and a final Markdown report:
+The system generates markdown files on disk (single source of truth) and a final report:
 
 | File | Content |
 |---|---|
-| `round1_challenges.json` | All challenges with IDs, severity, details |
-| `round2_verifications.json` | Verification status, evidence, solutions |
-| `round3_solutions.json` | Alternative approaches, pros/cons |
-| `round4_reviews.json` | Critic reviews with approve/reject/revise verdicts |
-| `round5_consensus.json` | Final consensus and recommendations |
-| `validation_report.md` | Comprehensive report (executive summary, findings, implementation plan) |
+| `research_agent.md` | Cumulative research findings across 5 rounds |
+| `critic.md` | Unified challenges (CRIT-xxx) with KiCad source evidence + solution reviews |
+| `solution_synth.md` | Solutions with alternatives, recommendations, rationale |
+| `coordinator.md` | Final consensus report |
+| `validation_report.md` | Copy of coordinator.md as the deliverable |
+| `checkpoint.json` | Pipeline progress for resume support |
 
 ## Architecture Diagrams
 
@@ -121,12 +117,14 @@ The system generates per-round JSON files and a final Markdown report:
 graph TB
     subgraph "KiCad Multi-Line Routing Validation Battle System"
         Entry[main.py] --> Orchestrator[ValidationBattle]
-        Orchestrator --> Round1[Round 1: Challenges]
-        Orchestrator --> Round2[Round 2: Verification]
-        Orchestrator --> Round3[Round 3: Solutions]
-        Orchestrator --> Round4[Round 4: Review + Repair Loop]
-        Orchestrator --> Round5[Round 5: Consensus]
-        Round5 --> Report[validation_report.md]
+        Orchestrator --> Research[Research Phase: 5 rounds]
+        Orchestrator --> Battle[Battle Loop: max 3 iterations]
+        Battle --> Challenges[Challenges: Critic]
+        Battle --> Solutions[Solutions: Synthesizer]
+        Battle --> Review[Review: Critic]
+        Review -->|converged?| Consensus[Consensus: Coordinator]
+        Review -->|reject/revise| Challenges
+        Consensus --> Report[validation_report.md]
     end
 ```
 
@@ -144,10 +142,7 @@ classDiagram
         +reset_conversation()
     }
     BaseAgent <|-- ResearchAgent
-    BaseAgent <|-- ArchitectureCriticAgent
-    BaseAgent <|-- AlgorithmCriticAgent
-    BaseAgent <|-- ImplementationCriticAgent
-    BaseAgent <|-- CodeVerificationAgent
+    BaseAgent <|-- CriticAgent
     BaseAgent <|-- SolutionSynthesizerAgent
     BaseAgent <|-- CoordinatorAgent
 ```
@@ -156,19 +151,60 @@ classDiagram
 
 ```mermaid
 graph LR
-    R[Research] -->|Findings| C[Coordinator]
-    AC[ArchCritic] -->|Challenges| C
-    AlC[AlgoCritic] -->|Challenges| C
-    IC[ImplCritic] -->|Challenges| C
-    C -->|Issues| V[CodeVerifier]
-    V -->|Evidence| C
-    C -->|Valid Issues| S[Synthesizer]
-    S -->|Solutions| C
-    C -->|Solutions| AC & AlC & IC
-    AC & AlC & IC -->|Reviews| C
-    C -->|Feedback| S
-    S -->|Revised| C
+    R[Research] -->|research_agent.md| Critic
+    Critic -->|critic.md| Synth[Synthesizer]
+    Synth -->|solution_synth.md| Critic
+    Critic -->|critic.md updated| Convergence{All approve?}
+    Convergence -->|No| Critic
+    Convergence -->|Yes| Coord[Coordinator]
+    Coord -->|coordinator.md| Report[validation_report.md]
 ```
+
+### Battle Loop Detail
+
+```mermaid
+sequenceDiagram
+    participant O as Orchestrator
+    participant C as Critic
+    participant S as Synthesizer
+
+    loop max 3 iterations
+        O->>C: review_request / continue_review
+        C->>C: Read design doc + KiCad source + research
+        C-->>O: critic.md (challenges)
+
+        O->>S: generate_all_solutions
+        S->>S: Read critic.md + research repos
+        S-->>O: solution_synth.md
+
+        O->>C: review_solutions
+        C->>C: Read solution_synth.md + KiCad source
+        C-->>O: critic.md (+ solution reviews)
+
+        O->>O: Check convergence
+        alt All verdicts approve
+            O->>O: Break loop
+        end
+    end
+```
+
+## Checkpoint / Resume
+
+The system saves progress after each step via `checkpoint.json`:
+
+```json
+{
+  "stage": "battle",
+  "battle_iteration": 2,
+  "last_round": 1
+}
+```
+
+- `stage`: `init` | `research` | `battle` | `done`
+- `battle_iteration`: 1-3 (which iteration of the battle loop)
+- `last_round`: 1=challenges, 2=solutions, 3=review (last completed step)
+
+Resume with `--resume` flag. The system skips completed steps and continues from where it left off.
 
 ## Validation Findings Summary
 
@@ -212,16 +248,6 @@ Based on 5 rounds of research across 8 repositories and 15+ documents:
 | Performance degradation at N>8 traces | Medium | Profile early; use coarser collision detection for preview |
 | Inner arc radius below minimum | Medium | Validate at routing start; increase leader radius or warn user |
 
-### Implementation Plan (12 person-days)
-
-| Phase | Duration | Scope |
-|---|---|---|
-| 1. Skeleton & Straight Lines | 2 days | `MULTI_LINE_PLACER` class, `PNS_MODE_ROUTE_MULTI`, straight-line routing, STRICT mode |
-| 2. Corner Styles | 4 days | MITERED_45 + Clipper2 DoMiter, Miter/Chamfer, ROUNDED_45 concentric arcs, miter limit |
-| 3. Obstacle Avoidance | 3 days | HIGHLIGHT_ONLY, WALKAROUND (fat-trace hull), PUSH_SHOVE |
-| 4. Spacing & Polish | 2 days | Dynamic spacing adjustment, DRC validation, head/tail split, R-tree optimization |
-| 5. Testing | 1 day | Spacing accuracy, corner styles, obstacle modes, performance profiling |
-
 ### Deferred Features (NOT in first phase)
 
 MITERED_90, any-angle routing, per-net-pair DRC spacing matrix, deferred precise computation, parallel computation for N>8, layer switching, length matching, signal integrity, differential pair coupling.
@@ -240,11 +266,9 @@ MITERED_90, any-angle routing, per-net-pair DRC spacing matrix, deferred precise
 
 ## Configuration
 
-Edit `config.py` to customize model selection (Opus vs Sonnet per agent), token limits, output paths, and validation parameters.
+Edit `config.py` to customize model selection (Opus vs Sonnet per agent), output paths, and validation parameters.
 
 **Custom API Endpoint:** Set `ANTHROPIC_API_BASE` in `.env` to use a third-party Claude API proxy. Leave unset for official Anthropic API.
-
-**Estimated cost per validation:** $5-20 depending on design document size and number of issues found.
 
 ## Troubleshooting
 
@@ -258,8 +282,8 @@ Edit `config.py` to customize model selection (Opus vs Sonnet per agent), token 
 
 ## Extending the System
 
-- **New agents:** Inherit from `BaseAgent`, define system prompt, implement `parse_response()`, add to `orchestrator.py`
-- **New rounds:** Add round method to `ValidationBattle`, update `execute()`, update coordinator tracking
+- **New agents:** Inherit from `BaseAgent`, define system prompt, add to `orchestrator.py`
+- **Battle loop steps:** Add step method to `ValidationBattle`, update `run_battle_loop()` and checkpoint `last_round` max
 
 ## Dependencies
 
