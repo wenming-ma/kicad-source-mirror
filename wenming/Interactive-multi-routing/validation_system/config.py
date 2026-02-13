@@ -18,7 +18,7 @@ KICAD_REPO_PATH = os.environ.get(
 )
 
 # Design Document Path
-_DESIGN_DOC_DIR = Path(__file__).parent.parent.absolute()
+_DESIGN_DOC_DIR = Path(__file__).parent.parent.absolute() / "docs"
 _DESIGN_DOC_NAME = "KiCad多线同步布线技术设计文档.md"
 DESIGN_DOC_PATH = os.environ.get(
     "DESIGN_DOC_PATH",
@@ -51,16 +51,7 @@ AGENT_CONFIG = {
     "research_agent": {
         "model": FAST_MODEL  # Use faster model for research
     },
-    "arch_critic": {
-        "model": DEFAULT_MODEL
-    },
-    "algo_critic": {
-        "model": DEFAULT_MODEL
-    },
-    "impl_critic": {
-        "model": DEFAULT_MODEL
-    },
-    "code_verifier": {
+    "critic": {
         "model": DEFAULT_MODEL
     },
     "solution_synth": {

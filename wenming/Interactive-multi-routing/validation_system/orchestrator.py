@@ -2,13 +2,11 @@
 
 import json
 import os
-from typing import Dict, Any, List
+import re
+from typing import Dict, Any
 from agents import (
     ResearchAgent,
-    ArchitectureCriticAgent,
-    AlgorithmCriticAgent,
-    ImplementationCriticAgent,
-    CodeVerificationAgent,
+    CriticAgent,
     SolutionSynthesizerAgent,
     CoordinatorAgent
 )
@@ -19,11 +17,8 @@ RESEARCH_ROUNDS = 5
 
 CHECKPOINT_FILE = "checkpoint.json"
 
-# Maximum repair iterations for round 4 review loop
-MAX_REPAIR_ITERATIONS = 7
-
-# Ordered list of pipeline stages for checkpoint/resume
-STAGES = ["research", "round1", "round2", "round3", "round4", "round5"]
+# Maximum battle loop iterations (challenges -> solutions -> review, repeat)
+MAX_BATTLE_ITERATIONS = 7
 
 
 class ValidationBattle:
@@ -41,19 +36,13 @@ class ValidationBattle:
         self.design_doc_path: str = ""
 
         self.research = ResearchAgent()
-        self.arch_critic = ArchitectureCriticAgent()
-        self.algo_critic = AlgorithmCriticAgent()
-        self.impl_critic = ImplementationCriticAgent()
-        self.verifier = CodeVerificationAgent(self.kicad_repo_path)
+        self.critic = CriticAgent(self.kicad_repo_path)
         self.synthesizer = SolutionSynthesizerAgent()
         self.coordinator = CoordinatorAgent()
 
         self.agents = {
             "research": self.research,
-            "arch_critic": self.arch_critic,
-            "algo_critic": self.algo_critic,
-            "impl_critic": self.impl_critic,
-            "verifier": self.verifier,
+            "critic": self.critic,
             "synthesizer": self.synthesizer,
             "coordinator": self.coordinator
         }
@@ -65,14 +54,49 @@ class ValidationBattle:
             "design_doc_path": self.design_doc_path,
             "kicad_repo_path": self.kicad_repo_path,
             "research_repos_dir": self.repos_dir,
+            "research_agent_md": os.path.join(self.output_dir, "research_agent.md"),
+            "critic_md": os.path.join(self.output_dir, "critic.md"),
+            "solution_synth_md": os.path.join(self.output_dir, "solution_synth.md"),
+            "coordinator_md": os.path.join(self.output_dir, "coordinator.md"),
         }
+
+    def _log(self, msg: str):
+        """Print a log message."""
+        print(msg)
+
+    def _verify_md_file(self, file_key: str) -> bool:
+        """Check that an agent's md file exists and is non-empty."""
+        path = self._file_paths()[file_key]
+        if os.path.exists(path) and os.path.getsize(path) > 0:
+            self._log(f"  [OK] {file_key} written ({os.path.getsize(path)} bytes)")
+            return True
+        self._log(f"  [WARN] {file_key} not found or empty")
+        return False
+
+    def _check_convergence(self) -> bool:
+        """Check if all critic solution reviews show 'approve' verdicts.
+
+        Scans the single critic_md for Verdict: reject/revise in the
+        Solution Reviews section. Returns True if none found (all approved).
+        """
+        path = self._file_paths()["critic_md"]
+        if not os.path.exists(path):
+            self._log("  critic_md: file missing, not converged")
+            return False
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        if re.search(r"Verdict:\s*(reject|revise)", content, re.IGNORECASE):
+            self._log("  critic_md: has reject/revise verdicts")
+            return False
+        self._log("  All critic verdicts: approve")
+        return True
 
     async def run_research_phase(self) -> None:
         """Run 5 rounds of deep research exploration.
 
         Each round discovers new repos, clones them, and uses Explore
-        subagents to analyze code.  Previous findings are read from
-        files on disk by the agent (not passed as data).
+        subagents to analyze code.  The research agent maintains its own
+        markdown file (research_agent.md) across rounds.
         """
         print("\n" + "=" * 60)
         print("Research Phase: 5 Exploration Rounds")
@@ -82,7 +106,6 @@ class ValidationBattle:
         research_dir = os.path.join(self.output_dir, "research")
         os.makedirs(research_dir, exist_ok=True)
 
-        all_findings = []
         studied_repos = []
 
         for round_num in range(1, RESEARCH_ROUNDS + 1):
@@ -90,8 +113,6 @@ class ValidationBattle:
 
             directions = ROUND_DIRECTIONS.get(round_num, "")
 
-            # Message carries only paths + lightweight metadata.
-            # The agent reads previous findings from output_dir/research/.
             message = {
                 "type": "research_request",
                 "round": round_num,
@@ -102,26 +123,12 @@ class ValidationBattle:
 
             round_result = await self.research.process(message)
 
-            # Track studied repos
             if isinstance(round_result, dict):
                 for repo in round_result.get("repos_analyzed", []):
                     name = repo.get("name", "")
                     if name and name not in studied_repos:
                         studied_repos.append(name)
 
-            all_findings.append(round_result)
-
-            # Save each round's results
-            self._save_json(
-                round_result,
-                os.path.join(research_dir, f"research_round_{round_num}.json")
-            )
-            # Update consolidated files after every round so the next
-            # round (and crash-resume) can read them.
-            self._save_json(
-                all_findings,
-                os.path.join(research_dir, "all_findings.json")
-            )
             self._save_json(
                 studied_repos,
                 os.path.join(research_dir, "studied_repos.json")
@@ -133,366 +140,117 @@ class ValidationBattle:
         print(f"\nResearch phase complete: {len(studied_repos)} repos analyzed "
               f"across {RESEARCH_ROUNDS} rounds")
 
-    async def run_round_1_challenges(self) -> List[Dict]:
-        """Round 1: Critics raise challenges informed by research.
+    async def run_challenges(self, battle_iter: int = 1) -> None:
+        """Critic raises challenges informed by research and KiCad source.
 
-        Each critic reads the design doc and research findings from disk.
+        On iteration 1, uses review_request. On iteration 2+, uses
+        continue_review so the critic updates challenges based on current
+        solution state.
         """
-        print("\n=== Round 1: Initial Challenges ===\n")
+        msg_type = "review_request" if battle_iter == 1 else "continue_review"
+        print(f"\n=== Challenges (type={msg_type}) ===\n")
 
-        challenges = []
-        errors = []
-
-        critics = [
-            ("arch_critic", self.arch_critic, "Architecture"),
-            ("algo_critic", self.algo_critic, "Algorithm"),
-            ("impl_critic", self.impl_critic, "Implementation"),
-        ]
-
-        for name, agent, label in critics:
-            print(f"{label} critic reviewing design...")
-            response = await agent.process({
-                "type": "review_request",
-                **self._file_paths(),
-            })
-            if response.get("error"):
-                errors.append(response)
-                print(f"  [WARN] {name} failed, continuing with others")
-            elif "issues" in response:
-                challenges.extend(response["issues"])
-
-        for issue in challenges:
-            self.coordinator.track_issue(issue)
-        for err in errors:
-            self.coordinator.track_error(err)
-
-        print(f"\nRound 1 complete: {len(challenges)} challenges identified"
-              f" ({len(errors)} agent errors)")
-        return challenges
-
-    async def run_round_2_verification(self) -> List[Dict]:
-        """Round 2: Verify each challenge with research cross-references.
-
-        The verifier reads round1_challenges.json and research from disk.
-        """
-        print("\n=== Round 2: Verification ===\n")
-
-        # Load challenges from the file we saved in round 1
-        challenges_path = os.path.join(self.output_dir, "round1_challenges.json")
-        with open(challenges_path, 'r', encoding='utf-8') as f:
-            challenges = json.load(f)
-
-        verifications = []
-        errors = []
-        for i, challenge in enumerate(challenges, 1):
-            print(f"Verifying challenge {i}/{len(challenges)}: {challenge.get('id', 'N/A')}")
-            verification = await self.verifier.process({
-                "type": "verify_challenge",
-                "challenge": challenge,
-                **self._file_paths(),
-            })
-            if verification.get("error"):
-                errors.append(verification)
-                print(f"  [WARN] Verification failed for challenge {i}")
-            else:
-                verifications.append(verification)
-
-        for err in errors:
-            self.coordinator.track_error(err)
-
-        print(f"\nRound 2 complete: {len(verifications)} verifications completed"
-              f" ({len(errors)} errors)")
-        return verifications
-
-    async def run_round_3_solutions(self) -> List[Dict]:
-        """Round 3: Generate solutions grounded in research evidence.
-
-        The synthesizer reads round2_verifications.json and research from disk.
-        """
-        print("\n=== Round 3: Solution Generation ===\n")
-
-        # Load verifications from the file we saved in round 2
-        verifications_path = os.path.join(
-            self.output_dir, "round2_verifications.json"
-        )
-        with open(verifications_path, 'r', encoding='utf-8') as f:
-            verified_issues = json.load(f)
-
-        valid_issues = []
-        for verification in verified_issues:
-            if 'verifications' in verification:
-                for v in verification['verifications']:
-                    if v.get('status') in ['Valid', 'Partially Valid']:
-                        valid_issues.append(v)
-
-        print(f"Generating solutions for {len(valid_issues)} valid issues...")
-
-        solutions = []
-        errors = []
-        for i, issue in enumerate(valid_issues, 1):
-            print(f"Generating solution {i}/{len(valid_issues)}")
-            solution = await self.synthesizer.process({
-                "type": "generate_solution",
-                "issue": issue,
-                **self._file_paths(),
-            })
-            if solution.get("error"):
-                errors.append(solution)
-                print(f"  [WARN] Solution generation failed for issue {i}")
-            else:
-                solution["_source_issue"] = issue
-                solutions.append(solution)
-
-        for err in errors:
-            self.coordinator.track_error(err)
-
-        print(f"\nRound 3 complete: {len(solutions)} solutions generated"
-              f" ({len(errors)} errors)")
-        return solutions
-
-    async def run_round_4_review(self) -> List[Dict]:
-        """Round 4: Review solutions against research evidence.
-
-        Critics read round3_solutions.json and research from disk.
-        """
-        print("\n=== Round 4: Solution Review ===\n")
-
-        # Load solutions from the file we saved in round 3
-        solutions_path = os.path.join(self.output_dir, "round3_solutions.json")
-        with open(solutions_path, 'r', encoding='utf-8') as f:
-            solutions = json.load(f)
-
-        reviews = []
-        for i, solution in enumerate(solutions, 1):
-            print(f"Reviewing solution {i}/{len(solutions)}")
-
-            review_msg = {
-                "type": "review_solution",
-                "solution": solution,
-                "original_issue": solution.get("_source_issue"),
-                **self._file_paths(),
-            }
-
-            review_entry = {
-                "solution_id": solution.get('id', f'SOL-{i}'),
-                "original_issue": solution.get("_source_issue"),
-            }
-
-            for name, agent in [
-                ("arch_review", self.arch_critic),
-                ("algo_review", self.algo_critic),
-                ("impl_review", self.impl_critic),
-            ]:
-                result = await agent.process(review_msg)
-                if result.get("error"):
-                    self.coordinator.track_error(result)
-                    print(f"  [WARN] {name} failed for solution {i}")
-                review_entry[name] = result
-
-            reviews.append(review_entry)
-
-        print(f"\nRound 4 complete: {len(reviews)} solutions reviewed")
-        return reviews
-
-    def _extract_verdict(self, review: Dict) -> str:
-        """Extract verdict string from a single critic response.
-
-        Falls back to "revise" if the field is missing or the response
-        contains an error.
-        """
-        if not isinstance(review, dict):
-            return "revise"
-        if review.get("error"):
-            return "revise"
-        verdict = review.get("verdict", "revise")
-        if verdict not in ("approve", "reject", "revise"):
-            return "revise"
-        return verdict
-
-    def _is_solution_approved(self, review_entry: Dict) -> bool:
-        """Check whether a solution's review entry counts as approved.
-
-        Policy: any "reject" means not approved. Otherwise needs at least
-        2 out of 3 critics returning "approve".
-        """
-        verdicts = []
-        for key in ("arch_review", "algo_review", "impl_review"):
-            verdicts.append(self._extract_verdict(review_entry.get(key, {})))
-
-        if "reject" in verdicts:
-            return False
-        return verdicts.count("approve") >= 2
-
-    def _collect_review_feedback(self, review_entry: Dict) -> Dict:
-        """Aggregate weaknesses, required_changes, and summaries from all
-        three critics into a single feedback dict for the synthesizer."""
-        feedback = {
-            "weaknesses": [],
-            "required_changes": [],
-            "critic_summaries": [],
-        }
-        for key in ("arch_review", "algo_review", "impl_review"):
-            critic = review_entry.get(key, {})
-            if not isinstance(critic, dict) or critic.get("error"):
-                continue
-            for w in critic.get("weaknesses", []):
-                feedback["weaknesses"].append(w)
-            for rc in critic.get("required_changes", []):
-                feedback["required_changes"].append(rc)
-            summary = critic.get("summary", "")
-            if summary:
-                feedback["critic_summaries"].append(
-                    f"{key}: {summary}"
-                )
-        return feedback
-
-    async def run_round_4_repair_loop(
-        self,
-        reviews: List[Dict],
-    ) -> List[Dict]:
-        """Iteratively revise rejected solutions and re-review them.
-
-        Approved solutions are kept as-is. Only rejected/revised solutions
-        go through the synthesizer again and get re-reviewed by critics.
-        Solutions and research are read from disk by agents.
-        """
-        current_reviews = list(reviews)
-
-        # Load solutions from disk for the lookup
-        solutions_path = os.path.join(self.output_dir, "round3_solutions.json")
-        with open(solutions_path, 'r', encoding='utf-8') as f:
-            solutions = json.load(f)
-
-        # Build a solution lookup by solution_id
-        sol_by_id = {}
-        for sol in solutions:
-            sid = sol.get("id", "")
-            sol_by_id[sid] = sol
-        # Also map by positional fallback id used in run_round_4_review
-        for i, sol in enumerate(solutions, 1):
-            fallback_id = f"SOL-{i}"
-            if fallback_id not in sol_by_id:
-                sol_by_id[fallback_id] = sol
-
-        for iteration in range(1, MAX_REPAIR_ITERATIONS + 1):
-            # Partition into approved / not-approved
-            approved = []
-            rejected = []
-            for rev in current_reviews:
-                if self._is_solution_approved(rev):
-                    approved.append(rev)
-                else:
-                    rejected.append(rev)
-
-            if not rejected:
-                print(f"  All solutions approved, no repair needed.")
-                break
-
-            print(f"\n  --- Repair iteration {iteration}/{MAX_REPAIR_ITERATIONS} "
-                  f"({len(rejected)} solution(s) to revise) ---")
-
-            revised_reviews = []
-            for rev in rejected:
-                sol_id = rev.get("solution_id", "")
-                original_solution = sol_by_id.get(sol_id, {})
-                feedback = self._collect_review_feedback(rev)
-
-                # Ask synthesizer to revise
-                print(f"  Revising solution {sol_id}...")
-                try:
-                    revised = await self.synthesizer.process({
-                        "type": "revise_solution",
-                        "original_solution": original_solution,
-                        "review_feedback": feedback,
-                        "original_issue": rev.get("original_issue"),
-                        **self._file_paths(),
-                    })
-                except Exception as exc:
-                    print(f"  [WARN] Synthesizer revision failed for {sol_id}: {exc}")
-                    rev["_repair_error"] = str(exc)
-                    revised_reviews.append(rev)
-                    continue
-
-                if revised.get("error"):
-                    print(f"  [WARN] Synthesizer returned error for {sol_id}")
-                    self.coordinator.track_error(revised)
-                    rev["_repair_error"] = revised.get("error")
-                    revised_reviews.append(rev)
-                    continue
-
-                # Carry forward source issue
-                revised["_source_issue"] = original_solution.get("_source_issue",
-                                                                  rev.get("original_issue"))
-                revised["_revision_iteration"] = iteration
-
-                # Update solution lookup so further iterations use the revised version
-                sol_by_id[sol_id] = revised
-
-                # Re-review the revised solution
-                print(f"  Re-reviewing revised solution {sol_id}...")
-                review_msg = {
-                    "type": "review_solution",
-                    "solution": revised,
-                    "original_issue": revised.get("_source_issue"),
-                    **self._file_paths(),
-                }
-
-                new_review = {
-                    "solution_id": sol_id,
-                    "original_issue": revised.get("_source_issue"),
-                    "revision_iteration": iteration,
-                }
-
-                for name, agent in [
-                    ("arch_review", self.arch_critic),
-                    ("algo_review", self.algo_critic),
-                    ("impl_review", self.impl_critic),
-                ]:
-                    result = await agent.process(review_msg)
-                    if result.get("error"):
-                        self.coordinator.track_error(result)
-                        print(f"    [WARN] {name} failed for revised {sol_id}")
-                    new_review[name] = result
-
-                revised_reviews.append(new_review)
-
-            # Merge: approved stay, rejected replaced by new reviews
-            current_reviews = approved + revised_reviews
-
-        # Tag any still-rejected solutions after exhausting iterations
-        for rev in current_reviews:
-            if not self._is_solution_approved(rev):
-                rev["_repair_exhausted"] = True
-
-        return current_reviews
-
-    async def run_round_5_consensus(self) -> Dict:
-        """Round 5: Build consensus with full research context.
-
-        The coordinator reads ALL previous round files from disk.
-        """
-        print("\n=== Round 5: Consensus ===\n")
-
-        final_plan = await self.coordinator.process({
-            "type": "build_consensus",
-            "all_issues": self.coordinator.issues,
+        print("Critic reviewing design...")
+        await self.critic.process({
+            "type": msg_type,
+            "battle_iteration": battle_iter,
             **self._file_paths(),
         })
+        self._verify_md_file("critic_md")
 
-        if final_plan.get("error"):
-            self.coordinator.track_error(final_plan)
-            print("  [WARN] Consensus agent failed")
+        print("\nChallenges complete: critic_md written")
 
-        print("\nRound 5 complete: Consensus reached")
-        return final_plan
+    async def run_solutions(self, battle_iter: int = 1) -> None:
+        """Generate all solutions in a single batch call."""
+        print("\n=== Solution Generation ===\n")
+
+        print("Synthesizer reading critic challenges and generating solutions...")
+        await self.synthesizer.process({
+            "type": "generate_all_solutions",
+            "battle_iteration": battle_iter,
+            **self._file_paths(),
+        })
+        self._verify_md_file("solution_synth_md")
+
+        print("\nSolutions complete")
+
+    async def run_review(self, battle_iter: int = 1) -> None:
+        """Critic reviews solutions (single pass).
+
+        The outer battle loop handles iteration; no internal repair loop.
+        """
+        print("\n=== Solution Review ===\n")
+
+        print("Critic reviewing all solutions...")
+        await self.critic.process({
+            "type": "review_solutions",
+            "battle_iteration": battle_iter,
+            **self._file_paths(),
+        })
+        self._verify_md_file("critic_md")
+
+        print("\nReview complete")
+
+    async def run_battle_loop(self, start_iter: int = 1,
+                              start_round: int = 1) -> None:
+        """Run the battle loop until convergence or max iterations.
+
+        Each iteration: challenges -> solutions -> review -> convergence check.
+
+        Args:
+            start_iter: Battle iteration to start from (for resume).
+            start_round: Round within the iteration to start from (for resume).
+        """
+        for battle_iter in range(start_iter, MAX_BATTLE_ITERATIONS + 1):
+            print(f"\n{'='*60}")
+            print(f"Battle Iteration {battle_iter}/{MAX_BATTLE_ITERATIONS}")
+            print(f"{'='*60}")
+
+            if not (battle_iter == start_iter and start_round > 1):
+                await self.run_challenges(battle_iter)
+                self._save_checkpoint(
+                    stage="battle", battle_iteration=battle_iter, last_round=1)
+
+            if not (battle_iter == start_iter and start_round > 2):
+                await self.run_solutions(battle_iter)
+                self._save_checkpoint(
+                    stage="battle", battle_iteration=battle_iter, last_round=2)
+
+            await self.run_review(battle_iter)
+            self._save_checkpoint(
+                stage="battle", battle_iteration=battle_iter, last_round=3)
+
+            print("\nChecking convergence...")
+            if self._check_convergence():
+                print(f"\nBattle converged at iteration {battle_iter}!")
+                break
+        else:
+            print(f"\nMax battle iterations ({MAX_BATTLE_ITERATIONS}) reached")
+
+    async def run_consensus(self) -> None:
+        """Build consensus with full research context.
+
+        The coordinator reads ALL agent markdown files from disk and writes
+        the consensus report to coordinator_md. No inline data is sent.
+        """
+        print("\n=== Consensus ===\n")
+
+        print("Coordinator building consensus from all md files...")
+        await self.coordinator.process({
+            "type": "build_consensus",
+            **self._file_paths(),
+        })
+        self._verify_md_file("coordinator_md")
+
+        print("\nConsensus complete")
 
     async def execute(self, design_doc_path: str,
                       output_dir: str = "./validation_output",
                       resume: bool = False) -> str:
         """Execute full validation battle with checkpoint/resume support.
 
-        Agents read previous outputs from files on disk.  The checkpoint
-        only stores the name of the last completed stage -- no data blobs.
+        Pipeline: Research (once) -> Battle loop -> Consensus (once).
+        MD files on disk are the single source of truth.
         """
         print(f"\n{'='*60}")
         print("KiCad Multi-Line Routing Validation Battle")
@@ -504,81 +262,38 @@ class ValidationBattle:
 
         # Load checkpoint if resuming
         checkpoint = self._load_checkpoint(self.output_dir) if resume else None
-        completed = checkpoint["completed_round"] if checkpoint else None
 
-        if completed:
-            print(f"Resuming from checkpoint: {completed} completed\n")
+        if checkpoint:
+            print(f"Resuming from checkpoint: {checkpoint}\n")
 
-        def _stage_done(stage: str) -> bool:
-            """Check if a stage was already completed in a previous run."""
-            if completed is None:
-                return False
-            return STAGES.index(stage) <= STAGES.index(completed)
-
-        # Research phase
-        if not _stage_done("research"):
+        # Research phase (once)
+        stage = checkpoint.get("stage") if checkpoint else None
+        if not stage or stage == "init":
             await self.run_research_phase()
-            self._save_checkpoint(self.output_dir, "research")
+            self._save_checkpoint(stage="research")
         else:
             print("Skipping research phase (already completed)")
 
-        # Round 1
-        if not _stage_done("round1"):
-            challenges = await self.run_round_1_challenges()
-            self._save_json(
-                challenges,
-                os.path.join(self.output_dir, "round1_challenges.json")
+        # Battle loop (challenges -> solutions -> review, repeat)
+        if not stage or stage in ("init", "research"):
+            await self.run_battle_loop()
+        elif stage == "battle":
+            # Resume mid-battle
+            await self.run_battle_loop(
+                start_iter=checkpoint.get("battle_iteration", 1),
+                start_round=checkpoint.get("last_round", 0) + 1,
             )
-            self._save_checkpoint(self.output_dir, "round1")
-        else:
-            print("Skipping round 1 (already completed)")
 
-        # Round 2
-        if not _stage_done("round2"):
-            verifications = await self.run_round_2_verification()
-            self._save_json(
-                verifications,
-                os.path.join(self.output_dir, "round2_verifications.json")
-            )
-            self._save_checkpoint(self.output_dir, "round2")
+        # Consensus (once)
+        if stage != "done":
+            await self.run_consensus()
+            self._save_checkpoint(stage="done")
         else:
-            print("Skipping round 2 (already completed)")
+            print("Skipping consensus (already completed)")
 
-        # Round 3
-        if not _stage_done("round3"):
-            solutions = await self.run_round_3_solutions()
-            self._save_json(
-                solutions,
-                os.path.join(self.output_dir, "round3_solutions.json")
-            )
-            self._save_checkpoint(self.output_dir, "round3")
-        else:
-            print("Skipping round 3 (already completed)")
-
-        # Round 4
-        if not _stage_done("round4"):
-            reviews = await self.run_round_4_review()
-            reviews = await self.run_round_4_repair_loop(reviews)
-            self._save_json(
-                reviews,
-                os.path.join(self.output_dir, "round4_reviews.json")
-            )
-            self._save_checkpoint(self.output_dir, "round4")
-        else:
-            print("Skipping round 4 (already completed)")
-
-        # Round 5
-        if not _stage_done("round5"):
-            final_plan = await self.run_round_5_consensus()
-            self._save_json(
-                final_plan,
-                os.path.join(self.output_dir, "round5_consensus.json")
-            )
-            self._save_checkpoint(self.output_dir, "round5")
-        else:
-            print("Skipping round 5 (already completed)")
-
-        report = self.coordinator.generate_report()
+        # Final report: use coordinator_md as the validation report
+        coordinator_md_path = self._file_paths()["coordinator_md"]
+        report = self.coordinator.generate_report(coordinator_md_path)
         report_path = os.path.join(self.output_dir, "validation_report.md")
 
         with open(report_path, 'w', encoding='utf-8') as f:
@@ -595,20 +310,46 @@ class ValidationBattle:
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
-    def _save_checkpoint(self, output_dir: str, round_name: str):
-        """Save pipeline progress after a completed round.
+    def _save_checkpoint(self, stage: str = "battle",
+                         battle_iteration: int = 0, last_round: int = 0):
+        """Save pipeline progress.
 
-        Only stores the stage name -- agents read data from files.
+        Only stores stage + battle position. MD files on disk ARE the state.
         """
-        checkpoint = {"completed_round": round_name}
-        path = os.path.join(output_dir, CHECKPOINT_FILE)
+        checkpoint = {
+            "stage": stage,
+            "battle_iteration": battle_iteration,
+            "last_round": last_round,
+        }
+        path = os.path.join(self.output_dir, CHECKPOINT_FILE)
         self._save_json(checkpoint, path)
-        print(f"  [Checkpoint saved: {round_name}]")
+        self._log(f"  [Checkpoint saved: stage={stage}, "
+                  f"battle_iter={battle_iteration}, round={last_round}]")
 
     def _load_checkpoint(self, output_dir: str) -> Dict[str, Any] | None:
         """Load checkpoint from a previous run, if it exists."""
         path = os.path.join(output_dir, CHECKPOINT_FILE)
         if os.path.exists(path):
             with open(path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+            # Normalize old-format checkpoints
+            if "completed_round" in data:
+                old_stage = data["completed_round"]
+                stage_map = {
+                    "research": "research",
+                    "round1": "battle", "round2": "battle",
+                    "round3": "battle", "round4": "battle",
+                    "round5": "done",
+                }
+                round_map = {
+                    "round1": 1, "round2": 2, "round3": 3,
+                }
+                data = {
+                    "stage": stage_map.get(old_stage, "init"),
+                    "battle_iteration": 1,
+                    "last_round": round_map.get(old_stage, 0),
+                }
+            if "state" in data:
+                data.pop("state", None)
+            return data
         return None

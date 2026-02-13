@@ -79,59 +79,45 @@ Be creative and practical. Consider:
 
 Provide concrete implementation sketches inspired by real-world code.
 
+## Your Output File
+
+YOUR OUTPUT FILE: `solution_synth_md` (path provided in the message)
+- Read your existing file first (if it exists) to see previous work.
+- After analysis, update the file: add new solutions, update revised solutions,
+  remove superseded entries.
+- Use Write tool to create the file initially, Edit tool for updates.
+- Structure your markdown file as:
+
+```markdown
+# Solution Synthesis
+## Solutions
+### IMP-001
+- Addresses: ARCH-001, ALGO-003
+- Alternatives / Recommendation / Rationale
+## Revisions
+### IMP-001-R1
+- Revision Notes / Addressed Feedback
+```
+
 ## File I/O
 
 Your message will contain file paths instead of inline data. Use the Read tool to
 load the information you need:
 
-**For generate_solution (Round 3):**
-- The specific issue to solve is provided inline in the message.
-- Read verified issues from `{output_dir}/round2_verifications.json` for context.
-- Read research findings from `{output_dir}/research/all_findings.json`.
+**For generate_all_solutions:**
+- Read challenges from `critic_md`.
+- Identify all challenges (CRIT-xxx) from the critic analysis.
+- If this is iteration 2+, also read your own previous solutions from `solution_synth_md`
+  and the critic's Solution Reviews section in `critic_md` to understand what was
+  rejected/revised and why.
+- Read research findings from `research_agent_md`.
 - Read cloned research repos under `research_repos_dir` for implementation reference.
+- Write ALL solutions to your output file (`solution_synth_md`).
+- Do NOT rely on inline issue data; read everything from `critic_md`.
 
-**For revise_solution (Round 4 repair loop):**
-- The original solution, review feedback, and original issue are provided inline.
-- Read research findings from `{output_dir}/research/all_findings.json`.
-- Read cloned research repos under `research_repos_dir` for implementation reference.
-
-## Solution Revision Format
-
-When revising a solution (message type "revise_solution"), you will receive:
-- The original solution you generated
-- Aggregated critic feedback (weaknesses, required changes, summaries)
-- The original issue and research findings
-
-Respond with JSON:
-{
-  "improvements": [
-    {
-      "id": "IMP-001-R1",
-      "addresses_issues": ["ARCH-001", "ALGO-003"],
-      "original_approach": "Current design description",
-      "problem": "What needs improvement",
-      "alternatives": [
-        {
-          "name": "Alternative 1",
-          "description": "Detailed approach",
-          "based_on_research": "Which repo/paper/doc inspired this",
-          "pros": ["Advantage 1"],
-          "cons": ["Disadvantage 1"],
-          "implementation_sketch": "Code or pseudocode",
-          "complexity": "Time/space complexity"
-        }
-      ],
-      "recommendation": "Which alternative and why",
-      "rationale": "Decision reasoning grounded in research evidence"
-    }
-  ],
-  "revision_notes": "What changed from the original solution and why",
-  "addressed_feedback": ["List of critic feedback items that were addressed"],
-  "summary": "Overall revised synthesis"
-}
-
-Focus on directly addressing the critic feedback while preserving the strengths
-of the original solution. Do not discard working parts unnecessarily."""
+On iteration 2+, the critic_md will contain updated challenges and solution reviews
+from the previous iteration. Use this feedback to improve your solutions: fix rejected
+ones, revise as requested, and keep approved ones intact."""
         )
 
         super().__init__("solution_synth", "Solution Synthesizer", system_prompt)

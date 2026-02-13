@@ -1,6 +1,6 @@
 """Coordinator agent for orchestrating the validation battle."""
 
-from typing import Dict, Any, List
+import os
 from .base_agent import BaseAgent
 from config import FIRST_PHASE_SCOPE
 
@@ -38,11 +38,11 @@ You will receive research findings from the Research Agent. Use them to:
 
 Workflow:
 - Research Phase: 5 rounds of deep exploration (repos + documents)
-- Round 1: Collect all challenges (informed by research)
-- Round 2: Verify each challenge (cross-referenced with research)
-- Round 3: Generate solutions (based on research evidence)
-- Round 4: Review solutions
-- Round 5: Build consensus
+- Battle Loop (repeats until convergence):
+  - Challenges: Critic raises/updates challenges (reads doc + research + KiCad source)
+  - Solutions: Synthesizer generates/updates solutions (reads critic_md + research)
+  - Review: Critic reviews all solutions (reads solution_synth_md + KiCad source)
+- Consensus: Build final report
 
 For final reports, provide:
 {
@@ -58,92 +58,43 @@ For final reports, provide:
 
 Be decisive and clear. Keep discussions focused.
 
+## Your Output File
+
+YOUR OUTPUT FILE: `coordinator_md` (path provided in the message)
+- Read your existing file first (if it exists) to see previous work.
+- After analysis, create/update the file with the consensus results.
+- Use Write tool to create the file initially, Edit tool for updates.
+- Structure your markdown file as:
+
+```markdown
+# Validation Consensus
+## Executive Summary
+## Key Findings
+## Recommendations
+## Implementation Plan
+```
+
 ## File I/O
 
 Your message will contain file paths instead of inline data. Use the Read tool to
 load the information you need:
 
-**For build_consensus (Round 5):**
-Read ALL previous round files from `output_dir`:
-- `{output_dir}/round1_challenges.json` -- initial challenges from critics
-- `{output_dir}/round2_verifications.json` -- verified challenges
-- `{output_dir}/round3_solutions.json` -- generated solutions
-- `{output_dir}/round4_reviews.json` -- solution reviews and repair results
-- `{output_dir}/research/all_findings.json` -- consolidated research findings
-- The tracked issues list is provided inline in the message."""
+**For build_consensus:**
+Read ALL agent markdown files:
+- `research_agent_md` -- cumulative research findings
+- `critic_md` -- unified challenges + solution reviews (architecture, algorithm, implementation)
+- `solution_synth_md` -- solutions + revisions
+- Do NOT rely on any inline data; read everything from the md files above."""
         )
 
         super().__init__("coordinator", "Coordinator", system_prompt)
-        self.issues: Dict[str, Dict] = {}
-        self.errors: List[Dict] = []
-        self.current_round = 1
-        self.research_findings: List[Dict] = []
 
-    def set_research_findings(self, findings: List[Dict]):
-        """Store research findings for use in report generation."""
-        self.research_findings = findings
+    def generate_report(self, coordinator_md_path: str) -> str:
+        """Read the coordinator's md file and return its content as the report.
 
-    def track_issue(self, issue: Dict):
-        """Track an issue through the workflow."""
-        issue_id = issue.get('id', f"ISSUE-{len(self.issues)}")
-        self.issues[issue_id] = issue
-
-    def track_error(self, error: Dict):
-        """Track an agent error for inclusion in the final report."""
-        self.errors.append(error)
-
-    def advance_round(self):
-        """Move to next discussion round."""
-        self.current_round += 1
-
-    def get_status(self) -> Dict[str, Any]:
-        """Get current validation status."""
-        total = len(self.issues)
-        resolved = sum(1 for i in self.issues.values() if i.get('status') == 'resolved')
-        return {
-            "round": self.current_round,
-            "total_issues": total,
-            "resolved_issues": resolved,
-            "pending_issues": total - resolved,
-            "issues": self.issues
-        }
-
-    def generate_report(self) -> str:
-        """Generate final validation report."""
-        status = self.get_status()
-        arch = [i for i in self.issues.values() if i.get('id', '').startswith('ARCH')]
-        algo = [i for i in self.issues.values() if i.get('id', '').startswith('ALGO')]
-        impl = [i for i in self.issues.values() if i.get('id', '').startswith('IMPL')]
-
-        report = f"""# KiCad Multi-Line Routing Validation Report
-
-## Executive Summary
-
-Validation completed after {self.current_round} rounds.
-- Total issues: {status['total_issues']}
-- Resolved: {status['resolved_issues']}
-- Pending: {status['pending_issues']}
-
-## Architecture Issues: {len(arch)}
-
-"""
-        for issue in arch:
-            report += f"- **{issue.get('id')}**: {issue.get('challenge', 'N/A')}\n"
-
-        report += f"\n## Algorithm Issues: {len(algo)}\n\n"
-        for issue in algo:
-            report += f"- **{issue.get('id')}**: {issue.get('challenge', 'N/A')}\n"
-
-        report += f"\n## Implementation Issues: {len(impl)}\n\n"
-        for issue in impl:
-            report += f"- **{issue.get('id')}**: {issue.get('challenge', 'N/A')}\n"
-
-        if self.errors:
-            report += f"\n## Agent Errors: {len(self.errors)}\n\n"
-            for err in self.errors:
-                agent = err.get('agent', 'unknown')
-                err_type = err.get('error_type', 'Unknown')
-                err_msg = err.get('error_message', 'No details')
-                report += f"- **{agent}** ({err_type}): {err_msg}\n"
-
-        return report
+        Falls back to a placeholder if the file does not exist.
+        """
+        if os.path.exists(coordinator_md_path) and os.path.getsize(coordinator_md_path) > 0:
+            with open(coordinator_md_path, "r", encoding="utf-8") as f:
+                return f.read()
+        return "# Validation Report\n\nNo consensus report was generated.\n"

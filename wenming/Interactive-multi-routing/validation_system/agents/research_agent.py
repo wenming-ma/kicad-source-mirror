@@ -303,6 +303,25 @@ Round 5 (performance + integration):
 ### Step 5: Record Findings
 Compile findings into a structured JSON response.
 
+## Your Output File
+
+YOUR OUTPUT FILE: `research_agent_md` (path provided in the message)
+- Read your existing file first (if it exists) to see previous work.
+- After analysis, update the file: add a new section for this round's findings,
+  keep previous round sections intact.
+- Use Write tool to create the file initially, Edit tool for updates.
+- Structure your markdown file as:
+
+```markdown
+# Research Findings
+## Round 1: Broad Discovery
+### Repositories Analyzed
+### Documents Found
+### Key Insights
+## Round 2: Leader-Follower Deep Dive
+...
+```
+
 ## Important Rules
 
 1. STAY ON TOPIC: Only research interactive multi-line/multi-segment routing and its
@@ -378,6 +397,7 @@ Return a JSON response:
         design_doc_path = message.get("design_doc_path", "")
         repos_dir = message.get("research_repos_dir", str(REPOS_DIR))
         round_num = message.get("round", 1)
+        research_agent_md = message.get("research_agent_md", "")
 
         prompt += "\n\n[FILE I/O INSTRUCTIONS]\n"
         prompt += (
@@ -385,21 +405,24 @@ Return a JSON response:
             f"Read it with the Read tool to understand the design context.\n\n"
             f"Research repos directory: {repos_dir}\n"
             f"Cloned repos are stored here. Check this directory before cloning.\n\n"
+            f"Your output file: {research_agent_md}\n"
         )
 
-        if round_num > 1 and output_dir:
+        if round_num > 1:
             research_dir = f"{output_dir}/research"
             prompt += (
-                f"Previous round outputs are in: {research_dir}/\n"
+                f"- Read your output file ({research_agent_md}) to see your "
+                f"previous findings. Build on prior insights and avoid "
+                f"redundant research.\n"
                 f"- Read {research_dir}/studied_repos.json to see which repos "
                 f"have already been studied. SKIP those repos.\n"
-                f"- Read {research_dir}/all_findings.json for a summary of all "
-                f"previous findings. Use this to avoid redundant research and "
-                f"to build on prior insights.\n"
-                f"- Individual round files: {research_dir}/research_round_N.json "
-                f"(N = 1..{round_num - 1})\n"
-                f"- If the last round's findings contain "
+                f"- If your previous round's findings contain "
                 f"'recommended_next_directions', prioritize those.\n"
+            )
+        else:
+            prompt += (
+                f"- This is round 1. Create the file with Write tool after "
+                f"completing your analysis.\n"
             )
 
         # Scan research_repos for already-cloned projects

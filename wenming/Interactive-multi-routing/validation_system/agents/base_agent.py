@@ -14,6 +14,7 @@ from config import AGENT_CONFIG
 MAX_RETRIES = 3
 RETRY_BASE_DELAY = 2  # seconds
 MAX_HISTORY_ENTRIES = 20  # 10 exchanges (user + assistant each)
+RESPONSE_TIMEOUT = 222  # seconds (3.7 min); interrupt if no new message arrives within this window
 
 
 class BaseAgent:
@@ -68,12 +69,41 @@ class BaseAgent:
     async def _receive_response(self, client: ClaudeSDKClient) -> str:
         """Consume the message stream, log progress, return final text.
 
-        Lets the SDK manage its own timeouts.  Any SDK-level failure
-        will propagate as an exception for the caller to handle.
+        Uses a *per-message* timeout rather than a whole-response timeout.
+        As long as messages keep flowing the timer resets, so a legitimately
+        long session with many tool calls will never be interrupted.  But if
+        a single tool call hangs and no message arrives for RESPONSE_TIMEOUT
+        seconds, we send an interrupt (programmatic ESC) and re-raise
+        TimeoutError for the caller's retry logic.
         """
         self._partial_response = ""
-        async for msg in client.receive_response():
+        response_iter = client.receive_response().__aiter__()
+
+        while True:
+            try:
+                msg = await asyncio.wait_for(
+                    response_iter.__anext__(), timeout=RESPONSE_TIMEOUT
+                )
+            except StopAsyncIteration:
+                break
+            except asyncio.TimeoutError:
+                self._log(
+                    f"No message for {RESPONSE_TIMEOUT}s, sending interrupt..."
+                )
+                await client.interrupt()
+                # Drain the ResultMessage produced by the interrupt so the
+                # message stream is clean for the next query() call.
+                try:
+                    async def _drain():
+                        async for m in client.receive_response():
+                            self._process_message(m)
+                    await asyncio.wait_for(_drain(), timeout=30)
+                except asyncio.TimeoutError:
+                    pass
+                raise
+
             self._partial_response += self._process_message(msg)
+
         return self._partial_response
 
     async def process(self, message: Dict[str, Any]) -> Dict[str, Any]:
@@ -104,8 +134,8 @@ class BaseAgent:
                                 "Your previous response was interrupted. "
                                 "The conversation above contains all your "
                                 "work so far. Continue from where you left "
-                                "off and complete the task. Do NOT repeat "
-                                "work already done."
+                                "off and complete the task. You MUST ensure "
+                                "your output file is written before finishing."
                             )
 
                         response_text = await self._receive_response(client)
