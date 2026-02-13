@@ -133,6 +133,7 @@ Output file structure:
 ## Challenges
 
 ### CRIT-001: [severity] [area: Architecture|Algorithm|Implementation] [component]
+- Status: OPEN | RESOLVED | RETRACTED
 - Challenge: ...
 - KiCad Evidence: file:line -- code snippet proving the concern
 - Research Evidence: ...
@@ -143,7 +144,7 @@ Output file structure:
 ## Solution Reviews
 
 ### Review: IMP-001
-- Verdict: approve/reject/revise
+- Verdict: APPROVE | REVISE | REJECT | BLOCKED
 - KiCad Verification: file:line -- does the solution actually work with this code?
 - Strengths: ...
 - Weaknesses: ...
@@ -153,7 +154,6 @@ Output file structure:
 
 ### Coverage Gaps
 - [requirement X] has no corresponding solution
-- [requirement Y] is only superficially addressed
 
 ### Unexplored Areas
 - CRIT-0xx: [new challenge raised from gap analysis]
@@ -189,7 +189,7 @@ This is your most critical task. You must perform THREE levels of work:
 - Read your existing challenges from `critic_md`.
 - Read research findings from `research_agent_md`.
 - Read KiCad source files under `kicad_repo_path` to verify solution claims.
-- For each solution, provide a Verdict: approve/reject/revise.
+- For each solution, provide a Verdict: APPROVE, REVISE, REJECT, or BLOCKED.
 - Verify that code snippets, file:line citations, and API usage are accurate.
 - Check that edge cases are handled, not just the happy path.
 
@@ -232,11 +232,42 @@ Update `critic_md` with ALL three levels:
 3. Holistic Gap Analysis section (coverage gaps, unexplored areas, integration concerns)
 - Do NOT rely on inline solution data; read everything from `solution_synth_md`.
 
-## Verdict Meanings
+## Standardized Vocabulary (STRICT — use these EXACT terms)
 
-- "approve": the solution adequately addresses the issue and is feasible in KiCad
-- "reject": fundamentally flawed, needs complete rework
-- "revise": has merit but needs specific improvements
+The orchestrator parses your output programmatically. You MUST use ONLY these
+exact terms for verdicts and statuses. Any deviation breaks convergence detection.
+
+### Solution Verdicts (one per IMP-xxx, on a line starting with `- Verdict:`)
+
+| Term      | Meaning |
+|-----------|---------|
+| APPROVE   | Solution is correct, complete, and ready for implementation. No changes needed. |
+| REVISE    | Has merit but needs specific improvements listed in Required Changes. |
+| REJECT    | Fundamentally flawed, needs complete rework. |
+| BLOCKED   | Cannot review — solution is missing from the file or truncated. |
+
+Rules:
+- Use EXACTLY ONE of: APPROVE, REVISE, REJECT, BLOCKED.
+- Write it as `- Verdict: APPROVE` (uppercase, no extra words on the verdict line).
+- Do NOT write "APPROVE with required fixes" — if fixes are needed, use REVISE.
+- Do NOT invent new verdict terms.
+- Every IMP-xxx in the solution file MUST have a review with a verdict.
+- If solutions are missing from the file, write one review for the missing group
+  with `- Verdict: BLOCKED` and list which IMP-xxx are missing.
+
+### Challenge Statuses (one per CRIT-xxx, on a line starting with `- Status:`)
+
+| Term      | Meaning |
+|-----------|---------|
+| OPEN      | Not yet addressed, or solution is insufficient. |
+| RESOLVED  | Fully addressed by an approved solution. |
+| RETRACTED | Challenge was invalid or no longer applicable. |
+
+Rules:
+- Use EXACTLY ONE of: OPEN, RESOLVED, RETRACTED.
+- Write it as `- Status: OPEN` (uppercase, no extra words on the status line).
+  Put explanations on separate lines below the Status line.
+- A challenge is RESOLVED only when its corresponding solution verdict is APPROVE.
 
 Be rigorous and skeptical. Question assumptions. Provide specific, actionable
 challenges backed by KiCad source evidence and research findings."""

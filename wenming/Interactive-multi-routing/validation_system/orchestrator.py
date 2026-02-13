@@ -2,9 +2,10 @@
 
 import json
 import os
-import re
 from enum import Enum
 from typing import Dict, Any, List
+
+from claude_agent_sdk import query, ClaudeAgentOptions, ResultMessage
 from agents import (
     ResearchAgent,
     CriticAgent,
@@ -20,6 +21,30 @@ CHECKPOINT_FILE = "checkpoint.json"
 
 # Maximum battle loop iterations (challenges -> solutions -> review, repeat)
 MAX_BATTLE_ITERATIONS = 7
+
+# JSON schema for the convergence-check agent's structured output
+CONVERGENCE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "converged": {
+            "type": "boolean",
+            "description": "True only if ALL solutions are APPROVE and NO challenges are OPEN",
+        },
+        "verdicts": {
+            "type": "object",
+            "properties": {
+                "approve": {"type": "number"},
+                "revise": {"type": "number"},
+                "reject": {"type": "number"},
+                "blocked": {"type": "number"},
+            },
+            "required": ["approve", "revise", "reject", "blocked"],
+        },
+        "open_challenges": {"type": "number"},
+        "reason": {"type": "string"},
+    },
+    "required": ["converged", "verdicts", "open_challenges", "reason"],
+}
 
 
 class BattleStep(str, Enum):
@@ -77,7 +102,7 @@ class ValidationBattle:
             "research_agent_md": os.path.join(self.output_dir, "research_agent.md"),
             "critic_md": os.path.join(self.output_dir, "critic.md"),
             "solution_synth_md": os.path.join(self.output_dir, "solution_synth.md"),
-            "coordinator_md": os.path.join(self.output_dir, "coordinator.md"),
+            "coordinator_md": os.path.join(self.output_dir, "validation_report.md"),
         }
 
     def _log(self, msg: str):
@@ -93,23 +118,64 @@ class ValidationBattle:
         self._log(f"  [WARN] {file_key} not found or empty")
         return False
 
-    def _check_convergence(self) -> bool:
-        """Check if all critic solution reviews show 'approve' verdicts.
+    async def _check_convergence(self) -> bool:
+        """Check if the battle has converged using a lightweight LLM agent.
 
-        Scans the single critic_md for Verdict: reject/revise in the
-        Solution Reviews section. Returns True if none found (all approved).
+        Sends the critic report to a haiku model with a JSON schema,
+        which returns a structured convergence judgment.  This replaces
+        the previous regex approach that was brittle against free-form
+        critic output.
         """
         path = self._file_paths()["critic_md"]
         if not os.path.exists(path):
             self._log("  critic_md: file missing, not converged")
             return False
+
         with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
-        if re.search(r"Verdict:\s*(reject|revise)", content, re.IGNORECASE):
-            self._log("  critic_md: has reject/revise verdicts")
+            critic_content = f.read()
+
+        if not critic_content.strip():
+            self._log("  critic_md: empty, not converged")
             return False
-        self._log("  All critic verdicts: approve")
-        return True
+
+        options = ClaudeAgentOptions(
+            model="claude-opus-4-6",
+            output_format={"type": "json_schema", "schema": CONVERGENCE_SCHEMA},
+            permission_mode="bypassPermissions",
+            max_turns=1,
+        )
+
+        prompt = (
+            "Analyze the following critic report and determine if the battle has converged.\n\n"
+            "RULES:\n"
+            "- converged=true ONLY if every solution verdict is APPROVE and "
+            "there are zero OPEN challenges.\n"
+            "- REVISE, REJECT, BLOCKED verdicts all mean NOT converged.\n"
+            "- Any challenge with Status: OPEN means NOT converged.\n"
+            "- Count each verdict type and open challenges exactly.\n\n"
+            "CRITIC REPORT:\n"
+            f"{critic_content}"
+        )
+
+        result = None
+        async for msg in query(prompt=prompt, options=options):
+            if isinstance(msg, ResultMessage):
+                result = msg
+
+        if not result or result.is_error or not result.structured_output:
+            self._log("  Convergence agent failed, assuming not converged")
+            return False
+
+        output = result.structured_output
+        v = output["verdicts"]
+        self._log(
+            f"  Convergence check: APPROVE={v['approve']} REVISE={v['revise']} "
+            f"REJECT={v['reject']} BLOCKED={v['blocked']} "
+            f"OPEN={output['open_challenges']}"
+        )
+        self._log(f"  Reason: {output['reason']}")
+
+        return output["converged"]
 
     async def run_research_phase(self) -> None:
         """Run 5 rounds of deep research exploration.
@@ -249,7 +315,7 @@ class ValidationBattle:
                     last_step=step.value)
 
             print("\nChecking convergence...")
-            if self._check_convergence():
+            if await self._check_convergence():
                 print(f"\nBattle converged at iteration {battle_iter}!")
                 break
         else:
@@ -319,13 +385,7 @@ class ValidationBattle:
         else:
             print("Skipping consensus (already completed)")
 
-        # Final report: use coordinator_md as the validation report
-        coordinator_md_path = self._file_paths()["coordinator_md"]
-        report = self.coordinator.generate_report(coordinator_md_path)
-        report_path = os.path.join(self.output_dir, "validation_report.md")
-
-        with open(report_path, 'w', encoding='utf-8') as f:
-            f.write(report)
+        report_path = self._file_paths()["coordinator_md"]
 
         print(f"\n{'='*60}")
         print(f"Validation complete!")

@@ -1,6 +1,5 @@
 """Coordinator agent for orchestrating the validation battle."""
 
-import os
 from .base_agent import BaseAgent
 from config import FIRST_PHASE_SCOPE
 
@@ -88,13 +87,3 @@ Read ALL agent markdown files:
         )
 
         super().__init__("coordinator", "Coordinator", system_prompt)
-
-    def generate_report(self, coordinator_md_path: str) -> str:
-        """Read the coordinator's md file and return its content as the report.
-
-        Falls back to a placeholder if the file does not exist.
-        """
-        if os.path.exists(coordinator_md_path) and os.path.getsize(coordinator_md_path) > 0:
-            with open(coordinator_md_path, "r", encoding="utf-8") as f:
-                return f.read()
-        return "# Validation Report\n\nNo consensus report was generated.\n"

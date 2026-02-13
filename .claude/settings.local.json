@@ -2,6 +2,9 @@
   "permissions": {
     "additionalDirectories": [
       "C:\\Users\\wenming_ma\\source\\repos\\kicad-source-mirror-7.0"
+    ],
+    "allow": [
+      "mcp__codex__codex"
     ]
   }
 }
