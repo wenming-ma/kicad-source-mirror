@@ -3,7 +3,8 @@
 import json
 import os
 import re
-from typing import Dict, Any
+from enum import Enum
+from typing import Dict, Any, List
 from agents import (
     ResearchAgent,
     CriticAgent,
@@ -19,6 +20,25 @@ CHECKPOINT_FILE = "checkpoint.json"
 
 # Maximum battle loop iterations (challenges -> solutions -> review, repeat)
 MAX_BATTLE_ITERATIONS = 7
+
+
+class BattleStep(str, Enum):
+    """Named steps within a battle iteration.
+
+    Stored in checkpoints so the resume logic is human-readable.
+    """
+    CHALLENGES = "challenges"
+    SOLUTIONS = "solutions"
+    REVIEW = "review"
+
+
+# Step order per iteration type
+ITER1_STEPS: List[BattleStep] = [
+    BattleStep.CHALLENGES, BattleStep.SOLUTIONS, BattleStep.REVIEW,
+]
+ITER2_STEPS: List[BattleStep] = [
+    BattleStep.SOLUTIONS, BattleStep.REVIEW,
+]
 
 
 class ValidationBattle:
@@ -141,18 +161,12 @@ class ValidationBattle:
               f"across {RESEARCH_ROUNDS} rounds")
 
     async def run_challenges(self, battle_iter: int = 1) -> None:
-        """Critic raises challenges informed by research and KiCad source.
-
-        On iteration 1, uses review_request. On iteration 2+, uses
-        continue_review so the critic updates challenges based on current
-        solution state.
-        """
-        msg_type = "review_request" if battle_iter == 1 else "continue_review"
-        print(f"\n=== Challenges (type={msg_type}) ===\n")
+        """Critic raises initial challenges (iteration 1 only)."""
+        print(f"\n=== Initial Challenges ===\n")
 
         print("Critic reviewing design...")
         await self.critic.process({
-            "type": msg_type,
+            "type": "review_request",
             "battle_iteration": battle_iter,
             **self._file_paths(),
         })
@@ -192,33 +206,47 @@ class ValidationBattle:
         print("\nReview complete")
 
     async def run_battle_loop(self, start_iter: int = 1,
-                              start_round: int = 1) -> None:
+                              resume_after: str | None = None) -> None:
         """Run the battle loop until convergence or max iterations.
 
-        Each iteration: challenges -> solutions -> review -> convergence check.
+        Iteration 1:  challenges -> solutions -> review  (ITER1_STEPS)
+        Iteration 2+: solutions -> review                (ITER2_STEPS)
 
         Args:
-            start_iter: Battle iteration to start from (for resume).
-            start_round: Round within the iteration to start from (for resume).
+            start_iter:    Battle iteration to start from (for resume).
+            resume_after:  BattleStep value that was last completed.
+                           Steps up to and including this one are skipped
+                           on the start_iter only.
         """
         for battle_iter in range(start_iter, MAX_BATTLE_ITERATIONS + 1):
             print(f"\n{'='*60}")
             print(f"Battle Iteration {battle_iter}/{MAX_BATTLE_ITERATIONS}")
             print(f"{'='*60}")
 
-            if not (battle_iter == start_iter and start_round > 1):
-                await self.run_challenges(battle_iter)
-                self._save_checkpoint(
-                    stage="battle", battle_iteration=battle_iter, last_round=1)
+            steps = ITER1_STEPS if battle_iter == 1 else ITER2_STEPS
 
-            if not (battle_iter == start_iter and start_round > 2):
-                await self.run_solutions(battle_iter)
-                self._save_checkpoint(
-                    stage="battle", battle_iteration=battle_iter, last_round=2)
+            # On the resume iteration, figure out which steps to skip
+            skip_count = 0
+            if battle_iter == start_iter and resume_after:
+                try:
+                    skip_count = steps.index(BattleStep(resume_after)) + 1
+                except ValueError:
+                    skip_count = 0  # unknown step, run everything
 
-            await self.run_review(battle_iter)
-            self._save_checkpoint(
-                stage="battle", battle_iteration=battle_iter, last_round=3)
+            for i, step in enumerate(steps):
+                if i < skip_count:
+                    continue
+
+                if step == BattleStep.CHALLENGES:
+                    await self.run_challenges(battle_iter)
+                elif step == BattleStep.SOLUTIONS:
+                    await self.run_solutions(battle_iter)
+                elif step == BattleStep.REVIEW:
+                    await self.run_review(battle_iter)
+
+                self._save_checkpoint(
+                    stage="battle", battle_iteration=battle_iter,
+                    last_step=step.value)
 
             print("\nChecking convergence...")
             if self._check_convergence():
@@ -281,7 +309,7 @@ class ValidationBattle:
             # Resume mid-battle
             await self.run_battle_loop(
                 start_iter=checkpoint.get("battle_iteration", 1),
-                start_round=checkpoint.get("last_round", 0) + 1,
+                resume_after=checkpoint.get("last_step"),
             )
 
         # Consensus (once)
@@ -311,7 +339,8 @@ class ValidationBattle:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
     def _save_checkpoint(self, stage: str = "battle",
-                         battle_iteration: int = 0, last_round: int = 0):
+                         battle_iteration: int = 0,
+                         last_step: str = ""):
         """Save pipeline progress.
 
         Only stores stage + battle position. MD files on disk ARE the state.
@@ -319,12 +348,12 @@ class ValidationBattle:
         checkpoint = {
             "stage": stage,
             "battle_iteration": battle_iteration,
-            "last_round": last_round,
+            "last_step": last_step,
         }
         path = os.path.join(self.output_dir, CHECKPOINT_FILE)
         self._save_json(checkpoint, path)
         self._log(f"  [Checkpoint saved: stage={stage}, "
-                  f"battle_iter={battle_iteration}, round={last_round}]")
+                  f"battle_iter={battle_iteration}, step={last_step}]")
 
     def _load_checkpoint(self, output_dir: str) -> Dict[str, Any] | None:
         """Load checkpoint from a previous run, if it exists."""
@@ -332,7 +361,8 @@ class ValidationBattle:
         if os.path.exists(path):
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            # Normalize old-format checkpoints
+
+            # Migrate old-format checkpoints
             if "completed_round" in data:
                 old_stage = data["completed_round"]
                 stage_map = {
@@ -341,15 +371,22 @@ class ValidationBattle:
                     "round3": "battle", "round4": "battle",
                     "round5": "done",
                 }
-                round_map = {
-                    "round1": 1, "round2": 2, "round3": 3,
-                }
                 data = {
                     "stage": stage_map.get(old_stage, "init"),
                     "battle_iteration": 1,
-                    "last_round": round_map.get(old_stage, 0),
+                    "last_step": "",
                 }
-            if "state" in data:
-                data.pop("state", None)
+
+            if "last_round" in data:
+                # Migrate numeric round -> step name
+                round_to_step = {
+                    1: BattleStep.CHALLENGES.value,
+                    2: BattleStep.SOLUTIONS.value,
+                    3: BattleStep.REVIEW.value,
+                }
+                data["last_step"] = round_to_step.get(
+                    data.pop("last_round"), "")
+
+            data.pop("state", None)
             return data
         return None

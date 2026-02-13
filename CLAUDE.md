@@ -1,3 +1,5 @@
+Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
+
 Manim可视化工程模板
 
 使用约定：

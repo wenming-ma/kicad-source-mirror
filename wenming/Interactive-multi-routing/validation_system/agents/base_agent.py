@@ -9,12 +9,19 @@ from claude_agent_sdk import (
     AssistantMessage, SystemMessage, ResultMessage,
     TextBlock, ThinkingBlock, ToolUseBlock,
 )
+from claude_agent_sdk.types import HookMatcher
 from config import AGENT_CONFIG
 
 MAX_RETRIES = 3
 RETRY_BASE_DELAY = 2  # seconds
 MAX_HISTORY_ENTRIES = 20  # 10 exchanges (user + assistant each)
-RESPONSE_TIMEOUT = 222  # seconds (3.7 min); interrupt if no new message arrives within this window
+RESPONSE_TIMEOUT = 600  # seconds (10 min); interrupt if no new message arrives within this window
+DISCONNECT_TIMEOUT = 30  # seconds; max wait for subprocess cleanup
+DEFAULT_MAX_TURNS = 50  # safety cap on agent turns per invocation
+EMPTY_TOOL_THRESHOLD = 3       # consecutive empty tool calls before interrupt
+MAX_RECOVERY_ATTEMPTS = 2      # max interrupt+re-prompt cycles per process() call
+THINKING_BUDGET_TOKENS = 10000  # extended thinking budget
+DRAIN_TIMEOUT = 30             # seconds to drain messages after interrupt
 
 
 class BaseAgent:
@@ -34,6 +41,10 @@ class BaseAgent:
         self.model = AGENT_CONFIG.get(name, {}).get("model")
         self.conversation_history: List[Dict[str, str]] = []
         self.last_result: dict | None = None
+        self._compaction_count: int = 0
+        self._consecutive_empty_tools: int = 0
+        self._recovery_attempts: int = 0
+        self._task_context: str = ""
 
     def _log(self, msg: str):
         """Print a prefixed log line for this agent."""
@@ -51,7 +62,21 @@ class BaseAgent:
                     self._log(f"Thinking: {preview}...")
                 elif isinstance(block, ToolUseBlock):
                     args = json.dumps(block.input, ensure_ascii=False)
-                    self._log(f"Tool: {block.name} {args}")
+                    is_empty = (
+                        not block.input or block.input == {}
+                        or (block.name in ("Edit", "Write", "MultiEdit")
+                            and all(v in (None, "", {}, [])
+                                    for v in block.input.values()))
+                    )
+                    if is_empty and block.name in ("Edit", "Write", "MultiEdit"):
+                        self._consecutive_empty_tools += 1
+                        self._log(
+                            f"EMPTY-Tool: {block.name} {args} "
+                            f"(#{self._consecutive_empty_tools})"
+                        )
+                    else:
+                        self._consecutive_empty_tools = 0
+                        self._log(f"Tool: {block.name} {args}")
         elif isinstance(msg, SystemMessage):
             self._log(f"System: {msg.subtype}")
         elif isinstance(msg, ResultMessage):
@@ -66,109 +91,223 @@ class BaseAgent:
             }
         return text
 
-    async def _receive_response(self, client: ClaudeSDKClient) -> str:
-        """Consume the message stream, log progress, return final text.
+    async def _drain_messages(self, client: ClaudeSDKClient):
+        """Drain remaining messages after an interrupt."""
+        try:
+            async def _drain():
+                async for m in client.receive_response():
+                    self._process_message(m)
+            await asyncio.wait_for(_drain(), timeout=DRAIN_TIMEOUT)
+        except asyncio.TimeoutError:
+            self._log("Drain timed out, proceeding anyway")
 
-        Uses a *per-message* timeout rather than a whole-response timeout.
-        As long as messages keep flowing the timer resets, so a legitimately
-        long session with many tool calls will never be interrupted.  But if
-        a single tool call hangs and no message arrives for RESPONSE_TIMEOUT
-        seconds, we send an interrupt (programmatic ESC) and re-raise
-        TimeoutError for the caller's retry logic.
+    async def _receive_until_done_or_degraded(
+        self, client: ClaudeSDKClient
+    ) -> bool:
+        """Inner receive loop.
+
+        Returns True if the stream completed normally, False if context
+        degradation was detected (consecutive empty tool calls).
         """
-        self._partial_response = ""
         response_iter = client.receive_response().__aiter__()
-
         while True:
             try:
                 msg = await asyncio.wait_for(
                     response_iter.__anext__(), timeout=RESPONSE_TIMEOUT
                 )
             except StopAsyncIteration:
-                break
+                return True  # normal completion
             except asyncio.TimeoutError:
                 self._log(
                     f"No message for {RESPONSE_TIMEOUT}s, sending interrupt..."
                 )
                 await client.interrupt()
-                # Drain the ResultMessage produced by the interrupt so the
-                # message stream is clean for the next query() call.
-                try:
-                    async def _drain():
-                        async for m in client.receive_response():
-                            self._process_message(m)
-                    await asyncio.wait_for(_drain(), timeout=30)
-                except asyncio.TimeoutError:
-                    pass
+                await self._drain_messages(client)
                 raise
 
             self._partial_response += self._process_message(msg)
 
-        return self._partial_response
+            if (self._consecutive_empty_tools >= EMPTY_TOOL_THRESHOLD
+                    and self._recovery_attempts < MAX_RECOVERY_ATTEMPTS):
+                return False  # degradation detected
+
+    async def _receive_response(self, client: ClaudeSDKClient) -> str:
+        """Consume the message stream with automatic degradation recovery.
+
+        Delegates to _receive_until_done_or_degraded for the inner loop.
+        When degradation is detected (consecutive empty Edit/Write calls),
+        interrupts the agent, re-prompts with recovery context, and retries.
+        """
+        self._partial_response = ""
+        while True:
+            completed = await self._receive_until_done_or_degraded(client)
+            if completed:
+                return self._partial_response
+
+            if self._recovery_attempts >= MAX_RECOVERY_ATTEMPTS:
+                self._log(
+                    f"Max recovery attempts ({MAX_RECOVERY_ATTEMPTS}) exhausted"
+                )
+                return self._partial_response
+
+            self._recovery_attempts += 1
+            self._log(
+                f"Recovery {self._recovery_attempts}/{MAX_RECOVERY_ATTEMPTS}: "
+                f"interrupt + re-prompt"
+            )
+            await client.interrupt()
+            await self._drain_messages(client)
+            self._consecutive_empty_tools = 0
+
+            await client.query(self._build_recovery_prompt())
+            # loop back to _receive_until_done_or_degraded with fresh iter
+
+    async def _on_pre_compact(self, input_data, tool_use_id, context):
+        """PreCompact hook: log the event and inject recovery context."""
+        trigger = input_data.get("trigger", "unknown")
+        self._compaction_count += 1
+        self._log(f"PreCompact #{self._compaction_count} (trigger={trigger})")
+        return {
+            "hookSpecificOutput": {
+                "hookEventName": "PreCompact",
+                "additionalContext": (
+                    f"CRITICAL CONTEXT FOR POST-COMPACTION CONTINUITY:\n"
+                    f"Agent: {self.name} ({self.role})\n"
+                    f"{self._task_context}\n"
+                    f"If you lose track, READ your output file to see progress, "
+                    f"then continue. Do NOT issue Edit/Write with empty parameters."
+                ),
+            }
+        }
+
+    def _build_recovery_prompt(self) -> str:
+        """Build a compact re-orientation prompt after degradation."""
+        return (
+            f"RECOVERY: Your context was compacted and you lost track of your "
+            f"edits. You were issuing empty Edit/Write calls.\n\n"
+            f"{self._task_context}\n\n"
+            f"INSTRUCTIONS:\n"
+            f"1. Read your output file to see what you have written so far.\n"
+            f"2. Determine what remains to be done.\n"
+            f"3. Continue writing to your output file.\n"
+            f"4. Do NOT issue Edit or Write with empty parameters."
+        )
+
+    def _build_task_context(self, message: Dict[str, Any]) -> str:
+        """Extract key task identity from the message for recovery prompts."""
+        parts = [f"Agent: {self.name} ({self.role})"]
+        parts.append(f"Task type: {message.get('type', 'unknown')}")
+        for key in (
+            "critic_md", "solution_synth_md",
+            "research_agent_md", "coordinator_md",
+        ):
+            if key in message:
+                parts.append(f"Output file ({key}): {message[key]}")
+        if "battle_iteration" in message:
+            parts.append(f"Battle iteration: {message['battle_iteration']}")
+        return "\n".join(parts)
+
+    async def _safe_disconnect(self, client: ClaudeSDKClient):
+        """Disconnect with a timeout to prevent hanging on subprocess.wait()."""
+        try:
+            await asyncio.wait_for(client.disconnect(), timeout=DISCONNECT_TIMEOUT)
+        except asyncio.TimeoutError:
+            self._log(
+                f"disconnect() timed out after {DISCONNECT_TIMEOUT}s, "
+                "subprocess may be orphaned"
+            )
+        except Exception as e:
+            self._log(f"disconnect() error (ignored): {e}")
 
     async def process(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Run the agent.  Retry on SDK failure, preserving context.
 
-        On exception the same ClaudeSDKClient is reused, so the full
-        conversation history (tool calls, results, thinking) is kept.
+        Uses manual connect/disconnect instead of ``async with`` to wrap
+        disconnect() in a timeout — the SDK's subprocess.wait() can hang
+        indefinitely if the child process ignores SIGTERM.
         """
         prompt = self._build_prompt(message)
         last_error = None
         self._partial_response = ""
 
+        # Reset per-invocation recovery state
+        self._compaction_count = 0
+        self._consecutive_empty_tools = 0
+        self._recovery_attempts = 0
+        self._task_context = self._build_task_context(message)
+
         options = ClaudeAgentOptions(
             model=self.model,
+            system_prompt={"type": "preset", "preset": "claude_code"},
             tools={"type": "preset", "preset": "claude_code"},
             permission_mode="bypassPermissions",
             setting_sources=["user", "project", "local"],
+            max_turns=DEFAULT_MAX_TURNS,
+            thinking={
+                "type": "enabled",
+                "budget_tokens": THINKING_BUDGET_TOKENS,
+            },
+            hooks={
+                "PreCompact": [
+                    HookMatcher(
+                        matcher=None,
+                        hooks=[self._on_pre_compact],
+                    ),
+                ],
+            },
         )
 
+        client = ClaudeSDKClient(options=options)
         try:
-            async with ClaudeSDKClient(options=options) as client:
-                for attempt in range(1, MAX_RETRIES + 1):
-                    try:
-                        if attempt == 1:
-                            await client.query(prompt)
-                        else:
-                            await client.query(
-                                "Your previous response was interrupted. "
-                                "The conversation above contains all your "
-                                "work so far. Continue from where you left "
-                                "off and complete the task. You MUST ensure "
-                                "your output file is written before finishing."
-                            )
+            await client.connect()
 
-                        response_text = await self._receive_response(client)
+            for attempt in range(1, MAX_RETRIES + 1):
+                try:
+                    if attempt == 1:
+                        await client.query(prompt)
+                    else:
+                        await client.query(
+                            "Your previous response was interrupted. "
+                            "The conversation above contains all your "
+                            "work so far. Continue from where you left "
+                            "off and complete the task. You MUST ensure "
+                            "your output file is written before finishing."
+                        )
 
-                        self.conversation_history.append({
-                            "role": "user",
-                            "content": json.dumps(message, indent=2),
-                        })
-                        self.conversation_history.append({
-                            "role": "assistant",
-                            "content": response_text,
-                        })
-                        if len(self.conversation_history) > MAX_HISTORY_ENTRIES:
-                            self.conversation_history = (
-                                self.conversation_history[-MAX_HISTORY_ENTRIES:]
-                            )
-                        return self.parse_response(response_text)
+                    response_text = await self._receive_response(client)
 
-                    except (ClaudeSDKError, Exception) as e:
-                        last_error = e
-                        if attempt < MAX_RETRIES:
-                            delay = RETRY_BASE_DELAY ** attempt
-                            self._log(f"Attempt {attempt} failed: {e}")
-                            self._log(f"Retrying in {delay}s...")
-                            await asyncio.sleep(delay)
-                        else:
-                            self._log(
-                                f"All {MAX_RETRIES} attempts failed"
-                            )
+                    self.conversation_history.append({
+                        "role": "user",
+                        "content": json.dumps(message, indent=2),
+                    })
+                    self.conversation_history.append({
+                        "role": "assistant",
+                        "content": response_text,
+                    })
+                    if len(self.conversation_history) > MAX_HISTORY_ENTRIES:
+                        self.conversation_history = (
+                            self.conversation_history[-MAX_HISTORY_ENTRIES:]
+                        )
+                    return self.parse_response(response_text)
+
+                except (ClaudeSDKError, Exception) as e:
+                    last_error = e
+                    if attempt < MAX_RETRIES:
+                        delay = RETRY_BASE_DELAY ** attempt
+                        self._log(f"Attempt {attempt} failed: {e}")
+                        self._log(f"Retrying in {delay}s...")
+                        await asyncio.sleep(delay)
+                    else:
+                        self._log(
+                            f"All {MAX_RETRIES} attempts failed"
+                        )
 
         except (ClaudeSDKError, Exception) as e:
             last_error = e
             self._log(f"Client connection failed: {e}")
+
+        finally:
+            await self._safe_disconnect(client)
 
         # All retries exhausted -- return partial response if available
         partial = self._partial_response
@@ -190,6 +329,21 @@ class BaseAgent:
 
         # Prepend agent instructions (sent via stdin, no length limit)
         parts.append(f"[INSTRUCTIONS]:\n{self.instructions}")
+
+        # AUTONOMY CONSTRAINT -- agents run unattended in a pipeline
+        parts.append(
+            "[AUTONOMY CONSTRAINT]\n"
+            "You are running as an autonomous agent inside an automated pipeline. "
+            "There is NO human operator watching your output.\n"
+            "- NEVER use AskUserQuestion, TodoWrite, TaskCreate, TaskUpdate, "
+            "or any interactive/UI tool.\n"
+            "- NEVER pause to ask for confirmation or clarification.\n"
+            "- If you are unsure about something, make your best judgment and "
+            "document the assumption in your output file.\n"
+            "- Your ONLY output channel is writing to the markdown file specified "
+            "in the message. All findings, analysis, and conclusions MUST be "
+            "written there."
+        )
 
         # Include conversation history for context
         for entry in self.conversation_history:

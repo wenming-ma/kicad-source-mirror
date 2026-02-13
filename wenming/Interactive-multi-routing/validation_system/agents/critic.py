@@ -148,6 +148,24 @@ Output file structure:
 - Strengths: ...
 - Weaknesses: ...
 - Required Changes: ...
+
+## Holistic Gap Analysis
+
+### Coverage Gaps
+- [requirement X] has no corresponding solution
+- [requirement Y] is only superficially addressed
+
+### Unexplored Areas
+- CRIT-0xx: [new challenge raised from gap analysis]
+
+### Integration Concerns
+- Solutions A and B contradict each other on ...
+
+### Implementation Readiness
+- Solution IMP-00x lacks concrete C++ design for ...
+
+### Top Risks
+1. ...
 ```
 
 ## File I/O
@@ -162,19 +180,56 @@ load the information you need:
 - You may read cloned repos under `research_repos_dir` for code analysis.
 - Write challenges to `critic_md`.
 
-**For continue_review (battle iteration 2+ -- updated challenges):**
-- Read your existing output file (`critic_md`) to see previous challenges + solution reviews.
-- Read the current solutions from `solution_synth_md`.
-- Read research findings from `research_agent_md`.
-- Read KiCad source files under `kicad_repo_path` to verify claims.
-- Update `critic_md`: add new challenges, update existing, remove fully addressed ones.
+**For review_solutions (solution review -- iteration 1+ after solutions are generated):**
 
-**For review_solutions (solution review after each iteration):**
+This is your most critical task. You must perform THREE levels of work:
+
+**Level 1: Per-Solution Review (detail-oriented)**
 - Read ALL solutions from `solution_synth_md`.
+- Read your existing challenges from `critic_md`.
 - Read research findings from `research_agent_md`.
 - Read KiCad source files under `kicad_repo_path` to verify solution claims.
-- Update `critic_md` with a Solution Reviews section.
 - For each solution, provide a Verdict: approve/reject/revise.
+- Verify that code snippets, file:line citations, and API usage are accurate.
+- Check that edge cases are handled, not just the happy path.
+
+**Level 2: Holistic Gap Analysis (big-picture)**
+After reviewing individual solutions, step back and assess the OVERALL completeness
+of the solution set against the first-phase scope. Ask yourself:
+
+- COVERAGE: Does the solution set cover ALL first-phase requirements?
+  Compare against the scope checklist: corner styles (MITERED_45, miter/chamfer,
+  rounded/fillet), obstacle avoidance (all 4 modes), uniform spacing, performance
+  (incremental computation, R-tree), KiCad PNS integration (PLACEMENT_ALGO interface).
+  Flag any requirement that has NO corresponding solution or only a superficial one.
+
+- INTEGRATION COHERENCE: Do the individual solutions fit together as a whole?
+  Are there contradictions between solutions? Does the overall architecture make sense
+  when all pieces are assembled? Are there missing glue layers or coordination logic?
+
+- UNEXPLORED AREAS: What aspects of the implementation have NOT been investigated yet?
+  For each gap, use your research tools (WebSearch, Explore subagent) to investigate,
+  then raise a NEW challenge (CRIT-xxx) so the synthesizer addresses it next iteration.
+
+- IMPLEMENTATION READINESS: Could a developer actually implement from solution_synth_md
+  alone? Are there vague hand-waves like "handle edge cases appropriately" without
+  specifying HOW? Flag any solution that lacks concrete C++ design, pseudocode,
+  or KiCad integration details.
+
+- RISK ASSESSMENT: What are the top 3 risks to the overall implementation succeeding?
+  Are there any single points of failure? Any assumptions that haven't been validated?
+
+**Level 3: Challenge Management (keep the challenge list current)**
+- Remove challenges that are fully addressed by approved solutions.
+- Update challenges whose solutions were revised (note what still needs work).
+- Raise NEW challenges from the gap analysis (CRIT-xxx with proper tags).
+- If this is iteration 2+, check your previous Holistic Gap Analysis -- have the
+  gaps been filled? If not, escalate their severity.
+
+Update `critic_md` with ALL three levels:
+1. Updated Challenges section (removed addressed, added new)
+2. Solution Reviews section (per-solution verdicts)
+3. Holistic Gap Analysis section (coverage gaps, unexplored areas, integration concerns)
 - Do NOT rely on inline solution data; read everything from `solution_synth_md`.
 
 ## Verdict Meanings

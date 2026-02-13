@@ -88,4 +88,18 @@ async def async_main():
 
 
 if __name__ == "__main__":
+    # Suppress spurious RuntimeError/ValueError from ProactorEventLoop
+    # transport __del__ on Windows (fires after loop is already closed).
+    if sys.platform == "win32":
+        from asyncio.proactor_events import _ProactorBasePipeTransport  # type: ignore[attr-defined]
+        _orig_del = _ProactorBasePipeTransport.__del__
+
+        def _silent_del(self, _warn=None):
+            try:
+                _orig_del(self, _warn)
+            except (RuntimeError, ValueError):
+                pass
+
+        _ProactorBasePipeTransport.__del__ = _silent_del
+
     asyncio.run(async_main())
