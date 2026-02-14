@@ -62,6 +62,205 @@ The KiCad source repository is located at: """
 - Provide code snippets as evidence
 - Cross-reference with cloned research repos when relevant
 
+## Self-Reasoning Simulation Protocol
+
+Before reviewing individual solutions, you MUST simulate the entire interactive
+multi-line routing flow from the user's perspective. This is your most powerful
+tool for finding systemic gaps that per-solution review misses.
+
+### Why This Matters
+Individual solutions may each be correct in isolation, but the FLOW between them
+may have gaps. Example: ComputeStartOrder (IMP-007) produces a centroid and
+uniform offsets, but the traces must physically connect to pads at non-uniform
+positions. No single IMP-xxx addresses this transition.
+
+### Simulation Steps (walk through ALL of these)
+
+The questions listed under each step are STARTING POINTS, not an exhaustive list.
+You are expected to generate your own questions as you reason through each step.
+Think about failure modes, race conditions, numerical edge cases, UX surprises,
+and anything else that a real implementation would encounter.
+
+**Step 0: Pad Selection**
+- User selects N pads on the PCB (e.g., 5 pads of a connector)
+- Pads have ARBITRARY physical positions -- they may be uniformly spaced,
+  non-uniformly spaced, or even in a staggered/zigzag pattern
+- Each pad belongs to a different net
+- Questions to ask:
+  - What if pad spacing (e.g., 0.5mm pitch) differs from configured trace
+    spacing (e.g., 0.2mm)?
+  - What if pads are not collinear (e.g., BGA breakout)?
+  - What if some pads are on different layers? (first-phase: reject)
+
+**Step 1: Mode Activation (IMP-010)**
+- User clicks "Route Multi-Line" toolbar button
+- ROUTER_TOOL::MainLoop receives PNS_MODE_ROUTE_MULTI_LINE
+- Selection is cached to m_savedMultiLinePads BEFORE selectionClear
+- Questions to ask:
+  - Is the cached selection order stable? (PCB_SELECTION iteration order)
+  - What if user selects non-pad items mixed with pads?
+  - What if selection is empty?
+
+**Step 2: Start Routing (IMP-001, IMP-007, IMP-009)**
+- User clicks on the PCB to set the routing start point
+- collectMultiLineStartItems reads cached pads -> PNS::ITEM_SET
+- StartMultiRouting validates items, creates MULTI_LINE_PLACER
+- ComputeStartOrder: sorts pads by perpendicular projection, computes centroid
+- Start(): creates routing node, initializes shove engine
+- Questions to ask:
+  - The centroid becomes m_currentStart -- but traces must originate from
+    actual pad anchors, not from the centroid. How is this reconciled?
+  - buildInitialLine uses m_currentStart (centroid) as the line origin.
+    The offset traces start at centroid +/- offset, NOT at pad positions.
+    WHERE is the connection from pad anchor to the offset trace start point?
+  - What if the click position is very close to the pads? The leader line
+    would be very short, and perpendicular sorting may be unstable.
+
+**Step 3: Fan-Out / Fan-In (CRITICAL -- check if any IMP addresses this)**
+- Traces must transition from actual pad positions to uniform-spacing parallel
+  bundle. This is the "fan-out" region.
+- In commercial tools:
+  - Altium: Automatic fan-out from pad to bundle, with configurable neck-down
+  - Cadence: Group route handles fan-out as part of the topology
+  - Mentor: Sketch routing includes fan-out geometry generation
+- Questions to ask:
+  - Does ANY solution generate the short trace segments from each pad anchor
+    to the corresponding offset position on the leader line?
+  - If pads are at positions [0, 100, 300, 350, 500] but uniform spacing is
+    200, the offset positions would be [-400, -200, 0, 200, 400] relative to
+    centroid. How do traces connect pad[0]->offset[-400], pad[1]->offset[-200],
+    etc.?
+  - Is this fan-out region collision-checked?
+  - What happens during Move() -- does the fan-out region update dynamically?
+
+**Step 4: Mouse Movement (IMP-002, IMP-005, IMP-009)**
+- User moves mouse -> Move() called repeatedly
+- buildInitialLine: centroid -> mouse position, using GetCornerMode()
+- OffsetForCornerMode: offset each trace from leader line
+- RemoveSelfIntersections: clean up offset artifacts
+- Questions to ask:
+  - At 60fps, Move() is called ~60 times/sec. Is the full recomputation
+    (N offsets + N collision checks) within the 16.67ms budget?
+  - What visual feedback does the user see? All N traces updating in real-time?
+  - What if the mouse moves back toward the pads? Leader line becomes very
+    short or reverses direction.
+  - What if the mouse is directly above/below the centroid? (perpendicular
+    direction becomes parallel to routing direction)
+
+**Step 5: Corner Handling (IMP-003, IMP-005)**
+- User's mouse path creates corners (45 or 90 degree turns)
+- buildInitialLine generates the corner geometry
+- OffsetPolyline/OffsetPolylineRounded offsets each trace
+- Questions to ask:
+  - Inner traces have tighter corners -- do they maintain minimum trace width?
+  - At acute angles, miter limit kicks in -- does the bevel fallback maintain
+    spacing between adjacent traces?
+  - For rounded corners, inner arc radius = outer - (N-1)*spacing. If N is
+    large, inner radius could go negative. Is this handled?
+
+**Step 6: Obstacle Encounter (IMP-002, IMP-004, IMP-008)**
+- Bundle encounters an obstacle (via, pad, existing trace, board edge)
+- Tier 1: Fat-trace walkaround (bundle as unit)
+- Tier 2: Compressed spacing retry
+- Tier 3: Per-trace walkaround (individual)
+- Tier 4: Mark obstacles fallback
+- Questions to ask:
+  - After walkaround, traces may no longer be uniformly spaced. Is the
+    spacing restored after the obstacle?
+  - What if the obstacle is between two traces (splits the bundle)?
+  - In PUSH_SHOVE mode, what if pushing one obstacle creates a collision
+    for another trace in the bundle?
+
+**Step 7: Fix Route (IMP-009)**
+- User clicks to commit the route
+- FixRoute: adds traces to m_lastNode, saves m_lastFixNode
+- SHOVE recreation (if RM_Shove mode)
+- CommitPlacement called
+- Questions to ask:
+  - Are traces properly connected to their start pads? (fan-out region)
+  - Are traces properly terminated at the click point? (no dangling ends)
+  - What if m_fitOk is false and AllowDRCViolations is false? User gets
+    no feedback about WHY the fix failed.
+
+**Step 8: Commit and Cleanup (IMP-009)**
+- CommitRouting -> HasPlacedAnything gate -> Commit to world
+- StopRouting -> GetModifiedNets -> ratsnest update -> KillChildren
+- Questions to ask:
+  - After commit, are all N nets properly updated in the ratsnest?
+  - If the user wants to continue routing (chained placement), is the
+    state properly reset? (first-phase: not supported, but verify clean state)
+
+### Go Deeper: Think Beyond the Listed Questions
+
+The questions above cover known concerns. Your real value as a critic comes from
+discovering UNKNOWN concerns. At each step, actively ask yourself:
+
+- **Data invariants**: What invariants must hold between steps? Are they enforced
+  or just assumed? (e.g., "all traces in the bundle have the same layer" -- who
+  checks this? What if it silently breaks?)
+- **Error propagation**: If step N produces a slightly wrong result (e.g., centroid
+  off by 1 IU due to integer rounding), how does that error compound through
+  steps N+1, N+2, ...?
+- **Undo / cancel**: What happens if the user presses Escape mid-routing? Is every
+  intermediate state cleanly reversible? Are there resource leaks?
+- **Concurrency and reentrancy**: Can the user trigger another action (e.g., zoom,
+  pan, selection change) while multi-line routing is active? Does the state machine
+  handle unexpected events gracefully?
+- **Memory and resource lifecycle**: Who owns the allocated SHOVE engine, NODE tree,
+  and ITEM objects? Are they properly freed on every exit path (success, cancel,
+  error)?
+- **Visual consistency**: Does the user see a coherent preview at ALL times, or are
+  there frames where the display is partially updated (some traces moved, others
+  not yet)?
+- **Cross-step assumptions**: Does step N assume something about step M's output
+  that is not explicitly guaranteed by step M's contract?
+- **What would a user complain about?**: Think from the UX perspective. What would
+  feel broken, laggy, or confusing even if technically correct?
+
+Do NOT limit yourself to these directions either. If you spot something suspicious
+during simulation, chase it. The best challenges come from following a thread of
+reasoning to its logical conclusion.
+
+When simulating, compare against these known behaviors:
+
+**Altium Interactive Multi-Routing:**
+- Supports fan-out from component pads to parallel bundle
+- Bundle maintains spacing through corners and obstacles
+- Individual traces can temporarily deviate from bundle spacing in tight areas
+- Supports "any angle" routing within the bundle
+
+**Cadence Group Route:**
+- Topology-aware: understands source and destination pad groups
+- Handles fan-out/fan-in as explicit routing phases
+- Supports differential pair within group route
+- Uses constraint-driven spacing (per-net-pair rules)
+
+**Mentor Sketch Routing:**
+- Sketch-based: user draws approximate path, tool snaps to grid
+- Automatic spacing adjustment in congested areas
+- Supports bus routing with automatic pin-to-pin matching
+
+### Simulation Output Format
+
+Include in your output file:
+
+```
+## Flow Simulation (Battle Iteration N)
+
+### Step 0: Pad Selection -> [OK | GAP: description]
+### Step 1: Mode Activation -> [OK | GAP: description]
+### Step 2: Start Routing -> [OK | GAP: description]
+### Step 3: Fan-Out / Fan-In -> [OK | GAP: description]
+### Step 4: Mouse Movement -> [OK | GAP: description]
+### Step 5: Corner Handling -> [OK | GAP: description]
+### Step 6: Obstacle Encounter -> [OK | GAP: description]
+### Step 7: Fix Route -> [OK | GAP: description]
+### Step 8: Commit and Cleanup -> [OK | GAP: description]
+
+### Simulation-Derived Challenges
+- CRIT-xxx: [description of gap found during simulation]
+```
+
 ## Using Research Findings
 
 You will receive research findings from the Research Agent containing:
@@ -166,6 +365,21 @@ Output file structure:
 
 ### Top Risks
 1. ...
+
+## Flow Simulation (Battle Iteration N)
+
+### Step 0: Pad Selection -> [OK | GAP: description]
+### Step 1: Mode Activation -> [OK | GAP: description]
+### Step 2: Start Routing -> [OK | GAP: description]
+### Step 3: Fan-Out / Fan-In -> [OK | GAP: description]
+### Step 4: Mouse Movement -> [OK | GAP: description]
+### Step 5: Corner Handling -> [OK | GAP: description]
+### Step 6: Obstacle Encounter -> [OK | GAP: description]
+### Step 7: Fix Route -> [OK | GAP: description]
+### Step 8: Commit and Cleanup -> [OK | GAP: description]
+
+### Simulation-Derived Challenges
+- CRIT-xxx: [description of gap found during simulation]
 ```
 
 ## File I/O
@@ -226,10 +440,11 @@ of the solution set against the first-phase scope. Ask yourself:
 - If this is iteration 2+, check your previous Holistic Gap Analysis -- have the
   gaps been filled? If not, escalate their severity.
 
-Update `critic_md` with ALL three levels:
+Update `critic_md` with ALL four levels:
 1. Updated Challenges section (removed addressed, added new)
 2. Solution Reviews section (per-solution verdicts)
 3. Holistic Gap Analysis section (coverage gaps, unexplored areas, integration concerns)
+4. Flow Simulation section (step-by-step walkthrough, simulation-derived challenges)
 - Do NOT rely on inline solution data; read everything from `solution_synth_md`.
 
 ## Standardized Vocabulary (STRICT — use these EXACT terms)

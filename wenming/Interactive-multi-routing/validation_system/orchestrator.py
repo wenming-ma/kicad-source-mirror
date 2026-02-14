@@ -5,7 +5,10 @@ import os
 from enum import Enum
 from typing import Dict, Any, List
 
-from claude_agent_sdk import query, ClaudeAgentOptions, ResultMessage
+from claude_agent_sdk import (
+    query, ClaudeAgentOptions, ResultMessage, AssistantMessage, SystemMessage,
+    TextBlock, ThinkingBlock, ToolUseBlock,
+)
 from agents import (
     ResearchAgent,
     CriticAgent,
@@ -138,10 +141,13 @@ class ValidationBattle:
             self._log("  critic_md: empty, not converged")
             return False
 
+        self._log(f"  critic_md: {len(critic_content)} chars, sending to convergence agent...")
+
         options = ClaudeAgentOptions(
             model="claude-opus-4-6",
             output_format={"type": "json_schema", "schema": CONVERGENCE_SCHEMA},
             permission_mode="bypassPermissions",
+            setting_sources=["user", "project", "local"],
             max_turns=1,
         )
 
@@ -159,19 +165,43 @@ class ValidationBattle:
 
         try:
             result = None
+            structured_from_tool = None
             async for msg in query(prompt=prompt, options=options):
-                if isinstance(msg, ResultMessage):
+                if isinstance(msg, SystemMessage):
+                    self._log(f"  [convergence] System: {msg.subtype}")
+                elif isinstance(msg, AssistantMessage):
+                    for block in msg.content:
+                        if isinstance(block, ThinkingBlock):
+                            preview = block.thinking[:120].replace("\n", " ")
+                            self._log(f"  [convergence] Thinking: {preview}...")
+                        elif isinstance(block, TextBlock):
+                            preview = block.text[:200].replace("\n", " ")
+                            self._log(f"  [convergence] Text: {preview}")
+                        elif isinstance(block, ToolUseBlock):
+                            if block.name == "StructuredOutput":
+                                structured_from_tool = block.input
+                            args = json.dumps(block.input, ensure_ascii=False)
+                            self._log(f"  [convergence] Tool: {block.name} {args}")
+                elif isinstance(msg, ResultMessage):
+                    duration = getattr(msg, "duration_ms", 0) / 1000
+                    cost = getattr(msg, "total_cost_usd", 0)
+                    self._log(f"  [convergence] Done: {duration:.1f}s | ${cost:.4f}")
                     result = msg
         except Exception as exc:
             self._log(f"  Convergence agent error: {exc}")
             self._log("  Falling back to not converged")
             return False
 
-        if not result or result.is_error or not result.structured_output:
+        # Prefer ResultMessage.structured_output; fall back to ToolUseBlock
+        output = None
+        if result and not result.is_error:
+            output = result.structured_output or structured_from_tool
+        elif structured_from_tool:
+            output = structured_from_tool
+
+        if not output:
             self._log("  Convergence agent failed, assuming not converged")
             return False
-
-        output = result.structured_output
         v = output["verdicts"]
         self._log(
             f"  Convergence check: APPROVE={v['approve']} REVISE={v['revise']} "

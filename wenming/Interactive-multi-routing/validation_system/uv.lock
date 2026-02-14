@@ -216,7 +216,7 @@ wheels = [
 
 [[package]]
 name = "claude-agent-sdk"
-version = "0.1.35"
+version = "0.1.36"
 source = { editable = "../../submodule/claude-agent-sdk-python" }
 dependencies = [
     { name = "anyio" },
