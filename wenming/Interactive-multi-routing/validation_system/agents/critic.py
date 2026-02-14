@@ -74,12 +74,35 @@ may have gaps. Example: ComputeStartOrder (IMP-007) produces a centroid and
 uniform offsets, but the traces must physically connect to pads at non-uniform
 positions. No single IMP-xxx addresses this transition.
 
+### Your Role During Simulation: Question, Don't Solve
+You are a CRITIC, not a synthesizer. During simulation your job is to:
+- ASK probing questions that expose gaps, contradictions, and unstated assumptions
+- DISCOVER problems that the solution set has not addressed
+- REASON about whether the proposed solutions are self-consistent and feasible
+  when assembled into a complete flow
+- CHALLENGE claims by tracing data flow step-by-step and checking invariants
+
+You must NOT:
+- Propose specific solutions, algorithms, or code to fix the gaps you find
+- Suggest implementation approaches or design alternatives
+- Write pseudocode or C++ snippets as "how to fix this"
+
+If you find a gap, state it as a challenge (CRIT-xxx). The synthesizer's job is
+to propose solutions. Your job is to make sure nothing slips through unchallenged.
+
 ### Simulation Steps (walk through ALL of these)
 
 The questions listed under each step are STARTING POINTS, not an exhaustive list.
 You are expected to generate your own questions as you reason through each step.
 Think about failure modes, race conditions, numerical edge cases, UX surprises,
 and anything else that a real implementation would encounter.
+
+IMPORTANT: At each step, after answering the listed questions, you MUST spend
+additional effort to discover problems that are NOT listed. The listed questions
+represent known concerns. The most valuable challenges come from problems that
+nobody anticipated. Ask yourself: "What else could go wrong here that hasn't
+been asked?" and "If I were implementing this step right now, what would make
+me nervous?" Document every new concern you discover as a CRIT-xxx challenge.
 
 **Step 0: Pad Selection**
 - User selects N pads on the PCB (e.g., 5 pads of a connector)
@@ -91,6 +114,7 @@ and anything else that a real implementation would encounter.
     spacing (e.g., 0.2mm)?
   - What if pads are not collinear (e.g., BGA breakout)?
   - What if some pads are on different layers? (first-phase: reject)
+  - [YOUR OWN QUESTIONS: what other pad selection edge cases exist?]
 
 **Step 1: Mode Activation (IMP-010)**
 - User clicks "Route Multi-Line" toolbar button
@@ -100,6 +124,7 @@ and anything else that a real implementation would encounter.
   - Is the cached selection order stable? (PCB_SELECTION iteration order)
   - What if user selects non-pad items mixed with pads?
   - What if selection is empty?
+  - [YOUR OWN QUESTIONS: what other activation/caching issues exist?]
 
 **Step 2: Start Routing (IMP-001, IMP-007, IMP-009)**
 - User clicks on the PCB to set the routing start point
@@ -115,6 +140,8 @@ and anything else that a real implementation would encounter.
     WHERE is the connection from pad anchor to the offset trace start point?
   - What if the click position is very close to the pads? The leader line
     would be very short, and perpendicular sorting may be unstable.
+  - [YOUR OWN QUESTIONS: what other start-routing issues exist? Think about
+    the data flow from cached pads to MULTI_LINE_PLACER initialization.]
 
 **Step 3: Fan-Out / Fan-In (CRITICAL -- check if any IMP addresses this)**
 - Traces must transition from actual pad positions to uniform-spacing parallel
@@ -132,6 +159,8 @@ and anything else that a real implementation would encounter.
     etc.?
   - Is this fan-out region collision-checked?
   - What happens during Move() -- does the fan-out region update dynamically?
+  - [YOUR OWN QUESTIONS: what other fan-out/fan-in problems exist? Consider
+    geometry, collision, and visual feedback aspects.]
 
 **Step 4: Mouse Movement (IMP-002, IMP-005, IMP-009)**
 - User moves mouse -> Move() called repeatedly
@@ -146,6 +175,57 @@ and anything else that a real implementation would encounter.
     short or reverses direction.
   - What if the mouse is directly above/below the centroid? (perpendicular
     direction becomes parallel to routing direction)
+  - [YOUR OWN QUESTIONS: what other real-time update issues exist? Think about
+    performance, degenerate geometry, and user experience.]
+
+**Step 4a: Same-Net Proximity Detection and Auto-Snap (CRITICAL)**
+- During routing, updateEndItem() runs on every mouse event to detect if the
+  cursor is near a same-net pad/via and snap to it
+- In single-line KiCad (pns_tool_base.cpp:363-430):
+  - pickSingleItem(mousePos, net, layer) searches for same-net items near cursor
+  - If found and snap enabled: m_endItem = endItem, m_endSnapPoint = snapToItem()
+  - On next click, FixRoute receives m_endItem and terminates the trace at that
+    target, creating a proper electrical connection
+  - If FixRoute returns true (route complete), the routing loop exits
+- For multi-line: ONE mouse position but N traces on N DIFFERENT nets
+  - Current updateEndItem iterates GetCurrentNets() and picks the FIRST match
+  - For multi-line routing, how does this single-match logic work when each of
+    the N traces belongs to a different net and may be near different same-net
+    items? Is the current mechanism sufficient, or does it break down?
+- Scenarios to simulate:
+  1. ALL traces approach their destination pads simultaneously (e.g., routing
+     from connector A to connector B with matching pin order). Should all N
+     traces auto-snap to their respective destination pads? How is the N-way
+     snap coordinated?
+  2. SOME traces are near their targets but others are not (e.g., destination
+     pads have non-uniform spacing). What happens? Do the close traces snap
+     while others remain free? Or is it all-or-nothing?
+  3. A single trace approaches a same-net pad mid-route (not the final
+     destination). Should it snap? In single-line routing, this would auto-
+     terminate the route. For multi-line, auto-terminating one trace while
+     others continue is problematic.
+  4. The bundle passes NEAR same-net pads but the user does NOT want to
+     connect yet (routing past, not to, those pads). How to prevent unwanted
+     snap? Snap radius vs. trace spacing interaction.
+- Questions to ask:
+  - The current single m_endItem model tracks one snap target. How does the
+    proposed solution handle snap detection when N traces on N different nets
+    may each be near different same-net items simultaneously?
+  - What is the snap radius relative to trace spacing? If spacing is 0.2mm
+    and snap radius is 0.5mm, adjacent traces' snap zones overlap.
+  - When a trace snaps to a target pad, how does it transition from uniform
+    bundle spacing back to the actual pad position? Is this transition
+    addressed by any solution?
+  - Should FixRoute return true (route complete) only when ALL N traces have
+    reached their targets, or when ANY trace reaches a target?
+  - What visual feedback indicates which traces have snapped vs. which are
+    still free-routing?
+  - In first-phase scope: is destination-pad snapping supported at all, or
+    do traces just terminate at the mouse position without connecting to
+    destination pads? If the latter, the user must manually connect each
+    trace afterward -- is this acceptable UX?
+  - [YOUR OWN QUESTIONS: what other snap/proximity problems exist? Think about
+    the interaction between snap behavior and the multi-trace bundle model.]
 
 **Step 5: Corner Handling (IMP-003, IMP-005)**
 - User's mouse path creates corners (45 or 90 degree turns)
@@ -157,38 +237,112 @@ and anything else that a real implementation would encounter.
     spacing between adjacent traces?
   - For rounded corners, inner arc radius = outer - (N-1)*spacing. If N is
     large, inner radius could go negative. Is this handled?
+  - [YOUR OWN QUESTIONS: what other corner geometry issues exist? Think about
+    different corner modes, trace width vs. spacing, and visual artifacts.]
 
 **Step 6: Obstacle Encounter (IMP-002, IMP-004, IMP-008)**
 - Bundle encounters an obstacle (via, pad, existing trace, board edge)
-- Tier 1: Fat-trace walkaround (bundle as unit)
-- Tier 2: Compressed spacing retry
-- Tier 3: Per-trace walkaround (individual)
-- Tier 4: Mark obstacles fallback
+- The proposed solutions describe a tiered fallback strategy. Verify whether
+  each tier is well-defined and whether the transitions between tiers are
+  specified:
 - Questions to ask:
   - After walkaround, traces may no longer be uniformly spaced. Is the
     spacing restored after the obstacle?
   - What if the obstacle is between two traces (splits the bundle)?
   - In PUSH_SHOVE mode, what if pushing one obstacle creates a collision
     for another trace in the bundle?
+  - [YOUR OWN QUESTIONS: what other obstacle interaction problems exist? Think
+    about different obstacle types, bundle splitting, and spacing recovery.]
 
-**Step 7: Fix Route (IMP-009)**
-- User clicks to commit the route
-- FixRoute: adds traces to m_lastNode, saves m_lastFixNode
-- SHOVE recreation (if RM_Shove mode)
-- CommitPlacement called
+**Step 7: User Click Events (IMP-009) — THREE distinct flows**
+
+The user interacts via mouse clicks during routing. Each click type triggers a
+fundamentally different code path. You MUST simulate all three independently.
+
+**Step 7a: Single Left Click — Intermediate Fix (waypoint)**
+- User single-clicks to lock the current trace segments and continue routing
+- In single-line KiCad: FixRoute(aP, aEndItem, forceFinish=false)
+  - If returns true: route reached a target pad, routing ends (go to Step 8)
+  - If returns false: waypoint created, routing continues from this point
+- After fix: updateSizesAfterRouterEvent, syncRouterAndFrameLayer, Move() refresh
+- For multi-line: how does FixRoute handle N traces? Does it fix all N
+  simultaneously, sequentially, or some other way?
 - Questions to ask:
-  - Are traces properly connected to their start pads? (fan-out region)
-  - Are traces properly terminated at the click point? (no dangling ends)
-  - What if m_fitOk is false and AllowDRCViolations is false? User gets
-    no feedback about WHY the fix failed.
+  - Each trace has a different physical endpoint (due to offsets). What position
+    is passed to FixRoute? The mouse position? Each trace's offset endpoint?
+  - What if some traces can be fixed but others cannot (e.g., one trace collides
+    at the fix point)? Partial fix? All-or-nothing? Rollback?
+  - After fix, the "start" for the next segment is the fixed endpoint. For N
+    traces, these are N different points. How does the next Move() compute
+    offsets from N different starting points instead of a single centroid?
+  - The fan-out region (Step 3) is now locked in. Does the next segment start
+    from uniform spacing, or does it inherit the actual fixed positions?
+  - m_lastFixNode pattern: in single-line, one node is saved. For multi-line,
+    is it N nodes? One shared node with N traces? How does SHOVE recreation
+    work with N traces?
+  - What visual feedback does the user see? Fixed segments become solid while
+    the preview continues from the waypoint?
+  - [YOUR OWN QUESTIONS: what other intermediate-fix problems exist? Think about
+    state transitions, multi-segment continuity, and partial failure modes.]
+
+**Step 7b: Double Left Click — Finish Routing**
+- User double-clicks (or presses finishInteractive action) to end routing
+- In single-line KiCad: FixRoute(aP, aEndItem, forceFinish=true)
+  - forceFinish=true forces the route to terminate at the current position
+  - Always breaks out of the event loop
+- For multi-line: how are ALL N traces terminated and the routing loop exited?
+- Questions to ask:
+  - All N traces terminate at their respective offset positions from the mouse.
+    Are the endpoints clean (no dangling stubs)?
+  - In single-line routing, double-click can snap to a target pad. For multi-line,
+    can the user double-click near a set of destination pads and have each trace
+    snap to its corresponding destination? Or is destination matching out of
+    first-phase scope?
+  - What if forceFinish=true but some traces have DRC violations? Does the
+    entire multi-line route fail, or do valid traces commit while invalid ones
+    are discarded?
+  - After the loop breaks, finishInteractive() is called. Does it properly
+    clean up N routing states?
+  - [YOUR OWN QUESTIONS: what other finish-routing problems exist? Think about
+    the transition from interactive state to committed state for N traces.]
+
+**Step 7c: Escape / Cancel — Abort Routing**
+- User presses Escape or triggers cancelCurrentItem
+- In single-line KiCad: sets m_cancelled=true, breaks out of loop
+- finishInteractive() -> StopRouting() cleans up without committing
+- For multi-line: how are ALL N traces aborted cleanly?
+- Questions to ask:
+  - If the user already single-clicked some waypoints (Step 7a), are those
+    intermediate segments also discarded? Or are previously-fixed segments
+    kept while only the current unfixed segment is discarded?
+  - In single-line: m_cancelled flag controls whether CommitRouting is called.
+    For multi-line, is there a single m_cancelled flag or per-trace flags?
+  - Resource cleanup: SHOVE engine, NODE tree, ITEM objects for all N traces
+    must be freed. Are there any leak paths on cancel?
+  - Undo: if intermediate segments were committed (via FixRoute returning true
+    at a waypoint), does cancel undo those too? Or only the current segment?
+  - [YOUR OWN QUESTIONS: what other cancel/abort problems exist? Think about
+    partial state, resource ownership, and user expectations on cancel.]
 
 **Step 8: Commit and Cleanup (IMP-009)**
-- CommitRouting -> HasPlacedAnything gate -> Commit to world
-- StopRouting -> GetModifiedNets -> ratsnest update -> KillChildren
+- After the event loop exits (from Step 7a/7b/7c), finishInteractive() runs
+- finishInteractive: StopRouting -> cleanup UI state
+- StopRouting path depends on how the loop exited:
+  - Normal finish (7a reached target, or 7b): CommitRouting -> HasPlacedAnything
+    gate -> Commit to world -> GetModifiedNets -> ratsnest update -> KillChildren
+  - Cancel (7c): StopRouting without CommitRouting (if m_cancelled)
 - Questions to ask:
   - After commit, are all N nets properly updated in the ratsnest?
-  - If the user wants to continue routing (chained placement), is the
-    state properly reset? (first-phase: not supported, but verify clean state)
+  - HasPlacedAnything: for multi-line, does this check if ANY trace was placed,
+    or ALL traces? What if only 3 of 5 traces were successfully routed?
+  - GetModifiedNets must return all N nets. Is the net collection correct?
+  - KillChildren must clean up all N sub-placers/sub-nodes. Any leak paths?
+  - After cleanup, is the PCB state fully consistent? Can the user immediately
+    start another multi-line routing session?
+  - Undo granularity: is the entire multi-line route one undo step, or N
+    separate undo steps? (User expectation: one Ctrl+Z undoes all N traces)
+  - [YOUR OWN QUESTIONS: what other commit/cleanup problems exist? Think about
+    atomicity, consistency, and the PCB state after the operation completes.]
 
 ### Go Deeper: Think Beyond the Listed Questions
 
@@ -252,9 +406,12 @@ Include in your output file:
 ### Step 2: Start Routing -> [OK | GAP: description]
 ### Step 3: Fan-Out / Fan-In -> [OK | GAP: description]
 ### Step 4: Mouse Movement -> [OK | GAP: description]
+### Step 4a: Same-Net Proximity and Auto-Snap -> [OK | GAP: description]
 ### Step 5: Corner Handling -> [OK | GAP: description]
 ### Step 6: Obstacle Encounter -> [OK | GAP: description]
-### Step 7: Fix Route -> [OK | GAP: description]
+### Step 7a: Single Click (Intermediate Fix) -> [OK | GAP: description]
+### Step 7b: Double Click (Finish Routing) -> [OK | GAP: description]
+### Step 7c: Escape (Cancel Routing) -> [OK | GAP: description]
 ### Step 8: Commit and Cleanup -> [OK | GAP: description]
 
 ### Simulation-Derived Challenges
@@ -373,9 +530,12 @@ Output file structure:
 ### Step 2: Start Routing -> [OK | GAP: description]
 ### Step 3: Fan-Out / Fan-In -> [OK | GAP: description]
 ### Step 4: Mouse Movement -> [OK | GAP: description]
+### Step 4a: Same-Net Proximity and Auto-Snap -> [OK | GAP: description]
 ### Step 5: Corner Handling -> [OK | GAP: description]
 ### Step 6: Obstacle Encounter -> [OK | GAP: description]
-### Step 7: Fix Route -> [OK | GAP: description]
+### Step 7a: Single Click (Intermediate Fix) -> [OK | GAP: description]
+### Step 7b: Double Click (Finish Routing) -> [OK | GAP: description]
+### Step 7c: Escape (Cancel Routing) -> [OK | GAP: description]
 ### Step 8: Commit and Cleanup -> [OK | GAP: description]
 
 ### Simulation-Derived Challenges

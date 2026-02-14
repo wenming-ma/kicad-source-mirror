@@ -23,7 +23,7 @@ RESEARCH_ROUNDS = 5
 CHECKPOINT_FILE = "checkpoint.json"
 
 # Maximum battle loop iterations (challenges -> solutions -> review, repeat)
-MAX_BATTLE_ITERATIONS = 7
+MAX_BATTLE_ITERATIONS = 17
 
 # JSON schema for the convergence-check agent's structured output
 CONVERGENCE_SCHEMA = {
