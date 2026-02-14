@@ -121,13 +121,16 @@ class ValidationBattle:
         self._log(f"  [WARN] {file_key} not found or empty")
         return False
 
-    async def _check_convergence(self) -> bool:
+    async def _check_convergence(self) -> Dict[str, Any] | None:
         """Check if the battle has converged using a lightweight LLM agent.
 
         Sends the critic report to a haiku model with a JSON schema,
         which returns a structured convergence judgment.  This replaces
         the previous regex approach that was brittle against free-form
         critic output.
+
+        Returns the full convergence dict (converged, verdicts,
+        open_challenges, reason) on success, or None on error.
         """
         path = self._file_paths()["critic_md"]
         if not os.path.exists(path):
@@ -190,7 +193,7 @@ class ValidationBattle:
         except Exception as exc:
             self._log(f"  Convergence agent error: {exc}")
             self._log("  Falling back to not converged")
-            return False
+            return None
 
         # Prefer ResultMessage.structured_output; fall back to ToolUseBlock
         output = None
@@ -201,7 +204,7 @@ class ValidationBattle:
 
         if not output:
             self._log("  Convergence agent failed, assuming not converged")
-            return False
+            return None
         v = output["verdicts"]
         self._log(
             f"  Convergence check: APPROVE={v['approve']} REVISE={v['revise']} "
@@ -210,7 +213,7 @@ class ValidationBattle:
         )
         self._log(f"  Reason: {output['reason']}")
 
-        return output["converged"]
+        return output
 
     async def run_research_phase(self) -> None:
         """Run 5 rounds of deep research exploration.
@@ -275,16 +278,22 @@ class ValidationBattle:
 
         print("\nChallenges complete: critic_md written")
 
-    async def run_solutions(self, battle_iter: int = 1) -> None:
+    async def run_solutions(self, battle_iter: int = 1,
+                            convergence_feedback: Dict[str, Any] | None = None,
+                            ) -> None:
         """Generate all solutions in a single batch call."""
         print("\n=== Solution Generation ===\n")
 
-        print("Synthesizer reading critic challenges and generating solutions...")
-        await self.synthesizer.process({
+        msg = {
             "type": "generate_all_solutions",
             "battle_iteration": battle_iter,
             **self._file_paths(),
-        })
+        }
+        if convergence_feedback:
+            msg["convergence_feedback"] = convergence_feedback
+
+        print("Synthesizer reading critic challenges and generating solutions...")
+        await self.synthesizer.process(msg)
         self._verify_md_file("solution_synth_md")
 
         print("\nSolutions complete")
@@ -319,6 +328,8 @@ class ValidationBattle:
                            Steps up to and including this one are skipped
                            on the start_iter only.
         """
+        last_convergence_feedback: Dict[str, Any] | None = None
+
         for battle_iter in range(start_iter, MAX_BATTLE_ITERATIONS + 1):
             print(f"\n{'='*60}")
             print(f"Battle Iteration {battle_iter}/{MAX_BATTLE_ITERATIONS}")
@@ -341,7 +352,7 @@ class ValidationBattle:
                 if step == BattleStep.CHALLENGES:
                     await self.run_challenges(battle_iter)
                 elif step == BattleStep.SOLUTIONS:
-                    await self.run_solutions(battle_iter)
+                    await self.run_solutions(battle_iter, last_convergence_feedback)
                 elif step == BattleStep.REVIEW:
                     await self.run_review(battle_iter)
 
@@ -350,9 +361,12 @@ class ValidationBattle:
                     last_step=step.value)
 
             print("\nChecking convergence...")
-            if await self._check_convergence():
+            convergence_result = await self._check_convergence()
+            converged = (convergence_result or {}).get("converged", False)
+            if converged:
                 print(f"\nBattle converged at iteration {battle_iter}!")
                 break
+            last_convergence_feedback = convergence_result
         else:
             print(f"\nMax battle iterations ({MAX_BATTLE_ITERATIONS}) reached")
 

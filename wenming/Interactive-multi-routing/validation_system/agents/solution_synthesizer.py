@@ -209,4 +209,20 @@ ones, revise as requested, and keep approved ones intact."""
                     f"{listing}\n"
                 )
 
+        # Inject convergence feedback from previous iteration
+        feedback = message.get("convergence_feedback")
+        if feedback:
+            v = feedback.get("verdicts", {})
+            prompt += (
+                "\n\n[CONVERGENCE FEEDBACK FROM PREVIOUS ITERATION]\n"
+                f"Verdicts: APPROVE={v.get('approve', 0)} "
+                f"REVISE={v.get('revise', 0)} "
+                f"REJECT={v.get('reject', 0)} "
+                f"BLOCKED={v.get('blocked', 0)}\n"
+                f"Open challenges: {feedback.get('open_challenges', 0)}\n"
+                f"Reason: {feedback.get('reason', 'N/A')}\n"
+                "Prioritize fixing REVISE/REJECT/BLOCKED solutions and "
+                "resolving OPEN challenges first.\n"
+            )
+
         return prompt
