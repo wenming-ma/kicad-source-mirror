@@ -20,6 +20,7 @@
 #include <advanced_config.h>
 #include <algorithm>
 #include <common.h>
+#include <inspectable_impl.h>
 #include <set>
 #include <bus_alias.h>
 #include <commit.h>
@@ -702,7 +703,7 @@ void SCHEMATIC::loadBusAliasesFromProject()
         std::shared_ptr<BUS_ALIAS> busAlias = std::make_shared<BUS_ALIAS>();
 
         busAlias->SetName( alias.first );
-        busAlias->Members() = alias.second;
+        busAlias->SetMembers( alias.second );
 
         m_busAliases.push_back( busAlias );
     }
@@ -1150,7 +1151,22 @@ void SCHEMATIC::SetSheetNumberAndCount()
         sheet_count = Root().CountSheets();
     }
 
-    int              sheet_number = 1;
+    int sheet_number = 1;
+
+    if( m_hierarchy.empty() )
+    {
+        for( screen = s_list.GetFirst(); screen != nullptr; screen = s_list.GetNext() )
+            screen->SetPageCount( sheet_count );
+
+        CurrentSheet().SetVirtualPageNumber( sheet_number );
+        screen = CurrentSheet().LastScreen();
+
+        if( screen )
+            screen->SetVirtualPageNumber( sheet_number );
+
+        return;
+    }
+
     const KIID_PATH& current_sheetpath = CurrentSheet().Path();
 
     // @todo Remove all pseudo page number system is left over from prior to real page number
@@ -1243,9 +1259,10 @@ wxString SCHEMATIC::GetOperatingPoint( const wxString& aNetName, int aPrecision,
 }
 
 
-void SCHEMATIC::FixupJunctionsAfterImport()
+int SCHEMATIC::FixupJunctionsAfterImport()
 {
     SCH_SCREENS screens( Root() );
+    int         count = 0;
 
     for( SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
     {
@@ -1257,6 +1274,8 @@ void SCHEMATIC::FixupJunctionsAfterImport()
         // Add missing junctions and breakup wires as needed
         for( const VECTOR2I& point : screen->GetNeededJunctions( allItems ) )
         {
+            count++;
+
             SCH_JUNCTION* junction = new SCH_JUNCTION( point );
             screen->Append( junction );
 
@@ -1268,6 +1287,8 @@ void SCHEMATIC::FixupJunctionsAfterImport()
             }
         }
     }
+
+    return count;
 }
 
 
@@ -2188,11 +2209,29 @@ wxString SCHEMATIC::GetCurrentVariant() const
 
 void SCHEMATIC::SetCurrentVariant( const wxString& aVariantName )
 {
+    wxString newVariant;
+
     // Internally an empty string is the default variant.  Set to default if the variant name doesn't exist.
-    if( ( aVariantName == GetDefaultVariantName() ) || !m_variantNames.contains( aVariantName ) )
-        m_currentVariant = wxEmptyString;
-    else
-        m_currentVariant = aVariantName;
+    if( ( aVariantName != GetDefaultVariantName() ) && m_variantNames.contains( aVariantName ) )
+        newVariant = aVariantName;
+
+    if( m_currentVariant == newVariant )
+        return;
+
+    m_currentVariant = newVariant;
+
+    // Variant-specific field values affect text geometry, so bounding box caches computed
+    // with the previous variant's text are now stale.
+    if( m_rootSheet )
+    {
+        SCH_SCREENS allScreens( m_rootSheet );
+
+        for( SCH_SCREEN* screen = allScreens.GetFirst(); screen; screen = allScreens.GetNext() )
+        {
+            for( SCH_ITEM* item : screen->Items() )
+                item->ClearCaches();
+        }
+    }
 }
 
 
@@ -2317,6 +2356,9 @@ void SCHEMATIC::LoadVariants()
 
 void SCHEMATIC::SaveToHistory( const wxString& aProjectPath, std::vector<wxString>& aFiles )
 {
+    if( !IsValid() )
+        return;
+
     wxString projPath = m_project->GetProjectPath();
 
     if( projPath.IsEmpty() )

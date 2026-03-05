@@ -39,6 +39,8 @@
 #include <trace_helpers.h>
 #include <trigo.h>
 #include <string_utils.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 wxString FormatStackedPinForDisplay( const wxString& aPinNumber, int aPinLength, int aTextSize, KIFONT::FONT* aFont,
                                      const KIFONT::METRICS& aFontMetrics )
@@ -356,8 +358,20 @@ wxString SCH_PIN::GetElectricalTypeName() const
 
 bool SCH_PIN::IsGlobalPower() const
 {
-    return GetType() == ELECTRICAL_PINTYPE::PT_POWER_IN
-           && ( !IsVisible() || GetParentSymbol()->IsGlobalPower() );
+    if( GetType() != ELECTRICAL_PINTYPE::PT_POWER_IN )
+        return false;
+
+    const SYMBOL* parent = GetParentSymbol();
+
+    if( parent->IsGlobalPower() )
+        return true;
+
+    // Local power symbols are never global, even with invisible pins
+    if( parent->IsLocalPower() )
+        return false;
+
+    // Legacy support: invisible power-in pins on non-power symbols act as global power
+    return !IsVisible();
 }
 
 
@@ -1422,9 +1436,9 @@ wxString SCH_PIN::GetDefaultNetName( const SCH_SHEET_PATH& aPath, bool aForceNoC
     // with legacy global power pins on non-power symbols
     if( IsGlobalPower() || IsLocalPower() )
     {
-        SYMBOL* parent = GetLibPin()->GetParentSymbol();
+        SYMBOL* parent = GetLibPin() ? GetLibPin()->GetParentSymbol() : nullptr;
 
-        if( parent->IsGlobalPower() || parent->IsLocalPower() )
+        if( parent && ( parent->IsGlobalPower() || parent->IsLocalPower() ) )
         {
             return EscapeString( symbol->GetValue( true, &aPath, false ), CTX_NETNAME );
         }
@@ -1711,7 +1725,7 @@ int SCH_PIN::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
     if( m_number != tmp->m_number )
     {
         // StrNumCmp: sort the same as the pads in the footprint file
-        return StrNumCmp( m_number, tmp->m_number ) < 0;
+        return StrNumCmp( m_number, tmp->m_number );
     }
 
     if( m_position.x != tmp->m_position.x )

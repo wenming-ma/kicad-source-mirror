@@ -31,10 +31,8 @@
 #include <wx/stc/stc.h>
 #include <wx/menu.h>
 #include <wx/log.h>
-#include <wx/dragimag.h> // For wxDragImage
 #include <wx/wx.h>
 #include <wx/dnd.h>
-#include <wx/dcmemory.h> // Include for wxMemoryDC
 #include <wx/dcclient.h> // Include for wxClientDC if needed
 #include <wx/dcbuffer.h> // Include for double-buffered drawing
 #include <wx/bitmap.h>
@@ -76,12 +74,12 @@ RULE_EDITOR_DIALOG_BASE::RULE_EDITOR_DIALOG_BASE( wxWindow* aParent, const wxStr
         m_enableAddRule( false ),
         m_enableDuplicateRule( false ),
         m_enableDeleteRule( false ),
+        m_modified( false ),
         m_defaultSashPosition( 200 ),
         m_title( aTitle ),
         m_selectedData( nullptr ),
         m_previousId( nullptr ),
-        m_draggedItem( nullptr ),
-        m_dragImage( nullptr )
+        m_draggedItem( nullptr )
 {
     wxBoxSizer* mainSizer = new wxBoxSizer( wxVERTICAL );
     SetSizer( mainSizer );
@@ -155,9 +153,13 @@ RULE_EDITOR_DIALOG_BASE::RULE_EDITOR_DIALOG_BASE( wxWindow* aParent, const wxStr
 
     treeCtrlPanel->Layout();
 
-    // Create the dynamic content panel
-    m_contentPanel = new wxPanel( m_splitter, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE );
-    m_contentPanel->SetBackgroundColour( *wxLIGHT_GREY );
+    // Create a scrolled window for the dynamic content panel
+    m_scrolledContentWin = new wxScrolledWindow( m_splitter, wxID_ANY, wxDefaultPosition,
+                                                  wxDefaultSize, wxVSCROLL | wxBORDER_NONE );
+    m_scrolledContentWin->SetScrollRate( 0, 10 );
+    m_scrolledContentWin->SetBackgroundColour(
+            wxSystemSettings::GetColour( wxSYS_COLOUR_FRAMEBK ) );
+    m_contentPanel = nullptr;
 
     // Add the tree control panel to the splitter.
     // Calculate the minimum tree panel width based on the tree control's best size.
@@ -170,7 +172,7 @@ RULE_EDITOR_DIALOG_BASE::RULE_EDITOR_DIALOG_BASE( wxWindow* aParent, const wxStr
 
     m_defaultSashPosition = minTreeWidth;
 
-    m_splitter->SplitVertically( treeCtrlPanel, m_contentPanel, m_defaultSashPosition );
+    m_splitter->SplitVertically( treeCtrlPanel, m_scrolledContentWin, m_defaultSashPosition );
 
     // Set gravity to 0 so the tree panel maintains its size and the content panel resizes
     m_splitter->SetSashGravity( 0.0 );
@@ -193,7 +195,9 @@ RULE_EDITOR_DIALOG_BASE::RULE_EDITOR_DIALOG_BASE( wxWindow* aParent, const wxStr
     mainSizer->Add( infoBarSizer, 0, wxEXPAND, 0 );
     mainSizer->Add( m_splitter, 1, wxEXPAND | wxBOTTOM, 5 );
     mainSizer->Add( m_sizerButtons, 0, wxALL | wxEXPAND, 5 );
-    SetSize( wxSize( 980, 680 ) );
+    if( aInitialSize != wxDefaultSize )
+        SetSize( aInitialSize );
+
     Layout();
 
     // Bind the context menu event
@@ -221,21 +225,58 @@ RULE_EDITOR_DIALOG_BASE::RULE_EDITOR_DIALOG_BASE( wxWindow* aParent, const wxStr
     m_saveRuleButton->Bind( wxEVT_BUTTON, &RULE_EDITOR_DIALOG_BASE::OnSave, this );
     m_cancelRuleButton->Bind( wxEVT_BUTTON, &RULE_EDITOR_DIALOG_BASE::OnCancel, this );
 
+    // Initially disable Save button until modifications are made
+    m_saveRuleButton->Enable( false );
+
     this->Bind( wxEVT_SIZE, &RULE_EDITOR_DIALOG_BASE::onResize, this );
 
     this->Bind( wxEVT_CLOSE_WINDOW, &RULE_EDITOR_DIALOG_BASE::onClose, this );
+
+    m_scrolledContentWin->Bind( wxEVT_SIZE,
+            [this]( wxSizeEvent& evt )
+            {
+                RefreshContentScrollArea();
+                evt.Skip();
+            } );
 }
 
 
 void RULE_EDITOR_DIALOG_BASE::finishInitialization()
 {
-    wxSize curSz = GetSize();
-    wxSize minSz = GetMinSize();
-
     finishDialogSettings();
 
-    curSz = GetSize();
-    minSz = GetMinSize();
+    // finishDialogSettings() calls GetSizer()->SetSizeHints() which inflates the dialog
+    // to the full unconstrained best size of the scrolled content area. Reset to the
+    // caller's initial size and a reasonable minimum so Show() doesn't inherit the
+    // inflated values.
+    SetMinSize( wxSize( 400, 500 ) );
+    SetSize( m_initialSize );
+
+    wxLogTrace( "debug_dlg_size", "finishInitialization: size=%dx%d minSize=%dx%d bestSize=%dx%d",
+                GetSize().x, GetSize().y, GetMinSize().x, GetMinSize().y, GetBestSize().x,
+                GetBestSize().y );
+}
+
+
+bool RULE_EDITOR_DIALOG_BASE::Show( bool show )
+{
+    bool ret = DIALOG_SHIM::Show( show );
+
+    if( show )
+    {
+        // DIALOG_SHIM::Show() sets SetMinSize(GetBestSize()) which includes the unconstrained
+        // height of the scrolled content area. Cap the minimum to a usable value so the user
+        // can resize the dialog smaller.
+        wxSize minSize = GetMinSize();
+
+        if( minSize.GetHeight() > 500 )
+            SetMinSize( wxSize( minSize.GetWidth(), 500 ) );
+
+        wxLogTrace( "debug_dlg_size", "Show: size=%dx%d minSize=%dx%d",
+                    GetSize().x, GetSize().y, GetMinSize().x, GetMinSize().y );
+    }
+
+    return ret;
 }
 
 
@@ -262,12 +303,6 @@ RULE_EDITOR_DIALOG_BASE::~RULE_EDITOR_DIALOG_BASE()
 
     m_selectedData = nullptr;
     m_previousId = nullptr;
-
-    if( m_dragImage )
-    {
-        delete m_dragImage;
-        m_dragImage = nullptr;
-    }
 }
 
 
@@ -294,6 +329,19 @@ bool RULE_EDITOR_DIALOG_BASE::TransferDataFromWindow()
         ret = false;
 
     return ret;
+}
+
+
+void RULE_EDITOR_DIALOG_BASE::OnCharHook( wxKeyEvent& aEvt )
+{
+    if( aEvt.GetKeyCode() == 'S' && aEvt.ControlDown() && !aEvt.ShiftDown() && !aEvt.AltDown() )
+    {
+        wxCommandEvent evt;
+        OnSave( evt );
+        return;
+    }
+
+    DIALOG_SHIM::OnCharHook( aEvt );
 }
 
 
@@ -343,21 +391,39 @@ void RULE_EDITOR_DIALOG_BASE::InitRuleTreeItems( const std::vector<RULE_TREE_NOD
 
 void RULE_EDITOR_DIALOG_BASE::SetContentPanel( wxPanel* aContentPanel )
 {
-    int sash_position = m_defaultSashPosition;
-
     if( m_contentPanel )
     {
-        sash_position = m_splitter->GetSashPosition();
-        m_splitter->Unsplit( m_contentPanel );
+        unregisterUnitBinders( m_contentPanel );
         m_contentPanel->Destroy();
+        m_contentPanel = nullptr;
     }
 
     m_contentPanel = aContentPanel;
-    auto treeCtrlPanel = m_splitter->GetWindow1();
-    m_splitter->SplitVertically( treeCtrlPanel, m_contentPanel, sash_position );
+    m_scrolledContentWin->SetBackgroundColour( m_contentPanel->GetBackgroundColour() );
+
+    resetUndoRedoForNewContent( m_contentPanel->GetChildren() );
 
     Layout();
+    CallAfter( [this]() { RefreshContentScrollArea(); } );
     Refresh();
+}
+
+
+void RULE_EDITOR_DIALOG_BASE::RefreshContentScrollArea()
+{
+    if( !m_contentPanel || !m_scrolledContentWin )
+        return;
+
+    m_contentPanel->Layout();
+
+    wxSize clientSize = m_scrolledContentWin->GetClientSize();
+    wxSize bestSize = m_contentPanel->GetBestSize();
+    int    width = clientSize.GetWidth();
+    int    height = std::max( clientSize.GetHeight(), bestSize.GetHeight() );
+
+    m_contentPanel->SetSize( width, height );
+    m_scrolledContentWin->SetVirtualSize( width, height );
+    m_scrolledContentWin->Refresh();
 }
 
 
@@ -396,12 +462,65 @@ void RULE_EDITOR_DIALOG_BASE::SetControlsEnabled( bool aEnable )
     updateRuleTreeActionButtonsState( m_selectedData );
 
     if( m_cancelRuleButton )
-        m_cancelRuleButton->SetLabelText( aEnable ? _( "Close" ) : _( "Cancel" ) );
+    {
+        if( !aEnable )
+        {
+            m_cancelRuleButton->SetLabelText( _( "Cancel" ) );
+        }
+        else if( m_modified )
+        {
+            m_cancelRuleButton->SetLabelText( _( "Discard" ) );
+        }
+        else
+        {
+            m_cancelRuleButton->SetLabelText( _( "Close" ) );
+        }
+    }
+}
+
+
+void RULE_EDITOR_DIALOG_BASE::SetModified()
+{
+    m_modified = true;
+
+    if( m_saveRuleButton )
+        m_saveRuleButton->Enable( true );
+
+    if( m_cancelRuleButton && m_ruleTreeCtrl->IsEnabled() )
+        m_cancelRuleButton->SetLabelText( _( "Discard" ) );
+
+    if( m_selectedData )
+    {
+        wxTreeItemId itemId = m_selectedData->GetTreeItemId();
+        if( itemId.IsOk() )
+        {
+            wxString currentText = m_ruleTreeCtrl->GetItemText( itemId );
+            if( !currentText.EndsWith( wxS( " *" ) ) )
+            {
+                m_ruleTreeCtrl->SetItemText( itemId, currentText + wxS( " *" ) );
+            }
+        }
+    }
+}
+
+
+void RULE_EDITOR_DIALOG_BASE::ClearModified()
+{
+    m_modified = false;
+
+    if( m_saveRuleButton )
+        m_saveRuleButton->Enable( false );
+
+    if( m_cancelRuleButton && m_ruleTreeCtrl->IsEnabled() )
+        m_cancelRuleButton->SetLabelText( _( "Close" ) );
 }
 
 
 void RULE_EDITOR_DIALOG_BASE::DeleteRuleTreeItem( wxTreeItemId aItemId, const int& aNodeId )
 {
+    if( m_selectedData && m_selectedData->GetNodeId() == aNodeId )
+        m_selectedData = nullptr;
+
     m_ruleTreeCtrl->Delete( aItemId );
     m_treeHistoryData.erase( aNodeId );
 }
@@ -521,7 +640,12 @@ void RULE_EDITOR_DIALOG_BASE::onRuleTreeItemActivated( wxTreeEvent& aEvent )
             dynamic_cast<RULE_TREE_ITEM_DATA*>( m_ruleTreeCtrl->GetItemData( aEvent.GetItem() ) );
 
     if( itemData &&
-        isEnabled( itemData, RULE_EDITOR_TREE_CONTEXT_OPT::ADD_RULE ) )
+        isEnabled( itemData, RULE_EDITOR_TREE_CONTEXT_OPT::DUPLICATE_RULE ) )
+    {
+        DuplicateRule( itemData );
+    }
+    else if( itemData &&
+            isEnabled( itemData, RULE_EDITOR_TREE_CONTEXT_OPT::ADD_RULE ) )
     {
         AddNewRule( itemData );
     }
@@ -677,18 +801,6 @@ void RULE_EDITOR_DIALOG_BASE::onRuleTreeItemLeftDown( wxMouseEvent& aEvent )
     if( item.IsOk() )
     {
         m_draggedItem = item;
-
-        wxString   text = m_ruleTreeCtrl->GetItemText( item );
-        wxMemoryDC dc;
-        wxBitmap   bitmap( 200, 30 );
-        dc.SelectObject( bitmap );
-        dc.SetBackground( *wxWHITE_BRUSH );
-        dc.Clear();
-        dc.SetFont( *wxNORMAL_FONT );
-        dc.DrawText( text, 5, 5 );
-        dc.SelectObject( wxNullBitmap );
-
-        m_dragImage = new wxDragImage( bitmap );
         m_isDragging = false;
     }
 
@@ -698,43 +810,48 @@ void RULE_EDITOR_DIALOG_BASE::onRuleTreeItemLeftDown( wxMouseEvent& aEvent )
 
 void RULE_EDITOR_DIALOG_BASE::onRuleTreeItemMouseMotion( wxMouseEvent& aEvent )
 {
-    if( aEvent.Dragging() && m_draggedItem.IsOk() && m_dragImage )
+    if( aEvent.Dragging() && m_draggedItem.IsOk() )
     {
-        wxPoint currentPos = aEvent.GetPosition();
+        m_isDragging = true;
 
-        if( !m_isDragging )
+        // Clear previous highlight
+        if( m_dropTargetItem.IsOk() )
         {
-            if( !m_dragImage->BeginDrag( wxPoint( 0, 0 ), m_ruleTreeCtrl, true ) )
-            {
-                delete m_dragImage;
-                m_dragImage = nullptr;
-                return;
-            }
-
-            m_dragImage->Show();
-            m_isDragging = true;
+            m_ruleTreeCtrl->SetItemBackgroundColour( m_dropTargetItem, wxNullColour );
+            m_dropTargetItem = wxTreeItemId();
         }
-        else
+
+        // Highlight item under cursor
+        int          flags;
+        wxTreeItemId hitItem = m_ruleTreeCtrl->HitTest( aEvent.GetPosition(), flags );
+
+        if( hitItem.IsOk() && hitItem != m_draggedItem )
         {
-            m_dragImage->Move( currentPos );
+            wxTreeItemId hitParent = m_ruleTreeCtrl->GetItemParent( hitItem );
+            wxTreeItemId dragParent = m_ruleTreeCtrl->GetItemParent( m_draggedItem );
+
+            if( hitParent == dragParent )
+            {
+                m_ruleTreeCtrl->SetItemBackgroundColour(
+                        hitItem, wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHT ) );
+                m_dropTargetItem = hitItem;
+            }
         }
     }
 
     aEvent.Skip();
 }
 
-
 void RULE_EDITOR_DIALOG_BASE::onRuleTreeItemLeftUp( wxMouseEvent& aEvent )
 {
     if( m_draggedItem.IsOk() && m_isDragging )
     {
-        if( m_dragImage )
+        m_isDragging = false;
+
+        if( m_dropTargetItem.IsOk() )
         {
-            m_dragImage->Hide();
-            m_dragImage->EndDrag();
-            delete m_dragImage;
-            m_dragImage = nullptr;
-            m_isDragging = false;
+            m_ruleTreeCtrl->SetItemBackgroundColour( m_dropTargetItem, wxNullColour );
+            m_dropTargetItem = wxTreeItemId();
         }
 
         wxPoint      pos = aEvent.GetPosition();
@@ -944,7 +1061,12 @@ void RULE_EDITOR_DIALOG_BASE::restoreRuleTree( const wxTreeItemId& aParent, cons
 
 wxTreeItemId RULE_EDITOR_DIALOG_BASE::appendRuleTreeItem( const RULE_TREE_NODE& aNode, wxTreeItemId aParent )
 {
-    wxTreeItemId currentTreeItemId = m_ruleTreeCtrl->AppendItem( aParent, aNode.m_nodeName );
+    wxString displayName = aNode.m_nodeName;
+
+    if( aNode.m_nodeData && aNode.m_nodeData->IsNew() )
+        displayName += wxS( " *" );
+
+    wxTreeItemId currentTreeItemId = m_ruleTreeCtrl->AppendItem( aParent, displayName );
 
     RULE_TREE_ITEM_DATA* itemData = new RULE_TREE_ITEM_DATA( aNode.m_nodeId, aParent, currentTreeItemId );
     m_ruleTreeCtrl->SetItemData( currentTreeItemId, itemData );

@@ -1,3 +1,9 @@
+# Add all the warnings to the files
+if( COMPILER_SUPPORTS_WARNINGS )
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FLAGS_CXX}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARN_FLAGS_C}")
+endif()
+
 add_compile_definitions( PCBNEW )
 
 add_subdirectory(connectivity)
@@ -320,25 +326,20 @@ set( PCBNEW_DRC_SRCS
     drc/rule_editor/dialog_drc_rule_editor.cpp
     drc/rule_editor/panel_drc_rule_editor_base.cpp
     drc/rule_editor/panel_drc_rule_editor.cpp
-    drc/rule_editor/drc_re_numeric_input_panel_base.cpp
-    drc/rule_editor/drc_re_numeric_input_panel.cpp
-    drc/rule_editor/drc_re_bool_input_panel_base.cpp
-    drc/rule_editor/drc_re_bool_input_panel.cpp
-    drc/rule_editor/drc_re_via_style_panel_base.cpp
-    drc/rule_editor/drc_re_via_style_panel.cpp
-    drc/rule_editor/drc_re_abs_length_two_panel_base.cpp
-    drc/rule_editor/drc_re_abs_length_two_panel.cpp
-    drc/rule_editor/drc_re_min_txt_ht_th_panel_base.cpp
-    drc/rule_editor/drc_re_min_txt_ht_th_panel.cpp
-    drc/rule_editor/drc_re_rtg_diff_pair_panel_base.cpp
-    drc/rule_editor/drc_re_rtg_diff_pair_panel.cpp
-    drc/rule_editor/drc_re_routing_width_panel_base.cpp
-    drc/rule_editor/drc_re_routing_width_panel.cpp
-    drc/rule_editor/drc_re_permitted_layers_panel_base.cpp
-    drc/rule_editor/drc_re_permitted_layers_panel.cpp
-    drc/rule_editor/drc_re_allowed_orientation_panel_base.cpp
-    drc/rule_editor/drc_re_allowed_orientation_panel.cpp
+    drc/rule_editor/drc_re_bitmap_overlay_panel.cpp
     drc/rule_editor/drc_re_object_selector_panel.cpp
+    drc/rule_editor/drc_re_overlay_field.cpp
+    drc/rule_editor/drc_re_routing_width_overlay_panel.cpp
+    drc/rule_editor/drc_re_rtg_diff_pair_overlay_panel.cpp
+    drc/rule_editor/drc_re_min_txt_ht_th_overlay_panel.cpp
+    drc/rule_editor/drc_re_abs_length_two_overlay_panel.cpp
+    drc/rule_editor/drc_re_matched_length_diff_pair_overlay_panel.cpp
+    drc/rule_editor/drc_re_via_style_overlay_panel.cpp
+    drc/rule_editor/drc_re_numeric_input_overlay_panel.cpp
+    drc/rule_editor/drc_re_bool_input_overlay_panel.cpp
+    drc/rule_editor/drc_re_vias_under_smd_overlay_panel.cpp
+    drc/rule_editor/drc_re_permitted_layers_overlay_panel.cpp
+    drc/rule_editor/drc_re_allowed_orientation_overlay_panel.cpp
     drc/rule_editor/drc_re_condition_row_panel.cpp
     drc/rule_editor/drc_re_condition_group_panel.cpp
     drc/rule_editor/drc_re_custom_rule_panel.cpp
@@ -349,8 +350,6 @@ set( PCBNEW_DRC_SRCS
     drc/rule_editor/drc_re_validator_min_max_ctrl.cpp
     drc/rule_editor/drc_re_validator_min_preferred_max_ctrl.cpp
     drc/rule_editor/drc_re_validator_numeric_ctrl.cpp
-    drc/rule_editor/drc_re_layers_selection_choice_popup.cpp
-    drc/rule_editor/drc_re_layers_selection_combo.cpp
     )
 
 set( PCBNEW_NETLIST_SRCS
@@ -533,17 +532,6 @@ if( KICAD_IPC_API )
         )
 endif()
 
-
-if( COMPILER_SUPPORTS_WARNINGS )
-#Only compile our source files with the warnings, since the SWIG generated
-#files contain a lot of warnings, we just ignore it.
-    set_source_files_properties(
-        ${PCBNEW_SRCS} ${PCBNEW_COMMON_SRCS} ${PCBNEW_SCRIPTING_PYTHON_HELPERS}
-        PROPERTIES COMPILE_FLAGS ${WARN_FLAGS_CXX}
-    )
-endif()
-
-
 #Disable all warnings for the SWIG file
 if( CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang" )
     if( MSYS )
@@ -714,8 +702,8 @@ foreach(file ${markdownFiles})
     get_filename_component(filename "${file}" NAME_WE)
     set(outputHeader "${CMAKE_CURRENT_SOURCE_DIR}/dialogs/${filename}.h")
 
-    message(STATUS "Processing markdown file: ${file}")
-    message(STATUS "Output header will be: ${outputHeader}")
+    message(VERBOSE "Processing markdown file: ${file}")
+    message(VERBOSE "Output header will be: ${outputHeader}")
 
 #Call the custom function to process the file
     callMrkdn2C("${file}" "${outputHeader}")
@@ -726,7 +714,7 @@ foreach(file ${markdownFiles})
 
 #Mark the output header as a dependency of the source file
     get_source_file_property(existing_depends dialogs/panel_setup_rules.cpp OBJECT_DEPENDS)
-    message(STATUS "Existing OBJECT_DEPENDS for dialogs/panel_setup_rules.cpp: ${existing_depends}")
+    message(VERBOSE "Existing OBJECT_DEPENDS for dialogs/panel_setup_rules.cpp: ${existing_depends}")
     if(NOT existing_depends OR existing_depends STREQUAL "NOTFOUND")
         set(existing_depends "")
     else()
@@ -736,7 +724,7 @@ foreach(file ${markdownFiles})
         PROPERTIES OBJECT_DEPENDS "${existing_depends}${outputHeader}")
 #Print out the new OBJECT_DEPENDS property for verification
     get_source_file_property(new_depends dialogs/panel_setup_rules.cpp OBJECT_DEPENDS)
-    message(STATUS "New OBJECT_DEPENDS for dialogs/panel_setup_rules.cpp: ${new_depends}")
+    message(VERBOSE "New OBJECT_DEPENDS for dialogs/panel_setup_rules.cpp: ${new_depends}")
 endforeach()
 
 # Generate pcb_text_help_md.h from pcb_text_help.md for text variable syntax help
@@ -784,6 +772,7 @@ endif()
 
 
 add_subdirectory( pcb_io/pcad )
+add_subdirectory( pcb_io/allegro )
 add_subdirectory( pcb_io/altium )
 add_subdirectory( pcb_io/cadstar )
 add_subdirectory( pcb_io/easyeda )
@@ -791,17 +780,20 @@ add_subdirectory( pcb_io/easyedapro )
 add_subdirectory( pcb_io/fabmaster )
 add_subdirectory( pcb_io/ipc2581 )
 add_subdirectory( pcb_io/odbpp )
+add_subdirectory( pcb_io/pads )
 
-set( PCBNEW_IO_LIBRARIES pcad2kicadpcb altium2pcbnew cadstar2pcbnew easyeda easyedapro fabmaster ipc2581 odbpp CACHE INTERNAL "")
+set( PCBNEW_IO_LIBRARIES pcad2kicadpcb allegro2pcbnew altium2pcbnew cadstar2pcbnew easyeda easyedapro fabmaster ipc2581 odbpp pads2pcbnew CACHE INTERNAL "")
 
 #a very small program launcher for pcbnew_kiface
 add_executable( pcbnew WIN32 MACOSX_BUNDLE
     ${CMAKE_SOURCE_DIR}/common/single_top.cpp
     ${PCBNEW_RESOURCES}
     )
-set_source_files_properties( ${CMAKE_SOURCE_DIR}/common/single_top.cpp pcbnew.cpp PROPERTIES
+
+set_source_files_properties( ${CMAKE_SOURCE_DIR}/common/single_top.cpp PROPERTIES
     COMPILE_DEFINITIONS "TOP_FRAME=FRAME_PCB_EDITOR;PGM_DATA_FILE_EXT=\"kicad_pcb\";BUILD_KIWAY_DLL"
     )
+
 target_link_libraries( pcbnew
     kicommon
     ${wxWidgets_LIBRARIES}
@@ -813,22 +805,24 @@ target_link_options( pcbnew PRIVATE
 
 #the main pcbnew program, in DSO form.
 add_library( pcbnew_kiface_objects OBJECT
-    pcbnew.cpp
     ${PCBNEW_SRCS}
     ${PCBNEW_COMMON_SRCS}
     ${PCBNEW_SCRIPTING_SRCS}
     )
 
-if( KICAD_USE_PCH AND CMAKE_CXX_COMPILER_ID MATCHES "Clang" )
+if( KICAD_USE_PCH )
     target_precompile_headers( pcbnew_kiface_objects
         PRIVATE
             <vector>
             <map>
             <memory>
             <unordered_map>
-            "board.h"
-            "footprint.h"
-            <macros.h> )
+            <pcb_edit_frame.h>
+            <board.h>
+            <footprint.h>
+            <macros.h>
+            <pgm_base.h>
+            <wx/wx.h> )
 endif()
 
 #auto - generate specctra_lexer.h and specctra_keywords.cpp
@@ -853,7 +847,9 @@ target_link_libraries( pcbnew_kiface_objects
         ${OCC_LIBRARIES}
     )
 
-add_library( pcbnew_kiface MODULE )
+add_library( pcbnew_kiface MODULE
+    pcbnew.cpp
+    )
 
 set_target_properties( pcbnew_kiface PROPERTIES
 #Decorate OUTPUT_NAME with PREFIX and SUFFIX, creating something like
@@ -901,8 +897,8 @@ target_link_libraries( pcbnew_kiface
         ${PCBNEW_KIFACE_LIBRARIES}
     )
 
-set_source_files_properties( pcbnew.cpp PROPERTIES
 #The KIFACE is in pcbnew.cpp, export it:
+set_source_files_properties( pcbnew.cpp PROPERTIES
     COMPILE_DEFINITIONS     "BUILD_KIWAY_DLL;COMPILING_DLL"
     )
 

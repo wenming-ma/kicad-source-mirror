@@ -29,13 +29,14 @@
 
 #include <deque>
 
-#include <geometry/shape_line_chain.h>
 #include <api/serializable.h>
 #include <core/typeinfo.h>
 #include <eda_item_flags.h>
 #include <eda_search_data.h>
 #include <view/view_item.h>
 #include <kiid.h>
+
+class SHAPE_LINE_CHAIN;
 
 enum class BITMAPS : unsigned int;
 
@@ -110,7 +111,7 @@ public:
     inline KICAD_T Type() const { return m_structType; }
 
     EDA_ITEM* GetParent() const { return m_parent; }
-    virtual void SetParent( EDA_ITEM* aParent )   { m_parent = aParent; }
+    virtual void SetParent( EDA_ITEM* aParent );
 
     virtual void SetParentGroup( EDA_GROUP* aGroup ) { m_group = aGroup; }
     virtual EDA_GROUP* GetParentGroup() const { return m_group; }
@@ -381,6 +382,11 @@ public:
      * @return The menu text string.
      */
     virtual wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const;
+
+    virtual wxString DisambiguateItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+    {
+        return GetItemDescription( aUnitsProvider, aFull );
+    }
 
     /**
      * Return a pointer to an image to be used in menus.

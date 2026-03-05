@@ -65,10 +65,13 @@
 #include <board.h>
 #include <board_commit.h>
 #include <board_design_settings.h>
+#include <drc/drc_engine.h>
+#include <drc/drc_rule.h>
 #include <confirm.h>
 #include <footprint.h>
 #include <macros.h>
 #include <gal/painter.h>
+#include <pad.h>
 #include <pcb_edit_frame.h>
 #include <pcb_group.h>
 #include <pcb_point.h>
@@ -77,6 +80,7 @@
 #include <pcb_textbox.h>
 #include <pcb_table.h>
 #include <pcb_tablecell.h>
+#include <pcb_track.h>
 #include <pcb_dimension.h>
 #include <pcbnew_id.h>
 #include <scoped_set_reset.h>
@@ -2074,11 +2078,20 @@ int DRAWING_TOOL::PlaceImportedGraphics( const TOOL_EVENT& aEvent )
 
     if( dlg.ShouldGroupItems() )
     {
-        group = new PCB_GROUP( m_frame->GetModel() );
+        size_t boardItemCount = std::count_if( list.begin(), list.end(),
+                                               []( const std::unique_ptr<EDA_ITEM>& ptr )
+                                               {
+                                                   return ptr->IsBOARD_ITEM();
+                                               } );
 
-        newItems.push_back( group );
-        selectedItems.push_back( group );
-        preview.Add( group );
+        if( boardItemCount >= 2 )
+        {
+            group = new PCB_GROUP( m_frame->GetModel() );
+
+            newItems.push_back( group );
+            selectedItems.push_back( group );
+            preview.Add( group );
+        }
     }
 
     if( dlg.ShouldFixDiscontinuities() )

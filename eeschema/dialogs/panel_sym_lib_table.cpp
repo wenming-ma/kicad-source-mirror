@@ -159,6 +159,11 @@ public:
         SetTooltipEnable( COL_STATUS );
     }
 
+    static bool SupportsVisibilityColumn()
+    {
+        return true;
+    }
+
 protected:
     void optionsEditor( int aRow ) override
     {
@@ -201,7 +206,7 @@ protected:
 
     bool supportsVisibilityColumn() override
     {
-        return true;
+        return SYMBOL_GRID_TRICKS::SupportsVisibilityColumn();
     }
 
 protected:
@@ -299,7 +304,8 @@ void PANEL_SYM_LIB_TABLE::AddTable( LIBRARY_TABLE* table, const wxString& aTitle
 PANEL_SYM_LIB_TABLE::PANEL_SYM_LIB_TABLE( DIALOG_EDIT_LIBRARY_TABLES* aParent, PROJECT* aProject ) :
         PANEL_SYM_LIB_TABLE_BASE( aParent ),
         m_project( aProject ),
-        m_parent( aParent )
+        m_parent( aParent ),
+        m_suppressNotebookPageEvents( false )
 {
     m_lastProjectLibDir = m_project->GetProjectPath();
 
@@ -399,6 +405,7 @@ PANEL_SYM_LIB_TABLE::PANEL_SYM_LIB_TABLE( DIALOG_EDIT_LIBRARY_TABLES* aParent, P
     Layout();
 
     m_notebook->Bind( wxEVT_AUINOTEBOOK_PAGE_CLOSE, &PANEL_SYM_LIB_TABLE::onNotebookPageCloseRequest, this );
+    m_notebook->Bind( wxEVT_AUINOTEBOOK_PAGE_CHANGING, &PANEL_SYM_LIB_TABLE::onNotebookPageChangeRequest, this );
     m_browseButton->Bind( wxEVT_BUTTON, &PANEL_SYM_LIB_TABLE::browseLibrariesHandler, this );
 }
 
@@ -468,7 +475,7 @@ bool PANEL_SYM_LIB_TABLE::verifyTables()
     {
         WX_GRID* grid = get_grid( page );
 
-        if( !LIB_TABLE_GRID_TRICKS::VerifyTable( grid,
+        if( !SYMBOL_GRID_TRICKS::VerifyTable( grid, SYMBOL_GRID_TRICKS::SupportsVisibilityColumn(),
                 [&]( int aRow, int aCol )
                 {
                     // show the tabbed panel holding the grid we have flunked:
@@ -701,6 +708,15 @@ void PANEL_SYM_LIB_TABLE::onReset( wxCommandEvent& event )
 }
 
 
+void PANEL_SYM_LIB_TABLE::onNotebookPageChangeRequest( wxAuiNotebookEvent& aEvent )
+{
+    if( m_suppressNotebookPageEvents )
+        aEvent.Veto();
+    else
+        aEvent.Skip();
+}
+
+
 void PANEL_SYM_LIB_TABLE::onPageChange( wxAuiNotebookEvent& event )
 {
     m_resetGlobal->Enable( m_notebook->GetSelection() == 0 );
@@ -879,6 +895,7 @@ bool PANEL_SYM_LIB_TABLE::TransferDataFromWindow()
         }
     }
 
+    m_suppressNotebookPageEvents = true;
     return true;
 }
 

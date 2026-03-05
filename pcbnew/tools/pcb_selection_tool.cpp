@@ -24,7 +24,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <limits>
 #include <cmath>
 #include <functional>
 #include <stack>
@@ -34,9 +33,12 @@ using namespace std::placeholders;
 #include <macros.h>
 #include <board.h>
 #include <board_design_settings.h>
+#include <footprint.h>
+#include <pad.h>
 #include <pcb_point.h>
 #include <pcb_table.h>
 #include <pcb_tablecell.h>
+#include <pcb_track.h>
 #include <pcb_marker.h>
 #include <pcb_generator.h>
 #include <pcb_base_edit_frame.h>
@@ -2366,6 +2368,14 @@ void PCB_SELECTION_TOOL::doSyncSelection( const std::vector<BOARD_ITEM*>& aItems
 {
     if( m_selection.Front() && m_selection.Front()->IsMoving() )
         return;
+
+    // Also check the incoming items. If the cross-probe flash timer cleared the selection
+    // during a move, Front() would be null but the items are still being actively moved.
+    for( const BOARD_ITEM* item : aItems )
+    {
+        if( item->IsMoving() )
+            return;
+    }
 
     ClearSelection( true /*quiet mode*/ );
 

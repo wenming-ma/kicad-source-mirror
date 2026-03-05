@@ -606,6 +606,51 @@ const ITEM_SET TOPOLOGY::AssembleTuningPath( ROUTER_IFACE* aRouterIface, ITEM* a
     if( padB )
         processPad( padB, joints.second->Layer() );
 
+    // Find and process any intermediate pads along the path. This is important for inline
+    // footprints such as ESD protection networks where traces pass through pads that are
+    // not at the terminal ends of the tuning path. Without this, the length calculation
+    // would include trace portions inside intermediate pads, causing a mismatch with DRC.
+    std::set<PAD*> processedPads;
+
+    if( padA )
+        processedPads.insert( padA );
+
+    if( padB )
+        processedPads.insert( padB );
+
+    for( int idx = 0; idx < initialPath.Size(); idx++ )
+    {
+        if( initialPath[idx]->Kind() != ITEM::LINE_T )
+            continue;
+
+        LINE* line = static_cast<LINE*>( initialPath[idx] );
+
+        // Check joints at both endpoints of this line segment
+        for( const VECTOR2I& pt : { line->CPoint( 0 ), line->CLastPoint() } )
+        {
+            const JOINT* jt = m_world->FindJoint( pt, line );
+
+            if( !jt )
+                continue;
+
+            // Skip terminal joints - they're already processed
+            if( jt == joints.first || jt == joints.second )
+                continue;
+
+            PAD* intermediatePad = nullptr;
+            getPadFromJoint( jt, &intermediatePad, nullptr );
+
+            if( intermediatePad && processedPads.find( intermediatePad ) == processedPads.end() )
+            {
+                wxLogTrace( wxT( "PNS_TUNE" ),
+                            wxT( "AssembleTuningPath: found intermediate pad at joint (%d,%d)" ),
+                            jt->Pos().x, jt->Pos().y );
+                processPad( intermediatePad, jt->Layer() );
+                processedPads.insert( intermediatePad );
+            }
+        }
+    }
+
     // Calculate total path length
     int totalLength = 0;
     int lineCount = 0;
@@ -808,6 +853,7 @@ const TOPOLOGY::CLUSTER TOPOLOGY::AssembleCluster( ITEM* aStart, int aLayer, dou
 
     BOX2I clusterBBox = aStart->Shape( aLayer )->BBox();
     int64_t initialArea = clusterBBox.GetArea();
+    std::unordered_set<ITEM*> processed;
 
     while( !pending.empty() )
     {
@@ -816,7 +862,12 @@ const TOPOLOGY::CLUSTER TOPOLOGY::AssembleCluster( ITEM* aStart, int aLayer, dou
 
         pending.pop_front();
 
-        cluster.m_items.insert( top );
+        if( processed.find( top ) == processed.end() )
+        {
+            cluster.m_items.push_back( top );
+        }
+
+        processed.insert( top );
 
         m_world->QueryColliding( top, obstacles, opts ); // only query touching objects
 
@@ -846,10 +897,11 @@ const TOPOLOGY::CLUSTER TOPOLOGY::AssembleCluster( ITEM* aStart, int aLayer, dou
             if( aAreaExpansionLimit > 0.0 && areaRatio > aAreaExpansionLimit )
                 break;
 
-            if( cluster.m_items.find( obs.m_item ) == cluster.m_items.end() &&
+            if( processed.find( obs.m_item ) == processed.end() &&
                 obs.m_item->Layers().Overlaps( aLayer ) && !( obs.m_item->Marker() & MK_HEAD ) )
             {
-                cluster.m_items.insert( obs.m_item );
+                processed.insert( obs.m_item );
+                cluster.m_items.push_back( obs.m_item );
                 pending.push_back( obs.m_item );
             }
         }

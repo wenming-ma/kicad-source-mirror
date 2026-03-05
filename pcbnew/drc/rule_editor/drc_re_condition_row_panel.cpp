@@ -33,6 +33,7 @@
 #include <wx/choice.h>
 #include <wx/bmpbuttn.h>
 #include <wx/stc/stc.h>
+#include <scintilla_tricks.h>
 #include <wx/regex.h>
 #include <wx/log.h>
 
@@ -110,6 +111,17 @@ DRC_RE_CONDITION_ROW_PANEL::DRC_RE_CONDITION_ROW_PANEL( wxWindow* aParent, BOARD
     m_customQueryCtrl->SetReadOnly( false );
     m_customQueryCtrl->SetUseHorizontalScrollBar( false );
     m_customQueryCtrl->SetMaxSize( wxSize( -1, 60 ) );
+
+    m_scintillaTricks = std::make_unique<SCINTILLA_TRICKS>(
+        m_customQueryCtrl, wxT( "()" ), false,
+        []( wxKeyEvent& aEvent )
+        {
+            aEvent.Skip();
+        },
+        []( wxStyledTextEvent& aEvent )
+        {
+        } );
+
     m_contentSizer->Add( m_customQueryCtrl, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5 );
     m_customQueryCtrl->Hide();
 
@@ -127,6 +139,11 @@ DRC_RE_CONDITION_ROW_PANEL::DRC_RE_CONDITION_ROW_PANEL( wxWindow* aParent, BOARD
     m_objectChoice->Bind( wxEVT_CHOICE, &DRC_RE_CONDITION_ROW_PANEL::onObjectChoice, this );
     m_conditionChoice->Bind( wxEVT_CHOICE, &DRC_RE_CONDITION_ROW_PANEL::onConditionChoice, this );
     m_deleteBtn->Bind( wxEVT_BUTTON, &DRC_RE_CONDITION_ROW_PANEL::onDeleteClicked, this );
+    m_netSelector->Bind( FILTERED_ITEM_SELECTED, &DRC_RE_CONDITION_ROW_PANEL::onValueChanged, this );
+    m_netclassSelector->Bind( FILTERED_ITEM_SELECTED, &DRC_RE_CONDITION_ROW_PANEL::onValueChanged, this );
+    m_areaSelector->Bind( FILTERED_ITEM_SELECTED, &DRC_RE_CONDITION_ROW_PANEL::onValueChanged, this );
+    m_customQueryCtrl->Bind( wxEVT_STC_CHANGE, &DRC_RE_CONDITION_ROW_PANEL::onCustomQueryChanged, this );
+
     wxLogTrace( TRACE_COND, wxS( "[DRC_RE_CONDITION_ROW_PANEL] ctor END" ) );
 }
 
@@ -353,6 +370,20 @@ void DRC_RE_CONDITION_ROW_PANEL::onDeleteClicked( wxCommandEvent& aEvent )
 {
     if( m_deleteCallback )
         m_deleteCallback();
+}
+
+
+void DRC_RE_CONDITION_ROW_PANEL::onValueChanged( wxCommandEvent& aEvent )
+{
+    if( m_changeCallback )
+        m_changeCallback();
+}
+
+
+void DRC_RE_CONDITION_ROW_PANEL::onCustomQueryChanged( wxStyledTextEvent& aEvent )
+{
+    if( m_changeCallback )
+        m_changeCallback();
 }
 
 

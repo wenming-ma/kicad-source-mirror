@@ -44,6 +44,8 @@
 #include <footprint_library_adapter.h>
 #include <eda_3d_viewer_frame.h>
 #include <project_pcb.h>
+#include <pad.h>
+#include <pcb_track.h>
 
 #include <base_units.h>
 #include <core/profile.h>        // To use GetRunningMicroSecs or another profiling utility
@@ -64,9 +66,7 @@ static float TransparencyControl( float aGrayColorValue, float aTransparency )
     float ca = 1.0f - aTransparency;
     ca       = 1.00f - 1.05f * ca * ca * ca;
 
-    // Squaring gray value makes darker colors more opaque, which improves appearance
-    // of dark solder masks like black where copper would otherwise show through
-    return glm::max( glm::min( aGrayColorValue * aGrayColorValue * ca + aaa, 1.0f ), 0.0f );
+    return glm::max( glm::min( aGrayColorValue * ca + aaa, 1.0f ), 0.0f );
 }
 
 /**
@@ -1574,6 +1574,9 @@ void RENDER_3D_RAYTRACE_BASE::backfillPostMachine()
 
 void RENDER_3D_RAYTRACE_BASE::insertHole( const PCB_VIA* aVia )
 {
+    if( !m_boardAdapter.m_Cfg->m_Render.show_plated_barrels )
+        return;
+
     PCB_LAYER_ID top_layer, bottom_layer;
     int          radiusBUI = ( aVia->GetDrillValue() / 2 );
 
@@ -1651,6 +1654,9 @@ void RENDER_3D_RAYTRACE_BASE::insertHole( const PCB_VIA* aVia )
 
 void RENDER_3D_RAYTRACE_BASE::insertHole( const PAD* aPad )
 {
+    if( !m_boardAdapter.m_Cfg->m_Render.show_plated_barrels )
+        return;
+
     const OBJECT_2D* object2d_A = nullptr;
 
     SFVEC3F        objColor = m_boardAdapter.m_CopperColor;
@@ -1927,10 +1933,6 @@ void RENDER_3D_RAYTRACE_BASE::load3DModels( CONTAINER_3D& aDstContainer,
         if( !fp->Models().empty()
           && m_boardAdapter.IsFootprintShown( fp ) )
         {
-            // Skip 3D models for footprints that are DNP in the current variant
-            if( fp->GetDNPForVariant( currentVariant ) )
-                continue;
-
             double zpos = m_boardAdapter.GetFootprintZPos( fp->IsFlipped() );
 
             VECTOR2I pos = fp->GetPosition();

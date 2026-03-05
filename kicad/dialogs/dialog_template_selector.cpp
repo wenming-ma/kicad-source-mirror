@@ -127,42 +127,27 @@ TEMPLATE_WIDGET::TEMPLATE_WIDGET( wxWindow* aParent, DIALOG_TEMPLATE_SELECTOR* a
     // The actual size will be determined by the parent sizer
     SetMinSize( FromDIP( wxSize( 200, -1 ) ) );
 
-    m_bitmapIcon->Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::OnMouse ),
-                           nullptr, this );
-    m_staticTitle->Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::OnMouse ),
-                            nullptr, this );
-    m_staticDescription->Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::OnMouse ),
-                                  nullptr, this );
+    m_bitmapIcon->Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::OnMouse ), nullptr, this );
+    m_titleLabel->Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::OnMouse ), nullptr, this );
+    m_descLabel->Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::OnMouse ), nullptr, this );
 
     Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::OnMouse ), nullptr, this );
 
-    m_bitmapIcon->Connect( wxEVT_RIGHT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::onRightClick ),
-                           nullptr, this );
-    m_staticTitle->Connect( wxEVT_RIGHT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::onRightClick ),
-                            nullptr, this );
-    m_staticDescription->Connect( wxEVT_RIGHT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::onRightClick ),
-                                  nullptr, this );
-    Connect( wxEVT_RIGHT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::onRightClick ),
-             nullptr, this );
+    m_bitmapIcon->Connect( wxEVT_RIGHT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::onRightClick ), nullptr, this );
+    m_titleLabel->Connect( wxEVT_RIGHT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::onRightClick ), nullptr, this );
+    m_descLabel->Connect( wxEVT_RIGHT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::onRightClick ), nullptr, this );
+    Connect( wxEVT_RIGHT_DOWN, wxMouseEventHandler( TEMPLATE_WIDGET::onRightClick ), nullptr, this );
 
-    m_bitmapIcon->Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( TEMPLATE_WIDGET::OnDoubleClick ),
-                           nullptr, this );
-    m_staticTitle->Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( TEMPLATE_WIDGET::OnDoubleClick ),
-                            nullptr, this );
-    m_staticDescription->Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( TEMPLATE_WIDGET::OnDoubleClick ),
-                                  nullptr, this );
-    Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( TEMPLATE_WIDGET::OnDoubleClick ),
-             nullptr, this );
+    m_bitmapIcon->Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( TEMPLATE_WIDGET::OnDoubleClick ), nullptr, this );
+    m_titleLabel->Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( TEMPLATE_WIDGET::OnDoubleClick ), nullptr, this );
+    m_descLabel->Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( TEMPLATE_WIDGET::OnDoubleClick ), nullptr, this );
+    Connect( wxEVT_LEFT_DCLICK, wxMouseEventHandler( TEMPLATE_WIDGET::OnDoubleClick ), nullptr, this );
 
     // Set description text to use a smaller font
-    m_staticDescription->SetFont( KIUI::GetInfoFont( this ) );
-
-    // Set small minimum sizes on text controls to allow dialog shrinking
-    m_staticTitle->SetMinSize( FromDIP( wxSize( 100, -1 ) ) );
-    m_staticDescription->SetMinSize( FromDIP( wxSize( 100, -1 ) ) );
+    m_descLabel->SetFont( KIUI::GetInfoFont( this ) );
 
 #if wxCHECK_VERSION( 3, 3, 2 )
-    m_staticDescription->SetWindowStyle( wxST_WRAP );
+    m_descLabel->SetWindowStyle( wxST_WRAP );
 #endif
 
     // Bind size event for dynamic text wrapping
@@ -178,8 +163,8 @@ void TEMPLATE_WIDGET::Select()
 {
     m_dialog->SetWidget( this );
     SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHT ) );
-    m_staticTitle->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHTTEXT ) );
-    m_staticDescription->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHTTEXT ) );
+    m_titleLabel->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHTTEXT ) );
+    m_descLabel->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHTTEXT ) );
     m_selected = true;
     Refresh();
 }
@@ -188,8 +173,8 @@ void TEMPLATE_WIDGET::Select()
 void TEMPLATE_WIDGET::SelectWithoutStateChange()
 {
     SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHT ) );
-    m_staticTitle->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHTTEXT ) );
-    m_staticDescription->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHTTEXT ) );
+    m_titleLabel->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHTTEXT ) );
+    m_descLabel->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHTTEXT ) );
     m_selected = true;
     Refresh();
 }
@@ -198,8 +183,8 @@ void TEMPLATE_WIDGET::SelectWithoutStateChange()
 void TEMPLATE_WIDGET::Unselect()
 {
     SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNFACE ) );
-    m_staticTitle->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNTEXT ) );
-    m_staticDescription->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNTEXT ) );
+    m_titleLabel->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNTEXT ) );
+    m_descLabel->SetForegroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNTEXT ) );
     m_selected = false;
     Refresh();
 }
@@ -208,8 +193,8 @@ void TEMPLATE_WIDGET::Unselect()
 void TEMPLATE_WIDGET::SetTemplate( PROJECT_TEMPLATE* aTemplate )
 {
     m_currTemplate = aTemplate;
-    m_staticTitle->SetFont( KIUI::GetInfoFont( this ).Bold() );
-    m_staticTitle->SetLabel( *aTemplate->GetTitle() );
+    m_titleLabel->SetFont( KIUI::GetInfoFont( this ).Bold() );
+    m_titleLabel->SetLabel( *aTemplate->GetTitle() );
 
     // Generate bitmap bundle from template icon bitmap (64x64)
     // so wxStaticBitmap can size itself to the closest match
@@ -228,7 +213,7 @@ void TEMPLATE_WIDGET::SetTemplate( PROJECT_TEMPLATE* aTemplate )
 
     for( const int genSize : c_bitmapSizes )
     {
-        double scale = std::min( (double) genSize / defSize.GetWidth(), 
+        double scale = std::min( (double) genSize / defSize.GetWidth(),
                                  (double) genSize / defSize.GetHeight() );
 
         wxSize scaledSize( wxRound( defSize.x * scale ),
@@ -254,7 +239,7 @@ void TEMPLATE_WIDGET::SetDescription( const wxString& aDescription )
     if( displayDesc.Length() > 120 )
         displayDesc = displayDesc.Left( 120 ) + wxS( "..." );
 
-    m_staticDescription->SetLabel( displayDesc );
+    m_descLabel->SetLabel( displayDesc );
 }
 
 
@@ -276,8 +261,8 @@ void TEMPLATE_WIDGET::OnSize( wxSizeEvent& event )
         if( displayDesc.Length() > 120 )
             displayDesc = displayDesc.Left( 120 ) + wxS( "..." );
 
-        m_staticDescription->SetLabel( displayDesc );
-        m_staticDescription->Wrap( wrapWidth );
+        m_descLabel->SetLabel( displayDesc );
+        m_descLabel->Wrap( wrapWidth );
         Layout();
     }
 #endif
@@ -301,14 +286,15 @@ void TEMPLATE_WIDGET::OnDoubleClick( wxMouseEvent& event )
 
 void TEMPLATE_WIDGET::onRightClick( wxMouseEvent& event )
 {
-    if( !m_isUserTemplate || !m_currTemplate )
+    if( !m_currTemplate )
     {
         event.Skip();
         return;
     }
 
     wxMenu menu;
-    menu.Append( wxID_EDIT, _( "Edit Template" ) );
+    menu.Append( wxID_EDIT, m_isUserTemplate ? _( "Edit Template" ) : _( "Open Template (Read-Only)" ) );
+    menu.Append( wxID_OPEN, _( "Open Template Folder" ) );
     menu.Append( wxID_COPY, _( "Duplicate Template" ) );
 
     menu.Bind( wxEVT_COMMAND_MENU_SELECTED,
@@ -316,6 +302,8 @@ void TEMPLATE_WIDGET::onRightClick( wxMouseEvent& event )
                {
                    if( evt.GetId() == wxID_EDIT )
                        onEditTemplate( evt );
+                   if( evt.GetId() == wxID_OPEN )
+                       onOpenFolder( evt );
                    else if( evt.GetId() == wxID_COPY )
                        onDuplicateTemplate( evt );
                } );
@@ -357,6 +345,19 @@ void TEMPLATE_WIDGET::onEditTemplate( wxCommandEvent& event )
 }
 
 
+void TEMPLATE_WIDGET::onOpenFolder( wxCommandEvent& event )
+{
+    if( !m_currTemplate )
+        return;
+
+    wxFileName templatePath = m_currTemplate->GetHtmlFile();
+    templatePath.RemoveLastDir();
+
+    if( !wxLaunchDefaultApplication( templatePath.GetPath() ) )
+        DisplayError( this, wxString::Format( _( "Failed to open '%s'." ), templatePath.GetPath() ) );
+}
+
+
 void TEMPLATE_WIDGET::onDuplicateTemplate( wxCommandEvent& event )
 {
     if( !m_currTemplate )
@@ -367,9 +368,7 @@ void TEMPLATE_WIDGET::onDuplicateTemplate( wxCommandEvent& event )
     wxString srcTemplatePath = templatePath.GetPath();
     wxString srcTemplateName = m_currTemplate->GetPrjDirName();
 
-    wxTextEntryDialog nameDlg( m_dialog,
-                               _( "Enter name for the new template:" ),
-                               _( "Duplicate Template" ),
+    wxTextEntryDialog nameDlg( m_dialog, _( "Enter name for the new template:" ), _( "Duplicate Template" ),
                                srcTemplateName + _( "_copy" ) );
 
     if( nameDlg.ShowModal() != wxID_OK )
@@ -397,17 +396,13 @@ void TEMPLATE_WIDGET::onDuplicateTemplate( wxCommandEvent& event )
 
     if( destPath.DirExists() )
     {
-        DisplayErrorMessage( m_dialog,
-                             wxString::Format( _( "Directory '%s' already exists." ),
-                                               newTemplatePath ) );
+        DisplayErrorMessage( m_dialog, wxString::Format( _( "Directory '%s' already exists." ), newTemplatePath ) );
         return;
     }
 
     if( !destPath.Mkdir( wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL ) )
     {
-        DisplayErrorMessage( m_dialog,
-                             wxString::Format( _( "Could not create directory '%s'." ),
-                                               newTemplatePath ) );
+        DisplayErrorMessage( m_dialog, wxString::Format( _( "Could not create directory '%s'." ), newTemplatePath ) );
         return;
     }
 
@@ -419,8 +414,7 @@ void TEMPLATE_WIDGET::onDuplicateTemplate( wxCommandEvent& event )
         return;
     }
 
-    PROJECT_TREE_TRAVERSER traverser( nullptr, srcTemplatePath, srcTemplateName,
-                                      newTemplatePath, newTemplateName );
+    PROJECT_TREE_TRAVERSER traverser( nullptr, srcTemplatePath, srcTemplateName, newTemplatePath, newTemplateName );
 
     sourceDir.Traverse( traverser );
 
@@ -468,16 +462,24 @@ void TEMPLATE_WIDGET::onDuplicateTemplate( wxCommandEvent& event )
         }
     }
 
-    DisplayInfoMessage( m_dialog, wxString::Format( _( "Template duplicated successfully to '%s'." ),
-                                                    newTemplatePath ) );
+    // The file copy triggers OnFileSystemEvent which starts a refresh timer. If we show a
+    // modal info dialog here, the timer fires during the modal event loop and destroys this
+    // TEMPLATE_WIDGET while we're still on its call stack. Defer both the message and the
+    // refresh to run after the current event handler returns.
+    DIALOG_TEMPLATE_SELECTOR* dlg = m_dialog;
 
-    m_dialog->RefreshTemplateList();
+    dlg->CallAfter(
+            [dlg, newTemplatePath]()
+            {
+                DisplayInfoMessage( dlg, wxString::Format( _( "Template duplicated successfully to '%s'." ),
+                                                           newTemplatePath ) );
+                dlg->RefreshTemplateList();
+            } );
 }
 
 
 DIALOG_TEMPLATE_SELECTOR::DIALOG_TEMPLATE_SELECTOR( wxWindow* aParent, const wxPoint& aPos,
-                                                    const wxSize& aSize,
-                                                    const wxString& aUserTemplatesPath,
+                                                    const wxSize& aSize, const wxString& aUserTemplatesPath,
                                                     const wxString& aSystemTemplatesPath,
                                                     const std::vector<wxString>& aRecentTemplates ) :
         DIALOG_TEMPLATE_SELECTOR_BASE( aParent, wxID_ANY, _( "Project Template Selector" ), aPos, aSize ),
@@ -632,8 +634,8 @@ void DIALOG_TEMPLATE_SELECTOR::BuildMRUList()
 
         wxString displayTitle = title ? *title : templateDir.GetDirs().Last();
 
-        TEMPLATE_MRU_WIDGET* mruWidget = new TEMPLATE_MRU_WIDGET( m_scrolledMRU, this, path,
-                                                                  displayTitle, scaledIcon );
+        TEMPLATE_MRU_WIDGET* mruWidget = new TEMPLATE_MRU_WIDGET( m_scrolledMRU, this, path, displayTitle,
+                                                                  scaledIcon );
         m_sizerMRU->Add( mruWidget, 0, wxEXPAND | wxBOTTOM, 2 );
         m_mruWidgets.push_back( mruWidget );
     }
@@ -658,45 +660,22 @@ void DIALOG_TEMPLATE_SELECTOR::BuildTemplateList()
     m_templateWidgets.clear();
     m_templates.clear();
 
-    auto scanDirectory = [this]( const wxString& aPath, bool aIsUser )
-    {
-        if( aPath.IsEmpty() )
-            return;
-
-        wxDir dir;
-
-        if( !dir.Open( aPath ) )
-            return;
-
-        wxLogTrace( traceTemplateSelector, "Scanning directory: %s (user=%d)", aPath, aIsUser );
-
-        if( dir.HasSubDirs( "meta" ) )
-        {
-            auto templ = std::make_unique<PROJECT_TEMPLATE>( aPath );
-            wxFileName htmlFile = templ->GetHtmlFile();
-            wxString description = ExtractDescription( htmlFile );
-
-            TEMPLATE_WIDGET* widget = new TEMPLATE_WIDGET( m_scrolledTemplates, this );
-            widget->SetTemplate( templ.get() );
-            widget->SetDescription( description );
-            widget->SetIsUserTemplate( aIsUser );
-
-            m_templates.push_back( std::move( templ ) );
-            m_templateWidgets.push_back( widget );
-        }
-        else
-        {
-            wxString subName;
-            bool cont = dir.GetFirst( &subName, wxEmptyString, wxDIR_DIRS );
-
-            while( cont )
+    auto scanDirectory =
+            [this]( const wxString& aPath, bool aIsUser )
             {
-                wxString subFull = aPath + wxFileName::GetPathSeparator() + subName;
-                wxDir subDir;
+                if( aPath.IsEmpty() )
+                    return;
 
-                if( subDir.Open( subFull ) )
+                wxDir dir;
+
+                if( !dir.Open( aPath ) )
+                    return;
+
+                wxLogTrace( traceTemplateSelector, "Scanning directory: %s (user=%d)", aPath, aIsUser );
+
+                if( dir.HasSubDirs( "meta" ) )
                 {
-                    auto templ = std::make_unique<PROJECT_TEMPLATE>( subFull );
+                    auto templ = std::make_unique<PROJECT_TEMPLATE>( aPath );
                     wxFileName htmlFile = templ->GetHtmlFile();
                     wxString description = ExtractDescription( htmlFile );
 
@@ -708,11 +687,35 @@ void DIALOG_TEMPLATE_SELECTOR::BuildTemplateList()
                     m_templates.push_back( std::move( templ ) );
                     m_templateWidgets.push_back( widget );
                 }
+                else
+                {
+                    wxString subName;
+                    bool cont = dir.GetFirst( &subName, wxEmptyString, wxDIR_DIRS );
 
-                cont = dir.GetNext( &subName );
-            }
-        }
-    };
+                    while( cont )
+                    {
+                        wxString subFull = aPath + wxFileName::GetPathSeparator() + subName;
+                        wxDir subDir;
+
+                        if( subDir.Open( subFull ) )
+                        {
+                            auto templ = std::make_unique<PROJECT_TEMPLATE>( subFull );
+                            wxFileName htmlFile = templ->GetHtmlFile();
+                            wxString description = ExtractDescription( htmlFile );
+
+                            TEMPLATE_WIDGET* widget = new TEMPLATE_WIDGET( m_scrolledTemplates, this );
+                            widget->SetTemplate( templ.get() );
+                            widget->SetDescription( description );
+                            widget->SetIsUserTemplate( aIsUser );
+
+                            m_templates.push_back( std::move( templ ) );
+                            m_templateWidgets.push_back( widget );
+                        }
+
+                        cont = dir.GetNext( &subName );
+                    }
+                }
+            };
 
     scanDirectory( m_userTemplatesPath, true );
     scanDirectory( m_systemTemplatesPath, false );
@@ -723,14 +726,17 @@ void DIALOG_TEMPLATE_SELECTOR::BuildTemplateList()
                {
                    wxString titleA = *a->GetTemplate()->GetTitle();
                    wxString titleB = *b->GetTemplate()->GetTitle();
+                   int      cmp = titleA.CmpNoCase( titleB );
+
+                   if( cmp == 0 )
+                       return false;
 
                    if( titleA.CmpNoCase( "default" ) == 0 )
                        return true;
-
-                   if( titleB.CmpNoCase( "default" ) == 0 )
+                   else if( titleB.CmpNoCase( "default" ) == 0 )
                        return false;
 
-                   return titleA.CmpNoCase( titleB ) < 0;
+                   return cmp < 0;
                } );
 
     for( TEMPLATE_WIDGET* widget : m_templateWidgets )
@@ -748,8 +754,7 @@ void DIALOG_TEMPLATE_SELECTOR::BuildTemplateList()
                 OnScrolledTemplatesSize( evt );
             } );
 
-    wxLogTrace( traceTemplateSelector, "BuildTemplateList() found %zu templates",
-                m_templateWidgets.size() );
+    wxLogTrace( traceTemplateSelector, "BuildTemplateList() found %zu templates", m_templateWidgets.size() );
 }
 
 
@@ -925,8 +930,8 @@ void DIALOG_TEMPLATE_SELECTOR::EnsureWebViewCreated()
 
     // Create the WEBVIEW_PANEL lazily to avoid WebKit JavaScript VM initialization issues
     // when the dialog is opened from a coroutine context.
-    m_webviewPanel = new WEBVIEW_PANEL( m_webviewPlaceholder, wxID_ANY, wxDefaultPosition,
-                                        wxDefaultSize, wxTAB_TRAVERSAL );
+    m_webviewPanel = new WEBVIEW_PANEL( m_webviewPlaceholder, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+                                        wxTAB_TRAVERSAL );
 
     wxBoxSizer* sizer = new wxBoxSizer( wxVERTICAL );
     sizer->Add( m_webviewPanel, 1, wxEXPAND );
@@ -1024,11 +1029,12 @@ void DIALOG_TEMPLATE_SELECTOR::OnFileSystemEvent( wxFileSystemWatcherEvent& even
 
     // wxFileSystemWatcher may fire events from a worker thread on some platforms.
     // Use CallAfter to marshal timer operations to the main thread.
-    CallAfter( [this]()
-    {
-        m_refreshTimer.Stop();
-        m_refreshTimer.StartOnce( 500 );
-    } );
+    CallAfter(
+            [this]()
+            {
+                m_refreshTimer.Stop();
+                m_refreshTimer.StartOnce( 500 );
+            } );
 }
 
 
@@ -1043,13 +1049,9 @@ void DIALOG_TEMPLATE_SELECTOR::OnSysColourChanged( wxSysColourChangedEvent& even
     for( TEMPLATE_WIDGET* widget : m_templateWidgets )
     {
         if( widget->IsSelected() )
-        {
             widget->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHT ) );
-        }
         else
-        {
             widget->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_BTNFACE ) );
-        }
 
         widget->Refresh();
     }
@@ -1098,55 +1100,21 @@ void DIALOG_TEMPLATE_SELECTOR::OnWebViewLoaded( wxWebViewEvent& event )
     // Add style to external documets
     if( m_loadingExternalHtml )
     {
-        wxString script = wxS( R"(
-(function() {
-    var style = document.createElement('style');
+        wxString script = wxString::Format( wxS( R"(
+( function()
+{
+    var style = document.createElement( 'style' );
     style.textContent = `
-
-:root {
-  color-scheme: light dark;
-
-  --bg-primary: light-dark(#FFFFFF, #1E1E1E);
-  --bg-secondary: light-dark(#F3F3F3, #2D2D2D);
-  --bg-elevated: light-dark(#FFFFFF, #333333);
-  --text-primary: light-dark(#1F2328, #DED3DD);
-  --text-secondary: light-dark(#545454, #848484);
-  --accent: light-dark(#1A81C4, #42B8EB);
-  --accent-subtle: light-dark(rgba(26, 129, 196, 0.08), rgba(66, 184, 235, 0.1));
-  --border: light-dark(#E0E0E0, #404040);
-  --shadow: light-dark(0 1px 3px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.2));
-}
-
-body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: sans-serif;
-}
-
-a, a:link {
-  color: light-dark(#0D4A8B, #A7D7FC);
-}
-
-a:hover{
-  color: light-dark(#0A2540, #EBF5FE);
-}
-
-a:visited {
-  color: light-dark(#7C3EAE, #E9DDFC);
-}
-
-img { 
-  max-width: 100%;
-  height: auto;
-}
-
+%s
     `;
-    document.head.appendChild(style);
-})();
-        )" );
+    document.head.appendChild( style );
+} )();
+                                                 )" ), GetCommonStyles() );
 
+#if !defined( __MINGW32__ )     // RunScriptAsync() is not supported on MINGW build
         if( m_webviewPanel->GetBackend() != wxWebViewBackendIE )
             m_webviewPanel->RunScriptAsync( script );
+#endif
     }
 }
 

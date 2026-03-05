@@ -293,7 +293,9 @@ static void processShapeSegment( PCB_SHAPE* aShape, SHAPE_LINE_CHAIN& aContour,
 
         if( !close_enough( aPrevPt, pstart, aChainingEpsilon ) )
         {
-            wxASSERT( close_enough( aPrevPt, aShape->GetEnd(), aChainingEpsilon ) );
+            if( !close_enough( aPrevPt, aShape->GetEnd(), aChainingEpsilon ) )
+                return;
+
             std::swap( pstart, pend );
         }
 
@@ -1058,7 +1060,7 @@ bool BuildBoardPolygonOutlines( BOARD* aBoard, SHAPE_POLY_SET& aOutlines, int aE
 
         // If null area, uses the global bounding box.
         if( ( bbbox.GetWidth() ) == 0 || ( bbbox.GetHeight() == 0 ) )
-            bbbox = aBoard->ComputeBoundingBox( false );
+            bbbox = aBoard->ComputeBoundingBox( false, true );
 
         // Ensure non null area. If happen, gives a minimal size.
         if( ( bbbox.GetWidth() ) == 0 || ( bbbox.GetHeight() == 0 ) )
@@ -1125,7 +1127,7 @@ void buildBoardBoundingBoxPoly( const BOARD* aBoard, SHAPE_POLY_SET& aOutline )
 
     // If null area, uses the global bounding box.
     if( ( bbbox.GetWidth() ) == 0 || ( bbbox.GetHeight() == 0 ) )
-        bbbox = aBoard->ComputeBoundingBox( false );
+        bbbox = aBoard->ComputeBoundingBox( false, true );
 
     // Ensure non null area. If happen, gives a minimal size.
     if( ( bbbox.GetWidth() ) == 0 || ( bbbox.GetHeight() == 0 ) )

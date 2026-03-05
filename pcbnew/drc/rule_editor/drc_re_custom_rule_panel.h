@@ -24,11 +24,17 @@
 #ifndef DRC_RE_CUSTOM_RULE_PANEL_H
 #define DRC_RE_CUSTOM_RULE_PANEL_H
 
+#include <memory>
+
+#include <wx/tipwin.h>
 #include <wx/panel.h>
 #include <wx/stc/stc.h>
 
 #include "drc_re_content_panel_base.h"
 #include "drc_re_custom_rule_constraint_data.h"
+
+class SCINTILLA_TRICKS;
+class wxButton;
 
 /**
  * Simple panel used for editing custom rule text.  The panel consists of a
@@ -38,17 +44,30 @@ class DRC_RE_CUSTOM_RULE_PANEL : public wxPanel, public DRC_RULE_EDITOR_CONTENT_
 {
 public:
     DRC_RE_CUSTOM_RULE_PANEL( wxWindow* aParent, std::shared_ptr<DRC_RE_CUSTOM_RULE_CONSTRAINT_DATA> aConstraintData );
-    ~DRC_RE_CUSTOM_RULE_PANEL() override = default;
+    ~DRC_RE_CUSTOM_RULE_PANEL() override;
 
     bool TransferDataToWindow() override;
     bool TransferDataFromWindow() override;
-    bool ValidateInputs( int* aErrorCount, std::string* aValidationMessage ) override;
+    bool ValidateInputs( int* aErrorCount, wxString* aValidationMessage ) override;
 
     wxString GenerateRule( const RULE_GENERATION_CONTEXT& aContext ) override;
+    void     UpdateRuleName( const wxString& aName );
 
 private:
+    void onScintillaCharAdded( wxStyledTextEvent& aEvent );
+    void onCheckSyntax( wxCommandEvent& aEvent );
+
     std::shared_ptr<DRC_RE_CUSTOM_RULE_CONSTRAINT_DATA> m_constraintData;
     wxStyledTextCtrl*                                   m_textCtrl;
+    wxButton*                                           m_checkSyntaxBtn;
+
+#if wxCHECK_VERSION( 3, 3, 2 )
+    wxTipWindow::Ref m_tipWindow;
+#else
+    wxTipWindow* m_tipWindow = nullptr;
+#endif
+
+    std::unique_ptr<SCINTILLA_TRICKS>                   m_scintillaTricks;
 };
 
 #endif // DRC_RE_CUSTOM_RULE_PANEL_H

@@ -32,7 +32,6 @@
 #include <kiid.h>
 #include <layer_ids.h>
 #include <units_provider.h>
-#include <pcb_shape.h>
 #include <lset.h>
 #include <drc/drc_rule.h>
 
@@ -270,6 +269,8 @@ public:
 
     bool HasRulesForConstraintType( DRC_CONSTRAINT_T constraintID );
 
+    bool HasGeometryDependentRules() const { return m_hasGeometryDependentRules; }
+
     bool GetReportAllTrackErrors() const { return m_reportAllTrackErrors; }
     bool GetTestFootprints() const { return m_testFootprints; }
 
@@ -287,7 +288,8 @@ public:
 
     REPORTER* GetLogReporter() const { return m_logReporter; }
 
-    bool QueryWorstConstraint( DRC_CONSTRAINT_T aRuleId, DRC_CONSTRAINT& aConstraint );
+    bool QueryWorstConstraint( DRC_CONSTRAINT_T aRuleId, DRC_CONSTRAINT& aConstraint,
+                               bool aUnconditionalOnly = false );
     std::set<int> QueryDistinctConstraints( DRC_CONSTRAINT_T aConstraintId );
 
     std::vector<DRC_TEST_PROVIDER*> GetTestProviders() const { return m_testProviders; };
@@ -388,6 +390,7 @@ protected:
     // Uses shared_mutex for reader-writer pattern (many concurrent reads, exclusive writes).
     mutable std::shared_mutex m_clearanceCacheMutex;
     bool m_hasExplicitClearanceRules = false;
+    bool m_hasGeometryDependentRules = false;
     bool m_hasDiffPairClearanceOverrides = false;
     std::map<DRC_CONSTRAINT_T, std::vector<DRC_ENGINE_CONSTRAINT*>> m_explicitConstraints;
 };

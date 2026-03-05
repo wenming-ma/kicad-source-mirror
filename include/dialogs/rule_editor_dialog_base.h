@@ -24,6 +24,7 @@
 #include <wx/srchctrl.h>
 #include <wx/bmpbuttn.h>
 #include <wx/splitter.h>
+#include <wx/scrolwin.h>
 
 #include <variant>
 #include <optional>
@@ -33,7 +34,6 @@
 #include <dialogs/rule_editor_data_base.h>
 
 class WX_INFOBAR;
-class wxDragImage;
 
 /**
  * Enumeration representing the available context menu options for the rule editor tree.
@@ -128,9 +128,21 @@ public:
     wxTreeCtrl* GetRuleTreeCtrl() { return m_ruleTreeCtrl; }
 
     /**
-     * Marks the dialog as modified, typically used to indicate unsaved changes.
+     * Marks the dialog as modified, indicating unsaved changes.
+     * Updates button states to reflect that changes can be discarded or saved.
      */
-    void SetModified() { m_modified = true; }
+    void SetModified();
+
+    /**
+     * Clears the modified flag, typically after saving.
+     * Updates button states to reflect no unsaved changes.
+     */
+    void ClearModified();
+
+    /**
+     * Returns whether the dialog has unsaved changes.
+     */
+    bool IsModified() const { return m_modified; }
 
     /**
      * Static method to retrieve the rule editor dialog instance associated with a given window.
@@ -223,6 +235,12 @@ public:
     void SetContentPanel( wxPanel* aContentPanel );
 
     /**
+     * Recalculates the scrolled content area's virtual size based on the current
+     * content panel's best size, and updates the scrollbar accordingly.
+     */
+    void RefreshContentScrollArea();
+
+    /**
      * Adds a new rule tree item under the specified parent and updates the tree history.
      *
      * @param aRuleTreeNode The node data to add.
@@ -272,12 +290,16 @@ public:
 
     virtual void OnCancel( wxCommandEvent& aEvent ) = 0;
 
+    bool Show( bool show ) override;
+
 protected:
     void finishInitialization();
 
     bool TransferDataToWindow() override;
 
     bool TransferDataFromWindow() override;
+
+    void OnCharHook( wxKeyEvent& aEvt ) override;
 
 private:
     /**
@@ -446,6 +468,7 @@ protected:
     wxTreeCtrl*       m_ruleTreeCtrl;
     WX_INFOBAR*       m_infoBar;
     wxPanel*          m_contentPanel;
+    wxScrolledWindow* m_scrolledContentWin;
     wxSplitterWindow* m_splitter;
     wxSearchCtrl*     m_filterSearch;
     wxTextCtrl*       m_filterText;
@@ -465,6 +488,7 @@ private:
     bool m_enableAddRule;
     bool m_enableDuplicateRule;
     bool m_enableDeleteRule;
+    bool m_modified;
     int  m_defaultSashPosition;
 
     wxString                    m_title;
@@ -472,7 +496,7 @@ private:
     RULE_TREE_ITEM_DATA*        m_selectedData;
     wxTreeItemId                m_previousId;
     wxTreeItemId                m_draggedItem;
-    wxDragImage*                m_dragImage;
+    wxTreeItemId                m_dropTargetItem;
 
     std::unordered_map<int, std::tuple<wxString, std::vector<int>, wxTreeItemId>> m_treeHistoryData;
 };

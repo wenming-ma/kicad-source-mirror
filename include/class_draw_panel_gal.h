@@ -233,7 +233,7 @@ public:
      *
      * @return true if the repaint attempt was successful.
      */
-    bool DoRePaint();
+    bool DoRePaint( bool aAllowSkip = true );
 
     /**
      * Create an overlay for rendering debug graphics.
@@ -287,6 +287,9 @@ protected:
 
     /// True when canvas needs to be refreshed from idle handler
     bool                     m_needIdleRefresh;
+
+    /// Last cursor position sent to GAL for drawing
+    VECTOR2D                 m_lastCursorPosition;
 
     /// Interface for drawing objects on a 2D-surface
     KIGFX::GAL*              m_gal;

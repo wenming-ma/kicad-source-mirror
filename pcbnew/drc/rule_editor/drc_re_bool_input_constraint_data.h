@@ -38,7 +38,7 @@ public:
     }
 
     explicit DRC_RE_BOOL_INPUT_CONSTRAINT_DATA( int aId, int aParentId, bool aBoolInputValue,
-                                                wxString aRuleName ) :
+                                                const wxString& aRuleName ) :
             DRC_RE_BASE_CONSTRAINT_DATA( aId, aParentId, aRuleName ),
             m_boolInputValue( aBoolInputValue )
     {
@@ -46,19 +46,40 @@ public:
 
     virtual ~DRC_RE_BOOL_INPUT_CONSTRAINT_DATA() = default;
 
+    BITMAPS GetOverlayBitmap() const override { return BITMAPS::constraint_vias_under_smd; }
+
+    std::vector<DRC_RE_FIELD_POSITION> GetFieldPositions() const override
+    {
+        // Positions measured from constraint_vias_under_smd.png (~280x160)
+        // Format: { xStart, xEnd, yTop, tabOrder }
+        return {
+            { 90 + DRC_RE_OVERLAY_XO, 110 + DRC_RE_OVERLAY_XO, 150 + DRC_RE_OVERLAY_YO, 1, _( "Disallow" ), LABEL_POSITION::RIGHT }, // checkbox (bottom left corner)
+        };
+    }
+
     VALIDATION_RESULT Validate() const override
     {
         // Boolean inputs are always valid - any true/false value is acceptable
         return VALIDATION_RESULT();
     }
 
-    wxString GenerateRule( const RULE_GENERATION_CONTEXT& aContext ) override
+    std::vector<wxString> GetConstraintClauses( const RULE_GENERATION_CONTEXT& aContext ) const override
     {
         if( !m_boolInputValue )
-            return wxEmptyString;
+            return {};
 
         wxString code = GetConstraintCode();
-        return buildRule( aContext, { wxString::Format( "(constraint %s)", code ) } );
+        return { wxString::Format( wxS( "(constraint %s)" ), code ) };
+    }
+
+    wxString GenerateRule( const RULE_GENERATION_CONTEXT& aContext ) override
+    {
+        auto clauses = GetConstraintClauses( aContext );
+
+        if( clauses.empty() )
+            return wxEmptyString;
+
+        return buildRule( aContext, clauses );
     }
 
     bool GetBoolInputValue() { return m_boolInputValue; }

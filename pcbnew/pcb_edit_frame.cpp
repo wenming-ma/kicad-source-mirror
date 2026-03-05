@@ -20,11 +20,24 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <algorithm>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+#include <wx/log.h>
+#include <wx/filename.h>
+#include <wx/filedlg.h>
+#include <wx/socket.h>
+#include <wx/wupdlock.h>
+
 #include <advanced_config.h>
 #include <connectivity/connectivity_data.h>
 #include <kiface_base.h>
 #include <kiway.h>
 #include <board_design_settings.h>
+#include <settings/color_settings.h>
 #include <pgm_base.h>
 #include <pcb_edit_frame.h>
 #include <3d_viewer/eda_3d_viewer_frame.h>
@@ -32,13 +45,9 @@
 #include <geometry/geometry_utils.h>
 #include <bitmaps.h>
 #include <confirm.h>
+#include <footprint.h>
 #include <lset.h>
 #include <trace_helpers.h>
-#include <algorithm>
-#include <type_traits>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
 #include <pcbnew_id.h>
 #include <pcbnew_settings.h>
 #include <pcb_layer_box_selector.h>
@@ -50,12 +59,13 @@
 #include <dialogs/dialog_dimension_properties.h>
 #include <dialogs/dialog_table_properties.h>
 #include <gal/graphics_abstraction_layer.h>
+#include <pad.h>
 #include <pcb_target.h>
 #include <pcb_point.h>
+#include <pcb_track.h>
 #include <layer_pairs.h>
 #include <drawing_sheet/ds_proxy_view_item.h>
 #include <wildcards_and_files_ext.h>
-#include <wx/filename.h>
 #include <functional>
 #include <pcb_barcode.h>
 #include <pcb_painter.h>
@@ -98,6 +108,8 @@
 #include <tools/align_distribute_tool.h>
 #include <tools/pad_tool.h>
 #include <microwave/microwave_tool.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 #include <tools/position_relative_tool.h>
 #include <tools/zone_filler_tool.h>
 #include <tools/multichannel_tool.h>
@@ -105,8 +117,6 @@
 #include <autorouter/autoplace_tool.h>
 #include <python/scripting/pcb_scripting_tool.h>
 #include <netlist_reader/netlist_reader.h>
-#include <wx/socket.h>
-#include <wx/wupdlock.h>
 #include <dialog_drc.h>     // for DIALOG_DRC_WINDOW_NAME definition
 #include <ratsnest/ratsnest_view_item.h>
 #include <widgets/appearance_controls.h>
@@ -125,7 +135,7 @@
 #include <footprint_viewer_frame.h>
 #include <footprint_chooser_frame.h>
 #include <toolbars_pcb_editor.h>
-#include <wx/log.h>
+#include <drc/rule_editor/dialog_drc_rule_editor.h>
 
 #ifdef KICAD_IPC_API
 #include <api/api_server.h>
@@ -139,8 +149,6 @@
 #include <richio.h>
 
 #include "../scripting/python_scripting.h"
-
-#include <wx/filedlg.h>
 
 using namespace std::placeholders;
 
@@ -207,12 +215,12 @@ PCB_EDIT_FRAME::PCB_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_showBorderAndTitleBlock = true;   // true to display sheet references
     m_SelTrackWidthBox = nullptr;
     m_SelViaSizeBox = nullptr;
-    m_currentVariantCtrl = nullptr;
-    m_show_layer_manager_tools = true;
+    m_CurrentVariantCtrl = nullptr;
+    m_ShowLayerManagerTools = true;
     m_supportsAutoSave = true;
-    m_probingSchToPcb = false;
-    m_show_search = false;
-    m_show_net_inspector = false;
+    m_ProbingSchToPcb = false;
+    m_ShowSearch = false;
+    m_ShowNetInspector = false;
     // Ensure timer has an owner before binding so it generates events.
     m_crossProbeFlashTimer.SetOwner( this );
     Bind( wxEVT_TIMER, &PCB_EDIT_FRAME::OnCrossProbeFlashTimer, this, m_crossProbeFlashTimer.GetId() );
@@ -323,7 +331,8 @@ PCB_EDIT_FRAME::PCB_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_auimgr.AddPane( m_appearancePanel, EDA_PANE().Name( wxS( "LayersManager" ) )
                       .Right().Layer( 4 )
                       .Caption( _( "Appearance" ) ).PaneBorder( false )
-                      .MinSize( m_appearancePanel->GetMinSize().x, -1 )
+                      // Don't use -1 for don't-change-height on a growable panel; it has side-effects.
+                      .MinSize( m_appearancePanel->GetMinSize().x, FromDIP( 60 ) )
 #ifdef __WXMAC__
                       // Best size for this pane is calculated larger than necessary on wxMac
                       .BestSize( m_appearancePanel->GetMinSize().x, -1 )
@@ -336,7 +345,8 @@ PCB_EDIT_FRAME::PCB_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_auimgr.AddPane( m_selectionFilterPanel, EDA_PANE().Name( wxS( "SelectionFilter" ) )
                       .Right().Layer( 4 ).Position( 2 )
                       .Caption( _( "Selection Filter" ) ).PaneBorder( false )
-                      .MinSize( m_selectionFilterPanel->GetMinSize().x, -1  )
+                      // Fixed-size pane; -1 for MinSize height is required
+                      .MinSize( m_selectionFilterPanel->GetMinSize().x, -1 )
                       .BestSize( m_selectionFilterPanel->GetBestSize().x, -1 )
                       .FloatingSize( m_selectionFilterPanel->GetBestSize() )
                       .CloseButton( false ) );
@@ -387,11 +397,11 @@ PCB_EDIT_FRAME::PCB_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
 
     RestoreAuiLayout();
 
-    m_auimgr.GetPane( "LayersManager" ).Show( m_show_layer_manager_tools );
-    m_auimgr.GetPane( "SelectionFilter" ).Show( m_show_layer_manager_tools );
+    m_auimgr.GetPane( "LayersManager" ).Show( m_ShowLayerManagerTools );
+    m_auimgr.GetPane( "SelectionFilter" ).Show( m_ShowLayerManagerTools );
     m_auimgr.GetPane( PropertiesPaneName() ).Show( GetPcbNewSettings()->m_AuiPanels.show_properties );
-    m_auimgr.GetPane( NetInspectorPanelName() ).Show( m_show_net_inspector );
-    m_auimgr.GetPane( SearchPaneName() ).Show( m_show_search );
+    m_auimgr.GetPane( NetInspectorPanelName() ).Show( m_ShowNetInspector );
+    m_auimgr.GetPane( SearchPaneName() ).Show( m_ShowSearch );
     m_auimgr.GetPane( DesignBlocksPaneName() ).Show( GetPcbNewSettings()->m_AuiPanels.design_blocks_show );
 
     // The selection filter doesn't need to grow in the vertical direction when docked
@@ -608,6 +618,18 @@ void PCB_EDIT_FRAME::StartCrossProbeFlash( const std::vector<BOARD_ITEM*>& aItem
         return;
     }
 
+    // Don't start flashing if any of the items are being moved. The flash timer toggles
+    // selection hide/show which corrupts the VIEW overlay state during an active move.
+    for( const BOARD_ITEM* item : aItems )
+    {
+        if( item->IsMoving() )
+        {
+            wxLogTrace( traceCrossProbeFlash,
+                        "StartCrossProbeFlash(PCB): aborted (items are moving)" );
+            return;
+        }
+    }
+
     if( m_crossProbeFlashing )
     {
         wxLogTrace( traceCrossProbeFlash, "StartCrossProbeFlash(PCB): restarting existing flash (phase=%d)",
@@ -650,9 +672,28 @@ void PCB_EDIT_FRAME::OnCrossProbeFlashTimer( wxTimerEvent& aEvent )
     if( !selTool )
         return;
 
+    // Don't manipulate the selection while items are being moved. The move tool holds a
+    // live reference to the selection and toggling hide/show on selected items corrupts
+    // the VIEW overlay state, causing crashes.
+    for( const KIID& id : m_crossProbeFlashItems )
+    {
+        if( EDA_ITEM* item = GetBoard()->ResolveItem( id, true ) )
+        {
+            if( item->IsMoving() )
+            {
+                wxLogTrace( traceCrossProbeFlash,
+                            "Timer(PCB) phase=%d: items are moving, stopping flash",
+                            m_crossProbeFlashPhase );
+                m_crossProbeFlashing = false;
+                m_crossProbeFlashTimer.Stop();
+                return;
+            }
+        }
+    }
+
     // Prevent recursion / IPC during flashing
-    bool prevGuard = m_probingSchToPcb;
-    m_probingSchToPcb = true;
+    bool prevGuard = m_ProbingSchToPcb;
+    m_ProbingSchToPcb = true;
 
     if( m_crossProbeFlashPhase % 2 == 0 )
     {
@@ -677,10 +718,11 @@ void PCB_EDIT_FRAME::OnCrossProbeFlashTimer( wxTimerEvent& aEvent )
     if( GetCanvas() )
     {
         GetCanvas()->ForceRefresh();
-    wxLogTrace( traceCrossProbeFlash, "Phase %d (PCB): forced canvas refresh", m_crossProbeFlashPhase );
+        wxLogTrace( traceCrossProbeFlash, "Phase %d (PCB): forced canvas refresh",
+                    m_crossProbeFlashPhase );
     }
 
-    m_probingSchToPcb = prevGuard;
+    m_ProbingSchToPcb = prevGuard;
 
     m_crossProbeFlashPhase++;
 
@@ -715,10 +757,15 @@ PCB_EDIT_FRAME::~PCB_EDIT_FRAME()
     }
 
     // Close modeless dialogs
-    wxWindow* open_dlg = wxWindow::FindWindowByName( DIALOG_DRC_WINDOW_NAME );
+    wxWindow* drcDlg = wxWindow::FindWindowByName( DIALOG_DRC_WINDOW_NAME );
 
-    if( open_dlg )
-        open_dlg->Close( true );
+    if( drcDlg )
+        drcDlg->Close( true );
+
+    wxWindow* ruleEditorDlg = wxWindow::FindWindowByName( DIALOG_DRC_RULE_EDITOR_WINDOW_NAME );
+
+    if( ruleEditorDlg )
+        ruleEditorDlg->Close( true );
 
     // Shutdown all running tools
     if( m_toolManager )
@@ -971,7 +1018,7 @@ void PCB_EDIT_FRAME::setupUIConditions()
 
     static const std::vector<KICAD_T> groupTypes = { PCB_GROUP_T, PCB_GENERATOR_T };
 
-    mgr->SetConditions( ACTIONS::group,        ENABLE( SELECTION_CONDITIONS::NotEmpty ) );
+    mgr->SetConditions( ACTIONS::group,        ENABLE( SELECTION_CONDITIONS::MoreThan( 1 ) ) );
     mgr->SetConditions( ACTIONS::ungroup,      ENABLE( SELECTION_CONDITIONS::HasTypes( groupTypes ) ) );
     mgr->SetConditions( PCB_ACTIONS::lock,     ENABLE( PCB_SELECTION_CONDITIONS::HasUnlockedItems ) );
     mgr->SetConditions( PCB_ACTIONS::unlock,   ENABLE( PCB_SELECTION_CONDITIONS::HasLockedItems ) );
@@ -1062,20 +1109,33 @@ void PCB_EDIT_FRAME::setupUIConditions()
     auto globalRatsnestCond =
             [this] (const SELECTION& )
             {
-                return GetPcbNewSettings()->m_Display.m_ShowGlobalRatsnest;
+                PCBNEW_SETTINGS* cfg = GetPcbNewSettings();
+                return cfg && cfg->m_Display.m_ShowGlobalRatsnest;
             };
 
     auto curvedRatsnestCond =
             [this] (const SELECTION& )
             {
-                return GetPcbNewSettings()->m_Display.m_DisplayRatsnestLinesCurved;
+                PCBNEW_SETTINGS* cfg = GetPcbNewSettings();
+                return cfg && cfg->m_Display.m_DisplayRatsnestLinesCurved;
             };
 
     auto netHighlightCond =
             [this]( const SELECTION& )
             {
-                KIGFX::RENDER_SETTINGS* settings = GetCanvas()->GetView()->GetPainter()->GetSettings();
-                return !settings->GetHighlightNetCodes().empty();
+                if( auto* canvas = GetCanvas() )
+                {
+                    if( auto* view = canvas->GetView() )
+                    {
+                        if( auto* painter = view->GetPainter() )
+                        {
+                            if( auto* settings = painter->GetSettings() )
+                                return !settings->GetHighlightNetCodes().empty();
+                        }
+                    }
+                }
+
+                return false;
             };
 
     auto enableNetHighlightCond =
@@ -1103,19 +1163,22 @@ void PCB_EDIT_FRAME::setupUIConditions()
     const auto isArcKeepCenterMode =
             [this]( const SELECTION& )
             {
-                return GetPcbNewSettings()->m_ArcEditMode == ARC_EDIT_MODE::KEEP_CENTER_ADJUST_ANGLE_RADIUS;
+                PCBNEW_SETTINGS* cfg = GetPcbNewSettings();
+                return cfg && cfg->m_ArcEditMode == ARC_EDIT_MODE::KEEP_CENTER_ADJUST_ANGLE_RADIUS;
             };
 
     const auto isArcKeepEndpointMode =
             [this]( const SELECTION& )
             {
-                return GetPcbNewSettings()->m_ArcEditMode == ARC_EDIT_MODE::KEEP_ENDPOINTS_OR_START_DIRECTION;
+                PCBNEW_SETTINGS* cfg = GetPcbNewSettings();
+                return cfg && cfg->m_ArcEditMode == ARC_EDIT_MODE::KEEP_ENDPOINTS_OR_START_DIRECTION;
             };
 
     const auto isArcKeepRadiusMode =
             [this]( const SELECTION& )
             {
-                return GetPcbNewSettings()->m_ArcEditMode == ARC_EDIT_MODE::KEEP_CENTER_ENDS_ADJUST_ANGLE;
+                PCBNEW_SETTINGS* cfg = GetPcbNewSettings();
+                return cfg && cfg->m_ArcEditMode == ARC_EDIT_MODE::KEEP_CENTER_ENDS_ADJUST_ANGLE;
             };
 
     mgr->SetConditions( ACTIONS::pointEditorArcKeepCenter,   CHECK( isArcKeepCenterMode ) );
@@ -1407,10 +1470,16 @@ void PCB_EDIT_FRAME::doCloseWindow()
     Unbind( EDA_EVT_CLOSE_DIALOG_BOOK_REPORTER, &PCB_EDIT_FRAME::onCloseModelessBookReporterDialogs,
             this );
 
-    wxWindow* open_dlg = wxWindow::FindWindowByName( DIALOG_DRC_WINDOW_NAME );
+    wxWindow* drcDlg = wxWindow::FindWindowByName( DIALOG_DRC_WINDOW_NAME );
 
-    if( open_dlg )
-        open_dlg->Close( true );
+    if( drcDlg )
+        drcDlg->Close( true );
+
+    wxWindow* ruleEditorDlg = wxWindow::FindWindowByName( DIALOG_DRC_RULE_EDITOR_WINDOW_NAME );
+
+    if( ruleEditorDlg )
+        ruleEditorDlg->Close( true );
+
 
     if( m_findDialog )
     {
@@ -1459,7 +1528,7 @@ void PCB_EDIT_FRAME::doCloseWindow()
     // Do not show the layer manager during closing to avoid flicker
     // on some platforms (Windows) that generate useless redraw of items in
     // the Layer Manager
-    if( m_show_layer_manager_tools )
+    if( m_ShowLayerManagerTools )
     {
         m_auimgr.GetPane( wxS( "LayersManager" ) ).Show( false );
         m_auimgr.GetPane( wxS( "TabbedPanel" ) ).Show( false );
@@ -1621,9 +1690,9 @@ void PCB_EDIT_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
 
     if( cfg )
     {
-        m_show_layer_manager_tools = cfg->m_AuiPanels.show_layer_manager;
-        m_show_search              = cfg->m_AuiPanels.show_search;
-        m_show_net_inspector       = cfg->m_AuiPanels.show_net_inspector;
+        m_ShowLayerManagerTools = cfg->m_AuiPanels.show_layer_manager;
+        m_ShowSearch            = cfg->m_AuiPanels.show_search;
+        m_ShowNetInspector      = cfg->m_AuiPanels.show_net_inspector;
     }
 }
 
@@ -1647,10 +1716,10 @@ void PCB_EDIT_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
             cfg->m_AuiPanels.properties_splitter    = m_propertiesPanel->SplitterProportion();
         }
 
-        // ensure m_show_search is up to date (the pane can be closed)
+        // ensure m_ShowSearch is up to date (the pane can be closed)
         wxAuiPaneInfo& searchPaneInfo = m_auimgr.GetPane( SearchPaneName() );
-        m_show_search = searchPaneInfo.IsShown();
-        cfg->m_AuiPanels.show_search = m_show_search;
+        m_ShowSearch = searchPaneInfo.IsShown();
+        cfg->m_AuiPanels.show_search = m_ShowSearch;
         cfg->m_AuiPanels.search_panel_height = m_searchPane->GetSize().y;
         cfg->m_AuiPanels.search_panel_width = m_searchPane->GetSize().x;
         cfg->m_AuiPanels.search_panel_dock_direction = searchPaneInfo.dock_direction;
@@ -1658,8 +1727,8 @@ void PCB_EDIT_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
         if( m_netInspectorPanel )
         {
             wxAuiPaneInfo& netInspectorhPaneInfo = m_auimgr.GetPane( NetInspectorPanelName() );
-            m_show_net_inspector = netInspectorhPaneInfo.IsShown();
-            cfg->m_AuiPanels.show_net_inspector = m_show_net_inspector;
+            m_ShowNetInspector = netInspectorhPaneInfo.IsShown();
+            cfg->m_AuiPanels.show_net_inspector = m_ShowNetInspector;
         }
 
         if( m_appearancePanel )
@@ -2897,7 +2966,17 @@ void PCB_EDIT_FRAME::ExchangeFootprint( FOOTPRINT* aExisting, FOOTPRINT* aNew,
     }
     else
     {
-        aNew->Models() = aExisting->Models();  // Linked list of 3D models.
+        // Preserve model references and all embedded model data.
+        aNew->Models() = aExisting->Models();
+
+        for( const auto& [name, file] : aExisting->GetEmbeddedFiles()->EmbeddedFileMap() )
+        {
+            if( file->type != EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE::MODEL )
+                continue;
+
+            aNew->GetEmbeddedFiles()->RemoveFile( name, true );
+            aNew->GetEmbeddedFiles()->AddFile( new EMBEDDED_FILES::EMBEDDED_FILE( *file ) );
+        }
     }
 
     // Updating other parameters
@@ -3001,9 +3080,22 @@ void PCB_EDIT_FRAME::ProjectChanged()
 
 bool PCB_EDIT_FRAME::CanAcceptApiCommands()
 {
-    // For now, be conservative: Don't allow any API use while the user is changing things
-    if( GetToolManager()->GetCurrentTool() != GetToolManager()->GetTool<PCB_SELECTION_TOOL>() )
+    TOOL_BASE* currentTool = GetToolManager()->GetCurrentTool();
+
+    // When a single item that can be point-edited is selected, the point editor
+    // tool will be active instead of the selection tool.  It blocks undo/redo
+    // while the user is actually dragging points around, though, so we can use
+    // this as an initial check to prevent API actions when points are being edited.
+    if( UndoRedoBlocked() )
         return false;
+
+    // Don't allow any API use while the user is using a tool that could
+    // modify the model in the middle of the message stream
+    if( currentTool != GetToolManager()->GetTool<PCB_SELECTION_TOOL>() &&
+        currentTool != GetToolManager()->GetTool<PCB_POINT_EDITOR>() )
+    {
+        return false;
+    }
 
     ZONE_FILLER_TOOL* zoneFillerTool = m_toolManager->GetTool<ZONE_FILLER_TOOL>();
 

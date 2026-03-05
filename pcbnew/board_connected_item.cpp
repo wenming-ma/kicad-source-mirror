@@ -26,10 +26,13 @@
 #include <board.h>
 #include <board_connected_item.h>
 #include <board_design_settings.h>
+#include <project/net_settings.h>
 #include <drc/drc_engine.h>
 #include <connectivity/connectivity_data.h>
 #include <lset.h>
 #include <properties/property_validators.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 #include <string_utils.h>
 #include <i18n_utility.h>
 #include <netinfo.h>
@@ -50,9 +53,11 @@ void BOARD_CONNECTED_ITEM::SetLayer( PCB_LAYER_ID aLayer )
 {
     BOARD_ITEM::SetLayer( aLayer );
 
-    // Invalidate clearance cache since layer can affect clearance rules
-    if( BOARD* board = GetBoard() )
-        board->InvalidateClearanceCache( m_Uuid );
+    if( !( GetFlags() & ROUTER_TRANSIENT ) )
+    {
+        if( BOARD* board = GetBoard() )
+            board->InvalidateClearanceCache( m_Uuid );
+    }
 }
 
 
@@ -100,10 +105,10 @@ bool BOARD_CONNECTED_ITEM::SetNetCode( int aNetCode, bool aNoAssert )
     if( !aNoAssert )
         wxASSERT( m_netinfo );
 
-    // Invalidate clearance cache since net can affect clearance rules
     if( board )
     {
-        board->InvalidateClearanceCache( m_Uuid );
+        if( !( GetFlags() & ROUTER_TRANSIENT ) )
+            board->InvalidateClearanceCache( m_Uuid );
 
         std::unique_lock<std::shared_mutex> writeLock( board->m_CachesMutex );
         board->m_ItemNetclassCache.erase( this );

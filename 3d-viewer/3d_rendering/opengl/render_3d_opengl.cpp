@@ -24,7 +24,7 @@
  */
 
 #include <cstdint>
-#include <gal/opengl/kiglew.h>    // Must be included first
+#include <kicad_gl/kiglad.h>    // Must be included first
 
 #include "plugins/3dapi/xv3d_types.h"
 #include "render_3d_opengl.h"
@@ -32,7 +32,7 @@
 #include "common_ogl/ogl_utils.h"
 #include <board.h>
 #include <footprint.h>
-#include <gal/opengl/gl_context_mgr.h>
+#include <kicad_gl/gl_context_mgr.h>
 #include <3d_math.h>
 #include <glm/geometric.hpp>
 #include <lset.h>
@@ -48,8 +48,8 @@
 
 /**
  * Attempt to control the transparency based on the gray value of the color.
- * This function applies a non-linear transformation that makes darker colors more opaque,
- * preventing copper show-through on dark solder masks like black.
+ * This function applies a non-linear transformation that reduces transparency
+ * for darker colors while preserving copper visibility through the solder mask.
  *
  * @param aGrayColorValue - diffuse gray value (0.0 to 1.0)
  * @param aTransparency - base transparency value (0.0 opaque to 1.0 transparent)
@@ -63,9 +63,7 @@ static float TransparencyControl( float aGrayColorValue, float aTransparency )
     float ca = 1.0f - aTransparency;
     ca       = 1.00f - 1.05f * ca * ca * ca;
 
-    // Squaring gray value makes darker colors more opaque, which improves appearance
-    // of dark solder masks like black where copper would otherwise show through
-    return glm::clamp( aGrayColorValue * aGrayColorValue * ca + aaa, 0.0f, 1.0f );
+    return glm::clamp( aGrayColorValue * ca + aaa, 0.0f, 1.0f );
 }
 
 /**
@@ -1072,10 +1070,6 @@ void RENDER_3D_OPENGL::get3dModelsSelected( std::list<MODELTORENDER> &aDstRender
         {
             if( m_boardAdapter.IsFootprintShown( fp ) )
             {
-                // Skip 3D models for footprints that are DNP in the current variant
-                if( fp->GetDNPForVariant( currentVariant ) )
-                    continue;
-
                 const bool isFlipped = fp->IsFlipped();
 
                 if( aGetTop == !isFlipped || aGetBot == isFlipped )

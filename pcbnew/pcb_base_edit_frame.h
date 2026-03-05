@@ -158,7 +158,7 @@ public:
      *
      * @param aList a PICKED_ITEMS_LIST pointer to the list of items to undo/redo.
      */
-    void PutDataInPreviousState( PICKED_ITEMS_LIST* aList );
+    void PutDataInPreviousState( PICKED_ITEMS_LIST* aList, bool aRehatchShapes = true );
 
     /**
      * Check if the undo and redo operations are currently blocked.
@@ -273,7 +273,7 @@ protected:
 
     void unitsChangeRefresh() override;
 
-    virtual void onDarkModeToggle();
+    void onDarkModeToggle( wxSysColourChangedEvent& aEvent );
 
 protected:
     bool                    m_undoRedoBlocked;
@@ -287,8 +287,6 @@ protected:
     PCB_LAYER_BOX_SELECTOR* m_SelLayerBox; // a combo box to display and select active layer
 
     wxAuiNotebook*          m_tabbedPanel;        /// Panel with Layers and Object Inspector tabs
-
-    bool                    m_darkMode;
 };
 
 #endif

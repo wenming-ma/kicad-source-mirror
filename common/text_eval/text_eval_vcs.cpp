@@ -23,7 +23,7 @@
 #include <git/kicad_git_common.h>
 #include <git/kicad_git_memory.h>
 #include <wx/string.h>
-#include <wx/arrstr.h>
+#include <wx/arrstr.h> // REQUIRED for wxString vector export on MSVC
 #include <map>
 
 namespace TEXT_EVAL_VCS
@@ -31,35 +31,35 @@ namespace TEXT_EVAL_VCS
 // Private implementation details
 namespace
 {
-    auto OpenRepo( const std::string& aPath ) -> git_repository*
+    git_repository* OpenRepo( const std::string& aPath )
     {
-        // Check if git backend is available (may be nullptr in tests or non-GUI contexts)
         if( !GetGitBackend() )
             return nullptr;
 
         return KIGIT::PROJECT_GIT_UTILS::GetRepositoryForFile( aPath.c_str() );
     }
 
-    auto CloseRepo( git_repository* aRepo ) -> void
+    void CloseRepo( git_repository* aRepo )
     {
         if( aRepo )
             git_repository_free( aRepo );
     }
 
-    auto MakeZeroOid() -> git_oid
+    git_oid MakeZeroOid()
     {
         git_oid oid;
         git_oid_fromstrn( &oid, "0000000000000000000000000000000000000000", 40 );
         return oid;
     }
 
-    auto GetFileCommit( git_repository* aRepo, const std::string& aPath ) -> git_oid
+    git_oid GetFileCommit( git_repository* aRepo, const std::string& aPath )
     {
         if( !aRepo )
             return MakeZeroOid();
 
         // Get HEAD commit
         git_oid head_oid;
+
         if( git_reference_name_to_id( &head_oid, aRepo, "HEAD" ) != 0 )
             return MakeZeroOid();
 
@@ -69,6 +69,7 @@ namespace
 
         // For file-specific query, walk history to find last commit that touched this file
         git_revwalk* walker = nullptr;
+
         if( git_revwalk_new( &walker, aRepo ) != 0 )
             return MakeZeroOid();
 
@@ -84,15 +85,18 @@ namespace
         while( git_revwalk_next( &commit_oid, walker ) == 0 )
         {
             git_commit* commit = nullptr;
+
             if( git_commit_lookup( &commit, aRepo, &commit_oid ) != 0 )
                 continue;
 
             // Get the tree for this commit
             git_tree* tree = nullptr;
+
             if( git_commit_tree( &tree, commit ) == 0 )
             {
                 // Try to find the file in this tree
                 git_tree_entry* entry = nullptr;
+
                 if( git_tree_entry_bypath( &entry, tree, aPath.c_str() ) == 0 )
                 {
                     const git_oid* blob_oid = git_tree_entry_id( entry );
@@ -131,6 +135,7 @@ namespace
 
                 git_tree_free( tree );
             }
+
             git_commit_free( commit );
         }
 
@@ -144,34 +149,40 @@ namespace
         int         distance;
     };
 
-    auto GetDescribeInfo( const std::string& aMatch, bool aAnyTags ) -> DescribeInfo
+    DescribeInfo GetDescribeInfo( const std::string& aMatch, bool aAnyTags )
     {
-        auto repo = OpenRepo( "." );
+        git_repository* repo = OpenRepo( "." );
+
         if( !repo )
-            return { "", 0 };
+            return { std::string(), 0 };
 
         git_oid head_oid;
+
         if( git_reference_name_to_id( &head_oid, repo, "HEAD" ) != 0 )
         {
             CloseRepo( repo );
-            return { "", 0 };
+            return { std::string(), 0 };
         }
 
         git_strarray tag_names;
+
         if( git_tag_list_match( &tag_names, aMatch.empty() ? "*" : aMatch.c_str(), repo ) != 0 )
         {
             CloseRepo( repo );
-            return { "", 0 };
+            return { std::string(), 0 };
         }
 
         // Build map of commit OID -> tag name upfront
-        std::map<git_oid, std::string, decltype([](const git_oid& a, const git_oid& b) {
-        return git_oid_cmp(&a, &b) < 0;
-    })> commit_to_tag;
+        std::map<git_oid, std::string, decltype(
+                [](const git_oid& a, const git_oid& b)
+                {
+                    return git_oid_cmp(&a, &b) < 0;
+                } )> commit_to_tag;
 
         for( size_t i = 0; i < tag_names.count; ++i )
         {
             git_object* tag_obj = nullptr;
+
             if( git_revparse_single( &tag_obj, repo, tag_names.strings[i] ) == 0 )
             {
                 git_object_t type = git_object_type( tag_obj );
@@ -179,6 +190,7 @@ namespace
                 if( type == GIT_OBJECT_TAG )
                 {
                     git_object* target = nullptr;
+
                     if( git_tag_peel( &target, (git_tag*) tag_obj ) == 0 )
                     {
                         commit_to_tag[*git_object_id( target )] = tag_names.strings[i];
@@ -189,6 +201,7 @@ namespace
                 {
                     commit_to_tag[*git_object_id( tag_obj )] = tag_names.strings[i];
                 }
+
                 git_object_free( tag_obj );
             }
         }
@@ -196,28 +209,31 @@ namespace
         git_strarray_dispose( &tag_names );
 
         git_revwalk* walker = nullptr;
+
         if( git_revwalk_new( &walker, repo ) != 0 )
         {
             CloseRepo( repo );
-            return { "", 0 };
+            return { std::string(), 0 };
         }
 
         git_revwalk_sorting( walker, GIT_SORT_TOPOLOGICAL | GIT_SORT_TIME );
         git_revwalk_push( walker, &head_oid );
 
-        DescribeInfo result{ "", 0 };
+        DescribeInfo result{ std::string(), 0 };
         int          distance = 0;
         git_oid      commit_oid;
 
         while( git_revwalk_next( &commit_oid, walker ) == 0 )
         {
             auto it = commit_to_tag.find( commit_oid );
+
             if( it != commit_to_tag.end() )
             {
                 result.tag = it->second;
                 result.distance = distance;
                 break;
             }
+
             distance++;
         }
 
@@ -226,18 +242,19 @@ namespace
         return result;
     }
 
-    auto GetCommitSignatureField( const std::string& aPath, bool aUseCommitter, bool aGetEmail ) -> std::string
+    std::string GetCommitSignatureField( const std::string& aPath, bool aUseCommitter, bool aGetEmail )
     {
-        auto repo = OpenRepo( aPath );
+        git_repository* repo = OpenRepo( aPath );
+
         if( !repo )
-            return "";
+            return std::string();
 
         git_oid oid = GetFileCommit( repo, aPath );
 
         if( git_oid_is_zero( &oid ) )
         {
             CloseRepo( repo );
-            return "";
+            return std::string();
         }
 
         git_commit* commit = nullptr;
@@ -250,6 +267,7 @@ namespace
             if( sig )
             {
                 const char* field = aGetEmail ? sig->email : sig->name;
+
                 if( field )
                     result = field;
             }
@@ -263,18 +281,20 @@ namespace
 
 } // anonymous namespace
 
+
 std::string GetCommitHash( const std::string& aPath, int aLength )
 {
-    auto repo = OpenRepo( aPath );
+    git_repository* repo = OpenRepo( aPath );
+
     if( !repo )
-        return "";
+        return std::string();
 
     git_oid oid = GetFileCommit( repo, aPath );
 
     if( git_oid_is_zero( &oid ) )
     {
         CloseRepo( repo );
-        return "";
+        return std::string();
     }
 
     int  length = std::max( 4, std::min( aLength, GIT_OID_HEXSZ ) );
@@ -285,19 +305,23 @@ std::string GetCommitHash( const std::string& aPath, int aLength )
     return hash;
 }
 
+
 std::string GetNearestTag( const std::string& aMatch, bool aAnyTags )
 {
     return GetDescribeInfo( aMatch, aAnyTags ).tag;
 }
+
 
 int GetDistanceFromTag( const std::string& aMatch, bool aAnyTags )
 {
     return GetDescribeInfo( aMatch, aAnyTags ).distance;
 }
 
+
 bool IsDirty( bool aIncludeUntracked )
 {
-    auto repo = OpenRepo( "." );
+    git_repository* repo = OpenRepo( "." );
+
     if( !repo )
         return false;
 
@@ -320,31 +344,37 @@ bool IsDirty( bool aIncludeUntracked )
     return isDirty;
 }
 
+
 std::string GetAuthor( const std::string& aPath )
 {
     return GetCommitSignatureField( aPath, false, false );
 }
+
 
 std::string GetAuthorEmail( const std::string& aPath )
 {
     return GetCommitSignatureField( aPath, false, true );
 }
 
+
 std::string GetCommitter( const std::string& aPath )
 {
     return GetCommitSignatureField( aPath, true, false );
 }
+
 
 std::string GetCommitterEmail( const std::string& aPath )
 {
     return GetCommitSignatureField( aPath, true, true );
 }
 
+
 std::string GetBranch()
 {
-    auto repo = OpenRepo( "." );
+    git_repository* repo = OpenRepo( "." );
+
     if( !repo )
-        return "";
+        return std::string();
 
     KIGIT_COMMON common( repo );
     wxString     branchName = common.GetCurrentBranchName();
@@ -353,9 +383,11 @@ std::string GetBranch()
     return branchName.ToStdString();
 }
 
+
 int64_t GetCommitTimestamp( const std::string& aPath )
 {
-    auto repo = OpenRepo( aPath );
+    git_repository* repo = OpenRepo( aPath );
+
     if( !repo )
         return 0;
 
@@ -380,10 +412,11 @@ int64_t GetCommitTimestamp( const std::string& aPath )
     return timestamp;
 }
 
+
 std::string GetCommitDate( const std::string& aPath )
 {
     int64_t timestamp = GetCommitTimestamp( aPath );
-    return timestamp > 0 ? std::to_string( timestamp ) : "";
+    return timestamp > 0 ? std::to_string( timestamp ) : std::string();
 }
 
 } // namespace TEXT_EVAL_VCS

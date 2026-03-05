@@ -25,6 +25,7 @@
 #include "panel_symbol_chooser.h"
 
 #include <pgm_base.h>
+#include <settings/common_settings.h>
 #include <kiface_base.h>
 #include <sch_base_frame.h>
 #include <project_sch.h>
@@ -76,7 +77,7 @@ PANEL_SYMBOL_CHOOSER::PANEL_SYMBOL_CHOOSER( SCH_BASE_FRAME* aFrame, wxWindow* aP
 {
     m_frame = aFrame;
 
-    SYMBOL_LIBRARY_ADAPTER* libmgr = PROJECT_SCH::SymbolLibAdapter( &m_frame->Prj() );
+    SYMBOL_LIBRARY_ADAPTER*   libmgr = PROJECT_SCH::SymbolLibAdapter( &m_frame->Prj() );
     COMMON_SETTINGS::SESSION& session = Pgm().GetCommonSettings()->m_Session;
     PROJECT_FILE&             project = m_frame->Prj().GetProjectFile();
 
@@ -98,7 +99,9 @@ PANEL_SYMBOL_CHOOSER::PANEL_SYMBOL_CHOOSER( SCH_BASE_FRAME* aFrame, wxWindow* aP
                 bool pinned = alg::contains( session.pinned_symbol_libs, nickname )
                                 || alg::contains( project.m_PinnedSymbolLibs, nickname );
 
-                if( auto row = libmgr->GetRow( nickname ); row && !( *row )->Hidden()  )
+                std::optional<LIBRARY_TABLE_ROW*> row = libmgr->GetRow( nickname );
+
+                if( row.has_value() && !row.value()->Hidden()  )
                     adapter->AddLibrary( nickname, pinned );
             }
         }
@@ -110,16 +113,7 @@ PANEL_SYMBOL_CHOOSER::PANEL_SYMBOL_CHOOSER( SCH_BASE_FRAME* aFrame, wxWindow* aP
             static std::function<bool( LIB_TREE_NODE& )> powerFilter =
                     []( LIB_TREE_NODE& aNode ) -> bool
                     {
-                        if (PANEL_SYMBOL_CHOOSER::m_frame)
-                        {
-                            LIB_SYMBOL* symbol = PANEL_SYMBOL_CHOOSER::m_frame->GetLibSymbol(aNode.m_LibId);
-
-                            if (symbol && symbol->IsPower())
-                                return true;
-
-                        }
-
-                        return false;
+                        return aNode.m_IsPower;
                     };
 
             adapter->SetFilter( &powerFilter );

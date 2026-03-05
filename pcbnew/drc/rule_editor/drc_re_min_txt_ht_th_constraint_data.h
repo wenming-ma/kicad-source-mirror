@@ -39,7 +39,7 @@ public:
     }
 
     explicit DRC_RE_MINIMUM_TEXT_HEIGHT_THICKNESS_CONSTRAINT_DATA( int aId, int aParentId,
-                                                                   wxString aRuleName,
+                                                                   const wxString& aRuleName,
                                                                    double   aMinTextHeight,
                                                                    double   aMinTextThickness ) :
             DRC_RE_BASE_CONSTRAINT_DATA( aId, aParentId, aRuleName ),
@@ -48,6 +48,19 @@ public:
     }
 
     virtual ~DRC_RE_MINIMUM_TEXT_HEIGHT_THICKNESS_CONSTRAINT_DATA() = default;
+
+    BITMAPS GetOverlayBitmap() const override
+    {
+        return BITMAPS::constraint_minimum_text_height_and_thickness;
+    }
+
+    std::vector<DRC_RE_FIELD_POSITION> GetFieldPositions() const override
+    {
+        return {
+            { 208 + DRC_RE_OVERLAY_XO, 248 + DRC_RE_OVERLAY_XO, 82 + DRC_RE_OVERLAY_YO, 1, wxS( "mm" ), LABEL_POSITION::RIGHT }, // min_text_height
+            { 109 + DRC_RE_OVERLAY_XO, 149 + DRC_RE_OVERLAY_XO, 197 + DRC_RE_OVERLAY_YO, 2, wxS( "mm" ), LABEL_POSITION::RIGHT }, // min_text_thickness
+        };
+    }
 
     double GetMinTextHeight() { return m_minTextHeight; }
 
@@ -62,12 +75,33 @@ public:
         VALIDATION_RESULT result;
 
         if( m_minTextHeight <= 0 )
-            result.AddError( "Minimum Text Height must be greater than 0" );
+            result.AddError( _( "Minimum Text Height must be greater than 0" ) );
 
         if( m_minTextThickness <= 0 )
-            result.AddError( "Minimum Text Thickness must be greater than 0" );
+            result.AddError( _( "Minimum Text Thickness must be greater than 0" ) );
 
         return result;
+    }
+
+    std::vector<wxString> GetConstraintClauses( const RULE_GENERATION_CONTEXT& aContext ) const override
+    {
+        auto formatDimension = []( double aValue )
+        {
+            return formatDouble( aValue ) + wxS( "mm" );
+        };
+
+        wxString heightClause =
+                wxString::Format( wxS( "(constraint text_height (min %s))" ), formatDimension( m_minTextHeight ) );
+
+        wxString thicknessClause = wxString::Format( wxS( "(constraint text_thickness (min %s))" ),
+                                                     formatDimension( m_minTextThickness ) );
+
+        return { heightClause, thicknessClause };
+    }
+
+    wxString GenerateRule( const RULE_GENERATION_CONTEXT& aContext ) override
+    {
+        return buildRule( aContext, GetConstraintClauses( aContext ) );
     }
 
     void CopyFrom( const ICopyable& aSource ) override

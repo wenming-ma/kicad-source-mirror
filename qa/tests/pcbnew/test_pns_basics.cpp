@@ -28,11 +28,15 @@
 #include <pcbnew/board.h>
 #include <pcbnew/pad.h>
 #include <pcbnew/pcb_track.h>
+#include <pcbnew/pcbexpr_evaluator.h>
 
+#include <geometry/shape_circle.h>
 #include <router/pns_item.h>
 #include <router/pns_kicad_iface.h>
 #include <router/pns_node.h>
 #include <router/pns_router.h>
+#include <router/pns_segment.h>
+#include <router/pns_solid.h>
 #include <router/pns_via.h>
 
 static bool isCopper( const PNS::ITEM* aItem )
@@ -283,6 +287,13 @@ public:
                       int aFlags = 0 ) override {};
     PNS::RULE_RESOLVER* GetRuleResolver() override;
 
+    bool TestInheritTrackWidth( PNS::ITEM* aItem, int* aInheritedWidth,
+                                const VECTOR2I& aStartPosition = VECTOR2I() )
+    {
+        m_startLayer = aItem->Layer();
+        return inheritTrackWidth( aItem, aInheritedWidth, aStartPosition );
+    }
+
 private:
     PNS_TEST_FIXTURE* m_testFixture;
 };
@@ -523,5 +534,163 @@ BOOST_AUTO_TEST_CASE( PNSLayerRangeSwapBehavior )
     BOOST_CHECK( innerLayersRange4Layer.Overlaps( 1 ) );  // In1_Cu
     BOOST_CHECK( innerLayersRange4Layer.Overlaps( 2 ) );  // In2_Cu
     BOOST_CHECK( !innerLayersRange4Layer.Overlaps( 3 ) ); // B_Cu - should not overlap
+}
+
+
+/**
+ * Test that splitting a locked PNS segment preserves the locked marker on both halves.
+ *
+ * Regression test for https://gitlab.com/kicad/code/kicad/-/issues/21564
+ * When a locked track is split by a new route connecting to its middle, both resulting
+ * segments must retain the locked state.
+ */
+BOOST_FIXTURE_TEST_CASE( PNSSegmentSplitPreservesLockedState, PNS_TEST_FIXTURE )
+{
+    std::unique_ptr<PNS::NODE> world( new PNS::NODE );
+    world->SetMaxClearance( 10000000 );
+    world->SetRuleResolver( &m_ruleResolver );
+
+    PNS::NET_HANDLE net = (PNS::NET_HANDLE) 1;
+
+    VECTOR2I segStart( 0, 0 );
+    VECTOR2I segEnd( 10000000, 0 );
+    VECTOR2I splitPt( 5000000, 0 );
+
+    PNS::SEGMENT* lockedSeg = new PNS::SEGMENT( SEG( segStart, segEnd ), net );
+    lockedSeg->SetWidth( 250000 );
+    lockedSeg->SetLayers( PNS_LAYER_RANGE( F_Cu ) );
+    lockedSeg->Mark( PNS::MK_LOCKED );
+
+    BOOST_CHECK( lockedSeg->IsLocked() );
+
+    world->AddRaw( lockedSeg );
+
+    // Clone the locked segment and set up two halves (simulating SplitAdjacentSegments)
+    std::unique_ptr<PNS::SEGMENT> clone1( PNS::Clone( *lockedSeg ) );
+    std::unique_ptr<PNS::SEGMENT> clone2( PNS::Clone( *lockedSeg ) );
+
+    clone1->SetEnds( segStart, splitPt );
+    clone2->SetEnds( splitPt, segEnd );
+
+    BOOST_CHECK_MESSAGE( clone1->IsLocked(),
+                         "First half of split locked segment must retain locked state" );
+    BOOST_CHECK_MESSAGE( clone2->IsLocked(),
+                         "Second half of split locked segment must retain locked state" );
+    BOOST_CHECK_EQUAL( clone1->Width(), lockedSeg->Width() );
+    BOOST_CHECK_EQUAL( clone2->Width(), lockedSeg->Width() );
+}
+
+
+/**
+ * Test that inheritTrackWidth selects the correct track based on cursor proximity.
+ *
+ * Regression test for https://gitlab.com/kicad/code/kicad/-/issues/19123
+ * When a pad has multiple tracks of different widths, the router should inherit
+ * the width of the track closest to the cursor, not just the minimum width.
+ */
+BOOST_FIXTURE_TEST_CASE( PNSInheritTrackWidthCursorProximity, PNS_TEST_FIXTURE )
+{
+    std::unique_ptr<PNS::NODE> world( new PNS::NODE );
+    world->SetMaxClearance( 10000000 );
+    world->SetRuleResolver( &m_ruleResolver );
+
+    VECTOR2I padPos( 0, 0 );
+    PNS::NET_HANDLE net = (PNS::NET_HANDLE) 1;
+
+    // Pad at origin with a small circular shape
+    PNS::SOLID* pad = new PNS::SOLID;
+    pad->SetShape( new SHAPE_CIRCLE( padPos, 500000 ) );
+    pad->SetPos( padPos );
+    pad->SetLayers( PNS_LAYER_RANGE( F_Cu ) );
+    pad->SetNet( net );
+    world->AddRaw( pad );
+
+    // Narrow track going right (250um width)
+    int narrowWidth = 250000;
+    PNS::SEGMENT* narrowSeg = new PNS::SEGMENT( SEG( padPos, VECTOR2I( 5000000, 0 ) ), net );
+    narrowSeg->SetWidth( narrowWidth );
+    narrowSeg->SetLayers( PNS_LAYER_RANGE( F_Cu ) );
+    world->AddRaw( narrowSeg );
+
+    // Wide track going up (500um width)
+    int wideWidth = 500000;
+    PNS::SEGMENT* wideSeg = new PNS::SEGMENT( SEG( padPos, VECTOR2I( 0, -5000000 ) ), net );
+    wideSeg->SetWidth( wideWidth );
+    wideSeg->SetLayers( PNS_LAYER_RANGE( F_Cu ) );
+    world->AddRaw( wideSeg );
+
+    int inherited = 0;
+
+    // Without cursor position, should fall back to minimum width
+    BOOST_CHECK( m_iface->TestInheritTrackWidth( pad, &inherited ) );
+    BOOST_CHECK_EQUAL( inherited, narrowWidth );
+
+    // Cursor near the narrow track (to the right) should select narrow width
+    inherited = 0;
+    BOOST_CHECK( m_iface->TestInheritTrackWidth( pad, &inherited, VECTOR2I( 2000000, 0 ) ) );
+    BOOST_CHECK_EQUAL( inherited, narrowWidth );
+
+    // Cursor near the wide track (upward) should select wide width
+    inherited = 0;
+    BOOST_CHECK( m_iface->TestInheritTrackWidth( pad, &inherited, VECTOR2I( 0, -2000000 ) ) );
+    BOOST_CHECK_EQUAL( inherited, wideWidth );
+
+    // Cursor slightly offset toward narrow track should still select narrow
+    inherited = 0;
+    BOOST_CHECK( m_iface->TestInheritTrackWidth( pad, &inherited, VECTOR2I( 100000, 50000 ) ) );
+    BOOST_CHECK_EQUAL( inherited, narrowWidth );
+
+    // Cursor slightly offset toward wide track should select wide
+    inherited = 0;
+    BOOST_CHECK( m_iface->TestInheritTrackWidth( pad, &inherited, VECTOR2I( 50000, -100000 ) ) );
+    BOOST_CHECK_EQUAL( inherited, wideWidth );
+}
+
+
+/**
+ * Test that PCBEXPR_UCODE correctly identifies geometry-dependent functions during compilation.
+ *
+ * Regression test for PNS track drag performance. The geometry-dependent flag controls whether
+ * segment-by-segment DRC evaluation is performed during routing. When no geometry-dependent
+ * functions exist in clearance rules, the expensive per-segment evaluation is skipped.
+ */
+BOOST_AUTO_TEST_CASE( PCBExprGeometryDependentFunctionDetection )
+{
+    PCBEXPR_COMPILER compiler( new PCBEXPR_UNIT_RESOLVER() );
+
+    auto compileAndCheck = [&]( const wxString& aExpr, bool aExpectGeometry )
+    {
+        PCBEXPR_UCODE   ucode;
+        PCBEXPR_CONTEXT ctx( 0, F_Cu );
+
+        bool ok = compiler.Compile( aExpr.ToUTF8().data(), &ucode, &ctx );
+        BOOST_CHECK_MESSAGE( ok, "Failed to compile: " + aExpr );
+
+        if( ok )
+        {
+            BOOST_CHECK_MESSAGE( ucode.HasGeometryDependentFunctions() == aExpectGeometry,
+                                 wxString::Format( "Expression '%s': expected geometry=%s, got %s",
+                                                   aExpr,
+                                                   aExpectGeometry ? "true" : "false",
+                                                   ucode.HasGeometryDependentFunctions()
+                                                           ? "true" : "false" ) );
+        }
+    };
+
+    // Property-based conditions should NOT be geometry-dependent
+    compileAndCheck( wxT( "A.NetClass == 'Power'" ), false );
+    compileAndCheck( wxT( "A.Type == 'via'" ), false );
+    compileAndCheck( wxT( "A.NetName == '/VCC'" ), false );
+
+    // Geometry-dependent functions SHOULD be detected
+    compileAndCheck( wxT( "A.intersectsCourtyard('U1')" ), true );
+    compileAndCheck( wxT( "A.intersectsArea('Zone1')" ), true );
+    compileAndCheck( wxT( "A.enclosedByArea('Zone1')" ), true );
+    compileAndCheck( wxT( "A.intersectsFrontCourtyard('U1')" ), true );
+    compileAndCheck( wxT( "A.intersectsBackCourtyard('U1')" ), true );
+
+    // Deprecated aliases should also be detected
+    compileAndCheck( wxT( "A.insideCourtyard('U1')" ), true );
+    compileAndCheck( wxT( "A.insideArea('Zone1')" ), true );
 }
 

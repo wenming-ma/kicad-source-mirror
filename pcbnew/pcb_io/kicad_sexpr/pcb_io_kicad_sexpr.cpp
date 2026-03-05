@@ -31,6 +31,7 @@
 #include <board.h>
 #include <board_design_settings.h>
 #include <callback_gal.h>
+#include <component_classes/component_class.h>
 #include <confirm.h>
 #include <convert_basic_shapes_to_polygon.h> // for enum RECT_CHAMFER_POSITIONS definition
 #include <fmt/core.h>
@@ -799,8 +800,8 @@ void PCB_IO_KICAD_SEXPR::format( const BOARD* aBoard ) const
                                                                 aBoard->Drawings().end() );
     std::set<PCB_TRACK*, PCB_TRACK::cmp_tracks> sorted_tracks( aBoard->Tracks().begin(),
                                                                aBoard->Tracks().end() );
-    std::set<PCB_POINT*, BOARD_ITEM::ptr_cmp> sorted_points( aBoard->Points().begin(),
-                                                             aBoard->Points().end() );
+    std::set<PCB_POINT*, PCB_POINT::cmp_points> sorted_points( aBoard->Points().begin(),
+                                                               aBoard->Points().end() );
     std::set<BOARD_ITEM*, BOARD_ITEM::ptr_cmp> sorted_zones( aBoard->Zones().begin(),
                                                              aBoard->Zones().end() );
     std::set<BOARD_ITEM*, BOARD_ITEM::ptr_cmp> sorted_groups( aBoard->Groups().begin(),
@@ -1410,15 +1411,15 @@ void PCB_IO_KICAD_SEXPR::format( const FOOTPRINT* aFootprint ) const
         m_out->Print( ")" );
     }
 
-    Format( (BOARD_ITEM*) &aFootprint->Reference() );
-    Format( (BOARD_ITEM*) &aFootprint->Value() );
+    Format( &aFootprint->Reference() );
+    Format( &aFootprint->Value() );
 
     std::set<PAD*, FOOTPRINT::cmp_pads> sorted_pads( aFootprint->Pads().begin(),
                                                      aFootprint->Pads().end() );
     std::set<BOARD_ITEM*, FOOTPRINT::cmp_drawings> sorted_drawings(
             aFootprint->GraphicalItems().begin(),
             aFootprint->GraphicalItems().end() );
-    std::set<PCB_POINT*, FOOTPRINT::ptr_cmp> sorted_points(
+    std::set<PCB_POINT*, PCB_POINT::cmp_points> sorted_points(
             aFootprint->Points().begin(),
             aFootprint->Points().end() );
     std::set<ZONE*, FOOTPRINT::cmp_zones> sorted_zones( aFootprint->Zones().begin(),
@@ -2052,12 +2053,16 @@ void PCB_IO_KICAD_SEXPR::format( const PAD* aPad ) const
     if( !isDefaultTeardropParameters( aPad->GetTeardropParams() ) )
         formatTeardropParameters( aPad->GetTeardropParams() );
 
-    m_out->Print( 0, " (tenting " );
-    KICAD_FORMAT::FormatOptBool( m_out, "front",
-                                 aPad->Padstack().FrontOuterLayers().has_solder_mask );
-    KICAD_FORMAT::FormatOptBool( m_out, "back",
-                                 aPad->Padstack().BackOuterLayers().has_solder_mask );
-    m_out->Print( 0, ")" );
+    if( aPad->Padstack().FrontOuterLayers().has_solder_mask.has_value()
+        || aPad->Padstack().BackOuterLayers().has_solder_mask.has_value() )
+    {
+        m_out->Print( 0, " (tenting " );
+        KICAD_FORMAT::FormatOptBool( m_out, "front",
+                                     aPad->Padstack().FrontOuterLayers().has_solder_mask );
+        KICAD_FORMAT::FormatOptBool( m_out, "back",
+                                     aPad->Padstack().BackOuterLayers().has_solder_mask );
+        m_out->Print( 0, ")" );
+    }
 
     KICAD_FORMAT::FormatUuid( m_out, aPad->m_Uuid );
 
@@ -2224,6 +2229,15 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_BARCODE* aBarcode ) const
         }
 
         m_out->Print( "(ecc_level %s)", eccStr );
+    }
+
+    KICAD_FORMAT::FormatBool( m_out, "hide", !aBarcode->GetShowText() );
+    KICAD_FORMAT::FormatBool( m_out, "knockout", aBarcode->IsKnockout() );
+
+    if( aBarcode->GetMargin().x != 0 || aBarcode->GetMargin().y != 0 )
+    {
+        m_out->Print( "(margins %s %s)", formatInternalUnits( aBarcode->GetMargin().x ).c_str(),
+                      formatInternalUnits( aBarcode->GetMargin().y ).c_str() );
     }
 
     KICAD_FORMAT::FormatUuid( m_out, aBarcode->m_Uuid );
@@ -2425,8 +2439,30 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_TABLE* aTable ) const
 
 void PCB_IO_KICAD_SEXPR::format( const PCB_GROUP* aGroup ) const
 {
-    // Don't write empty groups
-    if( aGroup->GetItems().empty() )
+    wxArrayString memberIds;
+
+    if( m_board )
+    {
+        const auto& cache = m_board->GetItemByIdCache();
+
+        std::unordered_set<const EDA_ITEM*> validPtrs;
+
+        for( const auto& [uuid, item] : cache )
+            validPtrs.insert( item );
+
+        for( EDA_ITEM* member : aGroup->GetItems() )
+        {
+            if( validPtrs.count( member ) )
+                memberIds.Add( member->m_Uuid.AsString() );
+        }
+    }
+    else
+    {
+        for( EDA_ITEM* member : aGroup->GetItems() )
+            memberIds.Add( member->m_Uuid.AsString() );
+    }
+
+    if( memberIds.size() <= 1 )
         return;
 
     m_out->Print( "(group %s", m_out->Quotew( aGroup->GetName() ).c_str() );
@@ -2438,11 +2474,6 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_GROUP* aGroup ) const
 
     if( aGroup->HasDesignBlockLink() )
         m_out->Print( "(lib_id \"%s\")", aGroup->GetDesignBlockLibId().Format().c_str() );
-
-    wxArrayString memberIds;
-
-    for( EDA_ITEM* member : aGroup->GetItems() )
-        memberIds.Add( member->m_Uuid.AsString() );
 
     memberIds.Sort();
 
@@ -2688,24 +2719,44 @@ void PCB_IO_KICAD_SEXPR::format( const PCB_TRACK* aTrack ) const
 
         const PADSTACK& padstack = via->Padstack();
 
-        m_out->Print( 0, " (tenting " );
-        KICAD_FORMAT::FormatOptBool( m_out, "front", padstack.FrontOuterLayers().has_solder_mask );
-        KICAD_FORMAT::FormatOptBool( m_out, "back", padstack.BackOuterLayers().has_solder_mask );
-        m_out->Print( 0, ")" );
+        if( padstack.FrontOuterLayers().has_solder_mask.has_value()
+            || padstack.BackOuterLayers().has_solder_mask.has_value() )
+        {
+            m_out->Print( 0, " (tenting " );
+            KICAD_FORMAT::FormatOptBool( m_out, "front",
+                                         padstack.FrontOuterLayers().has_solder_mask );
+            KICAD_FORMAT::FormatOptBool( m_out, "back",
+                                         padstack.BackOuterLayers().has_solder_mask );
+            m_out->Print( 0, ")" );
+        }
 
-        KICAD_FORMAT::FormatOptBool( m_out, "capping", padstack.Drill().is_capped );
+        if( padstack.Drill().is_capped.has_value() )
+            KICAD_FORMAT::FormatOptBool( m_out, "capping", padstack.Drill().is_capped );
 
-        m_out->Print( 0, " (covering " );
-        KICAD_FORMAT::FormatOptBool( m_out, "front", padstack.FrontOuterLayers().has_covering );
-        KICAD_FORMAT::FormatOptBool( m_out, "back", padstack.BackOuterLayers().has_covering );
-        m_out->Print( 0, ")" );
+        if( padstack.FrontOuterLayers().has_covering.has_value()
+            || padstack.BackOuterLayers().has_covering.has_value() )
+        {
+            m_out->Print( 0, " (covering " );
+            KICAD_FORMAT::FormatOptBool( m_out, "front",
+                                         padstack.FrontOuterLayers().has_covering );
+            KICAD_FORMAT::FormatOptBool( m_out, "back",
+                                         padstack.BackOuterLayers().has_covering );
+            m_out->Print( 0, ")" );
+        }
 
-        m_out->Print( 0, " (plugging " );
-        KICAD_FORMAT::FormatOptBool( m_out, "front", padstack.FrontOuterLayers().has_plugging );
-        KICAD_FORMAT::FormatOptBool( m_out, "back", padstack.BackOuterLayers().has_plugging );
-        m_out->Print( 0, ")" );
+        if( padstack.FrontOuterLayers().has_plugging.has_value()
+            || padstack.BackOuterLayers().has_plugging.has_value() )
+        {
+            m_out->Print( 0, " (plugging " );
+            KICAD_FORMAT::FormatOptBool( m_out, "front",
+                                         padstack.FrontOuterLayers().has_plugging );
+            KICAD_FORMAT::FormatOptBool( m_out, "back",
+                                         padstack.BackOuterLayers().has_plugging );
+            m_out->Print( 0, ")" );
+        }
 
-        KICAD_FORMAT::FormatOptBool( m_out, "filling", padstack.Drill().is_filled );
+        if( padstack.Drill().is_filled.has_value() )
+            KICAD_FORMAT::FormatOptBool( m_out, "filling", padstack.Drill().is_filled );
 
         if( padstack.Mode() != PADSTACK::MODE::NORMAL )
         {

@@ -27,17 +27,17 @@
 #include <wx/wx.h>
 #include <wx/object.h>
 
-#include <string>
 #include <optional>
 #include <memory>
 #include <vector>
+#include <bitmaps.h>
 
 #include "drc_rule_editor_enums.h"
 #include "drc_re_base_constraint_data.h"
 
 class BOARD;
 class DRC_RULE;
-
+class DRC_RE_NUMERIC_INPUT_CONSTRAINT_DATA;
 
 class DRC_RULE_EDITOR_UTILS
 {
@@ -50,7 +50,13 @@ public:
 
     static bool IsNumericInputType( const DRC_RULE_EDITOR_CONSTRAINT_NAME& aConstraintType );
 
-    static std::string FormatErrorMessage( const int& aErrorCount, const std::string aErrorMessage );
+    static std::shared_ptr<DRC_RE_NUMERIC_INPUT_CONSTRAINT_DATA> CreateNumericConstraintData( DRC_RULE_EDITOR_CONSTRAINT_NAME aType );
+
+    static std::shared_ptr<DRC_RE_NUMERIC_INPUT_CONSTRAINT_DATA>
+                            CreateNumericConstraintData( DRC_RULE_EDITOR_CONSTRAINT_NAME aType,
+                            const DRC_RE_BASE_CONSTRAINT_DATA& aBase );
+
+    static wxString FormatErrorMessage( int aErrorCount, const wxString& aErrorMessage );
 
     static std::vector<std::shared_ptr<DRC_RE_BASE_CONSTRAINT_DATA>> ParseRules( const wxString& aRules );
 
@@ -106,8 +112,8 @@ public:
      *
      * @return True if the control value is valid; otherwise, false.
      */
-    static bool ValidateNumericCtrl( wxTextCtrl* aTextCtrl, std::string aLabel, bool aCanBeZero, int* aErrorCount,
-                                     std::string* aValidationMessage );
+    static bool ValidateNumericCtrl( wxTextCtrl* aTextCtrl, const wxString& aLabel, bool aCanBeZero, int* aErrorCount,
+                                     wxString* aValidationMessage );
 
     /**
      * Validates an integer input control, ensuring the value is a valid integer, non-empty, and greater than zero.
@@ -120,8 +126,8 @@ public:
      *
      * @return True if the control value is valid; otherwise, false.
      */
-    static bool ValidateIntegerCtrl( wxTextCtrl* aTextCtrl, std::string aLabel, bool aCanBeZero, int* aErrorCount,
-                                     std::string* aValidationMessage );
+    static bool ValidateIntegerCtrl( wxTextCtrl* aTextCtrl, const wxString& aLabel, bool aCanBeZero, int* aErrorCount,
+                                     wxString* aValidationMessage );
 
     /**
      * Validates a combo box control, ensuring that a selection has been made.
@@ -133,8 +139,8 @@ public:
      *
      * @return True if the control value is valid; otherwise, false.
      */
-    static bool ValidateComboCtrl( wxComboBox* aComboBox, std::string aLabel, int* aErrorCount,
-                                   std::string* aValidationMessage );
+    static bool ValidateComboCtrl( wxComboBox* aComboBox, const wxString& aLabel, int* aErrorCount,
+                                   wxString* aValidationMessage );
 
     /**
      * Validates the minimum and maximum value controls, ensuring that the minimum value is not greater than the maximum value.
@@ -148,8 +154,8 @@ public:
      *
      * @return True if the validation passes; otherwise, false.
      */
-    static bool ValidateMinMaxCtrl( wxTextCtrl* aMinTextCtrl, wxTextCtrl* aMaxTextCtrl, std::string aMinLabel,
-                                    std::string aMaxLabel, int* aErrorCount, std::string* aValidationMessage );
+    static bool ValidateMinMaxCtrl( wxTextCtrl* aMinTextCtrl, wxTextCtrl* aMaxTextCtrl, const wxString& aMinLabel,
+                                    const wxString& aMaxLabel, int* aErrorCount, wxString* aValidationMessage );
 
     /**
      * Validates the minimum, preferred, and maximum value controls, ensuring that:
@@ -169,9 +175,9 @@ public:
      * @return True if the validation passes; otherwise, false.
      */
     static bool ValidateMinPreferredMaxCtrl( wxTextCtrl* aMinTextCtrl, wxTextCtrl* aPreferredTextCtrl,
-                                             wxTextCtrl* aMaxTextCtrl, std::string aMinLabel,
-                                             std::string aPreferredLabel, std::string aMaxLabel, int* aErrorCount,
-                                             std::string* aValidationMessage );
+                                             wxTextCtrl* aMaxTextCtrl, const wxString& aMinLabel,
+                                             const wxString& aPreferredLabel, const wxString& aMaxLabel,
+                                             int* aErrorCount, wxString* aValidationMessage );
 
     /**
      * Validates a list of checkboxes, ensuring that at least one option is selected.
@@ -183,8 +189,8 @@ public:
      *
      * @return True if the validation passes; otherwise, false.
      */
-    static bool ValidateCheckBoxCtrls( const std::vector<wxCheckBox*>& aCheckboxes, std::string aLabel,
-                                       int* aErrorCount, std::string* aValidationMessage );
+    static bool ValidateCheckBoxCtrls( const std::vector<wxCheckBox*>& aCheckboxes, const wxString& aLabel,
+                                       int* aErrorCount, wxString* aValidationMessage );
 
     // ==================== Pure Validators (No GUI Dependencies) ====================
     // These can be used in headless tests and by constraint data classes.
@@ -198,7 +204,7 @@ public:
      * @param aResult The validation result to update.
      * @return True if the value is valid; otherwise, false.
      */
-    static bool ValidateNumericValue( double aValue, bool aCanBeZero, const std::string& aLabel,
+    static bool ValidateNumericValue( double aValue, bool aCanBeZero, const wxString& aLabel,
                                       VALIDATION_RESULT* aResult );
 
     /**
@@ -211,8 +217,8 @@ public:
      * @param aResult The validation result to update.
      * @return True if the string is a valid number; otherwise, false.
      */
-    static bool ValidateNumericString( const std::string& aValueStr, bool aCanBeZero, bool aIntegerOnly,
-                                       const std::string& aLabel, VALIDATION_RESULT* aResult );
+    static bool ValidateNumericString( const wxString& aValueStr, bool aCanBeZero, bool aIntegerOnly,
+                                       const wxString& aLabel, VALIDATION_RESULT* aResult );
 
     /**
      * Validates that min <= max.
@@ -224,8 +230,8 @@ public:
      * @param aResult The validation result to update.
      * @return True if min <= max; otherwise, false.
      */
-    static bool ValidateMinMax( double aMin, double aMax, const std::string& aMinLabel,
-                                const std::string& aMaxLabel, VALIDATION_RESULT* aResult );
+    static bool ValidateMinMax( double aMin, double aMax, const wxString& aMinLabel,
+                                const wxString& aMaxLabel, VALIDATION_RESULT* aResult );
 
     /**
      * Validates that min <= preferred <= max.
@@ -240,8 +246,8 @@ public:
      * @return True if min <= preferred <= max; otherwise, false.
      */
     static bool ValidateMinPreferredMax( double aMin, double aPreferred, double aMax,
-                                         const std::string& aMinLabel, const std::string& aPrefLabel,
-                                         const std::string& aMaxLabel, VALIDATION_RESULT* aResult );
+                                         const wxString& aMinLabel, const wxString& aPrefLabel,
+                                         const wxString& aMaxLabel, VALIDATION_RESULT* aResult );
 
     /**
      * Validates that at least one option is selected.
@@ -251,7 +257,7 @@ public:
      * @param aResult The validation result to update.
      * @return True if at least one option is selected; otherwise, false.
      */
-    static bool ValidateAtLeastOneSelected( const std::vector<bool>& aSelected, const std::string& aLabel,
+    static bool ValidateAtLeastOneSelected( const std::vector<bool>& aSelected, const wxString& aLabel,
                                             VALIDATION_RESULT* aResult );
 
     /**
@@ -262,8 +268,30 @@ public:
      * @param aResult The validation result to update.
      * @return True if a selection has been made; otherwise, false.
      */
-    static bool ValidateSelection( int aSelectionIndex, const std::string& aLabel,
+    static bool ValidateSelection( int aSelectionIndex, const wxString& aLabel,
                                    VALIDATION_RESULT* aResult );
+
+    // ==================== Layer Filtering ====================
+
+    /**
+     * Get the layer category for a constraint type.
+     * Determines which layers should be shown in the layer selector dropdown.
+     *
+     * @param aConstraintType The constraint type.
+     * @return The layer category that determines available layer options.
+     */
+    static DRC_LAYER_CATEGORY GetLayerCategoryForConstraint( DRC_RULE_EDITOR_CONSTRAINT_NAME aConstraintType );
+
+    /**
+     * Translate a top/bottom selection to the appropriate layer clause or condition.
+     * Used for TOP_BOTTOM_ANY category constraints where "Top" and "Bottom" have
+     * different meanings depending on the constraint type.
+     *
+     * @param aConstraintType The constraint type.
+     * @param aIsTop True for top/front, false for bottom/back.
+     * @return The layer clause string (e.g., "(layer \"F.CrtYd\")") or condition string.
+     */
+    static wxString TranslateTopBottomLayer( DRC_RULE_EDITOR_CONSTRAINT_NAME aConstraintType, bool aIsTop );
 };
 
 #endif // DRC_RULE_EDITOR_UTILS_H_

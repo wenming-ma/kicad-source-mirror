@@ -27,6 +27,7 @@
 #include "dialog_footprint_properties_fp_editor.h"
 
 #include <wx/debug.h>
+#include <wx/tokenzr.h>
 
 #include <3d_rendering/opengl/3d_model.h>
 #include <3d_viewer/eda_3d_viewer_frame.h>
@@ -41,6 +42,7 @@
 #include <filename_resolver.h>
 #include <footprint.h>
 #include <footprint_edit_frame.h>
+#include <pad.h>
 #include <footprint_editor_settings.h>
 #include <grid_layer_box_helpers.h>
 #include <layer_utils.h>
@@ -57,6 +59,7 @@
 #include <widgets/std_bitmap_button.h>
 #include <widgets/text_ctrl_eval.h>
 #include <widgets/wx_grid.h>
+#include <zone.h>
 
 #include <footprint_library_adapter.h>
 #include <project_pcb.h>
@@ -544,7 +547,8 @@ LSET DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::getCustomLayersFromControls() const
     }
     else
     {
-        userLayers |= LSET{ F_Cu, In1_Cu, B_Cu };
+        userLayers |= LSET{ F_Cu, B_Cu };
+        userLayers |= LSET::InternalCuMask();
         userLayers |= LSET::UserDefinedLayersMask( 4 );
     }
 
@@ -862,20 +866,39 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataFromWindow()
 
     m_footprint->SetDuplicatePadNumbersAreJumpers( m_cbDuplicatePadsAreJumpers->GetValue() );
 
-    std::vector<std::set<wxString>>& jumpers = m_footprint->JumperPadGroups();
-    jumpers.clear();
+    std::set<wxString> availablePads;
+
+    for( const PAD* pad : m_footprint->Pads() )
+        availablePads.insert( pad->GetNumber() );
+
+    std::vector<std::set<wxString>> newJumpers;
 
     for( int ii = 0; ii < m_jumperGroupsGrid->GetNumberRows(); ++ii )
     {
         wxStringTokenizer tokenizer( m_jumperGroupsGrid->GetCellValue( ii, 0 ), ", \t\r\n", wxTOKEN_STRTOK );
-        std::set<wxString>& group = jumpers.emplace_back();
+        std::set<wxString>& group = newJumpers.emplace_back();
 
         while( tokenizer.HasMoreTokens() )
         {
-            if( wxString token = tokenizer.GetNextToken(); !token.IsEmpty() )
-                group.insert( token );
+            wxString token = tokenizer.GetNextToken();
+
+            if( token.IsEmpty() )
+                continue;
+
+            if( !availablePads.count( token ) )
+            {
+                wxString msg;
+                msg.Printf( _( "Pad '%s' in jumper pad group %d does not exist in this footprint." ),
+                             token, ii + 1 );
+                DisplayErrorMessage( this, msg );
+                return false;
+            }
+
+            group.insert( token );
         }
     }
+
+    m_footprint->JumperPadGroups() = std::move( newJumpers );
 
     // Copy the models from the panel to the footprint
     std::vector<FP_3DMODEL>& panelList = m_3dPanel->GetModelList();
@@ -975,7 +998,7 @@ std::pair<int, int> DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::onLayerGridRowAddUser
     aGrid.ProcessTableMessage( msg );
     OnModify();
 
-    return { aGridTable.size() - 1, 0 };
+    return { aGridTable.size() - 1, -1 };
 }
 
 

@@ -27,9 +27,7 @@
 
 #include <board_item_container.h>
 #include <board_stackup_manager/board_stackup.h>
-#include <component_classes/component_class_manager.h>
 #include <embedded_files.h>
-#include <common.h> // Needed for stl hash extensions
 #include <convert_shape_list_to_polygon.h> // for OUTLINE_ERROR_HANDLER
 #include <geometry/shape_poly_set.h>
 #include <hash.h>
@@ -39,14 +37,16 @@
 #include <pcb_item_containers.h>
 #include <pcb_plot_params.h>
 #include <title_block.h>
-#include <tools/pcb_selection.h>
+#include <zone_settings.h>
 #include <shared_mutex>
+#include <unordered_set>
 #include <project.h>
 #include <list>
 
 class BOARD_DESIGN_SETTINGS;
 class BOARD_CONNECTED_ITEM;
 class BOARD_COMMIT;
+class COMPONENT_CLASS_MANAGER;
 class DRC_RTREE;
 class PCB_BASE_FRAME;
 class PCB_EDIT_FRAME;
@@ -1045,11 +1045,11 @@ public:
      * @param aBoardEdgesOnly is true if we are interested in board edge segments only.
      * @return the board's bounding box.
      */
-    BOX2I ComputeBoundingBox( bool aBoardEdgesOnly = false ) const;
+    BOX2I ComputeBoundingBox( bool aBoardEdgesOnly = false, bool aPhysicalLayersOnly = false ) const;
 
     const BOX2I GetBoundingBox() const override
     {
-        return ComputeBoundingBox( false );
+        return ComputeBoundingBox( false, false );
     }
 
     /**
@@ -1063,7 +1063,7 @@ public:
      */
     const BOX2I GetBoardEdgesBoundingBox() const
     {
-        return ComputeBoundingBox( true );
+        return ComputeBoundingBox( true, true );
     }
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
@@ -1431,6 +1431,9 @@ public:
      */
     void CacheItemById( BOARD_ITEM* aItem )
     {
+        if( IsFootprintHolder() )
+            return;
+
         m_itemByIdCache.insert( { aItem->m_Uuid, aItem } );
     }
 
@@ -1529,8 +1532,9 @@ private:
     PCB_BOARD_OUTLINE*  m_boardOutline;
     PCB_POINTS          m_points;
 
-    // Cache for fast access to items in the containers above by KIID, including children
-    std::unordered_map<KIID, BOARD_ITEM*> m_itemByIdCache;
+    // Cache for fast access to items in the containers above by KIID, including children.
+    // Mutable because it's a performance cache that can be populated during const lookups.
+    mutable std::unordered_map<KIID, BOARD_ITEM*> m_itemByIdCache;
 
     std::map<int, LAYER> m_layers;                  // layer data
 

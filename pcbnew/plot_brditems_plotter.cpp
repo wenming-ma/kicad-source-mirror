@@ -296,15 +296,6 @@ void BRDITEMS_PLOTTER::PlotPad( const PAD* aPad, PCB_LAYER_ID aLayer, const COLO
         }
 
         case PAD_SHAPE::RECTANGLE:
-        {
-            const VECTOR2I& size = aPad->GetSize( aLayer );
-
-            m_plotter->ThickRect( VECTOR2I( shape_pos.x - ( size.x / 2 ), shape_pos.y - (size.y / 2 ) ),
-                                  VECTOR2I( shape_pos.x + ( size.x / 2 ), shape_pos.y + (size.y / 2 ) ),
-                                  GetSketchPadLineWidth(), nullptr );
-            break;
-        }
-
         case PAD_SHAPE::ROUNDRECT:
         case PAD_SHAPE::TRAPEZOID:
         case PAD_SHAPE::CHAMFERED_RECT:
@@ -312,7 +303,7 @@ void BRDITEMS_PLOTTER::PlotPad( const PAD* aPad, PCB_LAYER_ID aLayer, const COLO
         {
             SHAPE_POLY_SET outline;
             aPad->TransformShapeToPolygon( outline, aLayer, 0, m_plotter->GetPlotterArcHighDef(),
-                                           ERROR_INSIDE, true );
+                                           ERROR_INSIDE, false );
 
             m_plotter->ThickPoly( outline, GetSketchPadLineWidth(), nullptr );
             break;

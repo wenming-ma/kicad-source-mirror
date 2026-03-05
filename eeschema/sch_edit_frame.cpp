@@ -813,7 +813,7 @@ void SCH_EDIT_FRAME::setupUIConditions()
     mgr->SetConditions( SCH_ACTIONS::rotateCCW,       ENABLE( hasElements ) );
     mgr->SetConditions( SCH_ACTIONS::mirrorH,         ENABLE( hasElements ) );
     mgr->SetConditions( SCH_ACTIONS::mirrorV,         ENABLE( hasElements ) );
-    mgr->SetConditions( ACTIONS::group,               ENABLE( SELECTION_CONDITIONS::NotEmpty ) );
+    mgr->SetConditions( ACTIONS::group,               ENABLE( SELECTION_CONDITIONS::MoreThan( 1 ) ) );
     mgr->SetConditions( ACTIONS::ungroup,             ENABLE( SELECTION_CONDITIONS::HasType( SCH_GROUP_T ) ) );
 
     mgr->SetConditions( SCH_ACTIONS::placeLinkedDesignBlock, ENABLE( groupWithDesignBlockLink ) );
@@ -1310,7 +1310,7 @@ void SCH_EDIT_FRAME::OnModify()
     if( GetCanvas() )
         GetCanvas()->Refresh();
 
-    if( !GetTitle().StartsWith( wxS( "*" ) ) )
+    if( GetScreen() && !GetTitle().StartsWith( wxS( "*" ) ) )
         updateTitle();
 }
 
@@ -1802,7 +1802,7 @@ void SCH_EDIT_FRAME::updateTitle()
 
         wxString sheetPath = GetCurrentSheet().PathHumanReadable( false, true );
 
-        if( sheetPath != title )
+        if( sheetPath != fn.GetName() )
             title += wxString::Format( wxT( " [%s]" ), sheetPath );
 
         if( readOnly )
@@ -3048,27 +3048,10 @@ void SCH_EDIT_FRAME::RemoveVariant()
         OnModify();
     }
 
-    int      selected = m_currentVariantCtrl->GetSelection();
-    wxString tmp;
+    if( Schematic().GetCurrentVariant() == variantName )
+        SetCurrentVariant( wxEmptyString );
 
-    if( selected != wxNOT_FOUND )
-        tmp = m_currentVariantCtrl->GetString( selected );
-
-    m_currentVariantCtrl->Set( Schematic().GetVariantNamesForUI() );
-
-    if( selected != wxNOT_FOUND )
-    {
-        if( tmp != variantName )
-        {
-            selected = m_currentVariantCtrl->FindString( tmp );
-            m_currentVariantCtrl->SetSelection( selected );
-        }
-        else
-        {
-            m_currentVariantCtrl->SetSelection( 0 );
-            SetCurrentVariant( wxEmptyString );
-        }
-    }
+    UpdateVariantSelectionCtrl( Schematic().GetVariantNamesForUI() );
 
     GetCanvas()->Refresh();
 }

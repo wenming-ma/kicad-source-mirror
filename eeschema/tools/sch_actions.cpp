@@ -358,6 +358,18 @@ TOOL_ACTION SCH_ACTIONS::showHiddenFields( TOOL_ACTION_ARGS()
         .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::text_sketch ) );
 
+TOOL_ACTION SCH_ACTIONS::previousSymbol( TOOL_ACTION_ARGS()
+        .Name( "eeschema.SymbolLibraryControl.previousSymbol" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Display previous symbol" ) )
+        .Icon( BITMAPS::lib_previous ) );
+
+TOOL_ACTION SCH_ACTIONS::nextSymbol( TOOL_ACTION_ARGS()
+        .Name( "eeschema.SymbolLibraryControl.nextSymbol" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Display next symbol" ) )
+        .Icon( BITMAPS::lib_next ) );
+
 
 // SYMBOL_EDITOR_DRAWING_TOOLS
 //
@@ -616,8 +628,8 @@ TOOL_ACTION SCH_ACTIONS::syncSheetPins( TOOL_ACTION_ARGS()
 TOOL_ACTION SCH_ACTIONS::syncAllSheetsPins( TOOL_ACTION_ARGS()
         .Name( "eeschema.InteractiveDrawing.syncAllSheetsPins" )
         .Scope( AS_GLOBAL )
-        .FriendlyName( _( "Sync All Sheets Pins..." ) )
-        .Tooltip( _( "Synchronize all sheets pins and hierarchical labels" ) )
+        .FriendlyName( _( "Sync All Sheet Pins..." ) )
+        .Tooltip( _( "Synchronize all sheet pins and hierarchical labels" ) )
         .Icon( BITMAPS::import_hierarchical_label )
         .Flags( AF_ACTIVATE ) );
 
@@ -1359,13 +1371,6 @@ TOOL_ACTION SCH_ACTIONS::toggleAnnotateAuto( TOOL_ACTION_ARGS()
         .Tooltip( _( "Toggle automatic annotation of new symbols" ) )
         .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::annotate ) );
-
-TOOL_ACTION SCH_ACTIONS::repairSchematic( TOOL_ACTION_ARGS()
-        .Name( "eeschema.EditorControl.repairSchematic" )
-        .Scope( AS_GLOBAL )
-        .FriendlyName( _( "Repair Schematic" ) )
-        .Tooltip( _( "Run various diagnostics and attempt to repair schematic" ) )
-        .Icon( BITMAPS::rescue ) );
 
 TOOL_ACTION SCH_ACTIONS::previousUnit( TOOL_ACTION_ARGS()
         .Name( "eeschema.EditorControl.previousUnit" )

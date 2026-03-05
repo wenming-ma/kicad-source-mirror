@@ -22,6 +22,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <wx/log.h>
+
 #include <netlist_lexer.h>  // netlist_lexer is common to Eeschema and Pcbnew
 #include <string_utils.h>
 #include <json_common.h>
@@ -826,7 +828,7 @@ void KICAD_NETLIST_PARSER::parseComponent()
     if( !footprint.IsEmpty() && fpid.Parse( footprint, true ) >= 0 )
     {
         wxString error;
-        error.Printf( _( "Invalid footprint ID in\nfile: '%s'\nline: %d\nofff: %d" ),
+        error.Printf( _( "Invalid footprint ID in\nfile: '%s'\nline: %d\noffset: %d" ),
                       CurSource(), CurLineNumber(), CurOffset() );
 
         THROW_IO_ERROR( error );
@@ -941,7 +943,7 @@ void KICAD_NETLIST_PARSER::parseGroup()
     if( !libId.IsEmpty() && groupLibId.Parse( libId, true ) >= 0 )
     {
         wxString error;
-        error.Printf( _( "Invalid lib_id ID in\nfile: '%s'\nline: %d\nofff: %d" ), CurSource(), CurLineNumber(),
+        error.Printf( _( "Invalid lib_id ID in\nfile: '%s'\nline: %d\noffset: %d" ), CurSource(), CurLineNumber(),
                       CurOffset() );
 
         THROW_IO_ERROR( error );

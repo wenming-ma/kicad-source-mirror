@@ -32,6 +32,7 @@
 #include <gal/graphics_abstraction_layer.h>
 #include <board.h>
 #include <board_design_settings.h>
+#include <collectors.h>
 #include <footprint.h>
 #include <increment.h>
 #include <pcb_shape.h>
@@ -42,6 +43,7 @@
 #include <pcb_table.h>
 #include <pcb_generator.h>
 #include <zone.h>
+#include <pad.h>
 #include <pcb_edit_frame.h>
 #include <drawing_sheet/ds_proxy_view_item.h>
 #include <kiway.h>

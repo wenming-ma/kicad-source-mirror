@@ -22,6 +22,8 @@
 #define DIALOG_DRC_RULE_EDITOR_H
 
 
+#include <map>
+
 #include <drc/drc_rule_parser.h>
 #include <thread_pool.h>
 #include <drc/drc_item.h>
@@ -36,6 +38,7 @@
 #include "drc_rule_editor_utils.h"
 #include "panel_drc_group_header.h"
 
+#define DIALOG_DRC_RULE_EDITOR_WINDOW_NAME wxT( "DialogDrcRuleEditorWindowName" )
 
 class PCB_EDIT_FRAME;
 class DIALOG_DRC_RULE_EDITOR;
@@ -121,14 +124,17 @@ private:
 
     void SaveRulesToFile();
 
-    /**
+    /**                                                                                                               
      * Creates a new rule tree node with a unique name and assigns the appropriate constraint data.
      *
      * @param aRuleTreeItemData The rule tree item data for the node.
+     * @param aBaseName Optional base name for unique name generation. If empty, the parent
+     *                  constraint node name is used.
      *
      * @return The newly created rule tree node.
      */
-    RULE_TREE_NODE buildRuleTreeNode( RULE_TREE_ITEM_DATA* aRuleTreeItemData );
+    RULE_TREE_NODE buildRuleTreeNode( RULE_TREE_ITEM_DATA* aRuleTreeItemData,
+                                    const wxString& aBaseName = wxEmptyString );
 
     /**
      * Creates a new rule tree node with the specified parameters, generating a new ID if not provided.
@@ -143,7 +149,7 @@ private:
      * @return The newly created RULE_TREE_NODE.
      */
     RULE_TREE_NODE
-    buildRuleTreeNodeData( const std::string& aName, const DRC_RULE_EDITOR_ITEM_TYPE& aNodeType,
+    buildRuleTreeNodeData( const wxString& aName, const DRC_RULE_EDITOR_ITEM_TYPE& aNodeType,
                            const std::optional<int>&                             aParentId = std::nullopt,
                            const std::optional<DRC_RULE_EDITOR_CONSTRAINT_NAME>& aConstraintType = std::nullopt,
                            const std::vector<RULE_TREE_NODE>&                    aChildNodes = {},
@@ -197,7 +203,7 @@ private:
      *
      * @return True if the rule name is unique, false otherwise.
      */
-    bool validateRuleName( int aNodeId, wxString aRuleName );
+    bool validateRuleName( int aNodeId, const wxString& aRuleName );
 
     /**
      * Deletes a rule tree node by its ID.
@@ -215,6 +221,35 @@ private:
      * @param aResult The vector to store the child nodes.
      */
     void collectChildRuleNodes( int aParentId, std::vector<RULE_TREE_NODE*>& aResult );
+
+    /**
+     * Collects all rule nodes that have unsaved changes (new or edited).
+     *
+     * @param aResult The vector to store the modified rule nodes.
+     */
+    void collectModifiedRules( std::vector<RULE_TREE_NODE*>& aResult );
+
+    /**
+     * Validates all rules and returns any that have validation errors.
+     *
+     * @param aErrors Output map of rule names to error messages.
+     * @return True if all rules are valid, false if any have errors.
+     */
+    bool validateAllRules( std::map<wxString, wxString>& aErrors );
+
+    /**
+     * Shows a prompt for unsaved changes when closing with modifications.
+     *
+     * @return wxID_YES to save and close, wxID_NO to discard and close, wxID_CANCEL to abort close.
+     */
+    int promptUnsavedChanges();
+
+    /**
+     * Selects a rule node in the tree by its ID.
+     *
+     * @param aNodeId The ID of the node to select.
+     */
+    void selectRuleNode( int aNodeId );
 
     // PROGRESS_REPORTER calls
     bool updateUI() override;

@@ -160,7 +160,7 @@ bool ConvertSmartQuotesAndDashes( wxString* aString )
 
     for( wxString::iterator ii = aString->begin(); ii != aString->end(); ++ii )
     {
-        if( *ii == L'\u00B4' || *ii == L'\u2018' || *ii == L'\u2019' )
+        if( *ii == L'\u2018' || *ii == L'\u2019' )
         {
             *ii = '\'';
             retVal = true;
@@ -239,7 +239,7 @@ wxString EscapeString( const wxString& aSource, ESCAPE_CONTEXT aContext )
         }
         else if( aContext == CTX_JS_STR )
         {
-            if( c >= 0x7F || c == '\'' || c == '\\' || c == '(' || c == ')' )
+            if( c >= 0x7F || c == '\'' || c == '"' || c == '\\' || c == '(' || c == ')' )
             {
                 unsigned int code = c;
                 char buffer[16];
@@ -826,7 +826,10 @@ int StrNumCmp( const wxString& aString1, const wxString& aString2, bool aIgnoreC
     auto str1 = aString1.begin();
     auto str2 = aString2.begin();
 
-    while( str1 != aString1.end() && str2 != aString2.end() )
+    const auto str1End = aString1.end();
+    const auto str2End = aString2.end();
+
+    while( str1 != str1End && str2 != str2End )
     {
         wxUniChar c1 = *str1;
         wxUniChar c2 = *str2;
@@ -841,14 +844,14 @@ int StrNumCmp( const wxString& aString1, const wxString& aString2, bool aIgnoreC
                 c1 = *str1;
                 nb1 = nb1 * 10 + (int) c1 - '0';
                 ++str1;
-            } while( str1 != aString1.end() && wxIsdigit( *str1 ) );
+            } while( str1 != str1End && wxIsdigit( *str1 ) );
 
             do
             {
                 c2 = *str2;
                 nb2 = nb2 * 10 + (int) c2 - '0';
                 ++str2;
-            } while( str2 != aString2.end() && wxIsdigit( *str2 ) );
+            } while( str2 != str2End && wxIsdigit( *str2 ) );
 
             if( nb1 < nb2 )
                 return -1;
@@ -856,8 +859,8 @@ int StrNumCmp( const wxString& aString1, const wxString& aString2, bool aIgnoreC
             if( nb1 > nb2 )
                 return 1;
 
-            c1 = ( str1 != aString1.end() ) ? *str1 : wxUniChar( 0 );
-            c2 = ( str2 != aString2.end() ) ? *str2 : wxUniChar( 0 );
+            c1 = ( str1 != str1End ) ? *str1 : wxUniChar( 0 );
+            c2 = ( str2 != str2End ) ? *str2 : wxUniChar( 0 );
         }
 
         // Any numerical comparisons to here are identical.
@@ -881,18 +884,18 @@ int StrNumCmp( const wxString& aString1, const wxString& aString2, bool aIgnoreC
                 return 1;
         }
 
-        if( str1 != aString1.end() )
+        if( str1 != str1End )
             ++str1;
 
-        if( str2 != aString2.end() )
+        if( str2 != str2End )
             ++str2;
     }
 
-    if( str1 == aString1.end() && str2 != aString2.end() )
+    if( str1 == str1End && str2 != str2End )
     {
         return -1;   // Identical to here but aString1 is longer.
     }
-    else if( str1 != aString1.end() && str2 == aString2.end() )
+    else if( str1 != str1End && str2 == str2End )
     {
         return 1;    // Identical to here but aString2 is longer.
     }

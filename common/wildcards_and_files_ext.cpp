@@ -303,6 +303,18 @@ wxString FILEEXT::EagleFilesWildcard()
 }
 
 
+wxString FILEEXT::PADSProjectFilesWildcard()
+{
+    return _( "PADS ASCII files" ) + AddFileExtListToFilter( { "asc", "txt" } );
+}
+
+
+wxString FILEEXT::GedaProjectFilesWildcard()
+{
+    return _( "gEDA / Lepton EDA project files" ) + AddFileExtListToFilter( { "prj", "sch", "pcb" } );
+}
+
+
 wxString FILEEXT::OrCadPcb2NetlistFileWildcard()
 {
     return _( "OrcadPCB2 netlist files" )

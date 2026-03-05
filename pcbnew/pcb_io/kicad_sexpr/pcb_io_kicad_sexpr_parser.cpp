@@ -38,6 +38,8 @@
 
 #include <board.h>
 #include <board_design_settings.h>
+#include <component_classes/component_class_manager.h>
+#include <project/net_settings.h>
 #include <embedded_files_parser.h>
 #include <font/fontconfig.h>
 #include <magic_enum.hpp>
@@ -1062,12 +1064,12 @@ BOARD_ITEM* PCB_IO_KICAD_SEXPR_PARSER::Parse()
         if( m_board == nullptr )
             m_board = new BOARD();
 
-        item = (BOARD_ITEM*) parseBOARD();
+        item = parseBOARD();
         break;
 
     case T_module:      // legacy token
     case T_footprint:
-        item = (BOARD_ITEM*) parseFOOTPRINT( initial_comments.release() );
+        item = parseFOOTPRINT( initial_comments.release() );
 
         // Locking a footprint has no meaning outside of a board.
         item->SetLocked( false );
@@ -1302,10 +1304,22 @@ BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD_unchecked()
             break;
 
         case T_zone:
-            item = parseZONE( m_board );
+        {
+            ZONE* zone = parseZONE( m_board );
+
+            if( zone->GetNumCorners() == 0 )
+            {
+                // Zones with no outline vertices are degenerate and can cause crashes
+                // elsewhere. Silently discard them.
+                delete zone;
+                break;
+            }
+
+            item = zone;
             m_board->Add( item, ADD_MODE::BULK_APPEND, true );
             bulkAddedItems.push_back( item );
             break;
+        }
 
         case T_target:
             item = parsePCB_TARGET();
@@ -1497,33 +1511,47 @@ BOARD* PCB_IO_KICAD_SEXPR_PARSER::parseBOARD_unchecked()
 
 void PCB_IO_KICAD_SEXPR_PARSER::resolveGroups( BOARD_ITEM* aParent )
 {
+    BOARD*     board = dynamic_cast<BOARD*>( aParent );
+    FOOTPRINT* footprint = board ? nullptr : dynamic_cast<FOOTPRINT*>( aParent );
+
+    // For footprint parents, build a one-time lookup map instead of scanning children
+    // on every call.  For board parents, use the board's existing item-by-id cache.
+    std::unordered_map<KIID, BOARD_ITEM*> fpItemMap;
+
+    if( footprint )
+    {
+        footprint->RunOnChildren(
+                [&]( BOARD_ITEM* child )
+                {
+                    fpItemMap.insert( { child->m_Uuid, child } );
+                },
+                RECURSE_MODE::NO_RECURSE );
+    }
+
     auto getItem =
-            [&]( const KIID& aId )
+            [&]( const KIID& aId ) -> BOARD_ITEM*
             {
-                BOARD_ITEM* aItem = nullptr;
+                if( board )
+                {
+                    const auto& cache = board->GetItemByIdCache();
+                    auto        it = cache.find( aId );
 
-                if( BOARD* board = dynamic_cast<BOARD*>( aParent ) )
-                {
-                    aItem = board->ResolveItem( aId, true );
+                    return it != cache.end() ? it->second : nullptr;
                 }
-                else if( FOOTPRINT* footprint = dynamic_cast<FOOTPRINT*>( aParent ) )
+                else if( footprint )
                 {
-                    footprint->RunOnChildren(
-                            [&]( BOARD_ITEM* child )
-                            {
-                                if( child->m_Uuid == aId )
-                                    aItem = child;
-                            },
-                            RECURSE_MODE::NO_RECURSE );
+                    auto it = fpItemMap.find( aId );
+
+                    return it != fpItemMap.end() ? it->second : nullptr;
                 }
 
-                return aItem;
+                return nullptr;
             };
 
     // Now that we've parsed the other Uuids in the file we can resolve the uuids referred
     // to in the group declarations we saw.
     //
-    // First add all group objects so subsequent GetItem() calls for nested groups work.
+    // First add all group objects so subsequent getItem() calls for nested groups work.
 
     std::vector<const GROUP_INFO*> groupTypeObjects;
 
@@ -1568,9 +1596,17 @@ void PCB_IO_KICAD_SEXPR_PARSER::resolveGroups( BOARD_ITEM* aParent )
             group->SetLocked( true );
 
         if( groupInfo->parent->Type() == PCB_FOOTPRINT_T )
+        {
             static_cast<FOOTPRINT*>( groupInfo->parent )->Add( group, ADD_MODE::INSERT, true );
+
+            // Keep the footprint lookup map in sync with newly added groups
+            if( footprint )
+                fpItemMap.insert( { group->m_Uuid, group } );
+        }
         else
+        {
             static_cast<BOARD*>( groupInfo->parent )->Add( group, ADD_MODE::INSERT, true );
+        }
     }
 
     for( const GROUP_INFO* groupInfo : groupTypeObjects )
@@ -3990,8 +4026,27 @@ PCB_BARCODE* PCB_IO_KICAD_SEXPR_PARSER::parsePCB_BARCODE( BOARD_ITEM* aParent )
             NeedRIGHT();
             break;
 
+        case T_hide:
+            barcode->SetShowText( !parseBool() );
+            NeedRIGHT();
+            break;
+
+        case T_knockout:
+            barcode->SetIsKnockout( parseBool() );
+            NeedRIGHT();
+            break;
+
+        case T_margins:
+        {
+            int marginX = parseBoardUnits( "margin X" );
+            int marginY = parseBoardUnits( "margin Y" );
+            barcode->SetMargin( VECTOR2I( marginX, marginY ) );
+            NeedRIGHT();
+            break;
+        }
+
         default:
-            Expecting( "at, layer, size, text, text_height, type, ecc_level, locked or uuid" );
+            Expecting( "at, layer, size, text, text_height, type, ecc_level, locked, hide, knockout, margins or uuid" );
         }
     }
 
@@ -5366,7 +5421,7 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( wxArrayString* a
                                "exclude_from_bom or allow_solder_mask_bridges" );
                 }
             }
-
+            footprint->SetAttributes( attributes );
             break;
 
         case T_fp_text:
@@ -5470,6 +5525,13 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( wxArrayString* a
         case T_zone:
         {
             ZONE* zone = parseZONE( footprint.get() );
+
+            if( zone->GetNumCorners() == 0 )
+            {
+                delete zone;
+                break;
+            }
+
             footprint->Add( zone, ADD_MODE::APPEND, true );
             break;
         }
@@ -5539,7 +5601,7 @@ FOOTPRINT* PCB_IO_KICAD_SEXPR_PARSER::parseFOOTPRINT_unchecked( wxArrayString* a
             break;
 
         default:
-            Expecting( "at, descr, locked, placed, tedit, tstamp, uuid, "
+            Expecting( "at, descr, locked, placed, tedit, tstamp, uuid, variant, "
                        "autoplace_cost90, autoplace_cost180, attr, clearance, "
                        "embedded_files, fp_arc, fp_circle, fp_curve, fp_line, fp_poly, "
                        "fp_rect, fp_text, pad, group, generator, model, path, solder_mask_margin, "
@@ -7574,8 +7636,8 @@ PCB_IO_KICAD_SEXPR_PARSER::parseFrontBackOptBool( bool aAllowLegacyFormat )
 {
     T token = NextTok();
 
-    std::optional<bool> front( std::nullopt );
-    std::optional<bool> back( std::nullopt );
+    std::optional<bool> front{};
+    std::optional<bool> back{};
 
     if( token != T_LEFT && aAllowLegacyFormat )
     {
@@ -7603,7 +7665,16 @@ PCB_IO_KICAD_SEXPR_PARSER::parseFrontBackOptBool( bool aAllowLegacyFormat )
             token = NextTok();
         }
 
+        // GCC false-positive: both front and back are initialized to {} above and can only be
+        // set or reset inside this loop, never left in an indeterminate state.
+#if defined( __GNUC__ ) && !defined( __clang__ )
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
         return { front, back };
+#if defined( __GNUC__ ) && !defined( __clang__ )
+#pragma GCC diagnostic pop
+#endif
     }
 
     while( token != T_RIGHT )

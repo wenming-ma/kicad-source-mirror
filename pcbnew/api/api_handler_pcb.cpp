@@ -19,7 +19,9 @@
  */
 
 #include <magic_enum.hpp>
+#include <properties/property.h>
 
+#include <common.h>
 #include <api/api_handler_pcb.h>
 #include <api/api_pcb_utils.h>
 #include <api/api_enums.h>
@@ -95,6 +97,7 @@ API_HANDLER_PCB::API_HANDLER_PCB( PCB_EDIT_FRAME* aFrame ) :
             &API_HANDLER_PCB::handleExpandTextVariables );
     registerHandler<GetBoardOrigin, types::Vector2>( &API_HANDLER_PCB::handleGetBoardOrigin );
     registerHandler<SetBoardOrigin, Empty>( &API_HANDLER_PCB::handleSetBoardOrigin );
+    registerHandler<GetBoardLayerName, BoardLayerNameResponse>( &API_HANDLER_PCB::handleGetBoardLayerName );
 
     registerHandler<InteractiveMoveItems, Empty>( &API_HANDLER_PCB::handleInteractiveMoveItems );
     registerHandler<GetNets, NetsResponse>( &API_HANDLER_PCB::handleGetNets );
@@ -1167,6 +1170,25 @@ HANDLER_RESULT<Empty> API_HANDLER_PCB::handleSetBoardOrigin(
     }
 
     return Empty();
+}
+
+
+HANDLER_RESULT<BoardLayerNameResponse> API_HANDLER_PCB::handleGetBoardLayerName(
+            const HANDLER_CONTEXT<GetBoardLayerName>& aCtx )
+{
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.board() );
+        !documentValidation )
+    {
+        return tl::unexpected( documentValidation.error() );
+    }
+
+    BoardLayerNameResponse response;
+
+    PCB_LAYER_ID id = FromProtoEnum<PCB_LAYER_ID>( aCtx.Request.layer() );
+
+    response.set_name( frame()->GetBoard()->GetLayerName( id ) );
+
+    return response;
 }
 
 

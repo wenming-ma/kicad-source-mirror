@@ -35,6 +35,7 @@
 #include <wx/wupdlock.h>
 #include <wx/log.h>
 
+#include <settings/common_settings.h>
 #include <advanced_config.h>
 #include <bitmaps.h>
 #include <bitmap_store.h>
@@ -1732,7 +1733,7 @@ void PROJECT_TREE_PANE::onPaint( wxPaintEvent& event )
 
 void KICAD_MANAGER_FRAME::OnChangeWatchedPaths( wxCommandEvent& aEvent )
 {
-    m_leftWin->FileWatcherReset();
+    m_projectTreePane->FileWatcherReset();
 }
 
 

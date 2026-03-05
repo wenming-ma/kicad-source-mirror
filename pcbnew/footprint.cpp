@@ -23,6 +23,9 @@
  * or you may write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
+
+#include "footprint.h"
+
 #include <magic_enum.hpp>
 
 #include <algorithm>
@@ -35,6 +38,8 @@
 #include <bitmaps.h>
 #include <board.h>
 #include <board_design_settings.h>
+#include <collectors.h>
+#include <component_classes/component_class_manager.h>
 #include <confirm.h>
 #include <convert_basic_shapes_to_polygon.h>
 #include <convert_shape_list_to_polygon.h>
@@ -44,7 +49,6 @@
 #include <embedded_files.h>
 #include <font/font.h>
 #include <font/outline_font.h>
-#include <footprint.h>
 #include <geometry/convex_hull.h>
 #include <geometry/shape_segment.h>
 #include <geometry/shape_simple.h>
@@ -73,6 +77,8 @@
 #include <api/api_enums.h>
 #include <api/api_utils.h>
 #include <api/api_pcb_utils.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 FOOTPRINT::FOOTPRINT( BOARD* parent ) :
@@ -1342,8 +1348,7 @@ bool FOOTPRINT::HasVariant( const wxString& aVariantName ) const
 bool FOOTPRINT::GetDNPForVariant( const wxString& aVariantName ) const
 {
     // Empty variant name means default
-    if( aVariantName.IsEmpty()
-        || aVariantName.CmpNoCase( GetDefaultVariantName() ) == 0 )
+    if( aVariantName.IsEmpty() || aVariantName.CmpNoCase( GetDefaultVariantName() ) == 0 )
         return IsDNP();
 
     const FOOTPRINT_VARIANT* variant = GetVariant( aVariantName );
@@ -1359,8 +1364,7 @@ bool FOOTPRINT::GetDNPForVariant( const wxString& aVariantName ) const
 bool FOOTPRINT::GetExcludedFromBOMForVariant( const wxString& aVariantName ) const
 {
     // Empty variant name means default
-    if( aVariantName.IsEmpty()
-        || aVariantName.CmpNoCase( GetDefaultVariantName() ) == 0 )
+    if( aVariantName.IsEmpty() || aVariantName.CmpNoCase( GetDefaultVariantName() ) == 0 )
         return IsExcludedFromBOM();
 
     const FOOTPRINT_VARIANT* variant = GetVariant( aVariantName );
@@ -1376,8 +1380,7 @@ bool FOOTPRINT::GetExcludedFromBOMForVariant( const wxString& aVariantName ) con
 bool FOOTPRINT::GetExcludedFromPosFilesForVariant( const wxString& aVariantName ) const
 {
     // Empty variant name means default
-    if( aVariantName.IsEmpty()
-        || aVariantName.CmpNoCase( GetDefaultVariantName() ) == 0 )
+    if( aVariantName.IsEmpty() || aVariantName.CmpNoCase( GetDefaultVariantName() ) == 0 )
         return IsExcludedFromPosFiles();
 
     const FOOTPRINT_VARIANT* variant = GetVariant( aVariantName );
@@ -1390,12 +1393,10 @@ bool FOOTPRINT::GetExcludedFromPosFilesForVariant( const wxString& aVariantName 
 }
 
 
-wxString FOOTPRINT::GetFieldValueForVariant( const wxString& aVariantName,
-                                              const wxString& aFieldName ) const
+wxString FOOTPRINT::GetFieldValueForVariant( const wxString& aVariantName, const wxString& aFieldName ) const
 {
     // Check variant-specific override first
-    if( !aVariantName.IsEmpty()
-        && aVariantName.CmpNoCase( GetDefaultVariantName() ) != 0 )
+    if( !aVariantName.IsEmpty() && aVariantName.CmpNoCase( GetDefaultVariantName() ) != 0 )
     {
         const FOOTPRINT_VARIANT* variant = GetVariant( aVariantName );
 
@@ -1685,23 +1686,24 @@ wxString FOOTPRINT::GetTypeName() const
 }
 
 
-std::vector<SEARCH_TERM> FOOTPRINT::GetSearchTerms()
+std::vector<SEARCH_TERM>& FOOTPRINT::GetSearchTerms()
 {
-    std::vector<SEARCH_TERM> terms;
+    m_searchTerms.clear();
+    m_searchTerms.reserve( 6 );
 
-    terms.emplace_back( SEARCH_TERM( GetLibNickname(), 4 ) );
-    terms.emplace_back( SEARCH_TERM( GetName(), 8 ) );
-    terms.emplace_back( SEARCH_TERM( GetLIB_ID().Format(), 16 ) );
+    m_searchTerms.emplace_back( SEARCH_TERM( GetLibNickname(), 4 ) );
+    m_searchTerms.emplace_back( SEARCH_TERM( GetName(), 8 ) );
+    m_searchTerms.emplace_back( SEARCH_TERM( GetLIB_ID().Format(), 16 ) );
 
     wxStringTokenizer keywordTokenizer( GetKeywords(), wxS( " \t\r\n" ), wxTOKEN_STRTOK );
 
     while( keywordTokenizer.HasMoreTokens() )
-        terms.emplace_back( SEARCH_TERM( keywordTokenizer.GetNextToken(), 4 ) );
+        m_searchTerms.emplace_back( SEARCH_TERM( keywordTokenizer.GetNextToken(), 4 ) );
 
-    terms.emplace_back( SEARCH_TERM( GetKeywords(), 1 ) );
-    terms.emplace_back( SEARCH_TERM( GetLibDescription(), 1 ) );
+    m_searchTerms.emplace_back( SEARCH_TERM( GetKeywords(), 1 ) );
+    m_searchTerms.emplace_back( SEARCH_TERM( GetLibDescription(), 1 ) );
 
-    return terms;
+    return m_searchTerms;
 }
 
 
@@ -1780,7 +1782,7 @@ const BOX2I FOOTPRINT::GetBoundingBox( bool aIncludeText ) const
 
     for( BOARD_ITEM* item : m_drawings )
     {
-        if( m_privateLayers.test( item->GetLayer() ) && !isFPEdit )
+        if( IsValidLayer( item->GetLayer() ) && m_privateLayers.test( item->GetLayer() ) && !isFPEdit )
             continue;
 
         // We want the bitmap bounding box just in the footprint editor
@@ -1911,7 +1913,7 @@ const BOX2I FOOTPRINT::GetLayerBoundingBox( const LSET& aLayers ) const
 
     for( BOARD_ITEM* item : m_drawings )
     {
-        if( m_privateLayers.test( item->GetLayer() ) && !isFPEdit )
+        if( IsValidLayer( item->GetLayer() ) && m_privateLayers.test( item->GetLayer() ) && !isFPEdit )
             continue;
 
         if( ( aLayers & item->GetLayerSet() ).none() )
@@ -2102,10 +2104,14 @@ SHAPE_POLY_SET FOOTPRINT::GetBoundingHull( PCB_LAYER_ID aLayer ) const
 void FOOTPRINT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     wxString msg, msg2;
+    wxString variant;
+
+    if( BOARD* board = GetBoard() )
+        variant = board->GetCurrentVariant();
 
     // Don't use GetShownText(); we want to see the variable references here
     aList.emplace_back( UnescapeString( Reference().GetText() ),
-                        UnescapeString( Value().GetText() ) );
+                        UnescapeString( GetFieldValueForVariant( variant, GetCanonicalFieldName( FIELD_T::VALUE ) ) ) );
 
     if( aFrame->IsType( FRAME_FOOTPRINT_VIEWER )
         || aFrame->IsType( FRAME_FOOTPRINT_CHOOSER )
@@ -2134,6 +2140,8 @@ void FOOTPRINT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
     default:   /* unsided: user-layers only, etc. */                           break;
     }
 
+    aList.emplace_back( _( "Rotation" ), wxString::Format( wxT( "%.4g" ), GetOrientation().AsDegrees() ) );
+
     auto addToken = []( wxString* aStr, const wxString& aAttr )
                     {
                         if( !aStr->IsEmpty() )
@@ -2148,36 +2156,31 @@ void FOOTPRINT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
     if( IsLocked() )
         addToken( &status, _( "Locked" ) );
 
-    if( m_fpStatus & FP_is_PLACED )
+    if( IsPlaced() )
         addToken( &status, _( "autoplaced" ) );
 
-    if( m_attributes & FP_BOARD_ONLY )
+    if( IsBoardOnly() )
         addToken( &attrs, _( "not in schematic" ) );
 
-    if( m_attributes & FP_EXCLUDE_FROM_POS_FILES )
+    if( GetExcludedFromPosFilesForVariant( variant ) )
         addToken( &attrs, _( "exclude from pos files" ) );
 
-    if( m_attributes & FP_EXCLUDE_FROM_BOM )
+    if( GetExcludedFromBOMForVariant( variant ) )
         addToken( &attrs, _( "exclude from BOM" ) );
 
-    if( m_attributes & FP_DNP )
+    if( GetDNPForVariant( variant ) )
         addToken( &attrs, _( "DNP" ) );
 
     aList.emplace_back( _( "Status: " ) + status, _( "Attributes:" ) + wxS( " " ) + attrs );
 
-    aList.emplace_back( _( "Rotation" ), wxString::Format( wxT( "%.4g" ),
-                                                           GetOrientation().AsDegrees() ) );
-
     if( !m_componentClassCacheProxy->GetComponentClass()->IsEmpty() )
     {
-        aList.emplace_back(
-                _( "Component Class" ),
-                m_componentClassCacheProxy->GetComponentClass()->GetHumanReadableName() );
+        aList.emplace_back( _( "Component Class" ),
+                            m_componentClassCacheProxy->GetComponentClass()->GetHumanReadableName() );
     }
 
     msg.Printf( _( "Footprint: %s" ), m_fpid.GetUniStringLibId() );
-    msg2.Printf( _( "3D-Shape: %s" ), m_3D_Drawings.empty() ? _( "<none>" )
-                                                            : m_3D_Drawings.front().m_Filename );
+    msg2.Printf( _( "3D-Shape: %s" ), m_3D_Drawings.empty() ? _( "<none>" ) : m_3D_Drawings.front().m_Filename );
     aList.emplace_back( msg, msg2 );
 
     msg.Printf( _( "Doc: %s" ), m_libDescription );
@@ -2203,7 +2206,7 @@ PCB_LAYER_ID FOOTPRINT::GetSide() const
 
     for( BOARD_ITEM* item : m_drawings )
     {
-        if( LSET::SideSpecificMask().test( item->GetLayer() ) )
+        if( IsValidLayer( item->GetLayer() ) && LSET::SideSpecificMask().test( item->GetLayer() ) )
             return GetLayer();
     }
 
@@ -2671,6 +2674,14 @@ wxString FOOTPRINT::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFu
         reference = _( "<no reference designator>" );
 
     return wxString::Format( _( "Footprint %s" ), reference );
+}
+
+
+wxString FOOTPRINT::DisambiguateItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
+{
+    return wxString::Format( wxT( "%s (%s)" ),
+                             GetItemDescription( aUnitsProvider, aFull ),
+                             GetFPIDAsString() );
 }
 
 
@@ -4805,24 +4816,23 @@ static struct FOOTPRINT_DESC
         propMgr.AddProperty( new PROPERTY<FOOTPRINT, wxString>( _HKI( "Reference" ),
                     &FOOTPRINT::SetReference, &FOOTPRINT::GetReferenceAsString ),
                     groupFields );
-        propMgr.AddProperty( new PROPERTY<FOOTPRINT, wxString>( _HKI( "Value" ),
-                    &FOOTPRINT::SetValue, &FOOTPRINT::GetValueAsString ),
-                    groupFields );
+
+        const wxString propertyFields = _HKI( "Footprint Properties" );
 
         propMgr.AddProperty( new PROPERTY<FOOTPRINT, wxString>( _HKI( "Library Link" ),
                     NO_SETTER( FOOTPRINT, wxString ), &FOOTPRINT::GetFPIDAsString ),
-                    groupFields );
+                    propertyFields );
         propMgr.AddProperty( new PROPERTY<FOOTPRINT, wxString>( _HKI( "Library Description" ),
                     NO_SETTER( FOOTPRINT, wxString ), &FOOTPRINT::GetLibDescription ),
-                    groupFields );
+                    propertyFields );
         propMgr.AddProperty( new PROPERTY<FOOTPRINT, wxString>( _HKI( "Keywords" ),
                     NO_SETTER( FOOTPRINT, wxString ), &FOOTPRINT::GetKeywords ),
-                    groupFields );
+                    propertyFields );
 
         // Note: Also used by DRC engine
         propMgr.AddProperty( new PROPERTY<FOOTPRINT, wxString>( _HKI( "Component Class" ),
                     NO_SETTER( FOOTPRINT, wxString ), &FOOTPRINT::GetComponentClassAsString ),
-                    groupFields )
+                    propertyFields )
                 .SetIsHiddenFromLibraryEditors();
 
         const wxString groupAttributes = _HKI( "Attributes" );

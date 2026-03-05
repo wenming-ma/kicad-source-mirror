@@ -33,6 +33,7 @@
 #include <settings/common_settings.h>
 #include <settings/json_settings_internals.h>
 #include <settings/parameters.h>
+#include <settings/color_settings.h>
 #include <settings/settings_manager.h>
 #include <settings/aui_settings.h>
 #include <wx/config.h>
@@ -119,6 +120,7 @@ const wxAuiPaneInfo& defaultSchSelectionFilterPaneInfo( wxWindow* aWindow )
             .TopDockable( false )
             .BottomDockable( false )
             .CloseButton( true )
+            // Fixed-size pane; -1 for MinSize height is required
             .MinSize( aWindow->FromDIP( wxSize( 180, -1 ) ) )
             .BestSize( aWindow->FromDIP( wxSize( 180, -1 ) ) )
             .Show( true );

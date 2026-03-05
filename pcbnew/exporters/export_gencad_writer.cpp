@@ -19,6 +19,7 @@
 #include "export_gencad_writer.h"
 
 #include <build_version.h>
+#include <common.h>
 #include <board.h>
 #include <board_design_settings.h>
 #include <convert_basic_shapes_to_polygon.h>
@@ -165,7 +166,7 @@ bool GENCAD_EXPORTER::WriteFile( const wxString& aFullFileName )
     BOARD*  pcb = m_board;
 
     // Update some board data, to ensure a reliable GenCAD export.
-    pcb->ComputeBoundingBox( false );
+    pcb->ComputeBoundingBox( false, false );
 
     /* Temporary modification of footprints that are flipped (i.e. on bottom
      * layer) to convert them to non flipped footprints.

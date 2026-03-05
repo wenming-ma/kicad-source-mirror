@@ -24,7 +24,7 @@
 #include "drc_re_panel_matcher.h"
 
 #include <algorithm>
-
+#include <drc/drc_rule_condition.h>
 
 /**
  * Panel Claim Priority System
@@ -65,11 +65,9 @@ void DRC_PANEL_MATCHER::initClaims()
 {
     // Priority 100: ROUTING_DIFF_PAIR claims track_width + diff_pair_gap + diff_pair_uncoupled
     // This must be checked before ROUTING_WIDTH which also wants track_width
-    m_claims.emplace_back(
-            ROUTING_DIFF_PAIR,
-            std::set<DRC_CONSTRAINT_T>{ TRACK_WIDTH_CONSTRAINT, DIFF_PAIR_GAP_CONSTRAINT },
-            std::set<DRC_CONSTRAINT_T>{ MAX_UNCOUPLED_CONSTRAINT },
-            100 );
+    m_claims.emplace_back( ROUTING_DIFF_PAIR,
+                           std::set<DRC_CONSTRAINT_T>{ TRACK_WIDTH_CONSTRAINT, DIFF_PAIR_GAP_CONSTRAINT },
+                           std::set<DRC_CONSTRAINT_T>{ MAX_UNCOUPLED_CONSTRAINT, SKEW_CONSTRAINT }, 100 );
 
     // Priority 90: VIA_STYLE claims via_diameter + hole_size
     m_claims.emplace_back(
@@ -136,15 +134,21 @@ void DRC_PANEL_MATCHER::initClaims()
             std::set<DRC_CONSTRAINT_T>{},
             30 );
 
-    m_claims.emplace_back(
-            HOLE_TO_HOLE_CLEARANCE,
+   m_claims.emplace_back(
+            HOLE_TO_HOLE_DISTANCE,
             std::set<DRC_CONSTRAINT_T>{ HOLE_TO_HOLE_CONSTRAINT },
             std::set<DRC_CONSTRAINT_T>{},
             30 );
 
-    m_claims.emplace_back(
+   m_claims.emplace_back(
             COURTYARD_CLEARANCE,
             std::set<DRC_CONSTRAINT_T>{ COURTYARD_CLEARANCE_CONSTRAINT },
+            std::set<DRC_CONSTRAINT_T>{},
+            30 );
+
+   m_claims.emplace_back(
+            MINIMUM_SOLDERMASK_SILVER,
+            std::set<DRC_CONSTRAINT_T>{ SOLDER_MASK_SLIVER_CONSTRAINT },
             std::set<DRC_CONSTRAINT_T>{},
             30 );
 
@@ -218,12 +222,14 @@ void DRC_PANEL_MATCHER::initClaims()
             std::set<DRC_CONSTRAINT_T>{},
             20 );
 
-    // Skew constraints
+    // Diff pair length matching requires both length and skew.
+    // Without this, LENGTH_CONSTRAINT alone would match here at priority 65
+    // instead of falling through to ABSOLUTE_LENGTH at priority 60.
     m_claims.emplace_back(
             MATCHED_LENGTH_DIFF_PAIR,
-            std::set<DRC_CONSTRAINT_T>{ SKEW_CONSTRAINT },
+            std::set<DRC_CONSTRAINT_T>{ LENGTH_CONSTRAINT, SKEW_CONSTRAINT },
             std::set<DRC_CONSTRAINT_T>{},
-            20 );
+            65 );
 
     // Diff pair gap only (when not combined with track_width)
     m_claims.emplace_back(
@@ -301,6 +307,13 @@ std::vector<DRC_PANEL_MATCH> DRC_PANEL_MATCHER::MatchRule( const DRC_RULE& aRule
 
         if( matchesClaim( claim, remaining, &claimed ) )
         {
+            // VIAS_UNDER_SMD requires Pad_Type == 'SMD' in the condition
+            if( claim.panelType == VIAS_UNDER_SMD )
+            {
+                if( !aRule.m_Condition || !aRule.m_Condition->GetExpression().Contains( wxS( "Pad_Type == 'SMD'" ) ) )
+                    continue;
+            }
+
             matches.emplace_back( claim.panelType, claimed );
 
             // Remove claimed constraints from remaining set

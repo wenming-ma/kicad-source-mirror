@@ -35,9 +35,10 @@
 #include "tools/pcb_point_editor.h"
 #include "tools/pcb_selection_tool.h"
 #include <python/scripting/pcb_scripting_tool.h>
-#include <3d_viewer/eda_3d_viewer_frame.h>
 #include <bitmaps.h>
 #include <board.h>
+#include <project/net_settings.h>
+#include <widgets/wx_infobar.h>
 #include <footprint.h>
 #include <confirm.h>
 #include <footprint_edit_frame.h>
@@ -53,6 +54,7 @@
 #include <pgm_base.h>
 #include <project.h>
 #include <project_pcb.h>
+#include <string_utils.h>
 #include <settings/settings_manager.h>
 #include <tool/action_toolbar.h>
 #include <tool/common_control.h>
@@ -226,7 +228,9 @@ FOOTPRINT_EDIT_FRAME::FOOTPRINT_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_auimgr.AddPane( m_treePane, EDA_PANE().Palette().Name( "Footprints" )
                       .Left().Layer( 4 )
                       .Caption( _( "Libraries" ) )
-                      .MinSize( FromDIP( 250 ), -1 ).BestSize( FromDIP( 250 ), -1 ) );
+                      // Don't use -1 for don't-change-height on a growable panel; it has side-effects.
+                      .MinSize( FromDIP( 250 ), FromDIP( 80 ) )
+                      .BestSize( FromDIP( 250 ), -1 ) );
     m_auimgr.AddPane( m_propertiesPanel, EDA_PANE().Name( PropertiesPaneName() )
                       .Left().Layer( 3 )
                       .Caption( _( "Properties" ) ).PaneBorder( false )
@@ -239,11 +243,15 @@ FOOTPRINT_EDIT_FRAME::FOOTPRINT_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_auimgr.AddPane( m_appearancePanel, EDA_PANE().Name( "LayersManager" )
                       .Right().Layer( 3 )
                       .Caption( _( "Appearance" ) ).PaneBorder( false )
-                      .MinSize( FromDIP( 180 ), -1 ).BestSize( FromDIP( 180 ), -1 ) );
+                      // Don't use -1 for don't-change-height on a growable panel; it has side-effects.
+                      .MinSize( FromDIP( 180 ), FromDIP( 80 ) )
+                      .BestSize( FromDIP( 180 ), -1 ) );
     m_auimgr.AddPane( m_selectionFilterPanel, EDA_PANE().Palette().Name( "SelectionFilter" )
                       .Right().Layer( 3 ).Position( 2 )
                       .Caption( _( "Selection Filter" ) ).PaneBorder( false )
-                      .MinSize( FromDIP( 180 ), -1 ).BestSize( FromDIP( 180 ), -1 ) );
+                      // Fixed-size pane; -1 for MinSize height is required
+                      .MinSize( FromDIP( 180 ), -1 )
+                      .BestSize( FromDIP( 180 ), -1 ) );
 
     // Center
     m_auimgr.AddPane( GetCanvas(), EDA_PANE().Canvas().Name( "DrawFrame" )
@@ -823,7 +831,12 @@ void FOOTPRINT_EDIT_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
         cfg->m_DesignSettings  = GetDesignSettings();
         cfg->m_Display         = m_displayOptions;
         cfg->m_LibWidth        = m_treePane->GetSize().x;
-        cfg->m_SelectionFilter = GetToolManager()->GetTool<PCB_SELECTION_TOOL>()->GetFilter();
+
+        if( TOOL_MANAGER* toolMgr = GetToolManager() )
+        {
+            if( PCB_SELECTION_TOOL* selTool = toolMgr->GetTool<PCB_SELECTION_TOOL>() )
+                cfg->m_SelectionFilter = selTool->GetFilter();
+        }
 
         cfg->m_AuiPanels.show_layer_manager = m_show_layer_manager_tools;
 
@@ -1355,7 +1368,7 @@ void FOOTPRINT_EDIT_FRAME::setupUIConditions()
     mgr->SetConditions( PCB_ACTIONS::rotateCcw,          ENABLE( cond.HasItems() ) );
     mgr->SetConditions( PCB_ACTIONS::mirrorH,            ENABLE( cond.HasItems() ) );
     mgr->SetConditions( PCB_ACTIONS::mirrorV,            ENABLE( cond.HasItems() ) );
-    mgr->SetConditions( ACTIONS::group,                  ENABLE( SELECTION_CONDITIONS::NotEmpty ) );
+    mgr->SetConditions( ACTIONS::group,                  ENABLE( SELECTION_CONDITIONS::MoreThan( 1 ) ) );
     mgr->SetConditions( ACTIONS::ungroup,                ENABLE( SELECTION_CONDITIONS::HasType( PCB_GROUP_T ) ) );
 
     mgr->SetConditions( PCB_ACTIONS::padDisplayMode,     CHECK( !cond.PadFillDisplay() ) );

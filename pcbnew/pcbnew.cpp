@@ -39,6 +39,7 @@
 #include <gestfich.h>
 #include <paths.h>
 #include <pcbnew_settings.h>
+#include <footprint.h>
 #include <footprint_editor_settings.h>
 #include <settings/settings_manager.h>
 #include <settings/cvpcb_settings.h>
@@ -671,7 +672,7 @@ void IFACE::SaveFileAs( const wxString& aProjectBasePath, const wxString& aSrcPr
                 {
                     if( token == "sheetfile" )
                     {
-                        for( const wxString& extension : { wxT( ".sch" ), wxT( ".kicad_sch" ) } )
+                        for( const wxString extension : { wxT( ".sch" ), wxT( ".kicad_sch" ) } )
                         {
                             if( value == aSrcProjectName + extension )
                             {

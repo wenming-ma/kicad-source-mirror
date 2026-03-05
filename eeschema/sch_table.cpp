@@ -34,6 +34,8 @@
 #include <wx/log.h>
 #include <sch_table.h>
 #include <geometry/geometry_utils.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 SCH_TABLE::SCH_TABLE( int aLineWidth ) :
@@ -259,7 +261,9 @@ void SCH_TABLE::RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction
 
 const BOX2I SCH_TABLE::GetBoundingBox() const
 {
-    // Note: a table with no cells is not allowed
+    if( m_cells.empty() )
+        return BOX2I();
+
     BOX2I bbox = m_cells[0]->GetBoundingBox();
 
     bbox.Merge( m_cells[m_cells.size() - 1]->GetBoundingBox() );

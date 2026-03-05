@@ -34,10 +34,12 @@
 #include <drc/rule_editor/drc_re_min_txt_ht_th_constraint_data.h>
 #include <drc/rule_editor/drc_re_allowed_orientation_constraint_data.h>
 #include <drc/rule_editor/drc_rule_editor_enums.h>
+#include <drc/rule_editor/drc_re_numeric_constraint_types.h> 
 #include <drc/drc_rule.h>
 #include <drc/rule_editor/drc_re_base_constraint_data.h>
 #include <drc/rule_editor/drc_re_numeric_input_constraint_data.h>
 #include <drc/rule_editor/drc_re_bool_input_constraint_data.h>
+#include <drc/rule_editor/drc_re_vias_under_smd_constraint_data.h>
 #include <drc/rule_editor/drc_re_panel_matcher.h>
 #include <drc/rule_editor/drc_re_rule_loader.h>
 #include <drc/rule_editor/drc_re_rule_saver.h>
@@ -47,7 +49,7 @@ BOOST_AUTO_TEST_SUITE( DRC_RULE_EDITOR )
 
 BOOST_AUTO_TEST_CASE( RoundTripViaStyle )
 {
-    DRC_RE_VIA_STYLE_CONSTRAINT_DATA original( 0, 0, "My_Via_Rule", 0.5, 0.8, 0.6, 0.2, 0.4, 0.3 );
+    DRC_RE_VIA_STYLE_CONSTRAINT_DATA original( 0, 0, "My_Via_Rule", 0.5, 0.8, 0.2, 0.4 );
     original.SetConstraintCode( "via_style" );
     original.SetRuleCondition( "A.NetClass == 'Power'" );
 
@@ -68,10 +70,8 @@ BOOST_AUTO_TEST_CASE( RoundTripViaStyle )
     BOOST_CHECK_EQUAL( parsed->GetRuleCondition(), original.GetRuleCondition() );
     BOOST_CHECK_CLOSE( parsed->GetMinViaDiameter(), original.GetMinViaDiameter(), 0.0001 );
     BOOST_CHECK_CLOSE( parsed->GetMaxViaDiameter(), original.GetMaxViaDiameter(), 0.0001 );
-    BOOST_CHECK_CLOSE( parsed->GetPreferredViaDiameter(), original.GetPreferredViaDiameter(), 0.0001 );
     BOOST_CHECK_CLOSE( parsed->GetMinViaHoleSize(), original.GetMinViaHoleSize(), 0.0001 );
     BOOST_CHECK_CLOSE( parsed->GetMaxViaHoleSize(), original.GetMaxViaHoleSize(), 0.0001 );
-    BOOST_CHECK_CLOSE( parsed->GetPreferredViaHoleSize(), original.GetPreferredViaHoleSize(), 0.0001 );
 }
 
 BOOST_AUTO_TEST_CASE( RoundTripRoutingWidth )
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE( SaveRules )
 {
     std::vector<std::shared_ptr<DRC_RE_BASE_CONSTRAINT_DATA>> rules;
 
-    auto rule1 = std::make_shared<DRC_RE_VIA_STYLE_CONSTRAINT_DATA>( 0, 0, "ViaRule", 0.5, 0.8, 0.6, 0.2, 0.4, 0.3 );
+    auto rule1 = std::make_shared<DRC_RE_VIA_STYLE_CONSTRAINT_DATA>( 0, 0, "ViaRule", 0.5, 0.8, 0.2, 0.4 );
     rule1->SetConstraintCode( "via_style" );
     rule1->SetRuleCondition( "A.NetClass == 'Power'" );
     rules.push_back( rule1 );
@@ -290,7 +290,7 @@ BOOST_AUTO_TEST_CASE( FactoryRegistration )
 
 BOOST_AUTO_TEST_CASE( ValidateViaStyleValid )
 {
-    DRC_RE_VIA_STYLE_CONSTRAINT_DATA data( 0, 0, "ValidRule", 0.5, 0.8, 0.6, 0.2, 0.4, 0.3 );
+    DRC_RE_VIA_STYLE_CONSTRAINT_DATA data( 0, 0, "ValidRule", 0.5, 0.8, 0.2, 0.4 );
 
     VALIDATION_RESULT result = data.Validate();
 
@@ -301,7 +301,7 @@ BOOST_AUTO_TEST_CASE( ValidateViaStyleValid )
 BOOST_AUTO_TEST_CASE( ValidateViaStyleInvalidMinGreaterThanMax )
 {
     // min > max for via diameter
-    DRC_RE_VIA_STYLE_CONSTRAINT_DATA data( 0, 0, "InvalidRule", 0.9, 0.5, 0.6, 0.2, 0.4, 0.3 );
+    DRC_RE_VIA_STYLE_CONSTRAINT_DATA data( 0, 0, "InvalidRule", 0.9, 0.5, 0.2, 0.4 );
 
     VALIDATION_RESULT result = data.Validate();
 
@@ -321,7 +321,7 @@ BOOST_AUTO_TEST_CASE( ValidateViaStyleInvalidMinGreaterThanMax )
 BOOST_AUTO_TEST_CASE( ValidateViaStyleInvalidNegativeValues )
 {
     // Negative values
-    DRC_RE_VIA_STYLE_CONSTRAINT_DATA data( 0, 0, "NegativeRule", -0.5, 0.8, 0.6, 0.2, 0.4, 0.3 );
+    DRC_RE_VIA_STYLE_CONSTRAINT_DATA data( 0, 0, "NegativeRule", -0.5, 0.8, 0.2, 0.4 );
 
     VALIDATION_RESULT result = data.Validate();
 
@@ -915,6 +915,30 @@ BOOST_AUTO_TEST_CASE( PanelMatcherLengthConstraint )
     BOOST_CHECK( matches[0].claimedConstraints.count( LENGTH_CONSTRAINT ) > 0 );
 }
 
+BOOST_AUTO_TEST_CASE( PanelMatcherLengthAndSkewConstraint )
+{
+    // Rule with length + skew should match MATCHED_LENGTH_DIFF_PAIR, not ABSOLUTE_LENGTH
+    DRC_RULE rule( "MatchedLengthRule" );
+
+    DRC_CONSTRAINT length( LENGTH_CONSTRAINT );
+    length.Value().SetMin( 10000000 );
+    length.Value().SetOpt( 30000000 );
+    length.Value().SetMax( 50000000 );
+    rule.AddConstraint( length );
+
+    DRC_CONSTRAINT skew( SKEW_CONSTRAINT );
+    skew.Value().SetMax( 1000000 );
+    rule.AddConstraint( skew );
+
+    DRC_PANEL_MATCHER matcher;
+    std::vector<DRC_PANEL_MATCH> matches = matcher.MatchRule( rule );
+
+    BOOST_REQUIRE_EQUAL( matches.size(), 1 );
+    BOOST_CHECK_EQUAL( matches[0].panelType, MATCHED_LENGTH_DIFF_PAIR );
+    BOOST_CHECK( matches[0].claimedConstraints.count( LENGTH_CONSTRAINT ) > 0 );
+    BOOST_CHECK( matches[0].claimedConstraints.count( SKEW_CONSTRAINT ) > 0 );
+}
+
 BOOST_AUTO_TEST_CASE( PanelMatcherEmptyRule )
 {
     // Test: Rule with no constraints → no matches
@@ -951,7 +975,7 @@ BOOST_AUTO_TEST_CASE( PanelMatcherGetPanelForConstraint )
     BOOST_CHECK_EQUAL( matcher.GetPanelForConstraint( CLEARANCE_CONSTRAINT ), MINIMUM_CLEARANCE );
     BOOST_CHECK_EQUAL( matcher.GetPanelForConstraint( EDGE_CLEARANCE_CONSTRAINT ), COPPER_TO_EDGE_CLEARANCE );
     BOOST_CHECK_EQUAL( matcher.GetPanelForConstraint( HOLE_CLEARANCE_CONSTRAINT ), COPPER_TO_HOLE_CLEARANCE );
-    BOOST_CHECK_EQUAL( matcher.GetPanelForConstraint( HOLE_TO_HOLE_CONSTRAINT ), HOLE_TO_HOLE_CLEARANCE );
+    BOOST_CHECK_EQUAL( matcher.GetPanelForConstraint( HOLE_TO_HOLE_CONSTRAINT ), HOLE_TO_HOLE_DISTANCE );
     BOOST_CHECK_EQUAL( matcher.GetPanelForConstraint( SILK_CLEARANCE_CONSTRAINT ), SILK_TO_SILK_CLEARANCE );
     BOOST_CHECK_EQUAL( matcher.GetPanelForConstraint( TRACK_WIDTH_CONSTRAINT ), ROUTING_WIDTH );
 }
@@ -981,10 +1005,8 @@ BOOST_AUTO_TEST_CASE( RuleLoaderViaStyleFromText )
     BOOST_REQUIRE( viaData );
 
     BOOST_CHECK_CLOSE( viaData->GetMinViaDiameter(), 0.5, 0.0001 );
-    BOOST_CHECK_CLOSE( viaData->GetPreferredViaDiameter(), 0.6, 0.0001 );
     BOOST_CHECK_CLOSE( viaData->GetMaxViaDiameter(), 0.8, 0.0001 );
     BOOST_CHECK_CLOSE( viaData->GetMinViaHoleSize(), 0.2, 0.0001 );
-    BOOST_CHECK_CLOSE( viaData->GetPreferredViaHoleSize(), 0.3, 0.0001 );
     BOOST_CHECK_CLOSE( viaData->GetMaxViaHoleSize(), 0.4, 0.0001 );
 }
 
@@ -1150,6 +1172,69 @@ BOOST_AUTO_TEST_CASE( RuleLoaderAbsoluteLengthFromText )
     BOOST_CHECK_CLOSE( lengthData->GetMinimumLength(), 10.0, 0.0001 );
     BOOST_CHECK_CLOSE( lengthData->GetOptimumLength(), 30.0, 0.0001 );
     BOOST_CHECK_CLOSE( lengthData->GetMaximumLength(), 50.0, 0.0001 );
+}
+
+BOOST_AUTO_TEST_CASE( RuleLoaderMatchedLengthWithSkew )
+{
+    // Rule with length + skew should load as MATCHED_LENGTH_DIFF_PAIR and preserve skew
+    wxString ruleText =
+        "(version 1)\n"
+        "(rule \"DP Length Match\"\n"
+        "    (constraint length (min 10mm) (opt 30mm) (max 50mm))\n"
+        "    (constraint skew (max 1mm)))";
+
+    DRC_RULE_LOADER loader;
+    std::vector<DRC_RE_LOADED_PANEL_ENTRY> entries = loader.LoadFromString( ruleText );
+
+    BOOST_REQUIRE_EQUAL( entries.size(), 1 );
+    BOOST_CHECK_EQUAL( entries[0].panelType, MATCHED_LENGTH_DIFF_PAIR );
+    BOOST_CHECK_EQUAL( entries[0].ruleName, "DP Length Match" );
+
+    auto matchedData =
+            std::dynamic_pointer_cast<DRC_RE_MATCHED_LENGTH_DIFF_PAIR_CONSTRAINT_DATA>( entries[0].constraintData );
+    BOOST_REQUIRE( matchedData );
+
+    BOOST_CHECK_CLOSE( matchedData->GetMinimumLength(), 10.0, 0.0001 );
+    BOOST_CHECK_CLOSE( matchedData->GetOptimumLength(), 30.0, 0.0001 );
+    BOOST_CHECK_CLOSE( matchedData->GetMaximumLength(), 50.0, 0.0001 );
+    BOOST_CHECK_CLOSE( matchedData->GetMaxSkew(), 1.0, 0.0001 );
+}
+
+BOOST_AUTO_TEST_CASE( RuleLoaderMatchedLengthRoundTrip )
+{
+    // Verify length+skew rule round-trips without losing skew
+    wxString ruleText =
+        "(version 1)\n"
+        "(rule \"DP Match RT\"\n"
+        "    (constraint length (min 10mm) (opt 30mm) (max 50mm))\n"
+        "    (constraint skew (max 2.5mm)))";
+
+    DRC_RULE_LOADER loader;
+    std::vector<DRC_RE_LOADED_PANEL_ENTRY> entries = loader.LoadFromString( ruleText );
+
+    BOOST_REQUIRE_EQUAL( entries.size(), 1 );
+    entries[0].wasEdited = true;
+
+    DRC_RULE_SAVER saver;
+    wxString savedText = saver.GenerateRulesText( entries, nullptr );
+
+    BOOST_CHECK( savedText.Contains( "length" ) );
+    BOOST_CHECK( savedText.Contains( "skew" ) );
+    BOOST_CHECK( savedText.Contains( "2.5mm" ) );
+
+    std::vector<DRC_RE_LOADED_PANEL_ENTRY> reloaded = loader.LoadFromString( savedText );
+
+    BOOST_REQUIRE_EQUAL( reloaded.size(), 1 );
+    BOOST_CHECK_EQUAL( reloaded[0].panelType, MATCHED_LENGTH_DIFF_PAIR );
+
+    auto reloadedData =
+            std::dynamic_pointer_cast<DRC_RE_MATCHED_LENGTH_DIFF_PAIR_CONSTRAINT_DATA>( reloaded[0].constraintData );
+    BOOST_REQUIRE( reloadedData );
+
+    BOOST_CHECK_CLOSE( reloadedData->GetMaxSkew(), 2.5, 0.0001 );
+    BOOST_CHECK_CLOSE( reloadedData->GetMinimumLength(), 10.0, 0.0001 );
+    BOOST_CHECK_CLOSE( reloadedData->GetOptimumLength(), 30.0, 0.0001 );
+    BOOST_CHECK_CLOSE( reloadedData->GetMaximumLength(), 50.0, 0.0001 );
 }
 
 BOOST_AUTO_TEST_CASE( RuleLoaderWithCondition )
@@ -1330,10 +1415,8 @@ BOOST_AUTO_TEST_CASE( RuleSaverViaStyleRule )
     auto viaData = std::make_shared<DRC_RE_VIA_STYLE_CONSTRAINT_DATA>();
     viaData->SetRuleName( "ViaTest" );
     viaData->SetMinViaDiameter( 0.5 );
-    viaData->SetPreferredViaDiameter( 0.6 );
     viaData->SetMaxViaDiameter( 0.8 );
     viaData->SetMinViaHoleSize( 0.2 );
-    viaData->SetPreferredViaHoleSize( 0.3 );
     viaData->SetMaxViaHoleSize( 0.4 );
     entry.constraintData = viaData;
     entry.wasEdited = true;
@@ -1834,6 +1917,367 @@ BOOST_AUTO_TEST_CASE( ItemFilterExcludesNetInfoAndGenerator )
             break;
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE( RuleSaverSilkToSoldermaskWithCondition )
+{
+    // Test: Silk-to-soldermask merges layer condition with user condition
+    // into a single (condition ...) clause, not two separate ones.
+    DRC_RE_LOADED_PANEL_ENTRY entry;
+    entry.panelType = SILK_TO_SOLDERMASK_CLEARANCE;
+    entry.ruleName = "SilkMaskTest";
+    entry.condition = "A.NetClass == 'Power'";
+    entry.wasEdited = true;
+    entry.layerCondition = LSET( { F_SilkS } );
+
+    auto data = std::make_shared<DRC_RE_SILK_TO_SOLDERMASK_CLEARANCE_CONSTRAINT_DATA>();
+    data->SetRuleName( "SilkMaskTest" );
+    data->SetConstraintCode( "silk_clearance" );
+    data->SetRuleCondition( "A.NetClass == 'Power'" );
+    data->SetNumericInputValue( 0.15 );
+    entry.constraintData = data;
+
+    DRC_RULE_SAVER saver;
+    std::vector<DRC_RE_LOADED_PANEL_ENTRY> entries = { entry };
+    wxString result = saver.GenerateRulesText( entries, nullptr );
+
+    // Should have a single merged condition, not two (condition ...) lines
+    BOOST_CHECK( result.Contains( "F.SilkS" ) );
+    BOOST_CHECK( result.Contains( "F.Mask" ) );
+    BOOST_CHECK( result.Contains( "Power" ) );
+    BOOST_CHECK( !result.Contains( "(layer" ) );
+
+    // Count occurrences of "(condition" — must be exactly one
+    int condCount = 0;
+    size_t pos = 0;
+    while( ( pos = result.find( "(condition", pos ) ) != wxString::npos )
+    {
+        condCount++;
+        pos++;
+    }
+    BOOST_CHECK_EQUAL( condCount, 1 );
+}
+
+BOOST_AUTO_TEST_CASE( RuleSaverSilkToSoldermaskNoExtraCondition )
+{
+    // Test: Silk-to-soldermask without extra condition still produces
+    // a condition clause, not a (layer ...) clause.
+    DRC_RE_LOADED_PANEL_ENTRY entry;
+    entry.panelType = SILK_TO_SOLDERMASK_CLEARANCE;
+    entry.ruleName = "SilkMaskSimple";
+    entry.wasEdited = true;
+    entry.layerCondition = LSET( { B_SilkS } );
+
+    auto data = std::make_shared<DRC_RE_SILK_TO_SOLDERMASK_CLEARANCE_CONSTRAINT_DATA>();
+    data->SetRuleName( "SilkMaskSimple" );
+    data->SetConstraintCode( "silk_clearance" );
+    data->SetNumericInputValue( 0.1 );
+    entry.constraintData = data;
+
+    DRC_RULE_SAVER saver;
+    std::vector<DRC_RE_LOADED_PANEL_ENTRY> entries = { entry };
+    wxString result = saver.GenerateRulesText( entries, nullptr );
+
+    BOOST_CHECK( result.Contains( "B.SilkS" ) );
+    BOOST_CHECK( result.Contains( "B.Mask" ) );
+    BOOST_CHECK( result.Contains( "(condition" ) );
+    BOOST_CHECK( !result.Contains( "(layer" ) );
+}
+
+BOOST_AUTO_TEST_CASE( ValidateViasUnderSmdValid )
+{
+    // Valid: at least one via type is selected
+    DRC_RE_VIAS_UNDER_SMD_CONSTRAINT_DATA data1( 0, 0, "OnlyMicro", false, true, false, false );
+    VALIDATION_RESULT                     result1 = data1.Validate();
+    BOOST_CHECK( result1.isValid );
+    BOOST_CHECK( result1.errors.empty() );
+
+    // Valid: all selected
+    DRC_RE_VIAS_UNDER_SMD_CONSTRAINT_DATA data2( 0, 0, "AllVias", true, true, true, true );
+    VALIDATION_RESULT                     result2 = data2.Validate();
+    BOOST_CHECK( result2.isValid );
+    BOOST_CHECK( result2.errors.empty() );
+}
+
+BOOST_AUTO_TEST_CASE( ValidateViasUnderSmdInvalid )
+{
+    // Invalid: no via type selected
+    DRC_RE_VIAS_UNDER_SMD_CONSTRAINT_DATA data( 0, 0, "NoneSelected", false, false, false, false );
+    VALIDATION_RESULT                     result = data.Validate();
+    BOOST_CHECK( !result.isValid );
+    BOOST_CHECK( !result.errors.empty() );
+
+    bool foundError = false;
+    for( const auto& error : result.errors )
+    {
+        if( error.find( "At least one via type must be selected" ) != std::string::npos )
+            foundError = true;
+    }
+    BOOST_CHECK( foundError );
+}
+
+BOOST_AUTO_TEST_CASE( ViasUnderSmdClauseGeneration )
+{
+    RULE_GENERATION_CONTEXT ctx;
+    ctx.ruleName = "TestRule";
+    ctx.constraintCode = "disallow_via";
+
+    // All four selected - shorthand "via" used
+    DRC_RE_VIAS_UNDER_SMD_CONSTRAINT_DATA allData( 0, 0, "AllRule", true, true, true, true );
+    auto                                  clauses = allData.GetConstraintClauses( ctx );
+    BOOST_REQUIRE_EQUAL( clauses.size(), 1 );
+    BOOST_CHECK( clauses[0].Contains( "disallow via" ) );
+    BOOST_CHECK( !clauses[0].Contains( "through_via" ) );
+
+    // Only micro_via selected - specific token
+    DRC_RE_VIAS_UNDER_SMD_CONSTRAINT_DATA microOnly( 0, 0, "MicroRule", false, true, false, false );
+    clauses = microOnly.GetConstraintClauses( ctx );
+    BOOST_REQUIRE_EQUAL( clauses.size(), 1 );
+    BOOST_CHECK( clauses[0].Contains( "micro_via" ) );
+    BOOST_CHECK( !clauses[0].Contains( "through_via" ) );
+    BOOST_CHECK( !clauses[0].Contains( "blind_via" ) );
+    BOOST_CHECK( !clauses[0].Contains( "buried_via" ) );
+
+    // Through + blind selected - both tokens, no shorthand
+    DRC_RE_VIAS_UNDER_SMD_CONSTRAINT_DATA twoTypes( 0, 0, "TwoRule", true, false, true, false );
+    clauses = twoTypes.GetConstraintClauses( ctx );
+    BOOST_REQUIRE_EQUAL( clauses.size(), 1 );
+    BOOST_CHECK( clauses[0].Contains( "through_via" ) );
+    BOOST_CHECK( clauses[0].Contains( "blind_via" ) );
+    BOOST_CHECK( !clauses[0].Contains( "micro_via" ) );
+    BOOST_CHECK( !clauses[0].Contains( "buried_via" ) );
+
+    // None selected - empty
+    DRC_RE_VIAS_UNDER_SMD_CONSTRAINT_DATA noneData( 0, 0, "NoneRule", false, false, false, false );
+    clauses = noneData.GetConstraintClauses( ctx );
+    BOOST_CHECK( clauses.empty() );
+}
+
+BOOST_AUTO_TEST_CASE( IntegrationViasUnderSmdRoundTrip )
+{
+    // Load a rule with only micro_via disallowed
+    wxString originalText = "(version 1)\n"
+                            "(rule \"ViasUnderSmdTest\"\n"
+                            "    (constraint disallow micro_via)\n"
+                            "    (condition \"A.Pad_Type == 'SMD' && A.insideArea('BGA*')\"))";
+
+    DRC_RULE_LOADER                        loader;
+    std::vector<DRC_RE_LOADED_PANEL_ENTRY> entries = loader.LoadFromString( originalText );
+
+    BOOST_REQUIRE_EQUAL( entries.size(), 1 );
+    BOOST_CHECK_EQUAL( entries[0].panelType, VIAS_UNDER_SMD );
+
+    auto viaData = std::dynamic_pointer_cast<DRC_RE_VIAS_UNDER_SMD_CONSTRAINT_DATA>( entries[0].constraintData );
+    BOOST_REQUIRE( viaData );
+
+    // Only micro_via should be checked
+    BOOST_CHECK( !viaData->GetDisallowThroughVias() );
+    BOOST_CHECK( viaData->GetDisallowMicroVias() );
+    BOOST_CHECK( !viaData->GetDisallowBlindVias() );
+    BOOST_CHECK( !viaData->GetDisallowBuriedVias() );
+
+    // Mark as edited and save
+    entries[0].wasEdited = true;
+    DRC_RULE_SAVER saver;
+    wxString       savedText = saver.GenerateRulesText( entries, nullptr );
+
+    // Verify saved text preserves specific via type (not blanket "via")
+    BOOST_CHECK( savedText.Contains( "micro_via" ) );
+    BOOST_CHECK( !savedText.Contains( "through_via" ) );
+    BOOST_CHECK( !savedText.Contains( "blind_via" ) );
+    BOOST_CHECK( !savedText.Contains( "buried_via" ) );
+
+    // Reload and verify roundtrip
+    std::vector<DRC_RE_LOADED_PANEL_ENTRY> reloadedEntries = loader.LoadFromString( savedText );
+    BOOST_REQUIRE_EQUAL( reloadedEntries.size(), 1 );
+
+    auto reloadedData =
+            std::dynamic_pointer_cast<DRC_RE_VIAS_UNDER_SMD_CONSTRAINT_DATA>( reloadedEntries[0].constraintData );
+    BOOST_REQUIRE( reloadedData );
+
+    BOOST_CHECK( !reloadedData->GetDisallowThroughVias() );
+    BOOST_CHECK( reloadedData->GetDisallowMicroVias() );
+    BOOST_CHECK( !reloadedData->GetDisallowBlindVias() );
+    BOOST_CHECK( !reloadedData->GetDisallowBuriedVias() );
+
+    // Test blanket "via" sets all four flags
+    wxString blanketText = "(version 1)\n"
+                           "(rule \"BlanketVia\"\n"
+                           "    (constraint disallow via)\n"
+                           "    (condition \"A.Pad_Type == 'SMD' && A.insideArea('BGA*')\"))";
+
+    entries = loader.LoadFromString( blanketText );
+    BOOST_REQUIRE_EQUAL( entries.size(), 1 );
+
+    auto blanketData = std::dynamic_pointer_cast<DRC_RE_VIAS_UNDER_SMD_CONSTRAINT_DATA>( entries[0].constraintData );
+    BOOST_REQUIRE( blanketData );
+
+    BOOST_CHECK( blanketData->GetDisallowThroughVias() );
+    BOOST_CHECK( blanketData->GetDisallowMicroVias() );
+    BOOST_CHECK( blanketData->GetDisallowBlindVias() );
+    BOOST_CHECK( blanketData->GetDisallowBuriedVias() );
+
+    // Test multiple specific types roundtrip
+    wxString multiText = "(version 1)\n"
+                         "(rule \"TwoVias\"\n"
+                         "    (constraint disallow through_via blind_via)\n"
+                         "    (condition \"A.Pad_Type == 'SMD' && A.insideArea('BGA*')\"))";
+
+    entries = loader.LoadFromString( multiText );
+    BOOST_REQUIRE_EQUAL( entries.size(), 1 );
+
+    auto multiData = std::dynamic_pointer_cast<DRC_RE_VIAS_UNDER_SMD_CONSTRAINT_DATA>( entries[0].constraintData );
+    BOOST_REQUIRE( multiData );
+
+    BOOST_CHECK( multiData->GetDisallowThroughVias() );
+    BOOST_CHECK( !multiData->GetDisallowMicroVias() );
+    BOOST_CHECK( multiData->GetDisallowBlindVias() );
+    BOOST_CHECK( !multiData->GetDisallowBuriedVias() );
+
+    entries[0].wasEdited = true;
+    savedText = saver.GenerateRulesText( entries, nullptr );
+
+    BOOST_CHECK( savedText.Contains( "through_via" ) );
+    BOOST_CHECK( savedText.Contains( "blind_via" ) );
+    BOOST_CHECK( !savedText.Contains( "micro_via" ) );
+    BOOST_CHECK( !savedText.Contains( "buried_via" ) );
+}
+
+BOOST_AUTO_TEST_CASE( RuleLoaderNonStandardOrientationFallsBackToCustom )
+{
+    // Quoted name
+    wxString ruleText = "(version 1)\n"
+                        "(rule \"Angled\"\n"
+                        "    (constraint assertion \"A.Orientation == 46 deg\")\n"
+                        ")";
+
+    DRC_RULE_LOADER                        loader;
+    std::vector<DRC_RE_LOADED_PANEL_ENTRY> entries = loader.LoadFromString( ruleText );
+
+    BOOST_REQUIRE_EQUAL( entries.size(), 1 );
+    BOOST_CHECK_EQUAL( entries[0].panelType, CUSTOM_RULE );
+
+    auto customData = std::dynamic_pointer_cast<DRC_RE_CUSTOM_RULE_CONSTRAINT_DATA>( entries[0].constraintData );
+    BOOST_REQUIRE( customData );
+    BOOST_CHECK( customData->GetRuleText().Contains( wxS( "46 deg" ) ) );
+    BOOST_CHECK( !customData->GetRuleText().Contains( wxS( "Angled" ) ) );
+
+    // Unquoted name
+    wxString ruleTextUnquoted = "(version 1)\n"
+                                "(rule Angled\n"
+                                "    (constraint assertion \"A.Orientation == 46 deg\")\n"
+                                ")";
+
+    entries = loader.LoadFromString( ruleTextUnquoted );
+
+    BOOST_REQUIRE_EQUAL( entries.size(), 1 );
+    BOOST_CHECK_EQUAL( entries[0].panelType, CUSTOM_RULE );
+
+    auto customDataUnquoted =
+            std::dynamic_pointer_cast<DRC_RE_CUSTOM_RULE_CONSTRAINT_DATA>( entries[0].constraintData );
+    BOOST_REQUIRE( customDataUnquoted );
+    BOOST_CHECK( customDataUnquoted->GetRuleText().Contains( wxS( "46 deg" ) ) );
+    BOOST_CHECK( !customDataUnquoted->GetRuleText().Contains( wxS( "Angled" ) ) );
+}
+
+BOOST_AUTO_TEST_CASE( RuleLoaderStandardOrientationLoadsStructured )
+{
+    wxString ruleText = "(version 1)\n"
+                        "(rule \"Standard\"\n"
+                        "    (constraint assertion \"A.Orientation == 0 deg || A.Orientation == 90 deg\")\n"
+                        ")";
+
+    DRC_RULE_LOADER                        loader;
+    std::vector<DRC_RE_LOADED_PANEL_ENTRY> entries = loader.LoadFromString( ruleText );
+
+    BOOST_REQUIRE_EQUAL( entries.size(), 1 );
+    BOOST_CHECK_EQUAL( entries[0].panelType, ALLOWED_ORIENTATION );
+
+    auto orientData =
+            std::dynamic_pointer_cast<DRC_RE_ALLOWED_ORIENTATION_CONSTRAINT_DATA>( entries[0].constraintData );
+    BOOST_REQUIRE( orientData );
+    BOOST_CHECK( orientData->GetIsZeroDegreesAllowed() );
+    BOOST_CHECK( orientData->GetIsNinetyDegreesAllowed() );
+    BOOST_CHECK( !orientData->GetIsOneEightyDegreesAllowed() );
+    BOOST_CHECK( !orientData->GetIsAllDegreesAllowed() );
+
+    // Single-line variant
+    wxString singleLine = "(version 1) (rule \"SingleLine\" (constraint assertion \"A.Orientation == 0 deg || "
+                          "A.Orientation == 90 deg\"))";
+
+    entries = loader.LoadFromString( singleLine );
+
+    BOOST_REQUIRE_EQUAL( entries.size(), 1 );
+    BOOST_CHECK_EQUAL( entries[0].panelType, ALLOWED_ORIENTATION );
+
+    auto singleLineData =
+            std::dynamic_pointer_cast<DRC_RE_ALLOWED_ORIENTATION_CONSTRAINT_DATA>( entries[0].constraintData );
+    BOOST_REQUIRE( singleLineData );
+    BOOST_CHECK( singleLineData->GetIsZeroDegreesAllowed() );
+    BOOST_CHECK( singleLineData->GetIsNinetyDegreesAllowed() );
+    BOOST_CHECK( !singleLineData->GetIsOneEightyDegreesAllowed() );
+    BOOST_CHECK( !singleLineData->GetIsAllDegreesAllowed() );
+}
+
+BOOST_AUTO_TEST_CASE( RuleLoaderAllowAllOrientationLoadsStructured )
+{
+    wxString ruleText = "(version 1)\n"
+                        "(rule \"AllAngles\"\n"
+                        "    (constraint assertion \"A.Orientation == 0 deg || A.Orientation == 90 deg || "
+                        "A.Orientation == 180 deg || A.Orientation == 270 deg\")\n"
+                        ")";
+
+    DRC_RULE_LOADER                        loader;
+    std::vector<DRC_RE_LOADED_PANEL_ENTRY> entries = loader.LoadFromString( ruleText );
+
+    BOOST_REQUIRE_EQUAL( entries.size(), 1 );
+    BOOST_CHECK_EQUAL( entries[0].panelType, ALLOWED_ORIENTATION );
+
+    auto orientData =
+            std::dynamic_pointer_cast<DRC_RE_ALLOWED_ORIENTATION_CONSTRAINT_DATA>( entries[0].constraintData );
+    BOOST_REQUIRE( orientData );
+    BOOST_CHECK( orientData->GetIsAllDegreesAllowed() );
+    BOOST_CHECK( orientData->GetIsZeroDegreesAllowed() );
+    BOOST_CHECK( orientData->GetIsNinetyDegreesAllowed() );
+    BOOST_CHECK( orientData->GetIsOneEightyDegreesAllowed() );
+    BOOST_CHECK( orientData->GetIsTwoSeventyDegreesAllowed() );
+}
+
+BOOST_AUTO_TEST_CASE( RuleLoaderPermittedLayersInnerLayerFallsBackToCustom )
+{
+    wxString ruleText = "(version 1)\n"
+                        "(rule \"InnerLayers\"\n"
+                        "    (constraint assertion \"A.Layer == 'F.Cu' || A.Layer == 'In1.Cu'\")\n"
+                        ")";
+
+    DRC_RULE_LOADER                        loader;
+    std::vector<DRC_RE_LOADED_PANEL_ENTRY> entries = loader.LoadFromString( ruleText );
+
+    BOOST_REQUIRE_EQUAL( entries.size(), 1 );
+    BOOST_CHECK_EQUAL( entries[0].panelType, CUSTOM_RULE );
+
+    auto customData = std::dynamic_pointer_cast<DRC_RE_CUSTOM_RULE_CONSTRAINT_DATA>( entries[0].constraintData );
+    BOOST_REQUIRE( customData );
+    BOOST_CHECK( customData->GetRuleText().Contains( wxS( "In1.Cu" ) ) );
+}
+
+BOOST_AUTO_TEST_CASE( RuleLoaderPermittedLayersStandardLoadsStructured )
+{
+    wxString ruleText = "(version 1)\n"
+                        "(rule \"StandardLayers\"\n"
+                        "    (constraint assertion \"A.Layer == 'F.Cu' || A.Layer == 'B.Cu'\")\n"
+                        ")";
+
+    DRC_RULE_LOADER                        loader;
+    std::vector<DRC_RE_LOADED_PANEL_ENTRY> entries = loader.LoadFromString( ruleText );
+
+    BOOST_REQUIRE_EQUAL( entries.size(), 1 );
+    BOOST_CHECK_EQUAL( entries[0].panelType, PERMITTED_LAYERS );
+
+    auto layerData = std::dynamic_pointer_cast<DRC_RE_PERMITTED_LAYERS_CONSTRAINT_DATA>( entries[0].constraintData );
+    BOOST_REQUIRE( layerData );
+    BOOST_CHECK( layerData->GetTopLayerEnabled() );
+    BOOST_CHECK( layerData->GetBottomLayerEnabled() );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

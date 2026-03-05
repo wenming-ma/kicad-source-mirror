@@ -22,6 +22,7 @@
 
 #include <board.h>
 #include <board_design_settings.h>
+#include <project/net_settings.h>
 #include <footprint.h>
 #include <pad.h>
 #include <pcb_track.h>
@@ -29,7 +30,7 @@
 #include <geometry/shape_segment.h>
 #include <board_stackup_manager/board_stackup.h>
 #include <i18n_utility.h>
-#include <nlohmann/json.hpp>
+#include <json_common.h>
 #include <string_utils.h>
 
 #include <algorithm>
@@ -585,7 +586,7 @@ wxString FormatBoardStatisticsReport( const BOARD_STATISTICS_DATA& aData, BOARD*
     report << wxS( "- " ) << _( "Front component density" ) << wxS( ": " );
 
     if( aData.hasOutline )
-        report << wxString::Format( "%.2f %", aData.frontFootprintDensity );
+        report << wxString::Format( "%.2f %%", aData.frontFootprintDensity );
     else
         report << _( "unknown" );
 
@@ -594,7 +595,7 @@ wxString FormatBoardStatisticsReport( const BOARD_STATISTICS_DATA& aData, BOARD*
     report << wxS( "- " ) << _( "Back component density" ) << wxS( ": " );
 
     if( aData.hasOutline )
-        report << wxString::Format( "%.2f %", aData.backFootprintDensity );
+        report << wxString::Format( "%.2f %%", aData.backFootprintDensity );
     else
         report << _( "unknown" );
 

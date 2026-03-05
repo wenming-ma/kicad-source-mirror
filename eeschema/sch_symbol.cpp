@@ -45,6 +45,8 @@
 
 #include <utility>
 #include <validators.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 std::unordered_map<TRANSFORM, int> SCH_SYMBOL::s_transformToOrientationCache;
@@ -736,70 +738,35 @@ void SCH_SYMBOL::SetFieldText( const wxString& aFieldName, const wxString& aFiel
         SetRef( aPath, aFieldText );
         break;
 
-    case FIELD_T::FOOTPRINT:
-    {
-        wxString defaultText = GetFootprintFieldText( false, nullptr, false );
-
-        if( aFieldText != defaultText )
-        {
-            if( aVariantName.IsEmpty() )
-            {
-                SetFootprintFieldText( aFieldText );
-            }
-            else
-            {
-                wxCHECK( aPath, /* void */ );
-
-                SCH_SYMBOL_INSTANCE* instance = getInstance( *aPath );
-
-                wxCHECK( instance, /* void */ );
-
-                if( instance->m_Variants.contains( aVariantName ) )
-                {
-                    instance->m_Variants[aVariantName].m_Fields[aFieldName] = aFieldText;
-                }
-                else
-                {
-                    SCH_SYMBOL_VARIANT newVariant( aVariantName );
-
-                    newVariant.InitializeAttributes( *this );
-                    newVariant.m_Fields[aFieldName] = aFieldText;
-                    instance->m_Variants.insert( std::make_pair( aVariantName, newVariant ) );
-                }
-            }
-        }
-
-        break;
-    }
-
     default:
     {
         wxString defaultText = field->GetText( aPath );
 
-        if( aFieldText != defaultText )
+        if( aVariantName.IsEmpty() )
         {
-            if( aVariantName.IsEmpty() )
-            {
+            if( aFieldText != defaultText )
                 field->SetText( aFieldText );
-            }
-            else
+        }
+        else
+        {
+            SCH_SYMBOL_INSTANCE* instance = getInstance( *aPath );
+
+            wxCHECK( instance, /* void */ );
+
+            if( instance->m_Variants.contains( aVariantName ) )
             {
-                SCH_SYMBOL_INSTANCE* instance = getInstance( *aPath );
-
-                wxCHECK( instance, /* void */ );
-
-                if( instance->m_Variants.contains( aVariantName ) )
-                {
+                if( aFieldText != defaultText )
                     instance->m_Variants[aVariantName].m_Fields[aFieldName] = aFieldText;
-                }
                 else
-                {
-                    SCH_SYMBOL_VARIANT newVariant( aVariantName );
+                    instance->m_Variants[aVariantName].m_Fields.erase( aFieldName );
+            }
+            else if( aFieldText != defaultText )
+            {
+                SCH_SYMBOL_VARIANT newVariant( aVariantName );
 
-                    newVariant.InitializeAttributes( *this );
-                    newVariant.m_Fields[aFieldName] = aFieldText;
-                    instance->m_Variants.insert( std::make_pair( aVariantName, newVariant ) );
-                }
+                newVariant.InitializeAttributes( *this );
+                newVariant.m_Fields[aFieldName] = aFieldText;
+                instance->m_Variants.insert( std::make_pair( aVariantName, newVariant ) );
             }
         }
 
@@ -3751,11 +3718,33 @@ bool SCH_SYMBOL::operator==( const SCH_ITEM& aOther ) const
     if( m_pins.size() != symbol.m_pins.size() )
         return false;
 
+    if( m_excludedFromSim != symbol.m_excludedFromSim )
+        return false;
+
+    if( m_excludedFromBOM != symbol.m_excludedFromBOM )
+        return false;
+
+    if( m_DNP != symbol.m_DNP )
+        return false;
+
+    if( m_excludedFromBoard != symbol.m_excludedFromBoard )
+        return false;
+
+    if( m_schLibSymbolName != symbol.m_schLibSymbolName )
+        return false;
+
     for( unsigned i = 0; i < m_pins.size(); ++i )
     {
         if( *m_pins[i] != *symbol.m_pins[i] )
             return false;
     }
+
+#if 0
+    // This has historically been a compare of the current instance, rather than a compare
+    // of all instances.  Probably better to keep it that way for now.
+    if( m_instanceReferences != symbol.m_instanceReferences )
+        return false;
+#endif
 
     return true;
 }
