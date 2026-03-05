@@ -28,6 +28,7 @@
 #include <base_screen.h>
 #include <confirm.h>
 #include <core/kicad_algo.h>
+#include <core/throttle.h>
 #include <eeschema_id.h>
 #include <eeschema_settings.h>
 #include <env_paths.h>
@@ -44,6 +45,7 @@
 #include <project_sch.h>
 #include <sch_painter.h>
 #include <sch_view.h>
+#include <settings/color_settings.h>
 #include <settings/settings_manager.h>
 #include <toolbars_symbol_editor.h>
 #include <tool/action_manager.h>
@@ -76,6 +78,7 @@
 #include <widgets/wx_progress_reporters.h>
 #include <widgets/panel_sch_selection_filter.h>
 #include <widgets/sch_properties_panel.h>
+#include <widgets/lib_tree.h>
 #include <widgets/symbol_tree_pane.h>
 #include <widgets/wx_aui_utils.h>
 #include <widgets/filedlg_hook_new_library.h>
@@ -215,7 +218,9 @@ SYMBOL_EDIT_FRAME::SYMBOL_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
                       .Left().Layer( 3 )
                       .TopDockable( false ).BottomDockable( false )
                       .Caption( _( "Libraries" ) )
-                      .MinSize( FromDIP( 250 ), -1 ).BestSize( FromDIP( 250 ), -1 ) );
+                      // Don't use -1 for don't-change-height on a growable panel; it has side-effects.
+                      .MinSize( FromDIP( 250 ), FromDIP( 80 ) )
+                      .BestSize( FromDIP( 250 ), -1 ) );
 
     m_auimgr.AddPane( m_propertiesPanel, defaultPropertiesPaneInfo( this ) );
     m_auimgr.AddPane( m_selectionFilterPanel, defaultSchSelectionFilterPaneInfo( this ) );
@@ -352,8 +357,11 @@ void SYMBOL_EDIT_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
     bool prop_shown = m_auimgr.GetPane( PropertiesPaneName() ).IsShown();
     m_settings->m_AuiPanels.show_properties = prop_shown;
 
-    SCH_SELECTION_TOOL* selTool = GetToolManager()->GetTool<SCH_SELECTION_TOOL>();
-    m_settings->m_SelectionFilter = selTool->GetFilter();
+    if( TOOL_MANAGER* toolMgr = GetToolManager() )
+    {
+        if( SCH_SELECTION_TOOL* selTool = toolMgr->GetTool<SCH_SELECTION_TOOL>() )
+            m_settings->m_SelectionFilter = selTool->GetFilter();
+    }
 }
 
 
@@ -1330,23 +1338,39 @@ void SYMBOL_EDIT_FRAME::SyncLibraries( bool aShowProgress, bool aPreloadCancelle
     if( m_treePane )
         selected = GetLibTree()->GetSelectedLibId();
 
+    // Ensure any in-progress background library preloading is complete before syncing the
+    // tree. Without this, libraries still in LOADING state get skipped by Sync(), resulting
+    // in an incomplete tree that requires a manual refresh to fully populate.
+    SYMBOL_LIBRARY_ADAPTER* adapter = PROJECT_SCH::SymbolLibAdapter( &Prj() );
+    adapter->BlockUntilLoaded();
+
     if( aShowProgress )
     {
         APP_PROGRESS_DIALOG progressDlg( _( "Loading Symbol Libraries" ), wxEmptyString,
                                          m_libMgr->GetAdapter()->GetLibrariesCount(), this );
 
+        THROTTLE  progressThrottle( std::chrono::milliseconds( 350 ) );
+        int       pendingProgress = 0;
+        bool      callbackFired = false;
+        wxString  pendingLibName;
+
         m_libMgr->Sync( aForceRefresh,
                 [&]( int progress, int max, const wxString& libName )
                 {
-                    progressDlg.Update( progress, wxString::Format( _( "Loading library '%s'..." ), libName ) );
+                    pendingProgress = progress;
+                    pendingLibName = libName;
+                    callbackFired = true;
+
+                    if( progressThrottle.Ready() )
+                        progressDlg.Update( progress, wxString::Format( _( "Loading library '%s'..." ), libName ) );
                 } );
+
+        if( callbackFired )
+            progressDlg.Update( pendingProgress, wxString::Format( _( "Loading library '%s'..." ), pendingLibName ) );
     }
     else if( !aPreloadCancelled )
     {
-        m_libMgr->Sync( aForceRefresh,
-                [&]( int progress, int max, const wxString& libName )
-                {
-                } );
+        m_libMgr->Sync( aForceRefresh, [&]( int progress, int max, const wxString& libName ) {} );
     }
 
     if( m_treePane )
@@ -1630,6 +1654,17 @@ void SYMBOL_EDIT_FRAME::FocusOnItem( EDA_ITEM* aItem, bool aAllowScroll )
 
     if( aItem )
     {
+        if( aItem->IsSCH_ITEM() )
+        {
+            SCH_ITEM* item = static_cast<SCH_ITEM*>( aItem );
+
+            if( int unit = item->GetUnit() )
+                SetUnit( unit );
+
+            if( int bodyStyle = item->GetBodyStyle() )
+                SetBodyStyle( bodyStyle );
+        }
+
         if( !aItem->IsBrightened() )
         {
             aItem->SetBrightened();
@@ -1638,7 +1673,7 @@ void SYMBOL_EDIT_FRAME::FocusOnItem( EDA_ITEM* aItem, bool aAllowScroll )
             lastBrightenedItemID = aItem->m_Uuid;
         }
 
-        FocusOnLocation( VECTOR2I( aItem->GetFocusPosition().x, -aItem->GetFocusPosition().y ), aAllowScroll );
+        FocusOnLocation( VECTOR2I( aItem->GetFocusPosition().x, aItem->GetFocusPosition().y ), aAllowScroll );
     }
 }
 

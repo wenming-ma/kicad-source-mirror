@@ -50,6 +50,9 @@ set( QA_EESCHEMA_SRCS
     ${CMAKE_SOURCE_DIR}/qa/tests/common/test_array_options.cpp
 
     sch_io/altium/test_altium_parser_sch.cpp
+    sch_io/pads/test_pads_sch_parser.cpp
+    sch_io/pads/test_pads_sch_import.cpp
+    sch_io/geda/test_geda_sch_import.cpp
 
     erc/test_erc_four_way.cpp
 	erc/test_erc_label_not_connected.cpp
@@ -78,6 +81,9 @@ set( QA_EESCHEMA_SRCS
     test_issue22620_group_annotation.cpp
     test_issue22651_sheet_annotation.cpp
     test_issue22864_align_sheet_pins.cpp
+    test_issue22938_local_power.cpp
+    test_issue23058_jumper_pin_groups.cpp
+    test_issue23143_junction_midpoint.cpp
     test_issue22576_subsheet_standalone.cpp
     test_issue16915_bus_netclass.cpp
     test_nc_pin_connectivity.cpp
@@ -85,6 +91,7 @@ set( QA_EESCHEMA_SRCS
     test_eagle_plugin.cpp
     test_junction_helpers.cpp
     test_junction_place.cpp
+    test_bus_alias_whitespace.cpp
     test_bus_entry_concurrency.cpp
     test_bus_net_name_determinism.cpp
     test_bus_parsing.cpp
@@ -117,6 +124,7 @@ set( QA_EESCHEMA_SRCS
     test_flat_hierarchy.cpp
     test_multi_top_level_sheets.cpp
     test_save_load_schematic.cpp
+    test_project_name_instances.cpp
     test_legacy_load.cpp
     test_symbol_library_manager.cpp
     test_symbol_import_manager.cpp
@@ -159,6 +167,7 @@ PRIVATE
     eeschema_kiface_objects
     common
     kicommon
+    pads_common
     scripting
     kimath
     qa_utils

@@ -37,6 +37,8 @@
 #include <footprint.h>
 #include <string_utils.h>
 #include <properties/property_validators.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 #include <settings/color_settings.h>
 #include <settings/settings_manager.h>
 #include <trigo.h>
@@ -489,6 +491,9 @@ bool ZONE::IsConflicting() const
 
 VECTOR2I ZONE::GetPosition() const
 {
+    if( m_Poly->OutlineCount() == 0 || m_Poly->TotalVertices() == 0 )
+        return VECTOR2I( 0, 0 );
+
     return GetCornerPosition( 0 );
 }
 

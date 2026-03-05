@@ -30,6 +30,8 @@
 #include <progress_reporter.h>
 #include <string_utils.h>
 #include <board_design_settings.h>
+#include <project/net_settings.h>
+#include <component_classes/component_class_manager.h>
 #include <drc/drc_engine.h>
 #include <drc/drc_rtree.h>
 #include <drc/drc_rule_parser.h>
@@ -235,7 +237,7 @@ void DRC_ENGINE::loadImplicitRules()
     // 2a) micro-via specific defaults (new DRC doesn't treat microvias in any special way)
 
     std::shared_ptr<DRC_RULE> uViaRule =
-            createImplicitRule( _( "board setup micro-via constraints" ), DRC_IMPLICIT_SOURCE::BOARD_SETUP_CONSTRAINT );
+            createImplicitRule( _( "board setup constraints micro-via" ), DRC_IMPLICIT_SOURCE::BOARD_SETUP_CONSTRAINT );
 
     uViaRule->m_Condition = new DRC_RULE_CONDITION( wxT( "A.Via_Type == 'Micro'" ) );
 
@@ -738,6 +740,7 @@ void DRC_ENGINE::compileRules()
     }
 
     m_hasExplicitClearanceRules = false;
+    m_hasGeometryDependentRules = false;
     m_explicitConstraints.clear();
 
     for( auto& [constraintType, ruleList] : m_constraintMap )
@@ -750,6 +753,13 @@ void DRC_ENGINE::compileRules()
 
                 if( constraintType == CLEARANCE_CONSTRAINT )
                     m_hasExplicitClearanceRules = true;
+
+                if( !m_hasGeometryDependentRules
+                    && c->condition
+                    && c->condition->HasGeometryDependentFunctions() )
+                {
+                    m_hasGeometryDependentRules = true;
+                }
             }
         }
     }
@@ -907,8 +917,14 @@ void DRC_ENGINE::RunTests( EDA_UNITS aUnits, bool aReportAllTrackErrors, bool aT
         if( m_logReporter )
             m_logReporter->Report( wxString::Format( wxT( "Run DRC provider: '%s'" ), provider->GetName() ) );
 
+        PROF_TIMER providerTimer;
+
         if( !provider->RunTests( aUnits ) )
             break;
+
+        providerTimer.Stop();
+        wxLogTrace( traceDrcProfile, "DRC provider '%s' took %0.3f ms",
+                    provider->GetName(), providerTimer.msecs() );
     }
 
     timer.Stop();
@@ -2219,9 +2235,7 @@ bool DRC_ENGINE::ReportPhase( const wxString& aMessage )
         return true;
 
     m_progressReporter->AdvancePhase( aMessage );
-    bool retval = m_progressReporter->KeepRefreshing( false );
-    wxSafeYield( nullptr, true ); // Force an update for the message
-    return retval;
+    return m_progressReporter->KeepRefreshing( false );
 }
 
 
@@ -2238,7 +2252,8 @@ bool DRC_ENGINE::HasRulesForConstraintType( DRC_CONSTRAINT_T constraintID )
 }
 
 
-bool DRC_ENGINE::QueryWorstConstraint( DRC_CONSTRAINT_T aConstraintId, DRC_CONSTRAINT& aConstraint )
+bool DRC_ENGINE::QueryWorstConstraint( DRC_CONSTRAINT_T aConstraintId, DRC_CONSTRAINT& aConstraint,
+                                       bool aUnconditionalOnly )
 {
     int  worst = 0;
     auto it = m_constraintMap.find( aConstraintId );
@@ -2247,6 +2262,9 @@ bool DRC_ENGINE::QueryWorstConstraint( DRC_CONSTRAINT_T aConstraintId, DRC_CONST
     {
         for( DRC_ENGINE_CONSTRAINT* c : *it->second )
         {
+            if( aUnconditionalOnly && c->condition )
+                continue;
+
             int current = c->constraint.GetValue().Min();
 
             if( current > worst )
@@ -2551,15 +2569,24 @@ void DRC_ENGINE::InvalidateClearanceCache( const KIID& aUuid )
 {
     std::unique_lock<std::shared_mutex> writeLock( m_clearanceCacheMutex );
 
-    // Remove all entries for this item (across all layers)
-    auto it = m_ownClearanceCache.begin();
-
-    while( it != m_ownClearanceCache.end() )
+    if( m_board )
     {
-        if( it->first.m_uuid == aUuid )
-            it = m_ownClearanceCache.erase( it );
-        else
-            ++it;
+        LSET copperLayers = m_board->GetEnabledLayers() & LSET::AllCuMask();
+
+        for( PCB_LAYER_ID layer : copperLayers.Seq() )
+            m_ownClearanceCache.erase( DRC_OWN_CLEARANCE_CACHE_KEY{ aUuid, layer } );
+    }
+    else
+    {
+        auto it = m_ownClearanceCache.begin();
+
+        while( it != m_ownClearanceCache.end() )
+        {
+            if( it->first.m_uuid == aUuid )
+                it = m_ownClearanceCache.erase( it );
+            else
+                ++it;
+        }
     }
 }
 

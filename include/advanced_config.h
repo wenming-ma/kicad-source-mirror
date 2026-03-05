@@ -452,15 +452,6 @@ public:
     bool m_HideVersionFromTitle;
 
     /**
-     * Enable showing schematic repair output.
-     *
-     * Setting name: "ShowRepairSchematic"
-     * Valid values: 0 or 1
-     * Default value: 0
-     */
-    bool m_ShowRepairSchematic;
-
-    /**
      * Shows debugging event counters in various places.
      *
      * Setting name: "ShowEventCounters"
@@ -560,15 +551,6 @@ public:
      * Default value: 0
      */
     bool m_EnableGenerators;
-
-    /**
-     * Enable the graphical DRC rule editor.
-     *
-     * Setting name: "EnableDrcRuleEditor"
-     * Valid values: 0 or 1
-     * Default value: 0
-     */
-    bool m_EnableDrcRuleEditor;
 
     /**
      * Enable option to load lib files with text editor.
@@ -885,6 +867,18 @@ public:
     bool m_ImportSkipComponentBodies;
 
     /**
+     * Skip the layer mapping step when importing.
+     *
+     * This can be convenient to speed up imports when testing other aspects of the import,
+     * as you don't need to interact with the layer mapping dialog.
+     *
+     * Setting name: "ImportSkipLayerMapping"
+     * Valid values: 0 or 1
+     * Default value: 0
+     */
+    bool m_ImportSkipLayerMapping;
+
+    /**
      * Screen DPI setting for display calculations.
      *
      * This setting controls the assumed screen DPI for various display calculations.
@@ -918,6 +912,66 @@ public:
      * Default value: 300 (5 minutes)
      */
     int m_HistoryLockStaleTimeout;
+
+    /**
+     * PADS text height scale factor for PCB imports.
+     * PADS text height includes leading/descender; multiply by this to get
+     * character cell height.
+     *
+     * Setting name: "PadsPcbTextHeightScale"
+     * Valid values: 0.1 to 1.0
+     * Default value: 0.69
+     */
+    double m_PadsPcbTextHeightScale;
+
+    /**
+     * PADS text width scale factor for PCB imports.
+     *
+     * Setting name: "PadsPcbTextWidthScale"
+     * Valid values: 0.1 to 1.0
+     * Default value: 0.64
+     */
+    double m_PadsPcbTextWidthScale;
+
+    /**
+     * PADS text height scale factor for schematic imports.
+     *
+     * Setting name: "PadsSchTextHeightScale"
+     * Valid values: 0.1 to 1.0
+     * Default value: 0.50
+     */
+    double m_PadsSchTextHeightScale;
+
+    /**
+     * PADS text width scale factor for schematic imports.
+     *
+     * Setting name: "PadsSchTextWidthScale"
+     * Valid values: 0.1 to 1.0
+     * Default value: 0.46
+     */
+    double m_PadsSchTextWidthScale;
+
+    /**
+     * PADS text anchor offset in nanometers for PCB imports.
+     * Compensates for the difference between PADS and KiCad text anchor positions.
+     *
+     * Setting name: "PadsTextAnchorOffsetNm"
+     * Valid values: 0 to 1000000
+     * Default value: 350000
+     */
+    int m_PadsTextAnchorOffsetNm;
+
+    /**
+     * Minimum object size in nanometers for PCB imports.
+     * Any dimension (pad size, track width, via size, circle radius) that would be
+     * smaller than this value is clamped to it, preventing zero-size objects that
+     * can crash the renderer or cause division-by-zero in DRC.
+     *
+     * Setting name: "PcbImportMinObjectSizeNm"
+     * Valid values: 100 to 1000000
+     * Default value: 1000
+     */
+    int m_PcbImportMinObjectSizeNm;
 
     /**
      * Enable iterative zone filling to handle isolated islands in higher priority zones.

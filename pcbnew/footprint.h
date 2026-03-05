@@ -27,13 +27,12 @@
 
 #include <deque>
 #include <mutex>
+#include <unordered_set>
 
 #include <template_fieldnames.h>
 
 #include <board_item_container.h>
 #include <board_item.h>
-#include <collectors.h>
-#include <component_classes/component_class_manager.h>
 #include <embedded_files.h>
 #include <layer_ids.h> // ALL_LAYERS definition.
 #include <lset.h>
@@ -44,7 +43,6 @@
 #include <zones.h>
 #include <convert_shape_list_to_polygon.h>
 #include <pcb_item_containers.h>
-#include <pcb_text.h>
 #include <pcb_field.h>
 #include <functional>
 #include <math/vector3.h>
@@ -54,6 +52,8 @@ class LINE_READER;
 class EDA_3D_CANVAS;
 class PAD;
 class BOARD;
+class COMPONENT_CLASS;
+class GENERAL_COLLECTOR;
 class MSG_PANEL_ITEM;
 class SHAPE;
 class REPORTER;
@@ -363,7 +363,7 @@ public:
     wxString GetLibNickname() const override { return m_fpid.GetLibNickname(); }
     wxString GetDesc() override { return GetLibDescription(); }
     int GetPinCount() override { return static_cast<int>( GetUniquePadCount( DO_NOT_INCLUDE_NPTH ) ); }
-    std::vector<SEARCH_TERM> GetSearchTerms() override;
+    std::vector<SEARCH_TERM>& GetSearchTerms() override;
 
     wxString GetLibDescription() const { return m_libDescription; }
     void     SetLibDescription( const wxString& aDesc ) { m_libDescription = aDesc; }
@@ -981,8 +981,7 @@ public:
      * @param aFieldName The field name.
      * @return The field value for the specified variant.
      */
-    wxString GetFieldValueForVariant( const wxString& aVariantName,
-                                      const wxString& aFieldName ) const;
+    wxString GetFieldValueForVariant( const wxString& aVariantName, const wxString& aFieldName ) const;
 
     void SetFileFormatVersionAtLoad( int aVersion ) { m_fileFormatVersionAtLoad = aVersion; }
     int GetFileFormatVersionAtLoad() const { return m_fileFormatVersionAtLoad; }
@@ -1007,8 +1006,7 @@ public:
      */
     PAD* GetPad( const VECTOR2I& aPosition, const LSET& aLayerMask = LSET::AllLayersMask() );
 
-    std::vector<const PAD*> GetPads( const wxString& aPadNumber,
-                                     const PAD* aIgnore = nullptr ) const;
+    std::vector<const PAD*> GetPads( const wxString& aPadNumber, const PAD* aIgnore = nullptr ) const;
 
     /**
      * Return the number of pads.
@@ -1101,6 +1099,8 @@ public:
     }
 
     wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
+
+    wxString DisambiguateItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
     BITMAPS GetMenuImage() const override;
 
@@ -1388,6 +1388,8 @@ private:
 
     // Optional unit mapping information for multi-unit symbols
     std::vector<FP_UNIT_INFO> m_unitInfo;
+
+    std::vector<SEARCH_TERM> m_searchTerms;
 };
 
 #endif     // FOOTPRINT_H

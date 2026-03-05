@@ -217,6 +217,11 @@ public:
         SetTooltipEnable( COL_STATUS );
     }
 
+    static bool SupportsVisibilityColumn()
+    {
+        return false;
+    }
+
 protected:
     void optionsEditor( int aRow ) override
     {
@@ -255,6 +260,11 @@ protected:
     wxString getTablePreamble() override
     {
         return wxT( "(design_block_lib_table" );
+    }
+
+    bool supportsVisibilityColumn() override
+    {
+        return DESIGN_BLOCK_GRID_TRICKS::SupportsVisibilityColumn();
     }
 
 protected:
@@ -351,7 +361,8 @@ PANEL_DESIGN_BLOCK_LIB_TABLE::PANEL_DESIGN_BLOCK_LIB_TABLE( DIALOG_EDIT_LIBRARY_
                                                             PROJECT* aProject ) :
         PANEL_DESIGN_BLOCK_LIB_TABLE_BASE( aParent ),
         m_project( aProject ),
-        m_parent( aParent )
+        m_parent( aParent ),
+        m_suppressNotebookPageEvents( false )
 {
     m_lastProjectLibDir = m_project->GetProjectPath();
 
@@ -427,6 +438,7 @@ PANEL_DESIGN_BLOCK_LIB_TABLE::PANEL_DESIGN_BLOCK_LIB_TABLE( DIALOG_EDIT_LIBRARY_
     Layout();
 
     m_notebook->Bind( wxEVT_AUINOTEBOOK_PAGE_CLOSE, &PANEL_DESIGN_BLOCK_LIB_TABLE::onNotebookPageCloseRequest, this );
+    m_notebook->Bind( wxEVT_AUINOTEBOOK_PAGE_CHANGING, &PANEL_DESIGN_BLOCK_LIB_TABLE::onNotebookPageChangeRequest, this );
     // This is the button only press for the browse button instead of the menu
     m_browseButton->Bind( wxEVT_BUTTON, &PANEL_DESIGN_BLOCK_LIB_TABLE::browseLibrariesHandler, this );
 }
@@ -489,7 +501,7 @@ bool PANEL_DESIGN_BLOCK_LIB_TABLE::verifyTables()
     {
         WX_GRID* grid = get_grid( page );
 
-        if( !LIB_TABLE_GRID_TRICKS::VerifyTable( grid,
+        if( !DESIGN_BLOCK_GRID_TRICKS::VerifyTable( grid, DESIGN_BLOCK_GRID_TRICKS::SupportsVisibilityColumn(),
                 [&]( int aRow, int aCol )
                 {
                     // show the tabbed panel holding the grid we have flunked:
@@ -529,6 +541,15 @@ void PANEL_DESIGN_BLOCK_LIB_TABLE::moveUpHandler( wxCommandEvent& event )
 void PANEL_DESIGN_BLOCK_LIB_TABLE::moveDownHandler( wxCommandEvent& event )
 {
     LIB_TABLE_GRID_TRICKS::MoveDownHandler( cur_grid() );
+}
+
+
+void PANEL_DESIGN_BLOCK_LIB_TABLE::onNotebookPageChangeRequest( wxAuiNotebookEvent& aEvent )
+{
+    if( m_suppressNotebookPageEvents )
+        aEvent.Veto();
+    else
+        aEvent.Skip();
 }
 
 
@@ -850,6 +871,7 @@ bool PANEL_DESIGN_BLOCK_LIB_TABLE::TransferDataFromWindow()
         }
     }
 
+    m_suppressNotebookPageEvents = true;
     return true;
 }
 

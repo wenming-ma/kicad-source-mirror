@@ -28,10 +28,12 @@
 #include <board.h>
 #include <board_commit.h>
 #include <board_design_settings.h>
+#include <drc/drc_engine.h>
 #include <pad.h>
 #include <pcb_track.h>
 #include <footprint.h>
 #include <zone.h>
+#include <drc/drc_engine.h>
 #include <drc/drc_item.h>
 #include <settings/settings_manager.h>
 #include <geometry/shape_poly_set.h>
@@ -228,6 +230,81 @@ BOOST_DATA_TEST_CASE_F( ZONE_FILL_TEST_FIXTURE, RegressionZoneFillTests,
 
         BOOST_ERROR( wxString::Format( "Zone fill regression: %s failed", relPath ) );
     }
+}
+
+
+/**
+ * Test for issue 23053: Zone clearance violations between zones with iterative refill.
+ *
+ * When iterative refill is enabled, zone-to-zone clearance knockouts were applied after
+ * the min-width deflate/inflate cycle. The reinflation could push copper into the zone
+ * clearance area, causing DRC clearance violations between different-net zones.
+ *
+ * Also verifies the non-iterative path produces no violations on the same board.
+ */
+BOOST_FIXTURE_TEST_CASE( RegressionZoneClearanceWithIterativeRefill, ZONE_FILL_TEST_FIXTURE )
+{
+    ADVANCED_CFG& cfg = const_cast<ADVANCED_CFG&>( ADVANCED_CFG::GetCfg() );
+    bool originalIterativeRefill = cfg.m_ZoneFillIterativeRefill;
+
+    struct ScopeGuard { bool& ref; bool orig; ~ScopeGuard() { ref = orig; } }
+        guard{ cfg.m_ZoneFillIterativeRefill, originalIterativeRefill };
+
+    auto runDrcClearanceCheck =
+            [this]( bool aIterative ) -> int
+            {
+                ADVANCED_CFG& innerCfg = const_cast<ADVANCED_CFG&>( ADVANCED_CFG::GetCfg() );
+                innerCfg.m_ZoneFillIterativeRefill = aIterative;
+
+                KI_TEST::LoadBoard( m_settingsManager, "issue23053/issue23053", m_board );
+
+                BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+
+                KI_TEST::FillZones( m_board.get() );
+
+                std::vector<DRC_ITEM> violations;
+
+                std::map<KIID, EDA_ITEM*> itemMap;
+                m_board->FillItemMap( itemMap );
+                UNITS_PROVIDER unitsProvider( pcbIUScale, EDA_UNITS::MM );
+
+                bds.m_DRCEngine->SetViolationHandler(
+                        [&]( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR2I& aPos,
+                             int aLayer,
+                             const std::function<void( PCB_MARKER* )>& aPathGenerator )
+                        {
+                            if( aItem->GetErrorCode() == DRCE_CLEARANCE )
+                            {
+                                BOARD_ITEM* itemA = m_board->ResolveItem( aItem->GetMainItemID() );
+                                BOARD_ITEM* itemB = m_board->ResolveItem( aItem->GetAuxItemID() );
+
+                                if( dynamic_cast<ZONE*>( itemA ) && dynamic_cast<ZONE*>( itemB ) )
+                                {
+                                    violations.push_back( *aItem );
+
+                                    BOOST_TEST_MESSAGE(
+                                            aItem->ShowReport( &unitsProvider,
+                                                               RPT_SEVERITY_ERROR, itemMap ) );
+                                }
+                            }
+                        } );
+
+                bds.m_DRCEngine->RunTests( EDA_UNITS::MM, true, false );
+
+                return static_cast<int>( violations.size() );
+            };
+
+    int iterativeViolations = runDrcClearanceCheck( true );
+
+    BOOST_CHECK_MESSAGE( iterativeViolations == 0,
+                         wxString::Format( "Iterative refill produced %d zone-to-zone clearance "
+                                           "violations (expected 0)", iterativeViolations ) );
+
+    int nonIterativeViolations = runDrcClearanceCheck( false );
+
+    BOOST_CHECK_MESSAGE( nonIterativeViolations == 0,
+                         wxString::Format( "Non-iterative refill produced %d zone-to-zone clearance "
+                                           "violations (expected 0)", nonIterativeViolations ) );
 }
 
 
@@ -1151,4 +1228,113 @@ BOOST_FIXTURE_TEST_CASE( LargeCircleTeardropGeometry, ZONE_FILL_TEST_FIXTURE )
     BOOST_CHECK_MESSAGE( !foundBadTeardrop,
                          "Found teardrop with excessive concave vertices on large circle, "
                          "indicating anchor points may not be on circle edge" );
+}
+
+
+/**
+ * Test for issue 23123: Coincident pads from different footprints with different nets
+ * must each get proper zone treatment.
+ *
+ * When two pads occupy the same position with the same geometry but different nets, the
+ * zone filler's deduplication must not skip the second pad. A pad whose net differs from
+ * the zone needs clearance; a pad matching the zone net gets thermal relief. If the
+ * deduplication key omits the net code, the second pad is silently dropped and no
+ * clearance is created.
+ */
+BOOST_FIXTURE_TEST_CASE( RegressionCoincidentPadClearance, ZONE_FILL_TEST_FIXTURE )
+{
+    KI_TEST::LoadBoard( m_settingsManager, "issue23123_minimal", m_board );
+
+    KI_TEST::FillZones( m_board.get() );
+
+    // After filling, every pad whose net differs from the zone must have clearance.
+    // Check each zone/pad combination on each shared layer.
+    int violations = 0;
+
+    for( ZONE* zone : m_board->Zones() )
+    {
+        if( zone->GetIsRuleArea() )
+            continue;
+
+        for( PCB_LAYER_ID layer : zone->GetLayerSet().Seq() )
+        {
+            if( !zone->HasFilledPolysForLayer( layer ) )
+                continue;
+
+            const std::shared_ptr<SHAPE_POLY_SET>& fill = zone->GetFilledPolysList( layer );
+
+            for( PAD* pad : m_board->GetPads() )
+            {
+                if( !pad->IsOnLayer( layer ) )
+                    continue;
+
+                if( pad->GetNetCode() == zone->GetNetCode() )
+                    continue;
+
+                std::shared_ptr<SHAPE> padShape = pad->GetEffectiveShape( layer );
+                int clearance = padShape->GetClearance( fill.get() );
+
+                if( clearance < 1 )
+                {
+                    BOOST_TEST_MESSAGE( wxString::Format(
+                            "Pad %s (net %s) at (%d, %d) has zero clearance to zone %s "
+                            "on layer %s",
+                            pad->GetNumber(), pad->GetNetname(),
+                            pad->GetPosition().x, pad->GetPosition().y,
+                            zone->GetNetname(), m_board->GetLayerName( layer ) ) );
+                    violations++;
+                }
+            }
+        }
+    }
+
+    BOOST_CHECK_MESSAGE( violations == 0,
+                         wxString::Format( "Found %d pads with missing zone clearance. "
+                                           "Coincident pads with different nets must not be "
+                                           "deduplicated in zone fill knockout.",
+                                           violations ) );
+}
+
+
+/**
+ * Verify zone fills clear PTH pads on different nets.
+ *
+ * After fill, DRC must report zero zone-to-pad clearance violations.  Clipper2
+ * rounds corridor-cut vertices to integer coordinates; they can land within 1nm
+ * of a segment endpoint but are not true pinch points.  Exact collinearity
+ * detection keeps them from triggering splits that extend triangles into knockout
+ * areas.
+ */
+BOOST_FIXTURE_TEST_CASE( ZoneViaNetClearance, ZONE_FILL_TEST_FIXTURE )
+{
+    KI_TEST::LoadBoard( m_settingsManager, "connect/connect", m_board );
+
+    BOARD_DESIGN_SETTINGS& bds = m_board->GetDesignSettings();
+
+    KI_TEST::FillZones( m_board.get() );
+
+    std::vector<DRC_ITEM> violations;
+
+    bds.m_DRCEngine->InitEngine( wxFileName() );
+
+    bds.m_DRCEngine->SetViolationHandler(
+            [&]( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR2I& aPos, int aLayer,
+                 const std::function<void( PCB_MARKER* )>& aPathGenerator )
+            {
+                if( aItem->GetErrorCode() == DRCE_CLEARANCE )
+                {
+                    BOARD_ITEM* item_a = m_board->ResolveItem( aItem->GetMainItemID() );
+                    BOARD_ITEM* item_b = m_board->ResolveItem( aItem->GetAuxItemID() );
+
+                    ZONE* zone_a = dynamic_cast<ZONE*>( item_a );
+                    ZONE* zone_b = dynamic_cast<ZONE*>( item_b );
+
+                    if( zone_a || zone_b )
+                        violations.push_back( *aItem );
+                }
+            } );
+
+    bds.m_DRCEngine->RunTests( EDA_UNITS::MM, true, false );
+
+    BOOST_CHECK_EQUAL( violations.size(), 0 );
 }

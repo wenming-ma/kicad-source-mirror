@@ -29,7 +29,6 @@
 #include <mutex>
 #include <vector>
 #include <map>
-#include <gr_basic.h>
 #include <board_item.h>
 #include <board_connected_item.h>
 #include <layer_ids.h>
@@ -614,8 +613,13 @@ public:
     SHAPE_POLY_SET* GetFill( PCB_LAYER_ID aLayer )
     {
         std::lock_guard<std::mutex> lock( m_filledPolysListMutex );
-        wxASSERT( m_FilledPolysList.count( aLayer ) );
-        return m_FilledPolysList.at( aLayer ).get();
+
+        auto it = m_FilledPolysList.find( aLayer );
+
+        if( it == m_FilledPolysList.end() )
+            return nullptr;
+
+        return it->second.get();
     }
 
     /**

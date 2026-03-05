@@ -64,6 +64,9 @@ set( EESCHEMA_SCH_IO
     # Database IO plugin
     sch_io/database/sch_io_database.cpp
 
+    # gEDA IO plugin
+    sch_io/geda/sch_io_geda.cpp
+
     # Eagle IO plugin
     sch_io/eagle/sch_io_eagle.cpp
 
@@ -88,6 +91,12 @@ set( EESCHEMA_SCH_IO
     # EasyEDA Pro IO plugin
     sch_io/easyedapro/sch_easyedapro_parser.cpp
     sch_io/easyedapro/sch_io_easyedapro.cpp
+
+    # PADS Logic IO plugin
+    sch_io/pads/sch_io_pads.cpp
+    sch_io/pads/pads_sch_parser.cpp
+    sch_io/pads/pads_sch_symbol_builder.cpp
+    sch_io/pads/pads_sch_schematic_builder.cpp
     )
 
 set( EESCHEMA_DLGS
@@ -594,8 +603,9 @@ if( KICAD_USE_PCH )
             <unordered_map>
             <core/json_serializers.h>
             <sch_edit_frame.h>
-            <string_utils.h>
             <schematic.h>
+            <sim/sim_model.h>
+            <string_utils.h>
             <pgm_base.h>
             <wx/wx.h> )
 endif()
@@ -609,6 +619,7 @@ target_include_directories( eeschema_kiface_objects
 target_link_libraries( eeschema_kiface_objects
     PUBLIC
         common
+        pads_common
         pcm )
 
 # Since we're not using target_link_libraries, we need to explicitly
@@ -630,6 +641,7 @@ target_link_libraries( eeschema_kiface
     PRIVATE
         common
         eeschema_kiface_objects
+        pads_common
         pcm
         markdown_lib
         scripting

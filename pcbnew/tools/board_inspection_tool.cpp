@@ -21,8 +21,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "tools/board_inspection_tool.h"
+
 #include <bitmaps.h>
 #include <collectors.h>
+#include <footprint.h>
 #include <pcb_group.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_selection_tool.h>
@@ -40,7 +43,6 @@
 #include <kiplatform/ui.h>
 #include <status_popup.h>
 #include <string_utils.h>
-#include <tools/board_inspection_tool.h>
 #include <footprint_library_adapter.h>
 #include <pcb_shape.h>
 #include <widgets/appearance_controls.h>
@@ -48,6 +50,7 @@
 #include <widgets/footprint_diff_widget.h>
 #include <drc/drc_item.h>
 #include <pad.h>
+#include <pcb_track.h>
 #include <project_pcb.h>
 #include <view/view_controls.h>
 
@@ -1957,14 +1960,14 @@ int BOARD_INSPECTION_TOOL::HighlightItem( const TOOL_EVENT& aEvent )
 {
     BOARD_ITEM* item = aEvent.Parameter<BOARD_ITEM*>();
 
-    m_frame->m_probingSchToPcb = true; // recursion guard
+    m_frame->m_ProbingSchToPcb = true; // recursion guard
     {
         m_toolMgr->RunAction( ACTIONS::selectionClear );
 
         if( item )
             m_toolMgr->RunAction<EDA_ITEM*>( ACTIONS::selectItem, item );
     }
-    m_frame->m_probingSchToPcb = false;
+    m_frame->m_ProbingSchToPcb = false;
 
     bool request3DviewRedraw = frame()->GetPcbNewSettings()->m_Display.m_Live3DRefresh;
 

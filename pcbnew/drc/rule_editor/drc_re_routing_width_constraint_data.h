@@ -25,6 +25,7 @@
 #define DRC_RE_ROUTING_WIDTH_CONSTRAINT_DATA_H_
 
 #include "drc_re_base_constraint_data.h"
+#include "drc_re_overlay_types.h"
 
 
 class DRC_RE_ROUTING_WIDTH_CONSTRAINT_DATA : public DRC_RE_BASE_CONSTRAINT_DATA
@@ -37,7 +38,7 @@ public:
     {
     }
 
-    explicit DRC_RE_ROUTING_WIDTH_CONSTRAINT_DATA( int aId, int aParentId, wxString aRuleName,
+    explicit DRC_RE_ROUTING_WIDTH_CONSTRAINT_DATA( int aId, int aParentId, const wxString& aRuleName,
                                                    double aMinRoutingWidth,
                                                    double aPreferredRoutingWidth,
                                                    double aMaxRoutingWidth ) :
@@ -49,36 +50,52 @@ public:
 
     virtual ~DRC_RE_ROUTING_WIDTH_CONSTRAINT_DATA() = default;
 
+    BITMAPS GetOverlayBitmap() const override { return BITMAPS::constraint_routing_width; }
+
+    std::vector<DRC_RE_FIELD_POSITION> GetFieldPositions() const override
+    {
+        // Positions measured from constraint_routing_width.png bitmap
+        // Format: { xStart, xEnd, yTop, tabOrder }
+        return {
+            { 64 + DRC_RE_OVERLAY_XO, 104 + DRC_RE_OVERLAY_XO, 96 + DRC_RE_OVERLAY_YO, 1, wxS( "mm" ), LABEL_POSITION::RIGHT },  // min_width (left arrow)
+            { 125 + DRC_RE_OVERLAY_XO, 165 + DRC_RE_OVERLAY_XO, 39 + DRC_RE_OVERLAY_YO, 2, wxS( "mm" ), LABEL_POSITION::RIGHT }, // opt_width (bottom center arrow)
+            { 246 + DRC_RE_OVERLAY_XO, 286 + DRC_RE_OVERLAY_XO, 72 + DRC_RE_OVERLAY_YO, 3, wxS( "mm" ), LABEL_POSITION::RIGHT }, // max_width (right arrow)
+        };
+    }
+
+
     VALIDATION_RESULT Validate() const override
     {
         VALIDATION_RESULT result;
 
-        // Validate routing width values are positive
         if( m_minRoutingWidth <= 0 )
-            result.AddError( "Minimum Routing Width must be greater than 0" );
+            result.AddError( _( "Minimum Routing Width must be greater than 0" ) );
 
         if( m_preferredRoutingWidth <= 0 )
-            result.AddError( "Preferred Routing Width must be greater than 0" );
+            result.AddError( _( "Preferred Routing Width must be greater than 0" ) );
 
         if( m_maxRoutingWidth <= 0 )
-            result.AddError( "Maximum Routing Width must be greater than 0" );
+            result.AddError( _( "Maximum Routing Width must be greater than 0" ) );
 
-        // Validate min <= preferred <= max
-        if( m_minRoutingWidth > m_preferredRoutingWidth )
-            result.AddError( "Minimum Routing Width cannot be greater than Preferred Routing Width" );
+        if( result.isValid )
+        {
+            if( m_minRoutingWidth > m_preferredRoutingWidth )
+                result.AddError( _( "Minimum Routing Width cannot be greater than Preferred Routing Width" ) );
 
-        if( m_preferredRoutingWidth > m_maxRoutingWidth )
-            result.AddError( "Preferred Routing Width cannot be greater than Maximum Routing Width" );
+            if( m_preferredRoutingWidth > m_maxRoutingWidth )
+                result.AddError( _( "Preferred Routing Width cannot be greater than Maximum Routing Width" ) );
 
-        if( m_minRoutingWidth > m_maxRoutingWidth )
-            result.AddError( "Minimum Routing Width cannot be greater than Maximum Routing Width" );
+            if( m_minRoutingWidth > m_maxRoutingWidth )
+                result.AddError( _( "Minimum Routing Width cannot be greater than Maximum Routing Width" ) );
+        }
 
         return result;
     }
 
-    wxString GenerateRule( const RULE_GENERATION_CONTEXT& aContext ) override
+
+    std::vector<wxString> GetConstraintClauses( const RULE_GENERATION_CONTEXT& aContext ) const override
     {
-        auto formatDistance = [&]( double aValue )
+        auto formatDistance = []( double aValue )
         {
             return formatDouble( aValue ) + wxS( "mm" );
         };
@@ -95,7 +112,12 @@ public:
                 formatDistance( m_preferredRoutingWidth ),
                 formatDistance( m_maxRoutingWidth ) );
 
-        return buildRule( aContext, { clause } );
+        return { clause };
+    }
+
+    wxString GenerateRule( const RULE_GENERATION_CONTEXT& aContext ) override
+    {
+        return buildRule( aContext, GetConstraintClauses( aContext ) );
     }
 
     double GetMinRoutingWidth() { return m_minRoutingWidth; }

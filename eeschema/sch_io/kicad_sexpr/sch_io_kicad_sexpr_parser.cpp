@@ -94,13 +94,12 @@ SCH_IO_KICAD_SEXPR_PARSER::SCH_IO_KICAD_SEXPR_PARSER( LINE_READER* aLineReader,
 
 void SCH_IO_KICAD_SEXPR_PARSER::checkpoint()
 {
-    const unsigned PROGRESS_DELTA = 500;
-
     if( m_progressReporter )
     {
+        unsigned progressDelta = std::max( 50u, m_lineCount / 10 );
         unsigned curLine = m_lineReader->LineNumber();
 
-        if( curLine > m_lastProgressLine + PROGRESS_DELTA )
+        if( m_lastProgressLine == 0 || curLine > m_lastProgressLine + progressDelta )
         {
             m_progressReporter->SetCurrentProgress( ( (double) curLine )
                                                             / std::max( 1U, m_lineCount ) );
@@ -901,8 +900,12 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseEDA_TEXT( EDA_TEXT* aText, bool aConvertOve
 
 void SCH_IO_KICAD_SEXPR_PARSER::parseHeader( TSCHEMATIC_T::T aHeaderType, int aFileVersion )
 {
-    wxCHECK_RET( CurTok() == aHeaderType,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a header." ) );
+    if( CurTok() != aHeaderType )
+    {
+        THROW_PARSE_ERROR( wxString::Format( _( "Cannot parse '%s' as a header." ),
+                                             GetTokenString( CurTok() ) ),
+                           CurSource(), CurLine(), CurLineNumber(), CurOffset() );
+    }
 
     NeedLEFT();
 
@@ -2923,7 +2926,13 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseSchematic( SCH_SHEET* aSheet, bool aIsCopya
             // when the item has only 2 corners, similar to a SCH_LINE
             SCH_SHAPE* poly = parseSchPolyLine();
 
-            if( poly->GetPointCount() > 2 )
+            if( poly->GetPointCount() < 2 )
+            {
+                delete poly;
+                THROW_PARSE_ERROR( _( "Schematic polyline has too few points" ), CurSource(), CurLine(),
+                                   CurLineNumber(), CurOffset() );
+            }
+            else if( poly->GetPointCount() > 2 )
             {
                 screen->Append( poly );
             }
@@ -3939,6 +3948,16 @@ SCH_SHEET* SCH_IO_KICAD_SEXPR_PARSER::parseSheet()
     }
 
     sheet->SetFields( fields );
+
+    if( !sheet->GetField( FIELD_T::SHEET_NAME ) )
+    {
+        THROW_PARSE_ERROR( _( "Missing sheet name property" ), CurSource(), CurLine(), CurLineNumber(), CurOffset() );
+    }
+
+    if( !sheet->GetField( FIELD_T::SHEET_FILENAME ) )
+    {
+        THROW_PARSE_ERROR( _( "Missing sheet file property" ), CurSource(), CurLine(), CurLineNumber(), CurOffset() );
+    }
 
     return sheet.release();
 }
@@ -5028,6 +5047,12 @@ SCH_TABLE* SCH_IO_KICAD_SEXPR_PARSER::parseSchTable()
         }
     }
 
+    if( !table->GetCell( 0, 0 ) )
+    {
+        THROW_PARSE_ERROR( _( "Invalid table: no cells defined" ), CurSource(), CurLine(), CurLineNumber(),
+                           CurOffset() );
+    }
+
     return table.release();
 }
 
@@ -5070,7 +5095,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseBusAlias( SCH_SCREEN* aScreen )
         if( m_requiredVersion < 20210621 )
             member = ConvertToNewOverbarNotation( member );
 
-        busAlias->Members().emplace_back( member );
+        busAlias->AddMember( member );
 
         token = NextTok();
     }

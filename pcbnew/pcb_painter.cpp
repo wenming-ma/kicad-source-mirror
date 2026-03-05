@@ -1188,7 +1188,19 @@ void PCB_PAINTER::draw( const PCB_VIA* aVia, int aLayer )
     {
         double thickness =
             m_holePlatingThickness * ADVANCED_CFG::GetCfg().m_HoleWallPaintingMultiplier;
-        double radius = ( getViaDrillSize( aVia ) / 2.0 ) + thickness;
+        double drillRadius = getViaDrillSize( aVia ) / 2.0;
+        double maxRadius = aVia->GetWidth( layerTop ) / 2.0;
+        double radius = drillRadius + thickness;
+
+        // Clamp the hole wall so it doesn't extend beyond the via's copper
+        if( radius > maxRadius )
+        {
+            radius = maxRadius;
+            thickness = radius - drillRadius;
+        }
+
+        if( thickness <= 0 )
+            return;
 
         if( !outline_mode )
         {
@@ -1668,6 +1680,12 @@ void PCB_PAINTER::draw( const PAD* aPad, int aLayer )
         // Drawing components of compound shapes in outline mode produces a mess.
         bool simpleShapes = !outline_mode;
 
+        // When this layer has post-machining (counterbore/countersink), GetEffectiveShape returns
+        // the counterbore hole circle (for DRC purposes), not the actual copper shape.  Force the
+        // slower TransformShapeToPolygon path which always returns the correct copper shape.
+        if( IsCopperLayer( pcbLayer ) && aPad->GetPostMachiningKnockout( pcbLayer ) > 0 )
+            simpleShapes = false;
+
         if( simpleShapes )
         {
             if( ( margin.x != margin.y && aPad->GetShape( pcbLayer ) != PAD_SHAPE::CUSTOM )
@@ -1867,13 +1885,11 @@ void PCB_PAINTER::draw( const PAD* aPad, int aLayer )
             m_gal->DrawPolygon( polySet );
         }
 
-        // Draw post-machining indicator if this layer is post-machined
+        // Draw backdrill indicators (semi-circles extending into the hole)
+        // Drawn on copper layer so they appear above the annular ring
         if( !m_pcbSettings.IsPrinting() && aPad->GetDrillSizeX() > 0 )
         {
             VECTOR2D holePos = aPad->GetPosition() + aPad->GetOffset( pcbLayer );
-
-            // Draw backdrill indicators (semi-circles extending into the hole)
-            // Drawn on copper layer so they appear above the annular ring
             VECTOR2I secDrill = aPad->GetSecondaryDrillSize();
             VECTOR2I terDrill = aPad->GetTertiaryDrillSize();
 
@@ -1890,9 +1906,13 @@ void PCB_PAINTER::draw( const PAD* aPad, int aLayer )
                                         aPad->GetTertiaryDrillStartLayer(),
                                         aPad->GetTertiaryDrillEndLayer() );
             }
-
-            drawPostMachiningIndicator( aPad, holePos, pcbLayer );
         }
+    }
+
+    if( !m_pcbSettings.IsPrinting() && IsCopperLayer( pcbLayer ) && aPad->GetDrillSizeX() > 0 )
+    {
+        VECTOR2D holePos = aPad->GetPosition() + aPad->GetOffset( pcbLayer );
+        drawPostMachiningIndicator( aPad, holePos, pcbLayer );
     }
 
     if( IsClearanceLayer( aLayer )
@@ -2390,6 +2410,8 @@ void PCB_PAINTER::draw( const PCB_REFERENCE_IMAGE* aBitmap, int aLayer )
     if( img_scale != 1.0 )
         m_gal->Scale( VECTOR2D( img_scale, img_scale ) );
 
+    const double imgAlpha = m_pcbSettings.GetColor( aBitmap, aBitmap->GetLayer() ).a;
+
     if( aBitmap->IsSelected() || aBitmap->IsBrightened() )
     {
         COLOR4D color = m_pcbSettings.GetColor( aBitmap, LAYER_ANCHOR );
@@ -2410,14 +2432,13 @@ void PCB_PAINTER::draw( const PCB_REFERENCE_IMAGE* aBitmap, int aLayer )
 
         m_gal->DrawRectangle( origin, end );
 
-        // Hard code reference images as opaque when selected. Otherwise cached layers will
-        // not be rendered under the selected image because cached layers are rendered after
-        // non-cached layers (e.g. bitmaps), which will have a closer Z order.
-        m_gal->DrawBitmap( refImg.GetImage(), 1.0 );
+        // Keep reference images opaque when selected (and not moving). Otherwise cached layers
+        // will not be rendered under the selected image because cached layers are rendered
+        // after non-cached layers (e.g. bitmaps), which will have a closer Z order.
+        m_gal->DrawBitmap( refImg.GetImage(), aBitmap->IsMoving() ? imgAlpha : 1.0 );
     }
     else
-        m_gal->DrawBitmap( refImg.GetImage(),
-                           m_pcbSettings.GetColor( aBitmap, aBitmap->GetLayer() ).a );
+        m_gal->DrawBitmap( refImg.GetImage(), imgAlpha );
 
     m_gal->Restore();
 }

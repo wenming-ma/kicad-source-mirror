@@ -24,10 +24,15 @@
 #ifndef DRC_RE_BASE_CONSTRAINT_DATA_H_
 #define DRC_RE_BASE_CONSTRAINT_DATA_H_
 
+#include <bitmaps.h>
 #include <dialogs/rule_editor_data_base.h>
+#include <widgets/report_severity.h>
+#include "drc_re_overlay_types.h"
 #include "drc_rule_editor_enums.h"
 #include <string_utils.h>
 #include <wx/arrstr.h>
+
+#include <vector>
 
 
 class DRC_RE_BASE_CONSTRAINT_DATA : public RULE_EDITOR_DATA_BASE
@@ -35,7 +40,7 @@ class DRC_RE_BASE_CONSTRAINT_DATA : public RULE_EDITOR_DATA_BASE
 public:
     DRC_RE_BASE_CONSTRAINT_DATA() = default;
 
-    explicit DRC_RE_BASE_CONSTRAINT_DATA( int aId, int aParentId, wxString aRuleName ) :
+    explicit DRC_RE_BASE_CONSTRAINT_DATA( int aId, int aParentId, const wxString& aRuleName ) :
             RULE_EDITOR_DATA_BASE( aId, aParentId, aRuleName )
     {
     }
@@ -52,17 +57,47 @@ public:
 
     virtual wxString GenerateRule( const RULE_GENERATION_CONTEXT& aContext ) { return wxEmptyString; }
 
+    /**
+     * Returns the bitmap to use for the overlay panel background.
+     * Override in derived classes to provide constraint-specific artwork.
+     *
+     * @return BITMAPS enum value for the overlay bitmap, or BITMAPS::INVALID_BITMAP if none.
+     */
+    virtual BITMAPS GetOverlayBitmap() const { return BITMAPS::INVALID_BITMAP; }
+
+    /**
+     * Returns the field positions for controls overlaid on the constraint bitmap.
+     * Override in derived classes to specify where input fields should be placed.
+     * Each position includes X range, Y coordinate, and tab order for navigation.
+     *
+     * @return Vector of field position specifications, empty if no overlay fields.
+     */
+    virtual std::vector<DRC_RE_FIELD_POSITION> GetFieldPositions() const { return {}; }
+
+    /**
+     * Returns just the constraint clauses without the rule wrapper.
+     * Used for merging multiple constraint panels into a single rule.
+     */
+    virtual std::vector<wxString> GetConstraintClauses( const RULE_GENERATION_CONTEXT& aContext ) const
+    {
+        return {};
+    }
+
     std::vector<PCB_LAYER_ID> GetLayers() { return m_layers; }
 
     void SetLayers( std::vector<PCB_LAYER_ID> aLayers ) { m_layers = aLayers; }
 
+    wxString GetLayerSource() { return m_layerSource; }
+
+    void SetLayerSource( const wxString& aSource ) { m_layerSource = aSource; }
+
     wxString GetRuleCondition() { return m_ruleCondition; }
 
-    void SetRuleCondition( wxString aRuleCondition ) { m_ruleCondition = aRuleCondition; }
+    void SetRuleCondition( const wxString &aRuleCondition ) { m_ruleCondition = aRuleCondition; }
 
-    wxString GetConstraintCode() { return m_constraintCode; }
+    wxString GetConstraintCode() const { return m_constraintCode; }
 
-    void SetConstraintCode( wxString aCode ) { m_constraintCode = aCode; }
+    void SetConstraintCode( const wxString& aCode ) { m_constraintCode = aCode; }
 
     wxString GetGeneratedRule() const { return m_generatedRule; }
 
@@ -76,6 +111,10 @@ public:
 
     void SetWasEdited( bool aEdited ) { m_wasEdited = aEdited; }
 
+    SEVERITY GetSeverity() const { return m_severity; }
+
+    void SetSeverity( SEVERITY aSeverity ) { m_severity = aSeverity; }
+
     void CopyFrom( const ICopyable& aSource ) override
     {
         const auto& source = dynamic_cast<const DRC_RE_BASE_CONSTRAINT_DATA&>( aSource );
@@ -83,13 +122,19 @@ public:
         RULE_EDITOR_DATA_BASE::CopyFrom( source );
 
         m_layers = source.m_layers;
+        m_layerSource = source.m_layerSource;
         m_constraintCode = source.m_constraintCode;
         m_generatedRule = source.m_generatedRule;
         m_originalRuleText = source.m_originalRuleText;
         m_wasEdited = source.m_wasEdited;
+        m_severity = source.m_severity;
+        m_ruleCondition = source.m_ruleCondition;
     }
 
-protected:
+    /**
+     * Sanitize a rule name for use in S-expression output.
+     * Replaces spaces and invalid characters with underscores.
+     */
     static wxString sanitizeRuleName( const wxString& aRuleName )
     {
         if( aRuleName.IsEmpty() )
@@ -121,6 +166,7 @@ protected:
         return result;
     }
 
+protected:
     static wxString quoteString( const wxString& aCondition )
     {
         return EscapeString( aCondition, CTX_QUOTED_STR );
@@ -167,8 +213,24 @@ protected:
             }
         }
 
+        wxString condExpr = aContext.conditionExpression;
+
         if( !aContext.layerClause.IsEmpty() )
-            rule << wxS( "\t" ) << aContext.layerClause << wxS( "\n" );
+        {
+            if( aContext.layerClause.StartsWith( wxS( "(condition " ) ) )
+            {
+                wxString expr = aContext.layerClause.AfterFirst( '"' ).BeforeLast( '"' );
+
+                if( !condExpr.IsEmpty() )
+                    condExpr = expr + wxS( " && " ) + condExpr;
+                else
+                    condExpr = expr;
+            }
+            else
+            {
+                rule << wxS( "\t" ) << aContext.layerClause << wxS( "\n" );
+            }
+        }
 
         for( const wxString& clause : aConstraintClauses )
         {
@@ -178,8 +240,8 @@ protected:
             rule << wxS( "\t" ) << clause << wxS( "\n" );
         }
 
-        if( !aContext.conditionExpression.IsEmpty() )
-            rule << wxS( "\t(condition \"" ) << quoteString( aContext.conditionExpression ) << wxS( "\")\n" );
+        if( !condExpr.IsEmpty() )
+            rule << wxS( "\t(condition \"" ) << quoteString( condExpr ) << wxS( "\")\n" );
 
         rule << wxS( ")" );
 
@@ -188,11 +250,13 @@ protected:
 
 private:
     std::vector<PCB_LAYER_ID> m_layers;
+    wxString m_layerSource;     ///< Original layer text: "inner", "outer", or layer name
     wxString m_ruleCondition;
     wxString m_constraintCode;
     wxString m_generatedRule;
     wxString m_originalRuleText;
     bool     m_wasEdited = false;
+    SEVERITY m_severity = RPT_SEVERITY_UNDEFINED;
 };
 
 #endif // DRC_RE_BASE_CONSTRAINT_DATA_H_

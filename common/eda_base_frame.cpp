@@ -27,6 +27,7 @@
 #include "dialogs/panel_maintenance.h"
 #include "kicad_manager_frame.h"
 #include <eda_base_frame.h>
+#include <nlohmann/json.hpp>
 
 #include <advanced_config.h>
 #include <bitmaps.h>
@@ -191,6 +192,7 @@ EDA_BASE_FRAME::EDA_BASE_FRAME( wxWindow* aParent, FRAME_T aFrameType, const wxS
     m_tbTopAux = nullptr;
     m_tbRight      = nullptr;
     m_tbLeft   = nullptr;
+    m_uiUpdateHandlerBound = false;
 
     commonInit( aFrameType );
 
@@ -261,6 +263,12 @@ wxWindow* EDA_BASE_FRAME::findQuasiModalDialog()
 
 void EDA_BASE_FRAME::windowClosing( wxCloseEvent& event )
 {
+    // Guard against re-entrant close events. GTK can deliver a second wxEVT_CLOSE_WINDOW
+    // while we are still processing the first one (e.g. during Destroy() calls), which leads
+    // to use-after-free crashes when child objects have already been torn down.
+    if( m_isClosing )
+        return;
+
     // Don't allow closing when a quasi-modal is open.
     wxWindow* quasiModal = findQuasiModalDialog();
 
@@ -440,25 +448,37 @@ void EDA_BASE_FRAME::OnMenuEvent( wxMenuEvent& aEvent )
 
 void EDA_BASE_FRAME::RegisterUIUpdateHandler( int aID, const ACTION_CONDITIONS& aConditions )
 {
-    UIUpdateHandler evtFunc = std::bind( &EDA_BASE_FRAME::HandleUpdateUIEvent,
-                                         std::placeholders::_1,
-                                         this,
-                                         aConditions );
+    // Bind a single wxID_ANY dispatcher on first use rather than one Bind() per action.
+    // wxEvtHandler::SearchDynamicEventTable does a linear scan through all dynamic bindings
+    // for every event dispatch (including mouse motion), so 150 individual bindings cost
+    // O(150) per event regardless of event type. One wxID_ANY binding costs O(1).
+    if( !m_uiUpdateHandlerBound )
+    {
+        Bind( wxEVT_UPDATE_UI, &EDA_BASE_FRAME::onUpdateUI, this );
+        m_uiUpdateHandlerBound = true;
+    }
 
-    m_uiUpdateMap[aID] = evtFunc;
-
-    Bind( wxEVT_UPDATE_UI, evtFunc, aID );
+    m_uiUpdateMap[aID] = std::bind( &EDA_BASE_FRAME::HandleUpdateUIEvent,
+                                    std::placeholders::_1,
+                                    this,
+                                    aConditions );
 }
 
 
 void EDA_BASE_FRAME::UnregisterUIUpdateHandler( int aID )
 {
-    const auto it = m_uiUpdateMap.find( aID );
+    m_uiUpdateMap.erase( aID );
+}
 
-    if( it == m_uiUpdateMap.end() )
-        return;
 
-    Unbind( wxEVT_UPDATE_UI, it->second, aID );
+void EDA_BASE_FRAME::onUpdateUI( wxUpdateUIEvent& aEvent )
+{
+    const auto it = m_uiUpdateMap.find( aEvent.GetId() );
+
+    if( it != m_uiUpdateMap.end() )
+        it->second( aEvent );
+    else
+        aEvent.Skip();
 }
 
 
@@ -568,6 +588,22 @@ ACTION_TOOLBAR_CONTROL_FACTORY* EDA_BASE_FRAME::GetCustomToolbarControlFactory( 
 
 void EDA_BASE_FRAME::configureToolbars()
 {
+}
+
+
+void EDA_BASE_FRAME::SelectToolbarAction( const TOOL_ACTION& aAction )
+{
+    if( m_tbLeft )
+        m_tbLeft->SelectAction( aAction );
+
+    if( m_tbTopMain )
+        m_tbTopMain->SelectAction( aAction );
+
+    if( m_tbTopAux )
+        m_tbTopAux->SelectAction( aAction );
+
+    if( m_tbRight )
+        m_tbRight->SelectAction( aAction );
 }
 
 
@@ -995,7 +1031,7 @@ void EDA_BASE_FRAME::LoadWindowSettings( const WINDOW_SETTINGS* aCfg )
     LoadWindowState( aCfg->state );
 
     m_perspective = aCfg->perspective;
-    m_auiLayoutState = aCfg->aui_state;
+    m_auiLayoutState = std::make_unique<nlohmann::json>( aCfg->aui_state );
     m_mruPath = aCfg->mru_path;
 
     TOOLS_HOLDER::CommonSettingsChanged();
@@ -1162,21 +1198,23 @@ void EDA_BASE_FRAME::RestoreAuiLayout()
     if( !ADVANCED_CFG::GetCfg().m_EnableUseAuiPerspective )
         return;
 
-#if wxCHECK_VERSION( 3, 3, 0 )
     bool restored = false;
 
-    if( !m_auiLayoutState.is_null() && !m_auiLayoutState.empty() )
+#if wxCHECK_VERSION( 3, 3, 0 )
+    if( m_auiLayoutState && !m_auiLayoutState->is_null() && !m_auiLayoutState->empty() )
     {
         WX_AUI_JSON_SERIALIZER serializer( m_auimgr );
 
-        if( serializer.Deserialize( m_auiLayoutState ) )
+        if( serializer.Deserialize( *m_auiLayoutState ) )
             restored = true;
     }
+#endif
 
+    /*
+     * Legacy loading of the string AUI perspective (if it exists). This is needed for
+     * wx 3.2 or the first settings upgrade when wx 3.3 is used in KiCad (e.g., 9.0->10.0 for Windows and macOS).
+     */
     if( !restored && !m_perspective.IsEmpty() )
-        m_auimgr.LoadPerspective( m_perspective );
-#else
-    if( !m_perspective.IsEmpty() )
     {
         m_auimgr.LoadPerspective( m_perspective );
 
@@ -1191,12 +1229,11 @@ void EDA_BASE_FRAME::RestoreAuiLayout()
                 panes.Item( i ).Show( true );
         }
     }
-#endif
 }
 
 
 void EDA_BASE_FRAME::ShowInfoBarError( const wxString& aErrorMsg, bool aShowCloseButton,
-                                       WX_INFOBAR::MESSAGE_TYPE aType )
+                                       INFOBAR_MESSAGE_TYPE aType )
 {
     m_infoBar->RemoveAllButtons();
 
@@ -1367,11 +1404,13 @@ void EDA_BASE_FRAME::ShowPreferences( wxString aStartPage, wxString aStartParent
                     return new PANEL_MOUSE_SETTINGS( aParent );
                 }, _( "Mouse and Touchpad" ) );
 
+#if defined(__linux__) || defined(__FreeBSD__)
         book->AddLazyPage(
                 [] ( wxWindow* aParent ) -> wxWindow*
                 {
                     return new PANEL_SPACEMOUSE( aParent );
                 }, _( "SpaceMouse" ) );
+#endif
 
         book->AddPage( hotkeysPanel, _( "Hotkeys" ) );
 

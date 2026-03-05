@@ -22,6 +22,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <common.h>
+#include <view/view.h>
 #include <pcb_field.h>
 #include <footprint.h>
 #include <board_design_settings.h>
@@ -30,6 +32,8 @@
 #include <api/board/board_types.pb.h>
 #include <string_utils.h>
 #include <board.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 PCB_FIELD::PCB_FIELD( FOOTPRINT* aParent, FIELD_T aFieldId, const wxString& aName ) :

@@ -1662,9 +1662,10 @@ void SHAPE_POLY_SET::fractureSingle( POLYGON& paths )
 }
 
 
-void SHAPE_POLY_SET::Fracture()
+void SHAPE_POLY_SET::Fracture( bool aSimplify )
 {
-    Simplify();    // remove overlapping holes/degeneracy
+    if( aSimplify )
+        Simplify();    // remove overlapping holes/degeneracy
 
     for( POLYGON& paths : m_polys )
         fractureSingle( paths );
@@ -2061,7 +2062,11 @@ void SHAPE_POLY_SET::splitSelfTouchingOutlines()
                         const VECTOR2I& a = outline.CPoint( segIdx );
                         const VECTOR2I& b = outline.CPoint( ( segIdx + 1 ) % count );
 
-                        if( pt != a && pt != b && SEG( a, b ).Contains( pt ) )
+                        // SquaredDistance returns 0 only when pt lies exactly on the
+                        // segment.  Clipper2 rounds corridor-cut vertices to integer
+                        // coordinates; they can land within 1nm of an endpoint but are
+                        // not true pinch points.
+                        if( pt != a && pt != b && SEG( a, b ).SquaredDistance( pt ) == 0 )
                         {
                             insertSegIdx = segIdx;
                             insertVertIdx = vertIdx;
@@ -2099,7 +2104,11 @@ void SHAPE_POLY_SET::splitSelfTouchingOutlines()
                             const VECTOR2I& a = outline.CPoint( segIdx );
                             const VECTOR2I& b = outline.CPoint( ( segIdx + 1 ) % count );
 
-                            if( pt != a && pt != b && SEG( a, b ).Contains( pt ) )
+                            // SquaredDistance returns 0 only when pt lies exactly on the
+                            // segment.  Clipper2 rounds corridor-cut vertices to integer
+                            // coordinates; they can land within 1nm of an endpoint but
+                            // are not true pinch points.
+                            if( pt != a && pt != b && SEG( a, b ).SquaredDistance( pt ) == 0 )
                             {
                                 insertSegIdx = segIdx;
                                 insertVertIdx = vertIdx;
@@ -3234,8 +3243,12 @@ void SHAPE_POLY_SET::cacheTriangulation( bool aPartition, bool aSimplify,
 
             if( flattened.HasHoles() || flattened.IsSelfIntersecting() )
             {
-                flattened.splitSelfTouchingOutlines();
+                // Fracture first to merge holes into the outline before splitting
+                // self-touching outlines.  If splitSelfTouchingOutlines runs first,
+                // the new split polygon gets no holes and its triangles span the
+                // knockout areas.
                 flattened.Fracture();
+                flattened.splitSelfTouchingOutlines();
             }
             else if( aSimplify )
                 flattened.Simplify();
@@ -3262,8 +3275,8 @@ void SHAPE_POLY_SET::cacheTriangulation( bool aPartition, bool aSimplify,
         SHAPE_POLY_SET tmpSet( *this );
 
         tmpSet.ClearArcs();
-        tmpSet.splitSelfTouchingOutlines();
         tmpSet.Fracture();
+        tmpSet.splitSelfTouchingOutlines();
 
         if( !triangulate( tmpSet, -1, m_triangulatedPolys, aHintData ) )
         {

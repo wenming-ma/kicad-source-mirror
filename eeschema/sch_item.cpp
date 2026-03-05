@@ -36,6 +36,8 @@
 #include <project/project_file.h>
 #include <project/net_settings.h>
 #include <font/kicad_font_name.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 // Rendering fonts is expensive (particularly when using outline fonts).  At small effective
@@ -510,16 +512,21 @@ std::shared_ptr<NETCLASS> SCH_ITEM::GetEffectiveNetClass( const SCH_SHEET_PATH* 
 
     SCHEMATIC* schematic = Schematic();
 
-    if( schematic )
-    {
-        std::shared_ptr<NET_SETTINGS>& netSettings = schematic->Project().GetProjectFile().m_NetSettings;
-        SCH_CONNECTION* connection = Connection( aSheet );
+    if( !schematic || !schematic->IsValid() )
+        return nullNetclass;
 
-        if( connection )
-            return netSettings->GetEffectiveNetClass( connection->Name() );
-        else
-            return netSettings->GetDefaultNetclass();
-    }
+    std::shared_ptr<NET_SETTINGS>& netSettings = schematic->Project().GetProjectFile().m_NetSettings;
+
+    if( !netSettings )
+        return nullNetclass;
+
+    SCH_CONNECTION* connection = Connection( aSheet );
+
+    if( connection )
+        return netSettings->GetEffectiveNetClass( connection->Name() );
+
+    if( std::shared_ptr<NETCLASS> defaultNetclass = netSettings->GetDefaultNetclass() )
+        return defaultNetclass;
 
     return nullNetclass;
 }

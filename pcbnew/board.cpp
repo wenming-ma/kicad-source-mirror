@@ -35,6 +35,8 @@
 #include <board_design_settings.h>
 #include <board_commit.h>
 #include <board.h>
+#include <collectors.h>
+#include <component_classes/component_class_manager.h>
 #include <core/arraydim.h>
 #include <core/kicad_algo.h>
 #include <connectivity/connectivity_data.h>
@@ -43,6 +45,7 @@
 #include <font/outline_font.h>
 #include <length_delay_calculation/length_delay_calculation.h>
 #include <lset.h>
+#include <pad.h>
 #include <pcb_base_frame.h>
 #include <pcb_track.h>
 #include <pcb_marker.h>
@@ -83,7 +86,7 @@ VECTOR2I BOARD_ITEM::ZeroOffset( 0, 0 );
 
 
 BOARD::BOARD() :
-        BOARD_ITEM_CONTAINER( (BOARD_ITEM*) nullptr, PCB_T ),
+        BOARD_ITEM_CONTAINER( nullptr, PCB_T ),
         m_LegacyDesignSettingsLoaded( false ),
         m_LegacyCopperEdgeClearanceLoaded( false ),
         m_LegacyNetclassesLoaded( false ),
@@ -171,10 +174,6 @@ BOARD::~BOARD()
     m_drawings.clear();
     m_groups.clear();
     m_points.clear();
-
-    // Generators not currently returned by GetItemSet
-    for( PCB_GENERATOR* g : m_generators )
-        ownedItems.insert( g );
 
     delete m_boardOutline;
     m_generators.clear();
@@ -1783,40 +1782,47 @@ BOARD_ITEM* BOARD::ResolveItem( const KIID& aID, bool aAllowNullptrReturn ) cons
     if( aID == niluuid )
         return nullptr;
 
-    if( m_itemByIdCache.count( aID ) )
-        return m_itemByIdCache.at( aID );
+    auto cacheIt = m_itemByIdCache.find( aID );
 
-    // Main clients include highlighting, group undo/redo and DRC items.  Since
-    // everything but group undo/redo will be spread over all object types, we
-    // might as well prioritize group undo/redo and search them first.
+    if( cacheIt != m_itemByIdCache.end() )
+        return cacheIt->second;
+
+    // Linear scan fallback for items not in the cache.  Any hit is cached so
+    // subsequent lookups for the same item are O(1).
+
+    auto cacheAndReturn = [this, &aID]( BOARD_ITEM* aItem ) -> BOARD_ITEM*
+    {
+        m_itemByIdCache.insert( { aID, aItem } );
+        return aItem;
+    };
 
     for( PCB_GROUP* group : m_groups )
     {
         if( group->m_Uuid == aID )
-            return group;
+            return cacheAndReturn( group );
     }
 
     for( PCB_GENERATOR* generator : m_generators )
     {
         if( generator->m_Uuid == aID )
-            return generator;
+            return cacheAndReturn( generator );
     }
 
     for( PCB_TRACK* track : Tracks() )
     {
         if( track->m_Uuid == aID )
-            return track;
+            return cacheAndReturn( track );
     }
 
     for( FOOTPRINT* footprint : Footprints() )
     {
         if( footprint->m_Uuid == aID )
-            return footprint;
+            return cacheAndReturn( footprint );
 
         for( PAD* pad : footprint->Pads() )
         {
             if( pad->m_Uuid == aID )
-                return pad;
+                return cacheAndReturn( pad );
         }
 
         for( PCB_FIELD* field : footprint->GetFields() )
@@ -1824,32 +1830,32 @@ BOARD_ITEM* BOARD::ResolveItem( const KIID& aID, bool aAllowNullptrReturn ) cons
             wxCHECK2( field, continue );
 
             if( field && field->m_Uuid == aID )
-                return field;
+                return cacheAndReturn( field );
         }
 
         for( BOARD_ITEM* drawing : footprint->GraphicalItems() )
         {
             if( drawing->m_Uuid == aID )
-                return drawing;
+                return cacheAndReturn( drawing );
         }
 
         for( BOARD_ITEM* zone : footprint->Zones() )
         {
             if( zone->m_Uuid == aID )
-                return zone;
+                return cacheAndReturn( zone );
         }
 
         for( PCB_GROUP* group : footprint->Groups() )
         {
             if( group->m_Uuid == aID )
-                return group;
+                return cacheAndReturn( group );
         }
     }
 
     for( ZONE* zone : Zones() )
     {
         if( zone->m_Uuid == aID )
-            return zone;
+            return cacheAndReturn( zone );
     }
 
     for( BOARD_ITEM* drawing : Drawings() )
@@ -1859,30 +1865,30 @@ BOARD_ITEM* BOARD::ResolveItem( const KIID& aID, bool aAllowNullptrReturn ) cons
             for( PCB_TABLECELL* cell : static_cast<PCB_TABLE*>( drawing )->GetCells() )
             {
                 if( cell->m_Uuid == aID )
-                    return drawing;
+                    return cacheAndReturn( drawing );
             }
         }
 
         if( drawing->m_Uuid == aID )
-            return drawing;
+            return cacheAndReturn( drawing );
     }
 
     for( PCB_MARKER* marker : m_markers )
     {
         if( marker->m_Uuid == aID )
-            return marker;
+            return cacheAndReturn( marker );
     }
 
     for( PCB_POINT* point : m_points )
     {
         if( point->m_Uuid == aID )
-            return point;
+            return cacheAndReturn( point );
     }
 
     for( NETINFO_ITEM* netInfo : m_NetInfo )
     {
         if( netInfo->m_Uuid == aID )
-            return netInfo;
+            return cacheAndReturn( netInfo );
     }
 
     if( m_Uuid == aID )
@@ -2108,10 +2114,13 @@ unsigned BOARD::GetNodesCount( int aNet ) const
 }
 
 
-BOX2I BOARD::ComputeBoundingBox( bool aBoardEdgesOnly ) const
+BOX2I BOARD::ComputeBoundingBox( bool aBoardEdgesOnly, bool aPhysicalLayersOnly ) const
 {
     BOX2I bbox;
     LSET  visible = GetVisibleLayers();
+
+    if( aPhysicalLayersOnly )
+        visible &= LSET::PhysicalLayersMask();
 
     // If the board is just showing a footprint, we want all footprint layers included in the
     // bounding box
@@ -3158,6 +3167,15 @@ const std::vector<BOARD_CONNECTED_ITEM*> BOARD::AllConnectedItems()
     {
         for( PAD* pad : footprint->Pads() )
             items.push_back( pad );
+
+        for( ZONE* zone : footprint->Zones() )
+            items.push_back( zone );
+
+        for( BOARD_ITEM* dwg : footprint->GraphicalItems() )
+        {
+            if( BOARD_CONNECTED_ITEM* bci = dynamic_cast<BOARD_CONNECTED_ITEM*>( dwg ) )
+                items.push_back( bci );
+        }
     }
 
     for( ZONE* zone : Zones() )
@@ -3546,6 +3564,7 @@ const BOARD_ITEM_SET BOARD::GetItemSet()
 
     std::copy( m_tracks.begin(), m_tracks.end(), std::inserter( items, items.end() ) );
     std::copy( m_zones.begin(), m_zones.end(), std::inserter( items, items.end() ) );
+    std::copy( m_generators.begin(), m_generators.end(), std::inserter( items, items.end() ) );
     std::copy( m_footprints.begin(), m_footprints.end(), std::inserter( items, items.end() ) );
     std::copy( m_drawings.begin(), m_drawings.end(), std::inserter( items, items.end() ) );
     std::copy( m_markers.begin(), m_markers.end(), std::inserter( items, items.end() ) );

@@ -25,6 +25,8 @@
 
 #include <app_monitor.h>
 #include <dialog_shim.h>
+#include <settings/common_settings.h>
+#include <settings/common_settings_internals.h>
 #include <core/ignore.h>
 #include <kiway_player.h>
 #include <kiway.h>
@@ -334,6 +336,24 @@ void DIALOG_SHIM::SetPosition( const wxPoint& aNewPosition )
 }
 
 
+void DIALOG_SHIM::focusParentCanvas()
+{
+    if( m_parentFrame )
+    {
+        wxWindow* canvas = m_parentFrame->GetToolCanvas();
+
+        if( canvas )
+        {
+            canvas->SetFocus();
+            return;
+        }
+    }
+
+    if( m_parent )
+        m_parent->SetFocus();
+}
+
+
 bool DIALOG_SHIM::Show( bool show )
 {
     bool ret;
@@ -350,9 +370,9 @@ bool DIALOG_SHIM::Show( bool show )
 
         if( COMMON_SETTINGS* settings = Pgm().GetCommonSettings() )
         {
-            auto dlgIt = settings->m_dialogControlValues.find( key );
+            auto dlgIt = settings->CsInternals().m_dialogControlValues.find( key );
 
-            if( dlgIt != settings->m_dialogControlValues.end() )
+            if( dlgIt != settings->CsInternals().m_dialogControlValues.end() )
             {
                 auto geoIt = dlgIt->second.find( "__geometry" );
 
@@ -367,6 +387,9 @@ bool DIALOG_SHIM::Show( bool show )
 
         if( savedDialogRect.GetSize().x != 0 && savedDialogRect.GetSize().y != 0 )
         {
+            // Convert saved DIP size to logical pixels for the current monitor
+            wxSize restoredSize = FromDIP( savedDialogRect.GetSize() );
+
             if( m_useCalculatedSize )
             {
                 SetSize( savedDialogRect.GetPosition().x, savedDialogRect.GetPosition().y,
@@ -375,8 +398,16 @@ bool DIALOG_SHIM::Show( bool show )
             else
             {
                 SetSize( savedDialogRect.GetPosition().x, savedDialogRect.GetPosition().y,
-                         std::max( wxDialog::GetSize().x, savedDialogRect.GetSize().x ),
-                         std::max( wxDialog::GetSize().y, savedDialogRect.GetSize().y ), 0 );
+                         std::max( wxDialog::GetSize().x, restoredSize.x ),
+                         std::max( wxDialog::GetSize().y, restoredSize.y ), 0 );
+
+                // Reset minimum size so the user can resize the dialog smaller than
+                // the saved size. We must clear the current minimum and invalidate
+                // the cached best size so GetBestSize() returns the true sizer
+                // minimum rather than being constrained by the restored size.
+                SetMinSize( wxDefaultSize );
+                InvalidateBestSize();
+                SetMinSize( GetBestSize() );
             }
 
 #ifdef __WXMAC__
@@ -416,9 +447,7 @@ bool DIALOG_SHIM::Show( bool show )
         ret = wxDialog::Show( show );
 
         SaveControlState();
-
-        if( m_parent )
-            m_parent->SetFocus();
+        focusParentCanvas();
     }
 
     return ret;
@@ -431,9 +460,9 @@ void DIALOG_SHIM::resetSize()
     {
         std::string key = m_hash_key.empty() ? getDialogKeyFromTitle( GetTitle() ) : m_hash_key;
 
-        auto dlgIt = settings->m_dialogControlValues.find( key );
+        auto dlgIt = settings->CsInternals().m_dialogControlValues.find( key );
 
-        if( dlgIt == settings->m_dialogControlValues.end() )
+        if( dlgIt == settings->CsInternals().m_dialogControlValues.end() )
             return;
 
         dlgIt->second.erase( "__geometry" );
@@ -537,14 +566,15 @@ void DIALOG_SHIM::SaveControlState()
         return;
 
     std::string dialogKey = m_hash_key.empty() ? getDialogKeyFromTitle( GetTitle() ) : m_hash_key;
-    std::map<std::string, nlohmann::json>& dlgMap = settings->m_dialogControlValues[ dialogKey ];
+    std::map<std::string, nlohmann::json>& dlgMap = settings->CsInternals().m_dialogControlValues[ dialogKey ];
 
-    wxRect rect( GetPosition(), GetSize() );
+    wxPoint pos = GetPosition();
+    wxSize  dipSize = ToDIP( GetSize() );
     nlohmann::json geom;
-    geom[ "x" ] = rect.GetX();
-    geom[ "y" ] = rect.GetY();
-    geom[ "w" ] = rect.GetWidth();
-    geom[ "h" ] = rect.GetHeight();
+    geom[ "x" ] = pos.x;
+    geom[ "y" ] = pos.y;
+    geom[ "w" ] = dipSize.x;
+    geom[ "h" ] = dipSize.y;
     dlgMap[ "__geometry" ] = geom;
 
     std::function<void( wxWindow* )> saveFn =
@@ -647,9 +677,9 @@ void DIALOG_SHIM::LoadControlState()
         return;
 
     std::string dialogKey = m_hash_key.empty() ? getDialogKeyFromTitle( GetTitle() ) : m_hash_key;
-    auto        dlgIt = settings->m_dialogControlValues.find( dialogKey );
+    auto        dlgIt = settings->CsInternals().m_dialogControlValues.find( dialogKey );
 
-    if( dlgIt == settings->m_dialogControlValues.end() )
+    if( dlgIt == settings->CsInternals().m_dialogControlValues.end() )
         return;
 
     const std::map<std::string, nlohmann::json>& dlgMap = dlgIt->second;
@@ -758,7 +788,7 @@ void DIALOG_SHIM::LoadControlState()
                                 for( int page = 0; page < (int) notebook->GetPageCount(); ++page )
                                 {
                                     if( notebook->GetPageText( page ) == pageTitle )
-                                        notebook->SetSelection( page );
+                                        notebook->ChangeSelection( page );
                                 }
                             }
                         }
@@ -1360,9 +1390,7 @@ int DIALOG_SHIM::ShowQuasiModal()
     event_loop.Run();
 
     m_qmodal_showing = false;
-
-    if( parent )
-        parent->SetFocus();
+    focusParentCanvas();
 
     return GetReturnCode();
 }
@@ -1411,6 +1439,24 @@ void DIALOG_SHIM::EndQuasiModal( int retCode )
     m_qmodal_parent_disabler = nullptr;
 
     Show( false );
+}
+
+
+void DIALOG_SHIM::resetUndoRedoForNewContent( wxWindowList& aChildren )
+{
+    m_undoStack.clear();
+    m_redoStack.clear();
+    m_currentValues.clear();
+    registerUndoRedoHandlers( aChildren );
+}
+
+
+void DIALOG_SHIM::unregisterUnitBinders( wxWindow* aWindow )
+{
+    m_unitBinders.erase( aWindow );
+
+    for( wxWindow* child : aWindow->GetChildren() )
+        unregisterUnitBinders( child );
 }
 
 

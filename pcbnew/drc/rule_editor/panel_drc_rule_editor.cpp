@@ -39,27 +39,33 @@
 #include <layer_ids.h>
 #include <layer_range.h>
 #include <board.h>
+#include <project/net_settings.h>
 #include <idf_parser.h>
 #include <scintilla_tricks.h>
 #include <wx/stc/stc.h>
 #include <dialogs/html_message_box.h>
+#include <dialogs/rule_editor_dialog_base.h> 
 #include <tools/drc_tool.h>
 #include <pcbexpr_evaluator.h>
 #include <string_utils.h>
 
 #include <drc/drc_rule_parser.h>
 #include <drc/rule_editor/panel_drc_rule_editor.h>
-#include <drc/rule_editor/drc_re_numeric_input_panel.h>
-#include <drc/rule_editor/drc_re_bool_input_panel.h>
-#include <drc/rule_editor/drc_re_via_style_panel.h>
-#include <drc/rule_editor/drc_re_abs_length_two_panel.h>
-#include <drc/rule_editor/drc_re_min_txt_ht_th_panel.h>
-#include <drc/rule_editor/drc_re_rtg_diff_pair_panel.h>
-#include <drc/rule_editor/drc_re_routing_width_panel.h>
-#include <drc/rule_editor/drc_re_permitted_layers_panel.h>
-#include <drc/rule_editor/drc_re_allowed_orientation_panel.h>
 #include <drc/rule_editor/drc_re_custom_rule_panel.h>
 #include "drc_re_condition_group_panel.h"
+#include "drc_re_via_style_overlay_panel.h"
+#include "drc_re_routing_width_overlay_panel.h"
+#include "drc_re_rtg_diff_pair_overlay_panel.h"
+#include "drc_re_min_txt_ht_th_overlay_panel.h"
+#include "drc_re_abs_length_two_overlay_panel.h"
+#include "drc_re_numeric_input_overlay_panel.h"
+#include "drc_re_bool_input_overlay_panel.h"
+#include "drc_re_allowed_orientation_overlay_panel.h"
+#include "drc_re_matched_length_diff_pair_overlay_panel.h"
+#include "drc_re_vias_under_smd_overlay_panel.h"
+#include "drc_re_permitted_layers_overlay_panel.h"
+
+#include <eda_units.h>
 #include "drc_re_numeric_input_constraint_data.h"
 #include "drc_re_bool_input_constraint_data.h"
 #include "drc_re_via_style_constraint_data.h"
@@ -69,7 +75,11 @@
 #include "drc_re_routing_width_constraint_data.h"
 #include "drc_re_permitted_layers_constraint_data.h"
 #include "drc_re_allowed_orientation_constraint_data.h"
+#include "drc_re_vias_under_smd_constraint_data.h"
 #include "drc_re_custom_rule_constraint_data.h"
+#include "drc_re_custom_rule_panel.h"
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 static constexpr const wxChar* KI_TRACE_DRC_RULE_EDITOR = wxT( "KI_TRACE_DRC_RULE_EDITOR" );
 
@@ -77,13 +87,9 @@ static bool constraintNeedsTwoObjects( DRC_RULE_EDITOR_CONSTRAINT_NAME aConstrai
 {
     switch( aConstraintType )
     {
-    case BASIC_CLEARANCE:
-    case BOARD_OUTLINE_CLEARANCE:
     case MINIMUM_CLEARANCE:
-    case MINIMUM_ITEM_CLEARANCE:
     case CREEPAGE_DISTANCE:
     case COPPER_TO_HOLE_CLEARANCE:
-    case HOLE_TO_HOLE_CLEARANCE:
     case PHYSICAL_CLEARANCE:
     case HOLE_TO_HOLE_DISTANCE: return true;
     default: return false;
@@ -103,23 +109,31 @@ PANEL_DRC_RULE_EDITOR::PANEL_DRC_RULE_EDITOR( wxWindow* aParent, BOARD* aBoard,
 {
     wxLogTrace( KI_TRACE_DRC_RULE_EDITOR, wxS( "[PANEL_DRC_RULE_EDITOR] ctor START" ) );
 
+    m_constraintType = aConstraintType;
     m_constraintPanel = getConstraintPanel( this, aConstraintType );
     wxLogTrace( KI_TRACE_DRC_RULE_EDITOR, wxS( "[PANEL_DRC_RULE_EDITOR] adding constraint panel to sizer" ) );
     m_constraintContentSizer->Add( dynamic_cast<wxPanel*>( m_constraintPanel ), 0, wxEXPAND | wxTOP, 5 );
     m_layerList = m_board->GetEnabledLayers().UIOrder();
     m_constraintHeaderTitle->SetLabelText( *aConstraintTitle + " Constraint" );
 
-    m_layerIDs = m_layerList;
-
     m_layerListChoiceCtrl = new wxChoice( this, wxID_ANY );
-    m_layerListChoiceCtrl->Append( _( "Any" ) );
-
-    for( PCB_LAYER_ID id : m_layerIDs )
-        m_layerListChoiceCtrl->Append( m_board->GetLayerName( id ) );
-
-    m_layerListChoiceCtrl->SetSelection( 0 );
+    m_layerCategory = DRC_RULE_EDITOR_UTILS::GetLayerCategoryForConstraint( aConstraintType );
+    populateLayerSelector( m_layerCategory );
     m_LayersComboBoxSizer->Add( m_layerListChoiceCtrl, 0, wxALL | wxEXPAND, 5 );
+    m_layerListChoiceCtrl->Bind( wxEVT_CHOICE, [this]( wxCommandEvent& )
+    {
+        RULE_EDITOR_DIALOG_BASE* dlg = RULE_EDITOR_DIALOG_BASE::GetDialog( this );
+        if( dlg )
+            dlg->SetModified();
+    } );
 
+    // Hide layer selector for constraints where it doesn't apply
+    if( m_layerCategory == DRC_LAYER_CATEGORY::NO_LAYER_SELECTOR )
+    {
+        m_LayersComboBoxSizer->Show( false );
+        m_staticText711->Show( false );
+        m_staticline111->Show( false );
+    }
 
     wxBoxSizer* buttonSizer = new wxBoxSizer( wxHORIZONTAL );
     m_btnShowMatches = new wxButton( this, wxID_ANY, "Show Matches" );
@@ -159,13 +173,53 @@ PANEL_DRC_RULE_EDITOR::PANEL_DRC_RULE_EDITOR( wxWindow* aParent, BOARD* aBoard,
     m_conditionGroupPanel = new DRC_RE_CONDITION_GROUP_PANEL( this, m_board, twoObjects );
     m_conditionGroupPanel->SetChangeCallback( [this]() {
         ResetShowMatchesButton();
+
+        RULE_EDITOR_DIALOG_BASE* dlg = RULE_EDITOR_DIALOG_BASE::GetDialog( this );
+        if( dlg )
+        {
+            dlg->SetModified();
+            dlg->RefreshContentScrollArea();
+        }
     } );
     wxLogTrace( KI_TRACE_DRC_RULE_EDITOR, wxS( "[PANEL_DRC_RULE_EDITOR] inserting conditionGroupPanel" ) );
     m_conditionControlsSizer->Insert( 0, m_conditionGroupPanel, 0, wxEXPAND | wxBOTTOM, 5 );
 
+    if( aConstraintType == CUSTOM_RULE )
+    {
+        m_conditionGroupPanel->Hide();
+        m_conditionHeaderTitle->Hide();
+        m_syntaxHelp->Hide();
+        m_staticline8->Hide();
+        m_LayersComboBoxSizer->Show( false );
+        m_staticText711->Hide();
+        m_staticline111->Hide();
+    }
+
+    m_commentCtrl->Bind( wxEVT_TEXT, [this]( wxCommandEvent& )                                                            
+    {                                                                                                                   
+        RULE_EDITOR_DIALOG_BASE* dlg = RULE_EDITOR_DIALOG_BASE::GetDialog( this );                                        
+        if( dlg )                                                                                                         
+            dlg->SetModified();
+    });
+
     // Hide the base class syntax check controls since we use inline validation
     m_checkSyntaxBtnCtrl->Hide();
     m_syntaxErrorReport->Hide();
+
+    m_nameCtrl->Bind( wxEVT_TEXT,
+                      [this]( wxCommandEvent& )
+                      {
+                          RULE_EDITOR_DIALOG_BASE* dlg = RULE_EDITOR_DIALOG_BASE::GetDialog( this );
+                          if( dlg )
+                              dlg->SetModified();
+
+                          if( m_constraintType == CUSTOM_RULE )
+                          {
+                              auto* customPanel = dynamic_cast<DRC_RE_CUSTOM_RULE_PANEL*>( m_constraintPanel );
+                              if( customPanel )
+                                  customPanel->UpdateRuleName( m_nameCtrl->GetValue() );
+                          }
+                      } );
 
     m_netClassRegex.Compile( "^NetClass\\s*[!=]=\\s*$", wxRE_ADVANCED );
     m_netNameRegex.Compile( "^NetName\\s*[!=]=\\s*$", wxRE_ADVANCED );
@@ -197,9 +251,9 @@ bool PANEL_DRC_RULE_EDITOR::TransferDataToWindow()
 {
     if( m_constraintData )
     {
-        m_nameCtrl->SetValue( m_constraintData->GetRuleName() );
-        m_commentCtrl->SetValue( m_constraintData->GetComment() );
-        setSelectedLayers( m_constraintData->GetLayers() );
+        m_nameCtrl->ChangeValue( m_constraintData->GetRuleName() );
+        m_commentCtrl->ChangeValue( m_constraintData->GetComment() );
+        setSelectedLayers( m_constraintData->GetLayers(), m_constraintData->GetLayerSource() );
         wxString cond = m_constraintData->GetRuleCondition();
 
         // Use the new condition group panel
@@ -207,17 +261,47 @@ bool PANEL_DRC_RULE_EDITOR::TransferDataToWindow()
         m_conditionGroupPanel->ParseCondition( cond );
     }
 
-    return dynamic_cast<wxPanel*>( m_constraintPanel )->TransferDataToWindow();
+    if( m_constraintPanel )
+        return m_constraintPanel->TransferDataToWindow();
+
+    return true;
+}
+
+
+wxString PANEL_DRC_RULE_EDITOR::getSelectedLayerSource() const
+{
+    if( !m_layerListChoiceCtrl )
+        return wxEmptyString;
+
+    int sel = m_layerListChoiceCtrl->GetSelection();
+    if( sel <= 0 )
+        return wxEmptyString;
+
+    int layerValue = m_layerIDs[sel - 1];
+
+    switch( layerValue )
+    {
+    case LAYER_SEL_OUTER: return wxS( "outer" );
+    case LAYER_SEL_INNER: return wxS( "inner" );
+    case LAYER_SEL_TOP: return m_board ? m_board->GetLayerName( F_Cu ) : wxString();
+    case LAYER_SEL_BOTTOM: return m_board ? m_board->GetLayerName( B_Cu ) : wxString();
+    default:
+        if( layerValue >= 0 && m_board )
+            return m_board->GetLayerName( static_cast<PCB_LAYER_ID>( layerValue ) );
+        return wxEmptyString;
+    }
 }
 
 
 bool PANEL_DRC_RULE_EDITOR::TransferDataFromWindow()
 {
-    dynamic_cast<wxPanel*>( m_constraintPanel )->TransferDataFromWindow();
+    if( m_constraintPanel )
+        m_constraintPanel->TransferDataFromWindow();
 
     m_constraintData->SetRuleName( m_nameCtrl->GetValue() );
     m_constraintData->SetComment( m_commentCtrl->GetValue() );
     m_constraintData->SetLayers( getSelectedLayers() );
+    m_constraintData->SetLayerSource( getSelectedLayerSource() );
 
     // Use the new condition group panel
     wxString combined = m_conditionGroupPanel->BuildCondition();
@@ -243,65 +327,86 @@ bool PANEL_DRC_RULE_EDITOR::TransferDataFromWindow()
 DRC_RULE_EDITOR_CONTENT_PANEL_BASE*
 PANEL_DRC_RULE_EDITOR::getConstraintPanel( wxWindow* aParent, const DRC_RULE_EDITOR_CONSTRAINT_NAME& aConstraintType )
 {
+    EDA_UNITS units = EDA_UNITS::MM;
+
+    for( wxWindow* win = GetParent(); win; win = win->GetParent() )
+    {
+        if( auto* frame = dynamic_cast<EDA_BASE_FRAME*>( win ) )
+        {
+            units = frame->GetUserUnits();
+            break;
+        }
+    }
+
     switch( aConstraintType )
     {
     case VIA_STYLE:
-        return new DRC_RE_VIA_STYLE_PANEL( aParent, m_constraintTitle,
-                                           dynamic_pointer_cast<DRC_RE_VIA_STYLE_CONSTRAINT_DATA>( m_constraintData ) );
+        return new DRC_RE_VIA_STYLE_OVERLAY_PANEL(
+                aParent,
+                dynamic_pointer_cast<DRC_RE_VIA_STYLE_CONSTRAINT_DATA>( m_constraintData ).get(),
+                units );
+
     case MINIMUM_TEXT_HEIGHT_AND_THICKNESS:
-        return new DRC_RE_MINIMUM_TEXT_HEIGHT_THICKNESS_PANEL(
-                aParent, m_constraintTitle,
-                dynamic_pointer_cast<DRC_RE_MINIMUM_TEXT_HEIGHT_THICKNESS_CONSTRAINT_DATA>( m_constraintData ) );
+        return new DRC_RE_MIN_TXT_HT_TH_OVERLAY_PANEL(
+                aParent,
+                dynamic_pointer_cast<DRC_RE_MINIMUM_TEXT_HEIGHT_THICKNESS_CONSTRAINT_DATA>( m_constraintData ).get(),
+                units );
+
     case ROUTING_DIFF_PAIR:
-        return new DRC_RE_ROUTING_DIFF_PAIR_PANEL(
-                aParent, m_constraintTitle,
-                dynamic_pointer_cast<DRC_RE_ROUTING_DIFF_PAIR_CONSTRAINT_DATA>( m_constraintData ) );
+        return new DRC_RE_ROUTING_DIFF_PAIR_OVERLAY_PANEL(
+                aParent,
+                dynamic_pointer_cast<DRC_RE_ROUTING_DIFF_PAIR_CONSTRAINT_DATA>( m_constraintData ).get(),
+                units );
+
     case ROUTING_WIDTH:
-        return new DRC_RE_ROUTING_WIDTH_PANEL(
-                aParent, m_constraintTitle,
-                dynamic_pointer_cast<DRC_RE_ROUTING_WIDTH_CONSTRAINT_DATA>( m_constraintData ) );
+        return new DRC_RE_ROUTING_WIDTH_OVERLAY_PANEL(
+                aParent,
+                dynamic_pointer_cast<DRC_RE_ROUTING_WIDTH_CONSTRAINT_DATA>( m_constraintData ).get(),
+                units );
+
     case PERMITTED_LAYERS:
-        return new DRC_RE_PERMITTED_LAYERS_PANEL(
-                aParent, m_constraintTitle,
-                dynamic_pointer_cast<DRC_RE_PERMITTED_LAYERS_CONSTRAINT_DATA>( m_constraintData ) );
+        return new DRC_RE_PERMITTED_LAYERS_OVERLAY_PANEL(
+                aParent,
+                dynamic_pointer_cast<DRC_RE_PERMITTED_LAYERS_CONSTRAINT_DATA>( m_constraintData ).get() );
+
     case ALLOWED_ORIENTATION:
-        return new DRC_RE_ALLOWED_ORIENTATION_PANEL(
-                aParent, m_constraintTitle,
-                dynamic_pointer_cast<DRC_RE_ALLOWED_ORIENTATION_CONSTRAINT_DATA>( m_constraintData ) );
+        return new DRC_RE_ALLOWED_ORIENTATION_OVERLAY_PANEL(
+                aParent,
+                dynamic_pointer_cast<DRC_RE_ALLOWED_ORIENTATION_CONSTRAINT_DATA>( m_constraintData ).get() );
+
+    case VIAS_UNDER_SMD:
+        return new DRC_RE_VIAS_UNDER_SMD_OVERLAY_PANEL(
+                aParent, dynamic_pointer_cast<DRC_RE_VIAS_UNDER_SMD_CONSTRAINT_DATA>( m_constraintData ).get() );
+
     case CUSTOM_RULE:
         return new DRC_RE_CUSTOM_RULE_PANEL(
                 aParent, dynamic_pointer_cast<DRC_RE_CUSTOM_RULE_CONSTRAINT_DATA>( m_constraintData ) );
+
+    case MATCHED_LENGTH_DIFF_PAIR:
+        return new DRC_RE_MATCHED_LENGTH_DIFF_PAIR_OVERLAY_PANEL(
+                aParent,
+                dynamic_pointer_cast<DRC_RE_MATCHED_LENGTH_DIFF_PAIR_CONSTRAINT_DATA>( m_constraintData ).get(),
+                units );
+
     case ABSOLUTE_LENGTH:
-        return new DRC_RE_ABSOLUTE_LENGTH_TWO_PANEL(
-                aParent, m_constraintTitle,
-                dynamic_pointer_cast<DRC_RE_ABSOLUTE_LENGTH_TWO_CONSTRAINT_DATA>( m_constraintData ) );
+        return new DRC_RE_ABS_LENGTH_TWO_OVERLAY_PANEL(
+                aParent,
+                dynamic_pointer_cast<DRC_RE_ABSOLUTE_LENGTH_TWO_CONSTRAINT_DATA>( m_constraintData ).get(),
+                units );
+
     default:
         if( DRC_RULE_EDITOR_UTILS::IsNumericInputType( aConstraintType ) )
         {
-            DRC_RE_NUMERIC_INPUT_CONSTRAINT_PANEL_PARAMS numericInputParams(
-                    *m_constraintTitle, dynamic_pointer_cast<DRC_RE_NUMERIC_INPUT_CONSTRAINT_DATA>( m_constraintData ),
-                    aConstraintType, *m_constraintTitle );
-
-            if( aConstraintType == MINIMUM_THERMAL_RELIEF_SPOKE_COUNT || aConstraintType == MAXIMUM_VIA_COUNT )
-                numericInputParams.SetInputIsCount( true );
-
-            return new DRC_RE_NUMERIC_INPUT_PANEL( aParent, numericInputParams );
+            return new DRC_RE_NUMERIC_INPUT_OVERLAY_PANEL(
+                    aParent,
+                    dynamic_pointer_cast<DRC_RE_NUMERIC_INPUT_CONSTRAINT_DATA>( m_constraintData ).get(),
+                    units );
         }
         else if( DRC_RULE_EDITOR_UTILS::IsBoolInputType( aConstraintType ) )
         {
-            wxString customLabel;
-
-            switch( aConstraintType )
-            {
-            case VIAS_UNDER_SMD: customLabel = "Allow Vias under SMD Pads"; break;
-            default: customLabel = *m_constraintTitle;
-            }
-
-            DRC_RE_BOOL_INPUT_CONSTRAINT_PANEL_PARAMS boolInputParams(
-                    *m_constraintTitle, dynamic_pointer_cast<DRC_RE_BOOL_INPUT_CONSTRAINT_DATA>( m_constraintData ),
-                    aConstraintType, customLabel );
-
-            return new DRC_RE_BOOL_INPUT_PANEL( aParent, boolInputParams );
+            return new DRC_RE_BOOL_INPUT_OVERLAY_PANEL(
+                    aParent,
+                    dynamic_pointer_cast<DRC_RE_BOOL_INPUT_CONSTRAINT_DATA>( m_constraintData ).get() );
         }
         else
         {
@@ -311,14 +416,14 @@ PANEL_DRC_RULE_EDITOR::getConstraintPanel( wxWindow* aParent, const DRC_RULE_EDI
 }
 
 
-bool PANEL_DRC_RULE_EDITOR::ValidateInputs( int* aErrorCount, std::string* aValidationMessage )
+bool PANEL_DRC_RULE_EDITOR::ValidateInputs( int* aErrorCount, wxString* aValidationMessage )
 {
     if( !m_callBackRuleNameValidation( m_constraintData->GetId(), m_nameCtrl->GetValue() ) )
     {
         m_validationSucceeded = false;
         ( *aErrorCount )++;
         m_validationMessage +=
-                DRC_RULE_EDITOR_UTILS::FormatErrorMessage( *aErrorCount, "Rule Name should be unique !!" );
+                DRC_RULE_EDITOR_UTILS::FormatErrorMessage( *aErrorCount, _( "Rule name must be unique." ) );
     }
 
     if( m_layerListChoiceCtrl->GetSelection() == wxNOT_FOUND )
@@ -326,7 +431,7 @@ bool PANEL_DRC_RULE_EDITOR::ValidateInputs( int* aErrorCount, std::string* aVali
         m_validationSucceeded = false;
         ( *aErrorCount )++;
         m_validationMessage +=
-                DRC_RULE_EDITOR_UTILS::FormatErrorMessage( *aErrorCount, "Layers selection should not be empty !!" );
+                DRC_RULE_EDITOR_UTILS::FormatErrorMessage( *aErrorCount, _( "Layer selection is required." ) );
     }
 
     return m_validationSucceeded;
@@ -343,7 +448,7 @@ void PANEL_DRC_RULE_EDITOR::onSaveButtonClicked( wxCommandEvent& aEvent )
 {
     m_validationSucceeded = true;
     int errorCount = 0;
-    m_validationMessage = "";
+    m_validationMessage.Clear();
 
     ValidateInputs( &errorCount, &m_validationMessage );
 
@@ -359,6 +464,12 @@ void PANEL_DRC_RULE_EDITOR::onSaveButtonClicked( wxCommandEvent& aEvent )
 
     if( m_validationSucceeded )
         m_btnShowMatches->Enable( true );
+}
+
+
+void PANEL_DRC_RULE_EDITOR::OnEnterKey( wxCommandEvent& aEvent )                                                      
+{
+    onSaveButtonClicked( aEvent );
 }
 
 
@@ -400,9 +511,8 @@ void PANEL_DRC_RULE_EDITOR::onScintillaCharAdded( wxStyledTextEvent& aEvent )
 
     m_textConditionCtrl->SearchAnchor();
 
-    wxString rules = m_textConditionCtrl->GetText();
-    int      currentPos = m_textConditionCtrl->GetCurrentPos();
-    int      startPos = 0;
+    int currentPos = m_textConditionCtrl->GetCurrentPos();
+    int startPos = 0;
 
     for( int line = m_textConditionCtrl->LineFromPosition( currentPos ); line > 0; line-- )
     {
@@ -429,7 +539,6 @@ void PANEL_DRC_RULE_EDITOR::onScintillaCharAdded( wxStyledTextEvent& aEvent )
     std::stack<wxString> sexprs;
     wxString             partial;
     wxString             last;
-    wxString             constraintType;
     EXPR_CONTEXT_T       context = EXPR_CONTEXT_T::NONE;
     EXPR_CONTEXT_T       expr_context = EXPR_CONTEXT_T::NONE;
 
@@ -928,6 +1037,81 @@ void PANEL_DRC_RULE_EDITOR::ResetShowMatchesButton()
     m_btnShowMatches->SetLabel( _( "Show Matches" ) );
 }
 
+
+void PANEL_DRC_RULE_EDITOR::populateLayerSelector( DRC_LAYER_CATEGORY aCategory )
+{
+    m_layerListChoiceCtrl->Clear();
+    m_layerIDs.clear();
+
+    m_layerListChoiceCtrl->Append( _( "Any" ) );
+
+    switch( aCategory )
+    {
+    case DRC_LAYER_CATEGORY::COPPER_ONLY:
+        m_layerListChoiceCtrl->Append( _( "outer" ) );
+        m_layerIDs.push_back( LAYER_SEL_OUTER );
+        m_layerListChoiceCtrl->Append( _( "inner" ) );
+        m_layerIDs.push_back( LAYER_SEL_INNER );
+
+        for( PCB_LAYER_ID id : m_board->GetEnabledLayers().CuStack() )
+        {
+            m_layerListChoiceCtrl->Append( m_board->GetLayerName( id ) );
+            m_layerIDs.push_back( static_cast<int>( id ) );
+        }
+
+        break;
+
+    case DRC_LAYER_CATEGORY::SILKSCREEN_ONLY:
+        m_layerListChoiceCtrl->Append( m_board->GetLayerName( F_SilkS ) );
+        m_layerIDs.push_back( static_cast<int>( F_SilkS ) );
+        m_layerListChoiceCtrl->Append( m_board->GetLayerName( B_SilkS ) );
+        m_layerIDs.push_back( static_cast<int>( B_SilkS ) );
+        break;
+
+    case DRC_LAYER_CATEGORY::SOLDERMASK_ONLY:
+        m_layerListChoiceCtrl->Append( m_board->GetLayerName( F_Mask ) );
+        m_layerIDs.push_back( static_cast<int>( F_Mask ) );
+        m_layerListChoiceCtrl->Append( m_board->GetLayerName( B_Mask ) );
+        m_layerIDs.push_back( static_cast<int>( B_Mask ) );
+        break;
+
+    case DRC_LAYER_CATEGORY::SOLDERPASTE_ONLY:
+        m_layerListChoiceCtrl->Append( m_board->GetLayerName( F_Paste ) );
+        m_layerIDs.push_back( static_cast<int>( F_Paste ) );
+        m_layerListChoiceCtrl->Append( m_board->GetLayerName( B_Paste ) );
+        m_layerIDs.push_back( static_cast<int>( B_Paste ) );
+        break;
+
+    case DRC_LAYER_CATEGORY::TOP_BOTTOM_ANY:
+        m_layerListChoiceCtrl->Append( _( "Top" ) );
+        m_layerIDs.push_back( LAYER_SEL_TOP );
+        m_layerListChoiceCtrl->Append( _( "Bottom" ) );
+        m_layerIDs.push_back( LAYER_SEL_BOTTOM );
+        break;
+
+    case DRC_LAYER_CATEGORY::GENERAL_ANY_LAYER:
+        m_layerListChoiceCtrl->Append( _( "outer" ) );
+        m_layerIDs.push_back( LAYER_SEL_OUTER );
+        m_layerListChoiceCtrl->Append( _( "inner" ) );
+        m_layerIDs.push_back( LAYER_SEL_INNER );
+
+        for( PCB_LAYER_ID id : m_board->GetEnabledLayers().UIOrder() )
+        {
+            m_layerListChoiceCtrl->Append( m_board->GetLayerName( id ) );
+            m_layerIDs.push_back( static_cast<int>( id ) );
+        }
+
+        break;
+
+    case DRC_LAYER_CATEGORY::NO_LAYER_SELECTOR:
+        // No layers to add - selector will be hidden
+        break;
+    }
+
+    m_layerListChoiceCtrl->SetSelection( 0 );
+}
+
+
 wxString PANEL_DRC_RULE_EDITOR::buildLayerClause() const
 {
     if( !m_layerListChoiceCtrl || !m_board )
@@ -943,8 +1127,33 @@ wxString PANEL_DRC_RULE_EDITOR::buildLayerClause() const
     if( index >= m_layerIDs.size() )
         return wxEmptyString;
 
-    PCB_LAYER_ID layerId = m_layerIDs[index];
-    wxString clause = wxString::Format( wxS( "(layer %s)" ), m_board->GetLayerName( layerId ) );
+    int layerValue = m_layerIDs[index];
+
+    // Handle synthetic layers
+    if( layerValue < 0 )
+    {
+        switch( layerValue )
+        {
+        case LAYER_SEL_OUTER:
+            return wxS( "(layer outer)" );
+
+        case LAYER_SEL_INNER:
+            return wxS( "(layer inner)" );
+
+        case LAYER_SEL_TOP:
+            return DRC_RULE_EDITOR_UTILS::TranslateTopBottomLayer( m_constraintType, true );
+
+        case LAYER_SEL_BOTTOM:
+            return DRC_RULE_EDITOR_UTILS::TranslateTopBottomLayer( m_constraintType, false );
+
+        default:
+            return wxEmptyString;
+        }
+    }
+
+    // Real layer ID
+    PCB_LAYER_ID layerId = static_cast<PCB_LAYER_ID>( layerValue );
+    wxString clause = wxString::Format( wxS( "(layer \"%s\")" ), m_board->GetLayerName( layerId ) );
     wxLogTrace( KI_TRACE_DRC_RULE_EDITOR, wxS( "Layer clause: %s" ), clause );
     return clause;
 }
@@ -956,18 +1165,84 @@ std::vector<PCB_LAYER_ID> PANEL_DRC_RULE_EDITOR::getSelectedLayers()
     if( sel <= 0 )
         return {};
 
-    return { m_layerIDs[sel - 1] };
+    int layerValue = m_layerIDs[sel - 1];
+
+    // Translate pseudo-IDs to real layer IDs
+    if( layerValue < 0 )
+    {
+        switch( layerValue )
+        {
+        case LAYER_SEL_OUTER: return { F_Cu, B_Cu };
+        case LAYER_SEL_INNER: return { In1_Cu };
+        case LAYER_SEL_TOP: return { F_Cu };
+        case LAYER_SEL_BOTTOM: return { B_Cu };
+        default: return {};
+        }
+    }
+
+    return { static_cast<PCB_LAYER_ID>( layerValue ) };
 }
 
-void PANEL_DRC_RULE_EDITOR::setSelectedLayers( const std::vector<PCB_LAYER_ID>& aLayers )
+
+void PANEL_DRC_RULE_EDITOR::setSelectedLayers( const std::vector<PCB_LAYER_ID>& aLayers,
+                                                const wxString& aLayerSource )
 {
+    // Check for synthetic layer keywords first (for round-trip preservation)
+    if( aLayerSource == wxS( "outer" ) )
+    {
+        for( size_t i = 0; i < m_layerIDs.size(); ++i )
+        {
+            if( m_layerIDs[i] == LAYER_SEL_OUTER )
+            {
+                m_layerListChoiceCtrl->SetSelection( static_cast<int>( i ) + 1 );
+                return;
+            }
+        }
+    }
+
+    if( aLayerSource == wxS( "inner" ) )
+    {
+        for( size_t i = 0; i < m_layerIDs.size(); ++i )
+        {
+            if( m_layerIDs[i] == LAYER_SEL_INNER )
+            {
+                m_layerListChoiceCtrl->SetSelection( static_cast<int>( i ) + 1 );
+                return;
+            }
+        }
+    }
+
+    // Map real layer IDs to Top/Bottom pseudo-entries (for TOP_BOTTOM_ANY dropdowns)
+    if( !aLayers.empty() )
+    {
+        PCB_LAYER_ID target = aLayers.front();
+        bool         isFront = IsFrontLayer( target );
+        bool         isBack = IsBackLayer( target );
+
+        if( isFront || isBack )
+        {
+            int pseudoId = isFront ? LAYER_SEL_TOP : LAYER_SEL_BOTTOM;
+
+            for( size_t i = 0; i < m_layerIDs.size(); ++i )
+            {
+                if( m_layerIDs[i] == pseudoId )
+                {
+                    m_layerListChoiceCtrl->SetSelection( static_cast<int>( i ) + 1 );
+                    return;
+                }
+            }
+        }
+    }
+
+    // Handle empty layers (default to "Any")
     if( aLayers.empty() )
     {
         m_layerListChoiceCtrl->SetSelection( 0 );
         return;
     }
 
-    PCB_LAYER_ID target = aLayers.front();
+    // Find and select the matching layer
+    int target = static_cast<int>( aLayers.front() );
 
     for( size_t i = 0; i < m_layerIDs.size(); ++i )
     {

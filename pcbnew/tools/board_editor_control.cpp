@@ -37,6 +37,8 @@
 #include <board.h>
 #include <board_commit.h>
 #include <board_design_settings.h>
+#include <collectors.h>
+#include <project/net_settings.h>
 #include <pcb_generator.h>
 #include <footprint.h>
 #include <pad.h>
@@ -49,6 +51,7 @@
 #include <dialogs/dialog_update_pcb.h>
 #include <dialogs/dialog_assign_netclass.h>
 #include <dialog_plot.h>
+#include <dialogs/rule_editor_dialog_base.h>
 #include <kiface_base.h>
 #include <kiway.h>
 #include <netlist_reader/pcb_netlist.h>
@@ -293,6 +296,25 @@ bool BOARD_EDITOR_CONTROL::Init()
 
 int BOARD_EDITOR_CONTROL::Save( const TOOL_EVENT& aEvent )
 {
+    wxWindow* focus = wxWindow::FindFocus();
+
+    if( focus )
+    {
+        wxWindow* topLevel = focus;
+
+        while( topLevel && !topLevel->IsTopLevel() )
+            topLevel = topLevel->GetParent();
+
+        RULE_EDITOR_DIALOG_BASE* reDlg = dynamic_cast<RULE_EDITOR_DIALOG_BASE*>( topLevel );
+
+        if( reDlg )
+        {
+            wxCommandEvent evt;
+            reDlg->OnSave( evt );
+            return 0;
+        }
+    }
+
     m_frame->SaveBoard();
     return 0;
 }
@@ -615,17 +637,23 @@ int BOARD_EDITOR_CONTROL::RepairBoard( const TOOL_EVENT& aEvent )
             processItem( group );
     }
 
-    for( BOARD_ITEM* drawing : board()->Drawings() )
-        processItem( drawing );
+    // Everything owned by the board not handled above
+    for( BOARD_ITEM* item : board()->GetItemSet() )
+    {
+        // Top-level footprints and tracks were handled above.
+        switch( item->Type() )
+        {
+        case PCB_FOOTPRINT_T:
+        case PCB_TRACE_T:
+        case PCB_ARC_T:
+        case PCB_VIA_T:
+            break;
 
-    for( ZONE* zone : board()->Zones() )
-        processItem( zone );
-
-    for( PCB_MARKER* marker : board()->Markers() )
-        processItem( marker );
-
-    for( PCB_GROUP* group : board()->Groups() )
-        processItem( group );
+        default:
+            processItem( item );
+            break;
+        }
+    }
 
     if( duplicates )
     {
@@ -1466,8 +1494,17 @@ static bool mergeZones( EDA_DRAW_FRAME* aFrame, BOARD_COMMIT& aCommit,
         return false;
     }
 
+    // Adopt the highest priority from all merged zones so the result maintains
+    // the most aggressive fill ordering.
+    unsigned highestPriority = aOriginZones[0]->GetAssignedPriority();
+
     for( unsigned int i = 1; i < aOriginZones.size(); i++ )
+    {
+        highestPriority = std::max( highestPriority, aOriginZones[i]->GetAssignedPriority() );
         aCommit.Remove( aOriginZones[i] );
+    }
+
+    aOriginZones[0]->SetAssignedPriority( highestPriority );
 
     aMergedZones.push_back( aOriginZones[0] );
 
@@ -1508,12 +1545,6 @@ int BOARD_EDITOR_CONTROL::ZoneMerge( const TOOL_EVENT& aEvent )
         if( firstZone->GetNetCode() != netcode )
         {
             wxLogMessage( _( "Some zone netcodes did not match and were not merged." ) );
-            continue;
-        }
-
-        if( curr_area->GetAssignedPriority() != firstZone->GetAssignedPriority() )
-        {
-            wxLogMessage( _( "Some zone priorities did not match and were not merged." ) );
             continue;
         }
 
@@ -1632,7 +1663,7 @@ int BOARD_EDITOR_CONTROL::ExplicitCrossProbeToSch( const TOOL_EVENT& aEvent )
 void BOARD_EDITOR_CONTROL::doCrossProbePcbToSch( const TOOL_EVENT& aEvent, bool aForce )
 {
     // Don't get in an infinite loop PCB -> SCH -> PCB -> SCH -> ...
-    if( m_frame->m_probingSchToPcb )
+    if( m_frame->m_ProbingSchToPcb )
         return;
 
     PCB_SELECTION_TOOL*  selTool = m_toolMgr->GetTool<PCB_SELECTION_TOOL>();

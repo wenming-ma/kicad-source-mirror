@@ -25,11 +25,13 @@
 #include <project/tuning_profiles.h>
 #include <settings/json_settings_internals.h>
 #include <project/project_file.h>
+#include <project/board_project_settings_params.h>
 #include <settings/common_settings.h>
 #include <settings/parameters.h>
 #include <wildcards_and_files_ext.h>
 #include <project/project_file.h>
 #include <wx/config.h>
+#include <wx/filename.h>
 #include <wx/log.h>
 
 
@@ -148,10 +150,18 @@ PROJECT_FILE::PROJECT_FILE( const wxString& aFullPath ) :
                     for( const nlohmann::json& entry : membersJson )
                     {
                         if( entry.is_string() )
-                            members.push_back( entry.get<wxString>() );
+                        {
+                            wxString member = entry.get<wxString>().Strip( wxString::both );
+
+                            if( !member.IsEmpty() )
+                                members.push_back( member );
+                        }
                     }
 
-                    m_BusAliases.emplace( wxString::FromUTF8( it.key().c_str() ), std::move( members ) );
+                    wxString name = wxString::FromUTF8( it.key().c_str() ).Strip( wxString::both );
+
+                    if( !name.IsEmpty() )
+                        m_BusAliases.emplace( name, std::move( members ) );
                 }
             }, {} ) );
 
@@ -691,6 +701,42 @@ bool PROJECT_FILE::LoadFromFile( const wxString& aDirectory )
             m_wasMigrated = true;
 
             wxLogTrace( traceSettings, wxT( "PROJECT_FILE: Migrated old single-root format to top_level_sheets" ) );
+        }
+
+        // When a project is created from a template, the top_level_sheets entries may
+        // still reference the template's schematic filenames rather than the new project's.
+        // The template copy renames files on disk but doesn't update the .kicad_pro content.
+        // Detect this and fix the references so the schematic can be found.
+        if( !m_topLevelSheets.empty() && m_project )
+        {
+            wxString projectPath = m_project->GetProjectPath();
+            wxString projectName = m_project->GetProjectName();
+
+            for( TOP_LEVEL_SHEET_INFO& sheetInfo : m_topLevelSheets )
+            {
+                wxFileName referencedFile( projectPath, sheetInfo.filename );
+
+                if( referencedFile.FileExists() )
+                    continue;
+
+                // Try the project-name-based filename
+                wxString expectedFile =
+                        projectName + wxS( "." ) + FILEEXT::KiCadSchematicFileExtension;
+
+                wxFileName candidateFile( projectPath, expectedFile );
+
+                if( candidateFile.FileExists() )
+                {
+                    wxLogTrace( traceSettings,
+                                wxT( "PROJECT_FILE: Fixing stale top_level_sheets reference "
+                                     "'%s' -> '%s'" ),
+                                sheetInfo.filename, expectedFile );
+
+                    sheetInfo.filename = expectedFile;
+                    sheetInfo.name = projectName;
+                    m_wasMigrated = true;
+                }
+            }
         }
     }
 

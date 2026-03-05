@@ -420,8 +420,18 @@ void WX_VIEW_CONTROLS::onWheel( wxMouseEvent& aEvent )
     const double wheelPanSpeed = 0.001;
     const int    axis = aEvent.GetWheelAxis();
 
-    if( axis == wxMOUSE_WHEEL_HORIZONTAL && !m_settings.m_horizontalPan )
+    // Native horizontal wheel events (from mice with tilt wheels, side-button scroll combos, or
+    // touchpads) are always handled as horizontal pan. The m_horizontalPan setting only controls
+    // whether a keyboard modifier can convert vertical scroll into horizontal pan.
+    if( axis == wxMOUSE_WHEEL_HORIZONTAL )
+    {
+        VECTOR2D scrollVec = m_view->ToWorld( m_view->GetScreenPixelSize(), false )
+                             * ( (double) aEvent.GetWheelRotation() * wheelPanSpeed );
+
+        m_view->SetCenter( m_view->GetCenter() + VECTOR2D( scrollVec.x, 0.0 ) );
+        refreshMouse( true );
         return;
+    }
 
     // Pick the modifier, if any.  Shift beats control beats alt, we don't support more than one.
     int nMods = 0;
@@ -456,6 +466,9 @@ void WX_VIEW_CONTROLS::onWheel( wxMouseEvent& aEvent )
             const int    rotation = aEvent.GetWheelRotation() * ( m_settings.m_scrollReverseZoom ? -1 : 1 );
             const double zoomScale = m_zoomController->GetScaleForRotation( rotation );
 
+
+
+            KI_TRACE( traceGalProfile, "Zoom: %.5f\n",  m_view->GetScale() * zoomScale );
             if( IsCursorWarpingEnabled() )
             {
                 CenterOnCursor();
@@ -466,6 +479,8 @@ void WX_VIEW_CONTROLS::onWheel( wxMouseEvent& aEvent )
                 const VECTOR2D anchor = m_view->ToWorld( VECTOR2D( aEvent.GetX(), aEvent.GetY() ) );
                 m_view->SetScale( m_view->GetScale() * zoomScale, anchor );
             }
+
+            aEvent.Skip();
 
             // Refresh the zoom level and mouse position on message panel
             // (mouse position has not changed, only the zoom level has changed):
@@ -478,17 +493,11 @@ void WX_VIEW_CONTROLS::onWheel( wxMouseEvent& aEvent )
                                  * ( (double) aEvent.GetWheelRotation() * wheelPanSpeed );
             double scrollX = 0.0;
             double scrollY = 0.0;
-            bool   hReverse = false;
+            bool   hReverse = m_settings.m_scrollReversePanH;
 
-            if( axis != wxMOUSE_WHEEL_HORIZONTAL )
-                hReverse = m_settings.m_scrollReversePanH;
-
-            if( axis == wxMOUSE_WHEEL_HORIZONTAL || modifiers == m_settings.m_scrollModifierPanH )
+            if( modifiers == m_settings.m_scrollModifierPanH )
             {
-                if( hReverse )
-                    scrollX = scrollVec.x;
-                else
-                    scrollX = ( axis == wxMOUSE_WHEEL_HORIZONTAL ) ? scrollVec.x : -scrollVec.x;
+                scrollX = hReverse ? scrollVec.x : -scrollVec.x;
             }
             else
             {

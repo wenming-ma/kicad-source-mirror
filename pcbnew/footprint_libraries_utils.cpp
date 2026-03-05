@@ -535,7 +535,10 @@ bool PCB_BASE_EDIT_FRAME::AddLibrary( const wxString& aDialogTitle, const wxStri
     try
     {
         std::optional<LIBRARY_TABLE*> optTable = manager.Table( LIBRARY_TABLE_TYPE::FOOTPRINT, aScope.value() );
-        wxCHECK( optTable, false );
+
+        if( !optTable )
+            return false;
+
         LIBRARY_TABLE* table = optTable.value();
 
         LIBRARY_TABLE_ROW& row = table->InsertRow();
@@ -816,6 +819,14 @@ bool FOOTPRINT_EDIT_FRAME::SaveFootprintInLibrary( FOOTPRINT* aFootprint,
     try
     {
         aFootprint->SetFPID( LIB_ID( wxEmptyString, aFootprint->GetFPID().GetLibItemName() ) );
+
+        // Clear selected, brightened, temp flags, edit flags, the whole shebang.
+        aFootprint->RunOnChildren(
+                []( BOARD_ITEM* child )
+                {
+                    child->ClearFlags();
+                },
+                RECURSE_MODE::RECURSE );
 
         FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &Prj() );
         adapter->SaveFootprint( aLibraryName, aFootprint );

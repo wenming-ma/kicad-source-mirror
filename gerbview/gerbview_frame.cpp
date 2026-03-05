@@ -19,6 +19,7 @@
  */
 
 #include <kiface_base.h>
+#include <settings/color_settings.h>
 #include <base_units.h>
 #include <pgm_base.h>
 #include <bitmaps.h>
@@ -59,10 +60,10 @@
 #include "widgets/dcode_selection_box.h"
 #include <dialog_draw_layers_settings.h>
 
-#ifndef __linux__
-#include <navlib/nl_gerbview_plugin.h>
-#else
+#if defined(__linux__) || defined(__FreeBSD__)
 #include <spacenav/spnav_2d_plugin.h>
+#else
+#include <navlib/nl_gerbview_plugin.h>
 #endif
 
 #include <wx/log.h>
@@ -164,9 +165,11 @@ GERBVIEW_FRAME::GERBVIEW_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_auimgr.AddPane( m_tbTopAux, EDA_PANE().HToolbar().Name( "TopAuxToolbar" ).Top().Layer(4) );
     m_auimgr.AddPane( m_messagePanel, EDA_PANE().Messages().Name( "MsgPanel" ).Bottom().Layer( 6 ) );
     m_auimgr.AddPane( m_tbLeft, EDA_PANE().VToolbar().Name( "LeftToolbar" ).Left().Layer( 3 ) );
-    m_auimgr.AddPane( m_LayersManager, EDA_PANE().Palette().Name( "LayersManager" ).Right().Layer( 3 )
-                                                 .Caption( _( "Layers Manager" ) ).PaneBorder( false )
-                                                 .MinSize( 80, -1 ).BestSize( m_LayersManager->GetBestSize() ) );
+    m_auimgr.AddPane( m_LayersManager,
+                      EDA_PANE().Palette().Name( "LayersManager" ).Right().Layer( 3 )
+                                .Caption( _( "Layers Manager" ) ).PaneBorder( false )
+                                .MinSize( FromDIP( 80 ), FromDIP( 80 ) )
+                                .BestSize( m_LayersManager->GetBestSize() ) );
 
     m_auimgr.AddPane( GetCanvas(), EDA_PANE().Canvas().Name( "DrawFrame" ).Center() );
 
@@ -1054,11 +1057,11 @@ void GERBVIEW_FRAME::ActivateGalCanvas()
     {
         if( !m_spaceMouse )
         {
-#ifndef __linux__
-            m_spaceMouse = std::make_unique<NL_GERBVIEW_PLUGIN>();
-#else
+#if defined(__linux__) || defined(__FreeBSD__)
             m_spaceMouse = std::make_unique<SPNAV_2D_PLUGIN>( galCanvas );
             m_spaceMouse->SetScale( gerbIUScale.IU_PER_MILS / pcbIUScale.IU_PER_MILS );
+#else
+            m_spaceMouse = std::make_unique<NL_GERBVIEW_PLUGIN>();
 #endif
         }
 

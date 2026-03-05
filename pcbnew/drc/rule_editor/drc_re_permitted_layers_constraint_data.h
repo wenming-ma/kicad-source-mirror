@@ -38,7 +38,7 @@ public:
     {
     }
 
-    explicit DRC_RE_PERMITTED_LAYERS_CONSTRAINT_DATA( int aId, int aParentId, wxString aRuleName,
+    explicit DRC_RE_PERMITTED_LAYERS_CONSTRAINT_DATA( int aId, int aParentId, const wxString& aRuleName,
                                                       bool aTopLayer, bool aBottomLayer ) :
             DRC_RE_BASE_CONSTRAINT_DATA( aId, aParentId, aRuleName ), m_topLayer( aTopLayer ),
             m_bottomLayer( aBottomLayer )
@@ -47,12 +47,48 @@ public:
 
     virtual ~DRC_RE_PERMITTED_LAYERS_CONSTRAINT_DATA() = default;
 
+    BITMAPS GetOverlayBitmap() const override { return BITMAPS::constraint_permitted_layers; }
+
+    std::vector<DRC_RE_FIELD_POSITION> GetFieldPositions() const override
+    {
+        // Positions measured from constraint_permitted_layers.png (~300x170)
+        // Format: { xStart, xEnd, yTop, tabOrder }
+        return {
+            { 150 + DRC_RE_OVERLAY_XO, 164 + DRC_RE_OVERLAY_XO, 40 + DRC_RE_OVERLAY_YO, 1, _( "Allow top Layer" ), LABEL_POSITION::RIGHT },      // top layer checkbox (upper left)
+            { 150 + DRC_RE_OVERLAY_XO, 164 + DRC_RE_OVERLAY_XO, 200 + DRC_RE_OVERLAY_YO, 2, _( "Allow bottom Layer" ), LABEL_POSITION::RIGHT },  // bottom layer checkbox (lower left)
+        };
+    }
+
+    std::vector<wxString> GetConstraintClauses( const RULE_GENERATION_CONTEXT& aContext ) const override
+    {
+        wxArrayString terms;
+
+        if( m_topLayer )
+            terms.Add( wxS( "A.Layer == 'F.Cu'" ) );
+
+        if( m_bottomLayer )
+            terms.Add( wxS( "A.Layer == 'B.Cu'" ) );
+
+        if( terms.IsEmpty() )
+            return {};
+
+        wxString expr = wxJoin( terms, '|' );
+        expr.Replace( wxS( "|" ), wxS( " || " ) );
+
+        return { wxString::Format( wxS( "(constraint assertion \"%s\")" ), expr ) };
+    }
+
+    wxString GenerateRule( const RULE_GENERATION_CONTEXT& aContext ) override
+    {
+        return buildRule( aContext, GetConstraintClauses( aContext ) );
+    }
+
     VALIDATION_RESULT Validate() const override
     {
         VALIDATION_RESULT result;
 
         if( !m_topLayer && !m_bottomLayer )
-            result.AddError( "At least one layer must be selected" );
+            result.AddError( _( "At least one layer must be selected" ) );
 
         return result;
     }

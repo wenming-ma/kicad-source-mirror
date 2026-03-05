@@ -25,8 +25,10 @@ add_subdirectory( gal )
 # Get the netlist reader library
 add_subdirectory( netlist_reader )
 
-# Only for win32 cross compilation using MXE
-add_compile_definitions( $<$<AND:$<BOOL:${WIN32}>,$<BOOL:${MSYS}>>:GLEW_STATIC> )
+# Get the shared PADS format support library
+add_subdirectory( io/pads )
+
+
 
 
 # The build version string defaults to the value in the KiCadVersion.cmake file.
@@ -70,7 +72,10 @@ set( KICOMMON_SRCS
 
     # Gal
     gal/color4d.cpp
-    gal/opengl/gl_context_mgr.cpp
+
+    # KiCad GL
+    kicad_gl/gl_utils.cpp
+    kicad_gl/gl_context_mgr.cpp
 
     # Git
     git/git_add_to_index_handler.cpp
@@ -126,6 +131,7 @@ set( KICOMMON_SRCS
     jobs/jobset.cpp
     jobs/job_fp_export_svg.cpp
     jobs/job_fp_upgrade.cpp
+    jobs/job_pcb_import.cpp
     jobs/job_pcb_render.cpp
     jobs/job_pcb_drc.cpp
     jobs/job_rc.cpp
@@ -320,6 +326,8 @@ if( KICAD_USE_PCH )
             <set>
             <string>
             <vector>
+            <kiid.h>
+            <pgm_base.h>
             <wx/wx.h>
              )
 endif()
@@ -339,6 +347,7 @@ target_link_libraries( kicommon
     picosha2
     rapidcsv
     sexpr
+    glad
     ${ZSTD_LIBRARY}
     ${wxWidgets_LIBRARIES}
     ${LIBGIT2_LIBRARIES}
@@ -712,6 +721,7 @@ set( COMMON_SRCS
     gr_basic.cpp
     hotkey_store.cpp
     hotkeys_basic.cpp
+    inspectable.cpp
     kiface_base.cpp
     kiway_player.cpp
     lib_table_grid_tricks.cpp
@@ -817,7 +827,7 @@ add_library( common STATIC
     )
 
 if( KICAD_USE_PCH )
-    target_precompile_headers( kicommon
+    target_precompile_headers( common
         PRIVATE
             <kicommon.h>
             <algorithm>
@@ -827,6 +837,10 @@ if( KICAD_USE_PCH )
             <set>
             <string>
             <vector>
+            <clipper2/clipper.h>
+            <eda_draw_frame.h>
+            <kiid.h>
+            <pgm_base.h>            
             <wx/wx.h>
              )
 endif()

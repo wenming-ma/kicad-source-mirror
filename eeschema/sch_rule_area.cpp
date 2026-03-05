@@ -38,6 +38,8 @@
 #include <sch_screen.h>
 #include <sch_sheet_path.h>
 #include <geometry/shape_rect.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 SCH_RULE_AREA::~SCH_RULE_AREA()
@@ -424,6 +426,13 @@ void SCH_RULE_AREA::RemoveItem( SCH_ITEM* aItem )
 {
     m_items.erase( aItem );
     m_prev_items.erase( aItem->m_Uuid );
+}
+
+
+void SCH_RULE_AREA::RemoveDirective( SCH_DIRECTIVE_LABEL* aLabel )
+{
+    m_directives.erase( aLabel );
+    m_prev_directives.erase( aLabel->m_Uuid );
 }
 
 

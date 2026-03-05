@@ -69,6 +69,7 @@ Load() TODO's
 #include <project.h>
 #include <board.h>
 #include <board_design_settings.h>
+#include <project/net_settings.h>
 #include <footprint.h>
 #include <pad.h>
 #include <pcb_track.h>
@@ -443,7 +444,10 @@ BOARD* PCB_IO_EAGLE::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
     LSET enabledLayers = m_board->GetDesignSettings().GetEnabledLayers();
 
     for( const auto& [eagleLayerName, layer] : m_layer_map )
-        enabledLayers.set( layer );
+    {
+        if( layer >= 0 && layer < PCB_LAYER_ID_COUNT )
+            enabledLayers.set( layer );
+    }
 
     m_board->GetDesignSettings().SetEnabledLayers( enabledLayers );
 
@@ -1843,7 +1847,7 @@ void PCB_IO_EAGLE::orientFPText( FOOTPRINT* aFootprint, const EELEMENT& e, PCB_T
         aFPText->SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
         aFPText->SetVertJustify( GR_TEXT_V_ALIGN_BOTTOM );
 
-        if( !aFPText->IsMirrored() && abs( degrees ) <= -180 )
+        if( !aFPText->IsMirrored() && abs( degrees ) >= 180 )
         {
             aFPText->SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
             aFPText->SetVertJustify( GR_TEXT_V_ALIGN_TOP );

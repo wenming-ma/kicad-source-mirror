@@ -56,6 +56,7 @@ set( QA_COMMON_SRCS
     test_pdf_unicode_plot.cpp
     test_kiid.cpp
     test_layer_ids.cpp
+    test_lib_id.cpp
     test_layer_range.cpp
     test_lset.cpp
     test_markup_parser.cpp
@@ -90,6 +91,11 @@ set( QA_COMMON_SRCS
 
     io/cadstar/test_cadstar_archive_parser.cpp
 
+    io/pads/test_pads_attribute_mapper.cpp
+    io/pads/test_pads_common.cpp
+    io/pads/test_pads_unit_converter.cpp
+
+    test_throttle.cpp
     view/test_zoom_controller.cpp
 
     test_netname_validator.cpp
@@ -109,6 +115,7 @@ set( QA_COMMON_SRCS
 
     # Job tests
     test_job_export_sch_plot.cpp
+    test_jobs_runner.cpp
 )
 
 if( KICAD_TEST_DATABASE_LIBRARIES )
@@ -137,6 +144,7 @@ target_link_libraries( qa_common
     common
     libcontext
     gal
+    pads_common
     qa_utils
     Boost::headers
     Boost::unit_test_framework
@@ -149,6 +157,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/kicad
     ${CMAKE_SOURCE_DIR}/pcbnew
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/common/io/pads
     ${CMAKE_SOURCE_DIR}/qa/mocks/include
     ${INC_AFTER}
 )

@@ -151,6 +151,11 @@ public:
         SetTooltipEnable( COL_STATUS );
     }
 
+    static bool SupportsVisibilityColumn()
+    {
+        return false;
+    }
+
 protected:
     void optionsEditor( int aRow ) override
     {
@@ -189,6 +194,11 @@ protected:
     wxString getTablePreamble() override
     {
         return wxT( "(fp_lib_table" );
+    }
+
+    bool supportsVisibilityColumn() override
+    {
+        return FP_GRID_TRICKS::SupportsVisibilityColumn();
     }
 
 protected:
@@ -286,7 +296,8 @@ void PANEL_FP_LIB_TABLE::AddTable( LIBRARY_TABLE* aTable, const wxString& aTitle
 PANEL_FP_LIB_TABLE::PANEL_FP_LIB_TABLE( DIALOG_EDIT_LIBRARY_TABLES* aParent, PROJECT* aProject ) :
         PANEL_FP_LIB_TABLE_BASE( aParent ),
         m_project( aProject ),
-        m_parent( aParent )
+        m_parent( aParent ),
+        m_suppressNotebookPageEvents( false )
 {
     m_lastProjectLibDir = m_project->GetProjectPath();
 
@@ -358,6 +369,7 @@ PANEL_FP_LIB_TABLE::PANEL_FP_LIB_TABLE( DIALOG_EDIT_LIBRARY_TABLES* aParent, PRO
     Layout();
 
     m_notebook->Bind( wxEVT_AUINOTEBOOK_PAGE_CLOSE, &PANEL_FP_LIB_TABLE::onNotebookPageCloseRequest, this );
+    m_notebook->Bind( wxEVT_AUINOTEBOOK_PAGE_CHANGING, &PANEL_FP_LIB_TABLE::onNotebookPageChangeRequest, this );
     // This is the button only press for the browse button instead of the menu
     m_browseButton->Bind( wxEVT_BUTTON, &PANEL_FP_LIB_TABLE::browseLibrariesHandler, this );
 }
@@ -428,13 +440,11 @@ void PANEL_FP_LIB_TABLE::populatePluginList()
 
 bool PANEL_FP_LIB_TABLE::verifyTables()
 {
-    wxString msg;
-
     for( int page = 0 ; page < (int) m_notebook->GetPageCount(); ++page )
     {
         WX_GRID* grid = get_grid( page );
 
-        if( !LIB_TABLE_GRID_TRICKS::VerifyTable( grid,
+        if( !FP_GRID_TRICKS::VerifyTable( grid, FP_GRID_TRICKS::SupportsVisibilityColumn(),
                 [&]( int aRow, int aCol )
                 {
                     // show the tabbed panel holding the grid we have flunked:
@@ -809,6 +819,15 @@ void PANEL_FP_LIB_TABLE::onReset( wxCommandEvent& event )
 }
 
 
+void PANEL_FP_LIB_TABLE::onNotebookPageChangeRequest( wxAuiNotebookEvent& aEvent )
+{
+    if( m_suppressNotebookPageEvents )
+        aEvent.Veto();
+    else
+        aEvent.Skip();
+}
+
+
 void PANEL_FP_LIB_TABLE::onPageChange( wxAuiNotebookEvent& event )
 {
     m_resetGlobal->Enable( m_notebook->GetSelection() == 0 );
@@ -873,6 +892,7 @@ bool PANEL_FP_LIB_TABLE::TransferDataFromWindow()
         }
     }
 
+    m_suppressNotebookPageEvents = true;
     return true;
 }
 

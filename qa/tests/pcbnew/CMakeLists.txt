@@ -20,6 +20,9 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 set( QA_PCBNEW_SRCS
+    # This is needed for the global mock objects
+    ${CMAKE_SOURCE_DIR}/qa/mocks/kicad/common_mocks.cpp
+
     # The main test entry points
     test_module.cpp
 
@@ -33,6 +36,7 @@ set( QA_PCBNEW_SRCS
     # test compilation units (start test_)
     test_array_pad_name_provider.cpp
     test_barcode_load_save.cpp
+    test_board_connected_items.cpp
     test_board_item.cpp
     test_board_commit.cpp
     test_board_statistics.cpp
@@ -51,12 +55,15 @@ set( QA_PCBNEW_SRCS
     test_pns_basics.cpp
     test_pad_flashing.cpp
     test_pad_numbering.cpp
+    test_pad_tenting.cpp
     test_pcb_textbox.cpp
     test_prettifier.cpp
     test_pcb_render_settings.cpp
     test_libeval_compiler.cpp
     test_reference_image_load.cpp
+    test_gencad_export.cpp
     test_pdf_output_path.cpp
+    test_plot_controller.cpp
     test_shape_corner_radius.cpp
     test_pcb_grid_helper.cpp
     test_save_load.cpp
@@ -94,19 +101,33 @@ set( QA_PCBNEW_SRCS
     drc/test_drc_via_dangling.cpp
     drc/test_drc_tuning_profiles.cpp
     drc/test_drc_creepage_issue21482.cpp
+    drc/test_drc_physical_clearance.cpp
     drc/test_drc_rule_editor.cpp
+    drc/test_drc_bitmap_overlay_panel.cpp
 
     pcb_io/altium/test_altium_rule_transformer.cpp
     pcb_io/altium/test_altium_pcblib_import.cpp
     pcb_io/altium/test_altium_pcb_import.cpp
     pcb_io/cadstar/test_cadstar_footprints.cpp
+    pcb_io/eagle/test_eagle_board_import.cpp
     pcb_io/eagle/test_eagle_lbr_import.cpp
+    pcb_io/pads/test_pads_import.cpp
+    pcb_io/pads/test_pads_layer_mapper.cpp
+    pcb_io/pads/test_pads_arc_structures.cpp
+    pcb_io/pads/test_pads_part_structures.cpp
+    pcb_io/pads/test_pads_keepout.cpp
+    pcb_io/geda/test_geda_pcb_import.cpp
 
     pcb_io/kicad_sexpr/test_kicad_sexpr.cpp
 
     pcb_io/easyedapro/test_easyedapro_import.cpp
 
     pcb_io/fabmaster/test_fabmaster_import.cpp
+
+    pcb_io/allegro/allegro_test_utils.cpp
+    pcb_io/allegro/test_allegro_boards.cpp
+    pcb_io/allegro/test_allegro_import.cpp
+    pcb_io/allegro/test_block_additional.cpp
 
     pcb_io/ipc2581/test_ipc2581_export.cpp
 

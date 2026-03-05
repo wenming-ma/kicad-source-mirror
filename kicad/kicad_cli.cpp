@@ -58,7 +58,6 @@
 #include "cli/command_pcb_export_3d.h"
 #include "cli/command_pcb_export_drill.h"
 #include "cli/command_pcb_export_dxf.h"
-#include "cli/command_pcb_export_gerber.h"
 #include "cli/command_pcb_export_gerbers.h"
 #include "cli/command_pcb_export_hpgl.h"
 #include "cli/command_pcb_export_gencad.h"
@@ -75,6 +74,7 @@
 #include "cli/command_sch_export_netlist.h"
 #include "cli/command_sch_export_plot.h"
 #include "cli/command_pcb_upgrade.h"
+#include "cli/command_pcb_import.h"
 #include "cli/command_fp.h"
 #include "cli/command_fp_export.h"
 #include "cli/command_fp_export_svg.h"
@@ -127,6 +127,7 @@ static CLI::PCB_COMMAND                  pcbCmd{};
 static CLI::PCB_DRC_COMMAND              pcbDrcCmd{};
 static CLI::PCB_RENDER_COMMAND           pcbRenderCmd{};
 static CLI::PCB_UPGRADE_COMMAND          pcbUpgradeCmd{};
+static CLI::PCB_IMPORT_COMMAND           pcbImportCmd{};
 static CLI::PCB_EXPORT_DRILL_COMMAND     exportPcbDrillCmd{};
 static CLI::PCB_EXPORT_DXF_COMMAND       exportPcbDxfCmd{};
 static CLI::PCB_EXPORT_3D_COMMAND        exportPcbGlbCmd{ "glb", UTF8STDSTR( _( "Export GLB (binary GLTF)" ) ), JOB_EXPORT_PCB_3D::FORMAT::GLB };
@@ -145,7 +146,6 @@ static CLI::PCB_EXPORT_PDF_COMMAND       exportPcbPdfCmd{};
 static CLI::PCB_EXPORT_POS_COMMAND       exportPcbPosCmd{};
 static CLI::PCB_EXPORT_PS_COMMAND        exportPcbPsCmd{};
 static CLI::PCB_EXPORT_STATS_COMMAND     exportPcbStatsCmd{};
-static CLI::PCB_EXPORT_GERBER_COMMAND    exportPcbGerberCmd{};
 static CLI::PCB_EXPORT_GERBERS_COMMAND   exportPcbGerbersCmd{};
 static CLI::PCB_EXPORT_HPGL_COMMAND      exportPcbHpglCmd{};
 static CLI::PCB_EXPORT_GENCAD_COMMAND    exportPcbGencadCmd{};
@@ -160,11 +160,11 @@ static CLI::SCH_UPGRADE_COMMAND          schUpgradeCmd{};
 static CLI::SCH_EXPORT_BOM_COMMAND       exportSchBomCmd{};
 static CLI::SCH_EXPORT_PYTHONBOM_COMMAND exportSchPythonBomCmd{};
 static CLI::SCH_EXPORT_NETLIST_COMMAND   exportSchNetlistCmd{};
-static CLI::SCH_EXPORT_PLOT_COMMAND      exportSchDxfCmd{ "dxf",        UTF8STDSTR( _( "Export DXF" ) ),    SCH_PLOT_FORMAT::DXF,   CLI::COMMAND::IO_TYPE::FILE };
-static CLI::SCH_EXPORT_PLOT_COMMAND      exportSchHpglCmd{ "hpgl",      UTF8STDSTR( _( "Export HPGL" ) ),   SCH_PLOT_FORMAT::HPGL,  CLI::COMMAND::IO_TYPE::FILE };
+static CLI::SCH_EXPORT_PLOT_COMMAND      exportSchDxfCmd{ "dxf",        UTF8STDSTR( _( "Export DXF" ) ),    SCH_PLOT_FORMAT::DXF,   CLI::COMMAND::IO_TYPE::DIRECTORY };
+static CLI::SCH_EXPORT_PLOT_COMMAND      exportSchHpglCmd{ "hpgl",      UTF8STDSTR( _( "Export HPGL" ) ),   SCH_PLOT_FORMAT::HPGL,  CLI::COMMAND::IO_TYPE::DIRECTORY };
 static CLI::SCH_EXPORT_PLOT_COMMAND      exportSchPdfCmd{ "pdf",        UTF8STDSTR( _( "Export PDF" ) ),    SCH_PLOT_FORMAT::PDF,   CLI::COMMAND::IO_TYPE::FILE };
-static CLI::SCH_EXPORT_PLOT_COMMAND      exportSchPostscriptCmd{ "ps",  UTF8STDSTR( _( "Export PS" ) ),     SCH_PLOT_FORMAT::POST,  CLI::COMMAND::IO_TYPE::FILE };
-static CLI::SCH_EXPORT_PLOT_COMMAND      exportSchSvgCmd{ "svg",        UTF8STDSTR( _( "Export SVG" ) ),    SCH_PLOT_FORMAT::SVG,   CLI::COMMAND::IO_TYPE::FILE };
+static CLI::SCH_EXPORT_PLOT_COMMAND      exportSchPostscriptCmd{ "ps",  UTF8STDSTR( _( "Export PS" ) ),     SCH_PLOT_FORMAT::POST,  CLI::COMMAND::IO_TYPE::DIRECTORY };
+static CLI::SCH_EXPORT_PLOT_COMMAND      exportSchSvgCmd{ "svg",        UTF8STDSTR( _( "Export SVG" ) ),    SCH_PLOT_FORMAT::SVG,   CLI::COMMAND::IO_TYPE::DIRECTORY };
 static CLI::FP_COMMAND                   fpCmd{};
 static CLI::FP_EXPORT_COMMAND            fpExportCmd{};
 static CLI::FP_EXPORT_SVG_COMMAND        fpExportSvgCmd{};
@@ -207,6 +207,9 @@ static std::vector<COMMAND_ENTRY> commandStack = {
                 &pcbDrcCmd
             },
             {
+                &pcbImportCmd
+            },
+            {
                 &pcbRenderCmd
             },
             {
@@ -215,7 +218,6 @@ static std::vector<COMMAND_ENTRY> commandStack = {
                     &exportPcbBrepCmd,
                     &exportPcbDrillCmd,
                     &exportPcbDxfCmd,
-                    &exportPcbGerberCmd,
                     &exportPcbGerbersCmd,
                     &exportPcbHpglCmd,
                     &exportPcbGencadCmd,

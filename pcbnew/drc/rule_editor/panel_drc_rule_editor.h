@@ -71,7 +71,7 @@ public:
     }
 
     void SetRuleNameValidationCallback(
-            std::function<bool( int aNodeId, wxString aRuleName )> aCallbackRuleNameValidation )
+            std::function<bool( int aNodeId, const wxString& aRuleName )> aCallbackRuleNameValidation )
     {
         m_callBackRuleNameValidation = aCallbackRuleNameValidation;
     }
@@ -85,11 +85,13 @@ public:
 
     bool GetIsValidationSucceeded() { return m_validationSucceeded; }
 
-    std::string GetValidationMessage() { return m_validationMessage; }
+    wxString GetValidationMessage() { return m_validationMessage; }
 
-    bool ValidateInputs( int* aErrorCount, std::string* aValidationMessage ) override;
+    bool ValidateInputs( int* aErrorCount, wxString* aValidationMessage ) override;
 
     wxString GenerateRule( const RULE_GENERATION_CONTEXT& aContext ) override;
+
+    void OnEnterKey( wxCommandEvent& aEvent ) override;
 
     void Save( wxCommandEvent& aEvent );
 
@@ -160,8 +162,11 @@ private:
     void onShowMatchesButtonClicked( wxCommandEvent& aEvent );
 
 private:
+    void populateLayerSelector( DRC_LAYER_CATEGORY aCategory );
     std::vector<PCB_LAYER_ID> getSelectedLayers();
-    void setSelectedLayers( const std::vector<PCB_LAYER_ID>& aLayers );
+    wxString                  getSelectedLayerSource() const;
+    void setSelectedLayers( const std::vector<PCB_LAYER_ID>& aLayers,
+                            const wxString& aLayerSource = wxEmptyString );
 
     wxButton*         m_btnShowMatches;
     std::vector<int>  m_validLayers;
@@ -169,11 +174,13 @@ private:
     BOARD*            m_board;
     wxString*         m_constraintTitle;
     bool              m_validationSucceeded;
-    std::string       m_validationMessage;
+    wxString          m_validationMessage;
 
     std::unique_ptr<SCINTILLA_TRICKS>            m_scintillaTricks;
     wxChoice*                                    m_layerListChoiceCtrl;
-    std::vector<PCB_LAYER_ID>                    m_layerIDs;
+    std::vector<int>                             m_layerIDs;   // PCB_LAYER_ID or DRC_LAYER_SELECTOR_ID
+    DRC_LAYER_CATEGORY                           m_layerCategory;
+    DRC_RULE_EDITOR_CONSTRAINT_NAME              m_constraintType;
     DRC_RULE_EDITOR_CONTENT_PANEL_BASE*          m_constraintPanel;
     std::shared_ptr<DRC_RE_BASE_CONSTRAINT_DATA> m_constraintData;
     DRC_RE_CONDITION_GROUP_PANEL*                m_conditionGroupPanel;
@@ -181,7 +188,7 @@ private:
     std::function<void( int aNodeId )>                     m_callBackSave;
     std::function<void( int aNodeId )>                     m_callBackRemove;
     std::function<void( int aNodeId )>                     m_callBackClose;
-    std::function<bool( int aNodeId, wxString aRuleName )> m_callBackRuleNameValidation;
+    std::function<bool( int aNodeId, const wxString& aRuleName )> m_callBackRuleNameValidation;
     std::function<int( int aNodeId )> m_callBackShowMatches;
 
     wxRegEx m_netClassRegex;

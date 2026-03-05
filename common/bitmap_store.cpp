@@ -22,6 +22,7 @@
 #include <wx/log.h>
 #include <wx/mstream.h>
 #include <wx/stdpaths.h>
+#include <wx/utils.h>
 
 #include <advanced_config.h>
 #include <asset_archive.h>
@@ -303,14 +304,15 @@ wxImage BITMAP_STORE::getImage( BITMAPS aBitmapId, int aHeight )
     }
     else
     {
-        count = m_archive->GetFilePointer( bitmapName( aBitmapId, aHeight ), &data );
+        const wxString& name = bitmapName( aBitmapId, aHeight );
+        count = m_archive->GetFilePointer( name, &data );
 
         if( count < 0 )
         {
             wxLogTrace( traceBitmaps,
-                        "Bitmap for %d, %d, %s has an info tag with file %s,"
+                        "Bitmap for %d, %d, %d has an info tag with file %s,"
                         "but that file could not be found in the archive!",
-                        aBitmapId, aHeight, m_theme );
+                        static_cast<int>( aBitmapId ), aHeight, static_cast<int>( m_theme ), name );
             data = s_imageNotFound;
             count = sizeof( s_imageNotFound );
         }
