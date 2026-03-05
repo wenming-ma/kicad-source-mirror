@@ -25,6 +25,8 @@
 
 #include "pns_tool_base.h"
 
+class BOARD_CONNECTED_ITEM;
+class PAD;
 class PCB_SELECTION_TOOL;
 
 class ROUTER_TOOL : public PNS::TOOL_BASE
@@ -106,6 +108,8 @@ private:
     bool                         m_inRouteSelected;
 
     bool                         m_startWithVia;         // User pressed V before routing started
+
+    std::vector<BOARD_CONNECTED_ITEM*> m_bundleStartItems; // Board-level items captured before selectionClear
 };
 
 #endif

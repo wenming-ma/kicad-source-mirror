@@ -51,7 +51,9 @@ public:
             m_diffPairViaGap( 180000 ),
             m_diffPairViaGapSameAsTraceGap( true ),
             m_holeToHole( 0 ),
-            m_diffPairHoleToHole( 0 )
+            m_diffPairHoleToHole( 0 ),
+            m_bundleGap( 0 ),
+            m_bundleTrackCount( 4 )
     {};
 
     ~SIZES_SETTINGS() {};
@@ -134,6 +136,12 @@ public:
     void SetDiffPairHoleToHole( int aHoleToHole ) { m_diffPairHoleToHole = aHoleToHole; }
     int GetDiffPairHoleToHole() const { return m_diffPairHoleToHole; }
 
+    int BundleGap() const { return m_bundleGap; }
+    void SetBundleGap( int aGap ) { m_bundleGap = aGap; }
+
+    int BundleTrackCount() const { return m_bundleTrackCount; }
+    void SetBundleTrackCount( int aCount ) { m_bundleTrackCount = aCount; }
+
 private:
     int     m_clearance;
     int     m_minClearance;
@@ -152,6 +160,9 @@ private:
 
     int     m_holeToHole;
     int     m_diffPairHoleToHole;
+
+    int     m_bundleGap;
+    int     m_bundleTrackCount;
 
     std::map<int, int> m_layerPairs;
 

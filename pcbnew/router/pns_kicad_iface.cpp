@@ -1098,6 +1098,8 @@ bool PNS_KICAD_IFACE_BASE::ImportSizes( PNS::SIZES_SETTINGS& aSizes, PNS::ITEM* 
 
     aSizes.SetDiffPairHoleToHole( std::max( holeToHoleMin, aSizes.GetHoleToHole() ) );
 
+    aSizes.SetBundleGap( aSizes.Clearance() );
+
     return true;
 }
 

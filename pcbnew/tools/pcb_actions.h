@@ -259,6 +259,9 @@ public:
     /// Activation of the Push and Shove router (differential pair mode)
     static TOOL_ACTION routeDiffPair;
 
+    /// Activation of the Push and Shove router (multi-track bundle mode)
+    static TOOL_ACTION routeBundle;
+
     static TOOL_ACTION tuneSingleTrack;
     static TOOL_ACTION tuneDiffPair;
     static TOOL_ACTION tuneSkew;

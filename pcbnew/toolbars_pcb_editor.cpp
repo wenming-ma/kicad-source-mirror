@@ -209,6 +209,7 @@ std::optional<TOOLBAR_CONFIGURATION> PCB_EDIT_TOOLBAR_SETTINGS::DefaultToolbarCo
               .AppendGroup( TOOLBAR_GROUP_CONFIG( _( "Track routing tools" ) )
                             .AddAction( PCB_ACTIONS::routeSingleTrack )
                             .AddAction( PCB_ACTIONS::routeDiffPair )
+                            .AddAction( PCB_ACTIONS::routeBundle )
                             .AddContextMenu(
                                 []( TOOL_MANAGER* aMgr ) -> std::unique_ptr<ACTION_MENU>
                                 {

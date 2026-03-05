@@ -45,6 +45,7 @@ add_custom_target(
         -DTEXT_OUTPUT_FILE=${CMAKE_BINARY_DIR}/kicad_build_version.txt
         -DSRC_PATH=${PROJECT_SOURCE_DIR}
         -DKICAD_CMAKE_MODULE_PATH=${KICAD_CMAKE_MODULE_PATH}
+        -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
         -P ${KICAD_CMAKE_MODULE_PATH}/BuildSteps/WriteVersionHeader.cmake
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR} BYPRODUCTS ${CMAKE_BINARY_DIR}/kicad_build_version.h
     DEPENDS ${KICAD_CMAKE_MODULE_PATH}/BuildSteps/WriteVersionHeader.cmake

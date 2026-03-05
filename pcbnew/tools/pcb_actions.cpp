@@ -2526,6 +2526,16 @@ TOOL_ACTION PCB_ACTIONS::routeDiffPair( TOOL_ACTION_ARGS()
         .Flags( AF_ACTIVATE )
         .Parameter( PNS::PNS_MODE_ROUTE_DIFF_PAIR ) );
 
+TOOL_ACTION PCB_ACTIONS::routeBundle( TOOL_ACTION_ARGS()
+        .Name( "pcbnew.InteractiveRouter.Bundle" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Route Bundle" ) )
+        .Tooltip( _( "Route multiple tracks as a parallel bundle" ) )
+        .Icon( BITMAPS::add_tracks )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
+        .Flags( AF_ACTIVATE )
+        .Parameter( PNS::PNS_MODE_ROUTE_BUNDLE ) );
+
 TOOL_ACTION PCB_ACTIONS::routerSettingsDialog( TOOL_ACTION_ARGS()
         .Name( "pcbnew.InteractiveRouter.SettingsDialog" )
         .Scope( AS_GLOBAL )

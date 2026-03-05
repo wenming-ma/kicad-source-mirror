@@ -80,6 +80,8 @@ using namespace std::placeholders;
 #include "pns_drag_algo.h"
 
 #include "pns_kicad_iface.h"
+#include "pns_bundle_placer.h"
+#include "pns_solid.h"
 
 #include <ratsnest/ratsnest_data.h>
 
@@ -565,6 +567,7 @@ bool ROUTER_TOOL::Init()
 
     menu.AddItem( PCB_ACTIONS::routeSingleTrack,      notRoutingCond );
     menu.AddItem( PCB_ACTIONS::routeDiffPair,         notRoutingCond );
+    menu.AddItem( PCB_ACTIONS::routeBundle,           notRoutingCond );
     menu.AddItem( ACTIONS::finishInteractive,         SELECTION_CONDITIONS::ShowAlways );
     menu.AddItem( PCB_ACTIONS::routerUndoLastSegment, SELECTION_CONDITIONS::ShowAlways );
     menu.AddItem( PCB_ACTIONS::routerContinueFromEnd, hasOtherEnd );
@@ -1369,6 +1372,19 @@ bool ROUTER_TOOL::prepareInteractive( VECTOR2D aStartPosition )
             if( PNS::NET_HANDLE coupledNet = m_router->GetRuleResolver()->DpCoupledNet( m_startItem->Net() ) )
                 highlightNets( true, { m_startItem->Net(), coupledNet } );
         }
+        else if( m_router->Mode() == PNS::PNS_MODE_ROUTE_BUNDLE )
+        {
+            std::set<PNS::NET_HANDLE> bundleNets;
+
+            for( PNS::ITEM* item : m_router->GetBundleStartItems() )
+            {
+                if( item && item->Net() )
+                    bundleNets.insert( item->Net() );
+            }
+
+            if( !bundleNets.empty() )
+                highlightNets( true, bundleNets );
+        }
         else
         {
             highlightNets( true, { m_startItem->Net() } );
@@ -1376,6 +1392,40 @@ bool ROUTER_TOOL::prepareInteractive( VECTOR2D aStartPosition )
     }
 
     controls()->SetAutoPan( true );
+
+    // For bundle routing, resolve board-level items captured in MainLoop() to PNS::ITEM*
+    if( m_router->Mode() == PNS::PNS_MODE_ROUTE_BUNDLE )
+    {
+        m_router->ClearBundleStartItems();
+
+        std::vector<PNS::ITEM*> startPads;
+
+        for( BOARD_CONNECTED_ITEM* brdItem : m_bundleStartItems )
+        {
+            PNS::ITEM* pnsItem = m_router->GetWorld()->FindItemByParent( brdItem );
+
+            // FindItemByParent uses net-based index which can miss items; fall back to full scan
+            if( !pnsItem )
+            {
+                auto items = m_router->GetWorld()->FindItemsByParent( brdItem );
+
+                if( !items.empty() )
+                    pnsItem = items[0];
+            }
+
+            if( pnsItem )
+                startPads.push_back( pnsItem );
+        }
+
+        if( startPads.size() < 2 )
+        {
+            frame()->ShowInfoBarError( _( "Select at least 2 pads/vias/tracks before starting bundle routing." ) );
+            controls()->SetAutoPan( false );
+            return false;
+        }
+
+        m_router->SetBundleStartItems( startPads );
+    }
 
     if( !m_router->StartRouting( m_startSnapPoint, m_startItem, pnsLayer ) )
     {
@@ -1891,6 +1941,36 @@ int ROUTER_TOOL::MainLoop( const TOOL_EVENT& aEvent )
             m_router->StopRouting();
     }
 
+    // For bundle routing, save selected items before the selection is cleared.
+    // We store board-level BOARD_CONNECTED_ITEM* here and resolve to PNS::ITEM* later in
+    // prepareInteractive(), because FindItemByParent() requires a fully synced PNS world which
+    // may not be ready yet.
+    m_bundleStartItems.clear();
+
+    if( mode == PNS::PNS_MODE_ROUTE_BUNDLE )
+    {
+        PCB_SELECTION_TOOL* selTool = m_toolMgr->GetTool<PCB_SELECTION_TOOL>();
+        const PCB_SELECTION& selection = selTool->GetSelection();
+
+        for( EDA_ITEM* item : selection )
+        {
+            if( item->Type() == PCB_PAD_T
+                || item->Type() == PCB_VIA_T
+                || item->Type() == PCB_TRACE_T
+                || item->Type() == PCB_ARC_T )
+            {
+                m_bundleStartItems.push_back( static_cast<BOARD_CONNECTED_ITEM*>( item ) );
+            }
+        }
+
+        if( m_bundleStartItems.size() < 2 )
+        {
+            frame->ShowInfoBarError( _( "Select at least 2 pads/vias/tracks before starting bundle routing." ) );
+            frame->PopTool( aEvent );
+            return 0;
+        }
+    }
+
     // Deselect all items
     m_toolMgr->RunAction( ACTIONS::selectionClear );
 
@@ -1971,7 +2051,8 @@ int ROUTER_TOOL::MainLoop( const TOOL_EVENT& aEvent )
         }
         else if( evt->IsClick( BUT_LEFT )
               || evt->IsAction( &PCB_ACTIONS::routeSingleTrack )
-              || evt->IsAction( &PCB_ACTIONS::routeDiffPair ) )
+              || evt->IsAction( &PCB_ACTIONS::routeDiffPair )
+              || evt->IsAction( &PCB_ACTIONS::routeBundle ) )
         {
             updateStartItem( *evt );
 
@@ -3009,6 +3090,7 @@ void ROUTER_TOOL::setTransitions()
 
     Go( &ROUTER_TOOL::MainLoop,               PCB_ACTIONS::routeSingleTrack.MakeEvent() );
     Go( &ROUTER_TOOL::MainLoop,               PCB_ACTIONS::routeDiffPair.MakeEvent() );
+    Go( &ROUTER_TOOL::MainLoop,               PCB_ACTIONS::routeBundle.MakeEvent() );
     Go( &ROUTER_TOOL::RouteSelected,          PCB_ACTIONS::routerRouteSelected.MakeEvent() );
     Go( &ROUTER_TOOL::RouteSelected,          PCB_ACTIONS::routerRouteSelectedFromEnd.MakeEvent() );
     Go( &ROUTER_TOOL::RouteSelected,          PCB_ACTIONS::routerAutorouteSelected.MakeEvent() );

@@ -49,6 +49,7 @@
 #include "pns_meander_placer.h"
 #include "pns_meander_skew_placer.h"
 #include "pns_dp_meander_placer.h"
+#include "pns_bundle_placer.h"
 #include "router_preview_item.h"
 
 namespace PNS {
@@ -456,6 +457,17 @@ bool ROUTER::StartRouting( const VECTOR2I& aP, ITEM* aStartItem, int aLayer )
     case PNS_MODE_TUNE_DIFF_PAIR_SKEW:
         m_placer = std::make_unique<MEANDER_SKEW_PLACER>( this );
         break;
+
+    case PNS_MODE_ROUTE_BUNDLE:
+    {
+        auto bundlePlacer = std::make_unique<BUNDLE_PLACER>( this );
+
+        if( !m_bundleStartItems.empty() )
+            bundlePlacer->SetStartPads( m_bundleStartItems );
+
+        m_placer = std::move( bundlePlacer );
+        break;
+    }
 
     default:
         return false;

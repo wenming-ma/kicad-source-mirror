@@ -15,6 +15,8 @@ set( PCBNEW_PNS_SRCS
     pns_algo_base.cpp
     pns_arc.cpp
     pns_component_dragger.cpp
+    pns_bundle.cpp
+    pns_bundle_placer.cpp
     pns_diff_pair.cpp
     pns_diff_pair_placer.cpp
     pns_dp_meander_placer.cpp

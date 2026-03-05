@@ -64,7 +64,8 @@ enum ROUTER_MODE {
     PNS_MODE_ROUTE_DIFF_PAIR,
     PNS_MODE_TUNE_SINGLE,
     PNS_MODE_TUNE_DIFF_PAIR,
-    PNS_MODE_TUNE_DIFF_PAIR_SKEW
+    PNS_MODE_TUNE_DIFF_PAIR_SKEW,
+    PNS_MODE_ROUTE_BUNDLE
 };
 
 enum DRAG_MODE
@@ -238,6 +239,11 @@ public:
 
     bool GetNearestRatnestAnchor( VECTOR2I& aOtherEnd, PNS_LAYER_RANGE& aOtherEndLayers,
                                   ITEM*& aOtherEndItem );
+
+    void SetBundleStartItems( const std::vector<ITEM*>& aItems ) { m_bundleStartItems = aItems; }
+    const std::vector<ITEM*>& GetBundleStartItems() const { return m_bundleStartItems; }
+    void ClearBundleStartItems() { m_bundleStartItems.clear(); }
+
 private:
     bool movePlacing( const VECTOR2I& aP, ITEM* aItem );
     bool moveDragging( const VECTOR2I& aP, ITEM* aItem );
@@ -271,8 +277,10 @@ private:
     ROUTER_MODE       m_mode;
     LOGGER*           m_logger;
 
-    wxString          m_toolStatusbarName;
-    wxString          m_failureReason;
+    wxString                        m_toolStatusbarName;
+    wxString                        m_failureReason;
+
+    std::vector<ITEM*>              m_bundleStartItems;
 };
 
 }

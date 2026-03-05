@@ -1,0 +1,280 @@
+﻿面向 Canvas/SVG 交互式布线工具的多重平行等距折线生成算法与几何拓扑处理研究报告
+引言与交互式布线工具的几何处理背景
+在现代电子设计自动化（EDA）、计算机辅助设计（CAD）以及基于 Web 技术的交互式图形应用中，计算几何学扮演着至关重要的角色。特别是在基于 HTML5 Canvas 或可缩放矢量图形（SVG）开发的交互式布线工具中，生成精确、平滑且无视觉伪影的平行走线（Wire Buses 或 Traces）是一项极具挑战性的工程任务。根据交互式布线工具的典型需求，系统通常需要接受一条由纯直线段组成的中心基准线（Spine Polyline），并以此为基础，向其两侧生成    条绝对平行的等距折线（Offset Polylines）。在这个过程中，工具不仅需要处理常规的法向平移，还必须应对复杂的顶点斜接（Miter Join）、锐角过冲限制（Miter Limit），以及最为棘手的拓扑坍塌与自交交叉问题（Swallowtails/Self-intersections）1。
+纯直线段的约束虽然排除了贝塞尔曲线或圆弧插补的复杂微积分计算，但却将算法的复杂性完全转移到了离散顶点的连接逻辑与全局拓扑的验证上4。当一条折线在其法线方向上进行等距偏移时，原有的顶点无法直接通过简单的坐标加减来映射。相邻线段在偏移后会产生间隙或重叠，必须通过严密的解析几何公式来计算新的交点，即斜接点（Miter Point）5。然而，随着折线拐角变得极其锐利，斜接点的延伸长度会呈指数级增长，如果不加以限制，将导致走线产生极长的尖刺，严重破坏布线图的可用性，这便引入了斜接限制（Miter Limit）与平角切角（Bevel Join）的回退机制需求7。
+更为严峻的是，当向内侧（即折线弯曲的内侧）生成多条平行线时，由于内侧空间的几何压缩，偏移后的线段会不可避免地发生相互交叉，形成被称为“燕尾”（Swallowtail）的局部闭环拓扑异常9。在严谨的布线工具中，无论拐角多么狭窄，走线在拐弯时绝对不允许出现交叉，且拐弯后必须立刻恢复并保持固定的平行间距3。这就要求偏移算法不能仅仅停留在局部的顶点计算层面，而是必须引入全局的拓扑干预机制。算法需要能够自动检测所有的自交点，对偏移生成的原始几何体进行切割（Slicing），并剔除那些因空间挤压而产生的无效环路，最后将有效的线段重新缝合（Stitching）成一条连续且不交叉的纯净轨迹4。本研究报告将极其详尽地探讨满足上述所有严苛约束的计算几何模型、向量数学公式以及适用于 Canvas/SVG 环境的高性能算法架构。
+基于向量的折线基础与等距平移数学模型
+要构建无懈可击的多重平行折线生成算法，首先必须建立极其严密的二维向量数学基础。在数学定义上，基准线（Spine）可以被描述为一个有序的二维坐标顶点集合   ，其中每一个顶点    都在笛卡尔坐标系中拥有明确的坐标   。由于系统明确要求只处理纯直线，不考虑曲线，因此基准线完全由    条首尾相连的有向直线段构成。
+令第    条有向线段由向量    表示，该向量从顶点    指向顶点   ，其向量表达式为：
+  
+
+在进行任何偏移计算之前，必须提取每一条线段的方向特征，即计算其单位切向量（Normalized Tangent Vector）。单位切向量    反映了线段的纯粹方向信息，不包含长度属性，其计算公式为线段向量除以其自身的欧几里得模长：
+  
+
+折线偏移的物理本质是沿着每一条线段的法线方向（Normal Vector）移动特定的距离。在二维平面中，法向量是与切向量严格垂直（夹角为   ）的向量。在此处，必须特别注意 Canvas 和 SVG 的坐标系特性。与传统的数学笛卡尔坐标系（Y 轴向上）不同，Web 浏览器中的 Canvas 和 SVG 均采用 Y 轴向下的屏幕坐标系6。这一坐标系的翻转直接影响了法向量的旋转矩阵符号。
+假设我们需要沿着基准线的行进方向，向其“右侧”生成偏移线段。在 Y 轴向下的坐标系中，向右侧的    旋转相当于顺时针旋转，其单位法向量    的计算公式为：
+  
+
+反之，如果需要向基准线的“左侧”生成偏移线段，则代表逆时针旋转   ，其单位法向量    的计算公式为：
+  
+
+给定一个标量偏移距离   ，如果孤立地看待某一条线段   ，其偏移后的原始线段（Raw Segment）   的起点    和终点    可以通过将原线段的起点和终点沿着法向量平移距离    来获得13：
+  
+
+  
+
+然而，基准线是一条连续的折线，相邻的线段    和    共享同一个原始顶点   。当这两条相邻线段分别沿着各自的法向量    和    平移距离    后，它们原本重合的端点将会分离。如果拐角是向外凸起的，平移后的线段之间会产生一个张开的间隙；如果拐角是向内凹陷的，平移后的线段则会相互穿透并形成交叉重叠。因此，孤立的法向平移只是算法的初始步骤，真正定义交互式布线工具渲染质量的核心在于如何精确计算这些分离线段的重新交汇点。
+Miter Join（斜接）算法的深度数学推导与计算
+为了满足“拐角处请使用 Miter Join（斜接）算法计算偏置点坐标”的绝对需求，系统必须实施基于角平分线的顶点求交逻辑。Miter Join 的视觉特征是将两条相交线段的外侧边缘无限延伸，直到它们在空间中交汇于一个绝对锐利的单一顶点14。这个单一的交汇点即为新的偏移顶点   。在交互式图形学中，为了保证实时渲染（通常需要达到 60 帧每秒）的性能，通常极力避免使用基于联立线性方程组的传统直线求交算法（因为存在斜率无穷大和零除风险），而是全面转向基于纯向量点积和角平分线的解析计算6。
+对于由输入线段    和输出线段    构成的夹角，设原始相交顶点为   。这两条线段对应的单位法向量分别为    和   。几何上，Miter Join 生成的偏置顶点    必然位于这两个法向量构成的角的平分线上。
+角平分线向量    可以通过简单地将两个单位法向量相加来获得，这在向量数学中构成了菱形的对角线：
+  
+
+随后，必须将该平分线向量归一化，得到单位平分线向量   ：
+  
+
+虽然    指示了偏置顶点    偏离原始顶点    的绝对正确方向，但偏离的实际物理距离并非等于偏移距离   。由于    并不垂直于任何一条线段，而是以一定的夹角倾斜，因此顶点沿着平分线移动的距离必须被拉长，以确保最终生成的平行线与原始线段的垂直距离依然严格保持为   。这个拉长系数在计算几何中被称为斜接长度比（Miter Length Ratio），记为    5。
+斜接长度比    定义为斜接顶点到原始顶点的距离与偏移距离    的比值。假设两条相邻线段之间的内夹角为   ，根据基础三角函数，Miter Length Ratio 可以表示为半角正弦的倒数：
+  
+
+在 Web 浏览器环境（如 V8 JavaScript 引擎）中，频繁调用诸如 Math.sin() 和 Math.acos() 等三角函数是非常消耗 CPU 周期的运算。为了极大地优化布线工具的性能，尤其是在处理包含成千上万个顶点的复杂多平行线总线时，算法应利用向量点积（Dot Product）来完全替代三角函数推导斜接长度比6。
+根据向量代数的半角公式恒等式推导，斜接长度比    可以通过相邻两条单位法向量的点积（  ）直接求出：
+  
+
+另一种更为优雅且在开源库（如 canvas-sketch-util）中广泛采用的方法是利用投影的倒数。令    为垂直于联合切线（Join Tangent）的向量，令    为垂直于输入线段切线的向量。斜接长度比等于这两个向量点积的倒数6。不论采用哪种点积优化策略，一旦求得了无量纲的放大系数   ，偏移顶点    的精确二维坐标即可通过以下向量缩放公式一次性计算得出：
+  
+
+为了直观地展示线段夹角与斜接长度比之间的数学关系，以及点积计算的等效性，下表列出了常见布线角度下的几何参数对照。这些数据不仅对算法调试至关重要，也直接影响了后续将要探讨的斜接限制逻辑。
+相邻线段内夹角 θ
+	法向量点积 (n^i−1​⋅n^i​)
+	几何状态
+	斜接长度比 (Miter Ratio m)
+	物理意义与渲染表现
+	  
+
+	  
+
+	绝对平直（共线）
+	  
+
+	无拐角，偏移点沿法向移动距离等于   。
+	  
+
+	  
+
+	钝角柔和转弯
+	  
+
+	偏移点略微向外侧拉伸，视觉平滑。
+	  
+
+	  
+
+	标准直角拐弯
+	  
+
+	常见的正交布线拐角，偏置距离拉伸为   。
+	  
+
+	  
+
+	急剧锐角转弯
+	  
+
+	尖刺开始显现，顶点距离基准线较远。
+	  
+
+	  
+
+	极度锐角
+	  
+
+	达到常见渲染引擎的默认斜接临界值。
+	  
+
+	  
+
+	极其尖锐的折返
+	  
+
+	产生破坏性的长距离尖刺，必须触发截断。
+	锐角过冲与 Miter Limit（斜接限制）的防御性几何逻辑
+正如上表数据所示，Miter Join 算法虽然在钝角和直角布线中表现得极其完美，但在数学原理上存在一个致命的奇点缺陷：当两条线段的夹角    无限趋近于    时（即发生剧烈的折返跑线），   趋近于零，导致斜接长度比    呈渐进线方式趋向于正无穷大5。在交互式布线工具的实际操作中，如果用户意外拖拽导致了一个    的急弯，偏移距离为 10 像素的 Miter Join 会生成一个距离原点超过 114 像素的极长尖刺。这种“锐角过冲”（Acute Angle Overshoot）不仅在视觉上形成了严重干扰视线的伪影，在电路板设计或逻辑布线中更是完全不符合物理制造规则的。
+为了彻底解决这一病理性的几何过冲，现代矢量图形规范（包括 SVG 的 W3C 标准规范、Apple 的 CoreGraphics、以及 HTML5 Canvas API）均引入了斜接限制（Miter Limit）这一防御性回退机制5。用户请求中也明确提出“请包含 Miter Limit 逻辑，防止锐角过冲”。
+Miter Limit 的核心理念是为斜接长度比    设定一个硬性的标量上限阈值   。在标准实现中，如果未经截断的    值超过了   ，算法必须立即放弃生成单一的锐利 Miter 顶点，转而实施降级渲染策略（Fallback Geometry），将其强制转换为斜面平截面，即 Bevel Join（平切）5。
+SVG 规范中 stroke-miterlimit 的默认值通常设定为 10.0。这意味着，只要偏置尖刺的长度超过了走线半宽（在此算法中对应偏移距离   ）的 10 倍，切角逻辑就会被激活。根据    的反函数推算，Miter Limit 为 10.0 时，系统将对所有夹角小于约    的拐弯强制应用平切保护5。对于某些需要更加紧凑视觉效果的布线工具，开发者可能会将    调整为 4.0（对应   ）或 2.0（对应   ）5。
+在纯 JavaScript 的坐标计算引擎中，实现 Miter Limit 回退逻辑需要对单一顶点的输出流进行分支控制。具体的算法执行步骤如下：
+1. 计算比率： 按照前文所述的点积公式，计算出当前顶点    处的斜接长度比   。
+2. 阈值判定： 将    与预设的系统阈值   （例如 10.0）进行比较6。
+3. Miter 正常输出： 如果   ，则执行正常的 Miter Join 公式   ，向偏移折线的数据结构中推入这一个顶点。
+4. Bevel 回退输出： 如果   ，则判定发生了锐角过冲。此时，算法不能输出单一的顶点，而是必须计算并输出两个独立的顶点来形成一个平切的截面6。
+平切（Bevel Join）的几何特征是直接使用各自线段在偏移距离    处平移后的原始起点和终点，并通过一条新的横向线段将它们连接起来，从而切断尖刺14。这两个替代顶点    和    的精确向量计算公式为：
+  
+
+  
+
+在偏移折线的顶点数组中，   将作为前一线段    的结束点，而    将紧接其后，作为下一线段    的起始点。当渲染引擎将这两个点连接时，便自然形成了一条垂直于角平分线的平坦倒角边，完美切断了无限延伸的可能。
+下表总结了 Miter Limit 逻辑在不同阈值设置下的边界行为与回退触发表征，这对于开发交互式调参界面具有直接的指导意义。
+设定的 Miter Limit (Lmiter​)
+	触发 Bevel 平切的临界夹角 θlimit​
+	适用场景分析
+	  
+
+	  
+ (任何非直线均切)
+	极端保守。所有的拐弯都会被转化为平切，无论角度大小。通常用于不需要锐角的块状布线。
+	  
+ (  )
+	  
+
+	严格的直角限制系统。任何小于直角的锐角转弯都会被切平，而直角及钝角保持锐利尖峰。
+	  
+
+	  
+
+	中等宽容度。允许较锋利的转折，但防止形成明显的视错觉长矛状尖端。
+	  
+
+	  
+
+	SVG 与 Canvas 的行业标准默认值。容忍绝大多数正常布线行为，仅在极端的错误拖拽或折返跑线时提供安全网。
+	需要特别指出的是，部分高级矢量渲染库（如 Apple QuartzCore 或某些专业的 CAD 引擎）支持所谓的“截断斜接”（Truncated Miter）8。这种高级形式并不退回到绝对的基础法向平切，而是沿着角平分线向前延伸到恰好等于    的位置再进行切割，形成一个比普通 Bevel 更尖锐但有长度限制的梯形顶点集。然而，对于绝大多数标准的 Web 交互式布线工具而言，基础的 Bevel 回退逻辑不仅在计算上更为轻量级，而且所产生的齐平切面在多平行线密集排布时更不易引起视觉混乱，因此是首选的实现方案5。
+多线阵列（   条等距折线）的生成策略与间距恒定性
+在解决了单条折线的偏移计算与锐角保护之后，算法需要向多重阵列扩展。用户明确要求“向其两侧生成    条绝对平行的等距折线”。这意味着布线工具不仅仅是在绘制一条粗线，而是要生成一条数据总线（Data Bus），其中包含了    条物理上相互独立的轨迹。每一条轨迹都需要独立响应鼠标悬停、点击选择以及单独配置颜色和阻抗属性。
+为了实现这种多线阵列，算法必须进行外层循环，在一系列离散的偏移距离集合    上重复执行前文定义的 Miter Join 与 Bevel Fallback 逻辑3。偏移距离集合的计算依赖于布线的间距参数   。
+如果基准线（Spine）被定义为总线的隐形几何中轴线，并且要求在两侧对称地分布    条走线，那么每条线的相对偏移距离    可以通过等差数列生成。例如，当    像素，要求生成    条线时，偏移距离集合将为   。如前文向量基础部分所述，负数偏移距离（如   ）在算法实现中无需特殊的反向逻辑分支，只需将其作为标量乘入法向量中，即可自动实现法向量的    倒置，从而将平移方向反转到基准线的另一侧13。
+用户要求中强调了一个极其核心的排版刚性约束：“在拐弯的时候，不要出现交叉，拐弯后依然保持固定间距”。在多线平行展开时，这个刚性约束是对算法几何比例放大能力的重要考验。
+当使用 Miter Join 算法计算同心拐弯（例如多条线同时进行    的直角右转）时，位于最外侧的走线其偏移距离    最大，因此其斜接点    沿角平分线延伸的绝对距离也最长。而在最内侧的走线，其偏移距离为负向最大，沿角平分线反向收缩。由于所有    条折线的顶点坐标都是根据同一个 Miter Length Ratio    和同一个单位角平分线向量    进行严格线性缩放的，因此这种基于向量体系的计算天然保证了拐角的同心性和几何相似性11。
+在转弯处的截面上，虽然顶点到顶点的物理距离被    系数拉长了，但在任何一条直线段的垂直截面上，平行线之间的法向间距依然绝对等于预设的   。只要保证每条线的 Miter Limit 设置一致（从而确保内侧线和外侧线在相同的角度下同步触发 Bevel 平切），算法在向外扩张的一侧就能完美呈现出整齐划一、间距恒定的“赛道”效果3。
+然而，这套优美的线性缩放理论在向折线弯曲的内侧收缩时，会遇到一个足以摧毁整个布线工具的拓扑灾难。
+拓扑坍塌与自交（Swallowtail）问题的病理学分析
+向量偏移公式能够完美解决外侧扩张的问题，但当应用到大曲率的内侧收缩时，几何空间会发生剧烈的压缩和重叠。如果内侧走线的偏移距离   （绝对值）超过了基准线在拐角处所能提供的空间容限，经过法线平移和 Miter Join 延长的线段将会无可避免地跨越原有的几何边界，相互穿透，从而形成拓扑学的病态结构2。
+这种由于偏移距离过大而导致的线段相互交叉和回环反向跑线的现象，在计算几何和 CAD 文献中被形象地称为“燕尾”（Swallowtail）畸变或“自交”（Self-intersection）9。
+在布线工具的上下文中，燕尾畸变是绝对不可接受的严重错误。用户的刚性需求是“需要处理交叉问题。在拐弯的时候，不要出现交叉”。如果不进行后处理干预，一条内部布线在经过尖锐拐角时，会先向后倒退，在自身上方打一个死结，然后再继续向前延伸。随着多条平行走线被不断向内压缩，这些燕尾环路会相互交织重叠，形成一个乱七八糟的线条线团，彻底破坏了电子走线（Routing）不短路、不交叉的物理意义3。
+多重平行偏移引发的自交异常主要分为两种不同尺度的病理表现：
+   1. 局部自交（Local Self-Intersections）： 这种畸变发生在单个尖锐拐角处。相邻的两条或三条线段由于向内侧挤压，其 Miter 顶点越过了几何中心，导致线段序列的拓扑反转。这通常是交互式拖拽节点时最容易触发的瞬间畸变28。
+   2. 全局自交（Global Self-Intersections）： 这种畸变发生在复杂的长距离布线中。当基准线形成一个类似“U”形或“S”形的深度折返，并且偏移距离    的跨度甚至大于“U”形开口的宽度时，偏移轨迹的左半部分会直接与右半部分发生强烈的碰撞和穿透，形成跨越几十个顶点的巨大重叠区域28。
+无论是局部的燕尾结还是全局的空间冲突，传统的纯解析数学（如单一的函数映射）都无法直接预防它们的产生。因为单纯的法向向量计算缺乏全局的上下文认知——它只知道当前线段应该平移多少，完全不知道远处是否有其他线段正在挡路。为了根除这一病理问题并彻底满足用户的防交叉需求，必须引入一种极其强悍的拓扑重构算法。
+消除交叉的切割与缝合（Slice-and-Stitch）全局算法
+在不依赖体积庞大的 WebAssembly 编译库（如 Clipper）的前提下，基于纯 JavaScript 在 Canvas/SVG 环境中彻底消除折线偏移自交的最优雅且高效的工程解决方案是实施“切割与缝合”（Slice-and-Stitch）算法4。
+该算法的哲学思想是“先破坏，后重建”。它允许基于法向量和 Miter Join 的纯数学计算毫无顾忌地生成包含各种燕尾和交叉死结的“原始劣质折线”（Raw Offset Polyline），然后通过一套系统化的后处理管线（Post-processing Pipeline），像外科手术一样精准地定位病变（交叉点），切除病理组织（燕尾环），最后将健康的血管（有效线段）重新吻合（缝合）4。
+在生成多条平行线时，该算法对每一条拥有特定偏移距离    的独立走线依次执行以下详尽的 7 步处理管线：
+步骤 1：原始独立线段的生成 (Generate Raw Segments)
+算法遍历原始基准线上的每一条线段   。利用法向量    将其原封不动地平移距离   。在这个阶段，算法完全不进行任何顶点求交，输出的仅仅是一堆散落在空间中、互不相连且绝对平行的断线段4。
+步骤 2：构建含有拓扑异常的原始折线 (Construct Raw Polyline   )
+算法试图将步骤 1 中的断线段首尾相连。此时，前文详述的 Miter Join 公式和 Miter Limit (Bevel Fallback) 逻辑被严格应用。经过求交计算后，生成了一条连续的原始偏移折线   。如果当前是向急弯内侧的深层偏移，那么此时的    中已经布满了重叠的燕尾和复杂的自交死结4。
+步骤 3：开放路径的包围边界构建 (Negated Offset Pathing)
+由于布线工具生成的走线通常是两端开口的非闭合折线（Open Polylines），如果不提供端点约束，后续的切割逻辑可能会在折线尽头发生判断失控。因此，系统会使用反向偏移距离（  ）运行上述相同逻辑，生成另一条基准线反面的虚拟包络线   。同时，在基准线的起点和终点生成半径为    的虚拟闭合圆。这些元素共同构成了防逃逸的拓扑测试边界4。
+步骤 4：全局交叉点的穷举式扫掠检测 (Comprehensive Intersection Discovery)
+这是整个 Slice-and-Stitch 算法中最消耗计算资源，但也最为核心的一步。算法必须在二维空间中找出    自身与自身相交的所有精确坐标点（即 Swallowtail 形成的绳结处）。
+如果采用双重循环的暴力比对算法测试每一条线段与另一条线段的相交性，其时间复杂度将高达   。对于交互式工具中动辄上千个顶点的密集总线，这将导致浏览器主线程严重阻塞，出现掉帧卡顿。因此，工业级的实现必须采用扫描线算法（Sweep-line Algorithm），例如经典的 Bentley-Ottmann 算法24。
+扫描线算法在逻辑上创建一条垂直的虚拟直线，并让它从屏幕最左侧向右平移扫过整个几何体。当扫描线接触到线段的左端点时，该线段被激活并加入到一棵动态的自平衡二叉搜索树（如红黑树）中；当接触到右端点时，则将其从树中移除。最核心的性能优化在于：只有在树结构中处于上下相邻位置的活跃线段，才会被提取出来进行计算密集的相交测试。这一精妙的数据结构设计，将碰撞检测的时间复杂度从    骤降至   （其中    为实际发现的交点数量），保证了交互式布线的极限流畅度24。
+步骤 5：切碎原始折线 (Slicing the Polyline)
+基于扫描线算法捕获到的所有交点列表，算法像切香肠一样物理切断   。每一个交点都成为新的断点坐标。原本连续但打结的折线，现在被切成了几十个乃至上百个互相独立的、首尾不相连的开放子折线（Sub-polylines 或 Slices）4。那些燕尾结也因此在物理数据结构上脱离了主干，沦为孤立的几何切片。
+步骤 6：基于最小距离的废料剔除 (Distance-Based Loop Culling)
+现在，面对满桌子的几何碎片，算法必须极其精准地识别出哪些切片是必须丢弃的燕尾结（废料），哪些是应该保留的正常走线轨迹。判别准则源于等距平移的绝对数学定义：一条合法的偏移线上的任何一点，距离原始基准线的最短垂直距离，绝对不可能小于其设定的偏移距离   12。
+对于步骤 5 生成的每一个子切片，算法提取其线段序列的中点作为采样点。然后，计算该采样点到原始基准线（Spine）的最短正交距离4。
+      * 剔除逻辑： 如果最短距离明显小于   （需扣除细微的浮点数误差极限   ），则说明该切片是由于空间挤压而坍塌向内的燕尾结废料。算法将其从内存中无情地丢弃4。
+      * 保留逻辑： 如果最短距离大于或等于   ，则该切片是符合几何法则的有效走线主干，予以保留。
+步骤 7：断口平整缝合与数据串行化 (Topological Stitching)
+经过废料剔除后，残留的有效切片之间出现了空隙。因为废料被切除的位置，正是走线相互跨越和重叠的边界。算法最后遍历这些有效切片的断开端点，按照原始折线的流向，将前一个切片的尾部与下一个切片的头部连接起来4。
+由于系统规定只处理纯直线，这种缝合操作极为简单——直接在这两个断点之间插入一条新的纯直线段即可4。这条新插入的缝合线在视觉上完美地表现为一个平整的切断截面。此时，所有的相互交叉已经被抹平，燕尾结消失不见，拐角处内侧的走线呈现出干净利落的几何切角。至此，一条绝对不会自身交叉，且始终保持恒定距离限制的平滑走线便诞生了。将此 7 步管线针对    条线重复运行，即可得到完美的并行布线总线。
+下表对 Slice-and-Stitch 核心管线的计算复杂度与工程目的进行了系统性的总结：
+处理管线阶段
+	核心算法与数据结构
+	几何工程目的
+	时间复杂度表现
+	构建阶段 (Steps 1-3)
+	向量解析几何、法线平移、Miter点积比对
+	将抽象的平移意图转化为具体的几何坐标集合，包含 Bevel 回退。
+	  
+ （线性遍历，效率极高）
+	搜捕阶段 (Step 4)
+	扫描线算法 (Sweep-line)、自平衡二叉树
+	发现由于曲率过大引起的所有局部和全局拓扑空间冲突点。
+	  
+ （优化的碰撞检测）
+	审判阶段 (Steps 5-6)
+	最短距离公式、浮点数    容差筛选
+	隔离出并毁灭掉所有突破等距距离底线的内陷燕尾废料。
+	  
+ （   为切片数量，通常极小）
+	重建阶段 (Step 7)
+	端点匹配与线性插值
+	填补废料留下的几何空缺，恢复折线的单一连续流体拓扑结构。
+	  
+ （仅针对切片进行数组重组）
+	(表中参数    为输入顶点总数，   为算法侦测到的交点数，   为打散后的切片数。)
+直骨架（Straight Skeleton）与布尔运算（Boolean Union）方案的对比分析
+为了保证研究的彻底性与严谨性，在推崇 Slice-and-Stitch 作为 Web 前端最佳实践的同时，有必要探讨文献中提及的其他两种学术界和工业界主流的防交叉等距偏移方案，并分析它们为何不完全适用于当前纯 JavaScript Canvas/SVG 工具的开发上下文。
+方案 A：直骨架法（Straight Skeleton Method）
+学术界经常提出利用直骨架（Straight Skeleton）来生成无自交偏移多边形的方案29。直骨架是一种表示多边形中轴对称性的拓扑骨架数据结构。想象多边形的所有边以恒定的速度向内平行收缩，在这个演化过程中，顶点的移动轨迹就会划出骨架的辐射线。当某一条边的长度缩小为零时，系统记录一个“边事件”（Edge Event）；当顶点撞击到另一条边使多边形分裂时，记录一个“分裂事件”（Split Event）29。
+直骨架的美妙之处在于它将时间维度    等效于偏移距离   。要想获得任何距离    下的无交叉平行线，只需要在时间    的快照下，提取所有仍然存活的边即可。如果某个内角因偏移过大而导致空间被挤压干净，其对应的边就会在    之前因触发“边事件”而自然消亡，从而在物理根源上彻底避免了燕尾交叉的产生29。
+然而，在 JavaScript 环境中从零实现直骨架算法被称为计算几何界的噩梦。在同时处理多个近乎平行的共面线段时，浮点数的舍入误差会导致同步发生的“边事件”和“分裂事件”的事件队列发生极其微小的时序错乱，引发拓扑图的毁灭性坍塌4。对于需要高频互动、且完全依赖浏览器执行环境的布线工具而言，其工程成本和维护风险过高4。
+方案 B：多边形布尔并集法（Boolean Union / Clipper Library）
+这是由著名的开源库 Clipper 采用的工业级解决方案2。这种方法抛弃了折线的线段属性，将其转化为面（Polygon）。具体而言，对于折线上的每一条线段，算法会生成一个宽度为    的矩形；对于每一个相交拐点，算法会生成一个填充该缝隙的 Miter 三角形面片或圆弧面片20。
+随后，算法调用一个极其强大的多边形布尔运算引擎，对所有生成的矩形和三角形执行全局“并集”（Union）操作20。布尔并集会像融化塑料一样，将所有重叠、交叉的燕尾死结完全融合在一个实体的黑色几何块中。最后，算法只需提取这个巨大融合面片的外部轮廓边界线（Outer Boundary），便能获得一条干净、完美无交叉的偏移轨迹20。
+这个方案极其稳健（Robust）。但是，如果要用纯净的代码来满足当前“正在开发一个布线工具”的独立实现需求，从头手写一个支持复杂孔洞、重叠边处理、Vatti 多边形裁剪算法的布尔引擎是极为不现实的。如果不愿引入体积庞大的 WebAssembly 编译模块以确保首屏加载速度，那么 Boolean Union 方法就显得过于笨重4。相比之下，基于纯解析几何的 Slice-and-Stitch 方案在代码体积、执行速度与浏览器原生适配上取得了完美的平衡。
+Canvas/SVG 交互式环境下的渲染与性能优化策略
+在将上述深度的数学理论转化为 Web 技术栈（HTML5 Canvas 和 SVG DOM）的实际生产力时，必须针对浏览器的底层特性实施防御性编程和极限性能压榨。
+浮点数精度漂移与   （Epsilon）容差架构
+由于 JavaScript 的核心 Number 数据类型是基于 IEEE 754 标准的双精度 64 位浮点数，任何涉及开方、三角函数、甚至是对向量进行归一化除法的操作，都会引入微小的尾数舍入误差（Rounding Errors）4。在执行前文所述的 Slice-and-Stitch 算法的步骤 6（废料剔除）时，这一误差足以产生灾难性后果。
+理论上，合法切片上的点到基准线的距离应当精确等于   。但在计算后，距离可能等于   。如果代码中使用严格的小于号 if (distance < d_k)，这段完全合法的走线就会被错误地判定为燕尾废料并被算法剔除，导致最终的布线在屏幕上随机出现断层破洞。
+因此，在涉及 Canvas/SVG 坐标比对的所有逻辑中，必须全局引入一个   （Epsilon）微小容差值，通常设定在    到    之间4。
+         * 坐标等值判断： 必须从 A === B 改写为 Math.abs(A - B) < EPSILON4。
+         * 拓扑废料安全剔除条件： 应当修改为 if (distance < Math.abs(d_k) - EPSILON) { discard(); } 4。这赋予了有效折线微小的呼吸空间，确保其不会因浮点数漂移而被误杀。
+空间索引与局部失效刷新（Local Invalidation）
+在交互式工具中，用户可能会拖拽一条包含 500 个顶点的长距离总线中的某一个中间节点。如果仅仅因为一个节点的移动，就对包含    条子线的整个系统从头到尾执行    的扫描线计算和距离裁剪，即使是 V8 引擎也会出现肉眼可见的卡顿。
+高效的架构应引入边界框空间树（AABB Tree，Axis-Aligned Bounding Box）12。工具系统缓存每一条线段及其偏移后切片的 AABB 包围盒。当用户拖动节点    时，系统只需标记并销毁受影响的相邻线段的缓存（局部失效），并在 AABB 树中仅对发生变化的局部包围盒进行相交测试和重新切片。未受影响的长距离直线段只需直接复用上一帧的计算结果。
+Canvas API 渲染指令的批量化（Batching）
+在使用 CanvasRenderingContext2D 进行渲染时，频繁调用绘图 API 会导致主线程和 GPU 之间的上下文切换开销（Context Switch Overhead）。当完成    条布线的几何坐标数组计算后，切忌在每次循环中都调用 ctx.stroke()。
+最佳实践是使用 Path2D 对象对指令进行批量组装。对于计算完毕的每一条等距平移防交叉折线序列：
+         1. 使用 ctx.moveTo(x_0, y_0) 将画笔移动到切片的起始点6。
+         2. 循环遍历后续所有顶点坐标，使用 ctx.lineTo(x_j, y_j) 规划路径6。
+         3. 遇到因 Miter Limit 触发而产生的 Bevel 平切双顶点时，算法顺畅地传入这两个顶点的坐标，lineTo 指令将无缝切掉尖锐角14。
+         4. 将所有    条折线的路径拼接完毕后，通过一次单一的 ctx.stroke() 或 ctx.fill() 调用将其提交给 GPU 渲染队列，最大化硬件加速效率。
+SVG 原生语法的降级序列化
+如果是基于 SVG 开发，其逻辑同理。尽管 SVG 标准中原生拥有 <path stroke-linejoin="miter" stroke-miterlimit="10" /> 这样的声明式属性5，但这仅仅是用于给单一的一根中心线赋予视觉上的粗细描边。它无法像我们构建的算法那样，剥离出    条物理上各自独立的子轨迹（从而使用户可以单独点击或编辑某一条子线）。
+因此，SVG DOM 层的操作沦为了简单的序列化工作。将算法后端输出的、已经彻底抹平了燕尾交叉、经过了 Miter 和 Bevel 妥善处理的最终顶点数组，拼接成标准的 SVG d 属性字符串（形如 "M x0 y0 L x1 y1 L x2 y2"），然后赋值给每一个独立的 <path> 元素节点即可6。这样生成的 SVG 布线具有绝对明确且可交互的物理边界，完全免疫了浏览器原生描边引擎不可控的黑盒渲染行为。
+结论
+构建一个能够实时生成多条绝对平行、防交叉、并具备智能斜接回退逻辑的交互式 Canvas/SVG 布线工具，其本质是实现一个轻量级但高度坚固的二维计算几何引擎。仅仅依靠基础的法线平移和三角函数运算，无法跨越急弯和锐角所带来的不可逾越的物理限制与拓扑死锁。
+本文详尽解析了构建该引擎的完整数学与工程范式。首先，通过向量加法、点积缩放等避免了昂贵三角函数调用的公式体系，算法实现了高效精确的 Miter Join 计算；随后，引入基于标量阈值的 Miter Limit 防御机制，用强制两点式平切（Bevel Join）优雅地斩断了灾难性的锐角过冲。更为关键的是，为了满足“拐弯时不交叉且间距恒定”的严苛底线，必须摒弃单纯的局部点映射，转而采用宏观全局的 Slice-and-Stitch 切割缝合管线。配合优化后的扫描线碰撞检测算法与引入    容差的最短距离废料剔除逻辑，该体系能在保持高刷新率的前提下，瞬间切除因空间压缩而产生的燕尾死结畸变。
+最终，这种基于数据切片重建的纯 JavaScript 算法架构不仅彻底摆脱了庞大外部布尔运算库的束缚，更能在复杂拖拽交互中向前端渲染引擎（Canvas/SVG）持续输出绝对干净、等距并行、工业级美学的布线几何流。
+Works cited
+            1. An Efficient Algorithm for Approximate Polyline-Sourced Offset Computation on Triangulated Surfaces - IEEE Xplore, accessed March 3, 2026, https://ieeexplore.ieee.org/iel8/5971803/10908591/10908677.pdf
+            2. Polyline Offsetting using Clipper - Stack Overflow, accessed March 3, 2026, https://stackoverflow.com/questions/25617388/polyline-offsetting-using-clipper
+            3. How to Avoid parallel polylines overlapping when zooming out in ArcMap? : r/gis - Reddit, accessed March 3, 2026, https://www.reddit.com/r/gis/comments/11a0jjb/how_to_avoid_parallel_polylines_overlapping_when/
+            4. jbuckmccready/CavalierContours: 2D polyline library for offsetting, combining, etc. - GitHub, accessed March 3, 2026, https://github.com/jbuckmccready/CavalierContours
+            5. stroke-miterlimit - SVG - MDN Web Docs, accessed March 3, 2026, https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/stroke-miterlimit
+            6. MIT – 2D vector path offsetting algorithm (work in progress) - GitHub Gist, accessed March 3, 2026, https://gist.github.com/mattdesl/264891d4a2b87500ff00e9a32dbc890a
+            7. miterLimit | Apple Developer Documentation, accessed March 3, 2026, https://developer.apple.com/documentation/quartzcore/cashapelayer/miterlimit
+            8. ClipperOffset.MiterLimit - angusj.com, accessed March 3, 2026, http://www.angusj.com/delphi/clipper/documentation/Docs/Units/ClipperLib/Classes/ClipperOffset/Properties/MiterLimit.htm
+            9. The Medial Scaffold for 3D Shape Modeling and Recognition - University at Albany, accessed March 3, 2026, https://www.albany.edu/faculty/mchang2/files/2008_10_Brown_PhD_Thesis_Chang.pdf
+            10. All Demonstrations, accessed March 3, 2026, https://demonstrations.wolfram.com/all
+            11. How to Make Parallel Offset Conduit Bends - accesstopower, accessed March 3, 2026, https://www.accesstopower.com/blog/how-to-make-parallel-offset-conduit-bends
+            12. Add Implementation for Simultaneous Polyline Offsetting · Issue #1 · jbuckmccready/CavalierContours - GitHub, accessed March 3, 2026, https://github.com/jbuckmccready/CavalierContours/issues/1
+            13. How to offset polygon edges? - Stack Overflow, accessed March 3, 2026, https://stackoverflow.com/questions/54033808/how-to-offset-polygon-edges
+            14. CSS Fill and Stroke Module Level 3 - W3C, accessed March 3, 2026, https://www.w3.org/TR/fill-stroke-3/
+            15. miterLimit | LiveCode Documentation, accessed March 3, 2026, https://beta.docs.livecode.com/docs/LiveCode%20Script/Properties/miterLimit/
+            16. miterLimit | Apple Developer Documentation, accessed March 3, 2026, https://developer.apple.com/documentation/quartzcore/cashapelayer/miterlimit?language=objc
+            17. US20110285719A1 - Approximation of stroked higher-order curved segments by quadratic bèzier curve segments - Google Patents, accessed March 3, 2026, https://patents.google.com/patent/US20110285719A1/en
+            18. Stroke attributes: Miter limit - Enfocus, accessed March 3, 2026, https://www.enfocus.com/manuals/ReferenceGuide/PP/13/enUS/en-us/common/ppr/concept/c_aa1141839.html
+            19. US8786606B2 - Point containment for quadratic Bèzier strokes - Google Patents, accessed March 3, 2026, https://patents.google.com/patent/US8786606B2/en
+            20. An offset algorithm for polyline curves | Request PDF - ResearchGate, accessed March 3, 2026, https://www.researchgate.net/publication/222549414_An_offset_algorithm_for_polyline_curves
+            21. Conduit Bending: Parallel Offsets, How to calculate and implement Parallel Adjustment Constants. - YouTube, accessed March 3, 2026, https://www.youtube.com/watch?v=nV4eL6WSbd4
+            22. Conduit Bending - Simple Parallel Rolling Offsets - YouTube, accessed March 3, 2026, https://www.youtube.com/watch?v=DTo-uSx-L24
+            23. Overlapping Offsets - Grasshopper - McNeel Forum, accessed March 3, 2026, https://discourse.mcneel.com/t/overlapping-offsets/152269
+            24. Efficient algorithm for removing loops from polylines - Stack Overflow, accessed March 3, 2026, https://stackoverflow.com/questions/8224532/efficient-algorithm-for-removing-loops-from-polylines
+            25. Is there a simple algorithm for approximating an imperfect offset polyline?, accessed March 3, 2026, https://math.stackexchange.com/questions/5096119/is-there-a-simple-algorithm-for-approximating-an-imperfect-offset-polyline
+            26. Offset Bus Routes with Overlapping Polylines Causing Broken Segments - Esri Community, accessed March 3, 2026, https://community.esri.com/t5/arcgis-pro-questions/offset-bus-routes-with-overlapping-polylines/td-p/1632513
+            27. How to offset overlapping segments of multiple lines - FME Community - Safe Software, accessed March 3, 2026, https://community.safe.com/transformers-9/how-to-offset-overlapping-segments-of-multiple-lines-18699
+            28. A new offset algorithm for closed 2D lines with Islands, accessed March 3, 2026, https://seant23.wordpress.com/wp-content/uploads/2010/11/anewoffsetalgorithmforclosed2dlineswithislands.pdf
+            29. How to compute the mitered offset of a polygon using its Straight Skeleton - Stack Overflow, accessed March 3, 2026, https://stackoverflow.com/questions/60132143/how-to-compute-the-mitered-offset-of-a-polygon-using-its-straight-skeleton
+            30. How can I create a parallel polyline without self intersections? - Stack Overflow, accessed March 3, 2026, https://stackoverflow.com/questions/3434572/how-can-i-create-a-parallel-polyline-without-self-intersections
+            31. Full article: Computing Mitered Offset Curves Based on Straight Skeletons, accessed March 3, 2026, https://www.tandfonline.com/doi/full/10.1080/16864360.2014.997637
+            32. Line offset (parallel lines) without cusps - Stack Overflow, accessed March 3, 2026, https://stackoverflow.com/questions/36361765/line-offset-parallel-lines-without-cusps
+            33. Clipper2 - Polygon Clipping Offsetting & Triangulating - angusj.com, accessed March 3, 2026, https://www.angusj.com/clipper2/Docs/Overview.htm
+            34. Grasshopper Clipper Tutorial (Polyline Offset) - YouTube, accessed March 3, 2026, https://www.youtube.com/shorts/cGTlR4Qbfmw
+            35. Clipper / Discussion / Discussion Forum: Offsetting a PolyLine - SourceForge, accessed March 3, 2026, https://sourceforge.net/p/polyclipping/discussion/1148419/thread/676572bb/
+            36. How to handle polyline offset with variable width ("buffer")? - Stack Overflow, accessed March 3, 2026, https://stackoverflow.com/questions/70603264/how-to-handle-polyline-offset-with-variable-width-buffer
+            37. Painting: Filling, Stroking and Marker Symbols — SVG 2, accessed March 3, 2026, https://www.w3.org/TR/SVG2/painting.html
