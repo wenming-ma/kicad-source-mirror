@@ -339,16 +339,26 @@ bool BUNDLE_PLACER::buildFanoutLanes( const SHAPE_LINE_CHAIN& aSpine,
         shift[i] = targetOff[i] - startOff[i];
     }
 
-    // Sort indices by |shift| ascending (smallest perpendicular shift turns first)
-    std::vector<int> rankOrder( m_lineCount );
+    // Assign escape tiers from outside-in so the lanes farthest from the bundle
+    // centerline turn first and the center-nearest lanes turn last.
+    std::vector<int> escapeRank( m_lineCount );
+    std::vector<int> absTargetOffsets( m_lineCount );
+    std::vector<int> tierValues( m_lineCount );
 
     for( int i = 0; i < m_lineCount; i++ )
-        rankOrder[i] = i;
-
-    std::sort( rankOrder.begin(), rankOrder.end(), [&]( int a, int b )
     {
-        return std::abs( shift[a] ) < std::abs( shift[b] );
-    } );
+        absTargetOffsets[i] = std::abs( targetOff[i] );
+        tierValues[i] = absTargetOffsets[i];
+    }
+
+    std::sort( tierValues.begin(), tierValues.end(), std::greater<int>() );
+    tierValues.erase( std::unique( tierValues.begin(), tierValues.end() ), tierValues.end() );
+
+    for( int i = 0; i < m_lineCount; i++ )
+    {
+        auto it = std::find( tierValues.begin(), tierValues.end(), absTargetOffsets[i] );
+        escapeRank[i] = std::distance( tierValues.begin(), it );
+    }
 
     // Compute baseEscape from the start geometry.
     // Initial placement should clear the actual start primitives before turning.
@@ -417,13 +427,8 @@ bool BUNDLE_PLACER::buildFanoutLanes( const SHAPE_LINE_CHAIN& aSpine,
                    : targetPitch;
     std::vector<int> escapeLen( m_lineCount );
 
-    escapeLen[rankOrder[0]] = baseEscape;
-
-    for( int k = 1; k < m_lineCount; k++ )
-    {
-        int prev = rankOrder[k - 1];
-        escapeLen[rankOrder[k]] = escapeLen[prev] + targetPitch;
-    }
+    for( int i = 0; i < m_lineCount; i++ )
+        escapeLen[i] = baseEscape + escapeRank[i] * targetPitch;
 
     // Compute along-spine distances and find merge point
     std::vector<int> turnLen( m_lineCount );
