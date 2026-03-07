@@ -205,6 +205,20 @@ static const TOOL_ACTION ACT_SwitchCornerModeToNext( TOOL_ACTION_ARGS()
         .Tooltip( _( "Switches between sharp/rounded and 45°/90° corners when routing tracks." ) )
         .Icon( BITMAPS::switch_corner_rounding_shape ) );
 
+static const TOOL_ACTION ACT_BundleGapIncrease( TOOL_ACTION_ARGS()
+        .Name( "pcbnew.InteractiveRouter.BundleGapIncrease" )
+        .Scope( AS_CONTEXT )
+        .DefaultHotkey( ']' )
+        .FriendlyName( _( "Increase Bundle Gap" ) )
+        .Tooltip( _( "Increases the gap between tracks in the bundle by the current clearance value." ) ) );
+
+static const TOOL_ACTION ACT_BundleGapDecrease( TOOL_ACTION_ARGS()
+        .Name( "pcbnew.InteractiveRouter.BundleGapDecrease" )
+        .Scope( AS_CONTEXT )
+        .DefaultHotkey( '[' )
+        .FriendlyName( _( "Decrease Bundle Gap" ) )
+        .Tooltip( _( "Decreases the gap between tracks in the bundle by the current clearance value." ) ) );
+
 // hotkeys W and Shift+W  are used to switch to track width changes
 static const TOOL_ACTION ACT_SwitchCornerMode45( TOOL_ACTION_ARGS()
         .Name( "pcbnew.InteractiveRouter.SwitchRounding45" )
@@ -1631,6 +1645,34 @@ void ROUTER_TOOL::performRouting( VECTOR2D aStartPosition )
             m_router->FlipPosture();
             updateEndItem( *evt );
             m_router->Move( m_endSnapPoint, m_endItem );        // refresh
+        }
+        else if( evt->IsAction( &ACT_BundleGapIncrease )
+                 || evt->IsAction( &ACT_BundleGapDecrease ) )
+        {
+            if( m_router->Mode() == PNS::PNS_MODE_ROUTE_BUNDLE )
+            {
+                PNS::SIZES_SETTINGS sizes( m_router->Sizes() );
+                int step = sizes.Clearance();
+
+                if( step <= 0 )
+                    step = sizes.MinClearance();
+
+                if( step <= 0 )
+                    step = pcbIUScale.mmToIU( 0.1 );
+
+                int gap = sizes.BundleGap();
+
+                if( evt->IsAction( &ACT_BundleGapIncrease ) )
+                    gap += step;
+                else
+                    gap = std::max( gap - step, sizes.Clearance() );
+
+                sizes.SetBundleGap( gap );
+                m_router->UpdateSizes( sizes );
+                updateEndItem( *evt );
+                m_router->Move( m_endSnapPoint, m_endItem );
+                UpdateMessagePanel();
+            }
         }
         else if( evt->IsAction( &PCB_ACTIONS::properties ) )
         {
@@ -3070,6 +3112,13 @@ void ROUTER_TOOL::UpdateMessagePanel()
                                                   FORMAT_VALUE( sizes.Clearance() ) ),
                                 wxString::Format( _( "(from %s)" ),
                                                   sizes.GetClearanceSource() ) );
+
+            if( m_router->Mode() == PNS::PNS_MODE_ROUTE_BUNDLE )
+            {
+                items.emplace_back( wxString::Format( _( "Bundle Gap: %s" ),
+                                                      FORMAT_VALUE( sizes.BundleGap() ) ),
+                                    wxString() );
+            }
         }
 
 #undef FORMAT_VALUE

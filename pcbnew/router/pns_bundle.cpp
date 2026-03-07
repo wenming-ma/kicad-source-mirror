@@ -539,11 +539,40 @@ SHAPE_LINE_CHAIN BUNDLE::OffsetPolyline45( const SHAPE_LINE_CHAIN& aChain, int a
         }
     }
 
-    // Check for self-intersection and clean up if needed
-    if( result.PointCount() > 2 && result.SelfIntersecting() )
+    // Remove self-intersection loops by clipping.
+    // When an inner offset lane crosses itself at a tight corner, we clip the loop:
+    //   1. Keep path up to point[s1] (start of first crossing segment)
+    //   2. Insert intersection point P
+    //   3. Continue from point[s2+1] (after second crossing segment)
+    // Iterate because clipping one loop may reveal another.
+    static constexpr int MAX_CLIP_ITERATIONS = 10;
+
+    for( int iter = 0; iter < MAX_CLIP_ITERATIONS && result.PointCount() > 2; iter++ )
     {
-        result.Simplify();
+        auto si = result.SelfIntersecting();
+
+        if( !si )
+            break;
+
+        int s1 = si->index_our;
+        int s2 = si->index_their;
+
+        SHAPE_LINE_CHAIN clipped;
+
+        for( int i = 0; i <= s1; i++ )
+            clipped.Append( result.CPoint( i ) );
+
+        clipped.Append( si->p );
+
+        for( int i = s2 + 1; i < result.PointCount(); i++ )
+            clipped.Append( result.CPoint( i ) );
+
+        result = clipped;
     }
+
+    // Clean up colinear/duplicate points after clipping
+    if( result.PointCount() > 2 )
+        result.Simplify();
 
     return result;
 }

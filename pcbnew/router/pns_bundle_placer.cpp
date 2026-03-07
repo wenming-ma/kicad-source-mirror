@@ -275,9 +275,6 @@ bool BUNDLE_PLACER::buildFanoutLanes( const SHAPE_LINE_CHAIN& aSpine,
     if( m_lineCount <= 1 || (int) m_startAnchors.size() != m_lineCount )
         return false;
 
-    if( m_chainedPlacement )
-        return false;
-
     if( aSpine.SegmentCount() < 1 )
         return false;
 
@@ -297,7 +294,7 @@ bool BUNDLE_PLACER::buildFanoutLanes( const SHAPE_LINE_CHAIN& aSpine,
 
     VECTOR2I centroid = m_start.Centroid();
 
-    // For each pad, compute perpendicular offset (startOff), target offset, shift, and
+    // For each anchor, compute perpendicular offset (startOff), target offset, shift, and
     // along-spine offset
     std::vector<int> startOff( m_lineCount );
     std::vector<int> targetOff( m_lineCount );
@@ -317,7 +314,7 @@ bool BUNDLE_PLACER::buildFanoutLanes( const SHAPE_LINE_CHAIN& aSpine,
         alongOff[i] = KiROUND( alongProj );
     }
 
-    // Sort pad indices by projection onto CURRENT spine perpendicular P
+    // Sort anchor indices by projection onto CURRENT spine perpendicular P
     // This prevents lane crossing when spine direction differs from initial sort direction
     std::vector<int> perpOrder( m_lineCount );
 
@@ -353,62 +350,66 @@ bool BUNDLE_PLACER::buildFanoutLanes( const SHAPE_LINE_CHAIN& aSpine,
         return std::abs( shift[a] ) < std::abs( shift[b] );
     } );
 
-    // Compute baseEscape from actual start-primitive geometry.
-    // The first trace must clear the largest obstacle before its 45-degree turn.
-    //   baseEscape >= halfExtent_along_spine + clearance + trackWidth/2
+    // Compute baseEscape from the start geometry.
+    // Initial placement should clear the actual start primitives before turning.
+    // Chained placement starts from prior track endpoints, so a bundle pitch is
+    // enough to keep the ordered transition from folding back into the corner.
     int maxHalfExtent = 0;
 
-    for( ITEM* item : m_start.Primitives() )
+    if( !m_chainedPlacement )
     {
-        if( !item )
-            continue;
-
-        int halfExtent = 0;
-
-        switch( item->Kind() )
+        for( ITEM* item : m_start.Primitives() )
         {
-        case ITEM::SOLID_T:
-        {
-            // Pad: project BBox half-extents onto spine direction
-            const SHAPE* shape = item->Shape( -1 );
+            if( !item )
+                continue;
 
-            if( shape )
+            int halfExtent = 0;
+
+            switch( item->Kind() )
             {
-                BOX2I bbox = shape->BBox();
-                int halfW = bbox.GetWidth() / 2;
-                int halfH = bbox.GetHeight() / 2;
+            case ITEM::SOLID_T:
+            {
+                // Pad: project BBox half-extents onto spine direction
+                const SHAPE* shape = item->Shape( -1 );
 
-                halfExtent = KiROUND( halfW * std::abs( D.x / dLen )
-                                    + halfH * std::abs( D.y / dLen ) );
+                if( shape )
+                {
+                    BOX2I bbox = shape->BBox();
+                    int halfW = bbox.GetWidth() / 2;
+                    int halfH = bbox.GetHeight() / 2;
+
+                    halfExtent = KiROUND( halfW * std::abs( D.x / dLen )
+                                        + halfH * std::abs( D.y / dLen ) );
+                }
+                break;
             }
-            break;
-        }
-        case ITEM::VIA_T:
-        {
-            // Via: circular obstacle, radius = Diameter/2, direction-independent
-            const VIA* via = static_cast<const VIA*>( item );
-            halfExtent = via->Diameter( m_currentLayer ) / 2;
-            break;
-        }
-        case ITEM::SEGMENT_T:
-        {
-            // Track endpoint: circular end-cap, radius = Width/2
-            const SEGMENT* seg = static_cast<const SEGMENT*>( item );
-            halfExtent = seg->Width() / 2;
-            break;
-        }
-        case ITEM::ARC_T:
-        {
-            // Arc endpoint: circular end-cap, radius = Width/2
-            const ARC* arc = static_cast<const ARC*>( item );
-            halfExtent = arc->Width() / 2;
-            break;
-        }
-        default:
-            break;
-        }
+            case ITEM::VIA_T:
+            {
+                // Via: circular obstacle, radius = Diameter/2, direction-independent
+                const VIA* via = static_cast<const VIA*>( item );
+                halfExtent = via->Diameter( m_currentLayer ) / 2;
+                break;
+            }
+            case ITEM::SEGMENT_T:
+            {
+                // Track endpoint: circular end-cap, radius = Width/2
+                const SEGMENT* seg = static_cast<const SEGMENT*>( item );
+                halfExtent = seg->Width() / 2;
+                break;
+            }
+            case ITEM::ARC_T:
+            {
+                // Arc endpoint: circular end-cap, radius = Width/2
+                const ARC* arc = static_cast<const ARC*>( item );
+                halfExtent = arc->Width() / 2;
+                break;
+            }
+            default:
+                break;
+            }
 
-        maxHalfExtent = std::max( maxHalfExtent, halfExtent );
+            maxHalfExtent = std::max( maxHalfExtent, halfExtent );
+        }
     }
 
     int baseEscape = maxHalfExtent > 0
@@ -444,7 +445,7 @@ bool BUNDLE_PLACER::buildFanoutLanes( const SHAPE_LINE_CHAIN& aSpine,
 
     if( mergeAlongDist >= spineLen )
     {
-        // Short spine: build direct fan from each pad to target offset at spine endpoint
+        // Short spine: build direct fan from each anchor to the target offset at the spine end
         VECTOR2I spineEnd = aSpine.CPoint( aSpine.PointCount() - 1 );
 
         aLanes.resize( m_lineCount );
@@ -482,10 +483,10 @@ bool BUNDLE_PLACER::buildFanoutLanes( const SHAPE_LINE_CHAIN& aSpine,
     {
         SHAPE_LINE_CHAIN fanout;
 
-        // Start at pad position
+        // Start at the current lane anchor position
         fanout.Append( m_startAnchors[i] );
 
-        // Escape end: padPos + D_scaled * escapeLen[i]
+        // Escape end: anchorPos + D_scaled * escapeLen[i]
         VECTOR2I escapeEnd(
             m_startAnchors[i].x + KiROUND( D.x / dLen * escapeLen[i] ),
             m_startAnchors[i].y + KiROUND( D.y / dLen * escapeLen[i] ) );
@@ -575,9 +576,9 @@ bool BUNDLE_PLACER::routeHead( const VECTOR2I& aP )
     m_currentTrace.SetWidth( m_currentWidth );
     m_currentTrace.SetLayer( m_currentLayer );
 
-    // For initial placement (not chained) with multiple lanes, try structured fanout
-    if( !m_chainedPlacement && m_lineCount > 1
-        && (int) m_startAnchors.size() == m_lineCount )
+    // For multi-lane placement, try a structured transition from the current
+    // anchors to the uniform bundle pitch on the new spine.
+    if( m_lineCount > 1 && (int) m_startAnchors.size() == m_lineCount )
     {
         std::vector<SHAPE_LINE_CHAIN> lanes;
 
@@ -588,7 +589,7 @@ bool BUNDLE_PLACER::routeHead( const VECTOR2I& aP )
         }
         else
         {
-            // Fallback: uniform offset with pad prepend
+            // Fallback: uniform offset with anchor prepend
             m_currentTrace.SetShape( spine );
 
             // Compute perpendicular order for current spine to prevent lane crossing
@@ -611,21 +612,21 @@ bool BUNDLE_PLACER::routeHead( const VECTOR2I& aP )
                 return projA < projB;
             } );
 
-            // Map: perpOrder[k] = pad index that should get lane k's geometry
+            // Map: perpOrder[k] = anchor index that should get lane k's geometry
             std::vector<SHAPE_LINE_CHAIN> fallbackLanes( m_lineCount );
 
             for( int k = 0; k < m_lineCount; k++ )
             {
-                int padIdx = perpOrder[k];
-                fallbackLanes[padIdx] = m_currentTrace.CLane( k );
+                int anchorIdx = perpOrder[k];
+                fallbackLanes[anchorIdx] = m_currentTrace.CLane( k );
 
-                if( fallbackLanes[padIdx].PointCount() > 0
-                    && fallbackLanes[padIdx].CPoint( 0 ) != m_startAnchors[padIdx] )
+                if( fallbackLanes[anchorIdx].PointCount() > 0
+                    && fallbackLanes[anchorIdx].CPoint( 0 ) != m_startAnchors[anchorIdx] )
                 {
-                    SHAPE_LINE_CHAIN withPad;
-                    withPad.Append( m_startAnchors[padIdx] );
-                    withPad.Append( fallbackLanes[padIdx] );
-                    fallbackLanes[padIdx] = withPad;
+                    SHAPE_LINE_CHAIN withAnchor;
+                    withAnchor.Append( m_startAnchors[anchorIdx] );
+                    withAnchor.Append( fallbackLanes[anchorIdx] );
+                    fallbackLanes[anchorIdx] = withAnchor;
                 }
             }
 
@@ -634,7 +635,7 @@ bool BUNDLE_PLACER::routeHead( const VECTOR2I& aP )
     }
     else
     {
-        // Chained placement or single lane: uniform offset
+        // Single lane: uniform offset only
         m_currentTrace.SetShape( spine );
     }
 
@@ -748,6 +749,43 @@ bool BUNDLE_PLACER::rhShoveOnly( const VECTOR2I& aP )
 
     if( allClear )
     {
+        // No collision in current shove state. Still run SHOVE so that
+        // reduceSpringback() can pop stale springback nodes, allowing
+        // previously-shoved obstacles to spring back to their original
+        // positions (mirroring LINE_PLACER behaviour).
+        m_shove->ClearHeads();
+
+        for( int i = 0; i < m_lineCount; i++ )
+        {
+            LINE lane( m_currentTrace.Line( i ) );
+            m_shove->AddHeads( lane, SHOVE::SHP_SHOVE | SHOVE::SHP_IGNORE );
+        }
+
+        SHOVE::SHOVE_STATUS status = m_shove->Run();
+        m_currentNode = m_shove->CurrentNode();
+
+        if( status == SHOVE::SH_OK )
+        {
+            // Update lane geometry from shove results (springback may have
+            // restored obstacles, causing Run() to re-shove and modify heads)
+            std::vector<SHAPE_LINE_CHAIN> shovedLanes( m_lineCount );
+
+            for( int i = 0; i < m_lineCount; i++ )
+            {
+                if( m_shove->HeadsModified( i ) )
+                {
+                    LINE modifiedHead = m_shove->GetModifiedHead( i );
+                    shovedLanes[i] = modifiedHead.CLine();
+                }
+                else
+                {
+                    shovedLanes[i] = m_currentTrace.CLane( i );
+                }
+            }
+
+            m_currentTrace.SetLaneShapes( shovedLanes );
+        }
+
         m_fitOk = true;
         return true;
     }
@@ -785,7 +823,7 @@ bool BUNDLE_PLACER::rhShoveOnly( const VECTOR2I& aP )
     for( int i = 0; i < m_lineCount; i++ )
     {
         LINE lane( m_currentTrace.Line( i ) );
-        m_shove->AddHeads( lane );
+        m_shove->AddHeads( lane, SHOVE::SHP_SHOVE | SHOVE::SHP_IGNORE );
     }
 
     SHOVE::SHOVE_STATUS status = m_shove->Run();
@@ -826,6 +864,10 @@ bool BUNDLE_PLACER::rhShoveOnly( const VECTOR2I& aP )
 
         m_fitOk = allClear;
     }
+
+    // If shove failed or post-shove verification failed, fall back to walkaround
+    if( !m_fitOk )
+        return rhWalkOnly( aP );
 
     return m_fitOk;
 }
@@ -925,8 +967,11 @@ void BUNDLE_PLACER::UpdateSizes( const SIZES_SETTINGS& aSizes )
 
 bool BUNDLE_PLACER::FixRoute( const VECTOR2I& aP, ITEM* aEndItem, bool aForceFinish )
 {
-    if( !m_fitOk && !Settings().AllowDRCViolations() )
-        return false;
+    // Note: unlike LINE_PLACER, we intentionally skip the per-lane collision check here.
+    // Bundle lanes of different nets inevitably pass near each other's starting pads,
+    // causing CheckColliding to always report false positives. The routing modes
+    // (MarkObstacles/Walkaround/Shove) already provide visual collision feedback
+    // during Move(), and the DRC will catch real violations after commit.
 
     // Check that we have valid lane geometry
     for( int i = 0; i < m_lineCount; i++ )
@@ -967,10 +1012,10 @@ bool BUNDLE_PLACER::FixRoute( const VECTOR2I& aP, ITEM* aEndItem, bool aForceFin
     if( Settings().Mode() == RM_Shove )
         m_shove = std::make_unique<SHOVE>( m_world, Router() );
 
+    m_hasFixedAnything = true;
     CommitPlacement();
     m_placingVia = false;
     m_lastFixNode = nullptr;
-    m_hasFixedAnything = true;
 
     if( aForceFinish )
     {
