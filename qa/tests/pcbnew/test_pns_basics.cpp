@@ -356,6 +356,7 @@ struct BUNDLE_TEST_SCENE
     std::vector<PNS::ITEM*> startItems;
     VECTOR2I                startPoint;
     VECTOR2I                targetPoint;
+    std::vector<VECTOR2I>   expectedStartAnchors;
 };
 
 
@@ -489,6 +490,102 @@ static BUNDLE_TEST_SCENE buildOffsetAnchorBundleScene( PNS_TEST_FIXTURE& aFixtur
 
     return { { startA, startB }, centroid + VECTOR2I( 600000, 0 ),
              centroid + VECTOR2I( 5000000, 0 ) };
+}
+
+
+static BUNDLE_TEST_SCENE buildTrackStubBundleScene( PNS_TEST_FIXTURE& aFixture )
+{
+    aFixture.ResetRouterWorld();
+    aFixture.m_ruleResolver.m_defaultClearance = 100000;
+    aFixture.m_ruleResolver.m_defaultHole2Hole = 100000;
+    aFixture.m_ruleResolver.m_defaultHole2Copper = 100000;
+
+    PNS::NODE* world = aFixture.m_router->GetWorld();
+    world->SetRuleResolver( &aFixture.m_ruleResolver );
+    world->SetMaxClearance( 2000000 );
+
+    std::vector<PNS::ITEM*> startItems;
+    std::vector<VECTOR2I>   expectedStartAnchors;
+
+    startItems.reserve( 4 );
+    expectedStartAnchors.reserve( 4 );
+
+    for( int i = 0; i < 4; ++i )
+    {
+        int y = ( -3 + 2 * i ) * 250000;
+        auto net = reinterpret_cast<PNS::NET_HANDLE>( static_cast<intptr_t>( i + 1 ) );
+        VECTOR2I freeEnd( -800000, y );
+        VECTOR2I connectedEnd( 0, y );
+        VECTOR2I continuationEnd( 800000, y );
+
+        PNS::SEGMENT* selected = addTestSegment( world, connectedEnd, freeEnd, 100000, net );
+
+        addTestVia( world, connectedEnd, 300000, 120000, net );
+        addTestSegment( world, connectedEnd, continuationEnd, 100000, net );
+
+        startItems.push_back( selected );
+        expectedStartAnchors.push_back( freeEnd );
+    }
+
+    return { startItems, VECTOR2I( -600000, 0 ), VECTOR2I( 2200000, 0 ), expectedStartAnchors };
+}
+
+
+static BUNDLE_TEST_SCENE buildWalkaroundTrackStubBundleScene( PNS_TEST_FIXTURE& aFixture )
+{
+    BUNDLE_TEST_SCENE scene = buildTrackStubBundleScene( aFixture );
+    PNS::NODE*        world = aFixture.m_router->GetWorld();
+    auto              obstacleNet = reinterpret_cast<PNS::NET_HANDLE>( 99 );
+
+    addTestSegment( world, VECTOR2I( 1000000, -900000 ), VECTOR2I( 1000000, 900000 ),
+                    180000, obstacleNet );
+    addTestSolid( world, BOX2I( VECTOR2I( 900000, -1200000 ), VECTOR2I( 250000, 450000 ) ),
+                  obstacleNet );
+    addTestSolid( world, BOX2I( VECTOR2I( 900000, 750000 ), VECTOR2I( 250000, 450000 ) ),
+                  obstacleNet );
+
+    return scene;
+}
+
+
+static BUNDLE_TEST_SCENE buildThroughTrackBundleScene( PNS_TEST_FIXTURE& aFixture )
+{
+    aFixture.ResetRouterWorld();
+    aFixture.m_ruleResolver.m_defaultClearance = 100000;
+    aFixture.m_ruleResolver.m_defaultHole2Hole = 100000;
+    aFixture.m_ruleResolver.m_defaultHole2Copper = 100000;
+
+    PNS::NODE* world = aFixture.m_router->GetWorld();
+    world->SetRuleResolver( &aFixture.m_ruleResolver );
+    world->SetMaxClearance( 2000000 );
+
+    std::vector<PNS::ITEM*> startItems;
+    std::vector<VECTOR2I>   expectedStartAnchors;
+
+    startItems.reserve( 4 );
+    expectedStartAnchors.reserve( 4 );
+
+    for( int i = 0; i < 4; ++i )
+    {
+        int y = ( -3 + 2 * i ) * 250000;
+        auto net = reinterpret_cast<PNS::NET_HANDLE>( static_cast<intptr_t>( i + 1 ) );
+        VECTOR2I leftConnected( -600000, y );
+        VECTOR2I rightConnected( 600000, y );
+        VECTOR2I farLeft( -1200000, y );
+        VECTOR2I farRight( 1200000, y );
+
+        PNS::SEGMENT* selected = addTestSegment( world, rightConnected, leftConnected, 100000, net );
+
+        addTestVia( world, leftConnected, 300000, 120000, net );
+        addTestVia( world, rightConnected, 300000, 120000, net );
+        addTestSegment( world, leftConnected, farLeft, 100000, net );
+        addTestSegment( world, rightConnected, farRight, 100000, net );
+
+        startItems.push_back( selected );
+        expectedStartAnchors.push_back( leftConnected );
+    }
+
+    return { startItems, VECTOR2I( -900000, 0 ), VECTOR2I( 2200000, 0 ), expectedStartAnchors };
 }
 
 
@@ -626,6 +723,9 @@ static BUNDLE_TEST_SCENE buildLargeHorizontalBundleScene( PNS_TEST_FIXTURE& aFix
 
 static std::vector<VECTOR2I> bundleSceneStartAnchors( const BUNDLE_TEST_SCENE& aScene )
 {
+    if( !aScene.expectedStartAnchors.empty() )
+        return aScene.expectedStartAnchors;
+
     std::vector<VECTOR2I> anchors;
     anchors.reserve( aScene.startItems.size() );
 
@@ -698,6 +798,32 @@ static void checkBundlePreviewStarts( PNS::BUNDLE_PLACER& aPlacer,
 
     for( size_t i = 0; i < aExpectedStarts.size(); ++i )
         BOOST_CHECK_EQUAL( actualStarts[i], aExpectedStarts[i] );
+}
+
+
+static void bundlePreviewStartsEqual( PNS::BUNDLE_PLACER& aPlacer,
+                                      const std::vector<VECTOR2I>& aExpectedStarts )
+{
+    checkBundlePreviewStarts( aPlacer, aExpectedStarts );
+}
+
+
+static bool bundlePreviewStartsDoNotEqualAnchorZero( const std::vector<PNS::ITEM*>& aStartItems,
+                                                     const std::vector<VECTOR2I>& aActualStarts )
+{
+    if( aStartItems.size() != aActualStarts.size() )
+        return false;
+
+    for( size_t i = 0; i < aStartItems.size(); ++i )
+    {
+        if( !aStartItems[i] || aStartItems[i]->AnchorCount() < 1 )
+            return false;
+
+        if( aActualStarts[i] == aStartItems[i]->Anchor( 0 ) )
+            return false;
+    }
+
+    return true;
 }
 
 
@@ -1222,6 +1348,69 @@ BOOST_FIXTURE_TEST_CASE( BundleWalkaroundChainedPlacementStartsFromCommittedEnds
     BOOST_CHECK( !placer.FixRoute( scene.targetPoint, nullptr, false ) );
     BOOST_REQUIRE( placer.Move( secondTarget, nullptr ) );
     checkBundlePreviewStarts( placer, expectedNextStarts );
+}
+
+
+BOOST_FIXTURE_TEST_CASE( BundleTrackStartsAtDanglingEndsMarkObstacles, PNS_TEST_FIXTURE )
+{
+    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes( 4 );
+    BUNDLE_TEST_SCENE   scene = buildTrackStubBundleScene( *this );
+    PNS::BUNDLE_PLACER  placer( m_router );
+
+    m_router->UpdateSizes( sizes );
+    placer.UpdateSizes( sizes );
+    BOOST_REQUIRE( placer.SetLayer( F_Cu ) );
+    placer.SetStartPads( scene.startItems );
+
+    m_routerSettings.SetMode( PNS::RM_MarkObstacles );
+    BOOST_REQUIRE( placer.Start( scene.startPoint, scene.startItems.front() ) );
+    BOOST_CHECK( placer.Move( scene.targetPoint, nullptr ) );
+
+    bundlePreviewStartsEqual( placer, bundleSceneStartAnchors( scene ) );
+    BOOST_CHECK( bundlePreviewStartsDoNotEqualAnchorZero( scene.startItems,
+                                                          bundlePreviewStarts( placer ) ) );
+}
+
+
+BOOST_FIXTURE_TEST_CASE( BundleTrackStartsAtDanglingEndsWalkaround, PNS_TEST_FIXTURE )
+{
+    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes( 4 );
+    BUNDLE_TEST_SCENE   scene = buildWalkaroundTrackStubBundleScene( *this );
+    PNS::BUNDLE_PLACER  placer( m_router );
+
+    m_router->UpdateSizes( sizes );
+    placer.UpdateSizes( sizes );
+    BOOST_REQUIRE( placer.SetLayer( F_Cu ) );
+    placer.SetStartPads( scene.startItems );
+
+    m_routerSettings.SetMode( PNS::RM_Walkaround );
+    BOOST_REQUIRE( placer.Start( scene.startPoint, scene.startItems.front() ) );
+    BOOST_CHECK( placer.Move( scene.targetPoint, nullptr ) );
+
+    bundlePreviewStartsEqual( placer, bundleSceneStartAnchors( scene ) );
+    BOOST_CHECK( bundlePreviewStartsDoNotEqualAnchorZero( scene.startItems,
+                                                          bundlePreviewStarts( placer ) ) );
+}
+
+
+BOOST_FIXTURE_TEST_CASE( BundleTrackBothEndsConnectedUsesCursorSide, PNS_TEST_FIXTURE )
+{
+    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes( 4 );
+    BUNDLE_TEST_SCENE   scene = buildThroughTrackBundleScene( *this );
+    PNS::BUNDLE_PLACER  placer( m_router );
+
+    m_router->UpdateSizes( sizes );
+    placer.UpdateSizes( sizes );
+    BOOST_REQUIRE( placer.SetLayer( F_Cu ) );
+    placer.SetStartPads( scene.startItems );
+
+    m_routerSettings.SetMode( PNS::RM_MarkObstacles );
+    BOOST_REQUIRE( placer.Start( scene.startPoint, scene.startItems.front() ) );
+    BOOST_CHECK( placer.Move( scene.targetPoint, nullptr ) );
+
+    bundlePreviewStartsEqual( placer, bundleSceneStartAnchors( scene ) );
+    BOOST_CHECK( bundlePreviewStartsDoNotEqualAnchorZero( scene.startItems,
+                                                          bundlePreviewStarts( placer ) ) );
 }
 
 

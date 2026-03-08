@@ -441,6 +441,76 @@ bool BUNDLE_PLACER::restoreLastValidPreview()
 }
 
 
+std::vector<VECTOR2I> BUNDLE_PLACER::resolveStartAnchors( const VECTOR2I& aStartPoint,
+                                                          ITEM* aStartItem ) const
+{
+    std::vector<VECTOR2I> anchors;
+    const std::vector<ITEM*>& prims = m_start.Primitives();
+
+    anchors.reserve( prims.size() );
+
+    for( ITEM* prim : prims )
+        anchors.push_back( resolvePrimitiveStartAnchor( prim, aStartPoint, aStartItem ) );
+
+    return anchors;
+}
+
+
+VECTOR2I BUNDLE_PLACER::resolvePrimitiveStartAnchor( ITEM* aPrim, const VECTOR2I& aStartPoint,
+                                                     ITEM* /*aStartItem*/ ) const
+{
+    if( !aPrim )
+        return VECTOR2I( 0, 0 );
+
+    if( aPrim->OfKind( ITEM::SEGMENT_T | ITEM::ARC_T ) )
+    {
+        if( LINKED_ITEM* linked = dynamic_cast<LINKED_ITEM*>( aPrim ) )
+            return resolveTrackLikeStartAnchor( linked, aStartPoint );
+    }
+
+    return aPrim->AnchorCount() > 0 ? aPrim->Anchor( 0 ) : VECTOR2I( 0, 0 );
+}
+
+
+VECTOR2I BUNDLE_PLACER::resolveTrackLikeStartAnchor( LINKED_ITEM* aPrim,
+                                                     const VECTOR2I& aStartPoint ) const
+{
+    if( !aPrim )
+        return VECTOR2I( 0, 0 );
+
+    if( !m_world )
+        return aPrim->AnchorCount() > 0 ? aPrim->Anchor( 0 ) : VECTOR2I( 0, 0 );
+
+    LINE line = m_world->AssembleLine( aPrim );
+
+    if( line.PointCount() < 2 )
+        return aPrim->AnchorCount() > 0 ? aPrim->Anchor( 0 ) : VECTOR2I( 0, 0 );
+
+    const VECTOR2I& endpoint0 = line.CPoint( 0 );
+    const VECTOR2I& endpoint1 = line.CLastPoint();
+    const JOINT* joint0 = m_world->FindJoint( endpoint0, &line );
+    const JOINT* joint1 = m_world->FindJoint( endpoint1, &line );
+    int score0 = joint0 ? joint0->LinkCount() : 0;
+    int score1 = joint1 ? joint1->LinkCount() : 0;
+    bool dangling0 = score0 <= 1;
+    bool dangling1 = score1 <= 1;
+
+    if( dangling0 != dangling1 )
+        return dangling0 ? endpoint0 : endpoint1;
+
+    if( score0 != score1 )
+        return score0 < score1 ? endpoint0 : endpoint1;
+
+    int64_t dist0 = ( endpoint0 - aStartPoint ).SquaredEuclideanNorm();
+    int64_t dist1 = ( endpoint1 - aStartPoint ).SquaredEuclideanNorm();
+
+    if( dist0 != dist1 )
+        return dist0 < dist1 ? endpoint0 : endpoint1;
+
+    return endpoint0;
+}
+
+
 void BUNDLE_PLACER::SetOrthoMode( bool aOrthoMode )
 {
     m_orthoMode = aOrthoMode;
@@ -463,7 +533,9 @@ bool BUNDLE_PLACER::ToggleVia( bool aEnabled )
 
 void BUNDLE_PLACER::SetStartPads( const std::vector<ITEM*>& aPads )
 {
-    m_start = BUNDLE_PRIMITIVE_GROUP( aPads );
+    m_start = BUNDLE_PRIMITIVE_GROUP();
+    m_start.SetPrimitives( aPads );
+    m_start.SetAnchors( std::vector<VECTOR2I>( aPads.size() ) );
     m_lineCount = static_cast<int>( aPads.size() );
 
     // Extract nets from pads
@@ -479,7 +551,9 @@ void BUNDLE_PLACER::SetStartPads( const std::vector<ITEM*>& aPads )
 void BUNDLE_PLACER::SetStartPads( const std::vector<ITEM*>& aPads,
                                    const std::vector<NET_HANDLE>& aNets )
 {
-    m_start = BUNDLE_PRIMITIVE_GROUP( aPads );
+    m_start = BUNDLE_PRIMITIVE_GROUP();
+    m_start.SetPrimitives( aPads );
+    m_start.SetAnchors( std::vector<VECTOR2I>( aPads.size() ) );
     m_lineCount = static_cast<int>( aPads.size() );
     m_nets = aNets;
 }
@@ -498,8 +572,10 @@ bool BUNDLE_PLACER::Start( const VECTOR2I& aP, ITEM* aStartItem )
         return false;
     }
 
+    m_startAnchors = resolveStartAnchors( aP, aStartItem );
+    m_start.SetAnchors( m_startAnchors );
+
     VECTOR2I centroid = m_start.Centroid();
-    m_startAnchors = m_start.Anchors();
 
     // Compute escape/transition geometry without reordering lane identity.
     int targetPitch = m_sizes.BundleGap() + m_sizes.TrackWidth();

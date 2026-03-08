@@ -37,6 +37,7 @@ class ROUTER;
 class SHOVE;
 class OPTIMIZER;
 class VIA;
+class LINKED_ITEM;
 class SIZES_SETTINGS;
 
 
@@ -128,6 +129,13 @@ private:
      * Initialize placement state.
      */
     void initPlacement();
+
+    std::vector<VECTOR2I> resolveStartAnchors( const VECTOR2I& aStartPoint,
+                                               ITEM* aStartItem ) const;
+    VECTOR2I resolvePrimitiveStartAnchor( ITEM* aPrim, const VECTOR2I& aStartPoint,
+                                          ITEM* aStartItem ) const;
+    VECTOR2I resolveTrackLikeStartAnchor( LINKED_ITEM* aPrim,
+                                          const VECTOR2I& aStartPoint ) const;
 
     /**
      * Build the pitch profile for escape/transition zone.
