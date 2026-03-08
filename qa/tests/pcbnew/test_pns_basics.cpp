@@ -669,7 +669,8 @@ static BUNDLE_TEST_SCENE buildLargeVerticalBundleScene( PNS_TEST_FIXTURE& aFixtu
 }
 
 
-static BUNDLE_TEST_SCENE buildHorizontalLargeBundleScene( PNS_TEST_FIXTURE& aFixture )
+static BUNDLE_TEST_SCENE buildWideVerticalTurnBundleScene( PNS_TEST_FIXTURE& aFixture,
+                                                           bool aRouteLeft )
 {
     aFixture.ResetRouterWorld();
     aFixture.m_ruleResolver.m_defaultClearance = 100000;
@@ -678,19 +679,49 @@ static BUNDLE_TEST_SCENE buildHorizontalLargeBundleScene( PNS_TEST_FIXTURE& aFix
 
     PNS::NODE* world = aFixture.m_router->GetWorld();
     world->SetRuleResolver( &aFixture.m_ruleResolver );
-    world->SetMaxClearance( 2000000 );
+    world->SetMaxClearance( 4000000 );
 
     std::vector<PNS::ITEM*> startItems;
-    startItems.reserve( 8 );
+    startItems.reserve( 12 );
 
-    for( int i = 0; i < 8; ++i )
+    for( int i = 0; i < 12; ++i )
     {
-        int x = ( -7 + 2 * i ) * 250000;
+        int y = ( -11 + 2 * i ) * 200000;
+        auto net = reinterpret_cast<PNS::NET_HANDLE>( static_cast<intptr_t>( i + 1 ) );
+        startItems.push_back( addTestVia( world, VECTOR2I( 0, y ), 300000, 120000, net ) );
+    }
+
+    int dir = aRouteLeft ? -1 : 1;
+
+    return { startItems, VECTOR2I( 300000, 0 ), VECTOR2I( dir * 1200000, 3200000 ) };
+}
+
+
+static BUNDLE_TEST_SCENE buildWideHorizontalTurnBundleScene( PNS_TEST_FIXTURE& aFixture,
+                                                             bool aTurnPositiveSide )
+{
+    aFixture.ResetRouterWorld();
+    aFixture.m_ruleResolver.m_defaultClearance = 100000;
+    aFixture.m_ruleResolver.m_defaultHole2Hole = 100000;
+    aFixture.m_ruleResolver.m_defaultHole2Copper = 100000;
+
+    PNS::NODE* world = aFixture.m_router->GetWorld();
+    world->SetRuleResolver( &aFixture.m_ruleResolver );
+    world->SetMaxClearance( 4000000 );
+
+    std::vector<PNS::ITEM*> startItems;
+    startItems.reserve( 12 );
+
+    for( int i = 0; i < 12; ++i )
+    {
+        int x = ( -11 + 2 * i ) * 200000;
         auto net = reinterpret_cast<PNS::NET_HANDLE>( static_cast<intptr_t>( i + 1 ) );
         startItems.push_back( addTestVia( world, VECTOR2I( x, 0 ), 300000, 120000, net ) );
     }
 
-    return { startItems, VECTOR2I( 0, -250000 ), VECTOR2I( 2200000, 900000 ) };
+    int dir = aTurnPositiveSide ? 1 : -1;
+
+    return { startItems, VECTOR2I( 0, -300000 ), VECTOR2I( 3200000, dir * 1200000 ) };
 }
 
 
@@ -733,6 +764,25 @@ static std::vector<VECTOR2I> bundleSceneStartAnchors( const BUNDLE_TEST_SCENE& a
         anchors.push_back( item->Anchor( 0 ) );
 
     return anchors;
+}
+
+
+static VECTOR2I bundleSceneCentroid( const BUNDLE_TEST_SCENE& aScene )
+{
+    std::vector<VECTOR2I> anchors = bundleSceneStartAnchors( aScene );
+    int64_t               sumX = 0;
+    int64_t               sumY = 0;
+
+    for( const VECTOR2I& anchor : anchors )
+    {
+        sumX += anchor.x;
+        sumY += anchor.y;
+    }
+
+    return !anchors.empty()
+         ? VECTOR2I( static_cast<int>( sumX / anchors.size() ),
+                     static_cast<int>( sumY / anchors.size() ) )
+         : VECTOR2I( 0, 0 );
 }
 
 
@@ -1021,22 +1071,73 @@ static void bundlePreviewEqualsCachedGeometry( const std::vector<SHAPE_LINE_CHAI
 }
 
 
-static bool bundlePreviewFirstSegmentsAllParallelToAxis( const std::vector<SHAPE_LINE_CHAIN>& aLanes,
-                                                         const VECTOR2I& aAxis )
+static int turnSideSign( const VECTOR2I& aAxis, const VECTOR2I& aDirection )
 {
+    int64_t cross = (int64_t) aAxis.x * aDirection.y - (int64_t) aAxis.y * aDirection.x;
+    return ( cross > 0 ) - ( cross < 0 );
+}
+
+
+static double signedAxisDeparture( const VECTOR2I& aPoint, const VECTOR2I& aCentroid,
+                                   const VECTOR2I& aAxis )
+{
+    if( aAxis == VECTOR2I( 0, 0 ) )
+        return 0.0;
+
+    VECTOR2I rel = aPoint - aCentroid;
+    int64_t  cross = (int64_t) aAxis.x * rel.y - (int64_t) aAxis.y * rel.x;
+    double   axisLength = aAxis.EuclideanNorm();
+
+    return axisLength > 0.0 ? (double) cross / axisLength : 0.0;
+}
+
+
+static bool bundlePreviewLeavesStartAxis( const std::vector<SHAPE_LINE_CHAIN>& aLanes,
+                                          const VECTOR2I& aAxis,
+                                          const VECTOR2I& aCentroid,
+                                          int aThreshold )
+{
+    double threshold = (double) std::max( 1, aThreshold );
+
     for( const SHAPE_LINE_CHAIN& lane : aLanes )
     {
-        if( lane.SegmentCount() < 1 )
-            return false;
-
-        VECTOR2I delta = lane.CSegment( 0 ).B - lane.CSegment( 0 ).A;
-        int64_t  cross = (int64_t) delta.x * aAxis.y - (int64_t) delta.y * aAxis.x;
-
-        if( cross != 0 )
-            return false;
+        for( int i = 0; i < lane.PointCount(); ++i )
+        {
+            if( std::abs( signedAxisDeparture( lane.CPoint( i ), aCentroid, aAxis ) ) >= threshold )
+                return true;
+        }
     }
 
-    return true;
+    return false;
+}
+
+
+static bool bundlePreviewTurnsToRequestedSide( const std::vector<SHAPE_LINE_CHAIN>& aLanes,
+                                               const VECTOR2I& aAxis,
+                                               const VECTOR2I& aCentroid,
+                                               int aDesiredSide,
+                                               int aThreshold )
+{
+    if( aDesiredSide == 0 )
+        return true;
+
+    double threshold = (double) std::max( 1, aThreshold );
+
+    for( const SHAPE_LINE_CHAIN& lane : aLanes )
+    {
+        for( int i = 0; i < lane.PointCount(); ++i )
+        {
+            double departure = signedAxisDeparture( lane.CPoint( i ), aCentroid, aAxis );
+
+            if( aDesiredSide > 0 && departure >= threshold )
+                return true;
+
+            if( aDesiredSide < 0 && departure <= -threshold )
+                return true;
+        }
+    }
+
+    return false;
 }
 
 BOOST_FIXTURE_TEST_CASE( PNSHoleCollisions, PNS_TEST_FIXTURE )
@@ -1460,11 +1561,139 @@ BOOST_FIXTURE_TEST_CASE( BundleVerticalArrayNoBackwardSegmentsRightTargetMarkObs
 }
 
 
+BOOST_FIXTURE_TEST_CASE( BundleWideVerticalTurnMirrorSymmetryAcrossCursorSwingMarkObstacles,
+                         PNS_TEST_FIXTURE )
+{
+    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes( 12 );
+    BUNDLE_TEST_SCENE   scene = buildWideVerticalTurnBundleScene( *this, false );
+    VECTOR2I            centroid = bundleSceneCentroid( scene );
+    int                 mirrorAxisX = centroid.x;
+    VECTOR2I            mirroredLeftTarget( 2 * mirrorAxisX - scene.targetPoint.x, scene.targetPoint.y );
+    PNS::BUNDLE_PLACER  placer( m_router );
+
+    m_router->UpdateSizes( sizes );
+    placer.UpdateSizes( sizes );
+    BOOST_REQUIRE( placer.SetLayer( F_Cu ) );
+    placer.SetStartPads( scene.startItems );
+
+    m_routerSettings.SetMode( PNS::RM_MarkObstacles );
+    BOOST_REQUIRE( placer.Start( scene.startPoint, scene.startItems.front() ) );
+    BOOST_CHECK( placer.Move( scene.targetPoint, nullptr ) );
+    std::vector<SHAPE_LINE_CHAIN> rightLanes = bundlePreviewLanes( placer );
+
+    BOOST_CHECK( placer.Move( mirroredLeftTarget, nullptr ) );
+    std::vector<SHAPE_LINE_CHAIN> leftLanes = bundlePreviewLanes( placer );
+
+    checkMirroredBundlePreviewMatches( rightLanes, leftLanes, mirrorAxisX );
+}
+
+
+BOOST_FIXTURE_TEST_CASE( BundleWideVerticalTurnLeftPreviewMakesRequestedTurnMarkObstacles,
+                         PNS_TEST_FIXTURE )
+{
+    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes( 12 );
+    BUNDLE_TEST_SCENE   scene = buildWideVerticalTurnBundleScene( *this, true );
+    std::vector<VECTOR2I> anchors = bundleSceneStartAnchors( scene );
+    VECTOR2I            centroid = bundleSceneCentroid( scene );
+    int                 turnThreshold = ( sizes.BundleGap() + sizes.TrackWidth() ) / 2;
+    int                 desiredTurnSide = turnSideSign( VECTOR2I( 0, 1 ),
+                                                        scene.targetPoint - centroid );
+    PNS::BUNDLE_PLACER  placer( m_router );
+
+    m_router->UpdateSizes( sizes );
+    placer.UpdateSizes( sizes );
+    BOOST_REQUIRE( placer.SetLayer( F_Cu ) );
+    placer.SetStartPads( scene.startItems );
+
+    m_routerSettings.SetMode( PNS::RM_MarkObstacles );
+    BOOST_REQUIRE( placer.Start( scene.startPoint, scene.startItems.front() ) );
+    BOOST_CHECK( placer.Move( scene.targetPoint, nullptr ) );
+
+    std::vector<SHAPE_LINE_CHAIN> lanes = bundlePreviewLanes( placer );
+
+    BOOST_CHECK( bundlePreviewStartsMatchActualAnchors( lanes, anchors ) );
+    BOOST_CHECK( bundlePreviewLeavesStartAxis( lanes, VECTOR2I( 0, 1 ), centroid,
+                                               turnThreshold ) );
+    BOOST_CHECK( bundlePreviewTurnsToRequestedSide( lanes, VECTOR2I( 0, 1 ), centroid,
+                                                    desiredTurnSide, turnThreshold ) );
+}
+
+
+BOOST_FIXTURE_TEST_CASE( BundleWideVerticalTurnWalkaroundMatchesMarkObstacles,
+                         PNS_TEST_FIXTURE )
+{
+    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes( 12 );
+    BUNDLE_TEST_SCENE   scene = buildWideVerticalTurnBundleScene( *this, true );
+    PNS::BUNDLE_PLACER  markPlacer( m_router );
+
+    m_router->UpdateSizes( sizes );
+    markPlacer.UpdateSizes( sizes );
+    BOOST_REQUIRE( markPlacer.SetLayer( F_Cu ) );
+    markPlacer.SetStartPads( scene.startItems );
+
+    m_routerSettings.SetMode( PNS::RM_MarkObstacles );
+    BOOST_REQUIRE( markPlacer.Start( scene.startPoint, scene.startItems.front() ) );
+    BOOST_CHECK( markPlacer.Move( scene.targetPoint, nullptr ) );
+    std::vector<SHAPE_LINE_CHAIN> markLanes = bundlePreviewLanes( markPlacer );
+
+    scene = buildWideVerticalTurnBundleScene( *this, true );
+    PNS::BUNDLE_PLACER walkPlacer( m_router );
+
+    m_router->UpdateSizes( sizes );
+    walkPlacer.UpdateSizes( sizes );
+    BOOST_REQUIRE( walkPlacer.SetLayer( F_Cu ) );
+    walkPlacer.SetStartPads( scene.startItems );
+
+    m_routerSettings.SetMode( PNS::RM_Walkaround );
+    BOOST_REQUIRE( walkPlacer.Start( scene.startPoint, scene.startItems.front() ) );
+    BOOST_CHECK( walkPlacer.Move( scene.targetPoint, nullptr ) );
+
+    checkBundlePreviewMatches( markLanes, bundlePreviewLanes( walkPlacer ) );
+}
+
+
+BOOST_FIXTURE_TEST_CASE( BundleWideVerticalTurnShoveMatchesMarkObstacles,
+                         PNS_TEST_FIXTURE )
+{
+    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes( 12 );
+    BUNDLE_TEST_SCENE   scene = buildWideVerticalTurnBundleScene( *this, true );
+    PNS::BUNDLE_PLACER  markPlacer( m_router );
+
+    m_router->UpdateSizes( sizes );
+    markPlacer.UpdateSizes( sizes );
+    BOOST_REQUIRE( markPlacer.SetLayer( F_Cu ) );
+    markPlacer.SetStartPads( scene.startItems );
+
+    m_routerSettings.SetMode( PNS::RM_MarkObstacles );
+    BOOST_REQUIRE( markPlacer.Start( scene.startPoint, scene.startItems.front() ) );
+    BOOST_CHECK( markPlacer.Move( scene.targetPoint, nullptr ) );
+    std::vector<SHAPE_LINE_CHAIN> markLanes = bundlePreviewLanes( markPlacer );
+
+    scene = buildWideVerticalTurnBundleScene( *this, true );
+    PNS::BUNDLE_PLACER shovePlacer( m_router );
+
+    m_router->UpdateSizes( sizes );
+    shovePlacer.UpdateSizes( sizes );
+    BOOST_REQUIRE( shovePlacer.SetLayer( F_Cu ) );
+    shovePlacer.SetStartPads( scene.startItems );
+
+    m_routerSettings.SetMode( PNS::RM_Shove );
+    BOOST_REQUIRE( shovePlacer.Start( scene.startPoint, scene.startItems.front() ) );
+    BOOST_CHECK( shovePlacer.Move( scene.targetPoint, nullptr ) );
+
+    checkBundlePreviewMatches( markLanes, bundlePreviewLanes( shovePlacer ) );
+}
+
+
 BOOST_FIXTURE_TEST_CASE( BundleHorizontalArrayDoesNotLockToStartAxisMarkObstacles,
                          PNS_TEST_FIXTURE )
 {
-    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes( 8 );
-    BUNDLE_TEST_SCENE   scene = buildHorizontalLargeBundleScene( *this );
+    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes( 12 );
+    BUNDLE_TEST_SCENE   scene = buildWideHorizontalTurnBundleScene( *this, true );
+    VECTOR2I            centroid = bundleSceneCentroid( scene );
+    int                 turnThreshold = ( sizes.BundleGap() + sizes.TrackWidth() ) / 2;
+    int                 desiredTurnSide = turnSideSign( VECTOR2I( 1, 0 ),
+                                                        scene.targetPoint - centroid );
     PNS::BUNDLE_PLACER  placer( m_router );
 
     m_router->UpdateSizes( sizes );
@@ -1479,14 +1708,17 @@ BOOST_FIXTURE_TEST_CASE( BundleHorizontalArrayDoesNotLockToStartAxisMarkObstacle
     std::vector<SHAPE_LINE_CHAIN> lanes = bundlePreviewLanes( placer );
 
     BOOST_CHECK( bundlePreviewAllHaveSegments( lanes ) );
-    BOOST_CHECK( !bundlePreviewFirstSegmentsAllParallelToAxis( lanes, VECTOR2I( 1, 0 ) ) );
+    BOOST_CHECK( bundlePreviewLeavesStartAxis( lanes, VECTOR2I( 1, 0 ), centroid,
+                                               turnThreshold ) );
+    BOOST_CHECK( bundlePreviewTurnsToRequestedSide( lanes, VECTOR2I( 1, 0 ), centroid,
+                                                    desiredTurnSide, turnThreshold ) );
 }
 
 
 BOOST_FIXTURE_TEST_CASE( BundleHorizontalArrayWalkaroundMatchesBaseGeometry, PNS_TEST_FIXTURE )
 {
-    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes( 8 );
-    BUNDLE_TEST_SCENE   scene = buildHorizontalLargeBundleScene( *this );
+    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes( 12 );
+    BUNDLE_TEST_SCENE   scene = buildWideHorizontalTurnBundleScene( *this, true );
     PNS::BUNDLE_PLACER  markPlacer( m_router );
 
     m_router->UpdateSizes( sizes );
@@ -1499,7 +1731,7 @@ BOOST_FIXTURE_TEST_CASE( BundleHorizontalArrayWalkaroundMatchesBaseGeometry, PNS
     BOOST_CHECK( markPlacer.Move( scene.targetPoint, nullptr ) );
     std::vector<SHAPE_LINE_CHAIN> markLanes = bundlePreviewLanes( markPlacer );
 
-    scene = buildHorizontalLargeBundleScene( *this );
+    scene = buildWideHorizontalTurnBundleScene( *this, true );
     PNS::BUNDLE_PLACER walkPlacer( m_router );
 
     m_router->UpdateSizes( sizes );

@@ -156,7 +156,8 @@ private:
         bool hasBackwardSegments = false;
         bool hasSelfIntersections = false;
         bool hasCrossings = false;
-        bool degenerateAxisLock = false;
+        bool lacksTurnProgress = false;
+        bool wrongSideTurn = false;
         int topologyViolations = 0;
     };
 

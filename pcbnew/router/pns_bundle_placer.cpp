@@ -102,6 +102,77 @@ static bool areParallel( const VECTOR2I& aA, const VECTOR2I& aB )
 }
 
 
+static int signum( int64_t aValue )
+{
+    return ( aValue > 0 ) - ( aValue < 0 );
+}
+
+
+static double signedAxisDeparture( const VECTOR2I& aPoint, const VECTOR2I& aCentroid,
+                                   const VECTOR2I& aAxis )
+{
+    if( aAxis == VECTOR2I( 0, 0 ) )
+        return 0.0;
+
+    VECTOR2I rel = aPoint - aCentroid;
+    int64_t  cross = (int64_t) aAxis.x * rel.y - (int64_t) aAxis.y * rel.x;
+    double   axisLength = aAxis.EuclideanNorm();
+
+    return axisLength > 0.0 ? (double) cross / axisLength : 0.0;
+}
+
+
+static void evaluateTurnProgress( const std::vector<SHAPE_LINE_CHAIN>& aEntryLanes,
+                                  const VECTOR2I& aCentroid,
+                                  const VECTOR2I& aMajorAxis,
+                                  const VECTOR2I& aRoutingDir,
+                                  int aThreshold,
+                                  bool& aLacksTurnProgress,
+                                  bool& aWrongSideTurn )
+{
+    aLacksTurnProgress = false;
+    aWrongSideTurn = false;
+
+    if( aEntryLanes.empty() || aMajorAxis == VECTOR2I( 0, 0 ) || aRoutingDir == VECTOR2I( 0, 0 ) )
+        return;
+
+    if( areParallel( aRoutingDir, aMajorAxis ) )
+        return;
+
+    int desiredSide = signum( (int64_t) aMajorAxis.x * aRoutingDir.y
+                            - (int64_t) aMajorAxis.y * aRoutingDir.x );
+
+    if( desiredSide == 0 )
+        return;
+
+    double threshold = (double) std::max( 1, aThreshold );
+    bool   reachedPositiveSide = false;
+    bool   reachedNegativeSide = false;
+
+    for( const SHAPE_LINE_CHAIN& lane : aEntryLanes )
+    {
+        for( int i = 0; i < lane.PointCount(); ++i )
+        {
+            double departure = signedAxisDeparture( lane.CPoint( i ), aCentroid, aMajorAxis );
+
+            if( departure >= threshold )
+                reachedPositiveSide = true;
+
+            if( departure <= -threshold )
+                reachedNegativeSide = true;
+        }
+    }
+
+    bool reachedDesiredSide = desiredSide > 0 ? reachedPositiveSide : reachedNegativeSide;
+    bool reachedOppositeSide = desiredSide > 0 ? reachedNegativeSide : reachedPositiveSide;
+
+    if( !reachedPositiveSide && !reachedNegativeSide )
+        aLacksTurnProgress = true;
+    else if( !reachedDesiredSide && reachedOppositeSide )
+        aWrongSideTurn = true;
+}
+
+
 static VECTOR2I bundleMajorAxis( const std::vector<VECTOR2I>& aAnchors )
 {
     if( aAnchors.size() < 2 )
@@ -812,10 +883,11 @@ bool BUNDLE_PLACER::buildPreviewCandidate( const SHAPE_LINE_CHAIN& aSpine,
         return false;
 
     VECTOR2I majorAxis = bundleMajorAxis( m_startAnchors );
-    VECTOR2I firstDir = firstSeg.B - firstSeg.A;
+    int      turnThreshold = targetPitch / 2;
 
-    aMetrics.degenerateAxisLock =
-            areParallel( firstDir, majorAxis ) && !areParallel( aRoutingDir, majorAxis );
+    evaluateTurnProgress( entryLanes, m_start.Centroid(), majorAxis, aRoutingDir,
+                          turnThreshold, aMetrics.lacksTurnProgress,
+                          aMetrics.wrongSideTurn );
 
     std::vector<VECTOR2I> entryStarts;
     std::vector<VECTOR2I> entryEnds;
@@ -870,8 +942,11 @@ bool BUNDLE_PLACER::choosePreviewForSpine( const SHAPE_LINE_CHAIN& aSpine,
                 if( aA.metrics.topologyViolations != aB.metrics.topologyViolations )
                     return aA.metrics.topologyViolations < aB.metrics.topologyViolations;
 
-                if( aA.metrics.degenerateAxisLock != aB.metrics.degenerateAxisLock )
-                    return !aA.metrics.degenerateAxisLock;
+                if( aA.metrics.lacksTurnProgress != aB.metrics.lacksTurnProgress )
+                    return !aA.metrics.lacksTurnProgress;
+
+                if( aA.metrics.wrongSideTurn != aB.metrics.wrongSideTurn )
+                    return !aA.metrics.wrongSideTurn;
 
                 if( aA.metrics.totalLength != aB.metrics.totalLength )
                     return aA.metrics.totalLength < aB.metrics.totalLength;
@@ -906,7 +981,8 @@ bool BUNDLE_PLACER::choosePreviewForSpine( const SHAPE_LINE_CHAIN& aSpine,
         candidate.fullyValid = !candidate.metrics.hasBackwardSegments
                             && !candidate.metrics.hasSelfIntersections
                             && !candidate.metrics.hasCrossings
-                            && !candidate.metrics.degenerateAxisLock;
+                            && !candidate.metrics.lacksTurnProgress
+                            && !candidate.metrics.wrongSideTurn;
 
         if( !haveSelection || prefersSelection( candidate, aSelection ) )
         {
@@ -1052,8 +1128,11 @@ bool BUNDLE_PLACER::routeHead( const VECTOR2I& aP )
                 if( aA.metrics.topologyViolations != aB.metrics.topologyViolations )
                     return aA.metrics.topologyViolations < aB.metrics.topologyViolations;
 
-                if( aA.metrics.degenerateAxisLock != aB.metrics.degenerateAxisLock )
-                    return !aA.metrics.degenerateAxisLock;
+                if( aA.metrics.lacksTurnProgress != aB.metrics.lacksTurnProgress )
+                    return !aA.metrics.lacksTurnProgress;
+
+                if( aA.metrics.wrongSideTurn != aB.metrics.wrongSideTurn )
+                    return !aA.metrics.wrongSideTurn;
 
                 if( aA.metrics.totalLength != aB.metrics.totalLength )
                     return aA.metrics.totalLength < aB.metrics.totalLength;
