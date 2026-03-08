@@ -17,8 +17,9 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
+#include <limits>
 
 #include "pns_walkaround.h"
 #include "pns_shove.h"
@@ -35,28 +36,334 @@
 
 namespace PNS {
 
-namespace {
-
-void ensureLaneStartsAtAnchor( SHAPE_LINE_CHAIN& aLane, const VECTOR2I& aAnchor )
+namespace
 {
-    if( aLane.PointCount() == 0 || aLane.CPoint( 0 ) == aAnchor )
-        return;
-
-    SHAPE_LINE_CHAIN anchoredLane;
-    anchoredLane.Append( aAnchor );
-    anchoredLane.Append( aLane );
-    aLane = anchoredLane;
-}
-
-
-void ensureLaneStartsAtAnchors( std::vector<SHAPE_LINE_CHAIN>& aLanes,
-                                const std::vector<VECTOR2I>& aAnchors )
+struct LANE_LAYOUT
 {
-    for( size_t i = 0; i < aLanes.size() && i < aAnchors.size(); ++i )
-        ensureLaneStartsAtAnchor( aLanes[i], aAnchors[i] );
+    VECTOR2I         direction;
+    VECTOR2I         perpendicular;
+    VECTOR2I         centroid;
+    double           directionLength = 0.0;
+    int              targetPitch = 0;
+    int              baseEscape = 0;
+    int              mergeAlongDistance = 0;
+    std::vector<int> startOffsets;
+    std::vector<int> alongOffsets;
+    std::vector<int> targetOffsets;
+};
+
+
+static bool sameLineChainGeometry( const SHAPE_LINE_CHAIN& aA, const SHAPE_LINE_CHAIN& aB )
+{
+    if( aA.PointCount() != aB.PointCount() )
+        return false;
+
+    for( int i = 0; i < aA.PointCount(); ++i )
+    {
+        if( aA.CPoint( i ) != aB.CPoint( i ) )
+            return false;
+    }
+
+    return true;
 }
 
+
+static bool lineHasBackwardSegment( const SHAPE_LINE_CHAIN& aLane, const VECTOR2I& aRoutingDir )
+{
+    if( aRoutingDir == VECTOR2I( 0, 0 ) )
+        return false;
+
+    for( int i = 0; i < aLane.SegmentCount(); ++i )
+    {
+        VECTOR2I delta = aLane.CSegment( i ).B - aLane.CSegment( i ).A;
+        int64_t  dot = (int64_t) delta.x * aRoutingDir.x + (int64_t) delta.y * aRoutingDir.y;
+
+        if( dot < 0 )
+            return true;
+    }
+
+    return false;
 }
+
+
+static bool lanesCross( const SHAPE_LINE_CHAIN& aA, const SHAPE_LINE_CHAIN& aB )
+{
+    SHAPE_LINE_CHAIN::INTERSECTIONS intersections;
+    return aA.Intersect( aB, intersections, true ) > 0;
+}
+
+
+static bool areParallel( const VECTOR2I& aA, const VECTOR2I& aB )
+{
+    if( aA == VECTOR2I( 0, 0 ) || aB == VECTOR2I( 0, 0 ) )
+        return false;
+
+    return (int64_t) aA.x * aB.y == (int64_t) aA.y * aB.x;
+}
+
+
+static VECTOR2I bundleMajorAxis( const std::vector<VECTOR2I>& aAnchors )
+{
+    if( aAnchors.size() < 2 )
+        return VECTOR2I( 0, 0 );
+
+    int minX = aAnchors.front().x;
+    int maxX = aAnchors.front().x;
+    int minY = aAnchors.front().y;
+    int maxY = aAnchors.front().y;
+
+    for( const VECTOR2I& anchor : aAnchors )
+    {
+        minX = std::min( minX, anchor.x );
+        maxX = std::max( maxX, anchor.x );
+        minY = std::min( minY, anchor.y );
+        maxY = std::max( maxY, anchor.y );
+    }
+
+    int spanX = maxX - minX;
+    int spanY = maxY - minY;
+
+    if( spanX == 0 && spanY == 0 )
+        return VECTOR2I( 0, 0 );
+
+    if( spanX > spanY )
+        return VECTOR2I( 1, 0 );
+
+    if( spanY > spanX )
+        return VECTOR2I( 0, 1 );
+
+    std::vector<VECTOR2I> sorted( aAnchors );
+
+    std::sort( sorted.begin(), sorted.end(), []( const VECTOR2I& aA, const VECTOR2I& aB )
+    {
+        if( aA.x != aB.x )
+            return aA.x < aB.x;
+
+        return aA.y < aB.y;
+    } );
+
+    VECTOR2I delta = sorted.back() - sorted.front();
+
+    if( delta == VECTOR2I( 0, 0 ) )
+        return VECTOR2I( 0, 0 );
+
+    DIRECTION_45 dir( delta );
+    return dir.ToVector();
+}
+
+
+static bool buildLaneLayout( const std::vector<VECTOR2I>& aAnchors,
+                             const VECTOR2I& aCentroid,
+                             const SHAPE_LINE_CHAIN& aSpine,
+                             int aTargetPitch,
+                             int aBaseEscape,
+                             LANE_LAYOUT& aLayout )
+{
+    if( aAnchors.empty() || aSpine.SegmentCount() < 1 || aTargetPitch <= 0 )
+        return false;
+
+    SEG      firstSeg = aSpine.CSegment( 0 );
+    VECTOR2I direction = firstSeg.B - firstSeg.A;
+    double   directionLength = direction.EuclideanNorm();
+
+    if( directionLength < 1.0 )
+        return false;
+
+    aLayout.direction = direction;
+    aLayout.perpendicular = VECTOR2I( -direction.y, direction.x );
+    aLayout.centroid = aCentroid;
+    aLayout.directionLength = directionLength;
+    aLayout.targetPitch = aTargetPitch;
+    aLayout.baseEscape = aBaseEscape;
+    aLayout.mergeAlongDistance = 0;
+    aLayout.startOffsets.assign( aAnchors.size(), 0 );
+    aLayout.alongOffsets.assign( aAnchors.size(), 0 );
+    aLayout.targetOffsets.assign( aAnchors.size(), 0 );
+
+    std::vector<int> ordering( aAnchors.size() );
+
+    for( size_t i = 0; i < aAnchors.size(); ++i )
+    {
+        VECTOR2I rel = aAnchors[i] - aCentroid;
+        double   perpProj =
+                ( (double) rel.x * aLayout.perpendicular.x
+                + (double) rel.y * aLayout.perpendicular.y ) / directionLength;
+        double   alongProj =
+                ( (double) rel.x * direction.x
+                + (double) rel.y * direction.y ) / directionLength;
+
+        aLayout.startOffsets[i] = KiROUND( perpProj );
+        aLayout.alongOffsets[i] = KiROUND( alongProj );
+        ordering[i] = static_cast<int>( i );
+    }
+
+    std::sort( ordering.begin(), ordering.end(), [&]( int aA, int aB )
+    {
+        if( aLayout.startOffsets[aA] != aLayout.startOffsets[aB] )
+            return aLayout.startOffsets[aA] < aLayout.startOffsets[aB];
+
+        if( aLayout.alongOffsets[aA] != aLayout.alongOffsets[aB] )
+            return aLayout.alongOffsets[aA] < aLayout.alongOffsets[aB];
+
+        return aA < aB;
+    } );
+
+    std::vector<int> escapeRanks( aAnchors.size(), 0 );
+    std::vector<int> tierValues;
+
+    tierValues.reserve( aAnchors.size() );
+
+    for( size_t k = 0; k < ordering.size(); ++k )
+    {
+        int idx = ordering[k];
+        aLayout.targetOffsets[idx] = KiROUND(
+                ( (double) k - ( (double) ordering.size() - 1.0 ) / 2.0 ) * (double) aTargetPitch );
+        tierValues.push_back( std::abs( aLayout.targetOffsets[idx] ) );
+    }
+
+    std::sort( tierValues.begin(), tierValues.end(), std::greater<int>() );
+    tierValues.erase( std::unique( tierValues.begin(), tierValues.end() ), tierValues.end() );
+
+    for( size_t i = 0; i < aAnchors.size(); ++i )
+    {
+        int absOffset = std::abs( aLayout.targetOffsets[i] );
+        auto it = std::find( tierValues.begin(), tierValues.end(), absOffset );
+
+        if( it != tierValues.end() )
+            escapeRanks[i] = std::distance( tierValues.begin(), it );
+
+        int shift = std::abs( aLayout.targetOffsets[i] - aLayout.startOffsets[i] );
+        int mergeNeed = aLayout.alongOffsets[i] + aBaseEscape + escapeRanks[i] * aTargetPitch + shift;
+        aLayout.mergeAlongDistance = std::max( aLayout.mergeAlongDistance, mergeNeed );
+    }
+
+    return true;
+}
+
+
+static std::vector<int> orderPointsForLayout( const std::vector<VECTOR2I>& aPoints,
+                                              const LANE_LAYOUT& aLayout )
+{
+    std::vector<int> ordering( aPoints.size() );
+
+    for( size_t i = 0; i < aPoints.size(); ++i )
+        ordering[i] = static_cast<int>( i );
+
+    std::sort( ordering.begin(), ordering.end(), [&]( int aA, int aB )
+    {
+        VECTOR2I relA = aPoints[aA] - aLayout.centroid;
+        VECTOR2I relB = aPoints[aB] - aLayout.centroid;
+        double perpA = ( (double) relA.x * aLayout.perpendicular.x
+                       + (double) relA.y * aLayout.perpendicular.y ) / aLayout.directionLength;
+        double perpB = ( (double) relB.x * aLayout.perpendicular.x
+                       + (double) relB.y * aLayout.perpendicular.y ) / aLayout.directionLength;
+
+        if( KiROUND( perpA ) != KiROUND( perpB ) )
+            return KiROUND( perpA ) < KiROUND( perpB );
+
+        double alongA = ( (double) relA.x * aLayout.direction.x
+                        + (double) relA.y * aLayout.direction.y ) / aLayout.directionLength;
+        double alongB = ( (double) relB.x * aLayout.direction.x
+                        + (double) relB.y * aLayout.direction.y ) / aLayout.directionLength;
+
+        if( KiROUND( alongA ) != KiROUND( alongB ) )
+            return KiROUND( alongA ) < KiROUND( alongB );
+
+        return aA < aB;
+    } );
+
+    return ordering;
+}
+
+
+static int countPreMergeCrossings( const std::vector<SHAPE_LINE_CHAIN>& aEntryLanes )
+{
+    int crossingCount = 0;
+
+    for( size_t i = 0; i < aEntryLanes.size(); ++i )
+    {
+        for( size_t j = i + 1; j < aEntryLanes.size(); ++j )
+        {
+            SHAPE_LINE_CHAIN::INTERSECTIONS intersections;
+
+            if( aEntryLanes[i].Intersect( aEntryLanes[j], intersections, true ) > 0 )
+                ++crossingCount;
+        }
+    }
+
+    return crossingCount;
+}
+
+
+static int computeBaseEscapeLength( const BUNDLE_PRIMITIVE_GROUP& aStart,
+                                    bool aChainedPlacement,
+                                    int aCurrentLayer,
+                                    const SIZES_SETTINGS& aSizes,
+                                    const VECTOR2I& aDirection,
+                                    double aDirectionLength )
+{
+    int targetPitch = aSizes.BundleGap() + aSizes.TrackWidth();
+
+    if( targetPitch <= 0 )
+        return 0;
+
+    if( aDirectionLength < 1.0 )
+        return targetPitch;
+
+    if( aChainedPlacement )
+        return targetPitch;
+
+    int maxHalfExtent = 0;
+
+    for( ITEM* item : aStart.Primitives() )
+    {
+        if( !item )
+            continue;
+
+        int halfExtent = 0;
+
+        switch( item->Kind() )
+        {
+        case ITEM::SOLID_T:
+        {
+            const SHAPE* shape = item->Shape( -1 );
+
+            if( shape )
+            {
+                BOX2I bbox = shape->BBox();
+                int   halfW = bbox.GetWidth() / 2;
+                int   halfH = bbox.GetHeight() / 2;
+
+                halfExtent = KiROUND( halfW * std::abs( aDirection.x / aDirectionLength )
+                                    + halfH * std::abs( aDirection.y / aDirectionLength ) );
+            }
+
+            break;
+        }
+        case ITEM::VIA_T:
+            halfExtent = static_cast<const VIA*>( item )->Diameter( aCurrentLayer ) / 2;
+            break;
+
+        case ITEM::SEGMENT_T:
+            halfExtent = static_cast<const SEGMENT*>( item )->Width() / 2;
+            break;
+
+        case ITEM::ARC_T:
+            halfExtent = static_cast<const ARC*>( item )->Width() / 2;
+            break;
+
+        default:
+            break;
+        }
+
+        maxHalfExtent = std::max( maxHalfExtent, halfExtent );
+    }
+
+    return maxHalfExtent > 0
+         ? maxHalfExtent + aSizes.BundleGap() + aSizes.TrackWidth() / 2
+         : targetPitch;
+}
+} // namespace
 
 
 BUNDLE_PLACER::BUNDLE_PLACER( ROUTER* aRouter ) :
@@ -82,6 +389,9 @@ BUNDLE_PLACER::BUNDLE_PLACER( ROUTER* aRouter ) :
     m_currentLayer = 0;
     m_currentEndItem = nullptr;
     m_currentTraceOk = false;
+    m_currentPreviewFullyValid = false;
+    m_currentPreviewFrozen = false;
+    m_hasLastValidPreview = false;
 
     m_escapeLength = 0;
     m_transitionLength = 0;
@@ -96,6 +406,38 @@ BUNDLE_PLACER::~BUNDLE_PLACER()
 void BUNDLE_PLACER::setWorld( NODE* aWorld )
 {
     m_world = aWorld;
+}
+
+
+void BUNDLE_PLACER::clearPreviewCache()
+{
+    m_currentPreviewFullyValid = false;
+    m_currentPreviewFrozen = false;
+    m_hasLastValidPreview = false;
+    m_lastValidPreviewSpine.Clear();
+    m_lastValidPreviewLanes.clear();
+}
+
+
+void BUNDLE_PLACER::cacheLastValidPreview( const SHAPE_LINE_CHAIN& aSpine,
+                                           const std::vector<SHAPE_LINE_CHAIN>& aLanes )
+{
+    m_hasLastValidPreview = true;
+    m_lastValidPreviewSpine = aSpine;
+    m_lastValidPreviewLanes = aLanes;
+}
+
+
+bool BUNDLE_PLACER::restoreLastValidPreview()
+{
+    if( !m_hasLastValidPreview || m_lastValidPreviewLanes.size() != (size_t) m_lineCount )
+        return false;
+
+    m_currentTrace.SetShape( m_lastValidPreviewSpine );
+    m_currentTrace.SetLaneShapes( m_lastValidPreviewLanes );
+    m_currentPreviewFullyValid = false;
+    m_currentPreviewFrozen = true;
+    return true;
 }
 
 
@@ -156,29 +498,28 @@ bool BUNDLE_PLACER::Start( const VECTOR2I& aP, ITEM* aStartItem )
         return false;
     }
 
-    // Sort the start anchors perpendicular to routing direction
-    VECTOR2I routingDir;
-
-    // Use cursor position relative to centroid to determine routing direction
     VECTOR2I centroid = m_start.Centroid();
-    VECTOR2I toCursor = aP - centroid;
-
-    if( std::abs( toCursor.x ) > std::abs( toCursor.y ) )
-        routingDir = VECTOR2I( ( toCursor.x > 0 ) ? 1 : -1, 0 );
-    else
-        routingDir = VECTOR2I( 0, ( toCursor.y > 0 ) ? 1 : -1 );
-
-    m_start.SortByPosition( routingDir );
     m_startAnchors = m_start.Anchors();
 
-    // Compute escape/transition geometry
+    // Compute escape/transition geometry without reordering lane identity.
     int targetPitch = m_sizes.BundleGap() + m_sizes.TrackWidth();
     int maxPadSpacing = 0;
 
-    for( size_t i = 1; i < m_startAnchors.size(); i++ )
+    for( size_t i = 0; i < m_startAnchors.size(); ++i )
     {
-        int dist = ( m_startAnchors[i] - m_startAnchors[i - 1] ).EuclideanNorm();
-        maxPadSpacing = std::max( maxPadSpacing, dist );
+        int nearestSpacing = std::numeric_limits<int>::max();
+
+        for( size_t j = 0; j < m_startAnchors.size(); ++j )
+        {
+            if( i == j )
+                continue;
+
+            nearestSpacing = std::min( nearestSpacing,
+                                       ( m_startAnchors[i] - m_startAnchors[j] ).EuclideanNorm() );
+        }
+
+        if( nearestSpacing != std::numeric_limits<int>::max() )
+            maxPadSpacing = std::max( maxPadSpacing, nearestSpacing );
     }
 
     m_escapeLength = std::max( 3 * targetPitch, 3 * maxPadSpacing );
@@ -197,6 +538,7 @@ bool BUNDLE_PLACER::Start( const VECTOR2I& aP, ITEM* aStartItem )
     m_chainedPlacement = false;
     m_currentTraceOk = false;
     m_lastFixNode = nullptr;
+    clearPreviewCache();
 
     initPlacement();
 
@@ -227,53 +569,24 @@ void BUNDLE_PLACER::initPlacement()
 PITCH_PROFILE BUNDLE_PLACER::buildPitchProfile( const SHAPE_LINE_CHAIN& aSpine ) const
 {
     PITCH_PROFILE profile;
-
     int targetPitch = m_sizes.BundleGap() + m_sizes.TrackWidth();
 
-    if( m_startAnchors.empty() || m_lineCount <= 1 || aSpine.SegmentCount() < 1 )
+    if( m_startAnchors.empty() || m_lineCount <= 1 || aSpine.SegmentCount() < 1 || targetPitch <= 0 )
         return profile;
 
-    VECTOR2I centroid = m_start.Centroid();
-
-    profile.startOffsets.resize( m_lineCount );
-    profile.targetOffsets.resize( m_lineCount );
-
-    // Compute the perpendicular (left normal) of the spine's first segment
     SEG firstSeg = aSpine.CSegment( 0 );
-    VECTOR2I spineDir = firstSeg.B - firstSeg.A;
-    VECTOR2I perp( -spineDir.y, spineDir.x );  // left normal
-    double perpLen = perp.EuclideanNorm();
+    VECTOR2I  spineDir = firstSeg.B - firstSeg.A;
+    double    dirLen = spineDir.EuclideanNorm();
+    int       baseEscape =
+            computeBaseEscapeLength( m_start, m_chainedPlacement, m_currentLayer,
+                                     m_sizes, spineDir, dirLen );
+    LANE_LAYOUT layout;
 
-    if( perpLen < 1.0 )
+    if( !buildLaneLayout( m_startAnchors, m_start.Centroid(), aSpine, targetPitch, baseEscape, layout ) )
         return profile;
 
-    // For each pad, project (padPos - centroid) onto the perpendicular to get real start offset
-    for( int i = 0; i < m_lineCount; i++ )
-    {
-        VECTOR2I rel = m_startAnchors[i] - centroid;
-        double proj = ( (double) rel.x * perp.x + (double) rel.y * perp.y ) / perpLen;
-        profile.startOffsets[i] = KiROUND( proj );
-    }
-
-    // Sort pad indices by projection onto current spine perpendicular
-    // to prevent lane crossing when spine direction differs from initial sort direction
-    std::vector<int> perpOrder( m_lineCount );
-
-    for( int i = 0; i < m_lineCount; i++ )
-        perpOrder[i] = i;
-
-    std::sort( perpOrder.begin(), perpOrder.end(), [&]( int a, int b )
-    {
-        return profile.startOffsets[a] < profile.startOffsets[b];
-    } );
-
-    // Assign target offsets in perpendicular order (not by original index)
-    for( int k = 0; k < m_lineCount; k++ )
-    {
-        int i = perpOrder[k];
-        profile.targetOffsets[i] = KiROUND(
-            ( (double) k - ( (double) m_lineCount - 1.0 ) / 2.0 ) * (double) targetPitch );
-    }
+    profile.startOffsets = layout.startOffsets;
+    profile.targetOffsets = layout.targetOffsets;
 
     bool needsTransition = false;
 
@@ -285,7 +598,7 @@ PITCH_PROFILE BUNDLE_PLACER::buildPitchProfile( const SHAPE_LINE_CHAIN& aSpine )
 
     if( needsTransition )
     {
-        profile.escapeLength = m_escapeLength;
+        profile.escapeLength = std::max( m_escapeLength, layout.baseEscape );
         profile.transitionLength = m_transitionLength;
     }
 
@@ -294,7 +607,9 @@ PITCH_PROFILE BUNDLE_PLACER::buildPitchProfile( const SHAPE_LINE_CHAIN& aSpine )
 
 
 bool BUNDLE_PLACER::buildFanoutLanes( const SHAPE_LINE_CHAIN& aSpine,
-                                      std::vector<SHAPE_LINE_CHAIN>& aLanes ) const
+                                      bool aStartDiagonal,
+                                      std::vector<SHAPE_LINE_CHAIN>& aLanes,
+                                      std::vector<SHAPE_LINE_CHAIN>* aEntryLanes ) const
 {
     if( m_lineCount <= 1 || (int) m_startAnchors.size() != m_lineCount )
         return false;
@@ -307,288 +622,258 @@ bool BUNDLE_PLACER::buildFanoutLanes( const SHAPE_LINE_CHAIN& aSpine,
     if( targetPitch <= 0 )
         return false;
 
-    // Get spine direction D and perpendicular P from first segment (integer vectors)
     SEG firstSeg = aSpine.CSegment( 0 );
-    VECTOR2I D = firstSeg.B - firstSeg.A;
-    VECTOR2I P( -D.y, D.x );  // left perpendicular
-    double dLen = D.EuclideanNorm();
+    VECTOR2I spineDir = firstSeg.B - firstSeg.A;
+    double   dirLen = spineDir.EuclideanNorm();
+    int      baseEscape =
+            computeBaseEscapeLength( m_start, m_chainedPlacement, m_currentLayer,
+                                     m_sizes, spineDir, dirLen );
+    LANE_LAYOUT layout;
 
-    if( dLen < 1.0 )
+    if( !buildLaneLayout( m_startAnchors, m_start.Centroid(), aSpine, targetPitch, baseEscape, layout ) )
         return false;
 
-    VECTOR2I centroid = m_start.Centroid();
-
-    // For each anchor, compute perpendicular offset (startOff), target offset, shift, and
-    // along-spine offset
-    std::vector<int> startOff( m_lineCount );
-    std::vector<int> targetOff( m_lineCount );
-    std::vector<int> shift( m_lineCount );
-    std::vector<int> alongOff( m_lineCount );
-
-    for( int i = 0; i < m_lineCount; i++ )
-    {
-        VECTOR2I rel = m_startAnchors[i] - centroid;
-
-        // Project onto perpendicular
-        double perpProj = ( (double) rel.x * P.x + (double) rel.y * P.y ) / dLen;
-        startOff[i] = KiROUND( perpProj );
-
-        // Along-spine offset from centroid
-        double alongProj = ( (double) rel.x * D.x + (double) rel.y * D.y ) / dLen;
-        alongOff[i] = KiROUND( alongProj );
-    }
-
-    // Sort anchor indices by projection onto CURRENT spine perpendicular P
-    // This prevents lane crossing when spine direction differs from initial sort direction
-    std::vector<int> perpOrder( m_lineCount );
-
-    for( int i = 0; i < m_lineCount; i++ )
-        perpOrder[i] = i;
-
-    std::sort( perpOrder.begin(), perpOrder.end(), [&]( int a, int b )
-    {
-        return startOff[a] < startOff[b];
-    } );
-
-    // Assign target offsets in perpendicular order (not by original index)
-    for( int k = 0; k < m_lineCount; k++ )
-    {
-        int i = perpOrder[k];
-        targetOff[i] = KiROUND(
-            ( (double) k - ( (double) m_lineCount - 1.0 ) / 2.0 ) * (double) targetPitch );
-    }
-
-    for( int i = 0; i < m_lineCount; i++ )
-    {
-        shift[i] = targetOff[i] - startOff[i];
-    }
-
-    // Assign escape tiers from outside-in so the lanes farthest from the bundle
-    // centerline turn first and the center-nearest lanes turn last.
-    std::vector<int> escapeRank( m_lineCount );
-    std::vector<int> absTargetOffsets( m_lineCount );
-    std::vector<int> tierValues( m_lineCount );
-
-    for( int i = 0; i < m_lineCount; i++ )
-    {
-        absTargetOffsets[i] = std::abs( targetOff[i] );
-        tierValues[i] = absTargetOffsets[i];
-    }
-
-    std::sort( tierValues.begin(), tierValues.end(), std::greater<int>() );
-    tierValues.erase( std::unique( tierValues.begin(), tierValues.end() ), tierValues.end() );
-
-    for( int i = 0; i < m_lineCount; i++ )
-    {
-        auto it = std::find( tierValues.begin(), tierValues.end(), absTargetOffsets[i] );
-        escapeRank[i] = std::distance( tierValues.begin(), it );
-    }
-
-    // Compute baseEscape from the start geometry.
-    // Initial placement should clear the actual start primitives before turning.
-    // Chained placement starts from prior track endpoints, so a bundle pitch is
-    // enough to keep the ordered transition from folding back into the corner.
-    int maxHalfExtent = 0;
-
-    if( !m_chainedPlacement )
-    {
-        for( ITEM* item : m_start.Primitives() )
-        {
-            if( !item )
-                continue;
-
-            int halfExtent = 0;
-
-            switch( item->Kind() )
-            {
-            case ITEM::SOLID_T:
-            {
-                // Pad: project BBox half-extents onto spine direction
-                const SHAPE* shape = item->Shape( -1 );
-
-                if( shape )
-                {
-                    BOX2I bbox = shape->BBox();
-                    int halfW = bbox.GetWidth() / 2;
-                    int halfH = bbox.GetHeight() / 2;
-
-                    halfExtent = KiROUND( halfW * std::abs( D.x / dLen )
-                                        + halfH * std::abs( D.y / dLen ) );
-                }
-                break;
-            }
-            case ITEM::VIA_T:
-            {
-                // Via: circular obstacle, radius = Diameter/2, direction-independent
-                const VIA* via = static_cast<const VIA*>( item );
-                halfExtent = via->Diameter( m_currentLayer ) / 2;
-                break;
-            }
-            case ITEM::SEGMENT_T:
-            {
-                // Track endpoint: circular end-cap, radius = Width/2
-                const SEGMENT* seg = static_cast<const SEGMENT*>( item );
-                halfExtent = seg->Width() / 2;
-                break;
-            }
-            case ITEM::ARC_T:
-            {
-                // Arc endpoint: circular end-cap, radius = Width/2
-                const ARC* arc = static_cast<const ARC*>( item );
-                halfExtent = arc->Width() / 2;
-                break;
-            }
-            default:
-                break;
-            }
-
-            maxHalfExtent = std::max( maxHalfExtent, halfExtent );
-        }
-    }
-
-    int baseEscape = maxHalfExtent > 0
-                   ? maxHalfExtent + m_sizes.BundleGap() + m_sizes.TrackWidth() / 2
-                   : targetPitch;
-    std::vector<int> escapeLen( m_lineCount );
-
-    for( int i = 0; i < m_lineCount; i++ )
-        escapeLen[i] = baseEscape + escapeRank[i] * targetPitch;
-
-    // Compute along-spine distances and find merge point
-    std::vector<int> turnLen( m_lineCount );
-    std::vector<int> totalDist( m_lineCount );
-    int mergeAlongDist = 0;
-
-    for( int i = 0; i < m_lineCount; i++ )
-    {
-        turnLen[i] = std::abs( shift[i] );
-        totalDist[i] = alongOff[i] + escapeLen[i] + turnLen[i];
-        mergeAlongDist = std::max( mergeAlongDist, totalDist[i] );
-    }
-
-    // Guard: spine must be long enough for the fanout zone
     int spineLen = aSpine.Length();
+    int effectiveMergeAlong = std::min( layout.mergeAlongDistance, spineLen );
 
-    if( mergeAlongDist <= 0 )
+    if( effectiveMergeAlong <= 0 )
         return false;
 
-    if( mergeAlongDist >= spineLen )
+    bool             hasFullMerge = effectiveMergeAlong == layout.mergeAlongDistance;
+    SHAPE_LINE_CHAIN clippedSpine( aSpine );
+    SHAPE_LINE_CHAIN postSpine;
+
+    if( effectiveMergeAlong < spineLen )
     {
-        // Short spine: build direct fan from each anchor to the target offset at the spine end
-        VECTOR2I spineEnd = aSpine.CPoint( aSpine.PointCount() - 1 );
+        VECTOR2I splitPt = aSpine.PointAlong( effectiveMergeAlong );
+        SHAPE_LINE_CHAIN spineCopy( aSpine );
+        int splitIdx = spineCopy.Split( splitPt );
 
-        aLanes.resize( m_lineCount );
+        if( splitIdx < 0 )
+            return false;
 
-        for( int i = 0; i < m_lineCount; i++ )
-        {
-            VECTOR2I target(
-                spineEnd.x + KiROUND( (double) P.x / dLen * targetOff[i] ),
-                spineEnd.y + KiROUND( (double) P.y / dLen * targetOff[i] ) );
+        clippedSpine = spineCopy.Slice( 0, splitIdx );
 
-            DIRECTION_45 dir( target - m_startAnchors[i] );
-            aLanes[i] = dir.BuildInitialTrace( m_startAnchors[i], target, m_startDiagonal );
-        }
-
-        return true;
+        if( hasFullMerge && splitIdx < spineCopy.PointCount() - 1 )
+            postSpine = spineCopy.Slice( splitIdx, -1 );
     }
 
-    // Split spine at mergeAlongDist
-    VECTOR2I splitPt = aSpine.PointAlong( mergeAlongDist );
-    SHAPE_LINE_CHAIN spineCopy( aSpine );
-    int splitIdx = spineCopy.Split( splitPt );
-
-    if( splitIdx < 0 )
-        return false;
-
-    SHAPE_LINE_CHAIN postSpine = spineCopy.Slice( splitIdx, -1 );
-
-    if( postSpine.PointCount() < 2 )
-        return false;
-
-    // Build per-lane fanout polylines
     aLanes.resize( m_lineCount );
 
+    if( aEntryLanes )
+        aEntryLanes->resize( m_lineCount );
+
     for( int i = 0; i < m_lineCount; i++ )
     {
-        SHAPE_LINE_CHAIN fanout;
+        SHAPE_LINE_CHAIN mergeLane = BUNDLE::OffsetPolyline45( clippedSpine, layout.targetOffsets[i] );
 
-        // Start at the current lane anchor position
-        fanout.Append( m_startAnchors[i] );
+        if( mergeLane.PointCount() < 1 )
+            return false;
 
-        // Escape end: anchorPos + D_scaled * escapeLen[i]
-        VECTOR2I escapeEnd(
-            m_startAnchors[i].x + KiROUND( D.x / dLen * escapeLen[i] ),
-            m_startAnchors[i].y + KiROUND( D.y / dLen * escapeLen[i] ) );
+        VECTOR2I mergeAnchor = mergeLane.CLastPoint();
+        SHAPE_LINE_CHAIN lane;
 
-        fanout.Append( escapeEnd );
-
-        // 45° turn if shift is non-zero
-        VECTOR2I turnEnd = escapeEnd;
-
-        if( shift[i] != 0 )
+        if( mergeAnchor == m_startAnchors[i] )
         {
-            int absShift = std::abs( shift[i] );
-            turnEnd = VECTOR2I(
-                escapeEnd.x + KiROUND( D.x / dLen * absShift )
-                            + KiROUND( P.x / dLen * shift[i] ),
-                escapeEnd.y + KiROUND( D.y / dLen * absShift )
-                            + KiROUND( P.y / dLen * shift[i] ) );
-
-            fanout.Append( turnEnd );
+            lane.Append( mergeAnchor );
+        }
+        else
+        {
+            lane = DIRECTION_45().BuildInitialTrace( m_startAnchors[i], mergeAnchor, aStartDiagonal );
         }
 
-        // Straight run to fill to merge distance
-        int straightRun = mergeAlongDist - totalDist[i];
+        if( lane.PointCount() == 0 )
+            return false;
 
-        if( straightRun > 0 )
+        if( aEntryLanes )
+            ( *aEntryLanes )[i] = lane;
+
+        if( hasFullMerge && postSpine.PointCount() >= 2 )
         {
-            VECTOR2I mergePoint(
-                turnEnd.x + KiROUND( D.x / dLen * straightRun ),
-                turnEnd.y + KiROUND( D.y / dLen * straightRun ) );
+            SHAPE_LINE_CHAIN uniformLane = BUNDLE::OffsetPolyline45( postSpine, layout.targetOffsets[i] );
+            int startIdx = uniformLane.PointCount() > 0 && uniformLane.CPoint( 0 ) == lane.CLastPoint()
+                         ? 1
+                         : 0;
 
-            fanout.Append( mergePoint );
+            for( int j = startIdx; j < uniformLane.PointCount(); ++j )
+                lane.Append( uniformLane.CPoint( j ) );
         }
 
-        // Generate uniform offset lane from postSpine
-        int offset = targetOff[i];
-        SHAPE_LINE_CHAIN uniformLane = BUNDLE::OffsetPolyline45( postSpine, offset );
+        if( lane.PointCount() > 2 )
+            lane.Simplify();
 
-        // Append uniform lane (skip its first point if it overlaps with fanout end)
-        if( uniformLane.PointCount() > 0 )
-        {
-            for( int j = 0; j < uniformLane.PointCount(); j++ )
-                fanout.Append( uniformLane.CPoint( j ) );
-        }
-
-        aLanes[i] = fanout;
+        aLanes[i] = lane;
     }
 
     return true;
 }
 
 
-bool BUNDLE_PLACER::buildSpine( const VECTOR2I& aP, SHAPE_LINE_CHAIN& aSpine )
+bool BUNDLE_PLACER::buildPreviewCandidate( const SHAPE_LINE_CHAIN& aSpine,
+                                           bool aStartDiagonal,
+                                           const VECTOR2I& aRoutingDir,
+                                           std::vector<SHAPE_LINE_CHAIN>& aLanes,
+                                           PREVIEW_METRICS& aMetrics ) const
 {
-    // Build a 45-degree constrained polyline from m_p_start to aP
-    // Use simple two-segment L-shape (horizontal/vertical then diagonal, or vice versa)
+    aMetrics = PREVIEW_METRICS();
+    std::vector<SHAPE_LINE_CHAIN> entryLanes;
 
-    DIRECTION_45 dir( aP - m_p_start );
-
-    aSpine.Clear();
-    aSpine.Append( m_p_start );
-
-    VECTOR2I delta = aP - m_p_start;
-
-    if( delta.x == 0 && delta.y == 0 )
-    {
+    if( !buildFanoutLanes( aSpine, aStartDiagonal, aLanes, &entryLanes ) )
         return false;
+
+    aMetrics.anchoredGeometryBuilt = true;
+
+    int targetPitch = m_sizes.BundleGap() + m_sizes.TrackWidth();
+    SEG firstSeg = aSpine.CSegment( 0 );
+    VECTOR2I spineDir = firstSeg.B - firstSeg.A;
+    double dirLen = spineDir.EuclideanNorm();
+    int baseEscape =
+            computeBaseEscapeLength( m_start, m_chainedPlacement, m_currentLayer,
+                                     m_sizes, spineDir, dirLen );
+    LANE_LAYOUT layout;
+
+    if( !buildLaneLayout( m_startAnchors, m_start.Centroid(), aSpine, targetPitch, baseEscape, layout ) )
+        return false;
+
+    VECTOR2I majorAxis = bundleMajorAxis( m_startAnchors );
+    VECTOR2I firstDir = firstSeg.B - firstSeg.A;
+
+    aMetrics.degenerateAxisLock =
+            areParallel( firstDir, majorAxis ) && !areParallel( aRoutingDir, majorAxis );
+
+    std::vector<VECTOR2I> entryStarts;
+    std::vector<VECTOR2I> entryEnds;
+
+    entryStarts.reserve( entryLanes.size() );
+    entryEnds.reserve( entryLanes.size() );
+
+    for( int i = 0; i < m_lineCount; ++i )
+    {
+        const SHAPE_LINE_CHAIN& lane = aLanes[i];
+        const SHAPE_LINE_CHAIN& entryLane = entryLanes[i];
+
+        if( lane.PointCount() == 0 || lane.CPoint( 0 ) != m_startAnchors[i] )
+            return false;
+
+        if( lane.SelfIntersecting() || entryLane.SelfIntersecting() )
+            aMetrics.hasSelfIntersections = true;
+
+        if( lineHasBackwardSegment( lane, aRoutingDir ) )
+            aMetrics.hasBackwardSegments = true;
+
+        aMetrics.totalLength += lane.Length();
+        aMetrics.maxLength = std::max( aMetrics.maxLength, lane.Length() );
+        entryStarts.push_back( entryLane.CPoint( 0 ) );
+        entryEnds.push_back( entryLane.CLastPoint() );
     }
 
-    // Build 45-degree constrained path using DIRECTION_45
-    SHAPE_LINE_CHAIN line = dir.BuildInitialTrace( m_p_start, aP, m_startDiagonal );
+    std::vector<int> startOrder = orderPointsForLayout( entryStarts, layout );
+    std::vector<int> endOrder = orderPointsForLayout( entryEnds, layout );
 
-    aSpine = line;
-    return aSpine.PointCount() >= 2;
+    if( startOrder != endOrder && countPreMergeCrossings( entryLanes ) > 0 )
+        aMetrics.hasCrossings = true;
+
+    aMetrics.topologyViolations = ( aMetrics.hasBackwardSegments ? 1 : 0 )
+                                + ( aMetrics.hasSelfIntersections ? 1 : 0 )
+                                + ( aMetrics.hasCrossings ? 1 : 0 );
+
+    return true;
+}
+
+
+bool BUNDLE_PLACER::choosePreviewForSpine( const SHAPE_LINE_CHAIN& aSpine,
+                                           const VECTOR2I& aRoutingDir,
+                                           PREVIEW_SELECTION& aSelection ) const
+{
+    auto prefersSelection =
+            [&]( const PREVIEW_SELECTION& aA, const PREVIEW_SELECTION& aB ) -> bool
+            {
+                if( aA.fullyValid != aB.fullyValid )
+                    return aA.fullyValid;
+
+                if( aA.metrics.topologyViolations != aB.metrics.topologyViolations )
+                    return aA.metrics.topologyViolations < aB.metrics.topologyViolations;
+
+                if( aA.metrics.degenerateAxisLock != aB.metrics.degenerateAxisLock )
+                    return !aA.metrics.degenerateAxisLock;
+
+                if( aA.metrics.totalLength != aB.metrics.totalLength )
+                    return aA.metrics.totalLength < aB.metrics.totalLength;
+
+                if( aA.metrics.maxLength != aB.metrics.maxLength )
+                    return aA.metrics.maxLength < aB.metrics.maxLength;
+
+                bool preferredA = aA.startDiagonal == m_startDiagonal;
+                bool preferredB = aB.startDiagonal == m_startDiagonal;
+
+                if( preferredA != preferredB )
+                    return preferredA;
+
+                return aA.order < aB.order;
+            };
+
+    bool haveSelection = false;
+
+    for( int order = 0; order < 2; ++order )
+    {
+        PREVIEW_SELECTION candidate;
+        candidate.spine = aSpine;
+        candidate.startDiagonal = order != 0;
+        candidate.order = order;
+        candidate.anchoredGeometryBuilt = buildPreviewCandidate( aSpine, candidate.startDiagonal,
+                                                                 aRoutingDir, candidate.lanes,
+                                                                 candidate.metrics );
+
+        if( !candidate.anchoredGeometryBuilt )
+            continue;
+
+        candidate.fullyValid = !candidate.metrics.hasBackwardSegments
+                            && !candidate.metrics.hasSelfIntersections
+                            && !candidate.metrics.hasCrossings
+                            && !candidate.metrics.degenerateAxisLock;
+
+        if( !haveSelection || prefersSelection( candidate, aSelection ) )
+        {
+            aSelection = std::move( candidate );
+            haveSelection = true;
+        }
+    }
+
+    return haveSelection;
+}
+
+
+bool BUNDLE_PLACER::buildSpineCandidates( const VECTOR2I& aP,
+                                          std::vector<SPINE_CANDIDATE>& aCandidates ) const
+{
+    aCandidates.clear();
+
+    if( aP == m_p_start )
+        return false;
+
+    for( bool startDiagonal : { false, true } )
+    {
+        SHAPE_LINE_CHAIN spine = DIRECTION_45().BuildInitialTrace( m_p_start, aP, startDiagonal );
+
+        if( spine.PointCount() < 2 )
+            continue;
+
+        bool duplicate = false;
+
+        for( const SPINE_CANDIDATE& existing : aCandidates )
+        {
+            if( sameLineChainGeometry( existing.spine, spine ) )
+            {
+                duplicate = true;
+                break;
+            }
+        }
+
+        if( !duplicate )
+            aCandidates.push_back( { spine, startDiagonal } );
+    }
+
+    return !aCandidates.empty();
 }
 
 
@@ -601,80 +886,156 @@ bool BUNDLE_PLACER::applySpinePreservingAnchors( const SHAPE_LINE_CHAIN& aSpine,
     m_currentTrace.SetShape( aSpine );
 
     if( m_lineCount <= 1 || (int) m_startAnchors.size() != m_lineCount )
-        return true;
-
-    std::vector<SHAPE_LINE_CHAIN> lanes;
-
-    if( buildFanoutLanes( aSpine, lanes ) )
     {
-        ensureLaneStartsAtAnchors( lanes, m_startAnchors );
-        m_currentTrace.SetLaneShapes( lanes );
+        m_currentPreviewFullyValid = true;
+        m_currentPreviewFrozen = false;
         return true;
     }
+
+    VECTOR2I routingDir = aSpine.CLastPoint() - m_p_start;
+    PREVIEW_SELECTION selection;
+
+    if( choosePreviewForSpine( aSpine, routingDir, selection ) )
+    {
+        if( selection.fullyValid )
+        {
+            m_currentTrace.SetShape( selection.spine );
+            m_currentTrace.SetLaneShapes( selection.lanes );
+            cacheLastValidPreview( selection.spine, selection.lanes );
+            m_currentPreviewFullyValid = true;
+            m_currentPreviewFrozen = false;
+            return true;
+        }
+
+        if( restoreLastValidPreview() )
+            return true;
+
+        m_currentTrace.SetShape( selection.spine );
+        m_currentTrace.SetLaneShapes( selection.lanes );
+        m_currentPreviewFullyValid = false;
+        m_currentPreviewFrozen = false;
+        return true;
+    }
+
+    if( restoreLastValidPreview() )
+        return true;
 
     if( !aAllowProfileFallback )
         return false;
 
-    PITCH_PROFILE profile = buildPitchProfile( aSpine );
-
-    if( profile.HasTransition() )
-    {
-        m_currentTrace.SetShape( aSpine, profile );
-        lanes.resize( m_lineCount );
-
-        for( int i = 0; i < m_lineCount; i++ )
-            lanes[i] = m_currentTrace.CLane( i );
-    }
-    else
-    {
-        SEG firstSeg = aSpine.CSegment( 0 );
-        VECTOR2I spDir = firstSeg.B - firstSeg.A;
-        VECTOR2I spPerp( -spDir.y, spDir.x );
-        VECTOR2I cent = m_start.Centroid();
-
-        std::vector<int> perpOrder( m_lineCount );
-        lanes.resize( m_lineCount );
-
-        for( int i = 0; i < m_lineCount; i++ )
-            perpOrder[i] = i;
-
-        std::sort( perpOrder.begin(), perpOrder.end(), [&]( int a, int b )
-        {
-            int64_t projA = (int64_t)( m_startAnchors[a].x - cent.x ) * spPerp.x
-                          + (int64_t)( m_startAnchors[a].y - cent.y ) * spPerp.y;
-            int64_t projB = (int64_t)( m_startAnchors[b].x - cent.x ) * spPerp.x
-                          + (int64_t)( m_startAnchors[b].y - cent.y ) * spPerp.y;
-            return projA < projB;
-        } );
-
-        for( int k = 0; k < m_lineCount; k++ )
-        {
-            int anchorIdx = perpOrder[k];
-            lanes[anchorIdx] = m_currentTrace.CLane( k );
-        }
-    }
-
-    ensureLaneStartsAtAnchors( lanes, m_startAnchors );
-    m_currentTrace.SetLaneShapes( lanes );
-    return true;
+    return false;
 }
 
 
 bool BUNDLE_PLACER::routeHead( const VECTOR2I& aP )
 {
     m_fitOk = false;
+    std::vector<SPINE_CANDIDATE> spineCandidates;
 
-    SHAPE_LINE_CHAIN spine;
-
-    if( !buildSpine( aP, spine ) )
+    if( !buildSpineCandidates( aP, spineCandidates ) )
         return false;
 
     m_currentTrace.SetGap( m_sizes.BundleGap() );
     m_currentTrace.SetWidth( m_currentWidth );
     m_currentTrace.SetLayer( m_currentLayer );
+    m_currentPreviewFullyValid = false;
+    m_currentPreviewFrozen = false;
 
-    if( !applySpinePreservingAnchors( spine ) )
+    if( m_lineCount <= 1 || (int) m_startAnchors.size() != m_lineCount )
+    {
+        std::stable_sort( spineCandidates.begin(), spineCandidates.end(),
+                          [&]( const SPINE_CANDIDATE& aA, const SPINE_CANDIDATE& aB )
+        {
+            bool preferredA = aA.startDiagonal == m_startDiagonal;
+            bool preferredB = aB.startDiagonal == m_startDiagonal;
+
+            if( preferredA != preferredB )
+                return preferredA;
+
+            return aA.startDiagonal < aB.startDiagonal;
+        } );
+
+        m_currentTrace.SetShape( spineCandidates.front().spine );
+        m_currentPreviewFullyValid = true;
+        m_currentPreviewFrozen = false;
+        m_currentTrace.SetNets( m_nets );
+        m_currentTraceOk = true;
+        return true;
+    }
+
+    VECTOR2I                     routingDir = aP - m_p_start;
+    PREVIEW_SELECTION            bestSelection;
+    bool                         haveBestSelection = false;
+
+    auto prefersSelection =
+            [&]( const PREVIEW_SELECTION& aA, const PREVIEW_SELECTION& aB ) -> bool
+            {
+                if( aA.fullyValid != aB.fullyValid )
+                    return aA.fullyValid;
+
+                if( aA.metrics.topologyViolations != aB.metrics.topologyViolations )
+                    return aA.metrics.topologyViolations < aB.metrics.topologyViolations;
+
+                if( aA.metrics.degenerateAxisLock != aB.metrics.degenerateAxisLock )
+                    return !aA.metrics.degenerateAxisLock;
+
+                if( aA.metrics.totalLength != aB.metrics.totalLength )
+                    return aA.metrics.totalLength < aB.metrics.totalLength;
+
+                if( aA.metrics.maxLength != aB.metrics.maxLength )
+                    return aA.metrics.maxLength < aB.metrics.maxLength;
+
+                bool preferredA = aA.startDiagonal == m_startDiagonal;
+                bool preferredB = aB.startDiagonal == m_startDiagonal;
+
+                if( preferredA != preferredB )
+                    return preferredA;
+
+                return aA.order < aB.order;
+            };
+
+    for( size_t i = 0; i < spineCandidates.size(); ++i )
+    {
+        PREVIEW_SELECTION selection;
+
+        if( !choosePreviewForSpine( spineCandidates[i].spine, routingDir, selection ) )
+            continue;
+
+        selection.order = static_cast<int>( i );
+
+        if( !haveBestSelection || prefersSelection( selection, bestSelection ) )
+        {
+            bestSelection = std::move( selection );
+            haveBestSelection = true;
+        }
+    }
+
+    if( haveBestSelection )
+    {
+        if( bestSelection.fullyValid )
+        {
+            m_currentTrace.SetShape( bestSelection.spine );
+            m_currentTrace.SetLaneShapes( bestSelection.lanes );
+            cacheLastValidPreview( bestSelection.spine, bestSelection.lanes );
+            m_currentPreviewFullyValid = true;
+            m_currentPreviewFrozen = false;
+        }
+        else if( restoreLastValidPreview() )
+        {
+            // frozen preview restored
+        }
+        else
+        {
+            m_currentTrace.SetShape( bestSelection.spine );
+            m_currentTrace.SetLaneShapes( bestSelection.lanes );
+            m_currentPreviewFullyValid = false;
+            m_currentPreviewFrozen = false;
+        }
+    }
+    else if( !restoreLastValidPreview() )
+    {
         return false;
+    }
 
     m_currentTrace.SetNets( m_nets );
     m_currentTraceOk = true;
@@ -699,7 +1060,7 @@ bool BUNDLE_PLACER::rhMarkObstacles( const VECTOR2I& aP )
         }
     }
 
-    m_fitOk = !anyCollision;
+    m_fitOk = !anyCollision && m_currentPreviewFullyValid && !m_currentPreviewFrozen;
     return m_fitOk;
 }
 
@@ -750,7 +1111,7 @@ bool BUNDLE_PLACER::rhWalkOnly( const VECTOR2I& aP )
             }
         }
 
-        m_fitOk = allClear;
+        m_fitOk = allClear && m_currentPreviewFullyValid && !m_currentPreviewFrozen;
     }
     else
     {
@@ -810,7 +1171,11 @@ bool BUNDLE_PLACER::rhShoveOnly( const VECTOR2I& aP )
                 if( m_shove->HeadsModified( i ) )
                 {
                     LINE modifiedHead = m_shove->GetModifiedHead( i );
-                    shovedLanes[i] = modifiedHead.CLine();
+
+                    if( modifiedHead.PointCount() > 0 && modifiedHead.CPoint( 0 ) == m_startAnchors[i] )
+                        shovedLanes[i] = modifiedHead.CLine();
+                    else
+                        shovedLanes[i] = m_currentTrace.CLane( i );
                 }
                 else
                 {
@@ -818,12 +1183,11 @@ bool BUNDLE_PLACER::rhShoveOnly( const VECTOR2I& aP )
                 }
             }
 
-            ensureLaneStartsAtAnchors( shovedLanes, m_startAnchors );
             m_currentTrace.SetLaneShapes( shovedLanes );
         }
 
-        m_fitOk = true;
-        return true;
+        m_fitOk = m_currentPreviewFullyValid && !m_currentPreviewFrozen;
+        return m_fitOk;
     }
 
     // Phase 1: Pre-walk against solids only, then attempt shove. This keeps
@@ -875,7 +1239,11 @@ bool BUNDLE_PLACER::rhShoveOnly( const VECTOR2I& aP )
             if( m_shove->HeadsModified( i ) )
             {
                 LINE modifiedHead = m_shove->GetModifiedHead( i );
-                shovedLanes[i] = modifiedHead.CLine();
+
+                if( modifiedHead.PointCount() > 0 && modifiedHead.CPoint( 0 ) == m_startAnchors[i] )
+                    shovedLanes[i] = modifiedHead.CLine();
+                else
+                    shovedLanes[i] = m_currentTrace.CLane( i );
             }
             else
             {
@@ -883,7 +1251,6 @@ bool BUNDLE_PLACER::rhShoveOnly( const VECTOR2I& aP )
             }
         }
 
-        ensureLaneStartsAtAnchors( shovedLanes, m_startAnchors );
         m_currentTrace.SetLaneShapes( shovedLanes );
 
         // Verify all lanes
@@ -898,7 +1265,7 @@ bool BUNDLE_PLACER::rhShoveOnly( const VECTOR2I& aP )
             break;
         }
 
-        m_fitOk = allClear;
+        m_fitOk = allClear && m_currentPreviewFullyValid && !m_currentPreviewFrozen;
     }
 
     // Bundle shove mode must not silently switch to full walkaround, otherwise
@@ -1053,6 +1420,7 @@ bool BUNDLE_PLACER::FixRoute( const VECTOR2I& aP, ITEM* aEndItem, bool aForceFin
 
     if( aForceFinish )
     {
+        clearPreviewCache();
         m_idle = true;
         return true;
     }
@@ -1076,6 +1444,7 @@ bool BUNDLE_PLACER::FixRoute( const VECTOR2I& aP, ITEM* aEndItem, bool aForceFin
         m_start.SetAnchors( m_startAnchors );
 
         m_chainedPlacement = true;
+        clearPreviewCache();
         initPlacement();
         return false;
     }
@@ -1086,6 +1455,7 @@ bool BUNDLE_PLACER::AbortPlacement()
 {
     m_world->KillChildren();
     m_lastNode = nullptr;
+    clearPreviewCache();
     return true;
 }
 
@@ -1104,6 +1474,7 @@ bool BUNDLE_PLACER::CommitPlacement()
     m_lastFixNode = nullptr;
     m_lastNode = nullptr;
     m_currentNode = nullptr;
+    clearPreviewCache();
     return true;
 }
 

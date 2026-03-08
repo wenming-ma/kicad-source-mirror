@@ -134,6 +134,35 @@ private:
      */
     PITCH_PROFILE buildPitchProfile( const SHAPE_LINE_CHAIN& aSpine ) const;
 
+    struct SPINE_CANDIDATE
+    {
+        SHAPE_LINE_CHAIN spine;
+        bool             startDiagonal = false;
+    };
+
+    struct PREVIEW_METRICS
+    {
+        bool anchoredGeometryBuilt = false;
+        long long int totalLength = 0;
+        long long int maxLength = 0;
+        bool hasBackwardSegments = false;
+        bool hasSelfIntersections = false;
+        bool hasCrossings = false;
+        bool degenerateAxisLock = false;
+        int topologyViolations = 0;
+    };
+
+    struct PREVIEW_SELECTION
+    {
+        SHAPE_LINE_CHAIN              spine;
+        std::vector<SHAPE_LINE_CHAIN> lanes;
+        PREVIEW_METRICS               metrics;
+        bool                          startDiagonal = false;
+        bool                          fullyValid = false;
+        bool                          anchoredGeometryBuilt = false;
+        int                           order = 0;
+    };
+
     /**
      * Build structured fanout lanes from pad positions to uniform pitch.
      * Each lane gets a parallel escape, 45-degree turn, and straight run
@@ -141,18 +170,36 @@ private:
      * Returns false if the spine is too short or fanout is not applicable.
      */
     bool buildFanoutLanes( const SHAPE_LINE_CHAIN& aSpine,
-                           std::vector<SHAPE_LINE_CHAIN>& aLanes ) const;
+                           bool aStartDiagonal,
+                           std::vector<SHAPE_LINE_CHAIN>& aLanes,
+                           std::vector<SHAPE_LINE_CHAIN>* aEntryLanes = nullptr ) const;
+
+    bool buildPreviewCandidate( const SHAPE_LINE_CHAIN& aSpine,
+                                bool aStartDiagonal,
+                                const VECTOR2I& aRoutingDir,
+                                std::vector<SHAPE_LINE_CHAIN>& aLanes,
+                                PREVIEW_METRICS& aMetrics ) const;
+
+    bool choosePreviewForSpine( const SHAPE_LINE_CHAIN& aSpine,
+                                const VECTOR2I& aRoutingDir,
+                                PREVIEW_SELECTION& aSelection ) const;
 
     /**
-     * Generate the spine line from current start to target point.
+     * Generate candidate spine lines from current start to target point.
      */
-    bool buildSpine( const VECTOR2I& aP, SHAPE_LINE_CHAIN& aSpine );
+    bool buildSpineCandidates( const VECTOR2I& aP,
+                               std::vector<SPINE_CANDIDATE>& aCandidates ) const;
 
     /**
      * Apply a spine to the current trace while preserving the current start anchors.
      */
     bool applySpinePreservingAnchors( const SHAPE_LINE_CHAIN& aSpine,
                                       bool aAllowProfileFallback = true );
+
+    void clearPreviewCache();
+    void cacheLastValidPreview( const SHAPE_LINE_CHAIN& aSpine,
+                                const std::vector<SHAPE_LINE_CHAIN>& aLanes );
+    bool restoreLastValidPreview();
 
     enum State {
         RT_START = 0,
@@ -206,6 +253,11 @@ private:
     ///< The current bundle trace
     BUNDLE m_currentTrace;
     bool   m_currentTraceOk;
+    bool   m_currentPreviewFullyValid;
+    bool   m_currentPreviewFrozen;
+    bool   m_hasLastValidPreview;
+    SHAPE_LINE_CHAIN              m_lastValidPreviewSpine;
+    std::vector<SHAPE_LINE_CHAIN> m_lastValidPreviewLanes;
 
     ITEM* m_currentEndItem;
 
