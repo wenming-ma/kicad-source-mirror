@@ -35,6 +35,30 @@
 
 namespace PNS {
 
+namespace {
+
+void ensureLaneStartsAtAnchor( SHAPE_LINE_CHAIN& aLane, const VECTOR2I& aAnchor )
+{
+    if( aLane.PointCount() == 0 || aLane.CPoint( 0 ) == aAnchor )
+        return;
+
+    SHAPE_LINE_CHAIN anchoredLane;
+    anchoredLane.Append( aAnchor );
+    anchoredLane.Append( aLane );
+    aLane = anchoredLane;
+}
+
+
+void ensureLaneStartsAtAnchors( std::vector<SHAPE_LINE_CHAIN>& aLanes,
+                                const std::vector<VECTOR2I>& aAnchors )
+{
+    for( size_t i = 0; i < aLanes.size() && i < aAnchors.size(); ++i )
+        ensureLaneStartsAtAnchor( aLanes[i], aAnchors[i] );
+}
+
+}
+
+
 BUNDLE_PLACER::BUNDLE_PLACER( ROUTER* aRouter ) :
     PLACEMENT_ALGO( aRouter )
 {
@@ -568,6 +592,74 @@ bool BUNDLE_PLACER::buildSpine( const VECTOR2I& aP, SHAPE_LINE_CHAIN& aSpine )
 }
 
 
+bool BUNDLE_PLACER::applySpinePreservingAnchors( const SHAPE_LINE_CHAIN& aSpine,
+                                                 bool aAllowProfileFallback )
+{
+    if( aSpine.PointCount() < 2 )
+        return false;
+
+    m_currentTrace.SetShape( aSpine );
+
+    if( m_lineCount <= 1 || (int) m_startAnchors.size() != m_lineCount )
+        return true;
+
+    std::vector<SHAPE_LINE_CHAIN> lanes;
+
+    if( buildFanoutLanes( aSpine, lanes ) )
+    {
+        ensureLaneStartsAtAnchors( lanes, m_startAnchors );
+        m_currentTrace.SetLaneShapes( lanes );
+        return true;
+    }
+
+    if( !aAllowProfileFallback )
+        return false;
+
+    PITCH_PROFILE profile = buildPitchProfile( aSpine );
+
+    if( profile.HasTransition() )
+    {
+        m_currentTrace.SetShape( aSpine, profile );
+        lanes.resize( m_lineCount );
+
+        for( int i = 0; i < m_lineCount; i++ )
+            lanes[i] = m_currentTrace.CLane( i );
+    }
+    else
+    {
+        SEG firstSeg = aSpine.CSegment( 0 );
+        VECTOR2I spDir = firstSeg.B - firstSeg.A;
+        VECTOR2I spPerp( -spDir.y, spDir.x );
+        VECTOR2I cent = m_start.Centroid();
+
+        std::vector<int> perpOrder( m_lineCount );
+        lanes.resize( m_lineCount );
+
+        for( int i = 0; i < m_lineCount; i++ )
+            perpOrder[i] = i;
+
+        std::sort( perpOrder.begin(), perpOrder.end(), [&]( int a, int b )
+        {
+            int64_t projA = (int64_t)( m_startAnchors[a].x - cent.x ) * spPerp.x
+                          + (int64_t)( m_startAnchors[a].y - cent.y ) * spPerp.y;
+            int64_t projB = (int64_t)( m_startAnchors[b].x - cent.x ) * spPerp.x
+                          + (int64_t)( m_startAnchors[b].y - cent.y ) * spPerp.y;
+            return projA < projB;
+        } );
+
+        for( int k = 0; k < m_lineCount; k++ )
+        {
+            int anchorIdx = perpOrder[k];
+            lanes[anchorIdx] = m_currentTrace.CLane( k );
+        }
+    }
+
+    ensureLaneStartsAtAnchors( lanes, m_startAnchors );
+    m_currentTrace.SetLaneShapes( lanes );
+    return true;
+}
+
+
 bool BUNDLE_PLACER::routeHead( const VECTOR2I& aP )
 {
     m_fitOk = false;
@@ -581,68 +673,8 @@ bool BUNDLE_PLACER::routeHead( const VECTOR2I& aP )
     m_currentTrace.SetWidth( m_currentWidth );
     m_currentTrace.SetLayer( m_currentLayer );
 
-    // For multi-lane placement, try a structured transition from the current
-    // anchors to the uniform bundle pitch on the new spine.
-    if( m_lineCount > 1 && (int) m_startAnchors.size() == m_lineCount )
-    {
-        std::vector<SHAPE_LINE_CHAIN> lanes;
-
-        if( buildFanoutLanes( spine, lanes ) )
-        {
-            m_currentTrace.SetShape( spine );
-            m_currentTrace.SetLaneShapes( lanes );
-        }
-        else
-        {
-            // Fallback: uniform offset with anchor prepend
-            m_currentTrace.SetShape( spine );
-
-            // Compute perpendicular order for current spine to prevent lane crossing
-            SEG firstSeg = spine.CSegment( 0 );
-            VECTOR2I spDir = firstSeg.B - firstSeg.A;
-            VECTOR2I spPerp( -spDir.y, spDir.x );
-            VECTOR2I cent = m_start.Centroid();
-
-            std::vector<int> perpOrder( m_lineCount );
-
-            for( int i = 0; i < m_lineCount; i++ )
-                perpOrder[i] = i;
-
-            std::sort( perpOrder.begin(), perpOrder.end(), [&]( int a, int b )
-            {
-                int64_t projA = (int64_t)( m_startAnchors[a].x - cent.x ) * spPerp.x
-                              + (int64_t)( m_startAnchors[a].y - cent.y ) * spPerp.y;
-                int64_t projB = (int64_t)( m_startAnchors[b].x - cent.x ) * spPerp.x
-                              + (int64_t)( m_startAnchors[b].y - cent.y ) * spPerp.y;
-                return projA < projB;
-            } );
-
-            // Map: perpOrder[k] = anchor index that should get lane k's geometry
-            std::vector<SHAPE_LINE_CHAIN> fallbackLanes( m_lineCount );
-
-            for( int k = 0; k < m_lineCount; k++ )
-            {
-                int anchorIdx = perpOrder[k];
-                fallbackLanes[anchorIdx] = m_currentTrace.CLane( k );
-
-                if( fallbackLanes[anchorIdx].PointCount() > 0
-                    && fallbackLanes[anchorIdx].CPoint( 0 ) != m_startAnchors[anchorIdx] )
-                {
-                    SHAPE_LINE_CHAIN withAnchor;
-                    withAnchor.Append( m_startAnchors[anchorIdx] );
-                    withAnchor.Append( fallbackLanes[anchorIdx] );
-                    fallbackLanes[anchorIdx] = withAnchor;
-                }
-            }
-
-            m_currentTrace.SetLaneShapes( fallbackLanes );
-        }
-    }
-    else
-    {
-        // Single lane: uniform offset only
-        m_currentTrace.SetShape( spine );
-    }
+    if( !applySpinePreservingAnchors( spine ) )
+        return false;
 
     m_currentTrace.SetNets( m_nets );
     m_currentTraceOk = true;
@@ -700,13 +732,11 @@ bool BUNDLE_PLACER::rhWalkOnly( const VECTOR2I& aP )
     {
         SHAPE_LINE_CHAIN walkedSpine = wf.lines[WALKAROUND::WP_SHORTEST].CLine();
 
-        // Regenerate lanes from the walked-around spine
-        PITCH_PROFILE profile = buildPitchProfile( walkedSpine );
-
-        if( profile.HasTransition() )
-            m_currentTrace.SetShape( walkedSpine, profile );
-        else
-            m_currentTrace.SetShape( walkedSpine );
+        if( !applySpinePreservingAnchors( walkedSpine ) )
+        {
+            m_fitOk = false;
+            return false;
+        }
 
         // Verify all lanes are collision-free
         bool allClear = true;
@@ -788,6 +818,7 @@ bool BUNDLE_PLACER::rhShoveOnly( const VECTOR2I& aP )
                 }
             }
 
+            ensureLaneStartsAtAnchors( shovedLanes, m_startAnchors );
             m_currentTrace.SetLaneShapes( shovedLanes );
         }
 
@@ -795,7 +826,9 @@ bool BUNDLE_PLACER::rhShoveOnly( const VECTOR2I& aP )
         return true;
     }
 
-    // Phase 1: Try walkaround on solids first, then shove
+    // Phase 1: Pre-walk against solids only, then attempt shove. This keeps
+    // shove mode responsive near fixed obstacles without degrading into full
+    // walkaround.
     WALKAROUND walkaround( m_currentNode, Router() );
     walkaround.SetSolidsOnly( true );
     walkaround.SetIterationLimit( Settings().WalkaroundIterationLimit() );
@@ -814,12 +847,9 @@ bool BUNDLE_PLACER::rhShoveOnly( const VECTOR2I& aP )
     if( wf.status[WALKAROUND::WP_SHORTEST] == WALKAROUND::ST_DONE )
     {
         SHAPE_LINE_CHAIN walkedSpine = wf.lines[WALKAROUND::WP_SHORTEST].CLine();
-        PITCH_PROFILE profile = buildPitchProfile( walkedSpine );
 
-        if( profile.HasTransition() )
-            m_currentTrace.SetShape( walkedSpine, profile );
-        else
-            m_currentTrace.SetShape( walkedSpine );
+        if( !applySpinePreservingAnchors( walkedSpine ) )
+            return false;
     }
 
     // Phase 2: Use SHOVE with all N lanes as heads
@@ -853,6 +883,7 @@ bool BUNDLE_PLACER::rhShoveOnly( const VECTOR2I& aP )
             }
         }
 
+        ensureLaneStartsAtAnchors( shovedLanes, m_startAnchors );
         m_currentTrace.SetLaneShapes( shovedLanes );
 
         // Verify all lanes
@@ -870,10 +901,8 @@ bool BUNDLE_PLACER::rhShoveOnly( const VECTOR2I& aP )
         m_fitOk = allClear;
     }
 
-    // If shove failed or post-shove verification failed, fall back to walkaround
-    if( !m_fitOk )
-        return rhWalkOnly( aP );
-
+    // Bundle shove mode must not silently switch to full walkaround, otherwise
+    // a live mode change to shove appears to apply walkaround semantics.
     return m_fitOk;
 }
 

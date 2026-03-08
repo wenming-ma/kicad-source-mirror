@@ -22,17 +22,25 @@
  */
 
 #include <qa_utils/wx_utils/unit_test_utils.h>
+#include <algorithm>
+#include <cmath>
+#include <geometry/shape_rect.h>
 #include <settings/settings_manager.h>
+#include <memory>
 #include <optional>
 
 #include <pcbnew/board.h>
 #include <pcbnew/pad.h>
 #include <pcbnew/pcb_track.h>
 
+#include <router/pns_bundle_placer.h>
 #include <router/pns_item.h>
 #include <router/pns_kicad_iface.h>
 #include <router/pns_node.h>
+#include <router/pns_routing_settings.h>
 #include <router/pns_router.h>
+#include <router/pns_segment.h>
+#include <router/pns_solid.h>
 #include <router/pns_via.h>
 
 static bool isCopper( const PNS::ITEM* aItem )
@@ -290,18 +298,38 @@ private:
 
 struct PNS_TEST_FIXTURE
 {
-    PNS_TEST_FIXTURE()
+    PNS_TEST_FIXTURE() :
+            m_routerSettings( nullptr, "" )
     {
         m_router = new PNS::ROUTER;
         m_iface = new MOCK_PNS_KICAD_IFACE( this );
         m_router->SetInterface( m_iface );
+        m_iface->SetBoard( &m_board );
+        m_router->LoadSettings( &m_routerSettings );
+        ResetRouterWorld();
+    }
+
+    ~PNS_TEST_FIXTURE()
+    {
+        delete m_router;
+        delete m_iface;
+    }
+
+    void ResetRouterWorld()
+    {
+        m_router->ClearWorld();
+        m_router->SyncWorld();
+
+        m_router->GetWorld()->SetRuleResolver( &m_ruleResolver );
+        m_router->GetWorld()->SetMaxClearance( 2000000 );
     }
 
     SETTINGS_MANAGER      m_settingsManager;
+    PNS::ROUTING_SETTINGS m_routerSettings;
+    BOARD                 m_board;
     PNS::ROUTER*          m_router;
     MOCK_RULE_RESOLVER    m_ruleResolver;
     MOCK_PNS_KICAD_IFACE* m_iface;
-    //std::unique_ptr<BOARD> m_board;
 };
 
 
@@ -319,6 +347,215 @@ static void dumpObstacles( const PNS::NODE::OBSTACLES &obstacles )
                 obs.m_item, obs.m_item->KindStr().c_str(),
                 obs.m_clearance ) );
     }
+}
+
+
+struct BUNDLE_TEST_SCENE
+{
+    std::vector<PNS::ITEM*> startItems;
+    VECTOR2I                startPoint;
+    VECTOR2I                targetPoint;
+};
+
+
+static PNS::VIA* addTestVia( PNS::NODE* aWorld, const VECTOR2I& aPos, int aDiameter, int aDrill,
+                             PNS::NET_HANDLE aNet )
+{
+    PNS::VIA* via = new PNS::VIA( aPos, PNS_LAYER_RANGE( F_Cu, B_Cu ), aDiameter, aDrill, aNet );
+    aWorld->AddRaw( via );
+    return via;
+}
+
+
+static PNS::SEGMENT* addTestSegment( PNS::NODE* aWorld, const VECTOR2I& aStart,
+                                     const VECTOR2I& aEnd, int aWidth, PNS::NET_HANDLE aNet )
+{
+    PNS::SEGMENT* segment = new PNS::SEGMENT( SEG( aStart, aEnd ), aNet );
+    segment->SetWidth( aWidth );
+    segment->SetLayers( PNS_LAYER_RANGE( F_Cu, F_Cu ) );
+    aWorld->AddRaw( segment );
+    return segment;
+}
+
+
+static PNS::SOLID* addTestSolid( PNS::NODE* aWorld, const BOX2I& aBox, PNS::NET_HANDLE aNet )
+{
+    PNS::SOLID* solid = new PNS::SOLID();
+    solid->SetShape( new SHAPE_RECT( aBox ) );
+    solid->SetPos( aBox.Centre() );
+    solid->SetLayers( PNS_LAYER_RANGE( F_Cu, F_Cu ) );
+    solid->SetNet( aNet );
+    aWorld->AddRaw( solid );
+    return solid;
+}
+
+
+static PNS::SIZES_SETTINGS makeBundleTestSizes()
+{
+    PNS::SIZES_SETTINGS sizes;
+
+    sizes.SetTrackWidth( 100000 );
+    sizes.SetTrackWidthIsExplicit( true );
+    sizes.SetBoardMinTrackWidth( 100000 );
+    sizes.SetClearance( 100000 );
+    sizes.SetMinClearance( 100000 );
+    sizes.SetBundleGap( 200000 );
+    sizes.SetBundleTrackCount( 2 );
+    sizes.SetViaDiameter( 350000 );
+    sizes.SetViaDrill( 150000 );
+
+    return sizes;
+}
+
+
+static bool bundleTraceHasCollision( PNS::BUNDLE_PLACER& aPlacer )
+{
+    PNS::NODE* node = aPlacer.CurrentNode();
+
+    if( !node )
+        return false;
+
+    PNS::ITEM_SET traces = aPlacer.Traces();
+
+    for( PNS::ITEM* item : traces.CItems() )
+    {
+        if( node->CheckColliding( static_cast<PNS::LINE*>( item ) ) )
+            return true;
+    }
+
+    return false;
+}
+
+
+static BUNDLE_TEST_SCENE buildBlockedBundleScene( PNS_TEST_FIXTURE& aFixture )
+{
+    aFixture.ResetRouterWorld();
+    aFixture.m_ruleResolver.m_defaultClearance = 100000;
+    aFixture.m_ruleResolver.m_defaultHole2Hole = 100000;
+    aFixture.m_ruleResolver.m_defaultHole2Copper = 100000;
+
+    PNS::NODE* world = aFixture.m_router->GetWorld();
+    world->SetRuleResolver( &aFixture.m_ruleResolver );
+    world->SetMaxClearance( 2000000 );
+
+    const auto net1 = reinterpret_cast<PNS::NET_HANDLE>( 1 );
+    const auto net2 = reinterpret_cast<PNS::NET_HANDLE>( 2 );
+    const auto obstacleNet = reinterpret_cast<PNS::NET_HANDLE>( 99 );
+
+    PNS::VIA* startA = addTestVia( world, VECTOR2I( 0, -250000 ), 300000, 120000, net1 );
+    PNS::VIA* startB = addTestVia( world, VECTOR2I( 0, 250000 ), 300000, 120000, net2 );
+
+    addTestSegment( world, VECTOR2I( 2500000, -450000 ), VECTOR2I( 2500000, 450000 ),
+                    180000, obstacleNet );
+
+    addTestSolid( world, BOX2I( VECTOR2I( 1900000, 500000 ), VECTOR2I( 1200000, 500000 ) ),
+                  obstacleNet );
+    addTestSolid( world, BOX2I( VECTOR2I( 1900000, -1000000 ), VECTOR2I( 1200000, 500000 ) ),
+                  obstacleNet );
+
+    return { { startA, startB }, VECTOR2I( 0, 0 ), VECTOR2I( 5000000, 0 ) };
+}
+
+
+static BUNDLE_TEST_SCENE buildOffsetAnchorBundleScene( PNS_TEST_FIXTURE& aFixture )
+{
+    aFixture.ResetRouterWorld();
+    aFixture.m_ruleResolver.m_defaultClearance = 100000;
+    aFixture.m_ruleResolver.m_defaultHole2Hole = 100000;
+    aFixture.m_ruleResolver.m_defaultHole2Copper = 100000;
+
+    PNS::NODE* world = aFixture.m_router->GetWorld();
+    world->SetRuleResolver( &aFixture.m_ruleResolver );
+    world->SetMaxClearance( 2000000 );
+
+    const auto net1 = reinterpret_cast<PNS::NET_HANDLE>( 1 );
+    const auto net2 = reinterpret_cast<PNS::NET_HANDLE>( 2 );
+    const auto obstacleNet = reinterpret_cast<PNS::NET_HANDLE>( 99 );
+
+    PNS::VIA* startA = addTestVia( world, VECTOR2I( 0, -350000 ), 300000, 120000, net1 );
+    PNS::VIA* startB = addTestVia( world, VECTOR2I( 450000, 250000 ), 300000, 120000, net2 );
+
+    addTestSegment( world, VECTOR2I( 2500000, -450000 ), VECTOR2I( 2500000, 450000 ),
+                    180000, obstacleNet );
+
+    addTestSolid( world, BOX2I( VECTOR2I( 1900000, 500000 ), VECTOR2I( 1200000, 500000 ) ),
+                  obstacleNet );
+    addTestSolid( world, BOX2I( VECTOR2I( 1900000, -1000000 ), VECTOR2I( 1200000, 500000 ) ),
+                  obstacleNet );
+
+    VECTOR2I centroid( ( startA->Pos().x + startB->Pos().x ) / 2,
+                       ( startA->Pos().y + startB->Pos().y ) / 2 );
+
+    return { { startA, startB }, centroid + VECTOR2I( 600000, 0 ),
+             centroid + VECTOR2I( 5000000, 0 ) };
+}
+
+
+static std::vector<VECTOR2I> sortedBundleStartAnchors( const BUNDLE_TEST_SCENE& aScene )
+{
+    PNS::BUNDLE_PRIMITIVE_GROUP startGroup( aScene.startItems );
+    VECTOR2I                    centroid = startGroup.Centroid();
+    VECTOR2I                    toCursor = aScene.startPoint - centroid;
+    VECTOR2I                    routingDir;
+
+    if( std::abs( toCursor.x ) > std::abs( toCursor.y ) )
+        routingDir = VECTOR2I( toCursor.x > 0 ? 1 : -1, 0 );
+    else
+        routingDir = VECTOR2I( 0, toCursor.y > 0 ? 1 : -1 );
+
+    startGroup.SortByPosition( routingDir );
+    return startGroup.Anchors();
+}
+
+
+static std::vector<VECTOR2I> bundlePreviewStarts( PNS::BUNDLE_PLACER& aPlacer )
+{
+    PNS::ITEM_SET           traces = aPlacer.Traces();
+    std::vector<VECTOR2I>   starts;
+
+    starts.reserve( traces.Size() );
+
+    for( PNS::ITEM* item : traces.Items() )
+    {
+        PNS::LINE* line = static_cast<PNS::LINE*>( item );
+        starts.push_back( line->CPoint( 0 ) );
+    }
+
+    return starts;
+}
+
+
+static std::vector<VECTOR2I> bundlePartialFixEnds( PNS::BUNDLE_PLACER& aPlacer )
+{
+    PNS::ITEM_SET         traces = aPlacer.Traces();
+    std::vector<VECTOR2I> ends;
+
+    ends.reserve( traces.Size() );
+
+    for( PNS::ITEM* item : traces.Items() )
+    {
+        PNS::LINE*        line = static_cast<PNS::LINE*>( item );
+        SHAPE_LINE_CHAIN  trimmed = line->CLine();
+
+        if( trimmed.SegmentCount() > 1 )
+            trimmed.Remove( -1, -1 );
+
+        ends.push_back( trimmed.CLastPoint() );
+    }
+
+    return ends;
+}
+
+
+static void checkBundlePreviewStarts( PNS::BUNDLE_PLACER& aPlacer,
+                                      const std::vector<VECTOR2I>& aExpectedStarts )
+{
+    std::vector<VECTOR2I> actualStarts = bundlePreviewStarts( aPlacer );
+
+    BOOST_REQUIRE_EQUAL( actualStarts.size(), aExpectedStarts.size() );
+
+    for( size_t i = 0; i < aExpectedStarts.size(); ++i )
+        BOOST_CHECK_EQUAL( actualStarts[i], aExpectedStarts[i] );
 }
 
 BOOST_FIXTURE_TEST_CASE( PNSHoleCollisions, PNS_TEST_FIXTURE )
@@ -523,5 +760,112 @@ BOOST_AUTO_TEST_CASE( PNSLayerRangeSwapBehavior )
     BOOST_CHECK( innerLayersRange4Layer.Overlaps( 1 ) );  // In1_Cu
     BOOST_CHECK( innerLayersRange4Layer.Overlaps( 2 ) );  // In2_Cu
     BOOST_CHECK( !innerLayersRange4Layer.Overlaps( 3 ) ); // B_Cu - should not overlap
+}
+
+
+BOOST_FIXTURE_TEST_CASE( BundleShoveModeDoesNotFallBackToWalkaround, PNS_TEST_FIXTURE )
+{
+    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes();
+
+    m_router->UpdateSizes( sizes );
+
+    {
+        BUNDLE_TEST_SCENE walkScene = buildBlockedBundleScene( *this );
+        PNS::BUNDLE_PLACER walkPlacer( m_router );
+
+        walkPlacer.UpdateSizes( sizes );
+        BOOST_REQUIRE( walkPlacer.SetLayer( F_Cu ) );
+        walkPlacer.SetStartPads( walkScene.startItems );
+
+        m_routerSettings.SetMode( PNS::RM_Walkaround );
+        BOOST_REQUIRE( walkPlacer.Start( walkScene.startPoint, walkScene.startItems.front() ) );
+        BOOST_CHECK( walkPlacer.Move( walkScene.targetPoint, nullptr ) );
+        BOOST_CHECK( !bundleTraceHasCollision( walkPlacer ) );
+    }
+
+    {
+        BUNDLE_TEST_SCENE shoveScene = buildBlockedBundleScene( *this );
+        PNS::BUNDLE_PLACER shovePlacer( m_router );
+
+        shovePlacer.UpdateSizes( sizes );
+        BOOST_REQUIRE( shovePlacer.SetLayer( F_Cu ) );
+        shovePlacer.SetStartPads( shoveScene.startItems );
+
+        m_routerSettings.SetMode( PNS::RM_MarkObstacles );
+        BOOST_REQUIRE( shovePlacer.Start( shoveScene.startPoint, shoveScene.startItems.front() ) );
+        shovePlacer.Move( shoveScene.targetPoint, nullptr );
+
+        m_routerSettings.SetMode( PNS::RM_Shove );
+        BOOST_CHECK( !shovePlacer.Move( shoveScene.targetPoint, nullptr ) );
+        BOOST_CHECK( bundleTraceHasCollision( shovePlacer ) );
+    }
+}
+
+
+BOOST_FIXTURE_TEST_CASE( BundleWalkaroundPreservesOffsetStartAnchors, PNS_TEST_FIXTURE )
+{
+    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes();
+    BUNDLE_TEST_SCENE   scene = buildOffsetAnchorBundleScene( *this );
+    std::vector<VECTOR2I> expectedStarts = sortedBundleStartAnchors( scene );
+    PNS::BUNDLE_PLACER placer( m_router );
+
+    m_router->UpdateSizes( sizes );
+    placer.UpdateSizes( sizes );
+    BOOST_REQUIRE( placer.SetLayer( F_Cu ) );
+    placer.SetStartPads( scene.startItems );
+
+    m_routerSettings.SetMode( PNS::RM_Walkaround );
+    BOOST_REQUIRE( placer.Start( scene.startPoint, scene.startItems.front() ) );
+    BOOST_CHECK( placer.Move( scene.targetPoint, nullptr ) );
+    checkBundlePreviewStarts( placer, expectedStarts );
+    BOOST_CHECK( !bundleTraceHasCollision( placer ) );
+}
+
+
+BOOST_FIXTURE_TEST_CASE( BundleShovePreservesOffsetStartAnchors, PNS_TEST_FIXTURE )
+{
+    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes();
+    BUNDLE_TEST_SCENE   scene = buildOffsetAnchorBundleScene( *this );
+    std::vector<VECTOR2I> expectedStarts = sortedBundleStartAnchors( scene );
+    PNS::BUNDLE_PLACER placer( m_router );
+
+    m_router->UpdateSizes( sizes );
+    placer.UpdateSizes( sizes );
+    BOOST_REQUIRE( placer.SetLayer( F_Cu ) );
+    placer.SetStartPads( scene.startItems );
+
+    m_routerSettings.SetMode( PNS::RM_MarkObstacles );
+    BOOST_REQUIRE( placer.Start( scene.startPoint, scene.startItems.front() ) );
+
+    BOOST_CHECK( placer.Move( scene.targetPoint, nullptr ) );
+
+    m_routerSettings.SetMode( PNS::RM_Shove );
+    BOOST_CHECK( !placer.Move( scene.targetPoint, nullptr ) );
+    checkBundlePreviewStarts( placer, expectedStarts );
+    BOOST_CHECK( bundleTraceHasCollision( placer ) );
+}
+
+
+BOOST_FIXTURE_TEST_CASE( BundleWalkaroundChainedPlacementStartsFromCommittedEnds, PNS_TEST_FIXTURE )
+{
+    PNS::SIZES_SETTINGS sizes = makeBundleTestSizes();
+    BUNDLE_TEST_SCENE   scene = buildOffsetAnchorBundleScene( *this );
+    PNS::BUNDLE_PLACER  placer( m_router );
+
+    m_router->UpdateSizes( sizes );
+    placer.UpdateSizes( sizes );
+    BOOST_REQUIRE( placer.SetLayer( F_Cu ) );
+    placer.SetStartPads( scene.startItems );
+
+    m_routerSettings.SetMode( PNS::RM_Walkaround );
+    BOOST_REQUIRE( placer.Start( scene.startPoint, scene.startItems.front() ) );
+    BOOST_REQUIRE( placer.Move( scene.targetPoint, nullptr ) );
+
+    std::vector<VECTOR2I> expectedNextStarts = bundlePartialFixEnds( placer );
+    VECTOR2I secondTarget = scene.targetPoint + VECTOR2I( 1500000, 1200000 );
+
+    BOOST_CHECK( !placer.FixRoute( scene.targetPoint, nullptr, false ) );
+    BOOST_REQUIRE( placer.Move( secondTarget, nullptr ) );
+    checkBundlePreviewStarts( placer, expectedNextStarts );
 }
 

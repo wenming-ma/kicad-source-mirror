@@ -1,0 +1,1 @@
+- Do not compile or build the project unless the user explicitly requests it.

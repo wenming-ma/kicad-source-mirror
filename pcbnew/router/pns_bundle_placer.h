@@ -148,6 +148,12 @@ private:
      */
     bool buildSpine( const VECTOR2I& aP, SHAPE_LINE_CHAIN& aSpine );
 
+    /**
+     * Apply a spine to the current trace while preserving the current start anchors.
+     */
+    bool applySpinePreservingAnchors( const SHAPE_LINE_CHAIN& aSpine,
+                                      bool aAllowProfileFallback = true );
+
     enum State {
         RT_START = 0,
         RT_ROUTE = 1,
