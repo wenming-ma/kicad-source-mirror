@@ -1051,7 +1051,7 @@ BOOST_AUTO_TEST_CASE( Peka_ZoneFillNoSelfIntersection )
                     continue;
                 }
 
-                if( segs[i].Collide( segs[j], 0 ) )
+                if( segs[i].Intersects( segs[j] ) )
                     return true;
             }
         }
@@ -1237,6 +1237,231 @@ BOOST_AUTO_TEST_CASE( ImportMaskPasteLayersIssue23254 )
 
     BOOST_CHECK_MESSAGE( foundSmdWithMask,
                          "At least one SMD pad in issue23254.asc should have F.Mask and F.Paste" );
+}
+
+
+/**
+ * Verify that the issue23352 demo board imports square pads, per-pad
+ * thermal connections, and netclass rules correctly.
+ */
+BOOST_AUTO_TEST_CASE( ImportIssue23352 )
+{
+    PCB_IO_PADS plugin;
+    wxString filename = KI_TEST::GetPcbnewTestDataDir() + "plugins/pads/issue23352.asc";
+
+    std::unique_ptr<BOARD> board;
+    board.reset( plugin.LoadBoard( filename, nullptr, nullptr, nullptr ) );
+    BOOST_REQUIRE( board != nullptr );
+
+    // Issue 1: Square pads should be imported as RECTANGLE, not CIRCLE.
+    // The CON_2X1M part has PAD 1 with shape "S" (square) on F_Cu.
+    bool foundSquarePad = false;
+
+    for( FOOTPRINT* fp : board->Footprints() )
+    {
+        for( PAD* pad : fp->Pads() )
+        {
+            if( pad->GetShape( F_Cu ) == PAD_SHAPE::RECTANGLE )
+            {
+                foundSquarePad = true;
+                break;
+            }
+        }
+
+        if( foundSquarePad )
+            break;
+    }
+
+    BOOST_CHECK_MESSAGE( foundSquarePad,
+                         "At least one pad should have RECTANGLE shape (square pad import)" );
+
+    // Issue 2: Zone connection should default to FULL (solid), not THERMAL.
+    // Pads with RT/ST entries should have per-pad THERMAL override.
+    bool foundZoneWithFull = false;
+    bool foundPadWithThermal = false;
+    bool foundPadWithoutThermal = false;
+
+    for( ZONE* zone : board->Zones() )
+    {
+        if( zone->GetPadConnection() == ZONE_CONNECTION::FULL )
+        {
+            foundZoneWithFull = true;
+            break;
+        }
+    }
+
+    BOOST_CHECK_MESSAGE( foundZoneWithFull,
+                         "Zones should default to FULL (solid) connection" );
+
+    for( FOOTPRINT* fp : board->Footprints() )
+    {
+        for( PAD* pad : fp->Pads() )
+        {
+            if( pad->GetLocalZoneConnection() == ZONE_CONNECTION::THERMAL )
+                foundPadWithThermal = true;
+            else
+                foundPadWithoutThermal = true;
+        }
+    }
+
+    BOOST_CHECK_MESSAGE( foundPadWithThermal,
+                         "Pads with RT/ST entries should have per-pad THERMAL connection" );
+    BOOST_CHECK_MESSAGE( foundPadWithoutThermal,
+                         "Pads without RT/ST entries should not have per-pad THERMAL override" );
+
+    // Issue 3: Netclasses should be imported with their rules.
+    const BOARD_DESIGN_SETTINGS& bds = board->GetDesignSettings();
+    const auto& netclasses = bds.m_NetSettings->GetNetclasses();
+
+    auto nc1It = netclasses.find( wxT( "NETTCLASS1" ) );
+    auto nc2It = netclasses.find( wxT( "NETTCLASS2" ) );
+
+    BOOST_CHECK_MESSAGE( nc1It != netclasses.end(), "NETTCLASS1 should exist" );
+    BOOST_CHECK_MESSAGE( nc2It != netclasses.end(), "NETTCLASS2 should exist" );
+
+    if( nc1It != netclasses.end() )
+    {
+        BOOST_CHECK_MESSAGE( nc1It->second->HasTrackWidth(),
+                             "NETTCLASS1 should have a track width rule" );
+    }
+
+    if( nc2It != netclasses.end() )
+    {
+        BOOST_CHECK_MESSAGE( nc2It->second->HasTrackWidth(),
+                             "NETTCLASS2 should have a track width rule" );
+        BOOST_CHECK_MESSAGE( nc2It->second->HasClearance(),
+                             "NETTCLASS2 should have a clearance rule" );
+    }
+
+    // Verify net-to-class assignments from the NET_CLASS DATA block
+    const auto& patterns = bds.m_NetSettings->GetNetclassPatternAssignments();
+    std::map<wxString, wxString> netAssignments;
+
+    for( const auto& [matcher, ncName] : patterns )
+        netAssignments[matcher->GetPattern()] = ncName;
+
+    BOOST_CHECK_MESSAGE( netAssignments.count( wxT( "+24V0" ) ),
+                         "+24V0 should be assigned to a net class" );
+    BOOST_CHECK_MESSAGE( netAssignments.count( wxT( "+24V0_FILTER" ) ),
+                         "+24V0_FILTER should be assigned to a net class" );
+    BOOST_CHECK_MESSAGE( netAssignments.count( wxT( "+24V0_FILTER_RTN" ) ),
+                         "+24V0_FILTER_RTN should be assigned to a net class" );
+
+    if( netAssignments.count( wxT( "+24V0" ) ) )
+    {
+        BOOST_CHECK_EQUAL( netAssignments[wxT( "+24V0" )], wxT( "NETTCLASS1" ) );
+    }
+
+    if( netAssignments.count( wxT( "+24V0_FILTER_RTN" ) ) )
+    {
+        BOOST_CHECK_EQUAL( netAssignments[wxT( "+24V0_FILTER_RTN" )], wxT( "NETTCLASS2" ) );
+    }
+}
+
+
+/**
+ * Verify that net classes inside RULES_SECTION PARENT in the MISC section
+ * are parsed and applied correctly.
+ *
+ * Issue #23393: NET_CLASS DATA blocks nested inside RULES_SECTION PARENT
+ * were not parsed because the brace depth checks were hardcoded instead of
+ * relative to the block entry depth.
+ */
+BOOST_AUTO_TEST_CASE( Issue23393_NetClassImport )
+{
+    PCB_IO_PADS plugin;
+    wxString filename = KI_TEST::GetPcbnewTestDataDir() + "plugins/pads/issue23393/demo.asc";
+
+    std::unique_ptr<BOARD> board( plugin.LoadBoard( filename, nullptr, nullptr, nullptr ) );
+    BOOST_REQUIRE( board != nullptr );
+
+    const BOARD_DESIGN_SETTINGS& bds = board->GetDesignSettings();
+    const auto& netclasses = bds.m_NetSettings->GetNetclasses();
+
+    BOOST_CHECK_MESSAGE( netclasses.find( wxT( "NETTCLASS1" ) ) != netclasses.end(),
+                         "NETTCLASS1 should be imported" );
+    BOOST_CHECK_MESSAGE( netclasses.find( wxT( "NETTCLASS2" ) ) != netclasses.end(),
+                         "NETTCLASS2 should be imported" );
+
+    // Verify net-to-class assignments
+    const auto& patterns = bds.m_NetSettings->GetNetclassPatternAssignments();
+    std::map<wxString, wxString> netAssignments;
+
+    for( const auto& [matcher, ncName] : patterns )
+        netAssignments[matcher->GetPattern()] = ncName;
+
+    // NETTCLASS1 should contain +24V0 and +24V0_FILTER
+    BOOST_CHECK_EQUAL( netAssignments[wxT( "+24V0" )], wxT( "NETTCLASS1" ) );
+    BOOST_CHECK_EQUAL( netAssignments[wxT( "+24V0_FILTER" )], wxT( "NETTCLASS1" ) );
+
+    // NETTCLASS2 should contain +24V0_FILTER_RTN, +24V0_RTN, GND_CHASSIS
+    BOOST_CHECK_EQUAL( netAssignments[wxT( "+24V0_FILTER_RTN" )], wxT( "NETTCLASS2" ) );
+    BOOST_CHECK_EQUAL( netAssignments[wxT( "+24V0_RTN" )], wxT( "NETTCLASS2" ) );
+    BOOST_CHECK_EQUAL( netAssignments[wxT( "GND_CHASSIS" )], wxT( "NETTCLASS2" ) );
+
+    // NETTCLASS2 RULE_SET has TRACK_TO_TRACK 4500000 BASIC
+    auto nc2It = netclasses.find( wxT( "NETTCLASS2" ) );
+
+    if( nc2It != netclasses.end() )
+    {
+        BOOST_CHECK_MESSAGE( nc2It->second->HasClearance(),
+                             "NETTCLASS2 should have clearance from RULE_SET" );
+        BOOST_CHECK_MESSAGE( nc2It->second->HasTrackWidth(),
+                             "NETTCLASS2 should have track width from RULE_SET" );
+    }
+}
+
+
+/**
+ * Verify that route arcs (CW/CCW) from PADS are imported as proper semicircles.
+ *
+ * Issue #23540: route arcs specified with only CW/CCW direction (no explicit
+ * center/radius) were imported with degenerate geometry because the arc
+ * midpoint was computed from zero center and zero radius.
+ */
+BOOST_AUTO_TEST_CASE( Issue23540_RouteArcSemicircle )
+{
+    PCB_IO_PADS plugin;
+
+    wxString filename = KI_TEST::GetPcbnewTestDataDir()
+                        + "plugins/pads/issue23540/test_import.asc";
+
+    std::unique_ptr<BOARD> board( plugin.LoadBoard( filename, nullptr, nullptr, nullptr ) );
+
+    BOOST_REQUIRE( board != nullptr );
+
+    int arcCount = 0;
+
+    for( PCB_TRACK* trk : board->Tracks() )
+    {
+        if( trk->Type() != PCB_ARC_T )
+            continue;
+
+        PCB_ARC* arc = static_cast<PCB_ARC*>( trk );
+        arcCount++;
+
+        EDA_ANGLE angle = arc->GetAngle();
+        double absDeg = std::abs( angle.AsDegrees() );
+
+        BOOST_CHECK_MESSAGE( absDeg > 170.0 && absDeg < 190.0,
+                "route arc angle " << absDeg << " should be ~180 degrees (semicircle)" );
+
+        VECTOR2I mid = arc->GetMid();
+        VECTOR2I start = arc->GetStart();
+        VECTOR2I end = arc->GetEnd();
+
+        // In PADS the CW arc from left to right goes upward. After the Y-axis
+        // flip to KiCad coordinates, "upward on screen" means smaller Y values.
+        // The arc midpoint Y must be less than both endpoint Y values.
+        int chordY = ( start.y + end.y ) / 2;
+
+        BOOST_CHECK_MESSAGE( mid.y < chordY,
+                "arc midpoint Y=" << mid.y << " should be above (less than) "
+                "chord center Y=" << chordY );
+    }
+
+    BOOST_CHECK_MESSAGE( arcCount >= 1,
+            "expected at least 1 PCB_ARC from route CW/CCW arc, got " << arcCount );
 }
 
 

@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <functional>
 #include <libraries/library_table.h>
 #include <widgets/wx_grid.h>
 
@@ -96,6 +97,10 @@ public:
 
     LIBRARY_MANAGER_ADAPTER* Adapter() const { return m_adapter; }
 
+    void RecheckRows();
+
+    void SetChangeCallback( std::function<void()> aCallback ) { m_changeCallback = std::move( aCallback ); }
+
 protected:
     bool badCoords( int aRow, int aCol );
 
@@ -118,6 +123,8 @@ protected:
 protected:
     /// Working copy of a table
     LIBRARY_TABLE m_table;
+
+    std::function<void()> m_changeCallback;
 
     wxGridCellAttr* m_uriEditor;
     wxGridCellAttr* m_typesEditor;

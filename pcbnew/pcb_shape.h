@@ -80,6 +80,12 @@ public:
 
     VECTOR2I GetCenter() const override { return getCenter(); }
 
+    void BeginEdit( const VECTOR2I& aStartPoint ) { beginEdit( aStartPoint ); }
+    bool ContinueEdit( const VECTOR2I& aPosition ) { return continueEdit( aPosition ); }
+    void CalcEdit( const VECTOR2I& aPosition ) { calcEdit( aPosition ); }
+    void EndEdit( bool aClosed = true ) { endEdit( aClosed ); }
+    void SetEditState( int aState ) { setEditState( aState ); }
+
     /**
      * @return a list of connection points (may be empty): points where this shape can form
      * electrical connections to other shapes that are natural "start/end" points.
@@ -221,6 +227,8 @@ protected:
     bool isMoving() const override { return IsMoving(); }
 
     int getMaxError() const override;
+
+    SHAPE_POLY_SET getHatchingKnockouts() const override;
 
     struct cmp_drawings
     {

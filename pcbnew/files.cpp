@@ -37,6 +37,7 @@
 #include <local_history.h>
 #include <pcb_edit_frame.h>
 #include <board_design_settings.h>
+#include <board_loader.h>
 #include <3d_viewer/eda_3d_viewer_frame.h>
 #include <footprint_library_adapter.h>
 #include <kiface_base.h>
@@ -556,7 +557,7 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
     GetInfoBar()->Dismiss();
 
     if( KISTATUSBAR* statusBar = dynamic_cast<KISTATUSBAR*>( GetStatusBar() ) )
-        statusBar->ClearLoadWarningMessages();
+        statusBar->ClearWarningMessages( "load" );
 
     WX_PROGRESS_REPORTER progressReporter( this, is_new ? _( "Create PCB" ) : _( "Load PCB" ), 1,
                                            PR_CAN_ABORT );
@@ -603,12 +604,25 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 
         mgr->LoadProject( pro.GetFullPath() );
 
+        if( Kiface().IsSingle() )
+        {
+            // Standalone opens can switch to a different project.  Preload libraries after the
+            // project switch so the board load sees project-local library tables.
+            Kiface().PreloadLibraries( &Kiway() );
+            Pgm().PreloadDesignBlockLibraries( &Kiway() );
+        }
+
         // Do not allow saving a project if one doesn't exist.  This normally happens if we are
         // opening a board that has been moved from its project folder.
         // For converted projects, we don't want to set the read-only flag because we want a
         // project to be saved for the new file in case things like netclasses got migrated.
         Prj().SetReadOnly( !pro.Exists() && !converted );
     }
+
+    // Crash-recovery: when zip-format autosave is active, look for autosave files newer than
+    // the saved board and offer to recover them before the load happens.
+    if( !is_new )
+        CheckForAutosaveFiles( wx_filename.GetPath(), { FILEEXT::KiCadPcbFileExtension } );
 
     if( is_new )
     {
@@ -622,34 +636,10 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
     else
     {
         BOARD*              loadedBoard = nullptr;   // it will be set to non-NULL if loaded OK
-        IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::FindPlugin( pluginType ) );
-
-        if( LAYER_MAPPABLE_PLUGIN* mappable_pi = dynamic_cast<LAYER_MAPPABLE_PLUGIN*>( pi.get() ) )
-        {
-            if( !ADVANCED_CFG::GetCfg().m_ImportSkipLayerMapping )
-            {
-                mappable_pi->RegisterCallback( std::bind( DIALOG_MAP_LAYERS::RunModal,
-                                                          this, std::placeholders::_1 ) );
-            }
-        }
-
-        if( PROJECT_CHOOSER_PLUGIN* chooser_pi = dynamic_cast<PROJECT_CHOOSER_PLUGIN*>( pi.get() ) )
-        {
-            chooser_pi->RegisterCallback( std::bind( DIALOG_IMPORT_CHOOSE_PROJECT::RunModal,
-                                                     this,
-                                                     std::placeholders::_1 ) );
-        }
-
         bool failedLoad = false;
 
         try
         {
-            if( pi == nullptr )
-            {
-                // There was no plugin found, e.g. due to invalid file extension, file header,...
-                THROW_IO_ERROR( _( "File format is not supported" ) );
-            }
-
             std::map<std::string, UTF8> props;
 
             if( m_importProperties )
@@ -659,32 +649,59 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
             props["page_width"] = std::to_string( GetPageSizeIU().x );
             props["page_height"] = std::to_string( GetPageSizeIU().y );
 
-            pi->SetQueryUserCallback(
-                    [&]( wxString aTitle, int aIcon, wxString aMessage, wxString aAction ) -> bool
-                    {
-                        KIDIALOG dlg( nullptr, aMessage, aTitle, wxOK | wxCANCEL | aIcon );
-
-                        if( !aAction.IsEmpty() )
-                            dlg.SetOKLabel( aAction );
-
-                        dlg.DoNotShowCheckbox( aMessage, 0 );
-
-                        return dlg.ShowModal() == wxID_OK;
-                    } );
-
 #if USE_INSTRUMENTATION
             // measure the time to load a BOARD.
             int64_t startTime = GetRunningMicroSecs();
 #endif
-            // Use loadReporter for import issues - they will be shown in the status bar
-            // warning icon instead of a modal dialog
-            if( config()->m_System.show_import_issues )
-                pi->SetReporter( &loadReporter );
-            else
-                pi->SetReporter( &NULL_REPORTER::GetInstance() );
+            BOARD_LOADER::OPTIONS loaderOptions;
+            loaderOptions.properties = &props;
+            loaderOptions.progress_reporter = &progressReporter;
+            loaderOptions.reporter = config()->m_System.show_import_issues
+                                                ? static_cast<REPORTER*>( &loadReporter )
+                                                : static_cast<REPORTER*>( &NULL_REPORTER::GetInstance() );
+            loaderOptions.initialize_after_load = false;
+            loaderOptions.plugin_configurator =
+                    [&]( PCB_IO& aPlugin )
+                    {
+                        if( LAYER_MAPPABLE_PLUGIN* mappable_pi =
+                                    dynamic_cast<LAYER_MAPPABLE_PLUGIN*>( &aPlugin ) )
+                        {
+                            if( !ADVANCED_CFG::GetCfg().m_ImportSkipLayerMapping )
+                            {
+                                mappable_pi->RegisterCallback( std::bind( DIALOG_MAP_LAYERS::RunModal,
+                                                                          this,
+                                                                          std::placeholders::_1 ) );
+                            }
+                        }
 
-            pi->SetProgressReporter( &progressReporter );
-            loadedBoard = pi->LoadBoard( fullFileName, nullptr, &props, &Prj() );
+                        if( PROJECT_CHOOSER_PLUGIN* chooser_pi =
+                                    dynamic_cast<PROJECT_CHOOSER_PLUGIN*>( &aPlugin ) )
+                        {
+                            chooser_pi->RegisterCallback(
+                                    std::bind( DIALOG_IMPORT_CHOOSE_PROJECT::RunModal,
+                                               this,
+                                               std::placeholders::_1 ) );
+                        }
+
+                        aPlugin.SetQueryUserCallback(
+                                [&]( wxString aTitle, int aIcon, wxString aMessage,
+                                     wxString aAction ) -> bool
+                                {
+                                    KIDIALOG dlg( nullptr, aMessage, aTitle,
+                                                  wxOK | wxCANCEL | aIcon );
+
+                                    if( !aAction.IsEmpty() )
+                                        dlg.SetOKLabel( aAction );
+
+                                    dlg.DoNotShowCheckbox( aMessage, 0 );
+
+                                    return dlg.ShowModal() == wxID_OK;
+                                } );
+                    };
+
+            std::unique_ptr<BOARD> loaded =
+                    BOARD_LOADER::Load( fullFileName, pluginType, &Prj(), loaderOptions );
+            loadedBoard = loaded.release();
 
 #if USE_INSTRUMENTATION
             int64_t stopTime = GetRunningMicroSecs();
@@ -726,9 +743,15 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 
             // Show any messages collected before the failure
             if( KISTATUSBAR* statusBar = dynamic_cast<KISTATUSBAR*>( GetStatusBar() ) )
-                statusBar->SetLoadWarningMessages( loadReporter.GetMessages() );
+                statusBar->AddWarningMessages( "load", loadReporter.GetMessages() );
 
             return false;
+        }
+
+        if( converted && GetPcbNewSettings()->m_ImportKeepKiCadLayerNames )
+        {
+            for( PCB_LAYER_ID layer : loadedBoard->GetEnabledLayers().Seq() )
+                loadedBoard->SetLayerName( layer, wxEmptyString );
         }
 
         // This fixes a focus issue after the progress reporter is done on GTK.  It shouldn't
@@ -1009,7 +1032,7 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
     }
 
     if( KISTATUSBAR* statusBar = dynamic_cast<KISTATUSBAR*>( GetStatusBar() ) )
-        statusBar->SetLoadWarningMessages( loadReporter.GetMessages() );
+        statusBar->AddWarningMessages( "load", loadReporter.GetMessages() );
 
     return true;
 }
@@ -1132,9 +1155,19 @@ bool PCB_EDIT_FRAME::SavePcbFile( const wxString& aFileName, bool addToHistory,
     UpdateTitle();
     UpdateStatusBar();
 
-    // Capture entire project state for PCB save events.
-    Kiway().LocalHistory().CommitFullProjectSnapshot( pcbFileName.GetPath(), wxS( "PCB Save" ) );
-    Kiway().LocalHistory().TagSave( pcbFileName.GetPath(), wxS( "pcb" ) );
+    // Capture entire project state for PCB save events. Skip when running standalone
+    // without a project loaded - the save path can land anywhere on the filesystem and
+    // there is no project context for a snapshot to live under.
+    if( !Prj().IsNullProject() )
+    {
+        Kiway().LocalHistory().RunRegisteredSaversAndCommit( Prj().GetProjectPath(), wxS( "PCB Save" ), wxS( "pcb" ) );
+
+        // Drop the autosave file for the board we just persisted.  Scope to the PCB
+        // source so a concurrent open eeschema does not lose recovery data for an
+        // unsaved schematic sheet.  RunRegisteredSaversAndCommit above is a no-op when
+        // format is ZIP; this call is conversely a no-op in INCREMENTAL mode.
+        Kiway().LocalHistory().RemoveAutosaveFiles( Prj().GetProjectPath(), { pcbFileName.GetFullPath() } );
+    }
 
     if( m_autoSaveTimer )
         m_autoSaveTimer->Stop();

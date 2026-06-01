@@ -33,6 +33,8 @@ set( QA_COMMON_SRCS
     test_angle_item.cpp
 
     test_array_axis.cpp
+    test_atomic_save.cpp
+    test_backup_settings.cpp
     test_base_set.cpp
     test_bitmap_base.cpp
     test_clipboard.cpp
@@ -44,16 +46,23 @@ set( QA_COMMON_SRCS
     test_eda_text.cpp
     test_embedded_file_compress.cpp
     test_expand_text_vars.cpp
+    test_text_var_dependency.cpp
+    test_drawing_sheet_reactive.cpp
     test_file_history.cpp
     test_filename_resolver.cpp
     test_hotkey_store.cpp
     test_increment.cpp
+    test_item_realignment.cpp
     test_ki_any.cpp
     test_library_tables.cpp
+    test_loop_safe_collect.cpp
     test_markup_parser.cpp
     test_kicad_string.cpp
     test_kicad_stroke_font.cpp
+    test_dxf_plotter.cpp
+    test_gerber_plotter.cpp
     test_pdf_unicode_plot.cpp
+    test_png_plotter.cpp
     test_kiid.cpp
     test_layer_ids.cpp
     test_lib_id.cpp
@@ -64,11 +73,14 @@ set( QA_COMMON_SRCS
     test_property.cpp
     test_property_holder.cpp
     test_reporting.cpp
+    test_rc_tree_model.cpp
     test_refdes_utils.cpp
+    test_wx_data_view_hyperlink_renderer.cpp
     test_grid_helper.cpp
     test_string_utils.cpp
     test_richio.cpp
     test_text_attributes.cpp
+    git/test_libgit_backend.cpp
     text_eval/test_text_eval_parser.cpp
     text_eval/test_text_eval_parser_core.cpp
     text_eval/test_text_eval_parser_datetime.cpp
@@ -84,6 +96,20 @@ set( QA_COMMON_SRCS
 
     libeval/test_numeric_evaluator.cpp
 
+    transline_calculations/test_coax.cpp
+    transline_calculations/test_coplanar.cpp
+    transline_calculations/test_dielectric_selector.cpp
+    transline_calculations/test_djordjevic_sarkar.cpp
+    transline_calculations/test_djordjevic_sarkar_integration.cpp
+    transline_calculations/test_coupled_microstrip.cpp
+    transline_calculations/test_coupled_stripline.cpp
+    transline_calculations/test_coupled_stripline_offset.cpp
+    transline_calculations/test_microstrip_cover.cpp
+    transline_calculations/test_rectwaveguide.cpp
+    transline_calculations/test_soldermask.cpp
+    transline_calculations/test_transline_roundtrip.cpp
+    transline_calculations/test_twistedpair.cpp
+
     io/test_csv.cpp
     io/altium/test_altium_parser.cpp
     io/altium/test_altium_parser_utils.cpp
@@ -95,6 +121,8 @@ set( QA_COMMON_SRCS
     io/pads/test_pads_common.cpp
     io/pads/test_pads_unit_converter.cpp
 
+    test_kigit_common.cpp
+    test_kigit_orphan_registry.cpp
     test_throttle.cpp
     view/test_zoom_controller.cpp
 
@@ -105,6 +133,7 @@ set( QA_COMMON_SRCS
 
     # Graphics import tests
     test_graphics_importer_buffer.cpp
+    test_svg_import.cpp
 
     # Project template tests (source included directly since it's from kicad executable)
     test_project_template.cpp
@@ -112,10 +141,20 @@ set( QA_COMMON_SRCS
 
     # Project file tests
     test_project_file.cpp
+    test_net_settings.cpp
+    test_remote_provider_metadata.cpp
+    test_remote_provider_client.cpp
+    test_remote_provider_settings.cpp
+    test_oauth_loopback_server.cpp
+    test_oauth_pkce.cpp
+    test_secure_token_store.cpp
 
     # Job tests
+    test_job_export_pcb_variants.cpp
     test_job_export_sch_plot.cpp
+    test_job_sch_erc.cpp
     test_jobs_runner.cpp
+    test_jobs_output_archive.cpp
 )
 
 if( KICAD_TEST_DATABASE_LIBRARIES )
@@ -152,6 +191,10 @@ target_link_libraries( qa_common
     ZLIB::ZLIB
     )
 
+if( TARGET api_schema_build_copy )
+    add_dependencies( qa_common api_schema_build_copy )
+endif()
+
 include_directories(
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/kicad
@@ -161,6 +204,10 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/qa/mocks/include
     ${INC_AFTER}
 )
+
+set_source_files_properties( test_remote_provider_metadata.cpp test_remote_provider_client.cpp PROPERTIES
+        COMPILE_DEFINITIONS "QA_SRC_ROOT=(\"${CMAKE_SOURCE_DIR}\")"
+        )
 
 if( KICAD_TEST_DATABASE_LIBRARIES )
     set_source_files_properties( test_database.cpp PROPERTIES

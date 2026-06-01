@@ -37,6 +37,9 @@
 #include <widgets/msgpanel.h>
 #include <math/util.h>      // for KiROUND
 #include <geometry/geometry_utils.h>
+#include <api/api_enums.h>
+#include <api/api_utils.h>
+#include <api/schematic/schematic_types.pb.h>
 #include <sch_sheet.h>
 #include <sch_sheet_path.h>
 #include <sch_sheet_pin.h>
@@ -44,7 +47,6 @@
 #include <sch_symbol.h>
 #include <sch_painter.h>
 #include <schematic.h>
-#include <settings/color_settings.h>
 #include <settings/settings_manager.h>
 #include <trace_helpers.h>
 #include <validators.h>
@@ -78,6 +80,137 @@ SCH_SHEET::SCH_SHEET( EDA_ITEM* aParent, const VECTOR2I& aPos, VECTOR2I aSize ) 
                            GetDefaultFieldName( FIELD_T::SHEET_FILENAME, DO_TRANSLATE ) );
 
     AutoplaceFields( nullptr, m_fieldsAutoplaced );
+}
+
+
+void SCH_SHEET::Serialize( google::protobuf::Any& aContainer ) const
+{
+    using namespace kiapi::common;
+    using namespace kiapi::common::types;
+    using namespace kiapi::schematic::types;
+
+    SheetSymbol sheet;
+
+    sheet.mutable_id()->set_value( m_Uuid.AsStdString() );
+    PackVector2( *sheet.mutable_position(), GetPosition(), schIUScale );
+    PackVector2( *sheet.mutable_size(), GetSize(), schIUScale );
+    sheet.set_locked( IsLocked() ? LockedState::LS_LOCKED : LockedState::LS_UNLOCKED );
+    sheet.set_exclude_from_sim( GetExcludedFromSim() );
+    sheet.set_exclude_from_bom( GetExcludedFromBOM() );
+    sheet.set_exclude_from_board( GetExcludedFromBoard() );
+    sheet.set_dnp( GetDNP() );
+
+    StrokeAttributes* borderStroke = sheet.mutable_border_stroke();
+    PackDistance( *borderStroke->mutable_width(), GetBorderWidth(), schIUScale );
+    borderStroke->set_style( ToProtoEnum<LINE_STYLE, StrokeLineStyle>( LINE_STYLE::SOLID ) );
+
+    if( GetBorderColor() != COLOR4D::UNSPECIFIED )
+        PackColor( *borderStroke->mutable_color(), GetBorderColor() );
+
+    GraphicFillAttributes* fill = sheet.mutable_fill();
+    fill->set_fill_type( GetBackgroundColor() == COLOR4D::UNSPECIFIED ? GraphicFillType::GFT_UNFILLED
+                                                                      : GraphicFillType::GFT_FILLED_WITH_COLOR );
+
+    if( GetBackgroundColor() != COLOR4D::UNSPECIFIED )
+        PackColor( *fill->mutable_color(), GetBackgroundColor() );
+
+    google::protobuf::Any any;
+
+    GetField( FIELD_T::SHEET_NAME )->Serialize( any );
+    any.UnpackTo( sheet.mutable_name_field() );
+
+    GetField( FIELD_T::SHEET_FILENAME )->Serialize( any );
+    any.UnpackTo( sheet.mutable_filename_field() );
+
+    for( const SCH_FIELD& field : GetFields() )
+    {
+        if( field.IsMandatory() )
+            continue;
+
+        field.Serialize( any );
+        any.UnpackTo( sheet.add_user_fields() );
+    }
+
+    for( const SCH_SHEET_PIN* pin : GetPins() )
+    {
+        pin->Serialize( any );
+        any.UnpackTo( sheet.add_pins() );
+    }
+
+    aContainer.PackFrom( sheet );
+}
+
+
+bool SCH_SHEET::Deserialize( const google::protobuf::Any& aContainer )
+{
+    using namespace kiapi::common;
+    using namespace kiapi::common::types;
+    using namespace kiapi::schematic::types;
+
+    SheetSymbol sheet;
+
+    if( !aContainer.UnpackTo( &sheet ) )
+        return false;
+
+    const_cast<::KIID&>( m_Uuid ) = ::KIID( sheet.id().value() );
+    SetPosition( UnpackVector2( sheet.position(), schIUScale ) );
+    SetSize( UnpackVector2( sheet.size(), schIUScale ) );
+    SetLocked( sheet.locked() == LockedState::LS_LOCKED );
+    SetExcludedFromSim( sheet.exclude_from_sim() );
+    SetExcludedFromBOM( sheet.exclude_from_bom() );
+    SetExcludedFromBoard( sheet.exclude_from_board() );
+    SetDNP( sheet.dnp() );
+
+    SetBorderWidth( UnpackDistance( sheet.border_stroke().width(), schIUScale ) );
+    SetBorderColor( sheet.border_stroke().has_color() ? UnpackColor( sheet.border_stroke().color() )
+                                                       : COLOR4D::UNSPECIFIED );
+
+    if( sheet.fill().fill_type() == GraphicFillType::GFT_UNFILLED || !sheet.fill().has_color() )
+        SetBackgroundColor( COLOR4D::UNSPECIFIED );
+    else
+        SetBackgroundColor( UnpackColor( sheet.fill().color() ) );
+
+    for( SCH_SHEET_PIN* pin : m_pins )
+        delete pin;
+
+    m_pins.clear();
+
+    m_fields.clear();
+    m_fields.emplace_back( this, FIELD_T::SHEET_NAME,
+                           GetDefaultFieldName( FIELD_T::SHEET_NAME, DO_TRANSLATE ) );
+    m_fields.emplace_back( this, FIELD_T::SHEET_FILENAME,
+                           GetDefaultFieldName( FIELD_T::SHEET_FILENAME, DO_TRANSLATE ) );
+
+    google::protobuf::Any any;
+
+    any.PackFrom( sheet.name_field() );
+    GetField( FIELD_T::SHEET_NAME )->Deserialize( any );
+
+    any.PackFrom( sheet.filename_field() );
+    GetField( FIELD_T::SHEET_FILENAME )->Deserialize( any );
+
+    for( const auto& field : sheet.user_fields() )
+    {
+        m_fields.emplace_back( this, FIELD_T::SHEET_USER );
+
+        any.PackFrom( field );
+        m_fields.back().Deserialize( any );
+    }
+
+    for( const auto& pinProto : sheet.pins() )
+    {
+        auto pin = std::make_unique<SCH_SHEET_PIN>( this );
+        any.PackFrom( pinProto );
+
+        if( !pin->Deserialize( any ) )
+            return false;
+
+        AddPin( pin.release() );
+    }
+
+    SetScreen( nullptr );
+
+    return true;
 }
 
 
@@ -259,6 +392,7 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
     }
 
     PROJECT* project = &schematic->Project();
+    wxString variant = schematic->GetCurrentVariant();
 
     // We cannot resolve text variables initially on load as we need to first load the screen and
     // then parse the hierarchy.  So skip the resolution if the screen isn't set yet
@@ -286,7 +420,7 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
     {
         *token = wxEmptyString;
 
-        if( aPath->GetExcludedFromBOM() || this->ResolveExcludedFromBOM() )
+        if( aPath->GetExcludedFromBOM( variant ) || this->ResolveExcludedFromBOM( aPath, variant ) )
             *token = _( "Excluded from BOM" );
 
         return true;
@@ -295,7 +429,7 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
     {
         *token = wxEmptyString;
 
-        if( aPath->GetExcludedFromBoard() || this->ResolveExcludedFromBoard() )
+        if( aPath->GetExcludedFromBoard( variant ) || this->ResolveExcludedFromBoard( aPath, variant ) )
             *token = _( "Excluded from board" );
 
         return true;
@@ -304,7 +438,7 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
     {
         *token = wxEmptyString;
 
-        if( aPath->GetExcludedFromSim() || this->ResolveExcludedFromSim() )
+        if( aPath->GetExcludedFromSim( variant ) || this->ResolveExcludedFromSim( aPath, variant ) )
             *token = _( "Excluded from simulation" );
 
         return true;
@@ -313,7 +447,7 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
     {
         *token = wxEmptyString;
 
-        if( aPath->GetDNP() || this->ResolveDNP() )
+        if( aPath->GetDNP( variant ) || this->ResolveDNP( aPath, variant ) )
             *token = _( "DNP" );
 
         return true;
@@ -1384,6 +1518,16 @@ void SCH_SHEET::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
     SCH_RENDER_SETTINGS* renderSettings = getRenderSettings( aPlotter );
     COLOR4D              borderColor = GetBorderColor();
     COLOR4D              backgroundColor = GetBackgroundColor();
+    SCH_SHEET_PATH       instance;
+    wxString             variantName;
+
+    if( Schematic() )
+    {
+        instance = Schematic()->CurrentSheet();
+        variantName = Schematic()->GetCurrentVariant();
+    }
+
+    bool dnp = GetDNP( &instance, variantName );
 
     if( renderSettings->m_OverrideItemColors || borderColor == COLOR4D::UNSPECIFIED )
         borderColor = aPlotter->RenderSettings()->GetLayerColor( LAYER_SHEET );
@@ -1396,6 +1540,12 @@ void SCH_SHEET::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
 
     if( backgroundColor.m_text && Schematic() )
         backgroundColor = COLOR4D( ResolveText( *backgroundColor.m_text, &Schematic()->CurrentSheet() ) );
+
+    if( aDimmed || dnp )
+    {
+        borderColor.Desaturate();
+        borderColor = borderColor.Mix( backgroundColor, 0.5f );
+    }
 
     if( aBackground && backgroundColor.a > 0.0 )
     {
@@ -1433,37 +1583,25 @@ void SCH_SHEET::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
 
     // Plot sheet pins
     for( SCH_SHEET_PIN* sheetPin : m_pins )
-        sheetPin->Plot( aPlotter, aBackground, aPlotOpts, aUnit, aBodyStyle, aOffset, aDimmed );
+        sheetPin->Plot( aPlotter, aBackground, aPlotOpts, aUnit, aBodyStyle, aOffset, aDimmed || dnp );
 
     // Plot the fields
     for( SCH_FIELD& field : m_fields )
-        field.Plot( aPlotter, aBackground, aPlotOpts, aUnit, aBodyStyle, aOffset, aDimmed );
+        field.Plot( aPlotter, aBackground, aPlotOpts, aUnit, aBodyStyle, aOffset, aDimmed || dnp );
 
-    SCH_SHEET_PATH instance;
-    wxString variantName;
-
-    if( Schematic() )
+    if( dnp )
     {
-        instance = Schematic()->CurrentSheet();
-        variantName = Schematic()->GetCurrentVariant();
-    }
-
-    if( GetDNP( &instance, variantName) )
-    {
-        COLOR_SETTINGS* colors = ::GetColorSettings( DEFAULT_THEME );
-        BOX2I           bbox = GetBodyBoundingBox();
-        BOX2I           pins = GetBoundingBox();
-        VECTOR2D        margins( std::max( bbox.GetX() - pins.GetX(),
-                                           pins.GetEnd().x - bbox.GetEnd().x ),
-                                 std::max( bbox.GetY() - pins.GetY(),
-                                           pins.GetEnd().y - bbox.GetEnd().y ) );
-        int             strokeWidth = 3.0 * schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS );
+        BOX2I    bbox = GetBodyBoundingBox();
+        BOX2I    pins = GetBoundingBox();
+        VECTOR2D margins( std::max( bbox.GetX() - pins.GetX(), pins.GetEnd().x - bbox.GetEnd().x ),
+                          std::max( bbox.GetY() - pins.GetY(), pins.GetEnd().y - bbox.GetEnd().y ) );
+        int      strokeWidth = 3.0 * schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS );
 
         margins.x = std::max( margins.x * 0.6, margins.y * 0.3 );
         margins.y = std::max( margins.y * 0.6, margins.x * 0.3 );
         bbox.Inflate( KiROUND( margins.x ), KiROUND( margins.y ) );
 
-        aPlotter->SetColor( colors->GetColor( LAYER_DNP_MARKER ) );
+        aPlotter->SetColor( renderSettings->GetLayerColor( LAYER_DNP_MARKER ) );
 
         aPlotter->ThickSegment( bbox.GetOrigin(), bbox.GetEnd(), strokeWidth, nullptr );
 
@@ -1936,9 +2074,7 @@ bool SCH_SHEET::GetDNP( const SCH_SHEET_PATH* aInstance, const wxString& aVarian
     if( !getInstance( instance, aInstance->Path() ) )
         return m_DNP;
 
-    if( aVariantName.IsEmpty() )
-        return m_DNP;
-    else if( instance.m_Variants.contains( aVariantName ) )
+    if( instance.m_Variants.contains( aVariantName ) )
         return instance.m_Variants[aVariantName].m_DNP;
 
     // If the variant has not been defined, return the default DNP setting.
@@ -2005,9 +2141,7 @@ bool SCH_SHEET::GetExcludedFromSim( const SCH_SHEET_PATH* aInstance, const wxStr
     if( !getInstance( instance, aInstance->Path() ) )
         return m_excludedFromSim;
 
-    if( aVariantName.IsEmpty() )
-        return m_excludedFromSim;
-    else if( instance.m_Variants.contains( aVariantName ) )
+    if( instance.m_Variants.contains( aVariantName ) )
         return instance.m_Variants[aVariantName].m_ExcludedFromSim;
 
     // If the variant has not been defined, return the default DNP setting.
@@ -2074,9 +2208,7 @@ bool SCH_SHEET::GetExcludedFromBOM( const SCH_SHEET_PATH* aInstance, const wxStr
     if( !getInstance( instance, aInstance->Path() ) )
         return m_excludedFromBOM;
 
-    if( aVariantName.IsEmpty() )
-        return m_excludedFromBOM;
-    else if( instance.m_Variants.contains( aVariantName ) )
+    if( instance.m_Variants.contains( aVariantName ) )
         return instance.m_Variants[aVariantName].m_ExcludedFromBOM;
 
     // If the variant has not been defined, return the default DNP setting.

@@ -69,9 +69,17 @@ private:
     VECTOR2I scaleSize( const VECTOR2I& aSize ) const;
     int scale( int aVal ) const;
 
-    template <typename T>
-    const T* expectBlockByKey( uint32_t aKey, uint8_t aType ) const
+    /**
+     * Get a block by its key, and check that it is of the expected type.
+      *
+      * @tparam T must be a BLOCK_DATA struct with a BLOCK_TYPE_CODE member
+     */
+    template <ALLEGRO_BLOCK_DATA T>
+    const T* expectBlockByKey( uint32_t aKey ) const
     {
+        // The type code trait
+        constexpr uint8_t kType = T::BLOCK_TYPE_CODE;
+
         if( aKey == 0 )
             return nullptr;
 
@@ -79,13 +87,13 @@ private:
 
         if( !block )
         {
-            reportMissingBlock( aKey, aType );
+            reportMissingBlock( aKey, kType );
             return nullptr;
         }
 
-        if( block->GetBlockType() != aType )
+        if( block->GetBlockType() != kType )
         {
-            reportUnexpectedBlockType( block->GetBlockType(), aType, aKey, block->GetOffset() );
+            reportUnexpectedBlockType( block->GetBlockType(), kType, aKey, block->GetOffset() );
             return nullptr;
         }
 
@@ -163,13 +171,17 @@ private:
     std::vector<std::unique_ptr<BOARD_ITEM>> buildTrack( const BLK_0x05_TRACK& aBlock, int aNetcode );
     std::unique_ptr<BOARD_ITEM>              buildVia( const BLK_0x33_VIA& aBlock, int aNetcode );
 
+    class ZONE_FILL_HANDLER;
+
     /**
      * Build a ZONE from an 0x0E, 0x24 or 0x28 block.
-     * 
+     *
      * @param aRelatedBlocks are blocks to get net (0x1B) and fill (0x28) info from
+     * @param aZoneFillHandler is a management object for efficiently dealing with filled zones
      */
     std::unique_ptr<ZONE> buildZone( const BLOCK_BASE&                     aBoundaryBlock,
-                                     const std::vector<const BLOCK_BASE*>& aRelatedBlocks );
+                                     const std::vector<const BLOCK_BASE*>& aRelatedBlocks,
+                                     ZONE_FILL_HANDLER&                    aZoneFillHandler );
 
     SHAPE_LINE_CHAIN buildOutline( const BLK_0x0E_RECT& aRect ) const;
     SHAPE_LINE_CHAIN buildOutline( const BLK_0x24_RECT& aRect ) const;

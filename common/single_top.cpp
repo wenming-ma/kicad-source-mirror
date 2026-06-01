@@ -51,6 +51,7 @@
 #include <confirm.h>
 #include <design_block_library_adapter.h>
 
+#include <settings/common_settings.h>
 #include <settings/kicad_settings.h>
 #include <settings/settings_manager.h>
 #include <paths.h>
@@ -59,6 +60,8 @@
 #include <kiplatform/environment.h>
 
 #include <git2.h>
+#include <git/git_backend.h>
+#include <git/libgit_backend.h>
 #include <thread_pool.h>
 
 #include <libraries/library_manager.h>
@@ -107,7 +110,13 @@ static struct PGM_SINGLE_TOP : public PGM_BASE
         // Destroy everything in PGM_BASE, especially wxSingleInstanceCheckerImpl
         // earlier than wxApp and earlier than static destruction would.
         PGM_BASE::Destroy();
-        git_libgit2_shutdown();
+
+        if( GIT_BACKEND* backend = GetGitBackend() )
+        {
+            backend->Shutdown();
+            delete backend;
+            SetGitBackend( nullptr );
+        }
     }
 
     void MacOpenFile( const wxString& aFileName )   override
@@ -228,8 +237,14 @@ struct APP_SINGLE_TOP : public wxApp
 
     int  OnExit() override
     {
+        // Drain wxPendingDelete (frames deferred via Destroy()) before tearing down
+        // PGM_BASE singletons. On macOS the dock-quit path leaves frames in this
+        // queue at OnExit() time, and their canvas destructors call into
+        // Pgm().GetGLContextManager(). Running OnPgmExit() first would null that
+        // pointer out from under them. See https://gitlab.com/kicad/code/kicad/-/issues/23373
+        int ret = wxApp::OnExit();
         program.OnPgmExit();
-        return wxApp::OnExit();
+        return ret;
     }
 
     int OnRun() override
@@ -339,10 +354,11 @@ bool PGM_SINGLE_TOP::OnPgmInit()
     }
 #endif
 
-    // Initialize the git library before trying to initialize individual programs
-    int gitInit = git_libgit2_init();
+    // Initialize the git backend before trying to initialize individual programs
+    SetGitBackend( new LIBGIT_BACKEND() );
+    GetGitBackend()->Init();
 
-    if( gitInit < 0 )
+    if( !GetGitBackend()->IsLibraryAvailable() )
     {
         const git_error* err = git_error_last();
         wxString         msg = wxS( "Failed to initialize git library" );
@@ -354,16 +370,7 @@ bool PGM_SINGLE_TOP::OnPgmInit()
         return false;
     }
 
-    // Not all KiCad applications use the python stuff. skip python init
-    // for these apps.
-    bool skip_python_initialization = false;
-
-#if defined( BITMAP_2_CMP ) || defined( PL_EDITOR ) || defined( GERBVIEW ) || \
-    defined( PCB_CALCULATOR_BUILD )
-    skip_python_initialization = true;
-#endif
-
-    if( !InitPgm( false, skip_python_initialization ) )
+    if( !InitPgm( false ) )
     {
         // Clean up
         OnPgmExit();
@@ -394,6 +401,15 @@ bool PGM_SINGLE_TOP::OnPgmInit()
 
     GetSettingsManager().RegisterSettings( new KICAD_SETTINGS );
 
+
+    if( const COMMON_SETTINGS* cfg = Pgm().GetCommonSettings() )
+    {
+        if( cfg->m_Appearance.app_theme == APP_THEME::DARK )
+            KIPLATFORM::APP::EnableDarkMode( true );
+        else if( cfg->m_Appearance.app_theme == APP_THEME::AUTO )
+            KIPLATFORM::APP::EnableDarkMode( false );
+    }
+
 #ifdef KICAD_IPC_API
     // Create the API server thread once the app event loop exists
     m_api_server = std::make_unique<KICAD_API_SERVER>();
@@ -418,12 +434,6 @@ bool PGM_SINGLE_TOP::OnPgmInit()
 
     // Load library tables after startup wizard
     GetLibraryManager().LoadGlobalTables();
-
-    // Preload libraries, since for single-top this won't have been done earlier
-    if( KIFACE* topFrame = Kiway.KiFACE( KIWAY::KifaceType( TOP_FRAME ) ) )
-        topFrame->PreloadLibraries( &Kiway );
-
-    PreloadDesignBlockLibraries( &Kiway );
 
     App().SetTopWindow( frame );      // wxApp gets a face.
     App().SetAppDisplayName( frame->GetAboutTitle() );
@@ -488,6 +498,11 @@ bool PGM_SINGLE_TOP::OnPgmInit()
 
         frame->OpenProjectFiles( fileArgs );
     }
+
+    if( KIFACE* topFrame = Kiway.KiFACE( KIWAY::KifaceType( TOP_FRAME ) ) )
+        topFrame->PreloadLibraries( &Kiway );
+
+    PreloadDesignBlockLibraries( &Kiway );
 
 #ifdef KICAD_IPC_API
     m_api_server->SetReadyToReply();

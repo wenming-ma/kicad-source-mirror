@@ -25,6 +25,7 @@
 
 #include <connection_graph.h>
 #include <locale_io.h>
+#include <project/project_file.h>
 #include <schematic.h>
 #include <sch_commit.h>
 #include <sch_edit_frame.h>
@@ -40,48 +41,11 @@
 
 
 SCH_EDIT_FRAME*   EESCHEMA_HELPERS::s_SchEditFrame = nullptr;
-SETTINGS_MANAGER* EESCHEMA_HELPERS::s_SettingsManager = nullptr;
 
 
 void EESCHEMA_HELPERS::SetSchEditFrame( SCH_EDIT_FRAME* aSchEditFrame )
 {
     s_SchEditFrame = aSchEditFrame;
-}
-
-
-SETTINGS_MANAGER* EESCHEMA_HELPERS::GetSettingsManager()
-{
-    if( !s_SettingsManager )
-    {
-        if( s_SchEditFrame )
-        {
-            s_SettingsManager = s_SchEditFrame->GetSettingsManager();
-        }
-        else
-        {
-            s_SettingsManager = new SETTINGS_MANAGER();
-        }
-    }
-
-    return s_SettingsManager;
-}
-
-
-PROJECT* EESCHEMA_HELPERS::GetDefaultProject( bool aSetActive )
-{
-    // For some reasons, LoadProject() needs a C locale, so ensure we have the right locale
-    // This is mainly when running QA Python tests
-    LOCALE_IO dummy;
-
-    PROJECT* project = GetSettingsManager()->GetProject( "" );
-
-    if( !project )
-    {
-        GetSettingsManager()->LoadProject( "", aSetActive );
-        project = GetSettingsManager()->GetProject( "" );
-    }
-
-    return project;
 }
 
 
@@ -118,10 +82,11 @@ SCHEMATIC* EESCHEMA_HELPERS::LoadSchematic( const wxString& aFileName,
     LOCALE_IO dummy;
 
     PROJECT* project = aProject;
+    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
 
     if( !project )
     {
-        project = GetSettingsManager()->GetProject( projectPath );
+        project = mgr.GetProject( projectPath );
     }
 
     if( !aForceDefaultProject )
@@ -130,11 +95,11 @@ SCHEMATIC* EESCHEMA_HELPERS::LoadSchematic( const wxString& aFileName,
         {
             if( wxFileExists( projectPath ) )
             {
-                GetSettingsManager()->LoadProject( projectPath, aSetActive );
-                project = GetSettingsManager()->GetProject( projectPath );
+                mgr.LoadProject( projectPath, aSetActive );
+                project = mgr.GetProject( projectPath );
             }
         }
-        else if( s_SchEditFrame && project == &GetSettingsManager()->Prj() )
+        else if( s_SchEditFrame && project == &mgr.Prj() )
         {
             // Project is already loaded?  Then so is the board
             return &s_SchEditFrame->Schematic();
@@ -143,7 +108,7 @@ SCHEMATIC* EESCHEMA_HELPERS::LoadSchematic( const wxString& aFileName,
 
     // Board cannot be loaded without a project, so create the default project
     if( !project || aForceDefaultProject )
-        project = GetDefaultProject( aSetActive );
+        project = &mgr.Prj();
 
     IO_RELEASER<SCH_IO> pi( SCH_IO_MGR::FindPlugin( aFormat ) );
 
@@ -157,10 +122,31 @@ SCHEMATIC* EESCHEMA_HELPERS::LoadSchematic( const wxString& aFileName,
     {
         SCH_SHEET* rootSheet = pi->LoadSchematicFile( schFile.GetFullPath(), schematic );
 
-        if( rootSheet )
-            schematic->SetTopLevelSheets( { rootSheet } );
-        else
+        if( !rootSheet )
             return nullptr;
+
+        schematic->SetTopLevelSheets( { rootSheet } );
+
+        // Make ${SHEETNAME} work on the root sheet until we properly support naming the root
+        // sheet.  Prefer the display name from the matching schematic.top_level_sheets entry in
+        // the project file so CLI/API exports show the same name the GUI does.
+        if( rootSheet->GetName().IsEmpty() )
+        {
+            wxString rootName = _( "Root" );
+
+            for( const TOP_LEVEL_SHEET_INFO& info : project->GetProjectFile().GetTopLevelSheets() )
+            {
+                wxFileName candidate( project->GetProjectPath(), info.filename );
+
+                if( candidate.SameAs( schFile ) && !info.name.IsEmpty() )
+                {
+                    rootName = info.name;
+                    break;
+                }
+            }
+
+            rootSheet->SetName( rootName );
+        }
     }
     catch( ... )
     {
@@ -183,6 +169,19 @@ SCHEMATIC* EESCHEMA_HELPERS::LoadSchematic( const wxString& aFileName,
 
     for( SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
         screen->MigrateSimModels();
+
+    schematic->LoadVariants();
+
+    wxString projectName = project->GetProjectName();
+
+    if( projectName.IsEmpty() )
+        projectName = schFile.GetName();
+
+    // Check must run before pruning so variant data on a stale instance path is migrated
+    // onto the new instance before the orphan is removed.
+    sheetList.CheckForMissingSymbolInstances( projectName );
+    screens.PruneOrphanedSymbolInstances( projectName, sheetList );
+    screens.PruneOrphanedSheetInstances( projectName, sheetList );
 
     sheetList.AnnotatePowerSymbols();
 

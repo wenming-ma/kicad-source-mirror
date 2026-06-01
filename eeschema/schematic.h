@@ -28,6 +28,7 @@
 #include <project.h>
 
 
+struct HISTORY_FILE_DATA;
 class BUS_ALIAS;
 class CONNECTION_GRAPH;
 class EDA_BASE_FRAME;
@@ -126,7 +127,7 @@ public:
     SCH_ITEM* ResolveItem( const KIID& aID, SCH_SHEET_PATH* aPathOut = nullptr,
                            bool aAllowNullptrReturn = false ) const
     {
-        return BuildUnorderedSheetList().ResolveItem( aID, aPathOut, aAllowNullptrReturn );
+        return m_hierarchy.ResolveItem( aID, aPathOut, aAllowNullptrReturn );
     }
 
     SCH_SHEET& Root() const
@@ -200,6 +201,9 @@ public:
     {
         return m_connectionGraph;
     }
+
+    const wxString& GetHighlightedNetChain() const { return m_highlightedNetChain; }
+    void SetHighlightedNetChain( const wxString& aNetChain ) { m_highlightedNetChain = aNetChain; }
 
     SCHEMATIC_SETTINGS& Settings() const;
 
@@ -297,9 +301,9 @@ public:
      *
      * Called after the simulation completes.
      */
-    void SetOperatingPoint( const wxString& aSignal, double aValue )
+    void SetOperatingPoint( const wxString& aNetChain, double aValue )
     {
-        m_operatingPoints[ aSignal ] = aValue;
+        m_operatingPoints[ aNetChain ] = aValue;
     }
 
     wxString GetOperatingPoint( const wxString& aNetName, int aPrecision, const wxString& aRange );
@@ -533,14 +537,15 @@ public:
     PROJECT::ELEM ProjectElementType() override { return PROJECT::ELEM::SCHEMATIC; }
 
     /**
-     * Save schematic files to the .history directory.
+     * Serialize schematic sheets into HISTORY_FILE_DATA for non-blocking history commit.
      *
      * This method is used as a saver callback for LOCAL_HISTORY during autosave operations.
+     * Serialization runs on the UI thread; Prettify and file I/O happen in the background.
      *
      * @param aProjectPath The path to check against this schematic's project path
-     * @param aFiles Output vector to append absolute file paths for history inclusion
+     * @param aFileData Output vector to append serialized data for history inclusion
      */
-    void SaveToHistory( const wxString& aProjectPath, std::vector<wxString>& aFiles );
+    void SaveToHistory( const wxString& aProjectPath, std::vector<HISTORY_FILE_DATA>& aFileData );
 
 private:
     friend class SCH_EDIT_FRAME;
@@ -576,6 +581,8 @@ private:
 
     /// Hold and calculate connectivity information of this schematic.
     CONNECTION_GRAPH* m_connectionGraph;
+
+    wxString m_highlightedNetChain;
 
     /**
      * Holds a map of labels to the page sequence (virtual page number) that they appear on.
@@ -622,6 +629,13 @@ private:
     /// Re-entry guard to prevent infinite recursion between ensureDefaultTopLevelSheet and
     /// RefreshHierarchy when setting up new schematics
     bool m_settingTopLevelSheets = false;
+
+    /// Reactive text-variable dependency adapter. Installed as a listener
+    /// during SCHEMATIC construction.
+    std::unique_ptr<class SCHEMATIC_TEXT_VAR_ADAPTER> m_textVarAdapter;
+
+public:
+    class SCHEMATIC_TEXT_VAR_ADAPTER* GetTextVarAdapter() const { return m_textVarAdapter.get(); }
 };
 
 #endif

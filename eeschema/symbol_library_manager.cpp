@@ -95,7 +95,7 @@ int SYMBOL_LIBRARY_MANAGER::GetLibraryHash( const wxString& aLibrary ) const
 
         wxLogNull silence;
 
-        fn.Normalize( wxPATH_NORM_ALL );
+        fn.Normalize( FN_NORMALIZE_FLAGS );
 
         if( fn.DirExists() )
             mtime = KIPLATFORM::IO::TimestampDir( fn.GetFullPath(),
@@ -220,12 +220,12 @@ bool SYMBOL_LIBRARY_MANAGER::SaveLibrary( const wxString& aLibrary, const wxStri
                                  wxString::Format( wxT( "Derived symbol '%s' found with undefined parent." ),
                                                    symbol->GetName() ) );
 
-                    LIB_SYMBOL* libParent = pi->LoadSymbol( aLibrary, oldParent->GetName(), &properties );
+                    LIB_SYMBOL* libParent = pi->LoadSymbol( aFileName, oldParent->GetName(), &properties );
 
                     if( !libParent )
                     {
                         libParent = new LIB_SYMBOL( *oldParent );
-                        pi->SaveSymbol( aLibrary, libParent, &properties );
+                        pi->SaveSymbol( aFileName, libParent, &properties );
                     }
                     else
                     {
@@ -247,11 +247,11 @@ bool SYMBOL_LIBRARY_MANAGER::SaveLibrary( const wxString& aLibrary, const wxStri
 
                     newSymbol = new LIB_SYMBOL( *symbol );
                     newSymbol->SetParent( libParent );
-                    pi->SaveSymbol( aLibrary, newSymbol, &properties );
+                    pi->SaveSymbol( aFileName, newSymbol, &properties );
                 }
-                else if( !pi->LoadSymbol( aLibrary, symbol->GetName(), &properties ) )
+                else if( !pi->LoadSymbol( aFileName, symbol->GetName(), &properties ) )
                 {
-                    pi->SaveSymbol( aLibrary, new LIB_SYMBOL( *symbol ), &properties );
+                    pi->SaveSymbol( aFileName, new LIB_SYMBOL( *symbol ), &properties );
                 }
             }
             catch( ... )
@@ -775,13 +775,6 @@ bool SYMBOL_LIBRARY_MANAGER::addLibrary( const wxString& aFilePath, bool aCreate
 
     if( success )
     {
-        manager.ReloadTables( aScope, { LIBRARY_TABLE_TYPE::SYMBOL } );
-
-        // Tables are reinitialized. So reinit table reference.
-        optTable = manager.Table( LIBRARY_TABLE_TYPE::SYMBOL, aScope );
-        wxCHECK( optTable, false );
-        table = optTable.value();
-
         if( aCreate )
         {
             wxCHECK( schFileType != SCH_IO_MGR::SCH_FILE_T::SCH_LEGACY, false );

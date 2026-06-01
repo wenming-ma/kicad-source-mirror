@@ -41,7 +41,7 @@
 #include <zone.h>
 #include <zone_filler.h>
 #include <length_delay_calculation/length_delay_calculation.h>
-#include <drc/drc_cache_generator.h>
+#include <drc/drc_engine.h>
 #include <pcbnew_utils/board_file_utils.h>
 #include <settings/settings_manager.h>
 #include <tool/tool_manager.h>
@@ -50,21 +50,22 @@
     BOOST_CHECK_EQUAL( static_cast<int>( L ), static_cast<int>( R ) )
 
 
-// Test printer for VIACLASS
-void boost::test_tools::tt_detail::print_log_value<VIATYPE>::operator()( std::ostream& os, const VIATYPE& viaType ) const
+std::ostream& boost_test_print_type( std::ostream& os, const VIATYPE& aViaType )
 {
     // clang-format off
-    switch( viaType )
+    switch( aViaType )
     {
         case VIATYPE::THROUGH:      os << "THROUGH";        break;
         case VIATYPE::BLIND:        os << "BLIND";          break;
         case VIATYPE::BURIED:       os << "BURIED";         break;
         case VIATYPE::MICROVIA:     os << "MICROVIA";       break;
         default:
-            os << "UNKNOWN_VIA_TYPE(" << static_cast<int>( viaType ) << ")";
+            os << "UNKNOWN_VIA_TYPE(" << static_cast<int>( aViaType ) << ")";
     }
     // clang-format on
+    return os;
 }
+
 
 namespace KI_TEST
 {
@@ -186,19 +187,6 @@ void LoadBoard( SETTINGS_MANAGER& aSettingsManager, const wxString& aRelPath,
         catch( const std::exception& e )
         {
             BOOST_TEST_ERROR( "Exception in SynchronizeComponentClasses: " << e.what() );
-            return;
-        }
-
-        BOOST_TEST_CHECKPOINT( "Run DRC cache generator" );
-        try
-        {
-            DRC_CACHE_GENERATOR cacheGenerator;
-            cacheGenerator.SetDRCEngine( m_DRCEngine.get() );
-            cacheGenerator.Run();
-        }
-        catch( const std::exception& e )
-        {
-            BOOST_TEST_ERROR( "Exception in DRC cache generator: " << e.what() );
             return;
         }
     }
@@ -862,8 +850,7 @@ std::unique_ptr<BOARD> LoadBoardWithCapture( PCB_IO& aIoPlugin, const std::strin
 {
     std::unique_ptr<BOARD> board = std::make_unique<BOARD>();
 
-    if( aReporter )
-        aIoPlugin.SetReporter( aReporter );
+    aIoPlugin.SetReporter( aReporter );
 
     try
     {

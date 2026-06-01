@@ -115,7 +115,7 @@ TOOL_ACTION ACTIONS::saveAll( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Save All" ) )
         .Tooltip( _( "Save all changes" ) )
-        .Icon( BITMAPS::save ) );
+        .Icon( BITMAPS::save_all ) );
 
 TOOL_ACTION ACTIONS::revert( TOOL_ACTION_ARGS()
         .Name( "common.Control.revert" )
@@ -352,14 +352,18 @@ TOOL_ACTION ACTIONS::selectSetRect( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Rectangle" ) )
         .Tooltip( _( "Set selection mode to use rectangle" ) )
-        .Icon( BITMAPS::cursor ) );
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
+        .Icon( BITMAPS::cursor )
+        .Flags( AF_ACTIVATE ) );
 
 TOOL_ACTION ACTIONS::selectSetLasso( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.selectSetLasso" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Lasso" ) )
         .Tooltip( _( "Set selection mode to use polygon lasso" ) )
-        .Icon( BITMAPS::lasso ) );
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
+        .Icon( BITMAPS::lasso )
+        .Flags( AF_ACTIVATE ) );
 
 TOOL_ACTION ACTIONS::selectAll( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.selectAll" )
@@ -570,7 +574,9 @@ TOOL_ACTION ACTIONS::editTable( TOOL_ACTION_ARGS()
 
 TOOL_ACTION ACTIONS::exportTableCSV( TOOL_ACTION_ARGS()
         .Name( "common.TableEditor.exportTableCSV" )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Export Table to CSV" ) )
         .MenuText( _( "Export Table to CSV..." ) )
         .Tooltip( _( "Export table contents to CSV file with resolved text variables" ) )
         .Icon( BITMAPS::export_file ) );
@@ -1105,7 +1111,6 @@ TOOL_ACTION ACTIONS::inchesUnits( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Inches" ) )
         .Icon( BITMAPS::unit_inch )
-        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Flags( AF_NONE )
         .Parameter( EDA_UNITS::INCH ) );
 
@@ -1113,7 +1118,6 @@ TOOL_ACTION ACTIONS::milsUnits( TOOL_ACTION_ARGS()
         .Name( "common.Control.mils" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Mils" ) )
-        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::unit_mil )
         .Flags( AF_NONE )
         .Parameter( EDA_UNITS::MILS ) );
@@ -1122,7 +1126,6 @@ TOOL_ACTION ACTIONS::millimetersUnits( TOOL_ACTION_ARGS()
         .Name( "common.Control.metricUnits" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Millimeters" ) )
-        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::unit_mm )
         .Flags( AF_NONE )
         .Parameter( EDA_UNITS::MM ) );
@@ -1181,7 +1184,6 @@ TOOL_ACTION ACTIONS::cursorSmallCrosshairs( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Small crosshairs" ) )
         .Tooltip( _( "Use small crosshairs aligned at 0 and 90 degrees" ) )
-        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::cursor_shape ) );
 
 TOOL_ACTION ACTIONS::cursorFullCrosshairs( TOOL_ACTION_ARGS()
@@ -1189,7 +1191,6 @@ TOOL_ACTION ACTIONS::cursorFullCrosshairs( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Full-Window Crosshairs" ) )
         .Tooltip( _( "Display full-window crosshairs aligned at 0 and 90 degrees" ) )
-        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::cursor_fullscreen ) );
 
 TOOL_ACTION ACTIONS::cursor45Crosshairs( TOOL_ACTION_ARGS()
@@ -1197,7 +1198,6 @@ TOOL_ACTION ACTIONS::cursor45Crosshairs( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "45 Degree Crosshairs" ) )
         .Tooltip( _( "Display full-window crosshairs aligned at 45 and 135 degrees" ) )
-        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::cursor_fullscreen45 ) );
 
 TOOL_ACTION ACTIONS::highContrastMode( TOOL_ACTION_ARGS()

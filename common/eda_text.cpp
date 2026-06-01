@@ -31,12 +31,14 @@
 #include <eda_item.h>
 #include <base_units.h>
 #include <callback_gal.h>
+#include <api/api_utils.h>
 #include <eda_text.h>    // for EDA_TEXT, TEXT_EFFECTS, GR_TEXT_VJUSTIF...
 #include <gal/color4d.h> // for COLOR4D, COLOR4D::BLACK
 #include <font/glyph.h>
 #include <gr_text.h>
 #include <string_utils.h> // for UnescapeString
 #include <text_eval/text_eval_wrapper.h>
+#include <common.h>
 #include <math/util.h> // for KiROUND
 #include <math/vector2d.h>
 #include <core/kicad_algo.h>
@@ -100,23 +102,12 @@ GR_TEXT_V_ALIGN_T EDA_TEXT::MapVertJustify( int aVertJustify )
 EDA_TEXT::EDA_TEXT( const EDA_IU_SCALE& aIuScale, const wxString& aText ) :
         m_text( aText ),
         m_IuScale( aIuScale ),
-        m_render_cache_font( nullptr ),
-        m_render_cache_mirrored( false ),
         m_visible( true )
 {
     SetTextSize( VECTOR2I( EDA_UNIT_UTILS::Mils2IU( m_IuScale, DEFAULT_SIZE_TEXT ),
                            EDA_UNIT_UTILS::Mils2IU( m_IuScale, DEFAULT_SIZE_TEXT ) ) );
 
-    if( m_text.IsEmpty() )
-    {
-        m_shown_text = wxEmptyString;
-        m_shown_text_has_text_var_refs = false;
-    }
-    else
-    {
-        m_shown_text = UnescapeString( m_text );
-        m_shown_text_has_text_var_refs = m_shown_text.Contains( wxT( "${" ) );
-    }
+    cacheShownText();
 }
 
 
@@ -126,26 +117,13 @@ EDA_TEXT::EDA_TEXT( const EDA_TEXT& aText ) :
     m_text = aText.m_text;
     m_shown_text = aText.m_shown_text;
     m_shown_text_has_text_var_refs = aText.m_shown_text_has_text_var_refs;
+    m_text_var_refs = aText.m_text_var_refs;
 
     m_attributes = aText.m_attributes;
     m_pos = aText.m_pos;
     m_visible = aText.m_visible;
 
-    m_render_cache_font = aText.m_render_cache_font;
-    m_render_cache_text = aText.m_render_cache_text;
-    m_render_cache_angle = aText.m_render_cache_angle;
-    m_render_cache_offset = aText.m_render_cache_offset;
-    m_render_cache_mirrored = aText.m_render_cache_mirrored;
-
-    m_render_cache.clear();
-
-    for( const std::unique_ptr<KIFONT::GLYPH>& glyph : aText.m_render_cache )
-    {
-        if( KIFONT::OUTLINE_GLYPH* outline = dynamic_cast<KIFONT::OUTLINE_GLYPH*>( glyph.get() ) )
-            m_render_cache.emplace_back( std::make_unique<KIFONT::OUTLINE_GLYPH>( *outline ) );
-        else if( KIFONT::STROKE_GLYPH* stroke = dynamic_cast<KIFONT::STROKE_GLYPH*>( glyph.get() ) )
-            m_render_cache.emplace_back( std::make_unique<KIFONT::STROKE_GLYPH>( *stroke ) );
-    }
+    m_render_cache.reset();
 
     {
         std::lock_guard<std::mutex> bboxLock( aText.m_bbox_cacheMutex );
@@ -169,26 +147,13 @@ EDA_TEXT& EDA_TEXT::operator=( const EDA_TEXT& aText )
     m_text = aText.m_text;
     m_shown_text = aText.m_shown_text;
     m_shown_text_has_text_var_refs = aText.m_shown_text_has_text_var_refs;
+    m_text_var_refs = aText.m_text_var_refs;
 
     m_attributes = aText.m_attributes;
     m_pos = aText.m_pos;
     m_visible = aText.m_visible;
 
-    m_render_cache_font = aText.m_render_cache_font;
-    m_render_cache_text = aText.m_render_cache_text;
-    m_render_cache_angle = aText.m_render_cache_angle;
-    m_render_cache_offset = aText.m_render_cache_offset;
-    m_render_cache_mirrored = aText.m_render_cache_mirrored;
-
-    m_render_cache.clear();
-
-    for( const std::unique_ptr<KIFONT::GLYPH>& glyph : aText.m_render_cache )
-    {
-        if( KIFONT::OUTLINE_GLYPH* outline = dynamic_cast<KIFONT::OUTLINE_GLYPH*>( glyph.get() ) )
-            m_render_cache.emplace_back( std::make_unique<KIFONT::OUTLINE_GLYPH>( *outline ) );
-        else if( KIFONT::STROKE_GLYPH* stroke = dynamic_cast<KIFONT::STROKE_GLYPH*>( glyph.get() ) )
-            m_render_cache.emplace_back( std::make_unique<KIFONT::STROKE_GLYPH>( *stroke ) );
-    }
+    m_render_cache.reset();
 
     {
         std::scoped_lock<std::mutex, std::mutex> bboxLock( m_bbox_cacheMutex, aText.m_bbox_cacheMutex );
@@ -203,17 +168,23 @@ EDA_TEXT& EDA_TEXT::operator=( const EDA_TEXT& aText )
 
 void EDA_TEXT::Serialize( google::protobuf::Any& aContainer ) const
 {
+    Serialize( aContainer, pcbIUScale );
+}
+
+
+void EDA_TEXT::Serialize( google::protobuf::Any& aContainer, const EDA_IU_SCALE& aScale ) const
+{
     using namespace kiapi::common;
     types::Text text;
 
-    text.set_text( GetText().ToStdString() );
-    text.set_hyperlink( GetHyperlink().ToStdString() );
-    PackVector2( *text.mutable_position(), GetTextPos() );
+    text.set_text( GetText().ToUTF8() );
+    text.set_hyperlink( GetHyperlink().ToUTF8() );
+    PackVector2( *text.mutable_position(), GetTextPos(), aScale );
 
     types::TextAttributes* attrs = text.mutable_attributes();
 
     if( GetFont() )
-        attrs->set_font_name( GetFont()->GetName().ToStdString() );
+        attrs->set_font_name( GetFont()->GetName().ToUTF8() );
 
     attrs->set_horizontal_alignment( ToProtoEnum<GR_TEXT_H_ALIGN_T, types::HorizontalAlignment>( GetHorizJustify() ) );
 
@@ -221,7 +192,7 @@ void EDA_TEXT::Serialize( google::protobuf::Any& aContainer ) const
 
     attrs->mutable_angle()->set_value_degrees( GetTextAngleDegrees() );
     attrs->set_line_spacing( GetLineSpacing() );
-    attrs->mutable_stroke_width()->set_value_nm( GetTextThickness() );
+    PackDistance( *attrs->mutable_stroke_width(), GetTextThickness(), aScale );
     attrs->set_italic( IsItalic() );
     attrs->set_bold( IsBold() );
     attrs->set_underlined( GetAttributes().m_Underlined );
@@ -229,13 +200,22 @@ void EDA_TEXT::Serialize( google::protobuf::Any& aContainer ) const
     attrs->set_mirrored( IsMirrored() );
     attrs->set_multiline( IsMultilineAllowed() );
     attrs->set_keep_upright( IsKeepUpright() );
-    PackVector2( *attrs->mutable_size(), GetTextSize() );
+    PackVector2( *attrs->mutable_size(), GetTextSize(), aScale );
+
+    if( GetTextColor() != COLOR4D::UNSPECIFIED )
+        PackColor( *attrs->mutable_color(), GetTextColor() );
 
     aContainer.PackFrom( text );
 }
 
 
 bool EDA_TEXT::Deserialize( const google::protobuf::Any& aContainer )
+{
+    return Deserialize( aContainer, pcbIUScale );
+}
+
+
+bool EDA_TEXT::Deserialize( const google::protobuf::Any& aContainer, const EDA_IU_SCALE& aScale )
 {
     using namespace kiapi::common;
     types::Text text;
@@ -245,7 +225,7 @@ bool EDA_TEXT::Deserialize( const google::protobuf::Any& aContainer )
 
     SetText( wxString( text.text().c_str(), wxConvUTF8 ) );
     SetHyperlink( wxString( text.hyperlink().c_str(), wxConvUTF8 ) );
-    SetTextPos( UnpackVector2( text.position() ) );
+    SetTextPos( UnpackVector2( text.position(), aScale ) );
 
     if( text.has_attributes() )
     {
@@ -257,7 +237,12 @@ bool EDA_TEXT::Deserialize( const google::protobuf::Any& aContainer )
         attrs.m_Mirrored = text.attributes().mirrored();
         attrs.m_Multiline = text.attributes().multiline();
         attrs.m_KeepUpright = text.attributes().keep_upright();
-        attrs.m_Size = UnpackVector2( text.attributes().size() );
+        attrs.m_Size = UnpackVector2( text.attributes().size(), aScale );
+
+        if( text.attributes().has_color() )
+            attrs.m_Color = UnpackColor( text.attributes().color() );
+        else
+            attrs.m_Color = COLOR4D::UNSPECIFIED;
 
         if( !text.attributes().font_name().empty() )
         {
@@ -267,7 +252,7 @@ bool EDA_TEXT::Deserialize( const google::protobuf::Any& aContainer )
 
         attrs.m_Angle = EDA_ANGLE( text.attributes().angle().value_degrees(), DEGREES_T );
         attrs.m_LineSpacing = text.attributes().line_spacing();
-        attrs.m_StrokeWidth = text.attributes().stroke_width().value_nm();
+        attrs.m_StrokeWidth = UnpackDistance( text.attributes().stroke_width(), aScale );
         attrs.m_Halign = FromProtoEnum<GR_TEXT_H_ALIGN_T, types::HorizontalAlignment>(
                 text.attributes().horizontal_alignment() );
 
@@ -460,6 +445,7 @@ void EDA_TEXT::SwapText( EDA_TEXT& aTradingPartner )
 {
     std::swap( m_text, aTradingPartner.m_text );
     cacheShownText();
+    aTradingPartner.cacheShownText();
 }
 
 
@@ -524,8 +510,8 @@ bool EDA_TEXT::ResolveFont( const std::vector<wxString>* aEmbeddedFonts )
     {
         m_attributes.m_Font = KIFONT::FONT::GetFont( m_unresolvedFontName, IsBold(), IsItalic(), aEmbeddedFonts );
 
-        if( !m_render_cache.empty() )
-            m_render_cache_font = m_attributes.m_Font;
+        if( m_render_cache && !m_render_cache->glyphs.empty() )
+            m_render_cache->font = m_attributes.m_Font;
 
         m_unresolvedFontName = wxEmptyString;
         return true;
@@ -612,12 +598,15 @@ void EDA_TEXT::Offset( const VECTOR2I& aOffset )
 
     m_pos += aOffset;
 
-    for( std::unique_ptr<KIFONT::GLYPH>& glyph : m_render_cache )
+    if( m_render_cache )
     {
-        if( KIFONT::OUTLINE_GLYPH* outline = dynamic_cast<KIFONT::OUTLINE_GLYPH*>( glyph.get() ) )
-            outline->Move( aOffset );
-        else if( KIFONT::STROKE_GLYPH* stroke = dynamic_cast<KIFONT::STROKE_GLYPH*>( glyph.get() ) )
-            glyph = stroke->Transform( { 1.0, 1.0 }, aOffset, 0, ANGLE_0, false, { 0, 0 } );
+        for( std::unique_ptr<KIFONT::GLYPH>& glyph : m_render_cache->glyphs )
+        {
+            if( KIFONT::OUTLINE_GLYPH* outline = dynamic_cast<KIFONT::OUTLINE_GLYPH*>( glyph.get() ) )
+                outline->Move( aOffset );
+            else if( KIFONT::STROKE_GLYPH* stroke = dynamic_cast<KIFONT::STROKE_GLYPH*>( glyph.get() ) )
+                glyph = stroke->Transform( { 1.0, 1.0 }, aOffset, 0, ANGLE_0, false, { 0, 0 } );
+        }
     }
 
     ClearBoundingBoxCache();
@@ -627,8 +616,7 @@ void EDA_TEXT::Offset( const VECTOR2I& aOffset )
 void EDA_TEXT::Empty()
 {
     m_text.Empty();
-    ClearRenderCache();
-    ClearBoundingBoxCache();
+    cacheShownText();
 }
 
 
@@ -645,14 +633,31 @@ void EDA_TEXT::cacheShownText()
         m_shown_text_has_text_var_refs = m_shown_text.Contains( wxT( "${" ) ) || m_shown_text.Contains( wxT( "@{" ) );
     }
 
+    // Extract against raw m_text so backslash-escaped ${...} literals do not
+    // fabricate dependency edges. Eager population keeps the read path
+    // lock-free for concurrent workers.
+    if( m_text.IsEmpty() )
+        m_text_var_refs.clear();
+    else
+        m_text_var_refs = ExtractTextVarReferences( m_text );
+
     ClearRenderCache();
     ClearBoundingBoxCache();
 }
 
 
+const std::vector<TEXT_VAR_REF_KEY>& EDA_TEXT::GetTextVarReferences() const
+{
+    return m_text_var_refs;
+}
+
+
 wxString EDA_TEXT::EvaluateText( const wxString& aText ) const
 {
-    static EXPRESSION_EVALUATOR evaluator;
+    // Must not be static. EvaluateText runs on parallel workers (e.g.
+    // CONNECTION_GRAPH resolving label text) and a shared evaluator races on
+    // its internal error collector.
+    EXPRESSION_EVALUATOR evaluator;
 
     return evaluator.Evaluate( aText );
 }
@@ -682,7 +687,7 @@ const KIFONT::METRICS& EDA_TEXT::getFontMetrics() const
 
 void EDA_TEXT::ClearRenderCache()
 {
-    m_render_cache.clear();
+    m_render_cache.reset();
 }
 
 
@@ -701,26 +706,31 @@ EDA_TEXT::GetRenderCache( const KIFONT::FONT* aFont, const wxString& forResolved
         EDA_ANGLE resolvedAngle = GetDrawRotation();
         bool      mirrored = IsMirrored();
 
-        if( m_render_cache.empty() || m_render_cache_font != aFont || m_render_cache_text != forResolvedText
-            || m_render_cache_angle != resolvedAngle || m_render_cache_offset != aOffset
-            || m_render_cache_mirrored != mirrored )
+        if( !m_render_cache )
+            m_render_cache = std::make_unique<EDA_TEXT_RENDER_CACHE_DATA>();
+
+        if( m_render_cache->glyphs.empty() || m_render_cache->font != aFont
+            || m_render_cache->text != forResolvedText
+            || m_render_cache->angle != resolvedAngle || m_render_cache->offset != aOffset
+            || m_render_cache->mirrored != mirrored )
         {
-            m_render_cache.clear();
+            m_render_cache->glyphs.clear();
 
             const KIFONT::OUTLINE_FONT* font = static_cast<const KIFONT::OUTLINE_FONT*>( aFont );
             TEXT_ATTRIBUTES             attrs = GetAttributes();
 
             attrs.m_Angle = resolvedAngle;
 
-            font->GetLinesAsGlyphs( &m_render_cache, forResolvedText, GetDrawPos() + aOffset, attrs, getFontMetrics() );
-            m_render_cache_font = aFont;
-            m_render_cache_angle = resolvedAngle;
-            m_render_cache_text = forResolvedText;
-            m_render_cache_offset = aOffset;
-            m_render_cache_mirrored = mirrored;
+            font->GetLinesAsGlyphs( &m_render_cache->glyphs, forResolvedText, GetDrawPos() + aOffset, attrs,
+                                    getFontMetrics() );
+            m_render_cache->font = aFont;
+            m_render_cache->angle = resolvedAngle;
+            m_render_cache->text = forResolvedText;
+            m_render_cache->offset = aOffset;
+            m_render_cache->mirrored = mirrored;
         }
 
-        return &m_render_cache;
+        return &m_render_cache->glyphs;
     }
 
     return nullptr;
@@ -730,19 +740,25 @@ EDA_TEXT::GetRenderCache( const KIFONT::FONT* aFont, const wxString& forResolved
 void EDA_TEXT::SetupRenderCache( const wxString& aResolvedText, const KIFONT::FONT* aFont, const EDA_ANGLE& aAngle,
                                  const VECTOR2I& aOffset )
 {
-    m_render_cache_text = aResolvedText;
-    m_render_cache_font = aFont;
-    m_render_cache_angle = aAngle;
-    m_render_cache_offset = aOffset;
-    m_render_cache_mirrored = IsMirrored();
-    m_render_cache.clear();
+    if( !m_render_cache )
+        m_render_cache = std::make_unique<EDA_TEXT_RENDER_CACHE_DATA>();
+
+    m_render_cache->text = aResolvedText;
+    m_render_cache->font = aFont;
+    m_render_cache->angle = aAngle;
+    m_render_cache->offset = aOffset;
+    m_render_cache->mirrored = IsMirrored();
+    m_render_cache->glyphs.clear();
 }
 
 
 void EDA_TEXT::AddRenderCacheGlyph( const SHAPE_POLY_SET& aPoly )
 {
-    m_render_cache.emplace_back( std::make_unique<KIFONT::OUTLINE_GLYPH>( aPoly ) );
-    static_cast<KIFONT::OUTLINE_GLYPH*>( m_render_cache.back().get() )->CacheTriangulation();
+    if( !m_render_cache )
+        m_render_cache = std::make_unique<EDA_TEXT_RENDER_CACHE_DATA>();
+
+    m_render_cache->glyphs.emplace_back( std::make_unique<KIFONT::OUTLINE_GLYPH>( aPoly ) );
+    static_cast<KIFONT::OUTLINE_GLYPH*>( m_render_cache->glyphs.back().get() )->CacheTriangulation();
 }
 
 

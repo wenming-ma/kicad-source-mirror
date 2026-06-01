@@ -105,6 +105,15 @@ void PCB_TABLE::swapData( BOARD_ITEM* aImage )
 }
 
 
+void PCB_TABLE::SetLayer( PCB_LAYER_ID aLayer )
+{
+    m_layer = aLayer;
+
+    for( PCB_TABLECELL* cell : m_cells )
+        cell->SetLayer( aLayer );
+}
+
+
 void PCB_TABLE::SetPosition( const VECTOR2I& aPos )
 {
     Move( aPos - GetPosition() );
@@ -408,6 +417,30 @@ void PCB_TABLE::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
     RotatePoint( translation, originalAngle );
 
     Move( translation );
+}
+
+
+void PCB_TABLE::Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
+{
+    // Mirror is Flip with the layer restored. TOP_BOTTOM needs a 180 deg pre-rotation
+    // because rotate-then-LR-flip equals TB-flip.
+    PCB_LAYER_ID              origLayer = GetLayer();
+    std::vector<PCB_LAYER_ID> origCellLayers;
+
+    origCellLayers.reserve( m_cells.size() );
+
+    for( PCB_TABLECELL* cell : m_cells )
+        origCellLayers.push_back( cell->GetLayer() );
+
+    if( aFlipDirection == FLIP_DIRECTION::TOP_BOTTOM )
+        Rotate( aCentre, ANGLE_180 );
+
+    Flip( aCentre, FLIP_DIRECTION::LEFT_RIGHT );
+
+    SetLayer( origLayer );
+
+    for( size_t i = 0; i < m_cells.size(); ++i )
+        m_cells[i]->SetLayer( origCellLayers[i] );
 }
 
 

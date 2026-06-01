@@ -102,6 +102,8 @@ enum PCB_DRC_CODE
     DRCE_TEXT_THICKNESS,
 
     DRCE_LENGTH_OUT_OF_RANGE,
+    DRCE_NET_CHAIN_STUB_TOO_LONG,   // Routed stub on a net chain exceeds the (stub_length max) constraint
+    DRCE_NET_CHAIN_RETURN_PATH_BREAK,  // Net chain routed without copper on the required reference layer
     DRCE_SKEW_OUT_OF_RANGE,
     DRCE_VIA_COUNT_OUT_OF_RANGE,
     DRCE_DIFF_PAIR_GAP_OUT_OF_RANGE,
@@ -114,6 +116,8 @@ enum PCB_DRC_CODE
     DRCE_TUNING_PROFILE_IMPLICIT_RULES, // Pseudo-code for setting severities
 
     DRCE_TRACK_ON_POST_MACHINED_LAYER,  // Track connected to pad/via on post-machined/backdrilled layer
+
+    DRCE_TRACK_NOT_CENTERED_ON_VIA,     // Track endpoint within via pad but not at via center
 
     DRCE_SCHEMATIC_FIELDS_PARITY, // Mismatch with schematic fields
 
@@ -241,6 +245,8 @@ private:
     static DRC_ITEM textHeightOutOfRange;
     static DRC_ITEM textThicknessOutOfRange;
     static DRC_ITEM lengthOutOfRange;
+    static DRC_ITEM netChainStubTooLong;
+    static DRC_ITEM netChainReturnPathBreak;
     static DRC_ITEM skewOutOfRange;
     static DRC_ITEM viaCountOutOfRange;
     static DRC_ITEM diffPairGapOutOfRange;
@@ -253,6 +259,7 @@ private:
     static DRC_ITEM missingTuningProfile;
     static DRC_ITEM tuningProfileImplicitRules;
     static DRC_ITEM trackOnPostMachinedLayer;
+    static DRC_ITEM trackNotCenteredOnVia;
     static DRC_ITEM schematicFieldsParity;
 
 private:

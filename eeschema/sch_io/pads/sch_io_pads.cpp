@@ -22,6 +22,8 @@
 #include <sch_io/pads/pads_sch_symbol_builder.h>
 #include <sch_io/pads/pads_sch_schematic_builder.h>
 
+#include <libraries/symbol_library_adapter.h>
+
 #include <lib_symbol.h>
 #include <page_info.h>
 #include <sch_junction.h>
@@ -50,6 +52,7 @@
 #include <fstream>
 #include <map>
 #include <set>
+#include <wx/filename.h>
 #include <wx/log.h>
 
 
@@ -482,6 +485,52 @@ SCH_SHEET* SCH_IO_PADS::LoadSchematicFile( const wxString&                    aF
     // Track connector base references for wire-endpoint label creation
     std::set<std::string> connectorBaseRefs;
 
+    // Pre-scan connector placements to group pins by base reference.
+    // Each group becomes one multi-unit connector symbol in KiCad.
+    struct ConnectorGroup
+    {
+        std::vector<std::string>        pinNumbers;
+        std::map<std::string, int>      pinToUnit;
+        std::string                     partType;
+    };
+
+    std::map<std::string, ConnectorGroup> connectorGroups;
+
+    for( const auto& [sheetNum, ctx] : sheetContexts )
+    {
+        std::vector<PADS_SCH::PART_PLACEMENT> sheetParts = parser.GetPartsOnSheet( sheetNum );
+
+        for( const PADS_SCH::PART_PLACEMENT& part : sheetParts )
+        {
+            auto ptIt = parser.GetPartTypes().find( part.part_type );
+
+            if( ptIt == parser.GetPartTypes().end() || !ptIt->second.is_connector )
+                continue;
+
+            std::string pinNum = extractConnectorPinNumber( part.reference );
+
+            if( pinNum.empty() )
+                continue;
+
+            std::string baseRef = extractConnectorBaseRef( part.reference );
+            ConnectorGroup& group = connectorGroups[baseRef];
+            group.partType = part.part_type;
+            group.pinNumbers.push_back( pinNum );
+        }
+    }
+
+    for( auto& [baseRef, group] : connectorGroups )
+    {
+        std::sort( group.pinNumbers.begin(), group.pinNumbers.end(),
+                   []( const std::string& a, const std::string& b )
+                   {
+                       return std::stoi( a ) < std::stoi( b );
+                   } );
+
+        for( size_t i = 0; i < group.pinNumbers.size(); i++ )
+            group.pinToUnit[group.pinNumbers[i]] = static_cast<int>( i + 1 );
+    }
+
     // Place symbols on each sheet
     for( auto& [sheetNum, ctx] : sheetContexts )
     {
@@ -529,15 +578,23 @@ SCH_SHEET* SCH_IO_PADS::LoadSchematicFile( const wxString&                    aF
 
                     if( symDef && !connectorPinNumber.empty() )
                     {
-                        // Single-pin connector placement (e.g. J12-15).
-                        // Each placement gets a symbol variant with the correct pin number.
-                        libSymbol = symbolBuilder.GetOrCreateConnectorPinSymbol(
-                                ptDef, *symDef, connectorPinNumber );
-                        libItemName = decalName + "_pin" + connectorPinNumber;
-                        isConnector = true;
+                        // Multi-unit connector placement (e.g. J12-15 → unit of J12).
+                        // All pins of the same connector share one multi-unit symbol.
+                        std::string baseRef = extractConnectorBaseRef( part.reference );
+                        auto groupIt = connectorGroups.find( baseRef );
 
-                        connectorBaseRefs.insert(
-                                extractConnectorBaseRef( part.reference ) );
+                        if( groupIt != connectorGroups.end() )
+                        {
+                            std::string cacheKey = ptDef.name + ":conn:" + baseRef;
+
+                            libSymbol = symbolBuilder.GetOrCreateMultiUnitConnectorSymbol(
+                                    ptDef, *symDef, groupIt->second.pinNumbers, cacheKey );
+                            libItemName = ptDef.name + "_" + baseRef;
+                            isConnector = true;
+                            isMultiGate = true;
+
+                            connectorBaseRefs.insert( baseRef );
+                        }
                     }
                     else if( symDef )
                     {
@@ -673,17 +730,47 @@ SCH_SHEET* SCH_IO_PADS::LoadSchematicFile( const wxString&                    aF
 
             symbol->SetOrientation( orientation );
 
-            if( isMultiGate )
+            if( isConnector && !connectorPinNumber.empty() )
+            {
+                std::string baseRef = extractConnectorBaseRef( part.reference );
+                auto groupIt = connectorGroups.find( baseRef );
+
+                if( groupIt != connectorGroups.end() )
+                {
+                    auto unitIt = groupIt->second.pinToUnit.find( connectorPinNumber );
+
+                    if( unitIt != groupIt->second.pinToUnit.end() )
+                        symbol->SetUnit( unitIt->second );
+                    else
+                        symbol->SetUnit( 1 );
+                }
+                else
+                {
+                    symbol->SetUnit( 1 );
+                }
+            }
+            else if( isMultiGate )
+            {
                 symbol->SetUnit( part.gate_index + 1 );
+            }
             else
+            {
                 symbol->SetUnit( 1 );
+            }
 
             // Assign deterministic UUID so PCB cross-probe can match footprints
-            // to symbols. Only the primary gate (index 0) gets the deterministic
-            // UUID since one footprint maps to one symbol instance.
-            if( !isPower && ( !isMultiGate || part.gate_index == 0 ) )
+            // to symbols. Only the primary gate (index 0) or the first connector
+            // pin gets the deterministic UUID since one footprint maps to one
+            // symbol instance.
+            bool isPrimaryUnit = isConnector
+                                         ? ( symbol->GetUnit() == 1 )
+                                         : ( !isMultiGate || part.gate_index == 0 );
+
+            if( !isPower && isPrimaryUnit )
             {
-                std::string baseRef = stripGateSuffix( part.reference );
+                std::string baseRef = isConnector
+                                              ? extractConnectorBaseRef( part.reference )
+                                              : stripGateSuffix( part.reference );
 
                 const_cast<KIID&>( symbol->m_Uuid ) =
                         PADS_COMMON::GenerateDeterministicUuid( baseRef );
@@ -693,6 +780,22 @@ SCH_SHEET* SCH_IO_PADS::LoadSchematicFile( const wxString&                    aF
 
             schBuilder.ApplyPartAttributes( symbol, part );
             schBuilder.CreateCustomFields( symbol, part );
+
+            // For connectors, override reference to the base (e.g. "J12" not "J12-1").
+            // Must happen after ApplyPartAttributes which only strips alpha suffixes.
+            if( isConnector )
+            {
+                std::string baseRef = extractConnectorBaseRef( part.reference );
+                symbol->SetRef( &ctx.path, wxString::FromUTF8( baseRef ) );
+            }
+
+            // For multi-gate parts, strip the alpha gate suffix (e.g. "U1-A" → "U1")
+            // so KiCad recognizes all units as belonging to the same part.
+            if( isMultiGate && !isConnector )
+            {
+                std::string baseRef = stripGateSuffix( part.reference );
+                symbol->SetRef( &ctx.path, wxString::FromUTF8( baseRef ) );
+            }
 
             // For passive components, override Value with VALUE1 parametric value
             // so that e.g. C10 shows "0.1uF" instead of the generic "CAPMF0805".
@@ -755,9 +858,20 @@ SCH_SHEET* SCH_IO_PADS::LoadSchematicFile( const wxString&                    aF
                 symbol->GetField( FIELD_T::VALUE )->SetVisible( true );
             }
 
-            symbol->AddHierarchicalReference( ctx.path.Path(),
-                                              wxString::FromUTF8( part.reference ),
-                                              symbol->GetUnit() );
+            {
+                std::string hierRef;
+
+                if( isConnector )
+                    hierRef = extractConnectorBaseRef( part.reference );
+                else if( isMultiGate )
+                    hierRef = stripGateSuffix( part.reference );
+                else
+                    hierRef = part.reference;
+
+                symbol->AddHierarchicalReference( ctx.path.Path(),
+                                                  wxString::FromUTF8( hierRef ),
+                                                  symbol->GetUnit() );
+            }
 
             symbol->ClearFlags();
 
@@ -1257,6 +1371,199 @@ SCH_SHEET* SCH_IO_PADS::LoadSchematicFile( const wxString&                    aF
     m_errorMessages.clear();
 
     return rootSheet;
+}
+
+
+void SCH_IO_PADS::EnumerateSymbolLib( wxArrayString&                     aSymbolNameList,
+                                      const wxString&                    aLibraryPath,
+                                      const std::map<std::string, UTF8>* aProperties )
+{
+    ensureLoadedLibrary( aLibraryPath );
+
+    bool powerSymbolsOnly = aProperties
+                            && aProperties->contains( SYMBOL_LIBRARY_ADAPTER::PropPowerSymsOnly );
+
+    for( const auto& [name, symbol] : m_librarySymbols )
+    {
+        if( powerSymbolsOnly && !symbol->IsPower() )
+            continue;
+
+        aSymbolNameList.Add( name );
+    }
+}
+
+
+void SCH_IO_PADS::EnumerateSymbolLib( std::vector<LIB_SYMBOL*>&          aSymbolList,
+                                      const wxString&                    aLibraryPath,
+                                      const std::map<std::string, UTF8>* aProperties )
+{
+    ensureLoadedLibrary( aLibraryPath );
+
+    bool powerSymbolsOnly = aProperties
+                            && aProperties->contains( SYMBOL_LIBRARY_ADAPTER::PropPowerSymsOnly );
+
+    for( const auto& [name, symbol] : m_librarySymbols )
+    {
+        if( powerSymbolsOnly && !symbol->IsPower() )
+            continue;
+
+        aSymbolList.push_back( symbol.get() );
+    }
+}
+
+
+LIB_SYMBOL* SCH_IO_PADS::LoadSymbol( const wxString& aLibraryPath, const wxString& aPartName,
+                                     const std::map<std::string, UTF8>* aProperties )
+{
+    ensureLoadedLibrary( aLibraryPath );
+
+    auto it = m_librarySymbols.find( aPartName );
+
+    if( it != m_librarySymbols.end() )
+        return it->second.get();
+
+    return nullptr;
+}
+
+
+long long SCH_IO_PADS::getLibraryTimestamp( const wxString& aLibraryPath ) const
+{
+    wxFileName fn( aLibraryPath );
+
+    if( fn.IsFileReadable() && fn.GetModificationTime().IsValid() )
+        return fn.GetModificationTime().GetValue().GetValue();
+
+    return 0;
+}
+
+
+void SCH_IO_PADS::ensureLoadedLibrary( const wxString& aLibraryPath )
+{
+    long long timestamp = getLibraryTimestamp( aLibraryPath );
+
+    if( m_libraryCacheValid && aLibraryPath == m_cachedLibraryPath
+        && timestamp == m_cachedLibraryTimestamp )
+    {
+        return;
+    }
+
+    m_librarySymbols.clear();
+    m_libraryCacheValid = false;
+    m_cachedLibraryPath = aLibraryPath;
+    m_cachedLibraryTimestamp = timestamp;
+
+    if( !checkFileHeader( aLibraryPath ) )
+    {
+        THROW_IO_ERROR( wxString::Format( _( "'%s' is not a PADS Logic ASCII file." ),
+                                          aLibraryPath ) );
+    }
+
+    LOCALE_IO setlocale;
+
+    PADS_SCH::PADS_SCH_PARSER parser;
+    std::string               filename( aLibraryPath.ToUTF8() );
+
+    if( !parser.Parse( filename ) )
+    {
+        THROW_IO_ERROR(
+                wxString::Format( _( "Failed to parse PADS Logic file '%s'." ), aLibraryPath ) );
+    }
+
+    const PADS_SCH::PARAMETERS&       params = parser.GetParameters();
+    PADS_SCH::PADS_SCH_SYMBOL_BUILDER symbolBuilder( params );
+
+    std::set<std::string> referencedDecals;
+
+    // Build a LIB_SYMBOL per PARTTYPE: multi-gate parts become multi-unit symbols,
+    // single-gate parts apply PARTTYPE pin overrides to the CAEDECAL graphics,
+    // and power/ground special variants are skipped (they map to KiCad power lib).
+    for( const auto& [ptName, ptDef] : parser.GetPartTypes() )
+    {
+        if( !ptDef.special_keyword.empty() && ptDef.special_keyword != "OFF" )
+            continue;
+
+        LIB_SYMBOL* built = nullptr;
+        wxString    libName = wxString::FromUTF8( ptDef.name );
+
+        if( ptDef.gates.size() > 1 )
+        {
+            built = symbolBuilder.BuildMultiUnitSymbol( ptDef, parser.GetSymbolDefs() );
+
+            for( const PADS_SCH::GATE_DEF& gate : ptDef.gates )
+            {
+                for( const std::string& decalName : gate.decal_names )
+                    referencedDecals.insert( decalName );
+            }
+        }
+        else if( !ptDef.gates.empty() )
+        {
+            const PADS_SCH::GATE_DEF& gate = ptDef.gates[0];
+            std::string               decalName;
+
+            if( !gate.decal_names.empty() )
+                decalName = gate.decal_names[0];
+
+            const PADS_SCH::SYMBOL_DEF* symDef = parser.GetSymbolDef( decalName );
+
+            if( symDef && ptDef.is_connector && !gate.pins.empty() )
+            {
+                // Connectors declare one CAEDECAL shared by every pin. Build a
+                // multi-unit library symbol so each PARTTYPE pin is representable
+                // without assuming a particular schematic placement grouping.
+                std::vector<std::string> pinNumbers;
+                pinNumbers.reserve( gate.pins.size() );
+
+                for( const PADS_SCH::PARTTYPE_PIN& pin : gate.pins )
+                    pinNumbers.push_back( pin.pin_id );
+
+                built = symbolBuilder.BuildMultiUnitConnectorSymbol( ptDef, *symDef, pinNumbers );
+                referencedDecals.insert( decalName );
+            }
+            else if( symDef )
+            {
+                // GetOrCreatePartTypeSymbol caches inside the builder and returns a
+                // non-owning pointer; clone it so the library owns its own copy.
+                LIB_SYMBOL* cached = symbolBuilder.GetOrCreatePartTypeSymbol( ptDef, *symDef );
+
+                if( cached )
+                    built = new LIB_SYMBOL( *cached );
+
+                referencedDecals.insert( decalName );
+            }
+        }
+
+        if( !built )
+            continue;
+
+        built->SetName( libName );
+
+        if( !ptDef.sigpins.empty() )
+            symbolBuilder.AddHiddenPowerPins( built, ptDef.sigpins );
+
+        m_librarySymbols[libName] = std::unique_ptr<LIB_SYMBOL>( built );
+    }
+
+    // Also expose any CAEDECAL entries that no PARTTYPE referenced, so the user
+    // still sees orphan decal graphics that ship with the PADS library.
+    for( const PADS_SCH::SYMBOL_DEF& symDef : parser.GetSymbolDefs() )
+    {
+        if( referencedDecals.count( symDef.name ) )
+            continue;
+
+        wxString libName = wxString::FromUTF8( symDef.name );
+
+        if( libName.IsEmpty() || m_librarySymbols.count( libName ) )
+            continue;
+
+        LIB_SYMBOL* built = symbolBuilder.BuildSymbol( symDef );
+
+        if( !built )
+            continue;
+
+        m_librarySymbols[libName] = std::unique_ptr<LIB_SYMBOL>( built );
+    }
+
+    m_libraryCacheValid = true;
 }
 
 

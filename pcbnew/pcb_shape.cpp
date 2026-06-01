@@ -122,7 +122,7 @@ bool PCB_SHAPE::Deserialize( const google::protobuf::Any &aContainer )
     m_proxyItem = false;
     m_endsSwapped = false;
 
-    const_cast<KIID&>( m_Uuid ) = KIID( msg.id().value() );
+    SetUuidDirect( KIID( msg.id().value() ) );
     SetLocked( msg.locked() == types::LS_LOCKED );
     SetLayer( FromProtoEnum<PCB_LAYER_ID, BoardLayer>( msg.layer() ) );
     UnpackNet( msg.net() );
@@ -160,6 +160,10 @@ bool PCB_SHAPE::IsType( const std::vector<KICAD_T>& aScanTypes ) const
             sametype = m_shape == SHAPE_T::POLY;
         else if( scanType == PCB_SHAPE_LOCATE_BEZIER_T )
             sametype = m_shape == SHAPE_T::BEZIER;
+        else if( scanType == PCB_SHAPE_LOCATE_ELLIPSE_T )
+            sametype = m_shape == SHAPE_T::ELLIPSE;
+        else if( scanType == PCB_SHAPE_LOCATE_ELLIPSE_ARC_T )
+            sametype = m_shape == SHAPE_T::ELLIPSE_ARC;
 
         if( sametype )
             return true;
@@ -310,6 +314,52 @@ std::vector<VECTOR2I> PCB_SHAPE::GetConnectionPoints() const
 
         break;
 
+    case SHAPE_T::ELLIPSE:
+    {
+        // +/- major and +/- minor axis endpoints.
+        const double   phi = GetEllipseRotation().AsRadians();
+        const double   cosPhi = std::cos( phi );
+        const double   sinPhi = std::sin( phi );
+        const int      a = GetEllipseMajorRadius();
+        const int      b = GetEllipseMinorRadius();
+        const VECTOR2I c = GetEllipseCenter();
+
+        ret.emplace_back( c + VECTOR2I( KiROUND( a * cosPhi ), KiROUND( a * sinPhi ) ) );
+        ret.emplace_back( c + VECTOR2I( KiROUND( -a * cosPhi ), KiROUND( -a * sinPhi ) ) );
+        ret.emplace_back( c + VECTOR2I( KiROUND( -b * sinPhi ), KiROUND( b * cosPhi ) ) );
+        ret.emplace_back( c + VECTOR2I( KiROUND( b * sinPhi ), KiROUND( -b * cosPhi ) ) );
+        break;
+    }
+
+    case SHAPE_T::ELLIPSE_ARC:
+    {
+        // Start, end, and midpoint of the arc curve.
+        const double   a = GetEllipseMajorRadius();
+        const double   b = GetEllipseMinorRadius();
+        const double   phi = GetEllipseRotation().AsRadians();
+        const double   cosPhi = std::cos( phi );
+        const double   sinPhi = std::sin( phi );
+        const VECTOR2I c = GetEllipseCenter();
+
+        auto eval = [&]( double theta ) -> VECTOR2I
+        {
+            const double lx = a * std::cos( theta );
+            const double ly = b * std::sin( theta );
+            return c + VECTOR2I( KiROUND( lx * cosPhi - ly * sinPhi ), KiROUND( lx * sinPhi + ly * cosPhi ) );
+        };
+
+        double thetaStart = GetEllipseStartAngle().AsRadians();
+        double thetaEnd = GetEllipseEndAngle().AsRadians();
+
+        if( thetaEnd < thetaStart )
+            thetaEnd += 2.0 * M_PI;
+
+        ret.emplace_back( eval( thetaStart ) );
+        ret.emplace_back( eval( thetaEnd ) );
+        ret.emplace_back( eval( 0.5 * ( thetaStart + thetaEnd ) ) );
+        break;
+    }
+
     case SHAPE_T::UNDEFINED:
         UNIMPLEMENTED_FOR( SHAPE_T_asString() );
         break;
@@ -326,69 +376,66 @@ void PCB_SHAPE::UpdateHatching() const
     m_hatchingDirty = true;
 
     EDA_SHAPE::UpdateHatching();
+}
 
-    if( !m_hatching.IsEmpty() )
-    {
-        PCB_LAYER_ID   layer = GetLayer();
-        BOX2I          bbox = GetBoundingBox();
-        SHAPE_POLY_SET holes;
-        int            maxError = ARC_LOW_DEF;
 
-        auto knockoutItem =
-                [&]( BOARD_ITEM* item )
-                {
-                    int margin = GetHatchLineSpacing() / 2;
+SHAPE_POLY_SET PCB_SHAPE::getHatchingKnockouts() const
+{
+    SHAPE_POLY_SET knockouts;
+    PCB_LAYER_ID   layer = GetLayer();
+    BOX2I          bbox = GetBoundingBox();
+    int            maxError = ARC_LOW_DEF;
 
-                    if( item->Type() == PCB_TEXTBOX_T )
-                        margin = 0;
-
-                    item->TransformShapeToPolygon( holes, layer, margin, maxError, ERROR_OUTSIDE );
-                };
-
-        for( BOARD_ITEM* item : GetBoard()->Drawings() )
-        {
-            if( item == this )
-                continue;
-
-            if( item->Type() == PCB_FIELD_T
-                    || item->Type() == PCB_TEXT_T
-                    || item->Type() == PCB_TEXTBOX_T
-                    || item->Type() == PCB_SHAPE_T )
+    auto knockoutItem =
+            [&]( BOARD_ITEM* item )
             {
-                if( item->GetLayer() == layer && item->GetBoundingBox().Intersects( bbox ) )
-                    knockoutItem( item );
-            }
-        }
+                int margin = GetHatchLineSpacing() / 2;
 
-        for( FOOTPRINT* footprint : GetBoard()->Footprints() )
+                if( item->Type() == PCB_TEXTBOX_T )
+                    margin = 0;
+
+                item->TransformShapeToPolygon( knockouts, layer, margin, maxError, ERROR_OUTSIDE );
+            };
+
+    for( BOARD_ITEM* item : GetBoard()->Drawings() )
+    {
+        if( item == this )
+            continue;
+
+        if( item->Type() == PCB_FIELD_T
+                || item->Type() == PCB_TEXT_T
+                || item->Type() == PCB_TEXTBOX_T
+                || item->Type() == PCB_SHAPE_T )
         {
-            if( footprint == GetParentFootprint() )
-                continue;
-
-            // Knockout footprint courtyard
-            holes.Append( footprint->GetCourtyard( layer ) );
-
-            // Knockout footprint fields
-            footprint->RunOnChildren(
-                    [&]( BOARD_ITEM* item )
-                    {
-                        if( ( item->Type() == PCB_FIELD_T || item->Type() == PCB_SHAPE_T )
-                                && item->GetLayer() == layer
-                                && !( item->Type() == PCB_FIELD_T && !static_cast<PCB_FIELD*>(item)->IsVisible() )
-                                && item->GetBoundingBox().Intersects( bbox ) )
-                        {
-                            knockoutItem( item );
-                        }
-                    },
-                    RECURSE_MODE::RECURSE );
-        }
-
-        if( !holes.IsEmpty() )
-        {
-            m_hatching.BooleanSubtract( holes );
-            m_hatching.Fracture();
+            if( item->GetLayer() == layer && item->GetBoundingBox().Intersects( bbox ) )
+                knockoutItem( item );
         }
     }
+
+    for( FOOTPRINT* footprint : GetBoard()->Footprints() )
+    {
+        if( footprint == GetParentFootprint() )
+            continue;
+
+        // Knockout footprint courtyard
+        knockouts.Append( footprint->GetCourtyard( layer ) );
+
+        // Knockout footprint fields
+        footprint->RunOnChildren(
+                [&]( BOARD_ITEM* item )
+                {
+                    if( ( item->Type() == PCB_FIELD_T || item->Type() == PCB_SHAPE_T )
+                            && item->GetLayer() == layer
+                            && !( item->Type() == PCB_FIELD_T && !static_cast<PCB_FIELD*>(item)->IsVisible() )
+                            && item->GetBoundingBox().Intersects( bbox ) )
+                    {
+                        knockoutItem( item );
+                    }
+                },
+                RECURSE_MODE::RECURSE );
+    }
+
+    return knockouts;
 }
 
 
@@ -518,9 +565,9 @@ void PCB_SHAPE::Normalize()
                 };
 
         // Convert a poly back to a rectangle if appropriate
-        if( m_poly.OutlineCount() == 1 && m_poly.Outline( 0 ).SegmentCount() == 4 )
+        if( GetPolyShape().OutlineCount() == 1 && GetPolyShape().Outline( 0 ).SegmentCount() == 4 )
         {
-            SHAPE_LINE_CHAIN& outline = m_poly.Outline( 0 );
+            SHAPE_LINE_CHAIN& outline = GetPolyShape().Outline( 0 );
 
             if( horizontal( outline.Segment( 0 ) )
                 && vertical( outline.Segment( 1 ) )
@@ -641,7 +688,7 @@ double PCB_SHAPE::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
     if( aLayer == LAYER_LOCKED_ITEM_SHADOW )
     {
         // Hide shadow if the main layer is not shown
-        if( !aView->IsLayerVisible( m_layer ) )
+        if( !aView->IsLayerVisibleCached( m_layer ) )
             return LOD_HIDE;
 
         // Hide shadow on dimmed tracks
@@ -654,10 +701,15 @@ double PCB_SHAPE::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
 
     if( FOOTPRINT* parent = GetParentFootprint() )
     {
-        if( parent->GetLayer() == F_Cu && !aView->IsLayerVisible( LAYER_FOOTPRINTS_FR ) )
+        PCB_LAYER_ID checkLayer = m_layer;
+
+        if( !IsFrontLayer( checkLayer ) && !IsBackLayer( checkLayer ) )
+            checkLayer = parent->GetLayer();
+
+        if( IsFrontLayer( checkLayer ) && !aView->IsLayerVisibleCached( LAYER_FOOTPRINTS_FR ) )
             return LOD_HIDE;
 
-        if( parent->GetLayer() == B_Cu && !aView->IsLayerVisible( LAYER_FOOTPRINTS_BK ) )
+        if( IsBackLayer( checkLayer ) && !aView->IsLayerVisibleCached( LAYER_FOOTPRINTS_BK ) )
             return LOD_HIDE;
     }
 
@@ -974,39 +1026,39 @@ static struct PCB_SHAPE_DESC
 
         propMgr.ReplaceProperty( TYPE_HASH( BOARD_CONNECTED_ITEM ), _HKI( "Layer" ), layerProperty );
 
-        // Only polygons have meaningful Position properties.
-        // On other shapes, these are duplicates of the Start properties.
-        auto isPolygon =
-                []( INSPECTABLE* aItem ) -> bool
-                {
-                    if( PCB_SHAPE* shape = dynamic_cast<PCB_SHAPE*>( aItem ) )
-                        return shape->GetShape() == SHAPE_T::POLY;
+        // Polygons and ellipses have Position properties (first vertex / center).
+        auto isPolygonOrEllipse = []( INSPECTABLE* aItem ) -> bool
+        {
+            if( PCB_SHAPE* shape = dynamic_cast<PCB_SHAPE*>( aItem ) )
+            {
+                const SHAPE_T t = shape->GetShape();
+                return t == SHAPE_T::POLY || t == SHAPE_T::ELLIPSE || t == SHAPE_T::ELLIPSE_ARC;
+            }
+            return false;
+        };
 
-                    return false;
-                };
-
-        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( BOARD_ITEM ),
-                                      _HKI( "Position X" ), isPolygon );
-        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( BOARD_ITEM ),
-                                      _HKI( "Position Y" ), isPolygon );
+        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( BOARD_ITEM ), _HKI( "Position X" ),
+                                      isPolygonOrEllipse );
+        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( BOARD_ITEM ), _HKI( "Position Y" ),
+                                      isPolygonOrEllipse );
 
         propMgr.Mask( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ), _HKI( "Line Color" ) );
         propMgr.Mask( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ), _HKI( "Fill Color" ) );
 
-        // BEZIER curves are not closed shapes, and fill is not supported in board editor,
-        // only in schematic editor.
-        // So disable Fill option for Bezier curves
-        auto isNotBezier =
-                []( INSPECTABLE* aItem ) -> bool
-                {
-                    if( PCB_SHAPE* shape = dynamic_cast<PCB_SHAPE*>( aItem ) )
-                        return shape->GetShape() != SHAPE_T::BEZIER;
+        // BEZIER curves and ELLIPTICAL_ARC are not closed shapes, and fill
+        // is not supported in board editor, only in schematic editor.
+        auto isNotBezierOrEllipseArc = []( INSPECTABLE* aItem ) -> bool
+        {
+            if( PCB_SHAPE* shape = dynamic_cast<PCB_SHAPE*>( aItem ) )
+            {
+                const SHAPE_T t = shape->GetShape();
+                return t != SHAPE_T::BEZIER && t != SHAPE_T::ELLIPSE_ARC;
+            }
+            return true;
+        };
 
-                    return true;
-                };
-
-        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ),
-                                      _HKI( "Fill" ), isNotBezier );
+        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ), _HKI( "Fill" ),
+                                      isNotBezierOrEllipseArc );
 
         auto isCircle =
                 []( INSPECTABLE* aItem ) -> bool
@@ -1017,23 +1069,24 @@ static struct PCB_SHAPE_DESC
                     return false;
                 };
 
-        auto isNotCircle =
-                []( INSPECTABLE* aItem ) -> bool
-                {
-                    if( PCB_SHAPE* shape = dynamic_cast<PCB_SHAPE*>( aItem ) )
-                        return shape->GetShape() != SHAPE_T::CIRCLE;
+        auto isNotCircleOrEllipse = []( INSPECTABLE* aItem ) -> bool
+        {
+            if( PCB_SHAPE* shape = dynamic_cast<PCB_SHAPE*>( aItem ) )
+            {
+                const SHAPE_T t = shape->GetShape();
+                return t != SHAPE_T::CIRCLE && t != SHAPE_T::ELLIPSE && t != SHAPE_T::ELLIPSE_ARC;
+            }
+            return true;
+        };
 
-                    return true;
-                };
-
-        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ),
-                                      _HKI( "Start X" ), isNotCircle );
-        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ),
-                                      _HKI( "Start Y" ), isNotCircle );
-        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ),
-                                      _HKI( "End X" ), isNotCircle );
-        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ),
-                                      _HKI( "End Y" ), isNotCircle );
+        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ), _HKI( "Start X" ),
+                                      isNotCircleOrEllipse );
+        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ), _HKI( "Start Y" ),
+                                      isNotCircleOrEllipse );
+        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ), _HKI( "End X" ),
+                                      isNotCircleOrEllipse );
+        propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ), _HKI( "End Y" ),
+                                      isNotCircleOrEllipse );
         propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ),
                                       _HKI( "Center X" ), isCircle );
         propMgr.OverrideAvailability( TYPE_HASH( PCB_SHAPE ), TYPE_HASH( EDA_SHAPE ),

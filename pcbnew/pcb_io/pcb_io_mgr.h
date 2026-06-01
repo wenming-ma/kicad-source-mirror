@@ -72,6 +72,8 @@ public:
         IPC2581,
         ODBPP,
         PADS,
+        SPRINT_LAYOUT,
+        DIPTRACE,
         // add your type here.
 
         // etc.

@@ -270,6 +270,25 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
     if( aItems.empty() )
         return;
 
+    for( BOARD_ITEM* item : aItems )
+    {
+        if( item && item != DELETED_BOARD_ITEM::GetInstance() )
+        {
+            item->SetBrightened();
+            lastBrightenedItemIDs.push_back( item->m_Uuid );
+
+            item->RunOnChildren(
+                    [&]( BOARD_ITEM* child )
+                    {
+                        child->SetBrightened();
+                        lastBrightenedItemIDs.push_back( child->m_Uuid );
+                    },
+                    RECURSE_MODE::RECURSE );
+
+            GetCanvas()->GetView()->Update( item );
+        }
+    }
+
     VECTOR2I       focusPt;
     KIGFX::VIEW*   view = GetCanvas()->GetView();
     SHAPE_POLY_SET viewportPoly( view->GetViewport() );
@@ -296,19 +315,6 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
     {
         if( item && item != DELETED_BOARD_ITEM::GetInstance() )
         {
-            item->SetBrightened();
-            lastBrightenedItemIDs.push_back( item->m_Uuid );
-
-            item->RunOnChildren(
-                    [&]( BOARD_ITEM* child )
-                    {
-                        child->SetBrightened();
-                        lastBrightenedItemIDs.push_back( child->m_Uuid );
-                    },
-                    RECURSE_MODE::RECURSE );
-
-            GetCanvas()->GetView()->Update( item );
-
             // Focus on the object's location.  Prefer a visible part of the object to its anchor
             // in order to keep from scrolling around.
 
@@ -406,8 +412,23 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
      * Perform a step-wise deflate to find the visual-center-of-mass
      */
 
+    if( itemPoly.IsEmpty() )
+    {
+        FocusOnLocation( focusPt, aAllowScroll );
+        GetCanvas()->Refresh();
+        return;
+    }
+
     BOX2I    bbox = itemPoly.BBox();
     int      step = std::min( bbox.GetWidth(), bbox.GetHeight() ) / 10;
+
+    // Tiny shapes can quantize to a zero deflate step
+    if( step <= 0 )
+    {
+        FocusOnLocation( bbox.Centre(), aAllowScroll );
+        GetCanvas()->Refresh();
+        return;
+    }
 
     while( !itemPoly.IsEmpty() )
     {
@@ -1055,6 +1076,9 @@ void PCB_BASE_FRAME::SetDisplayOptions( const PCB_DISPLAY_OPTIONS& aOptions, boo
     KIGFX::PCB_VIEW*    view   = static_cast<KIGFX::PCB_VIEW*>( canvas->GetView() );
 
     view->UpdateDisplayOptions( aOptions );
+    view->SetMirror( aOptions.m_FlipBoardView, view->IsMirroredY() );
+    view->RecacheAllItems();
+
     canvas->SetHighContrastLayer( GetActiveLayer() );
     OnDisplayOptionsChanged();
 

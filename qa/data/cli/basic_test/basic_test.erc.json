@@ -24,12 +24,27 @@
         "error",
         "warning"
     ],
-    "kicad_version": "10.0.0",
+    "kicad_version": "10.99.0",
     "sheets": [
         {
             "path": "/",
             "uuid_path": "/64c481bc-ea0a-4f9c-a176-3729f4987c58",
             "violations": [
+                {
+                    "description": "Input Power pin not driven by any Output Power pins",
+                    "items": [
+                        {
+                            "description": "Symbol #PWR01 Hidden pin 1 [GND, Power input, Line]",
+                            "pos": {
+                                "x": 1.1938,
+                                "y": 0.9652
+                            },
+                            "uuid": "d244be40-4f72-4136-9d69-8cadcdfa193b"
+                        }
+                    ],
+                    "severity": "error",
+                    "type": "power_pin_not_driven"
+                },
                 {
                     "description": "Input Power pin not driven by any Output Power pins",
                     "items": [
@@ -40,21 +55,6 @@
                                 "y": 0.7112
                             },
                             "uuid": "0123f423-4b4c-467f-8b7d-43421b82330d"
-                        }
-                    ],
-                    "severity": "error",
-                    "type": "power_pin_not_driven"
-                },
-                {
-                    "description": "Input Power pin not driven by any Output Power pins",
-                    "items": [
-                        {
-                            "description": "Symbol U1 Pin 2 [V-, Power input, Line]",
-                            "pos": {
-                                "x": 1.4097,
-                                "y": 0.8636
-                            },
-                            "uuid": "74f1f498-1594-4d18-a0fd-b624cedbd22a"
                         }
                     ],
                     "severity": "error",

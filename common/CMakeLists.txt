@@ -59,6 +59,29 @@ add_custom_target(
         -DBANNED_DIRS="${PROJECT_SOURCE_DIR}/common/io;${PROJECT_SOURCE_DIR}/pcbnew/pcb_io;${PROJECT_SOURCE_DIR}/eeschema/sch_io"
         -P ${KICAD_CMAKE_MODULE_PATH}/CheckBannedFunctions.cmake
 )
+
+if( NOT (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR} ) )
+    file( GLOB REMOTE_PROVIDER_SCHEMA_FILES
+        ${CMAKE_SOURCE_DIR}/resources/schemas/kicad-remote-*.json
+    )
+
+    add_custom_target( remote_provider_schema_build_copy
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/schemas
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${REMOTE_PROVIDER_SCHEMA_FILES}
+            ${CMAKE_BINARY_DIR}/schemas
+        DEPENDS ${REMOTE_PROVIDER_SCHEMA_FILES}
+        COMMENT "Copying remote provider schema files into build directory"
+    )
+endif()
+
+install( FILES
+    ${CMAKE_SOURCE_DIR}/resources/schemas/kicad-remote-provider-metadata-v1.schema.json
+    ${CMAKE_SOURCE_DIR}/resources/schemas/kicad-remote-symbol-manifest-v1.schema.json
+    DESTINATION ${KICAD_DATA}/schemas
+    COMPONENT Runtime
+)
+
 # A shared library used by multiple *.kiface files and one or two program
 # launchers.  Object files can migrate into here over time, but only if they are
 # surely needed and certainly used from more than one place without recompilation.
@@ -98,6 +121,7 @@ set( KICOMMON_SRCS
     git/kicad_git_common.cpp
     git/kicad_git_errors.cpp
     git/git_backend.cpp
+    git/kigit_orphan_registry.cpp
     git/libgit_backend.cpp
 
     # Jobs
@@ -115,6 +139,7 @@ set( KICOMMON_SRCS
     jobs/job_export_pcb_ipcd356.cpp
     jobs/job_export_pcb_odb.cpp
     jobs/job_export_pcb_pdf.cpp
+    jobs/job_export_pcb_png.cpp
     jobs/job_export_pcb_stats.cpp
     jobs/job_export_pcb_plot.cpp
     jobs/job_export_pcb_pos.cpp
@@ -131,6 +156,9 @@ set( KICOMMON_SRCS
     jobs/jobset.cpp
     jobs/job_fp_export_svg.cpp
     jobs/job_fp_upgrade.cpp
+    jobs/job_gerber_diff.cpp
+    jobs/job_gerber_export_png.cpp
+    jobs/job_gerber_info.cpp
     jobs/job_pcb_import.cpp
     jobs/job_pcb_render.cpp
     jobs/job_pcb_drc.cpp
@@ -182,6 +210,7 @@ set( KICOMMON_SRCS
 
     dialogs/dialog_rc_job.cpp
     dialogs/dialog_rc_job_base.cpp
+    dialogs/dialog_restore_local_history.cpp
     dialogs/dialog_HTML_reporter_base.cpp
     dialogs/panel_startwizard_libraries_base.cpp
     dialogs/panel_startwizard_privacy_base.cpp
@@ -204,6 +233,7 @@ set( KICOMMON_SRCS
     widgets/ui_common.cpp
     widgets/up_down_tree.cpp
     widgets/wx_grid.cpp
+    widgets/wx_data_view_hyperlink_renderer.cpp
     widgets/wx_html_report_panel.cpp
     widgets/wx_html_report_panel_base.cpp
     widgets/wx_html_report_box.cpp
@@ -226,6 +256,7 @@ set( KICOMMON_SRCS
     build_version.cpp
     cli_progress_reporter.cpp
     common.cpp
+    text_var_dependency.cpp
     config_params.cpp
     confirm.cpp
     dialog_shim.cpp
@@ -258,8 +289,17 @@ set( KICOMMON_SRCS
     netclass.cpp
     notifications_manager.cpp
     page_info.cpp
+    oauth/oauth_loopback_server.cpp
+    oauth/oauth_pkce.cpp
+    oauth/oauth_session.cpp
+    oauth/secure_token_store.cpp
     paths.cpp
     project.cpp
+    remote_provider_client.cpp
+    remote_provider_metadata.cpp
+    remote_provider_models.cpp
+    remote_provider_settings.cpp
+    remote_provider_utils.cpp
     reporter.cpp
     richio.cpp
     scintilla_tricks.cpp
@@ -277,8 +317,6 @@ set( KICOMMON_SRCS
 
     singleton.cpp
     pgm_base.cpp
-
-    ../scripting/python_scripting.cpp
 
     io/kicad/kicad_io_utils.cpp    # needed by richio
     io/io_base.cpp
@@ -306,8 +344,7 @@ if( KICAD_IPC_API )
         api/api_plugin.cpp
         api/api_plugin_manager.cpp
         api/api_server.cpp
-
-        ../scripting/python_manager.cpp
+        api/python_manager.cpp
     )
 endif()
 
@@ -348,6 +385,7 @@ target_link_libraries( kicommon
     rapidcsv
     sexpr
     glad
+    thread-pool
     ${ZSTD_LIBRARY}
     ${wxWidgets_LIBRARIES}
     ${LIBGIT2_LIBRARIES}
@@ -360,9 +398,6 @@ target_link_libraries( kicommon
    	${FREETYPE_LIBRARIES}
    	${HarfBuzz_LIBRARIES}
 	${Fontconfig_LIBRARIES}
-
-    # needed because of python_scripting.cpp
-    ${PYTHON_LIBRARIES}
     )
 
 
@@ -425,10 +460,13 @@ target_include_directories( kicommon
         $<TARGET_PROPERTY:kiapi,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:picosha2,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:nlohmann_json_schema_validator,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:thread-pool,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
 add_dependencies( kicommon pegtl version_header )
+
+if( TARGET remote_provider_schema_build_copy )
+    add_dependencies( kicommon remote_provider_schema_build_copy )
+endif()
 
 if( MSVC )
     target_sources( kicommon PRIVATE ${CMAKE_SOURCE_DIR}/resources/msw/kicommon-dll.rc )
@@ -443,7 +481,8 @@ set( COMMON_ABOUT_DLG_SRCS
 set( COMMON_GIT_DLG_SRCS
     dialogs/git/dialog_git_commit.cpp
     dialogs/git/dialog_git_switch.cpp
-    dialogs/git/dialog_git_auth.cpp
+    dialogs/git/dialog_git_credentials.cpp
+    dialogs/git/dialog_git_credentials_base.cpp
     dialogs/git/dialog_git_repository.cpp
     dialogs/git/dialog_git_repository_base.cpp
     dialogs/git/panel_git_repos.cpp
@@ -455,6 +494,8 @@ set( COMMON_DLG_SRCS
     ${COMMON_GIT_DLG_SRCS}
     dialogs/dialog_assign_netclass.cpp
     dialogs/dialog_assign_netclass_base.cpp
+    dialogs/dialog_autosave_recovery.cpp
+    dialogs/dialog_autosave_recovery_base.cpp
     dialogs/dialog_book_reporter.cpp
     dialogs/dialog_book_reporter_base.cpp
     dialogs/dialog_color_picker.cpp
@@ -635,6 +676,7 @@ set( PLOTTERS_CONTROL_SRCS
     plotters/PDF_plotter.cpp
     plotters/pdf_stroke_font.cpp
     plotters/pdf_outline_font.cpp
+    plotters/PNG_plotter.cpp
     plotters/PS_plotter.cpp
     plotters/SVG_plotter.cpp
     plotters/common_plot_functions.cpp
@@ -646,6 +688,7 @@ set( COMMON_IO_SRCS
     io/altium/altium_binary_parser.cpp
     io/altium/altium_ascii_parser.cpp
     io/altium/altium_parser_utils.cpp
+    io/altium/altium_project_variants.cpp
     io/altium/altium_props_utils.cpp
 
     # Cadstar
@@ -663,15 +706,23 @@ set( COMMON_IO_SRCS
     io/easyedapro/easyedapro_parser.cpp
     io/easyedapro/easyedapro_import_utils.cpp
 
+    # DipTrace
+    io/diptrace/diptrace_binary_reader.cpp
+
     io/csv.cpp
     )
 
 set ( COMMON_TRANSLINE_CALCULATION_SRCS
     transline_calculations/transline_calculation_base.cpp
+    transline_calculations/dielectric_djordjevic_sarkar.cpp
     transline_calculations/microstrip.cpp
     transline_calculations/coupled_microstrip.cpp
     transline_calculations/stripline.cpp
     transline_calculations/coupled_stripline.cpp
+    transline_calculations/coax.cpp
+    transline_calculations/coplanar.cpp
+    transline_calculations/rectwaveguide.cpp
+    transline_calculations/twistedpair.cpp
     )
 
 set( COMMON_IMPORT_GFX_SRCS
@@ -722,6 +773,7 @@ set( COMMON_SRCS
     hotkey_store.cpp
     hotkeys_basic.cpp
     inspectable.cpp
+    item_realignment.cpp
     kiface_base.cpp
     kiway_player.cpp
     lib_table_grid_tricks.cpp
@@ -738,7 +790,6 @@ set( COMMON_SRCS
     refdes_utils.cpp
     reference_image.cpp
     render_settings.cpp
-    remote_login_server.cpp
     status_popup.cpp
     stroke_params.cpp
     template_fieldnames.cpp
@@ -840,12 +891,16 @@ if( KICAD_USE_PCH )
             <clipper2/clipper.h>
             <eda_draw_frame.h>
             <kiid.h>
-            <pgm_base.h>            
+            <pgm_base.h>
             <wx/wx.h>
              )
 endif()
 
 add_dependencies( common version_header )
+
+if( TARGET remote_provider_schema_build_copy )
+    add_dependencies( common remote_provider_schema_build_copy )
+endif()
 add_dependencies( common compoundfilereader )  # used by altium_parser.cpp
 
 target_link_libraries( common
@@ -859,9 +914,7 @@ target_link_libraries( common
     nanosvg
     dxflib_qcad
     tinyspline_lib
-    scripting
     nlohmann_json
-    pybind11::embed
     compoundfilereader
     Boost::headers
     # Database support needs these two
@@ -917,6 +970,7 @@ set( PCB_COMMON_SRCS
     ${CMAKE_SOURCE_DIR}/pcbnew/teardrop/teardrop_parameters.cpp     #needed by board_design_settings.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/router/pns_meander.cpp               #needed by board_design_settings.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/board.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/board_text_var_adapter.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/component_classes/component_class.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/component_classes/component_class_assignment_rule.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/component_classes/component_class_cache_proxy.cpp
@@ -928,6 +982,7 @@ set( PCB_COMMON_SRCS
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_group.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_marker.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/footprint.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/footprint_utils.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/footprint_library_adapter.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/fix_board_shape.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/layer_utils.cpp
@@ -949,6 +1004,7 @@ set( PCB_COMMON_SRCS
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_track.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/pcb_generator.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/zone.cpp
+    ${CMAKE_SOURCE_DIR}/pcbnew/zone_utils.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/collectors.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/connectivity/connectivity_algo.cpp
     ${CMAKE_SOURCE_DIR}/pcbnew/connectivity/connectivity_items.cpp

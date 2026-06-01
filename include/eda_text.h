@@ -33,11 +33,24 @@
 #include <font/glyph.h>
 #include <font/text_attributes.h>
 #include <api/serializable.h>
+#include <text_var_dependency.h>
 
 
 class OUTPUTFORMATTER;
 class SHAPE_COMPOUND;
 class SHAPE_POLY_SET;
+struct EDA_IU_SCALE;
+
+
+struct EDA_TEXT_RENDER_CACHE_DATA
+{
+    wxString                                    text;
+    const KIFONT::FONT*                         font = nullptr;
+    EDA_ANGLE                                   angle;
+    VECTOR2I                                    offset;
+    bool                                        mirrored = false;
+    std::vector<std::unique_ptr<KIFONT::GLYPH>> glyphs;
+};
 
 
 // These are only here for algorithmic safety, not to tell the user what to do.
@@ -90,6 +103,9 @@ public:
     void Serialize( google::protobuf::Any &aContainer ) const override;
     bool Deserialize( const google::protobuf::Any &aContainer ) override;
 
+    void Serialize( google::protobuf::Any &aContainer, const EDA_IU_SCALE& aScale ) const;
+    bool Deserialize( const google::protobuf::Any &aContainer, const EDA_IU_SCALE& aScale );
+
     /**
      * Return the string associated with the text object.
      *
@@ -115,6 +131,15 @@ public:
      * Indicates the ShownText has text var references which need to be processed.
      */
     bool HasTextVars() const { return m_shown_text_has_text_var_refs; }
+
+    /**
+     * Return the set of `${...}` references extracted from the source text.
+     *
+     * The result is cached lazily and invalidated on SetText/CopyText/Replace. Consumers
+     * (the reactive dependency tracker) may call this at high frequency on items that
+     * rarely change; the cache avoids repeat lexing.
+     */
+    const std::vector<TEXT_VAR_REF_KEY>& GetTextVarReferences() const;
 
     virtual void SetText( const wxString& aText );
 
@@ -459,16 +484,17 @@ protected:
 private:
     wxString         m_text;
     wxString         m_shown_text;           // Cache of unescaped text for efficient access
-    bool             m_shown_text_has_text_var_refs;
+    bool             m_shown_text_has_text_var_refs = false;
+
+    // Populated eagerly in cacheShownText() so reads from concurrent workers
+    // (connection graph, API server, painters) see immutable storage without a
+    // lock. Extracted from raw m_text (not m_shown_text) so backslash-escaped
+    // ${...} literals do not fabricate dependency edges.
+    std::vector<TEXT_VAR_REF_KEY> m_text_var_refs;
 
     std::reference_wrapper<const EDA_IU_SCALE>          m_IuScale;
 
-    mutable wxString                                    m_render_cache_text;
-    mutable const KIFONT::FONT*                         m_render_cache_font;
-    mutable EDA_ANGLE                                   m_render_cache_angle;
-    mutable VECTOR2I                                    m_render_cache_offset;
-    mutable bool                                        m_render_cache_mirrored;
-    mutable std::vector<std::unique_ptr<KIFONT::GLYPH>> m_render_cache;
+    mutable std::unique_ptr<EDA_TEXT_RENDER_CACHE_DATA> m_render_cache;
 
     struct BBOX_CACHE_ENTRY
     {

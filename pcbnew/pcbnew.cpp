@@ -23,7 +23,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <pcbnew_scripting_helpers.h>
 #include <pgm_base.h>
 #include <eda_pattern_match.h>
 #include <background_jobs_monitor.h>
@@ -67,7 +66,6 @@
 #include <panel_3D_opengl_options.h>
 #include <panel_3D_raytracing_options.h>
 #include <project_pcb.h>
-#include <python_scripting.h>
 #include <string_utils.h>
 #include <thread_pool.h>
 #include <trace_helpers.h>
@@ -86,9 +84,14 @@
 
 #include <wx/crt.h>
 
-/* init functions defined by swig */
-
-extern "C" PyObject* PyInit__pcbnew( void );
+#if defined( KICAD_IPC_API )
+#include <api/api_handler_pcb.h>
+#include <api/api_server.h>
+#include <api/api_utils.h>
+#include <api/headless_board_context.h>
+#include <board.h>
+#include <board_loader.h>
+#endif
 
 
 /**
@@ -222,7 +225,7 @@ static wxString filterFootprints( const wxString& aFilterJson )
 
         return wxString::FromUTF8( output.dump() );
     }
-    catch( const std::exception& e )
+    catch( const std::exception& )
     {
         return wxS( "[]" );
     }
@@ -253,9 +256,6 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
         case FRAME_PCB_EDITOR:
         {
             auto frame = new PCB_EDIT_FRAME( aKiway, aParent );
-
-            // give the scripting helpers access to our frame
-            ScriptingSetPcbEditFrame( frame );
 
             if( Kiface().IsSingle() )
             {
@@ -392,7 +392,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
             for( ACTION_TOOLBAR_CONTROL* control : ACTION_TOOLBAR::GetCustomControlList( FRAME_FOOTPRINT_EDITOR ) )
                 controls.push_back( control );
 
-            return new PANEL_TOOLBAR_CUSTOMIZATION( aParent, cfg, tb, actions, controls );
+            return new PANEL_TOOLBAR_CUSTOMIZATION( aParent, cfg, tb, FRAME_FOOTPRINT_EDITOR, actions, controls );
         }
 
         case PANEL_FP_COLORS:
@@ -463,7 +463,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
             for( ACTION_TOOLBAR_CONTROL* control : ACTION_TOOLBAR::GetCustomControlList( FRAME_PCB_EDITOR ) )
                 controls.push_back( control );
 
-            return new PANEL_TOOLBAR_CUSTOMIZATION( aParent, cfg, tb, actions, controls );
+            return new PANEL_TOOLBAR_CUSTOMIZATION( aParent, cfg, tb, FRAME_PCB_EDITOR, actions, controls );
         }
 
         case PANEL_PCB_ACTION_PLUGINS:
@@ -492,7 +492,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
             for( ACTION_TOOLBAR_CONTROL* control : ACTION_TOOLBAR::GetCustomControlList( FRAME_PCB_DISPLAY3D ) )
                 controls.push_back( control );
 
-            return new PANEL_TOOLBAR_CUSTOMIZATION( aParent, cfg, tb, actions, controls );
+            return new PANEL_TOOLBAR_CUSTOMIZATION( aParent, cfg, tb, FRAME_PCB_DISPLAY3D, actions, controls );
         }
 
         default:
@@ -545,9 +545,6 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
             return reinterpret_cast<void*>( &filterFootprints );
         }
 
-        case KIFACE_SCRIPTING_LEGACY:
-            return reinterpret_cast<void*>( PyInit__pcbnew );
-
         default:
             return nullptr;
         }
@@ -566,6 +563,16 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
 
     bool HandleJobConfig( JOB* aJob, wxWindow* aParent ) override;
 
+#if defined( KICAD_IPC_API )
+    bool HandleApiOpenDocument( const wxString& aPath,
+                                KICAD_API_SERVER* aServer,
+                                wxString* aError ) override;
+
+    bool HandleApiCloseDocument( const wxString& aBoardFileName,
+                                 KICAD_API_SERVER* aServer,
+                                 wxString* aError ) override;
+#endif
+
     void PreloadLibraries( KIWAY* aKiway ) override;
     void ProjectChanged() override;
     void CancelPreload( bool aBlock = true ) override;
@@ -576,6 +583,14 @@ private:
     std::future<void>                    m_libraryPreloadReturn;
     std::atomic_bool                     m_libraryPreloadInProgress;
     std::atomic_bool                     m_libraryPreloadAbort;
+
+#if defined( KICAD_IPC_API )
+    void closeCurrentDocument( KICAD_API_SERVER* aServer );
+
+    KIWAY* m_kiway = nullptr;
+    std::shared_ptr<HEADLESS_BOARD_CONTEXT> m_openContext;
+    std::unique_ptr<API_HANDLER_PCB>        m_openHandler;
+#endif
 
 } kiface( "pcbnew", KIWAY::FACE_PCB );
 
@@ -618,6 +633,10 @@ bool IFACE::OnKifaceStart( PGM_BASE* aProgram, int aCtlBits, KIWAY* aKiway )
     mgr.RegisterSettings( new CVPCB_SETTINGS );
 
     start_common( aCtlBits );
+
+#if defined( KICAD_IPC_API )
+    m_kiway = aKiway;
+#endif
 
     m_jobHandler = std::make_unique<PCBNEW_JOBS_HANDLER>( aKiway );
 
@@ -769,6 +788,156 @@ bool IFACE::HandleJobConfig( JOB* aJob, wxWindow* aParent )
 }
 
 
+#if defined( KICAD_IPC_API )
+void IFACE::closeCurrentDocument( KICAD_API_SERVER* aServer )
+{
+    if( m_openHandler )
+    {
+        if( aServer )
+            aServer->DeregisterHandler( m_openHandler.get() );
+
+        m_openHandler.reset();
+    }
+
+    m_openContext.reset();
+
+    // The jobs handler caches the last-loaded board. Clear it so the next job
+    // uses the board from the newly opened document rather than a stale copy.
+    m_jobHandler->ClearCachedBoard();
+}
+
+
+bool IFACE::HandleApiOpenDocument( const wxString& aPath, KICAD_API_SERVER* aServer, wxString* aError )
+{
+    wxCHECK( aServer, false );
+
+    if( aPath.IsEmpty() )
+    {
+        if( aError )
+            *aError = wxS( "No path specified to open" );
+
+        return false;
+    }
+
+    wxFileName projectPath( aPath );
+
+    if( projectPath.GetExt() == FILEEXT::KiCadPcbFileExtension )
+        projectPath.SetExt( FILEEXT::ProjectFileExtension );
+    else if( projectPath.GetExt() != FILEEXT::ProjectFileExtension )
+        projectPath.SetExt( FILEEXT::ProjectFileExtension );
+
+    projectPath.MakeAbsolute();
+
+    // Close any existing document before loading a new project. LoadProject with
+    // aSetActive=true destroys the old PROJECT, which would leave the old board and
+    // context holding dangling m_project pointers.
+    closeCurrentDocument( aServer );
+
+    SETTINGS_MANAGER& settingsManager = Pgm().GetSettingsManager();
+
+    if( !settingsManager.LoadProject( projectPath.GetFullPath(), true ) )
+    {
+        wxLogTrace( traceApi, "Warning: no project file found for %s", aPath );
+    }
+
+    PROJECT* project = settingsManager.GetProject( projectPath.GetFullPath() );
+
+    if( !project )
+    {
+        if( aError )
+            *aError = wxString::Format( wxS( "Error loading project for %s" ), aPath );
+
+        return false;
+    }
+
+    wxFileName boardPath( projectPath );
+    boardPath.SetExt( FILEEXT::KiCadPcbFileExtension );
+
+    if( !boardPath.FileExists() )
+    {
+        if( aError )
+            *aError = wxString::Format( wxS( "File not found: %s" ), aPath );
+
+        return false;
+    }
+
+    PCB_IO_MGR::PCB_FILE_T pluginType =
+            PCB_IO_MGR::FindPluginTypeFromBoardPath( boardPath.GetFullPath(), KICTL_KICAD_ONLY );
+
+    if( pluginType == PCB_IO_MGR::FILE_TYPE_NONE )
+    {
+        if( aError )
+            *aError = wxString::Format( wxS( "%s is not a recognized file type" ), aPath );
+
+        return false;
+    }
+
+    std::shared_ptr<HEADLESS_BOARD_CONTEXT> newContext;
+
+    try
+    {
+        std::unique_ptr<BOARD> loadedBoard = BOARD_LOADER::Load( boardPath.GetFullPath(), pluginType, project );
+
+        if( !loadedBoard )
+        {
+            if( aError )
+                *aError = wxS( "Failed to load board" );
+
+            return false;
+        }
+
+        newContext = std::make_shared<HEADLESS_BOARD_CONTEXT>( std::move( loadedBoard ), project,
+                                       GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" ),
+                                       m_kiway );
+    }
+    catch( ... )
+    {
+        if( aError )
+            *aError = wxS( "Failed to load board" );
+
+        return false;
+    }
+
+    m_openContext = std::move( newContext );
+
+    m_openHandler = std::make_unique<API_HANDLER_PCB>( m_openContext, nullptr );
+    aServer->RegisterHandler( m_openHandler.get() );
+
+    return true;
+}
+
+
+bool IFACE::HandleApiCloseDocument( const wxString& aFileName, KICAD_API_SERVER* aServer, wxString* aError )
+{
+    wxCHECK( aServer, false );
+
+    if( !m_openContext )
+    {
+        if( aError )
+            *aError = wxS( "No document is currently open" );
+
+        return false;
+    }
+
+    if( !aFileName.IsEmpty() )
+    {
+        wxFileName currentBoard( m_openContext->GetCurrentFileName() );
+
+        if( currentBoard.GetFullName() != aFileName )
+        {
+            if( aError )
+                *aError = wxS( "Requested document does not match the open document" );
+
+            return false;
+        }
+    }
+
+    closeCurrentDocument( aServer );
+    return true;
+}
+#endif
+
+
 void IFACE::PreloadLibraries( KIWAY* aKiway )
 {
     constexpr static int interval = 150;
@@ -887,8 +1056,8 @@ void IFACE::PreloadLibraries( KIWAY* aKiway )
             }
         };
 
-    thread_pool& tp = GetKiCadThreadPool();
-    m_libraryPreloadReturn = tp.submit_task( preload );
+    std::future<void> preloadFuture = std::async( std::launch::async, preload );
+    m_libraryPreloadReturn = std::move( preloadFuture );
 }
 
 

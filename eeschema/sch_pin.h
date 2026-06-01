@@ -71,6 +71,9 @@ public:
 
     SCH_PIN& operator=( const SCH_PIN& aPin );
 
+    void Serialize( google::protobuf::Any& aContainer ) const override;
+    bool Deserialize( const google::protobuf::Any& aContainer ) override;
+
     wxString GetClass() const override
     {
         return wxT( "SCH_PIN" );
@@ -312,6 +315,8 @@ public:
 
     bool IsConnectable() const override { return true; }
 
+    bool IsLocked() const override;
+
     bool HasConnectivityChanges( const SCH_ITEM* aItem,
                                  const SCH_SHEET_PATH* aInstance = nullptr ) const override;
 
@@ -348,7 +353,7 @@ public:
      * laid out than just the bounding box, you can use this. The SCH_PAINTER,
      * for example, can use this to avoid having to duplicate text extent calcs.
      */
-    PIN_LAYOUT_CACHE& GetLayoutCache() const { return *m_layoutCache; }
+    PIN_LAYOUT_CACHE& GetLayoutCache() const;
 
 protected:
     wxString getItemDescription( ALT* aAlt ) const;
