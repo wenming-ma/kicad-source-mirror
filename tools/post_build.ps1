@@ -30,7 +30,8 @@ function Copy-FilesIfPresent {
     param(
         [string]$SourceDir,
         [string]$DestinationDir,
-        [string]$Filter = "*"
+        [string]$Filter = "*",
+        [switch]$Recurse
     )
 
     if( -not ( Test-Path -LiteralPath $SourceDir ) )
@@ -41,7 +42,53 @@ function Copy-FilesIfPresent {
     New-Item -ItemType Directory -Path $DestinationDir -Force | Out-Null
 
     Get-ChildItem -LiteralPath $SourceDir -Filter $Filter | ForEach-Object {
-        Copy-Item -LiteralPath $_.FullName -Destination $DestinationDir -Force
+        if( $_.PSIsContainer )
+        {
+            if( $Recurse )
+            {
+                Copy-Item -LiteralPath $_.FullName -Destination $DestinationDir -Recurse -Force
+            }
+        }
+        else
+        {
+            Copy-Item -LiteralPath $_.FullName -Destination $DestinationDir -Force
+        }
+    }
+}
+
+function Copy-LocalDllsToBuildTree {
+    param(
+        [string]$BuildDir,
+        [string[]]$DestinationDirs
+    )
+
+    $sourceDirs = @(
+        "api",
+        "common",
+        "common\gal"
+    )
+
+    foreach( $relativeDestinationDir in $DestinationDirs )
+    {
+        $destinationDir = Join-Path $BuildDir $relativeDestinationDir
+
+        if( -not ( Test-Path -LiteralPath $destinationDir ) )
+        {
+            continue
+        }
+
+        foreach( $relativeSourceDir in $sourceDirs )
+        {
+            $sourceDir = Join-Path $BuildDir $relativeSourceDir
+
+            if( ( Resolve-Path -LiteralPath $sourceDir -ErrorAction SilentlyContinue ).Path -eq
+                ( Resolve-Path -LiteralPath $destinationDir -ErrorAction SilentlyContinue ).Path )
+            {
+                continue
+            }
+
+            Copy-FilesIfPresent -SourceDir $sourceDir -DestinationDir $destinationDir -Filter "*.dll"
+        }
     }
 }
 
@@ -141,7 +188,7 @@ if( -not ( Test-Path -LiteralPath $installBinDir ) )
 }
 
 Copy-FilesIfPresent -SourceDir $runtimeBin -DestinationDir $installBinDir -Filter "*.dll"
-Copy-FilesIfPresent -SourceDir $pythonToolsDir -DestinationDir $installBinDir
+Copy-FilesIfPresent -SourceDir $pythonToolsDir -DestinationDir $installBinDir -Recurse
 
 if( $CopyPdbs )
 {
@@ -175,4 +222,6 @@ if( $SyncBuildTree )
             Copy-FilesIfPresent -SourceDir $runtimeBin -DestinationDir $destinationDir -Filter "*.dll"
         }
     }
+
+    Copy-LocalDllsToBuildTree -BuildDir $resolvedBuildDir -DestinationDirs $runtimeDirs
 }
