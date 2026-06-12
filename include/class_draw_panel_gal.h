@@ -43,6 +43,7 @@ class BOARD;
 class EDA_DRAW_FRAME;
 class TOOL_DISPATCHER;
 class PROF_COUNTER;
+class wxImage;
 
 namespace KIGFX
 {
@@ -74,6 +75,7 @@ public:
 #else
     static constexpr GAL_TYPE GAL_FALLBACK = GAL_TYPE_CAIRO;
 #endif
+    static constexpr bool GAL_FALLBACK_AVAILABLE = GAL_FALLBACK != GAL_TYPE_OPENGL;
 
     /**
      * Create a drawing panel that is contained inside \p aParentWindow.
@@ -136,6 +138,14 @@ public:
     {
         return (KIGFX::VIEW_CONTROLS*)( m_viewControls );
     }
+
+    /**
+     * Capture the current canvas contents into aDstImage.
+     *
+     * @return true on success, false if the backend can't be captured this way (the caller
+     *         should fall back to a DC blit).
+     */
+    bool GetScreenshot( wxImage& aDstImage );
 
     /// @copydoc wxWindow::Refresh()
     virtual void Refresh( bool aEraseBackground = true, const wxRect* aRect = nullptr ) override;
@@ -270,6 +280,8 @@ protected:
     void onRefreshTimer( wxTimerEvent& aEvent );
     void onShowEvent( wxShowEvent& aEvent );
 
+    bool recoverFromGalError( const std::exception& aErr );
+
     wxWindow*                m_parent;           ///< Pointer to the parent window
     EDA_DRAW_FRAME*          m_edaFrame;         ///< Parent EDA_DRAW_FRAME (if available)
 
@@ -313,6 +325,9 @@ protected:
     /// Flag to indicate that focus should be regained on the next mouse event. It is a workaround
     /// for cases when the panel loses keyboard focus, so it does not react to hotkeys anymore.
     bool                     m_lostFocus;
+
+    /// Set after an OpenGL recovery attempt to prevent infinite retry loops
+    bool                     m_glRecoveryAttempted;
 
     /// Flag to indicate whether the panel should take focus at certain times (when moused over,
     /// and on various mouse/key events)

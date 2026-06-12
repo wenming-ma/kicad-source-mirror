@@ -23,8 +23,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <pybind11/pybind11.h>
-
 #include <wx/debug.h>
 #include <wx/msgdlg.h>
 #include <i18n_utility.h>
@@ -100,6 +98,27 @@ BOARD* BOARD_ITEM::GetBoard()
 FOOTPRINT* BOARD_ITEM::GetParentFootprint() const
 {
     return static_cast<FOOTPRINT*>( findParent( PCB_FOOTPRINT_T ) );
+}
+
+
+void BOARD_ITEM::SetUuid( const KIID& aUuid )
+{
+    if( m_Uuid == aUuid )
+        return;
+
+    if( BOARD* board = GetBoard(); board && board->IsItemIndexedById( this ) )
+    {
+        board->RebindItemUuid( this, aUuid );
+        return;
+    }
+
+    SetUuidDirect( aUuid );
+}
+
+
+void BOARD_ITEM::SetUuidDirect( const KIID& aUuid )
+{
+    const_cast<KIID&>( m_Uuid ) = aUuid;
 }
 
 
@@ -211,24 +230,29 @@ wxString BOARD_ITEM::LayerMaskDescribe() const
 {
     const BOARD* board = GetBoard();
     LSET         layers = GetLayerSet();
+    int          copperLayerCount = MAX_CU_LAYERS;
 
     if( board )
+    {
         layers &= board->GetEnabledLayers();
+        copperLayerCount = board->GetCopperLayerCount();
+    }
 
     LSET copperLayers = layers & LSET::AllCuMask();
     LSET techLayers = layers & LSET::AllTechMask();
 
     // Try to be smart and useful.  Check all copper first.
-    if( (int) copperLayers.count() == board->GetCopperLayerCount() )
+    if( (int) copperLayers.count() == copperLayerCount )
         return _( "all copper layers" );
 
     for( LSET testLayers : { copperLayers, techLayers, layers } )
     {
-        for( int bit = PCBNEW_LAYER_ID_START; bit < PCB_LAYER_ID_COUNT; ++bit )
+        for( int layer = PCBNEW_LAYER_ID_START; layer < PCB_LAYER_ID_COUNT; ++layer )
         {
-            if( testLayers[ bit ] )
+            if( testLayers[ layer ] )
             {
-                wxString layerInfo = board->GetLayerName( static_cast<PCB_LAYER_ID>( bit ) );
+                wxString layerInfo = board ? board->GetLayerName( ToLAYER_ID( layer ) )
+                                           : LayerName( ToLAYER_ID( layer ) );
 
                 if( testLayers.count() > 1 )
                     layerInfo << wxS( " " ) + _( "and others" );
@@ -276,17 +300,30 @@ void BOARD_ITEM::SwapItemData( BOARD_ITEM* aImage )
         return;
 
     EDA_ITEM* parent = GetParent();
+    BOARD*    board = GetBoard();
+
+    // Evict children from the item-by-id cache before the swap moves them to the
+    // image.  The image is typically deleted after the swap (undo/redo, commit revert),
+    // which would leave the cache holding dangling pointers to the destroyed children.
+    if( board )
+    {
+        board->UncacheChildrenById( this );
+    }
 
     swapData( aImage );
-
     SetParent( parent );
+
+    if( board )
+    {
+        board->CacheChildrenById( this );
+    }
 }
 
 
 BOARD_ITEM* BOARD_ITEM::Duplicate( bool addToParentGroup, BOARD_COMMIT* aCommit ) const
 {
     BOARD_ITEM* dupe = static_cast<BOARD_ITEM*>( Clone() );
-    const_cast<KIID&>( dupe->m_Uuid ) = KIID();
+    dupe->ResetUuid();
 
     if( addToParentGroup )
     {

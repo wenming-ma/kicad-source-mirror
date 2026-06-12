@@ -155,6 +155,7 @@ public:
         bool differentiate_plated_copper;
         bool use_board_editor_copper_colors;    // OpenGL only
         bool preview_show_board_body;
+        bool show_missing_models; // Show placeholder for missing 3D models
 
         /**
          * return true if platted copper aeras and non platted copper areas must be drawn
@@ -177,6 +178,17 @@ public:
         int    projection_mode;
     };
 
+    struct EXPORT_IMAGE_SETTINGS
+    {
+        int    width;
+        int    height;
+        double x_resolution;
+        double y_resolution;
+        int    size_units;
+        int    resolution_units;
+        bool   lock_aspect_ratio;
+    };
+
     EDA_3D_VIEWER_SETTINGS();
 
     virtual ~EDA_3D_VIEWER_SETTINGS() {}
@@ -186,9 +198,10 @@ public:
     virtual bool MigrateFromLegacy( wxConfigBase* aLegacyConfig ) override;
 
 public:
-    AUI_PANELS      m_AuiPanels;
-    RENDER_SETTINGS m_Render;
-    CAMERA_SETTINGS m_Camera;
+    AUI_PANELS            m_AuiPanels;
+    RENDER_SETTINGS       m_Render;
+    CAMERA_SETTINGS       m_Camera;
+    EXPORT_IMAGE_SETTINGS m_ExportImage;
 
     bool                         m_UseStackupColors;
     std::vector<LAYER_PRESET_3D> m_LayerPresets;

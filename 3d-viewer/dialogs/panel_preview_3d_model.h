@@ -63,6 +63,7 @@ class EMBEDDED_FILES;
 class BOARD;
 class BOARD_ADAPTER;
 class FOOTPRINT;
+class EXTRUDED_3D_BODY;
 #if defined(__linux__) || defined(__FreeBSD__)
 class SPNAV_VIEWER_PLUGIN;
 #else
@@ -109,6 +110,8 @@ public:
      * We use this to hold the temporary 3D model shapes.
      */
     FOOTPRINT* GetDummyFootprint() const { return m_dummyFootprint; }
+
+    void SetExtrusionTransformMode( EXTRUDED_3D_BODY* aBody );
 
 private:
     /**
@@ -163,6 +166,8 @@ private:
     wxString formatRotationValue( double aValue );
     wxString formatOffsetValue( double aValue );
 
+    void evalRotationValue( TEXT_CTRL_EVAL* aRotationControl );
+
 	void View3DISO( wxCommandEvent& event ) override
     {
 	    m_currentCamera.ToggleProjection();
@@ -213,6 +218,8 @@ private:
     }
 
     void onModify();
+    
+    void syncLocalEmbeddedFiles();
 
 private:
     PCB_BASE_FRAME*          m_parentFrame;
@@ -229,6 +236,8 @@ private:
     int                      m_selected;            /// Index into m_parentInfoList
 
     EDA_UNITS                m_userUnits;
+    EXTRUDED_3D_BODY*        m_extrudedBody = nullptr;
+    EMBEDDED_FILES*          m_localEmbeddedFiles = nullptr;
 
     /// The 3d viewer Render initial settings (must be saved and restored)
     EDA_3D_VIEWER_SETTINGS::RENDER_SETTINGS          m_initialRender;

@@ -23,9 +23,11 @@
 
 #pragma once
 
+#include <memory>
 #include <unordered_set>
 
 #include <common.h>
+#include <core/kicad_algo.h>
 #include <macros.h>
 #include <board_design_settings.h>
 #include <footprint.h>
@@ -43,22 +45,37 @@
 
 
 #include <geometry/shape_circle.h>
-#include <geometry/rtree.h>
+#include <geometry/rtree/packed_rtree.h>
 
 
 // Simple wrapper for track segment data in the RTree
 struct CREEPAGE_TRACK_ENTRY
 {
-    SEG      segment;
-    PCB_LAYER_ID layer;
+    SEG              segment;
+    PCB_LAYER_ID     layer;
+    int              halfWidth;
+    const PCB_TRACK* track;
 };
 
-using TRACK_RTREE = RTree<CREEPAGE_TRACK_ENTRY*, int, 2, double>;
+using TRACK_RTREE = KIRTREE::PACKED_RTREE<CREEPAGE_TRACK_ENTRY*, int, 2>;
 
 extern bool SegmentIntersectsBoard( const VECTOR2I& aP1, const VECTOR2I& aP2,
                                     const std::vector<BOARD_ITEM*>&       aBe,
                                     const std::vector<const BOARD_ITEM*>& aDontTestAgainst,
                                     int                                   aMinGrooveWidth );
+
+
+/**
+ * Collect the board-edge items used by the creepage graph.
+ *
+ * Gathers Edge.Cuts drawings (flattening Bezier curves to owned segments) and NPTH pad holes
+ * (circles and oblong slots) into aVector, with transient owned shapes parked in aOwned. When
+ * aExclude is non-null, board items owned by any excluded item (for example the pads of a
+ * footprint being dragged) are skipped so the caller can treat them as moving geometry.
+ */
+void BuildCreepageBoardEdges( BOARD& aBoard, std::vector<BOARD_ITEM*>& aVector,
+                              std::vector<std::unique_ptr<PCB_SHAPE>>&  aOwned,
+                              const std::set<const BOARD_ITEM*>*        aExclude = nullptr );
 
 
 struct PATH_CONNECTION
@@ -140,10 +157,24 @@ struct PATH_CONNECTION
         {
             SEG segPath( a1, a2 );
 
-            // Prefer RTree search if available
+            // A creepage path endpoint sitting strictly inside another track's copper body
+            // is not a real surface point: the visible copper is the enclosing track, and
+            // the path would appear to start/end "inside" the copper in the UI. Reject
+            // connections whose endpoint lies inside any track interior (regardless of
+            // net). The endpoint track itself is in aIgnoreForTest and is skipped.
+            //
+            // The tolerance lets endpoints that sit exactly on a neighbor track's boundary
+            // (for example, two same-net tracks meeting at a shared corner) pass.
+            constexpr int interiorTolerance = 100; // 100 nm
+
+            auto endpointInside = [&]( const SEG& segTrack, int halfWidth ) -> bool
+            {
+                return segTrack.Distance( VECTOR2I( a1 ) ) + interiorTolerance < halfWidth
+                       || segTrack.Distance( VECTOR2I( a2 ) ) + interiorTolerance < halfWidth;
+            };
+
             if( aTrackIndex )
             {
-                // Calculate bounding box of the path segment
                 int minX = std::min( (int) a1.x, (int) a2.x );
                 int minY = std::min( (int) a1.y, (int) a2.y );
                 int maxX = std::max( (int) a1.x, (int) a2.x );
@@ -152,44 +183,58 @@ struct PATH_CONNECTION
                 int searchMin[2] = { minX, minY };
                 int searchMax[2] = { maxX, maxY };
 
-                bool intersects = false;
+                bool failed = false;
 
-                aTrackIndex->Search( searchMin, searchMax,
-                        [&]( CREEPAGE_TRACK_ENTRY* entry ) -> bool
-                        {
-                            if( entry && entry->layer == aLayer )
-                            {
-                                if( segPath.Intersects( entry->segment ) )
-                                {
-                                    intersects = true;
-                                    return false; // Stop searching
-                                }
-                            }
-                            return true; // Continue searching
-                        } );
+                auto trackVisitor = [&]( CREEPAGE_TRACK_ENTRY* entry ) -> bool
+                {
+                    if( !entry || entry->layer != aLayer )
+                        return true;
 
-                if( intersects )
+                    if( segPath.Intersects( entry->segment ) )
+                    {
+                        failed = true;
+                        return false;
+                    }
+
+                    if( !alg::contains( aIgnoreForTest, entry->track )
+                        && endpointInside( entry->segment, entry->halfWidth ) )
+                    {
+                        failed = true;
+                        return false;
+                    }
+
+                    return true;
+                };
+
+                aTrackIndex->Search( searchMin, searchMax, trackVisitor );
+
+                if( failed )
                     return false;
             }
             else
             {
-                // Fallback to linear search if no index provided
                 for( PCB_TRACK* track : aBoard.Tracks() )
                 {
-                    if( !track )
+                    if( !track || track->Type() != KICAD_T::PCB_TRACE_T
+                        || !track->IsOnLayer( aLayer ) )
+                    {
+                        continue;
+                    }
+
+                    std::shared_ptr<SHAPE> sh = track->GetEffectiveShape();
+
+                    if( !sh || sh->Type() != SHAPE_TYPE::SH_SEGMENT )
                         continue;
 
-                    if( track->Type() == KICAD_T::PCB_TRACE_T && track->IsOnLayer( aLayer ) )
+                    SEG segTrack( track->GetStart(), track->GetEnd() );
+
+                    if( segPath.Intersects( segTrack ) )
+                        return false;
+
+                    if( !alg::contains( aIgnoreForTest, static_cast<const BOARD_ITEM*>( track ) )
+                        && endpointInside( segTrack, track->GetWidth() / 2 ) )
                     {
-                        std::shared_ptr<SHAPE> sh = track->GetEffectiveShape();
-
-                        if( sh && sh->Type() == SHAPE_TYPE::SH_SEGMENT )
-                        {
-                            SEG segTrack( track->GetStart(), track->GetEnd() );
-
-                            if( segPath.Intersects( segTrack ) )
-                                return false;
-                        }
+                        return false;
                     }
                 }
             }
@@ -365,11 +410,17 @@ public:
         m_start = aStart;
         m_end = aEnd;
         m_width = aWidth;
+        m_pos = ( aStart + aEnd ) / 2;
     }
 
     VECTOR2I GetStart() const { return m_start; };
     VECTOR2I GetEnd() const { return m_end; };
     double   GetWidth() const { return m_width; };
+
+    int GetRadius() const override
+    {
+        return (int) ( ( m_start - m_end ).EuclideanNorm() / 2 ) + (int) ( m_width / 2 );
+    };
 
     std::vector<PATH_CONNECTION> Paths( const BE_SHAPE_POINT& aS2, double aMaxWeight,
                                         double aMaxSquaredWeight ) const override;
@@ -405,7 +456,6 @@ public:
         m_radius = aRadius;
     }
 
-    VECTOR2I GetPos() const { return m_pos; };
     int      GetRadius() const override { return m_radius; };
 
     std::vector<PATH_CONNECTION> Paths( const BE_SHAPE_POINT& aS2, double aMaxWeight,
@@ -426,7 +476,6 @@ public:
                                         double aMaxSquaredWeight ) const override;
 
 protected:
-    VECTOR2I m_pos = VECTOR2I( 0, 0 );
     double   m_radius = 1;
 };
 
@@ -822,7 +871,24 @@ public:
     double Solve( std::shared_ptr<GRAPH_NODE>& aFrom, std::shared_ptr<GRAPH_NODE>& aTo,
                   std::vector<std::shared_ptr<GRAPH_CONNECTION>>& aResult );
 
-    void GeneratePaths( double aMaxWeight, PCB_LAYER_ID aLayer );
+    /**
+     * Generate creepage paths between graph nodes.
+     *
+     * When aRelevantNets is non-null, paths between two conductors that both belong to
+     * non-relevant nets are skipped: such an edge can never lie on a shortest path that starts or
+     * ends on a relevant net (a third net's copper is an obstacle, not a routing medium). Board
+     * edges are never conductors, so board-edge paths are always generated. Passing nullptr
+     * generates every pair (the batch / whole-board behaviour).
+     */
+    void GeneratePaths( double aMaxWeight, PCB_LAYER_ID aLayer,
+                        const std::set<int>* aRelevantNets = nullptr );
+
+    /**
+     * Remove every node and connection added after the given prefix sizes, then rebuild the node
+     * lookup set from the surviving prefix. Used to reuse a graph across solves without leaking
+     * stale per-solve nodes into FindNode/AddNode lookups.
+     */
+    void TruncateToPrefix( size_t aNodeCount, size_t aConnectionCount );
 
     std::shared_ptr<GRAPH_NODE> AddNetElements( int aNetCode, PCB_LAYER_ID aLayer, int aMaxCreepage );
 
@@ -848,6 +914,7 @@ public:
 public:
     BOARD&                                         m_board;
     std::vector<BOARD_ITEM*>                       m_boardEdge;
+    std::vector<std::unique_ptr<PCB_SHAPE>>        m_ownedBoardEdges;
     SHAPE_POLY_SET*                                m_boardOutline;
     std::vector<std::shared_ptr<GRAPH_NODE>>       m_nodes;
     std::vector<std::shared_ptr<GRAPH_CONNECTION>> m_connections;

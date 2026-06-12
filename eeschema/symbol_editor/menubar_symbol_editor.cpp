@@ -141,6 +141,11 @@ void SYMBOL_EDIT_FRAME::doReCreateMenuBar()
     viewMenu->Add( SCH_ACTIONS::showHiddenFields,  ACTION_MENU::CHECK );
     viewMenu->Add( SCH_ACTIONS::togglePinAltIcons, ACTION_MENU::CHECK );
 
+    viewMenu->AppendSeparator();
+    viewMenu->Add( SCH_ACTIONS::nextSymbolTab );
+    viewMenu->Add( SCH_ACTIONS::prevSymbolTab );
+    viewMenu->Add( SCH_ACTIONS::closeSymbolTab );
+
 
     //-- Place menu -----------------------------------------------
     //
@@ -151,6 +156,8 @@ void SYMBOL_EDIT_FRAME::doReCreateMenuBar()
     placeMenu->Add( SCH_ACTIONS::drawSymbolTextBox );
     placeMenu->Add( SCH_ACTIONS::drawRectangle );
     placeMenu->Add( SCH_ACTIONS::drawCircle );
+    placeMenu->Add( SCH_ACTIONS::drawEllipse );
+    placeMenu->Add( SCH_ACTIONS::drawEllipseArc );
     placeMenu->Add( SCH_ACTIONS::drawArc );
     placeMenu->Add( SCH_ACTIONS::drawBezier );
     placeMenu->Add( SCH_ACTIONS::drawSymbolLines );

@@ -31,8 +31,30 @@
 
 #include <map>
 #include <memory>
+#include <vector>
 
 class ALTIUM_PCB_COMPOUND_FILE;
+class BOARD;
+class PROJECT;
+struct ALTIUM_PROJECT_VARIANT;
+
+/**
+ * Apply parsed Altium project variants to a board by setting FOOTPRINT_VARIANT
+ * data on each footprint whose reference matches a variant entry.
+ */
+void ApplyAltiumProjectVariantsToBoard( BOARD* aBoard,
+                                        const std::vector<ALTIUM_PROJECT_VARIANT>& aVariants );
+
+
+/**
+ * Register Altium project parameters as KiCad project text variables so that imported board
+ * text referencing special strings (e.g. ".PCB_Revision") resolves to its value.
+ *
+ * Existing project variables are not overwritten, and names that collide with KiCad's reserved
+ * or contextually resolved variables are skipped to preserve native resolution.
+ */
+void ApplyAltiumProjectParametersToProject( PROJECT* aProject,
+                                            const std::map<wxString, wxString>& aParameters );
 
 
 class PCB_IO_ALTIUM_DESIGNER : public PCB_IO, public LAYER_MAPPABLE_PLUGIN

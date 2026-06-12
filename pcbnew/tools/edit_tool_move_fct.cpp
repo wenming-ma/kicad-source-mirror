@@ -35,6 +35,7 @@
 #include <gal/graphics_abstraction_layer.h>
 #include <geometry/geometry_utils.h>
 #include <pad.h>
+#include <padstack.h>
 #include <pcb_group.h>
 #include <pcb_generator.h>
 #include <pcb_edit_frame.h>
@@ -51,6 +52,7 @@
 #include <zone_filler.h>
 #include <drc/drc_engine.h>
 #include <drc/drc_interactive_courtyard_clearance.h>
+#include <tools/creepage_overlay.h>
 #include <view/view_controls.h>
 
 #include <connectivity/connectivity_data.h>
@@ -130,6 +132,8 @@ int EDIT_TOOL::Swap( const TOOL_EVENT& aEvent )
                 sTool->FilterCollectorForLockedItems( aCollector );
             } );
 
+    m_selectionTool->ReportFilteredLockedItems();
+
     if( selection.Size() < 2 )
         return 0;
 
@@ -155,6 +159,20 @@ int EDIT_TOOL::Swap( const TOOL_EVENT& aEvent )
 
         BOARD_ITEM* a = static_cast<BOARD_ITEM*>( edaItemA );
         BOARD_ITEM* b = static_cast<BOARD_ITEM*>( edaItemB );
+
+        // Pads may have a copper shape offset from the anchor/hole, so swap visible shape
+        // centers rather than anchor positions.  See PAD::SwapShapePositions.
+        if( a->Type() == PCB_PAD_T && b->Type() == PCB_PAD_T )
+        {
+            PAD::SwapShapePositions( static_cast<PAD*>( a ), static_cast<PAD*>( b ) );
+
+            PCB_LAYER_ID aLayer = a->GetLayer(), bLayer = b->GetLayer();
+            std::swap( aLayer, bLayer );
+            a->SetLayer( aLayer );
+            b->SetLayer( bLayer );
+
+            continue;
+        }
 
         // Swap X,Y position
         VECTOR2I aPos = a->GetPosition(), bPos = b->GetPosition();
@@ -691,6 +709,8 @@ int EDIT_TOOL::PackAndMoveFootprints( const TOOL_EVENT& aEvent )
                 sTool->FilterCollectorForLockedItems( aCollector );
             } );
 
+    m_selectionTool->ReportFilteredLockedItems();
+
     std::vector<FOOTPRINT*> footprintsToPack;
 
     for( EDA_ITEM* item : selection )
@@ -824,7 +844,12 @@ bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit
                 sTool->FilterCollectorForLockedItems( aCollector );
             } );
 
-    if( m_dragging || selection.Empty() )
+    if( m_dragging )
+        return false;
+
+    m_selectionTool->ReportFilteredLockedItems();
+
+    if( selection.Empty() )
         return false;
 
     TOOL_EVENT pushedEvent = aEvent;
@@ -928,6 +953,8 @@ bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit
         return false;
     }
 
+    m_inMoveWithReference = moveWithReference;
+
     if( moveIndividually )
     {
         orig_items.clear();
@@ -981,6 +1008,10 @@ bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit
         drc_on_move.reset( new DRC_INTERACTIVE_COURTYARD_CLEARANCE( drcEngine ) );
         drc_on_move->Init( board );
     }
+
+    // No-op unless RealtimeCreepage is set and the board has creepage constraints
+    std::unique_ptr<CREEPAGE_OVERLAY> creepage_on_move = std::make_unique<CREEPAGE_OVERLAY>(
+            board, m_toolMgr->GetTool<DRC_TOOL>()->GetDRCEngine(), m_toolMgr->GetView() );
 
     auto configureAngleSnap =
             [&]( LEADER_MODE aMode )
@@ -1176,6 +1207,8 @@ bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit
                     drc_on_move->UpdateConflicts( m_toolMgr->GetView(), true );
                 }
 
+                creepage_on_move->Update();
+
                 m_toolMgr->PostEvent( EVENTS::SelectedItemsMoved );
             }
             else if( !m_dragging && ( aAutoStart || !evt->IsAction( &ACTIONS::refreshPreview ) ) )
@@ -1272,6 +1305,8 @@ bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit
                         }
                     }
 
+                    creepage_on_move->Start( sel_items );
+
                     // Use the mouse position over cursor, as otherwise large grids will allow only
                     // snapping to items that are closest to grid points
                     m_cursor = grid.BestDragOrigin( originalMousePos, sel_items, grid.GetSelectionGrid( selection ),
@@ -1291,30 +1326,19 @@ bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit
                     }
                     else
                     {
-                        // Get the best drag origin (nearest item anchor to where the user clicked)
                         VECTOR2I dragOrigin = m_cursor;
 
-                        // Grid-align the reference point so that movement deltas between
-                        // grid-snapped cursor positions remain on-grid. Without this, dragging
-                        // from a non-grid-aligned anchor (e.g. a pad center that doesn't fall on
-                        // the current grid) produces fractional-nanometer position errors that
-                        // become visible when Display Origin is set to Grid Origin or Aux Origin.
-                        VECTOR2I snappedRef = grid.AlignGrid( dragOrigin,
-                                                              grid.GetSelectionGrid( selection ) );
-                        selection.SetReferencePoint( snappedRef );
+                        selection.SetReferencePoint( dragOrigin );
 
-                        // Set up construction/snap lines at the actual item position for visual
-                        // alignment, not the snapped position
                         if( angleSnapMode != LEADER_MODE::DIRECT )
                             grid.SetSnapLineOrigin( dragOrigin );
 
                         grid.SetAuxAxes( true, dragOrigin );
 
-                        // Initialize m_cursor to the grid-aligned reference so that the first
-                        // movement delta (m_cursor - prevPos) is grid-aligned. Without this,
-                        // prevPos would be an unsnapped position and the first move would put
-                        // items off-grid.
-                        m_cursor = snappedRef;
+                        if( !editFrame->GetMoveWarpsCursor() )
+                            m_cursor = originalCursorPos;
+                        else
+                            m_cursor = dragOrigin;
                     }
 
                     originalPos = selection.GetReferencePoint();
@@ -1468,6 +1492,8 @@ bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit
     if( showCourtyardConflicts )
         drc_on_move->ClearConflicts( m_toolMgr->GetView() );
 
+    creepage_on_move->Stop();
+
     controls->ForceCursorPosition( false );
     controls->ShowCursor( false );
     controls->SetAutoPan( false );
@@ -1507,5 +1533,6 @@ bool EDIT_TOOL::doMoveSelection( const TOOL_EVENT& aEvent, BOARD_COMMIT* aCommit
     editFrame->PopTool( pushedEvent );
     editFrame->GetCanvas()->SetCurrentCursor( KICURSOR::ARROW );
 
+    m_inMoveWithReference = false;
     return !restore_state;
 }

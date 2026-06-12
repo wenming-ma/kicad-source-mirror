@@ -94,6 +94,8 @@ public:
     static TOOL_ACTION drawTable;
     static TOOL_ACTION drawRectangle;
     static TOOL_ACTION drawCircle;
+    static TOOL_ACTION drawEllipse;
+    static TOOL_ACTION drawEllipseArc;
     static TOOL_ACTION drawArc;
     static TOOL_ACTION drawBezier;
     static TOOL_ACTION drawLines;
@@ -195,11 +197,13 @@ public:
     // Variant operations
     static TOOL_ACTION addVariant;
     static TOOL_ACTION removeVariant;
+    static TOOL_ACTION editVariantDescription;
 
     // Attribute Toggles
     static TOOL_ACTION setExcludeFromBOM;
-    static TOOL_ACTION setExcludeFromSimulation;
+    static TOOL_ACTION setExcludeFromSim;
     static TOOL_ACTION setExcludeFromBoard;
+    static TOOL_ACTION setExcludeFromPosFiles;
     static TOOL_ACTION setDNP;
 
     // Design Block management
@@ -229,6 +233,11 @@ public:
     static TOOL_ACTION exportSymbol;
     static TOOL_ACTION updateSymbolFields;
     static TOOL_ACTION flattenSymbol;
+
+    // Symbol Editor document tabs
+    static TOOL_ACTION nextSymbolTab;
+    static TOOL_ACTION prevSymbolTab;
+    static TOOL_ACTION closeSymbolTab;
 
     // Hierarchy navigation
     static TOOL_ACTION changeSheet;
@@ -270,9 +279,9 @@ public:
     static TOOL_ACTION symbolTreeSearch;
     static TOOL_ACTION drawSheetOnClipboard;
     static TOOL_ACTION importGraphics;
+    static TOOL_ACTION importNonKicadSchematic;
     static TOOL_ACTION exportSymbolView;
     static TOOL_ACTION exportSymbolAsSVG;
-    static TOOL_ACTION showPythonConsole;
     static TOOL_ACTION previousUnit;
     static TOOL_ACTION nextUnit;
     static TOOL_ACTION previousSymbol;
@@ -317,6 +326,12 @@ public:
     static TOOL_ACTION clearHighlight;
     static TOOL_ACTION updateNetHighlighting;
     static TOOL_ACTION highlightNetTool;
+    static TOOL_ACTION highlightNetChain;
+    static TOOL_ACTION removeFromNetChain;
+    static TOOL_ACTION replaceTerminalPin;
+    static TOOL_ACTION nameNetChain;
+    static TOOL_ACTION createNetChainBetweenPins;
+    static TOOL_ACTION createNetChain;
     static TOOL_ACTION showNetNavigator;
 
     // Drag and drop

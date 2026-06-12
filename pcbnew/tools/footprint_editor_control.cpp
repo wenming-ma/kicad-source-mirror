@@ -55,6 +55,7 @@
 #include <kiway.h>
 #include <project_pcb.h>
 #include <view/view_controls.h>
+#include <widgets/appearance_controls.h>
 
 #include <memory>
 
@@ -922,7 +923,8 @@ int FOOTPRINT_EDITOR_CONTROL::RepairFootprint( const TOOL_EVENT& aEvent )
                 if( ids.count( aItem->m_Uuid ) )
                 {
                     duplicates++;
-                    const_cast<KIID&>( aItem->m_Uuid ) = KIID();
+                    if( BOARD_ITEM* boardItem = dynamic_cast<BOARD_ITEM*>( aItem ) )
+                        boardItem->ResetUuid();
                 }
 
                 ids.insert( aItem->m_Uuid );
@@ -974,6 +976,51 @@ int FOOTPRINT_EDITOR_CONTROL::RepairFootprint( const TOOL_EVENT& aEvent )
 }
 
 
+// The appearance panel also claims Ctrl+Tab for layer-preset cycling, so it wins when focused.
+static bool appearancePanelHasFocus( FOOTPRINT_EDIT_FRAME* aFrame )
+{
+    wxWindow* appearance = aFrame->GetAppearancePanel();
+
+    if( !appearance )
+        return false;
+
+    for( wxWindow* focus = wxWindow::FindFocus(); focus; focus = focus->GetParent() )
+    {
+        if( focus == appearance )
+            return true;
+    }
+
+    return false;
+}
+
+
+int FOOTPRINT_EDITOR_CONTROL::NextTab( const TOOL_EVENT& aEvent )
+{
+    if( appearancePanelHasFocus( m_frame ) )
+        return 0;
+
+    m_frame->AdvanceFootprintTab( true );
+    return 0;
+}
+
+
+int FOOTPRINT_EDITOR_CONTROL::PrevTab( const TOOL_EVENT& aEvent )
+{
+    if( appearancePanelHasFocus( m_frame ) )
+        return 0;
+
+    m_frame->AdvanceFootprintTab( false );
+    return 0;
+}
+
+
+int FOOTPRINT_EDITOR_CONTROL::CloseTab( const TOOL_EVENT& aEvent )
+{
+    m_frame->CloseActiveFootprintTab();
+    return 0;
+}
+
+
 void FOOTPRINT_EDITOR_CONTROL::setTransitions()
 {
     // clang-format off
@@ -1004,6 +1051,10 @@ void FOOTPRINT_EDITOR_CONTROL::setTransitions()
 
     Go( &FOOTPRINT_EDITOR_CONTROL::CheckFootprint,       PCB_ACTIONS::checkFootprint.MakeEvent() );
     Go( &FOOTPRINT_EDITOR_CONTROL::RepairFootprint,      PCB_ACTIONS::repairFootprint.MakeEvent() );
+
+    Go( &FOOTPRINT_EDITOR_CONTROL::NextTab,              PCB_ACTIONS::nextFootprintTab.MakeEvent() );
+    Go( &FOOTPRINT_EDITOR_CONTROL::PrevTab,              PCB_ACTIONS::prevFootprintTab.MakeEvent() );
+    Go( &FOOTPRINT_EDITOR_CONTROL::CloseTab,             PCB_ACTIONS::closeFootprintTab.MakeEvent() );
 
     Go( &FOOTPRINT_EDITOR_CONTROL::Properties,           PCB_ACTIONS::footprintProperties.MakeEvent() );
     Go( &FOOTPRINT_EDITOR_CONTROL::DefaultPadProperties, PCB_ACTIONS::defaultPadProperties.MakeEvent() );

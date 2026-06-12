@@ -149,6 +149,7 @@ protected:
     wxFileName m_metaIconFile;
     wxBitmap*  m_metaIcon;
     wxString   m_title;
+    wxString   m_error;
 
 public:
 
@@ -201,6 +202,8 @@ public:
      */
     wxString* GetTitle();
 
+    const wxString& GetError() const { return m_error; }
+
     /**
      * Get a vector list of filenames for the template. The files are the source files,
      * and have not yet been through any renaming
@@ -217,5 +220,22 @@ public:
     size_t GetDestinationFiles( const wxFileName& aNewProjectPath,
                                 std::vector< wxFileName >& aDestFiles );
 };
+
+
+/**
+ * Seed the built-in "default" project template under \a aBaseDir, creating the directory tree
+ * and minimal metadata (meta/info.html) and project (default.kicad_pro) files when they are
+ * missing.
+ *
+ * The default template is always seeded into the stable default user templates path rather than
+ * KICAD_USER_TEMPLATE_DIR so that it remains available regardless of how the user configures that
+ * variable.
+ *
+ * @param aBaseDir is the directory under which the "default" template directory is created.  It
+ *                 must already be expanded (no unresolved environment variable references).
+ * @return the full path of the seeded "default" template directory on success, otherwise an
+ *         invalid wxFileName.
+ */
+wxFileName EnsureDefaultProjectTemplate( const wxString& aBaseDir );
 
 #endif

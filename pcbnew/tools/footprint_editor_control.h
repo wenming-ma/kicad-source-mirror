@@ -81,6 +81,10 @@ public:
     int CleanupGraphics( const TOOL_EVENT& aEvent );
     int RepairFootprint( const TOOL_EVENT& aEvent );
 
+    int NextTab( const TOOL_EVENT& aEvent );
+    int PrevTab( const TOOL_EVENT& aEvent );
+    int CloseTab( const TOOL_EVENT& aEvent );
+
     /**
      * Edit the properties used for new pad creation.
      */

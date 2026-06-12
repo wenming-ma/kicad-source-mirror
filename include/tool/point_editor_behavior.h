@@ -26,6 +26,7 @@
 
 #include <wx/debug.h>
 
+#include <base_units.h>
 #include <settings/app_settings.h>
 #include <eda_shape.h>
 #include <tool/edit_points.h>
@@ -190,24 +191,44 @@ private:
 /**
  * "Standard" polygon editing behavior for EDA_SHAPE polygons.
  *
- * As long as updating the EDA_SHAPE's SHAPE_POLY_SET in-place is enough,
- * this will do the job.
+ * This class resolves the SHAPE_POLY_SET from the EDA_SHAPE on each call rather than
+ * caching a reference, because the EDA_SHAPE's internal SHAPE_POLY_SET can be
+ * reallocated (e.g. by operator=) while the behavior is still alive.
  */
-class EDA_POLYGON_POINT_EDIT_BEHAVIOR : public POLYGON_POINT_EDIT_BEHAVIOR
+class EDA_POLYGON_POINT_EDIT_BEHAVIOR : public POINT_EDIT_BEHAVIOR
 {
 public:
-    // Editing the underlying polygon shape in-place is enough
     EDA_POLYGON_POINT_EDIT_BEHAVIOR( EDA_SHAPE& aPolygon ) :
-            POLYGON_POINT_EDIT_BEHAVIOR( aPolygon.GetPolyShape() )
+            m_shape( aPolygon )
     {
         wxASSERT( aPolygon.GetShape() == SHAPE_T::POLY );
+    }
+
+    void MakePoints( EDIT_POINTS& aPoints ) override
+    {
+        POLYGON_POINT_EDIT_BEHAVIOR::BuildForPolyOutline( aPoints, m_shape.GetPolyShape() );
+    }
+
+    bool UpdatePoints( EDIT_POINTS& aPoints ) override
+    {
+        POLYGON_POINT_EDIT_BEHAVIOR::UpdatePointsFromOutline( m_shape.GetPolyShape(), aPoints );
+        return true;
     }
 
     void UpdateItem( const EDIT_POINT& aEditedPoint, EDIT_POINTS& aPoints, COMMIT& aCommit,
                      std::vector<EDA_ITEM*>& aUpdatedItems ) override
     {
-        POLYGON_POINT_EDIT_BEHAVIOR::UpdateItem( aEditedPoint, aPoints, aCommit, aUpdatedItems );
+        POLYGON_POINT_EDIT_BEHAVIOR::UpdateOutlineFromPoints(
+                m_shape.GetPolyShape(), aEditedPoint, aPoints );
     }
+
+    void FinalizeItem( EDIT_POINTS& aPoints, COMMIT& aCommit ) override
+    {
+        m_shape.GetPolyShape().RemoveNullSegments();
+    }
+
+private:
+    EDA_SHAPE& m_shape;
 };
 
 
@@ -320,6 +341,58 @@ private:
 };
 
 
+/**                                                                                                                   
+ * Edit behavior for ELLIPSE and ELLIPSE_ARC shapes.                                                                  
+ *                                                                               
+ * Closed ellipse: 3 handles (center, major-axis endpoint, minor-axis endpoint).                                      
+ * Elliptical arc: 5 handles (the above + arc start + arc end).                  
+ *                                                                                                                    
+ * Drag semantics:                             
+ *  - Center: translate the whole ellipse.                                                                            
+ *  - Major-end: set major radius + rotation (rotation follows the drag vector's world angle).                        
+ *  - Minor-end: set minor radius only (rotation preserved; drag is projected onto the minor axis).
+ *  - Arc start/end: set the respective parametric angles.                                                            
+ */
+class EDA_ELLIPSE_POINT_EDIT_BEHAVIOR : public POINT_EDIT_BEHAVIOR
+{
+public:
+    EDA_ELLIPSE_POINT_EDIT_BEHAVIOR( EDA_SHAPE& aEllipse ) :
+            m_ellipse( aEllipse )
+    {
+        wxASSERT( aEllipse.GetShape() == SHAPE_T::ELLIPSE || aEllipse.GetShape() == SHAPE_T::ELLIPSE_ARC );
+    }
+
+    void MakePoints( EDIT_POINTS& aPoints ) override;
+
+    bool UpdatePoints( EDIT_POINTS& aPoints ) override;
+
+    void UpdateItem( const EDIT_POINT& aEditedPoint, EDIT_POINTS& aPoints, COMMIT& aCommit,
+                     std::vector<EDA_ITEM*>& aUpdatedItems ) override;
+
+protected:
+    enum ELLIPSE_POINTS
+    {
+        ELLIPSE_CENTER = 0,
+        ELLIPSE_MAJOR_END,
+        ELLIPSE_MINOR_END,
+        ELLIPSE_ARC_START, // only for ELLIPSE_ARC
+        ELLIPSE_ARC_END,   // only for ELLIPSE_ARC
+
+        ELLIPSE_CLOSED_POINTS = 3,
+        ELLIPSE_ARC_POINTS = 5,
+    };
+
+private:
+    EDA_SHAPE& m_ellipse;
+
+    /// World-space point on the ellipse at the given parametric angle.
+    VECTOR2I evaluateAt( const EDA_ANGLE& aTheta ) const;
+
+    /// Inverse: the parametric angle of a world-space point relative to this ellipse.
+    EDA_ANGLE parametricAngleOf( const VECTOR2I& aWorldPt ) const;
+};
+
+
 /**
  * "Standard" table-cell editing behavior.
  *
@@ -362,7 +435,8 @@ class EDA_ARC_POINT_EDIT_BEHAVIOR : public POINT_EDIT_BEHAVIOR
 {
 public:
     EDA_ARC_POINT_EDIT_BEHAVIOR( EDA_SHAPE& aArc, const ARC_EDIT_MODE& aArcEditMode,
-                                 KIGFX::VIEW_CONTROLS& aViewContols );
+                                 KIGFX::VIEW_CONTROLS& aViewContols,
+                                 const EDA_IU_SCALE& aIuScale );
 
     void MakePoints( EDIT_POINTS& aPoints ) override;
 
@@ -386,7 +460,31 @@ private:
     // The arc edit mode, which is injected from the editor
     const ARC_EDIT_MODE&  m_arcEditMode;
     KIGFX::VIEW_CONTROLS& m_viewControls;
+    // IU scale of the owning editor, used to derive the minimum arc radius
+    const EDA_IU_SCALE&   m_iuScale;
 };
 
 
 ARC_EDIT_MODE IncrementArcEditMode( ARC_EDIT_MODE aMode );
+
+
+namespace KI_ARC_EDIT
+{
+/**
+ * Move an arc endpoint around the existing center, pulling the opposite
+ * endpoint along to keep the radius.  The radius floor is 1 mil in
+ * @p aIuScale's units, so callers pass their own scale to avoid snapping
+ * small arcs up to the PCB minimum.  Exposed for unit testing.
+ */
+void EditArcEndpointKeepCenter( EDA_SHAPE& aArc, const VECTOR2I& aCenter, const VECTOR2I& aStart,
+                                const VECTOR2I& aMid, const VECTOR2I& aEnd, const VECTOR2I& aCursor,
+                                const EDA_IU_SCALE& aIuScale );
+
+/**
+ * Move the mid point of an arc while keeping the center, rotating the
+ * endpoints onto the new radius.  See EditArcEndpointKeepCenter for @p aIuScale.
+ */
+void EditArcMidKeepCenter( EDA_SHAPE& aArc, const VECTOR2I& aCenter, const VECTOR2I& aStart,
+                           const VECTOR2I& aMid, const VECTOR2I& aEnd, const VECTOR2I& aCursor,
+                           const EDA_IU_SCALE& aIuScale );
+} // namespace KI_ARC_EDIT

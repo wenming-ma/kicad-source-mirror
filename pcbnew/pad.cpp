@@ -114,7 +114,6 @@ PAD::PAD( FOOTPRINT* parent ) :
     for( PCB_LAYER_ID layer : LAYER_RANGE( F_Cu, B_Cu, BoardCopperLayerCount() ) )
         m_zoneLayerOverrides[layer] = ZLO_NONE;
 
-    m_lastGalZoomLevel = 0.0;
 }
 
 
@@ -124,7 +123,7 @@ PAD::PAD( const PAD& aOther ) :
 {
     PAD::operator=( aOther );
 
-    const_cast<KIID&>( m_Uuid ) = aOther.m_Uuid;
+    SetUuidDirect( aOther.m_Uuid );
 }
 
 
@@ -133,6 +132,7 @@ PAD& PAD::operator=( const PAD &aOther )
     BOARD_CONNECTED_ITEM::operator=( aOther );
 
     ImportSettingsFrom( aOther );
+    SetSimElectricalType( aOther.GetSimElectricalType() );
     SetPadToDieLength( aOther.GetPadToDieLength() );
     SetPadToDieDelay( aOther.GetPadToDieDelay() );
     SetPosition( aOther.GetPosition() );
@@ -212,6 +212,8 @@ void PAD::Serialize( google::protobuf::Any &aContainer ) const
         pad.mutable_symbol_pin()->set_no_connect( pt->second );
     }
 
+    pad.set_sim_electrical_type( ToProtoEnum<PAD_SIM_ELECTRICAL_TYPE, PadSimElectricalType>( GetSimElectricalType() ) );
+
     aContainer.PackFrom( pad );
 }
 
@@ -223,7 +225,7 @@ bool PAD::Deserialize( const google::protobuf::Any &aContainer )
     if( !aContainer.UnpackTo( &pad ) )
         return false;
 
-    const_cast<KIID&>( m_Uuid ) = KIID( pad.id().value() );
+    SetUuidDirect( KIID( pad.id().value() ) );
     SetPosition( kiapi::common::UnpackVector2( pad.position() ) );
     UnpackNet( pad.net() );
     SetLocked( pad.locked() == kiapi::common::types::LockedState::LS_LOCKED );
@@ -231,6 +233,7 @@ bool PAD::Deserialize( const google::protobuf::Any &aContainer )
     SetNumber( wxString::FromUTF8( pad.number() ) );
     SetPadToDieLength( pad.pad_to_die_length().value_nm() );
     SetPadToDieDelay( pad.pad_to_die_delay().value_as() );
+    SetSimElectricalType( FromProtoEnum<PAD_SIM_ELECTRICAL_TYPE>( pad.sim_electrical_type() ) );
 
     google::protobuf::Any padStackWrapper;
     padStackWrapper.PackFrom( pad.pad_stack() );
@@ -954,7 +957,9 @@ const std::shared_ptr<SHAPE_POLY_SET>& PAD::GetEffectivePolygon( PCB_LAYER_ID aL
 
     aLayer = Padstack().EffectiveLayerFor( aLayer );
 
-    return m_effectivePolygons[ aLayer ][ aErrorLoc ];
+    const PAD_DRAW_CACHE_DATA& drawCache = getDrawCache();
+
+    return drawCache.m_effectivePolygons.at( aLayer )[ aErrorLoc ];
 }
 
 
@@ -1049,14 +1054,16 @@ std::shared_ptr<SHAPE> PAD::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHING fla
 
     aLayer = Padstack().EffectiveLayerFor( aLayer );
 
-    wxCHECK_MSG( m_effectiveShapes.contains( aLayer ), nullptr,
+    const PAD_DRAW_CACHE_DATA& drawCache = getDrawCache();
+
+    wxCHECK_MSG( drawCache.m_effectiveShapes.contains( aLayer ), nullptr,
                  wxString::Format( wxT( "Missing shape in PAD::GetEffectiveShape for layer %s." ),
                                    magic_enum::enum_name( aLayer ) ) );
-    wxCHECK_MSG( m_effectiveShapes.at( aLayer ), nullptr,
+    wxCHECK_MSG( drawCache.m_effectiveShapes.at( aLayer ), nullptr,
                  wxString::Format( wxT( "Null shape in PAD::GetEffectiveShape for layer %s." ),
                                    magic_enum::enum_name( aLayer ) ) );
 
-    return m_effectiveShapes[aLayer];
+    return drawCache.m_effectiveShapes.at( aLayer );
 }
 
 
@@ -1065,7 +1072,7 @@ std::shared_ptr<SHAPE_SEGMENT> PAD::GetEffectiveHoleShape() const
     if( m_shapesDirty )
         BuildEffectiveShapes();
 
-    return m_effectiveHoleShape;
+    return getDrawCache().m_effectiveHoleShape;
 }
 
 
@@ -1078,6 +1085,15 @@ int PAD::GetBoundingRadius() const
 }
 
 
+PAD::PAD_DRAW_CACHE_DATA& PAD::getDrawCache() const
+{
+    if( !m_drawCache )
+        m_drawCache = std::make_unique<PAD_DRAW_CACHE_DATA>();
+
+    return *m_drawCache;
+}
+
+
 void PAD::BuildEffectiveShapes() const
 {
     std::lock_guard<std::mutex> RAII_lock( m_dataMutex );
@@ -1087,17 +1103,20 @@ void PAD::BuildEffectiveShapes() const
     if( !m_shapesDirty )
         return;
 
-    m_effectiveBoundingBox = BOX2I();
+    PAD_DRAW_CACHE_DATA& drawCache = getDrawCache();
+
+    drawCache.m_effectiveBoundingBox = BOX2I();
+    drawCache.m_effectiveShapes.clear();
 
     Padstack().ForEachUniqueLayer(
             [&]( PCB_LAYER_ID aLayer )
             {
                 const SHAPE_COMPOUND& layerShape = buildEffectiveShape( aLayer );
-                m_effectiveBoundingBox.Merge( layerShape.BBox() );
+                drawCache.m_effectiveBoundingBox.Merge( layerShape.BBox() );
             } );
 
     // Hole shape
-    m_effectiveHoleShape = nullptr;
+    drawCache.m_effectiveHoleShape = nullptr;
 
     VECTOR2I half_size = m_padStack.Drill().size / 2;
     int      half_width;
@@ -1115,9 +1134,10 @@ void PAD::BuildEffectiveShapes() const
 
     RotatePoint( half_len, GetOrientation() );
 
-    m_effectiveHoleShape = std::make_shared<SHAPE_SEGMENT>( m_pos - half_len, m_pos + half_len,
-                                                            half_width * 2 );
-    m_effectiveBoundingBox.Merge( m_effectiveHoleShape->BBox() );
+    drawCache.m_effectiveHoleShape = std::make_shared<SHAPE_SEGMENT>( m_pos - half_len,
+                                                                       m_pos + half_len,
+                                                                       half_width * 2 );
+    drawCache.m_effectiveBoundingBox.Merge( drawCache.m_effectiveHoleShape->BBox() );
 
     // All done
     m_shapesDirty = false;
@@ -1126,11 +1146,13 @@ void PAD::BuildEffectiveShapes() const
 
 const SHAPE_COMPOUND& PAD::buildEffectiveShape( PCB_LAYER_ID aLayer ) const
 {
-    m_effectiveShapes[aLayer] = std::make_shared<SHAPE_COMPOUND>();
+    PAD_DRAW_CACHE_DATA& drawCache = getDrawCache();
+
+    drawCache.m_effectiveShapes[aLayer] = std::make_shared<SHAPE_COMPOUND>();
 
     auto add = [this, aLayer]( SHAPE* aShape )
                {
-                   m_effectiveShapes[aLayer]->AddShape( aShape );
+                   getDrawCache().m_effectiveShapes[aLayer]->AddShape( aShape );
                };
 
     VECTOR2I  shapePos = ShapePos( aLayer ); // Fetch only once; rotation involves trig
@@ -1273,7 +1295,7 @@ const SHAPE_COMPOUND& PAD::buildEffectiveShape( PCB_LAYER_ID aLayer ) const
         }
     }
 
-    return *m_effectiveShapes[aLayer];
+    return *drawCache.m_effectiveShapes[aLayer];
 }
 
 
@@ -1289,11 +1311,14 @@ void PAD::BuildEffectivePolygon( ERROR_LOC aErrorLoc ) const
     if( !m_polyDirty[ aErrorLoc ] )
         return;
 
+    PAD_DRAW_CACHE_DATA& drawCache = getDrawCache();
+
     Padstack().ForEachUniqueLayer(
         [&]( PCB_LAYER_ID aLayer )
         {
             // Polygon
-            std::shared_ptr<SHAPE_POLY_SET>& effectivePolygon = m_effectivePolygons[ aLayer ][ aErrorLoc ];
+            std::shared_ptr<SHAPE_POLY_SET>& effectivePolygon =
+                    drawCache.m_effectivePolygons[ aLayer ][ aErrorLoc ];
 
             effectivePolygon = std::make_shared<SHAPE_POLY_SET>();
             TransformShapeToPolygon( *effectivePolygon, aLayer, 0, GetMaxError(), aErrorLoc );
@@ -1306,7 +1331,8 @@ void PAD::BuildEffectivePolygon( ERROR_LOC aErrorLoc ) const
         Padstack().ForEachUniqueLayer(
             [&]( PCB_LAYER_ID aLayer )
             {
-                std::shared_ptr<SHAPE_POLY_SET>& effectivePolygon = m_effectivePolygons[ aLayer ][ aErrorLoc ];
+                std::shared_ptr<SHAPE_POLY_SET>& effectivePolygon =
+                        drawCache.m_effectivePolygons[ aLayer ][ aErrorLoc ];
 
                 for( int cnt = 0; cnt < effectivePolygon->OutlineCount(); ++cnt )
                 {
@@ -1334,7 +1360,7 @@ const BOX2I PAD::GetBoundingBox() const
     if( m_shapesDirty )
         BuildEffectiveShapes();
 
-    return m_effectiveBoundingBox;
+    return getDrawCache().m_effectiveBoundingBox;
 }
 
 
@@ -1545,6 +1571,24 @@ VECTOR2I PAD::ShapePos( PCB_LAYER_ID aLayer ) const
     VECTOR2I shape_pos = m_pos + loc_offset;
 
     return shape_pos;
+}
+
+
+void PAD::SwapShapePositions( PAD* aLhs, PAD* aRhs )
+{
+    wxCHECK( aLhs && aRhs, /* void */ );
+
+    VECTOR2I lhsShapePos = aLhs->ShapePos( PADSTACK::ALL_LAYERS );
+    VECTOR2I rhsShapePos = aRhs->ShapePos( PADSTACK::ALL_LAYERS );
+
+    VECTOR2I lhsOffset = aLhs->GetOffset( PADSTACK::ALL_LAYERS );
+    VECTOR2I rhsOffset = aRhs->GetOffset( PADSTACK::ALL_LAYERS );
+
+    RotatePoint( lhsOffset, aLhs->GetOrientation() );
+    RotatePoint( rhsOffset, aRhs->GetOrientation() );
+
+    aLhs->SetPosition( rhsShapePos - lhsOffset );
+    aRhs->SetPosition( lhsShapePos - rhsOffset );
 }
 
 
@@ -1865,6 +1909,14 @@ void PAD::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& 
     if( aFrame->GetName() == PCB_EDIT_FRAME_NAME )
     {
         aList.emplace_back( _( "Net" ), UnescapeString( GetNetname() ) );
+
+        if( NETINFO_ITEM* netInfo = GetNet() )
+        {
+            const wxString& chainName = netInfo->GetNetChain();
+
+            if( !chainName.IsEmpty() )
+                aList.emplace_back( _( "Net Chain" ), UnescapeString( chainName ) );
+        }
 
         aList.emplace_back( _( "Resolved Netclass" ),
                             UnescapeString( GetEffectiveNetClass()->GetHumanReadableName() ) );
@@ -2361,17 +2413,28 @@ double PAD::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
     const BOARD*         board = GetBoard();
 
     // Meta control for hiding all pads
-    if( !aView->IsLayerVisible( LAYER_PADS ) )
+    if( !aView->IsLayerVisibleCached( LAYER_PADS ) )
         return LOD_HIDE;
 
     // Handle Render tab switches
     //const PCB_LAYER_ID& pcbLayer = static_cast<PCB_LAYER_ID>( aLayer );
 
-    if( !IsFlipped() && !aView->IsLayerVisible( LAYER_FOOTPRINTS_FR ) )
-        return LOD_HIDE;
+    {
+        const LSET padLayers = GetLayerSet();
+        const bool onFront = ( padLayers & LSET::FrontMask() ).any();
+        const bool onBack = ( padLayers & LSET::BackMask() ).any();
+        const bool frVis = aView->IsLayerVisible( LAYER_FOOTPRINTS_FR );
+        const bool bkVis = aView->IsLayerVisible( LAYER_FOOTPRINTS_BK );
 
-    if( IsFlipped() && !aView->IsLayerVisible( LAYER_FOOTPRINTS_BK ) )
-        return LOD_HIDE;
+        if( onFront && !onBack && !frVis )
+            return LOD_HIDE;
+
+        if( onBack && !onFront && !bkVis )
+            return LOD_HIDE;
+
+        if( onFront && onBack && !frVis && !bkVis )
+            return LOD_HIDE;
+    }
 
     if( IsHoleLayer( aLayer ) )
     {
@@ -3291,6 +3354,11 @@ static struct PAD_DESC
                 .Map( PAD_DRILL_SHAPE::CIRCLE,     _HKI( "Round" ) )
                 .Map( PAD_DRILL_SHAPE::OBLONG,     _HKI( "Oblong" ) );
 
+        ENUM_MAP<PAD_SIM_ELECTRICAL_TYPE>::Instance()
+                .Map( PAD_SIM_ELECTRICAL_TYPE::NONE, _HKI( "None" ) )
+                .Map( PAD_SIM_ELECTRICAL_TYPE::SOURCE, _HKI( "Source" ) )
+                .Map( PAD_SIM_ELECTRICAL_TYPE::SINK, _HKI( "Sink" ) );
+
         // Ensure post-machining mode enum choices are defined before properties use them
         {
             ENUM_MAP<PAD_DRILL_POST_MACHINING_MODE>& pmMap =
@@ -3404,6 +3472,7 @@ static struct PAD_DESC
                     &PAD::SetPinFunction, &PAD::GetPinFunction ),
                     groupPad )
                 .SetIsHiddenFromLibraryEditors();
+
         propMgr.AddProperty( new PROPERTY<PAD, wxString>( _HKI( "Pin Type" ),
                     &PAD::SetPinType, &PAD::GetPinType ),
                     groupPad )
@@ -3417,6 +3486,11 @@ static struct PAD_DESC
 
                         return choices;
                     } );
+
+        propMgr.AddProperty( new PROPERTY_ENUM<PAD, PAD_SIM_ELECTRICAL_TYPE>( _HKI( "Simulation Electrical Type" ),
+                                                                              &PAD::SetSimElectricalType,
+                                                                              &PAD::GetSimElectricalType ),
+                             groupPad );
 
         propMgr.AddProperty( new PROPERTY<PAD, int>( _HKI( "Size X" ),
                     &PAD::SetSizeX, &PAD::GetSizeX, PROPERTY_DISPLAY::PT_SIZE ),
@@ -3759,3 +3833,4 @@ ENUM_TO_WXANY( PAD_ATTRIB );
 ENUM_TO_WXANY( PAD_SHAPE );
 ENUM_TO_WXANY( PAD_PROP );
 ENUM_TO_WXANY( PAD_DRILL_SHAPE );
+ENUM_TO_WXANY( PAD_SIM_ELECTRICAL_TYPE );

@@ -1300,6 +1300,31 @@ BOOST_AUTO_TEST_CASE( CompareGeometry )
 }
 
 
+BOOST_AUTO_TEST_CASE( CompareGeometryReversed )
+{
+    // Square
+    const std::vector<VECTOR2I> ptsA = {
+        { 0, 0 },
+        { 100, 0 },
+        { 100, 100 },
+        { 0, 100 },
+    };
+    // Same points, same start, reversed
+    const std::vector<VECTOR2I> ptsB = {
+        { 0, 0 },
+        { 0, 100 },
+        { 100, 100 },
+        { 100, 0 },
+    };
+
+    SHAPE_LINE_CHAIN chainA( ptsA, true );
+    SHAPE_LINE_CHAIN chainB( ptsB, true );
+
+    BOOST_TEST( !chainA.CompareGeometry( chainB, false ) );
+    BOOST_TEST( chainA.CompareGeometry( chainB, true ) );
+}
+
+
 /**
  * Test for issue #22597: Simplify with tolerance should reduce a polygon
  * created from a rotated rounded rectangle (many small line segments approximating arcs).
@@ -1497,6 +1522,275 @@ BOOST_AUTO_TEST_CASE( SimplifyWithToleranceIssue22597 )
     // A 2mm tolerance should reduce it to approximately 4-8 points.
     // If it's only slightly reduced, there may be an issue.
     BOOST_CHECK_LE( simplifiedCount, 20 );
+}
+
+
+BOOST_AUTO_TEST_CASE( SimplifyWithArcs )
+{
+    BOOST_TEST_CONTEXT( "1 segment, arc, 2 collinear segments" )
+    {
+        SHAPE_LINE_CHAIN original;
+        original.Append( VECTOR2I( 0, 0 ) );
+
+        original.Append( SHAPE_ARC( VECTOR2I( 2000000, 0 ), VECTOR2I( 2500000, 500000 ), VECTOR2I( 3000000, 0 ), 0 ),
+                         ARC_HIGH_DEF );
+
+        original.Append( VECTOR2I( 4000000, 0 ) );
+        original.Append( VECTOR2I( 5000000, 0 ) );
+
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( original ) );
+        int beforePoints = original.PointCount();
+
+        SHAPE_LINE_CHAIN simplified = original;
+        simplified.Simplify();
+
+        BOOST_CHECK_EQUAL( static_cast<int>( simplified.ArcCount() ), static_cast<int>( original.ArcCount() ) );
+        BOOST_CHECK_LT( simplified.PointCount(), beforePoints );
+        BOOST_CHECK_EQUAL( simplified.Arc( 0 ).GetP0(), VECTOR2I( 2000000, 0 ) );
+        BOOST_CHECK_EQUAL( simplified.Arc( 0 ).GetP1(), VECTOR2I( 3000000, 0 ) );
+
+        BOOST_CHECK_LT( simplified.Find( VECTOR2I( 4000000, 0 ) ), 0 );
+        BOOST_CHECK_GE( simplified.Find( VECTOR2I( 3000000, 0 ) ), 0 );
+    }
+
+    BOOST_TEST_CONTEXT( "Arc, two collinear segments" )
+    {
+        SHAPE_LINE_CHAIN original;
+        original.Append( SHAPE_ARC( VECTOR2I( 0, 0 ), VECTOR2I( 1000000, 500000 ), VECTOR2I( 2000000, 0 ), 0 ),
+                         ARC_HIGH_DEF );
+
+        original.Append( VECTOR2I( 3000000, 0 ) );
+        original.Append( VECTOR2I( 4000000, 0 ) );
+
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( original ) );
+        int beforePoints = original.PointCount();
+
+        SHAPE_LINE_CHAIN simplified = original;
+        simplified.Simplify();
+
+        BOOST_CHECK_EQUAL( static_cast<int>( simplified.ArcCount() ), 1 );
+        BOOST_CHECK_LT( simplified.PointCount(), beforePoints );
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( simplified ) );
+
+        BOOST_CHECK_LT( simplified.Find( VECTOR2I( 3000000, 0 ) ), 0 );
+        BOOST_CHECK_EQUAL( simplified.Arc( 0 ).GetP0(), VECTOR2I( 0, 0 ) );
+        BOOST_CHECK_EQUAL( simplified.Arc( 0 ).GetP1(), VECTOR2I( 2000000, 0 ) );
+    }
+
+    BOOST_TEST_CONTEXT( "2 collinear segments, arc, 2 collinear segments" )
+    {
+        SHAPE_LINE_CHAIN original;
+        original.Append( VECTOR2I( 0, 0 ) );
+        original.Append( VECTOR2I( 1000000, 0 ) );
+
+        original.Append( SHAPE_ARC( VECTOR2I( 2000000, 0 ), VECTOR2I( 2500000, 500000 ), VECTOR2I( 3000000, 0 ), 0 ),
+                         ARC_HIGH_DEF );
+
+        original.Append( VECTOR2I( 4000000, 0 ) );
+        original.Append( VECTOR2I( 5000000, 0 ) );
+
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( original ) );
+        int beforePoints = original.PointCount();
+        int beforeArcs = static_cast<int>( original.ArcCount() );
+
+        SHAPE_LINE_CHAIN simplified = original;
+        simplified.Simplify();
+
+        BOOST_CHECK( static_cast<int>( simplified.ArcCount() ) == beforeArcs );
+        BOOST_CHECK_LT( simplified.PointCount(), beforePoints );
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( simplified ) );
+
+        BOOST_CHECK_EQUAL( simplified.Arc( 0 ).GetP0(), VECTOR2I( 2000000, 0 ) );
+        BOOST_CHECK_EQUAL( simplified.Arc( 0 ).GetP1(), VECTOR2I( 3000000, 0 ) );
+
+        BOOST_CHECK_LT( simplified.Find( VECTOR2I( 4000000, 0 ) ), 0 );
+        BOOST_CHECK_GE( simplified.Find( VECTOR2I( 5000000, 0 ) ), 0 );
+    }
+
+    BOOST_TEST_CONTEXT( "2 collinear segments, arc" )
+    {
+        SHAPE_LINE_CHAIN original;
+        original.Append( VECTOR2I( 0, 0 ) );
+        original.Append( VECTOR2I( 1000000, 0 ) );
+
+        original.Append( SHAPE_ARC( VECTOR2I( 2000000, 0 ), VECTOR2I( 2500000, 500000 ), VECTOR2I( 3000000, 0 ), 0 ),
+                         ARC_HIGH_DEF );
+
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( original ) );
+        int beforePoints = original.PointCount();
+
+        SHAPE_LINE_CHAIN simplified = original;
+        simplified.Simplify();
+
+        BOOST_CHECK_EQUAL( static_cast<int>( simplified.ArcCount() ), 1 );
+        BOOST_CHECK_LT( simplified.PointCount(), beforePoints );
+        BOOST_CHECK_LT( simplified.Find( VECTOR2I( 1000000, 0 ) ), 0 );
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( simplified ) );
+
+        BOOST_CHECK_EQUAL( simplified.Arc( 0 ).GetP0(), VECTOR2I( 2000000, 0 ) );
+        BOOST_CHECK_EQUAL( simplified.Arc( 0 ).GetP1(), VECTOR2I( 3000000, 0 ) );
+    }
+
+    BOOST_TEST_CONTEXT( "collinear segments before and after an arc (open chain)" )
+    {
+        SHAPE_LINE_CHAIN original;
+        original.Append( VECTOR2I( 0, 0 ) );
+        original.Append( VECTOR2I( 1000000, 0 ) );
+
+        original.Append( SHAPE_ARC( VECTOR2I( 2000000, 0 ), VECTOR2I( 2500000, 500000 ), VECTOR2I( 3000000, 0 ), 0 ),
+                         ARC_HIGH_DEF );
+
+        original.Append( VECTOR2I( 4000000, 0 ) );
+        original.Append( VECTOR2I( 5000000, 0 ) );
+
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( original ) );
+        int beforePoints = original.PointCount();
+        int beforeArcs = static_cast<int>( original.ArcCount() );
+
+        SHAPE_LINE_CHAIN simplified = original;
+        simplified.Simplify();
+
+        BOOST_CHECK( static_cast<int>( simplified.ArcCount() ) == beforeArcs );
+
+        BOOST_CHECK_LT( simplified.PointCount(), beforePoints );
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( simplified ) );
+
+        BOOST_CHECK_EQUAL( simplified.Arc( 0 ).GetP0(), VECTOR2I( 2000000, 0 ) );
+        BOOST_CHECK_EQUAL( simplified.Arc( 0 ).GetP1(), VECTOR2I( 3000000, 0 ) );
+
+        BOOST_CHECK_LT( simplified.Find( VECTOR2I( 4000000, 0 ) ), 0 );
+        BOOST_CHECK_GE( simplified.Find( VECTOR2I( 5000000, 0 ) ), 0 );
+    }
+
+    BOOST_TEST_CONTEXT( "arc at start, two collinear segments after arc" )
+    {
+        SHAPE_LINE_CHAIN original;
+        original.Append( SHAPE_ARC( VECTOR2I( 0, 0 ), VECTOR2I( 1000000, 500000 ), VECTOR2I( 2000000, 0 ), 0 ),
+                         ARC_HIGH_DEF );
+        original.Append( VECTOR2I( 3000000, 0 ) );
+        original.Append( VECTOR2I( 4000000, 0 ) );
+
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( original ) );
+        int beforePoints = original.PointCount();
+        int beforeArcs = static_cast<int>( original.ArcCount() );
+
+        SHAPE_LINE_CHAIN simplified = original;
+        simplified.Simplify();
+
+        BOOST_CHECK( static_cast<int>( simplified.ArcCount() ) == beforeArcs
+                     || static_cast<int>( simplified.ArcCount() ) == ( beforeArcs - 1 ) );
+        BOOST_CHECK_LT( simplified.PointCount(), beforePoints );
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( simplified ) );
+    }
+
+    BOOST_TEST_CONTEXT( "tolerance semantics — zero vs small positive" )
+    {
+        SHAPE_LINE_CHAIN original;
+
+        original.Append( VECTOR2I( 0, 0 ) );
+        // perturb the intermediate point by 1 unit so it's not exactly collinear
+        original.Append( VECTOR2I( 1000000, 1 ) );
+
+        original.Append( SHAPE_ARC( VECTOR2I( 2000000, 0 ), VECTOR2I( 2500000, 500000 ), VECTOR2I( 3000000, 0 ), 0 ),
+                         ARC_HIGH_DEF );
+
+        original.Append( VECTOR2I( 4000000, 0 ) );
+        original.Append( VECTOR2I( 5000000, 0 ) );
+
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( original ) );
+        int beforePoints = original.PointCount();
+
+        SHAPE_LINE_CHAIN simplifiedZero = original;
+        simplifiedZero.Simplify( 0 );
+
+        // Expect a single point removal at zero tolerance
+        BOOST_CHECK_EQUAL( simplifiedZero.PointCount(), beforePoints - 1 );
+
+        SHAPE_LINE_CHAIN simplifiedOne = original;
+        simplifiedOne.Simplify( 1 );
+
+        // Expect one more point to be removed with tolerance 1
+        BOOST_CHECK_EQUAL( simplifiedOne.PointCount(), beforePoints - 2 );
+        BOOST_CHECK_EQUAL( static_cast<int>( simplifiedOne.ArcCount() ), static_cast<int>( original.ArcCount() ) );
+    }
+
+    BOOST_TEST_CONTEXT( "arc, arc (adjacent)" )
+    {
+        SHAPE_LINE_CHAIN original;
+        original.Append( SHAPE_ARC( VECTOR2I( 0, 0 ), VECTOR2I( 1000000, 500000 ), VECTOR2I( 2000000, 0 ), 0 ),
+                         ARC_HIGH_DEF );
+        original.Append( SHAPE_ARC( VECTOR2I( 2000000, 0 ), VECTOR2I( 3000000, 500000 ), VECTOR2I( 4000000, 0 ), 0 ),
+                         ARC_HIGH_DEF );
+
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( original ) );
+        int beforeArcs = static_cast<int>( original.ArcCount() );
+
+        SHAPE_LINE_CHAIN simplified = original;
+        simplified.Simplify();
+
+        BOOST_CHECK( static_cast<int>( simplified.ArcCount() ) == beforeArcs );
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( simplified ) );
+
+        BOOST_CHECK_EQUAL( simplified.Arc( 0 ).GetP1(), simplified.Arc( 1 ).GetP0() );
+        BOOST_CHECK_EQUAL( simplified.Arc( 0 ).GetP0(), VECTOR2I( 0, 0 ) );
+        BOOST_CHECK_EQUAL( simplified.Arc( 1 ).GetP1(), VECTOR2I( 4000000, 0 ) );
+    }
+
+    BOOST_TEST_CONTEXT( "2 collinear segments, arc, 2 collinear segments" )
+    {
+        SHAPE_LINE_CHAIN original;
+        original.Append( VECTOR2I( -1000000, 0 ) );
+
+        original.Append( SHAPE_ARC( VECTOR2I( 0, 0 ), VECTOR2I( 500000, 500000 ), VECTOR2I( 1000000, 0 ), 0 ),
+                         ARC_HIGH_DEF );
+
+        original.Append( SHAPE_ARC( VECTOR2I( 1000000, 0 ), VECTOR2I( 1500000, -500000 ), VECTOR2I( 2000000, 0 ), 0 ),
+                         ARC_HIGH_DEF );
+
+        original.Append( VECTOR2I( 3000000, 0 ) );
+        original.Append( VECTOR2I( 4000000, 0 ) );
+
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( original ) );
+        int beforePoints = original.PointCount();
+        int beforeArcs = static_cast<int>( original.ArcCount() );
+
+        SHAPE_LINE_CHAIN simplified = original;
+        simplified.Simplify();
+
+        BOOST_CHECK( static_cast<int>( simplified.ArcCount() ) == beforeArcs );
+        BOOST_CHECK_LT( simplified.PointCount(), beforePoints );
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( simplified ) );
+
+        BOOST_CHECK_GE( simplified.Find( VECTOR2I( -1000000, 0 ) ), 0 );
+        BOOST_CHECK_GE( simplified.Find( VECTOR2I( 4000000, 0 ) ), 0 );
+    }
+
+    BOOST_TEST_CONTEXT( "arc, collinear point, arc" )
+    {
+        SHAPE_LINE_CHAIN original;
+        original.Append( SHAPE_ARC( VECTOR2I( 0, 0 ), VECTOR2I( 1000000, 500000 ), VECTOR2I( 2000000, 0 ), 0 ),
+                         ARC_HIGH_DEF );
+
+        // collinear point
+        original.Append( VECTOR2I( 2500000, 0 ) );
+
+        original.Append( SHAPE_ARC( VECTOR2I( 3000000, 0 ), VECTOR2I( 3500000, 500000 ), VECTOR2I( 4000000, 0 ), 0 ),
+                         ARC_HIGH_DEF );
+
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( original ) );
+        int beforePoints = original.PointCount();
+        int beforeArcs = static_cast<int>( original.ArcCount() );
+
+        SHAPE_LINE_CHAIN simplified = original;
+        simplified.Simplify();
+
+        BOOST_CHECK( static_cast<int>( simplified.ArcCount() ) == beforeArcs );
+        BOOST_CHECK_LT( simplified.PointCount(), beforePoints );
+        BOOST_CHECK( GEOM_TEST::IsOutlineValid( simplified ) );
+
+        BOOST_CHECK_EQUAL( simplified.Arc( 0 ).GetP1(), VECTOR2I( 2000000, 0 ) );
+        BOOST_CHECK_EQUAL( simplified.Arc( 1 ).GetP0(), VECTOR2I( 3000000, 0 ) );
+    }
 }
 
 

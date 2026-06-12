@@ -127,6 +127,7 @@ public:
                            BASE_SCREEN *aScreen = nullptr );
 
     void Unstage( EDA_ITEM* aItem, BASE_SCREEN* aScreen );
+    void Unmodify( EDA_ITEM* aItem, BASE_SCREEN* aScreen );
 
     /// Execute the changes.
     virtual void Push( const wxString& aMessage = wxT( "A commit" ), int aFlags = 0 ) = 0;
@@ -156,6 +157,7 @@ protected:
     /// Should be called in Push() & Revert() methods
     void clear()
     {
+        m_addedItems.clear();
         m_changedItems.clear();
         m_deletedItems.clear();
         m_entries.clear();

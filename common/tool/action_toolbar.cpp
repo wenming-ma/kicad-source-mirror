@@ -54,7 +54,6 @@
 
 // Needed to handle adding the plugins to the toolbar
 // TODO (ISM): This should be better abstracted away from the toolbars
-#include <python_scripting.h>
 #include <api/api_plugin_manager.h>
 
 
@@ -213,6 +212,7 @@ ACTION_TOOLBAR::ACTION_TOOLBAR( EDA_BASE_FRAME* parent, wxWindowID id, const wxP
 
     Connect( wxEVT_COMMAND_TOOL_CLICKED, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onToolEvent ), nullptr, this );
     Connect( wxEVT_AUITOOLBAR_RIGHT_CLICK, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onRightClick ), nullptr, this );
+    Connect( wxEVT_RIGHT_UP, wxMouseEventHandler( ACTION_TOOLBAR::onRightUp ), nullptr, this );
     Connect( wxEVT_AUITOOLBAR_BEGIN_DRAG, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onItemDrag ), nullptr, this );
     Connect( wxEVT_LEFT_DOWN, wxMouseEventHandler( ACTION_TOOLBAR::onMouseClick ), nullptr, this );
     Connect( wxEVT_LEFT_UP, wxMouseEventHandler( ACTION_TOOLBAR::onMouseClick ), nullptr, this );
@@ -255,6 +255,7 @@ ACTION_TOOLBAR::~ACTION_TOOLBAR()
 {
     Disconnect( wxEVT_COMMAND_TOOL_CLICKED, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onToolEvent ), nullptr, this );
     Disconnect( wxEVT_AUITOOLBAR_RIGHT_CLICK, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onRightClick ), nullptr, this );
+    Disconnect( wxEVT_RIGHT_UP, wxMouseEventHandler( ACTION_TOOLBAR::onRightUp ), nullptr, this );
     Disconnect( wxEVT_AUITOOLBAR_BEGIN_DRAG, wxAuiToolBarEventHandler( ACTION_TOOLBAR::onItemDrag ), nullptr, this );
     Disconnect( wxEVT_LEFT_DOWN, wxMouseEventHandler( ACTION_TOOLBAR::onMouseClick ), nullptr, this );
     Disconnect( wxEVT_LEFT_UP, wxMouseEventHandler( ACTION_TOOLBAR::onMouseClick ), nullptr, this );
@@ -292,13 +293,8 @@ void ACTION_TOOLBAR::ApplyConfiguration( const TOOLBAR_CONFIGURATION& aConfig )
 {
     wxASSERT( GetParent() );
 
-    std::map<std::string, std::string> currentGroupItems;
-
-    for( const auto& [id, group] : m_actionGroups )
-    {
-        if( m_toolActions[group->GetUIId()] )
-            currentGroupItems[group->GetName()] = m_toolActions[group->GetUIId()]->GetName();
-    }
+    // Keep each group's selection across the rebuild.
+    std::map<std::string, std::string> currentGroupItems = m_groupSelections;
 
     // Remove existing tools
     ClearToolbar();
@@ -351,6 +347,10 @@ void ACTION_TOOLBAR::ApplyConfiguration( const TOOLBAR_CONFIGURATION& aConfig )
                         defaultTool = grpAction;
                 }
             }
+
+            // A group needs at least one action
+            if( tools.empty() )
+                continue;
 
             std::unique_ptr<ACTION_GROUP> group = std::make_unique<ACTION_GROUP>( groupName, tools );
 
@@ -521,7 +521,6 @@ void ACTION_TOOLBAR::AddGroup( std::unique_ptr<ACTION_GROUP> aGroup )
     for( const auto& act : aGroup->GetActions() )
         isToggleEntry |= act->CheckToolbarState( TOOLBAR_STATE::TOGGLE );
 
-
     m_toolKinds[ groupId ]    = isToggleEntry;
     m_toolActions[ groupId ]  = defaultAction;
     m_actionGroups[ groupId ] = std::move( aGroup );
@@ -612,6 +611,7 @@ void ACTION_TOOLBAR::doSelectAction( ACTION_GROUP* aGroup, const TOOL_ACTION& aA
 
     // Update the currently selected action
     m_toolActions[ groupId ] = &aAction;
+    m_groupSelections[aGroup->GetName()] = aAction.GetName();
 
     Refresh();
 }
@@ -730,9 +730,22 @@ void ACTION_TOOLBAR::onToolEvent( wxAuiToolBarEvent& aEvent )
     {
         const auto actionIt = m_toolActions.find( id );
         const auto cancelIt = m_toolCancellable.find( id );
+        const auto groupIt  = m_actionGroups.find( id );
 
         // Determine if the tool is actually cancellable
         bool isCancellable = ( cancelIt != m_toolCancellable.end() ) ? cancelIt->second : false;
+
+        // The selection tool is a special case because it is the "default" tool and does not show
+        // up on the tool stack. We want to toggle through selection modes only when the tool is
+        // already active.
+        bool selectionSpecialCase = false;
+
+        if( actionIt != m_toolActions.end() )
+        {
+            selectionSpecialCase = m_parent->ToolStackIsEmpty()
+                                   && ( actionIt->second->GetId() == ACTIONS::selectSetRect.GetId()
+                                        || actionIt->second->GetId() == ACTIONS::selectSetLasso.GetId() );
+        }
 
         // The toolbar item is toggled before the event is sent, so we check for it not being
         // toggled to see if it was toggled originally
@@ -740,6 +753,41 @@ void ACTION_TOOLBAR::onToolEvent( wxAuiToolBarEvent& aEvent )
         {
             // Send a cancel event
             m_toolManager->CancelTool();
+            handled = true;
+        }
+        else if( groupIt != m_actionGroups.end()
+                 && ( selectionSpecialCase
+                      || std::none_of( groupIt->second->GetActions().begin(),
+                                       groupIt->second->GetActions().end(),
+                                       []( const TOOL_ACTION* a )
+                                       {
+                                           return a->IsActivation();
+                                       } ) ) )
+        {
+            // For non-tool toggle groups (units, crosshair, line modes), cycle to the next
+            // action on click. Tool groups (route track, etc.) fall through and just dispatch
+            // the currently displayed action.
+            ACTION_GROUP*                          group   = groupIt->second.get();
+            const std::vector<const TOOL_ACTION*>& actions = group->GetActions();
+            const TOOL_ACTION*                     current = actionIt->second;
+
+            const TOOL_ACTION* next = actions[0];
+
+            for( size_t i = 0; i < actions.size(); ++i )
+            {
+                if( actions[i]->GetId() == current->GetId() )
+                {
+                    next = actions[( i + 1 ) % actions.size()];
+                    break;
+                }
+            }
+
+            evt = next->MakeEvent();
+            evt->SetHasPosition( false );
+            m_toolManager->ProcessEvent( *evt );
+            m_toolManager->GetToolHolder()->RefreshCanvas();
+
+            doSelectAction( group, *next );
             handled = true;
         }
         else if( actionIt != m_toolActions.end() )
@@ -767,15 +815,39 @@ void ACTION_TOOLBAR::onRightClick( wxAuiToolBarEvent& aEvent )
     if( toolId == -1 )
         return;
 
+    showContextMenu( toolId );
+}
+
+
+void ACTION_TOOLBAR::onRightUp( wxMouseEvent& aEvent )
+{
+    // wxAuiToolBar::OnRightDown() uses horizontal-only geometry to reserve its overflow
+    // dead-zone, which on a vertical toolbar kills right-clicks over part of every button.
+    // Hit-test the tool ourselves so the whole button works.
+    wxAuiToolBarItem* item = FindToolByPosition( aEvent.GetX(), aEvent.GetY() );
+
+    if( !item )
+    {
+        aEvent.Skip();
+        return;
+    }
+
+    // Don't Skip(): suppress wx's own OnRightUp() so the menu is shown exactly once.
+    showContextMenu( item->GetId() );
+}
+
+
+void ACTION_TOOLBAR::showContextMenu( int aToolId )
+{
     // Ensure that the ID maps to a proper tool ID. If right-clicked on a group item, this is needed
     // to get the ID of the currently selected action, since the event's ID is that of the group.
-    const auto actionIt = m_toolActions.find( toolId );
+    const auto actionIt = m_toolActions.find( aToolId );
 
     if( actionIt != m_toolActions.end() )
-        toolId = actionIt->second->GetUIId();
+        aToolId = actionIt->second->GetUIId();
 
     // Find the menu for the action
-    const auto menuIt = m_toolMenus.find( toolId );
+    const auto menuIt = m_toolMenus.find( aToolId );
 
     if( menuIt == m_toolMenus.end() )
         return;
@@ -869,8 +941,13 @@ void ACTION_TOOLBAR::onPaletteEvent( wxCommandEvent& aEvent )
     if( !m_palette )
         return;
 
+    // Clear m_palette up front so a re-entrant dispatch (modal dialog pumping events)
+    // hits the null guard above instead of double-destroying.
+    ACTION_TOOLBAR_PALETTE* palette = m_palette;
+    m_palette = nullptr;
+
     OPT_TOOL_EVENT evt;
-    ACTION_GROUP*  group = m_palette->GetGroup();
+    ACTION_GROUP*  group = palette->GetGroup();
 
     // Find the action corresponding to the button press
     auto actionIt = std::find_if( group->GetActions().begin(), group->GetActions().end(),
@@ -894,9 +971,8 @@ void ACTION_TOOLBAR::onPaletteEvent( wxCommandEvent& aEvent )
     }
 
     // Hide the palette
-    m_palette->Hide();
-    m_palette->Destroy();
-    m_palette = nullptr;
+    palette->Hide();
+    palette->Destroy();
 }
 
 
@@ -999,7 +1075,8 @@ void ACTION_TOOLBAR::popupPalette( wxAuiToolBarItem* aItem )
     }
 
     // Release the mouse to ensure the first click will be recognized in the palette
-    ReleaseMouse();
+    if( HasCapture() )
+        ReleaseMouse();
 
     m_palette->SetPosition( pos );
     m_palette->Popup();
@@ -1186,4 +1263,4 @@ ACTION_TOOLBAR_CONTROL ACTION_TOOLBAR_CONTROLS::bodyStyleSelector( "control.Body
 ACTION_TOOLBAR_CONTROL ACTION_TOOLBAR_CONTROLS::overrideLocks( "control.OverrideLocks",
                                                                _( "Override locks" ),
                                                                _( "Allow moving of locked items with the mouse" ),
-                                                               { FRAME_PCB_EDITOR } );
+                                                               { FRAME_PCB_EDITOR, FRAME_SCH } );

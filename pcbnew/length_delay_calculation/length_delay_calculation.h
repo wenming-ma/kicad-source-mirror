@@ -33,6 +33,7 @@
 #include <unordered_set>
 
 class BOARD;
+class PCB_VIA;
 
 /**
 * Holds length measurement result details and statistics
@@ -70,9 +71,9 @@ struct LENGTH_DELAY_STATS
  */
 struct PATH_OPTIMISATIONS
 {
-    /// Optimise via layers for height calculations, ensuring only the distance
-    /// between routed segments is considered
-    bool OptimiseViaLayers = false;
+    /// Optimise vias for electrical length calculations, including effective
+    /// via span and trace clipping inside via pads
+    bool OptimiseVias = false;
 
     /// Merges all contiguous (end-to-end, same layer) tracks
     bool MergeTracks = false;
@@ -113,6 +114,29 @@ enum class LENGTH_DELAY_DOMAIN_OPT
 {
     NO_DELAY_DETAIL,
     WITH_DELAY_DETAIL
+};
+
+
+/**
+ * Used to represent the results of a call to CalculateLengthDetails, including inferred
+ * via-in-pad details
+ */
+struct LENGTH_DELAY_ITEM_DETAILS
+{
+    /// Per-item lengths and delays
+    std::vector<std::pair<int64_t, int64_t>> LengthsAndDelays;
+
+    /// The length of an inferred start via-in-pad
+    int64_t InferredStartViaLength{ 0 };
+
+    /// The length of an inferred end via-in-pad
+    int64_t InferredEndViaLength{ 0 };
+
+    /// The delay of an inferred start via-in-pad
+    int64_t InferredStartViaDelay{ 0 };
+
+    /// The delay of an inferred end via-in-pad
+    int64_t InferredEndViaDelay{ 0 };
 };
 
 
@@ -163,12 +187,14 @@ public:
      * @param aEndPad is the ending pad of the route
      * @param aLayerOpt determines whether the layer details map is populated
      * @param aDomain determines whether calculations include time domain (delay) details
+     * @param aPerItemLengthDelays vector of std::pair<length, delay> for each considered item
      */
     LENGTH_DELAY_STATS
     CalculateLengthDetails( std::vector<LENGTH_DELAY_CALCULATION_ITEM>& aItems, PATH_OPTIMISATIONS aOptimisations,
                             const PAD* aStartPad = nullptr, const PAD* aEndPad = nullptr,
-                            LENGTH_DELAY_LAYER_OPT  aLayerOpt = LENGTH_DELAY_LAYER_OPT::NO_LAYER_DETAIL,
-                            LENGTH_DELAY_DOMAIN_OPT aDomain = LENGTH_DELAY_DOMAIN_OPT::NO_DELAY_DETAIL ) const;
+                            LENGTH_DELAY_LAYER_OPT     aLayerOpt = LENGTH_DELAY_LAYER_OPT::NO_LAYER_DETAIL,
+                            LENGTH_DELAY_DOMAIN_OPT    aDomain = LENGTH_DELAY_DOMAIN_OPT::NO_DELAY_DETAIL,
+                            LENGTH_DELAY_ITEM_DETAILS* aPerItemLengthDelays = nullptr ) const;
 
     /**
   * Gets the propagation delay for the given shape line chain
@@ -189,6 +215,13 @@ public:
 
     /// Optimises the given trace / line to minimise the electrical path length within the given pad
     static void OptimiseTraceInPad( SHAPE_LINE_CHAIN& aLine, const PAD* aPad, PCB_LAYER_ID aPcbLayer );
+
+    /// Returns true if the given point falls inside VIA pad shape on the given layer
+    static bool IsPointInsideViaPad( const PCB_VIA* aVia, const VECTOR2I& aPoint, PCB_LAYER_ID aLayer );
+
+    /// Clips trace portions inside a VIA pad and replaces them with a straight-line segment
+    /// from the VIA edge intersection to the VIA centre, analogous to OptimiseTraceInPad.
+    static void OptimiseTraceInVia( SHAPE_LINE_CHAIN& aLine, const PCB_VIA* aVia, PCB_LAYER_ID aLayer );
 
     /// Return a LENGTH_CALCULATION_ITEM constructed from the given BOARD_CONNECTED_ITEM
     LENGTH_DELAY_CALCULATION_ITEM GetLengthCalculationItem( const BOARD_CONNECTED_ITEM* aBoardItem ) const;
@@ -232,15 +265,18 @@ protected:
     /// Clips the given line to the minimal direct electrical length within the pad
     static void clipLineToPad( SHAPE_LINE_CHAIN& aLine, const PAD* aPad, PCB_LAYER_ID aLayer, bool aForward = true );
 
+    /// Clips the given line to the minimal direct electrical length within the via
+    static void clipLineToVia( SHAPE_LINE_CHAIN& aLine, const PCB_VIA* aVia, PCB_LAYER_ID aLayer, bool aForward );
+
     /**
      * Optimises the via layers. Ensures that vias that are routed through only on one layer do not count towards total
      * length calculations.
      */
-    static void
-    optimiseViaLayers( const std::vector<LENGTH_DELAY_CALCULATION_ITEM*>&                            aVias,
-                       std::vector<LENGTH_DELAY_CALCULATION_ITEM*>&                                  aLines,
-                       std::map<VECTOR2I, std::unordered_set<LENGTH_DELAY_CALCULATION_ITEM*>>&       aLinesPositionMap,
-                       const std::map<VECTOR2I, std::unordered_set<LENGTH_DELAY_CALCULATION_ITEM*>>& aPadsPositionMap );
+    void optimiseVias(
+            const std::vector<LENGTH_DELAY_CALCULATION_ITEM*>&                            aVias,
+            std::vector<LENGTH_DELAY_CALCULATION_ITEM*>&                                  aLines,
+            std::map<VECTOR2I, std::unordered_set<LENGTH_DELAY_CALCULATION_ITEM*>>&       aLinesPositionMap,
+            const std::map<VECTOR2I, std::unordered_set<LENGTH_DELAY_CALCULATION_ITEM*>>& aPadsPositionMap ) const;
 
     /**
      * Merges any lines (traces) that are contiguous, on one layer, and with no junctions
@@ -259,8 +295,8 @@ protected:
     /**
      * Infers if there is a via in the given pad. Adds via details to the length details data structure if found.
      */
-    void inferViaInPad( const PAD* aPad, const LENGTH_DELAY_CALCULATION_ITEM& aItem,
-                        LENGTH_DELAY_STATS& aDetails ) const;
+    void inferViaInPad( const PAD* aPad, const LENGTH_DELAY_CALCULATION_ITEM& aItem, LENGTH_DELAY_STATS& aDetails,
+                        std::pair<int64_t, int64_t>& aInferredViaLengthDelay, bool aWithDelayDetail ) const;
 
     /**
      * Finds the intersection point between an arc and a pad shape.

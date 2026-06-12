@@ -408,6 +408,7 @@ EDA_3D_VIEWER_SETTINGS::EDA_3D_VIEWER_SETTINGS() :
                                             &m_Render.use_board_editor_copper_colors, false ) );
     m_params.emplace_back( new PARAM<bool>( "render.preview_show_board_body",
                                             &m_Render.preview_show_board_body, true ) );
+    m_params.emplace_back( new PARAM<bool>( "render.show_missing_models", &m_Render.show_missing_models, false ) );
     m_params.emplace_back( new PARAM<bool>( "camera.animation_enabled",
                                             &m_Camera.animation_enabled, true ) );
     m_params.emplace_back( new PARAM<int>( "camera.moving_speed_multiplier",
@@ -416,6 +417,15 @@ EDA_3D_VIEWER_SETTINGS::EDA_3D_VIEWER_SETTINGS() :
                                               &m_Camera.rotation_increment, 10.0 ) );
     m_params.emplace_back( new PARAM<int>( "camera.projection_mode",
                                            &m_Camera.projection_mode, 1 ) );
+
+    m_params.emplace_back( new PARAM<int>( "export_image.width", &m_ExportImage.width, 0 ) );
+    m_params.emplace_back( new PARAM<int>( "export_image.height", &m_ExportImage.height, 0 ) );
+    m_params.emplace_back( new PARAM<double>( "export_image.x_resolution", &m_ExportImage.x_resolution, 300.0 ) );
+    m_params.emplace_back( new PARAM<double>( "export_image.y_resolution", &m_ExportImage.y_resolution, 300.0 ) );
+    m_params.emplace_back( new PARAM<int>( "export_image.size_units", &m_ExportImage.size_units, 0 ) );
+    m_params.emplace_back( new PARAM<int>( "export_image.resolution_units", &m_ExportImage.resolution_units, 0 ) );
+    m_params.emplace_back(
+            new PARAM<bool>( "export_image.lock_aspect_ratio", &m_ExportImage.lock_aspect_ratio, true ) );
 
     m_params.emplace_back( new PARAM<bool>( "use_stackup_colors",
                                             &m_UseStackupColors, true ) );

@@ -33,6 +33,8 @@
 #include <iterator>
 #include <set>
 
+#include <wx/clipbrd.h>
+#include <wx/dataobj.h>
 #include <wx/settings.h>
 #include <wx/stattext.h>
 #include <wx/propgrid/advprops.h>
@@ -171,23 +173,17 @@ void PROPERTIES_PANEL::OnLanguageChanged( wxCommandEvent& aEvent )
 }
 
 
-class SUPPRESS_GRID_CHANGED_EVENTS
-{
-public:
-    SUPPRESS_GRID_CHANGED_EVENTS( PROPERTIES_PANEL* aPanel ) :
+SUPPRESS_GRID_CHANGED_EVENTS::SUPPRESS_GRID_CHANGED_EVENTS( PROPERTIES_PANEL* aPanel ) :
             m_panel( aPanel )
-    {
-        m_panel->m_SuppressGridChangeEvents++;
-    }
+{
+    m_panel->m_SuppressGridChangeEvents++;
+}
 
-    ~SUPPRESS_GRID_CHANGED_EVENTS()
-    {
-        m_panel->m_SuppressGridChangeEvents--;
-    }
 
-private:
-    PROPERTIES_PANEL* m_panel;
-};
+SUPPRESS_GRID_CHANGED_EVENTS::~SUPPRESS_GRID_CHANGED_EVENTS()
+{
+    m_panel->m_SuppressGridChangeEvents--;
+}
 
 
 void PROPERTIES_PANEL::rebuildProperties( const SELECTION& aSelection )
@@ -316,7 +312,7 @@ void PROPERTIES_PANEL::rebuildProperties( const SELECTION& aSelection )
             pgProp->SetChoices( choices );
 
         pgProp->SetValue( commonVal );
-        pgProp->Enable( writeable );
+        pgProp->ChangeFlag( wxPG_PROP_READONLY, !writeable );
     }
 
     if( !existingProps.empty() && existingProps == availableProps )
@@ -344,7 +340,7 @@ void PROPERTIES_PANEL::rebuildProperties( const SELECTION& aSelection )
                 pgProp->SetChoices( choices );
 
             pgProp->SetValue( commonVal );
-            pgProp->Enable( writeable );
+            pgProp->ChangeFlag( wxPG_PROP_READONLY, !writeable );
             m_displayed.push_back( property );
 
             wxASSERT( displayOrder.count( name ) );
@@ -510,6 +506,19 @@ void PROPERTIES_PANEL::onCharHook( wxKeyEvent& aEvent )
         }
 
         return;
+    }
+
+    if( aEvent.GetKeyCode() == 'C' && aEvent.GetModifiers() == wxMOD_CONTROL )
+    {
+        if( wxPGProperty* prop = m_grid->GetSelectedProperty() )
+        {
+            if( wxTheClipboard->Open() )
+            {
+                wxTheClipboard->SetData( new wxTextDataObject( prop->GetValueAsString() ) );
+                wxTheClipboard->Close();
+                return;
+            }
+        }
     }
 
     if( aEvent.GetKeyCode() == WXK_SPACE )

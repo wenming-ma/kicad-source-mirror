@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -56,15 +57,7 @@ class SETTINGS_MANAGER;
 /*
  * Boost test printers
  */
-namespace boost { namespace test_tools { namespace tt_detail {
-
-template<>
-struct print_log_value<VIATYPE>
-{
-    void operator()( std::ostream& os, const VIATYPE& viaType ) const;
-};
-
-}}} // namespace boost::test_tools::tt_detail
+std::ostream& boost_test_print_type( std::ostream& os, const VIATYPE& aViaType );
 
 
 namespace KI_TEST
@@ -77,6 +70,50 @@ public:
     {};
 
     void Reset( RESET_REASON aReason ) override {}
+};
+
+
+/**
+ * A temporary directory that will be deleted when it goes out of scope.
+ *
+ * Footprint round-trip tests must save into a directory of their own.  Saving a footprint causes
+ * the whole containing directory to be validated as a library, so writing directly into the shared
+ * system temp directory makes the test fail whenever any unrelated .kicad_mod file happens to live
+ * there.
+ */
+class TEMPORARY_DIRECTORY
+{
+public:
+    /**
+     * Create a temporary directory with a given prefix and suffix. The directory will be
+     * created in the system temporary directory, and will not be pre-existing.
+     */
+    TEMPORARY_DIRECTORY( const std::string& aNamePrefix, const std::string aSuffix )
+    {
+        int i = 0;
+
+        // Find a unique directory name
+        while( true )
+        {
+            m_path = std::filesystem::temp_directory_path()
+                     / ( aNamePrefix + std::to_string( i ) + aSuffix );
+
+            if( !std::filesystem::exists( m_path ) )
+                break;
+
+            i++;
+        }
+
+        wxASSERT( !std::filesystem::exists( m_path ) );
+        std::filesystem::create_directories( m_path );
+    }
+
+    ~TEMPORARY_DIRECTORY() { std::filesystem::remove_all( m_path ); }
+
+    const std::filesystem::path& GetPath() const { return m_path; }
+
+private:
+    std::filesystem::path m_path;
 };
 
 
@@ -114,8 +151,16 @@ public:
 
     CONSOLE_LOG(){};
 
+    const wxString& GetLogContents() const 
+    {
+        return m_logContents;
+    }
+
     void PrintProgress( const wxString& aMessage )
     {
+        if ( m_silenceConsoleOutput )
+            return;
+
         if( m_lastLineIsProgressBar )
             eraseLastLine();
 
@@ -131,18 +176,28 @@ public:
         if( m_lastLineIsProgressBar )
             eraseLastLine();
 
+        if( !m_silenceConsoleOutput )
+        {
         printf( "%s", (const char*) aMessage.c_str() );
         fflush( stdout );
+        }
 
+        m_logContents.append( aMessage );
         m_lastLineIsProgressBar = false;
     }
 
 
     void SetColor( COLOR color )
     {
-        std::map<COLOR, wxString> colorMap = { { RED, "\033[0;31m" },
+        if ( m_silenceConsoleOutput )
+            return;
+
+        std::map<COLOR, wxString> colorMap =
+        {
+            { RED, "\033[0;31m" },
                                                { GREEN, "\033[0;32m" },
-                                               { DEFAULT, "\033[0;37m" } };
+            { DEFAULT, "\033[0;37m" }
+        };
 
         printf( "%s", (const char*) colorMap[color].c_str() );
         fflush( stdout );
@@ -152,12 +207,17 @@ public:
 private:
     void eraseLastLine()
     {
+        if ( m_silenceConsoleOutput )
+            return;
+
         printf( "\r\033[K" );
         fflush( stdout );
     }
 
+    bool m_silenceConsoleOutput = true;
     bool       m_lastLineIsProgressBar = false;
     std::mutex m_lock;
+    wxString m_logContents;
 };
 
 

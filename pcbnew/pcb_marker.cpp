@@ -35,6 +35,7 @@
 #include <settings/settings_manager.h>
 #include <geometry/shape_null.h>
 #include <widgets/ui_common.h>
+#include <widgets/wx_data_view_hyperlink_renderer.h>
 #include <pgm_base.h>
 #include <drc/drc_item.h>
 #include <drc/drc_rule.h>
@@ -224,10 +225,18 @@ PCB_MARKER* PCB_MARKER::DeserializeFromString( const wxString& data )
 }
 
 
+void PCB_MARKER::swapData( BOARD_ITEM* aImage )
+{
+    wxASSERT( aImage->Type() == PCB_MARKER_T );
+
+    std::swap( *((PCB_MARKER*) this), *((PCB_MARKER*) aImage) );
+}
+
+
 void PCB_MARKER::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     aList.emplace_back( _( "Type" ), _( "Marker" ) );
-    aList.emplace_back( _( "Violation" ), m_rcItem->GetErrorMessage( true ) );
+    aList.emplace_back( _( "Violation" ), HYPERLINK_DV_RENDERER::StripMarkup( m_rcItem->GetErrorMessage( true ) ) );
 
     switch( GetSeverity() )
     {
@@ -334,7 +343,7 @@ std::vector<int> PCB_MARKER::ViewGetLayers() const
     if( GetMarkerType() == MARKER_RATSNEST )
         return {};
 
-    std::vector<int> layers{ 0, LAYER_MARKER_SHADOWS, LAYER_DRC_SHAPES };
+    std::vector<int> layers{ 0, LAYER_MARKER_SHADOWS, LAYER_DRC_SHAPES, LAYER_DRC_HIGHLIGHTED };
 
     switch( GetSeverity() )
     {

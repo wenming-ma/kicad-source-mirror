@@ -159,7 +159,11 @@ public:
         m_pathEnd = aEnd;
     }
 
+    const std::vector<PCB_SHAPE>& GetPath() const { return m_pathShapes; }
+
 protected:
+    void swapData( BOARD_ITEM* aImage ) override;
+
     KIGFX::COLOR4D getColor() const override;
 
 protected:

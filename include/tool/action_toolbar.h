@@ -391,6 +391,13 @@ protected:
     ///< Handle a right-click on a menu item
     void onRightClick( wxAuiToolBarEvent& aEvent );
 
+    ///< Handle a right mouse button release; resolves the tool ourselves to work around a
+    ///< wxAuiToolBar hit-testing bug that dead-zones part of every button on vertical toolbars.
+    void onRightUp( wxMouseEvent& aEvent );
+
+    ///< Show the context menu registered for the given tool ID (handles group remapping).
+    void showContextMenu( int aToolId );
+
     ///< Handle the button select inside the palette
     void onPaletteEvent( wxCommandEvent& aEvent );
 
@@ -423,6 +430,9 @@ protected:
 
     std::map<int, std::unique_ptr<ACTION_GROUP>> m_actionGroups;
     std::map<int, std::unique_ptr<ACTION_MENU>>  m_toolMenus;
+
+    /// Selected action per group name
+    std::map<std::string, std::string> m_groupSelections;
 };
 
 /**

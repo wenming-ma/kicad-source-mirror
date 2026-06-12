@@ -55,6 +55,11 @@ public:
     const std::unordered_set<EDA_ITEM*>& GetItems() const { return m_items; }
 
     /**
+     * Test if an item is a direct or nested member of this group.
+     */
+    bool ContainsItem( const EDA_ITEM* aItem ) const;
+
+    /**
      * Add item to group. Does not take ownership of item.
      */
     void AddItem( EDA_ITEM* aItem );
@@ -65,7 +70,7 @@ public:
     void RemoveItem( EDA_ITEM* aItem );
     void RemoveAll();
 
-    KIID_VECT_LIST GetGroupMemberIds() const;
+    std::vector<KIID> GetGroupMemberIds() const;
 
     bool HasDesignBlockLink() const { return m_designBlockLibId.IsValid(); }
 

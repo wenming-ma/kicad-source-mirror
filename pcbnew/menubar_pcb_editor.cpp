@@ -30,7 +30,6 @@
 #include <kiface_base.h>
 #include <pcb_edit_frame.h>
 #include <pcbnew_id.h>
-#include <python_scripting.h>
 #include <tool/action_manager.h>
 #include <tool/actions.h>
 #include <tool/tool_manager.h>
@@ -191,6 +190,7 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
 
     editMenu->AppendSeparator();
     editMenu->Add( ACTIONS::find );
+    editMenu->Add( PCB_ACTIONS::findByProperties );
 
     editMenu->AppendSeparator();
     editMenu->Add( PCB_ACTIONS::editTracksAndVias );
@@ -288,6 +288,7 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     placeMenu->Add( PCB_ACTIONS::placeFootprint );
     placeMenu->Add( PCB_ACTIONS::drawVia );
     placeMenu->Add( PCB_ACTIONS::drawZone );
+    placeMenu->Add( PCB_ACTIONS::drawCopperThievingZone );
     placeMenu->Add( PCB_ACTIONS::drawRuleArea );
 
     ACTION_MENU* muwaveSubmenu = new ACTION_MENU( false, selTool );
@@ -305,6 +306,8 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     placeMenu->Add( PCB_ACTIONS::drawArc );
     placeMenu->Add( PCB_ACTIONS::drawRectangle );
     placeMenu->Add( PCB_ACTIONS::drawCircle );
+    placeMenu->Add( PCB_ACTIONS::drawEllipse );
+    placeMenu->Add( PCB_ACTIONS::drawEllipseArc );
     placeMenu->Add( PCB_ACTIONS::drawPolygon );
     placeMenu->Add( PCB_ACTIONS::drawBezier );
     placeMenu->Add( PCB_ACTIONS::placeReferenceImage );
@@ -402,6 +405,7 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     toolsMenu->AppendSeparator();
     toolsMenu->Add( ACTIONS::showFootprintEditor );
     toolsMenu->Add( PCB_ACTIONS::updateFootprints );
+    toolsMenu->Add( PCB_ACTIONS::migrate3DModels );
 
     //Zones management
     toolsMenu->AppendSeparator();
@@ -428,12 +432,6 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
     toolsMenu->Add( PCB_ACTIONS::boardReannotate );
     toolsMenu->Add( ACTIONS::updateSchematicFromPcb )->Enable( !Kiface().IsSingle() );
 
-    if( SCRIPTING::IsWxAvailable() )
-    {
-        toolsMenu->AppendSeparator();
-        toolsMenu->Add( PCB_ACTIONS::showPythonConsole );
-    }
-
     ACTION_MENU* multichannelSubmenu = new ACTION_MENU( false, selTool );
     multichannelSubmenu->SetTitle( _( "Multi-Channel" ) );
     multichannelSubmenu->SetIcon( BITMAPS::mode_module );
@@ -448,11 +446,6 @@ void PCB_EDIT_FRAME::doReCreateMenuBar()
 
     submenuActionPlugins->Add( ACTIONS::pluginsReload );
     submenuActionPlugins->Add( PCB_ACTIONS::pluginsShowFolder );
-
-    // Populate the Action Plugin sub-menu: Must be done before Add
-    // Since the object is cloned by Add
-    submenuActionPlugins->AppendSeparator();
-    buildActionPluginMenus( submenuActionPlugins );
 
     toolsMenu->AppendSeparator();
     toolsMenu->Add( submenuActionPlugins );

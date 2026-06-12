@@ -54,6 +54,7 @@
 #include <macros.h>
 #include <math/util.h> // for KiROUND
 #include <gal/painter.h>
+#include <pcb_base_frame.h>
 #include <pcbnew_settings.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_tool_base.h>
@@ -165,6 +166,7 @@ PCB_GRID_HELPER::PCB_GRID_HELPER( TOOL_MANAGER* aToolMgr, MAGNETIC_SETTINGS* aMa
     KIGFX::VIEW*            view = m_toolMgr->GetView();
     KIGFX::RENDER_SETTINGS* settings = view->GetPainter()->GetSettings();
     KIGFX::COLOR4D          auxItemsColor = settings->GetLayerColor( LAYER_AUX_ITEMS );
+    KIGFX::COLOR4D          anchorColor = settings->GetLayerColor( LAYER_ANCHOR );
 
     m_viewAxis.SetSize( 20000 );
     m_viewAxis.SetStyle( KIGFX::ORIGIN_VIEWITEM::CROSS );
@@ -178,6 +180,7 @@ PCB_GRID_HELPER::PCB_GRID_HELPER( TOOL_MANAGER* aToolMgr, MAGNETIC_SETTINGS* aMa
     m_viewSnapPoint.SetColor( auxItemsColor );
     m_viewSnapPoint.SetDrawAtZero( true );
     view->Add( &m_viewSnapPoint );
+    getSnapManager().SetSnapGuideColors( anchorColor, anchorColor.Brightened( 0.2 ) );
     view->SetVisible( &m_viewSnapPoint, false );
 
     if( m_toolMgr->GetModel() )
@@ -285,6 +288,12 @@ void PCB_GRID_HELPER::AddConstructionItems( std::vector<BOARD_ITEM*> aItems, boo
             case SHAPE_T::RECTANGLE:
             {
                 constructionDrawables.push_back( shape.GetCenter() );
+                break;
+            }
+            case SHAPE_T::ELLIPSE:
+            case SHAPE_T::ELLIPSE_ARC:
+            {
+                constructionDrawables.push_back( shape.GetEllipseCenter() );
                 break;
             }
             default:
@@ -444,6 +453,7 @@ VECTOR2I PCB_GRID_HELPER::AlignToArc( const VECTOR2I& aPoint, const SHAPE_ARC& a
 
 VECTOR2I PCB_GRID_HELPER::SnapToPad( const VECTOR2I& aMousePos, std::deque<PAD*>& aPads )
 {
+    wxLogTrace( traceSnap, "SnapToPad: mouse pos (%d, %d), pads count: %zu", aMousePos.x, aMousePos.y, aPads.size() );
     clearAnchors();
 
     for( BOARD_ITEM* item : aPads )
@@ -507,6 +517,8 @@ VECTOR2I PCB_GRID_HELPER::BestDragOrigin( const VECTOR2I &aMousePos,
                                           GRID_HELPER_GRIDS aGrid,
                                           const PCB_SELECTION_FILTER_OPTIONS* aSelectionFilter )
 {
+    wxLogTrace( traceSnap, "BestDragOrigin: mouse pos (%d, %d), items count: %zu", aMousePos.x, aMousePos.y,
+                aItems.size() );
     clearAnchors();
 
     computeAnchors( aItems, aMousePos, true, aSelectionFilter, nullptr, true );
@@ -523,6 +535,9 @@ VECTOR2I PCB_GRID_HELPER::BestDragOrigin( const VECTOR2I &aMousePos,
     {
         minDist = nearestOrigin->Distance( aMousePos );
         best = nearestOrigin;
+
+        wxLogTrace( traceSnap, "  nearest origin winning at (%d, %d), distance=%f", nearestOrigin->pos.x,
+                    nearestOrigin->pos.y, minDist );
     }
 
     if( nearestCorner )
@@ -533,6 +548,9 @@ VECTOR2I PCB_GRID_HELPER::BestDragOrigin( const VECTOR2I &aMousePos,
         {
             minDist = dist;
             best = nearestCorner;
+
+            wxLogTrace( traceSnap, "  nearest corner winning at (%d, %d), distance=%f", nearestCorner->pos.x,
+                        nearestCorner->pos.y, dist );
         }
     }
 
@@ -541,10 +559,17 @@ VECTOR2I PCB_GRID_HELPER::BestDragOrigin( const VECTOR2I &aMousePos,
         double dist = nearestOutline->Distance( aMousePos );
 
         if( minDist > lineSnapMinCornerDistance && dist < minDist )
+        {
             best = nearestOutline;
+
+            wxLogTrace( traceSnap, "  nearest outline winning at (%d, %d), distance=%f", nearestOutline->pos.x,
+                        nearestOutline->pos.y, dist );
+        }
     }
 
-    return best ? best->pos : aMousePos;
+    VECTOR2I ret = best ? best->pos : aMousePos;
+    wxLogTrace( traceSnap, "  have best: %s, returning (%d, %d)", best ? "yes" : "no", ret.x, ret.y );
+    return ret;
 }
 
 
@@ -558,6 +583,11 @@ VECTOR2I PCB_GRID_HELPER::BestSnapAnchor( const VECTOR2I& aOrigin, BOARD_ITEM* a
     {
         layers = aReferenceItem->GetLayerSet();
         item.push_back( aReferenceItem );
+    }
+    else if( PCB_BASE_FRAME* frame = dynamic_cast<PCB_BASE_FRAME*>( m_toolMgr->GetToolHolder() );
+             frame && frame->GetScreen() )
+    {
+        layers = LSET( { frame->GetActiveLayer() } );
     }
     else
     {
@@ -1514,6 +1544,31 @@ void PCB_GRID_HELPER::computeAnchors( BOARD_ITEM* aItem, const VECTOR2I& aRefPos
                     break;
                 }
 
+                case SHAPE_T::ELLIPSE:
+                {
+                    VECTOR2I  center = shape->GetEllipseCenter();
+                    int       majorR = shape->GetEllipseMajorRadius();
+                    int       minorR = shape->GetEllipseMinorRadius();
+                    EDA_ANGLE rot = shape->GetEllipseRotation();
+                    VECTOR2I  majorEnd( KiROUND( majorR * rot.Cos() ), KiROUND( majorR * rot.Sin() ) );
+                    VECTOR2I  minorEnd( KiROUND( -minorR * rot.Sin() ), KiROUND( minorR * rot.Cos() ) );
+
+                    addAnchor( center, ORIGIN | SNAPPABLE, shape, POINT_TYPE::PT_CENTER );
+                    addAnchor( center + majorEnd, OUTLINE | SNAPPABLE, shape, POINT_TYPE::PT_QUADRANT );
+                    addAnchor( center - majorEnd, OUTLINE | SNAPPABLE, shape, POINT_TYPE::PT_QUADRANT );
+                    addAnchor( center + minorEnd, OUTLINE | SNAPPABLE, shape, POINT_TYPE::PT_QUADRANT );
+                    addAnchor( center - minorEnd, OUTLINE | SNAPPABLE, shape, POINT_TYPE::PT_QUADRANT );
+                    break;
+                }
+
+                case SHAPE_T::ELLIPSE_ARC:
+                {
+                    addAnchor( shape->GetStart(), CORNER | SNAPPABLE, shape, POINT_TYPE::PT_END );
+                    addAnchor( shape->GetEnd(), CORNER | SNAPPABLE, shape, POINT_TYPE::PT_END );
+                    addAnchor( shape->GetEllipseCenter(), ORIGIN | SNAPPABLE, shape, POINT_TYPE::PT_CENTER );
+                    break;
+                }
+
                 case SHAPE_T::BEZIER:
                     addAnchor( start, CORNER | SNAPPABLE, shape, POINT_TYPE::PT_END );
                     addAnchor( end, CORNER | SNAPPABLE, shape, POINT_TYPE::PT_END );
@@ -1575,25 +1630,32 @@ void PCB_GRID_HELPER::computeAnchors( BOARD_ITEM* aItem, const VECTOR2I& aRefPos
             addAnchor( pt->GetPosition(), ORIGIN | SNAPPABLE, footprint, POINT_TYPE::PT_CENTER );
         }
 
-        if( !footprintVisible )
+        // When computing drag origins (aFrom=true), always proceed to add the footprint
+        // position anchor regardless of the visibility state. The footprint is already
+        // selected, so its anchor must be reachable as a drag point even if the active layer
+        // or zoom level causes checkVisibility to return false. Snapping TO an external
+        // footprint (aFrom=false) should still respect visibility.
+        if( !footprintVisible && !aFrom )
             break;
 
         if( aFrom && aSelectionFilter && !aSelectionFilter->footprints )
             break;
 
-        // If the cursor is not over a pad, snap to the anchor (if visible) or the center
-        // (if markedly different from the anchor).
+        // Snap to the footprint origin so that move operations keep the part aligned to
+        // the grid regardless of anchor layer visibility, but not when the footprint's
+        // side is hidden.
+        int fpRenderLayer = ( footprint->GetLayer() == F_Cu ) ? LAYER_FOOTPRINTS_FR
+                            : ( footprint->GetLayer() == B_Cu ) ? LAYER_FOOTPRINTS_BK
+                                                                 : LAYER_ANCHOR;
+
+        if( !view->IsLayerVisible( fpRenderLayer ) )
+            break;
+
         VECTOR2I position = footprint->GetPosition();
         VECTOR2I center = footprint->GetBoundingBox( false ).Centre();
         VECTOR2I grid( GetGrid() );
 
-        // Don't snap to invisible anchors, which may be invisible because anchors are off,
-        // or the footprint is on a layer not currently visible.
-        if( view->IsLayerVisible( LAYER_ANCHOR )
-            && footprint->ViewGetLOD( LAYER_ANCHOR, view ) < view->GetScale() )
-        {
-            addAnchor( position, ORIGIN | SNAPPABLE, footprint, POINT_TYPE::PT_CENTER );
-        }
+        addAnchor( position, ORIGIN | SNAPPABLE, footprint, POINT_TYPE::PT_CENTER );
 
         if( ( center - position ).SquaredEuclideanNorm() > grid.SquaredEuclideanNorm() )
             addAnchor( center, ORIGIN | SNAPPABLE, footprint, POINT_TYPE::PT_CENTER );

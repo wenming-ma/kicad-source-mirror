@@ -27,7 +27,6 @@
 #include <settings/app_settings.h>
 #include <variant>
 
-class ACTION_PLUGIN;
 class PCB_SCREEN;
 class BOARD;
 class BOARD_COMMIT;
@@ -44,6 +43,7 @@ class PCB_GROUP;
 class PCB_DIMENSION_BASE;
 class DRC;
 class DIALOG_FIND;
+class DIALOG_FIND_BY_PROPERTIES;
 class DIALOG_PLOT;
 class ZONE;
 class GENERAL_COLLECTOR;
@@ -61,6 +61,7 @@ class ACTION_MENU;
 class TOOL_ACTION;
 class DIALOG_BOARD_SETUP;
 class PCB_DESIGN_BLOCK_PANE;
+class WX_INFOBAR;
 
 #ifdef KICAD_IPC_API
 class KICAD_API_SERVER;
@@ -82,16 +83,6 @@ class PCB_EDIT_FRAME : public PCB_BASE_EDIT_FRAME
 public:
     virtual ~PCB_EDIT_FRAME();
 
-    /**
-     * Load the footprints for each #SCH_COMPONENT in \a aNetlist from the list of libraries.
-     *
-     * @param aNetlist is the netlist of components to load the footprints into.
-     * @param aReporter is the #REPORTER object to report to.
-     * @throw IO_ERROR if an I/O error occurs or a #PARSE_ERROR if a file parsing error
-     *           occurs while reading footprint library files.
-     */
-    void LoadFootprints( NETLIST& aNetlist, REPORTER& aReporter );
-
     void OnQuit( wxCommandEvent& event );
 
     /**
@@ -102,27 +93,12 @@ public:
     bool IsContentModified() const override;
 
     /**
-     * Synchronize the environment variables from KiCad's environment into the Python interpreter.
-     */
-    void PythonSyncEnvironmentVariables();
-
-    /**
-     * Synchronize the project name from KiCad's environment into the Python interpreter.
-     */
-    void PythonSyncProjectName();
-
-    /**
      * Update the layer manager and other widgets from the board setup
      * (layer and items visibility, colors ...)
      */
     void UpdateUserInterface();
 
     void HardRedraw() override;
-
-    /**
-     * Rebuilds board connectivity, refreshes canvas.
-     */
-    void RebuildAndRefresh();
 
     /**
      * Execute a remote command send by Eeschema via a socket, port KICAD_PCB_PORT_SERVICE_NUMBER
@@ -152,6 +128,16 @@ public:
     void ShowFindDialog();
 
     /**
+     * Show the Find by Properties dialog.
+     */
+    void ShowFindByPropertiesDialog();
+
+    /**
+     * Notify the Find by Properties dialog that the selection has changed.
+     */
+    void NotifyFindByPropertiesDialog();
+
+    /**
      * Find the next item using our existing search parameters.
      */
     void FindNext( bool reverse = false );
@@ -174,6 +160,12 @@ public:
      * will be selected.
      */
     void UpdateVariantSelectionCtrl();
+
+    /**
+     * Set the current variant on the board and update the drawing sheet's cached
+     * variant name and description accordingly.
+     */
+    void SetCurrentVariant( const wxString& aVariantName );
 
     /**
      * Event handler for variant selection changes in the toolbar.
@@ -199,13 +191,13 @@ public:
      * Return true if button visibility action plugin setting was set to true
      * or it is unset and plugin defaults to true.
      */
-    static bool GetActionPluginButtonVisible( const wxString& aPluginPath, bool aPluginDefault );
+    static bool GetPluginActionButtonVisible( const wxString& aPluginPath, bool aPluginDefault );
 
     /**
      * Return ordered list of plugins in sequence in which they should appear on toolbar or
-     * in settings.  Handles both legacy (SWIG) and API plugins, so returns a heterogenous list.
+     * in settings.
      */
-    static std::vector<std::variant<ACTION_PLUGIN*, const PLUGIN_ACTION*>> GetOrderedActionPlugins();
+    static std::vector<const PLUGIN_ACTION*> GetOrderedPluginActions();
 
     void SaveProjectLocalSettings() override;
 
@@ -479,11 +471,6 @@ public:
                           const wxString& a3D_Subdir, double aXRef, double aYRef );
 
     /**
-     * Export the current BOARD to a Hyperlynx HYP file.
-     */
-    void OnExportHyperlynx();
-
-    /**
      * Create an IDF3 compliant BOARD (*.emn) and LIBRARY (*.emp) file.
      *
      * @param aPcb a pointer to the board to be exported to IDF.
@@ -498,11 +485,6 @@ public:
     bool Export_IDF3( BOARD* aPcb, const wxString& aFullFileName,
                       bool aUseThou, double aXRef, double aYRef,
                       bool aIncludeUnspecified, bool aIncludeDNP );
-
-    /**
-     * Export the current BOARD to a STEP assembly.
-     */
-    void OnExportSTEP();
 
     /**
      * Export the current BOARD to a specctra dsn file.
@@ -525,27 +507,6 @@ public:
     void ShowFootprintPropertiesDialog( FOOTPRINT* aFootprint );
 
     int ShowExchangeFootprintsDialog( FOOTPRINT* aFootprint, bool aUpdateMode, bool aSelectedMode );
-
-    /**
-     * Replace \a aExisting footprint by \a aNew footprint using the \a Existing footprint
-     * settings (position, orientation, pad netnames ...).
-     *
-     * The \a aExisting footprint is deleted or put in undo list.
-     *
-     * @param aExisting footprint to replace.
-     * @param aNew footprint to put.
-     * @param aCommit commit that should store the changes.
-     */
-    void ExchangeFootprint( FOOTPRINT* aExisting, FOOTPRINT* aNew, BOARD_COMMIT& aCommit,
-                            bool deleteExtraTexts = true,
-                            bool resetTextLayers = true,
-                            bool resetTextEffects = true,
-                            bool resetTextPositions = true,
-                            bool resetTextContent = true,
-                            bool resetFabricationAttrs = true,
-                            bool resetClearanceOverrides = true,
-                            bool reset3DModels = true,
-                            bool* aUpdated = nullptr );
 
     /**
      * Install the corresponding dialog editor for the given item.
@@ -744,37 +705,6 @@ protected:
      */
     void SwitchCanvas( EDA_DRAW_PANEL_GAL::GAL_TYPE aCanvasType ) override;
 
-    /**
-     * Fill action menu with all registered action plugins
-     */
-    void buildActionPluginMenus( ACTION_MENU* aActionMenu );
-
-    /**
-     * Append action plugin buttons to given toolbar
-     */
-    void addActionPluginTools( ACTION_TOOLBAR* aToolbar );
-
-    /**
-     * Execute action plugin's Run() method and updates undo buffer.
-     *
-     * @param aActionPlugin action plugin
-     */
-    void RunActionPlugin( ACTION_PLUGIN* aActionPlugin );
-
-    /**
-     * Launched by the menu when an action is called.
-     *
-     * @param aEvent sent by wx
-     */
-    void OnActionPluginMenu( wxCommandEvent& aEvent);
-
-    /**
-     * Launched by the button when an action is called.
-     *
-     * @param aEvent sent by wx
-     */
-    void OnActionPluginButton( wxCommandEvent& aEvent );
-
     PLUGIN_ACTION_SCOPE PluginActionScope() const override { return PLUGIN_ACTION_SCOPE::PCB; }
 
     /**
@@ -841,8 +771,24 @@ public:
 
     bool      m_ProbingSchToPcb;         // Recursion guard when synchronizing selection from schematic
 
+    /// Reactive text-var invalidation listener state. The handle alone is
+    /// ambiguous across board/project swaps — the tracker it belongs to must
+    /// be remembered so the destructor (and tracker-change detection)
+    /// removes from the correct tracker, not whatever GetBoard() points at
+    /// post-swap. Handle == 0 means not installed.
+    std::size_t             m_textVarListenerHandle = 0;
+    class TEXT_VAR_TRACKER* m_textVarListenerTracker = nullptr;
+
+    /**
+     * Drop every cached reference into the current BOARD's text-var tracker.
+     * Must run before the BOARD is freed (SetBoard replacement or frame
+     * teardown).
+     */
+    void detachTextVarTracker();
+
     void StartCrossProbeFlash( const std::vector<BOARD_ITEM*>& aItems );
     void OnCrossProbeFlashTimer( wxTimerEvent& aEvent );
+    void UpdateProperties() override;
 
 private:
     friend struct PCB::IFACE;
@@ -855,17 +801,24 @@ private:
      * the list of assignable hot keys since it's only available as an advanced configuration
      * option.
      */
-    TOOL_ACTION*           m_exportNetlistAction;
+    TOOL_ACTION* m_exportNetlistAction;
 
-    DIALOG_FIND*           m_findDialog;
-    DIALOG_BOOK_REPORTER*  m_inspectDrcErrorDlg;
-    DIALOG_BOOK_REPORTER*  m_inspectClearanceDlg;
-    DIALOG_BOOK_REPORTER*  m_inspectConstraintsDlg;
-    DIALOG_BOOK_REPORTER*  m_footprintDiffDlg;
-    DIALOG_BOARD_SETUP*    m_boardSetupDlg;
+    DIALOG_FIND*               m_findDialog;
+    DIALOG_FIND_BY_PROPERTIES* m_findByPropertiesDialog;
+    DIALOG_BOOK_REPORTER*      m_inspectDrcErrorDlg;
+    DIALOG_BOOK_REPORTER*      m_inspectClearanceDlg;
+    DIALOG_BOOK_REPORTER*      m_inspectConstraintsDlg;
+    DIALOG_BOOK_REPORTER*      m_footprintDiffDlg;
+    DIALOG_BOARD_SETUP*        m_boardSetupDlg;
 
     std::vector<LIB_ID>    m_designBlockHistoryList;
     PCB_DESIGN_BLOCK_PANE* m_designBlocksPane;
+
+    /// Secondary infobar that stacks above the main one; reserved for load-time
+    /// notices (currently the WRL -> STEP migration prompt) that must not be
+    /// stomped by later infobar messages such as read-only warnings or DRC
+    /// rule errors.
+    WX_INFOBAR*            m_loadNoticeInfoBar = nullptr;
 
     const std::map<std::string, UTF8>* m_importProperties; // Properties used for non-KiCad import.
 

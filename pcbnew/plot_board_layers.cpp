@@ -27,6 +27,7 @@
 #include <lset.h>
 #include <geometry/geometry_utils.h>
 #include <geometry/shape_segment.h>
+#include <trigo.h>
 #include <pcb_base_frame.h>
 #include <math/util.h>      // for KiROUND
 #include <board.h>
@@ -41,6 +42,7 @@
 #include <plotters/plotter.h>
 #include <plotters/plotter_dxf.h>
 #include <plotters/plotter_gerber.h>
+#include <plotters/plotter_png.h>
 #include <plotters/plotters_pslike.h>
 #include <pcb_painter.h>
 #include <gbr_metadata.h>
@@ -529,12 +531,29 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, const LSET& aLayerMask
 
                     case PAD_SHAPE::ROUNDRECT:
                     {
-                        // rounding is stored as a percent, but we have to update this ratio
-                        // to force recalculation of other values after size changing (we do not
-                        // really change the rounding percent value)
-                        double radius_ratio = pad->GetRoundRectRadiusRatio( aLayer );
-                        pad->SetSize( aLayer, padPlotsSize );
-                        pad->SetRoundRectRadiusRatio( aLayer, radius_ratio );
+                        // The Minkowski sum of a rounded rectangle with a disk of radius R is
+                        // another rounded rectangle whose sides grow by 2R and whose corner
+                        // radius grows by R. Preserving the original radius_ratio instead
+                        // produces visibly inconsistent expansion at the corners (issue 24327).
+                        if( sameXYClearance )
+                        {
+                            int originalRadius = pad->GetRoundRectCornerRadius( aLayer );
+                            int newRadius      = std::max( 0, originalRadius + mask_clearance );
+                            pad->SetSize( aLayer, padPlotsSize );
+                            pad->SetRoundRectCornerRadius( aLayer, newRadius );
+                        }
+                        else
+                        {
+                            // Asymmetric X/Y clearance (e.g. solder paste ratio on a
+                            // non-square pad) is not a Minkowski sum with a disk. Fall back
+                            // to the historical behavior of scaling both axes by the per-axis
+                            // margin while keeping the radius_ratio. This is approximate at
+                            // the corners but preserves the bounding box, which is the
+                            // dimension users rely on for paste apertures.
+                            double radiusRatio = pad->GetRoundRectRadiusRatio( aLayer );
+                            pad->SetSize( aLayer, padPlotsSize );
+                            pad->SetRoundRectRadiusRatio( aLayer, radiusRatio );
+                        }
 
                         itemplotter.PlotPad( pad, aLayer, color, doSketchPads );
                         break;
@@ -642,27 +661,50 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, const LSET& aLayerMask
                 && (   ( onFrontFab && footprint->GetLayer() == F_Cu )
                     || ( onBackFab && footprint->GetLayer() == B_Cu ) ) )
         {
-            BOX2I                 rect;
             const SHAPE_POLY_SET& courtyard = footprint->GetCourtyard( footprint->GetLayer() );
+            VECTOR2I              center = footprint->GetPosition();
+            EDA_ANGLE             orient = footprint->GetOrientation();
+
+            // Compute a tight oriented bounding box by un-rotating the shape into the
+            // footprint's local frame, taking the axis-aligned BBox there, then rotating
+            // the four corners back into world coordinates.
+            BOX2I localRect;
 
             if( courtyard.IsEmpty() )
-                rect = footprint->GetEffectiveShape()->BBox();
+            {
+                std::shared_ptr<SHAPE> shape = footprint->GetEffectiveShape();
+                shape->Rotate( -orient, center );
+                localRect = shape->BBox();
+            }
             else
-                rect = courtyard.BBox();
+            {
+                SHAPE_POLY_SET temp( courtyard );
+                temp.Rotate( -orient, center );
+                localRect = temp.BBox();
+            }
 
-            int   width = aBoard->GetDesignSettings().m_LineThickness[ LAYER_CLASS_FAB ];
+            VECTOR2I corner1( localRect.GetLeft(), localRect.GetTop() );
+            VECTOR2I corner2( localRect.GetRight(), localRect.GetTop() );
+            VECTOR2I corner3( localRect.GetRight(), localRect.GetBottom() );
+            VECTOR2I corner4( localRect.GetLeft(), localRect.GetBottom() );
+
+            RotatePoint( corner1, center, orient );
+            RotatePoint( corner2, center, orient );
+            RotatePoint( corner3, center, orient );
+            RotatePoint( corner4, center, orient );
+
+            int width = aBoard->GetDesignSettings().m_LineThickness[ LAYER_CLASS_FAB ];
 
             // Use DNP cross color from color scheme
             COLOR4D dnpMarkerColor = aPlotOpt.ColorSettings()->GetColor( LAYER_DNP_MARKER );
+
             if( dnpMarkerColor != COLOR4D::UNSPECIFIED )
                 aPlotter->SetColor( dnpMarkerColor );
             else
                 aPlotter->SetColor( aPlotOpt.ColorSettings()->GetColor( onFrontFab ? F_Fab : B_Fab ) );
 
-            aPlotter->ThickSegment( rect.GetOrigin(), rect.GetEnd(), width, nullptr );
-            aPlotter->ThickSegment( VECTOR2I( rect.GetLeft(), rect.GetBottom() ),
-                                    VECTOR2I( rect.GetRight(), rect.GetTop() ),
-                                    width, nullptr );
+            aPlotter->ThickSegment( corner1, corner3, width, nullptr );
+            aPlotter->ThickSegment( corner2, corner4, width, nullptr );
         }
 
         aPlotter->EndBlock( nullptr );
@@ -1299,6 +1341,23 @@ PLOTTER* StartPlotBoard( BOARD *aBoard, const PCB_PLOT_PARAMS *aPlotOpts, int aL
         plotter = new SVG_PLOTTER();
         break;
 
+    case PLOT_FORMAT::PNG:
+    {
+        PNG_PLOTTER* pngPlotter = new PNG_PLOTTER();
+
+        PAGE_INFO pageInfo = aBoard->GetPageSettings();
+        VECTOR2D  sizeIU = pageInfo.GetSizeIU( pcbIUScale.IU_PER_MILS );
+        int       dpi = aPlotOpts->GetPngDPI();
+        double    iuPerInch = pcbIUScale.IU_PER_MILS * 1000.0;
+
+        pngPlotter->SetPixelSize( KiROUND( sizeIU.x * dpi / iuPerInch ),
+                                  KiROUND( sizeIU.y * dpi / iuPerInch ) );
+        pngPlotter->SetResolution( dpi );
+        pngPlotter->SetAntialias( aPlotOpts->GetPngAntialias() );
+        plotter = pngPlotter;
+        break;
+    }
+
     default:
         wxASSERT( false );
         return nullptr;
@@ -1308,6 +1367,8 @@ PLOTTER* StartPlotBoard( BOARD *aBoard, const PCB_PLOT_PARAMS *aPlotOpts, int aL
     renderSettings->LoadColors( aPlotOpts->ColorSettings() );
     renderSettings->SetDefaultPenWidth( pcbIUScale.mmToIU( 0.0212 ) );  // Hairline at 1200dpi
     renderSettings->SetLayerName( aLayerName );
+    renderSettings->SetDashLengthRatio( aPlotOpts->GetDashedLineDashRatio() );
+    renderSettings->SetGapLengthRatio( aPlotOpts->GetDashedLineGapRatio() );
 
     plotter->SetRenderSettings( renderSettings );
 
@@ -1368,10 +1429,13 @@ PLOTTER* StartPlotBoard( BOARD *aBoard, const PCB_PLOT_PARAMS *aPlotOpts, int aL
             // Plot the frame reference if requested
             if( aPlotOpts->GetPlotFrameRef() )
             {
-                PlotDrawingSheet( plotter, aBoard->GetProject(), aBoard->GetTitleBlock(),
-                                  aBoard->GetPageSettings(), &aBoard->GetProperties(), aPageNumber,
-                                  aPageCount, aSheetName, aSheetPath, aBoard->GetFileName(),
-                                  renderSettings->GetLayerColor( LAYER_DRAWINGSHEET ) );
+                wxString variantName = aBoard->GetCurrentVariant();
+                wxString variantDesc = aBoard->GetVariantDescription( variantName );
+
+                PlotDrawingSheet( plotter, aBoard->GetProject(), aBoard->GetTitleBlock(), aBoard->GetPageSettings(),
+                                  &aBoard->GetProperties(), aPageNumber, aPageCount, aSheetName, aSheetPath,
+                                  aBoard->GetFileName(), renderSettings->GetLayerColor( LAYER_DRAWINGSHEET ), true,
+                                  variantName, variantDesc );
 
                 if( aPlotOpts->GetMirror() || aPlotOpts->GetScale() != 1.0 || aPlotOpts->GetAutoScale() )
                     initializePlotter( plotter, aBoard, aPlotOpts );
@@ -1423,11 +1487,13 @@ void setupPlotterNewPDFPage( PLOTTER* aPlotter, BOARD* aBoard, PCB_PLOT_PARAMS* 
             revertOps = true;
         }
 
-        PlotDrawingSheet( aPlotter, aBoard->GetProject(), aBoard->GetTitleBlock(),
-                          aBoard->GetPageSettings(), &aBoard->GetProperties(), aPageNumber,
-                          aPageCount,
-                          aSheetName, aSheetPath, aBoard->GetFileName(),
-                          aPlotter->RenderSettings()->GetLayerColor( LAYER_DRAWINGSHEET ) );
+        wxString variantName = aBoard->GetCurrentVariant();
+        wxString variantDesc = aBoard->GetVariantDescription( variantName );
+
+        PlotDrawingSheet( aPlotter, aBoard->GetProject(), aBoard->GetTitleBlock(), aBoard->GetPageSettings(),
+                          &aBoard->GetProperties(), aPageNumber, aPageCount, aSheetName, aSheetPath,
+                          aBoard->GetFileName(), aPlotter->RenderSettings()->GetLayerColor( LAYER_DRAWINGSHEET ), true,
+                          variantName, variantDesc );
 
         if( revertOps )
         {

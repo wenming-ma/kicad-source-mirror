@@ -26,21 +26,148 @@
  * @brief Pcbnew PLUGIN for Altium *.PcbDoc format.
  */
 
+#include <set>
+
 #include <wx/string.h>
 
 #include <font/fontconfig.h>
+#include <project.h>
 #include <pcb_io_altium_designer.h>
 #include <altium_pcb.h>
 #include <altium_pcb_compound_file.h>
 #include <io/io_utils.h>
 #include <io/altium/altium_binary_parser.h>
+#include <io/altium/altium_project_variants.h>
 #include <pcb_io/pcb_io.h>
 #include <reporter.h>
 
 #include <board.h>
+#include <footprint.h>
 
 #include <compoundfilereader.h>
 #include <utf.h>
+
+
+void ApplyAltiumProjectVariantsToBoard( BOARD* aBoard,
+                                        const std::vector<ALTIUM_PROJECT_VARIANT>& aVariants )
+{
+    std::map<wxString, FOOTPRINT*>          fpByRef;
+    std::map<KIID, std::vector<FOOTPRINT*>> fpByUid;
+
+    for( FOOTPRINT* fp : aBoard->Footprints() )
+    {
+        fpByRef[fp->GetReference()] = fp;
+
+        // The importer stores the component unique id as the last path element. Repeated
+        // channels share one id across footprints, so collect all of them to detect ambiguity.
+        const KIID_PATH& path = fp->GetPath();
+
+        if( path.size() >= 2 )
+            fpByUid[path.back()].push_back( fp );
+    }
+
+    for( const ALTIUM_PROJECT_VARIANT& pv : aVariants )
+    {
+        aBoard->AddVariant( pv.name );
+
+        if( !pv.description.empty() && pv.description != pv.name )
+            aBoard->SetVariantDescription( pv.name, pv.description );
+
+        for( const ALTIUM_VARIANT_ENTRY& entry : pv.variations )
+        {
+            FOOTPRINT* target = nullptr;
+
+            // Prefer unique-id matching, but only when it resolves to a single footprint. A
+            // shared id (repeated channels) is ambiguous, so fall back to the designator.
+            if( !entry.uniqueId.empty() )
+            {
+                auto it = fpByUid.find( AltiumUniqueIdToKiid( entry.uniqueId ) );
+
+                if( it != fpByUid.end() && it->second.size() == 1 )
+                    target = it->second.front();
+            }
+
+            if( !target )
+            {
+                auto it = fpByRef.find( entry.designator );
+
+                if( it != fpByRef.end() )
+                    target = it->second;
+            }
+
+            if( !target )
+                continue;
+
+            FOOTPRINT_VARIANT* fpVariant = target->AddVariant( pv.name );
+
+            if( !fpVariant )
+                continue;
+
+            if( entry.kind == 1 )
+            {
+                fpVariant->SetDNP( true );
+                fpVariant->SetExcludedFromBOM( true );
+                fpVariant->SetExcludedFromPosFiles( true );
+            }
+            else if( entry.kind == 0 )
+            {
+                for( const auto& [key, value] : entry.alternateFields )
+                {
+                    if( key.CmpNoCase( wxS( "LibReference" ) ) == 0 )
+                        fpVariant->SetFieldValue( wxS( "Value" ), value );
+                    else if( key.CmpNoCase( wxS( "Description" ) ) == 0 )
+                        fpVariant->SetFieldValue( wxS( "Description" ), value );
+                    else if( key.CmpNoCase( wxS( "Footprint" ) ) == 0 )
+                        fpVariant->SetFieldValue( wxS( "Footprint" ), value );
+                }
+            }
+        }
+    }
+}
+
+void ApplyAltiumProjectParametersToProject( PROJECT* aProject,
+                                            const std::map<wxString, wxString>& aParameters )
+{
+    if( !aProject )
+        return;
+
+    // Names KiCad resolves contextually (board fields, title block, special strings). Importing
+    // them as project variables would shadow nothing useful and could surprise the user, so they
+    // are left to native resolution.
+    static const std::set<wxString> reserved = {
+        wxS( "LAYER" ),         wxS( "FILENAME" ),      wxS( "FILEPATH" ),
+        wxS( "PROJECTNAME" ),   wxS( "VARIANT" ),       wxS( "VARIANT_DESC" ),
+        wxS( "ISSUE_DATE" ),    wxS( "CURRENT_DATE" ),  wxS( "CURRENT_TIME_LOCALE" ),
+        wxS( "CURRENT_TIME_HH_MM_SS" ), wxS( "REVISION" ), wxS( "TITLE" ),
+        wxS( "COMPANY" ),       wxS( "COMMENT1" ),      wxS( "COMMENT2" ),
+        wxS( "COMMENT3" ),      wxS( "COMMENT4" ),      wxS( "COMMENT5" ),
+        wxS( "COMMENT6" ),      wxS( "COMMENT7" ),      wxS( "COMMENT8" ),
+        wxS( "COMMENT9" ),      wxS( "VCSHASH" ),       wxS( "VCSSHORTHASH" ),
+        wxS( "KICAD_VERSION" ), wxS( "PAPER" ),         wxS( "SHEETNAME" ),
+        wxS( "SHEETPATH" ),     wxS( "DRC_WARNING" ),   wxS( "DRC_ERROR" ),
+        wxS( "ERC_WARNING" ),   wxS( "ERC_ERROR" )
+    };
+
+    std::map<wxString, wxString>& textVars = aProject->GetTextVars();
+    bool                          added = false;
+
+    for( const auto& [name, value] : aParameters )
+    {
+        if( reserved.count( name ) )
+            continue;
+
+        // Don't clobber a variable the user (or a prior import step) already set.
+        if( textVars.count( name ) )
+            continue;
+
+        textVars[name] = value;
+        added = true;
+    }
+
+    if( added )
+        aProject->IncrementTextVarsTicker();
+}
+
 
 PCB_IO_ALTIUM_DESIGNER::PCB_IO_ALTIUM_DESIGNER() :
         PCB_IO( wxS( "Altium Designer" ) )
@@ -148,6 +275,19 @@ BOARD* PCB_IO_ALTIUM_DESIGNER::LoadBoard( const wxString& aFileName, BOARD* aApp
     catch( CFB::CFBException& exception )
     {
         THROW_IO_ERROR( exception.what() );
+    }
+
+    if( m_props && m_props->count( "project_file" ) )
+    {
+        const wxString& projectFile = m_props->at( "project_file" );
+
+        auto variants = ParseAltiumProjectVariants( projectFile );
+
+        if( !variants.empty() )
+            ApplyAltiumProjectVariantsToBoard( m_board, variants );
+
+        ApplyAltiumProjectParametersToProject( aProject,
+                                               ParseAltiumProjectParameters( projectFile ) );
     }
 
     return m_board;

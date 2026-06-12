@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <future>
+#include <limits>
 #include <mutex>
 #include <ranges>
 
@@ -50,6 +51,7 @@
 
 bool CN_CONNECTIVITY_ALGO::Remove( BOARD_ITEM* aItem )
 {
+    bool anythingDeleted = false;
     markItemNetAsDirty( aItem );
 
     switch( aItem->Type() )
@@ -57,8 +59,12 @@ bool CN_CONNECTIVITY_ALGO::Remove( BOARD_ITEM* aItem )
     case PCB_FOOTPRINT_T:
         for( PAD* pad : static_cast<FOOTPRINT*>( aItem )->Pads() )
         {
-            m_itemMap[pad].MarkItemsAsInvalid();
-            m_itemMap.erase( pad );
+            if( m_itemMap.find( pad ) != m_itemMap.end() ) // prevent double deletion
+            {
+                m_itemMap[pad].MarkItemsAsInvalid();
+                m_itemMap.erase( pad );
+                anythingDeleted = true;
+            }
         }
 
         m_itemList.SetDirty( true );
@@ -70,17 +76,23 @@ bool CN_CONNECTIVITY_ALGO::Remove( BOARD_ITEM* aItem )
     case PCB_VIA_T:
     case PCB_ZONE_T:
     case PCB_SHAPE_T:
-        m_itemMap[aItem].MarkItemsAsInvalid();
-        m_itemMap.erase ( aItem );
-        m_itemList.SetDirty( true );
+        if( m_itemMap.find( aItem ) != m_itemMap.end() ) // prevent double deletion
+        {
+            m_itemMap[aItem].MarkItemsAsInvalid();
+            m_itemMap.erase ( aItem );
+            m_itemList.SetDirty( true );
+            anythingDeleted = true;
+        }
         break;
 
     default:
         return false;
     }
 
+
     // Once we delete an item, it may connect between lists, so mark both as potentially invalid
-    m_itemList.SetHasInvalid( true );
+    if( anythingDeleted )
+        m_itemList.SetHasInvalid( true );
 
     return true;
 }
@@ -277,9 +289,9 @@ void CN_CONNECTIVITY_ALGO::searchConnections()
         std::vector<std::future<size_t>> returns( dirtyItems.size() );
 
         // Collect deferred net code changes to avoid data races in parallel search.
-        // Free vias connected to zones have their net codes updated after all parallel
-        // work completes.
-        std::vector<std::pair<BOARD_CONNECTED_ITEM*, int>> deferredNetCodes;
+        // Vias connected to zones have their net codes updated after all parallel work
+        // completes, but only if the via has no higher-priority connections (tracks, pads).
+        std::vector<std::pair<CN_ITEM*, int>> deferredNetCodes;
         std::mutex deferredNetCodesMutex;
 
         for( size_t ii = 0; ii < dirtyItems.size(); ++ii )
@@ -314,9 +326,63 @@ void CN_CONNECTIVITY_ALGO::searchConnections()
             }
         }
 
-        // Apply deferred net code changes now that parallel search is complete
-        for( const auto& [item, netCode] : deferredNetCodes )
-            item->SetNetCode( netCode );
+        // Apply deferred zone net changes, but only for vias that have no non-zone
+        // connections.  Tracks and pads take priority over zones for net assignment;
+        // cluster-based propagation will handle those vias.
+        //
+        // A single via can touch zones of several different nets (e.g. a through via
+        // crossing a GND plane and a power plane).  The order in which those candidate
+        // nets are collected depends on the parallel search and is not stable across
+        // connectivity rebuilds, so we must not simply pick the first one: doing so makes
+        // the via's net flip arbitrarily on every rebuild (i.e. on every undo/redo).
+        // Instead, if the via's existing net matches any zone it touches, we keep it.
+        // This preserves a deliberately-assigned net and only falls back to a
+        // deterministic choice (lowest net code) when the current net no longer touches
+        // any zone.
+        std::sort( deferredNetCodes.begin(), deferredNetCodes.end(),
+                   []( const auto& a, const auto& b ) { return a.first < b.first; } );
+
+        for( auto it = deferredNetCodes.begin(); it != deferredNetCodes.end(); )
+        {
+            CN_ITEM* cnItem = it->first;
+
+            // Entries for the same via are contiguous after the sort above.
+            auto groupEnd = it;
+
+            while( groupEnd != deferredNetCodes.end() && groupEnd->first == cnItem )
+                ++groupEnd;
+
+            if( std::ranges::any_of( cnItem->ConnectedItems(),
+                                     []( const CN_ITEM* c )
+                                     {
+                                         return c->Parent()->Type() != PCB_ZONE_T;
+                                     } ) )
+            {
+                // Connected to a track or pad, so cluster propagation owns the net.
+                it = groupEnd;
+                continue;
+            }
+
+            int  existingNet = cnItem->Parent()->GetNetCode();
+            bool keepExisting = false;
+            int  bestNet = std::numeric_limits<int>::max();
+
+            for( auto entry = it; entry != groupEnd; ++entry )
+            {
+                if( entry->second == existingNet )
+                {
+                    keepExisting = true;
+                    break;
+                }
+
+                bestNet = std::min( bestNet, entry->second );
+            }
+
+            if( !keepExisting )
+                cnItem->Parent()->SetNetCode( bestNet );
+
+            it = groupEnd;
+        }
 
         if( m_progressReporter )
             m_progressReporter->KeepRefreshing();
@@ -714,7 +780,11 @@ void CN_CONNECTIVITY_ALGO::FillIsolatedIslandsMap( std::map<ZONE*, std::map<PCB_
                 }
             }
 
-            if( notInConnectivity )
+            // Non-copper zones (silk, mask, etc.) are never added to the connectivity graph,
+            // so notInConnectivity is always true for them.  Without the IsCopperLayer guard
+            // outline 0 of every non-copper multi-island fill gets dropped on every refill
+            // (issue 24089).
+            if( notInConnectivity && IsCopperLayer( layer ) )
                 layerIslands.m_IsolatedOutlines.push_back( 0 );
         }
     }
@@ -761,12 +831,12 @@ void CN_VISITOR::checkZoneItemConnection( CN_ZONE_LAYER* aZoneLayer, CN_ITEM* aI
     auto connect =
             [&]()
             {
-                // We don't propagate nets from zones, so any free-via net changes need to happen now.
-                // Defer the SetNetCode call to avoid data races during parallel connectivity search.
+                // We don't propagate nets from zones, so via-zone net changes are deferred
+                // and applied only if the via has no higher-priority connections (tracks, pads).
                 if( aItem->Parent()->Type() == PCB_VIA_T && aItem->CanChangeNet() )
                 {
                     std::lock_guard<std::mutex> lock( *m_deferredNetCodesMutex );
-                    m_deferredNetCodes->emplace_back( aItem->Parent(), aZoneLayer->Net() );
+                    m_deferredNetCodes->emplace_back( aItem, aZoneLayer->Net() );
                 }
 
                 aZoneLayer->Connect( aItem );

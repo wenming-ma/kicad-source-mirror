@@ -24,6 +24,8 @@
 
 #include <symbol_edit_frame.h>
 #include <lib_symbol_library_manager.h>
+#include <sch_screen.h>
+#include <symbol_editor/symbol_editor_tab_context.h>
 #include <widgets/lib_tree.h>
 #include <tool/tool_manager.h>
 #include <tools/sch_selection_tool.h>
@@ -94,13 +96,15 @@ void SYMBOL_EDIT_FRAME::GetSymbolFromRedoList()
     // Just set the current symbol to the symbol which come from the redo list
     m_symbol = symbol;
 
+    if( m_activeTab )
+        m_activeTab->RefreshFrameOwnedObjects( m_symbol, static_cast<SCH_SCREEN*>( GetScreen() ) );
+
     if( undoRedoType == UNDO_REDO::LIB_RENAME )
     {
-        wxString lib = GetCurLib();
-        m_libMgr->UpdateSymbolAfterRename( symbol, oldSymbol->GetName(), lib );
+        m_libMgr->UpdateSymbolAfterRename( symbol, oldSymbol->GetName(), oldSymbol->GetLibNickname() );
 
         // Reselect the renamed symbol
-        m_treePane->GetLibTree()->SelectLibId( LIB_ID( lib, symbol->GetName() ) );
+        m_treePane->GetLibTree()->SelectLibId( LIB_ID( symbol->GetLibNickname(), symbol->GetName() ) );
     }
 
     RebuildSymbolUnitAndBodyStyleLists();
@@ -144,13 +148,15 @@ void SYMBOL_EDIT_FRAME::GetSymbolFromUndoList()
     // Just set the current symbol to the symbol which come from the undo list
     m_symbol = symbol;
 
+    if( m_activeTab )
+        m_activeTab->RefreshFrameOwnedObjects( m_symbol, static_cast<SCH_SCREEN*>( GetScreen() ) );
+
     if( undoRedoType == UNDO_REDO::LIB_RENAME )
     {
-        wxString lib = GetCurLib();
-        m_libMgr->UpdateSymbolAfterRename( symbol, oldSymbol->GetName(), lib );
+        m_libMgr->UpdateSymbolAfterRename( symbol, oldSymbol->GetName(), oldSymbol->GetLibNickname() );
 
         // Reselect the renamed symbol
-        m_treePane->GetLibTree()->SelectLibId( LIB_ID( lib, symbol->GetName() ) );
+        m_treePane->GetLibTree()->SelectLibId( LIB_ID( symbol->GetLibNickname(), symbol->GetName() ) );
     }
 
     RebuildSymbolUnitAndBodyStyleLists();

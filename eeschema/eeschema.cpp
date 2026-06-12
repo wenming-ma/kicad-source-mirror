@@ -23,6 +23,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <algorithm>
+
 #include <core/json_serializers.h>
 #include <pgm_base.h>
 #include <kiface_base.h>
@@ -78,6 +80,15 @@
 #include <toolbars_sch_editor.h>
 #include <toolbars_symbol_editor.h>
 
+#if defined( KICAD_IPC_API )
+#include <api/api_handler_sch.h>
+#include <api/api_server.h>
+#include <api/api_utils.h>
+#include <api/headless_sch_context.h>
+#include <sch_io/sch_io.h>
+#include <sch_io/sch_io_mgr.h>
+#endif
+
 #include <wx/crt.h>
 
 // The main sheet of the project
@@ -95,18 +106,33 @@ static std::unique_ptr<SCHEMATIC> readSchematicFromFile( const std::string& aFil
 
     SETTINGS_MANAGER& manager = Pgm().GetSettingsManager();
 
-    // TODO: this must load the schematic's project, not a default project.  At the very minimum
-    // variable resolution won't work without the project, but there might also be issues with
-    // netclasses, etc.
-    manager.LoadProject( "" );
+    wxFileName pro( aFilename );
+    pro.SetExt( FILEEXT::ProjectFileExtension );
+    pro.MakeAbsolute();
+    wxString projectPath = pro.GetFullPath();
+
+    PROJECT* project = manager.GetProject( projectPath );
+
+    if( !project )
+    {
+        manager.LoadProject( projectPath, true );
+        project = manager.GetProject( projectPath );
+    }
+
     schematic->Reset();
-    schematic->SetProject( &manager.Prj() );
+    schematic->SetProject( project );
     SCH_SHEET* rootSheet = pi->LoadSchematicFile( aFilename, schematic.get() );
 
     if( !rootSheet )
         return nullptr;
 
-    schematic->SetTopLevelSheets( { rootSheet } );
+    std::vector<SCH_SHEET*> topLevelSheets = schematic->GetTopLevelSheets();
+    bool rootIsTopLevel = std::find( topLevelSheets.begin(), topLevelSheets.end(), rootSheet )
+                          != topLevelSheets.end();
+    bool rootIsVirtualRoot = rootSheet == &schematic->Root() || rootSheet->IsVirtualRootSheet();
+
+    if( !rootIsTopLevel && !rootIsVirtualRoot )
+        schematic->SetTopLevelSheets( { rootSheet } );
 
     SCH_SCREENS screens( schematic->Root() );
 
@@ -289,7 +315,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
             for( ACTION_TOOLBAR_CONTROL* control : ACTION_TOOLBAR::GetCustomControlList( FRAME_SCH_SYMBOL_EDITOR ) )
                 controls.push_back( control );
 
-            return new PANEL_TOOLBAR_CUSTOMIZATION( aParent, cfg, tb, actions, controls );
+            return new PANEL_TOOLBAR_CUSTOMIZATION( aParent, cfg, tb, FRAME_SCH_SYMBOL_EDITOR, actions, controls );
         }
 
         case PANEL_SYM_COLORS:
@@ -345,7 +371,7 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
             for( ACTION_TOOLBAR_CONTROL* control : ACTION_TOOLBAR::GetCustomControlList( FRAME_SCH ) )
                 controls.push_back( control );
 
-            return new PANEL_TOOLBAR_CUSTOMIZATION( aParent, cfg, tb, actions, controls );
+            return new PANEL_TOOLBAR_CUSTOMIZATION( aParent, cfg, tb, FRAME_SCH, actions, controls );
         }
 
         case PANEL_SCH_COLORS:
@@ -410,6 +436,16 @@ static struct IFACE : public KIFACE_BASE, public UNITS_PROVIDER
 
     bool HandleJobConfig( JOB* aJob, wxWindow* aParent ) override;
 
+#if defined( KICAD_IPC_API )
+    bool HandleApiOpenDocument( const wxString& aPath,
+                                KICAD_API_SERVER* aServer,
+                                wxString* aError ) override;
+
+    bool HandleApiCloseDocument( const wxString& aSchFileName,
+                                 KICAD_API_SERVER* aServer,
+                                 wxString* aError ) override;
+#endif
+
     void PreloadLibraries( KIWAY* aKiway ) override;
     void CancelPreload( bool aBlock = true ) override;
     void ProjectChanged() override;
@@ -420,6 +456,15 @@ private:
     std::future<void>                      m_libraryPreloadReturn;
     std::atomic_bool                       m_libraryPreloadInProgress;
     std::atomic_bool                       m_libraryPreloadAbort;
+
+#if defined( KICAD_IPC_API )
+    void closeCurrentDocument( KICAD_API_SERVER* aServer );
+
+    KIWAY*                                    m_kiway = nullptr;
+    SCHEMATIC*                                m_openSchematic = nullptr;
+    std::shared_ptr<HEADLESS_SCH_CONTEXT>     m_openContext;
+    std::unique_ptr<API_HANDLER_SCH>          m_openHandler;
+#endif
 
 } kiface( "eeschema", KIWAY::FACE_SCH );
 
@@ -457,6 +502,10 @@ bool IFACE::OnKifaceStart( PGM_BASE* aProgram, int aCtlBits, KIWAY* aKiway )
     aProgram->GetSettingsManager().RegisterSettings( KifaceSettings() );
 
     start_common( aCtlBits );
+
+#if defined( KICAD_IPC_API )
+    m_kiway = aKiway;
+#endif
 
     m_jobHandler = std::make_unique<EESCHEMA_JOBS_HANDLER>( aKiway );
 
@@ -503,7 +552,8 @@ void IFACE::PreloadLibraries( KIWAY* aKiway )
 
             SYMBOL_LIBRARY_ADAPTER* adapter = PROJECT_SCH::SymbolLibAdapter( &aKiway->Prj() );
 
-            int elapsed = 0;
+            int  elapsed = 0;
+            bool aborted = false;
 
             reporter->Report( _( "Loading Symbol Libraries" ) );
             adapter->AsyncLoad();
@@ -513,6 +563,7 @@ void IFACE::PreloadLibraries( KIWAY* aKiway )
                 if( m_libraryPreloadAbort.load() )
                 {
                     m_libraryPreloadAbort.store( false );
+                    aborted = true;
                     break;
                 }
 
@@ -538,40 +589,60 @@ void IFACE::PreloadLibraries( KIWAY* aKiway )
                     break;
             }
 
-            adapter->BlockUntilLoaded();
+            // AbortAsyncLoad() sets the adapter's worker abort flag and then blocks,
+            // so workers exit at their next checkpoint. BlockUntilLoaded() alone just
+            // waits for each future to complete naturally, which can hang indefinitely
+            // if a worker is stuck on a stalled network or filesystem operation.
+            if( aborted )
+                adapter->AbortAsyncLoad();
+            else
+                adapter->BlockUntilLoaded();
 
-            // Collect library load errors for async reporting
-            wxString errors = adapter->GetLibraryLoadErrors();
-
-            wxLogTrace( traceLibraries, "eeschema PreloadLibraries: errors.IsEmpty()=%d, length=%zu",
-                        errors.IsEmpty(), errors.length() );
-
-            std::vector<LOAD_MESSAGE> messages =
-                    ExtractLibraryLoadErrors( errors, RPT_SEVERITY_ERROR );
-
-            if( !messages.empty() )
+            // If aborted, skip operations that use the adapter since the project may have changed
+            // and the adapter's project reference could be stale. This prevents use-after-free
+            // crashes when switching projects during library preload.
+            if( !aborted )
             {
-                wxLogTrace( traceLibraries, "  -> collected %zu messages, calling AddLibraryLoadMessages",
-                            messages.size() );
-                Pgm().AddLibraryLoadMessages( messages );
+                // Collect library load errors for async reporting
+                wxString errors = adapter->GetLibraryLoadErrors();
+
+                wxLogTrace( traceLibraries, "eeschema PreloadLibraries: errors.IsEmpty()=%d, length=%zu",
+                            errors.IsEmpty(), errors.length() );
+
+                std::vector<LOAD_MESSAGE> messages = ExtractLibraryLoadErrors( errors, RPT_SEVERITY_ERROR );
+
+                if( !messages.empty() )
+                {
+                    wxLogTrace( traceLibraries, "  -> collected %zu messages, calling AddLibraryLoadMessages",
+                                messages.size() );
+                    Pgm().AddLibraryLoadMessages( messages );
+                }
+                else
+                {
+                    wxLogTrace( traceLibraries, "  -> no errors from symbol libraries" );
+                }
             }
             else
             {
-                wxLogTrace( traceLibraries, "  -> no errors from symbol libraries" );
+                wxLogTrace( traceLibraries, "eeschema PreloadLibraries: aborted, skipping symbol processing" );
             }
 
             Pgm().GetBackgroundJobMonitor().Remove( m_libraryPreloadBackgroundJob );
             m_libraryPreloadBackgroundJob.reset();
             m_libraryPreloadInProgress.store( false );
 
-            std::string payload = "";
-            aKiway->ExpressMail( FRAME_SCH, MAIL_RELOAD_LIB, payload, nullptr, true );
-            aKiway->ExpressMail( FRAME_SCH_SYMBOL_EDITOR, MAIL_RELOAD_LIB, payload, nullptr, true );
-            aKiway->ExpressMail( FRAME_SCH_VIEWER, MAIL_RELOAD_LIB, payload, nullptr, true );
+            // Only send reload notifications if we weren't aborted
+            if( !aborted )
+            {
+                std::string payload = "";
+                aKiway->ExpressMail( FRAME_SCH, MAIL_RELOAD_LIB, payload, nullptr, true );
+                aKiway->ExpressMail( FRAME_SCH_SYMBOL_EDITOR, MAIL_RELOAD_LIB, payload, nullptr, true );
+                aKiway->ExpressMail( FRAME_SCH_VIEWER, MAIL_RELOAD_LIB, payload, nullptr, true );
+            }
         };
 
-    thread_pool& tp = GetKiCadThreadPool();
-    m_libraryPreloadReturn = tp.submit_task( preload );
+    std::future<void> preloadFuture = std::async( std::launch::async, preload );
+    m_libraryPreloadReturn = std::move( preloadFuture );
 }
 
 
@@ -750,3 +821,145 @@ bool IFACE::HandleJobConfig( JOB* aJob, wxWindow* aParent )
 {
     return m_jobHandler->HandleJobConfig( aJob, aParent );
 }
+
+
+#if defined( KICAD_IPC_API )
+// TODO(JE) some of the below methods can probably be factored out and shared between sch/pcb
+void IFACE::closeCurrentDocument( KICAD_API_SERVER* aServer )
+{
+    if( m_openHandler )
+    {
+        if( aServer )
+            aServer->DeregisterHandler( m_openHandler.get() );
+
+        m_openHandler.reset();
+    }
+
+    m_openContext.reset();
+
+    delete m_openSchematic;
+    m_openSchematic = nullptr;
+
+    // The jobs handler caches the last-loaded schematic. Clear it so the next job
+    // uses the schematic from the newly opened document rather than a stale copy.
+    m_jobHandler->ClearCachedSchematic();
+}
+
+
+bool IFACE::HandleApiOpenDocument( const wxString& aPath, KICAD_API_SERVER* aServer,
+                                   wxString* aError )
+{
+    wxCHECK( aServer, false );
+
+    if( aPath.IsEmpty() )
+    {
+        if( aError )
+            *aError = wxS( "No path specified to open" );
+
+        return false;
+    }
+
+    wxFileName projectPath( aPath );
+
+    if( projectPath.GetExt() == FILEEXT::KiCadSchematicFileExtension )
+        projectPath.SetExt( FILEEXT::ProjectFileExtension );
+    else if( projectPath.GetExt() != FILEEXT::ProjectFileExtension )
+        projectPath.SetExt( FILEEXT::ProjectFileExtension );
+
+    projectPath.MakeAbsolute();
+
+    // Close any existing document before loading a new project. LoadProject with
+    // aSetActive=true destroys the old PROJECT, which would leave the old schematic
+    // and context holding dangling project pointers.
+    closeCurrentDocument( aServer );
+
+    SETTINGS_MANAGER& settingsManager = Pgm().GetSettingsManager();
+
+    if( !settingsManager.LoadProject( projectPath.GetFullPath(), true ) )
+    {
+        wxLogTrace( traceApi, "Warning: no project file found for %s", aPath );
+    }
+
+    PROJECT* project = settingsManager.GetProject( projectPath.GetFullPath() );
+
+    if( !project )
+    {
+        if( aError )
+            *aError = wxString::Format( wxS( "Error loading project for %s" ), aPath );
+
+        return false;
+    }
+
+    wxFileName schPath( projectPath );
+    schPath.SetExt( FILEEXT::KiCadSchematicFileExtension );
+
+    if( !schPath.FileExists() )
+    {
+        if( aError )
+            *aError = wxString::Format( wxS( "File not found: %s" ), schPath.GetFullPath() );
+
+        return false;
+    }
+
+    SCHEMATIC* schematic = nullptr;
+
+    try
+    {
+        schematic = EESCHEMA_HELPERS::LoadSchematic( schPath.GetFullPath(), false, false, project );
+
+        if( !schematic )
+        {
+            if( aError )
+                *aError = wxS( "Failed to load schematic" );
+
+            return false;
+        }
+    }
+    catch( ... )
+    {
+        if( aError )
+            *aError = wxS( "Failed to load schematic" );
+
+        return false;
+    }
+
+    m_openSchematic = schematic;
+
+    m_openContext = std::make_shared<HEADLESS_SCH_CONTEXT>( m_openSchematic, project, m_kiway );
+    m_openHandler = std::make_unique<API_HANDLER_SCH>( m_openContext );
+    aServer->RegisterHandler( m_openHandler.get() );
+
+    return true;
+}
+
+
+bool IFACE::HandleApiCloseDocument( const wxString& aSchFileName, KICAD_API_SERVER* aServer,
+                                    wxString* aError )
+{
+    wxCHECK( aServer, false );
+
+    if( !m_openContext )
+    {
+        if( aError )
+            *aError = wxS( "No document is currently open" );
+
+        return false;
+    }
+
+    if( !aSchFileName.IsEmpty() )
+    {
+        wxFileName currentSch( m_openContext->GetCurrentFileName() );
+
+        if( currentSch.GetFullName() != aSchFileName )
+        {
+            if( aError )
+                *aError = wxS( "Requested document does not match the open document" );
+
+            return false;
+        }
+    }
+
+    closeCurrentDocument( aServer );
+    return true;
+}
+#endif

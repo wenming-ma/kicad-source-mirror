@@ -21,6 +21,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <algorithm>
 #include <memory>
 #include <wx/ffile.h>
 #include <pgm_base.h>
@@ -28,6 +29,7 @@
 #include <confirm.h>
 #include <kidialog.h>
 #include <macros.h>
+#include <string_utils.h>
 #include <pcb_edit_frame.h>
 #include <eda_list_dialog.h>
 #include <filter_reader.h>
@@ -915,12 +917,18 @@ bool FOOTPRINT_EDIT_FRAME::SaveFootprintToBoard( bool aAddNew )
                     aUuid = KIID();
             };
 
-    fixUuid( const_cast<KIID&>( newFootprint->m_Uuid ) );
+    {
+        KIID uuid = newFootprint->m_Uuid;
+        fixUuid( uuid );
+        newFootprint->SetUuid( uuid );
+    }
 
     newFootprint->RunOnChildren(
             [&]( BOARD_ITEM* aChild )
             {
-                fixUuid( const_cast<KIID&>( aChild->m_Uuid ) );
+                KIID uuid = aChild->m_Uuid;
+                fixUuid( uuid );
+                aChild->SetUuid( uuid );
             },
             RECURSE_MODE::RECURSE );
 
@@ -958,7 +966,8 @@ bool FOOTPRINT_EDIT_FRAME::SaveFootprintToBoard( bool aAddNew )
         // In the main board the new footprint replaces the old one (pos, orient, ref, value,
         // connections and properties are kept) and the sourceFootprint (old footprint) is
         // deleted
-        pcbframe->ExchangeFootprint( sourceFootprint, newFootprint, commit );
+        mainpcb->ExchangeFootprint( sourceFootprint, newFootprint, commit, true );
+
         commit.Push( _( "Update Footprint" ) );
     }
     else        // This is an insert command
@@ -971,7 +980,7 @@ bool FOOTPRINT_EDIT_FRAME::SaveFootprintToBoard( bool aAddNew )
         pcbframe->PlaceFootprint( newFootprint );
         newFootprint->SetPosition( VECTOR2I( 0, 0 ) );
         viewControls->SetCrossHairCursorPosition( cursorPos, false );
-        const_cast<KIID&>( newFootprint->m_Uuid ) = KIID();
+        newFootprint->ResetUuid();
         commit.Push( _( "Insert Footprint" ) );
 
         pcbframe->Raise();
@@ -1359,6 +1368,18 @@ void PCB_BASE_FRAME::GetLibraryItemsForListDialog( wxArrayString& aHeaders,
             unpinned.push_back( item );
         }
     }
+
+    std::sort( aItemsToDisplay.begin(), aItemsToDisplay.end(),
+               []( const wxArrayString& a, const wxArrayString& b )
+               {
+                   return StrNumCmp( a[0], b[0], true ) < 0;
+               } );
+
+    std::sort( unpinned.begin(), unpinned.end(),
+               []( const wxArrayString& a, const wxArrayString& b )
+               {
+                   return StrNumCmp( a[0], b[0], true ) < 0;
+               } );
 
     std::ranges::copy( unpinned, std::back_inserter( aItemsToDisplay ) );
 }

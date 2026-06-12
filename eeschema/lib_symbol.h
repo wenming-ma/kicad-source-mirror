@@ -323,7 +323,8 @@ public:
     SCH_FIELD* GetField( const wxString& aFieldName );
     const SCH_FIELD* GetField( const wxString& aFieldName ) const;
 
-    SCH_FIELD* FindFieldCaseInsensitive( const wxString& aFieldName );
+    SCH_FIELD*       FindFieldCaseInsensitive( const wxString& aFieldName );
+    const SCH_FIELD* FindFieldCaseInsensitive( const wxString& aFieldName ) const;
 
     const SCH_FIELD* GetField( FIELD_T aFieldType ) const;
     SCH_FIELD* GetField( FIELD_T aFieldType );
@@ -849,6 +850,8 @@ public:
      * @return a measure of similarity from 1.0 (identical) to 0.0 (no similarity).
     */
     double Similarity( const SCH_ITEM& aSymbol ) const override;
+
+    void RefreshLibraryTreeCaches();
 
     void SetParentName( const wxString& aParentName ) { m_parentName = aParentName; }
     const wxString& GetParentName() const { return m_parentName; }

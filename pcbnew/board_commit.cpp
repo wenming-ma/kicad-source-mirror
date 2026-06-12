@@ -115,6 +115,16 @@ COMMIT& BOARD_COMMIT::Stage( EDA_ITEM* aItem, CHANGE_TYPE aChangeType, BASE_SCRE
         }
     }
 
+    if( m_isBoardEditor && ( aChangeType & CHT_TYPE ) == CHT_REMOVE
+            && aItem->IsBOARD_ITEM()
+            && static_cast<BOARD_ITEM*>( aItem )->GetParentFootprint() )
+    {
+        if( m_deletedItems.find( { aItem, aScreen } ) == m_deletedItems.end() )
+            makeEntry( aItem, aChangeType, makeImage( aItem ), aScreen );
+
+        return *this;
+    }
+
     return COMMIT::Stage( aItem, aChangeType );
 }
 
@@ -317,7 +327,8 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
 
             if( !( changeFlags & CHT_DONE ) )
             {
-                if( m_isFootprintEditor )
+                // Markers are always stored at the board level, even in the footprint editor
+                if( m_isFootprintEditor && boardItem->Type() != PCB_MARKER_T )
                 {
                     if( FOOTPRINT* parentFP = board->GetFirstFootprint() )
                         parentFP->Add( boardItem );
@@ -388,7 +399,6 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
             case PCB_DIM_ORTHOGONAL_T:
             case PCB_DIM_LEADER_T:
             case PCB_TARGET_T:
-            case PCB_MARKER_T:
             case PCB_POINT_T:
             case PCB_ZONE_T:
             case PCB_FOOTPRINT_T:
@@ -398,16 +408,33 @@ void BOARD_COMMIT::Push( const wxString& aMessage, int aCommitFlags )
 
                 if( !( changeFlags & CHT_DONE ) )
                 {
-                    if( m_isFootprintEditor )
+                    if( m_isFootprintEditor && boardItem->Type() != PCB_MARKER_T )
                     {
                         if( FOOTPRINT* parentFP = board->GetFirstFootprint() )
                             parentFP->Remove( boardItem );
+                    }
+                    else if( FOOTPRINT* parentFP = boardItem->GetParentFootprint() )
+                    {
+                        parentFP->Remove( boardItem );
                     }
                     else
                     {
                         board->Remove( boardItem, REMOVE_MODE::BULK );
                         bulkRemovedItems.push_back( boardItem );
                     }
+                }
+
+                break;
+
+            case PCB_MARKER_T:
+                if( view )
+                    view->Remove( boardItem );
+
+                if( !( changeFlags & CHT_DONE ) )
+                {
+                    // Markers are always stored at the board level, even in the footprint editor
+                    board->Remove( boardItem, REMOVE_MODE::BULK );
+                    bulkRemovedItems.push_back( boardItem );
                 }
 
                 break;
@@ -715,6 +742,10 @@ void BOARD_COMMIT::Revert()
                     if( FOOTPRINT* parentFP = board->GetFirstFootprint() )
                         parentFP->Remove( boardItem );
                 }
+                else if( FOOTPRINT* parentFP = boardItem->GetParentFootprint() )
+                {
+                    parentFP->Remove( boardItem );
+                }
                 else
                 {
                     board->Remove( boardItem, REMOVE_MODE::BULK );
@@ -740,6 +771,10 @@ void BOARD_COMMIT::Revert()
             {
                 if( FOOTPRINT* parentFP = board->GetFirstFootprint() )
                     parentFP->Add( boardItem, ADD_MODE::INSERT );
+            }
+            else if( FOOTPRINT* parentFP = boardItem->GetParentFootprint() )
+            {
+                parentFP->Add( boardItem, ADD_MODE::INSERT );
             }
             else
             {
@@ -789,6 +824,12 @@ void BOARD_COMMIT::Revert()
 
     if( bulkAddedItems.size() > 0 || bulkRemovedItems.size() > 0 || itemsChanged.size() > 0 )
         board->OnItemsCompositeUpdate( bulkAddedItems, bulkRemovedItems, itemsChanged );
+
+    if( m_isBoardEditor )
+    {
+        for( BOARD_ITEM* item : itemsToDelete )
+            connectivity->Remove( item );
+    }
 
     for( BOARD_ITEM* item : itemsToDelete )
         delete item;

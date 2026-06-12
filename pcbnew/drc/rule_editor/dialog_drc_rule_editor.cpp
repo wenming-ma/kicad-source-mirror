@@ -199,7 +199,10 @@ std::vector<RULE_TREE_NODE> DIALOG_DRC_RULE_EDITOR::GetDefaultRuleTreeItems()
 
 void DIALOG_DRC_RULE_EDITOR::LoadExistingRules()
 {
-    wxFileName rulesFile( m_frame->GetDesignRulesPath() );
+    if( !m_frame->GetBoard() )
+        return;
+
+    wxFileName rulesFile( m_frame->GetBoard()->GetDesignRulesPath() );
 
     if( !rulesFile.FileExists() )
         return;
@@ -207,50 +210,37 @@ void DIALOG_DRC_RULE_EDITOR::LoadExistingRules()
     DRC_RULE_LOADER loader;
     std::vector<DRC_RE_LOADED_PANEL_ENTRY> entries = loader.LoadFile( rulesFile.GetFullPath() );
 
+    if( entries.empty() )
+        return;
+
     wxLogTrace( wxS( "KI_TRACE_DRC_RULE_EDITOR" ),
                 wxS( "[LoadExistingRules] Loaded %zu entries from %s" ),
                 entries.size(), rulesFile.GetFullPath() );
 
-    // Debug: Log all constraint nodes available for parent lookup
-    wxLogTrace( wxS( "KI_TRACE_DRC_RULE_EDITOR" ),
-                wxS( "[LoadExistingRules] Available constraint nodes in m_ruleTreeNodeDatas:" ) );
+    // Build lookup maps before the loading loop to avoid O(n) scans per rule.
+    // constraintTypeToNodeId maps panel type → parent node ID (from m_ruleTreeNodeDatas).
+    // m_treeHistoryData already maps node ID → wxTreeItemId (populated by InitRuleTreeItems).
+    std::unordered_map<int, int> constraintTypeToNodeId;
 
     for( const RULE_TREE_NODE& node : m_ruleTreeNodeDatas )
     {
-        if( node.m_nodeType == CONSTRAINT )
+        if( node.m_nodeType == CONSTRAINT && node.m_nodeTypeMap )
         {
+            constraintTypeToNodeId[*node.m_nodeTypeMap] = node.m_nodeId;
+
             wxLogTrace( wxS( "KI_TRACE_DRC_RULE_EDITOR" ),
                         wxS( "[LoadExistingRules]   Node '%s': nodeId=%d, m_nodeTypeMap=%d" ),
                         wxString( node.m_nodeName ), node.m_nodeId,
-                        node.m_nodeTypeMap ? static_cast<int>( *node.m_nodeTypeMap ) : -1 );
+                        static_cast<int>( *node.m_nodeTypeMap ) );
         }
     }
 
-    // Helper to find tree item by node ID
-    std::function<wxTreeItemId( wxTreeItemId, int )> findItem =
-            [&]( wxTreeItemId aItem, int aTargetId ) -> wxTreeItemId
-    {
-        RULE_TREE_ITEM_DATA* data =
-                dynamic_cast<RULE_TREE_ITEM_DATA*>( m_ruleTreeCtrl->GetItemData( aItem ) );
-
-        if( data && data->GetNodeId() == aTargetId )
-            return aItem;
-
-        wxTreeItemIdValue cookie;
-        wxTreeItemId      child = m_ruleTreeCtrl->GetFirstChild( aItem, cookie );
-
-        while( child.IsOk() )
-        {
-            wxTreeItemId res = findItem( child, aTargetId );
-
-            if( res.IsOk() )
-                return res;
-
-            child = m_ruleTreeCtrl->GetNextChild( aItem, cookie );
-        }
-
-        return wxTreeItemId();
-    };
+    // Suppress selection-change events and repaint during bulk loading. Without this,
+    // each AppendNewRuleTreeItem triggers SelectItem which creates and immediately
+    // destroys a full PANEL_DRC_RULE_EDITOR (regex compilation, Scintilla, layout)
+    // for every rule. On Windows this causes >11s load times for moderate rule sets.
+    m_ruleTreeCtrl->Freeze();
+    m_suppressSelectionEvents = true;
 
     for( DRC_RE_LOADED_PANEL_ENTRY& entry : entries )
     {
@@ -260,19 +250,9 @@ void DIALOG_DRC_RULE_EDITOR::LoadExistingRules()
                     wxS( "[LoadExistingRules] Processing entry: rule='%s', panelType=%d" ),
                     entry.ruleName, static_cast<int>( type ) );
 
-        // Find parent node by constraint type
-        int parentId = -1;
+        auto typeIt = constraintTypeToNodeId.find( static_cast<int>( type ) );
 
-        for( const RULE_TREE_NODE& node : m_ruleTreeNodeDatas )
-        {
-            if( node.m_nodeType == CONSTRAINT && node.m_nodeTypeMap && *node.m_nodeTypeMap == type )
-            {
-                parentId = node.m_nodeId;
-                break;
-            }
-        }
-
-        if( parentId == -1 )
+        if( typeIt == constraintTypeToNodeId.end() )
         {
             wxLogTrace( wxS( "KI_TRACE_DRC_RULE_EDITOR" ),
                         wxS( "[LoadExistingRules] No parent found for panelType=%d, skipping" ),
@@ -280,12 +260,24 @@ void DIALOG_DRC_RULE_EDITOR::LoadExistingRules()
             continue;
         }
 
-        wxTreeItemId parentItem = findItem( m_ruleTreeCtrl->GetRootItem(), parentId );
+        int parentId = typeIt->second;
+
+        auto histIt = m_treeHistoryData.find( parentId );
+
+        if( histIt == m_treeHistoryData.end() )
+        {
+            wxLogTrace( wxS( "KI_TRACE_DRC_RULE_EDITOR" ),
+                        wxS( "[LoadExistingRules] Tree item not found for parentId=%d, skipping" ),
+                        parentId );
+            continue;
+        }
+
+        wxTreeItemId parentItem = std::get<2>( histIt->second );
 
         if( !parentItem.IsOk() )
         {
             wxLogTrace( wxS( "KI_TRACE_DRC_RULE_EDITOR" ),
-                        wxS( "[LoadExistingRules] Tree item not found for parentId=%d, skipping" ),
+                        wxS( "[LoadExistingRules] Tree item not valid for parentId=%d, skipping" ),
                         parentId );
             continue;
         }
@@ -296,7 +288,6 @@ void DIALOG_DRC_RULE_EDITOR::LoadExistingRules()
         RULE_TREE_NODE node =
                 buildRuleTreeNodeData( entry.ruleName, RULE, parentId, type );
 
-        // Transfer loaded entry data to the constraint data
         auto ruleData = std::dynamic_pointer_cast<DRC_RE_BASE_CONSTRAINT_DATA>( entry.constraintData );
 
         if( ruleData )
@@ -321,6 +312,9 @@ void DIALOG_DRC_RULE_EDITOR::LoadExistingRules()
                     wxS( "[LoadExistingRules] Appended rule '%s' to tree under parentId=%d" ),
                     entry.ruleName, parentId );
     }
+
+    m_suppressSelectionEvents = false;
+    m_ruleTreeCtrl->Thaw();
 }
 
 
@@ -378,6 +372,9 @@ void DIALOG_DRC_RULE_EDITOR::RuleTreeItemSelectionChanged( RULE_TREE_ITEM_DATA* 
 {
     RULE_TREE_NODE* nodeDetail = getRuleTreeNodeInfo( aCurrentRuleTreeItemData->GetNodeId() );
 
+    // Freeze so panel creation and data population happen off-screen.
+    m_scrolledContentWin->Freeze();
+
     if( nodeDetail->m_nodeType == ROOT || nodeDetail->m_nodeType == CATEGORY || nodeDetail->m_nodeType == CONSTRAINT )
     {
         std::vector<RULE_TREE_NODE*> ruleNodes;
@@ -410,7 +407,6 @@ void DIALOG_DRC_RULE_EDITOR::RuleTreeItemSelectionChanged( RULE_TREE_ITEM_DATA* 
                 &constraintName, dynamic_pointer_cast<DRC_RE_BASE_CONSTRAINT_DATA>( nodeDetail->m_nodeData ) );
 
         SetContentPanel( m_ruleEditorPanel );
-
         m_ruleEditorPanel->TransferDataToWindow();
 
         m_ruleEditorPanel->SetSaveCallback(
@@ -445,6 +441,8 @@ void DIALOG_DRC_RULE_EDITOR::RuleTreeItemSelectionChanged( RULE_TREE_ITEM_DATA* 
 
         m_groupHeaderPanel = nullptr;
     }
+
+    m_scrolledContentWin->Thaw();
 }
 
 
@@ -604,6 +602,8 @@ void DIALOG_DRC_RULE_EDITOR::RemoveRule( int aNodeId )
         SetModified();
         DeleteRuleTreeItem( GetCurrentlySelectedRuleTreeItemData()->GetTreeItemId(), nodeId );
         deleteTreeNodeData( nodeId );
+        SaveRulesToFile();
+        ClearModified();
     }
 
     SetControlsEnabled( true );
@@ -629,23 +629,11 @@ std::vector<RULE_TREE_NODE> DIALOG_DRC_RULE_EDITOR::buildElectricalRuleTreeNodes
     result.push_back( buildRuleTreeNodeData( "Creepage distance", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, lastParentId,
                                              CREEPAGE_DISTANCE ) );
 
-    result.push_back( buildRuleTreeNodeData( "Connection Width", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
-
-    result.push_back( buildRuleTreeNodeData( "Minimum connection width", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT,
-                                             lastParentId, MINIMUM_CONNECTION_WIDTH ) );
-
-    result.push_back( buildRuleTreeNodeData( "Hole Clearance", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
-
-    result.push_back( buildRuleTreeNodeData( "Copper to hole clearance", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT,
-                                             lastParentId, COPPER_TO_HOLE_CLEARANCE ) );
-
-    result.push_back( buildRuleTreeNodeData( "Spoke Count", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
-
-    result.push_back( buildRuleTreeNodeData( "Minimum thermal relief spoke count",
-                                             DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, lastParentId,
+    result.push_back( buildRuleTreeNodeData( "Minimum connection width", CONSTRAINT, aParentId,
+                                             MINIMUM_CONNECTION_WIDTH ) );
+    result.push_back( buildRuleTreeNodeData( "Copper to hole clearance", CONSTRAINT, aParentId,
+                                             COPPER_TO_HOLE_CLEARANCE ) );
+    result.push_back( buildRuleTreeNodeData( "Minimum thermal relief spoke count", CONSTRAINT, aParentId,
                                              MINIMUM_THERMAL_RELIEF_SPOKE_COUNT ) );
 
     return result;
@@ -657,11 +645,9 @@ std::vector<RULE_TREE_NODE> DIALOG_DRC_RULE_EDITOR::buildManufacturabilityRuleTr
     std::vector<RULE_TREE_NODE> result;
     int                         lastParentId;
 
-    result.push_back( buildRuleTreeNodeData( "Annular Width", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
-
     result.push_back( buildRuleTreeNodeData( "Minimum annular width", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT,
-                                             lastParentId, MINIMUM_ANNULAR_WIDTH ) );
+                                              aParentId, MINIMUM_ANNULAR_WIDTH ) );
+
     result.push_back( buildRuleTreeNodeData( "Hole", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
     lastParentId = m_nodeId;
     result.push_back( buildRuleTreeNodeData( "Minimum drill size", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT,
@@ -671,33 +657,21 @@ std::vector<RULE_TREE_NODE> DIALOG_DRC_RULE_EDITOR::buildManufacturabilityRuleTr
     result.push_back(
             buildRuleTreeNodeData( "Via style", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, lastParentId, VIA_STYLE ) );
 
-    result.push_back( buildRuleTreeNodeData( "Text Geometry", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
-
     result.push_back( buildRuleTreeNodeData( "Minimum text height and thickness", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT,
-                                             lastParentId, MINIMUM_TEXT_HEIGHT_AND_THICKNESS ) );
-
-    result.push_back( buildRuleTreeNodeData( "Silkscreen Clearance", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
+                                             aParentId, MINIMUM_TEXT_HEIGHT_AND_THICKNESS ) );
 
     result.push_back( buildRuleTreeNodeData( "Silk to silk clearance", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT,
-                                             lastParentId, SILK_TO_SILK_CLEARANCE ) );
+                                             aParentId, SILK_TO_SILK_CLEARANCE ) );
     result.push_back( buildRuleTreeNodeData( "Silk to soldermask clearance", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT,
-                                             lastParentId, SILK_TO_SOLDERMASK_CLEARANCE ) );
+                                             aParentId, SILK_TO_SOLDERMASK_CLEARANCE ) );
 
-    result.push_back( buildRuleTreeNodeData( "Soldermask", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
-
-    result.push_back( buildRuleTreeNodeData( "Minimum soldermask silver", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT,
-                                             lastParentId, MINIMUM_SOLDERMASK_SILVER ) );
+    result.push_back( buildRuleTreeNodeData( "Minimum soldermask sliver", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT,
+                                             aParentId, MINIMUM_SOLDERMASK_SLIVER ) );
     result.push_back( buildRuleTreeNodeData( "Soldermask expansion", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT,
-                                             lastParentId, SOLDERMASK_EXPANSION ) );
-
-    result.push_back( buildRuleTreeNodeData( "Solderpaste", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
+                                             aParentId, SOLDERMASK_EXPANSION ) );
 
     result.push_back( buildRuleTreeNodeData( "Solderpaste expansion", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT,
-                                             lastParentId, SOLDERPASTE_EXPANSION ) );
+                                             aParentId, SOLDERPASTE_EXPANSION ) );
 
     return result;
 }
@@ -706,30 +680,16 @@ std::vector<RULE_TREE_NODE> DIALOG_DRC_RULE_EDITOR::buildManufacturabilityRuleTr
 std::vector<RULE_TREE_NODE> DIALOG_DRC_RULE_EDITOR::buildHighspeedDesignRuleTreeNodes( int& aParentId )
 {
     std::vector<RULE_TREE_NODE> result;
-    int                         lastParentId;
 
-    result.push_back( buildRuleTreeNodeData( "Diff Pair (width, gap, uncoupled length)",
-                                             DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
-
-    result.push_back( buildRuleTreeNodeData( "Routing width", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, lastParentId,
-                                             ROUTING_WIDTH ) );
-    result.push_back( buildRuleTreeNodeData( "Maximum via count", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, lastParentId,
+    result.push_back(
+            buildRuleTreeNodeData( "Routing width", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, aParentId, ROUTING_WIDTH ) );
+    result.push_back( buildRuleTreeNodeData( "Maximum via count", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, aParentId,
                                              MAXIMUM_VIA_COUNT ) );
-
-    result.push_back( buildRuleTreeNodeData( "Skew", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
-
-    result.push_back( buildRuleTreeNodeData( "Routing diff pair", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, lastParentId,
+    result.push_back( buildRuleTreeNodeData( "Routing diff pair", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, aParentId,
                                              ROUTING_DIFF_PAIR ) );
-
-    result.push_back( buildRuleTreeNodeData( "Length Matching", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
-
     result.push_back( buildRuleTreeNodeData( "Matched length diff pair", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT,
-                                             lastParentId, MATCHED_LENGTH_DIFF_PAIR ) );
-
-    result.push_back( buildRuleTreeNodeData( "Absolute length", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, lastParentId,
+                                             aParentId, MATCHED_LENGTH_DIFF_PAIR ) );
+    result.push_back( buildRuleTreeNodeData( "Absolute length", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, aParentId,
                                              ABSOLUTE_LENGTH ) );
 
     return result;
@@ -739,24 +699,11 @@ std::vector<RULE_TREE_NODE> DIALOG_DRC_RULE_EDITOR::buildHighspeedDesignRuleTree
 std::vector<RULE_TREE_NODE> DIALOG_DRC_RULE_EDITOR::buildFootprintsRuleTreeNodes( int& aParentId )
 {
     std::vector<RULE_TREE_NODE> result;
-    int                         lastParentId;
-
-    result.push_back( buildRuleTreeNodeData( "Allowed Layers", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
-
-    result.push_back( buildRuleTreeNodeData( "Permitted layers", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, lastParentId,
+    result.push_back( buildRuleTreeNodeData( "Permitted layers", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, aParentId,
                                              PERMITTED_LAYERS ) );
-
-    result.push_back( buildRuleTreeNodeData( "Orientation", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
-
-    result.push_back( buildRuleTreeNodeData( "Allowed orientation", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, lastParentId,
+    result.push_back( buildRuleTreeNodeData( "Allowed orientation", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, aParentId,
                                              ALLOWED_ORIENTATION ) );
-
-    result.push_back( buildRuleTreeNodeData( "Via Placement", DRC_RULE_EDITOR_ITEM_TYPE::CATEGORY, aParentId ) );
-    lastParentId = m_nodeId;
-
-    result.push_back( buildRuleTreeNodeData( "Vias under SMD", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, lastParentId,
+    result.push_back( buildRuleTreeNodeData( "Vias under SMD", DRC_RULE_EDITOR_ITEM_TYPE::CONSTRAINT, aParentId,
                                              VIAS_UNDER_SMD ) );
 
     return result;
@@ -999,56 +946,56 @@ int DIALOG_DRC_RULE_EDITOR::highlightMatchingItems( int aNodeId )
 
     // Ensure we use the latest text from the condition editor
     m_ruleEditorPanel->TransferDataFromWindow();
-    wxString condition = m_ruleEditorPanel->GetConstraintData()->GetRuleCondition();
 
-    if( condition.IsEmpty() )
-    {
-        wxString ruleText = m_ruleEditorPanel->GetConstraintData()->GetGeneratedRule();
+    std::shared_ptr<DRC_RE_BASE_CONSTRAINT_DATA> constraintData = m_ruleEditorPanel->GetConstraintData();
+    std::shared_ptr<DRC_RULE>                    selectedRule;
+    wxString                                     condition;
+    wxString                                     ruleText = constraintData->GetGeneratedRule();
 
-        if( !ruleText.IsEmpty() )
-        {
-            wxString fullText = wxS( "(version 1)\n" ) + ruleText;
-
-            try
-            {
-                std::vector<std::shared_ptr<DRC_RULE>> rules;
-                DRC_RULES_PARSER                       parser( fullText, wxS( "ShowMatches" ) );
-                parser.Parse( rules, nullptr );
-
-                if( !rules.empty() && rules[0]->m_Condition )
-                    condition = rules[0]->m_Condition->GetExpression();
-            }
-            catch( PARSE_ERROR& )
-            {
-                return -1;
-            }
-        }
-    }
-
-    wxLogTrace( wxS( "KI_TRACE_DRC_RULE_EDITOR" ),
-                wxS( "[ShowMatches] nodeId=%d, condition='%s'" ), aNodeId, condition );
-
-    // Empty condition matches nothing
-    if( condition.IsEmpty() )
+    if( ruleText.IsEmpty() )
     {
         m_frame->FocusOnItems( {} );
         Raise();
         return 0;
     }
 
-    // Pre-compile condition to detect syntax errors
-    DRC_RULE_CONDITION testCondition( condition );
+    wxString fullText = wxS( "(version 2)\n" ) + ruleText;
 
-    if( !testCondition.Compile( nullptr ) )
+    try
     {
-        wxLogTrace( wxS( "KI_TRACE_DRC_RULE_EDITOR" ), wxS( "[ShowMatches] compile failed" ) );
+        std::vector<std::shared_ptr<DRC_RULE>> rules;
+        DRC_RULES_PARSER                       parser( fullText, wxS( "ShowMatches" ) );
+        parser.Parse( rules, nullptr );
+
+        if( rules.empty() )
+        {
+            m_frame->FocusOnItems( {} );
+            Raise();
+            return 0;
+        }
+
+        selectedRule = rules[0];
+        condition = selectedRule->m_Condition ? selectedRule->m_Condition->GetExpression() : wxString();
+
+        if( selectedRule->m_Condition && !selectedRule->m_Condition->GetExpression().IsEmpty()
+            && !selectedRule->m_Condition->Compile( nullptr ) )
+        {
+            return -1;
+        }
+    }
+    catch( PARSE_ERROR& )
+    {
         return -1;
     }
 
+    wxLogTrace( wxS( "KI_TRACE_DRC_RULE_EDITOR" ), wxS( "[ShowMatches] nodeId=%d, condition='%s'" ), aNodeId,
+                condition );
+
     m_drcTool = m_frame->GetToolManager()->GetTool<DRC_TOOL>();
 
-    std::vector<BOARD_ITEM*> allMatches =
-            m_drcTool->GetDRCEngine()->GetItemsMatchingCondition( condition, ASSERTION_CONSTRAINT, m_reporter );
+    std::vector<BOARD_ITEM*> allMatches;
+
+    allMatches = m_drcTool->GetDRCEngine()->GetItemsMatchingRule( selectedRule, m_reporter );
 
     // Filter out items without visible geometry
     std::vector<BOARD_ITEM*> matches;
@@ -1173,8 +1120,11 @@ bool DIALOG_DRC_RULE_EDITOR::validateAllRules( std::map<wxString, wxString>& aEr
 {
     bool allValid = true;
 
-    // Track rule names and their conditions to detect same-name different-condition conflicts
-    std::map<wxString, std::set<wxString>> ruleConditions;
+    // Track (ruleName, layerSource) pairs and their conditions to detect conflicts.
+    // Rules with the same name and same layer scope must share the same condition to be
+    // merged correctly. Rules with different layer scopes are saved as separate rules and
+    // are allowed to have different conditions.
+    std::map<std::pair<wxString, wxString>, std::set<wxString>> ruleConditions;
 
     for( RULE_TREE_NODE& node : m_ruleTreeNodeDatas )
     {
@@ -1207,21 +1157,21 @@ bool DIALOG_DRC_RULE_EDITOR::validateAllRules( std::map<wxString, wxString>& aEr
                 allValid = false;
             }
 
-            // Track conditions for same-name different-condition validation
             wxString ruleName = constraintData->GetRuleName();
             wxString condition = constraintData->GetRuleCondition();
-            ruleConditions[ruleName].insert( condition );
+            wxString layerSource = constraintData->GetLayerSource();
+            ruleConditions[std::make_pair( ruleName, layerSource )].insert( condition );
         }
     }
 
-    // Check for same-name different-condition conflicts
-    for( const auto& [ruleName, conditions] : ruleConditions )
+    // Check for same-name same-layer different-condition conflicts
+    for( const auto& [key, conditions] : ruleConditions )
     {
         if( conditions.size() > 1 )
         {
             wxString errorMsg = _( "Multiple rules with the same name have different conditions. "
                                    "Rules with the same name must have identical conditions to be merged." );
-            aErrors[ruleName] = errorMsg;
+            aErrors[key.first] = errorMsg;
             allValid = false;
         }
     }
@@ -1401,12 +1351,11 @@ void DIALOG_DRC_RULE_EDITOR::SaveRulesToFile()
     }
 
     DRC_RULE_SAVER saver;
-    saver.SaveFile( m_frame->GetDesignRulesPath(), entries, m_currentBoard );
+    saver.SaveFile( m_frame->GetBoard()->GetDesignRulesPath(), entries, m_currentBoard );
 
     try
     {
-        m_frame->GetBoard()->GetDesignSettings().m_DRCEngine->InitEngine(
-                m_frame->GetDesignRulesPath() );
+        m_frame->GetBoard()->GetDesignSettings().m_DRCEngine->InitEngine( m_frame->GetBoard()->GetDesignRulesPath() );
     }
     catch( PARSE_ERROR& pe )
     {

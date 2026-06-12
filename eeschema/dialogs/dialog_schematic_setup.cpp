@@ -25,6 +25,7 @@
 #include <dialogs/panel_setup_netclasses.h>
 #include <dialogs/panel_setup_severities.h>
 #include <dialogs/panel_setup_buses.h>
+#include "panel_setup_net_chains.h"
 #include <panel_eeschema_annotation_options.h>
 #include <panel_setup_formatting.h>
 #include <panel_setup_pinmap.h>
@@ -125,6 +126,13 @@ DIALOG_SCHEMATIC_SETUP::DIALOG_SCHEMATIC_SETUP( SCH_EDIT_FRAME* aFrame ) :
                 return new PANEL_SETUP_BUSES( aParent, m_frame );
             }, _( "Bus Alias Definitions" ) );
 
+    m_netChainsPage = m_treebook->GetPageCount();
+    m_treebook->AddLazySubPage(
+            [this]( wxWindow* aParent ) -> wxWindow*
+            {
+                return new PANEL_SETUP_NET_CHAINS( aParent, m_frame );
+            }, _( "Net Chains" ) );
+
     m_textVarsPage = m_treebook->GetPageCount();
     m_treebook->AddLazySubPage(
             [this]( wxWindow* aParent ) -> wxWindow*
@@ -174,6 +182,7 @@ void DIALOG_SCHEMATIC_SETUP::onPageChanged( wxBookCtrlEvent& aEvent )
 
 void DIALOG_SCHEMATIC_SETUP::onAuxiliaryAction( wxCommandEvent& event )
 {
+    SETTINGS_MANAGER*          mgr = m_frame->GetSettingsManager();
     DIALOG_SCH_IMPORT_SETTINGS importDlg( this, m_frame );
 
     if( importDlg.ShowModal() == wxID_CANCEL )
@@ -181,22 +190,21 @@ void DIALOG_SCHEMATIC_SETUP::onAuxiliaryAction( wxCommandEvent& event )
 
     wxFileName projectFn( importDlg.GetFilePath() );
     bool       alreadyLoaded = false;
+    wxString   fullPath = projectFn.GetFullPath();
 
-    if( m_frame->GetSettingsManager()->GetProject( projectFn.GetFullPath() ) )
+    if( mgr->GetProject( fullPath ) )
     {
         alreadyLoaded = true;
     }
-    else if( !m_frame->GetSettingsManager()->LoadProject( projectFn.GetFullPath(), false ) )
+    else if( !mgr->LoadProject( fullPath, false ) || !mgr->GetProject( fullPath ) )
     {
-        wxString msg = wxString::Format( _( "Error importing settings from project:\n"
-                                            "Project file %s could not be loaded." ),
-                                         projectFn.GetFullPath() );
-        DisplayErrorMessage( this, msg );
-
+        DisplayErrorMessage( this, wxString::Format( _( "Error importing settings from project:\n"
+                                                        "Project file %s could not be loaded." ),
+                                                     fullPath ) );
         return;
     }
 
-    PROJECT*      otherPrj = m_frame->GetSettingsManager()->GetProject( projectFn.GetFullPath() );
+    PROJECT*      otherPrj = mgr->GetProject( fullPath );
     SCHEMATIC     otherSch( otherPrj );
     PROJECT_FILE& file = otherPrj->GetProjectFile();
 

@@ -48,6 +48,20 @@ BOARD_ITEM* PCBEXPR_VAR_REF::GetObject( const LIBEVAL::CONTEXT* aCtx ) const
 
     const PCBEXPR_CONTEXT* ctx = static_cast<const PCBEXPR_CONTEXT*>( aCtx );
     BOARD_ITEM*            item  = ctx->GetItem( m_itemIndex );
+
+    for( PCBEXPR_NAV_STEP step : m_navigation )
+    {
+        if( !item )
+            break;
+
+        switch( step )
+        {
+        // The direct parent, matching the semantics of the "Parent" string property so that
+        // "A.Parent" used as an object refers to the same item as "A.Parent" used as a string.
+        case PCBEXPR_NAV_STEP::PARENT: item = item->GetParent(); break;
+        }
+    }
+
     return item;
 }
 
@@ -384,6 +398,13 @@ protected:
 };
 
 
+KICAD_T PCBEXPR_CONTEXT::GetEffectiveType( const BOARD_ITEM* aItem ) const
+{
+    auto it = m_typeOverrides.find( aItem );
+    return it != m_typeOverrides.end() ? it->second : aItem->Type();
+}
+
+
 LIBEVAL::VALUE* PCBEXPR_VAR_REF::GetValue( LIBEVAL::CONTEXT* aCtx )
 {
     PCBEXPR_CONTEXT* context = static_cast<PCBEXPR_CONTEXT*>( aCtx );
@@ -400,6 +421,23 @@ LIBEVAL::VALUE* PCBEXPR_VAR_REF::GetValue( LIBEVAL::CONTEXT* aCtx )
         return new LIBEVAL::VALUE();
 
     auto it = m_matchingTypes.find( TYPE_HASH( *item ) );
+
+    if( it == m_matchingTypes.end() )
+    {
+        // If the property isn't defined on the item itself but is defined on its parent
+        // footprint (e.g. Reference, Value), resolve against the parent so that conditions
+        // like "A.Reference == 'J1'" match pads and graphics belonging to J1.
+        if( FOOTPRINT* parentFp = item->GetParentFootprint() )
+        {
+            auto parentIt = m_matchingTypes.find( TYPE_HASH( *parentFp ) );
+
+            if( parentIt != m_matchingTypes.end() )
+            {
+                item = parentFp;
+                it = parentIt;
+            }
+        }
+    }
 
     if( it == m_matchingTypes.end() )
     {
@@ -499,7 +537,15 @@ LIBEVAL::VALUE* PCBEXPR_COMPONENT_CLASS_REF::GetValue( LIBEVAL::CONTEXT* aCtx )
 {
     BOARD_ITEM* item = dynamic_cast<BOARD_ITEM*>( GetObject( aCtx ) );
 
-    if( !item || item->Type() != PCB_FOOTPRINT_T )
+    if( !item )
+        return new LIBEVAL::VALUE();
+
+    // Resolve component class via the parent footprint so that conditions like
+    // "A.ComponentClass == 'X'" match pads and graphics inside the footprint.
+    if( item->Type() != PCB_FOOTPRINT_T )
+        item = item->GetParentFootprint();
+
+    if( !item )
         return new LIBEVAL::VALUE();
 
     return new PCBEXPR_COMPONENT_CLASS_VALUE( item );
@@ -524,7 +570,10 @@ LIBEVAL::VALUE* PCBEXPR_TYPE_REF::GetValue( LIBEVAL::CONTEXT* aCtx )
     if( !item )
         return new LIBEVAL::VALUE();
 
-    return new LIBEVAL::VALUE( ENUM_MAP<KICAD_T>::Instance().ToString( item->Type() ) );
+    PCBEXPR_CONTEXT* ctx = static_cast<PCBEXPR_CONTEXT*>( aCtx );
+    KICAD_T          type = ctx->GetEffectiveType( item );
+
+    return new LIBEVAL::VALUE( ENUM_MAP<KICAD_T>::Instance().ToString( type ) );
 }
 
 
@@ -554,53 +603,89 @@ std::unique_ptr<LIBEVAL::VAR_REF> PCBEXPR_UCODE::CreateVarRef( const wxString& a
         return vref;
     }
 
+    // The receiver may be a navigation chain such as "A.Parent".  Split off the base variable
+    // and translate each remaining segment into a navigation step.  Only "Parent" is supported.
+
+    wxString                      baseVar = aVar;
+    std::vector<PCBEXPR_NAV_STEP> navigation;
+
+    if( aVar.Contains( wxT( "." ) ) )
+    {
+        wxArrayString tokens = wxSplit( aVar, '.' );
+        baseVar = tokens.IsEmpty() ? wxString() : tokens[0];
+
+        for( size_t i = 1; i < tokens.GetCount(); ++i )
+        {
+            if( tokens[i].CmpNoCase( wxT( "Parent" ) ) == 0 )
+                navigation.push_back( PCBEXPR_NAV_STEP::PARENT );
+            else
+                return nullptr;
+        }
+
+        // Navigation is only meaningful for the item operands; the layer pseudo-item "L" has
+        // no parent.
+        if( baseVar != wxT( "A" ) && baseVar != wxT( "AB" ) && baseVar != wxT( "B" ) )
+            return nullptr;
+    }
+
+    auto withNav =
+            [&navigation]( std::unique_ptr<PCBEXPR_VAR_REF> aRef ) -> std::unique_ptr<PCBEXPR_VAR_REF>
+            {
+                if( aRef && !navigation.empty() )
+                    aRef->SetNavigation( navigation );
+
+                return aRef;
+            };
+
     // Check for a couple of very common cases and compile them straight to "object code".
 
     if( aField.CmpNoCase( wxT( "NetClass" ) ) == 0 )
     {
-        if( aVar == wxT( "A" ) )
-            return std::make_unique<PCBEXPR_NETCLASS_REF>( 0 );
-        else if( aVar == wxT( "B" ) )
-            return std::make_unique<PCBEXPR_NETCLASS_REF>( 1 );
+        if( baseVar == wxT( "A" ) )
+            return withNav( std::make_unique<PCBEXPR_NETCLASS_REF>( 0 ) );
+        else if( baseVar == wxT( "B" ) )
+            return withNav( std::make_unique<PCBEXPR_NETCLASS_REF>( 1 ) );
         else
             return nullptr;
     }
     else if( aField.CmpNoCase( wxT( "ComponentClass" ) ) == 0 )
     {
-        if( aVar == wxT( "A" ) )
-            return std::make_unique<PCBEXPR_COMPONENT_CLASS_REF>( 0 );
-        else if( aVar == wxT( "B" ) )
-            return std::make_unique<PCBEXPR_COMPONENT_CLASS_REF>( 1 );
+        if( baseVar == wxT( "A" ) )
+            return withNav( std::make_unique<PCBEXPR_COMPONENT_CLASS_REF>( 0 ) );
+        else if( baseVar == wxT( "B" ) )
+            return withNav( std::make_unique<PCBEXPR_COMPONENT_CLASS_REF>( 1 ) );
         else
             return nullptr;
     }
     else if( aField.CmpNoCase( wxT( "NetName" ) ) == 0 )
     {
-        if( aVar == wxT( "A" ) )
-            return std::make_unique<PCBEXPR_NETNAME_REF>( 0 );
-        else if( aVar == wxT( "B" ) )
-            return std::make_unique<PCBEXPR_NETNAME_REF>( 1 );
+        if( baseVar == wxT( "A" ) )
+            return withNav( std::make_unique<PCBEXPR_NETNAME_REF>( 0 ) );
+        else if( baseVar == wxT( "B" ) )
+            return withNav( std::make_unique<PCBEXPR_NETNAME_REF>( 1 ) );
         else
             return nullptr;
     }
     else if( aField.CmpNoCase( wxT( "Type" ) ) == 0 )
     {
-        if( aVar == wxT( "A" ) )
-            return std::make_unique<PCBEXPR_TYPE_REF>( 0 );
-        else if( aVar == wxT( "B" ) )
-            return std::make_unique<PCBEXPR_TYPE_REF>( 1 );
+        if( baseVar == wxT( "A" ) )
+            return withNav( std::make_unique<PCBEXPR_TYPE_REF>( 0 ) );
+        else if( baseVar == wxT( "B" ) )
+            return withNav( std::make_unique<PCBEXPR_TYPE_REF>( 1 ) );
         else
             return nullptr;
     }
 
-    if( aVar == wxT( "A" ) || aVar == wxT( "AB" ) )
+    if( baseVar == wxT( "A" ) || baseVar == wxT( "AB" ) )
         vref = std::make_unique<PCBEXPR_VAR_REF>( 0 );
-    else if( aVar == wxT( "B" ) )
+    else if( baseVar == wxT( "B" ) )
         vref = std::make_unique<PCBEXPR_VAR_REF>( 1 );
-    else if( aVar == wxT( "L" ) )
+    else if( baseVar == wxT( "L" ) )
         vref = std::make_unique<PCBEXPR_VAR_REF>( 2 );
     else
         return nullptr;
+
+    vref->SetNavigation( navigation );
 
     if( aField.length() == 0 ) // return reference to base object
         return vref;

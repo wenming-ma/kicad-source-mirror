@@ -72,9 +72,8 @@
 #include <settings/settings_manager.h>
 #include <eda_text.h>
 #include <tools/pcb_control.h>
-
-#include "../scripting/python_scripting.h"
-
+#include <pcb_draw_panel_gal.h>
+#include <drawing_sheet/ds_proxy_view_item.h>
 
 /* Data to build the layer pair indicator button */
 static wxBitmapBundle LayerPairBitmap;
@@ -237,6 +236,7 @@ std::optional<TOOLBAR_CONFIGURATION> PCB_EDIT_TOOLBAR_SETTINGS::DefaultToolbarCo
                             .AddAction( PCB_ACTIONS::tuneSingleTrack )
                             .AddAction( PCB_ACTIONS::tuneDiffPair )
                             .AddAction( PCB_ACTIONS::tuneSkew ) )
+              .AppendAction( PCB_ACTIONS::showDiffPhaseSkew )
               .AppendAction( PCB_ACTIONS::drawVia )
               .AppendAction( PCB_ACTIONS::drawZone )
               .WithContextMenu(
@@ -248,6 +248,8 @@ std::optional<TOOLBAR_CONFIGURATION> PCB_EDIT_TOOLBAR_SETTINGS::DefaultToolbarCo
 
                       menu->Add( PCB_ACTIONS::zoneFillAll );
                       menu->Add( PCB_ACTIONS::zoneUnfillAll );
+                      menu->AppendSeparator();
+                      menu->Add( PCB_ACTIONS::zonesManager );
 
                       return menu;
                   } )
@@ -255,22 +257,26 @@ std::optional<TOOLBAR_CONFIGURATION> PCB_EDIT_TOOLBAR_SETTINGS::DefaultToolbarCo
 
         config.AppendSeparator()
               .AppendAction( PCB_ACTIONS::drawLine )
-              .AppendAction( PCB_ACTIONS::drawArc )
-              .WithContextMenu(
-                  []( TOOL_MANAGER* aMgr ) -> std::unique_ptr<ACTION_MENU>
-                  {
-                      PCB_SELECTION_TOOL* selTool = aMgr->GetTool<PCB_SELECTION_TOOL>();
-                      std::unique_ptr<ACTION_MENU> menu =
-                              std::make_unique<ACTION_MENU>( false, selTool );
+              .AppendGroup( TOOLBAR_GROUP_CONFIG( _( "Arc" ) )
+                            .AddAction( PCB_ACTIONS::drawArc )
+                            .AddAction( PCB_ACTIONS::drawEllipseArc )
+                            .AddContextMenu(
+                                []( TOOL_MANAGER* aMgr ) -> std::unique_ptr<ACTION_MENU>
+                                {
+                                    PCB_SELECTION_TOOL* selTool = aMgr->GetTool<PCB_SELECTION_TOOL>();
+                                    std::unique_ptr<ACTION_MENU> menu =
+                                            std::make_unique<ACTION_MENU>( false, selTool );
 
-                      menu->Add( ACTIONS::pointEditorArcKeepCenter, ACTION_MENU::CHECK  );
-                      menu->Add( ACTIONS::pointEditorArcKeepEndpoint, ACTION_MENU::CHECK  );
-                      menu->Add( ACTIONS::pointEditorArcKeepRadius, ACTION_MENU::CHECK  );
+                                    menu->Add( ACTIONS::pointEditorArcKeepCenter, ACTION_MENU::CHECK );
+                                    menu->Add( ACTIONS::pointEditorArcKeepEndpoint, ACTION_MENU::CHECK );
+                                    menu->Add( ACTIONS::pointEditorArcKeepRadius, ACTION_MENU::CHECK );
 
-                      return menu;
-                  } )
+                                    return menu;
+                                } ) )
               .AppendAction( PCB_ACTIONS::drawRectangle )
-              .AppendAction( PCB_ACTIONS::drawCircle )
+              .AppendGroup( TOOLBAR_GROUP_CONFIG( _( "Circle" ) )
+                            .AddAction( PCB_ACTIONS::drawCircle )
+                            .AddAction( PCB_ACTIONS::drawEllipse ) )
               .AppendAction( PCB_ACTIONS::drawPolygon )
               .AppendAction( PCB_ACTIONS::drawBezier )
               .AppendAction( PCB_ACTIONS::placeReferenceImage )
@@ -454,9 +460,6 @@ void PCB_EDIT_FRAME::configureToolbars()
     auto pluginControlFactory =
             [this]( ACTION_TOOLBAR* aToolbar )
             {
-                // Add scripting console and API plugins
-                bool scriptingAvailable = SCRIPTING::IsWxAvailable();
-
 #ifdef KICAD_IPC_API
                 bool haveApiPlugins = Pgm().GetCommonSettings()->m_Api.enable_server
                                         && !Pgm().GetPluginManager().GetActionsForScope( PluginActionScope() ).empty();
@@ -464,18 +467,10 @@ void PCB_EDIT_FRAME::configureToolbars()
                 bool haveApiPlugins = false;
 #endif
 
-                if( scriptingAvailable || haveApiPlugins )
+                if( haveApiPlugins )
                 {
                     aToolbar->AddScaledSeparator( aToolbar->GetParent() );
-
-                    if( scriptingAvailable )
-                    {
-                        aToolbar->Add( PCB_ACTIONS::showPythonConsole );
-                        addActionPluginTools( aToolbar );
-                    }
-
-                    if( haveApiPlugins )
-                        AddApiPluginTools( aToolbar );
+                    AddApiPluginTools( aToolbar );
                 }
             };
 
@@ -524,6 +519,26 @@ void PCB_EDIT_FRAME::UpdateVariantSelectionCtrl()
 }
 
 
+void PCB_EDIT_FRAME::SetCurrentVariant( const wxString& aVariantName )
+{
+    GetBoard()->SetCurrentVariant( aVariantName );
+
+    if( PCB_DRAW_PANEL_GAL* canvas = dynamic_cast<PCB_DRAW_PANEL_GAL*>( GetCanvas() ) )
+    {
+        DS_PROXY_VIEW_ITEM* ds = canvas->GetDrawingSheet();
+
+        if( ds )
+        {
+            wxString currentVariant = GetBoard()->GetCurrentVariant();
+            wxString variantDesc = GetBoard()->GetVariantDescription( currentVariant );
+
+            ds->SetVariantName( currentVariant.ToStdString() );
+            ds->SetVariantDesc( variantDesc.ToStdString() );
+        }
+    }
+}
+
+
 void PCB_EDIT_FRAME::onVariantSelected( wxCommandEvent& aEvent )
 {
     if( !m_CurrentVariantCtrl )
@@ -534,12 +549,12 @@ void PCB_EDIT_FRAME::onVariantSelected( wxCommandEvent& aEvent )
     if( selection == wxNOT_FOUND || selection == 0 )
     {
         // "<Default>" selected - clear the current variant
-        GetBoard()->SetCurrentVariant( wxEmptyString );
+        SetCurrentVariant( wxEmptyString );
     }
     else
     {
         wxString selectedVariant = m_CurrentVariantCtrl->GetString( selection );
-        GetBoard()->SetCurrentVariant( selectedVariant );
+        SetCurrentVariant( selectedVariant );
     }
 
     // Refresh the view and properties panel to show the new variant state
@@ -872,7 +887,7 @@ void PCB_EDIT_FRAME::ToggleLibraryTree()
                                           cfg->m_AuiPanels.design_blocks_panel_float_height );
             m_auimgr.Update();
         }
-        else if( cfg->m_AuiPanels.design_blocks_panel_docked_width > 0 )
+        else
         {
             // SetAuiPaneSize also updates m_auimgr
             SetAuiPaneSize( m_auimgr, db_library_pane, cfg->m_AuiPanels.design_blocks_panel_docked_width, -1 );

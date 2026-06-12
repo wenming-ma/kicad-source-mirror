@@ -27,6 +27,7 @@
 
 #include <board_item_container.h>
 #include <board_stackup_manager/board_stackup.h>
+#include <core/mirror.h>
 #include <embedded_files.h>
 #include <convert_shape_list_to_polygon.h> // for OUTLINE_ERROR_HANDLER
 #include <geometry/shape_poly_set.h>
@@ -43,6 +44,7 @@
 #include <project.h>
 #include <list>
 
+struct HISTORY_FILE_DATA;
 class BOARD_DESIGN_SETTINGS;
 class BOARD_CONNECTED_ITEM;
 class BOARD_COMMIT;
@@ -358,6 +360,13 @@ public:
 
     const wxString &GetFileName() const { return m_fileName; }
 
+    /**
+     * Return the absolute path to the design rules file for this board.
+     *
+     * @note There is no guarantee that this file actually exists and can be opened.
+     */
+    wxString GetDesignRulesPath() const;
+
     const TRACKS& Tracks() const { return m_tracks; }
 
     const FOOTPRINTS& Footprints() const { return m_footprints; }
@@ -375,13 +384,6 @@ public:
     const MARKERS& Markers() const { return m_markers; }
 
     const PCB_POINTS& Points() const { return m_points; }
-
-    // SWIG requires non-const accessors for some reason to make the custom iterators in board.i
-    // work.  It would be good to remove this if we can figure out how to fix that.
-#ifdef SWIG
-    DRAWINGS& Drawings() { return m_drawings; }
-    TRACKS& Tracks() { return m_tracks; }
-#endif
 
     const BOARD_ITEM_SET GetItemSet();
 
@@ -548,6 +550,20 @@ public:
      */
     BOARD_ITEM* ResolveItem( const KIID& aID, bool aAllowNullptrReturn = false ) const;
 
+    /**
+     * Rebind the UUID of an attached item and keep the item-by-id cache coherent.
+     */
+    void RebindItemUuid( BOARD_ITEM* aItem, const KIID& aNewId );
+
+    /**
+     * Rebind duplicate attached-item UUIDs so each live board item has a unique ID.
+     *
+     * Traversal order is stable and earlier items keep their existing UUIDs.
+     *
+     * @return number of duplicate IDs repaired.
+     */
+    int RepairDuplicateItemUuids();
+
     void FillItemMap( std::map<KIID, EDA_ITEM*>& aMap );
 
     /**
@@ -608,6 +624,24 @@ public:
      * Update the visibility flags on the current unconnected ratsnest lines.
      */
     void UpdateRatsnestExclusions();
+
+    /**
+     * Rebuild the entire board ratsnest.
+     *
+     * Must be called after a board change (changes to pads, footprints, or a netlist read).
+     */
+    void CompileRatsnest();
+
+    /**
+     * Replace @a aExisting with @a aNew, preserving connectivity and metadata.
+     */
+    void ExchangeFootprint( FOOTPRINT* aExisting, FOOTPRINT* aNew, BOARD_COMMIT& aCommit,
+                            bool matchPadPositions,
+                            bool deleteExtraTexts = true, bool resetTextLayers = true,
+                            bool resetTextEffects = true, bool resetTextPositions = true,
+                            bool resetTextContent = true, bool resetFabricationAttrs = true,
+                            bool resetClearanceOverrides = true, bool reset3DModels = true,
+                            bool* aUpdated = nullptr );
 
     /**
      * Reset all high light data to the init state
@@ -1003,7 +1037,6 @@ public:
         m_NetInfo.RemoveUnusedNets( aCommit );
     }
 
-#ifndef SWIG
     /**
      * @return iterator to the first element of the NETINFO_ITEMs list.
      */
@@ -1019,7 +1052,6 @@ public:
     {
         return m_NetInfo.end();
     }
-#endif
 
     /**
      * @return the number of nets (NETINFO_ITEM).
@@ -1099,6 +1131,32 @@ public:
      * @return If found, the FOOTPRINT having the given uuid, else NULL.
      */
     FOOTPRINT* FindFootprintByPath( const KIID_PATH& aPath ) const;
+
+    PAD* FindPadByUuid( const KIID& aUuid ) const;
+
+    void ReplaceNetChainTerminalPad( const wxString& aNetChain, const KIID& aPrev, const KIID& aNew );
+
+    /// Per-net-chain colour override (empty COLOR4D::UNSPECIFIED = no override).
+    /// Populated from the netlist at update-from-schematic time and consumed by
+    /// the PCB painter when highlighting a chain.
+    void SetNetChainColor( const wxString& aChain, const KIGFX::COLOR4D& aColor )
+    {
+        if( aColor == KIGFX::COLOR4D::UNSPECIFIED )
+            m_netChainColors.erase( aChain );
+        else
+            m_netChainColors[aChain] = aColor;
+    }
+
+    KIGFX::COLOR4D GetNetChainColor( const wxString& aChain ) const
+    {
+        auto it = m_netChainColors.find( aChain );
+        return it != m_netChainColors.end() ? it->second : KIGFX::COLOR4D::UNSPECIFIED;
+    }
+
+    const std::map<wxString, KIGFX::COLOR4D>& GetNetChainColors() const
+    {
+        return m_netChainColors;
+    }
 
     /**
      * Return the set of netname candidates for netclass assignment.
@@ -1409,19 +1467,34 @@ public:
     PROJECT::ELEM ProjectElementType() override { return PROJECT::ELEM::BOARD; }
 
     /**
-     * Save board file to the .history directory.
+     * Serialize board into HISTORY_FILE_DATA for non-blocking history commit.
      *
      * This method is used as a saver callback for LOCAL_HISTORY during autosave operations.
+     * Serialization runs on the UI thread; Prettify and file I/O happen in the background.
      *
      * @param aProjectPath The path to check against this board's project path
-     * @param aFiles Output vector to append absolute file paths for history inclusion
+     * @param aFileData Output vector to append serialized data for history inclusion
      */
-    void SaveToHistory( const wxString& aProjectPath, std::vector<wxString>& aFiles );
+    void SaveToHistory( const wxString& aProjectPath, std::vector<HISTORY_FILE_DATA>& aFileData );
 
     const std::unordered_map<KIID, BOARD_ITEM*>& GetItemByIdCache() const
     {
         return m_itemByIdCache;
     }
+
+    bool IsItemIndexedById( const BOARD_ITEM* aItem ) const
+    {
+        return m_cachedIdByItem.contains( aItem );
+    }
+
+    /**
+     * Return a cached item for @a aId if the entry is still self-consistent.
+     *
+     * UUIDs can still be rewritten in-place in some attached-item paths.  When that happens, the
+     * cache may temporarily contain a stale alias from the old UUID to the live item.  Drop those
+     * aliases on read so lookups never return an item whose current UUID no longer matches the key.
+     */
+    BOARD_ITEM* GetCachedItemById( const KIID& aId ) const;
 
     /**
      * Add an item to the item-by-id cache.
@@ -1429,13 +1502,7 @@ public:
      * This is called by FOOTPRINT::Add() when items are added to footprints that are already
      * on the board, to keep the cache in sync.
      */
-    void CacheItemById( BOARD_ITEM* aItem )
-    {
-        if( IsFootprintHolder() )
-            return;
-
-        m_itemByIdCache.insert( { aItem->m_Uuid, aItem } );
-    }
+    void CacheItemById( BOARD_ITEM* aItem ) const;
 
     /**
      * Remove an item from the item-by-id cache.
@@ -1443,10 +1510,71 @@ public:
      * This is called by FOOTPRINT::Remove() when items are removed from footprints that are
      * already on the board, to keep the cache in sync.
      */
-    void UncacheItemById( const KIID& aId )
+    void UncacheItemById( const KIID& aId ) const;
+
+    void CacheItemSubtreeById( BOARD_ITEM* aItem )
     {
-        m_itemByIdCache.erase( aId );
+        wxCHECK( aItem, /* void */ );
+
+        CacheItemById( aItem );
+
+        aItem->RunOnChildren(
+                [this]( BOARD_ITEM* aChild )
+                {
+                    CacheItemSubtreeById( aChild );
+                },
+                RECURSE_MODE::NO_RECURSE );
     }
+
+    void CacheChildrenById( const BOARD_ITEM* aParent )
+    {
+        wxCHECK( aParent, /* void */ );
+
+        aParent->RunOnChildren(
+                [this]( BOARD_ITEM* aChild )
+                {
+                    CacheItemSubtreeById( aChild );
+                },
+                RECURSE_MODE::NO_RECURSE );
+    }
+
+    void UncacheItemSubtreeById( const BOARD_ITEM* aItem )
+    {
+        wxCHECK( aItem, /* void */ );
+
+        // Pointer-keyed eviction: never remove an entry that belongs to a
+        // different live item with the same UUID (e.g. a temporary copy).
+        UncacheItemByPtr( aItem );
+
+        aItem->RunOnChildren(
+                [this]( BOARD_ITEM* aChild )
+                {
+                    UncacheItemSubtreeById( aChild );
+                },
+                RECURSE_MODE::NO_RECURSE );
+    }
+
+    void UncacheChildrenById( const BOARD_ITEM* aParent )
+    {
+        wxCHECK( aParent, /* void */ );
+
+        aParent->RunOnChildren(
+                [this]( BOARD_ITEM* aChild )
+                {
+                    UncacheItemSubtreeById( aChild );
+                },
+                RECURSE_MODE::NO_RECURSE );
+    }
+
+    /**
+     * Remove every cache entry that still points to @a aItem.
+     *
+     * Safe to call from ~BOARD_ITEM and UUID-rebind paths: avoids evicting live items that
+     * share the same UUID while still purging stale aliases after in-place UUID changes.
+     */
+    void UncacheItemByPtr( const BOARD_ITEM* aItem );
+
+    BOARD_ITEM* CacheAndReturnItemById( const KIID& aId, BOARD_ITEM* aItem ) const;
 
     // --------- Item order comparators ---------
 
@@ -1485,9 +1613,10 @@ public:
     mutable std::unordered_map<const ZONE*, SHAPE_POLY_SET> m_DeflatedZoneOutlineCache;
 
     // ------------ DRC caches -------------
-    std::vector<ZONE*>    m_DRCZones;
-    std::vector<ZONE*>    m_DRCCopperZones;
-    int                   m_DRCMaxClearance;
+    std::vector<ZONE*>                       m_DRCZones;
+    std::vector<ZONE*>                       m_DRCCopperZones;
+    std::map<PCB_LAYER_ID, std::vector<ZONE*>> m_DRCCopperZonesByLayer;
+    int                                      m_DRCMaxClearance;
     int                   m_DRCMaxPhysicalClearance;
     ZONE*                 m_SolderMaskBridges;  // A container to build bridges on solder mask layers
     std::map<ZONE*, std::map<PCB_LAYER_ID, ISOLATED_ISLANDS>> m_ZoneIsolatedIslandsMap;
@@ -1521,6 +1650,8 @@ private:
 
     wxString            m_fileName;
 
+    std::map<wxString, KIGFX::COLOR4D> m_netChainColors;
+
     // These containers only have const accessors and must only be modified by Add()/Remove()
     MARKERS             m_markers;
     DRAWINGS            m_drawings;
@@ -1534,7 +1665,9 @@ private:
 
     // Cache for fast access to items in the containers above by KIID, including children.
     // Mutable because it's a performance cache that can be populated during const lookups.
-    mutable std::unordered_map<KIID, BOARD_ITEM*> m_itemByIdCache;
+    // NOT protected by m_CachesMutex. Only safe for single-threaded access (UI, serialization).
+    mutable std::unordered_map<KIID, BOARD_ITEM*>        m_itemByIdCache;
+    mutable std::unordered_map<const BOARD_ITEM*, KIID>  m_cachedIdByItem;
 
     std::map<int, LAYER> m_layers;                  // layer data
 
@@ -1588,6 +1721,14 @@ private:
 
     std::unique_ptr<COMPONENT_CLASS_MANAGER>  m_componentClassManager;
     std::unique_ptr<LENGTH_DELAY_CALCULATION> m_lengthDelayCalc;
+
+    // Reactive text-variable dependency adapter. Installed as a listener
+    // during BOARD construction; destructor order ensures it outlives no
+    // listener calls.
+    std::unique_ptr<class BOARD_TEXT_VAR_ADAPTER> m_textVarAdapter;
+
+public:
+    BOARD_TEXT_VAR_ADAPTER* GetTextVarAdapter() const { return m_textVarAdapter.get(); }
 };
 
 

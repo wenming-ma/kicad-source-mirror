@@ -26,7 +26,9 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include <unordered_set>
 
@@ -69,9 +71,17 @@ private:
     VECTOR2I scaleSize( const VECTOR2I& aSize ) const;
     int scale( int aVal ) const;
 
-    template <typename T>
-    const T* expectBlockByKey( uint32_t aKey, uint8_t aType ) const
+    /**
+     * Get a block by its key, and check that it is of the expected type.
+      *
+      * @tparam T must be a BLOCK_DATA struct with a BLOCK_TYPE_CODE member
+     */
+    template <ALLEGRO_BLOCK_DATA T>
+    const T* expectBlockByKey( uint32_t aKey ) const
     {
+        // The type code trait
+        constexpr uint8_t kType = T::BLOCK_TYPE_CODE;
+
         if( aKey == 0 )
             return nullptr;
 
@@ -79,13 +89,13 @@ private:
 
         if( !block )
         {
-            reportMissingBlock( aKey, aType );
+            reportMissingBlock( aKey, kType );
             return nullptr;
         }
 
-        if( block->GetBlockType() != aType )
+        if( block->GetBlockType() != kType )
         {
-            reportUnexpectedBlockType( block->GetBlockType(), aType, aKey, block->GetOffset() );
+            reportUnexpectedBlockType( block->GetBlockType(), kType, aKey, block->GetOffset() );
             return nullptr;
         }
 
@@ -163,13 +173,28 @@ private:
     std::vector<std::unique_ptr<BOARD_ITEM>> buildTrack( const BLK_0x05_TRACK& aBlock, int aNetcode );
     std::unique_ptr<BOARD_ITEM>              buildVia( const BLK_0x33_VIA& aBlock, int aNetcode );
 
+    /// Resolve a via padstack's copper span (0-based first/last copper index), or nullopt for a
+    /// through via, from the padstack name or the tracks meeting at the via centre. @p aResolved is
+    /// false when the span could not be determined, so the result is not cached.
+    std::optional<std::pair<int, int>> resolveViaSpan( const BLK_0x1C_PADSTACK& aPadstack,
+                                                       const VECTOR2I& aViaCenterRaw, int aTotalCu,
+                                                       bool& aResolved );
+
+    /// Populate m_trackEndpointCopper, mapping each copper track segment endpoint to the copper
+    /// layers terminating there. Built lazily the first time a name-less blind/buried via needs it.
+    void collectTrackEndpointCopper();
+
+    class ZONE_FILL_HANDLER;
+
     /**
      * Build a ZONE from an 0x0E, 0x24 or 0x28 block.
-     * 
+     *
      * @param aRelatedBlocks are blocks to get net (0x1B) and fill (0x28) info from
+     * @param aZoneFillHandler is a management object for efficiently dealing with filled zones
      */
     std::unique_ptr<ZONE> buildZone( const BLOCK_BASE&                     aBoundaryBlock,
-                                     const std::vector<const BLOCK_BASE*>& aRelatedBlocks );
+                                     const std::vector<const BLOCK_BASE*>& aRelatedBlocks,
+                                     ZONE_FILL_HANDLER&                    aZoneFillHandler );
 
     SHAPE_LINE_CHAIN buildOutline( const BLK_0x0E_RECT& aRect ) const;
     SHAPE_LINE_CHAIN buildOutline( const BLK_0x24_RECT& aRect ) const;
@@ -271,6 +296,15 @@ private:
 
     // Cache of segment chains keyed by start key, avoiding redundant hole geometry rebuilds
     mutable std::unordered_map<uint32_t, SHAPE_LINE_CHAIN> m_segChainCache;
+
+    // Resolved copper span (0-based) per via padstack key, or nullopt for a through via.
+    std::unordered_map<uint32_t, std::optional<std::pair<int, int>>> m_viaSpanCache;
+
+    // Packed track segment endpoint -> [min,max] copper layer index of tracks ending there.
+    std::unordered_map<int64_t, std::pair<int, int>> m_trackEndpointCopper;
+
+    // True once m_trackEndpointCopper has been populated.
+    bool m_trackEndpointsCollected = false;
 
     // Conversion factor from internal units to nanometers.
     double m_scale;

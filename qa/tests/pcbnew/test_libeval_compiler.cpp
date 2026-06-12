@@ -30,7 +30,11 @@
 #include <pcbnew/pcbexpr_evaluator.h>
 #include <drc/drc_rule.h>
 #include <pcbnew/board.h>
+#include <board_design_settings.h>
 #include <pcbnew/pcb_track.h>
+#include <pcbnew/footprint.h>
+#include <pcbnew/pcb_text.h>
+#include <project/net_settings.h>
 #include <properties/property.h>
 #include <properties/property_mgr.h>
 
@@ -187,6 +191,111 @@ BOOST_AUTO_TEST_CASE( IntrospectedProperties )
     {
         testEvalExpr( expr.expression, expr.expectedResult, expr.expectError, &trackA, &trackB );
     }
+}
+
+BOOST_AUTO_TEST_CASE( InNetChainClassWildcard )
+{
+    PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
+    propMgr.Rebuild();
+
+    BOARD brd;
+
+    std::shared_ptr<NET_SETTINGS> netSettings = brd.GetDesignSettings().m_NetSettings;
+    netSettings->SetNetChainClass( wxT( "ChainHS" ), wxT( "HighSpeed" ) );
+
+    auto netUnclassified = new NETINFO_ITEM( &brd, "netA", 1 );
+    auto netClassified   = new NETINFO_ITEM( &brd, "netB", 2 );
+    auto netNoChain      = new NETINFO_ITEM( &brd, "netC", 3 );
+
+    netUnclassified->SetNetChain( wxT( "ChainOrphan" ) );
+    netClassified->SetNetChain( wxT( "ChainHS" ) );
+
+    PCB_TRACK trackUnclassified( &brd );
+    PCB_TRACK trackClassified( &brd );
+    PCB_TRACK trackNoChain( &brd );
+
+    trackUnclassified.SetNet( netUnclassified );
+    trackClassified.SetNet( netClassified );
+    trackNoChain.SetNet( netNoChain );
+
+    // A chain with no class assignment must not match any inNetChainClass() pattern,
+    // including the '*' wildcard.
+    testEvalExpr( wxT( "A.inNetChainClass('*')" ), VAL( 0.0 ), false, &trackUnclassified,
+                  &trackUnclassified );
+    testEvalExpr( wxT( "A.inNetChainClass('HighSpeed')" ), VAL( 0.0 ), false, &trackUnclassified,
+                  &trackUnclassified );
+
+    // Net with no chain at all must not match either.
+    testEvalExpr( wxT( "A.inNetChainClass('*')" ), VAL( 0.0 ), false, &trackNoChain,
+                  &trackNoChain );
+
+    // Properly classified chain must match both wildcard and exact patterns.
+    testEvalExpr( wxT( "A.inNetChainClass('*')" ), VAL( 1.0 ), false, &trackClassified,
+                  &trackClassified );
+    testEvalExpr( wxT( "A.inNetChainClass('HighSpeed')" ), VAL( 1.0 ), false, &trackClassified,
+                  &trackClassified );
+    testEvalExpr( wxT( "A.inNetChainClass('High*')" ), VAL( 1.0 ), false, &trackClassified,
+                  &trackClassified );
+    testEvalExpr( wxT( "A.inNetChainClass('LowSpeed')" ), VAL( 0.0 ), false, &trackClassified,
+                  &trackClassified );
+}
+
+BOOST_AUTO_TEST_CASE( ParentNavigation )
+{
+    PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
+    propMgr.Rebuild();
+
+    BOARD brd;
+
+    FOOTPRINT fp( &brd );
+    fp.SetReference( wxT( "J1" ) );
+
+    // A text item living inside the footprint.  Its direct parent is the footprint, so
+    // "A.Parent" navigates to J1.
+    PCB_TEXT* text = new PCB_TEXT( &fp );
+    text->SetText( wxT( "J1" ) );
+    fp.Add( text );
+
+    // The headline capability: getField() only returns a value when its receiver is a
+    // footprint, so this passes solely because navigation steps from the text to its parent.
+    testEvalExpr( wxT( "A.Parent.getField('Reference') == 'J1'" ), VAL( 1.0 ), false, text, text );
+
+    // The exact pattern from the issue (parent field compared to the text's own value).
+    testEvalExpr( wxT( "A.Parent.getField('Reference') == A.Text" ), VAL( 1.0 ), false, text, text );
+
+    // The parent resolves to a footprint object that can be type-queried.
+    testEvalExpr( wxT( "A.Parent.Type == 'Footprint'" ), VAL( 1.0 ), false, text, text );
+
+    // Regression: the terminal "Parent" string still yields the parent footprint reference,
+    // i.e. the object and the string refer to the same parent.
+    testEvalExpr( wxT( "A.Parent == 'J1'" ), VAL( 1.0 ), false, text, text );
+
+    // Without navigation getField() has a non-footprint receiver and returns "", so this must
+    // NOT match - it guards against the navigation silently applying to the base item.
+    testEvalExpr( wxT( "A.getField('Reference') == 'J1'" ), VAL( 0.0 ), false, text, text );
+
+    // Error cases.  These are code-generation errors (not parse errors), which the shared
+    // testEvalExpr does not observe through Compile()'s return value, so check the pending-error
+    // status directly.  None of these expressions contain a bare number, so the only error that
+    // can be raised is the unrecognized item/property we are testing for.
+    auto expectCompileError =
+            []( const wxString& aExpr )
+            {
+                PCBEXPR_COMPILER compiler( new PCBEXPR_UNIT_RESOLVER() );
+                PCBEXPR_UCODE    ucode;
+                PCBEXPR_CONTEXT  preflight( NULL_CONSTRAINT, UNDEFINED_LAYER );
+
+                compiler.Compile( aExpr, &ucode, &preflight );
+
+                BOOST_CHECK_MESSAGE( compiler.IsErrorPending(),
+                                     "Expected a compile error for: " << aExpr.mb_str() );
+            };
+
+    // An unknown property on the parent, an unknown navigation step, and navigation on the
+    // layer pseudo-item (which has no parent).
+    expectCompileError( wxT( "A.Parent.bogusProperty" ) );
+    expectCompileError( wxT( "A.bogus.Reference == 'J1'" ) );
+    expectCompileError( wxT( "L.Parent.Type == 'Footprint'" ) );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

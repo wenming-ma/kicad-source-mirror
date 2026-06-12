@@ -34,6 +34,7 @@ class PG_UNIT_EDITOR;
 class PG_CHECKBOX_EDITOR;
 class PG_RATIO_EDITOR;
 class PG_NET_SELECTOR_EDITOR;
+class PG_TRACK_WIDTH_EDITOR;
 class PG_FPID_EDITOR;
 class PG_URL_EDITOR;
 
@@ -47,6 +48,8 @@ public:
     void UpdateData() override;
 
     void AfterCommit() override;
+
+    PCB_BASE_EDIT_FRAME* GetFrame() const { return m_frame; }
 
 protected:
     void rebuildProperties( const SELECTION& aSelection ) override;
@@ -86,6 +89,7 @@ protected:
     PG_CHECKBOX_EDITOR*  m_checkboxEditorInstance;
     PG_RATIO_EDITOR*     m_ratioEditorInstance;
     PG_NET_SELECTOR_EDITOR* m_netSelectorEditorInstance;
+    PG_TRACK_WIDTH_EDITOR*  m_trackWidthEditorInstance;
     PG_FPID_EDITOR*      m_fpEditorInstance;
     PG_URL_EDITOR*       m_urlEditorInstance;
 

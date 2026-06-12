@@ -23,8 +23,138 @@
 #include "drc/drc_creepage_utils.h"
 
 #include <geometry/intersection.h>
+#include <geometry/shape_simple.h>
 #include <pcb_track.h>
 #include <thread_pool.h>
+
+
+void BuildCreepageBoardEdges( BOARD& aBoard, std::vector<BOARD_ITEM*>& aVector,
+                              std::vector<std::unique_ptr<PCB_SHAPE>>&  aOwned,
+                              const std::set<const BOARD_ITEM*>*        aExclude )
+{
+    const int errorMax = aBoard.GetDesignSettings().m_MaxError;
+
+    auto excluded = [&]( const BOARD_ITEM* aItem ) -> bool
+    {
+        if( !aExclude || !aItem )
+            return false;
+
+        if( aExclude->count( aItem ) )
+            return true;
+
+        const BOARD_ITEM* parent = dynamic_cast<const BOARD_ITEM*>( aItem->GetParent() );
+
+        return parent && aExclude->count( parent );
+    };
+
+    // The creepage graph only handles SEGMENT/ARC/CIRCLE/RECTANGLE/POLY, so Bezier curves must be
+    // flattened to segments or they are silently ignored and creepage paths pass through them
+    auto addEdgeDrawing = [&]( BOARD_ITEM* aDrawing )
+    {
+        if( !aDrawing || !aDrawing->IsOnLayer( Edge_Cuts ) )
+            return;
+
+        if( excluded( aDrawing ) )
+            return;
+
+        // Downstream code static_casts every item in m_boardEdge to PCB_SHAPE, so non-shape items
+        // (text, dimensions, ...) on Edge.Cuts must not enter the graph
+        PCB_SHAPE* shape = dynamic_cast<PCB_SHAPE*>( aDrawing );
+
+        if( !shape )
+            return;
+
+        if( shape->GetShape() != SHAPE_T::BEZIER )
+        {
+            aVector.push_back( shape );
+            return;
+        }
+
+        shape->RebuildBezierToSegmentsPointsList( errorMax );
+        const std::vector<VECTOR2I>& pts = shape->GetBezierPoints();
+
+        for( size_t i = 1; i < pts.size(); ++i )
+        {
+            if( pts[i - 1] == pts[i] )
+                continue;
+
+            auto seg = std::make_unique<PCB_SHAPE>( nullptr, SHAPE_T::SEGMENT );
+            seg->SetStart( pts[i - 1] );
+            seg->SetEnd( pts[i] );
+            aVector.push_back( seg.get() );
+            aOwned.push_back( std::move( seg ) );
+        }
+    };
+
+    for( BOARD_ITEM* drawing : aBoard.Drawings() )
+        addEdgeDrawing( drawing );
+
+    for( FOOTPRINT* fp : aBoard.Footprints() )
+    {
+        if( !fp )
+            continue;
+
+        for( BOARD_ITEM* drawing : fp->GraphicalItems() )
+            addEdgeDrawing( drawing );
+    }
+
+    for( const PAD* p : aBoard.GetPads() )
+    {
+        if( !p || p->GetAttribute() != PAD_ATTRIB::NPTH )
+            continue;
+
+        if( excluded( p ) )
+            continue;
+
+        std::shared_ptr<SHAPE_SEGMENT> hole = p->GetEffectiveHoleShape();
+
+        if( !hole )
+            continue;
+
+        VECTOR2I ptA = hole->GetSeg().A;
+        VECTOR2I ptB = hole->GetSeg().B;
+        int      radius = hole->GetWidth() / 2;
+
+        if( ptA == ptB )
+        {
+            auto s = std::make_unique<PCB_SHAPE>( nullptr, SHAPE_T::CIRCLE );
+            s->SetRadius( radius );
+            s->SetPosition( ptA );
+            aVector.push_back( s.get() );
+            aOwned.push_back( std::move( s ) );
+        }
+        else
+        {
+            // Oblong slot outline as two straight sides and two semicircular end caps
+            VECTOR2I axis = ptB - ptA;
+            VECTOR2I perp = axis.Perpendicular().Resize( radius );
+
+            auto seg1 = std::make_unique<PCB_SHAPE>( nullptr, SHAPE_T::SEGMENT );
+            seg1->SetStart( ptA + perp );
+            seg1->SetEnd( ptB + perp );
+            aVector.push_back( seg1.get() );
+            aOwned.push_back( std::move( seg1 ) );
+
+            auto seg2 = std::make_unique<PCB_SHAPE>( nullptr, SHAPE_T::SEGMENT );
+            seg2->SetStart( ptA - perp );
+            seg2->SetEnd( ptB - perp );
+            aVector.push_back( seg2.get() );
+            aOwned.push_back( std::move( seg2 ) );
+
+            VECTOR2I midA = ptA - axis.Resize( radius );
+            auto     arcA = std::make_unique<PCB_SHAPE>( nullptr, SHAPE_T::ARC );
+            arcA->SetArcGeometry( ptA + perp, midA, ptA - perp );
+            aVector.push_back( arcA.get() );
+            aOwned.push_back( std::move( arcA ) );
+
+            VECTOR2I midB = ptB + axis.Resize( radius );
+            auto     arcB = std::make_unique<PCB_SHAPE>( nullptr, SHAPE_T::ARC );
+            arcB->SetArcGeometry( ptB - perp, midB, ptB + perp );
+            aVector.push_back( arcB.get() );
+            aOwned.push_back( std::move( arcB ) );
+        }
+    }
+}
 
 
 bool segmentIntersectsArc( const VECTOR2I& p1, const VECTOR2I& p2, const VECTOR2I& center,
@@ -35,27 +165,51 @@ bool segmentIntersectsArc( const VECTOR2I& p1, const VECTOR2I& p2, const VECTOR2
     VECTOR2I  startPoint( radius * cos( startAngle.AsRadians() ), radius * sin( startAngle.AsRadians() ) );
     SHAPE_ARC arc( center, startPoint + center, endAngle - startAngle );
 
+    VECTOR2I arcStart = arc.GetP0();
+    VECTOR2I arcEnd = arc.GetP1();
+
     INTERSECTABLE_GEOM geom1 = segment;
     INTERSECTABLE_GEOM geom2 = arc;
 
+    std::vector<VECTOR2I> rawPoints;
+    INTERSECTION_VISITOR  visitor( geom2, rawPoints );
+    std::visit( visitor, geom1 );
+
+    // Filter out intersections where a segment endpoint coincides with an
+    // arc endpoint, matching the endpoint exclusion in segments_intersect.
+    std::vector<VECTOR2I> filtered;
+
+    // arcStart and arcEnd are reconstructed from the arc angles via cos/sin and
+    // truncated to integer, so they land a couple of IU away from the stored
+    // corner coordinates of an adjoining edge. The intersection solver rounds
+    // similarly. An exact equality test therefore misses the shared corner where
+    // a segment endpoint meets the arc endpoint and reports a phantom crossing,
+    // which rejects legitimate creepage paths threading the gap between two
+    // adjacent slot end caps. Compare with a small rounding-scale tolerance.
+    const VECTOR2I::extended_type tolerance = 50;
+    const VECTOR2I::extended_type toleranceSq = tolerance * tolerance;
+
+    auto coincident = [&]( const VECTOR2I& a, const VECTOR2I& b )
+    {
+        return ( a - b ).SquaredEuclideanNorm() <= toleranceSq;
+    };
+
+    for( const VECTOR2I& ip : rawPoints )
+    {
+        bool atSharedEndpoint = ( coincident( ip, arcStart ) || coincident( ip, arcEnd ) )
+                                && ( coincident( ip, p1 ) || coincident( ip, p2 ) );
+
+        if( !atSharedEndpoint )
+            filtered.push_back( ip );
+    }
+
     if( aIntersectionPoints )
     {
-        size_t startCount = aIntersectionPoints->size();
-
-        INTERSECTION_VISITOR visitor( geom2, *aIntersectionPoints );
-        std::visit( visitor, geom1 );
-
-        return aIntersectionPoints->size() > startCount;
+        for( const VECTOR2I& ip : filtered )
+            aIntersectionPoints->push_back( ip );
     }
-    else
-    {
-        std::vector<VECTOR2I> intersectionPoints;
 
-        INTERSECTION_VISITOR visitor( geom2, intersectionPoints );
-        std::visit( visitor, geom1 );
-
-        return intersectionPoints.size() > 0;
-    }
+    return !filtered.empty();
 }
 
 
@@ -525,22 +679,82 @@ void CREEPAGE_GRAPH::TransformEdgeToCreepShapes()
         case SHAPE_T::SEGMENT:
         {
             BE_SHAPE_POINT* a = new BE_SHAPE_POINT( d->GetStart() );
+            a->SetParent( d );
             m_shapeCollection.push_back( a );
             a = new BE_SHAPE_POINT( d->GetEnd() );
+            a->SetParent( d );
             m_shapeCollection.push_back( a );
             break;
         }
 
         case SHAPE_T::RECTANGLE:
         {
-            BE_SHAPE_POINT* a = new BE_SHAPE_POINT( d->GetStart() );
-            m_shapeCollection.push_back( a );
-            a = new BE_SHAPE_POINT( d->GetEnd() );
-            m_shapeCollection.push_back( a );
-            a = new BE_SHAPE_POINT( VECTOR2I( d->GetEnd().x, d->GetStart().y ) );
-            m_shapeCollection.push_back( a );
-            a = new BE_SHAPE_POINT( VECTOR2I( d->GetStart().x, d->GetEnd().y ) );
-            m_shapeCollection.push_back( a );
+            int r = d->GetCornerRadius();
+
+            if( r > 0 )
+            {
+                // Rounded rectangle: decompose into arcs.
+                // Normalize coordinates so x1 < x2 and y1 < y2.
+                int x1 = std::min( d->GetStart().x, d->GetEnd().x );
+                int y1 = std::min( d->GetStart().y, d->GetEnd().y );
+                int x2 = std::max( d->GetStart().x, d->GetEnd().x );
+                int y2 = std::max( d->GetStart().y, d->GetEnd().y );
+
+                int w = x2 - x1;
+                int h = y2 - y1;
+
+                auto addArc = [&]( const VECTOR2I& center, const VECTOR2I& startPt,
+                                   const VECTOR2I& endPt )
+                {
+                    EDA_ANGLE startAngle( VECTOR2D( startPt - center ) );
+                    EDA_ANGLE endAngle( VECTOR2D( endPt - center ) );
+
+                    while( endAngle < startAngle )
+                        endAngle += ANGLE_360;
+
+                    BE_SHAPE_ARC* arc = new BE_SHAPE_ARC( center, r, startAngle, endAngle,
+                                                         startPt, endPt );
+                    arc->SetParent( d );
+                    m_shapeCollection.push_back( arc );
+                };
+
+                if( h == 2 * r )
+                {
+                    // Horizontal stadium: left and right semicircles
+                    addArc( { x1 + r, y1 + r }, { x1 + r, y1 }, { x1 + r, y2 } );
+                    addArc( { x2 - r, y1 + r }, { x2 - r, y2 }, { x2 - r, y1 } );
+                }
+                else if( w == 2 * r )
+                {
+                    // Vertical stadium: top and bottom semicircles
+                    addArc( { x1 + r, y1 + r }, { x1, y1 + r }, { x2, y1 + r } );
+                    addArc( { x1 + r, y2 - r }, { x2, y2 - r }, { x1, y2 - r } );
+                }
+                else
+                {
+                    // General rounded rectangle: four quarter-circle arcs
+                    addArc( { x1 + r, y1 + r }, { x1,     y1 + r }, { x1 + r, y1     } );
+                    addArc( { x2 - r, y1 + r }, { x2 - r, y1     }, { x2,     y1 + r } );
+                    addArc( { x2 - r, y2 - r }, { x2,     y2 - r }, { x2 - r, y2     } );
+                    addArc( { x1 + r, y2 - r }, { x1 + r, y2     }, { x1,     y2 - r } );
+                }
+            }
+            else
+            {
+                BE_SHAPE_POINT* a = new BE_SHAPE_POINT( d->GetStart() );
+                a->SetParent( d );
+                m_shapeCollection.push_back( a );
+                a = new BE_SHAPE_POINT( d->GetEnd() );
+                a->SetParent( d );
+                m_shapeCollection.push_back( a );
+                a = new BE_SHAPE_POINT( VECTOR2I( d->GetEnd().x, d->GetStart().y ) );
+                a->SetParent( d );
+                m_shapeCollection.push_back( a );
+                a = new BE_SHAPE_POINT( VECTOR2I( d->GetStart().x, d->GetEnd().y ) );
+                a->SetParent( d );
+                m_shapeCollection.push_back( a );
+            }
+
             break;
         }
 
@@ -548,6 +762,7 @@ void CREEPAGE_GRAPH::TransformEdgeToCreepShapes()
             for( const VECTOR2I& p : d->GetPolyPoints() )
             {
                 BE_SHAPE_POINT* a = new BE_SHAPE_POINT( p );
+                a->SetParent( d );
                 m_shapeCollection.push_back( a );
             }
 
@@ -774,7 +989,7 @@ void BE_SHAPE_ARC::ConnectChildren( std::shared_ptr<GRAPH_NODE>& a1, std::shared
 
     double weight = abs( m_radius * ( angle2 - angle1 ).AsRadians() );
 
-    if( true || aG.m_minGrooveWidth <= 0 )
+    if( aG.m_minGrooveWidth <= 0 )
     {
         if( ( weight > aG.GetTarget() ) )
             return;
@@ -1494,6 +1709,35 @@ std::vector<PATH_CONNECTION> CU_SHAPE_CIRCLE::Paths( const BE_SHAPE_CIRCLE& aS2,
     if( dist > aMaxWeight || dist == 0 )
         return result;
 
+    double circleAngle = EDA_ANGLE( center2 - center1 ).AsRadians();
+
+    if( dist <= R2 )
+    {
+        // Copper circle center is inside the board-edge circle so external tangent lines
+        // don't exist. The nearest gap is the radial distance between circle boundaries.
+        double weight = std::max( R2 - dist - R1, 0.0 );
+
+        if( weight > aMaxWeight )
+            return result;
+
+        double radialAngle = circleAngle + M_PI;
+        double cx = cos( radialAngle );
+        double cy = sin( radialAngle );
+        VECTOR2I pEnd = center2 + VECTOR2I( R2 * cx, R2 * cy );
+        VECTOR2I pStart = center1 + VECTOR2I( R1 * cx, R1 * cy );
+
+        PATH_CONNECTION pc;
+        pc.a1 = pStart;
+        pc.a2 = pEnd;
+        pc.weight = weight;
+
+        // Callers expect two entries (one per tangent side) and select by index.
+        result.push_back( pc );
+        result.push_back( pc );
+
+        return result;
+    }
+
     double weight = sqrt( dist * dist - R2 * R2 ) - R1;
     double theta = asin( R2 / dist );
     double psi = acos( R2 / dist );
@@ -1503,8 +1747,6 @@ std::vector<PATH_CONNECTION> CU_SHAPE_CIRCLE::Paths( const BE_SHAPE_CIRCLE& aS2,
 
     PATH_CONNECTION pc;
     pc.weight = std::max( weight, 0.0 );
-
-    double circleAngle = EDA_ANGLE( center2 - center1 ).AsRadians();
 
     VECTOR2I pStart;
     VECTOR2I pEnd;
@@ -1695,19 +1937,113 @@ bool SegmentIntersectsBoard( const VECTOR2I& aP1, const VECTOR2I& aP2,
 
         case SHAPE_T::RECTANGLE:
         {
-            VECTOR2I c1 = d->GetStart();
-            VECTOR2I c2( d->GetStart().x, d->GetEnd().y );
-            VECTOR2I c3 = d->GetEnd();
-            VECTOR2I c4( d->GetEnd().x, d->GetStart().y );
+            int r = d->GetCornerRadius();
 
-            bool intersects = false;
-            intersects |= segments_intersect( aP1, aP2, c1, c2, intersectionPoints );
-            intersects |= segments_intersect( aP1, aP2, c2, c3, intersectionPoints );
-            intersects |= segments_intersect( aP1, aP2, c3, c4, intersectionPoints );
-            intersects |= segments_intersect( aP1, aP2, c4, c1, intersectionPoints );
+            if( r > 0 )
+            {
+                // Rounded rectangle: four shortened straight sides + four quarter-circle arcs.
+                int x1 = std::min( d->GetStart().x, d->GetEnd().x );
+                int y1 = std::min( d->GetStart().y, d->GetEnd().y );
+                int x2 = std::max( d->GetStart().x, d->GetEnd().x );
+                int y2 = std::max( d->GetStart().y, d->GetEnd().y );
 
-            if( intersects && !TestGrooveWidth )
-                return false;
+                // Straight sides (between arc endpoints). Skip zero-length
+                // sides that occur when one dimension equals 2*r (stadium).
+                int w = x2 - x1;
+                int h = y2 - y1;
+                bool intersects = false;
+
+                if( w > 2 * r )
+                {
+                    intersects |= segments_intersect( aP1, aP2, { x1 + r, y1 }, { x2 - r, y1 },
+                                                      intersectionPoints );
+                    intersects |= segments_intersect( aP1, aP2, { x2 - r, y2 }, { x1 + r, y2 },
+                                                      intersectionPoints );
+                }
+
+                if( h > 2 * r )
+                {
+                    intersects |= segments_intersect( aP1, aP2, { x2, y1 + r }, { x2, y2 - r },
+                                                      intersectionPoints );
+                    intersects |= segments_intersect( aP1, aP2, { x1, y2 - r }, { x1, y1 + r },
+                                                      intersectionPoints );
+                }
+
+                if( intersects && !TestGrooveWidth )
+                    return false;
+
+                // Corner arcs, matching the decomposition in TransformEdgeToCreepShapes.
+                // Stadium shapes get semicircles instead of four quarter-arcs to
+                // avoid duplicate centers that cause division by zero in Paths().
+                struct CornerArcRange
+                {
+                    VECTOR2I  center;
+                    EDA_ANGLE startAngle;
+                    EDA_ANGLE endAngle;
+                };
+
+                std::vector<CornerArcRange> arcs;
+
+                if( h == 2 * r )
+                {
+                    // Horizontal stadium: left and right semicircles
+                    arcs.push_back( { { x1 + r, y1 + r },
+                                      EDA_ANGLE( -90.0, DEGREES_T ),
+                                      EDA_ANGLE( 90.0, DEGREES_T ) } );
+                    arcs.push_back( { { x2 - r, y1 + r },
+                                      EDA_ANGLE( 90.0, DEGREES_T ),
+                                      EDA_ANGLE( 270.0, DEGREES_T ) } );
+                }
+                else if( w == 2 * r )
+                {
+                    // Vertical stadium: top and bottom semicircles
+                    arcs.push_back( { { x1 + r, y1 + r },
+                                      EDA_ANGLE( -180.0, DEGREES_T ),
+                                      EDA_ANGLE( 0.0, DEGREES_T ) } );
+                    arcs.push_back( { { x1 + r, y2 - r },
+                                      EDA_ANGLE( 0.0, DEGREES_T ),
+                                      EDA_ANGLE( 180.0, DEGREES_T ) } );
+                }
+                else
+                {
+                    arcs = {
+                        { { x1 + r, y1 + r }, EDA_ANGLE( -180.0, DEGREES_T ),
+                          EDA_ANGLE( -90.0, DEGREES_T ) },
+                        { { x2 - r, y1 + r }, EDA_ANGLE( -90.0, DEGREES_T ),
+                          EDA_ANGLE( 0.0, DEGREES_T ) },
+                        { { x2 - r, y2 - r }, EDA_ANGLE( 0.0, DEGREES_T ),
+                          EDA_ANGLE( 90.0, DEGREES_T ) },
+                        { { x1 + r, y2 - r }, EDA_ANGLE( 90.0, DEGREES_T ),
+                          EDA_ANGLE( 180.0, DEGREES_T ) },
+                    };
+                }
+
+                for( const CornerArcRange& ca : arcs )
+                {
+                    bool arcIntersects = segmentIntersectsArc( aP1, aP2, ca.center, r,
+                                                               ca.startAngle, ca.endAngle,
+                                                               &intersectionPoints );
+
+                    if( arcIntersects && !TestGrooveWidth )
+                        return false;
+                }
+            }
+            else
+            {
+                VECTOR2I c1 = d->GetStart();
+                VECTOR2I c2( d->GetStart().x, d->GetEnd().y );
+                VECTOR2I c3 = d->GetEnd();
+                VECTOR2I c4( d->GetEnd().x, d->GetStart().y );
+
+                bool intersects = false;
+                intersects |= segments_intersect( aP1, aP2, c1, c2, intersectionPoints );
+                intersects |= segments_intersect( aP1, aP2, c2, c3, intersectionPoints );
+                intersects |= segments_intersect( aP1, aP2, c3, c4, intersectionPoints );
+                intersects |= segments_intersect( aP1, aP2, c4, c1, intersectionPoints );
+
+                if( intersects && !TestGrooveWidth )
+                    return false;
+            }
 
             break;
         }
@@ -2129,6 +2465,32 @@ void CREEPAGE_GRAPH::Addshape( const SHAPE& aShape, std::shared_ptr<GRAPH_NODE>&
         break;
     }
 
+    case SH_SIMPLE:
+    {
+        // SHAPE_SIMPLE is the arbitrary-polygon form used for rectangular, trapezoidal and
+        // chamfered pads when they are not axis-aligned (orthogonal rotations collapse to
+        // SH_RECT instead). Decompose its closed outline into segments so the copper edge
+        // is added to the graph, otherwise the pad contributes no creepage anchor and the
+        // path snaps to the pad hole instead of the copper (issue #24543).
+        const SHAPE_SIMPLE&     simple = dynamic_cast<const SHAPE_SIMPLE&>( aShape );
+        const SHAPE_LINE_CHAIN& vertices = simple.Vertices();
+
+        if( vertices.PointCount() < 3 )
+            break;
+
+        VECTOR2I prevPoint = vertices.CLastPoint();
+
+        for( const VECTOR2I& point : vertices.CPoints() )
+        {
+            if( point != prevPoint )
+                Addshape( SHAPE_SEGMENT( prevPoint, point ), aConnectTo, aParent );
+
+            prevPoint = point;
+        }
+
+        break;
+    }
+
     case SH_RECT:
     {
         const SHAPE_RECT& rect = dynamic_cast<const SHAPE_RECT&>( aShape );
@@ -2180,14 +2542,23 @@ void CREEPAGE_GRAPH::Addshape( const SHAPE& aShape, std::shared_ptr<GRAPH_NODE>&
     }
 }
 
-void CREEPAGE_GRAPH::GeneratePaths( double aMaxWeight, PCB_LAYER_ID aLayer )
+void CREEPAGE_GRAPH::GeneratePaths( double aMaxWeight, PCB_LAYER_ID aLayer,
+                                   const std::set<int>* aRelevantNets )
 {
+    auto irrelevantPair = [&]( const std::shared_ptr<GRAPH_NODE>& gn1,
+                               const std::shared_ptr<GRAPH_NODE>& gn2 ) -> bool
+    {
+        return aRelevantNets && gn1->m_parent && gn2->m_parent && gn1->m_parent->IsConductive()
+               && gn2->m_parent->IsConductive() && !aRelevantNets->count( gn1->m_net )
+               && !aRelevantNets->count( gn2->m_net );
+    };
+
     std::vector<std::shared_ptr<GRAPH_NODE>> nodes;
     std::mutex                               nodes_lock;
     thread_pool&                             tp = GetKiCadThreadPool();
 
-    TRACK_RTREE trackIndex;
-    std::vector<CREEPAGE_TRACK_ENTRY*> trackEntries; // For cleanup
+    std::vector<CREEPAGE_TRACK_ENTRY*> trackEntries;
+    TRACK_RTREE::Builder              trackBuilder;
 
     if( aLayer != Edge_Cuts )
     {
@@ -2202,16 +2573,20 @@ void CREEPAGE_GRAPH::GeneratePaths( double aMaxWeight, PCB_LAYER_ID aLayer )
                     CREEPAGE_TRACK_ENTRY* entry = new CREEPAGE_TRACK_ENTRY();
                     entry->segment = SEG( track->GetStart(), track->GetEnd() );
                     entry->layer = aLayer;
+                    entry->halfWidth = track->GetWidth() / 2;
+                    entry->track = track;
 
                     BOX2I bbox = track->GetBoundingBox();
                     int   minCoords[2] = { bbox.GetX(), bbox.GetY() };
                     int   maxCoords[2] = { bbox.GetRight(), bbox.GetBottom() };
-                    trackIndex.Insert( minCoords, maxCoords, entry );
+                    trackBuilder.Add( minCoords, maxCoords, entry );
                     trackEntries.push_back( entry );
                 }
             }
         }
     }
+
+    TRACK_RTREE trackIndex = trackBuilder.Build();
 
     std::copy_if( m_nodes.begin(), m_nodes.end(), std::back_inserter( nodes ),
             [&]( const std::shared_ptr<GRAPH_NODE>& gn )
@@ -2260,10 +2635,8 @@ void CREEPAGE_GRAPH::GeneratePaths( double aMaxWeight, PCB_LAYER_ID aLayer )
         BOX2I             bbox;
     };
 
-    RTree<ParentEntry*, int, 2, double> parentIndex;
-    std::vector<ParentEntry>            parentEntries;
+    std::vector<ParentEntry> parentEntries;
 
-    // Build list of non-null parents first
     for( const auto* parent : parent_keys )
     {
         if( parent )
@@ -2275,13 +2648,16 @@ void CREEPAGE_GRAPH::GeneratePaths( double aMaxWeight, PCB_LAYER_ID aLayer )
         }
     }
 
-    // Insert into RTree
+    KIRTREE::PACKED_RTREE<ParentEntry*, int, 2>::Builder parentBuilder;
+
     for( ParentEntry& entry : parentEntries )
     {
         int minCoords[2] = { entry.bbox.GetLeft(), entry.bbox.GetTop() };
         int maxCoords[2] = { entry.bbox.GetRight(), entry.bbox.GetBottom() };
-        parentIndex.Insert( minCoords, maxCoords, &entry );
+        parentBuilder.Add( minCoords, maxCoords, &entry );
     }
+
+    auto parentIndex = parentBuilder.Build();
 
     // Parallelize parent pair search using thread pool
     std::mutex work_items_lock;
@@ -2298,77 +2674,84 @@ void CREEPAGE_GRAPH::GeneratePaths( double aMaxWeight, PCB_LAYER_ID aLayer )
         int searchMin[2] = { bbox1.GetLeft() - (int) maxDist, bbox1.GetTop() - (int) maxDist };
         int searchMax[2] = { bbox1.GetRight() + (int) maxDist, bbox1.GetBottom() + (int) maxDist };
 
-        parentIndex.Search( searchMin, searchMax,
-                [&]( ParentEntry* entry2 ) -> bool
+        auto parentVisitor = [&]( ParentEntry* entry2 ) -> bool
+        {
+            const BOARD_ITEM* parent2 = entry2->parent;
+
+            // Only process if parent1 < parent2 to avoid duplicates
+            if( parent1 >= parent2 )
+                return true;
+
+            // Precise bbox distance check
+            BOX2I bbox2 = entry2->bbox;
+
+            int64_t bboxDistX = 0;
+
+            if( bbox2.GetLeft() > bbox1.GetRight() )
+                bboxDistX = bbox2.GetLeft() - bbox1.GetRight();
+            else if( bbox1.GetLeft() > bbox2.GetRight() )
+                bboxDistX = bbox1.GetLeft() - bbox2.GetRight();
+
+            int64_t bboxDistY = 0;
+
+            if( bbox2.GetTop() > bbox1.GetBottom() )
+                bboxDistY = bbox2.GetTop() - bbox1.GetBottom();
+            else if( bbox1.GetTop() > bbox2.GetBottom() )
+                bboxDistY = bbox1.GetTop() - bbox2.GetBottom();
+
+            int64_t bboxDistSq = bboxDistX * bboxDistX + bboxDistY * bboxDistY;
+
+            if( bboxDistSq > maxDist * maxDist )
+                return true;
+
+            // Get nodes for both parents (thread-safe reads from const map)
+            auto it1 = parent_net_groups.find( parent1 );
+            auto it2 = parent_net_groups.find( parent2 );
+
+            if( it1 == parent_net_groups.end() || it2 == parent_net_groups.end() )
+                return true;
+
+            for( const auto& [net1, nodes1] : it1->second )
+            {
+                for( const auto& [net2, nodes2] : it2->second )
                 {
-                    const BOARD_ITEM* parent2 = entry2->parent;
-
-                    // Only process if parent1 < parent2 to avoid duplicates
-                    if( parent1 >= parent2 )
-                        return true;
-
-                    // Precise bbox distance check
-                    BOX2I bbox2 = entry2->bbox;
-
-                    int64_t bboxDistX = 0;
-                    if( bbox2.GetLeft() > bbox1.GetRight() )
-                        bboxDistX = bbox2.GetLeft() - bbox1.GetRight();
-                    else if( bbox1.GetLeft() > bbox2.GetRight() )
-                        bboxDistX = bbox1.GetLeft() - bbox2.GetRight();
-
-                    int64_t bboxDistY = 0;
-                    if( bbox2.GetTop() > bbox1.GetBottom() )
-                        bboxDistY = bbox2.GetTop() - bbox1.GetBottom();
-                    else if( bbox1.GetTop() > bbox2.GetBottom() )
-                        bboxDistY = bbox1.GetTop() - bbox2.GetBottom();
-
-                    int64_t bboxDistSq = bboxDistX * bboxDistX + bboxDistY * bboxDistY;
-                    if( bboxDistSq > maxDist * maxDist )
-                        return true;
-
-                    // Get nodes for both parents (thread-safe reads from const map)
-                    auto it1 = parent_net_groups.find( parent1 );
-                    auto it2 = parent_net_groups.find( parent2 );
-
-                    if( it1 == parent_net_groups.end() || it2 == parent_net_groups.end() )
-                        return true;
-
-                    for( const auto& [net1, nodes1] : it1->second )
+                    // Skip same net if both are conductive
+                    if( net1 == net2 && !nodes1.empty() && !nodes2.empty() )
                     {
-                        for( const auto& [net2, nodes2] : it2->second )
-                        {
-                            // Skip same net if both are conductive
-                            if( net1 == net2 && !nodes1.empty() && !nodes2.empty() )
-                            {
-                                if( nodes1[0]->m_parent->IsConductive()
-                                    && nodes2[0]->m_parent->IsConductive() )
-                                    continue;
-                            }
-
-                            for( const auto& gn1 : nodes1 )
-                            {
-                                for( const auto& gn2 : nodes2 )
-                                {
-                                    VECTOR2I pos1 = gn1->m_parent->GetPos();
-                                    VECTOR2I pos2 = gn2->m_parent->GetPos();
-                                    int      r1 = gn1->m_parent->GetRadius();
-                                    int      r2 = gn2->m_parent->GetRadius();
-
-                                    int64_t centerDistSq = ( pos1 - pos2 ).SquaredEuclideanNorm();
-                                    double  threshold = aMaxWeight + r1 + r2;
-                                    double  thresholdSq = threshold * threshold;
-
-                                    if( (double) centerDistSq > thresholdSq )
-                                        continue;
-
-                                    localWorkItems.push_back( { gn1, gn2 } );
-                                }
-                            }
-                        }
+                        if( nodes1[0]->m_parent->IsConductive()
+                            && nodes2[0]->m_parent->IsConductive() )
+                            continue;
                     }
 
-                    return true;
-                } );
+                    for( const auto& gn1 : nodes1 )
+                    {
+                        for( const auto& gn2 : nodes2 )
+                        {
+                            VECTOR2I pos1 = gn1->m_parent->GetPos();
+                            VECTOR2I pos2 = gn2->m_parent->GetPos();
+                            int      r1 = gn1->m_parent->GetRadius();
+                            int      r2 = gn2->m_parent->GetRadius();
+
+                            int64_t centerDistSq = ( pos1 - pos2 ).SquaredEuclideanNorm();
+                            double  threshold = aMaxWeight + r1 + r2;
+                            double  thresholdSq = threshold * threshold;
+
+                            if( (double) centerDistSq > thresholdSq )
+                                continue;
+
+                            if( irrelevantPair( gn1, gn2 ) )
+                                continue;
+
+                            localWorkItems.push_back( { gn1, gn2 } );
+                        }
+                    }
+                }
+            }
+
+            return true;
+        };
+
+        parentIndex.Search( searchMin, searchMax, parentVisitor );
 
         // Merge local results into global
         if( !localWorkItems.empty() )
@@ -2397,6 +2780,56 @@ void CREEPAGE_GRAPH::GeneratePaths( double aMaxWeight, PCB_LAYER_ID aLayer )
             searchParent( i );
     }
 
+    // Generate work items for same-parent node pairs. The cross-parent search above
+    // skips pairs where parent1 == parent2, but creepage paths between different edge
+    // segments of the same slot (which share a footprint grandparent) are needed for
+    // the path to navigate around the slot geometry. Also handles null-parent nodes
+    // (e.g. NPTH pad shapes) which were excluded from the RTree search entirely.
+    for( const auto& [parent, net_groups] : parent_net_groups )
+    {
+        std::vector<std::shared_ptr<GRAPH_NODE>> sameParentNodes;
+
+        for( const auto& [net, nodeList] : net_groups )
+            sameParentNodes.insert( sameParentNodes.end(), nodeList.begin(), nodeList.end() );
+
+        for( size_t i = 0; i < sameParentNodes.size(); i++ )
+        {
+            for( size_t j = i + 1; j < sameParentNodes.size(); j++ )
+            {
+                auto& gn1 = sameParentNodes[i];
+                auto& gn2 = sameParentNodes[j];
+
+                // ConnectChildren already handles nodes on the same CREEP_SHAPE
+                if( gn1->m_parent == gn2->m_parent )
+                    continue;
+
+                // Skip same-net conductive pairs
+                if( gn1->m_parent->IsConductive() && gn2->m_parent->IsConductive()
+                    && gn1->m_net == gn2->m_net )
+                {
+                    continue;
+                }
+
+                VECTOR2I pos1 = gn1->m_parent->GetPos();
+                VECTOR2I pos2 = gn2->m_parent->GetPos();
+                int      r1 = gn1->m_parent->GetRadius();
+                int      r2 = gn2->m_parent->GetRadius();
+
+                int64_t centerDistSq = ( pos1 - pos2 ).SquaredEuclideanNorm();
+                double  threshold = aMaxWeight + r1 + r2;
+                double  thresholdSq = threshold * threshold;
+
+                if( (double) centerDistSq > thresholdSq )
+                    continue;
+
+                if( irrelevantPair( gn1, gn2 ) )
+                    continue;
+
+                work_items.push_back( { gn1, gn2 } );
+            }
+        }
+    }
+
     auto processWorkItems =
             [&]( size_t idx ) -> bool
             {
@@ -2408,10 +2841,39 @@ void CREEPAGE_GRAPH::GeneratePaths( double aMaxWeight, PCB_LAYER_ID aLayer )
 
                 for( const PATH_CONNECTION& pc : GetPaths( shape1, shape2, aMaxWeight ) )
                 {
-                    std::vector<const BOARD_ITEM*> IgnoreForTest =
+                    std::vector<const BOARD_ITEM*> IgnoreForTest;
+
+                    // For CIRCLE and ARC shapes the candidate path ends ON the shape's
+                    // boundary at a tangent point. segmentIntersectsCircle has no
+                    // endpoint exclusion, and segmentIntersectsArc only excludes when
+                    // the shared point is also an arc endpoint, so a tangent point
+                    // lying mid-arc registers as an intersection. Without suppressing
+                    // the parent here, the tangent path is wrongly rejected and
+                    // Dijkstra is forced onto a longer route around the obstacle
+                    // (issue #24286).
+                    //
+                    // POINT shapes don't need suppression because segments_intersect
+                    // excludes shared segment endpoints, so paths ending at a POINT
+                    // already get correct exclusion from its parent's other edges.
+                    if( shape1->GetType() == CREEP_SHAPE::TYPE::CIRCLE
+                        || shape1->GetType() == CREEP_SHAPE::TYPE::ARC )
                     {
-                        gn1->m_parent->GetParent(), gn2->m_parent->GetParent()
-                    };
+                        IgnoreForTest.push_back( shape1->GetParent() );
+                    }
+
+                    if( shape2->GetType() == CREEP_SHAPE::TYPE::CIRCLE
+                        || shape2->GetType() == CREEP_SHAPE::TYPE::ARC )
+                    {
+                        IgnoreForTest.push_back( shape2->GetParent() );
+                    }
+
+                    // Also ignore each CU shape's own parent for the endpoint-inside-track
+                    // test so we don't reject paths that touch the track's own edge.
+                    if( shape1->IsConductive() )
+                        IgnoreForTest.push_back( shape1->GetParent() );
+
+                    if( shape2->IsConductive() )
+                        IgnoreForTest.push_back( shape2->GetParent() );
 
                     bool valid = pc.isValid( m_board, aLayer, m_boardEdge, IgnoreForTest, m_boardOutline,
                                      { false, true }, m_minGrooveWidth, &trackIndex );
@@ -2535,6 +2997,28 @@ void CREEPAGE_GRAPH::RemoveConnection( const std::shared_ptr<GRAPH_CONNECTION>& 
         // Remove the connection from the graph's connections
         m_connections.erase( std::remove( m_connections.begin(), m_connections.end(), aGc ),
                              m_connections.end() );
+    }
+}
+
+
+void CREEPAGE_GRAPH::TruncateToPrefix( size_t aNodeCount, size_t aConnectionCount )
+{
+    size_t vectorSize = m_connections.size();
+
+    // Detach each connection from its endpoints' lists; the bulk resize drops them in one shot
+    for( size_t i = aConnectionCount; i < vectorSize; i++ )
+        RemoveConnection( m_connections[i], false );
+
+    m_connections.resize( aConnectionCount, nullptr );
+    m_nodes.resize( aNodeCount, nullptr );
+
+    // Without this, stale per-solve nodes corrupt subsequent FindNode/AddNode lookups
+    m_nodeset.clear();
+
+    for( size_t i = 0; i < aNodeCount; ++i )
+    {
+        if( m_nodes[i] )
+            m_nodeset.insert( m_nodes[i] );
     }
 }
 

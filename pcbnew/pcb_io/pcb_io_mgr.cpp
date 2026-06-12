@@ -49,6 +49,9 @@
 #include <pcb_io/ipc2581/pcb_io_ipc2581.h>
 #include <pcb_io/odbpp/pcb_io_odbpp.h>
 #include <pcb_io/pads/pcb_io_pads.h>
+#include <pcb_io/sprint_layout/pcb_io_sprint_layout.h>
+#include <pcb_io/diptrace/pcb_io_diptrace.h>
+#include <pcb_io/autotrax/pcb_io_autotrax.h>
 #include <reporter.h>
 #include <libraries/library_table_parser.h>
 
@@ -357,4 +360,19 @@ static PCB_IO_MGR::REGISTER_PLUGIN registerPadsPlugin(
         PCB_IO_MGR::PADS,
         wxT( "PADS" ),
         []() -> PCB_IO* { return new PCB_IO_PADS(); } );
+
+static PCB_IO_MGR::REGISTER_PLUGIN registerSprintLayoutPlugin(
+        PCB_IO_MGR::SPRINT_LAYOUT,
+        wxT( "Sprint Layout" ),
+        []() -> PCB_IO* { return new PCB_IO_SPRINT_LAYOUT; } );
+
+static PCB_IO_MGR::REGISTER_PLUGIN registerDipTracePlugin(
+        PCB_IO_MGR::DIPTRACE,
+        wxT( "DipTrace" ),
+        []() -> PCB_IO* { return new PCB_IO_DIPTRACE; } );
+
+static PCB_IO_MGR::REGISTER_PLUGIN registerAutotraxPlugin(
+        PCB_IO_MGR::AUTOTRAX,
+        wxT( "Protel Autotrax" ),
+        []() -> PCB_IO* { return new PCB_IO_AUTOTRAX; } );
 // clang-format on

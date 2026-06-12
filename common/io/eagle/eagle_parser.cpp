@@ -1038,7 +1038,7 @@ ETEXT::ETEXT( wxXmlNode* aText, IO_BASE* aIo ) :
 }
 
 
-VECTOR2I ETEXT::ConvertSize() const
+VECTOR2I ConvertEagleTextSize( const opt_wxString& font, const ECOORD& size )
 {
     VECTOR2I textsize;
 
@@ -1065,6 +1065,12 @@ VECTOR2I ETEXT::ConvertSize() const
     }
 
     return textsize;
+}
+
+
+VECTOR2I ETEXT::ConvertSize() const
+{
+    return ConvertEagleTextSize( font, size );
 }
 
 
@@ -1761,11 +1767,13 @@ EDEVICE::EDEVICE( wxXmlNode* aDevice, IO_BASE* aIo ) :
         }
         else if( child->GetName() == "technologies" )
         {
-            for( wxXmlNode* technology = child->GetChildren(); technology;
-                 technology = technology->GetNext() )
+            for( wxXmlNode* technology = child->GetChildren(); technology; technology = technology->GetNext() )
             {
                 if( technology->GetName() == "technology" )
-                    technologies.emplace_back( std::make_unique<ETECHNOLOGY>( technology, aIo ) );
+                {
+                    std::unique_ptr<ETECHNOLOGY> tmp = std::make_unique<ETECHNOLOGY>( technology, aIo );
+                    technologies[tmp->name] = std::move( tmp );
+                }
             }
 
             AdvanceProgressPhase();
@@ -1821,7 +1829,10 @@ EDEVICE_SET::EDEVICE_SET( wxXmlNode* aDeviceSet, IO_BASE* aIo ) :
         else if( child->GetName() == "devices" )
         {
             for( wxXmlNode* device = child->GetChildren(); device; device = device->GetNext() )
-                devices.emplace_back( std::make_unique<EDEVICE>( device, aIo ) );
+            {
+                std::unique_ptr<EDEVICE> tmp = std::make_unique<EDEVICE>( device, aIo );
+                devices[tmp->name] = std::move( tmp );
+            }
 
             AdvanceProgressPhase();
         }

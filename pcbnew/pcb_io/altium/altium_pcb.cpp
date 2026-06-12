@@ -27,6 +27,7 @@
 #include <altium_pcb_compound_file.h>
 #include <io/altium/altium_binary_parser.h>
 #include <io/altium/altium_parser_utils.h>
+#include <io/altium/altium_project_variants.h>
 
 #include <board.h>
 #include <board_design_settings.h>
@@ -941,6 +942,22 @@ const ARULE6* ALTIUM_PCB::GetRuleDefault( ALTIUM_RULE_KIND aKind ) const
     return nullptr;
 }
 
+
+const ARULE6* ALTIUM_PCB::GetRuleForPolygon( ALTIUM_RULE_KIND aKind ) const
+{
+    const auto rules = m_rules.find( aKind );
+
+    if( rules == m_rules.end() )
+        return nullptr;
+
+    if( const ARULE6* match = selectAltiumPolygonRule( rules->second ) )
+        return match;
+
+    // Fall back to the default (All/All) rule
+    return GetRuleDefault( aKind );
+}
+
+
 void ALTIUM_PCB::ParseFileHeader( const ALTIUM_PCB_COMPOUND_FILE&     aAltiumPcbFile,
                                   const CFB::COMPOUND_FILE_ENTRY* aEntry )
 {
@@ -1091,6 +1108,9 @@ void ALTIUM_PCB::ParseBoard6Data( const ALTIUM_PCB_COMPOUND_FILE&     aAltiumPcb
                                               NotSpecifiedPrm() :
                                               wxString( layer.dielectricmaterial ) );
         ( *it )->SetEpsilonR( layer.dielectricconst, 0 );
+
+        if( layer.dielectriclosstangent > 0. )
+            ( *it )->SetLossTangent( layer.dielectriclosstangent, 0 );
 
         ++it;
     }
@@ -1540,7 +1560,7 @@ void ALTIUM_PCB::ParseComponents6Data( const ALTIUM_PCB_COMPOUND_FILE& aAltiumPc
 
         footprint->SetReference( reference );
 
-        KIID id( elem.sourceUniqueID );
+        KIID id = AltiumUniqueIdToKiid( elem.sourceUniqueID );
         KIID pathid( elem.sourceHierachicalPath );
         KIID_PATH path;
         path.push_back( pathid );
@@ -2414,8 +2434,8 @@ void ALTIUM_PCB::ParsePolygons6Data( const ALTIUM_PCB_COMPOUND_FILE&     aAltium
         if( elem.pourindex > m_highest_pour_index )
             m_highest_pour_index = elem.pourindex;
 
-        const ARULE6* planeClearanceRule = GetRuleDefault( ALTIUM_RULE_KIND::PLANE_CLEARANCE );
-        const ARULE6* zoneClearanceRule = GetRule( ALTIUM_RULE_KIND::CLEARANCE, wxT( "PolygonClearance" ) );
+        const ARULE6* planeClearanceRule = GetRuleForPolygon( ALTIUM_RULE_KIND::PLANE_CLEARANCE );
+        const ARULE6* zoneClearanceRule = GetRuleForPolygon( ALTIUM_RULE_KIND::CLEARANCE );
         int planeLayers = 0;
         int signalLayers = 0;
         int clearance = 0;
@@ -2440,7 +2460,7 @@ void ALTIUM_PCB::ParsePolygons6Data( const ALTIUM_PCB_COMPOUND_FILE&     aAltium
         if( clearance > 0 )
             zone->SetLocalClearance( clearance );
 
-        const ARULE6* polygonConnectRule = GetRuleDefault( ALTIUM_RULE_KIND::POLYGON_CONNECT );
+        const ARULE6* polygonConnectRule = GetRuleForPolygon( ALTIUM_RULE_KIND::POLYGON_CONNECT );
 
         if( polygonConnectRule != nullptr )
         {
@@ -2531,7 +2551,8 @@ void ALTIUM_PCB::ParseRules6Data( const ALTIUM_PCB_COMPOUND_FILE&     aAltiumPcb
         m_rules[elem.kind].emplace_back( elem );
     }
 
-    // sort rules by priority
+    // Sort by ARULE6::priority ascending. Altium priority 1 is the most specific, so the
+    // first element after sorting is the highest-priority Altium rule.
     for( std::pair<const ALTIUM_RULE_KIND, std::vector<ARULE6>>& val : m_rules )
     {
         std::sort( val.second.begin(), val.second.end(),
@@ -3471,13 +3492,21 @@ void ALTIUM_PCB::ConvertVias6ToFootprintItem( FOOTPRINT* aFootprint, const AVIA6
     else
     {
         pad->Padstack().SetMode( PADSTACK::MODE::CUSTOM );
-        int altiumIdx = 0;
 
-        for( PCB_LAYER_ID layer : LAYER_RANGE( F_Cu, B_Cu, 32 ) )
+        LSET cuLayers = LSET::AllCuMask();
+
+        if( m_board )
+            cuLayers &= m_board->GetEnabledLayers();
+
+        for( PCB_LAYER_ID layer : cuLayers )
         {
-            pad->Padstack().SetSize( VECTOR2I( aElem.diameter_by_layer[altiumIdx],
-                                               aElem.diameter_by_layer[altiumIdx] ), layer );
-            altiumIdx++;
+            int altiumIdx = CopperLayerToOrdinal( layer );
+
+            if( altiumIdx < 32 )
+            {
+                pad->Padstack().SetSize( VECTOR2I( aElem.diameter_by_layer[altiumIdx],
+                                                   aElem.diameter_by_layer[altiumIdx] ), layer );
+            }
         }
     }
 
@@ -4205,7 +4234,9 @@ void ALTIUM_PCB::ParseVias6Data( const ALTIUM_PCB_COMPOUND_FILE&     aAltiumPcbF
         {
             via->Padstack().SetMode( PADSTACK::MODE::CUSTOM );
 
-            for( PCB_LAYER_ID layer : LAYER_RANGE( F_Cu, B_Cu, MAX_CU_LAYERS ) )
+            LSET cuLayers = m_board->GetEnabledLayers() & LSET::AllCuMask();
+
+            for( PCB_LAYER_ID layer : cuLayers )
             {
                 int altiumLayer = CopperLayerToOrdinal( layer );
                 wxCHECK2_MSG( altiumLayer < 32, break,
@@ -4218,13 +4249,22 @@ void ALTIUM_PCB::ParseVias6Data( const ALTIUM_PCB_COMPOUND_FILE&     aAltiumPcbF
         }
         }
 
-        if( elem.soldermask_expansion_manual )
-        {
-            via->SetFrontTentingMode( elem.is_tent_top ? TENTING_MODE::TENTED
-                                                       : TENTING_MODE::NOT_TENTED );
-            via->SetBackTentingMode( elem.is_tent_bottom ? TENTING_MODE::TENTED
-                                                         : TENTING_MODE::NOT_TENTED );
-        }
+        // Altium can size the solder mask opening from the hole edge instead of the via land.
+        // KiCad vias cannot represent a hole-referenced opening, so when the resulting opening
+        // does not clear the via land the pad copper is covered and the via is effectively tented.
+        bool tentTop = altiumViaSideIsTented( elem.is_tent_top, elem.soldermask_expansion_manual,
+                                              elem.soldermask_expansion_from_hole, elem.holesize,
+                                              elem.soldermask_expansion_front,
+                                              via->GetWidth( F_Cu ) );
+
+        bool tentBottom = altiumViaSideIsTented( elem.is_tent_bottom,
+                                                 elem.soldermask_expansion_manual,
+                                                 elem.soldermask_expansion_from_hole, elem.holesize,
+                                                 elem.soldermask_expansion_back,
+                                                 via->GetWidth( B_Cu ) );
+
+        via->SetFrontTentingMode( tentTop ? TENTING_MODE::TENTED : TENTING_MODE::NOT_TENTED );
+        via->SetBackTentingMode( tentBottom ? TENTING_MODE::TENTED : TENTING_MODE::NOT_TENTED );
 
         m_board->Add( via.release(), ADD_MODE::APPEND );
     }
@@ -4541,18 +4581,21 @@ void ALTIUM_PCB::ConvertTexts6ToBoardItemOnLayer( const ATEXT6& aElem, PCB_LAYER
     {
         item = pcbTextbox.get();
         text = pcbTextbox.get();
-
-        ConvertTexts6ToEdaTextSettings( aElem, *text );
-        HelperSetTextboxAlignmentAndPos( aElem, pcbTextbox.get() );
-    }
-    else
-    {
-        ConvertTexts6ToEdaTextSettings( aElem, *text );
-        HelperSetTextAlignmentAndPos( aElem, text );
     }
 
     text->SetText( kicadText );
+
+    // Set the layer before the alignment helpers run.  HelperSetTextAlignmentAndPos measures the
+    // text via GetTextBox(), which resolves layer-dependent special strings such as ${LAYER}.
     item->SetLayer( aLayer );
+
+    ConvertTexts6ToEdaTextSettings( aElem, *text );
+
+    if( isTextbox )
+        HelperSetTextboxAlignmentAndPos( aElem, pcbTextbox.get() );
+    else
+        HelperSetTextAlignmentAndPos( aElem, text );
+
     item->SetIsKnockout( aElem.isInverted );
 
     if( isTextbox )
@@ -4603,21 +4646,24 @@ void ALTIUM_PCB::ConvertTexts6ToFootprintItemOnLayer( FOOTPRINT* aFootprint, con
     {
         item = fpTextbox.get();
         text = fpTextbox.get();
-
-        ConvertTexts6ToEdaTextSettings( aElem, *text );
-        HelperSetTextboxAlignmentAndPos( aElem, fpTextbox.get() );
-    }
-    else
-    {
-        ConvertTexts6ToEdaTextSettings( aElem, *text );
-        HelperSetTextAlignmentAndPos( aElem, text );
     }
 
     wxString kicadText = AltiumPcbSpecialStringsToKiCadStrings( aElem.text, variableMap );
 
     text->SetText( kicadText );
-    text->SetKeepUpright( false );
+
+    // Set the layer before the alignment helpers run.  HelperSetTextAlignmentAndPos measures the
+    // text via GetTextBox(), which resolves layer-dependent special strings such as ${LAYER}.
     item->SetLayer( aLayer );
+
+    ConvertTexts6ToEdaTextSettings( aElem, *text );
+
+    if( isTextbox )
+        HelperSetTextboxAlignmentAndPos( aElem, fpTextbox.get() );
+    else
+        HelperSetTextAlignmentAndPos( aElem, text );
+
+    text->SetKeepUpright( false );
     item->SetIsKnockout( aElem.isInverted );
 
     if( toAdd )
@@ -4774,6 +4820,21 @@ void ALTIUM_PCB::HelperSetTextAlignmentAndPos( const ATEXT6& aElem, EDA_TEXT* aT
     int margin = aElem.isOffsetBorder ? aElem.text_offset_width : aElem.margin_border_width;
     int rectWidth = aElem.textbox_rect_width - margin * 2;
     int rectHeight = aElem.height;
+
+    // Altium auto-sizes the bounding box of a free string (non-frame text) from its own glyph
+    // rasterizer, and stores a slightly different width for otherwise identical strings placed on
+    // different layers (e.g. the copper and soldermask copies of the same label, which Altium may
+    // also give different stroke widths).  Anchoring the KiCad text to that per-record width drives
+    // the two copies apart.  Center the text on its bare glyph run instead, measured from the
+    // already-populated EDA_TEXT with the pen inflation removed, so copies that share a glyph run
+    // stay coincident regardless of stroke width.
+    if( !aElem.isFrame )
+    {
+        rectWidth = aText->GetTextBox( nullptr ).GetWidth();
+
+        if( KIFONT::FONT* font = aText->GetFont(); !font || font->IsStroke() )
+            rectWidth -= 3 * aText->GetEffectiveTextPenWidth();
+    }
 
     if( aElem.isMirrored )
         rectWidth = -rectWidth;

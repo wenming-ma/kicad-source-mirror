@@ -68,7 +68,29 @@ const DRC_CONSTRAINT* DRC_RULE_LOADER::findConstraint( const DRC_RULE& aRule, DR
 }
 
 
-wxString DRC_RULE_LOADER::extractRuleBody( const wxString& aOriginalText )
+static bool isSymmetricMinOptMax( const DRC_CONSTRAINT* aConstraint )
+{
+    if( !aConstraint )
+        return true;
+
+    const auto& value = aConstraint->GetValue();
+
+    if( !value.HasMin() || !value.HasOpt() || !value.HasMax() )
+        return true;
+
+    return ( value.Opt() - value.Min() ) == ( value.Max() - value.Opt() );
+}
+
+
+static std::shared_ptr<DRC_RE_BASE_CONSTRAINT_DATA> makeCustomRuleData( const DRC_RULE& aRule )
+{
+    auto customData = std::make_shared<DRC_RE_CUSTOM_RULE_CONSTRAINT_DATA>();
+    customData->SetRuleName( aRule.m_Name );
+    return customData;
+}
+
+
+wxString DRC_RULE_LOADER::ExtractRuleBody( const wxString& aOriginalText )
 {
     int ruleKeyword = aOriginalText.Find( wxS( "rule " ) );
     if( ruleKeyword == wxNOT_FOUND )
@@ -89,7 +111,7 @@ wxString DRC_RULE_LOADER::extractRuleBody( const wxString& aOriginalText )
 }
 
 
-wxString DRC_RULE_LOADER::extractRuleComment( const wxString& aOriginalText )
+wxString DRC_RULE_LOADER::ExtractRuleComment( const wxString& aOriginalText )
 {
     wxString      comment;
     wxArrayString lines = wxSplit( aOriginalText, '\n', '\0' );
@@ -112,6 +134,34 @@ wxString DRC_RULE_LOADER::extractRuleComment( const wxString& aOriginalText )
     }
 
     return comment;
+}
+
+
+wxString DRC_RULE_LOADER::cleanStrippedCondition( const wxString& aCondition )
+{
+    wxString cleaned = aCondition;
+
+    // Strip empty parentheses left over from removing conditions
+    wxString prev;
+    do
+    {
+        prev = cleaned;
+        cleaned.Replace( wxS( "()" ), wxS( "" ) );
+    } while( cleaned != prev );
+
+    cleaned.Replace( wxS( "&& &&" ), wxS( "&&" ) );
+    cleaned.Replace( wxS( "|| ||" ), wxS( "||" ) );
+    cleaned.Trim( true ).Trim( false );
+    if( cleaned.StartsWith( wxS( "&&" ) ) )
+        cleaned = cleaned.Mid( 2 ).Trim( false );
+    if( cleaned.EndsWith( wxS( "&&" ) ) )
+        cleaned = cleaned.Left( cleaned.Length() - 2 ).Trim( true );
+    if( cleaned.StartsWith( wxS( "||" ) ) )
+        cleaned = cleaned.Mid( 2 ).Trim( false );
+    if( cleaned.EndsWith( wxS( "||" ) ) )
+        cleaned = cleaned.Left( cleaned.Length() - 2 ).Trim( true );
+
+    return cleaned;
 }
 
 
@@ -163,14 +213,7 @@ DRC_RULE_LOADER::createConstraintData( DRC_RULE_EDITOR_CONSTRAINT_NAME   aPanel,
             cleanedCondition.Replace( wxS( "A.Via_Type == 'Blind'" ), wxS( "" ) );
             cleanedCondition.Replace( wxS( "A.Via_Type == 'Buried'" ), wxS( "" ) );
 
-            cleanedCondition.Replace( wxS( "&& &&" ), wxS( "&&" ) );
-            cleanedCondition.Trim( true ).Trim( false );
-            if( cleanedCondition.StartsWith( wxS( "&&" ) ) )
-                cleanedCondition = cleanedCondition.Mid( 2 ).Trim( false );
-            if( cleanedCondition.EndsWith( wxS( "&&" ) ) )
-                cleanedCondition = cleanedCondition.Left( cleanedCondition.Length() - 2 ).Trim( true );
-
-            data->SetRuleCondition( cleanedCondition );
+            data->SetRuleCondition( cleanStrippedCondition( cleanedCondition ) );
         }
 
         return data;
@@ -178,38 +221,38 @@ DRC_RULE_LOADER::createConstraintData( DRC_RULE_EDITOR_CONSTRAINT_NAME   aPanel,
 
     case ROUTING_DIFF_PAIR:
     {
-        auto data = std::make_shared<DRC_RE_ROUTING_DIFF_PAIR_CONSTRAINT_DATA>();
-        data->SetRuleName( aRule.m_Name );
-        data->SetConstraintCode( "diff_pair_gap" );
-
         const DRC_CONSTRAINT* trackWidth = findConstraint( aRule, TRACK_WIDTH_CONSTRAINT );
         const DRC_CONSTRAINT* diffGap = findConstraint( aRule, DIFF_PAIR_GAP_CONSTRAINT );
         const DRC_CONSTRAINT* uncoupled = findConstraint( aRule, MAX_UNCOUPLED_CONSTRAINT );
 
+        if( !isSymmetricMinOptMax( trackWidth ) || !isSymmetricMinOptMax( diffGap ) )
+        {
+            return makeCustomRuleData( aRule );
+        }
+
+        auto data = std::make_shared<DRC_RE_ROUTING_DIFF_PAIR_CONSTRAINT_DATA>();
+        data->SetRuleName( aRule.m_Name );
+        data->SetConstraintCode( "diff_pair_gap" );
+
         if( trackWidth )
         {
-            data->SetMinWidth( toMM( trackWidth->GetValue().Min() ) );
-            data->SetPreferredWidth( toMM( trackWidth->GetValue().Opt() ) );
-            data->SetMaxWidth( toMM( trackWidth->GetValue().Max() ) );
+            double opt = toMM( trackWidth->GetValue().Opt() );
+            double min = toMM( trackWidth->GetValue().Min() );
+            data->SetOptWidth( opt );
+            data->SetWidthTolerance( opt - min );
         }
 
         if( diffGap )
         {
-            data->SetMinGap( toMM( diffGap->GetValue().Min() ) );
-            data->SetPreferredGap( toMM( diffGap->GetValue().Opt() ) );
-            data->SetMaxGap( toMM( diffGap->GetValue().Max() ) );
+            double opt = toMM( diffGap->GetValue().Opt() );
+            double min = toMM( diffGap->GetValue().Min() );
+            data->SetOptGap( opt );
+            data->SetGapTolerance( opt - min );
         }
 
         if( uncoupled )
         {
             data->SetMaxUncoupledLength( toMM( uncoupled->GetValue().Max() ) );
-        }
-
-        const DRC_CONSTRAINT* skew = findConstraint( aRule, SKEW_CONSTRAINT );
-
-        if( skew )
-        {
-            data->SetMaxSkew( toMM( skew->GetValue().Max() ) );
         }
 
         return data;
@@ -235,17 +278,22 @@ DRC_RULE_LOADER::createConstraintData( DRC_RULE_EDITOR_CONSTRAINT_NAME   aPanel,
 
     case ROUTING_WIDTH:
     {
+        const DRC_CONSTRAINT* trackWidth = findConstraint( aRule, TRACK_WIDTH_CONSTRAINT );
+
+        if( !isSymmetricMinOptMax( trackWidth ) )
+            return makeCustomRuleData( aRule );
+
         auto data = std::make_shared<DRC_RE_ROUTING_WIDTH_CONSTRAINT_DATA>();
         data->SetRuleName( aRule.m_Name );
         data->SetConstraintCode( "track_width" );
 
-        const DRC_CONSTRAINT* trackWidth = findConstraint( aRule, TRACK_WIDTH_CONSTRAINT );
-
         if( trackWidth )
         {
-            data->SetMinRoutingWidth( toMM( trackWidth->GetValue().Min() ) );
-            data->SetPreferredRoutingWidth( toMM( trackWidth->GetValue().Opt() ) );
-            data->SetMaxRoutingWidth( toMM( trackWidth->GetValue().Max() ) );
+            double opt = toMM( trackWidth->GetValue().Opt() );
+            double min = toMM( trackWidth->GetValue().Min() );
+
+            data->SetOptWidth( opt );
+            data->SetWidthTolerance( opt - min );
         }
 
         return data;
@@ -253,17 +301,22 @@ DRC_RULE_LOADER::createConstraintData( DRC_RULE_EDITOR_CONSTRAINT_NAME   aPanel,
 
     case ABSOLUTE_LENGTH:
     {
+        const DRC_CONSTRAINT* length = findConstraint( aRule, LENGTH_CONSTRAINT );
+
+        if( !isSymmetricMinOptMax( length ) )
+            return makeCustomRuleData( aRule );
+
         auto data = std::make_shared<DRC_RE_ABSOLUTE_LENGTH_TWO_CONSTRAINT_DATA>();
         data->SetRuleName( aRule.m_Name );
         data->SetConstraintCode( "length" );
 
-        const DRC_CONSTRAINT* length = findConstraint( aRule, LENGTH_CONSTRAINT );
-
         if( length )
         {
-            data->SetMinimumLength( toMM( length->GetValue().Min() ) );
-            data->SetOptimumLength( toMM( length->GetValue().Opt() ) );
-            data->SetMaximumLength( toMM( length->GetValue().Max() ) );
+            double minMM = toMM( length->GetValue().Min() );
+            double optMM = toMM( length->GetValue().Opt() );
+            double maxMM = toMM( length->GetValue().Max() );
+            data->SetOptimumLength( optMM );
+            data->SetTolerance( ( maxMM - minMM ) / 2.0 );
         }
 
         return data;
@@ -271,23 +324,31 @@ DRC_RULE_LOADER::createConstraintData( DRC_RULE_EDITOR_CONSTRAINT_NAME   aPanel,
 
     case MATCHED_LENGTH_DIFF_PAIR:
     {
+        const DRC_CONSTRAINT* length = findConstraint( aRule, LENGTH_CONSTRAINT );
+
+        if( !isSymmetricMinOptMax( length ) )
+            return makeCustomRuleData( aRule );
+
         auto data = std::make_shared<DRC_RE_MATCHED_LENGTH_DIFF_PAIR_CONSTRAINT_DATA>();
         data->SetRuleName( aRule.m_Name );
         data->SetConstraintCode( "length" );
 
-        const DRC_CONSTRAINT* length = findConstraint( aRule, LENGTH_CONSTRAINT );
-
         if( length )
         {
-            data->SetMinimumLength( toMM( length->GetValue().Min() ) );
-            data->SetOptimumLength( toMM( length->GetValue().Opt() ) );
-            data->SetMaximumLength( toMM( length->GetValue().Max() ) );
+            double minMM = toMM( length->GetValue().Min() );
+            double optMM = toMM( length->GetValue().Opt() );
+            double maxMM = toMM( length->GetValue().Max() );
+            data->SetOptimumLength( optMM );
+            data->SetTolerance( ( maxMM - minMM ) / 2.0 );
         }
 
         const DRC_CONSTRAINT* skew = findConstraint( aRule, SKEW_CONSTRAINT );
 
         if( skew )
+        {
             data->SetMaxSkew( toMM( skew->GetValue().Max() ) );
+            data->SetWithinDiffPairs( skew->GetOption( DRC_CONSTRAINT::OPTIONS::SKEW_WITHIN_DIFF_PAIRS ) );
+        }
 
         return data;
     }
@@ -466,9 +527,14 @@ std::vector<DRC_RE_LOADED_PANEL_ENTRY> DRC_RULE_LOADER::LoadRule( const DRC_RULE
         if( match.panelType == SILK_TO_SILK_CLEARANCE && match.claimedConstraints.count( SILK_CLEARANCE_CONSTRAINT ) )
         {
             if( !condition.IsEmpty()
-                && ( condition.Contains( wxS( "F.Mask" ) ) || condition.Contains( wxS( "B.Mask" ) ) ) )
+                && ( condition.Contains( wxS( "L == 'F.Mask'" ) ) || condition.Contains( wxS( "L == 'B.Mask'" ) ) ) )
             {
                 match.panelType = SILK_TO_SOLDERMASK_CLEARANCE;
+            }
+            else if( !condition.IsEmpty() && !condition.Contains( wxS( "L == 'F.SilkS'" ) )
+                     && !condition.Contains( wxS( "L == 'B.SilkS'" ) ) )
+            {
+                match.panelType = CUSTOM_RULE;
             }
         }
 
@@ -490,50 +556,55 @@ std::vector<DRC_RE_LOADED_PANEL_ENTRY> DRC_RULE_LOADER::LoadRule( const DRC_RULE
         {
             wxString cleanedCondition = condition;
 
-            bool hasBothSides = condition.Contains( wxS( "(A.Layer == 'F.SilkS' && B.Layer == 'F.Mask') || (A.Layer == "
-                                                         "'B.SilkS' && B.Layer == 'B.Mask')" ) );
+            // New format: L == 'F.Mask' || L == 'B.Mask'
+            bool hasBothSides = condition.Contains( wxS( "L == 'F.Mask' || L == 'B.Mask'" ) );
 
             if( hasBothSides )
             {
                 constraintData->SetLayers( { F_SilkS, B_SilkS } );
                 constraintData->SetLayerSource( wxS( "" ) );
 
-                cleanedCondition.Replace( wxS( "(A.Layer == 'F.SilkS' && B.Layer == 'F.Mask') || (A.Layer == 'B.SilkS' "
-                                               "&& B.Layer == 'B.Mask')" ),
-                                          wxS( "" ) );
+                cleanedCondition.Replace( wxS( "L == 'F.Mask' || L == 'B.Mask'" ), wxS( "" ) );
             }
             else
+            {
+                bool         isFront = condition.Contains( wxS( "F.Mask" ) );
+                PCB_LAYER_ID layer = isFront ? F_SilkS : B_SilkS;
+                constraintData->SetLayers( { layer } );
+                constraintData->SetLayerSource( isFront ? wxS( "F.SilkS" ) : wxS( "B.SilkS" ) );
+
+                cleanedCondition.Replace( wxS( "L == 'F.Mask'" ), wxS( "" ) );
+                cleanedCondition.Replace( wxS( "L == 'B.Mask'" ), wxS( "" ) );
+            }
+
+            constraintData->SetRuleCondition( cleanStrippedCondition( cleanedCondition ) );
+        }
+
+        if( match.panelType == SILK_TO_SILK_CLEARANCE )
+        {
+            wxString cleanedCondition = condition;
+
+            bool hasBothSides = condition.Contains( wxS( "L == 'F.SilkS' || L == 'B.SilkS'" ) );
+
+            if( hasBothSides )
+            {
+                constraintData->SetLayers( { F_SilkS, B_SilkS } );
+                constraintData->SetLayerSource( wxS( "" ) );
+
+                cleanedCondition.Replace( wxS( "L == 'F.SilkS' || L == 'B.SilkS'" ), wxS( "" ) );
+            }
+            else if( condition.Contains( wxS( "L == 'F.SilkS'" ) ) || condition.Contains( wxS( "L == 'B.SilkS'" ) ) )
             {
                 bool         isFront = condition.Contains( wxS( "F.SilkS" ) );
                 PCB_LAYER_ID layer = isFront ? F_SilkS : B_SilkS;
                 constraintData->SetLayers( { layer } );
                 constraintData->SetLayerSource( isFront ? wxS( "F.SilkS" ) : wxS( "B.SilkS" ) );
 
-                cleanedCondition.Replace( wxS( "A.Layer == 'F.SilkS' && B.Layer == 'F.Mask'" ), wxS( "" ) );
-                cleanedCondition.Replace( wxS( "A.Layer == 'B.SilkS' && B.Layer == 'B.Mask'" ), wxS( "" ) );
+                cleanedCondition.Replace( wxS( "L == 'F.SilkS'" ), wxS( "" ) );
+                cleanedCondition.Replace( wxS( "L == 'B.SilkS'" ), wxS( "" ) );
             }
 
-            // Strip empty parentheses left over from removing layer conditions
-            wxString prev;
-            do
-            {
-                prev = cleanedCondition;
-                cleanedCondition.Replace( wxS( "()" ), wxS( "" ) );
-            } while( cleanedCondition != prev );
-
-            cleanedCondition.Replace( wxS( "&& &&" ), wxS( "&&" ) );
-            cleanedCondition.Replace( wxS( "|| ||" ), wxS( "||" ) );
-            cleanedCondition.Trim( true ).Trim( false );
-            if( cleanedCondition.StartsWith( wxS( "&&" ) ) )
-                cleanedCondition = cleanedCondition.Mid( 2 ).Trim( false );
-            if( cleanedCondition.EndsWith( wxS( "&&" ) ) )
-                cleanedCondition = cleanedCondition.Left( cleanedCondition.Length() - 2 ).Trim( true );
-            if( cleanedCondition.StartsWith( wxS( "||" ) ) )
-                cleanedCondition = cleanedCondition.Mid( 2 ).Trim( false );
-            if( cleanedCondition.EndsWith( wxS( "||" ) ) )
-                cleanedCondition = cleanedCondition.Left( cleanedCondition.Length() - 2 ).Trim( true );
-
-            constraintData->SetRuleCondition( cleanedCondition );
+            constraintData->SetRuleCondition( cleanStrippedCondition( cleanedCondition ) );
         }
 
         if( match.panelType == VIAS_UNDER_SMD )
@@ -543,31 +614,16 @@ std::vector<DRC_RE_LOADED_PANEL_ENTRY> DRC_RULE_LOADER::LoadRule( const DRC_RULE
             cleanedCondition.Replace( wxS( "A.Pad_Type == 'SMD'" ), wxS( "" ) );
             cleanedCondition.Replace( wxS( "B.Pad_Type == 'SMD'" ), wxS( "" ) );
 
-            // Strip empty parentheses left over from removing pad type condition
-            wxString prev;
-            do
-            {
-                prev = cleanedCondition;
-                cleanedCondition.Replace( wxS( "()" ), wxS( "" ) );
-            } while( cleanedCondition != prev );
-
-            cleanedCondition.Replace( wxS( "&& &&" ), wxS( "&&" ) );
-            cleanedCondition.Trim( true ).Trim( false );
-            if( cleanedCondition.StartsWith( wxS( "&&" ) ) )
-                cleanedCondition = cleanedCondition.Mid( 2 ).Trim( false );
-            if( cleanedCondition.EndsWith( wxS( "&&" ) ) )
-                cleanedCondition = cleanedCondition.Left( cleanedCondition.Length() - 2 ).Trim( true );
-
-            constraintData->SetRuleCondition( cleanedCondition );
+            constraintData->SetRuleCondition( cleanStrippedCondition( cleanedCondition ) );
         }
 
         if( match.panelType == CUSTOM_RULE && customFallback )
         {
-            customFallback->SetRuleText( extractRuleBody( aOriginalText ) );
+            customFallback->SetRuleText( ExtractRuleBody( aOriginalText ) );
         }
 
         if( match.panelType != VIA_STYLE && match.panelType != SILK_TO_SOLDERMASK_CLEARANCE
-            && match.panelType != VIAS_UNDER_SMD )
+            && match.panelType != SILK_TO_SILK_CLEARANCE && match.panelType != VIAS_UNDER_SMD )
             constraintData->SetRuleCondition( condition );
 
         DRC_RE_LOADED_PANEL_ENTRY entry( match.panelType, constraintData, aRule.m_Name, condition, aRule.m_Severity,
@@ -579,7 +635,7 @@ std::vector<DRC_RE_LOADED_PANEL_ENTRY> DRC_RULE_LOADER::LoadRule( const DRC_RULE
             source = source.Mid( 1, source.Length() - 2 );
         entry.layerSource = source;
 
-        wxString comment = extractRuleComment( aOriginalText );
+        wxString comment = ExtractRuleComment( aOriginalText );
         if( !comment.IsEmpty() )
             constraintData->SetComment( comment );
 
@@ -597,11 +653,11 @@ std::vector<DRC_RE_LOADED_PANEL_ENTRY> DRC_RULE_LOADER::LoadRule( const DRC_RULE
         customData->SetRuleName( aRule.m_Name );
         customData->SetRuleCondition( condition );
 
-        wxString comment = extractRuleComment( aOriginalText );
+        wxString comment = ExtractRuleComment( aOriginalText );
         if( !comment.IsEmpty() )
             customData->SetComment( comment );
 
-        customData->SetRuleText( extractRuleBody( aOriginalText ) );
+        customData->SetRuleText( ExtractRuleBody( aOriginalText ) );
 
         DRC_RE_LOADED_PANEL_ENTRY entry( CUSTOM_RULE, customData, aRule.m_Name, condition,
                                          aRule.m_Severity, aRule.m_LayerCondition );
@@ -625,7 +681,7 @@ std::vector<DRC_RE_LOADED_PANEL_ENTRY> DRC_RULE_LOADER::LoadFromString( const wx
     wxString rulesText = aRulesText;
 
     if( !rulesText.Contains( "(version" ) )
-        rulesText.Prepend( "(version 1)\n" );
+        rulesText.Prepend( "(version 2)\n" );
 
     try
     {
@@ -640,7 +696,7 @@ std::vector<DRC_RE_LOADED_PANEL_ENTRY> DRC_RULE_LOADER::LoadFromString( const wx
     for( const auto& rule : parsedRules )
     {
         // Extract the actual original text from the file content
-        wxString originalText = extractRuleText( aRulesText, rule->m_Name );
+        wxString originalText = ExtractRuleText( aRulesText, rule->m_Name );
 
         std::vector<DRC_RE_LOADED_PANEL_ENTRY> ruleEntries = LoadRule( *rule, originalText );
 
@@ -652,7 +708,7 @@ std::vector<DRC_RE_LOADED_PANEL_ENTRY> DRC_RULE_LOADER::LoadFromString( const wx
 }
 
 
-wxString DRC_RULE_LOADER::extractRuleText( const wxString& aContent, const wxString& aRuleName )
+wxString DRC_RULE_LOADER::ExtractRuleText( const wxString& aContent, const wxString& aRuleName )
 {
     // Search for the rule by name, handling both quoted and unquoted names.
     // The quoted form includes the closing quote as a boundary so partial

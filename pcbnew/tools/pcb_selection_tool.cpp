@@ -24,6 +24,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <stack>
@@ -40,7 +41,9 @@ using namespace std::placeholders;
 #include <pcb_tablecell.h>
 #include <pcb_track.h>
 #include <pcb_marker.h>
+#include <pad.h>
 #include <pcb_generator.h>
+#include <pcb_group.h>
 #include <pcb_base_edit_frame.h>
 #include <zone.h>
 #include <collectors.h>
@@ -65,7 +68,6 @@ using namespace std::placeholders;
 #include <core/profile.h>
 #include <math/vector2wx.h>
 
-
 struct LAYER_OPACITY_ITEM
 {
     PCB_LAYER_ID      m_Layer;
@@ -88,6 +90,7 @@ public:
 
         Add( PCB_ACTIONS::selectConnection );
         Add( PCB_ACTIONS::selectNet );
+        Add( PCB_ACTIONS::selectNetChain );
 
         // This could be enabled if we have better logic for picking the target net with the mouse
         // Add( PCB_ACTIONS::deselectNet );
@@ -103,6 +106,110 @@ private:
     {
         return new SELECT_MENU();
     }
+};
+
+enum
+{
+    ID_REPLACE_TERMINAL_PAD_A = wxID_HIGHEST + 3000,
+    ID_REPLACE_TERMINAL_PAD_B
+};
+
+class REPLACE_TERMINAL_PAD_MENU : public ACTION_MENU
+{
+public:
+    REPLACE_TERMINAL_PAD_MENU() : ACTION_MENU( true )
+    {
+        SetTitle( _( "Set terminal pad" ) );
+    }
+
+protected:
+    ACTION_MENU* create() const override { return new REPLACE_TERMINAL_PAD_MENU(); }
+
+    void update() override
+    {
+        Clear();
+
+        TOOL_MANAGER* toolMgr = getToolManager();
+        if( !toolMgr )
+            return;
+
+        PCB_SELECTION_TOOL* selTool = toolMgr->GetTool<PCB_SELECTION_TOOL>();
+        if( !selTool )
+            return;
+
+        const SELECTION& sel = selTool->GetSelection();
+        if( sel.Empty() )
+            return;
+
+        PAD* pad = dynamic_cast<PAD*>( sel.Front() );
+        PCB_EDIT_FRAME* frame = static_cast<PCB_EDIT_FRAME*>( toolMgr->GetToolHolder() );
+
+        if( !pad || !frame )
+            return;
+
+        NETINFO_ITEM* net = pad->GetNet();
+
+        if( !net || net->GetNetChain().IsEmpty() )
+            return;
+
+        PAD* oldA = net->GetTerminalPad( 0 );
+        PAD* oldB = net->GetTerminalPad( 1 );
+        KIID newId = pad->m_Uuid;
+
+        wxMenuItem* itemA = Append( ID_REPLACE_TERMINAL_PAD_A, _( "Terminal A" ) );
+        wxMenuItem* itemB = Append( ID_REPLACE_TERMINAL_PAD_B, _( "Terminal B" ) );
+
+        if( oldA && oldA->m_Uuid == newId )
+            itemA->Enable( false );
+
+        if( oldB && oldB->m_Uuid == newId )
+            itemB->Enable( false );
+
+        m_oldA = oldA ? oldA->m_Uuid : niluuid;
+        m_oldB = oldB ? oldB->m_Uuid : niluuid;
+        m_new = newId;
+    }
+
+    OPT_TOOL_EVENT eventHandler( const wxMenuEvent& aEvent ) override
+    {
+        if( aEvent.GetId() == ID_REPLACE_TERMINAL_PAD_A )
+        {
+            TOOL_EVENT te = PCB_ACTIONS::setTerminalPad.MakeEvent();
+            te.SetParameter( std::make_pair( m_oldA.AsString(), m_new.AsString() ) );
+            return te;
+        }
+        else if( aEvent.GetId() == ID_REPLACE_TERMINAL_PAD_B )
+        {
+            TOOL_EVENT te = PCB_ACTIONS::setTerminalPad.MakeEvent();
+            te.SetParameter( std::make_pair( m_oldB.AsString(), m_new.AsString() ) );
+            return te;
+        }
+
+        return OPT_TOOL_EVENT();
+    }
+
+private:
+    KIID m_oldA;
+    KIID m_oldB;
+    KIID m_new;
+};
+
+class NET_CHAINS_MENU : public ACTION_MENU
+{
+public:
+    NET_CHAINS_MENU() : ACTION_MENU( true )
+    {
+        SetTitle( _( "Net Chains..." ) );
+        m_replaceMenu = new REPLACE_TERMINAL_PAD_MENU();
+        Add( PCB_ACTIONS::highlightNetChain );
+    Add( m_replaceMenu );
+    }
+
+protected:
+    ACTION_MENU* create() const override { return new NET_CHAINS_MENU(); }
+
+private:
+    REPLACE_TERMINAL_PAD_MENU* m_replaceMenu;
 };
 
 
@@ -123,6 +230,8 @@ PCB_SELECTION_TOOL::PCB_SELECTION_TOOL() :
         m_nonModifiedCursor( KICURSOR::ARROW ),
         m_enteredGroup( nullptr ),
         m_selectionMode( SELECTION_MODE::INSIDE_RECTANGLE ),
+        m_lockedItemsFiltered( false ),
+        m_previousFirstCell( nullptr ),
         m_priv( std::make_unique<PRIV>() )
 {
     m_filter.lockedItems = false;
@@ -163,6 +272,10 @@ bool PCB_SELECTION_TOOL::Init()
     selectMenu->SetTool( this );
     m_menu->RegisterSubMenu( selectMenu );
 
+    std::shared_ptr<NET_CHAINS_MENU> netChainsMenu = std::make_shared<NET_CHAINS_MENU>();
+    netChainsMenu->SetTool( this );
+    m_menu->RegisterSubMenu( netChainsMenu );
+
     static const std::vector<KICAD_T> tableCellTypes = { PCB_TABLECELL_T };
 
     auto& menu = m_menu->GetMenu();
@@ -185,6 +298,19 @@ bool PCB_SELECTION_TOOL::Init()
     auto groupEnterCondition =
             SELECTION_CONDITIONS::Count( 1 ) && SELECTION_CONDITIONS::HasType( PCB_GROUP_T );
 
+    auto applyDesignBlockLayoutCondition = []( const SELECTION& aSel )
+    {
+        for( EDA_ITEM* item : aSel )
+        {
+            if( item->Type() == PCB_GROUP_T && static_cast<PCB_GROUP*>( item )->HasDesignBlockLink() )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
     auto inGroupCondition =
             [this] ( const SELECTION& )
             {
@@ -194,9 +320,19 @@ bool PCB_SELECTION_TOOL::Init()
     auto tableCellSelection = SELECTION_CONDITIONS::MoreThan( 0 )
                                 && SELECTION_CONDITIONS::OnlyTypes( tableCellTypes );
 
+    SELECTION_CONDITION netItemSelection = []( const SELECTION& aSel )
+    {
+        if( aSel.GetSize() != 1 )
+            return false;
+        BOARD_ITEM* item = static_cast<BOARD_ITEM*>( *aSel.begin() );
+        return item->Type() == PCB_PAD_T || item->Type() == PCB_VIA_T || item->Type() == PCB_TRACE_T
+               || item->Type() == PCB_ARC_T;
+    };
+
     if( frame && frame->IsType( FRAME_PCB_EDITOR ) )
     {
         menu.AddMenu( selectMenu.get(), SELECTION_CONDITIONS::NotEmpty  );
+    menu.AddMenu( netChainsMenu.get(), netItemSelection );
         menu.AddSeparator( 1000 );
     }
 
@@ -204,7 +340,7 @@ bool PCB_SELECTION_TOOL::Init()
     menu.AddItem( ACTIONS::cancelInteractive,           activeToolCondition, 1 );
     menu.AddItem( ACTIONS::groupEnter,                  groupEnterCondition, 1 );
     menu.AddItem( ACTIONS::groupLeave,                  inGroupCondition,    1 );
-    menu.AddItem( PCB_ACTIONS::applyDesignBlockLayout,  groupEnterCondition, 1 );
+    menu.AddItem( PCB_ACTIONS::applyDesignBlockLayout, applyDesignBlockLayoutCondition, 1 );
     menu.AddItem( PCB_ACTIONS::placeLinkedDesignBlock,  groupEnterCondition, 1 );
     menu.AddItem( PCB_ACTIONS::saveToLinkedDesignBlock, groupEnterCondition, 1 );
     menu.AddItem( PCB_ACTIONS::clearHighlight,          haveHighlight,       1 );
@@ -319,12 +455,23 @@ int PCB_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
                 // Single click? Select single object
                 if( m_highlight_modifier && brd_editor )
                 {
-                    m_toolMgr->RunAction( PCB_ACTIONS::highlightNet );
+                    if( !toggleTableCellSelection( evt->Position() ) )
+                        m_toolMgr->RunAction( PCB_ACTIONS::highlightNet );
                 }
                 else
                 {
                     m_frame->ClearFocus();
-                    selectPoint( evt->Position() );
+
+                    // Mirrors eeschema's SCH_TABLE shift+click range select.
+                    if( !extendTableCellSelectionTo( evt->Position() ) )
+                    {
+                        selectPoint( evt->Position() );
+
+                        // Anchor for a subsequent shift+click or shift+drag whose IsClick
+                        // jitter could otherwise promote into IsDrag, collapsing the range
+                        // rectangle to (DragOrigin, Position) at the press point.
+                        m_previousFirstCell = singleSelectedCell();
+                    }
                 }
             }
 
@@ -417,16 +564,7 @@ int PCB_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
             m_toolMgr->ProcessEvent( EVENTS::InhibitSelectionEditing );
 
             GENERAL_COLLECTOR hoverCells;
-
-            if( m_isFootprintEditor && board()->GetFirstFootprint() )
-            {
-                hoverCells.Collect( board()->GetFirstFootprint(), { PCB_TABLECELL_T }, evt->DragOrigin(),
-                                    getCollectorsGuide() );
-            }
-            else
-            {
-                hoverCells.Collect( board(), { PCB_TABLECELL_T }, evt->DragOrigin(), getCollectorsGuide() );
-            }
+            collectTableCellsAt( evt->DragOrigin(), hoverCells );
 
             if( hoverCells.GetCount() )
             {
@@ -590,6 +728,7 @@ int PCB_SELECTION_TOOL::Main( const TOOL_EVENT& aEvent )
     }
 
     // Shutting down; clear the selection
+    m_previousFirstCell = nullptr;
     m_selection.Clear();
     m_disambiguateTimer.Stop();
 
@@ -653,6 +792,7 @@ PCB_SELECTION& PCB_SELECTION_TOOL::RequestSelection( CLIENT_SELECTION_FILTER aCl
 {
     bool selectionEmpty = m_selection.Empty();
     m_selection.SetIsHover( selectionEmpty );
+    m_lockedItemsFiltered = false;
 
     if( selectionEmpty )
     {
@@ -786,6 +926,13 @@ bool PCB_SELECTION_TOOL::selectPoint( const VECTOR2I& aWhere, bool aOnDrag, bool
     {
         if( PCB_BASE_EDIT_FRAME* editFrame = dynamic_cast<PCB_BASE_EDIT_FRAME*>( m_frame ) )
             editFrame->HighlightSelectionFilter( rejected );
+
+        if( !m_additive && !m_subtractive && !m_exclusive_or && m_selection.GetSize() > 0 )
+        {
+            ClearSelection( true /*quiet mode*/ );
+            m_toolMgr->ProcessEvent( EVENTS::UnselectedEvent );
+            return false;
+        }
 
         return false;
     }
@@ -926,11 +1073,8 @@ static void passEvent( TOOL_EVENT* const aEvent, const TOOL_ACTION* const aAllow
 }
 
 
-bool PCB_SELECTION_TOOL::selectTableCells( PCB_TABLE* aTable )
+void PCB_SELECTION_TOOL::initializeTableCellSelectionState( PCB_TABLE* aTable )
 {
-    bool cancelled = false;     // Was the tool canceled while it was running?
-    m_multiple = true;          // Multiple selection mode is active
-
     for( PCB_TABLECELL* cell : aTable->GetCells() )
     {
         if( cell->IsSelected() )
@@ -938,6 +1082,226 @@ bool PCB_SELECTION_TOOL::selectTableCells( PCB_TABLE* aTable )
         else
             cell->ClearFlags( CANDIDATE );
     }
+}
+
+
+void PCB_SELECTION_TOOL::selectCellsBetween( const VECTOR2D& aStart, const VECTOR2D& aEnd,
+                                             PCB_TABLE* aTable )
+{
+    BOX2I selectionRect( aStart, aEnd );
+    selectionRect.Normalize();
+
+    auto wasSelected =
+            []( EDA_ITEM* aItem )
+            {
+                return ( aItem->GetFlags() & CANDIDATE ) > 0;
+            };
+
+    for( PCB_TABLECELL* cell : aTable->GetCells() )
+    {
+        bool doSelect = false;
+
+        if( cell->HitTest( selectionRect, false ) )
+        {
+            if( m_subtractive )
+                doSelect = false;
+            else if( m_exclusive_or )
+                doSelect = !wasSelected( cell );
+            else
+                doSelect = true;
+        }
+        else if( wasSelected( cell ) )
+        {
+            doSelect = m_additive || m_subtractive || m_exclusive_or;
+        }
+
+        if( doSelect && !cell->IsSelected() )
+            select( cell );
+        else if( !doSelect && cell->IsSelected() )
+            unselect( cell );
+    }
+}
+
+
+bool PCB_SELECTION_TOOL::extendTableCellSelectionTo( const VECTOR2I& aPosition )
+{
+    if( !m_additive || m_selection.GetSize() == 0
+        || !dynamic_cast<PCB_TABLECELL*>( m_selection.GetItem( 0 ) ) )
+    {
+        return false;
+    }
+
+    GENERAL_COLLECTOR clickCells;
+    collectTableCellsAt( aPosition, clickCells );
+
+    if( clickCells.GetCount() != 1 )
+        return false;
+
+    PCB_TABLECELL* clickedCell  = static_cast<PCB_TABLECELL*>( clickCells[0] );
+    PCB_TABLECELL* firstCell    = static_cast<PCB_TABLECELL*>( m_selection.GetItem( 0 ) );
+    PCB_TABLE*     parentTable  = static_cast<PCB_TABLE*>( clickedCell->GetParent() );
+
+    // Drop the cached anchor when the selection no longer holds only cells of the
+    // clicked table, so it cannot survive into a later shift+drag on a different table.
+    for( EDA_ITEM* item : m_selection )
+    {
+        if( !dynamic_cast<PCB_TABLECELL*>( item ) || item->GetParent() != parentTable )
+        {
+            m_previousFirstCell = nullptr;
+            return false;
+        }
+    }
+
+    // Contains() prevents reading GetCenter() on a cell freed by an external mutation
+    // that did not clear the cached anchor.
+    if( !m_previousFirstCell || !m_selection.Contains( m_previousFirstCell ) )
+        m_previousFirstCell = firstCell;
+
+    if( m_previousFirstCell->GetParent() != parentTable )
+    {
+        m_previousFirstCell = nullptr;
+        return false;
+    }
+
+    // Snapshot the prior selection so we can fire SelectedEvent/UnselectedEvent based
+    // on the net delta rather than on every range change.
+    std::set<EDA_ITEM*> previousSelection;
+
+    for( EDA_ITEM* item : m_selection )
+        previousSelection.insert( item );
+
+    // Restore main-view visibility of the previously-selected cells via the overlay
+    // mechanism; ClearSelected() alone would leave them hidden because
+    // highlightInternal/unhighlightInternal toggle view()->Hide.
+    while( m_selection.GetSize() )
+        unselect( m_selection.Front() );
+
+    initializeTableCellSelectionState( parentTable );
+
+    VECTOR2D start = m_previousFirstCell->GetCenter();
+    VECTOR2D end   = clickedCell->GetCenter();
+    VECTOR2D topLeft( std::min( start.x, end.x ), std::min( start.y, end.y ) );
+    VECTOR2D bottomRight( std::max( start.x, end.x ), std::max( start.y, end.y ) );
+
+    selectCellsBetween( topLeft, bottomRight - topLeft, parentTable );
+
+    bool anyAdded = false;
+    bool anySubtracted = false;
+
+    for( PCB_TABLECELL* cell : parentTable->GetCells() )
+    {
+        bool wasInPrevious = previousSelection.count( cell ) > 0;
+
+        if( cell->IsSelected() && !wasInPrevious )
+            anyAdded = true;
+        else if( wasInPrevious && !cell->IsSelected() )
+            anySubtracted = true;
+    }
+
+    if( anyAdded )
+        m_toolMgr->ProcessEvent( EVENTS::SelectedEvent );
+
+    if( anySubtracted )
+        m_toolMgr->ProcessEvent( EVENTS::UnselectedEvent );
+
+    return true;
+}
+
+
+void PCB_SELECTION_TOOL::collectTableCellsAt( const VECTOR2I& aPosition,
+                                              GENERAL_COLLECTOR& aCollector )
+{
+    BOARD_ITEM* scope = ( m_isFootprintEditor && board()->GetFirstFootprint() )
+                                ? static_cast<BOARD_ITEM*>( board()->GetFirstFootprint() )
+                                : static_cast<BOARD_ITEM*>( board() );
+
+    aCollector.Collect( scope, { PCB_TABLECELL_T }, aPosition, getCollectorsGuide() );
+}
+
+
+PCB_TABLECELL* PCB_SELECTION_TOOL::singleSelectedCell() const
+{
+    if( m_selection.GetSize() != 1 )
+        return nullptr;
+
+    return dynamic_cast<PCB_TABLECELL*>( m_selection.GetItem( 0 ) );
+}
+
+
+bool PCB_SELECTION_TOOL::toggleTableCellSelection( const VECTOR2I& aPosition )
+{
+    if( m_selection.GetSize() == 0 )
+        return false;
+
+    PCB_TABLECELL* firstCell = dynamic_cast<PCB_TABLECELL*>( m_selection.GetItem( 0 ) );
+
+    if( !firstCell )
+        return false;
+
+    // Suppress highlightNet only when every selected item is a cell of the same table;
+    // a mixed selection must fall through to the usual Ctrl+click action.
+    PCB_TABLE* selectedTable = static_cast<PCB_TABLE*>( firstCell->GetParent() );
+
+    for( EDA_ITEM* item : m_selection )
+    {
+        PCB_TABLECELL* cell = dynamic_cast<PCB_TABLECELL*>( item );
+
+        if( !cell || cell->GetParent() != selectedTable )
+            return false;
+    }
+
+    GENERAL_COLLECTOR clickCells;
+    collectTableCellsAt( aPosition, clickCells );
+
+    if( clickCells.GetCount() != 1 )
+        return false;
+
+    PCB_TABLECELL* clickedCell = static_cast<PCB_TABLECELL*>( clickCells[0] );
+
+    if( clickedCell->GetParent() != selectedTable )
+        return false;
+
+    if( clickedCell->IsSelected() )
+    {
+        unselect( clickedCell );
+        m_toolMgr->ProcessEvent( EVENTS::UnselectedEvent );
+    }
+    else
+    {
+        select( clickedCell );
+        m_toolMgr->ProcessEvent( EVENTS::PointSelectedEvent );
+    }
+
+    // A toggle breaks the contiguous-rectangle invariant the anchor represents.
+    m_previousFirstCell = nullptr;
+
+    return true;
+}
+
+
+bool PCB_SELECTION_TOOL::selectTableCells( PCB_TABLE* aTable )
+{
+    bool cancelled = false;     // Was the tool canceled while it was running?
+    m_multiple = true;          // Multiple selection mode is active
+
+    // Shift+click can jitter into IsDrag, collapsing DragOrigin..Position to the press
+    // point; honour the cached anchor instead.  Snapshot its coordinate so the drag loop
+    // never dereferences a cell that an external mutation could free underneath us.
+    bool     haveAnchorStart = false;
+    VECTOR2D anchorStart;
+
+    if( m_additive && m_previousFirstCell && m_selection.Contains( m_previousFirstCell )
+        && m_previousFirstCell->GetParent() == aTable )
+    {
+        anchorStart = VECTOR2D( m_previousFirstCell->GetCenter() );
+        haveAnchorStart = true;
+    }
+    else if( m_previousFirstCell && !m_selection.Contains( m_previousFirstCell ) )
+    {
+        m_previousFirstCell = nullptr;
+    }
+
+    initializeTableCellSelectionState( aTable );
 
     auto wasSelected =
             []( EDA_ITEM* aItem )
@@ -956,32 +1320,10 @@ bool PCB_SELECTION_TOOL::selectTableCells( PCB_TABLE* aTable )
         {
             getViewControls()->SetAutoPan( true );
 
-            BOX2I selectionRect( evt->DragOrigin(), evt->Position() - evt->DragOrigin() );
-            selectionRect.Normalize();
+            VECTOR2D start = haveAnchorStart ? anchorStart : VECTOR2D( evt->DragOrigin() );
+            VECTOR2D end   = VECTOR2D( evt->Position() );
 
-            for( PCB_TABLECELL* cell : aTable->GetCells() )
-            {
-                bool doSelect = false;
-
-                if( cell->HitTest( selectionRect, false ) )
-                {
-                    if( m_subtractive )
-                        doSelect = false;
-                    else if( m_exclusive_or )
-                        doSelect = !wasSelected( cell );
-                    else
-                        doSelect = true;
-                }
-                else if( wasSelected( cell ) )
-                {
-                    doSelect = m_additive || m_subtractive || m_exclusive_or;
-                }
-
-                if( doSelect && !cell->IsSelected() )
-                    select( cell );
-                else if( !doSelect && cell->IsSelected() )
-                    unselect( cell );
-            }
+            selectCellsBetween( start, end - start, aTable );
         }
         else if( evt->IsMouseUp( BUT_LEFT ) )
         {
@@ -1482,6 +1824,7 @@ int PCB_SELECTION_TOOL::unrouteSelected( const TOOL_EVENT& aEvent )
 
     // Get all footprints and pads
     std::vector<BOARD_CONNECTED_ITEM*> toUnroute;
+    std::set<EDA_ITEM*>                toDelete;
 
     for( EDA_ITEM* item : selectedItems )
     {
@@ -1490,9 +1833,109 @@ int PCB_SELECTION_TOOL::unrouteSelected( const TOOL_EVENT& aEvent )
             for( PAD* pad : static_cast<FOOTPRINT*>( item )->Pads() )
                 toUnroute.push_back( pad );
         }
+        else if( item->Type() == PCB_GENERATOR_T )
+        {
+            toDelete.insert( item );
+
+            for( BOARD_ITEM* generatedItem : static_cast<PCB_GENERATOR*>( item )->GetBoardItems() )
+            {
+                if( BOARD_CONNECTED_ITEM::ClassOf( generatedItem ) )
+                    toUnroute.push_back( static_cast<BOARD_CONNECTED_ITEM*>( generatedItem ) );
+            }
+        }
         else if( BOARD_CONNECTED_ITEM::ClassOf( item ) )
         {
             toUnroute.push_back( static_cast<BOARD_CONNECTED_ITEM*>( item ) );
+        }
+    }
+
+    // Find generators connected to tracks and add their children to toUnroute
+    // so selectAllConnectedTracks can traverse through meanders
+    std::set<int> selectedNets;
+
+    for( BOARD_CONNECTED_ITEM* item : toUnroute )
+        if( item->GetNetCode() > 0 )
+            selectedNets.insert( item->GetNetCode() );
+
+    std::set<VECTOR2I> endpointSet;
+
+    for( BOARD_CONNECTED_ITEM* item : toUnroute )
+    {
+        if( PCB_TRACK* track = dynamic_cast<PCB_TRACK*>( item ) )
+        {
+            endpointSet.insert( track->GetStart() );
+            endpointSet.insert( track->GetEnd() );
+        }
+        else if( item->Type() == PCB_VIA_T )
+        {
+            endpointSet.insert( item->GetPosition() );
+        }
+        else if( item->Type() == PCB_PAD_T )
+        {
+            endpointSet.insert( item->GetPosition() );
+        }
+    }
+
+    bool expanded = true;
+
+    while( expanded )
+    {
+        expanded = false;
+
+        for( PCB_GENERATOR* gen : board()->Generators() )
+        {
+            if( toDelete.count( gen ) )
+                continue;
+
+            // Find this generator's external endpoints (meander entry/exit)
+            std::map<VECTOR2I, int> epCount;
+
+            for( BOARD_ITEM* child : gen->GetBoardItems() )
+            {
+                PCB_TRACK* track = dynamic_cast<PCB_TRACK*>( child );
+
+                if( track && selectedNets.count( track->GetNetCode() ) )
+                {
+                    epCount[track->GetStart()]++;
+                    epCount[track->GetEnd()]++;
+                }
+            }
+
+            // Check if any external endpoint matches our track endpoints
+            bool connected = false;
+
+            for( auto& [pt, count] : epCount )
+            {
+                if( count == 1 && endpointSet.count( pt ) )
+                {
+                    connected = true;
+                    break;
+                }
+            }
+
+            if( connected )
+            {
+                toDelete.insert( gen );
+
+                for( BOARD_ITEM* c : gen->GetBoardItems() )
+                {
+                    if( !BOARD_CONNECTED_ITEM::ClassOf( c ) )
+                        continue;
+
+                    if( !selectedNets.count( static_cast<BOARD_CONNECTED_ITEM*>( c )->GetNetCode() ) )
+                        continue;
+
+                    toUnroute.push_back( static_cast<BOARD_CONNECTED_ITEM*>( c ) );
+
+                    if( PCB_TRACK* track = dynamic_cast<PCB_TRACK*>( c ) )
+                    {
+                        endpointSet.insert( track->GetStart() );
+                        endpointSet.insert( track->GetEnd() );
+                    }
+
+                    expanded = true;
+                }
+            }
         }
     }
 
@@ -1508,8 +1951,61 @@ int PCB_SELECTION_TOOL::unrouteSelected( const TOOL_EVENT& aEvent )
 
     // Get the tracks on our list of pads, then delete them
     selectAllConnectedTracks( toUnroute, STOP_CONDITION::STOP_AT_PAD );
-    m_toolMgr->RunAction( ACTIONS::doDelete );
+
+    BOARD_COMMIT          commit( m_toolMgr );
+    std::set<BOARD_ITEM*> removed;
+
+    for( EDA_ITEM* item : m_selection )
+    {
+        if( !item->IsBOARD_ITEM() )
+            continue;
+
+        BOARD_ITEM* bi = static_cast<BOARD_ITEM*>( item );
+
+        if( bi->Type() == PCB_GENERATOR_T )
+            toDelete.insert( bi );
+
+        commit.Remove( bi );
+        removed.insert( bi );
+    }
+
+    // Find generators whose children were removed
+    for( PCB_GENERATOR* gen : board()->Generators() )
+    {
+        for( BOARD_ITEM* child : gen->GetBoardItems() )
+        {
+            if( removed.count( child ) )
+            {
+                toDelete.insert( gen );
+                break;
+            }
+        }
+    }
+
+    for( EDA_ITEM* item : toDelete )
+    {
+        if( !item->IsBOARD_ITEM() )
+            continue;
+
+        BOARD_ITEM* boardItem = static_cast<BOARD_ITEM*>( item );
+
+        boardItem->RunOnChildren(
+                [&commit, &removed]( BOARD_ITEM* aItem )
+                {
+                    if( removed.find( aItem ) == removed.end() )
+                    {
+                        commit.Remove( aItem );
+                        removed.insert( aItem );
+                    }
+                },
+                RECURSE_MODE::RECURSE );
+
+        if( removed.find( boardItem ) == removed.end() )
+            commit.Remove( boardItem );
+    }
+
     ClearSelection( true );
+    commit.Push( _( "Unroute Selected" ) );
 
     m_filter = save_filter;     // restore current filter options
 
@@ -1531,10 +2027,50 @@ int PCB_SELECTION_TOOL::unrouteSegment( const TOOL_EVENT& aEvent )
     // Get all footprints and pads
     std::vector<BOARD_CONNECTED_ITEM*> toUnroute;
 
+    std::set<EDA_ITEM*> toDelete;
+
     for( EDA_ITEM* item : selectedItems )
     {
         if( item->Type() == PCB_TRACE_T || item->Type() == PCB_ARC_T || item->Type() == PCB_VIA_T )
-            toUnroute.push_back( static_cast<BOARD_CONNECTED_ITEM*>( item ) );
+        {
+            BOARD_ITEM* bi = static_cast<BOARD_ITEM*>( item );
+            EDA_GROUP*  parentGroup = bi->GetParentGroup();
+
+            if( parentGroup && parentGroup->AsEdaItem()->Type() == PCB_GENERATOR_T )
+            {
+                PCB_GENERATOR* gen = static_cast<PCB_GENERATOR*>( parentGroup->AsEdaItem() );
+
+                if( !toDelete.count( gen ) )
+                {
+                    toDelete.insert( gen );
+
+                    for( BOARD_ITEM* generatedItem : gen->GetBoardItems() )
+                    {
+                        toDelete.insert( generatedItem );
+
+                        if( BOARD_CONNECTED_ITEM::ClassOf( generatedItem ) )
+                            toUnroute.push_back( static_cast<BOARD_CONNECTED_ITEM*>( generatedItem ) );
+                    }
+                }
+            }
+            else
+            {
+                toUnroute.push_back( static_cast<BOARD_CONNECTED_ITEM*>( item ) );
+                toDelete.insert( item );
+            }
+        }
+        else if( item->Type() == PCB_GENERATOR_T )
+        {
+            toDelete.insert( item );
+
+            for( BOARD_ITEM* generatedItem : static_cast<PCB_GENERATOR*>( item )->GetBoardItems() )
+            {
+                toDelete.insert( generatedItem );
+
+                if( BOARD_CONNECTED_ITEM::ClassOf( generatedItem ) )
+                    toUnroute.push_back( static_cast<BOARD_CONNECTED_ITEM*>( generatedItem ) );
+            }
+        }
     }
 
     // Get the tracks connecting to our starting objects
@@ -1547,22 +2083,50 @@ int PCB_SELECTION_TOOL::unrouteSegment( const TOOL_EVENT& aEvent )
         if( !item->IsBOARD_ITEM() )
             continue;
 
-        if( std::find( toUnroute.begin(), toUnroute.end(), item ) == toUnroute.end() )
+        if( toDelete.find( item ) == toDelete.end() )
             toSelectAfter.push_back( item );
     }
 
-    ClearSelection( true );
+    BOARD_COMMIT          commit( m_toolMgr );
+    std::set<BOARD_ITEM*> removed;
 
-    for( EDA_ITEM* item : toUnroute )
-        select( item );
+    for( EDA_ITEM* item : toDelete )
+    {
+        if( !item->IsBOARD_ITEM() )
+            continue;
 
-    m_toolMgr->RunAction( ACTIONS::doDelete );
+        BOARD_ITEM* boardItem = static_cast<BOARD_ITEM*>( item );
+
+        if( item->Type() == PCB_GENERATOR_T )
+        {
+            boardItem->RunOnChildren(
+                    [&commit, &removed]( BOARD_ITEM* aItem )
+                    {
+                        if( removed.insert( aItem ).second )
+                            commit.Remove( aItem );
+                    },
+                    RECURSE_MODE::RECURSE );
+
+            if( removed.insert( boardItem ).second )
+                commit.Remove( boardItem );
+        }
+        else
+        {
+            if( removed.insert( boardItem ).second )
+                commit.Remove( boardItem );
+        }
+    }
+
+    commit.Push( _( "Unroute Segment" ) );
 
     // Now our after tracks so the user can continue backing up as desired
     ClearSelection( true );
 
     for( EDA_ITEM* item : toSelectAfter )
-        select( item );
+    {
+        if( !toDelete.count( item ) )
+            select( item );
+    }
 
     return 0;
 }
@@ -1782,10 +2346,48 @@ void PCB_SELECTION_TOOL::selectAllConnectedTracks( const std::vector<BOARD_CONNE
                 VECTOR2I pt = activePts[i].first;
                 LSET     layerSetCu = activePts[i].second & LSET::AllCuMask();
 
-                auto viaIt = viaMap.find( pt );
+                PCB_VIA* hitVia = nullptr;
+
+                // exact position match (common case)
+                auto exactIt = viaMap.find( pt );
+
+                if( exactIt != viaMap.end() && ( exactIt->second->GetLayerSet() & layerSetCu ).any() )
+                {
+                    hitVia = exactIt->second;
+                }
+                else
+                {
+                    // off-center VIA connection
+                    for( auto& [pos, via] : viaMap )
+                    {
+                        if( !( via->GetLayerSet() & layerSetCu ).any() )
+                            continue;
+
+                        bool hit = false;
+
+                        for( PCB_LAYER_ID layer : LSET( via->GetLayerSet() & layerSetCu ).CuStack() )
+                        {
+                            int     radius = via->GetWidth( layer ) / 2;
+                            int64_t radiusSq = static_cast<int64_t>( radius ) * radius;
+
+                            if( ( pt - pos ).SquaredEuclideanNorm() <= radiusSq )
+                            {
+                                hit = true;
+                                break;
+                            }
+                        }
+
+                        if( hit )
+                        {
+                            hitVia = via;
+                            break;
+                        }
+                    }
+                }
+
                 auto padIt = padMap.find( pt );
 
-                bool gotVia = viaIt != viaMap.end() && ( viaIt->second->GetLayerSet() & layerSetCu ).any();
+                bool gotVia = hitVia != nullptr;
                 bool gotPad = padIt != padMap.end() && ( padIt->second->GetLayerSet() & layerSetCu ).any();
                 bool gotNonStartPad = gotPad && ( startPadSet.find( padIt->second ) == startPadSet.end() );
 
@@ -1795,7 +2397,7 @@ void PCB_SELECTION_TOOL::selectAllConnectedTracks( const std::vector<BOARD_CONNE
                     continue;
                 }
 
-                if( gotVia && !itemPassesFilter( viaIt->second, true ) )
+                if( gotVia && !itemPassesFilter( hitVia, true ) )
                 {
                     activePts.erase( activePts.begin() + i );
                     continue;
@@ -1895,25 +2497,53 @@ void PCB_SELECTION_TOOL::selectAllConnectedTracks( const std::vector<BOARD_CONNE
                     }
                 }
 
-                if( viaMap.count( pt ) )
+                if( hitVia )
                 {
-                    PCB_VIA* via = viaMap[pt];
+                    if( !hitVia->IsSelected() )
+                        select( hitVia );
 
-                    if( !itemPassesFilter( via, true ) )
+                    if( !hitVia->HasFlag( SKIP_STRUCT ) )
                     {
-                        activePts.erase( activePts.begin() + i );
-                        continue;
-                    }
+                        hitVia->SetFlags( SKIP_STRUCT );
+                        cleanupItems.push_back( hitVia );
 
-                    if( !via->IsSelected() )
-                        select( via );
+                        VECTOR2I viaPos = hitVia->GetPosition();
 
-                    if( !via->HasFlag( SKIP_STRUCT ) )
-                    {
-                        via->SetFlags( SKIP_STRUCT );
-                        cleanupItems.push_back( via );
+                        int maxRadius = 0;
 
-                        activePts.push_back( { via->GetPosition(), via->GetLayerSet() } );
+                        for( PCB_LAYER_ID layer : hitVia->GetLayerSet().CuStack() )
+                            maxRadius = std::max( maxRadius, hitVia->GetWidth( layer ) / 2 );
+
+                        int64_t maxRadiusSq = static_cast<int64_t>( maxRadius ) * maxRadius;
+
+                        for( auto& [trkPt, tracks] : trackMap )
+                        {
+                            if( ( trkPt - viaPos ).SquaredEuclideanNorm() > maxRadiusSq )
+                                continue;
+
+                            // Verify point is inside the VIA pad on at least one track layer
+                            bool inside = false;
+
+                            for( PCB_TRACK* trk : tracks )
+                            {
+                                PCB_LAYER_ID trkLayer = trk->GetLayer();
+
+                                if( !hitVia->GetLayerSet().Contains( trkLayer ) )
+                                    continue;
+
+                                int     r = hitVia->GetWidth( trkLayer ) / 2;
+                                int64_t rSq = static_cast<int64_t>( r ) * r;
+
+                                if( ( trkPt - viaPos ).SquaredEuclideanNorm() <= rSq )
+                                {
+                                    inside = true;
+                                    break;
+                                }
+                            }
+
+                            if( inside )
+                                activePts.push_back( { trkPt, hitVia->GetLayerSet() } );
+                        }
 
                         if( aStopCondition != STOP_AT_SEGMENT )
                             expand = true;
@@ -2095,52 +2725,82 @@ int PCB_SELECTION_TOOL::grabUnconnected( const TOOL_EVENT& aEvent )
 {
     PCB_SELECTION originalSelection = m_selection;
 
-    // Get all pads
-    std::vector<PAD*> pads;
+    // Get all connected items that can represent the source side of the ratsnest.
+    std::vector<BOARD_CONNECTED_ITEM*> sourceItems;
 
     for( EDA_ITEM* item : m_selection.GetItems() )
     {
         if( item->Type() == PCB_FOOTPRINT_T )
         {
             for( PAD* pad : static_cast<FOOTPRINT*>( item )->Pads() )
-                pads.push_back( pad );
+                sourceItems.push_back( pad );
         }
-        else if( item->Type() == PCB_PAD_T )
+        else if( BOARD_CONNECTED_ITEM* connItem = dynamic_cast<BOARD_CONNECTED_ITEM*>( item ) )
         {
-            pads.push_back( static_cast<PAD*>( item ) );
+            sourceItems.push_back( connItem );
         }
     }
 
     ClearSelection();
 
-    // Select every footprint on the end of the ratsnest for each pad in our selection
     std::shared_ptr<CONNECTIVITY_DATA> conn = board()->GetConnectivity();
+    std::shared_ptr<CN_CONNECTIVITY_ALGO> connAlgo = conn->GetConnectivityAlgo();
 
-    for( PAD* pad : pads )
+    for( BOARD_CONNECTED_ITEM* sourceItem : sourceItems )
     {
-        const std::vector<CN_EDGE> edges = conn->GetRatsnestForPad( pad );
+        RN_NET* net = conn->GetRatsnestForNet( sourceItem->GetNetCode() );
 
         // Need to have something unconnected to grab
-        if( edges.size() == 0 )
+        if( !net || net->GetEdges().empty() || !connAlgo->ItemExists( sourceItem ) )
             continue;
+
+        std::vector<std::shared_ptr<CN_CLUSTER>> sourceClusters;
+
+        for( CN_ITEM* cnItem : connAlgo->ItemEntry( sourceItem ).GetItems() )
+        {
+            for( const std::shared_ptr<CN_ANCHOR>& anchor : cnItem->Anchors() )
+            {
+                if( anchor->GetCluster() )
+                    sourceClusters.push_back( anchor->GetCluster() );
+            }
+        }
+
+        if( sourceClusters.empty() )
+            continue;
+
+        auto isSourceAnchor =
+                [&]( const std::shared_ptr<const CN_ANCHOR>& aAnchor )
+                {
+                    if( aAnchor->Parent() == sourceItem )
+                        return true;
+
+                    return std::find( sourceClusters.begin(), sourceClusters.end(),
+                                      aAnchor->GetCluster() ) != sourceClusters.end();
+                };
 
         double     currentDistance = DBL_MAX;
         FOOTPRINT* nearest = nullptr;
 
         // Check every ratsnest line for the nearest one
-        for( const CN_EDGE& edge : edges )
+        for( const CN_EDGE& edge : net->GetEdges() )
         {
-            if( edge.GetSourceNode()->Parent()->GetParentFootprint()
-                == edge.GetTargetNode()->Parent()->GetParentFootprint() )
+            const std::shared_ptr<const CN_ANCHOR>& source = edge.GetSourceNode();
+            const std::shared_ptr<const CN_ANCHOR>& target = edge.GetTargetNode();
+
+            wxCHECK2( source && !source->Dirty() && target && !target->Dirty(), continue );
+
+            if( source->Parent()->GetParentFootprint() == target->Parent()->GetParentFootprint() )
             {
                 continue; // This edge is a loop on the same footprint
             }
 
-            // Figure out if we are the source or the target node on the ratnest
-            const CN_ANCHOR* other = edge.GetSourceNode()->Parent() == pad ? edge.GetTargetNode().get()
-                                                                           : edge.GetSourceNode().get();
+            bool sourceMatches = isSourceAnchor( source );
+            bool targetMatches = isSourceAnchor( target );
 
-            wxCHECK2( other && !other->Dirty(), continue );
+            if( sourceMatches == targetMatches )
+                continue;
+
+            const CN_ANCHOR* other = sourceMatches ? target.get() : source.get();
 
             // We only want to grab footprints, so the ratnest has to point to a pad
             if( other->Parent()->Type() != PCB_PAD_T )
@@ -2213,6 +2873,50 @@ int PCB_SELECTION_TOOL::selectNet( const TOOL_EVENT& aEvent )
     }
 
     // Inform other potentially interested tools
+    if( m_selection.Size() > 0 )
+        m_toolMgr->ProcessEvent( EVENTS::SelectedEvent );
+    else
+        m_toolMgr->ProcessEvent( EVENTS::UnselectedEvent );
+
+    return 0;
+}
+
+
+int PCB_SELECTION_TOOL::selectNetChain( const TOOL_EVENT& aEvent )
+{
+    if( !selectCursor() )
+        return 0;
+
+    auto selection = m_selection.GetItems();
+
+    for( EDA_ITEM* i : selection )
+    {
+        BOARD_CONNECTED_ITEM* connItem = dynamic_cast<BOARD_CONNECTED_ITEM*>( i );
+
+        if( !connItem )
+            continue;
+
+        NETINFO_ITEM* netInfo = connItem->GetNet();
+
+        if( !netInfo )
+            continue;
+
+        const wxString& chainName = netInfo->GetNetChain();
+
+        if( chainName.IsEmpty() )
+        {
+            // Net is not part of any chain; fall back to single-net behaviour.
+            SelectAllItemsOnNet( connItem->GetNetCode(), true );
+            continue;
+        }
+
+        for( NETINFO_ITEM* candidate : board()->GetNetInfo() )
+        {
+            if( candidate && candidate->GetNetChain() == chainName )
+                SelectAllItemsOnNet( candidate->GetNetCode(), true );
+        }
+    }
+
     if( m_selection.Size() > 0 )
         m_toolMgr->ProcessEvent( EVENTS::SelectedEvent );
     else
@@ -3012,6 +3716,10 @@ bool PCB_SELECTION_TOOL::itemPassesFilter( BOARD_ITEM* aItem, bool aMultiSelect,
 
 void PCB_SELECTION_TOOL::ClearSelection( bool aQuietMode )
 {
+    // Drop any table-cell range anchor along with the selection itself (do this even when the
+    // selection is already empty so that the cached pointer is not left stranded)
+    m_previousFirstCell = nullptr;
+
     if( m_selection.Empty() )
         return;
 
@@ -3034,6 +3742,10 @@ void PCB_SELECTION_TOOL::ClearSelection( bool aQuietMode )
 
 void PCB_SELECTION_TOOL::RebuildSelection()
 {
+    // Drop the table-cell range anchor; the board may have been reloaded and any cached
+    // pointer is no longer guaranteed to be valid.
+    m_previousFirstCell = nullptr;
+
     m_selection.Clear();
 
     bool enteredGroupFound = false;
@@ -4028,8 +4740,21 @@ void PCB_SELECTION_TOOL::GuessSelectionCandidates( GENERAL_COLLECTOR& aCollector
 }
 
 
+void PCB_SELECTION_TOOL::ReportFilteredLockedItems()
+{
+    if( m_lockedItemsFiltered && m_frame )
+    {
+        m_frame->ShowInfoBarWarning( _( "Selection contains locked items. "
+                                        "Enable 'Override locks' to operate on them." ),
+                                     true );
+    }
+}
+
+
 void PCB_SELECTION_TOOL::FilterCollectorForLockedItems( GENERAL_COLLECTOR& aCollector )
 {
+    m_lockedItemsFiltered = false;
+
     if( m_frame && m_frame->IsType( FRAME_PCB_EDITOR ) && !m_frame->GetOverrideLocks() )
     {
         // Iterate from the back so we don't have to worry about removals.
@@ -4047,7 +4772,10 @@ void PCB_SELECTION_TOOL::FilterCollectorForLockedItems( GENERAL_COLLECTOR& aColl
                     RECURSE_MODE::RECURSE );
 
             if( item->IsLocked() || lockedDescendant )
+            {
                 aCollector.Remove( item );
+                m_lockedItemsFiltered = true;
+            }
         }
     }
 }
@@ -4456,6 +5184,7 @@ void PCB_SELECTION_TOOL::setTransitions()
     Go( &PCB_SELECTION_TOOL::unrouteSegment,        PCB_ACTIONS::unrouteSegment.MakeEvent() );
     Go( &PCB_SELECTION_TOOL::selectNet,             PCB_ACTIONS::selectNet.MakeEvent() );
     Go( &PCB_SELECTION_TOOL::selectNet,             PCB_ACTIONS::deselectNet.MakeEvent() );
+    Go( &PCB_SELECTION_TOOL::selectNetChain,        PCB_ACTIONS::selectNetChain.MakeEvent() );
     Go( &PCB_SELECTION_TOOL::selectUnconnected,     PCB_ACTIONS::selectUnconnected.MakeEvent() );
     Go( &PCB_SELECTION_TOOL::grabUnconnected,       PCB_ACTIONS::grabUnconnected.MakeEvent() );
     Go( &PCB_SELECTION_TOOL::syncSelection,         PCB_ACTIONS::syncSelection.MakeEvent() );

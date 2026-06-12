@@ -25,6 +25,7 @@
 
 #include <wx/bitmap.h>
 #include <wx/dir.h>
+#include <wx/ffile.h>
 #include <wx/txtstrm.h>
 #include <wx/wfstream.h>
 #include <wx/log.h>
@@ -32,6 +33,7 @@
 #include <unordered_map>
 
 #include <wildcards_and_files_ext.h>
+#include <wx_filename.h>
 #include "project_template.h"
 
 
@@ -51,18 +53,21 @@ PROJECT_TEMPLATE::PROJECT_TEMPLATE( const wxString& aPath )
     if( !wxFileName::DirExists( m_basePath.GetPath() ) )
     {
         // Error, the path doesn't exist!
-        m_title.Printf( _( "Could not open the template path '%s'" ), aPath );
+        m_error.Printf( _( "Could not open the template path '%s'" ), aPath );
     }
     else if( !wxFileName::DirExists( m_metaPath.GetPath() ) )
     {
         // Error, the meta information directory doesn't exist!
-        m_title.Printf( _( "Could not find the expected 'meta' directory at '%s'" ), m_metaPath.GetPath() );
+        m_error.Printf( _( "Could not find the expected 'meta' directory at '%s'" ), m_metaPath.GetPath() );
     }
     else if( !wxFileName::FileExists( m_metaHtmlFile.GetFullPath() ) )
     {
         // Error, the meta information directory doesn't contain the informational html file!
-        m_title.Printf( _( "Could not find the expected meta HTML file at '%s'" ), m_metaHtmlFile.GetFullPath() );
+        m_error.Printf( _( "Could not find the expected meta HTML file at '%s'" ), m_metaHtmlFile.GetFullPath() );
     }
+
+    if( m_title.IsEmpty() )
+        m_title = GetPrjDirName();
 
     // Try to load an icon
     if( !wxFileName::FileExists( m_metaIconFile.GetFullPath() ) )
@@ -375,13 +380,15 @@ bool PROJECT_TEMPLATE::CreateProject( wxFileName& aNewProjectPath, wxString* aEr
 
 wxString* PROJECT_TEMPLATE::GetTitle()
 {
-    wxFFileInputStream input( GetHtmlFile().GetFullPath() );
-    wxString           separator( wxT( "\x9" ) );
-    wxTextInputStream  text( input, separator, wxConvUTF8 );
+    if( !GetHtmlFile().IsFileReadable() )
+        return &m_title;
 
-    /* Open HTML file and get the text between the title tags */
     if( m_title == wxEmptyString )
     {
+        wxFFileInputStream input( GetHtmlFile().GetFullPath() );
+        wxString           separator( wxT( "\x9" ) );
+        wxTextInputStream  text( input, separator, wxConvUTF8 );
+
         int  start = 0;
         int  finish = 0;
         bool done = false;
@@ -431,4 +438,59 @@ wxString* PROJECT_TEMPLATE::GetTitle()
     }
 
     return &m_title;
+}
+
+
+wxFileName EnsureDefaultProjectTemplate( const wxString& aBaseDir )
+{
+    if( aBaseDir.IsEmpty() )
+        return wxFileName();
+
+    wxFileName templatePath;
+    templatePath.AssignDir( aBaseDir );
+    templatePath.Normalize( FN_NORMALIZE_FLAGS | wxPATH_NORM_ENV_VARS );
+    templatePath.AppendDir( wxT( "default" ) );
+
+    if( !templatePath.DirExists() && !templatePath.Mkdir( wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL ) )
+        return wxFileName();
+
+    wxFileName metaDir = templatePath;
+    metaDir.AppendDir( METADIR );
+
+    if( !metaDir.DirExists() && !metaDir.Mkdir( wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL ) )
+        return wxFileName();
+
+    wxFileName infoFile = metaDir;
+    infoFile.SetFullName( METAFILE_INFO_HTML );
+
+    if( !infoFile.FileExists() )
+    {
+        wxFFile info( infoFile.GetFullPath(), wxT( "w" ) );
+
+        if( !info.IsOpened() )
+            return wxFileName();
+
+        info.Write( wxT( "<html><head><title>Default</title></head><body>"
+                         "<h3>Default KiCad project template.</h3></body></html>" ) );
+        info.Close();
+    }
+
+    wxFileName proFile = templatePath;
+    proFile.SetFullName( wxT( "default.kicad_pro" ) );
+
+    if( !proFile.FileExists() )
+    {
+        wxFFile proj( proFile.GetFullPath(), wxT( "w" ) );
+
+        if( !proj.IsOpened() )
+            return wxFileName();
+
+        proj.Write( wxT( "{}" ) );
+        proj.Close();
+    }
+
+    if( infoFile.FileExists() && proFile.FileExists() )
+        return templatePath;
+
+    return wxFileName();
 }

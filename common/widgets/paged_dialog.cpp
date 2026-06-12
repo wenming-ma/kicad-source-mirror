@@ -26,6 +26,7 @@
 #include <widgets/ui_common.h>
 
 #include <wx/button.h>
+#include <wx/display.h>
 #include <wx/grid.h>
 #include <wx/sizer.h>
 #include <wx/treebook.h>
@@ -359,6 +360,7 @@ void PAGED_DIALOG::onCharHook( wxKeyEvent& aEvent )
     if( dynamic_cast<wxTextEntry*>( aEvent.GetEventObject() )
             || dynamic_cast<wxStyledTextCtrl*>( aEvent.GetEventObject() )
             || dynamic_cast<wxListView*>( aEvent.GetEventObject() )
+            || dynamic_cast<wxTreeCtrl*>( aEvent.GetEventObject() )
             || dynamic_cast<wxGrid*>( FindFocus() ) )
     {
         aEvent.Skip();
@@ -371,7 +373,9 @@ void PAGED_DIALOG::onCharHook( wxKeyEvent& aEvent )
 
         if( page >= 1 )
         {
-            if( m_treebook->GetPage( page - 1 )->GetChildren().IsEmpty() )
+            wxWindow* prevPage = m_treebook->GetPage( page - 1 );
+
+            if( !prevPage || prevPage->GetChildren().IsEmpty() )
                 m_treebook->SetSelection( std::max( page - 2, 0 ) );
             else
                 m_treebook->SetSelection( page - 1 );
@@ -396,11 +400,21 @@ void PAGED_DIALOG::onCharHook( wxKeyEvent& aEvent )
 
 void PAGED_DIALOG::onPageChanged( wxBookCtrlEvent& event )
 {
-    size_t page = event.GetSelection();
+    int sel = event.GetSelection();
 
-    // Use the first sub-page when a tree level node is selected.
-    if( m_treebook->GetCurrentPage()->GetChildren().IsEmpty()
-            && page + 1 < m_treebook->GetPageCount() )
+    if( sel == wxNOT_FOUND )
+        return;
+
+    size_t page = static_cast<size_t>( sel );
+
+    // Use the first sub-page when a tree level node is selected, but only if the node is
+    // expanded. When the user collapses a branch, wxTreebook auto-selects the parent node.
+    // Redirecting to the first child here would undo the collapse.
+    wxWindow* currentPage = m_treebook->GetCurrentPage();
+
+    if( currentPage && currentPage->GetChildren().IsEmpty()
+            && page + 1 < m_treebook->GetPageCount()
+            && m_treebook->IsNodeExpanded( page ) )
     {
         m_treebook->ChangeSelection( ++page );
     }
@@ -414,6 +428,18 @@ void PAGED_DIALOG::onPageChanged( wxBookCtrlEvent& event )
     wxSize minSize = GetBestSize();
     minSize.IncTo( FromDIP( wxSize( 600, 500 ) ) );
     minSize.DecTo( FromDIP( wxSize( 1500, 900 ) ) ); // Failsafe
+
+    // Clamp to the current display so the resize border stays reachable (#24408).
+    int displayIdx = wxDisplay::GetFromWindow( this );
+
+    if( displayIdx == wxNOT_FOUND )
+        displayIdx = 0;
+
+    wxRect displayArea = wxDisplay( (unsigned int) displayIdx ).GetClientArea();
+    wxSize maxSize( std::max( 0, displayArea.width  - FromDIP( 40 ) ),
+                    std::max( 0, displayArea.height - FromDIP( 80 ) ) );
+    minSize.DecTo( maxSize );
+
     SetMinSize( minSize );
 
     wxSize currentSize = GetSize();

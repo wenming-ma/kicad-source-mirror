@@ -70,6 +70,8 @@ FOOTPRINT_PREVIEW_PANEL::FOOTPRINT_PREVIEW_PANEL( KIWAY* aKiway, wxWindow* aPare
     Raise();
     Show( true );
     StartDrawing();
+
+    Bind( wxEVT_SIZE, &FOOTPRINT_PREVIEW_PANEL::onSize, this );
 }
 
 
@@ -150,15 +152,34 @@ void FOOTPRINT_PREVIEW_PANEL::fitToCurrentFootprint()
     bool  includeText = m_currentFootprint->TextOnly();
     BOX2I bbox = m_currentFootprint->GetBoundingBox( includeText );
 
-    if( bbox.GetSize().x > 0 && bbox.GetSize().y > 0 )
+    bbox.Inflate( pcbIUScale.mmToIU( ADVANCED_CFG::GetCfg().m_DRCEpsilon * 100 ) );
+
+    // Autozoom
+    GetView()->SetViewport( BOX2D( bbox.GetOrigin(), bbox.GetSize() ) );
+
+    // Add a margin
+    GetView()->SetScale( GetView()->GetScale() * 0.7 );
+
+    Refresh();
+}
+
+
+void FOOTPRINT_PREVIEW_PANEL::onSize( wxSizeEvent& aEvent )
+{
+    aEvent.Skip();
+
+    if( m_pendingFit && m_currentFootprint && IsShownOnScreen() )
     {
-        // Autozoom
-        GetView()->SetViewport( BOX2D( bbox.GetOrigin(), bbox.GetSize() ) );
+        m_pendingFit = false;
 
-        // Add a margin
-        GetView()->SetScale( GetView()->GetScale() * 0.7 );
-
-        Refresh();
+        // Defer the fit until after the base class onSize handler has called
+        // GAL::ResizeScreen(), so SetViewport sees the correct screen dimensions.
+        CallAfter(
+                [this]()
+                {
+                    fitToCurrentFootprint();
+                }
+                );
     }
 }
 
@@ -186,6 +207,7 @@ bool FOOTPRINT_PREVIEW_PANEL::DisplayFootprint( const LIB_ID& aFPID )
     if( m_currentFootprint )
     {
         renderFootprint( m_currentFootprint );
+        m_pendingFit = true;
         fitToCurrentFootprint();
     }
 
@@ -217,6 +239,7 @@ void FOOTPRINT_PREVIEW_PANEL::DisplayFootprints( std::shared_ptr<FOOTPRINT> aFoo
 
         renderFootprint( m_currentFootprint );
         renderFootprint( m_otherFootprint );
+        m_pendingFit = true;
         fitToCurrentFootprint();
     }
 

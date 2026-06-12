@@ -137,6 +137,11 @@ void FOOTPRINT_EDIT_FRAME::doReCreateMenuBar()
     viewMenu->Add( showHidePanels );
     viewMenu->AppendSeparator();
 
+    viewMenu->Add( PCB_ACTIONS::nextFootprintTab );
+    viewMenu->Add( PCB_ACTIONS::prevFootprintTab );
+    viewMenu->Add( PCB_ACTIONS::closeFootprintTab );
+    viewMenu->AppendSeparator();
+
     viewMenu->Add( ACTIONS::showFootprintBrowser );
     viewMenu->Add( ACTIONS::show3DViewer );
 
@@ -183,6 +188,8 @@ void FOOTPRINT_EDIT_FRAME::doReCreateMenuBar()
     placeMenu->Add( PCB_ACTIONS::drawArc );
     placeMenu->Add( PCB_ACTIONS::drawRectangle );
     placeMenu->Add( PCB_ACTIONS::drawCircle );
+    placeMenu->Add( PCB_ACTIONS::drawEllipse );
+    placeMenu->Add( PCB_ACTIONS::drawEllipseArc );
     placeMenu->Add( PCB_ACTIONS::drawPolygon );
     placeMenu->Add( PCB_ACTIONS::drawBezier );
     placeMenu->Add( PCB_ACTIONS::placeReferenceImage );

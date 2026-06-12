@@ -34,17 +34,22 @@
 #include "tools/align_distribute_tool.h"
 #include "tools/pcb_point_editor.h"
 #include "tools/pcb_selection_tool.h"
-#include <python/scripting/pcb_scripting_tool.h>
 #include <bitmaps.h>
 #include <board.h>
 #include <project/net_settings.h>
 #include <widgets/wx_infobar.h>
 #include <footprint.h>
 #include <confirm.h>
+#include <drc/drc_item.h>
+#include <kidialog.h>
 #include <footprint_edit_frame.h>
 #include <footprint_editor_settings.h>
+#include <footprint_editor_tab_context.h>
 #include <footprint_library_adapter.h>
 #include <gal/graphics_abstraction_layer.h>
+#include <pcb_painter.h>
+#include <render_settings.h>
+#include <view/view.h>
 #include <kiface_base.h>
 #include <kiplatform/app.h>
 #include <kiplatform/ui.h>
@@ -72,6 +77,7 @@
 #include <tools/pcb_group_tool.h>
 #include <tools/position_relative_tool.h>
 #include <widgets/appearance_controls.h>
+#include <widgets/editor_tabs_panel.h>
 #include <widgets/lib_tree.h>
 #include <widgets/panel_selection_filter.h>
 #include <widgets/pcb_properties_panel.h>
@@ -79,8 +85,16 @@
 #include <widgets/wx_aui_utils.h>
 #include <toolbars_footprint_editor.h>
 
+#include <algorithm>
+
 #include <wx/filedlg.h>
 #include <wx/hyperlink.h>
+
+#ifdef KICAD_IPC_API
+#include <api/api_server.h>
+#include <api/api_handler_footprint.h>
+#include <api/api_handler_common.h>
+#endif
 
 BEGIN_EVENT_TABLE( FOOTPRINT_EDIT_FRAME, PCB_BASE_FRAME )
     EVT_MENU( wxID_CLOSE, FOOTPRINT_EDIT_FRAME::CloseFootprintEditor )
@@ -103,7 +117,10 @@ FOOTPRINT_EDIT_FRAME::FOOTPRINT_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     PCB_BASE_EDIT_FRAME( aKiway, aParent, FRAME_FOOTPRINT_EDITOR, wxEmptyString,
                          wxDefaultPosition, wxDefaultSize,
                          KICAD_DEFAULT_DRAWFRAME_STYLE, GetFootprintEditorFrameName() ),
-    m_show_layer_manager_tools( true )
+    m_show_layer_manager_tools( true ),
+    m_tabsPanel( nullptr ),
+    m_activeTab( nullptr ),
+    m_suppressTabActivation( false )
 {
     m_showBorderAndTitleBlock = false;   // true to show the frame references
     m_aboutTitle = _HKI( "KiCad Footprint Editor" );
@@ -132,8 +149,6 @@ FOOTPRINT_EDIT_FRAME::FOOTPRINT_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     PCB_DRAW_PANEL_GAL* drawPanel = new PCB_DRAW_PANEL_GAL( this, -1, wxPoint( 0, 0 ), m_frameSize,
                                                             GetGalDisplayOptions(), m_canvasType );
     SetCanvas( drawPanel );
-
-    CreateInfoBar();
 
     SetBoard( new BOARD() );
 
@@ -209,6 +224,11 @@ FOOTPRINT_EDIT_FRAME::FOOTPRINT_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
 
     m_auimgr.SetManagedWindow( this );
 
+    // Create the infobar pane only after the AUI manager owns this frame. Registering it before
+    // SetManagedWindow() leaves the Top/Layer-1 pane mispositioned once the tabbed center pane
+    // mounts and the perspective restores, so ShowMessage() never reveals it.
+    CreateInfoBar();
+
     unsigned int auiFlags = wxAUI_MGR_DEFAULT;
 #if !defined( _WIN32 )
     // Windows cannot redraw the UI fast enough during a live resize and may lead to all kinds
@@ -253,8 +273,51 @@ FOOTPRINT_EDIT_FRAME::FOOTPRINT_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
                       .MinSize( FromDIP( 180 ), -1 )
                       .BestSize( FromDIP( 180 ), -1 ) );
 
-    // Center
-    m_auimgr.AddPane( GetCanvas(), EDA_PANE().Canvas().Name( "DrawFrame" )
+    // Center: the tabbed-document strip owns the tab bar above a single, never-reparented canvas.
+    // The panel borrows the canvas; the frame keeps ownership through GetCanvas().
+    m_tabsPanel = new EDITOR_TABS_PANEL( this, GetCanvas() );
+
+    m_tabsPanel->onActivateTab =
+            [this]( int aIdx )
+            {
+                // Ignore activation during a full clear, when each tab close re-selects a fallback
+                // that would re-borrow a tab-owned board into m_pcb just before it is freed.
+                if( m_suppressTabActivation )
+                    return;
+
+                if( aIdx >= 0 && aIdx < static_cast<int>( m_tabContexts.size() ) )
+                    activateFootprintTab( m_tabContexts[aIdx].get() );
+            };
+
+    m_tabsPanel->onCloseTabRequested =
+            [this]( int aIdx ) -> bool
+            {
+                return promptAndCloseFootprintTab( aIdx );
+            };
+
+    // onCloseTabRequested installs the successor board atomically, so the panel must not re-activate
+    // the fallback after a close and re-borrow a just-installed or just-freed index.
+    m_tabsPanel->SetSuppressActivateOnClose( true );
+
+    m_tabsPanel->onQueryVisualState =
+            [this]( int aIdx ) -> TAB_VISUAL_STATE
+            {
+                // The panel model owns preview, but the live dirty flag lives on the shared frame
+                // screen folded into the context, so read modified from the context.
+                const std::vector<EDITOR_TABS_MODEL::ENTRY>& entries = m_tabsPanel->Model().Entries();
+
+                if( aIdx < 0 || aIdx >= static_cast<int>( entries.size() ) )
+                    return TAB_VISUAL_STATE{};
+
+                const FOOTPRINT_EDITOR_TAB_CONTEXT* ctx =
+                        aIdx < static_cast<int>( m_tabContexts.size() ) ? m_tabContexts[aIdx].get()
+                                                                        : nullptr;
+                const bool modified = ctx ? ctx->IsModified() : entries[aIdx].modified;
+
+                return ResolveTabVisualState( entries[aIdx].preview, modified );
+            };
+
+    m_auimgr.AddPane( m_tabsPanel, EDA_PANE().Canvas().Name( "DrawFrame" )
                       .Center() );
 
     RestoreAuiLayout();
@@ -295,6 +358,17 @@ FOOTPRINT_EDIT_FRAME::FOOTPRINT_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     // properly call the WX_INFOBAR without crashing on some systems.
     restoreLastFootprint();
 
+#ifdef KICAD_IPC_API
+    m_apiHandler = std::make_unique<API_HANDLER_FOOTPRINT>( this );
+    Pgm().GetApiServer().RegisterHandler( m_apiHandler.get() );
+
+    if( Kiface().IsSingle() )
+    {
+        m_apiHandlerCommon = std::make_unique<API_HANDLER_COMMON>();
+        Pgm().GetApiServer().RegisterHandler( m_apiHandlerCommon.get() );
+    }
+#endif
+
     // This displays the last footprint loaded, if any, so it must be done after restoreLastFootprint()
     ActivateGalCanvas();
 
@@ -311,6 +385,10 @@ FOOTPRINT_EDIT_FRAME::FOOTPRINT_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     // panel.
     Bind( wxEVT_CHAR, &TOOL_DISPATCHER::DispatchWxEvent, m_toolDispatcher );
     Bind( wxEVT_CHAR_HOOK, &TOOL_DISPATCHER::DispatchWxEvent, m_toolDispatcher );
+
+    // GTK rejects WXK_TAB as a menu accelerator, so handle Ctrl+Tab cycling from the CHAR_HOOK
+    // stream. Binding after the dispatcher runs this handler first so it can consume the event.
+    Bind( wxEVT_CHAR_HOOK, &FOOTPRINT_EDIT_FRAME::OnTabCharHook, this );
 
     // Ensure the window is on top
     Raise();
@@ -333,6 +411,11 @@ FOOTPRINT_EDIT_FRAME::FOOTPRINT_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
 
 FOOTPRINT_EDIT_FRAME::~FOOTPRINT_EDIT_FRAME()
 {
+    // Hand the borrowed canvas back before the base destructor deletes it, or the later-destroyed
+    // panel would reparent already-freed memory. The canvas then frees exactly once.
+    if( m_tabsPanel )
+        m_tabsPanel->ReleaseSharedCanvas();
+
     // Shutdown all running tools
     if( m_toolManager )
         m_toolManager->ShutdownAllTools();
@@ -342,6 +425,11 @@ FOOTPRINT_EDIT_FRAME::~FOOTPRINT_EDIT_FRAME()
 
     // Clear the watched file
     setFPWatcher( nullptr );
+
+    // When a tab context owns the active board, null the frame pointer so the base destructor does
+    // not double-free it. A frame-owned bootstrap board is left for the base class to delete.
+    if( activeBoardOwnedByTab() )
+        m_pcb = nullptr;
 
     // We passed ownership of these to wxAuiManager.
     // delete m_selectionFilterPanel;
@@ -454,6 +542,10 @@ bool FOOTPRINT_EDIT_FRAME::IsLibraryTreeShown() const
 
 BOARD_ITEM_CONTAINER* FOOTPRINT_EDIT_FRAME::GetModel() const
 {
+    // A tab close transiently leaves the frame with no board while UI repaints can still run.
+    if( !GetBoard() )
+        return nullptr;
+
     return GetBoard()->GetFirstFootprint();
 }
 
@@ -474,6 +566,11 @@ LIB_ID FOOTPRINT_EDIT_FRAME::GetTargetFPID() const
 
 LIB_ID FOOTPRINT_EDIT_FRAME::GetLoadedFPID() const
 {
+    // The board pointer is transiently null during a tab close while the library tree adapter can
+    // still repaint, so tolerate having no board.
+    if( !GetBoard() )
+        return LIB_ID();
+
     FOOTPRINT* footprint = GetBoard()->GetFirstFootprint();
 
     if( footprint )
@@ -485,13 +582,24 @@ LIB_ID FOOTPRINT_EDIT_FRAME::GetLoadedFPID() const
 
 void FOOTPRINT_EDIT_FRAME::ClearModify()
 {
-    if( GetBoard()->GetFirstFootprint() )
+    if( GetBoard() && GetBoard()->GetFirstFootprint() )
     {
         m_footprintNameWhenLoaded =
                 GetBoard()->GetFirstFootprint()->GetFPID().GetUniStringLibItemName();
     }
 
     GetScreen()->SetContentModified( false );
+
+    // OnModify() mirrors the dirty flag onto the active tab context and the panel model, so clear both
+    // here too. Tab rendering and close prompting read the context's flag, so a save that only cleared
+    // the shared screen would leave the tab starred and re-prompting to save.
+    if( m_tabsPanel && m_activeTab )
+    {
+        m_activeTab->SetModified( false );
+
+        if( int idx = m_tabsPanel->FindTab( m_activeTab->GetTabKey() ); idx >= 0 )
+            m_tabsPanel->MarkModified( idx, false );
+    }
 }
 
 
@@ -521,6 +629,58 @@ void FOOTPRINT_EDIT_FRAME::retainLastFootprint()
 
 void FOOTPRINT_EDIT_FRAME::restoreLastFootprint()
 {
+    // Restore the persisted tab set first. The active tab is loaded last so it ends up focused, and
+    // tabs that no longer resolve are silently dropped.
+    if( FOOTPRINT_EDITOR_SETTINGS* cfg = GetSettings(); cfg && !cfg->m_OpenTabs.empty() )
+    {
+        const wxString activeKey = cfg->m_ActiveTab;
+
+        const auto loadTab =
+                [this]( const FOOTPRINT_EDITOR_SETTINGS::OPEN_TAB& aTab ) -> bool
+                {
+                    LIB_ID id;
+                    id.SetLibNickname( aTab.m_lib );
+                    id.SetLibItemName( aTab.m_fpName );
+
+                    if( FOOTPRINT* footprint = LoadFootprint( id ) )
+                    {
+                        AddFootprintToBoard( footprint );
+
+                        // A restored tab is a real document, so promote it from preview to permanent.
+                        if( m_tabsPanel )
+                            findOrCreateFootprintTab( id, false );
+
+                        return true;
+                    }
+
+                    // LoadFootprint swallows the IO_ERROR when the library no longer resolves, so
+                    // log the dropped tab to keep a failed restore diagnosable.
+                    wxLogTrace( wxT( "KICAD_FP_TABS" ),
+                                wxT( "Dropping persisted footprint tab '%s:%s' (failed to load)" ),
+                                aTab.m_lib, aTab.m_fpName );
+
+                    return false;
+                };
+
+        const FOOTPRINT_EDITOR_SETTINGS::OPEN_TAB* activeTab = nullptr;
+
+        for( const FOOTPRINT_EDITOR_SETTINGS::OPEN_TAB& tab : cfg->m_OpenTabs )
+        {
+            const wxString key = tab.m_lib + wxT( ":" ) + tab.m_fpName;
+
+            if( key == activeKey )
+                activeTab = &tab;
+            else
+                loadTab( tab );
+        }
+
+        if( activeTab )
+            loadTab( *activeTab );
+
+        if( !m_tabContexts.empty() )
+            return;
+    }
+
     const wxString& footprintName = Prj().GetRString( PROJECT::PCB_FOOTPRINT_EDITOR_FP_NAME );
     const wxString& libNickname =  Prj().GetRString( PROJECT::PCB_FOOTPRINT_EDITOR_LIB_NICKNAME );
 
@@ -530,10 +690,16 @@ void FOOTPRINT_EDIT_FRAME::restoreLastFootprint()
         id.SetLibNickname( libNickname );
         id.SetLibItemName( footprintName );
 
-        FOOTPRINT* footprint = loadFootprint( id );
+        FOOTPRINT* footprint = LoadFootprint( id );
 
         if( footprint )
+        {
             AddFootprintToBoard( footprint );
+
+            // The last-session footprint is a real document, so promote its tab to permanent.
+            if( m_tabsPanel )
+                findOrCreateFootprintTab( id, false );
+        }
     }
 }
 
@@ -629,6 +795,18 @@ void FOOTPRINT_EDIT_FRAME::ReloadFootprint( FOOTPRINT* aFootprint )
 
     m_footprintNameWhenLoaded = aFootprint->GetFPID().GetUniStringLibItemName();
 
+    // Mirror the load baseline into the active tab context so it survives a tab switch (the frame
+    // members are only a borrowed view of the active context's baseline).
+    if( m_activeTab )
+    {
+        m_activeTab->SetOriginalFootprintCopy(
+                std::unique_ptr<FOOTPRINT>( static_cast<FOOTPRINT*>( m_originalFootprintCopy
+                                                                             ? m_originalFootprintCopy->Clone()
+                                                                             : nullptr ) ) );
+        m_activeTab->SetFootprintNameWhenLoaded( m_footprintNameWhenLoaded );
+        m_activeTab->SetName( aFootprint->GetFPID().GetLibItemName() );
+    }
+
     PCB_BASE_EDIT_FRAME::AddFootprintToBoard( aFootprint );
     // Ensure item UUIDs are valid
     // ("old" footprints can have null uuids that create issues in fp editor)
@@ -717,12 +895,594 @@ void FOOTPRINT_EDIT_FRAME::ReloadFootprint( FOOTPRINT* aFootprint )
 
 void FOOTPRINT_EDIT_FRAME::AddFootprintToBoard( FOOTPRINT* aFootprint )
 {
+    // Route the load through the tab strip so the footprint lands on its own tab. Tabs only apply to
+    // library footprints with a resolvable identity; board-sourced and new-footprint loads keep the
+    // legacy single-board behavior.
+    const bool fromBoard = aFootprint && aFootprint->GetLink() != niluuid;
+
+    // Opening from the library is a preview that the next library-open reuses; editing promotes it
+    // to a permanent tab.
+    if( m_tabsPanel && aFootprint && !fromBoard && aFootprint->GetFPID().IsValid() )
+        findOrCreateFootprintTab( aFootprint->GetFPID(), true );
+
     ReloadFootprint( aFootprint );
 
     if( IsCurrentFPFromBoard() )
         setFPWatcher( nullptr );
     else
         setFPWatcher( aFootprint );
+}
+
+
+bool FOOTPRINT_EDIT_FRAME::activeBoardOwnedByTab() const
+{
+    return std::any_of( m_tabContexts.begin(), m_tabContexts.end(),
+                        [this]( const std::unique_ptr<FOOTPRINT_EDITOR_TAB_CONTEXT>& aCtx )
+                        {
+                            return aCtx->GetBoard() == m_pcb;
+                        } );
+}
+
+
+void FOOTPRINT_EDIT_FRAME::borrowBoardNonDestructive( BOARD* aBoard )
+{
+    // Swap the board pointer without the SetBoard delete, since on a tab switch the outgoing board
+    // is owned by its tab context. Reproduce only the side effects SetBoard applies to the incoming
+    // board.
+    if( m_pcb == aBoard )
+        return;
+
+    // The only frame-owned board is the constructor's bootstrap board. Delete it when we first
+    // switch away so it does not leak; tab-owned boards are left to their contexts.
+    if( m_pcb && !activeBoardOwnedByTab() )
+        delete m_pcb;
+
+    m_pcb = aBoard;
+
+    if( GetBoard() )
+        GetBoard()->SetUserUnits( GetUserUnits() );
+
+    if( GetBoard() && GetCanvas() )
+    {
+        if( KIGFX::RENDER_SETTINGS* rs = GetCanvas()->GetView()->GetPainter()->GetSettings() )
+        {
+            rs->SetDashLengthRatio( GetBoard()->GetPlotOptions().GetDashedLineDashRatio() );
+            rs->SetGapLengthRatio( GetBoard()->GetPlotOptions().GetDashedLineGapRatio() );
+        }
+    }
+
+    wxCommandEvent e( EDA_EVT_BOARD_CHANGED );
+    ProcessEventLocally( e );
+}
+
+
+void FOOTPRINT_EDIT_FRAME::detachActiveFootprintTab()
+{
+    if( !m_activeTab )
+        return;
+
+    KIGFX::VIEW* view = GetCanvas()->GetView();
+
+    EDITOR_TAB_CONTEXT::VIEW_SNAPSHOT& snap = m_activeTab->ViewSnapshot();
+    snap.scale = view->GetScale();
+    snap.center = view->GetCenter();
+    snap.valid = true;
+
+    std::vector<KIID>& sel = m_activeTab->SavedSelection();
+    sel.clear();
+
+    for( EDA_ITEM* item : GetCurrentSelection() )
+        sel.push_back( item->m_Uuid );
+
+    // Dirty state lives on the shared frame screen, so fold it into the context to survive the switch.
+    if( GetScreen() )
+        m_activeTab->SetModified( GetScreen()->IsContentModified() );
+
+    // Swap the raw vectors since UNDO_REDO_CONTAINER is non-copyable; ownership transfers intact.
+    m_activeTab->UndoList().m_CommandsList.swap( m_undoList.m_CommandsList );
+    m_activeTab->RedoList().m_CommandsList.swap( m_redoList.m_CommandsList );
+
+    m_activeTab = nullptr;
+}
+
+
+void FOOTPRINT_EDIT_FRAME::activateFootprintTab( FOOTPRINT_EDITOR_TAB_CONTEXT* aCtx )
+{
+    if( !aCtx || aCtx == m_activeTab )
+        return;
+
+    installFootprintTabBoard( aCtx, aCtx->GetBoard() );
+}
+
+
+void FOOTPRINT_EDIT_FRAME::installFootprintTabBoard( FOOTPRINT_EDITOR_TAB_CONTEXT* aCtx,
+                                                     BOARD* aBoard )
+{
+    // Install the successor board and tool environment before the caller frees the outgoing context
+    // so no tool Reset() or repaint ever sees a freed or null m_pcb. Never calls the base SetBoard,
+    // which would delete m_pcb and reset tools while the model still aliases it.
+
+    detachActiveFootprintTab();
+
+    // Drop the live selection while the outgoing board is still valid.
+    if( m_toolManager )
+        m_toolManager->RunAction( ACTIONS::selectionClear );
+
+    m_activeTab = aCtx;
+
+    borrowBoardNonDestructive( aBoard );
+
+    if( aCtx )
+    {
+        m_undoList.m_CommandsList.swap( aCtx->UndoList().m_CommandsList );
+        m_redoList.m_CommandsList.swap( aCtx->RedoList().m_CommandsList );
+    }
+    else
+    {
+        // Discard the swapped-in lists with their transient items so nothing references a freed board.
+        freeUndoRedoCommandsWithItems( m_undoList, m_redoList );
+    }
+
+    m_originalFootprintCopy.reset( aCtx && aCtx->GetOriginalFootprintCopy()
+                                           ? static_cast<FOOTPRINT*>(
+                                                     aCtx->GetOriginalFootprintCopy()->Clone() )
+                                           : nullptr );
+    m_footprintNameWhenLoaded = aCtx ? aCtx->GetFootprintNameWhenLoaded() : wxString();
+
+    // Mirror the incoming tab's board-uuid remap onto the frame so SaveFootprintToBoard saves an
+    // instance edit back to the originating board items. A library tab has an empty map.
+    if( aCtx )
+        m_boardFootprintUuids = aCtx->BoardFootprintUuids();
+    else
+        m_boardFootprintUuids.clear();
+
+    if( GetScreen() )
+        GetScreen()->SetContentModified( aCtx ? aCtx->IsModified() : false );
+
+    // Point the tool environment at the incoming board before ResetTools so tools never dereference
+    // a freed model.
+    m_toolManager->SetEnvironment( GetBoard(), GetCanvas()->GetView(),
+                                   GetCanvas()->GetViewControls(), config(), this );
+
+    GetCanvas()->DisplayBoard( GetBoard() );
+    GetCanvas()->UpdateColors();
+
+    m_toolManager->ResetTools( TOOL_BASE::MODEL_RELOAD );
+
+    if( !aCtx )
+    {
+        updateEnabledLayers();
+        UpdateMsgPanel();
+        UpdateUserInterface();
+        GetCanvas()->ForceRefresh();
+        return;
+    }
+
+    const EDITOR_TAB_CONTEXT::VIEW_SNAPSHOT& snap = aCtx->ViewSnapshot();
+
+    if( snap.valid )
+    {
+        GetCanvas()->GetView()->SetScale( snap.scale );
+        GetCanvas()->GetView()->SetCenter( snap.center );
+    }
+    else
+    {
+        // First time this tab is shown there is no saved view
+        m_toolManager->RunAction( ACTIONS::zoomFitScreen );
+    }
+
+    if( !aCtx->SavedSelection().empty() )
+    {
+        PCB_SELECTION_TOOL* selTool = m_toolManager->GetTool<PCB_SELECTION_TOOL>();
+
+        if( selTool )
+        {
+            for( const KIID& id : aCtx->SavedSelection() )
+            {
+                if( BOARD_ITEM* item = GetBoard()->ResolveItem( id, true ) )
+                    selTool->select( item );
+            }
+        }
+    }
+
+    if( m_appearancePanel )
+        m_appearancePanel->OnBoardChanged();
+
+    if( m_propertiesPanel )
+        m_propertiesPanel->UpdateData();
+
+    updateEnabledLayers();
+    UpdateMsgPanel();
+    UpdateUserInterface();
+    GetCanvas()->ForceRefresh();
+}
+
+
+FOOTPRINT_EDITOR_TAB_CONTEXT*
+FOOTPRINT_EDIT_FRAME::findOrCreateFootprintTab( const LIB_ID& aLibId, bool aAsPreview )
+{
+    if( !m_tabsPanel )
+        return nullptr;
+
+    const wxString lib = aLibId.GetLibNickname();
+    const wxString name = aLibId.GetLibItemName();
+    const wxString key = lib + wxT( ":" ) + name;
+
+    if( int existing = m_tabsPanel->FindTab( key ); existing >= 0 )
+    {
+        m_tabsPanel->AddTab( key, name, aAsPreview );
+        return m_tabContexts[existing].get();
+    }
+
+    auto board = std::make_unique<BOARD>();
+    board->SetBoardUse( BOARD_USE::FPHOLDER );
+    board->GetDesignSettings().m_NetSettings->GetDefaultNetclass()->SetClearance( 0 );
+    board->GetDesignSettings().m_SolderMaskExpansion = 0;
+    board->SetVisibleAlls();
+
+    auto ctx = std::make_unique<FOOTPRINT_EDITOR_TAB_CONTEXT>( lib, name, std::move( board ) );
+    ctx->SetPreview( aAsPreview );
+
+    FOOTPRINT_EDITOR_TAB_CONTEXT* raw = ctx.get();
+
+    // Keep m_tabContexts index-aligned with the panel model. A previewed open reuses the preview
+    // slot in place; otherwise the context is appended. It must be at its final index before AddTab
+    // fires onActivateTab.
+    const int reuseSlot = aAsPreview ? m_tabsPanel->Model().PreviewIndex() : -1;
+
+    if( reuseSlot >= 0 && reuseSlot < static_cast<int>( m_tabContexts.size() ) )
+    {
+        // The move-assign below destroys the reused slot's context and its board. If it is the active
+        // tab, tear the document down while that board is still alive so the move-assign is safe.
+        if( m_tabContexts[reuseSlot].get() == m_activeTab )
+        {
+            if( m_toolManager )
+                m_toolManager->RunAction( ACTIONS::selectionClear );
+
+            freeUndoRedoCommandsWithItems( m_undoList, m_redoList );
+            m_activeTab = nullptr;
+        }
+
+        if( m_pcb == m_tabContexts[reuseSlot]->GetBoard() )
+            m_pcb = nullptr;
+
+        m_tabContexts[reuseSlot] = std::move( ctx );
+    }
+    else
+    {
+        m_tabContexts.push_back( std::move( ctx ) );
+    }
+
+    m_tabsPanel->AddTab( key, name, aAsPreview );
+
+    return raw;
+}
+
+
+FOOTPRINT_EDITOR_TAB_CONTEXT*
+FOOTPRINT_EDIT_FRAME::findOrCreateFootprintInstanceTab( FOOTPRINT* aBoardFootprint )
+{
+    if( !m_tabsPanel || !aBoardFootprint )
+        return nullptr;
+
+    const KIID     sourceUuid = aBoardFootprint->m_Uuid;
+    const wxString key = FOOTPRINT_EDITOR_TAB_CONTEXT::MakeInstanceTabKey( sourceUuid );
+    const wxString reference = aBoardFootprint->GetReference();
+
+    // Re-editing the same placed footprint focuses the live tab rather than duplicating it.
+    if( int existing = m_tabsPanel->FindTab( key ); existing >= 0 )
+    {
+        m_tabsPanel->AddTab( key, reference, false );
+        return m_tabContexts[existing].get();
+    }
+
+    auto board = std::make_unique<BOARD>();
+    board->SetBoardUse( BOARD_USE::FPHOLDER );
+    board->GetDesignSettings().m_NetSettings->GetDefaultNetclass()->SetClearance( 0 );
+    board->GetDesignSettings().m_SolderMaskExpansion = 0;
+    board->SetVisibleAlls();
+    board->GetDesignSettings().m_DRCSeverities[DRCE_MISSING_COURTYARD] = RPT_SEVERITY_WARNING;
+
+    auto ctx = std::make_unique<FOOTPRINT_EDITOR_TAB_CONTEXT>( sourceUuid, reference,
+                                                               std::move( board ) );
+    BOARD*                        ctxBoard = ctx->GetBoard();
+    std::map<KIID, KIID>&         uuidMap = ctx->BoardFootprintUuids();
+    FOOTPRINT_EDITOR_TAB_CONTEXT* raw = ctx.get();
+
+    const auto recordAndUpdateUuid =
+            [&]( BOARD_ITEM* aItem )
+            {
+                KIID newId;
+                uuidMap[newId] = aItem->m_Uuid;
+                aItem->SetUuid( newId );
+            };
+
+    // Clone keeps the existing uuids, which the remap then swaps for fresh editor-local ones so
+    // SaveFootprintToBoard can map them back to the original board items.
+    FOOTPRINT* clone = static_cast<FOOTPRINT*>( aBoardFootprint->Clone() );
+    clone->SetParent( ctxBoard );
+    clone->SetParentGroup( nullptr );
+    clone->SetLink( aBoardFootprint->m_Uuid );
+    clone->ClearFlags();
+    clone->SetLocked( false );
+
+    recordAndUpdateUuid( clone );
+    clone->RunOnChildren(
+            [&]( BOARD_ITEM* aItem )
+            {
+                if( aItem->Type() == PCB_PAD_T )
+                    aItem->SetLocked( false );
+
+                aItem->ClearFlags();
+                recordAndUpdateUuid( aItem );
+            },
+            RECURSE_MODE::RECURSE );
+
+    ctxBoard->Add( clone );
+
+    // The editor knows nothing of the board's nets, so force the orphaned dummy net on every pad to
+    // avoid saving a reference to an unknown net into the library cache.
+    clone->ClearAllNets();
+
+    // Normalize placement to the footprint-editor defaults so the editor view matches a library load.
+    clone->SetPosition( VECTOR2I( 0, 0 ) );
+
+    if( clone->GetLayer() != F_Cu )
+        clone->Flip( clone->GetPosition(), GetPcbNewSettings()->m_FlipDirection );
+
+    clone->SetOrientation( ANGLE_0 );
+
+    m_tabContexts.push_back( std::move( ctx ) );
+
+    // Index-aligned with the panel model; the context is at its final index before AddTab fires
+    // onActivateTab.
+    m_tabsPanel->AddTab( key, reference, false );
+
+    return raw;
+}
+
+
+void FOOTPRINT_EDIT_FRAME::freeUndoRedoCommandsWithItems( UNDO_REDO_CONTAINER& aUndo,
+                                                         UNDO_REDO_CONTAINER& aRedo )
+{
+    // Free the UR_TRANSIENT board items each command owns and the command wrappers. The frame's own
+    // ClearUndoRedoList() and the bare container destructor delete only the wrappers and leak the
+    // transient items, so a discarded tab history must come through here.
+    for( UNDO_REDO_CONTAINER* list : { &aUndo, &aRedo } )
+    {
+        for( PICKED_ITEMS_LIST* cmd : list->m_CommandsList )
+        {
+            ClearListAndDeleteItems( cmd );
+            delete cmd;
+        }
+
+        list->m_CommandsList.clear();
+    }
+}
+
+
+void FOOTPRINT_EDIT_FRAME::freeFootprintTabUndoRedo( FOOTPRINT_EDITOR_TAB_CONTEXT& aCtx )
+{
+    // The context is detached here, so the transient items in its lists are never the live objects.
+    freeUndoRedoCommandsWithItems( aCtx.UndoList(), aCtx.RedoList() );
+}
+
+
+bool FOOTPRINT_EDIT_FRAME::promptAndCloseFootprintTab( int aIdx )
+{
+    if( aIdx < 0 || aIdx >= static_cast<int>( m_tabContexts.size() ) )
+        return false;
+
+    FOOTPRINT_EDITOR_TAB_CONTEXT* ctx = m_tabContexts[aIdx].get();
+
+    // The active tab's live dirty state lives on the shared frame screen, so ctx->IsModified() is
+    // stale for it. Fold the screen state back in so an unsaved active tab still prompts.
+    if( ctx == m_activeTab && GetScreen() )
+        ctx->SetModified( GetScreen()->IsContentModified() );
+
+    if( ctx->IsModified() )
+    {
+        // Prompt while the closing tab is still fully live so a save reads its real board.
+        wxString msg = wxString::Format( _( "Save changes to '%s' before closing?" ),
+                                         ctx->GetDisplayName() );
+
+        KIDIALOG dlg( this, msg, _( "Confirmation" ), wxYES_NO | wxCANCEL | wxICON_WARNING );
+        dlg.SetYesNoCancelLabels( _( "Save" ), _( "Discard Changes" ), _( "Cancel" ) );
+
+        switch( dlg.ShowModal() )
+        {
+        case wxID_YES:
+        {
+            // SaveFootprint reads the active tab's load baseline for rename detection, so an inactive
+            // tab must be made active first or it saves against the wrong baseline. Restore the prior
+            // active tab afterwards so closing an inactive tab stays an inactive close, keeping the
+            // panel's suppressed fallback selection aligned with the live board. Veto the close if the
+            // save did not complete so the edits and history are not silently dropped.
+            FOOTPRINT_EDITOR_TAB_CONTEXT* activeBeforeSave = m_activeTab;
+            const bool                    activatedForSave = ( ctx != m_activeTab );
+
+            if( activatedForSave )
+                activateFootprintTab( ctx );
+
+            const bool saved = SaveFootprint( ctx->GetBoard()->GetFirstFootprint() );
+
+            if( activatedForSave && activeBeforeSave )
+                activateFootprintTab( activeBeforeSave );
+
+            if( !saved )
+                return false;
+
+            break;
+        }
+
+        case wxID_NO:     break;
+        default:
+        case wxID_CANCEL: return false;
+        }
+    }
+
+    const bool closingActive = ( ctx == m_activeTab );
+
+    if( !closingActive )
+    {
+        // m_pcb aliases a different live tab's board, so freeing this context dangles nothing.
+        freeFootprintTabUndoRedo( *ctx );
+        m_tabContexts.erase( m_tabContexts.begin() + aIdx );
+        return true;
+    }
+
+    // The closing tab's lists are currently the frame's live lists. Free them now with their
+    // transient items, so the install's detach swaps empty lists into the closing context.
+    freeUndoRedoCommandsWithItems( m_undoList, m_redoList );
+
+    const int newCount = static_cast<int>( m_tabContexts.size() ) - 1;
+    const int successorIdx = newCount > 0 ? std::min( aIdx, newCount - 1 ) : -1;
+
+    if( successorIdx >= 0 )
+    {
+        // Map the successor's post-erase position back to a pre-erase index. Indices above the closed
+        // one shift down by one after the erase.
+        const int preEraseSuccessor = successorIdx < aIdx ? successorIdx : successorIdx + 1;
+
+        FOOTPRINT_EDITOR_TAB_CONTEXT* successor = m_tabContexts[preEraseSuccessor].get();
+
+        installFootprintTabBoard( successor, successor->GetBoard() );
+    }
+    else
+    {
+        // Last tab: the fresh empty board is frame-owned like the bootstrap board.
+        BOARD* emptyBoard = new BOARD();
+        emptyBoard->SetBoardUse( BOARD_USE::FPHOLDER );
+        emptyBoard->GetDesignSettings().m_NetSettings->GetDefaultNetclass()->SetClearance( 0 );
+        emptyBoard->GetDesignSettings().m_SolderMaskExpansion = 0;
+        emptyBoard->SetVisibleAlls();
+
+        installFootprintTabBoard( nullptr, emptyBoard );
+    }
+
+    // The install swapped m_pcb off the closing board, so erasing the context frees it safely.
+    m_tabContexts.erase( m_tabContexts.begin() + aIdx );
+
+    return true;
+}
+
+
+bool FOOTPRINT_EDIT_FRAME::hasDirtyInactiveInstanceTabs() const
+{
+    for( const std::unique_ptr<FOOTPRINT_EDITOR_TAB_CONTEXT>& ctx : m_tabContexts )
+    {
+        if( ctx.get() != m_activeTab && ctx->IsTransient() && ctx->IsModified() )
+            return true;
+    }
+
+    return false;
+}
+
+
+bool FOOTPRINT_EDIT_FRAME::promptToSaveInactiveInstanceTabs()
+{
+    // Collect first; saving activates a tab, which mutates m_activeTab and the live board pointer.
+    std::vector<FOOTPRINT_EDITOR_TAB_CONTEXT*> dirty;
+
+    for( const std::unique_ptr<FOOTPRINT_EDITOR_TAB_CONTEXT>& ctx : m_tabContexts )
+    {
+        // The active tab and library tabs are handled by the main canCloseWindow check.
+        if( ctx.get() != m_activeTab && ctx->IsTransient() && ctx->IsModified() )
+            dirty.push_back( ctx.get() );
+    }
+
+    // Saving activates each dirty tab in turn; restore the tab the user was on so a vetoed close leaves
+    // the editor where it was and a successful close persists the real active tab, not a discarded one.
+    FOOTPRINT_EDITOR_TAB_CONTEXT* originalActive = m_activeTab;
+
+    for( FOOTPRINT_EDITOR_TAB_CONTEXT* ctx : dirty )
+    {
+        wxString msg = wxString::Format( _( "Save changes to '%s' before closing?" ),
+                                         ctx->GetDisplayName() );
+
+        KIDIALOG dlg( this, msg, _( "Confirmation" ), wxYES_NO | wxCANCEL | wxICON_WARNING );
+        dlg.SetYesNoCancelLabels( _( "Save" ), _( "Discard Changes" ), _( "Cancel" ) );
+
+        const int answer = dlg.ShowModal();
+
+        if( answer == wxID_YES )
+        {
+            // SaveFootprint reads the active tab's load baseline and uuid remap, so make this tab
+            // active first; it does not clear the dirty flag, so ClearModify below does it or a
+            // vetoed close would re-prompt an already-saved tab.
+            activateFootprintTab( ctx );
+
+            if( !SaveFootprint( ctx->GetBoard()->GetFirstFootprint() ) )
+            {
+                activateFootprintTab( originalActive );
+                return false;
+            }
+
+            ClearModify();
+        }
+        else if( answer != wxID_NO )
+        {
+            activateFootprintTab( originalActive );
+            return false;
+        }
+    }
+
+    activateFootprintTab( originalActive );
+
+    return true;
+}
+
+
+void FOOTPRINT_EDIT_FRAME::refreshFootprintTabState()
+{
+    if( m_tabsPanel )
+        m_tabsPanel->RefreshTabLabels();
+}
+
+
+void FOOTPRINT_EDIT_FRAME::detachTabsForFullClear( BOARD* aReplacement )
+{
+    wxCHECK( aReplacement, /* void */ );
+
+    // Install the fresh frame-owned board and reset the tools against it before any tab board is
+    // freed, so no ResetTools or repaint sees a freed or null m_pcb.
+    installFootprintTabBoard( nullptr, aReplacement );
+
+    // Tear the strip down without re-prompting to save, since unsaved changes were already handled.
+    // Suppress the host close callback and tab activation so CloseAll only does panel bookkeeping.
+    if( m_tabsPanel )
+    {
+        std::function<bool( int )> savedCb = std::move( m_tabsPanel->onCloseTabRequested );
+        m_tabsPanel->onCloseTabRequested = []( int ) { return true; };
+
+        m_suppressTabActivation = true;
+        m_tabsPanel->CloseAll();
+        m_suppressTabActivation = false;
+
+        m_tabsPanel->onCloseTabRequested = std::move( savedCb );
+    }
+
+    wxASSERT_MSG( m_pcb == aReplacement,
+                  wxT( "m_pcb must alias the frame-owned replacement before contexts are freed" ) );
+
+    for( const std::unique_ptr<FOOTPRINT_EDITOR_TAB_CONTEXT>& ctx : m_tabContexts )
+        freeFootprintTabUndoRedo( *ctx );
+
+    m_tabContexts.clear();
+}
+
+
+void FOOTPRINT_EDIT_FRAME::AdvanceFootprintTab( bool aForward )
+{
+    if( m_tabsPanel )
+        m_tabsPanel->AdvanceTab( aForward );
+}
+
+
+void FOOTPRINT_EDIT_FRAME::CloseActiveFootprintTab()
+{
+    if( m_tabsPanel )
+        m_tabsPanel->CloseTab( m_tabsPanel->GetActiveTab() );
 }
 
 
@@ -856,6 +1616,21 @@ void FOOTPRINT_EDIT_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
             cfg->m_LayerPresets                   = m_appearancePanel->GetUserLayerPresets();
             cfg->m_ActiveLayerPreset              = m_appearancePanel->GetActiveLayerPreset();
         }
+
+        cfg->m_OpenTabs.clear();
+        cfg->m_ActiveTab.Clear();
+
+        for( const std::unique_ptr<FOOTPRINT_EDITOR_TAB_CONTEXT>& ctx : m_tabContexts )
+        {
+            // Instance tabs are session-only and never persisted.
+            if( ctx->IsTransient() )
+                continue;
+
+            cfg->m_OpenTabs.push_back( { ctx->GetLib(), ctx->GetName() } );
+
+            if( ctx.get() == m_activeTab )
+                cfg->m_ActiveTab = ctx->GetTabKey();
+        }
     }
 }
 
@@ -954,16 +1729,18 @@ bool FOOTPRINT_EDIT_FRAME::CanCloseFPFromBoard( bool doClose )
 
 bool FOOTPRINT_EDIT_FRAME::canCloseWindow( wxCloseEvent& aEvent )
 {
+    // Shutdown blocks must be determined and vetoed as early as possible, before any modal prompt.
+    // IsContentModified only sees the active tab, so also account for dirty inactive instance tabs.
+    if( ( IsContentModified() || hasDirtyInactiveInstanceTabs() )
+            && KIPLATFORM::APP::SupportsShutdownBlockReason()
+            && aEvent.GetId() == wxEVT_QUERY_END_SESSION )
+    {
+        aEvent.Veto();
+        return false;
+    }
+
     if( IsContentModified() )
     {
-        // Shutdown blocks must be determined and vetoed as early as possible
-        if( KIPLATFORM::APP::SupportsShutdownBlockReason() &&
-            aEvent.GetId() == wxEVT_QUERY_END_SESSION )
-        {
-            aEvent.Veto();
-            return false;
-        }
-
         wxString footprintName = GetBoard()->GetFirstFootprint()->GetFPID().GetLibItemName();
 
         if( IsCurrentFPFromBoard() )
@@ -980,6 +1757,13 @@ bool FOOTPRINT_EDIT_FRAME::canCloseWindow( wxCloseEvent& aEvent )
             aEvent.Veto();
             return false;
         }
+    }
+
+    // Prompt for any dirty inactive instance tabs, which the active-tab check above misses.
+    if( !promptToSaveInactiveInstanceTabs() )
+    {
+        aEvent.Veto();
+        return false;
     }
 
     PAD_TOOL* padTool = m_toolManager->GetTool<PAD_TOOL>();
@@ -999,6 +1783,10 @@ void FOOTPRINT_EDIT_FRAME::doCloseWindow()
     // No more vetos
     GetCanvas()->SetEventDispatcher( nullptr );
     GetCanvas()->StopDrawing();
+
+#ifdef KICAD_IPC_API
+    Pgm().GetApiServer().DeregisterHandler( m_apiHandler.get() );
+#endif
 
     if( GetLibTree() )
         GetLibTree()->ShutdownPreviews();
@@ -1064,6 +1852,18 @@ void FOOTPRINT_EDIT_FRAME::OnModify()
     if( m_isClosing )
         return;
 
+    // An edit promotes the active tab from preview to permanent and flags it dirty. Reflect the
+    // shared screen's dirty state onto the context and panel model so the tab shows bold + "*" and a
+    // later library-open opens its own tab instead of replacing this one.
+    if( m_tabsPanel && m_activeTab )
+    {
+        m_activeTab->SetPreview( false );
+        m_activeTab->SetModified( true );
+
+        if( int idx = m_tabsPanel->FindTab( m_activeTab->GetTabKey() ); idx >= 0 )
+            m_tabsPanel->MarkModified( idx, true );
+    }
+
     Update3DView( true, true );
     GetLibTree()->RefreshLibTree();
 
@@ -1076,7 +1876,7 @@ void FOOTPRINT_EDIT_FRAME::UpdateTitle()
 {
     wxString   title;
     LIB_ID     fpid = GetLoadedFPID();
-    FOOTPRINT* footprint = GetBoard()->GetFirstFootprint();
+    FOOTPRINT* footprint = GetBoard() ? GetBoard()->GetFirstFootprint() : nullptr;
     bool       writable = true;
 
     if( IsCurrentFPFromBoard() )
@@ -1158,6 +1958,8 @@ void FOOTPRINT_EDIT_FRAME::initLibraryTree()
 
 void FOOTPRINT_EDIT_FRAME::SyncLibraryTree( [[maybe_unused]] bool aProgress )
 {
+    wxLogTrace( wxT( "KICAD_TABS_DBG" ), wxT( "FOOTPRINT_EDIT_FRAME::SyncLibraryTree enter" ) );
+
     FOOTPRINT_LIBRARY_ADAPTER* footprints = PROJECT_PCB::FootprintLibAdapter( &Prj() );
     auto          adapter = static_cast<FP_TREE_SYNCHRONIZING_ADAPTER*>( m_adapter.get() );
     LIB_ID        target = GetTargetFPID();
@@ -1170,6 +1972,7 @@ void FOOTPRINT_EDIT_FRAME::SyncLibraryTree( [[maybe_unused]] bool aProgress )
     // Sync the LIB_TREE to the FOOTPRINT_INFO list
     adapter->Sync( footprints );
 
+    wxLogTrace( wxT( "KICAD_TABS_DBG" ), wxT( "FOOTPRINT_EDIT_FRAME::SyncLibraryTree Regenerate" ) );
     GetLibTree()->Regenerate( true );
 
     if( target.IsValid() )
@@ -1188,6 +1991,8 @@ void FOOTPRINT_EDIT_FRAME::SyncLibraryTree( [[maybe_unused]] bool aProgress )
             GetLibTree()->CenterLibId( target );
         }
     }
+
+    wxLogTrace( wxT( "KICAD_TABS_DBG" ), wxT( "FOOTPRINT_EDIT_FRAME::SyncLibraryTree exit" ) );
 }
 
 
@@ -1239,7 +2044,6 @@ void FOOTPRINT_EDIT_FRAME::setupTools()
     m_toolManager->RegisterTool( new PCB_VIEWER_TOOLS );
     m_toolManager->RegisterTool( new PCB_GROUP_TOOL );
     m_toolManager->RegisterTool( new CONVERT_TOOL );
-    m_toolManager->RegisterTool( new SCRIPTING_TOOL );
     m_toolManager->RegisterTool( new PROPERTIES_TOOL );
     m_toolManager->RegisterTool( new EMBED_TOOL );
 
@@ -1377,6 +2181,8 @@ void FOOTPRINT_EDIT_FRAME::setupUIConditions()
 
     mgr->SetConditions( ACTIONS::zoomTool,               CHECK( cond.CurrentTool( ACTIONS::zoomTool ) ) );
     mgr->SetConditions( ACTIONS::selectionTool,          CHECK( cond.CurrentTool( ACTIONS::selectionTool ) ) );
+    mgr->SetConditions( ACTIONS::selectSetRect,          CHECK( cond.CurrentTool( ACTIONS::selectionTool ) ) );
+    mgr->SetConditions( ACTIONS::selectSetLasso,         CHECK( cond.CurrentTool( ACTIONS::selectionTool ) ) );
     // clang-format on
 
     auto highContrastCond =
@@ -1385,11 +2191,10 @@ void FOOTPRINT_EDIT_FRAME::setupUIConditions()
                 return GetDisplayOptions().m_ContrastModeDisplay != HIGH_CONTRAST_MODE::NORMAL;
             };
 
-    auto boardFlippedCond =
-            [this]( const SELECTION& )
-            {
-                return GetCanvas() && GetCanvas()->GetView()->IsMirroredX();
-            };
+    auto boardFlippedCond = [this]( const SELECTION& )
+    {
+        return GetDisplayOptions().m_FlipBoardView;
+    };
 
     auto libraryTreeCond =
             [this](const SELECTION& )
@@ -1465,6 +2270,8 @@ void FOOTPRINT_EDIT_FRAME::setupUIConditions()
     CURRENT_EDIT_TOOL( PCB_ACTIONS::drawLine );
     CURRENT_EDIT_TOOL( PCB_ACTIONS::drawRectangle );
     CURRENT_EDIT_TOOL( PCB_ACTIONS::drawCircle );
+    CURRENT_EDIT_TOOL( PCB_ACTIONS::drawEllipse );
+    CURRENT_EDIT_TOOL( PCB_ACTIONS::drawEllipseArc );
     CURRENT_EDIT_TOOL( PCB_ACTIONS::drawArc );
     CURRENT_EDIT_TOOL( PCB_ACTIONS::drawPolygon );
     CURRENT_EDIT_TOOL( PCB_ACTIONS::drawBezier );
@@ -1506,6 +2313,7 @@ void FOOTPRINT_EDIT_FRAME::ActivateGalCanvas()
 void FOOTPRINT_EDIT_FRAME::CommonSettingsChanged( int aFlags )
 {
     PCB_BASE_EDIT_FRAME::CommonSettingsChanged( aFlags );
+    m_appearancePanel->CommonSettingsChanged( aFlags );
 
     if( FOOTPRINT_EDITOR_SETTINGS* cfg = GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" ) )
     {

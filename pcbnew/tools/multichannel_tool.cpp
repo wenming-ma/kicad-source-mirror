@@ -34,9 +34,11 @@
 #include <pcbexpr_evaluator.h>
 
 #include <zone.h>
+#include <board_design_settings.h>
 #include <geometry/convex_hull.h>
 #include <geometry/shape_utils.h>
 #include <pcb_group.h>
+#include <pcb_generator.h>
 #include <footprint.h>
 #include <pad.h>
 #include <pcb_text.h>
@@ -44,7 +46,6 @@
 #include <connectivity/connectivity_data.h>
 #include <connectivity/topo_match.h>
 #include <algorithm>
-#include <pcbnew_scripting_helpers.h>
 #include <pcb_track.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_picker_tool.h>
@@ -259,6 +260,15 @@ bool MULTICHANNEL_TOOL::findOtherItemsInRuleArea( RULE_AREA* aRuleArea, std::set
             if( item->Type() == PCB_FOOTPRINT_T )
                 continue;
 
+            // Generators are copied whole by the routing pass. Nested groups are not yet
+            // preserved (TODO) so they are skipped here.
+            if( item->Type() == PCB_GROUP_T || item->Type() == PCB_GENERATOR_T )
+                continue;
+
+            // Cells are copied with their owning PCB_TABLE, not as standalone items.
+            if( item->Type() == PCB_TABLECELL_T )
+                continue;
+
             if( BOARD_ITEM* boardItem = dynamic_cast<BOARD_ITEM*>( item ) )
             {
                 if( !boardItem->IsConnected() || boardItem->Type() == PCB_ZONE_T )
@@ -267,6 +277,49 @@ bool MULTICHANNEL_TOOL::findOtherItemsInRuleArea( RULE_AREA* aRuleArea, std::set
         }
 
         return aItems.size() > 0;
+    }
+
+    // The design-block apply target uses a scratch zone not on the board, so enclosedByArea()
+    // below finds nothing. Resolve the group's items directly from the group.
+    if( aRuleArea->m_sourceType == PLACEMENT_SOURCE_T::GROUP_PLACEMENT
+        && ( !aRuleArea->m_components.empty() || aRuleArea->m_group ) )
+    {
+        bool zoneOnBoard = false;
+
+        for( ZONE* zone : board()->Zones() )
+        {
+            if( zone == aRuleArea->m_zone )
+            {
+                zoneOnBoard = true;
+                break;
+            }
+        }
+
+        if( !zoneOnBoard )
+        {
+            EDA_GROUP* group = aRuleArea->m_group;
+
+            if( !group && !aRuleArea->m_components.empty() )
+                group = ( *aRuleArea->m_components.begin() )->GetParentGroup();
+
+            if( group )
+            {
+                for( EDA_ITEM* member : group->GetItems() )
+                {
+                    if( member->Type() == PCB_FOOTPRINT_T || member->Type() == PCB_GROUP_T
+                        || member->Type() == PCB_GENERATOR_T || member->Type() == PCB_TABLECELL_T )
+                        continue;
+
+                    if( BOARD_ITEM* boardItem = dynamic_cast<BOARD_ITEM*>( member ) )
+                    {
+                        if( !boardItem->IsConnected() || boardItem->Type() == PCB_ZONE_T )
+                            aItems.insert( boardItem );
+                    }
+                }
+            }
+
+            return aItems.size() > 0;
+        }
     }
 
     PCBEXPR_COMPILER compiler( new PCBEXPR_UNIT_RESOLVER );
@@ -771,16 +824,31 @@ int MULTICHANNEL_TOOL::CheckRACompatibility( ZONE *aRefZone )
 
 
 int MULTICHANNEL_TOOL::RepeatLayout( const TOOL_EVENT& aEvent, RULE_AREA& aRefArea, RULE_AREA& aTargetArea,
-                                     REPEAT_LAYOUT_OPTIONS& aOptions )
+                                     REPEAT_LAYOUT_OPTIONS& aOptions, BOARD_COMMIT* aExternalCommit,
+                                     wxString* aErrorOut )
 {
     wxCHECK_MSG( aRefArea.m_zone, -1, wxT( "Reference Rule Area has no zone." ) );
     wxCHECK_MSG( aTargetArea.m_zone, -1, wxT( "Target Rule Area has no zone." ) );
+
+    const bool silent = aErrorOut != nullptr;
+
+    auto reportError = [&]( const wxString& aMsg )
+    {
+        if( aErrorOut )
+            *aErrorOut = aMsg;
+        else if( Pgm().IsGUI() )
+            frame()->ShowInfoBarError( aMsg, true );
+    };
 
     RULE_AREA_COMPAT_DATA compat;
 
     if( !resolveConnectionTopology( &aRefArea, &aTargetArea, compat ) )
     {
-        if( Pgm().IsGUI() )
+        if( silent )
+        {
+            *aErrorOut = compat.m_errorMsg;
+        }
+        else if( Pgm().IsGUI() )
         {
             wxString summary = wxString::Format( _( "Rule Area topologies do not match: %s" ), compat.m_errorMsg );
             ShowTopologyMismatchReasons( frame(), summary, compat.m_mismatchReasons );
@@ -789,7 +857,12 @@ int MULTICHANNEL_TOOL::RepeatLayout( const TOOL_EVENT& aEvent, RULE_AREA& aRefAr
         return -1;
     }
 
-    BOARD_COMMIT commit( GetManager(), true, false );
+    std::optional<BOARD_COMMIT> localCommit;
+
+    if( !aExternalCommit )
+        localCommit.emplace( GetManager(), true, false );
+
+    BOARD_COMMIT& commit = aExternalCommit ? *aExternalCommit : *localCommit;
 
     // If no anchor is provided, pick the first matched pair to avoid center-alignment shifting
     // the whole group. This keeps Apply Design Block Layout from moving the group to wherever
@@ -805,27 +878,30 @@ int MULTICHANNEL_TOOL::RepeatLayout( const TOOL_EVENT& aEvent, RULE_AREA& aRefAr
         auto errMsg = wxString::Format( _( "Copy Rule Area contents failed between rule areas '%s' and '%s'." ),
                                         aRefArea.m_zone->GetZoneName(), aTargetArea.m_zone->GetZoneName() );
 
-        commit.Revert();
+        if( !aExternalCommit )
+            commit.Revert();
 
-        if( Pgm().IsGUI() )
-            frame()->ShowInfoBarError( errMsg, true );
+        reportError( errMsg );
 
         return -1;
     }
 
     if( aTargetArea.m_sourceType == PLACEMENT_SOURCE_T::GROUP_PLACEMENT )
     {
-        if( aTargetArea.m_components.size() == 0 || !( *aTargetArea.m_components.begin() )->GetParentGroup() )
-        {
-            commit.Revert();
+        EDA_GROUP* group = aTargetArea.m_group;
 
-            if( Pgm().IsGUI() )
-                frame()->ShowInfoBarError( _( "Target group does not have a group." ), true );
+        if( !group && !aTargetArea.m_components.empty() )
+            group = ( *aTargetArea.m_components.begin() )->GetParentGroup();
+
+        if( !group )
+        {
+            if( !aExternalCommit )
+                commit.Revert();
+
+            reportError( _( "Target group does not have a group." ) );
 
             return -1;
         }
-
-        EDA_GROUP* group = ( *aTargetArea.m_components.begin() )->GetParentGroup();
 
         commit.Modify( group->AsEdaItem(), nullptr, RECURSE_MODE::NO_RECURSE );
 
@@ -836,7 +912,8 @@ int MULTICHANNEL_TOOL::RepeatLayout( const TOOL_EVENT& aEvent, RULE_AREA& aRefAr
         }
     }
 
-    commit.Push( _( "Repeat layout" ) );
+    if( !aExternalCommit )
+        commit.Push( _( "Repeat layout" ) );
 
     return 0;
 }
@@ -964,12 +1041,82 @@ int MULTICHANNEL_TOOL::findRoutingInRuleArea( RULE_AREA* aRuleArea, std::set<BOA
                 if( bci->Type() == PCB_ZONE_T )
                     continue;
 
+                // Tracks inside a generator (meander) are copied with the generator.
+                if( EDA_GROUP* parent = bci->GetParentGroup() )
+                {
+                    if( parent->AsEdaItem()->Type() == PCB_GENERATOR_T )
+                        continue;
+                }
+
                 if( bci->IsConnected() )
                     aOutput.insert( bci );
             }
         }
 
         return (int) aOutput.size();
+    }
+
+    // The design-block apply target uses a scratch zone not on the board, so enclosedByArea()
+    // below finds nothing. Match routing against the zone outline directly.
+    if( aRuleArea->m_sourceType == PLACEMENT_SOURCE_T::GROUP_PLACEMENT )
+    {
+        bool zoneOnBoard = false;
+
+        for( ZONE* zone : board()->Zones() )
+        {
+            if( zone == aRuleArea->m_zone )
+            {
+                zoneOnBoard = true;
+                break;
+            }
+        }
+
+        if( !zoneOnBoard )
+        {
+            const SHAPE_POLY_SET& areaOutline = *aRuleArea->m_zone->Outline();
+            int                   maxError = board()->GetDesignSettings().m_MaxError;
+
+            auto enclosedByZone = [&]( BOARD_CONNECTED_ITEM* aItem )
+            {
+                if( aOutput.contains( aItem ) )
+                    return;
+
+                // Tracks inside a generator (meander) are removed with the generator.
+                if( EDA_GROUP* parent = aItem->GetParentGroup() )
+                {
+                    if( parent->AsEdaItem()->Type() == PCB_GENERATOR_T )
+                        return;
+                }
+
+                if( !( aRuleArea->m_zone->GetLayerSet() & aItem->GetLayerSet() ).any() )
+                    return;
+
+                SHAPE_POLY_SET itemShape;
+                aItem->TransformShapeToPolygon( itemShape, aItem->GetLayer(), 0, maxError, ERROR_OUTSIDE );
+
+                if( itemShape.IsEmpty() )
+                    return;
+
+                itemShape.BooleanSubtract( areaOutline );
+
+                if( itemShape.IsEmpty() )
+                {
+                    aOutput.insert( aItem );
+                    count++;
+                }
+            };
+
+            for( PCB_TRACK* track : board()->Tracks() )
+                enclosedByZone( track );
+
+            for( BOARD_ITEM* drawing : board()->Drawings() )
+            {
+                if( drawing->IsConnected() )
+                    enclosedByZone( static_cast<BOARD_CONNECTED_ITEM*>( drawing ) );
+            }
+
+            return count;
+        }
     }
 
     PCBEXPR_COMPILER compiler( new PCBEXPR_UNIT_RESOLVER );
@@ -1017,6 +1164,27 @@ int MULTICHANNEL_TOOL::findRoutingInRuleArea( RULE_AREA* aRuleArea, std::set<BOA
             if( drawing->IsConnected() )
                 testAndAdd( static_cast<BOARD_CONNECTED_ITEM*>( drawing ) );
         }
+
+        for( PCB_GENERATOR* generator : board()->Generators() )
+        {
+            if( generator->GetGeneratorType() != wxT( "tuning_pattern" ) )
+                continue;
+
+            if( !generator->HitTest( aRAPoly.Outline( 0 ), false ) )
+                continue;
+
+            for( EDA_ITEM* member : generator->GetItems() )
+            {
+                if( BOARD_CONNECTED_ITEM* bci = dynamic_cast<BOARD_CONNECTED_ITEM*>( member ) )
+                {
+                    if( !aOutput.contains( bci ) )
+                    {
+                        aOutput.insert( bci );
+                        count++;
+                    }
+                }
+            }
+        }
     }
 
     return count;
@@ -1062,7 +1230,7 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( RULE_AREA* aRefArea, RULE_AREA* aT
 
     SHAPE_POLY_SET refPoly;
     refPoly.AddOutline( refOutline );
-    refPoly.CacheTriangulation( false );
+    refPoly.CacheTriangulation();
 
     SHAPE_POLY_SET targetPoly;
 
@@ -1070,7 +1238,7 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( RULE_AREA* aRefArea, RULE_AREA* aT
     newTargetOutline.Rotate( rot, VECTOR2( 0, 0 ) );
     newTargetOutline.Move( disp );
     targetPoly.AddOutline( newTargetOutline );
-    targetPoly.CacheTriangulation( false );
+    targetPoly.CacheTriangulation();
 
     std::shared_ptr<CONNECTIVITY_DATA> connectivity = board()->GetConnectivity();
     std::map<EDA_GROUP*, EDA_GROUP*>   groupMap;
@@ -1092,6 +1260,14 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( RULE_AREA* aRefArea, RULE_AREA* aT
                         PCB_GROUP* newGroup = static_cast<PCB_GROUP*>(
                                 static_cast<PCB_GROUP*>( parentGroup->AsEdaItem() )->Duplicate( false ) );
                         newGroup->GetItems().clear();
+                        newGroup->SetParentGroup( nullptr );
+
+                        if( newGroup->Type() == PCB_GENERATOR_T )
+                        {
+                            newGroup->Rotate( VECTOR2( 0, 0 ), rot );
+                            newGroup->Move( disp );
+                        }
+
                         groupMap[parentGroup] = newGroup;
                         aCommit->Add( newGroup );
                     }
@@ -1153,6 +1329,9 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( RULE_AREA* aRefArea, RULE_AREA* aT
             if( item->Type() == PCB_PAD_T )
                 continue;
 
+            if( aRefArea->m_designBlockItems.count( item ) )
+                continue;
+
             if( item->IsLocked() && !aOpts.m_includeLockedItems )
                 continue;
 
@@ -1200,6 +1379,65 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( RULE_AREA* aRefArea, RULE_AREA* aT
             aCompatData.m_groupableItems.insert( copied );
             aCommit->Add( copied );
         }
+
+        // Copy generators (meanders) whole so they are not flattened to loose tracks.
+        if( aRefArea->m_sourceType == PLACEMENT_SOURCE_T::DESIGN_BLOCK )
+        {
+            // Remove the target group's existing generators so a re-apply replaces them.
+            EDA_GROUP* targetGroup = aTargetArea->m_group;
+
+            if( !targetGroup && !aTargetArea->m_components.empty() )
+                targetGroup = ( *aTargetArea->m_components.begin() )->GetParentGroup();
+
+            if( targetGroup )
+            {
+                std::vector<PCB_GENERATOR*> targetGenerators;
+
+                for( EDA_ITEM* member : targetGroup->GetItems() )
+                {
+                    if( member->Type() == PCB_GENERATOR_T )
+                        targetGenerators.push_back( static_cast<PCB_GENERATOR*>( member ) );
+                }
+
+                for( PCB_GENERATOR* gen : targetGenerators )
+                {
+                    gen->RunOnChildren(
+                            [&]( BOARD_ITEM* child )
+                            {
+                                aCommit->Remove( child );
+                            },
+                            RECURSE_MODE::RECURSE );
+                    aCommit->Remove( gen );
+                }
+            }
+
+            for( EDA_ITEM* item : aRefArea->m_designBlockItems )
+            {
+                if( item->Type() != PCB_GENERATOR_T )
+                    continue;
+
+                PCB_GENERATOR* clone = static_cast<PCB_GENERATOR*>( item )->DeepClone();
+
+                clone->ClearFlags();
+                clone->Rotate( VECTOR2( 0, 0 ), rot );
+                clone->Move( disp );
+                aCommit->Add( clone );
+
+                clone->RunOnChildren(
+                        [&]( BOARD_ITEM* child )
+                        {
+                            child->ClearFlags();
+
+                            if( BOARD_CONNECTED_ITEM* bci = dynamic_cast<BOARD_CONNECTED_ITEM*>( child ) )
+                                fixupNet( bci, bci, aCompatData.m_matchingComponents );
+
+                            aCommit->Add( child );
+                        },
+                        RECURSE_MODE::RECURSE );
+
+                aCompatData.m_groupableItems.insert( clone );
+            }
+        }
     }
 
     if( aOpts.m_copyOtherItems )
@@ -1210,9 +1448,25 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( RULE_AREA* aRefArea, RULE_AREA* aT
         findOtherItemsInRuleArea( aRefArea, sourceItems );
         findOtherItemsInRuleArea( aTargetArea, targetItems );
 
+        // Apply Design Block Layout uses synthetic copper-only rule area zones that don't
+        // reflect the layers the user actually drew on. The source items were collected by
+        // explicit enumeration (m_designBlockItems) and the destination is a group bounding
+        // box, so the per-item layer filter would incorrectly reject silkscreen, fab and
+        // user drawings. Skip the layer filter only when both halves are the synthetic
+        // design-block-to-group flow; regular GROUP_PLACEMENT rule areas have user-authored
+        // layer sets that must still be honored.
+        const bool skipLayerFilter = aRefArea->m_sourceType == PLACEMENT_SOURCE_T::DESIGN_BLOCK
+                                     && aTargetArea->m_sourceType
+                                                == PLACEMENT_SOURCE_T::GROUP_PLACEMENT;
+
         for( BOARD_ITEM* item : targetItems )
         {
-            if( item->Type() == PCB_TEXT_T && item->GetParent() && item->GetParent()->Type() == PCB_FOOTPRINT_T )
+            if( item->GetParent() && item->GetParent()->Type() == PCB_FOOTPRINT_T )
+                continue;
+
+            // Don't remove the appended source items: this geometric query can pick them up, but
+            // they're deleted when the temporary append is reverted, leaving dangling pointers.
+            if( aRefArea->m_designBlockItems.count( item ) )
                 continue;
 
             if( item->IsLocked() && !aOpts.m_includeLockedItems )
@@ -1227,7 +1481,8 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( RULE_AREA* aRefArea, RULE_AREA* aT
                 ZONE* zone = static_cast<ZONE*>( item );
 
                 // Check all zone layers are included in the target rule area.
-                if( aTargetArea->m_zone->GetLayerSet().ContainsAll( zone->GetLayerSet() ) )
+                if( skipLayerFilter
+                    || aTargetArea->m_zone->GetLayerSet().ContainsAll( zone->GetLayerSet() ) )
                 {
                     aCompatData.m_affectedItems.insert( zone );
                     aCommit->Remove( zone );
@@ -1235,7 +1490,8 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( RULE_AREA* aRefArea, RULE_AREA* aT
             }
             else
             {
-                if( aTargetArea->m_zone->GetLayerSet().Contains( item->GetLayer() ) )
+                if( skipLayerFilter
+                    || aTargetArea->m_zone->GetLayerSet().Contains( item->GetLayer() ) )
                 {
                     aCompatData.m_affectedItems.insert( item );
                     aCommit->Remove( item );
@@ -1245,7 +1501,7 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( RULE_AREA* aRefArea, RULE_AREA* aT
 
         for( BOARD_ITEM* item : sourceItems )
         {
-            if( item->Type() == PCB_TEXT_T && item->GetParent() && item->GetParent()->Type() == PCB_FOOTPRINT_T )
+            if( item->GetParent() && item->GetParent()->Type() == PCB_FOOTPRINT_T )
                 continue;
 
             if( item->IsLocked() && !aOpts.m_includeLockedItems )
@@ -1256,11 +1512,16 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( RULE_AREA* aRefArea, RULE_AREA* aT
             if( item->Type() == PCB_ZONE_T )
             {
                 ZONE* zone = static_cast<ZONE*>( item );
-                LSET  allowedLayers = aRefArea->m_zone->GetLayerSet() & aTargetArea->m_zone->GetLayerSet();
 
-                // Check all zone layers are included in both source and target rule areas.
-                if( !allowedLayers.ContainsAll( zone->GetLayerSet() ) )
-                    continue;
+                if( !skipLayerFilter )
+                {
+                    LSET allowedLayers =
+                            aRefArea->m_zone->GetLayerSet() & aTargetArea->m_zone->GetLayerSet();
+
+                    // Check all zone layers are included in both source and target rule areas.
+                    if( !allowedLayers.ContainsAll( zone->GetLayerSet() ) )
+                        continue;
+                }
 
                 ZONE* targetZone = static_cast<ZONE*>( item->Duplicate( false ) );
                 fixupNet( zone, targetZone, aCompatData.m_matchingComponents );
@@ -1269,11 +1530,14 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( RULE_AREA* aRefArea, RULE_AREA* aT
             }
             else
             {
-                if( !aRefArea->m_zone->GetLayerSet().Contains( item->GetLayer() ) )
-                    continue;
+                if( !skipLayerFilter )
+                {
+                    if( !aRefArea->m_zone->GetLayerSet().Contains( item->GetLayer() ) )
+                        continue;
 
-                if( !aTargetArea->m_zone->GetLayerSet().Contains( item->GetLayer() ) )
-                    continue;
+                    if( !aTargetArea->m_zone->GetLayerSet().Contains( item->GetLayer() ) )
+                        continue;
+                }
 
                 copied = static_cast<BOARD_ITEM*>( item->Clone() );
             }
@@ -1345,34 +1609,49 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( RULE_AREA* aRefArea, RULE_AREA* aT
                 targetField->SetIsKnockout( refField->IsKnockout() );
             }
 
-            // Copy non-field text items (user-added text on the footprint)
+            // Copy non-field text items. Texts can share content (e.g. "${REFERENCE}" on both
+            // F.SilkS and B.SilkS), so match one-to-one and prefer the same layer. Otherwise both
+            // collapse onto one target item and the other side's text is lost.
+            std::set<PCB_TEXT*> consumedTargets;
+
             for( BOARD_ITEM* refItem : refFP->GraphicalItems() )
             {
                 if( refItem->Type() != PCB_TEXT_T )
                     continue;
 
                 PCB_TEXT* refText = static_cast<PCB_TEXT*>( refItem );
+                PCB_TEXT* targetText = nullptr;
 
                 for( BOARD_ITEM* targetItem : targetFP->GraphicalItems() )
                 {
                     if( targetItem->Type() != PCB_TEXT_T )
                         continue;
 
-                    PCB_TEXT* targetText = static_cast<PCB_TEXT*>( targetItem );
+                    PCB_TEXT* candidate = static_cast<PCB_TEXT*>( targetItem );
 
-                    // Match text items by their text content
-                    if( targetText->GetText() == refText->GetText() )
+                    if( consumedTargets.contains( candidate ) || candidate->GetText() != refText->GetText() )
                     {
-                        targetText->SetLayer( refText->GetLayer() );
-                        targetText->SetVisible( refText->IsVisible() );
-                        targetText->SetAttributes( refText->GetAttributes() );
-                        targetText->SetPosition( refText->GetPosition() );
-                        targetText->Rotate( VECTOR2( 0, 0 ), rot );
-                        targetText->Move( disp );
-                        targetText->SetIsKnockout( refText->IsKnockout() );
-                        break;
+                        continue;
                     }
+
+                    targetText = candidate;
+
+                    if( candidate->GetLayer() == refText->GetLayer() )
+                        break;
                 }
+
+                if( !targetText )
+                    continue;
+
+                consumedTargets.insert( targetText );
+
+                targetText->SetLayer( refText->GetLayer() );
+                targetText->SetVisible( refText->IsVisible() );
+                targetText->SetAttributes( refText->GetAttributes() );
+                targetText->SetPosition( refText->GetPosition() );
+                targetText->Rotate( VECTOR2( 0, 0 ), rot );
+                targetText->Move( disp );
+                targetText->SetIsKnockout( refText->IsKnockout() );
             }
 
             // Copy 3D model settings
@@ -1398,6 +1677,13 @@ bool MULTICHANNEL_TOOL::copyRuleAreaContents( RULE_AREA* aRefArea, RULE_AREA* aT
 void MULTICHANNEL_TOOL::fixupNet( BOARD_CONNECTED_ITEM* aRef, BOARD_CONNECTED_ITEM* aTarget,
                                   TMATCH::COMPONENT_MATCHES& aComponentMatches )
 {
+    // Copy as no-net.
+    if( aComponentMatches.empty() )
+    {
+        aTarget->SetNetCode( 0 );
+        return;
+    }
+
     auto                                     connectivity = board()->GetConnectivity();
     const std::vector<BOARD_CONNECTED_ITEM*> refConnectedPads = connectivity->GetNetItems( aRef->GetNetCode(),
                                                                                            { PCB_PAD_T } );
@@ -1432,6 +1718,17 @@ bool MULTICHANNEL_TOOL::resolveConnectionTopology( RULE_AREA* aRefArea, RULE_ARE
                                                    const TMATCH::ISOMORPHISM_PARAMS& aParams )
 {
     using namespace TMATCH;
+
+    // Footprint-free design block has nothing to match to
+    if( aRefArea->m_sourceType == PLACEMENT_SOURCE_T::DESIGN_BLOCK && aRefArea->m_components.empty()
+        && aTargetArea->m_components.empty() )
+    {
+        aMatches.m_matchingComponents.clear();
+        aMatches.m_isOk = true;
+        aMatches.m_errorMsg = _( "OK" );
+        aMatches.m_mismatchReasons.clear();
+        return true;
+    }
 
     PROF_TIMER timerBuild;
     std::unique_ptr<CONNECTION_GRAPH> cgRef( CONNECTION_GRAPH::BuildFromFootprintSet( aRefArea->m_components,

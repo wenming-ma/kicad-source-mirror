@@ -199,7 +199,15 @@ class PCB_IO_KICAD_SEXPR;   // forward decl
 //#define SEXPR_BOARD_FILE_VERSION    20251028  // Stop writing netcodes; they're an internal implementation detail
 //#define SEXPR_BOARD_FILE_VERSION    20251101  // Backdrill and tertiary drill support
 //#define SEXPR_BOARD_FILE_VERSION    20260101  // PCB variants with per-footprint overrides
-#define SEXPR_BOARD_FILE_VERSION      20260206  // Fix barcode and variant attribute serialization 
+//#define SEXPR_BOARD_FILE_VERSION    20260206  // Fix barcode and variant attribute serialization
+//----------------- Start of 11.0 development -----------------
+//#define SEXPR_BOARD_FILE_VERSION    20260410  // Extruded 3D body
+//#define SEXPR_BOARD_FILE_VERSION    20260508  // Native ellipse primitive
+//#define SEXPR_BOARD_FILE_VERSION    20260511  // Dielectric frequency-dependent models in board stackup
+//#define SEXPR_BOARD_FILE_VERSION    20260512  // Net chains
+//#define SEXPR_BOARD_FILE_VERSION    20260513  // Copper thieving zone fill mode
+//#define SEXPR_BOARD_FILE_VERSION    20260521  // Pad simulation electrical types
+#define SEXPR_BOARD_FILE_VERSION      20260603  // Knockout flag on table cells
 
 #define BOARD_FILE_HOST_VERSION       20200825  ///< Earlier files than this include the host tag
 #define LEGACY_ARC_FORMATTING         20210925  ///< These were the last to use old arc formatting
@@ -348,6 +356,13 @@ public:
 
     void SaveBoard( const wxString& aFileName, BOARD* aBoard,
                     const std::map<std::string, UTF8>* aProperties = nullptr ) override;
+
+    /** Serialize a BOARD to an OUTPUTFORMATTER without file I/O or Prettify.
+     *  Handles init(), EmbedFonts/ClearEmbeddedFonts, header, Format(), and footer.
+     *  The caller owns the formatter and is responsible for flushing/closing it.
+     *  Skips GroupsSanityCheck (no UI interaction allowed from timer callbacks). */
+    void FormatBoardToFormatter( OUTPUTFORMATTER* aOut, BOARD* aBoard,
+                                 const std::map<std::string, UTF8>* aProperties = nullptr );
 
     BOARD* LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
                       const std::map<std::string, UTF8>* aProperties = nullptr,

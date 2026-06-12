@@ -211,7 +211,6 @@ public:
 
     BOARD* GetBoard() const
     {
-        wxASSERT( m_pcb );
         return m_pcb;
     }
 
@@ -292,16 +291,6 @@ public:
      * @param aDC is the current Device Context, to draw the new footprint (can be NULL ).
      */
     virtual void AddFootprintToBoard( FOOTPRINT* aFootprint );
-
-    /**
-     * Create the entire board ratsnest.
-     *
-     * This must be called after a board change (changes for pads, footprints or a read
-     * netlist ).
-     *
-     * @param aDisplayStatus  if true, display the computation results.
-     */
-    void Compile_Ratsnest( bool aDisplayStatus );
 
     /**
      * Create a new entry in undo list of commands.
@@ -409,17 +398,6 @@ protected:
     void handleIconizeEvent( wxIconizeEvent& aEvent ) override;
 
     virtual void doReCreateMenuBar() override;
-
-    /**
-     * Attempt to load \a aFootprintId from the footprint library table.
-     *
-     * @param aFootprintId is the #LIB_ID of component footprint to load.
-     * @return the #FOOTPRINT if found or NULL if \a aFootprintId not found in any of the
-     *         libraries in the table returned from #Prj().PcbFootprintLibs().
-     * @throw IO_ERROR if an I/O error occurs or a #PARSE_ERROR if a file parsing error
-     *                 occurs while reading footprint library files.
-     */
-    FOOTPRINT* loadFootprint( const LIB_ID& aFootprintId );
 
     virtual void unitsChangeRefresh() override;
 

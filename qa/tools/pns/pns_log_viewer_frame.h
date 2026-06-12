@@ -109,10 +109,18 @@ public:
         return ( aLayer / 2 ) - 1;
     }
 
+    bool GetSignalAggregate( PNS::NET_HANDLE, PNS::NET_HANDLE,
+                             long long& aExtraLength, long long& aExtraDelay ) const override
+    {
+        aExtraLength = 0;
+        aExtraDelay = 0;
+        return false; // Not needed for log viewer
+    }
+
     long long int CalculateRoutedPathLength( const PNS::ITEM_SET& aLine, const PNS::SOLID* aStartPad,
                                              const PNS::SOLID* aEndPad, const NETCLASS* aNetClass ) override
     {
-        std::vector<LENGTH_DELAY_CALCULATION_ITEM> lengthItems = getLengthDelayCalculationItems( aLine, aNetClass );
+        std::vector<LENGTH_DELAY_CALCULATION_ITEM> lengthItems = GetLengthDelayCalculationItems( aLine, aNetClass );
 
         const PAD* startPad = nullptr;
         const PAD* endPad = nullptr;
@@ -124,7 +132,7 @@ public:
             endPad = static_cast<PAD*>( aEndPad->Parent() );
 
         constexpr PATH_OPTIMISATIONS opts = {
-            .OptimiseViaLayers = false, .MergeTracks = false, .OptimiseTracesInPads = false, .InferViaInPad = true
+            .OptimiseVias = false, .MergeTracks = false, .OptimiseTracesInPads = false, .InferViaInPad = true
         };
 
         return m_board->GetLengthCalculation()->CalculateLength( lengthItems, opts, startPad, endPad );
@@ -133,7 +141,7 @@ public:
     int64_t CalculateRoutedPathDelay( const PNS::ITEM_SET& aLine, const PNS::SOLID* aStartPad,
                                       const PNS::SOLID* aEndPad, const NETCLASS* aNetClass ) override
     {
-        std::vector<LENGTH_DELAY_CALCULATION_ITEM> lengthItems = getLengthDelayCalculationItems( aLine, aNetClass );
+        std::vector<LENGTH_DELAY_CALCULATION_ITEM> lengthItems = GetLengthDelayCalculationItems( aLine, aNetClass );
 
         const PAD* startPad = nullptr;
         const PAD* endPad = nullptr;
@@ -145,13 +153,13 @@ public:
             endPad = static_cast<PAD*>( aEndPad->Parent() );
 
         constexpr PATH_OPTIMISATIONS opts = {
-            .OptimiseViaLayers = false, .MergeTracks = false, .OptimiseTracesInPads = false, .InferViaInPad = true
+            .OptimiseVias = false, .MergeTracks = false, .OptimiseTracesInPads = false, .InferViaInPad = true
         };
 
         return m_board->GetLengthCalculation()->CalculateDelay( lengthItems, opts, startPad, endPad );
     }
 
-    std::vector<LENGTH_DELAY_CALCULATION_ITEM> getLengthDelayCalculationItems( const PNS::ITEM_SET& aLine,
+    std::vector<LENGTH_DELAY_CALCULATION_ITEM> GetLengthDelayCalculationItems( const PNS::ITEM_SET& aLine,
                                                                                const NETCLASS*      aNetClass ) const
     {
         std::vector<LENGTH_DELAY_CALCULATION_ITEM> lengthItems;

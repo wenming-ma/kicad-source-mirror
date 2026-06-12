@@ -36,6 +36,7 @@
 #include <drc/drc_rule.h>
 #include <drc/drc_test_provider.h>
 #include <drc/drc_creepage_utils.h>
+#include <drc/drc_creepage_engine.h>
 
 #include <geometry/shape_circle.h>
 
@@ -66,7 +67,13 @@ private:
     int testCreepage();
     int testCreepage( CREEPAGE_GRAPH& aGraph, int aNetCodeA, int aNetCodeB, PCB_LAYER_ID aLayer );
 
-    void CollectBoardEdges( std::vector<BOARD_ITEM*>& aVector );
+    /// Realtime (V2) engine batch path, selected by the RealtimeCreepage advanced config flag.
+    int  testCreepageV2( const std::vector<int>& aNetcodes );
+    void reportCreepageViolation( const CREEPAGE_RESULT& aResult, const DRC_CONSTRAINT& aConstraint,
+                                  PCB_LAYER_ID aLayer );
+
+    void CollectBoardEdges( std::vector<BOARD_ITEM*>& aVector,
+                            std::vector<std::unique_ptr<PCB_SHAPE>>& aOwned );
     void CollectNetCodes( std::vector<int>& aVector );
 
     std::set<std::pair<const BOARD_ITEM*, const BOARD_ITEM*>> m_reportedPairs;
@@ -127,7 +134,6 @@ int DRC_TEST_PROVIDER_CREEPAGE::testCreepage( CREEPAGE_GRAPH& aGraph, int aNetCo
     std::shared_ptr<GRAPH_NODE> NetA = aGraph.AddNetElements( aNetCodeA, aLayer, creepageValue );
     std::shared_ptr<GRAPH_NODE> NetB = aGraph.AddNetElements( aNetCodeB, aLayer, creepageValue );
 
-
     aGraph.GeneratePaths( creepageValue, aLayer );
 
     std::vector<std::shared_ptr<GRAPH_NODE>> temp_nodes;
@@ -135,8 +141,8 @@ int DRC_TEST_PROVIDER_CREEPAGE::testCreepage( CREEPAGE_GRAPH& aGraph, int aNetCo
     std::copy_if( aGraph.m_nodes.begin(), aGraph.m_nodes.end(), std::back_inserter( temp_nodes ),
                   []( std::shared_ptr<GRAPH_NODE> aNode )
                   {
-                      return !!aNode && aNode->m_parent && aNode->m_parent->IsConductive()
-                             && aNode->m_connectDirectly && aNode->m_type == GRAPH_NODE::POINT;
+                      return !!aNode && aNode->m_parent && !aNode->m_parent->IsConductive()
+                             && !aNode->m_connectDirectly && aNode->m_type == GRAPH_NODE::POINT;
                   } );
 
     alg::for_all_pairs( temp_nodes.begin(), temp_nodes.end(),
@@ -152,21 +158,6 @@ int DRC_TEST_PROVIDER_CREEPAGE::testCreepage( CREEPAGE_GRAPH& aGraph, int aNetCo
                                 return;
 
                             if( ( aN1->m_parent ) != ( aN2->m_parent ) )
-                                return;
-
-
-                            if( aN1->m_parent->IsConductive() )
-                                return;
-
-                            if( aN1->m_connectDirectly || aN2->m_connectDirectly )
-                                return;
-
-                            // We are only looking for points on circles and arcs
-
-                            if( aN1->m_type != GRAPH_NODE::POINT )
-                                return;
-
-                            if( aN2->m_type != GRAPH_NODE::POINT )
                                 return;
 
                             aN1->m_parent->ConnectChildren( aN1, aN2, aGraph );
@@ -257,48 +248,13 @@ void DRC_TEST_PROVIDER_CREEPAGE::CollectNetCodes( std::vector<int>& aVector )
 }
 
 
-void DRC_TEST_PROVIDER_CREEPAGE::CollectBoardEdges( std::vector<BOARD_ITEM*>& aVector )
+void DRC_TEST_PROVIDER_CREEPAGE::CollectBoardEdges( std::vector<BOARD_ITEM*>& aVector,
+                                                    std::vector<std::unique_ptr<PCB_SHAPE>>& aOwned )
 {
     if( !m_board )
         return;
 
-    for( BOARD_ITEM* drawing : m_board->Drawings() )
-    {
-        if( !drawing )
-            continue;
-
-        if( drawing->IsOnLayer( Edge_Cuts ) )
-            aVector.push_back( drawing );
-    }
-
-    for( FOOTPRINT* fp : m_board->Footprints() )
-    {
-        if( !fp )
-            continue;
-
-        for( BOARD_ITEM* drawing : fp->GraphicalItems() )
-        {
-            if( !drawing )
-                continue;
-
-            if( drawing->IsOnLayer( Edge_Cuts ) )
-                aVector.push_back( drawing );
-        }
-    }
-
-    for( const PAD* p : m_board->GetPads() )
-    {
-        if( !p )
-            continue;
-
-        if( p->GetAttribute() != PAD_ATTRIB::NPTH )
-            continue;
-
-        PCB_SHAPE* s = new PCB_SHAPE( NULL, SHAPE_T::CIRCLE );
-        s->SetRadius( p->GetDrillSize().x / 2 );
-        s->SetPosition( p->GetPosition() );
-        aVector.push_back( s );
-    }
+    BuildCreepageBoardEdges( *m_board, aVector, aOwned, nullptr );
 }
 
 
@@ -315,10 +271,16 @@ int DRC_TEST_PROVIDER_CREEPAGE::testCreepage()
     if( maxConstraint <= 0 )
         return 0;
 
+    if( ADVANCED_CFG::GetCfg().m_RealtimeCreepage )
+        return testCreepageV2( netcodes );
+
     SHAPE_POLY_SET outline;
 
-    if( !m_board->GetBoardPolygonOutlines( outline, false ) )
-        return -1;
+    // Subtract NPTH holes from the outline polygon so candidate-path midpoint tests
+    // reject creepage segments routed through slot interiors. Without subtraction,
+    // a midpoint inside an NPTH oval still counts as "inside the board" and the
+    // creepage validator accepts straight-through-slot paths (issue #24286).
+    bool hasValidOutline = m_board->GetBoardPolygonOutlines( outline, false, nullptr, false, true );
 
     const DRAWINGS drawings = m_board->Drawings();
     CREEPAGE_GRAPH graph( *m_board );
@@ -328,9 +290,9 @@ int DRC_TEST_PROVIDER_CREEPAGE::testCreepage()
     else
         graph.m_minGrooveWidth = 0;
 
-    graph.m_boardOutline = &outline;
+    graph.m_boardOutline = hasValidOutline ? &outline : nullptr;
 
-    this->CollectBoardEdges( graph.m_boardEdge );
+    this->CollectBoardEdges( graph.m_boardEdge, graph.m_ownedBoardEdges );
     graph.TransformEdgeToCreepShapes();
     graph.RemoveDuplicatedShapes();
     graph.TransformCreepShapesToNodes( graph.m_shapeCollection );
@@ -358,24 +320,82 @@ int DRC_TEST_PROVIDER_CREEPAGE::testCreepage()
                                 reportProgress( current++, total );
 
                                 if( prevTestChangedGraph )
-                                {
-                                    size_t vectorSize = graph.m_connections.size();
-
-                                    for( size_t i = beConnectionsSize; i < vectorSize; i++ )
-                                    {
-                                        // We need to remove the connection from its endpoints' lists.
-                                        graph.RemoveConnection( graph.m_connections[i], false );
-                                    }
-
-                                    graph.m_connections.resize( beConnectionsSize, nullptr );
-
-                                    vectorSize = graph.m_nodes.size();
-                                    graph.m_nodes.resize( beNodeSize, nullptr );
-                                }
+                                    graph.TruncateToPrefix( beNodeSize, beConnectionsSize );
 
                                 prevTestChangedGraph = testCreepage( graph, aNet1, aNet2, layer );
                             }
                         } );
+
+    return 1;
+}
+
+
+void DRC_TEST_PROVIDER_CREEPAGE::reportCreepageViolation( const CREEPAGE_RESULT& aResult,
+                                                          const DRC_CONSTRAINT&  aConstraint,
+                                                          PCB_LAYER_ID           aLayer )
+{
+    if( !aResult.m_itemA || !aResult.m_itemB )
+        return;
+
+    if( !m_reportedPairs.insert( std::make_pair( aResult.m_itemA, aResult.m_itemB ) ).second )
+        return;
+
+    std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_CREEPAGE );
+    drcItem->SetErrorDetail( formatMsg( _( "(%s creepage %s; actual %s)" ), aConstraint.GetName(),
+                                        aResult.m_constraint, aResult.m_distance ) );
+    drcItem->SetViolatingRule( aConstraint.GetParentRule() );
+    drcItem->SetItems( aResult.m_itemA, aResult.m_itemB );
+
+    // reportViolation invokes the callback inline, so the marker can reference aResult directly
+    reportViolation( drcItem, aResult.m_start, aLayer,
+                     [&]( PCB_MARKER* aMarker )
+                     {
+                         aMarker->SetPath( aResult.m_path, aResult.m_start, aResult.m_end );
+                     } );
+}
+
+
+int DRC_TEST_PROVIDER_CREEPAGE::testCreepageV2( const std::vector<int>& aNetcodes )
+{
+    CREEPAGE_ENGINE engine( *m_board );
+
+    if( ADVANCED_CFG::GetCfg().m_EnableCreepageSlot )
+        engine.SetMinGrooveWidth( m_board->GetDesignSettings().m_MinGrooveWidth );
+
+    LSET   layers = m_board->GetLayerSet();
+    size_t current = 0;
+    size_t total = ( aNetcodes.size() * ( aNetcodes.size() - 1 ) ) / 2 * m_board->GetCopperLayerCount();
+
+    alg::for_all_pairs( aNetcodes.begin(), aNetcodes.end(),
+            [&]( int aNet1, int aNet2 )
+            {
+                if( aNet1 == aNet2 )
+                    return;
+
+                for( auto it = layers.copper_layers_begin(); it != layers.copper_layers_end(); ++it )
+                {
+                    PCB_LAYER_ID layer = *it;
+
+                    reportProgress( current++, total );
+
+                    PCB_TRACK bci1( m_board );
+                    PCB_TRACK bci2( m_board );
+                    bci1.SetNetCode( aNet1 );
+                    bci2.SetNetCode( aNet2 );
+                    bci1.SetLayer( layer );
+                    bci2.SetLayer( layer );
+
+                    DRC_CONSTRAINT constraint =
+                            m_drcEngine->EvalRules( CREEPAGE_CONSTRAINT, &bci1, &bci2, layer );
+                    double creepageValue = constraint.Value().Min();
+
+                    std::optional<CREEPAGE_RESULT> result =
+                            engine.SolveNetPairWholeBoard( aNet1, aNet2, layer, creepageValue );
+
+                    if( result )
+                        reportCreepageViolation( *result, constraint, layer );
+                }
+            } );
 
     return 1;
 }

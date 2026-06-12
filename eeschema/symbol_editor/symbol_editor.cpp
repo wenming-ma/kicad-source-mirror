@@ -46,6 +46,7 @@
 #include <wx/filedlg.h>
 #include <wx/log.h>
 #include <project_sch.h>
+#include <kiplatform/io.h>
 #include <kiplatform/ui.h>
 #include <string_utils.h>
 #include "symbol_saveas_type.h"
@@ -225,8 +226,7 @@ void SYMBOL_EDIT_FRAME::centerItemIdleHandler( wxIdleEvent& aEvent )
 }
 
 
-bool SYMBOL_EDIT_FRAME::LoadSymbolFromCurrentLib( const wxString& aSymbolName, int aUnit,
-                                                  int aBodyStyle )
+bool SYMBOL_EDIT_FRAME::LoadSymbolFromCurrentLib( const wxString& aSymbolName, int aUnit, int aBodyStyle )
 {
     LIB_SYMBOL* symbol = nullptr;
 
@@ -251,7 +251,6 @@ bool SYMBOL_EDIT_FRAME::LoadSymbolFromCurrentLib( const wxString& aSymbolName, i
     // Enable synchronized pin edit mode for symbols with interchangeable units
     m_SyncPinEdit = GetCurSymbol()->IsMultiUnit() && !GetCurSymbol()->UnitsLocked();
 
-    ClearUndoRedoList();
     m_toolManager->RunAction( ACTIONS::zoomFitScreen );
 
     RebuildSymbolUnitAndBodyStyleLists();
@@ -276,18 +275,10 @@ bool SYMBOL_EDIT_FRAME::LoadOneLibrarySymbolAux( LIB_SYMBOL* aEntry, const wxStr
 
     m_toolManager->RunAction( ACTIONS::cancelInteractive );
 
-    // Symbols from the schematic are edited in place and not managed by the library manager.
+    // Switching away from a schematic-instance tab changes the available menu/toolbar actions. The
+    // instance tab keeps owning its working objects, so nothing is deleted here.
     if( IsSymbolFromSchematic() )
-    {
-        delete m_symbol;
-        m_symbol = nullptr;
-
-        SCH_SCREEN* screen = GetScreen();
-        delete screen;
-        SetScreen( m_dummyScreen );
-        m_isSymbolFromSchematic = false;
         rebuildMenuAndToolbar = true;
-    }
 
     LIB_SYMBOL* lib_symbol = m_libMgr->GetBufferedSymbol( aEntry->GetName(), aLibrary );
     wxCHECK( lib_symbol, false );
@@ -295,12 +286,12 @@ bool SYMBOL_EDIT_FRAME::LoadOneLibrarySymbolAux( LIB_SYMBOL* aEntry, const wxStr
     m_unit = aUnit > 0 ? aUnit : 1;
     m_bodyStyle = aBodyStyle > 0 ? aBodyStyle : 1;
 
-    // The buffered screen for the symbol
-    SCH_SCREEN* symbol_screen = m_libMgr->GetScreen( lib_symbol->GetName(), aLibrary );
-
-    SetScreen( symbol_screen );
-    SetCurSymbol( new LIB_SYMBOL( *lib_symbol ), true );
-    SetCurLib( aLibrary );
+    // Open as a preview tab that the next library-open reuses until the symbol is edited.
+    bool                       wasCreated = false;
+    SYMBOL_EDITOR_TAB_CONTEXT* ctx = findOrCreateSymbolTab( aLibrary, lib_symbol->GetName(),
+                                                            m_unit, m_bodyStyle, true,
+                                                            &wasCreated );
+    wxCHECK( ctx, false );
 
     if( rebuildMenuAndToolbar )
     {
@@ -312,7 +303,9 @@ bool SYMBOL_EDIT_FRAME::LoadOneLibrarySymbolAux( LIB_SYMBOL* aEntry, const wxStr
     UpdateTitle();
     RebuildSymbolUnitAndBodyStyleLists();
 
-    ClearUndoRedoList();
+    // Only a freshly-created tab gets a clean undo history; re-focusing preserves the live stack.
+    if( wasCreated )
+        ClearUndoRedoList();
 
     if( !IsSymbolFromSchematic() )
     {
@@ -320,10 +313,7 @@ bool SYMBOL_EDIT_FRAME::LoadOneLibrarySymbolAux( LIB_SYMBOL* aEntry, const wxStr
         setSymWatcher( &libId );
     }
 
-    // Let tools add things to the view if necessary
-    if( m_toolManager )
-        m_toolManager->ResetTools( TOOL_BASE::MODEL_RELOAD );
-
+    m_toolManager->RunAction( ACTIONS::zoomFitScreen );
     GetCanvas()->GetView()->UpdateAllItems( KIGFX::ALL );
 
     // Display the document information based on the entry selected just in
@@ -1209,7 +1199,7 @@ void SYMBOL_EDIT_FRAME::UpdateAfterSymbolProperties( wxString* aOldName )
 {
     wxCHECK( m_symbol, /* void */ );
 
-    wxString lib = GetCurLib();
+    wxString lib = m_symbol->GetLibNickname();
 
     if( !lib.IsEmpty() && aOldName && *aOldName != m_symbol->GetName() )
     {
@@ -1230,6 +1220,11 @@ void SYMBOL_EDIT_FRAME::UpdateAfterSymbolProperties( wxString* aOldName )
         // Reselect the renamed symbol
         m_treePane->GetLibTree()->SelectLibId( LIB_ID( lib, m_symbol->GetName() ) );
     }
+
+    wxDataViewItem treeItem = m_libMgr->GetAdapter()->FindItem( LIB_ID( lib, m_symbol->GetName() ) );
+
+    if( treeItem.IsOk() )
+        UpdateLibraryTree( treeItem, m_symbol );
 
     RebuildSymbolUnitAndBodyStyleLists();
     UpdateTitle();
@@ -1597,9 +1592,23 @@ bool SYMBOL_EDIT_FRAME::saveLibrary( const wxString& aLibrary, bool aNewFile )
     {
         m_libMgr->ClearLibraryModified( aLibrary );
 
+        clearSymbolTabsModifiedForLibrary( aLibrary );
+
         // Update the library modification time so that we don't reload based on the watcher
         if( aLibrary == getTargetLib() )
-            SetSymModificationTime( fn.GetModificationTime() );
+        {
+            if( fn.DirExists() )
+            {
+                SetSymModificationTime( KIPLATFORM::IO::TimestampDir(
+                        fn.GetFullPath(),
+                        wxS( "*." ) + wxString( FILEEXT::KiCadSymbolLibFileExtension ) ) );
+            }
+            else if( fn.FileExists() )
+            {
+                wxLogNull silence;
+                SetSymModificationTime( fn.GetModificationTime().GetValue().GetValue() );
+            }
+        }
     }
     else
     {

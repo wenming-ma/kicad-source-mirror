@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <functional>
 #include <libraries/library_table.h>
 #include <widgets/wx_grid.h>
 
@@ -96,6 +97,10 @@ public:
 
     LIBRARY_MANAGER_ADAPTER* Adapter() const { return m_adapter; }
 
+    void RecheckRows();
+
+    void SetChangeCallback( std::function<void()> aCallback ) { m_changeCallback = std::move( aCallback ); }
+
 protected:
     bool badCoords( int aRow, int aCol );
 
@@ -119,9 +124,16 @@ protected:
     /// Working copy of a table
     LIBRARY_TABLE m_table;
 
+    /// Cached read-only state of the underlying table file.  Computed once at
+    /// construction to avoid filesystem stat() calls during grid rendering.
+    bool m_readOnly;
+
+    std::function<void()> m_changeCallback;
+
     wxGridCellAttr* m_uriEditor;
     wxGridCellAttr* m_typesEditor;
     wxGridCellAttr* m_boolAttr;
+    wxGridCellAttr* m_readOnlyAttr;
     wxGridCellAttr* m_warningAttr;
     wxGridCellAttr* m_noStatusAttr;
     wxGridCellAttr* m_editSettingsAttr;

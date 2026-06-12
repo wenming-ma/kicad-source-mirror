@@ -39,7 +39,8 @@ SYMBOL_EDITOR_SETTINGS::SYMBOL_EDITOR_SETTINGS() :
         m_Defaults(),
         m_Repeat(),
         m_ShowPinElectricalType( true ),
-        m_LibWidth()
+        m_LibWidth(),
+        m_ArcEditMode( ARC_EDIT_MODE::KEEP_CENTER_ADJUST_ANGLE_RADIUS )
 {
     // Make Coverity happy
     m_UseEeschemaColorSettings = true;;
@@ -101,6 +102,10 @@ SYMBOL_EDITOR_SETTINGS::SYMBOL_EDITOR_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "use_eeschema_color_settings",
             &m_UseEeschemaColorSettings, true ) );
 
+    m_params.emplace_back( new PARAM<int>( "editing.arc_edit_mode",
+            reinterpret_cast<int*>( &m_ArcEditMode ),
+            static_cast<int>( ARC_EDIT_MODE::KEEP_CENTER_ADJUST_ANGLE_RADIUS ) ) );
+
     m_params.emplace_back( new PARAM_MAP<int>( "lib_field_editor.field_widths",
             &m_LibFieldEditor.field_widths, {} ) );
 
@@ -156,6 +161,55 @@ SYMBOL_EDITOR_SETTINGS::SYMBOL_EDITOR_SETTINGS() :
                 { "images", true },
                 { "otherItems", true }
             } ) );
+
+    m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "open_tabs",
+            [&]() -> nlohmann::json
+            {
+                nlohmann::json ret = nlohmann::json::array();
+
+                for( const OPEN_TAB& tab : m_OpenTabs )
+                {
+                    nlohmann::json entry;
+
+                    entry["lib"]        = tab.lib.ToUTF8();
+                    entry["name"]       = tab.name.ToUTF8();
+                    entry["unit"]       = tab.unit;
+                    entry["body_style"] = tab.bodyStyle;
+
+                    ret.push_back( entry );
+                }
+
+                return ret;
+            },
+            [&]( const nlohmann::json& aVal )
+            {
+                m_OpenTabs.clear();
+
+                if( !aVal.is_array() )
+                    return;
+
+                for( const nlohmann::json& entry : aVal )
+                {
+                    if( !entry.is_object() || !entry.contains( "lib" ) || !entry.contains( "name" ) )
+                        continue;
+
+                    OPEN_TAB tab;
+
+                    tab.lib  = wxString::FromUTF8( entry["lib"].get<std::string>() );
+                    tab.name = wxString::FromUTF8( entry["name"].get<std::string>() );
+
+                    if( entry.contains( "unit" ) )
+                        tab.unit = entry["unit"].get<int>();
+
+                    if( entry.contains( "body_style" ) )
+                        tab.bodyStyle = entry["body_style"].get<int>();
+
+                    m_OpenTabs.push_back( tab );
+                }
+            },
+            nlohmann::json::array() ) );
+
+    m_params.emplace_back( new PARAM<wxString>( "active_tab", &m_ActiveTabKey, wxEmptyString ) );
 
     registerMigration( 0, 1,
                        [&]() -> bool

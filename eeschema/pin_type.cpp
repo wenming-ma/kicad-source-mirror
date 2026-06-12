@@ -94,6 +94,7 @@ void InitTables()
         { ELECTRICAL_PINTYPE::PT_OPENCOLLECTOR, { _( "Open collector" ), BITMAPS::pintype_opencoll } },
         { ELECTRICAL_PINTYPE::PT_OPENEMITTER,   { _( "Open emitter" ),   BITMAPS::pintype_openemit } },
         { ELECTRICAL_PINTYPE::PT_NC,            { _( "Unconnected" ),    BITMAPS::pintype_noconnect } },
+        { ELECTRICAL_PINTYPE::PT_INHERIT,       { _( "Unspecified" ),    BITMAPS::pintype_notspecif } },
     };
 
     g_pinShapes = {
@@ -106,13 +107,15 @@ void InitTables()
         { GRAPHIC_PINSHAPE::OUTPUT_LOW,         { _( "Output low" ),         BITMAPS::pinshape_active_low_output } },
         { GRAPHIC_PINSHAPE::FALLING_EDGE_CLOCK, { _( "Falling edge clock" ), BITMAPS::pinshape_clock_fall } },
         { GRAPHIC_PINSHAPE::NONLOGIC,           { _( "NonLogic" ),           BITMAPS::pinshape_nonlogic } },
+        { GRAPHIC_PINSHAPE::INHERIT,            { _( "Unspecified" ),        BITMAPS::pintype_notspecif } },
     };
 
     g_pinOrientations = {
-        { PIN_ORIENTATION::PIN_RIGHT, { _( "Right" ), BITMAPS::pinorient_right } },
-        { PIN_ORIENTATION::PIN_LEFT,  { _( "Left" ),  BITMAPS::pinorient_left } },
-        { PIN_ORIENTATION::PIN_UP,    { _( "Up" ),    BITMAPS::pinorient_up } },
-        { PIN_ORIENTATION::PIN_DOWN,  { _( "Down" ),  BITMAPS::pinorient_down } },
+        { PIN_ORIENTATION::PIN_RIGHT, { _( "Right" ),       BITMAPS::pinorient_right } },
+        { PIN_ORIENTATION::PIN_LEFT,  { _( "Left" ),        BITMAPS::pinorient_left } },
+        { PIN_ORIENTATION::PIN_UP,    { _( "Up" ),          BITMAPS::pinorient_up } },
+        { PIN_ORIENTATION::PIN_DOWN,  { _( "Down" ),        BITMAPS::pinorient_down } },
+        { PIN_ORIENTATION::INHERIT,   { _( "Unspecified" ), BITMAPS::pintype_notspecif } },
     };
     // clang-format on
 
@@ -121,31 +124,28 @@ void InitTables()
     g_typeIcons.clear();
     g_typeNames.clear();
 
-    for( unsigned i = 0; i < ELECTRICAL_PINTYPES_TOTAL; ++i )
+    for( const auto& [pinType, pinData] : g_pinElectricalTypes )
     {
-        g_typeIcons.push_back( ElectricalPinTypeGetBitmap( static_cast<ELECTRICAL_PINTYPE>( i ) ) );
-        g_typeNames.push_back( ElectricalPinTypeGetText( static_cast<ELECTRICAL_PINTYPE>( i ) ) );
+        g_typeIcons.push_back( pinData.bitmap );
+        g_typeNames.push_back( pinData.name );
     }
 
     g_shapeIcons.clear();
     g_shapeNames.clear();
 
-    for( unsigned i = 0; i < GRAPHIC_PINSHAPES_TOTAL; ++i )
+    for( const auto& [shapeType, shapeData] : g_pinShapes )
     {
-        g_shapeIcons.push_back( PinShapeGetBitmap( static_cast<GRAPHIC_PINSHAPE>( i ) ) );
-        g_shapeNames.push_back( PinShapeGetText( static_cast<GRAPHIC_PINSHAPE>( i ) ) );
+        g_shapeIcons.push_back( shapeData.bitmap );
+        g_shapeNames.push_back( shapeData.name );
     }
 
     g_orientationIcons.clear();
     g_orientationNames.clear();
 
-    for( PIN_ORIENTATION orientation : magic_enum::enum_values<PIN_ORIENTATION>() )
+    for( const auto& [orientationType, orientationData] : g_pinOrientations )
     {
-        if( orientation != PIN_ORIENTATION::INHERIT )
-        {
-            g_orientationIcons.push_back( PinOrientationGetBitmap( orientation ) );
-            g_orientationNames.push_back( PinOrientationName( orientation ) );
-        }
+        g_orientationIcons.push_back( orientationData.bitmap );
+        g_orientationNames.push_back( orientationData.name );
     }
 }
 
@@ -274,15 +274,3 @@ wxString PinOrientationName( PIN_ORIENTATION aOrientation )
 }
 
 
-BITMAPS PinOrientationGetBitmap( PIN_ORIENTATION aOrientation )
-{
-    if( g_pinOrientations.empty() )
-        InitTables();
-
-    auto it = g_pinOrientations.find( aOrientation );
-
-    wxCHECK_MSG( it != g_pinOrientations.end(), BITMAPS::INVALID_BITMAP,
-                 wxString::Format( "Pin orientation not found for type %d!", (int) aOrientation ) );
-
-    return it->second.bitmap;
-}

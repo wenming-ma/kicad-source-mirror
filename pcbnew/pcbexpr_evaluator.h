@@ -26,7 +26,9 @@
 #define PCBEXPR_EVALUATOR_H
 
 #include <set>
+#include <map>
 #include <unordered_map>
+#include <core/typeinfo.h>
 
 #include <layer_ids.h>
 
@@ -39,6 +41,14 @@ class BOARD;
 class BOARD_ITEM;
 
 class PCBEXPR_VAR_REF;
+
+
+// A navigation step applied to a variable reference before its property or method is resolved.
+// "A.Parent.getField('x')" resolves item A, then steps to its parent before calling getField().
+enum class PCBEXPR_NAV_STEP
+{
+    PARENT
+};
 
 class PCBEXPR_UCODE final : public LIBEVAL::UCODE
 {
@@ -74,6 +84,10 @@ public:
         m_items[1] = b;
     }
 
+    void SetTypeOverride( const BOARD_ITEM* aItem, KICAD_T aType ) { m_typeOverrides[aItem] = aType; }
+
+    KICAD_T GetEffectiveType( const BOARD_ITEM* aItem ) const;
+
     BOARD* GetBoard() const;
 
     int GetConstraint() const              { return m_constraint; }
@@ -81,9 +95,10 @@ public:
     PCB_LAYER_ID GetLayer() const          { return m_layer; }
 
 private:
-    int          m_constraint;
-    BOARD_ITEM*  m_items[2];
-    PCB_LAYER_ID m_layer;
+    int                                  m_constraint;
+    BOARD_ITEM*                          m_items[2];
+    PCB_LAYER_ID                         m_layer;
+    std::map<const BOARD_ITEM*, KICAD_T> m_typeOverrides;
 };
 
 
@@ -113,6 +128,13 @@ public:
         m_matchingTypes[type_hash] = prop;
     }
 
+    // Navigation steps walked from the base item before the property/method is resolved.
+    // An empty chain (the default) resolves the base item directly, as before.
+    void SetNavigation( std::vector<PCBEXPR_NAV_STEP> aNavigation )
+    {
+        m_navigation = std::move( aNavigation );
+    }
+
     LIBEVAL::VALUE* GetValue( LIBEVAL::CONTEXT* aCtx ) override;
 
     BOARD_ITEM* GetObject( const LIBEVAL::CONTEXT* aCtx ) const;
@@ -123,6 +145,7 @@ private:
     LIBEVAL::VAR_TYPE_T                         m_type;
     bool                                        m_isEnum;
     bool                                        m_isOptional;
+    std::vector<PCBEXPR_NAV_STEP>               m_navigation;
 };
 
 
